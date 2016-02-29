@@ -24,7 +24,7 @@ var baseValues = require('./_baseValues'),
  * // => [1, 2, 3] (iteration order is not guaranteed)
  */
 function valuesIn(object) {
-  return object == null ? baseValues(object, keysIn(object)) : [];
+  return object == null ? [] : baseValues(object, keysIn(object));
 }
 
 module.exports = valuesIn;

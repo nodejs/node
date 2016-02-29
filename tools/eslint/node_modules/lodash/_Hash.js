@@ -7,6 +7,7 @@ var objectProto = Object.prototype;
  * Creates an hash object.
  *
  * @private
+ * @constructor
  * @returns {Object} Returns the new hash object.
  */
 function Hash() {}

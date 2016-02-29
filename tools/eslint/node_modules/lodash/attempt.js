@@ -1,5 +1,5 @@
 var apply = require('./_apply'),
-    isObject = require('./isObject'),
+    isError = require('./isError'),
     rest = require('./rest');
 
 /**
@@ -26,7 +26,7 @@ var attempt = rest(function(func, args) {
   try {
     return apply(func, undefined, args);
   } catch (e) {
-    return isObject(e) ? e : new Error(e);
+    return isError(e) ? e : new Error(e);
   }
 });
 

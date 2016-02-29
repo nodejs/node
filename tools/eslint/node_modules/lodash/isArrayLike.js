@@ -9,7 +9,6 @@ var getLength = require('./_getLength'),
  *
  * @static
  * @memberOf _
- * @type Function
  * @category Lang
  * @param {*} value The value to check.
  * @returns {boolean} Returns `true` if `value` is array-like, else `false`.

@@ -19,7 +19,7 @@ var baseIteratee = require('./_baseIteratee'),
  * // => { 'a': 1, 'c': 3 }
  */
 function pickBy(object, predicate) {
-  return object == null ? {} : basePickBy(object, baseIteratee(predicate, 2));
+  return object == null ? {} : basePickBy(object, baseIteratee(predicate));
 }
 
 module.exports = pickBy;

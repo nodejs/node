@@ -14,7 +14,7 @@ var arrayMap = require('./_arrayMap'),
  * @category Object
  * @param {Object} object The source object.
  * @param {...(string|string[])} [props] The property names to omit, specified
- *  individually or in arrays..
+ *  individually or in arrays.
  * @returns {Object} Returns the new object.
  * @example
  *
@@ -27,7 +27,7 @@ var omit = rest(function(object, props) {
   if (object == null) {
     return {};
   }
-  props = arrayMap(baseFlatten(props), String);
+  props = arrayMap(baseFlatten(props, 1), String);
   return basePick(object, baseDifference(keysIn(object), props));
 });
 

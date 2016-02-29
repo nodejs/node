@@ -2,12 +2,12 @@ var baseMerge = require('./_baseMerge'),
     createAssigner = require('./_createAssigner');
 
 /**
- * Recursively merges own and inherited enumerable properties of source
- * objects into the destination object, skipping source properties that resolve
- * to `undefined`. Array and plain object properties are merged recursively.
- * Other objects and value types are overridden by assignment. Source objects
- * are applied from left to right. Subsequent sources overwrite property
- * assignments of previous sources.
+ * Recursively merges own and inherited enumerable properties of source objects
+ * into the destination object. Source properties that resolve to `undefined`
+ * are skipped if a destination value exists. Array and plain object properties
+ * are merged recursively. Other objects and value types are overridden by
+ * assignment. Source objects are applied from left to right. Subsequent
+ * sources overwrite property assignments of previous sources.
  *
  * **Note:** This method mutates `object`.
  *

@@ -27,7 +27,7 @@ var FUNC_ERROR_TEXT = 'Expected a function';
  */
 function createFlow(fromRight) {
   return rest(function(funcs) {
-    funcs = baseFlatten(funcs);
+    funcs = baseFlatten(funcs, 1);
 
     var length = funcs.length,
         index = length,
@@ -52,7 +52,10 @@ function createFlow(fromRight) {
       var funcName = getFuncName(func),
           data = funcName == 'wrapper' ? getData(func) : undefined;
 
-      if (data && isLaziable(data[0]) && data[1] == (ARY_FLAG | CURRY_FLAG | PARTIAL_FLAG | REARG_FLAG) && !data[4].length && data[9] == 1) {
+      if (data && isLaziable(data[0]) &&
+            data[1] == (ARY_FLAG | CURRY_FLAG | PARTIAL_FLAG | REARG_FLAG) &&
+            !data[4].length && data[9] == 1
+          ) {
         wrapper = wrapper[getFuncName(data[0])].apply(wrapper, data[3]);
       } else {
         wrapper = (func.length == 1 && isLaziable(func)) ? wrapper[funcName]() : wrapper.thru(func);
@@ -62,7 +65,8 @@ function createFlow(fromRight) {
       var args = arguments,
           value = args[0];
 
-      if (wrapper && args.length == 1 && isArray(value) && value.length >= LARGE_ARRAY_SIZE) {
+      if (wrapper && args.length == 1 &&
+          isArray(value) && value.length >= LARGE_ARRAY_SIZE) {
         return wrapper.plant(value).value();
       }
       var index = 0,

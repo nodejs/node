@@ -30,7 +30,7 @@ var arrayEach = require('./_arrayEach'),
  * // => logs 'clicked docs' when clicked
  */
 var bindAll = rest(function(object, methodNames) {
-  arrayEach(baseFlatten(methodNames), function(key) {
+  arrayEach(baseFlatten(methodNames, 1), function(key) {
     object[key] = bind(object[key], object);
   });
   return object;

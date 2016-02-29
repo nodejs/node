@@ -4,7 +4,7 @@
  *
  * @static
  * @memberOf _
- * @type Function
+ * @type {Function}
  * @category Date
  * @returns {number} Returns the timestamp.
  * @example

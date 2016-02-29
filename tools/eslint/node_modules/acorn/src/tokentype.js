@@ -95,7 +95,8 @@ export const types = {
   plusMin: new TokenType("+/-", {beforeExpr: true, binop: 9, prefix: true, startsExpr: true}),
   modulo: binop("%", 10),
   star: binop("*", 10),
-  slash: binop("/", 10)
+  slash: binop("/", 10),
+  starstar: new TokenType("**", {beforeExpr: true})
 }
 
 // Map keyword names to token types.
@@ -125,7 +126,6 @@ kw("switch")
 kw("throw", beforeExpr)
 kw("try")
 kw("var")
-kw("let")
 kw("const")
 kw("while", {isLoop: true})
 kw("with")
@@ -136,7 +136,6 @@ kw("class")
 kw("extends", beforeExpr)
 kw("export")
 kw("import")
-kw("yield", {beforeExpr: true, startsExpr: true})
 kw("null", startsExpr)
 kw("true", startsExpr)
 kw("false", startsExpr)

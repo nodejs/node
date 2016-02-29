@@ -8,6 +8,7 @@ var MAX_ARRAY_LENGTH = 4294967295;
  * Creates a lazy wrapper object which wraps `value` to enable lazy evaluation.
  *
  * @private
+ * @constructor
  * @param {*} value The value to wrap.
  */
 function LazyWrapper(value) {

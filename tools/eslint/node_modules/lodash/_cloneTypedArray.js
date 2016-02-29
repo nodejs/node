@@ -9,10 +9,11 @@ var cloneArrayBuffer = require('./_cloneArrayBuffer');
  * @returns {Object} Returns the cloned typed array.
  */
 function cloneTypedArray(typedArray, isDeep) {
-  var buffer = typedArray.buffer,
+  var arrayBuffer = typedArray.buffer,
+      buffer = isDeep ? cloneArrayBuffer(arrayBuffer) : arrayBuffer,
       Ctor = typedArray.constructor;
 
-  return new Ctor(isDeep ? cloneArrayBuffer(buffer) : buffer, typedArray.byteOffset, typedArray.length);
+  return new Ctor(buffer, typedArray.byteOffset, typedArray.length);
 }
 
 module.exports = cloneTypedArray;

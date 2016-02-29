@@ -14,6 +14,7 @@ module.exports = {
   'findLastIndex': require('./findLastIndex'),
   'flatten': require('./flatten'),
   'flattenDeep': require('./flattenDeep'),
+  'flattenDepth': require('./flattenDepth'),
   'fromPairs': require('./fromPairs'),
   'head': require('./head'),
   'indexOf': require('./indexOf'),

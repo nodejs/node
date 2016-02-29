@@ -1,7 +1,7 @@
 var arrayMap = require('./_arrayMap'),
+    baseCastArrayLikeObject = require('./_baseCastArrayLikeObject'),
     baseIntersection = require('./_baseIntersection'),
-    rest = require('./rest'),
-    toArrayLikeObject = require('./_toArrayLikeObject');
+    rest = require('./rest');
 
 /**
  * Creates an array of unique values that are included in all given arrays
@@ -19,7 +19,7 @@ var arrayMap = require('./_arrayMap'),
  * // => [2]
  */
 var intersection = rest(function(arrays) {
-  var mapped = arrayMap(arrays, toArrayLikeObject);
+  var mapped = arrayMap(arrays, baseCastArrayLikeObject);
   return (mapped.length && mapped[0] === arrays[0])
     ? baseIntersection(mapped)
     : [];

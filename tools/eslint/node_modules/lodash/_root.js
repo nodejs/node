@@ -7,10 +7,14 @@ var objectTypes = {
 };
 
 /** Detect free variable `exports`. */
-var freeExports = (objectTypes[typeof exports] && exports && !exports.nodeType) ? exports : null;
+var freeExports = (objectTypes[typeof exports] && exports && !exports.nodeType)
+  ? exports
+  : undefined;
 
 /** Detect free variable `module`. */
-var freeModule = (objectTypes[typeof module] && module && !module.nodeType) ? module : null;
+var freeModule = (objectTypes[typeof module] && module && !module.nodeType)
+  ? module
+  : undefined;
 
 /** Detect free variable `global` from Node.js. */
 var freeGlobal = checkGlobal(freeExports && freeModule && typeof global == 'object' && global);
@@ -30,6 +34,8 @@ var thisGlobal = checkGlobal(objectTypes[typeof this] && this);
  * The `this` value is used if it's the global object to avoid Greasemonkey's
  * restricted `window` object, otherwise the `window` object is used.
  */
-var root = freeGlobal || ((freeWindow !== (thisGlobal && thisGlobal.window)) && freeWindow) || freeSelf || thisGlobal || Function('return this')();
+var root = freeGlobal ||
+  ((freeWindow !== (thisGlobal && thisGlobal.window)) && freeWindow) ||
+    freeSelf || thisGlobal || Function('return this')();
 
 module.exports = root;

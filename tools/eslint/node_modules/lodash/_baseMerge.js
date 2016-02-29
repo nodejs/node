@@ -21,7 +21,10 @@ function baseMerge(object, source, srcIndex, customizer, stack) {
   if (object === source) {
     return;
   }
-  var props = (isArray(source) || isTypedArray(source)) ? undefined : keysIn(source);
+  var props = (isArray(source) || isTypedArray(source))
+    ? undefined
+    : keysIn(source);
+
   arrayEach(props || source, function(srcValue, key) {
     if (props) {
       key = srcValue;
@@ -32,7 +35,10 @@ function baseMerge(object, source, srcIndex, customizer, stack) {
       baseMergeDeep(object, source, key, srcIndex, baseMerge, customizer, stack);
     }
     else {
-      var newValue = customizer ? customizer(object[key], srcValue, (key + ''), object, source, stack) : undefined;
+      var newValue = customizer
+        ? customizer(object[key], srcValue, (key + ''), object, source, stack)
+        : undefined;
+
       if (newValue === undefined) {
         newValue = srcValue;
       }

@@ -1,5 +1,5 @@
 var assignValue = require('./_assignValue'),
-    baseToPath = require('./_baseToPath'),
+    baseCastPath = require('./_baseCastPath'),
     isIndex = require('./_isIndex'),
     isKey = require('./_isKey'),
     isObject = require('./isObject');
@@ -15,7 +15,7 @@ var assignValue = require('./_assignValue'),
  * @returns {Object} Returns `object`.
  */
 function baseSet(object, path, value, customizer) {
-  path = isKey(path, object) ? [path + ''] : baseToPath(path);
+  path = isKey(path, object) ? [path + ''] : baseCastPath(path);
 
   var index = -1,
       length = path.length,
@@ -30,7 +30,9 @@ function baseSet(object, path, value, customizer) {
         var objValue = nested[key];
         newValue = customizer ? customizer(objValue, key, nested) : undefined;
         if (newValue === undefined) {
-          newValue = objValue == null ? (isIndex(path[index + 1]) ? [] : {}) : objValue;
+          newValue = objValue == null
+            ? (isIndex(path[index + 1]) ? [] : {})
+            : objValue;
         }
       }
       assignValue(nested, key, newValue);

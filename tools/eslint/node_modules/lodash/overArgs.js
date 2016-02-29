@@ -39,7 +39,7 @@ var nativeMin = Math.min;
  * // => [100, 10]
  */
 var overArgs = rest(function(func, transforms) {
-  transforms = arrayMap(baseFlatten(transforms), baseIteratee);
+  transforms = arrayMap(baseFlatten(transforms, 1), baseIteratee);
 
   var funcsLength = transforms.length;
   return rest(function(args) {

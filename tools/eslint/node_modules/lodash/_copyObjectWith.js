@@ -18,8 +18,11 @@ function copyObjectWith(source, props, object, customizer) {
       length = props.length;
 
   while (++index < length) {
-    var key = props[index],
-        newValue = customizer ? customizer(object[key], source[key], key, object, source) : source[key];
+    var key = props[index];
+
+    var newValue = customizer
+      ? customizer(object[key], source[key], key, object, source)
+      : source[key];
 
     assignValue(object, key, newValue);
   }

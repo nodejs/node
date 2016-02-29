@@ -7,6 +7,9 @@ var arrayEach = require('./_arrayEach'),
     isObject = require('./isObject'),
     isTypedArray = require('./isTypedArray');
 
+/** Built-in value references. */
+var getPrototypeOf = Object.getPrototypeOf;
+
 /**
  * An alternative to `_.reduce`; this method transforms `object` to a new
  * `accumulator` object which is the result of running each of its own enumerable
@@ -45,7 +48,7 @@ function transform(object, iteratee, accumulator) {
       if (isArr) {
         accumulator = isArray(object) ? new Ctor : [];
       } else {
-        accumulator = baseCreate(isFunction(Ctor) ? Ctor.prototype : undefined);
+        accumulator = isFunction(Ctor) ? baseCreate(getPrototypeOf(object)) : {};
       }
     } else {
       accumulator = {};

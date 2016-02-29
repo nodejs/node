@@ -33,21 +33,24 @@ function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, sta
     assignMergeValue(object, key, stacked);
     return;
   }
-  var newValue = customizer ? customizer(objValue, srcValue, (key + ''), object, source, stack) : undefined,
-      isCommon = newValue === undefined;
+  var newValue = customizer
+    ? customizer(objValue, srcValue, (key + ''), object, source, stack)
+    : undefined;
+
+  var isCommon = newValue === undefined;
 
   if (isCommon) {
     newValue = srcValue;
     if (isArray(srcValue) || isTypedArray(srcValue)) {
       if (isArray(objValue)) {
-        newValue = srcIndex ? copyArray(objValue) : objValue;
+        newValue = objValue;
       }
       else if (isArrayLikeObject(objValue)) {
         newValue = copyArray(objValue);
       }
       else {
         isCommon = false;
-        newValue = baseClone(srcValue);
+        newValue = baseClone(srcValue, true);
       }
     }
     else if (isPlainObject(srcValue) || isArguments(srcValue)) {
@@ -56,10 +59,10 @@ function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, sta
       }
       else if (!isObject(objValue) || (srcIndex && isFunction(objValue))) {
         isCommon = false;
-        newValue = baseClone(srcValue);
+        newValue = baseClone(srcValue, true);
       }
       else {
-        newValue = srcIndex ? baseClone(objValue) : objValue;
+        newValue = objValue;
       }
     }
     else {

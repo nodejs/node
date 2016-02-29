@@ -17,7 +17,8 @@ function replaceHolders(array, placeholder) {
       result = [];
 
   while (++index < length) {
-    if (array[index] === placeholder) {
+    var value = array[index];
+    if (value === placeholder || value === PLACEHOLDER) {
       array[index] = PLACEHOLDER;
       result[++resIndex] = index;
     }

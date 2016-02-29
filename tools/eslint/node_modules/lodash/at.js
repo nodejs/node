@@ -23,7 +23,7 @@ var baseAt = require('./_baseAt'),
  * // => ['a', 'c']
  */
 var at = rest(function(object, paths) {
-  return baseAt(object, baseFlatten(paths));
+  return baseAt(object, baseFlatten(paths, 1));
 });
 
 module.exports = at;

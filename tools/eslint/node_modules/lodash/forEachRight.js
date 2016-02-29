@@ -1,7 +1,7 @@
 var arrayEachRight = require('./_arrayEachRight'),
+    baseCastFunction = require('./_baseCastFunction'),
     baseEachRight = require('./_baseEachRight'),
-    isArray = require('./isArray'),
-    toFunction = require('./_toFunction');
+    isArray = require('./isArray');
 
 /**
  * This method is like `_.forEach` except that it iterates over elements of
@@ -24,7 +24,7 @@ var arrayEachRight = require('./_arrayEachRight'),
 function forEachRight(collection, iteratee) {
   return (typeof iteratee == 'function' && isArray(collection))
     ? arrayEachRight(collection, iteratee)
-    : baseEachRight(collection, toFunction(iteratee));
+    : baseEachRight(collection, baseCastFunction(iteratee));
 }
 
 module.exports = forEachRight;

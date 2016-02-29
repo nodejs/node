@@ -1,6 +1,6 @@
 /**
  * @license
- * lodash 4.3.0 (Custom Build) <https://lodash.com/>
+ * lodash 4.5.1 (Custom Build) <https://lodash.com/>
  * Build: `lodash core -o ./dist/lodash.core.js`
  * Copyright 2012-2016 The Dojo Foundation <http://dojofoundation.org/>
  * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
@@ -13,7 +13,7 @@
   var undefined;
 
   /** Used as the semantic version number. */
-  var VERSION = '4.3.0';
+  var VERSION = '4.5.1';
 
   /** Used to compose bitmasks for wrapper metadata. */
   var BIND_FLAG = 1,
@@ -27,7 +27,8 @@
   var FUNC_ERROR_TEXT = 'Expected a function';
 
   /** Used as references for various `Number` constants. */
-  var MAX_SAFE_INTEGER = 9007199254740991;
+  var INFINITY = 1 / 0,
+      MAX_SAFE_INTEGER = 9007199254740991;
 
   /** `Object#toString` result references. */
   var argsTag = '[object Arguments]',
@@ -66,10 +67,19 @@
   };
 
   /** Detect free variable `exports`. */
-  var freeExports = (objectTypes[typeof exports] && exports && !exports.nodeType) ? exports : null;
+  var freeExports = (objectTypes[typeof exports] && exports && !exports.nodeType)
+    ? exports
+    : undefined;
 
   /** Detect free variable `module`. */
-  var freeModule = (objectTypes[typeof module] && module && !module.nodeType) ? module : null;
+  var freeModule = (objectTypes[typeof module] && module && !module.nodeType)
+    ? module
+    : undefined;
+
+  /** Detect the popular CommonJS extension `module.exports`. */
+  var moduleExports = (freeModule && freeModule.exports === freeExports)
+    ? freeExports
+    : undefined;
 
   /** Detect free variable `global` from Node.js. */
   var freeGlobal = checkGlobal(freeExports && freeModule && typeof global == 'object' && global);
@@ -80,9 +90,6 @@
   /** Detect free variable `window`. */
   var freeWindow = checkGlobal(objectTypes[typeof window] && window);
 
-  /** Detect the popular CommonJS extension `module.exports`. */
-  var moduleExports = (freeModule && freeModule.exports === freeExports) ? freeExports : null;
-
   /** Detect `this` as the global object. */
   var thisGlobal = checkGlobal(objectTypes[typeof this] && this);
 
@@ -92,7 +99,9 @@
    * The `this` value is used if it's the global object to avoid Greasemonkey's
    * restricted `window` object, otherwise the `window` object is used.
    */
-  var root = freeGlobal || ((freeWindow !== (thisGlobal && thisGlobal.window)) && freeWindow) || freeSelf || thisGlobal || Function('return this')();
+  var root = freeGlobal ||
+    ((freeWindow !== (thisGlobal && thisGlobal.window)) && freeWindow) ||
+      freeSelf || thisGlobal || Function('return this')();
 
   /*--------------------------------------------------------------------------*/
 
@@ -365,6 +374,7 @@
       Symbol = root.Symbol,
       Uint8Array = root.Uint8Array,
       enumerate = Reflect ? Reflect.enumerate : undefined,
+      objectCreate = Object.create,
       propertyIsEnumerable = objectProto.propertyIsEnumerable;
 
   /* Built-in method references for those with the same name as other `lodash` methods. */
@@ -413,51 +423,52 @@
    * `tail`, `take`, `takeRight`, `takeRightWhile`, `takeWhile`, and `toArray`
    *
    * The chainable wrapper methods are:
-   * `after`, `ary`, `assign`, `assignIn`, `assignInWith`, `assignWith`,
-   * `at`, `before`, `bind`, `bindAll`, `bindKey`, `chain`, `chunk`, `commit`,
-   * `compact`, `concat`, `conforms`, `constant`, `countBy`, `create`, `curry`,
-   * `debounce`, `defaults`, `defaultsDeep`, `defer`, `delay`, `difference`,
+   * `after`, `ary`, `assign`, `assignIn`, `assignInWith`, `assignWith`, `at`,
+   * `before`, `bind`, `bindAll`, `bindKey`, `castArray`, `chain`, `chunk`,
+   * `commit`, `compact`, `concat`, `conforms`, `constant`, `countBy`, `create`,
+   * `curry`, `debounce`, `defaults`, `defaultsDeep`, `defer`, `delay`, `difference`,
    * `differenceBy`, `differenceWith`, `drop`, `dropRight`, `dropRightWhile`,
-   * `dropWhile`, `fill`, `filter`, `flatten`, `flattenDeep`, `flip`, `flow`,
-   * `flowRight`, `fromPairs`, `functions`, `functionsIn`, `groupBy`, `initial`,
-   * `intersection`, `intersectionBy`, `intersectionWith`, `invert`, `invertBy`,
-   * `invokeMap`, `iteratee`, `keyBy`, `keys`, `keysIn`, `map`, `mapKeys`,
-   * `mapValues`, `matches`, `matchesProperty`, `memoize`, `merge`, `mergeWith`,
-   * `method`, `methodOf`, `mixin`, `negate`, `nthArg`, `omit`, `omitBy`, `once`,
-   * `orderBy`, `over`, `overArgs`, `overEvery`, `overSome`, `partial`,
-   * `partialRight`, `partition`, `pick`, `pickBy`, `plant`, `property`,
-   * `propertyOf`, `pull`, `pullAll`, `pullAllBy`, `pullAt`, `push`, `range`,
-   * `rangeRight`, `rearg`, `reject`, `remove`, `rest`, `reverse`, `sampleSize`,
-   * `set`, `setWith`, `shuffle`, `slice`, `sort`, `sortBy`, `splice`, `spread`,
-   * `tail`, `take`, `takeRight`, `takeRightWhile`, `takeWhile`, `tap`, `throttle`,
-   * `thru`, `toArray`, `toPairs`, `toPairsIn`, `toPath`, `toPlainObject`,
-   * `transform`, `unary`, `union`, `unionBy`, `unionWith`, `uniq`, `uniqBy`,
-   * `uniqWith`, `unset`, `unshift`, `unzip`, `unzipWith`, `values`, `valuesIn`,
-   * `without`, `wrap`, `xor`, `xorBy`, `xorWith`, `zip`, `zipObject`,
-   * `zipObjectDeep`, and `zipWith`
+   * `dropWhile`, `fill`, `filter`, `flatten`, `flattenDeep`, `flattenDepth`,
+   * `flip`, `flow`, `flowRight`, `fromPairs`, `functions`, `functionsIn`,
+   * `groupBy`, `initial`, `intersection`, `intersectionBy`, `intersectionWith`,
+   * `invert`, `invertBy`, `invokeMap`, `iteratee`, `keyBy`, `keys`, `keysIn`,
+   * `map`, `mapKeys`, `mapValues`, `matches`, `matchesProperty`, `memoize`,
+   * `merge`, `mergeWith`, `method`, `methodOf`, `mixin`, `negate`, `nthArg`,
+   * `omit`, `omitBy`, `once`, `orderBy`, `over`, `overArgs`, `overEvery`,
+   * `overSome`, `partial`, `partialRight`, `partition`, `pick`, `pickBy`, `plant`,
+   * `property`, `propertyOf`, `pull`, `pullAll`, `pullAllBy`, `pullAt`, `push`,
+   * `range`, `rangeRight`, `rearg`, `reject`, `remove`, `rest`, `reverse`,
+   * `sampleSize`, `set`, `setWith`, `shuffle`, `slice`, `sort`, `sortBy`,
+   * `splice`, `spread`, `tail`, `take`, `takeRight`, `takeRightWhile`,
+   * `takeWhile`, `tap`, `throttle`, `thru`, `toArray`, `toPairs`, `toPairsIn`,
+   * `toPath`, `toPlainObject`, `transform`, `unary`, `union`, `unionBy`,
+   * `unionWith`, `uniq`, `uniqBy`, `uniqWith`, `unset`, `unshift`, `unzip`,
+   * `unzipWith`, `values`, `valuesIn`, `without`, `wrap`, `xor`, `xorBy`,
+   * `xorWith`, `zip`, `zipObject`, `zipObjectDeep`, and `zipWith`
    *
    * The wrapper methods that are **not** chainable by default are:
    * `add`, `attempt`, `camelCase`, `capitalize`, `ceil`, `clamp`, `clone`,
    * `cloneDeep`, `cloneDeepWith`, `cloneWith`, `deburr`, `endsWith`, `eq`,
-   * `escape`, `escapeRegExp`, `every`, `find`, `findIndex`, `findKey`,
-   * `findLast`, `findLastIndex`, `findLastKey`, `floor`, `forEach`, `forEachRight`,
-   * `forIn`, `forInRight`, `forOwn`, `forOwnRight`, `get`, `gt`, `gte`, `has`,
-   * `hasIn`, `head`, `identity`, `includes`, `indexOf`, `inRange`, `invoke`,
-   * `isArguments`, `isArray`, `isArrayLike`, `isArrayLikeObject`, `isBoolean`,
-   * `isDate`, `isElement`, `isEmpty`, `isEqual`, `isEqualWith`, `isError`,
-   * `isFinite`, `isFunction`, `isInteger`, `isLength`, `isMatch`, `isMatchWith`,
-   * `isNaN`, `isNative`, `isNil`, `isNull`, `isNumber`, `isObject`, `isObjectLike`,
-   * `isPlainObject`, `isRegExp`, `isSafeInteger`, `isString`, `isUndefined`,
-   * `isTypedArray`, `join`, `kebabCase`, `last`, `lastIndexOf`, `lowerCase`,
-   * `lowerFirst`, `lt`, `lte`, `max`, `maxBy`, `mean`, `min`, `minBy`,
-   * `noConflict`, `noop`, `now`, `pad`, `padEnd`, `padStart`, `parseInt`,
-   * `pop`, `random`, `reduce`, `reduceRight`, `repeat`, `result`, `round`,
-   * `runInContext`, `sample`, `shift`, `size`, `snakeCase`, `some`, `sortedIndex`,
-   * `sortedIndexBy`, `sortedLastIndex`, `sortedLastIndexBy`, `startCase`,
-   * `startsWith`, `subtract`, `sum`, `sumBy`, `template`, `times`, `toLower`,
-   * `toInteger`, `toLength`, `toNumber`, `toSafeInteger`, `toString`, `toUpper`,
-   * `trim`, `trimEnd`, `trimStart`, `truncate`, `unescape`, `uniqueId`,
-   * `upperCase`, `upperFirst`, `value`, and `words`
+   * `escape`, `escapeRegExp`, `every`, `find`, `findIndex`, `findKey`, `findLast`,
+   * `findLastIndex`, `findLastKey`, `floor`, `forEach`, `forEachRight`, `forIn`,
+   * `forInRight`, `forOwn`, `forOwnRight`, `get`, `gt`, `gte`, `has`, `hasIn`,
+   * `head`, `identity`, `includes`, `indexOf`, `inRange`, `invoke`, `isArguments`,
+   * `isArray`, `isArrayBuffer`, `isArrayLike`, `isArrayLikeObject`, `isBoolean`,
+   * `isBuffer`, `isDate`, `isElement`, `isEmpty`, `isEqual`, `isEqualWith`,
+   * `isError`, `isFinite`, `isFunction`, `isInteger`, `isLength`, `isMap`,
+   * `isMatch`, `isMatchWith`, `isNaN`, `isNative`, `isNil`, `isNull`, `isNumber`,
+   * `isObject`, `isObjectLike`, `isPlainObject`, `isRegExp`, `isSafeInteger`,
+   * `isSet`, `isString`, `isUndefined`, `isTypedArray`, `isWeakMap`, `isWeakSet`,
+   * `join`, `kebabCase`, `last`, `lastIndexOf`, `lowerCase`, `lowerFirst`,
+   * `lt`, `lte`, `max`, `maxBy`, `mean`, `min`, `minBy`, `noConflict`, `noop`,
+   * `now`, `pad`, `padEnd`, `padStart`, `parseInt`, `pop`, `random`, `reduce`,
+   * `reduceRight`, `repeat`, `result`, `round`, `runInContext`, `sample`,
+   * `shift`, `size`, `snakeCase`, `some`, `sortedIndex`, `sortedIndexBy`,
+   * `sortedLastIndex`, `sortedLastIndexBy`, `startCase`, `startsWith`, `subtract`,
+   * `sum`, `sumBy`, `template`, `times`, `toLower`, `toInteger`, `toLength`,
+   * `toNumber`, `toSafeInteger`, `toString`, `toUpper`, `trim`, `trimEnd`,
+   * `trimStart`, `truncate`, `unescape`, `uniqueId`, `upperCase`, `upperFirst`,
+   * `value`, and `words`
    *
    * @name _
    * @constructor
@@ -542,11 +553,21 @@
    */
   function assignValue(object, key, value) {
     var objValue = object[key];
-    if ((!eq(objValue, value) ||
-          (eq(objValue, objectProto[key]) && !hasOwnProperty.call(object, key))) ||
+    if (!(hasOwnProperty.call(object, key) && eq(objValue, value)) ||
         (value === undefined && !(key in object))) {
       object[key] = value;
     }
+  }
+
+  /**
+   * Casts `value` to `identity` if it's not a function.
+   *
+   * @private
+   * @param {*} value The value to inspect.
+   * @returns {Array} Returns the array-like object.
+   */
+  function baseCastFunction(value) {
+    return typeof value == 'function' ? value : identity;
   }
 
   /**
@@ -557,17 +578,9 @@
    * @param {Object} prototype The object to inherit from.
    * @returns {Object} Returns the new object.
    */
-  var baseCreate = (function() {
-    function object() {}
-    return function(prototype) {
-      if (isObject(prototype)) {
-        object.prototype = prototype;
-        var result = new object;
-        object.prototype = undefined;
-      }
-      return result || {};
-    };
-  }());
+  function baseCreate(proto) {
+    return isObject(proto) ? objectCreate(proto) : {};
+  }
 
   /**
    * The base implementation of `_.delay` and `_.defer` which accepts an array
@@ -636,12 +649,12 @@
    *
    * @private
    * @param {Array} array The array to flatten.
-   * @param {boolean} [isDeep] Specify a deep flatten.
+   * @param {number} depth The maximum recursion depth.
    * @param {boolean} [isStrict] Restrict flattening to arrays-like objects.
    * @param {Array} [result=[]] The initial result value.
    * @returns {Array} Returns the new flattened array.
    */
-  function baseFlatten(array, isDeep, isStrict, result) {
+  function baseFlatten(array, depth, isStrict, result) {
     result || (result = []);
 
     var index = -1,
@@ -649,11 +662,11 @@
 
     while (++index < length) {
       var value = array[index];
-      if (isArrayLikeObject(value) &&
+      if (depth > 0 && isArrayLikeObject(value) &&
           (isStrict || isArray(value) || isArguments(value))) {
-        if (isDeep) {
+        if (depth > 1) {
           // Recursively flatten arrays (susceptible to call stack limits).
-          baseFlatten(value, isDeep, isStrict, result);
+          baseFlatten(value, depth - 1, isStrict, result);
         } else {
           arrayPush(result, value);
         }
@@ -816,7 +829,6 @@
    * property of prototypes or treat sparse arrays as dense.
    *
    * @private
-   * @type Function
    * @param {Object} object The object to query.
    * @returns {Array} Returns the array of property names.
    */
@@ -1032,8 +1044,11 @@
         length = props.length;
 
     while (++index < length) {
-      var key = props[index],
-          newValue = customizer ? customizer(object[key], source[key], key, object, source) : source[key];
+      var key = props[index];
+
+      var newValue = customizer
+        ? customizer(object[key], source[key], key, object, source)
+        : source[key];
 
       assignValue(object, key, newValue);
     }
@@ -1053,7 +1068,10 @@
           length = sources.length,
           customizer = length > 1 ? sources[length - 1] : undefined;
 
-      customizer = typeof customizer == 'function' ? (length--, customizer) : undefined;
+      customizer = typeof customizer == 'function'
+        ? (length--, customizer)
+        : undefined;
+
       object = Object(object);
       while (++index < length) {
         var source = sources[index];
@@ -1377,20 +1395,9 @@
    */
   function isPrototype(value) {
     var Ctor = value && value.constructor,
-        proto = (typeof Ctor == 'function' && Ctor.prototype) || objectProto;
+        proto = (isFunction(Ctor) && Ctor.prototype) || objectProto;
 
     return value === proto;
-  }
-
-  /**
-   * Converts `value` to a function if it's not one.
-   *
-   * @private
-   * @param {*} value The value to process.
-   * @returns {Function} Returns the function.
-   */
-  function toFunction(value) {
-    return typeof value == 'function' ? value : identity;
   }
 
   /**
@@ -1451,12 +1458,12 @@
     if (!isArray(array)) {
       array = array == null ? [] : [Object(array)];
     }
-    values = baseFlatten(values);
+    values = baseFlatten(values, 1);
     return arrayConcat(array, values);
   });
 
   /**
-   * Flattens `array` a single level.
+   * Flattens `array` a single level deep.
    *
    * @static
    * @memberOf _
@@ -1465,30 +1472,30 @@
    * @returns {Array} Returns the new flattened array.
    * @example
    *
-   * _.flatten([1, [2, 3, [4]]]);
-   * // => [1, 2, 3, [4]]
+   * _.flatten([1, [2, [3, [4]], 5]]);
+   * // => [1, 2, [3, [4]], 5]
    */
   function flatten(array) {
     var length = array ? array.length : 0;
-    return length ? baseFlatten(array) : [];
+    return length ? baseFlatten(array, 1) : [];
   }
 
   /**
-   * This method is like `_.flatten` except that it recursively flattens `array`.
+   * Recursively flattens `array`.
    *
    * @static
    * @memberOf _
    * @category Array
-   * @param {Array} array The array to recursively flatten.
+   * @param {Array} array The array to flatten.
    * @returns {Array} Returns the new flattened array.
    * @example
    *
-   * _.flattenDeep([1, [2, 3, [4]]]);
-   * // => [1, 2, 3, 4]
+   * _.flattenDeep([1, [2, [3, [4]], 5]]);
+   * // => [1, 2, 3, 4, 5]
    */
   function flattenDeep(array) {
     var length = array ? array.length : 0;
-    return length ? baseFlatten(array, true) : [];
+    return length ? baseFlatten(array, INFINITY) : [];
   }
 
   /**
@@ -1872,7 +1879,7 @@
    * // => logs 'a' then 'b' (iteration order is not guaranteed)
    */
   function forEach(collection, iteratee) {
-    return baseEach(collection, toFunction(iteratee));
+    return baseEach(collection, baseCastFunction(iteratee));
   }
 
   /**
@@ -2400,7 +2407,7 @@
    *
    * @static
    * @memberOf _
-   * @type Function
+   * @type {Function}
    * @category Lang
    * @param {*} value The value to check.
    * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
@@ -2427,7 +2434,6 @@
    *
    * @static
    * @memberOf _
-   * @type Function
    * @category Lang
    * @param {*} value The value to check.
    * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
@@ -2456,7 +2462,6 @@
    *
    * @static
    * @memberOf _
-   * @type Function
    * @category Lang
    * @param {*} value The value to check.
    * @returns {boolean} Returns `true` if `value` is an array-like object, else `false`.
@@ -2548,7 +2553,8 @@
    */
   function isEmpty(value) {
     if (isArrayLike(value) &&
-        (isArray(value) || isString(value) || isFunction(value.splice) || isArguments(value))) {
+        (isArray(value) || isString(value) ||
+          isFunction(value.splice) || isArguments(value))) {
       return !value.length;
     }
     for (var key in value) {
@@ -2667,7 +2673,8 @@
    * // => false
    */
   function isLength(value) {
-    return typeof value == 'number' && value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
+    return typeof value == 'number' &&
+      value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
   }
 
   /**
@@ -3295,7 +3302,7 @@
    * // => { 'a': 1, 'c': 3 }
    */
   var pick = rest(function(object, props) {
-    return object == null ? {} : basePick(object, baseFlatten(props));
+    return object == null ? {} : basePick(object, baseFlatten(props, 1));
   });
 
   /**
@@ -3429,7 +3436,8 @@
    * Creates a function that invokes `func` with the arguments of the created
    * function. If `func` is a property name the created callback returns the
    * property value for a given element. If `func` is an object the created
-   * callback returns `true` for elements that contain the equivalent object properties, otherwise it returns `false`.
+   * callback returns `true` for elements that contain the equivalent object
+   * properties, otherwise it returns `false`.
    *
    * @static
    * @memberOf _
@@ -3457,9 +3465,10 @@
   var iteratee = baseIteratee;
 
   /**
-   * Creates a function that performs a deep partial comparison between a given
+   * Creates a function that performs a partial deep comparison between a given
    * object and `source`, returning `true` if the given object has equivalent
-   * property values, else `false`.
+   * property values, else `false`. The created function is equivalent to
+   * `_.isMatch` with a `source` partially applied.
    *
    * **Note:** This method supports comparing the same values as `_.isEqual`.
    *
@@ -3597,7 +3606,7 @@
    * @static
    * @memberOf _
    * @category Util
-   * @param {string} [prefix] The value to prefix the ID with.
+   * @param {string} [prefix=''] The value to prefix the ID with.
    * @returns {string} Returns the unique ID.
    * @example
    *
@@ -3759,7 +3768,7 @@
    *
    * @static
    * @memberOf _
-   * @type string
+   * @type {string}
    */
   lodash.VERSION = VERSION;
 

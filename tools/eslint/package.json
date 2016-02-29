@@ -1,18 +1,18 @@
 {
   "_args": [
     [
-      "eslint@latest",
-      "/Users/trott/test"
+      "eslint",
+      "/Users/daniel/dev/github/node/tools/_eslint"
     ]
   ],
   "_from": "eslint@latest",
-  "_id": "eslint@2.1.0",
+  "_id": "eslint@2.2.0",
   "_inCache": true,
   "_installable": true,
   "_location": "/eslint",
   "_npmOperationalInternal": {
-    "host": "packages-6-west.internal.npmjs.com",
-    "tmp": "tmp/eslint-2.1.0.tgz_1455561335213_0.7634323448874056"
+    "host": "packages-9-west.internal.npmjs.com",
+    "tmp": "tmp/eslint-2.2.0.tgz_1455903677516_0.2245200586039573"
   },
   "_npmUser": {
     "email": "nicholas@nczconsulting.com",
@@ -22,8 +22,8 @@
   "_phantomChildren": {},
   "_requested": {
     "name": "eslint",
-    "raw": "eslint@latest",
-    "rawSpec": "latest",
+    "raw": "eslint",
+    "rawSpec": "",
     "scope": null,
     "spec": "latest",
     "type": "tag"
@@ -31,11 +31,11 @@
   "_requiredBy": [
     "#USER"
   ],
-  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-2.1.0.tgz",
-  "_shasum": "6c5c28c0bf686cfeea379fcd4eb3c9a2ce2ac72f",
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-2.2.0.tgz",
+  "_shasum": "6c8d743a91546595ba186eded096682f47598de8",
   "_shrinkwrap": null,
-  "_spec": "eslint@latest",
-  "_where": "/Users/trott/test",
+  "_spec": "eslint",
+  "_where": "/Users/daniel/dev/github/node/tools/_eslint",
   "author": {
     "email": "nicholas+npm@nczconsulting.com",
     "name": "Nicholas C. Zakas"
@@ -73,6 +73,7 @@
     "path-is-inside": "^1.0.1",
     "pluralize": "^1.2.1",
     "progress": "^1.1.8",
+    "require-uncached": "^1.0.2",
     "resolve": "^1.1.6",
     "shelljs": "^0.5.3",
     "strip-json-comments": "~1.0.1",
@@ -109,13 +110,14 @@
     "semver": "^5.0.3",
     "shelljs-nodecli": "~0.1.0",
     "sinon": "^1.17.2",
+    "temp": "^0.8.3",
     "through": "^2.3.6",
     "tmp": "0.0.28"
   },
   "directories": {},
   "dist": {
-    "shasum": "6c5c28c0bf686cfeea379fcd4eb3c9a2ce2ac72f",
-    "tarball": "http://registry.npmjs.org/eslint/-/eslint-2.1.0.tgz"
+    "shasum": "6c8d743a91546595ba186eded096682f47598de8",
+    "tarball": "http://registry.npmjs.org/eslint/-/eslint-2.2.0.tgz"
   },
   "engines": {
     "node": ">=0.10"
@@ -130,21 +132,21 @@
   "homepage": "http://eslint.org",
   "keywords": [
     "ast",
-    "lint",
-    "javascript",
     "ecmascript",
-    "espree"
+    "espree",
+    "javascript",
+    "lint"
   ],
   "license": "MIT",
   "main": "./lib/api.js",
   "maintainers": [
     {
-      "email": "nicholas@nczconsulting.com",
-      "name": "nzakas"
+      "name": "nzakas",
+      "email": "nicholas@nczconsulting.com"
     },
     {
-      "email": "ivolodin@gmail.com",
-      "name": "ivolodin"
+      "name": "ivolodin",
+      "email": "ivolodin@gmail.com"
     }
   ],
   "name": "eslint",
@@ -168,5 +170,5 @@
     "release": "node Makefile.js release",
     "test": "node Makefile.js test"
   },
-  "version": "2.1.0"
+  "version": "2.2.0"
 }

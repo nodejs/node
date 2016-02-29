@@ -5,7 +5,8 @@ var baseClone = require('./_baseClone'),
  * Creates a function that invokes `func` with the arguments of the created
  * function. If `func` is a property name the created callback returns the
  * property value for a given element. If `func` is an object the created
- * callback returns `true` for elements that contain the equivalent object properties, otherwise it returns `false`.
+ * callback returns `true` for elements that contain the equivalent object
+ * properties, otherwise it returns `false`.
  *
  * @static
  * @memberOf _

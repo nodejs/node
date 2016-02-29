@@ -431,7 +431,12 @@ module.exports = function(context) {
                 if (parent.type !== "VariableDeclarator" || parentVarNode === parentVarNode.parent.declarations[0]) {
                     if (parentVarNode.loc.start.line === effectiveParent.loc.start.line) {
                         nodeIndent = nodeIndent + (indentSize * options.VariableDeclarator[parentVarNode.parent.kind]);
-                    } else if (parent.type === "ObjectExpression" || parent.type === "ArrayExpression") {
+                    } else if (
+                        parent.type === "ObjectExpression" ||
+                        parent.type === "ArrayExpression" ||
+                        parent.type === "CallExpression" ||
+                        parent.type === "ArrowFunctionExpression"
+                    ) {
                         nodeIndent = nodeIndent + indentSize;
                     }
                 }
