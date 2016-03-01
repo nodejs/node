@@ -81,8 +81,8 @@ L$enc_loop:
 	movl	0(%r14,%rdi,8),%edi
 	movl	0(%r14,%rbp,8),%ebp
 
-	andl	$65280,%edi
-	andl	$65280,%ebp
+	andl	$0x0000ff00,%edi
+	andl	$0x0000ff00,%ebp
 
 	xorl	%edi,%r10d
 	xorl	%ebp,%r11d
@@ -94,8 +94,8 @@ L$enc_loop:
 	movl	0(%r14,%rsi,8),%esi
 	movl	0(%r14,%rdi,8),%edi
 
-	andl	$65280,%esi
-	andl	$65280,%edi
+	andl	$0x0000ff00,%esi
+	andl	$0x0000ff00,%edi
 	shrl	$16,%ebx
 	xorl	%esi,%r12d
 	xorl	%edi,%r8d
@@ -108,9 +108,9 @@ L$enc_loop:
 	movl	0(%r14,%rdi,8),%edi
 	movl	0(%r14,%rbp,8),%ebp
 
-	andl	$16711680,%esi
-	andl	$16711680,%edi
-	andl	$16711680,%ebp
+	andl	$0x00ff0000,%esi
+	andl	$0x00ff0000,%edi
+	andl	$0x00ff0000,%ebp
 
 	xorl	%esi,%r10d
 	xorl	%edi,%r11d
@@ -123,9 +123,9 @@ L$enc_loop:
 	movl	2(%r14,%rdi,8),%edi
 	movl	2(%r14,%rbp,8),%ebp
 
-	andl	$16711680,%esi
-	andl	$4278190080,%edi
-	andl	$4278190080,%ebp
+	andl	$0x00ff0000,%esi
+	andl	$0xff000000,%edi
+	andl	$0xff000000,%ebp
 
 	xorl	%esi,%r8d
 	xorl	%edi,%r10d
@@ -138,8 +138,8 @@ L$enc_loop:
 	movl	2(%r14,%rdi,8),%edi
 	movl	16+0(%r15),%eax
 
-	andl	$4278190080,%esi
-	andl	$4278190080,%edi
+	andl	$0xff000000,%esi
+	andl	$0xff000000,%edi
 
 	xorl	%esi,%r12d
 	xorl	%edi,%r8d
@@ -241,8 +241,8 @@ L$enc_loop_compact:
 	xorl	%r8d,%edx
 	cmpq	16(%rsp),%r15
 	je	L$enc_compact_done
-	movl	$2155905152,%r10d
-	movl	$2155905152,%r11d
+	movl	$0x80808080,%r10d
+	movl	$0x80808080,%r11d
 	andl	%eax,%r10d
 	andl	%ebx,%r11d
 	movl	%r10d,%esi
@@ -253,10 +253,10 @@ L$enc_loop_compact:
 	leal	(%rbx,%rbx,1),%r9d
 	subl	%r10d,%esi
 	subl	%r11d,%edi
-	andl	$4278124286,%r8d
-	andl	$4278124286,%r9d
-	andl	$454761243,%esi
-	andl	$454761243,%edi
+	andl	$0xfefefefe,%r8d
+	andl	$0xfefefefe,%r9d
+	andl	$0x1b1b1b1b,%esi
+	andl	$0x1b1b1b1b,%edi
 	movl	%eax,%r10d
 	movl	%ebx,%r11d
 	xorl	%esi,%r8d
@@ -264,9 +264,9 @@ L$enc_loop_compact:
 
 	xorl	%r8d,%eax
 	xorl	%r9d,%ebx
-	movl	$2155905152,%r12d
+	movl	$0x80808080,%r12d
 	roll	$24,%eax
-	movl	$2155905152,%ebp
+	movl	$0x80808080,%ebp
 	roll	$24,%ebx
 	andl	%ecx,%r12d
 	andl	%edx,%ebp
@@ -289,10 +289,10 @@ L$enc_loop_compact:
 	xorl	%r10d,%eax
 	xorl	%r11d,%ebx
 
-	andl	$4278124286,%r8d
-	andl	$4278124286,%r9d
-	andl	$454761243,%esi
-	andl	$454761243,%edi
+	andl	$0xfefefefe,%r8d
+	andl	$0xfefefefe,%r9d
+	andl	$0x1b1b1b1b,%esi
+	andl	$0x1b1b1b1b,%edi
 	movl	%ecx,%r12d
 	movl	%edx,%ebp
 	xorl	%esi,%r8d
@@ -345,7 +345,7 @@ _AES_encrypt:
 	andq	$-64,%rsp
 	subq	%rsp,%rcx
 	negq	%rcx
-	andq	$960,%rcx
+	andq	$0x3c0,%rcx
 	subq	%rcx,%rsp
 	subq	$32,%rsp
 
@@ -370,7 +370,7 @@ L$enc_prologue:
 	leaq	L$AES_Te+2048(%rip),%r14
 	leaq	768(%rsp),%rbp
 	subq	%r14,%rbp
-	andq	$768,%rbp
+	andq	$0x300,%rbp
 	leaq	(%r14,%rbp,1),%r14
 
 	call	_x86_64_AES_encrypt_compact
@@ -792,7 +792,7 @@ _AES_decrypt:
 	andq	$-64,%rsp
 	subq	%rsp,%rcx
 	negq	%rcx
-	andq	$960,%rcx
+	andq	$0x3c0,%rcx
 	subq	%rcx,%rsp
 	subq	$32,%rsp
 
@@ -817,7 +817,7 @@ L$dec_prologue:
 	leaq	L$AES_Td+2048(%rip),%r14
 	leaq	768(%rsp),%rbp
 	subq	%r14,%rbp
-	andq	$768,%rbp
+	andq	$0x300,%rbp
 	leaq	(%r14,%rbp,1),%r14
 	shrq	$3,%rbp
 	addq	%rbp,%r14
@@ -1333,9 +1333,9 @@ L$cbc_picked_te:
 	movq	%r14,%r10
 	leaq	2304(%r14),%r11
 	movq	%r15,%r12
-	andq	$4095,%r10
-	andq	$4095,%r11
-	andq	$4095,%r12
+	andq	$0xFFF,%r10
+	andq	$0xFFF,%r11
+	andq	$0xFFF,%r12
 
 	cmpq	%r11,%r12
 	jb	L$cbc_te_break_out
@@ -1344,7 +1344,7 @@ L$cbc_picked_te:
 	jmp	L$cbc_te_ok
 L$cbc_te_break_out:
 	subq	%r10,%r12
-	andq	$4095,%r12
+	andq	$0xFFF,%r12
 	addq	$320,%r12
 	subq	%r12,%r15
 .p2align	2
@@ -1370,7 +1370,7 @@ L$cbc_fast_body:
 
 	movq	%r15,%r10
 	subq	%r14,%r10
-	andq	$4095,%r10
+	andq	$0xfff,%r10
 	cmpq	$2304,%r10
 	jb	L$cbc_do_ecopy
 	cmpq	$4096-248,%r10
@@ -1557,7 +1557,7 @@ L$cbc_slow_prologue:
 	leaq	-88-63(%rcx),%r10
 	subq	%rbp,%r10
 	negq	%r10
-	andq	$960,%r10
+	andq	$0x3c0,%r10
 	subq	%r10,%rbp
 
 	xchgq	%rsp,%rbp
@@ -1586,7 +1586,7 @@ L$cbc_slow_body:
 	leaq	2048(%r14),%r14
 	leaq	768-8(%rsp),%rax
 	subq	%r14,%rax
-	andq	$768,%rax
+	andq	$0x300,%rax
 	leaq	(%r14,%rax,1),%r14
 
 	cmpq	$0,%rbx

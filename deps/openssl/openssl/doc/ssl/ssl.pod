@@ -130,41 +130,86 @@ protocol methods defined in B<SSL_METHOD> structures.
 
 =over 4
 
-=item const SSL_METHOD *B<SSLv2_client_method>(void);
+=item const SSL_METHOD *B<SSLv23_method>(void);
 
-Constructor for the SSLv2 SSL_METHOD structure for a dedicated client.
+Constructor for the I<version-flexible> SSL_METHOD structure for
+clients, servers or both.
+See L<SSL_CTX_new(3)> for details.
 
-=item const SSL_METHOD *B<SSLv2_server_method>(void);
+=item const SSL_METHOD *B<SSLv23_client_method>(void);
 
-Constructor for the SSLv2 SSL_METHOD structure for a dedicated server.
+Constructor for the I<version-flexible> SSL_METHOD structure for
+clients.
 
-=item const SSL_METHOD *B<SSLv2_method>(void);
+=item const SSL_METHOD *B<SSLv23_client_method>(void);
 
-Constructor for the SSLv2 SSL_METHOD structure for combined client and server.
+Constructor for the I<version-flexible> SSL_METHOD structure for
+servers.
 
-=item const SSL_METHOD *B<SSLv3_client_method>(void);
+=item const SSL_METHOD *B<TLSv1_2_method>(void);
 
-Constructor for the SSLv3 SSL_METHOD structure for a dedicated client.
+Constructor for the TLSv1.2 SSL_METHOD structure for clients, servers
+or both.
 
-=item const SSL_METHOD *B<SSLv3_server_method>(void);
+=item const SSL_METHOD *B<TLSv1_2_client_method>(void);
 
-Constructor for the SSLv3 SSL_METHOD structure for a dedicated server.
+Constructor for the TLSv1.2 SSL_METHOD structure for clients.
 
-=item const SSL_METHOD *B<SSLv3_method>(void);
+=item const SSL_METHOD *B<TLSv1_2_server_method>(void);
 
-Constructor for the SSLv3 SSL_METHOD structure for combined client and server.
+Constructor for the TLSv1.2 SSL_METHOD structure for servers.
 
-=item const SSL_METHOD *B<TLSv1_client_method>(void);
+=item const SSL_METHOD *B<TLSv1_1_method>(void);
 
-Constructor for the TLSv1 SSL_METHOD structure for a dedicated client.
+Constructor for the TLSv1.1 SSL_METHOD structure for clients, servers
+or both.
 
-=item const SSL_METHOD *B<TLSv1_server_method>(void);
+=item const SSL_METHOD *B<TLSv1_1_client_method>(void);
 
-Constructor for the TLSv1 SSL_METHOD structure for a dedicated server.
+Constructor for the TLSv1.1 SSL_METHOD structure for clients.
+
+=item const SSL_METHOD *B<TLSv1_1_server_method>(void);
+
+Constructor for the TLSv1.1 SSL_METHOD structure for servers.
 
 =item const SSL_METHOD *B<TLSv1_method>(void);
 
-Constructor for the TLSv1 SSL_METHOD structure for combined client and server.
+Constructor for the TLSv1 SSL_METHOD structure for clients, servers
+or both.
+
+=item const SSL_METHOD *B<TLSv1_client_method>(void);
+
+Constructor for the TLSv1 SSL_METHOD structure for clients.
+
+=item const SSL_METHOD *B<TLSv1_server_method>(void);
+
+Constructor for the TLSv1 SSL_METHOD structure for servers.
+
+=item const SSL_METHOD *B<SSLv3_method>(void);
+
+Constructor for the SSLv3 SSL_METHOD structure for clients, servers
+or both.
+
+=item const SSL_METHOD *B<SSLv3_client_method>(void);
+
+Constructor for the SSLv3 SSL_METHOD structure for clients.
+
+=item const SSL_METHOD *B<SSLv3_server_method>(void);
+
+Constructor for the SSLv3 SSL_METHOD structure for servers.
+
+=item const SSL_METHOD *B<SSLv2_method>(void);
+
+Constructor for the SSLv2 SSL_METHOD structure for clients, servers
+or both.
+
+=item const SSL_METHOD *B<SSLv2_client_method>(void);
+
+Constructor for the SSLv2 SSL_METHOD structure for clients.
+
+=item const SSL_METHOD *B<SSLv2_server_method>(void);
+
+Constructor for the SSLv2 SSL_METHOD structure for servers.
 
 =back
 

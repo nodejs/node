@@ -1060,7 +1060,12 @@ int SSL_shutdown(SSL *s)
         return -1;
     }
 
-    return s->method->ssl_shutdown(s);
+    if (!SSL_in_init(s)) {
+        return s->method->ssl_shutdown(s);
+    } else {
+        SSLerr(SSL_F_SSL_SHUTDOWN, SSL_R_SHUTDOWN_WHILE_IN_INIT);
+        return -1;
+    }
 }
 
 int SSL_renegotiate(SSL *s)
@@ -2048,6 +2053,13 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth)
      * deployed might change this.
      */
     ret->options |= SSL_OP_LEGACY_SERVER_CONNECT;
+
+    /*
+     * Disable SSLv2 by default, callers that want to enable SSLv2 will have to
+     * explicitly clear this option via either of SSL_CTX_clear_options() or
+     * SSL_clear_options().
+     */
+    ret->options |= SSL_OP_NO_SSLv2;
 
     return (ret);
  err:
