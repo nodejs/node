@@ -325,11 +325,11 @@ const crypto = require('crypto');
 const assert = require('assert');
 
 // Generate Alice's keys...
-const alice = crypto.createDiffieHellman(11);
+const alice = crypto.createDiffieHellman('modp14');
 const alice_key = alice.generateKeys();
 
 // Generate Bob's keys...
-const bob = crypto.createDiffieHellman(11);
+const bob = crypto.createDiffieHellman('modp14');
 const bob_key = bob.generateKeys();
 
 // Exchange and generate the secret...
