@@ -191,6 +191,8 @@ static int dsa_priv_decode(EVP_PKEY *pkey, PKCS8_PRIV_KEY_INFO *p8)
     STACK_OF(ASN1_TYPE) *ndsa = NULL;
     DSA *dsa = NULL;
 
+    int ret = 0;
+
     if (!PKCS8_pkey_get0(NULL, &p, &pklen, &palg, p8))
         return 0;
     X509_ALGOR_get0(NULL, &ptype, &pval, palg);
@@ -262,23 +264,21 @@ static int dsa_priv_decode(EVP_PKEY *pkey, PKCS8_PRIV_KEY_INFO *p8)
     }
 
     EVP_PKEY_assign_DSA(pkey, dsa);
+
+    ret = 1;
+    goto done;
+
+ decerr:
+    DSAerr(DSA_F_DSA_PRIV_DECODE, EVP_R_DECODE_ERROR);
+ dsaerr:
+    DSA_free(dsa);
+ done:
     BN_CTX_free(ctx);
     if (ndsa)
         sk_ASN1_TYPE_pop_free(ndsa, ASN1_TYPE_free);
     else
         ASN1_STRING_clear_free(privkey);
-
-    return 1;
-
- decerr:
-    DSAerr(DSA_F_DSA_PRIV_DECODE, EVP_R_DECODE_ERROR);
- dsaerr:
-    BN_CTX_free(ctx);
-    if (privkey)
-        ASN1_STRING_clear_free(privkey);
-    sk_ASN1_TYPE_pop_free(ndsa, ASN1_TYPE_free);
-    DSA_free(dsa);
-    return 0;
+    return ret;
 }
 
 static int dsa_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)

@@ -5,6 +5,19 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1r and OpenSSL 1.0.1s [1 Mar 2016]
+
+      o Disable weak ciphers in SSLv3 and up in default builds of OpenSSL.
+      o Disable SSLv2 default build, default negotiation and weak ciphers
+        (CVE-2016-0800)
+      o Fix a double-free in DSA code (CVE-2016-0705)
+      o Disable SRP fake user seed to address a server memory leak
+        (CVE-2016-0798)
+      o Fix BN_hex2bn/BN_dec2bn NULL pointer deref/heap corruption
+        (CVE-2016-0797)
+      o Fix memory issues in BIO_*printf functions (CVE-2016-0799)
+      o Fix side channel attack on modular exponentiation (CVE-2016-0702)
+
   Major changes between OpenSSL 1.0.1q and OpenSSL 1.0.1r [28 Jan 2016]
 
       o Protection for DH small subgroup attacks

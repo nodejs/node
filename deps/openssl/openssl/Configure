@@ -58,6 +58,10 @@ my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [experimenta
 #		library and will be loaded in run-time by the OpenSSL library.
 # sctp          include SCTP support
 # 386           generate 80386 code
+# enable-weak-ssl-ciphers
+#		Enable EXPORT and LOW SSLv3 ciphers that are disabled by
+#		default.  Note, weak SSLv2 ciphers are unconditionally
+#		disabled.
 # no-sse2	disables IA-32 SSE2 code, above option implies no-sse2
 # no-<cipher>   build without specified algorithm (rsa, idea, rc5, ...)
 # -<xxx> +<xxx> compiler options are passed through 
@@ -724,10 +728,12 @@ my %disabled = ( # "what"         => "comment" [or special keyword "experimental
 		 "md2"            => "default",
 		 "rc5"            => "default",
 		 "rfc3779"	  => "default",
-		 "sctp"       => "default",
+		 "sctp"           => "default",
 		 "shared"         => "default",
+		 "ssl2"           => "default",
 		 "store"	  => "experimental",
 		 "unit-test"	  => "default",
+		 "weak-ssl-ciphers" => "default",
 		 "zlib"           => "default",
 		 "zlib-dynamic"   => "default"
 	       );

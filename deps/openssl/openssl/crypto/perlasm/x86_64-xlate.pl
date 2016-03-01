@@ -121,7 +121,7 @@ my %globals;
 		$self->{sz} = "";
 	    } elsif ($self->{op} =~ /^v/) { # VEX
 		$self->{sz} = "";
-	    } elsif ($self->{op} =~ /movq/ && $line =~ /%xmm/) {
+	    } elsif ($self->{op} =~ /mov[dq]/ && $line =~ /%xmm/) {
 		$self->{sz} = "";
 	    } elsif ($self->{op} =~ /([a-z]{3,})([qlwb])$/) {
 		$self->{op} = $1;

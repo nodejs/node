@@ -2,6 +2,138 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.1r and 1.0.1s [1 Mar 2016]
+
+  * Disable weak ciphers in SSLv3 and up in default builds of OpenSSL.
+    Builds that are not configured with "enable-weak-ssl-ciphers" will not
+    provide any "EXPORT" or "LOW" strength ciphers.
+    [Viktor Dukhovni]
+
+  * Disable SSLv2 default build, default negotiation and weak ciphers.  SSLv2
+    is by default disabled at build-time.  Builds that are not configured with
+    "enable-ssl2" will not support SSLv2.  Even if "enable-ssl2" is used,
+    users who want to negotiate SSLv2 via the version-flexible SSLv23_method()
+    will need to explicitly call either of:
+
+        SSL_CTX_clear_options(ctx, SSL_OP_NO_SSLv2);
+    or
+        SSL_clear_options(ssl, SSL_OP_NO_SSLv2);
+
+    as appropriate.  Even if either of those is used, or the application
+    explicitly uses the version-specific SSLv2_method() or its client and
+    server variants, SSLv2 ciphers vulnerable to exhaustive search key
+    recovery have been removed.  Specifically, the SSLv2 40-bit EXPORT
+    ciphers, and SSLv2 56-bit DES are no longer available.
+    (CVE-2016-0800)
+    [Viktor Dukhovni]
+
+  *) Fix a double-free in DSA code
+
+     A double free bug was discovered when OpenSSL parses malformed DSA private
+     keys and could lead to a DoS attack or memory corruption for applications
+     that receive DSA private keys from untrusted sources.  This scenario is
+     considered rare.
+
+     This issue was reported to OpenSSL by Adam Langley(Google/BoringSSL) using
+     libFuzzer.
+     (CVE-2016-0705)
+     [Stephen Henson]
+
+  *) Disable SRP fake user seed to address a server memory leak.
+
+     Add a new method SRP_VBASE_get1_by_user that handles the seed properly.
+
+     SRP_VBASE_get_by_user had inconsistent memory management behaviour.
+     In order to fix an unavoidable memory leak, SRP_VBASE_get_by_user
+     was changed to ignore the "fake user" SRP seed, even if the seed
+     is configured.
+
+     Users should use SRP_VBASE_get1_by_user instead. Note that in
+     SRP_VBASE_get1_by_user, caller must free the returned value. Note
+     also that even though configuring the SRP seed attempts to hide
+     invalid usernames by continuing the handshake with fake
+     credentials, this behaviour is not constant time and no strong
+     guarantees are made that the handshake is indistinguishable from
+     that of a valid user.
+     (CVE-2016-0798)
+     [Emilia Käsper]
+
+  *) Fix BN_hex2bn/BN_dec2bn NULL pointer deref/heap corruption
+
+     In the BN_hex2bn function the number of hex digits is calculated using an
+     int value |i|. Later |bn_expand| is called with a value of |i * 4|. For
+     large values of |i| this can result in |bn_expand| not allocating any
+     memory because |i * 4| is negative. This can leave the internal BIGNUM data
+     field as NULL leading to a subsequent NULL ptr deref. For very large values
+     of |i|, the calculation |i * 4| could be a positive value smaller than |i|.
+     In this case memory is allocated to the internal BIGNUM data field, but it
+     is insufficiently sized leading to heap corruption. A similar issue exists
+     in BN_dec2bn. This could have security consequences if BN_hex2bn/BN_dec2bn
+     is ever called by user applications with very large untrusted hex/dec data.
+     This is anticipated to be a rare occurrence.
+
+     All OpenSSL internal usage of these functions use data that is not expected
+     to be untrusted, e.g. config file data or application command line
+     arguments. If user developed applications generate config file data based
+     on untrusted data then it is possible that this could also lead to security
+     consequences. This is also anticipated to be rare.
+
+     This issue was reported to OpenSSL by Guido Vranken.
+     (CVE-2016-0797)
+     [Matt Caswell]
+
+  *) Fix memory issues in BIO_*printf functions
+
+     The internal |fmtstr| function used in processing a "%s" format string in
+     the BIO_*printf functions could overflow while calculating the length of a
+     string and cause an OOB read when printing very long strings.
+
+     Additionally the internal |doapr_outch| function can attempt to write to an
+     OOB memory location (at an offset from the NULL pointer) in the event of a
+     memory allocation failure. In 1.0.2 and below this could be caused where
+     the size of a buffer to be allocated is greater than INT_MAX. E.g. this
+     could be in processing a very long "%s" format string. Memory leaks can
+     also occur.
+
+     The first issue may mask the second issue dependent on compiler behaviour.
+     These problems could enable attacks where large amounts of untrusted data
+     is passed to the BIO_*printf functions. If applications use these functions
+     in this way then they could be vulnerable. OpenSSL itself uses these
+     functions when printing out human-readable dumps of ASN.1 data. Therefore
+     applications that print this data could be vulnerable if the data is from
+     untrusted sources. OpenSSL command line applications could also be
+     vulnerable where they print out ASN.1 data, or if untrusted data is passed
+     as command line arguments.
+
+     Libssl is not considered directly vulnerable. Additionally certificates etc
+     received via remote connections via libssl are also unlikely to be able to
+     trigger these issues because of message size limits enforced within libssl.
+
+     This issue was reported to OpenSSL Guido Vranken.
+     (CVE-2016-0799)
+     [Matt Caswell]
+
+  *) Side channel attack on modular exponentiation
+
+     A side-channel attack was found which makes use of cache-bank conflicts on
+     the Intel Sandy-Bridge microarchitecture which could lead to the recovery
+     of RSA keys.  The ability to exploit this issue is limited as it relies on
+     an attacker who has control of code in a thread running on the same
+     hyper-threaded core as the victim thread which is performing decryptions.
+
+     This issue was reported to OpenSSL by Yuval Yarom, The University of
+     Adelaide and NICTA, Daniel Genkin, Technion and Tel Aviv University, and
+     Nadia Heninger, University of Pennsylvania with more information at
+     http://cachebleed.info.
+     (CVE-2016-0702)
+     [Andy Polyakov]
+
+  *) Change the req app to generate a 2048-bit RSA/DSA key by default,
+     if no keysize is specified with default_bits. This fixes an
+     omission in an earlier change that changed all RSA/DSA key generation
+     apps to use 2048 bits by default.
+     [Emilia Käsper]
+
  Changes between 1.0.1q and 1.0.1r [28 Jan 2016]
 
   *) Protection for DH small subgroup attacks
@@ -62,7 +194,7 @@
      [Emilia Käsper]
 
   *) In DSA_generate_parameters_ex, if the provided seed is too short,
-     return an error
+     use a random seed, as already documented.
      [Rich Salz and Ismo Puustinen <ismo.puustinen@intel.com>]
 
  Changes between 1.0.1o and 1.0.1p [9 Jul 2015]

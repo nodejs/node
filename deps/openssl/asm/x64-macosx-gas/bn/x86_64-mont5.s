@@ -14,47 +14,153 @@ _bn_mul_mont_gather5:
 .p2align	4
 L$mul_enter:
 	movl	%r9d,%r9d
-	movl	8(%rsp),%r10d
+	movd	8(%rsp),%xmm5
+	leaq	L$inc(%rip),%r10
 	pushq	%rbx
 	pushq	%rbp
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+
+L$mul_alloca:
 	movq	%rsp,%rax
 	leaq	2(%r9),%r11
 	negq	%r11
-	leaq	(%rsp,%r11,8),%rsp
+	leaq	-264(%rsp,%r11,8),%rsp
 	andq	$-1024,%rsp
 
 	movq	%rax,8(%rsp,%r9,8)
 L$mul_body:
-	movq	%rdx,%r12
-	movq	%r10,%r11
-	shrq	$3,%r10
-	andq	$7,%r11
-	notq	%r10
-	leaq	L$magic_masks(%rip),%rax
-	andq	$3,%r10
-	leaq	96(%r12,%r11,8),%r12
-	movq	0(%rax,%r10,8),%xmm4
-	movq	8(%rax,%r10,8),%xmm5
-	movq	16(%rax,%r10,8),%xmm6
-	movq	24(%rax,%r10,8),%xmm7
+	leaq	128(%rdx),%r12
+	movdqa	0(%r10),%xmm0
+	movdqa	16(%r10),%xmm1
+	leaq	24-112(%rsp,%r9,8),%r10
+	andq	$-16,%r10
 
-	movq	-96(%r12),%xmm0
-	movq	-32(%r12),%xmm1
-	pand	%xmm4,%xmm0
-	movq	32(%r12),%xmm2
-	pand	%xmm5,%xmm1
-	movq	96(%r12),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
+	pshufd	$0,%xmm5,%xmm5
+	movdqa	%xmm1,%xmm4
+	movdqa	%xmm1,%xmm2
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+.byte	0x67
+	movdqa	%xmm4,%xmm3
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,112(%r10)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,128(%r10)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,144(%r10)
+	movdqa	%xmm4,%xmm2
+
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,160(%r10)
+	movdqa	%xmm4,%xmm3
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,176(%r10)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,192(%r10)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,208(%r10)
+	movdqa	%xmm4,%xmm2
+
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,224(%r10)
+	movdqa	%xmm4,%xmm3
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,240(%r10)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,256(%r10)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,272(%r10)
+	movdqa	%xmm4,%xmm2
+
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,288(%r10)
+	movdqa	%xmm4,%xmm3
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,304(%r10)
+
+	paddd	%xmm2,%xmm3
+.byte	0x67
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,320(%r10)
+
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,336(%r10)
+	pand	64(%r12),%xmm0
+
+	pand	80(%r12),%xmm1
+	pand	96(%r12),%xmm2
+	movdqa	%xmm3,352(%r10)
+	pand	112(%r12),%xmm3
 	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+	movdqa	-128(%r12),%xmm4
+	movdqa	-112(%r12),%xmm5
+	movdqa	-96(%r12),%xmm2
+	pand	112(%r10),%xmm4
+	movdqa	-80(%r12),%xmm3
+	pand	128(%r10),%xmm5
+	por	%xmm4,%xmm0
+	pand	144(%r10),%xmm2
+	por	%xmm5,%xmm1
+	pand	160(%r10),%xmm3
+	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+	movdqa	-64(%r12),%xmm4
+	movdqa	-48(%r12),%xmm5
+	movdqa	-32(%r12),%xmm2
+	pand	176(%r10),%xmm4
+	movdqa	-16(%r12),%xmm3
+	pand	192(%r10),%xmm5
+	por	%xmm4,%xmm0
+	pand	208(%r10),%xmm2
+	por	%xmm5,%xmm1
+	pand	224(%r10),%xmm3
+	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+	movdqa	0(%r12),%xmm4
+	movdqa	16(%r12),%xmm5
+	movdqa	32(%r12),%xmm2
+	pand	240(%r10),%xmm4
+	movdqa	48(%r12),%xmm3
+	pand	256(%r10),%xmm5
+	por	%xmm4,%xmm0
+	pand	272(%r10),%xmm2
+	por	%xmm5,%xmm1
+	pand	288(%r10),%xmm3
+	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+	por	%xmm1,%xmm0
+	pshufd	$78,%xmm0,%xmm1
+	por	%xmm1,%xmm0
 	leaq	256(%r12),%r12
-	por	%xmm3,%xmm0
-
 .byte	102,72,15,126,195
 
 	movq	(%r8),%r8
@@ -63,28 +169,13 @@ L$mul_body:
 	xorq	%r14,%r14
 	xorq	%r15,%r15
 
-	movq	-96(%r12),%xmm0
-	movq	-32(%r12),%xmm1
-	pand	%xmm4,%xmm0
-	movq	32(%r12),%xmm2
-	pand	%xmm5,%xmm1
-
 	movq	%r8,%rbp
 	mulq	%rbx
 	movq	%rax,%r10
 	movq	(%rcx),%rax
 
-	movq	96(%r12),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
-
 	imulq	%r10,%rbp
 	movq	%rdx,%r11
-
-	por	%xmm2,%xmm0
-	leaq	256(%r12),%r12
-	por	%xmm3,%xmm0
 
 	mulq	%rbp
 	addq	%rax,%r10
@@ -118,8 +209,6 @@ L$1st_enter:
 	cmpq	%r9,%r15
 	jne	L$1st
 
-.byte	102,72,15,126,195
-
 	addq	%rax,%r13
 	movq	(%rsi),%rax
 	adcq	$0,%rdx
@@ -139,32 +228,75 @@ L$1st_enter:
 	jmp	L$outer
 .p2align	4
 L$outer:
+	leaq	24+128(%rsp,%r9,8),%rdx
+	andq	$-16,%rdx
+	pxor	%xmm4,%xmm4
+	pxor	%xmm5,%xmm5
+	movdqa	-128(%r12),%xmm0
+	movdqa	-112(%r12),%xmm1
+	movdqa	-96(%r12),%xmm2
+	movdqa	-80(%r12),%xmm3
+	pand	-128(%rdx),%xmm0
+	pand	-112(%rdx),%xmm1
+	por	%xmm0,%xmm4
+	pand	-96(%rdx),%xmm2
+	por	%xmm1,%xmm5
+	pand	-80(%rdx),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	movdqa	-64(%r12),%xmm0
+	movdqa	-48(%r12),%xmm1
+	movdqa	-32(%r12),%xmm2
+	movdqa	-16(%r12),%xmm3
+	pand	-64(%rdx),%xmm0
+	pand	-48(%rdx),%xmm1
+	por	%xmm0,%xmm4
+	pand	-32(%rdx),%xmm2
+	por	%xmm1,%xmm5
+	pand	-16(%rdx),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	movdqa	0(%r12),%xmm0
+	movdqa	16(%r12),%xmm1
+	movdqa	32(%r12),%xmm2
+	movdqa	48(%r12),%xmm3
+	pand	0(%rdx),%xmm0
+	pand	16(%rdx),%xmm1
+	por	%xmm0,%xmm4
+	pand	32(%rdx),%xmm2
+	por	%xmm1,%xmm5
+	pand	48(%rdx),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	movdqa	64(%r12),%xmm0
+	movdqa	80(%r12),%xmm1
+	movdqa	96(%r12),%xmm2
+	movdqa	112(%r12),%xmm3
+	pand	64(%rdx),%xmm0
+	pand	80(%rdx),%xmm1
+	por	%xmm0,%xmm4
+	pand	96(%rdx),%xmm2
+	por	%xmm1,%xmm5
+	pand	112(%rdx),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	por	%xmm5,%xmm4
+	pshufd	$78,%xmm4,%xmm0
+	por	%xmm4,%xmm0
+	leaq	256(%r12),%r12
+.byte	102,72,15,126,195
+
 	xorq	%r15,%r15
 	movq	%r8,%rbp
 	movq	(%rsp),%r10
-
-	movq	-96(%r12),%xmm0
-	movq	-32(%r12),%xmm1
-	pand	%xmm4,%xmm0
-	movq	32(%r12),%xmm2
-	pand	%xmm5,%xmm1
 
 	mulq	%rbx
 	addq	%rax,%r10
 	movq	(%rcx),%rax
 	adcq	$0,%rdx
 
-	movq	96(%r12),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
-
 	imulq	%r10,%rbp
 	movq	%rdx,%r11
-
-	por	%xmm2,%xmm0
-	leaq	256(%r12),%r12
-	por	%xmm3,%xmm0
 
 	mulq	%rbp
 	addq	%rax,%r10
@@ -200,8 +332,6 @@ L$inner_enter:
 	mulq	%rbp
 	cmpq	%r9,%r15
 	jne	L$inner
-
-.byte	102,72,15,126,195
 
 	addq	%rax,%r13
 	movq	(%rsi),%rax
@@ -256,6 +386,7 @@ L$copy:
 
 	movq	8(%rsp,%r9,8),%rsi
 	movq	$1,%rax
+
 	movq	(%rsi),%r15
 	movq	8(%rsi),%r14
 	movq	16(%rsi),%r13
@@ -271,77 +402,169 @@ L$mul_epilogue:
 bn_mul4x_mont_gather5:
 L$mul4x_enter:
 	movl	%r9d,%r9d
-	movl	8(%rsp),%r10d
+	movd	8(%rsp),%xmm5
+	leaq	L$inc(%rip),%r10
 	pushq	%rbx
 	pushq	%rbp
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+
+L$mul4x_alloca:
 	movq	%rsp,%rax
 	leaq	4(%r9),%r11
 	negq	%r11
-	leaq	(%rsp,%r11,8),%rsp
+	leaq	-256(%rsp,%r11,8),%rsp
 	andq	$-1024,%rsp
 
 	movq	%rax,8(%rsp,%r9,8)
 L$mul4x_body:
 	movq	%rdi,16(%rsp,%r9,8)
-	movq	%rdx,%r12
-	movq	%r10,%r11
-	shrq	$3,%r10
-	andq	$7,%r11
-	notq	%r10
-	leaq	L$magic_masks(%rip),%rax
-	andq	$3,%r10
-	leaq	96(%r12,%r11,8),%r12
-	movq	0(%rax,%r10,8),%xmm4
-	movq	8(%rax,%r10,8),%xmm5
-	movq	16(%rax,%r10,8),%xmm6
-	movq	24(%rax,%r10,8),%xmm7
+	leaq	128(%rdx),%r12
+	movdqa	0(%r10),%xmm0
+	movdqa	16(%r10),%xmm1
+	leaq	32-112(%rsp,%r9,8),%r10
 
-	movq	-96(%r12),%xmm0
-	movq	-32(%r12),%xmm1
-	pand	%xmm4,%xmm0
-	movq	32(%r12),%xmm2
-	pand	%xmm5,%xmm1
-	movq	96(%r12),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
+	pshufd	$0,%xmm5,%xmm5
+	movdqa	%xmm1,%xmm4
+.byte	0x67,0x67
+	movdqa	%xmm1,%xmm2
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+.byte	0x67
+	movdqa	%xmm4,%xmm3
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,112(%r10)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,128(%r10)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,144(%r10)
+	movdqa	%xmm4,%xmm2
+
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,160(%r10)
+	movdqa	%xmm4,%xmm3
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,176(%r10)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,192(%r10)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,208(%r10)
+	movdqa	%xmm4,%xmm2
+
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,224(%r10)
+	movdqa	%xmm4,%xmm3
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,240(%r10)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,256(%r10)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,272(%r10)
+	movdqa	%xmm4,%xmm2
+
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,288(%r10)
+	movdqa	%xmm4,%xmm3
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,304(%r10)
+
+	paddd	%xmm2,%xmm3
+.byte	0x67
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,320(%r10)
+
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,336(%r10)
+	pand	64(%r12),%xmm0
+
+	pand	80(%r12),%xmm1
+	pand	96(%r12),%xmm2
+	movdqa	%xmm3,352(%r10)
+	pand	112(%r12),%xmm3
 	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+	movdqa	-128(%r12),%xmm4
+	movdqa	-112(%r12),%xmm5
+	movdqa	-96(%r12),%xmm2
+	pand	112(%r10),%xmm4
+	movdqa	-80(%r12),%xmm3
+	pand	128(%r10),%xmm5
+	por	%xmm4,%xmm0
+	pand	144(%r10),%xmm2
+	por	%xmm5,%xmm1
+	pand	160(%r10),%xmm3
+	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+	movdqa	-64(%r12),%xmm4
+	movdqa	-48(%r12),%xmm5
+	movdqa	-32(%r12),%xmm2
+	pand	176(%r10),%xmm4
+	movdqa	-16(%r12),%xmm3
+	pand	192(%r10),%xmm5
+	por	%xmm4,%xmm0
+	pand	208(%r10),%xmm2
+	por	%xmm5,%xmm1
+	pand	224(%r10),%xmm3
+	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+	movdqa	0(%r12),%xmm4
+	movdqa	16(%r12),%xmm5
+	movdqa	32(%r12),%xmm2
+	pand	240(%r10),%xmm4
+	movdqa	48(%r12),%xmm3
+	pand	256(%r10),%xmm5
+	por	%xmm4,%xmm0
+	pand	272(%r10),%xmm2
+	por	%xmm5,%xmm1
+	pand	288(%r10),%xmm3
+	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+	por	%xmm1,%xmm0
+	pshufd	$78,%xmm0,%xmm1
+	por	%xmm1,%xmm0
 	leaq	256(%r12),%r12
-	por	%xmm3,%xmm0
-
 .byte	102,72,15,126,195
+
 	movq	(%r8),%r8
 	movq	(%rsi),%rax
 
 	xorq	%r14,%r14
 	xorq	%r15,%r15
 
-	movq	-96(%r12),%xmm0
-	movq	-32(%r12),%xmm1
-	pand	%xmm4,%xmm0
-	movq	32(%r12),%xmm2
-	pand	%xmm5,%xmm1
-
 	movq	%r8,%rbp
 	mulq	%rbx
 	movq	%rax,%r10
 	movq	(%rcx),%rax
 
-	movq	96(%r12),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
-
 	imulq	%r10,%rbp
 	movq	%rdx,%r11
-
-	por	%xmm2,%xmm0
-	leaq	256(%r12),%r12
-	por	%xmm3,%xmm0
 
 	mulq	%rbp
 	addq	%rax,%r10
@@ -460,8 +683,6 @@ L$1st4x:
 	movq	%rdi,-16(%rsp,%r15,8)
 	movq	%rdx,%r13
 
-.byte	102,72,15,126,195
-
 	xorq	%rdi,%rdi
 	addq	%r10,%r13
 	adcq	$0,%rdi
@@ -471,12 +692,64 @@ L$1st4x:
 	leaq	1(%r14),%r14
 .p2align	2
 L$outer4x:
+	leaq	32+128(%rsp,%r9,8),%rdx
+	pxor	%xmm4,%xmm4
+	pxor	%xmm5,%xmm5
+	movdqa	-128(%r12),%xmm0
+	movdqa	-112(%r12),%xmm1
+	movdqa	-96(%r12),%xmm2
+	movdqa	-80(%r12),%xmm3
+	pand	-128(%rdx),%xmm0
+	pand	-112(%rdx),%xmm1
+	por	%xmm0,%xmm4
+	pand	-96(%rdx),%xmm2
+	por	%xmm1,%xmm5
+	pand	-80(%rdx),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	movdqa	-64(%r12),%xmm0
+	movdqa	-48(%r12),%xmm1
+	movdqa	-32(%r12),%xmm2
+	movdqa	-16(%r12),%xmm3
+	pand	-64(%rdx),%xmm0
+	pand	-48(%rdx),%xmm1
+	por	%xmm0,%xmm4
+	pand	-32(%rdx),%xmm2
+	por	%xmm1,%xmm5
+	pand	-16(%rdx),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	movdqa	0(%r12),%xmm0
+	movdqa	16(%r12),%xmm1
+	movdqa	32(%r12),%xmm2
+	movdqa	48(%r12),%xmm3
+	pand	0(%rdx),%xmm0
+	pand	16(%rdx),%xmm1
+	por	%xmm0,%xmm4
+	pand	32(%rdx),%xmm2
+	por	%xmm1,%xmm5
+	pand	48(%rdx),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	movdqa	64(%r12),%xmm0
+	movdqa	80(%r12),%xmm1
+	movdqa	96(%r12),%xmm2
+	movdqa	112(%r12),%xmm3
+	pand	64(%rdx),%xmm0
+	pand	80(%rdx),%xmm1
+	por	%xmm0,%xmm4
+	pand	96(%rdx),%xmm2
+	por	%xmm1,%xmm5
+	pand	112(%rdx),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	por	%xmm5,%xmm4
+	pshufd	$78,%xmm4,%xmm0
+	por	%xmm4,%xmm0
+	leaq	256(%r12),%r12
+.byte	102,72,15,126,195
+
 	xorq	%r15,%r15
-	movq	-96(%r12),%xmm0
-	movq	-32(%r12),%xmm1
-	pand	%xmm4,%xmm0
-	movq	32(%r12),%xmm2
-	pand	%xmm5,%xmm1
 
 	movq	(%rsp),%r10
 	movq	%r8,%rbp
@@ -485,17 +758,8 @@ L$outer4x:
 	movq	(%rcx),%rax
 	adcq	$0,%rdx
 
-	movq	96(%r12),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
-
 	imulq	%r10,%rbp
 	movq	%rdx,%r11
-
-	por	%xmm2,%xmm0
-	leaq	256(%r12),%r12
-	por	%xmm3,%xmm0
 
 	mulq	%rbp
 	addq	%rax,%r10
@@ -628,7 +892,6 @@ L$inner4x:
 	movq	%r13,-24(%rsp,%r15,8)
 	movq	%rdx,%r13
 
-.byte	102,72,15,126,195
 	movq	%rdi,-16(%rsp,%r15,8)
 
 	xorq	%rdi,%rdi
@@ -712,6 +975,7 @@ L$copy4x:
 	movdqu	%xmm2,16(%rdi,%r14,1)
 	movq	8(%rsp,%r9,8),%rsi
 	movq	$1,%rax
+
 	movq	(%rsi),%r15
 	movq	8(%rsi),%r14
 	movq	16(%rsi),%r13
@@ -744,42 +1008,169 @@ L$scatter_epilogue:
 
 .p2align	4
 _bn_gather5:
-	movq	%rcx,%r11
-	shrq	$3,%rcx
-	andq	$7,%r11
-	notq	%rcx
-	leaq	L$magic_masks(%rip),%rax
-	andq	$3,%rcx
-	leaq	96(%rdx,%r11,8),%rdx
-	movq	0(%rax,%rcx,8),%xmm4
-	movq	8(%rax,%rcx,8),%xmm5
-	movq	16(%rax,%rcx,8),%xmm6
-	movq	24(%rax,%rcx,8),%xmm7
-	jmp	L$gather
-.p2align	4
-L$gather:
-	movq	-96(%rdx),%xmm0
-	movq	-32(%rdx),%xmm1
-	pand	%xmm4,%xmm0
-	movq	32(%rdx),%xmm2
-	pand	%xmm5,%xmm1
-	movq	96(%rdx),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
-	por	%xmm2,%xmm0
-	leaq	256(%rdx),%rdx
-	por	%xmm3,%xmm0
+L$SEH_begin_bn_gather5:
 
+.byte	0x4c,0x8d,0x14,0x24
+
+.byte	0x48,0x81,0xec,0x08,0x01,0x00,0x00
+
+	leaq	L$inc(%rip),%rax
+	andq	$-16,%rsp
+
+	movd	%ecx,%xmm5
+	movdqa	0(%rax),%xmm0
+	movdqa	16(%rax),%xmm1
+	leaq	128(%rdx),%r11
+	leaq	128(%rsp),%rax
+
+	pshufd	$0,%xmm5,%xmm5
+	movdqa	%xmm1,%xmm4
+	movdqa	%xmm1,%xmm2
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm4,%xmm3
+
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,-128(%rax)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,-112(%rax)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,-96(%rax)
+	movdqa	%xmm4,%xmm2
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,-80(%rax)
+	movdqa	%xmm4,%xmm3
+
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,-64(%rax)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,-48(%rax)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,-32(%rax)
+	movdqa	%xmm4,%xmm2
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,-16(%rax)
+	movdqa	%xmm4,%xmm3
+
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,0(%rax)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,16(%rax)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,32(%rax)
+	movdqa	%xmm4,%xmm2
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,48(%rax)
+	movdqa	%xmm4,%xmm3
+
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,64(%rax)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,80(%rax)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,96(%rax)
+	movdqa	%xmm4,%xmm2
+	movdqa	%xmm3,112(%rax)
+	jmp	L$gather
+
+.p2align	5
+L$gather:
+	pxor	%xmm4,%xmm4
+	pxor	%xmm5,%xmm5
+	movdqa	-128(%r11),%xmm0
+	movdqa	-112(%r11),%xmm1
+	movdqa	-96(%r11),%xmm2
+	pand	-128(%rax),%xmm0
+	movdqa	-80(%r11),%xmm3
+	pand	-112(%rax),%xmm1
+	por	%xmm0,%xmm4
+	pand	-96(%rax),%xmm2
+	por	%xmm1,%xmm5
+	pand	-80(%rax),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	movdqa	-64(%r11),%xmm0
+	movdqa	-48(%r11),%xmm1
+	movdqa	-32(%r11),%xmm2
+	pand	-64(%rax),%xmm0
+	movdqa	-16(%r11),%xmm3
+	pand	-48(%rax),%xmm1
+	por	%xmm0,%xmm4
+	pand	-32(%rax),%xmm2
+	por	%xmm1,%xmm5
+	pand	-16(%rax),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	movdqa	0(%r11),%xmm0
+	movdqa	16(%r11),%xmm1
+	movdqa	32(%r11),%xmm2
+	pand	0(%rax),%xmm0
+	movdqa	48(%r11),%xmm3
+	pand	16(%rax),%xmm1
+	por	%xmm0,%xmm4
+	pand	32(%rax),%xmm2
+	por	%xmm1,%xmm5
+	pand	48(%rax),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	movdqa	64(%r11),%xmm0
+	movdqa	80(%r11),%xmm1
+	movdqa	96(%r11),%xmm2
+	pand	64(%rax),%xmm0
+	movdqa	112(%r11),%xmm3
+	pand	80(%rax),%xmm1
+	por	%xmm0,%xmm4
+	pand	96(%rax),%xmm2
+	por	%xmm1,%xmm5
+	pand	112(%rax),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	por	%xmm5,%xmm4
+	leaq	256(%r11),%r11
+	pshufd	$78,%xmm4,%xmm0
+	por	%xmm4,%xmm0
 	movq	%xmm0,(%rdi)
 	leaq	8(%rdi),%rdi
 	subq	$1,%rsi
 	jnz	L$gather
+
+	leaq	(%r10),%rsp
 	.byte	0xf3,0xc3
 L$SEH_end_bn_gather5:
 
 .p2align	6
-L$magic_masks:
-.long	0,0, 0,0, 0,0, -1,-1
-.long	0,0, 0,0, 0,0,  0,0
+L$inc:
+.long	0,0, 1,1
+.long	2,2, 2,2
 .byte	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105,112,108,105,99,97,116,105,111,110,32,119,105,116,104,32,115,99,97,116,116,101,114,47,103,97,116,104,101,114,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
