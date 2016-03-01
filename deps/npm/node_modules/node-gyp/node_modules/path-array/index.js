@@ -94,7 +94,7 @@ PathArray.prototype._getLength = function () {
  * @api private
  */
 
-PathArray.prototype.__get__ = function get (index) {
+PathArray.prototype[ArrayIndex.get] = function get (index) {
   return this._array()[index];
 };
 
@@ -104,7 +104,7 @@ PathArray.prototype.__get__ = function get (index) {
  * @api private
  */
 
-PathArray.prototype.__set__ = function set (index, value) {
+PathArray.prototype[ArrayIndex.set] = function set (index, value) {
   var arr = this._array();
   arr[index] = value;
   this._setArray(arr);
