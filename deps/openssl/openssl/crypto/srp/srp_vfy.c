@@ -185,7 +185,7 @@ static char *t_tob64(char *dst, const unsigned char *src, int size)
     return olddst;
 }
 
-static void SRP_user_pwd_free(SRP_user_pwd *user_pwd)
+void SRP_user_pwd_free(SRP_user_pwd *user_pwd)
 {
     if (user_pwd == NULL)
         return;
@@ -245,6 +245,24 @@ static int SRP_user_pwd_set_sv_BN(SRP_user_pwd *vinfo, BIGNUM *s, BIGNUM *v)
     vinfo->v = v;
     vinfo->s = s;
     return (vinfo->s != NULL && vinfo->v != NULL);
+}
+
+static SRP_user_pwd *srp_user_pwd_dup(SRP_user_pwd *src)
+{
+    SRP_user_pwd *ret;
+
+    if (src == NULL)
+        return NULL;
+    if ((ret = SRP_user_pwd_new()) == NULL)
+        return NULL;
+
+    SRP_user_pwd_set_gN(ret, src->g, src->N);
+    if (!SRP_user_pwd_set_ids(ret, src->id, src->info)
+        || !SRP_user_pwd_set_sv_BN(ret, BN_dup(src->s), BN_dup(src->v))) {
+            SRP_user_pwd_free(ret);
+            return NULL;
+    }
+    return ret;
 }
 
 SRP_VBASE *SRP_VBASE_new(char *seed_key)
@@ -468,9 +486,39 @@ int SRP_VBASE_init(SRP_VBASE *vb, char *verifier_file)
 
 }
 
-SRP_user_pwd *SRP_VBASE_get_by_user(SRP_VBASE *vb, char *username)
+static SRP_user_pwd *find_user(SRP_VBASE *vb, char *username)
 {
     int i;
+    SRP_user_pwd *user;
+
+    if (vb == NULL)
+        return NULL;
+
+    for (i = 0; i < sk_SRP_user_pwd_num(vb->users_pwd); i++) {
+        user = sk_SRP_user_pwd_value(vb->users_pwd, i);
+        if (strcmp(user->id, username) == 0)
+            return user;
+    }
+
+    return NULL;
+}
+
+/*
+ * This method ignores the configured seed and fails for an unknown user.
+ * Ownership of the returned pointer is not released to the caller.
+ * In other words, caller must not free the result.
+ */
+SRP_user_pwd *SRP_VBASE_get_by_user(SRP_VBASE *vb, char *username)
+{
+    return find_user(vb, username);
+}
+
+/*
+ * Ownership of the returned pointer is released to the caller.
+ * In other words, caller must free the result once done.
+ */
+SRP_user_pwd *SRP_VBASE_get1_by_user(SRP_VBASE *vb, char *username)
+{
     SRP_user_pwd *user;
     unsigned char digv[SHA_DIGEST_LENGTH];
     unsigned char digs[SHA_DIGEST_LENGTH];
@@ -478,11 +526,10 @@ SRP_user_pwd *SRP_VBASE_get_by_user(SRP_VBASE *vb, char *username)
 
     if (vb == NULL)
         return NULL;
-    for (i = 0; i < sk_SRP_user_pwd_num(vb->users_pwd); i++) {
-        user = sk_SRP_user_pwd_value(vb->users_pwd, i);
-        if (strcmp(user->id, username) == 0)
-            return user;
-    }
+
+    if ((user = find_user(vb, username)) != NULL)
+        return srp_user_pwd_dup(user);
+
     if ((vb->seed_key == NULL) ||
         (vb->default_g == NULL) || (vb->default_N == NULL))
         return NULL;

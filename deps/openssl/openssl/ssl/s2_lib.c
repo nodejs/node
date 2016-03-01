@@ -156,6 +156,7 @@ OPENSSL_GLOBAL const SSL_CIPHER ssl2_ciphers[] = {
      128,
      },
 
+# if 0
 /* RC4_128_EXPORT40_WITH_MD5 */
     {
      1,
@@ -171,6 +172,7 @@ OPENSSL_GLOBAL const SSL_CIPHER ssl2_ciphers[] = {
      40,
      128,
      },
+# endif
 
 /* RC2_128_CBC_WITH_MD5 */
     {
@@ -188,6 +190,7 @@ OPENSSL_GLOBAL const SSL_CIPHER ssl2_ciphers[] = {
      128,
      },
 
+# if 0
 /* RC2_128_CBC_EXPORT40_WITH_MD5 */
     {
      1,
@@ -203,6 +206,7 @@ OPENSSL_GLOBAL const SSL_CIPHER ssl2_ciphers[] = {
      40,
      128,
      },
+# endif
 
 # ifndef OPENSSL_NO_IDEA
 /* IDEA_128_CBC_WITH_MD5 */
@@ -222,6 +226,7 @@ OPENSSL_GLOBAL const SSL_CIPHER ssl2_ciphers[] = {
      },
 # endif
 
+# if 0
 /* DES_64_CBC_WITH_MD5 */
     {
      1,
@@ -237,6 +242,7 @@ OPENSSL_GLOBAL const SSL_CIPHER ssl2_ciphers[] = {
      56,
      56,
      },
+# endif
 
 /* DES_192_EDE3_CBC_WITH_MD5 */
     {

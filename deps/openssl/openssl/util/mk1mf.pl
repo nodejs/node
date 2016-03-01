@@ -290,6 +290,7 @@ $cflags.=" -DOPENSSL_NO_HW"   if $no_hw;
 $cflags.=" -DOPENSSL_FIPS"    if $fips;
 $cflags.=" -DOPENSSL_NO_JPAKE"    if $no_jpake;
 $cflags.=" -DOPENSSL_NO_EC2M"    if $no_ec2m;
+$cflags.=" -DOPENSSL_NO_WEAK_SSL_CIPHERS"   if $no_weak_ssl;
 $cflags.= " -DZLIB" if $zlib_opt;
 $cflags.= " -DZLIB_SHARED" if $zlib_opt == 2;
 
@@ -482,7 +483,7 @@ EX_LIBS=$ex_libs
 # The OpenSSL directory
 SRC_D=$src_dir
 
-LINK=$link
+LINK_CMD=$link
 LFLAGS=$lflags
 RSC=$rsc
 
@@ -1205,6 +1206,7 @@ sub read_options
 		"no-jpake" => \$no_jpake,
 		"no-ec2m" => \$no_ec2m,
 		"no-ec_nistp_64_gcc_128" => 0,
+		"no-weak-ssl-ciphers" => \$no_weak_ssl,
 		"no-err" => \$no_err,
 		"no-sock" => \$no_sock,
 		"no-krb5" => \$no_krb5,

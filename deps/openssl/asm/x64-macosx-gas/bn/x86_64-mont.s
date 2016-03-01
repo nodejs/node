@@ -10,7 +10,6 @@ _bn_mul_mont:
 	jnz	L$mul_enter
 	cmpl	$8,%r9d
 	jb	L$mul_enter
-	movl	_OPENSSL_ia32cap_P+8(%rip),%r11d
 	cmpq	%rsi,%rdx
 	jne	L$mul4x_enter
 	testl	$7,%r9d
@@ -216,9 +215,6 @@ L$mul_epilogue:
 .p2align	4
 bn_mul4x_mont:
 L$mul4x_enter:
-	andl	$524544,%r11d
-	cmpl	$524544,%r11d
-	je	L$mulx4x_enter
 	pushq	%rbx
 	pushq	%rbp
 	pushq	%r12
@@ -616,7 +612,6 @@ L$mul4x_epilogue:
 
 
 
-
 .p2align	5
 bn_sqr8x_mont:
 L$sqr8x_enter:
@@ -638,20 +633,20 @@ L$sqr8x_enter:
 
 
 
-	leaq	-64(%rsp,%r9,4),%r11
+	leaq	-64(%rsp,%r9,2),%r11
 	movq	(%r8),%r8
 	subq	%rsi,%r11
 	andq	$4095,%r11
 	cmpq	%r11,%r10
 	jb	L$sqr8x_sp_alt
 	subq	%r11,%rsp
-	leaq	-64(%rsp,%r9,4),%rsp
+	leaq	-64(%rsp,%r9,2),%rsp
 	jmp	L$sqr8x_sp_done
 
 .p2align	5
 L$sqr8x_sp_alt:
-	leaq	4096-64(,%r9,4),%r10
-	leaq	-64(%rsp,%r9,4),%rsp
+	leaq	4096-64(,%r9,2),%r10
+	leaq	-64(%rsp,%r9,2),%rsp
 	subq	%r10,%r11
 	movq	$0,%r10
 	cmovcq	%r10,%r11
@@ -661,73 +656,80 @@ L$sqr8x_sp_done:
 	movq	%r9,%r10
 	negq	%r9
 
-	leaq	64(%rsp,%r9,2),%r11
 	movq	%r8,32(%rsp)
 	movq	%rax,40(%rsp)
 L$sqr8x_body:
 
-	movq	%r9,%rbp
-.byte	102,73,15,110,211
-	shrq	$3+2,%rbp
-	movl	_OPENSSL_ia32cap_P+8(%rip),%eax
-	jmp	L$sqr8x_copy_n
-
-.p2align	5
-L$sqr8x_copy_n:
-	movq	0(%rcx),%xmm0
-	movq	8(%rcx),%xmm1
-	movq	16(%rcx),%xmm3
-	movq	24(%rcx),%xmm4
-	leaq	32(%rcx),%rcx
-	movdqa	%xmm0,0(%r11)
-	movdqa	%xmm1,16(%r11)
-	movdqa	%xmm3,32(%r11)
-	movdqa	%xmm4,48(%r11)
-	leaq	64(%r11),%r11
-	decq	%rbp
-	jnz	L$sqr8x_copy_n
-
+.byte	102,72,15,110,209
 	pxor	%xmm0,%xmm0
 .byte	102,72,15,110,207
 .byte	102,73,15,110,218
-	andl	$524544,%eax
-	cmpl	$524544,%eax
-	jne	L$sqr8x_nox
-
-	call	_bn_sqrx8x_internal
-
-	pxor	%xmm0,%xmm0
-	leaq	48(%rsp),%rax
-	leaq	64(%rsp,%r9,2),%rdx
-	shrq	$3+2,%r9
-	movq	40(%rsp),%rsi
-	jmp	L$sqr8x_zero
-
-.p2align	5
-L$sqr8x_nox:
 	call	_bn_sqr8x_internal
 
-	pxor	%xmm0,%xmm0
-	leaq	48(%rsp),%rax
-	leaq	64(%rsp,%r9,2),%rdx
-	shrq	$3+2,%r9
-	movq	40(%rsp),%rsi
-	jmp	L$sqr8x_zero
+
+
+
+	leaq	(%rdi,%r9,1),%rbx
+	movq	%r9,%rcx
+	movq	%r9,%rdx
+.byte	102,72,15,126,207
+	sarq	$3+2,%rcx
+	jmp	L$sqr8x_sub
 
 .p2align	5
-L$sqr8x_zero:
-	movdqa	%xmm0,0(%rax)
-	movdqa	%xmm0,16(%rax)
-	movdqa	%xmm0,32(%rax)
-	movdqa	%xmm0,48(%rax)
-	leaq	64(%rax),%rax
-	movdqa	%xmm0,0(%rdx)
-	movdqa	%xmm0,16(%rdx)
-	movdqa	%xmm0,32(%rdx)
-	movdqa	%xmm0,48(%rdx)
-	leaq	64(%rdx),%rdx
-	decq	%r9
-	jnz	L$sqr8x_zero
+L$sqr8x_sub:
+	movq	0(%rbx),%r12
+	movq	8(%rbx),%r13
+	movq	16(%rbx),%r14
+	movq	24(%rbx),%r15
+	leaq	32(%rbx),%rbx
+	sbbq	0(%rbp),%r12
+	sbbq	8(%rbp),%r13
+	sbbq	16(%rbp),%r14
+	sbbq	24(%rbp),%r15
+	leaq	32(%rbp),%rbp
+	movq	%r12,0(%rdi)
+	movq	%r13,8(%rdi)
+	movq	%r14,16(%rdi)
+	movq	%r15,24(%rdi)
+	leaq	32(%rdi),%rdi
+	incq	%rcx
+	jnz	L$sqr8x_sub
+
+	sbbq	$0,%rax
+	leaq	(%rbx,%r9,1),%rbx
+	leaq	(%rdi,%r9,1),%rdi
+
+.byte	102,72,15,110,200
+	pxor	%xmm0,%xmm0
+	pshufd	$0,%xmm1,%xmm1
+	movq	40(%rsp),%rsi
+	jmp	L$sqr8x_cond_copy
+
+.p2align	5
+L$sqr8x_cond_copy:
+	movdqa	0(%rbx),%xmm2
+	movdqa	16(%rbx),%xmm3
+	leaq	32(%rbx),%rbx
+	movdqu	0(%rdi),%xmm4
+	movdqu	16(%rdi),%xmm5
+	leaq	32(%rdi),%rdi
+	movdqa	%xmm0,-32(%rbx)
+	movdqa	%xmm0,-16(%rbx)
+	movdqa	%xmm0,-32(%rbx,%rdx,1)
+	movdqa	%xmm0,-16(%rbx,%rdx,1)
+	pcmpeqd	%xmm1,%xmm0
+	pand	%xmm1,%xmm2
+	pand	%xmm1,%xmm3
+	pand	%xmm0,%xmm4
+	pand	%xmm0,%xmm5
+	pxor	%xmm0,%xmm0
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+	movdqu	%xmm4,-32(%rdi)
+	movdqu	%xmm5,-16(%rdi)
+	addq	$32,%r9
+	jnz	L$sqr8x_cond_copy
 
 	movq	$1,%rax
 	movq	-48(%rsi),%r15
@@ -738,317 +740,6 @@ L$sqr8x_zero:
 	movq	-8(%rsi),%rbx
 	leaq	(%rsi),%rsp
 L$sqr8x_epilogue:
-	.byte	0xf3,0xc3
-
-
-.p2align	5
-bn_mulx4x_mont:
-L$mulx4x_enter:
-	movq	%rsp,%rax
-	pushq	%rbx
-	pushq	%rbp
-	pushq	%r12
-	pushq	%r13
-	pushq	%r14
-	pushq	%r15
-
-	shll	$3,%r9d
-.byte	0x67
-	xorq	%r10,%r10
-	subq	%r9,%r10
-	movq	(%r8),%r8
-	leaq	-72(%rsp,%r10,1),%rsp
-	leaq	(%rdx,%r9,1),%r10
-	andq	$-128,%rsp
-
-
-
-
-
-
-
-
-
-
-
-
-	movq	%r9,0(%rsp)
-	shrq	$5,%r9
-	movq	%r10,16(%rsp)
-	subq	$1,%r9
-	movq	%r8,24(%rsp)
-	movq	%rdi,32(%rsp)
-	movq	%rax,40(%rsp)
-	movq	%r9,48(%rsp)
-	jmp	L$mulx4x_body
-
-.p2align	5
-L$mulx4x_body:
-	leaq	8(%rdx),%rdi
-	movq	(%rdx),%rdx
-	leaq	64+32(%rsp),%rbx
-	movq	%rdx,%r9
-
-	mulxq	0(%rsi),%r8,%rax
-	mulxq	8(%rsi),%r11,%r14
-	addq	%rax,%r11
-	movq	%rdi,8(%rsp)
-	mulxq	16(%rsi),%r12,%r13
-	adcq	%r14,%r12
-	adcq	$0,%r13
-
-	movq	%r8,%rdi
-	imulq	24(%rsp),%r8
-	xorq	%rbp,%rbp
-
-	mulxq	24(%rsi),%rax,%r14
-	movq	%r8,%rdx
-	leaq	32(%rsi),%rsi
-	adcxq	%rax,%r13
-	adcxq	%rbp,%r14
-
-	mulxq	0(%rcx),%rax,%r10
-	adcxq	%rax,%rdi
-	adoxq	%r11,%r10
-	mulxq	8(%rcx),%rax,%r11
-	adcxq	%rax,%r10
-	adoxq	%r12,%r11
-.byte	0xc4,0x62,0xfb,0xf6,0xa1,0x10,0x00,0x00,0x00
-	movq	48(%rsp),%rdi
-	movq	%r10,-32(%rbx)
-	adcxq	%rax,%r11
-	adoxq	%r13,%r12
-	mulxq	24(%rcx),%rax,%r15
-	movq	%r9,%rdx
-	movq	%r11,-24(%rbx)
-	adcxq	%rax,%r12
-	adoxq	%rbp,%r15
-	leaq	32(%rcx),%rcx
-	movq	%r12,-16(%rbx)
-
-	jmp	L$mulx4x_1st
-
-.p2align	5
-L$mulx4x_1st:
-	adcxq	%rbp,%r15
-	mulxq	0(%rsi),%r10,%rax
-	adcxq	%r14,%r10
-	mulxq	8(%rsi),%r11,%r14
-	adcxq	%rax,%r11
-	mulxq	16(%rsi),%r12,%rax
-	adcxq	%r14,%r12
-	mulxq	24(%rsi),%r13,%r14
-.byte	0x67,0x67
-	movq	%r8,%rdx
-	adcxq	%rax,%r13
-	adcxq	%rbp,%r14
-	leaq	32(%rsi),%rsi
-	leaq	32(%rbx),%rbx
-
-	adoxq	%r15,%r10
-	mulxq	0(%rcx),%rax,%r15
-	adcxq	%rax,%r10
-	adoxq	%r15,%r11
-	mulxq	8(%rcx),%rax,%r15
-	adcxq	%rax,%r11
-	adoxq	%r15,%r12
-	mulxq	16(%rcx),%rax,%r15
-	movq	%r10,-40(%rbx)
-	adcxq	%rax,%r12
-	movq	%r11,-32(%rbx)
-	adoxq	%r15,%r13
-	mulxq	24(%rcx),%rax,%r15
-	movq	%r9,%rdx
-	movq	%r12,-24(%rbx)
-	adcxq	%rax,%r13
-	adoxq	%rbp,%r15
-	leaq	32(%rcx),%rcx
-	movq	%r13,-16(%rbx)
-
-	decq	%rdi
-	jnz	L$mulx4x_1st
-
-	movq	0(%rsp),%rax
-	movq	8(%rsp),%rdi
-	adcq	%rbp,%r15
-	addq	%r15,%r14
-	sbbq	%r15,%r15
-	movq	%r14,-8(%rbx)
-	jmp	L$mulx4x_outer
-
-.p2align	5
-L$mulx4x_outer:
-	movq	(%rdi),%rdx
-	leaq	8(%rdi),%rdi
-	subq	%rax,%rsi
-	movq	%r15,(%rbx)
-	leaq	64+32(%rsp),%rbx
-	subq	%rax,%rcx
-
-	mulxq	0(%rsi),%r8,%r11
-	xorl	%ebp,%ebp
-	movq	%rdx,%r9
-	mulxq	8(%rsi),%r14,%r12
-	adoxq	-32(%rbx),%r8
-	adcxq	%r14,%r11
-	mulxq	16(%rsi),%r15,%r13
-	adoxq	-24(%rbx),%r11
-	adcxq	%r15,%r12
-	adoxq	%rbp,%r12
-	adcxq	%rbp,%r13
-
-	movq	%rdi,8(%rsp)
-.byte	0x67
-	movq	%r8,%r15
-	imulq	24(%rsp),%r8
-	xorl	%ebp,%ebp
-
-	mulxq	24(%rsi),%rax,%r14
-	movq	%r8,%rdx
-	adoxq	-16(%rbx),%r12
-	adcxq	%rax,%r13
-	adoxq	-8(%rbx),%r13
-	adcxq	%rbp,%r14
-	leaq	32(%rsi),%rsi
-	adoxq	%rbp,%r14
-
-	mulxq	0(%rcx),%rax,%r10
-	adcxq	%rax,%r15
-	adoxq	%r11,%r10
-	mulxq	8(%rcx),%rax,%r11
-	adcxq	%rax,%r10
-	adoxq	%r12,%r11
-	mulxq	16(%rcx),%rax,%r12
-	movq	%r10,-32(%rbx)
-	adcxq	%rax,%r11
-	adoxq	%r13,%r12
-	mulxq	24(%rcx),%rax,%r15
-	movq	%r9,%rdx
-	movq	%r11,-24(%rbx)
-	leaq	32(%rcx),%rcx
-	adcxq	%rax,%r12
-	adoxq	%rbp,%r15
-	movq	48(%rsp),%rdi
-	movq	%r12,-16(%rbx)
-
-	jmp	L$mulx4x_inner
-
-.p2align	5
-L$mulx4x_inner:
-	mulxq	0(%rsi),%r10,%rax
-	adcxq	%rbp,%r15
-	adoxq	%r14,%r10
-	mulxq	8(%rsi),%r11,%r14
-	adcxq	0(%rbx),%r10
-	adoxq	%rax,%r11
-	mulxq	16(%rsi),%r12,%rax
-	adcxq	8(%rbx),%r11
-	adoxq	%r14,%r12
-	mulxq	24(%rsi),%r13,%r14
-	movq	%r8,%rdx
-	adcxq	16(%rbx),%r12
-	adoxq	%rax,%r13
-	adcxq	24(%rbx),%r13
-	adoxq	%rbp,%r14
-	leaq	32(%rsi),%rsi
-	leaq	32(%rbx),%rbx
-	adcxq	%rbp,%r14
-
-	adoxq	%r15,%r10
-	mulxq	0(%rcx),%rax,%r15
-	adcxq	%rax,%r10
-	adoxq	%r15,%r11
-	mulxq	8(%rcx),%rax,%r15
-	adcxq	%rax,%r11
-	adoxq	%r15,%r12
-	mulxq	16(%rcx),%rax,%r15
-	movq	%r10,-40(%rbx)
-	adcxq	%rax,%r12
-	adoxq	%r15,%r13
-	mulxq	24(%rcx),%rax,%r15
-	movq	%r9,%rdx
-	movq	%r11,-32(%rbx)
-	movq	%r12,-24(%rbx)
-	adcxq	%rax,%r13
-	adoxq	%rbp,%r15
-	leaq	32(%rcx),%rcx
-	movq	%r13,-16(%rbx)
-
-	decq	%rdi
-	jnz	L$mulx4x_inner
-
-	movq	0(%rsp),%rax
-	movq	8(%rsp),%rdi
-	adcq	%rbp,%r15
-	subq	0(%rbx),%rbp
-	adcq	%r15,%r14
-	movq	-8(%rcx),%r8
-	sbbq	%r15,%r15
-	movq	%r14,-8(%rbx)
-
-	cmpq	16(%rsp),%rdi
-	jne	L$mulx4x_outer
-
-	subq	%r14,%r8
-	sbbq	%r8,%r8
-	orq	%r8,%r15
-
-	negq	%rax
-	xorq	%rdx,%rdx
-	movq	32(%rsp),%rdi
-	leaq	64(%rsp),%rbx
-
-	pxor	%xmm0,%xmm0
-	movq	0(%rcx,%rax,1),%r8
-	movq	8(%rcx,%rax,1),%r9
-	negq	%r8
-	jmp	L$mulx4x_sub_entry
-
-.p2align	5
-L$mulx4x_sub:
-	movq	0(%rcx,%rax,1),%r8
-	movq	8(%rcx,%rax,1),%r9
-	notq	%r8
-L$mulx4x_sub_entry:
-	movq	16(%rcx,%rax,1),%r10
-	notq	%r9
-	andq	%r15,%r8
-	movq	24(%rcx,%rax,1),%r11
-	notq	%r10
-	andq	%r15,%r9
-	notq	%r11
-	andq	%r15,%r10
-	andq	%r15,%r11
-
-	negq	%rdx
-	adcq	0(%rbx),%r8
-	adcq	8(%rbx),%r9
-	movdqa	%xmm0,(%rbx)
-	adcq	16(%rbx),%r10
-	adcq	24(%rbx),%r11
-	movdqa	%xmm0,16(%rbx)
-	leaq	32(%rbx),%rbx
-	sbbq	%rdx,%rdx
-
-	movq	%r8,0(%rdi)
-	movq	%r9,8(%rdi)
-	movq	%r10,16(%rdi)
-	movq	%r11,24(%rdi)
-	leaq	32(%rdi),%rdi
-
-	addq	$32,%rax
-	jnz	L$mulx4x_sub
-
-	movq	40(%rsp),%rsi
-	movq	$1,%rax
-	movq	-48(%rsi),%r15
-	movq	-40(%rsi),%r14
-	movq	-32(%rsi),%r13
-	movq	-24(%rsi),%r12
-	movq	-16(%rsi),%rbp
-	movq	-8(%rsi),%rbx
-	leaq	(%rsi),%rsp
-L$mulx4x_epilogue:
 	.byte	0xf3,0xc3
 
 .byte	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105,112,108,105,99,97,116,105,111,110,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
