@@ -74,7 +74,7 @@ B<prime256v1>). Curve names are case sensitive.
 
 =item B<-named_curve>
 
-This sets the temporary curve used for ephemeral ECDH modes. Only used by 
+This sets the temporary curve used for ephemeral ECDH modes. Only used by
 servers
 
 The B<value> argument is a curve name or the special value B<auto> which
@@ -85,7 +85,7 @@ can be either the B<NIST> name (e.g. B<P-256>) or an OpenSSL OID name
 =item B<-cipher>
 
 Sets the cipher suite list to B<value>. Note: syntax checking of B<value> is
-currently not performed unless a B<SSL> or B<SSL_CTX> structure is 
+currently not performed unless a B<SSL> or B<SSL_CTX> structure is
 associated with B<cctx>.
 
 =item B<-cert>
@@ -111,9 +111,9 @@ operations are permitted.
 
 =item B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
 
-Disables protocol support for SSLv2, SSLv3, TLS 1.0, TLS 1.1 or TLS 1.2 
-by setting the corresponding options B<SSL_OP_NO_SSL2>, B<SSL_OP_NO_SSL3>,
-B<SSL_OP_NO_TLS1>, B<SSL_OP_NO_TLS1_1> and B<SSL_OP_NO_TLS1_2> respectively.
+Disables protocol support for SSLv2, SSLv3, TLSv1.0, TLSv1.1 or TLSv1.2
+by setting the corresponding options B<SSL_OP_NO_SSLv2>, B<SSL_OP_NO_SSLv3>,
+B<SSL_OP_NO_TLSv1>, B<SSL_OP_NO_TLSv1_1> and B<SSL_OP_NO_TLSv1_2> respectively.
 
 =item B<-bugs>
 
@@ -177,7 +177,7 @@ Note: the command prefix (if set) alters the recognised B<cmd> values.
 =item B<CipherString>
 
 Sets the cipher suite list to B<value>. Note: syntax checking of B<value> is
-currently not performed unless an B<SSL> or B<SSL_CTX> structure is 
+currently not performed unless an B<SSL> or B<SSL_CTX> structure is
 associated with B<cctx>.
 
 =item B<Certificate>
@@ -244,7 +244,7 @@ B<prime256v1>). Curve names are case sensitive.
 
 =item B<ECDHParameters>
 
-This sets the temporary curve used for ephemeral ECDH modes. Only used by 
+This sets the temporary curve used for ephemeral ECDH modes. Only used by
 servers
 
 The B<value> argument is a curve name or the special value B<Automatic> which
@@ -258,10 +258,11 @@ The supported versions of the SSL or TLS protocol.
 
 The B<value> argument is a comma separated list of supported protocols to
 enable or disable. If an protocol is preceded by B<-> that version is disabled.
-All versions are enabled by default, though applications may choose to
-explicitly disable some. Currently supported protocol values are B<SSLv2>,
-B<SSLv3>, B<TLSv1>, B<TLSv1.1> and B<TLSv1.2>. The special value B<ALL> refers
-to all supported versions.
+Currently supported protocol values are B<SSLv2>, B<SSLv3>, B<TLSv1>,
+B<TLSv1.1> and B<TLSv1.2>.
+All protocol versions other than B<SSLv2> are enabled by default.
+To avoid inadvertent enabling of B<SSLv2>, when SSLv2 is disabled, it is not
+possible to enable it via the B<Protocol> command.
 
 =item B<Options>
 
@@ -339,16 +340,16 @@ The value is a directory name.
 The order of operations is significant. This can be used to set either defaults
 or values which cannot be overridden. For example if an application calls:
 
- SSL_CONF_cmd(ctx, "Protocol", "-SSLv2");
+ SSL_CONF_cmd(ctx, "Protocol", "-SSLv3");
  SSL_CONF_cmd(ctx, userparam, uservalue);
 
-it will disable SSLv2 support by default but the user can override it. If 
+it will disable SSLv3 support by default but the user can override it. If
 however the call sequence is:
 
  SSL_CONF_cmd(ctx, userparam, uservalue);
- SSL_CONF_cmd(ctx, "Protocol", "-SSLv2");
+ SSL_CONF_cmd(ctx, "Protocol", "-SSLv3");
 
-SSLv2 is B<always> disabled and attempt to override this by the user are
+then SSLv3 is B<always> disabled and attempt to override this by the user are
 ignored.
 
 By checking the return code of SSL_CTX_cmd() it is possible to query if a
@@ -372,7 +373,7 @@ can be checked instead. If -3 is returned a required argument is missing
 and an error is indicated. If 0 is returned some other error occurred and
 this can be reported back to the user.
 
-The function SSL_CONF_cmd_value_type() can be used by applications to 
+The function SSL_CONF_cmd_value_type() can be used by applications to
 check for the existence of a command or to perform additional syntax
 checking or translation of the command value. For example if the return
 value is B<SSL_CONF_TYPE_FILE> an application could translate a relative

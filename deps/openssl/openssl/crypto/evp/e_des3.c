@@ -75,7 +75,8 @@ typedef struct {
         DES_key_schedule ks[3];
     } ks;
     union {
-        void (*cbc) (const void *, void *, size_t, const void *, void *);
+        void (*cbc) (const void *, void *, size_t,
+                     const DES_key_schedule *, unsigned char *);
     } stream;
 } DES_EDE_KEY;
 # define ks1 ks.ks[0]
@@ -93,9 +94,9 @@ extern unsigned int OPENSSL_sparcv9cap_P[];
 
 void des_t4_key_expand(const void *key, DES_key_schedule *ks);
 void des_t4_ede3_cbc_encrypt(const void *inp, void *out, size_t len,
-                             DES_key_schedule *ks, unsigned char iv[8]);
+                             const DES_key_schedule ks[3], unsigned char iv[8]);
 void des_t4_ede3_cbc_decrypt(const void *inp, void *out, size_t len,
-                             DES_key_schedule *ks, unsigned char iv[8]);
+                             const DES_key_schedule ks[3], unsigned char iv[8]);
 # endif
 
 static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
@@ -162,7 +163,7 @@ static int des_ede_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     }
 # endif                         /* KSSL_DEBUG */
     if (dat->stream.cbc) {
-        (*dat->stream.cbc) (in, out, inl, &dat->ks, ctx->iv);
+        (*dat->stream.cbc) (in, out, inl, dat->ks.ks, ctx->iv);
         return 1;
     }
 
@@ -395,7 +396,7 @@ static int des_ede3_unwrap(EVP_CIPHER_CTX *ctx, unsigned char *out,
     int rv = -1;
     if (inl < 24)
         return -1;
-    if (!out)
+    if (out == NULL)
         return inl - 16;
     memcpy(ctx->iv, wrap_iv, 8);
     /* Decrypt first block which will end up as icv */
@@ -438,7 +439,7 @@ static int des_ede3_wrap(EVP_CIPHER_CTX *ctx, unsigned char *out,
                          const unsigned char *in, size_t inl)
 {
     unsigned char sha1tmp[SHA_DIGEST_LENGTH];
-    if (!out)
+    if (out == NULL)
         return inl + 16;
     /* Copy input to output buffer + 8 so we have space for IV */
     memmove(out + 8, in, inl);
