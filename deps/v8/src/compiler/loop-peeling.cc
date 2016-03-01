@@ -311,8 +311,9 @@ PeeledIteration* LoopPeeler::Peel(Graph* graph, CommonOperatorBuilder* common,
       // Update all the value and effect edges at once.
       if (!value_edges.empty()) {
         // TODO(titzer): machine type is wrong here.
-        Node* phi = graph->NewNode(common->Phi(kMachAnyTagged, 2), node,
-                                   peeling.map(node), merge);
+        Node* phi =
+            graph->NewNode(common->Phi(MachineRepresentation::kTagged, 2), node,
+                           peeling.map(node), merge);
         for (Edge edge : value_edges) edge.UpdateTo(phi);
         value_edges.clear();
       }

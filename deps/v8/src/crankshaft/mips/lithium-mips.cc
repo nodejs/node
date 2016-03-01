@@ -305,13 +305,6 @@ void LInvokeFunction::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCallNew::PrintDataTo(StringStream* stream) {
-  stream->Add("= ");
-  constructor()->PrintTo(stream);
-  stream->Add(" #%d / ", arity());
-}
-
-
 void LCallNewArray::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   constructor()->PrintTo(stream);
@@ -993,7 +986,9 @@ LInstruction* LChunkBuilder::DoHasInPrototypeChainAndBranch(
     HHasInPrototypeChainAndBranch* instr) {
   LOperand* object = UseRegister(instr->object());
   LOperand* prototype = UseRegister(instr->prototype());
-  return new (zone()) LHasInPrototypeChainAndBranch(object, prototype);
+  LHasInPrototypeChainAndBranch* result =
+      new (zone()) LHasInPrototypeChainAndBranch(object, prototype);
+  return AssignEnvironment(result);
 }
 
 
@@ -1218,14 +1213,6 @@ LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
   LOperand* temp = TempDoubleRegister();
   LMathRound* result = new(zone()) LMathRound(input, temp);
   return AssignEnvironment(DefineAsRegister(result));
-}
-
-
-LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* constructor = UseFixed(instr->constructor(), a1);
-  LCallNew* result = new(zone()) LCallNew(context, constructor);
-  return MarkAsCall(DefineFixed(result, v0), instr);
 }
 
 
@@ -1782,14 +1769,6 @@ LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
 LInstruction* LChunkBuilder::DoMapEnumLength(HMapEnumLength* instr) {
   LOperand* map = UseRegisterAtStart(instr->value());
   return DefineAsRegister(new(zone()) LMapEnumLength(map));
-}
-
-
-LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
-  LOperand* object = UseFixed(instr->value(), a0);
-  LDateField* result =
-      new(zone()) LDateField(object, FixedTemp(a1), instr->index());
-  return MarkAsCall(DefineFixed(result, v0), instr, CANNOT_DEOPTIMIZE_EAGERLY);
 }
 
 
@@ -2402,13 +2381,6 @@ LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  return MarkAsCall(
-      DefineFixed(new(zone()) LRegExpLiteral(context), v0), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
   DCHECK(argument_count_ == 0);
   allocator_->MarkAsOsrEntry();
@@ -2500,12 +2472,6 @@ LInstruction* LChunkBuilder::DoTypeof(HTypeof* instr) {
 
 LInstruction* LChunkBuilder::DoTypeofIsAndBranch(HTypeofIsAndBranch* instr) {
   return new(zone()) LTypeofIsAndBranch(UseTempRegister(instr->value()));
-}
-
-
-LInstruction* LChunkBuilder::DoIsConstructCallAndBranch(
-    HIsConstructCallAndBranch* instr) {
-  return new(zone()) LIsConstructCallAndBranch(TempRegister());
 }
 
 

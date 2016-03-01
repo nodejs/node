@@ -220,12 +220,6 @@ ifeq ($(arm_test_noprobe), on)
   GYPFLAGS += -Darm_test_noprobe=on
 endif
 
-# Optionally enable wasm prototype.
-# Assume you've placed a link to v8-native-prototype in third_party/wasm.
-ifeq ($(wasm), on)
-  GYPFLAGS += -Dv8_wasm=1
-endif
-
 # ----------------- available targets: --------------------
 # - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
@@ -244,7 +238,8 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64 mips64el x87 ppc ppc64
+ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64 mips64el x87 ppc ppc64 \
+		 s390 s390x
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug

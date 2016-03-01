@@ -101,7 +101,7 @@ class Expectations {
 
   void Init(int index, PropertyType type, PropertyAttributes attributes,
             Representation representation, Handle<Object> value) {
-    DCHECK(index < MAX_PROPERTIES);
+    CHECK(index < MAX_PROPERTIES);
     types_[index] = type;
     attributes_[index] = attributes;
     representations_[index] = representation;
@@ -619,6 +619,17 @@ static void TestGeneralizeRepresentation(
     CHECK_EQ(*map, *new_map);
 
     CHECK_EQ(expected_field_type_dependency, info.dependencies()->HasAborted());
+  }
+
+  {
+    // Check that all previous maps are not stable.
+    Map* tmp = *new_map;
+    while (true) {
+      Object* back = tmp->GetBackPointer();
+      if (back->IsUndefined()) break;
+      tmp = Map::cast(back);
+      CHECK(!tmp->is_stable());
+    }
   }
 
   info.dependencies()->Rollback();  // Properly cleanup compilation info.
@@ -1380,9 +1391,10 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
 
     void UpdateExpectations(int property_index, Expectations& expectations) {
       Isolate* isolate = CcTest::i_isolate();
-      Handle<HeapType> any_type = HeapType::Any(isolate);
+      Handle<HeapType> function_type =
+          HeapType::Class(isolate->sloppy_function_map(), isolate);
       expectations.SetDataField(property_index, Representation::HeapObject(),
-                                any_type);
+                                function_type);
     }
   };
 
@@ -2136,7 +2148,8 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<HeapType> function_type =
+      HeapType::Class(isolate->sloppy_function_map(), isolate);
 
   Handle<JSFunction> js_func1 = factory->NewFunction(factory->empty_string());
   TransitionToDataConstantOperator transition_op1(js_func1);
@@ -2144,8 +2157,8 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
   Handle<JSFunction> js_func2 = factory->NewFunction(factory->empty_string());
   TransitionToDataConstantOperator transition_op2(js_func2);
 
-  FieldGeneralizationChecker checker(kPropCount - 1,
-                                     Representation::HeapObject(), any_type);
+  FieldGeneralizationChecker checker(
+      kPropCount - 1, Representation::HeapObject(), function_type);
   TestTransitionTo(transition_op1, transition_op2, checker);
 }
 

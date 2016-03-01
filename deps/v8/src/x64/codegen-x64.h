@@ -5,7 +5,7 @@
 #ifndef V8_X64_CODEGEN_X64_H_
 #define V8_X64_CODEGEN_X64_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

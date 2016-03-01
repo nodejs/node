@@ -30,9 +30,11 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
-  virtual void CheckNotAtStart(Label* on_not_at_start);
-  virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
+  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
+  virtual void CheckNotBackReference(int start_reg, bool read_backward,
+                                     Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
+                                               bool read_backward,
                                                Label* on_no_match);
   virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(unsigned c,
@@ -49,6 +51,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
                                         uc16 to,
                                         Label* on_not_in_range);
   virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
+  virtual void CheckPosition(int cp_offset, Label* on_outside_input);
   virtual bool CheckSpecialCharacterClass(uc16 type,
                                           Label* on_no_match);
   virtual void Fail();

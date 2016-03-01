@@ -131,6 +131,7 @@ class RecordWriteStub: public PlatformCodeStub {
   static void Patch(Code* stub, Mode mode) {
     // We are going to patch the two first instructions of the stub.
     PatchingAssembler patcher(
+        stub->GetIsolate(),
         reinterpret_cast<Instruction*>(stub->instruction_start()), 2);
     Instruction* instr1 = patcher.InstructionAt(0);
     Instruction* instr2 = patcher.InstructionAt(kInstructionSize);

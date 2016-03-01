@@ -73,7 +73,7 @@ if (this.os && os.system) {
     // Check that they are there.
     os.system('ls', [TEST_DIR + '/dir/foo']);
     // Check that we can detect when something is not there.
-    assertThrows("os.system('ls', [TEST_DIR + '/dir/bar']);", "dir not there");
+    assertThrows("os.system('ls', [TEST_DIR + '/dir/bar']);");
     // Check that mkdirp makes intermediate directories.
     os.mkdirp(TEST_DIR + "/dir2/foo");
     os.system("ls", [TEST_DIR + "/dir2/foo"]);
@@ -86,16 +86,16 @@ if (this.os && os.system) {
     // Check that we get an error if the name is taken by a file.
     os.system("sh", ["-c", "echo foo > " + TEST_DIR + "/file1"]);
     os.system("ls", [TEST_DIR + "/file1"]);
-    assertThrows("os.mkdirp(TEST_DIR + '/file1');", "mkdir over file1");
-    assertThrows("os.mkdirp(TEST_DIR + '/file1/foo');", "mkdir over file2");
-    assertThrows("os.mkdirp(TEST_DIR + '/file1/');", "mkdir over file3");
-    assertThrows("os.mkdirp(TEST_DIR + '/file1/foo/');", "mkdir over file4");
+    assertThrows("os.mkdirp(TEST_DIR + '/file1');");
+    assertThrows("os.mkdirp(TEST_DIR + '/file1/foo');");
+    assertThrows("os.mkdirp(TEST_DIR + '/file1/');");
+    assertThrows("os.mkdirp(TEST_DIR + '/file1/foo/');");
     // Create a dir we cannot read.
     os.mkdirp(TEST_DIR + "/dir4", 0);
     // This test fails if you are root since root can read any dir.
-    assertThrows("os.chdir(TEST_DIR + '/dir4');", "chdir dir4 I");
+    assertThrows("os.chdir(TEST_DIR + '/dir4');");
     os.rmdir(TEST_DIR + "/dir4");
-    assertThrows("os.chdir(TEST_DIR + '/dir4');", "chdir dir4 II");
+    assertThrows("os.chdir(TEST_DIR + '/dir4');");
 
     // Set umask.  This changes the umask for the whole process and is
     // the reason why the test cannot be run multi-threaded.
@@ -103,9 +103,9 @@ if (this.os && os.system) {
     // Create a dir we cannot read.
     os.mkdirp(TEST_DIR + "/dir5");
     // This test fails if you are root since root can read any dir.
-    assertThrows("os.chdir(TEST_DIR + '/dir5');", "cd dir5 I");
+    assertThrows("os.chdir(TEST_DIR + '/dir5');");
     os.rmdir(TEST_DIR + "/dir5");
-    assertThrows("os.chdir(TEST_DIR + '/dir5');", "chdir dir5 II");
+    assertThrows("os.chdir(TEST_DIR + '/dir5');");
     os.umask(old_umask);
 
     os.mkdirp(TEST_DIR + "/hest/fisk/../fisk/ged");
@@ -129,10 +129,10 @@ if (this.os && os.system) {
       have_echo = false;
     }
     if (have_sleep) {
-      assertThrows("os.system('sleep', ['2000'], 20);", "sleep 1");
+      assertThrows("os.system('sleep', ['2000'], 20);");
 
       // Check we time out with total time.
-      assertThrows("os.system('sleep', ['2000'], -1, 20);", "sleep 2");
+      assertThrows("os.system('sleep', ['2000'], -1, 20);");
 
       // Check that -1 means no timeout.
       os.system('sleep', ['1'], -1, -1);

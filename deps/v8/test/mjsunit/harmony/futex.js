@@ -46,7 +46,8 @@
 })();
 
 (function TestInvalidIndex() {
-  var i32a = new Int32Array(new SharedArrayBuffer(16));
+  var sab = new SharedArrayBuffer(16);
+  var i32a = new Int32Array(sab);
 
   // Valid indexes are 0-3.
   [-1, 4, 100].forEach(function(invalidIndex) {
@@ -59,6 +60,16 @@
                                                        invalidIndex));
   });
 
+  i32a = new Int32Array(sab, 8);
+  [-1, 2, 100].forEach(function(invalidIndex) {
+    assertEquals(undefined, Atomics.futexWait(i32a, invalidIndex, 0));
+    assertEquals(undefined, Atomics.futexWake(i32a, invalidIndex, 0));
+    var validIndex = 0;
+    assertEquals(undefined, Atomics.futexWakeOrRequeue(i32a, invalidIndex, 0, 0,
+                                                       validIndex));
+    assertEquals(undefined, Atomics.futexWakeOrRequeue(i32a, validIndex, 0, 0,
+                                                       invalidIndex));
+  });
 })();
 
 (function TestWaitTimeout() {
@@ -71,8 +82,13 @@
 })();
 
 (function TestWaitNotEqual() {
-  var i32a = new Int32Array(new SharedArrayBuffer(16));
+  var sab = new SharedArrayBuffer(16);
+  var i32a = new Int32Array(sab);
   assertEquals(Atomics.NOTEQUAL, Atomics.futexWait(i32a, 0, 42));
+
+  i32a = new Int32Array(sab, 8);
+  i32a[0] = 1;
+  assertEquals(Atomics.NOTEQUAL, Atomics.futexWait(i32a, 0, 0));
 })();
 
 (function TestWaitNegativeTimeout() {
@@ -90,14 +106,14 @@ if (this.Worker) {
     var i32a = new Int32Array(sab);
 
     var workerScript =
-      `onmessage = function(sab) {
-         var i32a = new Int32Array(sab);
+      `onmessage = function(msg) {
+         var i32a = new Int32Array(msg.sab, msg.offset);
          var result = Atomics.futexWait(i32a, 0, 0, ${timeout});
          postMessage(result);
        };`;
 
     var worker = new Worker(workerScript);
-    worker.postMessage(sab, [sab]);
+    worker.postMessage({sab: sab, offset: offset}, [sab]);
 
     // Spin until the worker is waiting on the futex.
     while (%AtomicsFutexNumWaitersForTesting(i32a, 0) != 1) {}
@@ -105,6 +121,29 @@ if (this.Worker) {
     Atomics.futexWake(i32a, 0, 1);
     assertEquals(Atomics.OK, worker.getMessage());
     worker.terminate();
+
+    var worker2 = new Worker(workerScript);
+    var offset = 8;
+    var i32a2 = new Int32Array(sab, offset);
+    worker2.postMessage({sab: sab, offset: offset}, [sab]);
+
+    // Spin until the worker is waiting on the futex.
+    while (%AtomicsFutexNumWaitersForTesting(i32a2, 0) != 1) {}
+    Atomics.futexWake(i32a2, 0, 1);
+    assertEquals(Atomics.OK, worker2.getMessage());
+    worker2.terminate();
+
+    // Futex should work when index and buffer views are different, but
+    // the real address is the same.
+    var worker3 = new Worker(workerScript);
+    i32a2 = new Int32Array(sab, 4);
+    worker3.postMessage({sab: sab, offset: 8}, [sab]);
+
+    // Spin until the worker is waiting on the futex.
+    while (%AtomicsFutexNumWaitersForTesting(i32a2, 1) != 1) {}
+    Atomics.futexWake(i32a2, 1, 1);
+    assertEquals(Atomics.OK, worker3.getMessage());
+    worker3.terminate();
   };
 
   // Test various infinite timeouts
@@ -263,6 +302,33 @@ if (this.Worker) {
 
     assertEquals(0, %AtomicsFutexNumWaitersForTesting(i32a, index1));
     assertEquals(0, %AtomicsFutexNumWaitersForTesting(i32a, index2));
+
+    for (id = 0; id < 4; ++id) {
+      assertEquals(Atomics.OK, workers[id].getMessage());
+    }
+
+    // Test futexWakeOrRequeue on offset typed array
+    var offset = 16;
+    sab = new SharedArrayBuffer(24);
+    i32a = new Int32Array(sab);
+    var i32a2 = new Int32Array(sab, offset);
+
+    for (id = 0; id < 4; id++) {
+      workers[id].postMessage({sab: sab, id: id}, [sab]);
+    }
+
+    while (%AtomicsFutexNumWaitersForTesting(i32a2, 0) != 4) { }
+
+    index1 = 0;
+    index2 = 1;
+    assertEquals(4, %AtomicsFutexNumWaitersForTesting(i32a2, index1));
+    assertEquals(0, %AtomicsFutexNumWaitersForTesting(i32a2, index2));
+
+    assertEquals(2, Atomics.futexWakeOrRequeue(i32a2, index1, 2, 0, index2));
+    assertEquals(2, %AtomicsFutexNumWaitersForTesting(i32a2, index2));
+    assertEquals(0, %AtomicsFutexNumWaitersForTesting(i32a2, index1));
+
+    assertEquals(2, Atomics.futexWake(i32a2, index2, 2));
 
     for (id = 0; id < 4; ++id) {
       assertEquals(Atomics.OK, workers[id].getMessage());

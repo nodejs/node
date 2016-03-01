@@ -100,7 +100,7 @@ function GetExistingHash(key) {
     if ((field & 1 /* Name::kHashNotComputedMask */) === 0) {
       return field >>> 2 /* Name::kHashShift */;
     }
-  } else if (IS_SPEC_OBJECT(key) && !%_IsJSProxy(key) && !IS_GLOBAL(key)) {
+  } else if (IS_RECEIVER(key) && !IS_PROXY(key) && !IS_GLOBAL(key)) {
     var hash = GET_PRIVATE(key, hashCodeSymbol);
     return hash;
   }
@@ -125,7 +125,7 @@ function GetHash(key) {
 // Harmony Set
 
 function SetConstructor(iterable) {
-  if (!%_IsConstructCall()) {
+  if (IS_UNDEFINED(new.target)) {
     throw MakeTypeError(kConstructorNotFunction, "Set");
   }
 
@@ -134,7 +134,7 @@ function SetConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.add;
     if (!IS_CALLABLE(adder)) {
-      throw MakeTypeError(kPropertyNotFunction, 'add', this);
+      throw MakeTypeError(kPropertyNotFunction, adder, 'add', this);
     }
 
     for (var value of iterable) {
@@ -248,10 +248,8 @@ function SetForEach(f, receiver) {
 
   var iterator = new SetIterator(this, ITERATOR_KIND_VALUES);
   var key;
-  var stepping = DEBUG_IS_STEPPING(f);
   var value_array = [UNDEFINED];
   while (%SetIteratorNext(iterator, value_array)) {
-    if (stepping) %DebugPrepareStepInIfStepping(f);
     key = value_array[0];
     %_Call(f, receiver, key, key, this);
   }
@@ -283,7 +281,7 @@ utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
 // Harmony Map
 
 function MapConstructor(iterable) {
-  if (!%_IsConstructCall()) {
+  if (IS_UNDEFINED(new.target)) {
     throw MakeTypeError(kConstructorNotFunction, "Map");
   }
 
@@ -292,11 +290,11 @@ function MapConstructor(iterable) {
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
     var adder = this.set;
     if (!IS_CALLABLE(adder)) {
-      throw MakeTypeError(kPropertyNotFunction, 'set', this);
+      throw MakeTypeError(kPropertyNotFunction, adder, 'set', this);
     }
 
     for (var nextItem of iterable) {
-      if (!IS_SPEC_OBJECT(nextItem)) {
+      if (!IS_RECEIVER(nextItem)) {
         throw MakeTypeError(kIteratorValueNotAnObject, nextItem);
       }
       %_Call(adder, this, nextItem[0], nextItem[1]);
@@ -431,10 +429,8 @@ function MapForEach(f, receiver) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   var iterator = new MapIterator(this, ITERATOR_KIND_ENTRIES);
-  var stepping = DEBUG_IS_STEPPING(f);
   var value_array = [UNDEFINED, UNDEFINED];
   while (%MapIteratorNext(iterator, value_array)) {
-    if (stepping) %DebugPrepareStepInIfStepping(f);
     %_Call(f, receiver, value_array[1], value_array[0], this);
   }
 }
@@ -461,26 +457,6 @@ utils.InstallFunctions(GlobalMap.prototype, DONT_ENUM, [
   "forEach", MapForEach
 ]);
 
-function MapFromArray(array) {
-  var map = new GlobalMap;
-  var length = array.length;
-  for (var i = 0; i < length; i += 2) {
-    var key = array[i];
-    var value = array[i + 1];
-    %_Call(MapSet, map, key, value);
-  }
-  return map;
-};
-
-function SetFromArray(array) {
-  var set = new GlobalSet;
-  var length = array.length;
-  for (var i = 0; i < length; ++i) {
-    %_Call(SetAdd, set, array[i]);
-  }
-  return set;
-};
-
 // -----------------------------------------------------------------------
 // Exports
 
@@ -492,8 +468,6 @@ function SetFromArray(array) {
   "set_add", SetAdd,
   "set_has", SetHas,
   "set_delete", SetDelete,
-  "map_from_array", MapFromArray,
-  "set_from_array",SetFromArray,
 ]);
 
 utils.Export(function(to) {

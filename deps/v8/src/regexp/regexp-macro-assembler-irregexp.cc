@@ -4,7 +4,7 @@
 
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/regexp/bytecodes-irregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler-irregexp-inl.h"
@@ -273,8 +273,9 @@ void RegExpMacroAssemblerIrregexp::CheckAtStart(Label* on_at_start) {
 }
 
 
-void RegExpMacroAssemblerIrregexp::CheckNotAtStart(Label* on_not_at_start) {
-  Emit(BC_CHECK_NOT_AT_START, 0);
+void RegExpMacroAssemblerIrregexp::CheckNotAtStart(int cp_offset,
+                                                   Label* on_not_at_start) {
+  Emit(BC_CHECK_NOT_AT_START, cp_offset);
   EmitOrLink(on_not_at_start);
 }
 
@@ -370,20 +371,23 @@ void RegExpMacroAssemblerIrregexp::CheckBitInTable(
 
 
 void RegExpMacroAssemblerIrregexp::CheckNotBackReference(int start_reg,
+                                                         bool read_backward,
                                                          Label* on_not_equal) {
   DCHECK(start_reg >= 0);
   DCHECK(start_reg <= kMaxRegister);
-  Emit(BC_CHECK_NOT_BACK_REF, start_reg);
+  Emit(read_backward ? BC_CHECK_NOT_BACK_REF_BACKWARD : BC_CHECK_NOT_BACK_REF,
+       start_reg);
   EmitOrLink(on_not_equal);
 }
 
 
 void RegExpMacroAssemblerIrregexp::CheckNotBackReferenceIgnoreCase(
-    int start_reg,
-    Label* on_not_equal) {
+    int start_reg, bool read_backward, Label* on_not_equal) {
   DCHECK(start_reg >= 0);
   DCHECK(start_reg <= kMaxRegister);
-  Emit(BC_CHECK_NOT_BACK_REF_NO_CASE, start_reg);
+  Emit(read_backward ? BC_CHECK_NOT_BACK_REF_NO_CASE_BACKWARD
+                     : BC_CHECK_NOT_BACK_REF_NO_CASE,
+       start_reg);
   EmitOrLink(on_not_equal);
 }
 

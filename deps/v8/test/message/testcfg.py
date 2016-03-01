@@ -59,6 +59,10 @@ class MessageTestSuite(testsuite.TestSuite):
           tests.append(test)
     return tests
 
+  def CreateVariantGenerator(self, variants):
+    return super(MessageTestSuite, self).CreateVariantGenerator(
+        variants + ["preparser"])
+
   def GetFlagsForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
     result = []

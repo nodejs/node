@@ -618,3 +618,17 @@ function TestSIMDObject() {
   assertSame(SIMD.Bool8x16, undefined);
 }
 TestSIMDObject()
+
+
+function TestStringify(expected, input) {
+  assertEquals(expected, JSON.stringify(input));
+  assertEquals(expected, JSON.stringify(input, null, 0));
+}
+
+TestStringify(undefined, SIMD.Float32x4(1, 2, 3, 4));
+TestStringify('[null]', [SIMD.Float32x4(1, 2, 3, 4)]);
+TestStringify('[{}]', [Object(SIMD.Float32x4(1, 2, 3, 4))]);
+var simd_wrapper = Object(SIMD.Float32x4(1, 2, 3, 4));
+TestStringify('{}', simd_wrapper);
+simd_wrapper.a = 1;
+TestStringify('{"a":1}', simd_wrapper);

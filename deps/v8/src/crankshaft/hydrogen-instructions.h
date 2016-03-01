@@ -62,7 +62,6 @@ class LChunkBuilder;
   V(CallWithDescriptor)                       \
   V(CallJSFunction)                           \
   V(CallFunction)                             \
-  V(CallNew)                                  \
   V(CallNewArray)                             \
   V(CallRuntime)                              \
   V(CallStub)                                 \
@@ -86,7 +85,6 @@ class LChunkBuilder;
   V(Constant)                                 \
   V(ConstructDouble)                          \
   V(Context)                                  \
-  V(DateField)                                \
   V(DebugBreak)                               \
   V(DeclareGlobals)                           \
   V(Deoptimize)                               \
@@ -105,7 +103,6 @@ class LChunkBuilder;
   V(InnerAllocatedObject)                     \
   V(InstanceOf)                               \
   V(InvokeFunction)                           \
-  V(IsConstructCallAndBranch)                 \
   V(HasInPrototypeChainAndBranch)             \
   V(IsStringAndBranch)                        \
   V(IsSmiAndBranch)                           \
@@ -131,7 +128,6 @@ class LChunkBuilder;
   V(Power)                                    \
   V(Prologue)                                 \
   V(PushArguments)                            \
-  V(RegExpLiteral)                            \
   V(Return)                                   \
   V(Ror)                                      \
   V(Sar)                                      \
@@ -778,7 +774,7 @@ class HValue : public ZoneObject {
 
   bool ToStringOrToNumberCanBeObserved() const {
     if (type().IsTaggedPrimitive()) return false;
-    if (type().IsJSObject()) return true;
+    if (type().IsJSReceiver()) return true;
     return !representation().IsSmiOrInteger32() && !representation().IsDouble();
   }
 
@@ -2435,21 +2431,6 @@ class HCallFunction final : public HBinaryCall {
 };
 
 
-class HCallNew final : public HBinaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallNew, HValue*, int);
-
-  HValue* context() { return first(); }
-  HValue* constructor() { return second(); }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallNew)
-
- private:
-  HCallNew(HValue* context, HValue* constructor, int argument_count)
-      : HBinaryCall(context, constructor, argument_count) {}
-};
-
-
 class HCallNewArray final : public HBinaryCall {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HCallNewArray, HValue*, int,
@@ -2885,7 +2866,7 @@ class HCheckValue final : public HUnaryOperation {
 class HCheckInstanceType final : public HUnaryOperation {
  public:
   enum Check {
-    IS_SPEC_OBJECT,
+    IS_JS_RECEIVER,
     IS_JS_ARRAY,
     IS_JS_DATE,
     IS_STRING,
@@ -2903,10 +2884,9 @@ class HCheckInstanceType final : public HUnaryOperation {
 
   HType CalculateInferredType() override {
     switch (check_) {
-      case IS_SPEC_OBJECT: return HType::JSObject();
+      case IS_JS_RECEIVER: return HType::JSReceiver();
       case IS_JS_ARRAY: return HType::JSArray();
-      case IS_JS_DATE:
-        return HType::JSObject();
+      case IS_JS_DATE: return HType::JSObject();
       case IS_STRING: return HType::String();
       case IS_INTERNALIZED_STRING: return HType::String();
     }
@@ -4565,20 +4545,6 @@ class HStringCompareAndBranch final : public HTemplateControlInstruction<2, 3> {
 };
 
 
-class HIsConstructCallAndBranch : public HTemplateControlInstruction<2, 0> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P0(HIsConstructCallAndBranch);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsConstructCallAndBranch)
- private:
-  HIsConstructCallAndBranch() {}
-};
-
-
 class HHasInstanceTypeAndBranch final : public HUnaryControlInstruction {
  public:
   DECLARE_INSTRUCTION_FACTORY_P2(
@@ -5713,15 +5679,6 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
     // Stores to old space allocations require no write barriers if the value is
     // a constant provably not in new space.
     if (value->IsConstant() && HConstant::cast(value)->NotInNewSpace()) {
-      return false;
-    }
-    // Stores to old space allocations require no write barriers if the value is
-    // an old space allocation.
-    while (value->IsInnerAllocatedObject()) {
-      value = HInnerAllocatedObject::cast(value)->base_object();
-    }
-    if (value->IsAllocate() &&
-        !HAllocate::cast(value)->IsNewSpaceAllocation()) {
       return false;
     }
   }
@@ -6972,7 +6929,7 @@ class HStoreNamedGeneric final : public HTemplateInstruction<3> {
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
-  bool HasVectorAndSlot() const { return FLAG_vector_stores; }
+  bool HasVectorAndSlot() const { return true; }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
                         FeedbackVectorSlot slot) {
     feedback_vector_ = vector;
@@ -7210,8 +7167,6 @@ class HStoreKeyedGeneric final : public HTemplateInstruction<4> {
     return feedback_vector_;
   }
   bool HasVectorAndSlot() const {
-    DCHECK(!(FLAG_vector_stores && initialization_state_ != MEGAMORPHIC) ||
-           !feedback_vector_.is_null());
     return !feedback_vector_.is_null();
   }
   void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
@@ -7450,75 +7405,6 @@ class HStringCharFromCode final : public HTemplateInstruction<2> {
 };
 
 
-template <int V>
-class HMaterializedLiteral : public HTemplateInstruction<V> {
- public:
-  HMaterializedLiteral<V>(int index, int depth, AllocationSiteMode mode)
-      : literal_index_(index), depth_(depth), allocation_site_mode_(mode) {
-    this->set_representation(Representation::Tagged());
-  }
-
-  HMaterializedLiteral<V>(int index, int depth)
-      : literal_index_(index), depth_(depth),
-        allocation_site_mode_(DONT_TRACK_ALLOCATION_SITE) {
-    this->set_representation(Representation::Tagged());
-  }
-
-  int literal_index() const { return literal_index_; }
-  int depth() const { return depth_; }
-  AllocationSiteMode allocation_site_mode() const {
-    return allocation_site_mode_;
-  }
-
- private:
-  bool IsDeletable() const final { return true; }
-
-  int literal_index_;
-  int depth_;
-  AllocationSiteMode allocation_site_mode_;
-};
-
-
-class HRegExpLiteral final : public HMaterializedLiteral<1> {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HRegExpLiteral,
-                                              Handle<FixedArray>,
-                                              Handle<String>,
-                                              Handle<String>,
-                                              int);
-
-  HValue* context() { return OperandAt(0); }
-  Handle<FixedArray> literals() { return literals_; }
-  Handle<String> pattern() { return pattern_; }
-  Handle<String> flags() { return flags_; }
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral)
-
- private:
-  HRegExpLiteral(HValue* context,
-                 Handle<FixedArray> literals,
-                 Handle<String> pattern,
-                 Handle<String> flags,
-                 int literal_index)
-      : HMaterializedLiteral<1>(literal_index, 0),
-        literals_(literals),
-        pattern_(pattern),
-        flags_(flags) {
-    SetOperandAt(0, context);
-    SetAllSideEffects();
-    set_type(HType::JSObject());
-  }
-
-  Handle<FixedArray> literals_;
-  Handle<String> pattern_;
-  Handle<String> flags_;
-};
-
-
 class HTypeof final : public HTemplateInstruction<2> {
  public:
   DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P1(HTypeof, HValue*);
@@ -7642,28 +7528,6 @@ class HToFastProperties final : public HUnaryOperation {
   }
 
   bool IsDeletable() const override { return true; }
-};
-
-
-class HDateField final : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P2(HDateField, HValue*, Smi*);
-
-  Smi* index() const { return index_; }
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(DateField)
-
- private:
-  HDateField(HValue* date, Smi* index)
-      : HUnaryOperation(date), index_(index) {
-    set_representation(Representation::Tagged());
-  }
-
-  Smi* index_;
 };
 
 

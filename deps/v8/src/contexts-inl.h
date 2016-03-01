@@ -56,24 +56,28 @@ Context* Context::previous() {
 void Context::set_previous(Context* context) { set(PREVIOUS_INDEX, context); }
 
 
-bool Context::has_extension() { return extension() != nullptr; }
-Object* Context::extension() { return get(EXTENSION_INDEX); }
-void Context::set_extension(Object* object) { set(EXTENSION_INDEX, object); }
+bool Context::has_extension() { return !extension()->IsTheHole(); }
+HeapObject* Context::extension() {
+  return HeapObject::cast(get(EXTENSION_INDEX));
+}
+void Context::set_extension(HeapObject* object) {
+  set(EXTENSION_INDEX, object);
+}
 
 
 JSModule* Context::module() { return JSModule::cast(get(EXTENSION_INDEX)); }
 void Context::set_module(JSModule* module) { set(EXTENSION_INDEX, module); }
 
 
-JSGlobalObject* Context::global_object() {
-  Object* result = get(GLOBAL_OBJECT_INDEX);
-  DCHECK(IsBootstrappingOrGlobalObject(this->GetIsolate(), result));
-  return reinterpret_cast<JSGlobalObject*>(result);
+Context* Context::native_context() {
+  Object* result = get(NATIVE_CONTEXT_INDEX);
+  DCHECK(IsBootstrappingOrNativeContext(this->GetIsolate(), result));
+  return reinterpret_cast<Context*>(result);
 }
 
 
-void Context::set_global_object(JSGlobalObject* object) {
-  set(GLOBAL_OBJECT_INDEX, object);
+void Context::set_native_context(Context* context) {
+  set(NATIVE_CONTEXT_INDEX, context);
 }
 
 
@@ -120,8 +124,8 @@ bool Context::IsScriptContext() {
 
 
 bool Context::HasSameSecurityTokenAs(Context* that) {
-  return this->global_object()->native_context()->security_token() ==
-         that->global_object()->native_context()->security_token();
+  return this->native_context()->security_token() ==
+         that->native_context()->security_token();
 }
 
 

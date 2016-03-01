@@ -4,11 +4,11 @@
 
 #include "src/crankshaft/typing.h"
 
+#include "src/ast/scopes.h"
 #include "src/frames.h"
 #include "src/frames-inl.h"
 #include "src/ostreams.h"
-#include "src/parser.h"  // for CompileTimeValue; TODO(rossberg): should move
-#include "src/scopes.h"
+#include "src/parsing/parser.h"  // for CompileTimeValue; TODO(rossberg): move
 #include "src/splay-tree-inl.h"
 
 namespace v8 {
@@ -410,14 +410,9 @@ void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
           prop->key()->AsLiteral()->value()->IsInternalizedString() &&
           prop->emit_store()) {
         // Record type feed back for the property.
-        TypeFeedbackId id = prop->key()->AsLiteral()->LiteralFeedbackId();
         FeedbackVectorSlot slot = prop->GetSlot();
         SmallMapList maps;
-        if (FLAG_vector_stores) {
-          oracle()->CollectReceiverTypes(slot, &maps);
-        } else {
-          oracle()->CollectReceiverTypes(id, &maps);
-        }
+        oracle()->CollectReceiverTypes(slot, &maps);
         prop->set_receiver_type(maps.length() == 1 ? maps.at(0)
                                                    : Handle<Map>::null());
       }
@@ -445,32 +440,20 @@ void AstTyper::VisitAssignment(Assignment* expr) {
   // Collect type feedback.
   Property* prop = expr->target()->AsProperty();
   if (prop != NULL) {
-    TypeFeedbackId id = expr->AssignmentFeedbackId();
     FeedbackVectorSlot slot = expr->AssignmentSlot();
-    expr->set_is_uninitialized(FLAG_vector_stores
-                                   ? oracle()->StoreIsUninitialized(slot)
-                                   : oracle()->StoreIsUninitialized(id));
+    expr->set_is_uninitialized(oracle()->StoreIsUninitialized(slot));
     if (!expr->IsUninitialized()) {
       SmallMapList* receiver_types = expr->GetReceiverTypes();
       if (prop->key()->IsPropertyName()) {
         Literal* lit_key = prop->key()->AsLiteral();
         DCHECK(lit_key != NULL && lit_key->value()->IsString());
         Handle<String> name = Handle<String>::cast(lit_key->value());
-        if (FLAG_vector_stores) {
-          oracle()->AssignmentReceiverTypes(slot, name, receiver_types);
-        } else {
-          oracle()->AssignmentReceiverTypes(id, name, receiver_types);
-        }
+        oracle()->AssignmentReceiverTypes(slot, name, receiver_types);
       } else {
         KeyedAccessStoreMode store_mode;
         IcCheckType key_type;
-        if (FLAG_vector_stores) {
-          oracle()->KeyedAssignmentReceiverTypes(slot, receiver_types,
-                                                 &store_mode, &key_type);
-        } else {
-          oracle()->KeyedAssignmentReceiverTypes(id, receiver_types,
-                                                 &store_mode, &key_type);
-        }
+        oracle()->KeyedAssignmentReceiverTypes(slot, receiver_types,
+                                               &store_mode, &key_type);
         expr->set_store_mode(store_mode);
         expr->set_key_type(key_type);
       }
@@ -629,17 +612,11 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
 
 void AstTyper::VisitCountOperation(CountOperation* expr) {
   // Collect type feedback.
-  TypeFeedbackId store_id = expr->CountStoreFeedbackId();
   FeedbackVectorSlot slot = expr->CountSlot();
   KeyedAccessStoreMode store_mode;
   IcCheckType key_type;
-  if (FLAG_vector_stores) {
-    oracle()->GetStoreModeAndKeyType(slot, &store_mode, &key_type);
-    oracle()->CountReceiverTypes(slot, expr->GetReceiverTypes());
-  } else {
-    oracle()->GetStoreModeAndKeyType(store_id, &store_mode, &key_type);
-    oracle()->CountReceiverTypes(store_id, expr->GetReceiverTypes());
-  }
+  oracle()->GetStoreModeAndKeyType(slot, &store_mode, &key_type);
+  oracle()->CountReceiverTypes(slot, expr->GetReceiverTypes());
   expr->set_store_mode(store_mode);
   expr->set_key_type(key_type);
   expr->set_type(oracle()->CountType(expr->CountBinOpFeedbackId()));
@@ -791,6 +768,12 @@ void AstTyper::VisitSuperPropertyReference(SuperPropertyReference* expr) {}
 
 
 void AstTyper::VisitSuperCallReference(SuperCallReference* expr) {}
+
+
+void AstTyper::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* expr) {
+  Visit(expr->expression());
+}
 
 
 void AstTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {

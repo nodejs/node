@@ -26,9 +26,9 @@ function listener(event, exec_state, event_data, data) {
                  "Unexpected pause at: " + source + "\n" +
                  "Expected: // Break " + break_count + ".");
       if (source.indexOf("StepOver.") !== -1) {
-        exec_state.prepareStep(Debug.StepAction.StepNext, 1);
+        exec_state.prepareStep(Debug.StepAction.StepNext);
       } else {
-        exec_state.prepareStep(Debug.StepAction.StepIn, 1);
+        exec_state.prepareStep(Debug.StepAction.StepIn);
       }
       ++break_count;
     }

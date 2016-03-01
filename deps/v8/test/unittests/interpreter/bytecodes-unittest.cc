@@ -42,7 +42,7 @@ TEST(OperandConversion, Parameters) {
 TEST(OperandConversion, RegistersParametersNoOverlap) {
   std::vector<uint8_t> operand_count(256);
 
-  for (int i = 0; i <= Register::kMaxRegisterIndex; i++) {
+  for (int i = 0; i <= kMaxInt8; i++) {
     Register r = Register(i);
     uint8_t operand = r.ToOperand();
     operand_count[operand] += 1;

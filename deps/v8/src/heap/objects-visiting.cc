@@ -79,13 +79,8 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case WEAK_CELL_TYPE:
       return kVisitWeakCell;
 
-    case JS_SET_TYPE:
-      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSSet::kSize, has_unboxed_fields);
-
-    case JS_MAP_TYPE:
-      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSMap::kSize, has_unboxed_fields);
+    case TRANSITION_ARRAY_TYPE:
+      return kVisitTransitionArray;
 
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
@@ -99,30 +94,13 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
 
     case JS_PROXY_TYPE:
       return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSProxy::kSize, has_unboxed_fields);
-
-    case JS_FUNCTION_PROXY_TYPE:
-      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 JSFunctionProxy::kSize, has_unboxed_fields);
-
-    case FOREIGN_TYPE:
-      return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
-                                 Foreign::kSize, has_unboxed_fields);
+                                 instance_size, has_unboxed_fields);
 
     case SYMBOL_TYPE:
       return kVisitSymbol;
 
-    case FILLER_TYPE:
-      return kVisitDataObjectGeneric;
-
     case JS_ARRAY_BUFFER_TYPE:
       return kVisitJSArrayBuffer;
-
-    case JS_TYPED_ARRAY_TYPE:
-      return kVisitJSTypedArray;
-
-    case JS_DATA_VIEW_TYPE:
-      return kVisitJSDataView;
 
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -134,15 +112,25 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
+    case JS_TYPED_ARRAY_TYPE:
+    case JS_DATA_VIEW_TYPE:
+    case JS_SET_TYPE:
+    case JS_MAP_TYPE:
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
     case JS_ITERATOR_RESULT_TYPE:
+    case JS_PROMISE_TYPE:
+    case JS_BOUND_FUNCTION_TYPE:
       return GetVisitorIdForSize(kVisitJSObject, kVisitJSObjectGeneric,
                                  instance_size, has_unboxed_fields);
 
     case JS_FUNCTION_TYPE:
       return kVisitJSFunction;
 
+    case FILLER_TYPE:
+      if (instance_size == kPointerSize) return kVisitDataObjectGeneric;
+    // Fall through.
+    case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case SIMD128_VALUE_TYPE:
@@ -175,138 +163,6 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     default:
       UNREACHABLE();
       return kVisitorIdCount;
-  }
-}
-
-
-void HeapObject::IterateBody(InstanceType type, int object_size,
-                             ObjectVisitor* v) {
-  // Avoiding <Type>::cast(this) because it accesses the map pointer field.
-  // During GC, the map pointer field is encoded.
-  if (type < FIRST_NONSTRING_TYPE) {
-    switch (type & kStringRepresentationMask) {
-      case kSeqStringTag:
-        break;
-      case kConsStringTag:
-        ConsString::BodyDescriptor::IterateBody(this, v);
-        break;
-      case kSlicedStringTag:
-        SlicedString::BodyDescriptor::IterateBody(this, v);
-        break;
-      case kExternalStringTag:
-        if ((type & kStringEncodingMask) == kOneByteStringTag) {
-          reinterpret_cast<ExternalOneByteString*>(this)
-              ->ExternalOneByteStringIterateBody(v);
-        } else {
-          reinterpret_cast<ExternalTwoByteString*>(this)
-              ->ExternalTwoByteStringIterateBody(v);
-        }
-        break;
-    }
-    return;
-  }
-
-  switch (type) {
-    case FIXED_ARRAY_TYPE:
-      FixedArray::BodyDescriptor::IterateBody(this, object_size, v);
-      break;
-    case FIXED_DOUBLE_ARRAY_TYPE:
-      break;
-    case JS_OBJECT_TYPE:
-    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_GENERATOR_OBJECT_TYPE:
-    case JS_MODULE_TYPE:
-    case JS_VALUE_TYPE:
-    case JS_DATE_TYPE:
-    case JS_ARRAY_TYPE:
-    case JS_TYPED_ARRAY_TYPE:
-    case JS_DATA_VIEW_TYPE:
-    case JS_SET_TYPE:
-    case JS_MAP_TYPE:
-    case JS_SET_ITERATOR_TYPE:
-    case JS_MAP_ITERATOR_TYPE:
-    case JS_ITERATOR_RESULT_TYPE:
-    case JS_WEAK_MAP_TYPE:
-    case JS_WEAK_SET_TYPE:
-    case JS_REGEXP_TYPE:
-    case JS_GLOBAL_PROXY_TYPE:
-    case JS_GLOBAL_OBJECT_TYPE:
-    case JS_MESSAGE_OBJECT_TYPE:
-      JSObject::BodyDescriptor::IterateBody(this, object_size, v);
-      break;
-    case JS_ARRAY_BUFFER_TYPE:
-      JSArrayBuffer::JSArrayBufferIterateBody(this, v);
-      break;
-    case JS_FUNCTION_TYPE:
-      JSFunction::BodyDescriptor::IterateBody(this, object_size, v);
-      break;
-    case ODDBALL_TYPE:
-      Oddball::BodyDescriptor::IterateBody(this, v);
-      break;
-    case JS_PROXY_TYPE:
-      JSProxy::BodyDescriptor::IterateBody(this, v);
-      break;
-    case JS_FUNCTION_PROXY_TYPE:
-      JSFunctionProxy::BodyDescriptor::IterateBody(this, v);
-      break;
-    case FOREIGN_TYPE:
-      reinterpret_cast<Foreign*>(this)->ForeignIterateBody(v);
-      break;
-    case MAP_TYPE:
-      Map::BodyDescriptor::IterateBody(this, v);
-      break;
-    case CODE_TYPE:
-      reinterpret_cast<Code*>(this)->CodeIterateBody(v);
-      break;
-    case CELL_TYPE:
-      Cell::BodyDescriptor::IterateBody(this, v);
-      break;
-    case PROPERTY_CELL_TYPE:
-      PropertyCell::BodyDescriptor::IterateBody(this, v);
-      break;
-    case WEAK_CELL_TYPE:
-      WeakCell::BodyDescriptor::IterateBody(this, v);
-      break;
-    case SYMBOL_TYPE:
-      Symbol::BodyDescriptor::IterateBody(this, v);
-      break;
-    case BYTECODE_ARRAY_TYPE:
-      reinterpret_cast<BytecodeArray*>(this)->BytecodeArrayIterateBody(v);
-      break;
-
-    case HEAP_NUMBER_TYPE:
-    case MUTABLE_HEAP_NUMBER_TYPE:
-    case SIMD128_VALUE_TYPE:
-    case FILLER_TYPE:
-    case BYTE_ARRAY_TYPE:
-    case FREE_SPACE_TYPE:
-      break;
-
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case FIXED_##TYPE##_ARRAY_TYPE:                       \
-    reinterpret_cast<FixedTypedArrayBase*>(this)        \
-        ->FixedTypedArrayBaseIterateBody(v);            \
-    break;
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-    case SHARED_FUNCTION_INFO_TYPE: {
-      SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
-      break;
-    }
-
-#define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE:
-      STRUCT_LIST(MAKE_STRUCT_CASE)
-#undef MAKE_STRUCT_CASE
-      if (type == ALLOCATION_SITE_TYPE) {
-        AllocationSite::BodyDescriptor::IterateBody(this, v);
-      } else {
-        StructBodyDescriptor::IterateBody(this, object_size, v);
-      }
-      break;
-    default:
-      PrintF("Unknown type: %d\n", type);
-      UNREACHABLE();
   }
 }
 
@@ -439,9 +295,17 @@ struct WeakListVisitor<Context> {
     DoWeakList<JSFunction>(heap, context, retainer,
                            Context::OPTIMIZED_FUNCTIONS_LIST);
 
-    // Code objects are always allocated in Code space, we do not have to visit
-    // them during scavenges.
     if (heap->gc_state() == Heap::MARK_COMPACT) {
+      // Record the slots of the weak entries in the native context.
+      MarkCompactCollector* collector = heap->mark_compact_collector();
+      for (int idx = Context::FIRST_WEAK_SLOT;
+           idx < Context::NATIVE_CONTEXT_SLOTS; ++idx) {
+        Object** slot = Context::cast(context)->RawFieldOfElementAt(idx);
+        collector->RecordSlot(context, slot, *slot);
+      }
+      // Code objects are always allocated in Code space, we do not have to
+      // visit
+      // them during scavenges.
       DoWeakList<Code>(heap, context, retainer, Context::OPTIMIZED_CODE_LIST);
       DoWeakList<Code>(heap, context, retainer, Context::DEOPTIMIZED_CODE_LIST);
     }

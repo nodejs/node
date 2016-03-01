@@ -250,12 +250,12 @@ void Verifier::Visitor::Check(Node* node) {
             break;
           }
           default: {
-            UNREACHABLE();
+            V8_Fatal(__FILE__, __LINE__, "Switch #%d illegally used by #%d:%s",
+                     node->id(), use->id(), use->op()->mnemonic());
             break;
           }
         }
       }
-      CHECK_LE(1, count_case);
       CHECK_EQ(1, count_default);
       CHECK_EQ(node->op()->ControlOutputCount(), count_case + count_default);
       // Type is empty.
@@ -436,6 +436,7 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(6, input_count);
       break;
     case IrOpcode::kStateValues:
+    case IrOpcode::kObjectState:
     case IrOpcode::kTypedStateValues:
       // TODO(jarin): what are the constraints on these?
       break;
@@ -456,7 +457,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSGreaterThan:
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSGreaterThanOrEqual:
-    case IrOpcode::kJSUnaryNot:
       // Type is Boolean.
       CheckUpperIs(node, Type::Boolean());
       break;
@@ -511,12 +511,21 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is OtherObject.
       CheckUpperIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSCreateArray:
+      // Type is OtherObject.
+      CheckUpperIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSCreateClosure:
       // Type is Function.
+      CheckUpperIs(node, Type::Function());
+      break;
+    case IrOpcode::kJSCreateIterResultObject:
+      // Type is OtherObject.
       CheckUpperIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateLiteralRegExp:
       // Type is OtherObject.
       CheckUpperIs(node, Type::OtherObject());
       break;
@@ -672,6 +681,11 @@ void Verifier::Visitor::Check(Node* node) {
       // Number -> Unsigned32
       CheckValueInputIs(node, 0, Type::Number());
       CheckUpperIs(node, Type::Unsigned32());
+      break;
+    case IrOpcode::kNumberIsHoleNaN:
+      // Number -> Boolean
+      CheckValueInputIs(node, 0, Type::Number());
+      CheckUpperIs(node, Type::Boolean());
       break;
     case IrOpcode::kPlainPrimitiveToNumber:
       // PlainPrimitive -> Number
@@ -848,7 +862,9 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kUint32LessThan:
     case IrOpcode::kUint32LessThanOrEqual:
     case IrOpcode::kInt64Add:
+    case IrOpcode::kInt64AddWithOverflow:
     case IrOpcode::kInt64Sub:
+    case IrOpcode::kInt64SubWithOverflow:
     case IrOpcode::kInt64Mul:
     case IrOpcode::kInt64Div:
     case IrOpcode::kInt64Mod:
@@ -878,15 +894,23 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kFloat64Min:
     case IrOpcode::kFloat64Abs:
     case IrOpcode::kFloat64Sqrt:
+    case IrOpcode::kFloat32RoundDown:
     case IrOpcode::kFloat64RoundDown:
+    case IrOpcode::kFloat32RoundUp:
+    case IrOpcode::kFloat64RoundUp:
+    case IrOpcode::kFloat32RoundTruncate:
     case IrOpcode::kFloat64RoundTruncate:
     case IrOpcode::kFloat64RoundTiesAway:
+    case IrOpcode::kFloat32RoundTiesEven:
+    case IrOpcode::kFloat64RoundTiesEven:
     case IrOpcode::kFloat64Equal:
     case IrOpcode::kFloat64LessThan:
     case IrOpcode::kFloat64LessThanOrEqual:
     case IrOpcode::kTruncateInt64ToInt32:
     case IrOpcode::kRoundInt64ToFloat32:
     case IrOpcode::kRoundInt64ToFloat64:
+    case IrOpcode::kRoundUint64ToFloat64:
+    case IrOpcode::kRoundUint64ToFloat32:
     case IrOpcode::kTruncateFloat64ToFloat32:
     case IrOpcode::kTruncateFloat64ToInt32:
     case IrOpcode::kBitcastFloat32ToInt32:
@@ -900,6 +924,10 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kChangeFloat32ToFloat64:
     case IrOpcode::kChangeFloat64ToInt32:
     case IrOpcode::kChangeFloat64ToUint32:
+    case IrOpcode::kTryTruncateFloat32ToInt64:
+    case IrOpcode::kTryTruncateFloat64ToInt64:
+    case IrOpcode::kTryTruncateFloat32ToUint64:
+    case IrOpcode::kTryTruncateFloat64ToUint64:
     case IrOpcode::kFloat64ExtractLowWord32:
     case IrOpcode::kFloat64ExtractHighWord32:
     case IrOpcode::kFloat64InsertLowWord32:
@@ -951,7 +979,7 @@ static bool HasDominatingDef(Schedule* schedule, Node* node,
       use_pos--;
     }
     block = block->dominator();
-    if (block == NULL) break;
+    if (block == nullptr) break;
     use_pos = static_cast<int>(block->NodeCount()) - 1;
     if (node == block->control_input()) return true;
   }
@@ -962,7 +990,7 @@ static bool HasDominatingDef(Schedule* schedule, Node* node,
 static bool Dominates(Schedule* schedule, Node* dominator, Node* dominatee) {
   BasicBlock* dom = schedule->block(dominator);
   BasicBlock* sub = schedule->block(dominatee);
-  while (sub != NULL) {
+  while (sub != nullptr) {
     if (sub == dom) {
       return true;
     }
@@ -1078,7 +1106,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
   {
     // Verify the dominance relation.
     ZoneVector<BitVector*> dominators(zone);
-    dominators.resize(count, NULL);
+    dominators.resize(count, nullptr);
 
     // Compute a set of all the nodes that dominate a given node by using
     // a forward fixpoint. O(n^2).
@@ -1091,7 +1119,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
       queue.pop();
       BitVector* block_doms = dominators[block->id().ToSize()];
       BasicBlock* idom = block->dominator();
-      if (idom != NULL && !block_doms->Contains(idom->id().ToInt())) {
+      if (idom != nullptr && !block_doms->Contains(idom->id().ToInt())) {
         V8_Fatal(__FILE__, __LINE__, "Block B%d is not dominated by B%d",
                  block->rpo_number(), idom->rpo_number());
       }
@@ -1099,7 +1127,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
         BasicBlock* succ = block->SuccessorAt(s);
         BitVector* succ_doms = dominators[succ->id().ToSize()];
 
-        if (succ_doms == NULL) {
+        if (succ_doms == nullptr) {
           // First time visiting the node. S.doms = B U B.doms
           succ_doms = new (zone) BitVector(static_cast<int>(count), zone);
           succ_doms->CopyFrom(*block_doms);
@@ -1121,7 +1149,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
          b != rpo_order->end(); ++b) {
       BasicBlock* block = *b;
       BasicBlock* idom = block->dominator();
-      if (idom == NULL) continue;
+      if (idom == nullptr) continue;
       BitVector* block_doms = dominators[block->id().ToSize()];
 
       for (BitVector::Iterator it(block_doms); !it.Done(); it.Advance()) {
@@ -1161,7 +1189,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
 
     // Check inputs to control for this block.
     Node* control = block->control_input();
-    if (control != NULL) {
+    if (control != nullptr) {
       CHECK_EQ(block, schedule->block(control));
       CheckInputsDominate(schedule, block, control,
                           static_cast<int>(block->NodeCount()) - 1);

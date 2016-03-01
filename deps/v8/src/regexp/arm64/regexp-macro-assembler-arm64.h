@@ -39,9 +39,11 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   // A "greedy loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
-  virtual void CheckNotAtStart(Label* on_not_at_start);
-  virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
+  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
+  virtual void CheckNotBackReference(int start_reg, bool read_backward,
+                                     Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
+                                               bool read_backward,
                                                Label* on_no_match);
   virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(unsigned c,
@@ -190,7 +192,7 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   Register code_pointer() { return x20; }
 
   // Register holding the value used for clearing capture registers.
-  Register non_position_value() { return w24; }
+  Register string_start_minus_one() { return w24; }
   // The top 32 bit of this register is used to store this value
   // twice. This is used for clearing more than one register at a time.
   Register twice_non_position_value() { return x24; }

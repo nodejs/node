@@ -50,8 +50,9 @@ function DoProtoMagic(proto, set__proto__) {
     (new Sub()).__proto__ = proto;
   } else {
     Sub.prototype = proto;
-    // Need to instantiate Sub to mark .prototype as prototype.
-    new Sub();
+    // Need to instantiate Sub to mark .prototype as prototype. Make sure the
+    // instantiated object is used so that the allocation is not optimized away.
+    %DebugPrint(new Sub());
   }
 }
 

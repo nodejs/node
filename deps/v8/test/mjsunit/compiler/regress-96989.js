@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --legacy-const
 
 // Test correct handling of uninitialized const.
 

@@ -81,12 +81,13 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
     // Construct increment operation.
     Node* base = graph->NewNode(
         PointerConstant(&common, data->GetCounterAddress(block_number)));
-    Node* load = graph->NewNode(machine.Load(kMachUint32), base, zero,
+    Node* load = graph->NewNode(machine.Load(MachineType::Uint32()), base, zero,
                                 graph->start(), graph->start());
     Node* inc = graph->NewNode(machine.Int32Add(), load, one);
-    Node* store = graph->NewNode(
-        machine.Store(StoreRepresentation(kMachUint32, kNoWriteBarrier)), base,
-        zero, inc, graph->start(), graph->start());
+    Node* store =
+        graph->NewNode(machine.Store(StoreRepresentation(
+                           MachineRepresentation::kWord32, kNoWriteBarrier)),
+                       base, zero, inc, graph->start(), graph->start());
     // Insert the new nodes.
     static const int kArraySize = 6;
     Node* to_insert[kArraySize] = {zero, one, base, load, inc, store};

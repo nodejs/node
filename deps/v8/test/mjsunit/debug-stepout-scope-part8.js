@@ -44,9 +44,7 @@ function listener(event, exec_state, event_data, data) {
     }
 
     // Do steps until we reach the global scope again.
-    if (true) {
-      exec_state.prepareStep(Debug.StepAction.StepInMin, 1);
-    }
+    exec_state.prepareStep(Debug.StepAction.StepIn);
   }
 }
 

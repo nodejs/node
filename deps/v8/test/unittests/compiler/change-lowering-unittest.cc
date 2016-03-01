@@ -27,11 +27,15 @@ class ChangeLoweringTest : public TypedGraphTest {
  public:
   ChangeLoweringTest() : simplified_(zone()) {}
 
-  virtual MachineType WordRepresentation() const = 0;
+  virtual MachineRepresentation WordRepresentation() const = 0;
 
  protected:
-  bool Is32() const { return WordRepresentation() == kRepWord32; }
-  bool Is64() const { return WordRepresentation() == kRepWord64; }
+  bool Is32() const {
+    return WordRepresentation() == MachineRepresentation::kWord32;
+  }
+  bool Is64() const {
+    return WordRepresentation() == MachineRepresentation::kWord64;
+  }
 
   Reduction Reduce(Node* node) {
     MachineOperatorBuilder machine(zone(), WordRepresentation());
@@ -67,7 +71,7 @@ class ChangeLoweringTest : public TypedGraphTest {
   }
   Matcher<Node*> IsLoadHeapNumber(const Matcher<Node*>& value_matcher,
                                   const Matcher<Node*>& control_matcher) {
-    return IsLoad(kMachFloat64, value_matcher,
+    return IsLoad(MachineType::Float64(), value_matcher,
                   IsIntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag),
                   graph()->start(), control_matcher);
   }
@@ -94,11 +98,11 @@ class ChangeLoweringTest : public TypedGraphTest {
 
 class ChangeLoweringCommonTest
     : public ChangeLoweringTest,
-      public ::testing::WithParamInterface<MachineType> {
+      public ::testing::WithParamInterface<MachineRepresentation> {
  public:
   ~ChangeLoweringCommonTest() override {}
 
-  MachineType WordRepresentation() const final { return GetParam(); }
+  MachineRepresentation WordRepresentation() const final { return GetParam(); }
 };
 
 
@@ -107,8 +111,8 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBitToBool) {
   Reduction r =
       Reduce(graph()->NewNode(simplified()->ChangeBitToBool(), value));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsSelect(kMachAnyTagged, value, IsTrueConstant(),
-                                        IsFalseConstant()));
+  EXPECT_THAT(r.replacement(), IsSelect(MachineRepresentation::kTagged, value,
+                                        IsTrueConstant(), IsFalseConstant()));
 }
 
 
@@ -177,8 +181,173 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeTaggedToUint32WithTaggedPointer) {
 }
 
 
+TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldSmi) {
+  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                        Handle<Name>::null(), Type::Any(),
+                        MachineType::AnyTagged()};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::TaggedSigned());
+  Node* store = graph()->NewNode(simplified()->StoreField(access), p0, p1,
+                                 graph()->start(), graph()->start());
+  Reduction r = Reduce(store);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(MachineRepresentation::kTagged,
+                                          kNoWriteBarrier),
+                      p0, IsIntPtrConstant(access.offset - access.tag()), p1,
+                      graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldTagged) {
+  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                        Handle<Name>::null(), Type::Any(),
+                        MachineType::AnyTagged()};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::Tagged());
+  Node* store = graph()->NewNode(simplified()->StoreField(access), p0, p1,
+                                 graph()->start(), graph()->start());
+  Reduction r = Reduce(store);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(MachineRepresentation::kTagged,
+                                          kFullWriteBarrier),
+                      p0, IsIntPtrConstant(access.offset - access.tag()), p1,
+                      graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, LoadField) {
+  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                        Handle<Name>::null(), Type::Any(),
+                        MachineType::AnyTagged()};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* load = graph()->NewNode(simplified()->LoadField(access), p0,
+                                graph()->start(), graph()->start());
+  Reduction r = Reduce(load);
+
+  ASSERT_TRUE(r.Changed());
+  Matcher<Node*> index_match = IsIntPtrConstant(access.offset - access.tag());
+  EXPECT_THAT(r.replacement(),
+              IsLoad(MachineType::AnyTagged(), p0,
+                     IsIntPtrConstant(access.offset - access.tag()),
+                     graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, StoreElementTagged) {
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
+                          MachineType::AnyTagged()};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::Signed32());
+  Node* p2 = Parameter(Type::Tagged());
+  Node* store = graph()->NewNode(simplified()->StoreElement(access), p0, p1, p2,
+                                 graph()->start(), graph()->start());
+  Reduction r = Reduce(store);
+
+  const int element_size_shift =
+      ElementSizeLog2Of(access.machine_type.representation());
+  ASSERT_TRUE(r.Changed());
+  Matcher<Node*> index_match =
+      IsInt32Add(IsWord32Shl(p1, IsInt32Constant(element_size_shift)),
+                 IsInt32Constant(access.header_size - access.tag()));
+  if (!Is32()) {
+    index_match = IsChangeUint32ToUint64(index_match);
+  }
+
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(MachineRepresentation::kTagged,
+                                          kFullWriteBarrier),
+                      p0, index_match, p2, graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, StoreElementUint8) {
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                          Type::Signed32(), MachineType::Uint8()};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::Signed32());
+  Node* p2 = Parameter(Type::Signed32());
+  Node* store = graph()->NewNode(simplified()->StoreElement(access), p0, p1, p2,
+                                 graph()->start(), graph()->start());
+  Reduction r = Reduce(store);
+
+  ASSERT_TRUE(r.Changed());
+  Matcher<Node*> index_match =
+      IsInt32Add(p1, IsInt32Constant(access.header_size - access.tag()));
+  if (!Is32()) {
+    index_match = IsChangeUint32ToUint64(index_match);
+  }
+
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(MachineRepresentation::kWord8,
+                                          kNoWriteBarrier),
+                      p0, index_match, p2, graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, LoadElementTagged) {
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize, Type::Any(),
+                          MachineType::AnyTagged()};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::Signed32());
+  Node* load = graph()->NewNode(simplified()->LoadElement(access), p0, p1,
+                                graph()->start(), graph()->start());
+  Reduction r = Reduce(load);
+
+  const int element_size_shift =
+      ElementSizeLog2Of(access.machine_type.representation());
+  ASSERT_TRUE(r.Changed());
+  Matcher<Node*> index_match =
+      IsInt32Add(IsWord32Shl(p1, IsInt32Constant(element_size_shift)),
+                 IsInt32Constant(access.header_size - access.tag()));
+  if (!Is32()) {
+    index_match = IsChangeUint32ToUint64(index_match);
+  }
+
+  EXPECT_THAT(r.replacement(), IsLoad(MachineType::AnyTagged(), p0, index_match,
+                                      graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, LoadElementInt8) {
+  ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                          Type::Signed32(), MachineType::Int8()};
+  Node* p0 = Parameter(Type::TaggedPointer());
+  Node* p1 = Parameter(Type::Signed32());
+  Node* load = graph()->NewNode(simplified()->LoadElement(access), p0, p1,
+                                graph()->start(), graph()->start());
+  Reduction r = Reduce(load);
+
+  ASSERT_TRUE(r.Changed());
+  Matcher<Node*> index_match =
+      IsInt32Add(p1, IsInt32Constant(access.header_size - access.tag()));
+  if (!Is32()) {
+    index_match = IsChangeUint32ToUint64(index_match);
+  }
+
+  EXPECT_THAT(r.replacement(), IsLoad(MachineType::Int8(), p0, index_match,
+                                      graph()->start(), graph()->start()));
+}
+
+
+TARGET_TEST_P(ChangeLoweringCommonTest, Allocate) {
+  Node* p0 = Parameter(Type::Signed32());
+  Node* alloc = graph()->NewNode(simplified()->Allocate(TENURED), p0,
+                                 graph()->start(), graph()->start());
+  Reduction r = Reduce(alloc);
+
+  // Only check that we lowered, but do not specify the exact form since
+  // this is subject to change.
+  ASSERT_TRUE(r.Changed());
+}
+
+
 INSTANTIATE_TEST_CASE_P(ChangeLoweringTest, ChangeLoweringCommonTest,
-                        ::testing::Values(kRepWord32, kRepWord64));
+                        ::testing::Values(MachineRepresentation::kWord32,
+                                          MachineRepresentation::kWord64));
 
 
 // -----------------------------------------------------------------------------
@@ -188,7 +357,9 @@ INSTANTIATE_TEST_CASE_P(ChangeLoweringTest, ChangeLoweringCommonTest,
 class ChangeLowering32Test : public ChangeLoweringTest {
  public:
   ~ChangeLowering32Test() override {}
-  MachineType WordRepresentation() const final { return kRepWord32; }
+  MachineRepresentation WordRepresentation() const final {
+    return MachineRepresentation::kWord32;
+  }
 };
 
 
@@ -200,12 +371,13 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
   Capture<Node*> add, branch, heap_number, if_true;
   EXPECT_THAT(
       r.replacement(),
-      IsPhi(kMachAnyTagged,
+      IsPhi(MachineRepresentation::kTagged,
             IsFinishRegion(
                 AllOf(CaptureEq(&heap_number),
                       IsAllocateHeapNumber(_, CaptureEq(&if_true))),
                 IsStore(
-                    StoreRepresentation(kMachFloat64, kNoWriteBarrier),
+                    StoreRepresentation(MachineRepresentation::kFloat64,
+                                        kNoWriteBarrier),
                     CaptureEq(&heap_number),
                     IsIntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag),
                     IsChangeInt32ToFloat64(value), CaptureEq(&heap_number),
@@ -230,7 +402,8 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToFloat64) {
   Capture<Node*> branch, if_true;
   EXPECT_THAT(
       r.replacement(),
-      IsPhi(kMachFloat64, IsLoadHeapNumber(value, CaptureEq(&if_true)),
+      IsPhi(MachineRepresentation::kFloat64,
+            IsLoadHeapNumber(value, CaptureEq(&if_true)),
             IsChangeInt32ToFloat64(IsWord32Sar(
                 value, IsInt32Constant(kSmiTagSize + kSmiShiftSize))),
             IsMerge(AllOf(CaptureEq(&if_true),
@@ -255,7 +428,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToInt32) {
   EXPECT_THAT(
       r.replacement(),
       IsPhi(
-          kMachInt32,
+          MachineRepresentation::kWord32,
           IsChangeFloat64ToInt32(IsLoadHeapNumber(value, CaptureEq(&if_true))),
           IsWord32Sar(value, IsInt32Constant(kSmiTagSize + kSmiShiftSize)),
           IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
@@ -278,7 +451,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToUint32) {
   EXPECT_THAT(
       r.replacement(),
       IsPhi(
-          kMachUint32,
+          MachineRepresentation::kWord32,
           IsChangeFloat64ToUint32(IsLoadHeapNumber(value, CaptureEq(&if_true))),
           IsWord32Sar(value, IsInt32Constant(kSmiTagSize + kSmiShiftSize)),
           IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
@@ -301,13 +474,14 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeUint32ToTagged) {
   EXPECT_THAT(
       r.replacement(),
       IsPhi(
-          kMachAnyTagged,
+          MachineRepresentation::kTagged,
           IsWord32Shl(value, IsInt32Constant(kSmiTagSize + kSmiShiftSize)),
           IsFinishRegion(
               AllOf(CaptureEq(&heap_number),
                     IsAllocateHeapNumber(_, CaptureEq(&if_false))),
               IsStore(
-                  StoreRepresentation(kMachFloat64, kNoWriteBarrier),
+                  StoreRepresentation(MachineRepresentation::kFloat64,
+                                      kNoWriteBarrier),
                   CaptureEq(&heap_number),
                   IsInt32Constant(HeapNumber::kValueOffset - kHeapObjectTag),
                   IsChangeUint32ToFloat64(value), CaptureEq(&heap_number),
@@ -328,7 +502,9 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeUint32ToTagged) {
 class ChangeLowering64Test : public ChangeLoweringTest {
  public:
   ~ChangeLowering64Test() override {}
-  MachineType WordRepresentation() const final { return kRepWord64; }
+  MachineRepresentation WordRepresentation() const final {
+    return MachineRepresentation::kWord64;
+  }
 };
 
 
@@ -352,7 +528,8 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
   Capture<Node*> branch, if_true;
   EXPECT_THAT(
       r.replacement(),
-      IsPhi(kMachFloat64, IsLoadHeapNumber(value, CaptureEq(&if_true)),
+      IsPhi(MachineRepresentation::kFloat64,
+            IsLoadHeapNumber(value, CaptureEq(&if_true)),
             IsChangeInt32ToFloat64(IsTruncateInt64ToInt32(IsWord64Sar(
                 value, IsInt64Constant(kSmiTagSize + kSmiShiftSize)))),
             IsMerge(AllOf(CaptureEq(&if_true),
@@ -377,7 +554,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToInt32) {
   EXPECT_THAT(
       r.replacement(),
       IsPhi(
-          kMachInt32,
+          MachineRepresentation::kWord32,
           IsChangeFloat64ToInt32(IsLoadHeapNumber(value, CaptureEq(&if_true))),
           IsTruncateInt64ToInt32(
               IsWord64Sar(value, IsInt64Constant(kSmiTagSize + kSmiShiftSize))),
@@ -401,7 +578,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToUint32) {
   EXPECT_THAT(
       r.replacement(),
       IsPhi(
-          kMachUint32,
+          MachineRepresentation::kWord32,
           IsChangeFloat64ToUint32(IsLoadHeapNumber(value, CaptureEq(&if_true))),
           IsTruncateInt64ToInt32(
               IsWord64Sar(value, IsInt64Constant(kSmiTagSize + kSmiShiftSize))),
@@ -425,14 +602,15 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeUint32ToTagged) {
   EXPECT_THAT(
       r.replacement(),
       IsPhi(
-          kMachAnyTagged,
+          MachineRepresentation::kTagged,
           IsWord64Shl(IsChangeUint32ToUint64(value),
                       IsInt64Constant(kSmiTagSize + kSmiShiftSize)),
           IsFinishRegion(
               AllOf(CaptureEq(&heap_number),
                     IsAllocateHeapNumber(_, CaptureEq(&if_false))),
               IsStore(
-                  StoreRepresentation(kMachFloat64, kNoWriteBarrier),
+                  StoreRepresentation(MachineRepresentation::kFloat64,
+                                      kNoWriteBarrier),
                   CaptureEq(&heap_number),
                   IsInt64Constant(HeapNumber::kValueOffset - kHeapObjectTag),
                   IsChangeUint32ToFloat64(value), CaptureEq(&heap_number),

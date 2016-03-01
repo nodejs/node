@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --debug-eval-readonly-locals
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
@@ -119,13 +119,15 @@ function listener(event, exec_state, event_data, data) {
       assertEquals(2, exec_state.frame(0).evaluate('b').value());
       assertEquals(5, exec_state.frame(0).evaluate('eval').value());
       assertEquals(3, exec_state.frame(1).evaluate('a').value());
-      assertEquals(4, exec_state.frame(1).evaluate('b').value());
+      // Reference error because g does not reference b.
+      assertThrows(() => exec_state.frame(1).evaluate('b'), ReferenceError);
       assertEquals("function",
                    typeof exec_state.frame(1).evaluate('eval').value());
       assertEquals(5, exec_state.frame(2).evaluate('a').value());
       assertEquals(6, exec_state.frame(2).evaluate('b').value());
       assertEquals("function",
                    typeof exec_state.frame(2).evaluate('eval').value());
+      // Assignments to local variables only have temporary effect.
       assertEquals("foo",
                    exec_state.frame(0).evaluate('a = "foo"').value());
       assertEquals("bar",
@@ -144,7 +146,7 @@ Debug.setListener(listener);
 
 var f_result = f();
 
-assertEquals('foobar', f_result);
+assertEquals(4, f_result);
 
 // Make sure that the debug event listener was invoked.
 assertFalse(exception, "exception in listener")

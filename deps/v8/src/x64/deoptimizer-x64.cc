@@ -41,14 +41,15 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     } else {
       pointer = code->instruction_start();
     }
-    CodePatcher patcher(pointer, 1);
+    CodePatcher patcher(isolate, pointer, 1);
     patcher.masm()->int3();
 
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(code->deoptimization_data());
     int osr_offset = data->OsrPcOffset()->value();
     if (osr_offset > 0) {
-      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
+                              1);
       osr_patcher.masm()->int3();
     }
   }
@@ -74,7 +75,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address call_address = instruction_start + deopt_data->Pc(i)->value();
     // There is room enough to write a long call instruction because we pad
     // LLazyBailout instructions with nops if necessary.
-    CodePatcher patcher(call_address, Assembler::kCallSequenceLength);
+    CodePatcher patcher(isolate, call_address, Assembler::kCallSequenceLength);
     patcher.masm()->Call(GetDeoptimizationEntry(isolate, i, LAZY),
                          Assembler::RelocInfoNone());
     DCHECK(prev_call_address == NULL ||

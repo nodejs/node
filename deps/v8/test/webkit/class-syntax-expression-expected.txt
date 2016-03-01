@@ -30,12 +30,12 @@ PASS x = class { constructor() {} static set prototype() {} } threw exception Sy
 PASS x = class  { constructor() {} prototype() { return instanceMethodValue; } } did not throw exception.
 PASS x = class { constructor() {} prototype() { return instanceMethodValue; } }; (new x).prototype() is instanceMethodValue
 PASS x = class { constructor() {} set foo(a) {} } did not throw exception.
-FAIL x = class { constructor() {} set foo({x, y}) {} } should not throw exception. Threw exception SyntaxError: Unexpected token {.
+PASS x = class { constructor() {} set foo({x, y}) {} } did not throw exception.
 PASS x = class { constructor() {} set foo() {} } threw exception SyntaxError: Setter must have exactly one formal parameter..
 PASS x = class { constructor() {} set foo(a, b) {} } threw exception SyntaxError: Setter must have exactly one formal parameter..
 PASS x = class { constructor() {} get foo() {} } did not throw exception.
 PASS x = class { constructor() {} get foo(x) {} } threw exception SyntaxError: Getter must not have any formal parameters..
-PASS x = class { constructor() {} get foo({x, y}) {} } threw exception SyntaxError: Unexpected token {.
+PASS x = class { constructor() {} get foo({x, y}) {} } threw exception SyntaxError: Getter must not have any formal parameters..
 PASS successfullyParsed is true
 
 TEST COMPLETE

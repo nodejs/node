@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -114,7 +111,8 @@ class LoopFinderTester : HandleAndZoneScope {
   }
 
   const Operator* op(int count, bool effect) {
-    return effect ? common.EffectPhi(count) : common.Phi(kMachAnyTagged, count);
+    return effect ? common.EffectPhi(count)
+                  : common.Phi(MachineRepresentation::kTagged, count);
   }
 
   Node* Return(Node* val, Node* effect, Node* control) {
@@ -269,8 +267,8 @@ TEST(LaLoop1phi) {
   // One loop with a simple phi.
   LoopFinderTester t;
   While w(t, t.p0);
-  Node* phi =
-      t.graph.NewNode(t.common.Phi(kMachAnyTagged, 2), t.zero, t.one, w.loop);
+  Node* phi = t.graph.NewNode(t.common.Phi(MachineRepresentation::kTagged, 2),
+                              t.zero, t.one, w.loop);
   t.Return(phi, t.start, w.exit);
 
   Node* chain[] = {w.loop};
@@ -478,7 +476,7 @@ TEST(LaNestedLoop1x) {
   While w2(t, t.p0);
   w2.nest(w1);
 
-  const Operator* op = t.common.Phi(kMachInt32, 2);
+  const Operator* op = t.common.Phi(MachineRepresentation::kWord32, 2);
   Node* p1a = t.graph.NewNode(op, t.p0, t.p0, w1.loop);
   Node* p1b = t.graph.NewNode(op, t.p0, t.p0, w1.loop);
   Node* p2a = t.graph.NewNode(op, p1a, t.p0, w2.loop);
@@ -691,8 +689,8 @@ TEST(LaEdgeMatrix1) {
         Node* p3 = t.jsgraph.Int32Constant(33);
 
         Node* loop = t.graph.NewNode(t.common.Loop(2), t.start, t.start);
-        Node* phi =
-            t.graph.NewNode(t.common.Phi(kMachInt32, 2), t.one, p1, loop);
+        Node* phi = t.graph.NewNode(
+            t.common.Phi(MachineRepresentation::kWord32, 2), t.one, p1, loop);
         Node* cond = t.graph.NewNode(&kIntAdd, phi, p2);
         Node* branch = t.graph.NewNode(t.common.Branch(), cond, loop);
         Node* if_true = t.graph.NewNode(t.common.IfTrue(), branch);
@@ -716,7 +714,7 @@ TEST(LaEdgeMatrix1) {
 
 
 void RunEdgeMatrix2(int i) {
-  DCHECK(i >= 0 && i < 5);
+  CHECK(i >= 0 && i < 5);
   for (int j = 0; j < 5; j++) {
     for (int k = 0; k < 5; k++) {
       LoopFinderTester t;
@@ -727,8 +725,8 @@ void RunEdgeMatrix2(int i) {
 
       // outer loop.
       Node* loop1 = t.graph.NewNode(t.common.Loop(2), t.start, t.start);
-      Node* phi1 =
-          t.graph.NewNode(t.common.Phi(kMachInt32, 2), t.one, p1, loop1);
+      Node* phi1 = t.graph.NewNode(
+          t.common.Phi(MachineRepresentation::kWord32, 2), t.one, p1, loop1);
       Node* cond1 = t.graph.NewNode(&kIntAdd, phi1, t.one);
       Node* branch1 = t.graph.NewNode(t.common.Branch(), cond1, loop1);
       Node* if_true1 = t.graph.NewNode(t.common.IfTrue(), branch1);
@@ -736,8 +734,8 @@ void RunEdgeMatrix2(int i) {
 
       // inner loop.
       Node* loop2 = t.graph.NewNode(t.common.Loop(2), if_true1, t.start);
-      Node* phi2 =
-          t.graph.NewNode(t.common.Phi(kMachInt32, 2), t.one, p2, loop2);
+      Node* phi2 = t.graph.NewNode(
+          t.common.Phi(MachineRepresentation::kWord32, 2), t.one, p2, loop2);
       Node* cond2 = t.graph.NewNode(&kIntAdd, phi2, p3);
       Node* branch2 = t.graph.NewNode(t.common.Branch(), cond2, loop2);
       Node* if_true2 = t.graph.NewNode(t.common.IfTrue(), branch2);
@@ -803,7 +801,8 @@ void RunEdgeMatrix3(int c1a, int c1b, int c1c,    // line break
 
   // L1 depth = 0
   Node* loop1 = t.graph.NewNode(t.common.Loop(2), t.start, t.start);
-  Node* phi1 = t.graph.NewNode(t.common.Phi(kMachInt32, 2), p1a, p1c, loop1);
+  Node* phi1 = t.graph.NewNode(t.common.Phi(MachineRepresentation::kWord32, 2),
+                               p1a, p1c, loop1);
   Node* cond1 = t.graph.NewNode(&kIntAdd, phi1, p1b);
   Node* branch1 = t.graph.NewNode(t.common.Branch(), cond1, loop1);
   Node* if_true1 = t.graph.NewNode(t.common.IfTrue(), branch1);
@@ -811,7 +810,8 @@ void RunEdgeMatrix3(int c1a, int c1b, int c1c,    // line break
 
   // L2 depth = 1
   Node* loop2 = t.graph.NewNode(t.common.Loop(2), if_true1, t.start);
-  Node* phi2 = t.graph.NewNode(t.common.Phi(kMachInt32, 2), p2a, p2c, loop2);
+  Node* phi2 = t.graph.NewNode(t.common.Phi(MachineRepresentation::kWord32, 2),
+                               p2a, p2c, loop2);
   Node* cond2 = t.graph.NewNode(&kIntAdd, phi2, p2b);
   Node* branch2 = t.graph.NewNode(t.common.Branch(), cond2, loop2);
   Node* if_true2 = t.graph.NewNode(t.common.IfTrue(), branch2);
@@ -819,7 +819,8 @@ void RunEdgeMatrix3(int c1a, int c1b, int c1c,    // line break
 
   // L3 depth = 2
   Node* loop3 = t.graph.NewNode(t.common.Loop(2), if_true2, t.start);
-  Node* phi3 = t.graph.NewNode(t.common.Phi(kMachInt32, 2), p3a, p3c, loop3);
+  Node* phi3 = t.graph.NewNode(t.common.Phi(MachineRepresentation::kWord32, 2),
+                               p3a, p3c, loop3);
   Node* cond3 = t.graph.NewNode(&kIntAdd, phi3, p3b);
   Node* branch3 = t.graph.NewNode(t.common.Branch(), cond3, loop3);
   Node* if_true3 = t.graph.NewNode(t.common.IfTrue(), branch3);
@@ -927,7 +928,8 @@ static void RunManyChainedLoops_i(int count) {
   // Build loops.
   for (int i = 0; i < count; i++) {
     Node* loop = t.graph.NewNode(t.common.Loop(2), last, t.start);
-    Node* phi = t.graph.NewNode(t.common.Phi(kMachInt32, 2), k11, k12, loop);
+    Node* phi = t.graph.NewNode(t.common.Phi(MachineRepresentation::kWord32, 2),
+                                k11, k12, loop);
     Node* branch = t.graph.NewNode(t.common.Branch(), phi, loop);
     Node* if_true = t.graph.NewNode(t.common.IfTrue(), branch);
     Node* exit = t.graph.NewNode(t.common.IfFalse(), branch);
@@ -962,7 +964,8 @@ static void RunManyNestedLoops_i(int count) {
   // Build loops.
   for (int i = 0; i < count; i++) {
     Node* loop = t.graph.NewNode(t.common.Loop(2), entry, t.start);
-    Node* phi = t.graph.NewNode(t.common.Phi(kMachInt32, 2), k11, k12, loop);
+    Node* phi = t.graph.NewNode(t.common.Phi(MachineRepresentation::kWord32, 2),
+                                k11, k12, loop);
     Node* branch = t.graph.NewNode(t.common.Branch(), phi, loop);
     Node* if_true = t.graph.NewNode(t.common.IfTrue(), branch);
     Node* exit = t.graph.NewNode(t.common.IfFalse(), branch);

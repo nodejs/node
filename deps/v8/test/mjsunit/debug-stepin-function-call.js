@@ -38,11 +38,11 @@ var state = 0;
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      if (state == 0) {
+      if (state < 2) {
         // Step into f2.call:
-        exec_state.prepareStep(Debug.StepAction.StepIn, 2);
-        state = 2;
-      } else if (state == 2) {
+        exec_state.prepareStep(Debug.StepAction.StepIn);
+        state++;
+      } else {
         assertEquals('g', event_data.func().name());
         assertEquals('  return t + 1; // expected line',
                      event_data.sourceLineText());

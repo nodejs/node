@@ -101,6 +101,70 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 };
 
 
+#ifndef V8_SHARED
+// Predictable v8::Platform implementation. All background and foreground
+// tasks are run immediately, delayed tasks are not executed at all.
+class PredictablePlatform : public Platform {
+ public:
+  PredictablePlatform() {}
+
+  void CallOnBackgroundThread(Task* task,
+                              ExpectedRuntime expected_runtime) override {
+    task->Run();
+    delete task;
+  }
+
+  void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
+    task->Run();
+    delete task;
+  }
+
+  void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
+                                     double delay_in_seconds) override {
+    delete task;
+  }
+
+  void CallIdleOnForegroundThread(v8::Isolate* isolate,
+                                  IdleTask* task) override {
+    UNREACHABLE();
+  }
+
+  bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
+
+  double MonotonicallyIncreasingTime() override {
+    return synthetic_time_in_sec_ += 0.00001;
+  }
+
+  uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
+                         const char* name, uint64_t id, uint64_t bind_id,
+                         int numArgs, const char** argNames,
+                         const uint8_t* argTypes, const uint64_t* argValues,
+                         unsigned int flags) override {
+    return 0;
+  }
+
+  void UpdateTraceEventDuration(const uint8_t* categoryEnabledFlag,
+                                const char* name, uint64_t handle) override {}
+
+  const uint8_t* GetCategoryGroupEnabled(const char* name) override {
+    static uint8_t no = 0;
+    return &no;
+  }
+
+  const char* GetCategoryGroupName(
+      const uint8_t* categoryEnabledFlag) override {
+    static const char* dummy = "dummy";
+    return dummy;
+  }
+
+ private:
+  double synthetic_time_in_sec_ = 0.0;
+
+  DISALLOW_COPY_AND_ASSIGN(PredictablePlatform);
+};
+#endif  // !V8_SHARED
+
+
 v8::Platform* g_platform = NULL;
 
 
@@ -425,13 +489,11 @@ int PerIsolateData::RealmIndexOrThrow(
 
 #ifndef V8_SHARED
 // performance.now() returns a time stamp as double, measured in milliseconds.
-// When FLAG_verify_predictable mode is enabled it returns current value
-// of Heap::allocations_count().
+// When FLAG_verify_predictable mode is enabled it returns result of
+// v8::Platform::MonotonicallyIncreasingTime().
 void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (i::FLAG_verify_predictable) {
-    Isolate* v8_isolate = args.GetIsolate();
-    i::Heap* heap = reinterpret_cast<i::Isolate*>(v8_isolate)->heap();
-    args.GetReturnValue().Set(heap->synthetic_time());
+    args.GetReturnValue().Set(g_platform->MonotonicallyIncreasingTime());
   } else {
     base::TimeDelta delta =
         base::TimeTicks::HighResolutionNow() - kInitialTicks;
@@ -594,9 +656,13 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     // Explicitly catch potential exceptions in toString().
     v8::TryCatch try_catch(args.GetIsolate());
+    Local<Value> arg = args[i];
     Local<String> str_obj;
-    if (!args[i]
-             ->ToString(args.GetIsolate()->GetCurrentContext())
+
+    if (arg->IsSymbol()) {
+      arg = Local<Symbol>::Cast(arg)->Name();
+    }
+    if (!arg->ToString(args.GetIsolate()->GetCurrentContext())
              .ToLocal(&str_obj)) {
       try_catch.ReThrow();
       return;
@@ -1046,7 +1112,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
           i::JSFunction::cast(*compiled_script)->shared()->script()))
       : i::Handle<i::Script>(i::Script::cast(
           i::SharedFunctionInfo::cast(*compiled_script)->script()));
-  script_object->set_type(i::Script::TYPE_NATIVE);
+  script_object->set_type(i::Script::TYPE_EXTENSION);
 }
 #endif  // !V8_SHARED
 
@@ -2016,7 +2082,13 @@ void Shell::CollectGarbage(Isolate* isolate) {
 
 
 void Shell::EmptyMessageQueues(Isolate* isolate) {
-  while (v8::platform::PumpMessageLoop(g_platform, isolate)) continue;
+#ifndef V8_SHARED
+  if (!i::FLAG_verify_predictable) {
+#endif
+    while (v8::platform::PumpMessageLoop(g_platform, isolate)) continue;
+#ifndef V8_SHARED
+  }
+#endif
 }
 
 
@@ -2358,7 +2430,14 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // defined(_WIN32) || defined(_WIN64)
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU(options.icu_data_file);
+#ifndef V8_SHARED
+  g_platform = i::FLAG_verify_predictable
+                   ? new PredictablePlatform()
+                   : v8::platform::CreateDefaultPlatform();
+#else
   g_platform = v8::platform::CreateDefaultPlatform();
+#endif  // !V8_SHARED
+
   v8::V8::InitializePlatform(g_platform);
   v8::V8::Initialize();
   if (options.natives_blob || options.snapshot_blob) {
@@ -2426,7 +2505,7 @@ int Shell::Main(int argc, char* argv[]) {
         result = RunMain(isolate, argc, argv, last_run);
       }
       printf("======== Full Deoptimization =======\n");
-      Testing::DeoptimizeAll();
+      Testing::DeoptimizeAll(isolate);
 #if !defined(V8_SHARED)
     } else if (i::FLAG_stress_runs > 0) {
       options.stress_runs = i::FLAG_stress_runs;

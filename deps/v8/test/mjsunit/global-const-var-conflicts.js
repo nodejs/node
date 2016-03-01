@@ -28,6 +28,8 @@
 // Check that dynamically introducing conflicting consts/vars
 // is silently ignored (and does not lead to exceptions).
 
+// Flags: --legacy-const
+
 var caught = 0;
 
 eval("const a");
