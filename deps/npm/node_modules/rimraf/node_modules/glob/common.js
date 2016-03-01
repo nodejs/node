@@ -93,8 +93,8 @@ function setopts (self, pattern, options) {
   if (!ownProp(options, "cwd"))
     self.cwd = cwd
   else {
-    self.cwd = options.cwd
-    self.changedCwd = path.resolve(options.cwd) !== cwd
+    self.cwd = path.resolve(options.cwd)
+    self.changedCwd = self.cwd !== cwd
   }
 
   self.root = options.root || path.resolve(self.cwd, "/")
