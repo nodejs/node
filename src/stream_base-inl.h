@@ -61,9 +61,6 @@ void StreamBase::AddMethods(Environment* env,
   env->SetProtoMethod(t,
                       "writeUcs2String",
                       JSMethod<Base, &StreamBase::WriteString<UCS2> >);
-  env->SetProtoMethod(t,
-                      "writeBinaryString",
-                      JSMethod<Base, &StreamBase::WriteString<BINARY> >);
 }
 
 

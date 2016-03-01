@@ -66,10 +66,6 @@ The character encodings currently supported by Node.js include:
   this encoding will also correctly accept "URL and Filename Safe Alphabet" as
   specified in [RFC 4648, Section 5].
 
-* `'binary'` - A way of encoding the buffer into a one-byte (`latin-1`)
-  encoded string. The string `'latin-1'` is not supported. Instead, pass
-  `'binary'` to use `'latin-1'` encoding.
-
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
 ## Buffers and TypedArray

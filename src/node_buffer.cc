@@ -502,11 +502,6 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void BinarySlice(const FunctionCallbackInfo<Value>& args) {
-  StringSlice<BINARY>(args);
-}
-
-
 void AsciiSlice(const FunctionCallbackInfo<Value>& args) {
   StringSlice<ASCII>(args);
 }
@@ -703,11 +698,6 @@ void Base64Write(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void BinaryWrite(const FunctionCallbackInfo<Value>& args) {
-  StringWrite<BINARY>(args);
-}
-
-
 void Utf8Write(const FunctionCallbackInfo<Value>& args) {
   StringWrite<UTF8>(args);
 }
@@ -899,8 +889,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   const char* haystack = ts_obj_data;
   const size_t haystack_length = ts_obj_length;
   // Extended latin-1 characters are 2 bytes in Utf8.
-  const size_t needle_length =
-      enc == BINARY ? needle->Length() : needle->Utf8Length();
+  const size_t needle_length = needle->Utf8Length();
 
 
   if (needle_length == 0 || haystack_length == 0) {
@@ -967,20 +956,6 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                           reinterpret_cast<const uint8_t*>(*needle_value),
                           needle_length,
                           offset);
-  } else if (enc == BINARY) {
-    uint8_t* needle_data = static_cast<uint8_t*>(malloc(needle_length));
-    if (needle_data == nullptr) {
-      return args.GetReturnValue().Set(-1);
-    }
-    needle->WriteOneByte(
-        needle_data, 0, needle_length, String::NO_NULL_TERMINATION);
-
-    result = SearchString(reinterpret_cast<const uint8_t*>(haystack),
-                          haystack_length,
-                          needle_data,
-                          needle_length,
-                          offset);
-    free(needle_data);
   }
 
   args.GetReturnValue().Set(
@@ -1093,14 +1068,12 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   env->SetMethod(proto, "asciiSlice", AsciiSlice);
   env->SetMethod(proto, "base64Slice", Base64Slice);
-  env->SetMethod(proto, "binarySlice", BinarySlice);
   env->SetMethod(proto, "hexSlice", HexSlice);
   env->SetMethod(proto, "ucs2Slice", Ucs2Slice);
   env->SetMethod(proto, "utf8Slice", Utf8Slice);
 
   env->SetMethod(proto, "asciiWrite", AsciiWrite);
   env->SetMethod(proto, "base64Write", Base64Write);
-  env->SetMethod(proto, "binaryWrite", BinaryWrite);
   env->SetMethod(proto, "hexWrite", HexWrite);
   env->SetMethod(proto, "ucs2Write", Ucs2Write);
   env->SetMethod(proto, "utf8Write", Utf8Write);

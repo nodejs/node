@@ -5,9 +5,7 @@ var assert = require('assert');
 var Buffer = require('buffer').Buffer;
 
 // coerce values to string
-assert.equal(Buffer.byteLength(32, 'binary'), 2);
 assert.equal(Buffer.byteLength(NaN, 'utf8'), 3);
-assert.equal(Buffer.byteLength({}, 'binary'), 15);
 assert.equal(Buffer.byteLength(), 9);
 
 // buffer
@@ -46,7 +44,6 @@ assert.equal(Buffer.byteLength('aaaa==', 'base64'), 3);
 assert.equal(Buffer.byteLength('Il était tué'), 14);
 assert.equal(Buffer.byteLength('Il était tué', 'utf8'), 14);
 assert.equal(Buffer.byteLength('Il était tué', 'ascii'), 12);
-assert.equal(Buffer.byteLength('Il était tué', 'binary'), 12);
 ['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach(function(encoding) {
   assert.equal(24, Buffer.byteLength('Il était tué', encoding));
 });

@@ -145,7 +145,7 @@ console.log(encrypted);
 ### cipher.final([output_encoding])
 
 Returns any remaining enciphered contents. If `output_encoding`
-parameter is one of `'binary'`, `'base64'` or `'hex'`, a string is returned.
+parameter is one of `'base64'` or `'hex'`, a string is returned.
 If an `output_encoding` is not provided, a [`Buffer`][] is returned.
 
 Once the `cipher.final()` method has been called, the `Cipher` object can no
@@ -183,13 +183,13 @@ The `cipher.setAutoPadding()` method must be called before [`cipher.final()`][].
 ### cipher.update(data[, input_encoding][, output_encoding])
 
 Updates the cipher with `data`. If the `input_encoding` argument is given,
-it's value must be one of `'utf8'`, `'ascii'`, or `'binary'` and the `data`
+it's value must be one of `'utf8'`, or `'ascii'` and the `data`
 argument is a string using the specified encoding. If the `input_encoding`
 argument is not given, `data` must be a [`Buffer`][]. If `data` is a
 [`Buffer`][] then `input_encoding` is ignored.
 
 The `output_encoding` specifies the output format of the enciphered
-data, and can be `'binary'`, `'base64'` or `'hex'`. If the `output_encoding`
+data, and can be `'base64'` or `'hex'`. If the `output_encoding`
 is specified, a string using the specified encoding is returned. If no
 `output_encoding` is provided, a [`Buffer`][] is returned.
 
@@ -262,7 +262,7 @@ console.log(decrypted);
 ### decipher.final([output_encoding])
 
 Returns any remaining deciphered contents. If `output_encoding`
-parameter is one of `'binary'`, `'base64'` or `'hex'`, a string is returned.
+parameter is one of `'base64'` or `'hex'`, a string is returned.
 If an `output_encoding` is not provided, a [`Buffer`][] is returned.
 
 Once the `decipher.final()` method has been called, the `Decipher` object can
@@ -298,13 +298,13 @@ The `decipher.setAutoPadding()` method must be called before
 ### decipher.update(data[, input_encoding][, output_encoding])
 
 Updates the decipher with `data`. If the `input_encoding` argument is given,
-it's value must be one of `'binary'`, `'base64'`, or `'hex'` and the `data`
+it's value must be one of `'base64'`, or `'hex'` and the `data`
 argument is a string using the specified encoding. If the `input_encoding`
 argument is not given, `data` must be a [`Buffer`][]. If `data` is a
 [`Buffer`][] then `input_encoding` is ignored.
 
 The `output_encoding` specifies the output format of the enciphered
-data, and can be `'binary'`, `'ascii'` or `'utf8'`. If the `output_encoding`
+data, and can be `'ascii'` or `'utf8'`. If the `output_encoding`
 is specified, a string using the specified encoding is returned. If no
 `output_encoding` is provided, a [`Buffer`][] is returned.
 
@@ -346,7 +346,7 @@ Computes the shared secret using `other_public_key` as the other
 party's public key and returns the computed shared secret. The supplied
 key is interpreted using the specified `input_encoding`, and secret is
 encoded using specified `output_encoding`. Encodings can be
-`'binary'`, `'hex'`, or `'base64'`. If the `input_encoding` is not
+`'hex'`, or `'base64'`. If the `input_encoding` is not
 provided, `other_public_key` is expected to be a [`Buffer`][].
 
 If `output_encoding` is given a string is returned; otherwise, a
@@ -356,45 +356,45 @@ If `output_encoding` is given a string is returned; otherwise, a
 
 Generates private and public Diffie-Hellman key values, and returns
 the public key in the specified `encoding`. This key should be
-transferred to the other party. Encoding can be `'binary'`, `'hex'`,
+transferred to the other party. Encoding can be `'hex'`,
 or `'base64'`. If `encoding` is provided a string is returned; otherwise a
 [`Buffer`][] is returned.
 
 ### diffieHellman.getGenerator([encoding])
 
 Returns the Diffie-Hellman generator in the specified `encoding`, which can
-be `'binary'`, `'hex'`, or `'base64'`. If  `encoding` is provided a string is
+be `'hex'`, or `'base64'`. If  `encoding` is provided a string is
 returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.getPrime([encoding])
 
 Returns the Diffie-Hellman prime in the specified `encoding`, which can
-be `'binary'`, `'hex'`, or `'base64'`. If `encoding` is provided a string is
+be `'hex'`, or `'base64'`. If `encoding` is provided a string is
 returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.getPrivateKey([encoding])
 
 Returns the Diffie-Hellman private key in the specified `encoding`,
-which can be `'binary'`, `'hex'`, or `'base64'`. If `encoding` is provided a
+which can be `'hex'`, or `'base64'`. If `encoding` is provided a
 string is returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.getPublicKey([encoding])
 
 Returns the Diffie-Hellman public key in the specified `encoding`, which
-can be `'binary'`, `'hex'`, or `'base64'`. If `encoding` is provided a
+can be `'hex'`, or `'base64'`. If `encoding` is provided a
 string is returned; otherwise a [`Buffer`][] is returned.
 
 ### diffieHellman.setPrivateKey(private_key[, encoding])
 
 Sets the Diffie-Hellman private key. If the `encoding` argument is provided
-and is either `'binary'`, `'hex'`, or `'base64'`, `private_key` is expected
+and is either `'hex'`, or `'base64'`, `private_key` is expected
 to be a string. If no `encoding` is provided, `private_key` is expected
 to be a [`Buffer`][].
 
 ### diffieHellman.setPublicKey(public_key[, encoding])
 
 Sets the Diffie-Hellman public key. If the `encoding` argument is provided
-and is either `'binary'`, `'hex'` or `'base64'`, `public_key` is expected
+and is either `'hex'` or `'base64'`, `public_key` is expected
 to be a string. If no `encoding` is provided, `public_key` is expected
 to be a [`Buffer`][].
 
@@ -445,7 +445,7 @@ Computes the shared secret using `other_public_key` as the other
 party's public key and returns the computed shared secret. The supplied
 key is interpreted using specified `input_encoding`, and the returned secret
 is encoded using the specified `output_encoding`. Encodings can be
-`'binary'`, `'hex'`, or `'base64'`. If the `input_encoding` is not
+`'hex'`, or `'base64'`. If the `input_encoding` is not
 provided, `other_public_key` is expected to be a [`Buffer`][].
 
 If `output_encoding` is given a string will be returned; otherwise a
@@ -461,14 +461,14 @@ The `format` arguments specifies point encoding and can be `'compressed'`,
 `'uncompressed'`, or `'hybrid'`. If `format` is not specified, the point will
 be returned in `'uncompressed'` format.
 
-The `encoding` argument can be `'binary'`, `'hex'`, or `'base64'`. If
+The `encoding` argument can be `'hex'`, or `'base64'`. If
 `encoding` is provided a string is returned; otherwise a [`Buffer`][]
 is returned.
 
 ### ecdh.getPrivateKey([encoding])
 
 Returns the EC Diffie-Hellman private key in the specified `encoding`,
-which can be `'binary'`, `'hex'`, or `'base64'`. If `encoding` is provided
+which can be `'hex'`, or `'base64'`. If `encoding` is provided
 a string is returned; otherwise a [`Buffer`][] is returned.
 
 ### ecdh.getPublicKey([encoding[, format]])
@@ -480,13 +480,13 @@ The `format` argument specifies point encoding and can be `'compressed'`,
 `'uncompressed'`, or `'hybrid'`. If `format` is not specified the point will be
 returned in `'uncompressed'` format.
 
-The `encoding` argument can be `'binary'`, `'hex'`, or `'base64'`. If
+The `encoding` argument can be `'hex'`, or `'base64'`. If
 `encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
 returned.
 
 ### ecdh.setPrivateKey(private_key[, encoding])
 
-Sets the EC Diffie-Hellman private key. The `encoding` can be `'binary'`,
+Sets the EC Diffie-Hellman private key. The `encoding` can be
 `'hex'` or `'base64'`. If `encoding` is provided, `private_key` is expected
 to be a string; otherwise `private_key` is expected to be a [`Buffer`][]. If
 `private_key` is not valid for the curve specified when the `ECDH` object was
@@ -497,7 +497,7 @@ public point (key) is also generated and set in the ECDH object.
 
     Stability: 0 - Deprecated
 
-Sets the EC Diffie-Hellman public key. Key encoding can be `'binary'`,
+Sets the EC Diffie-Hellman public key. Key encoding can be
 `'hex'` or `'base64'`. If `encoding` is provided `public_key` is expected to
 be a string; otherwise a [`Buffer`][] is expected.
 
@@ -589,7 +589,7 @@ console.log(hash.digest('hex'));
 ### hash.digest([encoding])
 
 Calculates the digest of all of the data passed to be hashed (using the
-[`hash.update()`][] method). The `encoding` can be `'hex'`, `'binary'` or
+[`hash.update()`][] method). The `encoding` can be `'hex'` or
 `'base64'`. If `encoding` is provided a string will be returned; otherwise
 a [`Buffer`][] is returned.
 
@@ -599,9 +599,9 @@ called. Multiple calls will cause an error to be thrown.
 ### hash.update(data[, input_encoding])
 
 Updates the hash content with the given `data`, the encoding of which
-is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
-`'binary'`. If `encoding` is not provided, and the `data` is a string, an
-encoding of `'binary'` is enforced. If `data` is a [`Buffer`][] then
+is given in `input_encoding` and can be `'utf8'` or `'ascii'`.
+If `encoding` is not provided, and the `data` is a string, an
+encoding of `'buffer'` is enforced. If `data` is a [`Buffer`][] then
 `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
@@ -663,7 +663,7 @@ console.log(hmac.digest('hex'));
 ### hmac.digest([encoding])
 
 Calculates the HMAC digest of all of the data passed using [`hmac.update()`][].
-The `encoding` can be `'hex'`, `'binary'` or `'base64'`. If `encoding` is
+The `encoding` can be `'hex'` or `'base64'`. If `encoding` is
 provided a string is returned; otherwise a [`Buffer`][] is returned;
 
 The `Hmac` object can not be used again after `hmac.digest()` has been
@@ -726,7 +726,7 @@ object, it is interpreted as a hash containing two properties:
 * `key` : {String} - PEM encoded private key
 * `passphrase` : {String} - passphrase for the private key
 
-The `output_format` can specify one of `'binary'`, `'hex'` or `'base64'`. If
+The `output_format` can specify one of `'hex'` or `'base64'`. If
 `output_format` is provided a string is returned; otherwise a [`Buffer`][] is
 returned.
 
@@ -791,7 +791,7 @@ Verifies the provided data using the given `object` and `signature`.
 The `object` argument is a string containing a PEM encoded object, which can be
 one an RSA public key, a DSA public key, or an X.509 certificate.
 The `signature` argument is the previously calculated signature for the data, in
-the `signature_format` which can be `'binary'`, `'hex'` or `'base64'`.
+the `signature_format` which can be `'hex'` or `'base64'`.
 If a `signature_format` is specified, the `signature` is expected to be a
 string; otherwise `signature` is expected to be a [`Buffer`][].
 
@@ -811,7 +811,7 @@ or [buffers][`Buffer`]. The default value is `'buffer'`, which makes methods
 default to [`Buffer`][] objects.
 
 The `crypto.DEFAULT_ENCODING` mechanism is provided for backwards compatibility
-with legacy programs that expect `'binary'` to be the default encoding.
+with legacy programs that expect `'buffer'` to be the default encoding.
 
 New applications should expect the default to be `'buffer'`. This property may
 become deprecated in a future Node.js release.
@@ -831,7 +831,7 @@ recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `password` is used to derive the cipher key and initialization vector (IV).
-The value must be either a `'binary'` encoded string or a [`Buffer`[].
+The value must be a [`Buffer`[].
 
 The implementation of `crypto.createCipher()` derives keys using the OpenSSL
 function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
@@ -855,7 +855,7 @@ recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
-[initialization vector][]. Both arguments must be `'binary'` encoded strings or
+[initialization vector][]. Both arguments must be a
 [buffers][`Buffer`].
 
 ### crypto.createCredentials(details)
@@ -910,7 +910,7 @@ recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
-[initialization vector][]. Both arguments must be `'binary'` encoded strings or
+[initialization vector][]. Both arguments must be a
 [buffers][`Buffer`].
 
 ### crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
@@ -921,7 +921,7 @@ optional specific `generator`.
 The `generator` argument can be a number, string, or [`Buffer`][]. If
 `generator` is not specified, the value `2` is used.
 
-The `prime_encoding` and `generator_encoding` arguments can be `'binary'`,
+The `prime_encoding` and `generator_encoding` arguments can be 
 `'hex'`, or `'base64'`.
 
 If `prime_encoding` is specified, `prime` is expected to be a string; otherwise
