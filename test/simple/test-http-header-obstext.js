@@ -8,7 +8,7 @@ var server = http.createServer(common.mustCall(function(req, res) {
 server.listen(common.PORT, function() {
   http.get({
     port: common.PORT,
-    headers: {'Test': 'Düsseldorf'}
+    headers: {'Connection': 'close', 'Test': 'Düsseldorf'}
   }, common.mustCall(function(res) {
     assert.equal(res.statusCode, 200);
     server.close();
