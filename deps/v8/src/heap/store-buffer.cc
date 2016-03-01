@@ -412,6 +412,26 @@ void StoreBuffer::VerifyValidStoreBufferEntries() {
 }
 
 
+class FindPointersToNewSpaceVisitor final : public ObjectVisitor {
+ public:
+  FindPointersToNewSpaceVisitor(StoreBuffer* store_buffer,
+                                ObjectSlotCallback callback)
+      : store_buffer_(store_buffer), callback_(callback) {}
+
+  V8_INLINE void VisitPointers(Object** start, Object** end) override {
+    store_buffer_->FindPointersToNewSpaceInRegion(
+        reinterpret_cast<Address>(start), reinterpret_cast<Address>(end),
+        callback_);
+  }
+
+  V8_INLINE void VisitCodeEntry(Address code_entry_slot) override {}
+
+ private:
+  StoreBuffer* store_buffer_;
+  ObjectSlotCallback callback_;
+};
+
+
 void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
   // We do not sort or remove duplicated entries from the store buffer because
   // we expect that callback will rebuild the store buffer thus removing
@@ -438,6 +458,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
     }
     PointerChunkIterator it(heap_);
     MemoryChunk* chunk;
+    FindPointersToNewSpaceVisitor visitor(this, slot_callback);
     while ((chunk = it.next()) != NULL) {
       if (chunk->scan_on_scavenge()) {
         chunk->set_scan_on_scavenge(false);
@@ -469,69 +490,22 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
               }
             }
           } else {
-            heap_->mark_compact_collector()->SweepOrWaitUntilSweepingCompleted(
-                page);
-            HeapObjectIterator iterator(page);
-            for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
-                 heap_object = iterator.Next()) {
-              // We iterate over objects that contain new space pointers only.
-              Address obj_address = heap_object->address();
-              const int start_offset = HeapObject::kHeaderSize;
-              const int end_offset = heap_object->Size();
-
-              switch (heap_object->ContentType()) {
-                case HeapObjectContents::kTaggedValues: {
-                  Address start_address = obj_address + start_offset;
-                  Address end_address = obj_address + end_offset;
-                  // Object has only tagged fields.
-                  FindPointersToNewSpaceInRegion(start_address, end_address,
-                                                 slot_callback);
-                  break;
-                }
-
-                case HeapObjectContents::kMixedValues: {
-                  if (heap_object->IsFixedTypedArrayBase()) {
-                    FindPointersToNewSpaceInRegion(
-                        obj_address + FixedTypedArrayBase::kBasePointerOffset,
-                        obj_address + FixedTypedArrayBase::kHeaderSize,
-                        slot_callback);
-                  } else if (heap_object->IsBytecodeArray()) {
-                    FindPointersToNewSpaceInRegion(
-                        obj_address + BytecodeArray::kConstantPoolOffset,
-                        obj_address + BytecodeArray::kHeaderSize,
-                        slot_callback);
-                  } else if (heap_object->IsJSArrayBuffer()) {
-                    FindPointersToNewSpaceInRegion(
-                        obj_address +
-                            JSArrayBuffer::BodyDescriptor::kStartOffset,
-                        obj_address + JSArrayBuffer::kByteLengthOffset +
-                            kPointerSize,
-                        slot_callback);
-                    FindPointersToNewSpaceInRegion(
-                        obj_address + JSArrayBuffer::kSize,
-                        obj_address + JSArrayBuffer::kSizeWithInternalFields,
-                        slot_callback);
-                  } else if (FLAG_unbox_double_fields) {
-                    LayoutDescriptorHelper helper(heap_object->map());
-                    DCHECK(!helper.all_fields_tagged());
-                    for (int offset = start_offset; offset < end_offset;) {
-                      int end_of_region_offset;
-                      if (helper.IsTagged(offset, end_offset,
-                                          &end_of_region_offset)) {
-                        FindPointersToNewSpaceInRegion(
-                            obj_address + offset,
-                            obj_address + end_of_region_offset, slot_callback);
-                      }
-                      offset = end_of_region_offset;
-                    }
-                  } else {
-                    UNREACHABLE();
-                  }
-                  break;
-                }
-
-                case HeapObjectContents::kRawValues:
-                  break;
+            if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
+              // Aborted pages require iterating using mark bits because they
+              // don't have an iterable object layout before sweeping (which can
+              // only happen later). Note that we can never reach an
+              // aborted page through the scavenger.
+              DCHECK_EQ(heap_->gc_state(), Heap::MARK_COMPACT);
+              heap_->mark_compact_collector()->VisitLiveObjectsBody(page,
+                                                                    &visitor);
+            } else {
+              heap_->mark_compact_collector()
+                  ->SweepOrWaitUntilSweepingCompleted(page);
+              HeapObjectIterator iterator(page);
+              for (HeapObject* heap_object = iterator.Next();
+                   heap_object != nullptr; heap_object = iterator.Next()) {
+                // We iterate over objects that contain new space pointers only.
+                heap_object->IterateBody(&visitor);
               }
             }
           }

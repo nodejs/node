@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_AST_GRAPH_BUILDER_H_
 #define V8_COMPILER_AST_GRAPH_BUILDER_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/state-values-utils.h"
@@ -13,15 +13,20 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
 class BitVector;
+
 
 namespace compiler {
 
+// Forward declarations.
 class ControlBuilder;
 class Graph;
 class LoopAssignmentAnalysis;
 class LoopBuilder;
 class Node;
+class TypeHintAnalysis;
+
 
 // The AstGraphBuilder produces a high-level IR graph, based on an
 // underlying AST. The produced graph can either be compiled into a
@@ -30,7 +35,8 @@ class Node;
 class AstGraphBuilder : public AstVisitor {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
-                  LoopAssignmentAnalysis* loop_assignment = NULL);
+                  LoopAssignmentAnalysis* loop_assignment = nullptr,
+                  TypeHintAnalysis* type_hint_analysis = nullptr);
 
   // Creates a graph by visiting the entire AST.
   bool CreateGraph(bool stack_check = true);
@@ -87,6 +93,7 @@ class AstGraphBuilder : public AstVisitor {
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
+  SetOncePointer<Node> new_target_;
 
   // Tracks how many try-blocks are currently entered.
   int try_catch_nesting_level_;
@@ -104,6 +111,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Result of loop assignment analysis performed before graph creation.
   LoopAssignmentAnalysis* loop_assignment_analysis_;
+
+  // Result of type hint analysis performed before graph creation.
+  TypeHintAnalysis* type_hint_analysis_;
 
   // Cache for StateValues nodes for frame states.
   StateValuesCache state_values_cache_;
@@ -147,16 +157,19 @@ class AstGraphBuilder : public AstVisitor {
   // Create the main graph body by visiting the AST.
   void CreateGraphBody(bool stack_check);
 
-  // Get or create the node that represents the outer function closure.
+  // Get or create the node that represents the incoming function closure.
   Node* GetFunctionClosureForContext();
   Node* GetFunctionClosure();
 
-  // Get or create the node that represents the outer function context.
+  // Get or create the node that represents the incoming function context.
   Node* GetFunctionContext();
+
+  // Get or create the node that represents the incoming new target value.
+  Node* GetNewTarget();
 
   // Node creation helpers.
   Node* NewNode(const Operator* op, bool incomplete = false) {
-    return MakeNode(op, 0, static_cast<Node**>(NULL), incomplete);
+    return MakeNode(op, 0, static_cast<Node**>(nullptr), incomplete);
   }
 
   Node* NewNode(const Operator* op, Node* n1) {
@@ -251,6 +264,9 @@ class AstGraphBuilder : public AstVisitor {
   // Builder to create an arguments object if it is used.
   Node* BuildArgumentsObject(Variable* arguments);
 
+  // Builder to create an array of rest parameters if used
+  Node* BuildRestArgumentsArray(Variable* rest, int index);
+
   // Builder that assigns to the {.this_function} internal variable if needed.
   Node* BuildThisFunctionVariable(Variable* this_function_var);
 
@@ -308,7 +324,7 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildLoadImmutableObjectField(Node* object, int offset);
 
   // Builders for automatic type conversion.
-  Node* BuildToBoolean(Node* input);
+  Node* BuildToBoolean(Node* input, TypeFeedbackId feedback_id);
   Node* BuildToName(Node* input, BailoutId bailout_id);
   Node* BuildToObject(Node* input, BailoutId bailout_id);
 
@@ -340,7 +356,8 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildThrow(Node* exception_value);
 
   // Builders for binary operations.
-  Node* BuildBinaryOp(Node* left, Node* right, Token::Value op);
+  Node* BuildBinaryOp(Node* left, Node* right, Token::Value op,
+                      TypeFeedbackId feedback_id);
 
   // Process arguments to a call by popping {arity} elements off the operand
   // stack and build a call node using the given call operator.
@@ -348,7 +365,7 @@ class AstGraphBuilder : public AstVisitor {
 
   // ===========================================================================
   // The following build methods have the same contract as the above ones, but
-  // they can also return {NULL} to indicate that no fragment was built. Note
+  // they can also return {nullptr} to indicate that no fragment was built. Note
   // that these are optimizations, disabling any of them should still produce
   // correct graphs.
 

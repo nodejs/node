@@ -20,7 +20,7 @@ function listener(event, exec_state, event_data, data) {
     var label = +exec_state.frame(0).sourceLineText().substr(-1);
     log.push(label);
     if (label == 2) log.push(exec_state.frame(0).evaluate("i").value());
-    exec_state.prepareStep(Debug.StepAction.StepNext, 1);
+    exec_state.prepareStep(Debug.StepAction.StepNext);
   } catch (e) {
     exception = e;
     print("Caught something. " + e + " " + e.stack);

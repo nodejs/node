@@ -24,24 +24,24 @@ void EmitDebugBreakSlot(MacroAssembler* masm) {
 }
 
 
-void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
-                                int call_argc) {
+void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode) {
   // Generate enough nop's to make space for a call instruction.
-  masm->RecordDebugBreakSlot(mode, call_argc);
+  masm->RecordDebugBreakSlot(mode);
   EmitDebugBreakSlot(masm);
 }
 
 
-void DebugCodegen::ClearDebugBreakSlot(Address pc) {
-  CodePatcher patcher(pc, Assembler::kDebugBreakSlotLength);
+void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
+  CodePatcher patcher(isolate, pc, Assembler::kDebugBreakSlotLength);
   EmitDebugBreakSlot(patcher.masm());
 }
 
 
-void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
+void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
+                                       Handle<Code> code) {
   DCHECK_EQ(Code::BUILTIN, code->kind());
   static const int kSize = Assembler::kDebugBreakSlotLength;
-  CodePatcher patcher(pc, kSize);
+  CodePatcher patcher(isolate, pc, kSize);
   Label check_codesize;
   patcher.masm()->bind(&check_codesize);
   patcher.masm()->movp(kScratchRegister, reinterpret_cast<void*>(code->entry()),
@@ -106,34 +106,29 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  masm->ret(0);
-}
-
-
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  ExternalReference restarter_frame_function_slot =
-      ExternalReference::debug_restarter_frame_function_pointer_address(
-          masm->isolate());
-  __ Move(rax, restarter_frame_function_slot);
-  __ movp(Operand(rax, 0), Immediate(0));
-
   // We do not know our frame height, but set rsp based on rbp.
   __ leap(rsp, Operand(rbp, -1 * kPointerSize));
 
   __ Pop(rdi);  // Function.
   __ popq(rbp);
 
+  ParameterCount dummy(0);
+  __ FloodFunctionIfStepping(rdi, no_reg, dummy, dummy);
+
   // Load context from the function.
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
+  // Clear new.target as a safety measure.
+  __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+
   // Get function code.
-  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-  __ leap(rdx, FieldOperand(rdx, Code::kHeaderSize));
+  __ movp(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rbx, FieldOperand(rbx, SharedFunctionInfo::kCodeOffset));
+  __ leap(rbx, FieldOperand(rbx, Code::kHeaderSize));
 
   // Re-run JSFunction, rdi is function, rsi is context.
-  __ jmp(rdx);
+  __ jmp(rbx);
 }
 
 const bool LiveEdit::kFrameDropperSupported = true;

@@ -51,7 +51,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
       Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   HandleScope handles(isolate);
-  MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size),
+                      v8::internal::CodeObjectRequired::kYes);
   int offset =
     source_reg.is(esp) ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
   DoubleToIStub stub(isolate, source_reg, destination_reg, offset, true);

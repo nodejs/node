@@ -92,10 +92,8 @@ void LookupIterator::RestartInternal(InterceptorState interceptor_state) {
 
 
 // static
-Handle<JSReceiver> LookupIterator::GetRoot(Isolate* isolate,
-                                           Handle<Object> receiver,
-                                           uint32_t index) {
-  if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
+Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
+    Isolate* isolate, Handle<Object> receiver, uint32_t index) {
   // Strings are the only objects with properties (only elements) directly on
   // the wrapper. Hence we can skip generating the wrapper for all other cases.
   if (index != kMaxUInt32 && receiver->IsString() &&
@@ -272,23 +270,27 @@ void LookupIterator::ApplyTransitionToDataProperty() {
 
 
 void LookupIterator::Delete() {
-  Handle<JSObject> holder = Handle<JSObject>::cast(holder_);
+  Handle<JSReceiver> holder = Handle<JSReceiver>::cast(holder_);
   if (IsElement()) {
-    ElementsAccessor* accessor = holder->GetElementsAccessor();
-    accessor->Delete(holder, number_);
+    Handle<JSObject> object = Handle<JSObject>::cast(holder);
+    ElementsAccessor* accessor = object->GetElementsAccessor();
+    accessor->Delete(object, number_);
   } else {
     PropertyNormalizationMode mode = holder->map()->is_prototype_map()
                                          ? KEEP_INOBJECT_PROPERTIES
                                          : CLEAR_INOBJECT_PROPERTIES;
 
     if (holder->HasFastProperties()) {
-      JSObject::NormalizeProperties(holder, mode, 0, "DeletingProperty");
+      JSObject::NormalizeProperties(Handle<JSObject>::cast(holder), mode, 0,
+                                    "DeletingProperty");
       holder_map_ = handle(holder->map(), isolate_);
       ReloadPropertyInformation();
     }
     // TODO(verwaest): Get rid of the name_ argument.
-    JSObject::DeleteNormalizedProperty(holder, name_, number_);
-    JSObject::ReoptimizeIfPrototype(holder);
+    JSReceiver::DeleteNormalizedProperty(holder, name_, number_);
+    if (holder->IsJSObject()) {
+      JSObject::ReoptimizeIfPrototype(Handle<JSObject>::cast(holder));
+    }
   }
 }
 
@@ -415,8 +417,8 @@ bool LookupIterator::InternalHolderIsReceiverOrHiddenPrototype() const {
 
 Handle<Object> LookupIterator::FetchValue() const {
   Object* result = NULL;
-  Handle<JSObject> holder = GetHolder<JSObject>();
   if (IsElement()) {
+    Handle<JSObject> holder = GetHolder<JSObject>();
     // TODO(verwaest): Optimize.
     if (holder->IsStringObjectWithCharacterAt(index_)) {
       Handle<JSValue> js_value = Handle<JSValue>::cast(holder);
@@ -428,12 +430,14 @@ Handle<Object> LookupIterator::FetchValue() const {
     ElementsAccessor* accessor = holder->GetElementsAccessor();
     return accessor->Get(handle(holder->elements()), number_);
   } else if (holder_map_->IsJSGlobalObjectMap()) {
+    Handle<JSObject> holder = GetHolder<JSObject>();
     result = holder->global_dictionary()->ValueAt(number_);
     DCHECK(result->IsPropertyCell());
     result = PropertyCell::cast(result)->value();
   } else if (holder_map_->is_dictionary_map()) {
-    result = holder->property_dictionary()->ValueAt(number_);
+    result = holder_->property_dictionary()->ValueAt(number_);
   } else if (property_details_.type() == v8::internal::DATA) {
+    Handle<JSObject> holder = GetHolder<JSObject>();
     FieldIndex field_index = FieldIndex::ForDescriptor(*holder_map_, number_);
     return JSObject::FastPropertyAt(holder, property_details_.representation(),
                                     field_index);
@@ -508,20 +512,21 @@ Handle<Object> LookupIterator::GetDataValue() const {
 
 void LookupIterator::WriteDataValue(Handle<Object> value) {
   DCHECK_EQ(DATA, state_);
-  Handle<JSObject> holder = GetHolder<JSObject>();
+  Handle<JSReceiver> holder = GetHolder<JSReceiver>();
   if (IsElement()) {
-    ElementsAccessor* accessor = holder->GetElementsAccessor();
-    accessor->Set(holder->elements(), number_, *value);
+    Handle<JSObject> object = Handle<JSObject>::cast(holder);
+    ElementsAccessor* accessor = object->GetElementsAccessor();
+    accessor->Set(object->elements(), number_, *value);
   } else if (holder->IsJSGlobalObject()) {
     Handle<GlobalDictionary> property_dictionary =
-        handle(holder->global_dictionary());
+        handle(JSObject::cast(*holder)->global_dictionary());
     PropertyCell::UpdateCell(property_dictionary, dictionary_entry(), value,
                              property_details_);
   } else if (holder_map_->is_dictionary_map()) {
     NameDictionary* property_dictionary = holder->property_dictionary();
     property_dictionary->ValueAtPut(dictionary_entry(), *value);
   } else if (property_details_.type() == v8::internal::DATA) {
-    holder->WriteToField(descriptor_number(), *value);
+    JSObject::cast(*holder)->WriteToField(descriptor_number(), *value);
   } else {
     DCHECK_EQ(v8::internal::DATA_CONSTANT, property_details_.type());
   }
@@ -530,8 +535,6 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
 
 bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
   DCHECK(exotic_index_state_ != ExoticIndexState::kNotExotic);
-  // Currently typed arrays are the only such objects.
-  if (!holder->IsJSTypedArray()) return false;
   if (exotic_index_state_ == ExoticIndexState::kExotic) return true;
   if (!InternalHolderIsReceiverOrHiddenPrototype()) {
     exotic_index_state_ = ExoticIndexState::kNotExotic;
@@ -563,18 +566,6 @@ void LookupIterator::InternalizeName() {
 bool LookupIterator::HasInterceptor(Map* map) const {
   if (IsElement()) return map->has_indexed_interceptor();
   return map->has_named_interceptor();
-}
-
-
-Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
-  DCHECK_EQ(INTERCEPTOR, state_);
-  return handle(GetInterceptor(JSObject::cast(*holder_)), isolate_);
-}
-
-
-InterceptorInfo* LookupIterator::GetInterceptor(JSObject* holder) const {
-  if (IsElement()) return holder->GetIndexedInterceptor();
-  return holder->GetNamedInterceptor();
 }
 
 
@@ -625,7 +616,10 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
   }
   switch (state_) {
     case NOT_FOUND:
-      if (map->IsJSProxyMap()) return JSPROXY;
+      if (map->IsJSProxyMap()) {
+        // Do not leak private property names.
+        if (IsElement() || !name_->IsPrivate()) return JSPROXY;
+      }
       if (map->is_access_check_needed() &&
           (IsElement() || !isolate_->IsInternallyUsedPropertyName(name_))) {
         return ACCESS_CHECK;
@@ -633,11 +627,13 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
     // Fall through.
     case ACCESS_CHECK:
       if (exotic_index_state_ != ExoticIndexState::kNotExotic &&
-          IsIntegerIndexedExotic(holder)) {
+          holder->IsJSTypedArray() && IsIntegerIndexedExotic(holder)) {
         return INTEGER_INDEXED_EXOTIC;
       }
       if (check_interceptor() && HasInterceptor(map) &&
           !SkipInterceptor(JSObject::cast(holder))) {
+        // Do not leak private property names.
+        if (!name_.is_null() && name_->IsPrivate()) return NOT_FOUND;
         return INTERCEPTOR;
       }
     // Fall through.
@@ -678,7 +674,7 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         if (cell->value()->IsTheHole()) return NOT_FOUND;
         property_details_ = cell->property_details();
       } else {
-        NameDictionary* dict = JSObject::cast(holder)->property_dictionary();
+        NameDictionary* dict = holder->property_dictionary();
         int number = dict->FindEntry(name_);
         if (number == NameDictionary::kNotFound) return NOT_FOUND;
         number_ = static_cast<uint32_t>(number);

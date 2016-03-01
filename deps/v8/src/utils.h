@@ -26,6 +26,16 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // General helper functions
 
+// Returns the value (0 .. 15) of a hexadecimal character c.
+// If c is not a legal hexadecimal character, returns a value < 0.
+inline int HexValue(uc32 c) {
+  c -= '0';
+  if (static_cast<unsigned>(c) <= 9) return c;
+  c = (c | 0x20) - ('a' - '0');  // detect 0x11..0x16 and 0x31..0x36.
+  if (static_cast<unsigned>(c) <= 5) return c + 10;
+  return -1;
+}
+
 
 inline int BoolToInt(bool b) { return b ? 1 : 0; }
 
@@ -366,9 +376,8 @@ inline uint32_t ComputePointerHash(void* ptr) {
 // ----------------------------------------------------------------------------
 // Generated memcpy/memmove
 
-// Initializes the codegen support that depends on CPU features. This is
-// called after CPU initialization.
-void init_memcopy_functions();
+// Initializes the codegen support that depends on CPU features.
+void init_memcopy_functions(Isolate* isolate);
 
 #if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
 // Limit below which the extra overhead of the MemCopy function is likely
@@ -1041,6 +1050,13 @@ class TypeFeedbackId {
 
   int id_;
 };
+
+inline bool operator<(TypeFeedbackId lhs, TypeFeedbackId rhs) {
+  return lhs.ToInt() < rhs.ToInt();
+}
+inline bool operator>(TypeFeedbackId lhs, TypeFeedbackId rhs) {
+  return lhs.ToInt() > rhs.ToInt();
+}
 
 
 class FeedbackVectorSlot {

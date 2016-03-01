@@ -29,6 +29,22 @@
         ],
       },
     }],
+    ['OS=="win" and component=="shared_library"', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/icui18n.dll',
+          '<(PRODUCT_DIR)/icuuc.dll',
+          '<(PRODUCT_DIR)/v8.dll',
+        ],
+      },
+    }],
+    ['OS=="mac" and asan==1', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/libclang_rt.asan_osx_dynamic.dylib',
+        ],
+      },
+    }],
     ['tsan==1', {
       'variables': {
         'files': [

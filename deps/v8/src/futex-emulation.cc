@@ -262,7 +262,8 @@ Object* FutexEmulation::NumWaitersForTesting(Isolate* isolate,
   int waiters = 0;
   FutexWaitListNode* node = wait_list_.Pointer()->head_;
   while (node) {
-    if (backing_store == node->backing_store_ && addr == node->wait_addr_) {
+    if (backing_store == node->backing_store_ && addr == node->wait_addr_ &&
+        node->waiting_) {
       waiters++;
     }
 

@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
@@ -65,7 +62,7 @@ TEST(ReduceJSLoadContext) {
   subcontext2->set_previous(*subcontext1);
   subcontext1->set_previous(*native);
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::GLOBAL_OBJECT_INDEX;
+  const int slot = Context::NATIVE_CONTEXT_INDEX;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);
@@ -136,7 +133,7 @@ TEST(ReduceJSStoreContext) {
   subcontext2->set_previous(*subcontext1);
   subcontext1->set_previous(*native);
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::GLOBAL_OBJECT_INDEX;
+  const int slot = Context::NATIVE_CONTEXT_INDEX;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);
@@ -204,7 +201,7 @@ TEST(SpecializeToContext) {
   // Make a context and initialize it a bit for this test.
   Handle<Context> native = t.factory()->NewNativeContext();
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::GLOBAL_OBJECT_INDEX;
+  const int slot = Context::NATIVE_CONTEXT_INDEX;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);
@@ -228,8 +225,8 @@ TEST(SpecializeToContext) {
         t.graph()->NewNode(t.simplified()->ChangeTaggedToInt32(), other_load);
 
     Node* add = t.graph()->NewNode(
-        t.javascript()->Add(LanguageMode::SLOPPY), value_use, other_use,
-        param_context, t.jsgraph()->EmptyFrameState(),
+        t.javascript()->Add(LanguageMode::SLOPPY, BinaryOperationHints::Any()),
+        value_use, other_use, param_context, t.jsgraph()->EmptyFrameState(),
         t.jsgraph()->EmptyFrameState(), other_load, start);
 
     Node* ret =

@@ -19,11 +19,13 @@ namespace compiler {
 namespace {
 
 bool CanInlineElementAccess(Handle<Map> map) {
-  // TODO(bmeurer): IsJSObjectMap
-  // TODO(bmeurer): !map->has_dictionary_elements()
-  // TODO(bmeurer): !map->has_sloppy_arguments_elements()
-  return map->IsJSArrayMap() && map->has_fast_elements() &&
-         !map->has_indexed_interceptor() && !map->is_access_check_needed();
+  if (!map->IsJSObjectMap()) return false;
+  if (map->is_access_check_needed()) return false;
+  if (map->has_indexed_interceptor()) return false;
+  ElementsKind const elements_kind = map->elements_kind();
+  if (IsFastElementsKind(elements_kind)) return true;
+  // TODO(bmeurer): Add support for other elements kind.
+  return false;
 }
 
 
@@ -73,13 +75,22 @@ PropertyAccessInfo PropertyAccessInfo::DataConstant(
 // static
 PropertyAccessInfo PropertyAccessInfo::DataField(
     Type* receiver_type, FieldIndex field_index, Type* field_type,
-    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map) {
-  return PropertyAccessInfo(holder, transition_map, field_index, field_type,
-                            receiver_type);
+    FieldCheck field_check, MaybeHandle<JSObject> holder,
+    MaybeHandle<Map> transition_map) {
+  return PropertyAccessInfo(holder, transition_map, field_index, field_check,
+                            field_type, receiver_type);
 }
 
 
 ElementAccessInfo::ElementAccessInfo() : receiver_type_(Type::None()) {}
+
+
+ElementAccessInfo::ElementAccessInfo(Type* receiver_type,
+                                     ElementsKind elements_kind,
+                                     MaybeHandle<JSObject> holder)
+    : elements_kind_(elements_kind),
+      holder_(holder),
+      receiver_type_(receiver_type) {}
 
 
 PropertyAccessInfo::PropertyAccessInfo()
@@ -106,13 +117,15 @@ PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
 
 PropertyAccessInfo::PropertyAccessInfo(MaybeHandle<JSObject> holder,
                                        MaybeHandle<Map> transition_map,
-                                       FieldIndex field_index, Type* field_type,
+                                       FieldIndex field_index,
+                                       FieldCheck field_check, Type* field_type,
                                        Type* receiver_type)
     : kind_(kDataField),
       receiver_type_(receiver_type),
       transition_map_(transition_map),
       holder_(holder),
       field_index_(field_index),
+      field_check_(field_check),
       field_type_(field_type) {}
 
 
@@ -122,7 +135,9 @@ AccessInfoFactory::AccessInfoFactory(CompilationDependencies* dependencies,
       native_context_(native_context),
       isolate_(native_context->GetIsolate()),
       type_cache_(TypeCache::Get()),
-      zone_(zone) {}
+      zone_(zone) {
+  DCHECK(native_context->IsNativeContext());
+}
 
 
 bool AccessInfoFactory::ComputeElementAccessInfo(
@@ -130,9 +145,7 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
   // Check if it is safe to inline element access for the {map}.
   if (!CanInlineElementAccess(map)) return false;
 
-  // TODO(bmeurer): Add support for holey elements.
-  ElementsKind elements_kind = map->elements_kind();
-  if (IsHoleyElementsKind(elements_kind)) return false;
+  ElementsKind const elements_kind = map->elements_kind();
 
   // Certain (monomorphic) stores need a prototype chain check because shape
   // changes could allow callbacks on elements in the chain that are not
@@ -143,6 +156,12 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
       Handle<JSReceiver> prototype =
           PrototypeIterator::GetCurrent<JSReceiver>(i);
       if (!prototype->IsJSObject()) return false;
+      // TODO(bmeurer): We do not currently support unstable prototypes.
+      // We might want to revisit the way we handle certain keyed stores
+      // because this whole prototype chain check is essential a hack,
+      // and I'm not sure that it is correct at all with dictionaries in
+      // the prototype chain.
+      if (!prototype->map()->is_stable()) return false;
       holder = Handle<JSObject>::cast(prototype);
     }
   }
@@ -156,14 +175,49 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
 bool AccessInfoFactory::ComputeElementAccessInfos(
     MapHandleList const& maps, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) {
+  // Collect possible transition targets.
+  MapHandleList possible_transition_targets(maps.length());
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(map).ToHandle(&map)) {
-      ElementAccessInfo access_info;
-      if (!ComputeElementAccessInfo(map, access_mode, &access_info)) {
-        return false;
+      if (CanInlineElementAccess(map) &&
+          IsFastElementsKind(map->elements_kind()) &&
+          GetInitialFastElementsKind() != map->elements_kind()) {
+        possible_transition_targets.Add(map);
       }
-      access_infos->push_back(access_info);
     }
+  }
+
+  // Separate the actual receiver maps and the possible transition sources.
+  MapHandleList receiver_maps(maps.length());
+  MapTransitionList transitions(maps.length());
+  for (Handle<Map> map : maps) {
+    if (Map::TryUpdate(map).ToHandle(&map)) {
+      Handle<Map> transition_target =
+          Map::FindTransitionedMap(map, &possible_transition_targets);
+      if (transition_target.is_null()) {
+        receiver_maps.Add(map);
+      } else {
+        transitions.push_back(std::make_pair(map, transition_target));
+      }
+    }
+  }
+
+  for (Handle<Map> receiver_map : receiver_maps) {
+    // Compute the element access information.
+    ElementAccessInfo access_info;
+    if (!ComputeElementAccessInfo(receiver_map, access_mode, &access_info)) {
+      return false;
+    }
+
+    // Collect the possible transitions for the {receiver_map}.
+    for (auto transition : transitions) {
+      if (transition.second.is_identical_to(receiver_map)) {
+        access_info.transitions().push_back(transition);
+      }
+    }
+
+    // Schedule the access information.
+    access_infos->push_back(access_info);
   }
   return true;
 }
@@ -243,7 +297,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           DCHECK(field_type->Is(Type::TaggedPointer()));
         }
         *access_info = PropertyAccessInfo::DataField(
-            Type::Class(receiver_map, zone()), field_index, field_type, holder);
+            Type::Class(receiver_map, zone()), field_index, field_type,
+            FieldCheck::kNone, holder);
         return true;
       } else {
         // TODO(bmeurer): Add support for accessors.
@@ -347,6 +402,26 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
                                                  field_index, field_type);
     return true;
   }
+  // Check for special JSArrayBufferView field accessors.
+  if (Accessors::IsJSArrayBufferViewFieldAccessor(map, name, &offset)) {
+    FieldIndex field_index = FieldIndex::ForInObjectOffset(offset);
+    Type* field_type = Type::Tagged();
+    if (Name::Equals(factory()->byte_length_string(), name) ||
+        Name::Equals(factory()->byte_offset_string(), name)) {
+      // The JSArrayBufferView::byte_length and JSArrayBufferView::byte_offset
+      // properties are always numbers in the range [0, kMaxSafeInteger].
+      field_type = type_cache_.kPositiveSafeInteger;
+    } else if (map->IsJSTypedArrayMap()) {
+      DCHECK(Name::Equals(factory()->length_string(), name));
+      // The JSTypedArray::length property is always a number in the range
+      // [0, kMaxSafeInteger].
+      field_type = type_cache_.kPositiveSafeInteger;
+    }
+    *access_info = PropertyAccessInfo::DataField(
+        Type::Class(map, zone()), field_index, field_type,
+        FieldCheck::kJSArrayBufferViewBufferNotNeutered);
+    return true;
+  }
   return false;
 }
 
@@ -397,9 +472,9 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       DCHECK(field_type->Is(Type::TaggedPointer()));
     }
     dependencies()->AssumeMapNotDeprecated(transition_map);
-    *access_info =
-        PropertyAccessInfo::DataField(Type::Class(map, zone()), field_index,
-                                      field_type, holder, transition_map);
+    *access_info = PropertyAccessInfo::DataField(
+        Type::Class(map, zone()), field_index, field_type, FieldCheck::kNone,
+        holder, transition_map);
     return true;
   }
   return false;

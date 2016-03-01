@@ -41,14 +41,14 @@ var expected_function_name = null;
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      if (state == 1) {
-        exec_state.prepareStep(Debug.StepAction.StepIn, 2);
-        state = 2;
-      } else if (state == 2) {
+      if (state == 3) {
         assertEquals(expected_source_line_text,
                      event_data.sourceLineText());
         assertEquals(expected_function_name, event_data.func().name());
-        state = 3;
+        state = 4;
+      } else {
+        exec_state.prepareStep(Debug.StepAction.StepIn);
+        state++;
       }
     }
   } catch(e) {
@@ -241,7 +241,7 @@ for (var n in this) {
   state = 1;
   this[n]();
   assertNull(exception);
-  assertEquals(3, state);
+  assertEquals(4, state);
 }
 
 // Get rid of the debug event listener.

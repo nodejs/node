@@ -82,13 +82,6 @@ void LCallWithDescriptor::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCallNew::PrintDataTo(StringStream* stream) {
-  stream->Add("= ");
-  constructor()->PrintTo(stream);
-  stream->Add(" #%d / ", arity());
-}
-
-
 void LCallNewArray::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   constructor()->PrintTo(stream);
@@ -1076,15 +1069,6 @@ LInstruction* LChunkBuilder::DoCallFunction(HCallFunction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  // The call to CallConstructStub will expect the constructor to be in x1.
-  LOperand* constructor = UseFixed(instr->constructor(), x1);
-  LCallNew* result = new(zone()) LCallNew(context, constructor);
-  return MarkAsCall(DefineFixed(result, x0), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   // The call to ArrayConstructCode will expect the constructor to be in x1.
@@ -1384,13 +1368,6 @@ LInstruction* LChunkBuilder::DoContext(HContext* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
-  LOperand* object = UseFixed(instr->value(), x0);
-  LDateField* result = new(zone()) LDateField(object, instr->index());
-  return MarkAsCall(DefineFixed(result, x0), instr, CANNOT_DEOPTIMIZE_EAGERLY);
-}
-
-
 LInstruction* LChunkBuilder::DoDebugBreak(HDebugBreak* instr) {
   return new(zone()) LDebugBreak();
 }
@@ -1573,8 +1550,11 @@ LInstruction* LChunkBuilder::DoHasInPrototypeChainAndBranch(
     HHasInPrototypeChainAndBranch* instr) {
   LOperand* object = UseRegister(instr->object());
   LOperand* prototype = UseRegister(instr->prototype());
-  LOperand* scratch = TempRegister();
-  return new (zone()) LHasInPrototypeChainAndBranch(object, prototype, scratch);
+  LOperand* scratch1 = TempRegister();
+  LOperand* scratch2 = TempRegister();
+  LHasInPrototypeChainAndBranch* result = new (zone())
+      LHasInPrototypeChainAndBranch(object, prototype, scratch1, scratch2);
+  return AssignEnvironment(result);
 }
 
 
@@ -1584,12 +1564,6 @@ LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
   LOperand* function = UseFixed(instr->function(), x1);
   LInvokeFunction* result = new(zone()) LInvokeFunction(context, function);
   return MarkAsCall(DefineFixed(result, x0), instr, CANNOT_DEOPTIMIZE_EAGERLY);
-}
-
-
-LInstruction* LChunkBuilder::DoIsConstructCallAndBranch(
-    HIsConstructCallAndBranch* instr) {
-  return new(zone()) LIsConstructCallAndBranch(TempRegister(), TempRegister());
 }
 
 
@@ -2038,13 +2012,6 @@ LInstruction* LChunkBuilder::DoPushArguments(HPushArguments* instr) {
   }
 
   return push_args;
-}
-
-
-LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  return MarkAsCall(
-      DefineFixed(new(zone()) LRegExpLiteral(context), x0), instr);
 }
 
 

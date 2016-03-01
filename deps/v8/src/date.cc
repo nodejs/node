@@ -71,7 +71,7 @@ void DateCache::YearMonthDayFromDays(
   *year = 400 * (days / kDaysIn400Years) - kYearsOffset;
   days %= kDaysIn400Years;
 
-  DCHECK(DaysFromYearMonth(*year, 0) + days == save_days);
+  DCHECK_EQ(save_days, DaysFromYearMonth(*year, 0) + days);
 
   days--;
   int yd1 = days / kDaysIn100Years;
@@ -172,6 +172,20 @@ int DateCache::DaysFromYearMonth(int year, int month) {
     return day_from_year + day_from_month[month];
   }
   return day_from_year + day_from_month_leap[month];
+}
+
+
+void DateCache::BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
+                              int* weekday, int* hour, int* min, int* sec,
+                              int* ms) {
+  int const days = DaysFromTime(time_ms);
+  int const time_in_day_ms = TimeInDay(time_ms, days);
+  YearMonthDayFromDays(days, year, month, day);
+  *weekday = Weekday(days);
+  *hour = time_in_day_ms / (60 * 60 * 1000);
+  *min = (time_in_day_ms / (60 * 1000)) % 60;
+  *sec = (time_in_day_ms / 1000) % 60;
+  *ms = time_in_day_ms % 1000;
 }
 
 

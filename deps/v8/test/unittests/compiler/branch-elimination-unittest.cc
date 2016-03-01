@@ -18,7 +18,8 @@ namespace compiler {
 class BranchEliminationTest : public TypedGraphTest {
  public:
   BranchEliminationTest()
-      : machine_(zone(), kMachPtr, MachineOperatorBuilder::kNoFlags) {}
+      : machine_(zone(), MachineType::PointerRepresentation(),
+                 MachineOperatorBuilder::kNoFlags) {}
 
   MachineOperatorBuilder* machine() { return &machine_; }
 
@@ -54,14 +55,15 @@ TEST_F(BranchEliminationTest, NestedBranchSameTrue) {
   Node* inner_merge =
       graph()->NewNode(common()->Merge(2), inner_if_true, inner_if_false);
   Node* inner_phi =
-      graph()->NewNode(common()->Phi(kMachInt32, 2), Int32Constant(1),
-                       Int32Constant(2), inner_merge);
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                       Int32Constant(1), Int32Constant(2), inner_merge);
 
   Node* outer_if_false = graph()->NewNode(common()->IfFalse(), outer_branch);
   Node* outer_merge =
       graph()->NewNode(common()->Merge(2), inner_merge, outer_if_false);
-  Node* outer_phi = graph()->NewNode(common()->Phi(kMachInt32, 2), inner_phi,
-                                     Int32Constant(3), outer_merge);
+  Node* outer_phi =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                       inner_phi, Int32Constant(3), outer_merge);
 
   Node* ret = graph()->NewNode(common()->Return(), outer_phi, graph()->start(),
                                outer_merge);
@@ -72,8 +74,8 @@ TEST_F(BranchEliminationTest, NestedBranchSameTrue) {
   // Outer branch should not be rewritten, the inner branch should be discarded.
   EXPECT_THAT(outer_branch, IsBranch(condition, graph()->start()));
   EXPECT_THAT(inner_phi,
-              IsPhi(kMachInt32, IsInt32Constant(1), IsInt32Constant(2),
-                    IsMerge(outer_if_true, IsDead())));
+              IsPhi(MachineRepresentation::kWord32, IsInt32Constant(1),
+                    IsInt32Constant(2), IsMerge(outer_if_true, IsDead())));
 }
 
 
@@ -95,13 +97,14 @@ TEST_F(BranchEliminationTest, NestedBranchSameFalse) {
   Node* inner_merge =
       graph()->NewNode(common()->Merge(2), inner_if_true, inner_if_false);
   Node* inner_phi =
-      graph()->NewNode(common()->Phi(kMachInt32, 2), Int32Constant(2),
-                       Int32Constant(3), inner_merge);
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                       Int32Constant(2), Int32Constant(3), inner_merge);
 
   Node* outer_merge =
       graph()->NewNode(common()->Merge(2), outer_if_true, inner_merge);
-  Node* outer_phi = graph()->NewNode(common()->Phi(kMachInt32, 2),
-                                     Int32Constant(1), inner_phi, outer_merge);
+  Node* outer_phi =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                       Int32Constant(1), inner_phi, outer_merge);
 
   Node* ret = graph()->NewNode(common()->Return(), outer_phi, graph()->start(),
                                outer_merge);
@@ -112,8 +115,8 @@ TEST_F(BranchEliminationTest, NestedBranchSameFalse) {
   // Outer branch should not be rewritten, the inner branch should be discarded.
   EXPECT_THAT(outer_branch, IsBranch(condition, graph()->start()));
   EXPECT_THAT(inner_phi,
-              IsPhi(kMachInt32, IsInt32Constant(2), IsInt32Constant(3),
-                    IsMerge(IsDead(), outer_if_false)));
+              IsPhi(MachineRepresentation::kWord32, IsInt32Constant(2),
+                    IsInt32Constant(3), IsMerge(IsDead(), outer_if_false)));
 }
 
 
@@ -127,15 +130,17 @@ TEST_F(BranchEliminationTest, BranchAfterDiamond) {
   Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
   Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
   Node* merge1 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-  Node* phi1 = graph()->NewNode(common()->Phi(kMachInt32, 2), Int32Constant(1),
-                                Int32Constant(2), merge1);
+  Node* phi1 =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                       Int32Constant(1), Int32Constant(2), merge1);
 
   Node* branch2 = graph()->NewNode(common()->Branch(), condition, merge1);
   Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
   Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
   Node* merge2 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
-  Node* phi2 = graph()->NewNode(common()->Phi(kMachInt32, 2), Int32Constant(3),
-                                Int32Constant(4), merge1);
+  Node* phi2 =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                       Int32Constant(3), Int32Constant(4), merge1);
 
 
   Node* add = graph()->NewNode(machine()->Int32Add(), phi1, phi2);

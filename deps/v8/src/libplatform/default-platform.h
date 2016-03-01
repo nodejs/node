@@ -42,6 +42,17 @@ class DefaultPlatform : public Platform {
   void CallIdleOnForegroundThread(Isolate* isolate, IdleTask* task) override;
   bool IdleTasksEnabled(Isolate* isolate) override;
   double MonotonicallyIncreasingTime() override;
+  const uint8_t* GetCategoryGroupEnabled(const char* name) override;
+  const char* GetCategoryGroupName(
+      const uint8_t* category_enabled_flag) override;
+  uint64_t AddTraceEvent(char phase, const uint8_t* category_enabled_flag,
+                         const char* name, uint64_t id, uint64_t bind_id,
+                         int32_t num_args, const char** arg_names,
+                         const uint8_t* arg_types, const uint64_t* arg_values,
+                         unsigned int flags) override;
+  void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
+                                const char* name, uint64_t handle) override;
+
 
  private:
   static const int kMaxThreadPoolSize;

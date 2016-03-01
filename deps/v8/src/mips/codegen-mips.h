@@ -7,7 +7,7 @@
 #define V8_MIPS_CODEGEN_MIPS_H_
 
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

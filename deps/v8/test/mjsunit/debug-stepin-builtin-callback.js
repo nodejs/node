@@ -31,127 +31,114 @@
 
 Debug = debug.Debug
 
-var exception = false;
+var exception = null;
 
 function array_listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      if (breaks == 0) {
-        exec_state.prepareStep(Debug.StepAction.StepIn, 2);
-        breaks = 1;
-      } else if (breaks <= 3) {
-        breaks++;
-        // Check whether we break at the expected line.
-        print(event_data.sourceLineText());
-        assertTrue(event_data.sourceLineText().indexOf("Expected to step") > 0);
-        exec_state.prepareStep(Debug.StepAction.StepIn, 3);
-      }
+      print(event_data.sourceLineText(), breaks);
+      assertTrue(event_data.sourceLineText().indexOf(`B${breaks++}`) > 0);
+      exec_state.prepareStep(Debug.StepAction.StepIn);
     }
   } catch (e) {
-    exception = true;
+    print(e);
+    quit();
+    exception = e;
   }
 };
 
 function cb_false(num) {
-  print("element " + num);  // Expected to step to this point.
-  return false;
-}
+  print("element " + num);  // B2 B5 B8
+  return false;             // B3 B6 B9
+}                           // B4 B7 B10
 
 function cb_true(num) {
-  print("element " + num);  // Expected to step to this point.
-  return true;
-}
+  print("element " + num);  // B2 B5 B8
+  return true;              // B3 B6 B9
+}                           // B4 B7 B10
 
 function cb_reduce(a, b) {
-  print("elements " + a + " and " + b);  // Expected to step to this point.
-  return a + b;
-}
+  print("elements " + a + " and " + b);  // B2 B5
+  return a + b;                          // B3 B6
+}                                        // B4 B7
 
-var a = [1, 2, 3, 4];
-
-Debug.setListener(array_listener);
+var a = [1, 2, 3];
 
 var breaks = 0;
-debugger;
-a.forEach(cb_true);
-assertFalse(exception);
-assertEquals(4, breaks);
+Debug.setListener(array_listener);
+debugger;                 // B0
+a.forEach(cb_true);       // B1
+Debug.setListener(null);  // B11
+assertNull(exception);
+assertEquals(12, breaks);
 
 breaks = 0;
-debugger;
-a.some(cb_false);
-assertFalse(exception);
-assertEquals(4, breaks);
+Debug.setListener(array_listener);
+debugger;                 // B0
+a.some(cb_false);         // B1
+Debug.setListener(null);  // B11
+assertNull(exception);
+assertEquals(12, breaks);
 
 breaks = 0;
-debugger;
-a.every(cb_true);
-assertEquals(4, breaks);
-assertFalse(exception);
+Debug.setListener(array_listener);
+debugger;                 // B0
+a.every(cb_true);         // B1
+Debug.setListener(null);  // B11
+assertNull(exception);
+assertEquals(12, breaks);
 
 breaks = 0;
-debugger;
-a.map(cb_true);
-assertFalse(exception);
-assertEquals(4, breaks);
+Debug.setListener(array_listener);
+debugger;                 // B0
+a.map(cb_true);           // B1
+Debug.setListener(null);  // B11
+assertNull(exception);
+assertEquals(12, breaks);
 
 breaks = 0;
-debugger;
-a.filter(cb_true);
-assertFalse(exception);
-assertEquals(4, breaks);
+Debug.setListener(array_listener);
+debugger;                 // B0
+a.filter(cb_true);        // B1
+Debug.setListener(null);  // B11
+assertNull(exception);
+assertEquals(12, breaks);
 
 breaks = 0;
-debugger;
-a.reduce(cb_reduce);
-assertFalse(exception);
-assertEquals(4, breaks);
+Debug.setListener(array_listener);
+debugger;                 // B0
+a.reduce(cb_reduce);      // B1
+Debug.setListener(null);  // B8
+assertNull(exception);
+assertEquals(9, breaks);
 
 breaks = 0;
-debugger;
-a.reduceRight(cb_reduce);
-assertFalse(exception);
-assertEquals(4, breaks);
-
-Debug.setListener(null);
+Debug.setListener(array_listener);
+debugger;                  // B0
+a.reduceRight(cb_reduce);  // B1
+Debug.setListener(null);   // B8
+assertNull(exception);
+assertEquals(9, breaks);
 
 
 // Test two levels of builtin callbacks:
 // Array.forEach calls a callback function, which by itself uses
 // Array.forEach with another callback function.
 
-function second_level_listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Break) {
-      if (breaks == 0) {
-        exec_state.prepareStep(Debug.StepAction.StepIn, 3);
-        breaks = 1;
-      } else if (breaks <= 16) {
-        breaks++;
-        // Check whether we break at the expected line.
-        assertTrue(event_data.sourceLineText().indexOf("Expected to step") > 0);
-        // Step two steps further every four breaks to skip the
-        // forEach call in the first level of recurision.
-        var step = (breaks % 4 == 1) ? 6 : 3;
-        exec_state.prepareStep(Debug.StepAction.StepIn, step);
-      }
-    }
-  } catch (e) {
-    exception = true;
-  }
-};
+function cb_true_2(num) {
+  print("element " + num);  // B3 B6 B9  B15 B18 B21 B27 B30 B33
+  return true;              // B4 B7 B10 B16 B19 B22 B28 B31 B34
+}                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
 
 function cb_foreach(num) {
-  a.forEach(cb_true);
-  print("back to the first level of recursion.");
-}
-
-Debug.setListener(second_level_listener);
+  a.forEach(cb_true_2);     // B2  B14 B20 B26
+  print("back.");           // B12 B18 B24 B36
+}                           // B13 B19 B25 B37
 
 breaks = 0;
-debugger;
-a.forEach(cb_foreach);
-assertFalse(exception);
-assertEquals(17, breaks);
-
-Debug.setListener(null);
+Debug.setListener(array_listener);
+debugger;                   // B0
+a.forEach(cb_foreach);      // B1
+Debug.setListener(null);    // B38
+assertNull(exception);
+assertEquals(39, breaks);

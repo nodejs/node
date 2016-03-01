@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import os
 
 # These outcomes can occur in a TestCase's outcomes list:
 SKIP = "SKIP"
@@ -125,10 +126,14 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
     target_dict[rule] = result
 
 
-def ReadStatusFile(path, variables):
+def ReadContent(path):
   with open(path) as f:
     global KEYWORDS
-    contents = eval(f.read(), KEYWORDS)
+    return eval(f.read(), KEYWORDS)
+
+
+def ReadStatusFile(path, variables):
+  contents = ReadContent(path)
 
   rules = {}
   wildcards = {}
@@ -146,3 +151,30 @@ def ReadStatusFile(path, variables):
       else:
         _ParseOutcomeList(rule, section[rule], rules, variables)
   return rules, wildcards
+
+
+def PresubmitCheck(path):
+  contents = ReadContent(path)
+  root_prefix = os.path.basename(os.path.dirname(path)) + "/"
+  status = {"success": True}
+  def _assert(check, message):  # Like "assert", but doesn't throw.
+    if not check:
+      print("%s: Error: %s" % (path, message))
+      status["success"] = False
+  try:
+    for section in contents:
+      _assert(type(section) == list, "Section must be a list")
+      _assert(len(section) == 2, "Section list must have exactly 2 entries")
+      section = section[1]
+      _assert(type(section) == dict,
+              "Second entry of section must be a dictionary")
+      for rule in section:
+        _assert(type(rule) == str, "Rule key must be a string")
+        _assert(not rule.startswith(root_prefix),
+                "Suite name prefix must not be used in rule keys")
+        _assert(not rule.endswith('.js'),
+                ".js extension must not be used in rule keys.")
+    return status["success"]
+  except Exception as e:
+    print e
+    return False

@@ -13,7 +13,6 @@
       "path": ["RestParameters"],
       "main": "run.js",
       "resources": ["rest.js"],
-      "flags": ["--harmony-rest-parameters"],
       "run_count": 5,
       "units": "score",
       "results_regexp": "^%s\\-RestParameters\\(Score\\): (.+)$",

@@ -16,14 +16,10 @@ var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var MakeTypeError;
-var ObjectFreeze;
-var ObjectIsFrozen;
 
 utils.Import(function(from) {
   GetHash = from.GetHash;
   MakeTypeError = from.MakeTypeError;
-  ObjectFreeze = from.ObjectFreeze;
-  ObjectIsFrozen = from.ObjectIsFrozen;
 });
 
 // -------------------------------------------------------------------
@@ -192,7 +188,7 @@ function ObserverIsActive(observer, objectInfo) {
 function ObjectInfoGetOrCreate(object) {
   var objectInfo = ObjectInfoGet(object);
   if (IS_UNDEFINED(objectInfo)) {
-    if (!%_IsJSProxy(object)) {
+    if (!IS_PROXY(object)) {
       %SetIsObserved(object);
     }
     objectInfo = {
@@ -324,7 +320,7 @@ function ConvertAcceptListToTypeMap(arg) {
   if (IS_UNDEFINED(arg))
     return arg;
 
-  if (!IS_SPEC_OBJECT(arg)) throw MakeTypeError(kObserveInvalidAccept);
+  if (!IS_RECEIVER(arg)) throw MakeTypeError(kObserveInvalidAccept);
 
   var len = TO_INTEGER(arg.length);
   if (len < 0) len = 0;
@@ -380,7 +376,7 @@ function CallbackInfoNormalize(callback) {
 
 
 function ObjectObserve(object, callback, acceptList) {
-  if (!IS_SPEC_OBJECT(object))
+  if (!IS_RECEIVER(object))
     throw MakeTypeError(kObserveNonObject, "observe", "observe");
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError(kObserveGlobalProxy, "observe");
@@ -388,7 +384,7 @@ function ObjectObserve(object, callback, acceptList) {
     throw MakeTypeError(kObserveAccessChecked, "observe");
   if (!IS_CALLABLE(callback))
     throw MakeTypeError(kObserveNonFunction, "observe");
-  if (ObjectIsFrozen(callback))
+  if (%object_is_frozen(callback))
     throw MakeTypeError(kObserveCallbackFrozen);
 
   var objectObserveFn = %GetObjectContextObjectObserve(object);
@@ -405,7 +401,7 @@ function NativeObjectObserve(object, callback, acceptList) {
 
 
 function ObjectUnobserve(object, callback) {
-  if (!IS_SPEC_OBJECT(object))
+  if (!IS_RECEIVER(object))
     throw MakeTypeError(kObserveNonObject, "unobserve", "unobserve");
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError(kObserveGlobalProxy, "unobserve");
@@ -481,7 +477,7 @@ function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
     %DefineDataPropertyUnchecked(
         newRecord, prop, changeRecord[prop], READ_ONLY + DONT_DELETE);
   }
-  ObjectFreeze(newRecord);
+  %object_freeze(newRecord);
 
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, newRecord);
 }
@@ -533,8 +529,8 @@ function EnqueueSpliceRecord(array, index, removed, addedCount) {
     addedCount: addedCount
   };
 
-  ObjectFreeze(changeRecord);
-  ObjectFreeze(changeRecord.removed);
+  %object_freeze(changeRecord);
+  %object_freeze(changeRecord.removed);
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
 
@@ -558,13 +554,13 @@ function NotifyChange(type, object, name, oldValue) {
     };
   }
 
-  ObjectFreeze(changeRecord);
+  %object_freeze(changeRecord);
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
 
 
 function ObjectNotifierNotify(changeRecord) {
-  if (!IS_SPEC_OBJECT(this))
+  if (!IS_RECEIVER(this))
     throw MakeTypeError(kCalledOnNonObject, "notify");
 
   var objectInfo = ObjectInfoGetFromNotifier(this);
@@ -578,7 +574,7 @@ function ObjectNotifierNotify(changeRecord) {
 
 
 function ObjectNotifierPerformChange(changeType, changeFn) {
-  if (!IS_SPEC_OBJECT(this))
+  if (!IS_RECEIVER(this))
     throw MakeTypeError(kCalledOnNonObject, "performChange");
 
   var objectInfo = ObjectInfoGetFromNotifier(this);
@@ -604,20 +600,20 @@ function NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn) {
     ObjectInfoRemovePerformingType(objectInfo, changeType);
   }
 
-  if (IS_SPEC_OBJECT(changeRecord))
+  if (IS_RECEIVER(changeRecord))
     ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, changeType);
 }
 
 
 function ObjectGetNotifier(object) {
-  if (!IS_SPEC_OBJECT(object))
+  if (!IS_RECEIVER(object))
     throw MakeTypeError(kObserveNonObject, "getNotifier", "getNotifier");
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError(kObserveGlobalProxy, "getNotifier");
   if (%IsAccessCheckNeeded(object))
     throw MakeTypeError(kObserveAccessChecked, "getNotifier");
 
-  if (ObjectIsFrozen(object)) return null;
+  if (%object_is_frozen(object)) return null;
 
   if (!%ObjectWasCreatedInCurrentOrigin(object)) return null;
 

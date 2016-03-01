@@ -66,6 +66,8 @@ class HeapProfiler {
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
   void ClearHeapObjectMap();
 
+  Isolate* isolate() const { return heap()->isolate(); }
+
  private:
   Heap* heap() const;
 

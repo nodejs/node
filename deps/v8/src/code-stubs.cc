@@ -7,12 +7,13 @@
 #include <sstream>
 
 #include "src/bootstrapper.h"
+#include "src/compiler/code-stub-assembler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/profiler/cpu-profiler.h"
 
 namespace v8 {
@@ -108,7 +109,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate(), NULL, 256);
+  MacroAssembler masm(isolate(), NULL, 256, CodeObjectRequired::kYes);
 
   {
     // Update the static counter each time a new code stub is generated.
@@ -341,11 +342,6 @@ void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
 }
 
 
-void StringAddTFStub::PrintBaseName(std::ostream& os) const {  // NOLINT
-  os << "StringAddTFStub_" << flags() << "_" << pretenure_flag();
-}
-
-
 InlineCacheState CompareICStub::GetICState() const {
   CompareICState::State state = Max(left(), right());
   switch (state) {
@@ -357,8 +353,8 @@ InlineCacheState CompareICStub::GetICState() const {
     case CompareICState::INTERNALIZED_STRING:
     case CompareICState::STRING:
     case CompareICState::UNIQUE_NAME:
-    case CompareICState::OBJECT:
-    case CompareICState::KNOWN_OBJECT:
+    case CompareICState::RECEIVER:
+    case CompareICState::KNOWN_RECEIVER:
       return MONOMORPHIC;
     case CompareICState::GENERIC:
       return ::v8::internal::GENERIC;
@@ -435,12 +431,12 @@ void CompareICStub::Generate(MacroAssembler* masm) {
     case CompareICState::UNIQUE_NAME:
       GenerateUniqueNames(masm);
       break;
-    case CompareICState::OBJECT:
-      GenerateObjects(masm);
+    case CompareICState::RECEIVER:
+      GenerateReceivers(masm);
       break;
-    case CompareICState::KNOWN_OBJECT:
+    case CompareICState::KNOWN_RECEIVER:
       DCHECK(*known_map_ != NULL);
-      GenerateKnownObjects(masm);
+      GenerateKnownReceivers(masm);
       break;
     case CompareICState::GENERIC:
       GenerateGeneric(masm);
@@ -473,38 +469,25 @@ void CompareNilICStub::UpdateStatus(Handle<Object> object) {
 }
 
 
-namespace {
-
-Handle<JSFunction> GetFunction(Isolate* isolate, const char* name) {
-  v8::ExtensionConfiguration no_extensions;
-  MaybeHandle<Object> fun = Object::GetProperty(
-      isolate, isolate->factory()->code_stub_exports_object(), name);
-  Handle<JSFunction> function = Handle<JSFunction>::cast(fun.ToHandleChecked());
-  DCHECK(!function->IsUndefined() &&
-         "JavaScript implementation of stub not found");
-  return function;
-}
-}  // namespace
-
-
 Handle<Code> TurboFanCodeStub::GenerateCode() {
-  // Get the outer ("stub generator") function.
   const char* name = CodeStub::MajorName(MajorKey());
-  Handle<JSFunction> outer = GetFunction(isolate(), name);
-  DCHECK_EQ(2, outer->shared()->length());
+  Zone zone;
+  CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
+  compiler::CodeStubAssembler assembler(isolate(), &zone, descriptor,
+                                        GetCodeKind(), name);
+  GenerateAssembly(&assembler);
+  return assembler.GenerateCode();
+}
 
-  // Invoke the outer function to get the stub itself.
-  Factory* factory = isolate()->factory();
-  Handle<Object> call_conv = factory->InternalizeUtf8String(name);
-  Handle<Object> minor_key = factory->NewNumber(MinorKey());
-  Handle<Object> args[] = {call_conv, minor_key};
-  MaybeHandle<Object> result =
-      Execution::Call(isolate(), outer, factory->undefined_value(), 2, args);
-  Handle<JSFunction> inner = Handle<JSFunction>::cast(result.ToHandleChecked());
-  // Just to make sure nobody calls this...
-  inner->set_code(isolate()->builtins()->builtin(Builtins::kIllegal));
 
-  return Compiler::GetStubCode(inner, this).ToHandleChecked();
+void StringLengthStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  compiler::Node* value = assembler->Parameter(0);
+  compiler::Node* string =
+      assembler->LoadObjectField(value, JSValue::kValueOffset);
+  compiler::Node* result =
+      assembler->LoadObjectField(string, String::kLengthOffset);
+  assembler->Return(result);
 }
 
 
@@ -640,8 +623,7 @@ CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
     return LoadWithVectorDescriptor(isolate());
   } else {
     DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
-    return FLAG_vector_stores ? VectorStoreICDescriptor(isolate())
-                              : StoreDescriptor(isolate());
+    return VectorStoreICDescriptor(isolate());
   }
 }
 
@@ -667,19 +649,13 @@ void ToObjectStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 
 CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor()
     const {
-  if (FLAG_vector_stores) {
-    return VectorStoreTransitionDescriptor(isolate());
-  }
-  return StoreTransitionDescriptor(isolate());
+  return VectorStoreTransitionDescriptor(isolate());
 }
 
 
 CallInterfaceDescriptor
 ElementsTransitionAndStoreStub::GetCallInterfaceDescriptor() const {
-  if (FLAG_vector_stores) {
-    return VectorStoreTransitionDescriptor(isolate());
-  }
-  return StoreTransitionDescriptor(isolate());
+  return VectorStoreTransitionDescriptor(isolate());
 }
 
 
@@ -698,6 +674,13 @@ void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   NumberToStringDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kNumberToString)->entry);
+}
+
+
+void FastCloneRegExpStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  FastCloneRegExpDescriptor call_descriptor(isolate());
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kCreateRegExpLiteral)->entry);
 }
 
 
@@ -855,6 +838,9 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
+void RestParamAccessStub::Generate(MacroAssembler* masm) { GenerateNew(masm); }
+
+
 void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   switch (type()) {
     case READ_ELEMENT:
@@ -893,9 +879,8 @@ void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
 }
 
 
-void CallConstructStub::PrintName(std::ostream& os) const {  // NOLINT
-  os << "CallConstructStub";
-  if (RecordCallTarget()) os << "_Recording";
+void RestParamAccessStub::PrintName(std::ostream& os) const {  // NOLINT
+  os << "RestParamAccessStub_";
 }
 
 
@@ -975,7 +960,7 @@ bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
   } else if (object->IsSmi()) {
     Add(SMI);
     return Smi::cast(*object)->value() != 0;
-  } else if (object->IsSpecObject()) {
+  } else if (object->IsJSReceiver()) {
     Add(SPEC_OBJECT);
     return !object->IsUndetectableObject();
   } else if (object->IsString()) {

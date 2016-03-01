@@ -221,9 +221,9 @@ class CFGBuilder : public ZoneObject {
         queued_(scheduler->graph_, 2),
         queue_(zone),
         control_(zone),
-        component_entry_(NULL),
-        component_start_(NULL),
-        component_end_(NULL) {}
+        component_entry_(nullptr),
+        component_start_(nullptr),
+        component_end_(nullptr) {}
 
   // Run the control flow graph construction algorithm by walking the graph
   // backwards from end through control edges, building and connecting the
@@ -253,7 +253,7 @@ class CFGBuilder : public ZoneObject {
     ResetDataStructures();
     Queue(exit);
 
-    component_entry_ = NULL;
+    component_entry_ = nullptr;
     component_start_ = block;
     component_end_ = schedule_->block(exit);
     scheduler_->equivalence_->Run(exit);
@@ -377,7 +377,7 @@ class CFGBuilder : public ZoneObject {
 
   BasicBlock* BuildBlockForNode(Node* node) {
     BasicBlock* block = schedule_->block(node);
-    if (block == NULL) {
+    if (block == nullptr) {
       block = schedule_->NewBasicBlock();
       TRACE("Create block id:%d for #%d:%s\n", block->id().ToInt(), node->id(),
             node->op()->mnemonic());
@@ -501,34 +501,34 @@ class CFGBuilder : public ZoneObject {
   void ConnectTailCall(Node* call) {
     Node* call_control = NodeProperties::GetControlInput(call);
     BasicBlock* call_block = FindPredecessorBlock(call_control);
-    TraceConnect(call, call_block, NULL);
+    TraceConnect(call, call_block, nullptr);
     schedule_->AddTailCall(call_block, call);
   }
 
   void ConnectReturn(Node* ret) {
     Node* return_control = NodeProperties::GetControlInput(ret);
     BasicBlock* return_block = FindPredecessorBlock(return_control);
-    TraceConnect(ret, return_block, NULL);
+    TraceConnect(ret, return_block, nullptr);
     schedule_->AddReturn(return_block, ret);
   }
 
   void ConnectDeoptimize(Node* deopt) {
     Node* deoptimize_control = NodeProperties::GetControlInput(deopt);
     BasicBlock* deoptimize_block = FindPredecessorBlock(deoptimize_control);
-    TraceConnect(deopt, deoptimize_block, NULL);
+    TraceConnect(deopt, deoptimize_block, nullptr);
     schedule_->AddDeoptimize(deoptimize_block, deopt);
   }
 
   void ConnectThrow(Node* thr) {
     Node* throw_control = NodeProperties::GetControlInput(thr);
     BasicBlock* throw_block = FindPredecessorBlock(throw_control);
-    TraceConnect(thr, throw_block, NULL);
+    TraceConnect(thr, throw_block, nullptr);
     schedule_->AddThrow(throw_block, thr);
   }
 
   void TraceConnect(Node* node, BasicBlock* block, BasicBlock* succ) {
     DCHECK_NOT_NULL(block);
-    if (succ == NULL) {
+    if (succ == nullptr) {
       TRACE("Connect #%d:%s, id:%d -> end\n", node->id(),
             node->op()->mnemonic(), block->id().ToInt());
     } else {
@@ -602,8 +602,8 @@ class SpecialRPONumberer : public ZoneObject {
   SpecialRPONumberer(Zone* zone, Schedule* schedule)
       : zone_(zone),
         schedule_(schedule),
-        order_(NULL),
-        beyond_end_(NULL),
+        order_(nullptr),
+        beyond_end_(nullptr),
         loops_(zone),
         backedges_(zone),
         stack_(zone),
@@ -630,7 +630,7 @@ class SpecialRPONumberer : public ZoneObject {
   // numbering for basic blocks into the final schedule.
   void SerializeRPOIntoSchedule() {
     int32_t number = 0;
-    for (BasicBlock* b = order_; b != NULL; b = b->rpo_next()) {
+    for (BasicBlock* b = order_; b != nullptr; b = b->rpo_next()) {
       b->set_rpo_number(number++);
       schedule_->rpo_order()->push_back(b);
     }
@@ -677,7 +677,7 @@ class SpecialRPONumberer : public ZoneObject {
     BasicBlock* start;
 
     void AddOutgoing(Zone* zone, BasicBlock* block) {
-      if (outgoing == NULL) {
+      if (outgoing == nullptr) {
         outgoing = new (zone->New(sizeof(ZoneVector<BasicBlock*>)))
             ZoneVector<BasicBlock*>(zone);
       }
@@ -713,7 +713,7 @@ class SpecialRPONumberer : public ZoneObject {
   // use the schedule's end block in actual control flow (e.g. with end having
   // successors). Once this has been cleaned up we can use the end block here.
   BasicBlock* BeyondEndSentinel() {
-    if (beyond_end_ == NULL) {
+    if (beyond_end_ == nullptr) {
       BasicBlock::Id id = BasicBlock::Id::FromInt(-1);
       beyond_end_ = new (schedule_->zone()) BasicBlock(schedule_->zone(), id);
     }
@@ -777,7 +777,7 @@ class SpecialRPONumberer : public ZoneObject {
 
       // Initialize the "loop stack". Note the entry could be a loop header.
       LoopInfo* loop =
-          HasLoopNumber(entry) ? &loops_[GetLoopNumber(entry)] : NULL;
+          HasLoopNumber(entry) ? &loops_[GetLoopNumber(entry)] : nullptr;
       order = insertion_point;
 
       // Perform an iterative post-order traversal, visiting loop bodies before
@@ -788,7 +788,7 @@ class SpecialRPONumberer : public ZoneObject {
       while (stack_depth > 0) {
         SpecialRPOStackFrame* frame = &stack_[stack_depth - 1];
         BasicBlock* block = frame->block;
-        BasicBlock* succ = NULL;
+        BasicBlock* succ = nullptr;
 
         if (block != end && frame->index < block->SuccessorCount()) {
           // Process the next normal successor.
@@ -798,7 +798,7 @@ class SpecialRPONumberer : public ZoneObject {
           if (block->rpo_number() == kBlockOnStack) {
             // Finish the loop body the first time the header is left on the
             // stack.
-            DCHECK(loop != NULL && loop->header == block);
+            DCHECK(loop != nullptr && loop->header == block);
             loop->start = PushFront(order, block);
             order = loop->end;
             block->set_rpo_number(kBlockVisited2);
@@ -813,19 +813,19 @@ class SpecialRPONumberer : public ZoneObject {
           size_t outgoing_index = frame->index - block->SuccessorCount();
           LoopInfo* info = &loops_[GetLoopNumber(block)];
           DCHECK(loop != info);
-          if (block != entry && info->outgoing != NULL &&
+          if (block != entry && info->outgoing != nullptr &&
               outgoing_index < info->outgoing->size()) {
             succ = info->outgoing->at(outgoing_index);
             frame->index++;
           }
         }
 
-        if (succ != NULL) {
+        if (succ != nullptr) {
           // Process the next successor.
           if (succ->rpo_number() == kBlockOnStack) continue;
           if (succ->rpo_number() == kBlockVisited2) continue;
           DCHECK(succ->rpo_number() == kBlockUnvisited2);
-          if (loop != NULL && !loop->members->Contains(succ->id().ToInt())) {
+          if (loop != nullptr && !loop->members->Contains(succ->id().ToInt())) {
             // The successor is not in the current loop or any nested loop.
             // Add it to the outgoing edges of this loop and visit it later.
             loop->AddOutgoing(zone_, succ);
@@ -865,10 +865,10 @@ class SpecialRPONumberer : public ZoneObject {
     }
 
     // Publish new order the first time.
-    if (order_ == NULL) order_ = order;
+    if (order_ == nullptr) order_ = order;
 
     // Compute the correct loop headers and set the correct loop ends.
-    LoopInfo* current_loop = NULL;
+    LoopInfo* current_loop = nullptr;
     BasicBlock* current_header = entry->loop_header();
     int32_t loop_depth = entry->loop_depth();
     if (entry->IsLoopHeader()) --loop_depth;  // Entry might be a loop header.
@@ -879,11 +879,13 @@ class SpecialRPONumberer : public ZoneObject {
       current->set_rpo_number(kBlockUnvisited1);
 
       // Finish the previous loop(s) if we just exited them.
-      while (current_header != NULL && current == current_header->loop_end()) {
+      while (current_header != nullptr &&
+             current == current_header->loop_end()) {
         DCHECK(current_header->IsLoopHeader());
-        DCHECK(current_loop != NULL);
+        DCHECK_NOT_NULL(current_loop);
         current_loop = current_loop->prev;
-        current_header = current_loop == NULL ? NULL : current_loop->header;
+        current_header =
+            current_loop == nullptr ? nullptr : current_loop->header;
         --loop_depth;
       }
       current->set_loop_header(current_header);
@@ -893,7 +895,7 @@ class SpecialRPONumberer : public ZoneObject {
         ++loop_depth;
         current_loop = &loops_[GetLoopNumber(current)];
         BasicBlock* end = current_loop->end;
-        current->set_loop_end(end == NULL ? BeyondEndSentinel() : end);
+        current->set_loop_end(end == nullptr ? BeyondEndSentinel() : end);
         current_header = current_loop->header;
         TRACE("id:%d is a loop header, increment loop depth to %d\n",
               current->id().ToInt(), loop_depth);
@@ -901,7 +903,7 @@ class SpecialRPONumberer : public ZoneObject {
 
       current->set_loop_depth(loop_depth);
 
-      if (current->loop_header() == NULL) {
+      if (current->loop_header() == nullptr) {
         TRACE("id:%d is not in a loop (depth == %d)\n", current->id().ToInt(),
               current->loop_depth());
       } else {
@@ -932,7 +934,7 @@ class SpecialRPONumberer : public ZoneObject {
       BasicBlock* member = backedges->at(i).first;
       BasicBlock* header = member->SuccessorAt(backedges->at(i).second);
       size_t loop_num = GetLoopNumber(header);
-      if (loops_[loop_num].header == NULL) {
+      if (loops_[loop_num].header == nullptr) {
         loops_[loop_num].header = header;
         loops_[loop_num].members = new (zone_)
             BitVector(static_cast<int>(schedule_->BasicBlockCount()), zone_);
@@ -979,7 +981,8 @@ class SpecialRPONumberer : public ZoneObject {
     }
     os << ":\n";
 
-    for (BasicBlock* block = order_; block != NULL; block = block->rpo_next()) {
+    for (BasicBlock* block = order_; block != nullptr;
+         block = block->rpo_next()) {
       os << std::setw(5) << "B" << block->rpo_number() << ":";
       for (size_t i = 0; i < loops_.size(); i++) {
         bool range = loops_[i].header->LoopContains(block);
@@ -988,11 +991,11 @@ class SpecialRPONumberer : public ZoneObject {
         os << (range ? "x" : " ");
       }
       os << "  id:" << block->id() << ": ";
-      if (block->loop_end() != NULL) {
+      if (block->loop_end() != nullptr) {
         os << " range: [B" << block->rpo_number() << ", B"
            << block->loop_end()->rpo_number() << ")";
       }
-      if (block->loop_header() != NULL) {
+      if (block->loop_header() != nullptr) {
         os << " header: id:" << block->loop_header()->id();
       }
       if (block->loop_depth() > 0) {
@@ -1012,10 +1015,10 @@ class SpecialRPONumberer : public ZoneObject {
       BasicBlock* header = loop->header;
       BasicBlock* end = header->loop_end();
 
-      DCHECK(header != NULL);
+      DCHECK_NOT_NULL(header);
       DCHECK(header->rpo_number() >= 0);
       DCHECK(header->rpo_number() < static_cast<int>(order->size()));
-      DCHECK(end != NULL);
+      DCHECK_NOT_NULL(end);
       DCHECK(end->rpo_number() <= static_cast<int>(order->size()));
       DCHECK(end->rpo_number() > header->rpo_number());
       DCHECK(header->loop_header() != header);
@@ -1026,7 +1029,7 @@ class SpecialRPONumberer : public ZoneObject {
       DCHECK_EQ(header, block);
       bool end_found;
       while (true) {
-        if (block == NULL || block == loop->end) {
+        if (block == nullptr || block == loop->end) {
           end_found = (loop->end == block);
           break;
         }
@@ -1042,7 +1045,7 @@ class SpecialRPONumberer : public ZoneObject {
 
       // Check loop depth of the header.
       int loop_depth = 0;
-      for (LoopInfo* outer = loop; outer != NULL; outer = outer->prev) {
+      for (LoopInfo* outer = loop; outer != nullptr; outer = outer->prev) {
         loop_depth++;
       }
       DCHECK_EQ(loop_depth, header->loop_depth());
@@ -1096,7 +1099,7 @@ void Scheduler::ComputeSpecialRPONumbering() {
 
 
 void Scheduler::PropagateImmediateDominators(BasicBlock* block) {
-  for (/*nop*/; block != NULL; block = block->rpo_next()) {
+  for (/*nop*/; block != nullptr; block = block->rpo_next()) {
     auto pred = block->predecessors().begin();
     auto end = block->predecessors().end();
     DCHECK(pred != end);  // All blocks except start have predecessors.
@@ -1153,7 +1156,7 @@ class PrepareUsesVisitor {
             opcode == IrOpcode::kParameter
                 ? schedule_->start()
                 : schedule_->block(NodeProperties::GetControlInput(node));
-        DCHECK(block != NULL);
+        DCHECK_NOT_NULL(block);
         schedule_->AddNode(block, node);
       }
     }
@@ -1243,7 +1246,7 @@ class ScheduleEarlyNodeVisitor {
     if (data->minimum_block_ == schedule_->start()) return;
 
     // Propagate schedule early position.
-    DCHECK(data->minimum_block_ != NULL);
+    DCHECK_NOT_NULL(data->minimum_block_);
     for (auto use : node->uses()) {
       PropagateMinimumPositionToNode(data->minimum_block_, use);
     }
@@ -1521,10 +1524,11 @@ class ScheduleLateNodeVisitor {
     BasicBlock* block = nullptr;
     for (Edge edge : node->use_edges()) {
       BasicBlock* use_block = GetBlockForUse(edge);
-      block = block == NULL ? use_block : use_block == NULL
-                                              ? block
-                                              : BasicBlock::GetCommonDominator(
-                                                    block, use_block);
+      block = block == nullptr
+                  ? use_block
+                  : use_block == nullptr
+                        ? block
+                        : BasicBlock::GetCommonDominator(block, use_block);
     }
     return block;
   }
@@ -1564,7 +1568,7 @@ class ScheduleLateNodeVisitor {
       }
     }
     BasicBlock* result = schedule_->block(use);
-    if (result == NULL) return NULL;
+    if (result == nullptr) return nullptr;
     TRACE("  must dominate use #%d:%s in id:%d\n", use->id(),
           use->op()->mnemonic(), result->id().ToInt());
     return result;
@@ -1685,9 +1689,9 @@ void Scheduler::FuseFloatingControl(BasicBlock* block, Node* node) {
   // Iterate on phase 2: Compute special RPO and dominator tree.
   special_rpo_->UpdateSpecialRPO(block, schedule_->block(node));
   // TODO(mstarzinger): Currently "iterate on" means "re-run". Fix that.
-  for (BasicBlock* b = block->rpo_next(); b != NULL; b = b->rpo_next()) {
+  for (BasicBlock* b = block->rpo_next(); b != nullptr; b = b->rpo_next()) {
     b->set_dominator_depth(-1);
-    b->set_dominator(NULL);
+    b->set_dominator(nullptr);
   }
   PropagateImmediateDominators(block->rpo_next());
 

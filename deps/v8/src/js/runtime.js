@@ -16,15 +16,22 @@
 
 %CheckIsBootstrapping();
 
+var FLAG_harmony_species;
 var GlobalArray = global.Array;
 var GlobalBoolean = global.Boolean;
 var GlobalString = global.String;
-var isConcatSpreadableSymbol =
-    utils.ImportNow("is_concat_spreadable_symbol");
 var MakeRangeError;
+var MakeTypeError;
+var speciesSymbol;
 
 utils.Import(function(from) {
   MakeRangeError = from.MakeRangeError;
+  MakeTypeError = from.MakeTypeError;
+  speciesSymbol = from.species_symbol;
+});
+
+utils.ImportFromExperimental(function(from) {
+  FLAG_harmony_species = from.FLAG_harmony_species;
 });
 
 // ----------------------------------------------------------------------------
@@ -33,127 +40,6 @@ utils.Import(function(from) {
    - - -   H e l p e r s   - - -
    -----------------------------
 */
-
-function APPLY_PREPARE(args) {
-  var length;
-
-  // First check that the receiver is callable.
-  if (!IS_CALLABLE(this)) {
-    throw %make_type_error(kApplyNonFunction, TO_STRING(this), typeof this);
-  }
-
-  // First check whether length is a positive Smi and args is an
-  // array. This is the fast case. If this fails, we do the slow case
-  // that takes care of more eventualities.
-  if (IS_ARRAY(args)) {
-    length = args.length;
-    if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength) {
-      return length;
-    }
-  }
-
-  length = (args == null) ? 0 : TO_UINT32(args.length);
-
-  // We can handle any number of apply arguments if the stack is
-  // big enough, but sanity check the value to avoid overflow when
-  // multiplying with pointer size.
-  if (length > kSafeArgumentsLength) throw %make_range_error(kStackOverflow);
-
-  // Make sure the arguments list has the right type.
-  if (args != null && !IS_SPEC_OBJECT(args)) {
-    throw %make_type_error(kWrongArgs, "Function.prototype.apply");
-  }
-
-  // Return the length which is the number of arguments to copy to the
-  // stack. It is guaranteed to be a small integer at this point.
-  return length;
-}
-
-
-function REFLECT_APPLY_PREPARE(args) {
-  var length;
-
-  // First check that the receiver is callable.
-  if (!IS_CALLABLE(this)) {
-    throw %make_type_error(kApplyNonFunction, TO_STRING(this), typeof this);
-  }
-
-  // First check whether length is a positive Smi and args is an
-  // array. This is the fast case. If this fails, we do the slow case
-  // that takes care of more eventualities.
-  if (IS_ARRAY(args)) {
-    length = args.length;
-    if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength) {
-      return length;
-    }
-  }
-
-  if (!IS_SPEC_OBJECT(args)) {
-    throw %make_type_error(kWrongArgs, "Reflect.apply");
-  }
-
-  length = TO_LENGTH(args.length);
-
-  // We can handle any number of apply arguments if the stack is
-  // big enough, but sanity check the value to avoid overflow when
-  // multiplying with pointer size.
-  if (length > kSafeArgumentsLength) throw %make_range_error(kStackOverflow);
-
-  // Return the length which is the number of arguments to copy to the
-  // stack. It is guaranteed to be a small integer at this point.
-  return length;
-}
-
-
-function REFLECT_CONSTRUCT_PREPARE(
-    args, newTarget) {
-  var length;
-  var ctorOk = IS_CALLABLE(this) && %IsConstructor(this);
-  var newTargetOk = IS_CALLABLE(newTarget) && %IsConstructor(newTarget);
-
-  // First check whether length is a positive Smi and args is an
-  // array. This is the fast case. If this fails, we do the slow case
-  // that takes care of more eventualities.
-  if (IS_ARRAY(args)) {
-    length = args.length;
-    if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength &&
-        ctorOk && newTargetOk) {
-      return length;
-    }
-  }
-
-  if (!ctorOk) {
-    if (!IS_CALLABLE(this)) {
-      throw %make_type_error(kCalledNonCallable, TO_STRING(this));
-    } else {
-      throw %make_type_error(kNotConstructor, TO_STRING(this));
-    }
-  }
-
-  if (!newTargetOk) {
-    if (!IS_CALLABLE(newTarget)) {
-      throw %make_type_error(kCalledNonCallable, TO_STRING(newTarget));
-    } else {
-      throw %make_type_error(kNotConstructor, TO_STRING(newTarget));
-    }
-  }
-
-  if (!IS_SPEC_OBJECT(args)) {
-    throw %make_type_error(kWrongArgs, "Reflect.construct");
-  }
-
-  length = TO_LENGTH(args.length);
-
-  // We can handle any number of apply arguments if the stack is
-  // big enough, but sanity check the value to avoid overflow when
-  // multiplying with pointer size.
-  if (length > kSafeArgumentsLength) throw %make_range_error(kStackOverflow);
-
-  // Return the length which is the number of arguments to copy to the
-  // stack. It is guaranteed to be a small integer at this point.
-  return length;
-}
-
 
 function CONCAT_ITERABLE_TO_ARRAY(iterable) {
   return %concat_iterable_to_array(this, iterable);
@@ -219,15 +105,6 @@ function AddIndexedProperty(obj, index, value) {
 %SetForceInlineFlag(AddIndexedProperty);
 
 
-// ES6, draft 10-14-14, section 22.1.3.1.1
-function IsConcatSpreadable(O) {
-  if (!IS_SPEC_OBJECT(O)) return false;
-  var spreadable = O[isConcatSpreadableSymbol];
-  if (IS_UNDEFINED(spreadable)) return IS_ARRAY(O);
-  return TO_BOOLEAN(spreadable);
-}
-
-
 function ToPositiveInteger(x, rangeErrorIndex) {
   var i = TO_INTEGER_MAP_MINUS_ZERO(x);
   if (i < 0) throw MakeRangeError(rangeErrorIndex);
@@ -248,6 +125,39 @@ function MinSimple(a, b) {
 %SetForceInlineFlag(MaxSimple);
 %SetForceInlineFlag(MinSimple);
 
+
+// ES2015 7.3.20
+// For the fallback with --harmony-species off, there are two possible choices:
+//  - "conservative": return defaultConstructor
+//  - "not conservative": return object.constructor
+// This fallback path is only needed in the transition to ES2015, and the
+// choice is made simply to preserve the previous behavior so that we don't
+// have a three-step upgrade: old behavior, unspecified intermediate behavior,
+// and ES2015.
+// In some cases, we were "conservative" (e.g., ArrayBuffer, RegExp), and in
+// other cases we were "not conservative (e.g., TypedArray, Promise).
+function SpeciesConstructor(object, defaultConstructor, conservative) {
+  if (FLAG_harmony_species) {
+    var constructor = object.constructor;
+    if (IS_UNDEFINED(constructor)) {
+      return defaultConstructor;
+    }
+    if (!IS_RECEIVER(constructor)) {
+      throw MakeTypeError(kConstructorNotReceiver);
+    }
+    var species = constructor[speciesSymbol];
+    if (IS_NULL_OR_UNDEFINED(species)) {
+      return defaultConstructor;
+    }
+    if (%IsConstructor(species)) {
+      return species;
+    }
+    throw MakeTypeError(kSpeciesNotConstructor);
+  } else {
+    return conservative ? defaultConstructor : object.constructor;
+  }
+}
+
 //----------------------------------------------------------------------------
 
 // NOTE: Setting the prototype for Array must take place as early as
@@ -267,13 +177,11 @@ utils.Export(function(to) {
   to.SameValue = SameValue;
   to.SameValueZero = SameValueZero;
   to.ToPositiveInteger = ToPositiveInteger;
+  to.SpeciesConstructor = SpeciesConstructor;
 });
 
 %InstallToContext([
-  "apply_prepare_builtin", APPLY_PREPARE,
   "concat_iterable_to_array_builtin", CONCAT_ITERABLE_TO_ARRAY,
-  "reflect_apply_prepare_builtin", REFLECT_APPLY_PREPARE,
-  "reflect_construct_prepare_builtin", REFLECT_CONSTRUCT_PREPARE,
 ]);
 
 %InstallToContext([

@@ -6,9 +6,9 @@
 
 #include "src/typing-reset.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/codegen.h"
-#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {

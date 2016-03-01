@@ -86,3 +86,11 @@ class TestCase(object):
 
   def GetLabel(self):
     return self.suitename() + "/" + self.suite.CommonTestName(self)
+
+  def __getstate__(self):
+    """Representation to pickle test cases.
+
+    The original suite won't be sent beyond process boundaries. Instead
+    send the name only and retrieve a process-local suite later.
+    """
+    return dict(self.__dict__, suite=self.suite.name)

@@ -6,7 +6,7 @@
 #define V8_UNITTESTS_COMPILER_NODE_TEST_UTILS_H_
 
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/machine-type.h"
+#include "src/machine-type.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace v8 {
@@ -19,6 +19,7 @@ class Handle;
 class HeapObject;
 template <class>
 class TypeImpl;
+enum TypeofMode : int;
 struct ZoneTypeConfig;
 typedef TypeImpl<ZoneTypeConfig> Type;
 
@@ -79,15 +80,15 @@ Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher);
 Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher);
 Matcher<Node*> IsNumberConstant(const Matcher<double>& value_matcher);
-Matcher<Node*> IsSelect(const Matcher<MachineType>& type_matcher,
+Matcher<Node*> IsSelect(const Matcher<MachineRepresentation>& type_matcher,
                         const Matcher<Node*>& value0_matcher,
                         const Matcher<Node*>& value1_matcher,
                         const Matcher<Node*>& value2_matcher);
-Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
+Matcher<Node*> IsPhi(const Matcher<MachineRepresentation>& type_matcher,
                      const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,
                      const Matcher<Node*>& merge_matcher);
-Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
+Matcher<Node*> IsPhi(const Matcher<MachineRepresentation>& type_matcher,
                      const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,
                      const Matcher<Node*>& value2_matcher,
@@ -99,6 +100,10 @@ Matcher<Node*> IsEffectSet(const Matcher<Node*>& effect0_matcher,
                            const Matcher<Node*>& effect1_matcher);
 Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
                             const Matcher<Node*>& base_matcher);
+Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
+                      const Matcher<Node*>& value0_matcher,
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value0_matcher,
                       const Matcher<Node*>& value1_matcher,
@@ -275,8 +280,6 @@ Matcher<Node*> IsWord64Or(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord64Shl(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
-Matcher<Node*> IsWord64Shr(const Matcher<Node*>& lhs_matcher,
-                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord64Sar(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord64Equal(const Matcher<Node*>& lhs_matcher,
@@ -301,8 +304,6 @@ Matcher<Node*> IsInt64Add(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt64Sub(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
-Matcher<Node*> IsInt64Mul(const Matcher<Node*>& lhs_matcher,
-                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsJSAdd(const Matcher<Node*>& lhs_matcher,
                        const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsChangeFloat64ToInt32(const Matcher<Node*>& input_matcher);
@@ -314,7 +315,6 @@ Matcher<Node*> IsChangeUint32ToUint64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToFloat32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateInt64ToInt32(const Matcher<Node*>& input_matcher);
-Matcher<Node*> IsRoundInt64ToFloat64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat32Max(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat32Min(const Matcher<Node*>& lhs_matcher,

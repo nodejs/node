@@ -272,16 +272,19 @@ TEST_F(CommonOperatorTest, IfValue) {
 
 
 TEST_F(CommonOperatorTest, Select) {
-  static const MachineType kTypes[] = {
-      kMachInt8,    kMachUint8,   kMachInt16,    kMachUint16,
-      kMachInt32,   kMachUint32,  kMachInt64,    kMachUint64,
-      kMachFloat32, kMachFloat64, kMachAnyTagged};
-  TRACED_FOREACH(MachineType, type, kTypes) {
+  static const MachineRepresentation kMachineRepresentations[] = {
+      MachineRepresentation::kBit,     MachineRepresentation::kWord8,
+      MachineRepresentation::kWord16,  MachineRepresentation::kWord32,
+      MachineRepresentation::kWord64,  MachineRepresentation::kFloat32,
+      MachineRepresentation::kFloat64, MachineRepresentation::kTagged};
+
+
+  TRACED_FOREACH(MachineRepresentation, rep, kMachineRepresentations) {
     TRACED_FOREACH(BranchHint, hint, kBranchHints) {
-      const Operator* const op = common()->Select(type, hint);
+      const Operator* const op = common()->Select(rep, hint);
       EXPECT_EQ(IrOpcode::kSelect, op->opcode());
       EXPECT_EQ(Operator::kPure, op->properties());
-      EXPECT_EQ(type, SelectParametersOf(op).type());
+      EXPECT_EQ(rep, SelectParametersOf(op).representation());
       EXPECT_EQ(hint, SelectParametersOf(op).hint());
       EXPECT_EQ(3, op->ValueInputCount());
       EXPECT_EQ(0, op->EffectInputCount());

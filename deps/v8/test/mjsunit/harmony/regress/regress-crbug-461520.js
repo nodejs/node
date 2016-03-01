@@ -5,14 +5,16 @@
 // Flags: --harmony-proxies
 
 var fuse = 1;
+
 var handler = {
   get: function() { return function() {} },
-  getPropertyDescriptor: function() {
+  has() { return true },
+  getOwnPropertyDescriptor: function() {
     if (fuse-- == 0) throw "please die";
     return {value: function() {}, configurable: true};
   }
 };
 
-var p = Proxy.create(handler);
+var p = new Proxy({}, handler);
 var o = Object.create(p);
 with (o) { f() }

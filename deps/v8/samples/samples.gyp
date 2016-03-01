@@ -40,10 +40,6 @@
     'include_dirs': [
       '..',
     ],
-    'defines': [
-      # TODO(jochen): Remove again after this is globally turned on.
-      'V8_IMMINENT_DEPRECATION_WARNINGS',
-    ],
     'conditions': [
       ['v8_enable_i18n_support==1', {
         'dependencies': [

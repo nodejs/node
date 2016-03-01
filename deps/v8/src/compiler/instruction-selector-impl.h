@@ -68,8 +68,16 @@ class OperandGenerator {
   }
 
   InstructionOperand DefineAsLocation(Node* node, LinkageLocation location,
-                                      MachineType type) {
-    return Define(node, ToUnallocatedOperand(location, type, GetVReg(node)));
+                                      MachineRepresentation rep) {
+    return Define(node, ToUnallocatedOperand(location, rep, GetVReg(node)));
+  }
+
+  InstructionOperand DefineAsDualLocation(Node* node,
+                                          LinkageLocation primary_location,
+                                          LinkageLocation secondary_location) {
+    return Define(node,
+                  ToDualLocationUnallocatedOperand(
+                      primary_location, secondary_location, GetVReg(node)));
   }
 
   InstructionOperand Use(Node* node) {
@@ -120,9 +128,15 @@ class OperandGenerator {
                                   reg.code(), GetVReg(node)));
   }
 
-  InstructionOperand UseExplicit(Register reg) {
-    MachineType machine_type = InstructionSequence::DefaultRepresentation();
-    return ExplicitOperand(LocationOperand::REGISTER, machine_type, reg.code());
+  InstructionOperand UseExplicit(LinkageLocation location) {
+    MachineRepresentation rep = InstructionSequence::DefaultRepresentation();
+    if (location.IsRegister()) {
+      return ExplicitOperand(LocationOperand::REGISTER, rep,
+                             location.AsRegister());
+    } else {
+      return ExplicitOperand(LocationOperand::STACK_SLOT, rep,
+                             location.GetLocation());
+    }
   }
 
   InstructionOperand UseImmediate(Node* node) {
@@ -130,8 +144,20 @@ class OperandGenerator {
   }
 
   InstructionOperand UseLocation(Node* node, LinkageLocation location,
-                                 MachineType type) {
-    return Use(node, ToUnallocatedOperand(location, type, GetVReg(node)));
+                                 MachineRepresentation rep) {
+    return Use(node, ToUnallocatedOperand(location, rep, GetVReg(node)));
+  }
+
+  // Used to force gap moves from the from_location to the to_location
+  // immediately before an instruction.
+  InstructionOperand UsePointerLocation(LinkageLocation to_location,
+                                        LinkageLocation from_location) {
+    MachineRepresentation rep = MachineType::PointerRepresentation();
+    UnallocatedOperand casted_from_operand =
+        UnallocatedOperand::cast(TempLocation(from_location, rep));
+    selector_->Emit(kArchNop, casted_from_operand);
+    return ToUnallocatedOperand(to_location, rep,
+                                casted_from_operand.virtual_register());
   }
 
   InstructionOperand TempRegister() {
@@ -144,7 +170,8 @@ class OperandGenerator {
     UnallocatedOperand op = UnallocatedOperand(
         UnallocatedOperand::MUST_HAVE_REGISTER,
         UnallocatedOperand::USED_AT_START, sequence()->NextVirtualRegister());
-    sequence()->MarkAsRepresentation(kRepFloat64, op.virtual_register());
+    sequence()->MarkAsRepresentation(MachineRepresentation::kFloat64,
+                                     op.virtual_register());
     return op;
   }
 
@@ -157,8 +184,9 @@ class OperandGenerator {
     return sequence()->AddImmediate(Constant(imm));
   }
 
-  InstructionOperand TempLocation(LinkageLocation location, MachineType type) {
-    return ToUnallocatedOperand(location, type,
+  InstructionOperand TempLocation(LinkageLocation location,
+                                  MachineRepresentation rep) {
+    return ToUnallocatedOperand(location, rep,
                                 sequence()->NextVirtualRegister());
   }
 
@@ -211,8 +239,20 @@ class OperandGenerator {
     return operand;
   }
 
+  UnallocatedOperand ToDualLocationUnallocatedOperand(
+      LinkageLocation primary_location, LinkageLocation secondary_location,
+      int virtual_register) {
+    // We only support the primary location being a register and the secondary
+    // one a slot.
+    DCHECK(primary_location.IsRegister() &&
+           secondary_location.IsCalleeFrameSlot());
+    int reg_id = primary_location.AsRegister();
+    int slot_id = secondary_location.AsCalleeFrameSlot();
+    return UnallocatedOperand(reg_id, slot_id, virtual_register);
+  }
+
   UnallocatedOperand ToUnallocatedOperand(LinkageLocation location,
-                                          MachineType type,
+                                          MachineRepresentation rep,
                                           int virtual_register) {
     if (location.IsAnyRegister()) {
       // any machine register.
@@ -230,8 +270,7 @@ class OperandGenerator {
                                 location.AsCalleeFrameSlot(), virtual_register);
     }
     // a fixed register.
-    MachineType rep = RepresentationOf(type);
-    if (rep == kRepFloat64 || rep == kRepFloat32) {
+    if (IsFloatingPoint(rep)) {
       return UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
                                 location.AsRegister(), virtual_register);
     }

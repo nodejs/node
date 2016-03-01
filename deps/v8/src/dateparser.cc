@@ -100,8 +100,15 @@ bool DateParser::TimeZoneComposer::Write(FixedArray* output) {
   if (sign_ != kNone) {
     if (hour_ == kNone) hour_ = 0;
     if (minute_ == kNone) minute_ = 0;
-    int total_seconds = sign_ * (hour_ * 3600 + minute_ * 60);
-    if (!Smi::IsValid(total_seconds)) return false;
+    // Avoid signed integer overflow (undefined behavior) by doing unsigned
+    // arithmetic.
+    unsigned total_seconds_unsigned = hour_ * 3600U + minute_ * 60U;
+    if (total_seconds_unsigned > Smi::kMaxValue) return false;
+    int total_seconds = static_cast<int>(total_seconds_unsigned);
+    if (sign_ < 0) {
+      total_seconds = -total_seconds;
+    }
+    DCHECK(Smi::IsValid(total_seconds));
     output->set(UTC_OFFSET, Smi::FromInt(total_seconds));
   } else {
     output->set_null(UTC_OFFSET);

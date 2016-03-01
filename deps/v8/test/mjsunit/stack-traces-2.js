@@ -69,13 +69,10 @@ function testNotOmittedBuiltin(throwing, included) {
 
 
 testTraceNativeConversion(String);  // Does ToString on argument.
-testTraceNativeConversion(Number);  // Does ToNumber on argument.
 testTraceNativeConversion(RegExp);  // Does ToString on argument.
 
 testTraceNativeConstructor(String);  // Does ToString on argument.
-testTraceNativeConstructor(Number);  // Does ToNumber on argument.
 testTraceNativeConstructor(RegExp);  // Does ToString on argument.
-testTraceNativeConstructor(Date);    // Does ToNumber on argument.
 
 // QuickSort has builtins object as receiver, and is non-native
 // builtin. Should not be omitted with the --builtins-in-stack-traces flag.

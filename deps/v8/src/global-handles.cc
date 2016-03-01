@@ -78,6 +78,7 @@ class GlobalHandles::Node {
 #endif
 
   void Initialize(int index, Node** first_free) {
+    object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
     index_ = static_cast<uint8_t>(index);
     DCHECK(static_cast<int>(index_) == index);
     set_state(FREE);
@@ -250,9 +251,9 @@ class GlobalHandles::Node {
   }
 
   void MakeWeak(void* parameter, WeakCallback weak_callback) {
-    DCHECK(weak_callback != NULL);
+    DCHECK(weak_callback != nullptr);
     DCHECK(IsInUse());
-    CHECK(object_ != NULL);
+    CHECK_NE(object_, reinterpret_cast<Object*>(kGlobalHandleZapValue));
     set_state(WEAK);
     set_weakness_type(NORMAL_WEAK);
     set_parameter(parameter);
@@ -264,7 +265,7 @@ class GlobalHandles::Node {
                 v8::WeakCallbackType type) {
     DCHECK(phantom_callback != nullptr);
     DCHECK(IsInUse());
-    CHECK(object_ != nullptr);
+    CHECK_NE(object_, reinterpret_cast<Object*>(kGlobalHandleZapValue));
     set_state(WEAK);
     switch (type) {
       case v8::WeakCallbackType::kParameter:
@@ -533,10 +534,10 @@ class GlobalHandles::PendingPhantomCallbacksSecondPassTask
   }
 
   void RunInternal() override {
-    isolate_->heap()->CallGCPrologueCallbacks(
+    isolate()->heap()->CallGCPrologueCallbacks(
         GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
-    InvokeSecondPassPhantomCallbacks(&pending_phantom_callbacks_, isolate_);
-    isolate_->heap()->CallGCEpilogueCallbacks(
+    InvokeSecondPassPhantomCallbacks(&pending_phantom_callbacks_, isolate());
+    isolate()->heap()->CallGCEpilogueCallbacks(
         GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
   }
 
