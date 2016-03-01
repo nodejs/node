@@ -329,7 +329,7 @@ const alice = crypto.createDiffieHellman(2048);
 const alice_key = alice.generateKeys();
 
 // Generate Bob's keys...
-const bob = crypto.createDiffieHellman(alice.getPrime(), 'binary', alice.getGenerator(), 'binary');
+const bob = crypto.createDiffieHellman(alice.getPrime(), alice.getGenerator());
 const bob_key = bob.generateKeys();
 
 // Exchange and generate the secret...
