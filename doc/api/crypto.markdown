@@ -669,10 +669,15 @@ provided a string is returned; otherwise a [`Buffer`][] is returned;
 The `Hmac` object can not be used again after `hmac.digest()` has been
 called. Multiple calls to `hmac.digest()` will result in an error being thrown.
 
-### hmac.update(data)
+### hmac.update(data[, input_encoding])
 
-Update the `Hmac` content with the given `data`. This can be called
-many times with new data as it is streamed.
+Updates the `Hmac` content with the given `data`, the encoding of which
+is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
+`'binary'`. If `encoding` is not provided, and the `data` is a string, an
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
+`input_encoding` is ignored.
+
+This can be called many times with new data as it is streamed.
 
 ## Class: Sign
 
@@ -733,10 +738,15 @@ returned.
 The `Sign` object can not be again used after `sign.sign()` method has been
 called. Multiple calls to `sign.sign()` will result in an error being thrown.
 
-### sign.update(data)
+### sign.update(data[, input_encoding])
 
-Updates the sign object with the given `data`. This can be called many times
-with new data as it is streamed.
+Updates the `Sign` content with the given `data`, the encoding of which
+is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
+`'binary'`. If `encoding` is not provided, and the `data` is a string, an
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
+`input_encoding` is ignored.
+
+This can be called many times with new data as it is streamed.
 
 ## Class: Verify
 
@@ -780,10 +790,15 @@ console.log(verify.verify(public_key, signature));
   // Prints true or false
 ```
 
-### verifier.update(data)
+### verifier.update(data[, input_encoding])
 
-Updates the verifier object with the given `data`. This can be called many
-times with new data as it is streamed.
+Updates the `Verify` content with the given `data`, the encoding of which
+is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
+`'binary'`. If `encoding` is not provided, and the `data` is a string, an
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
+`input_encoding` is ignored.
+
+This can be called many times with new data as it is streamed.
 
 ### verifier.verify(object, signature[, signature_format])
 
@@ -811,7 +826,7 @@ or [buffers][`Buffer`]. The default value is `'buffer'`, which makes methods
 default to [`Buffer`][] objects.
 
 The `crypto.DEFAULT_ENCODING` mechanism is provided for backwards compatibility
-with legacy programs that expect `'utf8'` to be the default encoding.
+with legacy programs that expect `'binary'` to be the default encoding.
 
 New applications should expect the default to be `'buffer'`. This property may
 become deprecated in a future Node.js release.
