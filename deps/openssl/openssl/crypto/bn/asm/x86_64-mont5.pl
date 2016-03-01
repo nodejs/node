@@ -66,60 +66,113 @@ bn_mul_mont_gather5:
 .align	16
 .Lmul_enter:
 	mov	${num}d,${num}d
-	mov	`($win64?56:8)`(%rsp),%r10d	# load 7th argument
+	movd	`($win64?56:8)`(%rsp),%xmm5	# load 7th argument
+	lea	.Linc(%rip),%r10
 	push	%rbx
 	push	%rbp
 	push	%r12
 	push	%r13
 	push	%r14
 	push	%r15
-___
-$code.=<<___ if ($win64);
-	lea	-0x28(%rsp),%rsp
-	movaps	%xmm6,(%rsp)
-	movaps	%xmm7,0x10(%rsp)
+
 .Lmul_alloca:
-___
-$code.=<<___;
 	mov	%rsp,%rax
 	lea	2($num),%r11
 	neg	%r11
-	lea	(%rsp,%r11,8),%rsp	# tp=alloca(8*(num+2))
+	lea	-264(%rsp,%r11,8),%rsp	# tp=alloca(8*(num+2)+256+8)
 	and	\$-1024,%rsp		# minimize TLB usage
 
 	mov	%rax,8(%rsp,$num,8)	# tp[num+1]=%rsp
 .Lmul_body:
-	mov	$bp,%r12		# reassign $bp
+	lea	128($bp),%r12		# reassign $bp (+size optimization)
 ___
 		$bp="%r12";
 		$STRIDE=2**5*8;		# 5 is "window size"
 		$N=$STRIDE/4;		# should match cache line size
 $code.=<<___;
-	mov	%r10,%r11
-	shr	\$`log($N/8)/log(2)`,%r10
-	and	\$`$N/8-1`,%r11
-	not	%r10
-	lea	.Lmagic_masks(%rip),%rax
-	and	\$`2**5/($N/8)-1`,%r10	# 5 is "window size"
-	lea	96($bp,%r11,8),$bp	# pointer within 1st cache line
-	movq	0(%rax,%r10,8),%xmm4	# set of masks denoting which
-	movq	8(%rax,%r10,8),%xmm5	# cache line contains element
-	movq	16(%rax,%r10,8),%xmm6	# denoted by 7th argument
-	movq	24(%rax,%r10,8),%xmm7
+	movdqa	0(%r10),%xmm0		# 00000001000000010000000000000000
+	movdqa	16(%r10),%xmm1		# 00000002000000020000000200000002
+	lea	24-112(%rsp,$num,8),%r10# place the mask after tp[num+3] (+ICache optimization)
+	and	\$-16,%r10
 
-	movq	`0*$STRIDE/4-96`($bp),%xmm0
-	movq	`1*$STRIDE/4-96`($bp),%xmm1
-	pand	%xmm4,%xmm0
-	movq	`2*$STRIDE/4-96`($bp),%xmm2
-	pand	%xmm5,%xmm1
-	movq	`3*$STRIDE/4-96`($bp),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
+	pshufd	\$0,%xmm5,%xmm5		# broadcast index
+	movdqa	%xmm1,%xmm4
+	movdqa	%xmm1,%xmm2
+___
+########################################################################
+# calculate mask by comparing 0..31 to index and save result to stack
+#
+$code.=<<___;
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0		# compare to 1,0
+	.byte	0x67
+	movdqa	%xmm4,%xmm3
+___
+for($k=0;$k<$STRIDE/16-4;$k+=4) {
+$code.=<<___;
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1		# compare to 3,2
+	movdqa	%xmm0,`16*($k+0)+112`(%r10)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2		# compare to 5,4
+	movdqa	%xmm1,`16*($k+1)+112`(%r10)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3		# compare to 7,6
+	movdqa	%xmm2,`16*($k+2)+112`(%r10)
+	movdqa	%xmm4,%xmm2
+
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,`16*($k+3)+112`(%r10)
+	movdqa	%xmm4,%xmm3
+___
+}
+$code.=<<___;				# last iteration can be optimized
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,`16*($k+0)+112`(%r10)
+
+	paddd	%xmm2,%xmm3
+	.byte	0x67
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,`16*($k+1)+112`(%r10)
+
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,`16*($k+2)+112`(%r10)
+	pand	`16*($k+0)-128`($bp),%xmm0	# while it's still in register
+
+	pand	`16*($k+1)-128`($bp),%xmm1
+	pand	`16*($k+2)-128`($bp),%xmm2
+	movdqa	%xmm3,`16*($k+3)+112`(%r10)
+	pand	`16*($k+3)-128`($bp),%xmm3
 	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+___
+for($k=0;$k<$STRIDE/16-4;$k+=4) {
+$code.=<<___;
+	movdqa	`16*($k+0)-128`($bp),%xmm4
+	movdqa	`16*($k+1)-128`($bp),%xmm5
+	movdqa	`16*($k+2)-128`($bp),%xmm2
+	pand	`16*($k+0)+112`(%r10),%xmm4
+	movdqa	`16*($k+3)-128`($bp),%xmm3
+	pand	`16*($k+1)+112`(%r10),%xmm5
+	por	%xmm4,%xmm0
+	pand	`16*($k+2)+112`(%r10),%xmm2
+	por	%xmm5,%xmm1
+	pand	`16*($k+3)+112`(%r10),%xmm3
+	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+___
+}
+$code.=<<___;
+	por	%xmm1,%xmm0
+	pshufd	\$0x4e,%xmm0,%xmm1
+	por	%xmm1,%xmm0
 	lea	$STRIDE($bp),$bp
-	por	%xmm3,%xmm0
-
 	movq	%xmm0,$m0		# m0=bp[0]
 
 	mov	($n0),$n0		# pull n0[0] value
@@ -128,28 +181,13 @@ $code.=<<___;
 	xor	$i,$i			# i=0
 	xor	$j,$j			# j=0
 
-	movq	`0*$STRIDE/4-96`($bp),%xmm0
-	movq	`1*$STRIDE/4-96`($bp),%xmm1
-	pand	%xmm4,%xmm0
-	movq	`2*$STRIDE/4-96`($bp),%xmm2
-	pand	%xmm5,%xmm1
-
 	mov	$n0,$m1
 	mulq	$m0			# ap[0]*bp[0]
 	mov	%rax,$lo0
 	mov	($np),%rax
 
-	movq	`3*$STRIDE/4-96`($bp),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
-
 	imulq	$lo0,$m1		# "tp[0]"*n0
 	mov	%rdx,$hi0
-
-	por	%xmm2,%xmm0
-	lea	$STRIDE($bp),$bp
-	por	%xmm3,%xmm0
 
 	mulq	$m1			# np[0]*m1
 	add	%rax,$lo0		# discarded
@@ -183,8 +221,6 @@ $code.=<<___;
 	cmp	$num,$j
 	jne	.L1st
 
-	movq	%xmm0,$m0		# bp[1]
-
 	add	%rax,$hi1
 	mov	($ap),%rax		# ap[0]
 	adc	\$0,%rdx
@@ -204,32 +240,45 @@ $code.=<<___;
 	jmp	.Louter
 .align	16
 .Louter:
+	lea	24+128(%rsp,$num,8),%rdx	# where 256-byte mask is (+size optimization)
+	and	\$-16,%rdx
+	pxor	%xmm4,%xmm4
+	pxor	%xmm5,%xmm5
+___
+for($k=0;$k<$STRIDE/16;$k+=4) {
+$code.=<<___;
+	movdqa	`16*($k+0)-128`($bp),%xmm0
+	movdqa	`16*($k+1)-128`($bp),%xmm1
+	movdqa	`16*($k+2)-128`($bp),%xmm2
+	movdqa	`16*($k+3)-128`($bp),%xmm3
+	pand	`16*($k+0)-128`(%rdx),%xmm0
+	pand	`16*($k+1)-128`(%rdx),%xmm1
+	por	%xmm0,%xmm4
+	pand	`16*($k+2)-128`(%rdx),%xmm2
+	por	%xmm1,%xmm5
+	pand	`16*($k+3)-128`(%rdx),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+___
+}
+$code.=<<___;
+	por	%xmm5,%xmm4
+	pshufd	\$0x4e,%xmm4,%xmm0
+	por	%xmm4,%xmm0
+	lea	$STRIDE($bp),$bp
+	movq	%xmm0,$m0		# m0=bp[i]
+
 	xor	$j,$j			# j=0
 	mov	$n0,$m1
 	mov	(%rsp),$lo0
-
-	movq	`0*$STRIDE/4-96`($bp),%xmm0
-	movq	`1*$STRIDE/4-96`($bp),%xmm1
-	pand	%xmm4,%xmm0
-	movq	`2*$STRIDE/4-96`($bp),%xmm2
-	pand	%xmm5,%xmm1
 
 	mulq	$m0			# ap[0]*bp[i]
 	add	%rax,$lo0		# ap[0]*bp[i]+tp[0]
 	mov	($np),%rax
 	adc	\$0,%rdx
 
-	movq	`3*$STRIDE/4-96`($bp),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
-
 	imulq	$lo0,$m1		# tp[0]*n0
 	mov	%rdx,$hi0
-
-	por	%xmm2,%xmm0
-	lea	$STRIDE($bp),$bp
-	por	%xmm3,%xmm0
 
 	mulq	$m1			# np[0]*m1
 	add	%rax,$lo0		# discarded
@@ -265,8 +314,6 @@ $code.=<<___;
 	mulq	$m1			# np[j]*m1
 	cmp	$num,$j
 	jne	.Linner
-
-	movq	%xmm0,$m0		# bp[i+1]
 
 	add	%rax,$hi1
 	mov	($ap),%rax		# ap[0]
@@ -321,13 +368,7 @@ $code.=<<___;
 
 	mov	8(%rsp,$num,8),%rsi	# restore %rsp
 	mov	\$1,%rax
-___
-$code.=<<___ if ($win64);
-	movaps	(%rsi),%xmm6
-	movaps	0x10(%rsi),%xmm7
-	lea	0x28(%rsi),%rsi
-___
-$code.=<<___;
+
 	mov	(%rsi),%r15
 	mov	8(%rsi),%r14
 	mov	16(%rsi),%r13
@@ -348,90 +389,129 @@ $code.=<<___;
 bn_mul4x_mont_gather5:
 .Lmul4x_enter:
 	mov	${num}d,${num}d
-	mov	`($win64?56:8)`(%rsp),%r10d	# load 7th argument
+	movd	`($win64?56:8)`(%rsp),%xmm5	# load 7th argument
+	lea	.Linc(%rip),%r10
 	push	%rbx
 	push	%rbp
 	push	%r12
 	push	%r13
 	push	%r14
 	push	%r15
-___
-$code.=<<___ if ($win64);
-	lea	-0x28(%rsp),%rsp
-	movaps	%xmm6,(%rsp)
-	movaps	%xmm7,0x10(%rsp)
+
 .Lmul4x_alloca:
-___
-$code.=<<___;
 	mov	%rsp,%rax
 	lea	4($num),%r11
 	neg	%r11
-	lea	(%rsp,%r11,8),%rsp	# tp=alloca(8*(num+4))
+	lea	-256(%rsp,%r11,8),%rsp	# tp=alloca(8*(num+4)+256)
 	and	\$-1024,%rsp		# minimize TLB usage
 
 	mov	%rax,8(%rsp,$num,8)	# tp[num+1]=%rsp
 .Lmul4x_body:
 	mov	$rp,16(%rsp,$num,8)	# tp[num+2]=$rp
-	mov	%rdx,%r12		# reassign $bp
+	lea	128(%rdx),%r12		# reassign $bp (+size optimization)
 ___
 		$bp="%r12";
 		$STRIDE=2**5*8;		# 5 is "window size"
 		$N=$STRIDE/4;		# should match cache line size
 $code.=<<___;
-	mov	%r10,%r11
-	shr	\$`log($N/8)/log(2)`,%r10
-	and	\$`$N/8-1`,%r11
-	not	%r10
-	lea	.Lmagic_masks(%rip),%rax
-	and	\$`2**5/($N/8)-1`,%r10	# 5 is "window size"
-	lea	96($bp,%r11,8),$bp	# pointer within 1st cache line
-	movq	0(%rax,%r10,8),%xmm4	# set of masks denoting which
-	movq	8(%rax,%r10,8),%xmm5	# cache line contains element
-	movq	16(%rax,%r10,8),%xmm6	# denoted by 7th argument
-	movq	24(%rax,%r10,8),%xmm7
+	movdqa	0(%r10),%xmm0		# 00000001000000010000000000000000
+	movdqa	16(%r10),%xmm1		# 00000002000000020000000200000002
+	lea	32-112(%rsp,$num,8),%r10# place the mask after tp[num+4] (+ICache optimization)
 
-	movq	`0*$STRIDE/4-96`($bp),%xmm0
-	movq	`1*$STRIDE/4-96`($bp),%xmm1
-	pand	%xmm4,%xmm0
-	movq	`2*$STRIDE/4-96`($bp),%xmm2
-	pand	%xmm5,%xmm1
-	movq	`3*$STRIDE/4-96`($bp),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
+	pshufd	\$0,%xmm5,%xmm5		# broadcast index
+	movdqa	%xmm1,%xmm4
+	.byte	0x67,0x67
+	movdqa	%xmm1,%xmm2
+___
+########################################################################
+# calculate mask by comparing 0..31 to index and save result to stack
+#
+$code.=<<___;
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0		# compare to 1,0
+	.byte	0x67
+	movdqa	%xmm4,%xmm3
+___
+for($k=0;$k<$STRIDE/16-4;$k+=4) {
+$code.=<<___;
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1		# compare to 3,2
+	movdqa	%xmm0,`16*($k+0)+112`(%r10)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2		# compare to 5,4
+	movdqa	%xmm1,`16*($k+1)+112`(%r10)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3		# compare to 7,6
+	movdqa	%xmm2,`16*($k+2)+112`(%r10)
+	movdqa	%xmm4,%xmm2
+
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0
+	movdqa	%xmm3,`16*($k+3)+112`(%r10)
+	movdqa	%xmm4,%xmm3
+___
+}
+$code.=<<___;				# last iteration can be optimized
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1
+	movdqa	%xmm0,`16*($k+0)+112`(%r10)
+
+	paddd	%xmm2,%xmm3
+	.byte	0x67
+	pcmpeqd	%xmm5,%xmm2
+	movdqa	%xmm1,`16*($k+1)+112`(%r10)
+
+	pcmpeqd	%xmm5,%xmm3
+	movdqa	%xmm2,`16*($k+2)+112`(%r10)
+	pand	`16*($k+0)-128`($bp),%xmm0	# while it's still in register
+
+	pand	`16*($k+1)-128`($bp),%xmm1
+	pand	`16*($k+2)-128`($bp),%xmm2
+	movdqa	%xmm3,`16*($k+3)+112`(%r10)
+	pand	`16*($k+3)-128`($bp),%xmm3
 	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+___
+for($k=0;$k<$STRIDE/16-4;$k+=4) {
+$code.=<<___;
+	movdqa	`16*($k+0)-128`($bp),%xmm4
+	movdqa	`16*($k+1)-128`($bp),%xmm5
+	movdqa	`16*($k+2)-128`($bp),%xmm2
+	pand	`16*($k+0)+112`(%r10),%xmm4
+	movdqa	`16*($k+3)-128`($bp),%xmm3
+	pand	`16*($k+1)+112`(%r10),%xmm5
+	por	%xmm4,%xmm0
+	pand	`16*($k+2)+112`(%r10),%xmm2
+	por	%xmm5,%xmm1
+	pand	`16*($k+3)+112`(%r10),%xmm3
+	por	%xmm2,%xmm0
+	por	%xmm3,%xmm1
+___
+}
+$code.=<<___;
+	por	%xmm1,%xmm0
+	pshufd	\$0x4e,%xmm0,%xmm1
+	por	%xmm1,%xmm0
 	lea	$STRIDE($bp),$bp
-	por	%xmm3,%xmm0
-
 	movq	%xmm0,$m0		# m0=bp[0]
+
 	mov	($n0),$n0		# pull n0[0] value
 	mov	($ap),%rax
 
 	xor	$i,$i			# i=0
 	xor	$j,$j			# j=0
 
-	movq	`0*$STRIDE/4-96`($bp),%xmm0
-	movq	`1*$STRIDE/4-96`($bp),%xmm1
-	pand	%xmm4,%xmm0
-	movq	`2*$STRIDE/4-96`($bp),%xmm2
-	pand	%xmm5,%xmm1
-
 	mov	$n0,$m1
 	mulq	$m0			# ap[0]*bp[0]
 	mov	%rax,$A[0]
 	mov	($np),%rax
 
-	movq	`3*$STRIDE/4-96`($bp),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
-
 	imulq	$A[0],$m1		# "tp[0]"*n0
 	mov	%rdx,$A[1]
-
-	por	%xmm2,%xmm0
-	lea	$STRIDE($bp),$bp
-	por	%xmm3,%xmm0
 
 	mulq	$m1			# np[0]*m1
 	add	%rax,$A[0]		# discarded
@@ -550,8 +630,6 @@ $code.=<<___;
 	mov	$N[1],-16(%rsp,$j,8)	# tp[j-1]
 	mov	%rdx,$N[0]
 
-	movq	%xmm0,$m0		# bp[1]
-
 	xor	$N[1],$N[1]
 	add	$A[0],$N[0]
 	adc	\$0,$N[1]
@@ -561,12 +639,34 @@ $code.=<<___;
 	lea	1($i),$i		# i++
 .align	4
 .Louter4x:
+	lea	32+128(%rsp,$num,8),%rdx	# where 256-byte mask is (+size optimization)
+	pxor	%xmm4,%xmm4
+	pxor	%xmm5,%xmm5
+___
+for($k=0;$k<$STRIDE/16;$k+=4) {
+$code.=<<___;
+	movdqa	`16*($k+0)-128`($bp),%xmm0
+	movdqa	`16*($k+1)-128`($bp),%xmm1
+	movdqa	`16*($k+2)-128`($bp),%xmm2
+	movdqa	`16*($k+3)-128`($bp),%xmm3
+	pand	`16*($k+0)-128`(%rdx),%xmm0
+	pand	`16*($k+1)-128`(%rdx),%xmm1
+	por	%xmm0,%xmm4
+	pand	`16*($k+2)-128`(%rdx),%xmm2
+	por	%xmm1,%xmm5
+	pand	`16*($k+3)-128`(%rdx),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+___
+}
+$code.=<<___;
+	por	%xmm5,%xmm4
+	pshufd	\$0x4e,%xmm4,%xmm0
+	por	%xmm4,%xmm0
+	lea	$STRIDE($bp),$bp
+	movq	%xmm0,$m0		# m0=bp[i]
+
 	xor	$j,$j			# j=0
-	movq	`0*$STRIDE/4-96`($bp),%xmm0
-	movq	`1*$STRIDE/4-96`($bp),%xmm1
-	pand	%xmm4,%xmm0
-	movq	`2*$STRIDE/4-96`($bp),%xmm2
-	pand	%xmm5,%xmm1
 
 	mov	(%rsp),$A[0]
 	mov	$n0,$m1
@@ -575,17 +675,8 @@ $code.=<<___;
 	mov	($np),%rax
 	adc	\$0,%rdx
 
-	movq	`3*$STRIDE/4-96`($bp),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
-
 	imulq	$A[0],$m1		# tp[0]*n0
 	mov	%rdx,$A[1]
-
-	por	%xmm2,%xmm0
-	lea	$STRIDE($bp),$bp
-	por	%xmm3,%xmm0
 
 	mulq	$m1			# np[0]*m1
 	add	%rax,$A[0]		# "$N[0]", discarded
@@ -718,7 +809,6 @@ $code.=<<___;
 	mov	$N[0],-24(%rsp,$j,8)	# tp[j-1]
 	mov	%rdx,$N[0]
 
-	movq	%xmm0,$m0		# bp[i+1]
 	mov	$N[1],-16(%rsp,$j,8)	# tp[j-1]
 
 	xor	$N[1],$N[1]
@@ -809,13 +899,7 @@ ___
 $code.=<<___;
 	mov	8(%rsp,$num,8),%rsi	# restore %rsp
 	mov	\$1,%rax
-___
-$code.=<<___ if ($win64);
-	movaps	(%rsi),%xmm6
-	movaps	0x10(%rsi),%xmm7
-	lea	0x28(%rsi),%rsi
-___
-$code.=<<___;
+
 	mov	(%rsi),%r15
 	mov	8(%rsi),%r14
 	mov	16(%rsi),%r13
@@ -830,8 +914,8 @@ ___
 }}}
 
 {
-my ($inp,$num,$tbl,$idx)=$win64?("%rcx","%rdx","%r8", "%r9") : # Win64 order
-				("%rdi","%rsi","%rdx","%rcx"); # Unix order
+my ($inp,$num,$tbl,$idx)=$win64?("%rcx","%rdx","%r8", "%r9d") : # Win64 order
+				("%rdi","%rsi","%rdx","%ecx"); # Unix order
 my $out=$inp;
 my $STRIDE=2**5*8;
 my $N=$STRIDE/4;
@@ -859,53 +943,89 @@ bn_scatter5:
 .type	bn_gather5,\@abi-omnipotent
 .align	16
 bn_gather5:
-___
-$code.=<<___ if ($win64);
-.LSEH_begin_bn_gather5:
+.LSEH_begin_bn_gather5:			# Win64 thing, but harmless in other cases
 	# I can't trust assembler to use specific encoding:-(
-	.byte	0x48,0x83,0xec,0x28		#sub	\$0x28,%rsp
-	.byte	0x0f,0x29,0x34,0x24		#movaps	%xmm6,(%rsp)
-	.byte	0x0f,0x29,0x7c,0x24,0x10	#movdqa	%xmm7,0x10(%rsp)
+	.byte	0x4c,0x8d,0x14,0x24			# lea    (%rsp),%r10
+	.byte	0x48,0x81,0xec,0x08,0x01,0x00,0x00	# sub	$0x108,%rsp
+	lea	.Linc(%rip),%rax
+	and	\$-16,%rsp		# shouldn't be formally required
+
+	movd	$idx,%xmm5
+	movdqa	0(%rax),%xmm0		# 00000001000000010000000000000000
+	movdqa	16(%rax),%xmm1		# 00000002000000020000000200000002
+	lea	128($tbl),%r11		# size optimization
+	lea	128(%rsp),%rax		# size optimization
+
+	pshufd	\$0,%xmm5,%xmm5		# broadcast $idx
+	movdqa	%xmm1,%xmm4
+	movdqa	%xmm1,%xmm2
+___
+########################################################################
+# calculate mask by comparing 0..31 to $idx and save result to stack
+#
+for($i=0;$i<$STRIDE/16;$i+=4) {
+$code.=<<___;
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm5,%xmm0		# compare to 1,0
+___
+$code.=<<___	if ($i);
+	movdqa	%xmm3,`16*($i-1)-128`(%rax)
 ___
 $code.=<<___;
-	mov	$idx,%r11
-	shr	\$`log($N/8)/log(2)`,$idx
-	and	\$`$N/8-1`,%r11
-	not	$idx
-	lea	.Lmagic_masks(%rip),%rax
-	and	\$`2**5/($N/8)-1`,$idx	# 5 is "window size"
-	lea	96($tbl,%r11,8),$tbl	# pointer within 1st cache line
-	movq	0(%rax,$idx,8),%xmm4	# set of masks denoting which
-	movq	8(%rax,$idx,8),%xmm5	# cache line contains element
-	movq	16(%rax,$idx,8),%xmm6	# denoted by 7th argument
-	movq	24(%rax,$idx,8),%xmm7
-	jmp	.Lgather
-.align	16
-.Lgather:
-	movq	`0*$STRIDE/4-96`($tbl),%xmm0
-	movq	`1*$STRIDE/4-96`($tbl),%xmm1
-	pand	%xmm4,%xmm0
-	movq	`2*$STRIDE/4-96`($tbl),%xmm2
-	pand	%xmm5,%xmm1
-	movq	`3*$STRIDE/4-96`($tbl),%xmm3
-	pand	%xmm6,%xmm2
-	por	%xmm1,%xmm0
-	pand	%xmm7,%xmm3
-	por	%xmm2,%xmm0
-	lea	$STRIDE($tbl),$tbl
-	por	%xmm3,%xmm0
+	movdqa	%xmm4,%xmm3
 
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm5,%xmm1		# compare to 3,2
+	movdqa	%xmm0,`16*($i+0)-128`(%rax)
+	movdqa	%xmm4,%xmm0
+
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm5,%xmm2		# compare to 5,4
+	movdqa	%xmm1,`16*($i+1)-128`(%rax)
+	movdqa	%xmm4,%xmm1
+
+	paddd	%xmm3,%xmm0
+	pcmpeqd	%xmm5,%xmm3		# compare to 7,6
+	movdqa	%xmm2,`16*($i+2)-128`(%rax)
+	movdqa	%xmm4,%xmm2
+___
+}
+$code.=<<___;
+	movdqa	%xmm3,`16*($i-1)-128`(%rax)
+	jmp	.Lgather
+
+.align	32
+.Lgather:
+	pxor	%xmm4,%xmm4
+	pxor	%xmm5,%xmm5
+___
+for($i=0;$i<$STRIDE/16;$i+=4) {
+$code.=<<___;
+	movdqa	`16*($i+0)-128`(%r11),%xmm0
+	movdqa	`16*($i+1)-128`(%r11),%xmm1
+	movdqa	`16*($i+2)-128`(%r11),%xmm2
+	pand	`16*($i+0)-128`(%rax),%xmm0
+	movdqa	`16*($i+3)-128`(%r11),%xmm3
+	pand	`16*($i+1)-128`(%rax),%xmm1
+	por	%xmm0,%xmm4
+	pand	`16*($i+2)-128`(%rax),%xmm2
+	por	%xmm1,%xmm5
+	pand	`16*($i+3)-128`(%rax),%xmm3
+	por	%xmm2,%xmm4
+	por	%xmm3,%xmm5
+___
+}
+$code.=<<___;
+	por	%xmm5,%xmm4
+	lea	$STRIDE(%r11),%r11
+	pshufd	\$0x4e,%xmm4,%xmm0
+	por	%xmm4,%xmm0
 	movq	%xmm0,($out)		# m0=bp[0]
 	lea	8($out),$out
 	sub	\$1,$num
 	jnz	.Lgather
-___
-$code.=<<___ if ($win64);
-	movaps	(%rsp),%xmm6
-	movaps	0x10(%rsp),%xmm7
-	lea	0x28(%rsp),%rsp
-___
-$code.=<<___;
+
+	lea	(%r10),%rsp
 	ret
 .LSEH_end_bn_gather5:
 .size	bn_gather5,.-bn_gather5
@@ -913,9 +1033,9 @@ ___
 }
 $code.=<<___;
 .align	64
-.Lmagic_masks:
-	.long	0,0, 0,0, 0,0, -1,-1
-	.long	0,0, 0,0, 0,0,  0,0
+.Linc:
+	.long	0,0, 1,1
+	.long	2,2, 2,2
 .asciz	"Montgomery Multiplication with scatter/gather for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
 ___
 
@@ -954,7 +1074,7 @@ mul_handler:
 	cmp	%r10,%rbx		# context->Rip<end of prologue label
 	jb	.Lcommon_seh_tail
 
-	lea	`40+48`(%rax),%rax
+	lea	48(%rax),%rax
 
 	mov	4(%r11),%r10d		# HandlerData[1]
 	lea	(%rsi,%r10),%r10	# end of alloca label
@@ -971,9 +1091,7 @@ mul_handler:
 	mov	192($context),%r10	# pull $num
 	mov	8(%rax,%r10,8),%rax	# pull saved stack pointer
 
-	movaps	(%rax),%xmm0
-	movaps	16(%rax),%xmm1
-	lea	`40+48`(%rax),%rax
+	lea	48(%rax),%rax
 
 	mov	-8(%rax),%rbx
 	mov	-16(%rax),%rbp
@@ -987,8 +1105,6 @@ mul_handler:
 	mov	%r13,224($context)	# restore context->R13
 	mov	%r14,232($context)	# restore context->R14
 	mov	%r15,240($context)	# restore context->R15
-	movups	%xmm0,512($context)	# restore context->Xmm6
-	movups	%xmm1,528($context)	# restore context->Xmm7
 
 .Lcommon_seh_tail:
 	mov	8(%rax),%rdi
@@ -1057,10 +1173,9 @@ mul_handler:
 	.rva	.Lmul4x_alloca,.Lmul4x_body,.Lmul4x_epilogue	# HandlerData[]
 .align	8
 .LSEH_info_bn_gather5:
-        .byte   0x01,0x0d,0x05,0x00
-        .byte   0x0d,0x78,0x01,0x00	#movaps	0x10(rsp),xmm7
-        .byte   0x08,0x68,0x00,0x00	#movaps	(rsp),xmm6
-        .byte   0x04,0x42,0x00,0x00	#sub	rsp,0x28
+	.byte	0x01,0x0b,0x03,0x0a
+	.byte	0x0b,0x01,0x21,0x00	# sub	rsp,0x108
+	.byte	0x04,0xa3,0x00,0x00	# lea	r10,(rsp), set_frame r10
 .align	8
 ___
 }

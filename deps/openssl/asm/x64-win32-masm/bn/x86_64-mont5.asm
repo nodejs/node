@@ -26,51 +26,153 @@ $L$SEH_begin_bn_mul_mont_gather5::
 ALIGN	16
 $L$mul_enter::
 	mov	r9d,r9d
-	mov	r10d,DWORD PTR[56+rsp]
+	movd	xmm5,DWORD PTR[56+rsp]
+	lea	r10,QWORD PTR[$L$inc]
 	push	rbx
 	push	rbp
 	push	r12
 	push	r13
 	push	r14
 	push	r15
-	lea	rsp,QWORD PTR[((-40))+rsp]
-	movaps	XMMWORD PTR[rsp],xmm6
-	movaps	XMMWORD PTR[16+rsp],xmm7
+
 $L$mul_alloca::
 	mov	rax,rsp
 	lea	r11,QWORD PTR[2+r9]
 	neg	r11
-	lea	rsp,QWORD PTR[r11*8+rsp]
+	lea	rsp,QWORD PTR[((-264))+r11*8+rsp]
 	and	rsp,-1024
 
 	mov	QWORD PTR[8+r9*8+rsp],rax
 $L$mul_body::
-	mov	r12,rdx
-	mov	r11,r10
-	shr	r10,3
-	and	r11,7
-	not	r10
-	lea	rax,QWORD PTR[$L$magic_masks]
-	and	r10,3
-	lea	r12,QWORD PTR[96+r11*8+r12]
-	movq	xmm4,QWORD PTR[r10*8+rax]
-	movq	xmm5,QWORD PTR[8+r10*8+rax]
-	movq	xmm6,QWORD PTR[16+r10*8+rax]
-	movq	xmm7,QWORD PTR[24+r10*8+rax]
+	lea	r12,QWORD PTR[128+rdx]
+	movdqa	xmm0,XMMWORD PTR[r10]
+	movdqa	xmm1,XMMWORD PTR[16+r10]
+	lea	r10,QWORD PTR[((24-112))+r9*8+rsp]
+	and	r10,-16
 
-	movq	xmm0,QWORD PTR[((-96))+r12]
-	movq	xmm1,QWORD PTR[((-32))+r12]
-	pand	xmm0,xmm4
-	movq	xmm2,QWORD PTR[32+r12]
-	pand	xmm1,xmm5
-	movq	xmm3,QWORD PTR[96+r12]
-	pand	xmm2,xmm6
-	por	xmm0,xmm1
-	pand	xmm3,xmm7
+	pshufd	xmm5,xmm5,0
+	movdqa	xmm4,xmm1
+	movdqa	xmm2,xmm1
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+DB	067h
+	movdqa	xmm3,xmm4
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[112+r10],xmm0
+	movdqa	xmm0,xmm4
+
+	paddd	xmm3,xmm2
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[128+r10],xmm1
+	movdqa	xmm1,xmm4
+
+	paddd	xmm0,xmm3
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[144+r10],xmm2
+	movdqa	xmm2,xmm4
+
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+	movdqa	XMMWORD PTR[160+r10],xmm3
+	movdqa	xmm3,xmm4
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[176+r10],xmm0
+	movdqa	xmm0,xmm4
+
+	paddd	xmm3,xmm2
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[192+r10],xmm1
+	movdqa	xmm1,xmm4
+
+	paddd	xmm0,xmm3
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[208+r10],xmm2
+	movdqa	xmm2,xmm4
+
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+	movdqa	XMMWORD PTR[224+r10],xmm3
+	movdqa	xmm3,xmm4
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[240+r10],xmm0
+	movdqa	xmm0,xmm4
+
+	paddd	xmm3,xmm2
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[256+r10],xmm1
+	movdqa	xmm1,xmm4
+
+	paddd	xmm0,xmm3
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[272+r10],xmm2
+	movdqa	xmm2,xmm4
+
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+	movdqa	XMMWORD PTR[288+r10],xmm3
+	movdqa	xmm3,xmm4
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[304+r10],xmm0
+
+	paddd	xmm3,xmm2
+DB	067h
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[320+r10],xmm1
+
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[336+r10],xmm2
+	pand	xmm0,XMMWORD PTR[64+r12]
+
+	pand	xmm1,XMMWORD PTR[80+r12]
+	pand	xmm2,XMMWORD PTR[96+r12]
+	movdqa	XMMWORD PTR[352+r10],xmm3
+	pand	xmm3,XMMWORD PTR[112+r12]
 	por	xmm0,xmm2
+	por	xmm1,xmm3
+	movdqa	xmm4,XMMWORD PTR[((-128))+r12]
+	movdqa	xmm5,XMMWORD PTR[((-112))+r12]
+	movdqa	xmm2,XMMWORD PTR[((-96))+r12]
+	pand	xmm4,XMMWORD PTR[112+r10]
+	movdqa	xmm3,XMMWORD PTR[((-80))+r12]
+	pand	xmm5,XMMWORD PTR[128+r10]
+	por	xmm0,xmm4
+	pand	xmm2,XMMWORD PTR[144+r10]
+	por	xmm1,xmm5
+	pand	xmm3,XMMWORD PTR[160+r10]
+	por	xmm0,xmm2
+	por	xmm1,xmm3
+	movdqa	xmm4,XMMWORD PTR[((-64))+r12]
+	movdqa	xmm5,XMMWORD PTR[((-48))+r12]
+	movdqa	xmm2,XMMWORD PTR[((-32))+r12]
+	pand	xmm4,XMMWORD PTR[176+r10]
+	movdqa	xmm3,XMMWORD PTR[((-16))+r12]
+	pand	xmm5,XMMWORD PTR[192+r10]
+	por	xmm0,xmm4
+	pand	xmm2,XMMWORD PTR[208+r10]
+	por	xmm1,xmm5
+	pand	xmm3,XMMWORD PTR[224+r10]
+	por	xmm0,xmm2
+	por	xmm1,xmm3
+	movdqa	xmm4,XMMWORD PTR[r12]
+	movdqa	xmm5,XMMWORD PTR[16+r12]
+	movdqa	xmm2,XMMWORD PTR[32+r12]
+	pand	xmm4,XMMWORD PTR[240+r10]
+	movdqa	xmm3,XMMWORD PTR[48+r12]
+	pand	xmm5,XMMWORD PTR[256+r10]
+	por	xmm0,xmm4
+	pand	xmm2,XMMWORD PTR[272+r10]
+	por	xmm1,xmm5
+	pand	xmm3,XMMWORD PTR[288+r10]
+	por	xmm0,xmm2
+	por	xmm1,xmm3
+	por	xmm0,xmm1
+	pshufd	xmm1,xmm0,04eh
+	por	xmm0,xmm1
 	lea	r12,QWORD PTR[256+r12]
-	por	xmm0,xmm3
-
 DB	102,72,15,126,195
 
 	mov	r8,QWORD PTR[r8]
@@ -79,28 +181,13 @@ DB	102,72,15,126,195
 	xor	r14,r14
 	xor	r15,r15
 
-	movq	xmm0,QWORD PTR[((-96))+r12]
-	movq	xmm1,QWORD PTR[((-32))+r12]
-	pand	xmm0,xmm4
-	movq	xmm2,QWORD PTR[32+r12]
-	pand	xmm1,xmm5
-
 	mov	rbp,r8
 	mul	rbx
 	mov	r10,rax
 	mov	rax,QWORD PTR[rcx]
 
-	movq	xmm3,QWORD PTR[96+r12]
-	pand	xmm2,xmm6
-	por	xmm0,xmm1
-	pand	xmm3,xmm7
-
 	imul	rbp,r10
 	mov	r11,rdx
-
-	por	xmm0,xmm2
-	lea	r12,QWORD PTR[256+r12]
-	por	xmm0,xmm3
 
 	mul	rbp
 	add	r10,rax
@@ -134,8 +221,6 @@ $L$1st_enter::
 	cmp	r15,r9
 	jne	$L$1st
 
-DB	102,72,15,126,195
-
 	add	r13,rax
 	mov	rax,QWORD PTR[rsi]
 	adc	rdx,0
@@ -155,32 +240,75 @@ DB	102,72,15,126,195
 	jmp	$L$outer
 ALIGN	16
 $L$outer::
+	lea	rdx,QWORD PTR[((24+128))+r9*8+rsp]
+	and	rdx,-16
+	pxor	xmm4,xmm4
+	pxor	xmm5,xmm5
+	movdqa	xmm0,XMMWORD PTR[((-128))+r12]
+	movdqa	xmm1,XMMWORD PTR[((-112))+r12]
+	movdqa	xmm2,XMMWORD PTR[((-96))+r12]
+	movdqa	xmm3,XMMWORD PTR[((-80))+r12]
+	pand	xmm0,XMMWORD PTR[((-128))+rdx]
+	pand	xmm1,XMMWORD PTR[((-112))+rdx]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[((-96))+rdx]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[((-80))+rdx]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	movdqa	xmm0,XMMWORD PTR[((-64))+r12]
+	movdqa	xmm1,XMMWORD PTR[((-48))+r12]
+	movdqa	xmm2,XMMWORD PTR[((-32))+r12]
+	movdqa	xmm3,XMMWORD PTR[((-16))+r12]
+	pand	xmm0,XMMWORD PTR[((-64))+rdx]
+	pand	xmm1,XMMWORD PTR[((-48))+rdx]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[((-32))+rdx]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[((-16))+rdx]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	movdqa	xmm0,XMMWORD PTR[r12]
+	movdqa	xmm1,XMMWORD PTR[16+r12]
+	movdqa	xmm2,XMMWORD PTR[32+r12]
+	movdqa	xmm3,XMMWORD PTR[48+r12]
+	pand	xmm0,XMMWORD PTR[rdx]
+	pand	xmm1,XMMWORD PTR[16+rdx]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[32+rdx]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[48+rdx]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	movdqa	xmm0,XMMWORD PTR[64+r12]
+	movdqa	xmm1,XMMWORD PTR[80+r12]
+	movdqa	xmm2,XMMWORD PTR[96+r12]
+	movdqa	xmm3,XMMWORD PTR[112+r12]
+	pand	xmm0,XMMWORD PTR[64+rdx]
+	pand	xmm1,XMMWORD PTR[80+rdx]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[96+rdx]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[112+rdx]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	por	xmm4,xmm5
+	pshufd	xmm0,xmm4,04eh
+	por	xmm0,xmm4
+	lea	r12,QWORD PTR[256+r12]
+DB	102,72,15,126,195
+
 	xor	r15,r15
 	mov	rbp,r8
 	mov	r10,QWORD PTR[rsp]
-
-	movq	xmm0,QWORD PTR[((-96))+r12]
-	movq	xmm1,QWORD PTR[((-32))+r12]
-	pand	xmm0,xmm4
-	movq	xmm2,QWORD PTR[32+r12]
-	pand	xmm1,xmm5
 
 	mul	rbx
 	add	r10,rax
 	mov	rax,QWORD PTR[rcx]
 	adc	rdx,0
 
-	movq	xmm3,QWORD PTR[96+r12]
-	pand	xmm2,xmm6
-	por	xmm0,xmm1
-	pand	xmm3,xmm7
-
 	imul	rbp,r10
 	mov	r11,rdx
-
-	por	xmm0,xmm2
-	lea	r12,QWORD PTR[256+r12]
-	por	xmm0,xmm3
 
 	mul	rbp
 	add	r10,rax
@@ -216,8 +344,6 @@ $L$inner_enter::
 	mul	rbp
 	cmp	r15,r9
 	jne	$L$inner
-
-DB	102,72,15,126,195
 
 	add	r13,rax
 	mov	rax,QWORD PTR[rsi]
@@ -272,9 +398,7 @@ $L$copy::
 
 	mov	rsi,QWORD PTR[8+r9*8+rsp]
 	mov	rax,1
-	movaps	xmm6,XMMWORD PTR[rsi]
-	movaps	xmm7,XMMWORD PTR[16+rsi]
-	lea	rsi,QWORD PTR[40+rsi]
+
 	mov	r15,QWORD PTR[rsi]
 	mov	r14,QWORD PTR[8+rsi]
 	mov	r13,QWORD PTR[16+rsi]
@@ -305,81 +429,169 @@ $L$SEH_begin_bn_mul4x_mont_gather5::
 
 $L$mul4x_enter::
 	mov	r9d,r9d
-	mov	r10d,DWORD PTR[56+rsp]
+	movd	xmm5,DWORD PTR[56+rsp]
+	lea	r10,QWORD PTR[$L$inc]
 	push	rbx
 	push	rbp
 	push	r12
 	push	r13
 	push	r14
 	push	r15
-	lea	rsp,QWORD PTR[((-40))+rsp]
-	movaps	XMMWORD PTR[rsp],xmm6
-	movaps	XMMWORD PTR[16+rsp],xmm7
+
 $L$mul4x_alloca::
 	mov	rax,rsp
 	lea	r11,QWORD PTR[4+r9]
 	neg	r11
-	lea	rsp,QWORD PTR[r11*8+rsp]
+	lea	rsp,QWORD PTR[((-256))+r11*8+rsp]
 	and	rsp,-1024
 
 	mov	QWORD PTR[8+r9*8+rsp],rax
 $L$mul4x_body::
 	mov	QWORD PTR[16+r9*8+rsp],rdi
-	mov	r12,rdx
-	mov	r11,r10
-	shr	r10,3
-	and	r11,7
-	not	r10
-	lea	rax,QWORD PTR[$L$magic_masks]
-	and	r10,3
-	lea	r12,QWORD PTR[96+r11*8+r12]
-	movq	xmm4,QWORD PTR[r10*8+rax]
-	movq	xmm5,QWORD PTR[8+r10*8+rax]
-	movq	xmm6,QWORD PTR[16+r10*8+rax]
-	movq	xmm7,QWORD PTR[24+r10*8+rax]
+	lea	r12,QWORD PTR[128+rdx]
+	movdqa	xmm0,XMMWORD PTR[r10]
+	movdqa	xmm1,XMMWORD PTR[16+r10]
+	lea	r10,QWORD PTR[((32-112))+r9*8+rsp]
 
-	movq	xmm0,QWORD PTR[((-96))+r12]
-	movq	xmm1,QWORD PTR[((-32))+r12]
-	pand	xmm0,xmm4
-	movq	xmm2,QWORD PTR[32+r12]
-	pand	xmm1,xmm5
-	movq	xmm3,QWORD PTR[96+r12]
-	pand	xmm2,xmm6
-	por	xmm0,xmm1
-	pand	xmm3,xmm7
+	pshufd	xmm5,xmm5,0
+	movdqa	xmm4,xmm1
+DB	067h,067h
+	movdqa	xmm2,xmm1
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+DB	067h
+	movdqa	xmm3,xmm4
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[112+r10],xmm0
+	movdqa	xmm0,xmm4
+
+	paddd	xmm3,xmm2
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[128+r10],xmm1
+	movdqa	xmm1,xmm4
+
+	paddd	xmm0,xmm3
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[144+r10],xmm2
+	movdqa	xmm2,xmm4
+
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+	movdqa	XMMWORD PTR[160+r10],xmm3
+	movdqa	xmm3,xmm4
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[176+r10],xmm0
+	movdqa	xmm0,xmm4
+
+	paddd	xmm3,xmm2
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[192+r10],xmm1
+	movdqa	xmm1,xmm4
+
+	paddd	xmm0,xmm3
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[208+r10],xmm2
+	movdqa	xmm2,xmm4
+
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+	movdqa	XMMWORD PTR[224+r10],xmm3
+	movdqa	xmm3,xmm4
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[240+r10],xmm0
+	movdqa	xmm0,xmm4
+
+	paddd	xmm3,xmm2
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[256+r10],xmm1
+	movdqa	xmm1,xmm4
+
+	paddd	xmm0,xmm3
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[272+r10],xmm2
+	movdqa	xmm2,xmm4
+
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+	movdqa	XMMWORD PTR[288+r10],xmm3
+	movdqa	xmm3,xmm4
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[304+r10],xmm0
+
+	paddd	xmm3,xmm2
+DB	067h
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[320+r10],xmm1
+
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[336+r10],xmm2
+	pand	xmm0,XMMWORD PTR[64+r12]
+
+	pand	xmm1,XMMWORD PTR[80+r12]
+	pand	xmm2,XMMWORD PTR[96+r12]
+	movdqa	XMMWORD PTR[352+r10],xmm3
+	pand	xmm3,XMMWORD PTR[112+r12]
 	por	xmm0,xmm2
+	por	xmm1,xmm3
+	movdqa	xmm4,XMMWORD PTR[((-128))+r12]
+	movdqa	xmm5,XMMWORD PTR[((-112))+r12]
+	movdqa	xmm2,XMMWORD PTR[((-96))+r12]
+	pand	xmm4,XMMWORD PTR[112+r10]
+	movdqa	xmm3,XMMWORD PTR[((-80))+r12]
+	pand	xmm5,XMMWORD PTR[128+r10]
+	por	xmm0,xmm4
+	pand	xmm2,XMMWORD PTR[144+r10]
+	por	xmm1,xmm5
+	pand	xmm3,XMMWORD PTR[160+r10]
+	por	xmm0,xmm2
+	por	xmm1,xmm3
+	movdqa	xmm4,XMMWORD PTR[((-64))+r12]
+	movdqa	xmm5,XMMWORD PTR[((-48))+r12]
+	movdqa	xmm2,XMMWORD PTR[((-32))+r12]
+	pand	xmm4,XMMWORD PTR[176+r10]
+	movdqa	xmm3,XMMWORD PTR[((-16))+r12]
+	pand	xmm5,XMMWORD PTR[192+r10]
+	por	xmm0,xmm4
+	pand	xmm2,XMMWORD PTR[208+r10]
+	por	xmm1,xmm5
+	pand	xmm3,XMMWORD PTR[224+r10]
+	por	xmm0,xmm2
+	por	xmm1,xmm3
+	movdqa	xmm4,XMMWORD PTR[r12]
+	movdqa	xmm5,XMMWORD PTR[16+r12]
+	movdqa	xmm2,XMMWORD PTR[32+r12]
+	pand	xmm4,XMMWORD PTR[240+r10]
+	movdqa	xmm3,XMMWORD PTR[48+r12]
+	pand	xmm5,XMMWORD PTR[256+r10]
+	por	xmm0,xmm4
+	pand	xmm2,XMMWORD PTR[272+r10]
+	por	xmm1,xmm5
+	pand	xmm3,XMMWORD PTR[288+r10]
+	por	xmm0,xmm2
+	por	xmm1,xmm3
+	por	xmm0,xmm1
+	pshufd	xmm1,xmm0,04eh
+	por	xmm0,xmm1
 	lea	r12,QWORD PTR[256+r12]
-	por	xmm0,xmm3
-
 DB	102,72,15,126,195
+
 	mov	r8,QWORD PTR[r8]
 	mov	rax,QWORD PTR[rsi]
 
 	xor	r14,r14
 	xor	r15,r15
 
-	movq	xmm0,QWORD PTR[((-96))+r12]
-	movq	xmm1,QWORD PTR[((-32))+r12]
-	pand	xmm0,xmm4
-	movq	xmm2,QWORD PTR[32+r12]
-	pand	xmm1,xmm5
-
 	mov	rbp,r8
 	mul	rbx
 	mov	r10,rax
 	mov	rax,QWORD PTR[rcx]
 
-	movq	xmm3,QWORD PTR[96+r12]
-	pand	xmm2,xmm6
-	por	xmm0,xmm1
-	pand	xmm3,xmm7
-
 	imul	rbp,r10
 	mov	r11,rdx
-
-	por	xmm0,xmm2
-	lea	r12,QWORD PTR[256+r12]
-	por	xmm0,xmm3
 
 	mul	rbp
 	add	r10,rax
@@ -498,8 +710,6 @@ $L$1st4x::
 	mov	QWORD PTR[((-16))+r15*8+rsp],rdi
 	mov	r13,rdx
 
-DB	102,72,15,126,195
-
 	xor	rdi,rdi
 	add	r13,r10
 	adc	rdi,0
@@ -509,12 +719,64 @@ DB	102,72,15,126,195
 	lea	r14,QWORD PTR[1+r14]
 ALIGN	4
 $L$outer4x::
+	lea	rdx,QWORD PTR[((32+128))+r9*8+rsp]
+	pxor	xmm4,xmm4
+	pxor	xmm5,xmm5
+	movdqa	xmm0,XMMWORD PTR[((-128))+r12]
+	movdqa	xmm1,XMMWORD PTR[((-112))+r12]
+	movdqa	xmm2,XMMWORD PTR[((-96))+r12]
+	movdqa	xmm3,XMMWORD PTR[((-80))+r12]
+	pand	xmm0,XMMWORD PTR[((-128))+rdx]
+	pand	xmm1,XMMWORD PTR[((-112))+rdx]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[((-96))+rdx]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[((-80))+rdx]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	movdqa	xmm0,XMMWORD PTR[((-64))+r12]
+	movdqa	xmm1,XMMWORD PTR[((-48))+r12]
+	movdqa	xmm2,XMMWORD PTR[((-32))+r12]
+	movdqa	xmm3,XMMWORD PTR[((-16))+r12]
+	pand	xmm0,XMMWORD PTR[((-64))+rdx]
+	pand	xmm1,XMMWORD PTR[((-48))+rdx]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[((-32))+rdx]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[((-16))+rdx]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	movdqa	xmm0,XMMWORD PTR[r12]
+	movdqa	xmm1,XMMWORD PTR[16+r12]
+	movdqa	xmm2,XMMWORD PTR[32+r12]
+	movdqa	xmm3,XMMWORD PTR[48+r12]
+	pand	xmm0,XMMWORD PTR[rdx]
+	pand	xmm1,XMMWORD PTR[16+rdx]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[32+rdx]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[48+rdx]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	movdqa	xmm0,XMMWORD PTR[64+r12]
+	movdqa	xmm1,XMMWORD PTR[80+r12]
+	movdqa	xmm2,XMMWORD PTR[96+r12]
+	movdqa	xmm3,XMMWORD PTR[112+r12]
+	pand	xmm0,XMMWORD PTR[64+rdx]
+	pand	xmm1,XMMWORD PTR[80+rdx]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[96+rdx]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[112+rdx]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	por	xmm4,xmm5
+	pshufd	xmm0,xmm4,04eh
+	por	xmm0,xmm4
+	lea	r12,QWORD PTR[256+r12]
+DB	102,72,15,126,195
+
 	xor	r15,r15
-	movq	xmm0,QWORD PTR[((-96))+r12]
-	movq	xmm1,QWORD PTR[((-32))+r12]
-	pand	xmm0,xmm4
-	movq	xmm2,QWORD PTR[32+r12]
-	pand	xmm1,xmm5
 
 	mov	r10,QWORD PTR[rsp]
 	mov	rbp,r8
@@ -523,17 +785,8 @@ $L$outer4x::
 	mov	rax,QWORD PTR[rcx]
 	adc	rdx,0
 
-	movq	xmm3,QWORD PTR[96+r12]
-	pand	xmm2,xmm6
-	por	xmm0,xmm1
-	pand	xmm3,xmm7
-
 	imul	rbp,r10
 	mov	r11,rdx
-
-	por	xmm0,xmm2
-	lea	r12,QWORD PTR[256+r12]
-	por	xmm0,xmm3
 
 	mul	rbp
 	add	r10,rax
@@ -666,7 +919,6 @@ $L$inner4x::
 	mov	QWORD PTR[((-24))+r15*8+rsp],r13
 	mov	r13,rdx
 
-DB	102,72,15,126,195
 	mov	QWORD PTR[((-16))+r15*8+rsp],rdi
 
 	xor	rdi,rdi
@@ -750,9 +1002,7 @@ $L$copy4x::
 	movdqu	XMMWORD PTR[16+r14*1+rdi],xmm2
 	mov	rsi,QWORD PTR[8+r9*8+rsp]
 	mov	rax,1
-	movaps	xmm6,XMMWORD PTR[rsi]
-	movaps	xmm7,XMMWORD PTR[16+rsi]
-	lea	rsi,QWORD PTR[40+rsi]
+
 	mov	r15,QWORD PTR[rsi]
 	mov	r14,QWORD PTR[8+rsi]
 	mov	r13,QWORD PTR[16+rsi]
@@ -790,53 +1040,169 @@ ALIGN	16
 bn_gather5	PROC PUBLIC
 $L$SEH_begin_bn_gather5::
 
-DB	048h,083h,0ech,028h
+DB	04ch,08dh,014h,024h
 
-DB	00fh,029h,034h,024h
+DB	048h,081h,0ech,008h,001h,000h,000h
 
-DB	00fh,029h,07ch,024h,010h
+	lea	rax,QWORD PTR[$L$inc]
+	and	rsp,-16
 
-	mov	r11,r9
-	shr	r9,3
-	and	r11,7
-	not	r9
-	lea	rax,QWORD PTR[$L$magic_masks]
-	and	r9,3
-	lea	r8,QWORD PTR[96+r11*8+r8]
-	movq	xmm4,QWORD PTR[r9*8+rax]
-	movq	xmm5,QWORD PTR[8+r9*8+rax]
-	movq	xmm6,QWORD PTR[16+r9*8+rax]
-	movq	xmm7,QWORD PTR[24+r9*8+rax]
+	movd	xmm5,r9d
+	movdqa	xmm0,XMMWORD PTR[rax]
+	movdqa	xmm1,XMMWORD PTR[16+rax]
+	lea	r11,QWORD PTR[128+r8]
+	lea	rax,QWORD PTR[128+rsp]
+
+	pshufd	xmm5,xmm5,0
+	movdqa	xmm4,xmm1
+	movdqa	xmm2,xmm1
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+	movdqa	xmm3,xmm4
+
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[(-128)+rax],xmm0
+	movdqa	xmm0,xmm4
+
+	paddd	xmm3,xmm2
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[(-112)+rax],xmm1
+	movdqa	xmm1,xmm4
+
+	paddd	xmm0,xmm3
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[(-96)+rax],xmm2
+	movdqa	xmm2,xmm4
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+	movdqa	XMMWORD PTR[(-80)+rax],xmm3
+	movdqa	xmm3,xmm4
+
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[(-64)+rax],xmm0
+	movdqa	xmm0,xmm4
+
+	paddd	xmm3,xmm2
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[(-48)+rax],xmm1
+	movdqa	xmm1,xmm4
+
+	paddd	xmm0,xmm3
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[(-32)+rax],xmm2
+	movdqa	xmm2,xmm4
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+	movdqa	XMMWORD PTR[(-16)+rax],xmm3
+	movdqa	xmm3,xmm4
+
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[rax],xmm0
+	movdqa	xmm0,xmm4
+
+	paddd	xmm3,xmm2
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[16+rax],xmm1
+	movdqa	xmm1,xmm4
+
+	paddd	xmm0,xmm3
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[32+rax],xmm2
+	movdqa	xmm2,xmm4
+	paddd	xmm1,xmm0
+	pcmpeqd	xmm0,xmm5
+	movdqa	XMMWORD PTR[48+rax],xmm3
+	movdqa	xmm3,xmm4
+
+	paddd	xmm2,xmm1
+	pcmpeqd	xmm1,xmm5
+	movdqa	XMMWORD PTR[64+rax],xmm0
+	movdqa	xmm0,xmm4
+
+	paddd	xmm3,xmm2
+	pcmpeqd	xmm2,xmm5
+	movdqa	XMMWORD PTR[80+rax],xmm1
+	movdqa	xmm1,xmm4
+
+	paddd	xmm0,xmm3
+	pcmpeqd	xmm3,xmm5
+	movdqa	XMMWORD PTR[96+rax],xmm2
+	movdqa	xmm2,xmm4
+	movdqa	XMMWORD PTR[112+rax],xmm3
 	jmp	$L$gather
-ALIGN	16
-$L$gather::
-	movq	xmm0,QWORD PTR[((-96))+r8]
-	movq	xmm1,QWORD PTR[((-32))+r8]
-	pand	xmm0,xmm4
-	movq	xmm2,QWORD PTR[32+r8]
-	pand	xmm1,xmm5
-	movq	xmm3,QWORD PTR[96+r8]
-	pand	xmm2,xmm6
-	por	xmm0,xmm1
-	pand	xmm3,xmm7
-	por	xmm0,xmm2
-	lea	r8,QWORD PTR[256+r8]
-	por	xmm0,xmm3
 
+ALIGN	32
+$L$gather::
+	pxor	xmm4,xmm4
+	pxor	xmm5,xmm5
+	movdqa	xmm0,XMMWORD PTR[((-128))+r11]
+	movdqa	xmm1,XMMWORD PTR[((-112))+r11]
+	movdqa	xmm2,XMMWORD PTR[((-96))+r11]
+	pand	xmm0,XMMWORD PTR[((-128))+rax]
+	movdqa	xmm3,XMMWORD PTR[((-80))+r11]
+	pand	xmm1,XMMWORD PTR[((-112))+rax]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[((-96))+rax]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[((-80))+rax]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	movdqa	xmm0,XMMWORD PTR[((-64))+r11]
+	movdqa	xmm1,XMMWORD PTR[((-48))+r11]
+	movdqa	xmm2,XMMWORD PTR[((-32))+r11]
+	pand	xmm0,XMMWORD PTR[((-64))+rax]
+	movdqa	xmm3,XMMWORD PTR[((-16))+r11]
+	pand	xmm1,XMMWORD PTR[((-48))+rax]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[((-32))+rax]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[((-16))+rax]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	movdqa	xmm0,XMMWORD PTR[r11]
+	movdqa	xmm1,XMMWORD PTR[16+r11]
+	movdqa	xmm2,XMMWORD PTR[32+r11]
+	pand	xmm0,XMMWORD PTR[rax]
+	movdqa	xmm3,XMMWORD PTR[48+r11]
+	pand	xmm1,XMMWORD PTR[16+rax]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[32+rax]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[48+rax]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	movdqa	xmm0,XMMWORD PTR[64+r11]
+	movdqa	xmm1,XMMWORD PTR[80+r11]
+	movdqa	xmm2,XMMWORD PTR[96+r11]
+	pand	xmm0,XMMWORD PTR[64+rax]
+	movdqa	xmm3,XMMWORD PTR[112+r11]
+	pand	xmm1,XMMWORD PTR[80+rax]
+	por	xmm4,xmm0
+	pand	xmm2,XMMWORD PTR[96+rax]
+	por	xmm5,xmm1
+	pand	xmm3,XMMWORD PTR[112+rax]
+	por	xmm4,xmm2
+	por	xmm5,xmm3
+	por	xmm4,xmm5
+	lea	r11,QWORD PTR[256+r11]
+	pshufd	xmm0,xmm4,04eh
+	por	xmm0,xmm4
 	movq	QWORD PTR[rcx],xmm0
 	lea	rcx,QWORD PTR[8+rcx]
 	sub	rdx,1
 	jnz	$L$gather
-	movaps	xmm6,XMMWORD PTR[rsp]
-	movaps	xmm7,XMMWORD PTR[16+rsp]
-	lea	rsp,QWORD PTR[40+rsp]
+
+	lea	rsp,QWORD PTR[r10]
 	DB	0F3h,0C3h		;repret
 $L$SEH_end_bn_gather5::
 bn_gather5	ENDP
 ALIGN	64
-$L$magic_masks::
-	DD	0,0,0,0,0,0,-1,-1
-	DD	0,0,0,0,0,0,0,0
+$L$inc::
+	DD	0,0,1,1
+	DD	2,2,2,2
 DB	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105
 DB	112,108,105,99,97,116,105,111,110,32,119,105,116,104,32,115
 DB	99,97,116,116,101,114,47,103,97,116,104,101,114,32,102,111
@@ -869,7 +1235,7 @@ mul_handler	PROC PRIVATE
 	cmp	rbx,r10
 	jb	$L$common_seh_tail
 
-	lea	rax,QWORD PTR[88+rax]
+	lea	rax,QWORD PTR[48+rax]
 
 	mov	r10d,DWORD PTR[4+r11]
 	lea	r10,QWORD PTR[r10*1+rsi]
@@ -886,9 +1252,7 @@ mul_handler	PROC PRIVATE
 	mov	r10,QWORD PTR[192+r8]
 	mov	rax,QWORD PTR[8+r10*8+rax]
 
-	movaps	xmm0,XMMWORD PTR[rax]
-	movaps	xmm1,XMMWORD PTR[16+rax]
-	lea	rax,QWORD PTR[88+rax]
+	lea	rax,QWORD PTR[48+rax]
 
 	mov	rbx,QWORD PTR[((-8))+rax]
 	mov	rbp,QWORD PTR[((-16))+rax]
@@ -902,8 +1266,6 @@ mul_handler	PROC PRIVATE
 	mov	QWORD PTR[224+r8],r13
 	mov	QWORD PTR[232+r8],r14
 	mov	QWORD PTR[240+r8],r15
-	movups	XMMWORD PTR[512+r8],xmm0
-	movups	XMMWORD PTR[528+r8],xmm1
 
 $L$common_seh_tail::
 	mov	rdi,QWORD PTR[8+rax]
@@ -977,12 +1339,10 @@ DB	9,0,0,0
 
 ALIGN	8
 $L$SEH_info_bn_gather5::
-DB	001h,00dh,005h,000h
-DB	00dh,078h,001h,000h
+DB	001h,00bh,003h,00ah
+DB	00bh,001h,021h,000h
 
-DB	008h,068h,000h,000h
-
-DB	004h,042h,000h,000h
+DB	004h,0a3h,000h,000h
 
 ALIGN	8
 
