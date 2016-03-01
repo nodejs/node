@@ -1,3 +1,66 @@
+### v2.14.20 (2016-02-18):
+
+Hope y'all are having a nice week! As usual, it's a fairly limited release. The
+most notable thing is some dependency updates that might help the Node.js CI
+setup for Windows run a little better, even if we have some work to do on that
+path length things, still.
+
+#### WHITTLING AWAY AT PATH LENGTHS
+
+So for all of you who don't know -- Node.js does, in fact, support long Windows
+paths. Unfortunately, depending on the tool and the Windows version, a lot of
+external tooling does not. This means, for example, that some (all?) versions of
+Windows Explorer *can literally never delete npm from their system entirely
+because of deeply-nested npm dependencies*. Which is pretty gnarly.
+
+Incidentally, if you run into that in particularly, you can use
+[rimraf](npm.im/rimraf) to remove such files 💁.
+
+The latest victim of this issue was the Node.js CI setup for testing on Windows,
+which uses some tooling or another that croaks on the usual path length limit
+for that OS: 255 characters.
+
+This issue, of course, is largely not a problem as of `npm@3`, with its flat
+trees, but it still occasionally and viciously bites LTS.
+
+We've taken another baby step towards alleviating this in this release by
+updating a couple of dependencies that were preventing `npmlog` from deduping,
+and then doing a dedupe on that and `gauge`. Hopefully it helps.
+
+* [`4199551`](https://github.com/npm/npm/commit/41995517e617674710748ab6d262670c96124393)
+  [#11528](https://github.com/npm/npm/pull/11528)
+  `npm-install-checks@1.0.7`: Just updates the version of npmlog so we can
+  dedupe it better.
+  ([@zkat](https://github.com/zkat))
+* [`14d72c7`](https://github.com/npm/npm/commit/14d72c756b89e2d167eb52c1849263dbddcb9f35)
+  [#11552](https://github.com/npm/npm/pull/11552)
+  [#11528](https://github.com/npm/npm/pull/11528)
+  `node-gyp@3.3.0`: AIX support, new `gyp`, update `npmlog` (for the dedupe),
+  adds `--cafile` command line option, and allows configuration of Node.js and
+  io.js mirrors.
+  ([@rvagg](https://github.com/rvagg))
+* [`0453cb9`](https://github.com/npm/npm/commit/0453cb94b33520eb723b7072cd2654b1d0142533)
+  [#11528](https://github.com/npm/npm/pull/11528)
+  Do a `dedupe` on `gauge` to flatten our dependencies a bit more.
+  ([@zkat](https://github.com/zkat))
+
+#### OTHER DEP STUFF
+
+* [`686c0b3`](https://github.com/npm/npm/commit/686c0b37ec3a7b65f9b3849e1099805e5221c408)
+  `rimraf@2.5.2`: Just updates to glob@7.
+  ([@isaacs](https://github.com/isaacs))
+
+#### @wyze, DOCUMENTATION HERO OF THE PEOPLE, GETS THEIR OWN HEADER
+
+* [`7232948`](https://github.com/npm/npm/commit/72329484c775376cb40d5b348f453eaaf2f0b821)
+  [#11416](https://github.com/npm/npm/pull/11416)
+  Logout docs were using a section copy-pasted from the adduser docs.
+  ([@wyze](https://github.com/wyze))
+* [`922b33a`](https://github.com/npm/npm/commit/922b33aba4362e1e90f42e9348f061a1cc73eafb)
+  [#11414](https://github.com/npm/npm/pull/11414)
+  Add colon for consistency.
+  ([@wyze](https://github.com/wyze))
+
 ### v2.14.19 (2016-02-11):
 
 Really tiny micro-release this week! The main thing to note is a dependency
