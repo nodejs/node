@@ -31,10 +31,11 @@
 // Helper.
 
 function TestWithProxies(test, construct, handler) {
-  test(construct, handler, Proxy.create)
-  test(construct, handler, function(h) {
-    return Proxy.createFunction(h, function() {})
-  })
+  test(construct, handler, function(h) { return new Proxy({}, h) })
+  // TODO(cbruni): Adapt and enable once we have [[Call]] working.
+  // test(construct, handler, function(h) {
+  //  return Proxy.createFunction(h, function() {})
+  // })
 }
 
 

@@ -1003,30 +1003,68 @@ git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@123456 123
 
 """
 
-  ROLL_COMMIT_MSG = """Update V8 to version 3.22.4 (based on abc).
+  ROLL_COMMIT_MSG = """Update V8 to version 3.22.4.
 
 Summary of changes available at:
 https://chromium.googlesource.com/v8/v8/+log/last_rol..roll_hsh
 
 Please follow these instructions for assigning/CC'ing issues:
-https://code.google.com/p/v8-wiki/wiki/TriagingIssues
+https://github.com/v8/v8/wiki/Triaging%20issues
 
 Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
 This only works with a Google account.
 
-TBR=g_name@chromium.org,reviewer@chromium.org"""
+TBR=reviewer@chromium.org"""
+
+  # Snippet from the original DEPS file.
+  FAKE_DEPS = """
+vars = {
+  "v8_revision": "last_roll_hsh",
+}
+deps = {
+  "src/v8":
+    (Var("googlecode_url") % "v8") + "/" + Var("v8_branch") + "@" +
+    Var("v8_revision"),
+}
+"""
+
+  def testChromiumRollUpToDate(self):
+    TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
+    json_output_file = os.path.join(TEST_CONFIG["CHROMIUM"], "out.json")
+    TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
+    self.Expect([
+      Cmd("git fetch origin", ""),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("git describe --tags last_roll_hsh", "3.22.4"),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("git rev-list --max-age=395200 --tags",
+          "bad_tag\nroll_hsh\nhash_123"),
+      Cmd("git describe --tags bad_tag", ""),
+      Cmd("git describe --tags roll_hsh", "3.22.4"),
+      Cmd("git describe --tags hash_123", "3.22.3"),
+      Cmd("git describe --tags roll_hsh", "3.22.4"),
+      Cmd("git describe --tags hash_123", "3.22.3"),
+    ])
+
+    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
+        AUTO_PUSH_ARGS + [
+          "-c", TEST_CONFIG["CHROMIUM"],
+          "--json-output", json_output_file])
+    self.assertEquals(0, result)
+    json_output = json.loads(FileToText(json_output_file))
+    self.assertEquals("up_to_date", json_output["monitoring_state"])
+
 
   def testChromiumRoll(self):
     # Setup fake directory structures.
     TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
+    json_output_file = os.path.join(TEST_CONFIG["CHROMIUM"], "out.json")
+    TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
     TextToFile("", os.path.join(TEST_CONFIG["CHROMIUM"], ".git"))
     chrome_dir = TEST_CONFIG["CHROMIUM"]
     os.makedirs(os.path.join(chrome_dir, "v8"))
 
-    # Write fake deps file.
-    TextToFile("Some line\n   \"v8_revision\": \"123444\",\n  some line",
-               os.path.join(chrome_dir, "DEPS"))
     def WriteDeps():
       TextToFile("Some line\n   \"v8_revision\": \"22624\",\n  some line",
                  os.path.join(chrome_dir, "DEPS"))
@@ -1034,12 +1072,17 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
     expectations = [
       Cmd("git fetch origin", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("git log -1 --format=%s roll_hsh",
-          "Version 3.22.4 (based on abc)\n"),
+      Cmd("git describe --tags last_roll_hsh", "3.22.3.1"),
+      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
+      Cmd("git rev-list --max-age=395200 --tags",
+          "bad_tag\nroll_hsh\nhash_123"),
+      Cmd("git describe --tags bad_tag", ""),
+      Cmd("git describe --tags roll_hsh", "3.22.4"),
+      Cmd("git describe --tags hash_123", "3.22.3"),
+      Cmd("git describe --tags roll_hsh", "3.22.4"),
+      Cmd("git log -1 --format=%s roll_hsh", "Version 3.22.4\n"),
       Cmd("git describe --tags roll_hsh", "3.22.4"),
       Cmd("git describe --tags last_roll_hsh", "3.22.2.1"),
-      URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
-          "document.write('g_name')"),
       Cmd("git status -s -uno", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch", "", cwd=chrome_dir),
@@ -1052,22 +1095,22 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
            "--author \"author@chromium.org <author@chromium.org>\"" %
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
-      Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f", "",
-          cwd=chrome_dir),
+      Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f "
+          "--use-commit-queue", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch -D work-branch", "", cwd=chrome_dir),
     ]
     self.Expect(expectations)
 
     args = ["-a", "author@chromium.org", "-c", chrome_dir,
-            "--sheriff",
-            "-r", "reviewer@chromium.org",
-            "--last-roll", "last_roll_hsh",
-            "roll_hsh"]
-    ChromiumRoll(TEST_CONFIG, self).Run(args)
+            "-r", "reviewer@chromium.org", "--json-output", json_output_file]
+    auto_roll.AutoRoll(TEST_CONFIG, self).Run(args)
 
     deps = FileToText(os.path.join(chrome_dir, "DEPS"))
     self.assertTrue(re.search("\"v8_revision\": \"22624\"", deps))
+
+    json_output = json.loads(FileToText(json_output_file))
+    self.assertEquals("success", json_output["monitoring_state"])
 
   def testCheckLastPushRecently(self):
     self.Expect([
@@ -1102,74 +1145,6 @@ TBR=g_name@chromium.org,reviewer@chromium.org"""
                                   % TEST_CONFIG["PERSISTFILE_BASENAME"]))
 
     self.assertEquals("abc123", state["candidate"])
-
-  def testAutoRollExistingRoll(self):
-    self.Expect([
-      URL("https://codereview.chromium.org/search",
-          "owner=author%40chromium.org&limit=30&closed=3&format=json",
-          ("{\"results\": [{\"subject\": \"different\"},"
-           "{\"subject\": \"Update V8 to Version...\"}]}")),
-    ])
-
-    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_PUSH_ARGS + ["-c", TEST_CONFIG["CHROMIUM"]])
-    self.assertEquals(0, result)
-
-  # Snippet from the original DEPS file.
-  FAKE_DEPS = """
-vars = {
-  "v8_revision": "abcd123455",
-}
-deps = {
-  "src/v8":
-    (Var("googlecode_url") % "v8") + "/" + Var("v8_branch") + "@" +
-    Var("v8_revision"),
-}
-"""
-
-  def testAutoRollUpToDate(self):
-    TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
-    TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
-    self.Expect([
-      URL("https://codereview.chromium.org/search",
-          "owner=author%40chromium.org&limit=30&closed=3&format=json",
-          ("{\"results\": [{\"subject\": \"different\"}]}")),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("git rev-list --max-age=740800 --tags",
-          "bad_tag\nhash_234\nhash_123"),
-      Cmd("git describe --tags bad_tag", ""),
-      Cmd("git describe --tags hash_234", "3.22.4"),
-      Cmd("git describe --tags hash_123", "3.22.3"),
-      Cmd("git describe --tags abcd123455", "3.22.4"),
-      Cmd("git describe --tags hash_234", "3.22.4"),
-      Cmd("git describe --tags hash_123", "3.22.3"),
-    ])
-
-    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_PUSH_ARGS + ["-c", TEST_CONFIG["CHROMIUM"]])
-    self.assertEquals(0, result)
-
-  def testAutoRoll(self):
-    TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
-    TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
-
-    self.Expect([
-      URL("https://codereview.chromium.org/search",
-          "owner=author%40chromium.org&limit=30&closed=3&format=json",
-          ("{\"results\": [{\"subject\": \"different\"}]}")),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("git rev-list --max-age=740800 --tags",
-          "bad_tag\nhash_234\nhash_123"),
-      Cmd("git describe --tags bad_tag", ""),
-      Cmd("git describe --tags hash_234", "3.22.4"),
-      Cmd("git describe --tags hash_123", "3.22.3"),
-      Cmd("git describe --tags abcd123455", "3.22.3.1"),
-      Cmd("git describe --tags hash_234", "3.22.4"),
-    ])
-
-    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_PUSH_ARGS + ["-c", TEST_CONFIG["CHROMIUM"], "--roll"])
-    self.assertEquals(0, result)
 
   def testMergeToBranch(self):
     TEST_CONFIG["ALREADY_MERGING_SENTINEL_FILE"] = self.MakeEmptyTempFile()

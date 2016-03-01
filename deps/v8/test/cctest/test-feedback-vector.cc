@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(mvstanton): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -47,8 +44,6 @@ TEST(VectorStructure) {
   CHECK(Handle<FixedArray>::cast(vector)
             .is_identical_to(factory->empty_fixed_array()));
   // Which can nonetheless be queried.
-  CHECK_EQ(0, vector->ic_with_type_info_count());
-  CHECK_EQ(0, vector->ic_generic_count());
   CHECK(vector->is_empty());
 
   {
@@ -135,8 +130,6 @@ TEST(VectorICMetadata) {
 
   // Meanwhile set some feedback values and type feedback values to
   // verify the data structure remains intact.
-  vector->change_ic_with_type_info_count(100);
-  vector->change_ic_generic_count(3333);
   vector->Set(FeedbackVectorSlot(0), *vector);
 
   // Verify the metadata is correctly set up from the spec.
@@ -197,60 +190,6 @@ TEST(VectorSlotClearing) {
   CHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(isolate),
            vector->Get(helper.slot(1)));
   CHECK(vector->Get(helper.slot(2))->IsAllocationSite());
-}
-
-
-TEST(VectorICProfilerStatistics) {
-  if (i::FLAG_always_opt) return;
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-
-  // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
-      "function fun() {};"
-      "function f(a) { a(); } f(fun);");
-  Handle<JSFunction> f = GetFunction("f");
-  // There should be one IC.
-  Handle<Code> code = handle(f->shared()->code(), isolate);
-  TypeFeedbackInfo* feedback_info =
-      TypeFeedbackInfo::cast(code->type_feedback_info());
-  CHECK_EQ(1, feedback_info->ic_total_count());
-  CHECK_EQ(0, feedback_info->ic_with_type_info_count());
-  CHECK_EQ(0, feedback_info->ic_generic_count());
-  Handle<TypeFeedbackVector> feedback_vector =
-      handle(f->shared()->feedback_vector(), isolate);
-  FeedbackVectorHelper helper(feedback_vector);
-  CallICNexus nexus(feedback_vector, helper.slot(0));
-  CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(0, feedback_vector->ic_generic_count());
-
-  // Now send the information generic.
-  CompileRun("f(Object);");
-  CHECK_EQ(0, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(1, feedback_vector->ic_generic_count());
-
-  // A collection will not affect the site.
-  heap->CollectAllGarbage();
-  CHECK_EQ(0, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(1, feedback_vector->ic_generic_count());
-
-  // The Array function is special. A call to array remains monomorphic
-  // and isn't cleared by gc because an AllocationSite is being held.
-  // Clear the IC manually in order to test this case.
-  nexus.Clear(*code);
-  CompileRun("f(Array);");
-  CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(0, feedback_vector->ic_generic_count());
-
-
-  CHECK(nexus.GetFeedback()->IsAllocationSite());
-  heap->CollectAllGarbage();
-  CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(0, feedback_vector->ic_generic_count());
-  CHECK(nexus.GetFeedback()->IsAllocationSite());
 }
 
 
@@ -460,17 +399,11 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<TypeFeedbackVector> feedback_vector =
         handle(f->shared()->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
-    if (FLAG_vector_stores) {
-      CHECK_EQ(4, helper.slot_count());
-      CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::STORE_IC);
-      CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_IC);
-      CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
-      CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::LOAD_IC);
-    } else {
-      CHECK_EQ(2, helper.slot_count());
-      CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
-      CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_IC);
-    }
+    CHECK_EQ(4, helper.slot_count());
+    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::LOAD_IC);
   }
 
   {
@@ -485,11 +418,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     // There should be one LOAD_IC, for the load of a.
     Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
-    if (FLAG_vector_stores) {
-      CHECK_EQ(2, helper.slot_count());
-    } else {
-      CHECK_EQ(1, helper.slot_count());
-    }
+    CHECK_EQ(2, helper.slot_count());
   }
 
   {
@@ -506,20 +435,12 @@ TEST(ReferenceContextAllocatesNoSlots) {
     // There should be 2 LOAD_ICs and 2 CALL_ICs.
     Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
-    if (FLAG_vector_stores) {
-      CHECK_EQ(5, helper.slot_count());
-      CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::CALL_IC);
-      CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_IC);
-      CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
-      CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::CALL_IC);
-      CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
-    } else {
-      CHECK_EQ(4, helper.slot_count());
-      CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::CALL_IC);
-      CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_IC);
-      CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::CALL_IC);
-      CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::LOAD_IC);
-    }
+    CHECK_EQ(5, helper.slot_count());
+    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::CALL_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::CALL_IC);
+    CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
   }
 
   {
@@ -536,16 +457,10 @@ TEST(ReferenceContextAllocatesNoSlots) {
     // the load of x[0] in the return statement.
     Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
-    if (FLAG_vector_stores) {
-      CHECK_EQ(3, helper.slot_count());
-      CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
-      CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::KEYED_STORE_IC);
-      CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::KEYED_LOAD_IC);
-    } else {
-      CHECK_EQ(2, helper.slot_count());
-      CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
-      CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::KEYED_LOAD_IC);
-    }
+    CHECK_EQ(3, helper.slot_count());
+    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::KEYED_STORE_IC);
+    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::KEYED_LOAD_IC);
   }
 
   {
@@ -561,27 +476,19 @@ TEST(ReferenceContextAllocatesNoSlots) {
     // There should be 3 LOAD_ICs, for load of a and load of x.old and x.young.
     Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
-    if (FLAG_vector_stores) {
-      CHECK_EQ(6, helper.slot_count());
-      CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
-      CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_IC);
-      CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
-      CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::STORE_IC);
-      CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
-      CHECK_SLOT_KIND(helper, 5, FeedbackVectorSlotKind::LOAD_IC);
-    } else {
-      CHECK_EQ(3, helper.slot_count());
-      CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
-      CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_IC);
-      CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::LOAD_IC);
-    }
+    CHECK_EQ(6, helper.slot_count());
+    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
+    CHECK_SLOT_KIND(helper, 5, FeedbackVectorSlotKind::LOAD_IC);
   }
 }
 
 
 TEST(VectorStoreICBasic) {
   if (i::FLAG_always_opt) return;
-  if (!i::FLAG_vector_stores) return;
 
   CcTest::InitializeVM();
   LocalContext context;

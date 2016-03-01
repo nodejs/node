@@ -62,9 +62,7 @@ Debug.ExceptionBreak = { Caught : 0,
 Debug.StepAction = { StepOut: 0,
                      StepNext: 1,
                      StepIn: 2,
-                     StepMin: 3,
-                     StepInMin: 4,
-                     StepFrame: 5 };
+                     StepFrame: 3 };
 
 // The different types of scripts matching enum ScriptType in objects.h.
 Debug.ScriptType = { Native: 0,
@@ -945,17 +943,14 @@ function ExecutionState(break_id) {
   this.selected_frame = 0;
 }
 
-ExecutionState.prototype.prepareStep = function(opt_action, opt_count,
-    opt_callframe) {
-  var action = Debug.StepAction.StepIn;
-  if (!IS_UNDEFINED(opt_action)) action = TO_NUMBER(opt_action);
-  var count = opt_count ? TO_NUMBER(opt_count) : 1;
-  var callFrameId = 0;
-  if (!IS_UNDEFINED(opt_callframe)) {
-    callFrameId = opt_callframe.details_.frameId();
+ExecutionState.prototype.prepareStep = function(action) {
+  if (action === Debug.StepAction.StepIn ||
+      action === Debug.StepAction.StepOut ||
+      action === Debug.StepAction.StepNext ||
+      action === Debug.StepAction.StepFrame) {
+    return %PrepareStep(this.break_id, action);
   }
-
-  return %PrepareStep(this.break_id, action, count, callFrameId);
+  throw MakeTypeError(kDebuggerType);
 };
 
 ExecutionState.prototype.evaluateGlobal = function(source, disable_break,
@@ -1459,28 +1454,15 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
 DebugCommandProcessor.prototype.continueRequest_ = function(request, response) {
   // Check for arguments for continue.
   if (request.arguments) {
-    var count = 1;
     var action = Debug.StepAction.StepIn;
 
     // Pull out arguments.
     var stepaction = request.arguments.stepaction;
-    var stepcount = request.arguments.stepcount;
-
-    // Get the stepcount argument if any.
-    if (stepcount) {
-      count = TO_NUMBER(stepcount);
-      if (count < 0) {
-        throw MakeError(kDebugger,
-                        'Invalid stepcount argument "' + stepcount + '".');
-      }
-    }
 
     // Get the stepaction argument.
     if (stepaction) {
       if (stepaction == 'in') {
         action = Debug.StepAction.StepIn;
-      } else if (stepaction == 'min') {
-        action = Debug.StepAction.StepMin;
       } else if (stepaction == 'next') {
         action = Debug.StepAction.StepNext;
       } else if (stepaction == 'out') {
@@ -1492,7 +1474,7 @@ DebugCommandProcessor.prototype.continueRequest_ = function(request, response) {
     }
 
     // Set up the VM for stepping.
-    this.exec_state_.prepareStep(action, count);
+    this.exec_state_.prepareStep(action);
   }
 
   // VM should be running after executing this request.
@@ -2605,6 +2587,9 @@ function ValueToProtocolValue_(value, mirror_serializer) {
 utils.InstallConstants(global, [
   "Debug", Debug,
   "DebugCommandProcessor", DebugCommandProcessor,
+  "BreakEvent", BreakEvent,
+  "CompileEvent", CompileEvent,
+  "BreakPoint", BreakPoint,
 ]);
 
 // Functions needed by the debugger runtime.

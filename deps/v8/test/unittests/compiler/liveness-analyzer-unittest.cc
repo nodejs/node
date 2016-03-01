@@ -23,7 +23,7 @@ class LivenessAnalysisTest : public GraphTest {
  public:
   explicit LivenessAnalysisTest(int locals_count = 4)
       : locals_count_(locals_count),
-        machine_(zone(), kRepWord32),
+        machine_(zone(), MachineRepresentation::kWord32),
         javascript_(zone()),
         jsgraph_(isolate(), graph(), common(), &javascript_, nullptr,
                  &machine_),

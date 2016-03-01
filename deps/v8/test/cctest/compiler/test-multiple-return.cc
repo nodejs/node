@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -34,17 +31,17 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
 
   // Add return location(s).
-  DCHECK(return_count <= config->num_allocatable_general_registers());
+  CHECK(return_count <= config->num_allocatable_general_registers());
   for (int i = 0; i < return_count; i++) {
-    msig.AddReturn(compiler::kMachInt32);
+    msig.AddReturn(MachineType::Int32());
     locations.AddReturn(
         LinkageLocation::ForRegister(config->allocatable_general_codes()[i]));
   }
 
   // Add register and/or stack parameter(s).
-  DCHECK(param_count <= config->num_allocatable_general_registers());
+  CHECK(param_count <= config->num_allocatable_general_registers());
   for (int i = 0; i < param_count; i++) {
-    msig.AddParam(compiler::kMachInt32);
+    msig.AddParam(MachineType::Int32());
     locations.AddParam(
         LinkageLocation::ForRegister(config->allocatable_general_codes()[i]));
   }
@@ -53,7 +50,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
   const RegList kCalleeSaveFPRegisters = 0;
 
   // The target for WASM calls is always a code object.
-  MachineType target_type = compiler::kMachAnyTagged;
+  MachineType target_type = MachineType::AnyTagged();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
   return new (zone) CallDescriptor(       // --
       CallDescriptor::kCallCodeObject,    // kind
@@ -77,7 +74,7 @@ TEST(ReturnThreeValues) {
   HandleAndZoneScope handles;
   RawMachineAssembler m(handles.main_isolate(),
                         new (handles.main_zone()) Graph(handles.main_zone()),
-                        desc, kMachPtr,
+                        desc, MachineType::PointerRepresentation(),
                         InstructionSelector::SupportedMachineOperatorFlags());
 
   Node* p0 = m.Parameter(0);

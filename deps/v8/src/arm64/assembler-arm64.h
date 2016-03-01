@@ -799,14 +799,12 @@ class Assembler : public AssemblerBase {
   // Read/Modify the code target address in the branch/call instruction at pc.
   inline static Address target_address_at(Address pc, Address constant_pool);
   inline static void set_target_address_at(
-      Address pc, Address constant_pool, Address target,
+      Isolate* isolate, Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   static inline Address target_address_at(Address pc, Code* code);
-  static inline void set_target_address_at(Address pc,
-                                           Code* code,
-                                           Address target,
-                                           ICacheFlushMode icache_flush_mode =
-                                               FLUSH_ICACHE_IF_NEEDED);
+  static inline void set_target_address_at(
+      Isolate* isolate, Address pc, Code* code, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address of
   // that call in the instruction stream.
@@ -819,11 +817,12 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address constant_pool_entry, Code* code, Address target);
+      Isolate* isolate, Address constant_pool_entry, Code* code,
+      Address target);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Isolate* isolate, Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // All addresses in the constant pool are the same size as pointers.
@@ -934,7 +933,7 @@ class Assembler : public AssemblerBase {
   void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
+  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record the emission of a constant pool.
   //
@@ -2150,15 +2149,14 @@ class PatchingAssembler : public Assembler {
   // If more or fewer instructions than expected are generated or if some
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
-  PatchingAssembler(Instruction* start, unsigned count)
-    : Assembler(NULL,
-                reinterpret_cast<byte*>(start),
-                count * kInstructionSize + kGap) {
+  PatchingAssembler(Isolate* isolate, Instruction* start, unsigned count)
+      : Assembler(isolate, reinterpret_cast<byte*>(start),
+                  count * kInstructionSize + kGap) {
     StartBlockPools();
   }
 
-  PatchingAssembler(byte* start, unsigned count)
-    : Assembler(NULL, start, count * kInstructionSize + kGap) {
+  PatchingAssembler(Isolate* isolate, byte* start, unsigned count)
+      : Assembler(isolate, start, count * kInstructionSize + kGap) {
     // Block constant pool emission.
     StartBlockPools();
   }
@@ -2173,7 +2171,7 @@ class PatchingAssembler : public Assembler {
     DCHECK(IsConstPoolEmpty());
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
-    Assembler::FlushICacheWithoutIsolate(buffer_, length);
+    Assembler::FlushICache(isolate(), buffer_, length);
   }
 
   // See definition of PatchAdrFar() for details.

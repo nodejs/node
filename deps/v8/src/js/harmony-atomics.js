@@ -32,7 +32,7 @@ function CheckSharedIntegerTypedArray(ia) {
 
 function CheckSharedInteger32TypedArray(ia) {
   CheckSharedIntegerTypedArray(ia);
-  if (%_ClassOf(ia) !== 'Int32Array') {
+  if (!%IsSharedInteger32TypedArray(ia)) {
     throw MakeTypeError(kNotInt32SharedTypedArray, ia);
   }
 }

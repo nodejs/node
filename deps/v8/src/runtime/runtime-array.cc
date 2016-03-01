@@ -206,7 +206,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     return *isolate->factory()->NewNumberFromUint(Min(actual_length, length));
   }
 
-  KeyAccumulator accumulator(isolate);
+  KeyAccumulator accumulator(isolate, ALL_PROPERTIES);
   // No need to separate protoype levels since we only get numbers/element keys
   for (PrototypeIterator iter(isolate, array,
                               PrototypeIterator::START_AT_RECEIVER);
@@ -220,7 +220,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     }
     accumulator.NextPrototype();
     Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-    JSObject::CollectOwnElementKeys(current, &accumulator, NONE);
+    JSObject::CollectOwnElementKeys(current, &accumulator, ALL_PROPERTIES);
   }
   // Erase any keys >= length.
   // TODO(adamk): Remove this step when the contract of %GetArrayKeys
@@ -233,15 +233,24 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
 }
 
 
-static Object* ArrayConstructorCommon(Isolate* isolate,
-                                      Handle<JSFunction> constructor,
-                                      Handle<JSFunction> original_constructor,
-                                      Handle<AllocationSite> site,
-                                      Arguments* caller_args) {
+namespace {
+
+Object* ArrayConstructorCommon(Isolate* isolate, Handle<JSFunction> constructor,
+                               Handle<JSReceiver> new_target,
+                               Handle<AllocationSite> site,
+                               Arguments* caller_args) {
   Factory* factory = isolate->factory();
 
+  // If called through new, new.target can be:
+  // - a subclass of constructor,
+  // - a proxy wrapper around constructor, or
+  // - the constructor itself.
+  // If called through Reflect.construct, it's guaranteed to be a constructor by
+  // REFLECT_CONSTRUCT_PREPARE.
+  DCHECK(new_target->IsConstructor());
+
   bool holey = false;
-  bool can_use_type_feedback = true;
+  bool can_use_type_feedback = !site.is_null();
   bool can_inline_array_constructor = true;
   if (caller_args->length() == 1) {
     Handle<Object> argument_one = caller_args->at<Object>(0);
@@ -263,42 +272,35 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
     }
   }
 
-  Handle<JSArray> array;
-  if (!site.is_null() && can_use_type_feedback) {
-    ElementsKind to_kind = site->GetElementsKind();
-    if (holey && !IsFastHoleyElementsKind(to_kind)) {
-      to_kind = GetHoleyElementsKind(to_kind);
-      // Update the allocation site info to reflect the advice alteration.
-      site->SetElementsKind(to_kind);
-    }
+  Handle<Map> initial_map;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, initial_map,
+      JSFunction::GetDerivedMap(isolate, constructor, new_target));
 
-    // We should allocate with an initial map that reflects the allocation site
-    // advice. Therefore we use AllocateJSObjectFromMap instead of passing
-    // the constructor.
-    Handle<Map> initial_map(constructor->initial_map(), isolate);
-    if (to_kind != initial_map->elements_kind()) {
-      initial_map = Map::AsElementsKind(initial_map, to_kind);
-    }
-
-    // If we don't care to track arrays of to_kind ElementsKind, then
-    // don't emit a memento for them.
-    Handle<AllocationSite> allocation_site;
-    if (AllocationSite::GetMode(to_kind) == TRACK_ALLOCATION_SITE) {
-      allocation_site = site;
-    }
-
-    array = Handle<JSArray>::cast(
-        factory->NewJSObjectFromMap(initial_map, NOT_TENURED, allocation_site));
-  } else {
-    array = Handle<JSArray>::cast(factory->NewJSObject(constructor));
-
-    // We might need to transition to holey
-    ElementsKind kind = constructor->initial_map()->elements_kind();
-    if (holey && !IsFastHoleyElementsKind(kind)) {
-      kind = GetHoleyElementsKind(kind);
-      JSObject::TransitionElementsKind(array, kind);
-    }
+  ElementsKind to_kind = can_use_type_feedback ? site->GetElementsKind()
+                                               : initial_map->elements_kind();
+  if (holey && !IsFastHoleyElementsKind(to_kind)) {
+    to_kind = GetHoleyElementsKind(to_kind);
+    // Update the allocation site info to reflect the advice alteration.
+    if (!site.is_null()) site->SetElementsKind(to_kind);
   }
+
+  // We should allocate with an initial map that reflects the allocation site
+  // advice. Therefore we use AllocateJSObjectFromMap instead of passing
+  // the constructor.
+  if (to_kind != initial_map->elements_kind()) {
+    initial_map = Map::AsElementsKind(initial_map, to_kind);
+  }
+
+  // If we don't care to track arrays of to_kind ElementsKind, then
+  // don't emit a memento for them.
+  Handle<AllocationSite> allocation_site;
+  if (AllocationSite::GetMode(to_kind) == TRACK_ALLOCATION_SITE) {
+    allocation_site = site;
+  }
+
+  Handle<JSArray> array = Handle<JSArray>::cast(
+      factory->NewJSObjectFromMap(initial_map, NOT_TENURED, allocation_site));
 
   factory->NewJSArrayStorage(array, 0, 0, DONT_INITIALIZE_ARRAY_ELEMENTS);
 
@@ -314,20 +316,26 @@ static Object* ArrayConstructorCommon(Isolate* isolate,
     site->SetDoNotInlineCall();
   }
 
-  // Set up the prototoype using original function.
-  // TODO(dslomov): instead of setting the __proto__,
-  // use and cache the correct map.
-  if (*original_constructor != *constructor) {
-    if (original_constructor->has_instance_prototype()) {
-      Handle<Object> prototype =
-          handle(original_constructor->instance_prototype(), isolate);
-      MAYBE_RETURN(JSObject::SetPrototype(array, prototype, false,
-                                          Object::THROW_ON_ERROR),
-                   isolate->heap()->exception());
-    }
-  }
-
   return *array;
+}
+
+}  // namespace
+
+
+RUNTIME_FUNCTION(Runtime_NewArray) {
+  HandleScope scope(isolate);
+  DCHECK_LE(3, args.length());
+  int const argc = args.length() - 3;
+  // TODO(bmeurer): Remove this Arguments nonsense.
+  Arguments argv(argc, args.arguments() - 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, argc + 1);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, type_info, argc + 2);
+  // TODO(bmeurer): Use MaybeHandle to pass around the AllocationSite.
+  Handle<AllocationSite> site = type_info->IsAllocationSite()
+                                    ? Handle<AllocationSite>::cast(type_info)
+                                    : Handle<AllocationSite>::null();
+  return ArrayConstructorCommon(isolate, constructor, new_target, site, &argv);
 }
 
 
@@ -362,25 +370,6 @@ RUNTIME_FUNCTION(Runtime_ArrayConstructor) {
 
   return ArrayConstructorCommon(isolate, constructor, constructor, site,
                                 caller_args);
-}
-
-
-RUNTIME_FUNCTION(Runtime_ArrayConstructorWithSubclassing) {
-  HandleScope scope(isolate);
-  int args_length = args.length();
-  CHECK(args_length >= 2);
-
-  // This variables and checks work around -Werror=strict-overflow.
-  int pre_last_arg_index = args_length - 2;
-  int last_arg_index = args_length - 1;
-  CHECK(pre_last_arg_index >= 0);
-  CHECK(last_arg_index >= 0);
-
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, pre_last_arg_index);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, original_constructor, last_arg_index);
-  Arguments caller_args(args_length - 2, args.arguments());
-  return ArrayConstructorCommon(isolate, constructor, original_constructor,
-                                Handle<AllocationSite>::null(), &caller_args);
 }
 
 
@@ -498,5 +487,18 @@ RUNTIME_FUNCTION(Runtime_FastOneByteArrayJoin) {
   // to a slow path.
   return isolate->heap()->undefined_value();
 }
+
+
+RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, original_array, 0);
+  Handle<Object> constructor;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, constructor,
+      Object::ArraySpeciesConstructor(isolate, original_array));
+  return *constructor;
+}
+
 }  // namespace internal
 }  // namespace v8

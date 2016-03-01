@@ -369,7 +369,9 @@ void LGapResolver::EmitSwap(int index) {
     // Register-register.
     Register src = cgen_->ToRegister(source);
     Register dst = cgen_->ToRegister(destination);
-    __ xchg(dst, src);
+    __ push(src);
+    __ mov(src, dst);
+    __ pop(dst);
 
   } else if ((source->IsRegister() && destination->IsStackSlot()) ||
              (source->IsStackSlot() && destination->IsRegister())) {

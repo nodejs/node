@@ -6,113 +6,95 @@
 
 Debug = debug.Debug
 
-var exception = false;
+var exception = null;
 
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      if (breaks == 0) {
-        exec_state.prepareStep(Debug.StepAction.StepIn, 2);
-        breaks = 1;
-      } else if (breaks <= 3) {
-        breaks++;
-        // Check whether we break at the expected line.
-        print(event_data.sourceLineText());
-        assertTrue(event_data.sourceLineText().indexOf("Expected to step") > 0);
-        exec_state.prepareStep(Debug.StepAction.StepIn, 3);
-      }
+      exec_state.prepareStep(Debug.StepAction.StepIn);
+      print(event_data.sourceLineText());
+      assertTrue(
+          event_data.sourceLineText().indexOf(`B${breaks++}`) > 0);
     }
   } catch (e) {
-    exception = true;
+    print(e);
+    quit();
+    exception = e;
   }
 }
 
 function cb_set(num) {
-  print("element " + num);  // Expected to step to this point.
-  return true;
-}
+  print("element " + num);  // B2 B5 B8
+  return true;              // B3 B6 B9
+}                           // B4 B7 B10
 
 function cb_map(key, val) {
-  print("key " + key + ", value " + val);  // Expected to step to this point.
-  return true;
-}
+  print("key " + key + ", value " + val);  // B2 B5 B8
+  return true;                             // B3 B6 B9
+}                                          // B4 B7 B10
 
 var s = new Set();
 s.add(1);
 s.add(2);
 s.add(3);
-s.add(4);
 
 var m = new Map();
 m.set('foo', 1);
 m.set('bar', 2);
 m.set('baz', 3);
-m.set('bat', 4);
-
-Debug.setListener(listener);
 
 var breaks = 0;
-debugger;
-s.forEach(cb_set);
-assertFalse(exception);
-assertEquals(4, breaks);
+Debug.setListener(listener);
+debugger;                 // B0
+s.forEach(cb_set);        // B1
+Debug.setListener(null);  // B11
+assertNull(exception);
+assertEquals(12, breaks);
 
 breaks = 0;
-debugger;
-m.forEach(cb_map);
-assertFalse(exception);
-assertEquals(4, breaks);
-
-Debug.setListener(null);
-
+Debug.setListener(listener);
+debugger;                 // B0
+m.forEach(cb_map);        // B1
+Debug.setListener(null);  // B11
+assertNull(exception);
+assertEquals(12, breaks);
 
 // Test two levels of builtin callbacks:
 // Array.forEach calls a callback function, which by itself uses
 // Array.forEach with another callback function.
 
-function second_level_listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Break) {
-      if (breaks == 0) {
-        exec_state.prepareStep(Debug.StepAction.StepIn, 3);
-        breaks = 1;
-      } else if (breaks <= 16) {
-        breaks++;
-        // Check whether we break at the expected line.
-        assertTrue(event_data.sourceLineText().indexOf("Expected to step") > 0);
-        // Step two steps further every four breaks to skip the
-        // forEach call in the first level of recurision.
-        var step = (breaks % 4 == 1) ? 6 : 3;
-        exec_state.prepareStep(Debug.StepAction.StepIn, step);
-      }
-    }
-  } catch (e) {
-    exception = true;
-  }
-}
+function cb_set_2(num) {
+  print("element " + num);  // B3 B6 B9  B15 B18 B21 B27 B30 B33
+  return true;              // B4 B7 B10 B16 B19 B22 B28 B31 B34
+}                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
+
+function cb_map_2(k, v) {
+  print(`key ${k}, value ${v}`);  // B3 B6 B9  B15 B18 B21 B27 B30 B33
+  return true;                    // B4 B7 B10 B16 B19 B22 B28 B31 B34
+}                                 // B5 B8 B11 B17 B20 B23 B29 B32 B35
 
 function cb_set_foreach(num) {
-  s.forEach(cb_set);
-  print("back to the first level of recursion.");
-}
+  s.forEach(cb_set_2);      // B2  B14 B26
+  print("back.");           // B12 B24 B36
+}                           // B13 B25 B37
 
 function cb_map_foreach(key, val) {
-  m.forEach(cb_set);
-  print("back to the first level of recursion.");
-}
-
-Debug.setListener(second_level_listener);
+  m.forEach(cb_map_2);      // B2  B14 B26
+  print("back.");           // B12 B24 B36
+}                           // B13 B25 B37
 
 breaks = 0;
-debugger;
-s.forEach(cb_set_foreach);
-assertFalse(exception);
-assertEquals(17, breaks);
+Debug.setListener(listener);
+debugger;                   // B0
+s.forEach(cb_set_foreach);  // B1
+Debug.setListener(null);    // B38
+assertNull(exception);
+assertEquals(39, breaks);
 
 breaks = 0;
-debugger;
-m.forEach(cb_map_foreach);
-assertFalse(exception);
-assertEquals(17, breaks);
-
-Debug.setListener(null);
+Debug.setListener(listener);
+debugger;                   // B0
+m.forEach(cb_map_foreach);  // B1
+Debug.setListener(null);    // B38
+assertNull(exception);
+assertEquals(39, breaks);

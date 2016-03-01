@@ -29,12 +29,12 @@ class A { constructor() {} };
 class B extends A { constructor() { super() } };
 
 shouldNotThrow('new A');
-shouldThrow('A()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
+shouldThrow('A()', '"TypeError: Class constructor A cannot be invoked without \'new\'"');
 shouldNotThrow('new B');
-shouldThrow('B()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
+shouldThrow('B()', '"TypeError: Class constructor B cannot be invoked without \'new\'"');
 shouldNotThrow('new (class { constructor() {} })()');
-shouldThrow('(class { constructor() {} })()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
-shouldThrow('new (class extends null { constructor() { super() } })()', '"TypeError: function () {} is not a constructor"');
-shouldThrow('(class extends null { constructor() { super() } })()', '"TypeError: Class constructors cannot be invoked without \'new\'"');
+shouldThrow('(class { constructor() {} })()', '"TypeError: Class constructor  cannot be invoked without \'new\'"');
+shouldThrow('new (class extends null { constructor() { super() } })()', '"TypeError: super is not a constructor"');
+shouldThrow('(class extends null { constructor() { super() } })()', '"TypeError: Class constructor  cannot be invoked without \'new\'"');
 
 var successfullyParsed = true;

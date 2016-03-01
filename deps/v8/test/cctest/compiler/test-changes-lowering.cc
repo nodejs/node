@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <limits>
 
+#include "src/ast/scopes.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/control-builders.h"
 #include "src/compiler/js-graph.h"
@@ -18,9 +16,8 @@
 #include "src/compiler/verifier.h"
 #include "src/execution.h"
 #include "src/globals.h"
-#include "src/parser.h"
-#include "src/rewriter.h"
-#include "src/scopes.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/function-tester.h"
@@ -34,7 +31,7 @@ namespace compiler {
 template <typename ReturnType>
 class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
  public:
-  explicit ChangesLoweringTester(MachineType p0 = kMachNone)
+  explicit ChangesLoweringTester(MachineType p0 = MachineType::None())
       : GraphBuilderTester<ReturnType>(p0),
         javascript(this->zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
@@ -63,22 +60,22 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
 
   void StoreFloat64(Node* node, double* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    this->Store(kMachFloat64, ptr_node, node);
+    this->Store(MachineType::Float64(), ptr_node, node);
   }
 
   Node* LoadInt32(int32_t* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    return this->Load(kMachInt32, ptr_node);
+    return this->Load(MachineType::Int32(), ptr_node);
   }
 
   Node* LoadUint32(uint32_t* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    return this->Load(kMachUint32, ptr_node);
+    return this->Load(MachineType::Uint32(), ptr_node);
   }
 
   Node* LoadFloat64(double* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    return this->Load(kMachFloat64, ptr_node);
+    return this->Load(MachineType::Float64(), ptr_node);
   }
 
   void CheckNumber(double expected, Object* number) {
@@ -148,7 +145,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
 
 TEST(RunChangeTaggedToInt32) {
   // Build and lower a graph by hand.
-  ChangesLoweringTester<int32_t> t(kMachAnyTagged);
+  ChangesLoweringTester<int32_t> t(MachineType::AnyTagged());
   t.BuildAndLower(t.simplified()->ChangeTaggedToInt32());
 
     FOR_INT32_INPUTS(i) {
@@ -176,7 +173,7 @@ TEST(RunChangeTaggedToInt32) {
 
 TEST(RunChangeTaggedToUint32) {
   // Build and lower a graph by hand.
-  ChangesLoweringTester<uint32_t> t(kMachAnyTagged);
+  ChangesLoweringTester<uint32_t> t(MachineType::AnyTagged());
   t.BuildAndLower(t.simplified()->ChangeTaggedToUint32());
 
     FOR_UINT32_INPUTS(i) {
@@ -203,13 +200,13 @@ TEST(RunChangeTaggedToUint32) {
 
 
 TEST(RunChangeTaggedToFloat64) {
-  ChangesLoweringTester<int32_t> t(kMachAnyTagged);
+  ChangesLoweringTester<int32_t> t(MachineType::AnyTagged());
   double result;
 
-  t.BuildStoreAndLower(
-      t.simplified()->ChangeTaggedToFloat64(),
-      t.machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
-      &result);
+  t.BuildStoreAndLower(t.simplified()->ChangeTaggedToFloat64(),
+                       t.machine()->Store(StoreRepresentation(
+                           MachineRepresentation::kFloat64, kNoWriteBarrier)),
+                       &result);
 
   {
     FOR_INT32_INPUTS(i) {
@@ -254,7 +251,7 @@ TEST(RunChangeTaggedToFloat64) {
 
 
 TEST(RunChangeBoolToBit) {
-  ChangesLoweringTester<int32_t> t(kMachAnyTagged);
+  ChangesLoweringTester<int32_t> t(MachineType::AnyTagged());
   t.BuildAndLower(t.simplified()->ChangeBoolToBit());
 
   {
@@ -272,7 +269,7 @@ TEST(RunChangeBoolToBit) {
 
 
 TEST(RunChangeBitToBool) {
-  ChangesLoweringTester<Object*> t(kMachInt32);
+  ChangesLoweringTester<Object*> t(MachineType::Int32());
   t.BuildAndLower(t.simplified()->ChangeBitToBool());
 
   {

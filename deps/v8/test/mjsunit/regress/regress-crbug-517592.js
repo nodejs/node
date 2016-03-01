@@ -8,7 +8,7 @@ var source =
   "var foo = function foo() {\n" +
   "  return 1;\n" +
   "}\n" +
-  "//@ sourceURL=test";
+  "//# sourceURL=test";
 
 Debug = debug.Debug;
 Debug.setListener(listener);

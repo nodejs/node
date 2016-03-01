@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/compiler/gap-resolver.h"
 
 #include "src/base/utils/random-number-generator.h"
@@ -89,7 +86,7 @@ class InterpreterState {
       } else {
         index = LocationOperand::cast(op).index();
       }
-      is_float = IsFloatingPoint(LocationOperand::cast(op).machine_type());
+      is_float = IsFloatingPoint(LocationOperand::cast(op).representation());
       kind = LocationOperand::cast(op).location_kind();
     } else {
       index = ConstantOperand::cast(op).virtual_register();
@@ -181,24 +178,24 @@ class ParallelMoveCreator : public HandleAndZoneScope {
   }
 
  private:
-  MachineType RandomType() {
+  MachineRepresentation RandomRepresentation() {
     int index = rng_->NextInt(3);
     switch (index) {
       case 0:
-        return kRepWord32;
+        return MachineRepresentation::kWord32;
       case 1:
-        return kRepWord64;
+        return MachineRepresentation::kWord64;
       case 2:
-        return kRepTagged;
+        return MachineRepresentation::kTagged;
     }
     UNREACHABLE();
-    return kMachNone;
+    return MachineRepresentation::kNone;
   }
 
-  MachineType RandomDoubleType() {
+  MachineRepresentation RandomDoubleRepresentation() {
     int index = rng_->NextInt(2);
-    if (index == 0) return kRepFloat64;
-    return kRepFloat32;
+    if (index == 0) return MachineRepresentation::kFloat64;
+    return MachineRepresentation::kFloat32;
   }
 
   InstructionOperand CreateRandomOperand(bool is_source) {
@@ -206,24 +203,25 @@ class ParallelMoveCreator : public HandleAndZoneScope {
     // destination can't be Constant.
     switch (rng_->NextInt(is_source ? 7 : 6)) {
       case 0:
-        return AllocatedOperand(LocationOperand::STACK_SLOT, RandomType(),
-                                index);
+        return AllocatedOperand(LocationOperand::STACK_SLOT,
+                                RandomRepresentation(), index);
       case 1:
-        return AllocatedOperand(LocationOperand::STACK_SLOT, RandomDoubleType(),
-                                index);
+        return AllocatedOperand(LocationOperand::STACK_SLOT,
+                                RandomDoubleRepresentation(), index);
       case 2:
-        return AllocatedOperand(LocationOperand::REGISTER, RandomType(), index);
+        return AllocatedOperand(LocationOperand::REGISTER,
+                                RandomRepresentation(), index);
       case 3:
-        return AllocatedOperand(LocationOperand::REGISTER, RandomDoubleType(),
-                                index);
+        return AllocatedOperand(LocationOperand::REGISTER,
+                                RandomDoubleRepresentation(), index);
       case 4:
         return ExplicitOperand(
-            LocationOperand::REGISTER, RandomType(),
+            LocationOperand::REGISTER, RandomRepresentation(),
             RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
                 ->GetAllocatableGeneralCode(1));
       case 5:
         return ExplicitOperand(
-            LocationOperand::STACK_SLOT, RandomType(),
+            LocationOperand::STACK_SLOT, RandomRepresentation(),
             RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
                 ->GetAllocatableGeneralCode(index));
       case 6:

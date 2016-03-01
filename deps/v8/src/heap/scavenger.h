@@ -63,7 +63,7 @@ class ScavengeVisitor : public ObjectVisitor {
 class StaticScavengeVisitor
     : public StaticNewSpaceVisitor<StaticScavengeVisitor> {
  public:
-  static inline void VisitPointer(Heap* heap, Object** p);
+  static inline void VisitPointer(Heap* heap, HeapObject* object, Object** p);
 };
 
 }  // namespace internal

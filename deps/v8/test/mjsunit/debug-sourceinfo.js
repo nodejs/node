@@ -63,9 +63,9 @@ var comment_lines = 28;
 
 // This is the last position in the entire file (note: this equals
 // file size of <debug-sourceinfo.js> - 1, since starting at 0).
-var last_position = 11337;
+var last_position = 11519;
 // This is the last line of entire file (note: starting at 0).
-var last_line = 265;
+var last_line = 269;
 // This is the last column of last line (note: starting at 0 and +1, due
 // to trailing <LF>).
 var last_column = 1;
@@ -244,18 +244,22 @@ assertEquals(70 + start_c, Debug.findFunctionSourceLocation(c, 6, 0).position);
 assertEquals(0 + start_d, Debug.findFunctionSourceLocation(d, 0, 0).position);
 assertEquals(6 + start_d, Debug.findFunctionSourceLocation(d, 1, 0).position);
 for (i = 1; i <= num_lines_d; i++) {
-  assertEquals(6 + (i * line_length_d) + start_d, Debug.findFunctionSourceLocation(d, (i + 1), 0).position);
+  assertEquals(6 + (i * line_length_d) + start_d,
+               Debug.findFunctionSourceLocation(d, (i + 1), 0).position);
 }
 assertEquals(158 + start_d, Debug.findFunctionSourceLocation(d, 17, 0).position);
 
 // Make sure invalid inputs work properly.
 assertEquals(0, script.locationFromPosition(-1).line);
-assertEquals(null, script.locationFromPosition(last_position + 1));
+assertEquals(null, script.locationFromPosition(last_position + 2));
 
 // Test last position.
 assertEquals(last_position, script.locationFromPosition(last_position).position);
 assertEquals(last_line, script.locationFromPosition(last_position).line);
 assertEquals(last_column, script.locationFromPosition(last_position).column);
+assertEquals(last_line + 1,
+             script.locationFromPosition(last_position + 1).line);
+assertEquals(0, script.locationFromPosition(last_position + 1).column);
 
 // Test that script.sourceLine(line) works.
 var location;

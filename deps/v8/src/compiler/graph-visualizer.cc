@@ -41,7 +41,7 @@ FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
                '_');
 
   EmbeddedVector<char, 256> full_filename;
-  if (phase == NULL) {
+  if (phase == nullptr) {
     SNPrintF(full_filename, "%s.%s", filename.start(), suffix);
   } else {
     SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
@@ -50,9 +50,9 @@ FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
 }
 
 
-static int SafeId(Node* node) { return node == NULL ? -1 : node->id(); }
+static int SafeId(Node* node) { return node == nullptr ? -1 : node->id(); }
 static const char* SafeMnemonic(Node* node) {
-  return node == NULL ? "null" : node->op()->mnemonic();
+  return node == nullptr ? "null" : node->op()->mnemonic();
 }
 
 #define DEAD_COLOR "#999999"
@@ -158,7 +158,7 @@ class JSONGraphEdgeWriter {
   void PrintEdges(Node* node) {
     for (int i = 0; i < node->InputCount(); i++) {
       Node* input = node->InputAt(i);
-      if (input == NULL) continue;
+      if (input == nullptr) continue;
       PrintEdge(node, i, input);
     }
   }
@@ -169,7 +169,7 @@ class JSONGraphEdgeWriter {
     } else {
       os_ << ",\n";
     }
-    const char* edge_type = NULL;
+    const char* edge_type = nullptr;
     if (index < NodeProperties::FirstValueIndex(from)) {
       edge_type = "unknown";
     } else if (index < NodeProperties::FirstContextIndex(from)) {
@@ -203,190 +203,6 @@ std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
   os << "],\n\"edges\":[";
   JSONGraphEdgeWriter(os, &tmp_zone, &ad.graph).Print();
   os << "]}";
-  return os;
-}
-
-
-class GraphVisualizer {
- public:
-  GraphVisualizer(std::ostream& os, Zone* zone, const Graph* graph)
-      : all_(zone, graph), os_(os) {}
-
-  void Print();
-
-  void PrintNode(Node* node, bool gray);
-
- private:
-  void PrintEdge(Edge edge);
-
-  AllNodes all_;
-  std::ostream& os_;
-
-  DISALLOW_COPY_AND_ASSIGN(GraphVisualizer);
-};
-
-
-static Node* GetControlCluster(Node* node) {
-  if (OperatorProperties::IsBasicBlockBegin(node->op())) {
-    return node;
-  } else if (node->op()->ControlInputCount() == 1) {
-    Node* control = NodeProperties::GetControlInput(node, 0);
-    return control != NULL &&
-                   OperatorProperties::IsBasicBlockBegin(control->op())
-               ? control
-               : NULL;
-  } else {
-    return NULL;
-  }
-}
-
-
-void GraphVisualizer::PrintNode(Node* node, bool gray) {
-  Node* control_cluster = GetControlCluster(node);
-  if (control_cluster != NULL) {
-    os_ << "  subgraph cluster_BasicBlock" << control_cluster->id() << " {\n";
-  }
-  os_ << "  ID" << SafeId(node) << " [\n";
-
-  os_ << "    shape=\"record\"\n";
-  switch (node->opcode()) {
-    case IrOpcode::kEnd:
-    case IrOpcode::kDead:
-    case IrOpcode::kStart:
-      os_ << "    style=\"diagonals\"\n";
-      break;
-    case IrOpcode::kMerge:
-    case IrOpcode::kIfTrue:
-    case IrOpcode::kIfFalse:
-    case IrOpcode::kLoop:
-      os_ << "    style=\"rounded\"\n";
-      break;
-    default:
-      break;
-  }
-
-  if (gray) {
-    os_ << "    style=\"filled\"\n"
-        << "    fillcolor=\"" DEAD_COLOR "\"\n";
-  }
-
-  std::ostringstream label;
-  label << *node->op();
-  os_ << "    label=\"{{#" << SafeId(node) << ":" << Escaped(label);
-
-  auto i = node->input_edges().begin();
-  for (int j = node->op()->ValueInputCount(); j > 0; ++i, j--) {
-    os_ << "|<I" << (*i).index() << ">#" << SafeId((*i).to());
-  }
-  for (int j = OperatorProperties::GetContextInputCount(node->op()); j > 0;
-       ++i, j--) {
-    os_ << "|<I" << (*i).index() << ">X #" << SafeId((*i).to());
-  }
-  for (int j = OperatorProperties::GetFrameStateInputCount(node->op()); j > 0;
-       ++i, j--) {
-    os_ << "|<I" << (*i).index() << ">F #" << SafeId((*i).to());
-  }
-  for (int j = node->op()->EffectInputCount(); j > 0; ++i, j--) {
-    os_ << "|<I" << (*i).index() << ">E #" << SafeId((*i).to());
-  }
-
-  if (OperatorProperties::IsBasicBlockBegin(node->op()) ||
-      GetControlCluster(node) == NULL) {
-    for (int j = node->op()->ControlInputCount(); j > 0; ++i, j--) {
-      os_ << "|<I" << (*i).index() << ">C #" << SafeId((*i).to());
-    }
-  }
-  os_ << "}";
-
-  if (FLAG_trace_turbo_types && NodeProperties::IsTyped(node)) {
-    Type* type = NodeProperties::GetType(node);
-    std::ostringstream type_out;
-    type->PrintTo(type_out);
-    os_ << "|" << Escaped(type_out);
-  }
-  os_ << "}\"\n";
-
-  os_ << "  ]\n";
-  if (control_cluster != NULL) os_ << "  }\n";
-}
-
-
-static bool IsLikelyBackEdge(Node* from, int index, Node* to) {
-  if (NodeProperties::IsPhi(from)) {
-    Node* control = NodeProperties::GetControlInput(from, 0);
-    return control != NULL && control->opcode() != IrOpcode::kMerge &&
-           control != to && index != 0;
-  } else if (from->opcode() == IrOpcode::kLoop) {
-    return index != 0;
-  } else {
-    return false;
-  }
-}
-
-
-void GraphVisualizer::PrintEdge(Edge edge) {
-  Node* from = edge.from();
-  int index = edge.index();
-  Node* to = edge.to();
-
-  if (!all_.IsLive(to)) return;  // skip inputs that point to dead or NULL.
-
-  bool unconstrained = IsLikelyBackEdge(from, index, to);
-  os_ << "  ID" << SafeId(from);
-
-  if (OperatorProperties::IsBasicBlockBegin(from->op()) ||
-      GetControlCluster(from) == NULL ||
-      (from->op()->ControlInputCount() > 0 &&
-       NodeProperties::GetControlInput(from) != to)) {
-    os_ << ":I" << index << ":n -> ID" << SafeId(to) << ":s"
-        << "[" << (unconstrained ? "constraint=false, " : "")
-        << (NodeProperties::IsControlEdge(edge) ? "style=bold, " : "")
-        << (NodeProperties::IsEffectEdge(edge) ? "style=dotted, " : "")
-        << (NodeProperties::IsContextEdge(edge) ? "style=dashed, " : "") << "]";
-  } else {
-    os_ << " -> ID" << SafeId(to) << ":s [color=transparent, "
-        << (unconstrained ? "constraint=false, " : "")
-        << (NodeProperties::IsControlEdge(edge) ? "style=dashed, " : "") << "]";
-  }
-  os_ << "\n";
-}
-
-
-void GraphVisualizer::Print() {
-  os_ << "digraph D {\n"
-      << "  node [fontsize=8,height=0.25]\n"
-      << "  rankdir=\"BT\"\n"
-      << "  ranksep=\"1.2 equally\"\n"
-      << "  overlap=\"false\"\n"
-      << "  splines=\"true\"\n"
-      << "  concentrate=\"true\"\n"
-      << "  \n";
-
-  // Find all nodes that are not reachable from end that use live nodes.
-  std::set<Node*> gray;
-  for (Node* const node : all_.live) {
-    for (Node* const use : node->uses()) {
-      if (!all_.IsLive(use)) gray.insert(use);
-    }
-  }
-
-  // Make sure all nodes have been output before writing out the edges.
-  for (Node* const node : all_.live) PrintNode(node, false);
-  for (Node* const node : gray) PrintNode(node, true);
-
-  // With all the nodes written, add the edges.
-  for (Node* const node : all_.live) {
-    for (Edge edge : node->use_edges()) {
-      PrintEdge(edge);
-    }
-  }
-  os_ << "}\n";
-}
-
-
-std::ostream& operator<<(std::ostream& os, const AsDOT& ad) {
-  Zone tmp_zone;
-  GraphVisualizer(os, &tmp_zone, &ad.graph).Print();
   return os;
 }
 
@@ -581,7 +397,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
     PrintIndent();
     os_ << "flags\n";
 
-    if (current->dominator() != NULL) {
+    if (current->dominator() != nullptr) {
       PrintBlockProperty("dominator", current->dominator()->rpo_number());
     }
 
@@ -639,7 +455,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
           os_ << " ";
           PrintType(node);
         }
-        if (positions != NULL) {
+        if (positions != nullptr) {
           SourcePosition position = positions->GetSourcePosition(node);
           if (position.IsKnown()) {
             os_ << " pos:" << position.raw();
@@ -652,7 +468,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       if (control != BasicBlock::kNone) {
         PrintIndent();
         os_ << "0 0 ";
-        if (current->control_input() != NULL) {
+        if (current->control_input() != nullptr) {
           PrintNode(current->control_input());
         } else {
           os_ << -1 - current->rpo_number() << " Goto";
@@ -661,7 +477,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
         for (BasicBlock* successor : current->successors()) {
           os_ << " B" << successor->rpo_number();
         }
-        if (FLAG_trace_turbo_types && current->control_input() != NULL) {
+        if (FLAG_trace_turbo_types && current->control_input() != nullptr) {
           os_ << " ";
           PrintType(current->control_input());
         }
@@ -669,7 +485,7 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       }
     }
 
-    if (instructions != NULL) {
+    if (instructions != nullptr) {
       Tag LIR_tag(this, "LIR");
       for (int j = instruction_block->first_instruction_index();
            j <= instruction_block->last_instruction_index(); j++) {
@@ -715,7 +531,7 @@ void GraphC1Visualizer::PrintLiveRangeChain(TopLevelLiveRange* range,
 
 void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
                                        int vreg) {
-  if (range != NULL && !range->IsEmpty()) {
+  if (range != nullptr && !range->IsEmpty()) {
     PrintIndent();
     os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
@@ -755,7 +571,7 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
     }
 
     UsePosition* current_pos = range->first_pos();
-    while (current_pos != NULL) {
+    while (current_pos != nullptr) {
       if (current_pos->RegisterIsBeneficial() || FLAG_trace_all_uses) {
         os_ << " " << current_pos->pos().value() << " M";
       }

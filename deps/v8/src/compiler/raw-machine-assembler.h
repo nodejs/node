@@ -19,7 +19,9 @@ namespace internal {
 namespace compiler {
 
 class BasicBlock;
+class RawMachineLabel;
 class Schedule;
+
 
 // The RawMachineAssembler produces a low-level IR graph. All nodes are wired
 // into a graph and also placed into a schedule immediately, hence subsequent
@@ -34,37 +36,19 @@ class Schedule;
 // non-schedulable due to missing control and effect dependencies.
 class RawMachineAssembler {
  public:
-  class Label {
-   public:
-    Label() : block_(NULL), used_(false), bound_(false) {}
-    ~Label() { DCHECK(bound_ || !used_); }
-
-   private:
-    BasicBlock* block_;
-    bool used_;
-    bool bound_;
-    friend class RawMachineAssembler;
-    DISALLOW_COPY_AND_ASSIGN(Label);
-  };
-
-  RawMachineAssembler(Isolate* isolate, Graph* graph,
-                      CallDescriptor* call_descriptor,
-                      MachineType word = kMachPtr,
-                      MachineOperatorBuilder::Flags flags =
-                          MachineOperatorBuilder::Flag::kNoFlags);
+  RawMachineAssembler(
+      Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
+      MachineRepresentation word = MachineType::PointerRepresentation(),
+      MachineOperatorBuilder::Flags flags =
+          MachineOperatorBuilder::Flag::kNoFlags);
   ~RawMachineAssembler() {}
 
   Isolate* isolate() const { return isolate_; }
   Graph* graph() const { return graph_; }
-  Schedule* schedule() { return schedule_; }
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
   CallDescriptor* call_descriptor() const { return call_descriptor_; }
-  size_t parameter_count() const { return machine_sig()->parameter_count(); }
-  const MachineSignature* machine_sig() const {
-    return call_descriptor_->GetMachineSignature();
-  }
 
   // Finalizes the schedule and exports it to be used for code generation. Note
   // that this RawMachineAssembler becomes invalid after export.
@@ -127,17 +111,16 @@ class RawMachineAssembler {
     return Load(rep, base, IntPtrConstant(0));
   }
   Node* Load(MachineType rep, Node* base, Node* index) {
-    return AddNode(machine()->Load(rep), base, index, graph()->start(),
-                   graph()->start());
+    return AddNode(machine()->Load(rep), base, index);
   }
-  Node* Store(MachineType rep, Node* base, Node* value,
+  Node* Store(MachineRepresentation rep, Node* base, Node* value,
               WriteBarrierKind write_barrier) {
     return Store(rep, base, IntPtrConstant(0), value, write_barrier);
   }
-  Node* Store(MachineType rep, Node* base, Node* index, Node* value,
+  Node* Store(MachineRepresentation rep, Node* base, Node* index, Node* value,
               WriteBarrierKind write_barrier) {
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
-                   base, index, value, graph()->start(), graph()->start());
+                   base, index, value);
   }
 
   // Arithmetic Operations.
@@ -262,10 +245,10 @@ class RawMachineAssembler {
     return AddNode(machine()->Int32MulHigh(), a, b);
   }
   Node* Int32Div(Node* a, Node* b) {
-    return AddNode(machine()->Int32Div(), a, b, graph()->start());
+    return AddNode(machine()->Int32Div(), a, b);
   }
   Node* Int32Mod(Node* a, Node* b) {
-    return AddNode(machine()->Int32Mod(), a, b, graph()->start());
+    return AddNode(machine()->Int32Mod(), a, b);
   }
   Node* Int32LessThan(Node* a, Node* b) {
     return AddNode(machine()->Int32LessThan(), a, b);
@@ -274,7 +257,7 @@ class RawMachineAssembler {
     return AddNode(machine()->Int32LessThanOrEqual(), a, b);
   }
   Node* Uint32Div(Node* a, Node* b) {
-    return AddNode(machine()->Uint32Div(), a, b, graph()->start());
+    return AddNode(machine()->Uint32Div(), a, b);
   }
   Node* Uint32LessThan(Node* a, Node* b) {
     return AddNode(machine()->Uint32LessThan(), a, b);
@@ -283,7 +266,7 @@ class RawMachineAssembler {
     return AddNode(machine()->Uint32LessThanOrEqual(), a, b);
   }
   Node* Uint32Mod(Node* a, Node* b) {
-    return AddNode(machine()->Uint32Mod(), a, b, graph()->start());
+    return AddNode(machine()->Uint32Mod(), a, b);
   }
   Node* Uint32MulHigh(Node* a, Node* b) {
     return AddNode(machine()->Uint32MulHigh(), a, b);
@@ -297,8 +280,14 @@ class RawMachineAssembler {
   Node* Int64Add(Node* a, Node* b) {
     return AddNode(machine()->Int64Add(), a, b);
   }
+  Node* Int64AddWithOverflow(Node* a, Node* b) {
+    return AddNode(machine()->Int64AddWithOverflow(), a, b);
+  }
   Node* Int64Sub(Node* a, Node* b) {
     return AddNode(machine()->Int64Sub(), a, b);
+  }
+  Node* Int64SubWithOverflow(Node* a, Node* b) {
+    return AddNode(machine()->Int64SubWithOverflow(), a, b);
   }
   Node* Int64Mul(Node* a, Node* b) {
     return AddNode(machine()->Int64Mul(), a, b);
@@ -443,6 +432,38 @@ class RawMachineAssembler {
   Node* ChangeFloat64ToUint32(Node* a) {
     return AddNode(machine()->ChangeFloat64ToUint32(), a);
   }
+  Node* TruncateFloat32ToInt64(Node* a) {
+    // TODO(ahaas): Remove this function as soon as it is not used anymore in
+    // WebAssembly.
+    return AddNode(machine()->TryTruncateFloat32ToInt64(), a);
+  }
+  Node* TryTruncateFloat32ToInt64(Node* a) {
+    return AddNode(machine()->TryTruncateFloat32ToInt64(), a);
+  }
+  Node* TruncateFloat64ToInt64(Node* a) {
+    // TODO(ahaas): Remove this function as soon as it is not used anymore in
+    // WebAssembly.
+    return AddNode(machine()->TryTruncateFloat64ToInt64(), a);
+  }
+  Node* TryTruncateFloat64ToInt64(Node* a) {
+    return AddNode(machine()->TryTruncateFloat64ToInt64(), a);
+  }
+  Node* TruncateFloat32ToUint64(Node* a) {
+    // TODO(ahaas): Remove this function as soon as it is not used anymore in
+    // WebAssembly.
+    return AddNode(machine()->TryTruncateFloat32ToUint64(), a);
+  }
+  Node* TryTruncateFloat32ToUint64(Node* a) {
+    return AddNode(machine()->TryTruncateFloat32ToUint64(), a);
+  }
+  Node* TruncateFloat64ToUint64(Node* a) {
+    // TODO(ahaas): Remove this function as soon as it is not used anymore in
+    // WebAssembly.
+    return AddNode(machine()->TryTruncateFloat64ToUint64(), a);
+  }
+  Node* TryTruncateFloat64ToUint64(Node* a) {
+    return AddNode(machine()->TryTruncateFloat64ToUint64(), a);
+  }
   Node* ChangeInt32ToInt64(Node* a) {
     return AddNode(machine()->ChangeInt32ToInt64(), a);
   }
@@ -464,6 +485,12 @@ class RawMachineAssembler {
   Node* RoundInt64ToFloat64(Node* a) {
     return AddNode(machine()->RoundInt64ToFloat64(), a);
   }
+  Node* RoundUint64ToFloat32(Node* a) {
+    return AddNode(machine()->RoundUint64ToFloat32(), a);
+  }
+  Node* RoundUint64ToFloat64(Node* a) {
+    return AddNode(machine()->RoundUint64ToFloat64(), a);
+  }
   Node* BitcastFloat32ToInt32(Node* a) {
     return AddNode(machine()->BitcastFloat32ToInt32(), a);
   }
@@ -476,14 +503,32 @@ class RawMachineAssembler {
   Node* BitcastInt64ToFloat64(Node* a) {
     return AddNode(machine()->BitcastInt64ToFloat64(), a);
   }
+  Node* Float32RoundDown(Node* a) {
+    return AddNode(machine()->Float32RoundDown().op(), a);
+  }
   Node* Float64RoundDown(Node* a) {
     return AddNode(machine()->Float64RoundDown().op(), a);
+  }
+  Node* Float32RoundUp(Node* a) {
+    return AddNode(machine()->Float32RoundUp().op(), a);
+  }
+  Node* Float64RoundUp(Node* a) {
+    return AddNode(machine()->Float64RoundUp().op(), a);
+  }
+  Node* Float32RoundTruncate(Node* a) {
+    return AddNode(machine()->Float32RoundTruncate().op(), a);
   }
   Node* Float64RoundTruncate(Node* a) {
     return AddNode(machine()->Float64RoundTruncate().op(), a);
   }
   Node* Float64RoundTiesAway(Node* a) {
     return AddNode(machine()->Float64RoundTiesAway().op(), a);
+  }
+  Node* Float32RoundTiesEven(Node* a) {
+    return AddNode(machine()->Float32RoundTiesEven().op(), a);
+  }
+  Node* Float64RoundTiesEven(Node* a) {
+    return AddNode(machine()->Float64RoundTiesEven().op(), a);
   }
 
   // Float64 bit operations.
@@ -511,7 +556,7 @@ class RawMachineAssembler {
   Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
     return Load(rep, PointerConstant(address), Int32Constant(offset));
   }
-  Node* StoreToPointer(void* address, MachineType rep, Node* node) {
+  Node* StoreToPointer(void* address, MachineRepresentation rep, Node* node) {
     return Store(rep, PointerConstant(address), node, kNoWriteBarrier);
   }
   Node* StringConstant(const char* string) {
@@ -523,8 +568,6 @@ class RawMachineAssembler {
   // Call a given call descriptor and the given arguments and frame-state.
   Node* CallNWithFrameState(CallDescriptor* desc, Node* function, Node** args,
                             Node* frame_state);
-  // Tail call the given call descriptor and the given arguments.
-  Node* TailCallN(CallDescriptor* call_descriptor, Node* function, Node** args);
   // Call to a runtime function with one arguments.
   Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context);
   // Call to a runtime function with two arguments.
@@ -551,30 +594,41 @@ class RawMachineAssembler {
                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                        Node* arg5, Node* arg6, Node* arg7);
 
+  // Tail call the given call descriptor and the given arguments.
+  Node* TailCallN(CallDescriptor* call_descriptor, Node* function, Node** args);
+  // Tail call to a runtime function with one argument.
+  Node* TailCallRuntime1(Runtime::FunctionId function, Node* arg0,
+                         Node* context);
+  // Tail call to a runtime function with two arguments.
+  Node* TailCallRuntime2(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                         Node* context);
+
+
   // ===========================================================================
   // The following utility methods deal with control flow, hence might switch
   // the current basic block or create new basic blocks for labels.
 
   // Control flow.
-  void Goto(Label* label);
-  void Branch(Node* condition, Label* true_val, Label* false_val);
-  void Switch(Node* index, Label* default_label, int32_t* case_values,
-              Label** case_labels, size_t case_count);
+  void Goto(RawMachineLabel* label);
+  void Branch(Node* condition, RawMachineLabel* true_val,
+              RawMachineLabel* false_val);
+  void Switch(Node* index, RawMachineLabel* default_label, int32_t* case_values,
+              RawMachineLabel** case_labels, size_t case_count);
   void Return(Node* value);
   void Return(Node* v1, Node* v2);
   void Return(Node* v1, Node* v2, Node* v3);
-  void Bind(Label* label);
+  void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
 
   // Variables.
-  Node* Phi(MachineType type, Node* n1, Node* n2) {
-    return AddNode(common()->Phi(type, 2), n1, n2);
+  Node* Phi(MachineRepresentation rep, Node* n1, Node* n2) {
+    return AddNode(common()->Phi(rep, 2), n1, n2);
   }
-  Node* Phi(MachineType type, Node* n1, Node* n2, Node* n3) {
-    return AddNode(common()->Phi(type, 3), n1, n2, n3);
+  Node* Phi(MachineRepresentation rep, Node* n1, Node* n2, Node* n3) {
+    return AddNode(common()->Phi(rep, 3), n1, n2, n3);
   }
-  Node* Phi(MachineType type, Node* n1, Node* n2, Node* n3, Node* n4) {
-    return AddNode(common()->Phi(type, 4), n1, n2, n3, n4);
+  Node* Phi(MachineRepresentation rep, Node* n1, Node* n2, Node* n3, Node* n4) {
+    return AddNode(common()->Phi(rep, 4), n1, n2, n3, n4);
   }
 
   // ===========================================================================
@@ -596,9 +650,15 @@ class RawMachineAssembler {
 
  private:
   Node* MakeNode(const Operator* op, int input_count, Node** inputs);
-  BasicBlock* Use(Label* label);
-  BasicBlock* EnsureBlock(Label* label);
+  BasicBlock* Use(RawMachineLabel* label);
+  BasicBlock* EnsureBlock(RawMachineLabel* label);
   BasicBlock* CurrentBlock();
+
+  Schedule* schedule() { return schedule_; }
+  size_t parameter_count() const { return machine_sig()->parameter_count(); }
+  const MachineSignature* machine_sig() const {
+    return call_descriptor_->GetMachineSignature();
+  }
 
   Isolate* isolate_;
   Graph* graph_;
@@ -610,6 +670,20 @@ class RawMachineAssembler {
   BasicBlock* current_block_;
 
   DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);
+};
+
+
+class RawMachineLabel final {
+ public:
+  RawMachineLabel();
+  ~RawMachineLabel();
+
+ private:
+  BasicBlock* block_;
+  bool used_;
+  bool bound_;
+  friend class RawMachineAssembler;
+  DISALLOW_COPY_AND_ASSIGN(RawMachineLabel);
 };
 
 }  // namespace compiler

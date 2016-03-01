@@ -50,6 +50,8 @@ class HeapGraphEdge BASE_EMBEDDED {
   INLINE(HeapEntry* from() const);
   HeapEntry* to() const { return to_entry_; }
 
+  INLINE(Isolate* isolate() const);
+
  private:
   INLINE(HeapSnapshot* snapshot() const);
   int from_index() const { return FromIndexField::decode(bit_field_); }
@@ -115,6 +117,7 @@ class HeapEntry BASE_EMBEDDED {
   }
   Vector<HeapGraphEdge*> children() {
     return Vector<HeapGraphEdge*>(children_arr(), children_count_); }
+  INLINE(Isolate* isolate() const);
 
   void SetIndexedReference(
       HeapGraphEdge::Type type, int index, HeapEntry* entry);
@@ -351,6 +354,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   typedef bool (V8HeapExplorer::*ExtractReferencesMethod)(int entry,
                                                           HeapObject* object);
 
+  void MarkVisitedField(HeapObject* obj, int offset);
+
   HeapEntry* AddEntry(HeapObject* object);
   HeapEntry* AddEntry(HeapObject* object,
                       HeapEntry::Type type,
@@ -385,7 +390,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
   void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
   void ExtractFixedArrayReferences(int entry, FixedArray* array);
-  void ExtractClosureReferences(JSObject* js_obj, int entry);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
   void ExtractAccessorPairProperty(JSObject* js_obj, int entry, Name* key,
                                    Object* callback_obj, int field_offset = -1);
@@ -464,6 +468,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsSet user_roots_;
   HeapObjectsSet weak_containers_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
+
+  std::vector<bool> marks_;
 
   friend class IndexedReferencesExtractor;
   friend class RootsReferencesExtractor;

@@ -26,7 +26,8 @@ class JSBuiltinReducerTest : public TypedGraphTest {
  protected:
   Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =
                                    MachineOperatorBuilder::Flag::kNoFlags) {
-    MachineOperatorBuilder machine(zone(), kMachPtr, flags);
+    MachineOperatorBuilder machine(zone(), MachineType::PointerRepresentation(),
+                                   flags);
     SimplifiedOperatorBuilder simplified(zone());
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
                     &machine);
@@ -142,7 +143,8 @@ TEST_F(JSBuiltinReducerTest, MathMax2) {
 
         ASSERT_TRUE(r.Changed());
         EXPECT_THAT(r.replacement(),
-                    IsSelect(kMachNone, IsNumberLessThan(p1, p0), p0, p1));
+                    IsSelect(MachineRepresentation::kNone,
+                             IsNumberLessThan(p1, p0), p0, p1));
       }
     }
   }

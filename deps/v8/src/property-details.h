@@ -9,21 +9,21 @@
 #include "src/allocation.h"
 #include "src/utils.h"
 
-// Ecma-262 3rd 8.6.1
+namespace v8 {
+namespace internal {
+
+// ES6 6.1.7.1
 enum PropertyAttributes {
-  NONE = v8::None,
-  READ_ONLY = v8::ReadOnly,
-  DONT_ENUM = v8::DontEnum,
-  DONT_DELETE = v8::DontDelete,
+  NONE = ::v8::None,
+  READ_ONLY = ::v8::ReadOnly,
+  DONT_ENUM = ::v8::DontEnum,
+  DONT_DELETE = ::v8::DontDelete,
+
+  ALL_ATTRIBUTES_MASK = READ_ONLY | DONT_ENUM | DONT_DELETE,
 
   SEALED = DONT_DELETE,
   FROZEN = SEALED | READ_ONLY,
 
-  STRING = 8,  // Used to filter symbols and string names
-  SYMBOLIC = 16,
-  PRIVATE_SYMBOL = 32,
-
-  DONT_SHOW = DONT_ENUM | SYMBOLIC | PRIVATE_SYMBOL,
   ABSENT = 64,  // Used in runtime to indicate a property is absent.
   // ABSENT can never be stored in or returned from a descriptor's attributes
   // bitfield.  It is only used as a return value meaning the attributes of
@@ -36,8 +36,24 @@ enum PropertyAttributes {
 };
 
 
-namespace v8 {
-namespace internal {
+enum PropertyFilter {
+  ALL_PROPERTIES = 0,
+  ONLY_WRITABLE = 1,
+  ONLY_ENUMERABLE = 2,
+  ONLY_CONFIGURABLE = 4,
+  SKIP_STRINGS = 8,
+  SKIP_SYMBOLS = 16,
+  ONLY_ALL_CAN_READ = 32,
+  ENUMERABLE_STRINGS = ONLY_ENUMERABLE | SKIP_SYMBOLS,
+};
+// Enable fast comparisons of PropertyAttributes against PropertyFilters.
+STATIC_ASSERT(ALL_PROPERTIES == static_cast<PropertyFilter>(NONE));
+STATIC_ASSERT(ONLY_WRITABLE == static_cast<PropertyFilter>(READ_ONLY));
+STATIC_ASSERT(ONLY_ENUMERABLE == static_cast<PropertyFilter>(DONT_ENUM));
+STATIC_ASSERT(ONLY_CONFIGURABLE == static_cast<PropertyFilter>(DONT_DELETE));
+STATIC_ASSERT(((SKIP_STRINGS | SKIP_SYMBOLS | ONLY_ALL_CAN_READ) &
+               ALL_ATTRIBUTES_MASK) == 0);
+
 
 class Smi;
 template<class> class TypeImpl;

@@ -4,7 +4,7 @@
 
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {
@@ -22,7 +22,7 @@ LoopAssignmentAnalysis* ALAA::Analyze() {
   LoopAssignmentAnalysis* a = new (zone_) LoopAssignmentAnalysis(zone_);
   result_ = a;
   VisitStatements(info()->literal()->body());
-  result_ = NULL;
+  result_ = nullptr;
   return a;
 }
 
@@ -126,6 +126,7 @@ void ALAA::VisitClassLiteral(ClassLiteral* e) {
   VisitIfNotNull(e->constructor());
   ZoneList<ObjectLiteralProperty*>* properties = e->properties();
   for (int i = 0; i < properties->length(); i++) {
+    Visit(properties->at(i)->key());
     Visit(properties->at(i)->value());
   }
 }
@@ -141,6 +142,7 @@ void ALAA::VisitConditional(Conditional* e) {
 void ALAA::VisitObjectLiteral(ObjectLiteral* e) {
   ZoneList<ObjectLiteralProperty*>* properties = e->properties();
   for (int i = 0; i < properties->length(); i++) {
+    Visit(properties->at(i)->key());
     Visit(properties->at(i)->value());
   }
 }
@@ -283,6 +285,12 @@ void ALAA::VisitCountOperation(CountOperation* e) {
   Expression* l = e->expression();
   Visit(l);
   if (l->IsVariableProxy()) AnalyzeAssignment(l->AsVariableProxy()->var());
+}
+
+
+void ALAA::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* expr) {
+  Visit(expr->expression());
 }
 
 

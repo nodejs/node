@@ -25,11 +25,14 @@ namespace compiler {
   V(MipsModU)                      \
   V(MipsAnd)                       \
   V(MipsOr)                        \
+  V(MipsNor)                       \
   V(MipsXor)                       \
   V(MipsClz)                       \
   V(MipsShl)                       \
   V(MipsShr)                       \
   V(MipsSar)                       \
+  V(MipsExt)                       \
+  V(MipsIns)                       \
   V(MipsRor)                       \
   V(MipsMov)                       \
   V(MipsTst)                       \
@@ -54,15 +57,28 @@ namespace compiler {
   V(MipsSqrtD)                     \
   V(MipsMaxD)                      \
   V(MipsMinD)                      \
+  V(MipsFloat32RoundDown)          \
+  V(MipsFloat32RoundTruncate)      \
+  V(MipsFloat32RoundUp)            \
+  V(MipsFloat32RoundTiesEven)      \
   V(MipsFloat64RoundDown)          \
   V(MipsFloat64RoundTruncate)      \
   V(MipsFloat64RoundUp)            \
+  V(MipsFloat64RoundTiesEven)      \
   V(MipsCvtSD)                     \
   V(MipsCvtDS)                     \
   V(MipsTruncWD)                   \
+  V(MipsRoundWD)                   \
+  V(MipsFloorWD)                   \
+  V(MipsCeilWD)                    \
+  V(MipsTruncWS)                   \
+  V(MipsRoundWS)                   \
+  V(MipsFloorWS)                   \
+  V(MipsCeilWS)                    \
   V(MipsTruncUwD)                  \
   V(MipsCvtDW)                     \
   V(MipsCvtDUw)                    \
+  V(MipsCvtSW)                     \
   V(MipsLb)                        \
   V(MipsLbu)                       \
   V(MipsSb)                        \

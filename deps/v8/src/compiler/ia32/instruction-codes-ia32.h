@@ -43,6 +43,7 @@ namespace compiler {
   V(SSEFloat32Abs)                 \
   V(SSEFloat32Neg)                 \
   V(SSEFloat32Sqrt)                \
+  V(SSEFloat32Round)               \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \
@@ -95,6 +96,8 @@ namespace compiler {
   V(IA32BitcastIF)                 \
   V(IA32Lea)                       \
   V(IA32Push)                      \
+  V(IA32PushFloat32)               \
+  V(IA32PushFloat64)               \
   V(IA32Poke)                      \
   V(IA32StackCheck)
 

@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 var loop_count = 5
 
 
@@ -117,3 +116,23 @@ for (var i = 0; i < loop_count; i++) {
 
 assertThrows('new Array(3.14)');
 assertThrows('Array(2.72)');
+
+// Make sure that throws occur in the context of the Array function.
+var b = Realm.create();
+var bArray = Realm.eval(b, "Array");
+var bError = Realm.eval(b, "RangeError");
+
+function verifier(array, error) {
+  try {
+    new array(3.14);
+  } catch(e) {
+    return e.__proto__ === error.__proto__;
+  }
+  assertTrue(false);  // should never get here.
+}
+
+
+assertTrue(verifier(Array, RangeError()));
+assertTrue(verifier(bArray, bError()));
+assertFalse(verifier(Array, bError()));
+assertFalse(verifier(bArray, RangeError()));

@@ -40,27 +40,12 @@ void SnapshotByteSink::PutRaw(const byte* data, int number_of_bytes,
 }
 
 
-bool SnapshotByteSource::AtEOF() {
-  if (0u + length_ - position_ > 2 * sizeof(uint32_t)) return false;
-  for (int x = position_; x < length_; x++) {
-    if (data_[x] != SerializerDeserializer::nop()) return false;
-  }
-  return true;
-}
-
-
-bool SnapshotByteSource::GetBlob(const byte** data, int* number_of_bytes) {
+int SnapshotByteSource::GetBlob(const byte** data) {
   int size = GetInt();
-  *number_of_bytes = size;
-
-  if (position_ + size <= length_) {
-    *data = &data_[position_];
-    Advance(size);
-    return true;
-  } else {
-    Advance(length_ - position_);  // proceed until end.
-    return false;
-  }
+  CHECK(position_ + size <= length_);
+  *data = &data_[position_];
+  Advance(size);
+  return size;
 }
 }  // namespace internal
 }  // namespace v8

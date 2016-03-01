@@ -112,6 +112,7 @@ class TranslatedFrame {
  public:
   enum Kind {
     kFunction,
+    kInterpretedFunction,
     kGetter,
     kSetter,
     kArgumentsAdaptor,
@@ -172,6 +173,9 @@ class TranslatedFrame {
   // Constructor static methods.
   static TranslatedFrame JSFrame(BailoutId node_id,
                                  SharedFunctionInfo* shared_info, int height);
+  static TranslatedFrame InterpretedFrame(BailoutId bytecode_offset,
+                                          SharedFunctionInfo* shared_info,
+                                          int height);
   static TranslatedFrame AccessorFrame(Kind kind,
                                        SharedFunctionInfo* shared_info);
   static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
@@ -307,6 +311,7 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
 
 
 #define DEOPT_MESSAGES_LIST(V)                                                 \
+  V(kAccessCheck, "Access check needed")                                       \
   V(kNoReason, "no reason")                                                    \
   V(kConstantGlobalVariableAssignment, "Constant global variable assignment")  \
   V(kConversionOverflow, "conversion overflow")                                \
@@ -335,6 +340,7 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kInsufficientTypeFeedbackForRHSOfBinaryOperation,                          \
     "Insufficient type feedback for RHS of binary operation")                  \
   V(kKeyIsNegative, "key is negative")                                         \
+  V(kLiteralsWereDisposed, "literals have been disposed")                      \
   V(kLostPrecision, "lost precision")                                          \
   V(kLostPrecisionOrNaN, "lost precision or NaN")                              \
   V(kMementoFound, "memento found")                                            \
@@ -355,6 +361,7 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kOutOfBounds, "out of bounds")                                             \
   V(kOutsideOfRange, "Outside of range")                                       \
   V(kOverflow, "overflow")                                                     \
+  V(kProxy, "proxy")                                                           \
   V(kReceiverWasAGlobalObject, "receiver was a global object")                 \
   V(kSmi, "Smi")                                                               \
   V(kTooManyArguments, "too many arguments")                                   \
@@ -586,6 +593,7 @@ class Deoptimizer : public Malloced {
 
   void DoComputeOutputFrames();
   void DoComputeJSFrame(int frame_index);
+  void DoComputeInterpretedFrame(int frame_index);
   void DoComputeArgumentsAdaptorFrame(int frame_index);
   void DoComputeConstructStubFrame(int frame_index);
   void DoComputeAccessorStubFrame(int frame_index, bool is_setter_stub_frame);
@@ -603,7 +611,8 @@ class Deoptimizer : public Malloced {
                             const char* debug_hint_string);
 
   unsigned ComputeInputFrameSize() const;
-  unsigned ComputeFixedSize(JSFunction* function) const;
+  unsigned ComputeJavascriptFixedSize(JSFunction* function) const;
+  unsigned ComputeInterpretedFixedSize(JSFunction* function) const;
 
   unsigned ComputeIncomingArgumentSize(JSFunction* function) const;
   static unsigned ComputeOutgoingArgumentSize(Code* code, unsigned bailout_id);
@@ -736,12 +745,9 @@ class FrameDescription {
     return malloc(size + frame_size - kPointerSize);
   }
 
-// Bug in VS2015 RC, reported fixed in RTM. Microsoft bug: 1153909.
-#if !defined(_MSC_FULL_VER) || _MSC_FULL_VER != 190022816
   void operator delete(void* pointer, uint32_t frame_size) {
     free(pointer);
   }
-#endif  // _MSC_FULL_VER
 
   void operator delete(void* description) {
     free(description);
@@ -951,6 +957,7 @@ class TranslationIterator BASE_EMBEDDED {
 #define TRANSLATION_OPCODE_LIST(V) \
   V(BEGIN)                         \
   V(JS_FRAME)                      \
+  V(INTERPRETED_FRAME)             \
   V(CONSTRUCT_STUB_FRAME)          \
   V(GETTER_STUB_FRAME)             \
   V(SETTER_STUB_FRAME)             \
@@ -996,6 +1003,8 @@ class Translation BASE_EMBEDDED {
 
   // Commands.
   void BeginJSFrame(BailoutId node_id, int literal_id, unsigned height);
+  void BeginInterpretedFrame(BailoutId bytecode_offset, int literal_id,
+                             unsigned height);
   void BeginCompiledStubFrame(int height);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
   void BeginConstructStubFrame(int literal_id, unsigned height);

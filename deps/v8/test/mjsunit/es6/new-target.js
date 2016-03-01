@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-reflect --harmony-destructuring --harmony-rest-parameters
+// Flags: --harmony-reflect --harmony-destructuring-bind
 
 
 (function TestClass() {

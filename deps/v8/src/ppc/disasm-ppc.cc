@@ -889,6 +889,10 @@ void Decoder::DecodeExt3(Instruction* instr) {
       Format(instr, "fcfids'. 'Dt, 'Db");
       break;
     }
+    case FCFIDU: {
+      Format(instr, "fcfidus'.'Dt, 'Db");
+      break;
+    }
     default: {
       Unknown(instr);  // not used by V8
     }
@@ -945,12 +949,24 @@ void Decoder::DecodeExt4(Instruction* instr) {
       Format(instr, "fcfid'.  'Dt, 'Db");
       break;
     }
+    case FCFIDU: {
+      Format(instr, "fcfidu'. 'Dt, 'Db");
+      break;
+    }
     case FCTID: {
       Format(instr, "fctid   'Dt, 'Db");
       break;
     }
     case FCTIDZ: {
       Format(instr, "fctidz  'Dt, 'Db");
+      break;
+    }
+    case FCTIDU: {
+      Format(instr, "fctidu  'Dt, 'Db");
+      break;
+    }
+    case FCTIDUZ: {
+      Format(instr, "fctiduz 'Dt, 'Db");
       break;
     }
     case FCTIW: {
@@ -999,6 +1015,18 @@ void Decoder::DecodeExt4(Instruction* instr) {
     }
     case FNEG: {
       Format(instr, "fneg'.   'Dt, 'Db");
+      break;
+    }
+    case MCRFS: {
+      Format(instr, "mcrfs   ?,?");
+      break;
+    }
+    case MTFSB0: {
+      Format(instr, "mtfsb0'. ?");
+      break;
+    }
+    case MTFSB1: {
+      Format(instr, "mtfsb1'. ?");
       break;
     }
     default: {

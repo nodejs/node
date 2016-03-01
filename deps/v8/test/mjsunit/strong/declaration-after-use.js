@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --strong-mode --harmony-rest-parameters
+// Flags: --strong-mode
 
 // Note that it's essential for these tests that the reference is inside dead
 // code (because we already produce ReferenceErrors for run-time unresolved

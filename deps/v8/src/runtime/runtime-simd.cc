@@ -212,10 +212,19 @@ RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
   CONVERT_INT32_ARG_CHECKED(name, index);                 \
   RUNTIME_ASSERT(name >= 0 && name < lanes);
 
+#define CONVERT_SIMD_ARG_HANDLE_THROW(Type, name, index)                \
+  Handle<Type> name;                                                    \
+  if (args[index]->Is##Type()) {                                        \
+    name = args.at<Type>(index);                                        \
+  } else {                                                              \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                     \
+        isolate, NewTypeError(MessageTemplate::kInvalidSimdOperation)); \
+  }
+
 #define SIMD_UNARY_OP(type, lane_type, lane_count, op, result) \
   static const int kLaneCount = lane_count;                    \
   DCHECK(args.length() == 1);                                  \
-  CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                      \
+  CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                   \
   lane_type lanes[kLaneCount];                                 \
   for (int i = 0; i < kLaneCount; i++) {                       \
     lanes[i] = op(a->get_lane(i));                             \
@@ -225,8 +234,8 @@ RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
 #define SIMD_BINARY_OP(type, lane_type, lane_count, op, result) \
   static const int kLaneCount = lane_count;                     \
   DCHECK(args.length() == 2);                                   \
-  CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                       \
-  CONVERT_ARG_HANDLE_CHECKED(type, b, 1);                       \
+  CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                    \
+  CONVERT_SIMD_ARG_HANDLE_THROW(type, b, 1);                    \
   lane_type lanes[kLaneCount];                                  \
   for (int i = 0; i < kLaneCount; i++) {                        \
     lanes[i] = op(a->get_lane(i), b->get_lane(i));              \
@@ -236,8 +245,8 @@ RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
 #define SIMD_RELATIONAL_OP(type, bool_type, lane_count, a, b, op, result) \
   static const int kLaneCount = lane_count;                               \
   DCHECK(args.length() == 2);                                             \
-  CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                                 \
-  CONVERT_ARG_HANDLE_CHECKED(type, b, 1);                                 \
+  CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                              \
+  CONVERT_SIMD_ARG_HANDLE_THROW(type, b, 1);                              \
   bool lanes[kLaneCount];                                                 \
   for (int i = 0; i < kLaneCount; i++) {                                  \
     lanes[i] = a->get_lane(i) op b->get_lane(i);                          \
@@ -283,7 +292,7 @@ RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
   RUNTIME_FUNCTION(Runtime_##type##ExtractLane) {                            \
     HandleScope scope(isolate);                                              \
     DCHECK(args.length() == 2);                                              \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                                  \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                               \
     CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, lane_count);                      \
     return *isolate->factory()->extract(a->get_lane(lane));                  \
   }
@@ -293,7 +302,7 @@ RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
     static const int kLaneCount = lane_count;                                \
     HandleScope scope(isolate);                                              \
     DCHECK(args.length() == 3);                                              \
-    CONVERT_ARG_HANDLE_CHECKED(type, simd, 0);                               \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, simd, 0);                            \
     CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, kLaneCount);                      \
     lane_type lanes[kLaneCount];                                             \
     for (int i = 0; i < kLaneCount; i++) {                                   \
@@ -307,7 +316,7 @@ RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
 #define SIMD_CHECK_FUNCTION(type, lane_type, lane_count, extract, replace) \
   RUNTIME_FUNCTION(Runtime_##type##Check) {                                \
     HandleScope scope(isolate);                                            \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                                \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                             \
     return *a;                                                             \
   }
 
@@ -316,7 +325,7 @@ RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
     static const int kLaneCount = lane_count;                                \
     HandleScope scope(isolate);                                              \
     DCHECK(args.length() == 1 + kLaneCount);                                 \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                                  \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                               \
     lane_type lanes[kLaneCount];                                             \
     for (int i = 0; i < kLaneCount; i++) {                                   \
       CONVERT_SIMD_LANE_ARG_CHECKED(index, i + 1, kLaneCount);               \
@@ -331,8 +340,8 @@ RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
     static const int kLaneCount = lane_count;                                \
     HandleScope scope(isolate);                                              \
     DCHECK(args.length() == 2 + kLaneCount);                                 \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                                  \
-    CONVERT_ARG_HANDLE_CHECKED(type, b, 1);                                  \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                               \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, b, 1);                               \
     lane_type lanes[kLaneCount];                                             \
     for (int i = 0; i < kLaneCount; i++) {                                   \
       CONVERT_SIMD_LANE_ARG_CHECKED(index, i + 2, kLaneCount * 2);           \
@@ -437,7 +446,7 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
     static const int kLaneCount = lane_count;                     \
     HandleScope scope(isolate);                                   \
     DCHECK(args.length() == 2);                                   \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                       \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                    \
     CONVERT_SHIFT_ARG_CHECKED(shift, 1);                          \
     lane_type lanes[kLaneCount] = {0};                            \
     if (shift < lane_bits) {                                      \
@@ -454,7 +463,7 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
     static const int kLaneCount = lane_count;                     \
     HandleScope scope(isolate);                                   \
     DCHECK(args.length() == 2);                                   \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                       \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                    \
     CONVERT_SHIFT_ARG_CHECKED(shift, 1);                          \
     lane_type lanes[kLaneCount] = {0};                            \
     if (shift < lane_bits) {                                      \
@@ -472,7 +481,7 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
     static const int kLaneCount = lane_count;                          \
     HandleScope scope(isolate);                                        \
     DCHECK(args.length() == 2);                                        \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);                            \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                         \
     CONVERT_SHIFT_ARG_CHECKED(shift, 1);                               \
     if (shift >= lane_bits) shift = lane_bits - 1;                     \
     lane_type lanes[kLaneCount];                                       \
@@ -502,7 +511,7 @@ SIMD_UINT_TYPES(SIMD_LSR_FUNCTION)
   RUNTIME_FUNCTION(Runtime_##type##AnyTrue) {  \
     HandleScope scope(isolate);                \
     DCHECK(args.length() == 1);                \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);    \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0); \
     bool result = false;                       \
     for (int i = 0; i < lane_count; i++) {     \
       if (a->get_lane(i)) {                    \
@@ -517,7 +526,7 @@ SIMD_UINT_TYPES(SIMD_LSR_FUNCTION)
   RUNTIME_FUNCTION(Runtime_##type##AllTrue) {  \
     HandleScope scope(isolate);                \
     DCHECK(args.length() == 1);                \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 0);    \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0); \
     bool result = true;                        \
     for (int i = 0; i < lane_count; i++) {     \
       if (!a->get_lane(i)) {                   \
@@ -759,9 +768,9 @@ SIMD_LOGICAL_TYPES(SIMD_NOT_FUNCTION)
     static const int kLaneCount = lane_count;                         \
     HandleScope scope(isolate);                                       \
     DCHECK(args.length() == 3);                                       \
-    CONVERT_ARG_HANDLE_CHECKED(bool_type, mask, 0);                   \
-    CONVERT_ARG_HANDLE_CHECKED(type, a, 1);                           \
-    CONVERT_ARG_HANDLE_CHECKED(type, b, 2);                           \
+    CONVERT_SIMD_ARG_HANDLE_THROW(bool_type, mask, 0);                \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 1);                        \
+    CONVERT_SIMD_ARG_HANDLE_THROW(type, b, 2);                        \
     lane_type lanes[kLaneCount];                                      \
     for (int i = 0; i < kLaneCount; i++) {                            \
       lanes[i] = mask->get_lane(i) ? a->get_lane(i) : b->get_lane(i); \
@@ -812,7 +821,7 @@ SIMD_SIGNED_TYPES(SIMD_NEG_FUNCTION)
     static const int kLaneCount = lane_count;                                  \
     HandleScope scope(isolate);                                                \
     DCHECK(args.length() == 1);                                                \
-    CONVERT_ARG_HANDLE_CHECKED(from_type, a, 0);                               \
+    CONVERT_SIMD_ARG_HANDLE_THROW(from_type, a, 0);                            \
     lane_type lanes[kLaneCount];                                               \
     for (int i = 0; i < kLaneCount; i++) {                                     \
       from_ctype a_value = a->get_lane(i);                                     \
@@ -875,7 +884,7 @@ SIMD_FROM_TYPES(SIMD_FROM_FUNCTION)
     static const int kLaneCount = lane_count;                           \
     HandleScope scope(isolate);                                         \
     DCHECK(args.length() == 1);                                         \
-    CONVERT_ARG_HANDLE_CHECKED(from_type, a, 0);                        \
+    CONVERT_SIMD_ARG_HANDLE_THROW(from_type, a, 0);                     \
     lane_type lanes[kLaneCount];                                        \
     a->CopyBits(lanes);                                                 \
     Handle<type> result = isolate->factory()->New##type(lanes);         \
@@ -900,7 +909,7 @@ SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
 #define SIMD_LOAD(type, lane_type, lane_count, count, result)          \
   static const int kLaneCount = lane_count;                            \
   DCHECK(args.length() == 2);                                          \
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, tarray, 0);                 \
+  CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);              \
   CONVERT_INT32_ARG_CHECKED(index, 1)                                  \
   size_t bpe = tarray->element_size();                                 \
   uint32_t bytes = count * sizeof(lane_type);                          \
@@ -918,9 +927,9 @@ SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
 #define SIMD_STORE(type, lane_type, lane_count, count, a)              \
   static const int kLaneCount = lane_count;                            \
   DCHECK(args.length() == 3);                                          \
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, tarray, 0);                 \
+  CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);              \
+  CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 2);                           \
   CONVERT_INT32_ARG_CHECKED(index, 1)                                  \
-  CONVERT_ARG_HANDLE_CHECKED(type, a, 2);                              \
   size_t bpe = tarray->element_size();                                 \
   uint32_t bytes = count * sizeof(lane_type);                          \
   size_t byte_length = NumberToSize(isolate, tarray->byte_length());   \

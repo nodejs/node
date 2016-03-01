@@ -27,7 +27,7 @@ LiveRange* LiveRangeConflictIterator::Current() const {
 
 
 void LiveRangeConflictIterator::MovePosToFirstConflictForQuery() {
-  DCHECK(query_ != nullptr);
+  DCHECK_NOT_NULL(query_);
   auto end = intervals_->end();
   LifetimePosition q_start = query_->start();
   LifetimePosition q_end = query_->end();

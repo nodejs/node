@@ -14,6 +14,7 @@ namespace internal {
 class PlatformInterfaceDescriptor;
 
 #define INTERFACE_DESCRIPTOR_LIST(V)          \
+  V(Void)                                     \
   V(Load)                                     \
   V(Store)                                    \
   V(StoreTransition)                          \
@@ -30,6 +31,7 @@ class PlatformInterfaceDescriptor;
   V(ToObject)                                 \
   V(NumberToString)                           \
   V(Typeof)                                   \
+  V(FastCloneRegExp)                          \
   V(FastCloneShallowArray)                    \
   V(FastCloneShallowObject)                   \
   V(CreateAllocationSite)                     \
@@ -39,6 +41,8 @@ class PlatformInterfaceDescriptor;
   V(CallFunctionWithFeedbackAndVector)        \
   V(CallConstruct)                            \
   V(CallTrampoline)                           \
+  V(ConstructStub)                            \
+  V(ConstructTrampoline)                      \
   V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
   V(AllocateHeapNumber)                       \
@@ -64,6 +68,7 @@ class PlatformInterfaceDescriptor;
   V(ApiGetter)                                \
   V(ArgumentsAccessRead)                      \
   V(ArgumentsAccessNew)                       \
+  V(RestParamAccess)                          \
   V(StoreArrayLiteralElement)                 \
   V(LoadGlobalViaContext)                     \
   V(StoreGlobalViaContext)                    \
@@ -71,8 +76,6 @@ class PlatformInterfaceDescriptor;
   V(MathPowInteger)                           \
   V(ContextOnly)                              \
   V(GrowArrayElements)                        \
-  V(MathRoundVariantCallFromUnoptimizedCode)  \
-  V(MathRoundVariantCallFromOptimizedCode)    \
   V(InterpreterPushArgsAndCall)               \
   V(InterpreterPushArgsAndConstruct)          \
   V(InterpreterCEntry)
@@ -231,6 +234,14 @@ class CallInterfaceDescriptor {
       Isolate* isolate, int register_param_count) override;      \
                                                                  \
  public:
+
+
+class VoidDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(VoidDescriptor, CallInterfaceDescriptor)
+};
+
+
 // LoadDescriptor is used by all stubs that implement Load/KeyedLoad ICs.
 class LoadDescriptor : public CallInterfaceDescriptor {
  public:
@@ -417,6 +428,13 @@ class TypeofDescriptor : public CallInterfaceDescriptor {
 };
 
 
+class FastCloneRegExpDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastCloneRegExpDescriptor,
+                                               CallInterfaceDescriptor)
+};
+
+
 class FastCloneShallowArrayDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastCloneShallowArrayDescriptor,
@@ -454,6 +472,20 @@ class CreateWeakCellDescriptor : public CallInterfaceDescriptor {
 class CallTrampolineDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallTrampolineDescriptor,
+                                               CallInterfaceDescriptor)
+};
+
+
+class ConstructStubDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ConstructStubDescriptor,
+                                               CallInterfaceDescriptor)
+};
+
+
+class ConstructTrampolineDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ConstructTrampolineDescriptor,
                                                CallInterfaceDescriptor)
 };
 
@@ -680,6 +712,16 @@ class ArgumentsAccessNewDescriptor : public CallInterfaceDescriptor {
 };
 
 
+class RestParamAccessDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(RestParamAccessDescriptor,
+                                               CallInterfaceDescriptor)
+  static const Register parameter_count();
+  static const Register parameter_pointer();
+  static const Register rest_parameter_index();
+};
+
+
 class StoreArrayLiteralElementDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(StoreArrayLiteralElementDescriptor,
@@ -700,23 +742,6 @@ class MathPowIntegerDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(MathPowIntegerDescriptor, CallInterfaceDescriptor)
 
   static const Register exponent();
-};
-
-
-class MathRoundVariantCallFromOptimizedCodeDescriptor
-    : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      MathRoundVariantCallFromOptimizedCodeDescriptor, CallInterfaceDescriptor)
-};
-
-
-class MathRoundVariantCallFromUnoptimizedCodeDescriptor
-    : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      MathRoundVariantCallFromUnoptimizedCodeDescriptor,
-      CallInterfaceDescriptor)
 };
 
 

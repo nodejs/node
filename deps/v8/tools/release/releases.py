@@ -463,10 +463,15 @@ class RetrieveInformationOnChromeReleases(Step):
   def _GetGitHashForV8Version(self, v8_version):
     if v8_version == "N/A":
       return ""
-    if v8_version.split(".")[3]== "0":
-      return self.GitGetHashOfTag(v8_version[:-2])
 
-    return self.GitGetHashOfTag(v8_version)
+    real_v8_version = v8_version
+    if v8_version.split(".")[3]== "0":
+      real_v8_version = v8_version[:-2]
+
+    try:
+      return self.GitGetHashOfTag(real_v8_version)
+    except GitFailedException:
+      return ""
 
   def _CreateCandidate(self, current_version):
     params = None

@@ -13,32 +13,6 @@
 namespace v8 {
 namespace internal {
 
-
-RUNTIME_FUNCTION(Runtime_ArrayBufferInitialize) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, holder, 0);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byteLength, 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(is_shared, 2);
-  if (!holder->byte_length()->IsUndefined()) {
-    // ArrayBuffer is already initialized; probably a fuzz test.
-    return *holder;
-  }
-  size_t allocated_length = 0;
-  if (!TryNumberToSize(isolate, *byteLength, &allocated_length)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
-  }
-  if (!JSArrayBuffer::SetupAllocatingData(
-          holder, isolate, allocated_length, true,
-          is_shared ? SharedFlag::kShared : SharedFlag::kNotShared)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
-  }
-  return *holder;
-}
-
-
 RUNTIME_FUNCTION(Runtime_ArrayBufferGetByteLength) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -49,14 +23,16 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferGetByteLength) {
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferSliceImpl) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, source, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, target, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(first, 2);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(new_length, 3);
   RUNTIME_ASSERT(!source.is_identical_to(target));
-  size_t start = 0;
+  size_t start = 0, target_length = 0;
   RUNTIME_ASSERT(TryNumberToSize(isolate, *first, &start));
-  size_t target_length = NumberToSize(isolate, target->byte_length());
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *new_length, &target_length));
+  RUNTIME_ASSERT(NumberToSize(isolate, target->byte_length()) >= target_length);
 
   if (target_length == 0) return isolate->heap()->undefined_value();
 
@@ -67,14 +43,6 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSliceImpl) {
   uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
   CopyBytes(target_data, source_data + start, target_length);
   return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_ArrayBufferIsView) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, object, 0);
-  return isolate->heap()->ToBoolean(object->IsJSArrayBufferView());
 }
 
 
@@ -430,6 +398,19 @@ RUNTIME_FUNCTION(Runtime_IsSharedIntegerTypedArray) {
   return isolate->heap()->ToBoolean(obj->GetBuffer()->is_shared() &&
                                     obj->type() != kExternalFloat32Array &&
                                     obj->type() != kExternalFloat64Array);
+}
+
+
+RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  if (!args[0]->IsJSTypedArray()) {
+    return isolate->heap()->false_value();
+  }
+
+  Handle<JSTypedArray> obj(JSTypedArray::cast(args[0]));
+  return isolate->heap()->ToBoolean(obj->GetBuffer()->is_shared() &&
+                                    obj->type() == kExternalInt32Array);
 }
 
 

@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_
 #define V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/bit-vector.h"
 #include "src/zone-containers.h"
 
@@ -26,7 +26,7 @@ class LoopAssignmentAnalysis : public ZoneObject {
       if (list_[i].first == loop) return list_[i].second;
     }
     UNREACHABLE();  // should never ask for loops that aren't here!
-    return NULL;
+    return nullptr;
   }
 
   int GetAssignmentCountForTesting(Scope* scope, Variable* var);
@@ -63,7 +63,7 @@ class AstLoopAssignmentAnalyzer : public AstVisitor {
   void Exit(IterationStatement* loop);
 
   void VisitIfNotNull(AstNode* node) {
-    if (node != NULL) Visit(node);
+    if (node != nullptr) Visit(node);
   }
 
   void AnalyzeAssignment(Variable* var);

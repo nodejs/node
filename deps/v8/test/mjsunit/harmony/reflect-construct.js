@@ -275,3 +275,107 @@
   assertEquals(10, Reflect.construct(sumSloppy,
                                      { 0: 1, 1: 2, 2: 3, 3: 4, length: 4 }).a);
 })();
+
+(function() {
+  function* f() { yield 1; yield 2; }
+  function* g() { yield 3; yield 4; }
+  var o = Reflect.construct(f, [], g);
+  assertEquals([1, 2], [...o]);
+  assertTrue(o.__proto__ === g.prototype);
+  assertTrue(o.__proto__ !== f.prototype);
+})();
+
+(function () {
+  var realm1 = Realm.create();
+  var realm2 = Realm.create();
+
+  var well_known_intrinsic_constructors = [
+      "Array",
+      "ArrayBuffer",
+      "Boolean",
+      ["DataView", [new ArrayBuffer()]],
+      "Date",
+      "Error",
+      "EvalError",
+      "Float32Array",
+      "Float64Array",
+      ["Function", ["return 153;"]],
+      ["Function", ["'use strict'; return 153;"]],
+      ["Function", ["'use strong'; return 153;"]],
+      ["((function*(){}).constructor)", ["yield 153;"]],  // GeneratorFunction
+      ["((function*(){}).constructor)", ["'use strict'; yield 153;"]],
+      ["((function*(){}).constructor)", ["'use strong'; yield 153;"]],
+      "Int8Array",
+      "Int16Array",
+      "Int32Array",
+      "Map",
+      "Number",
+      "Object",
+      ["Promise", [(resolve, reject)=>{}]],
+      "RangeError",
+      "ReferenceError",
+      "RegExp",
+      "Set",
+      "String",
+      "SyntaxError",
+      // %TypedArray%?
+      "TypeError",
+      "Uint8Array",
+      "Uint8ClampedArray",
+      "Uint16Array",
+      "Uint32Array",
+      "URIError",
+      "WeakMap",
+      "WeakSet"
+  ];
+
+  function getname(v) {
+    return typeof v === "string" ? v : v[0];
+  }
+
+  function getargs(v) {
+    return typeof v === "string" ? [] : v[1];
+  }
+
+  function test_intrinsic_prototype(name) {
+    var own = Realm.eval(realm1, name);
+
+    // Ensure that constructor.prototype is non-writable, non-configurable.
+    var desc = Object.getOwnPropertyDescriptor(own, "prototype");
+    assertFalse(desc.configurable, name);
+    assertFalse(desc.writable, name);
+  }
+
+  for (var intrinsic of well_known_intrinsic_constructors) {
+    test_intrinsic_prototype(getname(intrinsic));
+  }
+
+  function function_with_non_instance_prototype(realm) {
+    var f = Realm.eval(realm, "(function(){})");
+    f.prototype = 1;
+    return f;
+  }
+
+  function test_intrinsic_default(realm, name, args, convert) {
+    var own = Realm.eval(realm1, name);
+    var other = Realm.eval(realm, name);
+    var o = Reflect.construct(
+        convert(own), args, function_with_non_instance_prototype(realm));
+
+    // Ensure the intrisicDefaultProto is fetched from the correct realm.
+    assertTrue(realm == realm1 || o.__proto__ !== own.prototype, [...arguments]);
+    assertTrue(o.__proto__ === other.prototype, [...arguments]);
+  }
+
+  function test_all(test, convert) {
+    for (var intrinsic of well_known_intrinsic_constructors) {
+      for (var realm of [realm1, realm2]) {
+        test(realm, getname(intrinsic), getargs(intrinsic), convert);
+      }
+    }
+  }
+
+  test_all(test_intrinsic_default, (v)=>v);
+  test_all(test_intrinsic_default,
+           (v)=>{ "use strict"; return class extends v {}});
+})();
