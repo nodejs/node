@@ -338,7 +338,6 @@ const bob_secret = bob.computeSecret(alice_key);
 
 // OK
 assert.equal(alice_secret.toString('hex'), bob_secret.toString('hex'));
-  
 ```
 
 ### diffieHellman.computeSecret(other_public_key[, input_encoding][, output_encoding])
