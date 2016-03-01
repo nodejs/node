@@ -99,7 +99,7 @@ sub do_lib_rule
 		{
 		local($ex)=($target =~ /O_SSL/)?' $(L_CRYPTO)':'';
 		$ex.=' -lsocket';
-		$ret.="\t\$(LINK) \$(SHLIB_CFLAGS) \$(MLFLAGS) $efile$target \$(SHLIB_EX_OBJ) \$(${Name}OBJ) $ex os2/${Name}.def\n";
+		$ret.="\t\$(LINK_CMD) \$(SHLIB_CFLAGS) \$(MLFLAGS) $efile$target \$(SHLIB_EX_OBJ) \$(${Name}OBJ) $ex os2/${Name}.def\n";
 		$ret.="\temximp -o $out_def/$name.a os2/${Name}.def\n";
 		$ret.="\temximp -o $out_def/$name.lib os2/${Name}.def\n\n";
 		}
@@ -113,7 +113,7 @@ sub do_link_rule
 	$file =~ s/\//$o/g if $o ne '/';
 	$n=&bname($target);
 	$ret.="$target: $files $dep_libs\n";
-	$ret.="\t\$(LINK) ${efile}$target \$(CFLAG) \$(LFLAGS) $files $libs\n\n";
+	$ret.="\t\$(LINK_CMD) ${efile}$target \$(CFLAG) \$(LFLAGS) $files $libs\n\n";
 	return($ret);
 	}
 
