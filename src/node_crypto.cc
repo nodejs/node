@@ -5164,16 +5164,13 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
   }
 
   raw_keylen = args[3]->NumberValue();
-  if (raw_keylen < 0.0 || isnan(raw_keylen) || isinf(raw_keylen)) {
+  if (raw_keylen < 0.0 || isnan(raw_keylen) || isinf(raw_keylen) ||
+      raw_keylen > INT_MAX) {
     type_error = "Bad key length";
     goto err;
   }
 
   keylen = static_cast<int>(raw_keylen);
-  if (keylen < 0) {
-    type_error = "Bad key length";
-    goto err;
-  }
 
   if (args[4]->IsString()) {
     node::Utf8Value digest_name(env->isolate(), args[4]);
