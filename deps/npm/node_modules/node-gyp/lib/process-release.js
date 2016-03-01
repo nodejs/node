@@ -1,7 +1,10 @@
 var semver = require('semver')
   , url = require('url')
   , path = require('path')
+  , log = require('npmlog')
 
+    // versions where -headers.tar.gz started shipping
+  , headersTarballRange = '>= 3.0.0 || ~0.12.10 || ~0.10.42'
   , bitsre = /\/win-(x86|x64)\//
   , bitsreV3 = /\/win-(x86|ia32|x64)\// // io.js v3.x.x shipped with "ia32" but should
                                         // have been "x86"
@@ -21,6 +24,7 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
     , libUrl32
     , libUrl64
     , tarballUrl
+    , canGetHeaders
 
   if (!versionSemver) {
     // not a valid semver string, nothing we can do
@@ -49,10 +53,25 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
 
   // check for the nvm.sh standard mirror env variables
   if (!overrideDistUrl) {
-    if (isIojs && process.env.NVM_IOJS_ORG_MIRROR)
-      overrideDistUrl = process.env.NVM_IOJS_ORG_MIRROR
-    else if (process.env.NVM_NODEJS_ORG_MIRROR)
-      overrideDistUrl = process.env.NVM_NODEJS_ORG_MIRROR
+    if (isIojs) {
+      if (process.env.IOJS_ORG_MIRROR) {
+        overrideDistUrl = process.env.IOJS_ORG_MIRROR
+      } else if (process.env.NVM_IOJS_ORG_MIRROR) {// remove on next semver-major
+        overrideDistUrl = process.env.NVM_IOJS_ORG_MIRROR
+        log.warn('download',
+            'NVM_IOJS_ORG_MIRROR is deprecated and will be removed in node-gyp v4, ' +
+            'please use IOJS_ORG_MIRROR')
+      }
+    } else {
+      if (process.env.NODEJS_ORG_MIRROR) {
+        overrideDistUrl = process.env.NODEJS_ORG_MIRROR
+      } else if (process.env.NVM_NODEJS_ORG_MIRROR) {// remove on next semver-major
+        overrideDistUrl = process.env.NVM_NODEJS_ORG_MIRROR
+        log.warn('download',
+            'NVM_NODEJS_ORG_MIRROR is deprecated and will be removed in node-gyp v4, ' +
+            'please use NODEJS_ORG_MIRROR')
+      }
+    }
   }
 
 
@@ -93,7 +112,8 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
   // making the bold assumption that anything with a version number >3.0.0 will
   // have a *-headers.tar.gz file in its dist location, even some frankenstein
   // custom version
-  tarballUrl = url.resolve(baseUrl, name + '-v' + version + (versionSemver.major >= 3 ? '-headers' : '') + '.tar.gz')
+  canGetHeaders = semver.satisfies(versionSemver, headersTarballRange)
+  tarballUrl = url.resolve(baseUrl, name + '-v' + version + (canGetHeaders ? '-headers' : '') + '.tar.gz')
 
   return {
     version: version,
