@@ -505,7 +505,7 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
 }
 
 {
-  const x = new (function() {});
+  const x = new function() {};
   assert.equal(util.inspect(x), '{}');
 }
 
