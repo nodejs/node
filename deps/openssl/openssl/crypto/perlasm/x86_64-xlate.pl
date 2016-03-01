@@ -198,8 +198,11 @@ my %globals;
 	if ($gas) {
 	    # Solaris /usr/ccs/bin/as can't handle multiplications
 	    # in $self->{value}
-	    $self->{value} =~ s/(?<![\w\$\.])(0x?[0-9a-f]+)/oct($1)/egi;
-	    $self->{value} =~ s/([0-9]+\s*[\*\/\%]\s*[0-9]+)/eval($1)/eg;
+	    my $value = $self->{value};
+	    $value =~ s/(?<![\w\$\.])(0x?[0-9a-f]+)/oct($1)/egi;
+	    if ($value =~ s/([0-9]+\s*[\*\/\%]\s*[0-9]+)/eval($1)/eg) {
+		$self->{value} = $value;
+	    }
 	    sprintf "\$%s",$self->{value};
 	} else {
 	    $self->{value} =~ s/(0b[0-1]+)/oct($1)/eig;
