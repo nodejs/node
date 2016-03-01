@@ -17,7 +17,7 @@ namespace internal {
 const double ScavengeJob::kMaxAllocationLimitAsFractionOfNewSpace = 0.8;
 
 void ScavengeJob::IdleTask::RunInternal(double deadline_in_seconds) {
-  Heap* heap = isolate_->heap();
+  Heap* heap = isolate()->heap();
   double deadline_in_ms =
       deadline_in_seconds *
       static_cast<double>(base::Time::kMillisecondsPerSecond);

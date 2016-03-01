@@ -6,12 +6,13 @@
 #define V8_PROFILER_CPU_PROFILER_H_
 
 #include "src/allocation.h"
+#include "src/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/time.h"
 #include "src/compiler.h"
+#include "src/locked-queue.h"
 #include "src/profiler/circular-queue.h"
 #include "src/profiler/sampler.h"
-#include "src/profiler/unbound-queue.h"
 
 namespace v8 {
 namespace internal {
@@ -169,14 +170,14 @@ class ProfilerEventsProcessor : public base::Thread {
   base::Atomic32 running_;
   // Sampling period in microseconds.
   const base::TimeDelta period_;
-  UnboundQueue<CodeEventsContainer> events_buffer_;
+  LockedQueue<CodeEventsContainer> events_buffer_;
   static const size_t kTickSampleBufferSize = 1 * MB;
   static const size_t kTickSampleQueueLength =
       kTickSampleBufferSize / sizeof(TickSampleEventRecord);
   SamplingCircularQueue<TickSampleEventRecord,
                         kTickSampleQueueLength> ticks_buffer_;
-  UnboundQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
-  unsigned last_code_event_id_;
+  LockedQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
+  AtomicNumber<unsigned> last_code_event_id_;
   unsigned last_processed_code_event_id_;
 };
 

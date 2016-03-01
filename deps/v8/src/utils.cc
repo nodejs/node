@@ -368,7 +368,7 @@ static void MemMoveWrapper(void* dest, const void* src, size_t size) {
 static MemMoveFunction memmove_function = &MemMoveWrapper;
 
 // Defined in codegen-ia32.cc.
-MemMoveFunction CreateMemMoveFunction();
+MemMoveFunction CreateMemMoveFunction(Isolate* isolate);
 
 // Copy memory area to disjoint memory area.
 void MemMove(void* dest, const void* src, size_t size) {
@@ -392,29 +392,38 @@ MemCopyUint8Function memcopy_uint8_function = &MemCopyUint8Wrapper;
 MemCopyUint16Uint8Function memcopy_uint16_uint8_function =
     &MemCopyUint16Uint8Wrapper;
 // Defined in codegen-arm.cc.
-MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub);
+MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
+                                                MemCopyUint8Function stub);
 MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
-    MemCopyUint16Uint8Function stub);
+    Isolate* isolate, MemCopyUint16Uint8Function stub);
 
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
 MemCopyUint8Function memcopy_uint8_function = &MemCopyUint8Wrapper;
 // Defined in codegen-mips.cc.
-MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub);
+MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
+                                                MemCopyUint8Function stub);
 #endif
 
 
-void init_memcopy_functions() {
+static bool g_memcopy_functions_initialized = false;
+
+
+void init_memcopy_functions(Isolate* isolate) {
+  if (g_memcopy_functions_initialized) return;
+  g_memcopy_functions_initialized = true;
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
-  MemMoveFunction generated_memmove = CreateMemMoveFunction();
+  MemMoveFunction generated_memmove = CreateMemMoveFunction(isolate);
   if (generated_memmove != NULL) {
     memmove_function = generated_memmove;
   }
 #elif V8_OS_POSIX && V8_HOST_ARCH_ARM
-  memcopy_uint8_function = CreateMemCopyUint8Function(&MemCopyUint8Wrapper);
+  memcopy_uint8_function =
+      CreateMemCopyUint8Function(isolate, &MemCopyUint8Wrapper);
   memcopy_uint16_uint8_function =
-      CreateMemCopyUint16Uint8Function(&MemCopyUint16Uint8Wrapper);
+      CreateMemCopyUint16Uint8Function(isolate, &MemCopyUint16Uint8Wrapper);
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
-  memcopy_uint8_function = CreateMemCopyUint8Function(&MemCopyUint8Wrapper);
+  memcopy_uint8_function =
+      CreateMemCopyUint8Function(isolate, &MemCopyUint8Wrapper);
 #endif
 }
 

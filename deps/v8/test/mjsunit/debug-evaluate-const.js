@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --debug-eval-readonly-locals --legacy-const
 
 Debug = debug.Debug
 
@@ -50,10 +50,8 @@ function f() {
 
     debugger;  // Break point.
 
-    assertEquals(30, var0);
-    // TODO(yangguo): debug evaluate should not be able to alter
-    //                stack-allocated const values
-    // assertEquals(0, const0);
+    assertEquals(undefined, var0);
+    assertEquals(0, const0);
     assertEquals(undefined, const1);
     assertEquals(undefined, const2);
     var var0 = 20;
@@ -66,7 +64,7 @@ function f() {
 
   g();
 
-  assertEquals(31, var1);
+  assertEquals(21, var1);
   assertEquals(3, const3);
 }
 

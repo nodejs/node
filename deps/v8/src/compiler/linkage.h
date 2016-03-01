@@ -7,9 +7,9 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/frame.h"
-#include "src/compiler/machine-type.h"
 #include "src/compiler/operator.h"
 #include "src/frames.h"
+#include "src/machine-type.h"
 #include "src/runtime/runtime.h"
 #include "src/zone.h"
 
@@ -55,6 +55,34 @@ class LinkageLocation {
     // TODO(titzer): bailout instead of crashing here.
     DCHECK(slot >= 0 && slot < LinkageLocation::MAX_STACK_SLOT);
     return LinkageLocation(STACK_SLOT, slot);
+  }
+
+  static LinkageLocation ForSavedCallerReturnAddress() {
+    return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
+                               StandardFrameConstants::kCallerPCOffset) /
+                              kPointerSize);
+  }
+
+  static LinkageLocation ForSavedCallerFramePtr() {
+    return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
+                               StandardFrameConstants::kCallerFPOffset) /
+                              kPointerSize);
+  }
+
+  static LinkageLocation ForSavedCallerConstantPool() {
+    DCHECK(V8_EMBEDDED_CONSTANT_POOL);
+    return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
+                               StandardFrameConstants::kConstantPoolOffset) /
+                              kPointerSize);
+  }
+
+  static LinkageLocation ConvertToTailCallerLocation(
+      LinkageLocation caller_location, int stack_param_delta) {
+    if (!caller_location.IsRegister()) {
+      return LinkageLocation(STACK_SLOT,
+                             caller_location.GetLocation() - stack_param_delta);
+    }
+    return caller_location;
   }
 
  private:
@@ -125,6 +153,9 @@ class CallDescriptor final : public ZoneObject {
     kHasLocalCatchHandler = 1u << 4,
     kSupportsTailCalls = 1u << 5,
     kCanUseRoots = 1u << 6,
+    // Indicates that the native stack should be used for a code object. This
+    // information is important for native calls on arm64.
+    kUseNativeStack = 1u << 7,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   typedef base::Flags<Flag> Flags;
@@ -160,6 +191,10 @@ class CallDescriptor final : public ZoneObject {
   // Returns {true} if this descriptor is a call to a JSFunction.
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
 
+  bool RequiresFrameAsIncoming() const {
+    return IsCFunctionCall() || IsJSFunctionCall();
+  }
+
   // The number of return values from this call.
   size_t ReturnCount() const { return machine_sig_->return_count(); }
 
@@ -186,6 +221,7 @@ class CallDescriptor final : public ZoneObject {
 
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
   bool SupportsTailCalls() const { return flags() & kSupportsTailCalls; }
+  bool UseNativeStack() const { return flags() & kUseNativeStack; }
 
   LinkageLocation GetReturnLocation(size_t index) const {
     return location_sig_->GetReturn(index);
@@ -222,7 +258,7 @@ class CallDescriptor final : public ZoneObject {
 
   bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
 
-  bool CanTailCall(const Node* call) const;
+  bool CanTailCall(const Node* call, int* stack_param_delta) const;
 
  private:
   friend class Linkage;
@@ -254,11 +290,11 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 // Can be used to translate {arg_index} (i.e. index of the call node input) as
 // well as {param_index} (i.e. as stored in parameter nodes) into an operator
 // representing the architecture-specific location. The following call node
-// layouts are supported (where {n} is the number value inputs):
+// layouts are supported (where {n} is the number of value inputs):
 //
 //                  #0          #1     #2     #3     [...]             #n
 // Call[CodeStub]   code,       arg 1, arg 2, arg 3, [...],            context
-// Call[JSFunction] function,   rcvr,  arg 1, arg 2, [...],      #arg, context
+// Call[JSFunction] function,   rcvr,  arg 1, arg 2, [...], new, #arg, context
 // Call[Runtime]    CEntryStub, arg 1, arg 2, arg 3, [...], fun, #arg, context
 class Linkage : public ZoneObject {
  public:
@@ -275,7 +311,7 @@ class Linkage : public ZoneObject {
 
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int parameter_count,
-      Operator::Properties properties, bool needs_frame_state = true);
+      Operator::Properties properties, CallDescriptor::Flags flags);
 
   static CallDescriptor* GetLazyBailoutDescriptor(Zone* zone);
 
@@ -283,7 +319,8 @@ class Linkage : public ZoneObject {
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties = Operator::kNoProperties,
-      MachineType return_type = kMachAnyTagged);
+      MachineType return_type = MachineType::AnyTagged(),
+      size_t return_count = 1);
 
   // Creates a call descriptor for simplified C calls that is appropriate
   // for the host platform. This simplified calling convention only supports
@@ -317,19 +354,31 @@ class Linkage : public ZoneObject {
     return incoming_->GetReturnType(index);
   }
 
-  // Get the frame offset for a given spill slot. The location depends on the
-  // calling convention and the specific frame layout, and may thus be
-  // architecture-specific. Negative spill slots indicate arguments on the
-  // caller's frame.
-  FrameOffset GetFrameOffset(int spill_slot, Frame* frame) const;
+  bool ParameterHasSecondaryLocation(int index) const;
+  LinkageLocation GetParameterSecondaryLocation(int index) const;
 
   static int FrameStateInputCount(Runtime::FunctionId function);
 
   // Get the location where an incoming OSR value is stored.
   LinkageLocation GetOsrValueLocation(int index) const;
 
-  // A special parameter index for JSCalls that represents the closure.
-  static const int kJSFunctionCallClosureParamIndex = -1;
+  // A special {Parameter} index for JSCalls that represents the new target.
+  static int GetJSCallNewTargetParamIndex(int parameter_count) {
+    return parameter_count + 0;  // Parameter (arity + 0) is special.
+  }
+
+  // A special {Parameter} index for JSCalls that represents the argument count.
+  static int GetJSCallArgCountParamIndex(int parameter_count) {
+    return parameter_count + 1;  // Parameter (arity + 1) is special.
+  }
+
+  // A special {Parameter} index for JSCalls that represents the context.
+  static int GetJSCallContextParamIndex(int parameter_count) {
+    return parameter_count + 2;  // Parameter (arity + 2) is special.
+  }
+
+  // A special {Parameter} index for JSCalls that represents the closure.
+  static const int kJSCallClosureParamIndex = -1;
 
   // A special {OsrValue} index to indicate the context spill slot.
   static const int kOsrContextSpillSlotIndex = -1;

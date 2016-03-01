@@ -19,9 +19,10 @@ class AtomicNumber {
   AtomicNumber() : value_(0) {}
   explicit AtomicNumber(T initial) : value_(initial) {}
 
-  V8_INLINE void Increment(T increment) {
-    base::Barrier_AtomicIncrement(&value_,
-                                  static_cast<base::AtomicWord>(increment));
+  // Returns the newly set value.
+  V8_INLINE T Increment(T increment) {
+    return static_cast<T>(base::Barrier_AtomicIncrement(
+        &value_, static_cast<base::AtomicWord>(increment)));
   }
 
   V8_INLINE T Value() { return static_cast<T>(base::Acquire_Load(&value_)); }

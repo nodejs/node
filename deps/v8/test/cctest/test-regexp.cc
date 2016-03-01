@@ -25,21 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <cstdlib>
 #include <sstream>
 
+#include "include/v8.h"
 #include "src/v8.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/char-predicates-inl.h"
 #include "src/ostreams.h"
-#include "src/parser.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
+#include "src/regexp/regexp-parser.h"
 #include "src/splay-tree-inl.h"
 #include "src/string-stream.h"
 #ifdef V8_INTERPRETED_REGEXP
@@ -102,17 +100,21 @@ static bool CheckParse(const char* input) {
 }
 
 
-static void CheckParseEq(const char* input, const char* expected) {
+static void CheckParseEq(const char* input, const char* expected,
+                         bool unicode = false) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone;
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
-      CcTest::i_isolate(), &zone, &reader, false, false, &result));
+      CcTest::i_isolate(), &zone, &reader, false, unicode, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   std::ostringstream os;
   result.tree->Print(os, &zone);
+  if (strcmp(expected, os.str().c_str()) != 0) {
+    printf("%s | %s\n", expected, os.str().c_str());
+  }
   CHECK_EQ(0, strcmp(expected, os.str().c_str()));
 }
 
@@ -159,7 +161,11 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
     CHECK_EQ(max, min_max.max_match);                                          \
   }
 
-TEST(Parser) {
+
+void TestRegExpParser(bool lookbehind) {
+  FLAG_harmony_regexp_lookbehind = lookbehind;
+  FLAG_harmony_unicode_regexps = true;
+
   CHECK_PARSE_ERROR("?");
 
   CheckParseEq("abc", "'abc'");
@@ -191,6 +197,13 @@ TEST(Parser) {
   CheckParseEq("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
   CheckParseEq("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
   CheckParseEq("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
+  if (lookbehind) {
+    CheckParseEq("foo(?<=bar)baz", "(: 'foo' (<- + 'bar') 'baz')");
+    CheckParseEq("foo(?<!bar)baz", "(: 'foo' (<- - 'bar') 'baz')");
+  } else {
+    CHECK_PARSE_ERROR("foo(?<=bar)baz");
+    CHECK_PARSE_ERROR("foo(?<!bar)baz");
+  }
   CheckParseEq("()", "(^ %)");
   CheckParseEq("(?=)", "(-> + %)");
   CheckParseEq("[]", "^[\\x00-\\uffff]");  // Doesn't compile on windows
@@ -262,14 +275,22 @@ TEST(Parser) {
   CheckParseEq("(a)\\1", "(: (^ 'a') (<- 1))");
   CheckParseEq("(a\\1)", "(^ 'a')");
   CheckParseEq("(\\1a)", "(^ 'a')");
+  CheckParseEq("(\\2)(\\1)", "(: (^ (<- 2)) (^ (<- 1)))");
   CheckParseEq("(?=a)?a", "'a'");
   CheckParseEq("(?=a){0,10}a", "'a'");
   CheckParseEq("(?=a){1,10}a", "(: (-> + 'a') 'a')");
   CheckParseEq("(?=a){9,10}a", "(: (-> + 'a') 'a')");
   CheckParseEq("(?!a)?a", "'a'");
-  CheckParseEq("\\1(a)", "(^ 'a')");
+  CheckParseEq("\\1(a)", "(: (<- 1) (^ 'a'))");
   CheckParseEq("(?!(a))\\1", "(: (-> - (^ 'a')) (<- 1))");
-  CheckParseEq("(?!\\1(a\\1)\\1)\\1", "(: (-> - (: (^ 'a') (<- 1))) (<- 1))");
+  CheckParseEq("(?!\\1(a\\1)\\1)\\1",
+               "(: (-> - (: (<- 1) (^ 'a') (<- 1))) (<- 1))");
+  CheckParseEq("\\1\\2(a(?:\\1(b\\1\\2))\\2)\\1",
+               "(: (<- 1) (<- 2) (^ (: 'a' (^ 'b') (<- 2))) (<- 1))");
+  if (lookbehind) {
+    CheckParseEq("\\1\\2(a(?<=\\1(b\\1\\2))\\2)\\1",
+                 "(: (<- 1) (<- 2) (^ (: 'a' (<- + (^ 'b')) (<- 2))) (<- 1))");
+  }
   CheckParseEq("[\\0]", "[\\x00]");
   CheckParseEq("[\\11]", "[\\x09]");
   CheckParseEq("[\\11a]", "[\\x09 a]");
@@ -285,6 +306,15 @@ TEST(Parser) {
   CheckParseEq("\\u0034", "'\x34'");
   CheckParseEq("\\u003z", "'u003z'");
   CheckParseEq("foo[z]*", "(: 'foo' (# 0 - g [z]))");
+
+  // Unicode regexps
+  CheckParseEq("\\u{12345}", "'\\ud808\\udf45'", true);
+  CheckParseEq("\\u{12345}\\u{23456}", "(! '\\ud808\\udf45' '\\ud84d\\udc56')",
+               true);
+  CheckParseEq("\\u{12345}|\\u{23456}", "(| '\\ud808\\udf45' '\\ud84d\\udc56')",
+               true);
+  CheckParseEq("\\u{12345}{3}", "(# 3 3 g '\\ud808\\udf45')", true);
+  CheckParseEq("\\u{12345}*", "(# 0 - g '\\ud808\\udf45')", true);
 
   CHECK_SIMPLE("", false);
   CHECK_SIMPLE("a", true);
@@ -361,8 +391,8 @@ TEST(Parser) {
   CHECK_MIN_MAX("(?:ab)|cde", 2, 3);
   CHECK_MIN_MAX("(ab)", 2, 2);
   CHECK_MIN_MAX("(ab|cde)", 2, 3);
-  CHECK_MIN_MAX("(ab)\\1", 2, 4);
-  CHECK_MIN_MAX("(ab|cde)\\1", 2, 6);
+  CHECK_MIN_MAX("(ab)\\1", 2, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(ab|cde)\\1", 2, RegExpTree::kInfinity);
   CHECK_MIN_MAX("(?:ab)?", 0, 2);
   CHECK_MIN_MAX("(?:ab)*", 0, RegExpTree::kInfinity);
   CHECK_MIN_MAX("(?:ab)+", 2, RegExpTree::kInfinity);
@@ -397,6 +427,16 @@ TEST(Parser) {
   CHECK_MIN_MAX("a(?=b)c", 2, 2);
   CHECK_MIN_MAX("a(?=bbb|bb)c", 2, 2);
   CHECK_MIN_MAX("a(?!bbb|bb)c", 2, 2);
+}
+
+
+TEST(ParserWithLookbehind) {
+  TestRegExpParser(true);  // Lookbehind enabled.
+}
+
+
+TEST(ParserWithoutLookbehind) {
+  TestRegExpParser(true);  // Lookbehind enabled.
 }
 
 
@@ -790,7 +830,7 @@ TEST(MacroAssemblerNativeSimple) {
 
   Label fail, backtrack;
   m.PushBacktrack(&fail);
-  m.CheckNotAtStart(NULL);
+  m.CheckNotAtStart(0, NULL);
   m.LoadCurrentCharacter(2, NULL);
   m.CheckNotCharacter('o', NULL);
   m.LoadCurrentCharacter(1, NULL, false);
@@ -857,7 +897,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
 
   Label fail, backtrack;
   m.PushBacktrack(&fail);
-  m.CheckNotAtStart(NULL);
+  m.CheckNotAtStart(0, NULL);
   m.LoadCurrentCharacter(2, NULL);
   m.CheckNotCharacter('o', NULL);
   m.LoadCurrentCharacter(1, NULL, false);
@@ -973,12 +1013,12 @@ TEST(MacroAssemblerNativeBackReferenceLATIN1) {
   m.AdvanceCurrentPosition(2);
   m.WriteCurrentPositionToRegister(1, 0);
   Label nomatch;
-  m.CheckNotBackReference(0, &nomatch);
+  m.CheckNotBackReference(0, false, &nomatch);
   m.Fail();
   m.Bind(&nomatch);
   m.AdvanceCurrentPosition(2);
   Label missing_match;
-  m.CheckNotBackReference(0, &missing_match);
+  m.CheckNotBackReference(0, false, &missing_match);
   m.WriteCurrentPositionToRegister(2, 0);
   m.Succeed();
   m.Bind(&missing_match);
@@ -1023,12 +1063,12 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   m.AdvanceCurrentPosition(2);
   m.WriteCurrentPositionToRegister(1, 0);
   Label nomatch;
-  m.CheckNotBackReference(0, &nomatch);
+  m.CheckNotBackReference(0, false, &nomatch);
   m.Fail();
   m.Bind(&nomatch);
   m.AdvanceCurrentPosition(2);
   Label missing_match;
-  m.CheckNotBackReference(0, &missing_match);
+  m.CheckNotBackReference(0, false, &missing_match);
   m.WriteCurrentPositionToRegister(2, 0);
   m.Succeed();
   m.Bind(&missing_match);
@@ -1073,7 +1113,7 @@ TEST(MacroAssemblernativeAtStart) {
                              0);
 
   Label not_at_start, newline, fail;
-  m.CheckNotAtStart(&not_at_start);
+  m.CheckNotAtStart(0, &not_at_start);
   // Check that prevchar = '\n' and current = 'f'.
   m.CheckCharacter('\n', &newline);
   m.Bind(&fail);
@@ -1138,16 +1178,16 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
   m.WriteCurrentPositionToRegister(2, 0);
   m.AdvanceCurrentPosition(3);
   m.WriteCurrentPositionToRegister(3, 0);
-  m.CheckNotBackReferenceIgnoreCase(2, &fail);  // Match "AbC".
-  m.CheckNotBackReferenceIgnoreCase(2, &fail);  // Match "ABC".
+  m.CheckNotBackReferenceIgnoreCase(2, false, &fail);  // Match "AbC".
+  m.CheckNotBackReferenceIgnoreCase(2, false, &fail);  // Match "ABC".
   Label expected_fail;
-  m.CheckNotBackReferenceIgnoreCase(2, &expected_fail);
+  m.CheckNotBackReferenceIgnoreCase(2, false, &expected_fail);
   m.Bind(&fail);
   m.Fail();
 
   m.Bind(&expected_fail);
   m.AdvanceCurrentPosition(3);  // Skip "xYz"
-  m.CheckNotBackReferenceIgnoreCase(2, &succ);
+  m.CheckNotBackReferenceIgnoreCase(2, false, &succ);
   m.Fail();
 
   m.Bind(&succ);
@@ -1339,7 +1379,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   m.WriteCurrentPositionToRegister(0, 0);
   m.WriteCurrentPositionToRegister(1, 1);
   Label done;
-  m.CheckNotBackReference(0, &done);  // Performs a system-stack push.
+  m.CheckNotBackReference(0, false, &done);  // Performs a system-stack push.
   m.Bind(&done);
   m.PushRegister(large_number, RegExpMacroAssembler::kNoStackLimitCheck);
   m.PopRegister(1);
@@ -1388,7 +1428,7 @@ TEST(MacroAssembler) {
   m.Fail();
   m.Bind(&start);
   m.PushBacktrack(&fail);
-  m.CheckNotAtStart(NULL);
+  m.CheckNotAtStart(0, NULL);
   m.LoadCurrentCharacter(0, NULL);
   m.CheckNotCharacter('f', NULL);
   m.LoadCurrentCharacter(1, NULL);
@@ -1678,26 +1718,26 @@ TEST(CanonicalizeCharacterSets) {
   list->Add(CharacterRange(30, 40), &zone);
   list->Add(CharacterRange(50, 60), &zone);
   set.Canonicalize();
-  DCHECK_EQ(3, list->length());
-  DCHECK_EQ(10, list->at(0).from());
-  DCHECK_EQ(20, list->at(0).to());
-  DCHECK_EQ(30, list->at(1).from());
-  DCHECK_EQ(40, list->at(1).to());
-  DCHECK_EQ(50, list->at(2).from());
-  DCHECK_EQ(60, list->at(2).to());
+  CHECK_EQ(3, list->length());
+  CHECK_EQ(10, list->at(0).from());
+  CHECK_EQ(20, list->at(0).to());
+  CHECK_EQ(30, list->at(1).from());
+  CHECK_EQ(40, list->at(1).to());
+  CHECK_EQ(50, list->at(2).from());
+  CHECK_EQ(60, list->at(2).to());
 
   list->Rewind(0);
   list->Add(CharacterRange(10, 20), &zone);
   list->Add(CharacterRange(50, 60), &zone);
   list->Add(CharacterRange(30, 40), &zone);
   set.Canonicalize();
-  DCHECK_EQ(3, list->length());
-  DCHECK_EQ(10, list->at(0).from());
-  DCHECK_EQ(20, list->at(0).to());
-  DCHECK_EQ(30, list->at(1).from());
-  DCHECK_EQ(40, list->at(1).to());
-  DCHECK_EQ(50, list->at(2).from());
-  DCHECK_EQ(60, list->at(2).to());
+  CHECK_EQ(3, list->length());
+  CHECK_EQ(10, list->at(0).from());
+  CHECK_EQ(20, list->at(0).to());
+  CHECK_EQ(30, list->at(1).from());
+  CHECK_EQ(40, list->at(1).to());
+  CHECK_EQ(50, list->at(2).from());
+  CHECK_EQ(60, list->at(2).to());
 
   list->Rewind(0);
   list->Add(CharacterRange(30, 40), &zone);
@@ -1706,26 +1746,26 @@ TEST(CanonicalizeCharacterSets) {
   list->Add(CharacterRange(100, 100), &zone);
   list->Add(CharacterRange(1, 1), &zone);
   set.Canonicalize();
-  DCHECK_EQ(5, list->length());
-  DCHECK_EQ(1, list->at(0).from());
-  DCHECK_EQ(1, list->at(0).to());
-  DCHECK_EQ(10, list->at(1).from());
-  DCHECK_EQ(20, list->at(1).to());
-  DCHECK_EQ(25, list->at(2).from());
-  DCHECK_EQ(25, list->at(2).to());
-  DCHECK_EQ(30, list->at(3).from());
-  DCHECK_EQ(40, list->at(3).to());
-  DCHECK_EQ(100, list->at(4).from());
-  DCHECK_EQ(100, list->at(4).to());
+  CHECK_EQ(5, list->length());
+  CHECK_EQ(1, list->at(0).from());
+  CHECK_EQ(1, list->at(0).to());
+  CHECK_EQ(10, list->at(1).from());
+  CHECK_EQ(20, list->at(1).to());
+  CHECK_EQ(25, list->at(2).from());
+  CHECK_EQ(25, list->at(2).to());
+  CHECK_EQ(30, list->at(3).from());
+  CHECK_EQ(40, list->at(3).to());
+  CHECK_EQ(100, list->at(4).from());
+  CHECK_EQ(100, list->at(4).to());
 
   list->Rewind(0);
   list->Add(CharacterRange(10, 19), &zone);
   list->Add(CharacterRange(21, 30), &zone);
   list->Add(CharacterRange(20, 20), &zone);
   set.Canonicalize();
-  DCHECK_EQ(1, list->length());
-  DCHECK_EQ(10, list->at(0).from());
-  DCHECK_EQ(30, list->at(0).to());
+  CHECK_EQ(1, list->length());
+  CHECK_EQ(10, list->at(0).from());
+  CHECK_EQ(30, list->at(0).to());
 }
 
 
@@ -1807,8 +1847,8 @@ TEST(CharacterRangeMerge) {
     offset += 9;
   }
 
-  DCHECK(CharacterRange::IsCanonical(&l1));
-  DCHECK(CharacterRange::IsCanonical(&l2));
+  CHECK(CharacterRange::IsCanonical(&l1));
+  CHECK(CharacterRange::IsCanonical(&l2));
 
   ZoneList<CharacterRange> first_only(4, &zone);
   ZoneList<CharacterRange> second_only(4, &zone);
@@ -1818,4 +1858,83 @@ TEST(CharacterRangeMerge) {
 
 TEST(Graph) {
   Execute("\\b\\w+\\b", false, true, true);
+}
+
+
+namespace {
+
+int* global_use_counts = NULL;
+
+void MockUseCounterCallback(v8::Isolate* isolate,
+                            v8::Isolate::UseCounterFeature feature) {
+  ++global_use_counts[feature];
+}
+}
+
+
+// Test that ES2015 RegExp compatibility fixes are in place, that they
+// are not overly broad, and the appropriate UseCounters are incremented
+TEST(UseCountRegExp) {
+  i::FLAG_harmony_regexps = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  // Compat fix: RegExp.prototype.sticky == undefined; UseCounter tracks it
+  v8::Local<v8::Value> resultSticky = CompileRun("RegExp.prototype.sticky");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultSticky->IsUndefined());
+
+  // re.sticky has approriate value and doesn't touch UseCounter
+  v8::Local<v8::Value> resultReSticky = CompileRun("/a/.sticky");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultReSticky->IsFalse());
+
+  // When the getter is caleld on another object, throw an exception
+  // and don't increment the UseCounter
+  v8::Local<v8::Value> resultStickyError = CompileRun(
+      "var exception;"
+      "try { "
+      "  Object.getOwnPropertyDescriptor(RegExp.prototype, 'sticky')"
+      "      .get.call(null);"
+      "} catch (e) {"
+      "  exception = e;"
+      "}"
+      "exception");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultStickyError->IsObject());
+
+  // RegExp.prototype.toString() returns '/(?:)/' as a compatibility fix;
+  // a UseCounter is incremented to track it.
+  v8::Local<v8::Value> resultToString =
+      CompileRun("RegExp.prototype.toString().length");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultToString->IsInt32());
+  CHECK_EQ(6,
+           resultToString->Int32Value(isolate->GetCurrentContext()).FromJust());
+
+  // .toString() works on normal RegExps
+  v8::Local<v8::Value> resultReToString = CompileRun("/a/.toString().length");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultReToString->IsInt32());
+  CHECK_EQ(
+      3, resultReToString->Int32Value(isolate->GetCurrentContext()).FromJust());
+
+  // .toString() throws on non-RegExps that aren't RegExp.prototype
+  v8::Local<v8::Value> resultToStringError = CompileRun(
+      "var exception;"
+      "try { RegExp.prototype.toString.call(null) }"
+      "catch (e) { exception = e; }"
+      "exception");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultToStringError->IsObject());
 }

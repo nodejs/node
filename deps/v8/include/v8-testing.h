@@ -39,7 +39,7 @@ class V8_EXPORT Testing {
   /**
    * Force deoptimization of all functions.
    */
-  static void DeoptimizeAll();
+  static void DeoptimizeAll(Isolate* isolate);
 };
 
 

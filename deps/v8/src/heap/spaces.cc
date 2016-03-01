@@ -958,8 +958,7 @@ PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 
-  allocation_info_.set_top(NULL);
-  allocation_info_.set_limit(NULL);
+  allocation_info_.Reset(nullptr, nullptr);
 
   anchor_.InitializeAsAnchor(this);
 }
@@ -1248,8 +1247,7 @@ void PagedSpace::ReleasePage(Page* page) {
   DCHECK(!free_list_.ContainsPageFreeListItems(page));
 
   if (Page::FromAllocationTop(allocation_info_.top()) == page) {
-    allocation_info_.set_top(NULL);
-    allocation_info_.set_limit(NULL);
+    allocation_info_.Reset(nullptr, nullptr);
   }
 
   // If page is still in a list, unlink it from that list.
@@ -1390,8 +1388,8 @@ void NewSpace::TearDown() {
   }
 
   start_ = NULL;
-  allocation_info_.set_top(NULL);
-  allocation_info_.set_limit(NULL);
+  allocation_info_.Reset(nullptr, nullptr);
+
 
   to_space_.TearDown();
   from_space_.TearDown();
@@ -1480,10 +1478,50 @@ void NewSpace::Shrink() {
 }
 
 
+void LocalAllocationBuffer::Close() {
+  if (IsValid()) {
+    heap_->CreateFillerObjectAt(
+        allocation_info_.top(),
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
+  }
+}
+
+
+LocalAllocationBuffer::LocalAllocationBuffer(Heap* heap,
+                                             AllocationInfo allocation_info)
+    : heap_(heap), allocation_info_(allocation_info) {
+  if (IsValid()) {
+    heap_->CreateFillerObjectAt(
+        allocation_info_.top(),
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
+  }
+}
+
+
+LocalAllocationBuffer::LocalAllocationBuffer(
+    const LocalAllocationBuffer& other) {
+  *this = other;
+}
+
+
+LocalAllocationBuffer& LocalAllocationBuffer::operator=(
+    const LocalAllocationBuffer& other) {
+  Close();
+  heap_ = other.heap_;
+  allocation_info_ = other.allocation_info_;
+
+  // This is needed since we (a) cannot yet use move-semantics, and (b) want
+  // to make the use of the class easy by it as value and (c) implicitly call
+  // {Close} upon copy.
+  const_cast<LocalAllocationBuffer&>(other)
+      .allocation_info_.Reset(nullptr, nullptr);
+  return *this;
+}
+
+
 void NewSpace::UpdateAllocationInfo() {
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-  allocation_info_.set_top(to_space_.page_low());
-  allocation_info_.set_limit(to_space_.page_high());
+  allocation_info_.Reset(to_space_.page_low(), to_space_.page_high());
   UpdateInlineAllocationLimit(0);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
@@ -1499,7 +1537,7 @@ void NewSpace::ResetAllocationInfo() {
   while (it.has_next()) {
     Bitmap::Clear(it.next());
   }
-  InlineAllocationStep(old_top, allocation_info_.top());
+  InlineAllocationStep(old_top, allocation_info_.top(), nullptr, 0);
 }
 
 
@@ -1509,14 +1547,15 @@ void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
     Address high = to_space_.page_high();
     Address new_top = allocation_info_.top() + size_in_bytes;
     allocation_info_.set_limit(Min(new_top, high));
-  } else if (top_on_previous_step_ == 0) {
+  } else if (inline_allocation_observers_paused_ ||
+             top_on_previous_step_ == 0) {
     // Normal limit is the end of the current page.
     allocation_info_.set_limit(to_space_.page_high());
   } else {
     // Lower limit during incremental marking.
     Address high = to_space_.page_high();
     Address new_top = allocation_info_.top() + size_in_bytes;
-    Address new_limit = new_top + inline_allocation_limit_step_;
+    Address new_limit = new_top + GetNextInlineAllocationStepSize() - 1;
     allocation_info_.set_limit(Min(new_limit, high));
   }
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
@@ -1565,6 +1604,12 @@ bool NewSpace::AddFreshPage() {
 }
 
 
+bool NewSpace::AddFreshPageSynchronized() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  return AddFreshPage();
+}
+
+
 bool NewSpace::EnsureAllocation(int size_in_bytes,
                                 AllocationAlignment alignment) {
   Address old_top = allocation_info_.top();
@@ -1578,7 +1623,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
       return false;
     }
 
-    InlineAllocationStep(old_top, allocation_info_.top());
+    InlineAllocationStep(old_top, allocation_info_.top(), nullptr, 0);
 
     old_top = allocation_info_.top();
     high = to_space_.page_high();
@@ -1594,28 +1639,38 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
     // or because idle scavenge job wants to get a chance to post a task.
     // Set the new limit accordingly.
     Address new_top = old_top + aligned_size_in_bytes;
-    InlineAllocationStep(new_top, new_top);
+    Address soon_object = old_top + filler_size;
+    InlineAllocationStep(new_top, new_top, soon_object, size_in_bytes);
     UpdateInlineAllocationLimit(aligned_size_in_bytes);
   }
   return true;
 }
 
 
-void NewSpace::UpdateInlineAllocationLimitStep() {
-  intptr_t step = 0;
-  for (int i = 0; i < inline_allocation_observers_.length(); ++i) {
-    InlineAllocationObserver* observer = inline_allocation_observers_[i];
-    step = step ? Min(step, observer->step_size()) : observer->step_size();
+void NewSpace::StartNextInlineAllocationStep() {
+  if (!inline_allocation_observers_paused_) {
+    top_on_previous_step_ =
+        inline_allocation_observers_.length() ? allocation_info_.top() : 0;
+    UpdateInlineAllocationLimit(0);
   }
-  inline_allocation_limit_step_ = step;
-  top_on_previous_step_ = step ? allocation_info_.top() : 0;
-  UpdateInlineAllocationLimit(0);
+}
+
+
+intptr_t NewSpace::GetNextInlineAllocationStepSize() {
+  intptr_t next_step = 0;
+  for (int i = 0; i < inline_allocation_observers_.length(); ++i) {
+    InlineAllocationObserver* o = inline_allocation_observers_[i];
+    next_step = next_step ? Min(next_step, o->bytes_to_next_step())
+                          : o->bytes_to_next_step();
+  }
+  DCHECK(inline_allocation_observers_.length() == 0 || next_step != 0);
+  return next_step;
 }
 
 
 void NewSpace::AddInlineAllocationObserver(InlineAllocationObserver* observer) {
   inline_allocation_observers_.Add(observer);
-  UpdateInlineAllocationLimitStep();
+  StartNextInlineAllocationStep();
 }
 
 
@@ -1625,15 +1680,33 @@ void NewSpace::RemoveInlineAllocationObserver(
   // Only used in assertion. Suppress unused variable warning.
   static_cast<void>(removed);
   DCHECK(removed);
-  UpdateInlineAllocationLimitStep();
+  StartNextInlineAllocationStep();
 }
 
 
-void NewSpace::InlineAllocationStep(Address top, Address new_top) {
+void NewSpace::PauseInlineAllocationObservers() {
+  // Do a step to account for memory allocated so far.
+  InlineAllocationStep(top(), top(), nullptr, 0);
+  inline_allocation_observers_paused_ = true;
+  top_on_previous_step_ = 0;
+  UpdateInlineAllocationLimit(0);
+}
+
+
+void NewSpace::ResumeInlineAllocationObservers() {
+  DCHECK(top_on_previous_step_ == 0);
+  inline_allocation_observers_paused_ = false;
+  StartNextInlineAllocationStep();
+}
+
+
+void NewSpace::InlineAllocationStep(Address top, Address new_top,
+                                    Address soon_object, size_t size) {
   if (top_on_previous_step_) {
     int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
     for (int i = 0; i < inline_allocation_observers_.length(); ++i) {
-      inline_allocation_observers_[i]->InlineAllocationStep(bytes_allocated);
+      inline_allocation_observers_[i]->InlineAllocationStep(bytes_allocated,
+                                                            soon_object, size);
     }
     top_on_previous_step_ = new_top;
   }
@@ -2262,7 +2335,7 @@ FreeSpace* FreeListCategory::PickNodeFromList(int* node_size) {
   if (node == nullptr) return nullptr;
 
   Page* page = Page::FromAddress(node->address());
-  while ((node != nullptr) && page->IsEvacuationCandidate()) {
+  while ((node != nullptr) && !page->CanAllocate()) {
     available_ -= node->size();
     page->add_available_in_free_list(type_, -(node->Size()));
     node = node->next();
@@ -2304,7 +2377,7 @@ FreeSpace* FreeListCategory::SearchForNodeInList(int size_in_bytes,
     int size = cur_node->size();
     Page* page_for_node = Page::FromAddress(cur_node->address());
 
-    if ((size >= size_in_bytes) || page_for_node->IsEvacuationCandidate()) {
+    if ((size >= size_in_bytes) || !page_for_node->CanAllocate()) {
       // The node is either large enough or contained in an evacuation
       // candidate. In both cases we need to unlink it from the list.
       available_ -= size;
@@ -2318,7 +2391,7 @@ FreeSpace* FreeListCategory::SearchForNodeInList(int size_in_bytes,
         prev_non_evac_node->set_next(cur_node->next());
       }
       // For evacuation candidates we continue.
-      if (page_for_node->IsEvacuationCandidate()) {
+      if (!page_for_node->CanAllocate()) {
         page_for_node->add_available_in_free_list(type_, -size);
         continue;
       }
@@ -2700,7 +2773,8 @@ void PagedSpace::PrepareForMarkCompact() {
 
 intptr_t PagedSpace::SizeOfObjects() {
   const intptr_t size = Size() - (limit() - top());
-  DCHECK_GE(size, 0);
+  CHECK_GE(limit(), top());
+  CHECK_GE(size, 0);
   USE(size);
   return size;
 }
@@ -2728,15 +2802,12 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
 void PagedSpace::EvictEvacuationCandidatesFromLinearAllocationArea() {
   if (allocation_info_.top() >= allocation_info_.limit()) return;
 
-  if (Page::FromAllocationTop(allocation_info_.top())
-          ->IsEvacuationCandidate()) {
+  if (!Page::FromAllocationTop(allocation_info_.top())->CanAllocate()) {
     // Create filler object to keep page iterable if it was iterable.
     int remaining =
         static_cast<int>(allocation_info_.limit() - allocation_info_.top());
     heap()->CreateFillerObjectAt(allocation_info_.top(), remaining);
-
-    allocation_info_.set_top(nullptr);
-    allocation_info_.set_limit(nullptr);
+    allocation_info_.Reset(nullptr, nullptr);
   }
 }
 
@@ -2985,7 +3056,6 @@ HeapObject* LargeObjectIterator::Next() {
 
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
-static bool ComparePointers(void* key1, void* key2) { return key1 == key2; }
 
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
@@ -2994,7 +3064,7 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
       size_(0),
       page_count_(0),
       objects_size_(0),
-      chunk_map_(ComparePointers, 1024) {}
+      chunk_map_(HashMap::PointersMatch, 1024) {}
 
 
 LargeObjectSpace::~LargeObjectSpace() {}
@@ -3029,8 +3099,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
                                                Executability executable) {
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
-  if (!heap()->always_allocate() &&
-      !heap()->CanExpandOldGeneration(object_size)) {
+  if (!heap()->CanExpandOldGeneration(object_size)) {
     return AllocationResult::Retry(identity());
   }
 
@@ -3117,7 +3186,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   while (current != NULL) {
     HeapObject* object = current->GetObject();
     MarkBit mark_bit = Marking::MarkBitFrom(object);
-    DCHECK(Marking::IsBlackOrGrey(mark_bit));
+    DCHECK(Marking::IsBlack(mark_bit));
     Marking::BlackToWhite(mark_bit);
     Page::FromAddress(object->address())->ResetProgressBar();
     Page::FromAddress(object->address())->ResetLiveBytes();
@@ -3132,7 +3201,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   while (current != NULL) {
     HeapObject* object = current->GetObject();
     MarkBit mark_bit = Marking::MarkBitFrom(object);
-    if (Marking::IsBlackOrGrey(mark_bit)) {
+    DCHECK(!Marking::IsGrey(mark_bit));
+    if (Marking::IsBlack(mark_bit)) {
       previous = current;
       current = current->next_page();
     } else {
@@ -3204,11 +3274,6 @@ void LargeObjectSpace::Verify() {
     Map* map = object->map();
     CHECK(map->IsMap());
     CHECK(heap()->map_space()->Contains(map));
-
-    // Double unboxing in LO space is not allowed. This would break the
-    // lookup mechanism for store and slot buffer entries which use the
-    // page header tag.
-    CHECK(object->ContentType() != HeapObjectContents::kMixedValues);
 
     // We have only code, sequential strings, external strings
     // (sequential strings that have been morphed into external

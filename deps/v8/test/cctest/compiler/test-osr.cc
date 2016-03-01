@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/codegen.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
@@ -94,7 +91,8 @@ class OsrDeconstructorTester : public HandleAndZoneScope {
     if (count > 3) inputs[3] = back2;
     if (count > 4) inputs[4] = back3;
     inputs[count] = loop;
-    return graph.NewNode(common.Phi(kMachAnyTagged, count), count + 1, inputs);
+    return graph.NewNode(common.Phi(MachineRepresentation::kTagged, count),
+                         count + 1, inputs);
   }
 
   Node* NewLoop(bool is_osr, int num_backedges, Node* entry = nullptr) {
@@ -317,9 +315,11 @@ struct While {
 
   Node* Phi(Node* i1, Node* i2, Node* i3) {
     if (loop->InputCount() == 2) {
-      return t.graph.NewNode(t.common.Phi(kMachAnyTagged, 2), i1, i2, loop);
+      return t.graph.NewNode(t.common.Phi(MachineRepresentation::kTagged, 2),
+                             i1, i2, loop);
     } else {
-      return t.graph.NewNode(t.common.Phi(kMachAnyTagged, 3), i1, i2, i3, loop);
+      return t.graph.NewNode(t.common.Phi(MachineRepresentation::kTagged, 3),
+                             i1, i2, i3, loop);
     }
   }
 };
@@ -476,7 +476,8 @@ Node* MakeCounter(JSGraph* jsgraph, Node* start, Node* loop) {
   tmp_inputs.push_back(loop);
 
   Node* phi = jsgraph->graph()->NewNode(
-      jsgraph->common()->Phi(kMachInt32, count), count + 1, &tmp_inputs[0]);
+      jsgraph->common()->Phi(MachineRepresentation::kWord32, count), count + 1,
+      &tmp_inputs[0]);
   Node* inc = jsgraph->graph()->NewNode(&kIntAdd, phi, jsgraph->OneConstant());
 
   for (int i = 1; i < count; i++) {
@@ -496,8 +497,9 @@ TEST(Deconstruct_osr_nested3) {
 
   // middle loop.
   Node* loop1 = T.graph.NewNode(T.common.Loop(1), loop0.if_true);
-  Node* loop1_phi = T.graph.NewNode(T.common.Phi(kMachAnyTagged, 2), loop0_cntr,
-                                    loop0_cntr, loop1);
+  Node* loop1_phi =
+      T.graph.NewNode(T.common.Phi(MachineRepresentation::kTagged, 2),
+                      loop0_cntr, loop0_cntr, loop1);
 
   // innermost (OSR) loop.
   While loop2(T, T.p0, true, 1);

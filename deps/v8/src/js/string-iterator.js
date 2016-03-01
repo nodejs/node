@@ -46,7 +46,7 @@ function StringIteratorNext() {
   var value = UNDEFINED;
   var done = true;
 
-  if (!IS_SPEC_OBJECT(iterator) ||
+  if (!IS_RECEIVER(iterator) ||
       !HAS_DEFINED_PRIVATE(iterator, stringIteratorNextIndexSymbol)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'String Iterator.prototype.next');

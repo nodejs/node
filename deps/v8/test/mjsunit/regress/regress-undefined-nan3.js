@@ -6,8 +6,8 @@
 
 var ab = new ArrayBuffer(8);
 var i_view = new Int32Array(ab);
-i_view[0] = 0xFFF7FFFF;
-i_view[1] = 0xFFF7FFFF;
+i_view[0] = %GetHoleNaNUpper()
+i_view[1] = %GetHoleNaNLower();
 var f_view = new Float64Array(ab);
 
 var fixed_double_elements = new Float64Array(1);

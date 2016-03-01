@@ -270,7 +270,7 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertEquals("[object " + constr.name + "]",
       Object.prototype.toString.call(a));
   var desc = Object.getOwnPropertyDescriptor(
-      constr.prototype, Symbol.toStringTag);
+      constr.prototype.__proto__, Symbol.toStringTag);
   assertTrue(desc.configurable);
   assertFalse(desc.enumerable);
   assertFalse(!!desc.writable);
@@ -418,17 +418,13 @@ var typedArrayConstructors = [
 function TestPropertyTypeChecks(constructor) {
   function CheckProperty(name) {
     assertThrows(function() { 'use strict'; new constructor(10)[name] = 0; })
-    var d = Object.getOwnPropertyDescriptor(constructor.prototype, name);
+    var d = Object.getOwnPropertyDescriptor(constructor.prototype.__proto__, name);
     var o = {};
     assertThrows(function() {d.get.call(o);}, TypeError);
     for (var i = 0; i < typedArrayConstructors.length; i++) {
       var ctor = typedArrayConstructors[i];
       var a = new ctor(10);
-      if (ctor === constructor) {
-        d.get.call(a); // shouldn't throw
-      } else {
-        assertThrows(function() {d.get.call(a);}, TypeError);
-      }
+      d.get.call(a); // shouldn't throw
     }
   }
 

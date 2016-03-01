@@ -161,7 +161,8 @@ void Accessors::ArgumentsIteratorSetter(
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> object_handle = Utils::OpenHandle(*info.This());
+  Handle<JSObject> object_handle =
+      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
   Handle<Object> value_handle = Utils::OpenHandle(*val);
   Handle<Name> name_handle = Utils::OpenHandle(*name);
 
@@ -205,7 +206,7 @@ void Accessors::ArrayLengthSetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
 
-  Handle<JSObject> object = Utils::OpenHandle(*info.This());
+  Handle<JSReceiver> object = Utils::OpenHandle(*info.This());
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   Handle<Object> length_obj = Utils::OpenHandle(*val);
 
@@ -1327,12 +1328,6 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
   }
   if (!caller->shared()->native() && potential_caller != NULL) {
     caller = potential_caller;
-  }
-  // If caller is bound, return null. This is compatible with JSC, and
-  // allows us to make bound functions use the strict function map
-  // and its associated throwing caller and arguments.
-  if (caller->shared()->bound()) {
-    return MaybeHandle<JSFunction>();
   }
   // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:

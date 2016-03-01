@@ -27,7 +27,6 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 
 PASS var array = []; array[0] = array; array + '' is ''
-PASS var error = new Error; error.name = error; error.message = error; error + '' is ''
 PASS var regexp = /a/; regexp.source = regexp; regexp + '' is '/a/'
 PASS successfullyParsed is true
 

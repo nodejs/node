@@ -5,5 +5,6 @@
 // Flags: --allow-natives-syntax
 
 var a = new Array();
+var b = new Array();
 Object.freeze(a);
-assertThrows(function() { %LiveEditCheckAndDropActivations(a, true); });
+assertThrows(function() { %LiveEditCheckAndDropActivations(a, b, true); });

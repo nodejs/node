@@ -42,9 +42,9 @@ function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
       if (state == 1) {
-        exec_state.prepareStep(Debug.StepAction.StepOut, 2);
-        state = 2;
-      } else if (state == 2) {
+        exec_state.prepareStep(Debug.StepAction.StepOut);
+        state++;
+      } else {
         assertEquals(expected_function_name, event_data.func().name());
         assertEquals(expected_source_line_text,
                      event_data.sourceLineText());

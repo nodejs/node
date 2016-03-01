@@ -5,7 +5,7 @@
 #ifndef V8_ARM_CODEGEN_ARM_H_
 #define V8_ARM_CODEGEN_ARM_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

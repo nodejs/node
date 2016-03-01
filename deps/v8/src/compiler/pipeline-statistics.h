@@ -76,10 +76,10 @@ class PhaseScope {
  public:
   PhaseScope(PipelineStatistics* pipeline_stats, const char* name)
       : pipeline_stats_(pipeline_stats) {
-    if (pipeline_stats_ != NULL) pipeline_stats_->BeginPhase(name);
+    if (pipeline_stats_ != nullptr) pipeline_stats_->BeginPhase(name);
   }
   ~PhaseScope() {
-    if (pipeline_stats_ != NULL) pipeline_stats_->EndPhase();
+    if (pipeline_stats_ != nullptr) pipeline_stats_->EndPhase();
   }
 
  private:

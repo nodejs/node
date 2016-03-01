@@ -5,7 +5,7 @@
 #ifndef V8_TYPING_RESET_H_
 #define V8_TYPING_RESET_H_
 
-#include "src/ast-expression-visitor.h"
+#include "src/ast/ast-expression-visitor.h"
 
 namespace v8 {
 namespace internal {

@@ -31,12 +31,16 @@
 // Helper.
 
 function TestWithProxies(test, x, y, z) {
-  test(Proxy.create, x, y, z)
-  test(function(h) {return Proxy.createFunction(h, function() {})}, x, y, z)
+  test(function(h){ return new Proxy({}, h) }, x, y, z)
+  test(function(h) {
+    return new Proxy(function() {}, h)
+  }, x, y, z)
 }
 
 
 // Iterate over a proxy.
+
+Array.prototype.values = function() { return this[Symbol.iterator]() }
 
 function TestForIn(properties, handler) {
   TestWithProxies(TestForIn2, properties, handler)
@@ -50,30 +54,19 @@ function TestForIn2(create, properties, handler) {
 }
 
 TestForIn(["0", "a"], {
-  enumerate: function() { return [0, "a"] }
+  enumerate() { return ["0", "a"].values() },
+  has(target, property) { return true }
 })
 
 TestForIn(["null", "a"], {
-  enumerate: function() { return this.enumerate2() },
-  enumerate2: function() { return [null, "a"] }
+  enumerate() { return this.enumerate2() },
+  enumerate2() { return ["null", "a"].values() },
+  has(target, property) { return true }
 })
 
-TestForIn(["b", "d"], {
-  getPropertyNames: function() { return ["a", "b", "c", "d", "e"] },
-  getPropertyDescriptor: function(k) {
-    switch (k) {
-      case "a": return {enumerable: false, value: "3", configurable: true};
-      case "b": return {enumerable: true, get get() {}, configurable: true};
-      case "c": return {value: 4, configurable: true};
-      case "d": return {get enumerable() { return true }, configurable: true};
-      default: return undefined;
-    }
-  }
-})
-
-TestForIn(["b", "a", "0", "c"], Proxy.create({
+TestForIn(["b", "a", "0", "c"], new Proxy({}, {
   get: function(pr, pk) {
-    return function() { return ["b", "a", 0, "c"] }
+    return function() { return ["b", "a", "0", "c"].values() }
   }
 }))
 
@@ -101,31 +94,14 @@ function TestForInDerived2(create, properties, handler) {
 }
 
 TestForInDerived(["0", "a"], {
-  enumerate: function() { return [0, "a"] },
-  getPropertyDescriptor: function(k) {
-    return k == "0" || k == "a" ? {configurable: true} : undefined
-  }
+  enumerate: function() { return ["0", "a"].values() },
+  has: function(t, k) { return k == "0" || k == "a" }
 })
 
 TestForInDerived(["null", "a"], {
   enumerate: function() { return this.enumerate2() },
-  enumerate2: function() { return [null, "a"] },
-  getPropertyDescriptor: function(k) {
-    return k == "null" || k == "a" ? {configurable: true} : undefined
-  }
-})
-
-TestForInDerived(["b", "d"], {
-  getPropertyNames: function() { return ["a", "b", "c", "d", "e"] },
-  getPropertyDescriptor: function(k) {
-    switch (k) {
-      case "a": return {enumerable: false, value: "3", configurable: true};
-      case "b": return {enumerable: true, get get() {}, configurable: true};
-      case "c": return {value: 4, configurable: true};
-      case "d": return {get enumerable() { return true }, configurable: true};
-      default: return undefined;
-    }
-  }
+  enumerate2: function() { return ["null", "a"].values() },
+  has: function(t, k) { return k == "null" || k == "a" }
 })
 
 
@@ -139,8 +115,8 @@ function TestForInThrow(handler) {
 function TestForInThrow2(create, handler) {
   var p = create(handler)
   var o = Object.create(p)
-  assertThrows(function(){ for (var x in p) {} }, "myexn")
-  assertThrows(function(){ for (var x in o) {} }, "myexn")
+  assertThrowsEquals(function(){ for (var x in p) {} }, "myexn")
+  assertThrowsEquals(function(){ for (var x in o) {} }, "myexn")
 }
 
 TestForInThrow({
@@ -152,23 +128,14 @@ TestForInThrow({
   enumerate2: function() { throw "myexn" }
 })
 
-TestForInThrow({
-  getPropertyNames: function() { throw "myexn" }
-})
-
-TestForInThrow({
-  getPropertyNames: function() { return ["a"] },
-  getPropertyDescriptor: function() { throw "myexn" }
-})
-
-TestForInThrow(Proxy.create({
+TestForInThrow(new Proxy({}, {
   get: function(pr, pk) {
     return function() { throw "myexn" }
   }
 }));
 
 (function() {
-  var p = Proxy.create({enumerate:function() { return [0]; }});
+  var p = new Proxy({}, {enumerate:function() { return ["0"].values(); }});
   var o = [0];
   o.__proto__ = p;
   var keys = [];
@@ -177,7 +144,6 @@ TestForInThrow(Proxy.create({
 })();
 
 (function () {
-  var p = Proxy.create({getOwnPropertyNames:
-    function() { return [1, Symbol(), 2] }});
+  var p = new Proxy({}, {ownKeys: function() { return ["1", Symbol(), "2"] }});
   assertEquals(["1","2"], Object.getOwnPropertyNames(p));
 })();

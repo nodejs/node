@@ -22,7 +22,8 @@ void FrameElider::MarkBlocks() {
   for (auto block : instruction_blocks()) {
     if (block->needs_frame()) continue;
     for (auto i = block->code_start(); i < block->code_end(); ++i) {
-      if (InstructionAt(i)->IsCall()) {
+      if (InstructionAt(i)->IsCall() ||
+          InstructionAt(i)->opcode() == ArchOpcode::kArchDeoptimize) {
         block->mark_needs_frame();
         break;
       }

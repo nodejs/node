@@ -89,8 +89,27 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.HasValue()) return ReplaceNumber(FastUI2D(m.Value()));
       break;
     }
+    case IrOpcode::kReferenceEqual:
+      return ReduceReferenceEqual(node);
     default:
       break;
+  }
+  return NoChange();
+}
+
+
+Reduction SimplifiedOperatorReducer::ReduceReferenceEqual(Node* node) {
+  DCHECK_EQ(IrOpcode::kReferenceEqual, node->opcode());
+  Node* const left = NodeProperties::GetValueInput(node, 0);
+  Node* const right = NodeProperties::GetValueInput(node, 1);
+  HeapObjectMatcher match_left(left);
+  HeapObjectMatcher match_right(right);
+  if (match_left.HasValue() && match_right.HasValue()) {
+    if (match_left.Value().is_identical_to(match_right.Value())) {
+      return Replace(jsgraph()->TrueConstant());
+    } else {
+      return Replace(jsgraph()->FalseConstant());
+    }
   }
   return NoChange();
 }

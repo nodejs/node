@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax
+// Flags: --expose-debug-as debug --allow-natives-syntax --promise-extra
 
 // Test debug events when an exception is thrown inside a Promise, which is
 // caught by a custom promise, which has no reject handler.
@@ -48,7 +48,7 @@ function listener(event, exec_state, event_data, data) {
       } else if (expected_events == 0) {
         // All of the frames on the stack are from native Javascript.
         assertEquals(0, exec_state.frameCount());
-        assertEquals("undefined is not a function",
+        assertEquals("(var).reject is not a function",
                      event_data.exception().message);
       } else {
         assertUnreachable();

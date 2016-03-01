@@ -10,23 +10,18 @@
 // -------------------------------------------------------------------
 // Imports
 
+define kRandomBatchSize = 64;
+// The first two slots are reserved to persist PRNG state.
+define kRandomNumberStart = 2;
+
+var GlobalFloat64Array = global.Float64Array;
 var GlobalMath = global.Math;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var NaN = %GetRootNaN();
-var rngstate_0;
-var rngstate_1;
-var rngstate_2;
-var rngstate_3;
+var nextRandomIndex = kRandomBatchSize;
+var randomNumbers = UNDEFINED;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
-
-utils.InitializeRNG = function() {
-  var rngstate = %InitializeRNG();
-  rngstate_0 = rngstate[0];
-  rngstate_1 = rngstate[1];
-  rngstate_2 = rngstate[2];
-  rngstate_3 = rngstate[3];
-};
 
 //-------------------------------------------------------------------
 
@@ -141,25 +136,19 @@ function MathPowJS(x, y) {
 
 // ECMA 262 - 15.8.2.14
 function MathRandom() {
-  var r0 = (MathImul(18030, rngstate_0) + rngstate_1) | 0;
-  var r1 = (MathImul(36969, rngstate_2) + rngstate_3) | 0;
-  rngstate_0 = r0 & 0xFFFF;
-  rngstate_1 = r0 >>> 16;
-  rngstate_2 = r1 & 0xFFFF;
-  rngstate_3 = r1 >>> 16;
-  // Construct a double number 1.<32-bits of randomness> and subtract 1.
-  return %_ConstructDouble(0x3FF00000 | (r0 & 0x000FFFFF), r1 & 0xFFF00000) - 1;
+  if (nextRandomIndex >= kRandomBatchSize) {
+    randomNumbers = %GenerateRandomNumbers(randomNumbers);
+    nextRandomIndex = kRandomNumberStart;
+  }
+  return randomNumbers[nextRandomIndex++];
 }
 
 function MathRandomRaw() {
-  var r0 = (MathImul(18030, rngstate_0) + rngstate_1) | 0;
-  var r1 = (MathImul(36969, rngstate_2) + rngstate_3) | 0;
-  rngstate_0 = r0 & 0xFFFF;
-  rngstate_1 = r0 >>> 16;
-  rngstate_2 = r1 & 0xFFFF;
-  rngstate_3 = r1 >>> 16;
-  var x = ((r0 << 16) + (r1 & 0xFFFF)) | 0;
-  return x & 0x3FFFFFFF;
+  if (nextRandomIndex >= kRandomBatchSize) {
+    randomNumbers = %GenerateRandomNumbers(randomNumbers);
+    nextRandomIndex = kRandomNumberStart;
+  }
+  return %_DoubleLo(randomNumbers[nextRandomIndex++]) & 0x3FFFFFFF;
 }
 
 // ECMA 262 - 15.8.2.15
@@ -282,7 +271,7 @@ endmacro
 
 function CubeRoot(x) {
   var approx_hi = MathFloorJS(%_DoubleHi(x) / 3) + 0x2A9F7893;
-  var approx = %_ConstructDouble(approx_hi, 0);
+  var approx = %_ConstructDouble(approx_hi | 0, 0);
   approx = NEWTON_ITERATION_CBRT(x, approx);
   approx = NEWTON_ITERATION_CBRT(x, approx);
   approx = NEWTON_ITERATION_CBRT(x, approx);

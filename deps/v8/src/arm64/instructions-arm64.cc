@@ -219,13 +219,13 @@ bool Instruction::IsTargetInImmPCOffsetRange(Instruction* target) {
 }
 
 
-void Instruction::SetImmPCOffsetTarget(Instruction* target) {
+void Instruction::SetImmPCOffsetTarget(Isolate* isolate, Instruction* target) {
   if (IsPCRelAddressing()) {
-    SetPCRelImmTarget(target);
+    SetPCRelImmTarget(isolate, target);
   } else if (BranchType() != UnknownBranchType) {
     SetBranchImmTarget(target);
   } else if (IsUnresolvedInternalReference()) {
-    SetUnresolvedInternalReferenceImmTarget(target);
+    SetUnresolvedInternalReferenceImmTarget(isolate, target);
   } else {
     // Load literal (offset from PC).
     SetImmLLiteral(target);
@@ -233,7 +233,7 @@ void Instruction::SetImmPCOffsetTarget(Instruction* target) {
 }
 
 
-void Instruction::SetPCRelImmTarget(Instruction* target) {
+void Instruction::SetPCRelImmTarget(Isolate* isolate, Instruction* target) {
   // ADRP is not supported, so 'this' must point to an ADR instruction.
   DCHECK(IsAdr());
 
@@ -243,7 +243,7 @@ void Instruction::SetPCRelImmTarget(Instruction* target) {
     imm = Assembler::ImmPCRelAddress(static_cast<int>(target_offset));
     SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
   } else {
-    PatchingAssembler patcher(this,
+    PatchingAssembler patcher(isolate, this,
                               PatchingAssembler::kAdrFarPatchableNInstrs);
     patcher.PatchAdrFar(target_offset);
   }
@@ -284,7 +284,8 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
 }
 
 
-void Instruction::SetUnresolvedInternalReferenceImmTarget(Instruction* target) {
+void Instruction::SetUnresolvedInternalReferenceImmTarget(Isolate* isolate,
+                                                          Instruction* target) {
   DCHECK(IsUnresolvedInternalReference());
   DCHECK(IsAligned(DistanceTo(target), kInstructionSize));
   DCHECK(is_int32(DistanceTo(target) >> kInstructionSizeLog2));
@@ -293,7 +294,7 @@ void Instruction::SetUnresolvedInternalReferenceImmTarget(Instruction* target) {
   uint32_t high16 = unsigned_bitextract_32(31, 16, target_offset);
   uint32_t low16 = unsigned_bitextract_32(15, 0, target_offset);
 
-  PatchingAssembler patcher(this, 2);
+  PatchingAssembler patcher(isolate, this, 2);
   patcher.brk(high16);
   patcher.brk(low16);
 }

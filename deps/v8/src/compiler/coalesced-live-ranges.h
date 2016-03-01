@@ -89,7 +89,7 @@ class LiveRangeConflictIterator {
   }
 
   bool QueryIntersectsAllocatedInterval() const {
-    DCHECK(query_ != nullptr);
+    DCHECK_NOT_NULL(query_);
     return pos_ != intervals_->end() &&
            Intersects(query_->start(), query_->end(), pos_->start_, pos_->end_);
   }

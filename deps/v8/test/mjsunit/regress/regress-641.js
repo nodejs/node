@@ -27,6 +27,8 @@
 
 // Regression test for http://code.google.com/p/v8/issues/detail?id=641.
 
+// Flags: --legacy-const
+
  function f(){
  while (window + 1) {
    const window=[,];

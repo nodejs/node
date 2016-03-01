@@ -690,7 +690,6 @@ class LChunk : public ZoneObject {
   int spill_slot_count_;
 
  private:
-  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code) const;
   void CommitDependencies(Handle<Code> code) const;
 
   CompilationInfo* info_;

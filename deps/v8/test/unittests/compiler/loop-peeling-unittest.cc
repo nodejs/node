@@ -119,7 +119,8 @@ class LoopPeelingTest : public GraphTest {
     a->loop->ReplaceInput(0, b->if_true);
   }
   Node* NewPhi(While* w, Node* a, Node* b) {
-    return graph()->NewNode(common()->Phi(kMachAnyTagged, 2), a, b, w->loop);
+    return graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2), a,
+                            b, w->loop);
   }
 
   Branch NewBranch(Node* cond, Node* control = nullptr) {
@@ -133,8 +134,8 @@ class LoopPeelingTest : public GraphTest {
   Counter NewCounter(While* w, int32_t b, int32_t k) {
     Node* base = Int32Constant(b);
     Node* inc = Int32Constant(k);
-    Node* phi =
-        graph()->NewNode(common()->Phi(kMachAnyTagged, 2), base, base, w->loop);
+    Node* phi = graph()->NewNode(
+        common()->Phi(MachineRepresentation::kTagged, 2), base, base, w->loop);
     Node* add = graph()->NewNode(machine()->Int32Add(), phi, inc);
     phi->ReplaceInput(1, add);
     return {base, inc, phi, add};
@@ -183,7 +184,7 @@ TEST_F(LoopPeelingTest, SimpleLoopWithCounter) {
 
   Capture<Node*> merge;
   EXPECT_THAT(
-      r, IsReturn(IsPhi(kMachAnyTagged, c.phi, c.base,
+      r, IsReturn(IsPhi(MachineRepresentation::kTagged, c.phi, c.base,
                         AllOf(CaptureEq(&merge), IsMerge(w.exit, if_false1))),
                   start(), CaptureEq(&merge)));
 }
@@ -222,7 +223,7 @@ TEST_F(LoopPeelingTest, SimpleNestedLoopWithCounter_peel_outer) {
   Capture<Node*> merge;
   EXPECT_THAT(
       r,
-      IsReturn(IsPhi(kMachAnyTagged, c.phi, c.base,
+      IsReturn(IsPhi(MachineRepresentation::kTagged, c.phi, c.base,
                      AllOf(CaptureEq(&merge), IsMerge(outer.exit, if_falseo))),
                start(), CaptureEq(&merge)));
 }
@@ -298,11 +299,11 @@ TEST_F(LoopPeelingTest, SimpleInnerCounter_peel_inner) {
   EXPECT_THAT(peeled->map(c.add), IsInt32Add(c.base, c.inc));
 
   Node* back = phi->InputAt(1);
-  EXPECT_THAT(back, IsPhi(kMachAnyTagged, c.phi, c.base,
+  EXPECT_THAT(back, IsPhi(MachineRepresentation::kTagged, c.phi, c.base,
                           IsMerge(inner.exit, if_falsei)));
 
-  EXPECT_THAT(phi,
-              IsPhi(kMachAnyTagged, IsInt32Constant(11), back, outer.loop));
+  EXPECT_THAT(phi, IsPhi(MachineRepresentation::kTagged, IsInt32Constant(11),
+                         back, outer.loop));
 
   EXPECT_THAT(r, IsReturn(phi, start(), outer.exit));
 }
@@ -347,9 +348,9 @@ TEST_F(LoopPeelingTest, TwoBackedgeLoopWithPhi) {
   Node* loop = graph()->NewNode(common()->Loop(3), start(), start(), start());
   Branch b1 = NewBranch(p0, loop);
   Branch b2 = NewBranch(p0, b1.if_true);
-  Node* phi =
-      graph()->NewNode(common()->Phi(kMachAnyTagged, 3), Int32Constant(0),
-                       Int32Constant(1), Int32Constant(2), loop);
+  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 3),
+                               Int32Constant(0), Int32Constant(1),
+                               Int32Constant(2), loop);
 
   loop->ReplaceInput(1, b2.if_true);
   loop->ReplaceInput(2, b2.if_false);
@@ -376,14 +377,15 @@ TEST_F(LoopPeelingTest, TwoBackedgeLoopWithPhi) {
 
   EXPECT_THAT(loop, IsLoop(IsMerge(b2t, b2f), b2.if_true, b2.if_false));
 
-  EXPECT_THAT(
-      phi, IsPhi(kMachAnyTagged, IsPhi(kMachAnyTagged, IsInt32Constant(1),
-                                       IsInt32Constant(2), IsMerge(b2t, b2f)),
-                 IsInt32Constant(1), IsInt32Constant(2), loop));
+  EXPECT_THAT(phi,
+              IsPhi(MachineRepresentation::kTagged,
+                    IsPhi(MachineRepresentation::kTagged, IsInt32Constant(1),
+                          IsInt32Constant(2), IsMerge(b2t, b2f)),
+                    IsInt32Constant(1), IsInt32Constant(2), loop));
 
   Capture<Node*> merge;
   EXPECT_THAT(
-      r, IsReturn(IsPhi(kMachAnyTagged, phi, IsInt32Constant(0),
+      r, IsReturn(IsPhi(MachineRepresentation::kTagged, phi, IsInt32Constant(0),
                         AllOf(CaptureEq(&merge), IsMerge(b1.if_false, b1f))),
                   start(), CaptureEq(&merge)));
 }
@@ -394,9 +396,9 @@ TEST_F(LoopPeelingTest, TwoBackedgeLoopWithCounter) {
   Node* loop = graph()->NewNode(common()->Loop(3), start(), start(), start());
   Branch b1 = NewBranch(p0, loop);
   Branch b2 = NewBranch(p0, b1.if_true);
-  Node* phi =
-      graph()->NewNode(common()->Phi(kMachAnyTagged, 3), Int32Constant(0),
-                       Int32Constant(1), Int32Constant(2), loop);
+  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 3),
+                               Int32Constant(0), Int32Constant(1),
+                               Int32Constant(2), loop);
 
   phi->ReplaceInput(
       1, graph()->NewNode(machine()->Int32Add(), phi, Int32Constant(1)));
@@ -432,18 +434,18 @@ TEST_F(LoopPeelingTest, TwoBackedgeLoopWithCounter) {
 
   Node* eval = phi->InputAt(0);
 
-  EXPECT_THAT(eval, IsPhi(kMachAnyTagged,
+  EXPECT_THAT(eval, IsPhi(MachineRepresentation::kTagged,
                           IsInt32Add(IsInt32Constant(0), IsInt32Constant(1)),
                           IsInt32Add(IsInt32Constant(0), IsInt32Constant(2)),
                           CaptureEq(&entry)));
 
-  EXPECT_THAT(phi,
-              IsPhi(kMachAnyTagged, eval, IsInt32Add(phi, IsInt32Constant(1)),
-                    IsInt32Add(phi, IsInt32Constant(2)), loop));
+  EXPECT_THAT(phi, IsPhi(MachineRepresentation::kTagged, eval,
+                         IsInt32Add(phi, IsInt32Constant(1)),
+                         IsInt32Add(phi, IsInt32Constant(2)), loop));
 
   Capture<Node*> merge;
   EXPECT_THAT(
-      r, IsReturn(IsPhi(kMachAnyTagged, phi, IsInt32Constant(0),
+      r, IsReturn(IsPhi(MachineRepresentation::kTagged, phi, IsInt32Constant(0),
                         AllOf(CaptureEq(&merge), IsMerge(b1.if_false, b1f))),
                   start(), CaptureEq(&merge)));
 }
