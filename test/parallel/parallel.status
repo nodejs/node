@@ -10,7 +10,6 @@ prefix parallel
 test-tick-processor     : PASS,FLAKY
 
 [$system==linux]
-test-process-getactivehandles : PASS,FLAKY
 test-tick-processor           : PASS,FLAKY
 
 [$system==macos]
