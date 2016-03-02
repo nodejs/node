@@ -52,27 +52,6 @@ testBufs('a\u0234b\u0235c\u0236', 12, 1, 'utf8');
 assert.equal(Buffer(1).fill(0).fill('\u0222')[0], 0xc8);
 
 
-// BINARY
-testBufs('abc', 'binary');
-testBufs('\u0222aa', 'binary');
-testBufs('a\u0234b\u0235c\u0236', 'binary');
-testBufs('abc', 4, 'binary');
-testBufs('abc', 5, 'binary');
-testBufs('abc', SIZE, 'binary');
-testBufs('\u0222aa', 2, 'binary');
-testBufs('\u0222aa', 8, 'binary');
-testBufs('a\u0234b\u0235c\u0236', 4, 'binary');
-testBufs('a\u0234b\u0235c\u0236', 12, 'binary');
-testBufs('abc', 4, -1, 'binary');
-testBufs('abc', 4, 1, 'binary');
-testBufs('abc', 5, 1, 'binary');
-testBufs('\u0222aa', 2, -1, 'binary');
-testBufs('\u0222aa', 8, 1, 'binary');
-testBufs('a\u0234b\u0235c\u0236', 4, -1, 'binary');
-testBufs('a\u0234b\u0235c\u0236', 4, 1, 'binary');
-testBufs('a\u0234b\u0235c\u0236', 12, 1, 'binary');
-
-
 // UCS2
 testBufs('abc', 'ucs2');
 testBufs('\u0222aa', 'ucs2');

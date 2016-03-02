@@ -28,5 +28,5 @@ try {
   return;
 }
 
-const maxString = buf.toString('binary');
+const maxString = buf.toString('utf8');
 assert.equal(maxString.length, kStringMaxLength);

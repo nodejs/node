@@ -13,7 +13,7 @@ var crypto = require('crypto');
 // Test hashing
 var a1 = crypto.createHash('sha1').update('Test123').digest('hex');
 var a2 = crypto.createHash('sha256').update('Test123').digest('base64');
-var a3 = crypto.createHash('sha512').update('Test123').digest(); // binary
+var a3 = crypto.createHash('sha512').update('Test123').digest(); // buffer
 var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
 // stream interface
@@ -37,23 +37,15 @@ a8.write('');
 a8.end();
 a8 = a8.read();
 
-if (!common.hasFipsCrypto) {
-  var a0 = crypto.createHash('md5').update('Test123').digest('binary');
-  assert.equal(a0, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
-               '\u00bd\u008c', 'Test MD5 as binary');
-}
 assert.equal(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
 assert.equal(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
              'Test SHA256 as base64');
 assert.deepEqual(
   a3,
-  new Buffer(
-    '\u00c1(4\u00f1\u0003\u001fd\u0097!O\'\u00d4C/&Qz\u00d4' +
-    '\u0094\u0015l\u00b8\u008dQ+\u00db\u001d\u00c4\u00b5}\u00b2' +
-    '\u00d6\u0092\u00a3\u00df\u00a2i\u00a1\u009b\n\n*\u000f' +
-    '\u00d7\u00d6\u00a2\u00a8\u0085\u00e3<\u0083\u009c\u0093' +
-    '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
-    'binary'),
+  new Buffer('c12834f1031f6497214f27d4432f2651' +
+             '7ad494156cb88d512bdb1dc4b57db2d6' +
+             '92a3dfa269a19b0a0a2a0fd7d6a2a885' +
+             'e33c839c93c206da30a187392847ed27', 'hex'),
   'Test SHA512 as assumed buffer');
 assert.deepEqual(a4,
                  new Buffer('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),

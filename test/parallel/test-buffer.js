@@ -235,7 +235,6 @@ assert.strictEqual('Unknown encoding: invalid', caught_error.message);
 // try to create 0-length buffers
 new Buffer('');
 new Buffer('', 'ascii');
-new Buffer('', 'binary');
 new Buffer(0);
 
 // try to write a 0-length string beyond the end of b
@@ -672,7 +671,7 @@ assert.equal(dot.toString('base64'), '//4uAA==');
   for (let i = 0; i < segments.length; ++i) {
     pos += b.write(segments[i], pos, 'base64');
   }
-  assert.equal(b.toString('binary', 0, pos), 'Madness?! This is node.js!');
+  assert.equal(b.toString('utf8', 0, pos), 'Madness?! This is node.js!');
 }
 
 // Regression test for https://github.com/nodejs/node/issues/3496.
@@ -825,23 +824,6 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
 });
 
 {
-  // Binary encoding should write only one byte per character.
-  const b = Buffer([0xde, 0xad, 0xbe, 0xef]);
-  let s = String.fromCharCode(0xffff);
-  b.write(s, 0, 'binary');
-  assert.equal(0xff, b[0]);
-  assert.equal(0xad, b[1]);
-  assert.equal(0xbe, b[2]);
-  assert.equal(0xef, b[3]);
-  s = String.fromCharCode(0xaaee);
-  b.write(s, 0, 'binary');
-  assert.equal(0xee, b[0]);
-  assert.equal(0xad, b[1]);
-  assert.equal(0xbe, b[2]);
-  assert.equal(0xef, b[3]);
-}
-
-{
   // #1210 Test UTF-8 string includes null character
   let buf = new Buffer('\0');
   assert.equal(buf.length, 1);
@@ -952,7 +934,7 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
   // test for buffer overrun
   const buf = new Buffer([0, 0, 0, 0, 0]); // length: 5
   var sub = buf.slice(0, 4);         // length: 4
-  written = sub.write('12345', 'binary');
+  written = sub.write('12345', 'utf8');
   assert.equal(written, 4);
   assert.equal(buf[4], 0);
 }
@@ -973,7 +955,7 @@ assert.equal(Buffer('99').length, 2);
 assert.equal(Buffer('13.37').length, 5);
 
 // Ensure that the length argument is respected.
-'ascii utf8 hex base64 binary'.split(' ').forEach(function(enc) {
+'ascii utf8 hex base64'.split(' ').forEach(function(enc) {
   assert.equal(Buffer(1).write('aaaaaa', 0, 1, enc), 1);
 });
 
@@ -992,7 +974,6 @@ Buffer(Buffer(0), 0, 0);
   'utf8',
   'utf-8',
   'ascii',
-  'binary',
   'base64',
   'ucs2',
   'ucs-2',

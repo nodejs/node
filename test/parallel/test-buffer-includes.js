@@ -102,15 +102,6 @@ assert(
     Buffer(b.toString('ascii'), 'ascii')
     .includes(Buffer('d', 'ascii'), 0, 'ascii'));
 
-// test binary encoding
-assert(
-    Buffer(b.toString('binary'), 'binary')
-    .includes('d', 0, 'binary'));
-assert(
-    Buffer(b.toString('binary'), 'binary')
-    .includes(Buffer('d', 'binary'), 0, 'binary'));
-
-
 // test usc2 encoding
 var twoByteString = new Buffer('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 

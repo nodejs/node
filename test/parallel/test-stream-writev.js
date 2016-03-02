@@ -59,7 +59,7 @@ function test(decode, uncork, multi, next) {
       { encoding: 'ascii', chunk: 'hello, ' },
       { encoding: 'utf8', chunk: 'world' },
       { encoding: 'buffer', chunk: [33] },
-      { encoding: 'binary', chunk: '\nand then...' },
+      { encoding: 'utf8', chunk: '\nand then...' },
       { encoding: 'hex', chunk: 'facebea7deadbeefdecafbad' }
     ];
 
@@ -83,7 +83,7 @@ function test(decode, uncork, multi, next) {
     w.cork();
 
   w.write(new Buffer('!'), 'buffer', cnt('!'));
-  w.write('\nand then...', 'binary', cnt('and then'));
+  w.write('\nand then...', 'utf8', cnt('and then'));
 
   if (multi)
     w.uncork();

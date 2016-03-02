@@ -13,36 +13,36 @@ var crypto = require('crypto');
 //
 function testPBKDF2(password, salt, iterations, keylen, expected) {
   var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen, 'sha256');
-  assert.equal(actual.toString('binary'), expected);
+  assert.equal(actual.toString('hex'), expected);
 
   crypto.pbkdf2(password, salt, iterations, keylen, 'sha256', (err, actual) => {
-    assert.equal(actual.toString('binary'), expected);
+    assert.equal(actual.toString('hex'), expected);
   });
 }
 
 
 testPBKDF2('password', 'salt', 1, 20,
-           '\x12\x0f\xb6\xcf\xfc\xf8\xb3\x2c\x43\xe7\x22\x52' +
-           '\x56\xc4\xf8\x37\xa8\x65\x48\xc9');
+           '120fb6cffcf8b32c43e72252' +
+           '56c4f837a86548c9');
 
 testPBKDF2('password', 'salt', 2, 20,
-           '\xae\x4d\x0c\x95\xaf\x6b\x46\xd3\x2d\x0a\xdf\xf9' +
-           '\x28\xf0\x6d\xd0\x2a\x30\x3f\x8e');
+           'ae4d0c95af6b46d32d0adff9' +
+           '28f06dd02a303f8e');
 
 testPBKDF2('password', 'salt', 4096, 20,
-           '\xc5\xe4\x78\xd5\x92\x88\xc8\x41\xaa\x53\x0d\xb6' +
-           '\x84\x5c\x4c\x8d\x96\x28\x93\xa0');
+           'c5e478d59288c841aa530db6' +
+           '845c4c8d962893a0');
 
 testPBKDF2('passwordPASSWORDpassword',
            'saltSALTsaltSALTsaltSALTsaltSALTsalt',
            4096,
            25,
-           '\x34\x8c\x89\xdb\xcb\xd3\x2b\x2f\x32\xd8\x14\xb8\x11' +
-           '\x6e\x84\xcf\x2b\x17\x34\x7e\xbc\x18\x00\x18\x1c');
+           '348c89dbcbd32b2f32d814b811' +
+           '6e84cf2b17347ebc1800181c');
 
 testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
-           '\x89\xb6\x9d\x05\x16\xf8\x29\x89\x3c\x69\x62\x26\x65' +
-           '\x0a\x86\x87');
+           '89b69d0516f829893c69622665' +
+           '0a8687');
 
 var expected =
     '64c486c55d30d4c5a079b8823b7d7cb37ff0556f537da8410233bcec330ed956';

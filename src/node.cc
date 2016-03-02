@@ -1309,16 +1309,8 @@ enum encoding ParseEncoding(const char* encoding,
       }
       break;
     case 'b':
-      // binary
-      if (encoding[1] == 'i') {
-        if (strncmp(encoding + 2, "nary", 4) == 0)
-          return BINARY;
-
-      // buffer
-      } else if (encoding[1] == 'u') {
-        if (strncmp(encoding + 2, "ffer", 4) == 0)
-          return BUFFER;
-      }
+      if (strncmp(encoding + 1, "uffer", 5) == 0)
+        return BUFFER;
       break;
     case '\0':
       return default_encoding;
@@ -1342,8 +1334,6 @@ enum encoding ParseEncoding(const char* encoding,
     return UCS2;
   } else if (strcasecmp(encoding, "utf-16le") == 0) {
     return UCS2;
-  } else if (strcasecmp(encoding, "binary") == 0) {
-    return BINARY;
   } else if (strcasecmp(encoding, "buffer") == 0) {
     return BUFFER;
   } else if (strcasecmp(encoding, "hex") == 0) {
@@ -1385,7 +1375,7 @@ ssize_t DecodeBytes(Isolate* isolate,
 
   if (val->IsArray()) {
     fprintf(stderr, "'raw' encoding (array of integers) has been removed. "
-                    "Use 'binary'.\n");
+                    "Use 'utf8'.\n");
     UNREACHABLE();
     return -1;
   }
