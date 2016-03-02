@@ -21,7 +21,7 @@ function main(conf) {
       args = Array.prototype.slice.call(arguments, 1);
       ret = fn.apply(this, args);
     } else {
-      ret = fn.call(this);
+      fn.call(this);
     }
   }
   bdomain.exit();
