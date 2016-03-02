@@ -18,8 +18,14 @@ function main(conf) {
   var n = +conf.thousands * 1e3;
   for (var i = 0; i <= n; i++) {
     fs.mkdirSync(benchmarkDirectory + i);
-    fs.writeFileSync(benchmarkDirectory + i + '/package.json', '{"main": "index.js"}');
-    fs.writeFileSync(benchmarkDirectory + i + '/index.js', 'module.exports = "";');
+    fs.writeFileSync(
+      benchmarkDirectory + i + '/package.json',
+      '{"main": "index.js"}'
+    );
+    fs.writeFileSync(
+      benchmarkDirectory + i + '/index.js',
+      'module.exports = "";'
+    );
   }
 
   measure(n);
