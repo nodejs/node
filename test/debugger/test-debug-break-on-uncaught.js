@@ -7,11 +7,6 @@ var debug = require('_debugger');
 
 addScenario('global.js', null, 2);
 addScenario('timeout.js', null, 2);
-addScenario('domain.js', null, 10);
-
-// Exception is thrown from vm.js via module.js (internal file)
-//   var compiledWrapper = runInThisContext(wrapper, filename, 0, true);
-addScenario('parse-error.js', 'vm.js', null);
 
 run();
 
