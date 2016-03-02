@@ -10,13 +10,16 @@ var clients_counter = 0;
 
 const server = net.createServer(function listener(c) {
   connections.push(c);
-}).listen(common.PORT, function makeConnections() {
-  for (var i = 0; i < NUM; i++) {
-    net.connect(common.PORT, function connected() {
-      clientConnected(this);
-    });
-  }
-});
+}).listen(common.PORT, makeConnection);
+
+
+function makeConnection() {
+  if (clients_counter >= NUM) return;
+  net.connect(common.PORT, function connected() {
+    clientConnected(this);
+    makeConnection();
+  });
+}
 
 
 function clientConnected(client) {
