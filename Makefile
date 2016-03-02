@@ -192,6 +192,9 @@ test-internet: all
 test-debugger: all
 	$(PYTHON) tools/test.py debugger
 
+test-known-issues: all
+	$(PYTHON) tools/test.py known_issues --expect-fail
+
 test-npm: $(NODE_EXE)
 	NODE=$(NODE) tools/test-npm.sh
 
