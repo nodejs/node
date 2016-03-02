@@ -1,5 +1,6 @@
 var common = require('../common.js');
 var fs = require('fs');
+const path = require('path');
 
 var bench = common.createBenchmark(main, {
   search: ['@', 'SQ', '10x', '--l', 'Alice', 'Gryphon', 'Panther',
@@ -14,7 +15,9 @@ var bench = common.createBenchmark(main, {
 
 function main(conf) {
   var iter = (conf.iter) * 100000;
-  var aliceBuffer = fs.readFileSync(__dirname + '/../fixtures/alice.html');
+  var aliceBuffer = fs.readFileSync(
+    path.resolve(__dirname, '../fixtures/alice.html')
+  );
   var search = conf.search;
   var encoding = conf.encoding;
 
