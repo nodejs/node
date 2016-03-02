@@ -578,8 +578,8 @@ bench-idle:
 	$(NODE) benchmark/idle_clients.js &
 
 jslint:
-	$(NODE) tools/eslint/bin/eslint.js lib src test tools/doc tools/eslint-rules \
-		--rulesdir tools/eslint-rules
+	$(NODE) tools/eslint/bin/eslint.js benchmark lib src test tools/doc \
+	  tools/eslint-rules --rulesdir tools/eslint-rules
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc
