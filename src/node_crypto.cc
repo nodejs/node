@@ -3369,7 +3369,7 @@ void CipherBase::Update(const FunctionCallbackInfo<Value>& args) {
   // Only copy the data if we have to, because it's a string
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], BINARY))
+    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8))
       return;
     r = cipher->Update(decoder.out(), decoder.size(), &out, &out_len);
   } else {
@@ -3548,7 +3548,7 @@ void Hmac::HmacUpdate(const FunctionCallbackInfo<Value>& args) {
   bool r;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], BINARY))
+    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8))
       return;
     r = hmac->HmacUpdate(decoder.out(), decoder.size());
   } else {
@@ -3666,7 +3666,7 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
   bool r;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], BINARY))
+    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8))
       return;
     r = hash->HashUpdate(decoder.out(), decoder.size());
   } else {
@@ -3818,7 +3818,7 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
   Error err;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], BINARY))
+    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8))
       return;
     err = sign->SignUpdate(decoder.out(), decoder.size());
   } else {
@@ -4020,7 +4020,7 @@ void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
   Error err;
   if (args[0]->IsString()) {
     StringBytes::InlineDecoder decoder;
-    if (!decoder.Decode(env, args[0].As<String>(), args[1], BINARY))
+    if (!decoder.Decode(env, args[0].As<String>(), args[1], UTF8))
       return;
     err = verify->VerifyUpdate(decoder.out(), decoder.size());
   } else {
@@ -4119,12 +4119,11 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[1]);
 
-  // BINARY works for both buffers and binary strings.
-  enum encoding encoding = BINARY;
+  enum encoding encoding = UTF8;
   if (args.Length() >= 3) {
     encoding = ParseEncoding(env->isolate(),
                              args[2]->ToString(env->isolate()),
-                             BINARY);
+                             UTF8);
   }
 
   ssize_t hlen = StringBytes::Size(env->isolate(), args[1], encoding);
