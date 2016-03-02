@@ -3012,7 +3012,6 @@ static void PrintHelp() {
          "                       present.\n"
 #endif
 #endif
-         "  --enable-ssl2        enable ssl2\n"
          "  --enable-ssl3        enable ssl3\n"
          "\n"
          "Environment variables:\n"
@@ -3083,7 +3082,9 @@ static void ParseArgs(int* argc,
       exit(0);
     } else if (strcmp(arg, "--enable-ssl2") == 0) {
 #if HAVE_OPENSSL
-      SSL2_ENABLE = true;
+      fprintf(stderr,
+              "Error: --enable-ssl2 is no longer supported (CVE-2016-0800).\n");
+      exit(12);
 #endif
     } else if (strcmp(arg, "--enable-ssl3") == 0) {
 #if HAVE_OPENSSL
