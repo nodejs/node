@@ -69,7 +69,6 @@ const char* root_certs[] = {
   NULL
 };
 
-bool SSL2_ENABLE = false;
 bool SSL3_ENABLE = false;
 
 namespace crypto {
@@ -242,23 +241,11 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
     node::Utf8Value sslmethod(args[0]);
 
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
-#ifndef OPENSSL_NO_SSL2
-      method = SSLv2_method();
-#else
       return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
-#endif
     } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
-#ifndef OPENSSL_NO_SSL2
-      method = SSLv2_server_method();
-#else
       return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
-#endif
     } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
-#ifndef OPENSSL_NO_SSL2
-      method = SSLv2_client_method();
-#else
       return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
-#endif
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
 #ifndef OPENSSL_NO_SSL3
       method = SSLv3_method();
@@ -4256,7 +4243,6 @@ void InitCrypto(Handle<Object> target) {
   ext_key_usage_symbol = NODE_PSYMBOL("ext_key_usage");
 
   NODE_DEFINE_CONSTANT(target, SSL3_ENABLE);
-  NODE_DEFINE_CONSTANT(target, SSL2_ENABLE);
 }
 
 }  // namespace crypto
