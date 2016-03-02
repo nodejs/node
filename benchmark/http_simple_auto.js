@@ -111,10 +111,10 @@ server.listen(port, function() {
 });
 
 function dump_mm_stats() {
-  if (typeof gc != 'function') return;
+  if (typeof global.gc != 'function') return;
 
   var before = process.memoryUsage();
-  for (var i = 0; i < 10; ++i) gc();
+  for (var i = 0; i < 10; ++i) global.gc();
   var after = process.memoryUsage();
   setTimeout(print_stats, 250); // give GC time to settle
 

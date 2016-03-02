@@ -17,7 +17,6 @@ function connect() {
 
     s.on('close', function() {
       if (gotConnected) connections--;
-      lastClose = new Date();
     });
 
     s.on('error', function() {

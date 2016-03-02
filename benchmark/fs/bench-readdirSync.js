@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const fs = require('fs');
+const path = require('path');
 
 const bench = common.createBenchmark(main, {
   n: [1e4],
@@ -13,7 +14,7 @@ function main(conf) {
 
   bench.start();
   for (var i = 0; i < n; i++) {
-    fs.readdirSync(__dirname + '/../../lib/');
+    fs.readdirSync(path.resolve(__dirname, '../../lib/'));
   }
   bench.end(n);
 }

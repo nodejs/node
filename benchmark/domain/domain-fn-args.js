@@ -20,9 +20,9 @@ function main(conf) {
   for (var i = 0; i < n; i++) {
     if (myArguments.length >= 2) {
       args = Array.prototype.slice.call(myArguments, 1);
-      ret = fn.apply(this, args);
+      fn.apply(this, args);
     } else {
-      ret = fn.call(this);
+      fn.call(this);
     }
   }
   bdomain.exit();

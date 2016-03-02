@@ -77,10 +77,15 @@ function run() {
 
   var out = '';
   var child;
-  if (Array.isArray(benchmarks) && benchmarks.length)
-    child = spawn(node, ['benchmark/common.js'].concat(benchmarks), { env: env });
-  else
+  if (Array.isArray(benchmarks) && benchmarks.length) {
+    child = spawn(
+      node,
+      ['benchmark/common.js'].concat(benchmarks),
+      { env: env }
+    );
+  } else {
     child = spawn('make', [runBench], { env: env });
+  }
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(c) {
     out += c;
@@ -136,8 +141,18 @@ function compare() {
     if (show === 'green' && !g || show === 'red' && !r)
       return;
 
-    var r0 = util.format('%s%s: %d%s', g, nodes[0], n0.toPrecision(5), g ? reset : '');
-    var r1 = util.format('%s%s: %d%s', r, nodes[1], n1.toPrecision(5), r ? reset : '');
+    var r0 = util.format(
+      '%s%s: %d%s',
+      g,
+      nodes[0],
+      n0.toPrecision(5), g ? reset : ''
+    );
+    var r1 = util.format(
+      '%s%s: %d%s',
+      r,
+      nodes[1],
+      n1.toPrecision(5), r ? reset : ''
+    );
     pct = c + pct + '%' + reset;
     var l = util.format('%s: %s %s', bench, r0, r1);
     maxLen = Math.max(l.length + pct.length, maxLen);
