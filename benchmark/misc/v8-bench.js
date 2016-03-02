@@ -20,4 +20,4 @@ global.load = function(filename) {
   global.RegExp = $RegExp;
 };
 
-load('run.js');
+global.load('run.js');
