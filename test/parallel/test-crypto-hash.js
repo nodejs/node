@@ -13,7 +13,7 @@ var crypto = require('crypto');
 // Test hashing
 var a1 = crypto.createHash('sha1').update('Test123').digest('hex');
 var a2 = crypto.createHash('sha256').update('Test123').digest('base64');
-var a3 = crypto.createHash('sha512').update('Test123').digest(); // binary
+var a3 = crypto.createHash('sha512').update('Test123').digest(); // buffer
 var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
 // stream interface
@@ -87,3 +87,14 @@ fileStream.on('close', function() {
 assert.throws(function() {
   crypto.createHash('xyzzy');
 });
+
+// Default UTF-8 encoding
+var hutf8 = crypto.createHash('sha512').update('УТФ-8 text').digest('hex');
+assert.equal(
+    hutf8,
+    '4b21bbd1a68e690a730ddcb5a8bc94ead9879ffe82580767ad7ec6fa8ba2dea6' +
+        '43a821af66afa9a45b6a78c712fecf0e56dc7f43aef4bcfc8eb5b4d8dca6ea5b');
+
+assert.notEqual(
+    hutf8,
+    crypto.createHash('sha512').update('УТФ-8 text', 'binary').digest('hex'));

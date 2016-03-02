@@ -368,7 +368,6 @@ size_t StringBytes::Write(Isolate* isolate,
   switch (encoding) {
     case ASCII:
     case BINARY:
-    case BUFFER:
       if (is_extern && str->IsOneByte()) {
         memcpy(buf, data, nbytes);
       } else {
@@ -379,6 +378,7 @@ size_t StringBytes::Write(Isolate* isolate,
         *chars_written = nbytes;
       break;
 
+    case BUFFER:
     case UTF8:
       nbytes = str->WriteUtf8(buf, buflen, chars_written, flags);
       break;
@@ -480,11 +480,11 @@ size_t StringBytes::StorageSize(Isolate* isolate,
 
   switch (encoding) {
     case BINARY:
-    case BUFFER:
     case ASCII:
       data_size = str->Length();
       break;
 
+    case BUFFER:
     case UTF8:
       // A single UCS2 codepoint never takes up more than 3 utf8 bytes.
       // It is an exercise for the caller to decide when a string is
@@ -532,11 +532,11 @@ size_t StringBytes::Size(Isolate* isolate,
 
   switch (encoding) {
     case BINARY:
-    case BUFFER:
     case ASCII:
       data_size = str->Length();
       break;
 
+    case BUFFER:
     case UTF8:
       data_size = str->Utf8Length();
       break;
