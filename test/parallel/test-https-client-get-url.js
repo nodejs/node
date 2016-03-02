@@ -1,6 +1,4 @@
 'use strict';
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_INSECURELY_ACCEPT_UNTRUSTED_CERTIFICATES = '1';
 
 var common = require('../common');
 var assert = require('assert');
@@ -31,7 +29,12 @@ var server = https.createServer(options, function(req, res) {
 });
 
 server.listen(common.PORT, function() {
-  https.get('https://127.0.0.1:' + common.PORT + '/foo?bar');
+  https.get({
+    host: '127.0.0.1',
+    port: common.PORT,
+    path: '/foo?bar',
+    rejectUnauthorized: false
+  });
 });
 
 process.on('exit', function() {
