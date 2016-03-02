@@ -80,8 +80,6 @@ class ClientHelloParser {
   inline bool IsEnded() const;
 
  private:
-  static const uint8_t kSSL2TwoByteHeaderBit = 0x80;
-  static const uint8_t kSSL2HeaderMask = 0x3f;
   static const size_t kMaxTLSFrameLen = 16 * 1024 + 5;
   static const size_t kMaxSSLExFrameLen = 32 * 1024;
   static const uint8_t kServernameHostname = 0;
@@ -91,7 +89,6 @@ class ClientHelloParser {
   enum ParseState {
     kWaiting,
     kTLSHeader,
-    kSSL2Header,
     kPaused,
     kEnded
   };
@@ -120,9 +117,6 @@ class ClientHelloParser {
                       const uint8_t* data,
                       size_t len);
   bool ParseTLSClientHello(const uint8_t* data, size_t avail);
-#ifdef OPENSSL_NO_SSL2
-  bool ParseSSL2ClientHello(const uint8_t* data, size_t avail);
-#endif  // OPENSSL_NO_SSL2
 
   ParseState state_;
   OnHelloCb onhello_cb_;

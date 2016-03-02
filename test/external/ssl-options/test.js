@@ -11,13 +11,10 @@ var debug     = require('debug')('test-node-ssl');
 
 var common = require('../../common');
 
-var SSL2_COMPATIBLE_CIPHERS = 'RC4-MD5';
-
-var CMD_LINE_OPTIONS = [ null, "--enable-ssl2", "--enable-ssl3" ];
+var CMD_LINE_OPTIONS = [ null, "--enable-ssl3" ];
 
 var SERVER_SSL_PROTOCOLS = [
   null,
-  'SSLv2_method', 'SSLv2_server_method',
   'SSLv3_method', 'SSLv3_server_method',
   'TLSv1_method', 'TLSv1_server_method',
   'SSLv23_method','SSLv23_server_method'
@@ -25,7 +22,6 @@ var SERVER_SSL_PROTOCOLS = [
 
 var CLIENT_SSL_PROTOCOLS = [
   null,
-  'SSLv2_method', 'SSLv2_client_method',
   'SSLv3_method', 'SSLv3_client_method',
   'TLSv1_method', 'TLSv1_client_method',
   'SSLv23_method','SSLv23_client_method'
@@ -34,9 +30,7 @@ var CLIENT_SSL_PROTOCOLS = [
 var SECURE_OPTIONS = [
   null,
   0,
-  constants.SSL_OP_NO_SSLv2,
   constants.SSL_OP_NO_SSLv3,
-  constants.SSL_OP_NO_SSLv2 | constants.SSL_OP_NO_SSLv3
 ];
 
 function xtend(source) {
@@ -105,30 +99,13 @@ function isSsl3Protocol(secureProtocol) {
          secureProtocol === 'SSLv3_server_method';
 }
 
-function isSsl2Protocol(secureProtocol) {
-  assert(secureProtocol === null || typeof secureProtocol === 'string');
-
-  return secureProtocol === 'SSLv2_method' ||
-         secureProtocol === 'SSLv2_client_method' ||
-         secureProtocol === 'SSLv2_server_method';
-}
-
 function secureProtocolCompatibleWithSecureOptions(secureProtocol, secureOptions, cmdLineOption) {
   if (secureOptions == null) {
-    if (isSsl2Protocol(secureProtocol) &&
-        (!cmdLineOption || cmdLineOption.indexOf('--enable-ssl2') === -1)) {
-      return false;
-    }
-
     if (isSsl3Protocol(secureProtocol) &&
         (!cmdLineOption || cmdLineOption.indexOf('--enable-ssl3') === -1)) {
       return false;
     }
   } else {
-    if (secureOptions & constants.SSL_OP_NO_SSLv2 && isSsl2Protocol(secureProtocol)) {
-      return false;
-    }
-
     if (secureOptions & constants.SSL_OP_NO_SSLv3 && isSsl3Protocol(secureProtocol)) {
       return false;
     }
@@ -169,30 +146,10 @@ function testSetupsCompatible(serverSetup, clientSetup) {
     return false;
   }
 
-  var ssl2Used = isSsl2Protocol(serverSetup.secureProtocol) ||
-                 isSsl2Protocol(clientSetup.secureProtocol);
-  if (ssl2Used &&
-      ((serverSetup.ciphers !== SSL2_COMPATIBLE_CIPHERS) ||
-      (clientSetup.ciphers !== SSL2_COMPATIBLE_CIPHERS))) {
-    /*
-     * Default ciphers are not compatible with SSLv2. Both client *and*
-     * server need to specify a SSLv2 compatible cipher to be able to use
-     * SSLv2.
-     */
-    return false;
-  }
-
   return true;
 }
 
 function sslSetupMakesSense(cmdLineOption, secureProtocol, secureOption) {
-  if (isSsl2Protocol(secureProtocol)) {
-    if (secureOption & constants.SSL_OP_NO_SSLv2 ||
-        (secureOption == null && (!cmdLineOption || cmdLineOption.indexOf('--enable-ssl2') === -1))) {
-      return false;
-    }
-  }
-
   if (isSsl3Protocol(secureProtocol)) {
     if (secureOption & constants.SSL_OP_NO_SSLv3 ||
         (secureOption == null && (!cmdLineOption || cmdLineOption.indexOf('--enable-ssl3') === -1))) {
@@ -221,12 +178,6 @@ function createTestsSetups() {
           };
 
           serversSetup.push(serverSetup);
-
-          if (isSsl2Protocol(serverSecureProtocol)) {
-            var setupWithSsl2Ciphers = xtend(serverSetup);
-            setupWithSsl2Ciphers.ciphers = SSL2_COMPATIBLE_CIPHERS;
-            serversSetup.push(setupWithSsl2Ciphers);
-          }
         }
       });
     });
@@ -243,12 +194,6 @@ function createTestsSetups() {
           };
 
           clientsSetup.push(clientSetup);
-
-          if (isSsl2Protocol(clientSecureProtocol)) {
-            var setupWithSsl2Ciphers = xtend(clientSetup);
-            setupWithSsl2Ciphers.ciphers = SSL2_COMPATIBLE_CIPHERS;
-            clientsSetup.push(setupWithSsl2Ciphers);
-          }
         }
       });
     });
@@ -359,10 +304,6 @@ function stringToSecureOptions(secureOptionsString) {
 
   var optionStrings = secureOptionsString.split('|');
   optionStrings.forEach(function (option) {
-    if (option === 'SSL_OP_NO_SSLv2') {
-      secureOptions |= constants.SSL_OP_NO_SSLv2;
-    }
-
     if (option === 'SSL_OP_NO_SSLv3') {
       secureOptions |= constants.SSL_OP_NO_SSLv3;
     }
@@ -421,10 +362,6 @@ function checkTestExitCode(testSetup, serverExitCode, clientExitCode) {
 
 function secureOptionsToString(secureOptions) {
   var secureOptsString = '';
-
-  if (secureOptions & constants.SSL_OP_NO_SSLv2) {
-    secureOptsString += 'SSL_OP_NO_SSLv2';
-  }
 
   if (secureOptions & constants.SSL_OP_NO_SSLv3) {
     secureOptsString += '|SSL_OP_NO_SSLv3';

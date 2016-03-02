@@ -61,7 +61,6 @@
 
 namespace node {
 
-extern bool SSL2_ENABLE;
 extern bool SSL3_ENABLE;
 extern bool ALLOW_INSECURE_SERVER_DHPARAM;
 

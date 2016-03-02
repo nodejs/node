@@ -75,7 +75,6 @@ static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
 
 namespace node {
 
-bool SSL2_ENABLE = false;
 bool SSL3_ENABLE = false;
 bool ALLOW_INSECURE_SERVER_DHPARAM = false;
 
@@ -317,23 +316,11 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     const node::Utf8Value sslmethod(args[0]);
 
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
-#ifndef OPENSSL_NO_SSL2
-      method = SSLv2_method();
-#else
       return env->ThrowError("SSLv2 methods disabled");
-#endif
     } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
-#ifndef OPENSSL_NO_SSL2
-      method = SSLv2_server_method();
-#else
       return env->ThrowError("SSLv2 methods disabled");
-#endif
     } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
-#ifndef OPENSSL_NO_SSL2
-      method = SSLv2_client_method();
-#else
       return env->ThrowError("SSLv2 methods disabled");
-#endif
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
 #ifndef OPENSSL_NO_SSL3
       method = SSLv3_method();
@@ -5171,7 +5158,6 @@ void InitCrypto(Handle<Object> target,
                                           EVP_PKEY_decrypt>);
 
   NODE_DEFINE_CONSTANT(target, SSL3_ENABLE);
-  NODE_DEFINE_CONSTANT(target, SSL2_ENABLE);
 }
 
 }  // namespace crypto
