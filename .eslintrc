@@ -32,7 +32,12 @@ rules:
   no-fallthrough: 2
   no-octal: 2
   no-redeclare: 2
+  no-self-assign: 2
   no-unused-labels: 2
+
+  # Strict Mode
+  # http://eslint.org/docs/rules/#strict-mode
+  strict: [2, "global"]
 
   # Variables
   # http://eslint.org/docs/rules/#variables
@@ -78,10 +83,6 @@ rules:
   no-new-symbol: 2
   no-this-before-super: 2
   prefer-const: 2
-
-  # Strict Mode
-  # https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
-  strict: [2, "global"]
 
   # Custom rules in tools/eslint-rules
   new-with-error: [2, "Error", "RangeError", "TypeError", "SyntaxError", "ReferenceError"]
