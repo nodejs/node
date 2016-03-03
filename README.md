@@ -26,7 +26,7 @@ The Node.js project maintains multiple types of releases:
   [Release Team](#release-team).
   Code for Stable releases is organized in this repository by major version
   number, For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
-  The major version number of Stable releases will increment every 6 months
+  The major version number of Stable releases will increment every 6 months,
   allowing for breaking changes to be introduced. This happens in April and
   October every year. Stable release lines beginning in October each year have
   a maximum support life of 8 months. Stable release lines beginning in April
