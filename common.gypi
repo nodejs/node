@@ -70,6 +70,10 @@
             'cflags': [ '-gxcoff' ],
             'ldflags': [ '-Wl,-bbigtoc' ],
           }],
+          ['OS == "android"', {
+            'cflags': [ '-fPIE' ],
+            'ldflags': [ '-fPIE', '-pie' ]
+          }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -103,6 +107,10 @@
           ['OS!="mac" and OS!="win"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
+          ['OS == "android"', {
+            'cflags': [ '-fPIE' ],
+            'ldflags': [ '-fPIE', '-pie' ]
+          }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
