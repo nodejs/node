@@ -33,7 +33,7 @@ pre, tt, code, .pre, span.type, a.type {
 }
 
 a, a:link, a:active {
-  color: #80bd01;
+  color: #43853d;
   text-decoration: none;
   border-radius: 2px;
   padding: .1em .2em;
@@ -42,7 +42,7 @@ a, a:link, a:active {
 
 a:hover, a:focus {
   color: #fff;
-  background-color: #80bd01;
+  background-color: #43853d;
   outline: none;
 }
 
@@ -413,13 +413,14 @@ a code {
 
 #column2 ul li a.active, #column2 ul li a.active:hover,
 #column2 ul li a.active:focus {
-  color: #80bd01;
+  color: #43853d;
   border-radius: 0;
-  border-bottom: 1px solid #80bd01;
+  border-bottom: 1px solid #43853d;
   background: none;
 }
 
-#intro a:hover, #column2 ul li a:hover, #column2 ul li a:focus {
+#intro a:hover, #intro a:focus,
+#column2 ul li a:hover, #column2 ul li a:focus {
   color: #fff;
   background: none;
 }
@@ -433,7 +434,7 @@ span > .mark, span > .mark:visited {
 }
 
 span > .mark:hover, span > .mark:focus, span > .mark:active {
-  color: #80bd01;
+  color: #43853d;
   background: none;
 }
 
