@@ -159,11 +159,11 @@ function parseLists(input) {
       }
       if (tok.type === 'list_end') {
         depth--;
+        output.push(tok);
         if (depth === 0) {
           state = null;
           output.push({ type:'html', text: '</div>' });
         }
-        output.push(tok);
         return;
       }
       if (tok.text) {
