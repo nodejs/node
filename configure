@@ -441,7 +441,7 @@ def try_check_compiler(cc, lang):
 # Commands and regular expressions to obtain its version number are taken from
 # https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha512-x86_64.pl#L112-L129
 #
-def get_llvm_version(cc):
+def get_version_helper(cc, regexp):
   try:
     proc = subprocess.Popen(shlex.split(cc) + ['-v'], stdin=subprocess.PIPE,
                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -454,14 +454,20 @@ def get_llvm_version(cc):
         '''
     sys.exit()
 
-  match = re.search(r"(^clang version|based on LLVM) ([3-9]\.[0-9]+)",
-                    proc.communicate()[1])
+  match = re.search(regexp, proc.communicate()[1])
 
   if match:
     return match.group(2)
   else:
     return 0
 
+def get_llvm_version(cc):
+  return get_version_helper(
+      cc, r"(^clang version|based on LLVM) ([3-9]\.[0-9]+)")
+
+def get_xcode_version(cc):
+  return get_version_helper(
+      cc, r"(^Apple LLVM version) ([5-9]\.[0-9]+)")
 
 def get_gas_version(cc):
   try:
@@ -516,6 +522,8 @@ def check_compiler(o):
 
   if is_clang:
     o['variables']['llvm_version'] = get_llvm_version(CC)
+    if sys.platform == 'darwin':
+      o['variables']['xcode_version'] = get_xcode_version(CC)
   else:
     o['variables']['gas_version'] = get_gas_version(CC)
 
