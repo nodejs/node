@@ -91,11 +91,11 @@ indefinitely) or upon process exit (more convenient for scripts).
 
 ## Event: 'uncaughtException'
 
-Emitted when an exception bubbles all the way back to the event loop. If a
-listener is added for this exception, the default action (which is to print
-a stack trace and exit) will not occur.
+The `'uncaughtException'` event is emitted when an exception bubbles all the 
+way back to the event loop. By default, Node.js handles such exceptions by printing the stack trace to stderr and exiting. Adding a handler for the 
+`'uncaughtException'` event overrides this default behavior.
 
-Example of listening for `'uncaughtException'`:
+For example:
 
 ```js
 process.on('uncaughtException', (err) => {
@@ -111,26 +111,27 @@ nonexistentFunc();
 console.log('This will not run.');
 ```
 
-Note that `'uncaughtException'` is a very crude mechanism for exception
-handling.
+### Warning: Using `'uncaughtException'` correctly
 
-Do *not* use it as the Node.js equivalent of `On Error Resume Next`. An
-unhandled exception means your application - and by extension Node.js itself -
-is in an undefined state. Blindly resuming means *anything* could happen.
+Note that `'uncaughtException'` is a crude mechanism for exception handling
+intended to be used only as a last resort. The event *should not* be used as
+an equivalent to `On Error Resume Next`. Unhandled exceptions inherently mean
+that an application is in an undefined state. Attempting to resume application
+code without properly recovering from the exception can cause additional
+unforeseen and unpredictable issues.
 
 Exceptions thrown from within the event handler will not be caught. Instead the
 process will exit with a non zero exit code and the stack trace will be printed.
 This is to avoid infinite recursion.
 
-Think of resuming as pulling the power cord when you are upgrading your system.
-Nine out of ten times nothing happens - but the 10th time, your system is bust.
+Attempting to resume normally after an uncaught exception can be similar to
+pulling out of the power cord when upgrading a computer -- nine out of ten 
+times nothing happens - but the 10th time, the system becomes corrupted.
 
-`'uncaughtException'` should be used to perform synchronous cleanup before
-shutting down the process. It is not safe to resume normal operation after
-`'uncaughtException'`. If you do use it, restart your application after every
-unhandled exception!
-
-You have been warned.
+The correct use of `'uncaughtException'` is to perform synchronous cleanup 
+of allocated resources (e.g. file descriptors, handles, etc) before shutting 
+down the process. It is not safe to resume normal operation after
+`'uncaughtException'`.
 
 ## Event: 'unhandledRejection'
 
