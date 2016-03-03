@@ -4,7 +4,7 @@ env:
 
 rules:
   # Possible Errors
-  # https://github.com/eslint/eslint/tree/master/docs/rules#possible-errors
+  # http://eslint.org/docs/rules/#possible-errors
   comma-dangle: [2, "only-multiline"]
   no-control-regex: 2
   no-debugger: 2
@@ -28,11 +28,16 @@ rules:
   valid-typeof: 2
 
   # Best Practices
-  # https://github.com/eslint/eslint/tree/master/docs/rules#best-practices
+  # http://eslint.org/docs/rules/#best-practices
   no-fallthrough: 2
   no-octal: 2
   no-redeclare: 2
+  no-self-assign: 2
   no-unused-labels: 2
+
+  # Strict Mode
+  # http://eslint.org/docs/rules/#strict-mode
+  strict: [2, "global"]
 
   # Variables
   # http://eslint.org/docs/rules/#variables
@@ -48,7 +53,7 @@ rules:
   no-restricted-modules: [2, "sys", "_linklist"]
 
   # Stylistic Issues
-  # https://github.com/eslint/eslint/tree/master/docs/rules#stylistic-issues
+  # http://eslint.org/docs/rules/#stylistic-issues
   comma-spacing: 2
   eol-last: 2
   indent: [2, 2, {SwitchCase: 1}]
@@ -78,10 +83,6 @@ rules:
   no-new-symbol: 2
   no-this-before-super: 2
   prefer-const: 2
-
-  # Strict Mode
-  # https://github.com/eslint/eslint/tree/master/docs/rules#strict-mode
-  strict: [2, "global"]
 
   # Custom rules in tools/eslint-rules
   new-with-error: [2, "Error", "RangeError", "TypeError", "SyntaxError", "ReferenceError"]
