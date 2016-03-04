@@ -1177,7 +1177,11 @@ Local<Value> MakeCallback(Environment* env,
   }
 
   if (ret.IsEmpty()) {
-    return Undefined(env->isolate());
+    if (callback_scope.in_makecallback())
+      return ret;
+    // NOTE: Undefined() is returned here for backwards compatibility.
+    else
+      return Undefined(env->isolate());
   }
 
   if (has_domain) {
