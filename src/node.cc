@@ -1185,7 +1185,10 @@ Local<Value> MakeCallback(Environment* env,
   }
 
   if (ret.IsEmpty()) {
-    return Undefined(env->isolate());
+    if (callback_scope.in_makecallback())
+      return ret;
+    else
+      return Undefined(env->isolate());
   }
 
   if (has_domain) {
