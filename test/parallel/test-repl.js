@@ -177,7 +177,7 @@ function error_test() {
     { client: client_unix, send: '(function() { "use strict"; eval = 17; })()',
       expect: /\bSyntaxError: Unexpected eval or arguments in strict mode/ },
     { client: client_unix, send: '(function() { "use strict"; if (true) function f() { } })()',
-      expect: /\bSyntaxError: In strict mode code, functions can only be declared at top level or immediately within another function/ },
+      expect: /\bSyntaxError: In strict mode code, functions can only be declared at top level or inside a block./ },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',
       expect: prompt_unix },
@@ -228,7 +228,7 @@ function error_test() {
       expect: 'Invalid REPL keyword\n' + prompt_unix },
     // fail when we are not inside a String and a line continuation is used
     { client: client_unix, send: '[] \\',
-      expect: /\bSyntaxError: Unexpected token ILLEGAL/ },
+      expect: /\bSyntaxError: Invalid or unexpected token/ },
     // do not fail when a String is created with line continuation
     { client: client_unix, send: '\'the\\\nfourth\\\neye\'',
       expect: prompt_multiline + prompt_multiline +
@@ -327,7 +327,7 @@ function error_test() {
     // Illegal token is not recoverable outside string literal, RegExp literal,
     // or block comment. https://github.com/nodejs/node/issues/3611
     { client: client_unix, send: 'a = 3.5e',
-      expect: /\bSyntaxError: Unexpected token ILLEGAL/ },
+      expect: /\bSyntaxError: Invalid or unexpected token/ },
     // Mitigate https://github.com/nodejs/node/issues/548
     { client: client_unix, send: 'function name(){ return "node"; };name()',
       expect: "'node'\n" + prompt_unix },
