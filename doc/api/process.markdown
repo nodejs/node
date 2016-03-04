@@ -377,6 +377,37 @@ An example of the possible output looks like:
 
 If `process.connected` is false, it is no longer possible to send messages.
 
+## process.cpuUsage()
+
+Returns the user and system cpu time usage of the current process, in an object
+with properties `user` and `system`, whose values are arrays of integers as
+`[seconds, microseconds]` tuples. These values measure time spent in user and
+system code respectively, and may end up being greater than actual elapsed time
+if multiple cpu cores are performing work for this process.
+
+```js
+console.log(process.cpuUsage());
+// { user: [ 0, 43979 ], system: [ 0, 12423 ] }
+
+setTimeout(() => {
+  var startTime = process.hrtime();
+
+  // spin the CPU for 500 milliseconds
+  while (true) {
+    var time = process.hrtime(startTime);
+
+    // calculate elapsed wall clock time in millis
+    var elapsed = time[0] * 1000 + time[1] / 1000 / 1000;
+
+    if (elapsed > 500) break;
+  }
+
+  console.log(process.cpuUsage());
+  // { user: [ 0, 554966 ], system: [ 0, 14881 ] }
+}, 1000);
+```
+
+
 ## process.cwd()
 
 Returns the current working directory of the process.
