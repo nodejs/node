@@ -76,8 +76,8 @@ assert.equal('foo bar\n', strings.shift());
 assert.equal('foo bar hop\n', strings.shift());
 assert.equal("{ slashes: '\\\\\\\\' }\n", strings.shift());
 assert.equal('inspect\n', strings.shift());
-assert.equal("{ foo: 'bar', inspect: [Function] }\n", strings.shift());
-assert.equal("{ foo: 'bar', inspect: [Function] }\n", strings.shift());
+assert.equal("{ foo: 'bar', inspect: [Function: inspect] }\n", strings.shift());
+assert.equal("{ foo: 'bar', inspect: [Function: inspect] }\n", strings.shift());
 assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
 assert.equal(-1, strings.shift().indexOf('baz'));
 assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',
