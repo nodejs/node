@@ -193,7 +193,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     if (has_domain) {
       domain = domain_v.As<Object>();
       if (domain->Get(env()->disposed_string())->IsTrue())
-        return Undefined(env()->isolate());
+        return Local<Value>();
     }
   }
 
@@ -220,7 +220,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   }
 
   if (ret.IsEmpty()) {
-    return Undefined(env()->isolate());
+    return ret;
   }
 
   if (has_domain) {
@@ -249,7 +249,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   }
 
   if (env()->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
-    return Undefined(env()->isolate());
+    return Local<Value>();
   }
 
   return ret;
