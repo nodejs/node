@@ -742,7 +742,7 @@ Here is an example below:
 fs.symlink('./foo', './new-port');
 ```
 
-It would create a symlic link named with "new-port" that points to "foo".
+It would create a symbolic link named "new-port" that points to "foo".
 
 ## fs.symlinkSync(target, path[, type])
 
