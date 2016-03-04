@@ -36,3 +36,16 @@ function listener2() {}
   assert.deepStrictEqual(ee.listeners('foo'), [listener, listener2]);
   assert.deepStrictEqual(eeListenersCopy, [listener]);
 }
+
+{
+  const ee = new events.EventEmitter();
+  ee.once('foo', listener);
+  assert.deepStrictEqual(ee.listeners('foo'), [listener]);
+}
+
+{
+  const ee = new events.EventEmitter();
+  ee.on('foo', listener);
+  ee.once('foo', listener2);
+  assert.deepStrictEqual(ee.listeners('foo'), [listener, listener2]);
+}
