@@ -25,27 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <signal.h>
 
 #include <sys/stat.h>
 
 #include "src/v8.h"
 
+#include "src/ast/scopeinfo.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/heap/spaces.h"
 #include "src/objects.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
-#include "src/scopeinfo.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/utils-inl.h"
 
 using namespace v8::internal;
 
@@ -95,7 +93,8 @@ void WritePayload(const Vector<const byte>& payload, const char* file_name) {
 static bool WriteToFile(Isolate* isolate, const char* snapshot_file) {
   SnapshotByteSink sink;
   StartupSerializer ser(isolate, &sink);
-  ser.Serialize();
+  ser.SerializeStrongReferences();
+  ser.SerializeWeakReferencesAndDeferred();
   SnapshotData snapshot_data(ser);
   WritePayload(snapshot_data.RawData(), snapshot_file);
   return true;
@@ -294,7 +293,7 @@ UNINITIALIZED_TEST(PartialSerialization) {
       HandleScope scope(isolate);
       env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    DCHECK(!env.IsEmpty());
+    CHECK(!env.IsEmpty());
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
@@ -313,7 +312,7 @@ UNINITIALIZED_TEST(PartialSerialization) {
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::String> foo = v8_str("foo");
-      DCHECK(!foo.IsEmpty());
+      CHECK(!foo.IsEmpty());
       raw_foo = *(v8::Utils::OpenHandle(*foo));
     }
 
@@ -372,17 +371,14 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
     HandleScope handle_scope(isolate);
     Handle<Object> root;
-    Handle<FixedArray> outdated_contexts;
     // Intentionally empty handle. The deserializer should not come across
     // any references to the global proxy in this test.
     Handle<JSGlobalProxy> global_proxy = Handle<JSGlobalProxy>::null();
     {
       SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
       Deserializer deserializer(&snapshot_data);
-      root =
-          deserializer.DeserializePartial(isolate, global_proxy,
-                                          &outdated_contexts).ToHandleChecked();
-      CHECK_EQ(0, outdated_contexts->length());
+      root = deserializer.DeserializePartial(isolate, global_proxy)
+                 .ToHandleChecked();
       CHECK(root->IsString());
     }
 
@@ -390,9 +386,8 @@ UNINITIALIZED_DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
     {
       SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
       Deserializer deserializer(&snapshot_data);
-      root2 =
-          deserializer.DeserializePartial(isolate, global_proxy,
-                                          &outdated_contexts).ToHandleChecked();
+      root2 = deserializer.DeserializePartial(isolate, global_proxy)
+                  .ToHandleChecked();
       CHECK(root2->IsString());
       CHECK(root.is_identical_to(root2));
     }
@@ -417,7 +412,7 @@ UNINITIALIZED_TEST(ContextSerialization) {
       HandleScope scope(isolate);
       env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    DCHECK(!env.IsEmpty());
+    CHECK(!env.IsEmpty());
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
@@ -489,27 +484,23 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
     HandleScope handle_scope(isolate);
     Handle<Object> root;
-    Handle<FixedArray> outdated_contexts;
     Handle<JSGlobalProxy> global_proxy =
         isolate->factory()->NewUninitializedJSGlobalProxy();
     {
       SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
       Deserializer deserializer(&snapshot_data);
-      root =
-          deserializer.DeserializePartial(isolate, global_proxy,
-                                          &outdated_contexts).ToHandleChecked();
+      root = deserializer.DeserializePartial(isolate, global_proxy)
+                 .ToHandleChecked();
       CHECK(root->IsContext());
       CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
-      CHECK_EQ(2, outdated_contexts->length());
     }
 
     Handle<Object> root2;
     {
       SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
       Deserializer deserializer(&snapshot_data);
-      root2 =
-          deserializer.DeserializePartial(isolate, global_proxy,
-                                          &outdated_contexts).ToHandleChecked();
+      root2 = deserializer.DeserializePartial(isolate, global_proxy)
+                  .ToHandleChecked();
       CHECK(root2->IsContext());
       CHECK(!root.is_identical_to(root2));
     }
@@ -532,7 +523,7 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
       HandleScope scope(isolate);
       env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    DCHECK(!env.IsEmpty());
+    CHECK(!env.IsEmpty());
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
@@ -543,7 +534,7 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
           "  e = function(s) { return eval (s); }"
           "})();"
           "var o = this;"
-          "var r = Math.random() + Math.cos(0);"
+          "var r = Math.sin(0) + Math.cos(0);"
           "var f = (function(a, b) { return a + b; }).bind(1, 2, 3);"
           "var s = parseInt('12345');");
 
@@ -626,20 +617,13 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
     HandleScope handle_scope(isolate);
     Handle<Object> root;
-    Handle<FixedArray> outdated_contexts;
     Handle<JSGlobalProxy> global_proxy =
         isolate->factory()->NewUninitializedJSGlobalProxy();
     {
       SnapshotData snapshot_data(Vector<const byte>(snapshot, snapshot_size));
       Deserializer deserializer(&snapshot_data);
-      root =
-          deserializer.DeserializePartial(isolate, global_proxy,
-                                          &outdated_contexts).ToHandleChecked();
-      if (FLAG_global_var_shortcuts) {
-        CHECK_EQ(5, outdated_contexts->length());
-      } else {
-        CHECK_EQ(3, outdated_contexts->length());
-      }
+      root = deserializer.DeserializePartial(isolate, global_proxy)
+                 .ToHandleChecked();
       CHECK(root->IsContext());
       Handle<Context> context = Handle<Context>::cast(root);
       CHECK(context->global_proxy() == *global_proxy);
@@ -654,7 +638,7 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
                      ->ToNumber(v8_isolate->GetCurrentContext())
                      .ToLocalChecked()
                      ->Value();
-      CHECK(r >= 1 && r <= 2);
+      CHECK_EQ(1, r);
       int f = CompileRun("f()")
                   ->ToNumber(v8_isolate->GetCurrentContext())
                   .ToLocalChecked()
@@ -1528,7 +1512,7 @@ TEST(SerializeToplevelIsolates) {
               ->Equals(isolate2->GetCurrentContext(), v8_str("abcdef"))
               .FromJust());
   }
-  DCHECK(toplevel_test_code_event_found);
+  CHECK(toplevel_test_code_event_found);
   isolate2->Dispose();
 }
 

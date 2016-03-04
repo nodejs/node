@@ -29,8 +29,6 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
         : InterpreterAssembler(test->isolate(), test->zone(), bytecode) {}
     ~InterpreterAssemblerForTest() override {}
 
-    Graph* GetCompletedGraph();
-
     Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                           const Matcher<Node*>& base_matcher,
                           const Matcher<Node*>& index_matcher);
@@ -38,14 +36,11 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
                            const Matcher<Node*>& base_matcher,
                            const Matcher<Node*>& index_matcher,
                            const Matcher<Node*>& value_matcher);
-    template <class... A>
-    Matcher<Node*> IsCall(
-        const Matcher<const CallDescriptor*>& descriptor_matcher,
-        A... args);
 
     Matcher<Node*> IsBytecodeOperand(int offset);
     Matcher<Node*> IsBytecodeOperandSignExtended(int offset);
     Matcher<Node*> IsBytecodeOperandShort(int offset);
+    Matcher<Node*> IsBytecodeOperandShortSignExtended(int offset);
 
     using InterpreterAssembler::call_descriptor;
     using InterpreterAssembler::graph;

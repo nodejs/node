@@ -15,7 +15,6 @@ namespace internal {
 
 enum NativeType {
   CORE,
-  CODE_STUB,
   EXPERIMENTAL,
   EXTRAS,
   EXPERIMENTAL_EXTRAS,
@@ -49,7 +48,6 @@ class NativesCollection {
 };
 
 typedef NativesCollection<CORE> Natives;
-typedef NativesCollection<CODE_STUB> CodeStubNatives;
 typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
 typedef NativesCollection<EXTRAS> ExtraNatives;
 typedef NativesCollection<EXPERIMENTAL_EXTRAS> ExperimentalExtraNatives;

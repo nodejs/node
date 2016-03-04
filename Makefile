@@ -144,7 +144,7 @@ test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) | test/addons/.docbuildstamp
 	for dirname in test/addons/*/; do \
 		$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 			--directory="$$PWD/$$dirname" \
-			--nodedir="$$PWD"; \
+			--nodedir="$$PWD" || exit 1 ; \
 	done
 	touch $@
 

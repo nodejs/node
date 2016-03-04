@@ -67,16 +67,16 @@ class MoveOptimizerTest : public InstructionSequenceTest {
       case kConstant:
         return ConstantOperand(op.value_);
       case kFixedSlot:
-        return AllocatedOperand(LocationOperand::STACK_SLOT, kRepWord32,
-                                op.value_);
+        return AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kWord32, op.value_);
       case kFixedRegister:
         CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return AllocatedOperand(LocationOperand::REGISTER, kRepWord32,
-                                op.value_);
+        return AllocatedOperand(LocationOperand::REGISTER,
+                                MachineRepresentation::kWord32, op.value_);
       case kExplicit:
         CHECK(0 <= op.value_ && op.value_ < num_general_registers());
-        return ExplicitOperand(LocationOperand::REGISTER, kRepWord32,
-                               op.value_);
+        return ExplicitOperand(LocationOperand::REGISTER,
+                               MachineRepresentation::kWord32, op.value_);
       default:
         break;
     }

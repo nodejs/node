@@ -31,8 +31,7 @@ enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX, PROXY_MAGIC };
 // are more compact and allow for reasonably fast includes check.
 class KeyAccumulator final BASE_EMBEDDED {
  public:
-  explicit KeyAccumulator(Isolate* isolate,
-                          KeyFilter filter = KeyFilter::SKIP_SYMBOLS)
+  KeyAccumulator(Isolate* isolate, PropertyFilter filter)
       : isolate_(isolate), filter_(filter) {}
   ~KeyAccumulator();
 
@@ -44,6 +43,7 @@ class KeyAccumulator final BASE_EMBEDDED {
   void AddKeys(Handle<JSObject> array,
                AddKeyConversion convert = DO_NOT_CONVERT);
   void AddKeysFromProxy(Handle<JSObject> array);
+  Maybe<bool> AddKeysFromProxy(Handle<JSProxy> proxy, Handle<FixedArray> keys);
   void AddElementKeysFromInterceptor(Handle<JSObject> array);
   // Jump to the next level, pushing the current |levelLength_| to
   // |levelLengths_| and adding a new list to |elements_|.
@@ -52,6 +52,7 @@ class KeyAccumulator final BASE_EMBEDDED {
   void SortCurrentElementsList();
   Handle<FixedArray> GetKeys(GetKeysConversion convert = KEEP_NUMBERS);
   int length() { return length_; }
+  Isolate* isolate() { return isolate_; }
 
  private:
   bool AddIntegerKey(uint32_t key);
@@ -60,7 +61,7 @@ class KeyAccumulator final BASE_EMBEDDED {
   void SortCurrentElementsListRemoveDuplicates();
 
   Isolate* isolate_;
-  KeyFilter filter_;
+  PropertyFilter filter_;
   // |elements_| contains the sorted element keys (indices) per level.
   std::vector<std::vector<uint32_t>*> elements_;
   // |protoLengths_| contains the total number of keys (elements + properties)

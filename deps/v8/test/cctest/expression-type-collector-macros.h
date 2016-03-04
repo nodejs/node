@@ -14,11 +14,30 @@
   CHECK_EQ(index, types.size()); \
   }
 
+#ifdef DEBUG
+#define CHECK_TYPE(type)                    \
+  if (!types[index].bounds.Narrows(type)) { \
+    fprintf(stderr, "Expected:\n");         \
+    fprintf(stderr, "  lower: ");           \
+    type.lower->Print();                    \
+    fprintf(stderr, "  upper: ");           \
+    type.upper->Print();                    \
+    fprintf(stderr, "Actual:\n");           \
+    fprintf(stderr, "  lower: ");           \
+    types[index].bounds.lower->Print();     \
+    fprintf(stderr, "  upper: ");           \
+    types[index].bounds.upper->Print();     \
+  }                                         \
+  CHECK(types[index].bounds.Narrows(type));
+#else
+#define CHECK_TYPE(type) CHECK(types[index].bounds.Narrows(type));
+#endif
+
 #define CHECK_EXPR(ekind, type)                  \
   CHECK_LT(index, types.size());                 \
   CHECK(strcmp(#ekind, types[index].kind) == 0); \
   CHECK_EQ(depth, types[index].depth);           \
-  CHECK(types[index].bounds.Narrows(type));      \
+  CHECK_TYPE(type);                              \
   for (int j = (++depth, ++index, 0); j < 1 ? 1 : (--depth, 0); ++j)
 
 #define CHECK_VAR(vname, type)                                     \

@@ -384,19 +384,19 @@ template <class AddMatcher>
 struct BaseWithIndexAndDisplacementMatcher {
   BaseWithIndexAndDisplacementMatcher(Node* node, bool allow_input_swap)
       : matches_(false),
-        index_(NULL),
+        index_(nullptr),
         scale_(0),
-        base_(NULL),
-        displacement_(NULL) {
+        base_(nullptr),
+        displacement_(nullptr) {
     Initialize(node, allow_input_swap);
   }
 
   explicit BaseWithIndexAndDisplacementMatcher(Node* node)
       : matches_(false),
-        index_(NULL),
+        index_(nullptr),
         scale_(0),
-        base_(NULL),
-        displacement_(NULL) {
+        base_(nullptr),
+        displacement_(nullptr) {
     Initialize(node, node->op()->HasProperty(Operator::kCommutative));
   }
 
@@ -434,10 +434,10 @@ struct BaseWithIndexAndDisplacementMatcher {
     AddMatcher m(node, allow_input_swap);
     Node* left = m.left().node();
     Node* right = m.right().node();
-    Node* displacement = NULL;
-    Node* base = NULL;
-    Node* index = NULL;
-    Node* scale_expression = NULL;
+    Node* displacement = nullptr;
+    Node* base = nullptr;
+    Node* index = nullptr;
+    Node* scale_expression = nullptr;
     bool power_of_two_plus_one = false;
     int scale = 0;
     if (m.HasIndexInput() && left->OwnedBy(node)) {
@@ -519,7 +519,7 @@ struct BaseWithIndexAndDisplacementMatcher {
       }
     }
     int64_t value = 0;
-    if (displacement != NULL) {
+    if (displacement != nullptr) {
       switch (displacement->opcode()) {
         case IrOpcode::kInt32Constant: {
           value = OpParameter<int32_t>(displacement);
@@ -534,11 +534,11 @@ struct BaseWithIndexAndDisplacementMatcher {
           break;
       }
       if (value == 0) {
-        displacement = NULL;
+        displacement = nullptr;
       }
     }
     if (power_of_two_plus_one) {
-      if (base != NULL) {
+      if (base != nullptr) {
         // If the scale requires explicitly using the index as the base, but a
         // base is already part of the match, then the (1 << N + 1) scale factor
         // can't be folded into the match and the entire index * scale

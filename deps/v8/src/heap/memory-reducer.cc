@@ -24,7 +24,7 @@ MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
 
 
 void MemoryReducer::TimerTask::RunInternal() {
-  const double kJsCallsPerMsThreshold = 0.25;
+  const double kJsCallsPerMsThreshold = 0.5;
   Heap* heap = memory_reducer_->heap();
   Event event;
   double time_ms = heap->MonotonicallyIncreasingTimeInMs();

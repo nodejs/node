@@ -36,7 +36,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
       ParameterCount expected(expected_arguments);
       __ LoadAccessor(edi, holder, accessor_index, ACCESSOR_GETTER);
       __ InvokeFunction(edi, expected, actual, CALL_FUNCTION,
-                        NullCallWrapper());
+                        CheckDebugStepCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -92,7 +92,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
   __ j(not_zero, miss_label);
 
   // Check that receiver is a JSObject.
-  __ CmpInstanceType(scratch0, FIRST_SPEC_OBJECT_TYPE);
+  __ CmpInstanceType(scratch0, FIRST_JS_RECEIVER_TYPE);
   __ j(below, miss_label);
 
   // Load properties array.
@@ -114,10 +114,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
 void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     MacroAssembler* masm, int index, Register result, Label* miss) {
-  const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
-  __ mov(result, Operand(esi, offset));
-  __ mov(result, FieldOperand(result, JSGlobalObject::kNativeContextOffset));
-  __ mov(result, Operand(result, Context::SlotOffset(index)));
+  __ LoadGlobalFunction(index, result);
   // Load its initial map. The global functions all have initial maps.
   __ mov(result,
          FieldOperand(result, JSFunction::kPrototypeOrInitialMapOffset));
@@ -206,6 +203,12 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     __ mov(data, FieldOperand(data, CallHandlerInfo::kDataOffset));
   }
 
+  if (api_call_info->fast_handler()->IsCode()) {
+    // Just tail call into the code.
+    __ Jump(handle(Code::cast(api_call_info->fast_handler())),
+            RelocInfo::CODE_TARGET);
+    return;
+  }
   // Put api_function_address in place.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
   __ mov(api_function_address, Immediate(function_address));
@@ -261,7 +264,7 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
       ParameterCount expected(expected_arguments);
       __ LoadAccessor(edi, holder, accessor_index, ACCESSOR_SETTER);
       __ InvokeFunction(edi, expected, actual, CALL_FUNCTION,
-                        NullCallWrapper());
+                        CheckDebugStepCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -294,8 +297,10 @@ static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
 static void CompileCallLoadPropertyWithInterceptor(
     MacroAssembler* masm, Register receiver, Register holder, Register name,
     Handle<JSObject> holder_obj, Runtime::FunctionId id) {
+  DCHECK(NamedLoadHandlerCompiler::kInterceptorArgsLength ==
+         Runtime::FunctionForId(id)->nargs);
   PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
-  __ CallRuntime(id, NamedLoadHandlerCompiler::kInterceptorArgsLength);
+  __ CallRuntime(id);
 }
 
 
@@ -303,25 +308,15 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
   Register value = StoreDescriptor::ValueRegister();
+  Register slot = VectorStoreICDescriptor::SlotRegister();
+  Register vector = VectorStoreICDescriptor::VectorRegister();
 
-  if (FLAG_vector_stores) {
-    Register slot = VectorStoreICDescriptor::SlotRegister();
-    Register vector = VectorStoreICDescriptor::VectorRegister();
-
-    __ xchg(receiver, Operand(esp, 0));
-    __ push(name);
-    __ push(value);
-    __ push(slot);
-    __ push(vector);
-    __ push(receiver);  // which contains the return address.
-  } else {
-    DCHECK(!ebx.is(receiver) && !ebx.is(name) && !ebx.is(value));
-    __ pop(ebx);
-    __ push(receiver);
-    __ push(name);
-    __ push(value);
-    __ push(ebx);
-  }
+  __ xchg(receiver, Operand(esp, 0));
+  __ push(name);
+  __ push(value);
+  __ push(slot);
+  __ push(vector);
+  __ push(receiver);  // which contains the return address.
 }
 
 
@@ -330,7 +325,7 @@ void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kStoreIC_Slow, FLAG_vector_stores ? 5 : 3, 1);
+  __ TailCallRuntime(Runtime::kStoreIC_Slow);
 }
 
 
@@ -339,8 +334,7 @@ void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, FLAG_vector_stores ? 5 : 3,
-                     1);
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
 }
 
 
@@ -732,8 +726,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
                            holder());
   __ push(scratch2());  // restore old return address
 
-  __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor,
-                     NamedLoadHandlerCompiler::kInterceptorArgsLength, 1);
+  __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor);
 }
 
 
@@ -758,7 +751,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   __ push(scratch1());  // restore return address
 
   // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStoreCallbackProperty, 5, 1);
+  __ TailCallRuntime(Runtime::kStoreCallbackProperty);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -774,7 +767,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
   __ push(scratch1());  // restore return address
 
   // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor, 3, 1);
+  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

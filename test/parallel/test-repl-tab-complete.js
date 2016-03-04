@@ -1,7 +1,5 @@
 'use strict';
 
-// Flags: --harmony-proxies
-
 var common = require('../common');
 var assert = require('assert');
 var repl = require('repl');
@@ -225,12 +223,27 @@ testMe.complete('cus', common.mustCall(function(error, data) {
 putIn.run(['.clear']);
 
 putIn.run([
-  'var proxy = Proxy.create({});'
+  'var proxy = new Proxy({}, {ownKeys: () => { throw new Error(); }});'
 ]);
+
+const proxyElements = [ [
+  'proxy.__defineGetter__',
+  'proxy.__defineSetter__',
+  'proxy.__lookupGetter__',
+  'proxy.__lookupSetter__',
+  'proxy.__proto__',
+  'proxy.constructor',
+  'proxy.hasOwnProperty',
+  'proxy.isPrototypeOf',
+  'proxy.propertyIsEnumerable',
+  'proxy.toLocaleString',
+  'proxy.toString',
+  'proxy.valueOf' ],
+  'proxy.' ];
 
 testMe.complete('proxy.', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
-  assert.deepEqual(data, [[], 'proxy.']);
+  assert.deepEqual(data, proxyElements);
 }));
 
 // Make sure tab completion does not include integer members of an Array

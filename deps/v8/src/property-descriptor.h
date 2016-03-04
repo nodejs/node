@@ -41,6 +41,17 @@ class PropertyDescriptor {
     return !IsAccessorDescriptor(desc) && !IsDataDescriptor(desc);
   }
 
+  // ES6 6.2.4.4
+  Handle<Object> ToObject(Isolate* isolate);
+
+  // ES6 6.2.4.5
+  static bool ToPropertyDescriptor(Isolate* isolate, Handle<Object> obj,
+                                   PropertyDescriptor* desc);
+
+  // ES6 6.2.4.6
+  static void CompletePropertyDescriptor(Isolate* isolate,
+                                         PropertyDescriptor* desc);
+
   bool is_empty() const {
     return !has_enumerable() && !has_configurable() && !has_writable() &&
            !has_value() && !has_get() && !has_set();
@@ -88,11 +99,6 @@ class PropertyDescriptor {
         (has_configurable() && !configurable() ? DONT_DELETE : NONE) |
         (has_writable() && !writable() ? READ_ONLY : NONE));
   }
-
-  Handle<Object> ToObject(Isolate* isolate);
-
-  static bool ToPropertyDescriptor(Isolate* isolate, Handle<Object> obj,
-                                   PropertyDescriptor* desc);
 
  private:
   bool enumerable_ : 1;

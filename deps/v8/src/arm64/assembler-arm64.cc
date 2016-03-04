@@ -511,7 +511,7 @@ void ConstPool::EmitEntries() {
 
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
       DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-      instr->SetImmPCOffsetTarget(assm_->pc());
+      instr->SetImmPCOffsetTarget(assm_->isolate(), assm_->pc());
     }
     assm_->dc64(data);
   }
@@ -527,7 +527,7 @@ void ConstPool::EmitEntries() {
 
     // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
     DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-    instr->SetImmPCOffsetTarget(assm_->pc());
+    instr->SetImmPCOffsetTarget(assm_->isolate(), assm_->pc());
     assm_->dc64(unique_it->first);
   }
   unique_entries_.clear();
@@ -589,6 +589,7 @@ void Assembler::GetCode(CodeDesc* desc) {
         static_cast<int>((reinterpret_cast<byte*>(buffer_) + buffer_size_) -
                          reloc_info_writer.pos());
     desc->origin = this;
+    desc->constant_pool_size = 0;
   }
 }
 
@@ -657,22 +658,22 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
 
   } else if (branch == next_link) {
     // The branch is the last (but not also the first) instruction in the chain.
-    prev_link->SetImmPCOffsetTarget(prev_link);
+    prev_link->SetImmPCOffsetTarget(isolate(), prev_link);
 
   } else {
     // The branch is in the middle of the chain.
     if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
-      prev_link->SetImmPCOffsetTarget(next_link);
+      prev_link->SetImmPCOffsetTarget(isolate(), next_link);
     } else if (label_veneer != NULL) {
       // Use the veneer for all previous links in the chain.
-      prev_link->SetImmPCOffsetTarget(prev_link);
+      prev_link->SetImmPCOffsetTarget(isolate(), prev_link);
 
       end_of_chain = false;
       link = next_link;
       while (!end_of_chain) {
         next_link = link->ImmPCOffsetTarget();
         end_of_chain = (link == next_link);
-        link->SetImmPCOffsetTarget(label_veneer);
+        link->SetImmPCOffsetTarget(isolate(), label_veneer);
         link = next_link;
       }
     } else {
@@ -743,10 +744,11 @@ void Assembler::bind(Label* label) {
       // Internal references do not get patched to an instruction but directly
       // to an address.
       internal_reference_positions_.push_back(linkoffset);
-      PatchingAssembler patcher(link, 2);
+      PatchingAssembler patcher(isolate(), link, 2);
       patcher.dc64(reinterpret_cast<uintptr_t>(pc_));
     } else {
-      link->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(pc_));
+      link->SetImmPCOffsetTarget(isolate(),
+                                 reinterpret_cast<Instruction*>(pc_));
     }
 
     // Link the label to the previous link in the chain.
@@ -2829,6 +2831,7 @@ void Assembler::GrowBuffer() {
 
   // Set up new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);
+  desc.origin = this;
 
   desc.instr_size = pc_offset();
   desc.reloc_size =
@@ -2866,9 +2869,9 @@ void Assembler::GrowBuffer() {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
+  RelocInfo rinfo(isolate(), reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   if (((rmode >= RelocInfo::COMMENT) &&
-       (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL)) ||
+       (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
       (rmode == RelocInfo::DEOPT_REASON) ||
@@ -2895,8 +2898,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     }
     DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(
-          reinterpret_cast<byte*>(pc_), rmode, RecordedAstId().ToInt(), NULL);
+      RelocInfo reloc_info_with_ast_id(isolate(), reinterpret_cast<byte*>(pc_),
+                                       rmode, RecordedAstId().ToInt(), NULL);
       ClearRecordedAstId();
       reloc_info_writer.Write(&reloc_info_with_ast_id);
     } else {
@@ -2985,9 +2988,8 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
-  RelocInfo rinfo(buffer_ + location_offset,
-                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size),
-                  NULL);
+  RelocInfo rinfo(isolate(), buffer_ + location_offset, RelocInfo::VENEER_POOL,
+                  static_cast<intptr_t>(size), NULL);
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -3029,7 +3031,7 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection, int margin) {
       // to the label.
       Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
       RemoveBranchFromLabelLinkChain(branch, label, veneer);
-      branch->SetImmPCOffsetTarget(veneer);
+      branch->SetImmPCOffsetTarget(isolate(), veneer);
       b(label);
 #ifdef DEBUG
       DCHECK(SizeOfCodeGeneratedSince(&veneer_size_check) <=

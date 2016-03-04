@@ -40,7 +40,7 @@ class TestRangeBuilder {
 
   TopLevelLiveRange* Build() {
     TopLevelLiveRange* range =
-        new (zone_) TopLevelLiveRange(id_, MachineType::kRepTagged);
+        new (zone_) TopLevelLiveRange(id_, MachineRepresentation::kTagged);
     // Traverse the provided interval specifications backwards, because that is
     // what LiveRange expects.
     for (int i = static_cast<int>(pairs_.size()) - 1; i >= 0; --i) {

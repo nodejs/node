@@ -35,7 +35,7 @@ function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.Break)
   {
     call_graph += exec_state.frame().func().name();
-    exec_state.prepareStep();
+    exec_state.prepareStep(Debug.StepAction.StepIn);
   }
 };
 

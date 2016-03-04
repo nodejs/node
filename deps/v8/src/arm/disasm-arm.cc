@@ -1781,28 +1781,28 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
             if (dp_operation) {
               Format(instr, "vrinta.f64.f64 'Dd, 'Dm");
             } else {
-              Unknown(instr);
+              Format(instr, "vrinta.f32.f32 'Sd, 'Sm");
             }
             break;
           case 0x1:
             if (dp_operation) {
               Format(instr, "vrintn.f64.f64 'Dd, 'Dm");
             } else {
-              Unknown(instr);
+              Format(instr, "vrintn.f32.f32 'Sd, 'Sm");
             }
             break;
           case 0x2:
             if (dp_operation) {
               Format(instr, "vrintp.f64.f64 'Dd, 'Dm");
             } else {
-              Unknown(instr);
+              Format(instr, "vrintp.f32.f32 'Sd, 'Sm");
             }
             break;
           case 0x3:
             if (dp_operation) {
               Format(instr, "vrintm.f64.f64 'Dd, 'Dm");
             } else {
-              Unknown(instr);
+              Format(instr, "vrintm.f32.f32 'Sd, 'Sm");
             }
             break;
           default:

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-destructuring --harmony-default-parameters
+// Flags: --harmony-destructuring-bind --harmony-default-parameters
 
 (function testExpressionTypes() {
   "use strict";

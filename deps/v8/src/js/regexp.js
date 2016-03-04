@@ -12,9 +12,12 @@
 var FLAG_harmony_tolength;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
+var GlobalRegExpPrototype;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
+var matchSymbol = utils.ImportNow("match_symbol");
+var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
 
 utils.ImportFromExperimental(function(from) {
@@ -43,67 +46,83 @@ var RegExpLastMatchInfo = new InternalPackedArray(
 
 // -------------------------------------------------------------------
 
-// A recursive descent parser for Patterns according to the grammar of
-// ECMA-262 15.10.1, with deviations noted below.
-function DoConstructRegExp(object, pattern, flags) {
-  // RegExp : Called as constructor; see ECMA-262, section 15.10.4.
-  if (IS_REGEXP(pattern)) {
-    if (!IS_UNDEFINED(flags)) throw MakeTypeError(kRegExpFlags);
-    flags = (REGEXP_GLOBAL(pattern) ? 'g' : '')
-        + (REGEXP_IGNORE_CASE(pattern) ? 'i' : '')
-        + (REGEXP_MULTILINE(pattern) ? 'm' : '')
-        + (REGEXP_UNICODE(pattern) ? 'u' : '')
-        + (REGEXP_STICKY(pattern) ? 'y' : '');
-    pattern = REGEXP_SOURCE(pattern);
-  }
+function IsRegExp(o) {
+  if (!IS_RECEIVER(o)) return false;
+  var is_regexp = o[matchSymbol];
+  if (!IS_UNDEFINED(is_regexp)) return TO_BOOLEAN(is_regexp);
+  return IS_REGEXP(o);
+}
 
+
+// ES6 section 21.2.3.2.2
+function RegExpInitialize(object, pattern, flags) {
   pattern = IS_UNDEFINED(pattern) ? '' : TO_STRING(pattern);
   flags = IS_UNDEFINED(flags) ? '' : TO_STRING(flags);
-
   %RegExpInitializeAndCompile(object, pattern, flags);
+  return object;
+}
+
+
+function PatternFlags(pattern) {
+  return (REGEXP_GLOBAL(pattern) ? 'g' : '') +
+         (REGEXP_IGNORE_CASE(pattern) ? 'i' : '') +
+         (REGEXP_MULTILINE(pattern) ? 'm' : '') +
+         (REGEXP_UNICODE(pattern) ? 'u' : '') +
+         (REGEXP_STICKY(pattern) ? 'y' : '');
 }
 
 
 function RegExpConstructor(pattern, flags) {
-  if (%_IsConstructCall()) {
-    DoConstructRegExp(this, pattern, flags);
-  } else {
-    // RegExp : Called as function; see ECMA-262, section 15.10.3.1.
-    if (IS_REGEXP(pattern) && IS_UNDEFINED(flags)) {
+  var newtarget = new.target;
+  var pattern_is_regexp = IsRegExp(pattern);
+
+  if (IS_UNDEFINED(newtarget)) {
+    newtarget = GlobalRegExp;
+
+    // ES6 section 21.2.3.1 step 3.b
+    if (pattern_is_regexp && IS_UNDEFINED(flags) &&
+        pattern.constructor === newtarget) {
       return pattern;
     }
-    return new GlobalRegExp(pattern, flags);
   }
+
+  if (IS_REGEXP(pattern)) {
+    if (IS_UNDEFINED(flags)) flags = PatternFlags(pattern);
+    pattern = REGEXP_SOURCE(pattern);
+
+  } else if (pattern_is_regexp) {
+    var input_pattern = pattern;
+    pattern = pattern.source;
+    if (IS_UNDEFINED(flags)) flags = input_pattern.flags;
+  }
+
+  var object = %NewObject(GlobalRegExp, newtarget);
+  return RegExpInitialize(object, pattern, flags);
 }
 
-// Deprecated RegExp.prototype.compile method.  We behave like the constructor
-// were called again.  In SpiderMonkey, this method returns the regexp object.
-// In JSC, it returns undefined.  For compatibility with JSC, we match their
-// behavior.
+
 function RegExpCompileJS(pattern, flags) {
-  // Both JSC and SpiderMonkey treat a missing pattern argument as the
-  // empty subject string, and an actual undefined value passed as the
-  // pattern as the string 'undefined'.  Note that JSC is inconsistent
-  // here, treating undefined values differently in
-  // RegExp.prototype.compile and in the constructor, where they are
-  // the empty string.  For compatibility with JSC, we match their
-  // behavior.
-  if (this == GlobalRegExp.prototype) {
-    // We don't allow recompiling RegExp.prototype.
+  if (!IS_REGEXP(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.compile', this);
+                        "RegExp.prototype.compile", this);
   }
-  if (IS_UNDEFINED(pattern) && %_ArgumentsLength() != 0) {
-    DoConstructRegExp(this, 'undefined', flags);
-  } else {
-    DoConstructRegExp(this, pattern, flags);
+
+  if (IS_REGEXP(pattern)) {
+    if (!IS_UNDEFINED(flags)) throw MakeTypeError(kRegExpFlags);
+
+    flags = PatternFlags(pattern);
+    pattern = REGEXP_SOURCE(pattern);
   }
+
+  RegExpInitialize(this, pattern, flags);
+
+  // Return undefined for compatibility with JSC.
+  // See http://crbug.com/585775 for web compat details.
 }
 
 
 function DoRegExpExec(regexp, string, index) {
-  var result = %_RegExpExec(regexp, string, index, RegExpLastMatchInfo);
-  return result;
+  return %_RegExpExec(regexp, string, index, RegExpLastMatchInfo);
 }
 
 
@@ -257,6 +276,13 @@ function TrimRegExp(regexp) {
 
 function RegExpToString() {
   if (!IS_REGEXP(this)) {
+    // RegExp.prototype.toString() returns '/(?:)/' as a compatibility fix;
+    // a UseCounter is incremented to track it.
+    // TODO(littledan): Remove this workaround or standardize it
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeToString);
+      return '/(?:)/';
+    }
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'RegExp.prototype.toString', this);
   }
@@ -340,6 +366,35 @@ function RegExpSplit(string, limit) {
 }
 
 
+// ES6 21.2.5.6.
+function RegExpMatch(string) {
+  // TODO(yangguo): allow non-regexp receivers.
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "RegExp.prototype.@@match", this);
+  }
+  var subject = TO_STRING(string);
+
+  if (!REGEXP_GLOBAL(this)) return RegExpExecNoTests(this, subject, 0);
+  this.lastIndex = 0;
+  var result = %StringMatch(subject, this, RegExpLastMatchInfo);
+  return result;
+}
+
+
+// ES6 21.2.5.9.
+function RegExpSearch(string) {
+  // TODO(yangguo): allow non-regexp receivers.
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "RegExp.prototype.@@search", this);
+  }
+  var match = DoRegExpExec(this, TO_STRING(string), 0);
+  if (match) return match[CAPTURE0];
+  return -1;
+}
+
+
 // Getters for the static properties lastMatch, lastParen, leftContext, and
 // rightContext of the RegExp constructor.  The properties are computed based
 // on the captures array of the last successful match and the subject string
@@ -404,6 +459,10 @@ function RegExpMakeCaptureGetter(n) {
 // ES6 21.2.5.4.
 function RegExpGetGlobal() {
   if (!IS_REGEXP(this)) {
+    // TODO(littledan): Remove this RegExp compat workaround
+    if (this === GlobalRegExpPrototype) {
+      return UNDEFINED;
+    }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.global");
   }
   return !!REGEXP_GLOBAL(this);
@@ -415,6 +474,10 @@ function RegExpGetGlobal() {
 // ES6 21.2.5.5.
 function RegExpGetIgnoreCase() {
   if (!IS_REGEXP(this)) {
+    // TODO(littledan): Remove this RegExp compat workaround
+    if (this === GlobalRegExpPrototype) {
+      return UNDEFINED;
+    }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.ignoreCase");
   }
   return !!REGEXP_IGNORE_CASE(this);
@@ -426,6 +489,10 @@ function RegExpGetIgnoreCase() {
 // ES6 21.2.5.7.
 function RegExpGetMultiline() {
   if (!IS_REGEXP(this)) {
+    // TODO(littledan): Remove this RegExp compat workaround
+    if (this === GlobalRegExpPrototype) {
+      return UNDEFINED;
+    }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.multiline");
   }
   return !!REGEXP_MULTILINE(this);
@@ -437,6 +504,10 @@ function RegExpGetMultiline() {
 // ES6 21.2.5.10.
 function RegExpGetSource() {
   if (!IS_REGEXP(this)) {
+    // TODO(littledan): Remove this RegExp compat workaround
+    if (this === GlobalRegExpPrototype) {
+      return UNDEFINED;
+    }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.source");
   }
   return REGEXP_SOURCE(this);
@@ -447,7 +518,8 @@ function RegExpGetSource() {
 // -------------------------------------------------------------------
 
 %FunctionSetInstanceClassName(GlobalRegExp, 'RegExp');
-%FunctionSetPrototype(GlobalRegExp, new GlobalObject());
+GlobalRegExpPrototype = new GlobalObject();
+%FunctionSetPrototype(GlobalRegExp, GlobalRegExpPrototype);
 %AddNamedProperty(
     GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
 %SetCode(GlobalRegExp, RegExpConstructor);
@@ -457,6 +529,8 @@ utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "test", RegExpTest,
   "toString", RegExpToString,
   "compile", RegExpCompileJS,
+  matchSymbol, RegExpMatch,
+  searchSymbol, RegExpSearch,
   splitSymbol, RegExpSplit,
 ]);
 

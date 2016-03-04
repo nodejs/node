@@ -31,8 +31,10 @@
 // Helper.
 
 function TestWithProxies(test, x, y, z) {
-  test(Proxy.create, x, y, z)
-  test(function(h) {return Proxy.createFunction(h, function() {})}, x, y, z)
+  test(function(h) { return new Proxy({}, h) }, x, y, z)
+  test(function(h) {
+      return new Proxy(function() {}, h)
+  }, x, y, z)
 }
 
 
@@ -49,69 +51,40 @@ var key = ""
 function TestWithGet2(create, handler) {
   var b = "local"
 
-  var p = create(handler)
+  var p = create(handler);
+  assertEquals("onproxy", p.a);
+  assertEquals(undefined, p.b);
+  assertEquals(undefined, p.c);
+
   with (p) {
-    assertEquals("onproxy", a)
-    assertEquals("local", b)
-    assertEquals("global", c)
+    assertEquals("onproxy", a);
+    assertEquals("local", b);
+    assertEquals("global", c);
   }
 
   var o = Object.create(p, {d: {value: "own"}})
   with (o) {
     assertEquals("onproxy", a)
-    assertEquals("local", b)
+    assertEquals("local", b);
     assertEquals("global", c)
     assertEquals("own", d)
   }
 }
 
 TestWithGet({
-  get: function(r, k) { key = k; return k === "a" ? "onproxy" : undefined },
-  getPropertyDescriptor: function(k) {
+  get(target, k) {
     key = k;
-    return k === "a" ? {value: "onproxy", configurable: true} : undefined
-  }
+    return k === "a" ? "onproxy" : undefined
+  },
+  has(target, k) { return k === 'a' }
 })
 
 TestWithGet({
   get: function(r, k) { return this.get2(r, k) },
   get2: function(r, k) { key = k; return k === "a" ? "onproxy" : undefined },
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ? {value: "onproxy", configurable: true} : undefined
-  }
+  has(target, k) { return k === 'a' }
 })
 
-TestWithGet({
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ? {value: "onproxy", configurable: true} : undefined
-  }
-})
-
-TestWithGet({
-  getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
-  getPropertyDescriptor2: function(k) {
-    key = k;
-    return k === "a" ? {value: "onproxy", configurable: true} : undefined
-  }
-})
-
-TestWithGet({
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ?
-        {get value() { return "onproxy" }, configurable: true} : undefined
-  }
-})
-
-TestWithGet({
-  get: undefined,
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ? {value: "onproxy", configurable: true} : undefined
-  }
-})
 
 
 
@@ -151,49 +124,37 @@ function onproxy() { receiver = this; return "onproxy" }
 
 TestWithGetCall({
   get: function(r, k) { key = k; return k === "a" ? onproxy : undefined },
-  getPropertyDescriptor: function(k) {
+  has: function(t, k) {
     key = k;
-    return k === "a" ? {value: onproxy, configurable: true} : undefined
+    return k === "a";
   }
 })
 
 TestWithGetCall({
   get: function(r, k) { return this.get2(r, k) },
   get2: function(r, k) { key = k; return k === "a" ? onproxy : undefined },
-  getPropertyDescriptor: function(k) {
+  has: function(t, k) {
     key = k;
-    return k === "a" ? {value: onproxy, configurable: true} : undefined
+    return k === "a";
   }
 })
 
 TestWithGetCall({
-  getPropertyDescriptor: function(k) {
+  get: function(r, k) { key = k; return k === "a" ? onproxy : undefined },
+  has: function(t, k) {
+    return this.has2(k)
+  },
+  has2: function(k) {
     key = k;
-    return k === "a" ? {value: onproxy, configurable: true} : undefined
+    return k === "a";
   }
 })
 
 TestWithGetCall({
-  getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
-  getPropertyDescriptor2: function(k) {
+  get: function(r, k) { key = k; return k === "a" ? onproxy : undefined },
+  has: function(t, k) {
     key = k;
-    return k === "a" ? {value: onproxy, configurable: true} : undefined
-  }
-})
-
-TestWithGetCall({
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ?
-        {get value() { return onproxy }, configurable: true} : undefined
-  }
-})
-
-TestWithGetCall({
-  get: undefined,
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ? {value: onproxy, configurable: true} : undefined
+    return k === "a";
   }
 })
 
@@ -207,14 +168,14 @@ function TestWithGetCallThrow2(create, handler) {
 
   var p = create(handler)
   with (p) {
-    assertThrows(function(){ a() }, "myexn")
+    assertThrowsEquals(function(){ a() }, "myexn")
     assertEquals("local", b())
     assertEquals("global", c())
   }
 
   var o = Object.create(p, {d: {value: function() { return "own" }}})
   with (o) {
-    assertThrows(function(){ a() }, "myexn")
+    assertThrowsEquals(function(){ a() }, "myexn")
     assertEquals("local", b())
     assertEquals("global", c())
     assertEquals("own", d())
@@ -224,51 +185,14 @@ function TestWithGetCallThrow2(create, handler) {
 function onproxythrow() { throw "myexn" }
 
 TestWithGetCallThrow({
+  has: function(r, k) { return k === "a"; },
   get: function(r, k) { key = k; return k === "a" ? onproxythrow : undefined },
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ? {value: onproxythrow, configurable: true} : undefined
-  }
 })
 
 TestWithGetCallThrow({
+  has: function(r, k) { return k === "a"; },
   get: function(r, k) { return this.get2(r, k) },
   get2: function(r, k) { key = k; return k === "a" ? onproxythrow : undefined },
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ? {value: onproxythrow, configurable: true} : undefined
-  }
-})
-
-TestWithGetCallThrow({
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ? {value: onproxythrow, configurable: true} : undefined
-  }
-})
-
-TestWithGetCallThrow({
-  getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
-  getPropertyDescriptor2: function(k) {
-    key = k;
-    return k === "a" ? {value: onproxythrow, configurable: true} : undefined
-  }
-})
-
-TestWithGetCallThrow({
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ?
-        {get value() { return onproxythrow }, configurable: true} : undefined
-  }
-})
-
-TestWithGetCallThrow({
-  get: undefined,
-  getPropertyDescriptor: function(k) {
-    key = k;
-    return k === "a" ? {value: onproxythrow, configurable: true} : undefined
-  }
 })
 
 
@@ -322,79 +246,58 @@ function TestWithSet2(create, handler, hasSetter) {
 
 TestWithSet({
   set: function(r, k, v) { key = k; val = v; return true },
-  getPropertyDescriptor: function(k) {
-    return k === "a" ? {writable: true, configurable: true} : undefined
+  has: function(t, k) {
+    return k === "a"
   }
 })
 
 TestWithSet({
   set: function(r, k, v) { return this.set2(r, k, v) },
   set2: function(r, k, v) { key = k; val = v; return true },
-  getPropertyDescriptor: function(k) {
-    return k === "a" ? {writable: true, configurable: true} : undefined
+  has: function(t, k) {
+    return k === "a"
   }
 })
 
 TestWithSet({
-  getPropertyDescriptor: function(k) {
-    return this.getOwnPropertyDescriptor(k)
+  has: function(t, k) {
+    return k === "a"
   },
-  getOwnPropertyDescriptor: function(k) {
-    return k === "a" ? {writable: true, configurable: true} : undefined
-  },
-  defineProperty: function(k, desc) { key = k; val = desc.value }
+  defineProperty: function(t, k, desc) { key = k; val = desc.value }
 })
 
 TestWithSet({
-  getOwnPropertyDescriptor: function(k) {
-    return this.getPropertyDescriptor2(k)
+  has: function(t, k) {
+    return this.has2(k)
   },
-  getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
-  getPropertyDescriptor2: function(k) {
-    return k === "a" ? {writable: true, configurable: true} : undefined
+  has2: function(k) {
+    return k === "a"
   },
-  defineProperty: function(k, desc) { this.defineProperty2(k, desc) },
+  defineProperty: function(t, k, desc) { this.defineProperty2(k, desc) },
   defineProperty2: function(k, desc) { key = k; val = desc.value }
 })
 
 TestWithSet({
-  getOwnPropertyDescriptor: function(k) {
-    return this.getPropertyDescriptor(k)
+  has: function(t, k) {
+    return k === "a"
   },
-  getPropertyDescriptor: function(k) {
-    return k === "a" ?
-        {get writable() { return true }, configurable: true} : undefined
-  },
-  defineProperty: function(k, desc) { key = k; val = desc.value }
+  defineProperty: function(t, k, desc) { key = k; val = desc.value }
 })
 
 TestWithSet({
-  getOwnPropertyDescriptor: function(k) {
-    return this.getPropertyDescriptor(k)
+  has: function(t, k) {
+    return this.has2(k) },
+  has2: function(k) {
+    return k === "a"
   },
-  getPropertyDescriptor: function(k) {
-    return k === "a" ?
-        {set: function(v) { key = k; val = v }, configurable: true} : undefined
-  }
+  set: function(t, k, v) { key = k; val = v; return true }
 }, true)
 
 TestWithSet({
-  getOwnPropertyDescriptor: function(k) {
-    return this.getPropertyDescriptor(k)
+  has: function(t, k) {
+    return k === "a"
   },
-  getPropertyDescriptor: function(k) { return this.getPropertyDescriptor2(k) },
-  getPropertyDescriptor2: function(k) {
-    return k === "a" ?
-        {set: function(v) { key = k; val = v }, configurable: true} : undefined
-  }
-}, true)
-
-TestWithSet({
-  getOwnPropertyDescriptor: function(k) { return null },
-  getPropertyDescriptor: function(k) {
-    return k === "a" ? {writable: true, configurable: true} : undefined
-  },
-  defineProperty: function(k, desc) { key = k; val = desc.value }
+  defineProperty: function(t, k, desc) { key = k; val = desc.value }
 })
 
 
@@ -404,7 +307,7 @@ function TestWithSetThrow(handler, hasSetter) {
 
 function TestWithSetThrow2(create, handler, hasSetter) {
   var p = create(handler)
-  assertThrows(function(){
+  assertThrowsEquals(function(){
     with (p) {
       a = 1
     }
@@ -413,7 +316,7 @@ function TestWithSetThrow2(create, handler, hasSetter) {
   if (!hasSetter) return
 
   var o = Object.create(p, {})
-  assertThrows(function(){
+  assertThrowsEquals(function(){
     with (o) {
       a = 1
     }
@@ -421,26 +324,30 @@ function TestWithSetThrow2(create, handler, hasSetter) {
 }
 
 TestWithSetThrow({
-  set: function(r, k, v) { throw "myexn" },
-  getPropertyDescriptor: function(k) {
-    return k === "a" ? {writable: true, configurable: true} : undefined
+  set: function() { throw "myexn" },
+  has: function(t, k) {
+    return k === "a"
   }
 })
 
 TestWithSetThrow({
-  getPropertyDescriptor: function(k) { throw "myexn" },
+  has: function() { throw "myexn" },
 })
 
 TestWithSetThrow({
-  getPropertyDescriptor: function(k) {
-    return k === "a" ? {writable: true, configurable: true} : undefined
+  has: function() { throw "myexn" },
+})
+
+TestWithSetThrow({
+  has: function(t, k) {
+    return k === "a"
   },
-  defineProperty: function(k, desc) { throw "myexn" }
+  defineProperty: function() { throw "myexn" }
 })
 
 TestWithSetThrow({
-  getPropertyDescriptor: function(k) {
-    return k === "a" ?
-        {set: function() { throw "myexn" }, configurable: true} : undefined
-  }
+  has: function(t, k) {
+    return k === "a"
+  },
+  set: function() { throw "myexn" }
 }, true)

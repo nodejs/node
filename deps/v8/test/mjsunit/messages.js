@@ -57,6 +57,18 @@ test(function() {
   Object.defineProperty(1, "x", {});
 }, "Object.defineProperty called on non-object", TypeError);
 
+test(function() {
+  (function() {}).apply({}, 1);
+}, "CreateListFromArrayLike called on non-object", TypeError);
+
+test(function() {
+  Reflect.apply(function() {}, {}, 1);
+}, "CreateListFromArrayLike called on non-object", TypeError);
+
+test(function() {
+  Reflect.construct(function() {}, 1);
+}, "CreateListFromArrayLike called on non-object", TypeError);
+
 // kCalledOnNullOrUndefined
 test(function() {
   Array.prototype.shift.call(null);
@@ -96,11 +108,6 @@ test(function() {
 test(function() {
   new DataView(1);
 }, "First argument to DataView constructor must be an ArrayBuffer", TypeError);
-
-// kDateType
-test(function() {
-  Date.prototype.setYear.call({}, 1);
-}, "this is not a Date object.", TypeError);
 
 // kDefineDisallowed
 test(function() {
@@ -170,11 +177,6 @@ test(function() {
   new Map([1]);
 }, "Iterator value 1 is not an entry object", TypeError);
 
-// kNotAPromise
-test(function() {
-  Promise.prototype.chain.call(1);
-}, "1 is not a promise", TypeError);
-
 // kNotConstructor
 test(function() {
   new Symbol();
@@ -182,7 +184,7 @@ test(function() {
 
 // kNotDateObject
 test(function() {
-  Date.prototype.setHours.call(1);
+  Date.prototype.getHours.call(1);
 }, "this is not a Date object.", TypeError);
 
 // kNotGeneric
@@ -256,7 +258,7 @@ test(function() {
 test(function() {
   Set.prototype.add = 0;
   new Set(1);
-}, "Property 'add' of object #<Set> is not a function", TypeError);
+}, "'0' returned for property 'add' of object '#<Set>' is not a function", TypeError);
 
 // kProtoObjectOrNull
 test(function() {
@@ -335,31 +337,13 @@ test(function() {
 }, "Invalid property descriptor. Cannot both specify accessors " +
    "and a value or writable attribute, #<Object>", TypeError);
 
-// kWithExpression
-test(function() {
-  with (null) {}
-}, "null has no properties", TypeError);
-
-// kWrongArgs
-test(function() {
-  (function() {}).apply({}, 1);
-}, "Function.prototype.apply: Arguments list has wrong type", TypeError);
-
-test(function() {
-  Reflect.apply(function() {}, {}, 1);
-}, "Reflect.apply: Arguments list has wrong type", TypeError);
-
-test(function() {
-  Reflect.construct(function() {}, 1);
-}, "Reflect.construct: Arguments list has wrong type", TypeError);
-
 
 // === SyntaxError ===
 
 // kInvalidRegExpFlags
 test(function() {
-  /a/x.test("a");
-}, "Invalid flags supplied to RegExp constructor 'x'", SyntaxError);
+  eval("/a/x.test(\"a\");");
+}, "Invalid regular expression flags", SyntaxError);
 
 // kMalformedRegExp
 test(function() {

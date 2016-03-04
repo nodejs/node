@@ -60,9 +60,8 @@ void IC::SetTargetAtAddress(Address address, Code* target,
   DCHECK(!target->is_inline_cache_stub() ||
          (target->kind() != Code::LOAD_IC &&
           target->kind() != Code::KEYED_LOAD_IC &&
-          target->kind() != Code::CALL_IC &&
-          (!FLAG_vector_stores || (target->kind() != Code::STORE_IC &&
-                                   target->kind() != Code::KEYED_STORE_IC))));
+          target->kind() != Code::CALL_IC && target->kind() != Code::STORE_IC &&
+          target->kind() != Code::KEYED_STORE_IC));
 
   Heap* heap = target->GetHeap();
   Code* old_target = GetTargetAtAddress(address, constant_pool);
@@ -75,7 +74,7 @@ void IC::SetTargetAtAddress(Address address, Code* target,
            StoreICState::GetLanguageMode(target->extra_ic_state()));
   }
 #endif
-  Assembler::set_target_address_at(address, constant_pool,
+  Assembler::set_target_address_at(heap->isolate(), address, constant_pool,
                                    target->instruction_start());
   if (heap->gc_state() == Heap::MARK_COMPACT) {
     heap->mark_compact_collector()->RecordCodeTargetPatch(address, target);

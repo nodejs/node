@@ -29,7 +29,7 @@
 
 #include "src/v8.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

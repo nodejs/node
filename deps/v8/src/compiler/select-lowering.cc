@@ -55,7 +55,7 @@ Reduction SelectLowering::Reduce(Node* node) {
   node->ReplaceInput(0, vthen);
   node->ReplaceInput(1, velse);
   node->ReplaceInput(2, merge);
-  NodeProperties::ChangeOp(node, common()->Phi(p.type(), 2));
+  NodeProperties::ChangeOp(node, common()->Phi(p.representation(), 2));
   return Changed(node);
 }
 

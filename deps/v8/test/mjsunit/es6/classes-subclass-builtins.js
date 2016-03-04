@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --harmony-reflect --harmony-regexp-subclass
+// Flags: --expose-gc --strong-mode
 
 "use strict";
 
@@ -20,10 +21,11 @@ function checkPrototypeChain(object, constructors) {
 (function() {
   class A extends Object {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -34,6 +36,7 @@ function checkPrototypeChain(object, constructors) {
   checkPrototypeChain(s, [A, Object]);
   assertEquals(42, s.a);
   assertEquals(4.2, s.d);
+  assertEquals(153, s.o.foo);
 
   var s1 = new A("bar");
   assertTrue(%HaveSameMap(s, s1));
@@ -46,6 +49,7 @@ function checkPrototypeChain(object, constructors) {
   checkPrototypeChain(s, [A, Object]);
   assertEquals(42, n.a);
   assertEquals(4.2, n.d);
+  assertEquals(153, n.o.foo);
 
   var n1 = new A(312);
   assertTrue(%HaveSameMap(n, n1));
@@ -59,46 +63,99 @@ function checkPrototypeChain(object, constructors) {
   checkPrototypeChain(s, [A, Object]);
   assertEquals(42, b.a);
   assertEquals(4.2, b.d);
+  assertEquals(153, b.o.foo);
 
   var b1 = new A(true);
   assertTrue(%HaveSameMap(b, b1));
   assertTrue(%HaveSameMap(b, s));
+
+  gc();
 })();
 
 
 (function() {
   class A extends Function {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
+      // Strong functions are not extensible, so don't add fields.
+      if (args[args.length - 1].indexOf("use strong") >= 0) {
+        assertThrows(()=>{ this.a = 10; }, TypeError);
+        return;
+      }
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
+    }
+  }
+  var sloppy_func = new A("");
+  var strict_func = new A("'use strict';");
+  assertNull(sloppy_func.caller);
+  assertThrows("strict_f.caller");
+  assertNull(Object.getOwnPropertyDescriptor(sloppy_func, "caller").value);
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(strict_func, "caller"));
+
+  function CheckFunction(func, is_strong) {
+    assertEquals("function", typeof func);
+    assertTrue(func instanceof Object);
+    assertTrue(func instanceof Function);
+    assertTrue(func instanceof A);
+    checkPrototypeChain(func, [A, Function, Object]);
+    if (!is_strong) {
+      assertEquals(42, func.a);
+      assertEquals(4.2, func.d);
+      assertEquals(153, func.o.foo);
+      assertTrue(undefined !== func.prototype);
+      func.prototype.bar = "func.bar";
+      var obj = new func();
+      assertTrue(obj instanceof Object);
+      assertTrue(obj instanceof func);
+      assertEquals("object", typeof obj);
+      assertEquals(113, obj.foo);
+      assertEquals("func.bar", obj.bar);
+      delete func.prototype.bar;
     }
   }
 
-  var o = new A("this.foo = 153;");
-  assertTrue(o instanceof Object);
-  assertTrue(o instanceof Function);
-  assertTrue(o instanceof A);
-  assertEquals("function", typeof o);
-  checkPrototypeChain(o, [A, Function, Object]);
-  assertEquals(42, o.a);
-  assertEquals(4.2, o.d);
-  var oo = new o();
-  assertEquals(153, oo.foo);
+  var source = "this.foo = 113;";
 
-  var o1 = new A("return 312;");
-  assertTrue(%HaveSameMap(o, o1));
+  // Sloppy function
+  var sloppy_func = new A(source);
+  assertTrue(undefined !== sloppy_func.prototype);
+  CheckFunction(sloppy_func, false);
+
+  var sloppy_func1 = new A("return 312;");
+  assertTrue(%HaveSameMap(sloppy_func, sloppy_func1));
+
+  // Strict function
+  var strict_func = new A("'use strict'; " + source);
+  assertFalse(%HaveSameMap(strict_func, sloppy_func));
+  CheckFunction(strict_func, false);
+
+  var strict_func1 = new A("'use strict'; return 312;");
+  assertTrue(%HaveSameMap(strict_func, strict_func1));
+
+  // Strong function
+  var strong_func = new A("'use strong'; " + source);
+  assertFalse(%HaveSameMap(strong_func, sloppy_func));
+  assertFalse(%HaveSameMap(strong_func, strict_func));
+  CheckFunction(strong_func, true);
+
+  var strong_func1 = new A("'use strong'; return 312;");
+  assertTrue(%HaveSameMap(strong_func, strong_func1));
+
+  gc();
 })();
 
 
 (function() {
   class A extends Boolean {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -111,19 +168,23 @@ function checkPrototypeChain(object, constructors) {
   assertTrue(o.valueOf());
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(false);
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 })();
 
 
 function TestErrorSubclassing(error) {
   class A extends error {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -142,9 +203,12 @@ function TestErrorSubclassing(error) {
   assertEquals(error.name + ": message", o.toString());
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A("achtung!");
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 }
 
 
@@ -162,10 +226,11 @@ function TestErrorSubclassing(error) {
 (function() {
   class A extends Number {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -178,19 +243,23 @@ function TestErrorSubclassing(error) {
   assertEquals(153, o.valueOf());
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(312);
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 })();
 
 
 (function() {
   class A extends Date {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -203,22 +272,26 @@ function TestErrorSubclassing(error) {
   assertEquals(1234567890, o.getTime());
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(2015, 10, 29);
   assertEquals(2015, o1.getFullYear());
   assertEquals(10, o1.getMonth());
   assertEquals(29, o1.getDate());
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 })();
 
 
 (function() {
   class A extends String {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -232,19 +305,23 @@ function TestErrorSubclassing(error) {
   assertEquals("foo", o.valueOf());
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A("bar");
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 })();
 
 
 (function() {
   class A extends RegExp {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -263,38 +340,81 @@ function TestErrorSubclassing(error) {
   assertEquals(10, o.lastIndex);
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
+
+  var o1 = new A(7);
+  assertTrue(%HaveSameMap(o, o1));
+
+  gc();
+})();
+
+
+(function TestArraySubclassing() {
+  class A extends Array {
+    constructor(...args) {
+      assertFalse(new.target === undefined);
+      super(...args);
+      this.a = 42;
+      this.d = 4.2;
+      this.o = {foo:153};
+    }
+  }
+
+  var o = new Array(13);
+  assertTrue(o instanceof Object);
+  assertTrue(o instanceof Array);
+  assertEquals("object", typeof o);
+  checkPrototypeChain(o, [Array, Object]);
+  assertEquals(13, o.length);
+
+  var o = new A(10);
+  assertTrue(o instanceof Object);
+  assertTrue(o instanceof Array);
+  assertTrue(o instanceof A);
+  assertEquals("object", typeof o);
+  checkPrototypeChain(o, [A, Array, Object]);
+  assertEquals(10, o.length);
+  assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(7);
   assertTrue(%HaveSameMap(o, o1));
 })();
 
 
-function TestArraySubclassing(array) {
+var TypedArray = Uint8Array.__proto__;
+
+function TestTypedArraySubclassing(array) {
   class A extends array {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
   var o = new array(13);
   assertTrue(o instanceof Object);
+  assertTrue(o instanceof TypedArray);
   assertTrue(o instanceof array);
   assertEquals("object", typeof o);
-  checkPrototypeChain(o, [array, Object]);
+  checkPrototypeChain(o, [array, TypedArray, Object]);
   assertEquals(13, o.length);
 
   var o = new A(10);
   assertTrue(o instanceof Object);
+  assertTrue(o instanceof TypedArray);
   assertTrue(o instanceof array);
   assertTrue(o instanceof A);
   assertEquals("object", typeof o);
-  checkPrototypeChain(o, [A, array, Object]);
+  checkPrototypeChain(o, [A, array, TypedArray, Object]);
   assertEquals(10, o.length);
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(7);
   assertTrue(%HaveSameMap(o, o1));
@@ -302,16 +422,15 @@ function TestArraySubclassing(array) {
 
 
 (function() {
-  TestArraySubclassing(Array);
-  TestArraySubclassing(Int8Array);
-  TestArraySubclassing(Uint8Array);
-  TestArraySubclassing(Uint8ClampedArray);
-  TestArraySubclassing(Int16Array);
-  TestArraySubclassing(Uint16Array);
-  TestArraySubclassing(Int32Array);
-  TestArraySubclassing(Uint32Array);
-  TestArraySubclassing(Float32Array);
-  TestArraySubclassing(Float64Array);
+  TestTypedArraySubclassing(Int8Array);
+  TestTypedArraySubclassing(Uint8Array);
+  TestTypedArraySubclassing(Uint8ClampedArray);
+  TestTypedArraySubclassing(Int16Array);
+  TestTypedArraySubclassing(Uint16Array);
+  TestTypedArraySubclassing(Int32Array);
+  TestTypedArraySubclassing(Uint32Array);
+  TestTypedArraySubclassing(Float32Array);
+  TestTypedArraySubclassing(Float64Array);
 })();
 
 
@@ -320,10 +439,11 @@ function TestMapSetSubclassing(container, is_map) {
 
   class A extends container {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -358,9 +478,12 @@ function TestMapSetSubclassing(container, is_map) {
   }
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A();
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 }
 
 
@@ -375,10 +498,11 @@ function TestMapSetSubclassing(container, is_map) {
 (function() {
   class A extends ArrayBuffer {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -392,6 +516,7 @@ function TestMapSetSubclassing(container, is_map) {
   assertEquals(16, o.byteLength);
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A("bar");
   assertTrue(%HaveSameMap(o, o1));
@@ -423,16 +548,19 @@ function TestMapSetSubclassing(container, is_map) {
   assertEquals(-1, int32view[1]);
   assertEquals(0xfffffffe, uint32view[0]);
   assertEquals(0xffffffff, uint32view[1]);
+
+  gc();
 })();
 
 
 (function() {
   class A extends DataView {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -449,55 +577,145 @@ function TestMapSetSubclassing(container, is_map) {
   assertEquals(0xbebafeca, o.getUint32(0, true));
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(buffer);
   assertTrue(%HaveSameMap(o, o1));
 
+  gc();
 })();
 
 
 (function() {
-  // TODO(ishell): remove once GeneratorFunction is available.
-  var GeneratorFunction = (function*() {}).__proto__.constructor;
+  var GeneratorFunction = (function*() {}).constructor;
   class A extends GeneratorFunction {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
+      super(...args);
+      // Strong functions are not extensible, so don't add fields.
+      if (args[args.length - 1].indexOf("use strong") >= 0) {
+        assertThrows(()=>{ this.a = 10; }, TypeError);
+        return;
+      }
+      this.a = 42;
+      this.d = 4.2;
+      this.o = {foo:153};
+    }
+  }
+  var sloppy_func = new A("yield 153;");
+  var strict_func = new A("'use strict'; yield 153;");
+  // Unfortunately the difference is not observable from outside.
+  assertThrows("sloppy_func.caller");
+  assertThrows("strict_f.caller");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(sloppy_func, "caller"));
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(strict_func, "caller"));
+
+  function CheckFunction(func, is_strong) {
+    assertEquals("function", typeof func);
+    assertTrue(func instanceof Object);
+    assertTrue(func instanceof Function);
+    assertTrue(func instanceof GeneratorFunction);
+    assertTrue(func instanceof A);
+    checkPrototypeChain(func, [A, GeneratorFunction, Function, Object]);
+    if (!is_strong) {
+      assertEquals(42, func.a);
+      assertEquals(4.2, func.d);
+      assertEquals(153, func.o.foo);
+
+      assertTrue(undefined !== func.prototype);
+      func.prototype.bar = "func.bar";
+      var obj = func();  // Generator object.
+      assertTrue(obj instanceof Object);
+      assertTrue(obj instanceof func);
+      assertEquals("object", typeof obj);
+      assertEquals("func.bar", obj.bar);
+      delete func.prototype.bar;
+
+      assertPropertiesEqual({done: false, value: 1}, obj.next());
+      assertPropertiesEqual({done: false, value: 1}, obj.next());
+      assertPropertiesEqual({done: false, value: 2}, obj.next());
+      assertPropertiesEqual({done: false, value: 3}, obj.next());
+      assertPropertiesEqual({done: false, value: 5}, obj.next());
+      assertPropertiesEqual({done: false, value: 8}, obj.next());
+      assertPropertiesEqual({done: true, value: undefined}, obj.next());
+    }
+  }
+
+  var source = "yield 1; yield 1; yield 2; yield 3; yield 5; yield 8;";
+
+  // Sloppy generator function
+  var sloppy_func = new A(source);
+  assertTrue(undefined !== sloppy_func.prototype);
+  CheckFunction(sloppy_func, false);
+
+  var sloppy_func1 = new A("yield 312;");
+  assertTrue(%HaveSameMap(sloppy_func, sloppy_func1));
+
+  // Strict generator function
+  var strict_func = new A("'use strict'; " + source);
+  assertFalse(%HaveSameMap(strict_func, sloppy_func));
+  CheckFunction(strict_func, false);
+
+  var strict_func1 = new A("'use strict'; yield 312;");
+  assertTrue(%HaveSameMap(strict_func, strict_func1));
+
+  // Strong generator function
+  var strong_func = new A("'use strong'; " + source);
+  assertFalse(%HaveSameMap(strong_func, sloppy_func));
+  assertFalse(%HaveSameMap(strong_func, strict_func));
+  CheckFunction(strong_func, true);
+
+  var strong_func1 = new A("'use strong'; yield 312;");
+  assertTrue(%HaveSameMap(strong_func, strong_func1));
+
+  gc();
+})();
+
+
+(function() {
+  class A extends Promise {
+    constructor(...args) {
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
-  var generator_func = new A("var index = 0; while (index < 5) { yield ++index; }");
-  assertTrue(generator_func instanceof Object);
-  assertTrue(generator_func instanceof Function);
-  assertTrue(generator_func instanceof GeneratorFunction);
-  assertTrue(generator_func instanceof A);
-  assertEquals("function", typeof generator_func);
-  checkPrototypeChain(generator_func, [A, GeneratorFunction, Function, Object]);
-  assertEquals(42, generator_func.a);
-  assertEquals(4.2, generator_func.d);
 
-  var o = new generator_func();
+  var o = new A(function(resolve, reject) {
+    resolve("ok");
+  });
   assertTrue(o instanceof Object);
-  assertTrue(o instanceof generator_func);
+  assertTrue(o instanceof Promise);
+  assertTrue(o instanceof A);
   assertEquals("object", typeof o);
+  checkPrototypeChain(o, [A, Promise, Object]);
+  assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
+  o.then(
+      function(val) { assertEquals("ok", val); },
+      function(reason) { assertUnreachable(); })
+    .catch(function(reason) { %AbortJS("catch handler called: " + reason); });
 
-  assertPropertiesEqual({done: false, value: 1}, o.next());
-  assertPropertiesEqual({done: false, value: 2}, o.next());
-  assertPropertiesEqual({done: false, value: 3}, o.next());
-  assertPropertiesEqual({done: false, value: 4}, o.next());
-  assertPropertiesEqual({done: false, value: 5}, o.next());
-  assertPropertiesEqual({done: true, value: undefined}, o.next());
+  var o1 = new A(function(resolve, reject) {
+    reject("fail");
+  });
+  o1.then(
+      function(val) { assertUnreachable(); },
+      function(reason) { assertEquals("fail", reason); })
+    .catch(function(reason) { %AbortJS("catch handler called: " + reason); });
+  assertTrue(%HaveSameMap(o, o1));
 
-  var generator_func1 = new A("return 0;");
-  assertTrue(%HaveSameMap(generator_func, generator_func1));
+  gc();
 })();
 
 
 (function() {
   class A extends Boolean {
     constructor() {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(true);
       this.a00 = 0
       this.a01 = 0
@@ -524,7 +742,7 @@ function TestMapSetSubclassing(container, is_map) {
 
   class B extends A {
     constructor() {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super();
       this.b00 = 0
       this.b01 = 0
@@ -551,7 +769,7 @@ function TestMapSetSubclassing(container, is_map) {
 
   class C extends B {
     constructor() {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super();
       this.c00 = 0
       this.c01 = 0
@@ -584,6 +802,8 @@ function TestMapSetSubclassing(container, is_map) {
   assertTrue(o instanceof C);
   assertEquals("object", typeof o);
   checkPrototypeChain(o, [C, B, A, Boolean, Object]);
+
+  gc();
 })();
 
 
@@ -603,4 +823,134 @@ function TestMapSetSubclassing(container, is_map) {
 (function() {
   class A extends Symbol {}
   assertThrows("new A");
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        Number, [{valueOf() { f.prototype=p2; return 10; }}], f);
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === f.prototype);
+  assertFalse(p === o.__proto__);
+  assertEquals(10, Number.prototype.valueOf.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        String, [{toString() { f.prototype=p2; return "biep"; }}], f);
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === o.__proto__);
+  assertFalse(p === o.__proto__);
+  assertEquals("biep", String.prototype.toString.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        Date, [{valueOf() { f.prototype=p2; return 1447836899614; }}], f);
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === f.prototype);
+  assertFalse(p === o.__proto__);
+  assertEquals(new Date(1447836899614).toString(),
+               Date.prototype.toString.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        Date, [2015, {valueOf() { f.prototype=p2; return 10; }}], f);
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === f.prototype);
+  assertFalse(p === o.__proto__);
+  assertEquals(new Date(2015, 10).getYear(), Date.prototype.getYear.call(o));
+  assertEquals(new Date(2015, 10).getMonth(), Date.prototype.getMonth.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        DataView, [new ArrayBuffer(100),
+                   {valueOf(){ f.prototype=p2; return 5; }}], f);
+
+  var byteOffset = Object.getOwnPropertyDescriptor(
+      DataView.prototype, "byteOffset").get;
+  var byteLength = Object.getOwnPropertyDescriptor(
+      DataView.prototype, "byteLength").get;
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === f.prototype);
+  assertFalse(p === o.__proto__);
+  assertEquals(5, byteOffset.call(o));
+  assertEquals(95, byteLength.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var o = Reflect.construct(
+        DataView, [new ArrayBuffer(100),
+                   30, {valueOf() { f.prototype=p2; return 5; }}], f);
+
+  var byteOffset = Object.getOwnPropertyDescriptor(
+      DataView.prototype, "byteOffset").get;
+  var byteLength = Object.getOwnPropertyDescriptor(
+      DataView.prototype, "byteLength").get;
+
+  assertTrue(o.__proto__ === f.prototype);
+  assertTrue(p2 === f.prototype);
+  assertFalse(p === o.__proto__);
+  assertEquals(30, byteOffset.call(o));
+  assertEquals(5, byteLength.call(o));
+})();
+
+
+(function() {
+  function f() {}
+
+  var p = f.prototype;
+  var p2 = {};
+  var p3 = {};
+
+  var log = [];
+
+  var pattern = {toString() {
+    log.push("tostring");
+    f.prototype = p3; return "biep" }};
+
+  Object.defineProperty(pattern, Symbol.match, {
+    get() { log.push("match"); f.prototype = p2; return false; }});
+
+  var o = Reflect.construct(RegExp, [pattern], f);
+  assertEquals(["match", "tostring"], log);
+  assertEquals(/biep/, o);
+  assertTrue(o.__proto__ === p2);
+  assertTrue(f.prototype === p3);
 })();

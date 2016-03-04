@@ -5,16 +5,23 @@
 #ifndef V8_BUILTINS_H_
 #define V8_BUILTINS_H_
 
+#include "src/base/flags.h"
 #include "src/handles.h"
 
 namespace v8 {
 namespace internal {
 
 // Specifies extra arguments required by a C++ builtin.
-enum BuiltinExtraArguments {
-  NO_EXTRA_ARGUMENTS = 0,
-  NEEDS_CALLED_FUNCTION = 1
+enum class BuiltinExtraArguments : uint8_t {
+  kNone = 0u,
+  kTarget = 1u << 0,
+  kNewTarget = 1u << 1,
+  kTargetAndNewTarget = kTarget | kNewTarget
 };
+
+inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
+  return static_cast<uint8_t>(lhs) & static_cast<uint8_t>(rhs);
+}
 
 
 #define CODE_AGE_LIST_WITH_ARG(V, A)     \
@@ -44,125 +51,215 @@ enum BuiltinExtraArguments {
 
 
 // Define list of builtins implemented in C++.
-#define BUILTIN_LIST_C(V)                                    \
-  V(Illegal, NO_EXTRA_ARGUMENTS)                             \
-                                                             \
-  V(EmptyFunction, NO_EXTRA_ARGUMENTS)                       \
-                                                             \
-  V(ArrayPush, NO_EXTRA_ARGUMENTS)                           \
-  V(ArrayPop, NO_EXTRA_ARGUMENTS)                            \
-  V(ArrayShift, NO_EXTRA_ARGUMENTS)                          \
-  V(ArrayUnshift, NO_EXTRA_ARGUMENTS)                        \
-  V(ArraySlice, NO_EXTRA_ARGUMENTS)                          \
-  V(ArraySplice, NO_EXTRA_ARGUMENTS)                         \
-  V(ArrayConcat, NO_EXTRA_ARGUMENTS)                         \
-                                                             \
-  V(DateToPrimitive, NO_EXTRA_ARGUMENTS)                     \
-                                                             \
-  V(ReflectDefineProperty, NO_EXTRA_ARGUMENTS)               \
-  V(ReflectDeleteProperty, NO_EXTRA_ARGUMENTS)               \
-  V(ReflectGet, NO_EXTRA_ARGUMENTS)                          \
-  V(ReflectGetOwnPropertyDescriptor, NO_EXTRA_ARGUMENTS)     \
-  V(ReflectGetPrototypeOf, NO_EXTRA_ARGUMENTS)               \
-  V(ReflectHas, NO_EXTRA_ARGUMENTS)                          \
-  V(ReflectIsExtensible, NO_EXTRA_ARGUMENTS)                 \
-  V(ReflectPreventExtensions, NO_EXTRA_ARGUMENTS)            \
-  V(ReflectSet, NO_EXTRA_ARGUMENTS)                          \
-  V(ReflectSetPrototypeOf, NO_EXTRA_ARGUMENTS)               \
-                                                             \
-  V(SymbolConstructor, NO_EXTRA_ARGUMENTS)                   \
-  V(SymbolConstructor_ConstructStub, NO_EXTRA_ARGUMENTS)     \
-                                                             \
-  V(HandleApiCall, NEEDS_CALLED_FUNCTION)                    \
-  V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)           \
-  V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)             \
-  V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)          \
-                                                             \
-  V(RestrictedFunctionPropertiesThrower, NO_EXTRA_ARGUMENTS) \
-  V(RestrictedStrictArgumentsPropertiesThrower, NO_EXTRA_ARGUMENTS)
+#define BUILTIN_LIST_C(V)                                      \
+  V(Illegal, kNone)                                            \
+                                                               \
+  V(EmptyFunction, kNone)                                      \
+                                                               \
+  V(ArrayConcat, kNone)                                        \
+  V(ArrayIsArray, kNone)                                       \
+  V(ArrayPop, kNone)                                           \
+  V(ArrayPush, kNone)                                          \
+  V(ArrayShift, kNone)                                         \
+  V(ArraySlice, kNone)                                         \
+  V(ArraySplice, kNone)                                        \
+  V(ArrayUnshift, kNone)                                       \
+                                                               \
+  V(ArrayBufferConstructor, kTarget)                           \
+  V(ArrayBufferConstructor_ConstructStub, kTargetAndNewTarget) \
+  V(ArrayBufferIsView, kNone)                                  \
+                                                               \
+  V(DateConstructor, kNone)                                    \
+  V(DateConstructor_ConstructStub, kTargetAndNewTarget)        \
+  V(DateNow, kNone)                                            \
+  V(DateParse, kNone)                                          \
+  V(DateUTC, kNone)                                            \
+  V(DatePrototypeSetDate, kNone)                               \
+  V(DatePrototypeSetFullYear, kNone)                           \
+  V(DatePrototypeSetHours, kNone)                              \
+  V(DatePrototypeSetMilliseconds, kNone)                       \
+  V(DatePrototypeSetMinutes, kNone)                            \
+  V(DatePrototypeSetMonth, kNone)                              \
+  V(DatePrototypeSetSeconds, kNone)                            \
+  V(DatePrototypeSetTime, kNone)                               \
+  V(DatePrototypeSetUTCDate, kNone)                            \
+  V(DatePrototypeSetUTCFullYear, kNone)                        \
+  V(DatePrototypeSetUTCHours, kNone)                           \
+  V(DatePrototypeSetUTCMilliseconds, kNone)                    \
+  V(DatePrototypeSetUTCMinutes, kNone)                         \
+  V(DatePrototypeSetUTCMonth, kNone)                           \
+  V(DatePrototypeSetUTCSeconds, kNone)                         \
+  V(DatePrototypeToDateString, kNone)                          \
+  V(DatePrototypeToISOString, kNone)                           \
+  V(DatePrototypeToPrimitive, kNone)                           \
+  V(DatePrototypeToUTCString, kNone)                           \
+  V(DatePrototypeToString, kNone)                              \
+  V(DatePrototypeToTimeString, kNone)                          \
+  V(DatePrototypeValueOf, kNone)                               \
+  V(DatePrototypeGetYear, kNone)                               \
+  V(DatePrototypeSetYear, kNone)                               \
+                                                               \
+  V(FunctionConstructor, kTargetAndNewTarget)                  \
+  V(FunctionPrototypeBind, kNone)                              \
+  V(FunctionPrototypeToString, kNone)                          \
+                                                               \
+  V(GeneratorFunctionConstructor, kTargetAndNewTarget)         \
+                                                               \
+  V(GlobalEval, kTarget)                                       \
+                                                               \
+  V(ObjectAssign, kNone)                                       \
+  V(ObjectCreate, kNone)                                       \
+  V(ObjectFreeze, kNone)                                       \
+  V(ObjectIsExtensible, kNone)                                 \
+  V(ObjectIsFrozen, kNone)                                     \
+  V(ObjectIsSealed, kNone)                                     \
+  V(ObjectKeys, kNone)                                         \
+  V(ObjectPreventExtensions, kNone)                            \
+  V(ObjectSeal, kNone)                                         \
+  V(ObjectProtoToString, kNone)                                \
+                                                               \
+  V(ProxyConstructor, kNone)                                   \
+  V(ProxyConstructor_ConstructStub, kTarget)                   \
+                                                               \
+  V(ReflectDefineProperty, kNone)                              \
+  V(ReflectDeleteProperty, kNone)                              \
+  V(ReflectGet, kNone)                                         \
+  V(ReflectGetOwnPropertyDescriptor, kNone)                    \
+  V(ReflectGetPrototypeOf, kNone)                              \
+  V(ReflectHas, kNone)                                         \
+  V(ReflectIsExtensible, kNone)                                \
+  V(ReflectOwnKeys, kNone)                                     \
+  V(ReflectPreventExtensions, kNone)                           \
+  V(ReflectSet, kNone)                                         \
+  V(ReflectSetPrototypeOf, kNone)                              \
+                                                               \
+  V(SymbolConstructor, kNone)                                  \
+  V(SymbolConstructor_ConstructStub, kTarget)                  \
+                                                               \
+  V(HandleApiCall, kTarget)                                    \
+  V(HandleApiCallConstruct, kTarget)                           \
+  V(HandleApiCallAsFunction, kNone)                            \
+  V(HandleApiCallAsConstructor, kNone)                         \
+                                                               \
+  V(RestrictedFunctionPropertiesThrower, kNone)                \
+  V(RestrictedStrictArgumentsPropertiesThrower, kNone)
 
 // Define list of builtins implemented in assembly.
-#define BUILTIN_LIST_A(V)                                                     \
-  V(ArgumentsAdaptorTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-                                                                              \
-  V(CallFunction_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED,           \
-    kNoExtraICState)                                                          \
-  V(CallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,        \
-    kNoExtraICState)                                                          \
-  V(CallFunction_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-  V(Call_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
-  V(Call_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,                \
-    kNoExtraICState)                                                          \
-  V(Call_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
-                                                                              \
-  V(ConstructFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(ConstructProxy, BUILTIN, UNINITIALIZED, kNoExtraICState)                  \
-  V(Construct, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
-                                                                              \
-  V(InOptimizationQueue, BUILTIN, UNINITIALIZED, kNoExtraICState)             \
-  V(JSConstructStubGeneric, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
-  V(JSConstructStubForDerived, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-  V(JSConstructStubApi, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
-  V(JSEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-  V(CompileLazy, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
-  V(CompileOptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(CompileOptimizedConcurrent, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-  V(NotifyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(NotifySoftDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
-  V(NotifyLazyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
-  V(NotifyStubFailure, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(NotifyStubFailureSaveDoubles, BUILTIN, UNINITIALIZED, kNoExtraICState)    \
-                                                                              \
-  V(InterpreterEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-  V(InterpreterExitTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
-  V(InterpreterPushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-  V(InterpreterPushArgsAndConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState) \
-                                                                              \
-  V(LoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
-  V(KeyedLoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-  V(StoreIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                    \
-  V(KeyedStoreIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(LoadIC_Getter_ForDeopt, LOAD_IC, MONOMORPHIC, kNoExtraICState)            \
-  V(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, MEGAMORPHIC, kNoExtraICState)     \
-                                                                              \
-  V(KeyedLoadIC_Megamorphic_Strong, KEYED_LOAD_IC, MEGAMORPHIC,               \
-    LoadICState::kStrongModeState)                                            \
-                                                                              \
-  V(StoreIC_Setter_ForDeopt, STORE_IC, MONOMORPHIC,                           \
-    StoreICState::kStrictModeState)                                           \
-                                                                              \
-  V(KeyedStoreIC_Initialize, KEYED_STORE_IC, UNINITIALIZED, kNoExtraICState)  \
-  V(KeyedStoreIC_PreMonomorphic, KEYED_STORE_IC, PREMONOMORPHIC,              \
-    kNoExtraICState)                                                          \
-  V(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, MEGAMORPHIC, kNoExtraICState)   \
-                                                                              \
-  V(KeyedStoreIC_Initialize_Strict, KEYED_STORE_IC, UNINITIALIZED,            \
-    StoreICState::kStrictModeState)                                           \
-  V(KeyedStoreIC_PreMonomorphic_Strict, KEYED_STORE_IC, PREMONOMORPHIC,       \
-    StoreICState::kStrictModeState)                                           \
-  V(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC, MEGAMORPHIC,             \
-    StoreICState::kStrictModeState)                                           \
-                                                                              \
-  V(FunctionCall, BUILTIN, UNINITIALIZED, kNoExtraICState)                    \
-  V(FunctionApply, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
-  V(ReflectApply, BUILTIN, UNINITIALIZED, kNoExtraICState)                    \
-  V(ReflectConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
-                                                                              \
-  V(InternalArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(ArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
-                                                                              \
-  V(StringConstructor, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
-  V(StringConstructor_ConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState) \
-                                                                              \
-  V(OnStackReplacement, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
-  V(InterruptCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)                  \
-  V(OsrAfterStackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
-  V(StackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)                      \
-                                                                              \
-  V(MarkCodeAsToBeExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
-  V(MarkCodeAsExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
-  V(MarkCodeAsExecutedTwice, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
+#define BUILTIN_LIST_A(V)                                                      \
+  V(ArgumentsAdaptorTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+                                                                               \
+  V(ConstructedNonConstructable, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
+                                                                               \
+  V(CallFunction_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED,            \
+    kNoExtraICState)                                                           \
+  V(CallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,         \
+    kNoExtraICState)                                                           \
+  V(CallFunction_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(CallBoundFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(Call_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
+  V(Call_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,                 \
+    kNoExtraICState)                                                           \
+  V(Call_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
+                                                                               \
+  V(ConstructFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(ConstructBoundFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
+  V(ConstructProxy, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
+  V(Construct, BUILTIN, UNINITIALIZED, kNoExtraICState)                        \
+                                                                               \
+  V(Apply, BUILTIN, UNINITIALIZED, kNoExtraICState)                            \
+                                                                               \
+  V(HandleFastApiCall, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+                                                                               \
+  V(InOptimizationQueue, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
+  V(JSConstructStubGeneric, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
+  V(JSBuiltinsConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
+  V(JSConstructStubApi, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
+  V(JSEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(CompileLazy, BUILTIN, UNINITIALIZED, kNoExtraICState)                      \
+  V(CompileOptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
+  V(CompileOptimizedConcurrent, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(NotifyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(NotifySoftDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
+  V(NotifyLazyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
+  V(NotifyStubFailure, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(NotifyStubFailureSaveDoubles, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
+                                                                               \
+  V(InterpreterEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(InterpreterExitTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)        \
+  V(InterpreterPushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(InterpreterPushArgsAndConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
+  V(InterpreterNotifyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
+  V(InterpreterNotifySoftDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState) \
+  V(InterpreterNotifyLazyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState) \
+                                                                               \
+  V(LoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                      \
+  V(KeyedLoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
+  V(StoreIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
+  V(KeyedStoreIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(LoadIC_Getter_ForDeopt, LOAD_IC, MONOMORPHIC, kNoExtraICState)             \
+  V(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, MEGAMORPHIC, kNoExtraICState)      \
+                                                                               \
+  V(KeyedLoadIC_Megamorphic_Strong, KEYED_LOAD_IC, MEGAMORPHIC,                \
+    LoadICState::kStrongModeState)                                             \
+                                                                               \
+  V(StoreIC_Setter_ForDeopt, STORE_IC, MONOMORPHIC,                            \
+    StoreICState::kStrictModeState)                                            \
+                                                                               \
+  V(KeyedStoreIC_Initialize, KEYED_STORE_IC, UNINITIALIZED, kNoExtraICState)   \
+  V(KeyedStoreIC_PreMonomorphic, KEYED_STORE_IC, PREMONOMORPHIC,               \
+    kNoExtraICState)                                                           \
+  V(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, MEGAMORPHIC, kNoExtraICState)    \
+                                                                               \
+  V(KeyedStoreIC_Initialize_Strict, KEYED_STORE_IC, UNINITIALIZED,             \
+    StoreICState::kStrictModeState)                                            \
+  V(KeyedStoreIC_PreMonomorphic_Strict, KEYED_STORE_IC, PREMONOMORPHIC,        \
+    StoreICState::kStrictModeState)                                            \
+  V(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC, MEGAMORPHIC,              \
+    StoreICState::kStrictModeState)                                            \
+                                                                               \
+  V(DatePrototypeGetDate, BUILTIN, UNINITIALIZED, kNoExtraICState)             \
+  V(DatePrototypeGetDay, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
+  V(DatePrototypeGetFullYear, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
+  V(DatePrototypeGetHours, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
+  V(DatePrototypeGetMilliseconds, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
+  V(DatePrototypeGetMinutes, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
+  V(DatePrototypeGetMonth, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
+  V(DatePrototypeGetSeconds, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
+  V(DatePrototypeGetTime, BUILTIN, UNINITIALIZED, kNoExtraICState)             \
+  V(DatePrototypeGetTimezoneOffset, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
+  V(DatePrototypeGetUTCDate, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
+  V(DatePrototypeGetUTCDay, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
+  V(DatePrototypeGetUTCFullYear, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
+  V(DatePrototypeGetUTCHours, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
+  V(DatePrototypeGetUTCMilliseconds, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
+  V(DatePrototypeGetUTCMinutes, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(DatePrototypeGetUTCMonth, BUILTIN, UNINITIALIZED, kNoExtraICState)         \
+  V(DatePrototypeGetUTCSeconds, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+                                                                               \
+  V(FunctionPrototypeApply, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
+  V(FunctionPrototypeCall, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
+                                                                               \
+  V(ReflectApply, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
+  V(ReflectConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
+                                                                               \
+  V(InternalArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(ArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                        \
+                                                                               \
+  V(NumberConstructor, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(NumberConstructor_ConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
+                                                                               \
+  V(StringConstructor, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(StringConstructor_ConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
+                                                                               \
+  V(OnStackReplacement, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
+  V(InterruptCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
+  V(OsrAfterStackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
+  V(StackCheck, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
+                                                                               \
+  V(MarkCodeAsToBeExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(MarkCodeAsExecutedOnce, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
+  V(MarkCodeAsExecutedTwice, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
 // Define list of builtin handlers implemented in assembly.
@@ -181,7 +278,6 @@ enum BuiltinExtraArguments {
 #define BUILTIN_LIST_DEBUG_A(V)                                 \
   V(Return_DebugBreak, BUILTIN, DEBUG_STUB, kNoExtraICState)    \
   V(Slot_DebugBreak, BUILTIN, DEBUG_STUB, kNoExtraICState)      \
-  V(PlainReturn_LiveEdit, BUILTIN, DEBUG_STUB, kNoExtraICState) \
   V(FrameDropper_LiveEdit, BUILTIN, DEBUG_STUB, kNoExtraICState)
 
 
@@ -280,12 +376,13 @@ class Builtins {
   static void Generate_Adaptor(MacroAssembler* masm,
                                CFunctionId id,
                                BuiltinExtraArguments extra_args);
+  static void Generate_ConstructedNonConstructable(MacroAssembler* masm);
   static void Generate_CompileLazy(MacroAssembler* masm);
   static void Generate_InOptimizationQueue(MacroAssembler* masm);
   static void Generate_CompileOptimized(MacroAssembler* masm);
   static void Generate_CompileOptimizedConcurrent(MacroAssembler* masm);
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);
-  static void Generate_JSConstructStubForDerived(MacroAssembler* masm);
+  static void Generate_JSBuiltinsConstructStub(MacroAssembler* masm);
   static void Generate_JSConstructStubApi(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
@@ -295,6 +392,8 @@ class Builtins {
   static void Generate_NotifyStubFailure(MacroAssembler* masm);
   static void Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);
+
+  static void Generate_Apply(MacroAssembler* masm);
 
   // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   static void Generate_CallFunction(MacroAssembler* masm,
@@ -310,6 +409,8 @@ class Builtins {
   static void Generate_CallFunction_ReceiverIsAny(MacroAssembler* masm) {
     Generate_CallFunction(masm, ConvertReceiverMode::kAny);
   }
+  // ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList)
+  static void Generate_CallBoundFunction(MacroAssembler* masm);
   // ES6 section 7.3.12 Call(F, V, [argumentsList])
   static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode);
   static void Generate_Call_ReceiverIsNullOrUndefined(MacroAssembler* masm) {
@@ -324,18 +425,67 @@ class Builtins {
 
   // ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget)
   static void Generate_ConstructFunction(MacroAssembler* masm);
+  // ES6 section 9.4.1.2 [[Construct]] (argumentsList, newTarget)
+  static void Generate_ConstructBoundFunction(MacroAssembler* masm);
   // ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget)
   static void Generate_ConstructProxy(MacroAssembler* masm);
   // ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget])
   static void Generate_Construct(MacroAssembler* masm);
 
-  static void Generate_FunctionCall(MacroAssembler* masm);
-  static void Generate_FunctionApply(MacroAssembler* masm);
+  static void Generate_HandleFastApiCall(MacroAssembler* masm);
+
+  static void Generate_DatePrototype_GetField(MacroAssembler* masm,
+                                              int field_index);
+  // ES6 section 20.3.4.2 Date.prototype.getDate ( )
+  static void Generate_DatePrototypeGetDate(MacroAssembler* masm);
+  // ES6 section 20.3.4.3 Date.prototype.getDay ( )
+  static void Generate_DatePrototypeGetDay(MacroAssembler* masm);
+  // ES6 section 20.3.4.4 Date.prototype.getFullYear ( )
+  static void Generate_DatePrototypeGetFullYear(MacroAssembler* masm);
+  // ES6 section 20.3.4.5 Date.prototype.getHours ( )
+  static void Generate_DatePrototypeGetHours(MacroAssembler* masm);
+  // ES6 section 20.3.4.6 Date.prototype.getMilliseconds ( )
+  static void Generate_DatePrototypeGetMilliseconds(MacroAssembler* masm);
+  // ES6 section 20.3.4.7 Date.prototype.getMinutes ( )
+  static void Generate_DatePrototypeGetMinutes(MacroAssembler* masm);
+  // ES6 section 20.3.4.8 Date.prototype.getMonth ( )
+  static void Generate_DatePrototypeGetMonth(MacroAssembler* masm);
+  // ES6 section 20.3.4.9 Date.prototype.getSeconds ( )
+  static void Generate_DatePrototypeGetSeconds(MacroAssembler* masm);
+  // ES6 section 20.3.4.10 Date.prototype.getTime ( )
+  static void Generate_DatePrototypeGetTime(MacroAssembler* masm);
+  // ES6 section 20.3.4.11 Date.prototype.getTimezoneOffset ( )
+  static void Generate_DatePrototypeGetTimezoneOffset(MacroAssembler* masm);
+  // ES6 section 20.3.4.12 Date.prototype.getUTCDate ( )
+  static void Generate_DatePrototypeGetUTCDate(MacroAssembler* masm);
+  // ES6 section 20.3.4.13 Date.prototype.getUTCDay ( )
+  static void Generate_DatePrototypeGetUTCDay(MacroAssembler* masm);
+  // ES6 section 20.3.4.14 Date.prototype.getUTCFullYear ( )
+  static void Generate_DatePrototypeGetUTCFullYear(MacroAssembler* masm);
+  // ES6 section 20.3.4.15 Date.prototype.getUTCHours ( )
+  static void Generate_DatePrototypeGetUTCHours(MacroAssembler* masm);
+  // ES6 section 20.3.4.16 Date.prototype.getUTCMilliseconds ( )
+  static void Generate_DatePrototypeGetUTCMilliseconds(MacroAssembler* masm);
+  // ES6 section 20.3.4.17 Date.prototype.getUTCMinutes ( )
+  static void Generate_DatePrototypeGetUTCMinutes(MacroAssembler* masm);
+  // ES6 section 20.3.4.18 Date.prototype.getUTCMonth ( )
+  static void Generate_DatePrototypeGetUTCMonth(MacroAssembler* masm);
+  // ES6 section 20.3.4.19 Date.prototype.getUTCSeconds ( )
+  static void Generate_DatePrototypeGetUTCSeconds(MacroAssembler* masm);
+
+  static void Generate_FunctionPrototypeApply(MacroAssembler* masm);
+  static void Generate_FunctionPrototypeCall(MacroAssembler* masm);
+
   static void Generate_ReflectApply(MacroAssembler* masm);
   static void Generate_ReflectConstruct(MacroAssembler* masm);
 
   static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
+
+  // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case.
+  static void Generate_NumberConstructor(MacroAssembler* masm);
+  // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case.
+  static void Generate_NumberConstructor_ConstructStub(MacroAssembler* masm);
 
   static void Generate_StringConstructor(MacroAssembler* masm);
   static void Generate_StringConstructor_ConstructStub(MacroAssembler* masm);
@@ -348,6 +498,9 @@ class Builtins {
   static void Generate_InterpreterExitTrampoline(MacroAssembler* masm);
   static void Generate_InterpreterPushArgsAndCall(MacroAssembler* masm);
   static void Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm);
+  static void Generate_InterpreterNotifyDeoptimized(MacroAssembler* masm);
+  static void Generate_InterpreterNotifySoftDeoptimized(MacroAssembler* masm);
+  static void Generate_InterpreterNotifyLazyDeoptimized(MacroAssembler* masm);
 
 #define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)                \
   static void Generate_Make##C##CodeYoungAgainEvenMarking(   \

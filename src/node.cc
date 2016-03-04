@@ -115,13 +115,16 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
+using v8::MaybeLocal;
 using v8::Message;
+using v8::Name;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
 using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
+using v8::ScriptOrigin;
 using v8::SealHandleScope;
 using v8::StackFrame;
 using v8::StackTrace;
@@ -1049,7 +1052,8 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
 
   // Do a little housekeeping.
   env->process_object()->Delete(
-      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupDomainUse"));
+      env->context(),
+      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupDomainUse")).FromJust();
 
   uint32_t* const fields = env->domain_flag()->fields();
   uint32_t const fields_count = env->domain_flag()->fields_count();
@@ -1072,7 +1076,8 @@ void SetupProcessObject(const FunctionCallbackInfo<Value>& args) {
 
   env->set_push_values_to_array_function(args[0].As<Function>());
   env->process_object()->Delete(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_setupProcessObject"));
+      env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "_setupProcessObject")).FromJust();
 }
 
 
@@ -1088,7 +1093,8 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
 
   // Do a little housekeeping.
   env->process_object()->Delete(
-      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupNextTick"));
+      env->context(),
+      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupNextTick")).FromJust();
 
   // Values use to cross communicate with processNextTick.
   uint32_t* const fields = env->tick_info()->fields();
@@ -1128,7 +1134,8 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
   env->set_promise_reject_function(args[0].As<Function>());
 
   env->process_object()->Delete(
-      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupPromises"));
+      env->context(),
+      FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupPromises")).FromJust();
 }
 
 
@@ -1464,8 +1471,8 @@ void AppendExceptionLine(Environment* env,
   // sourceline to 78 characters, and we end up not providing very much
   // useful debugging info to the user if we remove 62 characters.
 
-  int start = message->GetStartColumn();
-  int end = message->GetEndColumn();
+  int start = message->GetStartColumn(env->context()).FromJust();
+  int end = message->GetEndColumn(env->context()).FromJust();
 
   char arrow[1024];
   int max_off = sizeof(arrow) - 2;
@@ -1604,19 +1611,21 @@ static Local<Value> ExecuteString(Environment* env,
                                   Local<String> source,
                                   Local<String> filename) {
   EscapableHandleScope scope(env->isolate());
-  TryCatch try_catch;
+  TryCatch try_catch(env->isolate());
 
   // try_catch must be nonverbose to disable FatalException() handler,
   // we will handle exceptions ourself.
   try_catch.SetVerbose(false);
 
-  Local<v8::Script> script = v8::Script::Compile(source, filename);
+  ScriptOrigin origin(filename);
+  MaybeLocal<v8::Script> script =
+      v8::Script::Compile(env->context(), source, &origin);
   if (script.IsEmpty()) {
     ReportException(env, try_catch);
     exit(3);
   }
 
-  Local<Value> result = script->Run();
+  Local<Value> result = script.ToLocalChecked()->Run();
   if (result.IsEmpty()) {
     ReportException(env, try_catch);
     exit(4);
@@ -2327,7 +2336,7 @@ void FatalException(Isolate* isolate,
     exit(6);
   }
 
-  TryCatch fatal_try_catch;
+  TryCatch fatal_try_catch(isolate);
 
   // Do not call FatalException when _fatalException handler throws
   fatal_try_catch.SetVerbose(false);
@@ -2373,7 +2382,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
   Local<Object> cache = env->binding_cache_object();
   Local<Object> exports;
 
-  if (cache->Has(module)) {
+  if (cache->Has(env->context(), module).FromJust()) {
     exports = cache->Get(module)->ToObject(env->isolate());
     args.GetReturnValue().Set(exports);
     return;
@@ -2462,7 +2471,7 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(effective_exports);
 }
 
-static void ProcessTitleGetter(Local<String> property,
+static void ProcessTitleGetter(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
   char buffer[512];
   uv_get_process_title(buffer, sizeof(buffer));
@@ -2470,7 +2479,7 @@ static void ProcessTitleGetter(Local<String> property,
 }
 
 
-static void ProcessTitleSetter(Local<String> property,
+static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
@@ -2699,13 +2708,13 @@ static Local<Object> GetFeatures(Environment* env) {
 }
 
 
-static void DebugPortGetter(Local<String> property,
+static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(debug_port);
 }
 
 
-static void DebugPortSetter(Local<String> property,
+static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
   debug_port = value->Int32Value();
@@ -2717,7 +2726,7 @@ static void DebugPause(const FunctionCallbackInfo<Value>& args);
 static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
 
-void NeedImmediateCallbackGetter(Local<String> property,
+void NeedImmediateCallbackGetter(Local<Name> property,
                                  const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   const uv_check_t* immediate_check_handle = env->immediate_check_handle();
@@ -2728,7 +2737,7 @@ void NeedImmediateCallbackGetter(Local<String> property,
 
 
 static void NeedImmediateCallbackSetter(
-    Local<String> property,
+    Local<Name> property,
     Local<Value> value,
     const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
@@ -2791,15 +2800,20 @@ void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
 
 #define READONLY_PROPERTY(obj, str, var)                                      \
   do {                                                                        \
-    obj->ForceSet(OneByteString(env->isolate(), str), var, v8::ReadOnly);     \
+    obj->DefineOwnProperty(env->context(),                                    \
+                           OneByteString(env->isolate(), str),                \
+                           var,                                               \
+                           v8::ReadOnly).FromJust();                          \
   } while (0)
 
 #define READONLY_DONT_ENUM_PROPERTY(obj, str, var)                            \
   do {                                                                        \
-    obj->ForceSet(OneByteString(env->isolate(), str),                         \
-                  var,                                                        \
-                  static_cast<v8::PropertyAttribute>(v8::ReadOnly |           \
-                                                     v8::DontEnum));          \
+    obj->DefineOwnProperty(env->context(),                                    \
+                           OneByteString(env->isolate(), str),                \
+                           var,                                               \
+                           static_cast<v8::PropertyAttribute>(v8::ReadOnly |  \
+                                                              v8::DontEnum))  \
+        .FromJust();                                                          \
   } while (0)
 
 
@@ -2812,10 +2826,12 @@ void SetupProcessObject(Environment* env,
 
   Local<Object> process = env->process_object();
 
-  process->SetAccessor(env->title_string(),
-                       ProcessTitleGetter,
-                       ProcessTitleSetter,
-                       env->as_external());
+  auto maybe = process->SetAccessor(env->context(),
+                                    env->title_string(),
+                                    ProcessTitleGetter,
+                                    ProcessTitleSetter,
+                                    env->as_external());
+  CHECK(maybe.FromJust());
 
   // process.version
   READONLY_PROPERTY(process,
@@ -2973,15 +2989,18 @@ void SetupProcessObject(Environment* env,
                                                 EnvDeleter,
                                                 EnvEnumerator,
                                                 env->as_external());
-  Local<Object> process_env = process_env_template->NewInstance();
+  Local<Object> process_env =
+      process_env_template->NewInstance(env->context()).ToLocalChecked();
   process->Set(env->env_string(), process_env);
 
   READONLY_PROPERTY(process, "pid", Integer::New(env->isolate(), getpid()));
   READONLY_PROPERTY(process, "features", GetFeatures(env));
-  process->SetAccessor(env->need_imm_cb_string(),
-                       NeedImmediateCallbackGetter,
-                       NeedImmediateCallbackSetter,
-                       env->as_external());
+  maybe = process->SetAccessor(env->context(),
+                               env->need_imm_cb_string(),
+                               NeedImmediateCallbackGetter,
+                               NeedImmediateCallbackSetter,
+                               env->as_external());
+  CHECK(maybe.FromJust());
 
   // -e, --eval
   if (eval_string) {
@@ -3066,10 +3085,13 @@ void SetupProcessObject(Environment* env,
   process->Set(env->exec_path_string(), exec_path_value);
   delete[] exec_path;
 
-  process->SetAccessor(env->debug_port_string(),
-                       DebugPortGetter,
-                       DebugPortSetter,
-                       env->as_external());
+  maybe = process->SetAccessor(env->context(),
+                               env->debug_port_string(),
+                               DebugPortGetter,
+                               DebugPortSetter,
+                               env->as_external());
+  CHECK(maybe.FromJust());
+
 
   // define various internal methods
   env->SetMethod(process,
@@ -3176,7 +3198,7 @@ void LoadEnvironment(Environment* env) {
   // The node.js file returns a function 'f'
   atexit(AtExit);
 
-  TryCatch try_catch;
+  TryCatch try_catch(env->isolate());
 
   // Disable verbose mode to stop FatalException() handler from trying
   // to handle the exception. Errors this early in the start-up phase
@@ -3564,7 +3586,7 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
   }
 
   Isolate::Scope isolate_scope(isolate);
-  v8::Debug::ProcessDebugMessages();
+  v8::Debug::ProcessDebugMessages(isolate);
   CHECK_EQ(nullptr, node_isolate.exchange(isolate));
 }
 
@@ -4121,7 +4143,8 @@ Environment* CreateEnvironment(Isolate* isolate,
   Local<FunctionTemplate> process_template = FunctionTemplate::New(isolate);
   process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "process"));
 
-  Local<Object> process_object = process_template->GetFunction()->NewInstance();
+  Local<Object> process_object =
+      process_template->GetFunction()->NewInstance(context).ToLocalChecked();
   env->set_process_object(process_object);
 
   SetupProcessObject(env, argc, argv, exec_argc, exec_argv);

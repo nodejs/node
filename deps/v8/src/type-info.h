@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/contexts.h"
 #include "src/globals.h"
-#include "src/token.h"
+#include "src/parsing/token.h"
 #include "src/types.h"
 #include "src/zone.h"
 
@@ -25,13 +25,10 @@ class TypeFeedbackOracle: public ZoneObject {
                      Handle<TypeFeedbackVector> feedback_vector,
                      Handle<Context> native_context);
 
-  InlineCacheState LoadInlineCacheState(TypeFeedbackId id);
   InlineCacheState LoadInlineCacheState(FeedbackVectorSlot slot);
-  bool StoreIsUninitialized(TypeFeedbackId id);
   bool StoreIsUninitialized(FeedbackVectorSlot slot);
   bool CallIsUninitialized(FeedbackVectorSlot slot);
   bool CallIsMonomorphic(FeedbackVectorSlot slot);
-  bool KeyedArrayCallIsHoley(TypeFeedbackId id);
   bool CallNewIsMonomorphic(FeedbackVectorSlot slot);
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
@@ -40,9 +37,6 @@ class TypeFeedbackOracle: public ZoneObject {
   // be possible.
   byte ForInType(FeedbackVectorSlot feedback_vector_slot);
 
-  void GetStoreModeAndKeyType(TypeFeedbackId id,
-                              KeyedAccessStoreMode* store_mode,
-                              IcCheckType* key_type);
   void GetStoreModeAndKeyType(FeedbackVectorSlot slot,
                               KeyedAccessStoreMode* store_mode,
                               IcCheckType* key_type);
@@ -52,26 +46,16 @@ class TypeFeedbackOracle: public ZoneObject {
   void KeyedPropertyReceiverTypes(FeedbackVectorSlot slot,
                                   SmallMapList* receiver_types, bool* is_string,
                                   IcCheckType* key_type);
-  void AssignmentReceiverTypes(TypeFeedbackId id, Handle<Name> name,
-                               SmallMapList* receiver_types);
   void AssignmentReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
                                SmallMapList* receiver_types);
-  void KeyedAssignmentReceiverTypes(TypeFeedbackId id,
-                                    SmallMapList* receiver_types,
-                                    KeyedAccessStoreMode* store_mode,
-                                    IcCheckType* key_type);
   void KeyedAssignmentReceiverTypes(FeedbackVectorSlot slot,
                                     SmallMapList* receiver_types,
                                     KeyedAccessStoreMode* store_mode,
                                     IcCheckType* key_type);
-  void CountReceiverTypes(TypeFeedbackId id,
-                          SmallMapList* receiver_types);
   void CountReceiverTypes(FeedbackVectorSlot slot,
                           SmallMapList* receiver_types);
 
   void CollectReceiverTypes(FeedbackVectorSlot slot, SmallMapList* types);
-  void CollectReceiverTypes(TypeFeedbackId id,
-                            SmallMapList* types);
   template <class T>
   void CollectReceiverTypes(T* obj, SmallMapList* types);
 
@@ -86,8 +70,6 @@ class TypeFeedbackOracle: public ZoneObject {
   Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorSlot slot);
   Handle<JSFunction> GetCallNewTarget(FeedbackVectorSlot slot);
   Handle<AllocationSite> GetCallNewAllocationSite(FeedbackVectorSlot slot);
-
-  bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
 
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
@@ -115,8 +97,6 @@ class TypeFeedbackOracle: public ZoneObject {
 
  private:
   void CollectReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
-                            Code::Flags flags, SmallMapList* types);
-  void CollectReceiverTypes(TypeFeedbackId id, Handle<Name> name,
                             Code::Flags flags, SmallMapList* types);
   template <class T>
   void CollectReceiverTypes(T* obj, Handle<Name> name, Code::Flags flags,

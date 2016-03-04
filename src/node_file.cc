@@ -442,7 +442,10 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 
   // Call out to JavaScript to create the stats object.
   Local<Value> stats =
-    env->fs_stats_constructor_function()->NewInstance(ARRAY_SIZE(argv), argv);
+      env->fs_stats_constructor_function()->NewInstance(
+          env->context(),
+          ARRAY_SIZE(argv),
+          argv).FromMaybe(Local<Value>());
 
   if (stats.IsEmpty())
     return handle_scope.Escape(Local<Object>());

@@ -1434,32 +1434,6 @@ void MacroAssembler::IsObjectNameType(Register object,
 }
 
 
-void MacroAssembler::IsObjectJSObjectType(Register heap_object,
-                                          Register map,
-                                          Register scratch,
-                                          Label* fail) {
-  Ldr(map, FieldMemOperand(heap_object, HeapObject::kMapOffset));
-  IsInstanceJSObjectType(map, scratch, fail);
-}
-
-
-void MacroAssembler::IsInstanceJSObjectType(Register map,
-                                            Register scratch,
-                                            Label* fail) {
-  Ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  // If cmp result is lt, the following ccmp will clear all flags.
-  // Z == 0, N == V implies gt condition.
-  Cmp(scratch, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
-  Ccmp(scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE, NoFlag, ge);
-
-  // If we didn't get a valid label object just fall through and leave the
-  // flags updated.
-  if (fail != NULL) {
-    B(gt, fail);
-  }
-}
-
-
 void MacroAssembler::IsObjectJSStringType(Register object,
                                           Register type,
                                           Label* not_string,
@@ -1488,7 +1462,8 @@ void MacroAssembler::Push(Handle<Object> handle) {
 }
 
 
-void MacroAssembler::Claim(uint64_t count, uint64_t unit_size) {
+void MacroAssembler::Claim(int64_t count, uint64_t unit_size) {
+  DCHECK(count >= 0);
   uint64_t size = count * unit_size;
 
   if (size == 0) {
@@ -1516,6 +1491,7 @@ void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
     return;
   }
 
+  AssertPositiveOrZero(count);
   if (!csp.Is(StackPointer())) {
     BumpSystemStackPointer(size);
   }
@@ -1543,7 +1519,8 @@ void MacroAssembler::ClaimBySMI(const Register& count_smi, uint64_t unit_size) {
 }
 
 
-void MacroAssembler::Drop(uint64_t count, uint64_t unit_size) {
+void MacroAssembler::Drop(int64_t count, uint64_t unit_size) {
+  DCHECK(count >= 0);
   uint64_t size = count * unit_size;
 
   if (size == 0) {
@@ -1574,6 +1551,7 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
     return;
   }
 
+  AssertPositiveOrZero(count);
   Add(StackPointer(), StackPointer(), size);
 
   if (!csp.Is(StackPointer()) && emit_debug_code()) {

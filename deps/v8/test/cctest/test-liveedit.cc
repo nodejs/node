@@ -117,12 +117,12 @@ void CompareStringsOneWay(const char* s1, const char* s2,
     int similar_part_length = diff_pos1 - pos1;
     int diff_pos2 = pos2 + similar_part_length;
 
-    DCHECK_EQ(diff_pos2, chunk->pos2);
+    CHECK_EQ(diff_pos2, chunk->pos2);
 
     for (int j = 0; j < similar_part_length; j++) {
-      DCHECK(pos1 + j < len1);
-      DCHECK(pos2 + j < len2);
-      DCHECK_EQ(s1[pos1 + j], s2[pos2 + j]);
+      CHECK(pos1 + j < len1);
+      CHECK(pos2 + j < len2);
+      CHECK_EQ(s1[pos1 + j], s2[pos2 + j]);
     }
     diff_parameter += chunk->len1 + chunk->len2;
     pos1 = diff_pos1 + chunk->len1;
@@ -131,17 +131,17 @@ void CompareStringsOneWay(const char* s1, const char* s2,
   {
     // After last chunk.
     int similar_part_length = len1 - pos1;
-    DCHECK_EQ(similar_part_length, len2 - pos2);
+    CHECK_EQ(similar_part_length, len2 - pos2);
     USE(len2);
     for (int j = 0; j < similar_part_length; j++) {
-      DCHECK(pos1 + j < len1);
-      DCHECK(pos2 + j < len2);
-      DCHECK_EQ(s1[pos1 + j], s2[pos2 + j]);
+      CHECK(pos1 + j < len1);
+      CHECK(pos2 + j < len2);
+      CHECK_EQ(s1[pos1 + j], s2[pos2 + j]);
     }
   }
 
   if (expected_diff_parameter != -1) {
-    DCHECK_EQ(expected_diff_parameter, diff_parameter);
+    CHECK_EQ(expected_diff_parameter, diff_parameter);
   }
 }
 
