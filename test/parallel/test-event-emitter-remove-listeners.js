@@ -102,3 +102,19 @@ e6.emit('hello');
 
 // Interal listener array [listener3]
 e6.emit('hello');
+
+const e7 = new events.EventEmitter();
+e7.on('hello', listener1);
+e7.once('hello', listener2);
+e7.once('removeListener', common.mustCall(function(name, cb) {
+  assert.equal(name, 'hello');
+  assert.equal(cb, listener2);
+  assert.deepEqual([listener1], e7.listeners('hello'));
+  e7.once('removeListener', common.mustCall(function(name, cb) {
+    assert.equal(name, 'hello');
+    assert.equal(cb, listener1);
+    assert.deepEqual([], e7.listeners('hello'));
+  }));
+  e7.removeListener('hello', listener1);
+}));
+e7.emit('hello');
