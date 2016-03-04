@@ -30,3 +30,12 @@ var e3ListenersCopy = e3.listeners('foo');
 e3.on('foo', listener2);
 assert.deepEqual(e3.listeners('foo'), [listener, listener2]);
 assert.deepEqual(e3ListenersCopy, [listener]);
+
+var e4 = new events.EventEmitter();
+e4.once('foo', listener);
+assert.deepEqual(e4.listeners('foo'), [listener]);
+
+var e5 = new events.EventEmitter();
+e5.on('foo', listener);
+e5.once('foo', listener2);
+assert.deepEqual(e5.listeners('foo'), [listener, listener2]);
