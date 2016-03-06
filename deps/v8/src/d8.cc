@@ -25,10 +25,6 @@
 #include "include/v8-testing.h"
 #endif  // V8_SHARED
 
-#if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
-#include "src/gdb-jit.h"
-#endif
-
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
 #include "src/third_party/vtune/v8-vtune.h"
 #endif
@@ -2331,11 +2327,6 @@ int Shell::Main(int argc, char* argv[]) {
     Shell::array_buffer_allocator = &shell_array_buffer_allocator;
   }
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-#if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
-  if (i::FLAG_gdbjit) {
-    create_params.code_event_handler = i::GDBJITInterface::EventHandler;
-  }
-#endif
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
   create_params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif

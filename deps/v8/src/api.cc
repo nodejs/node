@@ -29,6 +29,7 @@
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
+#include "src/gdb-jit.h"
 #include "src/global-handles.h"
 #include "src/heap/spaces.h"
 #include "src/heap-profiler.h"
@@ -7118,10 +7119,16 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
   if (params.entry_hook) {
     isolate->set_function_entry_hook(params.entry_hook);
   }
-  if (params.code_event_handler) {
+  auto code_event_handler = params.code_event_handler;
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (code_event_handler == nullptr && i::FLAG_gdbjit) {
+    code_event_handler = i::GDBJITInterface::EventHandler;
+  }
+#endif  // ENABLE_GDB_JIT_INTERFACE
+  if (code_event_handler) {
     isolate->InitializeLoggingAndCounters();
     isolate->logger()->SetCodeEventHandler(kJitCodeEventDefault,
-                                           params.code_event_handler);
+                                           code_event_handler);
   }
   if (params.counter_lookup_callback) {
     v8_isolate->SetCounterFunction(params.counter_lookup_callback);
