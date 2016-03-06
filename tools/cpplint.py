@@ -3025,9 +3025,6 @@ def ProcessFile(filename, vlevel):
             'One or more unexpected \\r (^M) found;'
             'better to use only a \\n')
 
-  if not _cpplint_state.output_format == 'tap':
-    sys.stderr.write('Done processing %s\n' % filename)
-
 
 def PrintUsage(message):
   """Prints a brief usage string and exits, optionally with an error message.
