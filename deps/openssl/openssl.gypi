@@ -1252,10 +1252,6 @@
       'PURIFY',
       '_REENTRANT',
 
-      # SSLv2 is known broken and has been superseded by SSLv3 for almost
-      # twenty years now.
-      'OPENSSL_NO_SSL2',
-
       # SSLv3 is susceptible to downgrade attacks (POODLE.)
       'OPENSSL_NO_SSL3',
 
