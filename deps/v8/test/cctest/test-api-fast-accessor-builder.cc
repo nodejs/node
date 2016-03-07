@@ -51,9 +51,9 @@ namespace {
   "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
   "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
   "*/ "  // 16 lines * 64 'X' =~ 1024 character comment.
-#define FN_WARMUP(name, src)                  \
-  "function " name "() { " src INLINE_SPOILER \
-  " }; for(i = 0; i < 2; i++) { " name "() } "
+#define FN(name, src) "function " name "() { " src INLINE_SPOILER " }"
+#define WARMUP(name, count) "for(i = 0; i < " count "; i++) { " name "() } "
+#define FN_WARMUP(name, src) FN(name, src) "; " WARMUP(name, "2")
 
 static void NativePropertyAccessor(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -112,6 +112,9 @@ void AddInternalFieldAccessor(v8::Isolate* isolate,
 
 // "Fast" accessor that accesses an internal field.
 TEST(FastAccessorWithInternalField) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -142,6 +145,9 @@ TEST(FastAccessorWithInternalField) {
 
 // "Fast" accessor with control flow via ...OrReturnNull methods.
 TEST(FastAccessorOrReturnNull) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -191,6 +197,9 @@ TEST(FastAccessorOrReturnNull) {
 
 // "Fast" accessor with simple control flow via explicit labels.
 TEST(FastAccessorControlFlowWithLabels) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -226,6 +235,9 @@ TEST(FastAccessorControlFlowWithLabels) {
 
 // "Fast" accessor, loading things.
 TEST(FastAccessorLoad) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -285,4 +297,68 @@ TEST(FastAccessorLoad) {
   // Access val.v8val:
   CompileRun(FN_WARMUP("loadval", "return obj.loadval"));
   ExpectString("loadval()", "Hello");
+}
+
+void ApiCallbackInt(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(12345);
+}
+
+const char* kApiCallbackStringValue =
+    "Hello World! Bizarro C++ world, actually.";
+void ApiCallbackString(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(v8_str(kApiCallbackStringValue));
+}
+
+void ApiCallbackParam(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK_EQ(1, info.Length());
+  CHECK(info[0]->IsNumber());
+  info.GetReturnValue().Set(info[0]);
+}
+
+// "Fast" accessor, callback to embedder
+TEST(FastAccessorCallback) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::ObjectTemplate> foo = v8::ObjectTemplate::New(isolate);
+  {
+    auto builder = v8::experimental::FastAccessorBuilder::New(isolate);
+    builder->ReturnValue(
+        builder->Call(&ApiCallbackInt, builder->IntegerConstant(999)));
+    foo->SetAccessorProperty(v8_str("int"),
+                             v8::FunctionTemplate::NewWithFastHandler(
+                                 isolate, NativePropertyAccessor, builder));
+
+    builder = v8::experimental::FastAccessorBuilder::New(isolate);
+    builder->ReturnValue(
+        builder->Call(&ApiCallbackString, builder->IntegerConstant(0)));
+    foo->SetAccessorProperty(v8_str("str"),
+                             v8::FunctionTemplate::NewWithFastHandler(
+                                 isolate, NativePropertyAccessor, builder));
+
+    builder = v8::experimental::FastAccessorBuilder::New(isolate);
+    builder->ReturnValue(
+        builder->Call(&ApiCallbackParam, builder->IntegerConstant(1000)));
+    foo->SetAccessorProperty(v8_str("param"),
+                             v8::FunctionTemplate::NewWithFastHandler(
+                                 isolate, NativePropertyAccessor, builder));
+  }
+
+  // Create an instance.
+  v8::Local<v8::Object> obj = foo->NewInstance(env.local()).ToLocalChecked();
+  CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
+
+  // Callbacks:
+  CompileRun(FN_WARMUP("callbackint", "return obj.int"));
+  ExpectInt32("callbackint()", 12345);
+
+  CompileRun(FN_WARMUP("callbackstr", "return obj.str"));
+  ExpectString("callbackstr()", kApiCallbackStringValue);
+
+  CompileRun(FN_WARMUP("callbackparam", "return obj.param"));
+  ExpectInt32("callbackparam()", 1000);
 }

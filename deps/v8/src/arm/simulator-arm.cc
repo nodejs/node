@@ -14,6 +14,7 @@
 #include "src/base/bits.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
+#include "src/runtime/runtime-utils.h"
 
 #if defined(USE_SIMULATOR)
 
@@ -391,7 +392,8 @@ void ArmDebugger::Debug() {
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int value = *cur;
           Heap* current_heap = sim_->isolate_->heap();
-          if (((value & 1) == 0) || current_heap->Contains(obj)) {
+          if (((value & 1) == 0) ||
+              current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & 1) == 0) {
               PrintF("smi %d", value / 2);
@@ -1717,6 +1719,10 @@ typedef int64_t (*SimulatorRuntimeCall)(int32_t arg0,
                                         int32_t arg4,
                                         int32_t arg5);
 
+typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int32_t arg0, int32_t arg1,
+                                                   int32_t arg2, int32_t arg3,
+                                                   int32_t arg4);
+
 // These prototypes handle the four types of FP calls.
 typedef int64_t (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
 typedef double (*SimulatorRuntimeFPFPCall)(double darg0, double darg1);
@@ -1900,9 +1906,36 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(
                 external);
         target(arg0, arg1, Redirection::ReverseRedirection(arg2));
+      } else if (redirection->type() ==
+                 ExternalReference::BUILTIN_CALL_TRIPLE) {
+        // builtin call returning ObjectTriple.
+        SimulatorRuntimeTripleCall target =
+            reinterpret_cast<SimulatorRuntimeTripleCall>(external);
+        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+          PrintF(
+              "Call to host triple returning runtime function %p "
+              "args %08x, %08x, %08x, %08x, %08x",
+              FUNCTION_ADDR(target), arg1, arg2, arg3, arg4, arg5);
+          if (!stack_aligned) {
+            PrintF(" with unaligned stack %08x\n", get_register(sp));
+          }
+          PrintF("\n");
+        }
+        CHECK(stack_aligned);
+        // arg0 is a hidden argument pointing to the return location, so don't
+        // pass it to the target function.
+        ObjectTriple result = target(arg1, arg2, arg3, arg4, arg5);
+        if (::v8::internal::FLAG_trace_sim) {
+          PrintF("Returned { %p, %p, %p }\n", result.x, result.y, result.z);
+        }
+        // Return is passed back in address pointed to by hidden first argument.
+        ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(arg0);
+        *sim_result = result;
+        set_register(r0, arg0);
       } else {
         // builtin call.
-        DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
+        DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
+               redirection->type() == ExternalReference::BUILTIN_CALL_PAIR);
         SimulatorRuntimeCall target =
             reinterpret_cast<SimulatorRuntimeCall>(external);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
@@ -2887,7 +2920,15 @@ void Simulator::DecodeType3(Instruction* instr) {
                   }
                 }
               } else {
-                UNIMPLEMENTED();
+                // PU == 0b01, BW == 0b11, Bits(9, 6) != 0b0001
+                if ((instr->Bits(20, 16) == 0x1f) &&
+                    (instr->Bits(11, 4) == 0xf3)) {
+                  // Rbit.
+                  uint32_t rm_val = get_register(instr->RmValue());
+                  set_register(rd, base::bits::ReverseBits(rm_val));
+                } else {
+                  UNIMPLEMENTED();
+                }
               }
               break;
           }
@@ -3871,6 +3912,9 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
     case 0xB:
       if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xf)) {
         // pld: ignore instruction.
+      } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
+        // dsb, dmb, isb: ignore instruction for now.
+        // TODO(binji): implement
       } else {
         UNIMPLEMENTED();
       }

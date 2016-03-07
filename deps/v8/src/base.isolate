@@ -22,6 +22,13 @@
         ],
       },
     }],
+    ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and v8_separate_ignition_snapshot==1', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/snapshot_blob_ignition.bin',
+        ],
+      },
+    }],
     ['OS=="linux" and component=="shared_library" and target_arch=="ia32"', {
       'variables': {
         'files': [

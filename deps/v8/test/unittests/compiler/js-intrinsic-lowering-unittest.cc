@@ -7,7 +7,6 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-operator.h"
-#include "src/types-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
@@ -24,9 +23,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class JSIntrinsicLoweringTest : public TypedGraphTest {
+class JSIntrinsicLoweringTest : public GraphTest {
  public:
-  JSIntrinsicLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
+  JSIntrinsicLoweringTest() : GraphTest(3), javascript_(zone()) {}
   ~JSIntrinsicLoweringTest() override {}
 
  protected:
@@ -162,37 +161,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsArray) {
 
 
 // -----------------------------------------------------------------------------
-// %_IsDate
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineIsDate) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineIsDate, 1),
-                       input, context, effect, control));
-  ASSERT_TRUE(r.Changed());
-
-  Node* phi = r.replacement();
-  Capture<Node*> branch, if_false;
-  EXPECT_THAT(
-      phi,
-      IsPhi(
-          MachineRepresentation::kTagged, IsFalseConstant(),
-          IsWord32Equal(IsLoadField(AccessBuilder::ForMapInstanceType(),
-                                    IsLoadField(AccessBuilder::ForMap(), input,
-                                                effect, CaptureEq(&if_false)),
-                                    effect, _),
-                        IsInt32Constant(JS_DATE_TYPE)),
-          IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
-                                 IsBranch(IsObjectIsSmi(input), control))),
-                  AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_IsTypedArray
 
 
@@ -217,38 +185,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsTypedArray) {
                                                 effect, CaptureEq(&if_false)),
                                     effect, _),
                         IsInt32Constant(JS_TYPED_ARRAY_TYPE)),
-          IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
-                                 IsBranch(IsObjectIsSmi(input), control))),
-                  AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
-}
-
-
-// -----------------------------------------------------------------------------
-// %_IsFunction
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineIsFunction) {
-  Node* const input = Parameter(Type::Any());
-  Node* const context = Parameter(Type::Any());
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineIsFunction, 1),
-                       input, context, effect, control));
-  ASSERT_TRUE(r.Changed());
-
-  Node* phi = r.replacement();
-  Capture<Node*> branch, if_false;
-  EXPECT_THAT(
-      phi,
-      IsPhi(
-          MachineRepresentation::kTagged, IsFalseConstant(),
-          IsUint32LessThanOrEqual(
-              IsInt32Constant(FIRST_FUNCTION_TYPE),
-              IsLoadField(AccessBuilder::ForMapInstanceType(),
-                          IsLoadField(AccessBuilder::ForMap(), input, effect,
-                                      CaptureEq(&if_false)),
-                          effect, _)),
           IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
                                  IsBranch(IsObjectIsSmi(input), control))),
                   AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
@@ -290,75 +226,16 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsRegExp) {
 // %_IsJSReceiver
 
 
-TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiverWithAny) {
-  Node* const input = Parameter(Type::Any());
-  Node* const context = Parameter(Type::Any());
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1), input,
-      context, effect, control));
-  ASSERT_TRUE(r.Changed());
-
-  Node* phi = r.replacement();
-  Capture<Node *> branch, if_false;
-  EXPECT_THAT(
-      phi,
-      IsPhi(
-          MachineRepresentation::kTagged, IsFalseConstant(),
-          IsUint32LessThanOrEqual(
-              IsInt32Constant(FIRST_JS_RECEIVER_TYPE),
-              IsLoadField(AccessBuilder::ForMapInstanceType(),
-                          IsLoadField(AccessBuilder::ForMap(), input, effect,
-                                      CaptureEq(&if_false)),
-                          effect, _)),
-          IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
-                                 IsBranch(IsObjectIsSmi(input), control))),
-                  AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
-}
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiverWithReceiver) {
-  Node* const input = Parameter(Type::Receiver());
-  Node* const context = Parameter(Type::Any());
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1), input,
-      context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsTrueConstant());
-}
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiverWithUndefined) {
-  Node* const input = Parameter(Type::Undefined());
-  Node* const context = Parameter(Type::Any());
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1), input,
-      context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFalseConstant());
-}
-
-
-// -----------------------------------------------------------------------------
-// %_JSValueGetValue
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineJSValueGetValue) {
+TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiver) {
   Node* const input = Parameter(0);
   Node* const context = Parameter(1);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineJSValueGetValue, 1), input,
+      javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1), input,
       context, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsLoadField(AccessBuilder::ForValue(), input, effect, control));
+  EXPECT_THAT(r.replacement(), IsObjectIsReceiver(input));
 }
 
 

@@ -53,7 +53,6 @@ break_point_hit_count = 0;
 bp = Debug.setBreakPoint(f, 0, 0, '{{{');
 f();
 assertEquals(0, break_point_hit_count);
-assertEquals(0, Debug.findBreakPoint(bp, false).hit_count());
 Debug.clearBreakPoint(bp);
 
 // Conditional breakpoint which evaluates to false.
@@ -61,7 +60,6 @@ break_point_hit_count = 0;
 bp = Debug.setBreakPoint(f, 0, 0, 'false');
 f();
 assertEquals(0, break_point_hit_count);
-assertEquals(0, Debug.findBreakPoint(bp, false).hit_count());
 Debug.clearBreakPoint(bp);
 
 // Conditional breakpoint which evaluates to true.
@@ -69,7 +67,6 @@ break_point_hit_count = 0;
 bp = Debug.setBreakPoint(f, 0, 0, 'true');
 f();
 assertEquals(1, break_point_hit_count);
-assertEquals(1, Debug.findBreakPoint(bp, false).hit_count());
 Debug.clearBreakPoint(bp);
 
 // Conditional breakpoint which different types of quotes.
@@ -77,13 +74,11 @@ break_point_hit_count = 0;
 bp = Debug.setBreakPoint(f, 0, 0, '"a" == "a"');
 f();
 assertEquals(1, break_point_hit_count);
-assertEquals(1, Debug.findBreakPoint(bp, false).hit_count());
 Debug.clearBreakPoint(bp);
 break_point_hit_count = 0;
 bp = Debug.setBreakPoint(f, 0, 0, "'a' == 'a'");
 f();
 assertEquals(1, break_point_hit_count);
-assertEquals(1, Debug.findBreakPoint(bp, false).hit_count());
 Debug.clearBreakPoint(bp);
 
 // Changing condition.
@@ -91,15 +86,12 @@ break_point_hit_count = 0;
 bp = Debug.setBreakPoint(f, 0, 0, '"ab".indexOf("b") > 0');
 f();
 assertEquals(1, break_point_hit_count);
-assertEquals(1, Debug.findBreakPoint(bp, false).hit_count());
 Debug.changeBreakPointCondition(bp, 'Math.sin(Math.PI/2) > 1');
 f();
 assertEquals(1, break_point_hit_count);
-assertEquals(1, Debug.findBreakPoint(bp, false).hit_count());
 Debug.changeBreakPointCondition(bp, '1==1');
 f();
 assertEquals(2, break_point_hit_count);
-assertEquals(2, Debug.findBreakPoint(bp, false).hit_count());
 Debug.clearBreakPoint(bp);
 
 // Conditional breakpoint which checks global variable.
@@ -107,11 +99,9 @@ break_point_hit_count = 0;
 bp = Debug.setBreakPoint(f, 0, 0, 'x==1');
 f();
 assertEquals(0, break_point_hit_count);
-assertEquals(0, Debug.findBreakPoint(bp, false).hit_count());
 x=1;
 f();
 assertEquals(1, break_point_hit_count);
-assertEquals(1, Debug.findBreakPoint(bp, false).hit_count());
 Debug.clearBreakPoint(bp);
 
 // Conditional breakpoint which checks global variable.
@@ -121,7 +111,6 @@ for (var i = 0; i < 10; i++) {
   g();
 }
 assertEquals(5, break_point_hit_count);
-assertEquals(5, Debug.findBreakPoint(bp, false).hit_count());
 Debug.clearBreakPoint(bp);
 
 // Conditional breakpoint which checks a parameter.
@@ -131,7 +120,6 @@ for (var i = 0; i < 10; i++) {
   g();
 }
 assertEquals(5, break_point_hit_count);
-assertEquals(5, Debug.findBreakPoint(bp, false).hit_count());
 Debug.clearBreakPoint(bp);
 
 // Conditional breakpoint which checks a local variable.
@@ -141,7 +129,6 @@ for (var i = 0; i < 10; i++) {
   g();
 }
 assertEquals(5, break_point_hit_count);
-assertEquals(5, Debug.findBreakPoint(bp, false).hit_count());
 Debug.clearBreakPoint(bp);
 
 // Multiple conditional breakpoint which the same condition.
@@ -152,8 +139,6 @@ for (var i = 0; i < 10; i++) {
   g();
 }
 assertEquals(5, break_point_hit_count);
-assertEquals(5, Debug.findBreakPoint(bp1, false).hit_count());
-assertEquals(5, Debug.findBreakPoint(bp2, false).hit_count());
 Debug.clearBreakPoint(bp1);
 Debug.clearBreakPoint(bp2);
 
@@ -165,7 +150,5 @@ for (var i = 0; i < 10; i++) {
   g();
 }
 assertEquals(10, break_point_hit_count);
-assertEquals(5, Debug.findBreakPoint(bp1, false).hit_count());
-assertEquals(5, Debug.findBreakPoint(bp2, false).hit_count());
 Debug.clearBreakPoint(bp1);
 Debug.clearBreakPoint(bp2);

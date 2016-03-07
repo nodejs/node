@@ -154,7 +154,9 @@ void LCodeGenBase::Comment(const char* format, ...) {
 
 
 void LCodeGenBase::DeoptComment(const Deoptimizer::DeoptInfo& deopt_info) {
-  masm()->RecordDeoptReason(deopt_info.deopt_reason, deopt_info.position);
+  SourcePosition position = deopt_info.position;
+  int raw_position = position.IsUnknown() ? 0 : position.raw();
+  masm()->RecordDeoptReason(deopt_info.deopt_reason, raw_position);
 }
 
 

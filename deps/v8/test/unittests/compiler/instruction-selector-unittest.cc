@@ -40,7 +40,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
                                instruction_blocks);
   SourcePositionTable source_position_table(graph());
   InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
-                               schedule, &source_position_table,
+                               schedule, &source_position_table, nullptr,
                                source_position_mode, features);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
@@ -148,7 +148,7 @@ InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
     int parameter_count, int local_count) {
   return common()->CreateFrameStateFunctionInfo(
       FrameStateType::kJavaScriptFunction, parameter_count, local_count,
-      Handle<SharedFunctionInfo>(), CALL_MAINTAINS_NATIVE_CONTEXT);
+      Handle<SharedFunctionInfo>());
 }
 
 

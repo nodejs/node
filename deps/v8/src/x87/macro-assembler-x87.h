@@ -16,6 +16,7 @@ namespace internal {
 // Give alias names to registers for calling conventions.
 const Register kReturnRegister0 = {Register::kCode_eax};
 const Register kReturnRegister1 = {Register::kCode_edx};
+const Register kReturnRegister2 = {Register::kCode_edi};
 const Register kJSFunctionRegister = {Register::kCode_edi};
 const Register kContextRegister = {Register::kCode_esi};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_eax};
@@ -105,6 +106,16 @@ class MacroAssembler: public Assembler {
     CompareRoot(with, index);
     j(not_equal, if_not_equal, if_not_equal_distance);
   }
+
+  // These functions do not arrange the registers in any particular order so
+  // they are not useful for calls that can cause a GC.  The caller can
+  // exclude up to 3 registers that do not need to be saved and restored.
+  void PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                       Register exclusion2 = no_reg,
+                       Register exclusion3 = no_reg);
+  void PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                      Register exclusion2 = no_reg,
+                      Register exclusion3 = no_reg);
 
   // ---------------------------------------------------------------------------
   // GC Support
@@ -206,6 +217,11 @@ class MacroAssembler: public Assembler {
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
 
+  // Notify the garbage collector that we wrote a code entry into a
+  // JSFunction. Only scratch is clobbered by the operation.
+  void RecordWriteCodeEntryField(Register js_function, Register code_entry,
+                                 Register scratch);
+
   // For page containing |object| mark the region covering the object's map
   // dirty. |object| is the object being stored into, |map| is the Map object
   // that was stored.
@@ -225,7 +241,7 @@ class MacroAssembler: public Assembler {
   // arguments in register eax and sets up the number of arguments in
   // register edi and the pointer to the first argument in register
   // esi.
-  void EnterExitFrame(bool save_doubles);
+  void EnterExitFrame(int argc, bool save_doubles);
 
   void EnterApiExitFrame(int argc);
 
@@ -269,6 +285,9 @@ class MacroAssembler: public Assembler {
   void StoreToSafepointRegisterSlot(Register dst, Register src);
   void StoreToSafepointRegisterSlot(Register dst, Immediate src);
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
+
+  // Nop, because x87 does not have a root register.
+  void InitializeRootRegister() {}
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
   void CmpHeapObject(Register reg, Handle<HeapObject> object);
@@ -324,13 +343,6 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag,
                       const CallWrapper& call_wrapper);
-
-  // Invoke specified builtin JavaScript function.
-  void InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                     const CallWrapper& call_wrapper = NullCallWrapper());
-
-  // Store the function for the given builtin in the target register.
-  void GetBuiltinFunction(Register target, int native_context_index);
 
 
   // Expression support
@@ -516,6 +528,9 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
+
+  // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
+  void AssertReceiver(Register object);
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.

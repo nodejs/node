@@ -8,4 +8,5 @@ assertFalse(undefined === _WASMEXP_);
 assertFalse(undefined == _WASMEXP_);
 assertEquals("function", typeof _WASMEXP_.verifyModule);
 assertEquals("function", typeof _WASMEXP_.verifyFunction);
-assertEquals("function", typeof _WASMEXP_.compileRun);
+assertEquals("function", typeof _WASMEXP_.instantiateModule);
+assertEquals("function", typeof _WASMEXP_.instantiateModuleFromAsm);

@@ -486,27 +486,6 @@ function prepare(target) {
 })();
 
 
-
-////////////////////////////////////////////////////////////////////////////////
-// Reflect.enumerate
-
-
-(function testReflectEnumerateArity() {
-  assertEquals(1, Reflect.enumerate.length);
-})();
-
-
-(function testReflectEnumerateOnNonObject() {
-  assertThrows(function() { Reflect.enumerate(); }, TypeError);
-  assertThrows(function() { Reflect.enumerate(42); }, TypeError);
-  assertThrows(function() { Reflect.enumerate(null); }, TypeError);
-})();
-
-
-// See reflect-enumerate*.js for further tests.
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 // Reflect.getOwnPropertyDescriptor
 

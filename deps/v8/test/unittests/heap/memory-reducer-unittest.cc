@@ -74,10 +74,9 @@ MemoryReducer::Event TimerEventPendingGC(double time_ms) {
   return TimerEvent(time_ms, true, false);
 }
 
-
-MemoryReducer::Event ContextDisposedEvent(double time_ms) {
+MemoryReducer::Event PossibleGarbageEvent(double time_ms) {
   MemoryReducer::Event event;
-  event.type = MemoryReducer::kContextDisposed;
+  event.type = MemoryReducer::kPossibleGarbage;
   event.time_ms = time_ms;
   return event;
 }
@@ -114,7 +113,7 @@ TEST(MemoryReducer, FromDoneToWait) {
   EXPECT_EQ(0, state1.started_gcs);
   EXPECT_EQ(2, state1.last_gc_time_ms);
 
-  state1 = MemoryReducer::Step(state0, ContextDisposedEvent(0));
+  state1 = MemoryReducer::Step(state0, PossibleGarbageEvent(0));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
   EXPECT_EQ(0, state1.started_gcs);
@@ -127,7 +126,7 @@ TEST(MemoryReducer, FromWaitToWait) {
 
   MemoryReducer::State state0(WaitState(2, 1000.0)), state1(DoneState());
 
-  state1 = MemoryReducer::Step(state0, ContextDisposedEvent(2000));
+  state1 = MemoryReducer::Step(state0, PossibleGarbageEvent(2000));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(state0.next_gc_start_ms, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
@@ -250,7 +249,7 @@ TEST(MemoryReducer, FromRunToRun) {
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
   EXPECT_EQ(state0.last_gc_time_ms, state1.last_gc_time_ms);
 
-  state1 = MemoryReducer::Step(state0, ContextDisposedEvent(2000));
+  state1 = MemoryReducer::Step(state0, PossibleGarbageEvent(2000));
   EXPECT_EQ(MemoryReducer::kRun, state1.action);
   EXPECT_EQ(state0.next_gc_start_ms, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);

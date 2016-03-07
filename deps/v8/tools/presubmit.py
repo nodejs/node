@@ -354,30 +354,6 @@ class SourceProcessor(SourceFileProcessor):
     if not contents.endswith('\n') or contents.endswith('\n\n'):
       print "%s does not end with a single new line." % name
       result = False
-    # Check two empty lines between declarations.
-    if name.endswith(".cc"):
-      line = 0
-      lines = []
-      parts = contents.split('\n')
-      while line < len(parts) - 2:
-        if self.EndOfDeclaration(parts[line]):
-          if self.StartOfDeclaration(parts[line + 1]):
-            lines.append(str(line + 1))
-            line += 1
-          elif parts[line + 1] == "" and \
-               self.StartOfDeclaration(parts[line + 2]):
-            lines.append(str(line + 1))
-            line += 2
-        line += 1
-      if len(lines) >= 1:
-        linenumbers = ', '.join(lines)
-        if len(lines) > 1:
-          print "%s does not have two empty lines between declarations " \
-                "in lines %s." % (name, linenumbers)
-        else:
-          print "%s does not have two empty lines between declarations " \
-                "in line %s." % (name, linenumbers)
-        result = False
     # Sanitize flags for fuzzer.
     if "mjsunit" in name:
       match = FLAGS_LINE.search(contents)

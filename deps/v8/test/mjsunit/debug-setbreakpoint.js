@@ -88,7 +88,6 @@ function listener(event, exec_state, event_data, data) {
     testArguments(dcp, '{"type":"function","target":1}', false);
     testArguments(dcp, '{"type":"function","target":"f","line":-1}', false);
     testArguments(dcp, '{"type":"function","target":"f","column":-1}', false);
-    testArguments(dcp, '{"type":"function","target":"f","ignoreCount":-1}', false);
     testArguments(dcp, '{"type":"handle","target":"-1"}', false);
     mirror = debug.MakeMirror(o);
     testArguments(dcp, '{"type":"handle","target":' + mirror.handle() + '}', false);
@@ -101,7 +100,6 @@ function listener(event, exec_state, event_data, data) {
     testArguments(dcp, '{"type":"function","target":"f","condition":"i == 1"}', true, false);
     testArguments(dcp, '{"type":"function","target":"f","enabled":true}', true, false);
     testArguments(dcp, '{"type":"function","target":"f","enabled":false}', true, false);
-    testArguments(dcp, '{"type":"function","target":"f","ignoreCount":7}', true, false);
 
     testArguments(dcp, '{"type":"script","target":"test"}', true, true);
     testArguments(dcp, '{"type":"script","target":"test"}', true, true);

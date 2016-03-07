@@ -124,18 +124,9 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
                                              CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
-  Code::Flags flags;
-  if (info->IsStub() && info->code_stub()) {
-    DCHECK_EQ(info->output_code_kind(), info->code_stub()->GetCodeKind());
-    flags = Code::ComputeFlags(
-        info->output_code_kind(), info->code_stub()->GetICState(),
-        info->code_stub()->GetExtraICState(), info->code_stub()->GetStubType());
-  } else {
-    flags = Code::ComputeFlags(info->output_code_kind());
-  }
-
   // Allocate and install the code.
   CodeDesc desc;
+  Code::Flags flags = info->code_flags();
   bool is_crankshafted =
       Code::ExtractKindFromFlags(flags) == Code::OPTIMIZED_FUNCTION ||
       info->IsStub();

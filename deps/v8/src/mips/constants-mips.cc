@@ -142,7 +142,7 @@ bool Instruction::IsForbiddenAfterBranchInstr(Instr instr) {
     case BC:
     case BALC:
     case POP10:  // beqzalc, bovc, beqc
-    case POP30:  // bnezalc, bvnc, bnec
+    case POP30:  // bnezalc, bnvc, bnec
     case POP66:  // beqzc, jic
     case POP76:  // bnezc, jialc
       return true;

@@ -23,7 +23,7 @@ case $1 in
     print_usage_and_die
 esac
 
-case $2 in
+case $2 in 
   max|avg)
     RANK_MODE=$2
     ;;
@@ -104,3 +104,4 @@ case $OP in
   *)
     ;;
 esac
+

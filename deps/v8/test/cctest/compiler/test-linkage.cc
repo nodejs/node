@@ -71,20 +71,6 @@ TEST(TestLinkageJSFunctionIncoming) {
 }
 
 
-TEST(TestLinkageCodeStubIncoming) {
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  Zone zone;
-  ToNumberStub stub(isolate);
-  CompilationInfo info(&stub, isolate, &zone);
-  CallDescriptor* descriptor = Linkage::ComputeIncoming(&zone, &info);
-  CHECK(descriptor);
-  CHECK_EQ(0, static_cast<int>(descriptor->StackParameterCount()));
-  CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
-  CHECK_EQ(Operator::kNoProperties, descriptor->properties());
-  CHECK_EQ(false, descriptor->IsJSFunctionCall());
-}
-
-
 TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
@@ -109,6 +95,20 @@ TEST(TestLinkageRuntimeCall) {
 
 
 TEST(TestLinkageStubCall) {
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  Zone zone;
+  ToNumberStub stub(isolate);
+  CompilationInfo info("test", isolate, &zone, Code::ComputeFlags(Code::STUB));
+  CallInterfaceDescriptor interface_descriptor =
+      stub.GetCallInterfaceDescriptor();
+  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+      isolate, &zone, interface_descriptor, stub.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties);
+  CHECK(descriptor);
+  CHECK_EQ(0, static_cast<int>(descriptor->StackParameterCount()));
+  CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
+  CHECK_EQ(Operator::kNoProperties, descriptor->properties());
+  CHECK_EQ(false, descriptor->IsJSFunctionCall());
   // TODO(titzer): test linkage creation for outgoing stub calls.
 }
 

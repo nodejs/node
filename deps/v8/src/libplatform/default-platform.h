@@ -34,6 +34,7 @@ class DefaultPlatform : public Platform {
   bool PumpMessageLoop(v8::Isolate* isolate);
 
   // v8::Platform implementation.
+  size_t NumberOfAvailableBackgroundThreads() override;
   void CallOnBackgroundThread(Task* task,
                               ExpectedRuntime expected_runtime) override;
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override;

@@ -407,7 +407,7 @@ function TestSameValue(type, lanes) {
   var simdFn = SIMD[type];
   var instance = createInstance(type);
   var sameValue = Object.is
-  var sameValueZero = natives.ImportNow("SameValueZero");
+  var sameValueZero = function(x, y) { return %SameValueZero(x, y); }
 
   // SIMD values should not be the same as instances of different types.
   checkTypeMatrix(type, function(other) {

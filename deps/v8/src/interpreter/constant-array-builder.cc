@@ -85,19 +85,19 @@ Handle<Object> ConstantArrayBuilder::At(size_t index) const {
   }
 }
 
-
-Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Factory* factory) const {
-  Handle<FixedArray> fixed_array =
-      factory->NewFixedArray(static_cast<int>(size()), PretenureFlag::TENURED);
+Handle<FixedArray> ConstantArrayBuilder::ToFixedArray() {
+  Handle<FixedArray> fixed_array = isolate_->factory()->NewFixedArray(
+      static_cast<int>(size()), PretenureFlag::TENURED);
   for (int i = 0; i < fixed_array->length(); i++) {
     fixed_array->set(i, *At(static_cast<size_t>(i)));
   }
+  constants_map()->Clear();
   return fixed_array;
 }
 
 
 size_t ConstantArrayBuilder::Insert(Handle<Object> object) {
-  index_t* entry = constants_map_.Find(object);
+  index_t* entry = constants_map()->Find(object);
   return (entry == nullptr) ? AllocateEntry(object) : *entry;
 }
 
@@ -106,7 +106,7 @@ ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateEntry(
     Handle<Object> object) {
   DCHECK(!object->IsOddball());
   size_t index;
-  index_t* entry = constants_map_.Get(object);
+  index_t* entry = constants_map()->Get(object);
   if (idx8_slice_.available() > 0) {
     index = idx8_slice_.Allocate(object);
   } else {
@@ -136,7 +136,7 @@ size_t ConstantArrayBuilder::CommitReservedEntry(OperandSize operand_size,
                                                  Handle<Object> object) {
   DiscardReservedEntry(operand_size);
   size_t index;
-  index_t* entry = constants_map_.Find(object);
+  index_t* entry = constants_map()->Find(object);
   if (nullptr == entry) {
     index = AllocateEntry(object);
   } else {

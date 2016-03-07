@@ -9,12 +9,14 @@
 #include <iosfwd>
 
 #include "src/base/macros.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
 template <typename T> class Handle;
+class FieldType;
 class Object;
 
 #define HTYPE_LIST(V)                               \
@@ -62,8 +64,9 @@ class HType final {
   HTYPE_LIST(DECLARE_IS_TYPE)
   #undef DECLARE_IS_TYPE
 
-  template <class T>
-  static HType FromType(typename T::TypeHandle type) WARN_UNUSED_RESULT;
+  static HType FromType(Type* type) WARN_UNUSED_RESULT;
+  static HType FromFieldType(Handle<FieldType> type,
+                             Zone* temp_zone) WARN_UNUSED_RESULT;
   static HType FromValue(Handle<Object> value) WARN_UNUSED_RESULT;
 
   friend std::ostream& operator<<(std::ostream& os, const HType& t);

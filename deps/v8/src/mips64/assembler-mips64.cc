@@ -3270,10 +3270,9 @@ void Assembler::CheckTrampolinePool() {
         bc(&after_pool);
       } else {
         b(&after_pool);
-        nop();
       }
+      nop();
 
-      EmitForbiddenSlotInstruction();
       int pool_start = pc_offset();
       for (int i = 0; i < unbound_labels_count_; i++) {
         { BlockGrowBufferScope block_buf_growth(this);

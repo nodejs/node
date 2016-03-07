@@ -92,6 +92,20 @@ inline unsigned CountLeadingZeros64(uint64_t value) {
 }
 
 
+// ReverseBits(value) returns |value| in reverse bit order.
+template <typename T>
+T ReverseBits(T value) {
+  DCHECK((sizeof(value) == 1) || (sizeof(value) == 2) || (sizeof(value) == 4) ||
+         (sizeof(value) == 8));
+  T result = 0;
+  for (unsigned i = 0; i < (sizeof(value) * 8); i++) {
+    result = (result << 1) | (value & 1);
+    value >>= 1;
+  }
+  return result;
+}
+
+
 // CountTrailingZeros32(value) returns the number of zero bits preceding the
 // least significant 1 bit in |value| if |value| is non-zero, otherwise it
 // returns 32.

@@ -83,31 +83,20 @@ enum class FrameStateType {
 };
 
 
-enum ContextCallingMode {
-  CALL_MAINTAINS_NATIVE_CONTEXT,
-  CALL_CHANGES_NATIVE_CONTEXT
-};
-
-
 class FrameStateFunctionInfo {
  public:
   FrameStateFunctionInfo(FrameStateType type, int parameter_count,
                          int local_count,
-                         Handle<SharedFunctionInfo> shared_info,
-                         ContextCallingMode context_calling_mode)
+                         Handle<SharedFunctionInfo> shared_info)
       : type_(type),
         parameter_count_(parameter_count),
         local_count_(local_count),
-        shared_info_(shared_info),
-        context_calling_mode_(context_calling_mode) {}
+        shared_info_(shared_info) {}
 
   int local_count() const { return local_count_; }
   int parameter_count() const { return parameter_count_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateType type() const { return type_; }
-  ContextCallingMode context_calling_mode() const {
-    return context_calling_mode_;
-  }
 
   static bool IsJSFunctionType(FrameStateType type) {
     return type == FrameStateType::kJavaScriptFunction ||
@@ -119,7 +108,6 @@ class FrameStateFunctionInfo {
   int const parameter_count_;
   int const local_count_;
   Handle<SharedFunctionInfo> const shared_info_;
-  ContextCallingMode context_calling_mode_;
 };
 
 

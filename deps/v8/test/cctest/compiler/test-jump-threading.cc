@@ -108,7 +108,7 @@ class TestCode : public HandleAndZoneScope {
 void VerifyForwarding(TestCode& code, int count, int* expected) {
   Zone local_zone;
   ZoneVector<RpoNumber> result(&local_zone);
-  JumpThreading::ComputeForwarding(&local_zone, result, &code.sequence_);
+  JumpThreading::ComputeForwarding(&local_zone, result, &code.sequence_, true);
 
   CHECK(count == static_cast<int>(result.size()));
   for (int i = 0; i < count; i++) {

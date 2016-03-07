@@ -44,7 +44,8 @@ void AstLiteralReindexer::VisitNativeFunctionLiteral(
 
 
 void AstLiteralReindexer::VisitDoExpression(DoExpression* node) {
-  // TODO(caitp): literals in do expressions need re-indexing too.
+  Visit(node->block());
+  Visit(node->result());
 }
 
 
@@ -76,8 +77,8 @@ void AstLiteralReindexer::VisitSuperCallReference(SuperCallReference* node) {
 }
 
 
-void AstLiteralReindexer::VisitRewritableAssignmentExpression(
-    RewritableAssignmentExpression* node) {
+void AstLiteralReindexer::VisitRewritableExpression(
+    RewritableExpression* node) {
   Visit(node->expression());
 }
 
@@ -187,6 +188,8 @@ void AstLiteralReindexer::VisitCompareOperation(CompareOperation* node) {
 
 
 void AstLiteralReindexer::VisitSpread(Spread* node) {
+  // This is reachable because ParserBase::ParseArrowFunctionLiteral calls
+  // ReindexLiterals before calling RewriteDestructuringAssignments.
   Visit(node->expression());
 }
 

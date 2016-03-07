@@ -26,15 +26,12 @@
 #include "include/v8-testing.h"
 #endif  // V8_SHARED
 
-#if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
-#include "src/gdb-jit.h"
-#endif
-
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
 #include "src/third_party/vtune/v8-vtune.h"
 #endif
 
 #include "src/d8.h"
+#include "src/ostreams.h"
 
 #include "include/libplatform/libplatform.h"
 #ifndef V8_SHARED
@@ -375,6 +372,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
                           bool report_exceptions, SourceType source_type) {
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
+  try_catch.SetVerbose(true);
 
   MaybeLocal<Value> maybe_result;
   {
@@ -1247,6 +1245,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   return global_template;
 }
 
+static void EmptyMessageCallback(Local<Message> message, Local<Value> error) {
+  // Nothing to be done here, exceptions thrown up to the shell will be reported
+  // separately by {Shell::ReportException} after they are caught.
+}
 
 void Shell::Initialize(Isolate* isolate) {
 #ifndef V8_SHARED
@@ -1254,6 +1256,8 @@ void Shell::Initialize(Isolate* isolate) {
   if (i::StrLength(i::FLAG_map_counters) != 0)
     MapCounters(isolate, i::FLAG_map_counters);
 #endif  // !V8_SHARED
+  // Disable default message reporting.
+  isolate->AddMessageListener(EmptyMessageCallback);
 }
 
 
@@ -2459,11 +2463,6 @@ int Shell::Main(int argc, char* argv[]) {
     Shell::array_buffer_allocator = &shell_array_buffer_allocator;
   }
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-#if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
-  if (i::FLAG_gdbjit) {
-    create_params.code_event_handler = i::GDBJITInterface::EventHandler;
-  }
-#endif
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
   create_params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif

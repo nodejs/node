@@ -112,10 +112,6 @@ class TypeCache final {
   Type* const kStringLengthType =
       CreateNative(CreateRange(0.0, String::kMaxLength), Type::TaggedSigned());
 
-  // When initializing arrays, we'll unfold the loop if the number of
-  // elements is known to be of this type.
-  Type* const kElementLoopUnrollType = CreateRange(0.0, 16.0);
-
 #define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size) \
   Type* const k##TypeName##Array = CreateArray(k##TypeName);
   TYPED_ARRAYS(TYPED_ARRAY)

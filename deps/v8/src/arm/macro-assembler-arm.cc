@@ -185,6 +185,9 @@ void MacroAssembler::Drop(int count, Condition cond) {
   }
 }
 
+void MacroAssembler::Drop(Register count, Condition cond) {
+  add(sp, sp, Operand(count, LSL, kPointerSizeLog2), LeaveCC, cond);
+}
 
 void MacroAssembler::Ret(int drop, Condition cond) {
   Drop(drop, cond);
@@ -449,9 +452,9 @@ void MacroAssembler::InNewSpace(Register object,
                                 Condition cond,
                                 Label* branch) {
   DCHECK(cond == eq || cond == ne);
-  and_(scratch, object, Operand(ExternalReference::new_space_mask(isolate())));
-  cmp(scratch, Operand(ExternalReference::new_space_start(isolate())));
-  b(cond, branch);
+  const int mask =
+      (1 << MemoryChunk::IN_FROM_SPACE) | (1 << MemoryChunk::IN_TO_SPACE);
+  CheckPageFlag(object, scratch, mask, cond, branch);
 }
 
 
@@ -648,6 +651,69 @@ void MacroAssembler::RecordWrite(
   }
 }
 
+void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
+                                               Register code_entry,
+                                               Register scratch) {
+  const int offset = JSFunction::kCodeEntryOffset;
+
+  // Since a code entry (value) is always in old space, we don't need to update
+  // remembered set. If incremental marking is off, there is nothing for us to
+  // do.
+  if (!FLAG_incremental_marking) return;
+
+  DCHECK(js_function.is(r1));
+  DCHECK(code_entry.is(r4));
+  DCHECK(scratch.is(r5));
+  AssertNotSmi(js_function);
+
+  if (emit_debug_code()) {
+    add(scratch, js_function, Operand(offset - kHeapObjectTag));
+    ldr(ip, MemOperand(scratch));
+    cmp(ip, code_entry);
+    Check(eq, kWrongAddressOrValuePassedToRecordWrite);
+  }
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis and stores into young gen.
+  Label done;
+
+  CheckPageFlag(code_entry, scratch,
+                MemoryChunk::kPointersToHereAreInterestingMask, eq, &done);
+  CheckPageFlag(js_function, scratch,
+                MemoryChunk::kPointersFromHereAreInterestingMask, eq, &done);
+
+  const Register dst = scratch;
+  add(dst, js_function, Operand(offset - kHeapObjectTag));
+
+  push(code_entry);
+
+  // Save caller-saved registers, which includes js_function.
+  DCHECK((kCallerSaved & js_function.bit()) != 0);
+  DCHECK_EQ(kCallerSaved & code_entry.bit(), 0);
+  stm(db_w, sp, (kCallerSaved | lr.bit()));
+
+  int argument_count = 3;
+  PrepareCallCFunction(argument_count, code_entry);
+
+  mov(r0, js_function);
+  mov(r1, dst);
+  mov(r2, Operand(ExternalReference::isolate_address(isolate())));
+
+  {
+    AllowExternalCallThatCantCauseGC scope(this);
+    CallCFunction(
+        ExternalReference::incremental_marking_record_write_code_entry_function(
+            isolate()),
+        argument_count);
+  }
+
+  // Restore caller-saved registers (including js_function and code_entry).
+  ldm(ia_w, sp, (kCallerSaved | lr.bit()));
+
+  pop(code_entry);
+
+  bind(&done);
+}
 
 void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          Register address,
@@ -1330,7 +1396,7 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
     }
     Push(fun);
     Push(fun);
-    CallRuntime(Runtime::kDebugPrepareStepInIfStepping, 1);
+    CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
     Pop(fun);
     if (new_target.is_valid()) {
       Pop(new_target);
@@ -2506,18 +2572,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
 }
 
 
-void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                                   const CallWrapper& call_wrapper) {
-  // You can't call a builtin without a valid frame.
-  DCHECK(flag == JUMP_FUNCTION || has_frame());
-
-  // Fake a parameter count to avoid emitting code to do the check.
-  ParameterCount expected(0);
-  LoadNativeContextSlot(native_context_index, r1);
-  InvokeFunctionCode(r1, no_reg, expected, expected, flag, call_wrapper);
-}
-
-
 void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
   if (FLAG_native_code_counters && counter->Enabled()) {
@@ -2613,9 +2667,9 @@ void MacroAssembler::Abort(BailoutReason reason) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort);
   } else {
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort);
   }
   // will not return here
   if (is_const_pool_blocked()) {
@@ -2818,6 +2872,20 @@ void MacroAssembler::AssertBoundFunction(Register object) {
     CompareObjectType(object, object, object, JS_BOUND_FUNCTION_TYPE);
     pop(object);
     Check(eq, kOperandIsNotABoundFunction);
+  }
+}
+
+
+void MacroAssembler::AssertReceiver(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(ne, kOperandIsASmiAndNotAReceiver);
+    push(object);
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+    CompareObjectType(object, object, object, FIRST_JS_RECEIVER_TYPE);
+    pop(object);
+    Check(hs, kOperandIsNotAReceiver);
   }
 }
 
@@ -3259,6 +3327,7 @@ void MacroAssembler::CheckPageFlag(
     int mask,
     Condition cc,
     Label* condition_met) {
+  DCHECK(cc == eq || cc == ne);
   Bfc(scratch, object, 0, kPageSizeBits);
   ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
   tst(scratch, Operand(mask));
@@ -3396,7 +3465,8 @@ void MacroAssembler::LoadAccessor(Register dst, Register holder,
 }
 
 
-void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
+void MacroAssembler::CheckEnumCache(Label* call_runtime) {
+  Register null_value = r5;
   Register  empty_fixed_array_value = r6;
   LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
   Label next, start;
@@ -3410,6 +3480,7 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   cmp(r3, Operand(Smi::FromInt(kInvalidEnumCacheSentinel)));
   b(eq, call_runtime);
 
+  LoadRoot(null_value, Heap::kNullValueRootIndex);
   jmp(&start);
 
   bind(&next);

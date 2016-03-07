@@ -172,6 +172,8 @@ void AstValue::Internalize(Isolate* isolate) {
       if (symbol_name_[0] == 'i') {
         DCHECK_EQ(0, strcmp(symbol_name_, "iterator_symbol"));
         value_ = isolate->factory()->iterator_symbol();
+      } else if (strcmp(symbol_name_, "hasInstance_symbol") == 0) {
+        value_ = isolate->factory()->has_instance_symbol();
       } else {
         DCHECK_EQ(0, strcmp(symbol_name_, "home_object_symbol"));
         value_ = isolate->factory()->home_object_symbol();

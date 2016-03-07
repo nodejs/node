@@ -44,12 +44,9 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceDoubleHi(Node* node);
   Reduction ReduceDoubleLo(Node* node);
   Reduction ReduceIncrementStatsCounter(Node* node);
-  Reduction ReduceIsMinusZero(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
-  Reduction ReduceIsFunction(Node* node);
   Reduction ReduceIsJSReceiver(Node* node);
   Reduction ReduceIsSmi(Node* node);
-  Reduction ReduceJSValueGetValue(Node* node);
   Reduction ReduceMathClz32(Node* node);
   Reduction ReduceMathFloor(Node* node);
   Reduction ReduceMathSqrt(Node* node);

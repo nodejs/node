@@ -192,7 +192,7 @@ TEST(WeakSet_Regress2060a) {
     HandleScope scope(isolate);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
-      CHECK(!heap->InNewSpace(object->address()));
+      CHECK(!heap->InNewSpace(*object));
       CHECK(!first_page->Contains(object->address()));
       int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
       JSWeakCollection::Set(weakset, key, object, hash);
@@ -230,7 +230,7 @@ TEST(WeakSet_Regress2060b) {
   Handle<JSObject> keys[32];
   for (int i = 0; i < 32; i++) {
     keys[i] = factory->NewJSObject(function, TENURED);
-    CHECK(!heap->InNewSpace(keys[i]->address()));
+    CHECK(!heap->InNewSpace(*keys[i]));
     CHECK(!first_page->Contains(keys[i]->address()));
   }
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);

@@ -88,26 +88,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers rbp and rsp are set to the correct values though.
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, i * 4);
-  }
-  input_->SetRegister(rsp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(rbp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uintptr_at(tos + i));
-  }
-}
-
-
 void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
   intptr_t handler =
@@ -125,8 +105,7 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
   // There is no dynamic alignment padding on x64 in the input frame.
   return false;
 }

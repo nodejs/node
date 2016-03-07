@@ -108,23 +108,23 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     __ b(lt, &size_less_than_8);
     __ cmp(chars, Operand(32));
     __ b(lt, &less_32);
-    if (CpuFeatures::cache_line_size() == 32) {
+    if (CpuFeatures::dcache_line_size() == 32) {
       __ pld(MemOperand(src, 32));
     }
     __ cmp(chars, Operand(64));
     __ b(lt, &less_64);
     __ pld(MemOperand(src, 64));
-    if (CpuFeatures::cache_line_size() == 32) {
+    if (CpuFeatures::dcache_line_size() == 32) {
       __ pld(MemOperand(src, 96));
     }
     __ cmp(chars, Operand(128));
     __ b(lt, &less_128);
     __ pld(MemOperand(src, 128));
-    if (CpuFeatures::cache_line_size() == 32) {
+    if (CpuFeatures::dcache_line_size() == 32) {
       __ pld(MemOperand(src, 160));
     }
     __ pld(MemOperand(src, 192));
-    if (CpuFeatures::cache_line_size() == 32) {
+    if (CpuFeatures::dcache_line_size() == 32) {
       __ pld(MemOperand(src, 224));
     }
     __ cmp(chars, Operand(256));
@@ -134,7 +134,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
     __ bind(&loop);
     __ pld(MemOperand(src, 256));
     __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(src, PostIndex));
-    if (CpuFeatures::cache_line_size() == 32) {
+    if (CpuFeatures::dcache_line_size() == 32) {
       __ pld(MemOperand(src, 256));
     }
     __ vld1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(src, PostIndex));

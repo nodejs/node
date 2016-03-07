@@ -164,46 +164,6 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SimdSameValue) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(Simd128Value, a, 0);
-  bool result = false;
-  // args[1] is of unknown type.
-  if (args[1]->IsSimd128Value()) {
-    Simd128Value* b = Simd128Value::cast(args[1]);
-    if (a->map() == b->map()) {
-      if (a->IsFloat32x4()) {
-        result = Float32x4::cast(*a)->SameValue(Float32x4::cast(b));
-      } else {
-        result = a->BitwiseEquals(b);
-      }
-    }
-  }
-  return isolate->heap()->ToBoolean(result);
-}
-
-
-RUNTIME_FUNCTION(Runtime_SimdSameValueZero) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(Simd128Value, a, 0);
-  bool result = false;
-  // args[1] is of unknown type.
-  if (args[1]->IsSimd128Value()) {
-    Simd128Value* b = Simd128Value::cast(args[1]);
-    if (a->map() == b->map()) {
-      if (a->IsFloat32x4()) {
-        result = Float32x4::cast(*a)->SameValueZero(Float32x4::cast(b));
-      } else {
-        result = a->BitwiseEquals(b);
-      }
-    }
-  }
-  return isolate->heap()->ToBoolean(result);
-}
-
-
 //-------------------------------------------------------------------
 
 // Utility macros.

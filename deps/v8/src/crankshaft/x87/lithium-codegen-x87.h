@@ -50,10 +50,8 @@ class LCodeGen: public LCodeGenBase {
   }
 
   bool NeedsEagerFrame() const {
-    return GetStackSlotCount() > 0 ||
-        info()->is_non_deferred_calling() ||
-        !info()->IsStub() ||
-        info()->requires_frame();
+    return HasAllocatedStackSlots() || info()->is_non_deferred_calling() ||
+           !info()->IsStub() || info()->requires_frame();
   }
   bool NeedsDeferredFrame() const {
     return !NeedsEagerFrame() && info()->is_deferred_calling();
@@ -165,7 +163,13 @@ class LCodeGen: public LCodeGenBase {
                        Register temporary,
                        Register temporary2);
 
-  int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
+  bool HasAllocatedStackSlots() const {
+    return chunk()->HasAllocatedStackSlots();
+  }
+  int GetStackSlotCount() const { return chunk()->GetSpillSlotCount(); }
+  int GetTotalFrameSlotCount() const {
+    return chunk()->GetTotalFrameSlotCount();
+  }
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 

@@ -37,14 +37,13 @@ struct RawBuffer {
 
 RawBuffer GetRawBufferArgument(
     ErrorThrower& thrower, const v8::FunctionCallbackInfo<v8::Value>& args) {
+  // TODO(titzer): allow typed array views.
   if (args.Length() < 1 || !args[0]->IsArrayBuffer()) {
     thrower.Error("Argument 0 must be an array buffer");
     return {nullptr, nullptr};
   }
   Local<ArrayBuffer> buffer = Local<ArrayBuffer>::Cast(args[0]);
   ArrayBuffer::Contents contents = buffer->GetContents();
-
-  // TODO(titzer): allow offsets into buffers, views, etc.
 
   const byte* start = reinterpret_cast<const byte*>(contents.Data());
   const byte* end = start + contents.ByteLength();
@@ -100,33 +99,8 @@ void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (result.val) delete result.val;
 }
 
-
-void CompileRun(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  ErrorThrower thrower(isolate, "WASM.compileRun()");
-
-  RawBuffer buffer = GetRawBufferArgument(thrower, args);
-  if (thrower.error()) return;
-
-  // Decode and pre-verify the functions before compiling and running.
-  i::Zone zone;
-  internal::wasm::ModuleResult result = internal::wasm::DecodeWasmModule(
-      isolate, &zone, buffer.start, buffer.end, true, false);
-
-  if (result.failed()) {
-    thrower.Failed("", result);
-  } else {
-    // Success. Compile and run!
-    int32_t retval = i::wasm::CompileAndRunWasmModule(isolate, result.val);
-    args.GetReturnValue().Set(retval);
-  }
-
-  if (result.val) delete result.val;
-}
-
-
-v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(i::ParseInfo* info) {
+v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
+    i::ParseInfo* info, i::Handle<i::Object> foreign, ErrorThrower* thrower) {
   info->set_global();
   info->set_lazy(false);
   info->set_allow_lazy_parsing(false);
@@ -141,105 +115,34 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(i::ParseInfo* info) {
 
   v8::internal::AsmTyper typer(info->isolate(), info->zone(), *(info->script()),
                                info->literal());
+  if (i::FLAG_enable_simd_asmjs) {
+    typer.set_allow_simd(true);
+  }
   if (!typer.Validate()) {
+    thrower->Error("Asm.js validation failed: %s", typer.error_message());
     return nullptr;
   }
 
   auto module = v8::internal::wasm::AsmWasmBuilder(
-                    info->isolate(), info->zone(), info->literal())
+                    info->isolate(), info->zone(), info->literal(), foreign)
                     .Run();
+
+  if (i::FLAG_dump_asmjs_wasm) {
+    FILE* wasm_file = fopen(i::FLAG_asmjs_wasm_dumpfile, "wb");
+    if (wasm_file) {
+      fwrite(module->Begin(), module->End() - module->Begin(), 1, wasm_file);
+      fclose(wasm_file);
+    }
+  }
+
   return module;
 }
 
 
-void AsmCompileRun(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
+void InstantiateModuleCommon(const v8::FunctionCallbackInfo<v8::Value>& args,
+                             const byte* start, const byte* end,
+                             ErrorThrower* thrower, bool must_decode) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  ErrorThrower thrower(isolate, "WASM.asmCompileRun()");
-
-  if (args.Length() != 1) {
-    thrower.Error("Invalid argument count");
-    return;
-  }
-  if (!args[0]->IsString()) {
-    thrower.Error("Invalid argument count");
-    return;
-  }
-
-  i::Factory* factory = isolate->factory();
-  i::Zone zone;
-  Local<String> source = Local<String>::Cast(args[0]);
-  i::Handle<i::Script> script = factory->NewScript(Utils::OpenHandle(*source));
-  i::ParseInfo info(&zone, script);
-
-  auto module = TranslateAsmModule(&info);
-  if (module == nullptr) {
-    thrower.Error("Asm.js validation failed");
-    return;
-  }
-
-  int32_t result = v8::internal::wasm::CompileAndRunWasmModule(
-      isolate, module->Begin(), module->End(), true);
-  args.GetReturnValue().Set(result);
-}
-
-
-// TODO(aseemgarg): deal with arraybuffer and foreign functions
-void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  ErrorThrower thrower(isolate, "WASM.instantiateModuleFromAsm()");
-
-  if (args.Length() != 1) {
-    thrower.Error("Invalid argument count");
-    return;
-  }
-  if (!args[0]->IsString()) {
-    thrower.Error("Invalid argument count");
-    return;
-  }
-
-  i::Factory* factory = isolate->factory();
-  i::Zone zone;
-  Local<String> source = Local<String>::Cast(args[0]);
-  i::Handle<i::Script> script = factory->NewScript(Utils::OpenHandle(*source));
-  i::ParseInfo info(&zone, script);
-
-  auto module = TranslateAsmModule(&info);
-  if (module == nullptr) {
-    thrower.Error("Asm.js validation failed");
-    return;
-  }
-
-  i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
-  internal::wasm::ModuleResult result = internal::wasm::DecodeWasmModule(
-      isolate, &zone, module->Begin(), module->End(), false, false);
-
-  if (result.failed()) {
-    thrower.Failed("", result);
-  } else {
-    // Success. Instantiate the module and return the object.
-    i::Handle<i::JSObject> ffi = i::Handle<i::JSObject>::null();
-
-    i::MaybeHandle<i::JSObject> object =
-        result.val->Instantiate(isolate, ffi, memory);
-
-    if (!object.is_null()) {
-      args.GetReturnValue().Set(v8::Utils::ToLocal(object.ToHandleChecked()));
-    }
-  }
-
-  if (result.val) delete result.val;
-}
-
-
-void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
-  ErrorThrower thrower(isolate, "WASM.instantiateModule()");
-
-  RawBuffer buffer = GetRawBufferArgument(thrower, args);
-  if (buffer.start == nullptr) return;
 
   i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
   if (args.Length() > 2 && args[2]->IsArrayBuffer()) {
@@ -252,10 +155,12 @@ void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // Verification will happen during compilation.
   i::Zone zone;
   internal::wasm::ModuleResult result = internal::wasm::DecodeWasmModule(
-      isolate, &zone, buffer.start, buffer.end, false, false);
+      isolate, &zone, start, end, false, false);
 
-  if (result.failed()) {
-    thrower.Failed("", result);
+  if (result.failed() && must_decode) {
+    thrower->Error("Asm.js converted module failed to decode");
+  } else if (result.failed()) {
+    thrower->Failed("", result);
   } else {
     // Success. Instantiate the module and return the object.
     i::Handle<i::JSObject> ffi = i::Handle<i::JSObject>::null();
@@ -273,6 +178,49 @@ void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   if (result.val) delete result.val;
+}
+
+
+void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  HandleScope scope(args.GetIsolate());
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
+  ErrorThrower thrower(isolate, "WASM.instantiateModuleFromAsm()");
+
+  if (!args[0]->IsString()) {
+    thrower.Error("Asm module text should be a string");
+    return;
+  }
+
+  i::Factory* factory = isolate->factory();
+  i::Zone zone;
+  Local<String> source = Local<String>::Cast(args[0]);
+  i::Handle<i::Script> script = factory->NewScript(Utils::OpenHandle(*source));
+  i::ParseInfo info(&zone, script);
+
+  i::Handle<i::Object> foreign;
+  if (args.Length() > 1 && args[1]->IsObject()) {
+    Local<Object> local_foreign = Local<Object>::Cast(args[1]);
+    foreign = v8::Utils::OpenHandle(*local_foreign);
+  }
+
+  auto module = TranslateAsmModule(&info, foreign, &thrower);
+  if (module == nullptr) {
+    return;
+  }
+
+  InstantiateModuleCommon(args, module->Begin(), module->End(), &thrower, true);
+}
+
+
+void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  HandleScope scope(args.GetIsolate());
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
+  ErrorThrower thrower(isolate, "WASM.instantiateModule()");
+
+  RawBuffer buffer = GetRawBufferArgument(thrower, args);
+  if (buffer.start == nullptr) return;
+
+  InstantiateModuleCommon(args, buffer.start, buffer.end, &thrower, false);
 }
 }  // namespace
 
@@ -322,11 +270,9 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
   JSObject::AddProperty(global, name, wasm_object, attributes);
 
   // Install functions on the WASM object.
-  InstallFunc(isolate, wasm_object, "instantiateModule", InstantiateModule);
   InstallFunc(isolate, wasm_object, "verifyModule", VerifyModule);
   InstallFunc(isolate, wasm_object, "verifyFunction", VerifyFunction);
-  InstallFunc(isolate, wasm_object, "compileRun", CompileRun);
-  InstallFunc(isolate, wasm_object, "asmCompileRun", AsmCompileRun);
+  InstallFunc(isolate, wasm_object, "instantiateModule", InstantiateModule);
   InstallFunc(isolate, wasm_object, "instantiateModuleFromAsm",
               InstantiateModuleFromAsm);
 }

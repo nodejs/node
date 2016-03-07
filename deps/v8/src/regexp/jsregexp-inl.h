@@ -47,7 +47,10 @@ int32_t* RegExpImpl::GlobalCache::FetchNext() {
                                              register_array_size_);
     } else {
       int last_start_index = last_match[0];
-      if (last_start_index == last_end_index) last_end_index++;
+      if (last_start_index == last_end_index) {
+        // Zero-length match. Advance by one code point.
+        last_end_index = AdvanceZeroLength(last_end_index);
+      }
       if (last_end_index > subject_->length()) {
         num_matches_ = 0;  // Signal failed match.
         return NULL;

@@ -63,9 +63,6 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallAddress:
       os << "Addr";
       break;
-    case CallDescriptor::kLazyBailout:
-      os << "LazyBail";
-      break;
   }
   return os;
 }
@@ -120,14 +117,7 @@ bool CallDescriptor::CanTailCall(const Node* node,
 
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
-  if (info->code_stub() != nullptr) {
-    // Use the code stub interface descriptor.
-    CodeStub* stub = info->code_stub();
-    CallInterfaceDescriptor descriptor = stub->GetCallInterfaceDescriptor();
-    return GetStubCallDescriptor(
-        info->isolate(), zone, descriptor, stub->GetStackParameterCount(),
-        CallDescriptor::kNoFlags, Operator::kNoProperties);
-  }
+  DCHECK(!info->IsStub());
   if (info->has_literal()) {
     // If we already have the function literal, use the number of parameters
     // plus the receiver.
@@ -155,13 +145,14 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
   switch (function) {
     case Runtime::kAllocateInTargetSpace:
     case Runtime::kCreateIterResultObject:
-    case Runtime::kDefineClassMethod:              // TODO(jarin): Is it safe?
+    case Runtime::kDefineDataPropertyInLiteral:
     case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kFinalizeClassDefinition:        // TODO(conradw): Is it safe?
     case Runtime::kForInDone:
     case Runtime::kForInStep:
     case Runtime::kGetSuperConstructor:
+    case Runtime::kIsFunction:
     case Runtime::kNewClosure:
     case Runtime::kNewClosure_Tenured:
     case Runtime::kNewFunctionContext:
@@ -174,8 +165,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
       return 0;
-    case Runtime::kInlineArguments:
-    case Runtime::kInlineArgumentsLength:
     case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpConstructResult:
     case Runtime::kInlineRegExpExec:
@@ -242,6 +231,9 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   if (locations.return_count_ > 1) {
     locations.AddReturn(regloc(kReturnRegister1));
   }
+  if (locations.return_count_ > 2) {
+    locations.AddReturn(regloc(kReturnRegister2));
+  }
   for (size_t i = 0; i < return_count; i++) {
     types.AddReturn(MachineType::AnyTagged());
   }
@@ -287,31 +279,6 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 }
 
 
-CallDescriptor* Linkage::GetLazyBailoutDescriptor(Zone* zone) {
-  const size_t return_count = 0;
-  const size_t parameter_count = 0;
-
-  LocationSignature::Builder locations(zone, return_count, parameter_count);
-  MachineSignature::Builder types(zone, return_count, parameter_count);
-
-  // The target is ignored, but we need to give some values here.
-  MachineType target_type = MachineType::AnyTagged();
-  LinkageLocation target_loc = regloc(kJSFunctionRegister);
-  return new (zone) CallDescriptor(      // --
-      CallDescriptor::kLazyBailout,      // kind
-      target_type,                       // target MachineType
-      target_loc,                        // target location
-      types.Build(),                     // machine_sig
-      locations.Build(),                 // location_sig
-      0,                                 // stack_parameter_count
-      Operator::kNoThrow,                // properties
-      kNoCalleeSaved,                    // callee-saved
-      kNoCalleeSaved,                    // callee-saved fp
-      CallDescriptor::kNeedsFrameState,  // flags
-      "lazy-bailout");
-}
-
-
 CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
                                              int js_parameter_count,
                                              CallDescriptor::Flags flags) {
@@ -350,10 +317,10 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
 
   // The target for JS function calls is the JSFunction object.
   MachineType target_type = MachineType::AnyTagged();
-  // TODO(titzer): When entering into an OSR function from unoptimized code,
-  // the JSFunction is not in a register, but it is on the stack in an
-  // unaddressable spill slot. We hack this in the OSR prologue. Fix.
-  LinkageLocation target_loc = regloc(kJSFunctionRegister);
+  // When entering into an OSR function from unoptimized code the JSFunction
+  // is not in a register, but it is on the stack in the marker spill slot.
+  LinkageLocation target_loc = is_osr ? LinkageLocation::ForSavedCallerMarker()
+                                      : regloc(kJSFunctionRegister);
   return new (zone) CallDescriptor(     // --
       CallDescriptor::kCallJSFunction,  // kind
       target_type,                      // target MachineType
@@ -368,60 +335,6 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
           flags,                        // flags
       "js-call");
 }
-
-
-CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
-  MachineSignature::Builder types(zone, 0, 6);
-  LocationSignature::Builder locations(zone, 0, 6);
-
-  // Add registers for fixed parameters passed via interpreter dispatch.
-  STATIC_ASSERT(0 == Linkage::kInterpreterAccumulatorParameter);
-  types.AddParam(MachineType::AnyTagged());
-  locations.AddParam(regloc(kInterpreterAccumulatorRegister));
-
-  STATIC_ASSERT(1 == Linkage::kInterpreterRegisterFileParameter);
-  types.AddParam(MachineType::Pointer());
-  locations.AddParam(regloc(kInterpreterRegisterFileRegister));
-
-  STATIC_ASSERT(2 == Linkage::kInterpreterBytecodeOffsetParameter);
-  types.AddParam(MachineType::IntPtr());
-  locations.AddParam(regloc(kInterpreterBytecodeOffsetRegister));
-
-  STATIC_ASSERT(3 == Linkage::kInterpreterBytecodeArrayParameter);
-  types.AddParam(MachineType::AnyTagged());
-  locations.AddParam(regloc(kInterpreterBytecodeArrayRegister));
-
-  STATIC_ASSERT(4 == Linkage::kInterpreterDispatchTableParameter);
-  types.AddParam(MachineType::Pointer());
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
-  // TODO(rmcilroy): Make the context param the one spilled to the stack once
-  // Turbofan supports modified stack arguments in tail calls.
-  locations.AddParam(
-      LinkageLocation::ForCallerFrameSlot(kInterpreterDispatchTableSpillSlot));
-#else
-  locations.AddParam(regloc(kInterpreterDispatchTableRegister));
-#endif
-
-  STATIC_ASSERT(5 == Linkage::kInterpreterContextParameter);
-  types.AddParam(MachineType::AnyTagged());
-  locations.AddParam(regloc(kContextRegister));
-
-  LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
-  return new (zone) CallDescriptor(         // --
-      CallDescriptor::kCallCodeObject,      // kind
-      MachineType::None(),                  // target MachineType
-      target_loc,                           // target location
-      types.Build(),                        // machine_sig
-      locations.Build(),                    // location_sig
-      0,                                    // stack_parameter_count
-      Operator::kNoProperties,              // properties
-      kNoCalleeSaved,                       // callee-saved registers
-      kNoCalleeSaved,                       // callee-saved fp regs
-      CallDescriptor::kSupportsTailCalls |  // flags
-          CallDescriptor::kCanUseRoots,     // flags
-      "interpreter-dispatch");
-}
-
 
 // TODO(all): Add support for return representations/locations to
 // CallInterfaceDescriptor.
@@ -447,6 +360,9 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   }
   if (locations.return_count_ > 1) {
     locations.AddReturn(regloc(kReturnRegister1));
+  }
+  if (locations.return_count_ > 2) {
+    locations.AddReturn(regloc(kReturnRegister2));
   }
   for (size_t i = 0; i < return_count; i++) {
     types.AddReturn(return_type);

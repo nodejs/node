@@ -8,6 +8,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
+#include "src/type-cache.h"
 #include "src/types.h"
 
 namespace v8 {
@@ -85,10 +86,10 @@ class JSCallReduction {
   Node* node_;
 };
 
-
 JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph)
-    : AdvancedReducer(editor), jsgraph_(jsgraph) {}
-
+    : AdvancedReducer(editor),
+      jsgraph_(jsgraph),
+      type_cache_(TypeCache::Get()) {}
 
 // ECMA-262, section 15.8.2.11.
 Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
@@ -141,6 +142,31 @@ Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.28 Math.round ( x )
+Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(type_cache_.kIntegerOrMinusZeroOrNaN)) {
+    // Math.round(a:integer \/ -0 \/ NaN) -> a
+    return Replace(r.left());
+  }
+  if (r.InputsMatchOne(Type::Number()) &&
+      machine()->Float64RoundUp().IsSupported()) {
+    // Math.round(a:number) -> Select(Float64LessThan(#0.5, Float64Sub(i, a)),
+    //                                Float64Sub(i, #1.0), i)
+    //   where i = Float64RoundUp(a)
+    Node* value = r.left();
+    Node* integer = graph()->NewNode(machine()->Float64RoundUp().op(), value);
+    Node* real = graph()->NewNode(machine()->Float64Sub(), integer, value);
+    return Replace(graph()->NewNode(
+        common()->Select(MachineRepresentation::kFloat64),
+        graph()->NewNode(machine()->Float64LessThan(),
+                         jsgraph()->Float64Constant(0.5), real),
+        graph()->NewNode(machine()->Float64Sub(), integer,
+                         jsgraph()->Float64Constant(1.0)),
+        integer));
+  }
+  return NoChange();
+}
 
 Reduction JSBuiltinReducer::Reduce(Node* node) {
   Reduction reduction = NoChange();
@@ -157,6 +183,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kMathFround:
       reduction = ReduceMathFround(node);
+      break;
+    case kMathRound:
+      reduction = ReduceMathRound(node);
       break;
     default:
       break;

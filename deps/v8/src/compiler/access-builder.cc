@@ -6,9 +6,9 @@
 
 #include "src/contexts.h"
 #include "src/frames.h"
+#include "src/handles-inl.h"
 #include "src/heap/heap.h"
 #include "src/type-cache.h"
-#include "src/types-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -268,20 +268,16 @@ FieldAccess AccessBuilder::ForValue() {
 
 // static
 FieldAccess AccessBuilder::ForArgumentsLength() {
-  int offset =
-      JSObject::kHeaderSize + Heap::kArgumentsLengthIndex * kPointerSize;
-  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
-                        MachineType::AnyTagged()};
+  FieldAccess access = {kTaggedBase, JSArgumentsObject::kLengthOffset,
+                        Handle<Name>(), Type::Any(), MachineType::AnyTagged()};
   return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForArgumentsCallee() {
-  int offset =
-      JSObject::kHeaderSize + Heap::kArgumentsCalleeIndex * kPointerSize;
-  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
-                        MachineType::AnyTagged()};
+  FieldAccess access = {kTaggedBase, JSSloppyArgumentsObject::kCalleeOffset,
+                        Handle<Name>(), Type::Any(), MachineType::AnyTagged()};
   return access;
 }
 

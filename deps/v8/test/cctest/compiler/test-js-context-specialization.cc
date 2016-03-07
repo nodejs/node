@@ -225,8 +225,8 @@ TEST(SpecializeToContext) {
         t.graph()->NewNode(t.simplified()->ChangeTaggedToInt32(), other_load);
 
     Node* add = t.graph()->NewNode(
-        t.javascript()->Add(LanguageMode::SLOPPY, BinaryOperationHints::Any()),
-        value_use, other_use, param_context, t.jsgraph()->EmptyFrameState(),
+        t.javascript()->Add(BinaryOperationHints::Any()), value_use, other_use,
+        param_context, t.jsgraph()->EmptyFrameState(),
         t.jsgraph()->EmptyFrameState(), other_load, start);
 
     Node* ret =

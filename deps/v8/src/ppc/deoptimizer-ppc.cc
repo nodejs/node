@@ -88,31 +88,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-  // We ensure the values are Smis to avoid confusing the garbage
-  // collector in the event that any values are retreived and stored
-  // elsewhere.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, reinterpret_cast<intptr_t>(Smi::FromInt(i)));
-  }
-  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::kNumRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(
-        i, reinterpret_cast<intptr_t>(Memory::Address_at(tos + i)));
-  }
-}
-
-
 void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
   ApiFunction function(descriptor->deoptimization_handler());
@@ -131,8 +106,7 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
   // There is no dynamic alignment padding on PPC in the input frame.
   return false;
 }

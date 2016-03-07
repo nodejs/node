@@ -34,9 +34,9 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-// TODO(titzer): arm64 is a pain for aliasing; get rid of these macros
 #define kReturnRegister0 x0
 #define kReturnRegister1 x1
+#define kReturnRegister2 x2
 #define kJSFunctionRegister x1
 #define kContextRegister cp
 #define kInterpreterAccumulatorRegister x0
@@ -970,6 +970,9 @@ class MacroAssembler : public Assembler {
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
 
+  // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
+  void AssertReceiver(Register object);
+
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
@@ -980,6 +983,9 @@ class MacroAssembler : public Assembler {
   // Abort execution if argument is not a positive or zero integer, enabled via
   // --debug-code.
   void AssertPositiveOrZero(Register value);
+
+  // Abort execution if argument is not a number (heap number or smi).
+  void AssertNumber(Register value);
 
   void JumpIfHeapNumber(Register object, Label* on_heap_number,
                         SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
@@ -1137,10 +1143,6 @@ class MacroAssembler : public Assembler {
   void CallExternalReference(const ExternalReference& ext,
                              int num_arguments);
 
-
-  // Invoke specified builtin JavaScript function.
-  void InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                     const CallWrapper& call_wrapper = NullCallWrapper());
 
   void Jump(Register target);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
@@ -1586,12 +1588,8 @@ class MacroAssembler : public Assembler {
   void LeaveFrame(StackFrame::Type type);
 
   // Returns map with validated enum cache in object register.
-  void CheckEnumCache(Register object,
-                      Register null_value,
-                      Register scratch0,
-                      Register scratch1,
-                      Register scratch2,
-                      Register scratch3,
+  void CheckEnumCache(Register object, Register scratch0, Register scratch1,
+                      Register scratch2, Register scratch3, Register scratch4,
                       Label* call_runtime);
 
   // AllocationMemento support. Arrays may have an associated
@@ -1730,6 +1728,9 @@ class MacroAssembler : public Assembler {
     Peek(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
   }
 
+  void CheckPageFlag(const Register& object, const Register& scratch, int mask,
+                     Condition cc, Label* condition_met);
+
   void CheckPageFlagSet(const Register& object,
                         const Register& scratch,
                         int mask,
@@ -1792,6 +1793,11 @@ class MacroAssembler : public Assembler {
                      smi_check,
                      pointers_to_here_check_for_value);
   }
+
+  // Notify the garbage collector that we wrote a code entry into a
+  // JSFunction. Only scratch is clobbered by the operation.
+  void RecordWriteCodeEntryField(Register js_function, Register code_entry,
+                                 Register scratch);
 
   void RecordWriteForMap(
       Register object,

@@ -70,16 +70,14 @@ v8::Local<v8::Value> FunctionCallbackArguments::Call(FunctionCallback f) {
   }
 
 
-#define WRITE_CALL_2_VOID(Function, ReturnValue, Arg1, Arg2)                   \
-void PropertyCallbackArguments::Call(Function f,                               \
-                                     Arg1 arg1,                                \
-                                     Arg2 arg2) {                              \
-  Isolate* isolate = this->isolate();                                          \
-  VMState<EXTERNAL> state(isolate);                                            \
-  ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));                 \
-  PropertyCallbackInfo<ReturnValue> info(begin());                             \
-  f(arg1, arg2, info);                                                         \
-}
+#define WRITE_CALL_2_VOID(Function, ReturnValue, Arg1, Arg2)               \
+  void PropertyCallbackArguments::Call(Function f, Arg1 arg1, Arg2 arg2) { \
+    Isolate* isolate = this->isolate();                                    \
+    VMState<EXTERNAL> state(isolate);                                      \
+    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));           \
+    PropertyCallbackInfo<ReturnValue> info(begin());                       \
+    f(arg1, arg2, info);                                                   \
+  }
 
 
 FOR_EACH_CALLBACK_TABLE_MAPPING_0(WRITE_CALL_0)

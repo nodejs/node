@@ -120,3 +120,11 @@ assertEquals({a:5}, seen_prototype);
   prototype = [5];
   assertThrows(() => {Reflect.setPrototypeOf(proxy2, prototype)}, TypeError);
 })();
+
+(function testProxyTrapReturnsFalse() {
+  var handler = {};
+  handler.setPrototypeOf = () => false;
+  var target = new Proxy({}, {isExtensible: () => assertUnreachable()});
+  var object = new Proxy(target, handler);
+  assertFalse(Reflect.setPrototypeOf(object, {}));
+})();

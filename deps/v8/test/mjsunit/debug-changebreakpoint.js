@@ -79,12 +79,6 @@ function listener(event, exec_state, event_data, data) {
     testArguments(dcp, '{' + bp_str + ',"enabled":"false"}', true);
     testArguments(dcp, '{' + bp_str + ',"condition":"1==2"}', true);
     testArguments(dcp, '{' + bp_str + ',"condition":"false"}', true);
-    testArguments(dcp, '{' + bp_str + ',"ignoreCount":7}', true);
-    testArguments(dcp, '{' + bp_str + ',"ignoreCount":0}', true);
-    testArguments(
-        dcp,
-        '{' + bp_str + ',"enabled":"true","condition":"false","ignoreCount":0}',
-        true);
 
     // Indicate that all was processed.
     listenerComplete = true;

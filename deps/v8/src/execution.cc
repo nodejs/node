@@ -144,8 +144,8 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
       if (receiver->IsUndefined() || receiver->IsNull()) {
         receiver = handle(function->global_proxy(), isolate);
       } else {
-        ASSIGN_RETURN_ON_EXCEPTION(
-            isolate, receiver, Execution::ToObject(isolate, receiver), Object);
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                                   Object::ToObject(isolate, receiver), Object);
       }
     }
     DCHECK(function->context()->global_object()->IsJSGlobalObject());
@@ -421,18 +421,6 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 // --- C a l l s   t o   n a t i v e s ---
 
 
-MaybeHandle<JSReceiver> Execution::ToObject(Isolate* isolate,
-                                            Handle<Object> obj) {
-  Handle<JSReceiver> receiver;
-  if (JSReceiver::ToObject(isolate, obj).ToHandle(&receiver)) {
-    return receiver;
-  }
-  THROW_NEW_ERROR(isolate,
-                  NewTypeError(MessageTemplate::kUndefinedOrNullToObject),
-                  JSReceiver);
-}
-
-
 Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
                                             Handle<JSFunction> fun,
                                             Handle<Object> pos,
@@ -492,7 +480,7 @@ Object* StackGuard::HandleInterrupts() {
 
   isolate_->counters()->stack_interrupts()->Increment();
   isolate_->counters()->runtime_profiler_ticks()->Increment();
-  isolate_->runtime_profiler()->OptimizeNow();
+  isolate_->runtime_profiler()->MarkCandidatesForOptimization();
 
   return isolate_->heap()->undefined_value();
 }

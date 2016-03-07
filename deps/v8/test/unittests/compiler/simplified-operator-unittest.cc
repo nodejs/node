@@ -6,7 +6,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/types-inl.h"
+#include "src/types.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -65,6 +65,8 @@ const PureOperator kPureOperators[] = {
     PURE(ChangeFloat64ToTagged, Operator::kNoProperties, 1),
     PURE(ChangeBoolToBit, Operator::kNoProperties, 1),
     PURE(ChangeBitToBool, Operator::kNoProperties, 1),
+    PURE(ObjectIsNumber, Operator::kNoProperties, 1),
+    PURE(ObjectIsReceiver, Operator::kNoProperties, 1),
     PURE(ObjectIsSmi, Operator::kNoProperties, 1)
 #undef PURE
 };

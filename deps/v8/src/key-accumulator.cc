@@ -29,6 +29,9 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   // Make sure we have all the lengths collected.
   NextPrototype();
 
+  if (type_ == OWN_ONLY && !ownProxyKeys_.is_null()) {
+    return ownProxyKeys_;
+  }
   // Assemble the result array by first adding the element keys and then the
   // property keys. We use the total number of String + Symbol keys per level in
   // |level_lengths_| and the available element keys in the corresponding bucket
@@ -260,7 +263,13 @@ Maybe<bool> KeyAccumulator::AddKeysFromProxy(Handle<JSProxy> proxy,
   // Proxies define a complete list of keys with no distinction of
   // elements and properties, which breaks the normal assumption for the
   // KeyAccumulator.
-  AddKeys(keys, PROXY_MAGIC);
+  if (type_ == OWN_ONLY) {
+    ownProxyKeys_ = keys;
+    level_string_length_ = keys->length();
+    length_ = level_string_length_;
+  } else {
+    AddKeys(keys, PROXY_MAGIC);
+  }
   // Invert the current length to indicate a present proxy, so we can ignore
   // element keys for this level. Otherwise we would not fully respect the order
   // given by the proxy.

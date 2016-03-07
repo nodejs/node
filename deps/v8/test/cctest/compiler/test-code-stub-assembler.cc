@@ -16,7 +16,7 @@ class CodeStubAssemblerTester : public CodeStubAssembler {
   CodeStubAssemblerTester(Isolate* isolate,
                           const CallInterfaceDescriptor& descriptor)
       : CodeStubAssembler(isolate, isolate->runtime_zone(), descriptor,
-                          Code::STUB, "test"),
+                          Code::ComputeFlags(Code::STUB), "test"),
         scope_(isolate) {}
 
  private:
@@ -118,6 +118,133 @@ TEST(SimpleTailCallRuntime2Arg) {
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(16, Handle<Smi>::cast(result.ToHandleChecked())->value());
+}
+
+TEST(VariableMerge1) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
+  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
+  Node* temp = m.Int32Constant(0);
+  var1.Bind(temp);
+  m.Branch(m.Int32Constant(1), &l1, &l2);
+  m.Bind(&l1);
+  CHECK_EQ(var1.value(), temp);
+  m.Goto(&merge);
+  m.Bind(&l2);
+  CHECK_EQ(var1.value(), temp);
+  m.Goto(&merge);
+  m.Bind(&merge);
+  CHECK_EQ(var1.value(), temp);
+}
+
+TEST(VariableMerge2) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
+  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
+  Node* temp = m.Int32Constant(0);
+  var1.Bind(temp);
+  m.Branch(m.Int32Constant(1), &l1, &l2);
+  m.Bind(&l1);
+  CHECK_EQ(var1.value(), temp);
+  m.Goto(&merge);
+  m.Bind(&l2);
+  Node* temp2 = m.Int32Constant(2);
+  var1.Bind(temp2);
+  CHECK_EQ(var1.value(), temp2);
+  m.Goto(&merge);
+  m.Bind(&merge);
+  CHECK_NE(var1.value(), temp);
+}
+
+TEST(VariableMerge3) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
+  CodeStubAssembler::Variable var2(&m, MachineRepresentation::kTagged);
+  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m);
+  Node* temp = m.Int32Constant(0);
+  var1.Bind(temp);
+  var2.Bind(temp);
+  m.Branch(m.Int32Constant(1), &l1, &l2);
+  m.Bind(&l1);
+  CHECK_EQ(var1.value(), temp);
+  m.Goto(&merge);
+  m.Bind(&l2);
+  Node* temp2 = m.Int32Constant(2);
+  var1.Bind(temp2);
+  CHECK_EQ(var1.value(), temp2);
+  m.Goto(&merge);
+  m.Bind(&merge);
+  CHECK_NE(var1.value(), temp);
+  CHECK_NE(var1.value(), temp2);
+  CHECK_EQ(var2.value(), temp);
+}
+
+TEST(VariableMergeBindFirst) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
+  CodeStubAssembler::Label l1(&m), l2(&m), merge(&m, &var1), end(&m);
+  Node* temp = m.Int32Constant(0);
+  var1.Bind(temp);
+  m.Branch(m.Int32Constant(1), &l1, &l2);
+  m.Bind(&l1);
+  CHECK_EQ(var1.value(), temp);
+  m.Goto(&merge);
+  m.Bind(&merge);
+  CHECK(var1.value() != temp);
+  CHECK(var1.value() != nullptr);
+  m.Goto(&end);
+  m.Bind(&l2);
+  Node* temp2 = m.Int32Constant(2);
+  var1.Bind(temp2);
+  CHECK_EQ(var1.value(), temp2);
+  m.Goto(&merge);
+  m.Bind(&end);
+  CHECK(var1.value() != temp);
+  CHECK(var1.value() != nullptr);
+}
+
+TEST(VariableMergeSwitch) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  CodeStubAssembler::Variable var1(&m, MachineRepresentation::kTagged);
+  CodeStubAssembler::Label l1(&m), l2(&m), default_label(&m);
+  CodeStubAssembler::Label* labels[] = {&l1, &l2};
+  int32_t values[] = {1, 2};
+  Node* temp = m.Int32Constant(0);
+  var1.Bind(temp);
+  m.Switch(m.Int32Constant(2), &default_label, values, labels, 2);
+  m.Bind(&l1);
+  DCHECK_EQ(temp, var1.value());
+  m.Return(temp);
+  m.Bind(&l2);
+  DCHECK_EQ(temp, var1.value());
+  m.Return(temp);
+  m.Bind(&default_label);
+  DCHECK_EQ(temp, var1.value());
+  m.Return(temp);
+}
+
+TEST(FixedArrayAccessSmiIndex) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(5);
+  array->set(4, Smi::FromInt(733));
+  m.Return(m.LoadFixedArrayElementSmiIndex(m.HeapConstant(array),
+                                           m.SmiTag(m.Int32Constant(4))));
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
+  MaybeHandle<Object> result = ft.Call();
+  CHECK_EQ(733, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 }  // namespace compiler

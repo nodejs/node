@@ -127,6 +127,10 @@ uint32_t NumberToUint32(Object* number) {
   return DoubleToUint32(number->Number());
 }
 
+int64_t NumberToInt64(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return static_cast<int64_t>(number->Number());
+}
 
 bool TryNumberToSize(Isolate* isolate, Object* number, size_t* result) {
   SealHandleScope shs(isolate);

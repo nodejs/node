@@ -30,13 +30,13 @@ void EmitUint8(byte** b, uint8_t x) {
 
 
 void EmitUint16(byte** b, uint16_t x) {
-  Memory::uint16_at(*b) = x;
+  WriteUnalignedUInt16(*b, x);
   *b += 2;
 }
 
 
 void EmitUint32(byte** b, uint32_t x) {
-  Memory::uint32_at(*b) = x;
+  WriteUnalignedUInt32(*b, x);
   *b += 4;
 }
 
@@ -121,12 +121,6 @@ void WasmFunctionBuilder::EmitWithU8(WasmOpcode opcode, const byte immediate) {
 }
 
 
-void WasmFunctionBuilder::EmitWithLocal(WasmOpcode opcode) {
-  body_.push_back(static_cast<byte>(opcode));
-  local_indices_.push_back(static_cast<uint32_t>(body_.size()) - 1);
-}
-
-
 uint32_t WasmFunctionBuilder::EmitEditableImmediate(const byte immediate) {
   body_.push_back(immediate);
   return static_cast<uint32_t>(body_.size()) - 1;
@@ -202,44 +196,44 @@ WasmFunctionEncoder* WasmFunctionBuilder::Build(Zone* zone,
 void WasmFunctionBuilder::IndexVars(WasmFunctionEncoder* e,
                                     uint16_t* var_index) const {
   uint16_t param = 0;
-  uint16_t int32 = 0;
-  uint16_t int64 = 0;
-  uint16_t float32 = 0;
-  uint16_t float64 = 0;
+  uint16_t i32 = 0;
+  uint16_t i64 = 0;
+  uint16_t f32 = 0;
+  uint16_t f64 = 0;
   for (size_t i = 0; i < locals_.size(); i++) {
     if (locals_.at(i).param_) {
       param++;
     } else if (locals_.at(i).type_ == kAstI32) {
-      int32++;
+      i32++;
     } else if (locals_.at(i).type_ == kAstI64) {
-      int64++;
+      i64++;
     } else if (locals_.at(i).type_ == kAstF32) {
-      float32++;
+      f32++;
     } else if (locals_.at(i).type_ == kAstF64) {
-      float64++;
+      f64++;
     }
   }
-  e->local_int32_count_ = int32;
-  e->local_int64_count_ = int64;
-  e->local_float32_count_ = float32;
-  e->local_float64_count_ = float64;
-  float64 = param + int32 + int64 + float32;
-  float32 = param + int32 + int64;
-  int64 = param + int32;
-  int32 = param;
+  e->local_i32_count_ = i32;
+  e->local_i64_count_ = i64;
+  e->local_f32_count_ = f32;
+  e->local_f64_count_ = f64;
+  f64 = param + i32 + i64 + f32;
+  f32 = param + i32 + i64;
+  i64 = param + i32;
+  i32 = param;
   param = 0;
   for (size_t i = 0; i < locals_.size(); i++) {
     if (locals_.at(i).param_) {
       e->params_.push_back(locals_.at(i).type_);
       var_index[i] = param++;
     } else if (locals_.at(i).type_ == kAstI32) {
-      var_index[i] = int32++;
+      var_index[i] = i32++;
     } else if (locals_.at(i).type_ == kAstI64) {
-      var_index[i] = int64++;
+      var_index[i] = i64++;
     } else if (locals_.at(i).type_ == kAstF32) {
-      var_index[i] = float32++;
+      var_index[i] = f32++;
     } else if (locals_.at(i).type_ == kAstF64) {
-      var_index[i] = float64++;
+      var_index[i] = f64++;
     }
   }
 }
@@ -269,7 +263,7 @@ uint32_t WasmFunctionEncoder::BodySize(void) const {
 
 
 uint32_t WasmFunctionEncoder::NameSize() const {
-  return exported_ ? static_cast<uint32_t>(name_.size()) : 0;
+  return HasName() ? static_cast<uint32_t>(name_.size()) : 0;
 }
 
 
@@ -291,10 +285,10 @@ void WasmFunctionEncoder::Serialize(byte* buffer, byte** header,
   }
 
   if (HasLocals()) {
-    EmitUint16(header, local_int32_count_);
-    EmitUint16(header, local_int64_count_);
-    EmitUint16(header, local_float32_count_);
-    EmitUint16(header, local_float64_count_);
+    EmitUint16(header, local_i32_count_);
+    EmitUint16(header, local_i64_count_);
+    EmitUint16(header, local_f32_count_);
+    EmitUint16(header, local_f64_count_);
   }
 
   if (!external_) {
@@ -370,21 +364,21 @@ void WasmModuleBuilder::AddDataSegment(WasmDataSegmentEncoder* data) {
 }
 
 
-int WasmModuleBuilder::CompareFunctionSigs::operator()(FunctionSig* a,
-                                                       FunctionSig* b) const {
-  if (a->return_count() < b->return_count()) return -1;
-  if (a->return_count() > b->return_count()) return 1;
-  if (a->parameter_count() < b->parameter_count()) return -1;
-  if (a->parameter_count() > b->parameter_count()) return 1;
+bool WasmModuleBuilder::CompareFunctionSigs::operator()(FunctionSig* a,
+                                                        FunctionSig* b) const {
+  if (a->return_count() < b->return_count()) return true;
+  if (a->return_count() > b->return_count()) return false;
+  if (a->parameter_count() < b->parameter_count()) return true;
+  if (a->parameter_count() > b->parameter_count()) return false;
   for (size_t r = 0; r < a->return_count(); r++) {
-    if (a->GetReturn(r) < b->GetReturn(r)) return -1;
-    if (a->GetReturn(r) > b->GetReturn(r)) return 1;
+    if (a->GetReturn(r) < b->GetReturn(r)) return true;
+    if (a->GetReturn(r) > b->GetReturn(r)) return false;
   }
   for (size_t p = 0; p < a->parameter_count(); p++) {
-    if (a->GetParam(p) < b->GetParam(p)) return -1;
-    if (a->GetParam(p) > b->GetParam(p)) return 1;
+    if (a->GetParam(p) < b->GetParam(p)) return true;
+    if (a->GetParam(p) > b->GetParam(p)) return false;
   }
-  return 0;
+  return false;
 }
 
 

@@ -683,8 +683,6 @@ class Isolate {
   // set.
   bool MayAccess(Handle<Context> accessing_context, Handle<JSObject> receiver);
 
-  bool IsInternallyUsedPropertyName(Handle<Object> name);
-
   void SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback);
   void ReportFailedAccessCheck(Handle<JSObject> receiver);
 
@@ -820,6 +818,10 @@ class Isolate {
   StubCache* stub_cache() { return stub_cache_; }
   CodeAgingHelper* code_aging_helper() { return code_aging_helper_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
+  bool deoptimizer_lazy_throw() const { return deoptimizer_lazy_throw_; }
+  void set_deoptimizer_lazy_throw(bool value) {
+    deoptimizer_lazy_throw_ = value;
+  }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
   MaterializedObjectStore* materialized_object_store() {
     return materialized_object_store_;
@@ -891,7 +893,7 @@ class Isolate {
 
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
       interp_canonicalize_mapping() {
-    return &interp_canonicalize_mapping_;
+    return &regexp_macro_assembler_canonicalize_;
   }
 
   Debug* debug() { return debug_; }
@@ -958,6 +960,7 @@ class Isolate {
   static const int kArrayProtectorInvalid = 0;
 
   bool IsFastArrayConstructorPrototypeChainIntact();
+  bool IsArraySpeciesLookupChainIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -973,6 +976,7 @@ class Isolate {
   void UpdateArrayProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateArrayProtectorOnSetElement(object);
   }
+  void InvalidateArraySpeciesProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
@@ -1052,6 +1056,10 @@ class Isolate {
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
   void FireCallCompletedCallback();
+
+  void AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
+  void RemoveBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
+  void FireBeforeCallEnteredCallback();
 
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
   void ReportPromiseReject(Handle<JSObject> promise, Handle<Object> value,
@@ -1218,6 +1226,7 @@ class Isolate {
   StubCache* stub_cache_;
   CodeAgingHelper* code_aging_helper_;
   DeoptimizerData* deoptimizer_data_;
+  bool deoptimizer_lazy_throw_;
   MaterializedObjectStore* materialized_object_store_;
   ThreadLocalTop thread_local_top_;
   bool capture_stack_trace_for_uncaught_exceptions_;
@@ -1245,7 +1254,6 @@ class Isolate {
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
   DateCache* date_cache_;
-  unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
 
@@ -1315,6 +1323,9 @@ class Isolate {
 #if TRACE_MAPS
   int next_unique_sfi_id_;
 #endif
+
+  // List of callbacks before a Call starts execution.
+  List<BeforeCallEnteredCallback> before_call_entered_callbacks_;
 
   // List of callbacks when a Call completes.
   List<CallCompletedCallback> call_completed_callbacks_;

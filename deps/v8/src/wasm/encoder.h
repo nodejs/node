@@ -33,21 +33,21 @@ class WasmFunctionEncoder : public ZoneObject {
   friend class WasmFunctionBuilder;
   uint16_t signature_index_;
   ZoneVector<LocalType> params_;
-  uint16_t local_int32_count_;
-  uint16_t local_int64_count_;
-  uint16_t local_float32_count_;
-  uint16_t local_float64_count_;
+  uint16_t local_i32_count_;
+  uint16_t local_i64_count_;
+  uint16_t local_f32_count_;
+  uint16_t local_f64_count_;
   bool exported_;
   bool external_;
   ZoneVector<uint8_t> body_;
   ZoneVector<char> name_;
 
   bool HasLocals() const {
-    return (local_int32_count_ + local_int64_count_ + local_float32_count_ +
-            local_float64_count_) > 0;
+    return (local_i32_count_ + local_i64_count_ + local_f32_count_ +
+            local_f64_count_) > 0;
   }
 
-  bool HasName() const { return exported_ && name_.size() > 0; }
+  bool HasName() const { return (exported_ || external_) && name_.size() > 0; }
 };
 
 class WasmFunctionBuilder : public ZoneObject {
@@ -60,7 +60,6 @@ class WasmFunctionBuilder : public ZoneObject {
                 const uint32_t* local_indices, uint32_t indices_size);
   void Emit(WasmOpcode opcode);
   void EmitWithU8(WasmOpcode opcode, const byte immediate);
-  void EmitWithLocal(WasmOpcode opcode);
   uint32_t EmitEditableImmediate(const byte immediate);
   void EditImmediate(uint32_t offset, const byte immediate);
   void Exported(uint8_t flag);
@@ -134,12 +133,12 @@ class WasmModuleBuilder : public ZoneObject {
   void AddIndirectFunction(uint16_t index);
   WasmModuleWriter* Build(Zone* zone);
 
- private:
   struct CompareFunctionSigs {
-    int operator()(FunctionSig* a, FunctionSig* b) const;
+    bool operator()(FunctionSig* a, FunctionSig* b) const;
   };
   typedef ZoneMap<FunctionSig*, uint16_t, CompareFunctionSigs> SignatureMap;
 
+ private:
   Zone* zone_;
   ZoneVector<FunctionSig*> signatures_;
   ZoneVector<WasmFunctionBuilder*> functions_;

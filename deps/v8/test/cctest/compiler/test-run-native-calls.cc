@@ -1157,6 +1157,99 @@ TEST(MixedParams_1) { MixedParamTest(1); }
 TEST(MixedParams_2) { MixedParamTest(2); }
 TEST(MixedParams_3) { MixedParamTest(3); }
 
+template <typename T>
+void TestStackSlot(MachineType slot_type, T expected) {
+  // Test: Generate with a function f which reserves a stack slot, call an inner
+  // function g from f which writes into the stack slot of f.
+
+  if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+          ->num_allocatable_double_registers() < 2)
+    return;
+
+  Isolate* isolate = CcTest::InitIsolateOnce();
+
+  // Lots of code to generate the build descriptor for the inner function.
+  int parray_gp[] = {
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+          ->GetAllocatableGeneralCode(0),
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+          ->GetAllocatableGeneralCode(1)};
+  int rarray_gp[] = {
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+          ->GetAllocatableGeneralCode(0)};
+  int parray_fp[] = {
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+          ->GetAllocatableDoubleCode(0),
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+          ->GetAllocatableDoubleCode(1)};
+  int rarray_fp[] = {
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
+          ->GetAllocatableDoubleCode(0)};
+  Allocator palloc(parray_gp, 2, parray_fp, 2);
+  Allocator ralloc(rarray_gp, 1, rarray_fp, 1);
+  RegisterConfig config(palloc, ralloc);
+
+  Zone zone;
+  HandleScope scope(isolate);
+  MachineSignature::Builder builder(&zone, 1, 12);
+  builder.AddReturn(MachineType::Int32());
+  for (int i = 0; i < 10; i++) {
+    builder.AddParam(MachineType::Int32());
+  }
+  builder.AddParam(slot_type);
+  builder.AddParam(MachineType::Pointer());
+  MachineSignature* sig = builder.Build();
+  CallDescriptor* desc = config.Create(&zone, sig);
+
+  // Create inner function g. g has lots of parameters so that they are passed
+  // over the stack.
+  Handle<Code> inner;
+  Graph graph(&zone);
+  RawMachineAssembler g(isolate, &graph, desc);
+
+  g.Store(slot_type.representation(), g.Parameter(11), g.Parameter(10),
+          WriteBarrierKind::kNoWriteBarrier);
+  g.Return(g.Parameter(9));
+  inner = CompileGraph("Compute", desc, &graph, g.Export());
+
+  // Create function f with a stack slot which calls the inner function g.
+  BufferedRawMachineAssemblerTester<T> f(slot_type);
+  Node* target = f.HeapConstant(inner);
+  Node* stack_slot = f.StackSlot(slot_type.representation());
+  Node* args[12];
+  for (int i = 0; i < 10; i++) {
+    args[i] = f.Int32Constant(i);
+  }
+  args[10] = f.Parameter(0);
+  args[11] = stack_slot;
+
+  f.CallN(desc, target, args);
+  f.Return(f.Load(slot_type, stack_slot, f.IntPtrConstant(0)));
+
+  CHECK_EQ(expected, f.Call(expected));
+}
+
+TEST(RunStackSlotInt32) {
+  int32_t magic = 0x12345678;
+  TestStackSlot(MachineType::Int32(), magic);
+}
+
+#if !V8_TARGET_ARCH_32_BIT
+TEST(RunStackSlotInt64) {
+  int64_t magic = 0x123456789abcdef0;
+  TestStackSlot(MachineType::Int64(), magic);
+}
+#endif
+
+TEST(RunStackSlotFloat32) {
+  float magic = 1234.125f;
+  TestStackSlot(MachineType::Float32(), magic);
+}
+
+TEST(RunStackSlotFloat64) {
+  double magic = 3456.375;
+  TestStackSlot(MachineType::Float64(), magic);
+}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

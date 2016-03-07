@@ -638,7 +638,13 @@ class LChunk : public ZoneObject {
 
   int ParameterAt(int index);
   int GetParameterStackSlot(int index) const;
-  int spill_slot_count() const { return spill_slot_count_; }
+  bool HasAllocatedStackSlots() const {
+    return current_frame_slots_ != base_frame_slots_;
+  }
+  int GetSpillSlotCount() const {
+    return current_frame_slots_ - base_frame_slots_;
+  }
+  int GetTotalFrameSlotCount() const { return current_frame_slots_; }
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
   Isolate* isolate() const { return graph_->isolate(); }
@@ -687,7 +693,8 @@ class LChunk : public ZoneObject {
  protected:
   LChunk(CompilationInfo* info, HGraph* graph);
 
-  int spill_slot_count_;
+  int base_frame_slots_;
+  int current_frame_slots_;
 
  private:
   void CommitDependencies(Handle<Code> code) const;
@@ -756,8 +763,6 @@ class LChunkBuilderBase BASE_EMBEDDED {
   Zone* zone_;
 };
 
-
-int StackSlotOffset(int index);
 
 enum NumberUntagDMode {
   NUMBER_CANDIDATE_IS_SMI,

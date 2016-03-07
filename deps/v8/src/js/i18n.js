@@ -232,8 +232,8 @@ function addBoundMethod(obj, methodName, implementation, length) {
           // DateTimeFormat.format needs to be 0 arg method, but can stil
           // receive optional dateValue param. If one was provided, pass it
           // along.
-          if (%_ArgumentsLength() > 0) {
-            return implementation(that, %_Arguments(0));
+          if (arguments.length > 0) {
+            return implementation(that, arguments[0]);
           } else {
             return implementation(that);
           }
@@ -1002,8 +1002,8 @@ function initializeCollator(collator, locales, options) {
  * @constructor
  */
 %AddNamedProperty(Intl, 'Collator', function() {
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+    var locales = arguments[0];
+    var options = arguments[1];
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1060,7 +1060,7 @@ function initializeCollator(collator, locales, options) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    return supportedLocalesOf('collator', locales, %_Arguments(1));
+    return supportedLocalesOf('collator', locales, arguments[1]);
   },
   DONT_ENUM
 );
@@ -1255,8 +1255,8 @@ function initializeNumberFormat(numberFormat, locales, options) {
  * @constructor
  */
 %AddNamedProperty(Intl, 'NumberFormat', function() {
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+    var locales = arguments[0];
+    var options = arguments[1];
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1332,7 +1332,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    return supportedLocalesOf('numberformat', locales, %_Arguments(1));
+    return supportedLocalesOf('numberformat', locales, arguments[1]);
   },
   DONT_ENUM
 );
@@ -1659,8 +1659,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  * @constructor
  */
 %AddNamedProperty(Intl, 'DateTimeFormat', function() {
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+    var locales = arguments[0];
+    var options = arguments[1];
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1755,7 +1755,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    return supportedLocalesOf('dateformat', locales, %_Arguments(1));
+    return supportedLocalesOf('dateformat', locales, arguments[1]);
   },
   DONT_ENUM
 );
@@ -1886,8 +1886,8 @@ function initializeBreakIterator(iterator, locales, options) {
  * @constructor
  */
 %AddNamedProperty(Intl, 'v8BreakIterator', function() {
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+    var locales = arguments[0];
+    var options = arguments[1];
 
     if (!this || this === Intl) {
       // Constructor is called as a function.
@@ -1943,7 +1943,7 @@ function initializeBreakIterator(iterator, locales, options) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    return supportedLocalesOf('breakiterator', locales, %_Arguments(1));
+    return supportedLocalesOf('breakiterator', locales, arguments[1]);
   },
   DONT_ENUM
 );
@@ -2061,8 +2061,8 @@ OverrideFunction(GlobalString.prototype, 'localeCompare', function(that) {
       throw MakeTypeError(kMethodInvokedOnNullOrUndefined);
     }
 
-    var locales = %_Arguments(1);
-    var options = %_Arguments(2);
+    var locales = arguments[1];
+    var options = arguments[2];
     var collator = cachedOrNewService('collator', locales, options);
     return compare(collator, this, that);
   }
@@ -2085,7 +2085,7 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
     CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
     var s = TO_STRING(this);
 
-    var formArg = %_Arguments(0);
+    var formArg = arguments[0];
     var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
 
     var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
@@ -2114,8 +2114,8 @@ OverrideFunction(GlobalNumber.prototype, 'toLocaleString', function() {
       throw MakeTypeError(kMethodInvokedOnWrongType, "Number");
     }
 
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+    var locales = arguments[0];
+    var options = arguments[1];
     var numberFormat = cachedOrNewService('numberformat', locales, options);
     return formatNumber(numberFormat, this);
   }
@@ -2151,8 +2151,8 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleString', function() {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+    var locales = arguments[0];
+    var options = arguments[1];
     return toLocaleDateTime(
         this, locales, options, 'any', 'all', 'dateformatall');
   }
@@ -2169,8 +2169,8 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleDateString', function() {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+    var locales = arguments[0];
+    var options = arguments[1];
     return toLocaleDateTime(
         this, locales, options, 'date', 'date', 'dateformatdate');
   }
@@ -2187,8 +2187,8 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    var locales = %_Arguments(0);
-    var options = %_Arguments(1);
+    var locales = arguments[0];
+    var options = arguments[1];
     return toLocaleDateTime(
         this, locales, options, 'time', 'time', 'dateformattime');
   }

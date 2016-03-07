@@ -55,11 +55,14 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScript) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
 
-  if (function->IsJSBoundFunction()) return isolate->heap()->undefined_value();
-  Handle<Object> script(Handle<JSFunction>::cast(function)->shared()->script(),
-                        isolate);
-  if (!script->IsScript()) return isolate->heap()->undefined_value();
-  return *Script::GetWrapper(Handle<Script>::cast(script));
+  if (function->IsJSFunction()) {
+    Handle<Object> script(
+        Handle<JSFunction>::cast(function)->shared()->script(), isolate);
+    if (script->IsScript()) {
+      return *Script::GetWrapper(Handle<Script>::cast(script));
+    }
+  }
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -67,8 +70,10 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
-  if (function->IsJSBoundFunction()) return isolate->heap()->undefined_value();
-  return *Handle<JSFunction>::cast(function)->shared()->GetSourceCode();
+  if (function->IsJSFunction()) {
+    return *Handle<JSFunction>::cast(function)->shared()->GetSourceCode();
+  }
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -86,13 +91,9 @@ RUNTIME_FUNCTION(Runtime_FunctionGetPositionForOffset) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
 
-  CONVERT_ARG_CHECKED(Code, code, 0);
+  CONVERT_ARG_CHECKED(AbstractCode, abstract_code, 0);
   CONVERT_NUMBER_CHECKED(int, offset, Int32, args[1]);
-
-  RUNTIME_ASSERT(0 <= offset && offset < code->Size());
-
-  Address pc = code->address() + offset;
-  return Smi::FromInt(code->SourcePosition(pc));
+  return Smi::FromInt(abstract_code->SourcePosition(offset));
 }
 
 
@@ -166,6 +167,9 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   // Set the code, scope info, formal parameter count, and the length
   // of the target shared function info.
   target_shared->ReplaceCode(source_shared->code());
+  if (source_shared->HasBytecodeArray()) {
+    target_shared->set_function_data(source_shared->bytecode_array());
+  }
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
   target_shared->set_feedback_vector(source_shared->feedback_vector());
@@ -231,7 +235,6 @@ RUNTIME_FUNCTION(Runtime_IsConstructor) {
   CONVERT_ARG_CHECKED(Object, object, 0);
   return isolate->heap()->ToBoolean(object->IsConstructor());
 }
-
 
 RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
   SealHandleScope shs(isolate);
