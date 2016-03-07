@@ -323,6 +323,8 @@ function error_test() {
     { client: client_unix, send: 'function x(s) {\nreturn s.replace(/.*/,"");\n}',
       expect: prompt_multiline + prompt_multiline +
             'undefined\n' + prompt_unix },
+    { client: client_unix, send: '{ var x = 4; }',
+      expect: 'undefined\n' + prompt_unix },
   ]);
 }
 
