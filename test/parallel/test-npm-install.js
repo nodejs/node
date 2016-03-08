@@ -22,7 +22,11 @@ const args = [
   'install'
 ];
 
-const pkgContent = '{}';
+const pkgContent = JSON.stringify({
+  dependencies: {
+    'package-name': common.fixturesDir + '/packages/main'
+  }
+});
 
 const pkgPath = path.join(common.tmpDir, 'package.json');
 
@@ -35,6 +39,9 @@ const proc = spawn(process.execPath, args, {
 function handleExit(code, signalCode) {
   assert.equal(code, 0, 'npm install should run without an error');
   assert.ok(signalCode === null, 'signalCode should be null');
+  assert.doesNotThrow(function() {
+    fs.accessSync(common.tmpDir + '/node_modules/package-name');
+  });
 }
 
 proc.on('exit', common.mustCall(handleExit));
