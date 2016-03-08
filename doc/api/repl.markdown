@@ -86,6 +86,9 @@ The special variable `_` (underscore) contains the result of the last expression
 4
 ```
 
+Explicitly setting `_` will disable this behavior. To re-enable auto-assigning
+`_`, you will need to reset the context. To do this, type `.clear`.
+
 The REPL provides access to any variables in the global scope. You can expose
 a variable to the REPL explicitly by assigning it to the `context` object
 associated with each `REPLServer`.  For example:
