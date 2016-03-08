@@ -210,6 +210,10 @@ class ProcessWrap : public HandleWrap {
       }
     }
 
+    printf("flags: %x detach %x hide %x\n",
+            (unsigned)options.flags,
+            (unsigned)UV_PROCESS_DETACHED,
+            (unsigned)UV_PROCESS_WINDOWS_HIDE);
     int err = uv_spawn(env->event_loop(), &wrap->process_, &options);
 
     if (err == 0) {
