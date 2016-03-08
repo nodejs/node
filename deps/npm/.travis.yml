@@ -1,7 +1,8 @@
 language: node_js
+sudo: false
 node_js:
-  - "4.1"
-  - "4.0"
+  - "5"
+  - "4"
   - iojs
   - "0.12"
   - "0.10"
@@ -11,7 +12,7 @@ env:
 before_install:
   - "npm config set spin false"
   - "npm install -g npm/npm#2.x"
-  - "sudo mkdir -p /var/run/couchdb"
-script: "npm run-script test-all"
+  - "mkdir -p /var/run/couchdb"
+script: "npm test"
 notifications:
     slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8

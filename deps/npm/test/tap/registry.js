@@ -38,11 +38,14 @@ function runTests () {
     cwd: ca,
     stdio: "inherit"
   }
-  common.npm(["install"], opts, function (err, code) {
+  common.npm(["install"], opts, function (err, code, stdout, stderr) {
     if (err) { throw err }
     if (code) {
       return test("need install to work", function (t) {
-        t.fail("install failed with: " + code)
+        t.fail(
+          "install failed with: " + code +
+          '\nstdout: ' + stdout +
+          '\nstderr: ' + stderr)
         t.end()
       })
 
@@ -52,24 +55,32 @@ function runTests () {
         env: env,
         stdio: "inherit"
       }
-      common.npm(["test", "--", "-Rtap"], opts, function (err, code) {
-        if (err) { throw err }
-        if (code) {
-          return test("need test to work", function (t) {
-            t.fail("test failed with: " + code)
-            t.end()
+      common.npm(
+        [
+          "test", "--", "-Rtap"
+        ],
+        opts,
+        function (err, code, stdout, stderr) {
+          if (err) { throw err }
+          if (code) {
+            return test("need test to work", function (t) {
+              t.fail(
+                "test failed with: " + code +
+                '\nstdout: ' + stdout +
+                '\nstderr: ' + stderr)
+                t.end()
+              })
+            }
+            opts = {
+              cwd: ca,
+              env: env,
+              stdio: "inherit"
+            }
+            common.npm(["prune", "--production"], opts, function (err, code) {
+              if (err) { throw err }
+              process.exit(code || 0)
+            })
           })
         }
-        opts = {
-          cwd: ca,
-          env: env,
-          stdio: "inherit"
-        }
-        common.npm(["prune", "--production"], opts, function (err, code) {
-          if (err) { throw err }
-          process.exit(code || 0)
-        })
-      })
-    }
   })
 }

@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "November 2015" "" ""
+.TH "NPM\-INSTALL" "1" "March 2016" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -9,7 +9,7 @@ npm install (with no args in a package dir)
 npm install <tarball file>
 npm install <tarball url>
 npm install <folder>
-npm install [@<scope>/]<name> [\-\-save|\-\-save\-dev|\-\-save\-optional] [\-\-save\-exact]
+npm install [@<scope>/]<name> [\-\-save|\-\-save\-dev|\-\-save\-optional] [\-\-save\-exact] [\-\-save\-bundle]
 npm install [@<scope>/]<name>@<tag>
 npm install [@<scope>/]<name>@<version>
 npm install [@<scope>/]<name>@<version range>
@@ -25,7 +25,7 @@ by that\. See npm help shrinkwrap\.
 A \fBpackage\fP is:
 .RS 0
 .IP \(bu 2
-a) a folder containing a program described by a package\.json file
+a) a folder containing a program described by a npm help 5 \fBpackage\.json\fP file
 .IP \(bu 2
 b) a gzipped tarball containing (a)
 .IP \(bu 2
@@ -33,7 +33,7 @@ c) a url that resolves to (b)
 .IP \(bu 2
 d) a \fB<name>@<version>\fP that is published on the registry (see npm help 7 \fBnpm\-registry\fP) with (c)
 .IP \(bu 2
-e) a \fB<name>@<tag>\fP that points to (d)
+e) a \fB<name>@<tag>\fP (see npm help \fBnpm\-dist\-tag\fP) that points to (d)
 .IP \(bu 2
 f) a \fB<name>\fP that has a "latest" tag satisfying (e)
 .IP \(bu 2
@@ -52,7 +52,8 @@ after packing it up into a tarball (b)\.
   In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
   it installs the current package context (ie, the current working
   directory) as a global package\.
-  By default, \fBnpm install\fP will install all modules listed as dependencies\.
+  By default, \fBnpm install\fP will install all modules listed as dependencies
+  in npm help 5 \fBpackage\.json\fP\|\.
   With the \fB\-\-production\fP flag (or when the \fBNODE_ENV\fP environment variable
   is set to \fBproduction\fP), npm will not install modules listed in
   \fBdevDependencies\fP\|\.
@@ -85,7 +86,7 @@ after packing it up into a tarball (b)\.
 .IP \(bu 2
 \fBnpm install [@<scope>/]<name> [\-\-save|\-\-save\-dev|\-\-save\-optional]\fP:
   Do a \fB<name>@<tag>\fP install, where \fB<tag>\fP is the "tag" config\. (See
-  npm help 7 \fBnpm\-config\fP\|\.)
+  npm help 7 \fBnpm\-config\fP\|\. The config's default value is \fBlatest\fP\|\.)
   In most cases, this will install the latest version
   of the module published on npm\.
   Example:
@@ -105,14 +106,13 @@ after packing it up into a tarball (b)\.
 .IP \(bu 2
 \fB\-\-save\-optional\fP: Package will appear in your \fBoptionalDependencies\fP\|\.
 When using any of the above options to save dependencies to your
-package\.json, there is an additional, optional flag:
+package\.json, there are two additional, optional flags:
 .IP \(bu 2
 \fB\-\-save\-exact\fP: Saved dependencies will be configured with an
 exact version rather than using npm's default semver range
 operator\.
-\fB<scope>\fP is optional\. The package will be downloaded from the registry
-associated with the specified scope\. If no registry is associated with
-the given scope the default registry is assumed\. See npm help 7 \fBnpm\-scope\fP\|\.
+.IP \(bu 2
+\fB\-B, \-\-save\-bundle\fP: Saved dependencies will also be added to your \fBbundleDependencies\fP list\.
 Note: if you do not include the @\-symbol on your scope name, npm will
 interpret this as a GitHub repository instead, see below\. Scopes names
 must also be followed by a slash\.
@@ -126,6 +126,7 @@ npm install @myorg/privatepackage
 npm install node\-tap \-\-save\-dev
 npm install dtrace\-provider \-\-save\-optional
 npm install readable\-stream \-\-save \-\-save\-exact
+npm install ansi\-regex \-\-save \-\-save\-bundle
 .fi
 .RE
 
@@ -402,9 +403,11 @@ npm help 7 registry
 .IP \(bu 2
 npm help tag
 .IP \(bu 2
-npm help rm
+npm help uninstall
 .IP \(bu 2
 npm help shrinkwrap
+.IP \(bu 2
+npm help 5 package\.json
 
 .RE
 

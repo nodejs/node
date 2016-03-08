@@ -157,10 +157,10 @@ For example, if your package.json contains this:
       }
     }
 
-then the `scripts/install.js` will be called for the install,
-post-install, stages of the lifecycle, and the `scripts/uninstall.js`
-would be called when the package is uninstalled.  Since
-`scripts/install.js` is running for three different phases, it would
+then `scripts/install.js` will be called for the install
+and post-install stages of the lifecycle, and `scripts/uninstall.js`
+will be called when the package is uninstalled.  Since
+`scripts/install.js` is running for two different phases, it would
 be wise in this case to look at the `npm_lifecycle_event` environment
 variable.
 
@@ -210,7 +210,7 @@ above.
   by simply describing your package appropriately.  In general, this
   will lead to a more robust and consistent state.
 * Inspect the env to determine where to put things.  For instance, if
-  the `npm_config_binroot` environ is set to `/home/user/bin`, then
+  the `npm_config_binroot` environment variable is set to `/home/user/bin`, then
   don't try to install executables into `/usr/local/bin`.  The user
   probably set it up that way for a reason.
 * Don't prefix your script commands with "sudo".  If root permissions
