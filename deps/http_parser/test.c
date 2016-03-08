@@ -2444,7 +2444,7 @@ upgrade_message_fix(char *body, const size_t nread, const size_t nmsgs, ...) {
   va_list ap;
   size_t i;
   size_t off = 0;
- 
+
   va_start(ap, nmsgs);
 
   for (i = 0; i < nmsgs; i++) {
@@ -3383,7 +3383,7 @@ test_chunked_content_length_error (int req)
 
   parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
   if (parsed != buflen) {
-    assert(HTTP_PARSER_ERRNO(&parser) == HPE_CHUNKED_WITH_CONTENT_LENGTH);
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_UNEXPECTED_CONTENT_LENGTH);
     return;
   }
 
@@ -3932,6 +3932,11 @@ main (void)
   /// REQUESTS
 
   test_simple("GET / HTP/1.1\r\n\r\n", HPE_INVALID_VERSION);
+
+  // Extended characters - see nodejs/test/parallel/test-http-headers-obstext.js
+  test_simple("GET / HTTP/1.1\r\n"
+              "Test: Düsseldorf\r\n",
+              HPE_OK);
 
   // Well-formed but incomplete
   test_simple("GET / HTTP/1.1\r\n"
