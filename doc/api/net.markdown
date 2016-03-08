@@ -317,6 +317,7 @@ Not applicable to UNIX sockets.
 * `err` {Error|Null} The error object.  See [`dns.lookup()`][].
 * `address` {String} The IP address.
 * `family` {String|Null} The address type.  See [`dns.lookup()`][].
+* `host` {String} The hostname.
 
 ### Event: 'timeout'
 
