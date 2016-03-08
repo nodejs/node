@@ -1038,6 +1038,16 @@ assert.throws(function() {
   Buffer(0xFFFFFFFFF);
 }, RangeError);
 
+// issue GH-5587
+assert.throws(function() {
+  var buf = new Buffer(8);
+  buf.writeFloatLE(0, 5);
+}, RangeError);
+assert.throws(function() {
+  var buf = new Buffer(16);
+  buf.writeDoubleLE(0, 9);
+}, RangeError);
+
 
 // attempt to overflow buffers, similar to previous bug in array buffers
 assert.throws(function() {

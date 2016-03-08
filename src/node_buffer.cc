@@ -814,14 +814,14 @@ void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   size_t offset = args[2]->IntegerValue(env->context()).FromMaybe(0);
 
   size_t memcpy_num = sizeof(T);
-  if (offset + sizeof(T) > ts_obj_length)
-    memcpy_num = ts_obj_length - offset;
 
   if (should_assert) {
     CHECK_NOT_OOB(offset + memcpy_num >= memcpy_num);
     CHECK_NOT_OOB(offset + memcpy_num <= ts_obj_length);
   }
-  CHECK_LE(offset + memcpy_num, ts_obj_length);
+
+  if (offset + memcpy_num > ts_obj_length)
+    memcpy_num = ts_obj_length - offset;
 
   union NoAlias {
     T val;
