@@ -1,0 +1,56 @@
+{
+  "name": "ecc-jsbn",
+  "version": "0.1.1",
+  "description": "ECC JS code based on JSBN",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quartzjer/ecc-jsbn.git"
+  },
+  "keywords": [
+    "jsbn",
+    "ecc",
+    "browserify"
+  ],
+  "author": {
+    "name": "Jeremie Miller",
+    "email": "jeremie@jabber.org",
+    "url": "http://jeremie.com/"
+  },
+  "maintainers": [
+    {
+      "name": "quartzjer",
+      "email": "jeremie@jabber.org"
+    },
+    {
+      "name": "rynomad",
+      "email": "nomad.ry@gmail.com"
+    }
+  ],
+  "dependencies": {
+    "jsbn": "~0.1.0"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/quartzjer/ecc-jsbn/issues"
+  },
+  "homepage": "https://github.com/quartzjer/ecc-jsbn",
+  "gitHead": "d35a360352496721030da645e8054f07efc22487",
+  "_id": "ecc-jsbn@0.1.1",
+  "scripts": {},
+  "_shasum": "0fc73a9ed5f0d53c38193398523ef7e543777505",
+  "_from": "ecc-jsbn@>=0.0.1 <1.0.0",
+  "_npmVersion": "2.11.2",
+  "_nodeVersion": "0.12.6",
+  "_npmUser": {
+    "name": "quartzjer",
+    "email": "jeremie@jabber.org"
+  },
+  "dist": {
+    "shasum": "0fc73a9ed5f0d53c38193398523ef7e543777505",
+    "tarball": "http://registry.npmjs.org/ecc-jsbn/-/ecc-jsbn-0.1.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/ecc-jsbn/-/ecc-jsbn-0.1.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

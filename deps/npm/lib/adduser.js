@@ -3,13 +3,12 @@ module.exports = adduser
 
 var log = require("npmlog")
   , npm = require("./npm.js")
-  , registry = npm.registry
   , read = require("read")
   , userValidate = require("npm-user-validate")
   , crypto
 
 try {
-  crypto = process.binding("crypto") && require("crypto")
+  crypto = require("crypto")
 } catch (ex) {}
 
 adduser.usage = "npm adduser\nThen enter stuff at the prompts"
@@ -19,9 +18,10 @@ function adduser (args, cb) {
   if (!crypto) return cb(new Error(
     "You must compile node with ssl support to use the adduser feature"))
 
-  var c = { u : npm.config.get("username") || ""
-          , p : npm.config.get("_password") || ""
-          , e : npm.config.get("email") || ""
+  var creds = npm.config.getCredentialsByURI(npm.config.get("registry"))
+  var c = { u : creds.username || ""
+          , p : creds.password || ""
+          , e : creds.email || ""
           }
     , u = {}
     , fns = [readUsername, readPassword, readEmail, save]
@@ -94,7 +94,7 @@ function readPassword (c, u, cb) {
       return readPassword(c, u, cb)
     }
 
-    c.changed = c.changed || c.p != pw
+    c.changed = c.changed || c.p !== pw
     u.p = pw
     cb(er)
   })
@@ -124,26 +124,54 @@ function readEmail (c, u, cb) {
 }
 
 function save (c, u, cb) {
-  if (c.changed) {
-    delete registry.auth
-    delete registry.username
-    delete registry.password
-    registry.username = u.u
-    registry.password = u.p
-  }
   npm.spinner.start()
+
   // save existing configs, but yank off for this PUT
-  registry.adduser(npm.config.get("registry"), u.u, u.p, u.e, function (er) {
+  var uri   = npm.config.get("registry")
+  var scope = npm.config.get("scope")
+
+  // there may be a saved scope and no --registry (for login)
+  if (scope) {
+    if (scope.charAt(0) !== "@") scope = "@" + scope
+
+    var scopedRegistry = npm.config.get(scope + ":registry")
+    var cliRegistry = npm.config.get("registry", "cli")
+    if (scopedRegistry && !cliRegistry) uri = scopedRegistry
+  }
+
+  var params = {
+    auth : {
+      username : u.u,
+      password : u.p,
+      email    : u.e
+    }
+  }
+  npm.registry.adduser(uri, params, function (er, doc) {
     npm.spinner.stop()
     if (er) return cb(er)
-    registry.username = u.u
-    registry.password = u.p
-    registry.email = u.e
-    npm.config.set("username", u.u, "user")
-    npm.config.set("_password", u.p, "user")
-    npm.config.set("email", u.e, "user")
+
+    // don't want this polluting the configuration
     npm.config.del("_token", "user")
-    log.info("adduser", "Authorized user %s", u.u)
-    npm.config.save("user", cb)
+
+    if (scope) npm.config.set(scope + ":registry", uri, "user")
+
+    if (doc && doc.token) {
+      npm.config.setCredentialsByURI(uri, {
+        token : doc.token
+      })
+    }
+    else {
+      npm.config.setCredentialsByURI(uri, {
+        username   : u.u,
+        password   : u.p,
+        email      : u.e,
+        alwaysAuth : npm.config.get("always-auth")
+      })
+    }
+
+    log.info('adduser', 'Authorized user %s', u.u)
+    var scopeMessage = scope ? ' to scope ' + scope : ''
+    console.log('Logged in as %s%s on %s.', u.u, scopeMessage, uri)
+    npm.config.save('user', cb)
   })
 }

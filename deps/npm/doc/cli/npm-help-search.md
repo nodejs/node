@@ -21,7 +21,7 @@ command directly.
 ### long
 
 * Type: Boolean
-* Default false
+* Default: false
 
 If true, the "long" flag will cause help-search to output context around
 where the terms were found in the documentation.

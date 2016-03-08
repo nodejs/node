@@ -5,6 +5,7 @@ var readInstalled = require("read-installed")
   , semver = require("semver")
   , log = require("npmlog")
   , npm = require("./npm.js")
+  , npa = require("npm-package-arg")
 
 rebuild.usage = "npm rebuild [<name>[@<version>] [name[@<version>] ...]]"
 
@@ -46,9 +47,9 @@ function filter (data, args, set, seen) {
   else if (data.name && data._id) {
     for (var i = 0, l = args.length; i < l; i ++) {
       var arg = args[i]
-        , nv = arg.split("@")
-        , n = nv.shift()
-        , v = nv.join("@")
+        , nv = npa(arg)
+        , n = nv.name
+        , v = nv.rawSpec
       if (n !== data.name) continue
       if (!semver.satisfies(data.version, v, true)) continue
       pass = true

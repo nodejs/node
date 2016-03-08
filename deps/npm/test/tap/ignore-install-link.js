@@ -4,20 +4,17 @@ if (process.platform === "win32") {
 }
 var common = require("../common-tap.js")
 var test = require("tap").test
-var npm = require.resolve("../../bin/npm-cli.js")
-var node = process.execPath
 var path = require("path")
 var fs = require("fs")
 var rimraf = require("rimraf")
 var mkdirp = require("mkdirp")
-var spawn = require("child_process").spawn
 
 var root = path.resolve(__dirname, "ignore-install-link")
 var pkg = path.resolve(root, "pkg")
 var dep = path.resolve(root, "dep")
 var target = path.resolve(pkg, "node_modules", "dep")
 var cache = path.resolve(root, "cache")
-var global = path.resolve(root, "global")
+var globalPath = path.resolve(root, "global")
 
 var pkgj = { "name":"pkg", "version": "1.2.3"
            , "dependencies": { "dep": "1.2.3" } }
@@ -34,7 +31,7 @@ test("setup", function (t) {
   mkdirp.sync(path.resolve(pkg, "node_modules"))
   mkdirp.sync(dep)
   mkdirp.sync(cache)
-  mkdirp.sync(global)
+  mkdirp.sync(globalPath)
   fs.writeFileSync(path.resolve(pkg, "package.json"), JSON.stringify(pkgj))
   fs.writeFileSync(path.resolve(dep, "package.json"), JSON.stringify(depj))
   fs.symlinkSync(dep, target, "dir")
@@ -47,15 +44,15 @@ test("ignore install if package is linked", function (t) {
     env: {
       PATH: process.env.PATH || process.env.Path,
       HOME: process.env.HOME,
-      npm_config_prefix: global,
-      npm_config_cache: cache,
-      npm_config_registry: common.registry,
-      npm_config_loglevel: "silent"
+      "npm_config_prefix": globalPath,
+      "npm_config_cache": cache,
+      "npm_config_registry": common.registry,
+      "npm_config_loglevel": "silent"
     },
     stdio: "inherit"
-  }, function (er, code, stdout, stderr) {
+  }, function (er, code) {
     if (er) throw er
-    t.equal(code, 0)
+    t.equal(code, 0, "npm install exited with code")
     t.end()
   })
 })

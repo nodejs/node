@@ -1,5 +1,6 @@
-var url = require("url")
-  , npm = require("./npm.js")
+var npm = require("./npm.js")
+  , mapToRegistry = require("./utils/map-to-registry.js")
+  , npa = require("npm-package-arg")
 
 module.exports = deprecate
 
@@ -8,16 +9,23 @@ deprecate.usage = "npm deprecate <pkg>[@<version>] <message>"
 deprecate.completion = function (opts, cb) {
   // first, get a list of remote packages this user owns.
   // once we have a user account, then don't complete anything.
-  var un = npm.config.get("username")
-  if (!npm.config.get("username")) return cb()
   if (opts.conf.argv.remain.length > 2) return cb()
   // get the list of packages by user
-  var path = "/-/by-user/"+encodeURIComponent(un)
-    , uri = url.resolve(npm.config.get("registry"), path)
-  npm.registry.get(uri, { timeout : 60000 }, function (er, list) {
-    if (er) return cb()
-    console.error(list)
-    return cb(null, list[un])
+  var path = "/-/by-user/"
+  mapToRegistry(path, npm.config, function (er, uri, c) {
+    if (er) return cb(er)
+
+    if (!(c && c.username)) return cb()
+
+    var params = {
+      timeout : 60000,
+      auth    : c
+    }
+    npm.registry.get(uri + c.username, params, function (er, list) {
+      if (er) return cb()
+      console.error(list)
+      return cb(null, list[c.username])
+    })
   })
 }
 
@@ -25,11 +33,18 @@ function deprecate (args, cb) {
   var pkg = args[0]
     , msg = args[1]
   if (msg === undefined) return cb("Usage: " + deprecate.usage)
-  // fetch the data and make sure it exists.
-  pkg = pkg.split(/@/)
-  var name = pkg.shift()
-    , ver = pkg.join("@")
-    , uri = url.resolve(npm.config.get("registry"), name)
 
-  npm.registry.deprecate(uri, ver, msg, cb)
+  // fetch the data and make sure it exists.
+  var p = npa(pkg)
+
+  mapToRegistry(p.name, npm.config, function (er, uri, auth) {
+    if (er) return cb(er)
+
+    var params = {
+      version : p.spec,
+      message : msg,
+      auth    : auth
+    }
+    npm.registry.deprecate(uri, params, cb)
+  })
 }

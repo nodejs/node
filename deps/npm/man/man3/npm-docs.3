@@ -1,28 +1,22 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-DOCS" "3" "November 2015" "" ""
-.
+.TH "NPM\-DOCS" "3" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-docs\fR \-\- Docs for a package in a web browser maybe
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-docs\fR \- Docs for a package in a web browser maybe
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm\.commands\.docs(package, callback)
-.
 .fi
-.
-.SH "DESCRIPTION"
-This command tries to guess at the likely location of a package\'s
-documentation URL, and then tries to open it using the \fB\-\-browser\fR
+.RE
+.SH DESCRIPTION
+.P
+This command tries to guess at the likely location of a package's
+documentation URL, and then tries to open it using the \fB\-\-browser\fP
 config param\.
-.
 .P
 Like other commands, the first parameter is an array\. This command only
 uses the first element, which is expected to be a package name with an
 optional version number\.
-.
 .P
 This command will launch a browser, so this command may not be the most
 friendly for programmatic use\.

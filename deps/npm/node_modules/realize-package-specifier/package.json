@@ -1,0 +1,57 @@
+{
+  "name": "realize-package-specifier",
+  "version": "3.0.1",
+  "description": "Like npm-package-arg, but more so, producing full file paths and differentiating local tar and directory sources.",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/realize-package-specifier.git"
+  },
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org"
+  },
+  "homepage": "https://github.com/npm/realize-package-specifier",
+  "dependencies": {
+    "dezalgo": "^1.0.1",
+    "npm-package-arg": "^4.0.0"
+  },
+  "devDependencies": {
+    "require-inject": "^1.1.0",
+    "tap": "^0.4.12"
+  },
+  "gitHead": "4f50130fa6b5e80954a90ea12bab382f53d890b1",
+  "bugs": {
+    "url": "https://github.com/npm/realize-package-specifier/issues"
+  },
+  "_id": "realize-package-specifier@3.0.1",
+  "_shasum": "fde32e926448e38f99334d95b7b08d51e3a98d9f",
+  "_from": "realize-package-specifier@>=3.0.0 <3.1.0",
+  "_npmVersion": "2.10.1",
+  "_nodeVersion": "2.0.2",
+  "_npmUser": {
+    "name": "othiym23",
+    "email": "ogd@aoaioxxysz.net"
+  },
+  "dist": {
+    "shasum": "fde32e926448e38f99334d95b7b08d51e3a98d9f",
+    "tarball": "http://registry.npmjs.org/realize-package-specifier/-/realize-package-specifier-3.0.1.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/realize-package-specifier/-/realize-package-specifier-3.0.1.tgz"
+}

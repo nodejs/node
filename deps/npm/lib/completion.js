@@ -6,7 +6,7 @@ completion.usage = "npm completion >> ~/.bashrc\n"
                  + "source <(npm completion)"
 
 var npm = require("./npm.js")
-  , npmconf = require("npmconf")
+  , npmconf = require("./config/core.js")
   , configDefs = npmconf.defs
   , configTypes = configDefs.types
   , shorthands = configDefs.shorthands
@@ -47,10 +47,10 @@ completion.completion = function (opts, cb) {
 }
 
 function completion (args, cb) {
-  if (process.platform === "win32") {
-    var e = new Error("npm completion not supported on windows")
-    e.code = "ENOTSUP"
-    e.errno = require("constants").ENOTSUP
+  if (process.platform === 'win32' && !(/^MINGW(32|64)$/.test(process.env.MSYSTEM))) {
+    var e = new Error('npm completion supported only in MINGW / Git bash on Windows')
+    e.code = 'ENOTSUP'
+    e.errno = require('constants').ENOTSUP
     return cb(e)
   }
 
@@ -229,7 +229,7 @@ function configCompl (opts, cb) {
 // expand with the valid values of various config values.
 // not yet implemented.
 function configValueCompl (opts, cb) {
-  console.error('configValue', opts)
+  console.error("configValue", opts)
   return cb(null, [])
 }
 

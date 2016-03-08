@@ -1,26 +1,20 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-VERSION" "3" "November 2015" "" ""
-.
+.TH "NPM\-VERSION" "3" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-version\fR \-\- Bump a package version
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-version\fR \- Bump a package version
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm\.commands\.version(newversion, callback)
-.
 .fi
-.
-.SH "DESCRIPTION"
+.RE
+.SH DESCRIPTION
+.P
 Run this in a package directory to bump the version and write the new
 data back to the package\.json file\.
-.
 .P
 If run in a git repo, it will also create a version commit and tag, and
 fail if the repo is not clean\.
-.
 .P
 Like all other commands, this function takes a string array as its first
 parameter\. The difference, however, is this function will fail if it does

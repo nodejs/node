@@ -1,0 +1,48 @@
+{
+  "name": "graceful-readlink",
+  "version": "1.0.1",
+  "description": "graceful fs.readlink",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/zhiyelee/graceful-readlink.git"
+  },
+  "homepage": "https://github.com/zhiyelee/graceful-readlink",
+  "bugs": {
+    "url": "https://github.com/zhiyelee/graceful-readlink/issues"
+  },
+  "keywords": [
+    "fs.readlink",
+    "readlink"
+  ],
+  "author": {
+    "name": "zhiyelee"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "gitHead": "f6655275bebef706fb63fd01b5f062a7052419a5",
+  "_id": "graceful-readlink@1.0.1",
+  "_shasum": "4cafad76bc62f02fa039b2f94e9a3dd3a391a725",
+  "_from": "graceful-readlink@>=1.0.0",
+  "_npmVersion": "2.1.17",
+  "_nodeVersion": "0.11.14",
+  "_npmUser": {
+    "name": "zhiyelee",
+    "email": "zhiyelee@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "zhiyelee",
+      "email": "zhiyelee@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "4cafad76bc62f02fa039b2f94e9a3dd3a391a725",
+    "tarball": "http://registry.npmjs.org/graceful-readlink/-/graceful-readlink-1.0.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/graceful-readlink/-/graceful-readlink-1.0.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

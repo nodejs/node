@@ -1,5 +1,4 @@
-var fs = require("graceful-fs")
-  , assert = require("assert")
+var assert = require("assert")
   , path = require("path")
   , mkdir = require("mkdirp")
   , chownr = require("chownr")
@@ -9,56 +8,39 @@ var fs = require("graceful-fs")
   , npm = require("../npm.js")
   , tar = require("../utils/tar.js")
   , deprCheck = require("../utils/depr-check.js")
-  , locker = require("../utils/locker.js")
-  , lock = locker.lock
-  , unlock = locker.unlock
   , getCacheStat = require("./get-stat.js")
-  , addNamed = require("./add-named.js")
+  , cachedPackageRoot = require("./cached-package-root.js")
   , addLocalTarball = require("./add-local-tarball.js")
-  , maybeGithub = require("./maybe-github.js")
   , sha = require("sha")
+  , inflight = require("inflight")
 
 module.exports = addLocal
 
 function addLocal (p, pkgData, cb_) {
-  assert(typeof p === "string", "must have path")
+  assert(typeof p === "object", "must have spec info")
   assert(typeof cb === "function", "must have callback")
 
   pkgData = pkgData || {}
 
   function cb (er, data) {
-    unlock(p, function () {
-      if (er) {
-        // if it doesn't have a / in it, it might be a
-        // remote thing.
-        if (p.indexOf("/") === -1 && p.charAt(0) !== "."
-           && (process.platform !== "win32" || p.indexOf("\\") === -1)) {
-          return addNamed(p, "", null, cb_)
-        }
-        log.error("addLocal", "Could not install %s", p)
-        return cb_(er)
-      }
-      if (data && !data._fromGithub) data._from = p
-      return cb_(er, data)
-    })
+    if (er) {
+      log.error("addLocal", "Could not install %s", p.spec)
+      return cb_(er)
+    }
+    if (data && !data._fromGithub) {
+      data._from = path.relative(npm.prefix, p.spec) || "."
+      var resolved = path.relative(npm.prefix, p.spec)
+      if (resolved) data._resolved = "file:"+resolved
+    }
+    return cb_(er, data)
   }
 
-  lock(p, function (er) {
-    if (er) return cb(er)
-    // figure out if this is a folder or file.
-    fs.stat(p, function (er, s) {
-      if (er) {
-        // might be username/project
-        // in that case, try it as a github url.
-        if (p.split("/").length === 2) {
-          return maybeGithub(p, er, cb)
-        }
-        return cb(er)
-      }
-      if (s.isDirectory()) addLocalDirectory(p, pkgData, null, cb)
-      else addLocalTarball(p, pkgData, null, cb)
-    })
-  })
+  if (p.type === "directory") {
+    addLocalDirectory(p.spec, pkgData, null, cb)
+  }
+  else {
+    addLocalTarball(p.spec, pkgData, null, cb)
+  }
 }
 
 // At this point, if shasum is set, it's something that we've already
@@ -73,44 +55,51 @@ function addLocalDirectory (p, pkgData, shasum, cb) {
     "Adding a cache directory to the cache will make the world implode."))
 
   readJson(path.join(p, "package.json"), false, function (er, data) {
-    er = needName(er, data)
-    er = needVersion(er, data)
-
-    // check that this is what we expected.
-    if (!er && pkgData.name && pkgData.name !== data.name) {
-      er = new Error( "Invalid Package: expected "
-                    + pkgData.name + " but found "
-                    + data.name )
-    }
-
-    if (!er && pkgData.version && pkgData.version !== data.version) {
-      er = new Error( "Invalid Package: expected "
-                    + pkgData.name + "@" + pkgData.version
-                    + " but found "
-                    + data.name + "@" + data.version )
-    }
-
     if (er) return cb(er)
+
+    if (!data.name) {
+      return cb(new Error("No name provided in package.json"))
+    }
+    else if (pkgData.name && pkgData.name !== data.name) {
+      return cb(new Error(
+        "Invalid package: expected " + pkgData.name + " but found " + data.name
+      ))
+    }
+
+    if (!data.version) {
+      return cb(new Error("No version provided in package.json"))
+    }
+    else if (pkgData.version && pkgData.version !== data.version) {
+      return cb(new Error(
+        "Invalid package: expected " + pkgData.name + "@" + pkgData.version +
+          " but found " + data.name + "@" + data.version
+      ))
+    }
+
     deprCheck(data)
 
     // pack to {cache}/name/ver/package.tgz
-    var croot = path.resolve(npm.cache, data.name, data.version)
-    var tgz = path.resolve(croot, "package.tgz")
-    var pj = path.resolve(croot, "package/package.json")
+    var root = cachedPackageRoot(data)
+    var tgz = path.resolve(root, "package.tgz")
+    var pj = path.resolve(root, "package/package.json")
+
+    var wrapped = inflight(tgz, next)
+    if (!wrapped) return log.verbose("addLocalDirectory", tgz, "already in flight; waiting")
+    log.verbose("addLocalDirectory", tgz, "not in flight; packing")
+
     getCacheStat(function (er, cs) {
       mkdir(path.dirname(pj), function (er, made) {
         if (er) return cb(er)
         var fancy = !pathIsInside(p, npm.tmp)
         tar.pack(tgz, p, data, fancy, function (er) {
           if (er) {
-            log.error( "addLocalDirectory", "Could not pack %j to %j"
-                     , p, tgz )
+            log.error("addLocalDirectory", "Could not pack", p, "to", tgz)
             return cb(er)
           }
 
-          if (!cs || isNaN(cs.uid) || isNaN(cs.gid)) next()
+          if (!cs || isNaN(cs.uid) || isNaN(cs.gid)) wrapped()
 
-          chownr(made || tgz, cs.uid, cs.gid, next)
+          chownr(made || tgz, cs.uid, cs.gid, wrapped)
         })
       })
     })
@@ -131,16 +120,4 @@ function addLocalDirectory (p, pkgData, shasum, cb) {
       }
     }
   })
-}
-
-function needName(er, data) {
-  return er ? er
-       : (data && !data.name) ? new Error("No name provided")
-       : null
-}
-
-function needVersion(er, data) {
-  return er ? er
-       : (data && !data.version) ? new Error("No version provided")
-       : null
 }

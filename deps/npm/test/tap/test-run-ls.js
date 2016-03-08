@@ -6,7 +6,7 @@ var testscript = require("../../package.json").scripts.test
 var tsregexp = testscript.replace(/([\[\.\*\]])/g, "\\$1")
 
 test("default", function (t) {
-  common.npm(["run"], { cwd: cwd }, function (er, code, so, se) {
+  common.npm(["run"], { cwd: cwd }, function (er, code, so) {
     if (er) throw er
     t.notOk(code)
     t.similar(so, new RegExp("\\n  test\\n    " + tsregexp + "\\n"))
@@ -15,7 +15,7 @@ test("default", function (t) {
 })
 
 test("parseable", function (t) {
-  common.npm(["run", "-p"], { cwd: cwd }, function (er, code, so, se) {
+  common.npm(["run", "-p"], { cwd: cwd }, function (er, code, so) {
     if (er) throw er
     t.notOk(code)
     t.similar(so, new RegExp("\\ntest:" + tsregexp + "\\n"))
@@ -24,7 +24,7 @@ test("parseable", function (t) {
 })
 
 test("parseable", function (t) {
-  common.npm(["run", "--json"], { cwd: cwd }, function (er, code, so, se) {
+  common.npm(["run", "--json"], { cwd: cwd }, function (er, code, so) {
     if (er) throw er
     t.notOk(code)
     t.equal(JSON.parse(so).test, testscript)

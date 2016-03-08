@@ -1,44 +1,33 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-LOAD" "3" "November 2015" "" ""
-.
+.TH "NPM\-LOAD" "3" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-load\fR \-\- Load config settings
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-load\fR \- Load config settings
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm\.load(conf, cb)
-.
 .fi
-.
-.SH "DESCRIPTION"
+.RE
+.SH DESCRIPTION
+.P
 npm\.load() must be called before any other function call\.  Both parameters are
 optional, but the second is recommended\.
-.
 .P
-The first parameter is an object hash of command\-line config params, and the
-second parameter is a callback that will be called when npm is loaded and
-ready to serve\.
-.
+The first parameter is an object containing command\-line config params, and the
+second parameter is a callback that will be called when npm is loaded and ready
+to serve\.
 .P
 The first parameter should follow a similar structure as the package\.json
 config object\.
-.
 .P
 For example, to emulate the \-\-dev flag, pass an object that looks like this:
-.
-.IP "" 4
-.
+.P
+.RS 2
 .nf
 {
   "dev": true
 }
-.
 .fi
-.
-.IP "" 0
-.
+.RE
 .P
-For a list of all the available command\-line configs, see \fBnpm help config\fR
+For a list of all the available command\-line configs, see \fBnpm help config\fP

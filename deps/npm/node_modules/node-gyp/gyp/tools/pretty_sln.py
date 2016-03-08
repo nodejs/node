@@ -38,12 +38,13 @@ def ParseSolution(solution_file):
 
   # Regular expressions that matches the SLN format.
   # The first line of a project definition.
-  begin_project = re.compile(('^Project\("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942'
-                              '}"\) = "(.*)", "(.*)", "(.*)"$'))
+  begin_project = re.compile(r'^Project\("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942'
+                             r'}"\) = "(.*)", "(.*)", "(.*)"$')
   # The last line of a project definition.
   end_project = re.compile('^EndProject$')
   # The first line of a dependency list.
-  begin_dep = re.compile('ProjectSection\(ProjectDependencies\) = postProject$')
+  begin_dep = re.compile(
+      r'ProjectSection\(ProjectDependencies\) = postProject$')
   # The last line of a dependency list.
   end_dep = re.compile('EndProjectSection$')
   # A line describing a dependency.
