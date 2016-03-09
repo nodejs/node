@@ -295,6 +295,20 @@ they were registered, passing the supplied arguments to each.
 
 Returns `true` if event had listeners, `false` otherwise.
 
+### emitter.eventsList()
+
+Returns an array listing the events for which the emitter has registered
+listeners.
+
+```js
+const EventEmitter = require('events');
+const myEE = new EventEmitter();
+myEE.on('foo', () => {});
+myEE.on('bar', () => {});
+console.log(myErr.listEvents());
+  // Prints ['foo', 'bar']
+```
+
 ### emitter.getMaxListeners()
 
 Returns the current max listener value for the `EventEmitter` which is either
