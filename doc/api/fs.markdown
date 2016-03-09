@@ -101,10 +101,23 @@ Objects returned from `fs.watch()` are of this type.
 ### Event: 'change'
 
 * `event` {String} The type of fs change
-* `filename` {String} The filename that changed (if relevant/available)
+* `filename` {String | Buffer} The filename that changed (if relevant/available)
 
 Emitted when something changes in a watched directory or file.
 See more details in [`fs.watch()`][].
+
+The `filename` argument may not be provided depending on operating system
+support. If `filename` is provided, it will be provided as a `Buffer` if
+`fs.watch()` is called with it's `encoding` option set to `'buffer'`, otherwise
+`filename` will be a string.
+
+```js
+fs.watch('./tmp', {encoding: 'buffer'}, (event, filename) => {
+  if (filename)
+    console.log(filename);
+    // Prints: <Buffer ...>
+});
+```
 
 ### Event: 'error'
 
@@ -128,7 +141,10 @@ Emitted when the ReadStream's file is opened.
 
 ### readStream.path
 
-The path to the file the stream is reading from.
+The path to the file the stream is reading from as specified in the first
+argument to `fs.createReadStream()`. If `path` is passed as a string, then
+`readStream.path` will be a string. If `path` is passed as a `Buffer`, then
+`readStream.path` will be a `Buffer`.
 
 ## Class: fs.Stats
 
@@ -217,11 +233,14 @@ for writing.
 
 ### writeStream.path
 
-The path to the file the stream is writing to.
+The path to the file the stream is writing to as specified in the first
+argument to `fs.createWriteStream()`. If `path` is passed as a string, then
+`writeStream.path` will be a string. If `path` is passed as a `Buffer`, then
+`writeStream.path` will be a `Buffer`.
 
 ## fs.access(path[, mode], callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `mode` {Integer}
 * `callback` {Function}
 
@@ -251,7 +270,7 @@ fs.access('/etc/passwd', fs.R_OK | fs.W_OK, (err) => {
 
 ## fs.accessSync(path[, mode])
 
-* `path` {String}
+* `path` {String | Buffer}
 * `mode` {Integer}
 
 Synchronous version of [`fs.access()`][]. This throws if any accessibility checks
@@ -259,7 +278,7 @@ fail, and does nothing otherwise.
 
 ## fs.appendFile(file, data[, options], callback)
 
-* `file` {String | Number} filename or file descriptor
+* `file` {String | Buffer | Number} filename or file descriptor
 * `data` {String | Buffer}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
@@ -291,11 +310,18 @@ _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.appendFileSync(file, data[, options])
 
+* `file` {String | Buffer}
+* `data` {String | Buffer}
+* `options` {Object | String}
+  * `encoding` {String | Null} default = `'utf8'`
+  * `mode` {Integer} default = `0o666`
+  * `flag` {String} default = `'a'`
+
 The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
 
 ## fs.chmod(path, mode, callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `mode` {Integer}
 * `callback` {Function}
 
@@ -304,14 +330,14 @@ to the completion callback.
 
 ## fs.chmodSync(path, mode)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `mode` {Integer}
 
 Synchronous chmod(2). Returns `undefined`.
 
 ## fs.chown(path, uid, gid, callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `uid` {Integer}
 * `gid` {Integer}
 * `callback` {Function}
@@ -321,7 +347,7 @@ to the completion callback.
 
 ## fs.chownSync(path, uid, gid)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `uid` {Integer}
 * `gid` {Integer}
 
@@ -343,7 +369,7 @@ Synchronous close(2). Returns `undefined`.
 
 ## fs.createReadStream(path[, options])
 
-* `path` {String}
+* `path` {String | Buffer}
 * `options` {String | Object}
   * `flags` {String}
   * `encoding` {String}
@@ -399,7 +425,7 @@ If `options` is a string, then it specifies the encoding.
 
 ## fs.createWriteStream(path[, options])
 
-* `path` {String}
+* `path` {String | Buffer}
 * `options` {String | Object}
   * `flags` {String}
   * `defaultEncoding` {String}
@@ -444,7 +470,7 @@ If `options` is a string, then it specifies the encoding.
 
     Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
 
-* `path` {String}
+* `path` {String | Buffer}
 * `callback` {Function}
 
 Test whether or not the given path exists by checking with the file system.
@@ -466,7 +492,7 @@ non-existent.
 
     Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][] instead.
 
-* `path` {String}
+* `path` {String | Buffer}
 
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the file exists, `false` otherwise.
@@ -584,7 +610,7 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
 ## fs.lchmod(path, mode, callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `mode` {Integer}
 * `callback` {Function}
 
@@ -595,14 +621,14 @@ Only available on Mac OS X.
 
 ## fs.lchmodSync(path, mode)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `mode` {Integer}
 
 Synchronous lchmod(2). Returns `undefined`.
 
 ## fs.lchown(path, uid, gid, callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `uid` {Integer}
 * `gid` {Integer}
 * `callback` {Function}
@@ -612,7 +638,7 @@ to the completion callback.
 
 ## fs.lchownSync(path, uid, gid)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `uid` {Integer}
 * `gid` {Integer}
 
@@ -620,8 +646,8 @@ Synchronous lchown(2). Returns `undefined`.
 
 ## fs.link(srcpath, dstpath, callback)
 
-* `srcpath` {String}
-* `dstpath` {String}
+* `srcpath` {String | Buffer}
+* `dstpath` {String | Buffer}
 * `callback` {Function}
 
 Asynchronous link(2). No arguments other than a possible exception are given to
@@ -629,14 +655,14 @@ the completion callback.
 
 ## fs.linkSync(srcpath, dstpath)
 
-* `srcpath` {String}
-* `dstpath` {String}
+* `srcpath` {String | Buffer}
+* `dstpath` {String | Buffer}
 
 Synchronous link(2). Returns `undefined`.
 
 ## fs.lstat(path, callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `callback` {Function}
 
 Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where
@@ -646,13 +672,13 @@ refers to.
 
 ## fs.lstatSync(path)
 
-* `path` {String}
+* `path` {String | Buffer}
 
 Synchronous lstat(2). Returns an instance of `fs.Stats`.
 
 ## fs.mkdir(path[, mode], callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `mode` {Integer}
 * `callback` {Function}
 
@@ -661,7 +687,7 @@ to the completion callback. `mode` defaults to `0o777`.
 
 ## fs.mkdirSync(path[, mode])
 
-* `path` {String}
+* `path` {String | Buffer}
 * `mode` {Integer}
 
 Synchronous mkdir(2). Returns `undefined`.
@@ -692,7 +718,7 @@ folder path.
 
 ## fs.open(path, flags[, mode], callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `flags` {String | Number}
 * `mode` {Integer}
 * `callback` {Function}
@@ -759,7 +785,7 @@ the end of the file.
 
 ## fs.openSync(path, flags[, mode])
 
-* `path` {String}
+* `path` {String | Buffer}
 * `flags` {String | Number}
 * `mode` {Integer}
 
@@ -788,7 +814,12 @@ If `position` is `null`, data will be read from the current file position.
 
 The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
-## fs.readdir(path, callback)
+## fs.readdir(path[, options], callback)
+
+* `path` {String | Buffer}
+* `options` {String | Object}
+  * `encoding` {String} default = `'utf8'`
+* `callback` {Function}
 
 * `path` {String}
 * `callback` {Function}
@@ -797,16 +828,30 @@ Asynchronous readdir(3).  Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
 the names of the files in the directory excluding `'.'` and `'..'`.
 
-## fs.readdirSync(path)
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the filenames passed to the callback. If the `encoding` is set to `'buffer'`,
+the filenames returned will be passed as `Buffer` objects.
+
+## fs.readdirSync(path[, options])
+
+* `path` {String | Buffer}
+* `options` {String | Object}
+  * `encoding` {String} default = `'utf8'`
 
 * `path` {String}
 
 Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 `'..'`.
 
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the filenames passed to the callback. If the `encoding` is set to `'buffer'`,
+the filenames returned will be passed as `Buffer` objects.
+
 ## fs.readFile(file[, options], callback)
 
-* `file` {String | Integer} filename or file descriptor
+* `file` {String | Buffer | Integer} filename or file descriptor
 * `options` {Object | String}
   * `encoding` {String | Null} default = `null`
   * `flag` {String} default = `'r'`
@@ -838,7 +883,7 @@ _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.readFileSync(file[, options])
 
-* `file` {String | Integer} filename or file descriptor
+* `file` {String | Buffer | Integer} filename or file descriptor
 * `options` {Object | String}
   * `encoding` {String | Null} default = `null`
   * `flag` {String} default = `'r'`
@@ -848,7 +893,12 @@ Synchronous version of [`fs.readFile`][]. Returns the contents of the `file`.
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
 
-## fs.readlink(path, callback)
+## fs.readlink(path[, options], callback)
+
+* `path` {String | Buffer}
+* `options` {String | Object}
+  * `encoding` {String} default = `'utf8'`
+* `callback` {Function}
 
 * `path` {String}
 * `callback` {Function}
@@ -856,15 +906,29 @@ string. Otherwise it returns a buffer.
 Asynchronous readlink(2). The callback gets two arguments `(err,
 linkString)`.
 
-## fs.readlinkSync(path)
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the link path passed to the callback. If the `encoding` is set to `'buffer'`,
+the link path returned will be passed as a `Buffer` object.
+
+## fs.readlinkSync(path[, options])
+
+* `path` {String | Buffer}
+* `options` {String | Object}
+  * `encoding` {String} default = `'utf8'`
 
 * `path` {String}
 
 Synchronous readlink(2). Returns the symbolic link's string value.
 
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the link path passed to the callback. If the `encoding` is set to `'buffer'`,
+the link path returned will be passed as a `Buffer` object.
+
 ## fs.realpath(path[, cache], callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `cache` {Object}
 * `callback` {Function}
 
@@ -895,7 +959,7 @@ Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 
 ## fs.realpathSync(path[, cache])
 
-* `path` {String}
+* `path` {String | Buffer};
 * `cache` {Object}
 
 Synchronous realpath(2). Returns the resolved path. `cache` is an
@@ -904,8 +968,8 @@ resolution or avoid additional `fs.stat` calls for known real paths.
 
 ## fs.rename(oldPath, newPath, callback)
 
-* `oldPath` {String}
-* `newPath` {String}
+* `oldPath` {String | Buffer}
+* `newPath` {String | Buffer}
 * `callback` {Function}
 
 Asynchronous rename(2). No arguments other than a possible exception are given
@@ -913,14 +977,14 @@ to the completion callback.
 
 ## fs.renameSync(oldPath, newPath)
 
-* `oldPath` {String}
-* `newPath` {String}
+* `oldPath` {String | Buffer}
+* `newPath` {String | Buffer}
 
 Synchronous rename(2). Returns `undefined`.
 
 ## fs.rmdir(path, callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `callback` {Function}
 
 Asynchronous rmdir(2). No arguments other than a possible exception are given
@@ -928,13 +992,13 @@ to the completion callback.
 
 ## fs.rmdirSync(path)
 
-* `path` {String}
+* `path` {String | Buffer}
 
 Synchronous rmdir(2). Returns `undefined`.
 
 ## fs.stat(path, callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `callback` {Function}
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
@@ -943,14 +1007,14 @@ information.
 
 ## fs.statSync(path)
 
-* `path` {String}
+* `path` {String | Buffer}
 
 Synchronous stat(2). Returns an instance of [`fs.Stats`][].
 
 ## fs.symlink(target, path[, type], callback)
 
-* `target` {String}
-* `path` {String}
+* `target` {String | Buffer}
+* `path` {String | Buffer}
 * `type` {String}
 * `callback` {Function}
 
@@ -971,15 +1035,15 @@ It creates a symbolic link named "new-port" that points to "foo".
 
 ## fs.symlinkSync(target, path[, type])
 
-* `target` {String}
-* `path` {String}
+* `target` {String | Buffer}
+* `path` {String | Buffer}
 * `type` {String}
 
 Synchronous symlink(2). Returns `undefined`.
 
 ## fs.truncate(path, len, callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `len` {Integer}
 * `callback` {Function}
 
@@ -989,14 +1053,14 @@ first argument. In this case, `fs.ftruncate()` is called.
 
 ## fs.truncateSync(path, len)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `len` {Integer}
 
 Synchronous truncate(2). Returns `undefined`.
 
 ## fs.unlink(path, callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `callback` {Function}
 
 Asynchronous unlink(2). No arguments other than a possible exception are given
@@ -1004,13 +1068,13 @@ to the completion callback.
 
 ## fs.unlinkSync(path)
 
-* `path` {String}
+* `path` {String | Buffer}
 
 Synchronous unlink(2). Returns `undefined`.
 
 ## fs.unwatchFile(filename[, listener])
 
-* `filename` {String}
+* `filename` {String | Buffer}
 * `listener` {Function}
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
@@ -1026,7 +1090,7 @@ when possible._
 
 ## fs.utimes(path, atime, mtime, callback)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `atime` {Integer}
 * `mtime` {Integer}
 * `callback` {Function}
@@ -1043,7 +1107,7 @@ follow the below rules:
 
 ## fs.utimesSync(path, atime, mtime)
 
-* `path` {String}
+* `path` {String | Buffer}
 * `atime` {Integer}
 * `mtime` {Integer}
 
@@ -1051,18 +1115,23 @@ Synchronous version of [`fs.utimes()`][]. Returns `undefined`.
 
 ## fs.watch(filename[, options][, listener])
 
-* `filename` {String}
-* `options` {Object}
+* `filename` {String | Buffer}
+* `options` {String | Object}
   * `persistent` {Boolean} Indicates whether the process should continue to run
     as long as files are being watched. default = `true`
   * `recursive` {Boolean} Indicates whether all subdirectories should be
     watched, or only the current directory. The applies when a directory is
     specified, and only on supported platforms (See [Caveats][]). default =
     `false`
+  * `encoding` {String} Specifies the character encoding to be used for the
+     filename passed to the listener. default = `'utf8'`
 * `listener` {Function}
 
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is a [`fs.FSWatcher`][].
+
+The second argument is optional. If `options` is provided as a string, it
+specifies the `encoding`. Otherwise `options` should be passed as an object.
 
 The listener callback gets two arguments `(event, filename)`.  `event` is either
 `'rename'` or `'change'`, and `filename` is the name of the file which triggered
@@ -1120,7 +1189,7 @@ fs.watch('somedir', (event, filename) => {
 
 ## fs.watchFile(filename[, options], listener)
 
-* `filename` {String}
+* `filename` {String | Buffer}
 * `options` {Object}
   * `persistent` {Boolean}
   * `interval` {Integer}
@@ -1224,7 +1293,7 @@ the end of the file.
 
 ## fs.writeFile(file, data[, options], callback)
 
-* `file` {String | Integer} filename or file descriptor
+* `file` {String | Buffer | Integer} filename or file descriptor
 * `data` {String | Buffer}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
@@ -1263,7 +1332,7 @@ _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.writeFileSync(file, data[, options])
 
-* `file` {String | Integer} filename or file descriptor
+* `file` {String | Buffer | Integer} filename or file descriptor
 * `data` {String | Buffer}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`

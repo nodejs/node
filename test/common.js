@@ -57,8 +57,14 @@ function rmdirSync(p, originalEr) {
     if (e.code === 'ENOTDIR')
       throw originalEr;
     if (e.code === 'ENOTEMPTY' || e.code === 'EEXIST' || e.code === 'EPERM') {
-      fs.readdirSync(p).forEach(function(f) {
-        rimrafSync(path.join(p, f));
+      const enc = process.platform === 'linux' ? 'buffer' : 'utf8';
+      fs.readdirSync(p, enc).forEach((f) => {
+        if (f instanceof Buffer) {
+          const buf = Buffer.concat([Buffer.from(p), Buffer.from(path.sep), f]);
+          rimrafSync(buf);
+        } else {
+          rimrafSync(path.join(p, f));
+        }
       });
       fs.rmdirSync(p);
     }

@@ -25,12 +25,12 @@ assert.throws(
   function() {
     fs.link();
   },
-  /src path/
+  /src must be a string or Buffer/
 );
 
 assert.throws(
   function() {
     fs.link('abc');
   },
-  /dest path/
+  /dest must be a string or Buffer/
 );
