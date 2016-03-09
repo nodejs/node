@@ -106,6 +106,10 @@ class StringBytes {
                                      const uint16_t* buf,
                                      size_t buflen);
 
+  static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
+                                     const char* buf,
+                                     enum encoding encoding);
+
   // Deprecated legacy interface
 
   NODE_DEPRECATED("Use IsValidString(isolate, ...)",
