@@ -222,7 +222,9 @@ echo Project files generated.
 if defined nobuild goto sign
 
 @rem Build the sln with msbuild.
-msbuild node.sln /m /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+set "msbplatform=Win32"
+if "%target_arch%"=="x64" set "msbplatform=x64"
+msbuild node.sln /m /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 :sign
