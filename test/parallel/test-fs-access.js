@@ -92,7 +92,7 @@ fs.access(readOnlyFile, fs.W_OK, function(err) {
 
 assert.throws(function() {
   fs.access(100, fs.F_OK, function(err) {});
-}, /path must be a string/);
+}, /path must be a string or Buffer/);
 
 assert.throws(function() {
   fs.access(__filename, fs.F_OK);
