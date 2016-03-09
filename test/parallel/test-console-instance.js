@@ -1,9 +1,12 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var Stream = require('stream');
-var Console = require('console').Console;
+const assert = require('assert');
+const Stream = require('stream');
+const Console = require('console').Console;
 var called = false;
+
+const out = new Stream();
+const err = new Stream();
 
 // ensure the Console instance doesn't write to the
 // process' "stdout" or "stderr" streams
@@ -20,9 +23,13 @@ assert.throws(function() {
   new Console();
 }, /Console expects a writable stream/);
 
-var out = new Stream();
-var err = new Stream();
-out.writable = err.writable = true;
+// Console constructor should throw if stderr exists but is not writable
+assert.throws(function() {
+  out.write = function() {};
+  err.write = undefined;
+  new Console(out, err);
+}, /Console expects writable stream instances/);
+
 out.write = err.write = function(d) {};
 
 var c = new Console(out, err);
