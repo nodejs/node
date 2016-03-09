@@ -48,8 +48,8 @@ myConsole.warn(`Danger ${name}! Danger!`);
 ```
 
 While the API for the `Console` class is designed fundamentally around the
-Web browser `console` object, the `Console` in Node.js is *not* intended to
-duplicate the browsers functionality exactly.
+browser `console` object, the `Console` in Node.js is *not* intended to
+duplicate the browser's functionality exactly.
 
 ## Asynchronous vs Synchronous Consoles
 
@@ -75,8 +75,8 @@ const Console = console.Console;
 
 Creates a new `Console` by passing one or two writable stream instances.
 `stdout` is a writable stream to print log or info output. `stderr`
-is used for warning or error output. If `stderr` isn't passed, the warning
-and error output will be sent to the `stdout`.
+is used for warning or error output. If `stderr` isn't passed, warning and error
+output will be sent to `stdout`.
 
 ```js
 const output = fs.createWriteStream('./stdout.log');
