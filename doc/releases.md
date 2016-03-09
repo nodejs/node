@@ -266,7 +266,7 @@ Create a new blog post by running the [nodejs.org release-post.js script](https:
 
 The nodejs.org website will automatically rebuild and include the new version. You simply need to announce the build, preferably via Twitter with a message such as:
 
-> v5.3.0 of @nodejs is out @ https://nodejs.org/dist/latest/ changelog @ https://github.com/nodejs/node/blob/master/CHANGELOG.md#2015-12-16-version-530-stable-cjihrig … something here about notable changes
+> v5.8.0 of @nodejs is out: https://nodejs.org/en/blog/release/v5.8.0/ … something here about notable changes
 
 ### 16. Cleanup
 
