@@ -1,6 +1,6 @@
 # Node.js ChangeLog
 
-## 2016-03-08, Version 5.8.0 (Stable). @Fishrock123
+## 2016-03-08, Version 5.8.0 (Stable), @Fishrock123
 
 ### Notable changes
 
