@@ -831,7 +831,7 @@ recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `password` is used to derive the cipher key and initialization vector (IV).
-The value must be either a `'binary'` encoded string or a [`Buffer`[].
+The value must be either a `'binary'` encoded string or a [`Buffer`][].
 
 The implementation of `crypto.createCipher()` derives keys using the OpenSSL
 function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
