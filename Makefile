@@ -592,8 +592,12 @@ bench-idle:
 	$(NODE) benchmark/idle_clients.js &
 
 jslint:
-	$(NODE) tools/eslint/bin/eslint.js benchmark lib src test tools/doc \
-	  tools/eslint-rules --rulesdir tools/eslint-rules
+	$(NODE) tools/jslint.js -J benchmark lib src test tools/doc \
+	  tools/eslint-rules tools/jslint.js
+
+jslint-ci:
+	$(NODE) tools/jslint.js -f tap -o test-eslint.tap benchmark lib src test \
+	  tools/doc tools/eslint-rules tools/jslint.js
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc
@@ -621,8 +625,7 @@ cpplint:
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
 
 lint: jslint cpplint
-
-lint-ci: lint
+lint-ci: jslint-ci cpplint
 
 .PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean \
 	check uninstall install install-includes install-bin all staticlib \
@@ -630,4 +633,4 @@ lint-ci: lint
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
 	bench-http bench-fs bench-tls cctest run-ci test-v8 test-v8-intl \
-	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci
+	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci
