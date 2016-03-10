@@ -66,6 +66,7 @@ if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc internet pummel&set buildnodeweak=1&set jslint=1&goto arg-ok
 if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues --expect-fail&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
+if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
 if /i "%1"=="build-release" set build_release=1&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
@@ -286,10 +287,16 @@ python tools\test.py %test_args%
 goto jslint
 
 :jslint
+if defined jslint_ci goto jslint-ci
 if not defined jslint goto exit
 if not exist tools\eslint\bin\eslint.js goto no-lint
 echo running jslint
-%config%\node tools\eslint\bin\eslint.js benchmark lib src test tools\doc tools\eslint-rules --rulesdir tools\eslint-rules
+%config%\node tools\jslint.js -J benchmark lib src test tools\doc tools\eslint-rules tools\jslint.js
+goto exit
+
+:jslint-ci
+echo running jslint-ci
+%config%\node tools\jslint.js -J -f tap -o test-eslint.tap benchmark lib src test tools\doc tools\eslint-rules tools\jslint.js
 goto exit
 
 :no-lint
