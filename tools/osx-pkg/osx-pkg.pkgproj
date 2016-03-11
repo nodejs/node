@@ -1650,7 +1650,7 @@
 									<key>HIDDEN</key>
 									<false/>
 									<key>STATE</key>
-									<integer>1</integer>
+									<integer>0</integer>
 								</dict>
 								<key>PACKAGE_UUID</key>
 								<string>F15133E4-7140-467A-90C3-BB6B53A9C79E</string>
@@ -1677,33 +1677,10 @@
 								<array/>
 								<key>OPTIONS</key>
 								<dict>
-									<key>DEPENDENCY</key>
-									<dict>
-										<key>ENABLED_DEPENDENCY</key>
-										<dict>
-											<key>COMPARATOR</key>
-											<integer>0</integer>
-											<key>OBJECT</key>
-											<integer>1</integer>
-											<key>UUID</key>
-											<string>95681E96-6FC4-494B-8901-D85A1178E7D4</string>
-										</dict>
-										<key>ENABLED_MODE</key>
-										<integer>2</integer>
-										<key>SELECTED_DEPENDENCY</key>
-										<dict>
-											<key>COMPARATOR</key>
-											<integer>0</integer>
-											<key>OBJECT</key>
-											<integer>0</integer>
-											<key>UUID</key>
-											<string>95681E96-6FC4-494B-8901-D85A1178E7D4</string>
-										</dict>
-									</dict>
 									<key>HIDDEN</key>
 									<false/>
 									<key>STATE</key>
-									<integer>3</integer>
+									<integer>1</integer>
 								</dict>
 								<key>PACKAGE_UUID</key>
 								<string>2D16FD51-8800-422D-9E9B-EC59D2157FE8</string>
@@ -1765,7 +1742,7 @@
 				<key>INSTALLATION TYPE</key>
 				<integer>0</integer>
 				<key>MODE</key>
-				<integer>1</integer>
+				<integer>0</integer>
 			</dict>
 			<key>INSTALLATION_STEPS</key>
 			<array>
@@ -1855,7 +1832,7 @@
 						<key>VALUE</key>
 						<dict>
 							<key>PATH</key>
-							<string>strings/LICENSE.txt</string>
+							<string>strings/license.rtf</string>
 							<key>PATH_TYPE</key>
 							<integer>1</integer>
 						</dict>
@@ -2098,6 +2075,11 @@
 			<key>NAME</key>
 			<string>node-__nodeversion__</string>
 		</dict>
+	</dict>
+	<key>SHARED_GLOBAL_DATA</key>
+	<dict>
+		<key>IC_REQUIREMENT_JAVASCRIPT_SHARED_SOURCE_CODE</key>
+		<string></string>
 	</dict>
 	<key>TYPE</key>
 	<integer>0</integer>

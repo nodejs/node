@@ -466,28 +466,33 @@ release-only:
 
 pre-pkg:
 	touch tools/osx-pkg/scripts/nodejs-run-uninstall # empty file for uninstall step
-	cp LICENSE tools/osx-pkg/strings/LICENSE.txt
+	$(NODE) tools/license2rtf.js < LICENSE > tools/osx-pkg/strings/license.rtf
 	cat tools/osx-pkg/osx-pkg.pkgproj | \
-		sed -e 's|__nodeversion__|'$(FULLVERSION)'|g' | \
-		sed -e 's|introduction.rtf|introduction.out.rtf|g' > \
+		sed -e 's|__nodeversion__|'$(FULLVERSION)'|g' \
+		-e 's|introduction.rtf|introduction.out.rtf|g' \
+		-e 's|summary.rtf|summary.out.rtf|g' > \
 		tools/osx-pkg/osx-pkg-out.pkgproj
 	$(foreach dir, \
 		$(shell echo tools/osx-pkg/strings/*/), \
 		cat $(dir)introduction.rtf | \
 		sed -e 's|__nodeversion__|'$(FULLVERSION)'|g' | \
 		sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > \
-		$(dir)introduction.out.rtf; \
+		$(dir)introduction.out.rtf && \
+		cat $(dir)summary.rtf | \
+		sed -e 's|__nodeversion__|'$(FULLVERSION)'|g' | \
+		sed -e 's|__npmversion__|'$(NPMVERSION)'|g' > \
+		$(dir)summary.out.rtf; \
 	)
 
-$(PKG): release-only pre-pkg
-	rm -rf $(PKGDIR)
-	rm -rf out/deps out/Release
-	$(PYTHON) ./configure \
-		--dest-cpu=x64 \
-		--tag=$(TAG) \
-		--release-urlbase=$(RELEASE_URLBASE) \
-		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	$(MAKE) all V=$(V)
+$(PKG): pre-pkg # release-only pre-pkg
+#	rm -rf $(PKGDIR)
+#	rm -rf out/deps out/Release
+#	$(PYTHON) ./configure \
+#		--dest-cpu=x64 \
+#		--tag=$(TAG) \
+#		--release-urlbase=$(RELEASE_URLBASE) \
+#		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
+#	$(MAKE) all V=$(V)
 	NODE_INSTALL_NODE_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/node' '$(PREFIX)'
 	NODE_INSTALL_HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/node' '$(PREFIX)'
 	NODE_INSTALL_NPM_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/npm' '$(PREFIX)'
