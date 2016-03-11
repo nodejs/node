@@ -459,7 +459,7 @@
 									<key>GID</key>
 									<integer>0</integer>
 									<key>PATH</key>
-									<string>../../out/dist-osx/usr/local</string>
+									<string>../../out/dist-osx/node/usr/local</string>
 									<key>PATH_TYPE</key>
 									<integer>1</integer>
 									<key>PERMISSIONS</key>
@@ -976,68 +976,17 @@
 							<array>
 								<dict>
 									<key>CHILDREN</key>
-									<array>
-										<dict>
-											<key>CHILDREN</key>
-											<array>
-												<dict>
-													<key>CHILDREN</key>
-													<array>
-														<dict>
-															<key>CHILDREN</key>
-															<array/>
-															<key>GID</key>
-															<integer>0</integer>
-															<key>PATH</key>
-															<string>../../deps/npm</string>
-															<key>PATH_TYPE</key>
-															<integer>1</integer>
-															<key>PERMISSIONS</key>
-															<integer>493</integer>
-															<key>TYPE</key>
-															<integer>3</integer>
-															<key>UID</key>
-															<integer>0</integer>
-														</dict>
-													</array>
-													<key>GID</key>
-													<integer>0</integer>
-													<key>PATH</key>
-													<string>node_modules</string>
-													<key>PATH_TYPE</key>
-													<integer>0</integer>
-													<key>PERMISSIONS</key>
-													<integer>493</integer>
-													<key>TYPE</key>
-													<integer>2</integer>
-													<key>UID</key>
-													<integer>0</integer>
-												</dict>
-											</array>
-											<key>GID</key>
-											<integer>0</integer>
-											<key>PATH</key>
-											<string>lib</string>
-											<key>PATH_TYPE</key>
-											<integer>0</integer>
-											<key>PERMISSIONS</key>
-											<integer>493</integer>
-											<key>TYPE</key>
-											<integer>2</integer>
-											<key>UID</key>
-											<integer>0</integer>
-										</dict>
-									</array>
+									<array/>
 									<key>GID</key>
 									<integer>0</integer>
 									<key>PATH</key>
-									<string>local</string>
+									<string>../../out/dist-osx/npm/usr/local</string>
 									<key>PATH_TYPE</key>
-									<integer>0</integer>
+									<integer>1</integer>
 									<key>PERMISSIONS</key>
 									<integer>493</integer>
 									<key>TYPE</key>
-									<integer>2</integer>
+									<integer>3</integer>
 									<key>UID</key>
 									<integer>0</integer>
 								</dict>
@@ -1662,7 +1611,7 @@
 			ZW50LVN0eWxlLVR5cGUiIGNvbnRlbnQ9InRleHQvY3NzIj4KPHRp
 			dGxlPjwvdGl0bGU+CjxtZXRhIG5hbWU9IkdlbmVyYXRvciIgY29u
 			dGVudD0iQ29jb2EgSFRNTCBXcml0ZXIiPgo8bWV0YSBuYW1lPSJD
-			b2NvYVZlcnNpb24iIGNvbnRlbnQ9IjE0MDQuMzQiPgo8c3R5bGUg
+			b2NvYVZlcnNpb24iIGNvbnRlbnQ9IjEzNDguMTciPgo8c3R5bGUg
 			dHlwZT0idGV4dC9jc3MiPgo8L3N0eWxlPgo8L2hlYWQ+Cjxib2R5
 			Pgo8L2JvZHk+CjwvaHRtbD4K
 			</data>
@@ -1694,96 +1643,139 @@
 						<key>LIST</key>
 						<array>
 							<dict>
+								<key>CHILDREN</key>
+								<array>
+									<dict>
+										<key>DESCRIPTION</key>
+										<array/>
+										<key>OPTIONS</key>
+										<dict>
+											<key>DEPENDENCY</key>
+											<dict>
+												<key>ENABLED_DEPENDENCY</key>
+												<dict>
+													<key>COMPARATOR</key>
+													<integer>1</integer>
+													<key>OBJECT</key>
+													<integer>1</integer>
+													<key>UUID</key>
+													<string>41286F31-6755-4025-A7D1-04F7055B2AC8</string>
+												</dict>
+												<key>ENABLED_MODE</key>
+												<integer>2</integer>
+												<key>SELECTED_DEPENDENCY</key>
+												<dict>
+													<key>COMPARATOR</key>
+													<integer>1</integer>
+													<key>OBJECT</key>
+													<integer>1</integer>
+													<key>UUID</key>
+													<string>41286F31-6755-4025-A7D1-04F7055B2AC8</string>
+												</dict>
+											</dict>
+											<key>HIDDEN</key>
+											<false/>
+											<key>STATE</key>
+											<integer>3</integer>
+										</dict>
+										<key>PACKAGE_UUID</key>
+										<string>F15133E4-7140-467A-90C3-BB6B53A9C79E</string>
+										<key>REQUIREMENTS</key>
+										<array/>
+										<key>TITLE</key>
+										<array/>
+										<key>TOOLTIP</key>
+										<array/>
+										<key>TYPE</key>
+										<integer>0</integer>
+										<key>UUID</key>
+										<string>95681E96-6FC4-494B-8901-D85A1178E7D4</string>
+									</dict>
+									<dict>
+										<key>DESCRIPTION</key>
+										<array/>
+										<key>OPTIONS</key>
+										<dict>
+											<key>DEPENDENCY</key>
+											<dict>
+												<key>ENABLED_DEPENDENCY</key>
+												<dict>
+													<key>BOTTOM</key>
+													<dict>
+														<key>COMPARATOR</key>
+														<integer>0</integer>
+														<key>OBJECT</key>
+														<integer>1</integer>
+														<key>UUID</key>
+														<string>95681E96-6FC4-494B-8901-D85A1178E7D4</string>
+													</dict>
+													<key>OPERATOR</key>
+													<integer>0</integer>
+													<key>TOP</key>
+													<dict>
+														<key>COMPARATOR</key>
+														<integer>1</integer>
+														<key>OBJECT</key>
+														<integer>1</integer>
+														<key>UUID</key>
+														<string>41286F31-6755-4025-A7D1-04F7055B2AC8</string>
+													</dict>
+												</dict>
+												<key>ENABLED_MODE</key>
+												<integer>2</integer>
+												<key>SELECTED_DEPENDENCY</key>
+												<dict>
+													<key>COMPARATOR</key>
+													<integer>1</integer>
+													<key>OBJECT</key>
+													<integer>1</integer>
+													<key>UUID</key>
+													<string>41286F31-6755-4025-A7D1-04F7055B2AC8</string>
+												</dict>
+											</dict>
+											<key>HIDDEN</key>
+											<false/>
+											<key>STATE</key>
+											<integer>3</integer>
+										</dict>
+										<key>PACKAGE_UUID</key>
+										<string>2D16FD51-8800-422D-9E9B-EC59D2157FE8</string>
+										<key>REQUIREMENTS</key>
+										<array/>
+										<key>TITLE</key>
+										<array/>
+										<key>TOOLTIP</key>
+										<array/>
+										<key>TYPE</key>
+										<integer>0</integer>
+										<key>UUID</key>
+										<string>E6975970-F10F-41C5-8FD8-8D816D281D47</string>
+									</dict>
+								</array>
 								<key>DESCRIPTION</key>
 								<array/>
 								<key>OPTIONS</key>
 								<dict>
-									<key>DEPENDENCY</key>
-									<dict>
-										<key>ENABLED_DEPENDENCY</key>
-										<dict>
-											<key>COMPARATOR</key>
-											<integer>1</integer>
-											<key>OBJECT</key>
-											<integer>1</integer>
-											<key>UUID</key>
-											<string>41286F31-6755-4025-A7D1-04F7055B2AC8</string>
-										</dict>
-										<key>ENABLED_MODE</key>
-										<integer>2</integer>
-										<key>SELECTED_DEPENDENCY</key>
-										<dict>
-											<key>COMPARATOR</key>
-											<integer>1</integer>
-											<key>OBJECT</key>
-											<integer>1</integer>
-											<key>UUID</key>
-											<string>41286F31-6755-4025-A7D1-04F7055B2AC8</string>
-										</dict>
-									</dict>
 									<key>HIDDEN</key>
 									<false/>
-									<key>STATE</key>
-									<integer>3</integer>
-								</dict>
-								<key>PACKAGE_UUID</key>
-								<string>F15133E4-7140-467A-90C3-BB6B53A9C79E</string>
-								<key>REQUIREMENTS</key>
-								<array/>
-								<key>TITLE</key>
-								<array/>
-								<key>TOOLTIP</key>
-								<array/>
-								<key>TYPE</key>
-								<integer>0</integer>
-								<key>UUID</key>
-								<string>95681E96-6FC4-494B-8901-D85A1178E7D4</string>
-							</dict>
-							<dict>
-								<key>DESCRIPTION</key>
-								<array/>
-								<key>OPTIONS</key>
-								<dict>
-									<key>DEPENDENCY</key>
-									<dict>
-										<key>ENABLED_DEPENDENCY</key>
-										<dict>
-											<key>COMPARATOR</key>
-											<integer>1</integer>
-											<key>OBJECT</key>
-											<integer>1</integer>
-											<key>UUID</key>
-											<string>41286F31-6755-4025-A7D1-04F7055B2AC8</string>
-										</dict>
-										<key>ENABLED_MODE</key>
-										<integer>2</integer>
-										<key>SELECTED_DEPENDENCY</key>
-										<dict>
-											<key>COMPARATOR</key>
-											<integer>1</integer>
-											<key>OBJECT</key>
-											<integer>1</integer>
-											<key>UUID</key>
-											<string>41286F31-6755-4025-A7D1-04F7055B2AC8</string>
-										</dict>
-									</dict>
-									<key>HIDDEN</key>
+									<key>HIDE_CHILDREN</key>
 									<false/>
 									<key>STATE</key>
-									<integer>3</integer>
+									<integer>4</integer>
 								</dict>
-								<key>PACKAGE_UUID</key>
-								<string>2D16FD51-8800-422D-9E9B-EC59D2157FE8</string>
-								<key>REQUIREMENTS</key>
-								<array/>
 								<key>TITLE</key>
-								<array/>
-								<key>TOOLTIP</key>
-								<array/>
+								<array>
+									<dict>
+										<key>LANGUAGE</key>
+										<string>English</string>
+										<key>VALUE</key>
+										<string>Install Node.js</string>
+									</dict>
+								</array>
 								<key>TYPE</key>
-								<integer>0</integer>
+								<integer>1</integer>
 								<key>UUID</key>
-								<string>E6975970-F10F-41C5-8FD8-8D816D281D47</string>
+								<string>A924EA4A-4D76-43AA-9EBC-62AC881E67BB</string>
 							</dict>
 							<dict>
 								<key>DESCRIPTION</key>
