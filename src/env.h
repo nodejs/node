@@ -453,8 +453,6 @@ class Environment {
 
   inline int64_t get_async_wrap_uid();
 
-  bool KickNextTick(AsyncCallbackScope* scope);
-
   inline uint32_t* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(uint32_t* pointer);
 
