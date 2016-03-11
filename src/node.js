@@ -98,8 +98,9 @@
         delete process.env.NODE_UNIQUE_ID;
       }
 
-      if (process._eval != null) {
-        // User passed '-e' or '--eval' arguments to Node.
+      if (process._eval != null && !process._forceRepl) {
+        // User passed '-e' or '--eval' arguments to Node without '-i' or
+        // '--interactive'
         startup.preloadModules();
         evalScript('[eval]');
       } else if (process.argv[1]) {
@@ -171,6 +172,11 @@
               process.exit();
             });
           });
+
+          if (process._eval != null) {
+            // User passed '-e' or '--eval'
+            evalScript('[eval]');
+          }
         } else {
           // Read all of stdin - execute it.
           process.stdin.setEncoding('utf8');
