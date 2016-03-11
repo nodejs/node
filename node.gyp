@@ -6,7 +6,6 @@
     'node_use_etw%': 'false',
     'node_use_perfctr%': 'false',
     'node_no_browser_globals%': 'false',
-    'node_has_winsdk%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
@@ -471,7 +470,7 @@
       'target_name': 'node_etw',
       'type': 'none',
       'conditions': [
-        [ 'node_use_etw=="true" and node_has_winsdk=="true"', {
+        [ 'node_use_etw=="true"', {
           'actions': [
             {
               'action_name': 'node_etw',
@@ -492,7 +491,7 @@
       'target_name': 'node_perfctr',
       'type': 'none',
       'conditions': [
-        [ 'node_use_perfctr=="true" and node_has_winsdk=="true"', {
+        [ 'node_use_perfctr=="true"', {
           'actions': [
             {
               'action_name': 'node_perfctr_man',
