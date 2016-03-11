@@ -487,8 +487,11 @@ $(PKG): release-only pre-pkg
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
-	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
+	$(MAKE) all V=$(V)
+	NODE_INSTALL_NODE_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/node' '$(PREFIX)'
+	NODE_INSTALL_HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/node' '$(PREFIX)'
+	NODE_INSTALL_NPM_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/npm' '$(PREFIX)'
+	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)/node" bash tools/osx-codesign.sh
 	$(PACKAGESBUILD) tools/osx-pkg/osx-pkg-out.pkgproj
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
@@ -550,7 +553,7 @@ $(TARBALL)-headers: release-only
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
+	NODE_INSTALL_HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
 	find $(TARNAME)/ -type l | xargs rm -f
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	rm -rf $(TARNAME)
