@@ -16,12 +16,10 @@ Example:
 
 ```js
 path.basename('/foo/bar/baz/asdf/quux.html')
-// returns
-'quux.html'
+// returns 'quux.html'
 
 path.basename('/foo/bar/baz/asdf/quux.html', '.html')
-// returns
-'quux'
+// returns 'quux'
 ```
 
 ## path.delimiter
@@ -35,8 +33,7 @@ console.log(process.env.PATH)
 // '/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'
 
 process.env.PATH.split(path.delimiter)
-// returns
-['/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin']
+// returns ['/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin']
 ```
 
 An example on Windows:
@@ -46,8 +43,7 @@ console.log(process.env.PATH)
 // 'C:\Windows\system32;C:\Windows;C:\Program Files\node\'
 
 process.env.PATH.split(path.delimiter)
-// returns
-['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
+// returns ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
 ```
 
 ## path.dirname(p)
@@ -58,8 +54,7 @@ Example:
 
 ```js
 path.dirname('/foo/bar/baz/asdf/quux')
-// returns
-'/foo/bar/baz/asdf'
+// returns '/foo/bar/baz/asdf'
 ```
 
 ## path.extname(p)
@@ -71,24 +66,19 @@ an empty string.  Examples:
 
 ```js
 path.extname('index.html')
-// returns
-'.html'
+// returns '.html'
 
 path.extname('index.coffee.md')
-// returns
-'.md'
+// returns '.md'
 
 path.extname('index.')
-// returns
-'.'
+// returns '.'
 
 path.extname('index')
-// returns
-''
+// returns ''
 
 path.extname('.index')
-// returns
-''
+// returns ''
 ```
 
 ## path.format(pathObject)
@@ -117,10 +107,19 @@ path.format({
     base : "file.txt",
     ext : ".txt",
     name : "file"
+});
+// returns '/home/user/dir/file.txt'
+
+// `root` will be used if `dir` is not specified and `name` + `ext` will be used
+// if `base` is not specified
+path.format({
+    root : "/",
+    ext : ".txt",
+    name : "file"
 })
-// returns
-'/home/user/dir/file.txt'
+// returns '/file.txt'
 ```
+
 ## path.isAbsolute(path)
 
 Determines whether `path` is an absolute path. An absolute path will always
@@ -159,8 +158,7 @@ Example:
 
 ```js
 path.join('/foo', 'bar', 'baz/asdf', 'quux', '..')
-// returns
-'/foo/bar/baz/asdf'
+// returns '/foo/bar/baz/asdf'
 
 path.join('foo', {}, 'bar')
 // throws exception
@@ -184,8 +182,7 @@ Example:
 
 ```js
 path.normalize('/foo/bar//baz/asdf/quux/..')
-// returns
-'/foo/bar/baz/asdf'
+// returns '/foo/bar/baz/asdf'
 ```
 
 *Note:* If the path string passed as argument is a zero-length string then `'.'`
@@ -200,13 +197,13 @@ An example on \*nix:
 ```js
 path.parse('/home/user/dir/file.txt')
 // returns
-{
-    root : "/",
-    dir : "/home/user/dir",
-    base : "file.txt",
-    ext : ".txt",
-    name : "file"
-}
+// {
+//    root : "/",
+//    dir : "/home/user/dir",
+//    base : "file.txt",
+//    ext : ".txt",
+//    name : "file"
+// }
 ```
 
 An example on Windows:
@@ -214,13 +211,13 @@ An example on Windows:
 ```js
 path.parse('C:\\path\\dir\\index.html')
 // returns
-{
-    root : "C:\\",
-    dir : "C:\\path\\dir",
-    base : "index.html",
-    ext : ".html",
-    name : "index"
-}
+// {
+//    root : "C:\\",
+//    dir : "C:\\path\\dir",
+//    base : "index.html",
+//    ext : ".html",
+//    name : "index"
+// }
 ```
 
 ## path.posix
@@ -244,12 +241,10 @@ Examples:
 
 ```js
 path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb')
-// returns
-'..\\..\\impl\\bbb'
+// returns '..\\..\\impl\\bbb'
 
 path.relative('/data/orandea/test/aaa', '/data/orandea/impl/bbb')
-// returns
-'../../impl/bbb'
+// returns '../../impl/bbb'
 ```
 
 *Note:* If the arguments to `relative` have zero-length strings then the current
@@ -289,16 +284,14 @@ Examples:
 
 ```js
 path.resolve('/foo/bar', './baz')
-// returns
-'/foo/bar/baz'
+// returns '/foo/bar/baz'
 
 path.resolve('/foo/bar', '/tmp/file/')
-// returns
-'/tmp/file'
+// returns '/tmp/file'
 
 path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
 // if currently in /home/myself/node, it returns
-'/home/myself/node/wwwroot/static_files/gif/image.gif'
+// '/home/myself/node/wwwroot/static_files/gif/image.gif'
 ```
 
 *Note:* If the arguments to `resolve` have zero-length strings then the current
@@ -312,16 +305,14 @@ An example on \*nix:
 
 ```js
 'foo/bar/baz'.split(path.sep)
-// returns
-['foo', 'bar', 'baz']
+// returns ['foo', 'bar', 'baz']
 ```
 
 An example on Windows:
 
 ```js
 'foo\\bar\\baz'.split(path.sep)
-// returns
-['foo', 'bar', 'baz']
+// returns ['foo', 'bar', 'baz']
 ```
 
 ## path.win32
