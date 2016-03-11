@@ -846,21 +846,6 @@ def configure_static(o):
         o['libraries'] += ['-static-libasan']
 
 
-def configure_winsdk(o):
-  if flavor != 'win':
-    return
-
-  winsdk_dir = os.environ.get('WindowsSdkDir')
-
-  if winsdk_dir and os.path.isfile(winsdk_dir + '\\bin\\ctrpp.exe'):
-    print('Found ctrpp in WinSDK--will build generated files '
-          'into tools/msvs/genfiles.')
-    o['variables']['node_has_winsdk'] = 'true'
-    return
-
-  print('ctrpp not found in WinSDK path--using pre-gen files '
-        'from tools/msvs/genfiles.')
-
 def write(filename, data):
   filename = os.path.join(root_dir, filename)
   print 'creating ', filename
@@ -1139,7 +1124,6 @@ configure_library('http_parser', output)
 configure_library('libuv', output)
 configure_v8(output)
 configure_openssl(output)
-configure_winsdk(output)
 configure_intl(output)
 configure_static(output)
 
