@@ -163,7 +163,7 @@ event:
 
 ```js
 somePromise.then((res) => {
-  return reportToUser(JSON.parse(res)); // note the typo
+  return reportToUser(JSON.pasre(res)); // note the typo (`pasre`)
 }); // no `.catch` or `.then`
 ```
 
