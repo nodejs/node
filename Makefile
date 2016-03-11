@@ -112,11 +112,11 @@ v8:
 	$(MAKE) -C deps/v8 $(V8_ARCH) $(V8_BUILD_OPTIONS)
 
 test: | cctest  # Depends on 'all'.
-    RC=0; \
-    $(PYTHON) tools/test.py --mode=release message parallel sequential -J || RC=$$?; \
-    $(MAKE) jslint || RC=$$?; \
-    $(MAKE) cpplint || RC=$$?; \
-    exit $$RC
+	RC=0; \
+	$(PYTHON) tools/test.py --mode=release message parallel sequential -J || RC=$$?; \
+	$(MAKE) jslint || RC=$$?; \
+	$(MAKE) cpplint || RC=$$?; \
+	exit $$RC
 
 test-parallel: all
 	$(PYTHON) tools/test.py --mode=release parallel -J
