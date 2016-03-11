@@ -5,15 +5,9 @@ const assert = require('assert');
 const repl = require('repl');
 const stream = require('stream');
 
-var tests = [
-  testSloppyMode,
-  testStrictMode,
-  testResetContext
-];
-
-tests.forEach(function(test) {
-  test();
-});
+testSloppyMode();
+testStrictMode();
+testResetContext();
 
 function testSloppyMode() {
   const r = initRepl(repl.REPL_MODE_SLOPPY);
