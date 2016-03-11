@@ -588,8 +588,6 @@ class Parser : public AsyncWrap {
     if (!cb->IsFunction())
       return;
 
-    Environment::AsyncCallbackScope callback_scope(parser->env());
-
     // Hooks for GetCurrentBuffer
     parser->current_buffer_len_ = nread;
     parser->current_buffer_data_ = buf->base;
@@ -598,8 +596,6 @@ class Parser : public AsyncWrap {
 
     parser->current_buffer_len_ = 0;
     parser->current_buffer_data_ = nullptr;
-
-    parser->env()->KickNextTick(&callback_scope);
   }
 
 
