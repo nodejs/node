@@ -484,15 +484,15 @@ pre-pkg:
 		$(dir)summary.out.rtf; \
 	)
 
-$(PKG): pre-pkg # release-only pre-pkg
-#	rm -rf $(PKGDIR)
-#	rm -rf out/deps out/Release
-#	$(PYTHON) ./configure \
-#		--dest-cpu=x64 \
-#		--tag=$(TAG) \
-#		--release-urlbase=$(RELEASE_URLBASE) \
-#		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-#	$(MAKE) all V=$(V)
+$(PKG): release-only pre-pkg
+	rm -rf $(PKGDIR)
+	rm -rf out/deps out/Release
+	$(PYTHON) ./configure \
+		--dest-cpu=x64 \
+		--tag=$(TAG) \
+		--release-urlbase=$(RELEASE_URLBASE) \
+		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
+	$(MAKE) all V=$(V)
 	NODE_INSTALL_NODE_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/node' '$(PREFIX)'
 	NODE_INSTALL_HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/node' '$(PREFIX)'
 	NODE_INSTALL_NPM_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/npm' '$(PREFIX)'
