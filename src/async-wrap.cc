@@ -181,7 +181,6 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   Local<Function> post_fn = env()->async_hooks_post_function();
   Local<Value> uid = Integer::New(env()->isolate(), get_uid());
   Local<Object> context = object();
-  Local<Object> process = env()->process_object();
   Local<Object> domain;
   bool has_domain = false;
 
@@ -233,15 +232,17 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     }
   }
 
-  Environment::TickInfo* tick_info = env()->tick_info();
-
   if (callback_scope.in_makecallback()) {
     return ret;
   }
 
+  Environment::TickInfo* tick_info = env()->tick_info();
+
   if (tick_info->length() == 0) {
     env()->isolate()->RunMicrotasks();
   }
+
+  Local<Object> process = env()->process_object();
 
   if (tick_info->length() == 0) {
     tick_info->set_index(0);
