@@ -31,6 +31,7 @@ def try_unlink(path):
 
 def try_symlink(source_path, link_path):
   print 'symlinking %s -> %s' % (source_path, link_path)
+  try_mkdir_r(os.path.dirname(link_path))
   try_unlink(link_path)
   os.symlink(source_path, link_path)
 
@@ -106,6 +107,18 @@ def subdir_files(path, dest, action):
     action(files, subdir + '/')
 
 def files(action):
+  if os.environ.get('NODE_INSTALL_HEADERS_ONLY'):
+    header_files(action)
+  elif os.environ.get('NODE_INSTALL_NODE_ONLY'):
+    node_files(action)
+  elif os.environ.get('NODE_INSTALL_NPM_ONLY'):
+    npm_files(action)
+  else:
+    node_files(action)
+    header_files(action)
+    if 'true' == variables.get('node_install_headers'): npm_files(action)
+
+def node_files(action):
   is_windows = sys.platform == 'win32'
 
   exeext = '.exe' if is_windows else ''
@@ -124,11 +137,7 @@ def files(action):
   else:
     action(['doc/node.1'], 'share/man/man1/')
 
-  if 'true' == variables.get('node_install_npm'): npm_files(action)
-
-  headers(action)
-
-def headers(action):
+def header_files(action):
   action([
     'common.gypi',
     'config.gypi',
@@ -184,12 +193,8 @@ def run(args):
 
   cmd = args[1] if len(args) > 1 else 'install'
 
-  if os.environ.get('HEADERS_ONLY'):
-    if cmd == 'install': return headers(install)
-    if cmd == 'uninstall': return headers(uninstall)
-  else:
-    if cmd == 'install': return files(install)
-    if cmd == 'uninstall': return files(uninstall)
+  if cmd == 'install': return files(install)
+  if cmd == 'uninstall': return files(uninstall)
 
   raise RuntimeError('Bad command: %s\n' % cmd)
 
