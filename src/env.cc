@@ -64,27 +64,4 @@ void Environment::PrintSyncTrace() const {
   fflush(stderr);
 }
 
-
-bool Environment::KickNextTick(Environment::AsyncCallbackScope* scope) {
-  TickInfo* info = tick_info();
-
-  if (scope->in_makecallback()) {
-    return true;
-  }
-
-  if (info->length() == 0) {
-    isolate()->RunMicrotasks();
-  }
-
-  if (info->length() == 0) {
-    info->set_index(0);
-    return true;
-  }
-
-  Local<Value> ret =
-    tick_callback_function()->Call(process_object(), 0, nullptr);
-
-  return !ret.IsEmpty();
-}
-
 }  // namespace node
