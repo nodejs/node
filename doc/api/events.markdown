@@ -298,15 +298,19 @@ Returns `true` if event had listeners, `false` otherwise.
 ### emitter.eventNames()
 
 Returns an array listing the events for which the emitter has registered
-listeners.
+listeners. The values in the array will be strings or Symbols.
 
 ```js
 const EventEmitter = require('events');
 const myEE = new EventEmitter();
 myEE.on('foo', () => {});
 myEE.on('bar', () => {});
+
+const sym = Symbol('symbol');
+myEE.on(sym, () => {});
+
 console.log(myErr.eventNames());
-  // Prints ['foo', 'bar']
+  // Prints ['foo', 'bar', Symbol('symbol')]
 ```
 
 ### emitter.getMaxListeners()
