@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // Make sure that throwing in 'end' handler doesn't lock
 // up the socket forever.
@@ -8,40 +8,32 @@ var assert = require('assert');
 // This is NOT a good way to handle errors in general, but all
 // the same, we should not be so brittle and easily broken.
 
-var http = require('http');
+const http = require('http');
 
-var n = 0;
-var server = http.createServer(function(req, res) {
+let n = 0;
+const server = http.createServer((req, res) => {
   if (++n === 10) server.close();
   res.end('ok');
 });
 
-server.listen(common.PORT, function() {
-  for (var i = 0; i < 10; i++) {
-    var options = { port: common.PORT };
-
-    var req = http.request(options, function(res) {
+server.listen(common.PORT, common.mustCall(() => {
+  for (let i = 0; i < 10; i++) {
+    const options = { port: common.PORT };
+    const req = http.request(options, (res) => {
       res.resume();
-      res.on('end', function() {
+      res.on('end', common.mustCall(() => {
         throw new Error('gleep glorp');
-      });
+      }));
     });
     req.end();
   }
+}));
+
+let errors = 0;
+process.on('uncaughtException', () => {
+  errors++;
 });
 
-setTimeout(function() {
-  process.removeListener('uncaughtException', catcher);
-  throw new Error('Taking too long!');
-}, common.platformTimeout(1000)).unref();
-
-process.on('uncaughtException', catcher);
-var errors = 0;
-function catcher() {
-  errors++;
-}
-
-process.on('exit', function() {
+process.on('exit', () => {
   assert.equal(errors, 10);
-  console.log('ok');
 });
