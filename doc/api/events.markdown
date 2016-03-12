@@ -295,7 +295,7 @@ they were registered, passing the supplied arguments to each.
 
 Returns `true` if event had listeners, `false` otherwise.
 
-### emitter.eventsList()
+### emitter.eventNames()
 
 Returns an array listing the events for which the emitter has registered
 listeners.
@@ -305,7 +305,7 @@ const EventEmitter = require('events');
 const myEE = new EventEmitter();
 myEE.on('foo', () => {});
 myEE.on('bar', () => {});
-console.log(myErr.listEvents());
+console.log(myErr.eventNames());
   // Prints ['foo', 'bar']
 ```
 
