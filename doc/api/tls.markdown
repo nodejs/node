@@ -193,8 +193,8 @@ connections using TLS or SSL.
 
 `function (exception, tlsSocket) { }`
 
-When a client connection emits an `'error'` event before secure connection is
-established - it will be forwarded here.
+When a client connection emits an `'error'` event before a secure connection is
+established it will be forwarded here.
 
 `tlsSocket` is the [`tls.TLSSocket`][] that the error originated from.
 
@@ -370,7 +370,7 @@ Construct a new TLSSocket object from existing TCP socket.
   - `secureContext`: An optional TLS context object from
      [`tls.createSecureContext()`][]
 
-  - `isServer`: If `true` - TLS socket will be instantiated in server-mode.
+  - `isServer`: If `true` the TLS socket will be instantiated in server-mode.
     Default: `false`
 
   - `server`: An optional [`net.Server`][] instance
@@ -385,9 +385,9 @@ Construct a new TLSSocket object from existing TCP socket.
 
   - `session`: Optional, a `Buffer` instance, containing TLS session
 
-  - `requestOCSP`: Optional, if `true` - OCSP status request extension would
-    be added to client hello, and `'OCSPResponse'` event will be emitted on socket
-    before establishing secure communication
+  - `requestOCSP`: Optional, if `true` the OCSP status request extension will
+    be added to the client hello, and an `'OCSPResponse'` event will be emitted
+    on the socket before establishing a secure communication
 
 ### Event: 'OCSPResponse'
 
@@ -406,7 +406,7 @@ The listener will be called no matter if the server's certificate was
 authorized or not. It is up to the user to test `tlsSocket.authorized`
 to see if the server certificate was signed by one of the specified CAs.
 If `tlsSocket.authorized === false` then the error can be found in
-`tlsSocket.authorizationError`. Also if NPN was used - you can check
+`tlsSocket.authorizationError`. Also if NPN was used you can check
 `tlsSocket.npnProtocol` for negotiated protocol.
 
 ### tlsSocket.address()
@@ -446,8 +446,8 @@ information.
 
 Returns an object representing the peer's certificate. The returned object has
 some properties corresponding to the field of the certificate. If `detailed`
-argument is `true` - the full chain with `issuer` property will be returned,
-if `false` - only the top certificate without `issuer` property.
+argument is `true` the full chain with `issuer` property will be returned,
+if `false` only the top certificate without `issuer` property.
 
 Example:
 
@@ -817,7 +817,7 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
     and `cb`. `SNICallback` should invoke `cb(null, ctx)`, where `ctx` is a
     SecureContext instance.
     (You can use `tls.createSecureContext(...)` to get proper
-    SecureContext). If `SNICallback` wasn't provided - default callback with
+    SecureContext). If `SNICallback` wasn't provided the default callback with
     high-level API will be used (see below).
 
   - `sessionTimeout`: An integer specifying the seconds after which TLS
