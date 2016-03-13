@@ -83,3 +83,22 @@ e5.once('removeListener', common.mustCall(function(name, cb) {
 }));
 e5.removeListener('hello', listener1);
 assert.deepEqual([], e5.listeners('hello'));
+
+const e6 = new events.EventEmitter();
+
+const listener3 = common.mustCall(() => {
+  e6.removeListener('hello', listener4);
+}, 2);
+
+const listener4 = common.mustCall(() => {}, 1);
+
+e6.on('hello', listener3);
+e6.on('hello', listener4);
+
+// listener4 will still be called although it is removed by listener 3.
+e6.emit('hello');
+// This is so because the interal listener array at time of emit
+// was [listener3,listener4]
+
+// Interal listener array [listener3]
+e6.emit('hello');
