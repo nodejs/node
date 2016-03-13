@@ -197,12 +197,12 @@ drop membership on all valid interfaces.
 Broadcasts a datagram on the socket. The destination `port` and `address` must
 be specified.
 
-The `msg` argument containins the message to be sent.
+The `msg` argument contains the message to be sent.
 Depending on its type, different behavior can apply. If `msg` is a `Buffer`,
 the `offset` and `length` specify the offset within the `Buffer` where the
 message begins and the number of bytes in the message, respectively.
 If `msg` is a `String`, then it is automatically converted to a `Buffer`
-with `'utf8'` enecoding. With messages that
+with `'utf8'` encoding. With messages that
 contain  multi-byte characters, `offset` and `length` will be calculated with
 respect to [byte length][] and not the character position.
 If `msg` is an array, `offset` and `length` must not be specified.
