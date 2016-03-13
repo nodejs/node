@@ -383,7 +383,7 @@ default mode `w`. The `defaultEncoding` can be any one of those accepted by [`Bu
 If `autoClose` is set to true (default behavior) on `error` or `end`
 the file descriptor will be closed automatically. If `autoClose` is false,
 then the file descriptor won't be closed, even if there's an error.
-It is your responsiblity to close it and make sure
+It is your responsibility to close it and make sure
 there's no file descriptor leak.
 
 Like [`ReadStream`][], if `fd` is specified, `WriteStream` will ignore the
