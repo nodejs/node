@@ -93,7 +93,22 @@ path.extname('.index')
 
 ## path.format(pathObject)
 
-Returns a path string from an object, the opposite of [`path.parse`][].
+Returns a path string from an object. This is the opposite of [`path.parse`][].
+
+If `pathObject` has all expected properties, the returned string will be a
+concatenation of the `dir` property, the platform-dependent path separator, and
+the `base` property.
+
+If the `dir` property is not supplied, the `root` property will be used as the
+`dir` property. However, it will be assumed that the `root` property already
+ends with the platform-dependent path separator. In this case, the returned
+string will be the concatenation fo the `root` property and the `base` property.
+
+If both the `dir` and the `root` properties are not supplied, then the returned
+string will be the contents of the `base` property.
+
+If the `base` property is not supplied, a concatenation of the `name` property
+and the `ext` property will be used as the `base` property.
 
 ```js
 path.format({
