@@ -32,7 +32,7 @@ mean that data sent to the child process may not be immediately consumed.*
 The `child_process.spawn()` method spawns the child process asynchronously,
 without blocking the Node.js event loop. The `child_process.spawnSync()`
 function provides equivalent functionality in a synchronous manner that blocks
-the event loop until the spawned process either exits of is terminated.
+the event loop until the spawned process either exits or is terminated.
 
 For convenience, the `child_process` module provides a handful of synchronous
 and asynchronous alternatives to [`child_process.spawn()`][] and
