@@ -211,6 +211,8 @@ test-timers:
 test-timers-clean:
 	$(MAKE) --directory=tools clean
 
+
+ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 test-v8:
 	# note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
@@ -234,6 +236,12 @@ test-v8-benchmarks:
 
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
 	# runs all v8 tests
+else
+test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
+	@echo "Testing v8 is not available through the source tarball."
+	@echo "Use the git repo instead:" \
+		"$ git clone https://github.com/nodejs/node.git"
+endif
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
@@ -427,12 +435,15 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
-	rm -rf $(TARNAME)/deps/v8/{test,samples,tools/profviz} # too big
+	rm -rf $(TARNAME)/deps/v8/{test,samples,tools/profviz,tools/run-tests.py}
 	rm -rf $(TARNAME)/doc/images # too big
 	rm -rf $(TARNAME)/deps/uv/{docs,samples,test}
-	rm -rf $(TARNAME)/deps/openssl/{doc,demos,test}
+	rm -rf $(TARNAME)/deps/openssl/openssl/{doc,demos,test}
 	rm -rf $(TARNAME)/deps/zlib/contrib # too big, unused
-	rm -rf $(TARNAME)/.github # github issue templates
+	rm -rf $(TARNAME)/.{editorconfig,git*,mailmap}
+	rm -rf $(TARNAME)/tools/{eslint,eslint-rules,osx-pkg.pmdoc,pkgsrc}
+	rm -rf $(TARNAME)/tools/{osx-*,license-builder.sh,cpplint.py}
+	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs rm
 	find $(TARNAME)/ -type l | xargs rm # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
 	rm -rf $(TARNAME)
@@ -583,7 +594,7 @@ bench-idle:
 
 jslint:
 	$(NODE) tools/eslint/bin/eslint.js benchmark lib src test tools/doc \
-	  tools/eslint-rules --rulesdir tools/eslint-rules
+		tools/eslint-rules --rulesdir tools/eslint-rules
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_lttng.cc
@@ -610,7 +621,14 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 cpplint:
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
 
+ifneq ("","$(wildcard tools/eslint/bin/eslint.js)")
 lint: jslint cpplint
+else
+lint:
+	@echo "Linting is not available through the source tarball."
+	@echo "Use the git repo instead:" \
+		"$ git clone https://github.com/nodejs/node.git"
+endif
 
 .PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean \
 	check uninstall install install-includes install-bin all staticlib \
