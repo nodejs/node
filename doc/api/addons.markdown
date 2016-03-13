@@ -207,7 +207,7 @@ release schedule is designed to minimize the frequency and impact of such
 changes but there is little that Node.js can do currently to ensure stability
 of the V8 APIs.
 
-The [Native Abstrations for Node.js][] (or `nan`) provide a set of tools that
+The [Native Abstractions for Node.js][] (or `nan`) provide a set of tools that
 Addon developers are recommended to use to keep compatibility between past and
 future releases of V8 and Node.js. See the `nan` [examples][] for an
 illustration of how it can be used.
@@ -1085,7 +1085,7 @@ const addon = require('./build/Release/addon');
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [Linking to Node.js' own dependencies]: #linking-to-nodejs-own-dependencies
-[Native Abstrations for Node.js]: https://github.com/nodejs/nan
+[Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [node-gyp]: https://github.com/nodejs/node-gyp
 [require]: globals.html#globals_require
 [v8-docs]: https://v8docs.nodesource.com/
