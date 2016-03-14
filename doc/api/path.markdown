@@ -105,6 +105,8 @@ and the `ext` property will be used as the `base` property.
 
 Examples:
 
+An example on Posix systems:
+
 ```js
 path.format({
     root : "/",
@@ -123,6 +125,19 @@ path.format({
     name : "file"
 })
 // returns '/file.txt'
+```
+
+An example on Windows:
+
+```js
+path.format({
+    root : "C:\\",
+    dir : "C:\\path\\dir",
+    base : "file.txt",
+    ext : ".txt",
+    name : "file"
+})
+// returns 'C:\\path\\dir\\file.txt'
 ```
 
 ## path.isAbsolute(path)
