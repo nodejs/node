@@ -102,6 +102,7 @@
       'deps/v8/tools/tickprocessor.js',
       'deps/v8/tools/SourceMap.js',
       'deps/v8/tools/tickprocessor-driver.js',
+      'doc/node.1',
     ],
     'conditions': [
       [ 'node_shared=="true"', {

@@ -156,6 +156,7 @@ static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
 static bool v8_is_profiling = false;
 static bool node_is_initialized = false;
+static bool open_man_page = false;
 static node_module* modpending;
 static node_module* modlist_builtin;
 static node_module* modlist_linked;
@@ -2946,6 +2947,13 @@ void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   } while (0)
 
 
+static void PrintHelp();
+
+static void JSPrintHelp(const FunctionCallbackInfo<Value>& args) {
+  PrintHelp();
+}
+
+
 void SetupProcessObject(Environment* env,
                         int argc,
                         const char* const* argv,
@@ -3215,6 +3223,11 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "_debugWaitConnect", True(env->isolate()));
   }
 
+  // --help on Unix tries to open `man 1 node`
+  if (open_man_page) {
+    READONLY_PROPERTY(process, "openManPage", True(env->isolate()));
+  }
+
   // --security-revert flags
 #define V(code, _, __)                                                        \
   do {                                                                        \
@@ -3301,6 +3314,10 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
   env->SetMethod(process, "_setupPromises", SetupPromises);
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
+
+  if (open_man_page) {
+    env->SetMethod(process, "printHelp", JSPrintHelp);
+  }
 
   // pre-set _events object for faster emit checks
   Local<Object> events_obj = Object::New(env->isolate());
@@ -3413,7 +3430,6 @@ void LoadEnvironment(Environment* env) {
   Local<Value> arg = env->process_object();
   f->Call(Null(env->isolate()), 1, &arg);
 }
-
 
 static void PrintHelp();
 
@@ -3618,6 +3634,13 @@ static void ParseArgs(int* argc,
       printf("%s\n", NODE_VERSION);
       exit(0);
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
+      if (strcmp(NODE_PLATFORM, "win32") == 0) {
+        PrintHelp();
+        exit(0);
+      } else {
+        open_man_page = true;
+      }
+    } else if (strcmp(arg, "--raw-help") == 0) {
       PrintHelp();
       exit(0);
     } else if (strcmp(arg, "--eval") == 0 ||
