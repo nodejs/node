@@ -164,6 +164,10 @@ static const char* icu_data_dir = nullptr;
 // used by C++ modules as well
 bool no_deprecation = false;
 
+// true if process warnings should be suppressed
+bool no_process_warnings = false;
+bool trace_warnings = false;
+
 #if HAVE_OPENSSL && NODE_FIPS_MODE
 // used by crypto module
 bool enable_fips_crypto = false;
@@ -3050,6 +3054,16 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "noDeprecation", True(env->isolate()));
   }
 
+  // --no-warnings
+  if (no_process_warnings) {
+    READONLY_PROPERTY(process, "noProcessWarnings", True(env->isolate()));
+  }
+
+  // --trace-warnings
+  if (trace_warnings) {
+    READONLY_PROPERTY(process, "traceProcessWarnings", True(env->isolate()));
+  }
+
   // --throw-deprecation
   if (throw_deprecation) {
     READONLY_PROPERTY(process, "throwDeprecation", True(env->isolate()));
@@ -3303,9 +3317,11 @@ static void PrintHelp() {
          "                        does not appear to be a terminal\n"
          "  -r, --require         module to preload (option can be repeated)\n"
          "  --no-deprecation      silence deprecation warnings\n"
+         "  --no-warnings         silence all process warnings\n"
          "  --throw-deprecation   throw an exception anytime a deprecated "
          "function is used\n"
          "  --trace-deprecation   show stack traces on deprecations\n"
+         "  --trace-warnings      show stack traces on process warnings\n"
          "  --trace-sync-io       show stack trace when use of sync IO\n"
          "                        is detected after the first tick\n"
          "  --track-heap-objects  track heap object allocations for heap "
@@ -3441,6 +3457,10 @@ static void ParseArgs(int* argc,
       force_repl = true;
     } else if (strcmp(arg, "--no-deprecation") == 0) {
       no_deprecation = true;
+    } else if (strcmp(arg, "--no-warnings") == 0) {
+      no_process_warnings = true;
+    } else if (strcmp(arg, "--trace-warnings") == 0) {
+      trace_warnings = true;
     } else if (strcmp(arg, "--trace-deprecation") == 0) {
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
