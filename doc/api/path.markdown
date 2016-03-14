@@ -105,7 +105,7 @@ and the `ext` property will be used as the `base` property.
 
 Examples:
 
-An example on \*nix:
+An example on Posix systems:
 
 ```js
 path.format({
