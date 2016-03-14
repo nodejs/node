@@ -18,6 +18,7 @@ using v8::HeapProfiler;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::RetainedObjectInfo;
 using v8::TryCatch;
@@ -225,8 +226,13 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   }
 
   if (ran_init_callback() && !pre_fn.IsEmpty()) {
-    if (pre_fn->Call(context, 1, &uid).IsEmpty())
-      FatalError("node::AsyncWrap::MakeCallback", "pre hook threw");
+    TryCatch try_catch(env()->isolate());
+    MaybeLocal<Value> ar = pre_fn->Call(env()->context(), context, 1, &uid);
+    if (ar.IsEmpty()) {
+      ClearFatalExceptionHandlers(env());
+      FatalException(env()->isolate(), try_catch);
+      return Local<Value>();
+    }
   }
 
   Local<Value> ret = cb->Call(context, argc, argv);
@@ -234,8 +240,14 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   if (ran_init_callback() && !post_fn.IsEmpty()) {
     Local<Value> did_throw = Boolean::New(env()->isolate(), ret.IsEmpty());
     Local<Value> vals[] = { uid, did_throw };
-    if (post_fn->Call(context, arraysize(vals), vals).IsEmpty())
-      FatalError("node::AsyncWrap::MakeCallback", "post hook threw");
+    TryCatch try_catch(env()->isolate());
+    MaybeLocal<Value> ar =
+        post_fn->Call(env()->context(), context, arraysize(vals), vals);
+    if (ar.IsEmpty()) {
+      ClearFatalExceptionHandlers(env());
+      FatalException(env()->isolate(), try_catch);
+      return Local<Value>();
+    }
   }
 
   if (ret.IsEmpty()) {
