@@ -237,6 +237,11 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   Environment* env_;
 };
 
+// Clear any domain and/or uncaughtException handlers to force the error's
+// propagation and shutdown the process. Use this to force the process to exit
+// by clearing all callbacks that could handle the error.
+void ClearFatalExceptionHandlers(Environment* env);
+
 enum NodeInstanceType { MAIN, WORKER };
 
 class NodeInstanceData {
