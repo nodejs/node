@@ -33,7 +33,7 @@ function testSloppyMode() {
     'undefined',
     '10',
     '10',
-    'expression assignment to _ now disabled',
+    'Expression assignment to _ now disabled.',
     '20',
     '20',
     '30',
@@ -121,7 +121,7 @@ function testResetContext() {
           `);
 
   assertOutput(r.output, [
-    'expression assignment to _ now disabled',
+    'Expression assignment to _ now disabled.',
     '10',
     '10',
     'Clearing context...',
@@ -131,7 +131,7 @@ function testResetContext() {
   ]);
 }
 
-function initRepl(mode, useGlobal) {
+function initRepl(mode) {
   const inputStream = new stream.PassThrough();
   const outputStream = new stream.PassThrough();
   outputStream.accum = '';
@@ -146,7 +146,6 @@ function initRepl(mode, useGlobal) {
     useColors: false,
     terminal: false,
     prompt: '',
-    useGlobal: !!useGlobal,
     replMode: mode
   });
 }
