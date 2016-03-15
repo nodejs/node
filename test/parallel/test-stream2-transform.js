@@ -131,7 +131,7 @@ test('simple transform', function(t) {
 test('simple object transform', function(t) {
   var pt = new Transform({ objectMode: true });
   pt._transform = function(c, e, cb) {
-    pt.push(JSON.stringify(c));
+    pt.push(JSON.stringify(c) || 'undefined');
     cb();
   };
 
@@ -142,6 +142,8 @@ test('simple object transform', function(t) {
   pt.write('foo');
   pt.write('');
   pt.write({ a: 'b'});
+  pt.write(null);
+  pt.write(undefined);
   pt.end();
 
   t.equal(pt.read(), '1');
@@ -151,6 +153,8 @@ test('simple object transform', function(t) {
   t.equal(pt.read(), '"foo"');
   t.equal(pt.read(), '""');
   t.equal(pt.read(), '{"a":"b"}');
+  t.equal(pt.read(), 'null');
+  t.equal(pt.read(), 'undefined');
   t.end();
 });
 
