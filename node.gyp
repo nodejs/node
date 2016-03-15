@@ -16,7 +16,7 @@
     'node_target_type%': 'executable',
     'node_core_target_name%': 'node',
     'library_files': [
-      'lib/internal/node.js',
+      'lib/internal/bootstrap_node.js',
       'lib/_debug_agent.js',
       'lib/_debugger.js',
       'lib/assert.js',
