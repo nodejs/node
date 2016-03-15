@@ -4,25 +4,25 @@
 
 const common = require('../common');
 const stream = require('stream');
-const REPL = require('internal/repl');
+const repl = require('internal/repl');
 const assert = require('assert');
 
 common.globalCheck = false;
 
-test();
+runRepl(false, common.mustCall(function(err, output) {
+  assert.ifError(err);
+  assert.strictEqual(output, 'undefined');
 
-function test() {
-
-  runRepl(false, (err, output) => {
+  runRepl(true, common.mustCall(function(err, output) {
     assert.ifError(err);
-    assert.strictEqual(output, 'undefined');
+    assert.strictEqual(output, '\'tacos\'');
 
-    runRepl(true, (err, output) => {
+    runRepl(undefined, common.mustCall(function(err, output) {
       assert.ifError(err);
-      assert.strictEqual(output, '\'tacos\'');
-    });
-  });
-}
+      assert.strictEqual(output, 'undefined');
+    }));
+  }));
+}));
 
 function runRepl(useGlobal, cb) {
   const inputStream = new stream.PassThrough();
@@ -31,15 +31,11 @@ function runRepl(useGlobal, cb) {
   const opts = {
     input: inputStream,
     output: outputStream,
+    useGlobal: useGlobal,
     useColors: false,
     terminal: false,
     prompt: ''
   };
-
-  // Don't blindly set useGlobal, because we want to test
-  // the default case as well, where useGlobal is not provided.
-  if (useGlobal)
-    opts.useGlobal = true;
 
   let output = '';
 
@@ -47,8 +43,7 @@ function runRepl(useGlobal, cb) {
     output += data;
   });
 
-  REPL.createInternalRepl(process.env, opts, function(err, repl) {
-
+  repl.createInternalRepl(process.env, opts, function(err, repl) {
     if (err)
       return cb(err);
 
