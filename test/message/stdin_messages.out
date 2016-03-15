@@ -8,8 +8,8 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at _combinedTickCallback (internal/process/next_tick.js:*:*)
+    at process._tickCallback (internal/process/next_tick.js:*:*)
 42
 42
 
@@ -22,8 +22,8 @@ Error: hello
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at _combinedTickCallback (internal/process/next_tick.js:*:*)
+    at process._tickCallback (internal/process/next_tick.js:*:*)
 
 [stdin]:1
 throw new Error("hello")
@@ -34,8 +34,8 @@ Error: hello
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at _combinedTickCallback (internal/process/next_tick.js:*:*)
+    at process._tickCallback (internal/process/next_tick.js:*:*)
 100
 
 [stdin]:1
@@ -47,8 +47,8 @@ ReferenceError: y is not defined
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at _combinedTickCallback (internal/process/next_tick.js:*:*)
+    at process._tickCallback (internal/process/next_tick.js:*:*)
 
 [stdin]:1
 var ______________________________________________; throw 10
