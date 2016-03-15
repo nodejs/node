@@ -51,6 +51,13 @@
 #define BUFFER_MALLOC(length)                                               \
   zero_fill_all_buffers ? calloc(length, 1) : malloc(length)
 
+#define SWAP(arr, a, b)                                                     \
+  do {                                                                      \
+    const uint8_t lo = arr[a];                                              \
+    arr[a] = arr[b];                                                        \
+    arr[b] = lo;                                                            \
+  } while (0)
+
 namespace node {
 
 // if true, all Buffer and SlowBuffer instances will automatically zero-fill
@@ -1092,6 +1099,28 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
                                 : -1);
 }
 
+void Swap16(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
+  SPREAD_ARG(args.This(), ts_obj);
+
+  for (size_t i = 0; i < ts_obj_length; i += 2) {
+    SWAP(ts_obj_data, i, i + 1);
+  }
+  args.GetReturnValue().Set(args.This());
+}
+
+void Swap32(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
+  SPREAD_ARG(args.This(), ts_obj);
+
+  for (size_t i = 0; i < ts_obj_length; i += 4) {
+    SWAP(ts_obj_data, i, i + 3);
+    SWAP(ts_obj_data, i + 1, i + 2);
+  }
+  args.GetReturnValue().Set(args.This());
+}
 
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
@@ -1114,6 +1143,8 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   env->SetMethod(proto, "hexWrite", HexWrite);
   env->SetMethod(proto, "ucs2Write", Ucs2Write);
   env->SetMethod(proto, "utf8Write", Utf8Write);
+  env->SetMethod(proto, "swap16", Swap16);
+  env->SetMethod(proto, "swap32", Swap32);
 
   env->SetMethod(proto, "copy", Copy);
 

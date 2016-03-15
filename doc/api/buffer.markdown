@@ -1245,6 +1245,42 @@ buf.slice(-5, -2).toString();
   // Returns 'uff', equivalent to buf.slice(1, 4)
 ```
 
+### buf.swap16()
+
+* Return: {Buffer}
+
+Interprets the `Buffer` as an array of unsigned 16-bit integers and swaps
+the byte-order *in-place*. Throws a `RangeError` if the `Buffer` length is
+not a multiple of 16 bits. The method returns a reference to the Buffer, so
+calls can be chained.
+
+```js
+const buf = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
+console.log(buf);
+  // Prints Buffer(0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8)
+buf.swap16();
+console.log(buf);
+  // Prints Buffer(0x2, 0x1, 0x4, 0x3, 0x6, 0x5, 0x8, 0x7)
+```
+
+### buf.swap32()
+
+* Return: {Buffer}
+
+Interprets the `Buffer` as an array of unsigned 32-bit integers and swaps
+the byte-order *in-place*. Throws a `RangeError` if the `Buffer` length is
+not a multiple of 32 bits. The method returns a reference to the Buffer, so
+calls can be chained.
+
+```js
+const buf = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
+console.log(buf);
+  // Prints Buffer(0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8)
+buf.swap32();
+console.log(buf);
+  // Prints Buffer(0x4, 0x3, 0x2, 0x1, 0x8, 0x7, 0x6, 0x5)
+```
+
 ### buf.toString([encoding[, start[, end]]])
 
 * `encoding` {String} Default: `'utf8'`
