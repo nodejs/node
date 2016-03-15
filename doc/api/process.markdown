@@ -841,6 +841,8 @@ When Node.js is spawned with an IPC channel attached, it can send messages to it
 parent process using `process.send()`. Each will be received as a
 [`'message'`][] event on the parent's `ChildProcess` object.
 
+*Note: this function uses [`JSON.stringify()`][] internally to serialize the `message`.*
+
 If Node.js was not spawned with an IPC channel, `process.send()` will be undefined.
 
 ## process.setegid(id)
@@ -1096,3 +1098,4 @@ Will print something like:
 [Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
 [the tty docs]: tty.html#tty_tty
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
