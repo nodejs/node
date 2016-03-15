@@ -902,6 +902,8 @@ tracking when the socket is destroyed. To indicate this, the `.connections`
 property becomes `null`. It is recommended not to use `.maxConnections` when
 this occurs.
 
+*Note: this function uses [`JSON.stringify()`][] internally to serialize the `message`.*
+
 ### child.stderr
 
 * {Stream}
@@ -996,3 +998,4 @@ to the same value.
 [`options.stdio`]: #child_process_options_stdio
 [`stdio`]: #child_process_options_stdio
 [synchronous counterparts]: #child_process_synchronous_process_creation
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
