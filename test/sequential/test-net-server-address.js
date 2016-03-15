@@ -87,18 +87,3 @@ server3.listen(0, function() {
   assert.strictEqual(address.family, family_ipv6);
   server3.close();
 });
-
-// Test without hostname, but with port -1
-var server4 = net.createServer();
-
-server4.on('error', function(e) {
-  console.log('Error on ip socket: ' + e.toString());
-});
-
-// Specify -1 as port number
-server4.listen(-1, function() {
-  var address = server4.address();
-  assert.strictEqual(address.address, anycast_ipv6);
-  assert.strictEqual(address.family, family_ipv6);
-  server4.close();
-});
