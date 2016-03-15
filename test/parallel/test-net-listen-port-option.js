@@ -18,7 +18,7 @@ net.Server().listen({ port: '' + common.PORT }, close);
 ].forEach(function(port) {
   assert.throws(function() {
     net.Server().listen({ port: port }, assert.fail);
-  }, /"port" option should be >= 0 and < 65536/i);
+  }, /"port" argument must be >= 0 and < 65536/i);
 });
 
 [null, true, false].forEach(function(port) {
