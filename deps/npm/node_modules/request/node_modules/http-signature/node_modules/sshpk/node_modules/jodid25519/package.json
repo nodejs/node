@@ -1,0 +1,71 @@
+{
+  "name": "jodid25519",
+  "version": "1.0.2",
+  "description": "jodid25519 - Curve 25519-based cryptography",
+  "main": "index.js",
+  "directories": {
+    "src": "src",
+    "test": "test",
+    "doc": "doc"
+  },
+  "scripts": {
+    "test": "mocha test/*_test.js"
+  },
+  "homepage": "https://github.com/meganz/jodid25519",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meganz/jodid25519.git"
+  },
+  "bugs": {
+    "url": "https://github.com/meganz/jodid25519/issues"
+  },
+  "keywords": [
+    "Curve25519",
+    "Ed25519",
+    "ECDH",
+    "EdDSA",
+    "ECDSA",
+    "encryption",
+    "signing"
+  ],
+  "author": {
+    "name": "Michele Bini, Ron Garret, Guy K. Kloss"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "jsbn": "~0.1.0"
+  },
+  "devDependencies": {
+    "almond": "~0.3.1",
+    "chai": "^3.0.0",
+    "mocha": "~2.0.1",
+    "istanbul": "~0.3.5",
+    "ibrik": "~2.0.0",
+    "dateformat": "~1.0.7-1.2.3",
+    "sinon": "~1.10.3",
+    "sinon-chai": "^2.8.0",
+    "jsdoc": "<=3.3.0"
+  },
+  "gitHead": "a83b9fcf7fd3be4f27cd4a57817aff171c7cd918",
+  "_id": "jodid25519@1.0.2",
+  "_shasum": "06d4912255093419477d425633606e0e90782967",
+  "_from": "jodid25519@>=1.0.0 <2.0.0",
+  "_npmVersion": "2.14.4",
+  "_nodeVersion": "4.1.1",
+  "_npmUser": {
+    "name": "arekinath",
+    "email": "alex@cooperi.net"
+  },
+  "dist": {
+    "shasum": "06d4912255093419477d425633606e0e90782967",
+    "tarball": "http://registry.npmjs.org/jodid25519/-/jodid25519-1.0.2.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "arekinath",
+      "email": "alex@cooperi.net"
+    }
+  ],
+  "_resolved": "https://registry.npmjs.org/jodid25519/-/jodid25519-1.0.2.tgz",
+  "readme": "ERROR: No README data found!"
+}

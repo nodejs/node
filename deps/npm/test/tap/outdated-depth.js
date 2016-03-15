@@ -1,15 +1,37 @@
-var common = require('../common-tap')
-  , path = require('path')
-  , test = require('tap').test
-  , rimraf = require('rimraf')
-  , npm = require('../../')
-  , mr = require('npm-registry-mock')
-  , pkg = path.resolve(__dirname, 'outdated-depth')
+var fs = require('graceful-fs')
+var path = require('path')
 
-function cleanup () {
-  rimraf.sync(pkg + '/node_modules')
-  rimraf.sync(pkg + '/cache')
+var mkdirp = require('mkdirp')
+var mr = require('npm-registry-mock')
+var osenv = require('osenv')
+var rimraf = require('rimraf')
+var test = require('tap').test
+
+var npm = require('../../')
+var common = require('../common-tap')
+
+var pkg = path.resolve(__dirname, 'outdated-depth')
+
+var json = {
+  name: 'outdated-depth',
+  version: '1.2.3',
+  dependencies: {
+    underscore: '1.3.1',
+    'npm-test-peer-deps': '0.0.0'
+  }
 }
+
+test('setup', function (t) {
+  cleanup()
+  mkdirp.sync(pkg)
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+  process.chdir(pkg)
+
+  t.end()
+})
 
 test('outdated depth zero', function (t) {
   var expected = [
@@ -21,16 +43,13 @@ test('outdated depth zero', function (t) {
     '1.3.1'
   ]
 
-  process.chdir(pkg)
-
-  mr(common.port, function (s) {
-    npm.load({
-      cache: pkg + '/cache'
-    , loglevel: 'silent'
-    , registry: common.registry
-    , depth: 0
-    }
-    , function () {
+  mr({ port: common.port }, function (er, s) {
+    npm.load(
+      {
+        loglevel: 'silent',
+        registry: common.registry
+      },
+      function () {
         npm.install('.', function (er) {
           if (er) throw new Error(er)
           npm.outdated(function (err, d) {
@@ -45,7 +64,12 @@ test('outdated depth zero', function (t) {
   })
 })
 
-test("cleanup", function (t) {
+test('cleanup', function (t) {
   cleanup()
   t.end()
 })
+
+function cleanup () {
+  process.chdir(osenv.tmpdir())
+  rimraf.sync(pkg)
+}

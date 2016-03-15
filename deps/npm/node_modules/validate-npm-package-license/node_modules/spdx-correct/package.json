@@ -1,0 +1,65 @@
+{
+  "name": "spdx-correct",
+  "description": "correct invalid SPDX identifiers",
+  "version": "1.0.2",
+  "author": {
+    "name": "Kyle E. Mitchell",
+    "email": "kyle@kemitchell.com",
+    "url": "https://kemitchell.com"
+  },
+  "dependencies": {
+    "spdx-license-ids": "^1.0.2"
+  },
+  "devDependencies": {
+    "defence-cli": "^1.0.1",
+    "replace-require-self": "^1.0.0",
+    "spdx-expression-parse": "^1.0.0",
+    "tape": "~4.0.0"
+  },
+  "keywords": [
+    "SPDX",
+    "law",
+    "legal",
+    "license",
+    "metadata"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kemitchell/spdx-correct.js.git"
+  },
+  "scripts": {
+    "test": "defence README.md | replace-require-self | node && tape *.test.js"
+  },
+  "gitHead": "8430a3ad521e1455208db33faafcb79c7b074236",
+  "bugs": {
+    "url": "https://github.com/kemitchell/spdx-correct.js/issues"
+  },
+  "homepage": "https://github.com/kemitchell/spdx-correct.js#readme",
+  "_id": "spdx-correct@1.0.2",
+  "_shasum": "4b3073d933ff51f3912f03ac5519498a4150db40",
+  "_from": "spdx-correct@>=1.0.0 <1.1.0",
+  "_npmVersion": "3.3.6",
+  "_nodeVersion": "4.2.1",
+  "_npmUser": {
+    "name": "kemitchell",
+    "email": "kyle@kemitchell.com"
+  },
+  "dist": {
+    "shasum": "4b3073d933ff51f3912f03ac5519498a4150db40",
+    "tarball": "http://registry.npmjs.org/spdx-correct/-/spdx-correct-1.0.2.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "kemitchell",
+      "email": "kyle@kemitchell.com"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/spdx-correct/-/spdx-correct-1.0.2.tgz",
+  "readme": "ERROR: No README data found!"
+}

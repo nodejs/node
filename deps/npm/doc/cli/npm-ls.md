@@ -3,10 +3,10 @@ npm-ls(1) -- List installed packages
 
 ## SYNOPSIS
 
-    npm list [<pkg> ...]
-    npm ls [<pkg> ...]
-    npm la [<pkg> ...]
-    npm ll [<pkg> ...]
+    npm list [[@<scope>/]<pkg> ...]
+    npm ls [[@<scope>/]<pkg> ...]
+    npm la [[@<scope>/]<pkg> ...]
+    npm ll [[@<scope>/]<pkg> ...]
 
 ## DESCRIPTION
 
@@ -66,6 +66,20 @@ project.
 * Type: Int
 
 Max display depth of the dependency tree.
+
+### prod / production
+
+* Type: Boolean
+* Default: false
+
+Display only the dependency tree for packages in `dependencies`.
+
+### dev
+
+* Type: Boolean
+* Default: false
+
+Display only the dependency tree for packages in `devDependencies`.
 
 ## SEE ALSO
 

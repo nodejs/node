@@ -1,52 +1,46 @@
-var test = require("tap").test
-  , path = require("path")
-  , rimraf = require("rimraf")
-  , mkdirp = require("mkdirp")
-  , spawn = require("child_process").spawn
-  , npm = require.resolve("../../bin/npm-cli.js")
-  , node = process.execPath
-  , pkg = path.resolve(__dirname, "git-cache-locking")
-  , tmp = path.join(pkg, "tmp")
-  , cache = path.join(pkg, "cache")
+var test = require('tap').test
+var common = require('../common-tap')
+var path = require('path')
+var rimraf = require('rimraf')
+var mkdirp = require('mkdirp')
+var pkg = path.resolve(__dirname, 'git-cache-locking')
+var tmp = path.join(pkg, 'tmp')
+var cache = path.join(pkg, 'cache')
 
-
-test("setup", function (t) {
+test('setup', function (t) {
   rimraf.sync(pkg)
-  mkdirp.sync(pkg)
-  mkdirp.sync(cache)
-  mkdirp.sync(tmp)
   mkdirp.sync(path.resolve(pkg, 'node_modules'))
   t.end()
 })
 
-test("git-cache-locking: install a git dependency", function (t) {
-
+test('git-cache-locking: install a git dependency', function (t) {
   // disable git integration tests on Travis.
   if (process.env.TRAVIS) return t.end()
 
   // package c depends on a.git#master and b.git#master
   // package b depends on a.git#master
-  var child = spawn(node, [npm, "install", "git://github.com/nigelzor/npm-4503-c.git"], {
+  common.npm([
+    'install',
+    'git://github.com/nigelzor/npm-4503-c.git'
+  ], {
     cwd: pkg,
     env: {
       npm_config_cache: cache,
       npm_config_tmp: tmp,
       npm_config_prefix: pkg,
-      npm_config_global: "false",
+      npm_config_global: 'false',
       HOME: process.env.HOME,
       Path: process.env.PATH,
       PATH: process.env.PATH
-    },
-    stdio: "inherit"
-  })
-
-  child.on("close", function (code) {
-    t.equal(0, code, "npm install should succeed")
+    }
+  }, function (err, code, stdout, stderr) {
+    t.ifErr(err, 'npm install finished without error')
+    t.equal(0, code, 'npm install should succeed')
     t.end()
   })
 })
 
-test('cleanup', function(t) {
+test('cleanup', function (t) {
   rimraf.sync(pkg)
   t.end()
 })

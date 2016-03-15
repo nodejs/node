@@ -1,11 +1,19 @@
 var tar = require("../tar.js")
   , fs = require("fs")
 
+
+function onError(err) {
+  console.error('An error occurred:', err)
+}
+
+function onEnd() {
+  console.log('Extracted!')
+}
+
+var extractor = tar.Extract({path: __dirname + "/extract"})
+  .on('error', onError)
+  .on('end', onEnd);
+
 fs.createReadStream(__dirname + "/../test/fixtures/c.tar")
-  .pipe(tar.Extract({ path: __dirname + "/extract" }))
-  .on("error", function (er) {
-    console.error("error here")
-  })
-  .on("end", function () {
-    console.error("done")
-  })
+  .on('error', onError)
+  .pipe(extractor);

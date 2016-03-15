@@ -1,76 +1,55 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-EXPLORE" "1" "November 2015" "" ""
-.
+.TH "NPM\-EXPLORE" "1" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-explore\fR \-\- Browse an installed package
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-explore\fR \- Browse an installed package
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm explore <name> [ \-\- <cmd>]
-.
 .fi
-.
-.SH "DESCRIPTION"
+.RE
+.SH DESCRIPTION
+.P
 Spawn a subshell in the directory of the installed package specified\.
-.
 .P
 If a command is specified, then it is run in the subshell, which then
 immediately terminates\.
-.
 .P
-This is particularly handy in the case of git submodules in the \fBnode_modules\fR folder:
-.
-.IP "" 4
-.
+This is particularly handy in the case of git submodules in the
+\fBnode_modules\fP folder:
+.P
+.RS 2
 .nf
 npm explore some\-dependency \-\- git pull origin master
-.
 .fi
-.
-.IP "" 0
-.
+.RE
 .P
 Note that the package is \fInot\fR automatically rebuilt afterwards, so be
-sure to use \fBnpm rebuild <pkg>\fR if you make any changes\.
-.
-.SH "CONFIGURATION"
-.
-.SS "shell"
-.
-.IP "\(bu" 4
+sure to use \fBnpm rebuild <pkg>\fP if you make any changes\.
+.SH CONFIGURATION
+.SS shell
+.RS 0
+.IP \(bu 2
 Default: SHELL environment variable, or "bash" on Posix, or "cmd" on
 Windows
-.
-.IP "\(bu" 4
+.IP \(bu 2
 Type: path
-.
-.IP "" 0
-.
+
+.RE
 .P
-The shell to run for the \fBnpm explore\fR command\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
-npm help submodule
-.
-.IP "\(bu" 4
+The shell to run for the \fBnpm explore\fP command\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help 5 folders
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help edit
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help rebuild
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help build
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help install
-.
-.IP "" 0
+
+.RE
 

@@ -1,40 +1,34 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-PREFIX" "1" "November 2015" "" ""
-.
+.TH "NPM\-PREFIX" "1" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-prefix\fR \-\- Display prefix
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-prefix\fR \- Display prefix
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
-npm prefix
-.
+npm prefix [\-g]
 .fi
-.
-.SH "DESCRIPTION"
-Print the prefix to standard out\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+.RE
+.SH DESCRIPTION
+.P
+Print the local prefix to standard out\. This is the closest parent directory
+to contain a package\.json file unless \fB\-g\fP is also specified\.
+.P
+If \fB\-g\fP is specified, this will be the value of the global prefix\. See
+npm help 7 \fBnpm\-config\fP for more detail\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help root
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help bin
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 folders
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help config
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 7 config
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 npmrc
-.
-.IP "" 0
+
+.RE
 

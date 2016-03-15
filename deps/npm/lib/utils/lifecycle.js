@@ -3,14 +3,15 @@ exports.cmd = cmd
 exports.makeEnv = makeEnv
 
 var log = require("npmlog")
-  , spawn = require("child_process").spawn
-  , npm = require("../npm.js")
-  , path = require("path")
-  , fs = require("graceful-fs")
-  , chain = require("slide").chain
-  , Stream = require("stream").Stream
-  , PATH = "PATH"
-  , uidNumber = require("uid-number")
+var spawn = require("./spawn")
+var npm = require("../npm.js")
+var path = require("path")
+var fs = require("graceful-fs")
+var chain = require("slide").chain
+var Stream = require("stream").Stream
+var PATH = "PATH"
+var uidNumber = require("uid-number")
+var umask = require("./umask")
 
 // windows calls it's path "Path" usually, but this is not guaranteed.
 if (process.platform === "win32") {
@@ -38,8 +39,9 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
 
     unsafe = unsafe || npm.config.get("unsafe-perm")
 
-    if ((wd.indexOf(npm.dir) !== 0 || path.basename(wd) !== pkg.name)
-        && !unsafe && pkg.scripts[stage]) {
+    if ((wd.indexOf(npm.dir) !== 0 ||
+          wd.indexOf(pkg.name) !== wd.length - pkg.name.length) &&
+        !unsafe && pkg.scripts[stage]) {
       log.warn( "cannot run in wd", "%s %s (wd=%s)"
               , pkg._id, pkg.scripts[stage], wd)
       return cb()
@@ -71,11 +73,6 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
     , p = wd.split("node_modules")
     , acc = path.resolve(p.shift())
 
-  // first add the directory containing the `node` executable currently
-  // running, so that any lifecycle script that invoke "node" will execute
-  // this same one.
-  pathArr.unshift(path.dirname(process.execPath))
-
   p.forEach(function (pp) {
     pathArr.unshift(path.join(acc, "node_modules", ".bin"))
     acc = path.join(acc, "node_modules", pp)
@@ -85,6 +82,9 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   // we also unshift the bundled node-gyp-bin folder so that
   // the bundled one will be used for installing things.
   pathArr.unshift(path.join(__dirname, "..", "..", "bin", "node-gyp-bin"))
+
+  // prefer current node interpreter in child scripts
+  pathArr.push(path.dirname(process.execPath))
 
   if (env[PATH]) pathArr.push(env[PATH])
   env[PATH] = pathArr.join(process.platform === "win32" ? ";" : ":")
@@ -199,12 +199,12 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
     conf.gid = gid ^ 0
   }
 
-  var sh = "sh"
-  var shFlag = "-c"
+  var sh = 'sh'
+  var shFlag = '-c'
 
-  if (process.platform === "win32") {
-    sh = "cmd"
-    shFlag = "/c"
+  if (process.platform === 'win32') {
+    sh = process.env.comspec || 'cmd'
+    shFlag = '/d /s /c'
     conf.windowsVerbatimArguments = true
   }
 
@@ -316,11 +316,14 @@ function makeEnv (data, prefix, env) {
     , verPref = data.name + "@" + data.version + ":"
 
   keys.forEach(function (i) {
-    if (i.charAt(0) === "_" && i.indexOf("_"+namePref) !== 0) {
+    // in some rare cases (e.g. working with nerf darts), there are segmented
+    // "private" (underscore-prefixed) config names -- don't export
+    if (i.charAt(0) === '_' && i.indexOf('_' + namePref) !== 0 || i.match(/:_/)) {
       return
     }
     var value = npm.config.get(i)
     if (value instanceof Stream || Array.isArray(value)) return
+    if (i.match(/umask/)) value = umask.toString(value)
     if (!value) value = ""
     else if (typeof value === "number") value = "" + value
     else if (typeof value !== "string") value = JSON.stringify(value)
@@ -353,13 +356,9 @@ function makeEnv (data, prefix, env) {
 
 function cmd (stage) {
   function CMD (args, cb) {
-    if (args.length) {
-      chain(args.map(function (p) {
-        return [npm.commands, "run-script", [p, stage]]
-      }), cb)
-    } else npm.commands["run-script"]([stage], cb)
+    npm.commands["run-script"]([stage].concat(args), cb)
   }
-  CMD.usage = "npm "+stage+" <name>"
+  CMD.usage = "npm "+stage+" [-- <args>]"
   var installedShallow = require("./completion/installed-shallow.js")
   CMD.completion = function (opts, cb) {
     installedShallow(opts, function (d) {

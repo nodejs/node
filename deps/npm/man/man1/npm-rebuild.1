@@ -1,37 +1,31 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-REBUILD" "1" "November 2015" "" ""
-.
+.TH "NPM\-REBUILD" "1" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-rebuild\fR \-\- Rebuild a package
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-rebuild\fR \- Rebuild a package
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm rebuild [<name> [<name> \.\.\.]]
 npm rb [<name> [<name> \.\.\.]]
-.
 .fi
-.
-.IP "\(bu" 4
-\fB<name>\fR:
+.RE
+.RS 0
+.IP \(bu 2
+\fB<name>\fP:
 The package to rebuild
-.
-.IP "" 0
-.
-.SH "DESCRIPTION"
-This command runs the \fBnpm build\fR command on the matched folders\.  This is useful
+
+.RE
+.SH DESCRIPTION
+.P
+This command runs the \fBnpm build\fP command on the matched folders\.  This is useful
 when you install a new version of node, and must recompile all your C++ addons with
 the new binary\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help build
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help install
-.
-.IP "" 0
+
+.RE
 

@@ -1,0 +1,42 @@
+{
+  "name": "validate-npm-package-name",
+  "version": "2.2.2",
+  "description": "Give me a string and I'll tell you if it's a valid npm package name",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "builtins": "0.0.7"
+  },
+  "devDependencies": {
+    "tap": "^0.4.13"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/validate-npm-package-name.git"
+  },
+  "keywords": [
+    "npm",
+    "package",
+    "names",
+    "validation"
+  ],
+  "author": {
+    "name": "zeke"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/validate-npm-package-name/issues"
+  },
+  "homepage": "https://github.com/npm/validate-npm-package-name",
+  "readme": "# validate-npm-package-name\n\nGive me a string and I'll tell you if it's a valid `npm` package name.\n\nThis package exports a single synchronous function that takes a `string` as\ninput and returns an object with two properties:\n\n- `validForNewPackages` :: `Boolean`\n- `validForOldPackages` :: `Boolean`\n\n## Contents\n\n- [Naming rules](#naming-rules)\n- [Examples](#examples)\n    + [Valid Names](#valid-names)\n    + [Invalid Names](#invalid-names)\n- [Legacy Names](#legacy-names)\n- [Tests](#tests)\n- [License](#license)\n\n## Naming Rules\n\nBelow is a list of rules that valid `npm` package name should conform to.\n\n- package name length should be greater than zero\n- all the characters in the package name must be lowercase i.e., no uppercase or mixed case names are allowed\n- package name *can* consist of hyphens\n- package name must *not* contain any non-url-safe characters (since name ends up being part of a URL)\n- package name should not start with `.` or `_`\n- package name should *not* contain any leading or trailing spaces\n- package name *cannot* be the same as a node.js/io.js core module nor a reserved/blacklisted name. For example, the following names are invalid:\n    + http\n    + stream\n    + node_modules\n    + favicon.ico\n- package name length cannot exceed 214\n\n\n## Examples\n\n### Valid Names\n\n```js\nvar validate = require(\"validate-npm-package-name\")\n\nvalidate(\"some-package\")\nvalidate(\"example.com\")\nvalidate(\"under_score\")\nvalidate(\"123numeric\")\nvalidate(\"crazy!\")\nvalidate(\"@npm/thingy\")\nvalidate(\"@jane/foo.js\")\n```\n\nAll of the above names are valid, so you'll get this object back:\n\n```js\n{\n  validForNewPackages: true,\n  validForOldPackages: true\n}\n```\n\n### Invalid Names\n\n```js\nvalidate(\" leading-space:and:weirdchars\")\n```\n\nThat was never a valid package name, so you get this:\n\n```js\n{\n  validForNewPackages: false,\n  validForOldPackages: false,\n  errors: [\n    'name cannot contain leading or trailing spaces',\n    'name can only contain URL-friendly characters'\n  ]\n}\n```\n\n## Legacy Names\n\nIn the old days of npm, package names were wild. They could have capital\nletters in them. They could be really long. They could be the name of an\nexisting module in node core.\n\nIf you give this function a package name that **used to be valid**, you'll see\na change in the value of `validForNewPackages` property, and a warnings array\nwill be present:\n\n```js\nvalidate(\"cRaZY-paCkAgE-with-mixed-case-and-more-than-214-characters-----------------------------------------------------------------------------------------------------------------------------------------------------------\")\n```\n\nreturns:\n\n```js\n{\n  validForNewPackages: false,\n  validForOldPackages: true,\n  warnings: [\n    \"name can no longer contain capital letters\",\n    \"name can no longer contain more than 214 characters\"\n  ]\n}\n```\n\n## Tests\n\n```sh\nnpm install\nnpm test\n```\n\n## License\n\nISC\n",
+  "readmeFilename": "README.md",
+  "gitHead": "3af92c881549f1b96f05ab6bfb5768bba94ad72d",
+  "_id": "validate-npm-package-name@2.2.2",
+  "_shasum": "f65695b22f7324442019a3c7fa39a6e7fd299085",
+  "_from": "validate-npm-package-name@2.2.2"
+}

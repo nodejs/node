@@ -8,10 +8,12 @@ import copy
 import os
 
 
-_TARGET_TYPE_EXT = {
-  'executable': '.exe',
-  'loadable_module': '.dll',
-  'shared_library': '.dll',
+# A dictionary mapping supported target types to extensions.
+TARGET_TYPE_EXT = {
+  'executable': 'exe',
+  'loadable_module': 'dll',
+  'shared_library': 'dll',
+  'static_library': 'lib',
 }
 
 
@@ -109,15 +111,16 @@ def ShardTargets(target_list, target_dicts):
       new_target_dicts[t] = target_dicts[t]
   # Shard dependencies.
   for t in new_target_dicts:
-    dependencies = copy.copy(new_target_dicts[t].get('dependencies', []))
-    new_dependencies = []
-    for d in dependencies:
-      if d in targets_to_shard:
-        for i in range(targets_to_shard[d]):
-          new_dependencies.append(_ShardName(d, i))
-      else:
-        new_dependencies.append(d)
-    new_target_dicts[t]['dependencies'] = new_dependencies
+    for deptype in ('dependencies', 'dependencies_original'):
+      dependencies = copy.copy(new_target_dicts[t].get(deptype, []))
+      new_dependencies = []
+      for d in dependencies:
+        if d in targets_to_shard:
+          for i in range(targets_to_shard[d]):
+            new_dependencies.append(_ShardName(d, i))
+        else:
+          new_dependencies.append(d)
+      new_target_dicts[t][deptype] = new_dependencies
 
   return (new_target_list, new_target_dicts)
 
@@ -156,7 +159,7 @@ def _GetPdbPath(target_dict, config_name, vars):
 
 
   pdb_base = target_dict.get('product_name', target_dict['target_name'])
-  pdb_base = '%s%s.pdb' % (pdb_base, _TARGET_TYPE_EXT[target_dict['type']])
+  pdb_base = '%s.%s.pdb' % (pdb_base, TARGET_TYPE_EXT[target_dict['type']])
   pdb_path = vars['PRODUCT_DIR'] + '/' + pdb_base
 
   return pdb_path

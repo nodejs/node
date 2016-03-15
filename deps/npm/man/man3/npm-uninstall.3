@@ -1,25 +1,19 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-UNINSTALL" "3" "November 2015" "" ""
-.
+.TH "NPM\-UNINSTALL" "3" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-uninstall\fR \-\- uninstall a package programmatically
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-uninstall\fR \- uninstall a package programmatically
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm\.commands\.uninstall(packages, callback)
-.
 .fi
-.
-.SH "DESCRIPTION"
+.RE
+.SH DESCRIPTION
+.P
 This acts much the same ways as uninstalling on the command\-line\.
-.
 .P
-The \'packages\' parameter is an array of strings\. Each element in the array is
+The 'packages' parameter is an array of strings\. Each element in the array is
 the name of a package to be uninstalled\.
-.
 .P
-Finally, \'callback\' is a function that will be called when all packages have been
+Finally, 'callback' is a function that will be called when all packages have been
 uninstalled or when an error has been encountered\.

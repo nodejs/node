@@ -27,4 +27,4 @@ array of results is returned. Each result is an object with these properties:
 * file:
   Name of the file that matched
 
-The silent parameter is not neccessary not used, but it may in the future.
+The silent parameter is not necessary not used, but it may in the future.

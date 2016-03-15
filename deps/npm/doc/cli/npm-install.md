@@ -7,10 +7,10 @@ npm-install(1) -- Install a package
     npm install <tarball file>
     npm install <tarball url>
     npm install <folder>
-    npm install <name> [--save|--save-dev|--save-optional] [--save-exact]
-    npm install <name>@<tag>
-    npm install <name>@<version>
-    npm install <name>@<version range>
+    npm install [@<scope>/]<name> [--save|--save-dev|--save-optional] [--save-exact] [--save-bundle]
+    npm install [@<scope>/]<name>@<tag>
+    npm install [@<scope>/]<name>@<version>
+    npm install [@<scope>/]<name>@<version range>
     npm i (with any of the previous argument usage)
 
 ## DESCRIPTION
@@ -21,11 +21,11 @@ by that. See npm-shrinkwrap(1).
 
 A `package` is:
 
-* a) a folder containing a program described by a package.json file
+* a) a folder containing a program described by a `package.json(5)` file
 * b) a gzipped tarball containing (a)
 * c) a url that resolves to (b)
 * d) a `<name>@<version>` that is published on the registry (see `npm-registry(7)`) with (c)
-* e) a `<name>@<tag>` that points to (d)
+* e) a `<name>@<tag>` (see `npm-dist-tag(1)`) that points to (d)
 * f) a `<name>` that has a "latest" tag satisfying (e)
 * g) a `<git remote url>` that resolves to (b)
 
@@ -43,9 +43,12 @@ after packing it up into a tarball (b).
     it installs the current package context (ie, the current working
     directory) as a global package.
 
-    By default, `npm install` will install all modules listed as
-    dependencies. With the `--production` flag,
-    npm will not install modules listed in `devDependencies`.
+    By default, `npm install` will install all modules listed as dependencies
+    in `package.json(5)`.
+
+    With the `--production` flag (or when the `NODE_ENV` environment variable
+    is set to `production`), npm will not install modules listed in
+    `devDependencies`.
 
 * `npm install <folder>`:
 
@@ -70,10 +73,10 @@ after packing it up into a tarball (b).
 
           npm install https://github.com/indexzero/forever/tarball/v0.5.6
 
-* `npm install <name> [--save|--save-dev|--save-optional]`:
+* `npm install [@<scope>/]<name> [--save|--save-dev|--save-optional]`:
 
     Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
-    `npm-config(7)`.)
+    `npm-config(7)`. The config's default value is `latest`.)
 
     In most cases, this will install the latest version
     of the module published on npm.
@@ -92,25 +95,34 @@ after packing it up into a tarball (b).
     * `--save-optional`: Package will appear in your `optionalDependencies`.
 
     When using any of the above options to save dependencies to your
-    package.json, there is an additional, optional flag:
+    package.json, there are two additional, optional flags:
 
     * `--save-exact`: Saved dependencies will be configured with an
       exact version rather than using npm's default semver range
       operator.
 
+    * `-B, --save-bundle`: Saved dependencies will also be added to your `bundleDependencies` list.
+
+    Note: if you do not include the @-symbol on your scope name, npm will
+    interpret this as a GitHub repository instead, see below. Scopes names
+    must also be followed by a slash.
+
     Examples:
 
           npm install sax --save
+          npm install githubname/reponame
+          npm install @myorg/privatepackage
           npm install node-tap --save-dev
           npm install dtrace-provider --save-optional
           npm install readable-stream --save --save-exact
+          npm install ansi-regex --save --save-bundle
 
 
     **Note**: If there is a file or folder named `<name>` in the current
     working directory, then it will try to install that, and only try to
     fetch the package by name if it is not valid.
 
-* `npm install <name>@<tag>`:
+* `npm install [@<scope>/]<name>@<tag>`:
 
     Install the version of the package that is referenced by the specified tag.
     If the tag does not exist in the registry data for that package, then this
@@ -119,17 +131,19 @@ after packing it up into a tarball (b).
     Example:
 
           npm install sax@latest
+          npm install @myorg/mypackage@latest
 
-* `npm install <name>@<version>`:
+* `npm install [@<scope>/]<name>@<version>`:
 
-    Install the specified version of the package.  This will fail if the version
-    has not been published to the registry.
+    Install the specified version of the package.  This will fail if the
+    version has not been published to the registry.
 
     Example:
 
           npm install sax@0.1.1
+          npm install @myorg/privatepackage@1.5.0
 
-* `npm install <name>@<version range>`:
+* `npm install [@<scope>/]<name>@<version range>`:
 
     Install a version of the package matching the specified version range.  This
     will follow the same rules for resolving dependencies described in `package.json(5)`.
@@ -140,23 +154,84 @@ after packing it up into a tarball (b).
     Example:
 
           npm install sax@">=0.1.0 <0.2.0"
+          npm install @myorg/privatepackage@">=0.1.0 <0.2.0"
 
 * `npm install <git remote url>`:
 
     Install a package by cloning a git remote url.  The format of the git
     url is:
 
-          <protocol>://[<user>@]<hostname><separator><path>[#<commit-ish>]
+          <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:/]<path>[#<commit-ish>]
 
     `<protocol>` is one of `git`, `git+ssh`, `git+http`, or
     `git+https`.  If no `<commit-ish>` is specified, then `master` is
     used.
 
+    The following git environment variables are recognized by npm and will be added
+    to the environment when running git:
+
+    * `GIT_ASKPASS`
+    * `GIT_PROXY_COMMAND`
+    * `GIT_SSH`
+    * `GIT_SSH_COMMAND`
+    * `GIT_SSL_CAINFO`
+    * `GIT_SSL_NO_VERIFY`
+
+    See the git man page for details.
+
     Examples:
 
-          git+ssh://git@github.com:npm/npm.git#v1.0.27
-          git+https://isaacs@github.com/npm/npm.git
-          git://github.com/npm/npm.git#v1.0.27
+          npm install git+ssh://git@github.com:npm/npm.git#v1.0.27
+          npm install git+https://isaacs@github.com/npm/npm.git
+          npm install git://github.com/npm/npm.git#v1.0.27
+          GIT_SSH_COMMAND='ssh -i ~/.ssh/custom_ident' npm install git+ssh://git@github.com:npm/npm.git
+
+* `npm install <githubname>/<githubrepo>[#<commit-ish>]`:
+* `npm install github:<githubname>/<githubrepo>[#<commit-ish>]`:
+
+    Install the package at `https://github.com/githubname/githubrepo` by
+    attempting to clone it using `git`.
+
+    If you don't specify a *commit-ish* then `master` will be used.
+
+    Examples:
+
+          npm install mygithubuser/myproject
+          npm install github:mygithubuser/myproject
+
+* `npm install gist:[<githubname>/]<gistID>[#<commit-ish>]`:
+
+    Install the package at `https://gist.github.com/gistID` by attempting to
+    clone it using `git`. The GitHub username associated with the gist is
+    optional and will not be saved in `package.json` if `--save` is used.
+
+    If you don't specify a *commit-ish* then `master` will be used.
+
+    Example:
+
+          npm install gist:101a11beef
+
+* `npm install bitbucket:<bitbucketname>/<bitbucketrepo>[#<commit-ish>]`:
+
+    Install the package at `https://bitbucket.org/bitbucketname/bitbucketrepo`
+    by attempting to clone it using `git`.
+
+    If you don't specify a *commit-ish* then `master` will be used.
+
+    Example:
+
+          npm install bitbucket:mybitbucketuser/myproject
+
+* `npm install gitlab:<gitlabname>/<gitlabrepo>[#<commit-ish>]`:
+
+    Install the package at `https://gitlab.com/gitlabname/gitlabrepo`
+    by attempting to clone it using `git`.
+
+    If you don't specify a *commit-ish* then `master` will be used.
+
+    Example:
+
+          npm install gitlab:mygitlabuser/myproject
 
 You may combine multiple arguments, and even multiple types of arguments.
 For example:
@@ -255,5 +330,6 @@ affects a real use-case, it will be investigated.
 * npmrc(5)
 * npm-registry(7)
 * npm-tag(1)
-* npm-rm(1)
+* npm-uninstall(1)
 * npm-shrinkwrap(1)
+* package.json(5)

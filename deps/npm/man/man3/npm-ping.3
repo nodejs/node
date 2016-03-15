@@ -1,0 +1,17 @@
+.TH "NPM\-PING" "3" "March 2016" "" ""
+.SH "NAME"
+\fBnpm-ping\fR \- Ping npm registry
+.SH SYNOPSIS
+.P
+.RS 2
+.nf
+npm\.registry\.ping(registry, options, function (er, pong))
+.fi
+.RE
+.SH DESCRIPTION
+.P
+Attempts to connect to the given registry, returning a \fBpong\fP
+object with various metadata if it succeeds\.
+.P
+This function is primarily useful for debugging connection issues
+to npm registries\.

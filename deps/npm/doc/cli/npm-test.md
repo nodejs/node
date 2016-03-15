@@ -3,8 +3,8 @@ npm-test(1) -- Test a package
 
 ## SYNOPSIS
 
-      npm test <name>
-      npm tst <name>
+      npm test [-- <args>]
+      npm tst [-- <args>]
 
 ## DESCRIPTION
 
