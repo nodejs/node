@@ -435,7 +435,7 @@ BINARYTAR=$(BINARYNAME).tar
 XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
 XZ_COMPRESSION ?= 9
 PKG=$(TARNAME).pkg
-PACKAGESBUILD=/usr/local/bin/packagesbuild
+PACKAGESBUILD ?= /usr/local/bin/packagesbuild
 PKGDIR=out/dist-osx
 
 release-only:
@@ -484,7 +484,7 @@ pre-pkg:
 		$(dir)summary.out.rtf; \
 	)
 
-$(PKG): release-only pre-pkg
+$(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
 	$(PYTHON) ./configure \
@@ -496,6 +496,7 @@ $(PKG): release-only pre-pkg
 	NODE_INSTALL_NODE_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/node' '$(PREFIX)'
 	NODE_INSTALL_HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/node' '$(PREFIX)'
 	NODE_INSTALL_NPM_ONLY=1 $(PYTHON) tools/install.py install '$(PKGDIR)/npm' '$(PREFIX)'
+	$(MAKE) pre-pkg V=$(V)
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)/node" bash tools/osx-codesign.sh
 	$(PACKAGESBUILD) tools/osx-pkg/osx-pkg-out.pkgproj
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
