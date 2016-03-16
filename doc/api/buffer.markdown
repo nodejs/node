@@ -1355,7 +1355,7 @@ console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 * `value` {Number} Bytes to be written to Buffer
 * `offset` {Number} `0 <= offset <= buf.length - 8`
 * `noAssert` {Boolean} Default: false
-* Return: {Number} Numbers of bytes written
+* Return: {Number} The offset plus the number of written bytes
 
 Writes `value` to the Buffer at the specified `offset` with specified endian
 format (`writeDoubleBE()` writes big endian, `writeDoubleLE()` writes little
@@ -1387,7 +1387,7 @@ console.log(buf);
 * `value` {Number} Bytes to be written to Buffer
 * `offset` {Number} `0 <= offset <= buf.length - 4`
 * `noAssert` {Boolean} Default: false
-* Return: {Number} Numbers of bytes written
+* Return: {Number} The offset plus the number of written bytes
 
 Writes `value` to the Buffer at the specified `offset` with specified endian
 format (`writeFloatBE()` writes big endian, `writeFloatLE()` writes little
@@ -1419,7 +1419,7 @@ console.log(buf);
 * `value` {Number} Bytes to be written to Buffer
 * `offset` {Number} `0 <= offset <= buf.length - 1`
 * `noAssert` {Boolean} Default: false
-* Return: {Number} Numbers of bytes written
+* Return: {Number} The offset plus the number of written bytes
 
 Writes `value` to the Buffer at the specified `offset`. The `value` must be a
 valid signed 8-bit integer.
@@ -1445,7 +1445,7 @@ console.log(buf);
 * `value` {Number} Bytes to be written to Buffer
 * `offset` {Number} `0 <= offset <= buf.length - 2`
 * `noAssert` {Boolean} Default: false
-* Return: {Number} Numbers of bytes written
+* Return: {Number} The offset plus the number of written bytes
 
 Writes `value` to the Buffer at the specified `offset` with specified endian
 format (`writeInt16BE()` writes big endian, `writeInt16LE()` writes little
@@ -1472,7 +1472,7 @@ console.log(buf);
 * `value` {Number} Bytes to be written to Buffer
 * `offset` {Number} `0 <= offset <= buf.length - 4`
 * `noAssert` {Boolean} Default: false
-* Return: {Number} Numbers of bytes written
+* Return: {Number} The offset plus the number of written bytes
 
 Writes `value` to the Buffer at the specified `offset` with specified endian
 format (`writeInt32BE()` writes big endian, `writeInt32LE()` writes little
@@ -1500,7 +1500,7 @@ console.log(buf);
 * `offset` {Number} `0 <= offset <= buf.length - byteLength`
 * `byteLength` {Number} `0 < byteLength <= 6`
 * `noAssert` {Boolean} Default: false
-* Return: {Number} Numbers of bytes written
+* Return: {Number} The offset plus the number of written bytes
 
 Writes `value` to the Buffer at the specified `offset` and `byteLength`.
 Supports up to 48 bits of accuracy. For example:
@@ -1527,7 +1527,7 @@ should not be used unless you are certain of correctness.
 * `value` {Number} Bytes to be written to Buffer
 * `offset` {Number} `0 <= offset <= buf.length - 1`
 * `noAssert` {Boolean} Default: false
-* Return: {Number} Numbers of bytes written
+* Return: {Number} The offset plus the number of written bytes
 
 Writes `value` to the Buffer at the specified `offset`. The `value` must be a
 valid unsigned 8-bit integer.
@@ -1556,7 +1556,7 @@ console.log(buf);
 * `value` {Number} Bytes to be written to Buffer
 * `offset` {Number} `0 <= offset <= buf.length - 2`
 * `noAssert` {Boolean} Default: false
-* Return: {Number} Numbers of bytes written
+* Return: {Number} The offset plus the number of written bytes
 
 Writes `value` to the Buffer at the specified `offset` with specified endian
 format (`writeUInt16BE()` writes big endian, `writeUInt16LE()` writes little
@@ -1590,7 +1590,7 @@ console.log(buf);
 * `value` {Number} Bytes to be written to Buffer
 * `offset` {Number} `0 <= offset <= buf.length - 4`
 * `noAssert` {Boolean} Default: false
-* Return: {Number} Numbers of bytes written
+* Return: {Number} The offset plus the number of written bytes
 
 Writes `value` to the Buffer at the specified `offset` with specified endian
 format (`writeUInt32BE()` writes big endian, `writeUInt32LE()` writes little
@@ -1623,7 +1623,7 @@ console.log(buf);
 * `offset` {Number} `0 <= offset <= buf.length - byteLength`
 * `byteLength` {Number} `0 < byteLength <= 6`
 * `noAssert` {Boolean} Default: false
-* Return: {Number} Numbers of bytes written
+* Return: {Number} The offset plus the number of written bytes
 
 Writes `value` to the Buffer at the specified `offset` and `byteLength`.
 Supports up to 48 bits of accuracy. For example:
