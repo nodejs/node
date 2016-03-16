@@ -4,12 +4,17 @@
 
 require('../common');
 const assert = require('assert');
-const net = require('internal/net');
+const isLegalPort = require('internal/net').isLegalPort;
 
-assert.strictEqual(net.isLegalPort(''), false);
-assert.strictEqual(net.isLegalPort('0'), true);
-assert.strictEqual(net.isLegalPort(0), true);
-assert.strictEqual(net.isLegalPort(65536), false);
-assert.strictEqual(net.isLegalPort('65535'), true);
-assert.strictEqual(net.isLegalPort(undefined), false);
-assert.strictEqual(net.isLegalPort(null), true);
+for (var n = 0; n <= 0xFFFF; n++) {
+  assert(isLegalPort(n));
+  assert(isLegalPort('' + n));
+  assert(`0x${n.toString(16)}`);
+  assert(`0o${n.toString(8)}`);
+  assert(`0b${n.toString(2)}`);
+}
+
+const bad = [-1, 'a', {}, [], false, true, 0xFFFF + 1, Infinity,
+             -Infinity, NaN, undefined, null, '', ' ', 1.1, '0x',
+             '-0x1', '-0o1', '-0b1', '0o', '0b'];
+bad.forEach((i) => assert(!isLegalPort(i)));
