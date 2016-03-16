@@ -152,7 +152,7 @@ Local<Object> New(Environment* env, size_t length) {
   // approach if v8 provided one.
   char* data;
   if (length > 0) {
-    data = static_cast<char*>(malloc(length));
+    data = static_cast<char*>(BUFFER_MALLOC(length));
     if (data == NULL)
       FatalError("node::Buffer::New(size_t)", "Out Of Memory");
   } else {

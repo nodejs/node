@@ -34,6 +34,10 @@
 #define ALLOC_ID (0xA10C)
 
 namespace node {
+
+// if true, all Buffer and SlowBuffer instances will automatically zero-fill
+bool zero_fill_all_buffers = false;
+
 namespace smalloc {
 
 using v8::Context;
@@ -329,7 +333,7 @@ void Alloc(Environment* env,
   if (length == 0)
     return Alloc(env, obj, NULL, length, type);
 
-  char* data = static_cast<char*>(malloc(length));
+  char* data = static_cast<char*>(BUFFER_MALLOC(length));
   if (data == NULL) {
     FatalError("node::smalloc::Alloc(v8::Handle<v8::Object>, size_t,"
                " v8::ExternalArrayType)", "Out Of Memory");
