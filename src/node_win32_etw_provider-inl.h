@@ -244,7 +244,7 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
                                   line,
                                   col,
                                   symbuf,
-                                  symbol_len * sizeof(symbuf[0]));
+                                  (symbol_len + 1) * sizeof(symbuf[0]));
     ETW_WRITE_EVENT(MethodLoad, descriptors);
   }
 }
