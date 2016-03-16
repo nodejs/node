@@ -479,7 +479,7 @@ $(TARBALL)-headers: config.gypi release-only
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
+	NODE_INSTALL_HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
 	find $(TARNAME)/ -type l | xargs rm # annoying on windows
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	rm -rf $(TARNAME)
