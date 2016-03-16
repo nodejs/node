@@ -145,6 +145,23 @@ for (var b of buf)
 Additionally, the [`buf.values()`][], [`buf.keys()`][], and
 [`buf.entries()`][] methods can be used to create iterators.
 
+## The `--zero-fill-buffers` command line option
+
+Node.js can be started using the `--zero-fill-buffers` command line option to
+force all newly allocated `Buffer` and `SlowBuffer` instances created using
+either `new Buffer(size)` and `new SlowBuffer(size)` to be *automatically
+zero-filled* upon creation. Use of this flag *changes the default behavior* of
+these methods and *can have a significant impact* on performance. Use of the
+`--zero-fill-buffers` option is recommended only when absolutely necessary to
+enforce that newly allocated `Buffer` instances cannot contain potentially
+sensitive data.
+
+```
+$ node --zero-fill-buffers
+> Buffer(5);
+<Buffer 00 00 00 00 00>
+```
+
 ## Class: Buffer
 
 The Buffer class is a global type for dealing with binary data directly.
