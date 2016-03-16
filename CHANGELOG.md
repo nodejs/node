@@ -1,5 +1,82 @@
 # Node.js ChangeLog
 
+## 2016-03-16, Version 5.9.0 (Stable), @evanlucas
+
+### Notable changes
+
+* **contextify**: Fixed a memory consumption issue related to heavy use of `vm.createContext` and `vm.runInNewContext`. (Ali Ijaz Sheikh)
+https://github.com/nodejs/node/pull/5392
+* **governance**: The following members have been added as collaborators:
+ - Andreas Madsen (@AndreasMadsen)
+ - Benjamin Gruenbaum (@benjamingr)
+ - Claudio Rodriguez (@claudiorodriguez)
+ - Glen Keane (@thekemkid)
+ - Jeremy Whitlock (@whitlockjc)
+ - Matt Loring (@matthewloring)
+ - Phillip Johnsen (@phillipj)
+* **lib**: copy arguments object instead of leaking it (Nathan Woltman)
+https://github.com/nodejs/node/pull/4361
+* **src**: allow both -i and -e flags to be used at the same time (Rich Trott)
+https://github.com/nodejs/node/pull/5655
+* **timers**: Internal Node.js timeouts now use the same logic path as those created with `setTimeout()` (Jeremiah Senkpiel) [#4007](https://github.com/nodejs/node/pull/4007)
+  * This may cause a slightly different performance profile in some situations. So far, it has shown to be positive in most cases.
+* **v8**: backport fb4ccae from v8 upstream (Vladimir Krivosheev) #4231
+  -  breakout events from v8 to offer better support for external debuggers
+* **zlib**: add support for concatenated members (Kári Tristan Helgason)
+https://github.com/nodejs/node/pull/5120
+  * Previously, if multiple members were in the same archive, only the first would be read. The others are no longer thrown away.
+
+### Commits
+
+* [[`03b99bf8b9`](https://github.com/nodejs/node/commit/03b99bf8b9)] - **build**: don't install github templates (Johan Bergström) [#5612](https://github.com/nodejs/node/pull/5612)
+* [[`a7819da15a`](https://github.com/nodejs/node/commit/a7819da15a)] - ***Revert*** "**build**: run lint before tests" (Rich Trott) [#5602](https://github.com/nodejs/node/pull/5602)
+* [[`5e9cac4333`](https://github.com/nodejs/node/commit/5e9cac4333)] - **console**: check that stderr is writable (Rich Trott) [#5635](https://github.com/nodejs/node/pull/5635)
+* [[`0662fcf209`](https://github.com/nodejs/node/commit/0662fcf209)] - **contextify**: cache sandbox and context in locals (Ali Ijaz Sheikh) [#5392](https://github.com/nodejs/node/pull/5392)
+* [[`4f2c839d46`](https://github.com/nodejs/node/commit/4f2c839d46)] - **contextify**: replace deprecated SetWeak usage (Ali Ijaz Sheikh) [#5392](https://github.com/nodejs/node/pull/5392)
+* [[`bfff07b4dd`](https://github.com/nodejs/node/commit/bfff07b4dd)] - **contextify**: cleanup weak ref for sandbox (Ali Ijaz Sheikh) [#5392](https://github.com/nodejs/node/pull/5392)
+* [[`93f60cdc54`](https://github.com/nodejs/node/commit/93f60cdc54)] - **contextify**: cleanup weak ref for global proxy (Ali Ijaz Sheikh) [#5392](https://github.com/nodejs/node/pull/5392)
+* [[`b6c355de0d`](https://github.com/nodejs/node/commit/b6c355de0d)] - **(SEMVER-MINOR)** **deps**: backport fb4ccae from v8 upstream (develar) [#4231](https://github.com/nodejs/node/pull/4231)
+* [[`29510aa4fd`](https://github.com/nodejs/node/commit/29510aa4fd)] - **deps**: update openssl config (Shigeki Ohtsu) [#5630](https://github.com/nodejs/node/pull/5630)
+* [[`532d1bf9ce`](https://github.com/nodejs/node/commit/532d1bf9ce)] - **deps**: sync deps/http_parser with nodejs/http_parser (James M Snell) [#5600](https://github.com/nodejs/node/pull/5600)
+* [[`d5d64c327b`](https://github.com/nodejs/node/commit/d5d64c327b)] - **doc**: clarify commit message rules (Wyatt Preul) [#5661](https://github.com/nodejs/node/pull/5661)
+* [[`8c4c84fe5b`](https://github.com/nodejs/node/commit/8c4c84fe5b)] - **doc**: add Testing WG (Rich Trott) [#5461](https://github.com/nodejs/node/pull/5461)
+* [[`434af03825`](https://github.com/nodejs/node/commit/434af03825)] - **doc**: Add note about use of JSON.stringify() (Mithun Patel) [#5723](https://github.com/nodejs/node/pull/5723)
+* [[`62926d85bd`](https://github.com/nodejs/node/commit/62926d85bd)] - **doc**: clarify type of first argument in zlib (Kirill Fomichev) [#5685](https://github.com/nodejs/node/pull/5685)
+* [[`eb73574349`](https://github.com/nodejs/node/commit/eb73574349)] - **doc**: clarify when writable.write callback is called (Kevin Locke) [#4810](https://github.com/nodejs/node/pull/4810)
+* [[`c579507034`](https://github.com/nodejs/node/commit/c579507034)] - **doc**: fix typo in api/addons (Daijiro Wachi) [#5678](https://github.com/nodejs/node/pull/5678)
+* [[`8e45c9d9ea`](https://github.com/nodejs/node/commit/8e45c9d9ea)] - **doc**: fix typo in api/dgram (Daijiro Wachi) [#5678](https://github.com/nodejs/node/pull/5678)
+* [[`44a9b100c5`](https://github.com/nodejs/node/commit/44a9b100c5)] - **doc**: fix typo in api/fs (Daijiro Wachi) [#5678](https://github.com/nodejs/node/pull/5678)
+* [[`b667573bcb`](https://github.com/nodejs/node/commit/b667573bcb)] - **doc**: update fansworld-claudio username on README (Claudio Rodriguez) [#5680](https://github.com/nodejs/node/pull/5680)
+* [[`9794abb5d1`](https://github.com/nodejs/node/commit/9794abb5d1)] - **doc**: add onboarding resources (Jeremiah Senkpiel) [#3726](https://github.com/nodejs/node/pull/3726)
+* [[`31e39fbd7a`](https://github.com/nodejs/node/commit/31e39fbd7a)] - **doc**: remove non-standard use of hyphens (Stefano Vozza)
+* [[`f3e9daa825`](https://github.com/nodejs/node/commit/f3e9daa825)] - **doc**: add clarification on birthtime in fs stat (Kári Tristan Helgason) [#5479](https://github.com/nodejs/node/pull/5479)
+* [[`c379ec6522`](https://github.com/nodejs/node/commit/c379ec6522)] - **doc**: move build instructions to a new document (Johan Bergström) [#5634](https://github.com/nodejs/node/pull/5634)
+* [[`2a442b3dfc`](https://github.com/nodejs/node/commit/2a442b3dfc)] - **doc**: update removeListener behaviour (Vaibhav) [#5201](https://github.com/nodejs/node/pull/5201)
+* [[`f6ee0996e0`](https://github.com/nodejs/node/commit/f6ee0996e0)] - **doc**: fix typo in child_process docs (Benjamin Gruenbaum) [#5681](https://github.com/nodejs/node/pull/5681)
+* [[`dd12661173`](https://github.com/nodejs/node/commit/dd12661173)] - **doc**: include typo in 'unhandledRejection' example (Robert C Jensen) [#5654](https://github.com/nodejs/node/pull/5654)
+* [[`f7aecd6e94`](https://github.com/nodejs/node/commit/f7aecd6e94)] - **doc**: add thekemkid to collaborators (Glen Keane) [#5667](https://github.com/nodejs/node/pull/5667)
+* [[`b81711acfb`](https://github.com/nodejs/node/commit/b81711acfb)] - **doc**: add phillipj to collaborators (Phillip Johnsen) [#5663](https://github.com/nodejs/node/pull/5663)
+* [[`a33f2486f0`](https://github.com/nodejs/node/commit/a33f2486f0)] - **doc**: add fansworld-claudio to collaborators (Claudio Rodriguez) [#5668](https://github.com/nodejs/node/pull/5668)
+* [[`285d5e7ba6`](https://github.com/nodejs/node/commit/285d5e7ba6)] - **doc**: add AndreasMadsen to collaborators (Andreas Madsen) [#5666](https://github.com/nodejs/node/pull/5666)
+* [[`8e1f6706e3`](https://github.com/nodejs/node/commit/8e1f6706e3)] - **doc**: add benjamingr to collaborator list (Benjamin Gruenbaum) [#5664](https://github.com/nodejs/node/pull/5664)
+* [[`f7842cbb24`](https://github.com/nodejs/node/commit/f7842cbb24)] - **doc**: add whitlockjc to collaborators (Jeremy Whitlock) [#5665](https://github.com/nodejs/node/pull/5665)
+* [[`dd6f4ec2e4`](https://github.com/nodejs/node/commit/dd6f4ec2e4)] - **doc**: add mattloring to collaborators (Matt Loring) [#5662](https://github.com/nodejs/node/pull/5662)
+* [[`9ebd559a55`](https://github.com/nodejs/node/commit/9ebd559a55)] - **doc**: fix markdown links (Steve Mao) [#5641](https://github.com/nodejs/node/pull/5641)
+* [[`62d267e1ff`](https://github.com/nodejs/node/commit/62d267e1ff)] - **doc**: fix dns.resolveCname description typo (axvm) [#5622](https://github.com/nodejs/node/pull/5622)
+* [[`9f8e2e2979`](https://github.com/nodejs/node/commit/9f8e2e2979)] - **doc**: update release tweet template (Jeremiah Senkpiel) [#5628](https://github.com/nodejs/node/pull/5628)
+* [[`4d6fe300fe`](https://github.com/nodejs/node/commit/4d6fe300fe)] - **doc**: fix v5.8.0 changelog heading (Jeremiah Senkpiel) [#5559](https://github.com/nodejs/node/pull/5559)
+* [[`4c1fdaeb2a`](https://github.com/nodejs/node/commit/4c1fdaeb2a)] - **docs**: update link to iojs+release ci job (Myles Borins) [#5632](https://github.com/nodejs/node/pull/5632)
+* [[`205bed0bec`](https://github.com/nodejs/node/commit/205bed0bec)] - **lib**: copy arguments object instead of leaking it (Nathan Woltman) [#4361](https://github.com/nodejs/node/pull/4361)
+* [[`b16f67a0b9`](https://github.com/nodejs/node/commit/b16f67a0b9)] - **net**: make `isIPv4` and `isIPv6` more efficient (Vladimir Kurchatkin) [#5478](https://github.com/nodejs/node/pull/5478)
+* [[`4ecd996baa`](https://github.com/nodejs/node/commit/4ecd996baa)] - **(SEMVER-MINOR)** **src**: allow combination of -i and -e cli flags (Rich Trott) [#5655](https://github.com/nodejs/node/pull/5655)
+* [[`f225459496`](https://github.com/nodejs/node/commit/f225459496)] - **test**: improve test-npm-install (Santiago Gimeno) [#5613](https://github.com/nodejs/node/pull/5613)
+* [[`cceae5ae78`](https://github.com/nodejs/node/commit/cceae5ae78)] - **test**: eval a strict function (Kári Tristan Helgason) [#5250](https://github.com/nodejs/node/pull/5250)
+* [[`9a44c8c337`](https://github.com/nodejs/node/commit/9a44c8c337)] - **test**: add batch of known issue tests (cjihrig) [#5653](https://github.com/nodejs/node/pull/5653)
+* [[`1b7b1ed2c9`](https://github.com/nodejs/node/commit/1b7b1ed2c9)] - **timers**: greatly improve code comments (Jeremiah Senkpiel) [#4007](https://github.com/nodejs/node/pull/4007)
+* [[`769254b0ba`](https://github.com/nodejs/node/commit/769254b0ba)] - **timers**: refactor timers (Jeremiah Senkpiel) [#4007](https://github.com/nodejs/node/pull/4007)
+* [[`0b545fb3f8`](https://github.com/nodejs/node/commit/0b545fb3f8)] - **win,build**: support Visual C++ Build Tools 2015 (João Reis) [#5627](https://github.com/nodejs/node/pull/5627)
+* [[`ef774ff9a8`](https://github.com/nodejs/node/commit/ef774ff9a8)] - **(SEMVER-MINOR)** **zlib**: add support for concatenated members (Kári Tristan Helgason) [#5120](https://github.com/nodejs/node/pull/5120)
+
 ## 2016-03-08, Version 5.8.0 (Stable), @Fishrock123
 
 ### Notable changes
