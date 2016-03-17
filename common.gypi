@@ -68,6 +68,10 @@
             'cflags': [ '-gxcoff' ],
             'ldflags': [ '-Wl,-bbigtoc' ],
           }],
+          ['cflag_pie=="true"', {
+            'cflags': [ '-fPIE' ],
+            'ldflags': [ '-fPIE', '-pie' ],
+          }],
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -100,6 +104,10 @@
           }],
           ['OS!="mac" and OS!="win"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
+          }],
+          ['cflag_pie=="true"', {
+            'cflags': [ '-fPIE' ],
+            'ldflags': [ '-fPIE', '-pie' ],
           }],
         ],
         'msvs_settings': {

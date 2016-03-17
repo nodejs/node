@@ -15,4 +15,6 @@ export LINK=$TOOLCHAIN/bin/arm-linux-androideabi-g++
 
 ./configure \
     --dest-cpu=arm \
-    --dest-os=android
+    --dest-os=android \
+    --cflag-pie=true \
+    --without-snapshot
