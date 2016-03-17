@@ -12,7 +12,7 @@ var gargs = [1, 2, 3];
 
 function main(conf) {
 
-  var args, ret, n = +conf.n;
+  var args, n = +conf.n;
   var myArguments = gargs.slice(0, conf.arguments);
   bench.start();
 
@@ -20,7 +20,7 @@ function main(conf) {
   for (var i = 0; i < n; i++) {
     if (myArguments.length >= 2) {
       args = Array.prototype.slice.call(myArguments, 1);
-      ret = fn.apply(this, args);
+      fn.apply(this, args);
     } else {
       fn.call(this);
     }
