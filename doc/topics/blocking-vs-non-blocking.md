@@ -52,7 +52,8 @@ fs.readFile('/file.md', (err, data) => {
 The first example appears simpler than the second but has the disadvantage of
 the second line **blocking** the execution of any additional JavaScript until
 the entire file is read. Note that in the synchronous version if an error is
-thrown it will need to be caught or the process will crash. In the asynchronous version, it is up to the author to decide whether an error should throw as
+thrown it will need to be caught or the process will crash. In the asynchronous
+version, it is up to the author to decide whether an error should throw as
 shown.
 
 Let's expand our example a little bit:
@@ -93,14 +94,12 @@ occurring.
 As an example, let's consider a case where each request to a web server takes
 50ms to complete and 45ms of that 50ms is database I/O that can be done
 asychronously. Choosing **non-blocking** asynchronous operations frees up that
-45ms per request to handle other requests. This is an effective 90% difference
-in capacity just by choosing to use **non-blocking** methods instead of
+45ms per request to handle other requests. This is a significant difference in
+capacity just by choosing to use **non-blocking** methods instead of
 **blocking** methods.
 
 The event loop is different than models in many other languages where additional
-threads may be created to handle concurrent work. For an introduction to the
-event loop see [Overview of the Event Loop, Timers, and
-`process.nextTick()`](https://github.com/nodejs/node/pull/4936)
+threads may be created to handle concurrent work.
 
 
 ## Dangers of Mixing Blocking and Non-Blocking Code
@@ -141,6 +140,4 @@ The above places a **non-blocking** call to `fs.unlink()` within the callback of
 ## Additional Resources
 
 - [libuv](http://libuv.org/)
-- [Overview of the Event Loop, Timers, and
- `process.nextTick()`](https://github.com/nodejs/node/pull/4936)
 - [About Node.js](https://nodejs.org/en/about/)
