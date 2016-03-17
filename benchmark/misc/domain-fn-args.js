@@ -13,6 +13,7 @@ function main(conf) {
 
   var args, ret, n = +conf.n;
   var arguments = gargs.slice(0, conf.arguments);
+
   bench.start();
 
   bdomain.enter();
