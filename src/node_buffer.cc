@@ -87,17 +87,20 @@ class CallbackInfo {
   static inline CallbackInfo* New(Isolate* isolate,
                                   Local<ArrayBuffer> object,
                                   FreeCallback callback,
+                                  char* data,
                                   void* hint = 0);
  private:
   static void WeakCallback(const WeakCallbackInfo<CallbackInfo>&);
-  inline void WeakCallback(Isolate* isolate, char* const data);
+  inline void WeakCallback(Isolate* isolate);
   inline CallbackInfo(Isolate* isolate,
                       Local<ArrayBuffer> object,
                       FreeCallback callback,
+                      char* data,
                       void* hint);
   ~CallbackInfo();
   Persistent<ArrayBuffer> persistent_;
   FreeCallback const callback_;
+  char* const data_;
   void* const hint_;
   DISALLOW_COPY_AND_ASSIGN(CallbackInfo);
 };
@@ -111,27 +114,27 @@ void CallbackInfo::Free(char* data, void*) {
 CallbackInfo* CallbackInfo::New(Isolate* isolate,
                                 Local<ArrayBuffer> object,
                                 FreeCallback callback,
+                                char* data,
                                 void* hint) {
-  return new CallbackInfo(isolate, object, callback, hint);
+  return new CallbackInfo(isolate, object, callback, data, hint);
 }
 
 
 CallbackInfo::CallbackInfo(Isolate* isolate,
                            Local<ArrayBuffer> object,
                            FreeCallback callback,
+                           char* data,
                            void* hint)
     : persistent_(isolate, object),
       callback_(callback),
+      data_(data),
       hint_(hint) {
   ArrayBuffer::Contents obj_c = object->GetContents();
-  char* const data = static_cast<char*>(obj_c.Data());
+  CHECK_EQ(data_, static_cast<char*>(obj_c.Data()));
   if (object->ByteLength() != 0)
-    CHECK_NE(data, nullptr);
+    CHECK_NE(data_, nullptr);
 
-  object->SetAlignedPointerInInternalField(kBufferInternalFieldIndex, data);
-
-  persistent_.SetWeak(this, WeakCallback,
-                      v8::WeakCallbackType::kInternalFields);
+  persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   persistent_.SetWrapperClassId(BUFFER_ID);
   persistent_.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
@@ -146,15 +149,13 @@ CallbackInfo::~CallbackInfo() {
 void CallbackInfo::WeakCallback(
     const WeakCallbackInfo<CallbackInfo>& data) {
   CallbackInfo* self = data.GetParameter();
-  self->WeakCallback(
-      data.GetIsolate(),
-      static_cast<char*>(data.GetInternalField(kBufferInternalFieldIndex)));
+  self->WeakCallback(data.GetIsolate());
   delete self;
 }
 
 
-void CallbackInfo::WeakCallback(Isolate* isolate, char* const data) {
-  callback_(data, hint_);
+void CallbackInfo::WeakCallback(Isolate* isolate) {
+  callback_(data_, hint_);
   int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
   isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
 }
@@ -370,7 +371,7 @@ MaybeLocal<Object> New(Environment* env,
   if (!mb.FromMaybe(false))
     return Local<Object>();
 
-  CallbackInfo::New(env->isolate(), ab, callback, hint);
+  CallbackInfo::New(env->isolate(), ab, callback, data, hint);
   return scope.Escape(ui);
 }
 
