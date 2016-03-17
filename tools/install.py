@@ -164,8 +164,10 @@ def headers(action):
   if sys.platform.startswith('aix'):
     action(['out/Release/node.exp'], 'include/node/')
 
-  subdir_files('deps/cares/include', 'include/node/', action)
   subdir_files('deps/v8/include', 'include/node/', action)
+
+  if 'false' == variables.get('node_shared_cares'):
+    subdir_files('deps/cares/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)
