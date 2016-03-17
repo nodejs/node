@@ -11,7 +11,7 @@ var npm = require("./npm.js")
   , chain = require("slide").chain
   , path = require("path")
   , cwd = process.cwd()
-  , writeStream = require('fs-write-stream-atomic')
+  , writeStreamAtomic = require('fs-write-stream-atomic')
   , cachedPackageRoot = require("./cache/cached-package-root.js")
 
 pack.usage = "npm pack <pkg>"
@@ -52,7 +52,7 @@ function pack_ (pkg, cb) {
 
     var cached = path.join(cachedPackageRoot(data), "package.tgz")
       , from = fs.createReadStream(cached)
-      , to = writeStream(fname)
+      , to = writeStreamAtomic(fname)
       , errState = null
 
     from.on("error", cb_)

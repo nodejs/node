@@ -22,7 +22,7 @@ or local) will be updated.
 
 As of `npm@2.6.1`, the `npm update` will only inspect top-level packages.
 Prior versions of `npm` would also recursively inspect all dependencies.
-To get the old behavior, use `npm --depth 9999 update`, but be warned that
+To get the old behavior, use `npm --depth Infinity update`, but be warned that
 simultaneous asynchronous update of all packages, including `npm` itself
 and packages that `npm` depends on, often causes problems up to and including
 the uninstallation of `npm` itself.
@@ -44,16 +44,17 @@ on dependencies, `dep1` (`dep2`, .. etc.).  The published versions of `dep1` are
 
 ```
 {
-  dist-tags: { latest: "1.2.2" },
-  versions: { "1.2.2",
-              "1.2.1",
-              "1.2.0",
-              "1.1.2",
-              "1.1.1",
-              "1.0.0",
-              "0.4.1",
-              "0.4.0",
-              "0.2.0"
+  "dist-tags": { "latest": "1.2.2" },
+  "versions": {
+    "1.2.2",
+    "1.2.1",
+    "1.2.0",
+    "1.1.2",
+    "1.1.1",
+    "1.0.0",
+    "0.4.1",
+    "0.4.0",
+    "0.2.0"
   }
 }
 ```
@@ -63,8 +64,8 @@ on dependencies, `dep1` (`dep2`, .. etc.).  The published versions of `dep1` are
 If `app`'s `package.json` contains:
 
 ```
-dependencies: {
-  dep1: "^1.1.1"
+"dependencies": {
+  "dep1": "^1.1.1"
 }
 ```
 
@@ -76,8 +77,8 @@ Then `npm update` will install `dep1@1.2.2`, because `1.2.2` is `latest` and
 However, if `app`'s `package.json` contains:
 
 ```
-dependencies: {
-  dep1: "~1.1.1"
+"dependencies": {
+  "dep1": "~1.1.1"
 }
 ```
 
@@ -91,8 +92,8 @@ which is `1.1.2`.
 Suppose `app` has a caret dependency on a version below `1.0.0`, for example:
 
 ```
-dependencies: {
-  dep1: "^0.2.0"
+"dependencies": {
+  "dep1": "^0.2.0"
 }
 ```
 
@@ -102,8 +103,8 @@ versions which satisfy `^0.2.0`.
 If the dependence were on `^0.4.0`:
 
 ```
-dependencies: {
-  dep1: "^0.4.0"
+"dependencies": {
+  "dep1": "^0.4.0"
 }
 ```
 
@@ -117,8 +118,8 @@ the minimum required dependency in `package.json`, you can use
 `npm update --save`.  For example if `package.json` contains
 
 ```
-dependencies: {
-  dep1: "^1.1.1"
+"dependencies": {
+  "dep1": "^1.1.1"
 }
 ```
 
@@ -126,8 +127,8 @@ Then `npm update --save` will install `dep1@1.2.2` (i.e., `latest`),
 and `package.json` will be modified:
 
 ```
-dependencies: {
-  dep1: "^1.2.2"
+"dependencies": {
+  "dep1": "^1.2.2"
 }
 ```
 
@@ -136,7 +137,7 @@ if it installs a new package.
 
 ### Updating Globally-Installed Packages
 
-`npm update -g` will apply the `update` action to each globally- installed
+`npm update -g` will apply the `update` action to each globally installed
 package that is `outdated` -- that is, has a version that is different from
 `latest`.
 

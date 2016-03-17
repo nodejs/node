@@ -1,4 +1,9 @@
 
+1.0.2 / 2015-10-07
+==================
+
+  * use try/catch when checking `localStorage` (#3, @kumavis)
+
 1.0.1 / 2014-11-25
 ==================
 

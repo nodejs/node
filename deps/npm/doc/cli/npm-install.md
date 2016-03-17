@@ -7,7 +7,7 @@ npm-install(1) -- Install a package
     npm install <tarball file>
     npm install <tarball url>
     npm install <folder>
-    npm install [@<scope>/]<name> [--save|--save-dev|--save-optional] [--save-exact]
+    npm install [@<scope>/]<name> [--save|--save-dev|--save-optional] [--save-exact] [--save-bundle]
     npm install [@<scope>/]<name>@<tag>
     npm install [@<scope>/]<name>@<version>
     npm install [@<scope>/]<name>@<version range>
@@ -21,11 +21,11 @@ by that. See npm-shrinkwrap(1).
 
 A `package` is:
 
-* a) a folder containing a program described by a package.json file
+* a) a folder containing a program described by a `package.json(5)` file
 * b) a gzipped tarball containing (a)
 * c) a url that resolves to (b)
 * d) a `<name>@<version>` that is published on the registry (see `npm-registry(7)`) with (c)
-* e) a `<name>@<tag>` that points to (d)
+* e) a `<name>@<tag>` (see `npm-dist-tag(1)`) that points to (d)
 * f) a `<name>` that has a "latest" tag satisfying (e)
 * g) a `<git remote url>` that resolves to (b)
 
@@ -43,7 +43,9 @@ after packing it up into a tarball (b).
     it installs the current package context (ie, the current working
     directory) as a global package.
 
-    By default, `npm install` will install all modules listed as dependencies.
+    By default, `npm install` will install all modules listed as dependencies
+    in `package.json(5)`.
+
     With the `--production` flag (or when the `NODE_ENV` environment variable
     is set to `production`), npm will not install modules listed in
     `devDependencies`.
@@ -74,7 +76,7 @@ after packing it up into a tarball (b).
 * `npm install [@<scope>/]<name> [--save|--save-dev|--save-optional]`:
 
     Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
-    `npm-config(7)`.)
+    `npm-config(7)`. The config's default value is `latest`.)
 
     In most cases, this will install the latest version
     of the module published on npm.
@@ -93,15 +95,13 @@ after packing it up into a tarball (b).
     * `--save-optional`: Package will appear in your `optionalDependencies`.
 
     When using any of the above options to save dependencies to your
-    package.json, there is an additional, optional flag:
+    package.json, there are two additional, optional flags:
 
     * `--save-exact`: Saved dependencies will be configured with an
       exact version rather than using npm's default semver range
       operator.
 
-    `<scope>` is optional. The package will be downloaded from the registry
-    associated with the specified scope. If no registry is associated with
-    the given scope the default registry is assumed. See `npm-scope(7)`.
+    * `-B, --save-bundle`: Saved dependencies will also be added to your `bundleDependencies` list.
 
     Note: if you do not include the @-symbol on your scope name, npm will
     interpret this as a GitHub repository instead, see below. Scopes names
@@ -115,6 +115,7 @@ after packing it up into a tarball (b).
           npm install node-tap --save-dev
           npm install dtrace-provider --save-optional
           npm install readable-stream --save --save-exact
+          npm install ansi-regex --save --save-bundle
 
 
     **Note**: If there is a file or folder named `<name>` in the current
@@ -329,5 +330,6 @@ affects a real use-case, it will be investigated.
 * npmrc(5)
 * npm-registry(7)
 * npm-tag(1)
-* npm-rm(1)
+* npm-uninstall(1)
 * npm-shrinkwrap(1)
+* package.json(5)
