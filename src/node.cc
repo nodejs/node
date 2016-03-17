@@ -2635,6 +2635,8 @@ static void PrintHelp() {
          "  --no-deprecation     silence deprecation warnings\n"
          "  --trace-deprecation  show stack traces on deprecations\n"
          "  --v8-options         print v8 command line options\n"
+         "  --zero-fill-buffers  automatically zero-fill all newly allocated\n"
+         "                       Buffer and SlowBuffer instances\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
 #if HAVE_OPENSSL
          "  --enable-ssl3        enable ssl3\n"
@@ -2719,6 +2721,9 @@ static void ParseArgs(int argc, char **argv) {
       argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--v8-options") == 0) {
       argv[i] = const_cast<char*>("--help");
+    } else if (strcmp(arg, "--zero-fill-buffers") == 0) {
+      argv[i] = const_cast<char*>("");
+      zero_fill_all_buffers = true;
     } else if (strcmp(arg, "--no-deprecation") == 0) {
       argv[i] = const_cast<char*>("");
       no_deprecation = true;
