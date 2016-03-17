@@ -39,12 +39,13 @@ function parent() {
 function runTest(dur, size, type) {
   if (type !== 'string')
     type = 'buffer';
+  var chunk;
   switch (type) {
     case 'string':
-      var chunk = new Array(size + 1).join('a');
+      chunk = new Array(size + 1).join('a');
       break;
     case 'buffer':
-      var chunk = new Buffer(size);
+      chunk = new Buffer(size);
       chunk.fill('a');
       break;
   }
