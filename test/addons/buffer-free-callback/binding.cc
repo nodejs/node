@@ -13,9 +13,16 @@ static void FreeCallback(char* data, void* hint) {
 void Alloc(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   alive++;
+
+  uintptr_t alignment = args[1]->IntegerValue();
+  uintptr_t offset = args[2]->IntegerValue();
+
+  uintptr_t static_offset = reinterpret_cast<uintptr_t>(buf) % alignment;
+  char* aligned = buf + (alignment - static_offset) + offset;
+
   args.GetReturnValue().Set(node::Buffer::New(
         isolate,
-        buf,
+        aligned,
         args[0]->IntegerValue(),
         FreeCallback,
         nullptr).ToLocalChecked());
