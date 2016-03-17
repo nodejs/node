@@ -1,3 +1,4 @@
+'use strict';
 // test UDP send/recv throughput
 
 var common = require('../common.js');
