@@ -3293,7 +3293,8 @@ static bool ParseDebugOpt(const char* arg) {
 }
 
 static void PrintHelp() {
-  // XXX: If you add an option here, please also add it to /doc/node.1
+  // XXX: If you add an option here, please also add it to doc/node.1 and
+  // doc/api/cli.markdown
   printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
          "       node debug script.js [arguments] \n"
          "\n"
