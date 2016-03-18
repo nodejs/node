@@ -7,15 +7,15 @@ this module in order to use them.
 
 ## clearImmediate(immediateObject)
 
-Stops an immediate from triggering.
+Stops an `immediateObject`, as created by [`setImmediate`][], from triggering.
 
 ## clearInterval(intervalObject)
 
-Stops an interval from triggering.
+Stops an `intervalObject`, as created by [`setInterval`][], from triggering.
 
 ## clearTimeout(timeoutObject)
 
-Prevents a timeout from triggering.
+Prevents a `timeoutObject`, as created by [`setTimeout`][], from triggering.
 
 ## ref()
 
@@ -27,10 +27,10 @@ Returns the timer.
 
 ## setImmediate(callback[, arg][, ...])
 
-To schedule the "immediate" execution of `callback` after I/O events
-callbacks and before [`setTimeout`][] and [`setInterval`][]. Returns an
-`immediateObject` for possible use with `clearImmediate()`. Optionally you
-can also pass arguments to the callback.
+To schedule the "immediate" execution of `callback` after I/O events'
+callbacks and before timers set by [`setTimeout`][] and [`setInterval`][] are
+triggered. Returns an `immediateObject` for possible use with
+[`clearImmediate`][]. Optionally you can also pass arguments to the callback.
 
 Callbacks for immediates are queued in the order in which they were created.
 The entire callback queue is processed every event loop iteration. If you queue
@@ -42,7 +42,7 @@ If `callback` is not a function `setImmediate()` will throw immediately.
 ## setInterval(callback, delay[, arg][, ...])
 
 To schedule the repeated execution of `callback` every `delay` milliseconds.
-Returns a `intervalObject` for possible use with `clearInterval()`. Optionally
+Returns a `intervalObject` for possible use with [`clearInterval`][]. Optionally
 you can also pass arguments to the callback.
 
 To follow browser behavior, when using delays larger than 2147483647
@@ -54,8 +54,8 @@ If `callback` is not a function `setInterval()` will throw immediately.
 ## setTimeout(callback, delay[, arg][, ...])
 
 To schedule execution of a one-time `callback` after `delay` milliseconds.
-Returns a `timeoutObject` for possible use with `clearTimeout()`. Optionally you
-can also pass arguments to the callback.
+Returns a `timeoutObject` for possible use with [`clearTimeout`][]. Optionally
+you can also pass arguments to the callback.
 
 The callback will likely not be invoked in precisely `delay` milliseconds.
 Node.js makes no guarantees about the exact timing of when callbacks will fire,
@@ -76,11 +76,15 @@ if it is the only item left in the event loop, it won't keep the program
 running. If the timer is already `unref`d calling `unref` again will have no
 effect.
 
-In the case of `setTimeout` when you `unref` you create a separate timer that
-will wakeup the event loop, creating too many of these may adversely effect
+In the case of [`setTimeout`][] when you `unref` you create a separate timer
+that will wakeup the event loop, creating too many of these may adversely effect
 event loop performance -- use wisely.
 
 Returns the timer.
 
+[`clearImmediate`]: timers.html#timers_clearimmediate_immediateobject
+[`clearInterval`]: timers.html#timers_clearinterval_intervalobject
+[`clearTimeout`]: timers.html#timers_cleartimeout_timeoutobject
+[`setImmediate`]: timers.html#timers_setimmediate_callback_arg
 [`setInterval`]: timers.html#timers_setinterval_callback_delay_arg
 [`setTimeout`]: timers.html#timers_settimeout_callback_delay_arg
