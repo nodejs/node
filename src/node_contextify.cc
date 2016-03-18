@@ -209,7 +209,17 @@ class ContextifyContext {
 
     CHECK(!ctx.IsEmpty());
     ctx->SetSecurityToken(env->context()->GetSecurityToken());
+
+    // We need to tie the lifetime of the sandbox object with the lifetime of
+    // newly created context. We do this by making them hold references to each
+    // other. The context can directly hold a reference to the sandbox as an
+    // embedder data field. However, we cannot hold a reference to a v8::Context
+    // directly in an Object, we instead hold onto the new context's global
+    // object instead (which then has a reference to the context).
     ctx->SetEmbedderData(kSandboxObjectIndex, sandbox_obj);
+    sandbox_obj->SetPrivate(env->context(),
+                            env->contextify_global_private_symbol(),
+                            ctx->Global());
 
     env->AssignToContext(ctx);
 
@@ -270,7 +280,7 @@ class ContextifyContext {
     CHECK(
         !sandbox->HasPrivate(
             env->context(),
-            env->contextify_private_symbol()).FromJust());
+            env->contextify_context_private_symbol()).FromJust());
 
     TryCatch try_catch(env->isolate());
     ContextifyContext* context = new ContextifyContext(env, sandbox);
@@ -285,7 +295,7 @@ class ContextifyContext {
 
     sandbox->SetPrivate(
         env->context(),
-        env->contextify_private_symbol(),
+        env->contextify_context_private_symbol(),
         External::New(env->isolate(), context));
   }
 
@@ -300,7 +310,8 @@ class ContextifyContext {
     Local<Object> sandbox = args[0].As<Object>();
 
     auto result =
-        sandbox->HasPrivate(env->context(), env->contextify_private_symbol());
+        sandbox->HasPrivate(env->context(),
+                            env->contextify_context_private_symbol());
     args.GetReturnValue().Set(result.FromJust());
   }
 
@@ -315,7 +326,8 @@ class ContextifyContext {
       Environment* env,
       const Local<Object>& sandbox) {
     auto maybe_value =
-        sandbox->GetPrivate(env->context(), env->contextify_private_symbol());
+        sandbox->GetPrivate(env->context(),
+                            env->contextify_context_private_symbol());
     Local<Value> context_external_v;
     if (maybe_value.ToLocal(&context_external_v) &&
         context_external_v->IsExternal()) {
