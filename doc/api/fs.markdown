@@ -122,7 +122,7 @@ Stop watching for changes on the given `fs.FSWatcher`.
 
 ### Event: 'open'
 
-* `fd` {Number} Integer file descriptor used by the ReadStream.
+* `fd` {Integer} Integer file descriptor used by the ReadStream.
 
 Emitted when the ReadStream's file is opened.
 
@@ -206,7 +206,7 @@ on Unix systems, it never was.
 
 ### Event: 'open'
 
-* `fd` {Number} Integer file descriptor used by the WriteStream.
+* `fd` {Integer} Integer file descriptor used by the WriteStream.
 
 Emitted when the WriteStream's file is opened.
 
@@ -220,6 +220,10 @@ for writing.
 The path to the file the stream is writing to.
 
 ## fs.access(path[, mode], callback)
+
+* `path` {String}
+* `mode` {Integer}
+* `callback` {Function}
 
 Tests a user's permissions for the file specified by `path`. `mode` is an
 optional integer that specifies the accessibility checks to be performed. The
@@ -247,16 +251,19 @@ fs.access('/etc/passwd', fs.R_OK | fs.W_OK, (err) => {
 
 ## fs.accessSync(path[, mode])
 
+* `path` {String}
+* `mode` {Integer}
+
 Synchronous version of [`fs.access()`][]. This throws if any accessibility checks
 fail, and does nothing otherwise.
 
 ## fs.appendFile(file, data[, options], callback)
 
-* `file` {String|Number} filename or file descriptor
-* `data` {String|Buffer}
-* `options` {Object|String}
-  * `encoding` {String|Null} default = `'utf8'`
-  * `mode` {Number} default = `0o666`
+* `file` {String | Number} filename or file descriptor
+* `data` {String | Buffer}
+* `options` {Object | String}
+  * `encoding` {String | Null} default = `'utf8'`
+  * `mode` {Integer} default = `0o666`
   * `flag` {String} default = `'a'`
 * `callback` {Function}
 
@@ -288,32 +295,63 @@ The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
 
 ## fs.chmod(path, mode, callback)
 
+* `path` {String}
+* `mode` {Integer}
+* `callback` {Function}
+
 Asynchronous chmod(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.chmodSync(path, mode)
 
+* `path` {String}
+* `mode` {Integer}
+
 Synchronous chmod(2). Returns `undefined`.
 
 ## fs.chown(path, uid, gid, callback)
+
+* `path` {String}
+* `uid` {Integer}
+* `gid` {Integer}
+* `callback` {Function}
 
 Asynchronous chown(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.chownSync(path, uid, gid)
 
+* `path` {String}
+* `uid` {Integer}
+* `gid` {Integer}
+
 Synchronous chown(2). Returns `undefined`.
 
 ## fs.close(fd, callback)
+
+* `fd` {Integer}
+* `callback` {Function}
 
 Asynchronous close(2).  No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.closeSync(fd)
 
+* `fd` {Integer}
+
 Synchronous close(2). Returns `undefined`.
 
 ## fs.createReadStream(path[, options])
+
+* `path` {String}
+* `options` {String | Object}
+  * `flags` {String}
+  * `encoding` {String}
+  * `fd` {Integer}
+  * `mode` {Integer}
+  * `autoClose` {Boolean}
+  * `start` {Integer}
+  * `end` {Integer}
 
 Returns a new [`ReadStream`][] object. (See [Readable Stream][]).
 
@@ -361,6 +399,15 @@ If `options` is a string, then it specifies the encoding.
 
 ## fs.createWriteStream(path[, options])
 
+* `path` {String}
+* `options` {String | Object}
+  * `flags` {String}
+  * `defaultEncoding` {String}
+  * `fd` {Integer}
+  * `mode` {Integer}
+  * `autoClose` {Boolean}
+  * `start` {Integer}
+
 Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
 
 `options` is an object or string with the following defaults:
@@ -397,6 +444,9 @@ If `options` is a string, then it specifies the encoding.
 
     Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
 
+* `path` {String}
+* `callback` {Function}
+
 Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false.  Example:
 
@@ -416,37 +466,63 @@ non-existent.
 
     Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][] instead.
 
+* `path` {String}
+
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the file exists, `false` otherwise.
 
 ## fs.fchmod(fd, mode, callback)
+
+* `fd` {Integer}
+* `mode` {Integer}
+* `callback` {Function}
 
 Asynchronous fchmod(2). No arguments other than a possible exception
 are given to the completion callback.
 
 ## fs.fchmodSync(fd, mode)
 
+* `fd` {Integer}
+* `mode` {Integer}
+
 Synchronous fchmod(2). Returns `undefined`.
 
 ## fs.fchown(fd, uid, gid, callback)
+
+* `fd` {Integer}
+* `uid` {Integer}
+* `gid` {Integer}
+* `callback` {Function}
 
 Asynchronous fchown(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.fchownSync(fd, uid, gid)
 
+* `fd` {Integer}
+* `uid` {Integer}
+* `gid` {Integer}
+
 Synchronous fchown(2). Returns `undefined`.
 
 ## fs.fdatasync(fd, callback)
+
+* `fd` {Integer}
+* `callback` {Function}
 
 Asynchronous fdatasync(2). No arguments other than a possible exception are
 given to the completion callback.
 
 ## fs.fdatasyncSync(fd)
 
+* `fd` {Integer}
+
 Synchronous fdatasync(2). Returns `undefined`.
 
 ## fs.fstat(fd, callback)
+
+* `fd` {Integer}
+* `callback` {Function}
 
 Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
 `stats` is a `fs.Stats` object. `fstat()` is identical to [`stat()`][], except that
@@ -454,36 +530,63 @@ the file to be stat-ed is specified by the file descriptor `fd`.
 
 ## fs.fstatSync(fd)
 
+* `fd` {Integer}
+
 Synchronous fstat(2). Returns an instance of `fs.Stats`.
 
 ## fs.fsync(fd, callback)
+
+* `fd` {Integer}
+* `callback` {Function}
 
 Asynchronous fsync(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.fsyncSync(fd)
 
+* `fd` {Integer}
+
 Synchronous fsync(2). Returns `undefined`.
 
 ## fs.ftruncate(fd, len, callback)
+
+* `fd` {Integer}
+* `len` {Integer}
+* `callback` {Function}
 
 Asynchronous ftruncate(2). No arguments other than a possible exception are
 given to the completion callback.
 
 ## fs.ftruncateSync(fd, len)
 
+* `fd` {Integer}
+* `len` {Integer}
+
 Synchronous ftruncate(2). Returns `undefined`.
 
 ## fs.futimes(fd, atime, mtime, callback)
+
+* `fd` {Integer}
+* `atime` {Integer}
+* `mtime` {Integer}
+* `callback` {Function}
 
 Change the file timestamps of a file referenced by the supplied file
 descriptor.
 
 ## fs.futimesSync(fd, atime, mtime)
 
+* `fd` {Integer}
+* `atime` {Integer}
+* `mtime` {Integer}
+
 Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
 ## fs.lchmod(path, mode, callback)
+
+* `path` {String}
+* `mode` {Integer}
+* `callback` {Function}
 
 Asynchronous lchmod(2). No arguments other than a possible exception
 are given to the completion callback.
@@ -492,27 +595,49 @@ Only available on Mac OS X.
 
 ## fs.lchmodSync(path, mode)
 
+* `path` {String}
+* `mode` {Integer}
+
 Synchronous lchmod(2). Returns `undefined`.
 
 ## fs.lchown(path, uid, gid, callback)
+
+* `path` {String}
+* `uid` {Integer}
+* `gid` {Integer}
+* `callback` {Function}
 
 Asynchronous lchown(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.lchownSync(path, uid, gid)
 
+* `path` {String}
+* `uid` {Integer}
+* `gid` {Integer}
+
 Synchronous lchown(2). Returns `undefined`.
 
 ## fs.link(srcpath, dstpath, callback)
+
+* `srcpath` {String}
+* `dstpath` {String}
+* `callback` {Function}
 
 Asynchronous link(2). No arguments other than a possible exception are given to
 the completion callback.
 
 ## fs.linkSync(srcpath, dstpath)
 
+* `srcpath` {String}
+* `dstpath` {String}
+
 Synchronous link(2). Returns `undefined`.
 
 ## fs.lstat(path, callback)
+
+* `path` {String}
+* `callback` {Function}
 
 Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where
 `stats` is a `fs.Stats` object. `lstat()` is identical to `stat()`, except that if
@@ -521,14 +646,23 @@ refers to.
 
 ## fs.lstatSync(path)
 
+* `path` {String}
+
 Synchronous lstat(2). Returns an instance of `fs.Stats`.
 
 ## fs.mkdir(path[, mode], callback)
+
+* `path` {String}
+* `mode` {Integer}
+* `callback` {Function}
 
 Asynchronous mkdir(2). No arguments other than a possible exception are given
 to the completion callback. `mode` defaults to `0o777`.
 
 ## fs.mkdirSync(path[, mode])
+
+* `path` {String}
+* `mode` {Integer}
 
 Synchronous mkdir(2). Returns `undefined`.
 
@@ -557,6 +691,11 @@ The synchronous version of [`fs.mkdtemp()`][]. Returns the created
 folder path.
 
 ## fs.open(path, flags[, mode], callback)
+
+* `path` {String}
+* `flags` {String | Number}
+* `mode` {Integer}
+* `callback` {Function}
 
 Asynchronous file open. See open(2). `flags` can be:
 
@@ -620,10 +759,21 @@ the end of the file.
 
 ## fs.openSync(path, flags[, mode])
 
+* `path` {String}
+* `flags` {String | Number}
+* `mode` {Integer}
+
 Synchronous version of [`fs.open()`][]. Returns an integer representing the file
 descriptor.
 
 ## fs.read(fd, buffer, offset, length, position, callback)
+
+* `fd` {Integer}
+* `buffer` {String | Buffer}
+* `offset` {Integer}
+* `length` {Integer}
+* `position` {Integer}
+* `callback` {Function}
 
 Read data from the file specified by `fd`.
 
@@ -640,11 +790,16 @@ The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
 ## fs.readdir(path, callback)
 
+* `path` {String}
+* `callback` {Function}
+
 Asynchronous readdir(3).  Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
 the names of the files in the directory excluding `'.'` and `'..'`.
 
 ## fs.readdirSync(path)
+
+* `path` {String}
 
 Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 `'..'`.
@@ -683,6 +838,11 @@ _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.readFileSync(file[, options])
 
+* `file` {String | Integer} filename or file descriptor
+* `options` {Object | String}
+  * `encoding` {String | Null} default = `null`
+  * `flag` {String} default = `'r'`
+
 Synchronous version of [`fs.readFile`][]. Returns the contents of the `file`.
 
 If the `encoding` option is specified then this function returns a
@@ -690,14 +850,23 @@ string. Otherwise it returns a buffer.
 
 ## fs.readlink(path, callback)
 
+* `path` {String}
+* `callback` {Function}
+
 Asynchronous readlink(2). The callback gets two arguments `(err,
 linkString)`.
 
 ## fs.readlinkSync(path)
 
+* `path` {String}
+
 Synchronous readlink(2). Returns the symbolic link's string value.
 
 ## fs.realpath(path[, cache], callback)
+
+* `path` {String}
+* `cache` {Object}
+* `callback` {Function}
 
 Asynchronous realpath(2). The `callback` gets two arguments `(err,
 resolvedPath)`. May use `process.cwd` to resolve relative paths. `cache` is an
@@ -716,9 +885,18 @@ fs.realpath('/etc/passwd', cache, (err, resolvedPath) => {
 
 ## fs.readSync(fd, buffer, offset, length, position)
 
+* `fd` {Integer}
+* `buffer` {String | Buffer}
+* `offset` {Integer}
+* `length` {Integer}
+* `position` {Integer}
+
 Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 
 ## fs.realpathSync(path[, cache])
+
+* `path` {String}
+* `cache` {Object}
 
 Synchronous realpath(2). Returns the resolved path. `cache` is an
 object literal of mapped paths that can be used to force a specific path
@@ -726,23 +904,38 @@ resolution or avoid additional `fs.stat` calls for known real paths.
 
 ## fs.rename(oldPath, newPath, callback)
 
+* `oldPath` {String}
+* `newPath` {String}
+* `callback` {Function}
+
 Asynchronous rename(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.renameSync(oldPath, newPath)
 
+* `oldPath` {String}
+* `newPath` {String}
+
 Synchronous rename(2). Returns `undefined`.
 
 ## fs.rmdir(path, callback)
+
+* `path` {String}
+* `callback` {Function}
 
 Asynchronous rmdir(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.rmdirSync(path)
 
+* `path` {String}
+
 Synchronous rmdir(2). Returns `undefined`.
 
 ## fs.stat(path, callback)
+
+* `path` {String}
+* `callback` {Function}
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
 `stats` is a [`fs.Stats`][] object.  See the [`fs.Stats`][] section for more
@@ -750,9 +943,16 @@ information.
 
 ## fs.statSync(path)
 
+* `path` {String}
+
 Synchronous stat(2). Returns an instance of [`fs.Stats`][].
 
 ## fs.symlink(target, path[, type], callback)
+
+* `target` {String}
+* `path` {String}
+* `type` {String}
+* `callback` {Function}
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -771,9 +971,17 @@ It creates a symbolic link named "new-port" that points to "foo".
 
 ## fs.symlinkSync(target, path[, type])
 
+* `target` {String}
+* `path` {String}
+* `type` {String}
+
 Synchronous symlink(2). Returns `undefined`.
 
 ## fs.truncate(path, len, callback)
+
+* `path` {String}
+* `len` {Integer}
+* `callback` {Function}
 
 Asynchronous truncate(2). No arguments other than a possible exception are
 given to the completion callback. A file descriptor can also be passed as the
@@ -781,18 +989,29 @@ first argument. In this case, `fs.ftruncate()` is called.
 
 ## fs.truncateSync(path, len)
 
+* `path` {String}
+* `len` {Integer}
+
 Synchronous truncate(2). Returns `undefined`.
 
 ## fs.unlink(path, callback)
+
+* `path` {String}
+* `callback` {Function}
 
 Asynchronous unlink(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.unlinkSync(path)
 
+* `path` {String}
+
 Synchronous unlink(2). Returns `undefined`.
 
 ## fs.unwatchFile(filename[, listener])
+
+* `filename` {String}
+* `listener` {Function}
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
 particular listener is removed. Otherwise, *all* listeners are removed and you
@@ -807,6 +1026,11 @@ when possible._
 
 ## fs.utimes(path, atime, mtime, callback)
 
+* `path` {String}
+* `atime` {Integer}
+* `mtime` {Integer}
+* `callback` {Function}
+
 Change file timestamps of the file referenced by the supplied path.
 
 Note: the arguments `atime` and `mtime` of the following related functions does
@@ -819,21 +1043,26 @@ follow the below rules:
 
 ## fs.utimesSync(path, atime, mtime)
 
+* `path` {String}
+* `atime` {Integer}
+* `mtime` {Integer}
+
 Synchronous version of [`fs.utimes()`][]. Returns `undefined`.
 
 ## fs.watch(filename[, options][, listener])
 
+* `filename` {String}
+* `options` {Object}
+  * `persistent` {Boolean} Indicates whether the process should continue to run
+    as long as files are being watched. default = `true`
+  * `recursive` {Boolean} Indicates whether all subdirectories should be
+    watched, or only the current directory. The applies when a directory is
+    specified, and only on supported platforms (See [Caveats][]). default =
+    `false`
+* `listener` {Function}
+
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is a [`fs.FSWatcher`][].
-
-The second argument is optional. The `options` if provided should be an object.
-The supported boolean members are `persistent` and `recursive`. `persistent`
-indicates whether the process should continue to run as long as files are being
-watched. `recursive` indicates whether all subdirectories should be watched, or
-only the current directory. This applies when a directory is specified, and only
-on supported platforms (See [Caveats][]).
-
-The default is `{ persistent: true, recursive: false }`.
 
 The listener callback gets two arguments `(event, filename)`.  `event` is either
 `'rename'` or `'change'`, and `filename` is the name of the file which triggered
@@ -891,6 +1120,12 @@ fs.watch('somedir', (event, filename) => {
 
 ## fs.watchFile(filename[, options], listener)
 
+* `filename` {String}
+* `options` {Object}
+  * `persistent` {Boolean}
+  * `interval` {Integer}
+* `listener` {Function}
+
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.
 
@@ -928,6 +1163,13 @@ when possible._
 
 ## fs.write(fd, buffer, offset, length[, position], callback)
 
+* `fd` {Integer}
+* `buffer` {String | Buffer}
+* `offset` {Integer}
+* `length` {Integer}
+* `position` {Integer}
+* `callback` {Function}
+
 Write `buffer` to the file specified by `fd`.
 
 `offset` and `length` determine the part of the buffer to be written.
@@ -948,6 +1190,12 @@ The kernel ignores the position argument and always appends the data to
 the end of the file.
 
 ## fs.write(fd, data[, position[, encoding]], callback)
+
+* `fd` {Integer}
+* `data` {String | Buffer}
+* `position` {Integer}
+* `encoding` {String}
+* `callback` {Function}
 
 Write `data` to the file specified by `fd`.  If `data` is not a Buffer instance
 then the value will be coerced to a string.
@@ -980,7 +1228,7 @@ the end of the file.
 * `data` {String | Buffer}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
-  * `mode` {Number} default = `0o666`
+  * `mode` {Integer} default = `0o666`
   * `flag` {String} default = `'w'`
 * `callback` {Function}
 
@@ -1015,11 +1263,29 @@ _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.writeFileSync(file, data[, options])
 
+* `file` {String | Integer} filename or file descriptor
+* `data` {String | Buffer}
+* `options` {Object | String}
+  * `encoding` {String | Null} default = `'utf8'`
+  * `mode` {Integer} default = `0o666`
+  * `flag` {String} default = `'w'`
+
 The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 
 ## fs.writeSync(fd, buffer, offset, length[, position])
 
+* `fd` {Integer}
+* `buffer` {String | Buffer}
+* `offset` {Integer}
+* `length` {Integer}
+* `position` {Integer}
+
 ## fs.writeSync(fd, data[, position[, encoding]])
+
+* `fd` {Integer}
+* `buffer` {String | Buffer}
+* `position` {Integer}
+* `encoding` {String}
 
 Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 
