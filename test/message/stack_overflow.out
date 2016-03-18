@@ -1,6 +1,0 @@
-before
-
-*test*message*stack_overflow.js:*
-function stackOverflow() {
-                      ^
-RangeError: Maximum call stack size exceeded

@@ -1,8 +1,0 @@
-You can modify this file to create no-op changelists.
-
-Try to write something funny. And please don't add trailing whitespace.
-
-A Smi balks into a war and says:
-"I'm so deoptimized today!"
-The doubles heard this and started to unbox.
-The Smi looked at them when a crazy v8-autoroll account showed up.....

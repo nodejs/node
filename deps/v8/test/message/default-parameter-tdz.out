@@ -1,6 +1,0 @@
-*%(basename)s:7: ReferenceError: a is not defined
-(function(a=+a) { })();
-             ^
-ReferenceError: a is not defined
-    at *%(basename)s:7:14
-    at *%(basename)s:7:21

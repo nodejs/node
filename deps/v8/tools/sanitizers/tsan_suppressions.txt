@@ -1,6 +1,0 @@
-# Suppressions for TSan v2
-# https://code.google.com/p/thread-sanitizer/wiki/Suppressions
-
-# Incorrectly detected lock cycles in test-lockers
-# https://code.google.com/p/thread-sanitizer/issues/detail?id=81
-deadlock:LockAndUnlockDifferentIsolatesThread::Run

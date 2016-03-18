@@ -1,3 +1,0 @@
-if (true) {
-  return;
-}
