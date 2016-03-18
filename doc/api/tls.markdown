@@ -194,6 +194,9 @@ established it will be forwarded here.
 
 ### Event: 'newSession'
 
+Stability: 0 - Deprecated: Use synchronous `newSession` option-callback of
+[`tls.createServer`][] instead.
+
 `function (sessionId, sessionData, callback) { }`
 
 Emitted on creation of TLS session. May be used to store sessions in external
@@ -242,6 +245,9 @@ NOTE: you may want to use some npm module like [asn1.js] to parse the
 certificates.
 
 ### Event: 'resumeSession'
+
+Stability: 0 - Deprecated: Use synchronous `resumeSession` option-callback of
+[`tls.createServer`][] instead.
 
 `function (sessionId, callback) { }`
 
@@ -897,6 +903,13 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
   - `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
     SSL version 3. The possible values depend on your installation of
     OpenSSL and are defined in the constant [SSL_METHODS][].
+
+  - `newSession`: A callback to invoke when creating new TLS session
+    (Signature: `newSession(sessionId, sessionData)`).
+
+  - `resumeSession`: A callback to invoke when client attempts to resume some
+    TLS session by id (Signature: `resumeSession(sessionId)`, should return
+    `undefined` or `Buffer` instance with `sessionData` from `newSession`).
 
 Here is a simple example echo server:
 
