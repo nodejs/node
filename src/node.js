@@ -564,19 +564,19 @@
     module.paths = Module._nodeModulePaths(cwd);
     var script = process._eval;
     var body = script;
-    script = 'global.__filename = ' + JSON.stringify(name) + ';\n' +
+    script = `global.__filename = ${JSON.stringify(name)};\n` +
              'global.exports = exports;\n' +
              'global.module = module;\n' +
              'global.__dirname = __dirname;\n' +
              'global.require = require;\n' +
              'return require("vm").runInThisContext(' +
-             JSON.stringify(body) + ', { filename: ' +
-             JSON.stringify(name) + ' });\n';
+             `${JSON.stringify(body)}, { filename: ` +
+             `${JSON.stringify(name)} });\n`;
     // Defer evaluation for a tick.  This is a workaround for deferred
     // events not firing when evaluating scripts from the command line,
     // see https://github.com/nodejs/node/issues/1600.
     process.nextTick(function() {
-      var result = module._compile(script, name + '-wrapper');
+      var result = module._compile(script, `${name}-wrapper`);
       if (process._print_eval) console.log(result);
     });
   }
@@ -768,7 +768,7 @@
             sig.slice(0, 3) === 'SIG') {
           err = process._kill(pid, startup.lazyConstants()[sig]);
         } else {
-          throw new Error('Unknown signal: ' + sig);
+          throw new Error(`Unknown signal: ${sig}`);
         }
       }
 
@@ -873,7 +873,7 @@
   }
 
   function NativeModule(id) {
-    this.filename = id + '.js';
+    this.filename = `${id}.js`;
     this.id = id;
     this.exports = {};
     this.loaded = false;
@@ -893,10 +893,10 @@
     }
 
     if (!NativeModule.exists(id)) {
-      throw new Error('No such native module ' + id);
+      throw new Error(`No such native module ${id}`);
     }
 
-    process.moduleLoadList.push('NativeModule ' + id);
+    process.moduleLoadList.push(`NativeModule ${id}`);
 
     var nativeModule = new NativeModule(id);
 
