@@ -1261,7 +1261,7 @@ there is a problem generating the bytes.
 // Synchronous
 const buf = crypto.randomBytes(256);
 console.log(
-  `${buf.length}` bytes of random data: ${buf.toString('hex')});
+  `${buf.length} bytes of random data: ${buf.toString('hex')}`);
 ```
 
 The `crypto.randomBytes()` method will block until there is sufficient entropy.
