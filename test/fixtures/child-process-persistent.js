@@ -1,1 +1,0 @@
-setInterval(function() {}, 500);
