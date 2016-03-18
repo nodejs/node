@@ -30,4 +30,4 @@ try {
 
 assert.throws(function() {
   buf.toString('utf16le');
-}, /"toString\(\)" failed/);
+}, /Size exceeds max string length/);
