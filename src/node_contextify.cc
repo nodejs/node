@@ -207,7 +207,17 @@ class ContextifyContext {
 
     CHECK(!ctx.IsEmpty());
     ctx->SetSecurityToken(env->context()->GetSecurityToken());
+
+    // We need to tie the lifetime of the sandbox object with the lifetime of
+    // newly created context. We do this by making them hold references to each
+    // other. The context can directly hold a reference to the sandbox as an
+    // embedder data field. However, we cannot hold a reference to a v8::Context
+    // directly in an Object, we instead hold onto the new context's global
+    // object instead (which then has a reference to the context).
     ctx->SetEmbedderData(kSandboxObjectIndex, sandbox_obj);
+    sandbox_obj->SetHiddenValue(
+        FIXED_ONE_BYTE_STRING(env->isolate(), "_contextifyHiddenGlobal"),
+        ctx->Global());
 
     env->AssignToContext(ctx);
 
