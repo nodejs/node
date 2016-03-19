@@ -88,9 +88,9 @@ path.extname('.index')
 
 Returns a path string from an object. This is the opposite of [`path.parse`][].
 
-If `pathObject` has all expected properties, the returned string will be a
-concatenation of the `dir` property, the platform-dependent path separator, and
-the `base` property.
+If `pathObject` has `dir` and `base` properties, the returned string will
+be a concatenation of the `dir` property, the platform-dependent path separator,
+and the `base` property.
 
 If the `dir` property is not supplied, the `root` property will be used as the
 `dir` property. However, it will be assumed that the `root` property already
