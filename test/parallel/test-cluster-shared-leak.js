@@ -40,6 +40,11 @@ if (cluster.isMaster) {
 }
 
 const server = net.createServer(function(c) {
+  c.on('error', function(e) {
+    // ECONNRESET is OK, so we don't exit with code !== 0
+    if (e.code !== 'ECONNRESET')
+      throw e;
+  });
   c.end('bye');
 });
 
