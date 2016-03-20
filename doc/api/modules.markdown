@@ -346,6 +346,14 @@ If this was in a folder at `./some-library`, then
 
 This is the extent of Node.js's awareness of package.json files.
 
+Note: If the file specified by the `"main"` entry of `package.json` is missing
+and can not be resolved, Node.js will report the entire module as missing with
+the default error:
+
+```
+Error: Cannot find module 'some-library'
+```
+
 If there is no package.json file present in the directory, then Node.js
 will attempt to load an `index.js` or `index.node` file out of that
 directory.  For example, if there was no package.json file in the above
