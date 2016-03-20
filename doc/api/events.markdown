@@ -393,7 +393,8 @@ server.removeListener('connection', callback);
 `removeListener` will remove, at most, one instance of a listener from the
 listener array. If any single listener has been added multiple times to the
 listener array for the specified `event`, then `removeListener` must be called
-multiple times to remove each instance.
+multiple times to remove each instance. Listeners removed from an event from
+within the emit cycle of that event will still be called in that emit cycle.  
 
 Note that once an event has been emitted, all listeners attached to it at the
 time of emitting will be called in order. This implies that any `removeListener()`
