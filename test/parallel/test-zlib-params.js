@@ -6,13 +6,13 @@ var path = require('path');
 var fs = require('fs');
 
 var file = fs.readFileSync(path.resolve(common.fixturesDir, 'person.jpg')),
-    chunkSize = 24 * 1024,
+    chunkSize = 12 * 1024,
     opts = { level: 9, strategy: zlib.Z_DEFAULT_STRATEGY },
     deflater = zlib.createDeflate(opts);
 
 var chunk1 = file.slice(0, chunkSize),
     chunk2 = file.slice(chunkSize),
-    blkhdr = new Buffer([0x00, 0x48, 0x82, 0xb7, 0x7d]),
+    blkhdr = new Buffer([0x00, 0x5a, 0x82, 0xa5, 0x7d]),
     expected = Buffer.concat([blkhdr, chunk2]),
     actual;
 
