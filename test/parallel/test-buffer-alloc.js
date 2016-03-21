@@ -3,7 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 
 var Buffer = require('buffer').Buffer;
-var SlowBuffer = require('buffer').SlowBuffer;
 
 // counter to ensure unique value is always copied
 var cntr = 0;
@@ -428,7 +427,7 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
 
 {
   // also from a non-pooled instance
-  const b = new SlowBuffer(5);
+  const b = Buffer.allocUnsafeSlow(5);
   const c = b.slice(0, 4);
   const d = c.slice(0, 2);
   assert.equal(c.parent, d.parent);
@@ -1305,7 +1304,7 @@ assert.throws(function() {
 
   // try to slice a zero length Buffer
   // see https://github.com/joyent/node/issues/5881
-  SlowBuffer(0).slice(0, 1);
+  Buffer.alloc(0).slice(0, 1);
 })();
 
 // Regression test for #5482: should throw but not assert in C++ land.
@@ -1336,7 +1335,7 @@ assert.throws(function() {
 }, RangeError);
 
 assert.throws(function() {
-  SlowBuffer((-1 >>> 0) + 1);
+  Buffer.allocUnsafeSlow((-1 >>> 0) + 1);
 }, RangeError);
 
 if (common.hasCrypto) {
@@ -1435,14 +1434,13 @@ assert.throws(function() {
 }, regErrorMsg);
 
 
-// Test prototype getters don't throw
-assert.equal(Buffer.prototype.parent, undefined);
-assert.equal(Buffer.prototype.offset, undefined);
-assert.equal(SlowBuffer.prototype.parent, undefined);
-assert.equal(SlowBuffer.prototype.offset, undefined);
-
-
 // Test that ParseArrayIndex handles full uint32
 assert.throws(function() {
   Buffer.from(new ArrayBuffer(0), -1 >>> 0);
 }, /RangeError: 'offset' is out of bounds/);
+
+// Unpooled buffer (replaces SlowBuffer)
+const ubuf = Buffer.allocUnsafeSlow(10);
+assert(ubuf);
+assert(ubuf.buffer);
+assert.equal(ubuf.buffer.byteLength, 10);
