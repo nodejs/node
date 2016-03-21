@@ -5,11 +5,11 @@ const cmd = common.isWindows ? 'rundll32' : 'ls';
 const assert = require('assert');
 
 const cp = spawn(cmd);
-assert.ok(cp.hasOwnProperty('_unref'));
-assert.ok(!cp._unref);
+assert.strictEqual(cp.hasOwnProperty('_unref'), true);
+assert.strictEqual(cp._unref, false);
 cp.unref();
-assert.ok(cp._unref);
+assert.strictEqual(cp._unref, true);
 cp.ref();
-assert.ok(!cp._unref);
+assert.strictEqual(cp._unref, false);
 cp.unref();
-assert.ok(cp._unref);
+assert.strictEqual(cp._unref, true);
