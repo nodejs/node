@@ -27,7 +27,7 @@ Returns the timer.
 
 ## setImmediate(callback[, arg][, ...])
 
-To schedule the "immediate" execution of `callback` after I/O events'
+Schedules "immediate" execution of `callback` after I/O events'
 callbacks and before timers set by [`setTimeout`][] and [`setInterval`][] are
 triggered. Returns an `immediateObject` for possible use with
 [`clearImmediate`][]. Additional optional arguments may be passed to the
@@ -40,7 +40,7 @@ until the next event loop iteration.
 
 ## setInterval(callback, delay[, arg][, ...])
 
-To schedule the repeated execution of `callback` every `delay` milliseconds.
+Schedules repeated execution of `callback` every `delay` milliseconds.
 Returns a `intervalObject` for possible use with [`clearInterval`][]. Additional
 optional arguments may be passed to the callback.
 
@@ -50,7 +50,7 @@ milliseconds (approximately 25 days) or less than 1, Node.js will use 1 as the
 
 ## setTimeout(callback, delay[, arg][, ...])
 
-To schedule execution of a one-time `callback` after `delay` milliseconds.
+Schedules execution of a one-time `callback` after `delay` milliseconds.
 Returns a `timeoutObject` for possible use with [`clearTimeout`][]. Additional
 optional arguments may be passed to the callback.
 
