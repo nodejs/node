@@ -40,7 +40,8 @@ function tryConnect() {
       server.close();
     });
   }).on('error', function(err) {
-    if (err.syscall === 'getaddrinfo' && err.code === 'ENOTFOUND') {
+    if (err.syscall === 'getaddrinfo'
+        && (err.code === 'EAI_NODATA' || err.code === 'EAI_NONAME')) {
       if (host !== 'localhost' || --localhostTries === 0)
         host = hosts[++hostIdx];
       if (host)
