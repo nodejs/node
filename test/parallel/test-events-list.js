@@ -17,3 +17,5 @@ EE.on(s, m);
 assert.deepStrictEqual(['foo', s], EE.eventNames());
 EE.removeListener(s, m);
 assert.deepStrictEqual(['foo'], EE.eventNames());
+Object.defineProperty(EE._events, s, { value: 'bar' });
+assert.deepStrictEqual(['foo'], EE.eventNames());
