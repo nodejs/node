@@ -8,6 +8,7 @@ const bench = common.createBenchmark(main, {
     'fast-alloc',
     'fast-alloc-fill',
     'fast-allocUnsafe',
+    'slow-allocUnsafe',
     'slow',
     'buffer()'],
   len: [10, 1024, 2048, 4096, 8192],
@@ -36,6 +37,13 @@ function main(conf) {
       bench.start();
       for (let i = 0; i < n * 1024; i++) {
         Buffer.allocUnsafe(len);
+      }
+      bench.end(n);
+      break;
+    case 'slow-allocUnsafe':
+      bench.start();
+      for (let i = 0; i < n * 1024; i++) {
+        Buffer.allocUnsafeSlow(len);
       }
       bench.end(n);
       break;
