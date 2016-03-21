@@ -87,27 +87,30 @@ to one of these new APIs.*
   containing a *copy* of the provided string.
 * [`Buffer.alloc(size[, fill[, encoding]])`][buffer_alloc] returns a "filled"
   `Buffer` instance of the specified size. This method can be significantly
-  slower than [`Buffer.allocUnsafe(size)`][buffer_allocunsafe] but ensures that
-  newly created `Buffer` instances never contain old and potentially sensitive
-  data.
-* [`Buffer.allocUnsafe(size)`][buffer_allocunsafe] returns a new `Buffer` of
-  the specified `size` whose content *must* be initialized using either
-  [`buf.fill(0)`][] or written to completely.
+  slower than [`Buffer.allocUnsafe(size)`][buffer_allocunsafe] but ensures
+  that newly created `Buffer` instances never contain old and potentially
+  sensitive data.
+* [`Buffer.allocUnsafe(size)`][buffer_allocunsafe] and
+  [`Buffer.allocUnsafeSlow(size)`][buffer_allocunsafeslow] each return a
+  new `Buffer` of the specified `size` whose content *must* be initialized
+  using either [`buf.fill(0)`][] or written to completely.
 
 `Buffer` instances returned by `Buffer.allocUnsafe(size)` *may* be allocated
-off a shared internal memory pool if the `size` is less than or equal to half
-`Buffer.poolSize`.
+off a shared internal memory pool if `size` is less than or equal to half
+`Buffer.poolSize`. Instances returned by `Buffer.allocUnsafeSlow(size)` *never*
+use the shared internal memory pool.
 
 ### The `--zero-fill-buffers` command line option
 
 Node.js can be started using the `--zero-fill-buffers` command line option to
 force all newly allocated `Buffer` and `SlowBuffer` instances created using
-either `new Buffer(size)`, `Buffer.allocUnsafe(size)`, or
-`new SlowBuffer(size)` to be *automatically zero-filled* upon creation. Use of
-this flag *changes the default behavior* of these methods and *can have a
-significant impact* on performance. Use of the `--zero-fill-buffers` option is
-recommended only when absolutely necessary to enforce that newly allocated
-`Buffer` instances cannot contain potentially sensitive data.
+either `new Buffer(size)`, `Buffer.allocUnsafe(size)`,
+`Buffer.allocUnsafeSlow(size)` or `new SlowBuffer(size)` to be *automatically
+zero-filled* upon creation. Use of this flag *changes the default behavior* of
+these methods and *can have a significant impact* on performance. Use of the
+`--zero-fill-buffers` option is recommended only when absolutely necessary to
+enforce that newly allocated `Buffer` instances cannot contain potentially
+sensitive data.
 
 ```
 $ node --zero-fill-buffers
@@ -115,14 +118,14 @@ $ node --zero-fill-buffers
 <Buffer 00 00 00 00 00>
 ```
 
-### What makes `Buffer.allocUnsafe(size)` "unsafe"?
+### What makes `Buffer.allocUnsafe(size)` and `Buffer.allocUnsafeSlow(size)` "unsafe"?
 
-When calling `Buffer.allocUnsafe()`, the segment of allocated memory is
-*uninitialized* (it is not zeroed-out). While this design makes the allocation
-of memory quite fast, the allocated segment of memory might contain old data
-that is potentially sensitive. Using a `Buffer` created by
-`Buffer.allocUnsafe(size)` without *completely* overwriting the memory can
-allow this old data to be leaked when the `Buffer` memory is read.
+When calling `Buffer.allocUnsafe()` (and `Buffer.allocUnsafeSlow()`), the
+segment of allocated memory is *uninitialized* (it is not zeroed-out). While
+this design makes the allocation of memory quite fast, the allocated segment of
+memory might contain old data that is potentially sensitive. Using a `Buffer`
+created by `Buffer.allocUnsafe()` without *completely* overwriting the memory
+can allow this old data to be leaked when the `Buffer` memory is read.
 
 While there are clear performance advantages to using `Buffer.allocUnsafe()`,
 extra care *must* be taken in order to avoid introducing security
@@ -465,6 +468,52 @@ pool, while `Buffer.allocUnsafe(size).fill(fill)` *will* use the internal
 Buffer pool if `size` is less than or equal to half `Buffer.poolSize`. The
 difference is subtle but can be important when an application requires the
 additional performance that `Buffer.allocUnsafe(size)` provides.
+
+### Class Method: Buffer.allocUnsafeSlow(size)
+
+* `size` {Number}
+
+Allocates a new *non-zero-filled* and non-pooled `Buffer` of `size` bytes.  The
+`size` must be less than or equal to the value of
+`require('buffer').kMaxLength` (on 64-bit architectures, `kMaxLength` is
+`(2^31)-1`). Otherwise, a [`RangeError`][] is thrown. If a `size` less than 0
+is specified, a zero-length `Buffer` will be created.
+
+The underlying memory for `Buffer` instances created in this way is *not
+initialized*. The contents of the newly created `Buffer` are unknown and
+*may contain sensitive data*. Use [`buf.fill(0)`][] to initialize such
+`Buffer` instances to zeroes.
+
+When using `Buffer.allocUnsafe()` to allocate new `Buffer` instances,
+allocations under 4KB are, by default, sliced from a single pre-allocated
+`Buffer`. This allows applications to avoid the garbage collection overhead of
+creating many individually allocated Buffers. This approach improves both
+performance and memory usage by eliminating the need to track and cleanup as
+many `Persistent` objects.
+
+However, in the case where a developer may need to retain a small chunk of
+memory from a pool for an indeterminate amount of time, it may be appropriate
+to create an un-pooled Buffer instance using `Buffer.allocUnsafeSlow()` then
+copy out the relevant bits.
+
+```js
+// need to keep around a few small chunks of memory
+const store = [];
+
+socket.on('readable', () => {
+  const data = socket.read();
+  // allocate for retained data
+  const sb = Buffer.allocUnsafeSlow(10);
+  // copy the data into the new allocation
+  data.copy(sb, 0, 0, 10);
+  store.push(sb);
+});
+```
+
+Use of `Buffer.allocUnsafeSlow()` should be used only as a last resort *after*
+a developer has observed undue memory retention in their applications.
+
+A `TypeError` will be thrown if `size` is not a number.
 
 ### Class Method: Buffer.byteLength(string[, encoding])
 
@@ -1805,7 +1854,8 @@ console.log(buf);
 [buffer_from_buffer]: #buffer_class_method_buffer_from_buffer
 [buffer_from_arraybuf]: #buffer_class_method_buffer_from_arraybuffer
 [buffer_from_string]: #buffer_class_method_buffer_from_str_encoding
-[buffer_allocunsafe]: #buffer_class_method_buffer_allocraw_size
+[buffer_allocunsafe]: #buffer_class_method_buffer_allocunsafe_size
+[buffer_allocunsafeslow]: #buffer_class_method_buffer_allocunsafeslow_size
 [buffer_alloc]: #buffer_class_method_buffer_alloc_size_fill_encoding
 [`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
