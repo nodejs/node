@@ -137,8 +137,7 @@ path.format({
     ext : ".txt",
     name : "file"
 })
-// returns
-'C:\\path\\dir\\file.txt'
+// returns 'C:\\path\\dir\\file.txt'
 ```
 
 ## path.isAbsolute(path)
