@@ -1783,6 +1783,9 @@ Note that this is a property on the `buffer` module as returned by
 
 ## Class: SlowBuffer
 
+    Stability: 0 - Deprecated: Use
+    [`Buffer.allocUnsafeSlow(size)`][buffer_allocunsafeslow] instead.
+
 Returns an un-pooled `Buffer`.
 
 In order to avoid the garbage collection overhead of creating many individually
@@ -1812,6 +1815,9 @@ Use of `SlowBuffer` should be used only as a last resort *after* a developer
 has observed undue memory retention in their applications.
 
 ### new SlowBuffer(size)
+
+    Stability: 0 - Deprecated: Use
+    [`Buffer.allocUnsafeSlow(size)`][buffer_allocunsafeslow] instead.
 
 * `size` Number
 
