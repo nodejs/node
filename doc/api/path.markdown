@@ -92,7 +92,7 @@ and the `base` property.
 If the `dir` property is not supplied, the `root` property will be used as the
 `dir` property. However, it will be assumed that the `root` property already
 ends with the platform-dependent path separator. In this case, the returned
-string will be the concatenation fo the `root` property and the `base` property.
+string will be the concatenation of the `root` property and the `base` property.
 
 If both the `dir` and the `root` properties are not supplied, then the returned
 string will be the contents of the `base` property.
@@ -102,28 +102,41 @@ and the `ext` property will be used as the `base` property.
 
 Examples:
 
-An example on Posix systems:
+Some Posix system examples:
 
 ```js
+// If `dir` and `base` are provided, `dir` + platform separator + `base`
+// will be returned.
 path.format({
-    root : "/",
-    dir : "/home/user/dir",
-    base : "file.txt",
-    ext : ".txt",
-    name : "file"
+    dir: '/home/user/dir',
+    base: 'file.txt'
 });
 // returns '/home/user/dir/file.txt'
 
-// `root` will be used if `dir` is not specified and `name` + `ext` will be used
-// if `base` is not specified
+// `root` will be used if `dir` is not specified.
+// `name` + `ext` will be used if `base` is not specified.
+// If only `root` is provided or `dir` is equal to `root` then the
+// platform separator will not be included.
 path.format({
-    root : "/",
-    ext : ".txt",
-    name : "file"
-})
+    root: '/',
+    base: 'file.txt'
+});
 // returns '/file.txt'
-```
 
+path.format({
+    dir: '/',
+    root: '/',
+    name: 'file',
+    ext: '.txt'
+});
+// returns '/file.txt'
+
+// `base` will be returned if `dir` or `root` are not provided.
+path.format({
+    base: 'file.txt'
+});
+// returns 'file.txt'
+```
 An example on Windows:
 
 ```js
