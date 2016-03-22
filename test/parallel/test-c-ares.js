@@ -27,6 +27,11 @@ assert.throws(function() {
   dns.resolve('www.google.com', 'HI');
 }, /Unknown type/);
 
+// Try calling resolve with an unsupported type that's an object key
+assert.throws(function() {
+  dns.resolve('www.google.com', 'toString');
+}, /Unknown type/);
+
 // Windows doesn't usually have an entry for localhost 127.0.0.1 in
 // C:\Windows\System32\drivers\etc\hosts
 // so we disable this test on Windows.
