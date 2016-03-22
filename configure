@@ -373,6 +373,13 @@ parser.add_option('--enable-static',
     dest='enable_static',
     help='build as static library')
 
+parser.add_option('--cflag-pie',
+    action='store',
+    choices=('true', 'false'),
+    default='false',
+    dest='cflag_pie',
+    help='add cflags -fPIE')
+
 (options, args) = parser.parse_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
@@ -666,6 +673,9 @@ def configure_mips(o):
 def configure_node(o):
   if options.dest_os == 'android':
     o['variables']['OS'] = 'android'
+
+  o['variables']['cflag_pie'] = options.cflag_pie
+
   o['variables']['node_prefix'] = options.prefix
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
