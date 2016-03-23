@@ -373,6 +373,12 @@ parser.add_option('--enable-static',
     dest='enable_static',
     help='build as static library')
 
+parser.add_option('--no-browser-globals',
+    action='store_true',
+    dest='no_browser_globals',
+    help='do not export browser globals like setTimeout, console, etc. ' +
+         '(This mode is not officially supported for regular applications)')
+
 (options, args) = parser.parse_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
@@ -761,6 +767,8 @@ def configure_node(o):
 
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
+
+  o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
 
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module
