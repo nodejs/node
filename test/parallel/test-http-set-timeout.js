@@ -20,7 +20,7 @@ server.listen(common.PORT, function() {
 
   var errorTimer = setTimeout(function() {
     throw new Error('Timeout was not successful');
-  }, 2000);
+  }, common.platformTimeout(2000));
 
   var x = http.get({port: common.PORT, path: '/'});
   x.on('error', function() {
