@@ -139,6 +139,11 @@ qsWeirdObjects.forEach(function(testCase) {
   assert.equal(testCase[1], qs.stringify(testCase[0]));
 });
 
+// invalid surrogate pair throws URIError
+assert.throws(function() {
+  qs.stringify({ foo: '\udc00' });
+}, URIError);
+
 // coerce numbers to string
 assert.strictEqual('foo=0', qs.stringify({ foo: 0 }));
 assert.strictEqual('foo=0', qs.stringify({ foo: -0 }));
