@@ -675,18 +675,26 @@ console.log(buf.toString('ascii'));
   // Prints: Node.js
 ```
 
-### buf.compare(otherBuffer)
+### buf.compare(target[, targetStart[, targetEnd[, sourceStart[, sourceEnd]]]])
 
-* `otherBuffer` {Buffer}
+* `target` {Buffer}
+* `targetStart` {Integer} The offset within `target` at which to begin
+  comparison. default = `0`.
+* `targetEnd` {Integer} The offset with `target` at which to end comparison.
+  Ignored when `targetStart` is `undefined`. default = `target.byteLength`.
+* `sourceStart` {Integer} The offset within `buf` at which to begin comparison.
+  Ignored when `targetStart` is `undefined`. default = `0`
+* `sourceEnd` {Integer} The offset within `buf` at which to end comparison.
+  Ignored when `targetStart` is `undefined`. default = `buf.byteLength`.
 * Return: {Number}
 
 Compares two Buffer instances and returns a number indicating whether `buf`
-comes before, after, or is the same as the `otherBuffer` in sort order.
+comes before, after, or is the same as the `target` in sort order.
 Comparison is based on the actual sequence of bytes in each Buffer.
 
-* `0` is returned if `otherBuffer` is the same as `buf`
-* `1` is returned if `otherBuffer` should come *before* `buf` when sorted.
-* `-1` is returned if `otherBuffer` should come *after* `buf` when sorted.
+* `0` is returned if `target` is the same as `buf`
+* `1` is returned if `target` should come *before* `buf` when sorted.
+* `-1` is returned if `target` should come *after* `buf` when sorted.
 
 ```js
 const buf1 = Buffer.from('ABC');
@@ -707,6 +715,25 @@ console.log(buf2.compare(buf3));
 [buf1, buf2, buf3].sort(Buffer.compare);
   // produces sort order [buf1, buf3, buf2]
 ```
+
+The optional `targetStart`, `targetEnd`, `sourceStart`, and `sourceEnd` 
+arguments can be used to limit the comparison to specific ranges within the two 
+`Buffer` objects.
+
+```js
+const buf1 = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+const buf2 = Buffer.from([5, 6, 7, 8, 9, 1, 2, 3, 4]);
+
+console.log(buf1.compare(buf2, 5, 9, 0, 4));
+  // Prints: 0
+console.log(buf1.compare(buf2, 0, 6, 4));
+  // Prints: -1
+console.log(buf1.compare(buf2, 5, 6, 5));
+  // Prints: 1
+```
+
+A `RangeError` will be thrown if: `targetStart < 0`, `sourceStart < 0`,
+`targetEnd > target.byteLength` or `sourceEnd > source.byteLength`.
 
 ### buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
 
