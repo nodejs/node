@@ -1177,11 +1177,10 @@ Local<Value> MakeCallback(Environment* env,
   }
 
   if (ret.IsEmpty()) {
-    if (callback_scope.in_makecallback())
-      return ret;
-    // NOTE: Undefined() is returned here for backwards compatibility.
-    else
-      return Undefined(env->isolate());
+    // NOTE: For backwards compatibility with public API we return Undefined()
+    // if the top level call threw.
+    return callback_scope.in_makecallback() ?
+        ret : Undefined(env->isolate()).As<Value>();
   }
 
   if (has_domain) {
