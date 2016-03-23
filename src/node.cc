@@ -117,6 +117,7 @@ using v8::Local;
 using v8::Locker;
 using v8::MaybeLocal;
 using v8::Message;
+using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -3257,8 +3258,12 @@ void LoadEnvironment(Environment* env) {
 
   env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
 
+  // Expose the global object as a property on itself
+  // (Allows you to set stuff on `global` from anywhere in JavaScript.)
+  global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
+
   Local<Value> arg = env->process_object();
-  f->Call(global, 1, &arg);
+  f->Call(Null(env->isolate()), 1, &arg);
 }
 
 static void PrintHelp();
