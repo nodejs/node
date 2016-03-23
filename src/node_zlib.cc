@@ -258,7 +258,8 @@ class ZCtx : public AsyncWrap {
           }
         }
         while (ctx->strm_.avail_in >= GZIP_MIN_HEADER_SIZE &&
-               ctx->mode_ == GUNZIP) {
+               ctx->mode_ == GUNZIP &&
+               ctx->err_ == Z_STREAM_END) {
           // Bytes remain in input buffer. Perhaps this is another compressed
           // member in the same archive, or just trailing garbage.
           // Check the header to find out.
