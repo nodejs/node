@@ -870,6 +870,62 @@ void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(args[0].As<String>()->Utf8Length());
 }
 
+// Normalize val to be an integer in the range of [1, -1] since
+// implementations of memcmp() can vary by platform.
+static int normalizeCompareVal(int val, size_t a_length, size_t b_length) {
+  if (val == 0) {
+    if (a_length > b_length)
+      return 1;
+    else if (a_length < b_length)
+      return -1;
+  } else {
+    if (val > 0)
+      return 1;
+    else
+      return -1;
+  }
+  return val;
+}
+
+void CompareOffset(const FunctionCallbackInfo<Value> &args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
+  SPREAD_ARG(args[0], ts_obj);
+  SPREAD_ARG(args[1], target);
+
+  size_t target_start;
+  size_t source_start;
+  size_t source_end;
+  size_t target_end;
+
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &target_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[3], 0, &source_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[4], target_length, &target_end));
+  CHECK_NOT_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
+
+  if (source_start > ts_obj_length)
+    return env->ThrowRangeError("out of range index");
+  if (target_start > target_length)
+    return env->ThrowRangeError("out of range index");
+
+  CHECK_LE(source_start, source_end);
+  CHECK_LE(target_start, target_end);
+
+  size_t to_cmp = MIN(MIN(source_end - source_start,
+                      target_end - target_start),
+                      ts_obj_length - source_start);
+
+  int val = normalizeCompareVal(to_cmp > 0 ?
+                                  memcmp(ts_obj_data + source_start,
+                                         target_data + target_start,
+                                         to_cmp) : 0,
+                                source_end - source_start,
+                                target_end - target_start);
+
+  args.GetReturnValue().Set(val);
+}
 
 void Compare(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
@@ -881,22 +937,9 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 
   size_t cmp_length = MIN(obj_a_length, obj_b_length);
 
-  int val = cmp_length > 0 ? memcmp(obj_a_data, obj_b_data, cmp_length) : 0;
-
-  // Normalize val to be an integer in the range of [1, -1] since
-  // implementations of memcmp() can vary by platform.
-  if (val == 0) {
-    if (obj_a_length > obj_b_length)
-      val = 1;
-    else if (obj_a_length < obj_b_length)
-      val = -1;
-  } else {
-    if (val > 0)
-      val = 1;
-    else
-      val = -1;
-  }
-
+  int val = normalizeCompareVal(cmp_length > 0 ?
+                                memcmp(obj_a_data, obj_b_data, cmp_length) : 0,
+                                obj_a_length, obj_b_length);
   args.GetReturnValue().Set(val);
 }
 
@@ -1172,6 +1215,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
   env->SetMethod(target, "compare", Compare);
+  env->SetMethod(target, "compareOffset", CompareOffset);
   env->SetMethod(target, "fill", Fill);
   env->SetMethod(target, "indexOfBuffer", IndexOfBuffer);
   env->SetMethod(target, "indexOfNumber", IndexOfNumber);
