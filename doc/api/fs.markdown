@@ -620,7 +620,7 @@ Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 
 ## fs.readFile(file[, options], callback)
 
-* `file` {String | Integer} filename or file descriptor
+* `file` {String} filename
 * `options` {Object | String}
   * `encoding` {String | Null} default = `null`
   * `flag` {String} default = `'r'`
