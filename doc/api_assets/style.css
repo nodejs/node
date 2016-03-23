@@ -5,7 +5,6 @@ html {
   -webkit-font-variant-ligatures: none;
           font-variant-ligatures: none;
   height: 100%;
-  overflow: hidden;
 }
 
 body {
@@ -15,9 +14,8 @@ body {
   padding: 0;
   color: #333;
   background: #fff;
-  overflow: hidden;
+  overflow: auto;
   height: 100%;
-  display: block;
 }
 
 pre, tt, code, .pre, span.type, a.type {
@@ -27,7 +25,6 @@ pre, tt, code, .pre, span.type, a.type {
 #content {
   font-size: 1.8em;
   overflow: hidden;
-  display: block;
   position: relative;
   height: 100%;
 }
@@ -426,7 +423,7 @@ a code {
 }
 
 span > .mark, span > .mark:visited {
-  font-size: 18px;
+  font-size: 1em;
   color: #707070;
   position: absolute;
   top: 0px;
@@ -458,16 +455,15 @@ th > *:last-child, td > *:last-child {
 
 @media only screen and (max-width: 1024px) {
   #content {
-    font-size: 2.1em;
+    font-size: 2.5em;
+    overflow: visible;
   }
   #column1.interior {
     margin-left: 0;
     padding-left: .5em;
     padding-right: .5em;
     width: auto;
-  }
-  pre {
-    margin-right: 0;
+    overflow-y: visible;
   }
   #column2 {
     display: none;
@@ -476,18 +472,6 @@ th > *:last-child, td > *:last-child {
 
 @media only screen and (max-width: 1024px) and (orientation: portrait) {
   #content {
-    font-size: 2.4em;
-  }
-  #column1.interior {
-    margin-left: 0;
-    padding-left: .5em;
-    padding-right: .5em;
-    width: auto;
-  }
-  pre {
-    margin-right: 0;
-  }
-  #column2 {
-    display: none;
+    font-size: 3.5em;
   }
 }
