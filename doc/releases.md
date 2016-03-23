@@ -246,6 +246,8 @@ Use `tools/release.sh` to promote and sign the build. When run, it will perform 
 
 If you didn't wait for ARM builds in the previous step before promoting the release, you should re-run `tools/release.sh` after the ARM builds have finished. That will move the ARM artifacts into the correct location. You will be prompted to re-sign SHASUMS256.txt.
 
+Note: it is possible to only sign a release by running `./tools/release.sh -s vX.Y.Z`.
+
 ### 13. Check the Release
 
 Your release should be available at <https://nodejs.org/dist/vx.y.z/> and <https://nodejs.org/dist/latest/>. Check that the appropriate files are in place. You may want to check that the binaries are working as appropriate and have the right internal version strings. Check that the API docs are available at <https://nodejs.org/api/>. Check that the release catalog files are correct at <https://nodejs.org/dist/index.tab> and <https://nodejs.org/dist/index.json>.
