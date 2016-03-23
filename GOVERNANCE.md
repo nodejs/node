@@ -63,10 +63,9 @@ A guide for Collaborators is maintained in
 
 ## CTC Membership
 
-CTC seats are not time-limited.  There is no fixed size of the CTC.
-However, the expected target is between 6 and 12, to ensure adequate
-coverage of important areas of expertise, balanced with the ability to
-make decisions efficiently.
+CTC seats are not time-limited. There is no fixed size of the CTC. The CTC
+should be of such a size as to ensure adequate coverage of important areas of
+expertise balanced with the ability to make decisions efficiently.
 
 There is no specific set of requirements or qualifications for CTC
 membership beyond these rules.
