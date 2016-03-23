@@ -646,10 +646,6 @@ If `options` is a string, then it specifies the encoding. Example:
 fs.readFile('/etc/passwd', 'utf8', callback);
 ```
 
-Any specified file descriptor has to support reading.
-
-_Note: Specified file descriptors will not be closed automatically._
-
 ## fs.readFileSync(file[, options])
 
 Synchronous version of [`fs.readFile`][]. Returns the contents of the `file`.
