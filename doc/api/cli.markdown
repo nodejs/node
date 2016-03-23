@@ -93,6 +93,9 @@ instances.
 
 Track heap object allocations for heap snapshots.
 
+### `--zero-fill-buffers`
+
+Automatically zero-fills all newly allocated Buffer and SlowBuffer instances.
 
 ### `--prof-process`
 
