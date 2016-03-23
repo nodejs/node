@@ -5,6 +5,7 @@
     'node_use_lttng%': 'false',
     'node_use_etw%': 'false',
     'node_use_perfctr%': 'false',
+    'node_no_browser_globals%': 'false',
     'node_has_winsdk%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
@@ -366,6 +367,9 @@
             'src/node_counters.h',
             'tools/msvs/genfiles/node_perfctr_provider.rc',
           ]
+        } ],
+        [ 'node_no_browser_globals=="true"', {
+          'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
         } ],
         [ 'v8_postmortem_support=="true"', {
           'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:postmortem-metadata' ],
