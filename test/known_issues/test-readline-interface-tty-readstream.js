@@ -1,19 +1,18 @@
+'use strict';
+// Refs: https://github.com/nodejs/node/issues/5574
+
 /**
- * https://github.com/nodejs/node/issues/5574
- *
  * Test that characters from stdin are not randomly lost when using a
  * `readline.Interface` and a `tty.ReadStream` on `process.stdin`
  */
 
-'use strict';
+var Interface   = require('readline').Interface;
+var Readable    = require('stream').Readable;
+var ReadStream  = require('tty').ReadStream;
+var spawn       = require('child_process').spawn;
+var strictEqual = require('assert').strictEqual;
 
-var assert     = require('assert');
-var Interface  = require('readline').Interface;
-var Readable   = require('stream').Readable;
-var ReadStream = require('tty').ReadStream;
-var spawn      = require('child_process').spawn;
-
-var spawnCat = require('../common').spawnCat;
+var common = require('../common');
 
 
 const kpm = 60;
@@ -48,17 +47,18 @@ function grandparent() {
     stdin.push(data);
     index++;
 
-    if (data !== null) return setTimeout(type, 60 * 1000 / kpm);
+    if (data !== null)
+      return setTimeout(type, 60 * 1000 / kpm);
   }
 
   type();
 
-  child.on('close', function(code, signal) {
-    assert.equal(code, 0);
-    assert.equal(signal, null);
+  child.on('close', common.mustCall(function(code, signal) {
+    strictEqual(code, 0);
+    strictEqual(signal, null);
     // cat on windows adds a \r\n at the end.
-    assert.equal(output.trim(), input.trim());
-  });
+    strictEqual(output.trim(), input.trim());
+  }));
 }
 
 function parent() {
@@ -69,5 +69,5 @@ function parent() {
 
   var stdio = [stdin, process.stdout];
 
-  spawnCat({ stdio: stdio });
+  common.spawnCat({ stdio: stdio });
 }
