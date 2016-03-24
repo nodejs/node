@@ -28,10 +28,11 @@ data = Buffer.concat([
   Buffer(10).fill(0)
 ]);
 
-assert.throws(() => zlib.gunzipSync(data));
+assert.equal(zlib.gunzipSync(data).toString(), 'abcdef');
 
 zlib.gunzip(data, common.mustCall((err, result) => {
-  assert(err);
+  assert.ifError(err);
+  assert.equal(result, 'abcdef', 'result should match original string');
 }));
 
 // In this case the trailing junk is too short to be a gzip segment
