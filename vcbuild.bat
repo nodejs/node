@@ -35,6 +35,7 @@ set download_arg=
 set release_urls_arg=
 set build_release=
 set configure_flags=
+set build_addons=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -53,8 +54,9 @@ if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
-if /i "%1"=="test"          set test_args=%test_args% sequential parallel message -J&set jslint=1&goto arg-ok
-if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap message sequential parallel&goto arg-ok
+if /i "%1"=="test"          set test_args=%test_args% addons sequential parallel message -J&set jslint=1&set build_addons=1&goto arg-ok
+if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap addons message sequential parallel&set build_addons=1&goto arg-ok
+if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
 if /i "%1"=="test-message"  set test_args=%test_args% message&goto arg-ok
 if /i "%1"=="test-gc"       set test_args=%test_args% gc&set buildnodeweak=1&goto arg-ok
@@ -88,6 +90,9 @@ if defined build_release (
   set download_arg="--download=all"
   set i18n_arg=small-icu
 )
+
+:: assign path to node_exe
+set "node_exe=%config%\node.exe"
 
 if "%config%"=="Debug" set configure_flags=%configure_flags% --debug
 if defined nosnapshot set configure_flags=%configure_flags% --without-snapshot
@@ -237,14 +242,35 @@ ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/no
 
 :build-node-weak
 @rem Build node-weak if required
-if "%buildnodeweak%"=="" goto run-tests
+if "%buildnodeweak%"=="" goto build-addons
 "%config%\node" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc\node_modules\weak" --nodedir="%~dp0."
 if errorlevel 1 goto build-node-weak-failed
-goto run-tests
+goto build-addons
 
 :build-node-weak-failed
 echo Failed to build node-weak.
 goto exit
+
+:build-addons
+if not defined build_addons goto run-tests
+if not exist "%node_exe%" (
+  echo Failed to find node.exe
+  goto run-tests
+)
+echo Building add-ons
+:: clear
+for /d %%F in (test\addons\??_*) do (
+  rd /s /q %%F
+)
+:: generate
+"%node_exe%" tools\doc\addon-verify.js
+:: building addons
+for /d %%F in (test\addons\*) do (
+  "%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild ^
+    --directory="%%F" ^
+    --nodedir="%cd%"
+)
+goto run-tests
 
 :run-tests
 if "%test_args%"=="" goto jslint
