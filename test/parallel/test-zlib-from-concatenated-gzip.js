@@ -22,6 +22,20 @@ zlib.gunzip(data, common.mustCall((err, result) => {
   assert.equal(result, 'abcdef', 'result should match original string');
 }));
 
+zlib.unzip(data, common.mustCall((err, result) => {
+  assert.ifError(err);
+  assert.equal(result, 'abcdef', 'result should match original string');
+}));
+
+// Multi-member support does not apply to zlib inflate/deflate.
+zlib.unzip(Buffer.concat([
+  zlib.deflateSync('abc'),
+  zlib.deflateSync('def')
+]), common.mustCall((err, result) => {
+  assert.ifError(err);
+  assert.equal(result, 'abc', 'result should match contents of first "member"');
+}));
+
 // files that have the "right" magic bytes for starting a new gzip member
 // in the middle of themselves, even if they are part of a single
 // regularly compressed member
