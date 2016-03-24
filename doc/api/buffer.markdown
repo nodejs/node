@@ -1049,7 +1049,7 @@ buf.readInt16LE(1);
 ### buf.readInt32BE(offset[, noAssert])
 ### buf.readInt32LE(offset[, noAssert])
 
-* `offset` {Number} `0 <= offset < buf.length - 4`
+* `offset` {Number} `0 <= offset <= buf.length - 4`
 * `noAssert` {Boolean} Default: false
 * Return: {Number}
 
@@ -1069,6 +1069,8 @@ buf.readInt32BE();
   // returns 33424132
 buf.readInt32LE();
   // returns 67370497
+buf.readInt32LE(1);
+  // throws RangeError: Index out of range
 ```
 
 ### buf.readIntBE(offset, byteLength[, noAssert])
