@@ -54,8 +54,8 @@ function grandparent() {
   type();
 
   child.on('close', common.mustCall(function(code, signal) {
-    strictEqual(code, 0);
     strictEqual(signal, null);
+    strictEqual(code, 0);
     // cat on windows adds a \r\n at the end.
     strictEqual(output.trim(), input.trim());
   }));
