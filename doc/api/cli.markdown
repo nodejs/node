@@ -76,6 +76,13 @@ Print stack traces for deprecations.
 
 Throw errors for deprecations.
 
+### `--no-warnings`
+
+Silence all process warnings (including deprecations).
+
+### `--trace-warnings`
+
+Print stack traces for process warnings (including deprecations).
 
 ### `--trace-sync-io`
 
