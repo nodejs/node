@@ -42,9 +42,8 @@ data = Buffer.concat([
   Buffer([0x1f, 0x8b, 0xff, 0xff])
 ]);
 
-assert.equal(zlib.gunzipSync(data).toString(), 'abcdef');
+assert.throws(() => zlib.gunzipSync(data));
 
 zlib.gunzip(data, common.mustCall((err, result) => {
-  assert.ifError(err);
-  assert.equal(result, 'abcdef', 'result should match original string');
+  assert(err);
 }));
