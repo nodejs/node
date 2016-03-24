@@ -43,7 +43,6 @@ enum node_zlib_mode {
 
 #define GZIP_HEADER_ID1 0x1f
 #define GZIP_HEADER_ID2 0x8b
-#define GZIP_MIN_HEADER_SIZE 10
 
 void InitZlib(v8::Local<v8::Object> target);
 
@@ -257,17 +256,16 @@ class ZCtx : public AsyncWrap {
             ctx->err_ = Z_NEED_DICT;
           }
         }
-        while (ctx->strm_.avail_in >= GZIP_MIN_HEADER_SIZE &&
+
+        while (ctx->strm_.avail_in > 0 &&
                ctx->mode_ == GUNZIP &&
-               ctx->err_ == Z_STREAM_END) {
+               ctx->err_ == Z_STREAM_END &&
+               ctx->strm_.next_in[0] != 0x00) {
           // Bytes remain in input buffer. Perhaps this is another compressed
           // member in the same archive, or just trailing garbage.
-          // Check the header to find out.
-          if (ctx->strm_.next_in[0] != GZIP_HEADER_ID1 ||
-              ctx->strm_.next_in[1] != GZIP_HEADER_ID2) {
-            // Not a valid gzip member
-            break;
-          }
+          // Trailing zero bytes are okay, though, since they are frequently
+          // used for padding.
+
           Reset(ctx);
           ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
         }
