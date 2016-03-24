@@ -252,7 +252,7 @@ fail, and does nothing otherwise.
 
 ## fs.appendFile(file, data[, options], callback)
 
-* `file` {String|Number} filename or file descriptor
+* `file` {String} filename
 * `data` {String|Buffer}
 * `options` {Object|String}
   * `encoding` {String|Null} default = `'utf8'`
@@ -277,10 +277,6 @@ If `options` is a string, then it specifies the encoding. Example:
 ```js
 fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 ```
-
-Any specified file descriptor has to have been opened for appending.
-
-_Note: Specified file descriptors will not be closed automatically._
 
 ## fs.appendFileSync(file, data[, options])
 
@@ -941,7 +937,7 @@ the end of the file.
 
 ## fs.writeFile(file, data[, options], callback)
 
-* `file` {String | Integer} filename or file descriptor
+* `file` {String} filename
 * `data` {String | Buffer}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
@@ -970,13 +966,9 @@ If `options` is a string, then it specifies the encoding. Example:
 fs.writeFile('message.txt', 'Hello Node.js', 'utf8', callback);
 ```
 
-Any specified file descriptor has to support writing.
-
 Note that it is unsafe to use `fs.writeFile` multiple times on the same file
 without waiting for the callback. For this scenario,
 `fs.createWriteStream` is strongly recommended.
-
-_Note: Specified file descriptors will not be closed automatically._
 
 ## fs.writeFileSync(file, data[, options])
 
