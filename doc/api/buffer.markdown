@@ -739,8 +739,10 @@ const buf = new Buffer([1,-2,3,4]);
 
 buf.readInt32BE();
   // returns 33424132
-buf.readInt32LE(1);
+buf.readInt32LE();
   // returns 67370497
+buf.readInt32LE(1);
+  // throws RangeError: Index out of range
 ```
 
 ### buf.readIntBE(offset, byteLength[, noAssert])
