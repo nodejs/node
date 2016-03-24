@@ -43,7 +43,6 @@ enum node_zlib_mode {
 
 #define GZIP_HEADER_ID1 0x1f
 #define GZIP_HEADER_ID2 0x8b
-#define GZIP_MIN_HEADER_SIZE 10
 
 void InitZlib(v8::Local<v8::Object> target);
 
@@ -69,7 +68,8 @@ class ZCtx : public AsyncWrap {
         windowBits_(0),
         write_in_progress_(false),
         pending_close_(false),
-        refs_(0) {
+        refs_(0),
+        first_member_ended_(false) {
     MakeWeak<ZCtx>(this);
   }
 
@@ -257,17 +257,20 @@ class ZCtx : public AsyncWrap {
             ctx->err_ = Z_NEED_DICT;
           }
         }
-        while (ctx->strm_.avail_in >= GZIP_MIN_HEADER_SIZE &&
+
+        if (ctx->err_ == Z_STREAM_END) {
+          ctx->first_member_ended_ = true;
+        }
+
+        while (ctx->strm_.avail_in > 0 &&
                ctx->mode_ == GUNZIP &&
-               ctx->err_ == Z_STREAM_END) {
+               ctx->err_ == Z_STREAM_END &&
+               ctx->strm_.next_in[0] != 0x00) {
           // Bytes remain in input buffer. Perhaps this is another compressed
           // member in the same archive, or just trailing garbage.
-          // Check the header to find out.
-          if (ctx->strm_.next_in[0] != GZIP_HEADER_ID1 ||
-              ctx->strm_.next_in[1] != GZIP_HEADER_ID2) {
-            // Not a valid gzip member
-            break;
-          }
+          // Trailing zero bytes are okay, though, since they are frequently
+          // used for padding.
+
           Reset(ctx);
           ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
         }
@@ -302,6 +305,11 @@ class ZCtx : public AsyncWrap {
       else
         ZCtx::Error(ctx, "Bad dictionary");
       return false;
+    case Z_DATA_ERROR:
+      if (ctx->first_member_ended_) {
+        // Silently discard trailing garbage after fully decompressed member.
+        break;
+      }
     default:
       // something else.
       ZCtx::Error(ctx, "Zlib error");
@@ -593,6 +601,7 @@ class ZCtx : public AsyncWrap {
   bool write_in_progress_;
   bool pending_close_;
   unsigned int refs_;
+  bool first_member_ended_;
 };
 
 
