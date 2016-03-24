@@ -38,6 +38,9 @@ set enable_vtune_arg=
 set configure_flags=
 set build_addons=
 
+:: assign path to node_exe
+set node_exe="%config%\node.exe"
+
 :next-arg
 if "%1"=="" goto args-done
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
@@ -194,9 +197,6 @@ if "%target_arch%"=="x64" set "msbplatform=x64"
 msbuild node.sln /m /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 if "%target%" == "Clean" goto exit
-
-:: assign path to node_exe
-set node_exe=%cd%\%config%\node.exe
 
 :sign
 @rem Skip signing if the `nosign` option was specified.
