@@ -256,6 +256,10 @@ goto exit
 
 :build-addons
 if not defined build_addons goto run-tests
+if not defined node_exe (
+  echo Failed to find node.exe 
+  goto run-tests
+)
 echo Building add-ons
 :: clear
 for /d %%F in (test\addons\??_*) do (
