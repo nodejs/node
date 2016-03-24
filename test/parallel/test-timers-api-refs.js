@@ -1,20 +1,21 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
+const timers = require('timers');
 
-// don't verify the globals for this test
-common.globalCheck = false;
+// delete global APIs to make sure they're not relied on by the internal timers
+// code
+delete global.setTimeout;
+delete global.clearTimeout;
+delete global.setInterval;
+delete global.clearInterval;
+delete global.setImmediate;
+delete global.clearImmediate;
 
-// try overriding global APIs to make sure
-// they're not relied on by the timers
-global.clearTimeout = assert.fail;
+const timeoutCallback = () => { timers.clearTimeout(timeout); };
+const timeout = timers.setTimeout(common.mustCall(timeoutCallback), 1);
 
-// run timeouts/intervals through the paces
-const intv = setInterval(function() {}, 1);
+const intervalCallback = () => { timers.clearInterval(interval); };
+const interval = timers.setInterval(common.mustCall(intervalCallback), 1);
 
-setTimeout(function() {
-  clearInterval(intv);
-}, 100);
-
-setTimeout(function() {}, 2);
-
+const immediateCallback = () => { timers.clearImmediate(immediate); };
+const immediate = timers.setImmediate(immediateCallback);
