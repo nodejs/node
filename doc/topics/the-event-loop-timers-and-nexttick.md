@@ -248,11 +248,9 @@ fs.readFile(__filename, () => {
     immediate
     timeout
 
-The advantage to using `setImmediate()` over `setTimeout()` is that the lowest
-value you may set a timer's delay to is 1 ms (0 is coerced to 1) which doesn't
-seem like much time to us humans, but it's actually pretty slow compared to
-how quickly `setImmediate()` can execute — the event loop operates on the
-microsecond scale (1 ms = 1000 µs.)
+The main advantage to using `setImmediate()` over `setTimeout()` is that
+`setImmediate` has high probability of running before setTimeout when both
+are called within the same I/O cycle.  
 
 ## `process.nextTick()`:
 
