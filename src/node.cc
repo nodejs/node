@@ -3070,6 +3070,11 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "throwDeprecation", True(env->isolate()));
   }
 
+#ifdef NODE_NO_BROWSER_GLOBALS
+  // configure --no-browser-globals
+  READONLY_PROPERTY(process, "_noBrowserGlobals", True(env->isolate()));
+#endif  // NODE_NO_BROWSER_GLOBALS
+
   // --prof-process
   if (prof_process) {
     READONLY_PROPERTY(process, "profProcess", True(env->isolate()));
