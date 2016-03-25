@@ -66,26 +66,25 @@ but the ones we care about — ones that Node.js actually uses are these four._
 * `poll`: this is the phase in which the event loop either processes
  its queue of callbacks, or sits and waits for new callbacks for incoming
  connections, completion of async file I/O, DNS operations, etc. to be added 
- to the queue. Ideally, most scripts spend most of their time here. If not, 
- it might be time consider refactoring or scaling to more processes.
+ to the queue.  
 * `setImmediate`: This phase allows a person to execute callbacks
- immediately after the `poll` phase has completed. 
+ immediately after the `poll` phase has completed. If the `poll` phase
+ becomes idle and scripts have been queued with `setImmediate()`, the 
+ event loop may continue to the `setImmediate` phase rather than waiting. 
 
 ## Phases in Detail
 
 ### timers
 
-Contrary to what a person might expect, a timer specifies the **threshold**
-_after which_ the provided callback _may be executed_ rather than the
-**exact** time a person _wants it to be executed_.
+A timer specifies the **threshold** _after which_ a provided callback
+_may be executed_ rather than the **exact** time a person _wants it to
+be executed_. Timers callbacks will run as early as they can be
+scheduled after the specified amount of time has passed; however,
+Operating System scheduling or the running of other callbacks may delay
+them. 
 
 _**Note**: Technically, the [`poll` phase](#poll) controls when timers are
-executed. While waiting for the minimum threshold specified when scheduling
-the timer, the `poll` phase will iterate through its queue of callbacks as
-usual. Collectively, these callbacks **may or may not** take longer to
-complete than the minimum threshold specified by the timer. The actual amount
-of time depends on how many callbacks end up being executed and how long they
-take._
+executed._
 
 For example, say you schedule a timeout to execute after a 100 ms threshold,
 then your script starts asynchronously reading a file which takes 95 ms:
@@ -147,16 +146,29 @@ error. This will be queued to execute in the `pending callbacks` phase.
 
 ### poll: 
 
+The poll phase has two main functions:
+
+1. Executing scripts for timers who's threshold has elapsed, then
+2. Processing events in the `poll` queue.
+
+
 When the event loop enters the `poll` phase _and there are no timers
 scheduled_, one of two things will happend: 
 
-* _if the `poll` queue **is not empty**_, the event loop will iterate through 
+* _If the `poll` queue **is not empty**_, the event loop will iterate
+through 
 its queue of callbacks executing them synchronously until either the queue has 
 been exhausted, or the system-dependent hard limit is reached. 
 
-* _if the `poll` queue is **empty**_, the event loop will wait for a
-callback
-to be added to the queue, then execute it immediately. 
+* _If the `poll` queue is **empty**, one of two more things will
+happen: 
+  * If scripts have been scheduled by `setImmediate()`, the event loop
+  will end the `poll` phase and continue to the `setImmediate` phase to
+  execute those scheduled scripts.
+
+  * If scripts **have not** been scheduled by `setImmediate()`, the
+  event loop will wait for callbacks to be added to the queue, then
+  execute it immediately.
 
 Once the `poll` queue is empty the event loop will check for timers _whose
 time thresholds have been reached_. If one or more timers are ready, the
@@ -177,9 +189,64 @@ phase rather than waiting for `poll` events.
 
 ## `setImmediate()` vs `setTimeout()`
 
-How quickly a `setImmediate()` callback is executed is only limited by how
-quickly the event loop can be processed whereas a timer won't fire until the
-number of milliseconds passed have elapsed.
+`setTimeout()` is designed to execute a script after a minumum threshold
+in ms has elapsed, whereas `setImmediate()` is designed to execute a
+script once the current `poll` phase completes.  
+
+How quickly a `setImmediate()` callback is executed depends on how it is
+called and how quickly the event loop can be processed unlike timers
+whose callback won't fire until at least its threshold has elapsed.
+
+For example, if we run the following script which is not within a I/O
+cycle (i.e. the main module), the order in which the two functions are
+executed is non-deterministic as it is based upon how fast your process 
+go, which is impacted by other programs running on your machine:
+
+
+```js
+// timeout_vs_immediate.js
+setTimeout(function timeout () {
+  console.log('timeout');
+},0);
+
+setImmediate(function immediate () {
+  console.log('immediate');
+});
+```
+
+    $ node timeout_vs_immediate.js
+    timeout
+    immediate
+
+    $ node timeout_vs_immediate.js
+    immediate
+    timeout
+
+
+If you move the two calls within an I/O cycle, the immediate callback
+is always executed first:
+
+```js
+// timeout_vs_immediate.js
+var fs = require('fs')
+
+fs.readFile(__filename, () => {
+  setTimeout(() => {
+    console.log('timeout')
+  }, 0)
+  setImmediate(() => {
+    console.log('immediate')
+  })
+})
+```
+
+    $ node timeout_vs_immediate.js
+    immediate
+    timeout
+
+    $ node timeout_vs_immediate.js
+    immediate
+    timeout
 
 The advantage to using `setImmediate()` over `setTimeout()` is that the lowest
 value you may set a timer's delay to is 1 ms (0 is coerced to 1) which doesn't
@@ -360,7 +427,7 @@ function MyEmitter() {
   EventEmitter.call(this);
 
   // use nextTick to emit the event once a handler is assigned
-  process.nextTick(() => {
+  process.nextTick(function () {
     this.emit('event');
   }.bind(this));
 }
