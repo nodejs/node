@@ -95,6 +95,7 @@
       'lib/internal/crypto/rsa.js',
       'lib/internal/crypto/signbase.js',
       'lib/internal/crypto/util.js',
+      'lib/internal/crypto/legacy.js',
       'deps/v8/tools/splaytree.js',
       'deps/v8/tools/codemap.js',
       'deps/v8/tools/consarray.js',
