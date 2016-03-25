@@ -73,6 +73,7 @@
 #define umask _umask
 typedef int mode_t;
 #else
+#include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
 #include <unistd.h>  // setuid, getuid
 #endif
@@ -87,14 +88,6 @@ typedef int mode_t;
 #define environ (*_NSGetEnviron())
 #elif !defined(_MSC_VER)
 extern char **environ;
-#endif
-
-#ifdef __APPLE__
-#include "atomic-polyfill.h"  // NOLINT(build/include_order)
-namespace node { template <typename T> using atomic = nonstd::atomic<T>; }
-#else
-#include <atomic>
-namespace node { template <typename T> using atomic = std::atomic<T>; }
 #endif
 
 namespace node {
@@ -166,9 +159,13 @@ static double prog_start_time;
 static bool debugger_running;
 static uv_async_t dispatch_debug_messages_async;
 
-static node::atomic<Isolate*> node_isolate;
+static uv_mutex_t node_isolate_mutex;
+static v8::Isolate* node_isolate;
 static v8::Platform* default_platform;
 
+#ifdef __POSIX__
+static uv_sem_t debug_semaphore;
+#endif
 
 static void PrintErrorString(const char* format, ...) {
   va_list ap;
@@ -3538,44 +3535,40 @@ static void EnableDebug(Environment* env) {
 
 // Called from an arbitrary thread.
 static void TryStartDebugger() {
-  // Call only async signal-safe functions here!  Don't retry the exchange,
-  // it will deadlock when the thread is interrupted inside a critical section.
-  if (auto isolate = node_isolate.exchange(nullptr)) {
+  uv_mutex_lock(&node_isolate_mutex);
+  if (auto isolate = node_isolate) {
     v8::Debug::DebugBreak(isolate);
     uv_async_send(&dispatch_debug_messages_async);
-    CHECK_EQ(nullptr, node_isolate.exchange(isolate));
   }
+  uv_mutex_unlock(&node_isolate_mutex);
 }
 
 
 // Called from the main thread.
 static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
-  // Synchronize with signal handler, see TryStartDebugger.
-  Isolate* isolate;
-  do {
-    isolate = node_isolate.exchange(nullptr);
-  } while (isolate == nullptr);
+  uv_mutex_lock(&node_isolate_mutex);
+  if (auto isolate = node_isolate) {
+    if (debugger_running == false) {
+      fprintf(stderr, "Starting debugger agent.\n");
 
-  if (debugger_running == false) {
-    fprintf(stderr, "Starting debugger agent.\n");
+      HandleScope scope(isolate);
+      Environment* env = Environment::GetCurrent(isolate);
+      Context::Scope context_scope(env->context());
 
-    HandleScope scope(isolate);
-    Environment* env = Environment::GetCurrent(isolate);
-    Context::Scope context_scope(env->context());
+      StartDebug(env, false);
+      EnableDebug(env);
+    }
 
-    StartDebug(env, false);
-    EnableDebug(env);
+    Isolate::Scope isolate_scope(isolate);
+    v8::Debug::ProcessDebugMessages();
   }
-
-  Isolate::Scope isolate_scope(isolate);
-  v8::Debug::ProcessDebugMessages();
-  CHECK_EQ(nullptr, node_isolate.exchange(isolate));
+  uv_mutex_unlock(&node_isolate_mutex);
 }
 
 
 #ifdef __POSIX__
 static void EnableDebugSignalHandler(int signo) {
-  TryStartDebugger();
+  uv_sem_post(&debug_semaphore);
 }
 
 
@@ -3614,11 +3607,46 @@ void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+inline void* DebugSignalThreadMain(void* unused) {
+  for (;;) {
+    uv_sem_wait(&debug_semaphore);
+    TryStartDebugger();
+  }
+  return nullptr;
+}
+
+
 static int RegisterDebugSignalHandler() {
-  // FIXME(bnoordhuis) Should be per-isolate or per-context, not global.
+  // Start a watchdog thread for calling v8::Debug::DebugBreak() because
+  // it's not safe to call directly from the signal handler, it can
+  // deadlock with the thread it interrupts.
+  CHECK_EQ(0, uv_sem_init(&debug_semaphore, 0));
+  pthread_attr_t attr;
+  CHECK_EQ(0, pthread_attr_init(&attr));
+  // Don't shrink the thread's stack on FreeBSD.  Said platform decided to
+  // follow the pthreads specification to the letter rather than in spirit:
+  // https://lists.freebsd.org/pipermail/freebsd-current/2014-March/048885.html
+#ifndef __FreeBSD__
+  CHECK_EQ(0, pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN));
+#endif  // __FreeBSD__
+  CHECK_EQ(0, pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED));
+  sigset_t sigmask;
+  sigfillset(&sigmask);
+  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, &sigmask));
+  pthread_t thread;
+  const int err =
+      pthread_create(&thread, &attr, DebugSignalThreadMain, nullptr);
+  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
+  CHECK_EQ(0, pthread_attr_destroy(&attr));
+  if (err != 0) {
+    fprintf(stderr, "node[%d]: pthread_create: %s\n", getpid(), strerror(err));
+    fflush(stderr);
+    // Leave SIGUSR1 blocked.  We don't install a signal handler,
+    // receiving the signal would terminate the process.
+    return -err;
+  }
   RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
   // Unblock SIGUSR1.  A pending SIGUSR1 signal will now be delivered.
-  sigset_t sigmask;
   sigemptyset(&sigmask);
   sigaddset(&sigmask, SIGUSR1);
   CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sigmask, nullptr));
@@ -3859,6 +3887,8 @@ void Init(int* argc,
 
   // Make inherited handles noninheritable.
   uv_disable_stdio_inheritance();
+
+  CHECK_EQ(0, uv_mutex_init(&node_isolate_mutex));
 
   // init async debug messages dispatching
   // Main thread uses uv_default_loop
@@ -4146,14 +4176,17 @@ static void StartNodeInstance(void* arg) {
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
   Isolate* isolate = Isolate::New(params);
+
+  uv_mutex_lock(&node_isolate_mutex);
+  if (instance_data->is_main()) {
+    CHECK_EQ(node_isolate, nullptr);
+    node_isolate = isolate;
+  }
+  uv_mutex_unlock(&node_isolate_mutex);
+
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
-
-  // Fetch a reference to the main isolate, so we have a reference to it
-  // even when we need it to access it from another (debugger) thread.
-  if (instance_data->is_main())
-    CHECK_EQ(nullptr, node_isolate.exchange(isolate));
 
   {
     Locker locker(isolate);
@@ -4218,10 +4251,10 @@ static void StartNodeInstance(void* arg) {
     env = nullptr;
   }
 
-  if (instance_data->is_main()) {
-    // Synchronize with signal handler, see TryStartDebugger.
-    while (isolate != node_isolate.exchange(nullptr));  // NOLINT
-  }
+  uv_mutex_lock(&node_isolate_mutex);
+  if (node_isolate == isolate)
+    node_isolate = nullptr;
+  uv_mutex_unlock(&node_isolate_mutex);
 
   CHECK_NE(isolate, nullptr);
   isolate->Dispose();
