@@ -316,9 +316,6 @@ path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
 // '/home/myself/node/wwwroot/static_files/gif/image.gif'
 ```
 
-*Note:* If the arguments to `resolve` have zero-length strings then the current
-        working directory will be used instead of them.
-
 ## path.sep
 
 The platform-specific file separator. `'\\'` or `'/'`.
