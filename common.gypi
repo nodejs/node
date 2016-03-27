@@ -14,6 +14,8 @@
     'node_tag%': '',
     'uv_library%': 'static_library',
 
+    'openssl_fips%': '',
+
     # Default to -O0 for debug builds.
     'v8_optimized_debug%': 0,
 
