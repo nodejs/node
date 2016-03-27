@@ -294,7 +294,8 @@ If `to` isn't already absolute `from` arguments are prepended in right to left
 order, until an absolute path is found. If after using all `from` paths still
 no absolute path is found, the current working directory is used as well. The
 resulting path is normalized, and trailing slashes are removed unless the path
-gets resolved to the root directory.
+gets resolved to the root directory. Empty string `from` arguments are
+ignored.
 
 Another way to think of it is as a sequence of `cd` commands in a shell.
 
@@ -328,9 +329,6 @@ path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
 // if currently in /home/myself/node, it returns
 // '/home/myself/node/wwwroot/static_files/gif/image.gif'
 ```
-
-*Note:* If the arguments to `resolve` have zero-length strings then the current
-        working directory will be used instead of them.
 
 ## path.sep
 
