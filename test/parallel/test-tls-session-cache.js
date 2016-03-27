@@ -56,7 +56,8 @@ function doTest(testOptions, callback) {
     key: key,
     cert: cert,
     ca: [cert],
-    requestCert: true
+    requestCert: true,
+    rejectUnauthorized: false
   };
   let requestCount = 0;
   let resumeCount = 0;
