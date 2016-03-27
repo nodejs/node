@@ -24,7 +24,6 @@ using v8::String;
 using v8::Value;
 using v8::MaybeLocal;
 
-
 template <typename ResourceType, typename TypeName>
 class ExternString: public ResourceType {
   public:
@@ -893,6 +892,36 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
   }
 
   return val;
+}
+
+Local<Value> StringBytes::Encode(Isolate* isolate,
+                                 const char* buf,
+                                 enum encoding encoding) {
+  const size_t len = strlen(buf);
+  Local<Value> ret;
+  if (encoding == UCS2) {
+    // In Node, UCS2 means utf16le. The data must be in little-endian
+    // order and must be aligned on 2-bytes. This returns an empty
+    // value if it's not aligned and ensures the appropriate byte order
+    // on big endian architectures.
+    const bool be = IsBigEndian();
+    if (len % 2 != 0)
+      return ret;
+    std::vector<uint16_t> vec(len / 2);
+    for (size_t i = 0, k = 0; i < len; i += 2, k += 1) {
+      const uint8_t hi = static_cast<uint8_t>(buf[i + 0]);
+      const uint8_t lo = static_cast<uint8_t>(buf[i + 1]);
+      vec[k] = be ?
+          static_cast<uint16_t>(hi) << 8 | lo
+          : static_cast<uint16_t>(lo) << 8 | hi;
+    }
+    ret = vec.empty() ?
+        static_cast< Local<Value> >(String::Empty(isolate))
+        : StringBytes::Encode(isolate, &vec[0], vec.size());
+  } else {
+    ret = StringBytes::Encode(isolate, buf, len, encoding);
+  }
+  return ret;
 }
 
 }  // namespace node
