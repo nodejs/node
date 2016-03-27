@@ -42,7 +42,8 @@ const https = require('https');
 const options = {
   key: fs.readFileSync(common.fixturesDir + '/agent.key'),
   cert: fs.readFileSync(common.fixturesDir + '/agent.crt'),
-  requestCert: true
+  requestCert: true,
+  rejectUnauthorized: false
 };
 
 const modulus = 'A6F44A9C25791431214F5C87AF9E040177A8BB89AC803F7E09BBC3A5519F' +
