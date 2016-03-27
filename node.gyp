@@ -6,6 +6,8 @@
     'node_use_etw%': 'false',
     'node_use_perfctr%': 'false',
     'node_no_browser_globals%': 'false',
+    'node_no_v8_platform%': 'false',
+    'node_shared%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_cares%': 'false',
@@ -14,7 +16,6 @@
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
     'node_enable_v8_vtunejit%': 'false',
-    'node_target_type%': 'executable',
     'node_core_target_name%': 'node',
     'library_files': [
       'lib/internal/bootstrap_node.js',
@@ -100,6 +101,13 @@
       'deps/v8/tools/SourceMap.js',
       'deps/v8/tools/tickprocessor-driver.js',
     ],
+    'conditions': [
+      [ 'node_shared=="true"', {
+        'node_target_type%': 'shared_library',
+      }, {
+        'node_target_type%': 'executable',
+      }],
+    ],
   },
 
   'targets': [
@@ -109,8 +117,6 @@
 
       'dependencies': [
         'node_js2c#host',
-        'deps/v8/tools/gyp/v8.gyp:v8',
-        'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
       ],
 
       'include_dirs': [
@@ -118,7 +124,6 @@
         'tools/msvs/genfiles',
         'deps/uv/src/ares',
         '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
-        'deps/v8' # include/v8_platform.h
       ],
 
       'sources': [
@@ -217,6 +222,36 @@
 
 
       'conditions': [
+        [ 'node_shared=="false"', {
+          'dependencies': [
+            'deps/v8/tools/gyp/v8.gyp:v8',
+          ],
+          'msvs_settings': {
+            'VCManifestTool': {
+              'EmbedManifest': 'true',
+              'AdditionalManifestFiles': 'src/res/node.exe.extra.manifest'
+            }
+          },
+        }, {
+          'defines': [
+            'NODE_SHARED_MODE',
+          ],
+          'libraries': [
+            '-lv8',
+          ],
+        }],
+        [ 'node_no_v8_platform=="false"', {
+          'include_dirs': [
+            'deps/v8', # include/v8_platform.h
+          ],
+          'dependencies': [
+            'deps/v8/tools/gyp/v8.gyp:v8_libplatform',
+          ],
+        }, {
+          'defines': [
+            'NODE_NO_V8_PLATFORM',
+          ],
+        }],
         [ 'node_tag!=""', {
           'defines': [ 'NODE_TAG="<(node_tag)"' ],
         }],
@@ -245,7 +280,8 @@
               'defines': [ 'NODE_HAVE_SMALL_ICU=1' ],
           }]],
         }],
-        [ 'node_enable_v8_vtunejit=="true" and (target_arch=="x64" or \
+        [ 'node_no_bundled_v8=="false" and \
+           node_enable_v8_vtunejit=="true" and (target_arch=="x64" or \
            target_arch=="ia32" or target_arch=="x32")', {
           'defines': [ 'NODE_ENABLE_VTUNE_PROFILING' ],
           'dependencies': [
@@ -395,7 +431,7 @@
         [ 'node_no_browser_globals=="true"', {
           'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
         } ],
-        [ 'v8_postmortem_support=="true"', {
+        [ 'node_no_bundled_v8=="false" and v8_postmortem_support=="true"', {
           'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:postmortem-metadata' ],
           'conditions': [
             # -force_load is not applicable for the static library
@@ -487,12 +523,6 @@
           'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
         }],
       ],
-      'msvs_settings': {
-        'VCManifestTool': {
-          'EmbedManifest': 'true',
-          'AdditionalManifestFiles': 'src/res/node.exe.extra.manifest'
-        }
-      },
     },
     # generate ETW header and resource files
     {
@@ -718,8 +748,6 @@
         'deps/http_parser/http_parser.gyp:http_parser',
         'deps/gtest/gtest.gyp:gtest',
         'deps/uv/uv.gyp:libuv',
-        'deps/v8/tools/gyp/v8.gyp:v8',
-        'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
       ],
       'include_dirs': [
         'src',
@@ -750,7 +778,17 @@
             'src/inspector_socket.cc',
             'test/cctest/test_inspector_socket.cc'
           ]
-        }]
+        }],
+        [ 'node_shared=="false"', {
+          'dependencies': [
+            'deps/v8/tools/gyp/v8.gyp:v8',
+          ],
+        }],
+        [ 'node_no_v8_platform=="false"', {
+          'dependencies': [
+            'deps/v8/tools/gyp/v8.gyp:v8_libplatform',
+          ],
+        }],
       ]
     }
   ], # end targets

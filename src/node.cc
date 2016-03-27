@@ -39,7 +39,9 @@
 #include "string_bytes.h"
 #include "util.h"
 #include "uv.h"
+#ifndef NODE_NO_V8_PLATFORM
 #include "libplatform/libplatform.h"
+#endif  // NODE_NO_V8_PLATFORM
 #include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
@@ -183,7 +185,41 @@ static uv_async_t dispatch_debug_messages_async;
 
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
-static v8::Platform* default_platform;
+
+static struct {
+#ifdef NODE_NO_V8_PLATFORM
+  void Initialize(int thread_pool_size) {}
+  void PumpMessageLoop(Isolate* isolate) {}
+  void Dispose() {}
+#if HAVE_INSPECTOR
+  void StartInspector(Environment *env, int port, bool wait) {
+    env->ThrowError("Node compiled with NODE_NO_V8_PLATFORM");
+  }
+#endif  // HAVE_INSPECTOR
+#else  // !NODE_NO_V8_PLATFORM
+  void Initialize(int thread_pool_size) {
+    platform = v8::platform::CreateDefaultPlatform(thread_pool_size);
+    V8::InitializePlatform(platform);
+  }
+
+  void PumpMessageLoop(Isolate* isolate) {
+    v8::platform::PumpMessageLoop(platform, isolate);
+  }
+
+  void Dispose() {
+    delete platform;
+    platform = nullptr;
+  }
+
+#if HAVE_INSPECTOR
+  void StartInspector(Environment *env, int port, bool wait) {
+    env->inspector_agent()->Start(platform, port, wait);
+  }
+#endif  // HAVE_INSPECTOR
+
+  static v8::Platform* platform;
+#endif  // !NODE_NO_V8_PLATFORM
+} v8_platform;
 
 #ifdef __POSIX__
 static uv_sem_t debug_semaphore;
@@ -3652,7 +3688,7 @@ static void StartDebug(Environment* env, bool wait) {
   CHECK(!debugger_running);
 #if HAVE_INSPECTOR
   if (use_inspector) {
-    env->inspector_agent()->Start(default_platform, inspector_port, wait);
+    v8_platform.StartInspector(env, inspector_port, wait);
     debugger_running = true;
   } else {
 #endif
@@ -4299,11 +4335,11 @@ static void StartNodeInstance(void* arg) {
       SealHandleScope seal(isolate);
       bool more;
       do {
-        v8::platform::PumpMessageLoop(default_platform, isolate);
+        v8_platform.PumpMessageLoop(isolate);
         more = uv_run(env.event_loop(), UV_RUN_ONCE);
 
         if (more == false) {
-          v8::platform::PumpMessageLoop(default_platform, isolate);
+          v8_platform.PumpMessageLoop(isolate);
           EmitBeforeExit(&env);
 
           // Emit `beforeExit` if the loop became alive either after emitting
@@ -4364,8 +4400,7 @@ int Start(int argc, char** argv) {
   V8::SetEntropySource(crypto::EntropySource);
 #endif
 
-  default_platform = v8::platform::CreateDefaultPlatform(v8_thread_pool_size);
-  V8::InitializePlatform(default_platform);
+  v8_platform.Initialize(v8_thread_pool_size);
   V8::Initialize();
 
   int exit_code = 1;
@@ -4382,8 +4417,7 @@ int Start(int argc, char** argv) {
   }
   V8::Dispose();
 
-  delete default_platform;
-  default_platform = nullptr;
+  v8_platform.Dispose();
 
   delete[] exec_argv;
   exec_argv = nullptr;
