@@ -166,19 +166,6 @@ This is an encrypted stream.
 A proxy to the underlying socket's bytesWritten accessor, this will return
 the total bytes written to the socket, *including the TLS overhead*.
 
-## Class: SecurePair
-
-Returned by tls.createSecurePair.
-
-### Event: 'secure'
-
-This event is emitted from the SecurePair once the pair has successfully
-established a secure connection.
-
-As with checking for the server [`secureConnection`](#event-secureconnection)
-event, `pair.cleartext.authorized` should be inspected to confirm whether the
-certificate used is properly authorized.
-
 ## Class: tls.Server
 
 This class is a subclass of `net.Server` and has the same methods on it.
@@ -379,9 +366,9 @@ Construct a new TLSSocket object from an existing TCP socket.
 
   - `server`: An optional [`net.Server`][] instance
 
-  - `requestCert`: Optional, see [`tls.createSecurePair()`][]
+  - `requestCert`: Optional, see [`tls.createServer()`][]
 
-  - `rejectUnauthorized`: Optional, see [`tls.createSecurePair()`][]
+  - `rejectUnauthorized`: Optional, see [`tls.createServer()`][]
 
   - `NPNProtocols`: Optional, see [`tls.createServer()`][]
 
@@ -743,33 +730,6 @@ If no 'CA' details are given, then Node.js will use the default
 publicly trusted list of CAs as given in
 <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
 
-## tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])
-
-Creates a new secure pair object with two streams, one of which reads and writes
-the encrypted data and the other of which reads and writes the cleartext data.
-Generally, the encrypted stream is piped to/from an incoming encrypted data
-stream and the cleartext one is used as a replacement for the initial encrypted
-stream.
-
- - `credentials`: A secure context object from `tls.createSecureContext( ... )`.
-
- - `isServer`: A boolean indicating whether this TLS connection should be
-   opened as a server or a client.
-
- - `requestCert`: A boolean indicating whether a server should request a
-   certificate from a connecting client. Only applies to server connections.
-
- - `rejectUnauthorized`: A boolean indicating whether a server should
-   automatically reject clients with invalid certificates. Only applies to
-   servers with `requestCert` enabled.
-
- - `options`: An object with common SSL options. See [`tls.TLSSocket`][].
-
-`tls.createSecurePair()` returns a SecurePair object with `cleartext` and
-`encrypted` stream properties.
-
-NOTE: `cleartext` has the same API as [`tls.TLSSocket`][]
-
 ## tls.createServer(options[, secureConnectionListener])
 
 Creates a new [tls.Server][].  The `connectionListener` argument is
@@ -983,7 +943,6 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [BEAST attacks]: https://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
-[`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
 [`tls.TLSSocket`]: #tls_class_tls_tlssocket
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket

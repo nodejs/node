@@ -12,6 +12,10 @@
 #include "stream_base-inl.h"
 #include "util.h"
 #include "util-inl.h"
+// CNNIC Hash WhiteList is taken from
+// https://hg.mozilla.org/mozilla-central/raw-file/98820360ab66/security/
+// certverifier/CNNICHashWhitelist.inc
+#include "CNNICHashWhitelist.inc"
 
 namespace node {
 
@@ -30,6 +34,127 @@ using v8::Null;
 using v8::Object;
 using v8::String;
 using v8::Value;
+
+
+enum CheckResult {
+  CHECK_CERT_REVOKED = 0,
+  CHECK_OK = 1
+};
+
+// Subject DER of CNNIC ROOT CA and CNNIC EV ROOT CA are taken from
+// https://hg.mozilla.org/mozilla-central/file/98820360ab66/security/
+// certverifier/NSSCertDBTrustDomain.cpp#l672
+// C = CN, O = CNNIC, CN = CNNIC ROOT
+static const uint8_t CNNIC_ROOT_CA_SUBJECT_DATA[] =
+    "\x30\x32\x31\x0B\x30\x09\x06\x03\x55\x04\x06\x13\x02\x43\x4E\x31\x0E\x30"
+    "\x0C\x06\x03\x55\x04\x0A\x13\x05\x43\x4E\x4E\x49\x43\x31\x13\x30\x11\x06"
+    "\x03\x55\x04\x03\x13\x0A\x43\x4E\x4E\x49\x43\x20\x52\x4F\x4F\x54";
+static const uint8_t* cnnic_p = CNNIC_ROOT_CA_SUBJECT_DATA;
+static X509_NAME* cnnic_name =
+    d2i_X509_NAME(nullptr, &cnnic_p, sizeof(CNNIC_ROOT_CA_SUBJECT_DATA)-1);
+
+// C = CN, O = China Internet Network Information Center, CN = China
+// Internet Network Information Center EV Certificates Root
+static const uint8_t CNNIC_EV_ROOT_CA_SUBJECT_DATA[] =
+    "\x30\x81\x8A\x31\x0B\x30\x09\x06\x03\x55\x04\x06\x13\x02\x43\x4E\x31\x32"
+    "\x30\x30\x06\x03\x55\x04\x0A\x0C\x29\x43\x68\x69\x6E\x61\x20\x49\x6E\x74"
+    "\x65\x72\x6E\x65\x74\x20\x4E\x65\x74\x77\x6F\x72\x6B\x20\x49\x6E\x66\x6F"
+    "\x72\x6D\x61\x74\x69\x6F\x6E\x20\x43\x65\x6E\x74\x65\x72\x31\x47\x30\x45"
+    "\x06\x03\x55\x04\x03\x0C\x3E\x43\x68\x69\x6E\x61\x20\x49\x6E\x74\x65\x72"
+    "\x6E\x65\x74\x20\x4E\x65\x74\x77\x6F\x72\x6B\x20\x49\x6E\x66\x6F\x72\x6D"
+    "\x61\x74\x69\x6F\x6E\x20\x43\x65\x6E\x74\x65\x72\x20\x45\x56\x20\x43\x65"
+    "\x72\x74\x69\x66\x69\x63\x61\x74\x65\x73\x20\x52\x6F\x6F\x74";
+static const uint8_t* cnnic_ev_p = CNNIC_EV_ROOT_CA_SUBJECT_DATA;
+static X509_NAME *cnnic_ev_name =
+    d2i_X509_NAME(nullptr, &cnnic_ev_p,
+                  sizeof(CNNIC_EV_ROOT_CA_SUBJECT_DATA)-1);
+
+inline int compar(const void* a, const void* b) {
+  return memcmp(a, b, CNNIC_WHITELIST_HASH_LEN);
+}
+
+
+inline int IsSelfSigned(X509* cert) {
+  return X509_NAME_cmp(X509_get_subject_name(cert),
+                       X509_get_issuer_name(cert)) == 0;
+}
+
+
+inline X509* FindRoot(STACK_OF(X509)* sk) {
+  for (int i = 0; i < sk_X509_num(sk); i++) {
+    X509* cert = sk_X509_value(sk, i);
+    if (IsSelfSigned(cert))
+      return cert;
+  }
+  return nullptr;
+}
+
+
+// Whitelist check for certs issued by CNNIC. See
+// https://blog.mozilla.org/security/2015/04/02
+// /distrusting-new-cnnic-certificates/
+inline CheckResult CheckWhitelistedServerCert(X509_STORE_CTX* ctx) {
+  unsigned char hash[CNNIC_WHITELIST_HASH_LEN];
+  unsigned int hashlen = CNNIC_WHITELIST_HASH_LEN;
+
+  STACK_OF(X509)* chain = X509_STORE_CTX_get1_chain(ctx);
+  CHECK_NE(chain, nullptr);
+  CHECK_GT(sk_X509_num(chain), 0);
+
+  // Take the last cert as root at the first time.
+  X509* root_cert = sk_X509_value(chain, sk_X509_num(chain)-1);
+  X509_NAME* root_name = X509_get_subject_name(root_cert);
+
+  if (!IsSelfSigned(root_cert)) {
+    root_cert = FindRoot(chain);
+    CHECK_NE(root_cert, nullptr);
+    root_name = X509_get_subject_name(root_cert);
+  }
+
+  // When the cert is issued from either CNNNIC ROOT CA or CNNNIC EV
+  // ROOT CA, check a hash of its leaf cert if it is in the whitelist.
+  if (X509_NAME_cmp(root_name, cnnic_name) == 0 ||
+      X509_NAME_cmp(root_name, cnnic_ev_name) == 0) {
+    X509* leaf_cert = sk_X509_value(chain, 0);
+    int ret = X509_digest(leaf_cert, EVP_sha256(), hash,
+                          &hashlen);
+    CHECK(ret);
+
+    void* result = bsearch(hash, WhitelistedCNNICHashes,
+                           ARRAY_SIZE(WhitelistedCNNICHashes),
+                           CNNIC_WHITELIST_HASH_LEN, compar);
+    if (result == nullptr) {
+      sk_X509_pop_free(chain, X509_free);
+      return CHECK_CERT_REVOKED;
+    }
+  }
+
+  sk_X509_pop_free(chain, X509_free);
+  return CHECK_OK;
+}
+
+
+inline int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
+  // Failure on verification of the cert is handled
+  if (preverify_ok == 0 || X509_STORE_CTX_get_error(ctx) != X509_V_OK)
+    return 1;
+
+  // Server does not need to check the whitelist.
+  SSL* ssl = static_cast<SSL*>(
+      X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
+
+  if (SSL_is_server(ssl))
+    return 1;
+
+  // Client needs to check if the server cert is listed in the
+  // whitelist when it is issued by the specific rootCAs.
+  CheckResult ret = CheckWhitelistedServerCert(ctx);
+  if (ret == CHECK_CERT_REVOKED)
+    X509_STORE_CTX_set_error(ctx, X509_V_ERR_CERT_REVOKED);
+
+  return ret;
+}
+
 
 TLSWrap::TLSWrap(Environment* env,
                  Kind kind,
@@ -124,7 +249,7 @@ void TLSWrap::InitSSL() {
   SSL_set_bio(ssl_, enc_in_, enc_out_);
 
   // NOTE: This could be overriden in SetVerifyMode
-  SSL_set_verify(ssl_, SSL_VERIFY_NONE, crypto::VerifyCallback);
+  SSL_set_verify(ssl_, SSL_VERIFY_NONE, VerifyCallback);
 
 #ifdef SSL_MODE_RELEASE_BUFFERS
   long mode = SSL_get_mode(ssl_);
@@ -759,7 +884,7 @@ void TLSWrap::SetVerifyMode(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Always allow a connection. We'll reject in javascript.
-  SSL_set_verify(wrap->ssl_, verify_mode, crypto::VerifyCallback);
+  SSL_set_verify(wrap->ssl_, verify_mode, VerifyCallback);
 }
 
 
