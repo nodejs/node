@@ -108,7 +108,7 @@ void TraceExtension::DoTrace(Address fp) {
   regs.sp =
       reinterpret_cast<Address>(trace_env.sample) - 10240;
   trace_env.sample->Init(CcTest::i_isolate(), regs,
-                         TickSample::kSkipCEntryFrame);
+                         TickSample::kSkipCEntryFrame, true);
 }
 
 

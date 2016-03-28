@@ -109,6 +109,7 @@ class Pool():
           process boundary.
     """
     try:
+      internal_error = False
       gen = iter(gen)
       self.advance = self._advance_more
 
@@ -134,7 +135,9 @@ class Pool():
             yield MaybeResult.create_heartbeat()
         self.count -= 1
         if result.exception:
-          # Ignore items with unexpected exceptions.
+          # TODO(machenbach): Handle a few known types of internal errors
+          # gracefully, e.g. missing test files.
+          internal_error = True
           continue
         elif result.break_now:
           # A keyboard interrupt happened in one of the worker processes.
@@ -144,6 +147,8 @@ class Pool():
         self.advance(gen)
     finally:
       self.terminate()
+    if internal_error:
+      raise Exception("Internal error in a worker process.")
 
   def _advance_more(self, gen):
     while self.count < self.num_workers * self.BUFFER_FACTOR:

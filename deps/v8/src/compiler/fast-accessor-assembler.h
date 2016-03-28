@@ -48,6 +48,7 @@ class FastAccessorAssembler {
  public:
   typedef v8::experimental::FastAccessorBuilder::ValueId ValueId;
   typedef v8::experimental::FastAccessorBuilder::LabelId LabelId;
+  typedef v8::FunctionCallback FunctionCallback;
 
   explicit FastAccessorAssembler(Isolate* isolate);
   ~FastAccessorAssembler();
@@ -63,14 +64,12 @@ class FastAccessorAssembler {
   void ReturnValue(ValueId value_id);
   void CheckFlagSetOrReturnNull(ValueId value_id, int mask);
   void CheckNotZeroOrReturnNull(ValueId value_id);
-
-  // TODO(vogelheim): Implement a C++ callback.
-  //  void CheckNotNullOrCallback(ValueId value_id, ..c++-callback type...,
-  //     ValueId arg1, ValueId arg2, ...);
-
   LabelId MakeLabel();
   void SetLabel(LabelId label_id);
   void CheckNotZeroOrJump(ValueId value_id, LabelId label_id);
+
+  // C++ callback.
+  ValueId Call(FunctionCallback callback, ValueId arg);
 
   // Assemble the code.
   MaybeHandle<Code> Build();

@@ -35,18 +35,18 @@ function ToNumber(x) {
 // Reduced version of String.fromCharCode;
 // does not actually do the same calculation but exhibits untagging bug.
 function StringFromCharCode(code) {
-  var n = %_ArgumentsLength();
+  var n = arguments.length;
   var one_byte = %NewString(n, true);
   var i;
   for (i = 0; i < n; i++) {
-    var code = %_Arguments(i);
+    var code = arguments[i];
     if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
     if (code > 0xff) break;
   }
 
   var two_byte = %NewString(n - i, false);
   for (var j = 0; i < n; i++, j++) {
-    var code = %_Arguments(i);
+    var code = arguments[i];
     %_TwoByteSeqStringSetChar(j, code, two_byte);
   }
   return one_byte + two_byte;

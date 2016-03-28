@@ -410,11 +410,13 @@ class Logger {
   friend class CpuProfiler;
 };
 
-
 #define TIMER_EVENTS_LIST(V)    \
   V(RecompileSynchronous, true) \
   V(RecompileConcurrent, true)  \
   V(CompileFullCode, true)      \
+  V(OptimizeCode, true)         \
+  V(CompileCode, true)          \
+  V(DeoptimizeCode, true)       \
   V(Execute, true)              \
   V(External, true)             \
   V(IcMiss, false)

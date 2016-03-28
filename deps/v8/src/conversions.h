@@ -172,7 +172,7 @@ inline bool IsUint32Double(double value);
 // Convert from Number object to C integer.
 inline int32_t NumberToInt32(Object* number);
 inline uint32_t NumberToUint32(Object* number);
-
+inline int64_t NumberToInt64(Object* number);
 
 double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
                       int flags, double empty_string_val = 0.0);

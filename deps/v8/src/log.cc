@@ -934,6 +934,7 @@ void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
 
 void Logger::EnterExternal(Isolate* isolate) {
   LOG(isolate, TimerEvent(START, TimerEventExternal::name()));
+  TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
   DCHECK(isolate->current_vm_state() == JS);
   isolate->set_current_vm_state(EXTERNAL);
 }
@@ -941,6 +942,7 @@ void Logger::EnterExternal(Isolate* isolate) {
 
 void Logger::LeaveExternal(Isolate* isolate) {
   LOG(isolate, TimerEvent(END, TimerEventExternal::name()));
+  TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
   DCHECK(isolate->current_vm_state() == EXTERNAL);
   isolate->set_current_vm_state(JS);
 }
@@ -1749,8 +1751,8 @@ void Logger::LogAccessorCallbacks() {
   HeapIterator iterator(heap);
   DisallowHeapAllocation no_gc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    if (!obj->IsExecutableAccessorInfo()) continue;
-    ExecutableAccessorInfo* ai = ExecutableAccessorInfo::cast(obj);
+    if (!obj->IsAccessorInfo()) continue;
+    AccessorInfo* ai = AccessorInfo::cast(obj);
     if (!ai->name()->IsName()) continue;
     Address getter_entry = v8::ToCData<Address>(ai->getter());
     Name* name = Name::cast(ai->name());

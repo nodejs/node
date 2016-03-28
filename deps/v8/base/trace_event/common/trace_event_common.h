@@ -203,39 +203,25 @@
 // - category and name strings must have application lifetime (statics or
 //   literals). They may not include " chars.
 #define TRACE_EVENT0(category_group, name)    \
-  INTERNAL_TRACE_MEMORY(category_group, name) \
   INTERNAL_TRACE_EVENT_ADD_SCOPED(category_group, name)
 #define TRACE_EVENT_WITH_FLOW0(category_group, name, bind_id, flow_flags)  \
-  INTERNAL_TRACE_MEMORY(category_group, name)                              \
   INTERNAL_TRACE_EVENT_ADD_SCOPED_WITH_FLOW(category_group, name, bind_id, \
                                             flow_flags)
 #define TRACE_EVENT1(category_group, name, arg1_name, arg1_val) \
-  INTERNAL_TRACE_MEMORY(category_group, name)                   \
   INTERNAL_TRACE_EVENT_ADD_SCOPED(category_group, name, arg1_name, arg1_val)
 #define TRACE_EVENT_WITH_FLOW1(category_group, name, bind_id, flow_flags,  \
                                arg1_name, arg1_val)                        \
-  INTERNAL_TRACE_MEMORY(category_group, name)                              \
   INTERNAL_TRACE_EVENT_ADD_SCOPED_WITH_FLOW(category_group, name, bind_id, \
                                             flow_flags, arg1_name, arg1_val)
 #define TRACE_EVENT2(category_group, name, arg1_name, arg1_val, arg2_name,   \
                      arg2_val)                                               \
-  INTERNAL_TRACE_MEMORY(category_group, name)                                \
   INTERNAL_TRACE_EVENT_ADD_SCOPED(category_group, name, arg1_name, arg1_val, \
                                   arg2_name, arg2_val)
 #define TRACE_EVENT_WITH_FLOW2(category_group, name, bind_id, flow_flags,    \
                                arg1_name, arg1_val, arg2_name, arg2_val)     \
-  INTERNAL_TRACE_MEMORY(category_group, name)                                \
   INTERNAL_TRACE_EVENT_ADD_SCOPED_WITH_FLOW(category_group, name, bind_id,   \
                                             flow_flags, arg1_name, arg1_val, \
                                             arg2_name, arg2_val)
-
-// Records events like TRACE_EVENT2 but uses |memory_tag| for memory tracing.
-// Use this where |name| is too generic to accurately aggregate allocations.
-#define TRACE_EVENT_WITH_MEMORY_TAG2(category, name, memory_tag, arg1_name, \
-                                     arg1_val, arg2_name, arg2_val)         \
-  INTERNAL_TRACE_MEMORY(category, memory_tag)                               \
-  INTERNAL_TRACE_EVENT_ADD_SCOPED(category, name, arg1_name, arg1_val,      \
-                                  arg2_name, arg2_val)
 
 // UNSHIPPED_TRACE_EVENT* are like TRACE_EVENT* except that they are not
 // included in official builds.
@@ -308,6 +294,12 @@
   INTERNAL_TRACE_EVENT_ADD(TRACE_EVENT_PHASE_INSTANT, category_group, name,    \
                            TRACE_EVENT_FLAG_COPY | scope, arg1_name, arg1_val, \
                            arg2_name, arg2_val)
+
+#define TRACE_EVENT_INSTANT_WITH_TIMESTAMP0(category_group, name, scope, \
+                                            timestamp)                   \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                    \
+      TRACE_EVENT_PHASE_INSTANT, category_group, name, 0, 0, timestamp,  \
+      TRACE_EVENT_FLAG_NONE | scope)
 
 // Syntactic sugars for the sampling tracing in the main thread.
 #define TRACE_EVENT_SCOPED_SAMPLING_STATE(category, name) \
@@ -477,6 +469,20 @@
                            TRACE_EVENT_FLAG_COPY, value1_name,              \
                            static_cast<int>(value1_val), value2_name,       \
                            static_cast<int>(value2_val))
+
+// Similar to TRACE_COUNTERx, but with a custom |timestamp| provided.
+#define TRACE_COUNTER_WITH_TIMESTAMP1(category_group, name, timestamp, value) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                                    \
+      TRACE_EVENT_PHASE_COUNTER, category_group, name, timestamp,             \
+      TRACE_EVENT_FLAG_NONE, "value", static_cast<int>(value))
+
+#define TRACE_COUNTER_WITH_TIMESTAMP2(category_group, name, timestamp,      \
+                                      value1_name, value1_val, value2_name, \
+                                      value2_val)                           \
+  INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                                  \
+      TRACE_EVENT_PHASE_COUNTER, category_group, name, timestamp,           \
+      TRACE_EVENT_FLAG_NONE, value1_name, static_cast<int>(value1_val),     \
+      value2_name, static_cast<int>(value2_val))
 
 // Records the value of a counter called "name" immediately. Value
 // must be representable as a 32 bit integer.
@@ -920,6 +926,17 @@
                                    name, id, TRACE_EVENT_FLAG_COPY, arg1_name, \
                                    arg1_val, arg2_name, arg2_val)
 
+// Records a clock sync event.
+#define TRACE_EVENT_CLOCK_SYNC_RECEIVER(sync_id)                               \
+  INTERNAL_TRACE_EVENT_ADD(                                                    \
+      TRACE_EVENT_PHASE_CLOCK_SYNC, "__metadata", "clock_sync",                \
+      TRACE_EVENT_FLAG_NONE, "sync_id", sync_id)
+#define TRACE_EVENT_CLOCK_SYNC_ISSUER(sync_id, issue_ts, issue_end_ts)         \
+  INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                                     \
+      TRACE_EVENT_PHASE_CLOCK_SYNC, "__metadata", "clock_sync",                \
+      issue_end_ts.ToInternalValue(), TRACE_EVENT_FLAG_NONE,                   \
+      "sync_id", sync_id, "issue_ts", issue_ts.ToInternalValue())
+
 // Macros to track the life time and value of arbitrary client objects.
 // See also TraceTrackableObject.
 #define TRACE_EVENT_OBJECT_CREATED_WITH_ID(category_group, name, id) \
@@ -944,6 +961,21 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                  \
       TRACE_EVENT_PHASE_DELETE_OBJECT, category_group, name,         \
       TRACE_ID_DONT_MANGLE(id), TRACE_EVENT_FLAG_NONE)
+
+// Records entering and leaving trace event contexts. |category_group| and
+// |name| specify the context category and type. |context| is a
+// snapshotted context object id.
+#define TRACE_EVENT_ENTER_CONTEXT(category_group, name, context) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                              \
+      TRACE_EVENT_PHASE_ENTER_CONTEXT, category_group, name,     \
+      TRACE_ID_DONT_MANGLE(context), TRACE_EVENT_FLAG_NONE)
+#define TRACE_EVENT_LEAVE_CONTEXT(category_group, name, context) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID(                              \
+      TRACE_EVENT_PHASE_LEAVE_CONTEXT, category_group, name,     \
+      TRACE_ID_DONT_MANGLE(context), TRACE_EVENT_FLAG_NONE)
+#define TRACE_EVENT_SCOPED_CONTEXT(category_group, name, context) \
+  INTERNAL_TRACE_EVENT_SCOPED_CONTEXT(category_group, name,       \
+                                      TRACE_ID_DONT_MANGLE(context))
 
 // Macro to efficiently determine if a given category group is enabled.
 #define TRACE_EVENT_CATEGORY_GROUP_ENABLED(category_group, ret)             \
@@ -1007,6 +1039,9 @@
 #define TRACE_EVENT_PHASE_DELETE_OBJECT ('D')
 #define TRACE_EVENT_PHASE_MEMORY_DUMP ('v')
 #define TRACE_EVENT_PHASE_MARK ('R')
+#define TRACE_EVENT_PHASE_CLOCK_SYNC ('c')
+#define TRACE_EVENT_PHASE_ENTER_CONTEXT ('(')
+#define TRACE_EVENT_PHASE_LEAVE_CONTEXT (')')
 
 // Flags for changing the behavior of TRACE_EVENT_API_ADD_TRACE_EVENT.
 #define TRACE_EVENT_FLAG_NONE (static_cast<unsigned int>(0))

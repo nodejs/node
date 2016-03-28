@@ -803,6 +803,11 @@ void Assembler::cmp(Register reg, const Operand& op) {
   emit_operand(reg, op);
 }
 
+void Assembler::cmp(const Operand& op, Register reg) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x39);
+  emit_operand(reg, op);
+}
 
 void Assembler::cmp(const Operand& op, const Immediate& imm) {
   EnsureSpace ensure_space(this);
@@ -1996,6 +2001,15 @@ void Assembler::cvtsd2si(Register dst, XMMRegister src) {
   EMIT(0xF2);
   EMIT(0x0F);
   EMIT(0x2D);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::cvtsi2ss(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x2A);
   emit_sse_operand(dst, src);
 }
 

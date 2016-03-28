@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/profiler/sampling-heap-profiler.h"
 
 namespace v8 {
 namespace internal {
@@ -81,6 +82,31 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
       DebugFeatureTracker::kHeapSnapshot);
 
   return result;
+}
+
+
+bool HeapProfiler::StartSamplingHeapProfiler(uint64_t sample_interval,
+                                             int stack_depth) {
+  if (sampling_heap_profiler_.get()) {
+    return false;
+  }
+  sampling_heap_profiler_.Reset(new SamplingHeapProfiler(
+      heap(), names_.get(), sample_interval, stack_depth));
+  return true;
+}
+
+
+void HeapProfiler::StopSamplingHeapProfiler() {
+  sampling_heap_profiler_.Reset(nullptr);
+}
+
+
+v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
+  if (sampling_heap_profiler_.get()) {
+    return sampling_heap_profiler_->GetAllocationProfile();
+  } else {
+    return nullptr;
+  }
 }
 
 

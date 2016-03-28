@@ -65,30 +65,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-  for (int i = 0; i < Register::NumRegisters(); i++) {
-    input_->SetRegister(i, 0);
-  }
-
-  // TODO(all): Do we also need to set a value to csp?
-  input_->SetRegister(jssp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint64_at(tos + i));
-  }
-}
-
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
   // There is no dynamic alignment padding on ARM64 in the input frame.
   return false;
 }
@@ -191,11 +168,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   // Copy FP registers to the input frame.
+  CPURegList copy_fp_to_input = saved_fp_registers;
   for (int i = 0; i < saved_fp_registers.Count(); i++) {
-    int dst_offset = FrameDescription::double_registers_offset() +
-        (i * kDoubleSize);
     int src_offset = kFPRegistersOffset + (i * kDoubleSize);
     __ Peek(x2, src_offset);
+    CPURegister reg = copy_fp_to_input.PopLowestIndex();
+    int dst_offset = FrameDescription::double_registers_offset() +
+                     (reg.code() * kDoubleSize);
     __ Str(x2, MemOperand(x1, dst_offset));
   }
 
@@ -264,11 +243,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   DCHECK(!saved_fp_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
          !saved_fp_registers.IncludesAliasOf(fp_zero) &&
          !saved_fp_registers.IncludesAliasOf(fp_scratch));
-  int src_offset = FrameDescription::double_registers_offset();
   while (!saved_fp_registers.IsEmpty()) {
     const CPURegister reg = saved_fp_registers.PopLowestIndex();
+    int src_offset = FrameDescription::double_registers_offset() +
+                     (reg.code() * kDoubleSize);
     __ Ldr(reg, MemOperand(x1, src_offset));
-    src_offset += kDoubleSize;
   }
 
   // Push state from the last output frame.

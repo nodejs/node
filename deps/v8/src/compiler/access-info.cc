@@ -8,9 +8,9 @@
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-info.h"
 #include "src/field-index-inl.h"
+#include "src/field-type.h"
 #include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/type-cache.h"
-#include "src/types-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -232,6 +232,9 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
   // Compute the receiver type.
   Handle<Map> receiver_map = map;
 
+  // Property lookups require the name to be internalized.
+  name = isolate()->factory()->InternalizeName(name);
+
   // We support fast inline cases for certain JSObject getters.
   if (access_mode == AccessMode::kLoad &&
       LookupSpecialFieldAccessor(map, name, access_info)) {
@@ -242,7 +245,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
   do {
     // Lookup the named property on the {map}.
     Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
-    int const number = descriptors->SearchWithCache(*name, *map);
+    int const number = descriptors->SearchWithCache(isolate(), *name, *map);
     if (number != DescriptorArray::kNotFound) {
       PropertyDetails const details = descriptors->GetDetails(number);
       if (access_mode == AccessMode::kStore) {
@@ -277,8 +280,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           // Extract the field type from the property details (make sure its
           // representation is TaggedPointer to reflect the heap object case).
           field_type = Type::Intersect(
-              Type::Convert<HeapType>(
-                  handle(descriptors->GetFieldType(number), isolate()), zone()),
+              descriptors->GetFieldType(number)->Convert(zone()),
               Type::TaggedPointer(), zone());
           if (field_type->Is(Type::None())) {
             // Store is not safe if the field type was cleared.
@@ -454,10 +456,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       // Extract the field type from the property details (make sure its
       // representation is TaggedPointer to reflect the heap object case).
       field_type = Type::Intersect(
-          Type::Convert<HeapType>(
-              handle(
-                  transition_map->instance_descriptors()->GetFieldType(number),
-                  isolate()),
+          transition_map->instance_descriptors()->GetFieldType(number)->Convert(
               zone()),
           Type::TaggedPointer(), zone());
       if (field_type->Is(Type::None())) {

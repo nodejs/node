@@ -4,11 +4,12 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/verifier.h"
-#include "src/types-inl.h"
+#include "src/handles-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -123,6 +124,7 @@ bool NodeProperties::IsControlEdge(Edge edge) {
 
 // static
 bool NodeProperties::IsExceptionalCall(Node* node) {
+  if (node->op()->HasProperty(Operator::kNoThrow)) return false;
   for (Edge const edge : node->use_edges()) {
     if (!NodeProperties::IsControlEdge(edge)) continue;
     if (edge.from()->opcode() == IrOpcode::kIfException) return true;
@@ -334,6 +336,16 @@ MaybeHandle<Context> NodeProperties::GetSpecializationNativeContext(
     Node* node, MaybeHandle<Context> native_context) {
   while (true) {
     switch (node->opcode()) {
+      case IrOpcode::kJSLoadContext: {
+        ContextAccess const& access = ContextAccessOf(node->op());
+        if (access.index() != Context::NATIVE_CONTEXT_INDEX) {
+          return MaybeHandle<Context>();
+        }
+        // Skip over the intermediate contexts, we're only interested in the
+        // very last context in the context chain anyway.
+        node = NodeProperties::GetContextInput(node);
+        break;
+      }
       case IrOpcode::kJSCreateBlockContext:
       case IrOpcode::kJSCreateCatchContext:
       case IrOpcode::kJSCreateFunctionContext:

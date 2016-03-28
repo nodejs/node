@@ -85,27 +85,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, i * 4);
-  }
-  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
-  }
-}
-
-
 void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
   ApiFunction function(descriptor->deoptimization_handler());
@@ -124,8 +103,7 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
   // There is no dynamic alignment padding on ARM in the input frame.
   return false;
 }
@@ -288,14 +266,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ CheckFor32DRegs(ip);
 
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
-  int src_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-    if (i == kDoubleRegZero.code()) continue;
-    if (i == kScratchDoubleReg.code()) continue;
-
-    const DwVfpRegister reg = DwVfpRegister::from_code(i);
-    __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
-    src_offset += kDoubleSize;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    DwVfpRegister reg = DwVfpRegister::from_code(code);
+    int src_offset = code * kDoubleSize + double_regs_offset;
+    __ vldr(reg, r1, src_offset);
   }
 
   // Push state, pc, and continuation from the last output frame.

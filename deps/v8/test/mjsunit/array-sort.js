@@ -464,3 +464,9 @@ function TestSortToObject() {
   assertEquals(0, Number(Array.prototype.sort.call(0)));
 }
 TestSortToObject();
+
+function TestSortOnProxy() {
+  var p = new Proxy([2,1,3], {});
+  assertEquals([1,2,3], p.sort());
+}
+TestSortOnProxy();

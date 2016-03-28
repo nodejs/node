@@ -31,6 +31,7 @@ class Processor: public AstVisitor {
         result_assigned_(false),
         replacement_(nullptr),
         is_set_(false),
+        zone_(ast_value_factory->zone()),
         scope_(scope),
         factory_(ast_value_factory) {
     InitializeAstVisitor(parser->stack_limit());
@@ -148,7 +149,7 @@ void Processor::VisitIfStatement(IfStatement* node) {
   is_set_ = is_set_ && set_in_then;
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }
@@ -164,7 +165,7 @@ void Processor::VisitIterationStatement(IterationStatement* node) {
   is_set_ = is_set_ && set_after;
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }
@@ -208,7 +209,7 @@ void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
   is_set_ = is_set_ && set_in_try;
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }
@@ -225,6 +226,7 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
      // at the end again: ".backup = .result; ...; .result = .backup"
      // This is necessary because the finally block does not normally contribute
      // to the completion value.
+    CHECK(scope() != nullptr);
     Variable* backup = scope()->NewTemporary(
         factory()->ast_value_factory()->dot_result_string());
     Expression* backup_proxy = factory()->NewVariableProxy(backup);
@@ -245,7 +247,7 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   node->set_try_block(replacement_->AsBlock());
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }
@@ -263,7 +265,7 @@ void Processor::VisitSwitchStatement(SwitchStatement* node) {
   is_set_ = is_set_ && set_after;
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }
@@ -287,7 +289,7 @@ void Processor::VisitWithStatement(WithStatement* node) {
   node->set_statement(replacement_);
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }

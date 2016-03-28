@@ -147,10 +147,8 @@ function BreakPoint(source_position, opt_script_break_point) {
   } else {
     this.number_ = next_break_point_number++;
   }
-  this.hit_count_ = 0;
   this.active_ = true;
   this.condition_ = null;
-  this.ignoreCount_ = 0;
 }
 
 
@@ -169,11 +167,6 @@ BreakPoint.prototype.source_position = function() {
 };
 
 
-BreakPoint.prototype.hit_count = function() {
-  return this.hit_count_;
-};
-
-
 BreakPoint.prototype.active = function() {
   if (this.script_break_point()) {
     return this.script_break_point().active();
@@ -187,11 +180,6 @@ BreakPoint.prototype.condition = function() {
     return this.script_break_point().condition();
   }
   return this.condition_;
-};
-
-
-BreakPoint.prototype.ignoreCount = function() {
-  return this.ignoreCount_;
 };
 
 
@@ -215,11 +203,6 @@ BreakPoint.prototype.setCondition = function(condition) {
 };
 
 
-BreakPoint.prototype.setIgnoreCount = function(ignoreCount) {
-  this.ignoreCount_ = ignoreCount;
-};
-
-
 BreakPoint.prototype.isTriggered = function(exec_state) {
   // Break point not active - not triggered.
   if (!this.active()) return false;
@@ -237,18 +220,6 @@ BreakPoint.prototype.isTriggered = function(exec_state) {
       // Exception evaluating condition counts as not triggered.
       return false;
     }
-  }
-
-  // Update the hit count.
-  this.hit_count_++;
-  if (this.script_break_point_) {
-    this.script_break_point_.hit_count_++;
-  }
-
-  // If the break point has an ignore count it is not triggered.
-  if (this.ignoreCount_ > 0) {
-    this.ignoreCount_--;
-    return false;
   }
 
   // Break point triggered.
@@ -283,10 +254,8 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
   this.groupId_ = opt_groupId;
   this.position_alignment_ = IS_UNDEFINED(opt_position_alignment)
       ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
-  this.hit_count_ = 0;
   this.active_ = true;
   this.condition_ = null;
-  this.ignoreCount_ = 0;
   this.break_points_ = [];
 }
 
@@ -299,10 +268,8 @@ ScriptBreakPoint.prototype.cloneForOtherScript = function (other_script) {
   copy.number_ = next_break_point_number++;
   script_break_points.push(copy);
 
-  copy.hit_count_ = this.hit_count_;
   copy.active_ = this.active_;
   copy.condition_ = this.condition_;
-  copy.ignoreCount_ = this.ignoreCount_;
   return copy;
 };
 
@@ -362,11 +329,6 @@ ScriptBreakPoint.prototype.update_positions = function(line, column) {
 };
 
 
-ScriptBreakPoint.prototype.hit_count = function() {
-  return this.hit_count_;
-};
-
-
 ScriptBreakPoint.prototype.active = function() {
   return this.active_;
 };
@@ -374,11 +336,6 @@ ScriptBreakPoint.prototype.active = function() {
 
 ScriptBreakPoint.prototype.condition = function() {
   return this.condition_;
-};
-
-
-ScriptBreakPoint.prototype.ignoreCount = function() {
-  return this.ignoreCount_;
 };
 
 
@@ -394,16 +351,6 @@ ScriptBreakPoint.prototype.disable = function() {
 
 ScriptBreakPoint.prototype.setCondition = function(condition) {
   this.condition_ = condition;
-};
-
-
-ScriptBreakPoint.prototype.setIgnoreCount = function(ignoreCount) {
-  this.ignoreCount_ = ignoreCount;
-
-  // Set ignore count on all break points created from this script break point.
-  for (var i = 0; i < this.break_points_.length; i++) {
-    this.break_points_[i].setIgnoreCount(ignoreCount);
-  }
 };
 
 
@@ -461,7 +408,6 @@ ScriptBreakPoint.prototype.set = function (script) {
 
   // Create a break point object and set the break point.
   var break_point = MakeBreakPoint(position, this);
-  break_point.setIgnoreCount(this.ignoreCount());
   var actual_position = %SetScriptBreakPoint(script, position,
                                              this.position_alignment_,
                                              break_point);
@@ -726,13 +672,6 @@ Debug.changeBreakPointCondition = function(break_point_number, condition) {
 };
 
 
-Debug.changeBreakPointIgnoreCount = function(break_point_number, ignoreCount) {
-  if (ignoreCount < 0) throw MakeError(kDebugger, 'Invalid argument');
-  var break_point = this.findBreakPoint(break_point_number, false);
-  break_point.setIgnoreCount(ignoreCount);
-};
-
-
 Debug.clearBreakPoint = function(break_point_number) {
   var break_point = this.findBreakPoint(break_point_number, true);
   if (break_point) {
@@ -854,14 +793,6 @@ Debug.changeScriptBreakPointCondition = function(
     break_point_number, condition) {
   var script_break_point = this.findScriptBreakPoint(break_point_number, false);
   script_break_point.setCondition(condition);
-};
-
-
-Debug.changeScriptBreakPointIgnoreCount = function(
-    break_point_number, ignoreCount) {
-  if (ignoreCount < 0) throw MakeError(kDebugger, 'Invalid argument');
-  var script_break_point = this.findScriptBreakPoint(break_point_number, false);
-  script_break_point.setIgnoreCount(ignoreCount);
 };
 
 
@@ -1503,7 +1434,6 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
   var enabled = IS_UNDEFINED(request.arguments.enabled) ?
       true : request.arguments.enabled;
   var condition = request.arguments.condition;
-  var ignoreCount = request.arguments.ignoreCount;
   var groupId = request.arguments.groupId;
 
   // Check for legal arguments.
@@ -1569,9 +1499,6 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
 
   // Set additional break point properties.
   var break_point = Debug.findBreakPoint(break_point_number);
-  if (ignoreCount) {
-    Debug.changeBreakPointIgnoreCount(break_point_number, ignoreCount);
-  }
   if (!enabled) {
     Debug.disableBreakPoint(break_point_number);
   }
@@ -1617,7 +1544,6 @@ DebugCommandProcessor.prototype.changeBreakPointRequest_ = function(
   var break_point = TO_NUMBER(request.arguments.breakpoint);
   var enabled = request.arguments.enabled;
   var condition = request.arguments.condition;
-  var ignoreCount = request.arguments.ignoreCount;
 
   // Check for legal arguments.
   if (!break_point) {
@@ -1637,11 +1563,6 @@ DebugCommandProcessor.prototype.changeBreakPointRequest_ = function(
   // Change condition if supplied
   if (!IS_UNDEFINED(condition)) {
     Debug.changeBreakPointCondition(break_point, condition);
-  }
-
-  // Change ignore count if supplied
-  if (!IS_UNDEFINED(ignoreCount)) {
-    Debug.changeBreakPointIgnoreCount(break_point, ignoreCount);
   }
 };
 
@@ -1717,10 +1638,8 @@ DebugCommandProcessor.prototype.listBreakpointsRequest_ = function(
       line: break_point.line(),
       column: break_point.column(),
       groupId: break_point.groupId(),
-      hit_count: break_point.hit_count(),
       active: break_point.active(),
       condition: break_point.condition(),
-      ignoreCount: break_point.ignoreCount(),
       actual_locations: break_point.actual_locations()
     };
 
@@ -2396,7 +2315,7 @@ DebugCommandProcessor.prototype.restartFrameRequest_ = function(
     frame_mirror = this.exec_state_.frame();
   }
 
-  var result_description = Debug.LiveEdit.RestartFrame(frame_mirror);
+  var result_description = frame_mirror.restart();
   response.body = {result: result_description};
 };
 

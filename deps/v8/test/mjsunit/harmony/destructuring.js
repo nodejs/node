@@ -1061,8 +1061,8 @@
 
 
 (function TestForInOfTDZ() {
-  assertThrows("'use strict'; let x = {}; for (let [x, y] of {x});", ReferenceError);
-  assertThrows("'use strict'; let x = {}; for (let [y, x] of {x});", ReferenceError);
+  assertThrows("'use strict'; let x = {}; for (let [x, y] of [x]);", ReferenceError);
+  assertThrows("'use strict'; let x = {}; for (let [y, x] of [x]);", ReferenceError);
   assertThrows("'use strict'; let x = {}; for (let [x, y] in {x});", ReferenceError);
   assertThrows("'use strict'; let x = {}; for (let [y, x] in {x});", ReferenceError);
 }());

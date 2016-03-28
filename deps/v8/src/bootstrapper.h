@@ -61,7 +61,7 @@ class SourceCodeCache final BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
-enum ContextType { FULL_CONTEXT, THIN_CONTEXT, DEBUG_CONTEXT };
+enum GlobalContextType { FULL_CONTEXT, THIN_CONTEXT, DEBUG_CONTEXT };
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
@@ -80,7 +80,7 @@ class Bootstrapper final {
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions,
-      ContextType context_type = FULL_CONTEXT);
+      GlobalContextType context_type = FULL_CONTEXT);
 
   // Detach the environment from its outer global object.
   void DetachGlobal(Handle<Context> env);
@@ -109,7 +109,7 @@ class Bootstrapper final {
 
   static bool CompileNative(Isolate* isolate, Vector<const char> name,
                             Handle<String> source, int argc,
-                            Handle<Object> argv[]);
+                            Handle<Object> argv[], NativesFlag natives_flag);
   static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
   static bool CompileExtraBuiltin(Isolate* isolate, int index);

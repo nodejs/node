@@ -56,28 +56,28 @@ TEST_F(EncoderTest, Function_Builder_Variable_Indexing) {
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
   uint16_t f_index = builder->AddFunction();
   WasmFunctionBuilder* function = builder->FunctionAt(f_index);
-  uint16_t local_float32 = function->AddLocal(kAstF32);
+  uint16_t local_f32 = function->AddLocal(kAstF32);
   uint16_t param_float32 = function->AddParam(kAstF32);
-  uint16_t local_int32 = function->AddLocal(kAstI32);
-  uint16_t local_float64 = function->AddLocal(kAstF64);
-  uint16_t local_int64 = function->AddLocal(kAstI64);
+  uint16_t local_i32 = function->AddLocal(kAstI32);
+  uint16_t local_f64 = function->AddLocal(kAstF64);
+  uint16_t local_i64 = function->AddLocal(kAstI64);
   uint16_t param_int32 = function->AddParam(kAstI32);
-  uint16_t local_int32_2 = function->AddLocal(kAstI32);
+  uint16_t local_i32_2 = function->AddLocal(kAstI32);
 
   byte code[] = {kExprGetLocal, static_cast<uint8_t>(param_float32)};
   uint32_t local_indices[] = {1};
   function->EmitCode(code, sizeof(code), local_indices, 1);
   code[1] = static_cast<uint8_t>(param_int32);
   function->EmitCode(code, sizeof(code), local_indices, 1);
-  code[1] = static_cast<uint8_t>(local_int32);
+  code[1] = static_cast<uint8_t>(local_i32);
   function->EmitCode(code, sizeof(code), local_indices, 1);
-  code[1] = static_cast<uint8_t>(local_int32_2);
+  code[1] = static_cast<uint8_t>(local_i32_2);
   function->EmitCode(code, sizeof(code), local_indices, 1);
-  code[1] = static_cast<uint8_t>(local_int64);
+  code[1] = static_cast<uint8_t>(local_i64);
   function->EmitCode(code, sizeof(code), local_indices, 1);
-  code[1] = static_cast<uint8_t>(local_float32);
+  code[1] = static_cast<uint8_t>(local_f32);
   function->EmitCode(code, sizeof(code), local_indices, 1);
-  code[1] = static_cast<uint8_t>(local_float64);
+  code[1] = static_cast<uint8_t>(local_f64);
   function->EmitCode(code, sizeof(code), local_indices, 1);
 
   WasmFunctionEncoder* f = function->Build(&zone, builder);

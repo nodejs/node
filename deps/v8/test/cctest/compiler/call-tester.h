@@ -119,7 +119,7 @@ struct ParameterTraits<uint32_t> {
 template <typename R>
 class CallHelper {
  public:
-  explicit CallHelper(Isolate* isolate, CSignature* csig)
+  explicit CallHelper(Isolate* isolate, MachineSignature* csig)
       : csig_(csig), isolate_(isolate) {
     USE(isolate_);
   }
@@ -127,47 +127,47 @@ class CallHelper {
 
   R Call() {
     typedef R V8_CDECL FType();
-    csig_->VerifyParams();
+    CSignature::VerifyParams(csig_);
     return DoCall(FUNCTION_CAST<FType*>(Generate()));
   }
 
   template <typename P1>
   R Call(P1 p1) {
     typedef R V8_CDECL FType(P1);
-    csig_->VerifyParams<P1>();
+    CSignature::VerifyParams<P1>(csig_);
     return DoCall(FUNCTION_CAST<FType*>(Generate()), p1);
   }
 
   template <typename P1, typename P2>
   R Call(P1 p1, P2 p2) {
     typedef R V8_CDECL FType(P1, P2);
-    csig_->VerifyParams<P1, P2>();
+    CSignature::VerifyParams<P1, P2>(csig_);
     return DoCall(FUNCTION_CAST<FType*>(Generate()), p1, p2);
   }
 
   template <typename P1, typename P2, typename P3>
   R Call(P1 p1, P2 p2, P3 p3) {
     typedef R V8_CDECL FType(P1, P2, P3);
-    csig_->VerifyParams<P1, P2, P3>();
+    CSignature::VerifyParams<P1, P2, P3>(csig_);
     return DoCall(FUNCTION_CAST<FType*>(Generate()), p1, p2, p3);
   }
 
   template <typename P1, typename P2, typename P3, typename P4>
   R Call(P1 p1, P2 p2, P3 p3, P4 p4) {
     typedef R V8_CDECL FType(P1, P2, P3, P4);
-    csig_->VerifyParams<P1, P2, P3, P4>();
+    CSignature::VerifyParams<P1, P2, P3, P4>(csig_);
     return DoCall(FUNCTION_CAST<FType*>(Generate()), p1, p2, p3, p4);
   }
 
   template <typename P1, typename P2, typename P3, typename P4, typename P5>
   R Call(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {
     typedef R V8_CDECL FType(P1, P2, P3, P4, P5);
-    csig_->VerifyParams<P1, P2, P3, P4, P5>();
+    CSignature::VerifyParams<P1, P2, P3, P4, P5>(csig_);
     return DoCall(FUNCTION_CAST<FType*>(Generate()), p1, p2, p3, p4, p5);
   }
 
  protected:
-  CSignature* csig_;
+  MachineSignature* csig_;
 
   virtual byte* Generate() = 0;
 
@@ -342,7 +342,7 @@ class CallHelper {
 template <typename T>
 class CodeRunner : public CallHelper<T> {
  public:
-  CodeRunner(Isolate* isolate, Handle<Code> code, CSignature* csig)
+  CodeRunner(Isolate* isolate, Handle<Code> code, MachineSignature* csig)
       : CallHelper<T>(isolate, csig), code_(code) {}
   virtual ~CodeRunner() {}
 

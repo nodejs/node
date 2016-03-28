@@ -414,42 +414,6 @@ RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_DataViewInitialize) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(JSDataView, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_offset, 2);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_length, 3);
-
-  DCHECK_EQ(v8::ArrayBufferView::kInternalFieldCount,
-            holder->GetInternalFieldCount());
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    holder->SetInternalField(i, Smi::FromInt(0));
-  }
-  size_t buffer_length = 0;
-  size_t offset = 0;
-  size_t length = 0;
-  RUNTIME_ASSERT(
-      TryNumberToSize(isolate, buffer->byte_length(), &buffer_length));
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_offset, &offset));
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_length, &length));
-
-  // TODO(jkummerow): When we have a "safe numerics" helper class, use it here.
-  // Entire range [offset, offset + length] must be in bounds.
-  RUNTIME_ASSERT(offset <= buffer_length);
-  RUNTIME_ASSERT(offset + length <= buffer_length);
-  // No overflow.
-  RUNTIME_ASSERT(offset + length >= offset);
-
-  holder->set_buffer(*buffer);
-  holder->set_byte_offset(*byte_offset);
-  holder->set_byte_length(*byte_length);
-
-  return isolate->heap()->undefined_value();
-}
-
-
 inline static bool NeedToFlipBytes(bool is_little_endian) {
 #ifdef V8_TARGET_LITTLE_ENDIAN
   return !is_little_endian;

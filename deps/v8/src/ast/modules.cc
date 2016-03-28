@@ -13,7 +13,6 @@ namespace internal {
 void ModuleDescriptor::AddLocalExport(const AstRawString* export_name,
                                       const AstRawString* local_name,
                                       Zone* zone, bool* ok) {
-  DCHECK(!IsFrozen());
   void* key = const_cast<AstRawString*>(export_name);
 
   ZoneAllocationPolicy allocator(zone);

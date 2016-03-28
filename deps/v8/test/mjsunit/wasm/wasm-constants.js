@@ -22,6 +22,8 @@ var kDeclFunctions = 0x02;
 var kDeclGlobals = 0x03;
 var kDeclDataSegments = 0x04;
 var kDeclFunctionTable = 0x05;
+var kDeclStartFunction = 0x07;
+var kDeclImportTable = 0x08;
 var kDeclEnd = 0x06;
 
 // Function declaration flags
@@ -61,6 +63,7 @@ var kExprLoadGlobal = 0x10;
 var kExprStoreGlobal = 0x11;
 var kExprCallFunction = 0x12;
 var kExprCallIndirect = 0x13;
+var kExprCallImport = 0x1F;
 
 var kExprI32LoadMem8S = 0x20;
 var kExprI32LoadMem8U = 0x21;

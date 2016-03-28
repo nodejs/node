@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/move-optimizer.h"
+#include "src/compiler/pipeline.h"
 #include "test/unittests/compiler/instruction-sequence-unittest.h"
 
 namespace v8 {
@@ -227,8 +228,8 @@ TEST_F(MoveOptimizerTest, GapsCanMoveOverInstruction) {
       ctant_def->GetParallelMove(Instruction::GapPosition::END);
   ParallelMove* last_start =
       last->GetParallelMove(Instruction::GapPosition::START);
-  CHECK(inst1_start == nullptr || inst1_start->size() == 0);
-  CHECK(inst1_end == nullptr || inst1_end->size() == 0);
+  CHECK(inst1_start == nullptr || NonRedundantSize(inst1_start) == 0);
+  CHECK(inst1_end == nullptr || NonRedundantSize(inst1_end) == 0);
   CHECK(last_start->size() == 2);
   int redundants = 0;
   int assignment = 0;
@@ -245,6 +246,98 @@ TEST_F(MoveOptimizerTest, GapsCanMoveOverInstruction) {
   CHECK_EQ(1, assignment);
 }
 
+
+TEST_F(MoveOptimizerTest, SubsetMovesMerge) {
+  StartBlock();
+  EndBlock(Branch(Imm(), 1, 2));
+
+  StartBlock();
+  EndBlock(Jump(2));
+  Instruction* last_move_b1 = LastInstruction();
+  AddMove(last_move_b1, Reg(0), Reg(1));
+  AddMove(last_move_b1, Reg(2), Reg(3));
+
+  StartBlock();
+  EndBlock(Jump(1));
+  Instruction* last_move_b2 = LastInstruction();
+  AddMove(last_move_b2, Reg(0), Reg(1));
+  AddMove(last_move_b2, Reg(4), Reg(5));
+
+  StartBlock();
+  EndBlock(Last());
+
+  Instruction* last = LastInstruction();
+
+  Optimize();
+
+  ParallelMove* last_move = last->parallel_moves()[0];
+  CHECK_EQ(1, NonRedundantSize(last_move));
+  CHECK(Contains(last_move, Reg(0), Reg(1)));
+
+  ParallelMove* b1_move = last_move_b1->parallel_moves()[0];
+  CHECK_EQ(1, NonRedundantSize(b1_move));
+  CHECK(Contains(b1_move, Reg(2), Reg(3)));
+
+  ParallelMove* b2_move = last_move_b2->parallel_moves()[0];
+  CHECK_EQ(1, NonRedundantSize(b2_move));
+  CHECK(Contains(b2_move, Reg(4), Reg(5)));
+}
+
+
+TEST_F(MoveOptimizerTest, GapConflictSubsetMovesDoNotMerge) {
+  StartBlock();
+  EndBlock(Branch(Imm(), 1, 2));
+
+  StartBlock();
+  EndBlock(Jump(2));
+  Instruction* last_move_b1 = LastInstruction();
+  AddMove(last_move_b1, Reg(0), Reg(1));
+  AddMove(last_move_b1, Reg(2), Reg(0));
+  AddMove(last_move_b1, Reg(4), Reg(5));
+
+  StartBlock();
+  EndBlock(Jump(1));
+  Instruction* last_move_b2 = LastInstruction();
+  AddMove(last_move_b2, Reg(0), Reg(1));
+  AddMove(last_move_b2, Reg(4), Reg(5));
+
+  StartBlock();
+  EndBlock(Last());
+
+  Instruction* last = LastInstruction();
+
+  Optimize();
+
+  ParallelMove* last_move = last->parallel_moves()[0];
+  CHECK_EQ(1, NonRedundantSize(last_move));
+  CHECK(Contains(last_move, Reg(4), Reg(5)));
+
+  ParallelMove* b1_move = last_move_b1->parallel_moves()[0];
+  CHECK_EQ(2, NonRedundantSize(b1_move));
+  CHECK(Contains(b1_move, Reg(0), Reg(1)));
+  CHECK(Contains(b1_move, Reg(2), Reg(0)));
+
+  ParallelMove* b2_move = last_move_b2->parallel_moves()[0];
+  CHECK_EQ(1, NonRedundantSize(b2_move));
+  CHECK(Contains(b1_move, Reg(0), Reg(1)));
+}
+
+TEST_F(MoveOptimizerTest, ClobberedDestinationsAreEliminated) {
+  StartBlock();
+  EmitNop();
+  Instruction* first_instr = LastInstruction();
+  AddMove(first_instr, Reg(0), Reg(1));
+  EmitOI(Reg(1), 0, nullptr);
+  Instruction* last_instr = LastInstruction();
+  EndBlock();
+  Optimize();
+
+  ParallelMove* first_move = first_instr->parallel_moves()[0];
+  CHECK_EQ(0, NonRedundantSize(first_move));
+
+  ParallelMove* last_move = last_instr->parallel_moves()[0];
+  CHECK_EQ(0, NonRedundantSize(last_move));
+}
 
 }  // namespace compiler
 }  // namespace internal

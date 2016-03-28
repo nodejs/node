@@ -34,16 +34,16 @@ class Graph : public ZoneObject {
   explicit Graph(Zone* zone);
 
   // Base implementation used by all factory methods.
-  Node* NewNodeUnchecked(const Operator* op, int input_count, Node** inputs,
-                         bool incomplete = false);
+  Node* NewNodeUnchecked(const Operator* op, int input_count,
+                         Node* const* inputs, bool incomplete = false);
 
   // Factory that checks the input count.
-  Node* NewNode(const Operator* op, int input_count, Node** inputs,
+  Node* NewNode(const Operator* op, int input_count, Node* const* inputs,
                 bool incomplete = false);
 
   // Factories for nodes with static input counts.
   Node* NewNode(const Operator* op) {
-    return NewNode(op, 0, static_cast<Node**>(nullptr));
+    return NewNode(op, 0, static_cast<Node* const*>(nullptr));
   }
   Node* NewNode(const Operator* op, Node* n1) { return NewNode(op, 1, &n1); }
   Node* NewNode(const Operator* op, Node* n1, Node* n2) {

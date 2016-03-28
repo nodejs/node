@@ -43,9 +43,11 @@
       'filepath': 'src/debug/',
     },
     'interpreter': {
-      'filepath': 'src/interpreter/',
-      'filepath': 'test/cctest/interpreter/',
-      'filepath': 'test/unittests/interpreter/',
+      'filepath': 'src/interpreter/' \
+                  '|src/compiler/interpreter' \
+                  '|src/compiler/bytecode' \
+                  '|test/cctest/interpreter/' \
+                  '|test/unittests/interpreter/',
     },
     'feature_shipping_status': {
       'filepath': 'src/flag-definitions.h',
@@ -53,9 +55,12 @@
     'gc_changes': {
       'filepath': 'src/heap/',
     },
-    'merges': {
-      'filepath': '.',
+    'arm': {
+      'filepath': '/arm/',
     },
+    'ia32': {
+      'filepath': '/ia32/',
+    }
   },
 
   'WATCHLISTS': {
@@ -79,9 +84,12 @@
       'hpayer@chromium.org',
       'ulan@chromium.org',
     ],
-    'merges': [
-      # Only enabled on branches created with tools/release/create_release.py
-      'v8-merges@googlegroups.com',
+    'arm': [
+      'v8-mips-ports@googlegroups.com',
+      'v8-ppc-ports@googlegroups.com',
+    ],
+    'ia32': [
+      'v8-x87-ports@googlegroups.com',
     ],
   },
 }

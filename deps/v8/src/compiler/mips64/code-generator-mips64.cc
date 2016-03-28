@@ -227,19 +227,25 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
     }
-    if (mode_ > RecordWriteMode::kValueIsMap) {
-      __ CheckPageFlag(value_, scratch0_,
-                       MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                       exit());
-    }
+    __ CheckPageFlag(value_, scratch0_,
+                     MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                     exit());
+    RememberedSetAction const remembered_set_action =
+        mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
+                                             : OMIT_REMEMBERED_SET;
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-    // TODO(turbofan): Once we get frame elision working, we need to save
-    // and restore lr properly here if the frame was elided.
+    if (!frame()->needs_frame()) {
+      // We need to save and restore ra if the frame was elided.
+      __ Push(ra);
+    }
     RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
-                         EMIT_REMEMBERED_SET, save_fp_mode);
+                         remembered_set_action, save_fp_mode);
     __ Daddu(scratch1_, object_, index_);
     __ CallStub(&stub);
+    if (!frame()->needs_frame()) {
+      __ Pop(ra);
+    }
   }
 
  private:
@@ -556,11 +562,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchLazyBailout: {
-      EnsureSpaceForLazyDeopt();
-      RecordCallPosition(instr);
-      break;
-    }
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       __ PrepareCallCFunction(num_parameters, kScratchReg);
@@ -614,6 +615,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchFramePointer:
       __ mov(i.OutputRegister(), fp);
       break;
+    case kArchParentFramePointer:
+      if (frame_access_state()->frame()->needs_frame()) {
+        __ ld(i.OutputRegister(), MemOperand(fp, 0));
+      } else {
+        __ mov(i.OutputRegister(), fp);
+      }
+      break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
@@ -633,6 +641,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                        MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                        ool->entry());
       __ bind(ool->exit());
+      break;
+    }
+    case kArchStackSlot: {
+      FrameOffset offset =
+          frame_access_state()->GetFrameOffset(i.InputInt32(0));
+      __ Daddu(i.OutputRegister(), offset.from_stack_pointer() ? sp : fp,
+               Operand(offset.offset()));
       break;
     }
     case kMips64Add:
@@ -735,6 +750,142 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMips64Dclz:
       __ dclz(i.OutputRegister(), i.InputRegister(0));
       break;
+    case kMips64Ctz: {
+      Register reg1 = kScratchReg;
+      Register reg2 = kScratchReg2;
+      Label skip_for_zero;
+      Label end;
+      // Branch if the operand is zero
+      __ Branch(&skip_for_zero, eq, i.InputRegister(0), Operand(zero_reg));
+      // Find the number of bits before the last bit set to 1.
+      __ Subu(reg2, zero_reg, i.InputRegister(0));
+      __ And(reg2, reg2, i.InputRegister(0));
+      __ clz(reg2, reg2);
+      // Get the number of bits after the last bit set to 1.
+      __ li(reg1, 0x1F);
+      __ Subu(i.OutputRegister(), reg1, reg2);
+      __ Branch(&end);
+      __ bind(&skip_for_zero);
+      // If the operand is zero, return word length as the result.
+      __ li(i.OutputRegister(), 0x20);
+      __ bind(&end);
+    } break;
+    case kMips64Dctz: {
+      Register reg1 = kScratchReg;
+      Register reg2 = kScratchReg2;
+      Label skip_for_zero;
+      Label end;
+      // Branch if the operand is zero
+      __ Branch(&skip_for_zero, eq, i.InputRegister(0), Operand(zero_reg));
+      // Find the number of bits before the last bit set to 1.
+      __ Dsubu(reg2, zero_reg, i.InputRegister(0));
+      __ And(reg2, reg2, i.InputRegister(0));
+      __ dclz(reg2, reg2);
+      // Get the number of bits after the last bit set to 1.
+      __ li(reg1, 0x3F);
+      __ Subu(i.OutputRegister(), reg1, reg2);
+      __ Branch(&end);
+      __ bind(&skip_for_zero);
+      // If the operand is zero, return word length as the result.
+      __ li(i.OutputRegister(), 0x40);
+      __ bind(&end);
+    } break;
+    case kMips64Popcnt: {
+      Register reg1 = kScratchReg;
+      Register reg2 = kScratchReg2;
+      uint32_t m1 = 0x55555555;
+      uint32_t m2 = 0x33333333;
+      uint32_t m4 = 0x0f0f0f0f;
+      uint32_t m8 = 0x00ff00ff;
+      uint32_t m16 = 0x0000ffff;
+
+      // Put count of ones in every 2 bits into those 2 bits.
+      __ li(at, m1);
+      __ dsrl(reg1, i.InputRegister(0), 1);
+      __ And(reg2, i.InputRegister(0), at);
+      __ And(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 4 bits into those 4 bits.
+      __ li(at, m2);
+      __ dsrl(reg2, reg1, 2);
+      __ And(reg2, reg2, at);
+      __ And(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 8 bits into those 8 bits.
+      __ li(at, m4);
+      __ dsrl(reg2, reg1, 4);
+      __ And(reg2, reg2, at);
+      __ And(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 16 bits into those 16 bits.
+      __ li(at, m8);
+      __ dsrl(reg2, reg1, 8);
+      __ And(reg2, reg2, at);
+      __ And(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Calculate total number of ones.
+      __ li(at, m16);
+      __ dsrl(reg2, reg1, 16);
+      __ And(reg2, reg2, at);
+      __ And(reg1, reg1, at);
+      __ Daddu(i.OutputRegister(), reg1, reg2);
+    } break;
+    case kMips64Dpopcnt: {
+      Register reg1 = kScratchReg;
+      Register reg2 = kScratchReg2;
+      uint64_t m1 = 0x5555555555555555;
+      uint64_t m2 = 0x3333333333333333;
+      uint64_t m4 = 0x0f0f0f0f0f0f0f0f;
+      uint64_t m8 = 0x00ff00ff00ff00ff;
+      uint64_t m16 = 0x0000ffff0000ffff;
+      uint64_t m32 = 0x00000000ffffffff;
+
+      // Put count of ones in every 2 bits into those 2 bits.
+      __ li(at, m1);
+      __ dsrl(reg1, i.InputRegister(0), 1);
+      __ and_(reg2, i.InputRegister(0), at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 4 bits into those 4 bits.
+      __ li(at, m2);
+      __ dsrl(reg2, reg1, 2);
+      __ and_(reg2, reg2, at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 8 bits into those 8 bits.
+      __ li(at, m4);
+      __ dsrl(reg2, reg1, 4);
+      __ and_(reg2, reg2, at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 16 bits into those 16 bits.
+      __ li(at, m8);
+      __ dsrl(reg2, reg1, 8);
+      __ and_(reg2, reg2, at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 32 bits into those 32 bits.
+      __ li(at, m16);
+      __ dsrl(reg2, reg1, 16);
+      __ and_(reg2, reg2, at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Calculate total number of ones.
+      __ li(at, m32);
+      __ dsrl32(reg2, reg1, 0);
+      __ and_(reg2, reg2, at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(i.OutputRegister(), reg1, reg2);
+    } break;
     case kMips64Shl:
       if (instr->InputAt(1)->IsRegister()) {
         __ sllv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
@@ -1065,6 +1216,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cvt_s_w(i.OutputDoubleRegister(), scratch);
       break;
     }
+    case kMips64CvtSUw: {
+      __ Cvt_s_uw(i.OutputDoubleRegister(), i.InputRegister(0));
+      break;
+    }
     case kMips64CvtSL: {
       FPURegister scratch = kScratchDoubleReg;
       __ dmtc1(i.InputRegister(0), scratch);
@@ -1198,6 +1353,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       FPURegister scratch = kScratchDoubleReg;
       // TODO(plind): Fix wrong param order of Trunc_uw_d() macro-asm function.
       __ Trunc_uw_d(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
+      break;
+    }
+    case kMips64TruncUwS: {
+      FPURegister scratch = kScratchDoubleReg;
+      // TODO(plind): Fix wrong param order of Trunc_uw_d() macro-asm function.
+      __ Trunc_uw_s(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
       break;
     }
     case kMips64TruncUlS: {
@@ -1648,27 +1809,15 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   AssembleArchJump(i.InputRpo(1));
 }
 
-
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   MipsOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   size_t const case_count = instr->InputCount() - 2;
-  Label here;
 
   __ Branch(GetLabel(i.InputRpo(1)), hs, input, Operand(case_count));
-  __ BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 + 7);
-  // Ensure that dd-ed labels use 8 byte aligned addresses.
-  __ Align(8);
-  __ bal(&here);
-  __ dsll(at, input, 3);  // Branch delay slot.
-  __ bind(&here);
-  __ daddu(at, at, ra);
-  __ ld(at, MemOperand(at, 4 * v8::internal::Assembler::kInstrSize));
-  __ jr(at);
-  __ nop();  // Branch delay slot nop.
-  for (size_t index = 0; index < case_count; ++index) {
-    __ dd(GetLabel(i.InputRpo(index + 2)));
-  }
+  __ GenerateSwitchTable(input, case_count, [&i, this](size_t index) {
+    return GetLabel(i.InputRpo(index + 2));
+  });
 }
 
 
@@ -1705,8 +1854,6 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    // TODO(titzer): cannot address target function == local #-1
-    __ ld(a1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
   }
 

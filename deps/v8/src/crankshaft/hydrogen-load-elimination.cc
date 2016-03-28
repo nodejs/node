@@ -243,7 +243,6 @@ class HLoadEliminationTable : public ZoneObject {
     if (instr->has_transition()) {
       // A transition introduces a new field and alters the map of the object.
       // Since the field in the object is new, it cannot alias existing entries.
-      // TODO(titzer): introduce a constant for the new map and remember it.
       KillFieldInternal(object, FieldOf(JSObject::kMapOffset), NULL);
     } else {
       // Kill non-equivalent may-alias entries.
@@ -402,7 +401,6 @@ class HLoadEliminationTable : public ZoneObject {
   // Compute the field index for the given in-object offset; -1 if not tracked.
   int FieldOf(int offset) {
     if (offset >= kMaxTrackedFields * kPointerSize) return -1;
-    // TODO(titzer): track misaligned loads in a separate list?
     if ((offset % kPointerSize) != 0) return -1;  // Ignore misaligned accesses.
     return offset / kPointerSize;
   }

@@ -62,16 +62,11 @@ Reduction JSGenericLowering::Reduce(Node* node) {
   return Changed(node);
 }
 
-
-#define REPLACE_BINARY_OP_IC_CALL(Op, token)                                  \
-  void JSGenericLowering::Lower##Op(Node* node) {                             \
-    BinaryOperationParameters const& p =                                      \
-        BinaryOperationParametersOf(node->op());                              \
-    CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);             \
-    ReplaceWithStubCall(node,                                                 \
-                        CodeFactory::BinaryOpIC(isolate(), token,             \
-                                                strength(p.language_mode())), \
-                        CallDescriptor::kPatchableCallSiteWithNop | flags);   \
+#define REPLACE_BINARY_OP_IC_CALL(Op, token)                                \
+  void JSGenericLowering::Lower##Op(Node* node) {                           \
+    CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);           \
+    ReplaceWithStubCall(node, CodeFactory::BinaryOpIC(isolate(), token),    \
+                        CallDescriptor::kPatchableCallSiteWithNop | flags); \
   }
 REPLACE_BINARY_OP_IC_CALL(JSBitwiseOr, Token::BIT_OR)
 REPLACE_BINARY_OP_IC_CALL(JSBitwiseXor, Token::BIT_XOR)
@@ -89,34 +84,25 @@ REPLACE_BINARY_OP_IC_CALL(JSModulus, Token::MOD)
 
 // These ops are not language mode dependent; we arbitrarily pass Strength::WEAK
 // here.
-#define REPLACE_COMPARE_IC_CALL(op, token)             \
-  void JSGenericLowering::Lower##op(Node* node) {      \
-    ReplaceWithCompareIC(node, token, Strength::WEAK); \
+#define REPLACE_COMPARE_IC_CALL(op, token)        \
+  void JSGenericLowering::Lower##op(Node* node) { \
+    ReplaceWithCompareIC(node, token);            \
   }
 REPLACE_COMPARE_IC_CALL(JSEqual, Token::EQ)
 REPLACE_COMPARE_IC_CALL(JSNotEqual, Token::NE)
 REPLACE_COMPARE_IC_CALL(JSStrictEqual, Token::EQ_STRICT)
 REPLACE_COMPARE_IC_CALL(JSStrictNotEqual, Token::NE_STRICT)
+REPLACE_COMPARE_IC_CALL(JSLessThan, Token::LT)
+REPLACE_COMPARE_IC_CALL(JSGreaterThan, Token::GT)
+REPLACE_COMPARE_IC_CALL(JSLessThanOrEqual, Token::LTE)
+REPLACE_COMPARE_IC_CALL(JSGreaterThanOrEqual, Token::GTE)
 #undef REPLACE_COMPARE_IC_CALL
-
-
-#define REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(op, token)        \
-  void JSGenericLowering::Lower##op(Node* node) {                    \
-    ReplaceWithCompareIC(node, token,                                \
-                         strength(OpParameter<LanguageMode>(node))); \
-  }
-REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSLessThan, Token::LT)
-REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSGreaterThan, Token::GT)
-REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSLessThanOrEqual, Token::LTE)
-REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSGreaterThanOrEqual, Token::GTE)
-#undef REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE
 
 
 #define REPLACE_RUNTIME_CALL(op, fun)             \
   void JSGenericLowering::Lower##op(Node* node) { \
     ReplaceWithRuntimeCall(node, fun);            \
   }
-REPLACE_RUNTIME_CALL(JSCreateFunctionContext, Runtime::kNewFunctionContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
 REPLACE_RUNTIME_CALL(JSCreateModuleContext, Runtime::kPushModuleContext)
 REPLACE_RUNTIME_CALL(JSConvertReceiver, Runtime::kConvertReceiver)
@@ -131,10 +117,8 @@ static CallDescriptor::Flags FlagsForNode(Node* node) {
   return result;
 }
 
-
-void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
-                                             Strength str) {
-  Callable callable = CodeFactory::CompareIC(isolate(), token, str);
+void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token) {
+  Callable callable = CodeFactory::CompareIC(isolate(), token);
 
   // Create a new call node asking a CompareIC for help.
   NodeVector inputs(zone());
@@ -267,7 +251,9 @@ void JSGenericLowering::LowerJSToString(Node* node) {
 
 
 void JSGenericLowering::LowerJSToName(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kToName);
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Callable callable = CodeFactory::ToName(isolate());
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
@@ -279,99 +265,187 @@ void JSGenericLowering::LowerJSToObject(Node* node) {
 
 
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
+  Node* closure = NodeProperties::GetValueInput(node, 2);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const PropertyAccess& p = PropertyAccessOf(node->op());
-  Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(
-      isolate(), p.language_mode(), UNINITIALIZED);
+  Callable callable =
+      CodeFactory::KeyedLoadICInOptimizedCode(isolate(), UNINITIALIZED);
+  // Load the type feedback vector from the closure.
+  Node* shared_info = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), closure,
+      jsgraph()->IntPtrConstant(JSFunction::kSharedFunctionInfoOffset -
+                                kHeapObjectTag),
+      effect, control);
+  Node* vector = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), shared_info,
+      jsgraph()->IntPtrConstant(SharedFunctionInfo::kFeedbackVectorOffset -
+                                kHeapObjectTag),
+      effect, control);
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  node->ReplaceInput(3, vector);
+  node->ReplaceInput(6, effect);
   ReplaceWithStubCall(node, callable, flags);
 }
 
 
 void JSGenericLowering::LowerJSLoadNamed(Node* node) {
+  Node* closure = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   NamedAccess const& p = NamedAccessOf(node->op());
   Callable callable = CodeFactory::LoadICInOptimizedCode(
-      isolate(), NOT_INSIDE_TYPEOF, p.language_mode(), UNINITIALIZED);
+      isolate(), NOT_INSIDE_TYPEOF, UNINITIALIZED);
+  // Load the type feedback vector from the closure.
+  Node* shared_info = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), closure,
+      jsgraph()->IntPtrConstant(JSFunction::kSharedFunctionInfoOffset -
+                                kHeapObjectTag),
+      effect, control);
+  Node* vector = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), shared_info,
+      jsgraph()->IntPtrConstant(SharedFunctionInfo::kFeedbackVectorOffset -
+                                kHeapObjectTag),
+      effect, control);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  node->ReplaceInput(3, vector);
+  node->ReplaceInput(6, effect);
   ReplaceWithStubCall(node, callable, flags);
 }
 
 
 void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
+  Node* closure = NodeProperties::GetValueInput(node, 0);
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const LoadGlobalParameters& p = LoadGlobalParametersOf(node->op());
   Callable callable = CodeFactory::LoadICInOptimizedCode(
-      isolate(), p.typeof_mode(), SLOPPY, UNINITIALIZED);
+      isolate(), p.typeof_mode(), UNINITIALIZED);
+  // Load the type feedback vector from the closure.
+  Node* shared_info = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), closure,
+      jsgraph()->IntPtrConstant(JSFunction::kSharedFunctionInfoOffset -
+                                kHeapObjectTag),
+      effect, control);
+  Node* vector = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), shared_info,
+      jsgraph()->IntPtrConstant(SharedFunctionInfo::kFeedbackVectorOffset -
+                                kHeapObjectTag),
+      effect, control);
   // Load global object from the context.
-  Node* native_context =
+  Node* native_context = effect =
       graph()->NewNode(machine()->Load(MachineType::AnyTagged()), context,
                        jsgraph()->IntPtrConstant(
                            Context::SlotOffset(Context::NATIVE_CONTEXT_INDEX)),
-                       effect, graph()->start());
-  Node* global = graph()->NewNode(
+                       effect, control);
+  Node* global = effect = graph()->NewNode(
       machine()->Load(MachineType::AnyTagged()), native_context,
       jsgraph()->IntPtrConstant(Context::SlotOffset(Context::EXTENSION_INDEX)),
-      effect, graph()->start());
+      effect, control);
   node->InsertInput(zone(), 0, global);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  node->ReplaceInput(3, vector);
+  node->ReplaceInput(6, effect);
   ReplaceWithStubCall(node, callable, flags);
 }
 
 
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
+  Node* closure = NodeProperties::GetValueInput(node, 3);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   PropertyAccess const& p = PropertyAccessOf(node->op());
   LanguageMode language_mode = p.language_mode();
   Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
       isolate(), language_mode, UNINITIALIZED);
-  DCHECK(p.feedback().index() != -1);
+  // Load the type feedback vector from the closure.
+  Node* shared_info = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), closure,
+      jsgraph()->IntPtrConstant(JSFunction::kSharedFunctionInfoOffset -
+                                kHeapObjectTag),
+      effect, control);
+  Node* vector = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), shared_info,
+      jsgraph()->IntPtrConstant(SharedFunctionInfo::kFeedbackVectorOffset -
+                                kHeapObjectTag),
+      effect, control);
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
-  ReplaceWithStubCall(node, callable,
-                      CallDescriptor::kPatchableCallSite | flags);
+  node->ReplaceInput(4, vector);
+  node->ReplaceInput(7, effect);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
+  Node* closure = NodeProperties::GetValueInput(node, 2);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   NamedAccess const& p = NamedAccessOf(node->op());
   Callable callable = CodeFactory::StoreICInOptimizedCode(
       isolate(), p.language_mode(), UNINITIALIZED);
+  // Load the type feedback vector from the closure.
+  Node* shared_info = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), closure,
+      jsgraph()->IntPtrConstant(JSFunction::kSharedFunctionInfoOffset -
+                                kHeapObjectTag),
+      effect, control);
+  Node* vector = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), shared_info,
+      jsgraph()->IntPtrConstant(SharedFunctionInfo::kFeedbackVectorOffset -
+                                kHeapObjectTag),
+      effect, control);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-  DCHECK(p.feedback().index() != -1);
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
-  ReplaceWithStubCall(node, callable,
-                      CallDescriptor::kPatchableCallSite | flags);
+  node->ReplaceInput(4, vector);
+  node->ReplaceInput(7, effect);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
 void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
+  Node* closure = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const StoreGlobalParameters& p = StoreGlobalParametersOf(node->op());
   Callable callable = CodeFactory::StoreICInOptimizedCode(
       isolate(), p.language_mode(), UNINITIALIZED);
+  // Load the type feedback vector from the closure.
+  Node* shared_info = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), closure,
+      jsgraph()->IntPtrConstant(JSFunction::kSharedFunctionInfoOffset -
+                                kHeapObjectTag),
+      effect, control);
+  Node* vector = effect = graph()->NewNode(
+      machine()->Load(MachineType::AnyTagged()), shared_info,
+      jsgraph()->IntPtrConstant(SharedFunctionInfo::kFeedbackVectorOffset -
+                                kHeapObjectTag),
+      effect, control);
   // Load global object from the context.
-  Node* native_context =
+  Node* native_context = effect =
       graph()->NewNode(machine()->Load(MachineType::AnyTagged()), context,
                        jsgraph()->IntPtrConstant(
                            Context::SlotOffset(Context::NATIVE_CONTEXT_INDEX)),
-                       effect, graph()->start());
-  Node* global = graph()->NewNode(
+                       effect, control);
+  Node* global = effect = graph()->NewNode(
       machine()->Load(MachineType::AnyTagged()), native_context,
       jsgraph()->IntPtrConstant(Context::SlotOffset(Context::EXTENSION_INDEX)),
-      effect, graph()->start());
+      effect, control);
   node->InsertInput(zone(), 0, global);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-  DCHECK(p.feedback().index() != -1);
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
-  ReplaceWithStubCall(node, callable,
-                      CallDescriptor::kPatchableCallSite | flags);
+  node->ReplaceInput(4, vector);
+  node->ReplaceInput(7, effect);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
@@ -433,38 +507,24 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
 }
 
 
-void JSGenericLowering::LowerJSLoadDynamic(Node* node) {
-  const DynamicAccess& access = DynamicAccessOf(node->op());
-  Runtime::FunctionId function_id =
-      (access.typeof_mode() == NOT_INSIDE_TYPEOF)
-          ? Runtime::kLoadLookupSlot
-          : Runtime::kLoadLookupSlotNoReferenceError;
-  Node* projection = graph()->NewNode(common()->Projection(0), node);
-  NodeProperties::ReplaceUses(node, projection, node, node, node);
-  node->RemoveInput(NodeProperties::FirstValueIndex(node));
-  node->InsertInput(zone(), 1, jsgraph()->Constant(access.name()));
-  ReplaceWithRuntimeCall(node, function_id);
-  projection->ReplaceInput(0, node);
-}
-
-
 void JSGenericLowering::LowerJSCreate(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kNewObject);
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Callable callable = CodeFactory::FastNewObject(isolate());
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
 void JSGenericLowering::LowerJSCreateArguments(Node* node) {
-  const CreateArgumentsParameters& p = CreateArgumentsParametersOf(node->op());
-  switch (p.type()) {
-    case CreateArgumentsParameters::kMappedArguments:
+  CreateArgumentsType const type = CreateArgumentsTypeOf(node->op());
+  switch (type) {
+    case CreateArgumentsType::kMappedArguments:
       ReplaceWithRuntimeCall(node, Runtime::kNewSloppyArguments_Generic);
       break;
-    case CreateArgumentsParameters::kUnmappedArguments:
-      ReplaceWithRuntimeCall(node, Runtime::kNewStrictArguments_Generic);
+    case CreateArgumentsType::kUnmappedArguments:
+      ReplaceWithRuntimeCall(node, Runtime::kNewStrictArguments);
       break;
-    case CreateArgumentsParameters::kRestArray:
-      node->InsertInput(zone(), 1, jsgraph()->Constant(p.start_index()));
-      ReplaceWithRuntimeCall(node, Runtime::kNewRestArguments_Generic);
+    case CreateArgumentsType::kRestParameter:
+      ReplaceWithRuntimeCall(node, Runtime::kNewRestParameter);
       break;
   }
 }
@@ -473,7 +533,8 @@ void JSGenericLowering::LowerJSCreateArguments(Node* node) {
 void JSGenericLowering::LowerJSCreateArray(Node* node) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  Node* new_target = node->InputAt(1);
+  Handle<AllocationSite> const site = p.site();
+
   // TODO(turbofan): We embed the AllocationSite from the Operator at this
   // point, which we should not do once we want to both consume the feedback
   // but at the same time shared the optimized code across native contexts,
@@ -481,21 +542,93 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   // stored in the type feedback vector after all). Once we go for cross
   // context code generation, we should somehow find a way to get to the
   // allocation site for the actual native context at runtime.
-  Node* type_info = p.site().is_null() ? jsgraph()->UndefinedConstant()
-                                       : jsgraph()->HeapConstant(p.site());
-  node->RemoveInput(1);
-  node->InsertInput(zone(), 1 + arity, new_target);
-  node->InsertInput(zone(), 2 + arity, type_info);
-  ReplaceWithRuntimeCall(node, Runtime::kNewArray, arity + 3);
+  if (!site.is_null()) {
+    // Reduce {node} to the appropriate ArrayConstructorStub backend.
+    // Note that these stubs "behave" like JSFunctions, which means they
+    // expect a receiver on the stack, which they remove. We just push
+    // undefined for the receiver.
+    ElementsKind elements_kind = site->GetElementsKind();
+    AllocationSiteOverrideMode override_mode =
+        (AllocationSite::GetMode(elements_kind) == TRACK_ALLOCATION_SITE)
+            ? DISABLE_ALLOCATION_SITES
+            : DONT_OVERRIDE;
+    if (arity == 0) {
+      ArrayNoArgumentConstructorStub stub(isolate(), elements_kind,
+                                          override_mode);
+      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 1,
+          CallDescriptor::kNeedsFrameState);
+      node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+      node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
+      node->InsertInput(graph()->zone(), 3, jsgraph()->UndefinedConstant());
+      NodeProperties::ChangeOp(node, common()->Call(desc));
+    } else if (arity == 1) {
+      // TODO(bmeurer): Optimize for the 0 length non-holey case?
+      ArraySingleArgumentConstructorStub stub(
+          isolate(), GetHoleyElementsKind(elements_kind), override_mode);
+      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
+          CallDescriptor::kNeedsFrameState);
+      node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+      node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(1));
+      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
+      NodeProperties::ChangeOp(node, common()->Call(desc));
+    } else {
+      ArrayNArgumentsConstructorStub stub(isolate(), elements_kind,
+                                          override_mode);
+      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
+          arity + 1, CallDescriptor::kNeedsFrameState);
+      node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+      node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
+      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
+      NodeProperties::ChangeOp(node, common()->Call(desc));
+    }
+  } else {
+    Node* new_target = node->InputAt(1);
+    Node* type_info = site.is_null() ? jsgraph()->UndefinedConstant()
+                                     : jsgraph()->HeapConstant(site);
+    node->RemoveInput(1);
+    node->InsertInput(zone(), 1 + arity, new_target);
+    node->InsertInput(zone(), 2 + arity, type_info);
+    ReplaceWithRuntimeCall(node, Runtime::kNewArray, arity + 3);
+  }
 }
 
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
-  CreateClosureParameters p = CreateClosureParametersOf(node->op());
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.shared_info()));
-  ReplaceWithRuntimeCall(node, (p.pretenure() == TENURED)
-                                   ? Runtime::kNewClosure_Tenured
-                                   : Runtime::kNewClosure);
+  CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Handle<SharedFunctionInfo> const shared_info = p.shared_info();
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(shared_info));
+
+  // Use the FastNewClosureStub that allocates in new space only for nested
+  // functions that don't need literals cloning.
+  if (p.pretenure() == NOT_TENURED && shared_info->num_literals() == 0) {
+    Callable callable = CodeFactory::FastNewClosure(
+        isolate(), shared_info->language_mode(), shared_info->kind());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    ReplaceWithRuntimeCall(node, (p.pretenure() == TENURED)
+                                     ? Runtime::kNewClosure_Tenured
+                                     : Runtime::kNewClosure);
+  }
+}
+
+
+void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
+  int const slot_count = OpParameter<int>(node->op());
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+
+  // Use the FastNewContextStub only for function contexts up maximum size.
+  if (slot_count <= FastNewContextStub::kMaximumSlots) {
+    Callable callable = CodeFactory::FastNewContext(isolate(), slot_count);
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    ReplaceWithRuntimeCall(node, Runtime::kNewFunctionContext);
+  }
 }
 
 
@@ -506,19 +639,42 @@ void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
 
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  int const length = Handle<FixedArray>::cast(p.constant())->length();
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
-  ReplaceWithRuntimeCall(node, Runtime::kCreateArrayLiteral);
+
+  // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
+  // initial length limit for arrays with "fast" elements kind.
+  if ((p.flags() & ArrayLiteral::kShallowElements) != 0 &&
+      (p.flags() & ArrayLiteral::kIsStrong) == 0 &&
+      length < JSArray::kInitialMaxFastElementArray) {
+    Callable callable = CodeFactory::FastCloneShallowArray(isolate());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
+    ReplaceWithRuntimeCall(node, Runtime::kCreateArrayLiteral);
+  }
 }
 
 
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  int const length = Handle<FixedArray>::cast(p.constant())->length();
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
-  ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
+
+  // Use the FastCloneShallowObjectStub only for shallow boilerplates without
+  // elements up to the number of properties that the stubs can handle.
+  if ((p.flags() & ObjectLiteral::kShallowProperties) != 0 &&
+      length <= FastCloneShallowObjectStub::kMaximumClonedProperties) {
+    Callable callable = CodeFactory::FastCloneShallowObject(isolate(), length);
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
+  }
 }
 
 
@@ -614,173 +770,7 @@ void JSGenericLowering::LowerJSForInNext(Node* node) {
 
 
 void JSGenericLowering::LowerJSForInPrepare(Node* node) {
-  Node* object = NodeProperties::GetValueInput(node, 0);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
-
-  // Get the set of properties to enumerate.
-  Runtime::Function const* function =
-      Runtime::FunctionForId(Runtime::kGetPropertyNamesFast);
-  CallDescriptor const* descriptor = Linkage::GetRuntimeCallDescriptor(
-      zone(), function->function_id, 1, Operator::kNoProperties,
-      CallDescriptor::kNeedsFrameState);
-  Node* cache_type = effect = graph()->NewNode(
-      common()->Call(descriptor),
-      jsgraph()->CEntryStubConstant(function->result_size), object,
-      jsgraph()->ExternalConstant(function->function_id),
-      jsgraph()->Int32Constant(1), context, frame_state, effect, control);
-  control = graph()->NewNode(common()->IfSuccess(), cache_type);
-
-  Node* object_map = effect = graph()->NewNode(
-      machine()->Load(MachineType::AnyTagged()), object,
-      jsgraph()->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag),
-      effect, control);
-  Node* cache_type_map = effect = graph()->NewNode(
-      machine()->Load(MachineType::AnyTagged()), cache_type,
-      jsgraph()->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag),
-      effect, control);
-  Node* meta_map = jsgraph()->HeapConstant(isolate()->factory()->meta_map());
-
-  // If we got a map from the GetPropertyNamesFast runtime call, we can do a
-  // fast modification check. Otherwise, we got a fixed array, and we have to
-  // perform a slow check on every iteration.
-  Node* check0 =
-      graph()->NewNode(machine()->WordEqual(), cache_type_map, meta_map);
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
-
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* cache_array_true0;
-  Node* cache_length_true0;
-  Node* cache_type_true0;
-  Node* etrue0;
-  {
-    // Enum cache case.
-    Node* cache_type_enum_length = etrue0 = graph()->NewNode(
-        machine()->Load(MachineType::Uint32()), cache_type,
-        jsgraph()->IntPtrConstant(Map::kBitField3Offset - kHeapObjectTag),
-        effect, if_true0);
-    cache_type_enum_length =
-        graph()->NewNode(machine()->Word32And(), cache_type_enum_length,
-                         jsgraph()->Uint32Constant(Map::EnumLengthBits::kMask));
-
-    Node* check1 =
-        graph()->NewNode(machine()->Word32Equal(), cache_type_enum_length,
-                         jsgraph()->Int32Constant(0));
-    Node* branch1 =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check1, if_true0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* cache_array_true1;
-    Node* etrue1;
-    {
-      // No properties to enumerate.
-      cache_array_true1 =
-          jsgraph()->HeapConstant(isolate()->factory()->empty_fixed_array());
-      etrue1 = etrue0;
-    }
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* cache_array_false1;
-    Node* efalse1;
-    {
-      // Load the enumeration cache from the instance descriptors of {object}.
-      Node* object_map_descriptors = efalse1 = graph()->NewNode(
-          machine()->Load(MachineType::AnyTagged()), object_map,
-          jsgraph()->IntPtrConstant(Map::kDescriptorsOffset - kHeapObjectTag),
-          etrue0, if_false1);
-      Node* object_map_enum_cache = efalse1 = graph()->NewNode(
-          machine()->Load(MachineType::AnyTagged()), object_map_descriptors,
-          jsgraph()->IntPtrConstant(DescriptorArray::kEnumCacheOffset -
-                                    kHeapObjectTag),
-          efalse1, if_false1);
-      cache_array_false1 = efalse1 = graph()->NewNode(
-          machine()->Load(MachineType::AnyTagged()), object_map_enum_cache,
-          jsgraph()->IntPtrConstant(
-              DescriptorArray::kEnumCacheBridgeCacheOffset - kHeapObjectTag),
-          efalse1, if_false1);
-    }
-
-    if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    etrue0 =
-        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_true0);
-    cache_array_true0 =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         cache_array_true1, cache_array_false1, if_true0);
-
-    cache_length_true0 = graph()->NewNode(
-        machine()->WordShl(),
-        machine()->Is64()
-            ? graph()->NewNode(machine()->ChangeUint32ToUint64(),
-                               cache_type_enum_length)
-            : cache_type_enum_length,
-        jsgraph()->Int32Constant(kSmiShiftSize + kSmiTagSize));
-    cache_type_true0 = cache_type;
-  }
-
-  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-  Node* cache_array_false0;
-  Node* cache_length_false0;
-  Node* cache_type_false0;
-  Node* efalse0;
-  {
-    // FixedArray case.
-    cache_type_false0 = jsgraph()->OneConstant();  // Smi means slow check
-    cache_array_false0 = cache_type;
-    cache_length_false0 = efalse0 = graph()->NewNode(
-        machine()->Load(MachineType::AnyTagged()), cache_array_false0,
-        jsgraph()->IntPtrConstant(FixedArray::kLengthOffset - kHeapObjectTag),
-        effect, if_false0);
-  }
-
-  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
-  Node* cache_array =
-      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                       cache_array_true0, cache_array_false0, control);
-  Node* cache_length =
-      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                       cache_length_true0, cache_length_false0, control);
-  cache_type =
-      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                       cache_type_true0, cache_type_false0, control);
-
-  for (auto edge : node->use_edges()) {
-    if (NodeProperties::IsEffectEdge(edge)) {
-      edge.UpdateTo(effect);
-    } else if (NodeProperties::IsControlEdge(edge)) {
-      Node* const use = edge.from();
-      if (use->opcode() == IrOpcode::kIfSuccess) {
-        use->ReplaceUses(control);
-        use->Kill();
-      } else if (use->opcode() == IrOpcode::kIfException) {
-        edge.UpdateTo(cache_type_true0);
-      } else {
-        UNREACHABLE();
-      }
-    } else {
-      Node* const use = edge.from();
-      DCHECK(NodeProperties::IsValueEdge(edge));
-      DCHECK_EQ(IrOpcode::kProjection, use->opcode());
-      switch (ProjectionIndexOf(use->op())) {
-        case 0:
-          use->ReplaceUses(cache_type);
-          break;
-        case 1:
-          use->ReplaceUses(cache_array);
-          break;
-        case 2:
-          use->ReplaceUses(cache_length);
-          break;
-        default:
-          UNREACHABLE();
-          break;
-      }
-      use->Kill();
-    }
-  }
+  ReplaceWithRuntimeCall(node, Runtime::kForInPrepare);
 }
 
 

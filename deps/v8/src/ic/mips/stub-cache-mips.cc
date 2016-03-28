@@ -42,13 +42,11 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   scratch = no_reg;
 
   // Multiply by 3 because there are 3 fields per entry (name, code, map).
-  __ sll(offset_scratch, offset, 1);
-  __ Addu(offset_scratch, offset_scratch, offset);
+  __ Lsa(offset_scratch, offset, offset, 1);
 
   // Calculate the base address of the entry.
   __ li(base_addr, Operand(key_offset));
-  __ sll(at, offset_scratch, kPointerSizeLog2);
-  __ Addu(base_addr, base_addr, at);
+  __ Lsa(base_addr, base_addr, offset_scratch, kPointerSizeLog2);
 
   // Check that the key in the entry matches the name.
   __ lw(at, MemOperand(base_addr, 0));

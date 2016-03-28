@@ -341,7 +341,7 @@ RUNTIME_FUNCTION(Runtime_StringMatch) {
 
   RUNTIME_ASSERT(regexp_info->HasFastObjectElements());
 
-  RegExpImpl::GlobalCache global_cache(regexp, subject, true, isolate);
+  RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
   if (global_cache.HasException()) return isolate->heap()->exception();
 
   int capture_count = regexp->CaptureCount();
