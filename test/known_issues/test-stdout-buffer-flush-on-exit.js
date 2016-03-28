@@ -14,8 +14,7 @@ if (process.argv[2] === 'child') {
   process.exit();
 }
 
-const stdout = execSync(`${process.execPath} ${__filename} child`)
-  .toString()
-  .trim();
+const cmd = `${process.execPath} ${__filename} child`;
+const stdout = execSync(cmd).toString().trim();
 
 assert.strictEqual(stdout, longLine);
