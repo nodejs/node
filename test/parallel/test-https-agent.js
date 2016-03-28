@@ -23,8 +23,8 @@ var server = https.Server(options, function(req, res) {
 
 
 var responses = 0;
-var N = 10;
-var M = 10;
+var N = 4;
+var M = 4;
 
 server.listen(common.PORT, function() {
   for (var i = 0; i < N; i++) {
