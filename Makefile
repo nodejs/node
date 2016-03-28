@@ -332,7 +332,15 @@ else
 ifeq ($(DESTCPU),ppc)
 ARCH=ppc
 else
+ifeq ($(DESTCPU),s390)
+ARCH=s390
+else
+ifeq ($(DESTCPU),s390x)
+ARCH=s390x
+else
 ARCH=x86
+endif
+endif
 endif
 endif
 endif
