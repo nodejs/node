@@ -38,9 +38,6 @@ set enable_vtune_arg=
 set configure_flags=
 set build_addons=
 
-:: assign path to node_exe
-set node_exe="%config%\node.exe"
-
 :next-arg
 if "%1"=="" goto args-done
 if /i "%1"=="debug"         set config=Debug&goto arg-ok
@@ -95,6 +92,9 @@ if defined build_release (
   set download_arg="--download=all"
   set i18n_arg=small-icu
 )
+
+:: assign path to node_exe
+set node_exe=%config%\node.exe
 
 if "%config%"=="Debug" set configure_flags=%configure_flags% --debug
 if defined nosnapshot set configure_flags=%configure_flags% --without-snapshot
@@ -266,12 +266,12 @@ for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
 )
 :: generate
-%node_exe% tools/doc/addon-verify.js
+"%node_exe%" "tools\doc\addon-verify.js"
 :: building addons
-for /d %%F in (test/addons/*) do (
-  %node_exe% deps/npm/node_modules/node-gyp/bin/node-gyp rebuild ^
-    --directory=test/addons/%%F ^
-    --nodedir=%cd%
+for /d %%F in (test\addons\*) do (
+  "%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild ^
+    --directory="%%F" ^
+    --nodedir="%cd%"
 )
 goto run-tests
 
