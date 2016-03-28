@@ -777,7 +777,8 @@ TIMEOUT_SCALEFACTOR = {
     'armv6' : { 'debug' : 12, 'release' : 3 },  # The ARM buildbots are slow.
     'arm'   : { 'debug' :  8, 'release' : 2 },
     'ia32'  : { 'debug' :  4, 'release' : 1 },
-    'ppc'   : { 'debug' :  4, 'release' : 1 } }
+    'ppc'   : { 'debug' :  4, 'release' : 1 },
+    's390'  : { 'debug' :  4, 'release' : 1 } }
 
 
 class Context(object):
