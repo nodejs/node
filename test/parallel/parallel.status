@@ -24,3 +24,4 @@ test-tick-processor           : PASS,FLAKY
 # regressions until this work is complete
 [$system==aix]
 test-fs-watch-enoent                 : FAIL, PASS
+test-fs-watch-encoding               : FAIL, PASS
