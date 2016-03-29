@@ -346,7 +346,7 @@ else
 ifeq ($(DESTCPU),s390x)
 ARCH=s390x
 else
-RCH=x86
+ARCH=x86
 endif
 endif
 endif
