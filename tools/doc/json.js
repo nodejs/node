@@ -183,7 +183,7 @@ function processList(section) {
   list.forEach(function(tok) {
     var type = tok.type;
     if (type === 'space') return;
-    if (type === 'list_item_start') {
+    if (type === 'list_item_start' || type === 'loose_item_start') {
       var n = {};
       if (!current) {
         values.push(n);
