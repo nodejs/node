@@ -54,6 +54,7 @@ class ModuleDecoder : public Decoder {
     module->functions = new std::vector<WasmFunction>();
     module->data_segments = new std::vector<WasmDataSegment>();
     module->function_table = new std::vector<uint16_t>();
+    module->import_table = new std::vector<WasmImport>();
 
     bool sections[kMaxModuleSectionCode];
     memset(sections, 0, sizeof(sections));
@@ -62,7 +63,7 @@ class ModuleDecoder : public Decoder {
     while (pc_ < limit_) {
       TRACE("DecodeSection\n");
       WasmSectionDeclCode section =
-          static_cast<WasmSectionDeclCode>(u8("section"));
+          static_cast<WasmSectionDeclCode>(consume_u8("section"));
       // Each section should appear at most once.
       if (section < kMaxModuleSectionCode) {
         CheckForPreviousSection(sections, section, false);
@@ -75,20 +76,20 @@ class ModuleDecoder : public Decoder {
           limit_ = pc_;
           break;
         case kDeclMemory:
-          module->min_mem_size_log2 = u8("min memory");
-          module->max_mem_size_log2 = u8("max memory");
-          module->mem_export = u8("export memory") != 0;
+          module->min_mem_size_log2 = consume_u8("min memory");
+          module->max_mem_size_log2 = consume_u8("max memory");
+          module->mem_export = consume_u8("export memory") != 0;
           break;
         case kDeclSignatures: {
           int length;
-          uint32_t signatures_count = u32v(&length, "signatures count");
+          uint32_t signatures_count = consume_u32v(&length, "signatures count");
           module->signatures->reserve(SafeReserve(signatures_count));
           // Decode signatures.
           for (uint32_t i = 0; i < signatures_count; i++) {
             if (failed()) break;
             TRACE("DecodeSignature[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            FunctionSig* s = sig();  // read function sig.
+            FunctionSig* s = consume_sig();  // read function sig.
             module->signatures->push_back(s);
           }
           break;
@@ -97,15 +98,12 @@ class ModuleDecoder : public Decoder {
           // Functions require a signature table first.
           CheckForPreviousSection(sections, kDeclSignatures, true);
           int length;
-          uint32_t functions_count = u32v(&length, "functions count");
+          uint32_t functions_count = consume_u32v(&length, "functions count");
           module->functions->reserve(SafeReserve(functions_count));
           // Set up module environment for verification.
           ModuleEnv menv;
           menv.module = module;
-          menv.globals_area = 0;
-          menv.mem_start = 0;
-          menv.mem_end = 0;
-          menv.function_code = nullptr;
+          menv.instance = nullptr;
           menv.asm_js = asm_js_;
           // Decode functions.
           for (uint32_t i = 0; i < functions_count; i++) {
@@ -114,7 +112,7 @@ class ModuleDecoder : public Decoder {
                   static_cast<int>(pc_ - start_));
 
             module->functions->push_back(
-                {nullptr, 0, 0, 0, 0, 0, 0, false, false});
+                {nullptr, i, 0, 0, 0, 0, 0, 0, false, false});
             WasmFunction* function = &module->functions->back();
             DecodeFunctionInModule(module, function, false);
           }
@@ -133,7 +131,7 @@ class ModuleDecoder : public Decoder {
         }
         case kDeclGlobals: {
           int length;
-          uint32_t globals_count = u32v(&length, "globals count");
+          uint32_t globals_count = consume_u32v(&length, "globals count");
           module->globals->reserve(SafeReserve(globals_count));
           // Decode globals.
           for (uint32_t i = 0; i < globals_count; i++) {
@@ -148,7 +146,8 @@ class ModuleDecoder : public Decoder {
         }
         case kDeclDataSegments: {
           int length;
-          uint32_t data_segments_count = u32v(&length, "data segments count");
+          uint32_t data_segments_count =
+              consume_u32v(&length, "data segments count");
           module->data_segments->reserve(SafeReserve(data_segments_count));
           // Decode data segments.
           for (uint32_t i = 0; i < data_segments_count; i++) {
@@ -157,7 +156,7 @@ class ModuleDecoder : public Decoder {
                   static_cast<int>(pc_ - start_));
             module->data_segments->push_back({0, 0, 0});
             WasmDataSegment* segment = &module->data_segments->back();
-            DecodeDataSegmentInModule(segment);
+            DecodeDataSegmentInModule(module, segment);
           }
           break;
         }
@@ -165,19 +164,73 @@ class ModuleDecoder : public Decoder {
           // An indirect function table requires functions first.
           CheckForPreviousSection(sections, kDeclFunctions, true);
           int length;
-          uint32_t function_table_count = u32v(&length, "function table count");
+          uint32_t function_table_count =
+              consume_u32v(&length, "function table count");
           module->function_table->reserve(SafeReserve(function_table_count));
           // Decode function table.
           for (uint32_t i = 0; i < function_table_count; i++) {
             if (failed()) break;
             TRACE("DecodeFunctionTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            uint16_t index = u16();
+            uint16_t index = consume_u16();
             if (index >= module->functions->size()) {
               error(pc_ - 2, "invalid function index");
               break;
             }
             module->function_table->push_back(index);
+          }
+          break;
+        }
+        case kDeclStartFunction: {
+          // Declares a start function for a module.
+          CheckForPreviousSection(sections, kDeclFunctions, true);
+          if (module->start_function_index >= 0) {
+            error("start function already declared");
+            break;
+          }
+          int length;
+          const byte* before = pc_;
+          uint32_t index = consume_u32v(&length, "start function index");
+          if (index >= module->functions->size()) {
+            error(before, "invalid start function index");
+            break;
+          }
+          module->start_function_index = static_cast<int>(index);
+          FunctionSig* sig =
+              module->signatures->at(module->functions->at(index).sig_index);
+          if (sig->parameter_count() > 0) {
+            error(before, "invalid start function: non-zero parameter count");
+            break;
+          }
+          break;
+        }
+        case kDeclImportTable: {
+          // Declares an import table.
+          CheckForPreviousSection(sections, kDeclSignatures, true);
+          int length;
+          uint32_t import_table_count =
+              consume_u32v(&length, "import table count");
+          module->import_table->reserve(SafeReserve(import_table_count));
+          // Decode import table.
+          for (uint32_t i = 0; i < import_table_count; i++) {
+            if (failed()) break;
+            TRACE("DecodeImportTable[%d] module+%d\n", i,
+                  static_cast<int>(pc_ - start_));
+
+            module->import_table->push_back({nullptr, 0, 0});
+            WasmImport* import = &module->import_table->back();
+
+            const byte* sigpos = pc_;
+            import->sig_index = consume_u16("signature index");
+
+            if (import->sig_index >= module->signatures->size()) {
+              error(sigpos, "invalid signature index");
+            } else {
+              import->sig = module->signatures->at(import->sig_index);
+            }
+            import->module_name_offset = consume_string("import module name");
+            import->function_name_offset =
+                consume_string("import function name");
           }
           break;
         }
@@ -187,7 +240,7 @@ class ModuleDecoder : public Decoder {
           // information. This section does not affect the semantics of the code
           // and can be ignored by the runtime. https://github.com/JSStats/wll
           int length = 0;
-          uint32_t section_size = u32v(&length, "section size");
+          uint32_t section_size = consume_u32v(&length, "section size");
           if (pc_ + section_size > limit_ || pc_ + section_size < pc_) {
             error(pc_ - length, "invalid section size");
             break;
@@ -249,14 +302,14 @@ class ModuleDecoder : public Decoder {
   FunctionResult DecodeSingleFunction(ModuleEnv* module_env,
                                       WasmFunction* function) {
     pc_ = start_;
-    function->sig = sig();                       // read signature
+    function->sig = consume_sig();                  // read signature
     function->name_offset = 0;                   // ---- name
     function->code_start_offset = off(pc_ + 8);  // ---- code start
     function->code_end_offset = off(limit_);     // ---- code end
-    function->local_int32_count = u16();         // read u16
-    function->local_int64_count = u16();         // read u16
-    function->local_float32_count = u16();       // read u16
-    function->local_float64_count = u16();       // read u16
+    function->local_i32_count = consume_u16();      // read u16
+    function->local_i64_count = consume_u16();      // read u16
+    function->local_f32_count = consume_u16();      // read u16
+    function->local_f64_count = consume_u16();      // read u16
     function->exported = false;                  // ---- exported
     function->external = false;                  // ---- external
 
@@ -271,7 +324,7 @@ class ModuleDecoder : public Decoder {
   // Decodes a single function signature at {start}.
   FunctionSig* DecodeFunctionSignature(const byte* start) {
     pc_ = start;
-    FunctionSig* result = sig();
+    FunctionSig* result = consume_sig();
     return ok() ? result : nullptr;
   }
 
@@ -284,19 +337,19 @@ class ModuleDecoder : public Decoder {
 
   // Decodes a single global entry inside a module starting at {pc_}.
   void DecodeGlobalInModule(WasmGlobal* global) {
-    global->name_offset = string("global name");
+    global->name_offset = consume_string("global name");
     global->type = mem_type();
     global->offset = 0;
-    global->exported = u8("exported") != 0;
+    global->exported = consume_u8("exported") != 0;
   }
 
   // Decodes a single function entry inside a module starting at {pc_}.
   void DecodeFunctionInModule(WasmModule* module, WasmFunction* function,
                               bool verify_body = true) {
-    byte decl_bits = u8("function decl");
+    byte decl_bits = consume_u8("function decl");
 
     const byte* sigpos = pc_;
-    function->sig_index = u16("signature index");
+    function->sig_index = consume_u16("signature index");
 
     if (function->sig_index >= module->signatures->size()) {
       return error(sigpos, "invalid signature index");
@@ -313,7 +366,7 @@ class ModuleDecoder : public Decoder {
           (decl_bits & kDeclFunctionImport) == 0 ? " body" : "");
 
     if (decl_bits & kDeclFunctionName) {
-      function->name_offset = string("function name");
+      function->name_offset = consume_string("function name");
     }
 
     function->exported = decl_bits & kDeclFunctionExport;
@@ -325,13 +378,13 @@ class ModuleDecoder : public Decoder {
     }
 
     if (decl_bits & kDeclFunctionLocals) {
-      function->local_int32_count = u16("int32 count");
-      function->local_int64_count = u16("int64 count");
-      function->local_float32_count = u16("float32 count");
-      function->local_float64_count = u16("float64 count");
+      function->local_i32_count = consume_u16("i32 count");
+      function->local_i64_count = consume_u16("i64 count");
+      function->local_f32_count = consume_u16("f32 count");
+      function->local_f64_count = consume_u16("f64 count");
     }
 
-    uint16_t size = u16("body size");
+    uint16_t size = consume_u16("body size");
     if (ok()) {
       if ((pc_ + size) > limit_) {
         return error(pc_, limit_,
@@ -345,35 +398,51 @@ class ModuleDecoder : public Decoder {
     }
   }
 
+  bool IsWithinLimit(uint32_t limit, uint32_t offset, uint32_t size) {
+    if (offset > limit) return false;
+    if ((offset + size) < offset) return false;  // overflow
+    return (offset + size) <= limit;
+  }
+
   // Decodes a single data segment entry inside a module starting at {pc_}.
-  void DecodeDataSegmentInModule(WasmDataSegment* segment) {
-    segment->dest_addr =
-        u32("destination");  // TODO(titzer): check it's within the memory size.
-    segment->source_offset = offset("source offset");
-    segment->source_size =
-        u32("source size");  // TODO(titzer): check the size is reasonable.
-    segment->init = u8("init");
+  void DecodeDataSegmentInModule(WasmModule* module, WasmDataSegment* segment) {
+    segment->dest_addr = consume_u32("destination");
+    segment->source_offset = consume_offset("source offset");
+    segment->source_size = consume_u32("source size");
+    segment->init = consume_u8("init");
+
+    // Validate the data is in the module.
+    uint32_t module_limit = static_cast<uint32_t>(limit_ - start_);
+    if (!IsWithinLimit(module_limit, segment->source_offset,
+                       segment->source_size)) {
+      error(pc_ - sizeof(uint32_t), "segment out of bounds of module");
+    }
+
+    // Validate that the segment will fit into the (minimum) memory.
+    uint32_t memory_limit =
+        1 << (module ? module->min_mem_size_log2 : WasmModule::kMaxMemSize);
+    if (!IsWithinLimit(memory_limit, segment->dest_addr,
+                       segment->source_size)) {
+      error(pc_ - sizeof(uint32_t), "segment out of bounds of memory");
+    }
   }
 
   // Verifies the body (code) of a given function.
   void VerifyFunctionBody(uint32_t func_num, ModuleEnv* menv,
                           WasmFunction* function) {
     if (FLAG_trace_wasm_decode_time) {
-      // TODO(titzer): clean me up a bit.
       OFStream os(stdout);
-      os << "Verifying WASM function:";
-      if (function->name_offset > 0) {
-        os << menv->module->GetName(function->name_offset);
-      }
+      os << "Verifying WASM function " << WasmFunctionName(function, menv)
+         << std::endl;
       os << std::endl;
     }
     FunctionEnv fenv;
     fenv.module = menv;
     fenv.sig = function->sig;
-    fenv.local_int32_count = function->local_int32_count;
-    fenv.local_int64_count = function->local_int64_count;
-    fenv.local_float32_count = function->local_float32_count;
-    fenv.local_float64_count = function->local_float64_count;
+    fenv.local_i32_count = function->local_i32_count;
+    fenv.local_i64_count = function->local_i64_count;
+    fenv.local_f32_count = function->local_f32_count;
+    fenv.local_f64_count = function->local_f64_count;
     fenv.SumLocals();
 
     TreeResult result =
@@ -382,8 +451,7 @@ class ModuleDecoder : public Decoder {
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream str;
-      str << "in function #" << func_num << ": ";
-      // TODO(titzer): add function name for the user?
+      str << "in function " << WasmFunctionName(function, menv) << ": ";
       str << result;
       std::string strval = str.str();
       const char* raw = strval.c_str();
@@ -400,8 +468,8 @@ class ModuleDecoder : public Decoder {
 
   // Reads a single 32-bit unsigned integer interpreted as an offset, checking
   // the offset is within bounds and advances.
-  uint32_t offset(const char* name = nullptr) {
-    uint32_t offset = u32(name ? name : "offset");
+  uint32_t consume_offset(const char* name = nullptr) {
+    uint32_t offset = consume_u32(name ? name : "offset");
     if (offset > static_cast<uint32_t>(limit_ - start_)) {
       error(pc_ - sizeof(uint32_t), "offset out of bounds of module");
     }
@@ -410,13 +478,14 @@ class ModuleDecoder : public Decoder {
 
   // Reads a single 32-bit unsigned integer interpreted as an offset into the
   // data and validating the string there and advances.
-  uint32_t string(const char* name = nullptr) {
-    return offset(name ? name : "string");  // TODO(titzer): validate string
+  uint32_t consume_string(const char* name = nullptr) {
+    // TODO(titzer): validate string
+    return consume_offset(name ? name : "string");
   }
 
   // Reads a single 8-bit integer, interpreting it as a local type.
-  LocalType local_type() {
-    byte val = u8("local type");
+  LocalType consume_local_type() {
+    byte val = consume_u8("local type");
     LocalTypeCode t = static_cast<LocalTypeCode>(val);
     switch (t) {
       case kLocalVoid:
@@ -437,7 +506,7 @@ class ModuleDecoder : public Decoder {
 
   // Reads a single 8-bit integer, interpreting it as a memory type.
   MachineType mem_type() {
-    byte val = u8("memory type");
+    byte val = consume_u8("memory type");
     MemTypeCode t = static_cast<MemTypeCode>(val);
     switch (t) {
       case kMemI8:
@@ -467,14 +536,14 @@ class ModuleDecoder : public Decoder {
   }
 
   // Parses an inline function signature.
-  FunctionSig* sig() {
-    byte count = u8("param count");
-    LocalType ret = local_type();
+  FunctionSig* consume_sig() {
+    byte count = consume_u8("param count");
+    LocalType ret = consume_local_type();
     FunctionSig::Builder builder(module_zone, ret == kAstStmt ? 0 : 1, count);
     if (ret != kAstStmt) builder.AddReturn(ret);
 
     for (int i = 0; i < count; i++) {
-      LocalType param = local_type();
+      LocalType param = consume_local_type();
       if (param == kAstStmt) error(pc_ - 1, "invalid void parameter type");
       builder.AddParam(param);
     }

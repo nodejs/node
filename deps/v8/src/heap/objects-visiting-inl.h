@@ -115,7 +115,7 @@ int StaticNewSpaceVisitor<StaticVisitor>::VisitBytecodeArray(
   VisitPointers(
       map->GetHeap(), object,
       HeapObject::RawField(object, BytecodeArray::kConstantPoolOffset),
-      HeapObject::RawField(object, BytecodeArray::kHeaderSize));
+      HeapObject::RawField(object, BytecodeArray::kFrameSizeOffset));
   return reinterpret_cast<BytecodeArray*>(object)->BytecodeArraySize();
 }
 
@@ -531,7 +531,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitBytecodeArray(
   StaticVisitor::VisitPointers(
       map->GetHeap(), object,
       HeapObject::RawField(object, BytecodeArray::kConstantPoolOffset),
-      HeapObject::RawField(object, BytecodeArray::kHeaderSize));
+      HeapObject::RawField(object, BytecodeArray::kFrameSizeOffset));
 }
 
 

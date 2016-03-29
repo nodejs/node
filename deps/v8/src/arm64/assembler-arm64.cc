@@ -58,6 +58,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
       cpu.part() <= base::CPU::NVIDIA_DENVER_V10) {
     supported_ |= 1u << COHERENT_CACHE;
   }
+
+  icache_line_size_ = cpu.icache_line_size();
+  dcache_line_size_ = cpu.dcache_line_size();
 }
 
 

@@ -29,6 +29,10 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
                         EscapeAnalysis* escape_analysis, Zone* zone);
 
   Reduction Reduce(Node* node) final;
+  void SetExistsVirtualAllocate(bool exists) {
+    exists_virtual_allocate_ = exists;
+  }
+  void VerifyReplacement() const;
 
  private:
   Reduction ReduceLoad(Node* node);
@@ -38,9 +42,9 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
   Reduction ReduceReferenceEqual(Node* node);
   Reduction ReduceObjectIsSmi(Node* node);
   Reduction ReduceFrameStateUses(Node* node);
-  Node* ReduceFrameState(Node* node, Node* effect, bool multiple_users);
-  Node* ReduceStateValueInputs(Node* node, Node* effect, bool multiple_users);
+  Node* ReduceDeoptState(Node* node, Node* effect, bool multiple_users);
   Node* ReduceStateValueInput(Node* node, int node_index, Node* effect,
+                              bool node_multiused, bool already_cloned,
                               bool multiple_users);
 
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -51,7 +55,10 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
   JSGraph* const jsgraph_;
   EscapeAnalysis* escape_analysis_;
   Zone* const zone_;
-  BitVector visited_;
+  // _visited marks nodes we already processed (allocs, loads, stores)
+  // and nodes that do not need a visit from ReduceDeoptState etc.
+  BitVector fully_reduced_;
+  bool exists_virtual_allocate_;
 
   DISALLOW_COPY_AND_ASSIGN(EscapeAnalysisReducer);
 };

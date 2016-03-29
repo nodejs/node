@@ -28,7 +28,7 @@ declare_args() {
 v8_deprecation_warnings = false
 v8_enable_disassembler = false
 v8_enable_gdbjit = false
-v8_enable_handle_zapping = true
+v8_enable_handle_zapping = is_debug
 v8_enable_i18n_support = true
 v8_enable_verify_heap = false
 v8_interpreted_regexp = false
@@ -44,6 +44,15 @@ if (is_msan) {
   v8_target_arch = "arm64"
 } else {
   v8_target_arch = target_cpu
+}
+
+if (v8_use_snapshot && v8_use_external_startup_data) {
+  snapshot_target = ":v8_external_snapshot"
+} else if (v8_use_snapshot) {
+  snapshot_target = ":v8_snapshot"
+} else {
+  assert(!v8_use_external_startup_data)
+  snapshot_target = ":v8_nosnapshot"
 }
 
 ###############################################################################
@@ -173,7 +182,7 @@ config("toolchain") {
   }
   if (v8_target_arch == "s390") {
     defines += [ "V8_TARGET_ARCH_S390" ]
-  }
+  } 
   if (v8_target_arch == "s390x") {
     defines += [
       "V8_TARGET_ARCH_S390",
@@ -186,7 +195,7 @@ config("toolchain") {
   if (v8_target_arch == "x64") {
     defines += [ "V8_TARGET_ARCH_X64" ]
   }
-
+     
   if (is_win) {
     defines += [ "WIN32" ]
     # TODO(jochen): Support v8_enable_prof.
@@ -291,7 +300,6 @@ action("js2c_experimental") {
     "src/js/generator.js",
     "src/js/harmony-atomics.js",
     "src/js/harmony-regexp.js",
-    "src/js/harmony-reflect.js",
     "src/js/harmony-object-observe.js",
     "src/js/harmony-sharedarraybuffer.js",
     "src/js/harmony-simd.js",
@@ -774,16 +782,16 @@ source_set("v8_base") {
     "src/compiler/instruction-selector.h",
     "src/compiler/instruction.cc",
     "src/compiler/instruction.h",
-    "src/compiler/interpreter-assembler.cc",
-    "src/compiler/interpreter-assembler.h",
+    "src/compiler/int64-lowering.cc",
+    "src/compiler/int64-lowering.h",
     "src/compiler/js-builtin-reducer.cc",
     "src/compiler/js-builtin-reducer.h",
     "src/compiler/js-call-reducer.cc",
     "src/compiler/js-call-reducer.h",
-    "src/compiler/js-context-relaxation.cc",
-    "src/compiler/js-context-relaxation.h",
     "src/compiler/js-context-specialization.cc",
     "src/compiler/js-context-specialization.h",
+    "src/compiler/js-create-lowering.cc",
+    "src/compiler/js-create-lowering.h",
     "src/compiler/js-frame-specialization.cc",
     "src/compiler/js-frame-specialization.h",
     "src/compiler/js-generic-lowering.cc",
@@ -1009,6 +1017,8 @@ source_set("v8_base") {
     "src/fast-dtoa.h",
     "src/field-index.h",
     "src/field-index-inl.h",
+    "src/field-type.cc",
+    "src/field-type.h",
     "src/fixed-dtoa.cc",
     "src/fixed-dtoa.h",
     "src/flag-definitions.h",
@@ -1030,6 +1040,7 @@ source_set("v8_base") {
     "src/handles.cc",
     "src/handles.h",
     "src/hashmap.h",
+    "src/heap-symbols.h",
     "src/heap/array-buffer-tracker.cc",
     "src/heap/array-buffer-tracker.h",
     "src/heap/gc-idle-time-handler.cc",
@@ -1053,11 +1064,14 @@ source_set("v8_base") {
     "src/heap/objects-visiting-inl.h",
     "src/heap/objects-visiting.cc",
     "src/heap/objects-visiting.h",
+    "src/heap/remembered-set.cc",
+    "src/heap/remembered-set.h",
     "src/heap/scavenge-job.h",
     "src/heap/scavenge-job.cc",
     "src/heap/scavenger-inl.h",
     "src/heap/scavenger.cc",
     "src/heap/scavenger.h",
+    "src/heap/slot-set.h",
     "src/heap/slots-buffer.cc",
     "src/heap/slots-buffer.h",
     "src/heap/spaces-inl.h",
@@ -1104,11 +1118,20 @@ source_set("v8_base") {
     "src/interpreter/constant-array-builder.h",
     "src/interpreter/control-flow-builders.cc",
     "src/interpreter/control-flow-builders.h",
+    "src/interpreter/handler-table-builder.cc",
+    "src/interpreter/handler-table-builder.h",
     "src/interpreter/interpreter.cc",
     "src/interpreter/interpreter.h",
+    "src/interpreter/interpreter-assembler.cc",
+    "src/interpreter/interpreter-assembler.h",
+    "src/interpreter/register-translator.cc",
+    "src/interpreter/register-translator.h",
+    "src/interpreter/source-position-table.cc",
+    "src/interpreter/source-position-table.h",
     "src/isolate-inl.h",
     "src/isolate.cc",
     "src/isolate.h",
+    "src/json-parser.h",
     "src/json-stringifier.h",
     "src/key-accumulator.h",
     "src/key-accumulator.cc",
@@ -1144,7 +1167,6 @@ source_set("v8_base") {
     "src/parsing/expression-classifier.h",
     "src/parsing/func-name-inferrer.cc",
     "src/parsing/func-name-inferrer.h",
-    "src/parsing/json-parser.h",
     "src/parsing/parameter-initializer-rewriter.cc",
     "src/parsing/parameter-initializer-rewriter.h",
     "src/parsing/parser-base.h",
@@ -1183,6 +1205,8 @@ source_set("v8_base") {
     "src/profiler/profile-generator.h",
     "src/profiler/sampler.cc",
     "src/profiler/sampler.h",
+    "src/profiler/sampling-heap-profiler.cc",
+    "src/profiler/sampling-heap-profiler.h",
     "src/profiler/strings-storage.cc",
     "src/profiler/strings-storage.h",
     "src/profiler/unbound-queue-inl.h",
@@ -1262,6 +1286,7 @@ source_set("v8_base") {
     "src/snapshot/snapshot-common.cc",
     "src/snapshot/snapshot-source-sink.cc",
     "src/snapshot/snapshot-source-sink.h",
+    "src/source-position.h",
     "src/splay-tree.h",
     "src/splay-tree-inl.h",
     "src/snapshot/snapshot.h",
@@ -1286,7 +1311,6 @@ source_set("v8_base") {
     "src/type-feedback-vector.h",
     "src/type-info.cc",
     "src/type-info.h",
-    "src/types-inl.h",
     "src/types.cc",
     "src/types.h",
     "src/typing-asm.cc",
@@ -1300,6 +1324,7 @@ source_set("v8_base") {
     "src/unicode-cache.h",
     "src/unicode-decoder.cc",
     "src/unicode-decoder.h",
+    "src/utils-inl.h",
     "src/utils.cc",
     "src/utils.h",
     "src/v8.cc",
@@ -1655,6 +1680,7 @@ source_set("v8_libbase") {
     "src/base/atomicops_internals_mips_gcc.h",
     "src/base/atomicops_internals_mips64_gcc.h",
     "src/base/atomicops_internals_portable.h",
+    "src/base/atomicops_internals_s390_gcc.h",
     "src/base/atomicops_internals_tsan.h",
     "src/base/atomicops_internals_x86_gcc.cc",
     "src/base/atomicops_internals_x86_gcc.h",
@@ -1721,8 +1747,6 @@ source_set("v8_libbase") {
 
     libs = [ "dl", "rt" ]
   } else if (is_android) {
-    defines += [ "CAN_USE_VFP_INSTRUCTIONS" ]
-
     if (current_toolchain == host_toolchain) {
       libs = [ "dl", "rt" ]
       if (host_os == "mac") {
@@ -1782,6 +1806,28 @@ source_set("v8_libplatform") {
   ]
 }
 
+source_set("fuzzer_support") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  sources = [
+    "test/fuzzer/fuzzer-support.cc",
+    "test/fuzzer/fuzzer-support.h",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config_base",
+    ":features",
+    ":toolchain",
+  ]
+
+  deps = [
+    ":v8_libplatform",
+    snapshot_target,
+  ]
+}
+
 ###############################################################################
 # Executables
 #
@@ -1814,15 +1860,6 @@ if (current_toolchain == snapshot_toolchain) {
 ###############################################################################
 # Public targets
 #
-
-if (v8_use_snapshot && v8_use_external_startup_data) {
-  snapshot_target = ":v8_external_snapshot"
-} else if (v8_use_snapshot) {
-  snapshot_target = ":v8_snapshot"
-} else {
-  assert(!v8_use_external_startup_data)
-  snapshot_target = ":v8_nosnapshot"
-}
 
 if (is_component_build) {
   component("v8") {
@@ -1904,4 +1941,58 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
       deps += [ "//third_party/icu" ]
     }
   }
+}
+
+source_set("json_fuzzer") {
+  sources = [
+    "test/fuzzer/json.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config",
+    ":features",
+    ":toolchain",
+  ]
+}
+
+source_set("parser_fuzzer") {
+  sources = [
+    "test/fuzzer/parser.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config",
+    ":features",
+    ":toolchain",
+  ]
+}
+
+source_set("regexp_fuzzer") {
+  sources = [
+    "test/fuzzer/regexp.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config",
+    ":features",
+    ":toolchain",
+  ]
 }

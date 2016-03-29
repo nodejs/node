@@ -252,6 +252,36 @@ assertFalse(/(\u{12345}|\u{23456}).\1/u.test("\u{12345}b\u{23456}"));
 assertTrue(new RegExp("\u{12345}{3}", "u").test("\u{12345}\u{12345}\u{12345}"));
 assertTrue(/\u{12345}{3}/u.test("\u{12345}\u{12345}\u{12345}"));
 assertTrue(new RegExp("\u{12345}{3}").test("\u{12345}\udf45\udf45"));
-assertTrue(/\ud808\udf45{3}/u.test("\u{12345}\udf45\udf45"));
+assertFalse(/\ud808\udf45{3}/u.test("\u{12345}\udf45\udf45"));
+assertTrue(/\ud808\udf45{3}/u.test("\u{12345}\u{12345}\u{12345}"));
 assertFalse(new RegExp("\u{12345}{3}", "u").test("\u{12345}\udf45\udf45"));
 assertFalse(/\u{12345}{3}/u.test("\u{12345}\udf45\udf45"));
+
+// Literal surrogates.
+assertEquals(["\u{10000}\u{10000}"],
+             new RegExp("\ud800\udc00+", "u").exec("\u{10000}\u{10000}"));
+assertEquals(["\u{10000}\u{10000}"],
+             new RegExp("\\ud800\\udc00+", "u").exec("\u{10000}\u{10000}"));
+
+assertEquals(["\u{10003}\u{50001}"],
+             new RegExp("[\\ud800\\udc03-\\ud900\\udc01\]+", "u").exec(
+                 "\u{10003}\u{50001}"));
+assertEquals(["\u{10003}\u{50001}"],
+             new RegExp("[\ud800\udc03-\u{50001}\]+", "u").exec(
+                 "\u{10003}\u{50001}"));
+
+// Unicode escape sequences to represent a non-BMP character cannot have
+// mixed notation, and must follow the rules for RegExpUnicodeEscapeSequence.
+assertThrows(() => new RegExp("[\\ud800\udc03-\ud900\\udc01\]+", "u"));
+assertThrows(() => new RegExp("[\\ud800\udc03-\ud900\\udc01\]+", "u"));
+assertNull(new RegExp("\\ud800\udc00+", "u").exec("\u{10000}\u{10000}"));
+assertNull(new RegExp("\ud800\\udc00+", "u").exec("\u{10000}\u{10000}"));
+
+assertNull(new RegExp("[\\ud800\udc00]", "u").exec("\u{10000}"));
+assertNull(new RegExp("[\\{ud800}\udc00]", "u").exec("\u{10000}"));
+assertNull(new RegExp("[\ud800\\udc00]", "u").exec("\u{10000}"));
+assertNull(new RegExp("[\ud800\\{udc00}]", "u").exec("\u{10000}"));
+
+assertNull(/\u{d800}\u{dc00}+/u.exec("\ud800\udc00\udc00"));
+assertNull(/\ud800\u{dc00}+/u.exec("\ud800\udc00\udc00"));
+assertNull(/\u{d800}\udc00+/u.exec("\ud800\udc00\udc00"));

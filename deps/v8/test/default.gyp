@@ -11,6 +11,7 @@
           'type': 'none',
           'dependencies': [
             'cctest/cctest.gyp:cctest_run',
+            'fuzzer/fuzzer.gyp:fuzzer_run',
             'intl/intl.gyp:intl_run',
             'message/message.gyp:message_run',
             'mjsunit/mjsunit.gyp:mjsunit_run',

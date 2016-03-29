@@ -137,6 +137,57 @@ void SwitchBuilder::SetCaseTarget(int index) {
   builder()->Bind(&site);
 }
 
+
+void TryCatchBuilder::BeginTry(Register context) {
+  builder()->MarkTryBegin(handler_id_, context);
+}
+
+
+void TryCatchBuilder::EndTry() {
+  builder()->MarkTryEnd(handler_id_);
+  builder()->Jump(&exit_);
+  builder()->Bind(&handler_);
+  builder()->MarkHandler(handler_id_, true);
+}
+
+
+void TryCatchBuilder::EndCatch() { builder()->Bind(&exit_); }
+
+
+void TryFinallyBuilder::BeginTry(Register context) {
+  builder()->MarkTryBegin(handler_id_, context);
+}
+
+
+void TryFinallyBuilder::LeaveTry() {
+  finalization_sites_.push_back(BytecodeLabel());
+  builder()->Jump(&finalization_sites_.back());
+}
+
+
+void TryFinallyBuilder::EndTry() {
+  builder()->MarkTryEnd(handler_id_);
+}
+
+
+void TryFinallyBuilder::BeginHandler() {
+  builder()->Bind(&handler_);
+  builder()->MarkHandler(handler_id_, will_catch_);
+}
+
+
+void TryFinallyBuilder::BeginFinally() {
+  for (size_t i = 0; i < finalization_sites_.size(); i++) {
+    BytecodeLabel& site = finalization_sites_.at(i);
+    builder()->Bind(&site);
+  }
+}
+
+
+void TryFinallyBuilder::EndFinally() {
+  // Nothing to be done here.
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

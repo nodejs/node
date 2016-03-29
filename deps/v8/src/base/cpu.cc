@@ -77,6 +77,33 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 #elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 \
     || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 
+#if V8_HOST_ARCH_ARM64
+class CacheLineSizes {
+ public:
+  CacheLineSizes() {
+#ifdef USE_SIMULATOR
+    cache_type_register_ = 0;
+#else
+    // Copy the content of the cache type register to a core register.
+    __asm__ __volatile__("mrs %[ctr], ctr_el0"  // NOLINT
+                         : [ctr] "=r"(cache_type_register_));
+#endif
+  }
+
+  uint32_t icache_line_size() const { return ExtractCacheLineSize(0); }
+  uint32_t dcache_line_size() const { return ExtractCacheLineSize(16); }
+
+ private:
+  uint32_t ExtractCacheLineSize(int cache_line_size_shift) const {
+    // The cache type register holds the size of cache lines in words as a
+    // power of two.
+    return 4 << ((cache_type_register_ >> cache_line_size_shift) & 0xf);
+  }
+
+  uint32_t cache_type_register_;
+};
+#endif  // V8_HOST_ARCH_ARM64
+
 #if V8_OS_LINUX
 
 #if V8_HOST_ARCH_ARM
@@ -312,6 +339,8 @@ CPU::CPU()
       architecture_(0),
       variant_(-1),
       part_(0),
+      icache_line_size_(UNKNOWN_CACHE_LINE_SIZE),
+      dcache_line_size_(UNKNOWN_CACHE_LINE_SIZE),
       has_fpu_(false),
       has_cmov_(false),
       has_sahf_(false),
@@ -626,6 +655,10 @@ CPU::CPU()
     delete[] part;
   }
 
+  CacheLineSizes sizes;
+  icache_line_size_ = sizes.icache_line_size();
+  dcache_line_size_ = sizes.dcache_line_size();
+
 #elif V8_HOST_ARCH_PPC
 
 #ifndef USE_SIMULATOR
@@ -644,9 +677,16 @@ CPU::CPU()
       if (n == 0 || entry.a_type == AT_NULL) {
         break;
       }
-      if (entry.a_type == AT_PLATFORM) {
-        auxv_cpu_type = reinterpret_cast<char*>(entry.a_un.a_val);
-        break;
+      switch (entry.a_type) {
+        case AT_PLATFORM:
+          auxv_cpu_type = reinterpret_cast<char*>(entry.a_un.a_val);
+          break;
+        case AT_ICACHEBSIZE:
+          icache_line_size_ = entry.a_un.a_val;
+          break;
+        case AT_DCACHEBSIZE:
+          dcache_line_size_ = entry.a_un.a_val;
+          break;
       }
     }
     fclose(fp);

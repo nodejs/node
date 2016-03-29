@@ -210,7 +210,7 @@ void RegExpMacroAssemblerARM::CheckGreedyLoop(Label* on_equal) {
 
 
 void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, Label* on_no_match) {
+    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
   __ ldr(r0, register_location(start_reg));  // Index of start of capture
   __ ldr(r1, register_location(start_reg + 1));  // Index of end of capture
@@ -302,7 +302,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     //   r0: Address byte_offset1 - Address captured substring's start.
     //   r1: Address byte_offset2 - Address of current character position.
     //   r2: size_t byte_length - length of capture in bytes(!)
-    //   r3: Isolate* isolate
+    //   r3: Isolate* isolate or 0 if unicode flag.
 
     // Address of start of capture.
     __ add(r0, r0, Operand(end_of_input_address()));
@@ -316,7 +316,14 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
       __ sub(r1, r1, r4);
     }
     // Isolate.
-    __ mov(r3, Operand(ExternalReference::isolate_address(isolate())));
+#ifdef V8_I18N_SUPPORT
+    if (unicode) {
+      __ mov(r3, Operand(0));
+    } else  // NOLINT
+#endif      // V8_I18N_SUPPORT
+    {
+      __ mov(r3, Operand(ExternalReference::isolate_address(isolate())));
+    }
 
     {
       AllowExternalCallThatCantCauseGC scope(masm_);
@@ -798,9 +805,12 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
         __ cmp(current_input_offset(), Operand::Zero());
         __ b(eq, &exit_label_);
         // Advance current position after a zero-length match.
+        Label advance;
+        __ bind(&advance);
         __ add(current_input_offset(),
                current_input_offset(),
                Operand((mode_ == UC16) ? 2 : 1));
+        if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
       }
 
       __ b(&load_char_start_regexp);

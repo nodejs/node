@@ -60,27 +60,33 @@ ARCH_GUESS = utils.DefaultArch()
 # expected runtimes (suites with slow test cases first). These groups are
 # invoked in seperate steps on the bots.
 TEST_MAP = {
+  # This needs to stay in sync with test/bot_default.isolate.
   "bot_default": [
     "mjsunit",
     "cctest",
     "webkit",
+    "fuzzer",
     "message",
     "preparser",
     "intl",
     "unittests",
   ],
+  # This needs to stay in sync with test/default.isolate.
   "default": [
     "mjsunit",
     "cctest",
+    "fuzzer",
     "message",
     "preparser",
     "intl",
     "unittests",
   ],
+  # This needs to stay in sync with test/ignition.isolate.
   "ignition": [
     "mjsunit",
     "cctest",
   ],
+  # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
     "mjsunit",
     "cctest",

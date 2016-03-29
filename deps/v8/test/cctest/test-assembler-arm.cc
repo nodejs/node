@@ -1819,6 +1819,55 @@ TEST(uxtah) {
 }
 
 
+#define TEST_RBIT(expected_, input_)                       \
+  t.input = input_;                                        \
+  t.result = 0;                                            \
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0); \
+  CHECK_EQ(expected_, t.result);
+
+
+TEST(rbit) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    CpuFeatureScope scope(&assm, ARMv7);
+
+    typedef struct {
+      uint32_t input;
+      uint32_t result;
+    } T;
+    T t;
+
+    __ ldr(r1, MemOperand(r0, offsetof(T, input)));
+    __ rbit(r1, r1);
+    __ str(r1, MemOperand(r0, offsetof(T, result)));
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+#ifdef OBJECT_PRINT
+    code->Print(std::cout);
+#endif
+
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    Object* dummy = NULL;
+    TEST_RBIT(0xffffffff, 0xffffffff);
+    TEST_RBIT(0x00000000, 0x00000000);
+    TEST_RBIT(0xffff0000, 0x0000ffff);
+    TEST_RBIT(0xff00ff00, 0x00ff00ff);
+    TEST_RBIT(0xf0f0f0f0, 0x0f0f0f0f);
+    TEST_RBIT(0x1e6a2c48, 0x12345678);
+    USE(dummy);
+  }
+}
+
+
 TEST(code_relative_offset) {
   // Test extracting the offset of a label from the beginning of the code
   // in a register.

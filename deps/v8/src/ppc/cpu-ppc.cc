@@ -25,7 +25,7 @@ void CpuFeatures::FlushICache(void* buffer, size_t size) {
     return;
   }
 
-  const int kCacheLineSize = CpuFeatures::cache_line_size();
+  const int kCacheLineSize = CpuFeatures::icache_line_size();
   intptr_t mask = kCacheLineSize - 1;
   byte *start =
       reinterpret_cast<byte *>(reinterpret_cast<intptr_t>(buffer) & ~mask);

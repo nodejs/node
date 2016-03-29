@@ -91,6 +91,10 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   return OpParameter<CheckedStoreRepresentation>(op);
 }
 
+MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kStackSlot, op->opcode());
+  return OpParameter<MachineRepresentation>(op);
+}
 
 #define PURE_OP_LIST(V)                                                       \
   V(Word32And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \
@@ -144,13 +148,17 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)                 \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                  \
+  V(TruncateFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
+  V(TruncateFloat32ToUint32, Operator::kNoProperties, 1, 0, 1)                \
   V(TryTruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 2)              \
   V(TryTruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 2)              \
   V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)             \
   V(TryTruncateFloat64ToUint64, Operator::kNoProperties, 1, 0, 2)             \
   V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
+  V(RoundInt32ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \
   V(RoundInt64ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \
   V(RoundInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                    \
+  V(RoundUint32ToFloat32, Operator::kNoProperties, 1, 0, 1)                   \
   V(RoundUint64ToFloat32, Operator::kNoProperties, 1, 0, 1)                   \
   V(RoundUint64ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
   V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 0, 1)                     \
@@ -186,11 +194,14 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)                 \
   V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)                \
   V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)                       \
-  V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)
+  V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)                       \
+  V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)
 
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
   V(Word64Ctz, Operator::kNoProperties, 1, 0, 1)            \
+  V(Word32ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
+  V(Word64ReverseBits, Operator::kNoProperties, 1, 0, 1)    \
   V(Word32Popcnt, Operator::kNoProperties, 1, 0, 1)         \
   V(Word64Popcnt, Operator::kNoProperties, 1, 0, 1)         \
   V(Float32Max, Operator::kNoProperties, 2, 0, 1)           \
@@ -207,10 +218,10 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Float32RoundTiesEven, Operator::kNoProperties, 1, 0, 1) \
   V(Float64RoundTiesEven, Operator::kNoProperties, 1, 0, 1)
 
-
 #define MACHINE_TYPE_LIST(V) \
   V(Float32)                 \
   V(Float64)                 \
+  V(Simd128)                 \
   V(Int8)                    \
   V(Uint8)                   \
   V(Int16)                   \
@@ -222,16 +233,15 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Pointer)                 \
   V(AnyTagged)
 
-
 #define MACHINE_REPRESENTATION_LIST(V) \
   V(kFloat32)                          \
   V(kFloat64)                          \
+  V(kSimd128)                          \
   V(kWord8)                            \
   V(kWord16)                           \
   V(kWord32)                           \
   V(kWord64)                           \
   V(kTagged)
-
 
 struct MachineOperatorGlobalCache {
 #define PURE(Name, properties, value_input_count, control_input_count,         \
@@ -278,6 +288,18 @@ struct MachineOperatorGlobalCache {
   CheckedLoad##Type##Operator kCheckedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
+
+#define STACKSLOT(Type)                                                       \
+  struct StackSlot##Type##Operator final                                      \
+      : public Operator1<MachineRepresentation> {                             \
+    StackSlot##Type##Operator()                                               \
+        : Operator1<MachineRepresentation>(                                   \
+              IrOpcode::kStackSlot, Operator::kNoThrow, "StackSlot", 0, 0, 0, \
+              1, 0, 0, MachineType::Type().representation()) {}               \
+  };                                                                          \
+  StackSlot##Type##Operator kStackSlot##Type;
+  MACHINE_TYPE_LIST(STACKSLOT)
+#undef STACKSLOT
 
 #define STORE(Type)                                                            \
   struct Store##Type##Operator : public Operator1<StoreRepresentation> {       \
@@ -379,6 +401,16 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
   return nullptr;
 }
 
+const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep) {
+#define STACKSLOT(Type)                              \
+  if (rep == MachineType::Type().representation()) { \
+    return &cache_.kStackSlot##Type;                 \
+  }
+  MACHINE_TYPE_LIST(STACKSLOT)
+#undef STACKSLOT
+  UNREACHABLE();
+  return nullptr;
+}
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   switch (store_rep.representation()) {

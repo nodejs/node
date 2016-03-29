@@ -15,8 +15,13 @@ namespace internal {
 
 
 static bool IsPropertyNameFeedback(Object* feedback) {
-  return feedback->IsString() ||
-         (feedback->IsSymbol() && !Symbol::cast(feedback)->is_private());
+  if (feedback->IsString()) return true;
+  if (!feedback->IsSymbol()) return false;
+  Symbol* symbol = Symbol::cast(feedback);
+  Heap* heap = symbol->GetHeap();
+  return symbol != heap->uninitialized_symbol() &&
+         symbol != heap->premonomorphic_symbol() &&
+         symbol != heap->megamorphic_symbol();
 }
 
 

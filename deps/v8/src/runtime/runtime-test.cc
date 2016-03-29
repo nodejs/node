@@ -377,8 +377,7 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
 
 RUNTIME_FUNCTION(Runtime_NativeScriptsCount) {
   DCHECK(args.length() == 0);
-  return Smi::FromInt(Natives::GetBuiltinsCount() +
-                      ExtraNatives::GetBuiltinsCount());
+  return Smi::FromInt(Natives::GetBuiltinsCount());
 }
 
 
@@ -409,53 +408,54 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   return isolate->heap()->undefined_value();
 }
 
+namespace {
 
-static int StackSize(Isolate* isolate) {
+int StackSize(Isolate* isolate) {
   int n = 0;
   for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) n++;
   return n;
 }
 
-
-static void PrintTransition(Isolate* isolate, Object* result) {
-  // indentation
-  {
-    const int nmax = 80;
-    int n = StackSize(isolate);
-    if (n <= nmax)
-      PrintF("%4d:%*s", n, n, "");
-    else
-      PrintF("%4d:%*s", n, nmax, "...");
-  }
-
-  if (result == NULL) {
-    JavaScriptFrame::PrintTop(isolate, stdout, true, false);
-    PrintF(" {\n");
+void PrintIndentation(Isolate* isolate) {
+  const int nmax = 80;
+  int n = StackSize(isolate);
+  if (n <= nmax) {
+    PrintF("%4d:%*s", n, n, "");
   } else {
-    // function result
-    PrintF("} -> ");
-    result->ShortPrint();
-    PrintF("\n");
+    PrintF("%4d:%*s", n, nmax, "...");
   }
 }
 
+}  // namespace
 
 RUNTIME_FUNCTION(Runtime_TraceEnter) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
-  PrintTransition(isolate, NULL);
+  DCHECK_EQ(0, args.length());
+  PrintIndentation(isolate);
+  JavaScriptFrame::PrintTop(isolate, stdout, true, false);
+  PrintF(" {\n");
   return isolate->heap()->undefined_value();
 }
 
 
 RUNTIME_FUNCTION(Runtime_TraceExit) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
-  PrintTransition(isolate, obj);
+  PrintIndentation(isolate);
+  PrintF("} -> ");
+  obj->ShortPrint();
+  PrintF("\n");
   return obj;  // return TOS
 }
 
+RUNTIME_FUNCTION(Runtime_TraceTailCall) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  PrintIndentation(isolate);
+  PrintF("} -> tail call ->\n");
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_HaveSameMap) {
   SealHandleScope shs(isolate);

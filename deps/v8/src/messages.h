@@ -71,7 +71,6 @@ class CallSite {
   int32_t pos_;
 };
 
-
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
   T(None, "")                                                                  \
@@ -95,6 +94,7 @@ class CallSite {
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(ArrayNotSubclassable, "Subclassing Arrays is not currently supported.")    \
   T(CalledNonCallable, "% is not a function")                                  \
+  T(CalledNonCallableInstanceOf, "right-hand side is not a function")          \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CallSiteExpectsFunction,                                                   \
@@ -295,6 +295,7 @@ class CallSite {
   T(RestrictedFunctionProperties,                                              \
     "'caller' and 'arguments' are restricted function properties and cannot "  \
     "be accessed in this context.")                                            \
+  T(ReturnMethodNotCallable, "The iterator's 'return' method is not callable") \
   T(StaticPrototype, "Classes may not have static property named prototype")   \
   T(StrictCannotAssign, "Cannot assign to read only '%' in strict mode")       \
   T(StrictDeleteProperty, "Cannot delete property '%' of %")                   \
@@ -316,10 +317,13 @@ class CallSite {
     "to be non-writable is deprecated")                                        \
   T(StrongSetProto,                                                            \
     "On strong object %, redefining the internal prototype is deprecated")     \
+  T(SymbolIteratorInvalid,                                                     \
+    "Result of the Symbol.iterator method is not an object")                   \
   T(SymbolKeyFor, "% is not a symbol")                                         \
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
   T(SymbolToString, "Cannot convert a Symbol value to a string")               \
   T(SimdToNumber, "Cannot convert a SIMD value to a number")                   \
+  T(ThrowMethodMissing, "The iterator does not provide a 'throw' method.")     \
   T(UndefinedOrNullToObject, "Cannot convert undefined or null to object")     \
   T(ValueAndAccessor,                                                          \
     "Invalid property descriptor. Cannot both specify accessors and a value "  \
@@ -332,8 +336,6 @@ class CallSite {
   T(StrongSuperCallMissing,                                                    \
     "In strong mode, invoking the super constructor in a subclass is "         \
     "required")                                                                \
-  T(StrongUnboundGlobal,                                                       \
-    "In strong mode, using an undeclared global variable '%' is not allowed")  \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
   T(DateRange, "Provided date is not in valid range.")                         \
@@ -384,12 +386,10 @@ class CallSite {
   T(DuplicateExport, "Duplicate export of '%'")                                \
   T(DuplicateProto,                                                            \
     "Duplicate __proto__ fields are not allowed in object literals")           \
-  T(ForInLoopInitializer,                                                      \
-    "for-in loop variable declaration may not have an initializer.")           \
+  T(ForInOfLoopInitializer,                                                    \
+    "% loop variable declaration may not have an initializer.")                \
   T(ForInOfLoopMultiBindings,                                                  \
     "Invalid left-hand side in % loop: Must have a single binding.")           \
-  T(ForOfLoopInitializer,                                                      \
-    "for-of loop variable declaration may not have an initializer.")           \
   T(IllegalAccess, "Illegal access")                                           \
   T(IllegalBreak, "Illegal break statement")                                   \
   T(IllegalContinue, "Illegal continue statement")                             \
@@ -397,6 +397,7 @@ class CallSite {
     "Illegal '%' directive in function with non-simple parameter list")        \
   T(IllegalReturn, "Illegal return statement")                                 \
   T(InvalidEscapedReservedWord, "Keyword must not contain escaped characters") \
+  T(InvalidEscapedMetaProperty, "'%' must not contain escaped characters")     \
   T(InvalidLhsInAssignment, "Invalid left-hand side in assignment")            \
   T(InvalidCoverInitializedName, "Invalid shorthand property initializer")     \
   T(InvalidDestructuringTarget, "Invalid destructuring assignment target")     \
@@ -406,6 +407,10 @@ class CallSite {
   T(InvalidLhsInPrefixOp,                                                      \
     "Invalid left-hand side expression in prefix operation")                   \
   T(InvalidRegExpFlags, "Invalid flags supplied to RegExp constructor '%'")    \
+  T(JsonParseUnexpectedEOS, "Unexpected end of JSON input")                    \
+  T(JsonParseUnexpectedToken, "Unexpected token % in JSON at position %")      \
+  T(JsonParseUnexpectedTokenNumber, "Unexpected number in JSON at position %") \
+  T(JsonParseUnexpectedTokenString, "Unexpected string in JSON at position %") \
   T(LabelRedeclaration, "Label '%' has already been declared")                 \
   T(MalformedArrowFunParamList, "Malformed arrow function parameter list")     \
   T(MalformedRegExp, "Invalid regular expression: /%/: %")                     \
@@ -417,6 +422,8 @@ class CallSite {
   T(NoCatchOrFinally, "Missing catch or finally after try")                    \
   T(NotIsvar, "builtin %%IS_VAR: not a variable")                              \
   T(ParamAfterRest, "Rest parameter must be last formal parameter")            \
+  T(InvalidRestParameter,                                                      \
+    "Rest parameter must be an identifier or destructuring pattern")           \
   T(PushPastSafeLength,                                                        \
     "Pushing % elements on an array-like of length % "                         \
     "is disallowed, as the total surpasses 2**53-1")                           \
@@ -480,8 +487,6 @@ class CallSite {
     "with 'break', 'continue', 'return' or 'throw'")                           \
   T(StrongUndefined,                                                           \
     "In strong mode, binding or assigning to 'undefined' is deprecated")       \
-  T(StrongUseBeforeDeclaration,                                                \
-    "In strong mode, declaring variable '%' before its use is required")       \
   T(StrongVar,                                                                 \
     "In strong mode, 'var' is deprecated, use 'let' or 'const' instead")       \
   T(TemplateOctalLiteral,                                                      \
@@ -495,6 +500,8 @@ class CallSite {
   T(TypedArrayTooShort,                                                        \
     "Derived TypedArray constructor created an array which was too small")     \
   T(UnexpectedEOS, "Unexpected end of input")                                  \
+  T(UnexpectedFunctionSent,                                                    \
+    "function.sent expression is not allowed outside a generator")             \
   T(UnexpectedReserved, "Unexpected reserved word")                            \
   T(UnexpectedStrictReserved, "Unexpected strict mode reserved word")          \
   T(UnexpectedSuper, "'super' keyword unexpected here")                        \
@@ -510,6 +517,8 @@ class CallSite {
   T(UnterminatedRegExp, "Invalid regular expression: missing /")               \
   T(UnterminatedTemplate, "Unterminated template literal")                     \
   T(UnterminatedTemplateExpr, "Missing } in template expression")              \
+  T(FoundNonCallableHasInstance, "Found non-callable @@hasInstance")           \
+  T(NonObjectInInstanceOfCheck, "Expecting an object in instanceof check")     \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \

@@ -22,8 +22,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreak) {
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
   isolate->debug()->Break(args, it.frame());
-  isolate->debug()->SetAfterBreakTarget(it.frame());
-  return isolate->heap()->undefined_value();
+  return isolate->debug()->SetAfterBreakTarget(it.frame());
 }
 
 
@@ -82,7 +81,7 @@ static Handle<Object> DebugGetProperty(LookupIterator* it,
           return it->isolate()->factory()->undefined_value();
         }
         MaybeHandle<Object> maybe_result =
-            JSObject::GetPropertyWithAccessor(it, SLOPPY);
+            JSObject::GetPropertyWithAccessor(it);
         Handle<Object> result;
         if (!maybe_result.ToHandle(&result)) {
           result = handle(it->isolate()->pending_exception(), it->isolate());
@@ -334,10 +333,14 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   details->set(
       2, isolate->heap()->ToBoolean(it.state() == LookupIterator::INTERCEPTOR));
   if (has_js_accessors) {
-    AccessorPair* accessors = AccessorPair::cast(*maybe_pair);
+    Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(maybe_pair);
     details->set(3, isolate->heap()->ToBoolean(has_caught));
-    details->set(4, accessors->GetComponent(ACCESSOR_GETTER));
-    details->set(5, accessors->GetComponent(ACCESSOR_SETTER));
+    Handle<Object> getter =
+        AccessorPair::GetComponent(accessors, ACCESSOR_GETTER);
+    Handle<Object> setter =
+        AccessorPair::GetComponent(accessors, ACCESSOR_SETTER);
+    details->set(4, *getter);
+    details->set(5, *setter);
   }
 
   return *isolate->factory()->NewJSArrayWithElements(details);
@@ -526,7 +529,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   bool constructor = frame_inspector.IsConstructor();
 
   // Get scope info and read from it for local variable information.
-  Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(frame_inspector.GetFunction());
   RUNTIME_ASSERT(function->shared()->IsSubjectToDebugging());
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
@@ -550,13 +554,13 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     // Use the value from the stack.
     if (scope_info->LocalIsSynthetic(i)) continue;
     locals->set(local * 2, scope_info->LocalName(i));
-    locals->set(local * 2 + 1, frame_inspector.GetExpression(i));
+    locals->set(local * 2 + 1, *(frame_inspector.GetExpression(i)));
     local++;
   }
   if (local < local_count) {
     // Get the context containing declarations.
     Handle<Context> context(
-        Context::cast(frame_inspector.GetContext())->declaration_context());
+        Handle<Context>::cast(frame_inspector.GetContext())->closure_context());
     for (; i < scope_info->LocalCount(); ++i) {
       if (scope_info->LocalIsSynthetic(i)) continue;
       Handle<String> name(scope_info->LocalName(i));
@@ -635,7 +639,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
   // Add the function (same as in function frame).
-  details->set(kFrameDetailsFunctionIndex, frame_inspector.GetFunction());
+  details->set(kFrameDetailsFunctionIndex, *(frame_inspector.GetFunction()));
 
   // Add the arguments count.
   details->set(kFrameDetailsArgumentCountIndex, Smi::FromInt(argument_count));
@@ -685,7 +689,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     // Parameter value.
     if (i < frame_inspector.GetParametersCount()) {
       // Get the value from the stack.
-      details->set(details_index++, frame_inspector.GetParameter(i));
+      details->set(details_index++, *(frame_inspector.GetParameter(i)));
     } else {
       details->set(details_index++, heap->undefined_value());
     }
@@ -704,25 +708,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // Add the receiver (same as in function frame).
   Handle<Object> receiver(it.frame()->receiver(), isolate);
   DCHECK(!function->shared()->IsBuiltin());
-  if (!receiver->IsJSObject() && is_sloppy(shared->language_mode())) {
-    // If the receiver is not a JSObject and the function is not a builtin or
-    // strict-mode we have hit an optimization where a value object is not
-    // converted into a wrapped JS objects. To hide this optimization from the
-    // debugger, we wrap the receiver by creating correct wrapper object based
-    // on the function's native context.
-    // See ECMA-262 6.0, 9.2.1.2, 6 b iii.
-    if (receiver->IsUndefined()) {
-      receiver = handle(function->global_proxy());
-    } else {
-      Context* context = function->context();
-      Handle<Context> native_context(Context::cast(context->native_context()));
-      if (!Object::ToObject(isolate, receiver, native_context)
-               .ToHandle(&receiver)) {
-        // This only happens if the receiver is forcibly set in %_CallFunction.
-        return heap->undefined_value();
-      }
-    }
-  }
+  DCHECK_IMPLIES(is_sloppy(shared->language_mode()), receiver->IsJSReceiver());
   details->set(kFrameDetailsReceiverIndex, *receiver);
 
   DCHECK_EQ(details_size, details_index);
@@ -1329,14 +1315,14 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   return *result;
 }
 
-
-static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate, Object* object,
+static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate,
+                                               JSObject* object,
                                                Object* proto) {
   PrototypeIterator iter(isolate, object, PrototypeIterator::START_AT_RECEIVER);
   while (true) {
     iter.AdvanceIgnoringProxies();
     if (iter.IsAtEnd()) return false;
-    if (iter.IsAtEnd(proto)) return true;
+    if (iter.GetCurrent() == proto) return true;
   }
 }
 
@@ -1443,7 +1429,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
   // TODO(1543): Come up with a solution for clients to handle potential errors
   // thrown by an intermediate proxy.
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, prototype,
-                                     Object::GetPrototype(isolate, obj));
+                                     JSReceiver::GetPrototype(isolate, obj));
   return *prototype;
 }
 

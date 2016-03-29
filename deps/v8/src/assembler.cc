@@ -34,6 +34,7 @@
 
 #include "src/assembler.h"
 
+#include <math.h>
 #include <cmath>
 #include "src/api.h"
 #include "src/base/cpu.h"
@@ -50,8 +51,8 @@
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/interpreter/interpreter.h"
 #include "src/ostreams.h"
-#include "src/parsing/token.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -265,8 +266,8 @@ CpuFeatureScope::~CpuFeatureScope() {
 
 bool CpuFeatures::initialized_ = false;
 unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::cache_line_size_ = 0;
-
+unsigned CpuFeatures::icache_line_size_ = 0;
+unsigned CpuFeatures::dcache_line_size_ = 0;
 
 // -----------------------------------------------------------------------------
 // Implementation of Label
@@ -770,6 +771,9 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
+bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
+  return DebugCodegen::DebugBreakSlotIsPatched(pc_);
+}
 
 #ifdef DEBUG
 bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
@@ -943,6 +947,20 @@ void RelocInfo::Verify(Isolate* isolate) {
 
 // Implementation of ExternalReference
 
+static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
+  switch (result_size) {
+    case 1:
+      return ExternalReference::BUILTIN_CALL;
+    case 2:
+      return ExternalReference::BUILTIN_CALL_PAIR;
+    case 3:
+      return ExternalReference::BUILTIN_CALL_TRIPLE;
+  }
+  UNREACHABLE();
+  return ExternalReference::BUILTIN_CALL;
+}
+
+
 void ExternalReference::SetUp() {
   double_constants.min_int = kMinInt;
   double_constants.one_half = 0.5;
@@ -1025,18 +1043,23 @@ ExternalReference::ExternalReference(Builtins::Name name, Isolate* isolate)
 
 
 ExternalReference::ExternalReference(Runtime::FunctionId id, Isolate* isolate)
-    : address_(Redirect(isolate, Runtime::FunctionForId(id)->entry)) {}
+    : ExternalReference(Runtime::FunctionForId(id), isolate) {}
 
 
 ExternalReference::ExternalReference(const Runtime::Function* f,
                                      Isolate* isolate)
-    : address_(Redirect(isolate, f->entry)) {}
+    : address_(Redirect(isolate, f->entry,
+                        BuiltinCallTypeForResultSize(f->result_size))) {}
 
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
 }
 
+ExternalReference ExternalReference::interpreter_dispatch_table_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->interpreter()->dispatch_table_address());
+}
 
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
@@ -1057,9 +1080,16 @@ ExternalReference ExternalReference::
       FUNCTION_ADDR(IncrementalMarking::RecordWriteFromCode)));
 }
 
+ExternalReference
+ExternalReference::incremental_marking_record_write_code_entry_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate,
+      FUNCTION_ADDR(IncrementalMarking::RecordWriteOfCodeEntryFromCode)));
+}
 
-ExternalReference ExternalReference::
-    store_buffer_overflow_function(Isolate* isolate) {
+ExternalReference ExternalReference::store_buffer_overflow_function(
+    Isolate* isolate) {
   return ExternalReference(Redirect(
       isolate,
       FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow)));
@@ -1117,6 +1147,67 @@ ExternalReference ExternalReference::compute_output_frames_function(
       Redirect(isolate, FUNCTION_ADDR(Deoptimizer::ComputeOutputFrames)));
 }
 
+static void f32_trunc_wrapper(float* param) { *param = truncf(*param); }
+
+ExternalReference ExternalReference::f32_trunc_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_trunc_wrapper)));
+}
+
+static void f32_floor_wrapper(float* param) { *param = floorf(*param); }
+
+ExternalReference ExternalReference::f32_floor_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_floor_wrapper)));
+}
+
+static void f32_ceil_wrapper(float* param) { *param = ceilf(*param); }
+
+ExternalReference ExternalReference::f32_ceil_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_ceil_wrapper)));
+}
+
+static void f32_nearest_int_wrapper(float* param) {
+  *param = nearbyintf(*param);
+}
+
+ExternalReference ExternalReference::f32_nearest_int_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(f32_nearest_int_wrapper)));
+}
+
+static void f64_trunc_wrapper(double* param) { *param = trunc(*param); }
+
+ExternalReference ExternalReference::f64_trunc_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_trunc_wrapper)));
+}
+
+static void f64_floor_wrapper(double* param) { *param = floor(*param); }
+
+ExternalReference ExternalReference::f64_floor_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_floor_wrapper)));
+}
+
+static void f64_ceil_wrapper(double* param) { *param = ceil(*param); }
+
+ExternalReference ExternalReference::f64_ceil_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_ceil_wrapper)));
+}
+
+static void f64_nearest_int_wrapper(double* param) {
+  *param = nearbyint(*param);
+}
+
+ExternalReference ExternalReference::f64_nearest_int_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(f64_nearest_int_wrapper)));
+}
 
 ExternalReference ExternalReference::log_enter_external_function(
     Isolate* isolate) {
@@ -1179,12 +1270,6 @@ ExternalReference ExternalReference::new_space_start(Isolate* isolate) {
 
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
   return ExternalReference(isolate->heap()->store_buffer_top_address());
-}
-
-
-ExternalReference ExternalReference::new_space_mask(Isolate* isolate) {
-  return ExternalReference(reinterpret_cast<Address>(
-      isolate->heap()->NewSpaceMask()));
 }
 
 
@@ -1521,23 +1606,6 @@ ExternalReference ExternalReference::power_double_int_function(
 }
 
 
-bool EvalComparison(Token::Value op, double op1, double op2) {
-  DCHECK(Token::IsCompareOp(op));
-  switch (op) {
-    case Token::EQ:
-    case Token::EQ_STRICT: return (op1 == op2);
-    case Token::NE: return (op1 != op2);
-    case Token::LT: return (op1 < op2);
-    case Token::GT: return (op1 > op2);
-    case Token::LTE: return (op1 <= op2);
-    case Token::GTE: return (op1 >= op2);
-    default:
-      UNREACHABLE();
-      return false;
-  }
-}
-
-
 ExternalReference ExternalReference::mod_two_doubles_operation(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
@@ -1837,11 +1905,9 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 // Platform specific but identical code for all the platforms.
 
 
-void Assembler::RecordDeoptReason(const int reason,
-                                  const SourcePosition position) {
+void Assembler::RecordDeoptReason(const int reason, int raw_position) {
   if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
     EnsureSpace ensure_space(this);
-    int raw_position = position.IsUnknown() ? 0 : position.raw();
     RecordRelocInfo(RelocInfo::POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
   }

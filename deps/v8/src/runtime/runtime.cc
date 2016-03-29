@@ -27,6 +27,12 @@ FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 FOR_EACH_INTRINSIC_RETURN_PAIR(P)
 #undef P
 
+#define T(name, number_of_args, result_size)                         \
+  ObjectTriple Runtime_##name(int args_length, Object** args_object, \
+                              Isolate* isolate);
+FOR_EACH_INTRINSIC_RETURN_TRIPLE(T)
+#undef T
+
 
 #define F(name, number_of_args, result_size)                                  \
   {                                                                           \
@@ -123,6 +129,7 @@ const Runtime::Function* Runtime::RuntimeFunctionTable(Isolate* isolate) {
 std::ostream& operator<<(std::ostream& os, Runtime::FunctionId id) {
   return os << Runtime::FunctionForId(id)->name;
 }
+
 
 }  // namespace internal
 }  // namespace v8

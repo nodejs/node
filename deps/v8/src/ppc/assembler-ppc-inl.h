@@ -202,8 +202,8 @@ void RelocInfo::set_target_object(Object* target,
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
       target->IsHeapObject()) {
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), &Memory::Object_at(pc_), HeapObject::cast(target));
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target));
   }
 }
 
@@ -248,9 +248,8 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode write_barrier_mode,
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
-    // TODO(1550) We are passing NULL as a slot because cell can never be on
-    // evacuation candidate.
-    host()->GetHeap()->incremental_marking()->RecordWrite(host(), NULL, cell);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  cell);
   }
 }
 
@@ -326,39 +325,6 @@ void RelocInfo::WipeOut() {
   } else {
     Assembler::set_target_address_at(isolate_, pc_, host_, NULL);
   }
-}
-
-
-bool RelocInfo::IsPatchedReturnSequence() {
-  //
-  // The patched return sequence is defined by
-  // BreakLocation::SetDebugBreakAtReturn()
-  // FIXED_SEQUENCE
-
-  Instr instr0 = Assembler::instr_at(pc_);
-  Instr instr1 = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
-#if V8_TARGET_ARCH_PPC64
-  Instr instr3 = Assembler::instr_at(pc_ + (3 * Assembler::kInstrSize));
-  Instr instr4 = Assembler::instr_at(pc_ + (4 * Assembler::kInstrSize));
-  Instr binstr = Assembler::instr_at(pc_ + (7 * Assembler::kInstrSize));
-#else
-  Instr binstr = Assembler::instr_at(pc_ + 4 * Assembler::kInstrSize);
-#endif
-  bool patched_return =
-      ((instr0 & kOpcodeMask) == ADDIS && (instr1 & kOpcodeMask) == ORI &&
-#if V8_TARGET_ARCH_PPC64
-       (instr3 & kOpcodeMask) == ORIS && (instr4 & kOpcodeMask) == ORI &&
-#endif
-       (binstr == 0x7d821008));  // twge r2, r2
-
-  // printf("IsPatchedReturnSequence: %d\n", patched_return);
-  return patched_return;
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  Instr current_instr = Assembler::instr_at(pc_);
-  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
 }
 
 

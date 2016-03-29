@@ -5,12 +5,12 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
 
+#ifdef V8_INTERPRETED_REGEXP
+
 #include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
 namespace internal {
-
-#ifdef V8_INTERPRETED_REGEXP
 
 // A light-weight assembler for the Irregexp byte code.
 class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
@@ -85,7 +85,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void CheckNotBackReference(int start_reg, bool read_backward,
                                      Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
-                                               bool read_backward,
+                                               bool read_backward, bool unicode,
                                                Label* on_no_match);
   virtual void IfRegisterLT(int register_index, int comparand, Label* if_lt);
   virtual void IfRegisterGE(int register_index, int comparand, Label* if_ge);
@@ -125,9 +125,9 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpMacroAssemblerIrregexp);
 };
 
-#endif  // V8_INTERPRETED_REGEXP
-
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_INTERPRETED_REGEXP
 
 #endif  // V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_

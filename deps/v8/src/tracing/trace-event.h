@@ -24,8 +24,6 @@
 enum CategoryGroupEnabledFlags {
   // Category group enabled for the recording mode.
   kEnabledForRecording_CategoryGroupEnabledFlags = 1 << 0,
-  // Category group enabled for the monitoring mode.
-  kEnabledForMonitoring_CategoryGroupEnabledFlags = 1 << 1,
   // Category group enabled by SetEventCallbackEnabled().
   kEnabledForEventCallback_CategoryGroupEnabledFlags = 1 << 2,
   // Category group enabled to export events to ETW.
@@ -101,9 +99,7 @@ enum CategoryGroupEnabledFlags {
 // Get the number of times traces have been recorded. This is used to implement
 // the TRACE_EVENT_IS_NEW_TRACE facility.
 // unsigned int TRACE_EVENT_API_GET_NUM_TRACES_RECORDED()
-#define TRACE_EVENT_API_GET_NUM_TRACES_RECORDED                 \
-  v8::internal::tracing::TraceEventHelper::GetCurrentPlatform() \
-      ->getNumTracesRecorded
+#define TRACE_EVENT_API_GET_NUM_TRACES_RECORDED UNIMPLEMENTED()
 
 // Add a trace event to the platform tracing system.
 // uint64_t TRACE_EVENT_API_ADD_TRACE_EVENT(

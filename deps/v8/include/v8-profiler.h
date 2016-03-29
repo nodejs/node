@@ -207,6 +207,13 @@ class V8_EXPORT CpuProfiler {
   CpuProfile* StopProfiling(Local<String> title);
 
   /**
+   * Force collection of a sample. Must be called on the VM thread.
+   * Recording the forced sample does not contribute to the aggregated
+   * profile statistics.
+   */
+  void CollectSample();
+
+  /**
    * Tells the profiler whether the embedder is idle.
    */
   void SetIdle(bool is_idle);
@@ -419,6 +426,90 @@ class V8_EXPORT ActivityControl {  // NOLINT
 
 
 /**
+ * AllocationProfile is a sampled profile of allocations done by the program.
+ * This is structured as a call-graph.
+ */
+class V8_EXPORT AllocationProfile {
+ public:
+  struct Allocation {
+    /**
+     * Size of the sampled allocation object.
+     */
+    size_t size;
+
+    /**
+     * The number of objects of such size that were sampled.
+     */
+    unsigned int count;
+  };
+
+  /**
+   * Represents a node in the call-graph.
+   */
+  struct Node {
+    /**
+     * Name of the function. May be empty for anonymous functions or if the
+     * script corresponding to this function has been unloaded.
+     */
+    Local<String> name;
+
+    /**
+     * Name of the script containing the function. May be empty if the script
+     * name is not available, or if the script has been unloaded.
+     */
+    Local<String> script_name;
+
+    /**
+     * id of the script where the function is located. May be equal to
+     * v8::UnboundScript::kNoScriptId in cases where the script doesn't exist.
+     */
+    int script_id;
+
+    /**
+     * Start position of the function in the script.
+     */
+    int start_position;
+
+    /**
+     * 1-indexed line number where the function starts. May be
+     * kNoLineNumberInfo if no line number information is available.
+     */
+    int line_number;
+
+    /**
+     * 1-indexed column number where the function starts. May be
+     * kNoColumnNumberInfo if no line number information is available.
+     */
+    int column_number;
+
+    /**
+     * List of callees called from this node for which we have sampled
+     * allocations. The lifetime of the children is scoped to the containing
+     * AllocationProfile.
+     */
+    std::vector<Node*> children;
+
+    /**
+     * List of self allocations done by this node in the call-graph.
+     */
+    std::vector<Allocation> allocations;
+  };
+
+  /**
+   * Returns the root node of the call-graph. The root node corresponds to an
+   * empty JS call-stack. The lifetime of the returned Node* is scoped to the
+   * containing AllocationProfile.
+   */
+  virtual Node* GetRootNode() = 0;
+
+  virtual ~AllocationProfile() {}
+
+  static const int kNoLineNumberInfo = Message::kNoLineNumberInfo;
+  static const int kNoColumnNumberInfo = Message::kNoColumnInfo;
+};
+
+
+/**
  * Interface for controlling heap profiling. Instance of the
  * profiler can be retrieved using v8::Isolate::GetHeapProfiler.
  */
@@ -520,6 +611,49 @@ class V8_EXPORT HeapProfiler {
    * calling GetHeapStats next time.
    */
   void StopTrackingHeapObjects();
+
+  /**
+   * Starts gathering a sampling heap profile. A sampling heap profile is
+   * similar to tcmalloc's heap profiler and Go's mprof. It samples object
+   * allocations and builds an online 'sampling' heap profile. At any point in
+   * time, this profile is expected to be a representative sample of objects
+   * currently live in the system. Each sampled allocation includes the stack
+   * trace at the time of allocation, which makes this really useful for memory
+   * leak detection.
+   *
+   * This mechanism is intended to be cheap enough that it can be used in
+   * production with minimal performance overhead.
+   *
+   * Allocations are sampled using a randomized Poisson process. On average, one
+   * allocation will be sampled every |sample_interval| bytes allocated. The
+   * |stack_depth| parameter controls the maximum number of stack frames to be
+   * captured on each allocation.
+   *
+   * NOTE: This is a proof-of-concept at this point. Right now we only sample
+   * newspace allocations. Support for paged space allocation (e.g. pre-tenured
+   * objects, large objects, code objects, etc.) and native allocations
+   * doesn't exist yet, but is anticipated in the future.
+   *
+   * Objects allocated before the sampling is started will not be included in
+   * the profile.
+   *
+   * Returns false if a sampling heap profiler is already running.
+   */
+  bool StartSamplingHeapProfiler(uint64_t sample_interval = 512 * 1024,
+                                 int stack_depth = 16);
+
+  /**
+   * Stops the sampling heap profile and discards the current profile.
+   */
+  void StopSamplingHeapProfiler();
+
+  /**
+   * Returns the sampled profile of allocations allocated (and still live) since
+   * StartSamplingHeapProfiler was called. The ownership of the pointer is
+   * transfered to the caller. Returns nullptr if sampling heap profiler is not
+   * active.
+   */
+  AllocationProfile* GetAllocationProfile();
 
   /**
    * Deletes all snapshots taken. All previously returned pointers to

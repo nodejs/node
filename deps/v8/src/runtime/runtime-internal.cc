@@ -395,7 +395,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
       List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
       it.frame()->Summarize(&frames);
       FrameSummary& summary = frames.last();
-      int pos = summary.code()->SourcePosition(summary.pc());
+      int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
       *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
       return true;
     }
@@ -448,6 +448,14 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ThrowDerivedConstructorReturnedNonObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kDerivedConstructorReturn));
+}
+
+
 // ES6 section 7.3.17 CreateListFromArrayLike (obj)
 RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
   HandleScope scope(isolate);
@@ -467,6 +475,18 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   CONVERT_SMI_ARG_CHECKED(counter, 0);
   isolate->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(counter));
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  std::stringstream stats_stream;
+  isolate->counters()->runtime_call_stats()->Print(stats_stream);
+  Handle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(stats_stream.str().c_str());
+  isolate->counters()->runtime_call_stats()->Reset();
+  return *result;
 }
 
 }  // namespace internal

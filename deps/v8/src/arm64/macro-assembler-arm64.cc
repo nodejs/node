@@ -1488,18 +1488,15 @@ void MacroAssembler::LoadAccessor(Register dst, Register holder,
 }
 
 
-void MacroAssembler::CheckEnumCache(Register object,
-                                    Register null_value,
-                                    Register scratch0,
-                                    Register scratch1,
-                                    Register scratch2,
-                                    Register scratch3,
+void MacroAssembler::CheckEnumCache(Register object, Register scratch0,
+                                    Register scratch1, Register scratch2,
+                                    Register scratch3, Register scratch4,
                                     Label* call_runtime) {
-  DCHECK(!AreAliased(object, null_value, scratch0, scratch1, scratch2,
-                     scratch3));
+  DCHECK(!AreAliased(object, scratch0, scratch1, scratch2, scratch3, scratch4));
 
   Register empty_fixed_array_value = scratch0;
   Register current_object = scratch1;
+  Register null_value = scratch4;
 
   LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
   Label next, start;
@@ -1516,6 +1513,7 @@ void MacroAssembler::CheckEnumCache(Register object,
   Cmp(enum_length, kInvalidEnumCacheSentinel);
   B(eq, call_runtime);
 
+  LoadRoot(null_value, Heap::kNullValueRootIndex);
   B(&start);
 
   Bind(&next);
@@ -1576,10 +1574,9 @@ void MacroAssembler::InNewSpace(Register object,
                                 Label* branch) {
   DCHECK(cond == eq || cond == ne);
   UseScratchRegisterScope temps(this);
-  Register temp = temps.AcquireX();
-  And(temp, object, ExternalReference::new_space_mask(isolate()));
-  Cmp(temp, ExternalReference::new_space_start(isolate()));
-  B(cond, branch);
+  const int mask =
+      (1 << MemoryChunk::IN_FROM_SPACE) | (1 << MemoryChunk::IN_TO_SPACE);
+  CheckPageFlag(object, temps.AcquireSameSizeAs(object), mask, cond, branch);
 }
 
 
@@ -1641,6 +1638,20 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 
+void MacroAssembler::AssertReceiver(Register object) {
+  if (emit_debug_code()) {
+    AssertNotSmi(object, kOperandIsASmiAndNotAReceiver);
+
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.AcquireX();
+
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+    CompareObjectType(object, temp, temp, FIRST_JS_RECEIVER_TYPE);
+    Check(hs, kOperandIsNotAReceiver);
+  }
+}
+
+
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
   if (emit_debug_code()) {
@@ -1679,6 +1690,15 @@ void MacroAssembler::AssertPositiveOrZero(Register value) {
   }
 }
 
+void MacroAssembler::AssertNumber(Register value) {
+  if (emit_debug_code()) {
+    Label done;
+    JumpIfSmi(value, &done);
+    JumpIfHeapNumber(value, &done);
+    Abort(kOperandIsNotANumber);
+    Bind(&done);
+  }
+}
 
 void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
@@ -1724,19 +1744,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   Mov(x1, builtin);
   CEntryStub stub(isolate(), 1);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
-
-void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                                   const CallWrapper& call_wrapper) {
-  ASM_LOCATION("MacroAssembler::InvokeBuiltin");
-  // You can't call a builtin without a valid frame.
-  DCHECK(flag == JUMP_FUNCTION || has_frame());
-
-  // Fake a parameter count to avoid emitting code to do the check.
-  ParameterCount expected(0);
-  LoadNativeContextSlot(native_context_index, x1);
-  InvokeFunctionCode(x1, no_reg, expected, expected, flag, call_wrapper);
 }
 
 
@@ -2423,7 +2430,7 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
     }
     Push(fun);
     Push(fun);
-    CallRuntime(Runtime::kDebugPrepareStepInIfStepping, 1);
+    CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
     Pop(fun);
     if (new_target.is_valid()) {
       Pop(new_target);
@@ -3824,6 +3831,65 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   Ldr(result, FieldMemOperand(scratch2, kValueOffset));
 }
 
+void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
+                                               Register code_entry,
+                                               Register scratch) {
+  const int offset = JSFunction::kCodeEntryOffset;
+
+  // Since a code entry (value) is always in old space, we don't need to update
+  // remembered set. If incremental marking is off, there is nothing for us to
+  // do.
+  if (!FLAG_incremental_marking) return;
+
+  DCHECK(js_function.is(x1));
+  DCHECK(code_entry.is(x7));
+  DCHECK(scratch.is(x5));
+  AssertNotSmi(js_function);
+
+  if (emit_debug_code()) {
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.AcquireX();
+    Add(scratch, js_function, offset - kHeapObjectTag);
+    Ldr(temp, MemOperand(scratch));
+    Cmp(temp, code_entry);
+    Check(eq, kWrongAddressOrValuePassedToRecordWrite);
+  }
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis and stores into young gen.
+  Label done;
+
+  CheckPageFlagClear(code_entry, scratch,
+                     MemoryChunk::kPointersToHereAreInterestingMask, &done);
+  CheckPageFlagClear(js_function, scratch,
+                     MemoryChunk::kPointersFromHereAreInterestingMask, &done);
+
+  const Register dst = scratch;
+  Add(dst, js_function, offset - kHeapObjectTag);
+
+  // Save caller-saved registers.Both input registers (x1 and x7) are caller
+  // saved, so there is no need to push them.
+  PushCPURegList(kCallerSaved);
+
+  int argument_count = 3;
+
+  Mov(x0, js_function);
+  Mov(x1, dst);
+  Mov(x2, ExternalReference::isolate_address(isolate()));
+
+  {
+    AllowExternalCallThatCantCauseGC scope(this);
+    CallCFunction(
+        ExternalReference::incremental_marking_record_write_code_entry_function(
+            isolate()),
+        argument_count);
+  }
+
+  // Restore caller-saved registers.
+  PopCPURegList(kCallerSaved);
+
+  Bind(&done);
+}
 
 void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          Register address,
@@ -3938,6 +4004,17 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   }
 }
 
+void MacroAssembler::CheckPageFlag(const Register& object,
+                                   const Register& scratch, int mask,
+                                   Condition cc, Label* condition_met) {
+  And(scratch, object, ~Page::kPageAlignmentMask);
+  Ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
+  if (cc == eq) {
+    TestAndBranchIfAnySet(scratch, mask, condition_met);
+  } else {
+    TestAndBranchIfAllClear(scratch, mask, condition_met);
+  }
+}
 
 void MacroAssembler::CheckPageFlagSet(const Register& object,
                                       const Register& scratch,
@@ -4409,9 +4486,9 @@ void MacroAssembler::Abort(BailoutReason reason) {
       // We don't actually want to generate a pile of code for this, so just
       // claim there is a stack frame, without generating one.
       FrameScope scope(this, StackFrame::NONE);
-      CallRuntime(Runtime::kAbort, 1);
+      CallRuntime(Runtime::kAbort);
     } else {
-      CallRuntime(Runtime::kAbort, 1);
+      CallRuntime(Runtime::kAbort);
     }
   } else {
     // Load the string to pass to Printf.

@@ -1,3 +1,1778 @@
+2016-02-23: Version 5.0.71
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.70
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.69
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.68
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.67
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.66
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.65
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.64
+
+        ES2015 web compat workaround: RegExp.prototype.flags => "" (Chromium
+        issue 581577).
+
+        Remove the Proxy enumerate trap (issue 4768).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.63
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.62
+
+        Remove Reflect.enumerate (issue 4768).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.61
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.60
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.59
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.58
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.57
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.56
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.55
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.54
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.53
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.52
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.51
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.50
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.49
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.48
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-20: Version 5.0.47
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-20: Version 5.0.46
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.45
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.44
+
+        Return undefined from RegExp.prototype.compile (Chromium issue 585775).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.43
+
+        Disable --harmony-object-observe (Chromium issue 552100).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.42
+
+        Introduce BeforeCallEnteredCallback (Chromium issue 585949).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.41
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.40
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.39
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.38
+
+        [wasm] Add support for import section (Chromium issue 575167).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.37
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.36
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.35
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.34
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.33
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.32
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.31
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.30
+
+        Mark old SetAccessCheckCallback as deprecated.
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.29
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.28
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.27
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.26
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.25
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.24
+
+        Make Date.prototype.toGMTString an alias for Date.prototype.toUTCString
+        (issue 4708).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.23
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.22
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.21
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.20
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.19
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.18
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.17
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.16
+
+        [es6] Implement for-of iterator finalization (issue 2214).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.15
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.14
+
+        Use displayName in Error.stack rendering if present (issue 4761).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.13
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.12
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.11
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.10
+
+        [Atomics] Add dmb/dsb/isb instructions to ARM (issue 4614).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.9
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.8
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.7
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.6
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.5
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.4
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.3
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.2
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.1
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 4.10.253
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 4.10.252
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 4.10.251
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 4.10.250
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.249
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.248
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.247
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.246
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.245
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.244
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.243
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.242
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.241
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.240
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.239
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.238
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.237
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.236
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.235
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.234
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.233
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.232
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.231
+
+        Make NamedLoadHandlerCompiler::CompileLoadInterceptor behave correcly
+        with lazy accessors (Chromium issue 585764).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.230
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.229
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.228
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.227
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.226
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-16: Version 4.10.225
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.224
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.223
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.222
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.221
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.220
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.219
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.218
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.217
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.216
+
+        [wasm] Add support for a start function (Chromium issue 575167).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.215
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.214
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.213
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.212
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.211
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-15: Version 4.10.210
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-14: Version 4.10.209
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-14: Version 4.10.208
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-14: Version 4.10.207
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-13: Version 4.10.206
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-12: Version 4.10.205
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-12: Version 4.10.204
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-12: Version 4.10.203
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-12: Version 4.10.202
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-12: Version 4.10.201
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-12: Version 4.10.200
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-12: Version 4.10.199
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-12: Version 4.10.198
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-12: Version 4.10.197
+
+        Stage --harmony-function-name (issue 3699).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-12: Version 4.10.196
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-10: Version 4.10.195
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-10: Version 4.10.194
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-10: Version 4.10.193
+
+        Use a for-of loop in Array.from (issue 4739).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-09: Version 4.10.192
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-09: Version 4.10.191
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-09: Version 4.10.190
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-09: Version 4.10.189
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-09: Version 4.10.188
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-09: Version 4.10.187
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-09: Version 4.10.186
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-09: Version 4.10.185
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-09: Version 4.10.184
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-09: Version 4.10.183
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.182
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.181
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.180
+
+        [wasm] Put the condition last in kExprBrIf (Chromium issue 575167).
+
+        Stage --harmony-species flag, enabling Symbol.species (issue 4093).
+
+        Extend subarray web compatibility fix to --harmony-species (issue 4665).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.179
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.178
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.177
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.176
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.175
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.174
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.173
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.172
+
+        android: Use libc++ instead of stlport (issue 4615).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-08: Version 4.10.171
+
+        [api] Make ObjectTemplate::SetNativeDataProperty() work even if the
+        ObjectTemplate does not have a constructor (Chromium issue 579009).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-05: Version 4.10.170
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-05: Version 4.10.169
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-05: Version 4.10.168
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-05: Version 4.10.167
+
+        [wasm] min/max does not return signaling NaNs anymore (Chromium issue
+        4733).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-05: Version 4.10.166
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-05: Version 4.10.165
+
+        [wasm] Put the condition last in kExprSelect (issue 4735, Chromium issue
+        575167).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-05: Version 4.10.164
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-05: Version 4.10.163
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-05: Version 4.10.162
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-05: Version 4.10.161
+
+        PPC: [generators] Implement Generator.prototype.return (issue 3566).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-04: Version 4.10.160
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-04: Version 4.10.159
+
+        [generators] Implement Generator.prototype.return (issue 3566).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-04: Version 4.10.158
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-04: Version 4.10.157
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-04: Version 4.10.156
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-04: Version 4.10.155
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-04: Version 4.10.154
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-04: Version 4.10.153
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-04: Version 4.10.152
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-04: Version 4.10.151
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-03: Version 4.10.150
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-03: Version 4.10.149
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-03: Version 4.10.148
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-03: Version 4.10.147
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-03: Version 4.10.146
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-03: Version 4.10.145
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-02: Version 4.10.144
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-02: Version 4.10.143
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-02: Version 4.10.142
+
+        [wasm] Provide backoff implementations for the Fxx rounding instructions
+        (Chromium issue 575379).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-02: Version 4.10.141
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-02: Version 4.10.140
+
+        [api] Make ObjectTemplate::SetNativeDataProperty() work even if the
+        ObjectTemplate does not have a constructor (Chromium issue 579009).
+
+        Add native callbacks to FastAccessorAssembler (Chromium issue 508898).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-02: Version 4.10.139
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-02: Version 4.10.138
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.137
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.136
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.135
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.134
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.133
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.132
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.131
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.130
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.129
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.128
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.127
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.126
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.125
+
+        Ship RegExp subclassing (issues 4305, 4343, 4344, 4345).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-01: Version 4.10.124
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-31: Version 4.10.123
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-31: Version 4.10.122
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.121
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.120
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.119
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.118
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.117
+
+        Fix Unicode string normalization with null bytes (issue 4654).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.116
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.115
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.114
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.113
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.112
+
+        [regexp] stage unicode regexps (issue 2952).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-29: Version 4.10.111
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.110
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.109
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.108
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.107
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.106
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.105
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.104
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.103
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.102
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.101
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.100
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.99
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-28: Version 4.10.98
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.97
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.96
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.95
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.94
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.93
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.92
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.91
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.90
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.89
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.88
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.87
+
+        [api] Default native data property setter to replace the setter if the
+        property is writable (Chromium issue 580584).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.86
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.85
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.84
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.83
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.82
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.81
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-27: Version 4.10.80
+
+        Stage RegExp subclassing (issues 4305, 4343, 4344, 4345).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.79
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.78
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.77
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.76
+
+        Ensure arrow functions can close over lexically-scoped variables (issue
+        4255, Chromium issue 580934).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.75
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.74
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.73
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.72
+
+        [GN] Remove CAN_USE_VFP_INSTRUCTIONS define to match GYP.
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.71
+
+        PPC: [es6] Tail calls support (issue 4698).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.70
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.69
+
+        [es6] Tail calls support (issue 4698).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-26: Version 4.10.68
+
+        Support @@species in Array.prototype.concat (issue 4093).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.67
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.66
+
+        Restore per-TypedArray-class length accessors as a perf workaround
+        (Chromium issue 579905).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.65
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.64
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.63
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.62
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.61
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.60
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.59
+
+        Don't NULL-check GlobalHandle::Node::object_ (issue 3647, Chromium issue
+        580651).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.58
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.57
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.56
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.55
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.54
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.53
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.52
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-25: Version 4.10.51
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.50
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.49
+
+        Sloppy mode webcompat: allow conflicting function declarations in blocks
+        (issue 4693, Chromium issue 579395).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.48
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.47
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.46
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.45
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.44
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.43
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.42
+
+        Array length reduction should throw in strict mode if it can't delete an
+        element (issue 4267).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.41
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.40
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.39
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.38
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-22: Version 4.10.37
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.36
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.35
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.34
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.33
+
+        Array length reduction should throw in strict mode if it can't delete an
+        element (issue 4267).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.32
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.31
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.30
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.29
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.28
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.27
+
+        [debugger] negative conditional break points mute breaks and exceptions
+        (Chromium issue 429167).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.26
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-21: Version 4.10.25
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.24
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.23
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.22
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.21
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.20
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.19
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.18
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.17
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.16
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.15
+
+        [wasm] Implemented F32Trunc as a turbofan graph based on int32
+        instructions (Chromium issue 575379).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.14
+
+        [wasm] Verify boundaries of data segments when decoding modules
+        (Chromium issue 575167).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.13
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.12
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.11
+
+        [runtime] Do not use the enum-cache for keys retrieval (issue 705).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.10
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-20: Version 4.10.9
+
+        Separate String.prototype.replace into RegExp.prototype[Symbol.replace]
+        (issue 4343).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-19: Version 4.10.8
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-19: Version 4.10.7
+
+        [wasm] Enable WASM JavaScript API tests (Chromium issue 575167).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-18: Version 4.10.6
+
+        [wasm] Create a wrapper function for WASM.asmCompileRun() (Chromium
+        issue 575372).
+
+        Make generators non-constructable (issues 4163, 4630).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-18: Version 4.10.5
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-18: Version 4.10.4
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-18: Version 4.10.3
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-16: Version 4.10.2
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-16: Version 4.10.1
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-15: Version 4.9.391
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-15: Version 4.9.390
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-15: Version 4.9.389
+
+        Construct instances of base class from TypedArray.prototype.subarray
+        (issue 4665).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-14: Version 4.9.388
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-14: Version 4.9.387
+
+        Performance and stability improvements on all platforms.
+
+
+2016-01-14: Version 4.9.386
+
+        Performance and stability improvements on all platforms.
+
+
 2016-01-14: Version 4.9.385
 
         Performance and stability improvements on all platforms.

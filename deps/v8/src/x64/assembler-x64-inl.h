@@ -456,10 +456,8 @@ void RelocInfo::set_target_cell(Cell* cell,
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL) {
-    // TODO(1550) We are passing NULL as a slot because cell can never be on
-    // evacuation candidate.
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), NULL, cell);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  cell);
   }
 }
 
@@ -475,23 +473,6 @@ void RelocInfo::WipeOut() {
   } else {
     UNREACHABLE();
   }
-}
-
-
-bool RelocInfo::IsPatchedReturnSequence() {
-  // The recognized call sequence is:
-  //  movq(kScratchRegister, address); call(kScratchRegister);
-  // It only needs to be distinguished from a return sequence
-  //  movq(rsp, rbp); pop(rbp); ret(n); int3 *6
-  // The 11th byte is int3 (0xCC) in the return sequence and
-  // REX.WB (0x48+register bit) for the call sequence.
-  return pc_[Assembler::kMoveAddressIntoScratchRegisterInstructionLength] !=
-         0xCC;
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  return !Assembler::IsNop(pc());
 }
 
 

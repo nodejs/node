@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --stack-size=100 --harmony --harmony-reflect --harmony-regexps
-// Flags: --harmony-simd --strong-mode
+// Flags: --harmony-simd
 
 function test(f, expected, type) {
   try {
@@ -150,7 +150,7 @@ TypeError);
 // kInstanceofFunctionExpected
 test(function() {
   1 instanceof 1;
-}, "Expecting a function in instanceof check, but got 1", TypeError);
+}, "Expecting an object in instanceof check", TypeError);
 
 // kInstanceofNonobjectProto
 test(function() {
@@ -305,12 +305,6 @@ test(function() {
   (1).a = 1;
 }, "Cannot create property 'a' on number '1'", TypeError);
 
-// kStrongImplicitCast
-test(function() {
-  "use strong";
-  "a" + 1;
-}, "In strong mode, implicit conversions are deprecated", TypeError);
-
 // kSymbolToString
 test(function() {
   "" + Symbol();
@@ -345,6 +339,26 @@ test(function() {
   eval("/a/x.test(\"a\");");
 }, "Invalid regular expression flags", SyntaxError);
 
+//kJsonParseUnexpectedEOS
+test(function() {
+  JSON.parse("{")
+}, "Unexpected end of JSON input", SyntaxError);
+
+// kJsonParseUnexpectedTokenAt
+test(function() {
+  JSON.parse("/")
+}, "Unexpected token / in JSON at position 0", SyntaxError);
+
+// kJsonParseUnexpectedTokenNumberAt
+test(function() {
+  JSON.parse("{ 1")
+}, "Unexpected number in JSON at position 2", SyntaxError);
+
+// kJsonParseUnexpectedTokenStringAt
+test(function() {
+  JSON.parse('"""')
+}, "Unexpected string in JSON at position 2", SyntaxError);
+
 // kMalformedRegExp
 test(function() {
   /(/.test("a");
@@ -354,27 +368,6 @@ test(function() {
 test(function() {
   new Function(")", "");
 }, "Function arg string contains parenthesis", SyntaxError);
-
-// kUnexpectedEOS
-test(function() {
-  JSON.parse("{")
-}, "Unexpected end of input", SyntaxError);
-
-// kUnexpectedToken
-test(function() {
-  JSON.parse("/")
-}, "Unexpected token /", SyntaxError);
-
-// kUnexpectedTokenNumber
-test(function() {
-  JSON.parse("{ 1")
-}, "Unexpected number", SyntaxError);
-
-// kUnexpectedTokenString
-test(function() {
-  JSON.parse('"""')
-}, "Unexpected string", SyntaxError);
-
 
 // === ReferenceError ===
 

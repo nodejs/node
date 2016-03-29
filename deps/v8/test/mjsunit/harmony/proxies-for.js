@@ -27,20 +27,14 @@
 
 // Flags: --harmony-proxies
 
-
 // Helper.
 
 function TestWithProxies(test, x, y, z) {
   test(function(h){ return new Proxy({}, h) }, x, y, z)
-  test(function(h) {
-    return new Proxy(function() {}, h)
-  }, x, y, z)
 }
 
 
 // Iterate over a proxy.
-
-Array.prototype.values = function() { return this[Symbol.iterator]() }
 
 function TestForIn(properties, handler) {
   TestWithProxies(TestForIn2, properties, handler)
@@ -54,22 +48,17 @@ function TestForIn2(create, properties, handler) {
 }
 
 TestForIn(["0", "a"], {
-  enumerate() { return ["0", "a"].values() },
-  has(target, property) { return true }
+  ownKeys() { return ["0", "a"] },
+  has(target, property) { return true },
+  getOwnPropertyDescriptor() { return { enumerable: true, configurable: true }}
 })
 
 TestForIn(["null", "a"], {
-  enumerate() { return this.enumerate2() },
-  enumerate2() { return ["null", "a"].values() },
-  has(target, property) { return true }
+  ownKeys() { return this.enumerate() },
+  enumerate() { return ["null", "a"] },
+  has(target, property) { return true },
+  getOwnPropertyDescriptor() { return { enumerable: true, configurable: true }}
 })
-
-TestForIn(["b", "a", "0", "c"], new Proxy({}, {
-  get: function(pr, pk) {
-    return function() { return ["b", "a", "0", "c"].values() }
-  }
-}))
-
 
 
 // Iterate over an object with a proxy prototype.
@@ -94,19 +83,21 @@ function TestForInDerived2(create, properties, handler) {
 }
 
 TestForInDerived(["0", "a"], {
-  enumerate: function() { return ["0", "a"].values() },
-  has: function(t, k) { return k == "0" || k == "a" }
+  ownKeys: function() { return ["0", "a"] },
+  has: function(t, k) { return k == "0" || k == "a" },
+  getOwnPropertyDescriptor() { return { enumerable: true, configurable: true }}
 })
 
 TestForInDerived(["null", "a"], {
-  enumerate: function() { return this.enumerate2() },
-  enumerate2: function() { return ["null", "a"].values() },
-  has: function(t, k) { return k == "null" || k == "a" }
+  ownKeys: function() { return this.enumerate() },
+  enumerate: function() { return ["null", "a"] },
+  has: function(t, k) { return k == "null" || k == "a" },
+  getOwnPropertyDescriptor() { return { enumerable: true, configurable: true }}
 })
 
 
 
-// Throw exception in enumerate trap.
+// Throw exception in ownKeys trap.
 
 function TestForInThrow(handler) {
   TestWithProxies(TestForInThrow2, handler)
@@ -120,12 +111,12 @@ function TestForInThrow2(create, handler) {
 }
 
 TestForInThrow({
-  enumerate: function() { throw "myexn" }
+  ownKeys: function() { throw "myexn" }
 })
 
 TestForInThrow({
-  enumerate: function() { return this.enumerate2() },
-  enumerate2: function() { throw "myexn" }
+  ownKeys: function() { return this.enumerate() },
+  enumerate: function() { throw "myexn" }
 })
 
 TestForInThrow(new Proxy({}, {
@@ -135,7 +126,7 @@ TestForInThrow(new Proxy({}, {
 }));
 
 (function() {
-  var p = new Proxy({}, {enumerate:function() { return ["0"].values(); }});
+  var p = new Proxy({}, {ownKeys:function() { return ["0"]; }});
   var o = [0];
   o.__proto__ = p;
   var keys = [];

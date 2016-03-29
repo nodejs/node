@@ -57,6 +57,16 @@ class PropertyDescriptor {
            !has_value() && !has_get() && !has_set();
   }
 
+  bool IsRegularAccessorProperty() const {
+    return has_configurable() && has_enumerable() && !has_value() &&
+           !has_writable() && has_get() && has_set();
+  }
+
+  bool IsRegularDataProperty() const {
+    return has_configurable() && has_enumerable() && has_value() &&
+           has_writable() && !has_get() && !has_set();
+  }
+
   bool enumerable() const { return enumerable_; }
   void set_enumerable(bool enumerable) {
     enumerable_ = enumerable;

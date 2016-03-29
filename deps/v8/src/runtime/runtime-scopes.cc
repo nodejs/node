@@ -65,21 +65,27 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<JSGlobalObject> global,
       // Check whether we can reconfigure the existing property into a
       // function.
       PropertyDetails old_details = it.property_details();
-      // TODO(verwaest): ACCESSOR_CONSTANT invalidly includes
-      // ExecutableAccessInfo,
-      // which are actually data properties, not accessor properties.
       if (old_details.IsReadOnly() || old_details.IsDontEnum() ||
-          old_details.type() == ACCESSOR_CONSTANT) {
+          (it.state() == LookupIterator::ACCESSOR &&
+           it.GetAccessors()->IsAccessorPair())) {
         return ThrowRedeclarationError(isolate, name);
       }
       // If the existing property is not configurable, keep its attributes. Do
       attr = old_attributes;
     }
+
+    // If the current state is ACCESSOR, this could mean it's an AccessorInfo
+    // type property. We are not allowed to call into such setters during global
+    // function declaration since this would break e.g., onload. Meaning
+    // 'function onload() {}' would invalidly register that function as the
+    // onload callback. To avoid this situation, we first delete the property
+    // before readding it as a regular data property below.
+    if (it.state() == LookupIterator::ACCESSOR) it.Delete();
   }
 
   // Define or redefine own property.
-  RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                                           global, name, value, attr));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attr));
 
   return isolate->heap()->undefined_value();
 }
@@ -196,8 +202,8 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
     }
   }
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                                           global, name, value, attr));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attr));
 
   return *value;
 }
@@ -414,10 +420,8 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
 namespace {
 
 // Find the arguments of the JavaScript function invocation that called
-// into C++ code. Collect these in a newly allocated array of handles (possibly
-// prefixed by a number of empty handles).
+// into C++ code. Collect these in a newly allocated array of handles.
 base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
-                                                           int prefix_argc,
                                                            int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it(isolate);
@@ -442,14 +446,14 @@ base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
     iter++;
     argument_count--;
 
-    *total_argc = prefix_argc + argument_count;
+    *total_argc = argument_count;
     base::SmartArrayPointer<Handle<Object>> param_data(
         NewArray<Handle<Object>>(*total_argc));
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
       should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
       Handle<Object> value = iter->GetValue();
-      param_data[prefix_argc + i] = value;
+      param_data[i] = value;
       iter++;
     }
 
@@ -463,12 +467,12 @@ base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
     frame = it.frame();
     int args_count = frame->ComputeParametersCount();
 
-    *total_argc = prefix_argc + args_count;
+    *total_argc = args_count;
     base::SmartArrayPointer<Handle<Object>> param_data(
         NewArray<Handle<Object>>(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i), isolate);
-      param_data[prefix_argc + i] = val;
+      param_data[i] = val;
     }
     return param_data;
   }
@@ -564,46 +568,6 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
 }
 
 
-template <typename T>
-Handle<JSObject> NewStrictArguments(Isolate* isolate, Handle<JSFunction> callee,
-                                    T parameters, int argument_count) {
-  Handle<JSObject> result =
-      isolate->factory()->NewArgumentsObject(callee, argument_count);
-
-  if (argument_count > 0) {
-    Handle<FixedArray> array =
-        isolate->factory()->NewUninitializedFixedArray(argument_count);
-    DisallowHeapAllocation no_gc;
-    WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
-    for (int i = 0; i < argument_count; i++) {
-      array->set(i, parameters[i], mode);
-    }
-    result->set_elements(*array);
-  }
-  return result;
-}
-
-
-template <typename T>
-Handle<JSObject> NewRestArguments(Isolate* isolate, Handle<JSFunction> callee,
-                                  T parameters, int argument_count,
-                                  int start_index) {
-  int num_elements = std::max(0, argument_count - start_index);
-  Handle<JSObject> result = isolate->factory()->NewJSArray(
-      FAST_ELEMENTS, num_elements, num_elements, Strength::WEAK,
-      DONT_INITIALIZE_ARRAY_ELEMENTS);
-  {
-    DisallowHeapAllocation no_gc;
-    FixedArray* elements = FixedArray::cast(result->elements());
-    WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-    for (int i = 0; i < num_elements; i++) {
-      elements->set(i, parameters[i + start_index], mode);
-    }
-  }
-  return result;
-}
-
-
 class HandleArguments BASE_EMBEDDED {
  public:
   explicit HandleArguments(Handle<Object>* array) : array_(array) {}
@@ -634,39 +598,60 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments_Generic) {
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      GetCallerArguments(isolate, 0, &argument_count);
+      GetCallerArguments(isolate, &argument_count);
   HandleArguments argument_getter(arguments.get());
   return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
 }
 
 
-RUNTIME_FUNCTION(Runtime_NewStrictArguments_Generic) {
+RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      GetCallerArguments(isolate, 0, &argument_count);
-  HandleArguments argument_getter(arguments.get());
-  return *NewStrictArguments(isolate, callee, argument_getter, argument_count);
+      GetCallerArguments(isolate, &argument_count);
+  Handle<JSObject> result =
+      isolate->factory()->NewArgumentsObject(callee, argument_count);
+  if (argument_count) {
+    Handle<FixedArray> array =
+        isolate->factory()->NewUninitializedFixedArray(argument_count);
+    DisallowHeapAllocation no_gc;
+    WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
+    for (int i = 0; i < argument_count; i++) {
+      array->set(i, *arguments[i], mode);
+    }
+    result->set_elements(*array);
+  }
+  return *result;
 }
 
 
-RUNTIME_FUNCTION(Runtime_NewRestArguments_Generic) {
+RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
-  CONVERT_SMI_ARG_CHECKED(start_index, 1);
+  int start_index = callee->shared()->internal_formal_parameter_count();
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      GetCallerArguments(isolate, 0, &argument_count);
-  HandleArguments argument_getter(arguments.get());
-  return *NewRestArguments(isolate, callee, argument_getter, argument_count,
-                           start_index);
+      GetCallerArguments(isolate, &argument_count);
+  int num_elements = std::max(0, argument_count - start_index);
+  Handle<JSObject> result = isolate->factory()->NewJSArray(
+      FAST_ELEMENTS, num_elements, num_elements, Strength::WEAK,
+      DONT_INITIALIZE_ARRAY_ELEMENTS);
+  {
+    DisallowHeapAllocation no_gc;
+    FixedArray* elements = FixedArray::cast(result->elements());
+    WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+    for (int i = 0; i < num_elements; i++) {
+      elements->set(i, *arguments[i + start_index], mode);
+    }
+  }
+  return *result;
 }
 
 
@@ -684,42 +669,6 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
 #endif  // DEBUG
   ParameterArguments argument_getter(parameters);
   return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
-  Object** parameters = reinterpret_cast<Object**>(args[1]);
-  CONVERT_SMI_ARG_CHECKED(argument_count, 2);
-#ifdef DEBUG
-  // This runtime function does not materialize the correct arguments when the
-  // caller has been inlined, better make sure we are not hitting that case.
-  JavaScriptFrameIterator it(isolate);
-  DCHECK(!it.frame()->HasInlinedFrames());
-#endif  // DEBUG
-  ParameterArguments argument_getter(parameters);
-  return *NewStrictArguments(isolate, callee, argument_getter, argument_count);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NewRestParam) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_SMI_ARG_CHECKED(num_params, 0);
-  Object** parameters = reinterpret_cast<Object**>(args[1]);
-  CONVERT_SMI_ARG_CHECKED(rest_index, 2);
-#ifdef DEBUG
-  // This runtime function does not materialize the correct arguments when the
-  // caller has been inlined, better make sure we are not hitting that case.
-  JavaScriptFrameIterator it(isolate);
-  DCHECK(!it.frame()->HasInlinedFrames());
-#endif  // DEBUG
-  Handle<JSFunction> callee;
-  ParameterArguments argument_getter(parameters);
-  return *NewRestArguments(isolate, callee, argument_getter, num_params,
-                           rest_index);
 }
 
 
@@ -957,17 +906,14 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
 
 RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_ARG_HANDLE_CHECKED(Context, context, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
 
   int index;
   PropertyAttributes attributes;
-  ContextLookupFlags flags = FOLLOW_CHAINS;
-  BindingFlags binding_flags;
-  Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes, &binding_flags);
+  BindingFlags flags;
+  Handle<Object> holder = isolate->context()->Lookup(
+      name, FOLLOW_CHAINS, &index, &attributes, &flags);
 
   // If the slot was not found the result is true.
   if (holder.is_null()) {
@@ -991,161 +937,158 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 }
 
 
-static Object* ComputeReceiverForNonGlobal(Isolate* isolate, JSObject* holder) {
-  DCHECK(!holder->IsJSGlobalObject());
+namespace {
 
-  // If the holder isn't a context extension object, we just return it
-  // as the receiver. This allows arguments objects to be used as
-  // receivers, but only if they are put in the context scope chain
-  // explicitly via a with-statement.
-  if (holder->map()->instance_type() != JS_CONTEXT_EXTENSION_OBJECT_TYPE) {
-    return holder;
-  }
-  // Fall back to using the global object as the implicit receiver if
-  // the property turns out to be a local variable allocated in a
-  // context extension object - introduced via eval.
-  return isolate->heap()->undefined_value();
-}
-
-
-static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
-                                       bool throw_error) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  if (!args[0]->IsContext() || !args[1]->IsString()) {
-    return MakePair(isolate->ThrowIllegalOperation(), NULL);
-  }
-  Handle<Context> context = args.at<Context>(0);
-  Handle<String> name = args.at<String>(1);
+MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
+                                   Object::ShouldThrow should_throw,
+                                   Handle<Object>* receiver_return = nullptr) {
+  Isolate* const isolate = name->GetIsolate();
 
   int index;
   PropertyAttributes attributes;
-  ContextLookupFlags flags = FOLLOW_CHAINS;
-  BindingFlags binding_flags;
-  Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes, &binding_flags);
-  if (isolate->has_pending_exception()) {
-    return MakePair(isolate->heap()->exception(), NULL);
-  }
+  BindingFlags flags;
+  Handle<Object> holder = isolate->context()->Lookup(
+      name, FOLLOW_CHAINS, &index, &attributes, &flags);
+  if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   if (index != Context::kNotFound) {
     DCHECK(holder->IsContext());
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
-    Object* value = Context::cast(*holder)->get(index);
+    Handle<Object> value = handle(Context::cast(*holder)->get(index), isolate);
     // Check for uninitialized bindings.
-    switch (binding_flags) {
+    switch (flags) {
       case MUTABLE_CHECK_INITIALIZED:
       case IMMUTABLE_CHECK_INITIALIZED_HARMONY:
         if (value->IsTheHole()) {
-          Handle<Object> error = isolate->factory()->NewReferenceError(
-              MessageTemplate::kNotDefined, name);
-          isolate->Throw(*error);
-          return MakePair(isolate->heap()->exception(), NULL);
+          THROW_NEW_ERROR(isolate,
+                          NewReferenceError(MessageTemplate::kNotDefined, name),
+                          Object);
+        }
+      // FALLTHROUGH
+      case IMMUTABLE_CHECK_INITIALIZED:
+        if (value->IsTheHole()) {
+          DCHECK(attributes & READ_ONLY);
+          value = isolate->factory()->undefined_value();
         }
       // FALLTHROUGH
       case MUTABLE_IS_INITIALIZED:
       case IMMUTABLE_IS_INITIALIZED:
       case IMMUTABLE_IS_INITIALIZED_HARMONY:
         DCHECK(!value->IsTheHole());
-        return MakePair(value, *receiver);
-      case IMMUTABLE_CHECK_INITIALIZED:
-        if (value->IsTheHole()) {
-          DCHECK((attributes & READ_ONLY) != 0);
-          value = isolate->heap()->undefined_value();
-        }
-        return MakePair(value, *receiver);
+        if (receiver_return) *receiver_return = receiver;
+        return value;
       case MISSING_BINDING:
-        UNREACHABLE();
-        return MakePair(NULL, NULL);
+        break;
     }
+    UNREACHABLE();
   }
 
   // Otherwise, if the slot was found the holder is a context extension
   // object, subject of a with, or a global object.  We read the named
   // property from it.
   if (!holder.is_null()) {
-    Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
-    // GetProperty below can cause GC.
-    Handle<Object> receiver_handle(
-        object->IsJSGlobalObject()
-            ? Object::cast(isolate->heap()->undefined_value())
-            : object->IsJSProxy() ? static_cast<Object*>(*object)
-                                  : ComputeReceiverForNonGlobal(
-                                        isolate, JSObject::cast(*object)),
-        isolate);
-
     // No need to unhole the value here.  This is taken care of by the
     // GetProperty function.
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value, Object::GetProperty(object, name),
-        MakePair(isolate->heap()->exception(), NULL));
-    return MakePair(*value, *receiver_handle);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, value, Object::GetProperty(holder, name),
+        Object);
+    if (receiver_return) {
+      *receiver_return =
+          (holder->IsJSGlobalObject() || holder->IsJSContextExtensionObject())
+              ? Handle<Object>::cast(isolate->factory()->undefined_value())
+              : holder;
+    }
+    return value;
   }
 
-  if (throw_error) {
+  if (should_throw == Object::THROW_ON_ERROR) {
     // The property doesn't exist - throw exception.
-    Handle<Object> error = isolate->factory()->NewReferenceError(
-        MessageTemplate::kNotDefined, name);
-    isolate->Throw(*error);
-    return MakePair(isolate->heap()->exception(), NULL);
-  } else {
-    // The property doesn't exist - return undefined.
-    return MakePair(isolate->heap()->undefined_value(),
-                    isolate->heap()->undefined_value());
+    THROW_NEW_ERROR(
+        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
   }
+
+  // The property doesn't exist - return undefined.
+  if (receiver_return) *receiver_return = isolate->factory()->undefined_value();
+  return isolate->factory()->undefined_value();
 }
 
-
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlot) {
-  return LoadLookupSlotHelper(args, isolate, true);
-}
+}  // namespace
 
 
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotNoReferenceError) {
-  return LoadLookupSlotHelper(args, isolate, false);
-}
-
-
-RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
+RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<Object> value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, value, LoadLookupSlot(name, Object::THROW_ON_ERROR));
+  return *value;
+}
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Context, context, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 2);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 3);
+
+RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<Object> value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, value, LoadLookupSlot(name, Object::DONT_THROW));
+  return *value;
+}
+
+
+RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DCHECK(args[0]->IsString());
+  Handle<String> name = args.at<String>(0);
+  Handle<Object> value;
+  Handle<Object> receiver;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value, LoadLookupSlot(name, Object::THROW_ON_ERROR, &receiver),
+      MakePair(isolate->heap()->exception(), nullptr));
+  return MakePair(*value, *receiver);
+}
+
+
+namespace {
+
+MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
+                                    LanguageMode language_mode) {
+  Isolate* const isolate = name->GetIsolate();
+  Handle<Context> context(isolate->context(), isolate);
 
   int index;
   PropertyAttributes attributes;
-  ContextLookupFlags flags = FOLLOW_CHAINS;
-  BindingFlags binding_flags;
+  BindingFlags flags;
   Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes, &binding_flags);
+      context->Lookup(name, FOLLOW_CHAINS, &index, &attributes, &flags);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
-    if (isolate->has_pending_exception()) return isolate->heap()->exception();
+    if (isolate->has_pending_exception()) return MaybeHandle<Object>();
   }
 
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
-    if ((binding_flags == MUTABLE_CHECK_INITIALIZED ||
-         binding_flags == IMMUTABLE_CHECK_INITIALIZED_HARMONY) &&
+    if ((flags == MUTABLE_CHECK_INITIALIZED ||
+         flags == IMMUTABLE_CHECK_INITIALIZED_HARMONY) &&
         Handle<Context>::cast(holder)->is_the_hole(index)) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
+      THROW_NEW_ERROR(isolate,
+                      NewReferenceError(MessageTemplate::kNotDefined, name),
+                      Object);
     }
     if ((attributes & READ_ONLY) == 0) {
       Handle<Context>::cast(holder)->set(index, *value);
     } else if (is_strict(language_mode)) {
       // Setting read only property in strict mode.
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kStrictCannotAssign, name));
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrictCannotAssign, name),
+                      Object);
     }
-    return *value;
+    return value;
   }
 
   // Slow case: The property is not in a context slot.  It is either in a
@@ -1157,101 +1100,42 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
     object = Handle<JSReceiver>::cast(holder);
   } else if (is_strict(language_mode)) {
     // If absent in strict mode: throw.
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
+    THROW_NEW_ERROR(
+        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
   } else {
     // If absent in sloppy mode: add the property to the global object.
     object = Handle<JSReceiver>(context->global_object());
   }
 
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, Object::SetProperty(object, name, value, language_mode));
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, Object::SetProperty(object, name, value, language_mode),
+      Object);
+  return value;
+}
 
+}  // namespace
+
+
+RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                     StoreLookupSlot(name, value, SLOPPY));
   return *value;
 }
 
 
-RUNTIME_FUNCTION(Runtime_ArgumentsLength) {
+RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  int argument_count = 0;
-  GetCallerArguments(isolate, 0, &argument_count);
-  return Smi::FromInt(argument_count);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                     StoreLookupSlot(name, value, STRICT));
+  return *value;
 }
 
-
-RUNTIME_FUNCTION(Runtime_Arguments) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, raw_key, 0);
-
-  // Determine the actual arguments passed to the function.
-  int argument_count_signed = 0;
-  base::SmartArrayPointer<Handle<Object>> arguments =
-      GetCallerArguments(isolate, 0, &argument_count_signed);
-  const uint32_t argument_count = argument_count_signed;
-
-  // Try to convert the key to an index. If successful and within
-  // index return the the argument from the frame.
-  uint32_t index = 0;
-  if (raw_key->ToArrayIndex(&index) && index < argument_count) {
-    return *arguments[index];
-  }
-
-  if (raw_key->IsSymbol()) {
-    Handle<Symbol> symbol = Handle<Symbol>::cast(raw_key);
-    if (Name::Equals(symbol, isolate->factory()->iterator_symbol())) {
-      return isolate->native_context()->array_values_iterator();
-    }
-    // Lookup in the initial Object.prototype object.
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        Object::GetProperty(isolate->initial_object_prototype(),
-                            Handle<Symbol>::cast(raw_key)));
-    return *result;
-  }
-
-  // Convert the key to a string.
-  Handle<Object> converted;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, converted,
-                                     Object::ToString(isolate, raw_key));
-  Handle<String> key = Handle<String>::cast(converted);
-
-  // Try to convert the string key into an array index.
-  if (key->AsArrayIndex(&index)) {
-    if (index < argument_count) {
-      return *arguments[index];
-    } else {
-      Handle<Object> initial_prototype(isolate->initial_object_prototype());
-      Handle<Object> result;
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, result,
-          Object::GetElement(isolate, initial_prototype, index));
-      return *result;
-    }
-  }
-
-  // Handle special arguments properties.
-  if (String::Equals(isolate->factory()->length_string(), key)) {
-    return Smi::FromInt(argument_count);
-  }
-  if (String::Equals(isolate->factory()->callee_string(), key)) {
-    JavaScriptFrameIterator it(isolate);
-    JSFunction* function = it.frame()->function();
-    if (is_strict(function->shared()->language_mode())) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kStrictPoisonPill));
-    }
-    return function;
-  }
-
-  // Lookup in the initial Object.prototype object.
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Object::GetProperty(isolate->initial_object_prototype(), key));
-  return *result;
-}
 }  // namespace internal
 }  // namespace v8

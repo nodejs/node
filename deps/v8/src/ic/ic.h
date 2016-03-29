@@ -284,9 +284,11 @@ class CallIC : public IC {
 
   // Code generator routines.
   static Handle<Code> initialize_stub(Isolate* isolate, int argc,
-                                      ConvertReceiverMode mode);
+                                      ConvertReceiverMode mode,
+                                      TailCallMode tail_call_mode);
   static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, int argc, ConvertReceiverMode mode);
+      Isolate* isolate, int argc, ConvertReceiverMode mode,
+      TailCallMode tail_call_mode);
 
   static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
 };
@@ -294,17 +296,12 @@ class CallIC : public IC {
 
 class LoadIC : public IC {
  public:
-  static ExtraICState ComputeExtraICState(TypeofMode typeof_mode,
-                                          LanguageMode language_mode) {
-    return LoadICState(typeof_mode, language_mode).GetExtraICState();
+  static ExtraICState ComputeExtraICState(TypeofMode typeof_mode) {
+    return LoadICState(typeof_mode).GetExtraICState();
   }
 
   TypeofMode typeof_mode() const {
     return LoadICState::GetTypeofMode(extra_ic_state());
-  }
-
-  LanguageMode language_mode() const {
-    return LoadICState::GetLanguageMode(extra_ic_state());
   }
 
   LoadIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
@@ -321,9 +318,8 @@ class LoadIC : public IC {
 
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateRuntimeGetProperty(MacroAssembler* masm,
-                                         LanguageMode language_mode);
-  static void GenerateNormal(MacroAssembler* masm, LanguageMode language_mode);
+  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
+  static void GenerateNormal(MacroAssembler* masm);
 
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       ExtraICState extra_state);
@@ -340,14 +336,10 @@ class LoadIC : public IC {
 
   Handle<Code> slow_stub() const {
     if (kind() == Code::LOAD_IC) {
-      return is_strong(language_mode())
-                 ? isolate()->builtins()->LoadIC_Slow_Strong()
-                 : isolate()->builtins()->LoadIC_Slow();
+      return isolate()->builtins()->LoadIC_Slow();
     } else {
       DCHECK_EQ(Code::KEYED_LOAD_IC, kind());
-      return is_strong(language_mode())
-                 ? isolate()->builtins()->KeyedLoadIC_Slow_Strong()
-                 : isolate()->builtins()->KeyedLoadIC_Slow();
+      return isolate()->builtins()->KeyedLoadIC_Slow();
     }
   }
 
@@ -377,9 +369,8 @@ class KeyedLoadIC : public LoadIC {
       : public BitField<IcCheckType, LoadICState::kNextBitFieldOffset, 1> {};
 
   static ExtraICState ComputeExtraICState(TypeofMode typeof_mode,
-                                          LanguageMode language_mode,
                                           IcCheckType key_type) {
-    return LoadICState(typeof_mode, language_mode).GetExtraICState() |
+    return LoadICState(typeof_mode).GetExtraICState() |
            IcCheckTypeField::encode(key_type);
   }
 
@@ -399,11 +390,9 @@ class KeyedLoadIC : public LoadIC {
 
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateRuntimeGetProperty(MacroAssembler* masm,
-                                         LanguageMode language_mode);
+  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
-  static void GenerateMegamorphic(MacroAssembler* masm,
-                                  LanguageMode language_mode);
+  static void GenerateMegamorphic(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -616,8 +605,7 @@ class CompareIC : public IC {
   static Condition ComputeCondition(Token::Value op);
 
   // Factory method for getting an uninitialized compare stub.
-  static Handle<Code> GetUninitialized(Isolate* isolate, Token::Value op,
-                                       Strength strength);
+  static Handle<Code> GetUninitialized(Isolate* isolate, Token::Value op);
 
  private:
   static bool HasInlinedSmiCode(Address address);
@@ -625,8 +613,7 @@ class CompareIC : public IC {
   bool strict() const { return op_ == Token::EQ_STRICT; }
   Condition GetCondition() const { return ComputeCondition(op_); }
 
-  static Code* GetRawUninitialized(Isolate* isolate, Token::Value op,
-                                   Strength strength);
+  static Code* GetRawUninitialized(Isolate* isolate, Token::Value op);
 
   static void Clear(Isolate* isolate, Address address, Code* target,
                     Address constant_pool);
@@ -646,9 +633,6 @@ class CompareNilIC : public IC {
   static Handle<Code> GetUninitialized();
 
   static void Clear(Address address, Code* target, Address constant_pool);
-
-  static Handle<Object> DoCompareNilSlow(Isolate* isolate, NilValue nil,
-                                         Handle<Object> object);
 };
 
 

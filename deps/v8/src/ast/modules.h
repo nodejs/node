@@ -26,8 +26,7 @@ class ModuleDescriptor : public ZoneObject {
   // ---------------------------------------------------------------------------
   // Mutators.
 
-  // Add a name to the list of exports. If it already exists, or this descriptor
-  // is frozen, that's an error.
+  // Add a name to the list of exports. If it already exists, that's an error.
   void AddLocalExport(const AstRawString* export_name,
                       const AstRawString* local_name, Zone* zone, bool* ok);
 
@@ -35,30 +34,22 @@ class ModuleDescriptor : public ZoneObject {
   // if not already present.
   void AddModuleRequest(const AstRawString* module_specifier, Zone* zone);
 
-  // Do not allow any further refinements, directly or through unification.
-  void Freeze() { frozen_ = true; }
-
   // Assign an index.
   void Allocate(int index) {
-    DCHECK(IsFrozen() && index_ == -1);
+    DCHECK_EQ(-1, index_);
     index_ = index;
   }
 
   // ---------------------------------------------------------------------------
   // Accessors.
 
-  // Check whether this is closed (i.e. fully determined).
-  bool IsFrozen() { return frozen_; }
-
   int Length() {
-    DCHECK(IsFrozen());
     ZoneHashMap* exports = exports_;
     return exports ? exports->occupancy() : 0;
   }
 
   // The context slot in the hosting script context pointing to this module.
   int Index() {
-    DCHECK(IsFrozen());
     return index_;
   }
 
@@ -104,12 +95,8 @@ class ModuleDescriptor : public ZoneObject {
   // Implementation.
  private:
   explicit ModuleDescriptor(Zone* zone)
-      : frozen_(false),
-        exports_(NULL),
-        requested_modules_(1, zone),
-        index_(-1) {}
+      : exports_(NULL), requested_modules_(1, zone), index_(-1) {}
 
-  bool frozen_;
   ZoneHashMap* exports_;   // Module exports and their types (allocated lazily)
   ZoneList<const AstRawString*> requested_modules_;
   int index_;

@@ -35,9 +35,12 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
             Linkage::GetSimplifiedCDescriptor(
                 main_zone(),
                 CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0,
-                                p1, p2, p3, p4)),
+                                p1, p2, p3, p4),
+                true),
             MachineType::PointerRepresentation(),
             InstructionSelector::SupportedMachineOperatorFlags()) {}
+
+  virtual ~RawMachineAssemblerTester() {}
 
   void CheckNumber(double expected, Object* number) {
     CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
@@ -85,6 +88,7 @@ class BufferedRawMachineAssemblerTester
       : BufferedRawMachineAssemblerTester(ComputeParameterCount(p0, p1, p2, p3),
                                           p0, p1, p2, p3) {}
 
+  virtual byte* Generate() { return RawMachineAssemblerTester::Generate(); }
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
   // to the constructed IR graph. Instead it passes a pointer to the parameter
@@ -92,10 +96,9 @@ class BufferedRawMachineAssemblerTester
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
   Node* Parameter(size_t index) {
-    CHECK(index >= 0 && index < 4);
+    CHECK(index < 4);
     return parameter_nodes_[index];
   }
-
 
   // The BufferedRawMachineAssemblerTester adds a Store node to the IR graph
   // to store the graph's return value in memory. The memory address for the
@@ -110,7 +113,7 @@ class BufferedRawMachineAssemblerTester
 
   ReturnType Call() {
     ReturnType return_value;
-    test_graph_signature_->VerifyParams();
+    CSignature::VerifyParams(test_graph_signature_);
     CallHelper<int32_t>::Call(reinterpret_cast<void*>(&return_value));
     return return_value;
   }
@@ -118,7 +121,7 @@ class BufferedRawMachineAssemblerTester
   template <typename P0>
   ReturnType Call(P0 p0) {
     ReturnType return_value;
-    test_graph_signature_->VerifyParams<P0>();
+    CSignature::VerifyParams<P0>(test_graph_signature_);
     CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p0),
                               reinterpret_cast<void*>(&return_value));
     return return_value;
@@ -127,7 +130,7 @@ class BufferedRawMachineAssemblerTester
   template <typename P0, typename P1>
   ReturnType Call(P0 p0, P1 p1) {
     ReturnType return_value;
-    test_graph_signature_->VerifyParams<P0, P1>();
+    CSignature::VerifyParams<P0, P1>(test_graph_signature_);
     CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p0),
                               reinterpret_cast<void*>(&p1),
                               reinterpret_cast<void*>(&return_value));
@@ -137,7 +140,7 @@ class BufferedRawMachineAssemblerTester
   template <typename P0, typename P1, typename P2>
   ReturnType Call(P0 p0, P1 p1, P2 p2) {
     ReturnType return_value;
-    test_graph_signature_->VerifyParams<P0, P1, P2>();
+    CSignature::VerifyParams<P0, P1, P2>(test_graph_signature_);
     CallHelper<int32_t>::Call(
         reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
         reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&return_value));
@@ -147,7 +150,7 @@ class BufferedRawMachineAssemblerTester
   template <typename P0, typename P1, typename P2, typename P3>
   ReturnType Call(P0 p0, P1 p1, P2 p2, P3 p3) {
     ReturnType return_value;
-    test_graph_signature_->VerifyParams<P0, P1, P2, P3>();
+    CSignature::VerifyParams<P0, P1, P2, P3>(test_graph_signature_);
     CallHelper<int32_t>::Call(
         reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
         reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&p3),
@@ -245,6 +248,7 @@ class BufferedRawMachineAssemblerTester<void>
                               : Load(p3, RawMachineAssembler::Parameter(3));
   }
 
+  virtual byte* Generate() { return RawMachineAssemblerTester::Generate(); }
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
   // to the constructed IR graph. Instead it passes a pointer to the parameter
@@ -258,26 +262,26 @@ class BufferedRawMachineAssemblerTester<void>
 
 
   void Call() {
-    test_graph_signature_->VerifyParams();
+    CSignature::VerifyParams(test_graph_signature_);
     CallHelper<void>::Call();
   }
 
   template <typename P0>
   void Call(P0 p0) {
-    test_graph_signature_->VerifyParams<P0>();
+    CSignature::VerifyParams<P0>(test_graph_signature_);
     CallHelper<void>::Call(reinterpret_cast<void*>(&p0));
   }
 
   template <typename P0, typename P1>
   void Call(P0 p0, P1 p1) {
-    test_graph_signature_->VerifyParams<P0, P1>();
+    CSignature::VerifyParams<P0, P1>(test_graph_signature_);
     CallHelper<void>::Call(reinterpret_cast<void*>(&p0),
                            reinterpret_cast<void*>(&p1));
   }
 
   template <typename P0, typename P1, typename P2>
   void Call(P0 p0, P1 p1, P2 p2) {
-    test_graph_signature_->VerifyParams<P0, P1, P2>();
+    CSignature::VerifyParams<P0, P1, P2>(test_graph_signature_);
     CallHelper<void>::Call(reinterpret_cast<void*>(&p0),
                            reinterpret_cast<void*>(&p1),
                            reinterpret_cast<void*>(&p2));
@@ -285,7 +289,7 @@ class BufferedRawMachineAssemblerTester<void>
 
   template <typename P0, typename P1, typename P2, typename P3>
   void Call(P0 p0, P1 p1, P2 p2, P3 p3) {
-    test_graph_signature_->VerifyParams<P0, P1, P2, P3>();
+    CSignature::VerifyParams<P0, P1, P2, P3>(test_graph_signature_);
     CallHelper<void>::Call(
         reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
         reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&p3));
@@ -397,7 +401,6 @@ class Uint32BinopTester : public BinopTester<uint32_t, USE_RETURN_REGISTER> {
 
 // A helper class for testing code sequences that take two float parameters and
 // return a float value.
-// TODO(titzer): figure out how to return floats correctly on ia32.
 class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
  public:
   explicit Float32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
@@ -407,7 +410,6 @@ class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
 
 // A helper class for testing code sequences that take two double parameters and
 // return a double value.
-// TODO(titzer): figure out how to return doubles correctly on ia32.
 class Float64BinopTester : public BinopTester<double, USE_RESULT_BUFFER> {
  public:
   explicit Float64BinopTester(RawMachineAssemblerTester<int32_t>* tester)
@@ -524,7 +526,8 @@ class BinopGen {
 // and run the generated code to ensure it produces the correct results.
 class Int32BinopInputShapeTester {
  public:
-  explicit Int32BinopInputShapeTester(BinopGen<int32_t>* g) : gen(g) {}
+  explicit Int32BinopInputShapeTester(BinopGen<int32_t>* g)
+      : gen(g), input_a(0), input_b(0) {}
 
   void TestAllInputShapes();
 
@@ -537,24 +540,6 @@ class Int32BinopInputShapeTester {
   void RunLeft(RawMachineAssemblerTester<int32_t>* m);
   void RunRight(RawMachineAssemblerTester<int32_t>* m);
 };
-
-// TODO(bmeurer): Drop this crap once we switch to GTest/Gmock.
-static inline void CheckFloatEq(volatile float x, volatile float y) {
-  if (std::isnan(x)) {
-    CHECK(std::isnan(y));
-  } else {
-    CHECK_EQ(x, y);
-  }
-}
-
-static inline void CheckDoubleEq(volatile double x, volatile double y) {
-  if (std::isnan(x)) {
-    CHECK(std::isnan(y));
-  } else {
-    CHECK_EQ(x, y);
-  }
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

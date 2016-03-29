@@ -5,10 +5,56 @@
 #include "src/compiler/instruction-scheduler.h"
 
 #include "src/base/adapters.h"
+#include "src/base/utils/random-number-generator.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+// Compare the two nodes and return true if node1 is a better candidate than
+// node2 (i.e. node1 should be scheduled before node2).
+bool InstructionScheduler::CriticalPathFirstQueue::CompareNodes(
+    ScheduleGraphNode *node1, ScheduleGraphNode *node2) const {
+  return node1->total_latency() > node2->total_latency();
+}
+
+
+InstructionScheduler::ScheduleGraphNode*
+InstructionScheduler::CriticalPathFirstQueue::PopBestCandidate(int cycle) {
+  DCHECK(!IsEmpty());
+  auto candidate = nodes_.end();
+  for (auto iterator = nodes_.begin(); iterator != nodes_.end(); ++iterator) {
+    // We only consider instructions that have all their operands ready and
+    // we try to schedule the critical path first.
+    if (cycle >= (*iterator)->start_cycle()) {
+      if ((candidate == nodes_.end()) || CompareNodes(*iterator, *candidate)) {
+        candidate = iterator;
+      }
+    }
+  }
+
+  if (candidate != nodes_.end()) {
+    ScheduleGraphNode *result = *candidate;
+    nodes_.erase(candidate);
+    return result;
+  }
+
+  return nullptr;
+}
+
+
+InstructionScheduler::ScheduleGraphNode*
+InstructionScheduler::StressSchedulerQueue::PopBestCandidate(int cycle) {
+  DCHECK(!IsEmpty());
+  // Choose a random element from the ready list.
+  auto candidate = nodes_.begin();
+  std::advance(candidate, isolate()->random_number_generator()->NextInt(
+      static_cast<int>(nodes_.size())));
+  ScheduleGraphNode *result = *candidate;
+  nodes_.erase(candidate);
+  return result;
+}
+
 
 InstructionScheduler::ScheduleGraphNode::ScheduleGraphNode(
     Zone* zone,
@@ -50,7 +96,11 @@ void InstructionScheduler::StartBlock(RpoNumber rpo) {
 
 
 void InstructionScheduler::EndBlock(RpoNumber rpo) {
-  ScheduleBlock();
+  if (FLAG_turbo_stress_instruction_scheduling) {
+    ScheduleBlock<StressSchedulerQueue>();
+  } else {
+    ScheduleBlock<CriticalPathFirstQueue>();
+  }
   sequence()->EndBlock(rpo);
   graph_.clear();
   last_side_effect_instr_ = nullptr;
@@ -110,14 +160,9 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
 }
 
 
-bool InstructionScheduler::CompareNodes(ScheduleGraphNode *node1,
-                                        ScheduleGraphNode *node2) const {
-  return node1->total_latency() > node2->total_latency();
-}
-
-
+template <typename QueueType>
 void InstructionScheduler::ScheduleBlock() {
-  ZoneLinkedList<ScheduleGraphNode*> ready_list(zone());
+  QueueType ready_list(this);
 
   // Compute total latencies so that we can schedule the critical path first.
   ComputeTotalLatencies();
@@ -125,43 +170,28 @@ void InstructionScheduler::ScheduleBlock() {
   // Add nodes which don't have dependencies to the ready list.
   for (auto node : graph_) {
     if (!node->HasUnscheduledPredecessor()) {
-      ready_list.push_back(node);
+      ready_list.AddNode(node);
     }
   }
 
   // Go through the ready list and schedule the instructions.
   int cycle = 0;
-  while (!ready_list.empty()) {
-    auto candidate = ready_list.end();
-    for (auto iterator = ready_list.begin(); iterator != ready_list.end();
-         ++iterator) {
-      // Look for the best candidate to schedule.
-      // We only consider instructions that have all their operands ready and
-      // we try to schedule the critical path first (we look for the instruction
-      // with the highest latency on the path to reach the end of the graph).
-      if (cycle >= (*iterator)->start_cycle()) {
-        if ((candidate == ready_list.end()) ||
-            CompareNodes(*iterator, *candidate)) {
-          candidate = iterator;
-        }
-      }
-    }
+  while (!ready_list.IsEmpty()) {
+    auto candidate = ready_list.PopBestCandidate(cycle);
 
-    if (candidate != ready_list.end()) {
-      sequence()->AddInstruction((*candidate)->instruction());
+    if (candidate != nullptr) {
+      sequence()->AddInstruction(candidate->instruction());
 
-      for (auto successor : (*candidate)->successors()) {
+      for (auto successor : candidate->successors()) {
         successor->DropUnscheduledPredecessor();
         successor->set_start_cycle(
             std::max(successor->start_cycle(),
-                     cycle + (*candidate)->latency()));
+                     cycle + candidate->latency()));
 
         if (!successor->HasUnscheduledPredecessor()) {
-          ready_list.push_back(successor);
+          ready_list.AddNode(successor);
         }
       }
-
-      ready_list.erase(candidate);
     }
 
     cycle++;
@@ -172,17 +202,22 @@ void InstructionScheduler::ScheduleBlock() {
 int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
   switch (instr->arch_opcode()) {
     case kArchNop:
-    case kArchStackPointer:
     case kArchFramePointer:
+    case kArchParentFramePointer:
     case kArchTruncateDoubleToI:
+    case kArchStackSlot:
       return kNoOpcodeFlags;
+
+    case kArchStackPointer:
+      // ArchStackPointer instruction loads the current stack pointer value and
+      // must not be reordered with instruction with side effects.
+      return kIsLoadOperation;
 
     case kArchPrepareCallCFunction:
     case kArchPrepareTailCall:
     case kArchCallCFunction:
     case kArchCallCodeObject:
     case kArchCallJSFunction:
-    case kArchLazyBailout:
       return kHasSideEffect;
 
     case kArchTailCallCodeObject:

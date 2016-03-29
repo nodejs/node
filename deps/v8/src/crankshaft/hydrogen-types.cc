@@ -4,39 +4,33 @@
 
 #include "src/crankshaft/hydrogen-types.h"
 
+#include "src/field-type.h"
+#include "src/handles-inl.h"
 #include "src/ostreams.h"
-#include "src/types-inl.h"
-
 
 namespace v8 {
 namespace internal {
 
 // static
-template <class T>
-HType HType::FromType(typename T::TypeHandle type) {
-  if (T::Any()->Is(type)) return HType::Any();
+HType HType::FromType(Type* type) {
+  if (Type::Any()->Is(type)) return HType::Any();
   if (!type->IsInhabited()) return HType::None();
-  if (type->Is(T::SignedSmall())) return HType::Smi();
-  if (type->Is(T::Number())) return HType::TaggedNumber();
-  if (type->Is(T::Null())) return HType::Null();
-  if (type->Is(T::String())) return HType::String();
-  if (type->Is(T::Boolean())) return HType::Boolean();
-  if (type->Is(T::Undefined())) return HType::Undefined();
-  if (type->Is(T::Object())) return HType::JSObject();
-  if (type->Is(T::Receiver())) return HType::JSReceiver();
+  if (type->Is(Type::SignedSmall())) return HType::Smi();
+  if (type->Is(Type::Number())) return HType::TaggedNumber();
+  if (type->Is(Type::Null())) return HType::Null();
+  if (type->Is(Type::String())) return HType::String();
+  if (type->Is(Type::Boolean())) return HType::Boolean();
+  if (type->Is(Type::Undefined())) return HType::Undefined();
+  if (type->Is(Type::Object())) return HType::JSObject();
+  if (type->Is(Type::Receiver())) return HType::JSReceiver();
   return HType::Tagged();
 }
 
 
 // static
-template
-HType HType::FromType<Type>(Type* type);
-
-
-// static
-template
-HType HType::FromType<HeapType>(Handle<HeapType> type);
-
+HType HType::FromFieldType(Handle<FieldType> type, Zone* temp_zone) {
+  return FromType(type->Convert(temp_zone));
+}
 
 // static
 HType HType::FromValue(Handle<Object> value) {

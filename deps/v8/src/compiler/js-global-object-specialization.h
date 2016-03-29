@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_JS_GLOBAL_OBJECT_SPECIALIZATION_H_
 #define V8_COMPILER_JS_GLOBAL_OBJECT_SPECIALIZATION_H_
 
-#include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {
@@ -30,14 +29,7 @@ class SimplifiedOperatorBuilder;
 // nodes.
 class JSGlobalObjectSpecialization final : public AdvancedReducer {
  public:
-  // Flags that control the mode of operation.
-  enum Flag {
-    kNoFlags = 0u,
-    kDeoptimizationEnabled = 1u << 0,
-  };
-  typedef base::Flags<Flag> Flags;
-
-  JSGlobalObjectSpecialization(Editor* editor, JSGraph* jsgraph, Flags flags,
+  JSGlobalObjectSpecialization(Editor* editor, JSGraph* jsgraph,
                                MaybeHandle<Context> native_context,
                                CompilationDependencies* dependencies);
 
@@ -61,20 +53,16 @@ class JSGlobalObjectSpecialization final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
-  Flags flags() const { return flags_; }
   MaybeHandle<Context> native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
 
   JSGraph* const jsgraph_;
-  Flags const flags_;
   MaybeHandle<Context> native_context_;
   CompilationDependencies* const dependencies_;
   TypeCache const& type_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(JSGlobalObjectSpecialization);
 };
-
-DEFINE_OPERATORS_FOR_FLAGS(JSGlobalObjectSpecialization::Flags)
 
 }  // namespace compiler
 }  // namespace internal

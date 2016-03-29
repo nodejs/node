@@ -10,6 +10,7 @@
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/factory.h"
+#include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/heap/slots-buffer.h"
 #include "src/ic/ic.h"
@@ -947,7 +948,7 @@ TEST(DescriptorArrayTrimming) {
   const int kSplitFieldIndex = 32;
   const int kTrimmedLayoutDescriptorLength = 64;
 
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, kFieldCount);
   for (int i = 0; i < kSplitFieldIndex; i++) {
     map = Map::CopyWithField(map, MakeName("prop", i), any_type, NONE,
@@ -1035,7 +1036,7 @@ TEST(DoScavenge) {
   // a pointer to "from space" pointer. Do scavenge one more time and ensure
   // that it didn't crash or corrupt the double value stored in the object.
 
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
   map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
                            Representation::Double(),
@@ -1060,7 +1061,7 @@ TEST(DoScavenge) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 
   // Create temp object in the new space.
-  Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS);
+  Handle<JSArray> temp = factory->NewJSArray(0, FAST_ELEMENTS);
   CHECK(isolate->heap()->new_space()->Contains(*temp));
 
   // Construct a double value that looks like a pointer to the new space object
@@ -1097,7 +1098,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // scavenges to promote |obj| to old space, a GC in old space and ensure that
   // the tagged value was properly updated after candidates evacuation.
 
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
   map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
                            Representation::Double(),
@@ -1321,7 +1322,7 @@ TEST(LayoutDescriptorSharing) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
 
   Handle<Map> split_map;
   {
@@ -1360,65 +1361,6 @@ TEST(LayoutDescriptorSharing) {
   CHECK(map2->owns_descriptors());
   CHECK_NE(*split_layout_descriptor, map2->layout_descriptor());
   CHECK(map2->layout_descriptor()->IsConsistentWithMap(*map2, true));
-}
-
-
-TEST(StoreBufferScanOnScavenge) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  v8::HandleScope scope(CcTest::isolate());
-
-  Handle<HeapType> any_type = HeapType::Any(isolate);
-  Handle<Map> map = Map::Create(isolate, 10);
-  map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
-                           Representation::Double(),
-                           INSERT_TRANSITION).ToHandleChecked();
-
-  // Create object in new space.
-  Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED);
-
-  Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
-  obj->WriteToField(0, *heap_number);
-
-  {
-    // Ensure the object is properly set up.
-    DescriptorArray* descriptors = map->instance_descriptors();
-    CHECK(descriptors->GetDetails(0).representation().IsDouble());
-    FieldIndex field_index = FieldIndex::ForDescriptor(*map, 0);
-    CHECK(field_index.is_inobject() && field_index.is_double());
-    CHECK_EQ(FLAG_unbox_double_fields, map->IsUnboxedDoubleField(field_index));
-    CHECK_EQ(42.5, GetDoubleFieldValue(*obj, field_index));
-  }
-  CHECK(isolate->heap()->new_space()->Contains(*obj));
-
-  // Trigger GCs so that the newly allocated object moves to old gen.
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
-
-  CHECK(isolate->heap()->old_space()->Contains(*obj));
-
-  // Create temp object in the new space.
-  Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS);
-  CHECK(isolate->heap()->new_space()->Contains(*temp));
-
-  // Construct a double value that looks like a pointer to the new space object
-  // and store it into the obj.
-  Address fake_object = reinterpret_cast<Address>(*temp) + kPointerSize;
-  double boom_value = bit_cast<double>(fake_object);
-
-  FieldIndex field_index = FieldIndex::ForDescriptor(obj->map(), 0);
-  Handle<HeapNumber> boom_number = factory->NewHeapNumber(boom_value, MUTABLE);
-  obj->FastPropertyAtPut(field_index, *boom_number);
-
-  // Enforce scan on scavenge for the obj's page.
-  MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-  chunk->set_scan_on_scavenge(true);
-
-  // Trigger GCs and force evacuation. Should not crash there.
-  CcTest::heap()->CollectAllGarbage();
-
-  CHECK_EQ(boom_value, GetDoubleFieldValue(*obj, field_index));
 }
 
 
@@ -1580,7 +1522,7 @@ static void TestWriteBarrierObjectShiftFieldsRight(
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
 
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
 
   CompileRun("function func() { return 1; }");
 
@@ -1608,9 +1550,7 @@ static void TestWriteBarrierObjectShiftFieldsRight(
   }
 }
 
-
-// TODO(ishell): enable when this issue is fixed.
-DISABLED_TEST(WriteBarrierObjectShiftFieldsRight) {
+TEST(WriteBarrierObjectShiftFieldsRight) {
   TestWriteBarrierObjectShiftFieldsRight(OLD_TO_NEW_WRITE_BARRIER);
 }
 

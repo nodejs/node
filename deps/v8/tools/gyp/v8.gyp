@@ -120,18 +120,30 @@
         }],
         ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
           'dependencies': ['v8_base', 'v8_external_snapshot'],
-          'inputs': [ '<(PRODUCT_DIR)/snapshot_blob.bin', ],
+          'inputs': ['<(PRODUCT_DIR)/snapshot_blob.bin'],
+          'conditions': [
+            ['v8_separate_ignition_snapshot==1', {
+              'inputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition.bin'],
+            }],
+          ]
         }],
         ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
           'dependencies': ['v8_base', 'v8_external_snapshot'],
           'target_conditions': [
             ['_toolset=="host"', {
-              'inputs': [
-                '<(PRODUCT_DIR)/snapshot_blob_host.bin',
-              ],
+              'inputs': ['<(PRODUCT_DIR)/snapshot_blob_host.bin'],
             }, {
-              'inputs': [
-                '<(PRODUCT_DIR)/snapshot_blob.bin',
+              'inputs': ['<(PRODUCT_DIR)/snapshot_blob.bin'],
+            }],
+          ],
+          'conditions': [
+            ['v8_separate_ignition_snapshot==1', {
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  'inputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition_host.bin'],
+                }, {
+                  'inputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition.bin'],
+                }],
               ],
             }],
           ],
@@ -283,6 +295,65 @@
                 ],
               },
             }],
+            # Extra snapshot blob for ignition.
+            ['v8_separate_ignition_snapshot==1', {
+              # This is concatenated to the other actions list of
+              # v8_external_snapshot.
+              'actions': [
+                {
+                  'action_name': 'run_mksnapshot (ignition)',
+                  'inputs': ['<(mksnapshot_exec)'],
+                  'variables': {
+                    # TODO: Extract common mksnapshot_flags to a separate
+                    # variable.
+                    'mksnapshot_flags_ignition': [
+                      '--ignition',
+                      '--log-snapshot-positions',
+                      '--logfile', '<(INTERMEDIATE_DIR)/snapshot_ignition.log',
+                    ],
+                    'conditions': [
+                      ['v8_random_seed!=0', {
+                        'mksnapshot_flags_ignition': ['--random-seed', '<(v8_random_seed)'],
+                      }],
+                      ['v8_vector_stores!=0', {
+                        'mksnapshot_flags_ignition': ['--vector-stores'],
+                      }],
+                    ],
+                  },
+                  'conditions': [
+                    ['want_separate_host_toolset==1', {
+                      'target_conditions': [
+                        ['_toolset=="host"', {
+                          'outputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition_host.bin'],
+                          'action': [
+                            '<(mksnapshot_exec)',
+                            '<@(mksnapshot_flags_ignition)',
+                            '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob_ignition_host.bin',
+                            '<(embed_script)',
+                          ],
+                        }, {
+                          'outputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition.bin'],
+                          'action': [
+                            '<(mksnapshot_exec)',
+                            '<@(mksnapshot_flags_ignition)',
+                            '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob_ignition.bin',
+                            '<(embed_script)',
+                          ],
+                        }],
+                      ],
+                    }, {
+                      'outputs': ['<(PRODUCT_DIR)/snapshot_blob_ignition.bin'],
+                      'action': [
+                        '<(mksnapshot_exec)',
+                        '<@(mksnapshot_flags_ignition)',
+                        '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob_ignition.bin',
+                        '<(embed_script)',
+                      ],
+                    }],
+                  ],
+                },
+              ],
+            }],
           ],
           'dependencies': [
             'v8_base',
@@ -297,9 +368,7 @@
           'actions': [
             {
               'action_name': 'run_mksnapshot (external)',
-              'inputs': [
-                '<(mksnapshot_exec)',
-              ],
+              'inputs': ['<(mksnapshot_exec)'],
               'variables': {
                 'mksnapshot_flags': [
                   '--log-snapshot-positions',
@@ -318,9 +387,7 @@
                 ['want_separate_host_toolset==1', {
                   'target_conditions': [
                     ['_toolset=="host"', {
-                      'outputs': [
-                        '<(PRODUCT_DIR)/snapshot_blob_host.bin',
-                      ],
+                      'outputs': ['<(PRODUCT_DIR)/snapshot_blob_host.bin'],
                       'action': [
                         '<(mksnapshot_exec)',
                         '<@(mksnapshot_flags)',
@@ -328,9 +395,7 @@
                         '<(embed_script)',
                       ],
                     }, {
-                      'outputs': [
-                        '<(PRODUCT_DIR)/snapshot_blob.bin',
-                      ],
+                      'outputs': ['<(PRODUCT_DIR)/snapshot_blob.bin'],
                       'action': [
                         '<(mksnapshot_exec)',
                         '<@(mksnapshot_flags)',
@@ -340,9 +405,7 @@
                     }],
                   ],
                 }, {
-                  'outputs': [
-                    '<(PRODUCT_DIR)/snapshot_blob.bin',
-                  ],
+                  'outputs': ['<(PRODUCT_DIR)/snapshot_blob.bin'],
                   'action': [
                     '<(mksnapshot_exec)',
                     '<@(mksnapshot_flags)',
@@ -541,16 +604,16 @@
         '../../src/compiler/instruction-scheduler.h',
         '../../src/compiler/instruction.cc',
         '../../src/compiler/instruction.h',
-        '../../src/compiler/interpreter-assembler.cc',
-        '../../src/compiler/interpreter-assembler.h',
+        '../../src/compiler/int64-lowering.cc',
+        '../../src/compiler/int64-lowering.h',
         '../../src/compiler/js-builtin-reducer.cc',
         '../../src/compiler/js-builtin-reducer.h',
         '../../src/compiler/js-call-reducer.cc',
         '../../src/compiler/js-call-reducer.h',
-        '../../src/compiler/js-context-relaxation.cc',
-        '../../src/compiler/js-context-relaxation.h',
         '../../src/compiler/js-context-specialization.cc',
         '../../src/compiler/js-context-specialization.h',
+        '../../src/compiler/js-create-lowering.cc',
+        '../../src/compiler/js-create-lowering.h',
         '../../src/compiler/js-frame-specialization.cc',
         '../../src/compiler/js-frame-specialization.h',
         '../../src/compiler/js-generic-lowering.cc',
@@ -778,6 +841,8 @@
         '../../src/fast-dtoa.h',
         '../../src/field-index.h',
         '../../src/field-index-inl.h',
+        '../../src/field-type.cc',
+        '../../src/field-type.h',
         '../../src/fixed-dtoa.cc',
         '../../src/fixed-dtoa.h',
         '../../src/flag-definitions.h',
@@ -799,6 +864,7 @@
         '../../src/handles.cc',
         '../../src/handles.h',
         '../../src/hashmap.h',
+        '../../src/heap-symbols.h',
         '../../src/heap/array-buffer-tracker.cc',
         '../../src/heap/array-buffer-tracker.h',
         '../../src/heap/memory-reducer.cc',
@@ -823,11 +889,14 @@
         '../../src/heap/objects-visiting-inl.h',
         '../../src/heap/objects-visiting.cc',
         '../../src/heap/objects-visiting.h',
+        '../../src/heap/remembered-set.cc',
+        '../../src/heap/remembered-set.h',
         '../../src/heap/scavenge-job.h',
         '../../src/heap/scavenge-job.cc',
         '../../src/heap/scavenger-inl.h',
         '../../src/heap/scavenger.cc',
         '../../src/heap/scavenger.h',
+        '../../src/heap/slot-set.h',
         '../../src/heap/slots-buffer.cc',
         '../../src/heap/slots-buffer.h',
         '../../src/heap/spaces-inl.h',
@@ -872,11 +941,20 @@
         '../../src/interpreter/constant-array-builder.h',
         '../../src/interpreter/control-flow-builders.cc',
         '../../src/interpreter/control-flow-builders.h',
+        '../../src/interpreter/handler-table-builder.cc',
+        '../../src/interpreter/handler-table-builder.h',
         '../../src/interpreter/interpreter.cc',
         '../../src/interpreter/interpreter.h',
+        '../../src/interpreter/interpreter-assembler.cc',
+        '../../src/interpreter/interpreter-assembler.h',
+        '../../src/interpreter/register-translator.cc',
+        '../../src/interpreter/register-translator.h',
+        '../../src/interpreter/source-position-table.cc',
+        '../../src/interpreter/source-position-table.h',
         '../../src/isolate-inl.h',
         '../../src/isolate.cc',
         '../../src/isolate.h',
+        '../../src/json-parser.h',
         '../../src/json-stringifier.h',
         '../../src/key-accumulator.h',
         '../../src/key-accumulator.cc',
@@ -914,7 +992,6 @@
         '../../src/parsing/expression-classifier.h',
         '../../src/parsing/func-name-inferrer.cc',
         '../../src/parsing/func-name-inferrer.h',
-        '../../src/parsing/json-parser.h',
         '../../src/parsing/parameter-initializer-rewriter.cc',
         '../../src/parsing/parameter-initializer-rewriter.h',
         '../../src/parsing/parser-base.h',
@@ -953,6 +1030,8 @@
         '../../src/profiler/profile-generator.h',
         '../../src/profiler/sampler.cc',
         '../../src/profiler/sampler.h',
+        '../../src/profiler/sampling-heap-profiler.cc',
+        '../../src/profiler/sampling-heap-profiler.h',
         '../../src/profiler/strings-storage.cc',
         '../../src/profiler/strings-storage.h',
         '../../src/profiler/unbound-queue-inl.h',
@@ -1033,6 +1112,7 @@
         '../../src/snapshot/snapshot-common.cc',
         '../../src/snapshot/snapshot-source-sink.cc',
         '../../src/snapshot/snapshot-source-sink.h',
+        '../../src/source-position.h',
         '../../src/splay-tree.h',
         '../../src/splay-tree-inl.h',
         '../../src/startup-data-util.cc',
@@ -1058,7 +1138,6 @@
         '../../src/type-feedback-vector.h',
         '../../src/type-info.cc',
         '../../src/type-info.h',
-        '../../src/types-inl.h',
         '../../src/types.cc',
         '../../src/types.h',
         '../../src/typing-asm.cc',
@@ -1072,6 +1151,7 @@
         '../../src/unicode-cache.h',
         '../../src/unicode-decoder.cc',
         '../../src/unicode-decoder.h',
+        '../../src/utils-inl.h',
         '../../src/utils.cc',
         '../../src/utils.h',
         '../../src/v8.cc',
@@ -1537,6 +1617,7 @@
         '../../src/base/atomicops_internals_mips64_gcc.h',
         '../../src/base/atomicops_internals_portable.h',
         '../../src/base/atomicops_internals_ppc_gcc.h',
+        '../../src/base/atomicops_internals_s390_gcc.h',
         '../../src/base/atomicops_internals_tsan.h',
         '../../src/base/atomicops_internals_x86_gcc.cc',
         '../../src/base/atomicops_internals_x86_gcc.h',
@@ -1929,7 +2010,6 @@
           '../../src/js/generator.js',
           '../../src/js/harmony-atomics.js',
           '../../src/js/harmony-regexp.js',
-          '../../src/js/harmony-reflect.js',
           '../../src/js/harmony-object-observe.js',
           '../../src/js/harmony-sharedarraybuffer.js',
           '../../src/js/harmony-simd.js',

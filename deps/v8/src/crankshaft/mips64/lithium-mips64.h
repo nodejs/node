@@ -23,7 +23,6 @@ class LCodeGen;
   V(AddI)                                    \
   V(AddS)                                    \
   V(Allocate)                                \
-  V(AllocateBlockContext)                    \
   V(ApplyArguments)                          \
   V(ArgumentsElements)                       \
   V(ArgumentsLength)                         \
@@ -37,7 +36,6 @@ class LCodeGen;
   V(CallFunction)                            \
   V(CallNewArray)                            \
   V(CallRuntime)                             \
-  V(CallStub)                                \
   V(CheckArrayBufferNotNeutered)             \
   V(CheckInstanceType)                       \
   V(CheckMaps)                               \
@@ -49,7 +47,6 @@ class LCodeGen;
   V(ClampIToUint8)                           \
   V(ClampTToUint8)                           \
   V(ClassOfTestAndBranch)                    \
-  V(CompareMinusZeroAndBranch)               \
   V(CompareNumericAndBranch)                 \
   V(CmpObjectEqAndBranch)                    \
   V(CmpHoleAndBranch)                        \
@@ -103,7 +100,6 @@ class LCodeGen;
   V(LoadKeyedGeneric)                        \
   V(LoadNamedField)                          \
   V(LoadNamedGeneric)                        \
-  V(MapEnumLength)                           \
   V(MathAbs)                                 \
   V(MathExp)                                 \
   V(MathClz32)                               \
@@ -457,19 +453,6 @@ class LParameter final : public LTemplateInstruction<1, 0, 0> {
  public:
   bool HasInterestingComment(LCodeGen* gen) const override { return false; }
   DECLARE_CONCRETE_INSTRUCTION(Parameter, "parameter")
-};
-
-
-class LCallStub final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LCallStub(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallStub, "call-stub")
-  DECLARE_HYDROGEN_ACCESSOR(CallStub)
 };
 
 
@@ -988,22 +971,6 @@ class LCmpHoleAndBranch final : public LControlInstruction<1, 0> {
 };
 
 
-class LCompareMinusZeroAndBranch final : public LControlInstruction<1, 1> {
- public:
-  LCompareMinusZeroAndBranch(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CompareMinusZeroAndBranch,
-                               "cmp-minus-zero-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(CompareMinusZeroAndBranch)
-};
-
-
 class LIsStringAndBranch final : public LControlInstruction<1, 1> {
  public:
   LIsStringAndBranch(LOperand* value, LOperand* temp) {
@@ -1153,8 +1120,6 @@ class LCmpT final : public LTemplateInstruction<1, 3, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CmpT, "cmp-t")
   DECLARE_HYDROGEN_ACCESSOR(CompareGeneric)
-
-  Strength strength() { return hydrogen()->strength(); }
 
   Token::Value op() const { return hydrogen()->token(); }
 };
@@ -1356,18 +1321,6 @@ class LCmpMapAndBranch final : public LControlInstruction<1, 1> {
 };
 
 
-class LMapEnumLength final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LMapEnumLength(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(MapEnumLength, "map-enum-length")
-};
-
-
 class LSeqStringGetChar final : public LTemplateInstruction<1, 2, 0> {
  public:
   LSeqStringGetChar(LOperand* string, LOperand* index) {
@@ -1522,8 +1475,6 @@ class LArithmeticT final : public LTemplateInstruction<1, 3, 0> {
   const char* Mnemonic() const override;
 
   DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)
-
-  Strength strength() { return hydrogen()->strength(); }
 
  private:
   Token::Value op_;
@@ -2618,23 +2569,6 @@ class LStoreFrameContext: public LTemplateInstruction<0, 1, 0> {
   LOperand* context() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreFrameContext, "store-frame-context")
-};
-
-
-class LAllocateBlockContext: public LTemplateInstruction<1, 2, 0> {
- public:
-  LAllocateBlockContext(LOperand* context, LOperand* function) {
-    inputs_[0] = context;
-    inputs_[1] = function;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* function() { return inputs_[1]; }
-
-  Handle<ScopeInfo> scope_info() { return hydrogen()->scope_info(); }
-
-  DECLARE_CONCRETE_INSTRUCTION(AllocateBlockContext, "allocate-block-context")
-  DECLARE_HYDROGEN_ACCESSOR(AllocateBlockContext)
 };
 
 

@@ -817,8 +817,6 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks(
   while (callbacks->length() != 0) {
     auto callback = callbacks->RemoveLast();
     DCHECK(callback.node() == nullptr);
-    // No second pass callback required.
-    if (callback.callback() == nullptr) continue;
     // Fire second pass callback
     callback.Invoke(isolate);
   }
@@ -924,6 +922,7 @@ void GlobalHandles::UpdateListOfNewSpaceNodes() {
 int GlobalHandles::DispatchPendingPhantomCallbacks(
     bool synchronous_second_pass) {
   int freed_nodes = 0;
+  List<PendingPhantomCallback> second_pass_callbacks;
   {
     // The initial pass callbacks must simply clear the nodes.
     for (auto i = pending_phantom_callbacks_.begin();
@@ -932,24 +931,25 @@ int GlobalHandles::DispatchPendingPhantomCallbacks(
       // Skip callbacks that have already been processed once.
       if (callback->node() == nullptr) continue;
       callback->Invoke(isolate());
+      if (callback->callback()) second_pass_callbacks.Add(*callback);
       freed_nodes++;
     }
   }
-  if (pending_phantom_callbacks_.length() > 0) {
+  pending_phantom_callbacks_.Clear();
+  if (second_pass_callbacks.length() > 0) {
     if (FLAG_optimize_for_size || FLAG_predictable || synchronous_second_pass) {
       isolate()->heap()->CallGCPrologueCallbacks(
           GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
-      InvokeSecondPassPhantomCallbacks(&pending_phantom_callbacks_, isolate());
+      InvokeSecondPassPhantomCallbacks(&second_pass_callbacks, isolate());
       isolate()->heap()->CallGCEpilogueCallbacks(
           GCType::kGCTypeProcessWeakCallbacks, kNoGCCallbackFlags);
     } else {
       auto task = new PendingPhantomCallbacksSecondPassTask(
-          &pending_phantom_callbacks_, isolate());
+          &second_pass_callbacks, isolate());
       V8::GetCurrentPlatform()->CallOnForegroundThread(
           reinterpret_cast<v8::Isolate*>(isolate()), task);
     }
   }
-  pending_phantom_callbacks_.Clear();
   return freed_nodes;
 }
 
@@ -984,7 +984,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
   int freed_nodes = 0;
   bool synchronous_second_pass =
       (gc_callback_flags &
-       (kGCCallbackFlagForced |
+       (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;
   freed_nodes += DispatchPendingPhantomCallbacks(synchronous_second_pass);
   if (initial_post_gc_processing_count != post_gc_processing_count_) {

@@ -22,7 +22,7 @@ class AsmTyper : public AstVisitor {
   explicit AsmTyper(Isolate* isolate, Zone* zone, Script* script,
                     FunctionLiteral* root);
   bool Validate();
-  void set_allow_simd(bool simd);
+  void set_allow_simd(bool simd) { allow_simd_ = simd; }
   const char* error_message() { return error_message_; }
 
   enum StandardMember {
@@ -113,6 +113,7 @@ class AsmTyper : public AstVisitor {
 
   bool in_function_;  // In module function?
   bool building_function_tables_;
+  bool visiting_exports_;
 
   TypeCache const& cache_;
 
@@ -160,6 +161,8 @@ class AsmTyper : public AstVisitor {
                             const char* msg);
 
   void VisitLiteral(Literal* expr, bool is_return);
+
+  void VisitVariableProxy(VariableProxy* expr, bool assignment);
 
   void VisitIntegerBitwiseOperator(BinaryOperation* expr, Type* left_expected,
                                    Type* right_expected, Type* result_type,

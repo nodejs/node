@@ -50,6 +50,12 @@ struct AsUC16 {
 };
 
 
+struct AsUC32 {
+  explicit AsUC32(int32_t v) : value(v) {}
+  int32_t value;
+};
+
+
 struct AsReversiblyEscapedUC16 {
   explicit AsReversiblyEscapedUC16(uint16_t v) : value(v) {}
   uint16_t value;
@@ -72,6 +78,10 @@ std::ostream& operator<<(std::ostream& os, const AsEscapedUC16ForJSON& c);
 // Writes the given character to the output escaping everything outside
 // of printable ASCII range.
 std::ostream& operator<<(std::ostream& os, const AsUC16& c);
+
+// Writes the given character to the output escaping everything outside
+// of printable ASCII range.
+std::ostream& operator<<(std::ostream& os, const AsUC32& c);
 
 }  // namespace internal
 }  // namespace v8

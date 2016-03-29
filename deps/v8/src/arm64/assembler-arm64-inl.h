@@ -731,8 +731,8 @@ void RelocInfo::set_target_object(Object* target,
   if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), &Memory::Object_at(pc_), HeapObject::cast(target));
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target));
   }
 }
 
@@ -850,24 +850,6 @@ void RelocInfo::WipeOut() {
   } else {
     Assembler::set_target_address_at(isolate_, pc_, host_, NULL);
   }
-}
-
-
-bool RelocInfo::IsPatchedReturnSequence() {
-  // The sequence must be:
-  //   ldr ip0, [pc, #offset]
-  //   blr ip0
-  // See arm64/debug-arm64.cc DebugCodegen::PatchDebugBreakSlot
-  Instruction* i1 = reinterpret_cast<Instruction*>(pc_);
-  Instruction* i2 = i1->following();
-  return i1->IsLdrLiteralX() && (i1->Rt() == kIp0Code) &&
-         i2->IsBranchAndLinkToRegister() && (i2->Rn() == kIp0Code);
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  Instruction* current_instr = reinterpret_cast<Instruction*>(pc_);
-  return !current_instr->IsNop(Assembler::DEBUG_BREAK_NOP);
 }
 
 

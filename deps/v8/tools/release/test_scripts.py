@@ -43,8 +43,6 @@ import merge_to_branch
 from merge_to_branch import *
 import push_to_candidates
 from push_to_candidates import *
-import chromium_roll
-from chromium_roll import ChromiumRoll
 import releases
 from releases import Releases
 from auto_tag import AutoTag
@@ -390,6 +388,20 @@ class ScriptTest(unittest.TestCase):
       f.write("#define V8_PATCH_LEVEL      %s\n" % patch)
       f.write("  // Some line...\n")
       f.write("#define V8_IS_CANDIDATE_VERSION 0\n")
+
+  def WriteFakeWatchlistsFile(self):
+    watchlists_file = os.path.join(TEST_CONFIG["DEFAULT_CWD"], WATCHLISTS_FILE)
+    if not os.path.exists(os.path.dirname(watchlists_file)):
+      os.makedirs(os.path.dirname(watchlists_file))
+    with open(watchlists_file, "w") as f:
+
+      content = """
+    'merges': [
+      # Only enabled on branches created with tools/release/create_release.py
+      # 'v8-merges@googlegroups.com',
+    ],
+"""
+      f.write(content)
 
   def MakeStep(self):
     """Convenience wrapper."""
@@ -954,6 +966,8 @@ Performance and stability improvements on all platforms."""
       Cmd("git checkout -f 3.22.4 -- ChangeLog", "", cb=ResetChangeLog),
       Cmd("git checkout -f 3.22.4 -- include/v8-version.h", "",
           cb=self.WriteFakeVersionFile),
+      Cmd("git checkout -f 3.22.4 -- WATCHLISTS", "",
+          cb=self.WriteFakeWatchlistsFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
       Cmd("git push origin "
@@ -984,6 +998,18 @@ Performance and stability improvements on all platforms."""
 
     # Note: The version file is on build number 5 again in the end of this test
     # since the git command that merges to master is mocked out.
+
+    # Check for correct content of the WATCHLISTS file
+
+    watchlists_content = FileToText(os.path.join(TEST_CONFIG["DEFAULT_CWD"],
+                                          WATCHLISTS_FILE))
+    expected_watchlists_content = """
+    'merges': [
+      # Only enabled on branches created with tools/release/create_release.py
+      'v8-merges@googlegroups.com',
+    ],
+"""
+    self.assertEqual(watchlists_content, expected_watchlists_content)
 
   C_V8_22624_LOG = """V8 CL.
 
@@ -1086,7 +1112,6 @@ deps = {
       Cmd("git status -s -uno", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch", "", cwd=chrome_dir),
-      Cmd("gclient sync --nohooks", "syncing...", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git fetch origin", ""),
       Cmd("git new-branch work-branch", "", cwd=chrome_dir),

@@ -343,6 +343,7 @@ class FeedbackNexus {
   FeedbackVectorSlot slot() const { return slot_; }
 
   InlineCacheState ic_state() const { return StateFromFeedback(); }
+  bool IsUninitialized() const { return StateFromFeedback() == UNINITIALIZED; }
   Map* FindFirstMap() const {
     MapHandleList maps;
     ExtractMaps(&maps);

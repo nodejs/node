@@ -371,6 +371,7 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kArm64Ldr;
       immediate_mode = kLoadStoreImm64;
       break;
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -398,10 +399,20 @@ void InstructionSelector::VisitStore(Node* node) {
   // TODO(arm64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier) {
     DCHECK_EQ(MachineRepresentation::kTagged, rep);
+    AddressingMode addressing_mode;
     InstructionOperand inputs[3];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
-    inputs[input_count++] = g.UseUniqueRegister(index);
+    // OutOfLineRecordWrite uses the index in an arithmetic instruction, so we
+    // must check kArithmeticImm as well as kLoadStoreImm64.
+    if (g.CanBeImmediate(index, kArithmeticImm) &&
+        g.CanBeImmediate(index, kLoadStoreImm64)) {
+      inputs[input_count++] = g.UseImmediate(index);
+      addressing_mode = kMode_MRI;
+    } else {
+      inputs[input_count++] = g.UseUniqueRegister(index);
+      addressing_mode = kMode_MRR;
+    }
     inputs[input_count++] = (write_barrier_kind == kMapWriteBarrier)
                                 ? g.UseRegister(value)
                                 : g.UseUniqueRegister(value);
@@ -423,6 +434,7 @@ void InstructionSelector::VisitStore(Node* node) {
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
     InstructionCode code = kArchStoreWithWriteBarrier;
+    code |= AddressingModeField::encode(addressing_mode);
     code |= MiscField::encode(static_cast<int>(record_write_mode));
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
@@ -455,6 +467,7 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kArm64Str;
         immediate_mode = kLoadStoreImm64;
         break;
+      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -496,8 +509,9 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kFloat64:
       opcode = kCheckedLoadFloat64;
       break;
-    case MachineRepresentation::kBit:     // Fall through.
-    case MachineRepresentation::kTagged:  // Fall through.
+    case MachineRepresentation::kBit:      // Fall through.
+    case MachineRepresentation::kTagged:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -534,8 +548,9 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kFloat64:
       opcode = kCheckedStoreFloat64;
       break;
-    case MachineRepresentation::kBit:     // Fall through.
-    case MachineRepresentation::kTagged:  // Fall through.
+    case MachineRepresentation::kBit:      // Fall through.
+    case MachineRepresentation::kTagged:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -963,6 +978,16 @@ void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitWord64Ctz(Node* node) { UNREACHABLE(); }
 
 
+void InstructionSelector::VisitWord32ReverseBits(Node* node) {
+  VisitRR(this, kArm64Rbit32, node);
+}
+
+
+void InstructionSelector::VisitWord64ReverseBits(Node* node) {
+  VisitRR(this, kArm64Rbit, node);
+}
+
+
 void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
 
 
@@ -1219,6 +1244,16 @@ void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundInt32ToFloat32(Node* node) {
+  VisitRR(this, kArm64Int32ToFloat32, node);
+}
+
+
+void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
+  VisitRR(this, kArm64Uint32ToFloat32, node);
+}
+
+
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   VisitRR(this, kArm64Int32ToFloat64, node);
 }
@@ -1229,8 +1264,18 @@ void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
+  VisitRR(this, kArm64Float32ToInt32, node);
+}
+
+
 void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   VisitRR(this, kArm64Float64ToInt32, node);
+}
+
+
+void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
+  VisitRR(this, kArm64Float32ToUint32, node);
 }
 
 
@@ -1583,30 +1628,27 @@ void InstructionSelector::EmitPrepareArguments(
     Node* node) {
   Arm64OperandGenerator g(this);
 
-  // Push the arguments to the stack.
-  int aligned_push_count = static_cast<int>(arguments->size());
+  bool to_native_stack = descriptor->UseNativeStack();
 
-  bool pushed_count_uneven = aligned_push_count & 1;
-  int claim_count = aligned_push_count;
-  if (pushed_count_uneven && descriptor->UseNativeStack()) {
-    // We can only claim for an even number of call arguments when we use the
-    // native stack.
-    claim_count++;
+  int claim_count = static_cast<int>(arguments->size());
+  int slot = claim_count - 1;
+  if (to_native_stack) {
+    // Native stack must always be aligned to 16 (2 words).
+    claim_count = RoundUp(claim_count, 2);
   }
-  // TODO(dcarney): claim and poke probably take small immediates,
-  //                loop here or whatever.
+  // TODO(titzer): claim and poke probably take small immediates.
   // Bump the stack pointer(s).
-  if (aligned_push_count > 0) {
-    // TODO(dcarney): it would be better to bump the csp here only
+  if (claim_count > 0) {
+    // TODO(titzer): it would be better to bump the csp here only
     //                and emit paired stores with increment for non c frames.
-    Emit(kArm64ClaimForCallArguments, g.NoOutput(),
-         g.TempImmediate(claim_count));
+    ArchOpcode claim = to_native_stack ? kArm64ClaimCSP : kArm64ClaimJSSP;
+    Emit(claim, g.NoOutput(), g.TempImmediate(claim_count));
   }
 
-  // Move arguments to the stack.
-  int slot = aligned_push_count - 1;
+  // Poke the arguments into the stack.
+  ArchOpcode poke = to_native_stack ? kArm64PokeCSP : kArm64PokeJSSP;
   while (slot >= 0) {
-    Emit(kArm64Poke, g.NoOutput(), g.UseRegister((*arguments)[slot].node()),
+    Emit(poke, g.NoOutput(), g.UseRegister((*arguments)[slot].node()),
          g.TempImmediate(slot));
     slot--;
     // TODO(ahaas): Poke arguments in pairs if two subsequent arguments have the
@@ -2191,7 +2233,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kInt32DivIsSafe |
-         MachineOperatorBuilder::kUint32DivIsSafe;
+         MachineOperatorBuilder::kUint32DivIsSafe |
+         MachineOperatorBuilder::kWord32ReverseBits |
+         MachineOperatorBuilder::kWord64ReverseBits;
 }
 
 }  // namespace compiler

@@ -448,6 +448,8 @@ class Scanner {
 
   bool IdentifierIsFutureStrictReserved(const AstRawString* string) const;
 
+  bool FoundHtmlComment() const { return found_html_comment_; }
+
  private:
   // The current and look-ahead token.
   struct TokenDesc {
@@ -473,6 +475,7 @@ class Scanner {
     current_.literal_chars = NULL;
     current_.raw_literal_chars = NULL;
     next_next_.token = Token::UNINITIALIZED;
+    found_html_comment_ = false;
   }
 
   // Support BookmarkScope functionality.
@@ -752,6 +755,9 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
+
+  // Whether this scanner encountered an HTML comment.
+  bool found_html_comment_;
 };
 
 }  // namespace internal

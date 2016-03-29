@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --random-seed=12 --nostress-opt --noalways-opt --predictable
+// Flags: --random-seed=20 --nostress-opt --noalways-opt --predictable
 
 (function() {
   var kHistory = 2;

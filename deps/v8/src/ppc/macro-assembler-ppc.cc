@@ -183,6 +183,10 @@ void MacroAssembler::Drop(int count) {
   }
 }
 
+void MacroAssembler::Drop(Register count, Register scratch) {
+  ShiftLeftImm(scratch, count, Operand(kPointerSizeLog2));
+  add(sp, sp, scratch);
+}
 
 void MacroAssembler::Call(Label* target) { b(target, SetLK); }
 
@@ -298,13 +302,10 @@ void MacroAssembler::StoreRoot(Register source, Heap::RootListIndex index,
 
 void MacroAssembler::InNewSpace(Register object, Register scratch,
                                 Condition cond, Label* branch) {
-  // N.B. scratch may be same register as object
   DCHECK(cond == eq || cond == ne);
-  mov(r0, Operand(ExternalReference::new_space_mask(isolate())));
-  and_(scratch, object, r0);
-  mov(r0, Operand(ExternalReference::new_space_start(isolate())));
-  cmp(scratch, r0);
-  b(cond, branch);
+  const int mask =
+      (1 << MemoryChunk::IN_FROM_SPACE) | (1 << MemoryChunk::IN_TO_SPACE);
+  CheckPageFlag(object, scratch, mask, cond, branch);
 }
 
 
@@ -483,6 +484,68 @@ void MacroAssembler::RecordWrite(
   }
 }
 
+void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
+                                               Register code_entry,
+                                               Register scratch) {
+  const int offset = JSFunction::kCodeEntryOffset;
+
+  // Since a code entry (value) is always in old space, we don't need to update
+  // remembered set. If incremental marking is off, there is nothing for us to
+  // do.
+  if (!FLAG_incremental_marking) return;
+
+  DCHECK(js_function.is(r4));
+  DCHECK(code_entry.is(r7));
+  DCHECK(scratch.is(r8));
+  AssertNotSmi(js_function);
+
+  if (emit_debug_code()) {
+    addi(scratch, js_function, Operand(offset - kHeapObjectTag));
+    LoadP(ip, MemOperand(scratch));
+    cmp(ip, code_entry);
+    Check(eq, kWrongAddressOrValuePassedToRecordWrite);
+  }
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis and stores into young gen.
+  Label done;
+
+  CheckPageFlag(code_entry, scratch,
+                MemoryChunk::kPointersToHereAreInterestingMask, eq, &done);
+  CheckPageFlag(js_function, scratch,
+                MemoryChunk::kPointersFromHereAreInterestingMask, eq, &done);
+
+  const Register dst = scratch;
+  addi(dst, js_function, Operand(offset - kHeapObjectTag));
+
+  // Save caller-saved registers.  js_function and code_entry are in the
+  // caller-saved register list.
+  DCHECK(kJSCallerSaved & js_function.bit());
+  DCHECK(kJSCallerSaved & code_entry.bit());
+  mflr(r0);
+  MultiPush(kJSCallerSaved | r0.bit());
+
+  int argument_count = 3;
+  PrepareCallCFunction(argument_count, code_entry);
+
+  mr(r3, js_function);
+  mr(r4, dst);
+  mov(r5, Operand(ExternalReference::isolate_address(isolate())));
+
+  {
+    AllowExternalCallThatCantCauseGC scope(this);
+    CallCFunction(
+        ExternalReference::incremental_marking_record_write_code_entry_function(
+            isolate()),
+        argument_count);
+  }
+
+  // Restore caller-saved registers (including js_function and code_entry).
+  MultiPop(kJSCallerSaved | r0.bit());
+  mtlr(r0);
+
+  bind(&done);
+}
 
 void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          Register address, Register scratch,
@@ -564,6 +627,16 @@ void MacroAssembler::PopFixedFrame(Register marker_reg) {
   mtlr(r0);
 }
 
+void MacroAssembler::RestoreFrameStateForTailCall() {
+  if (FLAG_enable_embedded_constant_pool) {
+    LoadP(kConstantPoolRegister,
+          MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
+    set_constant_pool_available(false);
+  }
+  LoadP(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  mtlr(r0);
+}
 
 const RegList MacroAssembler::kSafepointSavedRegisters = Register::kAllocatable;
 const int MacroAssembler::kNumSafepointSavedRegisters =
@@ -640,28 +713,27 @@ void MacroAssembler::CanonicalizeNaN(const DoubleRegister dst,
   fsub(dst, src, kDoubleRegZero);
 }
 
-
-void MacroAssembler::ConvertIntToDouble(Register src,
-                                        DoubleRegister double_dst) {
-  MovIntToDouble(double_dst, src, r0);
-  fcfid(double_dst, double_dst);
+void MacroAssembler::ConvertIntToDouble(Register src, DoubleRegister dst) {
+  MovIntToDouble(dst, src, r0);
+  fcfid(dst, dst);
 }
-
 
 void MacroAssembler::ConvertUnsignedIntToDouble(Register src,
-                                                DoubleRegister double_dst) {
-  MovUnsignedIntToDouble(double_dst, src, r0);
-  fcfid(double_dst, double_dst);
+                                                DoubleRegister dst) {
+  MovUnsignedIntToDouble(dst, src, r0);
+  fcfid(dst, dst);
 }
 
-
-void MacroAssembler::ConvertIntToFloat(const DoubleRegister dst,
-                                       const Register src,
-                                       const Register int_scratch) {
-  MovIntToDouble(dst, src, int_scratch);
+void MacroAssembler::ConvertIntToFloat(Register src, DoubleRegister dst) {
+  MovIntToDouble(dst, src, r0);
   fcfids(dst, dst);
 }
 
+void MacroAssembler::ConvertUnsignedIntToFloat(Register src,
+                                               DoubleRegister dst) {
+  MovUnsignedIntToDouble(dst, src, r0);
+  fcfids(dst, dst);
+}
 
 #if V8_TARGET_ARCH_PPC64
 void MacroAssembler::ConvertInt64ToDouble(Register src,
@@ -1116,7 +1188,7 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
       Push(new_target);
     }
     Push(fun, fun);
-    CallRuntime(Runtime::kDebugPrepareStepInIfStepping, 1);
+    CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
     Pop(fun);
     if (new_target.is_valid()) {
       Pop(new_target);
@@ -2114,6 +2186,41 @@ void MacroAssembler::TestDoubleIsInt32(DoubleRegister double_input,
   TryDoubleToInt32Exact(scratch1, double_input, scratch2, double_scratch);
 }
 
+void MacroAssembler::TestDoubleIsMinusZero(DoubleRegister input,
+                                           Register scratch1,
+                                           Register scratch2) {
+#if V8_TARGET_ARCH_PPC64
+  MovDoubleToInt64(scratch1, input);
+  rotldi(scratch1, scratch1, 1);
+  cmpi(scratch1, Operand(1));
+#else
+  MovDoubleToInt64(scratch1, scratch2, input);
+  Label done;
+  cmpi(scratch2, Operand::Zero());
+  bne(&done);
+  lis(scratch2, Operand(SIGN_EXT_IMM16(0x8000)));
+  cmp(scratch1, scratch2);
+  bind(&done);
+#endif
+}
+
+void MacroAssembler::TestDoubleSign(DoubleRegister input, Register scratch) {
+#if V8_TARGET_ARCH_PPC64
+  MovDoubleToInt64(scratch, input);
+#else
+  MovDoubleHighToInt(scratch, input);
+#endif
+  cmpi(scratch, Operand::Zero());
+}
+
+void MacroAssembler::TestHeapNumberSign(Register input, Register scratch) {
+#if V8_TARGET_ARCH_PPC64
+  LoadP(scratch, FieldMemOperand(input, HeapNumber::kValueOffset));
+#else
+  lwz(scratch, FieldMemOperand(input, HeapNumber::kExponentOffset));
+#endif
+  cmpi(scratch, Operand::Zero());
+}
 
 void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            DoubleRegister double_input,
@@ -2335,18 +2442,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
 }
 
 
-void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                                   const CallWrapper& call_wrapper) {
-  // You can't call a builtin without a valid frame.
-  DCHECK(flag == JUMP_FUNCTION || has_frame());
-
-  // Fake a parameter count to avoid emitting code to do the check.
-  ParameterCount expected(0);
-  LoadNativeContextSlot(native_context_index, r4);
-  InvokeFunctionCode(r4, no_reg, expected, expected, flag, call_wrapper);
-}
-
-
 void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
   if (FLAG_native_code_counters && counter->Enabled()) {
@@ -2441,9 +2536,9 @@ void MacroAssembler::Abort(BailoutReason reason) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort);
   } else {
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort);
   }
   // will not return here
 }
@@ -2656,6 +2751,18 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   }
 }
 
+void MacroAssembler::AssertReceiver(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    TestIfSmi(object, r0);
+    Check(ne, kOperandIsASmiAndNotAReceiver, cr0);
+    push(object);
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+    CompareObjectType(object, object, object, FIRST_JS_RECEIVER_TYPE);
+    pop(object);
+    Check(ge, kOperandIsNotAReceiver);
+  }
+}
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
@@ -3087,20 +3194,21 @@ void MacroAssembler::CallCFunctionHelper(Register function,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
   DCHECK(has_frame());
-// Just call directly. The function called cannot cause a GC, or
-// allow preemption, so the return address in the link register
-// stays correct.
+
+  // Just call directly. The function called cannot cause a GC, or
+  // allow preemption, so the return address in the link register
+  // stays correct.
   Register dest = function;
-#if ABI_USES_FUNCTION_DESCRIPTORS && !defined(USE_SIMULATOR)
-  // AIX uses a function descriptor. When calling C code be aware
-  // of this descriptor and pick up values from it
-  LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(function, kPointerSize));
-  LoadP(ip, MemOperand(function, 0));
-  dest = ip;
-#elif ABI_CALL_VIA_IP
-  Move(ip, function);
-  dest = ip;
-#endif
+  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+    // AIX/PPC64BE Linux uses a function descriptor. When calling C code be
+    // aware of this descriptor and pick up values from it
+    LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(function, kPointerSize));
+    LoadP(ip, MemOperand(function, 0));
+    dest = ip;
+  } else if (ABI_CALL_VIA_IP) {
+    Move(ip, function);
+    dest = ip;
+  }
 
   Call(dest);
 
@@ -3113,41 +3221,6 @@ void MacroAssembler::CallCFunctionHelper(Register function,
   } else {
     addi(sp, sp, Operand(stack_space * kPointerSize));
   }
-}
-
-
-void MacroAssembler::FlushICache(Register address, size_t size,
-                                 Register scratch) {
-  if (CpuFeatures::IsSupported(INSTR_AND_DATA_CACHE_COHERENCY)) {
-    sync();
-    icbi(r0, address);
-    isync();
-    return;
-  }
-
-  Label done;
-
-  dcbf(r0, address);
-  sync();
-  icbi(r0, address);
-  isync();
-
-  // This code handles ranges which cross a single cacheline boundary.
-  // scratch is last cacheline which intersects range.
-  const int kCacheLineSizeLog2 = WhichPowerOf2(CpuFeatures::cache_line_size());
-
-  DCHECK(size > 0 && size <= (size_t)(1 << kCacheLineSizeLog2));
-  addi(scratch, address, Operand(size - 1));
-  ClearRightImm(scratch, scratch, Operand(kCacheLineSizeLog2));
-  cmpl(scratch, address);
-  ble(&done);
-
-  dcbf(r0, scratch);
-  sync();
-  icbi(r0, scratch);
-  isync();
-
-  bind(&done);
 }
 
 
@@ -3386,7 +3459,8 @@ void MacroAssembler::LoadAccessor(Register dst, Register holder,
 }
 
 
-void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
+void MacroAssembler::CheckEnumCache(Label* call_runtime) {
+  Register null_value = r8;
   Register empty_fixed_array_value = r9;
   LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
   Label next, start;
@@ -3400,6 +3474,7 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   CmpSmiLiteral(r6, Smi::FromInt(kInvalidEnumCacheSentinel), r0);
   beq(call_runtime);
 
+  LoadRoot(null_value, Heap::kNullValueRootIndex);
   b(&start);
 
   bind(&next);

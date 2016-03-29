@@ -15,12 +15,9 @@ namespace internal {
 // variables. Variables themselves are never directly referred to from the AST,
 // they are maintained by scopes, and referred to from VariableProxies and Slots
 // after binding and variable allocation.
-
-class ClassVariable;
-
 class Variable: public ZoneObject {
  public:
-  enum Kind { NORMAL, FUNCTION, CLASS, THIS, ARGUMENTS };
+  enum Kind { NORMAL, FUNCTION, THIS, ARGUMENTS };
 
   Variable(Scope* scope, const AstRawString* name, VariableMode mode, Kind kind,
            InitializationFlag initialization_flag,
@@ -84,7 +81,6 @@ class Variable: public ZoneObject {
   }
 
   bool is_function() const { return kind_ == FUNCTION; }
-  bool is_class() const { return kind_ == CLASS; }
   bool is_this() const { return kind_ == THIS; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
 
@@ -96,11 +92,6 @@ class Variable: public ZoneObject {
   // might be provided by the global, use HasThisName instead of is_this().
   bool HasThisName(Isolate* isolate) const {
     return is_this() || *name() == *isolate->factory()->this_string();
-  }
-
-  ClassVariable* AsClassVariable() {
-    DCHECK(is_class());
-    return reinterpret_cast<ClassVariable*>(this);
   }
 
   // True if the variable is named eval and not known to be shadowed.
@@ -132,24 +123,6 @@ class Variable: public ZoneObject {
 
   static int CompareIndex(Variable* const* v, Variable* const* w);
 
-  void RecordStrongModeReference(int start_position, int end_position) {
-    // Record the earliest reference to the variable. Used in error messages for
-    // strong mode references to undeclared variables.
-    if (has_strong_mode_reference_ &&
-        strong_mode_reference_start_position_ < start_position)
-      return;
-    has_strong_mode_reference_ = true;
-    strong_mode_reference_start_position_ = start_position;
-    strong_mode_reference_end_position_ = end_position;
-  }
-
-  bool has_strong_mode_reference() const { return has_strong_mode_reference_; }
-  int strong_mode_reference_start_position() const {
-    return strong_mode_reference_start_position_;
-  }
-  int strong_mode_reference_end_position() const {
-    return strong_mode_reference_end_position_;
-  }
   PropertyAttributes DeclarationPropertyAttributes() const {
     int property_attributes = NONE;
     if (IsImmutableVariableMode(mode_)) {
@@ -169,11 +142,6 @@ class Variable: public ZoneObject {
   VariableLocation location_;
   int index_;
   int initializer_position_;
-  // Tracks whether the variable is bound to a VariableProxy which is in strong
-  // mode, and if yes, the source location of the reference.
-  bool has_strong_mode_reference_;
-  int strong_mode_reference_start_position_;
-  int strong_mode_reference_end_position_;
 
   // If this field is set, this variable references the stored locally bound
   // variable, but it might be shadowed by variable bindings introduced by
@@ -189,28 +157,6 @@ class Variable: public ZoneObject {
   bool is_used_;
   InitializationFlag initialization_flag_;
   MaybeAssignedFlag maybe_assigned_;
-};
-
-class ClassVariable : public Variable {
- public:
-  ClassVariable(Scope* scope, const AstRawString* name, VariableMode mode,
-                InitializationFlag initialization_flag,
-                MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-                int declaration_group_start = -1)
-      : Variable(scope, name, mode, Variable::CLASS, initialization_flag,
-                 maybe_assigned_flag),
-        declaration_group_start_(declaration_group_start) {}
-
-  int declaration_group_start() const { return declaration_group_start_; }
-  void set_declaration_group_start(int declaration_group_start) {
-    declaration_group_start_ = declaration_group_start;
-  }
-
- private:
-  // For classes we keep track of consecutive groups of delcarations. They are
-  // needed for strong mode scoping checks. TODO(marja, rossberg): Implement
-  // checks for functions too.
-  int declaration_group_start_;
 };
 }  // namespace internal
 }  // namespace v8

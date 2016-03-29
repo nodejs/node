@@ -162,6 +162,22 @@ static inline ObjectPair MakePair(Object* x, Object* y) {
 }
 #endif
 
+
+// A mechanism to return a triple of Object pointers. In all calling
+// conventions, a struct of two pointers is returned in memory,
+// allocated by the caller, and passed as a pointer in a hidden first parameter.
+struct ObjectTriple {
+  Object* x;
+  Object* y;
+  Object* z;
+};
+
+static inline ObjectTriple MakeTriple(Object* x, Object* y, Object* z) {
+  ObjectTriple result = {x, y, z};
+  // ObjectTriple is assigned to a hidden first argument.
+  return result;
+}
+
 }  // namespace internal
 }  // namespace v8
 

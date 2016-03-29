@@ -10,14 +10,17 @@ namespace compiler {
 
 namespace {
 
-typedef std::pair<InstructionOperand, InstructionOperand> MoveKey;
+struct MoveKey {
+  InstructionOperand source;
+  InstructionOperand destination;
+};
 
 struct MoveKeyCompare {
   bool operator()(const MoveKey& a, const MoveKey& b) const {
-    if (a.first.EqualsCanonicalized(b.first)) {
-      return a.second.CompareCanonicalized(b.second);
+    if (a.source.EqualsCanonicalized(b.source)) {
+      return a.destination.CompareCanonicalized(b.destination);
     }
-    return a.first.CompareCanonicalized(b.first);
+    return a.source.CompareCanonicalized(b.source);
   }
 };
 
@@ -30,39 +33,6 @@ struct OperandCompare {
 
 typedef ZoneMap<MoveKey, unsigned, MoveKeyCompare> MoveMap;
 typedef ZoneSet<InstructionOperand, CompareOperandModuloType> OperandSet;
-
-
-bool GapsCanMoveOver(Instruction* instr, Zone* zone) {
-  if (instr->IsNop()) return true;
-  if (instr->ClobbersTemps() || instr->ClobbersRegisters() ||
-      instr->ClobbersDoubleRegisters()) {
-    return false;
-  }
-  if (instr->arch_opcode() != ArchOpcode::kArchNop) return false;
-
-  ZoneSet<InstructionOperand, OperandCompare> operands(zone);
-  for (size_t i = 0; i < instr->InputCount(); ++i) {
-    operands.insert(*instr->InputAt(i));
-  }
-  for (size_t i = 0; i < instr->OutputCount(); ++i) {
-    operands.insert(*instr->OutputAt(i));
-  }
-  for (size_t i = 0; i < instr->TempCount(); ++i) {
-    operands.insert(*instr->TempAt(i));
-  }
-  for (int i = Instruction::GapPosition::FIRST_GAP_POSITION;
-       i <= Instruction::GapPosition::LAST_GAP_POSITION; ++i) {
-    ParallelMove* moves = instr->parallel_moves()[i];
-    if (moves == nullptr) continue;
-    for (MoveOperands* move : *moves) {
-      if (operands.count(move->source()) > 0 ||
-          operands.count(move->destination()) > 0) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
 
 
 int FindFirstNonEmptySlot(const Instruction* instr) {
@@ -85,11 +55,13 @@ int FindFirstNonEmptySlot(const Instruction* instr) {
 MoveOptimizer::MoveOptimizer(Zone* local_zone, InstructionSequence* code)
     : local_zone_(local_zone),
       code_(code),
-      to_finalize_(local_zone),
       local_vector_(local_zone) {}
 
 
 void MoveOptimizer::Run() {
+  for (Instruction* instruction : code()->instructions()) {
+    CompressGaps(instruction);
+  }
   for (InstructionBlock* block : code()->instruction_blocks()) {
     CompressBlock(block);
   }
@@ -111,13 +83,140 @@ void MoveOptimizer::Run() {
     }
     OptimizeMerge(block);
   }
-  for (Instruction* gap : to_finalize_) {
+  for (Instruction* gap : code()->instructions()) {
     FinalizeMoves(gap);
   }
 }
 
+void MoveOptimizer::RemoveClobberedDestinations(Instruction* instruction) {
+  if (instruction->IsCall()) return;
+  ParallelMove* moves = instruction->parallel_moves()[0];
+  if (moves == nullptr) return;
 
-void MoveOptimizer::CompressMoves(ParallelMove* left, ParallelMove* right) {
+  DCHECK(instruction->parallel_moves()[1] == nullptr ||
+         instruction->parallel_moves()[1]->empty());
+
+  OperandSet outputs(local_zone());
+  OperandSet inputs(local_zone());
+
+  // Outputs and temps are treated together as potentially clobbering a
+  // destination operand.
+  for (size_t i = 0; i < instruction->OutputCount(); ++i) {
+    outputs.insert(*instruction->OutputAt(i));
+  }
+  for (size_t i = 0; i < instruction->TempCount(); ++i) {
+    outputs.insert(*instruction->TempAt(i));
+  }
+
+  // Input operands block elisions.
+  for (size_t i = 0; i < instruction->InputCount(); ++i) {
+    inputs.insert(*instruction->InputAt(i));
+  }
+
+  // Elide moves made redundant by the instruction.
+  for (MoveOperands* move : *moves) {
+    if (outputs.find(move->destination()) != outputs.end() &&
+        inputs.find(move->destination()) == inputs.end()) {
+      move->Eliminate();
+    }
+  }
+
+  // The ret instruction makes any assignment before it unnecessary, except for
+  // the one for its input.
+  if (instruction->opcode() == ArchOpcode::kArchRet) {
+    for (MoveOperands* move : *moves) {
+      if (inputs.find(move->destination()) == inputs.end()) {
+        move->Eliminate();
+      }
+    }
+  }
+}
+
+void MoveOptimizer::MigrateMoves(Instruction* to, Instruction* from) {
+  if (from->IsCall()) return;
+
+  ParallelMove* from_moves = from->parallel_moves()[0];
+  if (from_moves == nullptr || from_moves->empty()) return;
+
+  ZoneSet<InstructionOperand, OperandCompare> dst_cant_be(local_zone());
+  ZoneSet<InstructionOperand, OperandCompare> src_cant_be(local_zone());
+
+  // If an operand is an input to the instruction, we cannot move assignments
+  // where it appears on the LHS.
+  for (size_t i = 0; i < from->InputCount(); ++i) {
+    dst_cant_be.insert(*from->InputAt(i));
+  }
+  // If an operand is output to the instruction, we cannot move assignments
+  // where it appears on the RHS, because we would lose its value before the
+  // instruction.
+  // Same for temp operands.
+  // The output can't appear on the LHS because we performed
+  // RemoveClobberedDestinations for the "from" instruction.
+  for (size_t i = 0; i < from->OutputCount(); ++i) {
+    src_cant_be.insert(*from->OutputAt(i));
+  }
+  for (size_t i = 0; i < from->TempCount(); ++i) {
+    src_cant_be.insert(*from->TempAt(i));
+  }
+  for (MoveOperands* move : *from_moves) {
+    if (move->IsRedundant()) continue;
+    // Assume dest has a value "V". If we have a "dest = y" move, then we can't
+    // move "z = dest", because z would become y rather than "V".
+    // We assume CompressMoves has happened before this, which means we don't
+    // have more than one assignment to dest.
+    src_cant_be.insert(move->destination());
+  }
+
+  ZoneSet<MoveKey, MoveKeyCompare> move_candidates(local_zone());
+  // We start with all the moves that don't have conflicting source or
+  // destination operands are eligible for being moved down.
+  for (MoveOperands* move : *from_moves) {
+    if (move->IsRedundant()) continue;
+    if (dst_cant_be.find(move->destination()) == dst_cant_be.end()) {
+      MoveKey key = {move->source(), move->destination()};
+      move_candidates.insert(key);
+    }
+  }
+  if (move_candidates.empty()) return;
+
+  // Stabilize the candidate set.
+  bool changed = false;
+  do {
+    changed = false;
+    for (auto iter = move_candidates.begin(); iter != move_candidates.end();) {
+      auto current = iter;
+      ++iter;
+      InstructionOperand src = current->source;
+      if (src_cant_be.find(src) != src_cant_be.end()) {
+        src_cant_be.insert(current->destination);
+        move_candidates.erase(current);
+        changed = true;
+      }
+    }
+  } while (changed);
+
+  ParallelMove to_move(local_zone());
+  for (MoveOperands* move : *from_moves) {
+    if (move->IsRedundant()) continue;
+    MoveKey key = {move->source(), move->destination()};
+    if (move_candidates.find(key) != move_candidates.end()) {
+      to_move.AddMove(move->source(), move->destination(), code_zone());
+      move->Eliminate();
+    }
+  }
+  if (to_move.empty()) return;
+
+  ParallelMove* dest =
+      to->GetOrCreateParallelMove(Instruction::GapPosition::START, code_zone());
+
+  CompressMoves(&to_move, dest);
+  DCHECK(dest->empty());
+  for (MoveOperands* m : to_move) {
+    dest->push_back(m);
+  }
+}
+
+void MoveOptimizer::CompressMoves(ParallelMove* left, MoveOpVector* right) {
   if (right == nullptr) return;
 
   MoveOpVector& eliminated = local_vector();
@@ -147,54 +246,49 @@ void MoveOptimizer::CompressMoves(ParallelMove* left, ParallelMove* right) {
   DCHECK(eliminated.empty());
 }
 
+void MoveOptimizer::CompressGaps(Instruction* instruction) {
+  int i = FindFirstNonEmptySlot(instruction);
+  bool has_moves = i <= Instruction::LAST_GAP_POSITION;
+  USE(has_moves);
 
-// Smash all consecutive moves into the left most move slot and accumulate them
-// as much as possible across instructions.
-void MoveOptimizer::CompressBlock(InstructionBlock* block) {
-  Instruction* prev_instr = nullptr;
-  for (int index = block->code_start(); index < block->code_end(); ++index) {
-    Instruction* instr = code()->instructions()[index];
-    int i = FindFirstNonEmptySlot(instr);
-    bool has_moves = i <= Instruction::LAST_GAP_POSITION;
-
-    if (i == Instruction::LAST_GAP_POSITION) {
-      std::swap(instr->parallel_moves()[Instruction::FIRST_GAP_POSITION],
-                instr->parallel_moves()[Instruction::LAST_GAP_POSITION]);
-    } else if (i == Instruction::FIRST_GAP_POSITION) {
-      CompressMoves(instr->parallel_moves()[Instruction::FIRST_GAP_POSITION],
-                    instr->parallel_moves()[Instruction::LAST_GAP_POSITION]);
-    }
-    // We either have no moves, or, after swapping or compressing, we have
-    // all the moves in the first gap position, and none in the second/end gap
-    // position.
-    ParallelMove* first =
-        instr->parallel_moves()[Instruction::FIRST_GAP_POSITION];
-    ParallelMove* last =
-        instr->parallel_moves()[Instruction::LAST_GAP_POSITION];
-    USE(last);
-
-    DCHECK(!has_moves ||
-           (first != nullptr && (last == nullptr || last->empty())));
-
-    if (prev_instr != nullptr) {
-      if (has_moves) {
-        // Smash first into prev_instr, killing left.
-        ParallelMove* pred_moves = prev_instr->parallel_moves()[0];
-        CompressMoves(pred_moves, first);
-      }
-      // Slide prev_instr down so we always know where to look for it.
-      std::swap(prev_instr->parallel_moves()[0], instr->parallel_moves()[0]);
-    }
-
-    prev_instr = instr->parallel_moves()[0] == nullptr ? nullptr : instr;
-    if (GapsCanMoveOver(instr, local_zone())) continue;
-    if (prev_instr != nullptr) {
-      to_finalize_.push_back(prev_instr);
-      prev_instr = nullptr;
-    }
+  if (i == Instruction::LAST_GAP_POSITION) {
+    std::swap(instruction->parallel_moves()[Instruction::FIRST_GAP_POSITION],
+              instruction->parallel_moves()[Instruction::LAST_GAP_POSITION]);
+  } else if (i == Instruction::FIRST_GAP_POSITION) {
+    CompressMoves(
+        instruction->parallel_moves()[Instruction::FIRST_GAP_POSITION],
+        instruction->parallel_moves()[Instruction::LAST_GAP_POSITION]);
   }
-  if (prev_instr != nullptr) {
-    to_finalize_.push_back(prev_instr);
+  // We either have no moves, or, after swapping or compressing, we have
+  // all the moves in the first gap position, and none in the second/end gap
+  // position.
+  ParallelMove* first =
+      instruction->parallel_moves()[Instruction::FIRST_GAP_POSITION];
+  ParallelMove* last =
+      instruction->parallel_moves()[Instruction::LAST_GAP_POSITION];
+  USE(first);
+  USE(last);
+
+  DCHECK(!has_moves ||
+         (first != nullptr && (last == nullptr || last->empty())));
+}
+
+void MoveOptimizer::CompressBlock(InstructionBlock* block) {
+  int first_instr_index = block->first_instruction_index();
+  int last_instr_index = block->last_instruction_index();
+
+  // Start by removing gap assignments where the output of the subsequent
+  // instruction appears on LHS, as long as they are not needed by its input.
+  Instruction* prev_instr = code()->instructions()[first_instr_index];
+  RemoveClobberedDestinations(prev_instr);
+
+  for (int index = first_instr_index + 1; index <= last_instr_index; ++index) {
+    Instruction* instr = code()->instructions()[index];
+    // Migrate to the gap of prev_instr eligible moves from instr.
+    MigrateMoves(instr, prev_instr);
+    // Remove gap assignments clobbered by instr's output.
+    RemoveClobberedDestinations(instr);
+    prev_instr = instr;
   }
 }
 
@@ -211,6 +305,12 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
   // things that would prevent moving gap moves across them.
   for (RpoNumber& pred_index : block->predecessors()) {
     const InstructionBlock* pred = code()->InstructionBlockAt(pred_index);
+
+    // If the predecessor has more than one successor, we shouldn't attempt to
+    // move down to this block (one of the successors) any of the gap moves,
+    // because their effect may be necessary to the other successors.
+    if (pred->SuccessorCount() > 1) return;
+
     const Instruction* last_instr =
         code()->instructions()[pred->last_instruction_index()];
     if (last_instr->IsCall()) return;
@@ -246,21 +346,54 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
       }
     }
   }
-  if (move_map.empty() || correct_counts != move_map.size()) return;
+  if (move_map.empty() || correct_counts == 0) return;
+
   // Find insertion point.
-  Instruction* instr = nullptr;
-  for (int i = block->first_instruction_index();
-       i <= block->last_instruction_index(); ++i) {
-    instr = code()->instructions()[i];
-    if (!GapsCanMoveOver(instr, local_zone()) || !instr->AreMovesRedundant())
-      break;
+  Instruction* instr = code()->instructions()[block->first_instruction_index()];
+
+  if (correct_counts != move_map.size()) {
+    // Moves that are unique to each predecessor won't be pushed to the common
+    // successor.
+    OperandSet conflicting_srcs(local_zone());
+    for (auto iter = move_map.begin(), end = move_map.end(); iter != end;) {
+      auto current = iter;
+      ++iter;
+      if (current->second != block->PredecessorCount()) {
+        InstructionOperand dest = current->first.destination;
+        // Not all the moves in all the gaps are the same. Maybe some are. If
+        // there are such moves, we could move them, but the destination of the
+        // moves staying behind can't appear as a source of a common move,
+        // because the move staying behind will clobber this destination.
+        conflicting_srcs.insert(dest);
+        move_map.erase(current);
+      }
+    }
+
+    bool changed = false;
+    do {
+      // If a common move can't be pushed to the common successor, then its
+      // destination also can't appear as source to any move being pushed.
+      changed = false;
+      for (auto iter = move_map.begin(), end = move_map.end(); iter != end;) {
+        auto current = iter;
+        ++iter;
+        DCHECK_EQ(block->PredecessorCount(), current->second);
+        if (conflicting_srcs.find(current->first.source) !=
+            conflicting_srcs.end()) {
+          conflicting_srcs.insert(current->first.destination);
+          move_map.erase(current);
+          changed = true;
+        }
+      }
+    } while (changed);
   }
+
+  if (move_map.empty()) return;
+
   DCHECK_NOT_NULL(instr);
   bool gap_initialized = true;
-  if (instr->parallel_moves()[0] == nullptr ||
-      instr->parallel_moves()[0]->empty()) {
-    to_finalize_.push_back(instr);
-  } else {
+  if (instr->parallel_moves()[0] != nullptr &&
+      !instr->parallel_moves()[0]->empty()) {
     // Will compress after insertion.
     gap_initialized = false;
     std::swap(instr->parallel_moves()[0], instr->parallel_moves()[1]);
@@ -275,12 +408,12 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
       if (move->IsRedundant()) continue;
       MoveKey key = {move->source(), move->destination()};
       auto it = move_map.find(key);
-      USE(it);
-      DCHECK(it != move_map.end());
-      if (first_iteration) {
-        moves->AddMove(move->source(), move->destination());
+      if (it != move_map.end()) {
+        if (first_iteration) {
+          moves->AddMove(move->source(), move->destination());
+        }
+        move->Eliminate();
       }
-      move->Eliminate();
     }
     first_iteration = false;
   }
@@ -288,6 +421,7 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
   if (!gap_initialized) {
     CompressMoves(instr->parallel_moves()[0], instr->parallel_moves()[1]);
   }
+  CompressBlock(block);
 }
 
 
@@ -316,8 +450,10 @@ void MoveOptimizer::FinalizeMoves(Instruction* instr) {
   MoveOpVector& loads = local_vector();
   DCHECK(loads.empty());
 
+  ParallelMove* parallel_moves = instr->parallel_moves()[0];
+  if (parallel_moves == nullptr) return;
   // Find all the loads.
-  for (MoveOperands* move : *instr->parallel_moves()[0]) {
+  for (MoveOperands* move : *parallel_moves) {
     if (move->IsRedundant()) continue;
     if (move->source().IsConstant() || IsSlot(move->source())) {
       loads.push_back(move);

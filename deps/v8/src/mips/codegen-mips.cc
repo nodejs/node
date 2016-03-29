@@ -767,8 +767,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ Addu(scratch1, elements,
       Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ Addu(scratch3, array, Operand(FixedDoubleArray::kHeaderSize));
-  __ sll(at, length, 2);
-  __ Addu(array_end, scratch3, at);
+  __ Lsa(array_end, scratch3, length, 2);
 
   // Repurpose registers no longer in use.
   Register hole_lower = elements;
@@ -899,8 +898,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
         FixedDoubleArray::kHeaderSize - kHeapObjectTag
         + Register::kExponentOffset));
   __ Addu(dst_elements, array, Operand(FixedArray::kHeaderSize));
-  __ sll(dst_end, dst_end, 1);
-  __ Addu(dst_end, dst_elements, dst_end);
+  __ Lsa(dst_end, dst_elements, dst_end, 1);
 
   // Allocating heap numbers in the loop below can fail and cause a jump to
   // gc_required. We can't leave a partly initialized FixedArray behind,
@@ -1082,8 +1080,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ And(at, result, Operand(kStringEncodingMask));
   __ Branch(&one_byte, ne, at, Operand(zero_reg));
   // Two-byte string.
-  __ sll(at, index, 1);
-  __ Addu(at, string, at);
+  __ Lsa(at, string, index, 1);
   __ lhu(result, MemOperand(at));
   __ jmp(&done);
   __ bind(&one_byte);
@@ -1156,8 +1153,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
   // Must not call ExpConstant() after overwriting temp3!
   __ li(temp3, Operand(ExternalReference::math_exp_log_table()));
-  __ sll(at, temp2, 3);
-  __ Addu(temp3, temp3, Operand(at));
+  __ Lsa(temp3, temp3, temp2, 3);
   __ lw(temp2, MemOperand(temp3, Register::kMantissaOffset));
   __ lw(temp3, MemOperand(temp3, Register::kExponentOffset));
   // The first word is loaded is the lower number register.

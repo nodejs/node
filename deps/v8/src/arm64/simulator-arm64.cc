@@ -15,6 +15,7 @@
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -533,12 +534,6 @@ void Simulator::TearDown(HashMap* i_cache, Redirection* first) {
 // uses the ObjectPair structure.
 // The simulator assumes all runtime calls return two 64-bits values. If they
 // don't, register x1 is clobbered. This is fine because x1 is caller-saved.
-struct ObjectPair {
-  int64_t res0;
-  int64_t res1;
-};
-
-
 typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0,
                                            int64_t arg1,
                                            int64_t arg2,
@@ -547,6 +542,11 @@ typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0,
                                            int64_t arg5,
                                            int64_t arg6,
                                            int64_t arg7);
+
+typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int64_t arg0, int64_t arg1,
+                                                   int64_t arg2, int64_t arg3,
+                                                   int64_t arg4, int64_t arg5,
+                                                   int64_t arg6, int64_t arg7);
 
 typedef int64_t (*SimulatorRuntimeCompareCall)(double arg1, double arg2);
 typedef double (*SimulatorRuntimeFPFPCall)(double arg1, double arg2);
@@ -589,8 +589,10 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       UNREACHABLE();
       break;
 
-    case ExternalReference::BUILTIN_CALL: {
-      // Object* f(v8::internal::Arguments).
+    case ExternalReference::BUILTIN_CALL:
+    case ExternalReference::BUILTIN_CALL_PAIR: {
+      // Object* f(v8::internal::Arguments) or
+      // ObjectPair f(v8::internal::Arguments).
       TraceSim("Type: BUILTIN_CALL\n");
       SimulatorRuntimeCall target =
         reinterpret_cast<SimulatorRuntimeCall>(external);
@@ -607,13 +609,41 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
                xreg(4), xreg(5), xreg(6), xreg(7));
       ObjectPair result = target(xreg(0), xreg(1), xreg(2), xreg(3),
                                  xreg(4), xreg(5), xreg(6), xreg(7));
-      TraceSim("Returned: {0x%" PRIx64 ", 0x%" PRIx64 "}\n",
-               result.res0, result.res1);
+      TraceSim("Returned: {%p, %p}\n", result.x, result.y);
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
 #endif
-      set_xreg(0, result.res0);
-      set_xreg(1, result.res1);
+      set_xreg(0, reinterpret_cast<int64_t>(result.x));
+      set_xreg(1, reinterpret_cast<int64_t>(result.y));
+      break;
+    }
+
+    case ExternalReference::BUILTIN_CALL_TRIPLE: {
+      // ObjectTriple f(v8::internal::Arguments).
+      TraceSim("Type: BUILTIN_CALL TRIPLE\n");
+      SimulatorRuntimeTripleCall target =
+          reinterpret_cast<SimulatorRuntimeTripleCall>(external);
+
+      // We don't know how many arguments are being passed, but we can
+      // pass 8 without touching the stack. They will be ignored by the
+      // host function if they aren't used.
+      TraceSim(
+          "Arguments: "
+          "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64,
+          xreg(0), xreg(1), xreg(2), xreg(3), xreg(4), xreg(5), xreg(6),
+          xreg(7));
+      // Return location passed in x8.
+      ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(xreg(8));
+      ObjectTriple result = target(xreg(0), xreg(1), xreg(2), xreg(3), xreg(4),
+                                   xreg(5), xreg(6), xreg(7));
+      TraceSim("Returned: {%p, %p, %p}\n", result.x, result.y, result.z);
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      *sim_result = result;
       break;
     }
 
@@ -1966,10 +1996,10 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
 
   switch (instr->Mask(DataProcessing1SourceMask)) {
     case RBIT_w:
-      set_wreg(dst, ReverseBits(wreg(src)));
+      set_wreg(dst, base::bits::ReverseBits(wreg(src)));
       break;
     case RBIT_x:
-      set_xreg(dst, ReverseBits(xreg(src)));
+      set_xreg(dst, base::bits::ReverseBits(xreg(src)));
       break;
     case REV16_w:
       set_wreg(dst, ReverseBytes(wreg(src), 1));
@@ -3510,7 +3540,8 @@ void Simulator::Debug() {
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int64_t value = *cur;
           Heap* current_heap = isolate_->heap();
-          if (((value & 1) == 0) || current_heap->Contains(obj)) {
+          if (((value & 1) == 0) ||
+              current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & kSmiTagMask) == 0) {
               STATIC_ASSERT(kSmiValueSize == 32);

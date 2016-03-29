@@ -15,7 +15,7 @@ namespace internal {
 // Holds information about possible function call optimizations.
 class CallOptimization BASE_EMBEDDED {
  public:
-  explicit CallOptimization(Handle<JSFunction> function);
+  explicit CallOptimization(Handle<Object> function);
 
   bool is_constant_call() const { return !constant_function_.is_null(); }
 
@@ -51,6 +51,7 @@ class CallOptimization BASE_EMBEDDED {
 
  private:
   void Initialize(Handle<JSFunction> function);
+  void Initialize(Handle<FunctionTemplateInfo> function_template_info);
 
   // Determines whether the given function can be called using the
   // fast api call builtin.

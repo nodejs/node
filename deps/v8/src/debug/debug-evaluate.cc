@@ -111,7 +111,7 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.
   if (result->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, result);
+    PrototypeIterator iter(isolate, Handle<JSGlobalProxy>::cast(result));
     // TODO(verwaest): This will crash when the global proxy is detached.
     result = PrototypeIterator::GetCurrent<JSObject>(iter);
   }
@@ -128,7 +128,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       inlined_jsframe_index_(inlined_jsframe_index) {
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
   Handle<JSFunction> local_function =
-      handle(JSFunction::cast(frame_inspector.GetFunction()));
+      Handle<JSFunction>::cast(frame_inspector.GetFunction());
   Handle<Context> outer_context(local_function->context());
   native_context_ = Handle<Context>(outer_context->native_context());
   Handle<JSFunction> global_function(native_context_->closure());
@@ -302,8 +302,7 @@ void DebugEvaluate::ContextBuilder::MaterializeArgumentsObject(
   if (maybe.FromJust()) return;
 
   // FunctionGetArguments can't throw an exception.
-  Handle<JSObject> arguments =
-      Handle<JSObject>::cast(Accessors::FunctionGetArguments(function));
+  Handle<JSObject> arguments = Accessors::FunctionGetArguments(function);
   Handle<String> arguments_str = isolate_->factory()->arguments_string();
   JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
                                            NONE)

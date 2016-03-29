@@ -121,15 +121,15 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type,
 
 StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
 #define FRAME_TYPE_CASE(type, field) \
-  case StackFrame::type: result = &field##_; break;
+  case StackFrame::type:             \
+    return &field##_;
 
-  StackFrame* result = NULL;
   switch (type) {
     case StackFrame::NONE: return NULL;
     STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
     default: break;
   }
-  return result;
+  return NULL;
 
 #undef FRAME_TYPE_CASE
 }
@@ -234,17 +234,8 @@ SafeStackFrameIterator::SafeStackFrameIterator(
   }
   if (SingletonFor(type) == NULL) return;
   frame_ = SingletonFor(type, &state);
-  if (frame_ == NULL) return;
-
+  DCHECK(frame_);
   Advance();
-
-  if (frame_ != NULL && !frame_->is_exit() &&
-      external_callback_scope_ != NULL &&
-      external_callback_scope_->scope_address() < frame_->fp()) {
-    // Skip top ExternalCallbackScope if we already advanced to a JS frame
-    // under it. Sampler will anyways take this top external callback.
-    external_callback_scope_ = external_callback_scope_->previous();
-  }
 }
 
 
@@ -272,8 +263,12 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
   // Advance to the previous frame.
   StackFrame::State state;
   StackFrame::Type type = frame_->GetCallerState(&state);
+  if (SingletonFor(type) == NULL) {
+    frame_ = NULL;
+    return;
+  }
   frame_ = SingletonFor(type, &state);
-  if (frame_ == NULL) return;
+  DCHECK(frame_);
 
   // Check that we have actually moved to the previous frame in the stack.
   if (frame_->sp() < last_sp || frame_->fp() < last_fp) {
@@ -325,22 +320,30 @@ bool SafeStackFrameIterator::IsValidExitFrame(Address fp) const {
 void SafeStackFrameIterator::Advance() {
   while (true) {
     AdvanceOneFrame();
-    if (done()) return;
-    if (frame_->is_java_script()) return;
-    if (frame_->is_exit() && external_callback_scope_) {
+    if (done()) break;
+    ExternalCallbackScope* last_callback_scope = NULL;
+    while (external_callback_scope_ != NULL &&
+           external_callback_scope_->scope_address() < frame_->fp()) {
+      // As long as the setup of a frame is not atomic, we may happen to be
+      // in an interval where an ExternalCallbackScope is already created,
+      // but the frame is not yet entered. So we are actually observing
+      // the previous frame.
+      // Skip all the ExternalCallbackScope's that are below the current fp.
+      last_callback_scope = external_callback_scope_;
+      external_callback_scope_ = external_callback_scope_->previous();
+    }
+    if (frame_->is_java_script()) break;
+    if (frame_->is_exit()) {
       // Some of the EXIT frames may have ExternalCallbackScope allocated on
       // top of them. In that case the scope corresponds to the first EXIT
       // frame beneath it. There may be other EXIT frames on top of the
       // ExternalCallbackScope, just skip them as we cannot collect any useful
       // information about them.
-      if (external_callback_scope_->scope_address() < frame_->fp()) {
+      if (last_callback_scope) {
         frame_->state_.pc_address =
-            external_callback_scope_->callback_entrypoint_address();
-        external_callback_scope_ = external_callback_scope_->previous();
-        DCHECK(external_callback_scope_ == NULL ||
-               external_callback_scope_->scope_address() > frame_->fp());
-        return;
+            last_callback_scope->callback_entrypoint_address();
       }
+      break;
     }
   }
 }
@@ -411,6 +414,12 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     // the VM with a signal at any arbitrary instruction, with essentially
     // anything on the stack. So basically none of these checks are 100%
     // reliable.
+#if defined(USE_SIMULATOR)
+    MSAN_MEMORY_IS_INITIALIZED(
+        state->fp + StandardFrameConstants::kContextOffset, kPointerSize);
+    MSAN_MEMORY_IS_INITIALIZED(
+        state->fp + StandardFrameConstants::kMarkerOffset, kPointerSize);
+#endif
     if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
       // An adapter frame has a special SMI constant for the context and
       // is not distinguished through the marker.
@@ -446,7 +455,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             return ARGUMENTS_ADAPTOR;
           } else {
             // The interpreter entry trampoline has a non-SMI marker.
-            DCHECK(code_obj->is_interpreter_entry_trampoline());
+            DCHECK(code_obj->is_interpreter_entry_trampoline() ||
+                   code_obj->is_interpreter_enter_bytecode_dispatch());
             return INTERPRETED;
           }
         }
@@ -598,23 +608,14 @@ Address StandardFrame::GetExpressionAddress(int n) const {
   return fp() + offset - n * kPointerSize;
 }
 
-
-Object* StandardFrame::GetExpression(Address fp, int index) {
-  return Memory::Object_at(GetExpressionAddress(fp, index));
+Address InterpretedFrame::GetExpressionAddress(int n) const {
+  const int offset = InterpreterFrameConstants::kExpressionsOffset;
+  return fp() + offset - n * kPointerSize;
 }
-
-
-Address StandardFrame::GetExpressionAddress(Address fp, int n) {
-  const int offset = StandardFrameConstants::kExpressionsOffset;
-  return fp + offset - n * kPointerSize;
-}
-
 
 int StandardFrame::ComputeExpressionsCount() const {
-  const int offset =
-      StandardFrameConstants::kExpressionsOffset + kPointerSize;
-  Address base = fp() + offset;
-  Address limit = sp();
+  Address base = GetExpressionAddress(0);
+  Address limit = sp() - kPointerSize;
   DCHECK(base >= limit);  // stack grows downwards
   // Include register-allocated locals in number of expressions.
   return static_cast<int>((base - limit) / kPointerSize);
@@ -647,7 +648,8 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   SafepointEntry safepoint_entry;
   Code* code = StackFrame::GetSafepointData(
       isolate(), pc(), &safepoint_entry, &stack_slots);
-  unsigned slot_space = stack_slots * kPointerSize;
+  unsigned slot_space =
+      stack_slots * kPointerSize - StandardFrameConstants::kFixedFrameSize;
 
   // Visit the outgoing parameters.
   Object** parameters_base = &Memory::Object_at(sp());
@@ -761,9 +763,7 @@ bool JavaScriptFrame::HasInlinedFrames() const {
 int JavaScriptFrame::GetArgumentsLength() const {
   // If there is an arguments adaptor frame get the arguments length from it.
   if (has_adapted_arguments()) {
-    STATIC_ASSERT(ArgumentsAdaptorFrameConstants::kLengthOffset ==
-                  StandardFrameConstants::kExpressionsOffset);
-    return Smi::cast(GetExpression(caller_fp(), 0))->value();
+    return ArgumentsAdaptorFrame::GetLength(caller_fp());
   } else {
     return GetNumberOfIncomingArguments();
   }
@@ -796,24 +796,21 @@ void JavaScriptFrame::GetFunctions(List<JSFunction*>* functions) const {
 
 void JavaScriptFrame::Summarize(List<FrameSummary>* functions) {
   DCHECK(functions->length() == 0);
-  Code* code_pointer = LookupCode();
-  int offset = static_cast<int>(pc() - code_pointer->address());
-  FrameSummary summary(receiver(),
-                       function(),
-                       code_pointer,
-                       offset,
+  Code* code = LookupCode();
+  int offset = static_cast<int>(pc() - code->instruction_start());
+  AbstractCode* abstract_code = AbstractCode::cast(code);
+  FrameSummary summary(receiver(), function(), abstract_code, offset,
                        IsConstructor());
   functions->Add(summary);
 }
 
-
 int JavaScriptFrame::LookupExceptionHandlerInTable(
-    int* stack_slots, HandlerTable::CatchPrediction* prediction) {
+    int* stack_depth, HandlerTable::CatchPrediction* prediction) {
   Code* code = LookupCode();
   DCHECK(!code->is_optimized_code());
   HandlerTable* table = HandlerTable::cast(code->handler_table());
   int pc_offset = static_cast<int>(pc() - code->entry());
-  return table->LookupRange(pc_offset, stack_slots, prediction);
+  return table->LookupRange(pc_offset, stack_depth, prediction);
 }
 
 
@@ -826,7 +823,7 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function, Code* code,
   PrintF(file, "+%d", code_offset);
   if (print_line_number) {
     SharedFunctionInfo* shared = function->shared();
-    int source_pos = code->SourcePosition(pc);
+    int source_pos = code->SourcePosition(code_offset);
     Object* maybe_script = shared->script();
     if (maybe_script->IsScript()) {
       Script* script = Script::cast(maybe_script);
@@ -896,15 +893,14 @@ void JavaScriptFrame::RestoreOperandStack(FixedArray* store) {
   }
 }
 
-
-FrameSummary::FrameSummary(Object* receiver, JSFunction* function, Code* code,
-                           int offset, bool is_constructor)
+FrameSummary::FrameSummary(Object* receiver, JSFunction* function,
+                           AbstractCode* abstract_code, int code_offset,
+                           bool is_constructor)
     : receiver_(receiver, function->GetIsolate()),
       function_(function),
-      code_(code),
-      offset_(offset),
+      abstract_code_(abstract_code),
+      code_offset_(code_offset),
       is_constructor_(is_constructor) {}
-
 
 void FrameSummary::Print() {
   PrintF("receiver: ");
@@ -912,10 +908,15 @@ void FrameSummary::Print() {
   PrintF("\nfunction: ");
   function_->shared()->DebugName()->ShortPrint();
   PrintF("\ncode: ");
-  code_->ShortPrint();
-  if (code_->kind() == Code::FUNCTION) PrintF(" NON-OPT");
-  if (code_->kind() == Code::OPTIMIZED_FUNCTION) PrintF(" OPT");
-  PrintF("\npc: %d\n", offset_);
+  abstract_code_->ShortPrint();
+  if (abstract_code_->IsCode()) {
+    Code* code = abstract_code_->GetCode();
+    if (code->kind() == Code::FUNCTION) PrintF(" UNOPT ");
+    if (code->kind() == Code::OPTIMIZED_FUNCTION) PrintF(" OPT ");
+  } else {
+    PrintF(" BYTECODE ");
+  }
+  PrintF("\npc: %d\n", code_offset_);
 }
 
 
@@ -964,11 +965,9 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
       JSFunction* function;
       if (opcode == Translation::LITERAL) {
         function = JSFunction::cast(literal_array->get(it.Next()));
-      } else if (opcode == Translation::STACK_SLOT) {
-        function = JSFunction::cast(StackSlotAt(it.Next()));
       } else {
-        CHECK_EQ(Translation::JS_FRAME_FUNCTION, opcode);
-        function = this->function();
+        CHECK_EQ(opcode, Translation::STACK_SLOT);
+        function = JSFunction::cast(StackSlotAt(it.Next()));
       }
       DCHECK_EQ(shared_info, function->shared());
 
@@ -982,8 +981,6 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
         receiver = literal_array->get(it.Next());
       } else if (opcode == Translation::STACK_SLOT) {
         receiver = StackSlotAt(it.Next());
-      } else if (opcode == Translation::JS_FRAME_FUNCTION) {
-        receiver = this->function();
       } else {
         // The receiver is not in a stack slot nor in a literal.  We give up.
         it.Skip(Translation::NumberOfOperandsFor(opcode));
@@ -994,24 +991,26 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
         receiver = isolate()->heap()->undefined_value();
       }
 
-      Code* const code = shared_info->code();
+      AbstractCode* abstract_code;
 
-      unsigned pc_offset;
+      unsigned code_offset;
       if (frame_opcode == Translation::JS_FRAME) {
+        Code* code = shared_info->code();
         DeoptimizationOutputData* const output_data =
             DeoptimizationOutputData::cast(code->deoptimization_data());
         unsigned const entry =
             Deoptimizer::GetOutputInfo(output_data, ast_id, shared_info);
-        pc_offset =
-            FullCodeGenerator::PcField::decode(entry) + Code::kHeaderSize;
-        DCHECK_NE(0U, pc_offset);
+        code_offset = FullCodeGenerator::PcField::decode(entry);
+        abstract_code = AbstractCode::cast(code);
       } else {
         // TODO(rmcilroy): Modify FrameSummary to enable us to summarize
         // based on the BytecodeArray and bytecode offset.
         DCHECK_EQ(frame_opcode, Translation::INTERPRETED_FRAME);
-        pc_offset = 0;
+        code_offset = 0;
+        abstract_code = AbstractCode::cast(shared_info->bytecode_array());
       }
-      FrameSummary summary(receiver, function, code, pc_offset, is_constructor);
+      FrameSummary summary(receiver, function, abstract_code, code_offset,
+                           is_constructor);
       frames->Add(summary);
       is_constructor = false;
     } else if (frame_opcode == Translation::CONSTRUCT_STUB_FRAME) {
@@ -1034,7 +1033,7 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   DCHECK(code->is_optimized_code());
   HandlerTable* table = HandlerTable::cast(code->handler_table());
   int pc_offset = static_cast<int>(pc() - code->entry());
-  *stack_slots = code->stack_slots();
+  if (stack_slots) *stack_slots = code->stack_slots();
   return table->LookupReturn(pc_offset, prediction);
 }
 
@@ -1105,11 +1104,9 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) const {
       Object* function;
       if (opcode == Translation::LITERAL) {
         function = literal_array->get(it.Next());
-      } else if (opcode == Translation::STACK_SLOT) {
-        function = StackSlotAt(it.Next());
       } else {
-        CHECK_EQ(Translation::JS_FRAME_FUNCTION, opcode);
-        function = this->function();
+        CHECK_EQ(Translation::STACK_SLOT, opcode);
+        function = StackSlotAt(it.Next());
       }
       functions->Add(JSFunction::cast(function));
     }
@@ -1127,6 +1124,64 @@ Object* OptimizedFrame::StackSlotAt(int index) const {
   return Memory::Object_at(fp() + StackSlotOffsetRelativeToFp(index));
 }
 
+int InterpretedFrame::LookupExceptionHandlerInTable(
+    int* context_register, HandlerTable::CatchPrediction* prediction) {
+  BytecodeArray* bytecode = function()->shared()->bytecode_array();
+  HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
+  int pc_offset = GetBytecodeOffset() + 1;  // Point after current bytecode.
+  return table->LookupRange(pc_offset, context_register, prediction);
+}
+
+int InterpretedFrame::GetBytecodeOffset() const {
+  const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
+  DCHECK_EQ(
+      InterpreterFrameConstants::kBytecodeOffsetFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  int raw_offset = Smi::cast(GetExpression(index))->value();
+  return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
+}
+
+void InterpretedFrame::PatchBytecodeOffset(int new_offset) {
+  const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
+  DCHECK_EQ(
+      InterpreterFrameConstants::kBytecodeOffsetFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  int raw_offset = new_offset + BytecodeArray::kHeaderSize - kHeapObjectTag;
+  SetExpression(index, Smi::FromInt(raw_offset));
+}
+
+Object* InterpretedFrame::GetBytecodeArray() const {
+  const int index = InterpreterFrameConstants::kBytecodeArrayExpressionIndex;
+  DCHECK_EQ(
+      InterpreterFrameConstants::kBytecodeArrayFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  return GetExpression(index);
+}
+
+void InterpretedFrame::PatchBytecodeArray(Object* bytecode_array) {
+  const int index = InterpreterFrameConstants::kBytecodeArrayExpressionIndex;
+  DCHECK_EQ(
+      InterpreterFrameConstants::kBytecodeArrayFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  SetExpression(index, bytecode_array);
+}
+
+Object* InterpretedFrame::GetInterpreterRegister(int register_index) const {
+  const int index = InterpreterFrameConstants::kRegisterFileExpressionIndex;
+  DCHECK_EQ(
+      InterpreterFrameConstants::kRegisterFilePointerFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  return GetExpression(index + register_index);
+}
+
+void InterpretedFrame::Summarize(List<FrameSummary>* functions) {
+  DCHECK(functions->length() == 0);
+  AbstractCode* abstract_code =
+      AbstractCode::cast(function()->shared()->bytecode_array());
+  FrameSummary summary(receiver(), function(), abstract_code,
+                       GetBytecodeOffset(), IsConstructor());
+  functions->Add(summary);
+}
 
 int ArgumentsAdaptorFrame::GetNumberOfIncomingArguments() const {
   return Smi::cast(GetExpression(0))->value();
@@ -1137,19 +1192,21 @@ Address ArgumentsAdaptorFrame::GetCallerStackPointer() const {
   return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
-
-Address InternalFrame::GetCallerStackPointer() const {
-  // Internal frames have no arguments. The stack pointer of the
-  // caller is at a fixed offset from the frame pointer.
-  return fp() + StandardFrameConstants::kCallerSPOffset;
+int ArgumentsAdaptorFrame::GetLength(Address fp) {
+  const int offset = ArgumentsAdaptorFrameConstants::kLengthOffset;
+  return Smi::cast(Memory::Object_at(fp + offset))->value();
 }
-
 
 Code* ArgumentsAdaptorFrame::unchecked_code() const {
   return isolate()->builtins()->builtin(
       Builtins::kArgumentsAdaptorTrampoline);
 }
 
+Address InternalFrame::GetCallerStackPointer() const {
+  // Internal frames have no arguments. The stack pointer of the
+  // caller is at a fixed offset from the frame pointer.
+  return fp() + StandardFrameConstants::kCallerSPOffset;
+}
 
 Code* InternalFrame::unchecked_code() const {
   const int offset = InternalFrameConstants::kCodeOffset;
@@ -1212,7 +1269,8 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     Address pc = this->pc();
     if (code != NULL && code->kind() == Code::FUNCTION &&
         pc >= code->instruction_start() && pc < code->instruction_end()) {
-      int source_pos = code->SourcePosition(pc);
+      int offset = static_cast<int>(pc - code->instruction_start());
+      int source_pos = code->SourcePosition(offset);
       int line = script->GetLineNumber(source_pos) + 1;
       accumulator->Add(":%d", line);
     } else {
@@ -1369,7 +1427,6 @@ void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
 }
 
-
 void InternalFrame::Iterate(ObjectVisitor* v) const {
   // Internal frames only have object pointers on the expression stack
   // as they never have any arguments.
@@ -1467,15 +1524,15 @@ Code* InnerPointerToCodeCache::GcSafeCastToCode(HeapObject* object,
 Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
     Address inner_pointer) {
   Heap* heap = isolate_->heap();
-  if (!heap->code_space()->Contains(inner_pointer) &&
-      !heap->lo_space()->Contains(inner_pointer)) {
-    return nullptr;
-  }
 
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = heap->lo_space()->FindPage(inner_pointer);
   if (large_page != NULL) {
     return GcSafeCastToCode(large_page->GetObject(), inner_pointer);
+  }
+
+  if (!heap->code_space()->Contains(inner_pointer)) {
+    return nullptr;
   }
 
   // Iterate through the page until we reach the end or find an object starting

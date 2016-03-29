@@ -142,6 +142,7 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     return UseInfo::TruncatingWord32();
     case MachineRepresentation::kBit:
       return UseInfo::Bool();
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       break;
   }
@@ -198,6 +199,9 @@ bool MachineRepresentationIsSubtype(MachineRepresentation r1,
              r2 == MachineRepresentation::kTagged;
     case MachineRepresentation::kFloat64:
       return r2 == MachineRepresentation::kFloat64 ||
+             r2 == MachineRepresentation::kTagged;
+    case MachineRepresentation::kSimd128:
+      return r2 == MachineRepresentation::kSimd128 ||
              r2 == MachineRepresentation::kTagged;
     case MachineRepresentation::kTagged:
       return r2 == MachineRepresentation::kTagged;
@@ -1237,13 +1241,16 @@ class RepresentationSelector {
       case IrOpcode::kObjectIsNumber: {
         ProcessInput(node, 0, UseInfo::AnyTagged());
         SetOutput(node, NodeOutputInfo::Bool());
-        if (lower()) lowering->DoObjectIsNumber(node);
+        break;
+      }
+      case IrOpcode::kObjectIsReceiver: {
+        ProcessInput(node, 0, UseInfo::AnyTagged());
+        SetOutput(node, NodeOutputInfo::Bool());
         break;
       }
       case IrOpcode::kObjectIsSmi: {
         ProcessInput(node, 0, UseInfo::AnyTagged());
         SetOutput(node, NodeOutputInfo::Bool());
-        if (lower()) lowering->DoObjectIsSmi(node);
         break;
       }
 
@@ -1388,6 +1395,7 @@ class RepresentationSelector {
       case IrOpcode::kFloat64RoundDown:
       case IrOpcode::kFloat64RoundTruncate:
       case IrOpcode::kFloat64RoundTiesAway:
+      case IrOpcode::kFloat64RoundUp:
         return VisitUnop(node, UseInfo::Float64(), NodeOutputInfo::Float64());
       case IrOpcode::kFloat64Equal:
       case IrOpcode::kFloat64LessThan:
@@ -1402,6 +1410,7 @@ class RepresentationSelector {
                           NodeOutputInfo::Float64());
       case IrOpcode::kLoadStackPointer:
       case IrOpcode::kLoadFramePointer:
+      case IrOpcode::kLoadParentFramePointer:
         return VisitLeaf(node, NodeOutputInfo::Pointer());
       case IrOpcode::kStateValues:
         VisitStateValues(node);
@@ -1576,42 +1585,6 @@ void SimplifiedLowering::DoStoreBuffer(Node* node) {
   MachineRepresentation const rep =
       BufferAccessOf(node->op()).machine_type().representation();
   NodeProperties::ChangeOp(node, machine()->CheckedStore(rep));
-}
-
-
-void SimplifiedLowering::DoObjectIsNumber(Node* node) {
-  Node* input = NodeProperties::GetValueInput(node, 0);
-  // TODO(bmeurer): Optimize somewhat based on input type.
-  Node* check =
-      graph()->NewNode(machine()->WordEqual(),
-                       graph()->NewNode(machine()->WordAnd(), input,
-                                        jsgraph()->IntPtrConstant(kSmiTagMask)),
-                       jsgraph()->IntPtrConstant(kSmiTag));
-  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* vtrue = jsgraph()->Int32Constant(1);
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = graph()->NewNode(
-      machine()->WordEqual(),
-      graph()->NewNode(
-          machine()->Load(MachineType::AnyTagged()), input,
-          jsgraph()->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag),
-          graph()->start(), if_false),
-      jsgraph()->HeapConstant(isolate()->factory()->heap_number_map()));
-  Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  node->ReplaceInput(0, vtrue);
-  node->AppendInput(graph()->zone(), vfalse);
-  node->AppendInput(graph()->zone(), control);
-  NodeProperties::ChangeOp(node, common()->Phi(MachineRepresentation::kBit, 2));
-}
-
-
-void SimplifiedLowering::DoObjectIsSmi(Node* node) {
-  node->ReplaceInput(0,
-                     graph()->NewNode(machine()->WordAnd(), node->InputAt(0),
-                                      jsgraph()->IntPtrConstant(kSmiTagMask)));
-  node->AppendInput(graph()->zone(), jsgraph()->IntPtrConstant(kSmiTag));
-  NodeProperties::ChangeOp(node, machine()->WordEqual());
 }
 
 

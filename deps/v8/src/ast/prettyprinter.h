@@ -104,6 +104,9 @@ class AstPrinter: public PrettyPrinter {
 
   const char* PrintProgram(FunctionLiteral* program);
 
+  // Print a node to stdout.
+  static void PrintOut(Isolate* isolate, AstNode* node);
+
   // Individual nodes
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)

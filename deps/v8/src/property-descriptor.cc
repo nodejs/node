@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
 // Helper function for ToPropertyDescriptor. Comments describe steps for
 // "enumerable", other properties are handled the same way.
 // Returns false if an exception was thrown.
@@ -101,12 +103,14 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<Object> obj,
 }
 
 
-static void CreateDataProperty(Isolate* isolate, Handle<JSObject> object,
-                               Handle<String> name, Handle<Object> value) {
+void CreateDataProperty(Isolate* isolate, Handle<JSObject> object,
+                        Handle<String> name, Handle<Object> value) {
   LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
   CHECK(result.IsJust() && result.FromJust());
 }
+
+}  // namespace
 
 
 // ES6 6.2.4.4 "FromPropertyDescriptor"
@@ -114,6 +118,36 @@ Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
   DCHECK(!(PropertyDescriptor::IsAccessorDescriptor(this) &&
            PropertyDescriptor::IsDataDescriptor(this)));
   Factory* factory = isolate->factory();
+  if (IsRegularAccessorProperty()) {
+    // Fast case for regular accessor properties.
+    Handle<JSObject> result = factory->NewJSObjectFromMap(
+        isolate->accessor_property_descriptor_map());
+    result->InObjectPropertyAtPut(JSAccessorPropertyDescriptor::kGetIndex,
+                                  *get());
+    result->InObjectPropertyAtPut(JSAccessorPropertyDescriptor::kSetIndex,
+                                  *set());
+    result->InObjectPropertyAtPut(
+        JSAccessorPropertyDescriptor::kEnumerableIndex,
+        isolate->heap()->ToBoolean(enumerable()));
+    result->InObjectPropertyAtPut(
+        JSAccessorPropertyDescriptor::kConfigurableIndex,
+        isolate->heap()->ToBoolean(configurable()));
+    return result;
+  }
+  if (IsRegularDataProperty()) {
+    // Fast case for regular data properties.
+    Handle<JSObject> result =
+        factory->NewJSObjectFromMap(isolate->data_property_descriptor_map());
+    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kValueIndex,
+                                  *value());
+    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kWritableIndex,
+                                  isolate->heap()->ToBoolean(writable()));
+    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kEnumerableIndex,
+                                  isolate->heap()->ToBoolean(enumerable()));
+    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kConfigurableIndex,
+                                  isolate->heap()->ToBoolean(configurable()));
+    return result;
+  }
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   if (has_value()) {
     CreateDataProperty(isolate, result, factory->value_string(), value());
