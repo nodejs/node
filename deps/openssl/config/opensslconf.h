@@ -27,6 +27,8 @@
   | linux     | arm64      | linux-aarch64        | o   |
   | linux     | ppc        | linux-ppc            | o   |
   | linux     | ppc64      | linux-ppc64          | o   |
+  | linux     | s390       | linux32-s390x        | o   |
+  | linux     | s390x      | linux64-s390x        | o   |
   | mac       | ia32       | darwin-i386-cc       | o   |
   | mac       | x64        | darwin64-x86-cc      | o   |
   | win       | ia32       | VC-WIN32             | -   |
@@ -68,6 +70,8 @@
   |            | _ARCH_PPC         |
   | ppc64      | __PPC64__         |
   |            | _ARCH_PPC64       |
+  | s390       | __s390__          |
+  | s390x      | __s390x__         |
 
   These are the list which is not implemented yet.
 
@@ -124,6 +128,10 @@
 # include "./archs/aix64-gcc/opensslconf.h"
 #elif defined(_AIX) && !defined(_ARCH_PPC64) && defined(_ARCH_PPC)
 # include "./archs/aix-gcc/opensslconf.h"
+#elif defined(OPENSSL_LINUX) && defined(__s390x__)
+# include "./archs/linux64-s390x/opensslconf.h"
+#elif defined(OPENSSL_LINUX) && defined(__s390__)
+# include "./archs/linux32-s390x/opensslconf.h"
 #else
 # include "./archs/linux-elf/opensslconf.h"
 #endif
