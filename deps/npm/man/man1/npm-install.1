@@ -9,7 +9,7 @@ npm install (with no args in a package dir)
 npm install <tarball file>
 npm install <tarball url>
 npm install <folder>
-npm install [@<scope>/]<name> [\-\-save|\-\-save\-dev|\-\-save\-optional] [\-\-save\-exact]
+npm install [@<scope>/]<name> [\-\-save|\-\-save\-dev|\-\-save\-optional] [\-\-save\-exact] [\-\-save\-bundle]
 npm install [@<scope>/]<name>@<tag>
 npm install [@<scope>/]<name>@<version>
 npm install [@<scope>/]<name>@<version range>
@@ -106,14 +106,13 @@ after packing it up into a tarball (b)\.
 .IP \(bu 2
 \fB\-\-save\-optional\fP: Package will appear in your \fBoptionalDependencies\fP\|\.
 When using any of the above options to save dependencies to your
-package\.json, there is an additional, optional flag:
+package\.json, there are two additional, optional flags:
 .IP \(bu 2
 \fB\-\-save\-exact\fP: Saved dependencies will be configured with an
 exact version rather than using npm's default semver range
 operator\.
-\fB<scope>\fP is optional\. The package will be downloaded from the registry
-associated with the specified scope\. If no registry is associated with
-the given scope the default registry is assumed\. See npm help 7 \fBnpm\-scope\fP\|\.
+.IP \(bu 2
+\fB\-B, \-\-save\-bundle\fP: Saved dependencies will also be added to your \fBbundleDependencies\fP list\.
 Note: if you do not include the @\-symbol on your scope name, npm will
 interpret this as a GitHub repository instead, see below\. Scopes names
 must also be followed by a slash\.
@@ -127,6 +126,7 @@ npm install @myorg/privatepackage
 npm install node\-tap \-\-save\-dev
 npm install dtrace\-provider \-\-save\-optional
 npm install readable\-stream \-\-save \-\-save\-exact
+npm install ansi\-regex \-\-save \-\-save\-bundle
 .fi
 .RE
 

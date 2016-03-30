@@ -6,6 +6,8 @@
 .RS 2
 .nf
 npm update [\-g] [<name> [<name> \.\.\.]]
+
+aliases: up, upgrade
 .fi
 .RE
 .SH DESCRIPTION
@@ -25,18 +27,7 @@ or local) will be updated\.
 .P
 As of \fBnpm@2\.6\.1\fP, the \fBnpm update\fP will only inspect top\-level packages\.
 Prior versions of \fBnpm\fP would also recursively inspect all dependencies\.
-To get the old behavior, use \fBnpm \-\-depth Infinity update\fP, but be warned that
-simultaneous asynchronous update of all packages, including \fBnpm\fP itself
-and packages that \fBnpm\fP depends on, often causes problems up to and including
-the uninstallation of \fBnpm\fP itself\.
-.P
-To restore a missing \fBnpm\fP, use the command:
-.P
-.RS 2
-.nf
-curl \-L https://npmjs\.com/install\.sh | sh
-.fi
-.RE
+To get the old behavior, use \fBnpm \-\-depth 9999 update\fP\|\.
 .SH EXAMPLES
 .P
 IMPORTANT VERSION NOTE: these examples assume \fBnpm@2\.6\.1\fP or later\.  For
@@ -50,7 +41,7 @@ on dependencies, \fBdep1\fP (\fBdep2\fP, \.\. etc\.)\.  The published versions o
 .nf
 {
   "dist\-tags": { "latest": "1\.2\.2" },
-  "versions": {
+  "versions": [
     "1\.2\.2",
     "1\.2\.1",
     "1\.2\.0",
@@ -60,7 +51,7 @@ on dependencies, \fBdep1\fP (\fBdep2\fP, \.\. etc\.)\.  The published versions o
     "0\.4\.1",
     "0\.4\.0",
     "0\.2\.0"
-  }
+  ]
 }
 .fi
 .RE

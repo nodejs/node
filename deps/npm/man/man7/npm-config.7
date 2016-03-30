@@ -735,6 +735,17 @@ Type: Boolean
 .RE
 .P
 Show extended information in \fBnpm ls\fP and \fBnpm search\fP\|\.
+.SS maxsockets
+.RS 0
+.IP \(bu 2
+Default: 50
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The maximum number of connections to use per origin (protocol/host/port
+combination)\. Passed to the \fBhttp\fP \fBAgent\fP used to make the request\.
 .SS message
 .RS 0
 .IP \(bu 2

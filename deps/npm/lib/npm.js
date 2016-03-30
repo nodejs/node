@@ -150,7 +150,7 @@ var commandCache = {}
                , "substack"
                , "visnup"
                ]
-  , littleGuys = [ "isntall" ]
+  , littleGuys = [ "isntall", "verison" ]
   , fullList = cmdList.concat(aliasNames).filter(function (c) {
       return plumbing.indexOf(c) === -1
     })

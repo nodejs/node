@@ -7,7 +7,7 @@ npm-install(1) -- Install a package
     npm install <tarball file>
     npm install <tarball url>
     npm install <folder>
-    npm install [@<scope>/]<name> [--save|--save-dev|--save-optional] [--save-exact]
+    npm install [@<scope>/]<name> [--save|--save-dev|--save-optional] [--save-exact] [--save-bundle]
     npm install [@<scope>/]<name>@<tag>
     npm install [@<scope>/]<name>@<version>
     npm install [@<scope>/]<name>@<version range>
@@ -95,15 +95,13 @@ after packing it up into a tarball (b).
     * `--save-optional`: Package will appear in your `optionalDependencies`.
 
     When using any of the above options to save dependencies to your
-    package.json, there is an additional, optional flag:
+    package.json, there are two additional, optional flags:
 
     * `--save-exact`: Saved dependencies will be configured with an
       exact version rather than using npm's default semver range
       operator.
 
-    `<scope>` is optional. The package will be downloaded from the registry
-    associated with the specified scope. If no registry is associated with
-    the given scope the default registry is assumed. See `npm-scope(7)`.
+    * `-B, --save-bundle`: Saved dependencies will also be added to your `bundleDependencies` list.
 
     Note: if you do not include the @-symbol on your scope name, npm will
     interpret this as a GitHub repository instead, see below. Scopes names
@@ -117,6 +115,7 @@ after packing it up into a tarball (b).
           npm install node-tap --save-dev
           npm install dtrace-provider --save-optional
           npm install readable-stream --save --save-exact
+          npm install ansi-regex --save --save-bundle
 
 
     **Note**: If there is a file or folder named `<name>` in the current

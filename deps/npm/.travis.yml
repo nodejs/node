@@ -13,6 +13,6 @@ before_install:
   - "npm config set spin false"
   - "npm install -g npm/npm#2.x"
   - "mkdir -p /var/run/couchdb"
-script: "npm run-script test-all"
+script: "npm test"
 notifications:
     slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8
