@@ -13,12 +13,12 @@
 #include <stdint.h>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
-// hopefully justifies the means. We have a lot of per-context properties
+// hopefully justifies the means. We have a lot of per-isolate properties
 // and adding and maintaining their getters and setters by hand would be
 // a nightmare so let's make the preprocessor generate them for us.
 //
 // Make sure that any macros defined here are undefined again at the bottom
-// of context-inl.h. The exceptions are NODE_CONTEXT_EMBEDDER_DATA_INDEX
+// of env-inl.h. The exceptions are NODE_CONTEXT_EMBEDDER_DATA_INDEX
 // and NODE_ISOLATE_SLOT, they may have been defined externally.
 namespace node {
 

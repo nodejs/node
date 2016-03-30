@@ -3265,12 +3265,16 @@ void LoadEnvironment(Environment* env) {
   env->isolate()->SetFatalErrorHandler(node::OnFatalError);
   env->isolate()->AddMessageListener(OnMessage);
 
-  // Compile, execute the src/node.js file. (Which was included as static C
-  // string in node_natives.h. 'native_node' is the string containing that
-  // source code.)
-
-  // The node.js file returns a function 'f'
   atexit(AtExit);
+
+  // Compile ./lib/internal/bootstrap_node.js as `Local<Function> f`.
+  // We call `f` at the end of this block with the 'process' variable
+  // built up with all our bindings. Inside the script we take care of
+  // assigning things to their places.
+
+  // We start the process this way in order to be more modular. Developers
+  // who do not like how bootrap_node.js sets up the module system but do like
+  // Node's I/O bindings may want to replace 'f' with their own function.
 
   TryCatch try_catch(env->isolate());
 
@@ -3279,7 +3283,9 @@ void LoadEnvironment(Environment* env) {
   // are not safe to ignore.
   try_catch.SetVerbose(false);
 
-  Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(), "node.js");
+  Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(),
+    "bootstrap_node.js");
+
   Local<Value> f_value = ExecuteString(env, MainSource(env), script_name);
   if (try_catch.HasCaught())  {
     ReportException(env, try_catch);
@@ -3287,14 +3293,6 @@ void LoadEnvironment(Environment* env) {
   }
   CHECK(f_value->IsFunction());
   Local<Function> f = Local<Function>::Cast(f_value);
-
-  // Now we call 'f' with the 'process' variable that we've built up with
-  // all our bindings. Inside node.js we'll take care of assigning things to
-  // their places.
-
-  // We start the process this way in order to be more modular. Developers
-  // who do not like how 'src/node.js' setups the module system but do like
-  // Node's I/O bindings may want to replace 'f' with their own function.
 
   // Add a reference to the global object
   Local<Object> global = env->context()->Global();
@@ -4301,8 +4299,8 @@ static void StartNodeInstance(void* arg) {
           v8::platform::PumpMessageLoop(default_platform, isolate);
           EmitBeforeExit(env);
 
-          // Emit `beforeExit` if the loop became alive either after emitting
-          // event, or after running some callbacks.
+          // Check if the loop became alive either after emitting
+          // `beforeExit` event, or after running some callbacks.
           more = uv_loop_alive(env->event_loop());
           if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
             more = true;

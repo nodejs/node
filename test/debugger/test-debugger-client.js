@@ -105,7 +105,7 @@ addTest(function(client, done) {
     var foundMainScript = false;
     for (var k in client.scripts) {
       var script = client.scripts[k];
-      if (script && script.name === 'node.js') {
+      if (script && script.name === 'bootstrap_node.js') {
         foundMainScript = true;
         break;
       }
