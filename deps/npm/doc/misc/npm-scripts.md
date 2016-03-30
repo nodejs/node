@@ -3,7 +3,7 @@ npm-scripts(7) -- How npm handles the "scripts" field
 
 ## DESCRIPTION
 
-npm supports the "scripts" member of the package.json script, for the
+npm supports the "scripts" property of the package.json script, for the
 following scripts:
 
 * prepublish:
@@ -19,10 +19,10 @@ following scripts:
   Run BEFORE the package is uninstalled.
 * postuninstall:
   Run AFTER the package is uninstalled.
-* preupdate:
-  Run BEFORE the package is updated with the update command.
-* update, postupdate:
-  Run AFTER the package is updated with the update command.
+* preversion, version:
+  Run BEFORE bump the package version.
+* postversion:
+  Run AFTER bump the package version.
 * pretest, test, posttest:
   Run by the `npm test` command.
 * prestop, stop, poststop:
@@ -33,49 +33,29 @@ following scripts:
   Run by the `npm restart` command. Note: `npm restart` will run the
   stop and start scripts if no `restart` script is provided.
 
-Additionally, arbitrary scripts can be run by doing
-`npm run-script <pkg> <stage>`.
+Additionally, arbitrary scripts can be executed by running `npm
+run-script <pkg> <stage>`. *Pre* and *post* commands with matching
+names will be run for those as well (e.g. `premyscript`, `myscript`,
+`postmyscript`).
 
-## NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN
+## COMMON USES
 
-**tl;dr** Don't use `install`.  Use a `.gyp` file for compilation, and
-`prepublish` for anything else.
-
-You should almost never have to explicitly set a `preinstall` or
-`install` script.  If you are doing this, please consider if there is
-another option.
-
-The only valid use of `install` or `preinstall` scripts is for
-compilation which must be done on the target architecture.  In early
-versions of node, this was often done using the `node-waf` scripts, or
-a standalone `Makefile`, and early versions of npm required that it be
-explicitly set in package.json.  This was not portable, and harder to
-do properly.
-
-In the current version of node, the standard way to do this is using a
-`.gyp` file.  If you have a file with a `.gyp` extension in the root
-of your package, then npm will run the appropriate `node-gyp` commands
-automatically at install time.  This is the only officially supported
-method for compiling binary addons, and does not require that you add
-anything to your package.json file.
-
-If you have to do other things before your package is used, in a way
+If you need to perform operations on your package before it is used, in a way
 that is not dependent on the operating system or architecture of the
-target system, then use a `prepublish` script instead.  This includes
+target system, use a `prepublish` script.  This includes
 tasks such as:
 
-* Compile CoffeeScript source code into JavaScript.
-* Create minified versions of JavaScript source code.
+* Compiling CoffeeScript source code into JavaScript.
+* Creating minified versions of JavaScript source code.
 * Fetching remote resources that your package will use.
 
-The advantage of doing these things at `prepublish` time instead of
-`preinstall` or `install` time is that they can be done once, in a
-single place, and thus greatly reduce complexity and variability.
+The advantage of doing these things at `prepublish` time is that they can be done once, in a
+single place, thus reducing complexity and variability.
 Additionally, this means that:
 
 * You can depend on `coffee-script` as a `devDependency`, and thus
   your users don't need to have it installed.
-* You don't need to include the minifiers in your package, reducing
+* You don't need to include minifiers in your package, reducing
   the size for your users.
 * You don't need to rely on your users having `curl` or `wget` or
   other system tools on the target machines.
@@ -89,10 +69,10 @@ npm will default some script values based on package contents.
   If there is a `server.js` file in the root of your package, then npm
   will default the `start` command to `node server.js`.
 
-* `"preinstall": "node-waf clean || true; node-waf configure build"`:
+* `"install": "node-gyp rebuild"`:
 
-  If there is a `wscript` file in the root of your package, npm will
-  default the `preinstall` command to compile using node-waf.
+  If there is a `bindings.gyp` file in the root of your package, npm will
+  default the `install` command to compile using node-gyp.
 
 ## USER
 
@@ -135,7 +115,7 @@ Configuration parameters are put in the environment with the
 `npm_config_` prefix. For instance, you can view the effective `root`
 config by checking the `npm_config_root` environment variable.
 
-### Special: package.json "config" hash
+### Special: package.json "config" object
 
 The package.json "config" keys are overwritten in the environment if
 there is a config param of `<name>[@<version>]:<key>`.  For example,
@@ -177,10 +157,10 @@ For example, if your package.json contains this:
       }
     }
 
-then the `scripts/install.js` will be called for the install,
-post-install, stages of the lifecycle, and the `scripts/uninstall.js`
-would be called when the package is uninstalled.  Since
-`scripts/install.js` is running for three different phases, it would
+then `scripts/install.js` will be called for the install
+and post-install stages of the lifecycle, and `scripts/uninstall.js`
+will be called when the package is uninstalled.  Since
+`scripts/install.js` is running for two different phases, it would
 be wise in this case to look at the `npm_lifecycle_event` environment
 variable.
 
@@ -230,12 +210,17 @@ above.
   by simply describing your package appropriately.  In general, this
   will lead to a more robust and consistent state.
 * Inspect the env to determine where to put things.  For instance, if
-  the `npm_config_binroot` environ is set to `/home/user/bin`, then
+  the `npm_config_binroot` environment variable is set to `/home/user/bin`, then
   don't try to install executables into `/usr/local/bin`.  The user
   probably set it up that way for a reason.
 * Don't prefix your script commands with "sudo".  If root permissions
   are required for some reason, then it'll fail with that error, and
   the user will sudo the npm command in question.
+* Don't use `install`. Use a `.gyp` file for compilation, and `prepublish`
+  for anything else. You should almost never have to explicitly set a
+  preinstall or install script. If you are doing this, please consider if
+  there is another option. The only valid use of `install` or `preinstall`
+  scripts is for compilation which must be done on the target architecture.
 
 ## SEE ALSO
 

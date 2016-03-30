@@ -1,4 +1,5 @@
-module.exports = once
+var wrappy = require('wrappy')
+module.exports = wrappy(once)
 
 once.proto = once(function () {
   Object.defineProperty(Function.prototype, 'once', {

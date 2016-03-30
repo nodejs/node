@@ -1,20 +1,18 @@
 
 module.exports = star
 
-var url = require("url")
-  , npm = require("./npm.js")
-  , registry = npm.registry
+var npm = require("./npm.js")
   , log = require("npmlog")
   , asyncMap = require("slide").asyncMap
+  , mapToRegistry = require("./utils/map-to-registry.js")
 
 star.usage = "npm star <package> [pkg, pkg, ...]\n"
            + "npm unstar <package> [pkg, pkg, ...]"
 
 star.completion = function (opts, cb) {
-  var uri = url.resolve(npm.config.get("registry"), "-/short")
-  registry.get(uri, { timeout : 60000 }, function (er, list) {
-    return cb(null, list || [])
-  })
+  // FIXME: there used to be registry completion here, but it stopped making
+  // sense somewhere around 50,000 packages on the registry
+  cb()
 }
 
 function star (args, cb) {
@@ -24,13 +22,20 @@ function star (args, cb) {
     , using = !(npm.command.match(/^un/))
   if (!using) s = u
   asyncMap(args, function (pkg, cb) {
-    var uri = url.resolve(npm.config.get("registry"), pkg)
-    registry.star(uri, using, function (er, data, raw, req) {
-      if (!er) {
-        console.log(s + " "+pkg)
-        log.verbose("star", data)
+    mapToRegistry(pkg, npm.config, function (er, uri, auth) {
+      if (er) return cb(er)
+
+      var params = {
+        starred : using,
+        auth    : auth
       }
-      cb(er, data, raw, req)
+      npm.registry.star(uri, params, function (er, data, raw, req) {
+        if (!er) {
+          console.log(s + " "+pkg)
+          log.verbose("star", data)
+        }
+        cb(er, data, raw, req)
+      })
     })
   }, cb)
 }

@@ -1,43 +1,41 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-BUILD" "1" "November 2015" "" ""
-.
+.TH "NPM\-BUILD" "1" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-build\fR \-\- Build a package
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-build\fR \- Build a package
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm build <package\-folder>
-.
 .fi
-.
-.IP "\(bu" 4
-\fB<package\-folder>\fR:
-A folder containing a \fBpackage\.json\fR file in its root\.
-.
-.IP "" 0
-.
-.SH "DESCRIPTION"
-This is the plumbing command called by \fBnpm link\fR and \fBnpm install\fR\|\.
-.
+.RE
+.RS 0
+.IP \(bu 2
+\fB<package\-folder>\fP:
+A folder containing a \fBpackage\.json\fP file in its root\.
+
+.RE
+.SH DESCRIPTION
 .P
-It should generally not be called directly\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+This is the plumbing command called by \fBnpm link\fP and \fBnpm install\fP\|\.
+.P
+It should generally be called during installation, but if you need to run it
+directly, run:
+.P
+.RS 2
+.nf
+npm run\-script build
+.fi
+.RE
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help install
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help link
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 7 scripts
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 package\.json
-.
-.IP "" 0
+
+.RE
 

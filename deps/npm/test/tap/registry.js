@@ -1,55 +1,86 @@
 // Run all the tests in the `npm-registry-couchapp` suite
 // This verifies that the server-side stuff still works.
 
+var common = require("../common-tap")
 var test = require("tap").test
 
-var spawn = require("child_process").spawn
 var npmExec = require.resolve("../../bin/npm-cli.js")
 var path = require("path")
 var ca = path.resolve(__dirname, "../../node_modules/npm-registry-couchapp")
 
 var which = require("which")
-var hasCouch = false
 
-which("couchdb", function(er, couch) {
-  if (er) {
-    return test("need couchdb", function (t) {
-      t.fail("need couch to run test: " + er.message)
-      t.end()
-    })
-  } else {
-    runTests()
-  }
-})
+var v = process.versions.node.split(".").map(function (n) { return parseInt(n, 10) })
+if (v[0] === 0 && v[1] < 10) {
+  console.error(
+    "WARNING: need a recent Node for npm-registry-couchapp tests to run, have",
+    process.versions.node
+  )
+}
+else {
+  which("couchdb", function (er) {
+    if (er) {
+      console.error("WARNING: need couch to run test: " + er.message)
+    }
+    else {
+      runTests()
+    }
+  })
+}
+
 
 function runTests () {
-  spawn(process.execPath, [
-    npmExec, "install"
-  ], {
+  var env = { TAP: 1 }
+  for (var i in process.env) env[i] = process.env[i]
+  env.npm = npmExec
+
+  var opts = {
     cwd: ca,
     stdio: "inherit"
-  }).on("close", function (code, sig) {
-    if (code || sig) {
+  }
+  common.npm(["install"], opts, function (err, code, stdout, stderr) {
+    if (err) { throw err }
+    if (code) {
       return test("need install to work", function (t) {
-        t.fail("install failed with: " (code || sig))
+        t.fail(
+          "install failed with: " + code +
+          '\nstdout: ' + stdout +
+          '\nstderr: ' + stderr)
         t.end()
       })
 
     } else {
-      var env = {}
-      for (var i in process.env) env[i] = process.env[i]
-      env.npm = npmExec
-
-      spawn(process.execPath, [
-        npmExec, "test"
-      ], {
+      opts = {
         cwd: ca,
         env: env,
         stdio: "inherit"
-      }).on("close", function (code, sig) {
-        process.exit(code || sig)
-      })
-    }
-
+      }
+      common.npm(
+        [
+          "test", "--", "-Rtap"
+        ],
+        opts,
+        function (err, code, stdout, stderr) {
+          if (err) { throw err }
+          if (code) {
+            return test("need test to work", function (t) {
+              t.fail(
+                "test failed with: " + code +
+                '\nstdout: ' + stdout +
+                '\nstderr: ' + stderr)
+                t.end()
+              })
+            }
+            opts = {
+              cwd: ca,
+              env: env,
+              stdio: "inherit"
+            }
+            common.npm(["prune", "--production"], opts, function (err, code) {
+              if (err) { throw err }
+              process.exit(code || 0)
+            })
+          })
+        }
   })
 }

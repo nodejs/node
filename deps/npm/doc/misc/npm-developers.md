@@ -76,7 +76,7 @@ least, you need:
 
 * scripts:
   If you have a special compilation or installation script, then you
-  should put it in the `scripts` hash.  You should definitely have at
+  should put it in the `scripts` object.  You should definitely have at
   least a basic smoke-test command as the "scripts.test" field.
   See npm-scripts(7).
 
@@ -86,8 +86,8 @@ least, you need:
   then you need to specify that in the "main" field.
 
 * directories:
-  This is a hash of folders.  The best ones to include are "lib" and
-  "doc", but if you specify a folder full of man pages in "man", then
+  This is an object mapping names to folders.  The best ones to include are
+  "lib" and "doc", but if you use "man" to specify a folder full of man pages,
   they'll get installed just like these ones.
 
 You can use `npm init` in the root of your package in order to get you
@@ -100,7 +100,17 @@ Use a `.npmignore` file to keep stuff out of your package.  If there's
 no `.npmignore` file, but there *is* a `.gitignore` file, then npm will
 ignore the stuff matched by the `.gitignore` file.  If you *want* to
 include something that is excluded by your `.gitignore` file, you can
-create an empty `.npmignore` file to override it.
+create an empty `.npmignore` file to override it. Like `git`, `npm` looks
+for `.npmignore` and `.gitignore` files in all subdirectories of your
+package, not only the root directory.
+
+`.npmignore` files follow the [same pattern rules](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#Ignoring-Files)
+as `.gitignore` files:
+
+* Blank lines or lines starting with `#` are ignored.
+* Standard glob patterns work.
+* You can end patterns with a forward slash `/` to specify a directory.
+* You can negate a pattern by starting it with an exclamation point `!`.
 
 By default, the following paths and files are ignored, so there's no
 need to add them to `.npmignore` explicitly:
@@ -110,9 +120,11 @@ need to add them to `.npmignore` explicitly:
 * `.DS_Store`
 * `.git`
 * `.hg`
+* `.npmrc`
 * `.lock-wscript`
 * `.svn`
 * `.wafpickle-*`
+* `config.gypi`
 * `CVS`
 * `npm-debug.log`
 
@@ -124,7 +136,9 @@ The following paths and files are never ignored, so adding them to
 `.npmignore` is pointless:
 
 * `package.json`
-* `README.*`
+* `README` (and its variants)
+* `CHANGELOG` (and its variants)
+* `LICENSE` / `LICENCE`
 
 ## Link Packages
 
@@ -177,7 +191,7 @@ This is documented better in npm-adduser(1).
 
 ## Publish your package
 
-This part's easy.  IN the root of your folder, do this:
+This part's easy.  In the root of your folder, do this:
 
     npm publish
 

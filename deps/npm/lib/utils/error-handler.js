@@ -11,6 +11,8 @@ var cbCalled = false
   , exitCode = 0
   , rollbacks = npm.rollbacks
   , chain = require("slide").chain
+  , writeStreamAtomic = require("fs-write-stream-atomic")
+  , nameValidator = require("validate-npm-package-name")
 
 
 process.on("exit", function (code) {
@@ -24,13 +26,18 @@ process.on("exit", function (code) {
     }
 
     if (wroteLogFile) {
-      log.error("", [""
-                ,"Additional logging details can be found in:"
+      // just a line break
+      if (log.levels[log.level] <= log.levels.error) console.error("")
+
+      log.error("",
+                ["Please include the following file with any support request:"
                 ,"    " + path.resolve("npm-debug.log")
                 ].join("\n"))
       wroteLogFile = false
     }
-    log.error("not ok", "code", code)
+    if (code) {
+      log.error("code", code)
+    }
   }
 
   var doExit = npm.config.get("_exit")
@@ -61,17 +68,21 @@ function exit (code, noLog) {
       if (er) {
         log.error("error rolling back", er)
         if (!code) errorHandler(er)
-        else reallyExit(er)
+        else if (noLog) rm("npm-debug.log", reallyExit.bind(null, er))
+        else writeLogFile(reallyExit.bind(this, er))
       } else {
-        rm("npm-debug.log", reallyExit)
+        if (!noLog && code) writeLogFile(reallyExit)
+        else rm("npm-debug.log", reallyExit)
       }
     })
     rollbacks.length = 0
   }
   else if (code && !noLog) writeLogFile(reallyExit)
-  else reallyExit()
+  else rm("npm-debug.log", reallyExit)
 
-  function reallyExit() {
+  function reallyExit (er) {
+    if (er && !code) code = typeof er.errno === "number" ? er.errno : 1
+
     // truncate once it's been written.
     log.record.length = 0
 
@@ -87,7 +98,6 @@ function exit (code, noLog) {
 
 
 function errorHandler (er) {
-  var printStack = false
   // console.error("errorHandler", er)
   if (!npm.config || !npm.config.loaded) {
     // logging won't work unless we pretend that it's ready
@@ -112,13 +122,55 @@ function errorHandler (er) {
   var m = er.code || er.message.match(/^(?:Error: )?(E[A-Z]+)/)
   if (m && !er.code) er.code = m
 
+  ; [ "type"
+    , "fstream_path"
+    , "fstream_unc_path"
+    , "fstream_type"
+    , "fstream_class"
+    , "fstream_finish_call"
+    , "fstream_linkpath"
+    , "stack"
+    , "fstream_stack"
+    , "statusCode"
+    , "pkgid"
+    ].forEach(function (k) {
+      var v = er[k]
+      if (!v) return
+      if (k === "fstream_stack") v = v.join("\n")
+      log.verbose(k, v)
+    })
+
+  log.verbose("cwd", process.cwd())
+
+  var os = require("os")
+  // log.error("System", os.type() + " " + os.release())
+  // log.error("command", process.argv.map(JSON.stringify).join(" "))
+  // log.error("node -v", process.version)
+  // log.error("npm -v", npm.version)
+  log.error("", os.type() + " " + os.release())
+  log.error("argv", process.argv.map(JSON.stringify).join(" "))
+  log.error("node", process.version)
+  log.error("npm ", "v" + npm.version)
+
+  ; [ "file"
+    , "path"
+    , "code"
+    , "errno"
+    , "syscall"
+    ].forEach(function (k) {
+      var v = er[k]
+      if (v) log.error(k, v)
+    })
+
+  // just a line break
+  if (log.levels[log.level] <= log.levels.error) console.error("")
+
   switch (er.code) {
   case "ECONNREFUSED":
     log.error("", er)
     log.error("", ["\nIf you are behind a proxy, please make sure that the"
               ,"'proxy' config is set properly.  See: 'npm help config'"
               ].join("\n"))
-    printStack = true
     break
 
   case "EACCES":
@@ -126,18 +178,19 @@ function errorHandler (er) {
     log.error("", er)
     log.error("", ["\nPlease try running this command again as root/Administrator."
               ].join("\n"))
-    printStack = true
     break
 
   case "ELIFECYCLE":
     log.error("", er.message)
-    log.error("", ["","Failed at the "+er.pkgid+" "+er.stage+" script."
+    log.error("", ["","Failed at the "+er.pkgid+" "+er.stage+" script '"+er.script+"'."
               ,"This is most likely a problem with the "+er.pkgname+" package,"
               ,"not with npm itself."
               ,"Tell the author that this fails on your system:"
               ,"    "+er.script
-              ,"You can get their info via:"
-              ,"    npm owner ls "+er.pkgname
+              ,'You can get information on how to open an issue for this project with:'
+              ,'    npm bugs ' + er.pkgname
+              ,'Or if that isn\'t available, you can get their info via:',
+              ,'    npm owner ls ' + er.pkgname
               ,"There is likely additional logging output above."
               ].join("\n"))
     break
@@ -160,33 +213,41 @@ function errorHandler (er) {
               ].join("\n"), "JSON.parse")
     break
 
+  // TODO(isaacs)
+  // Add a special case here for E401 and E403 explaining auth issues?
+
   case "E404":
     var msg = [er.message]
     if (er.pkgid && er.pkgid !== "-") {
-      msg.push("", "'"+er.pkgid+"' is not in the npm registry."
-              ,"You should bug the author to publish it")
+      msg.push("", "'" + er.pkgid + "' is not in the npm registry.")
+
+      var valResult = nameValidator(er.pkgid)
+
+      if (valResult.validForNewPackages) {
+        msg.push("You should bug the author to publish it (or use the name yourself!)")
+      } else {
+        msg.push("Your package name is not valid, because", "")
+
+        var errorsArray = (valResult.errors || []).concat(valResult.warnings || [])
+        errorsArray.forEach(function(item, idx) {
+          msg.push(" " + (idx + 1) + ". " + item)
+        })
+      }
+
       if (er.parent) {
         msg.push("It was specified as a dependency of '"+er.parent+"'")
       }
-      if (er.pkgid.match(/^node[\.\-]|[\.\-]js$/)) {
-        var s = er.pkgid.replace(/^node[\.\-]|[\.\-]js$/g, "")
-        if (s !== er.pkgid) {
-          s = s.replace(/[^a-z0-9]/g, ' ')
-          msg.push("\nMaybe try 'npm search " + s + "'")
-        }
-      }
       msg.push("\nNote that you can also install from a"
-              ,"tarball, folder, or http url, or git url.")
+              ,"tarball, folder, http url, or git url.")
     }
+    // There's no need to have 404 in the message as well.
+    msg[0] = msg[0].replace(/^404\s+/, "")
     log.error("404", msg.join("\n"))
     break
 
   case "EPUBLISHCONFLICT":
     log.error("publish fail", ["Cannot publish over existing version."
               ,"Update the 'version' field in package.json and try again."
-              ,""
-              ,"If the previous version was published in error, see:"
-              ,"    npm help unpublish"
               ,""
               ,"To automatically increment version numbers, see:"
               ,"    npm help version"
@@ -242,6 +303,7 @@ function errorHandler (er) {
   case "ECONNRESET":
   case "ENOTFOUND":
   case "ETIMEDOUT":
+  case "EAI_FAIL":
     log.error("network", [er.message
               ,"This is most likely not a problem with npm itself"
               ,"and is related to network connectivity."
@@ -259,11 +321,15 @@ function errorHandler (er) {
     break
 
   case "ETARGET":
-    log.error("notarget", [er.message
+    var msg = [er.message
               ,"This is most likely not a problem with npm itself."
               ,"In most cases you or one of your dependencies are requesting"
               ,"a package version that doesn't exist."
-              ].join("\n"))
+              ]
+      if (er.parent) {
+        msg.push("\nIt was specified as a dependency of '"+er.parent+"'\n")
+      }
+      log.error("notarget", msg.join("\n"))
     break
 
   case "ENOTSUP":
@@ -294,50 +360,29 @@ function errorHandler (er) {
               ].join("\n"))
     break
 
+  case "ENOENT":
+    log.error("enoent", [er.message
+              ,"This is most likely not a problem with npm itself"
+              ,"and is related to npm not being able to find a file."
+              ,er.file?"\nCheck if the file '"+er.file+"' is present.":""
+              ].join("\n"))
+    break
+
+  case "EISDIR":
+    log.error("eisdir", [er.message
+              ,"This is most likely not a problem with npm itself"
+              ,"and is related to npm not being able to find a package.json in"
+              ,"a package you are trying to install."
+              ].join("\n"))
+    break
+
   default:
-    log.error("", er.stack || er.message || er)
-    log.error("", ["If you need help, you may report this *entire* log,"
-                  ,"including the npm and node versions, at:"
-                  ,"    <http://github.com/npm/npm/issues>"
+    log.error("", er.message || er)
+    log.error("", ["", "If you need help, you may report this error at:"
+                  ,"    <https://github.com/npm/npm/issues>"
                   ].join("\n"))
-    printStack = false
     break
   }
-
-  var os = require("os")
-  // just a line break
-  if (log.levels[log.level] <= log.levels.error) console.error("")
-  log.error("System", os.type() + " " + os.release())
-  log.error("command", process.argv
-            .map(JSON.stringify).join(" "))
-  log.error("cwd", process.cwd())
-  log.error("node -v", process.version)
-  log.error("npm -v", npm.version)
-
-  ; [ "file"
-    , "path"
-    , "type"
-    , "syscall"
-    , "fstream_path"
-    , "fstream_unc_path"
-    , "fstream_type"
-    , "fstream_class"
-    , "fstream_finish_call"
-    , "fstream_linkpath"
-    , "code"
-    , "errno"
-    , "stack"
-    , "fstream_stack"
-    ].forEach(function (k) {
-      var v = er[k]
-      if (k === "stack") {
-        if (!printStack) return
-        if (!v) v = er.message
-      }
-      if (!v) return
-      if (k === "fstream_stack") v = v.join("\n")
-      log.error(k, v)
-    })
 
   exit(typeof er.errno === "number" ? er.errno : 1)
 }
@@ -348,19 +393,17 @@ function writeLogFile (cb) {
   writingLogFile = true
   wroteLogFile = true
 
-  var fs = require("graceful-fs")
-    , fstr = fs.createWriteStream("npm-debug.log")
-    , util = require("util")
+  var fstr = writeStreamAtomic("npm-debug.log")
     , os = require("os")
     , out = ""
 
   log.record.forEach(function (m) {
     var pref = [m.id, m.level]
     if (m.prefix) pref.push(m.prefix)
-    pref = pref.join(' ')
+    pref = pref.join(" ")
 
     m.message.trim().split(/\r?\n/).map(function (line) {
-      return (pref + ' ' + line).trim()
+      return (pref + " " + line).trim()
     }).forEach(function (line) {
       out += line + os.EOL
     })

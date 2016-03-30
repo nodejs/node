@@ -11,19 +11,16 @@ if (typeof WScript !== "undefined") {
 }
 
 
-// monkey-patch support for 0.6 child processes
-require('child-process-close')
-
 var EventEmitter = require("events").EventEmitter
   , npm = module.exports = new EventEmitter()
-  , npmconf = require("npmconf")
+  , npmconf = require("./config/core.js")
   , log = require("npmlog")
-  , fs = require("graceful-fs")
+  , gfs = require('graceful-fs')
+  , fs = gfs.gracefulify(require('fs'))
   , path = require("path")
   , abbrev = require("abbrev")
   , which = require("which")
-  , semver = require("semver")
-  , RegClient = require("npm-registry-client")
+  , CachingRegClient = require("./cache/caching-client.js")
   , charSpin = require("char-spinner")
 
 npm.config = {
@@ -41,21 +38,10 @@ npm.commands = {}
 npm.rollbacks = []
 
 try {
-  var pv = process.version.replace(/^v/, '')
   // startup, ok to do this synchronously
   var j = JSON.parse(fs.readFileSync(
     path.join(__dirname, "../package.json"))+"")
   npm.version = j.version
-  npm.nodeVersionRequired = j.engines.node
-  if (!semver.satisfies(pv, j.engines.node)) {
-    log.warn("unsupported version", [""
-            ,"npm requires node version: "+j.engines.node
-            ,"And you have: "+pv
-            ,"which is not satisfactory."
-            ,""
-            ,"Bad things will likely happen.  You have been warned."
-            ,""].join("\n"))
-  }
 } catch (ex) {
   try {
     log.info("error reading version", ex)
@@ -78,7 +64,9 @@ var commandCache = {}
               , "i" : "install"
               , "isntall" : "install"
               , "up" : "update"
+              , "upgrade" : "update"
               , "c" : "config"
+              , "dist-tags" : "dist-tag"
               , "info" : "view"
               , "show" : "view"
               , "find" : "search"
@@ -96,6 +84,7 @@ var commandCache = {}
               , "find-dupes": "dedupe"
               , "ddp": "dedupe"
               , "v": "view"
+              , "verison": "version"
               }
 
   , aliasNames = Object.keys(aliases)
@@ -109,7 +98,6 @@ var commandCache = {}
               , "update"
               , "outdated"
               , "prune"
-              , "submodule"
               , "pack"
               , "dedupe"
 
@@ -121,8 +109,11 @@ var commandCache = {}
               , "stars"
               , "tag"
               , "adduser"
+              , "logout"
               , "unpublish"
               , "owner"
+              , "access"
+              , "team"
               , "deprecate"
               , "shrinkwrap"
 
@@ -143,6 +134,8 @@ var commandCache = {}
               , "prefix"
               , "bin"
               , "whoami"
+              , "dist-tag"
+              , "ping"
 
               , "test"
               , "stop"
@@ -157,10 +150,16 @@ var commandCache = {}
                , "substack"
                , "visnup"
                ]
-  , fullList = npm.fullList = cmdList.concat(aliasNames).filter(function (c) {
+  , littleGuys = [ "isntall", "verison" ]
+  , fullList = cmdList.concat(aliasNames).filter(function (c) {
       return plumbing.indexOf(c) === -1
     })
   , abbrevs = abbrev(fullList)
+
+// we have our reasons
+fullList = npm.fullList = fullList.filter(function (c) {
+  return littleGuys.indexOf(c) === -1
+})
 
 npm.spinner =
   { int: null
@@ -226,7 +225,7 @@ Object.keys(abbrevs).concat(plumbing).forEach(function addCommand (c) {
     })
 
     return commandCache[a]
-  }, enumerable: fullList.indexOf(c) !== -1 })
+  }, enumerable: fullList.indexOf(c) !== -1, configurable: true })
 
   // make css-case commands callable via camelCase as well
   if (c.match(/\-([a-z])/)) {
@@ -284,8 +283,14 @@ npm.load = function (cli, cb_) {
     npm.config.loaded = true
     loaded = true
     loadCb(loadErr = er)
-    if (onload = onload && npm.config.get("onload-script")) {
-      require(onload)
+    onload = onload && npm.config.get('onload-script')
+    if (onload) {
+      try {
+        require(onload)
+      } catch (err) {
+        log.warn('onload-script', 'failed to require onload script', onload)
+        log.warn('onload-script', err)
+      }
       onload = false
     }
   }
@@ -361,7 +366,7 @@ function load (npm, cli, cb) {
 
       // at this point the configs are all set.
       // go ahead and spin up the registry client.
-      npm.registry = new RegClient(npm.config)
+      npm.registry = new CachingRegClient(npm.config)
 
       var umask = npm.config.get("umask")
       npm.modes = { exec: 0777 & (~umask)
@@ -374,21 +379,6 @@ function load (npm, cli, cb) {
       var lp = Object.getOwnPropertyDescriptor(config, "localPrefix")
       Object.defineProperty(npm, "localPrefix", lp)
 
-      log.warn("deprecated", "This version of npm lacks support for important features,")
-      log.warn("deprecated", "such as scoped packages, offered by the primary npm")
-      log.warn("deprecated", "registry. Consider upgrading to at least npm@2, if not the")
-      log.warn("deprecated", "latest stable version. To upgrade to npm@2, run:\n")
-      log.warn("deprecated", "  npm -g install npm@latest-2\n")
-      log.warn("deprecated", "To upgrade to the latest stable version, run:\n")
-      log.warn("deprecated", "  npm -g install npm@latest\n")
-      log.warn("deprecated", "(Depending on how Node.js was installed on your system, you")
-      log.warn("deprecated", "may need to prefix the preceding commands with `sudo`, or if")
-      log.warn("deprecated", "on Windows, run them from an Administrator prompt.)\n")
-      log.warn("deprecated", "If you're running the version of npm bundled with")
-      log.warn("deprecated", "Node.js 0.10 LTS, be aware that the next version of 0.10 LTS")
-      log.warn("deprecated", "will be bundled with a version of npm@2, which has some small")
-      log.warn("deprecated", "backwards-incompatible changes made to `npm run-script` and")
-      log.warn("deprecated", "semver behavior.")
       return cb(null, npm)
     })
   })
@@ -448,11 +438,7 @@ Object.defineProperty(npm, "cache",
   })
 
 var tmpFolder
-var crypto = require("crypto")
-var rand = crypto.randomBytes(6)
-                 .toString("base64")
-                 .replace(/\//g, '_')
-                 .replace(/\+/, '-')
+var rand = require("crypto").randomBytes(4).toString("hex")
 Object.defineProperty(npm, "tmp",
   { get : function () {
       if (!tmpFolder) tmpFolder = "npm-" + process.pid + "-" + rand

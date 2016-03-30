@@ -1,13 +1,9 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-CONFIG" "1" "November 2015" "" ""
-.
+.TH "NPM\-CONFIG" "1" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-config\fR \-\- Manage the npm configuration files
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-config\fR \- Manage the npm configuration files
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm config set <key> <value> [\-\-global]
 npm config get <key>
@@ -17,97 +13,85 @@ npm config edit
 npm c [set|get|delete|list]
 npm get <key>
 npm set <key> <value> [\-\-global]
-.
+
+aliases: c
 .fi
-.
-.SH "DESCRIPTION"
+.RE
+.SH DESCRIPTION
+.P
 npm gets its config settings from the command line, environment
-variables, \fBnpmrc\fR files, and in some cases, the \fBpackage\.json\fR file\.
-.
+variables, \fBnpmrc\fP files, and in some cases, the \fBpackage\.json\fP file\.
 .P
 See npm help 5 npmrc for more information about the npmrc files\.
-.
 .P
-See npm help 7 \fBnpm\-config\fR for a more thorough discussion of the mechanisms
+See npm help 7 \fBnpm\-config\fP for a more thorough discussion of the mechanisms
 involved\.
-.
 .P
-The \fBnpm config\fR command can be used to update and edit the contents
+The \fBnpm config\fP command can be used to update and edit the contents
 of the user and global npmrc files\.
-.
-.SH "Sub\-commands"
+.SH Sub\-commands
+.P
 Config supports the following sub\-commands:
-.
-.SS "set"
-.
+.SS set
+.P
+.RS 2
 .nf
 npm config set key value
-.
 .fi
-.
+.RE
 .P
 Sets the config key to the value\.
-.
 .P
 If value is omitted, then it sets it to "true"\.
-.
-.SS "get"
-.
+.SS get
+.P
+.RS 2
 .nf
 npm config get key
-.
 .fi
-.
+.RE
 .P
 Echo the config value to stdout\.
-.
-.SS "list"
-.
+.SS list
+.P
+.RS 2
 .nf
 npm config list
-.
 .fi
-.
+.RE
 .P
 Show all the config settings\.
-.
-.SS "delete"
-.
+.SS delete
+.P
+.RS 2
 .nf
 npm config delete key
-.
 .fi
-.
+.RE
 .P
 Deletes the key from all configuration files\.
-.
-.SS "edit"
-.
+.SS edit
+.P
+.RS 2
 .nf
 npm config edit
-.
 .fi
-.
+.RE
 .P
-Opens the config file in an editor\.  Use the \fB\-\-global\fR flag to edit the
+Opens the config file in an editor\.  Use the \fB\-\-global\fP flag to edit the
 global config\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help 5 folders
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 7 config
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 package\.json
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 npmrc
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help npm
-.
-.IP "" 0
+
+.RE
 

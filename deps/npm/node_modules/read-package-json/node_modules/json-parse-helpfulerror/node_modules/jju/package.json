@@ -1,0 +1,62 @@
+{
+  "name": "jju",
+  "version": "1.2.1",
+  "description": "a set of utilities to work with JSON / JSON5 documents",
+  "author": {
+    "name": "Alex Kocharin",
+    "email": "alex@kocharin.ru"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/rlidwka/jju"
+  },
+  "bugs": {
+    "url": "https://github.com/rlidwka/jju/issues"
+  },
+  "homepage": "http://rlidwka.github.io/jju/",
+  "devDependencies": {
+    "mocha": ">=1.21.0",
+    "js-yaml": ">=3.1.0",
+    "eslint": "~0.4.2"
+  },
+  "scripts": {
+    "test": "mocha test/*.js",
+    "lint": "eslint -c ./.eslint.yaml ./lib"
+  },
+  "keywords": [
+    "json",
+    "json5",
+    "parser",
+    "serializer",
+    "data"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": {
+    "type": "WTFPL",
+    "url": "http://www.wtfpl.net/txt/copying/"
+  },
+  "gitHead": "8b079c1d03af527ab28a47c7b714d6f888abc53d",
+  "_id": "jju@1.2.1",
+  "_shasum": "edf6ec20d5d668c80c2c00cea63f8a9422a4b528",
+  "_from": "jju@>=1.1.0 <2.0.0",
+  "_npmVersion": "2.0.1",
+  "_nodeVersion": "2.2.1",
+  "_npmUser": {
+    "name": "rlidwka",
+    "email": "alex@kocharin.ru"
+  },
+  "maintainers": [
+    {
+      "name": "rlidwka",
+      "email": "alex@kocharin.ru"
+    }
+  ],
+  "dist": {
+    "shasum": "edf6ec20d5d668c80c2c00cea63f8a9422a4b528",
+    "tarball": "http://registry.npmjs.org/jju/-/jju-1.2.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/jju/-/jju-1.2.1.tgz"
+}

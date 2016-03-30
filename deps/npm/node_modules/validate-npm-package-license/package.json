@@ -1,0 +1,63 @@
+{
+  "name": "validate-npm-package-license",
+  "description": "Give me a string and I'll tell you if it's a valid npm package license string",
+  "version": "3.0.1",
+  "author": {
+    "name": "Kyle E. Mitchell",
+    "email": "kyle@kemitchell.com",
+    "url": "https://kemitchell.com"
+  },
+  "dependencies": {
+    "spdx-correct": "~1.0.0",
+    "spdx-expression-parse": "~1.0.0"
+  },
+  "devDependencies": {
+    "defence-cli": "^1.0.1",
+    "replace-require-self": "^1.0.0"
+  },
+  "keywords": [
+    "license",
+    "npm",
+    "package",
+    "validation"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kemitchell/validate-npm-package-license.js.git"
+  },
+  "scripts": {
+    "test": "defence README.md | replace-require-self | node"
+  },
+  "gitHead": "00200d28f9960985f221bc1a8a71e4760daf39bf",
+  "bugs": {
+    "url": "https://github.com/kemitchell/validate-npm-package-license.js/issues"
+  },
+  "homepage": "https://github.com/kemitchell/validate-npm-package-license.js#readme",
+  "_id": "validate-npm-package-license@3.0.1",
+  "_shasum": "2804babe712ad3379459acfbe24746ab2c303fbc",
+  "_from": "validate-npm-package-license@>=3.0.1 <3.1.0",
+  "_npmVersion": "2.13.5",
+  "_nodeVersion": "0.12.7",
+  "_npmUser": {
+    "name": "kemitchell",
+    "email": "kyle@kemitchell.com"
+  },
+  "dist": {
+    "shasum": "2804babe712ad3379459acfbe24746ab2c303fbc",
+    "tarball": "http://registry.npmjs.org/validate-npm-package-license/-/validate-npm-package-license-3.0.1.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "kemitchell",
+      "email": "kyle@kemitchell.com"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/validate-npm-package-license/-/validate-npm-package-license-3.0.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

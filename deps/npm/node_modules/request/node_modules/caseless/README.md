@@ -1,6 +1,6 @@
 ## Caseless -- wrap an object to set and get property with caseless semantics but also preserve caseing.
 
-This library is incredibly useful when working with HTTP headers. It allows you to get/set/check for headers in a caseless manor while also preserving the caseing of headers the first time they are set.
+This library is incredibly useful when working with HTTP headers. It allows you to get/set/check for headers in a caseless manner while also preserving the caseing of headers the first time they are set.
 
 ## Usage
 

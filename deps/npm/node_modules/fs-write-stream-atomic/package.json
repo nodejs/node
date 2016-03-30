@@ -1,0 +1,70 @@
+{
+  "name": "fs-write-stream-atomic",
+  "version": "1.0.8",
+  "description": "Like `fs.createWriteStream(...)`, but atomic.",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "graceful-fs": "^4.1.2",
+    "iferr": "^0.1.5",
+    "imurmurhash": "^0.1.4",
+    "readable-stream": "1 || 2"
+  },
+  "devDependencies": {
+    "rimraf": "^2.4.4",
+    "standard": "^5.4.1",
+    "tap": "^2.3.1"
+  },
+  "scripts": {
+    "test": "standard && tap --coverage test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/fs-write-stream-atomic.git"
+  },
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/fs-write-stream-atomic/issues"
+  },
+  "homepage": "https://github.com/npm/fs-write-stream-atomic",
+  "gitHead": "b55824ee4de7f1ca23784929d68b1b8f5edbf4a4",
+  "_id": "fs-write-stream-atomic@1.0.8",
+  "_shasum": "e49aaddf288f87d46ff9e882f216a13abc40778b",
+  "_from": "fs-write-stream-atomic@>=1.0.5 <1.1.0",
+  "_npmVersion": "3.5.2",
+  "_nodeVersion": "4.2.2",
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "dist": {
+    "shasum": "e49aaddf288f87d46ff9e882f216a13abc40778b",
+    "tarball": "http://registry.npmjs.org/fs-write-stream-atomic/-/fs-write-stream-atomic-1.0.8.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    },
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    },
+    {
+      "name": "zkat",
+      "email": "kat@sykosomatic.org"
+    }
+  ],
+  "_resolved": "https://registry.npmjs.org/fs-write-stream-atomic/-/fs-write-stream-atomic-1.0.8.tgz"
+}

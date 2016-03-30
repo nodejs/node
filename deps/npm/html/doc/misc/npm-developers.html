@@ -70,7 +70,7 @@ Take some credit.</p>
 </li>
 <li><p>scripts:
 If you have a special compilation or installation script, then you
-should put it in the <code>scripts</code> hash.  You should definitely have at
+should put it in the <code>scripts</code> object.  You should definitely have at
 least a basic smoke-test command as the &quot;scripts.test&quot; field.
 See <a href="../misc/npm-scripts.html">npm-scripts(7)</a>.</p>
 </li>
@@ -80,8 +80,8 @@ program (like what the &quot;foo&quot; package gives you at require(&quot;foo&qu
 then you need to specify that in the &quot;main&quot; field.</p>
 </li>
 <li><p>directories:
-This is a hash of folders.  The best ones to include are &quot;lib&quot; and
-&quot;doc&quot;, but if you specify a folder full of man pages in &quot;man&quot;, then
+This is an object mapping names to folders.  The best ones to include are
+&quot;lib&quot; and &quot;doc&quot;, but if you use &quot;man&quot; to specify a folder full of man pages,
 they&#39;ll get installed just like these ones.</p>
 </li>
 </ul>
@@ -93,7 +93,17 @@ more info.</p>
 no <code>.npmignore</code> file, but there <em>is</em> a <code>.gitignore</code> file, then npm will
 ignore the stuff matched by the <code>.gitignore</code> file.  If you <em>want</em> to
 include something that is excluded by your <code>.gitignore</code> file, you can
-create an empty <code>.npmignore</code> file to override it.</p>
+create an empty <code>.npmignore</code> file to override it. Like <code>git</code>, <code>npm</code> looks
+for <code>.npmignore</code> and <code>.gitignore</code> files in all subdirectories of your
+package, not only the root directory.</p>
+<p><code>.npmignore</code> files follow the <a href="https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#Ignoring-Files">same pattern rules</a>
+as <code>.gitignore</code> files:</p>
+<ul>
+<li>Blank lines or lines starting with <code>#</code> are ignored.</li>
+<li>Standard glob patterns work.</li>
+<li>You can end patterns with a forward slash <code>/</code> to specify a directory.</li>
+<li>You can negate a pattern by starting it with an exclamation point <code>!</code>.</li>
+</ul>
 <p>By default, the following paths and files are ignored, so there&#39;s no
 need to add them to <code>.npmignore</code> explicitly:</p>
 <ul>
@@ -102,9 +112,11 @@ need to add them to <code>.npmignore</code> explicitly:</p>
 <li><code>.DS_Store</code></li>
 <li><code>.git</code></li>
 <li><code>.hg</code></li>
+<li><code>.npmrc</code></li>
 <li><code>.lock-wscript</code></li>
 <li><code>.svn</code></li>
 <li><code>.wafpickle-*</code></li>
+<li><code>config.gypi</code></li>
 <li><code>CVS</code></li>
 <li><code>npm-debug.log</code></li>
 </ul>
@@ -115,7 +127,9 @@ bother adding <code>node_modules</code> to <code>.npmignore</code>.</p>
 <code>.npmignore</code> is pointless:</p>
 <ul>
 <li><code>package.json</code></li>
-<li><code><a href="../../doc/README.html">README</a>.*</code></li>
+<li><code><a href="../../doc/README.html">README</a></code> (and its variants)</li>
+<li><code>CHANGELOG</code> (and its variants)</li>
+<li><code>LICENSE</code> / <code>LICENCE</code></li>
 </ul>
 <h2 id="link-packages">Link Packages</h2>
 <p><code>npm link</code> is designed to install a development package and see the
@@ -147,7 +161,7 @@ bring in your module&#39;s main module.</p>
 </code></pre><p>and then follow the prompts.</p>
 <p>This is documented better in <a href="../cli/npm-adduser.html">npm-adduser(1)</a>.</p>
 <h2 id="publish-your-package">Publish your package</h2>
-<p>This part&#39;s easy.  IN the root of your folder, do this:</p>
+<p>This part&#39;s easy.  In the root of your folder, do this:</p>
 <pre><code>npm publish
 </code></pre><p>You can give publish a url to a tarball, or a filename of a tarball,
 or a path to a folder.</p>
@@ -181,5 +195,5 @@ from a fresh checkout.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-developers &mdash; npm@1.4.29</p>
+<p id="footer">npm-developers &mdash; npm@2.15.0</p>
 

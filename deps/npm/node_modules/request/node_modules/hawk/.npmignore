@@ -3,6 +3,8 @@
 npm-debug.log
 dump.rdb
 node_modules
+components
+build
 results.tap
 results.xml
 npm-shrinkwrap.json

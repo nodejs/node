@@ -15,10 +15,10 @@
 npm install &lt;tarball file&gt;
 npm install &lt;tarball url&gt;
 npm install &lt;folder&gt;
-npm install &lt;name&gt; [--save|--save-dev|--save-optional] [--save-exact]
-npm install &lt;name&gt;@&lt;tag&gt;
-npm install &lt;name&gt;@&lt;version&gt;
-npm install &lt;name&gt;@&lt;version range&gt;
+npm install [@&lt;scope&gt;/]&lt;name&gt; [--save|--save-dev|--save-optional] [--save-exact] [--save-bundle]
+npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;tag&gt;
+npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;version&gt;
+npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;version range&gt;
 npm i (with any of the previous argument usage)
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This command installs a package, and any packages that it depends on. If the
@@ -26,11 +26,11 @@ package has a shrinkwrap file, the installation of dependencies will be driven
 by that. See <a href="../cli/npm-shrinkwrap.html">npm-shrinkwrap(1)</a>.</p>
 <p>A <code>package</code> is:</p>
 <ul>
-<li>a) a folder containing a program described by a package.json file</li>
+<li>a) a folder containing a program described by a <code><a href="../files/package.json.html">package.json(5)</a></code> file</li>
 <li>b) a gzipped tarball containing (a)</li>
 <li>c) a url that resolves to (b)</li>
 <li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry (see <code><a href="../misc/npm-registry.html">npm-registry(7)</a></code>) with (c)</li>
-<li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li>
+<li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> (see <code><a href="../cli/npm-dist-tag.html">npm-dist-tag(1)</a></code>) that points to (d)</li>
 <li>f) a <code>&lt;name&gt;</code> that has a &quot;latest&quot; tag satisfying (e)</li>
 <li>g) a <code>&lt;git remote url&gt;</code> that resolves to (b)</li>
 </ul>
@@ -44,9 +44,11 @@ after packing it up into a tarball (b).</p>
 <p>  In global mode (ie, with <code>-g</code> or <code>--global</code> appended to the command),
   it installs the current package context (ie, the current working
   directory) as a global package.</p>
-<p>  By default, <code>npm install</code> will install all modules listed as
-  dependencies. With the <code>--production</code> flag,
-  npm will not install modules listed in <code>devDependencies</code>.</p>
+<p>  By default, <code>npm install</code> will install all modules listed as dependencies
+  in <code><a href="../files/package.json.html">package.json(5)</a></code>.</p>
+<p>  With the <code>--production</code> flag (or when the <code>NODE_ENV</code> environment variable
+  is set to <code>production</code>), npm will not install modules listed in
+  <code>devDependencies</code>.</p>
 </li>
 <li><p><code>npm install &lt;folder&gt;</code>:</p>
 <p>  Install a package that is sitting in a folder on the filesystem.</p>
@@ -64,9 +66,9 @@ after packing it up into a tarball (b).</p>
 <p>  Example:</p>
 <pre><code>    npm install https://github.com/indexzero/forever/tarball/v0.5.6
 </code></pre></li>
-<li><p><code>npm install &lt;name&gt; [--save|--save-dev|--save-optional]</code>:</p>
+<li><p><code>npm install [@&lt;scope&gt;/]&lt;name&gt; [--save|--save-dev|--save-optional]</code>:</p>
 <p>  Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the &quot;tag&quot; config. (See
-  <code><a href="../misc/npm-config.html">npm-config(7)</a></code>.)</p>
+  <code><a href="../misc/npm-config.html">npm-config(7)</a></code>. The config&#39;s default value is <code>latest</code>.)</p>
 <p>  In most cases, this will install the latest version
   of the module published on npm.</p>
 <p>  Example:</p>
@@ -80,16 +82,24 @@ after packing it up into a tarball (b).</p>
 </li>
 <li><p><code>--save-optional</code>: Package will appear in your <code>optionalDependencies</code>.</p>
 <p>When using any of the above options to save dependencies to your
-package.json, there is an additional, optional flag:</p>
+package.json, there are two additional, optional flags:</p>
 </li>
 <li><p><code>--save-exact</code>: Saved dependencies will be configured with an
 exact version rather than using npm&#39;s default semver range
 operator.</p>
+</li>
+<li><p><code>-B, --save-bundle</code>: Saved dependencies will also be added to your <code>bundleDependencies</code> list.</p>
+<p>Note: if you do not include the @-symbol on your scope name, npm will
+interpret this as a GitHub repository instead, see below. Scopes names
+must also be followed by a slash.</p>
 <p>Examples:</p>
 <pre><code>npm install sax --save
+npm install githubname/reponame
+npm install @myorg/privatepackage
 npm install node-tap --save-dev
 npm install dtrace-provider --save-optional
 npm install readable-stream --save --save-exact
+npm install ansi-regex --save --save-bundle
 </code></pre></li>
 </ul>
 </li>
@@ -98,38 +108,86 @@ npm install readable-stream --save --save-exact
 working directory, then it will try to install that, and only try to
 fetch the package by name if it is not valid.
 </code></pre><ul>
-<li><p><code>npm install &lt;name&gt;@&lt;tag&gt;</code>:</p>
+<li><p><code>npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;tag&gt;</code>:</p>
 <p>  Install the version of the package that is referenced by the specified tag.
   If the tag does not exist in the registry data for that package, then this
   will fail.</p>
 <p>  Example:</p>
 <pre><code>    npm install sax@latest
+    npm install @myorg/mypackage@latest
 </code></pre></li>
-<li><p><code>npm install &lt;name&gt;@&lt;version&gt;</code>:</p>
-<p>  Install the specified version of the package.  This will fail if the version
-  has not been published to the registry.</p>
+<li><p><code>npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;version&gt;</code>:</p>
+<p>  Install the specified version of the package.  This will fail if the
+  version has not been published to the registry.</p>
 <p>  Example:</p>
 <pre><code>    npm install sax@0.1.1
+    npm install @myorg/privatepackage@1.5.0
 </code></pre></li>
-<li><p><code>npm install &lt;name&gt;@&lt;version range&gt;</code>:</p>
+<li><p><code>npm install [@&lt;scope&gt;/]&lt;name&gt;@&lt;version range&gt;</code>:</p>
 <p>  Install a version of the package matching the specified version range.  This
   will follow the same rules for resolving dependencies described in <code><a href="../files/package.json.html">package.json(5)</a></code>.</p>
 <p>  Note that most version ranges must be put in quotes so that your shell will
   treat it as a single argument.</p>
 <p>  Example:</p>
 <pre><code>    npm install sax@&quot;&gt;=0.1.0 &lt;0.2.0&quot;
+    npm install @myorg/privatepackage@&quot;&gt;=0.1.0 &lt;0.2.0&quot;
 </code></pre></li>
 <li><p><code>npm install &lt;git remote url&gt;</code>:</p>
 <p>  Install a package by cloning a git remote url.  The format of the git
   url is:</p>
-<pre><code>    &lt;protocol&gt;://[&lt;user&gt;@]&lt;hostname&gt;&lt;separator&gt;&lt;path&gt;[#&lt;commit-ish&gt;]
+<pre><code>    &lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:/]&lt;path&gt;[#&lt;commit-ish&gt;]
 </code></pre><p>  <code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, or
   <code>git+https</code>.  If no <code>&lt;commit-ish&gt;</code> is specified, then <code>master</code> is
   used.</p>
+<p>  The following git environment variables are recognized by npm and will be added
+  to the environment when running git:</p>
+<ul>
+<li><code>GIT_ASKPASS</code></li>
+<li><code>GIT_PROXY_COMMAND</code></li>
+<li><code>GIT_SSH</code></li>
+<li><code>GIT_SSH_COMMAND</code></li>
+<li><code>GIT_SSL_CAINFO</code></li>
+<li><p><code>GIT_SSL_NO_VERIFY</code></p>
+<p>See the git man page for details.</p>
+<p>Examples:</p>
+<pre><code>npm install git+ssh://git@github.com:npm/npm.git#v1.0.27
+npm install git+https://isaacs@github.com/npm/npm.git
+npm install git://github.com/npm/npm.git#v1.0.27
+GIT_SSH_COMMAND=&#39;ssh -i ~/.ssh/custom_ident&#39; npm install git+ssh://git@github.com:npm/npm.git
+</code></pre></li>
+</ul>
+</li>
+<li><p><code>npm install &lt;githubname&gt;/&lt;githubrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+</li>
+<li><p><code>npm install github:&lt;githubname&gt;/&lt;githubrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>  Install the package at <code>https://github.com/githubname/githubrepo</code> by
+  attempting to clone it using <code>git</code>.</p>
+<p>  If you don&#39;t specify a <em>commit-ish</em> then <code>master</code> will be used.</p>
 <p>  Examples:</p>
-<pre><code>    git+ssh://git@github.com:npm/npm.git#v1.0.27
-    git+https://isaacs@github.com/npm/npm.git
-    git://github.com/npm/npm.git#v1.0.27
+<pre><code>    npm install mygithubuser/myproject
+    npm install github:mygithubuser/myproject
+</code></pre></li>
+<li><p><code>npm install gist:[&lt;githubname&gt;/]&lt;gistID&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>  Install the package at <code>https://gist.github.com/gistID</code> by attempting to
+  clone it using <code>git</code>. The GitHub username associated with the gist is
+  optional and will not be saved in <code>package.json</code> if <code>--save</code> is used.</p>
+<p>  If you don&#39;t specify a <em>commit-ish</em> then <code>master</code> will be used.</p>
+<p>  Example:</p>
+<pre><code>    npm install gist:101a11beef
+</code></pre></li>
+<li><p><code>npm install bitbucket:&lt;bitbucketname&gt;/&lt;bitbucketrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>  Install the package at <code>https://bitbucket.org/bitbucketname/bitbucketrepo</code>
+  by attempting to clone it using <code>git</code>.</p>
+<p>  If you don&#39;t specify a <em>commit-ish</em> then <code>master</code> will be used.</p>
+<p>  Example:</p>
+<pre><code>    npm install bitbucket:mybitbucketuser/myproject
+</code></pre></li>
+<li><p><code>npm install gitlab:&lt;gitlabname&gt;/&lt;gitlabrepo&gt;[#&lt;commit-ish&gt;]</code>:</p>
+<p>  Install the package at <code>https://gitlab.com/gitlabname/gitlabrepo</code>
+  by attempting to clone it using <code>git</code>.</p>
+<p>  If you don&#39;t specify a <em>commit-ish</em> then <code>master</code> will be used.</p>
+<p>  Example:</p>
+<pre><code>    npm install gitlab:mygitlabuser/myproject
 </code></pre></li>
 </ul>
 <p>You may combine multiple arguments, and even multiple types of arguments.
@@ -205,8 +263,9 @@ affects a real use-case, it will be investigated.</p>
 <li><a href="../files/npmrc.html">npmrc(5)</a></li>
 <li><a href="../misc/npm-registry.html">npm-registry(7)</a></li>
 <li><a href="../cli/npm-tag.html">npm-tag(1)</a></li>
-<li><a href="../cli/npm-rm.html">npm-rm(1)</a></li>
+<li><a href="../cli/npm-uninstall.html">npm-uninstall(1)</a></li>
 <li><a href="../cli/npm-shrinkwrap.html">npm-shrinkwrap(1)</a></li>
+<li><a href="../files/package.json.html">package.json(5)</a></li>
 </ul>
 
 </div>
@@ -220,5 +279,5 @@ affects a real use-case, it will be investigated.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-install &mdash; npm@1.4.29</p>
+<p id="footer">npm-install &mdash; npm@2.15.0</p>
 
