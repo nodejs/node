@@ -1,4 +1,0 @@
-rules:
-  # ECMAScript-6
-  # http://eslint.org/docs/rules/#ecmascript-6
-  prefer-template: 2
