@@ -1,5 +1,5 @@
 /**
- * lodash 4.0.1 (Custom Build) <https://lodash.com/>
+ * lodash 4.1.0 (Custom Build) <https://lodash.com/>
  * Build: `lodash modularize exports="npm" -o ./`
  * Copyright 2012-2016 The Dojo Foundation <http://dojofoundation.org/>
  * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
@@ -54,12 +54,12 @@ var propertyIsEnumerable = objectProto.propertyIsEnumerable;
  *
  * @private
  * @param {Array} array The array to flatten.
- * @param {boolean} [isDeep] Specify a deep flatten.
+ * @param {number} depth The maximum recursion depth.
  * @param {boolean} [isStrict] Restrict flattening to arrays-like objects.
  * @param {Array} [result=[]] The initial result value.
  * @returns {Array} Returns the new flattened array.
  */
-function baseFlatten(array, isDeep, isStrict, result) {
+function baseFlatten(array, depth, isStrict, result) {
   result || (result = []);
 
   var index = -1,
@@ -67,11 +67,11 @@ function baseFlatten(array, isDeep, isStrict, result) {
 
   while (++index < length) {
     var value = array[index];
-    if (isArrayLikeObject(value) &&
+    if (depth > 0 && isArrayLikeObject(value) &&
         (isStrict || isArray(value) || isArguments(value))) {
-      if (isDeep) {
+      if (depth > 1) {
         // Recursively flatten arrays (susceptible to call stack limits).
-        baseFlatten(value, isDeep, isStrict, result);
+        baseFlatten(value, depth - 1, isStrict, result);
       } else {
         arrayPush(result, value);
       }
@@ -134,7 +134,7 @@ function isArguments(value) {
  *
  * @static
  * @memberOf _
- * @type Function
+ * @type {Function}
  * @category Lang
  * @param {*} value The value to check.
  * @returns {boolean} Returns `true` if `value` is correctly classified, else `false`.
@@ -161,7 +161,6 @@ var isArray = Array.isArray;
  *
  * @static
  * @memberOf _
- * @type Function
  * @category Lang
  * @param {*} value The value to check.
  * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
@@ -190,7 +189,6 @@ function isArrayLike(value) {
  *
  * @static
  * @memberOf _
- * @type Function
  * @category Lang
  * @param {*} value The value to check.
  * @returns {boolean} Returns `true` if `value` is an array-like object, else `false`.
@@ -261,7 +259,8 @@ function isFunction(value) {
  * // => false
  */
 function isLength(value) {
-  return typeof value == 'number' && value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
+  return typeof value == 'number' &&
+    value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
 }
 
 /**

@@ -139,7 +139,7 @@ function makePretty (p) {
   if (long) columns[5] = type
 
   if (npm.color) {
-    columns[0] = color[has === want ? 'yellow' : 'red'](columns[0]) // dep
+    columns[0] = color[has === want || want === 'linked' ? 'yellow' : 'red'](columns[0]) // dep
     columns[2] = color.green(columns[2]) // want
     columns[3] = color.magenta(columns[3]) // latest
     columns[4] = color.brightBlack(columns[4]) // dir

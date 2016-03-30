@@ -79,7 +79,7 @@ test('set with token', function (t) {
       password: undefined,
       email: undefined,
       auth: undefined,
-      alwaysAuth: undefined
+      alwaysAuth: false
     }
 
     t.same(conf.getCredentialsByURI(URI), expected, 'got bearer token and scope')
