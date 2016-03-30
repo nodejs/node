@@ -111,10 +111,15 @@ function alphasort (a, b) {
        : a < b ? -1 : 0
 }
 
-function getLite (data, noname) {
+function isCruft (data) {
+  return data.extraneous && data.error && data.error.code === 'ENOTDIR'
+}
+
+function getLite (data, noname, depth) {
   var lite = {}
     , maxDepth = npm.config.get("depth")
 
+  if (typeof depth === 'undefined') depth = 0
   if (!noname && data.name) lite.name = data.name
   if (data.version) lite.version = data.version
   if (data.extraneous) {
@@ -163,7 +168,20 @@ function getLite (data, noname) {
           + ", required by "
           + data.name + "@" + data.version
         lite.problems.push(p)
-        return [d, { required: dep, missing: true }]
+        return [d, { required: dep.requiredBy, missing: true }]
+      } else if (dep.peerMissing) {
+        lite.problems = lite.problems || []
+        dep.peerMissing.forEach(function (missing) {
+          var pdm = 'peer dep missing: ' +
+              missing.requires +
+              ', required by ' +
+              missing.requiredBy
+          lite.problems.push(pdm)
+        })
+        return [d, { required: dep, peerMissing: true }]
+      } else if (npm.config.get('json')) {
+        if (depth === maxDepth) delete dep.dependencies
+        return [d, getLite(dep, true, depth + 1)]
       }
       return [d, getLite(dep, true)]
     }).reduce(function (deps, d) {

@@ -232,7 +232,7 @@ A client certificate to pass when accessing the registry.
 
 ### color
 
-* Default: true on Posix, false on Windows
+* Default: true
 * Type: Boolean or `"always"`
 
 If false, never shows colors.  If `"always"` then always shows colors.
@@ -529,6 +529,14 @@ colored output if it is a TTY.
 * Type: Boolean
 
 Show extended information in `npm ls` and `npm search`.
+
+### maxsockets
+
+* Default: 50
+* Type: Number
+
+The maximum number of connections to use per origin (protocol/host/port
+combination). Passed to the `http` `Agent` used to make the request.
 
 ### message
 

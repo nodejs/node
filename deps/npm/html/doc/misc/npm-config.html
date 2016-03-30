@@ -196,7 +196,7 @@ explicitly used, and that only GET requests use the cache.</p>
 <p>A client certificate to pass when accessing the registry.</p>
 <h3 id="color">color</h3>
 <ul>
-<li>Default: true on Posix, false on Windows</li>
+<li>Default: true</li>
 <li>Type: Boolean or <code>&quot;always&quot;</code></li>
 </ul>
 <p>If false, never shows colors.  If <code>&quot;always&quot;</code> then always shows colors.
@@ -457,6 +457,13 @@ colored output if it is a TTY.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Show extended information in <code>npm ls</code> and <code>npm search</code>.</p>
+<h3 id="maxsockets">maxsockets</h3>
+<ul>
+<li>Default: 50</li>
+<li>Type: Number</li>
+</ul>
+<p>The maximum number of connections to use per origin (protocol/host/port
+combination). Passed to the <code>http</code> <code>Agent</code> used to make the request.</p>
 <h3 id="message">message</h3>
 <ul>
 <li>Default: &quot;%s&quot;</li>
@@ -799,5 +806,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@2.14.9</p>
+<p id="footer">npm-config &mdash; npm@2.15.0</p>
 

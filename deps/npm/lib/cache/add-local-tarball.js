@@ -13,7 +13,7 @@ var mkdir = require("mkdirp")
   , chownr = require("chownr")
   , inflight = require("inflight")
   , once = require("once")
-  , writeStream = require("fs-write-stream-atomic")
+  , writeStreamAtomic = require("fs-write-stream-atomic")
   , randomBytes = require("crypto").pseudoRandomBytes // only need uniqueness
 
 module.exports = addLocalTarball
@@ -166,7 +166,7 @@ function addTmpTarball_ (tgz, data, shasum, cb) {
 
       if (er) return cb(er)
       var read = fs.createReadStream(tgz)
-      var write = writeStream(target, { mode: npm.modes.file })
+      var write = writeStreamAtomic(target, { mode: npm.modes.file })
       var fin = cs.uid && cs.gid ? chown : done
       read.on("error", cb).pipe(write).on("error", cb).on("close", fin)
     })

@@ -39,6 +39,7 @@ function RegClient (config) {
   if (typeof this.config.retry.factor !== 'number') this.config.retry.factor = 10
   if (typeof this.config.retry.minTimeout !== 'number') this.config.retry.minTimeout = 10000
   if (typeof this.config.retry.maxTimeout !== 'number') this.config.retry.maxTimeout = 60000
+  if (typeof this.config.maxSockets !== 'number') this.config.maxSockets = 50
 
   this.config.userAgent = this.config.userAgent || 'node/' + process.version
   this.config.defaultTag = this.config.defaultTag || 'latest'
