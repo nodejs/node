@@ -15,6 +15,13 @@ fi
 NPM_CLI_JS="$basedir/node_modules/npm/bin/npm-cli.js"
 
 case `uname` in
+  *MINGW*)
+    NPM_PREFIX=`"$NODE_EXE" "$NPM_CLI_JS" prefix -g`
+    NPM_PREFIX_NPM_CLI_JS="$NPM_PREFIX/node_modules/npm/bin/npm-cli.js"
+    if [ -f "$NPM_PREFIX_NPM_CLI_JS" ]; then
+      NPM_CLI_JS="$NPM_PREFIX_NPM_CLI_JS"
+    fi
+    ;;
   *CYGWIN*)
     NPM_PREFIX=`"$NODE_EXE" "$NPM_CLI_JS" prefix -g`
     NPM_PREFIX_NPM_CLI_JS="$NPM_PREFIX/node_modules/npm/bin/npm-cli.js"

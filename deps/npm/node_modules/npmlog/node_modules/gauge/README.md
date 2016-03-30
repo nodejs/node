@@ -1,7 +1,7 @@
 gauge
 =====
 
-A nearly stateless terminal based horizontal guage / progress bar.
+A nearly stateless terminal based horizontal gauge / progress bar.
 
 ```javascript
 var Gauge = require("gauge")
