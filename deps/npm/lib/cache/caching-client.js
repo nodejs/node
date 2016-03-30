@@ -207,6 +207,7 @@ function adaptConfig (config) {
     userAgent: config.get('user-agent'),
     log: log,
     defaultTag: config.get('tag'),
-    couchToken: config.get('_token')
+    couchToken: config.get('_token'),
+    maxSockets: config.get('maxsockets')
   }
 }

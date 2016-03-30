@@ -6,6 +6,8 @@ npm-dedupe(1) -- Reduce duplication
     npm dedupe
     npm ddp
 
+    aliases: find-dupes, ddp
+
 ## DESCRIPTION
 
 Searches the local package tree and attempts to simplify the overall

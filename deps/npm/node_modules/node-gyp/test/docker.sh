@@ -2,9 +2,11 @@
 
 #set -e
 
-test_node_versions="0.8.28 0.10.40 0.12.7"
+test_node_versions="0.8.28 0.10.40 0.12.7 4.3.0 5.6.0"
 test_iojs_versions="1.8.4 2.4.0 3.3.0"
 
+myuid=$(id -u)
+mygid=$(id -g)
 __dirname="$(CDPATH= cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 dot_node_gyp=${__dirname}/.node-gyp/
 
@@ -41,6 +43,7 @@ run_tests() {
     /bin/su -s /bin/bash node-gyp -c 'cd && ${run_cmd}'"
 
   rm -rf $dot_node_gyp
+  mkdir $dot_node_gyp
 
   docker run \
     --rm -i \
@@ -52,10 +55,10 @@ run_tests() {
 
 # A base image with build tools and a user account
 setup_container "node-gyp-test/base" "ubuntu:14.04" "
+  adduser --gecos node-gyp --home /node-gyp/ --disabled-login node-gyp --uid $myuid &&
+  echo "node-gyp:node-gyp" | chpasswd &&
   apt-get update &&
-  apt-get install -y build-essential python git rsync curl &&
-  adduser --gecos node-gyp --home /node-gyp/ --disabled-login node-gyp &&
-  echo "node-gyp:node-gyp" | chpasswd
+  apt-get install -y build-essential python git rsync curl
 "
 
 # An image on top of the base containing clones of repos we want to use for testing
@@ -111,7 +114,9 @@ test_download_node_version() {
 test_download_node_version "0.12.7" "0.10.30/src" "0.10.30"
 test_download_node_version "3.3.0" "iojs-1.8.4/src" "1.8.4"
 # should download the headers file
-test_download_node_version "3.3.0" "iojs-3.2.0/include/node" "3.2.0"
+test_download_node_version "3.3.0" "iojs-3.3.0/include/node" "3.3.0"
+test_download_node_version "4.3.0" "4.3.0/include/node" "4.3.0"
+test_download_node_version "5.6.0" "5.6.0/include/node" "5.6.0"
 
 # TODO: test --dist-url by starting up a localhost server and serving up tarballs
 
@@ -126,6 +131,7 @@ run_tests "3.3.0" "
   nc -z localhost 8080 && echo -e \"\\n\\n\\033[31mFAILED TO USE LOCAL PROXY\\033[39m\\n\\n\"
 "
 
+# REMOVE after next semver-major
 run_tests "3.3.0" "
   (node /node-gyp-src/test/simple-proxy.js 8080 /doobar/ https://iojs.org/dist/ &) &&
   cd node-buffertools &&
@@ -133,10 +139,25 @@ run_tests "3.3.0" "
   nc -z localhost 8080 && echo -e \"\\n\\n\\033[31mFAILED TO USE LOCAL PROXY\\033[39m\\n\\n\"
 "
 
+# REMOVE after next semver-major
 run_tests "0.12.7" "
   (node /node-gyp-src/test/simple-proxy.js 8080 /boombar/ https://nodejs.org/dist/ &) &&
   cd node-buffertools &&
   NVM_NODEJS_ORG_MIRROR=http://localhost:8080/boombar/ /node-gyp-src/bin/node-gyp.js --loglevel=info rebuild &&
+  nc -z localhost 8080 && echo -e \"\\n\\n\\033[31mFAILED TO USE LOCAL PROXY\\033[39m\\n\\n\"
+"
+
+run_tests "3.3.0" "
+  (node /node-gyp-src/test/simple-proxy.js 8080 /doobar/ https://iojs.org/dist/ &) &&
+  cd node-buffertools &&
+  IOJS_ORG_MIRROR=http://localhost:8080/doobar/ /node-gyp-src/bin/node-gyp.js --loglevel=info rebuild &&
+  nc -z localhost 8080 && echo -e \"\\n\\n\\033[31mFAILED TO USE LOCAL PROXY\\033[39m\\n\\n\"
+"
+
+run_tests "0.12.7" "
+  (node /node-gyp-src/test/simple-proxy.js 8080 /boombar/ https://nodejs.org/dist/ &) &&
+  cd node-buffertools &&
+  NODEJS_ORG_MIRROR=http://localhost:8080/boombar/ /node-gyp-src/bin/node-gyp.js --loglevel=info rebuild &&
   nc -z localhost 8080 && echo -e \"\\n\\n\\033[31mFAILED TO USE LOCAL PROXY\\033[39m\\n\\n\"
 "
 

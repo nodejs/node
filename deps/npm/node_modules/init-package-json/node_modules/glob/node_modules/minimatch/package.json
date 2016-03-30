@@ -1,0 +1,87 @@
+{
+  "_args": [
+    [
+      "minimatch@2 || 3",
+      "/Users/rebecca/code/npm/node_modules/glob"
+    ],
+    [
+      "minimatch@2 || 3",
+      "/Users/rebecca/code/npm/node_modules/init-package-json/node_modules/glob"
+    ]
+  ],
+  "_from": "minimatch@>=2.0.0 <3.0.0||>=3.0.0 <4.0.0",
+  "_id": "minimatch@3.0.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/init-package-json/glob/minimatch",
+  "_nodeVersion": "4.0.0",
+  "_npmUser": {
+    "email": "isaacs@npmjs.com",
+    "name": "isaacs"
+  },
+  "_npmVersion": "3.3.2",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "minimatch",
+    "raw": "minimatch@2 || 3",
+    "rawSpec": "2 || 3",
+    "scope": null,
+    "spec": ">=2.0.0 <3.0.0||>=3.0.0 <4.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/init-package-json/glob"
+  ],
+  "_shrinkwrap": null,
+  "_spec": "minimatch@2 || 3",
+  "_where": "/Users/rebecca/code/npm/node_modules/init-package-json/node_modules/glob",
+  "author": {
+    "email": "i@izs.me",
+    "name": "Isaac Z. Schlueter",
+    "url": "http://blog.izs.me"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/minimatch/issues"
+  },
+  "dependencies": {
+    "brace-expansion": "^1.0.0"
+  },
+  "description": "a glob matcher in javascript",
+  "devDependencies": {
+    "standard": "^3.7.2",
+    "tap": "^1.2.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "5236157a51e4f004c177fb3c527ff7dd78f0ef83",
+    "tarball": "http://registry.npmjs.org/minimatch/-/minimatch-3.0.0.tgz"
+  },
+  "engines": {
+    "node": "*"
+  },
+  "files": [
+    "minimatch.js"
+  ],
+  "gitHead": "270dbea567f0af6918cb18103e98c612aa717a20",
+  "homepage": "https://github.com/isaacs/minimatch#readme",
+  "license": "ISC",
+  "main": "minimatch.js",
+  "maintainers": [
+    {
+      "email": "i@izs.me",
+      "name": "isaacs"
+    }
+  ],
+  "name": "minimatch",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/minimatch.git"
+  },
+  "scripts": {
+    "posttest": "standard minimatch.js test/*.js",
+    "test": "tap test/*.js"
+  },
+  "version": "3.0.0"
+}

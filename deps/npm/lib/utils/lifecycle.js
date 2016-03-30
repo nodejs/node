@@ -240,6 +240,7 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
     }
     procError(er)
   })
+  process.once('SIGTERM', procKill)
 
   function procError (er) {
     if (progressEnabled) log.enableProgress()
@@ -260,7 +261,11 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
       er.script = cmd
       er.pkgname = pkg.name
     }
+    process.removeListener('SIGTERM', procKill)
     return cb(er)
+  }
+  function procKill () {
+    proc.kill()
   }
 }
 

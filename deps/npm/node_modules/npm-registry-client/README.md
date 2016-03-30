@@ -310,5 +310,9 @@ any):
   Default = `"latest"`
 * `couchToken` {Object} A token for use with
   [couch-login](https://npmjs.org/package/couch-login).
-* `sessionToken` {string} A random identifier for this set of client requests.
+* `sessionToken` {String} A random identifier for this set of client requests.
   Default = 8 random hexadecimal bytes.
+* `maxSockets` {Number} The maximum number of connections that will be open per
+  origin (unique combination of protocol:host:port). Passed to the
+  [httpAgent](https://nodejs.org/api/http.html#http_agent_maxsockets).
+  Default = 50
