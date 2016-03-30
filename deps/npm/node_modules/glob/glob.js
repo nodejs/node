@@ -162,14 +162,23 @@ function Glob (pattern, options, cb) {
   if (n === 0)
     return done()
 
+  var sync = true
   for (var i = 0; i < n; i ++) {
     this._process(this.minimatch.set[i], i, false, done)
   }
+  sync = false
 
   function done () {
     --self._processing
-    if (self._processing <= 0)
-      self._finish()
+    if (self._processing <= 0) {
+      if (sync) {
+        process.nextTick(function () {
+          self._finish()
+        })
+      } else {
+        self._finish()
+      }
+    }
   }
 }
 
@@ -571,7 +580,15 @@ Glob.prototype._readdirError = function (f, er, cb) {
   switch (er.code) {
     case 'ENOTSUP': // https://github.com/isaacs/node-glob/issues/205
     case 'ENOTDIR': // totally normal. means it *does* exist.
-      this.cache[this._makeAbs(f)] = 'FILE'
+      var abs = this._makeAbs(f)
+      this.cache[abs] = 'FILE'
+      if (abs === this.cwdAbs) {
+        var error = new Error(er.code + ' invalid cwd ' + this.cwd)
+        error.path = this.cwd
+        error.code = er.code
+        this.emit('error', error)
+        this.abort()
+      }
       break
 
     case 'ENOENT': // not terribly unusual

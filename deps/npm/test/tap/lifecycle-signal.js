@@ -16,7 +16,8 @@ var json = {
   name: 'lifecycle-signal',
   version: '1.2.5',
   scripts: {
-    preinstall: 'node -e "process.kill(process.pid,\'SIGSEGV\')"'
+    preinstall: 'node -e "process.kill(process.pid,\'SIGSEGV\')"',
+    forever: 'node -e "console.error(process.pid);setInterval(function(){},1000)"'
   }
 }
 
@@ -42,6 +43,31 @@ test('lifecycle signal abort', function (t) {
   child.on('close', function (code, signal) {
     t.equal(code, null)
     t.equal(signal, 'SIGSEGV')
+    t.end()
+  })
+})
+
+test('lifecycle propagate signal term to child', function (t) {
+  // windows does not use lifecycle signals, abort
+  if (process.platform === 'win32' || process.env.TRAVIS) return t.end()
+
+  var innerChildPid
+  var child = spawn(npm, ['run', 'forever'], {
+    cwd: pkg
+  })
+  child.stderr.on('data', function (data) {
+    innerChildPid = Number.parseInt(data.toString(), 10)
+    t.doesNotThrow(function () {
+      process.kill(innerChildPid, 0) // inner child should be running
+    })
+    child.kill() // send SIGTERM to npm
+  })
+  child.on('exit', function (code, signal) {
+    t.equal(code, null)
+    t.equal(signal, 'SIGTERM')
+    t.throws(function () {
+      process.kill(innerChildPid, 0) // SIGTERM should have reached inner child
+    })
     t.end()
   })
 })

@@ -667,12 +667,23 @@ Installer.prototype.printInstalled = function (cb) {
     return !child.failed && (mutation === 'add' || mutation === 'update')
   }).map(function (action) {
     var child = action[1]
-    return packageId(child)
+    return child.path
   })
   log.showProgress()
   if (!addedOrMoved.length) return cb()
   recalculateMetadata(this.idealTree, log, iferr(cb, function (tree) {
     log.clearProgress()
+    // These options control both how installs happen AND how `ls` shows output.
+    // Something like `npm install --production` only installs production deps.
+    // By contrast `npm install --production foo` installs `foo` and the
+    // `production` option is ignored. But when it comes time for `ls` to show
+    // its output, it excludes the thing we just installed because that flag.
+    // The summary output we get should be unfiltered, showing everything
+    // installed, so we clear these options before calling `ls`.
+    npm.config.set('production', false)
+    npm.config.set('dev', false)
+    npm.config.set('only', '')
+    npm.config.set('also', '')
     ls.fromTree(self.where, tree, addedOrMoved, false, function () {
       log.showProgress()
       cb()

@@ -13,6 +13,6 @@ before_install:
   - "node . install -g ."
   - "mkdir -p /var/run/couchdb"
 sudo: false
-script: "npm run-script test-all"
+script: "npm test"
 notifications:
     slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8
