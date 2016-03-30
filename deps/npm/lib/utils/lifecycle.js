@@ -83,6 +83,9 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   // the bundled one will be used for installing things.
   pathArr.unshift(path.join(__dirname, "..", "..", "bin", "node-gyp-bin"))
 
+  // prefer current node interpreter in child scripts
+  pathArr.push(path.dirname(process.execPath))
+
   if (env[PATH]) pathArr.push(env[PATH])
   env[PATH] = pathArr.join(process.platform === "win32" ? ";" : ":")
 

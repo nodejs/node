@@ -1,4 +1,11 @@
 
+0.3.1 / 2016-01-14
+==================
+
+  * add MIT LICENSE file (#23, @kasicka)
+  * preserve chaining after redundant style-method calls (#19, @drewblaisdell)
+  * package: add "license" field (#16, @BenjaminTsai)
+
 0.3.0 / 2014-05-09
 ==================
 

@@ -24,7 +24,7 @@ changes to the version.</p>
 <p>The name is what your thing is called.</p>
 <p>Some rules:</p>
 <ul>
-<li>The name must be shorter than 214 characters. This includes the scope for
+<li>The name must be less than or equal to 214 characters. This includes the scope for
 scoped packages.</li>
 <li>The name can&#39;t start with a dot or an underscore.</li>
 <li>New packages must not have uppercase letters in the name.</li>
@@ -85,12 +85,12 @@ current SPDX license identifier for the license you&#39;re using, like this:</p>
 <pre><code>{ &quot;license&quot; : &quot;BSD-3-Clause&quot; }
 </code></pre><p>You can check <a href="https://spdx.org/licenses/">the full list of SPDX license IDs</a>.
 Ideally you should pick one that is
-<a href="http://opensource.org/licenses/alphabetical">OSI</a> approved.</p>
-<p>If your package is licensed under multiple common licenses, use an <a href="http://npmjs.com/package/spdx">SPDX license
+<a href="https://opensource.org/licenses/alphabetical">OSI</a> approved.</p>
+<p>If your package is licensed under multiple common licenses, use an <a href="https://npmjs.com/package/spdx">SPDX license
 expression syntax version 2.0 string</a>, like this:</p>
 <pre><code>{ &quot;license&quot; : &quot;(ISC OR GPL-3.0)&quot; }
 </code></pre><p>If you are using a license that hasn&#39;t been assigned an SPDX identifier, or if
-you are using a custom license, use the following valid SPDX expression:</p>
+you are using a custom license, use a string value like this one:</p>
 <pre><code>{ &quot;license&quot; : &quot;SEE LICENSE IN &lt;filename&gt;&quot; }
 </code></pre><p>Then include a file named <code>&lt;filename&gt;</code> at the top level of the package.</p>
 <p>Some old packages used license objects or a &quot;licenses&quot; property containing an
@@ -143,9 +143,10 @@ works just like a <code>.gitignore</code>.</p>
 <p>Certain files are always included, regardless of settings:</p>
 <ul>
 <li><code>package.json</code></li>
-<li><code><a href="../../doc/README.html">README</a></code> (and its variants)</li>
-<li><code>CHANGELOG</code> (and its variants)</li>
+<li><code><a href="../../doc/README.html">README</a></code></li>
+<li><code>CHANGES</code> / <code>CHANGELOG</code> / <code>HISTORY</code> (any casing and file extension)</li>
 <li><code>LICENSE</code> / <code>LICENCE</code></li>
+<li>The file in the &quot;main&quot; field</li>
 </ul>
 <p>Conversely, some files are always ignored:</p>
 <ul>
@@ -155,10 +156,11 @@ works just like a <code>.gitignore</code>.</p>
 <li><code>.hg</code></li>
 <li><code>.lock-wscript</code></li>
 <li><code>.wafpickle-N</code></li>
-<li><code>*.swp</code></li>
+<li><code>.*.swp</code></li>
 <li><code>.DS_Store</code></li>
 <li><code>._*</code></li>
 <li><code>npm-debug.log</code></li>
+<li><code>.npmrc</code></li>
 </ul>
 <h2 id="main">main</h2>
 <p>The main field is a module ID that is the primary entry point to your program.
@@ -242,6 +244,9 @@ walking the folder.</p>
 maybe, someday.</p>
 <h3 id="directories-example">directories.example</h3>
 <p>Put example scripts in here.  Someday, it might be exposed in some clever way.</p>
+<h3 id="directories-test">directories.test</h3>
+<p>Put your tests in here. It is currently not exposed, but it might be in the
+future.</p>
 <h2 id="repository">repository</h2>
 <p>Specify the place where your code lives. This is helpful for people who
 want to contribute.  If the git repo is on GitHub, then the <code>npm docs</code>
@@ -309,7 +314,7 @@ tarball or git URL.</p>
 <li><code>git...</code> See &#39;Git URLs as Dependencies&#39; below</li>
 <li><code>user/repo</code> See &#39;GitHub URLs&#39; below</li>
 <li><code>tag</code> A specific version tagged and published as <code>tag</code>  See <code><a href="../cli/npm-tag.html">npm-tag(1)</a></code></li>
-<li><code>path/path/path</code> See Local Paths below</li>
+<li><code>path/path/path</code> See <a href="#local-paths">Local Paths</a> below</li>
 </ul>
 <p>For example, these are all valid:</p>
 <pre><code>{ &quot;dependencies&quot; :
@@ -432,7 +437,18 @@ the host package&#39;s major version will break your plugin. Thus, if you&#39;ve
 with every 1.x version of the host package, use <code>&quot;^1.0&quot;</code> or <code>&quot;1.x&quot;</code> to express
 this. If you depend on features introduced in 1.5.2, use <code>&quot;&gt;= 1.5.2 &lt; 2&quot;</code>.</p>
 <h2 id="bundleddependencies">bundledDependencies</h2>
-<p>Array of package names that will be bundled when publishing the package.</p>
+<p>This defines an array of package names that will be bundled when publishing the package.</p>
+<p>In cases where you need to preserve npm packages locally or have them available through a single file download, you can bundle the packages in a tarball file by specifying the package names in the <code>bundledDependencies</code> array and executing <code>npm pack</code>.</p>
+<p>For example:
+If we define a package.json like this:</p>
+<pre><code>{
+  &quot;name&quot;: &quot;awesome-web-framework&quot;,
+  &quot;version&quot;: &quot;1.0.0&quot;,
+  &quot;bundledDependencies&quot;: [
+    &#39;renderized&#39;, &#39;super-streams&#39;
+  ]
+}
+</code></pre><p>we can obtain <code>awesome-web-framework-1.0.0.tgz</code> file by running <code>npm pack</code>. This file contains the dependencies <code>renderized</code> and <code>super-streams</code> which can be installed in a new project by executing <code>npm install awesome-web-framework-1.0.0.tgz</code>.</p>
 <p>If this is spelled <code>&quot;bundleDependencies&quot;</code>, then that is also honored.</p>
 <h2 id="optionaldependencies">optionalDependencies</h2>
 <p>If a dependency can be used, but you would like npm to proceed if it cannot be
@@ -551,7 +567,7 @@ ignored.</p>
 <li><a href="../misc/npm-faq.html">npm-faq(7)</a></li>
 <li><a href="../cli/npm-install.html">npm-install(1)</a></li>
 <li><a href="../cli/npm-publish.html">npm-publish(1)</a></li>
-<li><a href="../cli/npm-rm.html">npm-rm(1)</a></li>
+<li><a href="../cli/npm-uninstall.html">npm-uninstall(1)</a></li>
 </ul>
 
 </div>
@@ -565,5 +581,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@2.14.9</p>
+<p id="footer">package.json &mdash; npm@2.15.0</p>
 

@@ -1,0 +1,58 @@
+{
+  "name": "lru-cache",
+  "description": "A cache object that deletes the least-recently-used items.",
+  "version": "2.7.3",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me"
+  },
+  "keywords": [
+    "mru",
+    "lru",
+    "cache"
+  ],
+  "scripts": {
+    "test": "tap test --gc"
+  },
+  "main": "lib/lru-cache.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/node-lru-cache.git"
+  },
+  "devDependencies": {
+    "tap": "^1.2.0",
+    "weak": ""
+  },
+  "license": "ISC",
+  "gitHead": "292048199f6d28b77fbe584279a1898e25e4c714",
+  "bugs": {
+    "url": "https://github.com/isaacs/node-lru-cache/issues"
+  },
+  "homepage": "https://github.com/isaacs/node-lru-cache#readme",
+  "_id": "lru-cache@2.7.3",
+  "_shasum": "6d4524e8b955f95d4f5b58851ce21dd72fb4e952",
+  "_from": "lru-cache@>=2.0.0 <3.0.0",
+  "_npmVersion": "3.3.2",
+  "_nodeVersion": "4.0.0",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "i@izs.me"
+  },
+  "dist": {
+    "shasum": "6d4524e8b955f95d4f5b58851ce21dd72fb4e952",
+    "tarball": "http://registry.npmjs.org/lru-cache/-/lru-cache-2.7.3.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/lru-cache/-/lru-cache-2.7.3.tgz",
+  "readme": "ERROR: No README data found!"
+}

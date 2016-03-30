@@ -180,13 +180,14 @@ function checkGit (localData, cb) {
 }
 
 function _commit (version, hasShrinkwrap, cb) {
+  var packagePath = path.join(npm.localPrefix, 'package.json')
   var options = { env: process.env }
   var message = npm.config.get('message').replace(/%s/g, version)
   var sign = npm.config.get('sign-git-tag')
   var flag = sign ? '-sm' : '-am'
   chain(
     [
-      git.chainableExec([ 'add', 'package.json' ], options),
+      git.chainableExec([ 'add', packagePath ], options),
       hasShrinkwrap && git.chainableExec([ 'add', 'npm-shrinkwrap.json' ], options),
       git.chainableExec([ 'commit', '-m', message ], options),
       git.chainableExec([ 'tag', npm.config.get('tag-version-prefix') + version, flag, message ], options)

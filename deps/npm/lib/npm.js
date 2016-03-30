@@ -150,7 +150,7 @@ var commandCache = {}
                , "substack"
                , "visnup"
                ]
-  , littleGuys = [ "isntall" ]
+  , littleGuys = [ "isntall", "verison" ]
   , fullList = cmdList.concat(aliasNames).filter(function (c) {
       return plumbing.indexOf(c) === -1
     })
@@ -283,8 +283,14 @@ npm.load = function (cli, cb_) {
     npm.config.loaded = true
     loaded = true
     loadCb(loadErr = er)
-    if (onload = onload && npm.config.get("onload-script")) {
-      require(onload)
+    onload = onload && npm.config.get('onload-script')
+    if (onload) {
+      try {
+        require(onload)
+      } catch (err) {
+        log.warn('onload-script', 'failed to require onload script', onload)
+        log.warn('onload-script', err)
+      }
       onload = false
     }
   }

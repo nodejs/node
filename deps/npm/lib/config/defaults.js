@@ -162,6 +162,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , loglevel : "warn"
     , logstream : process.stderr
     , long : false
+    , maxsockets : 50
     , message : "%s"
     , "node-version" : process.version
     , npat : false
@@ -268,6 +269,7 @@ exports.types =
   , loglevel : ["silent", "error", "warn", "http", "info", "verbose", "silly"]
   , logstream : Stream
   , long : Boolean
+  , maxsockets : Number
   , message: String
   , "node-version" : [null, semver]
   , npat : Boolean

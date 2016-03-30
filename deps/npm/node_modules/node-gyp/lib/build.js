@@ -19,9 +19,15 @@ var fs = require('graceful-fs')
 exports.usage = 'Invokes `' + (win ? 'msbuild' : 'make') + '` and builds the module'
 
 function build (gyp, argv, callback) {
+  var platformMake = 'make'
+  if (process.platform === 'aix') {
+    platformMake = 'gmake'
+  } else if (process.platform.indexOf('bsd') !== -1) {
+    platformMake = 'gmake'
+  }
+
   var release = processRelease(argv, gyp, process.version, process.release)
-    , makeCommand = gyp.opts.make || process.env.MAKE
-      || (process.platform.indexOf('bsd') != -1 && process.platform.indexOf('kfreebsd') == -1 ? 'gmake' : 'make')
+    , makeCommand = gyp.opts.make || process.env.MAKE || platformMake
     , command = win ? 'msbuild' : makeCommand
     , buildDir = path.resolve('build')
     , configPath = path.resolve(buildDir, 'config.gypi')

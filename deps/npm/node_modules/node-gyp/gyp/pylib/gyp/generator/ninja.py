@@ -139,8 +139,11 @@ class Target(object):
     self.bundle = None
     # On Windows, incremental linking requires linking against all the .objs
     # that compose a .lib (rather than the .lib itself). That list is stored
-    # here.
+    # here. In this case, we also need to save the compile_deps for the target,
+    # so that the the target that directly depends on the .objs can also depend
+    # on those.
     self.component_objs = None
+    self.compile_deps = None
     # Windows only. The import .lib is the output of a build step, but
     # because dependents only link against the lib (not both the lib and the
     # dll) we keep track of the import library here.
@@ -474,16 +477,17 @@ class NinjaWriter(object):
     elif self.flavor == 'mac' and len(self.archs) > 1:
       link_deps = collections.defaultdict(list)
 
-
+    compile_deps = self.target.actions_stamp or actions_depends
     if self.flavor == 'win' and self.target.type == 'static_library':
       self.target.component_objs = link_deps
+      self.target.compile_deps = compile_deps
 
     # Write out a link step, if needed.
     output = None
     is_empty_bundle = not link_deps and not mac_bundle_depends
     if link_deps or self.target.actions_stamp or actions_depends:
       output = self.WriteTarget(spec, config_name, config, link_deps,
-                                self.target.actions_stamp or actions_depends)
+                                compile_deps)
       if self.is_mac_bundle:
         mac_bundle_depends.append(output)
 
@@ -921,6 +925,11 @@ class NinjaWriter(object):
                   os.environ.get('CFLAGS', '').split() + cflags_c)
       cflags_cc = (os.environ.get('CPPFLAGS', '').split() +
                    os.environ.get('CXXFLAGS', '').split() + cflags_cc)
+    elif self.toolset == 'host':
+      cflags_c = (os.environ.get('CPPFLAGS_host', '').split() +
+                  os.environ.get('CFLAGS_host', '').split() + cflags_c)
+      cflags_cc = (os.environ.get('CPPFLAGS_host', '').split() +
+                   os.environ.get('CXXFLAGS_host', '').split() + cflags_cc)
 
     defines = config.get('defines', []) + extra_defines
     self.WriteVariableList(ninja_file, 'defines',
@@ -1088,6 +1097,7 @@ class NinjaWriter(object):
 
     implicit_deps = set()
     solibs = set()
+    order_deps = set()
 
     if 'dependencies' in spec:
       # Two kinds of dependencies:
@@ -1106,6 +1116,8 @@ class NinjaWriter(object):
               target.component_objs and
               self.msvs_settings.IsUseLibraryDependencyInputs(config_name)):
             new_deps = target.component_objs
+            if target.compile_deps:
+              order_deps.add(target.compile_deps)
           elif self.flavor == 'win' and target.import_lib:
             new_deps = [target.import_lib]
           elif target.UsesToc(self.flavor):
@@ -1169,7 +1181,7 @@ class NinjaWriter(object):
         ldflags.append(r'-Wl,-rpath=\$$ORIGIN/%s' % rpath)
         ldflags.append('-Wl,-rpath-link=%s' % rpath)
     self.WriteVariableList(ninja_file, 'ldflags',
-                           gyp.common.uniquer(map(self.ExpandSpecial, ldflags)))
+                           map(self.ExpandSpecial, ldflags))
 
     library_dirs = config.get('library_dirs', [])
     if self.flavor == 'win':
@@ -1244,6 +1256,7 @@ class NinjaWriter(object):
 
     ninja_file.build(output, command + command_suffix, link_deps,
                      implicit=list(implicit_deps),
+                     order_only=list(order_deps),
                      variables=extra_bindings)
     return linked_binary
 
@@ -1258,7 +1271,7 @@ class NinjaWriter(object):
       self.target.type = 'none'
     elif spec['type'] == 'static_library':
       self.target.binary = self.ComputeOutput(spec)
-      if (self.flavor not in ('mac', 'openbsd', 'win') and not
+      if (self.flavor not in ('mac', 'openbsd', 'netbsd', 'win') and not
           self.is_standalone_static_library):
         self.ninja.build(self.target.binary, 'alink_thin', link_deps,
                          order_only=compile_deps)
@@ -1672,7 +1685,7 @@ def CommandWithWrapper(cmd, wrappers, prog):
 
 def GetDefaultConcurrentLinks():
   """Returns a best-guess for a number of concurrent links."""
-  pool_size = int(os.getenv('GYP_LINK_CONCURRENCY', 0))
+  pool_size = int(os.environ.get('GYP_LINK_CONCURRENCY', 0))
   if pool_size:
     return pool_size
 
@@ -1696,8 +1709,10 @@ def GetDefaultConcurrentLinks():
     stat.dwLength = ctypes.sizeof(stat)
     ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
 
-    mem_limit = max(1, stat.ullTotalPhys / (4 * (2 ** 30)))  # total / 4GB
-    hard_cap = max(1, int(os.getenv('GYP_LINK_CONCURRENCY_MAX', 2**32)))
+    # VS 2015 uses 20% more working set than VS 2013 and can consume all RAM
+    # on a 64 GB machine.
+    mem_limit = max(1, stat.ullTotalPhys / (5 * (2 ** 30)))  # total / 5GB
+    hard_cap = max(1, int(os.environ.get('GYP_LINK_CONCURRENCY_MAX', 2**32)))
     return min(mem_limit, hard_cap)
   elif sys.platform.startswith('linux'):
     if os.path.exists("/proc/meminfo"):
@@ -2275,7 +2290,11 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     if flavor == 'mac':
       gyp.xcode_emulation.MergeGlobalXcodeSettingsToSpec(data[build_file], spec)
 
-    build_file = gyp.common.RelativePath(build_file, options.toplevel_dir)
+    # If build_file is a symlink, we must not follow it because there's a chance
+    # it could point to a path above toplevel_dir, and we cannot correctly deal
+    # with that case at the moment.
+    build_file = gyp.common.RelativePath(build_file, options.toplevel_dir,
+                                         False)
 
     qualified_target_for_hash = gyp.common.QualifiedTarget(build_file, name,
                                                            toolset)

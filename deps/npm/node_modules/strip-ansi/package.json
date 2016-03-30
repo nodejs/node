@@ -1,0 +1,90 @@
+{
+  "name": "strip-ansi",
+  "version": "3.0.1",
+  "description": "Strip ANSI escape codes",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chalk/strip-ansi.git"
+  },
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    },
+    {
+      "name": "jbnicolai",
+      "email": "jappelman@xebia.com"
+    }
+  ],
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "strip",
+    "trim",
+    "remove",
+    "ansi",
+    "styles",
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "string",
+    "tty",
+    "escape",
+    "formatting",
+    "rgb",
+    "256",
+    "shell",
+    "xterm",
+    "log",
+    "logging",
+    "command-line",
+    "text"
+  ],
+  "dependencies": {
+    "ansi-regex": "^2.0.0"
+  },
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "gitHead": "8270705c704956da865623e564eba4875c3ea17f",
+  "bugs": {
+    "url": "https://github.com/chalk/strip-ansi/issues"
+  },
+  "homepage": "https://github.com/chalk/strip-ansi",
+  "_id": "strip-ansi@3.0.1",
+  "_shasum": "6a385fb8853d952d5ff05d0e8aaf94278dc63dcf",
+  "_from": "strip-ansi@*",
+  "_npmVersion": "2.11.3",
+  "_nodeVersion": "0.12.7",
+  "_npmUser": {
+    "name": "jbnicolai",
+    "email": "jappelman@xebia.com"
+  },
+  "dist": {
+    "shasum": "6a385fb8853d952d5ff05d0e8aaf94278dc63dcf",
+    "tarball": "http://registry.npmjs.org/strip-ansi/-/strip-ansi-3.0.1.tgz"
+  },
+  "_npmOperationalInternal": {
+    "host": "packages-9-west.internal.npmjs.com",
+    "tmp": "tmp/strip-ansi-3.0.1.tgz_1456057278183_0.28958667791448534"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-3.0.1.tgz",
+  "readme": "ERROR: No README data found!"
+}

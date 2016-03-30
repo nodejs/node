@@ -11,4 +11,4 @@ exports['alpha'] = /^[a-zA-Z]+$/
 exports['alphanumeric'] = /^[a-zA-Z0-9]+$/
 exports['style'] = /\s*(.+?):\s*([^;]+);?/g
 exports['phone'] = /^\+(?:[0-9] ?){6,14}[0-9]$/
-exports['utc-millisec'] = /^[0-9]+(\.?[0-9]+)?$/
+exports['utc-millisec'] = /^[0-9]{1,15}\.?[0-9]{0,15}$/
