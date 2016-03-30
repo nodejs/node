@@ -21,7 +21,7 @@ test("calling set/get on config pre-load should throw", function (t) {
     t.ok(threw, "get before load should throw")
   }
 
-  var threw = true
+  threw = true
   try {
     npm.config.set("foo", "bar")
     threw = false

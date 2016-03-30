@@ -7,74 +7,76 @@
 
 module.exports = ProxyWriter
 
-var Writer = require("./writer.js")
-  , getType = require("./get-type.js")
-  , inherits = require("inherits")
-  , collect = require("./collect.js")
-  , fs = require("fs")
+var Writer = require('./writer.js')
+var getType = require('./get-type.js')
+var inherits = require('inherits')
+var collect = require('./collect.js')
+var fs = require('fs')
 
 inherits(ProxyWriter, Writer)
 
 function ProxyWriter (props) {
-  var me = this
-  if (!(me instanceof ProxyWriter)) throw new Error(
-    "ProxyWriter must be called as constructor.")
+  var self = this
+  if (!(self instanceof ProxyWriter)) {
+    throw new Error('ProxyWriter must be called as constructor.')
+  }
 
-  me.props = props
-  me._needDrain = false
+  self.props = props
+  self._needDrain = false
 
-  Writer.call(me, props)
+  Writer.call(self, props)
 }
 
 ProxyWriter.prototype._stat = function () {
-  var me = this
-    , props = me.props
-    // stat the thing to see what the proxy should be.
-    , stat = props.follow ? "stat" : "lstat"
+  var self = this
+  var props = self.props
+  // stat the thing to see what the proxy should be.
+  var stat = props.follow ? 'stat' : 'lstat'
 
   fs[stat](props.path, function (er, current) {
     var type
     if (er || !current) {
-      type = "File"
+      type = 'File'
     } else {
       type = getType(current)
     }
 
     props[type] = true
-    props.type = me.type = type
+    props.type = self.type = type
 
-    me._old = current
-    me._addProxy(Writer(props, current))
+    self._old = current
+    self._addProxy(Writer(props, current))
   })
 }
 
 ProxyWriter.prototype._addProxy = function (proxy) {
   // console.error("~~ set proxy", this.path)
-  var me = this
-  if (me._proxy) {
-    return me.error("proxy already set")
+  var self = this
+  if (self._proxy) {
+    return self.error('proxy already set')
   }
 
-  me._proxy = proxy
-  ; [ "ready"
-    , "error"
-    , "close"
-    , "pipe"
-    , "drain"
-    , "warn"
-    ].forEach(function (ev) {
-      proxy.on(ev, me.emit.bind(me, ev))
-    })
+  self._proxy = proxy
+  ;[
+    'ready',
+    'error',
+    'close',
+    'pipe',
+    'drain',
+    'warn'
+  ].forEach(function (ev) {
+    proxy.on(ev, self.emit.bind(self, ev))
+  })
 
-  me.emit("proxy", proxy)
+  self.emit('proxy', proxy)
 
-  var calls = me._buffer
+  var calls = self._buffer
   calls.forEach(function (c) {
     // console.error("~~ ~~ proxy buffered call", c[0], c[1])
     proxy[c[0]].apply(proxy, c[1])
   })
-  me._buffer.length = 0
-  if (me._needsDrain) me.emit("drain")
+  self._buffer.length = 0
+  if (self._needsDrain) self.emit('drain')
 }
 
 ProxyWriter.prototype.add = function (entry) {
@@ -82,7 +84,7 @@ ProxyWriter.prototype.add = function (entry) {
   collect(entry)
 
   if (!this._proxy) {
-    this._buffer.push(["add", [entry]])
+    this._buffer.push(['add', [entry]])
     this._needDrain = true
     return false
   }
@@ -90,9 +92,9 @@ ProxyWriter.prototype.add = function (entry) {
 }
 
 ProxyWriter.prototype.write = function (c) {
-  // console.error("~~ proxy write")
+  // console.error('~~ proxy write')
   if (!this._proxy) {
-    this._buffer.push(["write", [c]])
+    this._buffer.push(['write', [c]])
     this._needDrain = true
     return false
   }
@@ -100,9 +102,9 @@ ProxyWriter.prototype.write = function (c) {
 }
 
 ProxyWriter.prototype.end = function (c) {
-  // console.error("~~ proxy end")
+  // console.error('~~ proxy end')
   if (!this._proxy) {
-    this._buffer.push(["end", [c]])
+    this._buffer.push(['end', [c]])
     return false
   }
   return this._proxy.end(c)

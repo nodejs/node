@@ -1,87 +1,68 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-RM" "1" "November 2015" "" ""
-.
+.TH "NPM\-UNINSTALL" "1" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-rm\fR \-\- Remove a package
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-uninstall\fR \- Remove a package
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
-npm uninstall <name> [\-\-save|\-\-save\-dev|\-\-save\-optional]
+npm uninstall [@<scope>/]<package> [\-\-save|\-\-save\-dev|\-\-save\-optional]
 npm rm (with any of the previous argument usage)
-.
 .fi
-.
-.SH "DESCRIPTION"
+.RE
+.SH DESCRIPTION
+.P
 This uninstalls a package, completely removing everything npm installed
 on its behalf\.
-.
 .P
 Example:
-.
-.IP "" 4
-.
+.P
+.RS 2
 .nf
 npm uninstall sax
-.
 .fi
-.
-.IP "" 0
-.
+.RE
 .P
-In global mode (ie, with \fB\-g\fR or \fB\-\-global\fR appended to the command),
+In global mode (ie, with \fB\-g\fP or \fB\-\-global\fP appended to the command),
 it uninstalls the current package context as a global package\.
-.
 .P
-\fBnpm uninstall\fR takes 3 exclusive, optional flags which save or update
+\fBnpm uninstall\fP takes 3 exclusive, optional flags which save or update
 the package version in your main package\.json:
-.
-.IP "\(bu" 4
-\fB\-\-save\fR: Package will be removed from your \fBdependencies\fR\|\.
-.
-.IP "\(bu" 4
-\fB\-\-save\-dev\fR: Package will be removed from your \fBdevDependencies\fR\|\.
-.
-.IP "\(bu" 4
-\fB\-\-save\-optional\fR: Package will be removed from your \fBoptionalDependencies\fR\|\.
-.
-.IP "" 0
-.
+.RS 0
+.IP \(bu 2
+\fB\-\-save\fP: Package will be removed from your \fBdependencies\fP\|\.
+.IP \(bu 2
+\fB\-\-save\-dev\fP: Package will be removed from your \fBdevDependencies\fP\|\.
+.IP \(bu 2
+\fB\-\-save\-optional\fP: Package will be removed from your \fBoptionalDependencies\fP\|\.
+
+.RE
+.P
+Scope is optional and follows the usual rules for npm help 7 \fBnpm\-scope\fP\|\.
 .P
 Examples:
-.
-.IP "" 4
-.
+.P
+.RS 2
 .nf
 npm uninstall sax \-\-save
+npm uninstall @myorg/privatepackage \-\-save
 npm uninstall node\-tap \-\-save\-dev
 npm uninstall dtrace\-provider \-\-save\-optional
-.
 .fi
-.
-.IP "" 0
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+.RE
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help prune
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help install
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 folders
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help config
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 7 config
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help 5 npmrc
-.
-.IP "" 0
+
+.RE
 

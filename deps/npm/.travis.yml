@@ -1,5 +1,18 @@
 language: node_js
-script: "npm run-script tap"
+sudo: false
 node_js:
-  - "0.11"
+  - "5"
+  - "4"
+  - iojs
+  - "0.12"
   - "0.10"
+  - "0.8"
+env:
+  - DEPLOY_VERSION=testing
+before_install:
+  - "npm config set spin false"
+  - "npm install -g npm/npm#2.x"
+  - "mkdir -p /var/run/couchdb"
+script: "npm test"
+notifications:
+    slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8

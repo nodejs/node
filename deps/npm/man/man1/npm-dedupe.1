@@ -1,96 +1,76 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-DEDUPE" "1" "November 2015" "" ""
-.
+.TH "NPM\-DEDUPE" "1" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-dedupe\fR \-\- Reduce duplication
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-dedupe\fR \- Reduce duplication
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm dedupe [package names\.\.\.]
 npm ddp [package names\.\.\.]
-.
+
+aliases: find\-dupes, ddp
 .fi
-.
-.SH "DESCRIPTION"
+.RE
+.SH DESCRIPTION
+.P
 Searches the local package tree and attempts to simplify the overall
 structure by moving dependencies further up the tree, where they can
 be more effectively shared by multiple dependent packages\.
-.
 .P
 For example, consider this dependency graph:
-.
-.IP "" 4
-.
+.P
+.RS 2
 .nf
 a
 +\-\- b <\-\- depends on c@1\.0\.x
 |   `\-\- c@1\.0\.3
 `\-\- d <\-\- depends on c@~1\.0\.9
     `\-\- c@1\.0\.10
-.
 .fi
-.
-.IP "" 0
-.
+.RE
 .P
-In this case, npm help \fBnpm\-dedupe\fR will transform the tree to:
-.
-.IP "" 4
-.
+In this case, npm help \fBnpm\-dedupe\fP will transform the tree to:
+.P
+.RS 2
 .nf
 a
 +\-\- b
 +\-\- d
 `\-\- c@1\.0\.10
-.
 .fi
-.
-.IP "" 0
-.
+.RE
 .P
-Because of the hierarchical nature of node\'s module lookup, b and d
+Because of the hierarchical nature of node's module lookup, b and d
 will both get their dependency met by the single c package at the root
 level of the tree\.
-.
 .P
 If a suitable version exists at the target location in the tree
 already, then it will be left untouched, but the other duplicates will
 be deleted\.
-.
 .P
 If no suitable version can be found, then a warning is printed, and
 nothing is done\.
-.
 .P
 If any arguments are supplied, then they are filters, and only the
 named packages will be touched\.
-.
 .P
 Note that this operation transforms the dependency tree, and may
 result in packages getting updated versions, perhaps from the npm
 registry\.
-.
 .P
 This feature is experimental, and may change in future versions\.
-.
 .P
-The \fB\-\-tag\fR argument will apply to all of the affected dependencies\. If a
+The \fB\-\-tag\fP argument will apply to all of the affected dependencies\. If a
 tag with the given name exists, the tagged version is preferred over newer
 versions\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help ls
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help update
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help install
-.
-.IP "" 0
+
+.RE
 

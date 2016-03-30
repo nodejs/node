@@ -1,0 +1,70 @@
+{
+  "name": "os-homedir",
+  "version": "1.0.0",
+  "description": "io.js 2.3.0 os.homedir() ponyfill",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/os-homedir.git"
+  },
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "built-in",
+    "core",
+    "ponyfill",
+    "polyfill",
+    "shim",
+    "os",
+    "homedir",
+    "home",
+    "dir",
+    "directory",
+    "folder",
+    "user",
+    "path"
+  ],
+  "devDependencies": {
+    "ava": "0.0.4",
+    "path-exists": "^1.0.0"
+  },
+  "gitHead": "7e39e2e049de404f06233fa617ecf46fed997a78",
+  "bugs": {
+    "url": "https://github.com/sindresorhus/os-homedir/issues"
+  },
+  "homepage": "https://github.com/sindresorhus/os-homedir",
+  "_id": "os-homedir@1.0.0",
+  "_shasum": "e37078bc61b5869063053897257e39ec1261b702",
+  "_from": "os-homedir@>=1.0.0 <2.0.0",
+  "_npmVersion": "2.11.1",
+  "_nodeVersion": "2.3.0",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "dist": {
+    "shasum": "e37078bc61b5869063053897257e39ec1261b702",
+    "tarball": "http://registry.npmjs.org/os-homedir/-/os-homedir-1.0.0.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/os-homedir/-/os-homedir-1.0.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

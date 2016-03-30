@@ -1,28 +1,21 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-EXPLORE" "3" "November 2015" "" ""
-.
+.TH "NPM\-EXPLORE" "3" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-explore\fR \-\- Browse an installed package
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-explore\fR \- Browse an installed package
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm\.commands\.explore(args, callback)
-.
 .fi
-.
-.SH "DESCRIPTION"
+.RE
+.SH DESCRIPTION
+.P
 Spawn a subshell in the directory of the installed package specified\.
-.
 .P
 If a command is specified, then it is run in the subshell, which then
 immediately terminates\.
-.
 .P
 Note that the package is \fInot\fR automatically rebuilt afterwards, so be
-sure to use \fBnpm rebuild <pkg>\fR if you make any changes\.
-.
+sure to use \fBnpm rebuild <pkg>\fP if you make any changes\.
 .P
-The first element in the \'args\' parameter must be a package name\.  After that is the optional command, which can be any number of strings\. All of the strings will be combined into one, space\-delimited command\.
+The first element in the 'args' parameter must be a package name\.  After that is the optional command, which can be any number of strings\. All of the strings will be combined into one, space\-delimited command\.

@@ -11,8 +11,8 @@
 
 <h1><a href="../cli/npm-view.html">npm-view</a></h1> <p>View registry info</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<pre><code>npm view &lt;name&gt;[@&lt;version&gt;] [&lt;field&gt;[.&lt;subfield&gt;]...]
-npm v &lt;name&gt;[@&lt;version&gt;] [&lt;field&gt;[.&lt;subfield&gt;]...]
+<pre><code>npm view [@&lt;scope&gt;/]&lt;name&gt;[@&lt;version&gt;] [&lt;field&gt;[.&lt;subfield&gt;]...]
+npm v [@&lt;scope&gt;/]&lt;name&gt;[@&lt;version&gt;] [&lt;field&gt;[.&lt;subfield&gt;]...]
 </code></pre><h2 id="description">DESCRIPTION</h2>
 <p>This command shows data about a package and prints it to the stream
 referenced by the <code>outfd</code> config, which defaults to stdout.</p>
@@ -24,7 +24,7 @@ this:</p>
 For example, to show the dependencies of the <code>ronn</code> package at version
 0.3.5, you could do the following:</p>
 <pre><code>npm view ronn@0.3.5 dependencies
-</code></pre><p>You can view child field by separating them with a period.
+</code></pre><p>You can view child fields by separating them with a period.
 To view the git repository URL for the latest version of npm, you could
 do this:</p>
 <pre><code>npm view npm repository.url
@@ -52,6 +52,9 @@ the shortened string format.  (See <code><a href="../files/package.json.html">pa
 matching version of the package.  This will show which version of jsdom
 was required by each matching version of yui3:</p>
 <pre><code>npm view yui3@&#39;&gt;0.5.4&#39; dependencies.jsdom
+</code></pre><p>To show the <code>connect</code> package version history, you can do
+this:</p>
+<pre><code>npm view connect versions
 </code></pre><h2 id="output">OUTPUT</h2>
 <p>If only a single string field for a single version is output, then it
 will not be colorized or quoted, so as to enable piping the output to
@@ -82,5 +85,5 @@ the field name.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-view &mdash; npm@1.4.29</p>
+<p id="footer">npm-view &mdash; npm@2.15.0</p>
 

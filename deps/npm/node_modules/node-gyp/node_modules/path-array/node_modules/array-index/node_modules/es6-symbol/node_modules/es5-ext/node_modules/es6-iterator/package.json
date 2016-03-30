@@ -1,0 +1,66 @@
+{
+  "name": "es6-iterator",
+  "version": "2.0.0",
+  "description": "Iterator abstraction based on ES6 specification",
+  "author": {
+    "name": "Mariusz Nowak",
+    "email": "medyk@medikoo.com",
+    "url": "http://www.medikoo.com/"
+  },
+  "keywords": [
+    "iterator",
+    "array",
+    "list",
+    "set",
+    "map",
+    "generator"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/medikoo/es6-iterator.git"
+  },
+  "dependencies": {
+    "d": "^0.1.1",
+    "es5-ext": "^0.10.7",
+    "es6-symbol": "3"
+  },
+  "devDependencies": {
+    "event-emitter": "^0.3.4",
+    "tad": "^0.2.3",
+    "xlint": "^0.2.2",
+    "xlint-jslint-medikoo": "^0.1.3"
+  },
+  "scripts": {
+    "lint": "node node_modules/xlint/bin/xlint --linter=node_modules/xlint-jslint-medikoo/index.js --no-cache --no-stream",
+    "lint-console": "node node_modules/xlint/bin/xlint --linter=node_modules/xlint-jslint-medikoo/index.js --watch",
+    "test": "node ./node_modules/tad/bin/tad"
+  },
+  "license": "MIT",
+  "gitHead": "4d9445834e87780ab373b14d6791e860899e2d31",
+  "bugs": {
+    "url": "https://github.com/medikoo/es6-iterator/issues"
+  },
+  "homepage": "https://github.com/medikoo/es6-iterator#readme",
+  "_id": "es6-iterator@2.0.0",
+  "_shasum": "bd968567d61635e33c0b80727613c9cb4b096bac",
+  "_from": "es6-iterator@>=2.0.0 <3.0.0",
+  "_npmVersion": "2.11.3",
+  "_nodeVersion": "0.12.7",
+  "_npmUser": {
+    "name": "medikoo",
+    "email": "medikoo+npm@medikoo.com"
+  },
+  "dist": {
+    "shasum": "bd968567d61635e33c0b80727613c9cb4b096bac",
+    "tarball": "http://registry.npmjs.org/es6-iterator/-/es6-iterator-2.0.0.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "medikoo",
+      "email": "medikoo+npm@medikoo.com"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/es6-iterator/-/es6-iterator-2.0.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

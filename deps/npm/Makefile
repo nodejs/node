@@ -61,10 +61,10 @@ latest:
 	@echo "Installing latest published npm"
 	@echo "Use 'make install' or 'make link' to install the code"
 	@echo "in this folder that you're looking at right now."
-	node cli.js install -g -f npm
+	node cli.js install -g -f npm ${NPMOPTS}
 
-install: docclean all
-	node cli.js install -g -f
+install: all
+	node cli.js install -g -f ${NPMOPTS}
 
 # backwards compat
 dev: install
@@ -72,7 +72,7 @@ dev: install
 link: uninstall
 	node cli.js link -f
 
-clean: markedclean ronnclean doc-clean uninstall
+clean: markedclean marked-manclean doc-clean uninstall
 	rm -rf npmrc
 	node cli.js cache clean
 
@@ -84,19 +84,19 @@ doc: $(mandocs) $(htmldocs)
 markedclean:
 	rm -rf node_modules/marked node_modules/.bin/marked .building_marked
 
-ronnclean:
-	rm -rf node_modules/ronn node_modules/.bin/ronn .building_ronn
+marked-manclean:
+	rm -rf node_modules/marked-man node_modules/.bin/marked-man .building_marked-man
 
 docclean: doc-clean
 doc-clean:
 	rm -rf \
     .building_marked \
-    .building_ronn \
+    .building_marked-man \
     html/doc \
     html/api \
     man
 
-# use `npm install ronn` for this to work.
+# use `npm install marked-man` for this to work.
 man/man1/npm-README.1: README.md scripts/doc-build.sh package.json
 	@[ -d man/man1 ] || mkdir -p man/man1
 	scripts/doc-build.sh $< $@
@@ -161,10 +161,10 @@ marked: node_modules/.bin/marked
 node_modules/.bin/marked:
 	node cli.js install marked --no-global
 
-ronn: node_modules/.bin/ronn
+marked-man: node_modules/.bin/marked-man
 
-node_modules/.bin/ronn:
-	node cli.js install ronn --no-global
+node_modules/.bin/marked-man:
+	node cli.js install marked-man --no-global
 
 doc: man
 

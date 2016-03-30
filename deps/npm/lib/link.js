@@ -8,8 +8,8 @@ var npm = require("./npm.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
   , path = require("path")
-  , rm = require("./utils/gently-rm.js")
   , build = require("./build.js")
+  , npa = require("npm-package-arg")
 
 module.exports = link
 
@@ -26,13 +26,13 @@ link.completion = function (opts, cb) {
 }
 
 function link (args, cb) {
-  if (process.platform === "win32") {
-    var semver = require("semver")
-    if (!semver.satisfies(process.version, ">=0.7.9")) {
-      var msg = "npm link not supported on windows prior to node 0.7.9"
-        , e = new Error(msg)
-      e.code = "ENOTSUP"
-      e.errno = require("constants").ENOTSUP
+  if (process.platform === 'win32') {
+    var semver = require('semver')
+    if (!semver.gte(process.version, '0.7.9')) {
+      var msg = 'npm link not supported on windows prior to node 0.7.9'
+      var e = new Error(msg)
+      e.code = 'ENOTSUP'
+      e.errno = require('constants').ENOTSUP
       return cb(e)
     }
   }
@@ -49,25 +49,26 @@ function link (args, cb) {
 
 function linkInstall (pkgs, cb) {
   asyncMap(pkgs, function (pkg, cb) {
-    function n (er, data) {
-      if (er) return cb(er, data)
-      // install returns [ [folder, pkgId], ... ]
-      // but we definitely installed just one thing.
-      var d = data.filter(function (d) { return !d[3] })
-      pp = d[0][1]
-      pkg = path.basename(pp)
-      target = path.resolve(npm.dir, pkg)
-      next()
-    }
-
     var t = path.resolve(npm.globalDir, "..")
       , pp = path.resolve(npm.globalDir, pkg)
       , rp = null
       , target = path.resolve(npm.dir, pkg)
 
-    // if it's a folder or a random not-installed thing, then
-    // link or install it first
-    if (pkg.indexOf("/") !== -1 || pkg.indexOf("\\") !== -1) {
+    function n (er, data) {
+      if (er) return cb(er, data)
+      // install returns [ [folder, pkgId], ... ]
+      // but we definitely installed just one thing.
+      var d = data.filter(function (d) { return !d[3] })
+      var what = npa(d[0][0])
+      pp = d[0][1]
+      pkg = what.name
+      target = path.resolve(npm.dir, pkg)
+      next()
+    }
+
+    // if it's a folder, a random not-installed thing, or not a scoped package,
+    // then link or install it first
+    if (pkg[0] !== "@" && (pkg.indexOf("/") !== -1 || pkg.indexOf("\\") !== -1)) {
       return fs.lstat(path.resolve(pkg), function (er, st) {
         if (er || !st.isDirectory()) {
           npm.commands.install(t, pkg, n)
@@ -96,14 +97,13 @@ function linkInstall (pkgs, cb) {
 
     function next () {
       chain
-        ( [ [npm.commands, "unbuild", [target]]
-          , [function (cb) {
+        ( [ [function (cb) {
               log.verbose("link", "symlinking %s to %s",  pp, target)
               cb()
             }]
           , [symlink, pp, target]
-          // do run lifecycle scripts - full build here.
-          , rp && [build, [target]]
+          // do not run any scripts
+          , rp && [build, [target], npm.config.get("global"), build._noLC, true]
           , [ resultPrinter, pkg, pp, target, rp ] ]
         , cb )
     }
@@ -126,20 +126,17 @@ function linkPkg (folder, cb_) {
       return cb(er)
     }
     var target = path.resolve(npm.globalDir, d.name)
-    rm(target, function (er) {
+    symlink(me, target, false, true, function (er) {
       if (er) return cb(er)
-      symlink(me, target, function (er) {
+      log.verbose("link", "build target", target)
+      // also install missing dependencies.
+      npm.commands.install(me, [], function (er) {
         if (er) return cb(er)
-        log.verbose("link", "build target", target)
-        // also install missing dependencies.
-        npm.commands.install(me, [], function (er) {
+        // build the global stuff.  Don't run *any* scripts, because
+        // install command already will have done that.
+        build([target], true, build._noLC, true, function (er) {
           if (er) return cb(er)
-          // build the global stuff.  Don't run *any* scripts, because
-          // install command already will have done that.
-          build([target], true, build._noLC, true, function (er) {
-            if (er) return cb(er)
-            resultPrinter(path.basename(me), me, target, cb)
-          })
+          resultPrinter(path.basename(me), me, target, cb)
         })
       })
     })

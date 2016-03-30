@@ -1,0 +1,43 @@
+{
+  "name": "write-file-atomic",
+  "version": "1.1.4",
+  "description": "Write files in an atomic fashion w/configurable ownership",
+  "main": "index.js",
+  "scripts": {
+    "test": "standard && tap --coverage test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/iarna/write-file-atomic.git"
+  },
+  "keywords": [
+    "writeFile",
+    "atomic"
+  ],
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/iarna/write-file-atomic/issues"
+  },
+  "homepage": "https://github.com/iarna/write-file-atomic",
+  "dependencies": {
+    "graceful-fs": "^4.1.2",
+    "imurmurhash": "^0.1.4",
+    "slide": "^1.1.5"
+  },
+  "devDependencies": {
+    "require-inject": "^1.1.0",
+    "standard": "^5.4.1",
+    "tap": "^2.3.1"
+  },
+  "readme": "write-file-atomic\n-----------------\n\nThis is an extension for node's `fs.writeFile` that makes its operation\natomic and allows you set ownership (uid/gid of the file).\n\n### var writeFileAtomic = require('write-file-atomic')<br>writeFileAtomic(filename, data, [options], callback)\n\n* filename **String**\n* data **String** | **Buffer**\n* options **Object**\n  * chown **Object**\n    * uid **Number**\n    * gid **Number**\n  * encoding **String** | **Null** default = 'utf8'\n  * mode **Number** default = 438 (aka 0666 in Octal)\ncallback **Function**\n\nAtomically and asynchronously writes data to a file, replacing the file if it already\nexists.  data can be a string or a buffer.\n\nThe file is initially named `filename + \".\" + md5hex(__filename, process.pid, ++invocations)`.\nIf writeFile completes successfully then, if passed the **chown** option it will change\nthe ownership of the file. Finally it renames the file back to the filename you specified. If\nit encounters errors at any of these steps it will attempt to unlink the temporary file and then\npass the error back to the caller.\n\nIf provided, the **chown** option requires both **uid** and **gid** properties or else\nyou'll get an error.\n\nThe **encoding** option is ignored if **data** is a buffer. It defaults to 'utf8'.\n\nExample:\n\n```javascript\nwriteFileAtomic('message.txt', 'Hello Node', {chown:{uid:100,gid:50}}, function (err) {\n  if (err) throw err;\n  console.log('It\\'s saved!');\n});\n```\n\n### var writeFileAtomicSync = require('write-file-atomic').sync<br>writeFileAtomicSync(filename, data, [options])\n\nThe synchronous version of **writeFileAtomic**.\n",
+  "readmeFilename": "README.md",
+  "gitHead": "42dc04a17af96ac045f4979c8c951ee5a14a8b8b",
+  "_id": "write-file-atomic@1.1.4",
+  "_shasum": "b1f52dc2e8dc0e3cb04d187a25f758a38a90ca3b",
+  "_from": "write-file-atomic@>=1.1.4 <1.2.0"
+}

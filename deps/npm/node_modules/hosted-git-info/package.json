@@ -1,0 +1,59 @@
+{
+  "name": "hosted-git-info",
+  "version": "2.1.4",
+  "description": "Provides metadata and conversions from repository urls for Github, Bitbucket and Gitlab",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/hosted-git-info.git"
+  },
+  "keywords": [
+    "git",
+    "github",
+    "bitbucket",
+    "gitlab"
+  ],
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/hosted-git-info/issues"
+  },
+  "homepage": "https://github.com/npm/hosted-git-info",
+  "scripts": {
+    "test": "standard && tap test/*.js"
+  },
+  "devDependencies": {
+    "standard": "^3.3.2",
+    "tap": "^0.4.13"
+  },
+  "gitHead": "9e1a36df8eb050a663713c79e56d89dadba2bd8d",
+  "_id": "hosted-git-info@2.1.4",
+  "_shasum": "d9e953b26988be88096c46e926494d9604c300f8",
+  "_from": "hosted-git-info@>=2.1.2 <2.2.0",
+  "_npmVersion": "2.10.1",
+  "_nodeVersion": "2.0.2",
+  "_npmUser": {
+    "name": "othiym23",
+    "email": "ogd@aoaioxxysz.net"
+  },
+  "dist": {
+    "shasum": "d9e953b26988be88096c46e926494d9604c300f8",
+    "tarball": "http://registry.npmjs.org/hosted-git-info/-/hosted-git-info-2.1.4.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/hosted-git-info/-/hosted-git-info-2.1.4.tgz"
+}

@@ -6,6 +6,7 @@ module.exports = exports = shrinkwrap
 var npm = require("./npm.js")
   , log = require("npmlog")
   , fs = require("fs")
+  , writeFileAtomic = require("write-file-atomic")
   , path = require("path")
   , readJson = require("read-package-json")
   , sortedObject = require("sorted-object")
@@ -19,6 +20,12 @@ function shrinkwrap (args, silent, cb) {
     log.warn("shrinkwrap", "doesn't take positional args")
   }
 
+  // https://github.com/npm/npm/issues/7641
+  // introduced because `npm ls` can now show dev and prod depenednecy
+  // trees separately
+  if (npm.config.get("dev")) {
+    npm.config.set("production", true)
+  }
   npm.commands.ls([], true, function (er, _, pkginfo) {
     if (er) return cb(er)
     shrinkwrap_(pkginfo, silent, npm.config.get("dev"), cb)
@@ -44,7 +51,7 @@ function shrinkwrap_ (pkginfo, silent, dev, cb) {
             return
           }
 
-          log.warn("shrinkwrap", "Excluding devDependency: %s", dep)
+          log.warn("shrinkwrap", "Excluding devDependency: %s", dep, data.dependencies)
           delete pkginfo.dependencies[dep]
         })
       }
@@ -70,7 +77,7 @@ function save (pkginfo, silent, cb) {
 
   var file = path.resolve(npm.prefix, "npm-shrinkwrap.json")
 
-  fs.writeFile(file, swdata, function (er) {
+  writeFileAtomic(file, swdata, function (er) {
     if (er) return cb(er)
     if (silent) return cb(null, pkginfo)
     console.log("wrote npm-shrinkwrap.json")

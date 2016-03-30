@@ -1,0 +1,65 @@
+{
+  "author": {
+    "name": "Mark Cavage",
+    "email": "mcavage@gmail.com"
+  },
+  "contributors": [
+    {
+      "name": "David Gwynne",
+      "email": "loki@animata.net"
+    },
+    {
+      "name": "Yunong Xiao",
+      "email": "yunong@joyent.com"
+    },
+    {
+      "name": "Alex Wilson",
+      "email": "alex.wilson@joyent.com"
+    }
+  ],
+  "name": "asn1",
+  "description": "Contains parsers and serializers for ASN.1 (currently BER only)",
+  "version": "0.2.3",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mcavage/node-asn1.git"
+  },
+  "main": "lib/index.js",
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "0.4.8"
+  },
+  "scripts": {
+    "test": "tap ./tst"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mcavage/node-asn1/issues"
+  },
+  "homepage": "https://github.com/mcavage/node-asn1",
+  "_id": "asn1@0.2.3",
+  "_shasum": "dac8787713c9966849fc8180777ebe9c1ddf3b86",
+  "_resolved": "https://registry.npmjs.org/asn1/-/asn1-0.2.3.tgz",
+  "_from": "asn1@>=0.2.3 <0.3.0",
+  "_npmVersion": "1.4.28",
+  "_npmUser": {
+    "name": "pfmooney",
+    "email": "patrick.f.mooney@gmail.com"
+  },
+  "maintainers": [
+    {
+      "name": "mcavage",
+      "email": "mcavage@gmail.com"
+    },
+    {
+      "name": "pfmooney",
+      "email": "patrick.f.mooney@gmail.com"
+    }
+  ],
+  "dist": {
+    "shasum": "dac8787713c9966849fc8180777ebe9c1ddf3b86",
+    "tarball": "http://registry.npmjs.org/asn1/-/asn1-0.2.3.tgz"
+  },
+  "directories": {},
+  "readme": "ERROR: No README data found!"
+}

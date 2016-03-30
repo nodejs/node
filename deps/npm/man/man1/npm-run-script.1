@@ -1,45 +1,66 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-RUN\-SCRIPT" "1" "November 2015" "" ""
-.
+.TH "NPM\-RUN\-SCRIPT" "1" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-run-script\fR \-\- Run arbitrary package scripts
-.
-.SH "SYNOPSIS"
-.
-.nf
-npm run\-script [<pkg>] [command]
-npm run [<pkg>] [command]
-.
-.fi
-.
-.SH "DESCRIPTION"
-This runs an arbitrary command from a package\'s \fB"scripts"\fR object\.
-If no package name is provided, it will search for a \fBpackage\.json\fR
-in the current folder and use its \fB"scripts"\fR object\. If no \fB"command"\fR
-is provided, it will list the available top level scripts\.
-.
+\fBnpm-run-script\fR \- Run arbitrary package scripts
+.SH SYNOPSIS
 .P
-It is used by the test, start, restart, and stop commands, but can be
-called directly, as well\.
-.
-.SH "SEE ALSO"
-.
-.IP "\(bu" 4
+.RS 2
+.nf
+npm run\-script [command] [\-\- <args>]
+npm run [command] [\-\- <args>]
+.fi
+.RE
+.SH DESCRIPTION
+.P
+This runs an arbitrary command from a package's \fB"scripts"\fP object\.  If no
+\fB"command"\fP is provided, it will list the available scripts\.  \fBrun[\-script]\fP is
+used by the test, start, restart, and stop commands, but can be called
+directly, as well\. When the scripts in the package are printed out, they're
+separated into lifecycle (test, start, restart) and directly\-run scripts\.
+.P
+As of \fBnpm@2\.0\.0\fP \fIhttp://blog\.npmjs\.org/post/98131109725/npm\-2\-0\-0\fR, you can
+use custom arguments when executing scripts\. The special option \fB\-\-\fP is used by
+getopt \fIhttp://goo\.gl/KxMmtG\fR to delimit the end of the options\. npm will pass
+all the arguments after the \fB\-\-\fP directly to your script:
+.P
+.RS 2
+.nf
+npm run test \-\- \-\-grep="pattern"
+.fi
+.RE
+.P
+The arguments will only be passed to the script specified after \fBnpm run\fP
+and not to any pre or post script\.
+.P
+The \fBenv\fP script is a special built\-in command that can be used to list
+environment variables that will be available to the script at runtime\. If an
+"env" command is defined in your package it will take precedence over the
+built\-in\.
+.P
+In addition to the shell's pre\-existing \fBPATH\fP, \fBnpm run\fP adds
+\fBnode_modules/\.bin\fP to the \fBPATH\fP provided to scripts\. Any binaries provided by
+locally\-installed dependencies can be used without the \fBnode_modules/\.bin\fP
+prefix\. For example, if there is a \fBdevDependency\fP on \fBtap\fP in your package,
+you should write:
+.P
+.RS 2
+.nf
+"scripts": {"test": "tap test/\\*\.js"}
+.fi
+.RE
+.P
+instead of \fB"scripts": {"test": "node_modules/\.bin/tap test/\\*\.js"}\fP to run your tests\.
+.SH SEE ALSO
+.RS 0
+.IP \(bu 2
 npm help 7 scripts
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help test
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help start
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help restart
-.
-.IP "\(bu" 4
+.IP \(bu 2
 npm help stop
-.
-.IP "" 0
+
+.RE
 

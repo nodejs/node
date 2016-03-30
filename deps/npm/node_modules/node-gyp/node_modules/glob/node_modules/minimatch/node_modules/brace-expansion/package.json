@@ -1,0 +1,79 @@
+{
+  "name": "brace-expansion",
+  "description": "Brace expansion as known from sh/bash",
+  "version": "1.1.3",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/juliangruber/brace-expansion.git"
+  },
+  "homepage": "https://github.com/juliangruber/brace-expansion",
+  "main": "index.js",
+  "scripts": {
+    "test": "tape test/*.js",
+    "gentest": "bash test/generate.sh"
+  },
+  "dependencies": {
+    "balanced-match": "^0.3.0",
+    "concat-map": "0.0.1"
+  },
+  "devDependencies": {
+    "tape": "4.4.0"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Julian Gruber",
+    "email": "mail@juliangruber.com",
+    "url": "http://juliangruber.com"
+  },
+  "license": "MIT",
+  "testling": {
+    "files": "test/*.js",
+    "browsers": [
+      "ie/8..latest",
+      "firefox/20..latest",
+      "firefox/nightly",
+      "chrome/25..latest",
+      "chrome/canary",
+      "opera/12..latest",
+      "opera/next",
+      "safari/5.1..latest",
+      "ipad/6.0..latest",
+      "iphone/6.0..latest",
+      "android-browser/4.2..latest"
+    ]
+  },
+  "gitHead": "f0da1bb668e655f67b6b2d660c6e1c19e2a6f231",
+  "bugs": {
+    "url": "https://github.com/juliangruber/brace-expansion/issues"
+  },
+  "_id": "brace-expansion@1.1.3",
+  "_shasum": "46bff50115d47fc9ab89854abb87d98078a10991",
+  "_from": "brace-expansion@>=1.0.0 <2.0.0",
+  "_npmVersion": "3.3.12",
+  "_nodeVersion": "5.5.0",
+  "_npmUser": {
+    "name": "juliangruber",
+    "email": "julian@juliangruber.com"
+  },
+  "dist": {
+    "shasum": "46bff50115d47fc9ab89854abb87d98078a10991",
+    "tarball": "http://registry.npmjs.org/brace-expansion/-/brace-expansion-1.1.3.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "juliangruber",
+      "email": "julian@juliangruber.com"
+    },
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    }
+  ],
+  "_npmOperationalInternal": {
+    "host": "packages-6-west.internal.npmjs.com",
+    "tmp": "tmp/brace-expansion-1.1.3.tgz_1455216688668_0.948847763473168"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-1.1.3.tgz",
+  "readme": "ERROR: No README data found!"
+}

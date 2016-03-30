@@ -7,7 +7,6 @@
 // much better "put pkg X at folder Y" abstraction.  Oh well,
 // whatever.  Perfect enemy of the good, and all that.
 
-var url = require("url")
 var fs = require("fs")
 var asyncMap = require("slide").asyncMap
 var path = require("path")
@@ -16,6 +15,7 @@ var semver = require("semver")
 var rm = require("./utils/gently-rm.js")
 var log = require("npmlog")
 var npm = require("./npm.js")
+var mapToRegistry = require("./utils/map-to-registry.js")
 
 module.exports = dedupe
 
@@ -61,7 +61,7 @@ function dedupe_ (dir, filter, unavoidable, dryrun, silent, cb) {
       Object.keys(obj.children).forEach(function (k) {
         U(obj.children[k])
       })
-    })
+    })(data)
 
     // then collect them up and figure out who needs them
     ;(function C (obj) {
@@ -240,13 +240,19 @@ function findVersions (npm, summary, cb) {
     var versions = data.versions
 
     var ranges = data.ranges
-    var uri = url.resolve(npm.config.get("registry"), name)
-    npm.registry.get(uri, null, function (er, data) {
+    mapToRegistry(name, npm.config, function (er, uri, auth) {
+      if (er) return cb(er)
+
+      npm.registry.get(uri, { auth : auth }, next)
+    })
+
+    function next (er, data) {
       var regVersions = er ? [] : Object.keys(data.versions)
       var locMatch = bestMatch(versions, ranges)
-      var regMatch;
       var tag = npm.config.get("tag")
       var distTag = data["dist-tags"] && data["dist-tags"][tag]
+
+      var regMatch
       if (distTag && data.versions[distTag] && matches(distTag, ranges)) {
         regMatch = distTag
       } else {
@@ -254,7 +260,7 @@ function findVersions (npm, summary, cb) {
       }
 
       cb(null, [[name, has, loc, locMatch, regMatch, locs]])
-    })
+    }
   }, cb)
 }
 
@@ -308,11 +314,28 @@ function readInstalled (dir, counter, parent, cb) {
   })
 
   fs.readdir(path.resolve(dir, "node_modules"), function (er, c) {
-    children = c || [] // error is ok, just means no children.
-    children = children.filter(function (p) {
-      return !p.match(/^[\._-]/)
-    })
-    next()
+    children = children || [] // error is ok, just means no children.
+    // check if there are scoped packages.
+    asyncMap(c || [], function (child, cb) {
+      if (child.indexOf('@') === 0) {
+        fs.readdir(path.resolve(dir, "node_modules", child), function (er, scopedChildren) {
+          // error is ok, just means no children.
+          (scopedChildren || []).forEach(function (sc) {
+            children.push(path.join(child, sc))
+          })
+          cb()
+        })
+      } else {
+        children.push(child)
+        cb()
+      }
+    }, function (er) {
+      if (er) return cb(er)
+      children = children.filter(function (p) {
+        return !p.match(/^[\._-]/)
+      })
+      next();
+    });
   })
 
   function next () {

@@ -1,9 +1,9 @@
-npm-rm(1) -- Remove a package
+npm-uninstall(1) -- Remove a package
 =============================
 
 ## SYNOPSIS
 
-    npm uninstall <name> [--save|--save-dev|--save-optional]
+    npm uninstall [@<scope>/]<package> [--save|--save-dev|--save-optional]
     npm rm (with any of the previous argument usage)
 
 ## DESCRIPTION
@@ -27,9 +27,12 @@ the package version in your main package.json:
 
 * `--save-optional`: Package will be removed from your `optionalDependencies`.
 
+Scope is optional and follows the usual rules for `npm-scope(7)`.
+
 Examples:
 
     npm uninstall sax --save
+    npm uninstall @myorg/privatepackage --save
     npm uninstall node-tap --save-dev
     npm uninstall dtrace-provider --save-optional
 
