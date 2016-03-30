@@ -53,7 +53,9 @@ function print_commit (c) {
     .replace(/\b#(\d+)\b/g, '[#$1](https://github.com/npm/npm/issues/$1)')
   console.log(msg)
   if (c.credit) {
-    console.log(`  ([@${c.credit}](https://github.com/${c.credit}))`)
+    c.credit.forEach(function (credit) {
+      console.log(`  ([@${credit}](https://github.com/${credit}))`)
+    })
   } else {
     console.log(`  ([@${c.author}](https://github.com/${c.author}))`)
   }
@@ -80,7 +82,8 @@ function main () {
     } else if (m = line.match(/^PR-URL: (.*)/)) {
       commit.prurl = m[1]
     } else if (m = line.match(/^Credit: @(.*)/)) {
-      commit.credit = m[1]
+      if (!commit.credit) commit.credit = []
+      commit.credit.push(m[1])
     } else if (m = line.match(/^Fixes: #(.*)/)) {
       commit.fixes = m[1]
     } else if (m = line.match(/^Reviewed-By: @(.*)/)) {
