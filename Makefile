@@ -399,7 +399,7 @@ doc-upload: tar
 	scp -pr out/doc/ $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs.done"
 
-$(TARBALL)-headers: config.gypi release-only
+$(TARBALL)-headers: release-only
 	$(PYTHON) ./configure \
 		--prefix=/ \
 		--dest-cpu=$(DESTCPU) \
@@ -407,7 +407,7 @@ $(TARBALL)-headers: config.gypi release-only
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
-	find $(TARNAME)/ -type l | xargs rm # annoying on windows
+	find $(TARNAME)/ -type l | xargs rm -f
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	rm -rf $(TARNAME)
 	gzip -c -f -9 $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.gz
@@ -556,4 +556,5 @@ lint-ci: lint
 	dynamiclib test test-all test-addons build-addons website-upload pkg \
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
-	bench-http bench-fs bench-tls cctest run-ci lint-ci bench-ci
+	bench-http bench-fs bench-tls cctest run-ci lint-ci bench-ci \
+	$(TARBALL)-headers
