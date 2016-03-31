@@ -38,10 +38,7 @@ order of operations.
     │  │        check          │
     │  └──────────┬────────────┘
     │  ┌──────────┴────────────┐
-    │  │    close callbacks    │
-    │  └──────────┬────────────┘
-    │  ┌──────────┴────────────┐
-    └──┤        timers         │
+    └──┤    close callbacks    │
        └───────────────────────┘       
 
 *note: each box will be referred to as a "phase" of the event loop.*
@@ -77,7 +74,6 @@ actually uses are these four._
 * `poll`: retrieve new I/O events; node will block here when appropriate
 * `check`: setImmediate callbacks are invoked here
 * `close callbacks`: e.g socket.on('close', ...)
-* `timers`: indeed, again
 
 Between each run of the event loop, Node.js checks if it is waiting for
 any asynchronous I/O or timer and it shuts down cleanly if there are not
@@ -211,12 +207,6 @@ then the  `poll` phase becomes idle, it will end and continue to the
 If a socket or handle is closed abruptly (e.g. `socket.destroy()`), the
 `'close'` event will be emitted in this phase. Otherwise it will be
 emitted via `process.nextTick()`.
-
-### `timers` again
-
-Timers are checked twice to reduce the drift between the expected time
-and the actual execution time, as more code is executed between two
-loop runs.
 
 ## `setImmediate()` vs `setTimeout()`
 
