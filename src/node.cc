@@ -1113,7 +1113,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   Local<Value> args[] = { event, promise, value };
   Local<Object> process = env->process_object();
 
-  callback->Call(process, ARRAY_SIZE(args), args);
+  callback->Call(process, arraysize(args), args);
 }
 
 void SetupPromises(const FunctionCallbackInfo<Value>& args) {
@@ -1196,7 +1196,7 @@ Local<Value> MakeCallback(Environment* env,
         { Undefined(env->isolate()).As<Value>(), did_throw };
     TryCatch try_catch(env->isolate());
     MaybeLocal<Value> ar =
-        post_fn->Call(env->context(), object, ARRAY_SIZE(vals), vals);
+        post_fn->Call(env->context(), object, arraysize(vals), vals);
     if (ar.IsEmpty()) {
       ClearFatalExceptionHandlers(env);
       FatalException(env->isolate(), try_catch);
@@ -1651,7 +1651,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
     if (w->persistent().IsEmpty())
       continue;
     argv[idx] = w->object();
-    if (++idx >= ARRAY_SIZE(argv)) {
+    if (++idx >= arraysize(argv)) {
       fn->Call(ctx, ary, idx, argv).ToLocalChecked();
       idx = 0;
     }
@@ -1686,7 +1686,7 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
     if (owner->IsUndefined())
       owner = object;
     argv[idx] = owner;
-    if (++idx >= ARRAY_SIZE(argv)) {
+    if (++idx >= arraysize(argv)) {
       fn->Call(ctx, ary, idx, argv).ToLocalChecked();
       idx = 0;
     }
@@ -2520,12 +2520,12 @@ static void EnvGetter(Local<String> property,
   WCHAR buffer[32767];  // The maximum size allowed for environment variables.
   DWORD result = GetEnvironmentVariableW(reinterpret_cast<WCHAR*>(*key),
                                          buffer,
-                                         ARRAY_SIZE(buffer));
+                                         arraysize(buffer));
   // If result >= sizeof buffer the buffer was too small. That should never
   // happen. If result == 0 and result != ERROR_SUCCESS the variable was not
   // not found.
   if ((result > 0 || GetLastError() == ERROR_SUCCESS) &&
-      result < ARRAY_SIZE(buffer)) {
+      result < arraysize(buffer)) {
     const uint16_t* two_byte_buffer = reinterpret_cast<const uint16_t*>(buffer);
     Local<String> rc = String::NewFromTwoByte(isolate, two_byte_buffer);
     return info.GetReturnValue().Set(rc);
@@ -2626,7 +2626,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
                                     var,
                                     String::kNormalString,
                                     length);
-    if (++idx >= ARRAY_SIZE(argv)) {
+    if (++idx >= arraysize(argv)) {
       fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
       idx = 0;
     }
@@ -2658,7 +2658,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
                                        two_byte_buffer,
                                        String::kNormalString,
                                        two_byte_buffer_len);
-    if (++idx >= ARRAY_SIZE(argv)) {
+    if (++idx >= arraysize(argv)) {
       fn->Call(ctx, envarr, idx, argv).ToLocalChecked();
       idx = 0;
     }
@@ -3556,7 +3556,7 @@ static void EnableDebug(Environment* env) {
     FIXED_ONE_BYTE_STRING(env->isolate(), "internalMessage"),
     message
   };
-  MakeCallback(env, env->process_object(), "emit", ARRAY_SIZE(argv), argv);
+  MakeCallback(env, env->process_object(), "emit", arraysize(argv), argv);
 
   // Enabled debugger, possibly making it wait on a semaphore
   env->debugger_agent()->Enable();
@@ -3677,7 +3677,7 @@ static int RegisterDebugSignalHandler() {
 
   if (GetDebugSignalHandlerMappingName(pid,
                                        mapping_name,
-                                       ARRAY_SIZE(mapping_name)) < 0) {
+                                       arraysize(mapping_name)) < 0) {
     return -1;
   }
 
@@ -3740,7 +3740,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 
   if (GetDebugSignalHandlerMappingName(pid,
                                        mapping_name,
-                                       ARRAY_SIZE(mapping_name)) < 0) {
+                                       arraysize(mapping_name)) < 0) {
     env->ThrowErrnoException(errno, "sprintf");
     goto out;
   }
@@ -4017,7 +4017,7 @@ void EmitBeforeExit(Environment* env) {
     FIXED_ONE_BYTE_STRING(env->isolate(), "beforeExit"),
     process_object->Get(exit_code)->ToInteger(env->isolate())
   };
-  MakeCallback(env, process_object, "emit", ARRAY_SIZE(args), args);
+  MakeCallback(env, process_object, "emit", arraysize(args), args);
 }
 
 
@@ -4036,7 +4036,7 @@ int EmitExit(Environment* env) {
     Integer::New(env->isolate(), code)
   };
 
-  MakeCallback(env, process_object, "emit", ARRAY_SIZE(args), args);
+  MakeCallback(env, process_object, "emit", arraysize(args), args);
 
   // Reload exit code, it may be changed by `emit('exit')`
   return process_object->Get(exitCode)->Int32Value();
