@@ -70,7 +70,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
     BuildStatsObject(env, prev),
     Integer::New(env->isolate(), status)
   };
-  wrap->MakeCallback(env->onchange_string(), ARRAY_SIZE(argv), argv);
+  wrap->MakeCallback(env->onchange_string(), arraysize(argv), argv);
 }
 
 

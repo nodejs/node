@@ -240,7 +240,7 @@ static void After(uv_fs_t *req) {
             name_argv[name_idx++] =
                 String::NewFromUtf8(env->isolate(), ent.name);
 
-            if (name_idx >= ARRAY_SIZE(name_argv)) {
+            if (name_idx >= arraysize(name_argv)) {
               fn->Call(env->context(), names, name_idx, name_argv)
                   .ToLocalChecked();
               name_idx = 0;
@@ -447,7 +447,7 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 
   // Call out to JavaScript to create the stats object.
   Local<Value> stats =
-    env->fs_stats_constructor_function()->NewInstance(ARRAY_SIZE(argv), argv);
+    env->fs_stats_constructor_function()->NewInstance(arraysize(argv), argv);
 
   if (stats.IsEmpty())
     return handle_scope.Escape(Local<Object>());
@@ -845,7 +845,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
       name_v[name_idx++] = String::NewFromUtf8(env->isolate(), ent.name);
 
-      if (name_idx >= ARRAY_SIZE(name_v)) {
+      if (name_idx >= arraysize(name_v)) {
         fn->Call(env->context(), names, name_idx, name_v)
             .ToLocalChecked();
         name_idx = 0;
@@ -962,7 +962,7 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   uv_buf_t s_iovs[1024];  // use stack allocation when possible
   uv_buf_t* iovs;
 
-  if (chunkCount > ARRAY_SIZE(s_iovs))
+  if (chunkCount > arraysize(s_iovs))
     iovs = new uv_buf_t[chunkCount];
   else
     iovs = s_iovs;
