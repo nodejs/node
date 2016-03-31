@@ -242,7 +242,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     Local<Value> vals[] = { uid, did_throw };
     TryCatch try_catch(env()->isolate());
     MaybeLocal<Value> ar =
-        post_fn->Call(env()->context(), context, ARRAY_SIZE(vals), vals);
+        post_fn->Call(env()->context(), context, arraysize(vals), vals);
     if (ar.IsEmpty()) {
       ClearFatalExceptionHandlers(env());
       FatalException(env()->isolate(), try_catch);

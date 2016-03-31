@@ -193,7 +193,7 @@ class Parser : public AsyncWrap {
     if (num_fields_ == num_values_) {
       // start of new field name
       num_fields_++;
-      if (num_fields_ == ARRAY_SIZE(fields_)) {
+      if (num_fields_ == static_cast<int>(arraysize(fields_))) {
         // ran out of space - flush to javascript land
         Flush();
         num_fields_ = 1;
@@ -202,7 +202,7 @@ class Parser : public AsyncWrap {
       fields_[num_fields_ - 1].Reset();
     }
 
-    CHECK_LT(num_fields_, static_cast<int>(ARRAY_SIZE(fields_)));
+    CHECK_LT(num_fields_, static_cast<int>(arraysize(fields_)));
     CHECK_EQ(num_fields_, num_values_ + 1);
 
     fields_[num_fields_ - 1].Update(at, length);
@@ -218,7 +218,7 @@ class Parser : public AsyncWrap {
       values_[num_values_ - 1].Reset();
     }
 
-    CHECK_LT(num_values_, static_cast<int>(ARRAY_SIZE(values_)));
+    CHECK_LT(num_values_, static_cast<int>(arraysize(values_)));
     CHECK_EQ(num_values_, num_fields_);
 
     values_[num_values_ - 1].Update(at, length);
@@ -252,7 +252,7 @@ class Parser : public AsyncWrap {
       return 0;
 
     Local<Value> undefined = Undefined(env()->isolate());
-    for (size_t i = 0; i < ARRAY_SIZE(argv); i++)
+    for (size_t i = 0; i < arraysize(argv); i++)
       argv[i] = undefined;
 
     if (have_flushed_) {
@@ -293,7 +293,7 @@ class Parser : public AsyncWrap {
     Environment::AsyncCallbackScope callback_scope(env());
 
     Local<Value> head_response =
-        MakeCallback(cb.As<Function>(), ARRAY_SIZE(argv), argv);
+        MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (head_response.IsEmpty()) {
       got_exception_ = true;
@@ -328,7 +328,7 @@ class Parser : public AsyncWrap {
       Integer::NewFromUnsigned(env()->isolate(), length)
     };
 
-    Local<Value> r = MakeCallback(cb.As<Function>(), ARRAY_SIZE(argv), argv);
+    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -646,7 +646,7 @@ class Parser : public AsyncWrap {
 
     do {
       size_t j = 0;
-      while (i < num_values_ && j < ARRAY_SIZE(argv) / 2) {
+      while (i < num_values_ && j < arraysize(argv) / 2) {
         argv[j * 2] = fields_[i].ToString(env());
         argv[j * 2 + 1] = values_[i].ToString(env());
         i++;
@@ -676,7 +676,7 @@ class Parser : public AsyncWrap {
       url_.ToString(env())
     };
 
-    Local<Value> r = MakeCallback(cb.As<Function>(), ARRAY_SIZE(argv), argv);
+    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (r.IsEmpty())
       got_exception_ = true;
