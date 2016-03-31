@@ -109,8 +109,11 @@ inline static int snprintf(char *buffer, size_t n, const char *format, ...) {
 #endif
 #endif
 
-#ifndef ARRAY_SIZE
-# define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define arraysize(a) (sizeof(a) / sizeof(*a))  // Workaround for VS 2013.
+#else
+template <typename T, size_t N>
+constexpr size_t arraysize(const T(&)[N]) { return N; }
 #endif
 
 #ifndef ROUND_UP

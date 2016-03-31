@@ -429,7 +429,7 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 
   // Call out to JavaScript to create the stats object.
   Local<Value> stats =
-    env->fs_stats_constructor_function()->NewInstance(ARRAY_SIZE(argv), argv);
+    env->fs_stats_constructor_function()->NewInstance(arraysize(argv), argv);
 
   if (stats.IsEmpty())
     return handle_scope.Escape(Local<Object>());
@@ -932,7 +932,7 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   uv_buf_t s_iovs[1024];  // use stack allocation when possible
   uv_buf_t* iovs;
 
-  if (chunkCount > ARRAY_SIZE(s_iovs))
+  if (chunkCount > arraysize(s_iovs))
     iovs = new uv_buf_t[chunkCount];
   else
     iovs = s_iovs;

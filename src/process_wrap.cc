@@ -254,7 +254,7 @@ class ProcessWrap : public HandleWrap {
       OneByteString(env->isolate(), signo_string(term_signal))
     };
 
-    wrap->MakeCallback(env->onexit_string(), ARRAY_SIZE(argv), argv);
+    wrap->MakeCallback(env->onexit_string(), arraysize(argv), argv);
   }
 
   uv_process_t process_;
