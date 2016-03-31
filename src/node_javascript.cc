@@ -14,15 +14,17 @@ using v8::String;
 
 Local<String> MainSource(Environment* env) {
   return String::NewFromUtf8(
-      env->isolate(), reinterpret_cast<const char*>(node_native),
-      NewStringType::kNormal, sizeof(node_native)).ToLocalChecked();
+      env->isolate(),
+      reinterpret_cast<const char*>(internal_bootstrap_node_native),
+      NewStringType::kNormal,
+      sizeof(internal_bootstrap_node_native)).ToLocalChecked();
 }
 
 void DefineJavaScript(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   for (auto native : natives) {
-    if (native.source != node_native) {
+    if (native.source != internal_bootstrap_node_native) {
       Local<String> name = String::NewFromUtf8(env->isolate(), native.name);
       Local<String> source =
           String::NewFromUtf8(
