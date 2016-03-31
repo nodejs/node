@@ -83,7 +83,7 @@ void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
   };
 
   if (req_wrap->object()->Has(env->oncomplete_string()))
-    req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+    req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }
@@ -130,7 +130,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   if (storage_size > INT_MAX)
     return UV_ENOBUFS;
 
-  if (ARRAY_SIZE(bufs_) < count)
+  if (arraysize(bufs_) < count)
     bufs = new uv_buf_t[count];
 
   WriteWrap* req_wrap = WriteWrap::New(env,
@@ -388,7 +388,7 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
   }
 
   if (req_wrap->object()->Has(env->oncomplete_string()))
-    req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+    req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   req_wrap->Dispose();
 }
@@ -416,10 +416,10 @@ void StreamBase::EmitData(ssize_t nread,
     node::MakeCallback(env,
                        GetObject(),
                        env->onread_string(),
-                       ARRAY_SIZE(argv),
+                       arraysize(argv),
                        argv);
   } else {
-    async->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
+    async->MakeCallback(env->onread_string(), arraysize(argv), argv);
   }
 }
 

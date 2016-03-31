@@ -313,7 +313,7 @@ class ZCtx : public AsyncWrap {
 
     // call the write() cb
     Local<Value> args[2] = { avail_in, avail_out };
-    ctx->MakeCallback(env->callback_string(), ARRAY_SIZE(args), args);
+    ctx->MakeCallback(env->callback_string(), arraysize(args), args);
 
     ctx->Unref();
     if (ctx->pending_close_)
@@ -335,7 +335,7 @@ class ZCtx : public AsyncWrap {
       OneByteString(env->isolate(), message),
       Number::New(env->isolate(), ctx->err_)
     };
-    ctx->MakeCallback(env->onerror_string(), ARRAY_SIZE(args), args);
+    ctx->MakeCallback(env->onerror_string(), arraysize(args), args);
 
     // no hope of rescue.
     if (ctx->write_in_progress_)
