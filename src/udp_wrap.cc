@@ -380,14 +380,14 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   if (nread < 0) {
     if (buf->base != nullptr)
       free(buf->base);
-    wrap->MakeCallback(env->onmessage_string(), ARRAY_SIZE(argv), argv);
+    wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);
     return;
   }
 
   char* base = static_cast<char*>(realloc(buf->base, nread));
   argv[2] = Buffer::New(env, base, nread).ToLocalChecked();
   argv[3] = AddressToJS(env, addr);
-  wrap->MakeCallback(env->onmessage_string(), ARRAY_SIZE(argv), argv);
+  wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);
 }
 
 

@@ -22,7 +22,7 @@
 #include "debug-agent.h"
 
 #include "node.h"
-#include "node_internals.h"  // ARRAY_SIZE
+#include "node_internals.h"  // arraysize
 #include "env.h"
 #include "env-inl.h"
 #include "v8.h"
@@ -175,9 +175,9 @@ void Agent::WorkerRun() {
         isolate,
         &child_loop_,
         context,
-        ARRAY_SIZE(argv),
+        arraysize(argv),
         argv,
-        ARRAY_SIZE(argv),
+        arraysize(argv),
         argv);
 
     child_env_ = env;
@@ -301,7 +301,7 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
     MakeCallback(isolate,
                  api,
                  "onmessage",
-                 ARRAY_SIZE(argv),
+                 arraysize(argv),
                  argv);
     delete msg;
   }
