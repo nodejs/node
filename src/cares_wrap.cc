@@ -310,7 +310,7 @@ class QueryWrap : public AsyncWrap {
       Integer::New(env()->isolate(), 0),
       answer
     };
-    MakeCallback(env()->oncomplete_string(), ARRAY_SIZE(argv), argv);
+    MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
   }
 
   void CallOnComplete(Local<Value> answer, Local<Value> family) {
@@ -321,7 +321,7 @@ class QueryWrap : public AsyncWrap {
       answer,
       family
     };
-    MakeCallback(env()->oncomplete_string(), ARRAY_SIZE(argv), argv);
+    MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
   }
 
   void ParseError(int status) {
@@ -1037,7 +1037,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   uv_freeaddrinfo(res);
 
   // Make the callback into JavaScript
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }
@@ -1068,7 +1068,7 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   }
 
   // Make the callback into JavaScript
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }

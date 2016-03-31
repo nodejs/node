@@ -176,7 +176,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
     }
   }
 
-  wrap->MakeCallback(env->onchange_string(), ARRAY_SIZE(argv), argv);
+  wrap->MakeCallback(env->onchange_string(), arraysize(argv), argv);
 }
 
 

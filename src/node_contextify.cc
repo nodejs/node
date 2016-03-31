@@ -162,7 +162,7 @@ class ContextifyContext {
           CHECK(clone_property_method->IsFunction());
         }
         Local<Value> args[] = { global, key, sandbox_obj };
-        clone_property_method->Call(global, ARRAY_SIZE(args), args);
+        clone_property_method->Call(global, arraysize(args), args);
       }
     }
   }

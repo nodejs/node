@@ -54,7 +54,7 @@ inline AsyncWrap::AsyncWrap(Environment* env,
   v8::TryCatch try_catch(env->isolate());
 
   v8::MaybeLocal<v8::Value> ret =
-      init_fn->Call(env->context(), object, ARRAY_SIZE(argv), argv);
+      init_fn->Call(env->context(), object, arraysize(argv), argv);
 
   if (ret.IsEmpty()) {
     ClearFatalExceptionHandlers(env);

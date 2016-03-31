@@ -764,7 +764,7 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   if (!root_cert_store) {
     root_cert_store = X509_STORE_new();
 
-    for (size_t i = 0; i < ARRAY_SIZE(root_certs); i++) {
+    for (size_t i = 0; i < arraysize(root_certs); i++) {
       BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
       if (bp == nullptr) {
         return;
@@ -1110,7 +1110,7 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   Local<Value> ret = node::MakeCallback(env,
                                         sc->object(),
                                         env->ticketkeycallback_string(),
-                                        ARRAY_SIZE(argv),
+                                        arraysize(argv),
                                         argv);
   Local<Array> arr = ret.As<Array>();
 
@@ -1307,7 +1307,7 @@ int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
       sess->session_id_length).ToLocalChecked();
   Local<Value> argv[] = { session, buff };
   w->new_session_wait_ = true;
-  w->MakeCallback(env->onnewsession_string(), ARRAY_SIZE(argv), argv);
+  w->MakeCallback(env->onnewsession_string(), arraysize(argv), argv);
 
   return 0;
 }
@@ -1341,7 +1341,7 @@ void SSLWrap<Base>::OnClientHello(void* arg,
                  Boolean::New(env->isolate(), hello.ocsp_request()));
 
   Local<Value> argv[] = { hello_obj };
-  w->MakeCallback(env->onclienthello_string(), ARRAY_SIZE(argv), argv);
+  w->MakeCallback(env->onclienthello_string(), arraysize(argv), argv);
 }
 
 
@@ -1416,8 +1416,8 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
   int nids[] = { NID_subject_alt_name, NID_info_access };
   Local<String> keys[] = { env->subjectaltname_string(),
                            env->infoaccess_string() };
-  CHECK_EQ(ARRAY_SIZE(nids), ARRAY_SIZE(keys));
-  for (unsigned int i = 0; i < ARRAY_SIZE(nids); i++) {
+  CHECK_EQ(arraysize(nids), arraysize(keys));
+  for (size_t i = 0; i < arraysize(nids); i++) {
     int index = X509_get_ext_by_NID(cert, nids[i], -1);
     if (index < 0)
       continue;
@@ -2326,7 +2326,7 @@ int SSLWrap<Base>::SSLCertCallback(SSL* s, void* arg) {
   info->Set(env->ocsp_request_string(), Boolean::New(env->isolate(), ocsp));
 
   Local<Value> argv[] = { info };
-  w->MakeCallback(env->oncertcb_string(), ARRAY_SIZE(argv), argv);
+  w->MakeCallback(env->oncertcb_string(), arraysize(argv), argv);
 
   if (!w->cert_cb_running_)
     return 1;
@@ -2689,7 +2689,7 @@ inline CheckResult CheckWhitelistedServerCert(X509_STORE_CTX* ctx) {
     CHECK(ret);
 
     void* result = bsearch(hash, WhitelistedCNNICHashes,
-                           ARRAY_SIZE(WhitelistedCNNICHashes),
+                           arraysize(WhitelistedCNNICHashes),
                            CNNIC_WHITELIST_HASH_LEN, compar);
     if (result == nullptr) {
       sk_X509_pop_free(chain, X509_free);
@@ -4438,7 +4438,7 @@ void DiffieHellman::DiffieHellmanGroup(
   bool initialized = false;
 
   const node::Utf8Value group_name(env->isolate(), args[0]);
-  for (unsigned int i = 0; i < ARRAY_SIZE(modp_groups); ++i) {
+  for (size_t i = 0; i < arraysize(modp_groups); ++i) {
     const modp_group* it = modp_groups + i;
 
     if (strcasecmp(*group_name, it->name) != 0)
@@ -5141,7 +5141,7 @@ void EIO_PBKDF2After(uv_work_t* work_req, int status) {
   Context::Scope context_scope(env->context());
   Local<Value> argv[2];
   EIO_PBKDF2After(req, argv);
-  req->MakeCallback(env->ondone_string(), ARRAY_SIZE(argv), argv);
+  req->MakeCallback(env->ondone_string(), arraysize(argv), argv);
   delete req;
 }
 
@@ -5382,7 +5382,7 @@ void RandomBytesAfter(uv_work_t* work_req, int status) {
   Context::Scope context_scope(env->context());
   Local<Value> argv[2];
   RandomBytesCheck(req, argv);
-  req->MakeCallback(env->ondone_string(), ARRAY_SIZE(argv), argv);
+  req->MakeCallback(env->ondone_string(), arraysize(argv), argv);
   delete req;
 }
 
