@@ -78,14 +78,14 @@ to one of these new APIs.*
 
 * [`Buffer.from(array)`][buffer_from_array] returns a new `Buffer` containing
   a *copy* of the provided octets.
-* [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][buffer_from_arraybuf]
+* [`Buffer.from(arrayBuffer[, byteOffset][, length])`][buffer_from_arraybuf]
   returns a new `Buffer` that *shares* the same allocated memory as the given
   `ArrayBuffer`.
 * [`Buffer.from(buffer)`][buffer_from_buffer] returns a new `Buffer`
   containing a *copy* of the contents of the given `Buffer`.
 * [`Buffer.from(str[, encoding])`][buffer_from_string] returns a new `Buffer`
   containing a *copy* of the provided string.
-* [`Buffer.alloc(size[, fill[, encoding]])`][buffer_alloc] returns a "filled"
+* [`Buffer.alloc(size[, fill][, encoding])`][buffer_alloc] returns a "filled"
   `Buffer` instance of the specified size. This method can be significantly
   slower than [`Buffer.allocUnsafe(size)`][buffer_allocunsafe] but ensures that
   newly created `Buffer` instances never contain old and potentially sensitive
@@ -224,14 +224,14 @@ different signatures and implementations. Specifically, the TypedArray variants
 accept a second argument that is a mapping function that is invoked on every
 element of the typed array:
 
-* `TypedArray.from(source[, mapFn[, thisArg]])`
+* `TypedArray.from(source[, mapFn][, thisArg])`
 
 The `Buffer.from()` method, however, does not support the use of a mapping
 function:
 
 * [`Buffer.from(array)`][buffer_from_array]
 * [`Buffer.from(buffer)`][buffer_from_buffer]
-* [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][buffer_from_arraybuf]
+* [`Buffer.from(arrayBuffer[, byteOffset][, length])`][buffer_from_arraybuf]
 * [`Buffer.from(str[, encoding])`][buffer_from_string]
 
 ## Buffers and ES6 iteration
@@ -293,10 +293,10 @@ console.log(buf2.toString());
   // 'buffer' (copy is not changed)
 ```
 
-### new Buffer(arrayBuffer[, byteOffset [, length]])
+### new Buffer(arrayBuffer[, byteOffset][, length])
 
     Stability: 0 - Deprecated: Use
-    [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][buffer_from_arraybuf]
+    [`Buffer.from(arrayBuffer[, byteOffset][, length])`][buffer_from_arraybuf]
     instead.
 
 * `arrayBuffer` {ArrayBuffer} The `.buffer` property of a `TypedArray` or a
@@ -331,7 +331,7 @@ console.log(buf);
 ### new Buffer(size)
 
     Stability: 0 - Deprecated: Use
-    [`Buffer.alloc(size[, fill[, encoding]])`][buffer_alloc] instead (also
+    [`Buffer.alloc(size[, fill][, encoding])`][buffer_alloc] instead (also
     see [`Buffer.allocUnsafe(size)`][buffer_allocunsafe]).
 
 * `size` {Number}
@@ -380,7 +380,7 @@ console.log(buf2.toString());
   // prints: this is a tést
 ```
 
-### Class Method: Buffer.alloc(size[, fill[, encoding]])
+### Class Method: Buffer.alloc(size[, fill][, encoding])
 
 * `size` {Number}
 * `fill` {Value} Default: `undefined`
@@ -555,7 +555,7 @@ const buf = Buffer.from([0x62,0x75,0x66,0x66,0x65,0x72]);
 
 A `TypeError` will be thrown if `array` is not an `Array`.
 
-### Class Method: Buffer.from(arrayBuffer[, byteOffset[, length]])
+### Class Method: Buffer.from(arrayBuffer[, byteOffset][, length])
 
 * `arrayBuffer` {ArrayBuffer} The `.buffer` property of a `TypedArray` or
   a `new ArrayBuffer()`
@@ -708,7 +708,7 @@ console.log(buf2.compare(buf3));
   // produces sort order [buf1, buf3, buf2]
 ```
 
-### buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
+### buf.copy(targetBuffer[, targetStart][, sourceStart][, sourceEnd])
 
 * `targetBuffer` {Buffer} Buffer to copy into
 * `targetStart` {Number} Default: 0
@@ -791,7 +791,7 @@ console.log(buf1.equals(buf3));
   // Prints: false
 ```
 
-### buf.fill(value[, offset[, end]][, encoding])
+### buf.fill(value[, offset][, end][, encoding])
 
 * `value` {String|Buffer|Number}
 * `offset` {Number} Default: 0
@@ -1208,7 +1208,7 @@ buf.readUIntBE(0, 6).toString(16);
 Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 `offset` to be beyond the end of the Buffer.
 
-### buf.slice([start[, end]])
+### buf.slice([start][, end])
 
 * `start` {Number} Default: 0
 * `end` {Number} Default: `buffer.length`
@@ -1288,7 +1288,7 @@ console.log(buf);
   // Prints Buffer(0x4, 0x3, 0x2, 0x1, 0x8, 0x7, 0x6, 0x5)
 ```
 
-### buf.toString([encoding[, start[, end]]])
+### buf.toString([encoding][, start][, end])
 
 * `encoding` {String} Default: `'utf8'`
 * `start` {Number} Default: 0
@@ -1371,7 +1371,7 @@ for (var value of buf) {
 //   114
 ```
 
-### buf.write(string[, offset[, length]][, encoding])
+### buf.write(string[, offset][, length][, encoding])
 
 * `string` {String} Bytes to be written to buffer
 * `offset` {Number} Default: 0

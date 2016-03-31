@@ -750,7 +750,7 @@ console.log(`Spawned child pid: ${grep.pid}`);
 grep.stdin.end();
 ```
 
-### child.send(message[, sendHandle[, options]][, callback])
+### child.send(message[, sendHandle][, options][, callback])
 
 * `message` {Object}
 * `sendHandle` {Handle}

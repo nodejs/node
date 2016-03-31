@@ -1029,7 +1029,7 @@ In custom builds from non-release versions of the source tree, only the
 `name` property may be present. The additional properties should not be
 relied upon to exist.
 
-## process.send(message[, sendHandle[, options]][, callback])
+## process.send(message[, sendHandle][, options][, callback])
 
 * `message` {Object}
 * `sendHandle` {Handle object}

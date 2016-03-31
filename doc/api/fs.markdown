@@ -1248,7 +1248,7 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-## fs.write(fd, data[, position[, encoding]], callback)
+## fs.write(fd, data[, position][, encoding], callback)
 
 * `fd` {Integer}
 * `data` {String | Buffer}
@@ -1339,10 +1339,10 @@ The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 * `length` {Integer}
 * `position` {Integer}
 
-## fs.writeSync(fd, data[, position[, encoding]])
+## fs.writeSync(fd, data[, position][, encoding])
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `data` {String | Buffer}
 * `position` {Integer}
 * `encoding` {String}
 
