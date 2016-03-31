@@ -1,0 +1,42 @@
+{
+  "name": "normalize-git-url",
+  "version": "3.0.1",
+  "description": "Normalizes Git URLs. For npm, but you can use it too.",
+  "main": "normalize-git-url.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "^1.1.0"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/normalize-git-url.git"
+  },
+  "keywords": [
+    "git",
+    "github",
+    "url",
+    "normalize",
+    "npm"
+  ],
+  "author": {
+    "name": "Forrest L Norvell",
+    "email": "ogd@aoaioxxysz.net"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/normalize-git-url/issues"
+  },
+  "homepage": "https://github.com/npm/normalize-git-url",
+  "readme": "# normalize-git-url\n\nYou have a bunch of Git URLs. You want to convert them to a canonical\nrepresentation, probably for use inside npm so that it doesn't end up creating\na bunch of superfluous cached origins. You use this package.\n\n## Usage\n\n```javascript\nvar ngu = require('normalize-git-url');\nvar normalized = ngu(\"git+ssh://git@github.com:organization/repo.git#hashbrowns\")\n// get back:\n// {\n//   url : \"ssh://git@github.com/organization/repo.git\",\n//   branch : \"hashbrowns\" // did u know hashbrowns are delicious?\n// }\n```\n\n## API\n\nThere's just the one function, and all it takes is a single parameter, a non-normalized Git URL.\n\n### normalizeGitUrl(url)\n\n* `url` {String} The Git URL (very loosely speaking) to be normalized.\n\nReturns an object with the following format:\n\n* `url` {String} The normalized URL.\n* `branch` {String} The treeish to be checked out once the repo at `url` is\n  cloned. It doesn't have to be a branch, but it's a lot easier to intuit what\n  the output is for with that name.\n\n## Limitations\n\nRight now this doesn't try to special-case GitHub too much -- it doesn't ensure\nthat `.git` is added to the end of URLs, it doesn't prefer `https:` over\n`http:` or `ssh:`, it doesn't deal with redirects, and it doesn't try to\nresolve symbolic names to treeish hashcodes. For now, it just tries to account\nfor minor differences in representation.\n",
+  "readmeFilename": "README.md",
+  "gitHead": "8393cd4345e404eb6ad2ff6853dcc8287807ca22",
+  "_id": "normalize-git-url@3.0.1",
+  "_shasum": "d40d419d05a15870271e50534dbb7b8ccd9b0a5c",
+  "_from": "normalize-git-url@latest"
+}

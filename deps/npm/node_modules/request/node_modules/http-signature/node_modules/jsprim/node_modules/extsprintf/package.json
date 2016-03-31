@@ -1,0 +1,38 @@
+{
+  "name": "extsprintf",
+  "version": "1.0.2",
+  "description": "extended POSIX-style sprintf",
+  "main": "./lib/extsprintf.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/davepacheco/node-extsprintf.git"
+  },
+  "engines": [
+    "node >=0.6.0"
+  ],
+  "_id": "extsprintf@1.0.2",
+  "dist": {
+    "shasum": "e1080e0658e300b06294990cc70e1502235fd550",
+    "tarball": "http://registry.npmjs.org/extsprintf/-/extsprintf-1.0.2.tgz"
+  },
+  "_npmVersion": "1.1.65",
+  "_npmUser": {
+    "name": "dap",
+    "email": "dap@cs.brown.edu"
+  },
+  "maintainers": [
+    {
+      "name": "dap",
+      "email": "dap@cs.brown.edu"
+    }
+  ],
+  "directories": {},
+  "_shasum": "e1080e0658e300b06294990cc70e1502235fd550",
+  "_resolved": "https://registry.npmjs.org/extsprintf/-/extsprintf-1.0.2.tgz",
+  "_from": "extsprintf@1.0.2",
+  "bugs": {
+    "url": "https://github.com/davepacheco/node-extsprintf/issues"
+  },
+  "readme": "ERROR: No README data found!",
+  "homepage": "https://github.com/davepacheco/node-extsprintf#readme"
+}

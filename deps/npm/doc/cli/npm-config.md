@@ -12,6 +12,8 @@ npm-config(1) -- Manage the npm configuration files
     npm get <key>
     npm set <key> <value> [--global]
 
+    aliases: c
+
 ## DESCRIPTION
 
 npm gets its config settings from the command line, environment

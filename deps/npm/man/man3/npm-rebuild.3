@@ -1,22 +1,18 @@
-.\" Generated with Ronnjs 0.4.0
-.\" http://github.com/kapouer/ronnjs
-.
-.TH "NPM\-REBUILD" "3" "November 2015" "" ""
-.
+.TH "NPM\-REBUILD" "3" "March 2016" "" ""
 .SH "NAME"
-\fBnpm-rebuild\fR \-\- Rebuild a package
-.
-.SH "SYNOPSIS"
-.
+\fBnpm-rebuild\fR \- Rebuild a package
+.SH SYNOPSIS
+.P
+.RS 2
 .nf
 npm\.commands\.rebuild([packages,] callback)
-.
 .fi
-.
-.SH "DESCRIPTION"
-This command runs the \fBnpm build\fR command on each of the matched packages\.  This is useful
+.RE
+.SH DESCRIPTION
+.P
+This command runs the \fBnpm build\fP command on each of the matched packages\.  This is useful
 when you install a new version of node, and must recompile all your C++ addons with
-the new binary\. If no \'packages\' parameter is specify, every package will be rebuilt\.
-.
-.SH "CONFIGURATION"
-See \fBnpm help build\fR
+the new binary\. If no 'packages' parameter is specify, every package will be rebuilt\.
+.SH CONFIGURATION
+.P
+See \fBnpm help build\fP

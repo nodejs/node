@@ -1,52 +1,73 @@
 var crypto = require("crypto")
-var path = require("path")
+var resolve = require("path").resolve
+
+var lockfile = require("lockfile")
+var log = require("npmlog")
+var mkdirp = require("mkdirp")
 
 var npm = require("../npm.js")
-var lockFile = require("lockfile")
-var log = require("npmlog")
-var getCacheStat = require("../cache/get-stat.js")
+var correctMkdir = require('../utils/correct-mkdir.js')
 
-function lockFileName (u) {
-  var c = u.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "")
-    , h = crypto.createHash("sha1").update(u).digest("hex")
-  h = h.substr(0, 8)
-  c = c.substr(-32)
-  log.silly("lockFile", h + "-" + c, u)
-  return path.resolve(npm.config.get("cache"), h + "-" + c + ".lock")
+var installLocks = {}
+
+function lockFileName (base, name) {
+  var c = name.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+    , p = resolve(base, name)
+    , h = crypto.createHash("sha1").update(p).digest("hex")
+    , l = resolve(npm.cache, "_locks")
+
+  return resolve(l, c.substr(0, 24)+"-"+h.substr(0, 16)+".lock")
 }
 
-var myLocks = {}
-function lock (u, cb) {
-  // the cache dir needs to exist already for this.
-  getCacheStat(function (er, cs) {
+function lock (base, name, cb) {
+  var lockDir = resolve(npm.cache, "_locks")
+  correctMkdir(lockDir, function (er) {
     if (er) return cb(er)
-    var opts = { stale: npm.config.get("cache-lock-stale")
+
+    var opts = { stale:   npm.config.get("cache-lock-stale")
                , retries: npm.config.get("cache-lock-retries")
-               , wait: npm.config.get("cache-lock-wait") }
-    var lf = lockFileName(u)
-    log.verbose("lock", u, lf)
-    lockFile.lock(lf, opts, function(er) {
-      if (!er) myLocks[lf] = true
+               , wait:    npm.config.get("cache-lock-wait") }
+    var lf = lockFileName(base, name)
+    lockfile.lock(lf, opts, function (er) {
+      if (er) log.warn("locking", lf, "failed", er)
+
+      if (!er) {
+        log.verbose("lock", "using", lf, "for", resolve(base, name))
+        installLocks[lf] = true
+      }
+
       cb(er)
     })
   })
 }
 
-function unlock (u, cb) {
-  var lf = lockFileName(u)
-    , locked = myLocks[lf]
+function unlock (base, name, cb) {
+  var lf = lockFileName(base, name)
+    , locked = installLocks[lf]
   if (locked === false) {
     return process.nextTick(cb)
-  } else if (locked === true) {
-    myLocks[lf] = false
-    lockFile.unlock(lockFileName(u), cb)
-  } else {
-    throw new Error("Attempt to unlock " + u + ", which hasn't been locked")
+  }
+  else if (locked === true) {
+    lockfile.unlock(lf, function (er) {
+      if (er) {
+        log.warn("unlocking", lf, "failed", er)
+      }
+      else {
+        installLocks[lf] = false
+        log.verbose("unlock", "done using", lf, "for", resolve(base, name))
+      }
+
+      cb(er)
+    })
+  }
+  else {
+    throw new Error(
+      "Attempt to unlock " + resolve(base, name) + ", which hasn't been locked"
+    )
   }
 }
 
 module.exports = {
-  lock: lock,
-  unlock: unlock,
-  _lockFileName: lockFileName
+  lock   : lock,
+  unlock : unlock
 }

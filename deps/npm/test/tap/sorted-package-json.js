@@ -24,24 +24,26 @@ test("sorting dependencies", function (t) {
 
   var before = JSON.parse(fs.readFileSync(packageJson).toString())
 
-  mr(common.port, function (s) {
+  mr({port : common.port}, function (er, s) {
     // underscore is already in the package.json,
     // but --save will trigger a rewrite with sort
-    var child = spawn(node, [npm, "install", "--save", "underscore@1.3.3"], {
+    var child = spawn(node, [npm, "install", "--save", "underscore@1.3.3", "--no-progress", "--loglevel=error"], {
       cwd: pkg,
       env: {
-        npm_config_registry: common.registry,
-        npm_config_cache: cache,
-        npm_config_tmp: tmp,
-        npm_config_prefix: pkg,
-        npm_config_global: "false",
+        "npm_config_registry": common.registry,
+        "npm_config_cache": cache,
+        "npm_config_tmp": tmp,
+        "npm_config_prefix": pkg,
+        "npm_config_global": "false",
         HOME: process.env.HOME,
         Path: process.env.PATH,
         PATH: process.env.PATH
-      }
+      },
+      stdio: ['ignore', 'ignore', process.stderr]
     })
 
     child.on("close", function (code) {
+      t.equal(code, 0, "npm install exited with code")
       var result = fs.readFileSync(packageJson).toString()
         , resultAsJson = JSON.parse(result)
 
@@ -83,7 +85,7 @@ function setup() {
       "underscore": "^1.3.3",
       "request": "^0.9.0"
     }
-  }, null, 2), 'utf8')
+  }, null, 2), "utf8")
 }
 
 function cleanup() {

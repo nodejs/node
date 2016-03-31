@@ -1,0 +1,57 @@
+{
+  "name": "is-typedarray",
+  "version": "1.0.0",
+  "description": "Detect whether or not an object is a Typed Array",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test"
+  },
+  "author": {
+    "name": "Hugh Kennedy",
+    "email": "hughskennedy@gmail.com",
+    "url": "http://hughsk.io/"
+  },
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "tape": "^2.13.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/hughsk/is-typedarray.git"
+  },
+  "keywords": [
+    "typed",
+    "array",
+    "detect",
+    "is",
+    "util"
+  ],
+  "bugs": {
+    "url": "https://github.com/hughsk/is-typedarray/issues"
+  },
+  "homepage": "https://github.com/hughsk/is-typedarray",
+  "gitHead": "0617cfa871686cf541af62b144f130488f44f6fe",
+  "_id": "is-typedarray@1.0.0",
+  "_shasum": "e479c80858df0c1b11ddda6940f96011fcda4a9a",
+  "_from": "is-typedarray@>=1.0.0 <1.1.0",
+  "_npmVersion": "2.7.5",
+  "_nodeVersion": "0.10.36",
+  "_npmUser": {
+    "name": "hughsk",
+    "email": "hughskennedy@gmail.com"
+  },
+  "dist": {
+    "shasum": "e479c80858df0c1b11ddda6940f96011fcda4a9a",
+    "tarball": "http://registry.npmjs.org/is-typedarray/-/is-typedarray-1.0.0.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "hughsk",
+      "email": "hughskennedy@gmail.com"
+    }
+  ],
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/is-typedarray/-/is-typedarray-1.0.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

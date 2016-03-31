@@ -1,115 +1,131 @@
-var test = require("tap").test
-var fs = require("fs")
-var node = process.execPath
-var npm = require.resolve("../../bin/npm-cli.js")
-var rimraf = require("rimraf")
-var mr = require("npm-registry-mock")
-var common = require("../common-tap.js")
-var spawn = require("child_process").spawn
-var env = process.env
-process.env.npm_config_depth = "Infinity"
+var fs = require('fs')
+var path = require('path')
 
-var pkg = __dirname + "/prune"
-var cache = pkg + "/cache"
+var mkdirp = require('mkdirp')
+var mr = require('npm-registry-mock')
+var osenv = require('osenv')
+var rimraf = require('rimraf')
+var test = require('tap').test
 
+var common = require('../common-tap')
 var server
 
-test("reg mock", function (t) {
-  mr(common.port, function (s) {
+var pkg = path.resolve(__dirname, 'prune')
+var cache = path.resolve(pkg, 'cache')
+
+var json = {
+  name: 'prune',
+  description: 'fixture',
+  version: '0.0.1',
+  main: 'index.js',
+  dependencies: {
+    underscore: '1.3.1'
+  },
+  devDependencies: {
+    mkdirp: '*'
+  }
+}
+
+var EXEC_OPTS = {
+  cwd: pkg,
+  npm_config_depth: 'Infinity'
+}
+
+test('setup', function (t) {
+  cleanup()
+  mkdirp.sync(cache)
+  fs.writeFileSync(
+    path.join(pkg, 'package.json'),
+    JSON.stringify(json, null, 2)
+  )
+  mr({ port: common.port }, function (er, s) {
     server = s
-    t.pass("registry mock started")
     t.end()
   })
 })
 
-
-test("npm install", function (t) {
-  rimraf.sync(pkg + "/node_modules")
-  var c = spawn(node, [
-    npm, "install",
-    "--cache=" + cache,
-    "--registry=" + common.registry,
-    "--loglevel=silent",
-    "--production=false"
-  ], { cwd: pkg, env: env })
-  c.stderr.on("data", function(d) {
-    t.fail("Should not get data on stderr: " + d)
-  })
-  c.on("close", function(code) {
-    t.notOk(code, "exit ok")
+test('npm install', function (t) {
+  common.npm([
+    'install',
+    '--cache', cache,
+    '--registry', common.registry,
+    '--loglevel', 'silent',
+    '--production', 'false'
+  ], EXEC_OPTS, function (err, code, stdout, stderr) {
+    t.ifErr(err, 'install finished successfully')
+    t.notOk(code, 'exit ok')
+    t.notOk(stderr, 'Should not get data on stderr: ' + stderr)
     t.end()
   })
 })
 
-test("npm install test-package", function (t) {
-  var c = spawn(node, [
-    npm, "install", "test-package",
-    "--cache=" + cache,
-    "--registry=" + common.registry,
-    "--loglevel=silent",
-    "--production=false"
-  ], { cwd: pkg, env: env })
-  c.stderr.on("data", function(d) {
-    t.fail("Should not get data on stderr: " + d)
-  })
-  c.on("close", function(code) {
-    t.notOk(code, "exit ok")
+test('npm install test-package', function (t) {
+  common.npm([
+    'install', 'test-package',
+    '--cache', cache,
+    '--registry', common.registry,
+    '--loglevel', 'silent',
+    '--production', 'false'
+  ], EXEC_OPTS, function (err, code, stdout, stderr) {
+    t.ifErr(err, 'install finished successfully')
+    t.notOk(code, 'exit ok')
+    t.notOk(stderr, 'Should not get data on stderr: ' + stderr)
     t.end()
   })
 })
 
-test("verify installs", function (t) {
-  var dirs = fs.readdirSync(pkg + "/node_modules").sort()
-  t.same(dirs, [ "test-package", "mkdirp", "underscore" ].sort())
+test('verify installs', function (t) {
+  var dirs = fs.readdirSync(pkg + '/node_modules').sort()
+  t.same(dirs, [ 'test-package', 'mkdirp', 'underscore' ].sort())
   t.end()
 })
 
-test("npm prune", function (t) {
-  var c = spawn(node, [
-    npm, "prune",
-    "--loglevel=silent",
-    "--production=false"
-  ], { cwd: pkg, env: env })
-  c.stderr.on("data", function(d) {
-    t.fail("Should not get data on stderr: " + d)
-  })
-  c.on("close", function(code) {
-    t.notOk(code, "exit ok")
+test('npm prune', function (t) {
+  common.npm([
+    'prune',
+    '--loglevel', 'silent',
+    '--production', 'false'
+  ], EXEC_OPTS, function (err, code, stdout, stderr) {
+    t.ifErr(err, 'prune finished successfully')
+    t.notOk(code, 'exit ok')
+    t.notOk(stderr, 'Should not get data on stderr: ' + stderr)
     t.end()
   })
 })
 
-test("verify installs", function (t) {
-  var dirs = fs.readdirSync(pkg + "/node_modules").sort()
-  t.same(dirs, [ "mkdirp", "underscore" ])
+test('verify installs', function (t) {
+  var dirs = fs.readdirSync(pkg + '/node_modules').sort()
+  t.same(dirs, [ 'mkdirp', 'underscore' ])
   t.end()
 })
 
-test("npm prune", function (t) {
-  var c = spawn(node, [
-    npm, "prune",
-    "--loglevel=silent",
-    "--production"
-  ], { cwd: pkg, env: env })
-  c.stderr.on("data", function(d) {
-    t.fail("Should not get data on stderr: " + d)
-  })
-  c.on("close", function(code) {
-    t.notOk(code, "exit ok")
+test('npm prune', function (t) {
+  common.npm([
+    'prune',
+    '--loglevel', 'silent',
+    '--production'
+  ], EXEC_OPTS, function (err, code, stderr) {
+    t.ifErr(err, 'prune finished successfully')
+    t.notOk(code, 'exit ok')
+    t.equal(stderr, 'unbuild mkdirp@0.3.5\n')
     t.end()
   })
 })
 
-test("verify installs", function (t) {
-  var dirs = fs.readdirSync(pkg + "/node_modules").sort()
-  t.same(dirs, [ "underscore" ])
+test('verify installs', function (t) {
+  var dirs = fs.readdirSync(pkg + '/node_modules').sort()
+  t.same(dirs, [ 'underscore' ])
   t.end()
 })
 
-test("cleanup", function (t) {
+test('cleanup', function (t) {
   server.close()
-  rimraf.sync(pkg + "/node_modules")
-  rimraf.sync(pkg + "/cache")
-  t.pass("cleaned up")
+  cleanup()
+  t.pass('cleaned up')
   t.end()
 })
+
+function cleanup () {
+  process.chdir(osenv.tmpdir())
+  rimraf.sync(pkg)
+}

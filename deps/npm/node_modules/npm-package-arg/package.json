@@ -1,0 +1,62 @@
+{
+  "name": "npm-package-arg",
+  "version": "4.1.0",
+  "description": "Parse the things that can be arguments to `npm install`",
+  "main": "npa.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "hosted-git-info": "^2.1.4",
+    "semver": "4 || 5"
+  },
+  "devDependencies": {
+    "tap": "^1.2.0"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/npm-package-arg.git"
+  },
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/npm/npm-package-arg/issues"
+  },
+  "homepage": "https://github.com/npm/npm-package-arg",
+  "gitHead": "383b4783a076b825815be51eb1ab2e4bb8a1e1fc",
+  "_id": "npm-package-arg@4.1.0",
+  "_shasum": "2e015f8ac00737cb97f997c9cbf059f42a74527d",
+  "_from": "npm-package-arg@>=4.1.0 <4.2.0",
+  "_npmVersion": "3.4.0",
+  "_nodeVersion": "4.2.1",
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "dist": {
+    "shasum": "2e015f8ac00737cb97f997c9cbf059f42a74527d",
+    "tarball": "http://registry.npmjs.org/npm-package-arg/-/npm-package-arg-4.1.0.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    },
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-package-arg/-/npm-package-arg-4.1.0.tgz"
+}

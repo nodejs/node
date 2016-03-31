@@ -1,0 +1,85 @@
+{
+  "name": "has-ansi",
+  "version": "2.0.0",
+  "description": "Check if a string has ANSI escape codes",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/has-ansi.git"
+  },
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    },
+    {
+      "name": "jbnicolai",
+      "email": "jappelman@xebia.com"
+    }
+  ],
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "ansi",
+    "styles",
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "string",
+    "tty",
+    "escape",
+    "shell",
+    "xterm",
+    "command-line",
+    "text",
+    "regex",
+    "regexp",
+    "re",
+    "match",
+    "test",
+    "find",
+    "pattern",
+    "has"
+  ],
+  "dependencies": {
+    "ansi-regex": "^2.0.0"
+  },
+  "devDependencies": {
+    "ava": "0.0.4"
+  },
+  "gitHead": "0722275e1bef139fcd09137da6e5550c3cd368b9",
+  "bugs": {
+    "url": "https://github.com/sindresorhus/has-ansi/issues"
+  },
+  "homepage": "https://github.com/sindresorhus/has-ansi",
+  "_id": "has-ansi@2.0.0",
+  "_shasum": "34f5049ce1ecdf2b0649af3ef24e45ed35416d91",
+  "_from": "has-ansi@>=2.0.0 <3.0.0",
+  "_npmVersion": "2.11.2",
+  "_nodeVersion": "0.12.5",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "dist": {
+    "shasum": "34f5049ce1ecdf2b0649af3ef24e45ed35416d91",
+    "tarball": "http://registry.npmjs.org/has-ansi/-/has-ansi-2.0.0.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/has-ansi/-/has-ansi-2.0.0.tgz",
+  "readme": "ERROR: No README data found!"
+}

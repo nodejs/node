@@ -1,0 +1,75 @@
+{
+  "name": "brace-expansion",
+  "description": "Brace expansion as known from sh/bash",
+  "version": "1.1.1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/juliangruber/brace-expansion.git"
+  },
+  "homepage": "https://github.com/juliangruber/brace-expansion",
+  "main": "index.js",
+  "scripts": {
+    "test": "tape test/*.js",
+    "gentest": "bash test/generate.sh"
+  },
+  "dependencies": {
+    "balanced-match": "^0.2.0",
+    "concat-map": "0.0.1"
+  },
+  "devDependencies": {
+    "tape": "^3.0.3"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Julian Gruber",
+    "email": "mail@juliangruber.com",
+    "url": "http://juliangruber.com"
+  },
+  "license": "MIT",
+  "testling": {
+    "files": "test/*.js",
+    "browsers": [
+      "ie/8..latest",
+      "firefox/20..latest",
+      "firefox/nightly",
+      "chrome/25..latest",
+      "chrome/canary",
+      "opera/12..latest",
+      "opera/next",
+      "safari/5.1..latest",
+      "ipad/6.0..latest",
+      "iphone/6.0..latest",
+      "android-browser/4.2..latest"
+    ]
+  },
+  "gitHead": "f50da498166d76ea570cf3b30179f01f0f119612",
+  "bugs": {
+    "url": "https://github.com/juliangruber/brace-expansion/issues"
+  },
+  "_id": "brace-expansion@1.1.1",
+  "_shasum": "da5fb78aef4c44c9e4acf525064fb3208ebab045",
+  "_from": "brace-expansion@>=1.0.0 <2.0.0",
+  "_npmVersion": "2.6.1",
+  "_nodeVersion": "0.10.36",
+  "_npmUser": {
+    "name": "juliangruber",
+    "email": "julian@juliangruber.com"
+  },
+  "maintainers": [
+    {
+      "name": "juliangruber",
+      "email": "julian@juliangruber.com"
+    },
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    }
+  ],
+  "dist": {
+    "shasum": "da5fb78aef4c44c9e4acf525064fb3208ebab045",
+    "tarball": "http://registry.npmjs.org/brace-expansion/-/brace-expansion-1.1.1.tgz"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-1.1.1.tgz",
+  "readme": "ERROR: No README data found!"
+}
