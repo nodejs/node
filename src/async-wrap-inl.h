@@ -49,7 +49,7 @@ inline AsyncWrap::AsyncWrap(Environment* env,
     argv[2] = parent->object();
 
   v8::MaybeLocal<v8::Value> ret =
-      init_fn->Call(env->context(), object, ARRAY_SIZE(argv), argv);
+      init_fn->Call(env->context(), object, arraysize(argv), argv);
 
   if (ret.IsEmpty())
     FatalError("node::AsyncWrap::AsyncWrap", "init hook threw");

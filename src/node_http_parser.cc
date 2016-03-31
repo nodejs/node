@@ -189,7 +189,7 @@ class Parser : public BaseObject {
     if (num_fields_ == num_values_) {
       // start of new field name
       num_fields_++;
-      if (num_fields_ == ARRAY_SIZE(fields_)) {
+      if (num_fields_ == static_cast<int>(arraysize(fields_))) {
         // ran out of space - flush to javascript land
         Flush();
         num_fields_ = 1;
@@ -198,7 +198,7 @@ class Parser : public BaseObject {
       fields_[num_fields_ - 1].Reset();
     }
 
-    CHECK_LT(num_fields_, static_cast<int>(ARRAY_SIZE(fields_)));
+    CHECK_LT(num_fields_, static_cast<int>(arraysize(fields_)));
     CHECK_EQ(num_fields_, num_values_ + 1);
 
     fields_[num_fields_ - 1].Update(at, length);
@@ -214,7 +214,7 @@ class Parser : public BaseObject {
       values_[num_values_ - 1].Reset();
     }
 
-    CHECK_LT(num_values_, static_cast<int>(ARRAY_SIZE(values_)));
+    CHECK_LT(num_values_, static_cast<int>(arraysize(values_)));
     CHECK_EQ(num_values_, num_fields_);
 
     values_[num_values_ - 1].Update(at, length);
@@ -248,7 +248,7 @@ class Parser : public BaseObject {
       return 0;
 
     Local<Value> undefined = Undefined(env()->isolate());
-    for (size_t i = 0; i < ARRAY_SIZE(argv); i++)
+    for (size_t i = 0; i < arraysize(argv); i++)
       argv[i] = undefined;
 
     if (have_flushed_) {
@@ -287,7 +287,7 @@ class Parser : public BaseObject {
     argv[A_UPGRADE] = Boolean::New(env()->isolate(), parser_.upgrade);
 
     Local<Value> head_response =
-        cb.As<Function>()->Call(obj, ARRAY_SIZE(argv), argv);
+        cb.As<Function>()->Call(obj, arraysize(argv), argv);
 
     if (head_response.IsEmpty()) {
       got_exception_ = true;
@@ -322,7 +322,7 @@ class Parser : public BaseObject {
       Integer::NewFromUnsigned(env()->isolate(), length)
     };
 
-    Local<Value> r = cb.As<Function>()->Call(obj, ARRAY_SIZE(argv), argv);
+    Local<Value> r = cb.As<Function>()->Call(obj, arraysize(argv), argv);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -659,7 +659,7 @@ class Parser : public BaseObject {
       url_.ToString(env())
     };
 
-    Local<Value> r = cb.As<Function>()->Call(obj, ARRAY_SIZE(argv), argv);
+    Local<Value> r = cb.As<Function>()->Call(obj, arraysize(argv), argv);
 
     if (r.IsEmpty())
       got_exception_ = true;

@@ -202,7 +202,7 @@ void NODE_V8SYMBOL_RESET() {
 
 #define SETSYMBUF(s)  \
   wcscpy(symbuf, s);  \
-  symbol_len = ARRAY_SIZE(s) - 1;
+  symbol_len = arraysize(s) - 1;
 
 void NODE_V8SYMBOL_ADD(LPCSTR symbol,
                        int symbol_len,
