@@ -62,7 +62,7 @@ _**NOTE:** There is a slight discrepancy between the Windows and the
 Unix/Linux implementation, but that's not important for this
 demonstration. The most important parts are here. There are actually
 seven or eight steps, but the ones we care about — ones that Node.js
-actually uses are these four._
+actually uses are those above._
 
 
 ## Phases Overview:
@@ -202,7 +202,7 @@ etc. However, after a callback has been scheduled with `setImmediate()`,
 then the  `poll` phase becomes idle, it will end and continue to the
 `check`  phase rather than waiting for `poll` events.
 
-### `close` callbacks: 
+### `close` callbacks`: 
 
 If a socket or handle is closed abruptly (e.g. `socket.destroy()`), the
 `'close'` event will be emitted in this phase. Otherwise it will be
