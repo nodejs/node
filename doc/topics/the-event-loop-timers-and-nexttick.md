@@ -202,7 +202,7 @@ etc. However, after a callback has been scheduled with `setImmediate()`,
 then the  `poll` phase becomes idle, it will end and continue to the
 `check`  phase rather than waiting for `poll` events.
 
-### `close` callbacks`: 
+### `close callbacks`: 
 
 If a socket or handle is closed abruptly (e.g. `socket.destroy()`), the
 `'close'` event will be emitted in this phase. Otherwise it will be
