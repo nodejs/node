@@ -175,7 +175,7 @@
                 <string id="NodeJS-ETW-provider.event.6.message" value="Node.js Net Stream End%nRemote: %3%nPort: %2"/>
                 <string id="NodeJS-ETW-provider.event.7.message" value="Node.js Garbage Collection Start"/>
                 <string id="NodeJS-ETW-provider.event.8.message" value="Node.js Garbage Collection Done"/>
-                <string id="NodeJS-ETW-provider.event.9.message" value="Node.js Method Load: %10"/>
+                <string id="NodeJS-ETW-provider.event.9.message" value="Node.js Function Compiled: %10"/>
                 <string id="NodeJS-ETW-provider.event.21.message" value="Node.js V8 Symbol Remove"/>
                 <string id="NodeJS-ETW-provider.event.22.message" value="Node.js V8 Symbol Move"/>
                 <string id="NodeJS-ETW-provider.event.23.message" value="Node.js V8 Symbol Reset"/>
