@@ -260,6 +260,14 @@ function processList(section) {
       // event: each item is an argument.
       section.params = values;
       break;
+
+    default:
+      if (section.list.length > 0) {
+        section.desc = section.desc || [];
+        for (var i = 0; i < section.list.length; i++) {
+          section.desc.push(section.list[i]);
+        }
+      }
   }
 
   // section.listParsed = values;
