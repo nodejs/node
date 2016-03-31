@@ -26,7 +26,7 @@ order of operations.
     ┌─>│        timers         │
     │  └──────────┬────────────┘
     │  ┌──────────┴────────────┐
-    │  │     i/o callbacks     │
+    │  │     I/O callbacks     │
     │  └──────────┬────────────┘
     │  ┌──────────┴────────────┐
     │  │     idle, prepare     │
@@ -38,10 +38,7 @@ order of operations.
     │  │        check          │
     │  └──────────┬────────────┘
     │  ┌──────────┴────────────┐
-    │  │    close callbacks    │
-    │  └──────────┬────────────┘
-    │  ┌──────────┴────────────┐
-    └──┤        timers         │
+    └──┤    close callbacks    │
        └───────────────────────┘       
 
 *note: each box will be referred to as a "phase" of the event loop.*
@@ -72,12 +69,15 @@ actually uses are these four._
 
 * `timers`: this phase executes callbacks scheduled by `setTimeout()` 
  and `setInterval()`.
-* `i/o callbacks`: most types of callback except timers, setImmedate, close
+* `I/O callbacks`: most types of callback except timers, setImmedate, close
 * `idle, prepare`: only used internally
-* `poll`: retrieve new i/o events; node will block here when appropriate
+* `poll`: retrieve new I/O events; node will block here when appropriate
 * `check`: setImmediate callbacks are invoked here
 * `close callbacks`: e.g socket.on('close', ...)
-* `timers`: indeed, again
+
+Between each run of the event loop, Node.js checks if it is waiting for
+any asynchronous I/O or timer and it shuts down cleanly if there are not
+any.
 
 ## Phases in Detail
 
@@ -147,12 +147,12 @@ Note: To prevent the `poll` phase from starving the event loop, libuv
 also has a hard maximum (system dependent) before it stops `poll`ing for
 more events.
 
-### i/o callbakcs:
+### I/O callbacks:
 
 This phase executes callbacks for some system operations such as types 
 of TCP errors. For example if a TCP socket receives `ECONNREFUSED` when
 attempting to connect, some \*nix systems want to wait to report the
-error. This will be queued to execute in the `i/o callbakcs` phase.
+error. This will be queued to execute in the `I/O callbacks` phase.
 
 ### poll: 
 
@@ -202,13 +202,11 @@ etc. However, after a callback has been scheduled with `setImmediate()`,
 then the  `poll` phase becomes idle, it will end and continue to the
 `check`  phase rather than waiting for `poll` events.
 
-### `close callbacks: 
+### `close` callbacks: 
 
-
-
-### `timers` again
-
-
+If a socket or handle is closed abruptly (e.g. `socket.destroy()`), the
+`'close'` event will be emitted in this phase. Otherwise it will be
+emitted via `process.nextTick()`.
 
 ## `setImmediate()` vs `setTimeout()`
 
@@ -271,9 +269,9 @@ fs.readFile(__filename, () => {
     immediate
     timeout
 
-The main advantage to using `setImmediate()` over `setTimeout()` is that
-`setImmediate()` has high probability of running before setTimeout when
-both are called within the same I/O cycle.  
+The main advantage to using `setImmediate()` over `setTimeout()` is
+`setImmediate()` will always be executed before any timers if scheduled
+within an I/O cycle, independently on how many timers are present.
 
 ## `process.nextTick()`:
 
