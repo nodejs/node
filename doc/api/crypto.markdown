@@ -466,7 +466,7 @@ provided, `other_public_key` is expected to be a [`Buffer`][].
 If `output_encoding` is given a string will be returned; otherwise a
 [`Buffer`][] is returned.
 
-### ecdh.generateKeys([encoding[, format]])
+### ecdh.generateKeys([encoding][, format])
 
 Generates private and public EC Diffie-Hellman key values, and returns
 the public key in the specified `format` and `encoding`. This key should be
@@ -486,7 +486,7 @@ Returns the EC Diffie-Hellman private key in the specified `encoding`,
 which can be `'binary'`, `'hex'`, or `'base64'`. If `encoding` is provided
 a string is returned; otherwise a [`Buffer`][] is returned.
 
-### ecdh.getPublicKey([encoding[, format]])
+### ecdh.getPublicKey([encoding][, format])
 
 Returns the EC Diffie-Hellman public key in the specified `encoding` and
 `format`.

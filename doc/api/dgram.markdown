@@ -185,7 +185,7 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
-### socket.send(msg, [offset, length,] port, address[, callback])
+### socket.send(msg[, offset][, length], port, address[, callback])
 
 * `msg` {Buffer|String|Array} Message to be sent
 * `offset` {Number} Integer. Optional. Offset in the buffer where the message starts.
