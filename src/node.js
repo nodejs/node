@@ -214,6 +214,25 @@
         hrValues[2]
       ];
     };
+
+    const _cpuUsage = process.cpuUsage;
+    const cpuValues = new Uint32Array(8);
+
+    process.cpuUsage = function cpuUsage(ar) {
+      const err = _cpuUsage(cpuValues);
+      if (err !== 0) throw new Error('unable to obtain cpu usage time');
+
+      return {
+        user: [
+          cpuValues[0] * 0x100000000 + cpuValues[1],
+          cpuValues[2] * 0x100000000 + cpuValues[3]
+        ],
+        system: [
+          cpuValues[4] * 0x100000000 + cpuValues[5],
+          cpuValues[6] * 0x100000000 + cpuValues[7]
+        ]
+      };
+    };
   };
 
   startup.globalVariables = function() {
