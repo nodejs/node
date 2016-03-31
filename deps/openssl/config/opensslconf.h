@@ -44,6 +44,9 @@
 # ifndef OPENSSL_NO_STORE
 #  define OPENSSL_NO_STORE
 # endif
+# ifndef OPENSSL_NO_WEAK_SSL_CIPHERS
+#  define OPENSSL_NO_WEAK_SSL_CIPHERS
+# endif
 #endif /* OPENSSL_DOING_MAKEDEPEND */
 
 #ifndef OPENSSL_THREADS
@@ -111,6 +114,9 @@
 # endif
 # if defined(OPENSSL_NO_MDC2) && !defined(NO_MDC2)
 #  define NO_MDC2
+# endif
+# if defined(OPENSSL_NO_WEAK_SSL_CIPHERS) && !defined(NO_WEAK_SSL_CIPHERS)
+#  define NO_WEAK_SSL_CIPHERS
 # endif
 #endif
 

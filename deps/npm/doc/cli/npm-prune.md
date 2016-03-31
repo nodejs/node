@@ -22,6 +22,6 @@ negate `NODE_ENV` being set to `production`.
 
 ## SEE ALSO
 
-* npm-rm(1)
+* npm-uninstall(1)
 * npm-folders(5)
 * npm-ls(1)

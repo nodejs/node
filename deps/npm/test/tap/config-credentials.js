@@ -73,13 +73,13 @@ test("set with token", function (t) {
     }, "needs only token")
 
     var expected = {
-      scope      : "//registry.lvh.me:8661/",
-      token      : "simple-token",
-      username   : undefined,
-      password   : undefined,
-      email      : undefined,
-      auth       : undefined,
-      alwaysAuth : undefined
+      scope: '//registry.lvh.me:8661/',
+      token: 'simple-token',
+      username: undefined,
+      password: undefined,
+      email: undefined,
+      auth: undefined,
+      alwaysAuth: false
     }
 
     t.same(conf.getCredentialsByURI(URI), expected, "got bearer token and scope")

@@ -9,6 +9,11 @@ var net = require('net');
 var cluster = require('cluster');
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
+if (process.platform === 'win32') {
+  console.log('1..0 # Skipped: This test does not apply to Windows.');
+  return;
+}
+
 if (cluster.isMaster) {
   var worker1, worker2;
 

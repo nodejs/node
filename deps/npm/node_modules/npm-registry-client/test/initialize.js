@@ -1,4 +1,5 @@
 var test = require('tap').test
+var url = require('url')
 
 // var server = require('./lib/server.js')
 var Client = require('../')
@@ -29,6 +30,39 @@ test('defaulted initialization', function (t) {
 
   var HttpAgent = require('http').Agent
   t.ok(options.agent instanceof HttpAgent, 'got an HTTP agent for an HTTP URL')
+  t.equal(options.agent.maxSockets, 50, 'maxSockets set to a reasonable default')
+
+  t.end()
+})
+
+test('intializing with maxSockets set works for http', function (t) {
+  var client = new Client({ maxSockets: Infinity })
+  var options = client.initialize(
+    url.parse('http://localhost:1337/'),
+    'GET',
+    'application/json',
+    {}
+  )
+
+  var HttpAgent = require('http').Agent
+  t.ok(options.agent instanceof HttpAgent, 'got an HTTP agent for an HTTP URL')
+  t.equal(options.agent.maxSockets, Infinity, 'request uses configured value for maxSockets')
+
+  t.end()
+})
+
+test('intializing with maxSockets set works for https', function (t) {
+  var client = new Client({ maxSockets: Infinity })
+  var options = client.initialize(
+    url.parse('https://localhost:1337/'),
+    'GET',
+    'application/json',
+    {}
+  )
+
+  var HttpsAgent = require('https').Agent
+  t.ok(options.agent instanceof HttpsAgent, 'got an HTTPS agent for an HTTPS URL')
+  t.equal(options.agent.maxSockets, Infinity, 'request uses configured value for maxSockets')
 
   t.end()
 })

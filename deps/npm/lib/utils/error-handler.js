@@ -11,7 +11,7 @@ var cbCalled = false
   , exitCode = 0
   , rollbacks = npm.rollbacks
   , chain = require("slide").chain
-  , writeStream = require("fs-write-stream-atomic")
+  , writeStreamAtomic = require("fs-write-stream-atomic")
   , nameValidator = require("validate-npm-package-name")
 
 
@@ -187,8 +187,10 @@ function errorHandler (er) {
               ,"not with npm itself."
               ,"Tell the author that this fails on your system:"
               ,"    "+er.script
-              ,"You can get their info via:"
-              ,"    npm owner ls "+er.pkgname
+              ,'You can get information on how to open an issue for this project with:'
+              ,'    npm bugs ' + er.pkgname
+              ,'Or if that isn\'t available, you can get their info via:',
+              ,'    npm owner ls ' + er.pkgname
               ,"There is likely additional logging output above."
               ].join("\n"))
     break
@@ -391,7 +393,7 @@ function writeLogFile (cb) {
   writingLogFile = true
   wroteLogFile = true
 
-  var fstr = writeStream("npm-debug.log")
+  var fstr = writeStreamAtomic("npm-debug.log")
     , os = require("os")
     , out = ""
 

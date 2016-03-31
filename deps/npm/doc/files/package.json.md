@@ -21,7 +21,7 @@ The name is what your thing is called.
 
 Some rules:
 
-* The name must be shorter than 214 characters. This includes the scope for
+* The name must be less than or equal to 214 characters. This includes the scope for
   scoped packages.
 * The name can't start with a dot or an underscore.
 * New packages must not have uppercase letters in the name.
@@ -105,15 +105,15 @@ current SPDX license identifier for the license you're using, like this:
 
 You can check [the full list of SPDX license IDs](https://spdx.org/licenses/).
 Ideally you should pick one that is
-[OSI](http://opensource.org/licenses/alphabetical) approved.
+[OSI](https://opensource.org/licenses/alphabetical) approved.
 
 If your package is licensed under multiple common licenses, use an [SPDX license
-expression syntax version 2.0 string](http://npmjs.com/package/spdx), like this:
+expression syntax version 2.0 string](https://npmjs.com/package/spdx), like this:
 
     { "license" : "(ISC OR GPL-3.0)" }
 
 If you are using a license that hasn't been assigned an SPDX identifier, or if
-you are using a custom license, use the following valid SPDX expression:
+you are using a custom license, use a string value like this one:
 
     { "license" : "SEE LICENSE IN <filename>" }
 
@@ -186,9 +186,10 @@ works just like a `.gitignore`.
 Certain files are always included, regardless of settings:
 
 * `package.json`
-* `README` (and its variants)
-* `CHANGELOG` (and its variants)
+* `README`
+* `CHANGES` / `CHANGELOG` / `HISTORY` (any casing and file extension)
 * `LICENSE` / `LICENCE`
+* The file in the "main" field
 
 Conversely, some files are always ignored:
 
@@ -198,10 +199,11 @@ Conversely, some files are always ignored:
 * `.hg`
 * `.lock-wscript`
 * `.wafpickle-N`
-* `*.swp`
+* `.*.swp`
 * `.DS_Store`
 * `._*`
 * `npm-debug.log`
+* `.npmrc`
 
 ## main
 
@@ -325,6 +327,11 @@ maybe, someday.
 
 Put example scripts in here.  Someday, it might be exposed in some clever way.
 
+### directories.test
+
+Put your tests in here. It is currently not exposed, but it might be in the
+future.
+
 ## repository
 
 Specify the place where your code lives. This is helpful for people who
@@ -410,7 +417,7 @@ See semver(7) for more details about specifying version ranges.
 * `git...` See 'Git URLs as Dependencies' below
 * `user/repo` See 'GitHub URLs' below
 * `tag` A specific version tagged and published as `tag`  See `npm-tag(1)`
-* `path/path/path` See Local Paths below
+* `path/path/path` See [Local Paths](#local-paths) below
 
 For example, these are all valid:
 
@@ -569,7 +576,23 @@ this. If you depend on features introduced in 1.5.2, use `">= 1.5.2 < 2"`.
 
 ## bundledDependencies
 
-Array of package names that will be bundled when publishing the package.
+This defines an array of package names that will be bundled when publishing the package.
+
+In cases where you need to preserve npm packages locally or have them available through a single file download, you can bundle the packages in a tarball file by specifying the package names in the `bundledDependencies` array and executing `npm pack`.
+
+For example:
+If we define a package.json like this:
+
+```
+{
+  "name": "awesome-web-framework",
+  "version": "1.0.0",
+  "bundledDependencies": [
+    'renderized', 'super-streams'
+  ]
+}
+```
+we can obtain `awesome-web-framework-1.0.0.tgz` file by running `npm pack`. This file contains the dependencies `renderized` and `super-streams` which can be installed in a new project by executing `npm install awesome-web-framework-1.0.0.tgz`.
 
 If this is spelled `"bundleDependencies"`, then that is also honored.
 
@@ -733,4 +756,4 @@ npm will default some values based on package contents.
 * npm-faq(7)
 * npm-install(1)
 * npm-publish(1)
-* npm-rm(1)
+* npm-uninstall(1)

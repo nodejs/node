@@ -68,12 +68,10 @@ server.listen(common.PORT, function() {
         var s = fs.createWriteStream(common.tmpDir + '/' + x + '.jpg');
         res.pipe(s);
 
-        // TODO there should be a callback to pipe() that will allow
-        // us to get a callback when the pipe is finished.
-        res.on('end', function() {
+        s.on('finish', function() {
           console.error('done ' + x);
           if (++responses == total) {
-            s.on('close', checkFiles);
+            checkFiles();
           }
         });
       }).on('error', function(e) {
