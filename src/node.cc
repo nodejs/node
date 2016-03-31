@@ -3327,7 +3327,7 @@ void LoadEnvironment(Environment* env) {
   global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
 
   Local<Value> arg = env->process_object();
-  f->Call(Null(env->isolate()), ARRAY_SIZE(&arg), &arg);
+  f->Call(Null(env->isolate()), 1, &arg);
 }
 
 static void PrintHelp();
