@@ -1,3 +1,19 @@
+2016-03-31, Version 0.12.13 (LTS), @rvagg
+
+Notable changes:
+
+* npm: Upgrade to v2.15.1. (Forrest L Norvell)
+* openssl: OpenSSL v1.0.1s disables the EXPORT and LOW ciphers as they are obsolete and not considered safe. This release of Node.js turns on `OPENSSL_NO_WEAK_SSL_CIPHERS` to fully disable the 27 ciphers included in these lists which can be used in SSLv3 and higher. Full details can be found in our LTS discussion on the matter (https://github.com/nodejs/LTS/issues/85). (Shigeki Ohtsu) https://github.com/nodejs/node/pull/5712
+
+Commits:
+
+* [2ce29165a1] - deps: upgrade npm in LTS to 2.15.1 (Forrest L Norvell)
+* [a115779026] - deps: Disable EXPORT and LOW ciphers in openssl (Shigeki Ohtsu) https://github.com/nodejs/node/pull/5712
+* [ab907eb5a8] - test: skip cluster-disconnect-race on Windows (Gibson Fahnestock) https://github.com/nodejs/node/pull/5621
+* [9c06db7444] - test: change tls tests not to use LOW cipher (Shigeki Ohtsu) https://github.com/nodejs/node/pull/5712
+* [154098a3dc] - test: bp fix for test-http-get-pipeline-problem.js (Michael Dawson) https://github.com/nodejs/node/pull/3013
+* [ff2bed6e86] - win,build: support Visual C++ Build Tools 2015 (João Reis) https://github.com/nodejs/node/pull/5627
+
 2016-03-08, Version 0.12.12 (LTS), @rvagg
 
 Notable changes:
