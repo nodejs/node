@@ -292,12 +292,9 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
     was_reading = 1;
     alloc_cb = tty->alloc_cb;
     read_cb = tty->read_cb;
-
-    if (was_reading) {
-      err = uv_tty_read_stop(tty);
-      if (err) {
-        return uv_translate_sys_error(err);
-      }
+    err = uv_tty_read_stop(tty);
+    if (err) {
+      return uv_translate_sys_error(err);
     }
   } else {
     was_reading = 0;

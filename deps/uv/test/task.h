@@ -108,10 +108,10 @@ typedef enum {
 /* This macro cleans up the main loop. This is used to avoid valgrind
  * warnings about memory being "leaked" by the main event loop.
  */
-#define MAKE_VALGRIND_HAPPY()           \
-  do {                                  \
-    close_loop(uv_default_loop());      \
-    uv_loop_delete(uv_default_loop());  \
+#define MAKE_VALGRIND_HAPPY()                       \
+  do {                                              \
+    close_loop(uv_default_loop());                  \
+    ASSERT(0 == uv_loop_close(uv_default_loop()));  \
   } while (0)
 
 /* Just sugar for wrapping the main() for a task or helper. */
@@ -207,7 +207,7 @@ UNUSED static int can_ipv6(void) {
   int i;
 
   if (uv_interface_addresses(&addr, &count))
-    return 1;  /* Assume IPv6 support on failure. */
+    return 0;  /* Assume no IPv6 support on failure. */
 
   supported = 0;
   for (i = 0; supported == 0 && i < count; i += 1)
