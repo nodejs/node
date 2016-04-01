@@ -53,6 +53,7 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
   int pid;
   int fd[2];
   int status;
+  char buf;
   uv_pipe_t stdin_pipe;
 
   r = pipe(fd);
@@ -64,6 +65,8 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
      * The write side will be closed by the parent process.
     */
     close(fd[1]);
+    /* block until write end of pipe is closed */
+    read(fd[0], &buf, 1);
     close(0);
     r = dup(fd[0]);
     ASSERT(r != -1);

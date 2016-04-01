@@ -48,6 +48,24 @@ int uv__kqueue_init(uv_loop_t* loop) {
 }
 
 
+int uv__io_check_fd(uv_loop_t* loop, int fd) {
+  struct kevent ev;
+  int rc;
+
+  rc = 0;
+  EV_SET(&ev, fd, EVFILT_READ, EV_ADD, 0, 0, 0);
+  if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
+    rc = -errno;
+
+  EV_SET(&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
+  if (rc == 0)
+    if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
+      abort();
+
+  return rc;
+}
+
+
 void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct kevent events[1024];
   struct kevent* ev;
@@ -240,6 +258,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
       if (ev->flags & EV_ERROR)
         revents |= UV__POLLERR;
+
+      if ((ev->flags & EV_EOF) && (w->pevents & UV__POLLRDHUP))
+        revents |= UV__POLLRDHUP;
 
       if (revents == 0)
         continue;

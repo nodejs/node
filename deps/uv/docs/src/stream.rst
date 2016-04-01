@@ -148,6 +148,10 @@ API
 
     ::
 
+        void cb(uv_write_t* req, int status) {
+            /* Logic which handles the write result */
+        }
+
         uv_buf_t a[] = {
             { .base = "1", .len = 1 },
             { .base = "2", .len = 1 }
@@ -162,8 +166,8 @@ API
         uv_write_t req2;
 
         /* writes "1234" */
-        uv_write(&req1, stream, a, 2);
-        uv_write(&req2, stream, b, 2);
+        uv_write(&req1, stream, a, 2, cb);
+        uv_write(&req2, stream, b, 2, cb);
 
 .. c:function:: int uv_write2(uv_write_t* req, uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs, uv_stream_t* send_handle, uv_write_cb cb)
 
