@@ -34,13 +34,8 @@
 
 void uv_update_time(uv_loop_t* loop) {
   uint64_t new_time = uv__hrtime(UV__MILLISEC);
-  if (new_time > loop->time) {
-    loop->time = new_time;
-  }
-}
-
-void uv__time_forward(uv_loop_t* loop, uint64_t msecs) {
-  loop->time += msecs;
+  assert(new_time >= loop->time);
+  loop->time = new_time;
 }
 
 
