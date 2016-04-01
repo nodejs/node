@@ -1523,10 +1523,15 @@ def Main():
         if not exists(vm):
           print "Can't find shell executable: '%s'" % vm
           continue
+        archEngineContext = Execute([vm, "-p", "process.arch"], context)
+        vmArch = archEngineContext.stdout.rstrip()
+        if archEngineContext.exit_code is not 0 or vmArch == "undefined":
+          print "Can't determine the arch of: '%s'" % vm
+          continue
         env = {
           'mode': mode,
           'system': utils.GuessOS(),
-          'arch': arch,
+          'arch': vmArch,
         }
         test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list
