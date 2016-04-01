@@ -1342,7 +1342,7 @@ The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 ## fs.writeSync(fd, data[, position[, encoding]])
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `data` {String | Buffer}
 * `position` {Integer}
 * `encoding` {String}
 
