@@ -252,7 +252,7 @@ assert.throws(function() {
 assert.throws(function() {
   console.error('require empty string');
   require('');
-}, 'missing path');
+}, /missing path/);
 
 process.on('exit', function() {
   assert.ok(a.A instanceof Function);
