@@ -20,7 +20,6 @@ CFLAGS += -Wall \
           -Iinclude \
           -Isrc \
           -Isrc/win \
-          -DWIN32_LEAN_AND_MEAN \
           -D_WIN32_WINNT=0x0600
 
 INCLUDES = include/stdint-msvc2008.h \
