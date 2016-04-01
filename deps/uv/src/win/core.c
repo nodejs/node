@@ -256,30 +256,48 @@ static void uv_poll(uv_loop_t* loop, DWORD timeout) {
   ULONG_PTR key;
   OVERLAPPED* overlapped;
   uv_req_t* req;
+  int repeat;
+  uint64_t timeout_time;
 
-  GetQueuedCompletionStatus(loop->iocp,
-                            &bytes,
-                            &key,
-                            &overlapped,
-                            timeout);
+  timeout_time = loop->time + timeout;
 
-  if (overlapped) {
-    /* Package was dequeued */
-    req = uv_overlapped_to_req(overlapped);
-    uv_insert_pending_req(loop, req);
+  for (repeat = 0; ; repeat++) {
+    GetQueuedCompletionStatus(loop->iocp,
+                              &bytes,
+                              &key,
+                              &overlapped,
+                              timeout);
 
-    /* Some time might have passed waiting for I/O,
-     * so update the loop time here.
-     */
-    uv_update_time(loop);
-  } else if (GetLastError() != WAIT_TIMEOUT) {
-    /* Serious error */
-    uv_fatal_error(GetLastError(), "GetQueuedCompletionStatus");
-  } else if (timeout > 0) {
-    /* GetQueuedCompletionStatus can occasionally return a little early.
-     * Make sure that the desired timeout is reflected in the loop time.
-     */
-    uv__time_forward(loop, timeout);
+    if (overlapped) {
+      /* Package was dequeued */
+      req = uv_overlapped_to_req(overlapped);
+      uv_insert_pending_req(loop, req);
+
+      /* Some time might have passed waiting for I/O,
+       * so update the loop time here.
+       */
+      uv_update_time(loop);
+    } else if (GetLastError() != WAIT_TIMEOUT) {
+      /* Serious error */
+      uv_fatal_error(GetLastError(), "GetQueuedCompletionStatus");
+    } else if (timeout > 0) {
+      /* GetQueuedCompletionStatus can occasionally return a little early.
+       * Make sure that the desired timeout target time is reached.
+       */
+      uv_update_time(loop);
+      if (timeout_time > loop->time) {
+        timeout = (DWORD)(timeout_time - loop->time);
+        /* The first call to GetQueuedCompletionStatus should return very
+         * close to the target time and the second should reach it, but
+         * this is not stated in the documentation. To make sure a busy
+         * loop cannot happen, the timeout is increased exponentially
+         * starting on the third round.
+         */
+        timeout += repeat ? (1 << (repeat - 1)) : 0;
+        continue;
+      }
+    }
+    break;
   }
 }
 
@@ -290,33 +308,51 @@ static void uv_poll_ex(uv_loop_t* loop, DWORD timeout) {
   OVERLAPPED_ENTRY overlappeds[128];
   ULONG count;
   ULONG i;
+  int repeat;
+  uint64_t timeout_time;
 
-  success = pGetQueuedCompletionStatusEx(loop->iocp,
-                                         overlappeds,
-                                         ARRAY_SIZE(overlappeds),
-                                         &count,
-                                         timeout,
-                                         FALSE);
+  timeout_time = loop->time + timeout;
 
-  if (success) {
-    for (i = 0; i < count; i++) {
-      /* Package was dequeued */
-      req = uv_overlapped_to_req(overlappeds[i].lpOverlapped);
-      uv_insert_pending_req(loop, req);
+  for (repeat = 0; ; repeat++) {
+    success = pGetQueuedCompletionStatusEx(loop->iocp,
+                                           overlappeds,
+                                           ARRAY_SIZE(overlappeds),
+                                           &count,
+                                           timeout,
+                                           FALSE);
+
+    if (success) {
+      for (i = 0; i < count; i++) {
+        /* Package was dequeued */
+        req = uv_overlapped_to_req(overlappeds[i].lpOverlapped);
+        uv_insert_pending_req(loop, req);
+      }
+
+      /* Some time might have passed waiting for I/O,
+       * so update the loop time here.
+       */
+      uv_update_time(loop);
+    } else if (GetLastError() != WAIT_TIMEOUT) {
+      /* Serious error */
+      uv_fatal_error(GetLastError(), "GetQueuedCompletionStatusEx");
+    } else if (timeout > 0) {
+      /* GetQueuedCompletionStatus can occasionally return a little early.
+       * Make sure that the desired timeout target time is reached.
+       */
+      uv_update_time(loop);
+      if (timeout_time > loop->time) {
+        timeout = (DWORD)(timeout_time - loop->time);
+        /* The first call to GetQueuedCompletionStatus should return very
+         * close to the target time and the second should reach it, but
+         * this is not stated in the documentation. To make sure a busy
+         * loop cannot happen, the timeout is increased exponentially
+         * starting on the third round.
+         */
+        timeout += repeat ? (1 << (repeat - 1)) : 0;
+        continue;
+      }
     }
-
-    /* Some time might have passed waiting for I/O,
-     * so update the loop time here.
-     */
-    uv_update_time(loop);
-  } else if (GetLastError() != WAIT_TIMEOUT) {
-    /* Serious error */
-    uv_fatal_error(GetLastError(), "GetQueuedCompletionStatusEx");
-  } else if (timeout > 0) {
-    /* GetQueuedCompletionStatus can occasionally return a little early.
-     * Make sure that the desired timeout is reflected in the loop time.
-     */
-    uv__time_forward(loop, timeout);
+    break;
   }
 }
 

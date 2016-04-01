@@ -1,3 +1,142 @@
+2016.04.08, Version 1.9.0 (Stable), 229b3a4cc150aebd6561e6bd43076eafa7a03756
+
+Changes since version 1.8.0:
+
+* win: wait for full timeout duration (João Reis)
+
+* unix: fix support for uClibc-ng (Martin Bark)
+
+* doc: indicate where new test files need to be added (Dave)
+
+* test,unix: fix logic error in test runner (Ben Noordhuis)
+
+* fs: don't nullify req->bufs on EINTR (Dave)
+
+* osx: set the default thread stack size to RLIMIT_STACK (Saúl Ibarra Corretgé)
+
+* build: invoke libtoolize with --copy (Ben Noordhuis)
+
+* test: fixup eintr_handling (Saúl Ibarra Corretgé)
+
+* osx: avoid compilation warning with Clang (Saúl Ibarra Corretgé)
+
+* test,win: fix compilation with shared lib (Alexis Murzeau)
+
+* test: fix race condition in pipe-close-stdout (Imran Iqbal)
+
+* unix,win: add uv_os_tmpdir() (cjihrig)
+
+* ios: fix undefined PTHREAD_STACK_MIN (Didiet)
+
+* test: fix threadpool_multiple_event_loops for AIX (Imran Iqbal)
+
+* unix: report errors for unpollable fds (Ben Noordhuis)
+
+* win: fix watching root files (Nicholas Vavilov)
+
+* build,win: print the Visual Studio version in use (Saúl Ibarra Corretgé)
+
+* build,win: remove unneeded condition from GYP file (Saúl Ibarra Corretgé)
+
+* test,win: fix compilation warning (Saúl Ibarra Corretgé)
+
+* test: use uv_loop_close and assert its result (Nan Xiang)
+
+* build: map 'AMD64' host arch to 'x64' (Ben Noordhuis)
+
+* osx: protected use of potentially undefined macro (Samuel Lorétan)
+
+* linux: fix compilation with musl (Saúl Ibarra Corretgé)
+
+* doc: describe how to make release builds on Unix (Saúl Ibarra Corretgé)
+
+* doc: add missing link in README (Saúl Ibarra Corretgé)
+
+* build: python 2.x/3.x consistent print usage (Rasmus Christian Pedersen)
+
+* test: assume no IPv6 if interfaces cannot be listed (Nan Xiang)
+
+* darwin: replace F_FULLFSYNC with fdatasync syscall (Saúl Ibarra Corretgé)
+
+* doc: add missing write callback to example (Nándor István Krácser)
+
+* build: compile with -D_THREAD_SAFE on AIX (Imran Iqbal)
+
+* test: fix threadpool_multiple_event_loops on PPC (Imran Iqbal)
+
+* test: reduce timeout in tcp_close_while_connecting (Imran Iqbal)
+
+* unix, win: consistently null-terminate buffers (Saúl Ibarra Corretgé)
+
+* unix, win: count null byte on UV_ENOBUFS (Saúl Ibarra Corretgé)
+
+* test: fix deadlocks in uv_cond_wait (Katsutoshi Horie)
+
+* linux: fix cpu count (Lukasz Jagiello)
+
+* unix: fix uv__handle_type for AIX (Imran Iqbal)
+
+* linux: call fclose(), fix fdopen() memory leak (Ben Noordhuis)
+
+* win: remove unneeded condition (Saúl Ibarra Corretgé)
+
+* unix: fix compile error in Android using bionic (Robert Chiras)
+
+* linux: add braces to multi-statement if (Kári Tristan Helgason)
+
+* doc: add @cjihrig as a maintainer (Saúl Ibarra Corretgé)
+
+* unix: add fork-safe open file function (Kári Tristan Helgason)
+
+* linux: replace calls to fopen with uv__open_file (Kári Tristan Helgason)
+
+* linux: remove redundant call to rewind() (Krishnaraj Bhat)
+
+* win: remove duplicated code when processing fsevents (Saúl Ibarra Corretgé)
+
+* test: fix poll_bad_fdtype for AIX (Imran Iqbal)
+
+* linux: fix error checking in uv__open_file (Saúl Ibarra Corretgé)
+
+* poll: add UV_DISCONNECT event (Santiago Gimeno)
+
+* fs: realpath: fix string size before converting (Yuval Brik)
+
+* win: use native APIs for UTF conversions (cjihrig)
+
+* doc: clarify uv_loop_close() (Ben Noordhuis)
+
+* unix: retry ioctl(TIOCGWINSZ) on EINTR (Ben Noordhuis)
+
+* win,build: remove unused build defines (Saúl Ibarra Corretgé)
+
+* win: fix buffer overflow in fs events (Joran Dirk Greef)
+
+* win: fix uv_relative_path and remove dead branch (Joran Dirk Greef)
+
+* unix: use open(2) with O_CLOEXEC on OS X (Kári Tristan Helgason)
+
+* test: add missing copyright header (cjihrig)
+
+* aix: fix 'POLLRDHUP undeclared' build error (Ben Noordhuis)
+
+* unix,win: add uv_get_passwd() (cjihrig)
+
+* process: fix uv_spawn edge-case (Santiago Gimeno)
+
+* test: use %ld for printing uid/gid (Ben Noordhuis)
+
+* aix: fix ahafs implementation (Imran Iqbal)
+
+* aix: do not store absolute path to ahafs (Imran Iqbal)
+
+* process: close process pipes safely (Santiago Gimeno)
+
+* unix: open ttyname instead of /dev/tty (Enno Boland)
+
+* unix: remove outdated comment (Kári Tristan Helgason)
+
+
 2015.12.15, Version 1.8.0 (Stable), 5467299450ecf61635657557b6e01aaaf6c3fdf4
 
 Changes since version 1.7.5:

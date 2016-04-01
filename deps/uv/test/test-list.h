@@ -44,6 +44,7 @@ TEST_DECLARE   (semaphore_2)
 TEST_DECLARE   (semaphore_3)
 TEST_DECLARE   (tty)
 TEST_DECLARE   (tty_file)
+TEST_DECLARE   (tty_pty)
 TEST_DECLARE   (stdio_over_pipes)
 TEST_DECLARE   (ip6_pton)
 TEST_DECLARE   (ipc_listen_before_write)
@@ -154,6 +155,7 @@ TEST_DECLARE   (timer_huge_repeat)
 TEST_DECLARE   (timer_run_once)
 TEST_DECLARE   (timer_from_check)
 TEST_DECLARE   (timer_null_callback)
+TEST_DECLARE   (timer_early_check)
 TEST_DECLARE   (idle_starvation)
 TEST_DECLARE   (loop_handles)
 TEST_DECLARE   (get_loadavg)
@@ -191,12 +193,15 @@ TEST_DECLARE   (active)
 TEST_DECLARE   (embed)
 TEST_DECLARE   (async)
 TEST_DECLARE   (async_null_cb)
+TEST_DECLARE   (eintr_handling)
 TEST_DECLARE   (get_currentexe)
 TEST_DECLARE   (process_title)
 TEST_DECLARE   (cwd_and_chdir)
 TEST_DECLARE   (get_memory)
+TEST_DECLARE   (get_passwd)
 TEST_DECLARE   (handle_fileno)
 TEST_DECLARE   (homedir)
+TEST_DECLARE   (tmpdir)
 TEST_DECLARE   (hrtime)
 TEST_DECLARE   (getaddrinfo_fail)
 TEST_DECLARE   (getaddrinfo_fail_sync)
@@ -267,6 +272,9 @@ TEST_DECLARE   (fs_event_watch_dir_recursive)
 TEST_DECLARE   (fs_event_watch_file)
 TEST_DECLARE   (fs_event_watch_file_twice)
 TEST_DECLARE   (fs_event_watch_file_current_dir)
+#ifdef _WIN32
+TEST_DECLARE   (fs_event_watch_file_root_dir)
+#endif
 TEST_DECLARE   (fs_event_no_callback_after_close)
 TEST_DECLARE   (fs_event_no_callback_on_close)
 TEST_DECLARE   (fs_event_immediate_close)
@@ -292,6 +300,7 @@ TEST_DECLARE   (threadpool_cancel_work)
 TEST_DECLARE   (threadpool_cancel_fs)
 TEST_DECLARE   (threadpool_cancel_single)
 TEST_DECLARE   (thread_local_storage)
+TEST_DECLARE   (thread_stack_size)
 TEST_DECLARE   (thread_mutex)
 TEST_DECLARE   (thread_rwlock)
 TEST_DECLARE   (thread_rwlock_trylock)
@@ -301,6 +310,7 @@ TEST_DECLARE   (dlerror)
 TEST_DECLARE   (poll_duplex)
 TEST_DECLARE   (poll_unidirectional)
 TEST_DECLARE   (poll_close)
+TEST_DECLARE   (poll_bad_fdtype)
 
 TEST_DECLARE   (ip4_addr)
 TEST_DECLARE   (ip6_addr_link_local)
@@ -378,6 +388,7 @@ TASK_LIST_START
   TEST_ENTRY  (pipe_set_non_blocking)
   TEST_ENTRY  (tty)
   TEST_ENTRY  (tty_file)
+  TEST_ENTRY  (tty_pty)
   TEST_ENTRY  (stdio_over_pipes)
   TEST_ENTRY  (ip6_pton)
   TEST_ENTRY  (ipc_listen_before_write)
@@ -522,6 +533,7 @@ TASK_LIST_START
   TEST_ENTRY  (timer_run_once)
   TEST_ENTRY  (timer_from_check)
   TEST_ENTRY  (timer_null_callback)
+  TEST_ENTRY  (timer_early_check)
 
   TEST_ENTRY  (idle_starvation)
 
@@ -566,6 +578,7 @@ TASK_LIST_START
 
   TEST_ENTRY  (async)
   TEST_ENTRY  (async_null_cb)
+  TEST_ENTRY  (eintr_handling)
 
   TEST_ENTRY  (get_currentexe)
 
@@ -575,11 +588,15 @@ TASK_LIST_START
 
   TEST_ENTRY  (get_memory)
 
+  TEST_ENTRY  (get_passwd)
+
   TEST_ENTRY  (get_loadavg)
 
   TEST_ENTRY  (handle_fileno)
 
   TEST_ENTRY  (homedir)
+
+  TEST_ENTRY  (tmpdir)
 
   TEST_ENTRY  (hrtime)
 
@@ -600,6 +617,7 @@ TASK_LIST_START
   TEST_ENTRY  (poll_duplex)
   TEST_ENTRY  (poll_unidirectional)
   TEST_ENTRY  (poll_close)
+  TEST_ENTRY  (poll_bad_fdtype)
 
   TEST_ENTRY  (socket_buffer_size)
 
@@ -688,6 +706,9 @@ TASK_LIST_START
   TEST_ENTRY  (fs_event_watch_file)
   TEST_ENTRY  (fs_event_watch_file_twice)
   TEST_ENTRY  (fs_event_watch_file_current_dir)
+#ifdef _WIN32
+  TEST_ENTRY  (fs_event_watch_file_root_dir)
+#endif
   TEST_ENTRY  (fs_event_no_callback_after_close)
   TEST_ENTRY  (fs_event_no_callback_on_close)
   TEST_ENTRY  (fs_event_immediate_close)
@@ -706,13 +727,21 @@ TASK_LIST_START
   TEST_ENTRY  (fs_read_write_null_arguments)
   TEST_ENTRY  (threadpool_queue_work_simple)
   TEST_ENTRY  (threadpool_queue_work_einval)
+#if defined(__PPC__) || defined(__PPC64__)  /* For linux PPC and AIX */
+  /* pthread_join takes a while, especially on AIX.
+   * Therefore being gratuitous with timeout.
+   */
+  TEST_ENTRY_CUSTOM (threadpool_multiple_event_loops, 0, 0, 120000)
+#else
   TEST_ENTRY  (threadpool_multiple_event_loops)
+#endif
   TEST_ENTRY  (threadpool_cancel_getaddrinfo)
   TEST_ENTRY  (threadpool_cancel_getnameinfo)
   TEST_ENTRY  (threadpool_cancel_work)
   TEST_ENTRY  (threadpool_cancel_fs)
   TEST_ENTRY  (threadpool_cancel_single)
   TEST_ENTRY  (thread_local_storage)
+  TEST_ENTRY  (thread_stack_size)
   TEST_ENTRY  (thread_mutex)
   TEST_ENTRY  (thread_rwlock)
   TEST_ENTRY  (thread_rwlock_trylock)
