@@ -230,6 +230,7 @@ typedef struct uv_work_s uv_work_t;
 typedef struct uv_cpu_info_s uv_cpu_info_t;
 typedef struct uv_interface_address_s uv_interface_address_t;
 typedef struct uv_dirent_s uv_dirent_t;
+typedef struct uv_passwd_s uv_passwd_t;
 
 typedef enum {
   UV_LOOP_BLOCK_SIGNAL
@@ -714,7 +715,8 @@ struct uv_poll_s {
 
 enum uv_poll_event {
   UV_READABLE = 1,
-  UV_WRITABLE = 2
+  UV_WRITABLE = 2,
+  UV_DISCONNECT = 4
 };
 
 UV_EXTERN int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd);
@@ -1000,6 +1002,14 @@ struct uv_interface_address_s {
   } netmask;
 };
 
+struct uv_passwd_s {
+  char* username;
+  long uid;
+  long gid;
+  char* shell;
+  char* homedir;
+};
+
 typedef enum {
   UV_DIRENT_UNKNOWN,
   UV_DIRENT_FILE,
@@ -1049,6 +1059,9 @@ typedef struct {
 UV_EXTERN int uv_getrusage(uv_rusage_t* rusage);
 
 UV_EXTERN int uv_os_homedir(char* buffer, size_t* size);
+UV_EXTERN int uv_os_tmpdir(char* buffer, size_t* size);
+UV_EXTERN int uv_os_get_passwd(uv_passwd_t* pwd);
+UV_EXTERN void uv_os_free_passwd(uv_passwd_t* pwd);
 
 UV_EXTERN int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count);
 UV_EXTERN void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count);

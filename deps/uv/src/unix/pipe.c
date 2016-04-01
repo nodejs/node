@@ -200,9 +200,6 @@ out:
   if (err)
     uv__io_feed(handle->loop, &handle->io_watcher);
 
-  /* Mimic the Windows pipe implementation, always
-   * return 0 and let the callback handle errors.
-   */
 }
 
 
@@ -234,13 +231,17 @@ static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
     addrlen = strlen(sa.sun_path);
 
 
-  if (addrlen > *size) {
-    *size = addrlen;
+  if (addrlen >= *size) {
+    *size = addrlen + 1;
     return UV_ENOBUFS;
   }
 
   memcpy(buffer, sa.sun_path, addrlen);
   *size = addrlen;
+
+  /* only null-terminate if it's not an abstract socket */
+  if (buffer[0] != '\0')
+    buffer[addrlen] = '\0';
 
   return 0;
 }

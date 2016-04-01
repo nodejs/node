@@ -122,6 +122,20 @@ Data types
             } netmask;
         } uv_interface_address_t;
 
+.. c:type:: uv_passwd_t
+
+    Data type for password file information.
+
+    ::
+
+        typedef struct uv_passwd_s {
+            char* username;
+            long uid;
+            long gid;
+            char* shell;
+            char* homedir;
+        } uv_passwd_t;
+
 
 API
 ---
@@ -265,13 +279,49 @@ API
     `uv_os_homedir()` first checks the `HOME` environment variable using
     :man:`getenv(3)`. If `HOME` is not set, :man:`getpwuid_r(3)` is called. The
     user's home directory is stored in `buffer`. When `uv_os_homedir()` is
-    called, `size` indicates the maximum size of `buffer`. On success or
-    `UV_ENOBUFS` failure, `size` is set to the string length of `buffer`.
+    called, `size` indicates the maximum size of `buffer`. On success `size` is set
+    to the string length of `buffer`. On `UV_ENOBUFS` failure `size` is set to the
+    required length for `buffer`, including the null byte.
 
     .. warning::
         `uv_os_homedir()` is not thread safe.
 
     .. versionadded:: 1.6.0
+
+.. c:function:: int uv_os_tmpdir(char* buffer, size_t* size)
+
+    Gets the temp directory. On Windows, `uv_os_tmpdir()` uses `GetTempPathW()`.
+    On all other operating systems, `uv_os_tmpdir()` uses the first environment
+    variable found in the ordered list `TMPDIR`, `TMP`, `TEMP`, and `TEMPDIR`.
+    If none of these are found, the path `"/tmp"` is used, or, on Android,
+    `"/data/local/tmp"` is used. The temp directory is stored in `buffer`. When
+    `uv_os_tmpdir()` is called, `size` indicates the maximum size of `buffer`.
+    On success `size` is set to the string length of `buffer` (which does not
+    include the terminating null). On `UV_ENOBUFS` failure `size` is set to the
+    required length for `buffer`, including the null byte.
+
+    .. warning::
+        `uv_os_tmpdir()` is not thread safe.
+
+    .. versionadded:: 1.9.0
+
+.. c:function:: int uv_os_get_passwd(uv_passwd_t* pwd)
+
+    Gets a subset of the password file entry for the current effective uid (not
+    the real uid). The populated data includes the username, euid, gid, shell,
+    and home directory. On non-Windows systems, all data comes from
+    :man:`getpwuid_r(3)`. On Windows, uid and gid are set to -1 and have no
+    meaning, and shell is `NULL`. After successfully calling this function, the
+    memory allocated to `pwd` needs to be freed with
+    :c:func:`uv_os_free_passwd`.
+
+    .. versionadded:: 1.9.0
+
+.. c:function:: void uv_os_free_passwd(uv_passwd_t* pwd)
+
+    Frees the `pwd` memory previously allocated with :c:func:`uv_os_get_passwd`.
+
+    .. versionadded:: 1.9.0
 
 .. uint64_t uv_get_free_memory(void)
 .. c:function:: uint64_t uv_get_total_memory(void)
