@@ -50,6 +50,10 @@ console.log(__filename);
 
 `__filename` isn't actually a global but rather local to each module.
 
+## clearImmediate(immediateObject)
+
+Stops an `immediateObject`, as created by [`setImmediate`][], from triggering.
+
 ## clearInterval(t)
 
 Stop a timer that was previously created with [`setInterval()`][]. The callback
@@ -161,6 +165,21 @@ left untouched.
 
 Use the internal `require()` machinery to look up the location of a module,
 but rather than loading the module, just return the resolved filename.
+
+## setImmediate(callback[, arg][, ...])
+
+To schedule the "immediate" execution of `callback` after I/O events'
+callbacks and before timers set by [`setTimeout`][] and [`setInterval`][] are
+triggered. Returns an `immediateObject` for possible use with
+[`clearImmediate`][]. Additional optional arguments may be passed to the
+callback.
+
+Callbacks for immediates are queued in the order in which they were created.
+The entire callback queue is processed every event loop iteration. If an
+immediate is queued from inside an executing callback, that immediate won't fire
+until the next event loop iteration.
+
+If `callback` is not a function `setImmediate()` will throw immediately.
 
 ## setInterval(cb, ms)
 
