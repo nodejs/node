@@ -375,6 +375,8 @@ For TCP sockets, `options` argument should be an object which specifies:
 
   - `family` : Version of IP stack. Defaults to `4`.
 
+  - `hints`: [`dns.lookup()` hints][]. Defaults to `0`.
+
   - `lookup` : Custom lookup function. Defaults to `dns.lookup`.
 
 For local domain sockets, `options` argument should be an object which
@@ -720,6 +722,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`connect()`]: #net_socket_connect_options_connectlistener
 [`destroy()`]: #net_socket_destroy
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
+[`dns.lookup()` hints]: #dns_supported_getaddrinfo_flags
 [`end()`]: #net_socket_end_data_encoding
 [`EventEmitter`]: events.html#events_class_events_eventemitter
 [`net.Socket`]: #net_class_net_socket
