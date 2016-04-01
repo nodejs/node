@@ -247,12 +247,12 @@ assert.deepEqual(children, {
 assert.throws(function() {
   console.error('require non-string');
   require({ foo: 'bar' });
-}, 'path must be a string or Buffer');
+}, /path must be a string/);
 
 assert.throws(function() {
   console.error('require empty string');
   require('');
-}, 'missing path');
+}, /missing path/);
 
 process.on('exit', function() {
   assert.ok(a.A instanceof Function);
