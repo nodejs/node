@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var dns = require('dns');
+const dns = require('dns');
 
 function noop() {}
 
