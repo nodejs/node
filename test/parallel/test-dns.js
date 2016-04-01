@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var dns = require('dns');
+const dns = require('dns');
 
 var existing = dns.getServers();
 assert(existing.length);
@@ -121,27 +121,27 @@ assert.doesNotThrow(function() {
 });
 
 assert.doesNotThrow(function() {
-  dns.lookup('www.google.com', {
+  dns.lookup('', {
     family: 4,
     hints: 0
   }, noop);
 });
 
 assert.doesNotThrow(function() {
-  dns.lookup('www.google.com', {
+  dns.lookup('', {
     family: 6,
     hints: dns.ADDRCONFIG
   }, noop);
 });
 
 assert.doesNotThrow(function() {
-  dns.lookup('www.google.com', {
+  dns.lookup('', {
     hints: dns.V4MAPPED
   }, noop);
 });
 
 assert.doesNotThrow(function() {
-  dns.lookup('www.google.com', {
+  dns.lookup('', {
     hints: dns.ADDRCONFIG | dns.V4MAPPED
   }, noop);
 });
