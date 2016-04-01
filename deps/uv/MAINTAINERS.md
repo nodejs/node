@@ -6,6 +6,7 @@ libuv is currently managed by the following individuals:
 * **Ben Noordhuis** ([@bnoordhuis](https://github.com/bnoordhuis))
   - GPG key: D77B 1E34 243F BAF0 5F8E  9CC3 4F55 C8C8 46AB 89B9 (pubkey-bnoordhuis)
 * **Bert Belder** ([@piscisaureus](https://github.com/piscisaureus))
+* **Colin Ihrig** ([@cjihrig](https://github.com/cjihrig))
 * **Fedor Indutny** ([@indutny](https://github.com/indutny))
   - GPG key: AF2E EA41 EC34 47BF DD86  FED9 D706 3CCE 19B7 E890 (pubkey-indutny)
 * **Saúl Ibarra Corretgé** ([@saghul](https://github.com/saghul))

@@ -65,6 +65,9 @@ ipch
 # sphinx generated files
 /docs/build/
 
+# Clion / IntelliJ project files
+/.idea/
+
 *.xcodeproj
 *.xcworkspace
 

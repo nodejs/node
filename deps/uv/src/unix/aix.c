@@ -91,6 +91,24 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 }
 
 
+int uv__io_check_fd(uv_loop_t* loop, int fd) {
+  struct poll_ctl pc;
+
+  pc.events = POLLIN;
+  pc.cmd = PS_MOD;  /* Equivalent to PS_ADD if the fd is not in the pollset. */
+  pc.fd = fd;
+
+  if (pollset_ctl(loop->backend_fd, &pc, 1))
+    return -errno;
+
+  pc.cmd = PS_DELETE;
+  if (pollset_ctl(loop->backend_fd, &pc, 1))
+    abort();
+
+  return 0;
+}
+
+
 void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct pollfd events[1024];
   struct pollfd pqry;
@@ -506,7 +524,7 @@ static int uv__makedir_p(const char *dir) {
     if (*p == '/') {
       *p = 0;
       err = mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-      if(err != 0)
+      if (err != 0 && errno != EEXIST)
         return err;
       *p = '/';
     }
@@ -707,17 +725,10 @@ static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int
   int bytes, rc = 0;
   uv_fs_event_t* handle;
   int events = 0;
-  int  i = 0;
   char fname[PATH_MAX];
   char *p;
 
   handle = container_of(event_watch, uv_fs_event_t, event_watcher);
-
-  /* Clean all the buffers*/
-  for(i = 0; i < PATH_MAX; i++) {
-    fname[i] = 0;
-  }
-  i = 0;
 
   /* At this point, we assume that polling has been done on the
    * file descriptor, so we can just read the AHAFS event occurrence
@@ -725,41 +736,33 @@ static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int
    */
   bytes = pread(event_watch->fd, result_data, RDWR_BUF_SIZE, 0);
 
-  assert((bytes <= 0) && "uv__ahafs_event - Error reading monitor file");
+  assert((bytes >= 0) && "uv__ahafs_event - Error reading monitor file");
 
   /* Parse the data */
   if(bytes > 0)
     rc = uv__parse_data(result_data, &events, handle);
+
+  /* Unrecoverable error */
+  if (rc == -1)
+    return;
 
   /* For directory changes, the name of the files that triggered the change
    * are never absolute pathnames
    */
   if (uv__path_is_a_directory(handle->path) == 0) {
     p = handle->dir_filename;
-    while(*p != NULL){
-      fname[i]= *p;
-      i++;
-      p++;
-    }
   } else {
-    /* For file changes, figure out whether filename is absolute or not */
-    if (handle->path[0] == '/') {
-      p = strrchr(handle->path, '/');
+    p = strrchr(handle->path, '/');
+    if (p == NULL)
+      p = handle->path;
+    else
       p++;
-
-      while(*p != NULL) {
-        fname[i]= *p;
-        i++;
-        p++;
-      }
-    }
   }
+  strncpy(fname, p, sizeof(fname) - 1);
+  /* Just in case */
+  fname[sizeof(fname) - 1] = '\0';
 
-  /* Unrecoverable error */
-  if (rc == -1)
-    return;
-  else /* Call the actual JavaScript callback function */
-    handle->cb(handle, (const char*)&fname, events, 0);
+  handle->cb(handle, fname, events, 0);
 }
 #endif
 
@@ -839,7 +842,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   /* Setup/Initialize all the libuv routines */
   uv__handle_start(handle);
   uv__io_init(&handle->event_watcher, uv__ahafs_event, fd);
-  handle->path = uv__strdup((const char*)&absolute_path);
+  handle->path = uv__strdup(filename);
   handle->cb = cb;
 
   uv__io_start(handle->loop, &handle->event_watcher, UV__POLLIN);

@@ -513,13 +513,18 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   }
 
   /* Convert name to UTF16. */
-  nameSize = uv_utf8_to_utf16(name, NULL, 0) * sizeof(WCHAR);
+  nameSize = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0) * sizeof(WCHAR);
   handle->name = (WCHAR*)uv__malloc(nameSize);
   if (!handle->name) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
 
-  if (!uv_utf8_to_utf16(name, handle->name, nameSize / sizeof(WCHAR))) {
+  if (!MultiByteToWideChar(CP_UTF8,
+                           0,
+                           name,
+                           -1,
+                           handle->name,
+                           nameSize / sizeof(WCHAR))) {
     err = GetLastError();
     goto error;
   }
@@ -627,13 +632,18 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
   req->cb = cb;
 
   /* Convert name to UTF16. */
-  nameSize = uv_utf8_to_utf16(name, NULL, 0) * sizeof(WCHAR);
+  nameSize = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0) * sizeof(WCHAR);
   handle->name = (WCHAR*)uv__malloc(nameSize);
   if (!handle->name) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
 
-  if (!uv_utf8_to_utf16(name, handle->name, nameSize / sizeof(WCHAR))) {
+  if (!MultiByteToWideChar(CP_UTF8,
+                           0,
+                           name,
+                           -1,
+                           handle->name,
+                           nameSize / sizeof(WCHAR))) {
     err = GetLastError();
     goto error;
   }
@@ -2038,9 +2048,9 @@ static int uv__pipe_getname(const uv_pipe_t* handle, char* buffer, size_t* size)
     *size = 0;
     err = uv_translate_sys_error(GetLastError());
     goto error;
-  } else if (pipe_prefix_len + addrlen > *size) {
+  } else if (pipe_prefix_len + addrlen >= *size) {
     /* "\\\\.\\pipe" + name */
-    *size = pipe_prefix_len + addrlen;
+    *size = pipe_prefix_len + addrlen + 1;
     err = UV_ENOBUFS;
     goto error;
   }
@@ -2062,6 +2072,7 @@ static int uv__pipe_getname(const uv_pipe_t* handle, char* buffer, size_t* size)
 
   addrlen += pipe_prefix_len;
   *size = addrlen;
+  buffer[addrlen] = '\0';
 
   err = 0;
   goto cleanup;
