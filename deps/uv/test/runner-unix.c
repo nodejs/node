@@ -226,7 +226,7 @@ int process_wait(process_info_t* vec, int n, int timeout) {
   tv = timebase;
   for (;;) {
     /* Check that gettimeofday() doesn't jump back in time. */
-    assert(tv.tv_sec == timebase.tv_sec ||
+    assert(tv.tv_sec > timebase.tv_sec ||
            (tv.tv_sec == timebase.tv_sec && tv.tv_usec >= timebase.tv_usec));
 
     elapsed_ms =
