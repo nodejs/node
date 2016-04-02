@@ -130,8 +130,8 @@ exec('my.bat', (err, stdout, stderr) => {
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
-  * `stdout` {Buffer}
-  * `stderr` {Buffer}
+  * `stdout` {String|Buffer}
+  * `stderr` {String|Buffer}
 * Return: {ChildProcess}
 
 Spawns a shell then executes the `command` within that shell, buffering any
@@ -155,6 +155,13 @@ If a `callback` function is provided, it is called with the arguments
 the exit code of the child process while `error.signal` will be set to the
 signal that terminated the process. Any exit code other than `0` is considered
 to be an error.
+
+The `stdout` and `stderr` arguments passed to the callback will contain the
+stdout and stderr output of the child process. By default, Node.js will decode
+the output as UTF-8 and pass strings to the callback. The `encoding` option
+can be used to specify the character encoding used to decode the stdout and
+stderr output. If `encoding` is `'buffer'`, `Buffer` objects will be passed to
+the callback instead.
 
 The `options` argument may be passed as the second argument to customize how
 the process is spawned. The default options are:
@@ -197,8 +204,8 @@ replace the existing process and uses a shell to execute the command.*
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
-  * `stdout` {Buffer}
-  * `stderr` {Buffer}
+  * `stdout` {String|Buffer}
+  * `stderr` {String|Buffer}
 * Return: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
@@ -218,6 +225,13 @@ const child = execFile('node', ['--version'], (error, stdout, stderr) => {
   console.log(stdout);
 });
 ```
+
+The `stdout` and `stderr` arguments passed to the callback will contain the
+stdout and stderr output of the child process. By default, Node.js will decode
+the output as UTF-8 and pass strings to the callback. The `encoding` option
+can be used to specify the character encoding used to decode the stdout and
+stderr output. If `encoding` is `'buffer'`, `Buffer` objects will be passed to
+the callback instead.
 
 ### child_process.fork(modulePath[, args][, options])
 
