@@ -94,6 +94,17 @@ Error: EISDIR, read
     <etc.>
 ```
 
+## Buffer API
+
+`fs` functions support passing and receiving paths as both strings and Buffers.
+The latter is intended for filesystems which support non-UTF-8 filenames (except
+NTFS, where the conversion to UTF-8 is done automatically) and is normally not 
+needed.
+
+**Caution:** the Buffer API is not portable. On NTFS and HFS+, the incoming
+Buffers are always encoded in UTF-8, and passing non-UTF-8 encoded Buffers to
+`fs` functions won't work as expected.
+
 ## Class: fs.FSWatcher
 
 Objects returned from `fs.watch()` are of this type.
