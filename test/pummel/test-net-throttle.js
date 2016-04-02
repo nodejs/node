@@ -1,15 +1,15 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var N = 1024 * 1024;
-var part_N = N / 3;
+const N = 1024 * 1024;
+const part_N = N / 3;
 var chars_recved = 0;
 var npauses = 0;
 
 console.log('build big string');
-body = 'C'.repeat(N);
+const body = 'C'.repeat(N);
 
 console.log('start server on port ' + common.PORT);
 
