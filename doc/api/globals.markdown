@@ -30,6 +30,16 @@ console.log(__dirname);
 
 `__dirname` isn't actually a global but rather local to each module.
 
+For instance, given two modules: `a` and `b`, where `b` is a dependency of
+`a` and there is a directory structure of:
+
+* `/Users/mjr/app/a.js`
+* `/Users/mjr/app/node_modules/b/b.js`
+
+References to `__dirname` within `b.js` will return
+`/Users/mjr/app/node_modules/b` while references to `__dirname` within `a.js`
+will return `/Users/mj/app`.
+
 ## \_\_filename
 
 <!-- type=var -->
