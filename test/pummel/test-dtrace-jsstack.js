@@ -14,7 +14,7 @@ if (os.type() != 'SunOS') {
 var frames = [ 'stalloogle', 'bagnoogle', 'doogle' ];
 
 var stalloogle = function(str) {
-  expected = str;
+  global.expected = str;
   os.loadavg();
 };
 
