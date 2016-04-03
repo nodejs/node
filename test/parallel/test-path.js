@@ -344,8 +344,18 @@ resolveTests.forEach(function(test) {
 assert.equal(failures.length, 0, failures.join(''));
 
 // path.isAbsolute tests
+assert.equal(path.win32.isAbsolute('/'), true);
+assert.equal(path.win32.isAbsolute('//'), true);
+assert.equal(path.win32.isAbsolute('//server'), true);
 assert.equal(path.win32.isAbsolute('//server/file'), true);
 assert.equal(path.win32.isAbsolute('\\\\server\\file'), true);
+assert.equal(path.win32.isAbsolute('\\\\server'), true);
+assert.equal(path.win32.isAbsolute('\\\\'), true);
+assert.equal(path.win32.isAbsolute('c'), false);
+assert.equal(path.win32.isAbsolute('c:'), false);
+assert.equal(path.win32.isAbsolute('c:\\'), true);
+assert.equal(path.win32.isAbsolute('c:/'), true);
+assert.equal(path.win32.isAbsolute('c://'), true);
 assert.equal(path.win32.isAbsolute('C:/Users/'), true);
 assert.equal(path.win32.isAbsolute('C:\\Users\\'), true);
 assert.equal(path.win32.isAbsolute('C:cwd/another'), false);
