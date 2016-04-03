@@ -24,7 +24,7 @@ var moduleFilename = require('path').join(common.fixturesDir, 'a');
 console.error('repl test');
 
 // function for REPL to run
-invoke_me = function(arg) {
+global.invoke_me = function(arg) {
   return 'invoked ' + arg;
 };
 
