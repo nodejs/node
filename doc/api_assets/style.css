@@ -455,7 +455,6 @@ th > *:last-child, td > *:last-child {
 
 @media only screen and (max-width: 1024px) {
   #content {
-    font-size: 2.1em;
     overflow: visible;
   }
   #column1.interior {
@@ -470,11 +469,5 @@ th > *:last-child, td > *:last-child {
   }
   #column2 {
     display: none;
-  }
-}
-
-@media only screen and (max-width: 1024px) and (orientation: portrait) {
-  #content {
-    font-size: 2.4em;
   }
 }
