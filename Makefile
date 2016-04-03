@@ -115,7 +115,7 @@ v8:
 	$(MAKE) -C deps/v8 $(V8_ARCH) $(V8_BUILD_OPTIONS)
 
 test: | cctest  # Depends on 'all'.
-	$(PYTHON) tools/test.py --mode=release message parallel sequential -J
+	$(PYTHON) tools/test.py --mode=release doctool message parallel sequential -J
 	$(MAKE) jslint
 	$(MAKE) cpplint
 
@@ -173,7 +173,7 @@ test-all-valgrind: test-build
 test-ci: | build-addons
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) addons message parallel sequential
+		$(TEST_CI_ARGS) addons doctool message parallel sequential
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
