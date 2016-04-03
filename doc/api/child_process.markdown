@@ -160,9 +160,9 @@ to be an error.
 The `stdout` and `stderr` arguments passed to the callback will contain the
 stdout and stderr output of the child process. By default, Node.js will decode
 the output as UTF-8 and pass strings to the callback. The `encoding` option
-(see below) can be used to specify the character encoding used to decode the
-stdout and stderr output. If `encoding` is `'buffer'`, `Buffer` objects will be
-passed to the callback instead.
+can be used to specify the character encoding used to decode the stdout and 
+stderr output. If `encoding` is `'buffer'`, `Buffer` objects will be passed to 
+the callback instead.
 
 The `options` argument may be passed as the second argument to customize how
 the process is spawned. The default options are:
