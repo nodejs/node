@@ -30,7 +30,7 @@ try {
 
 assert.throws(function() {
   buf.toString('binary');
-}, /"toString\(\)" failed/);
+}, /Size exceeds max string length/);
 
 var maxString = buf.toString('binary', 1);
 assert.equal(maxString.length, kStringMaxLength);

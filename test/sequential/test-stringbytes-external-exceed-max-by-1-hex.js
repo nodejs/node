@@ -30,4 +30,4 @@ try {
 
 assert.throws(function() {
   buf.toString('hex');
-}, /"toString\(\)" failed/);
+}, /Size exceeds max string length/);

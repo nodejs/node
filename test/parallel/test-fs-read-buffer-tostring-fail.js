@@ -28,7 +28,7 @@ stream.on('finish', common.mustCall(function() {
   fd = fs.openSync(file, 'r');
   fs.read(fd, kStringMaxLength + 1, 0, 'utf8', common.mustCall(function(err) {
     assert.ok(err instanceof Error);
-    assert.strictEqual('"toString()" failed', err.message);
+    assert.strictEqual('Size exceeds max string length', err.message);
   }));
 }));
 

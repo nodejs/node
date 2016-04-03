@@ -30,8 +30,8 @@ try {
 
 assert.throws(function() {
   buf.toString();
-}, /"toString\(\)" failed|Array buffer allocation failed/);
+}, /Size exceeds max string length|Array buffer allocation failed/);
 
 assert.throws(function() {
   buf.toString('utf8');
-}, /"toString\(\)" failed/);
+}, /Size exceeds max string length/);
