@@ -48,7 +48,7 @@ function addTest(sequences, expectedKeys) {
 addTest('io.JS', [
   { name: 'i', sequence: 'i' },
   { name: 'o', sequence: 'o' },
-  undefined, // emitted as `emit('keypress', '.', undefined)`
+  { name: undefined, sequence: '.' },
   { name: 'j', sequence: 'J', shift: true },
   { name: 's', sequence: 'S', shift: true },
 ]);
