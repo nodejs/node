@@ -361,8 +361,13 @@ If the values are not strictly equal, an `AssertionError` is thrown with a
 
 ## assert.throws(block[, error][, message])
 
-Expects the function `block` to throw an error. If specified, `error` can be a
-constructor, [`RegExp`][], or validation function.
+Expects the function `block` to throw an error.
+
+If specified, `error` can be a constructor, [`RegExp`][], or validation
+function.
+
+If specified, `message` will be the message provided by the `AssertionError` if
+the block fails to throw.
 
 Validate instanceof using constructor:
 
@@ -400,6 +405,18 @@ assert.throws(
   },
   'unexpected error'
 );
+```
+
+Note that `error` can not be a string. If a string is provided as the second
+argument, then `error` is assumed to be omitted and the string will be used for
+`message` instead. This can lead to easy-to-miss mistakes:
+
+```js
+// THIS IS A MISTAKE! DO NOT DO THIS!
+assert.throws(myFunction, 'missing foo', 'did not throw with expected message');
+
+// Do this instead.
+assert.throws(myFunction, /missing foo/, 'did not throw with expected message');
 ```
 
 [Locked]: documentation.html#documentation_stability_index
