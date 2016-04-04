@@ -87,7 +87,12 @@ To test if Node.js was built correctly:
 $ node -e "console.log('Hello from Node.js ' + process.version)"
 ```
 
-### Android / Android based devices, aka. Firefox OS
+### Android / Android-based devices (e.g., Firefox OS)
+
+Although these instructions for building on Android are provided, please note
+that Android is not a supported platform at this time. Patches to improve
+the Android build are accepted. The participation of people dedicated and
+determined to make Android a supported Node.js platform is encouraged.
 
 Be sure you have downloaded and extracted [Android NDK]
 (https://developer.android.com/tools/sdk/ndk/index.html)
