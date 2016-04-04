@@ -340,6 +340,9 @@ console.log(util.inspect(server.listeners('connection')));
 
 ### emitter.on(eventName, listener)
 
+* `eventName` {string|Symbol} The name of the event.
+* `listener` {Function} The callback function
+
 Adds the `listener` function to the end of the listeners array for the
 event named `eventName`. No checks are made to see if the `listener` has
 already been added. Multiple calls passing the same combination of `eventName`
@@ -354,7 +357,24 @@ server.on('connection', (stream) => {
 
 Returns a reference to the `EventEmitter` so calls can be chained.
 
+By default, event listeners are invoked in the order they are added. The
+`emitter.prependListener()` method can be used as an alternative to add the
+event listener to the beginning of the listeners array.
+
+```js
+const myEE = new EventEmitter();
+myEE.on('foo', () => console.log('a'));
+myEE.prependListener('foo', () => console.log('b'));
+myEE.emit('foo');
+  // Prints:
+  //   b
+  //   a
+```
+
 ### emitter.once(eventName, listener)
+
+* `eventName` {string|Symbol} The name of the event.
+* `listener` {Function} The callback function
 
 Adds a **one time** `listener` function for the event named `eventName`. This
 listener is invoked only the next time `eventName` is triggered, after which
@@ -362,6 +382,56 @@ it is removed.
 
 ```js
 server.once('connection', (stream) => {
+  console.log('Ah, we have our first user!');
+});
+```
+
+Returns a reference to the `EventEmitter` so calls can be chained.
+
+By default, event listeners are invoked in the order they are added. The
+`emitter.prependOnceListener()` method can be used as an alternative to add the
+event listener to the beginning of the listeners array.
+
+```js
+const myEE = new EventEmitter();
+myEE.once('foo', () => console.log('a'));
+myEE.prependOnceListener('foo', () => console.log('b'));
+myEE.emit('foo');
+  // Prints:
+  //   b
+  //   a
+```
+
+### emitter.prependListener(eventName, listener)
+
+* `eventName` {string|Symbol} The name of the event.
+* `listener` {Function} The callback function
+
+Adds the `listener` function to the *beginning* of the listeners array for the
+event named `eventName`. No checks are made to see if the `listener` has
+already been added. Multiple calls passing the same combination of `eventName`
+and `listener` will result in the `listener` being added, and called, multiple
+times.
+
+```js
+server.prependListener('connection', (stream) => {
+  console.log('someone connected!');
+});
+```
+
+Returns a reference to the `EventEmitter` so calls can be chained.
+
+### emitter.prependOnceListener(eventName, listener)
+
+* `eventName` {string|Symbol} The name of the event.
+* `listener` {Function} The callback function
+
+Adds a **one time** `listener` function for the event named `eventName` to the
+*beginning* of the listeners array. This listener is invoked only the next time
+`eventName` is triggered, after which it is removed.
+
+```js
+server.prependOnceListener('connection', (stream) => {
   console.log('Ah, we have our first user!');
 });
 ```
