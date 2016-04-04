@@ -286,7 +286,7 @@ cipher text should be discarded due to failed authentication.
 ### decipher.setAutoPadding(auto_padding=true)
 
 When data has been encrypted without standard block padding, calling
-`decipher.setAuthPadding(false)` will disable automatic padding to prevent
+`decipher.setAutoPadding(false)` will disable automatic padding to prevent
 [`decipher.final()`][] from checking for and removing padding.
 
 Turning auto padding off will only work if the input data's length is a
