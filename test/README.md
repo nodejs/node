@@ -10,7 +10,9 @@ Tests for when the `--abort-on-uncaught-exception` flag is used.
 
 ### addons
 
-Tests for [addon](https://nodejs.org/api/addons.html) functionality.
+Tests for [addon](https://nodejs.org/api/addons.html) functionality along with
+some tests that require an addon to function properly.
+
 
 | Runs on CI |
 |:----------:|
