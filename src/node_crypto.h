@@ -538,6 +538,7 @@ class Hash : public BaseObject {
   EVP_MD_CTX mdctx_; /* coverity[member_decl] */
   const EVP_MD* md_; /* coverity[member_decl] */
   bool initialised_;
+  bool finalized_;
 };
 
 class SignBase : public BaseObject {
