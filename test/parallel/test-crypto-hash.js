@@ -98,3 +98,15 @@ assert.equal(
 assert.notEqual(
     hutf8,
     crypto.createHash('sha512').update('УТФ-8 text', 'binary').digest('hex'));
+
+var h3 = crypto.createHash('sha256');
+h3.digest();
+assert.throws(function() {
+  h3.digest();
+},
+  /Digest already called/);
+
+assert.throws(function() {
+  h3.update('foo');
+},
+  /Digest already called/);
