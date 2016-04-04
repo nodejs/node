@@ -22,16 +22,16 @@ addTest('', [
   /3/, /4/, /5/, /6/, /7/,
 ]);
 
-// continue
-addTest('c', [
-  /debug>.*c/,
+// out
+addTest('o', [
+  /debug>.*o/,
   /break in .*:12/,
   /10/, /11/, /12/, /13/, /14/
 ]);
 
-// should repeat continue
-addTest('', [
-  /debug>/,
+// continue
+addTest('c', [
+  /debug>.*c/,
   /break in .*:5/,
   /3/, /4/, /5/, /6/, /7/,
 ]);
