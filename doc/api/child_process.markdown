@@ -759,7 +759,29 @@ delivered to that process instead which can have unexpected results.
 Note that while the function is called `kill`, the signal delivered to the
 child process may not actually terminate the process.
 
-See `kill(2)`
+See `kill(2)` for reference.
+
+Also note: on Linux, child processes of child processes will not be terminated
+when attempting to kill their parent. This is likely to happen when running a
+new process in a shell or with use of the `shell` option of `ChildProcess`, such
+as in this example:
+
+```js
+'use strict';
+const spawn = require('child_process').spawn;
+
+let child = spawn('sh', ['-c',
+  `node -e "setInterval(() => {
+      console.log(process.pid + 'is alive')
+    }, 500);"`
+  ], {
+    stdio: ['inherit', 'inherit', 'inherit']
+  });
+
+setTimeout(() => {
+  child.kill(); // does not terminate the node process in the shell
+}, 2000);
+```
 
 ### child.pid
 
