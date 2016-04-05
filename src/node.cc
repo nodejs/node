@@ -2220,6 +2220,35 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
   fields[2] = t % NANOS_PER_SEC;
 }
 
+// CPUUsage exposes libuv's uv_getrusage() this-process resource usage accessor,
+// to access ru_utime (user CPU time used) and ru_stime (system CPU time used),
+// which are uv_timeval_t structs (long tv_sec, long tv_usec) as tuples
+// similar to process.hrtime() values.  Only it's seconds/microseconds instead
+// of hrtime()'s seconds/nanoseconds.
+void CPUUsage(const FunctionCallbackInfo<Value>& args) {
+  uv_rusage_t rusage;
+
+  // call to libuv to get the values we'll return
+  int err = uv_getrusage(&rusage);
+
+  // expecting to be passed in a uint array, of length 8
+  Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
+  uint32_t* fields = static_cast<uint32_t*>(ab->GetContents().Data());
+
+  // results passed as split values, reassembled in JS
+  fields[0] = (rusage.ru_utime.tv_sec) >> 32;
+  fields[1] = (rusage.ru_utime.tv_sec) & 0xffffffff;
+  fields[2] = (rusage.ru_utime.tv_usec) >> 32;
+  fields[3] = (rusage.ru_utime.tv_usec) & 0xffffffff;
+  fields[4] = (rusage.ru_stime.tv_sec) >> 32;
+  fields[5] = (rusage.ru_stime.tv_sec) & 0xffffffff;
+  fields[6] = (rusage.ru_stime.tv_usec) >> 32;
+  fields[7] = (rusage.ru_stime.tv_usec) & 0xffffffff;
+
+  // return value will be return code from the libuv call
+  args.GetReturnValue().Set(err);
+}
+
 extern "C" void node_module_register(void* m) {
   struct node_module* mp = reinterpret_cast<struct node_module*>(m);
 
@@ -3211,6 +3240,8 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_debugEnd", DebugEnd);
 
   env->SetMethod(process, "hrtime", Hrtime);
+
+  env->SetMethod(process, "cpuUsage", CPUUsage);
 
   env->SetMethod(process, "dlopen", DLOpen);
 
