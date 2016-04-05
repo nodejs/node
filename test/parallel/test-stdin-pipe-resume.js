@@ -25,4 +25,3 @@ if (process.argv[2] === 'child') {
     child.stdin.end();
   }, 10);
 }
-
