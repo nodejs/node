@@ -9,8 +9,8 @@ class Environment;
 
 class BaseObject {
  public:
-  BaseObject(Environment* env, v8::Local<v8::Object> handle);
-  virtual ~BaseObject();
+  inline BaseObject(Environment* env, v8::Local<v8::Object> handle);
+  inline virtual ~BaseObject();
 
   // Returns the wrapped object.  Returns an empty handle when
   // persistent.IsEmpty() is true.
