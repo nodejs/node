@@ -227,6 +227,12 @@ mkdir node-v%FULLVERSION%-win-%target_arch%\node_modules > nul 2>nul
 
 copy /Y node.exe node-v%FULLVERSION%-win-%target_arch%\ > nul
 if errorlevel 1 echo Cannot copy node.exe && goto package_error
+copy /Y ..\LICENSE node-v%FULLVERSION%-win-%target_arch%\ > nul
+if errorlevel 1 echo Cannot copy LICENSE && goto package_error
+copy /Y ..\README.md node-v%FULLVERSION%-win-%target_arch%\ > nul
+if errorlevel 1 echo Cannot copy README.md && goto package_error
+copy /Y ..\CHANGELOG.md node-v%FULLVERSION%-win-%target_arch%\ > nul
+if errorlevel 1 echo Cannot copy CHANGELOG.md && goto package_error
 robocopy /e ..\deps\npm node-v%FULLVERSION%-win-%target_arch%\node_modules\npm > nul
 if errorlevel 8 echo Cannot copy npm package && goto package_error
 copy /Y ..\deps\npm\bin\npm node-v%FULLVERSION%-win-%target_arch%\ > nul
@@ -252,11 +258,11 @@ echo Creating node_pdb.zip
 del node_pdb.zip  > nul 2> nul
 7z a -mx9 -tzip node_pdb.zip node.pdb > nul
 
-cd %~dp0
+cd ..
 echo Package created!
-
 goto package_done
 :package_error
+cd ..
 exit /b 1
 :package_done
 
