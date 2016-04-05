@@ -102,6 +102,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
+using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -2203,6 +2204,38 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(tuple);
 }
 
+// Microseconds in a second, as a float, used in CPUUsage() below
+#define MICROS_PER_SEC 1e6
+
+// CPUUsage use libuv's uv_getrusage() this-process resource usage accessor,
+// to access ru_utime (user CPU time used) and ru_stime (system CPU time used),
+// which are uv_timeval_t structs (long tv_sec, long tv_usec).
+// Returns those values as Float64 microseconds in the elements of the array
+// passed to the function.
+void CPUUsage(const FunctionCallbackInfo<Value>& args) {
+  uv_rusage_t rusage;
+
+  // Call libuv to get the values we'll return.
+  int err = uv_getrusage(&rusage);
+  if (err) {
+    // On error, return the strerror version of the error code.
+    Local<String> errmsg = OneByteString(args.GetIsolate(), uv_strerror(err));
+    args.GetReturnValue().Set(errmsg);
+    return;
+  }
+
+  // Get the double array pointer from the Float64Array argument.
+  CHECK(args[0]->IsFloat64Array());
+  Local<Float64Array> array = args[0].As<Float64Array>();
+  CHECK_EQ(array->Length(), 2);
+  Local<ArrayBuffer> ab = array->Buffer();
+  double* fields = static_cast<double*>(ab->GetContents().Data());
+
+  // Set the Float64Array elements to be user / system values in microseconds.
+  fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
+  fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
+}
+
 extern "C" void node_module_register(void* m) {
   struct node_module* mp = reinterpret_cast<struct node_module*>(m);
 
@@ -3152,6 +3185,8 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_debugEnd", DebugEnd);
 
   env->SetMethod(process, "hrtime", Hrtime);
+
+  env->SetMethod(process, "cpuUsage", CPUUsage);
 
   env->SetMethod(process, "dlopen", DLOpen);
 

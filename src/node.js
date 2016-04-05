@@ -38,6 +38,7 @@
     startup.processStdio();
     startup.processKillAndExit();
     startup.processSignalHandlers();
+    startup.processCpuUsage();
 
     // Do not initialize channel in debugger agent, it deletes env variable
     // and the main thread won't see it.
@@ -284,6 +285,58 @@
 
       return value;
     });
+  };
+
+  startup.processCpuUsage = function() {
+    // Get the native function, which will be replaced with a JS version.
+    const _cpuUsage = process.cpuUsage;
+
+    // Create the argument array that will be passed to the native function.
+    const cpuValues = new Float64Array(2);
+
+    // Replace the native function with the JS version that calls the native
+    // function.
+    process.cpuUsage = function cpuUsage(prevValue) {
+      // If a previous value was passed in, ensure it has the correct shape.
+      if (prevValue) {
+        if (!previousValueIsValid(prevValue.user)) {
+          throw new TypeError('value of user property of argument is invalid');
+        }
+
+        if (!previousValueIsValid(prevValue.system)) {
+          throw new TypeError(
+            'value of system property of argument is invalid');
+        }
+      }
+
+      // Call the native function to get the current values.
+      const errmsg = _cpuUsage(cpuValues);
+      if (errmsg) {
+        throw new Error('unable to obtain CPU usage: ' + errmsg);
+      }
+
+      // If a previous value was passed in,
+      // return diff of current from previous.
+      if (prevValue) return {
+        user: cpuValues[0] - prevValue.user,
+        system: cpuValues[1] - prevValue.system
+      };
+
+      // If no previous value passed in, return current value.
+      return {
+        user: cpuValues[0],
+        system: cpuValues[1]
+      };
+
+      // Ensure that a previously passed in value is valid. Currently, the
+      // native implementation always returns
+      // numbers <= Number.MAX_SAFE_INTEGER.
+      function previousValueIsValid(num) {
+        return Number.isFinite(num) &&
+            num <= Number.MAX_SAFE_INTEGER &&
+            num >= 0;
+      }
+    };
   };
 
   var addPendingUnhandledRejection;
