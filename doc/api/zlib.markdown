@@ -109,6 +109,31 @@ http.createServer((request, response) => {
 }).listen(1337);
 ```
 
+By default, the zlib methods with throw an error when decompressing
+truncated data. However, if it is known that the data is incomplete, or
+the desire is to inspect only the beginning of a compressed file, it is
+possible to suppress the default error handling by changing the flushing
+method that is used to compressed the last chunk of input data:
+
+```js
+// This is a truncated version of the buffer from the above examples
+const buffer = new Buffer('eJzT0yMA', 'base64');
+
+zlib.unzip(buffer, { finishFlush: zlib.Z_SYNC_FLUSH }, (err, buffer) => {
+  if (!err) {
+    console.log(buffer.toString());
+  } else {
+    // handle error
+  }
+});
+```
+
+This will not change the behavior in other error-throwing situations, e.g.
+when the input data has an invalid format. Using this method, it will not be
+possible to determine whether the input ended prematurely or lacks the
+integrity checks, making it necessary to manually check that the
+decompressed result is valid.
+
 ## Memory Usage Tuning
 
 <!--type=misc-->
@@ -231,6 +256,7 @@ Note that some options are only relevant when compressing, and are
 ignored by the decompression classes.
 
 * flush (default: `zlib.Z_NO_FLUSH`)
+* finishFlush (default: `zlib.Z_FINISH`)
 * chunkSize (default: 16*1024)
 * windowBits
 * level (compression only)
