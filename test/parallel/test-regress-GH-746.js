@@ -27,4 +27,3 @@ server.listen(common.PORT, function() {
 process.on('exit', function() {
   assert.ok(accepted);
 });
-

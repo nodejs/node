@@ -34,4 +34,3 @@ process.on('exit', function() {
   assert.ok(gotResponse);
   assert.equal(0, resBodySize);
 });
-
