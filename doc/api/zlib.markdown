@@ -231,6 +231,7 @@ Note that some options are only relevant when compressing, and are
 ignored by the decompression classes.
 
 * flush (default: `zlib.Z_NO_FLUSH`)
+* finishFlush (default: `zlib.Z_FINISH`)
 * chunkSize (default: 16*1024)
 * windowBits
 * level (compression only)
