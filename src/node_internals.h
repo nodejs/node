@@ -193,38 +193,6 @@ void ThrowUVException(v8::Isolate* isolate,
                       const char* path = nullptr,
                       const char* dest = nullptr);
 
-NODE_DEPRECATED("Use ThrowError(isolate)",
-                inline void ThrowError(const char* errmsg) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  return ThrowError(isolate, errmsg);
-})
-NODE_DEPRECATED("Use ThrowTypeError(isolate)",
-                inline void ThrowTypeError(const char* errmsg) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  return ThrowTypeError(isolate, errmsg);
-})
-NODE_DEPRECATED("Use ThrowRangeError(isolate)",
-                inline void ThrowRangeError(const char* errmsg) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  return ThrowRangeError(isolate, errmsg);
-})
-NODE_DEPRECATED("Use ThrowErrnoException(isolate)",
-                inline void ThrowErrnoException(int errorno,
-                                                const char* syscall = nullptr,
-                                                const char* message = nullptr,
-                                                const char* path = nullptr) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  return ThrowErrnoException(isolate, errorno, syscall, message, path);
-})
-NODE_DEPRECATED("Use ThrowUVException(isolate)",
-                inline void ThrowUVException(int errorno,
-                                             const char* syscall = nullptr,
-                                             const char* message = nullptr,
-                                             const char* path = nullptr) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  return ThrowUVException(isolate, errorno, syscall, message, path);
-})
-
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   ArrayBufferAllocator() : env_(nullptr) { }
