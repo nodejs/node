@@ -81,6 +81,7 @@ config.gypi: configure
 	fi
 
 install: all
+	-rm -rf '$PREFIX'/lib/node_modules/npm
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
 uninstall:
