@@ -5,21 +5,20 @@ const path = require('path');
 const fs = require('fs');
 
 
-var filepath = path.join(common.tmpDir, 'write_pos.txt');
+const filepath = path.join(common.tmpDir, 'write_pos.txt');
 
 
 const cb_expected = 'write open close write open close write open close ';
-let cb_occurred = '';
+var cb_occurred = '';
 
-var fileDataInitial = 'abcdefghijklmnopqrstuvwxyz';
+const fileDataInitial = 'abcdefghijklmnopqrstuvwxyz';
 
-var fileDataExpected_1 = 'abcdefghijklmnopqrstuvwxyz';
-var fileDataExpected_2 = 'abcdefghij123456qrstuvwxyz';
-var fileDataExpected_3 = 'abcdefghij\u2026\u2026qrstuvwxyz';
+const fileDataExpected_1 = 'abcdefghijklmnopqrstuvwxyz';
+const fileDataExpected_2 = 'abcdefghij123456qrstuvwxyz';
+const fileDataExpected_3 = 'abcdefghij\u2026\u2026qrstuvwxyz';
 
 
 process.on('exit', function() {
-  removeTestFile();
   if (cb_occurred !== cb_expected) {
     console.log('  Test callback events missing or out of order:');
     console.log('    expected: %j', cb_expected);
@@ -29,12 +28,6 @@ process.on('exit', function() {
         cb_occurred + '" !== "' + cb_expected + '"');
   }
 });
-
-function removeTestFile() {
-  try {
-    fs.unlinkSync(filepath);
-  } catch (ex) { }
-}
 
 
 common.refreshTmpDir();
@@ -164,20 +157,14 @@ function run_test_3() {
 }
 
 
-function run_test_4() {
-  var options;
-
-  options = { start: -5,
-              flags: 'r+' };
-
+const run_test_4 = common.mustCall(function() {
   //  Error: start must be >= zero
   assert.throws(
       function() {
-        file = fs.createWriteStream(filepath, options);
+        fs.createWriteStream(filepath, { start: -5, flags: 'r+' });
       },
       /"start" must be/
   );
-
-}
+});
 
 run_test_1();
