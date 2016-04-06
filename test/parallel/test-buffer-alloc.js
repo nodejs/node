@@ -1440,3 +1440,9 @@ assert.equal(Buffer.prototype.parent, undefined);
 assert.equal(Buffer.prototype.offset, undefined);
 assert.equal(SlowBuffer.prototype.parent, undefined);
 assert.equal(SlowBuffer.prototype.offset, undefined);
+
+
+// Test that ParseArrayIndex handles full uint32
+assert.throws(function() {
+  Buffer.from(new ArrayBuffer(0), -1 >>> 0);
+}, /RangeError: 'offset' is out of bounds/);
