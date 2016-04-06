@@ -10,6 +10,7 @@ async_wrap.setupHooks({ init, pre, post, destroy });
 async_wrap.enable();
 
 function init(uid) {
+  assert.notStrictEqual(async_wrap.getCurrentAsyncId(), uid);
   storage.set(uid, {
     init: true,
     pre: false,
@@ -19,14 +20,17 @@ function init(uid) {
 }
 
 function pre(uid) {
+  assert.strictEqual(async_wrap.getCurrentAsyncId(), uid);
   storage.get(uid).pre = true;
 }
 
 function post(uid) {
+  assert.strictEqual(async_wrap.getCurrentAsyncId(), uid);
   storage.get(uid).post = true;
 }
 
 function destroy(uid) {
+  assert.notStrictEqual(async_wrap.getCurrentAsyncId(), uid);
   storage.get(uid).destroy = true;
 }
 
@@ -55,3 +59,8 @@ process.once('exit', function() {
     });
   }
 });
+
+// verify each call to next ID produces an increasing uid.
+var nextId = async_wrap.getNextAsyncId();
+var nextId2 = async_wrap.getNextAsyncId();
+assert.strictEqual(nextId + 1, nextId2);

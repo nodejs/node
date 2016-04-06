@@ -34,7 +34,8 @@ namespace node {
   V(UDPWRAP)                                                                  \
   V(UDPSENDWRAP)                                                              \
   V(WRITEWRAP)                                                                \
-  V(ZLIB)
+  V(ZLIB)                                                                     \
+  V(NEXTTICK)
 
 class Environment;
 
@@ -46,6 +47,11 @@ class AsyncWrap : public BaseObject {
     NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
   };
+
+  static bool FireAsyncInitCallbacks(Environment* env,int64_t uid,v8::Local<v8::Object> object,AsyncWrap::ProviderType provider,AsyncWrap* parent);
+  static void FireAsyncPreCallbacks(Environment* env, bool ranInitCallback, v8::Local<v8::Number> uid, v8::Local<v8::Object> obj);
+  static void FireAsyncPostCallbacks(Environment* env, bool ranInitCallback, v8::Local<v8::Number> uid, v8::Local<v8::Object> obj, v8::Local<v8::Boolean> didUserCodeThrow);
+  static void FireAsyncDestroyCallbacks(Environment* env, bool ranInitCallbacks, v8::Local<v8::Number> uid);
 
   inline AsyncWrap(Environment* env,
                    v8::Local<v8::Object> object,
@@ -71,9 +77,11 @@ class AsyncWrap : public BaseObject {
 
   virtual size_t self_size() const = 0;
 
+  inline bool ran_init_callback() const;
+
  private:
   inline AsyncWrap();
-  inline bool ran_init_callback() const;
+
 
   // When the async hooks init JS function is called from the constructor it is
   // expected the context object will receive a _asyncQueue object property

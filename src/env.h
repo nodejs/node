@@ -473,7 +473,9 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
-  inline int64_t get_async_wrap_uid();
+  inline int64_t get_next_async_wrap_uid();
+  inline int64_t get_current_async_wrap_uid();
+  inline void set_current_async_wrap_uid(int64_t value);
 
   inline uint32_t* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(uint32_t* pointer);
@@ -577,7 +579,8 @@ class Environment {
   bool printed_error_;
   bool trace_sync_io_;
   size_t makecallback_cntr_;
-  int64_t async_wrap_uid_;
+  int64_t async_wrap_counter_uid_;
+  int64_t async_wrap_current_uid_;
   debugger::Agent debugger_agent_;
 
   HandleWrapQueue handle_wrap_queue_;
