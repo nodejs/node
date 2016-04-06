@@ -120,9 +120,11 @@ RUNTIME_FUNCTION(Runtime_PushIfAbsent) {
 RUNTIME_FUNCTION(Runtime_RemoveArrayHoles) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
-  return *JSObject::PrepareElementsForSort(object, limit);
+  if (object->IsJSProxy()) return Smi::FromInt(-1);
+  return *JSObject::PrepareElementsForSort(Handle<JSObject>::cast(object),
+                                           limit);
 }
 
 
