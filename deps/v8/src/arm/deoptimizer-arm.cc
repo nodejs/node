@@ -288,14 +288,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ CheckFor32DRegs(ip);
 
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
-  int src_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-    if (i == kDoubleRegZero.code()) continue;
-    if (i == kScratchDoubleReg.code()) continue;
-
-    const DwVfpRegister reg = DwVfpRegister::from_code(i);
-    __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
-    src_offset += kDoubleSize;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    DwVfpRegister reg = DwVfpRegister::from_code(code);
+    int src_offset = code * kDoubleSize + double_regs_offset;
+    __ vldr(reg, r1, src_offset);
   }
 
   // Push state, pc, and continuation from the last output frame.

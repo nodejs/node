@@ -43,6 +43,11 @@ class SimplifiedLowering final {
   void DoStringLessThan(Node* node);
   void DoStringLessThanOrEqual(Node* node);
 
+  // TODO(bmeurer): This is a gigantic hack to support the gigantic LoadBuffer
+  // typing hack to support the gigantic "asm.js should be fast without proper
+  // verifier"-hack, ... Kill this! Soon! Really soon! I'm serious!
+  bool abort_compilation_ = false;
+
  private:
   JSGraph* const jsgraph_;
   Zone* const zone_;

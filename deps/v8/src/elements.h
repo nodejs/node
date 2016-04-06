@@ -54,6 +54,8 @@ class ElementsAccessor {
     return HasElement(holder, index, handle(holder->elements()), filter);
   }
 
+  virtual bool HasAccessors(JSObject* holder) = 0;
+
   // Returns true if the backing store is compact in the given range
   virtual bool IsPacked(Handle<JSObject> holder,
                         Handle<FixedArrayBase> backing_store, uint32_t start,
