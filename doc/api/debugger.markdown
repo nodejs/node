@@ -84,6 +84,9 @@ The `repl` command allows code to be evaluated remotely. The `next` command
 steps over to the next line. Type `help` to see what other commands are
 available.
 
+Pressing `enter` without typing a command will repeat the previous debugger
+command.
+
 ## Watchers
 
 It is possible to watch expression and variable values while debugging. On
