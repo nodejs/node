@@ -704,6 +704,12 @@ const char *signo_string(int signo) {
 # endif
 #endif
 
+#ifdef SIGINFO
+# if !defined(SIGPWR) || SIGINFO != SIGPWR
+  SIGNO_CASE(SIGINFO);
+# endif
+#endif
+
 #ifdef SIGSYS
   SIGNO_CASE(SIGSYS);
 #endif
