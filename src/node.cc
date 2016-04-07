@@ -3228,7 +3228,9 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
 
   // pre-set _events object for faster emit checks
-  process->Set(env->events_string(), Object::New(env->isolate()));
+  Local<Object> events_obj = Object::New(env->isolate());
+  events_obj->SetPrototype(env->context(), Null(env->isolate()));
+  process->Set(env->events_string(), events_obj);
 }
 
 
