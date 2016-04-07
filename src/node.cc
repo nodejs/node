@@ -127,8 +127,6 @@ using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
-using v8::StackFrame;
-using v8::StackTrace;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32;
