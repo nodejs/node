@@ -139,7 +139,7 @@ class ProfilerEventsProcessor : public base::Thread {
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into tick sample events buffer.
-  void AddCurrentStack(Isolate* isolate);
+  void AddCurrentStack(Isolate* isolate, bool update_stats = false);
   void AddDeoptStack(Isolate* isolate, Address from, int fp_to_sp_delta);
 
   // Tick sample events are filled directly in the buffer of the circular
@@ -168,8 +168,7 @@ class ProfilerEventsProcessor : public base::Thread {
   ProfileGenerator* generator_;
   Sampler* sampler_;
   base::Atomic32 running_;
-  // Sampling period in microseconds.
-  const base::TimeDelta period_;
+  const base::TimeDelta period_;  // Samples & code events processing period.
   LockedQueue<CodeEventsContainer> events_buffer_;
   static const size_t kTickSampleBufferSize = 1 * MB;
   static const size_t kTickSampleQueueLength =
@@ -205,6 +204,7 @@ class CpuProfiler : public CodeEventListener {
   virtual ~CpuProfiler();
 
   void set_sampling_interval(base::TimeDelta value);
+  void CollectSample();
   void StartProfiling(const char* title, bool record_samples = false);
   void StartProfiling(String* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);

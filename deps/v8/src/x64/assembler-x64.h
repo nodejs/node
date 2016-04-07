@@ -248,6 +248,8 @@ const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
 
 typedef DoubleRegister XMMRegister;
 
+typedef DoubleRegister Simd128Register;
+
 enum Condition {
   // any value < 0 is considered no_condition
   no_condition  = -1,
@@ -1025,6 +1027,7 @@ class Assembler : public AssemblerBase {
 
   void cvttss2si(Register dst, const Operand& src);
   void cvttss2si(Register dst, XMMRegister src);
+  void cvtlsi2ss(XMMRegister dst, const Operand& src);
   void cvtlsi2ss(XMMRegister dst, Register src);
 
   void andps(XMMRegister dst, XMMRegister src);
@@ -1370,6 +1373,13 @@ class Assembler : public AssemblerBase {
   void vcvtlsi2sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
     vsd(0x2a, dst, src1, src2, kF2, k0F, kW0);
   }
+  void vcvtlsi2ss(XMMRegister dst, XMMRegister src1, Register src2) {
+    XMMRegister isrc2 = {src2.code()};
+    vsd(0x2a, dst, src1, isrc2, kF3, k0F, kW0);
+  }
+  void vcvtlsi2ss(XMMRegister dst, XMMRegister src1, const Operand& src2) {
+    vsd(0x2a, dst, src1, src2, kF3, k0F, kW0);
+  }
   void vcvtqsi2ss(XMMRegister dst, XMMRegister src1, Register src2) {
     XMMRegister isrc2 = {src2.code()};
     vsd(0x2a, dst, src1, isrc2, kF3, k0F, kW1);
@@ -1383,6 +1393,14 @@ class Assembler : public AssemblerBase {
   }
   void vcvtqsi2sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
     vsd(0x2a, dst, src1, src2, kF2, k0F, kW1);
+  }
+  void vcvttss2si(Register dst, XMMRegister src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2c, idst, xmm0, src, kF3, k0F, kW0);
+  }
+  void vcvttss2si(Register dst, const Operand& src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2c, idst, xmm0, src, kF3, k0F, kW0);
   }
   void vcvttsd2si(Register dst, XMMRegister src) {
     XMMRegister idst = {dst.code()};
@@ -1660,7 +1678,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const SourcePosition position);
+  void RecordDeoptReason(const int reason, int raw_position);
 
   void PatchConstantPoolAccessInstruction(int pc_offset, int offset,
                                           ConstantPoolEntry::Access access,

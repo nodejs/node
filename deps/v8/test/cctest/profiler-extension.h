@@ -40,10 +40,13 @@ class ProfilerExtension : public v8::Extension {
   ProfilerExtension() : v8::Extension("v8/profiler", kSource) { }
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name);
+  static v8::CpuProfile* last_profile;
+
+ private:
   static void StartProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopProfiling(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::CpuProfile* last_profile;
- private:
+  static void CollectSample(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   static const char* kSource;
 };
 

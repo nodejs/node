@@ -25,9 +25,11 @@ class CallICState final BASE_EMBEDDED {
  public:
   explicit CallICState(ExtraICState extra_ic_state)
       : bit_field_(extra_ic_state) {}
-  CallICState(int argc, ConvertReceiverMode convert_mode)
+  CallICState(int argc, ConvertReceiverMode convert_mode,
+              TailCallMode tail_call_mode)
       : bit_field_(ArgcBits::encode(argc) |
-                   ConvertModeBits::encode(convert_mode)) {}
+                   ConvertModeBits::encode(convert_mode) |
+                   TailCallModeBits::encode(tail_call_mode)) {}
 
   ExtraICState GetExtraICState() const { return bit_field_; }
 
@@ -39,11 +41,14 @@ class CallICState final BASE_EMBEDDED {
   ConvertReceiverMode convert_mode() const {
     return ConvertModeBits::decode(bit_field_);
   }
+  TailCallMode tail_call_mode() const {
+    return TailCallModeBits::decode(bit_field_);
+  }
 
  private:
   typedef BitField<int, 0, Code::kArgumentsBits> ArgcBits;
-  typedef BitField<ConvertReceiverMode, Code::kArgumentsBits, 2>
-      ConvertModeBits;
+  typedef BitField<ConvertReceiverMode, ArgcBits::kNext, 2> ConvertModeBits;
+  typedef BitField<TailCallMode, ConvertModeBits::kNext, 1> TailCallModeBits;
 
   int const bit_field_;
 };
@@ -55,9 +60,8 @@ std::ostream& operator<<(std::ostream& os, const CallICState& s);
 class BinaryOpICState final BASE_EMBEDDED {
  public:
   BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state);
-  BinaryOpICState(Isolate* isolate, Token::Value op, Strength strength)
+  BinaryOpICState(Isolate* isolate, Token::Value op)
       : op_(op),
-        strong_(is_strong(strength)),
         left_kind_(NONE),
         right_kind_(NONE),
         result_kind_(NONE),
@@ -104,10 +108,6 @@ class BinaryOpICState final BASE_EMBEDDED {
     return Max(left_kind_, right_kind_) == GENERIC;
   }
 
-  Strength strength() const {
-    return strong_ ? Strength::STRONG : Strength::WEAK;
-  }
-
   // Returns true if the IC should enable the inline smi code (i.e. if either
   // parameter may be a smi).
   bool UseInlinedSmiCode() const {
@@ -146,15 +146,13 @@ class BinaryOpICState final BASE_EMBEDDED {
   class OpField : public BitField<int, 0, 4> {};
   class ResultKindField : public BitField<Kind, 4, 3> {};
   class LeftKindField : public BitField<Kind, 7, 3> {};
-  class StrengthField : public BitField<bool, 10, 1> {};
   // When fixed right arg is set, we don't need to store the right kind.
   // Thus the two fields can overlap.
-  class HasFixedRightArgField : public BitField<bool, 11, 1> {};
-  class FixedRightArgValueField : public BitField<int, 12, 4> {};
-  class RightKindField : public BitField<Kind, 12, 3> {};
+  class HasFixedRightArgField : public BitField<bool, 10, 1> {};
+  class FixedRightArgValueField : public BitField<int, 11, 4> {};
+  class RightKindField : public BitField<Kind, 11, 3> {};
 
   Token::Value op_;
-  bool strong_;
   Kind left_kind_;
   Kind right_kind_;
   Kind result_kind_;
@@ -204,37 +202,23 @@ class CompareICState {
 class LoadICState final BASE_EMBEDDED {
  private:
   class TypeofModeBits : public BitField<TypeofMode, 0, 1> {};
-  class LanguageModeBits
-      : public BitField<LanguageMode, TypeofModeBits::kNext, 2> {};
   STATIC_ASSERT(static_cast<int>(INSIDE_TYPEOF) == 0);
   const ExtraICState state_;
 
  public:
-  static const uint32_t kNextBitFieldOffset = LanguageModeBits::kNext;
-
-  static const ExtraICState kStrongModeState = STRONG
-                                               << LanguageModeBits::kShift;
+  static const uint32_t kNextBitFieldOffset = TypeofModeBits::kNext;
 
   explicit LoadICState(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
 
-  explicit LoadICState(TypeofMode typeof_mode, LanguageMode language_mode)
-      : state_(TypeofModeBits::encode(typeof_mode) |
-               LanguageModeBits::encode(language_mode)) {}
+  explicit LoadICState(TypeofMode typeof_mode)
+      : state_(TypeofModeBits::encode(typeof_mode)) {}
 
   ExtraICState GetExtraICState() const { return state_; }
 
   TypeofMode typeof_mode() const { return TypeofModeBits::decode(state_); }
 
-  LanguageMode language_mode() const {
-    return LanguageModeBits::decode(state_);
-  }
-
   static TypeofMode GetTypeofMode(ExtraICState state) {
     return LoadICState(state).typeof_mode();
-  }
-
-  static LanguageMode GetLanguageMode(ExtraICState state) {
-    return LoadICState(state).language_mode();
   }
 };
 

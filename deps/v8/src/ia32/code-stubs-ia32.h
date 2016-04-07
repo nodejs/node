@@ -274,32 +274,12 @@ class RecordWriteStub: public PlatformCodeStub {
     // registers are eax, ecx and edx.  The three scratch registers (incl. ecx)
     // will be restored by other means so we don't bother pushing them here.
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
-      if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->push(eax);
-      if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->push(edx);
-      if (mode == kSaveFPRegs) {
-        masm->sub(esp,
-                  Immediate(kDoubleSize * (XMMRegister::kMaxNumRegisters - 1)));
-        // Save all XMM registers except XMM0.
-        for (int i = XMMRegister::kMaxNumRegisters - 1; i > 0; i--) {
-          XMMRegister reg = XMMRegister::from_code(i);
-          masm->movsd(Operand(esp, (i - 1) * kDoubleSize), reg);
-        }
-      }
+      masm->PushCallerSaved(mode, ecx, scratch0_, scratch1_);
     }
 
-    inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
+    inline void RestoreCallerSaveRegisters(MacroAssembler* masm,
                                            SaveFPRegsMode mode) {
-      if (mode == kSaveFPRegs) {
-        // Restore all XMM registers except XMM0.
-        for (int i = XMMRegister::kMaxNumRegisters - 1; i > 0; i--) {
-          XMMRegister reg = XMMRegister::from_code(i);
-          masm->movsd(reg, Operand(esp, (i - 1) * kDoubleSize));
-        }
-        masm->add(esp,
-                  Immediate(kDoubleSize * (XMMRegister::kMaxNumRegisters - 1)));
-      }
-      if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->pop(edx);
-      if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->pop(eax);
+      masm->PopCallerSaved(mode, ecx, scratch0_, scratch1_);
     }
 
     inline Register object() { return object_; }

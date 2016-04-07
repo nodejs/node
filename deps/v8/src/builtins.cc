@@ -59,7 +59,8 @@ class BuiltinArguments : public Arguments {
     return Arguments::at<Object>(0);
   }
 
-  Handle<JSFunction> target();
+  template <class S>
+  Handle<S> target();
   Handle<HeapObject> new_target();
 
   // Gets the total number of arguments including the receiver (but
@@ -81,8 +82,9 @@ int BuiltinArguments<BuiltinExtraArguments::kTarget>::length() const {
 }
 
 template <>
-Handle<JSFunction> BuiltinArguments<BuiltinExtraArguments::kTarget>::target() {
-  return Arguments::at<JSFunction>(Arguments::length() - 1);
+template <class S>
+Handle<S> BuiltinArguments<BuiltinExtraArguments::kTarget>::target() {
+  return Arguments::at<S>(Arguments::length() - 1);
 }
 
 template <>
@@ -103,9 +105,10 @@ int BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget>::length()
 }
 
 template <>
-Handle<JSFunction>
+template <class S>
+Handle<S>
 BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget>::target() {
-  return Arguments::at<JSFunction>(Arguments::length() - 2);
+  return Arguments::at<S>(Arguments::length() - 2);
 }
 
 template <>
@@ -134,17 +137,21 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 // In the body of the builtin function the arguments can be accessed
 // through the BuiltinArguments object args.
 
-#define BUILTIN(name)                                            \
-  MUST_USE_RESULT static Object* Builtin_Impl_##name(            \
-      name##ArgumentsType args, Isolate* isolate);               \
-  MUST_USE_RESULT static Object* Builtin_##name(                 \
-      int args_length, Object** args_object, Isolate* isolate) { \
-    name##ArgumentsType args(args_length, args_object);          \
-    return Builtin_Impl_##name(args, isolate);                   \
-  }                                                              \
-  MUST_USE_RESULT static Object* Builtin_Impl_##name(            \
-      name##ArgumentsType args, Isolate* isolate)
-
+#define BUILTIN(name)                                                          \
+  MUST_USE_RESULT static Object* Builtin_Impl_##name(name##ArgumentsType args, \
+                                                     Isolate* isolate);        \
+  MUST_USE_RESULT static Object* Builtin_##name(                               \
+      int args_length, Object** args_object, Isolate* isolate) {               \
+    isolate->counters()->runtime_calls()->Increment();                         \
+    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();       \
+    RuntimeCallTimerScope timer(isolate, &stats->Builtin_##name);              \
+    name##ArgumentsType args(args_length, args_object);                        \
+    Object* value = Builtin_Impl_##name(args, isolate);                        \
+    return value;                                                              \
+  }                                                                            \
+                                                                               \
+  MUST_USE_RESULT static Object* Builtin_Impl_##name(name##ArgumentsType args, \
+                                                     Isolate* isolate)
 
 // ----------------------------------------------------------------------------
 
@@ -194,7 +201,7 @@ inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
   Map* arguments_map = isolate->native_context()->sloppy_arguments_map();
   if (object->map() != arguments_map) return false;
   DCHECK(object->HasFastElements());
-  Object* len_obj = object->InObjectPropertyAt(Heap::kArgumentsLengthIndex);
+  Object* len_obj = object->InObjectPropertyAt(JSArgumentsObject::kLengthIndex);
   if (!len_obj->IsSmi()) return false;
   *out = Max(0, Smi::cast(len_obj)->value());
   return *out <= object->elements()->length();
@@ -208,12 +215,11 @@ inline bool PrototypeHasNoElements(PrototypeIterator* iter) {
     JSObject* current = iter->GetCurrent<JSObject>();
     if (current->IsAccessCheckNeeded()) return false;
     if (current->HasIndexedInterceptor()) return false;
-    if (current->IsJSValue()) return false;
+    if (current->HasStringWrapperElements()) return false;
     if (current->elements()->length() != 0) return false;
   }
   return true;
 }
-
 
 inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
                                               JSArray* receiver) {
@@ -232,15 +238,13 @@ inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
   return PrototypeHasNoElements(&iter);
 }
 
-
 inline bool HasSimpleElements(JSObject* current) {
   if (current->IsAccessCheckNeeded()) return false;
   if (current->HasIndexedInterceptor()) return false;
-  if (current->IsJSValue()) return false;
+  if (current->HasStringWrapperElements()) return false;
   if (current->GetElementsAccessor()->HasAccessors(current)) return false;
   return true;
 }
-
 
 inline bool HasOnlySimpleReceiverElements(Isolate* isolate,
                                           JSReceiver* receiver) {
@@ -252,7 +256,6 @@ inline bool HasOnlySimpleReceiverElements(Isolate* isolate,
   PrototypeIterator iter(isolate, receiver);
   return PrototypeHasNoElements(&iter);
 }
-
 
 inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver* receiver) {
   // Check that ther are not elements on the prototype.
@@ -267,12 +270,14 @@ inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver* receiver) {
   return true;
 }
 
-
 // Returns empty handle if not applicable.
 MUST_USE_RESULT
 inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
     Isolate* isolate, Handle<Object> receiver, Arguments* args,
     int first_added_arg) {
+  // We explicitly add a HandleScope to avoid creating several copies of the
+  // same handle which would otherwise cause issue when left-trimming later-on.
+  HandleScope scope(isolate);
   if (!receiver->IsJSArray()) return MaybeHandle<FixedArrayBase>();
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   // If there may be elements accessors in the prototype chain, the fast path
@@ -286,12 +291,18 @@ inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   Handle<FixedArrayBase> elms(array->elements(), isolate);
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
-    if (args == NULL || array->HasFastObjectElements()) return elms;
+    if (args == NULL || array->HasFastObjectElements()) {
+      return scope.CloseAndEscape(elms);
+    }
   } else if (map == heap->fixed_cow_array_map()) {
     elms = JSObject::EnsureWritableFastElements(array);
-    if (args == NULL || array->HasFastObjectElements()) return elms;
+    if (args == NULL || array->HasFastObjectElements()) {
+      return scope.CloseAndEscape(elms);
+    }
   } else if (map == heap->fixed_double_array_map()) {
-    if (args == NULL) return elms;
+    if (args == NULL) {
+      return scope.CloseAndEscape(elms);
+    }
   } else {
     return MaybeHandle<FixedArrayBase>();
   }
@@ -305,7 +316,9 @@ inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   // Need to ensure that the arguments passed in args can be contained in
   // the array.
   int args_length = args->length();
-  if (first_added_arg >= args_length) return handle(array->elements(), isolate);
+  if (first_added_arg >= args_length) {
+    return scope.CloseAndEscape(elms);
+  }
 
   ElementsKind origin_kind = array->map()->elements_kind();
   DCHECK(!IsFastObjectElementsKind(origin_kind));
@@ -328,9 +341,9 @@ inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   }
   if (target_kind != origin_kind) {
     JSObject::TransitionElementsKind(array, target_kind);
-    return handle(array->elements(), isolate);
+    elms = handle(array->elements(), isolate);
   }
-  return elms;
+  return scope.CloseAndEscape(elms);
 }
 
 
@@ -494,19 +507,14 @@ BUILTIN(ArraySlice) {
   int relative_end = 0;
   bool is_sloppy_arguments = false;
 
-  // TODO(littledan): Look up @@species only once, not once here and
-  // again in the JS builtin. Pass the species out?
-  Handle<Object> species;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, species, Object::ArraySpeciesConstructor(isolate, receiver));
-  if (*species != isolate->context()->native_context()->array_function()) {
-    return CallJsIntrinsic(isolate, isolate->array_slice(), args);
-  }
   if (receiver->IsJSArray()) {
     DisallowHeapAllocation no_gc;
     JSArray* array = JSArray::cast(*receiver);
     if (!array->HasFastElements() ||
-        !IsJSArrayFastElementMovingAllowed(isolate, array)) {
+        !IsJSArrayFastElementMovingAllowed(isolate, array) ||
+        !isolate->IsArraySpeciesLookupChainIntact() ||
+        // If this is a subclass of Array, then call out to JS
+        !array->map()->new_target_is_base()) {
       AllowHeapAllocation allow_allocation;
       return CallJsIntrinsic(isolate, isolate->array_slice(), args);
     }
@@ -584,15 +592,11 @@ BUILTIN(ArraySplice) {
   MaybeHandle<FixedArrayBase> maybe_elms_obj =
       EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3);
   Handle<FixedArrayBase> elms_obj;
-  if (!maybe_elms_obj.ToHandle(&elms_obj)) {
-    return CallJsIntrinsic(isolate, isolate->array_splice(), args);
-  }
-  // TODO(littledan): Look up @@species only once, not once here and
-  // again in the JS builtin. Pass the species out?
-  Handle<Object> species;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, species, Object::ArraySpeciesConstructor(isolate, receiver));
-  if (*species != isolate->context()->native_context()->array_function()) {
+  if (!maybe_elms_obj.ToHandle(&elms_obj) ||
+      // If this is a subclass of Array, then call out to JS
+      !JSArray::cast(*receiver)->map()->new_target_is_base() ||
+      // If anything with @@species has been messed with, call out to JS
+      !isolate->IsArraySpeciesLookupChainIntact()) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
@@ -663,28 +667,42 @@ namespace {
  */
 class ArrayConcatVisitor {
  public:
-  ArrayConcatVisitor(Isolate* isolate, Handle<FixedArray> storage,
+  ArrayConcatVisitor(Isolate* isolate, Handle<Object> storage,
                      bool fast_elements)
       : isolate_(isolate),
-        storage_(Handle<FixedArray>::cast(
-            isolate->global_handles()->Create(*storage))),
+        storage_(isolate->global_handles()->Create(*storage)),
         index_offset_(0u),
         bit_field_(FastElementsField::encode(fast_elements) |
-                   ExceedsLimitField::encode(false)) {}
+                   ExceedsLimitField::encode(false) |
+                   IsFixedArrayField::encode(storage->IsFixedArray())) {
+    DCHECK(!(this->fast_elements() && !is_fixed_array()));
+  }
 
   ~ArrayConcatVisitor() { clear_storage(); }
 
-  void visit(uint32_t i, Handle<Object> elm) {
-    if (i >= JSObject::kMaxElementCount - index_offset_) {
-      set_exceeds_array_limit(true);
-      return;
-    }
+  bool visit(uint32_t i, Handle<Object> elm) {
     uint32_t index = index_offset_ + i;
 
+    if (!is_fixed_array()) {
+      Handle<Object> element_value;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate_, element_value,
+          Object::SetElement(isolate_, storage_, index, elm, STRICT), false);
+      return true;
+    }
+
+    if (i >= JSObject::kMaxElementCount - index_offset_) {
+      set_exceeds_array_limit(true);
+      // Exception hasn't been thrown at this point. Return true to
+      // break out, and caller will throw. !visit would imply that
+      // there is already a pending exception.
+      return true;
+    }
+
     if (fast_elements()) {
-      if (index < static_cast<uint32_t>(storage_->length())) {
-        storage_->set(index, *elm);
-        return;
+      if (index < static_cast<uint32_t>(storage_fixed_array()->length())) {
+        storage_fixed_array()->set(index, *elm);
+        return true;
       }
       // Our initial estimate of length was foiled, possibly by
       // getters on the arrays increasing the length of later arrays
@@ -705,6 +723,7 @@ class ArrayConcatVisitor {
       clear_storage();
       set_storage(*result);
     }
+    return true;
   }
 
   void increase_index_offset(uint32_t delta) {
@@ -728,6 +747,7 @@ class ArrayConcatVisitor {
   }
 
   Handle<JSArray> ToArray() {
+    DCHECK(is_fixed_array());
     Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
     Handle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
@@ -735,15 +755,26 @@ class ArrayConcatVisitor {
         array, fast_elements() ? FAST_HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
     array->set_map(*map);
     array->set_length(*length);
-    array->set_elements(*storage_);
+    array->set_elements(*storage_fixed_array());
     return array;
+  }
+
+  // Storage is either a FixedArray (if is_fixed_array()) or a JSReciever
+  // (otherwise)
+  Handle<FixedArray> storage_fixed_array() {
+    DCHECK(is_fixed_array());
+    return Handle<FixedArray>::cast(storage_);
+  }
+  Handle<JSReceiver> storage_jsreceiver() {
+    DCHECK(!is_fixed_array());
+    return Handle<JSReceiver>::cast(storage_);
   }
 
  private:
   // Convert storage to dictionary mode.
   void SetDictionaryMode() {
-    DCHECK(fast_elements());
-    Handle<FixedArray> current_storage(*storage_);
+    DCHECK(fast_elements() && is_fixed_array());
+    Handle<FixedArray> current_storage = storage_fixed_array();
     Handle<SeededNumberDictionary> slow_storage(
         SeededNumberDictionary::New(isolate_, current_storage->length()));
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
@@ -771,12 +802,13 @@ class ArrayConcatVisitor {
   }
 
   inline void set_storage(FixedArray* storage) {
-    storage_ =
-        Handle<FixedArray>::cast(isolate_->global_handles()->Create(storage));
+    DCHECK(is_fixed_array());
+    storage_ = isolate_->global_handles()->Create(storage);
   }
 
   class FastElementsField : public BitField<bool, 0, 1> {};
   class ExceedsLimitField : public BitField<bool, 1, 1> {};
+  class IsFixedArrayField : public BitField<bool, 2, 1> {};
 
   bool fast_elements() const { return FastElementsField::decode(bit_field_); }
   void set_fast_elements(bool fast) {
@@ -785,9 +817,10 @@ class ArrayConcatVisitor {
   void set_exceeds_array_limit(bool exceeds) {
     bit_field_ = ExceedsLimitField::update(bit_field_, exceeds);
   }
+  bool is_fixed_array() const { return IsFixedArrayField::decode(bit_field_); }
 
   Isolate* isolate_;
-  Handle<FixedArray> storage_;  // Always a global handle.
+  Handle<Object> storage_;  // Always a global handle.
   // Index after last seen index. Always less than or equal to
   // JSObject::kMaxElementCount.
   uint32_t index_offset_;
@@ -842,60 +875,24 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
       }
       break;
     }
-    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       // External arrays are always dense.
       return length;
+    case NO_ELEMENTS:
+      return 0;
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+    case FAST_STRING_WRAPPER_ELEMENTS:
+    case SLOW_STRING_WRAPPER_ELEMENTS:
+      UNREACHABLE();
+      return 0;
   }
   // As an estimate, we assume that the prototype doesn't contain any
   // inherited elements.
   return element_count;
-}
-
-
-template <class ExternalArrayClass, class ElementType>
-void IterateTypedArrayElements(Isolate* isolate, Handle<JSObject> receiver,
-                               bool elements_are_ints,
-                               bool elements_are_guaranteed_smis,
-                               ArrayConcatVisitor* visitor) {
-  Handle<ExternalArrayClass> array(
-      ExternalArrayClass::cast(receiver->elements()));
-  uint32_t len = static_cast<uint32_t>(array->length());
-
-  DCHECK(visitor != NULL);
-  if (elements_are_ints) {
-    if (elements_are_guaranteed_smis) {
-      for (uint32_t j = 0; j < len; j++) {
-        HandleScope loop_scope(isolate);
-        Handle<Smi> e(Smi::FromInt(static_cast<int>(array->get_scalar(j))),
-                      isolate);
-        visitor->visit(j, e);
-      }
-    } else {
-      for (uint32_t j = 0; j < len; j++) {
-        HandleScope loop_scope(isolate);
-        int64_t val = static_cast<int64_t>(array->get_scalar(j));
-        if (Smi::IsValid(static_cast<intptr_t>(val))) {
-          Handle<Smi> e(Smi::FromInt(static_cast<int>(val)), isolate);
-          visitor->visit(j, e);
-        } else {
-          Handle<Object> e =
-              isolate->factory()->NewNumber(static_cast<ElementType>(val));
-          visitor->visit(j, e);
-        }
-      }
-    }
-  } else {
-    for (uint32_t j = 0; j < len; j++) {
-      HandleScope loop_scope(isolate);
-      Handle<Object> e = isolate->factory()->NewNumber(array->get_scalar(j));
-      visitor->visit(j, e);
-    }
-  }
 }
 
 
@@ -989,6 +986,28 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
       }
       break;
     }
+    case FAST_STRING_WRAPPER_ELEMENTS:
+    case SLOW_STRING_WRAPPER_ELEMENTS: {
+      DCHECK(object->IsJSValue());
+      Handle<JSValue> js_value = Handle<JSValue>::cast(object);
+      DCHECK(js_value->value()->IsString());
+      Handle<String> string(String::cast(js_value->value()), isolate);
+      uint32_t length = static_cast<uint32_t>(string->length());
+      uint32_t i = 0;
+      uint32_t limit = Min(length, range);
+      for (; i < limit; i++) {
+        indices->Add(i);
+      }
+      ElementsAccessor* accessor = object->GetElementsAccessor();
+      for (; i < range; i++) {
+        if (accessor->HasElement(object, i)) {
+          indices->Add(i);
+        }
+      }
+      break;
+    }
+    case NO_ELEMENTS:
+      break;
   }
 
   PrototypeIterator iter(isolate, object);
@@ -1012,7 +1031,7 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_value,
                                        Object::GetElement(isolate, receiver, i),
                                        false);
-      visitor->visit(i, element_value);
+      if (!visitor->visit(i, element_value)) return false;
     }
   }
   visitor->increase_index_offset(length);
@@ -1049,12 +1068,11 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     if (!val->ToUint32(&length)) {
       length = 0;
     }
+    // TODO(cbruni): handle other element kind as well
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
 
   if (!HasOnlySimpleElements(isolate, *receiver)) {
-    // For classes which are not known to be safe to access via elements alone,
-    // use the slow case.
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
   Handle<JSObject> array = Handle<JSObject>::cast(receiver);
@@ -1073,7 +1091,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         HandleScope loop_scope(isolate);
         Handle<Object> element_value(elements->get(j), isolate);
         if (!element_value->IsTheHole()) {
-          visitor->visit(j, element_value);
+          if (!visitor->visit(j, element_value)) return false;
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(array, j);
           if (!maybe.IsJust()) return false;
@@ -1083,7 +1101,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
             ASSIGN_RETURN_ON_EXCEPTION_VALUE(
                 isolate, element_value, Object::GetElement(isolate, array, j),
                 false);
-            visitor->visit(j, element_value);
+            if (!visitor->visit(j, element_value)) return false;
           }
         }
       }
@@ -1109,7 +1127,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
           double double_value = elements->get_scalar(j);
           Handle<Object> element_value =
               isolate->factory()->NewNumber(double_value);
-          visitor->visit(j, element_value);
+          if (!visitor->visit(j, element_value)) return false;
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(array, j);
           if (!maybe.IsJust()) return false;
@@ -1120,12 +1138,13 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
             ASSIGN_RETURN_ON_EXCEPTION_VALUE(
                 isolate, element_value, Object::GetElement(isolate, array, j),
                 false);
-            visitor->visit(j, element_value);
+            if (!visitor->visit(j, element_value)) return false;
           }
         }
       }
       break;
     }
+
     case DICTIONARY_ELEMENTS: {
       Handle<SeededNumberDictionary> dict(array->element_dictionary());
       List<uint32_t> indices(dict->Capacity() / 2);
@@ -1141,61 +1160,12 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         Handle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, element, Object::GetElement(isolate, array, index), false);
-        visitor->visit(index, element);
+        if (!visitor->visit(index, element)) return false;
         // Skip to next different index (i.e., omit duplicates).
         do {
           j++;
         } while (j < n && indices[j] == index);
       }
-      break;
-    }
-    case UINT8_CLAMPED_ELEMENTS: {
-      Handle<FixedUint8ClampedArray> pixels(
-          FixedUint8ClampedArray::cast(array->elements()));
-      for (uint32_t j = 0; j < length; j++) {
-        Handle<Smi> e(Smi::FromInt(pixels->get_scalar(j)), isolate);
-        visitor->visit(j, e);
-      }
-      break;
-    }
-    case INT8_ELEMENTS: {
-      IterateTypedArrayElements<FixedInt8Array, int8_t>(isolate, array, true,
-                                                        true, visitor);
-      break;
-    }
-    case UINT8_ELEMENTS: {
-      IterateTypedArrayElements<FixedUint8Array, uint8_t>(isolate, array, true,
-                                                          true, visitor);
-      break;
-    }
-    case INT16_ELEMENTS: {
-      IterateTypedArrayElements<FixedInt16Array, int16_t>(isolate, array, true,
-                                                          true, visitor);
-      break;
-    }
-    case UINT16_ELEMENTS: {
-      IterateTypedArrayElements<FixedUint16Array, uint16_t>(
-          isolate, array, true, true, visitor);
-      break;
-    }
-    case INT32_ELEMENTS: {
-      IterateTypedArrayElements<FixedInt32Array, int32_t>(isolate, array, true,
-                                                          false, visitor);
-      break;
-    }
-    case UINT32_ELEMENTS: {
-      IterateTypedArrayElements<FixedUint32Array, uint32_t>(
-          isolate, array, true, false, visitor);
-      break;
-    }
-    case FLOAT32_ELEMENTS: {
-      IterateTypedArrayElements<FixedFloat32Array, float>(isolate, array, false,
-                                                          false, visitor);
-      break;
-    }
-    case FLOAT64_ELEMENTS: {
-      IterateTypedArrayElements<FixedFloat64Array, double>(
-          isolate, array, false, false, visitor);
       break;
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -1205,10 +1175,21 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         Handle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, element, Object::GetElement(isolate, array, index), false);
-        visitor->visit(index, element);
+        if (!visitor->visit(index, element)) return false;
       }
       break;
     }
+    case NO_ELEMENTS:
+      break;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) case TYPE##_ELEMENTS:
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+      return IterateElementsSlow(isolate, receiver, length, visitor);
+    case FAST_STRING_WRAPPER_ELEMENTS:
+    case SLOW_STRING_WRAPPER_ELEMENTS:
+      // |array| is guaranteed to be an array or typed array.
+      UNREACHABLE();
+      break;
   }
   visitor->increase_index_offset(length);
   return true;
@@ -1216,7 +1197,6 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 
 
 bool HasConcatSpreadableModifier(Isolate* isolate, Handle<JSArray> obj) {
-  if (!FLAG_harmony_concat_spreadable) return false;
   Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
   Maybe<bool> maybe = JSReceiver::HasProperty(obj, key);
   return maybe.FromMaybe(false);
@@ -1226,20 +1206,21 @@ bool HasConcatSpreadableModifier(Isolate* isolate, Handle<JSArray> obj) {
 static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
   if (!obj->IsJSReceiver()) return Just(false);
-  if (FLAG_harmony_concat_spreadable) {
-    Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
-    Handle<Object> value;
-    MaybeHandle<Object> maybeValue =
-        i::Runtime::GetObjectProperty(isolate, obj, key);
-    if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
-    if (!value->IsUndefined()) return Just(value->BooleanValue());
-  }
+  Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
+  Handle<Object> value;
+  MaybeHandle<Object> maybeValue =
+      i::Runtime::GetObjectProperty(isolate, obj, key);
+  if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
+  if (!value->IsUndefined()) return Just(value->BooleanValue());
   return Object::IsArray(obj);
 }
 
 
-Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
+Object* Slow_ArrayConcat(Arguments* args, Handle<Object> species,
+                         Isolate* isolate) {
   int argument_count = args->length();
+
+  bool is_array_species = *species == isolate->context()->array_function();
 
   // Pass 1: estimate the length and number of elements of the result.
   // The actual length can be larger if any of the arguments have getters
@@ -1288,7 +1269,8 @@ Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
   // If estimated number of elements is more than half of length, a
   // fixed array (fast case) is more time and space-efficient than a
   // dictionary.
-  bool fast_case = (estimate_nof_elements * 2) >= estimate_result_length;
+  bool fast_case =
+      is_array_species && (estimate_nof_elements * 2) >= estimate_result_length;
 
   if (fast_case && kind == FAST_DOUBLE_ELEMENTS) {
     Handle<FixedArrayBase> storage =
@@ -1350,6 +1332,7 @@ Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
             case FAST_HOLEY_ELEMENTS:
             case FAST_ELEMENTS:
             case DICTIONARY_ELEMENTS:
+            case NO_ELEMENTS:
               DCHECK_EQ(0u, length);
               break;
             default:
@@ -1365,18 +1348,25 @@ Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
     // In case of failure, fall through.
   }
 
-  Handle<FixedArray> storage;
+  Handle<Object> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.
     storage =
         isolate->factory()->NewFixedArrayWithHoles(estimate_result_length);
-  } else {
+  } else if (is_array_species) {
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for =
         estimate_nof_elements + (estimate_nof_elements >> 2);
-    storage = Handle<FixedArray>::cast(
-        SeededNumberDictionary::New(isolate, at_least_space_for));
+    storage = SeededNumberDictionary::New(isolate, at_least_space_for);
+  } else {
+    DCHECK(species->IsConstructor());
+    Handle<Object> length(Smi::FromInt(0), isolate);
+    Handle<Object> storage_object;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, storage_object,
+        Execution::New(isolate, species, species, 1, &length));
+    storage = storage_object;
   }
 
   ArrayConcatVisitor visitor(isolate, storage, fast_case);
@@ -1400,7 +1390,12 @@ Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayLength));
   }
-  return *visitor.ToArray();
+
+  if (is_array_species) {
+    return *visitor.ToArray();
+  } else {
+    return *visitor.storage_jsreceiver();
+  }
 }
 
 
@@ -1446,26 +1441,37 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
 
 }  // namespace
 
+
 // ES6 22.1.3.1 Array.prototype.concat
 BUILTIN(ArrayConcat) {
   HandleScope scope(isolate);
 
-  Handle<Object> receiver;
-  if (!Object::ToObject(isolate, handle(args[0], isolate))
-           .ToHandle(&receiver)) {
+  Handle<Object> receiver = args.receiver();
+  // TODO(bmeurer): Do we really care about the exact exception message here?
+  if (receiver->IsNull() || receiver->IsUndefined()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   "Array.prototype.concat")));
   }
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver, Object::ToObject(isolate, args.receiver()));
   args[0] = *receiver;
 
   Handle<JSArray> result_array;
-  if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
-    return *result_array;
+
+  // Reading @@species happens before anything else with a side effect, so
+  // we can do it here to determine whether to take the fast path.
+  Handle<Object> species;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, species, Object::ArraySpeciesConstructor(isolate, receiver));
+  if (*species == isolate->context()->native_context()->array_function()) {
+    if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
+      return *result_array;
+    }
+    if (isolate->has_pending_exception()) return isolate->heap()->exception();
   }
-  if (isolate->has_pending_exception()) return isolate->heap()->exception();
-  return Slow_ArrayConcat(&args, isolate);
+  return Slow_ArrayConcat(&args, species, isolate);
 }
 
 
@@ -1479,6 +1485,77 @@ BUILTIN(ArrayIsArray) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
+namespace {
+
+MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
+                                       Handle<Object> next_source) {
+  // Non-empty strings are the only non-JSReceivers that need to be handled
+  // explicitly by Object.assign.
+  if (!next_source->IsJSReceiver()) {
+    return Just(!next_source->IsString() ||
+                String::cast(*next_source)->length() == 0);
+  }
+
+  Isolate* isolate = to->GetIsolate();
+  Handle<Map> map(JSReceiver::cast(*next_source)->map(), isolate);
+
+  if (!map->IsJSObjectMap()) return Just(false);
+  if (!map->OnlyHasSimpleProperties()) return Just(false);
+
+  Handle<JSObject> from = Handle<JSObject>::cast(next_source);
+  if (from->elements() != isolate->heap()->empty_fixed_array()) {
+    return Just(false);
+  }
+
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+  int length = map->NumberOfOwnDescriptors();
+
+  bool stable = true;
+
+  for (int i = 0; i < length; i++) {
+    Handle<Name> next_key(descriptors->GetKey(i), isolate);
+    Handle<Object> prop_value;
+    // Directly decode from the descriptor array if |from| did not change shape.
+    if (stable) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (!details.IsEnumerable()) continue;
+      if (details.kind() == kData) {
+        if (details.location() == kDescriptor) {
+          prop_value = handle(descriptors->GetValue(i), isolate);
+        } else {
+          Representation representation = details.representation();
+          FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+          prop_value = JSObject::FastPropertyAt(from, representation, index);
+        }
+      } else {
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, prop_value,
+                                         Object::GetProperty(from, next_key),
+                                         Nothing<bool>());
+        stable = from->map() == *map;
+      }
+    } else {
+      // If the map did change, do a slower lookup. We are still guaranteed that
+      // the object has a simple shape, and that the key is a name.
+      LookupIterator it(from, next_key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+      if (!it.IsFound()) continue;
+      DCHECK(it.state() == LookupIterator::DATA ||
+             it.state() == LookupIterator::ACCESSOR);
+      if (!it.IsEnumerable()) continue;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
+    }
+    LookupIterator it(to, next_key);
+    bool call_to_js = it.IsFound() && it.state() != LookupIterator::DATA;
+    Maybe<bool> result = Object::SetProperty(
+        &it, prop_value, STRICT, Object::CERTAINLY_NOT_STORE_FROM_KEYED);
+    if (result.IsNothing()) return result;
+    if (stable && call_to_js) stable = from->map() == *map;
+  }
+
+  return Just(true);
+}
+
+}  // namespace
 
 // ES6 19.1.2.1 Object.assign
 BUILTIN(ObjectAssign) {
@@ -1487,7 +1564,7 @@ BUILTIN(ObjectAssign) {
 
   // 1. Let to be ? ToObject(target).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target,
-                                     Execution::ToObject(isolate, target));
+                                     Object::ToObject(isolate, target));
   Handle<JSReceiver> to = Handle<JSReceiver>::cast(target);
   // 2. If only one argument was passed, return to.
   if (args.length() == 2) return *to;
@@ -1496,17 +1573,20 @@ BUILTIN(ObjectAssign) {
   // 4. For each element nextSource of sources, in ascending index order,
   for (int i = 2; i < args.length(); ++i) {
     Handle<Object> next_source = args.at<Object>(i);
+    Maybe<bool> fast_assign = FastAssign(to, next_source);
+    if (fast_assign.IsNothing()) return isolate->heap()->exception();
+    if (fast_assign.FromJust()) continue;
     // 4a. If nextSource is undefined or null, let keys be an empty List.
-    if (next_source->IsUndefined() || next_source->IsNull()) continue;
     // 4b. Else,
     // 4b i. Let from be ToObject(nextSource).
+    // Only non-empty strings and JSReceivers have enumerable properties.
     Handle<JSReceiver> from =
         Object::ToObject(isolate, next_source).ToHandleChecked();
     // 4b ii. Let keys be ? from.[[OwnPropertyKeys]]().
     Handle<FixedArray> keys;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, keys, JSReceiver::GetKeys(from, JSReceiver::OWN_ONLY,
-                                           ALL_PROPERTIES, KEEP_NUMBERS));
+        isolate, keys,
+        JSReceiver::GetKeys(from, OWN_ONLY, ALL_PROPERTIES, KEEP_NUMBERS));
     // 4c. Repeat for each element nextKey of keys in List order,
     for (int j = 0; j < keys->length(); ++j) {
       Handle<Object> next_key(keys->get(j), isolate);
@@ -1521,7 +1601,7 @@ BUILTIN(ObjectAssign) {
         Handle<Object> prop_value;
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, prop_value,
-            Runtime::GetObjectProperty(isolate, from, next_key, STRICT));
+            Runtime::GetObjectProperty(isolate, from, next_key));
         // 4c ii 2. Let status be ? Set(to, nextKey, propValue, true).
         Handle<Object> status;
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -1581,6 +1661,72 @@ BUILTIN(ObjectFreeze) {
 }
 
 
+// ES6 section 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )
+BUILTIN(ObjectGetOwnPropertyDescriptor) {
+  HandleScope scope(isolate);
+  // 1. Let obj be ? ToObject(O).
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ToObject(isolate, object));
+  // 2. Let key be ? ToPropertyKey(P).
+  Handle<Object> property = args.atOrUndefined(isolate, 2);
+  Handle<Name> key;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
+                                     Object::ToName(isolate, property));
+  // 3. Let desc be ? obj.[[GetOwnProperty]](key).
+  PropertyDescriptor desc;
+  Maybe<bool> found =
+      JSReceiver::GetOwnPropertyDescriptor(isolate, receiver, key, &desc);
+  MAYBE_RETURN(found, isolate->heap()->exception());
+  // 4. Return FromPropertyDescriptor(desc).
+  if (!found.FromJust()) return isolate->heap()->undefined_value();
+  return *desc.ToObject(isolate);
+}
+
+
+namespace {
+
+Object* GetOwnPropertyKeys(Isolate* isolate,
+                           BuiltinArguments<BuiltinExtraArguments::kNone> args,
+                           PropertyFilter filter) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ToObject(isolate, object));
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, keys,
+      JSReceiver::GetKeys(receiver, OWN_ONLY, filter, CONVERT_TO_STRING));
+  return *isolate->factory()->NewJSArrayWithElements(keys);
+}
+
+}  // namespace
+
+
+// ES6 section 19.1.2.7 Object.getOwnPropertyNames ( O )
+BUILTIN(ObjectGetOwnPropertyNames) {
+  return GetOwnPropertyKeys(isolate, args, SKIP_SYMBOLS);
+}
+
+
+// ES6 section 19.1.2.8 Object.getOwnPropertySymbols ( O )
+BUILTIN(ObjectGetOwnPropertySymbols) {
+  return GetOwnPropertyKeys(isolate, args, SKIP_STRINGS);
+}
+
+
+// ES#sec-object.is Object.is ( value1, value2 )
+BUILTIN(ObjectIs) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<Object> value1 = args.at<Object>(1);
+  Handle<Object> value2 = args.at<Object>(2);
+  return isolate->heap()->ToBoolean(value1->SameValue(*value2));
+}
+
+
 // ES6 section 19.1.2.11 Object.isExtensible ( O )
 BUILTIN(ObjectIsExtensible) {
   HandleScope scope(isolate);
@@ -1626,9 +1772,9 @@ BUILTIN(ObjectKeys) {
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Execution::ToObject(isolate, object));
-  Handle<FixedArray> keys;
+                                     Object::ToObject(isolate, object));
 
+  Handle<FixedArray> keys;
   int enum_length = receiver->map()->EnumLength();
   if (enum_length != kInvalidEnumCacheSentinel &&
       JSObject::cast(*receiver)->elements() ==
@@ -1636,29 +1782,87 @@ BUILTIN(ObjectKeys) {
     DCHECK(receiver->IsJSObject());
     DCHECK(!JSObject::cast(*receiver)->HasNamedInterceptor());
     DCHECK(!JSObject::cast(*receiver)->IsAccessCheckNeeded());
-    DCHECK(!HeapObject::cast(receiver->map()->prototype())
-                ->map()
-                ->is_hidden_prototype());
+    DCHECK(!receiver->map()->has_hidden_prototype());
     DCHECK(JSObject::cast(*receiver)->HasFastProperties());
     if (enum_length == 0) {
       keys = isolate->factory()->empty_fixed_array();
     } else {
       Handle<FixedArray> cache(
           receiver->map()->instance_descriptors()->GetEnumCache());
-      keys = isolate->factory()->NewFixedArray(enum_length);
-      for (int i = 0; i < enum_length; i++) {
-        keys->set(i, cache->get(i));
-      }
+      keys = isolate->factory()->CopyFixedArrayUpTo(cache, enum_length);
     }
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, keys,
-        JSReceiver::GetKeys(receiver, JSReceiver::OWN_ONLY, ENUMERABLE_STRINGS,
+        JSReceiver::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
                             CONVERT_TO_STRING));
   }
   return *isolate->factory()->NewJSArrayWithElements(keys, FAST_ELEMENTS);
 }
 
+BUILTIN(ObjectValues) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ToObject(isolate, object));
+  Handle<FixedArray> values;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, values, JSReceiver::GetOwnValues(receiver, ENUMERABLE_STRINGS));
+  return *isolate->factory()->NewJSArrayWithElements(values);
+}
+
+
+BUILTIN(ObjectEntries) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ToObject(isolate, object));
+  Handle<FixedArray> entries;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, entries,
+      JSReceiver::GetOwnEntries(receiver, ENUMERABLE_STRINGS));
+  return *isolate->factory()->NewJSArrayWithElements(entries);
+}
+
+BUILTIN(ObjectGetOwnPropertyDescriptors) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ToObject(isolate, object));
+
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, keys, JSReceiver::GetKeys(receiver, OWN_ONLY, ALL_PROPERTIES,
+                                         CONVERT_TO_STRING));
+
+  Handle<Object> descriptors =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Name> key = Handle<Name>::cast(FixedArray::get(*keys, i, isolate));
+    PropertyDescriptor descriptor;
+    Maybe<bool> did_get_descriptor = JSReceiver::GetOwnPropertyDescriptor(
+        isolate, receiver, key, &descriptor);
+    MAYBE_RETURN(did_get_descriptor, isolate->heap()->exception());
+
+    Handle<Object> from_descriptor = did_get_descriptor.FromJust()
+                                         ? descriptor.ToObject(isolate)
+                                         : undefined;
+
+    LookupIterator it = LookupIterator::PropertyOrElement(
+        isolate, descriptors, key, LookupIterator::OWN);
+    Maybe<bool> success = JSReceiver::CreateDataProperty(&it, from_descriptor,
+                                                         Object::DONT_THROW);
+    CHECK(success.FromJust());
+  }
+
+  return *descriptors;
+}
 
 // ES6 section 19.1.2.15 Object.preventExtensions ( O )
 BUILTIN(ObjectPreventExtensions) {
@@ -1737,7 +1941,7 @@ MaybeHandle<JSFunction> CompileString(Handle<Context> context,
 BUILTIN(GlobalEval) {
   HandleScope scope(isolate);
   Handle<Object> x = args.atOrUndefined(isolate, 1);
-  Handle<JSFunction> target = args.target();
+  Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
   if (!x->IsString()) return *x;
   Handle<JSFunction> function;
@@ -1831,7 +2035,7 @@ BUILTIN(ReflectGet) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, Object::GetPropertyOrElement(
-          Handle<JSReceiver>::cast(target), name, receiver));
+                           receiver, name, Handle<JSReceiver>::cast(target)));
 
   return *result;
 }
@@ -1877,8 +2081,9 @@ BUILTIN(ReflectGetPrototypeOf) {
                                   "Reflect.getPrototypeOf")));
   }
   Handle<Object> prototype;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, prototype,
-                                     Object::GetPrototype(isolate, target));
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(target);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, prototype, JSReceiver::GetPrototype(isolate, receiver));
   return *prototype;
 }
 
@@ -1943,9 +2148,9 @@ BUILTIN(ReflectOwnKeys) {
 
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys, JSReceiver::GetKeys(Handle<JSReceiver>::cast(target),
-                                         JSReceiver::OWN_ONLY, ALL_PROPERTIES,
-                                         CONVERT_TO_STRING));
+      isolate, keys,
+      JSReceiver::GetKeys(Handle<JSReceiver>::cast(target), OWN_ONLY,
+                          ALL_PROPERTIES, CONVERT_TO_STRING));
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
@@ -2021,6 +2226,180 @@ BUILTIN(ReflectSetPrototypeOf) {
       Handle<JSReceiver>::cast(target), proto, true, Object::DONT_THROW);
   MAYBE_RETURN(result, isolate->heap()->exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
+}
+
+
+// -----------------------------------------------------------------------------
+// ES6 section 19.3 Boolean Objects
+
+
+// ES6 section 19.3.1.1 Boolean ( value ) for the [[Call]] case.
+BUILTIN(BooleanConstructor) {
+  HandleScope scope(isolate);
+  Handle<Object> value = args.atOrUndefined(isolate, 1);
+  return isolate->heap()->ToBoolean(value->BooleanValue());
+}
+
+
+// ES6 section 19.3.1.1 Boolean ( value ) for the [[Construct]] case.
+BUILTIN(BooleanConstructor_ConstructStub) {
+  HandleScope scope(isolate);
+  Handle<Object> value = args.atOrUndefined(isolate, 1);
+  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  DCHECK(*target == target->native_context()->boolean_function());
+  Handle<JSObject> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSObject::New(target, new_target));
+  Handle<JSValue>::cast(result)->set_value(
+      isolate->heap()->ToBoolean(value->BooleanValue()));
+  return *result;
+}
+
+
+// ES6 section 19.3.3.2 Boolean.prototype.toString ( )
+BUILTIN(BooleanPrototypeToString) {
+  HandleScope scope(isolate);
+  Handle<Object> receiver = args.receiver();
+  if (receiver->IsJSValue()) {
+    receiver = handle(Handle<JSValue>::cast(receiver)->value(), isolate);
+  }
+  if (!receiver->IsBoolean()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotGeneric,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Boolean.prototype.toString")));
+  }
+  return Handle<Oddball>::cast(receiver)->to_string();
+}
+
+
+// ES6 section 19.3.3.3 Boolean.prototype.valueOf ( )
+BUILTIN(BooleanPrototypeValueOf) {
+  HandleScope scope(isolate);
+  Handle<Object> receiver = args.receiver();
+  if (receiver->IsJSValue()) {
+    receiver = handle(Handle<JSValue>::cast(receiver)->value(), isolate);
+  }
+  if (!receiver->IsBoolean()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotGeneric,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Boolean.prototype.valueOf")));
+  }
+  return *receiver;
+}
+
+
+// -----------------------------------------------------------------------------
+// ES6 section 24.2 DataView Objects
+
+
+// ES6 section 24.2.2 The DataView Constructor for the [[Call]] case.
+BUILTIN(DataViewConstructor) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError(MessageTemplate::kConstructorNotFunction,
+                   isolate->factory()->NewStringFromAsciiChecked("DataView")));
+}
+
+
+// ES6 section 24.2.2 The DataView Constructor for the [[Construct]] case.
+BUILTIN(DataViewConstructor_ConstructStub) {
+  HandleScope scope(isolate);
+  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<Object> buffer = args.atOrUndefined(isolate, 1);
+  Handle<Object> byte_offset = args.atOrUndefined(isolate, 2);
+  Handle<Object> byte_length = args.atOrUndefined(isolate, 3);
+
+  // 2. If Type(buffer) is not Object, throw a TypeError exception.
+  // 3. If buffer does not have an [[ArrayBufferData]] internal slot, throw a
+  //    TypeError exception.
+  if (!buffer->IsJSArrayBuffer()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kDataViewNotArrayBuffer));
+  }
+  Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(buffer);
+
+  // 4. Let numberOffset be ? ToNumber(byteOffset).
+  Handle<Object> number_offset;
+  if (byte_offset->IsUndefined()) {
+    // We intentionally violate the specification at this point to allow
+    // for new DataView(buffer) invocations to be equivalent to the full
+    // new DataView(buffer, 0) invocation.
+    number_offset = handle(Smi::FromInt(0), isolate);
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_offset,
+                                       Object::ToNumber(byte_offset));
+  }
+
+  // 5. Let offset be ToInteger(numberOffset).
+  Handle<Object> offset;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, offset,
+                                     Object::ToInteger(isolate, number_offset));
+
+  // 6. If numberOffset ≠ offset or offset < 0, throw a RangeError exception.
+  if (number_offset->Number() != offset->Number() || offset->Number() < 0.0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidDataViewOffset));
+  }
+
+  // 7. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+  // We currently violate the specification at this point.
+
+  // 8. Let bufferByteLength be the value of buffer's [[ArrayBufferByteLength]]
+  // internal slot.
+  double const buffer_byte_length = array_buffer->byte_length()->Number();
+
+  // 9. If offset > bufferByteLength, throw a RangeError exception
+  if (offset->Number() > buffer_byte_length) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidDataViewOffset));
+  }
+
+  Handle<Object> view_byte_length;
+  if (byte_length->IsUndefined()) {
+    // 10. If byteLength is undefined, then
+    //       a. Let viewByteLength be bufferByteLength - offset.
+    view_byte_length =
+        isolate->factory()->NewNumber(buffer_byte_length - offset->Number());
+  } else {
+    // 11. Else,
+    //       a. Let viewByteLength be ? ToLength(byteLength).
+    //       b. If offset+viewByteLength > bufferByteLength, throw a RangeError
+    //          exception
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, view_byte_length, Object::ToLength(isolate, byte_length));
+    if (offset->Number() + view_byte_length->Number() > buffer_byte_length) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewRangeError(MessageTemplate::kInvalidDataViewLength));
+    }
+  }
+
+  // 12. Let O be ? OrdinaryCreateFromConstructor(NewTarget,
+  //     "%DataViewPrototype%", «[[DataView]], [[ViewedArrayBuffer]],
+  //     [[ByteLength]], [[ByteOffset]]»).
+  // 13. Set O's [[DataView]] internal slot to true.
+  Handle<JSObject> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSObject::New(target, new_target));
+  for (int i = 0; i < ArrayBufferView::kInternalFieldCount; ++i) {
+    Handle<JSDataView>::cast(result)->SetInternalField(i, Smi::FromInt(0));
+  }
+
+  // 14. Set O's [[ViewedArrayBuffer]] internal slot to buffer.
+  Handle<JSDataView>::cast(result)->set_buffer(*array_buffer);
+
+  // 15. Set O's [[ByteLength]] internal slot to viewByteLength.
+  Handle<JSDataView>::cast(result)->set_byte_length(*view_byte_length);
+
+  // 16. Set O's [[ByteOffset]] internal slot to offset.
+  Handle<JSDataView>::cast(result)->set_byte_offset(*offset);
+
+  // 17. Return O.
+  return *result;
 }
 
 
@@ -2237,7 +2616,7 @@ BUILTIN(DateConstructor) {
 BUILTIN(DateConstructor_ConstructStub) {
   HandleScope scope(isolate);
   int const argc = args.length() - 1;
-  Handle<JSFunction> target = args.target();
+  Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   double time_val;
   if (argc == 0) {
@@ -3133,7 +3512,7 @@ MaybeHandle<JSFunction> CreateDynamicFunction(
 
   // Compile the string in the constructor and not a helper so that errors to
   // come from here.
-  Handle<JSFunction> target = args.target();
+  Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
   Handle<JSFunction> function;
   {
@@ -3280,6 +3659,45 @@ BUILTIN(GeneratorFunctionConstructor) {
   return *result;
 }
 
+// ES6 section 19.2.3.6 Function.prototype[@@hasInstance](V)
+BUILTIN(FunctionHasInstance) {
+  HandleScope scope(isolate);
+  Handle<Object> callable = args.receiver();
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+
+  // {callable} must have a [[Call]] internal method.
+  if (!callable->IsCallable()) {
+    return isolate->heap()->false_value();
+  }
+  // If {object} is not a receiver, return false.
+  if (!object->IsJSReceiver()) {
+    return isolate->heap()->false_value();
+  }
+  // Check if {callable} is bound, if so, get [[BoundTargetFunction]] from it
+  // and use that instead of {callable}.
+  while (callable->IsJSBoundFunction()) {
+    callable =
+        handle(Handle<JSBoundFunction>::cast(callable)->bound_target_function(),
+               isolate);
+  }
+  DCHECK(callable->IsCallable());
+  // Get the "prototype" of {callable}; raise an error if it's not a receiver.
+  Handle<Object> prototype;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, prototype,
+      Object::GetProperty(callable, isolate->factory()->prototype_string()));
+  if (!prototype->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kInstanceofNonobjectProto, prototype));
+  }
+  // Return whether or not {prototype} is in the prototype chain of {object}.
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+  Maybe<bool> result =
+      JSReceiver::HasInPrototypeChain(isolate, receiver, prototype);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
 
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Call]] case.
 BUILTIN(SymbolConstructor) {
@@ -3318,7 +3736,7 @@ BUILTIN(ObjectProtoToString) {
 // ES6 section 24.1.2.1 ArrayBuffer ( length ) for the [[Call]] case.
 BUILTIN(ArrayBufferConstructor) {
   HandleScope scope(isolate);
-  Handle<JSFunction> target = args.target();
+  Handle<JSFunction> target = args.target<JSFunction>();
   DCHECK(*target == target->native_context()->array_buffer_fun() ||
          *target == target->native_context()->shared_array_buffer_fun());
   THROW_NEW_ERROR_RETURN_FAILURE(
@@ -3330,7 +3748,7 @@ BUILTIN(ArrayBufferConstructor) {
 // ES6 section 24.1.2.1 ArrayBuffer ( length ) for the [[Construct]] case.
 BUILTIN(ArrayBufferConstructor_ConstructStub) {
   HandleScope scope(isolate);
-  Handle<JSFunction> target = args.target();
+  Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   Handle<Object> length = args.atOrUndefined(isolate, 1);
   DCHECK(*target == target->native_context()->array_buffer_fun() ||
@@ -3342,22 +3760,20 @@ BUILTIN(ArrayBufferConstructor_ConstructStub) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
-  Handle<Map> initial_map;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, initial_map,
-      JSFunction::GetDerivedMap(isolate, target, new_target));
+  Handle<JSObject> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSObject::New(target, new_target));
   size_t byte_length;
   if (!TryNumberToSize(isolate, *number_length, &byte_length)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
-  Handle<JSArrayBuffer> result = Handle<JSArrayBuffer>::cast(
-      isolate->factory()->NewJSObjectFromMap(initial_map));
   SharedFlag shared_flag =
       (*target == target->native_context()->array_buffer_fun())
           ? SharedFlag::kNotShared
           : SharedFlag::kShared;
-  if (!JSArrayBuffer::SetupAllocatingData(result, isolate, byte_length, true,
+  if (!JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer>::cast(result),
+                                          isolate, byte_length, true,
                                           shared_flag)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
@@ -3427,23 +3843,37 @@ template <bool is_construct>
 MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     Isolate* isolate, BuiltinArguments<BuiltinExtraArguments::kTarget> args) {
   HandleScope scope(isolate);
-  Handle<JSFunction> function = args.target();
-  DCHECK(args.receiver()->IsJSReceiver());
+  Handle<HeapObject> function = args.target<HeapObject>();
+  Handle<JSReceiver> receiver;
   // TODO(ishell): turn this back to a DCHECK.
-  CHECK(function->shared()->IsApiFunction());
+  CHECK(function->IsFunctionTemplateInfo() ||
+        Handle<JSFunction>::cast(function)->shared()->IsApiFunction());
 
-  Handle<FunctionTemplateInfo> fun_data(
-      function->shared()->get_api_func_data(), isolate);
+  Handle<FunctionTemplateInfo> fun_data =
+      function->IsFunctionTemplateInfo()
+          ? Handle<FunctionTemplateInfo>::cast(function)
+          : handle(JSFunction::cast(*function)->shared()->get_api_func_data());
   if (is_construct) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, fun_data,
-        ApiNatives::ConfigureInstance(isolate, fun_data,
-                                      Handle<JSObject>::cast(args.receiver())),
-        Object);
+    DCHECK(args.receiver()->IsTheHole());
+    if (fun_data->instance_template()->IsUndefined()) {
+      v8::Local<ObjectTemplate> templ =
+          ObjectTemplate::New(reinterpret_cast<v8::Isolate*>(isolate),
+                              ToApiHandle<v8::FunctionTemplate>(fun_data));
+      fun_data->set_instance_template(*Utils::OpenHandle(*templ));
+    }
+    Handle<ObjectTemplateInfo> instance_template(
+        ObjectTemplateInfo::cast(fun_data->instance_template()), isolate);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                               ApiNatives::InstantiateObject(instance_template),
+                               Object);
+    args[0] = *receiver;
+    DCHECK_EQ(*receiver, *args.receiver());
+  } else {
+    DCHECK(args.receiver()->IsJSReceiver());
+    receiver = args.at<JSReceiver>(0);
   }
 
   if (!is_construct && !fun_data->accept_any_receiver()) {
-    Handle<JSReceiver> receiver = args.at<JSReceiver>(0);
     if (receiver->IsJSObject() && receiver->IsAccessCheckNeeded()) {
       Handle<JSObject> js_receiver = Handle<JSObject>::cast(receiver);
       if (!isolate->MayAccess(handle(isolate->context()), js_receiver)) {
@@ -3453,7 +3883,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
   }
 
-  Object* raw_holder = fun_data->GetCompatibleReceiver(isolate, args[0]);
+  Object* raw_holder = fun_data->GetCompatibleReceiver(isolate, *receiver);
 
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!
@@ -3497,7 +3927,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
   }
 
-  return scope.CloseAndEscape(args.receiver());
+  return scope.CloseAndEscape(receiver);
 }
 
 }  // namespace
@@ -3520,34 +3950,83 @@ BUILTIN(HandleApiCallConstruct) {
   return *result;
 }
 
-
-Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode) {
-  switch (mode) {
-    case ConvertReceiverMode::kNullOrUndefined:
-      return CallFunction_ReceiverIsNullOrUndefined();
-    case ConvertReceiverMode::kNotNullOrUndefined:
-      return CallFunction_ReceiverIsNotNullOrUndefined();
-    case ConvertReceiverMode::kAny:
-      return CallFunction_ReceiverIsAny();
+Handle<Code> Builtins::CallFunction(ConvertReceiverMode mode,
+                                    TailCallMode tail_call_mode) {
+  switch (tail_call_mode) {
+    case TailCallMode::kDisallow:
+      switch (mode) {
+        case ConvertReceiverMode::kNullOrUndefined:
+          return CallFunction_ReceiverIsNullOrUndefined();
+        case ConvertReceiverMode::kNotNullOrUndefined:
+          return CallFunction_ReceiverIsNotNullOrUndefined();
+        case ConvertReceiverMode::kAny:
+          return CallFunction_ReceiverIsAny();
+      }
+      break;
+    case TailCallMode::kAllow:
+      switch (mode) {
+        case ConvertReceiverMode::kNullOrUndefined:
+          return TailCallFunction_ReceiverIsNullOrUndefined();
+        case ConvertReceiverMode::kNotNullOrUndefined:
+          return TailCallFunction_ReceiverIsNotNullOrUndefined();
+        case ConvertReceiverMode::kAny:
+          return TailCallFunction_ReceiverIsAny();
+      }
+      break;
   }
   UNREACHABLE();
   return Handle<Code>::null();
 }
 
-
-Handle<Code> Builtins::Call(ConvertReceiverMode mode) {
-  switch (mode) {
-    case ConvertReceiverMode::kNullOrUndefined:
-      return Call_ReceiverIsNullOrUndefined();
-    case ConvertReceiverMode::kNotNullOrUndefined:
-      return Call_ReceiverIsNotNullOrUndefined();
-    case ConvertReceiverMode::kAny:
-      return Call_ReceiverIsAny();
+Handle<Code> Builtins::Call(ConvertReceiverMode mode,
+                            TailCallMode tail_call_mode) {
+  switch (tail_call_mode) {
+    case TailCallMode::kDisallow:
+      switch (mode) {
+        case ConvertReceiverMode::kNullOrUndefined:
+          return Call_ReceiverIsNullOrUndefined();
+        case ConvertReceiverMode::kNotNullOrUndefined:
+          return Call_ReceiverIsNotNullOrUndefined();
+        case ConvertReceiverMode::kAny:
+          return Call_ReceiverIsAny();
+      }
+      break;
+    case TailCallMode::kAllow:
+      switch (mode) {
+        case ConvertReceiverMode::kNullOrUndefined:
+          return TailCall_ReceiverIsNullOrUndefined();
+        case ConvertReceiverMode::kNotNullOrUndefined:
+          return TailCall_ReceiverIsNotNullOrUndefined();
+        case ConvertReceiverMode::kAny:
+          return TailCall_ReceiverIsAny();
+      }
+      break;
   }
   UNREACHABLE();
   return Handle<Code>::null();
 }
 
+Handle<Code> Builtins::CallBoundFunction(TailCallMode tail_call_mode) {
+  switch (tail_call_mode) {
+    case TailCallMode::kDisallow:
+      return CallBoundFunction();
+    case TailCallMode::kAllow:
+      return TailCallBoundFunction();
+  }
+  UNREACHABLE();
+  return Handle<Code>::null();
+}
+
+Handle<Code> Builtins::InterpreterPushArgsAndCall(TailCallMode tail_call_mode) {
+  switch (tail_call_mode) {
+    case TailCallMode::kDisallow:
+      return InterpreterPushArgsAndCall();
+    case TailCallMode::kAllow:
+      return InterpreterPushArgsAndTailCall();
+  }
+  UNREACHABLE();
+  return Handle<Code>::null();
+}
 
 namespace {
 
@@ -3570,8 +4049,7 @@ class RelocatableArguments
 
 }  // namespace
 
-
-MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<JSFunction> function,
+MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<HeapObject> function,
                                                 Handle<Object> receiver,
                                                 int argc,
                                                 Handle<Object> args[]) {
@@ -3678,12 +4156,7 @@ static void Generate_LoadIC_Miss(MacroAssembler* masm) {
 
 
 static void Generate_LoadIC_Normal(MacroAssembler* masm) {
-  LoadIC::GenerateNormal(masm, SLOPPY);
-}
-
-
-static void Generate_LoadIC_Normal_Strong(MacroAssembler* masm) {
-  LoadIC::GenerateNormal(masm, STRONG);
+  LoadIC::GenerateNormal(masm);
 }
 
 
@@ -3693,22 +4166,12 @@ static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
 
 
 static void Generate_LoadIC_Slow(MacroAssembler* masm) {
-  LoadIC::GenerateRuntimeGetProperty(masm, SLOPPY);
-}
-
-
-static void Generate_LoadIC_Slow_Strong(MacroAssembler* masm) {
-  LoadIC::GenerateRuntimeGetProperty(masm, STRONG);
+  LoadIC::GenerateRuntimeGetProperty(masm);
 }
 
 
 static void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateRuntimeGetProperty(masm, SLOPPY);
-}
-
-
-static void Generate_KeyedLoadIC_Slow_Strong(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateRuntimeGetProperty(masm, STRONG);
+  KeyedLoadIC::GenerateRuntimeGetProperty(masm);
 }
 
 
@@ -3718,12 +4181,7 @@ static void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
 
 
 static void Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMegamorphic(masm, SLOPPY);
-}
-
-
-static void Generate_KeyedLoadIC_Megamorphic_Strong(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMegamorphic(masm, STRONG);
+  KeyedLoadIC::GenerateMegamorphic(masm);
 }
 
 

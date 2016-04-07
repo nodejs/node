@@ -35,19 +35,18 @@ namespace v8 {
 namespace internal {
 
 
-template<class Type, class TypeHandle, class Region>
 class Types {
  public:
-  Types(Region* region, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
-      : region_(region), isolate_(isolate), rng_(rng) {
-    #define DECLARE_TYPE(name, value) \
-      name = Type::name(region);      \
-      types.push_back(name);
+  Types(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
+      : zone_(zone), isolate_(isolate), rng_(rng) {
+#define DECLARE_TYPE(name, value) \
+  name = Type::name();            \
+  types.push_back(name);
     PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
     #undef DECLARE_TYPE
 
-    SignedSmall = Type::SignedSmall(region);
-    UnsignedSmall = Type::UnsignedSmall(region);
+    SignedSmall = Type::SignedSmall();
+    UnsignedSmall = Type::UnsignedSmall();
 
     object_map = isolate->factory()->NewMap(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
@@ -56,16 +55,16 @@ class Types {
     number_map = isolate->factory()->NewMap(
         HEAP_NUMBER_TYPE, HeapNumber::kSize);
     uninitialized_map = isolate->factory()->uninitialized_map();
-    ObjectClass = Type::Class(object_map, region);
-    ArrayClass = Type::Class(array_map, region);
-    NumberClass = Type::Class(number_map, region);
-    UninitializedClass = Type::Class(uninitialized_map, region);
+    ObjectClass = Type::Class(object_map, zone);
+    ArrayClass = Type::Class(array_map, zone);
+    NumberClass = Type::Class(number_map, zone);
+    UninitializedClass = Type::Class(uninitialized_map, zone);
 
     maps.push_back(object_map);
     maps.push_back(array_map);
     maps.push_back(uninitialized_map);
     for (MapVector::iterator it = maps.begin(); it != maps.end(); ++it) {
-      types.push_back(Type::Class(*it, region));
+      types.push_back(Type::Class(*it, zone));
     }
 
     smi = handle(Smi::FromInt(666), isolate);
@@ -74,13 +73,13 @@ class Types {
     object2 = isolate->factory()->NewJSObjectFromMap(object_map);
     array = isolate->factory()->NewJSArray(20);
     uninitialized = isolate->factory()->uninitialized_value();
-    SmiConstant = Type::Constant(smi, region);
-    Signed32Constant = Type::Constant(signed32, region);
+    SmiConstant = Type::Constant(smi, zone);
+    Signed32Constant = Type::Constant(signed32, zone);
 
-    ObjectConstant1 = Type::Constant(object1, region);
-    ObjectConstant2 = Type::Constant(object2, region);
-    ArrayConstant = Type::Constant(array, region);
-    UninitializedConstant = Type::Constant(uninitialized, region);
+    ObjectConstant1 = Type::Constant(object1, zone);
+    ObjectConstant2 = Type::Constant(object2, zone);
+    ArrayConstant = Type::Constant(array, zone);
+    UninitializedConstant = Type::Constant(uninitialized, zone);
 
     values.push_back(smi);
     values.push_back(signed32);
@@ -89,7 +88,7 @@ class Types {
     values.push_back(array);
     values.push_back(uninitialized);
     for (ValueVector::iterator it = values.begin(); it != values.end(); ++it) {
-      types.push_back(Type::Constant(*it, region));
+      types.push_back(Type::Constant(*it, zone));
     }
 
     integers.push_back(isolate->factory()->NewNumber(-V8_INFINITY));
@@ -103,16 +102,16 @@ class Types {
       if (!IsMinusZero(x)) integers.push_back(isolate->factory()->NewNumber(x));
     }
 
-    Integer = Type::Range(-V8_INFINITY, +V8_INFINITY, region);
+    Integer = Type::Range(-V8_INFINITY, +V8_INFINITY, zone);
 
-    NumberArray = Type::Array(Number, region);
-    StringArray = Type::Array(String, region);
-    AnyArray = Type::Array(Any, region);
+    NumberArray = Type::Array(Number, zone);
+    StringArray = Type::Array(String, zone);
+    AnyArray = Type::Array(Any, zone);
 
-    SignedFunction1 = Type::Function(SignedSmall, SignedSmall, region);
-    NumberFunction1 = Type::Function(Number, Number, region);
-    NumberFunction2 = Type::Function(Number, Number, Number, region);
-    MethodFunction = Type::Function(String, Object, 0, region);
+    SignedFunction1 = Type::Function(SignedSmall, SignedSmall, zone);
+    NumberFunction1 = Type::Function(Number, Number, zone);
+    NumberFunction2 = Type::Function(Number, Number, Number, zone);
+    MethodFunction = Type::Function(String, Object, 0, zone);
 
     for (int i = 0; i < 30; ++i) {
       types.push_back(Fuzz());
@@ -131,40 +130,40 @@ class Types {
   Handle<i::JSArray> array;
   Handle<i::Oddball> uninitialized;
 
-  #define DECLARE_TYPE(name, value) TypeHandle name;
+#define DECLARE_TYPE(name, value) Type* name;
   PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
   #undef DECLARE_TYPE
 
-#define DECLARE_TYPE(name, value) TypeHandle Mask##name##ForTesting;
+#define DECLARE_TYPE(name, value) Type* Mask##name##ForTesting;
   MASK_BITSET_TYPE_LIST(DECLARE_TYPE)
 #undef DECLARE_TYPE
-  TypeHandle SignedSmall;
-  TypeHandle UnsignedSmall;
+  Type* SignedSmall;
+  Type* UnsignedSmall;
 
-  TypeHandle ObjectClass;
-  TypeHandle ArrayClass;
-  TypeHandle NumberClass;
-  TypeHandle UninitializedClass;
+  Type* ObjectClass;
+  Type* ArrayClass;
+  Type* NumberClass;
+  Type* UninitializedClass;
 
-  TypeHandle SmiConstant;
-  TypeHandle Signed32Constant;
-  TypeHandle ObjectConstant1;
-  TypeHandle ObjectConstant2;
-  TypeHandle ArrayConstant;
-  TypeHandle UninitializedConstant;
+  Type* SmiConstant;
+  Type* Signed32Constant;
+  Type* ObjectConstant1;
+  Type* ObjectConstant2;
+  Type* ArrayConstant;
+  Type* UninitializedConstant;
 
-  TypeHandle Integer;
+  Type* Integer;
 
-  TypeHandle NumberArray;
-  TypeHandle StringArray;
-  TypeHandle AnyArray;
+  Type* NumberArray;
+  Type* StringArray;
+  Type* AnyArray;
 
-  TypeHandle SignedFunction1;
-  TypeHandle NumberFunction1;
-  TypeHandle NumberFunction2;
-  TypeHandle MethodFunction;
+  Type* SignedFunction1;
+  Type* NumberFunction1;
+  Type* NumberFunction2;
+  Type* MethodFunction;
 
-  typedef std::vector<TypeHandle> TypeVector;
+  typedef std::vector<Type*> TypeVector;
   typedef std::vector<Handle<i::Map> > MapVector;
   typedef std::vector<Handle<i::Object> > ValueVector;
 
@@ -173,94 +172,70 @@ class Types {
   ValueVector values;
   ValueVector integers;  // "Integer" values used for range limits.
 
-  TypeHandle Of(Handle<i::Object> value) {
-    return Type::Of(value, region_);
+  Type* Of(Handle<i::Object> value) { return Type::Of(value, zone_); }
+
+  Type* NowOf(Handle<i::Object> value) { return Type::NowOf(value, zone_); }
+
+  Type* Class(Handle<i::Map> map) { return Type::Class(map, zone_); }
+
+  Type* Constant(Handle<i::Object> value) {
+    return Type::Constant(value, zone_);
   }
 
-  TypeHandle NowOf(Handle<i::Object> value) {
-    return Type::NowOf(value, region_);
+  Type* Range(double min, double max) { return Type::Range(min, max, zone_); }
+
+  Type* Context(Type* outer) { return Type::Context(outer, zone_); }
+
+  Type* Array1(Type* element) { return Type::Array(element, zone_); }
+
+  Type* Function0(Type* result, Type* receiver) {
+    return Type::Function(result, receiver, 0, zone_);
   }
 
-  TypeHandle Class(Handle<i::Map> map) {
-    return Type::Class(map, region_);
-  }
-
-  TypeHandle Constant(Handle<i::Object> value) {
-    return Type::Constant(value, region_);
-  }
-
-  TypeHandle Range(double min, double max) {
-    return Type::Range(min, max, region_);
-  }
-
-  TypeHandle Context(TypeHandle outer) {
-    return Type::Context(outer, region_);
-  }
-
-  TypeHandle Array1(TypeHandle element) {
-    return Type::Array(element, region_);
-  }
-
-  TypeHandle Function0(TypeHandle result, TypeHandle receiver) {
-    return Type::Function(result, receiver, 0, region_);
-  }
-
-  TypeHandle Function1(TypeHandle result, TypeHandle receiver, TypeHandle arg) {
-    TypeHandle type = Type::Function(result, receiver, 1, region_);
+  Type* Function1(Type* result, Type* receiver, Type* arg) {
+    Type* type = Type::Function(result, receiver, 1, zone_);
     type->AsFunction()->InitParameter(0, arg);
     return type;
   }
 
-  TypeHandle Function2(TypeHandle result, TypeHandle arg1, TypeHandle arg2) {
-    return Type::Function(result, arg1, arg2, region_);
+  Type* Function2(Type* result, Type* arg1, Type* arg2) {
+    return Type::Function(result, arg1, arg2, zone_);
   }
 
-  TypeHandle Union(TypeHandle t1, TypeHandle t2) {
-    return Type::Union(t1, t2, region_);
-  }
+  Type* Union(Type* t1, Type* t2) { return Type::Union(t1, t2, zone_); }
 
-  TypeHandle Intersect(TypeHandle t1, TypeHandle t2) {
-    return Type::Intersect(t1, t2, region_);
-  }
+  Type* Intersect(Type* t1, Type* t2) { return Type::Intersect(t1, t2, zone_); }
 
-  TypeHandle Representation(TypeHandle t) {
-    return Type::Representation(t, region_);
-  }
+  Type* Representation(Type* t) { return Type::Representation(t, zone_); }
 
-  // TypeHandle Semantic(TypeHandle t) { return Intersect(t,
+  // Type* Semantic(Type* t) { return Intersect(t,
   // MaskSemanticForTesting); }
-  TypeHandle Semantic(TypeHandle t) { return Type::Semantic(t, region_); }
+  Type* Semantic(Type* t) { return Type::Semantic(t, zone_); }
 
-  template<class Type2, class TypeHandle2>
-  TypeHandle Convert(TypeHandle2 t) {
-    return Type::template Convert<Type2>(t, region_);
-  }
-
-  TypeHandle Random() {
+  Type* Random() {
     return types[rng_->NextInt(static_cast<int>(types.size()))];
   }
 
-  TypeHandle Fuzz(int depth = 4) {
+  Type* Fuzz(int depth = 4) {
     switch (rng_->NextInt(depth == 0 ? 3 : 20)) {
       case 0: {  // bitset
         #define COUNT_BITSET_TYPES(type, value) + 1
         int n = 0 PROPER_BITSET_TYPE_LIST(COUNT_BITSET_TYPES);
         #undef COUNT_BITSET_TYPES
         // Pick a bunch of named bitsets and return their intersection.
-        TypeHandle result = Type::Any(region_);
+        Type* result = Type::Any();
         for (int i = 0, m = 1 + rng_->NextInt(3); i < m; ++i) {
           int j = rng_->NextInt(n);
-          #define PICK_BITSET_TYPE(type, value) \
-            if (j-- == 0) { \
-              TypeHandle tmp = Type::Intersect( \
-                  result, Type::type(region_), region_); \
-              if (tmp->Is(Type::None()) && i != 0) { \
-                break; \
-              } else { \
-                result = tmp; \
-                continue; \
-              } \
-            }
+#define PICK_BITSET_TYPE(type, value)                         \
+  if (j-- == 0) {                                             \
+    Type* tmp = Type::Intersect(result, Type::type(), zone_); \
+    if (tmp->Is(Type::None()) && i != 0) {                    \
+      break;                                                  \
+    } else {                                                  \
+      result = tmp;                                           \
+      continue;                                               \
+    }                                                         \
+  }
           PROPER_BITSET_TYPE_LIST(PICK_BITSET_TYPE)
           #undef PICK_BITSET_TYPE
         }
@@ -268,11 +243,11 @@ class Types {
       }
       case 1: {  // class
         int i = rng_->NextInt(static_cast<int>(maps.size()));
-        return Type::Class(maps[i], region_);
+        return Type::Class(maps[i], zone_);
       }
       case 2: {  // constant
         int i = rng_->NextInt(static_cast<int>(values.size()));
-        return Type::Constant(values[i], region_);
+        return Type::Constant(values[i], zone_);
       }
       case 3: {  // range
         int i = rng_->NextInt(static_cast<int>(integers.size()));
@@ -280,26 +255,26 @@ class Types {
         double min = integers[i]->Number();
         double max = integers[j]->Number();
         if (min > max) std::swap(min, max);
-        return Type::Range(min, max, region_);
+        return Type::Range(min, max, zone_);
       }
       case 4: {  // context
         int depth = rng_->NextInt(3);
-        TypeHandle type = Type::Internal(region_);
-        for (int i = 0; i < depth; ++i) type = Type::Context(type, region_);
+        Type* type = Type::Internal();
+        for (int i = 0; i < depth; ++i) type = Type::Context(type, zone_);
         return type;
       }
       case 5: {  // array
-        TypeHandle element = Fuzz(depth / 2);
-        return Type::Array(element, region_);
+        Type* element = Fuzz(depth / 2);
+        return Type::Array(element, zone_);
       }
       case 6:
       case 7: {  // function
-        TypeHandle result = Fuzz(depth / 2);
-        TypeHandle receiver = Fuzz(depth / 2);
+        Type* result = Fuzz(depth / 2);
+        Type* receiver = Fuzz(depth / 2);
         int arity = rng_->NextInt(3);
-        TypeHandle type = Type::Function(result, receiver, arity, region_);
+        Type* type = Type::Function(result, receiver, arity, zone_);
         for (int i = 0; i < type->AsFunction()->Arity(); ++i) {
-          TypeHandle parameter = Fuzz(depth / 2);
+          Type* parameter = Fuzz(depth / 2);
           type->AsFunction()->InitParameter(i, parameter);
         }
         return type;
@@ -309,21 +284,21 @@ class Types {
             #define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) +1
             SIMD128_TYPES(COUNT_SIMD_TYPE);
             #undef COUNT_SIMD_TYPE
-        TypeHandle (*simd_constructors[num_simd_types])(Isolate*, Region*) = {
+        Type* (*simd_constructors[num_simd_types])(Isolate*, Zone*) = {
           #define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
           &Type::Name,
-          SIMD128_TYPES(COUNT_SIMD_TYPE)
+            SIMD128_TYPES(COUNT_SIMD_TYPE)
           #undef COUNT_SIMD_TYPE
         };
-        return simd_constructors[rng_->NextInt(num_simd_types)](
-            isolate_, region_);
+        return simd_constructors[rng_->NextInt(num_simd_types)](isolate_,
+                                                                zone_);
       }
       default: {  // union
         int n = rng_->NextInt(10);
-        TypeHandle type = None;
+        Type* type = None;
         for (int i = 0; i < n; ++i) {
-          TypeHandle operand = Fuzz(depth - 1);
-          type = Type::Union(type, operand, region_);
+          Type* operand = Fuzz(depth - 1);
+          type = Type::Union(type, operand, zone_);
         }
         return type;
       }
@@ -331,10 +306,10 @@ class Types {
     UNREACHABLE();
   }
 
-  Region* region() { return region_; }
+  Zone* zone() { return zone_; }
 
  private:
-  Region* region_;
+  Zone* zone_;
   Isolate* isolate_;
   v8::base::RandomNumberGenerator* rng_;
 };

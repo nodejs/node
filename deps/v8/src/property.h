@@ -8,9 +8,7 @@
 #include <iosfwd>
 
 #include "src/factory.h"
-#include "src/field-index.h"
 #include "src/isolate.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {
@@ -22,13 +20,6 @@ namespace internal {
 // optionally a piece of data.
 class Descriptor BASE_EMBEDDED {
  public:
-  void KeyToUniqueName() {
-    if (!key_->IsUniqueName()) {
-      key_ = key_->GetIsolate()->factory()->InternalizeString(
-          Handle<String>::cast(key_));
-    }
-  }
-
   Handle<Name> GetKey() const { return key_; }
   Handle<Object> GetValue() const { return value_; }
   PropertyDetails GetDetails() const { return details_; }
@@ -44,25 +35,25 @@ class Descriptor BASE_EMBEDDED {
   Descriptor() : details_(Smi::FromInt(0)) {}
 
   void Init(Handle<Name> key, Handle<Object> value, PropertyDetails details) {
+    DCHECK(key->IsUniqueName());
     key_ = key;
     value_ = value;
     details_ = details;
   }
 
   Descriptor(Handle<Name> key, Handle<Object> value, PropertyDetails details)
-      : key_(key),
-        value_(value),
-        details_(details) { }
+      : key_(key), value_(value), details_(details) {
+    DCHECK(key->IsUniqueName());
+  }
 
-  Descriptor(Handle<Name> key,
-             Handle<Object> value,
-             PropertyAttributes attributes,
-             PropertyType type,
-             Representation representation,
-             int field_index = 0)
+  Descriptor(Handle<Name> key, Handle<Object> value,
+             PropertyAttributes attributes, PropertyType type,
+             Representation representation, int field_index = 0)
       : key_(key),
         value_(value),
-        details_(attributes, type, representation, field_index) { }
+        details_(attributes, type, representation, field_index) {
+    DCHECK(key->IsUniqueName());
+  }
 
   friend class DescriptorArray;
   friend class Map;
@@ -75,9 +66,7 @@ std::ostream& operator<<(std::ostream& os, const Descriptor& d);
 class DataDescriptor final : public Descriptor {
  public:
   DataDescriptor(Handle<Name> key, int field_index,
-                 PropertyAttributes attributes, Representation representation)
-      : Descriptor(key, HeapType::Any(key->GetIsolate()), attributes, DATA,
-                   representation, field_index) {}
+                 PropertyAttributes attributes, Representation representation);
   // The field type is either a simple type or a map wrapped in a weak cell.
   DataDescriptor(Handle<Name> key, int field_index,
                  Handle<Object> wrapped_field_type,

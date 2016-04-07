@@ -9,6 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/flags.h"
 #include "src/utils.h"
 
 
@@ -107,7 +108,9 @@ void InitializeExternalStartupData(const char* directory_path) {
   char* natives;
   char* snapshot;
   LoadFromFiles(RelativePath(&natives, directory_path, "natives_blob.bin"),
-                RelativePath(&snapshot, directory_path, "snapshot_blob.bin"));
+                RelativePath(&snapshot, directory_path,
+                             FLAG_ignition ? "snapshot_blob_ignition.bin"
+                                           : "snapshot_blob.bin"));
   free(natives);
   free(snapshot);
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA

@@ -578,7 +578,26 @@ class RegisterAllocatorVerifier::BlockMaps {
             CHECK_EQ(succ_vreg, pred_val.second->define_vreg);
           }
           if (pred_val.second->succ_vreg != kInvalidVreg) {
-            CHECK_EQ(succ_vreg, pred_val.second->succ_vreg);
+            if (succ_vreg != pred_val.second->succ_vreg) {
+              // When a block introduces 2 identical phis A and B, and both are
+              // operands to other phis C and D, and we optimized the moves
+              // defining A or B such that they now appear in the block defining
+              // A and B, the back propagation will get confused when visiting
+              // upwards from C and D. The operand in the block defining A and B
+              // will be attributed to C (or D, depending which of these is
+              // visited first).
+              CHECK(IsPhi(pred_val.second->succ_vreg));
+              CHECK(IsPhi(succ_vreg));
+              const PhiData* current_phi = GetPhi(succ_vreg);
+              const PhiData* assigned_phi = GetPhi(pred_val.second->succ_vreg);
+              CHECK_EQ(current_phi->operands.size(),
+                       assigned_phi->operands.size());
+              CHECK_EQ(current_phi->definition_rpo,
+                       assigned_phi->definition_rpo);
+              for (size_t i = 0; i < current_phi->operands.size(); ++i) {
+                CHECK_EQ(current_phi->operands[i], assigned_phi->operands[i]);
+              }
+            }
           } else {
             pred_val.second->succ_vreg = succ_vreg;
             block_ids.insert(pred_rpo.ToSize());

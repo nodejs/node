@@ -9,6 +9,10 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class TypeCache;
+
 namespace compiler {
 
 // Forward declarations.
@@ -30,6 +34,7 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceMathMax(Node* node);
   Reduction ReduceMathImul(Node* node);
   Reduction ReduceMathFround(Node* node);
+  Reduction ReduceMathRound(Node* node);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -38,7 +43,8 @@ class JSBuiltinReducer final : public AdvancedReducer {
   MachineOperatorBuilder* machine() const;
   SimplifiedOperatorBuilder* simplified() const;
 
-  JSGraph* jsgraph_;
+  JSGraph* const jsgraph_;
+  TypeCache const& type_cache_;
 };
 
 }  // namespace compiler

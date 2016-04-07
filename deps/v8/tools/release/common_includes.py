@@ -50,6 +50,7 @@ DAY_IN_SECONDS = 24 * 60 * 60
 PUSH_MSG_GIT_RE = re.compile(r".* \(based on (?P<git_rev>[a-fA-F0-9]+)\)$")
 PUSH_MSG_NEW_RE = re.compile(r"^Version \d+\.\d+\.\d+$")
 VERSION_FILE = os.path.join("include", "v8-version.h")
+WATCHLISTS_FILE = "WATCHLISTS"
 
 # V8 base directory.
 V8_BASE = os.path.dirname(
@@ -381,7 +382,7 @@ class GitInterface(VCInterface):
     # is the case for all automated merge and push commits - also no title is
     # the prefix of another title).
     commit = None
-    for wait_interval in [3, 7, 15, 35, 45, 60]:
+    for wait_interval in [5, 10, 20, 40, 60, 60]:
       self.step.Git("fetch")
       commit = self.step.GitLog(n=1, format="%H", grep=message, branch=remote)
       if commit:

@@ -87,3 +87,36 @@
   assertTrue(called_target);
   assertTrue(called_handler);
 })();
+
+
+(function testCallProxyNonCallableTarget() {
+  var values = [NaN, 1.5, 100, /RegExp/, "string", {}, [], Symbol(),
+                new Map(), new Set(), new WeakMap(), new WeakSet()];
+  values.forEach(target => {
+    target = Object(target);
+    var proxy = new Proxy(target, { apply() { assertUnreachable(); } });
+    assertThrows(() => { proxy(); }, TypeError);
+    assertThrows(() => { ({ proxy }).proxy(); }, TypeError);
+    assertThrows(() => { Reflect.apply(proxy, null, []); }, TypeError);
+    assertThrows(() => { Reflect.apply(proxy, { proxy }, []); }, TypeError);
+    assertThrows(() => {
+          Function.prototype.call.apply(proxy, [null]);
+        }, TypeError);
+    assertThrows(() => {
+          Function.prototype.apply.apply(proxy, [null, []]);
+        }, TypeError);
+
+    var proxy_to_proxy = new Proxy(proxy, { apply() { assertUnreachable(); } });
+    assertThrows(() => { proxy_to_proxy(); }, TypeError);
+    assertThrows(() => { ({ proxy_to_proxy }).proxy_to_proxy(); }, TypeError);
+    assertThrows(() => { Reflect.apply(proxy_to_proxy, null, []); }, TypeError);
+    assertThrows(() => { Reflect.apply(proxy_to_proxy, { proxy }, []); },
+                 TypeError);
+    assertThrows(() => {
+          Function.prototype.call.apply(proxy_to_proxy, [null]);
+        }, TypeError);
+    assertThrows(() => {
+          Function.prototype.apply.apply(proxy_to_proxy, [null, []]);
+        }, TypeError);
+  });
+})();

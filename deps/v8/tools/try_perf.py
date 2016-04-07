@@ -53,6 +53,10 @@ def main():
   parser.add_argument('benchmarks', nargs='+', help='The benchmarks to run.')
   parser.add_argument('--extra-flags', default='',
                       help='Extra flags to be passed to the executable.')
+  parser.add_argument('-r', '--revision', type=str, default=None,
+                      help='Revision (use full hash!) to use for the try job; '
+                           'default: the revision will be determined by the '
+                           'try server; see its waterfall for more info')
   for option in sorted(BOTS):
     parser.add_argument(
         option, dest='bots', action='append_const', const=BOTS[option],
@@ -85,6 +89,7 @@ def main():
 
   cmd = ['git cl try -m internal.client.v8']
   cmd += ['-b %s' % bot for bot in options.bots]
+  if options.revision: cmd += ['-r %s' % options.revision]
   benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
   cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
   if options.extra_flags:

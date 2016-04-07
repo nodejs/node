@@ -96,6 +96,12 @@ Code::Kind CodeStub::GetCodeKind() const {
 }
 
 
+Code::Flags CodeStub::GetCodeFlags() const {
+  return Code::ComputeFlags(GetCodeKind(), GetICState(), GetExtraICState(),
+                            GetStubType());
+}
+
+
 Handle<Code> CodeStub::GetCodeCopy(const Code::FindAndReplacePattern& pattern) {
   Handle<Code> ic = GetCode();
   ic = isolate()->factory()->CopyCode(ic);
@@ -270,7 +276,7 @@ MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
   // Generate the uninitialized versions of the stub.
   for (int op = Token::BIT_OR; op <= Token::MOD; ++op) {
-    BinaryOpICStub stub(isolate, static_cast<Token::Value>(op), Strength::WEAK);
+    BinaryOpICStub stub(isolate, static_cast<Token::Value>(op));
     stub.GetCode();
   }
 
@@ -453,9 +459,7 @@ void CompareNilICStub::UpdateStatus(Handle<Object> object) {
     state.Add(NULL_TYPE);
   } else if (object->IsUndefined()) {
     state.Add(UNDEFINED);
-  } else if (object->IsUndetectableObject() ||
-             object->IsOddball() ||
-             !object->IsHeapObject()) {
+  } else if (object->IsUndetectableObject() || object->IsSmi()) {
     state.RemoveAll();
     state.Add(GENERIC);
   } else if (IsMonomorphic()) {
@@ -474,7 +478,7 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   Zone zone;
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
   compiler::CodeStubAssembler assembler(isolate(), &zone, descriptor,
-                                        GetCodeKind(), name);
+                                        GetCodeFlags(), name);
   GenerateAssembly(&assembler);
   return assembler.GenerateCode();
 }
@@ -549,18 +553,17 @@ std::ostream& operator<<(std::ostream& os, const CompareNilICStub::State& s) {
 
 Type* CompareNilICStub::GetType(Zone* zone, Handle<Map> map) {
   State state = this->state();
-  if (state.Contains(CompareNilICStub::GENERIC)) return Type::Any(zone);
+  if (state.Contains(CompareNilICStub::GENERIC)) return Type::Any();
 
-  Type* result = Type::None(zone);
+  Type* result = Type::None();
   if (state.Contains(CompareNilICStub::UNDEFINED)) {
-    result = Type::Union(result, Type::Undefined(zone), zone);
+    result = Type::Union(result, Type::Undefined(), zone);
   }
   if (state.Contains(CompareNilICStub::NULL_TYPE)) {
-    result = Type::Union(result, Type::Null(zone), zone);
+    result = Type::Union(result, Type::Null(), zone);
   }
   if (state.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
-    Type* type =
-        map.is_null() ? Type::Detectable(zone) : Type::Class(map, zone);
+    Type* type = map.is_null() ? Type::Detectable() : Type::Class(map, zone);
     result = Type::Union(result, type, zone);
   }
 
@@ -570,8 +573,7 @@ Type* CompareNilICStub::GetType(Zone* zone, Handle<Map> map) {
 
 Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
   Type* output_type = GetType(zone, map);
-  Type* nil_type =
-      nil_value() == kNullValue ? Type::Null(zone) : Type::Undefined(zone);
+  Type* nil_type = nil_value() == kNullValue ? Type::Null() : Type::Undefined();
   return Type::Union(output_type, nil_type, zone);
 }
 
@@ -599,9 +601,7 @@ void LoadDictionaryElementStub::InitializeDescriptor(
 void KeyedLoadGenericStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
-      Runtime::FunctionForId(is_strong(language_mode())
-                                 ? Runtime::kKeyedGetPropertyStrong
-                                 : Runtime::kKeyedGetProperty)->entry);
+      Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
 }
 
 
@@ -798,28 +798,8 @@ void CreateWeakCellStub::GenerateAheadOfTime(Isolate* isolate) {
 
 
 void StoreElementStub::Generate(MacroAssembler* masm) {
-  switch (elements_kind()) {
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-    case TYPE##_ELEMENTS:
-
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-      UNREACHABLE();
-      break;
-    case DICTIONARY_ELEMENTS:
-      ElementHandlerCompiler::GenerateStoreSlow(masm);
-      break;
-    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
-      UNREACHABLE();
-      break;
-  }
+  DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind());
+  ElementHandlerCompiler::GenerateStoreSlow(masm);
 }
 
 
@@ -835,52 +815,6 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
     StoreFastElementStub(isolate, true, kind, STORE_AND_GROW_NO_TRANSITION)
         .GetCode();
   }
-}
-
-
-void RestParamAccessStub::Generate(MacroAssembler* masm) { GenerateNew(masm); }
-
-
-void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
-  switch (type()) {
-    case READ_ELEMENT:
-      GenerateReadElement(masm);
-      break;
-    case NEW_SLOPPY_FAST:
-      GenerateNewSloppyFast(masm);
-      break;
-    case NEW_SLOPPY_SLOW:
-      GenerateNewSloppySlow(masm);
-      break;
-    case NEW_STRICT:
-      GenerateNewStrict(masm);
-      break;
-  }
-}
-
-
-void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
-  os << "ArgumentsAccessStub_";
-  switch (type()) {
-    case READ_ELEMENT:
-      os << "ReadElement";
-      break;
-    case NEW_SLOPPY_FAST:
-      os << "NewSloppyFast";
-      break;
-    case NEW_SLOPPY_SLOW:
-      os << "NewSloppySlow";
-      break;
-    case NEW_STRICT:
-      os << "NewStrict";
-      break;
-  }
-  return;
-}
-
-
-void RestParamAccessStub::PrintName(std::ostream& os) const {  // NOLINT
-  os << "RestParamAccessStub_";
 }
 
 
@@ -964,9 +898,9 @@ bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
     Add(SPEC_OBJECT);
     return !object->IsUndetectableObject();
   } else if (object->IsString()) {
+    DCHECK(!object->IsUndetectableObject());
     Add(STRING);
-    return !object->IsUndetectableObject() &&
-        String::cast(*object)->length() != 0;
+    return String::cast(*object)->length() != 0;
   } else if (object->IsSymbol()) {
     Add(SYMBOL);
     return true;

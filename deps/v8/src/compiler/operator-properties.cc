@@ -55,7 +55,6 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSCreateLiteralRegExp:
 
     // Context operations
-    case IrOpcode::kJSLoadDynamic:
     case IrOpcode::kJSCreateScriptContext:
 
     // Conversions

@@ -369,6 +369,8 @@ bool AreSameSizeAndType(const CPURegister& reg1,
 
 typedef FPRegister DoubleRegister;
 
+// TODO(arm64) Define SIMD registers.
+typedef FPRegister Simd128Register;
 
 // -----------------------------------------------------------------------------
 // Lists of registers.
@@ -925,7 +927,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const SourcePosition position);
+  void RecordDeoptReason(const int reason, int raw_position);
 
   int buffer_space() const;
 

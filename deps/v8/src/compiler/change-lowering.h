@@ -56,6 +56,14 @@ class ChangeLowering final : public Reducer {
   Reduction StoreElement(Node* node);
   Reduction Allocate(Node* node);
 
+  Node* IsSmi(Node* value);
+  Node* LoadHeapObjectMap(Node* object, Node* control);
+  Node* LoadMapInstanceType(Node* map);
+
+  Reduction ObjectIsNumber(Node* node);
+  Reduction ObjectIsReceiver(Node* node);
+  Reduction ObjectIsSmi(Node* node);
+
   Node* ComputeIndex(const ElementAccess& access, Node* const key);
   Graph* graph() const;
   Isolate* isolate() const;

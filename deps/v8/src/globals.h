@@ -529,7 +529,7 @@ enum VisitMode {
 };
 
 // Flag indicating whether code is built into the VM (one of the natives files).
-enum NativesFlag { NOT_NATIVES_CODE, NATIVES_CODE };
+enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, NATIVES_CODE };
 
 // JavaScript defines two kinds of 'nil'.
 enum NilValue { kNullValue, kUndefinedValue };
@@ -754,6 +754,45 @@ inline std::ostream& operator<<(std::ostream& os, ConvertReceiverMode mode) {
   return os;
 }
 
+// Defines whether tail call optimization is allowed.
+enum class TailCallMode : unsigned { kAllow, kDisallow };
+
+inline size_t hash_value(TailCallMode mode) { return bit_cast<unsigned>(mode); }
+
+inline std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
+  switch (mode) {
+    case TailCallMode::kAllow:
+      return os << "ALLOW_TAIL_CALLS";
+    case TailCallMode::kDisallow:
+      return os << "DISALLOW_TAIL_CALLS";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+// Defines specifics about arguments object or rest parameter creation.
+enum class CreateArgumentsType : uint8_t {
+  kMappedArguments,
+  kUnmappedArguments,
+  kRestParameter
+};
+
+inline size_t hash_value(CreateArgumentsType type) {
+  return bit_cast<uint8_t>(type);
+}
+
+inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
+  switch (type) {
+    case CreateArgumentsType::kMappedArguments:
+      return os << "MAPPED_ARGUMENTS";
+    case CreateArgumentsType::kUnmappedArguments:
+      return os << "UNMAPPED_ARGUMENTS";
+    case CreateArgumentsType::kRestParameter:
+      return os << "REST_PARAMETER";
+  }
+  UNREACHABLE();
+  return os;
+}
 
 // Used to specify if a macro instruction must perform a smi check on tagged
 // values.
@@ -934,28 +973,23 @@ enum MinusZeroMode {
 
 enum Signedness { kSigned, kUnsigned };
 
-
 enum FunctionKind {
   kNormalFunction = 0,
   kArrowFunction = 1 << 0,
   kGeneratorFunction = 1 << 1,
   kConciseMethod = 1 << 2,
   kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
-  kAccessorFunction = 1 << 3,
-  kDefaultConstructor = 1 << 4,
-  kSubclassConstructor = 1 << 5,
-  kBaseConstructor = 1 << 6,
-  kInObjectLiteral = 1 << 7,
+  kDefaultConstructor = 1 << 3,
+  kSubclassConstructor = 1 << 4,
+  kBaseConstructor = 1 << 5,
+  kGetterFunction = 1 << 6,
+  kSetterFunction = 1 << 7,
+  kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
   kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
   kClassConstructor =
       kBaseConstructor | kSubclassConstructor | kDefaultConstructor,
-  kConciseMethodInObjectLiteral = kConciseMethod | kInObjectLiteral,
-  kConciseGeneratorMethodInObjectLiteral =
-      kConciseGeneratorMethod | kInObjectLiteral,
-  kAccessorFunctionInObjectLiteral = kAccessorFunction | kInObjectLiteral,
 };
-
 
 inline bool IsValidFunctionKind(FunctionKind kind) {
   return kind == FunctionKind::kNormalFunction ||
@@ -963,14 +997,13 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kGeneratorFunction ||
          kind == FunctionKind::kConciseMethod ||
          kind == FunctionKind::kConciseGeneratorMethod ||
+         kind == FunctionKind::kGetterFunction ||
+         kind == FunctionKind::kSetterFunction ||
          kind == FunctionKind::kAccessorFunction ||
          kind == FunctionKind::kDefaultBaseConstructor ||
          kind == FunctionKind::kDefaultSubclassConstructor ||
          kind == FunctionKind::kBaseConstructor ||
-         kind == FunctionKind::kSubclassConstructor ||
-         kind == FunctionKind::kConciseMethodInObjectLiteral ||
-         kind == FunctionKind::kConciseGeneratorMethodInObjectLiteral ||
-         kind == FunctionKind::kAccessorFunctionInObjectLiteral;
+         kind == FunctionKind::kSubclassConstructor;
 }
 
 
@@ -991,6 +1024,15 @@ inline bool IsConciseMethod(FunctionKind kind) {
   return kind & FunctionKind::kConciseMethod;
 }
 
+inline bool IsGetterFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kGetterFunction;
+}
+
+inline bool IsSetterFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kSetterFunction;
+}
 
 inline bool IsAccessorFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
@@ -1024,24 +1066,21 @@ inline bool IsClassConstructor(FunctionKind kind) {
 
 inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
   if (IsAccessorFunction(kind)) return false;
-  if (IsConciseMethod(kind) && !IsGeneratorFunction(kind)) return false;
+  if (IsConciseMethod(kind)) return false;
   if (IsArrowFunction(kind)) return false;
+  if (IsGeneratorFunction(kind)) return false;
   if (is_strong(mode)) return IsClassConstructor(kind);
   return true;
 }
 
 
-inline bool IsInObjectLiteral(FunctionKind kind) {
-  DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kInObjectLiteral;
+inline uint32_t ObjectHash(Address address) {
+  // All objects are at least pointer aligned, so we can remove the trailing
+  // zeros.
+  return static_cast<uint32_t>(bit_cast<uintptr_t>(address) >>
+                               kPointerSizeLog2);
 }
 
-
-inline FunctionKind WithObjectLiteralBit(FunctionKind kind) {
-  kind = static_cast<FunctionKind>(kind | FunctionKind::kInObjectLiteral);
-  DCHECK(IsValidFunctionKind(kind));
-  return kind;
-}
 }  // namespace internal
 }  // namespace v8
 

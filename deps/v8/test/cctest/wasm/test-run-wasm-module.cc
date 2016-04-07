@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "src/wasm/encoder.h"
+#include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -18,9 +19,13 @@ using namespace v8::internal::compiler;
 using namespace v8::internal::wasm;
 
 
+#if !V8_TARGET_ARCH_ARM64
+// TODO(titzer): fix arm64 frame alignment.
 namespace {
 void TestModule(WasmModuleIndex* module, int32_t expected_result) {
   Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
   int32_t result =
       CompileAndRunWasmModule(isolate, module->Begin(), module->End());
   CHECK_EQ(expected_result, result);
@@ -50,6 +55,8 @@ TEST(Run_WasmModule_CallAdd_rev) {
   };
 
   Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
   int32_t result =
       CompileAndRunWasmModule(isolate, data, data + arraysize(data));
   CHECK_EQ(99, result);
@@ -197,3 +204,5 @@ TEST(Run_WasmModule_Global) {
   TestModule(writer->WriteTo(&zone), 97);
 }
 #endif
+
+#endif  // !V8_TARGET_ARCH_ARM64

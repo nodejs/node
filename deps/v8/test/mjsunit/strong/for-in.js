@@ -9,9 +9,3 @@
   assertThrows("'use strong'; for (let x in []) {}", SyntaxError);
   assertThrows("'use strong'; for (const x in []) {}", SyntaxError);
 })();
-
-(function ForOfStatement() {
-  assertTrue(eval("'use strong'; for (x of []) {} true"));
-  assertTrue(eval("'use strong'; for (let x of []) {} true"));
-  assertTrue(eval("'use strong'; for (const x of []) {} true"));
-})();

@@ -41,8 +41,7 @@ ALL_VARIANT_FLAGS = {
   "turbofan": [["--turbo"]],
   "turbofan_opt": [["--turbo", "--always-opt"]],
   "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition", "--turbo", "--ignition-fake-try-catch",
-                "--ignition-fallback-on-eval-and-catch"]],
+  "ignition": [["--ignition", "--turbo"]],
   "preparser": [["--min-preparse-length=0"]],
 }
 
@@ -52,8 +51,7 @@ FAST_VARIANT_FLAGS = {
   "stress": [["--stress-opt"]],
   "turbofan": [["--turbo"]],
   "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition", "--turbo", "--ignition-fake-try-catch",
-                "--ignition-fallback-on-eval-and-catch"]],
+  "ignition": [["--ignition", "--turbo"]],
   "preparser": [["--min-preparse-length=0"]],
 }
 
