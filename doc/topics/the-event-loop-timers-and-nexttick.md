@@ -210,18 +210,23 @@ emitted via `process.nextTick()`.
 
 ## `setImmediate()` vs `setTimeout()`
 
-`setTimeout()` is designed to execute a script after a minumum threshold
-in ms has elapsed, whereas `setImmediate()` is designed to execute a
-script once the current `poll` phase completes.  
+`setImmediate` and `setTimeout()` are similar, but behave in different
+ways depending on when they are called. 
 
-How quickly a `setImmediate()` callback is executed depends on how it is
-called and how quickly the event loop can be processed unlike timers
-whose callback won't fire until at least its threshold has elapsed.
+* `setImmediate()` is designed to execute a script once the current
+`poll` phase completes. 
+* `setTimeout()` schedules a script to be run
+after a minimum threshold in ms has elapsed.
+
+The order in which they are execute varies depending on the context in
+which they are called.  If both are called in the main module then you
+are bound to how fast your process go, which is impacted by other
+programs running on your machine.
 
 For example, if we run the following script which is not within a I/O
 cycle (i.e. the main module), the order in which the two functions are
 executed is non-deterministic as it is based upon how fast your process 
-go, which is impacted by other programs running on your machine:
+goes (which is impacted by other programs running on your machine):
 
 
 ```js
@@ -244,8 +249,8 @@ setImmediate(function immediate () {
     timeout
 
 
-If you move the two calls within an I/O cycle, the immediate callback
-is always executed first:
+However, if you move the two calls within an I/O cycle, the immediate
+callback is always executed first:
 
 ```js
 // timeout_vs_immediate.js
@@ -271,7 +276,7 @@ fs.readFile(__filename, () => {
 
 The main advantage to using `setImmediate()` over `setTimeout()` is
 `setImmediate()` will always be executed before any timers if scheduled
-within an I/O cycle, independently on how many timers are present.
+within an I/O cycle, independently of how many timers are present.
 
 ## `process.nextTick()`:
 
