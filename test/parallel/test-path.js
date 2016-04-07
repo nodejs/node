@@ -563,7 +563,7 @@ if (common.isWindows) {
                '\\\\?\\' + process.cwd().toLowerCase() + '\\foo\\bar');
   const currentDeviceLetter = path.parse(process.cwd()).root.substring(0, 2);
   assert.equal(path.win32._makeLong(currentDeviceLetter).toLowerCase(),
-                 '\\\\?\\' + process.cwd().toLowerCase());
+               '\\\\?\\' + process.cwd().toLowerCase());
   assert.equal(path.win32._makeLong('C').toLowerCase(),
                '\\\\?\\' + process.cwd().toLowerCase() + '\\c');
 }
