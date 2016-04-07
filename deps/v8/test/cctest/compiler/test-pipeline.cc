@@ -18,7 +18,7 @@ static void RunPipeline(Zone* zone, const char* source) {
   ParseInfo parse_info(zone, function);
   CHECK(Compiler::ParseAndAnalyze(&parse_info));
   CompilationInfo info(&parse_info);
-  info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
+  info.SetOptimizing();
 
   Pipeline pipeline(&info);
   Handle<Code> code = pipeline.GenerateCode();

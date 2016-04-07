@@ -21,12 +21,12 @@ class FrameInspector {
   ~FrameInspector();
 
   int GetParametersCount();
-  Object* GetFunction();
-  Object* GetParameter(int index);
-  Object* GetExpression(int index);
+  Handle<Object> GetFunction();
+  Handle<Object> GetParameter(int index);
+  Handle<Object> GetExpression(int index);
   int GetSourcePosition();
   bool IsConstructor();
-  Object* GetContext();
+  Handle<Object> GetContext();
 
   JavaScriptFrame* GetArgumentsFrame() { return frame_; }
   void SetArgumentsFrame(JavaScriptFrame* frame);
@@ -48,6 +48,7 @@ class FrameInspector {
   DeoptimizedFrameInfo* deoptimized_frame_;
   Isolate* isolate_;
   bool is_optimized_;
+  bool is_interpreted_;
   bool is_bottommost_;
   bool has_adapted_arguments_;
 

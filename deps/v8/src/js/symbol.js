@@ -11,7 +11,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var GlobalObject = global.Object;
 var GlobalSymbol = global.Symbol;
 var hasInstanceSymbol = utils.ImportNow("has_instance_symbol");
 var isConcatSpreadableSymbol =
@@ -73,22 +72,11 @@ function SymbolKeyFor(symbol) {
   return %SymbolRegistry().keyFor[symbol];
 }
 
-
-// ES6 19.1.2.8
-function ObjectGetOwnPropertySymbols(obj) {
-  obj = TO_OBJECT(obj);
-
-  return %GetOwnPropertyKeys(obj, PROPERTY_FILTER_SKIP_STRINGS);
-}
-
 // -------------------------------------------------------------------
 
-%FunctionSetPrototype(GlobalSymbol, new GlobalObject());
-
 utils.InstallConstants(GlobalSymbol, [
-  // TODO(rossberg): expose when implemented.
-  // "hasInstance", hasInstanceSymbol,
-  // "isConcatSpreadable", isConcatSpreadableSymbol,
+  "hasInstance", hasInstanceSymbol,
+  "isConcatSpreadable", isConcatSpreadableSymbol,
   "iterator", iteratorSymbol,
   // TODO(yangguo): expose when implemented.
   // "match", matchSymbol,
@@ -108,8 +96,6 @@ utils.InstallFunctions(GlobalSymbol, DONT_ENUM, [
 ]);
 
 %AddNamedProperty(
-    GlobalSymbol.prototype, "constructor", GlobalSymbol, DONT_ENUM);
-%AddNamedProperty(
     GlobalSymbol.prototype, toStringTagSymbol, "Symbol", DONT_ENUM | READ_ONLY);
 
 utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM | READ_ONLY, [
@@ -119,10 +105,6 @@ utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM | READ_ONLY, [
 utils.InstallFunctions(GlobalSymbol.prototype, DONT_ENUM, [
   "toString", SymbolToString,
   "valueOf", SymbolValueOf
-]);
-
-utils.InstallFunctions(GlobalObject, DONT_ENUM, [
-  "getOwnPropertySymbols", ObjectGetOwnPropertySymbols
 ]);
 
 // -------------------------------------------------------------------

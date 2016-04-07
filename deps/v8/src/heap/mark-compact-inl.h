@@ -12,6 +12,17 @@
 namespace v8 {
 namespace internal {
 
+inline std::vector<Page*>& MarkCompactCollector::sweeping_list(Space* space) {
+  if (space == heap()->old_space()) {
+    return sweeping_list_old_space_;
+  } else if (space == heap()->code_space()) {
+    return sweeping_list_code_space_;
+  }
+  DCHECK_EQ(space, heap()->map_space());
+  return sweeping_list_map_space_;
+}
+
+
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
   DCHECK(Marking::IsBlack(Marking::MarkBitFrom(obj)));
   if (marking_deque_.Push(obj)) {
@@ -83,7 +94,7 @@ void MarkCompactCollector::ForceRecordSlot(HeapObject* object, Object** slot,
 
 
 void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
-  if (GetNextCandidate(shared_info) == NULL) {
+  if (GetNextCandidate(shared_info) == nullptr) {
     SetNextCandidate(shared_info, shared_function_info_candidates_head_);
     shared_function_info_candidates_head_ = shared_info;
   }
@@ -92,7 +103,7 @@ void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
 
 void CodeFlusher::AddCandidate(JSFunction* function) {
   DCHECK(function->code() == function->shared()->code());
-  if (GetNextCandidate(function)->IsUndefined()) {
+  if (function->next_function_link()->IsUndefined()) {
     SetNextCandidate(function, jsfunction_candidates_head_);
     jsfunction_candidates_head_ = function;
   }

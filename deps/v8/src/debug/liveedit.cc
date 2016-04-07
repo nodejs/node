@@ -1857,8 +1857,8 @@ bool LiveEdit::FindActiveGenerators(Handle<FixedArray> shared_info_array,
     HandleScope scope(isolate);
 
     for (int i = 0; i < len; i++) {
-      Handle<JSValue> jsvalue =
-          Handle<JSValue>::cast(FixedArray::get(shared_info_array, i));
+      Handle<JSValue> jsvalue = Handle<JSValue>::cast(
+          FixedArray::get(*shared_info_array, i, isolate));
       Handle<SharedFunctionInfo> shared =
           UnwrapSharedFunctionInfoFromJSValue(jsvalue);
 

@@ -4,6 +4,8 @@
 
 // A simple interpreter for the Irregexp byte code.
 
+#ifdef V8_INTERPRETED_REGEXP
+
 #include "src/regexp/interpreter-irregexp.h"
 
 #include "src/ast/ast.h"
@@ -13,38 +15,32 @@
 #include "src/unicode.h"
 #include "src/utils.h"
 
+#ifdef V8_I18N_SUPPORT
+#include "unicode/uchar.h"
+#endif  // V8_I18N_SUPPORT
+
 namespace v8 {
 namespace internal {
 
-
 typedef unibrow::Mapping<unibrow::Ecma262Canonicalize> Canonicalize;
 
-static bool BackRefMatchesNoCase(Canonicalize* interp_canonicalize,
-                                 int from,
-                                 int current,
-                                 int len,
-                                 Vector<const uc16> subject) {
-  for (int i = 0; i < len; i++) {
-    unibrow::uchar old_char = subject[from++];
-    unibrow::uchar new_char = subject[current++];
-    if (old_char == new_char) continue;
-    unibrow::uchar old_string[1] = { old_char };
-    unibrow::uchar new_string[1] = { new_char };
-    interp_canonicalize->get(old_char, '\0', old_string);
-    interp_canonicalize->get(new_char, '\0', new_string);
-    if (old_string[0] != new_string[0]) {
-      return false;
-    }
-  }
-  return true;
+static bool BackRefMatchesNoCase(Isolate* isolate, int from, int current,
+                                 int len, Vector<const uc16> subject,
+                                 bool unicode) {
+  Address offset_a =
+      reinterpret_cast<Address>(const_cast<uc16*>(&subject.at(from)));
+  Address offset_b =
+      reinterpret_cast<Address>(const_cast<uc16*>(&subject.at(current)));
+  size_t length = len * kUC16Size;
+  return RegExpMacroAssembler::CaseInsensitiveCompareUC16(
+             offset_a, offset_b, length, unicode ? nullptr : isolate) == 1;
 }
 
 
-static bool BackRefMatchesNoCase(Canonicalize* interp_canonicalize,
-                                 int from,
-                                 int current,
-                                 int len,
-                                 Vector<const uint8_t> subject) {
+static bool BackRefMatchesNoCase(Isolate* isolate, int from, int current,
+                                 int len, Vector<const uint8_t> subject,
+                                 bool unicode) {
+  // For Latin1 characters the unicode flag makes no difference.
   for (int i = 0; i < len; i++) {
     unsigned int old_char = subject[from++];
     unsigned int new_char = subject[current++];
@@ -522,13 +518,16 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         pc += BC_CHECK_NOT_BACK_REF_BACKWARD_LENGTH;
         break;
       }
+      BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE)
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE) {
+        bool unicode =
+            (insn & BYTECODE_MASK) == BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE;
         int from = registers[insn >> BYTECODE_SHIFT];
         int len = registers[(insn >> BYTECODE_SHIFT) + 1] - from;
         if (from >= 0 && len > 0) {
           if (current + len > subject.length() ||
-              !BackRefMatchesNoCase(isolate->interp_canonicalize_mapping(),
-                                    from, current, len, subject)) {
+              !BackRefMatchesNoCase(isolate, from, current, len, subject,
+                                    unicode)) {
             pc = code_base + Load32Aligned(pc + 4);
             break;
           }
@@ -537,13 +536,16 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
         break;
       }
+      BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD)
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD) {
+        bool unicode = (insn & BYTECODE_MASK) ==
+                       BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD;
         int from = registers[insn >> BYTECODE_SHIFT];
         int len = registers[(insn >> BYTECODE_SHIFT) + 1] - from;
         if (from >= 0 && len > 0) {
           if (current - len < 0 ||
-              !BackRefMatchesNoCase(isolate->interp_canonicalize_mapping(),
-                                    from, current - len, len, subject)) {
+              !BackRefMatchesNoCase(isolate, from, current - len, len, subject,
+                                    unicode)) {
             pc = code_base + Load32Aligned(pc + 4);
             break;
           }
@@ -619,3 +621,5 @@ RegExpImpl::IrregexpResult IrregexpInterpreter::Match(
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_INTERPRETED_REGEXP

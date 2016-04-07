@@ -46,15 +46,24 @@
 #include "src/assembler.h"
 #include "src/ppc/constants-ppc.h"
 
-#define ABI_USES_FUNCTION_DESCRIPTORS \
-  (V8_HOST_ARCH_PPC && (V8_OS_AIX ||    \
-                      (V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN)))
+#if V8_HOST_ARCH_PPC && \
+    (V8_OS_AIX || (V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN))
+#define ABI_USES_FUNCTION_DESCRIPTORS 1
+#else
+#define ABI_USES_FUNCTION_DESCRIPTORS 0
+#endif
 
-#define ABI_PASSES_HANDLES_IN_REGS \
-  (!V8_HOST_ARCH_PPC || V8_OS_AIX || V8_TARGET_ARCH_PPC64)
+#if !V8_HOST_ARCH_PPC || V8_OS_AIX || V8_TARGET_ARCH_PPC64
+#define ABI_PASSES_HANDLES_IN_REGS 1
+#else
+#define ABI_PASSES_HANDLES_IN_REGS 0
+#endif
 
-#define ABI_RETURNS_OBJECT_PAIRS_IN_REGS \
-  (!V8_HOST_ARCH_PPC || !V8_TARGET_ARCH_PPC64 || V8_TARGET_LITTLE_ENDIAN)
+#if !V8_HOST_ARCH_PPC || !V8_TARGET_ARCH_PPC64 || V8_TARGET_LITTLE_ENDIAN
+#define ABI_RETURNS_OBJECT_PAIRS_IN_REGS 1
+#else
+#define ABI_RETURNS_OBJECT_PAIRS_IN_REGS 0
+#endif
 
 #if !V8_HOST_ARCH_PPC || (V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN)
 #define ABI_CALL_VIA_IP 1
@@ -63,9 +72,9 @@
 #endif
 
 #if !V8_HOST_ARCH_PPC || V8_OS_AIX || V8_TARGET_ARCH_PPC64
-#define ABI_TOC_REGISTER Register::kCode_r2
+#define ABI_TOC_REGISTER 2
 #else
-#define ABI_TOC_REGISTER Register::kCode_r13
+#define ABI_TOC_REGISTER 13
 #endif
 
 #define INSTR_AND_DATA_CACHE_COHERENCY LWSYNC
@@ -247,7 +256,7 @@ Register ToRegister(int num);
 
 // Coprocessor register
 struct CRegister {
-  bool is_valid() const { return 0 <= reg_code && reg_code < 16; }
+  bool is_valid() const { return 0 <= reg_code && reg_code < 8; }
   bool is(CRegister creg) const { return reg_code == creg.reg_code; }
   int code() const {
     DCHECK(is_valid());
@@ -273,14 +282,9 @@ const CRegister cr4 = {4};
 const CRegister cr5 = {5};
 const CRegister cr6 = {6};
 const CRegister cr7 = {7};
-const CRegister cr8 = {8};
-const CRegister cr9 = {9};
-const CRegister cr10 = {10};
-const CRegister cr11 = {11};
-const CRegister cr12 = {12};
-const CRegister cr13 = {13};
-const CRegister cr14 = {14};
-const CRegister cr15 = {15};
+
+// TODO(ppc) Define SIMD registers.
+typedef DoubleRegister Simd128Register;
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
@@ -1203,7 +1207,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const SourcePosition position);
+  void RecordDeoptReason(const int reason, int raw_position);
 
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.

@@ -173,11 +173,19 @@ class Code(object):
           break
         count += cnt
       total_count += count
-      count = 100.0 * count / self.self_ticks
-      if count >= 0.01:
-        print "%15.2f %x: %s" % (count, lines[i][0], lines[i][1])
+      percent = 100.0 * count / self.self_ticks
+      offset = lines[i][0]
+      if percent >= 0.01:
+        # 5 spaces for tick count
+        # 1 space following
+        # 1 for '|'
+        # 1 space following
+        # 6 for the percentage number, incl. the '.'
+        # 1 for the '%' sign
+        # => 15
+        print "%5d | %6.2f%% %x(%d): %s" % (count, percent, offset, offset, lines[i][1])
       else:
-        print "%s %x: %s" % (" " * 15, lines[i][0], lines[i][1])
+        print "%s %x(%d): %s" % (" " * 15, offset, offset, lines[i][1])
     print
     assert total_count == self.self_ticks, \
         "Lost ticks (%d != %d) in %s" % (total_count, self.self_ticks, self)

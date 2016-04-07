@@ -187,7 +187,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
 
 
 function JSONStringify(value, replacer, space) {
-  if (%_ArgumentsLength() == 1 && !IS_PROXY(value)) {
+  if (arguments.length === 1 && !IS_PROXY(value)) {
     return %BasicJSONStringify(value);
   }
   if (!IS_CALLABLE(replacer) && %is_arraylike(replacer)) {
@@ -233,6 +233,9 @@ function JSONStringify(value, replacer, space) {
     }
   } else {
     gap = "";
+  }
+  if (!IS_CALLABLE(replacer) && !property_list && !gap && !IS_PROXY(value)) {
+    return %BasicJSONStringify(value);
   }
   return JSONSerialize('', {'': value}, replacer, new InternalArray(), "", gap);
 }

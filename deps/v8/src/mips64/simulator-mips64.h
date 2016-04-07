@@ -31,7 +31,6 @@ namespace internal {
 // should act as a function matching the type arm_regexp_matcher.
 // The fifth (or ninth) argument is a dummy that reserves the space used for
 // the return address added by the ExitFrame in native calls.
-#ifdef MIPS_ABI_N64
 typedef int (*mips_regexp_matcher)(String* input,
                                    int64_t start_offset,
                                    const byte* input_start,
@@ -47,26 +46,6 @@ typedef int (*mips_regexp_matcher)(String* input,
                                    p7, p8)                                     \
   (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,   \
                                              NULL, p8))
-
-#else  // O32 Abi.
-
-typedef int (*mips_regexp_matcher)(String* input,
-                                   int32_t start_offset,
-                                   const byte* input_start,
-                                   const byte* input_end,
-                                   void* return_address,
-                                   int* output,
-                                   int32_t output_size,
-                                   Address stack_base,
-                                   int32_t direct_call,
-                                   Isolate* isolate);
-
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, NULL, p4, p5, p6, \
-                                             p7, p8))
-
-#endif  // MIPS_ABI_N64
 
 
 // The stack limit beyond which we will throw stack overflow errors in
@@ -516,18 +495,11 @@ class Simulator {
       reinterpret_cast<int64_t*>(p3), reinterpret_cast<int64_t*>(p4)))
 
 
-#ifdef MIPS_ABI_N64
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
   static_cast<int>(Simulator::current(isolate)->Call(                          \
       entry, 10, p0, p1, p2, p3, p4, reinterpret_cast<int64_t*>(p5), p6, p7,   \
       NULL, p8))
-#else  // Must be O32 Abi.
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  static_cast<int>(Simulator::current(isolate)->Call(                          \
-      entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8))
-#endif  // MIPS_ABI_N64
 
 
 // The simulator has its own stack. Thus it has a different stack limit from

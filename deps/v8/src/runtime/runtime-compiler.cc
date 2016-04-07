@@ -52,8 +52,7 @@ Object* CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
 
   Handle<Code> code;
-  Handle<Code> unoptimized(function->shared()->code());
-  if (Compiler::GetOptimizedCode(function, unoptimized, mode).ToHandle(&code)) {
+  if (Compiler::GetOptimizedCode(function, mode).ToHandle(&code)) {
     // Optimization succeeded, return optimized code.
     function->ReplaceCode(*code);
   } else {
@@ -72,6 +71,8 @@ Object* CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
 
   DCHECK(function->code()->kind() == Code::FUNCTION ||
          function->code()->kind() == Code::OPTIMIZED_FUNCTION ||
+         (function->code()->is_interpreter_entry_trampoline() &&
+          function->shared()->HasBytecodeArray()) ||
          function->IsInOptimizationQueue());
   return function->code();
 }
@@ -135,6 +136,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
       static_cast<Deoptimizer::BailoutType>(type_arg);
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   DCHECK(AllowHeapAllocation::IsAllowed());
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
+  TRACE_EVENT0("v8", "V8.DeoptimizeCode");
 
   Handle<JSFunction> function = deoptimizer->function();
   Handle<Code> optimized_code = deoptimizer->compiled_code();
@@ -247,7 +250,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
                                     function->shared()->ast_node_count() > 512)
                                        ? Compiler::CONCURRENT
                                        : Compiler::NOT_CONCURRENT;
-  Handle<Code> result = Handle<Code>::null();
 
   OptimizedCompileJob* job = NULL;
   if (mode == Compiler::CONCURRENT) {
@@ -268,22 +270,24 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
     job = dispatcher->FindReadyOSRCandidate(function, ast_id);
   }
 
+  MaybeHandle<Code> maybe_result;
   if (job != NULL) {
     if (FLAG_trace_osr) {
       PrintF("[OSR - Found ready: ");
       function->PrintName();
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
-    result = Compiler::GetConcurrentlyOptimizedCode(job);
+    maybe_result = Compiler::GetConcurrentlyOptimizedCode(job);
   } else if (IsSuitableForOnStackReplacement(isolate, function)) {
     if (FLAG_trace_osr) {
       PrintF("[OSR - Compiling: ");
       function->PrintName();
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
-    MaybeHandle<Code> maybe_result = Compiler::GetOptimizedCode(
-        function, caller_code, mode, ast_id,
+    maybe_result = Compiler::GetOptimizedCode(
+        function, mode, ast_id,
         (mode == Compiler::NOT_CONCURRENT) ? frame : nullptr);
+    Handle<Code> result;
     if (maybe_result.ToHandle(&result) &&
         result.is_identical_to(isolate->builtins()->InOptimizationQueue())) {
       // Optimization is queued.  Return to check later.
@@ -295,7 +299,9 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   BackEdgeTable::Revert(isolate, *caller_code);
 
   // Check whether we ended up with usable optimized code.
-  if (!result.is_null() && result->kind() == Code::OPTIMIZED_FUNCTION) {
+  Handle<Code> result;
+  if (maybe_result.ToHandle(&result) &&
+      result->kind() == Code::OPTIMIZED_FUNCTION) {
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(result->deoptimization_data());
 

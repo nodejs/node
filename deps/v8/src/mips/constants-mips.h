@@ -64,9 +64,13 @@ enum FpuMode {
 #elif defined(FPU_MODE_FP64)
   static const FpuMode kFpuMode = kFP64;
 #elif defined(FPU_MODE_FPXX)
-  static const FpuMode kFpuMode = kFPXX;
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS32R6)
+static const FpuMode kFpuMode = kFPXX;
 #else
-  static const FpuMode kFpuMode = kFP32;
+#error "FPXX is supported only on Mips32R2 and Mips32R6"
+#endif
+#else
+static const FpuMode kFpuMode = kFP32;
 #endif
 
 #if(defined(__mips_hard_float) && __mips_hard_float != 0)
@@ -92,13 +96,9 @@ const uint32_t kHoleNanLower32Offset = 4;
 #error Unknown endianness
 #endif
 
-#ifndef FPU_MODE_FPXX
-#define IsFp64Mode() \
-  (kFpuMode == kFP64)
-#else
-#define IsFp64Mode() \
-  (CpuFeatures::IsSupported(FP64FPU))
-#endif
+#define IsFp64Mode() (kFpuMode == kFP64)
+#define IsFp32Mode() (kFpuMode == kFP32)
+#define IsFpxxMode() (kFpuMode == kFPXX)
 
 #ifndef _MIPS_ARCH_MIPS32RX
 #define IsMipsArchVariant(check) \
@@ -390,7 +390,7 @@ enum Opcode : uint32_t {
   POP10 = ADDI,   // beqzalc, bovc, beqc
   POP26 = BLEZL,  // bgezc, blezc, bgec/blec
   POP27 = BGTZL,  // bgtzc, bltzc, bltc/bgtc
-  POP30 = DADDI,  // bnezalc, bvnc, bnec
+  POP30 = DADDI,  // bnezalc, bnvc, bnec
 };
 
 enum SecondaryField : uint32_t {
@@ -794,6 +794,7 @@ enum CheckForInexactConversion {
   kDontCheckForInexactConversion
 };
 
+enum class MaxMinKind : int { kMin = 0, kMax = 1 };
 
 // -----------------------------------------------------------------------------
 // Hints.

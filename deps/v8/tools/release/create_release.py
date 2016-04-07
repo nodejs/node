@@ -11,7 +11,6 @@ import urllib2
 
 from common_includes import *
 
-
 class Preparation(Step):
   MESSAGE = "Preparation."
 
@@ -164,6 +163,7 @@ class MakeBranch(Step):
     self.Git("checkout -b work-branch %s" % self["push_hash"])
     self.GitCheckoutFile(CHANGELOG_FILE, self["latest_version"])
     self.GitCheckoutFile(VERSION_FILE, self["latest_version"])
+    self.GitCheckoutFile(WATCHLISTS_FILE, self["latest_version"])
 
 
 class AddChangeLog(Step):
@@ -181,6 +181,19 @@ class SetVersion(Step):
 
   def RunStep(self):
     self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
+
+
+class EnableMergeWatchlist(Step):
+  MESSAGE = "Enable watchlist entry for merge notifications."
+
+  def RunStep(self):
+    old_watchlist_content = FileToText(os.path.join(self.default_cwd,
+                                                    WATCHLISTS_FILE))
+    new_watchlist_content = re.sub("(# 'v8-merges@googlegroups\.com',)",
+                                   "'v8-merges@googlegroups.com',",
+                                   old_watchlist_content)
+    TextToFile(new_watchlist_content, os.path.join(self.default_cwd,
+                                                   WATCHLISTS_FILE))
 
 
 class CommitBranch(Step):
@@ -288,6 +301,7 @@ class CreateRelease(ScriptsBase):
       MakeBranch,
       AddChangeLog,
       SetVersion,
+      EnableMergeWatchlist,
       CommitBranch,
       PushBranch,
       TagRevision,

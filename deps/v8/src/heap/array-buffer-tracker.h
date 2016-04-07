@@ -7,6 +7,7 @@
 
 #include <map>
 
+#include "src/base/platform/mutex.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -47,6 +48,7 @@ class ArrayBufferTracker {
   void Promote(JSArrayBuffer* buffer);
 
  private:
+  base::Mutex mutex_;
   Heap* heap_;
 
   // |live_array_buffers_| maps externally allocated memory used as backing
