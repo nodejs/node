@@ -4,9 +4,6 @@
 
 namespace node {
 
-using v8::V8;
-
-
 Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms) : isolate_(isolate),
                                                         destroyed_(false) {
   int rc;

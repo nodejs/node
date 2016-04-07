@@ -6,8 +6,8 @@
 namespace node {
 
 using v8::Isolate;
-using v8::String;
 using v8::Local;
+using v8::String;
 using v8::Value;
 
 static int MakeUtf8String(Isolate* isolate,

@@ -20,7 +20,6 @@ using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
-using v8::Uint32Array;
 using v8::V8;
 using v8::Value;
 
