@@ -1562,15 +1562,8 @@ def Main():
     for rule in globally_unused_rules:
       print "Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path])
 
-  tempdir = os.environ.get('NODE_TEST_DIR') or options.temp_dir
-  if tempdir:
-    try:
-      os.makedirs(tempdir)
-      os.environ['NODE_TEST_DIR'] = tempdir
-    except OSError as exception:
-      if exception.errno != errno.EEXIST:
-        print "Could not create the temporary directory", options.temp_dir
-        sys.exit(1)
+  if not os.environ.get('NODE_TEST_DIR') and options.temp_dir:
+    os.environ['NODE_TEST_DIR'] = options.temp_dir
 
   if options.report:
     PrintReport(all_cases)
