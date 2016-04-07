@@ -9,7 +9,6 @@
 
 namespace node {
 
-using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
