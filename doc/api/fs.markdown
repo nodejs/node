@@ -869,6 +869,16 @@ reliably or at all.
 You can still use `fs.watchFile`, which uses stat polling, but it is slower and
 less reliable.
 
+#### Inodes
+
+<!--type=misc-->
+
+On Linux and OS X systems, `fs.watch()` resolves the path to an [inode][] and
+watches the inode. If the watched path is deleted and recreated, it is assigned
+a new inode. The watch will emit an event for the delete but will continue
+watching the *original* inode. Events for the new inode will not be emitted.
+This is expected behavior.
+
 #### Filename Argument
 
 <!--type=misc-->
@@ -1053,3 +1063,4 @@ Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 [MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
+[inode]: http://www.linux.org/threads/intro-to-inodes.4130
