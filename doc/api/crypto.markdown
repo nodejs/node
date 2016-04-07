@@ -747,7 +747,7 @@ const sign = crypto.createSign('sha256');
 
 sign.update('some data to sign');
 
-const privateKey = '-----BEGIN EC PRIVATE KEY-----\n' +
+const private_key = '-----BEGIN EC PRIVATE KEY-----\n' +
         'MHcCAQEEIF+jnWY1D5kbVYDNvxxo/Y+ku2uJPDwS0r/VuPZQrjjVoAoGCCqGSM49\n' +
         'AwEHoUQDQgAEurOxfSxmqIRYzJVagdZfMMSjRNNhB8i3mXyIMq704m2m52FdfKZ2\n' +
         'pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==\n' +
