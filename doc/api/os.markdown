@@ -182,5 +182,21 @@ on OS X and `'Windows_NT'` on Windows.
 
 Returns the system uptime in seconds.
 
+## os.userInfo([options])
+
+* `options` {Object}
+  * `encoding` {String} Character encoding used to interpret resulting strings.
+    If `encoding` is set to `'buffer'`, the `username`, `shell`, and `homedir`
+    values will be `Buffer` instances. (Default: 'utf8')
+
+Returns a subset of the password file entry for the current effective user. The
+returned object includes the `username`, `uid`, `gid`, `shell`, and `homedir`.
+On Windows, the `uid` and `gid` fields are `-1`, and `shell` is `null`.
+
+The value of `homedir` returned by `userInfo()` comes directly from the
+operating system. This differs from the result of `os.homedir()`, which queries
+several environment variables for the home directory before falling back to the
+operating system response.
+
 [`process.arch`]: process.html#process_process_arch
 [`process.platform`]: process.html#process_process_platform
