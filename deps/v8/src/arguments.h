@@ -152,17 +152,19 @@ class PropertyCallbackArguments
   static const int kReturnValueDefaultValueIndex =
       T::kReturnValueDefaultValueIndex;
   static const int kIsolateIndex = T::kIsolateIndex;
+  static const int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
-  PropertyCallbackArguments(Isolate* isolate,
-                            Object* data,
-                            Object* self,
-                            JSObject* holder)
+  PropertyCallbackArguments(Isolate* isolate, Object* data, Object* self,
+                            JSObject* holder, Object::ShouldThrow should_throw)
       : Super(isolate) {
     Object** values = this->begin();
     values[T::kThisIndex] = self;
     values[T::kHolderIndex] = holder;
     values[T::kDataIndex] = data;
     values[T::kIsolateIndex] = reinterpret_cast<Object*>(isolate);
+    values[T::kShouldThrowOnErrorIndex] =
+        Smi::FromInt(should_throw == Object::THROW_ON_ERROR ? 1 : 0);
+
     // Here the hole is set as default value.
     // It cannot escape into js as it's remove in Call below.
     values[T::kReturnValueDefaultValueIndex] =
@@ -218,17 +220,14 @@ class FunctionCallbackArguments
   static const int kCalleeIndex = T::kCalleeIndex;
   static const int kContextSaveIndex = T::kContextSaveIndex;
 
-  FunctionCallbackArguments(internal::Isolate* isolate,
-      internal::Object* data,
-      internal::JSFunction* callee,
-      internal::Object* holder,
-      internal::Object** argv,
-      int argc,
-      bool is_construct_call)
-        : Super(isolate),
-          argv_(argv),
-          argc_(argc),
-          is_construct_call_(is_construct_call) {
+  FunctionCallbackArguments(internal::Isolate* isolate, internal::Object* data,
+                            internal::HeapObject* callee,
+                            internal::Object* holder, internal::Object** argv,
+                            int argc, bool is_construct_call)
+      : Super(isolate),
+        argv_(argv),
+        argc_(argc),
+        is_construct_call_(is_construct_call) {
     Object** values = begin();
     values[T::kDataIndex] = data;
     values[T::kCalleeIndex] = callee;
@@ -240,7 +239,8 @@ class FunctionCallbackArguments
     values[T::kReturnValueDefaultValueIndex] =
         isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
-    DCHECK(values[T::kCalleeIndex]->IsJSFunction());
+    DCHECK(values[T::kCalleeIndex]->IsJSFunction() ||
+           values[T::kCalleeIndex]->IsFunctionTemplateInfo());
     DCHECK(values[T::kHolderIndex]->IsHeapObject());
     DCHECK(values[T::kIsolateIndex]->IsSmi());
   }
@@ -271,20 +271,23 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 #define CLOBBER_DOUBLE_REGISTERS()
 #endif
 
-
-#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                        \
-static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate));  \
-Type Name(int args_length, Object** args_object, Isolate* isolate) {     \
-  CLOBBER_DOUBLE_REGISTERS();                                            \
-  Arguments args(args_length, args_object);                              \
-  return __RT_impl_##Name(args, isolate);                                \
-}                                                                        \
-static Type __RT_impl_##Name(Arguments args, Isolate* isolate)
-
+#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                         \
+  static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate)); \
+  Type Name(int args_length, Object** args_object, Isolate* isolate) {    \
+    CLOBBER_DOUBLE_REGISTERS();                                           \
+    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();  \
+    RuntimeCallTimerScope timer(isolate, &stats->Name);                   \
+    Arguments args(args_length, args_object);                             \
+    Type value = __RT_impl_##Name(args, isolate);                         \
+    return value;                                                         \
+  }                                                                       \
+  static Type __RT_impl_##Name(Arguments args, Isolate* isolate)
 
 #define RUNTIME_FUNCTION(Name) RUNTIME_FUNCTION_RETURNS_TYPE(Object*, Name)
 #define RUNTIME_FUNCTION_RETURN_PAIR(Name) \
     RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, Name)
+#define RUNTIME_FUNCTION_RETURN_TRIPLE(Name) \
+    RUNTIME_FUNCTION_RETURNS_TYPE(ObjectTriple, Name)
 
 }  // namespace internal
 }  // namespace v8

@@ -19,8 +19,8 @@ class CacheLineSizes {
     cache_type_register_ = 0;
 #else
     // Copy the content of the cache type register to a core register.
-    __asm__ __volatile__ ("mrs %[ctr], ctr_el0"  // NOLINT
-                          : [ctr] "=r" (cache_type_register_));
+    __asm__ __volatile__("mrs %[ctr], ctr_el0"  // NOLINT
+                         : [ctr] "=r"(cache_type_register_));
 #endif
   }
 
@@ -36,7 +36,6 @@ class CacheLineSizes {
 
   uint32_t cache_type_register_;
 };
-
 
 void CpuFeatures::FlushICache(void* address, size_t length) {
 #ifdef V8_HOST_ARCH_ARM64

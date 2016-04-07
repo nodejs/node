@@ -49,12 +49,12 @@ void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
   regs.sp = fp - fp_to_sp_delta;
   regs.fp = fp;
   regs.pc = from;
-  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame);
+  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, false);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
-
-void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
+void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate,
+                                              bool update_stats) {
   TickSampleEventRecord record(last_code_event_id_.Value());
   RegisterState regs;
   StackFrameIterator it(isolate);
@@ -64,7 +64,7 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
     regs.fp = frame->fp();
     regs.pc = frame->pc();
   }
-  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame);
+  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame, update_stats);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 
@@ -429,6 +429,11 @@ void CpuProfiler::ResetProfiles() {
   profiles_ = new CpuProfilesCollection(isolate()->heap());
 }
 
+void CpuProfiler::CollectSample() {
+  if (processor_ != NULL) {
+    processor_->AddCurrentStack(isolate_);
+  }
+}
 
 void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
   if (profiles_->StartProfiling(title, record_samples)) {

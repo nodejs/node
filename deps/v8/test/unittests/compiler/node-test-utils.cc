@@ -323,13 +323,30 @@ class IsReturnMatcher final : public NodeMatcher {
                   const Matcher<Node*>& control_matcher)
       : NodeMatcher(IrOpcode::kReturn),
         value_matcher_(value_matcher),
+        value2_matcher_(_),
         effect_matcher_(effect_matcher),
-        control_matcher_(control_matcher) {}
+        control_matcher_(control_matcher),
+        has_second_return_value_(false) {}
+
+  IsReturnMatcher(const Matcher<Node*>& value_matcher,
+                  const Matcher<Node*>& value2_matcher,
+                  const Matcher<Node*>& effect_matcher,
+                  const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kReturn),
+        value_matcher_(value_matcher),
+        value2_matcher_(value2_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher),
+        has_second_return_value_(true) {}
 
   void DescribeTo(std::ostream* os) const final {
     NodeMatcher::DescribeTo(os);
     *os << " whose value (";
     value_matcher_.DescribeTo(os);
+    if (has_second_return_value_) {
+      *os << ") and second value (";
+      value2_matcher_.DescribeTo(os);
+    }
     *os << ") and effect (";
     effect_matcher_.DescribeTo(os);
     *os << ") and control (";
@@ -341,6 +358,9 @@ class IsReturnMatcher final : public NodeMatcher {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
                                  "value", value_matcher_, listener) &&
+            (!has_second_return_value_ ||
+             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
+                                  "value2", value2_matcher_, listener)) &&
             PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
                                  effect_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetControlInput(node),
@@ -349,8 +369,10 @@ class IsReturnMatcher final : public NodeMatcher {
 
  private:
   const Matcher<Node*> value_matcher_;
+  const Matcher<Node*> value2_matcher_;
   const Matcher<Node*> effect_matcher_;
   const Matcher<Node*> control_matcher_;
+  bool has_second_return_value_;
 };
 
 
@@ -1467,7 +1489,6 @@ Matcher<Node*> IsDead() {
   return MakeMatcher(new NodeMatcher(IrOpcode::kDead));
 }
 
-
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher) {
   return MakeMatcher(new IsControl1Matcher(IrOpcode::kEnd, control0_matcher));
 }
@@ -1577,6 +1598,13 @@ Matcher<Node*> IsReturn(const Matcher<Node*>& value_matcher,
       new IsReturnMatcher(value_matcher, effect_matcher, control_matcher));
 }
 
+Matcher<Node*> IsReturn2(const Matcher<Node*>& value_matcher,
+                         const Matcher<Node*>& value2_matcher,
+                         const Matcher<Node*>& effect_matcher,
+                         const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsReturnMatcher(value_matcher, value2_matcher,
+                                         effect_matcher, control_matcher));
+}
 
 Matcher<Node*> IsTerminate(const Matcher<Node*>& effect_matcher,
                            const Matcher<Node*>& control_matcher) {
@@ -1675,6 +1703,15 @@ Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
   return MakeMatcher(new IsProjectionMatcher(index_matcher, base_matcher));
 }
 
+Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
+                      const Matcher<Node*>& value0_matcher,
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher) {
+  std::vector<Matcher<Node*>> value_matchers;
+  value_matchers.push_back(value0_matcher);
+  return MakeMatcher(new IsCallMatcher(descriptor_matcher, value_matchers,
+                                       effect_matcher, control_matcher));
+}
 
 Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value0_matcher,
@@ -2106,6 +2143,7 @@ IS_UNOP_MATCHER(Float64ExtractLowWord32)
 IS_UNOP_MATCHER(Float64ExtractHighWord32)
 IS_UNOP_MATCHER(NumberToInt32)
 IS_UNOP_MATCHER(NumberToUint32)
+IS_UNOP_MATCHER(ObjectIsReceiver)
 IS_UNOP_MATCHER(ObjectIsSmi)
 IS_UNOP_MATCHER(Word32Clz)
 #undef IS_UNOP_MATCHER

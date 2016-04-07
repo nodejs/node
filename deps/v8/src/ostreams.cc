@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ostreams.h"
+#include "src/objects.h"
 
 #if V8_OS_WIN
 #if _MSC_VER < 1900
@@ -60,6 +61,16 @@ std::ostream& PrintUC16(std::ostream& os, uint16_t c, bool (*pred)(uint16_t)) {
   return os << buf;
 }
 
+
+std::ostream& PrintUC32(std::ostream& os, int32_t c, bool (*pred)(uint16_t)) {
+  if (c <= String::kMaxUtf16CodeUnit) {
+    return PrintUC16(os, static_cast<uint16_t>(c), pred);
+  }
+  char buf[13];
+  snprintf(buf, sizeof(buf), "\\u{%06x}", c);
+  return os << buf;
+}
+
 }  // namespace
 
 
@@ -79,6 +90,11 @@ std::ostream& operator<<(std::ostream& os, const AsEscapedUC16ForJSON& c) {
 
 std::ostream& operator<<(std::ostream& os, const AsUC16& c) {
   return PrintUC16(os, c.value, IsPrint);
+}
+
+
+std::ostream& operator<<(std::ostream& os, const AsUC32& c) {
+  return PrintUC32(os, c.value, IsPrint);
 }
 
 }  // namespace internal

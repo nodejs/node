@@ -359,13 +359,13 @@ class Simulator {
 
   // Compact branch guard.
   void CheckForbiddenSlot(int32_t current_pc) {
-    Instruction* instr_aftter_compact_branch =
+    Instruction* instr_after_compact_branch =
         reinterpret_cast<Instruction*>(current_pc + Instruction::kInstrSize);
-    if (instr_aftter_compact_branch->IsForbiddenInBranchDelay()) {
+    if (instr_after_compact_branch->IsForbiddenAfterBranch()) {
       V8_Fatal(__FILE__, __LINE__,
                "Error: Unexpected instruction 0x%08x immediately after a "
                "compact branch instruction.",
-               *reinterpret_cast<uint32_t*>(instr_aftter_compact_branch));
+               *reinterpret_cast<uint32_t*>(instr_after_compact_branch));
     }
   }
 

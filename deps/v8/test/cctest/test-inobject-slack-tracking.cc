@@ -61,9 +61,9 @@ Handle<T> GetLexical(const char* name) {
   ScriptContextTable::LookupResult lookup_result;
   if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
     Handle<Object> result =
-        FixedArray::get(ScriptContextTable::GetContext(
+        FixedArray::get(*ScriptContextTable::GetContext(
                             script_contexts, lookup_result.context_index),
-                        lookup_result.slot_index);
+                        lookup_result.slot_index, isolate);
     return Handle<T>::cast(result);
   }
   return Handle<T>();

@@ -37,31 +37,8 @@ assertEquals(0, add(0, 0));
 assertEquals(-0, add(-0, -0));
 
 
-function test(x, y) {
-  assertTrue(%_IsMinusZero(-0));
-  assertTrue(%_IsMinusZero(1/(-Infinity)));
-  assertTrue(%_IsMinusZero(x));
-
-  assertFalse(%_IsMinusZero(0));
-  assertFalse(%_IsMinusZero(1/Infinity));
-  assertFalse(%_IsMinusZero(0.1));
-  assertFalse(%_IsMinusZero(-0.2));
-  assertFalse(%_IsMinusZero({}));
-  assertFalse(%_IsMinusZero(""));
-  assertFalse(%_IsMinusZero("-0"));
-  assertFalse(%_IsMinusZero(function() {}));
-  assertFalse(%_IsMinusZero(y));
-}
-
-test(-0, 1.2);
-test(-0, 1.2);
-%OptimizeFunctionOnNextCall(test);
-test(-0, 1.2);
-assertOptimized(test);
-
-
 function testsin() {
-  assertTrue(%_IsMinusZero(Math.sin(-0)));
+  assertEquals(-0, Math.sin(-0));
 }
 
 testsin();
@@ -71,8 +48,7 @@ testsin();
 
 
 function testfloor() {
-  assertTrue(%_IsMinusZero(Math.floor(-0)));
-  assertFalse(%_IsMinusZero(Math.floor(2)));
+  assertEquals(-0, Math.floor(-0));
 }
 
 testfloor();

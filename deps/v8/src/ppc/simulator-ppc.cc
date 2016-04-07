@@ -15,6 +15,7 @@
 #include "src/ppc/constants-ppc.h"
 #include "src/ppc/frames-ppc.h"
 #include "src/ppc/simulator-ppc.h"
+#include "src/runtime/runtime-utils.h"
 
 #if defined(USE_SIMULATOR)
 
@@ -446,7 +447,8 @@ void PPCDebugger::Debug() {
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           intptr_t value = *cur;
           Heap* current_heap = sim_->isolate_->heap();
-          if (((value & 1) == 0) || current_heap->Contains(obj)) {
+          if (((value & 1) == 0) ||
+              current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & 1) == 0) {
               PrintF("smi %d", PlatformSmiTagging::SmiToInt(obj));
@@ -855,10 +857,19 @@ class Redirection {
         isolate->simulator_i_cache(),
         reinterpret_cast<void*>(&swi_instruction_), Instruction::kInstrSize);
     isolate->set_simulator_redirection(this);
+    if (ABI_USES_FUNCTION_DESCRIPTORS) {
+      function_descriptor_[0] = reinterpret_cast<intptr_t>(&swi_instruction_);
+      function_descriptor_[1] = 0;
+      function_descriptor_[2] = 0;
+    }
   }
 
-  void* address_of_swi_instruction() {
-    return reinterpret_cast<void*>(&swi_instruction_);
+  void* address() {
+    if (ABI_USES_FUNCTION_DESCRIPTORS) {
+      return reinterpret_cast<void*>(function_descriptor_);
+    } else {
+      return reinterpret_cast<void*>(&swi_instruction_);
+    }
   }
 
   void* external_function() { return external_function_; }
@@ -883,9 +894,16 @@ class Redirection {
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
+  static Redirection* FromAddress(void* address) {
+    int delta = ABI_USES_FUNCTION_DESCRIPTORS
+                    ? offsetof(Redirection, function_descriptor_)
+                    : offsetof(Redirection, swi_instruction_);
+    char* addr_of_redirection = reinterpret_cast<char*>(address) - delta;
+    return reinterpret_cast<Redirection*>(addr_of_redirection);
+  }
+
   static void* ReverseRedirection(intptr_t reg) {
-    Redirection* redirection = FromSwiInstruction(
-        reinterpret_cast<Instruction*>(reinterpret_cast<void*>(reg)));
+    Redirection* redirection = FromAddress(reinterpret_cast<void*>(reg));
     return redirection->external_function();
   }
 
@@ -902,6 +920,7 @@ class Redirection {
   uint32_t swi_instruction_;
   ExternalReference::Type type_;
   Redirection* next_;
+  intptr_t function_descriptor_[3];
 };
 
 
@@ -922,7 +941,7 @@ void* Simulator::RedirectExternalReference(Isolate* isolate,
                                            void* external_function,
                                            ExternalReference::Type type) {
   Redirection* redirection = Redirection::Get(isolate, external_function, type);
-  return redirection->address_of_swi_instruction();
+  return redirection->address();
 }
 
 
@@ -1171,20 +1190,11 @@ bool Simulator::OverflowFrom(int32_t alu_out, int32_t left, int32_t right,
 
 
 #if V8_TARGET_ARCH_PPC64
-struct ObjectPair {
-  intptr_t x;
-  intptr_t y;
-};
-
-
 static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
-  *x = pair->x;
-  *y = pair->y;
+  *x = reinterpret_cast<intptr_t>(pair->x);
+  *y = reinterpret_cast<intptr_t>(pair->y);
 }
 #else
-typedef uint64_t ObjectPair;
-
-
 static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
 #if V8_TARGET_BIG_ENDIAN
   *x = static_cast<int32_t>(*pair >> 32);
@@ -1196,16 +1206,17 @@ static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
 }
 #endif
 
-// Calls into the V8 runtime are based on this very simple interface.
-// Note: To be able to return two values from some calls the code in
-// runtime.cc uses the ObjectPair which is essentially two pointer
-// values stuffed into a structure. With the code below we assume that
-// all runtime calls return this pair. If they don't, the r4 result
-// register contains a bogus value, which is fine because it is
-// caller-saved.
-typedef ObjectPair (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
-                                           intptr_t arg2, intptr_t arg3,
-                                           intptr_t arg4, intptr_t arg5);
+// Calls into the V8 runtime.
+typedef intptr_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
+                                         intptr_t arg2, intptr_t arg3,
+                                         intptr_t arg4, intptr_t arg5);
+typedef ObjectPair (*SimulatorRuntimePairCall)(intptr_t arg0, intptr_t arg1,
+                                               intptr_t arg2, intptr_t arg3,
+                                               intptr_t arg4, intptr_t arg5);
+typedef ObjectTriple (*SimulatorRuntimeTripleCall)(intptr_t arg0, intptr_t arg1,
+                                                   intptr_t arg2, intptr_t arg3,
+                                                   intptr_t arg4,
+                                                   intptr_t arg5);
 
 // These prototypes handle the four types of FP calls.
 typedef int (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
@@ -1237,13 +1248,15 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       Redirection* redirection = Redirection::FromSwiInstruction(instr);
       const int kArgCount = 6;
       int arg0_regnum = 3;
-#if !ABI_RETURNS_OBJECT_PAIRS_IN_REGS
       intptr_t result_buffer = 0;
-      if (redirection->type() == ExternalReference::BUILTIN_OBJECTPAIR_CALL) {
+      bool uses_result_buffer =
+          redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE ||
+          (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR &&
+           !ABI_RETURNS_OBJECT_PAIRS_IN_REGS);
+      if (uses_result_buffer) {
         result_buffer = get_register(r3);
         arg0_regnum++;
       }
-#endif
       intptr_t arg[kArgCount];
       for (int i = 0; i < kArgCount; i++) {
         arg[i] = get_register(arg0_regnum + i);
@@ -1389,9 +1402,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-#if !ABI_PASSES_HANDLES_IN_REGS
-        arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
-#endif
+        if (!ABI_PASSES_HANDLES_IN_REGS) {
+          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+        }
         target(arg[0], arg[1]);
       } else if (redirection->type() ==
                  ExternalReference::PROFILING_GETTER_CALL) {
@@ -1408,9 +1421,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-#if !ABI_PASSES_HANDLES_IN_REGS
-        arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
-#endif
+        if (!ABI_PASSES_HANDLES_IN_REGS) {
+          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+        }
         target(arg[0], arg[1], Redirection::ReverseRedirection(arg[2]));
       } else {
         // builtin call.
@@ -1430,19 +1443,53 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
-        SimulatorRuntimeCall target =
-            reinterpret_cast<SimulatorRuntimeCall>(external);
-        ObjectPair result =
-            target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
-        intptr_t x;
-        intptr_t y;
-        decodeObjectPair(&result, &x, &y);
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Returned {%08" V8PRIxPTR ", %08" V8PRIxPTR "}\n", x, y);
+        if (redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE) {
+          SimulatorRuntimeTripleCall target =
+              reinterpret_cast<SimulatorRuntimeTripleCall>(external);
+          ObjectTriple result =
+              target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+          if (::v8::internal::FLAG_trace_sim) {
+            PrintF("Returned {%08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
+                   "}\n",
+                   reinterpret_cast<intptr_t>(result.x),
+                   reinterpret_cast<intptr_t>(result.y),
+                   reinterpret_cast<intptr_t>(result.z));
+          }
+          memcpy(reinterpret_cast<void*>(result_buffer), &result,
+                 sizeof(ObjectTriple));
+          set_register(r3, result_buffer);
+        } else {
+          if (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR) {
+            SimulatorRuntimePairCall target =
+                reinterpret_cast<SimulatorRuntimePairCall>(external);
+            ObjectPair result =
+                target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+            intptr_t x;
+            intptr_t y;
+            decodeObjectPair(&result, &x, &y);
+            if (::v8::internal::FLAG_trace_sim) {
+              PrintF("Returned {%08" V8PRIxPTR ", %08" V8PRIxPTR "}\n", x, y);
+            }
+            if (ABI_RETURNS_OBJECT_PAIRS_IN_REGS) {
+              set_register(r3, x);
+              set_register(r4, y);
+            } else {
+              memcpy(reinterpret_cast<void*>(result_buffer), &result,
+                     sizeof(ObjectPair));
+              set_register(r3, result_buffer);
+            }
+          } else {
+            DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
+            SimulatorRuntimeCall target =
+                reinterpret_cast<SimulatorRuntimeCall>(external);
+            intptr_t result =
+                target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+            if (::v8::internal::FLAG_trace_sim) {
+              PrintF("Returned %08" V8PRIxPTR "\n", result);
+            }
+            set_register(r3, result);
+          }
         }
-        set_register(r3, x);
-        set_register(r4, y);
       }
       set_pc(saved_lr);
       break;
@@ -3852,17 +3899,19 @@ void Simulator::CallInternal(byte* entry) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
-// Prepare to execute the code at entry
-#if ABI_USES_FUNCTION_DESCRIPTORS
-  // entry is the function descriptor
-  set_pc(*(reinterpret_cast<intptr_t*>(entry)));
-#else
-  // entry is the instruction address
-  set_pc(reinterpret_cast<intptr_t>(entry));
-#endif
+  // Prepare to execute the code at entry
+  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+    // entry is the function descriptor
+    set_pc(*(reinterpret_cast<intptr_t*>(entry)));
+  } else {
+    // entry is the instruction address
+    set_pc(reinterpret_cast<intptr_t>(entry));
+  }
 
-  // Put target address in ip (for JS prologue).
-  set_register(r12, get_pc());
+  if (ABI_CALL_VIA_IP) {
+    // Put target address in ip (for JS prologue).
+    set_register(r12, get_pc());
+  }
 
   // Put down marker for end of simulation. The simulator will stop simulation
   // when the PC reaches this value. By saving the "end simulation" value into
@@ -3919,8 +3968,12 @@ void Simulator::CallInternal(byte* entry) {
   Execute();
 
   // Check that the non-volatile registers have been preserved.
-  CHECK_EQ(callee_saved_value, get_register(r2));
-  CHECK_EQ(callee_saved_value, get_register(r13));
+  if (ABI_TOC_REGISTER != 2) {
+    CHECK_EQ(callee_saved_value, get_register(r2));
+  }
+  if (ABI_TOC_REGISTER != 13) {
+    CHECK_EQ(callee_saved_value, get_register(r13));
+  }
   CHECK_EQ(callee_saved_value, get_register(r14));
   CHECK_EQ(callee_saved_value, get_register(r15));
   CHECK_EQ(callee_saved_value, get_register(r16));

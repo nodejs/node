@@ -104,18 +104,6 @@ TEST(IsFunction) {
 }
 
 
-TEST(IsMinusZero) {
-  FunctionTester T("(function(a) { return %_IsMinusZero(a); })", flags);
-
-  T.CheckFalse(T.Val(1));
-  T.CheckFalse(T.Val(1.1));
-  T.CheckTrue(T.Val(-0.0));
-  T.CheckFalse(T.Val(-2));
-  T.CheckFalse(T.Val(-2.3));
-  T.CheckFalse(T.undefined());
-}
-
-
 TEST(IsRegExp) {
   FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
 
@@ -148,19 +136,6 @@ TEST(IsSmi) {
 }
 
 
-TEST(ObjectEquals) {
-  FunctionTester T("(function(a,b) { return %_ObjectEquals(a,b); })", flags);
-  CompileRun("var o = {}");
-
-  T.CheckTrue(T.NewObject("(o)"), T.NewObject("(o)"));
-  T.CheckTrue(T.Val("internal"), T.Val("internal"));
-  T.CheckTrue(T.true_value(), T.true_value());
-  T.CheckFalse(T.true_value(), T.false_value());
-  T.CheckFalse(T.NewObject("({})"), T.NewObject("({})"));
-  T.CheckFalse(T.Val("a"), T.Val("b"));
-}
-
-
 TEST(OneByteSeqStringGetChar) {
   FunctionTester T("(function(a,b) { return %_OneByteSeqStringGetChar(a,b); })",
                    flags);
@@ -189,15 +164,6 @@ TEST(OneByteSeqStringSetChar) {
   CHECK_EQ('b', string->SeqOneByteStringGet(0));
   CHECK_EQ('X', string->SeqOneByteStringGet(1));
   CHECK_EQ('r', string->SeqOneByteStringGet(2));
-}
-
-
-TEST(SetValueOf) {
-  FunctionTester T("(function(a,b) { return %_SetValueOf(a,b); })", flags);
-
-  T.CheckCall(T.Val("a"), T.NewObject("(new String)"), T.Val("a"));
-  T.CheckCall(T.Val(123), T.NewObject("(new Number)"), T.Val(123));
-  T.CheckCall(T.Val("x"), T.undefined(), T.Val("x"));
 }
 
 

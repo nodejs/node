@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --no-legacy-const --harmony-sloppy --harmony-sloppy-let
-// Flags: --harmony-completion
 
 function props(x) {
   var array = [];

@@ -4,7 +4,7 @@
 
 #include "src/identity-map.h"
 
-#include "src/heap/heap.h"
+#include "src/base/functional.h"
 #include "src/heap/heap-inl.h"
 #include "src/zone-containers.h"
 
@@ -14,10 +14,17 @@ namespace internal {
 static const int kInitialIdentityMapSize = 4;
 static const int kResizeFactor = 4;
 
-IdentityMapBase::~IdentityMapBase() {
-  if (keys_) heap_->UnregisterStrongRoots(keys_);
-}
+IdentityMapBase::~IdentityMapBase() { Clear(); }
 
+void IdentityMapBase::Clear() {
+  if (keys_) {
+    heap_->UnregisterStrongRoots(keys_);
+    keys_ = nullptr;
+    values_ = nullptr;
+    size_ = 0;
+    mask_ = 0;
+  }
+}
 
 IdentityMapBase::RawEntry IdentityMapBase::Lookup(Object* key) {
   int index = LookupIndex(key);
@@ -35,8 +42,7 @@ IdentityMapBase::RawEntry IdentityMapBase::Insert(Object* key) {
 int IdentityMapBase::Hash(Object* address) {
   CHECK_NE(address, heap_->not_mapped_symbol());
   uintptr_t raw_address = reinterpret_cast<uintptr_t>(address);
-  // Xor some of the upper bits, since the lower 2 or 3 are usually aligned.
-  return static_cast<int>((raw_address >> 11) ^ raw_address);
+  return static_cast<int>(hasher_(raw_address));
 }
 
 

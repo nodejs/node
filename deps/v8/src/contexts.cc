@@ -79,6 +79,15 @@ Context* Context::declaration_context() {
   return current;
 }
 
+Context* Context::closure_context() {
+  Context* current = this;
+  while (!current->IsFunctionContext() && !current->IsScriptContext() &&
+         !current->IsNativeContext()) {
+    current = current->previous();
+    DCHECK(current->closure() == closure());
+  }
+  return current;
+}
 
 JSObject* Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext());
@@ -540,16 +549,6 @@ int Context::IntrinsicIndexForName(Handle<String> string) {
 }
 
 #undef COMPARE_NAME
-
-
-bool Context::IsJSBuiltin(Handle<Context> native_context,
-                          Handle<JSFunction> function) {
-#define COMPARE_FUNCTION(index, type, name) \
-  if (*function == native_context->get(index)) return true;
-  NATIVE_CONTEXT_JS_BUILTINS(COMPARE_FUNCTION);
-#undef COMPARE_FUNCTION
-  return false;
-}
 
 
 #ifdef DEBUG

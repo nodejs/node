@@ -138,3 +138,36 @@ assertSame(Object.assign(o, {}), o);
   assertThrows(function() { return Object.assign(target, source); }, ErrorB);
   assertEquals(log, "b");
 })();
+
+(function add_to_source() {
+  var target = {set k1(v) { source.k3 = 100; }};
+  var source = {k1:10};
+  Object.defineProperty(source, "k2",
+      {value: 20, enumerable: false, configurable: true});
+  Object.assign(target, source);
+  assertEquals(undefined, target.k2);
+  assertEquals(undefined, target.k3);
+})();
+
+(function reconfigure_enumerable_source() {
+  var target = {set k1(v) {
+    Object.defineProperty(source, "k2", {value: 20, enumerable: true});
+  }};
+  var source = {k1:10};
+  Object.defineProperty(source, "k2",
+      {value: 20, enumerable: false, configurable: true});
+  Object.assign(target, source);
+  assertEquals(20, target.k2);
+})();
+
+(function propagate_assign_failure() {
+  var target = {set k1(v) { throw "fail" }};
+  var source = {k1:10};
+  assertThrows(()=>Object.assign(target, source));
+})();
+
+(function propagate_read_failure() {
+  var target = {};
+  var source = {get k1() { throw "fail" }};
+  assertThrows(()=>Object.assign(target, source));
+})();

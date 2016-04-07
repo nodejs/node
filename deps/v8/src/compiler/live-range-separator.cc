@@ -119,8 +119,10 @@ void LiveRangeSeparator::Splinter() {
 
 
 void LiveRangeMerger::MarkRangesSpilledInDeferredBlocks() {
+  const InstructionSequence *code = data()->code();
   for (TopLevelLiveRange *top : data()->live_ranges()) {
-    if (top == nullptr || top->IsEmpty() || top->splinter() == nullptr) {
+    if (top == nullptr || top->IsEmpty() || top->splinter() == nullptr ||
+        top->HasSpillOperand() || !top->splinter()->HasSpillRange()) {
       continue;
     }
 
@@ -131,7 +133,10 @@ void LiveRangeMerger::MarkRangesSpilledInDeferredBlocks() {
         break;
       }
     }
-    if (child == nullptr) top->MarkSpilledInDeferredBlock();
+    if (child == nullptr) {
+      top->TreatAsSpilledInDeferredBlock(data()->allocation_zone(),
+                                         code->InstructionBlockCount());
+    }
   }
 }
 
