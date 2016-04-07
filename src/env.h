@@ -94,6 +94,7 @@ namespace node {
   V(exchange_string, "exchange")                                              \
   V(idle_string, "idle")                                                      \
   V(irq_string, "irq")                                                        \
+  V(encoding_string, "encoding")                                              \
   V(enter_string, "enter")                                                    \
   V(env_pairs_string, "envPairs")                                             \
   V(env_string, "env")                                                        \
@@ -121,6 +122,7 @@ namespace node {
   V(handle_string, "handle")                                                  \
   V(heap_total_string, "heapTotal")                                           \
   V(heap_used_string, "heapUsed")                                             \
+  V(homedir_string, "homedir")                                                \
   V(hostmaster_string, "hostmaster")                                          \
   V(ignore_string, "ignore")                                                  \
   V(immediate_callback_string, "_immediateCallback")                          \
@@ -206,6 +208,7 @@ namespace node {
   V(service_string, "service")                                                \
   V(servername_string, "servername")                                          \
   V(session_id_string, "sessionId")                                           \
+  V(shell_string, "shell")                                                    \
   V(signal_string, "signal")                                                  \
   V(size_string, "size")                                                      \
   V(sni_context_err_string, "Invalid SNI context")                            \
@@ -235,6 +238,7 @@ namespace node {
   V(uid_string, "uid")                                                        \
   V(unknown_string, "<unknown>")                                              \
   V(user_string, "user")                                                      \
+  V(username_string, "username")                                              \
   V(uv_string, "uv")                                                          \
   V(valid_from_string, "valid_from")                                          \
   V(valid_to_string, "valid_to")                                              \
