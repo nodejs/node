@@ -11,8 +11,8 @@ namespace node {
 using v8::Context;
 using v8::Local;
 using v8::Object;
-using v8::Value;
 using v8::ReadOnly;
+using v8::Value;
 
 // The config binding is used to provide an internal view of compile or runtime
 // config options that are required internally by lib/*.js code. This is an
