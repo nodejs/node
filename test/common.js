@@ -71,7 +71,7 @@ function rmdirSync(p, originalEr) {
   }
 }
 
-function mkdirp(p, made) {
+function mkdirpSync(p, made) {
   if (!made)
     made = null;
 
@@ -80,8 +80,8 @@ function mkdirp(p, made) {
     made = made || p;
   } catch (err0) {
     if (err0.code === 'ENOENT') {
-      made = mkdirp(path.dirname(p), made);
-      mkdirp(p, made);
+      made = mkdirpSync(path.dirname(p), made);
+      mkdirpSync(p, made);
       return made;
     }
 
@@ -99,7 +99,7 @@ function mkdirp(p, made) {
 
 exports.refreshTmpDir = function() {
   rimrafSync(exports.tmpDir);
-  mkdirp(exports.tmpDir);
+  mkdirpSync(exports.tmpDir);
 };
 
 if (process.env.TEST_THREAD_ID) {
