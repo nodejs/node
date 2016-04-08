@@ -9,7 +9,6 @@ common.globalCheck = false;
 var tests = [
   testSloppyMode,
   testStrictMode,
-  testAutoMode
 ];
 
 tests.forEach(function(test) {
@@ -39,21 +38,6 @@ function testStrictMode() {
   `.trim() + '\n');
   assert.ok(/ReferenceError: x is not defined/.test(
       cli.output.accumulator.join('')));
-  cli.output.accumulator.length = 0;
-
-  cli.input.emit('data', `
-    let y = 3
-  `.trim() + '\n');
-  assert.equal(cli.output.accumulator.join(''), 'undefined\n> ');
-}
-
-function testAutoMode() {
-  var cli = initRepl(repl.REPL_MODE_MAGIC);
-
-  cli.input.emit('data', `
-    x = 3
-  `.trim() + '\n');
-  assert.equal(cli.output.accumulator.join(''), '> 3\n> ');
   cli.output.accumulator.length = 0;
 
   cli.input.emit('data', `

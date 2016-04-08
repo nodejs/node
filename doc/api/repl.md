@@ -385,13 +385,11 @@ added: v0.1.91
   * `completer` {Function} An optional function used for custom Tab auto
      completion. See [`readline.InterfaceCompleter`][] for an example.
   * `replMode` - A flag that specifies whether the default evaluator executes
-    all JavaScript commands in strict mode, default mode, or a hybrid mode
-    ("magic" mode.) Acceptable values are:
+    all JavaScript commands in strict mode or sloppy mode.
+    Acceptable values are:
     * `repl.REPL_MODE_SLOPPY` - evaluates expressions in sloppy mode.
     * `repl.REPL_MODE_STRICT` - evaluates expressions in strict mode. This is
       equivalent to prefacing every repl statement with `'use strict'`.
-    * `repl.REPL_MODE_MAGIC` - attempt to evaluates expressions in default
-      mode.  If expressions fail to parse, re-try in strict mode.
     * `breakEvalOnSigint` - Stop evaluating the current piece of code when
       `SIGINT` is received, i.e. `Ctrl+C` is pressed. This cannot be used together
       with a custom `eval` function. Defaults to `false`.
@@ -427,9 +425,8 @@ environment variables:
    REPL history. Whitespace will be trimmed from the value.
  - `NODE_REPL_HISTORY_SIZE` - Defaults to `1000`. Controls how many lines of
    history will be persisted if history is available. Must be a positive number.
- - `NODE_REPL_MODE` - May be any of `sloppy`, `strict`, or `magic`. Defaults
-   to `magic`, which will automatically run "strict mode only" statements in
-   strict mode.
+ - `NODE_REPL_MODE` - `sloppy` or `strict` mode. Defaults
+   to `sloppy`.
 
 ### Persistent History
 
