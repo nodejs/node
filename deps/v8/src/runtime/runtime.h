@@ -1130,11 +1130,6 @@ class Runtime : public AllStatic {
                                    ElementsKind* fixed_elements_kind,
                                    size_t* element_size);
 
-  // Used in runtime.cc and hydrogen's VisitArrayLiteral.
-  MUST_USE_RESULT static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
-      Isolate* isolate, Handle<LiteralsArray> literals,
-      Handle<FixedArray> elements);
-
   static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,
                                                     Handle<Object>);
 };
