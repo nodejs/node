@@ -70,7 +70,15 @@ documentation of the latest stable version.
 
 Stable, LTS and Nightly download directories all contain a *SHASUM256.txt*
 file that lists the SHA checksums for each file available for
-download. To check that a downloaded file matches the checksum, run
+download.
+
+The *SHASUM256.txt* can be downloaded using curl.
+
+```
+$ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
+```
+
+To check that a downloaded file matches the checksum, run
 it through `sha256sum` with a command such as:
 
 ```
