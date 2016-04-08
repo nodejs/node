@@ -46,7 +46,8 @@ var r2 = repl.start({
   ignoreUndefined: true,
   eval: evaler,
   writer: writer,
-  replMode: repl.REPL_MODE_STRICT
+  replMode: repl.REPL_MODE_STRICT,
+  historySize: 50
 });
 assert.equal(r2.input, stream);
 assert.equal(r2.output, stream);
@@ -65,18 +66,7 @@ assert.equal(r2.rli.output, stream);
 assert.equal(r2.rli.input, r2.inputStream);
 assert.equal(r2.rli.output, r2.outputStream);
 assert.equal(r2.rli.terminal, false);
-
-// testing out "magic" replMode
-var r3 = repl.start({
-  input: stream,
-  output: stream,
-  writer: writer,
-  replMode: repl.REPL_MODE_MAGIC,
-  historySize: 50
-});
-
-assert.equal(r3.replMode, repl.REPL_MODE_MAGIC);
-assert.equal(r3.historySize, 50);
+assert.equal(r2.historySize, 50);
 
 // Verify that defaults are used when no arguments are provided
 const r4 = repl.start();
