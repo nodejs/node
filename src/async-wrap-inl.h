@@ -18,7 +18,7 @@ inline AsyncWrap::AsyncWrap(Environment* env,
                             ProviderType provider,
                             AsyncWrap* parent)
     : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1),
-      uid_(env->get_next_async_wrap_uid()) {
+      uid_(env->async_hooks()->get_next_async_wrap_uid()) {
   CHECK_NE(provider, PROVIDER_NONE);
   CHECK_GE(object->InternalFieldCount(), 1);
 

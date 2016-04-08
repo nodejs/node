@@ -21,6 +21,7 @@
       'lib/_debug_agent.js',
       'lib/_debugger.js',
       'lib/assert.js',
+      'lib/async_wrap.js',
       'lib/buffer.js',
       'lib/child_process.js',
       'lib/console.js',

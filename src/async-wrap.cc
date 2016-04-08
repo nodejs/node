@@ -118,16 +118,19 @@ static void DisableHooksJS(const FunctionCallbackInfo<Value>& args) {
   env->async_hooks()->set_enable_callbacks(0);
 }
 
-static void GetCurrentAsyncId(const FunctionCallbackInfo<Value>& args) {
+static void GetCurrentAsyncIdArrayFromJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  v8::Local<v8::Value> uid = v8::Integer::New(env->isolate(), env->get_current_async_wrap_uid());
-  args.GetReturnValue().Set(uid);
+  args.GetReturnValue().Set(env->async_hooks()->get_current_async_id_array());
 }
 
-static void GetNextAsyncId(const FunctionCallbackInfo<Value>& args) {
+static void GetNextAsyncIdArrayFromJS(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  v8::Local<v8::Integer> uid = v8::Integer::New(env->isolate(), env->get_next_async_wrap_uid());
-  args.GetReturnValue().Set(uid);
+  args.GetReturnValue().Set(env->async_hooks()->get_next_async_id_array());
+}
+
+static void GetAsyncHookFieldsFromJS(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(env->async_hooks()->get_fields_array());
 }
 
 static bool FireAsyncInitCallbacksInternal(
@@ -181,32 +184,6 @@ static bool FireAsyncInitCallbacksInternal(
   return didRun;
 }
 
-static void NotifyAsyncEnqueueFromJS(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  v8::Local<v8::Number> uid = args[0].As<v8::Number>();
-  v8::Local<v8::Object> obj = args[1].As<v8::Object>();
-  v8::Local<v8::Number> parentUid = args[2].As<v8::Number>();
-  v8::Local<v8::Object> parentObj = args[3].As<v8::Object>();
-  v8::Local<v8::Number> providerId = args[4].As<v8::Number>();
-  AsyncWrap::ProviderType provider = static_cast<AsyncWrap::ProviderType>(providerId->Int32Value());
-
-  int64_t parentUidVal = 0;
-  if (!parentUid.IsEmpty() && !parentUid->IsUndefined() && parentUid->IsNumber()) {
-    parentUidVal = parentUid->IntegerValue();
-  }
-
-  bool didRunInit = FireAsyncInitCallbacksInternal(
-    env,
-    uid->IntegerValue(),
-    obj,
-    parentUidVal,
-    parentObj,
-    provider,
-    (AsyncWrap*)nullptr);
-
-  args.GetReturnValue().Set(didRunInit);
-}
-
 bool AsyncWrap::FireAsyncInitCallbacks(
   Environment* env,
   int64_t uid,
@@ -243,7 +220,7 @@ void AsyncWrap::FireAsyncPreCallbacks(
   v8::Local<v8::Number> uid,
   v8::Local<v8::Object> obj)
 {
-  env->set_current_async_wrap_uid(uid->IntegerValue());
+  env->async_hooks()->set_current_async_wrap_uid(uid->IntegerValue());
 
   if (ranInitCallbacks) {
     Local<Function> pre_fn = env->async_hooks_pre_function();
@@ -257,14 +234,6 @@ void AsyncWrap::FireAsyncPreCallbacks(
       }
     }
   }
-}
-
-static void NotifyAsyncStartFromJS(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  v8::Local<v8::Boolean> ranInitCallbacks = args[0].As<v8::Boolean>();
-  v8::Local<v8::Number> uid = args[1].As<v8::Number>();
-  v8::Local<v8::Object> obj = args[2].As<v8::Object>();
-  AsyncWrap::FireAsyncPreCallbacks(env, ranInitCallbacks->Value(), uid, obj);
 }
 
 void AsyncWrap::FireAsyncPostCallbacks(Environment* env, bool ranInitCallback, v8::Local<v8::Number> uid, v8::Local<v8::Object> obj, v8::Local<v8::Boolean> didUserCodeThrow) {
@@ -283,17 +252,7 @@ void AsyncWrap::FireAsyncPostCallbacks(Environment* env, bool ranInitCallback, v
     }
   }
 
-  env->set_current_async_wrap_uid(0);
-}
-
-static void NotifyAsyncEndFromJS(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  v8::Local<v8::Boolean> ranInitCallbacks = args[0].As<v8::Boolean>();
-  v8::Local<v8::Number> uid = args[1].As<v8::Number>();
-  v8::Local<v8::Object> obj = args[2].As<v8::Object>();
-  v8::Local<v8::Boolean> didUserCodeThrow = args[3].As<v8::Boolean>();
-  AsyncWrap::FireAsyncPostCallbacks(env, ranInitCallbacks->Value(), uid, obj, didUserCodeThrow);
-  AsyncWrap::FireAsyncDestroyCallbacks(env, ranInitCallbacks->BooleanValue(), uid);
+  env->async_hooks()->set_current_async_wrap_uid(0);
 }
 
 void AsyncWrap::FireAsyncDestroyCallbacks(Environment* env, bool ranInitCallbacks, v8::Local<v8::Number> uid) {
@@ -349,12 +308,18 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
     env->set_async_hooks_post_function(post_v.As<Function>());
   if (destroy_v->IsFunction())
     env->set_async_hooks_destroy_function(destroy_v.As<Function>());
+
+  env->async_hooks_callbacks_objects()->Set(0, fn_obj);
 }
 
+static void GetAsyncCallbacksFromJS(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(env->async_hooks_callbacks_objects());
+}
 
 static void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context) {
+                       Local<Value> unused,
+                       Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
@@ -362,11 +327,10 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "setupHooks", SetupHooks);
   env->SetMethod(target, "disable", DisableHooksJS);
   env->SetMethod(target, "enable", EnableHooksJS);
-  env->SetMethod(target, "getCurrentAsyncId", GetCurrentAsyncId);
-  env->SetMethod(target, "getNextAsyncId", GetNextAsyncId);
-  env->SetMethod(target, "notifyAsyncEnqueue", NotifyAsyncEnqueueFromJS);
-  env->SetMethod(target, "notifyAsyncStart", NotifyAsyncStartFromJS);
-  env->SetMethod(target, "notifyAsyncEnd", NotifyAsyncEndFromJS);
+  env->SetMethod(target, "getCurrentAsyncIdArray", GetCurrentAsyncIdArrayFromJS);
+  env->SetMethod(target, "getNextAsyncIdArray", GetNextAsyncIdArrayFromJS);
+  env->SetMethod(target, "getAsyncHookFields", GetAsyncHookFieldsFromJS);
+  env->SetMethod(target, "getAsyncCallbacks", GetAsyncCallbacksFromJS);
 
   Local<Object> async_providers = Object::New(isolate);
 #define V(PROVIDER)                                                           \
@@ -380,6 +344,7 @@ static void Initialize(Local<Object> target,
   env->set_async_hooks_pre_function(Local<Function>());
   env->set_async_hooks_post_function(Local<Function>());
   env->set_async_hooks_destroy_function(Local<Function>());
+  env->set_async_hooks_callbacks_objects(v8::Array::New(env->isolate(), 0));
 }
 
 
