@@ -473,21 +473,23 @@ An example of the possible output looks like:
   variables:
    {
      host_arch: 'x64',
-     node_install_npm: 'true',
+     node_install_npm: true,
      node_prefix: '',
-     node_shared_cares: 'false',
-     node_shared_http_parser: 'false',
-     node_shared_libuv: 'false',
-     node_shared_zlib: 'false',
-     node_use_dtrace: 'false',
-     node_use_openssl: 'true',
-     node_shared_openssl: 'false',
-     strict_aliasing: 'true',
+     node_shared_cares: false,
+     node_shared_http_parser: false,
+     node_shared_libuv: false,
+     node_shared_zlib: false,
+     node_use_dtrace: false,
+     node_use_openssl: true,
+     node_shared_openssl: false,
+     strict_aliasing: true,
      target_arch: 'x64',
-     v8_use_snapshot: 'true'
+     v8_use_snapshot: true
    }
 }
 ```
+
+The `process.config` object is read-only and cannot be modified or extended.
 
 ## process.connected
 
