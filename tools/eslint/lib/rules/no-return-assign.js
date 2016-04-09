@@ -54,11 +54,13 @@ module.exports = function(context) {
     return {
         "ReturnStatement": function(node) {
             var message = "Return statement should not contain assignment.";
+
             checkForAssignInReturn(node.argument, node, message);
         },
         "ArrowFunctionExpression": function(node) {
             if (node.body.type !== "BlockStatement") {
                 var message = "Arrow function should not return assignment.";
+
                 checkForAssignInReturn(node.body, node, message);
             }
         }

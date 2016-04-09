@@ -157,11 +157,13 @@ module.exports = function(context) {
         for (var i = 0; i < candidatesOfGlobalObject.length; ++i) {
             var name = candidatesOfGlobalObject[i];
             var variable = astUtils.getVariableByName(globalScope, name);
+
             if (!variable) {
                 continue;
             }
 
             var references = variable.references;
+
             for (var j = 0; j < references.length; ++j) {
                 var identifier = references[j].identifier;
                 var node = identifier.parent;
@@ -187,16 +189,19 @@ module.exports = function(context) {
      */
     function reportAccessingEval(globalScope) {
         var variable = astUtils.getVariableByName(globalScope, "eval");
+
         if (!variable) {
             return;
         }
 
         var references = variable.references;
+
         for (var i = 0; i < references.length; ++i) {
             var reference = references[i];
             var id = reference.identifier;
 
             if (id.name === "eval" && !astUtils.isCallee(id)) {
+
                 // Is accessing to eval (excludes direct calls to eval)
                 report(id);
             }
@@ -204,11 +209,12 @@ module.exports = function(context) {
     }
 
     if (allowIndirect) {
-        // Checks only direct calls to eval.
-        // It's simple!
+
+        // Checks only direct calls to eval. It's simple!
         return {
             "CallExpression:exit": function(node) {
                 var callee = node.callee;
+
                 if (isIdentifier(callee, "eval")) {
                     report(callee);
                 }
@@ -219,6 +225,7 @@ module.exports = function(context) {
     return {
         "CallExpression:exit": function(node) {
             var callee = node.callee;
+
             if (isIdentifier(callee, "eval")) {
                 report(callee);
             }
@@ -261,8 +268,10 @@ module.exports = function(context) {
                 return;
             }
 
-            // `this.eval` is found.
-            // Checks whether or not the value of `this` is the global object.
+            /*
+             * `this.eval` is found.
+             * Checks whether or not the value of `this` is the global object.
+             */
             if (!funcInfo.initialized) {
                 funcInfo.initialized = true;
                 funcInfo.defaultThis = astUtils.isDefaultThisBinding(
@@ -270,7 +279,9 @@ module.exports = function(context) {
                     sourceCode
                 );
             }
+
             if (!funcInfo.strict && funcInfo.defaultThis) {
+
                 // `this.eval` is possible built-in `eval`.
                 report(node.parent);
             }

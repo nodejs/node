@@ -27,8 +27,10 @@ module.exports = function(context) {
     var SUPPORTED_EXPRESSIONS = {
         "MemberExpression": properties && function(parent) {
             return !parent.computed && (
+
                 // regular property assignment
                 parent.parent.left === parent || (
+
                     // or the last identifier in an ObjectPattern destructuring
                     parent.parent.type === "Property" && parent.parent.value === parent &&
                     parent.parent.parent.type === "ObjectPattern" && parent.parent.parent.parent.left === parent.parent.parent
@@ -61,6 +63,7 @@ module.exports = function(context) {
 
             var isShort = name.length < minLength;
             var isLong = name.length > maxLength;
+
             if (!(isShort || isLong) || exceptions[name]) {
                 return;  // Nothing to report
             }

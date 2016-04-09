@@ -36,11 +36,14 @@ function getSourceCodeOfFile(filename, options) {
     var opts = lodash.assign({}, options, { rules: {}});
     var cli = new CLIEngine(opts);
     var results = cli.executeOnFiles([filename]);
+
     if (results && results.results[0] && results.results[0].messages[0] && results.results[0].messages[0].fatal) {
         var msg = results.results[0].messages[0];
+
         throw new Error("(" + filename + ":" + msg.line + ":" + msg.column + ") " + msg.message);
     }
     var sourceCode = eslint.getSourceCode();
+
     return sourceCode;
 }
 
@@ -84,14 +87,17 @@ function getSourceCodeOfFiles(patterns, options, cb) {
         opts = lodash.assign({}, defaultOptions, options);
     }
     debug("constructed options:", opts);
+    patterns = globUtil.resolveFileGlobPatterns(patterns, opts);
 
-    patterns = globUtil.resolveFileGlobPatterns(patterns, opts.extensions);
-    filenames = globUtil.listFilesToProcess(patterns, opts);
+    filenames = globUtil.listFilesToProcess(patterns, opts).reduce(function(files, fileInfo) {
+        return !fileInfo.ignored ? files.concat(fileInfo.filename) : files;
+    }, []);
     if (filenames.length === 0) {
         debug("Did not find any files matching pattern(s): " + patterns);
     }
     filenames.forEach(function(filename) {
         var sourceCode = getSourceCodeOfFile(filename, opts);
+
         if (sourceCode) {
             debug("got sourceCode of", filename);
             sourceCodes[filename] = sourceCode;

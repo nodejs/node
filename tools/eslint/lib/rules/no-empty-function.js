@@ -81,6 +81,7 @@ function getKind(node) {
 
     // Detects prefix.
     var prefix = "";
+
     if (node.generator) {
         prefix = "generator";
     } else if (node.async) {

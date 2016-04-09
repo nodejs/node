@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('dropRightWhile', require('../dropRightWhile'));
+var convert = require('./convert'),
+    func = convert('dropRightWhile', require('../dropRightWhile'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

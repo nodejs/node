@@ -54,7 +54,11 @@ module.exports = function(context) {
     return {
 
         "Identifier": function(node) {
-            // Leading and trailing underscores are commonly used to flag private/protected identifiers, strip them
+
+            /*
+             * Leading and trailing underscores are commonly used to flag
+             * private/protected identifiers, strip them
+             */
             var name = node.name.replace(/^_+|_+$/g, ""),
                 effectiveParent = (node.parent.type === "MemberExpression") ? node.parent.parent : node.parent;
 
@@ -83,6 +87,7 @@ module.exports = function(context) {
 
             // Properties have their own rules
             } else if (node.parent.type === "Property") {
+
                 // "never" check properties
                 if (properties === "never") {
                     return;

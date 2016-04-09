@@ -27,6 +27,7 @@ function isFunctionName(variable) {
  * @returns {boolean} `true` if the node is the specific value.
  */
 function checkMetaProperty(node, metaName, propertyName) {
+
     // TODO: Remove this if block after https://github.com/eslint/espree/issues/206 was fixed.
     if (typeof node.meta === "string") {
         return node.meta === metaName && node.property === propertyName;
@@ -41,11 +42,17 @@ function checkMetaProperty(node, metaName, propertyName) {
  */
 function getVariableOfArguments(scope) {
     var variables = scope.variables;
+
     for (var i = 0; i < variables.length; ++i) {
         var variable = variables[i];
+
         if (variable.name === "arguments") {
-            // If there was a parameter which is named "arguments", the implicit "arguments" is not defined.
-            // So does fast return with null.
+
+            /*
+             * If there was a parameter which is named "arguments", the
+             * implicit "arguments" is not defined.
+             * So does fast return with null.
+             */
             return (variable.identifiers.length === 0) ? variable : null;
         }
     }
@@ -64,9 +71,12 @@ function getVariableOfArguments(scope) {
 function getCallbackInfo(node) {
     var retv = {isCallback: false, isLexicalThis: false};
     var parent = node.parent;
+
     while (node) {
         switch (parent.type) {
+
             // Checks parents recursively.
+
             case "LogicalExpression":
             case "ConditionalExpression":
                 break;
@@ -116,10 +126,13 @@ function getCallbackInfo(node) {
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-    // {Array<{this: boolean, super: boolean, meta: boolean}>}
-    // - this - A flag which shows there are one or more ThisExpression.
-    // - super - A flag which shows there are one or more Super.
-    // - meta - A flag which shows there are one or more MethProperty.
+
+    /*
+     * {Array<{this: boolean, super: boolean, meta: boolean}>}
+     * - this - A flag which shows there are one or more ThisExpression.
+     * - super - A flag which shows there are one or more Super.
+     * - meta - A flag which shows there are one or more MethProperty.
+     */
     var stack = [];
 
     /**
@@ -139,6 +152,7 @@ module.exports = function(context) {
     }
 
     return {
+
         // Reset internal state.
         Program: function() {
             stack = [];
@@ -147,18 +161,23 @@ module.exports = function(context) {
         // If there are below, it cannot replace with arrow functions merely.
         ThisExpression: function() {
             var info = stack[stack.length - 1];
+
             if (info) {
                 info.this = true;
             }
         },
+
         Super: function() {
             var info = stack[stack.length - 1];
+
             if (info) {
                 info.super = true;
             }
         },
+
         MetaProperty: function(node) {
             var info = stack[stack.length - 1];
+
             if (info && checkMetaProperty(node, "new", "target")) {
                 info.meta = true;
             }
@@ -180,18 +199,21 @@ module.exports = function(context) {
 
             // Skip recursive functions.
             var nameVar = context.getDeclaredVariables(node)[0];
+
             if (isFunctionName(nameVar) && nameVar.references.length > 0) {
                 return;
             }
 
             // Skip if it's using arguments.
             var variable = getVariableOfArguments(context.getScope());
+
             if (variable && variable.references.length > 0) {
                 return;
             }
 
             // Reports if it's a callback which can replace with arrows.
             var callbackInfo = getCallbackInfo(node);
+
             if (callbackInfo.isCallback &&
                 (!scopeInfo.this || callbackInfo.isLexicalThis) &&
                 !scopeInfo.super &&

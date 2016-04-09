@@ -25,6 +25,7 @@ function eachSelfAssignment(left, right, report) {
     var i, j;
 
     if (!left || !right) {
+
         // do nothing
     } else if (
         left.type === "Identifier" &&
@@ -37,6 +38,7 @@ function eachSelfAssignment(left, right, report) {
         right.type === "ArrayExpression"
     ) {
         var end = Math.min(left.elements.length, right.elements.length);
+
         for (i = 0; i < end; ++i) {
             var rightElement = right.elements[i];
 
@@ -57,9 +59,11 @@ function eachSelfAssignment(left, right, report) {
         right.type === "ObjectExpression" &&
         right.properties.length >= 1
     ) {
+
         // Gets the index of the last spread property.
         // It's possible to overwrite properties followed by it.
         var startJ = 0;
+
         for (i = right.properties.length - 1; i >= 0; --i) {
             if (right.properties[i].type === "ExperimentalSpreadProperty") {
                 startJ = i + 1;
@@ -94,6 +98,7 @@ function eachSelfAssignment(left, right, report) {
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+
     /**
      * Reports a given node as self assignments.
      *
@@ -110,7 +115,9 @@ module.exports = function(context) {
 
     return {
         "AssignmentExpression": function(node) {
-            eachSelfAssignment(node.left, node.right, report);
+            if (node.operator === "=") {
+                eachSelfAssignment(node.left, node.right, report);
+            }
         }
     };
 };

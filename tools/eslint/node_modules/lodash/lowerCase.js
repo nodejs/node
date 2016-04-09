@@ -5,12 +5,13 @@ var createCompounder = require('./_createCompounder');
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category String
  * @param {string} [string=''] The string to convert.
  * @returns {string} Returns the lower cased string.
  * @example
  *
- * _.lowerCase('--Foo-Bar');
+ * _.lowerCase('--Foo-Bar--');
  * // => 'foo bar'
  *
  * _.lowerCase('fooBar');

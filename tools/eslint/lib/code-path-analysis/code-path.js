@@ -27,6 +27,7 @@ var IdGenerator = require("./id-generator");
  * @param {function} onLooped - A callback function to notify looping.
  */
 function CodePath(id, upper, onLooped) {
+
     /**
      * The identifier of this code path.
      * Rules use it to store additional information of each rule.
@@ -102,6 +103,123 @@ CodePath.prototype = {
      */
     get currentSegments() {
         return this.internal.currentSegments;
+    },
+
+    /**
+     * Traverses all segments in this code path.
+     *
+     *     codePath.traverseSegments(function(segment, controller) {
+     *         // do something.
+     *     });
+     *
+     * This method enumerates segments in order from the head.
+     *
+     * The `controller` object has two methods.
+     *
+     * - `controller.skip()` - Skip the following segments in this branch.
+     * - `controller.break()` - Skip all following segments.
+     *
+     * @param {object} [options] - Omittable.
+     * @param {CodePathSegment} [options.first] - The first segment to traverse.
+     * @param {CodePathSegment} [options.last] - The last segment to traverse.
+     * @param {function} callback - A callback function.
+     * @returns {void}
+     */
+    traverseSegments: function(options, callback) {
+        if (typeof options === "function") {
+            callback = options;
+            options = null;
+        }
+
+        options = options || {};
+        var startSegment = options.first || this.internal.initialSegment;
+        var lastSegment = options.last;
+
+        var item = null;
+        var index = 0;
+        var end = 0;
+        var segment = null;
+        var visited = Object.create(null);
+        var stack = [[startSegment, 0]];
+        var skippedSegment = null;
+        var broken = false;
+        var controller = {
+            skip: function() {
+                if (stack.length <= 1) {
+                    broken = true;
+                } else {
+                    skippedSegment = stack[stack.length - 2][0];
+                }
+            },
+            break: function() {
+                broken = true;
+            }
+        };
+
+        /**
+         * Checks a given previous segment has been visited.
+         * @param {CodePathSegment} prevSegment - A previous segment to check.
+         * @returns {boolean} `true` if the segment has been visited.
+         */
+        function isVisited(prevSegment) {
+            return (
+                visited[prevSegment.id] ||
+                segment.isLoopedPrevSegment(prevSegment)
+            );
+        }
+
+        while (stack.length > 0) {
+            item = stack[stack.length - 1];
+            segment = item[0];
+            index = item[1];
+
+            if (index === 0) {
+
+                // Skip if this segment has been visited already.
+                if (visited[segment.id]) {
+                    stack.pop();
+                    continue;
+                }
+
+                // Skip if all previous segments have not been visited.
+                if (segment !== startSegment &&
+                    segment.prevSegments.length > 0 &&
+                    !segment.prevSegments.every(isVisited)
+                ) {
+                    stack.pop();
+                    continue;
+                }
+
+                // Reset the flag of skipping if all branches have been skipped.
+                if (skippedSegment && segment.prevSegments.indexOf(skippedSegment) !== -1) {
+                    skippedSegment = null;
+                }
+                visited[segment.id] = true;
+
+                // Call the callback when the first time.
+                if (!skippedSegment) {
+                    callback.call(this, segment, controller); // eslint-disable-line callback-return
+                    if (segment === lastSegment) {
+                        controller.skip();
+                    }
+                    if (broken) {
+                        break;
+                    }
+                }
+            }
+
+            // Update the stack.
+            end = segment.nextSegments.length - 1;
+            if (index < end) {
+                item[1] += 1;
+                stack.push([segment.nextSegments[index], 0]);
+            } else if (index === end) {
+                item[0] = segment.nextSegments[index];
+                item[1] = 0;
+            } else {
+                stack.pop();
+            }
+        }
     }
 };
 

@@ -29,11 +29,30 @@ if (debug) {
 
 // now we can safely include the other modules that use debug
 var concat = require("concat-stream"),
-    cli = require("../lib/cli");
+    cli = require("../lib/cli"),
+    path = require("path"),
+    fs = require("fs");
 
 //------------------------------------------------------------------------------
 // Execution
 //------------------------------------------------------------------------------
+
+process.on("uncaughtException", function(err){
+    // lazy load
+    var lodash = require("lodash");
+
+    if (typeof err.messageTemplate === "string" && err.messageTemplate.length > 0) {
+        var template = lodash.template(fs.readFileSync(path.resolve(__dirname, "../messages/" + err.messageTemplate + ".txt"), "utf-8"));
+
+        console.log("\nOops! Something went wrong! :(");
+        console.log("\n" + template(err.messageData || {}));
+    } else {
+        console.log(err.message);
+        console.log(err.stack);
+    }
+
+    process.exit(1);
+});
 
 if (useStdIn) {
     process.stdin.pipe(concat({ encoding: "string" }, function(text) {

@@ -10,9 +10,11 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+
     // merge rules with default
-    var rule = { before: true, after: true };
-    var option = context.options[0] || {};
+    var rule = { before: true, after: true },
+        option = context.options[0] || {};
+
     rule.before = option.before !== false;
     rule.after = option.after !== false;
 
@@ -24,11 +26,13 @@ module.exports = function(context) {
     function getTokens(node) {
         var t = context.getFirstToken(node);
         var before;
+
         while (t.type !== "Punctuator" || t.value !== "=>") {
             before = t;
             t = context.getTokenAfter(t);
         }
         var after = context.getTokenAfter(t);
+
         return { before: before, arrow: t, after: after };
     }
 
@@ -40,6 +44,7 @@ module.exports = function(context) {
     function countSpaces(tokens) {
         var before = tokens.arrow.range[0] - tokens.before.range[1];
         var after = tokens.after.range[0] - tokens.arrow.range[1];
+
         return { before: before, after: after };
     }
 
@@ -55,6 +60,7 @@ module.exports = function(context) {
         var countSpace = countSpaces(tokens);
 
         if (rule.before) {
+
             // should be space(s) before arrow
             if (countSpace.before === 0) {
                 context.report({
@@ -66,6 +72,7 @@ module.exports = function(context) {
                 });
             }
         } else {
+
             // should be no space before arrow
             if (countSpace.before > 0) {
                 context.report({
@@ -79,6 +86,7 @@ module.exports = function(context) {
         }
 
         if (rule.after) {
+
             // should be space(s) after arrow
             if (countSpace.after === 0) {
                 context.report({
@@ -90,6 +98,7 @@ module.exports = function(context) {
                 });
             }
         } else {
+
             // should be no space after arrow
             if (countSpace.after > 0) {
                 context.report({
