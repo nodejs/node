@@ -10,7 +10,7 @@ var fs = require('fs');
 //@ + `'-d', 'path'`: true if path is a directory
 //@ + `'-e', 'path'`: true if path exists
 //@ + `'-f', 'path'`: true if path is a regular file
-//@ + `'-L', 'path'`: true if path is a symboilc link
+//@ + `'-L', 'path'`: true if path is a symbolic link
 //@ + `'-p', 'path'`: true if path is a pipe (FIFO)
 //@ + `'-S', 'path'`: true if path is a socket
 //@

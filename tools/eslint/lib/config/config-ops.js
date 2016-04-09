@@ -21,6 +21,12 @@ var lodash = require("lodash"),
 
 debug = debug("eslint:config-ops");
 
+var RULE_SEVERITY_STRINGS = ["off", "warn", "error"],
+    RULE_SEVERITY = RULE_SEVERITY_STRINGS.reduce(function(map, value, index) {
+        map[value] = index;
+        return map;
+    }, {});
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -99,6 +105,7 @@ module.exports = {
      * @returns {Object} merged config object.
      */
     merge: function deepmerge(target, src, combine, isRule) {
+
         /*
          The MIT License (MIT)
 
@@ -122,7 +129,12 @@ module.exports = {
          OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
          THE SOFTWARE.
          */
-        // This code is taken from deepmerge repo (https://github.com/KyleAMathews/deepmerge) and modified to meet our needs.
+
+        /*
+         * This code is taken from deepmerge repo
+         * (https://github.com/KyleAMathews/deepmerge)
+         * and modified to meet our needs.
+         */
         var array = Array.isArray(src) || Array.isArray(target);
         var dst = array && [] || {};
 
@@ -130,7 +142,9 @@ module.exports = {
         isRule = !!isRule;
         if (array) {
             target = target || [];
-            if (isRule && src.length > 1) {
+
+            // src could be a string, so check for array
+            if (isRule && Array.isArray(src) && src.length > 1) {
                 dst = dst.concat(src);
             } else {
                 dst = dst.concat(target);
@@ -176,7 +190,66 @@ module.exports = {
         }
 
         return dst;
-    }
+    },
 
+    /**
+     * Converts new-style severity settings (off, warn, error) into old-style
+     * severity settings (0, 1, 2) for all rules. Assumption is that severity
+     * values have already been validated as correct.
+     * @param {Object} config The config object to normalize.
+     * @returns {void}
+     */
+    normalize: function(config) {
+
+        if (config.rules) {
+            Object.keys(config.rules).forEach(function(ruleId) {
+                var ruleConfig = config.rules[ruleId];
+
+                if (typeof ruleConfig === "string") {
+                    config.rules[ruleId] = RULE_SEVERITY[ruleConfig.toLowerCase()] || 0;
+                } else if (Array.isArray(ruleConfig) && typeof ruleConfig[0] === "string") {
+                    ruleConfig[0] = RULE_SEVERITY[ruleConfig[0].toLowerCase()] || 0;
+                }
+            });
+        }
+    },
+
+    /**
+     * Converts old-style severity settings (0, 1, 2) into new-style
+     * severity settings (off, warn, error) for all rules. Assumption is that severity
+     * values have already been validated as correct.
+     * @param {Object} config The config object to normalize.
+     * @returns {void}
+     */
+    normalizeToStrings: function(config) {
+
+        if (config.rules) {
+            Object.keys(config.rules).forEach(function(ruleId) {
+                var ruleConfig = config.rules[ruleId];
+
+                if (typeof ruleConfig === "number") {
+                    config.rules[ruleId] = RULE_SEVERITY_STRINGS[ruleConfig] || RULE_SEVERITY_STRINGS[0];
+                } else if (Array.isArray(ruleConfig) && typeof ruleConfig[0] === "number") {
+                    ruleConfig[0] = RULE_SEVERITY_STRINGS[ruleConfig[0]] || RULE_SEVERITY_STRINGS[0];
+                }
+            });
+        }
+    },
+
+    /**
+     * Determines if the severity for the given rule configuration represents an error.
+     * @param {int|string|Array} ruleConfig The configuration for an individual rule.
+     * @returns {boolean} True if the rule represents an error, false if not.
+     */
+    isErrorSeverity: function(ruleConfig) {
+
+        var severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
+
+        if (typeof severity === "string") {
+            severity = RULE_SEVERITY[severity.toLowerCase()] || 0;
+        }
+
+        return (typeof severity === "number" && severity === 2);
+    }
 
 };

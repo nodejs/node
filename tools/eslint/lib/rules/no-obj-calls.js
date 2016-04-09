@@ -16,6 +16,7 @@ module.exports = function(context) {
 
             if (node.callee.type === "Identifier") {
                 var name = node.callee.name;
+
                 if (name === "Math" || name === "JSON") {
                     context.report(node, "'{{name}}' is not a function.", { name: name });
                 }

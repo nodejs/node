@@ -57,6 +57,7 @@ function display(data) {
     var rows = Object.keys(data)
         .map(function(key) {
             var time = data[key];
+
             total += time;
             return [key, time];
         })
@@ -73,8 +74,12 @@ function display(data) {
     rows.unshift(HEADERS);
 
     var widths = [];
+
     rows.forEach(function(row) {
-        var len = row.length, i, n;
+        var len = row.length,
+            i,
+            n;
+
         for (i = 0; i < len; i++) {
             n = row[i].length;
             if (!widths[i] || n > widths[i]) {
@@ -88,6 +93,7 @@ function display(data) {
             return ALIGN[index](cell, widths[index]);
         }).join(" | ");
     });
+
     table.splice(1, 0, widths.map(function(w, index) {
         if (index !== 0 && index !== widths.length - 1) {
             w++;
@@ -118,6 +124,7 @@ module.exports = (function() {
 
         return function() {
             var t = process.hrtime();
+
             fn.apply(null, Array.prototype.slice.call(arguments));
             t = process.hrtime(t);
             data[key] += t[0] * 1e3 + t[1] / 1e6;

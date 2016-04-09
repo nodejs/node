@@ -22,6 +22,7 @@ function _toEnd(options, file) {
 
   try {
     fs.appendFileSync(file, this.toString(), 'utf8');
+    return this;
   } catch(e) {
     common.error('could not append to file (code '+e.code+'): '+file, true);
   }

@@ -16,6 +16,7 @@ module.exports = function(context) {
     var allowKeywords = options.allowKeywords === void 0 || !!options.allowKeywords;
 
     var allowPattern;
+
     if (options.allowPattern) {
         allowPattern = new RegExp(options.allowPattern);
     }
@@ -29,7 +30,7 @@ module.exports = function(context) {
                 (allowKeywords || keywords.indexOf("" + node.property.value) === -1)
             ) {
                 if (!(allowPattern && allowPattern.test(node.property.value))) {
-                    context.report(node, "[" + JSON.stringify(node.property.value) + "] is better written in dot notation.");
+                    context.report(node.property, "[" + JSON.stringify(node.property.value) + "] is better written in dot notation.");
                 }
             }
             if (
@@ -37,7 +38,7 @@ module.exports = function(context) {
                 !node.computed &&
                 keywords.indexOf("" + node.property.name) !== -1
             ) {
-                context.report(node, "." + node.property.name + " is a syntax error.");
+                context.report(node.property, "." + node.property.name + " is a syntax error.");
             }
         }
     };

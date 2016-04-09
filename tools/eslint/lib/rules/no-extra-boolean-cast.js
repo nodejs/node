@@ -31,6 +31,7 @@ module.exports = function(context) {
         return (
             (BOOLEAN_NODE_TYPES.indexOf(parent.type) !== -1 &&
                 node === parent.test) ||
+
             // !<bool>
             (parent.type === "UnaryExpression" &&
                 parent.operator === "!")
@@ -52,6 +53,7 @@ module.exports = function(context) {
             }
 
             if (isInBooleanContext(parent, grandparent) ||
+
                 // Boolean(<bool>) and new Boolean(<bool>)
                 ((grandparent.type === "CallExpression" || grandparent.type === "NewExpression") &&
                     grandparent.callee.type === "Identifier" &&

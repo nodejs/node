@@ -34,7 +34,7 @@ The primary method is `parse()`, which accepts two arguments: the JSDoc comment 
 * `tags` - an array of tags to return. When specified, Doctrine returns only tags in this array. For example, if `tags` is `["param"]`, then only `@param` tags will be returned. Default: `null`.
 * `recoverable` - set to `true` to keep parsing even when syntax errors occur. Default: `false`.
 * `sloppy` - set to `true` to allow optional parameters to be specified in brackets (`@param {string} [foo]`). Default: `false`.
-* `lineNumberes` - set to `true` to add `lineNumber` to each node, specifying the line on which the node is found in the source. Default: `false`.
+* `lineNumbers` - set to `true` to add `lineNumber` to each node, specifying the line on which the node is found in the source. Default: `false`.
 
 Here's a simple example:
 

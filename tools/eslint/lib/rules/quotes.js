@@ -34,6 +34,7 @@ var QUOTE_SETTINGS = {
         description: "backtick"
     }
 };
+
 /**
  * Switches quoting of javascript string between ' " and `
  * escaping and unescaping as necessary.
@@ -48,6 +49,7 @@ QUOTE_SETTINGS.single.convert =
 QUOTE_SETTINGS.backtick.convert = function(str) {
     var newQuote = this.quote;
     var oldQuote = str[0];
+
     if (newQuote === oldQuote) {
         return str;
     }
@@ -113,6 +115,7 @@ module.exports = function(context) {
      */
     function isPartOfDirectivePrologue(node) {
         var block = node.parent.parent;
+
         if (block.type !== "Program" && (block.type !== "BlockStatement" || !FUNCTION_TYPE.test(block.parent.type))) {
             return false;
         }
@@ -142,6 +145,7 @@ module.exports = function(context) {
         var parent = node.parent;
 
         switch (parent.type) {
+
             // Directive Prologues.
             case "ExpressionStatement":
                 return isPartOfDirectivePrologue(node);

@@ -3,16 +3,17 @@ var path = require('path');
 var common = require('./common');
 
 //@
-//@ ### mv(source [, source ...], dest')
-//@ ### mv(source_array, dest')
+//@ ### mv([options ,] source [, source ...], dest')
+//@ ### mv([options ,] source_array, dest')
 //@ Available options:
 //@
-//@ + `f`: force
+//@ + `-f`: force (default behavior)
+//@ + `-n`: no-clobber
 //@
 //@ Examples:
 //@
 //@ ```javascript
-//@ mv('-f', 'file', 'dir/');
+//@ mv('-n', 'file', 'dir/');
 //@ mv('file1', 'file2', 'dir/');
 //@ mv(['file1', 'file2'], 'dir/'); // same as above
 //@ ```
@@ -20,7 +21,8 @@ var common = require('./common');
 //@ Moves files. The wildcard `*` is accepted.
 function _mv(options, sources, dest) {
   options = common.parseOptions(options, {
-    'f': 'force'
+    'f': '!no_force',
+    'n': 'no_force'
   });
 
   // Get sources, dest
@@ -47,7 +49,7 @@ function _mv(options, sources, dest) {
     common.error('dest is not a directory (too many sources)');
 
   // Dest is an existing file, but no -f given
-  if (exists && stats.isFile() && !options.force)
+  if (exists && stats.isFile() && options.no_force)
     common.error('dest file already exists: ' + dest);
 
   sources.forEach(function(src) {
@@ -64,7 +66,7 @@ function _mv(options, sources, dest) {
     if (fs.existsSync(dest) && fs.statSync(dest).isDirectory())
       thisDest = path.normalize(dest + '/' + path.basename(src));
 
-    if (fs.existsSync(thisDest) && !options.force) {
+    if (fs.existsSync(thisDest) && options.no_force) {
       common.error('dest file already exists: ' + thisDest, true);
       return; // skip file
     }

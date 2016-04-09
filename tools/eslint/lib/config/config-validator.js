@@ -13,7 +13,8 @@
 
 var rules = require("../rules"),
     Environments = require("./environments"),
-    schemaValidator = require("is-my-json-valid");
+    schemaValidator = require("is-my-json-valid"),
+    util = require("util");
 
 var validators = {
     rules: Object.create(null)
@@ -83,7 +84,10 @@ function validateRuleOptions(id, options, source) {
         localOptions = [];
     }
 
-    validSeverity = (severity === 0 || severity === 1 || severity === 2);
+    validSeverity = (
+        severity === 0 || severity === 1 || severity === 2 ||
+        (typeof severity === "string" && /^(?:off|warn|error)$/i.test(severity))
+    );
 
     if (validateRule) {
         validateRule(localOptions);
@@ -97,7 +101,10 @@ function validateRuleOptions(id, options, source) {
 
         if (!validSeverity) {
             message.push(
-                "\tSeverity should be one of the following: 0 = off, 1 = warning, 2 = error (you passed \"", severity, "\").\n");
+                "\tSeverity should be one of the following: 0 = off, 1 = warn, 2 = error (you passed '",
+                util.inspect(severity).replace(/'/g, "\"").replace(/\n/g, ""),
+                "').\n"
+            );
         }
 
         if (validateRule && validateRule.errors) {
@@ -136,6 +143,7 @@ function validateEnvironment(environment, source) {
                     source, ":\n",
                     "\tEnvironment key \"", env, "\" is unknown\n"
                 ];
+
                 throw new Error(message.join(""));
             }
         });

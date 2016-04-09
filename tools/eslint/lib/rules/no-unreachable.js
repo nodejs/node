@@ -47,10 +47,12 @@ module.exports = function(context) {
     }
 
     return {
+
         // Manages the current code path.
         "onCodePathStart": function(codePath) {
             currentCodePath = codePath;
         },
+
         "onCodePathEnd": function() {
             currentCodePath = currentCodePath.upper;
         },
@@ -74,11 +76,13 @@ module.exports = function(context) {
         SwitchStatement: reportIfUnreachable,
         ThrowStatement: reportIfUnreachable,
         TryStatement: reportIfUnreachable,
+
         VariableDeclaration: function(node) {
             if (node.kind !== "var" || node.declarations.some(isInitialized)) {
                 reportIfUnreachable(node);
             }
         },
+
         WhileStatement: reportIfUnreachable,
         WithStatement: reportIfUnreachable,
         ExportNamedDeclaration: reportIfUnreachable,

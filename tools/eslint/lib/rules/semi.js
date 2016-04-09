@@ -101,11 +101,13 @@ module.exports = function(context) {
      */
     function isOneLinerBlock(node) {
         var nextToken = context.getTokenAfter(node);
+
         if (!nextToken || nextToken.value !== "}") {
             return false;
         }
 
         var parent = node.parent;
+
         return parent && parent.type === "BlockStatement" &&
           parent.loc.start.line === parent.loc.end.line;
     }

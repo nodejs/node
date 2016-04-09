@@ -4,11 +4,12 @@ var constant = require('./constant'),
 
 /**
  * Creates an object composed of the inverted keys and values of `object`.
- * If `object` contains duplicate values, subsequent values overwrite property
- * assignments of previous values.
+ * If `object` contains duplicate values, subsequent values overwrite
+ * property assignments of previous values.
  *
  * @static
  * @memberOf _
+ * @since 0.7.0
  * @category Object
  * @param {Object} object The object to invert.
  * @returns {Object} Returns the new inverted object.

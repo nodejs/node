@@ -43,6 +43,7 @@ module.exports = function(context) {
 
         var declarations = node.declarations;
         var prev;
+
         declarations.forEach(function(current) {
             if (prev && prev.loc.end.line === current.loc.start.line) {
                 if (always || prev.init || current.init) {

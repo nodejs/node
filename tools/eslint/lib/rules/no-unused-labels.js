@@ -61,6 +61,7 @@ module.exports = function(context) {
 
         var label = node.label.name;
         var info = scopeInfo;
+
         while (info) {
             if (info.label === label) {
                 info.used = true;
