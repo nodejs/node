@@ -161,6 +161,46 @@
               '../../deps/icu/source/i18n/uspoof_impl.h',
               '../../deps/icu/source/i18n/uspoof_wsconf.cpp',
               '../../deps/icu/source/i18n/uspoof_wsconf.h',
+            ]}],         
+            [ 'icu_ver_major == 57', { 'sources!': [
+              ## Strip out the following for ICU 55 only.
+              ## add more conditions in the future?
+              ## if your compiler can dead-strip, this will
+              ## make ZERO difference to binary size.
+              ## Made ICU-specific for future-proofing.
+
+              # alphabetic index
+              '../../deps/icu/source/i18n/alphaindex.cpp',
+              # BOCSU
+              # misc
+              '../../deps/icu/source/i18n/regexcmp.cpp',
+              '../../deps/icu/source/i18n/regexcmp.h',
+              '../../deps/icu/source/i18n/regexcst.h',
+              '../../deps/icu/source/i18n/regeximp.cpp',
+              '../../deps/icu/source/i18n/regeximp.h',
+              '../../deps/icu/source/i18n/regexst.cpp',
+              '../../deps/icu/source/i18n/regexst.h',
+              '../../deps/icu/source/i18n/regextxt.cpp',
+              '../../deps/icu/source/i18n/regextxt.h',
+              '../../deps/icu/source/i18n/region.cpp',
+              '../../deps/icu/source/i18n/region_impl.h',
+              '../../deps/icu/source/i18n/reldatefmt.cpp',
+              '../../deps/icu/source/i18n/reldatefmt.h'
+              '../../deps/icu/source/i18n/scientificformathelper.cpp',
+              '../../deps/icu/source/i18n/tmunit.cpp',
+              '../../deps/icu/source/i18n/tmutamt.cpp',
+              '../../deps/icu/source/i18n/tmutfmt.cpp',
+              '../../deps/icu/source/i18n/uregex.cpp',
+              '../../deps/icu/source/i18n/uregexc.cpp',
+              '../../deps/icu/source/i18n/uregion.cpp',
+              '../../deps/icu/source/i18n/uspoof.cpp',
+              '../../deps/icu/source/i18n/uspoof_build.cpp',
+              '../../deps/icu/source/i18n/uspoof_conf.cpp',
+              '../../deps/icu/source/i18n/uspoof_conf.h',
+              '../../deps/icu/source/i18n/uspoof_impl.cpp',
+              '../../deps/icu/source/i18n/uspoof_impl.h',
+              '../../deps/icu/source/i18n/uspoof_wsconf.cpp',
+              '../../deps/icu/source/i18n/uspoof_wsconf.h',
             ]}]],
           'include_dirs': [
             '../../deps/icu/source/i18n',
@@ -380,13 +420,10 @@
         '<@(icu_src_common)',
       ],
       'conditions': [
+        ## if your compiler can dead-strip, these will
+        ## make ZERO difference to binary size.
+        ## Made ICU-specific for future-proofing.
         [ 'icu_ver_major == 55', { 'sources!': [
-          ## Strip out the following for ICU 55 only.
-          ## add more conditions in the future?
-          ## if your compiler can dead-strip, this will
-          ## make ZERO difference to binary size.
-          ## Made ICU-specific for future-proofing.
-
           # bidi- not needed (yet!)
           '../../deps/icu/source/common/ubidi.c',
           '../../deps/icu/source/common/ubidiimp.h',
@@ -400,6 +437,24 @@
           '../../deps/icu/source/common/usprep.cpp',
           '../../deps/icu/source/common/uts46.cpp',
           '../../deps/icu/source/common/uidna.cpp',
+        ]}],
+        [ 'icu_ver_major == 57', { 'sources!': [
+          # bidi- not needed (yet!)
+          '../../deps/icu/source/common/ubidi.c',
+          '../../deps/icu/source/common/ubidiimp.h',
+          '../../deps/icu/source/common/ubidiln.c',
+          '../../deps/icu/source/common/ubidiwrt.c',
+          #'../../deps/icu/source/common/ubidi_props.c',
+          #'../../deps/icu/source/common/ubidi_props.h',
+          #'../../deps/icu/source/common/ubidi_props_data.h',
+          # and the callers
+          '../../deps/icu/source/common/ushape.cpp',
+          '../../deps/icu/source/common/usprep.cpp',
+          '../../deps/icu/source/common/uts46.cpp',
+          '../../deps/icu/source/common/uidna.cpp',
+          # work around http://bugs.icu-project.org/trac/ticket/12451
+          # (benign afterwards)
+          '../../deps/icu/source/common/cstr.cpp',
         ]}],
         [ 'OS == "solaris"', { 'defines': [
           '_XOPEN_SOURCE_EXTENDED=0',
