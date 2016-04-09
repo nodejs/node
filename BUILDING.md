@@ -117,29 +117,14 @@ $ make
 
 ### `Intl` (ECMA-402) support:
 
-[Intl](https://github.com/nodejs/node/wiki/Intl) support is not
-enabled by default.
+[Intl](https://github.com/nodejs/node/wiki/Intl) support is
+enabled by default, with English data only.
 
+#### Default: `small-icu` (English only) support
 
-#### "small" (English only) support
-
-This option will build with "small" (English only) support, but
-the full `Intl` (ECMA-402) APIs.  With `--download=all` it will
-download the ICU library as needed.
-
-##### Unix / OS X:
-
-```text
-$ ./configure --with-intl=small-icu --download=all
-```
-
-##### Windows:
-
-```text
-> vcbuild small-icu download-all
-```
-
-The `small-icu` mode builds with English-only data. You can add full
+By default, only English data is included, but
+the full `Intl` (ECMA-402) APIs.  It does not need to download
+any dependencies to function. You can add full
 data at runtime.
 
 *Note:* more docs are on
@@ -148,7 +133,8 @@ data at runtime.
 #### Build with full ICU support (all locales supported by ICU):
 
 With the `--download=all`, this may download ICU if you don't have an
-ICU in `deps/icu`.
+ICU in `deps/icu`. (The embedded `small-icu` included in the default
+Node.js source does not include all locales.)
 
 ##### Unix / OS X:
 
@@ -164,19 +150,19 @@ $ ./configure --with-intl=full-icu --download=all
 
 #### Building without Intl support
 
-The `Intl` object will not be available. This is the default at
-present, so this option is not normally needed.
+The `Intl` object will not be available, nor some other APIs such as
+`String.normalize`.
 
 ##### Unix / OS X:
 
 ```text
-$ ./configure --with-intl=none
+$ ./configure --without-intl
 ```
 
 ##### Windows:
 
 ```text
-> vcbuild intl-none
+> vcbuild without-intl
 ```
 
 #### Use existing installed ICU (Unix / OS X only):
