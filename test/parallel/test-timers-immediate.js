@@ -5,7 +5,6 @@ var assert = require('assert');
 let immediateA = false;
 let immediateB = false;
 let immediateC = [];
-let before;
 
 setImmediate(function() {
   try {
@@ -16,7 +15,7 @@ setImmediate(function() {
   clearImmediate(immediateB);
 });
 
-before = process.hrtime();
+const before = process.hrtime();
 
 immediateB = setImmediate(function() {
   immediateB = true;
