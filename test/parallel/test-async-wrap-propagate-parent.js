@@ -6,7 +6,6 @@ const net = require('net');
 const async_wrap = process.binding('async_wrap');
 
 let cntr = 0;
-let server;
 let client;
 
 function init(type, id, parent) {
@@ -25,7 +24,7 @@ function noop() { }
 async_wrap.setupHooks(init, noop, noop);
 async_wrap.enable();
 
-server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
   client = c;
   // Allow init callback to run before closing.
   setImmediate(() => {
