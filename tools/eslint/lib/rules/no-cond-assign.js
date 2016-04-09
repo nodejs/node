@@ -87,6 +87,7 @@ module.exports = function(context) {
                 !isParenthesisedTwice(node.test)
             )
         ) {
+
             // must match JSHint's error message
             context.report({
                 node: node,

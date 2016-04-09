@@ -5,12 +5,17 @@ var _cd = require('./cd');
 var _pwd = require('./pwd');
 
 //@
-//@ ### ls([options ,] path [,path ...])
-//@ ### ls([options ,] path_array)
+//@ ### ls([options,] [path, ...])
+//@ ### ls([options,] path_array)
 //@ Available options:
 //@
 //@ + `-R`: recursive
 //@ + `-A`: all files (include files beginning with `.`, except for `.` and `..`)
+//@ + `-d`: list directories themselves, not their contents
+//@ + `-l`: list objects representing each file, each with fields containing `ls
+//@         -l` output fields. See
+//@         [fs.Stats](https://nodejs.org/api/fs.html#fs_class_fs_stats)
+//@         for more info
 //@
 //@ Examples:
 //@
@@ -18,6 +23,7 @@ var _pwd = require('./pwd');
 //@ ls('projs/*.js');
 //@ ls('-R', '/users/me', '/tmp');
 //@ ls('-R', ['/users/me', '/tmp']); // same as above
+//@ ls('-l', 'file.txt'); // { name: 'file.txt', mode: 33188, nlink: 1, ...}
 //@ ```
 //@
 //@ Returns array of files in the given path, or in current directory if no path provided.
@@ -25,7 +31,9 @@ function _ls(options, paths) {
   options = common.parseOptions(options, {
     'R': 'recursive',
     'A': 'all',
-    'a': 'all_deprecated'
+    'a': 'all_deprecated',
+    'd': 'directory',
+    'l': 'long'
   });
 
   if (options.all_deprecated) {
@@ -48,33 +56,49 @@ function _ls(options, paths) {
   // Conditionally pushes file to list - returns true if pushed, false otherwise
   // (e.g. prevents hidden files to be included unless explicitly told so)
   function pushFile(file, query) {
+    var name = file.name || file;
     // hidden file?
-    if (path.basename(file)[0] === '.') {
+    if (path.basename(name)[0] === '.') {
       // not explicitly asking for hidden files?
       if (!options.all && !(path.basename(query)[0] === '.' && path.basename(query).length > 1))
         return false;
     }
 
     if (common.platform === 'win')
-      file = file.replace(/\\/g, '/');
+      name = name.replace(/\\/g, '/');
 
+    if (file.name) {
+      file.name = name;
+    } else {
+      file = name;
+    }
     list.push(file);
     return true;
   }
 
   paths.forEach(function(p) {
     if (fs.existsSync(p)) {
-      var stats = fs.statSync(p);
+      var stats = ls_stat(p);
       // Simple file?
       if (stats.isFile()) {
-        pushFile(p, p);
+        if (options.long) {
+          pushFile(stats, p);
+        } else {
+          pushFile(p, p);
+        }
         return; // continue
       }
 
       // Simple dir?
-      if (stats.isDirectory()) {
+      if (options.directory) {
+        pushFile(p, p);
+        return;
+      } else if (stats.isDirectory()) {
         // Iterate over p contents
         fs.readdirSync(p).forEach(function(file) {
+          var orig_file = file;
+          if (options.long)
+            file = ls_stat(path.join(p, file));
           if (!pushFile(file, p))
             return;
 
@@ -82,8 +106,8 @@ function _ls(options, paths) {
           if (options.recursive) {
             var oldDir = _pwd();
             _cd('', p);
-            if (fs.statSync(file).isDirectory())
-              list = list.concat(_ls('-R'+(options.all?'A':''), file+'/*'));
+            if (fs.statSync(orig_file).isDirectory())
+              list = list.concat(_ls('-R'+(options.all?'A':''), orig_file+'/*'));
             _cd('', oldDir);
           }
         });
@@ -104,7 +128,13 @@ function _ls(options, paths) {
       // Iterate over directory contents
       fs.readdirSync(dirname).forEach(function(file) {
         if (file.match(new RegExp(regexp))) {
-          if (!pushFile(path.normalize(dirname+'/'+file), basename))
+          var file_path = path.join(dirname,  file);
+          file_path = options.long ? ls_stat(file_path) : file_path;
+          if (file_path.name)
+            file_path.name = path.normalize(file_path.name);
+          else
+            file_path = path.normalize(file_path);
+          if (!pushFile(file_path, basename))
             return;
 
           // Recursive?
@@ -124,3 +154,15 @@ function _ls(options, paths) {
   return list;
 }
 module.exports = _ls;
+
+
+function ls_stat(path) {
+  var stats = fs.statSync(path);
+  // Note: this object will contain more information than .toString() returns
+  stats.name = path;
+  stats.toString = function() {
+    // Return a string resembling unix's `ls -l` format
+    return [this.mode, this.nlink, this.uid, this.gid, this.size, this.mtime, this.name].join(' ');
+  };
+  return stats;
+}

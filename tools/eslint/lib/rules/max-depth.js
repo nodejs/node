@@ -17,7 +17,18 @@ module.exports = function(context) {
     //--------------------------------------------------------------------------
 
     var functionStack = [],
-        maxDepth = context.options[0] || 4;
+        option = context.options[0],
+        maxDepth = 4;
+
+    if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
+        maxDepth = option.maximum;
+    }
+    if (typeof option === "object" && option.hasOwnProperty("max") && typeof option.max === "number") {
+        maxDepth = option.max;
+    }
+    if (typeof option === "number") {
+        maxDepth = option;
+    }
 
     /**
      * When parsing a new function, store it in our function stack
@@ -105,7 +116,25 @@ module.exports = function(context) {
 
 module.exports.schema = [
     {
-        "type": "integer",
-        "minimum": 0
+        "oneOf": [
+            {
+                "type": "integer",
+                "minimum": 0
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "maximum": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "max": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "additionalProperties": false
+            }
+        ]
     }
 ];

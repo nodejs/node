@@ -1,6 +1,5 @@
 /**
- * A specialized version of `_.includesWith` for arrays without support for
- * specifying an index to search from.
+ * This function is like `arrayIncludes` except that it accepts a comparator.
  *
  * @private
  * @param {Array} array The array to search.

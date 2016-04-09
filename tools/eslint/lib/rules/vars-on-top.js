@@ -44,7 +44,8 @@ module.exports = function(context) {
      * @returns {Boolean} True if var is on top otherwise false
      */
     function isVarOnTop(node, statements) {
-        var i = 0, l = statements.length;
+        var i = 0,
+            l = statements.length;
 
         // skip over directives
         for (; i < l; ++i) {
@@ -54,7 +55,9 @@ module.exports = function(context) {
         }
 
         for (; i < l; ++i) {
-            if (statements[i].type !== "VariableDeclaration") {
+            if (statements[i].type !== "VariableDeclaration" &&
+                    (statements[i].type !== "ExportNamedDeclaration" ||
+                    statements[i].declaration.type !== "VariableDeclaration")) {
                 return false;
             }
             if (statements[i] === node) {
@@ -103,6 +106,12 @@ module.exports = function(context) {
             var grandParent = ancestors.pop();
 
             if (node.kind === "var") { // check variable is `var` type and not `let` or `const`
+                if (parent.type === "ExportNamedDeclaration") {
+                    node = parent;
+                    parent = grandParent;
+                    grandParent = ancestors.pop();
+                }
+
                 if (parent.type === "Program") { // That means its a global variable
                     globalVarCheck(node, parent);
                 } else {

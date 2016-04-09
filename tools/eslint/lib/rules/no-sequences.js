@@ -68,6 +68,7 @@ module.exports = function(context) {
 
     return {
         "SequenceExpression": function(node) {
+
             // Always allow sequences in for statement update
             if (node.parent.type === "ForStatement" &&
                     (node === node.parent.init || node === node.parent.update)) {
@@ -86,6 +87,7 @@ module.exports = function(context) {
             }
 
             var child = context.getTokenAfter(node.expressions[0]);
+
             context.report(node, child.loc.start, "Unexpected use of comma operator.");
         }
     };

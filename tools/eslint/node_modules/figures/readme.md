@@ -21,7 +21,7 @@ $ npm install --save figures
 See the [source](index.js) for supported symbols.
 
 ```js
-var figures = require('figures');
+const figures = require('figures');
 
 console.log(figures.tick);
 // On real OSes:  ✔︎

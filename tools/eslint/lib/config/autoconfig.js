@@ -15,6 +15,7 @@ var lodash = require("lodash"),
     debug = require("debug"),
     eslint = require("../eslint"),
     configRule = require("./config-rule"),
+    ConfigOps = require("./config-ops"),
     recConfig = require("../../conf/eslint.json");
 
 //------------------------------------------------------------------------------
@@ -91,6 +92,7 @@ Registry.prototype = {
      */
     populateFromCoreRules: function() {
         var rulesConfig = configRule.createCoreRuleConfigs();
+
         this.rules = makeRegistryItems(rulesConfig);
     },
 
@@ -123,18 +125,32 @@ Registry.prototype = {
          * @returns {void}
          */
         var addRuleToRuleSet = function(rule) {
-            // This check ensures that there is a rule configuration, and that
-            // it either has fewer than the max cominbations allowed, or if it has
-            // too many configs, we will only use the most basic of them.
+
+            /*
+             * This check ensures that there is a rule configuration and that
+             * it has fewer than the max combinations allowed.
+             * If it has too many configs, we will only use the most basic of
+             * the possible configurations.
+             */
             var hasFewCombos = (this.rules[rule].length <= MAX_CONFIG_COMBINATIONS);
+
             if (this.rules[rule][idx] && (hasFewCombos || this.rules[rule][idx].specificity <= 2)) {
-                // If the rule has too many possible combinations, only take simple ones, avoiding objects.
+
+                /*
+                 * If the rule has too many possible combinations, only take
+                 * simple ones, avoiding objects.
+                 */
                 if (!hasFewCombos && typeof this.rules[rule][idx].config[1] === "object") {
                     return;
                 }
+
                 ruleSets[idx] = ruleSets[idx] || {};
                 ruleSets[idx][rule] = this.rules[rule][idx].config;
-                // Initialize errorCount to zero, since this is a config which will be linted
+
+                /*
+                 * Initialize errorCount to zero, since this is a config which
+                 * will be linted.
+                 */
                 this.rules[rule][idx].errorCount = 0;
             }
         }.bind(this);
@@ -164,6 +180,7 @@ Registry.prototype = {
             var errorFreeItems = newRegistry.rules[ruleId].filter(function(registryItem) {
                 return (registryItem.errorCount === 0);
             });
+
             if (errorFreeItems.length > 0) {
                 newRegistry.rules[ruleId] = errorFreeItems;
             } else {
@@ -208,6 +225,7 @@ Registry.prototype = {
             var failingConfigs = this.rules[ruleId].filter(function(registryItem) {
                 return (registryItem.errorCount > 0);
             });
+
             if (failingConfigs && failingConfigs.length === this.rules[ruleId].length) {
                 failingRegistry.rules[ruleId] = failingConfigs;
             }
@@ -273,26 +291,37 @@ Registry.prototype = {
 
         lintedRegistry = new Registry();
         lintedRegistry.rules = lodash.assign({}, this.rules);
+
         ruleSets = lintedRegistry.buildRuleSets();
+
         lintedRegistry = lintedRegistry.stripExtraConfigs();
 
         debug("Linting with all possible rule combinations");
+
         filenames = Object.keys(sourceCodes);
+
         totalFilesLinting = filenames.length * ruleSets.length;
+
         filenames.forEach(function(filename) {
             debug("Linting file: " + filename);
+
             ruleSetIdx = 0;
+
             ruleSets.forEach(function(ruleSet) {
                 lintConfig = lodash.assign({}, config, {rules: ruleSet});
                 var lintResults = eslint.verify(sourceCodes[filename], lintConfig);
+
                 lintResults.forEach(function(result) {
                     lintedRegistry.rules[result.ruleId][ruleSetIdx].errorCount += 1;
                 });
+
                 ruleSetIdx += 1;
+
                 if (cb) {
                     cb(totalFilesLinting);  // eslint-disable-line callback-return
                 }
             });
+
             // Deallocate for GC
             sourceCodes[filename] = null;
         });
@@ -312,8 +341,11 @@ Registry.prototype = {
  */
 function extendFromRecommended(config) {
     var newConfig = lodash.assign({}, config);
+
+    ConfigOps.normalizeToStrings(newConfig);
+
     var recRules = Object.keys(recConfig.rules).filter(function(ruleId) {
-        return (recConfig.rules[ruleId] === 2 || recConfig.rules[ruleId][0] === 2);
+        return ConfigOps.isErrorSeverity(recConfig.rules[ruleId]);
     });
 
     recRules.forEach(function(ruleId) {

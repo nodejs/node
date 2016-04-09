@@ -35,6 +35,7 @@ module.exports = function(context) {
         "TemplateLiteral": function(node) {
             var start = node.loc.start.line;
             var end = node.loc.end.line;
+
             while (start <= end) {
                 notEmpty.push(start);
                 start++;
@@ -53,6 +54,7 @@ module.exports = function(context) {
 
             lines.forEach(function(str, i) {
                 var trimmed = str.trim();
+
                 if ((firstNonBlankLine === -1) && (trimmed !== "")) {
                     firstNonBlankLine = i;
                 }
@@ -66,13 +68,18 @@ module.exports = function(context) {
             });
 
             if (typeof maxEOF === "undefined") {
-                // swallow the final newline, as some editors add it
-                // automatically and we don't want it to cause an issue
+
+                /*
+                 * Swallow the final newline, as some editors add it
+                 * automatically and we don't want it to cause an issue
+                 */
                 if (trimmedLines[trimmedLines.length - 1] === "") {
                     trimmedLines = trimmedLines.slice(0, -1);
                 }
+
                 firstOfEndingBlankLines = trimmedLines.length;
             } else {
+
                 // save the number of the first of the last blank lines
                 firstOfEndingBlankLines = trimmedLines.length;
                 while (trimmedLines[firstOfEndingBlankLines - 1] === ""
@@ -99,17 +106,26 @@ module.exports = function(context) {
                         line: lastLocation + 1,
                         column: 1
                     };
+
                     if (lastLocation < firstOfEndingBlankLines) {
+
                         // within the file, not at the end
                         if (blankCounter >= max) {
-                            context.report(node, location,
-                                    "More than " + max + " blank " + (max === 1 ? "line" : "lines") + " not allowed.");
+                            context.report({
+                                node: node,
+                                loc: location,
+                                message: "More than " + max + " blank " + (max === 1 ? "line" : "lines") + " not allowed."
+                            });
                         }
                     } else {
+
                         // inside the last blank lines
                         if (blankCounter > maxEOF) {
-                            context.report(node, location,
-                                    "Too many blank lines at the end of file. Max of " + maxEOF + " allowed.");
+                            context.report({
+                                node: node,
+                                loc: location,
+                                message: "Too many blank lines at the end of file. Max of " + maxEOF + " allowed."
+                            });
                         }
                     }
 

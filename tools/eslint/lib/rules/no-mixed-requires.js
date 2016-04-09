@@ -28,8 +28,12 @@ module.exports = function(context) {
      * @returns {string[]} An array of built-in Node.js modules.
      */
     function getBuiltinModules() {
-        // This list is generated using `require("repl")._builtinLibs.concat('repl').sort()`
-        // This particular list is as per nodejs v0.12.2 and iojs v0.7.1
+
+        /*
+         * This list is generated using:
+         * `require("repl")._builtinLibs.concat('repl').sort()`
+         * This particular list is as per nodejs v0.12.2 and iojs v0.7.1
+         */
         return [
             "assert", "buffer", "child_process", "cluster", "crypto",
             "dgram", "dns", "domain", "events", "fs", "http", "https",
@@ -57,6 +61,7 @@ module.exports = function(context) {
      */
     function getDeclarationType(initExpression) {
         if (!initExpression) {
+
             // "var x;"
             return DECL_UNINITIALIZED;
         }
@@ -65,15 +70,18 @@ module.exports = function(context) {
             initExpression.callee.type === "Identifier" &&
             initExpression.callee.name === "require"
         ) {
+
             // "var x = require('util');"
             return DECL_REQUIRE;
         } else if (allowCall &&
             initExpression.type === "CallExpression" &&
             initExpression.callee.type === "CallExpression"
         ) {
+
             // "var x = require('diagnose')('sub-module');"
             return getDeclarationType(initExpression.callee);
         } else if (initExpression.type === "MemberExpression") {
+
             // "var x = require('glob').Glob;"
             return getDeclarationType(initExpression.object);
         }
@@ -89,9 +97,11 @@ module.exports = function(context) {
      */
     function inferModuleType(initExpression) {
         if (initExpression.type === "MemberExpression") {
+
             // "var x = require('glob').Glob;"
             return inferModuleType(initExpression.object);
         } else if (initExpression.arguments.length === 0) {
+
             // "var x = require();"
             return REQ_COMPUTED;
         }
@@ -99,17 +109,21 @@ module.exports = function(context) {
         var arg = initExpression.arguments[0];
 
         if (arg.type !== "Literal" || typeof arg.value !== "string") {
+
             // "var x = require(42);"
             return REQ_COMPUTED;
         }
 
         if (BUILTIN_MODULES.indexOf(arg.value) !== -1) {
+
             // "var fs = require('fs');"
             return REQ_CORE;
         } else if (/^\.{0,2}\//.test(arg.value)) {
+
             // "var utils = require('./utils');"
             return REQ_FILE;
         } else {
+
             // "var async = require('async');"
             return REQ_MODULE;
         }
@@ -126,6 +140,7 @@ module.exports = function(context) {
 
         declarations.forEach(function(declaration) {
             var type = getDeclarationType(declaration.init);
+
             contains[type] = true;
         });
 

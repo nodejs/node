@@ -45,6 +45,7 @@ module.exports = function(results) {
 
         messages.forEach(function(message) {
             var type = message.fatal ? "error" : "failure";
+
             output += "<testcase time=\"0\" name=\"org.eslint." + (message.ruleId || "unknown") + "\">";
             output += "<" + type + " message=\"" + lodash.escape(message.message || "") + "\">";
             output += "<![CDATA[";

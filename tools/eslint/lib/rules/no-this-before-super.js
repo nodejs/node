@@ -36,18 +36,24 @@ function isConstructorFunction(node) {
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-    // {{hasExtends: boolean, scope: Scope}[]}
-    // Information for each constructor.
-    // - upper:      Information of the upper constructor.
-    // - hasExtends: A flag which shows whether the owner class has a valid
-    //               `extends` part.
-    // - scope:      The scope of the owner class.
-    // - codePath:   The code path of this constructor.
+
+    /*
+     * Information for each constructor.
+     * - upper:      Information of the upper constructor.
+     * - hasExtends: A flag which shows whether the owner class has a valid
+     *   `extends` part.
+     * - scope:      The scope of the owner class.
+     * - codePath:   The code path of this constructor.
+     */
     var funcInfo = null;
 
-    // {Map<string, boolean>}
-    // Information for each code path segment.
-    // The value is a flag which shows `super()` called in all code paths.
+    /*
+     * Information for each code path segment.
+     * Each key is the id of a code path segment.
+     * Each value is an object:
+     * - superCalled:  The flag which shows `super()` called in all code paths.
+     * - invalidNodes: The array of invalid ThisExpression and Super nodes.
+     */
     var segInfoMap = Object.create(null);
 
     /**
@@ -56,19 +62,15 @@ module.exports = function(context) {
      * @returns {boolean} `true` if `super()` is called.
      */
     function isCalled(segment) {
-        return Boolean(segInfoMap[segment.id]);
+        return segInfoMap[segment.id].superCalled;
     }
 
     /**
      * Checks whether or not this is in a constructor.
      * @returns {boolean} `true` if this is in a constructor.
      */
-    function isInConstructor() {
-        return Boolean(
-            funcInfo &&
-            funcInfo.hasExtends &&
-            funcInfo.scope === context.getScope().variableScope
-        );
+    function isInConstructorOfDerivedClass() {
+        return Boolean(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends);
     }
 
     /**
@@ -77,46 +79,107 @@ module.exports = function(context) {
      */
     function isBeforeCallOfSuper() {
         return (
-            isInConstructor(funcInfo) &&
+            isInConstructorOfDerivedClass(funcInfo) &&
             !funcInfo.codePath.currentSegments.every(isCalled)
         );
     }
 
+    /**
+     * Sets a given node as invalid.
+     * @param {ASTNode} node - A node to set as invalid. This is one of
+     *      a ThisExpression and a Super.
+     * @returns {void}
+     */
+    function setInvalid(node) {
+        var segments = funcInfo.codePath.currentSegments;
+
+        for (var i = 0; i < segments.length; ++i) {
+            segInfoMap[segments[i].id].invalidNodes.push(node);
+        }
+    }
+
+    /**
+     * Sets the current segment as `super` was called.
+     * @returns {void}
+     */
+    function setSuperCalled() {
+        var segments = funcInfo.codePath.currentSegments;
+
+        for (var i = 0; i < segments.length; ++i) {
+            segInfoMap[segments[i].id].superCalled = true;
+        }
+    }
+
     return {
+
         /**
-         * Stacks a constructor information.
+         * Adds information of a constructor into the stack.
          * @param {CodePath} codePath - A code path which was started.
          * @param {ASTNode} node - The current node.
          * @returns {void}
          */
         "onCodePathStart": function(codePath, node) {
-            if (!isConstructorFunction(node)) {
-                return;
-            }
+            if (isConstructorFunction(node)) {
 
-            // Class > ClassBody > MethodDefinition > FunctionExpression
-            var classNode = node.parent.parent.parent;
-            funcInfo = {
-                upper: funcInfo,
-                hasExtends: Boolean(
-                    classNode.superClass &&
-                    !astUtils.isNullOrUndefined(classNode.superClass)
-                ),
-                scope: context.getScope(),
-                codePath: codePath
-            };
+                // Class > ClassBody > MethodDefinition > FunctionExpression
+                var classNode = node.parent.parent.parent;
+
+                funcInfo = {
+                    upper: funcInfo,
+                    isConstructor: true,
+                    hasExtends: Boolean(
+                        classNode.superClass &&
+                        !astUtils.isNullOrUndefined(classNode.superClass)
+                    ),
+                    codePath: codePath
+                };
+            } else {
+                funcInfo = {
+                    upper: funcInfo,
+                    isConstructor: false,
+                    hasExtends: false,
+                    codePath: codePath
+                };
+            }
         },
 
         /**
-         * Pops a constructor information.
+         * Removes the top of stack item.
+         *
+         * And this treverses all segments of this code path then reports every
+         * invalid node.
+         *
          * @param {CodePath} codePath - A code path which was ended.
          * @param {ASTNode} node - The current node.
          * @returns {void}
          */
-        "onCodePathEnd": function(codePath, node) {
-            if (isConstructorFunction(node)) {
-                funcInfo = funcInfo.upper;
+        "onCodePathEnd": function(codePath) {
+            var isDerivedClass = funcInfo.hasExtends;
+
+            funcInfo = funcInfo.upper;
+            if (!isDerivedClass) {
+                return;
             }
+
+            codePath.traverseSegments(function(segment, controller) {
+                var info = segInfoMap[segment.id];
+
+                for (var i = 0; i < info.invalidNodes.length; ++i) {
+                    var invalidNode = info.invalidNodes[i];
+
+                    context.report({
+                        message: "'{{kind}}' is not allowed before 'super()'.",
+                        node: invalidNode,
+                        data: {
+                            kind: invalidNode.type === "Super" ? "super" : "this"
+                        }
+                    });
+                }
+
+                if (info.superCalled) {
+                    controller.skip();
+                }
+            });
         },
 
         /**
@@ -125,14 +188,51 @@ module.exports = function(context) {
          * @returns {void}
          */
         "onCodePathSegmentStart": function(segment) {
-            if (!isInConstructor(funcInfo)) {
+            if (!isInConstructorOfDerivedClass(funcInfo)) {
                 return;
             }
 
             // Initialize info.
-            segInfoMap[segment.id] = (
-                segment.prevSegments.length > 0 &&
-                segment.prevSegments.every(isCalled)
+            segInfoMap[segment.id] = {
+                superCalled: (
+                    segment.prevSegments.length > 0 &&
+                    segment.prevSegments.every(isCalled)
+                ),
+                invalidNodes: []
+            };
+        },
+
+        /**
+         * Update information of the code path segment when a code path was
+         * looped.
+         * @param {CodePathSegment} fromSegment - The code path segment of the
+         *      end of a loop.
+         * @param {CodePathSegment} toSegment - A code path segment of the head
+         *      of a loop.
+         * @returns {void}
+         */
+        "onCodePathSegmentLoop": function(fromSegment, toSegment) {
+            if (!isInConstructorOfDerivedClass(funcInfo)) {
+                return;
+            }
+
+            // Update information inside of the loop.
+            funcInfo.codePath.traverseSegments(
+                {first: toSegment, last: fromSegment},
+                function(segment, controller) {
+                    var info = segInfoMap[segment.id];
+
+                    if (info.superCalled) {
+                        info.invalidNodes = [];
+                        controller.skip();
+                    } else if (
+                        segment.prevSegments.length > 0 &&
+                        segment.prevSegments.every(isCalled)
+                    ) {
+                        info.superCalled = true;
+                        info.invalidNodes = [];
+                    }
+                }
             );
         },
 
@@ -143,10 +243,7 @@ module.exports = function(context) {
          */
         "ThisExpression": function(node) {
             if (isBeforeCallOfSuper()) {
-                context.report({
-                    message: "'this' is not allowed before 'super()'.",
-                    node: node
-                });
+                setInvalid(node);
             }
         },
 
@@ -157,10 +254,7 @@ module.exports = function(context) {
          */
         "Super": function(node) {
             if (!astUtils.isCallee(node) && isBeforeCallOfSuper()) {
-                context.report({
-                    message: "'super' is not allowed before 'super()'.",
-                    node: node
-                });
+                setInvalid(node);
             }
         },
 
@@ -171,10 +265,7 @@ module.exports = function(context) {
          */
         "CallExpression:exit": function(node) {
             if (node.callee.type === "Super" && isBeforeCallOfSuper()) {
-                var segments = funcInfo.codePath.currentSegments;
-                for (var i = 0; i < segments.length; ++i) {
-                    segInfoMap[segments[i].id] = true;
-                }
+                setSuperCalled();
             }
         },
 

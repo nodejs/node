@@ -10,9 +10,7 @@ function cloneBuffer(buffer, isDeep) {
   if (isDeep) {
     return buffer.slice();
   }
-  var Ctor = buffer.constructor,
-      result = new Ctor(buffer.length);
-
+  var result = new buffer.constructor(buffer.length);
   buffer.copy(result);
   return result;
 }

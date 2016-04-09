@@ -6,6 +6,7 @@ var ary = require('./ary');
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Function
  * @param {Function} func The function to cap arguments for.
  * @returns {Function} Returns the new function.

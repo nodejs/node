@@ -62,6 +62,7 @@ module.exports = function(context) {
      */
     function getKind(label) {
         var info = scopeInfo;
+
         while (info) {
             if (info.label === label) {
                 return info.kind;

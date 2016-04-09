@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('trimStart', require('../trimStart'));
+var convert = require('./convert'),
+    func = convert('trimStart', require('../trimStart'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

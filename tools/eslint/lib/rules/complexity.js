@@ -11,8 +11,18 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+    var option = context.options[0],
+        THRESHOLD = 20;
 
-    var THRESHOLD = (typeof context.options[0] !== "undefined") ? context.options[0] : 20;
+    if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
+        THRESHOLD = option.maximum;
+    }
+    if (typeof option === "object" && option.hasOwnProperty("max") && typeof option.max === "number") {
+        THRESHOLD = option.max;
+    }
+    if (typeof option === "number") {
+        THRESHOLD = option;
+    }
 
     //--------------------------------------------------------------------------
     // Helpers
@@ -58,7 +68,7 @@ module.exports = function(context) {
      */
     function increaseComplexity() {
         if (fns.length) {
-            fns[fns.length - 1] ++;
+            fns[fns.length - 1]++;
         }
     }
 
@@ -69,6 +79,7 @@ module.exports = function(context) {
      * @private
      */
     function increaseSwitchComplexity(node) {
+
         // Avoiding `default`
         if (node.test) {
             increaseComplexity(node);
@@ -82,6 +93,7 @@ module.exports = function(context) {
      * @private
      */
     function increaseLogicalComplexity(node) {
+
         // Avoiding &&
         if (node.operator === "||") {
             increaseComplexity(node);
@@ -116,7 +128,25 @@ module.exports = function(context) {
 
 module.exports.schema = [
     {
-        "type": "integer",
-        "minimum": 0
+        "oneOf": [
+            {
+                "type": "integer",
+                "minimum": 0
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "maximum": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "max": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "additionalProperties": false
+            }
+        ]
     }
 ];

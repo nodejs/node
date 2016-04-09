@@ -56,6 +56,7 @@ module.exports = function(context) {
      * @returns {void}
      */
     function checkSpacingInsideBraces(node) {
+
         // Gets braces and the first/last token of content.
         var openBrace = getOpenBrace(node);
         var closeBrace = context.getLastToken(node);

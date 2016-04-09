@@ -18,6 +18,7 @@ module.exports = function(context) {
             var prenticesTokens = tokens.filter(function(token) {
                 return token.value === "(" || token.value === ")";
             });
+
             if (prenticesTokens.length < 2) {
                 context.report(node, "Missing '()' invoking a constructor");
             }

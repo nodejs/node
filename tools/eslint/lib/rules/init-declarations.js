@@ -50,6 +50,7 @@ module.exports = function(context) {
 
     var mode = context.options[0] || MODE_ALWAYS;
     var params = context.options[1] || {};
+
     //--------------------------------------------------------------------------
     // Public API
     //--------------------------------------------------------------------------
@@ -65,6 +66,7 @@ module.exports = function(context) {
                     id = declaration.id,
                     initialized = isInitialized(declaration),
                     isIgnoredForLoop = params.ignoreForLoopInit && isForLoop(node.parent);
+
                 if (id.type !== "Identifier") {
                     continue;
                 }
