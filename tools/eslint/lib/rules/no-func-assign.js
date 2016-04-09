@@ -13,6 +13,7 @@ var astUtils = require("../ast-utils");
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+
     /**
      * Reports a reference if is non initializer and writable.
      * @param {References} references - Collection of reference to check.

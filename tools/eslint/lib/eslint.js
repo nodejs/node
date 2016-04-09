@@ -11,7 +11,7 @@
 //------------------------------------------------------------------------------
 
 var lodash = require("lodash"),
-    estraverse = require("./util/estraverse"),
+    Traverser = require("./util/traverser"),
     escope = require("escope"),
     Environments = require("./config/environments"),
     blankScriptAST = require("../conf/blank-script.json"),
@@ -43,16 +43,20 @@ var DEFAULT_PARSER = require("../conf/eslint.json").parser;
  */
 function parseBooleanConfig(string, comment) {
     var items = {};
+
     // Collapse whitespace around : to make parsing easier
     string = string.replace(/\s*:\s*/g, ":");
+
     // Collapse whitespace around ,
     string = string.replace(/\s*,\s*/g, ",");
+
     string.split(/\s|,+/).forEach(function(name) {
         if (!name) {
             return;
         }
         var pos = name.indexOf(":"),
             value;
+
         if (pos !== -1) {
             value = name.substring(pos + 1, name.length);
             name = name.substring(0, pos);
@@ -76,6 +80,7 @@ function parseBooleanConfig(string, comment) {
  */
 function parseJsonConfig(string, location, messages) {
     var items = {};
+
     string = string.replace(/([a-zA-Z0-9\-\/]+):/g, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/, "$1,");
     try {
         items = JSON.parse("{" + string + "}");
@@ -103,8 +108,10 @@ function parseJsonConfig(string, location, messages) {
  */
 function parseListConfig(string) {
     var items = {};
+
     // Collapse whitespace around ,
     string = string.replace(/\s*,\s*/g, ",");
+
     string.split(/,+/).forEach(function(name) {
         name = name.trim();
         if (!name) {
@@ -136,6 +143,7 @@ function addDeclaredGlobals(program, globalScope, config) {
         if (config.env[name]) {
             var env = Environments.get(name),
                 environmentGlobals = env && env.globals;
+
             if (environmentGlobals) {
                 lodash.assign(declaredGlobals, environmentGlobals);
             }
@@ -148,6 +156,7 @@ function addDeclaredGlobals(program, globalScope, config) {
 
     Object.keys(declaredGlobals).forEach(function(name) {
         var variable = globalScope.set.get(name);
+
         if (!variable) {
             variable = new escope.Variable(name, globalScope);
             variable.eslintExplicitGlobal = false;
@@ -159,6 +168,7 @@ function addDeclaredGlobals(program, globalScope, config) {
 
     Object.keys(explicitGlobals).forEach(function(name) {
         var variable = globalScope.set.get(name);
+
         if (!variable) {
             variable = new escope.Variable(name, globalScope);
             variable.eslintExplicitGlobal = true;
@@ -172,23 +182,33 @@ function addDeclaredGlobals(program, globalScope, config) {
     // mark all exported variables as such
     Object.keys(exportedGlobals).forEach(function(name) {
         var variable = globalScope.set.get(name);
+
         if (variable) {
             variable.eslintUsed = true;
         }
     });
 
-    // "through" contains all references that their definition cannot be found.
-    // Since we augment the global scope using configuration, we need to update references and remove the ones that were added by configuration.
+    /*
+     * "through" contains all references which definitions cannot be found.
+     * Since we augment the global scope using configuration, we need to update
+     * references and remove the ones that were added by configuration.
+     */
     globalScope.through = globalScope.through.filter(function(reference) {
         var name = reference.identifier.name;
         var variable = globalScope.set.get(name);
+
         if (variable) {
-            // Links the variable and the reference.
-            // And this reference is removed from `Scope#through`.
+
+            /*
+             * Links the variable and the reference.
+             * And this reference is removed from `Scope#through`.
+             */
             reference.resolved = variable;
             variable.references.push(reference);
+
             return false;
         }
+
         return true;
     });
 }
@@ -234,15 +254,17 @@ function enableReporting(reportingConfig, start, rulesToEnable) {
     if (rulesToEnable.length) {
         rulesToEnable.forEach(function(rule) {
             for (i = reportingConfig.length - 1; i >= 0; i--) {
-                if (!reportingConfig[i].end && reportingConfig[i].rule === rule ) {
+                if (!reportingConfig[i].end && reportingConfig[i].rule === rule) {
                     reportingConfig[i].end = start;
                     break;
                 }
             }
         });
     } else {
+
         // find all previous disabled locations if they was started as list of rules
         var prevStart;
+
         for (i = reportingConfig.length - 1; i >= 0; i--) {
             if (prevStart && prevStart !== reportingConfig[i].start) {
                 break;
@@ -280,7 +302,7 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
     ast.comments.forEach(function(comment) {
 
         var value = comment.value.trim();
-        var match = /^(eslint-\w+|eslint-\w+-\w+|eslint|exported|globals?)(\s|$)/.exec(value);
+        var match = /^(eslint(-\w+){0,3}|exported|globals?)(\s|$)/.exec(value);
 
         if (match) {
             value = value.substring(match.index + match[1].length);
@@ -310,8 +332,10 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
 
                     case "eslint":
                         var items = parseJsonConfig(value, comment.loc, messages);
+
                         Object.keys(items).forEach(function(name) {
                             var ruleValue = items[name];
+
                             validator.validateRuleOptions(name, ruleValue, filename + " line " + comment.loc.start.line);
                             commentRules[name] = ruleValue;
                         });
@@ -319,11 +343,13 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
 
                     // no default
                 }
-            } else {
-                // comment.type === "Line"
+            } else {        // comment.type === "Line"
                 if (match[1] === "eslint-disable-line") {
                     disableReporting(reportingConfig, { "line": comment.loc.start.line, "column": 0 }, Object.keys(parseListConfig(value)));
                     enableReporting(reportingConfig, comment.loc.end, Object.keys(parseListConfig(value)));
+                } else if (match[1] === "eslint-disable-next-line") {
+                    disableReporting(reportingConfig, comment.loc.start, Object.keys(parseListConfig(value)));
+                    enableReporting(reportingConfig, { "line": comment.loc.start.line + 2 }, Object.keys(parseListConfig(value)));
                 }
             }
         }
@@ -332,6 +358,7 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
     // apply environment configs
     Object.keys(commentConfig.env).forEach(function(name) {
         var env = Environments.get(name);
+
         if (env) {
             commentConfig = ConfigOps.merge(commentConfig, env);
         }
@@ -353,6 +380,7 @@ function isDisabledByReportingConfig(reportingConfig, ruleId, location) {
     for (var i = 0, c = reportingConfig.length; i < c; i++) {
 
         var ignore = reportingConfig[i];
+
         if ((!ignore.rule || ignore.rule === ruleId) &&
             (location.line > ignore.start.line || (location.line === ignore.start.line && location.column >= ignore.start.column)) &&
             (!ignore.end || (location.line < ignore.end.line || (location.line === ignore.end.line && location.column <= ignore.end.column)))) {
@@ -380,6 +408,7 @@ function prepareConfig(config) {
     if (typeof config.rules === "object") {
         Object.keys(config.rules).forEach(function(k) {
             var rule = config.rules[k];
+
             if (rule === null) {
                 throw new Error("Invalid config for rule '" + k + "'\.");
             }
@@ -395,6 +424,7 @@ function prepareConfig(config) {
     if (typeof config.env === "object") {
         Object.keys(config.env).forEach(function(envName) {
             var env = Environments.get(envName);
+
             if (config.env[envName] && env && env.parserOptions) {
                 parserOptions = ConfigOps.merge(parserOptions, env.parserOptions);
             }
@@ -418,7 +448,7 @@ function prepareConfig(config) {
         // can't have global return inside of modules
         preparedConfig.parserOptions.ecmaFeatures.globalReturn = false;
 
-        // also need at least ES6 six for modules
+        // also need at least ES6 for modules
         if (!preparedConfig.parserOptions.ecmaVersion || preparedConfig.parserOptions.ecmaVersion < 6) {
             preparedConfig.parserOptions.ecmaVersion = 6;
         }
@@ -462,8 +492,10 @@ function createStubRule(message) {
 function getRuleReplacementMessage(ruleId) {
     if (ruleId in replacements.rules) {
         var newRules = replacements.rules[ruleId];
+
         return "Rule \'" + ruleId + "\' was removed and replaced by: " + newRules.join(", ");
     }
+
     return null;
 }
 
@@ -478,6 +510,7 @@ function findEslintEnv(text) {
     var match, retv;
 
     eslintEnvPattern.lastIndex = 0;
+
     while ((match = eslintEnvPattern.exec(text))) {
         retv = lodash.assign(retv || {}, parseListConfig(match[1]));
     }
@@ -492,9 +525,12 @@ function findEslintEnv(text) {
  * @returns {string} The stripped text.
  */
 function stripUnicodeBOM(text) {
-    // Check Unicode BOM.
-    // In JavaScript, string data is stored as UTF-16, so BOM is 0xFEFF.
-    // http://www.ecma-international.org/ecma-262/6.0/#sec-unicode-format-control-characters
+
+    /*
+     * Check Unicode BOM.
+     * In JavaScript, string data is stored as UTF-16, so BOM is 0xFEFF.
+     * http://www.ecma-international.org/ecma-262/6.0/#sec-unicode-format-control-characters
+     */
     if (text.charCodeAt(0) === 0xFEFF) {
         return text.slice(1);
     }
@@ -518,7 +554,7 @@ module.exports = (function() {
         scopeMap = null,
         scopeManager = null,
         currentFilename = null,
-        controller = null,
+        traverser = null,
         reportingConfig = [],
         sourceCode = null;
 
@@ -636,7 +672,7 @@ module.exports = (function() {
         currentScopes = null;
         scopeMap = null;
         scopeManager = null;
-        controller = null;
+        traverser = null;
         reportingConfig = [];
         sourceCode = null;
     };
@@ -689,6 +725,7 @@ module.exports = (function() {
 
         // search and apply "eslint-env *".
         var envInFile = findEslintEnv(text || textOrSourceCode.text);
+
         if (envInFile) {
             if (!config || !config.env) {
                 config = lodash.assign({}, config || {}, {env: envInFile});
@@ -703,6 +740,7 @@ module.exports = (function() {
 
         // only do this for text
         if (text !== null) {
+
             // there's no input, just exit here
             if (text.trim().length === 0) {
                 sourceCode = new SourceCode(text, blankScriptAST);
@@ -734,6 +772,9 @@ module.exports = (function() {
                 config = modifyConfigsFromComments(currentFilename, ast, config, reportingConfig, messages);
             }
 
+            // ensure that severities are normalized in the config
+            ConfigOps.normalize(config);
+
             // enable appropriate rules
             Object.keys(config.rules).filter(function(key) {
                 return getRuleSeverity(config.rules[key]) > 0;
@@ -744,8 +785,10 @@ module.exports = (function() {
                     rule;
 
                 ruleCreator = rules.get(key);
+
                 if (!ruleCreator) {
                     var replacementMsg = getRuleReplacementMessage(key);
+
                     if (replacementMsg) {
                         ruleCreator = createStubRule(replacementMsg);
                     } else {
@@ -761,6 +804,7 @@ module.exports = (function() {
                     var ruleContext = new RuleContext(
                         key, api, severity, options,
                         config.settings, config.parserOptions, config.parser, ruleCreator.meta);
+
                     rule = ruleCreator.create ? ruleCreator.create(ruleContext) :
                         ruleCreator(ruleContext);
 
@@ -779,19 +823,21 @@ module.exports = (function() {
 
             // save config so rules can access as necessary
             currentConfig = config;
-            controller = new estraverse.Controller();
+            traverser = new Traverser();
 
             ecmaFeatures = currentConfig.parserOptions.ecmaFeatures || {};
             ecmaVersion = currentConfig.parserOptions.ecmaVersion || 5;
 
-            // gather data that may be needed by the rules
+            // gather scope data that may be needed by the rules
             scopeManager = escope.analyze(ast, {
                 ignoreEval: true,
                 nodejsScope: ecmaFeatures.globalReturn,
                 impliedStrict: ecmaFeatures.impliedStrict,
                 ecmaVersion: ecmaVersion,
-                sourceType: currentConfig.parserOptions.sourceType || "script"
+                sourceType: currentConfig.parserOptions.sourceType || "script",
+                fallback: Traverser.getKeys
             });
+
             currentScopes = scopeManager.scopes;
 
             /*
@@ -799,11 +845,14 @@ module.exports = (function() {
              * lookup in getScope.
              */
             scopeMap = [];
+
             currentScopes.forEach(function(scope, index) {
                 var range = scope.block.range[0];
 
-                // Sometimes two scopes are returned for a given node. This is
-                // handled later in a known way, so just don't overwrite here.
+                /*
+                 * Sometimes two scopes are returned for a given node. This is
+                 * handled later in a known way, so just don't overwrite here.
+                 */
                 if (!scopeMap[range]) {
                     scopeMap[range] = index;
                 }
@@ -822,15 +871,17 @@ module.exports = (function() {
             }
 
             var eventGenerator = new NodeEventGenerator(api);
+
             eventGenerator = new CodePathAnalyzer(eventGenerator);
             eventGenerator = new CommentEventGenerator(eventGenerator, sourceCode);
 
             /*
-             * Each node has a type property. Whenever a particular type of node is found,
-             * an event is fired. This allows any listeners to automatically be informed
-             * that this type of node has been found and react accordingly.
+             * Each node has a type property. Whenever a particular type of
+             * node is found, an event is fired. This allows any listeners to
+             * automatically be informed that this type of node has been found
+             * and react accordingly.
              */
-            controller.traverse(ast, {
+            traverser.traverse(ast, {
                 enter: function(node, parent) {
                     node.parent = parent;
                     eventGenerator.enterNode(node);
@@ -884,6 +935,7 @@ module.exports = (function() {
             message = location;
             location = node.loc.start;
         }
+
         // else, assume location was provided, so node may be omitted
 
         if (isDisabledByReportingConfig(reportingConfig, ruleId, location)) {
@@ -966,7 +1018,7 @@ module.exports = (function() {
      * @returns {ASTNode[]} Array of objects representing ancestors.
      */
     api.getAncestors = function() {
-        return controller.parents();
+        return traverser.parents();
     };
 
     /**
@@ -974,14 +1026,15 @@ module.exports = (function() {
      * @returns {Object} An object representing the current node's scope.
      */
     api.getScope = function() {
-        var parents = controller.parents(),
+        var parents = traverser.parents(),
             scope = currentScopes[0];
 
         // Don't do this for Program nodes - they have no parents
         if (parents.length) {
 
             // if current node introduces a scope, add it to the list
-            var current = controller.current();
+            var current = traverser.current();
+
             if (currentConfig.parserOptions.ecmaVersion >= 6) {
                 if (["BlockStatement", "SwitchStatement", "CatchClause", "FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].indexOf(current.type) >= 0) {
                     parents.push(current);
@@ -1039,7 +1092,7 @@ module.exports = (function() {
                     return true;
                 }
             }
-        } while ( (scope = scope.upper) );
+        } while ((scope = scope.upper));
 
         return false;
     };

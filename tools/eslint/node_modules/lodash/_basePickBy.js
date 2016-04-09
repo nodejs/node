@@ -1,4 +1,4 @@
-var baseForIn = require('./_baseForIn');
+var getAllKeysIn = require('./_getAllKeysIn');
 
 /**
  * The base implementation of  `_.pickBy` without support for iteratee shorthands.
@@ -9,12 +9,19 @@ var baseForIn = require('./_baseForIn');
  * @returns {Object} Returns the new object.
  */
 function basePickBy(object, predicate) {
-  var result = {};
-  baseForIn(object, function(value, key) {
+  var index = -1,
+      props = getAllKeysIn(object),
+      length = props.length,
+      result = {};
+
+  while (++index < length) {
+    var key = props[index],
+        value = object[key];
+
     if (predicate(value, key)) {
       result[key] = value;
     }
-  });
+  }
   return result;
 }
 

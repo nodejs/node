@@ -9,7 +9,11 @@ var Hash = require('./_Hash'),
  * @memberOf MapCache
  */
 function mapClear() {
-  this.__data__ = { 'hash': new Hash, 'map': Map ? new Map : [], 'string': new Hash };
+  this.__data__ = {
+    'hash': new Hash,
+    'map': Map ? new Map : [],
+    'string': new Hash
+  };
 }
 
 module.exports = mapClear;

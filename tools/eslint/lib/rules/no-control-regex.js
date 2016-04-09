@@ -23,9 +23,11 @@ module.exports = function(context) {
         } else if (typeof node.value === "string") {
 
             var parent = context.getAncestors().pop();
+
             if ((parent.type === "NewExpression" || parent.type === "CallExpression") &&
                 parent.callee.type === "Identifier" && parent.callee.name === "RegExp"
             ) {
+
                 // there could be an invalid regular expression string
                 try {
                     return new RegExp(node.value);

@@ -44,6 +44,7 @@ function explodeArray(xs) {
  */
 function combineArrays(arr1, arr2) {
     var res = [];
+
     if (arr1.length === 0) {
         return explodeArray(arr2);
     }
@@ -81,9 +82,11 @@ function combineArrays(arr1, arr2) {
 function groupByProperty(objects) {
     var groupedObj = objects.reduce(function(accumulator, obj) {
         var prop = Object.keys(obj)[0];
+
         accumulator[prop] = accumulator[prop] ? accumulator[prop].concat(obj) : [obj];
         return accumulator;
     }, {});
+
     return Object.keys(groupedObj).map(function(prop) {
         return groupedObj[prop];
     });
@@ -144,6 +147,7 @@ function groupByProperty(objects) {
  */
 function combinePropertyObjects(objArr1, objArr2) {
     var res = [];
+
     if (objArr1.length === 0) {
         return objArr2;
     }
@@ -155,6 +159,7 @@ function combinePropertyObjects(objArr1, objArr2) {
             var combinedObj = {};
             var obj1Props = Object.keys(obj1);
             var obj2Props = Object.keys(obj2);
+
             obj1Props.forEach(function(prop1) {
                 combinedObj[prop1] = obj1[prop1];
             });
@@ -201,10 +206,12 @@ RuleConfigSet.prototype = {
     */
     addErrorSeverity: function(severity) {
         severity = severity || 2;
+
         this.ruleConfigs = this.ruleConfigs.map(function(config) {
             config.unshift(severity);
             return config;
         });
+
         // Add a single config at the beginning consisting of only the severity
         this.ruleConfigs.unshift(severity);
     },
@@ -228,6 +235,7 @@ RuleConfigSet.prototype = {
             objectConfigs: [],
             add: function(property, values) {
                 var optionObj;
+
                 for (var idx = 0; idx < values.length; idx++) {
                     optionObj = {};
                     optionObj[property] = values[idx];
@@ -241,8 +249,11 @@ RuleConfigSet.prototype = {
                 }, []);
             }
         };
-        // The object schema could have multiple independent properties.
-        // If any contain enums or booleans, they can be added and then combined
+
+        /*
+         * The object schema could have multiple independent properties.
+         * If any contain enums or booleans, they can be added and then combined
+         */
         Object.keys(obj.properties).forEach(function(prop) {
             if (obj.properties[prop].enum) {
                 objectConfigSet.add(prop, obj.properties[prop].enum);
@@ -266,15 +277,19 @@ RuleConfigSet.prototype = {
 */
 function generateConfigsFromSchema(schema) {
     var configSet = new RuleConfigSet();
+
     if (Array.isArray(schema)) {
         schema.forEach(function(opt) {
             if (opt.enum) {
                 configSet.addEnums(opt.enum);
             }
+
             if (opt.type && opt.type === "object") {
                 configSet.addObject(opt);
             }
+
             if (opt.oneOf) {
+
                 // TODO (IanVS): not yet implemented
             }
         });
@@ -289,9 +304,11 @@ function generateConfigsFromSchema(schema) {
 */
 function createCoreRuleConfigs() {
     var ruleList = loadRules();
+
     return Object.keys(ruleList).reduce(function(accumulator, id) {
         var rule = rules.get(id);
         var schema = (typeof rule === "function") ? rule.schema : rule.meta.schema;
+
         accumulator[id] = generateConfigsFromSchema(schema);
         return accumulator;
     }, {});

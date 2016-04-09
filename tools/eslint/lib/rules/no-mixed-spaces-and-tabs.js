@@ -66,6 +66,7 @@ module.exports = function(context) {
         },
 
         "Program:exit": function(node) {
+
             /*
              * At least one space followed by a tab
              * or the reverse before non-tab/-space
@@ -93,6 +94,7 @@ module.exports = function(context) {
             });
 
             if (smartTabs) {
+
                 /*
                  * At least one space followed by a tab
                  * before non-tab/-space characters begin.

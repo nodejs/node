@@ -10,6 +10,7 @@ var baseSet = require('./_baseSet');
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Object
  * @param {Object} object The object to modify.
  * @param {Array|string} path The path of the property to set.
@@ -18,8 +19,10 @@ var baseSet = require('./_baseSet');
  * @returns {Object} Returns `object`.
  * @example
  *
- * _.setWith({ '0': { 'length': 2 } }, '[0][1][2]', 3, Object);
- * // => { '0': { '1': { '2': 3 }, 'length': 2 } }
+ * var object = {};
+ *
+ * _.setWith(object, '[0][1]', 'a', Object);
+ * // => { '0': { '1': 'a' } }
  */
 function setWith(object, path, value, customizer) {
   customizer = typeof customizer == 'function' ? customizer : undefined;

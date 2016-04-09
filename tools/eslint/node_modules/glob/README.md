@@ -11,6 +11,12 @@ library to do its matching.
 
 ## Usage
 
+Install with npm
+
+```
+npm i glob
+```
+
 ```javascript
 var glob = require("glob")
 

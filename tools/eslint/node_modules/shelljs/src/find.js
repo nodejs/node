@@ -3,7 +3,7 @@ var common = require('./common');
 var _ls = require('./ls');
 
 //@
-//@ ### find(path [,path ...])
+//@ ### find(path [, path ...])
 //@ ### find(path_array)
 //@ Examples:
 //@

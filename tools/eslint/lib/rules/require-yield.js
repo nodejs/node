@@ -36,6 +36,7 @@ module.exports = function(context) {
         }
 
         var countYield = stack.pop();
+
         if (countYield === 0 && node.body.body.length > 0) {
             context.report(
                 node,
@@ -51,6 +52,7 @@ module.exports = function(context) {
 
         // Increases the count of `yield` keyword.
         "YieldExpression": function() {
+
             /* istanbul ignore else */
             if (stack.length > 0) {
                 stack[stack.length - 1] += 1;

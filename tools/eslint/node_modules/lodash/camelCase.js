@@ -6,6 +6,7 @@ var capitalize = require('./capitalize'),
  *
  * @static
  * @memberOf _
+ * @since 3.0.0
  * @category String
  * @param {string} [string=''] The string to convert.
  * @returns {string} Returns the camel cased string.
@@ -14,10 +15,10 @@ var capitalize = require('./capitalize'),
  * _.camelCase('Foo Bar');
  * // => 'fooBar'
  *
- * _.camelCase('--foo-bar');
+ * _.camelCase('--foo-bar--');
  * // => 'fooBar'
  *
- * _.camelCase('__foo_bar__');
+ * _.camelCase('__FOO_BAR__');
  * // => 'fooBar'
  */
 var camelCase = createCompounder(function(result, word, index) {

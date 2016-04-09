@@ -29,16 +29,27 @@ module.exports = function(context) {
      */
     function convertToRegExp(term) {
         var escaped = term.replace(/[-\/\\$\^*+?.()|\[\]{}]/g, "\\$&"),
-            // If the term ends in a word character (a-z0-9_), ensure a word boundary at the end, so that substrings do
-            // not get falsely matched. eg "todo" in a string such as "mastodon".
-            // If the term ends in a non-word character, then \b won't match on the boundary to the next non-word
-            // character, which would likely be a space. For example `/\bFIX!\b/.test('FIX! blah') === false`.
-            // In these cases, use no bounding match. Same applies for the prefix, handled below.
-            suffix = /\w$/.test(term) ? "\\b" : "",
+            suffix,
             prefix;
 
+        /*
+         * If the term ends in a word character (a-z0-9_), ensure a word
+         * boundary at the end, so that substrings do not get falsely
+         * matched. eg "todo" in a string such as "mastodon".
+         * If the term ends in a non-word character, then \b won't match on
+         * the boundary to the next non-word character, which would likely
+         * be a space. For example `/\bFIX!\b/.test('FIX! blah') === false`.
+         * In these cases, use no bounding match. Same applies for the
+         * prefix, handled below.
+         */
+        suffix = /\w$/.test(term) ? "\\b" : "";
+
         if (location === "start") {
-            // When matching at the start, ignore leading whitespace, and there's no need to worry about word boundaries
+
+            /*
+             * When matching at the start, ignore leading whitespace, and
+             * there's no need to worry about word boundaries.
+             */
             prefix = "^\\s*";
         } else if (/^\w/.test(term)) {
             prefix = "\\b";

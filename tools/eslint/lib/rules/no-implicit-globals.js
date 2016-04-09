@@ -30,6 +30,7 @@ module.exports = function(context) {
 
             scope.implicit.variables.forEach(function(variable) {
                 var scopeVariable = scope.set.get(variable.name);
+
                 if (scopeVariable && scopeVariable.writeable) {
                     return;
                 }

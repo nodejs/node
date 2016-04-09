@@ -1,5 +1,8 @@
 var arrayMap = require('./_arrayMap'),
+    baseCastKey = require('./_baseCastKey'),
+    copyArray = require('./_copyArray'),
     isArray = require('./isArray'),
+    isSymbol = require('./isSymbol'),
     stringToPath = require('./_stringToPath');
 
 /**
@@ -7,6 +10,7 @@ var arrayMap = require('./_arrayMap'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Util
  * @param {*} value The value to convert.
  * @returns {Array} Returns the new property path array.
@@ -28,7 +32,10 @@ var arrayMap = require('./_arrayMap'),
  * // => false
  */
 function toPath(value) {
-  return isArray(value) ? arrayMap(value, String) : stringToPath(value);
+  if (isArray(value)) {
+    return arrayMap(value, baseCastKey);
+  }
+  return isSymbol(value) ? [value] : copyArray(stringToPath(value));
 }
 
 module.exports = toPath;

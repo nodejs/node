@@ -37,7 +37,9 @@ if (scriptName.match(/\.coffee$/)) {
   // CoffeeScript
   //
   if (which('coffee')) {
-    exec('coffee ' + scriptName + ' ' + args.join(' '), { async: true });
+    exec('coffee "' + scriptName + '" ' + args.join(' '), function(code) {
+      process.exit(code);
+    });
   } else {
     console.log('ShellJS: CoffeeScript interpreter not found');
     console.log();
@@ -47,5 +49,7 @@ if (scriptName.match(/\.coffee$/)) {
   //
   // JavaScript
   //
-  exec('node ' + scriptName + ' ' + args.join(' '), { async: true });
+  exec('node "' + scriptName + '" ' + args.join(' '), function(code) {
+    process.exit(code);
+  });
 }

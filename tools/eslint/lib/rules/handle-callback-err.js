@@ -22,6 +22,7 @@ module.exports = function(context) {
      */
     function isPattern(stringToCheck) {
         var firstChar = stringToCheck[0];
+
         return firstChar === "^";
     }
 
@@ -33,6 +34,7 @@ module.exports = function(context) {
     function matchesConfiguredErrorName(name) {
         if (isPattern(errorArgument)) {
             var regexp = new RegExp(errorArgument);
+
             return regexp.test(name);
         }
         return name === errorArgument;

@@ -41,13 +41,14 @@ module.exports = function(context) {
 
     /**
      * Checks if an espree-tokenized key has redundant quotes (i.e. whether quotes are unnecessary)
+     * @param   {string} rawKey The raw key value from the source
      * @param   {espreeTokens} tokens The espree-tokenized node key
      * @param   {boolean} [skipNumberLiterals=false] Indicates whether number literals should be checked
      * @returns {boolean} Whether or not a key has redundant quotes.
      * @private
      */
-    function areQuotesRedundant(tokens, skipNumberLiterals) {
-        return tokens.length === 1 &&
+    function areQuotesRedundant(rawKey, tokens, skipNumberLiterals) {
+        return tokens.length === 1 && tokens[0].start === 0 && tokens[0].end === rawKey.length &&
             (["Identifier", "Keyword", "Null", "Boolean"].indexOf(tokens[0].type) >= 0 ||
             (tokens[0].type === "Numeric" && !skipNumberLiterals && "" + +tokens[0].value === tokens[0].value));
     }
@@ -83,7 +84,7 @@ module.exports = function(context) {
                 return;
             }
 
-            if (CHECK_UNNECESSARY && areQuotesRedundant(tokens, NUMBERS)) {
+            if (CHECK_UNNECESSARY && areQuotesRedundant(key.value, tokens, NUMBERS)) {
                 context.report(node, MESSAGE_UNNECESSARY, {property: key.value});
             }
         } else if (KEYWORDS && key.type === "Identifier" && isKeyword(key.name)) {
@@ -139,7 +140,7 @@ module.exports = function(context) {
                         return;
                     }
 
-                    necessaryQuotes = necessaryQuotes || !areQuotesRedundant(tokens) || KEYWORDS && isKeyword(tokens[0].value);
+                    necessaryQuotes = necessaryQuotes || !areQuotesRedundant(key.value, tokens) || KEYWORDS && isKeyword(tokens[0].value);
                 }
             } else if (KEYWORDS && checkQuotesRedundancy && key.type === "Identifier" && isKeyword(key.name)) {
                 necessaryQuotes = true;

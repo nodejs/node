@@ -28,6 +28,5 @@ module.exports = {
     cacheLocation: "",
     cacheFile: ".eslintcache",
     fix: false,
-    allowInlineConfig: true,
-    cwd: process.cwd()
+    allowInlineConfig: true
 };
