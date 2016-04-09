@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('invoke', require('../invoke'));
+var convert = require('./convert'),
+    func = convert('invoke', require('../invoke'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

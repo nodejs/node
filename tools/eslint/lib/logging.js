@@ -1,5 +1,5 @@
 /**
- * @fileoverview Handle logging for Eslint
+ * @fileoverview Handle logging for ESLint
  * @author Gyandeep Singh
  * @copyright 2015 Gyandeep Singh. All rights reserved.
  */
@@ -7,6 +7,7 @@
 
 /* istanbul ignore next */
 module.exports = {
+
     /**
      * Cover for console.log
      * @returns {void}

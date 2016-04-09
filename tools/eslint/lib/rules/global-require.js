@@ -45,6 +45,7 @@ function findReference(scope, node) {
  */
 function isShadowed(scope, node) {
     var reference = findReference(scope, node);
+
     return reference && reference.resolved && reference.resolved.defs.length > 0;
 }
 

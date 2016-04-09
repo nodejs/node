@@ -78,7 +78,7 @@ function loadConfig(configToLoad) {
  * @private
  */
 function getPersonalConfig() {
-    var config = {},
+    var config,
         filename;
 
     if (PERSONAL_CONFIG_DIR) {
@@ -90,7 +90,7 @@ function getPersonalConfig() {
         }
     }
 
-    return config;
+    return config || {};
 }
 
 /**
@@ -166,6 +166,7 @@ function Config(options) {
     this.ignorePath = options.ignorePath;
     this.cache = {};
     this.parser = options.parser;
+    this.parserOptions = options.parserOptions || {};
 
     this.baseConfig = options.baseConfig ? loadConfig(options.baseConfig) : { rules: {} };
 
@@ -176,10 +177,17 @@ function Config(options) {
         return envs;
     }, {});
 
+    /*
+     * Handle declared globals.
+     * For global variable foo, handle "foo:false" and "foo:true" to set
+     * whether global is writable.
+     * If user declares "foo", convert to "foo:false".
+     */
     this.globals = (options.globals || []).reduce(function(globals, def) {
-        // Default "foo" to false and handle "foo:false" and "foo:true"
         var parts = def.split(":");
+
         globals[parts[0]] = (parts.length > 1 && parts[1] === "true");
+
         return globals;
     }, {});
 
@@ -226,7 +234,7 @@ Config.prototype.getConfig = function(filePath) {
     }
 
     // Step 2: Create a copy of the baseConfig
-    config = ConfigOps.merge({parser: this.parser}, this.baseConfig);
+    config = ConfigOps.merge({parser: this.parser, parserOptions: this.parserOptions}, this.baseConfig);
 
     // Step 3: Merge in the user-specified configuration from .eslintrc and package.json
     config = ConfigOps.merge(config, userConfig);
@@ -237,6 +245,7 @@ Config.prototype.getConfig = function(filePath) {
 
         config = ConfigOps.merge(config, this.useSpecificConfig);
     }
+
     // Step 5: Merge in command line environments
     debug("Merging command line environment settings");
     config = ConfigOps.merge(config, { env: this.env });

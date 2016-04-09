@@ -22,8 +22,7 @@ var fs = require("fs"),
 
     lodash = require("lodash"),
     debug = require("debug"),
-    glob = require("glob"),
-    shell = require("shelljs"),
+    isAbsolute = require("path-is-absolute"),
 
     rules = require("./rules"),
     eslint = require("./eslint"),
@@ -36,8 +35,8 @@ var fs = require("fs"),
     SourceCodeFixer = require("./util/source-code-fixer"),
     validator = require("./config/config-validator"),
     stringify = require("json-stable-stringify"),
+    hash = require("./util/hash"),
 
-    crypto = require( "crypto" ),
     pkg = require("../package.json");
 
 
@@ -72,12 +71,6 @@ var fs = require("fs"),
  * @property {string} filePath The path to the file that was linted.
  * @property {LintMessage[]} messages All of the messages for the result.
  */
-
-//------------------------------------------------------------------------------
-// Private
-//------------------------------------------------------------------------------
-
-defaultOptions = lodash.assign({}, defaultOptions, {cwd: process.cwd()});
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -141,13 +134,14 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
         config,
         messages,
         stats,
-        fileExtension = path.extname(filename),
+        fileExtension,
         processor,
         loadedPlugins,
         fixedResult;
 
     if (filename) {
         filePath = path.resolve(filename);
+        fileExtension = path.extname(filename);
     }
 
     filename = filename || "<text>";
@@ -171,6 +165,7 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
         debug("Using processor");
         var parsedBlocks = processor.preprocess(text, filename);
         var unprocessedMessages = [];
+
         parsedBlocks.forEach(function(block) {
             unprocessedMessages.push(eslint.verify(block, config, {
                 filename: filename,
@@ -262,17 +257,6 @@ function isErrorMessage(message) {
     return message.severity === 2;
 }
 
-/**
- * create a md5Hash of a given string
- * @param  {string} str the string to calculate the hash for
- * @returns {string}    the calculated hash
- */
-function md5Hash(str) {
-    return crypto
-        .createHash("md5")
-        .update(str, "utf8")
-        .digest("hex");
-}
 
 /**
  * return the cacheFile to be used by eslint, based on whether the provided parameter is
@@ -286,8 +270,11 @@ function md5Hash(str) {
  * @returns {string} the resolved path to the cache file
  */
 function getCacheFile(cacheFile, cwd) {
-    // make sure the path separators are normalized for the environment/os
-    // keeping the trailing path separator if present
+
+    /*
+     * make sure the path separators are normalized for the environment/os
+     * keeping the trailing path separator if present
+     */
     cacheFile = path.normalize(cacheFile);
 
     var resolvedCacheFile = path.resolve(cwd, cacheFile);
@@ -298,7 +285,7 @@ function getCacheFile(cacheFile, cwd) {
      * @returns {string} the resolved path to the cacheFile
      */
     function getCacheFileForDirectory() {
-        return path.join(resolvedCacheFile, ".cache_" + md5Hash(cwd));
+        return path.join(resolvedCacheFile, ".cache_" + hash(cwd));
     }
 
     var fileStats;
@@ -310,23 +297,31 @@ function getCacheFile(cacheFile, cwd) {
     }
 
 
-    // in case the file exists we need to verify if the provided path
-    // is a directory or a file. If it is a directory we want to create a file
-    // inside that directory
+    /*
+     * in case the file exists we need to verify if the provided path
+     * is a directory or a file. If it is a directory we want to create a file
+     * inside that directory
+     */
     if (fileStats) {
-        // is a directory or is a file, but the original file the user provided
-        // looks like a directory but `path.resolve` removed the `last path.sep`
-        // so we need to still treat this like a directory
+
+        /*
+         * is a directory or is a file, but the original file the user provided
+         * looks like a directory but `path.resolve` removed the `last path.sep`
+         * so we need to still treat this like a directory
+         */
         if (fileStats.isDirectory() || looksLikeADirectory) {
             return getCacheFileForDirectory();
         }
+
         // is file so just use that file
         return resolvedCacheFile;
     }
 
-    // here we known the file or directory doesn't exist,
-    // so we will try to infer if its a directory if it looks like a directory
-    // for the current operating system.
+    /*
+     * here we known the file or directory doesn't exist,
+     * so we will try to infer if its a directory if it looks like a directory
+     * for the current operating system.
+     */
 
     // if the last character passed is a path separator we assume is a directory
     if (looksLikeADirectory) {
@@ -347,7 +342,12 @@ function getCacheFile(cacheFile, cwd) {
  */
 function CLIEngine(options) {
 
-    options = lodash.assign(Object.create(null), defaultOptions, options);
+    options = lodash.assign(
+        Object.create(null),
+        defaultOptions,
+        {cwd: process.cwd()},
+        options
+    );
 
     /**
      * Stored options for this instance
@@ -358,8 +358,9 @@ function CLIEngine(options) {
     var cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile, this.options.cwd);
 
     /**
-     * cache used to not operate on files that haven't changed since last successful
-     * execution (e.g. file passed with no errors and no warnings
+     * Cache used to avoid operating on files that haven't changed since the
+     * last successful execution (e.g., file passed linting with no errors and
+     * no warnings).
      * @type {Object}
      */
     this._fileCache = fileEntryCache.create(cacheFile);
@@ -371,6 +372,7 @@ function CLIEngine(options) {
     // load in additional rules
     if (this.options.rulePaths) {
         var cwd = this.options.cwd;
+
         this.options.rulePaths.forEach(function(rulesdir) {
             debug("Loading rules from " + rulesdir);
             rules.load(rulesdir, cwd);
@@ -404,7 +406,9 @@ CLIEngine.getFormatter = function(format) {
 
         // if there's a slash, then it's a file
         if (format.indexOf("/") > -1) {
-            formatterPath = path.resolve(this.options.cwd, format);
+            var cwd = this.options ? this.options.cwd : process.cwd();
+
+            formatterPath = path.resolve(cwd, format);
         } else {
             formatterPath = "./formatters/" + format;
         }
@@ -476,7 +480,7 @@ CLIEngine.prototype = {
      * @returns {string[]} The equivalent glob patterns.
      */
     resolveFileGlobPatterns: function(patterns) {
-        return globUtil.resolveFileGlobPatterns(patterns, this.options.extensions);
+        return globUtil.resolveFileGlobPatterns(patterns, this.options);
     },
 
     /**
@@ -490,25 +494,10 @@ CLIEngine.prototype = {
             options = this.options,
             fileCache = this._fileCache,
             configHelper = new Config(options),
-            ignoredPaths = new IgnoredPaths(options),
-            globOptions,
+            fileList,
             stats,
             startTime,
             prevConfig; // the previous configuration used
-
-        startTime = Date.now();
-
-        globOptions = {
-            nodir: true
-        };
-
-        var cwd = options.cwd || process.cwd;
-        patterns = this.resolveFileGlobPatterns(patterns.map(function(pattern) {
-            if (pattern.indexOf("/") > 0) {
-                return path.join(cwd, pattern);
-            }
-            return pattern;
-        }));
 
         /**
          * Calculates the hash of the config file used to validate a given file
@@ -524,13 +513,16 @@ CLIEngine.prototype = {
 
             // reuse the previously hashed config if the config hasn't changed
             if (prevConfig.config !== config) {
-                // config changed so we need to calculate the hash of the config
-                // and the hash of the plugins being used
+
+                /*
+                 * config changed so we need to calculate the hash of the config
+                 * and the hash of the plugins being used
+                 */
                 prevConfig.config = config;
 
                 var eslintVersion = pkg.version;
 
-                prevConfig.hash = md5Hash(eslintVersion + "_" + stringify(config));
+                prevConfig.hash = hash(eslintVersion + "_" + stringify(config));
             }
 
             return prevConfig.hash;
@@ -546,48 +538,41 @@ CLIEngine.prototype = {
         function executeOnFile(filename, warnIgnored) {
             var hashOfConfig;
 
-            if (options.ignore !== false) {
-
-                if (ignoredPaths.contains(filename, "custom")) {
-                    if (warnIgnored) {
-                        results.push(createIgnoreResult(filename));
-                    }
-                    return;
-                }
-
-                if (ignoredPaths.contains(filename, "default")) {
-                    return;
-                }
-
-            }
-
-            filename = path.resolve(filename);
-            if (processed[filename]) {
+            if (warnIgnored) {
+                results.push(createIgnoreResult(filename));
                 return;
             }
 
             if (options.cache) {
-                // get the descriptor for this file
-                // with the metadata and the flag that determines if
-                // the file has changed
+
+                /*
+                 * get the descriptor for this file
+                 * with the metadata and the flag that determines if
+                 * the file has changed
+                 */
                 var descriptor = fileCache.getFileDescriptor(filename);
                 var meta = descriptor.meta || {};
 
                 hashOfConfig = hashOfConfigFor(filename);
 
                 var changed = descriptor.changed || meta.hashOfConfig !== hashOfConfig;
+
                 if (!changed) {
                     debug("Skipping file since hasn't changed: " + filename);
 
-                    // Adding the filename to the processed hashmap
-                    // so the reporting is not affected (showing a warning about .eslintignore being used
-                    // when it is not really used)
-
+                    /*
+                     * Adding the filename to the processed hashmap
+                     * so the reporting is not affected (showing a warning about .eslintignore being used
+                     * when it is not really used)
+                     */
                     processed[filename] = true;
 
-                    // Add the the cached results (always will be 0 error and 0 warnings)
-                    // cause we don't save to cache files that failed
-                    // to guarantee that next execution will process those files as well
+                    /*
+                     * Add the the cached results (always will be 0 error and
+                     * 0 warnings). We should not cache results for files that
+                     * failed, in order to guarantee that next execution will
+                     * process those files as well.
+                     */
                     results.push(descriptor.meta.results);
 
                     // move to the next file
@@ -602,17 +587,25 @@ CLIEngine.prototype = {
             var res = processFile(filename, configHelper, options);
 
             if (options.cache) {
-                // if a file contains errors or warnings we don't want to
-                // store the file in the cache so we can guarantee that
-                // next execution will also operate on this file
-                if ( res.errorCount > 0 || res.warningCount > 0 ) {
+
+                /*
+                 * if a file contains errors or warnings we don't want to
+                 * store the file in the cache so we can guarantee that
+                 * next execution will also operate on this file
+                 */
+                if (res.errorCount > 0 || res.warningCount > 0) {
                     debug("File has problems, skipping it: " + filename);
+
                     // remove the entry from the cache
-                    fileCache.removeEntry( filename );
+                    fileCache.removeEntry(filename);
                 } else {
-                    // since the file passed we store the result here
-                    // TODO: check this as we might not need to store the
-                    // successful runs as it will always should be 0 error 0 warnings
+
+                    /*
+                     * since the file passed we store the result here
+                     * TODO: check this as we might not need to store the
+                     * successful runs as it will always should be 0 errors and
+                     * 0 warnings.
+                     */
                     descriptor.meta.hashOfConfig = hashOfConfig;
                     descriptor.meta.results = res;
                 }
@@ -621,23 +614,20 @@ CLIEngine.prototype = {
             results.push(res);
         }
 
-        patterns.forEach(function(pattern) {
+        startTime = Date.now();
 
-            var file = path.resolve(pattern);
 
-            if (shell.test("-f", file)) {
-                executeOnFile(fs.realpathSync(pattern), !shell.test("-d", file));
-            } else {
-                glob.sync(pattern, globOptions).forEach(function(globMatch) {
-                    executeOnFile(globMatch, false);
-                });
-            }
 
+        patterns = this.resolveFileGlobPatterns(patterns);
+        fileList = globUtil.listFilesToProcess(patterns, options);
+        fileList.forEach(function(fileInfo) {
+            executeOnFile(fileInfo.filename, fileInfo.ignored);
         });
 
         stats = calculateStatsPerRun(results);
 
         if (options.cache) {
+
             // persist the cache to disk
             fileCache.reconcile();
         }
@@ -665,7 +655,12 @@ CLIEngine.prototype = {
             configHelper = new Config(options),
             ignoredPaths = new IgnoredPaths(options);
 
+        // resolve filename based on options.cwd (for reporting, ignoredPaths also resolves)
+        if (filename && !isAbsolute(filename)) {
+            filename = path.resolve(options.cwd, filename);
+        }
         if (filename && (options.ignore !== false) && ignoredPaths.contains(filename)) {
+
             results.push(createIgnoreResult(filename));
         } else {
             results.push(processText(text, configHelper, filename, options.fix, options.allowInlineConfig));
@@ -689,6 +684,7 @@ CLIEngine.prototype = {
      */
     getConfigForFile: function(filePath) {
         var configHelper = new Config(this.options);
+
         return configHelper.getConfig(filePath);
     },
 
@@ -699,10 +695,11 @@ CLIEngine.prototype = {
      */
     isPathIgnored: function(filePath) {
         var ignoredPaths;
+        var resolvedPath = path.resolve(this.options.cwd, filePath);
 
         if (this.options.ignore) {
             ignoredPaths = new IgnoredPaths(this.options);
-            return ignoredPaths.contains(filePath);
+            return ignoredPaths.contains(resolvedPath);
         }
 
         return false;

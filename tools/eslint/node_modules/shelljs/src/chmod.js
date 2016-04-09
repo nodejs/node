@@ -114,7 +114,9 @@ function _chmod(options, mode, filePattern) {
       return;
     }
 
-    var perms = fs.statSync(file).mode;
+    var stat = fs.statSync(file);
+    var isDir = stat.isDirectory();
+    var perms = stat.mode;
     var type = perms & PERMS.TYPE_MASK;
 
     var newPerms = perms;
@@ -135,11 +137,15 @@ function _chmod(options, mode, filePattern) {
           var changeGroup = applyTo.indexOf('g') != -1 || applyTo === 'a' || applyTo === '';
           var changeOther = applyTo.indexOf('o') != -1 || applyTo === 'a' || applyTo === '';
 
-          var changeRead   = change.indexOf('r') != -1;
-          var changeWrite  = change.indexOf('w') != -1;
-          var changeExec   = change.indexOf('x') != -1;
-          var changeSticky = change.indexOf('t') != -1;
-          var changeSetuid = change.indexOf('s') != -1;
+          var changeRead    = change.indexOf('r') != -1;
+          var changeWrite   = change.indexOf('w') != -1;
+          var changeExec    = change.indexOf('x') != -1;
+          var changeExecDir = change.indexOf('X') != -1;
+          var changeSticky  = change.indexOf('t') != -1;
+          var changeSetuid  = change.indexOf('s') != -1;
+
+          if (changeExecDir && isDir)
+            changeExec = true;
 
           var mask = 0;
           if (changeOwner) {
@@ -177,14 +183,15 @@ function _chmod(options, mode, filePattern) {
           }
 
           if (options.verbose) {
-            log(file + ' -> ' + newPerms.toString(8));
+            console.log(file + ' -> ' + newPerms.toString(8));
           }
 
           if (perms != newPerms) {
             if (!options.verbose && options.changes) {
-              log(file + ' -> ' + newPerms.toString(8));
+              console.log(file + ' -> ' + newPerms.toString(8));
             }
             fs.chmodSync(file, newPerms);
+            perms = newPerms; // for the next round of changes!
           }
         }
         else {

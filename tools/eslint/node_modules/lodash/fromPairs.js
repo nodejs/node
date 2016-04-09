@@ -4,6 +4,7 @@
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Array
  * @param {Array} pairs The key-value pairs.
  * @returns {Object} Returns the new object.

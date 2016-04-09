@@ -61,6 +61,11 @@ module.exports = optionator({
             description: "Specify the parser to be used"
         },
         {
+            option: "parser-options",
+            type: "Object",
+            description: "Specify parser options"
+        },
+        {
             heading: "Caching"
         },
         {
@@ -202,7 +207,7 @@ module.exports = optionator({
             option: "version",
             alias: "v",
             type: "Boolean",
-            description: "Outputs the version number"
+            description: "Output the version number"
         },
         {
             option: "inline-config",

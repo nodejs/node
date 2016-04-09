@@ -13,7 +13,18 @@
 
 module.exports = function(context) {
 
-    var numParams = context.options[0] || 3;
+    var option = context.options[0],
+        numParams = 3;
+
+    if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
+        numParams = option.maximum;
+    }
+    if (typeof option === "object" && option.hasOwnProperty("max") && typeof option.max === "number") {
+        numParams = option.max;
+    }
+    if (typeof option === "number") {
+        numParams = option;
+    }
 
     /**
      * Checks a function to see if it has too many parameters.
@@ -40,7 +51,25 @@ module.exports = function(context) {
 
 module.exports.schema = [
     {
-        "type": "integer",
-        "minimum": 0
+        "oneOf": [
+            {
+                "type": "integer",
+                "minimum": 0
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "maximum": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "max": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "additionalProperties": false
+            }
+        ]
     }
 ];

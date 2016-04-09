@@ -1,7 +1,6 @@
-var repeat = require('./repeat'),
+var baseRepeat = require('./_baseRepeat'),
     stringSize = require('./_stringSize'),
-    stringToArray = require('./_stringToArray'),
-    toInteger = require('./toInteger');
+    stringToArray = require('./_stringToArray');
 
 /** Used to compose unicode character classes. */
 var rsAstralRange = '\\ud800-\\udfff',
@@ -23,25 +22,21 @@ var nativeCeil = Math.ceil;
  * is truncated if the number of characters exceeds `length`.
  *
  * @private
- * @param {string} string The string to create padding for.
- * @param {number} [length=0] The padding length.
+ * @param {number} length The padding length.
  * @param {string} [chars=' '] The string used as padding.
  * @returns {string} Returns the padding for `string`.
  */
-function createPadding(string, length, chars) {
-  length = toInteger(length);
-
-  var strLength = stringSize(string);
-  if (!length || strLength >= length) {
-    return '';
-  }
-  var padLength = length - strLength;
+function createPadding(length, chars) {
   chars = chars === undefined ? ' ' : (chars + '');
 
-  var result = repeat(chars, nativeCeil(padLength / stringSize(chars)));
+  var charsLength = chars.length;
+  if (charsLength < 2) {
+    return charsLength ? baseRepeat(chars, length) : chars;
+  }
+  var result = baseRepeat(chars, nativeCeil(length / stringSize(chars)));
   return reHasComplexSymbol.test(chars)
-    ? stringToArray(result).slice(0, padLength).join('')
-    : result.slice(0, padLength);
+    ? stringToArray(result).slice(0, length).join('')
+    : result.slice(0, length);
 }
 
 module.exports = createPadding;

@@ -33,6 +33,7 @@ module.exports = function(context) {
 
         "Literal": function(node) {
             var token = context.getFirstToken(node);
+
             if (token.type === "RegularExpression" && !regex.test(token.value)) {
                 context.report(node, "Empty class.");
             }

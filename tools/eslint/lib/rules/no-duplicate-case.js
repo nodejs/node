@@ -20,6 +20,7 @@ module.exports = function(context) {
 
             node.cases.forEach(function(switchCase) {
                 var key = context.getSource(switchCase.test);
+
                 if (mapping[key]) {
                     context.report(switchCase, "Duplicate case label.");
                 } else {

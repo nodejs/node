@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('takeRightWhile', require('../takeRightWhile'));
+var convert = require('./convert'),
+    func = convert('takeRightWhile', require('../takeRightWhile'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

@@ -4,7 +4,9 @@
  * @copyright 2015 Nicholas C. Zakas. All rights reserved.
  * See LICENSE file in root directory for full license.
  */
+
 /* eslint no-use-before-define: 0 */
+
 "use strict";
 
 //------------------------------------------------------------------------------
@@ -17,11 +19,14 @@ var debug = require("debug"),
     ConfigOps = require("./config-ops"),
     validator = require("./config-validator"),
     Plugins = require("./plugins"),
-    resolveModule = require("resolve"),
+    pathUtil = require("../util/path-util"),
+    ModuleResolver = require("../util/module-resolver"),
     pathIsInside = require("path-is-inside"),
     stripComments = require("strip-json-comments"),
     stringify = require("json-stable-stringify"),
-    isAbsolutePath = require("path-is-absolute");
+    isAbsolutePath = require("path-is-absolute"),
+    defaultOptions = require("../../conf/eslint.json"),
+    requireUncached = require("require-uncached");
 
 
 //------------------------------------------------------------------------------
@@ -53,6 +58,8 @@ var CONFIG_FILES = [
     ".eslintrc",
     "package.json"
 ];
+
+var resolver = new ModuleResolver();
 
 debug = debug("eslint:config-file");
 
@@ -92,6 +99,7 @@ function loadYAMLConfigFile(filePath) {
     var yaml = require("js-yaml");
 
     try {
+
         // empty YAML file can be null, so always use
         return yaml.safeLoad(readFile(filePath)) || {};
     } catch (e) {
@@ -152,7 +160,7 @@ function loadLegacyConfigFile(filePath) {
 function loadJSConfigFile(filePath) {
     debug("Loading JS config file: " + filePath);
     try {
-        return require(filePath);
+        return requireUncached(filePath);
     } catch (e) {
         debug("Error reading JavaScript file: " + filePath);
         e.message = "Cannot read config file: " + filePath + "\nError: " + e.message;
@@ -186,9 +194,8 @@ function loadPackageJSONConfigFile(filePath) {
  * @private
  */
 function loadConfigFile(file) {
-    var config;
-
-    var filePath = file.filePath;
+    var config,
+        filePath = file.filePath;
 
     switch (path.extname(filePath)) {
         case ".js":
@@ -232,6 +239,7 @@ function writeJSONConfigFile(config, filePath) {
     debug("Writing JSON config file: " + filePath);
 
     var content = stringify(config, {cmp: sortByKey, space: 4});
+
     fs.writeFileSync(filePath, content, "utf8");
 }
 
@@ -249,6 +257,7 @@ function writeYAMLConfigFile(config, filePath) {
     var yaml = require("js-yaml");
 
     var content = yaml.safeDump(config, {sortKeys: true});
+
     fs.writeFileSync(filePath, content, "utf8");
 }
 
@@ -263,6 +272,7 @@ function writeJSConfigFile(config, filePath) {
     debug("Writing JS config file: " + filePath);
 
     var content = "module.exports = " + stringify(config, {cmp: sortByKey, space: 4}) + ";";
+
     fs.writeFileSync(filePath, content, "utf8");
 }
 
@@ -295,24 +305,42 @@ function write(config, filePath) {
 }
 
 /**
- * Determines the lookup path for node packages referenced in a config file.
- * If the config
+ * Determines the base directory for node packages referenced in a config file.
+ * This does not include node_modules in the path so it can be used for all
+ * references relative to a config file.
+ * @param {string} configFilePath The config file referencing the file.
+ * @returns {string} The base directory for the file path.
+ * @private
+ */
+function getBaseDir(configFilePath) {
+
+    // calculates the path of the project including ESLint as dependency
+    var projectPath = path.resolve(__dirname, "../../../");
+
+    if (configFilePath && pathIsInside(configFilePath, projectPath)) {
+
+        // be careful of https://github.com/substack/node-resolve/issues/78
+        return path.join(path.resolve(configFilePath));
+    }
+
+    /*
+     * default to ESLint project path since it's unlikely that plugins will be
+     * in this directory
+     */
+    return path.join(projectPath);
+}
+
+/**
+ * Determines the lookup path, including node_modules, for package
+ * references relative to a config file.
  * @param {string} configFilePath The config file referencing the file.
  * @returns {string} The lookup path for the file path.
  * @private
  */
 function getLookupPath(configFilePath) {
+    var basedir = getBaseDir(configFilePath);
 
-    // calculates the path of the project including ESLint as dependency
-    var projectPath = path.resolve(__dirname, "../../../");
-    if (configFilePath && pathIsInside(configFilePath, projectPath)) {
-        // be careful of https://github.com/substack/node-resolve/issues/78
-        return path.resolve(configFilePath);
-    }
-
-    // default to ESLint project path since it's unlikely that plugins will be
-    // in this directory
-    return projectPath;
+    return path.join(basedir, "node_modules");
 }
 
 /**
@@ -320,11 +348,12 @@ function getLookupPath(configFilePath) {
  * @param {Object} config The configuration information.
  * @param {string} filePath The file path from which the configuration information
  *      was loaded.
+ * @param {string} [relativeTo] The path to resolve relative to.
  * @returns {Object} A new configuration object with all of the "extends" fields
  *      loaded and merged.
  * @private
  */
-function applyExtends(config, filePath) {
+function applyExtends(config, filePath, relativeTo) {
     var configExtends = config.extends;
 
     // normalize into an array for easier handling
@@ -336,12 +365,18 @@ function applyExtends(config, filePath) {
     config = configExtends.reduceRight(function(previousValue, parentPath) {
 
         if (parentPath === "eslint:recommended") {
-            // Add an explicit substitution for eslint:recommended to conf/eslint.json
-            // this lets us use the eslint.json file as the recommended rules
+
+            /*
+             * Add an explicit substitution for eslint:recommended to conf/eslint.json
+             * this lets us use the eslint.json file as the recommended rules
+             */
             parentPath = path.resolve(__dirname, "../../conf/eslint.json");
         } else if (isFilePath(parentPath)) {
-            // If the `extends` path is relative, use the directory of the current configuration
-            // file as the reference point. Otherwise, use as-is.
+
+            /*
+             * If the `extends` path is relative, use the directory of the current configuration
+             * file as the reference point. Otherwise, use as-is.
+             */
             parentPath = (!isAbsolutePath(parentPath) ?
                 path.join(path.dirname(filePath), parentPath) :
                 parentPath
@@ -350,11 +385,15 @@ function applyExtends(config, filePath) {
 
         try {
             debug("Loading " + parentPath);
-            return ConfigOps.merge(load(parentPath), previousValue);
+            return ConfigOps.merge(load(parentPath, false, relativeTo), previousValue);
         } catch (e) {
-            // If the file referenced by `extends` failed to load, add the path to the
-            // configuration file that referenced it to the error message so the user is
-            // able to see where it was referenced from, then re-throw
+
+            /*
+             * If the file referenced by `extends` failed to load, add the path
+             * to the configuration file that referenced it to the error
+             * message so the user is able to see where it was referenced from,
+             * then re-throw.
+             */
             e.message += "\nReferenced from: " + filePath;
             throw e;
         }
@@ -372,16 +411,33 @@ function applyExtends(config, filePath) {
  * @private
  */
 function normalizePackageName(name, prefix) {
+
+    /*
+     * On Windows, name can come in with Windows slashes instead of Unix slashes.
+     * Normalize to Unix first to avoid errors later on.
+     * https://github.com/eslint/eslint/issues/5644
+     */
+    if (name.indexOf("\\") > -1) {
+        name = pathUtil.convertPathToPosix(name);
+    }
+
     if (name.charAt(0) === "@") {
-        // it's a scoped package
-        // package name is "eslint-config", or just a username
+
+        /*
+         * it's a scoped package
+         * package name is "eslint-config", or just a username
+         */
         var scopedPackageShortcutRegex = new RegExp("^(@[^\/]+)(?:\/(?:" + prefix + ")?)?$"),
             scopedPackageNameRegex = new RegExp("^" + prefix + "(-|$)");
+
         if (scopedPackageShortcutRegex.test(name)) {
             name = name.replace(scopedPackageShortcutRegex, "$1/" + prefix);
         } else if (!scopedPackageNameRegex.test(name.split("/")[1])) {
-            // for scoped packages, insert the eslint-config after the first / unless
-            // the path is already @scope/eslint or @scope/eslint-config-xxx
+
+            /*
+             * for scoped packages, insert the eslint-config after the first / unless
+             * the path is already @scope/eslint or @scope/eslint-config-xxx
+             */
             name = name.replace(/^@([^\/]+)\/(.*)$/, "@$1/" + prefix + "-$2");
         }
     } else if (name.indexOf(prefix + "-") !== 0) {
@@ -400,21 +456,23 @@ function normalizePackageName(name, prefix) {
  * @private
  */
 function resolve(filePath, relativeTo) {
-
     if (isFilePath(filePath)) {
         return { filePath: path.resolve(relativeTo || "", filePath) };
     } else {
+        var normalizedPackageName;
+
         if (filePath.indexOf("plugin:") === 0) {
             var packagePath = filePath.substr(7, filePath.lastIndexOf("/") - 7);
             var configName = filePath.substr(filePath.lastIndexOf("/") + 1, filePath.length - filePath.lastIndexOf("/") - 1);
-            filePath = resolveModule.sync(normalizePackageName(packagePath, "eslint-plugin"), {
-                basedir: getLookupPath(relativeTo)
-            });
+
+            normalizedPackageName = normalizePackageName(packagePath, "eslint-plugin");
+            debug("Attempting to resolve " + normalizedPackageName);
+            filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
             return { filePath: filePath, configName: configName };
         } else {
-            filePath = resolveModule.sync(normalizePackageName(filePath, "eslint-config"), {
-                basedir: getLookupPath(relativeTo)
-            });
+            normalizedPackageName = normalizePackageName(filePath, "eslint-config");
+            debug("Attempting to resolve " + normalizedPackageName);
+            filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
             return { filePath: filePath };
         }
     }
@@ -426,12 +484,15 @@ function resolve(filePath, relativeTo) {
  * @param {string} filePath The filename or package name to load the configuration
  *      information from.
  * @param {boolean} [applyEnvironments=false] Set to true to merge in environment settings.
+ * @param {string} [relativeTo] The path to resolve relative to.
  * @returns {Object} The configuration information.
  * @private
  */
-function load(filePath, applyEnvironments) {
-
-    var resolvedPath = resolve(filePath),
+function load(filePath, applyEnvironments, relativeTo) {
+    var resolvedPath = resolve(filePath, relativeTo),
+        dirname = path.dirname(resolvedPath.filePath),
+        basedir = getBaseDir(dirname),
+        lookupPath = getLookupPath(dirname),
         config = loadConfigFile(resolvedPath);
 
     if (config) {
@@ -441,23 +502,33 @@ function load(filePath, applyEnvironments) {
             Plugins.loadAll(config.plugins);
         }
 
+        // remove parser from config if it is the default parser
+        if (config.parser === defaultOptions.parser) {
+            config.parser = null;
+        }
+
         // include full path of parser if present
         if (config.parser) {
-            config.parser = resolveModule.sync(config.parser, {
-                basedir: getLookupPath(path.dirname(path.resolve(filePath)))
-            });
+            if (isFilePath(config.parser)) {
+                config.parser = path.resolve(basedir || "", config.parser);
+            } else {
+                config.parser = resolver.resolve(config.parser, lookupPath);
+            }
         }
 
         // validate the configuration before continuing
         validator.validate(config, filePath);
 
-        // If an `extends` property is defined, it represents a configuration file to use as
-        // a "parent". Load the referenced file and merge the configuration recursively.
+        /*
+         * If an `extends` property is defined, it represents a configuration file to use as
+         * a "parent". Load the referenced file and merge the configuration recursively.
+         */
         if (config.extends) {
-            config = applyExtends(config, filePath);
+            config = applyExtends(config, filePath, basedir);
         }
 
         if (config.env && applyEnvironments) {
+
             // Merge in environment-specific globals and parserOptions.
             config = ConfigOps.applyEnvironments(config);
         }
@@ -473,11 +544,13 @@ function load(filePath, applyEnvironments) {
 
 module.exports = {
 
+    getBaseDir: getBaseDir,
     getLookupPath: getLookupPath,
     load: load,
     resolve: resolve,
     write: write,
     applyExtends: applyExtends,
+    normalizePackageName: normalizePackageName,
     CONFIG_FILES: CONFIG_FILES,
 
     /**

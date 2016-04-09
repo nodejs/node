@@ -7,6 +7,7 @@ var baseUniq = require('./_baseUniq');
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Array
  * @param {Array} array The array to inspect.
  * @param {Function} [comparator] The comparator invoked per element.

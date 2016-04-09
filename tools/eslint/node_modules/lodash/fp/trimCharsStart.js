@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('trimCharsStart', require('../trimStart'));
+var convert = require('./convert'),
+    func = convert('trimCharsStart', require('../trimStart'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

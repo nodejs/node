@@ -63,6 +63,7 @@ module.exports = function(context) {
      */
     function getOperatorLocation(node) {
         var opToken = context.getTokenAfter(node.left);
+
         return {line: opToken.loc.start.line, column: opToken.loc.start.column};
     }
 

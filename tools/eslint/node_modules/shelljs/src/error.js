@@ -6,5 +6,5 @@ var common = require('./common');
 //@ otherwise returns string explaining the error
 function error() {
   return common.state.error;
-};
+}
 module.exports = error;

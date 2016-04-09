@@ -333,8 +333,3 @@ base.MethodDefinition = base.Property = (node, st, c) => {
   if (node.computed) c(node.key, st, "Expression")
   c(node.value, st, "Expression")
 }
-base.ComprehensionExpression = (node, st, c) => {
-  for (let i = 0; i < node.blocks.length; i++)
-    c(node.blocks[i].right, st, "Expression")
-  c(node.body, st, "Expression")
-}

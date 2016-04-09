@@ -71,6 +71,7 @@ module.exports = function(context) {
 
             // MemberExpressions get special rules
             if (node.parent.type === "MemberExpression") {
+
                 // return early if properties is false
                 if (!properties) {
                     return;
@@ -95,6 +96,7 @@ module.exports = function(context) {
 
             // Properties have their own rules
             } else if (node.parent.type === "Property") {
+
                 // return early if properties is false
                 if (!properties) {
                     return;

@@ -31,6 +31,7 @@ function getMessageType(message) {
 function outputDiagnostics(diagnostic) {
     var prefix = "  ";
     var output = prefix + "---\n";
+
     output += prefix + yaml.safeDump(diagnostic).split("\n").join("\n" + prefix);
     output += "...\n";
     return output;

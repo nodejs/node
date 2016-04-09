@@ -36,6 +36,7 @@ function pluralize(word, count) {
 function renderSummary(totalErrors, totalWarnings) {
     var totalProblems = totalErrors + totalWarnings;
     var renderedText = totalProblems + " " + pluralize("problem", totalProblems);
+
     if (totalProblems !== 0) {
         renderedText += " (" + totalErrors + " " + pluralize("error", totalErrors) + ", " + totalWarnings + " " + pluralize("warning", totalWarnings) + ")";
     }
@@ -64,6 +65,7 @@ function renderColor(totalErrors, totalWarnings) {
  * @returns {string} HTML (table rows) describing the messages.
  */
 function renderMessages(messages, parentIndex) {
+
     /**
      * Get HTML (table row) describing a message.
      * @param {Object} message Message.

@@ -15,7 +15,7 @@ module.exports = function(context) {
         "*", "/", "%", "+", "-", "<<", ">>", ">>>", "<", "<=", ">", ">=", "in",
         "instanceof", "==", "!=", "===", "!==", "&", "^", "|", "&&", "||", "=",
         "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", ">>>=", "&=", "^=", "|=",
-        "?", ":", ","
+        "?", ":", ",", "**"
     ];
 
     /**
@@ -26,7 +26,9 @@ module.exports = function(context) {
      * @private
      */
     function getFirstNonSpacedToken(left, right) {
-        var op, tokens = context.getTokensBetween(left, right, 1);
+        var op,
+            tokens = context.getTokensBetween(left, right, 1);
+
         for (var i = 1, l = tokens.length - 1; i < l; ++i) {
             op = tokens[i];
             if (

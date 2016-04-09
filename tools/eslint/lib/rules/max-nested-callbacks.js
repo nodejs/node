@@ -15,8 +15,18 @@ module.exports = function(context) {
     //--------------------------------------------------------------------------
     // Constants
     //--------------------------------------------------------------------------
+    var option = context.options[0],
+        THRESHOLD = 10;
 
-    var THRESHOLD = context.options[0] || 10;
+    if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
+        THRESHOLD = option.maximum;
+    }
+    if (typeof option === "object" && option.hasOwnProperty("max") && typeof option.max === "number") {
+        THRESHOLD = option.max;
+    }
+    if (typeof option === "number") {
+        THRESHOLD = option;
+    }
 
     //--------------------------------------------------------------------------
     // Helpers
@@ -39,6 +49,7 @@ module.exports = function(context) {
 
         if (callbackStack.length > THRESHOLD) {
             var opts = {num: callbackStack.length, max: THRESHOLD};
+
             context.report(node, "Too many nested callbacks ({{num}}). Maximum allowed is {{max}}.", opts);
         }
     }
@@ -68,7 +79,25 @@ module.exports = function(context) {
 
 module.exports.schema = [
     {
-        "type": "integer",
-        "minimum": 0
+        "oneOf": [
+            {
+                "type": "integer",
+                "minimum": 0
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "maximum": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "max": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "additionalProperties": false
+            }
+        ]
     }
 ];
