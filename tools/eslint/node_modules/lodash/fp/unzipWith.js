@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('unzipWith', require('../unzipWith'));
+var convert = require('./convert'),
+    func = convert('unzipWith', require('../unzipWith'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

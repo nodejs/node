@@ -10,6 +10,7 @@ var MAX_SAFE_INTEGER = 9007199254740991;
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to convert.
  * @returns {number} Returns the converted integer.

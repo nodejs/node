@@ -1,5 +1,5 @@
 /**
- * @fileoverview Rule to forbid mixing LF and LFCR line breaks.
+ * @fileoverview Rule to enforce a single linebreak style.
  * @author Erik Mueller
  * @copyright 2015 Varun Verma. All rights reserverd.
  * @copyright 2015 James Whitney. All rights reserved.
@@ -50,6 +50,7 @@ module.exports = function(context) {
                 range;
 
             var i = 0;
+
             while ((match = pattern.exec(source)) !== null) {
                 i++;
                 if (match[0] === expectedLFChars) {

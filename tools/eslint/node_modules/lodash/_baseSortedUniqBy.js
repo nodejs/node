@@ -15,7 +15,7 @@ function baseSortedUniqBy(array, iteratee) {
       value = array[0],
       computed = iteratee ? iteratee(value) : value,
       seen = computed,
-      resIndex = 0,
+      resIndex = 1,
       result = [value];
 
   while (++index < length) {
@@ -24,7 +24,7 @@ function baseSortedUniqBy(array, iteratee) {
 
     if (!eq(computed, seen)) {
       seen = computed;
-      result[++resIndex] = value;
+      result[resIndex++] = value;
     }
   }
   return result;

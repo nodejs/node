@@ -21,7 +21,8 @@ module.exports = function(context) {
 
     var config = {
         vars: "all",
-        args: "after-used"
+        args: "after-used",
+        caughtErrors: "none"
     };
 
     var firstOption = context.options[0];
@@ -32,6 +33,7 @@ module.exports = function(context) {
         } else {
             config.vars = firstOption.vars || config.vars;
             config.args = firstOption.args || config.args;
+            config.caughtErrors = firstOption.caughtErrors || config.caughtErrors;
 
             if (firstOption.varsIgnorePattern) {
                 config.varsIgnorePattern = new RegExp(firstOption.varsIgnorePattern);
@@ -39,6 +41,10 @@ module.exports = function(context) {
 
             if (firstOption.argsIgnorePattern) {
                 config.argsIgnorePattern = new RegExp(firstOption.argsIgnorePattern);
+            }
+
+            if (firstOption.caughtErrorsIgnorePattern) {
+                config.caughtErrorsIgnorePattern = new RegExp(firstOption.caughtErrorsIgnorePattern);
             }
         }
     }
@@ -60,6 +66,7 @@ module.exports = function(context) {
         if (definition) {
 
             var node = definition.node;
+
             if (node.type === "VariableDeclarator") {
                 node = node.parent;
             } else if (definition.type === "Parameter") {
@@ -142,10 +149,12 @@ module.exports = function(context) {
                 if (scope.type === "class" && scope.block.id === variable.identifiers[0]) {
                     continue;
                 }
+
                 // skip function expression names and variables marked with markVariableAsUsed()
                 if (scope.functionExpressionScope || variable.eslintUsed) {
                     continue;
                 }
+
                 // skip implicit "arguments" variable
                 if (scope.type === "function" && variable.name === "arguments" && variable.identifiers.length === 0) {
                     continue;
@@ -153,15 +162,24 @@ module.exports = function(context) {
 
                 // explicit global variables don't have definitions.
                 var def = variable.defs[0];
+
                 if (def) {
                     var type = def.type;
 
                     // skip catch variables
                     if (type === "CatchClause") {
-                        continue;
+                        if (config.caughtErrors === "none") {
+                            continue;
+                        }
+
+                        // skip ignored parameters
+                        if (config.caughtErrorsIgnorePattern && config.caughtErrorsIgnorePattern.test(def.name.name)) {
+                            continue;
+                        }
                     }
 
                     if (type === "Parameter") {
+
                         // skip any setter argument
                         if (def.node.parent.type === "Property" && def.node.parent.kind === "set") {
                             continue;
@@ -182,6 +200,7 @@ module.exports = function(context) {
                             continue;
                         }
                     } else {
+
                         // skip ignored variables
                         if (config.varsIgnorePattern && config.varsIgnorePattern.test(def.name.name)) {
                             continue;
@@ -216,6 +235,7 @@ module.exports = function(context) {
 
         // Search a given variable name.
         var match = namePattern.exec(comment.value);
+
         return match ? match.index + 1 : 0;
     }
 
@@ -236,6 +256,7 @@ module.exports = function(context) {
         if (lineInComment > 0) {
             column -= 1 + prefix.lastIndexOf("\n");
         } else {
+
             // 2 is for `/*`
             column += baseLoc.column + 2;
         }
@@ -296,6 +317,12 @@ module.exports.schema = [
                         "enum": ["all", "after-used", "none"]
                     },
                     "argsIgnorePattern": {
+                        "type": "string"
+                    },
+                    "caughtErrors": {
+                        "enum": ["all", "none"]
+                    },
+                    "caughtErrorsIgnorePattern": {
                         "type": "string"
                     }
                 }

@@ -2,8 +2,8 @@ var common = require('./common');
 var fs = require('fs');
 
 //@
-//@ ### grep([options ,] regex_filter, file [, file ...])
-//@ ### grep([options ,] regex_filter, file_array)
+//@ ### grep([options,] regex_filter, file [, file ...])
+//@ ### grep([options,] regex_filter, file_array)
 //@ Available options:
 //@
 //@ + `-v`: Inverse the sense of the regex and print the lines not matching the criteria.

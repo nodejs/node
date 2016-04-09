@@ -33,6 +33,7 @@ function getEmptyLineNums(lines) {
     }).map(function(line) {
         return line.num;
     });
+
     return emptyLines;
 }
 
@@ -43,9 +44,11 @@ function getEmptyLineNums(lines) {
  */
 function getCommentLineNums(comments) {
     var lines = [];
+
     comments.forEach(function(token) {
         var start = token.loc.start.line;
         var end = token.loc.end.line;
+
         lines.push(start, end);
     });
     return lines;
@@ -68,6 +71,7 @@ function contains(val, array) {
 module.exports = function(context) {
 
     var options = context.options[0] ? lodash.assign({}, context.options[0]) : {};
+
     options.beforeLineComment = options.beforeLineComment || false;
     options.afterLineComment = options.afterLineComment || false;
     options.beforeBlockComment = typeof options.beforeBlockComment !== "undefined" ? options.beforeBlockComment : true;
@@ -76,6 +80,7 @@ module.exports = function(context) {
     options.allowBlockEnd = options.allowBlockEnd || false;
 
     var sourceCode = context.getSourceCode();
+
     /**
      * Returns whether or not comments are on lines starting with or ending with code
      * @param {ASTNode} node The comment node to check.
@@ -160,7 +165,7 @@ module.exports = function(context) {
      * @returns {boolean} True if the comment is at block start.
      */
     function isCommentAtBlockStart(node) {
-        return isCommentAtParentStart(node, "ClassBody") || isCommentAtParentStart(node, "BlockStatement");
+        return isCommentAtParentStart(node, "ClassBody") || isCommentAtParentStart(node, "BlockStatement") || isCommentAtParentStart(node, "SwitchCase");
     }
 
     /**
@@ -169,7 +174,7 @@ module.exports = function(context) {
      * @returns {boolean} True if the comment is at block end.
      */
     function isCommentAtBlockEnd(node) {
-        return isCommentAtParentEnd(node, "ClassBody") || isCommentAtParentEnd(node, "BlockStatement");
+        return isCommentAtParentEnd(node, "ClassBody") || isCommentAtParentEnd(node, "BlockStatement") || isCommentAtParentEnd(node, "SwitchCase") || isCommentAtParentEnd(node, "SwitchStatement");
     }
 
     /**

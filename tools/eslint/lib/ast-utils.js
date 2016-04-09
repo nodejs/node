@@ -33,14 +33,21 @@ var thisTagPattern = /^[\s\*]*@this/m;
  * @private
  */
 function isModifyingReference(reference, index, references) {
-    var identifier = reference.identifier;
+    var identifier = reference.identifier,
+        modifyingDifferentIdentifier;
+
+    /*
+     * Destructuring assignments can have multiple default value, so
+     * possibly there are multiple writeable references for the same
+     * identifier.
+     */
+    modifyingDifferentIdentifier = index === 0 ||
+        references[index - 1].identifier !== identifier;
 
     return (identifier &&
         reference.init === false &&
         reference.isWrite() &&
-            // Destructuring assignments can have multiple default value,
-            // so possibly there are multiple writeable references for the same identifier.
-        (index === 0 || references[index - 1].identifier !== identifier)
+        modifyingDifferentIdentifier
     );
 }
 
@@ -155,6 +162,7 @@ function isMethodWhichHasThisArg(node) {
  */
 function hasJSDocThisTag(node, sourceCode) {
     var jsdocComment = sourceCode.getJSDocComment(node);
+
     if (jsdocComment && thisTagPattern.test(jsdocComment.value)) {
         return true;
     }
@@ -166,6 +174,22 @@ function hasJSDocThisTag(node, sourceCode) {
     return sourceCode.getComments(node).leading.some(function(comment) {
         return thisTagPattern.test(comment.value);
     });
+}
+
+/**
+ * Determines if a node is surrounded by parentheses.
+ * @param {RuleContext} context The context object passed to the rule
+ * @param {ASTNode} node The node to be checked.
+ * @returns {boolean} True if the node is parenthesised.
+ * @private
+ */
+function isParenthesised(context, node) {
+    var previousToken = context.getTokenBefore(node),
+        nextToken = context.getTokenAfter(node);
+
+    return Boolean(previousToken && nextToken) &&
+        previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
+        nextToken.value === ")" && nextToken.range[0] >= node.range[1];
 }
 
 //------------------------------------------------------------------------------
@@ -187,8 +211,10 @@ module.exports = {
 
     isNullOrUndefined: isNullOrUndefined,
     isCallee: isCallee,
+    isES5Constructor: isES5Constructor,
     getUpperFunction: getUpperFunction,
     isArrayFromMethod: isArrayFromMethod,
+    isParenthesised: isParenthesised,
 
     /**
      * Checks whether or not a given node is a string literal.
@@ -261,6 +287,7 @@ module.exports = {
      */
     isDirectiveComment: function(node) {
         var comment = node.value.trim();
+
         return (
             node.type === "Line" && comment.indexOf("eslint-") === 0 ||
             node.type === "Block" && (
@@ -293,8 +320,10 @@ module.exports = {
      */
     getVariableByName: function(initScope, name) {
         var scope = initScope;
+
         while (scope) {
             var variable = scope.set.get(name);
+
             if (variable) {
                 return variable;
             }
@@ -333,10 +362,13 @@ module.exports = {
 
         while (node) {
             var parent = node.parent;
+
             switch (parent.type) {
-                // Looks up the destination.
-                // e.g.
-                //   obj.foo = nativeFoo || function foo() { ... };
+
+                /*
+                 * Looks up the destination.
+                 * e.g., obj.foo = nativeFoo || function foo() { ... };
+                 */
                 case "LogicalExpression":
                 case "ConditionalExpression":
                     node = parent;
@@ -350,6 +382,7 @@ module.exports = {
                 //   })();
                 case "ReturnStatement":
                     var func = getUpperFunction(parent);
+
                     if (func === null || !isCallee(func)) {
                         return true;
                     }

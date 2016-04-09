@@ -30,6 +30,7 @@ module.exports = function(rulesDir, cwd) {
     }
 
     var rules = Object.create(null);
+
     fs.readdirSync(rulesDir).forEach(function(file) {
         if (path.extname(file) !== ".js") {
             return;
