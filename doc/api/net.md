@@ -520,6 +520,11 @@ added: v0.1.90
 Ensures that no more I/O activity happens on this socket. Only necessary in
 case of errors (parse error or so).
 
+### socket.destroyed
+
+A Boolean value that indicates if the connection is destroyed or not. Once a
+connection is destroyed no further data can be transferred using it.
+
 ### socket.end([data][, encoding])
 <!-- YAML
 added: v0.1.90
