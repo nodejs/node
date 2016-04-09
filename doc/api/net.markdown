@@ -359,6 +359,10 @@ The amount of received bytes.
 
 The amount of bytes sent.
 
+### socket.destroyed
+
+A `boolean` value that depicts if the connection is destroyed or not. 
+
 ### socket.connect(options[, connectListener])
 
 Opens the connection for a given socket.
