@@ -9,7 +9,7 @@ const options = {}
 
 function help(status) {
   const print = (status == 0) ? console.log : console.error
-  print("usage: " + basename(process.argv[1]) + " [--ecma3|--ecma5|--ecma6]")
+  print("usage: " + basename(process.argv[1]) + " [--ecma3|--ecma5|--ecma6|--ecma7]")
   print("        [--tokenize] [--locations] [---allow-hash-bang] [--compact] [--silent] [--module] [--help] [--] [infile]")
   process.exit(status)
 }
@@ -21,6 +21,7 @@ for (let i = 2; i < process.argv.length; ++i) {
   else if (arg == "--ecma3") options.ecmaVersion = 3
   else if (arg == "--ecma5") options.ecmaVersion = 5
   else if (arg == "--ecma6") options.ecmaVersion = 6
+  else if (arg == "--ecma7") options.ecmaVersion = 7
   else if (arg == "--locations") options.locations = true
   else if (arg == "--allow-hash-bang") options.allowHashBang = true
   else if (arg == "--silent") silent = true

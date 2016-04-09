@@ -21,6 +21,7 @@ module.exports = function(context) {
      */
     function validate(node) {
         var arrowBody = node.body;
+
         if (arrowBody.type === "BlockStatement") {
             var blockBody = arrowBody.body;
 

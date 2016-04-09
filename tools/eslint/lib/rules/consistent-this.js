@@ -79,6 +79,7 @@ module.exports = function(context) {
         // assigned later in the same scope.
         if (!variable.references.some(function(reference) {
             var write = reference.writeExpr;
+
             return (
                 reference.from === scope &&
                 write && write.type === "ThisExpression" &&

@@ -15,58 +15,52 @@ module.exports = function(context) {
     var props = context.options[0] && Boolean(context.options[0].props);
 
     /**
-     * Checks whether or not a reference modifies its variable.
-     * If the `props` option is `true`, this checks whether or not the reference modifies properties of its variable also.
+     * Checks whether or not the reference modifies properties of its variable.
      * @param {Reference} reference - A reference to check.
-     * @returns {boolean} Whether or not the reference modifies its variable.
+     * @returns {boolean} Whether or not the reference modifies properties of its variable.
      */
-    function isModifying(reference) {
-        if (reference.isWrite()) {
-            return true;
-        }
+    function isModifyingProp(reference) {
+        var node = reference.identifier;
+        var parent = node.parent;
 
-        // Checks whether its property is modified.
-        if (props) {
-            var node = reference.identifier;
-            var parent = node.parent;
-            while (parent && !stopNodePattern.test(parent.type)) {
-                switch (parent.type) {
-                    // e.g. foo.a = 0;
-                    case "AssignmentExpression":
-                        return parent.left === node;
+        while (parent && !stopNodePattern.test(parent.type)) {
+            switch (parent.type) {
 
-                    // e.g. ++foo.a;
-                    case "UpdateExpression":
+                // e.g. foo.a = 0;
+                case "AssignmentExpression":
+                    return parent.left === node;
+
+                // e.g. ++foo.a;
+                case "UpdateExpression":
+                    return true;
+
+                // e.g. delete foo.a;
+                case "UnaryExpression":
+                    if (parent.operator === "delete") {
                         return true;
+                    }
+                    break;
 
-                    // e.g. delete foo.a;
-                    case "UnaryExpression":
-                        if (parent.operator === "delete") {
-                            return true;
-                        }
-                        break;
+                // EXCLUDES: e.g. cache.get(foo.a).b = 0;
+                case "CallExpression":
+                    if (parent.callee !== node) {
+                        return false;
+                    }
+                    break;
 
-                    // EXCLUDES: e.g. cache.get(foo.a).b = 0;
-                    case "CallExpression":
-                        if (parent.callee !== node) {
-                            return false;
-                        }
-                        break;
+                // EXCLUDES: e.g. cache[foo.a] = 0;
+                case "MemberExpression":
+                    if (parent.property === node) {
+                        return false;
+                    }
+                    break;
 
-                    // EXCLUDES: e.g. cache[foo.a] = 0;
-                    case "MemberExpression":
-                        if (parent.property === node) {
-                            return false;
-                        }
-                        break;
-
-                    default:
-                        break;
-                }
-
-                node = parent;
-                parent = parent.parent;
+                default:
+                    break;
             }
+
+            node = parent;
+            parent = node.parent;
         }
 
         return false;
@@ -84,15 +78,22 @@ module.exports = function(context) {
 
         if (identifier &&
             !reference.init &&
-            isModifying(reference) &&
+
             // Destructuring assignments can have multiple default value,
             // so possibly there are multiple writeable references for the same identifier.
             (index === 0 || references[index - 1].identifier !== identifier)
         ) {
-            context.report(
-                identifier,
-                "Assignment to function parameter '{{name}}'.",
-                {name: identifier.name});
+            if (reference.isWrite()) {
+                context.report(
+                    identifier,
+                    "Assignment to function parameter '{{name}}'.",
+                    {name: identifier.name});
+            } else if (props && isModifyingProp(reference)) {
+                context.report(
+                    identifier,
+                    "Assignment to property of function parameter '{{name}}'.",
+                    {name: identifier.name});
+            }
         }
     }
 
@@ -117,6 +118,7 @@ module.exports = function(context) {
     }
 
     return {
+
         // `:exit` is needed for the `node.parent` property of identifier nodes.
         "FunctionDeclaration:exit": checkForFunction,
         "FunctionExpression:exit": checkForFunction,

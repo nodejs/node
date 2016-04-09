@@ -42,6 +42,7 @@ module.exports = function(context) {
 
             // TODO(nagashima): Remove this duplication check after https://github.com/estools/escope/pull/79
             var key = "$" + variable.name; // to avoid __proto__.
+
             if (!isParameter(variable.defs[0]) || keyMap[key]) {
                 continue;
             }
@@ -49,6 +50,7 @@ module.exports = function(context) {
 
             // Checks and reports duplications.
             var defs = variable.defs.filter(isParameter);
+
             if (defs.length >= 2) {
                 context.report({
                     node: node,

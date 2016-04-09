@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('intersection', require('../intersection'));
+var convert = require('./convert'),
+    func = convert('intersection', require('../intersection'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

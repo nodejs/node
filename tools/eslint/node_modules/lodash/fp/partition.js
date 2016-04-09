@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('partition', require('../partition'));
+var convert = require('./convert'),
+    func = convert('partition', require('../partition'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

@@ -19,6 +19,7 @@ var assert = require("assert");
 //------------------------------------------------------------------------------
 
 module.exports = {
+
     /**
      * Overrideable `describe` function to test.
      * @param {string} text - A description.

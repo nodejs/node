@@ -8,6 +8,7 @@ var FUNC_ERROR_TEXT = 'Expected a function';
  *
  * @static
  * @memberOf _
+ * @since 3.0.0
  * @category Function
  * @param {Function} predicate The predicate to negate.
  * @returns {Function} Returns the new function.

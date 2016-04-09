@@ -45,6 +45,7 @@ module.exports = function(context) {
      */
     function isDuplicatedClassNameVariable(variable) {
         var block = variable.scope.block;
+
         return block.type === "ClassDeclaration" && block.id === variable.identifiers[0];
     }
 
@@ -83,6 +84,7 @@ module.exports = function(context) {
      */
     function getNameRange(variable) {
         var def = variable.defs[0];
+
         return def && def.name.range;
     }
 
@@ -96,10 +98,12 @@ module.exports = function(context) {
         var outerDef = scopeVar.defs[0];
         var inner = getNameRange(variable);
         var outer = getNameRange(scopeVar);
+
         return (
             inner &&
             outer &&
             inner[1] < outer[0] &&
+
             // Excepts FunctionDeclaration if is {"hoist":"function"}.
             (options.hoist !== "functions" || !outerDef || outerDef.node.type !== "FunctionDeclaration")
         );
@@ -112,6 +116,7 @@ module.exports = function(context) {
      */
     function checkForShadows(scope) {
         var variables = scope.variables;
+
         for (var i = 0; i < variables.length; ++i) {
             var variable = variables[i];
 
@@ -125,6 +130,7 @@ module.exports = function(context) {
 
             // Gets shadowed variable.
             var shadowed = astUtils.getVariableByName(scope.upper, variable.name);
+
             if (shadowed &&
                 (shadowed.identifiers.length > 0 || (options.builtinGlobals && "writeable" in shadowed)) &&
                 !isOnInitializer(variable, shadowed) &&

@@ -8,6 +8,7 @@ var FLIP_FLAG = 512;
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Function
  * @param {Function} func The function to flip arguments for.
  * @returns {Function} Returns the new function.

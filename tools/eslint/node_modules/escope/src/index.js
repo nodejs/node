@@ -64,7 +64,9 @@ function defaultOptions() {
         nodejsScope: false,
         impliedStrict: false,
         sourceType: 'script',  // one of ['script', 'module']
-        ecmaVersion: 5
+        ecmaVersion: 5,
+        childVisitorKeys: null,
+        fallback: 'iteration'
     };
 }
 
@@ -72,7 +74,7 @@ function updateDeeply(target, override) {
     var key, val;
 
     function isHashObject(target) {
-        return typeof target === 'object' && target instanceof Object && !(target instanceof RegExp);
+        return typeof target === 'object' && target instanceof Object && !(target instanceof Array) && !(target instanceof RegExp);
     }
 
     for (key in override) {
@@ -108,6 +110,8 @@ function updateDeeply(target, override) {
  * (if ecmaVersion >= 5).
  * @param {string} [providedOptions.sourceType='script']- the source type of the script. one of 'script' and 'module'
  * @param {number} [providedOptions.ecmaVersion=5]- which ECMAScript version is considered
+ * @param {Object} [providedOptions.childVisitorKeys=null] - Additional known visitor keys. See [esrecurse](https://github.com/estools/esrecurse)'s the `childVisitorKeys` option.
+ * @param {string} [providedOptions.fallback='iteration'] - A kind of the fallback in order to encounter with unknown node. See [esrecurse](https://github.com/estools/esrecurse)'s the `fallback` option.
  * @return {ScopeManager}
  */
 export function analyze(tree, providedOptions) {
@@ -117,7 +121,7 @@ export function analyze(tree, providedOptions) {
 
     scopeManager = new ScopeManager(options);
 
-    referencer = new Referencer(scopeManager);
+    referencer = new Referencer(options, scopeManager);
     referencer.visit(tree);
 
     assert(scopeManager.__currentScope === null, 'currentScope should be null.');

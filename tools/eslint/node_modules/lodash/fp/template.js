@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('template', require('../template'));
+var convert = require('./convert'),
+    func = convert('template', require('../template'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;
