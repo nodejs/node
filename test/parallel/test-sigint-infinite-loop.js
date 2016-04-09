@@ -35,4 +35,3 @@ process.on('exit', function() {
   assert.ok(sentKill);
   assert.ok(gotChildExit);
 });
-
