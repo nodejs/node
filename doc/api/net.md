@@ -397,6 +397,11 @@ with options either as either `{port: port, host: host}` or `{path: path}`.
 Ensures that no more I/O activity happens on this socket. Only necessary in
 case of errors (parse error or so).
 
+### socket.destroyed
+
+A Boolean value that indicates if the connection is destroyed or not. Once a
+connection is destroyed no further data can be transferred using it.
+
 ### socket.end([data][, encoding])
 
 Half-closes the socket. i.e., it sends a FIN packet. It is possible the
