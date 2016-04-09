@@ -73,6 +73,7 @@ var PASSTHROUGHS = [
  * @param {Object} meta The metadata of the rule
  */
 function RuleContext(ruleId, eslint, severity, options, settings, parserOptions, parserPath, meta) {
+
     // public.
     this.id = ruleId;
     this.options = options;
@@ -149,9 +150,8 @@ RuleContext.prototype = {
     }
 };
 
-// copy over passthrough methods
+// Copy over passthrough methods. All functions will have 5 or fewer parameters.
 PASSTHROUGHS.forEach(function(name) {
-    // All functions expected to have less arguments than 5.
     this[name] = function(a, b, c, d, e) {
         return this.eslint[name](a, b, c, d, e);
     };

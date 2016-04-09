@@ -57,12 +57,18 @@ var lodash = require("lodash"),
 //------------------------------------------------------------------------------
 // Private Members
 //------------------------------------------------------------------------------
-// testerDefaultConfig must not be modified as it allows to reset the tester to
-// the initial default configuration
+
+/*
+ * testerDefaultConfig must not be modified as it allows to reset the tester to
+ * the initial default configuration
+ */
 var testerDefaultConfig = { rules: {} };
 var defaultConfig = { rules: {} };
-// List every parameters possible on a test case that are not related to eslint
-// configuration
+
+/*
+ * List every parameters possible on a test case that are not related to eslint
+ * configuration
+ */
 var RuleTesterParameters = [
     "code",
     "filename",
@@ -89,6 +95,7 @@ function cloneDeeplyExcludesParent(x) {
         }
 
         var retv = {};
+
         for (var key in x) {
             if (key !== "parent" && hasOwnProperty(x, key)) {
                 retv[key] = cloneDeeplyExcludesParent(x[key]);
@@ -139,8 +146,8 @@ function RuleTester(testerConfig) {
      * @type {Object}
      */
     this.testerConfig = lodash.merge(
-        // we have to clone because merge uses the object on the left for
-        // recipient
+
+        // we have to clone because merge uses the first argument for recipient
         lodash.cloneDeep(defaultConfig),
         testerConfig
     );
@@ -228,9 +235,11 @@ RuleTester.prototype = {
                 code = item;
             } else {
                 code = item.code;
+
                 // Assumes everything on the item is a config except for the
                 // parameters used by this tester
                 var itemConfig = lodash.omit(item, RuleTesterParameters);
+
                 // Create the config object from the tester config and this item
                 // specific configurations.
                 config = lodash.merge(
@@ -245,6 +254,7 @@ RuleTester.prototype = {
 
             if (item.options) {
                 var options = item.options.concat();
+
                 options.unshift(1);
                 config.rules[ruleName] = options;
             } else {
@@ -269,8 +279,11 @@ RuleTester.prototype = {
 
             validator.validate(config, "rule-tester");
 
-            // Setup AST getters.
-            // To check whether or not AST was not modified in verify.
+            /*
+             * Setup AST getters.
+             * The goal is to check whether or not AST was modified when
+             * running the rule under test.
+             */
             eslint.reset();
             eslint.on("Program", function(node) {
                 beforeAST = cloneDeeplyExcludesParent(node);
@@ -282,9 +295,11 @@ RuleTester.prototype = {
 
             // Freezes rule-context properties.
             var originalGet = rules.get;
+
             try {
                 rules.get = function(ruleId) {
                     var rule = originalGet(ruleId);
+
                     if (typeof rule === "function") {
                         return function(context) {
                             Object.freeze(context);
@@ -350,6 +365,9 @@ RuleTester.prototype = {
          * @private
          */
         function testInvalidTemplate(ruleName, item) {
+            assert.ok(item.errors || item.errors === 0,
+                "Did not specify errors for an invalid test of " + ruleName);
+
             var result = runRuleForItem(ruleName, item);
             var messages = result.messages;
 
@@ -368,13 +386,16 @@ RuleTester.prototype = {
                     assert.equal(messages[i].ruleId, ruleName, "Error rule name should be the same as the name of the rule being tested");
 
                     if (typeof item.errors[i] === "string") {
-                        // Just an error message.
 
+                        // Just an error message.
                         assert.equal(messages[i].message, item.errors[i], "Error message should be " + item.errors[i]);
                     } else if (typeof item.errors[i] === "object") {
-                        // Error object. This may have a message, node type,
-                        // line, and/or column.
 
+                        /*
+                         * Error object.
+                         * This may have a message, node type, line, and/or
+                         * column.
+                         */
                         if (item.errors[i].message) {
                             assert.equal(messages[i].message, item.errors[i].message, "Error message should be " + item.errors[i].message);
                         }
@@ -391,6 +412,7 @@ RuleTester.prototype = {
                             assert.equal(messages[i].column, item.errors[i].column, "Error column should be " + item.errors[i].column);
                         }
                     } else {
+
                         // Only string or object errors are valid.
                         assert.fail(messages[i], null, "Error should be a string or object.");
                     }
@@ -398,6 +420,7 @@ RuleTester.prototype = {
 
                 if (item.hasOwnProperty("output")) {
                     var fixResult = SourceCodeFixer.applyFixes(eslint.getSourceCode(), messages);
+
                     assert.equal(fixResult.output, item.output, "Output is incorrect.");
                 }
 
@@ -410,8 +433,10 @@ RuleTester.prototype = {
             );
         }
 
-        // this creates a mocha test suite and pipes all supplied info
-        // through one of the templates above.
+        /*
+         * This creates a mocha test suite and pipes all supplied info through
+         * one of the templates above.
+         */
         RuleTester.describe(ruleName, function() {
             RuleTester.describe("valid", function() {
                 test.valid.forEach(function(valid) {

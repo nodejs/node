@@ -15,8 +15,10 @@ var astUtils = require("../ast-utils");
 module.exports = function(context) {
 
     var config = context.options[0],
-        // default to onObject if no preference is passed
-        onObject = config === "object" || !config;
+        onObject;
+
+    // default to onObject if no preference is passed
+    onObject = config === "object" || !config;
 
     /**
      * Reports if the dot between object and property is on the correct loccation.

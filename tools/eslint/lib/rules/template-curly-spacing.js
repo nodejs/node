@@ -36,6 +36,7 @@ module.exports = function(context) {
      */
     function checkSpacingBefore(token) {
         var prevToken = sourceCode.getTokenBefore(token);
+
         if (prevToken &&
             CLOSE_PAREN.test(token.value) &&
             astUtils.isTokenOnSameLine(prevToken, token) &&
@@ -64,6 +65,7 @@ module.exports = function(context) {
      */
     function checkSpacingAfter(token) {
         var nextToken = sourceCode.getTokenAfter(token);
+
         if (nextToken &&
             OPEN_PAREN.test(token.value) &&
             astUtils.isTokenOnSameLine(token, nextToken) &&
@@ -91,6 +93,7 @@ module.exports = function(context) {
     return {
         TemplateElement: function(node) {
             var token = sourceCode.getFirstToken(node);
+
             checkSpacingBefore(token);
             checkSpacingAfter(token);
         }

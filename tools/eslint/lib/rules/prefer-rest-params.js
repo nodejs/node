@@ -18,9 +18,12 @@
  */
 function getVariableOfArguments(scope) {
     var variables = scope.variables;
+
     for (var i = 0; i < variables.length; ++i) {
         var variable = variables[i];
+
         if (variable.name === "arguments") {
+
             // If there was a parameter which is named "arguments", the implicit "arguments" is not defined.
             // So does fast return with null.
             return (variable.identifiers.length === 0) ? variable : null;
@@ -57,6 +60,7 @@ module.exports = function(context) {
      */
     function checkForArguments() {
         var argumentsVar = getVariableOfArguments(context.getScope());
+
         if (argumentsVar) {
             argumentsVar.references.forEach(report);
         }

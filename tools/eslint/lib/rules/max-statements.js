@@ -17,9 +17,20 @@ module.exports = function(context) {
     //--------------------------------------------------------------------------
 
     var functionStack = [],
-        maxStatements = context.options[0] || 10,
+        option = context.options[0],
+        maxStatements = 10,
         ignoreTopLevelFunctions = context.options[1] && context.options[1].ignoreTopLevelFunctions || false,
         topLevelFunctions = [];
+
+    if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
+        maxStatements = option.maximum;
+    }
+    if (typeof option === "object" && option.hasOwnProperty("max") && typeof option.max === "number") {
+        maxStatements = option.max;
+    }
+    if (typeof option === "number") {
+        maxStatements = option;
+    }
 
     /**
      * Reports a node if it has too many statements
@@ -55,6 +66,7 @@ module.exports = function(context) {
      */
     function endFunction(node) {
         var count = functionStack.pop();
+
         if (ignoreTopLevelFunctions && functionStack.length === 0) {
             topLevelFunctions.push({ node: node, count: count});
         } else {
@@ -95,6 +107,7 @@ module.exports = function(context) {
             topLevelFunctions.forEach(function(element) {
                 var count = element.count;
                 var node = element.node;
+
                 reportIfTooManyStatements(node, count, maxStatements);
             });
         }
@@ -104,8 +117,26 @@ module.exports = function(context) {
 
 module.exports.schema = [
     {
-        "type": "integer",
-        "minimum": 0
+        "oneOf": [
+            {
+                "type": "integer",
+                "minimum": 0
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "maximum": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "max": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "additionalProperties": false
+            }
+        ]
     },
     {
         "type": "object",

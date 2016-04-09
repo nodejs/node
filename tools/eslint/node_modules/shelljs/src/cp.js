@@ -76,7 +76,7 @@ function cpdirSyncRecursive(sourceDir, destDir, opts) {
       fs.symlinkSync(symlinkFull, destFile, os.platform() === "win32" ? "junction" : null);
     } else {
       /* At this point, we've hit a file actually worth copying... so copy it on over. */
-      if (fs.existsSync(destFile) && !opts.force) {
+      if (fs.existsSync(destFile) && opts.no_force) {
         common.log('skipping existing file: ' + files[i]);
       } else {
         copyFileSync(srcFile, destFile);
@@ -88,11 +88,12 @@ function cpdirSyncRecursive(sourceDir, destDir, opts) {
 
 
 //@
-//@ ### cp([options ,] source [,source ...], dest)
-//@ ### cp([options ,] source_array, dest)
+//@ ### cp([options,] source [, source ...], dest)
+//@ ### cp([options,] source_array, dest)
 //@ Available options:
 //@
-//@ + `-f`: force
+//@ + `-f`: force (default behavior)
+//@ + `-n`: no-clobber
 //@ + `-r, -R`: recursive
 //@
 //@ Examples:
@@ -106,7 +107,8 @@ function cpdirSyncRecursive(sourceDir, destDir, opts) {
 //@ Copies files. The wildcard `*` is accepted.
 function _cp(options, sources, dest) {
   options = common.parseOptions(options, {
-    'f': 'force',
+    'f': '!no_force',
+    'n': 'no_force',
     'R': 'recursive',
     'r': 'recursive'
   });
@@ -133,15 +135,19 @@ function _cp(options, sources, dest) {
     common.error('dest is not a directory (too many sources)');
 
   // Dest is an existing file, but no -f given
-  if (exists && stats.isFile() && !options.force)
+  if (exists && stats.isFile() && options.no_force)
     common.error('dest file already exists: ' + dest);
 
   if (options.recursive) {
     // Recursive allows the shortcut syntax "sourcedir/" for "sourcedir/*"
     // (see Github issue #15)
     sources.forEach(function(src, i) {
-      if (src[src.length - 1] === '/')
+      if (src[src.length - 1] === '/') {
         sources[i] += '*';
+      // If src is a directory and dest doesn't exist, 'cp -r src dest' should copy src/* into dest
+      } else if (fs.statSync(src).isDirectory() && !exists) {
+        sources[i] += '/*';
+      }
     });
 
     // Create dest
@@ -180,7 +186,7 @@ function _cp(options, sources, dest) {
           }
         }
 
-        cpdirSyncRecursive(src, newDest, {force: options.force});
+        cpdirSyncRecursive(src, newDest, {no_force: options.no_force});
       }
       return; // done with dir
     }
@@ -193,7 +199,7 @@ function _cp(options, sources, dest) {
     if (fs.existsSync(dest) && fs.statSync(dest).isDirectory())
       thisDest = path.normalize(dest + '/' + path.basename(src));
 
-    if (fs.existsSync(thisDest) && !options.force) {
+    if (fs.existsSync(thisDest) && options.no_force) {
       common.error('dest file already exists: ' + thisDest, true);
       return; // skip file
     }

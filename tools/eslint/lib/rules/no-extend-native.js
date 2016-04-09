@@ -33,7 +33,8 @@ module.exports = function(context) {
 
         // handle the Array.prototype.extra style case
         "AssignmentExpression": function(node) {
-            var lhs = node.left, affectsProto;
+            var lhs = node.left,
+                affectsProto;
 
             if (lhs.type !== "MemberExpression" || lhs.object.type !== "MemberExpression") {
                 return;

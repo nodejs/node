@@ -4,6 +4,7 @@
  *
  * @static
  * @memberOf _
+ * @since 2.3.0
  * @category Util
  * @example
  *

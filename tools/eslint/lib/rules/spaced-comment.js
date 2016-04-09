@@ -20,6 +20,7 @@ var lodash = require("lodash");
  */
 function escape(s) {
     var isOneChar = s.length === 1;
+
     s = lodash.escapeRegExp(s);
     return isOneChar ? s : "(?:" + s + ")";
 }
@@ -65,43 +66,57 @@ function parseMarkersOption(markers) {
 function createAlwaysStylePattern(markers, exceptions) {
     var pattern = "^";
 
-    // A marker or nothing.
-    //   ["*"]            ==> "\*?"
-    //   ["*", "!"]       ==> "(?:\*|!)?"
-    //   ["*", "/", "!<"] ==> "(?:\*|\/|(?:!<))?" ==> https://jex.im/regulex/#!embed=false&flags=&re=(%3F%3A%5C*%7C%5C%2F%7C(%3F%3A!%3C))%3F
+    /*
+     * A marker or nothing.
+     * ["*"]            ==> "\*?"
+     * ["*", "!"]       ==> "(?:\*|!)?"
+     * ["*", "/", "!<"] ==> "(?:\*|\/|(?:!<))?" ==> https://jex.im/regulex/#!embed=false&flags=&re=(%3F%3A%5C*%7C%5C%2F%7C(%3F%3A!%3C))%3F
+     */
     if (markers.length === 1) {
+
         // the marker.
         pattern += escape(markers[0]);
     } else {
+
         // one of markers.
         pattern += "(?:";
         pattern += markers.map(escape).join("|");
         pattern += ")";
     }
+
     pattern += "?"; // or nothing.
 
-    // A space or an exception pattern sequence.
-    //   []                 ==> "\s"
-    //   ["-"]              ==> "(?:\s|\-+$)"
-    //   ["-", "="]         ==> "(?:\s|(?:\-+|=+)$)"
-    //   ["-", "=", "--=="] ==> "(?:\s|(?:\-+|=+|(?:\-\-==)+)$)" ==> https://jex.im/regulex/#!embed=false&flags=&re=(%3F%3A%5Cs%7C(%3F%3A%5C-%2B%7C%3D%2B%7C(%3F%3A%5C-%5C-%3D%3D)%2B)%24)
+    /*
+     * A space or an exception pattern sequence.
+     * []                 ==> "\s"
+     * ["-"]              ==> "(?:\s|\-+$)"
+     * ["-", "="]         ==> "(?:\s|(?:\-+|=+)$)"
+     * ["-", "=", "--=="] ==> "(?:\s|(?:\-+|=+|(?:\-\-==)+)$)" ==> https://jex.im/regulex/#!embed=false&flags=&re=(%3F%3A%5Cs%7C(%3F%3A%5C-%2B%7C%3D%2B%7C(%3F%3A%5C-%5C-%3D%3D)%2B)%24)
+     */
     if (exceptions.length === 0) {
+
         // a space.
         pattern += "\\s";
     } else {
+
         // a space or...
         pattern += "(?:\\s|";
+
         if (exceptions.length === 1) {
+
             // a sequence of the exception pattern.
             pattern += escapeAndRepeat(exceptions[0]);
         } else {
+
             // a sequence of one of exception patterns.
             pattern += "(?:";
             pattern += exceptions.map(escapeAndRepeat).join("|");
             pattern += ")";
         }
+
         pattern += "(?:$|[\n\r]))"; // the sequence continues until the end.
     }
+
     return new RegExp(pattern);
 }
 
@@ -117,6 +132,7 @@ function createAlwaysStylePattern(markers, exceptions) {
  */
 function createNeverStylePattern(markers) {
     var pattern = "^(" + markers.map(escape).join("|") + ")?[ \t]+";
+
     return new RegExp(pattern);
 }
 
@@ -125,11 +141,15 @@ function createNeverStylePattern(markers) {
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+
     // Unless the first option is never, require a space
     var requireSpace = context.options[0] !== "never";
 
-    // Parse the second options.
-    // If markers don't include `"*"`, it's added automatically for JSDoc comments.
+    /*
+     * Parse the second options.
+     * If markers don't include `"*"`, it's added automatically for JSDoc
+     * comments.
+     */
     var config = context.options[1] || {};
     var styleRules = ["block", "line"].reduce(function(rule, type) {
         var markers = parseMarkersOption(config[type] && config[type].markers || config.markers);
@@ -196,6 +216,7 @@ module.exports = function(context) {
             if (!rule.regex.test(node.value)) {
                 var hasMarker = rule.markers.exec(node.value);
                 var marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
+
                 if (rule.hasExceptions) {
                     report(node, "Expected exception block, space or tab after '" + marker + "' in comment.", hasMarker);
                 } else {
@@ -204,6 +225,7 @@ module.exports = function(context) {
             }
         } else {
             var matched = rule.regex.exec(node.value);
+
             if (matched) {
                 if (!matched[1]) {
                     report(node, "Unexpected space or tab after '" + commentIdentifier + "' in comment.", matched);

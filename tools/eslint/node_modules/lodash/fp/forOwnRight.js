@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('forOwnRight', require('../forOwnRight'));
+var convert = require('./convert'),
+    func = convert('forOwnRight', require('../forOwnRight'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

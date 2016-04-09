@@ -45,6 +45,7 @@ module.exports = function(context) {
     }
 
     return {
+
         /**
          * Reports this empty statement, except if the parent node is a loop.
          * @param {Node} node - A EmptyStatement node to be reported.

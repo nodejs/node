@@ -2,7 +2,6 @@ module.exports = {
   'at': require('./wrapperAt'),
   'chain': require('./chain'),
   'commit': require('./commit'),
-  'flatMap': require('./wrapperFlatMap'),
   'lodash': require('./wrapperLodash'),
   'next': require('./next'),
   'plant': require('./plant'),

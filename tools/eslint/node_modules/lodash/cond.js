@@ -14,6 +14,7 @@ var FUNC_ERROR_TEXT = 'Expected a function';
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Util
  * @param {Array} pairs The predicate-function pairs.
  * @returns {Function} Returns the new function.
@@ -35,13 +36,14 @@ var FUNC_ERROR_TEXT = 'Expected a function';
  * // => 'no match'
  */
 function cond(pairs) {
-  var length = pairs ? pairs.length : 0;
+  var length = pairs ? pairs.length : 0,
+      toIteratee = baseIteratee;
 
   pairs = !length ? [] : arrayMap(pairs, function(pair) {
     if (typeof pair[1] != 'function') {
       throw new TypeError(FUNC_ERROR_TEXT);
     }
-    return [baseIteratee(pair[0]), pair[1]];
+    return [toIteratee(pair[0]), pair[1]];
   });
 
   return rest(function(args) {

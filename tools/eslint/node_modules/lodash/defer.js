@@ -7,6 +7,7 @@ var baseDelay = require('./_baseDelay'),
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Function
  * @param {Function} func The function to defer.
  * @param {...*} [args] The arguments to invoke `func` with.
@@ -16,7 +17,7 @@ var baseDelay = require('./_baseDelay'),
  * _.defer(function(text) {
  *   console.log(text);
  * }, 'deferred');
- * // => logs 'deferred' after one or more milliseconds
+ * // => Logs 'deferred' after one or more milliseconds.
  */
 var defer = rest(function(func, args) {
   return baseDelay(func, 1, args);

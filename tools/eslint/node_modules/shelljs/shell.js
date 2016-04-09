@@ -107,6 +107,13 @@ exports.exec = common.wrap('exec', _exec, {notUnix:true});
 var _chmod = require('./src/chmod');
 exports.chmod = common.wrap('chmod', _chmod);
 
+//@include ./src/touch
+var _touch = require('./src/touch');
+exports.touch = common.wrap('touch', _touch);
+
+//@include ./src/set
+var _set = require('./src/set');
+exports.set = common.wrap('set', _set);
 
 
 //@
@@ -151,9 +158,27 @@ exports.config = common.config;
 //@
 //@ ```javascript
 //@ require('shelljs/global');
-//@ config.fatal = true;
+//@ config.fatal = true; // or set('-e');
 //@ cp('this_file_does_not_exist', '/dev/null'); // dies here
 //@ /* more commands... */
 //@ ```
 //@
-//@ If `true` the script will die on errors. Default is `false`.
+//@ If `true` the script will die on errors. Default is `false`. This is
+//@ analogous to Bash's `set -e`
+
+//@
+//@ ### config.verbose
+//@ Example:
+//@
+//@ ```javascript
+//@ config.verbose = true; // or set('-v');
+//@ cd('dir/');
+//@ ls('subdir/');
+//@ ```
+//@
+//@ Will print each command as follows:
+//@
+//@ ```
+//@ cd dir/
+//@ ls subdir/
+//@ ```
