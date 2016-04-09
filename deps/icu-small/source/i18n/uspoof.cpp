@@ -1,0 +1,799 @@
+/*
+***************************************************************************
+* Copyright (C) 2008-2015, International Business Machines Corporation
+* and others. All Rights Reserved.
+***************************************************************************
+*   file name:  uspoof.cpp
+*   encoding:   US-ASCII
+*   tab size:   8 (not used)
+*   indentation:4
+*
+*   created on: 2008Feb13
+*   created by: Andy Heninger
+*
+*   Unicode Spoof Detection
+*/
+#include "unicode/utypes.h"
+#include "unicode/normalizer2.h"
+#include "unicode/uspoof.h"
+#include "unicode/ustring.h"
+#include "unicode/utf16.h"
+#include "cmemory.h"
+#include "cstring.h"
+#include "identifier_info.h"
+#include "mutex.h"
+#include "scriptset.h"
+#include "uassert.h"
+#include "ucln_in.h"
+#include "uspoof_impl.h"
+#include "umutex.h"
+
+
+#if !UCONFIG_NO_NORMALIZATION
+
+U_NAMESPACE_USE
+
+
+//
+// Static Objects used by the spoof impl, their thread safe initialization and their cleanup.
+//
+static UnicodeSet *gInclusionSet = NULL;
+static UnicodeSet *gRecommendedSet = NULL;
+static const Normalizer2 *gNfdNormalizer = NULL;
+static SpoofData *gDefaultSpoofData = NULL;
+static UInitOnce gSpoofInitStaticsOnce = U_INITONCE_INITIALIZER;
+static UInitOnce gSpoofInitDefaultOnce = U_INITONCE_INITIALIZER;
+
+static UBool U_CALLCONV
+uspoof_cleanup(void) {
+    delete gInclusionSet;
+    gInclusionSet = NULL;
+    delete gRecommendedSet;
+    gRecommendedSet = NULL;
+    gNfdNormalizer = NULL;
+    if (gDefaultSpoofData) {
+        gDefaultSpoofData->removeReference();   // Will delete, assuming all user-level spoof checkers were closed.
+    }
+    gDefaultSpoofData = NULL;
+    gSpoofInitStaticsOnce.reset();
+    gSpoofInitDefaultOnce.reset();
+    return TRUE;
+}
+
+static void U_CALLCONV initializeStatics(UErrorCode &status) {
+    static const char *inclusionPat =
+           "[\\u0027\\u002D-\\u002E\\u003A\\u00B7\\u0375\\u058A\\u05F3-\\u05F4"
+           "\\u06FD-\\u06FE\\u0F0B\\u200C-\\u200D\\u2010\\u2019\\u2027\\u30A0\\u30FB]";
+    gInclusionSet = new UnicodeSet(UnicodeString(inclusionPat, -1, US_INV), status);
+    gInclusionSet->freeze();
+
+    // Note: data from http://unicode.org/Public/security/latest/xidmodifications.txt version 8.0.0
+    //       There is no tooling to generate this from the .txt file, hand extracted with editor macros.
+    //       Ultimately, data will be available as character properties, eliminating this.
+    // Note: concatenated string constants do not work with UNICODE_STRING_SIMPLE on all platforms.
+    static const char *recommendedPat =
+            "[\\u0030-\\u0039\\u0041-\\u005A\\u005F\\u0061-\\u007A\\u00C0-\\u00D6\\u00D8-\\u00F6"
+            "\\u00F8-\\u0131\\u0134-\\u013E\\u0141-\\u0148\\u014A-\\u017E\\u018F\\u01A0-\\u01A1"
+            "\\u01AF-\\u01B0\\u01CD-\\u01DC\\u01DE-\\u01E3\\u01E6-\\u01F0\\u01F4-\\u01F5\\u01F8-\\u021B"
+            "\\u021E-\\u021F\\u0226-\\u0233\\u0259\\u02BB-\\u02BC\\u02EC\\u0300-\\u0304\\u0306-\\u030C"
+            "\\u030F-\\u0311\\u0313-\\u0314\\u031B\\u0323-\\u0328\\u032D-\\u032E\\u0330-\\u0331"
+            "\\u0335\\u0338-\\u0339\\u0342\\u0345\\u037B-\\u037D\\u0386\\u0388-\\u038A\\u038C"
+            "\\u038E-\\u03A1\\u03A3-\\u03CE\\u03FC-\\u045F\\u048A-\\u0529\\u052E-\\u052F\\u0531-\\u0556"
+            "\\u0559\\u0561-\\u0586\\u05B4\\u05D0-\\u05EA\\u05F0-\\u05F2\\u0620-\\u063F\\u0641-\\u0655"
+            "\\u0660-\\u0669\\u0670-\\u0672\\u0674\\u0679-\\u068D\\u068F-\\u06D3\\u06D5\\u06E5-\\u06E6"
+            "\\u06EE-\\u06FC\\u06FF\\u0750-\\u07B1\\u08A0-\\u08AC\\u08B2\\u0901-\\u094D\\u094F-\\u0950"
+            "\\u0956-\\u0957\\u0960-\\u0963\\u0966-\\u096F\\u0971-\\u0977\\u0979-\\u097F\\u0981-\\u0983"
+            "\\u0985-\\u098C\\u098F-\\u0990\\u0993-\\u09A8\\u09AA-\\u09B0\\u09B2\\u09B6-\\u09B9"
+            "\\u09BC-\\u09C4\\u09C7-\\u09C8\\u09CB-\\u09CE\\u09D7\\u09E0-\\u09E3\\u09E6-\\u09F1"
+            "\\u0A01-\\u0A03\\u0A05-\\u0A0A\\u0A0F-\\u0A10\\u0A13-\\u0A28\\u0A2A-\\u0A30\\u0A32"
+            "\\u0A35\\u0A38-\\u0A39\\u0A3C\\u0A3E-\\u0A42\\u0A47-\\u0A48\\u0A4B-\\u0A4D\\u0A5C"
+            "\\u0A66-\\u0A74\\u0A81-\\u0A83\\u0A85-\\u0A8D\\u0A8F-\\u0A91\\u0A93-\\u0AA8\\u0AAA-\\u0AB0"
+            "\\u0AB2-\\u0AB3\\u0AB5-\\u0AB9\\u0ABC-\\u0AC5\\u0AC7-\\u0AC9\\u0ACB-\\u0ACD\\u0AD0"
+            "\\u0AE0-\\u0AE3\\u0AE6-\\u0AEF\\u0B01-\\u0B03\\u0B05-\\u0B0C\\u0B0F-\\u0B10\\u0B13-\\u0B28"
+            "\\u0B2A-\\u0B30\\u0B32-\\u0B33\\u0B35-\\u0B39\\u0B3C-\\u0B43\\u0B47-\\u0B48\\u0B4B-\\u0B4D"
+            "\\u0B56-\\u0B57\\u0B5F-\\u0B61\\u0B66-\\u0B6F\\u0B71\\u0B82-\\u0B83\\u0B85-\\u0B8A"
+            "\\u0B8E-\\u0B90\\u0B92-\\u0B95\\u0B99-\\u0B9A\\u0B9C\\u0B9E-\\u0B9F\\u0BA3-\\u0BA4"
+            "\\u0BA8-\\u0BAA\\u0BAE-\\u0BB9\\u0BBE-\\u0BC2\\u0BC6-\\u0BC8\\u0BCA-\\u0BCD\\u0BD0"
+            "\\u0BD7\\u0BE6-\\u0BEF\\u0C01-\\u0C03\\u0C05-\\u0C0C\\u0C0E-\\u0C10\\u0C12-\\u0C28"
+            "\\u0C2A-\\u0C33\\u0C35-\\u0C39\\u0C3D-\\u0C44\\u0C46-\\u0C48\\u0C4A-\\u0C4D\\u0C55-\\u0C56"
+            "\\u0C60-\\u0C61\\u0C66-\\u0C6F\\u0C82-\\u0C83\\u0C85-\\u0C8C\\u0C8E-\\u0C90\\u0C92-\\u0CA8"
+            "\\u0CAA-\\u0CB3\\u0CB5-\\u0CB9\\u0CBC-\\u0CC4\\u0CC6-\\u0CC8\\u0CCA-\\u0CCD\\u0CD5-\\u0CD6"
+            "\\u0CE0-\\u0CE3\\u0CE6-\\u0CEF\\u0CF1-\\u0CF2\\u0D02-\\u0D03\\u0D05-\\u0D0C\\u0D0E-\\u0D10"
+            "\\u0D12-\\u0D3A\\u0D3D-\\u0D43\\u0D46-\\u0D48\\u0D4A-\\u0D4E\\u0D57\\u0D60-\\u0D61"
+            "\\u0D66-\\u0D6F\\u0D7A-\\u0D7F\\u0D82-\\u0D83\\u0D85-\\u0D8E\\u0D91-\\u0D96\\u0D9A-\\u0DA5"
+            "\\u0DA7-\\u0DB1\\u0DB3-\\u0DBB\\u0DBD\\u0DC0-\\u0DC6\\u0DCA\\u0DCF-\\u0DD4\\u0DD6"
+            "\\u0DD8-\\u0DDE\\u0DF2\\u0E01-\\u0E32\\u0E34-\\u0E3A\\u0E40-\\u0E4E\\u0E50-\\u0E59"
+            "\\u0E81-\\u0E82\\u0E84\\u0E87-\\u0E88\\u0E8A\\u0E8D\\u0E94-\\u0E97\\u0E99-\\u0E9F"
+            "\\u0EA1-\\u0EA3\\u0EA5\\u0EA7\\u0EAA-\\u0EAB\\u0EAD-\\u0EB2\\u0EB4-\\u0EB9\\u0EBB-\\u0EBD"
+            "\\u0EC0-\\u0EC4\\u0EC6\\u0EC8-\\u0ECD\\u0ED0-\\u0ED9\\u0EDE-\\u0EDF\\u0F00\\u0F20-\\u0F29"
+            "\\u0F35\\u0F37\\u0F3E-\\u0F42\\u0F44-\\u0F47\\u0F49-\\u0F4C\\u0F4E-\\u0F51\\u0F53-\\u0F56"
+            "\\u0F58-\\u0F5B\\u0F5D-\\u0F68\\u0F6A-\\u0F6C\\u0F71-\\u0F72\\u0F74\\u0F7A-\\u0F80"
+            "\\u0F82-\\u0F84\\u0F86-\\u0F92\\u0F94-\\u0F97\\u0F99-\\u0F9C\\u0F9E-\\u0FA1\\u0FA3-\\u0FA6"
+            "\\u0FA8-\\u0FAB\\u0FAD-\\u0FB8\\u0FBA-\\u0FBC\\u0FC6\\u1000-\\u1049\\u1050-\\u109D"
+            "\\u10C7\\u10CD\\u10D0-\\u10F0\\u10F7-\\u10FA\\u10FD-\\u10FF\\u1200-\\u1248\\u124A-\\u124D"
+            "\\u1250-\\u1256\\u1258\\u125A-\\u125D\\u1260-\\u1288\\u128A-\\u128D\\u1290-\\u12B0"
+            "\\u12B2-\\u12B5\\u12B8-\\u12BE\\u12C0\\u12C2-\\u12C5\\u12C8-\\u12D6\\u12D8-\\u1310"
+            "\\u1312-\\u1315\\u1318-\\u135A\\u135D-\\u135F\\u1380-\\u138F\\u1780-\\u17A2\\u17A5-\\u17A7"
+            "\\u17A9-\\u17B3\\u17B6-\\u17CA\\u17D2\\u17D7\\u17DC\\u17E0-\\u17E9\\u1E00-\\u1E99"
+            "\\u1E9E\\u1EA0-\\u1EF9\\u1F00-\\u1F15\\u1F18-\\u1F1D\\u1F20-\\u1F45\\u1F48-\\u1F4D"
+            "\\u1F50-\\u1F57\\u1F59\\u1F5B\\u1F5D\\u1F5F-\\u1F70\\u1F72\\u1F74\\u1F76\\u1F78"
+            "\\u1F7A\\u1F7C\\u1F80-\\u1FB4\\u1FB6-\\u1FBA\\u1FBC\\u1FC2-\\u1FC4\\u1FC6-\\u1FC8"
+            "\\u1FCA\\u1FCC\\u1FD0-\\u1FD2\\u1FD6-\\u1FDA\\u1FE0-\\u1FE2\\u1FE4-\\u1FEA\\u1FEC"
+            "\\u1FF2-\\u1FF4\\u1FF6-\\u1FF8\\u1FFA\\u1FFC\\u2D27\\u2D2D\\u2D80-\\u2D96\\u2DA0-\\u2DA6"
+            "\\u2DA8-\\u2DAE\\u2DB0-\\u2DB6\\u2DB8-\\u2DBE\\u2DC0-\\u2DC6\\u2DC8-\\u2DCE\\u2DD0-\\u2DD6"
+            "\\u2DD8-\\u2DDE\\u3005-\\u3007\\u3041-\\u3096\\u3099-\\u309A\\u309D-\\u309E\\u30A1-\\u30FA"
+            "\\u30FC-\\u30FE\\u3105-\\u312D\\u31A0-\\u31BA\\u3400-\\u4DB5\\u4E00-\\u9FD5\\uA660-\\uA661"
+            "\\uA674-\\uA67B\\uA67F\\uA69F\\uA717-\\uA71F\\uA788\\uA78D-\\uA78E\\uA790-\\uA793"
+            "\\uA7A0-\\uA7AA\\uA7FA\\uA9E7-\\uA9FE\\uAA60-\\uAA76\\uAA7A-\\uAA7F\\uAB01-\\uAB06"
+            "\\uAB09-\\uAB0E\\uAB11-\\uAB16\\uAB20-\\uAB26\\uAB28-\\uAB2E\\uAC00-\\uD7A3\\uFA0E-\\uFA0F"
+            "\\uFA11\\uFA13-\\uFA14\\uFA1F\\uFA21\\uFA23-\\uFA24\\uFA27-\\uFA29\\U00020000-\\U0002A6D6"
+            "\\U0002A700-\\U0002B734\\U0002B740-\\U0002B81D\\U0002B820-\\U0002CEA1]";
+
+    gRecommendedSet = new UnicodeSet(UnicodeString(recommendedPat, -1, US_INV), status);
+    gRecommendedSet->freeze();
+    gNfdNormalizer = Normalizer2::getNFDInstance(status);
+    ucln_i18n_registerCleanup(UCLN_I18N_SPOOF, uspoof_cleanup);
+}
+
+static void U_CALLCONV initializeDefaultData(UErrorCode &status) {
+    gDefaultSpoofData = SpoofData::getDefault(status);
+    ucln_i18n_registerCleanup(UCLN_I18N_SPOOF, uspoof_cleanup);
+}
+
+U_CFUNC void uspoof_internalInitStatics(UErrorCode *status) {
+    umtx_initOnce(gSpoofInitStaticsOnce, &initializeStatics, *status);
+}
+
+U_CAPI USpoofChecker * U_EXPORT2
+uspoof_open(UErrorCode *status) {
+    umtx_initOnce(gSpoofInitStaticsOnce, &initializeStatics, *status);
+    umtx_initOnce(gSpoofInitDefaultOnce, &initializeDefaultData, *status);
+    if (U_FAILURE(*status)) {
+        return NULL;
+    }
+    SpoofImpl *si = new SpoofImpl(gDefaultSpoofData, *status);
+    if (si) {
+        gDefaultSpoofData->addReference();
+    }
+    if (U_SUCCESS(*status) && si == NULL) {
+        *status = U_MEMORY_ALLOCATION_ERROR;
+    }
+    if (U_FAILURE(*status)) {
+        delete si;
+        si = NULL;
+    }
+    return reinterpret_cast<USpoofChecker *>(si);
+}
+
+
+U_CAPI USpoofChecker * U_EXPORT2
+uspoof_openFromSerialized(const void *data, int32_t length, int32_t *pActualLength,
+                          UErrorCode *status) {
+    if (U_FAILURE(*status)) {
+        return NULL;
+    }
+    umtx_initOnce(gSpoofInitStaticsOnce, &initializeStatics, *status);
+    SpoofData *sd = new SpoofData(data, length, *status);
+    SpoofImpl *si = new SpoofImpl(sd, *status);
+    if (U_FAILURE(*status)) {
+        delete sd;
+        delete si;
+        return NULL;
+    }
+    if (sd == NULL || si == NULL) {
+        *status = U_MEMORY_ALLOCATION_ERROR;
+        delete sd;
+        delete si;
+        return NULL;
+    }
+
+    if (pActualLength != NULL) {
+        *pActualLength = sd->fRawData->fLength;
+    }
+    return reinterpret_cast<USpoofChecker *>(si);
+}
+
+
+U_CAPI USpoofChecker * U_EXPORT2
+uspoof_clone(const USpoofChecker *sc, UErrorCode *status) {
+    const SpoofImpl *src = SpoofImpl::validateThis(sc, *status);
+    if (src == NULL) {
+        return NULL;
+    }
+    SpoofImpl *result = new SpoofImpl(*src, *status);   // copy constructor
+    if (U_FAILURE(*status)) {
+        delete result;
+        result = NULL;
+    }
+    return reinterpret_cast<USpoofChecker *>(result);
+}
+
+
+U_CAPI void U_EXPORT2
+uspoof_close(USpoofChecker *sc) {
+    UErrorCode status = U_ZERO_ERROR;
+    SpoofImpl *This = SpoofImpl::validateThis(sc, status);
+    delete This;
+}
+
+
+U_CAPI void U_EXPORT2
+uspoof_setChecks(USpoofChecker *sc, int32_t checks, UErrorCode *status) {
+    SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (This == NULL) {
+        return;
+    }
+
+    // Verify that the requested checks are all ones (bits) that
+    //   are acceptable, known values.
+    if (checks & ~(USPOOF_ALL_CHECKS | USPOOF_AUX_INFO)) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+
+    This->fChecks = checks;
+}
+
+
+U_CAPI int32_t U_EXPORT2
+uspoof_getChecks(const USpoofChecker *sc, UErrorCode *status) {
+    const SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (This == NULL) {
+        return 0;
+    }
+    return This->fChecks;
+}
+
+U_CAPI void U_EXPORT2
+uspoof_setRestrictionLevel(USpoofChecker *sc, URestrictionLevel restrictionLevel) {
+    UErrorCode status = U_ZERO_ERROR;
+    SpoofImpl *This = SpoofImpl::validateThis(sc, status);
+    if (This != NULL) {
+        This->fRestrictionLevel = restrictionLevel;
+    }
+}
+
+U_CAPI URestrictionLevel U_EXPORT2
+uspoof_getRestrictionLevel(const USpoofChecker *sc) {
+    UErrorCode status = U_ZERO_ERROR;
+    const SpoofImpl *This = SpoofImpl::validateThis(sc, status);
+    if (This == NULL) {
+        return USPOOF_UNRESTRICTIVE;
+    }
+    return This->fRestrictionLevel;
+}
+
+U_CAPI void U_EXPORT2
+uspoof_setAllowedLocales(USpoofChecker *sc, const char *localesList, UErrorCode *status) {
+    SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (This == NULL) {
+        return;
+    }
+    This->setAllowedLocales(localesList, *status);
+}
+
+U_CAPI const char * U_EXPORT2
+uspoof_getAllowedLocales(USpoofChecker *sc, UErrorCode *status) {
+    SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (This == NULL) {
+        return NULL;
+    }
+    return This->getAllowedLocales(*status);
+}
+
+
+U_CAPI const USet * U_EXPORT2
+uspoof_getAllowedChars(const USpoofChecker *sc, UErrorCode *status) {
+    const UnicodeSet *result = uspoof_getAllowedUnicodeSet(sc, status);
+    return result->toUSet();
+}
+
+U_CAPI const UnicodeSet * U_EXPORT2
+uspoof_getAllowedUnicodeSet(const USpoofChecker *sc, UErrorCode *status) {
+    const SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (This == NULL) {
+        return NULL;
+    }
+    return This->fAllowedCharsSet;
+}
+
+
+U_CAPI void U_EXPORT2
+uspoof_setAllowedChars(USpoofChecker *sc, const USet *chars, UErrorCode *status) {
+    const UnicodeSet *set = UnicodeSet::fromUSet(chars);
+    uspoof_setAllowedUnicodeSet(sc, set, status);
+}
+
+
+U_CAPI void U_EXPORT2
+uspoof_setAllowedUnicodeSet(USpoofChecker *sc, const UnicodeSet *chars, UErrorCode *status) {
+    SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (This == NULL) {
+        return;
+    }
+    if (chars->isBogus()) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+    UnicodeSet *clonedSet = static_cast<UnicodeSet *>(chars->clone());
+    if (clonedSet == NULL || clonedSet->isBogus()) {
+        *status = U_MEMORY_ALLOCATION_ERROR;
+        return;
+    }
+    clonedSet->freeze();
+    delete This->fAllowedCharsSet;
+    This->fAllowedCharsSet = clonedSet;
+    This->fChecks |= USPOOF_CHAR_LIMIT;
+}
+
+
+U_CAPI int32_t U_EXPORT2
+uspoof_check(const USpoofChecker *sc,
+             const UChar *id, int32_t length,
+             int32_t *position,
+             UErrorCode *status) {
+
+    const SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (This == NULL) {
+        return 0;
+    }
+    if (length < -1) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+    UnicodeString idStr((length == -1), id, length);  // Aliasing constructor.
+    int32_t result = uspoof_checkUnicodeString(sc, idStr, position, status);
+    return result;
+}
+
+
+U_CAPI int32_t U_EXPORT2
+uspoof_checkUTF8(const USpoofChecker *sc,
+                 const char *id, int32_t length,
+                 int32_t *position,
+                 UErrorCode *status) {
+
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    UnicodeString idStr = UnicodeString::fromUTF8(StringPiece(id, length>=0 ? length : uprv_strlen(id)));
+    int32_t result = uspoof_checkUnicodeString(sc, idStr, position, status);
+    return result;
+}
+
+
+U_CAPI int32_t U_EXPORT2
+uspoof_areConfusable(const USpoofChecker *sc,
+                     const UChar *id1, int32_t length1,
+                     const UChar *id2, int32_t length2,
+                     UErrorCode *status) {
+    SpoofImpl::validateThis(sc, *status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    if (length1 < -1 || length2 < -1) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+
+    UnicodeString id1Str((length1==-1), id1, length1);  // Aliasing constructor
+    UnicodeString id2Str((length2==-1), id2, length2);  // Aliasing constructor
+    return uspoof_areConfusableUnicodeString(sc, id1Str, id2Str, status);
+}
+
+
+U_CAPI int32_t U_EXPORT2
+uspoof_areConfusableUTF8(const USpoofChecker *sc,
+                         const char *id1, int32_t length1,
+                         const char *id2, int32_t length2,
+                         UErrorCode *status) {
+    SpoofImpl::validateThis(sc, *status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    if (length1 < -1 || length2 < -1) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+    UnicodeString id1Str = UnicodeString::fromUTF8(StringPiece(id1, length1>=0? length1 : uprv_strlen(id1)));
+    UnicodeString id2Str = UnicodeString::fromUTF8(StringPiece(id2, length2>=0? length2 : uprv_strlen(id2)));
+    int32_t results = uspoof_areConfusableUnicodeString(sc, id1Str, id2Str, status);
+    return results;
+}
+
+
+U_CAPI int32_t U_EXPORT2
+uspoof_areConfusableUnicodeString(const USpoofChecker *sc,
+                                  const icu::UnicodeString &id1,
+                                  const icu::UnicodeString &id2,
+                                  UErrorCode *status) {
+    const SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    //
+    // See section 4 of UAX 39 for the algorithm for checking whether two strings are confusable,
+    //   and for definitions of the types (single, whole, mixed-script) of confusables.
+
+    // We only care about a few of the check flags.  Ignore the others.
+    // If no tests relavant to this function have been specified, return an error.
+    // TODO:  is this really the right thing to do?  It's probably an error on the caller's part,
+    //        but logically we would just return 0 (no error).
+    if ((This->fChecks & (USPOOF_SINGLE_SCRIPT_CONFUSABLE | USPOOF_MIXED_SCRIPT_CONFUSABLE |
+                          USPOOF_WHOLE_SCRIPT_CONFUSABLE)) == 0) {
+        *status = U_INVALID_STATE_ERROR;
+        return 0;
+    }
+    int32_t  flagsForSkeleton = This->fChecks & USPOOF_ANY_CASE;
+
+    int32_t  result = 0;
+    IdentifierInfo *identifierInfo = This->getIdentifierInfo(*status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    identifierInfo->setIdentifier(id1, *status);
+    int32_t id1ScriptCount = identifierInfo->getScriptCount();
+    int32_t id1FirstScript = identifierInfo->getScripts()->nextSetBit(0);
+    identifierInfo->setIdentifier(id2, *status);
+    int32_t id2ScriptCount = identifierInfo->getScriptCount();
+    int32_t id2FirstScript = identifierInfo->getScripts()->nextSetBit(0);
+    This->releaseIdentifierInfo(identifierInfo);
+    identifierInfo = NULL;
+
+    if (This->fChecks & USPOOF_SINGLE_SCRIPT_CONFUSABLE) {
+        UnicodeString   id1Skeleton;
+        UnicodeString   id2Skeleton;
+        if (id1ScriptCount <= 1 && id2ScriptCount <= 1 && id1FirstScript == id2FirstScript) {
+            flagsForSkeleton |= USPOOF_SINGLE_SCRIPT_CONFUSABLE;
+            uspoof_getSkeletonUnicodeString(sc, flagsForSkeleton, id1, id1Skeleton, status);
+            uspoof_getSkeletonUnicodeString(sc, flagsForSkeleton, id2, id2Skeleton, status);
+            if (id1Skeleton == id2Skeleton) {
+                result |= USPOOF_SINGLE_SCRIPT_CONFUSABLE;
+            }
+        }
+    }
+
+    if (result & USPOOF_SINGLE_SCRIPT_CONFUSABLE) {
+         // If the two inputs are single script confusable they cannot also be
+         // mixed or whole script confusable, according to the UAX39 definitions.
+         // So we can skip those tests.
+         return result;
+    }
+
+    // Two identifiers are whole script confusable if each is of a single script
+    // and they are mixed script confusable.
+    UBool possiblyWholeScriptConfusables =
+        id1ScriptCount <= 1 && id2ScriptCount <= 1 && (This->fChecks & USPOOF_WHOLE_SCRIPT_CONFUSABLE);
+
+    //
+    // Mixed Script Check
+    //
+    if ((This->fChecks & USPOOF_MIXED_SCRIPT_CONFUSABLE) || possiblyWholeScriptConfusables ) {
+        // For getSkeleton(), resetting the USPOOF_SINGLE_SCRIPT_CONFUSABLE flag will get us
+        // the mixed script table skeleton, which is what we want.
+        // The Any Case / Lower Case bit in the skelton flags was set at the top of the function.
+        UnicodeString id1Skeleton;
+        UnicodeString id2Skeleton;
+        flagsForSkeleton &= ~USPOOF_SINGLE_SCRIPT_CONFUSABLE;
+        uspoof_getSkeletonUnicodeString(sc, flagsForSkeleton, id1, id1Skeleton, status);
+        uspoof_getSkeletonUnicodeString(sc, flagsForSkeleton, id2, id2Skeleton, status);
+        if (id1Skeleton == id2Skeleton) {
+            result |= USPOOF_MIXED_SCRIPT_CONFUSABLE;
+            if (possiblyWholeScriptConfusables) {
+                result |= USPOOF_WHOLE_SCRIPT_CONFUSABLE;
+            }
+        }
+    }
+
+    return result;
+}
+
+
+
+
+U_CAPI int32_t U_EXPORT2
+uspoof_checkUnicodeString(const USpoofChecker *sc,
+                          const icu::UnicodeString &id,
+                          int32_t *position,
+                          UErrorCode *status) {
+    const SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (This == NULL) {
+        return 0;
+    }
+    int32_t result = 0;
+
+    IdentifierInfo *identifierInfo = NULL;
+    if ((This->fChecks) & (USPOOF_RESTRICTION_LEVEL | USPOOF_MIXED_NUMBERS)) {
+        identifierInfo = This->getIdentifierInfo(*status);
+        if (U_FAILURE(*status)) {
+            goto cleanupAndReturn;
+        }
+        identifierInfo->setIdentifier(id, *status);
+        identifierInfo->setIdentifierProfile(*This->fAllowedCharsSet);
+    }
+
+
+    if ((This->fChecks) & USPOOF_RESTRICTION_LEVEL) {
+        URestrictionLevel idRestrictionLevel = identifierInfo->getRestrictionLevel(*status);
+        if (idRestrictionLevel > This->fRestrictionLevel) {
+            result |= USPOOF_RESTRICTION_LEVEL;
+        }
+        if (This->fChecks & USPOOF_AUX_INFO) {
+            result |= idRestrictionLevel;
+        }
+    }
+
+    if ((This->fChecks) & USPOOF_MIXED_NUMBERS) {
+        const UnicodeSet *numerics = identifierInfo->getNumerics();
+        if (numerics->size() > 1) {
+            result |= USPOOF_MIXED_NUMBERS;
+        }
+
+        // TODO: ICU4J returns the UnicodeSet of the numerics found in the identifier.
+        //       We have no easy way to do the same in C.
+        // if (checkResult != null) {
+        //     checkResult.numerics = numerics;
+        // }
+    }
+
+
+    if (This->fChecks & (USPOOF_CHAR_LIMIT)) {
+        int32_t i;
+        UChar32 c;
+        int32_t length = id.length();
+        for (i=0; i<length ;) {
+            c = id.char32At(i);
+            i += U16_LENGTH(c);
+            if (!This->fAllowedCharsSet->contains(c)) {
+                result |= USPOOF_CHAR_LIMIT;
+                break;
+            }
+        }
+    }
+
+    if (This->fChecks &
+        (USPOOF_WHOLE_SCRIPT_CONFUSABLE | USPOOF_MIXED_SCRIPT_CONFUSABLE | USPOOF_INVISIBLE)) {
+        // These are the checks that need to be done on NFD input
+        UnicodeString nfdText;
+        gNfdNormalizer->normalize(id, nfdText, *status);
+        int32_t nfdLength = nfdText.length();
+
+        if (This->fChecks & USPOOF_INVISIBLE) {
+
+            // scan for more than one occurence of the same non-spacing mark
+            // in a sequence of non-spacing marks.
+            int32_t     i;
+            UChar32     c;
+            UChar32     firstNonspacingMark = 0;
+            UBool       haveMultipleMarks = FALSE;
+            UnicodeSet  marksSeenSoFar;   // Set of combining marks in a single combining sequence.
+
+            for (i=0; i<nfdLength ;) {
+                c = nfdText.char32At(i);
+                i += U16_LENGTH(c);
+                if (u_charType(c) != U_NON_SPACING_MARK) {
+                    firstNonspacingMark = 0;
+                    if (haveMultipleMarks) {
+                        marksSeenSoFar.clear();
+                        haveMultipleMarks = FALSE;
+                    }
+                    continue;
+                }
+                if (firstNonspacingMark == 0) {
+                    firstNonspacingMark = c;
+                    continue;
+                }
+                if (!haveMultipleMarks) {
+                    marksSeenSoFar.add(firstNonspacingMark);
+                    haveMultipleMarks = TRUE;
+                }
+                if (marksSeenSoFar.contains(c)) {
+                    // report the error, and stop scanning.
+                    // No need to find more than the first failure.
+                    result |= USPOOF_INVISIBLE;
+                    break;
+                }
+                marksSeenSoFar.add(c);
+            }
+        }
+
+
+        if (This->fChecks & (USPOOF_WHOLE_SCRIPT_CONFUSABLE | USPOOF_MIXED_SCRIPT_CONFUSABLE)) {
+            // The basic test is the same for both whole and mixed script confusables.
+            // Compute the set of scripts that every input character has a confusable in.
+            // For this computation an input character is always considered to be
+            // confusable with itself in its own script.
+            //
+            // If the number of such scripts is two or more, and the input consisted of
+            // characters all from a single script, we have a whole script confusable.
+            // (The two scripts will be the original script and the one that is confusable)
+            //
+            // If the number of such scripts >= one, and the original input contained characters from
+            // more than one script, we have a mixed script confusable.  (We can transform
+            // some of the characters, and end up with a visually similar string all in
+            // one script.)
+
+            if (identifierInfo == NULL) {
+                identifierInfo = This->getIdentifierInfo(*status);
+                if (U_FAILURE(*status)) {
+                    goto cleanupAndReturn;
+                }
+                identifierInfo->setIdentifier(id, *status);
+            }
+
+            int32_t scriptCount = identifierInfo->getScriptCount();
+
+            ScriptSet scripts;
+            This->wholeScriptCheck(nfdText, &scripts, *status);
+            int32_t confusableScriptCount = scripts.countMembers();
+            //printf("confusableScriptCount = %d\n", confusableScriptCount);
+
+            if ((This->fChecks & USPOOF_WHOLE_SCRIPT_CONFUSABLE) &&
+                confusableScriptCount >= 2 &&
+                scriptCount == 1) {
+                result |= USPOOF_WHOLE_SCRIPT_CONFUSABLE;
+            }
+
+            if ((This->fChecks & USPOOF_MIXED_SCRIPT_CONFUSABLE) &&
+                confusableScriptCount >= 1 &&
+                scriptCount > 1) {
+                result |= USPOOF_MIXED_SCRIPT_CONFUSABLE;
+            }
+        }
+    }
+
+cleanupAndReturn:
+    This->releaseIdentifierInfo(identifierInfo);
+    if (position != NULL) {
+        *position = 0;
+    }
+    return result;
+}
+
+
+U_CAPI int32_t U_EXPORT2
+uspoof_getSkeleton(const USpoofChecker *sc,
+                   uint32_t type,
+                   const UChar *id,  int32_t length,
+                   UChar *dest, int32_t destCapacity,
+                   UErrorCode *status) {
+
+    SpoofImpl::validateThis(sc, *status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    if (length<-1 || destCapacity<0 || (destCapacity==0 && dest!=NULL)) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+
+    UnicodeString idStr((length==-1), id, length);  // Aliasing constructor
+    UnicodeString destStr;
+    uspoof_getSkeletonUnicodeString(sc, type, idStr, destStr, status);
+    destStr.extract(dest, destCapacity, *status);
+    return destStr.length();
+}
+
+
+
+U_I18N_API UnicodeString &  U_EXPORT2
+uspoof_getSkeletonUnicodeString(const USpoofChecker *sc,
+                                uint32_t type,
+                                const UnicodeString &id,
+                                UnicodeString &dest,
+                                UErrorCode *status) {
+    const SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (U_FAILURE(*status)) {
+        return dest;
+    }
+
+   int32_t tableMask = 0;
+   switch (type) {
+      case 0:
+        tableMask = USPOOF_ML_TABLE_FLAG;
+        break;
+      case USPOOF_SINGLE_SCRIPT_CONFUSABLE:
+        tableMask = USPOOF_SL_TABLE_FLAG;
+        break;
+      case USPOOF_ANY_CASE:
+        tableMask = USPOOF_MA_TABLE_FLAG;
+        break;
+      case USPOOF_SINGLE_SCRIPT_CONFUSABLE | USPOOF_ANY_CASE:
+        tableMask = USPOOF_SA_TABLE_FLAG;
+        break;
+      default:
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return dest;
+    }
+
+    UnicodeString nfdId;
+    gNfdNormalizer->normalize(id, nfdId, *status);
+
+    // Apply the skeleton mapping to the NFD normalized input string
+    // Accumulate the skeleton, possibly unnormalized, in a UnicodeString.
+    int32_t inputIndex = 0;
+    UnicodeString skelStr;
+    int32_t normalizedLen = nfdId.length();
+    for (inputIndex=0; inputIndex < normalizedLen; ) {
+        UChar32 c = nfdId.char32At(inputIndex);
+        inputIndex += U16_LENGTH(c);
+        This->confusableLookup(c, tableMask, skelStr);
+    }
+
+    gNfdNormalizer->normalize(skelStr, dest, *status);
+    return dest;
+}
+
+
+U_CAPI int32_t U_EXPORT2
+uspoof_getSkeletonUTF8(const USpoofChecker *sc,
+                       uint32_t type,
+                       const char *id,  int32_t length,
+                       char *dest, int32_t destCapacity,
+                       UErrorCode *status) {
+    SpoofImpl::validateThis(sc, *status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+    if (length<-1 || destCapacity<0 || (destCapacity==0 && dest!=NULL)) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+
+    UnicodeString srcStr = UnicodeString::fromUTF8(StringPiece(id, length>=0 ? length : uprv_strlen(id)));
+    UnicodeString destStr;
+    uspoof_getSkeletonUnicodeString(sc, type, srcStr, destStr, status);
+    if (U_FAILURE(*status)) {
+        return 0;
+    }
+
+    int32_t lengthInUTF8 = 0;
+    u_strToUTF8(dest, destCapacity, &lengthInUTF8,
+                destStr.getBuffer(), destStr.length(), status);
+    return lengthInUTF8;
+}
+
+
+U_CAPI int32_t U_EXPORT2
+uspoof_serialize(USpoofChecker *sc,void *buf, int32_t capacity, UErrorCode *status) {
+    SpoofImpl *This = SpoofImpl::validateThis(sc, *status);
+    if (This == NULL) {
+        U_ASSERT(U_FAILURE(*status));
+        return 0;
+    }
+    int32_t dataSize = This->fSpoofData->fRawData->fLength;
+    if (capacity < dataSize) {
+        *status = U_BUFFER_OVERFLOW_ERROR;
+        return dataSize;
+    }
+    uprv_memcpy(buf, This->fSpoofData->fRawData, dataSize);
+    return dataSize;
+}
+
+U_CAPI const USet * U_EXPORT2
+uspoof_getInclusionSet(UErrorCode *status) {
+    umtx_initOnce(gSpoofInitStaticsOnce, &initializeStatics, *status);
+    return gInclusionSet->toUSet();
+}
+
+U_CAPI const USet * U_EXPORT2
+uspoof_getRecommendedSet(UErrorCode *status) {
+    umtx_initOnce(gSpoofInitStaticsOnce, &initializeStatics, *status);
+    return gRecommendedSet->toUSet();
+}
+
+U_I18N_API const UnicodeSet * U_EXPORT2
+uspoof_getInclusionUnicodeSet(UErrorCode *status) {
+    umtx_initOnce(gSpoofInitStaticsOnce, &initializeStatics, *status);
+    return gInclusionSet;
+}
+
+U_I18N_API const UnicodeSet * U_EXPORT2
+uspoof_getRecommendedUnicodeSet(UErrorCode *status) {
+    umtx_initOnce(gSpoofInitStaticsOnce, &initializeStatics, *status);
+    return gRecommendedSet;
+}
+
+
+
+#endif // !UCONFIG_NO_NORMALIZATION
