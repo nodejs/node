@@ -6,7 +6,7 @@ var childProcess = require('child_process');
 var fs = require('fs');
 
 var stdoutScript = join(common.fixturesDir, 'echo-close-check.js');
-var tmpFile = join(common.fixturesDir, 'stdin.txt');
+var tmpFile = join(common.tmpDir, 'stdin.txt');
 
 var cmd = '"' + process.argv[0] + '" "' + stdoutScript + '" < "' +
     tmpFile + '"';
@@ -23,6 +23,8 @@ var string = 'abc\nümlaut.\nsomething else\n' +
              '它的建立保证了秦末乱世岭南地区社会秩序的稳定，' +
              '有效的改善了岭南地区落后的政治、##济现状。\n';
 
+
+common.refreshTmpDir();
 
 console.log(cmd + '\n\n');
 
