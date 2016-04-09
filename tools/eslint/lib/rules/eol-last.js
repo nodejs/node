@@ -17,6 +17,7 @@ module.exports = function(context) {
     return {
 
         "Program": function checkBadEOF(node) {
+
             // Get the whole source code, not for node only.
             var src = context.getSource(),
                 location = {column: 1},
@@ -24,6 +25,7 @@ module.exports = function(context) {
                 linebreak = linebreakStyle === "unix" ? "\n" : "\r\n";
 
             if (src[src.length - 1] !== "\n") {
+
                 // file is not newline-terminated
                 location.line = src.split(/\n/g).length;
                 context.report({

@@ -5,7 +5,7 @@ var copyObjectWith = require('./_copyObjectWith');
  *
  * @private
  * @param {Object} source The object to copy properties from.
- * @param {Array} props The property names to copy.
+ * @param {Array} props The property identifiers to copy.
  * @param {Object} [object={}] The object to copy properties to.
  * @returns {Object} Returns `object`.
  */

@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('pullAll', require('../pullAll'));
+var convert = require('./convert'),
+    func = convert('pullAll', require('../pullAll'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

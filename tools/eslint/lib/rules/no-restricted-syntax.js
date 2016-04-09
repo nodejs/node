@@ -12,6 +12,7 @@
 var nodeTypes = require("espree").Syntax;
 
 module.exports = function(context) {
+
     /**
      * Generates a warning from the provided node, saying that node type is not allowed.
      * @param {ASTNode} node The node to warn on

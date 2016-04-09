@@ -12,7 +12,7 @@
 
 var lodash = require("lodash"),
     createTokenStore = require("../token-store.js"),
-    estraverse = require("./estraverse");
+    Traverser = require("./traverser");
 
 //------------------------------------------------------------------------------
 // Private
@@ -126,11 +126,13 @@ function SourceCode(text, ast) {
 
     // create token store methods
     var tokenStore = createTokenStore(ast.tokens);
+
     Object.keys(tokenStore).forEach(function(methodName) {
         this[methodName] = tokenStore[methodName];
     }, this);
 
     var tokensAndCommentsStore = createTokenStore(this.tokensAndComments);
+
     this.getTokenOrCommentBefore = tokensAndCommentsStore.getTokenBefore;
     this.getTokenOrCommentAfter = tokensAndCommentsStore.getTokenAfter;
 
@@ -261,10 +263,11 @@ SourceCode.prototype = {
      * @returns {ASTNode} The node if found or null if not found.
      */
     getNodeByRangeIndex: function(index) {
-        var result = null;
-        var resultParent = null;
+        var result = null,
+            resultParent = null,
+            traverser = new Traverser();
 
-        estraverse.traverse(this.ast, {
+        traverser.traverse(this.ast, {
             enter: function(node, parent) {
                 if (node.range[0] <= index && index < node.range[1]) {
                     result = node;
@@ -294,6 +297,7 @@ SourceCode.prototype = {
      */
     isSpaceBetweenTokens: function(first, second) {
         var text = this.text.slice(first.range[1], second.range[0]);
+
         return /\s/.test(text.replace(/\/\*.*?\*\//g, ""));
     }
 };

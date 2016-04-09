@@ -7,9 +7,11 @@ var baseFindIndex = require('./_baseFindIndex'),
  *
  * @static
  * @memberOf _
+ * @since 2.0.0
  * @category Array
  * @param {Array} array The array to search.
- * @param {Function|Object|string} [predicate=_.identity] The function invoked per iteration.
+ * @param {Array|Function|Object|string} [predicate=_.identity]
+ *  The function invoked per iteration.
  * @returns {number} Returns the index of the found element, else `-1`.
  * @example
  *

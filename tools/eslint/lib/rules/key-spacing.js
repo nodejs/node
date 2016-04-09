@@ -331,6 +331,7 @@ module.exports = function(context) {
      */
     function verifySpacing(node, lineOptions) {
         var actual = getPropertyWhitespace(node);
+
         if (actual) { // Object literal getters/setters lack colons
             report(node, "key", actual.beforeColon, lineOptions.beforeColon, lineOptions.mode);
             report(node, "value", actual.afterColon, lineOptions.afterColon, lineOptions.mode);
@@ -359,7 +360,7 @@ module.exports = function(context) {
         return {
             "ObjectExpression": function(node) {
                 if (isSingleLine(node)) {
-                    verifyListSpacing(node.properties);
+                    verifyListSpacing(node.properties.filter(isKeyValueProperty));
                 } else {
                     verifyAlignment(node);
                 }
@@ -370,7 +371,7 @@ module.exports = function(context) {
 
         return {
             "Property": function(node) {
-                verifySpacing(node, isSingleLine(node) ? singleLineOptions : multiLineOptions);
+                verifySpacing(node, isSingleLine(node.parent) ? singleLineOptions : multiLineOptions);
             }
         };
 

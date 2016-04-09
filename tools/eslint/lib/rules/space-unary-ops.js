@@ -36,29 +36,55 @@ module.exports = function(context) {
     }
 
     /**
-    * Check Unary Word Operators for spaces after the word operator
+    * Checks if an override exists for a given operator.
+    * @param {ASTnode} node AST node
+    * @param {string} operator Operator
+    * @returns {boolean} Whether or not an override has been provided for the operator
+    */
+    function overrideExistsForOperator(node, operator) {
+        return options.overrides && options.overrides.hasOwnProperty(operator);
+    }
+
+    /**
+    * Gets the value that the override was set to for this operator
+    * @param {ASTnode} node AST node
+    * @param {string} operator Operator
+    * @returns {boolean} Whether or not an override enforces a space with this operator
+    */
+    function overrideEnforcesSpaces(node, operator) {
+        return options.overrides[operator];
+    }
+
+    /**
+    * Verify Unary Word Operator has spaces after the word operator
     * @param {ASTnode} node AST node
     * @param {object} firstToken first token from the AST node
     * @param {object} secondToken second token from the AST node
     * @param {string} word The word to be used for reporting
     * @returns {void}
     */
-    function checkUnaryWordOperatorForSpaces(node, firstToken, secondToken, word) {
-        word = word || firstToken.value;
-
-        if (options.words) {
-            if (secondToken.range[0] === firstToken.range[1]) {
-                context.report({
-                    node: node,
-                    message: "Unary word operator '" + word + "' must be followed by whitespace.",
-                    fix: function(fixer) {
-                        return fixer.insertTextAfter(firstToken, " ");
-                    }
-                });
-            }
+    function verifyWordHasSpaces(node, firstToken, secondToken, word) {
+        if (secondToken.range[0] === firstToken.range[1]) {
+            context.report({
+                node: node,
+                message: "Unary word operator '" + word + "' must be followed by whitespace.",
+                fix: function(fixer) {
+                    return fixer.insertTextAfter(firstToken, " ");
+                }
+            });
         }
+    }
 
-        if (!options.words && isArgumentObjectExpression(node)) {
+    /**
+    * Verify Unary Word Operator doesn't have spaces after the word operator
+    * @param {ASTnode} node AST node
+    * @param {object} firstToken first token from the AST node
+    * @param {object} secondToken second token from the AST node
+    * @param {string} word The word to be used for reporting
+    * @returns {void}
+    */
+    function verifyWordDoesntHaveSpaces(node, firstToken, secondToken, word) {
+        if (isArgumentObjectExpression(node)) {
             if (secondToken.range[0] > firstToken.range[1]) {
                 context.report({
                     node: node,
@@ -72,7 +98,112 @@ module.exports = function(context) {
     }
 
     /**
-    * Checks UnaryExpression, UpdateExpression and NewExpression for spaces before and after the operator
+    * Check Unary Word Operators for spaces after the word operator
+    * @param {ASTnode} node AST node
+    * @param {object} firstToken first token from the AST node
+    * @param {object} secondToken second token from the AST node
+    * @param {string} word The word to be used for reporting
+    * @returns {void}
+    */
+    function checkUnaryWordOperatorForSpaces(node, firstToken, secondToken, word) {
+        word = word || firstToken.value;
+
+        if (overrideExistsForOperator(node, word)) {
+            if (overrideEnforcesSpaces(node, word)) {
+                verifyWordHasSpaces(node, firstToken, secondToken, word);
+            } else {
+                verifyWordDoesntHaveSpaces(node, firstToken, secondToken, word);
+            }
+        } else if (options.words) {
+            verifyWordHasSpaces(node, firstToken, secondToken, word);
+        } else {
+            verifyWordDoesntHaveSpaces(node, firstToken, secondToken, word);
+        }
+    }
+
+    /**
+    * Verifies YieldExpressions satisfy spacing requirements
+    * @param {ASTnode} node AST node
+    * @returns {void}
+    */
+    function checkForSpacesAfterYield(node) {
+        var tokens = context.getFirstTokens(node, 3),
+            word = "yield";
+
+        if (!node.argument || node.delegate) {
+            return;
+        }
+
+        checkUnaryWordOperatorForSpaces(node, tokens[0], tokens[1], word);
+    }
+
+    /**
+    * Verifies UnaryExpression, UpdateExpression and NewExpression have spaces before or after the operator
+    * @param {ASTnode} node AST node
+    * @param {object} firstToken First token in the expression
+    * @param {object} secondToken Second token in the expression
+    * @returns {void}
+    */
+    function verifyNonWordsHaveSpaces(node, firstToken, secondToken) {
+        if (node.prefix) {
+            if (isFirstBangInBangBangExpression(node)) {
+                return;
+            }
+            if (firstToken.range[1] === secondToken.range[0]) {
+                context.report({
+                    node: node,
+                    message: "Unary operator '" + firstToken.value + "' must be followed by whitespace.",
+                    fix: function(fixer) {
+                        return fixer.insertTextAfter(firstToken, " ");
+                    }
+                });
+            }
+        } else {
+            if (firstToken.range[1] === secondToken.range[0]) {
+                context.report({
+                    node: node,
+                    message: "Space is required before unary expressions '" + secondToken.value + "'.",
+                    fix: function(fixer) {
+                        return fixer.insertTextBefore(secondToken, " ");
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+    * Verifies UnaryExpression, UpdateExpression and NewExpression don't have spaces before or after the operator
+    * @param {ASTnode} node AST node
+    * @param {object} firstToken First token in the expression
+    * @param {object} secondToken Second token in the expression
+    * @returns {void}
+    */
+    function verifyNonWordsDontHaveSpaces(node, firstToken, secondToken) {
+        if (node.prefix) {
+            if (secondToken.range[0] > firstToken.range[1]) {
+                context.report({
+                    node: node,
+                    message: "Unexpected space after unary operator '" + firstToken.value + "'.",
+                    fix: function(fixer) {
+                        return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                    }
+                });
+            }
+        } else {
+            if (secondToken.range[0] > firstToken.range[1]) {
+                context.report({
+                    node: node,
+                    message: "Unexpected space before unary operator '" + secondToken.value + "'.",
+                    fix: function(fixer) {
+                        return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+    * Verifies UnaryExpression, UpdateExpression and NewExpression satisfy spacing requirements
     * @param {ASTnode} node AST node
     * @returns {void}
     */
@@ -86,53 +217,18 @@ module.exports = function(context) {
             return;
         }
 
-        if (options.nonwords) {
-            if (node.prefix) {
-                if (isFirstBangInBangBangExpression(node)) {
-                    return;
-                }
-                if (firstToken.range[1] === secondToken.range[0]) {
-                    context.report({
-                        node: node,
-                        message: "Unary operator '" + firstToken.value + "' must be followed by whitespace.",
-                        fix: function(fixer) {
-                            return fixer.insertTextAfter(firstToken, " ");
-                        }
-                    });
-                }
+        var operator = node.prefix ? tokens[0].value : tokens[1].value;
+
+        if (overrideExistsForOperator(node, operator)) {
+            if (overrideEnforcesSpaces(node, operator)) {
+                verifyNonWordsHaveSpaces(node, firstToken, secondToken);
             } else {
-                if (firstToken.range[1] === secondToken.range[0]) {
-                    context.report({
-                        node: node,
-                        message: "Space is required before unary expressions '" + secondToken.value + "'.",
-                        fix: function(fixer) {
-                            return fixer.insertTextBefore(secondToken, " ");
-                        }
-                    });
-                }
+                verifyNonWordsDontHaveSpaces(node, firstToken, secondToken);
             }
+        } else if (options.nonwords) {
+            verifyNonWordsHaveSpaces(node, firstToken, secondToken);
         } else {
-            if (node.prefix) {
-                if (secondToken.range[0] > firstToken.range[1]) {
-                    context.report({
-                        node: node,
-                        message: "Unexpected space after unary operator '" + firstToken.value + "'.",
-                        fix: function(fixer) {
-                            return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
-                        }
-                    });
-                }
-            } else {
-                if (secondToken.range[0] > firstToken.range[1]) {
-                    context.report({
-                        node: node,
-                        message: "Unexpected space before unary operator '" + secondToken.value + "'.",
-                        fix: function(fixer) {
-                            return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
-                        }
-                    });
-                }
-            }
+            verifyNonWordsDontHaveSpaces(node, firstToken, secondToken);
         }
     }
 
@@ -144,16 +240,7 @@ module.exports = function(context) {
         "UnaryExpression": checkForSpaces,
         "UpdateExpression": checkForSpaces,
         "NewExpression": checkForSpaces,
-        "YieldExpression": function(node) {
-            var tokens = context.getFirstTokens(node, 3),
-                word = "yield";
-
-            if (!node.argument || node.delegate) {
-                return;
-            }
-
-            checkUnaryWordOperatorForSpaces(node, tokens[0], tokens[1], word);
-        }
+        "YieldExpression": checkForSpacesAfterYield
     };
 
 };
@@ -167,6 +254,12 @@ module.exports.schema = [
             },
             "nonwords": {
                 "type": "boolean"
+            },
+            "overrides": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "boolean"
+                }
             }
         },
         "additionalProperties": false

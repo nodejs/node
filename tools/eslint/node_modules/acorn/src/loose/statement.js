@@ -16,7 +16,12 @@ lp.parseTopLevel = function() {
 }
 
 lp.parseStatement = function() {
-  let starttype = this.tok.type, node = this.startNode()
+  let starttype = this.tok.type, node = this.startNode(), kind
+
+  if (this.toks.isLet()) {
+    starttype = tt._var
+    kind = "let"
+  }
 
   switch (starttype) {
   case tt._break: case tt._continue:
@@ -47,8 +52,9 @@ lp.parseStatement = function() {
     this.pushCx()
     this.expect(tt.parenL)
     if (this.tok.type === tt.semi) return this.parseFor(node, null)
-    if (this.tok.type === tt._var || this.tok.type === tt._let || this.tok.type === tt._const) {
-      let init = this.parseVar(true)
+    let isLet = this.toks.isLet()
+    if (isLet || this.tok.type === tt._var || this.tok.type === tt._const) {
+      let init = this.parseVar(true, isLet ? "let" : this.tok.value)
       if (init.declarations.length === 1 && (this.tok.type === tt._in || this.isContextual("of"))) {
         return this.parseForIn(node, init)
       }
@@ -133,9 +139,8 @@ lp.parseStatement = function() {
     return this.finishNode(node, "TryStatement")
 
   case tt._var:
-  case tt._let:
   case tt._const:
-    return this.parseVar()
+    return this.parseVar(false, kind || this.tok.value)
 
   case tt._while:
     this.next()
@@ -218,9 +223,9 @@ lp.parseForIn = function(node, init) {
   return this.finishNode(node, type)
 }
 
-lp.parseVar = function(noIn) {
+lp.parseVar = function(noIn, kind) {
   let node = this.startNode()
-  node.kind = this.tok.type.keyword
+  node.kind = kind
   this.next()
   node.declarations = []
   do {
@@ -329,7 +334,7 @@ lp.parseExport = function() {
     this.semicolon()
     return this.finishNode(node, "ExportDefaultDeclaration")
   }
-  if (this.tok.type.keyword) {
+  if (this.tok.type.keyword || this.toks.isLet()) {
     node.declaration = this.parseStatement()
     node.specifiers = []
     node.source = null

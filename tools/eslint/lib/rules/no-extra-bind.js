@@ -45,6 +45,7 @@ module.exports = function(context) {
                     if (node.property.expressions.length === 0) {
                         return node.property.quasis[0].value.cooked;
                     }
+
                     // fallthrough
                 default:
                     return false;
@@ -66,6 +67,7 @@ module.exports = function(context) {
     function isCalleeOfBindMethod(node) {
         var parent = node.parent;
         var grandparent = parent.parent;
+
         return (
             grandparent &&
             grandparent.type === "CallExpression" &&

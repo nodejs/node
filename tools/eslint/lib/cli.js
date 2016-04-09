@@ -51,6 +51,7 @@ function translateOptions(cliOptions) {
         rulePaths: cliOptions.rulesdir,
         useEslintrc: cliOptions.eslintrc,
         parser: cliOptions.parser,
+        parserOptions: cliOptions.parserOptions,
         cache: cliOptions.cache,
         cacheFile: cliOptions.cacheFile,
         cacheLocation: cliOptions.cacheLocation,
@@ -171,6 +172,7 @@ var cli = {
                 }
 
                 var fileConfig = engine.getConfigForFile(files[0]);
+
                 log.info(JSON.stringify(fileConfig, null, "  "));
                 return 0;
             }

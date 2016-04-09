@@ -9,6 +9,7 @@ var baseDifference = require('./_baseDifference'),
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Array
  * @param {Array} array The array to filter.
  * @param {...*} [values] The values to exclude.

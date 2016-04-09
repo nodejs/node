@@ -36,13 +36,13 @@ pp.toAssignable = function(node, isBinding) {
         // falls through to AssignmentPattern
       } else {
         this.raise(node.left.end, "Only '=' operator can be used for specifying default value.")
-        break;
+        break
       }
 
     case "AssignmentPattern":
       if (node.right.type === "YieldExpression")
         this.raise(node.right.start, "Yield expression cannot be a default value")
-      break;
+      break
 
     case "ParenthesizedExpression":
       node.expression = this.toAssignable(node.expression, isBinding)
@@ -76,7 +76,7 @@ pp.toAssignableList = function(exprList, isBinding) {
     }
 
     if (isBinding && last.type === "RestElement" && last.argument.type !== "Identifier")
-      this.unexpected(last.argument.start);
+      this.unexpected(last.argument.start)
   }
   for (let i = 0; i < end; i++) {
     let elt = exprList[i]
@@ -173,16 +173,16 @@ pp.checkLVal = function(expr, isBinding, checkClashes) {
   switch (expr.type) {
   case "Identifier":
     if (this.strict && this.reservedWordsStrictBind.test(expr.name))
-      this.raise(expr.start, (isBinding ? "Binding " : "Assigning to ") + expr.name + " in strict mode")
+      this.raiseRecoverable(expr.start, (isBinding ? "Binding " : "Assigning to ") + expr.name + " in strict mode")
     if (checkClashes) {
       if (has(checkClashes, expr.name))
-        this.raise(expr.start, "Argument name clash")
+        this.raiseRecoverable(expr.start, "Argument name clash")
       checkClashes[expr.name] = true
     }
     break
 
   case "MemberExpression":
-    if (isBinding) this.raise(expr.start, (isBinding ? "Binding" : "Assigning to") + " member expression")
+    if (isBinding) this.raiseRecoverable(expr.start, (isBinding ? "Binding" : "Assigning to") + " member expression")
     break
 
   case "ObjectPattern":

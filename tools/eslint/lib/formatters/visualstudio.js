@@ -38,6 +38,7 @@ module.exports = function(results) {
     results.forEach(function(result) {
 
         var messages = result.messages;
+
         total += messages.length;
 
         messages.forEach(function(message) {
