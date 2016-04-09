@@ -237,6 +237,7 @@ ignored by the decompression classes.
 * memLevel (compression only)
 * strategy (compression only)
 * dictionary (deflate/inflate only, empty dictionary by default)
+* gzipHeader (See [GzipHeader][])
 
 See the description of `deflateInit2` and `inflateInit2` at
 <http://zlib.net/manual.html#Advanced> for more information on these.
@@ -366,11 +367,79 @@ Decompress a Buffer or string with InflateRaw.
 
 Decompress a Buffer or string with Unzip.
 
+## Class GzipHeader
+
+<!--type=misc-->
+
+The zlib bindings support reading and writing fields of the Gzip file format
+header. A Gzip header has the following properties:
+
+* `text` {Boolean}
+* `time` {Integer|Date}
+* `os` {Integer}
+* `hcrc` {Boolean}
+* `extra` {Array|Buffer|Null}
+* `comment` {String|Buffer|Null}
+* `name` {String|Buffer|Null}
+
+`extra` can be a {Buffer} or a list of sub-fields, each an object with a `id`
+and a `content` property as per [RFC1952][]. More information on the meaning
+of these fields is available at <http://zlib.net/manual.html#Advanced>.
+
+When writing, all fields are optional. Any supplied gzip header data is ignored
+when the stream is not of [Gzip][] type.
+
+When reading from a compressed file, `comment` and `name` will always be
+Buffers, and `time` will always be a UNIX timestamp.
+
+To read the Gzip headers of a compressed file, specify
+`{ gzipHeader: true }` in the [options][] object. The stream will then emit
+`header` events, one for each member of the Gzip file. If no such event is
+emitted, then the underlying data was not in Gzip format; this behaviour can
+be used together with [Unzip][] streams to determine the input format without
+inspecting the bytes manually.
+
+Example of writing a Gzip header:
+
+```js
+const gzip = zlib.createGzip({
+  gzipHeader: {
+    name: 'input.txt',
+    time: new Date(),
+    extra: [
+      { id: 'AA', content: 'Content of the AA extra field' }
+    ]
+  }
+});
+
+const inp = fs.createReadStream('input.txt');
+const out = fs.createWriteStream('input.txt.gz');
+
+inp.pipe(gzip).pipe(out);
+```
+
+Example of reading a Gzip header:
+
+```js
+const unzip = zlib.createUnzip({ gzipHeader: true });
+const inp = fs.createReadStream('input.txt.gz');
+
+unzip.on('header', (header) => {
+  console.log(header);
+  assert.equal(header.name.toString(), 'input.txt');
+});
+
+unzip.on('data', () => { /* do something with the content */ });
+inp.pipe(unzip);
+```
+
 [accept-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [content-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
+[RFC1952]: https://tools.ietf.org/html/rfc1952
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
 [zlib documentation]: http://zlib.net/manual.html#Constants
 [options]: #zlib_class_options
+[GzipHeader]: #zlib_class_gzipheader
 [Deflate]: #zlib_class_zlib_deflate
 [DeflateRaw]: #zlib_class_zlib_deflateraw
 [Gunzip]: #zlib_class_zlib_gunzip

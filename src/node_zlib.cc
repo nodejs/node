@@ -19,13 +19,17 @@
 namespace node {
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Int32;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Number;
+using v8::Null;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -46,6 +50,150 @@ enum node_zlib_mode {
 
 void InitZlib(v8::Local<v8::Object> target);
 
+class GZipHeader {
+  public:
+    explicit GZipHeader(Environment* env) {
+      buf_.done = 0;
+      buf_.extra_len = buf_.extra_max = 0x10000;
+      buf_.name_max = 1024;  // This is what gunzip(1) does.
+      buf_.comm_max = 0x10000;
+
+      buf_.extra = extra_ptr_ = static_cast<Bytef*>(malloc(buf_.extra_max));
+      buf_.name = name_ptr_ = static_cast<Bytef*>(malloc(buf_.name_max));
+      buf_.comment = comment_ptr = static_cast<Bytef*>(malloc(buf_.comm_max));
+
+      env->isolate()->AdjustAmountOfExternalAllocatedMemory(memoryUsage());
+    }
+
+    GZipHeader(Environment* env, Local<Object> info) {
+      buf_.done = 1;
+      buf_.text = info->Get(env->text_string())->Int32Value();
+      buf_.time = info->Get(env->time_string())->IntegerValue();
+      buf_.os = info->Get(env->os_string())->Int32Value();
+      buf_.hcrc = info->Get(env->hcrc_string())->Int32Value();
+
+      readMaybeBuffer(env, info, env->extra_string(),
+                      buf_.extra, buf_.extra_len);
+      readMaybeBuffer(env, info, env->name_string(),
+                      buf_.name, buf_.name_max);
+      readMaybeBuffer(env, info, env->comment_string(),
+                      buf_.comment, buf_.comm_max);
+
+      extra_ptr_ = buf_.extra;
+      name_ptr_ = buf_.name;
+      comment_ptr = buf_.comment;
+
+      env->isolate()->AdjustAmountOfExternalAllocatedMemory(memoryUsage());
+    }
+
+    bool hasBeenRead() const {
+      return buf_.done == 1;
+    }
+
+    void resetHasBeenRead() {
+      buf_.done = 0;
+    }
+
+    Local<Object> toObject(Environment* env) {
+      Local<Object> ret = Object::New(env->isolate());
+
+      ret->Set(env->text_string(), Boolean::New(env->isolate(), buf_.text));
+      ret->Set(env->time_string(), Int32::New(env->isolate(), buf_.time));
+      ret->Set(env->os_string(), Int32::New(env->isolate(), buf_.os));
+      ret->Set(env->hcrc_string(), Boolean::New(env->isolate(), buf_.hcrc));
+
+      SetFromBufferOrNull<false>(env, ret, env->extra_string(),
+                                 buf_.extra, buf_.extra_len);
+      SetFromBufferOrNull<true>(env, ret, env->name_string(),
+                                buf_.name, buf_.name_max);
+      SetFromBufferOrNull<true>(env, ret, env->comment_string(),
+                                buf_.comment, buf_.comm_max);
+
+      return ret;
+    }
+
+    void cleanup(Environment* env) {
+      int64_t freedMemory = memoryUsage();
+
+      free(extra_ptr_);
+      buf_.extra = extra_ptr_ = nullptr;
+      buf_.extra_len = buf_.extra_max = 0;
+
+      free(name_ptr_);
+      buf_.name = name_ptr_ = nullptr;
+      buf_.name_max = 0;
+
+      free(comment_ptr);
+      buf_.comment = comment_ptr = nullptr;
+      buf_.comm_max = 0;
+
+      if (env) {
+        env->isolate()->AdjustAmountOfExternalAllocatedMemory(-freedMemory);
+      }
+    }
+
+    ~GZipHeader() {
+      // This should be a no-op.
+      cleanup(nullptr);
+    }
+
+    gz_header* underlying() {
+      return &buf_;
+    }
+  private:
+    template<bool ZeroTerminated>
+    static void SetFromBufferOrNull(Environment* env,
+                                    Local<Object> target,
+                                    Local<String> name,
+                                    Bytef* data_,
+                                    uInt length) {
+      const char* data = reinterpret_cast<const char*>(data_);
+      if (!data) {
+        target->Set(name, Null(env->isolate()));
+        return;
+      }
+
+      if (ZeroTerminated) {
+        length = strnlen(data, length);
+      }
+
+      MaybeLocal<Object> buf = Buffer::Copy(env, data, length);
+      if (!buf.IsEmpty()) {
+        target->Set(name, buf.ToLocalChecked());
+      }
+    }
+
+    void readMaybeBuffer(Environment* env,
+                         Local<Object> info,
+                         Local<String> name,
+                         Bytef*& target,
+                         uInt& len_target) {
+      Local<Value> source = info->Get(name);
+
+      target = nullptr;
+      len_target = 0;
+
+      if (Buffer::HasInstance(source)) {
+        len_target = Buffer::Length(source);
+        target = static_cast<Bytef*>(malloc(len_target));
+
+        if (target) {
+          memcpy(target, Buffer::Data(source), len_target);
+        } else {
+          len_target = 0;
+        }
+      }
+    }
+
+    int64_t memoryUsage() {
+      return buf_.extra_len + buf_.name_max + buf_.comm_max;
+    }
+
+    gz_header buf_;
+    Bytef* extra_ptr_;
+    Bytef* name_ptr_;
+    Bytef* comment_ptr;
+};
 
 /**
  * Deflate/Inflate
@@ -66,6 +214,7 @@ class ZCtx : public AsyncWrap {
         mode_(mode),
         strategy_(0),
         windowBits_(0),
+        gzip_header_(nullptr),
         write_in_progress_(false),
         pending_close_(false),
         refs_(0),
@@ -105,6 +254,9 @@ class ZCtx : public AsyncWrap {
       delete[] dictionary_;
       dictionary_ = nullptr;
     }
+
+    delete gzip_header_;
+    gzip_header_ = nullptr;
   }
 
 
@@ -210,9 +362,16 @@ class ZCtx : public AsyncWrap {
 
     ctx->write_in_progress_ = false;
 
-    Local<Array> result = Array::New(env->isolate(), 2);
+    Local<Array> result = Array::New(env->isolate(), 3);
     result->Set(0, avail_in);
     result->Set(1, avail_out);
+    if (ctx->gzip_header_ && ctx->gzip_header_->hasBeenRead()) {
+      result->Set(2, ctx->gzip_header_->toObject(env));
+      ctx->gzip_header_->resetHasBeenRead();
+    } else {
+      result->Set(2, Null(env->isolate()));
+    }
+
     args.GetReturnValue().Set(result);
 
     ctx->Unref();
@@ -307,13 +466,16 @@ class ZCtx : public AsyncWrap {
         while (ctx->strm_.avail_in > 0 &&
                ctx->mode_ == GUNZIP &&
                ctx->err_ == Z_STREAM_END &&
-               ctx->strm_.next_in[0] != 0x00) {
+               ctx->strm_.next_in[0] != 0x00 &&
+               (!ctx->gzip_header_ || !ctx->gzip_header_->hasBeenRead())) {
           // Bytes remain in input buffer. Perhaps this is another compressed
           // member in the same archive, or just trailing garbage.
           // Trailing zero bytes are okay, though, since they are frequently
           // used for padding.
 
           Reset(ctx);
+          SetGZipHeaderBuffer(ctx);
+
           ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
         }
         break;
@@ -375,10 +537,18 @@ class ZCtx : public AsyncWrap {
     Local<Integer> avail_in = Integer::New(env->isolate(),
                                            ctx->strm_.avail_in);
 
+    Local<Value> gzip_header;
+    if (ctx->gzip_header_ && ctx->gzip_header_->hasBeenRead()) {
+      gzip_header = ctx->gzip_header_->toObject(env);
+      ctx->gzip_header_->resetHasBeenRead();
+    } else {
+      gzip_header = Null(env->isolate());
+    }
+
     ctx->write_in_progress_ = false;
 
     // call the write() cb
-    Local<Value> args[2] = { avail_in, avail_out };
+    Local<Value> args[3] = { avail_in, avail_out, gzip_header };
     ctx->MakeCallback(env->callback_string(), arraysize(args), args);
 
     ctx->Unref();
@@ -428,8 +598,8 @@ class ZCtx : public AsyncWrap {
 
   // just pull the ints out of the args and call the other Init
   static void Init(const FunctionCallbackInfo<Value>& args) {
-    CHECK((args.Length() == 4 || args.Length() == 5) &&
-           "init(windowBits, level, memLevel, strategy, [dictionary])");
+    CHECK((args.Length() >= 4 && args.Length() <= 6) &&
+      "init(windowBits, level, memLevel, strategy, [dictionary, gzipHeader])");
 
     ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
 
@@ -460,8 +630,18 @@ class ZCtx : public AsyncWrap {
       memcpy(dictionary, Buffer::Data(dictionary_), dictionary_len);
     }
 
+    GZipHeader* gzip_header = nullptr;
+    if (args.Length() >= 6) {
+      if ((ctx->mode_ == GUNZIP || ctx->mode_ == UNZIP) &&
+          args[5]->BooleanValue()) {
+        gzip_header = new GZipHeader(ctx->env());
+      } else if (ctx->mode_ == GZIP && args[5]->IsObject()) {
+        gzip_header = new GZipHeader(ctx->env(), args[5]->ToObject());
+      }
+    }
+
     Init(ctx, level, windowBits, memLevel, strategy,
-         dictionary, dictionary_len);
+         dictionary, dictionary_len, gzip_header);
     SetDictionary(ctx);
   }
 
@@ -478,11 +658,13 @@ class ZCtx : public AsyncWrap {
   }
 
   static void Init(ZCtx *ctx, int level, int windowBits, int memLevel,
-                   int strategy, char* dictionary, size_t dictionary_len) {
+                   int strategy, char* dictionary, size_t dictionary_len,
+                   GZipHeader* gzip_header) {
     ctx->level_ = level;
     ctx->windowBits_ = windowBits;
     ctx->memLevel_ = memLevel;
     ctx->strategy_ = strategy;
+    ctx->gzip_header_ = gzip_header;
 
     ctx->strm_.zalloc = Z_NULL;
     ctx->strm_.zfree = Z_NULL;
@@ -531,14 +713,34 @@ class ZCtx : public AsyncWrap {
 
     if (ctx->err_ != Z_OK) {
       ZCtx::Error(ctx, "Init error");
+    } else {
+      SetGZipHeaderBuffer(ctx);
     }
-
 
     ctx->dictionary_ = reinterpret_cast<Bytef *>(dictionary);
     ctx->dictionary_len_ = dictionary_len;
 
     ctx->write_in_progress_ = false;
     ctx->init_done_ = true;
+  }
+
+  static void SetGZipHeaderBuffer(ZCtx* ctx) {
+    if (!ctx->gzip_header_) {
+      return;
+    }
+
+    if (ctx->mode_ == GZIP) {
+      ctx->err_ = deflateSetHeader(&ctx->strm_,
+                                   ctx->gzip_header_->underlying());
+    } else {
+      ctx->gzip_header_->resetHasBeenRead();
+      ctx->err_ = inflateGetHeader(&ctx->strm_,
+                                   ctx->gzip_header_->underlying());
+    }
+
+    if (ctx->err_ != Z_OK) {
+      ZCtx::Error(ctx, "Error during setting up buffer for header fields");
+    }
   }
 
   static void SetDictionary(ZCtx* ctx) {
@@ -635,6 +837,7 @@ class ZCtx : public AsyncWrap {
   z_stream strm_;
   int windowBits_;
   uv_work_t work_req_;
+  GZipHeader* gzip_header_;
   bool write_in_progress_;
   bool pending_close_;
   unsigned int refs_;

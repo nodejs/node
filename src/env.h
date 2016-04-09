@@ -77,6 +77,7 @@ namespace node {
   V(cached_data_rejected_string, "cachedDataRejected")                        \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
+  V(comment_string, "comment")                                                \
   V(oncertcb_string, "oncertcb")                                              \
   V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
@@ -92,6 +93,7 @@ namespace node {
   V(domain_string, "domain")                                                  \
   V(emitting_top_level_domain_error_string, "_emittingTopLevelDomainError")   \
   V(exchange_string, "exchange")                                              \
+  V(extra_string, "extra")                                                    \
   V(idle_string, "idle")                                                      \
   V(irq_string, "irq")                                                        \
   V(enter_string, "enter")                                                    \
@@ -119,6 +121,7 @@ namespace node {
   V(fsevent_string, "FSEvent")                                                \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
+  V(hcrc_string, "hcrc")                                                      \
   V(heap_total_string, "heapTotal")                                           \
   V(heap_used_string, "heapUsed")                                             \
   V(hostmaster_string, "hostmaster")                                          \
@@ -177,6 +180,7 @@ namespace node {
   V(onwrite_string, "onwrite")                                                \
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
+  V(os_string, "os")                                                          \
   V(owner_string, "owner")                                                    \
   V(parse_error_string, "Parse Error")                                        \
   V(path_string, "path")                                                      \
@@ -218,10 +222,12 @@ namespace node {
   V(subjectaltname_string, "subjectaltname")                                  \
   V(sys_string, "sys")                                                        \
   V(syscall_string, "syscall")                                                \
+  V(text_string, "text")                                                      \
   V(tick_callback_string, "_tickCallback")                                    \
   V(tick_domain_cb_string, "_tickDomainCallback")                             \
   V(ticketkeycallback_string, "onticketkeycallback")                          \
   V(timeout_string, "timeout")                                                \
+  V(time_string, "time")                                                      \
   V(times_string, "times")                                                    \
   V(timestamp_string, "timestamp")                                            \
   V(title_string, "title")                                                    \
