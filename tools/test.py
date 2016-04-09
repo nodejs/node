@@ -1331,7 +1331,7 @@ def ProcessOptions(options):
   global VERBOSE
   VERBOSE = options.verbose
   options.arch = options.arch.split(',')
-  options.mode = options.mode.split(',')
+  options.mode = options.mode.lower().split(',')  # 'Release' => 'release'.
   options.run = options.run.split(',')
   if options.run == [""]:
     options.run = None
