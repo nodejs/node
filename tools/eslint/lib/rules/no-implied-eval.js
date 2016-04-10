@@ -14,8 +14,10 @@
 module.exports = function(context) {
     var CALLEE_RE = /set(?:Timeout|Interval)|execScript/;
 
-    // Figures out if we should inspect a given binary expression. Is a stack of
-    // stacks, where the first element in each substack is a CallExpression.
+    /*
+     * Figures out if we should inspect a given binary expression. Is a stack
+     * of stacks, where the first element in each substack is a CallExpression.
+     */
     var impliedEvalAncestorsStack = [];
 
     //--------------------------------------------------------------------------
@@ -72,8 +74,10 @@ module.exports = function(context) {
      * @private
      */
     function hasImpliedEvalParent(node) {
+
         // make sure our parent is marked
         return node.parent === last(last(impliedEvalAncestorsStack)) &&
+
             // if our parent is a CallExpression, make sure we're the first argument
             (node.parent.type !== "CallExpression" || node === node.parent.arguments[0]);
     }
@@ -88,8 +92,10 @@ module.exports = function(context) {
      */
     function checkString(node) {
         if (hasImpliedEvalParent(node)) {
+
             // remove the entire substack, to avoid duplicate reports
             var substack = impliedEvalAncestorsStack.pop();
+
             context.report(substack[0], "Implied eval. Consider passing a function instead of a string.");
         }
     }
@@ -101,6 +107,7 @@ module.exports = function(context) {
     return {
         "CallExpression": function(node) {
             if (isImpliedEvalCallExpression(node)) {
+
                 // call expressions create a new substack
                 impliedEvalAncestorsStack.push([node]);
             }
@@ -108,9 +115,11 @@ module.exports = function(context) {
 
         "CallExpression:exit": function(node) {
             if (node === last(last(impliedEvalAncestorsStack))) {
-                // destroys the entire sub-stack, rather than just using
-                // last(impliedEvalAncestorsStack).pop(), as a CallExpression is
-                // always the bottom of a impliedEvalAncestorsStack substack.
+
+                /* Destroys the entire sub-stack, rather than just using
+                 * last(impliedEvalAncestorsStack).pop(), as a CallExpression is
+                 * always the bottom of a impliedEvalAncestorsStack substack.
+                 */
                 impliedEvalAncestorsStack.pop();
             }
         },

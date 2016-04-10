@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+
     // trim restricted module names
     var restrictedModules = context.options;
 

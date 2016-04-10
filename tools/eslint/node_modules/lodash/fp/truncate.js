@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('truncate', require('../truncate'));
+var convert = require('./convert'),
+    func = convert('truncate', require('../truncate'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

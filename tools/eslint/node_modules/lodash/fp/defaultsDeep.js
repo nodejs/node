@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('defaultsDeep', require('../defaultsDeep'));
+var convert = require('./convert'),
+    func = convert('defaultsDeep', require('../defaultsDeep'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

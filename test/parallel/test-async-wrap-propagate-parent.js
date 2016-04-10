@@ -9,7 +9,6 @@ const providers = Object.keys(async_wrap.Providers);
 const uidSymbol = Symbol('uid');
 
 let cntr = 0;
-let server;
 let client;
 
 function init(uid, type, parentUid, parentHandle) {
@@ -34,7 +33,7 @@ function noop() { }
 async_wrap.setupHooks({ init });
 async_wrap.enable();
 
-server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
   client = c;
   // Allow init callback to run before closing.
   setImmediate(() => {

@@ -7,7 +7,7 @@ let timeout_fired = false;
 let unref_interval = false;
 let unref_timer = false;
 let unref_callbacks = 0;
-let interval, check_unref, checks = 0;
+let checks = 0;
 
 var LONG_TIME = 10 * 1000;
 var SHORT_TIME = 100;
@@ -28,7 +28,7 @@ setTimeout(function() {
   timeout_fired = true;
 }, LONG_TIME).unref();
 
-interval = setInterval(function() {
+const interval = setInterval(function() {
   unref_interval = true;
   clearInterval(interval);
 }, SHORT_TIME);
@@ -38,7 +38,7 @@ setTimeout(function() {
   unref_timer = true;
 }, SHORT_TIME).unref();
 
-check_unref = setInterval(function() {
+const check_unref = setInterval(function() {
   if (checks > 5 || (unref_interval && unref_timer))
     clearInterval(check_unref);
   checks += 1;

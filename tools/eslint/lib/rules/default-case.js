@@ -34,8 +34,11 @@ module.exports = function(context) {
         "SwitchStatement": function(node) {
 
             if (!node.cases.length) {
-                // skip check of empty switch because there is no easy way
-                // to extract comments inside it now
+
+                /*
+                 * skip check of empty switch because there is no easy way
+                 * to extract comments inside it now
+                 */
                 return;
             }
 
@@ -49,6 +52,7 @@ module.exports = function(context) {
                 var comments;
 
                 var lastCase = last(node.cases);
+
                 comments = context.getComments(lastCase).trailing;
 
                 if (comments.length) {

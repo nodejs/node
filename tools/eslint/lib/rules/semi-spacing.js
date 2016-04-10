@@ -35,6 +35,7 @@ module.exports = function(context) {
      */
     function hasLeadingSpace(token) {
         var tokenBefore = context.getTokenBefore(token);
+
         return tokenBefore && astUtils.isTokenOnSameLine(tokenBefore, token) && sourceCode.isSpaceBetweenTokens(tokenBefore, token);
     }
 
@@ -45,6 +46,7 @@ module.exports = function(context) {
      */
     function hasTrailingSpace(token) {
         var tokenAfter = context.getTokenAfter(token);
+
         return tokenAfter && astUtils.isTokenOnSameLine(token, tokenAfter) && sourceCode.isSpaceBetweenTokens(token, tokenAfter);
     }
 
@@ -55,6 +57,7 @@ module.exports = function(context) {
      */
     function isLastTokenInCurrentLine(token) {
         var tokenAfter = context.getTokenAfter(token);
+
         return !(tokenAfter && astUtils.isTokenOnSameLine(token, tokenAfter));
     }
 
@@ -65,6 +68,7 @@ module.exports = function(context) {
      */
     function isFirstTokenInCurrentLine(token) {
         var tokenBefore = context.getTokenBefore(token);
+
         return !(tokenBefore && astUtils.isTokenOnSameLine(token, tokenBefore));
     }
 
@@ -75,6 +79,7 @@ module.exports = function(context) {
      */
     function isBeforeClosingParen(token) {
         var nextToken = context.getTokenAfter(token);
+
         return (
             nextToken &&
             nextToken.type === "Punctuator" &&
@@ -111,6 +116,7 @@ module.exports = function(context) {
                         message: "Unexpected whitespace before semicolon.",
                         fix: function(fixer) {
                             var tokenBefore = context.getTokenBefore(token);
+
                             return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
                         }
                     });
@@ -137,6 +143,7 @@ module.exports = function(context) {
                             message: "Unexpected whitespace after semicolon.",
                             fix: function(fixer) {
                                 var tokenAfter = context.getTokenAfter(token);
+
                                 return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
                             }
                         });
@@ -164,6 +171,7 @@ module.exports = function(context) {
      */
     function checkNode(node) {
         var token = context.getLastToken(node);
+
         checkSemicolonSpacing(token, node);
     }
 

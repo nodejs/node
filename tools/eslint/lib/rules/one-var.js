@@ -144,6 +144,7 @@ module.exports = function(context) {
      */
     function getCurrentScope(statementType) {
         var currentScope;
+
         if (statementType === "var") {
             currentScope = functionStack[functionStack.length - 1];
         } else if (statementType === "let") {
@@ -162,6 +163,7 @@ module.exports = function(context) {
      */
     function countDeclarations(declarations) {
         var counts = { uninitialized: 0, initialized: 0 };
+
         for (var i = 0; i < declarations.length; i++) {
             if (declarations[i].init === null) {
                 counts.uninitialized++;
@@ -246,18 +248,24 @@ module.exports = function(context) {
                     }
                 }
             }
+
             // never
             if (parent.type !== "ForStatement" || parent.init !== node) {
                 var totalDeclarations = declarationCounts.uninitialized + declarationCounts.initialized;
+
                 if (totalDeclarations > 1) {
-                    // both initialized and uninitialized
+
                     if (options[type].initialized === MODE_NEVER && options[type].uninitialized === MODE_NEVER) {
+
+                        // both initialized and uninitialized
                         context.report(node, "Split '" + type + "' declarations into multiple statements.");
-                    // initialized
                     } else if (options[type].initialized === MODE_NEVER && declarationCounts.initialized > 0) {
+
+                        // initialized
                         context.report(node, "Split initialized '" + type + "' declarations into multiple statements.");
-                    // uninitialized
                     } else if (options[type].uninitialized === MODE_NEVER && declarationCounts.uninitialized > 0) {
+
+                        // uninitialized
                         context.report(node, "Split uninitialized '" + type + "' declarations into multiple statements.");
                     }
                 }

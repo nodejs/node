@@ -41,6 +41,7 @@ module.exports = function(context) {
             var node = after ? leftToken : rightToken;
             var type = spaceRequired ? "Missing" : "Unexpected";
             var message = type + " space " + side + " *.";
+
             context.report({
                 node: node,
                 message: message,

@@ -32,6 +32,7 @@ module.exports = function(context) {
      */
     stack.getCurrent = function() {
         var current = this[this.length - 1];
+
         if (!current.init) {
             current.init = true;
             current.valid = !astUtils.isDefaultThisBinding(
@@ -52,6 +53,7 @@ module.exports = function(context) {
      * @returns {void}
      */
     function enterFunction(node) {
+
         // `this` can be invalid only under strict mode.
         stack.push({
             init: !context.getScope().isStrict,
@@ -69,8 +71,11 @@ module.exports = function(context) {
     }
 
     return {
-        // `this` is invalid only under strict mode.
-        // Modules is always strict mode.
+
+        /*
+         * `this` is invalid only under strict mode.
+         * Modules is always strict mode.
+         */
         "Program": function(node) {
             var scope = context.getScope(),
                 features = context.parserOptions.ecmaFeatures || {};
@@ -85,6 +90,7 @@ module.exports = function(context) {
                 )
             });
         },
+
         "Program:exit": function() {
             stack.pop();
         },
@@ -97,6 +103,7 @@ module.exports = function(context) {
         // Reports if `this` of the current context is invalid.
         "ThisExpression": function(node) {
             var current = stack.getCurrent();
+
             if (current && !current.valid) {
                 context.report(node, "Unexpected 'this'.");
             }
