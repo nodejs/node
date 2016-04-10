@@ -451,13 +451,14 @@ int uv_fs_event_getpath(uv_fs_event_t* handle, char* buffer, size_t* size) {
   }
 
   required_len = strlen(handle->path);
-  if (required_len > *size) {
-    *size = required_len;
+  if (required_len >= *size) {
+    *size = required_len + 1;
     return UV_ENOBUFS;
   }
 
   memcpy(buffer, handle->path, required_len);
   *size = required_len;
+  buffer[required_len] = '\0';
 
   return 0;
 }

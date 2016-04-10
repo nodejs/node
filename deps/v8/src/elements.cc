@@ -545,6 +545,16 @@ class ElementsAccessorBase : public ElementsAccessor {
                *holder, *backing_store, index, filter) != kMaxUInt32;
   }
 
+  bool HasAccessors(JSObject* holder) final {
+    return ElementsAccessorSubclass::HasAccessorsImpl(holder,
+                                                      holder->elements());
+  }
+
+  static bool HasAccessorsImpl(JSObject* holder,
+                               FixedArrayBase* backing_store) {
+    return false;
+  }
+
   Handle<Object> Get(Handle<FixedArrayBase> backing_store,
                      uint32_t entry) final {
     return ElementsAccessorSubclass::GetImpl(backing_store, entry);
@@ -1046,6 +1056,21 @@ class DictionaryElementsAccessor
     Handle<FixedArray> new_elements =
         SeededNumberDictionary::Shrink(dict, index);
     obj->set_elements(*new_elements);
+  }
+
+  static bool HasAccessorsImpl(JSObject* holder,
+                               FixedArrayBase* backing_store) {
+    SeededNumberDictionary* dict = SeededNumberDictionary::cast(backing_store);
+    if (!dict->requires_slow_elements()) return false;
+    int capacity = dict->Capacity();
+    for (int i = 0; i < capacity; i++) {
+      Object* key = dict->KeyAt(i);
+      if (!dict->IsKey(key)) continue;
+      DCHECK(!dict->IsDeleted(i));
+      PropertyDetails details = dict->DetailsAt(i);
+      if (details.type() == ACCESSOR_CONSTANT) return true;
+    }
+    return false;
   }
 
   static Object* GetRaw(FixedArrayBase* store, uint32_t entry) {
@@ -1813,6 +1838,11 @@ class TypedElementsAccessor
     BackingStore::cast(backing_store)->SetValue(entry, value);
   }
 
+  static bool HasAccessorsImpl(JSObject* holder,
+                               FixedArrayBase* backing_store) {
+    return false;
+  }
+
   static inline void SetImpl(FixedArrayBase* backing_store, uint32_t entry,
                              Object* value, WriteBarrierMode mode) {
     BackingStore::cast(backing_store)->SetValue(entry, value);
@@ -1968,6 +1998,13 @@ class SloppyArgumentsElementsAccessor
 
     FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
     return ArgumentsAccessor::HasEntryImpl(arguments, entry - length);
+  }
+
+  static bool HasAccessorsImpl(JSObject* holder,
+                               FixedArrayBase* backing_store) {
+    FixedArray* parameter_map = FixedArray::cast(backing_store);
+    FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
+    return ArgumentsAccessor::HasAccessorsImpl(holder, arguments);
   }
 
   static uint32_t GetIndexForEntryImpl(FixedArrayBase* parameters,

@@ -340,7 +340,15 @@ else
 ifeq ($(DESTCPU),ppc)
 ARCH=ppc
 else
+ifeq ($(DESTCPU),s390)
+ARCH=s390
+else
+ifeq ($(DESTCPU),s390x)
+ARCH=s390x
+else
 ARCH=x86
+endif
+endif
 endif
 endif
 endif
@@ -584,6 +592,8 @@ bench-all: bench bench-misc bench-array bench-buffer bench-url bench-events benc
 
 bench: bench-net bench-http bench-fs bench-tls
 
+bench-ci: bench
+
 bench-http-simple:
 	benchmark/http_simple_bench.sh
 
@@ -630,10 +640,12 @@ lint:
 		"$ git clone https://github.com/nodejs/node.git"
 endif
 
+lint-ci: lint
+
 .PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean \
 	check uninstall install install-includes install-bin all staticlib \
 	dynamiclib test test-all test-addons build-addons website-upload pkg \
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
 	bench-http bench-fs bench-tls cctest run-ci test-v8 test-v8-intl \
-	test-v8-benchmarks test-v8-all v8
+	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci

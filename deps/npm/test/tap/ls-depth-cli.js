@@ -159,6 +159,50 @@ test('npm ls --depth=Infinity --json', function (t) {
   )
 })
 
+test('npm ls --depth=0 --parseable --long', function (t) {
+  common.npm(
+    ['ls', '--depth=0', '--parseable', '--long'],
+    EXEC_OPTS,
+    function (er, c, out) {
+      t.ifError(er, 'npm ls ran without issue')
+      t.equal(c, 0, 'ls ran without raising error code')
+      t.has(
+        out,
+        /.*test-package-with-one-dep@0\.0\.0/,
+        'output contains test-package-with-one-dep'
+      )
+      t.doesNotHave(
+        out,
+        /.*test-package@0\.0\.0/,
+        'output not contains test-package'
+      )
+      t.end()
+    }
+  )
+})
+
+test('npm ls --depth=1 --parseable --long', function (t) {
+  common.npm(
+    ['ls', '--depth=1', '--parseable', '--long'],
+    EXEC_OPTS,
+    function (er, c, out) {
+      t.ifError(er, 'npm ls ran without issue')
+      t.equal(c, 0, 'ls ran without raising error code')
+      t.has(
+        out,
+        /.*test-package-with-one-dep@0\.0\.0/,
+        'output contains test-package-with-one-dep'
+      )
+      t.has(
+        out,
+        /.*test-package@0\.0\.0/,
+        'output not contains test-package'
+      )
+      t.end()
+    }
+  )
+})
+
 test('cleanup', function (t) {
   cleanup()
   t.end()

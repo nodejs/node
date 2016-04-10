@@ -22,6 +22,7 @@
  */
 function getContainingLoopNode(node) {
     var parent = node.parent;
+
     while (parent) {
         switch (parent.type) {
             case "WhileStatement":
@@ -29,6 +30,7 @@ function getContainingLoopNode(node) {
                 return parent;
 
             case "ForStatement":
+
                 // `init` is outside of the loop.
                 if (parent.init !== node) {
                     return parent;
@@ -37,6 +39,7 @@ function getContainingLoopNode(node) {
 
             case "ForInStatement":
             case "ForOfStatement":
+
                 // `right` is outside of the loop.
                 if (parent.right !== node) {
                     return parent;
@@ -46,6 +49,7 @@ function getContainingLoopNode(node) {
             case "ArrowFunctionExpression":
             case "FunctionExpression":
             case "FunctionDeclaration":
+
                 // We don't need to check nested functions.
                 return null;
 
@@ -133,6 +137,7 @@ function isSafe(funcNode, loopNode, reference) {
      */
     function isSafeReference(upperRef) {
         var id = upperRef.identifier;
+
         return (
             !upperRef.isWrite() ||
             variable.scope.variableScope === upperRef.from.variableScope &&
@@ -148,6 +153,7 @@ function isSafe(funcNode, loopNode, reference) {
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+
     /**
      * Reports functions which match the following condition:
      *
@@ -159,11 +165,13 @@ module.exports = function(context) {
      */
     function checkForLoops(node) {
         var loopNode = getContainingLoopNode(node);
+
         if (!loopNode) {
             return;
         }
 
         var references = context.getScope().through;
+
         if (references.length > 0 &&
             !references.every(isSafe.bind(null, node, loopNode))
         ) {

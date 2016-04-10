@@ -53,7 +53,7 @@ function rmdirSyncRecursive(dir, force) {
     while (true) {
       try {
         result = fs.rmdirSync(dir);
-        if (fs.existsSync(dir)) throw { code: "EAGAIN" }
+        if (fs.existsSync(dir)) throw { code: "EAGAIN" };
         break;
       } catch(er) {
         // In addition to error codes, also check if the directory still exists and loop again if true
@@ -89,8 +89,8 @@ function isWriteable(file) {
 }
 
 //@
-//@ ### rm([options ,] file [, file ...])
-//@ ### rm([options ,] file_array)
+//@ ### rm([options,] file [, file ...])
+//@ ### rm([options,] file_array)
 //@ Available options:
 //@
 //@ + `-f`: force

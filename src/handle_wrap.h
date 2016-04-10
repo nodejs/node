@@ -35,6 +35,7 @@ class HandleWrap : public AsyncWrap {
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsRefed(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static inline bool IsAlive(const HandleWrap* wrap) {
     return wrap != nullptr && wrap->GetHandle() != nullptr;

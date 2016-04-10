@@ -9,6 +9,7 @@
 
 namespace node {
 
+using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
@@ -34,6 +35,14 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
     uv_unref(wrap->handle__);
     wrap->flags_ |= kUnref;
   }
+}
+
+
+void HandleWrap::IsRefed(const FunctionCallbackInfo<Value>& args) {
+  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
+
+  bool refed = IsAlive(wrap) && (wrap->flags_ & kUnref) == 0;
+  args.GetReturnValue().Set(refed);
 }
 
 

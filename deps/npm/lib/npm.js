@@ -27,6 +27,9 @@
   var which = require('which')
   var CachingRegClient = require('./cache/caching-client.js')
   var parseJSON = require('./utils/parse-json.js')
+  var aliases = require('./config/cmd-list').aliases
+  var cmdList = require('./config/cmd-list').cmdList
+  var plumbing = require('./config/cmd-list').plumbing
 
   npm.config = {
     loaded: false,
@@ -55,114 +58,9 @@
   }
 
   var commandCache = {}
-
-  // short names for common things
-  var aliases = {
-    'rm': 'uninstall',
-    'r': 'uninstall',
-    'un': 'uninstall',
-    'unlink': 'uninstall',
-    'remove': 'uninstall',
-    'rb': 'rebuild',
-    'list': 'ls',
-    'la': 'ls',
-    'll': 'ls',
-    'ln': 'link',
-    'i': 'install',
-    'isntall': 'install',
-    'it': 'install-test',
-    'up': 'update',
-    'upgrade': 'update',
-    'c': 'config',
-    'dist-tags': 'dist-tag',
-    'info': 'view',
-    'show': 'view',
-    'find': 'search',
-    's': 'search',
-    'se': 'search',
-    'author': 'owner',
-    'home': 'docs',
-    'issues': 'bugs',
-    'unstar': 'star', // same function
-    'apihelp': 'help',
-    'login': 'adduser',
-    'add-user': 'adduser',
-    'tst': 'test',
-    't': 'test',
-    'find-dupes': 'dedupe',
-    'ddp': 'dedupe',
-    'v': 'view',
-    'verison': 'version'
-  }
-
   var aliasNames = Object.keys(aliases)
 
-  // these are filenames in .
-  var cmdList = [
-    'install',
-    'install-test',
-    'uninstall',
-    'cache',
-    'config',
-    'set',
-    'get',
-    'update',
-    'outdated',
-    'prune',
-    'pack',
-    'dedupe',
-
-    'rebuild',
-    'link',
-
-    'publish',
-    'star',
-    'stars',
-    'tag',
-    'adduser',
-    'logout',
-    'unpublish',
-    'owner',
-    'access',
-    'team',
-    'deprecate',
-    'shrinkwrap',
-
-    'help',
-    'help-search',
-    'ls',
-    'search',
-    'view',
-    'init',
-    'version',
-    'edit',
-    'explore',
-    'docs',
-    'repo',
-    'bugs',
-    'faq',
-    'root',
-    'prefix',
-    'bin',
-    'whoami',
-    'dist-tag',
-    'ping',
-
-    'test',
-    'stop',
-    'start',
-    'restart',
-    'run-script',
-    'completion'
-  ]
-  var plumbing = [
-    'build',
-    'unbuild',
-    'xmas',
-    'substack',
-    'visnup'
-  ]
-  var littleGuys = [ 'isntall' ]
+  var littleGuys = [ 'isntall', 'verison' ]
   var fullList = cmdList.concat(aliasNames).filter(function (c) {
     return plumbing.indexOf(c) === -1
   })
@@ -369,6 +267,12 @@
           log.enableProgress()
         } else {
           log.disableProgress()
+        }
+
+        if (config.get('unicode')) {
+          log.enableUnicode()
+        } else {
+          log.disableUnicode()
         }
 
         // at this point the configs are all set.

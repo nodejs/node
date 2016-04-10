@@ -29,8 +29,10 @@ module.exports = function(context) {
         }
 
         return {
+
             // Type of containing ancestor
             type: ancestor.type,
+
             // Separation between ancestor and node
             distance: generation
         };

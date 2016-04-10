@@ -24,6 +24,7 @@ module.exports = function(context) {
     */
     function report(node) {
         var parent = context.getAncestors().pop();
+
         context.report(node, parent.type === "Program" ?
             "Block is redundant." :
             "Nested block is redundant."
@@ -36,6 +37,7 @@ module.exports = function(context) {
     */
     function isLoneBlock() {
         var parent = context.getAncestors().pop();
+
         return parent.type === "BlockStatement" || parent.type === "Program";
     }
 

@@ -82,6 +82,7 @@ module.exports = {
                 message: "There should be no space after '" + token.value + "'",
                 fix: function(fixer) {
                     var nextToken = context.getSourceCode().getTokenAfter(token);
+
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
                 }
             });
@@ -100,6 +101,7 @@ module.exports = {
                 message: "There should be no space before '" + token.value + "'",
                 fix: function(fixer) {
                     var previousToken = context.getSourceCode().getTokenBefore(token);
+
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
                 }
             });

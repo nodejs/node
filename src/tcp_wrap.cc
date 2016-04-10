@@ -88,6 +88,7 @@ void TCPWrap::Initialize(Local<Object> target,
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
+  env->SetProtoMethod(t, "isRefed", HandleWrap::IsRefed);
 
   StreamWrap::AddMethods(env, t, StreamBase::kFlagHasWritev);
 
@@ -269,7 +270,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
     argv[1] = client_obj;
   }
 
-  tcp_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
+  tcp_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
 
 
@@ -295,7 +296,7 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
     v8::True(env->isolate())
   };
 
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }

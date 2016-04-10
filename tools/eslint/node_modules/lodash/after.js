@@ -9,6 +9,7 @@ var FUNC_ERROR_TEXT = 'Expected a function';
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Function
  * @param {number} n The number of calls before `func` is invoked.
  * @param {Function} func The function to restrict.
@@ -24,7 +25,7 @@ var FUNC_ERROR_TEXT = 'Expected a function';
  * _.forEach(saves, function(type) {
  *   asyncSave({ 'type': type, 'complete': done });
  * });
- * // => logs 'done saving!' after the two async saves have completed
+ * // => Logs 'done saving!' after the two async saves have completed.
  */
 function after(n, func) {
   if (typeof func != 'function') {

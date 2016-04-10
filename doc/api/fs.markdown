@@ -821,9 +821,6 @@ The callback is given the three arguments, `(err, bytesRead, buffer)`.
   * `encoding` {String} default = `'utf8'`
 * `callback` {Function}
 
-* `path` {String}
-* `callback` {Function}
-
 Asynchronous readdir(3).  Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
 the names of the files in the directory excluding `'.'` and `'..'`.
@@ -838,8 +835,6 @@ the filenames returned will be passed as `Buffer` objects.
 * `path` {String | Buffer}
 * `options` {String | Object}
   * `encoding` {String} default = `'utf8'`
-
-* `path` {String}
 
 Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 `'..'`.
@@ -900,9 +895,6 @@ string. Otherwise it returns a buffer.
   * `encoding` {String} default = `'utf8'`
 * `callback` {Function}
 
-* `path` {String}
-* `callback` {Function}
-
 Asynchronous readlink(2). The callback gets two arguments `(err,
 linkString)`.
 
@@ -916,8 +908,6 @@ the link path returned will be passed as a `Buffer` object.
 * `path` {String | Buffer}
 * `options` {String | Object}
   * `encoding` {String} default = `'utf8'`
-
-* `path` {String}
 
 Synchronous readlink(2). Returns the symbolic link's string value.
 
@@ -1352,7 +1342,7 @@ The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 ## fs.writeSync(fd, data[, position[, encoding]])
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `data` {String | Buffer}
 * `position` {Integer}
 * `encoding` {String}
 

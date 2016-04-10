@@ -8,7 +8,8 @@ var LazyWrapper = require('./_LazyWrapper'),
  *
  * @private
  * @param {Function} func The function to check.
- * @returns {boolean} Returns `true` if `func` has a lazy counterpart, else `false`.
+ * @returns {boolean} Returns `true` if `func` has a lazy counterpart,
+ *  else `false`.
  */
 function isLaziable(func) {
   var funcName = getFuncName(func),

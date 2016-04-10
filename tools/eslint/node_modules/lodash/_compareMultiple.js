@@ -37,7 +37,7 @@ function compareMultiple(object, other, orders) {
   // for more details.
   //
   // This also ensures a stable sort in V8 and other engines.
-  // See https://code.google.com/p/v8/issues/detail?id=90 for more details.
+  // See https://bugs.chromium.org/p/v8/issues/detail?id=90 for more details.
   return object.index - other.index;
 }
 

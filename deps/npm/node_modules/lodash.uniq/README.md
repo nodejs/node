@@ -1,4 +1,4 @@
-# lodash.uniq v4.1.0
+# lodash.uniq v4.2.0
 
 The [lodash](https://lodash.com/) method `_.uniq` exported as a [Node.js](https://nodejs.org/) module.
 
@@ -15,4 +15,4 @@ In Node.js:
 var uniq = require('lodash.uniq');
 ```
 
-See the [documentation](https://lodash.com/docs#uniq) or [package source](https://github.com/lodash/lodash/blob/4.1.0-npm-packages/lodash.uniq) for more details.
+See the [documentation](https://lodash.com/docs#uniq) or [package source](https://github.com/lodash/lodash/blob/4.2.0-npm-packages/lodash.uniq) for more details.

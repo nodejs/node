@@ -108,6 +108,7 @@ void UDPWrap::Initialize(Local<Object> target,
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
+  env->SetProtoMethod(t, "isRefed", HandleWrap::IsRefed);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"), t->GetFunction());
   env->set_udp_constructor_function(t->GetFunction());
@@ -270,7 +271,7 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   uv_buf_t bufs_[16];
   uv_buf_t* bufs = bufs_;
 
-  if (ARRAY_SIZE(bufs_) < count)
+  if (arraysize(bufs_) < count)
     bufs = new uv_buf_t[count];
 
   // construct uv_buf_t array
@@ -406,14 +407,14 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   if (nread < 0) {
     if (buf->base != nullptr)
       free(buf->base);
-    wrap->MakeCallback(env->onmessage_string(), ARRAY_SIZE(argv), argv);
+    wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);
     return;
   }
 
   char* base = static_cast<char*>(realloc(buf->base, nread));
   argv[2] = Buffer::New(env, base, nread).ToLocalChecked();
   argv[3] = AddressToJS(env, addr);
-  wrap->MakeCallback(env->onmessage_string(), ARRAY_SIZE(argv), argv);
+  wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);
 }
 
 

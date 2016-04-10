@@ -1,14 +1,15 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const dns = require('dns');
+const net = require('net');
 
-var tcpPort = common.PORT;
-var expectedConnections = 7;
+const tcpPort = common.PORT;
+const expectedConnections = 7;
 var clientConnected = 0;
 var serverConnected = 0;
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   socket.end();
   if (++serverConnected === expectedConnections) {
     server.close();
@@ -87,6 +88,10 @@ server.listen(tcpPort, 'localhost', function() {
   fail({
     port: 65536
   }, RangeError, '"port" option should be >= 0 and < 65536: 65536');
+
+  fail({
+    hints: (dns.ADDRCONFIG | dns.V4MAPPED) + 42,
+  }, TypeError, 'Invalid argument: hints must use valid flags');
 });
 
 // Try connecting to random ports, but do so once the server is closed

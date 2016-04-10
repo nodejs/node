@@ -1,4 +1,5 @@
 module.exports = {
+  'castArray': require('./castArray'),
   'clone': require('./clone'),
   'cloneDeep': require('./cloneDeep'),
   'cloneDeepWith': require('./cloneDeepWith'),

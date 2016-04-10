@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('union', require('../union'));
+var convert = require('./convert'),
+    func = convert('union', require('../union'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

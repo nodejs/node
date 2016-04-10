@@ -50,6 +50,7 @@ ipch/
 /dist-osx
 /npm.wxs
 /tools/msvs/npm.wixobj
+/tools/msvs/genfiles/
 /tools/osx-pkg.pmdoc/index.xml
 /test/addons/??_*/
 email.md

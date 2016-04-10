@@ -153,7 +153,7 @@ test('npm view .@<version>', function (t) {
   })
 })
 
-test('npm view .@<version> --json', function (t) {
+test('npm view .@<version> version --json', function (t) {
   process.chdir(t2dir)
   mr({ port: common.port, plugin: plugin }, function (er, s) {
     common.npm([
@@ -166,6 +166,58 @@ test('npm view .@<version> --json', function (t) {
       t.ifError(err, 'view command finished successfully')
       t.equal(code, 0, 'exit ok')
       t.equal(stdout.trim(), '"0.0.0"', 'should print `"0.0.0"`')
+      s.close()
+      t.end()
+    })
+  })
+})
+
+test('npm view . --json author name version', function (t) {
+  process.chdir(t2dir)
+  mr({ port: common.port, plugin: plugin }, function (er, s) {
+    common.npm([
+      'view',
+      '.',
+      'author',
+      'name',
+      'version',
+      '--json',
+      '--registry=' + common.registry
+    ], { cwd: t2dir }, function (err, code, stdout) {
+      var expected = JSON.stringify({
+        author: 'Evan Lucas <evanlucas@me.com>',
+        name: 'test-repo-url-https',
+        version: '0.0.1'
+      }, null, 2)
+      t.ifError(err, 'view command finished successfully')
+      t.equal(code, 0, 'exit ok')
+      t.equal(stdout.trim(), expected, 'should print ' + expected)
+      s.close()
+      t.end()
+    })
+  })
+})
+
+test('npm view .@<version> --json author name version', function (t) {
+  process.chdir(t2dir)
+  mr({ port: common.port, plugin: plugin }, function (er, s) {
+    common.npm([
+      'view',
+      '.@0.0.0',
+      'author',
+      'name',
+      'version',
+      '--json',
+      '--registry=' + common.registry
+    ], { cwd: t2dir }, function (err, code, stdout) {
+      var expected = JSON.stringify({
+        author: 'Evan Lucas <evanlucas@me.com>',
+        name: 'test-repo-url-https',
+        version: '0.0.0'
+      }, null, 2)
+      t.ifError(err, 'view command finished successfully')
+      t.equal(code, 0, 'exit ok')
+      t.equal(stdout.trim(), expected, 'should print ' + expected)
       s.close()
       t.end()
     })

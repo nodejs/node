@@ -36,7 +36,8 @@ function lazyValue() {
       resIndex = 0,
       takeCount = nativeMin(length, this.__takeCount__);
 
-  if (!isArr || arrLength < LARGE_ARRAY_SIZE || (arrLength == length && takeCount == length)) {
+  if (!isArr || arrLength < LARGE_ARRAY_SIZE ||
+      (arrLength == length && takeCount == length)) {
     return baseWrapperValue(array, this.__actions__);
   }
   var result = [];

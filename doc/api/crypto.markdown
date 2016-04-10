@@ -301,7 +301,7 @@ cipher text should be discarded due to failed authentication.
 ### decipher.setAutoPadding(auto_padding=true)
 
 When data has been encrypted without standard block padding, calling
-`decipher.setAuthPadding(false)` will disable automatic padding to prevent
+`decipher.setAutoPadding(false)` will disable automatic padding to prevent
 [`decipher.final()`][] from checking for and removing padding.
 
 Turning auto padding off will only work if the input data's length is a
@@ -732,6 +732,28 @@ sign.update('some data to sign');
 const private_key = getPrivateKeySomehow();
 console.log(sign.sign(private_key, 'hex'));
   // Prints the calculated signature
+```
+
+A [`sign`][] instance can also be created by just passing in the digest
+algorithm name, in which case OpenSSL will infer the full signature algorithm
+from the type of the PEM-formatted private key, including algorithms that
+do not have directly exposed name constants, e.g. 'ecdsa-with-SHA256'.
+
+Example: signing using ECDSA with SHA256
+
+```js
+const crypto = require('crypto');
+const sign = crypto.createSign('sha256');
+
+sign.update('some data to sign');
+
+const private_key = '-----BEGIN EC PRIVATE KEY-----\n' +
+        'MHcCAQEEIF+jnWY1D5kbVYDNvxxo/Y+ku2uJPDwS0r/VuPZQrjjVoAoGCCqGSM49\n' +
+        'AwEHoUQDQgAEurOxfSxmqIRYzJVagdZfMMSjRNNhB8i3mXyIMq704m2m52FdfKZ2\n' +
+        'pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==\n' +
+        '-----END EC PRIVATE KEY-----\n';
+
+console.log(sign.sign(private_key).toString('hex'));
 ```
 
 ### sign.sign(private_key[, output_format])

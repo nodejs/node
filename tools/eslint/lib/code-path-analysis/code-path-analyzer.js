@@ -41,6 +41,7 @@ function isCaseNode(node) {
  */
 function isForkingByTrueOrFalse(node) {
     var parent = node.parent;
+
     switch (parent.type) {
         case "ConditionalExpression":
         case "IfStatement":
@@ -128,8 +129,8 @@ function isIdentifierReference(node) {
  *
  * To separate the current and the head is in order to not make useless segments.
  *
- * In this process, both "onCodePathSegmentStart" and "onCodePathSegmentEnd" events
- * are fired.
+ * In this process, both "onCodePathSegmentStart" and "onCodePathSegmentEnd"
+ * events are fired.
  *
  * @param {CodePathAnalyzer} analyzer - The instance.
  * @param {ASTNode} node - The current AST node.
@@ -206,6 +207,7 @@ function leaveFromCurrentSegment(analyzer, node) {
                 node);
         }
     }
+
     state.currentSegments = [];
 }
 
@@ -234,9 +236,12 @@ function preprocess(analyzer, node) {
 
         case "ConditionalExpression":
         case "IfStatement":
-            // Fork if this node is at `consequent`/`alternate`.
-            // `popForkContext()` exists at `IfStatement:exit` and
-            // `ConditionalExpression:exit`.
+
+            /*
+             * Fork if this node is at `consequent`/`alternate`.
+             * `popForkContext()` exists at `IfStatement:exit` and
+             * `ConditionalExpression:exit`.
+             */
             if (parent.consequent === node) {
                 state.makeIfConsequent();
             } else if (parent.alternate === node) {
@@ -299,9 +304,12 @@ function preprocess(analyzer, node) {
             break;
 
         case "AssignmentPattern":
-            // Fork if this node is at `right`.
-            // `left` is executed always, so it uses the current path.
-            // `popForkContext()` exists at `AssignmentPattern:exit`.
+
+            /*
+             * Fork if this node is at `right`.
+             * `left` is executed always, so it uses the current path.
+             * `popForkContext()` exists at `AssignmentPattern:exit`.
+             */
             if (parent.right === node) {
                 state.pushForkContext();
                 state.forkBypassPath();
@@ -332,6 +340,7 @@ function processCodePathToEnter(analyzer, node) {
         case "FunctionExpression":
         case "ArrowFunctionExpression":
             if (codePath) {
+
                 // Emits onCodePathSegmentStart events if updated.
                 forwardCurrentToHead(analyzer, node);
                 debug.dumpState(node, state, false);
@@ -370,9 +379,12 @@ function processCodePathToEnter(analyzer, node) {
             break;
 
         case "SwitchCase":
-            // Fork if this node is after the 2st node in `cases`.
-            // It's similar to `else` blocks.
-            // The next `test` node is processed in this path.
+
+            /*
+             * Fork if this node is after the 2st node in `cases`.
+             * It's similar to `else` blocks.
+             * The next `test` node is processed in this path.
+             */
             if (parent.discriminant !== node && parent.cases[0] !== node) {
                 state.forkPath();
             }
@@ -425,9 +437,12 @@ function processCodePathToExit(analyzer, node) {
             break;
 
         case "SwitchCase":
-            // This is the same as the process at the 1st `consequent` node in
-            // `preprocess` function.
-            // Must do if this `consequent` is empty.
+
+            /*
+             * This is the same as the process at the 1st `consequent` node in
+             * `preprocess` function.
+             * Must do if this `consequent` is empty.
+             */
             if (node.consequent.length === 0) {
                 state.makeSwitchCaseBody(true, !node.test);
             }
@@ -499,9 +514,12 @@ function processCodePathToExit(analyzer, node) {
             break;
     }
 
-    // Skip updating the current segment to avoid creating useless segments if
-    // the node type is the same as the parent node type.
+    /*
+     * Skip updating the current segment to avoid creating useless segments if
+     * the node type is the same as the parent node type.
+     */
     if (!dontForward && (!node.parent || node.type !== node.parent.type)) {
+
         // Emits onCodePathSegmentStart events if updated.
         forwardCurrentToHead(analyzer, node);
     }

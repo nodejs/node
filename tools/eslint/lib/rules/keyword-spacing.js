@@ -80,6 +80,7 @@ module.exports = function(context) {
         pattern = pattern || PREV_TOKEN;
 
         var prevToken = sourceCode.getTokenBefore(token);
+
         if (prevToken &&
             (CHECK_TYPE.test(prevToken.type) || pattern.test(prevToken.value)) &&
             !isOpenParenOfTemplate(prevToken) &&
@@ -109,6 +110,7 @@ module.exports = function(context) {
         pattern = pattern || PREV_TOKEN;
 
         var prevToken = sourceCode.getTokenBefore(token);
+
         if (prevToken &&
             (CHECK_TYPE.test(prevToken.type) || pattern.test(prevToken.value)) &&
             !isOpenParenOfTemplate(prevToken) &&
@@ -138,6 +140,7 @@ module.exports = function(context) {
         pattern = pattern || NEXT_TOKEN;
 
         var nextToken = sourceCode.getTokenAfter(token);
+
         if (nextToken &&
             (CHECK_TYPE.test(nextToken.type) || pattern.test(nextToken.value)) &&
             !isCloseParenOfTemplate(nextToken) &&
@@ -167,6 +170,7 @@ module.exports = function(context) {
         pattern = pattern || NEXT_TOKEN;
 
         var nextToken = sourceCode.getTokenAfter(token);
+
         if (nextToken &&
             (CHECK_TYPE.test(nextToken.type) || pattern.test(nextToken.value)) &&
             !isCloseParenOfTemplate(nextToken) &&
@@ -209,6 +213,7 @@ module.exports = function(context) {
             if (override) {
                 var thisBefore = ("before" in override) ? override.before : before;
                 var thisAfter = ("after" in override) ? override.after : after;
+
                 retv[key] = {
                     before: thisBefore ? expectSpaceBefore : unexpectSpaceBefore,
                     after: thisAfter ? expectSpaceAfter : unexpectSpaceAfter
@@ -269,6 +274,7 @@ module.exports = function(context) {
      */
     function checkSpacingAroundFirstToken(node) {
         var firstToken = node && sourceCode.getFirstToken(node);
+
         if (firstToken && firstToken.type === "Keyword") {
             checkSpacingAround(firstToken);
         }
@@ -286,6 +292,7 @@ module.exports = function(context) {
      */
     function checkSpacingBeforeFirstToken(node) {
         var firstToken = node && sourceCode.getFirstToken(node);
+
         if (firstToken && firstToken.type === "Keyword") {
             checkSpacingBefore(firstToken);
         }
@@ -301,6 +308,7 @@ module.exports = function(context) {
     function checkSpacingAroundTokenBefore(node) {
         if (node) {
             var token = sourceCode.getTokenBefore(node);
+
             while (token.type !== "Keyword") {
                 token = sourceCode.getTokenBefore(token);
             }
@@ -382,6 +390,7 @@ module.exports = function(context) {
 
         // `of` is not a keyword token.
         var token = sourceCode.getTokenBefore(node.right);
+
         while (token.value !== "of") {
             token = sourceCode.getTokenBefore(token);
         }
@@ -402,11 +411,13 @@ module.exports = function(context) {
      */
     function checkSpacingForModuleDeclaration(node) {
         var firstToken = sourceCode.getFirstToken(node);
+
         checkSpacingBefore(firstToken, PREV_TOKEN_M);
         checkSpacingAfter(firstToken, NEXT_TOKEN_M);
 
         if (node.source) {
             var fromToken = sourceCode.getTokenBefore(node.source);
+
             checkSpacingBefore(fromToken, PREV_TOKEN_M);
             checkSpacingAfter(fromToken, NEXT_TOKEN_M);
         }
@@ -421,6 +432,7 @@ module.exports = function(context) {
      */
     function checkSpacingForImportNamespaceSpecifier(node) {
         var asToken = sourceCode.getFirstToken(node, 1);
+
         checkSpacingBefore(asToken, PREV_TOKEN_M);
     }
 
@@ -440,11 +452,13 @@ module.exports = function(context) {
                 node,
                 node.static ? 1 : 0
             );
+
             checkSpacingAround(token);
         }
     }
 
     return {
+
         // Statements
         DebuggerStatement: checkSpacingAroundFirstToken,
         WithStatement: checkSpacingAroundFirstToken,

@@ -127,8 +127,8 @@
 static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
 #if defined(__linux__) || defined(__sun) || defined(__NetBSD__)
   return fdatasync(req->file);
-#elif defined(__APPLE__) && defined(F_FULLFSYNC)
-  return fcntl(req->file, F_FULLFSYNC);
+#elif defined(__APPLE__) && defined(SYS_fdatasync)
+  return syscall(SYS_fdatasync, req->file);
 #else
   return fsync(req->file);
 #endif
@@ -749,13 +749,13 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_gen = src->st_gen;
 #elif defined(__ANDROID__)
   dst->st_atim.tv_sec = src->st_atime;
-  dst->st_atim.tv_nsec = src->st_atime_nsec;
+  dst->st_atim.tv_nsec = src->st_atimensec;
   dst->st_mtim.tv_sec = src->st_mtime;
-  dst->st_mtim.tv_nsec = src->st_mtime_nsec;
+  dst->st_mtim.tv_nsec = src->st_mtimensec;
   dst->st_ctim.tv_sec = src->st_ctime;
-  dst->st_ctim.tv_nsec = src->st_ctime_nsec;
+  dst->st_ctim.tv_nsec = src->st_ctimensec;
   dst->st_birthtim.tv_sec = src->st_ctime;
-  dst->st_birthtim.tv_nsec = src->st_ctime_nsec;
+  dst->st_birthtim.tv_nsec = src->st_ctimensec;
   dst->st_flags = 0;
   dst->st_gen = 0;
 #elif !defined(_AIX) && (       \
@@ -858,9 +858,14 @@ static ssize_t uv__fs_buf_iter(uv_fs_t* req, uv__fs_buf_iter_processor process) 
     total += result;
   }
 
+  if (errno == EINTR && total == -1)
+    return total;
+
   if (bufs != req->bufsml)
     uv__free(bufs);
+
   req->bufs = NULL;
+  req->nbufs = 0;
 
   return total;
 }

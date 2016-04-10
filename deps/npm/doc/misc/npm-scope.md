@@ -54,7 +54,7 @@ just specifying to require the module `mypackage` in the folder called `@myorg`.
 Scoped packages can be published to any registry that supports them, including
 the public npm registry.
 
-(As of 2015-04-19, the public npm registry **does** support scoped packages)
+(As of 2015-04-19, and with npm 2.0 or better, the public npm registry **does** support scoped packages)
 
 If you wish, you may associate a scope with a registry; see below.
 

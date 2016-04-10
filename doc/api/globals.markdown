@@ -30,6 +30,16 @@ console.log(__dirname);
 
 `__dirname` isn't actually a global but rather local to each module.
 
+For instance, given two modules: `a` and `b`, where `b` is a dependency of
+`a` and there is a directory structure of:
+
+* `/Users/mjr/app/a.js`
+* `/Users/mjr/app/node_modules/b/b.js`
+
+References to `__dirname` within `b.js` will return 
+`/Users/mjr/app/node_modules/b` while references to `__dirname` within `a.js`
+will return `/Users/mj/app`.
+
 ## \_\_filename
 
 <!-- type=var -->
@@ -50,19 +60,23 @@ console.log(__filename);
 
 `__filename` isn't actually a global but rather local to each module.
 
-## clearInterval(t)
-
-Stop a timer that was previously created with [`setInterval()`][]. The callback
-will not execute.
+## clearImmediate(immediateObject)
 
 <!--type=global-->
 
-The timer functions are global variables. See the [timers][] section.
+[`clearImmediate`] is described in the [timers][] section.
 
-## clearTimeout(t)
+## clearInterval(intervalObject)
 
-Stop a timer that was previously created with [`setTimeout()`][]. The callback will
-not execute.
+<!--type=global-->
+
+[`clearInterval`] is described in the [timers][] section.
+
+## clearTimeout(timeoutObject)
+
+<!--type=global-->
+
+[`clearTimeout`] is described in the [timers][] section.
 
 ## console
 
@@ -162,34 +176,33 @@ left untouched.
 Use the internal `require()` machinery to look up the location of a module,
 but rather than loading the module, just return the resolved filename.
 
-## setInterval(cb, ms)
+## setImmediate(callback[, arg][, ...])
 
-Run callback `cb` repeatedly every `ms` milliseconds. Note that the actual
-interval may vary, depending on external factors like OS timer granularity and
-system load. It's never less than `ms` but it may be longer.
+<!-- type=global -->
 
-The interval must be in the range of 1-2,147,483,647 inclusive. If the value is
-outside that range, it's changed to 1 millisecond. Broadly speaking, a timer
-cannot span more than 24.8 days.
+[`setImmediate`] is described in the [timers][] section.
 
-Returns an opaque value that represents the timer.
+## setInterval(callback, delay[, arg][, ...])
 
-## setTimeout(cb, ms)
+<!-- type=global -->
 
-Run callback `cb` after *at least* `ms` milliseconds. The actual delay depends
-on external factors like OS timer granularity and system load.
+[`setInterval`] is described in the [timers][] section.
 
-The timeout must be in the range of 1-2,147,483,647 inclusive. If the value is
-outside that range, it's changed to 1 millisecond. Broadly speaking, a timer
-cannot span more than 24.8 days.
+## setTimeout(callback, delay[, arg][, ...])
 
-Returns an opaque value that represents the timer.
+<!-- type=global -->
+
+[`setTimeout`] is described in the [timers][] section.
 
 [`console`]: console.html
 [`process` object]: process.html#process_process
-[`setInterval()`]: #globals_setinterval_cb_ms
-[`setTimeout()`]: #globals_settimeout_cb_ms
 [buffer section]: buffer.html
 [module system documentation]: modules.html
 [Modules]: modules.html#modules_modules
 [timers]: timers.html
+[`clearImmediate`]: timers.html#timers_clearimmediate_immediateobject
+[`clearInterval`]: timers.html#timers_clearinterval_intervalobject
+[`clearTimeout`]: timers.html#timers_cleartimeout_timeoutobject
+[`setImmediate`]: timers.html#timers_setimmediate_callback_arg
+[`setInterval`]: timers.html#timers_setinterval_callback_delay_arg
+[`setTimeout`]: timers.html#timers_settimeout_callback_delay_arg

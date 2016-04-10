@@ -9,6 +9,7 @@
 #include "v8-profiler.h"
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -17,6 +18,7 @@ using v8::HeapProfiler;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::RetainedObjectInfo;
 using v8::TryCatch;
@@ -121,18 +123,35 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
 
   if (env->async_hooks()->callbacks_enabled())
     return env->ThrowError("hooks should not be set while also enabled");
+  if (!args[0]->IsObject())
+    return env->ThrowTypeError("first argument must be an object");
 
-  if (!args[0]->IsFunction())
+  Local<Object> fn_obj = args[0].As<Object>();
+
+  Local<Value> init_v = fn_obj->Get(
+      env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "init")).ToLocalChecked();
+  Local<Value> pre_v = fn_obj->Get(
+      env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "pre")).ToLocalChecked();
+  Local<Value> post_v = fn_obj->Get(
+      env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "post")).ToLocalChecked();
+  Local<Value> destroy_v = fn_obj->Get(
+      env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "destroy")).ToLocalChecked();
+
+  if (!init_v->IsFunction())
     return env->ThrowTypeError("init callback must be a function");
 
-  env->set_async_hooks_init_function(args[0].As<Function>());
+  env->set_async_hooks_init_function(init_v.As<Function>());
 
-  if (args[1]->IsFunction())
-    env->set_async_hooks_pre_function(args[1].As<Function>());
-  if (args[2]->IsFunction())
-    env->set_async_hooks_post_function(args[2].As<Function>());
-  if (args[3]->IsFunction())
-    env->set_async_hooks_destroy_function(args[3].As<Function>());
+  if (pre_v->IsFunction())
+    env->set_async_hooks_pre_function(pre_v.As<Function>());
+  if (post_v->IsFunction())
+    env->set_async_hooks_post_function(post_v.As<Function>());
+  if (destroy_v->IsFunction())
+    env->set_async_hooks_destroy_function(destroy_v.As<Function>());
 }
 
 
@@ -181,7 +200,6 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   Local<Function> post_fn = env()->async_hooks_post_function();
   Local<Value> uid = Integer::New(env()->isolate(), get_uid());
   Local<Object> context = object();
-  Local<Object> process = env()->process_object();
   Local<Object> domain;
   bool has_domain = false;
 
@@ -208,15 +226,28 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   }
 
   if (ran_init_callback() && !pre_fn.IsEmpty()) {
-    if (pre_fn->Call(context, 1, &uid).IsEmpty())
-      FatalError("node::AsyncWrap::MakeCallback", "pre hook threw");
+    TryCatch try_catch(env()->isolate());
+    MaybeLocal<Value> ar = pre_fn->Call(env()->context(), context, 1, &uid);
+    if (ar.IsEmpty()) {
+      ClearFatalExceptionHandlers(env());
+      FatalException(env()->isolate(), try_catch);
+      return Local<Value>();
+    }
   }
 
   Local<Value> ret = cb->Call(context, argc, argv);
 
   if (ran_init_callback() && !post_fn.IsEmpty()) {
-    if (post_fn->Call(context, 1, &uid).IsEmpty())
-      FatalError("node::AsyncWrap::MakeCallback", "post hook threw");
+    Local<Value> did_throw = Boolean::New(env()->isolate(), ret.IsEmpty());
+    Local<Value> vals[] = { uid, did_throw };
+    TryCatch try_catch(env()->isolate());
+    MaybeLocal<Value> ar =
+        post_fn->Call(env()->context(), context, arraysize(vals), vals);
+    if (ar.IsEmpty()) {
+      ClearFatalExceptionHandlers(env());
+      FatalException(env()->isolate(), try_catch);
+      return Local<Value>();
+    }
   }
 
   if (ret.IsEmpty()) {
@@ -233,15 +264,17 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     }
   }
 
-  Environment::TickInfo* tick_info = env()->tick_info();
-
   if (callback_scope.in_makecallback()) {
     return ret;
   }
 
+  Environment::TickInfo* tick_info = env()->tick_info();
+
   if (tick_info->length() == 0) {
     env()->isolate()->RunMicrotasks();
   }
+
+  Local<Object> process = env()->process_object();
 
   if (tick_info->length() == 0) {
     tick_info->set_index(0);

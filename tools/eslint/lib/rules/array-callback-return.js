@@ -107,10 +107,13 @@ function isTargetMethod(node) {
 function isCallbackOfArrayMethod(node) {
     while (node) {
         var parent = node.parent;
+
         switch (parent.type) {
-            // Looks up the destination.
-            // e.g.
-            //   foo.every(nativeFoo || function foo() { ... });
+
+            /*
+             * Looks up the destination. e.g.,
+             * foo.every(nativeFoo || function foo() { ... });
+             */
             case "LogicalExpression":
             case "ConditionalExpression":
                 node = parent;
@@ -124,6 +127,7 @@ function isCallbackOfArrayMethod(node) {
             //   })());
             case "ReturnStatement":
                 var func = astUtils.getUpperFunction(parent);
+
                 if (func === null || !astUtils.isCallee(func)) {
                     return false;
                 }
@@ -195,6 +199,7 @@ module.exports = function(context) {
     }
 
     return {
+
         // Stacks this function's information.
         "onCodePathStart": function(codePath, node) {
             funcInfo = {

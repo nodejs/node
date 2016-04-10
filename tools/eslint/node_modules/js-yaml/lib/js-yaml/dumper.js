@@ -107,14 +107,15 @@ function encodeHex(character) {
 }
 
 function State(options) {
-  this.schema      = options['schema'] || DEFAULT_FULL_SCHEMA;
-  this.indent      = Math.max(1, (options['indent'] || 2));
-  this.skipInvalid = options['skipInvalid'] || false;
-  this.flowLevel   = (common.isNothing(options['flowLevel']) ? -1 : options['flowLevel']);
-  this.styleMap    = compileStyleMap(this.schema, options['styles'] || null);
-  this.sortKeys    = options['sortKeys'] || false;
-  this.lineWidth   = options['lineWidth'] || 80;
-  this.noRefs      = options['noRefs'] || false;
+  this.schema       = options['schema'] || DEFAULT_FULL_SCHEMA;
+  this.indent       = Math.max(1, (options['indent'] || 2));
+  this.skipInvalid  = options['skipInvalid'] || false;
+  this.flowLevel    = (common.isNothing(options['flowLevel']) ? -1 : options['flowLevel']);
+  this.styleMap     = compileStyleMap(this.schema, options['styles'] || null);
+  this.sortKeys     = options['sortKeys'] || false;
+  this.lineWidth    = options['lineWidth'] || 80;
+  this.noRefs       = options['noRefs'] || false;
+  this.noCompatMode = options['noCompatMode'] || false;
 
   this.implicitTypes = this.schema.compiledImplicit;
   this.explicitTypes = this.schema.compiledExplicit;
@@ -219,7 +220,8 @@ function writeScalar(state, object, level, iskey) {
     return;
   }
 
-  if (DEPRECATED_BOOLEANS_SYNTAX.indexOf(object) !== -1) {
+  if (!state.noCompatMode &&
+      DEPRECATED_BOOLEANS_SYNTAX.indexOf(object) !== -1) {
     state.dump = "'" + object + "'";
     return;
   }

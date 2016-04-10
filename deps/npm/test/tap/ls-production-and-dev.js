@@ -17,10 +17,12 @@ var json = {
   name: 'ls-env',
   version: '0.0.0',
   dependencies: {
-    'test-package-with-one-dep': '0.0.0'
+    'test-package-with-one-dep': '0.0.0',
+    'test-repo-url-ssh': '0.0.1'
   },
   devDependencies: {
-    'test-package-with-one-dep': '0.0.0'
+    'test-package-with-one-dep': '0.0.0',
+    'test-repo-url-https': '0.0.1'
   }
 }
 
@@ -56,6 +58,16 @@ test('npm ls --dev', function (t) {
       stdout,
       /test-package-with-one-dep@0\.0\.0/,
       'output contains test-package-with-one-dep@0.0.0'
+    )
+    t.has(
+      stdout,
+      /test-repo-url-https@0\.0\.1/,
+      'output contains test-repo-url-https@0.0.1'
+    )
+    t.doesNotHave(
+      stdout,
+      /test-repo-url-ssh@0\.0\.1/,
+      'output does NOT contain test-repo-url-ssh@0.0.1'
     )
     t.end()
   })
@@ -95,6 +107,16 @@ test('npm ls --production', function (t) {
       stdout,
       /test-package-with-one-dep@0\.0\.0/,
       'output contains test-package-with-one-dep@0.0.0'
+    )
+    t.has(
+      stdout,
+      /test-repo-url-ssh@0\.0\.1/,
+      'output contains test-repo-url-ssh@0.0.1'
+    )
+    t.doesNotHave(
+      stdout,
+      /test-repo-url-https@0\.0\.1/,
+      'output does NOT contain test-repo-url-https@0.0.1'
     )
     t.end()
   })

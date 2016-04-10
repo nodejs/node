@@ -53,6 +53,7 @@ module.exports = function(context) {
     function isDirective(node, ancestors) {
         var parent = ancestors[ancestors.length - 1],
             grandparent = ancestors[ancestors.length - 2];
+
         return (parent.type === "Program" || parent.type === "BlockStatement" &&
                 (/Function/.test(grandparent.type))) &&
                 directives(parent).indexOf(node) >= 0;
@@ -65,6 +66,7 @@ module.exports = function(context) {
      */
     function isValidExpression(node) {
         if (allowTernary) {
+
             // Recursive check for ternary and logical expressions
             if (node.type === "ConditionalExpression") {
                 return isValidExpression(node.consequent) && isValidExpression(node.alternate);

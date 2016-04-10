@@ -11,6 +11,10 @@ var requireInject = require('require-inject')
 // Make sure existing environment vars don't muck up the test
 process.env = {}
 
+function hasOnlyAscii (s) {
+  return /^[\000-\177]*$/.test(s)
+}
+
 test('disabled', function (t) {
   t.plan(1)
   var npm = requireInject('../../lib/npm.js', {})
@@ -52,5 +56,25 @@ test('default-ci', function (t) {
   npm.load({}, function () {
     t.is(log.progressEnabled, false, 'should be disabled')
     delete global.process.env.CI
+  })
+})
+
+test('unicode-true', function (t) {
+  t.plan(6)
+  var npm = requireInject('../../lib/npm.js', {})
+  npm.load({unicode: true}, function () {
+    Object.keys(log.gauge.theme).forEach(function (key) {
+      t.notOk(hasOnlyAscii(log.gauge.theme[key]), 'only unicode')
+    })
+  })
+})
+
+test('unicode-false', function (t) {
+  t.plan(6)
+  var npm = requireInject('../../lib/npm.js', {})
+  npm.load({unicode: false}, function () {
+    Object.keys(log.gauge.theme).forEach(function (key) {
+      t.ok(hasOnlyAscii(log.gauge.theme[key]), 'only ASCII')
+    })
   })
 })

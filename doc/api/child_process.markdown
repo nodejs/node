@@ -131,8 +131,8 @@ exec('my.bat', (err, stdout, stderr) => {
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
-  * `stdout` {Buffer}
-  * `stderr` {Buffer}
+  * `stdout` {String|Buffer}
+  * `stderr` {String|Buffer}
 * Return: {ChildProcess}
 
 Spawns a shell then executes the `command` within that shell, buffering any
@@ -156,6 +156,13 @@ If a `callback` function is provided, it is called with the arguments
 the exit code of the child process while `error.signal` will be set to the
 signal that terminated the process. Any exit code other than `0` is considered
 to be an error.
+
+The `stdout` and `stderr` arguments passed to the callback will contain the
+stdout and stderr output of the child process. By default, Node.js will decode
+the output as UTF-8 and pass strings to the callback. The `encoding` option
+can be used to specify the character encoding used to decode the stdout and 
+stderr output. If `encoding` is `'buffer'`, `Buffer` objects will be passed to 
+the callback instead.
 
 The `options` argument may be passed as the second argument to customize how
 the process is spawned. The default options are:
@@ -198,8 +205,8 @@ replace the existing process and uses a shell to execute the command.*
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
-  * `stdout` {Buffer}
-  * `stderr` {Buffer}
+  * `stdout` {String|Buffer}
+  * `stderr` {String|Buffer}
 * Return: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
@@ -219,6 +226,13 @@ const child = execFile('node', ['--version'], (error, stdout, stderr) => {
   console.log(stdout);
 });
 ```
+
+The `stdout` and `stderr` arguments passed to the callback will contain the
+stdout and stderr output of the child process. By default, Node.js will decode
+the output as UTF-8 and pass strings to the callback. The `encoding` option
+can be used to specify the character encoding used to decode the stdout and
+stderr output. If `encoding` is `'buffer'`, `Buffer` objects will be passed to
+the callback instead.
 
 ### child_process.fork(modulePath[, args][, options])
 
@@ -391,8 +405,27 @@ Doing so will cause the parent's event loop to not include the child in its
 reference count, allowing the parent to exit independently of the child, unless
 there is an established IPC channel between the child and parent.
 
-Example of detaching a long-running process and redirecting its output to a
-file:
+When using the `detached` option to start a long-running process, the process
+will not stay running in the background after the parent exits unless it is
+provided with a `stdio` configuration that is not connected to the parent.
+If the parent's `stdio` is inherited, the child will remain attached to the
+controlling terminal.
+
+Example of a long-running process, by detaching and also ignoring its parent
+`stdio` file descriptors, in order to ignore the parent's termination:
+
+```js
+const spawn = require('child_process').spawn;
+
+const child = spawn(process.argv[0], ['child_program.js'], {
+  detached: true,
+  stdio: ['ignore']
+});
+
+child.unref();
+```
+
+Alternatively one can redirect the child process' output into files:
 
 ```js
 const fs = require('fs');
@@ -407,12 +440,6 @@ const child = spawn('prg', [], {
 
 child.unref();
 ```
-
-When using the `detached` option to start a long-running process, the process
-will not stay running in the background after the parent exits unless it is
-provided with a `stdio` configuration that is not connected to the parent.
-If the parent's `stdio` is inherited, the child will remain attached to the
-controlling terminal.
 
 #### options.stdio
 
@@ -732,7 +759,29 @@ delivered to that process instead which can have unexpected results.
 Note that while the function is called `kill`, the signal delivered to the
 child process may not actually terminate the process.
 
-See `kill(2)`
+See `kill(2)` for reference.
+
+Also note: on Linux, child processes of child processes will not be terminated
+when attempting to kill their parent. This is likely to happen when running a
+new process in a shell or with use of the `shell` option of `ChildProcess`, such
+as in this example:
+
+```js
+'use strict';
+const spawn = require('child_process').spawn;
+
+let child = spawn('sh', ['-c',
+  `node -e "setInterval(() => {
+      console.log(process.pid + 'is alive')
+    }, 500);"`
+  ], {
+    stdio: ['inherit', 'inherit', 'inherit']
+  });
+
+setTimeout(() => {
+  child.kill(); // does not terminate the node process in the shell
+}, 2000);
+```
 
 ### child.pid
 

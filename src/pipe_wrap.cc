@@ -81,6 +81,7 @@ void PipeWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
+  env->SetProtoMethod(t, "isRefed", HandleWrap::IsRefed);
 
   StreamWrap::AddMethods(env, t);
 
@@ -183,7 +184,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   };
 
   if (status != 0) {
-    pipe_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
+    pipe_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
     return;
   }
 
@@ -198,7 +199,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
 
   // Successful accept. Call the onconnection callback in JavaScript land.
   argv[1] = client_obj;
-  pipe_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
+  pipe_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
 
 // TODO(bnoordhuis) Maybe share this with TCPWrap?
@@ -233,7 +234,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
     Boolean::New(env->isolate(), writable)
   };
 
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }

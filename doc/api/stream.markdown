@@ -201,7 +201,7 @@ readable.on('end', () => {
 
 #### Event: 'error'
 
-* {Error Object}
+* {Error}
 
 Emitted if there was an error receiving data.
 

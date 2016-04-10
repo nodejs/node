@@ -1,0 +1,100 @@
+{
+  "_args": [
+    [
+      "balanced-match@^0.3.0",
+      "/Users/rebecca/code/npm/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion"
+    ],
+    [
+      "balanced-match@^0.3.0",
+      "/Users/rebecca/code/npm/node_modules/read-package-json/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion"
+    ]
+  ],
+  "_from": "balanced-match@>=0.3.0 <0.4.0",
+  "_id": "balanced-match@0.3.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/read-package-json/glob/minimatch/brace-expansion/balanced-match",
+  "_nodeVersion": "4.2.1",
+  "_npmUser": {
+    "email": "julian@juliangruber.com",
+    "name": "juliangruber"
+  },
+  "_npmVersion": "2.14.7",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "balanced-match",
+    "raw": "balanced-match@^0.3.0",
+    "rawSpec": "^0.3.0",
+    "scope": null,
+    "spec": ">=0.3.0 <0.4.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/read-package-json/glob/minimatch/brace-expansion"
+  ],
+  "_shrinkwrap": null,
+  "_spec": "balanced-match@^0.3.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/read-package-json/node_modules/glob/node_modules/minimatch/node_modules/brace-expansion",
+  "author": {
+    "email": "mail@juliangruber.com",
+    "name": "Julian Gruber",
+    "url": "http://juliangruber.com"
+  },
+  "bugs": {
+    "url": "https://github.com/juliangruber/balanced-match/issues"
+  },
+  "dependencies": {},
+  "description": "Match balanced character pairs, like \"{\" and \"}\"",
+  "devDependencies": {
+    "tape": "~4.2.2"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "a91cdd1ebef1a86659e70ff4def01625fc2d6756",
+    "tarball": "http://registry.npmjs.org/balanced-match/-/balanced-match-0.3.0.tgz"
+  },
+  "gitHead": "a7114b0986554787e90b7ac595a043ca75ea77e5",
+  "homepage": "https://github.com/juliangruber/balanced-match",
+  "keywords": [
+    "match",
+    "regexp",
+    "test",
+    "balanced",
+    "parse"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "email": "julian@juliangruber.com",
+      "name": "juliangruber"
+    }
+  ],
+  "name": "balanced-match",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/juliangruber/balanced-match.git"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "testling": {
+    "browsers": [
+      "ie/8..latest",
+      "firefox/20..latest",
+      "firefox/nightly",
+      "chrome/25..latest",
+      "chrome/canary",
+      "opera/12..latest",
+      "opera/next",
+      "safari/5.1..latest",
+      "ipad/6.0..latest",
+      "iphone/6.0..latest",
+      "android-browser/4.2..latest"
+    ],
+    "files": "test/*.js"
+  },
+  "version": "0.3.0"
+}

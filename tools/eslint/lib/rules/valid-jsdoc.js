@@ -107,13 +107,13 @@ module.exports = function(context) {
         var currentType;
         var expectedType;
 
-        if (!type.name) {
-            currentType = type.expression.name;
-        } else {
+        if (type.name) {
             currentType = type.name;
+        } else if (type.expression) {
+            currentType = type.expression.name;
         }
 
-        expectedType = preferType[currentType];
+        expectedType = currentType && preferType[currentType];
 
         return {
             currentType: currentType,
@@ -123,46 +123,49 @@ module.exports = function(context) {
 
     /**
      * Check if return tag type is void or undefined
-     * @param {Object} tag JSDoc tag
      * @param {Object} jsdocNode JSDoc node
+     * @param {Object} type JSDoc tag
      * @returns {void}
      * @private
      */
-    function validateTagType(tag, jsdocNode) {
-        if (!tag.type || !canTypeBeValidated(tag.type.type)) {
+    function validateType(jsdocNode, type) {
+        if (!type || !canTypeBeValidated(type.type)) {
             return;
         }
 
         var typesToCheck = [];
         var elements = [];
 
-        if (tag.type.type === "TypeApplication") { // {Array.<String>}
-            elements = tag.type.applications;
-            typesToCheck.push(getCurrentExpectedTypes(tag.type));
-        } else if (tag.type.type === "RecordType") { // {{20:String}}
-            elements = tag.type.fields;
-        } else if (tag.type.type === "UnionType") { // {String|number|Test}
-            elements = tag.type.elements;
-        } else {
-            typesToCheck.push(getCurrentExpectedTypes(tag.type));
+        switch (type.type) {
+            case "TypeApplication":  // {Array.<String>}
+                elements = type.applications[0].type === "UnionType" ? type.applications[0].elements : type.applications;
+                typesToCheck.push(getCurrentExpectedTypes(type));
+                break;
+            case "RecordType":  // {{20:String}}
+                elements = type.fields;
+                break;
+            case "UnionType":  // {String|number|Test}
+            case "ArrayType":  // {[String, number, Test]}
+                elements = type.elements;
+                break;
+            case "FieldType":  // Array.<{count: number, votes: number}>
+                typesToCheck.push(getCurrentExpectedTypes(type.value));
+                break;
+            default:
+                typesToCheck.push(getCurrentExpectedTypes(type));
         }
 
-        elements.forEach(function(type) {
-            type = type.value ? type.value : type; // we have to use type.value for RecordType
-            if (canTypeBeValidated(type.type)) {
-                typesToCheck.push(getCurrentExpectedTypes(type));
-            }
-        });
+        elements.forEach(validateType.bind(null, jsdocNode));
 
-        typesToCheck.forEach(function(type) {
-            if (type.expectedType &&
-                type.expectedType !== type.currentType) {
+        typesToCheck.forEach(function(typeToCheck) {
+            if (typeToCheck.expectedType &&
+                typeToCheck.expectedType !== typeToCheck.currentType) {
                 context.report({
                     node: jsdocNode,
                     message: "Use '{{expectedType}}' instead of '{{currentType}}'.",
                     data: {
-                        currentType: type.currentType,
-                        expectedType: type.expectedType
+                        currentType: typeToCheck.currentType,
+                        expectedType: typeToCheck.expectedType
                     }
                 });
             }
@@ -268,8 +271,8 @@ module.exports = function(context) {
                 }
 
                 // validate the types
-                if (checkPreferType) {
-                    validateTagType(tag, jsdocNode);
+                if (checkPreferType && tag.type) {
+                    validateType(jsdocNode, tag.type);
                 }
             });
 
@@ -289,8 +292,12 @@ module.exports = function(context) {
                 node.params.forEach(function(param, i) {
                     var name = param.name;
 
+                    if (param.type === "AssignmentPattern") {
+                        name = param.left.name;
+                    }
+
                     // TODO(nzakas): Figure out logical things to do with destructured, default, rest params
-                    if (param.type === "Identifier") {
+                    if (param.type === "Identifier" || param.type === "AssignmentPattern") {
                         if (jsdocParams[i] && (name !== jsdocParams[i])) {
                             context.report(jsdocNode, "Expected JSDoc for '{{name}}' but found '{{jsdocName}}'.", {
                                 name: name,

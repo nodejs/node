@@ -30,15 +30,20 @@ module.exports = function(context) {
             case "ObjectExpression":
             case "ArrayExpression":
                 return true;
+
             case "UnaryExpression":
                 return isConstant(node.argument);
+
             case "BinaryExpression":
             case "LogicalExpression":
                 return isConstant(node.left) && isConstant(node.right) && node.operator !== "in";
+
             case "AssignmentExpression":
                 return (node.operator === "=") && isConstant(node.right);
+
             case "SequenceExpression":
                 return isConstant(node.expressions[node.expressions.length - 1]);
+
             // no default
         }
         return false;

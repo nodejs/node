@@ -571,6 +571,14 @@ colored output if it is a TTY.
 
 Show extended information in `npm ls` and `npm search`.
 
+### maxsockets
+
+* Default: 50
+* Type: Number
+
+The maximum number of connections to use per origin (protocol/host/port
+combination). Passed to the `http` `Agent` used to make the request.
+
 ### message
 
 * Default: "%s"

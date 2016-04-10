@@ -442,8 +442,18 @@ assert.equal(failures.length, 0, failures.join(''));
 
 
 // path.isAbsolute tests
+assert.equal(path.win32.isAbsolute('/'), true);
+assert.equal(path.win32.isAbsolute('//'), true);
+assert.equal(path.win32.isAbsolute('//server'), true);
 assert.equal(path.win32.isAbsolute('//server/file'), true);
 assert.equal(path.win32.isAbsolute('\\\\server\\file'), true);
+assert.equal(path.win32.isAbsolute('\\\\server'), true);
+assert.equal(path.win32.isAbsolute('\\\\'), true);
+assert.equal(path.win32.isAbsolute('c'), false);
+assert.equal(path.win32.isAbsolute('c:'), false);
+assert.equal(path.win32.isAbsolute('c:\\'), true);
+assert.equal(path.win32.isAbsolute('c:/'), true);
+assert.equal(path.win32.isAbsolute('c://'), true);
 assert.equal(path.win32.isAbsolute('C:/Users/'), true);
 assert.equal(path.win32.isAbsolute('C:\\Users\\'), true);
 assert.equal(path.win32.isAbsolute('C:cwd/another'), false);
@@ -551,7 +561,8 @@ if (common.isWindows) {
                '\\\\?\\' + process.cwd().toLowerCase() + '\\foo\\bar');
   assert.equal(path.win32._makeLong('foo/bar').toLowerCase(),
                '\\\\?\\' + process.cwd().toLowerCase() + '\\foo\\bar');
-  assert.equal(path.win32._makeLong('C:').toLowerCase(),
+  const currentDeviceLetter = path.parse(process.cwd()).root.substring(0, 2);
+  assert.equal(path.win32._makeLong(currentDeviceLetter).toLowerCase(),
                '\\\\?\\' + process.cwd().toLowerCase());
   assert.equal(path.win32._makeLong('C').toLowerCase(),
                '\\\\?\\' + process.cwd().toLowerCase() + '\\c');

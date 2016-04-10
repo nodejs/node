@@ -114,8 +114,8 @@ Node.js from source.
 * [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
 * [CONTRIBUTING.md](./CONTRIBUTING.md)
 * [GOVERNANCE.md](./GOVERNANCE.md)
-* IRC (general questions): [#node.js on Freenode.net](http://webchat.freenode.net?channels=node.js&uio=d4)
-* IRC (node core development): [#node-dev on Freenode.net](http://webchat.freenode.net?channels=node-dev&uio=d4)
+* IRC (general questions): [#node.js on Freenode.net](https://webchat.freenode.net?channels=node.js&uio=d4)
+* IRC (node core development): [#node-dev on Freenode.net](https://webchat.freenode.net?channels=node-dev&uio=d4)
 * [nodejs/node on Gitter](https://gitter.im/nodejs/node)
 
 ## Security

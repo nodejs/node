@@ -12,6 +12,9 @@ var npm = require('./npm.js')
 var log = require('npmlog')
 var opener = require('opener')
 var glob = require('glob')
+var cmdList = require('./config/cmd-list').cmdList
+var shorthands = require('./config/cmd-list').shorthands
+var commands = cmdList.concat(Object.keys(shorthands))
 
 function help (args, cb) {
   var argv = npm.config.get('argv').cooked
@@ -163,7 +166,7 @@ function npmUsage (valid, cb) {
     '',
     'where <command> is one of:',
     npm.config.get('long') ? usages()
-        : '    ' + wrap(Object.keys(npm.commands)),
+        : '    ' + wrap(commands),
     '',
     'npm <cmd> -h     quick help on <cmd>',
     'npm -l           display full usage info',

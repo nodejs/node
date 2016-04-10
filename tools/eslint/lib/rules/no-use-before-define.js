@@ -129,6 +129,7 @@ module.exports = function(context) {
 
     // Defines a function which checks whether or not a reference is allowed according to the option.
     var isAllowed;
+
     if (options.functions && options.classes) {
         isAllowed = alwaysFalse;
     } else if (options.functions) {
@@ -181,6 +182,7 @@ module.exports = function(context) {
      */
     function findVariables() {
         var scope = context.getScope();
+
         findVariablesInScope(scope);
     }
 

@@ -531,6 +531,33 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   return 0;
 }
 
+#ifdef _WIN32
+TEST_IMPL(fs_event_watch_file_root_dir) {
+  uv_loop_t* loop;
+  int r;
+
+  const char* sys_drive = getenv("SystemDrive");
+  char path[] = "\\\\?\\X:\\bootsect.bak";
+
+  ASSERT(sys_drive != NULL);
+  strncpy(path + sizeof("\\\\?\\") - 1, sys_drive, 1);
+
+  loop = uv_default_loop();
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  r = uv_fs_event_start(&fs_event, fail_cb, path, 0);
+  if (r == UV_ENOENT)
+    RETURN_SKIP("bootsect.bak doesn't exist in system root.\n");
+  ASSERT(r == 0);
+
+  uv_close((uv_handle_t*) &fs_event, NULL);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
+
 TEST_IMPL(fs_event_no_callback_after_close) {
   uv_loop_t* loop = uv_default_loop();
   int r;
@@ -792,6 +819,7 @@ TEST_IMPL(fs_event_getpath) {
   r = uv_fs_event_getpath(&fs_event, buf, &len);
   ASSERT(r == 0);
   ASSERT(buf[len - 1] != 0);
+  ASSERT(buf[len] == '\0');
   ASSERT(memcmp(buf, "watch_dir", len) == 0);
   r = uv_fs_event_stop(&fs_event);
   ASSERT(r == 0);

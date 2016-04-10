@@ -26,6 +26,7 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
 */
+
 "use strict";
 
 //------------------------------------------------------------------------------
@@ -61,8 +62,10 @@ module.exports = function(context) {
 
         if (context.options[1]) {
             var opts = context.options[1];
+
             options.SwitchCase = opts.SwitchCase || 0;
             var variableDeclaratorRules = opts.VariableDeclarator;
+
             if (typeof variableDeclaratorRules === "number") {
                 options.VariableDeclarator = {
                     var: variableDeclaratorRules,
@@ -194,6 +197,24 @@ module.exports = function(context) {
     }
 
     /**
+     * Check indent for node
+     * @param {ASTNode} node Node to check
+     * @param {int} indent needed indent
+     * @param {boolean} [excludeCommas=false] skip comma on start of line
+     * @returns {void}
+     */
+    function checkNodeIndent(node, indent, excludeCommas) {
+        var nodeIndent = getNodeIndent(node, false, excludeCommas);
+
+        if (
+            node.type !== "ArrayExpression" && node.type !== "ObjectExpression" &&
+            nodeIndent !== indent && isNodeFirstInLine(node)
+        ) {
+            report(node, indent, nodeIndent);
+        }
+    }
+
+    /**
      * Check indent for nodes list
      * @param {ASTNode[]} nodes list of node objects
      * @param {int} indent needed indent
@@ -202,13 +223,12 @@ module.exports = function(context) {
      */
     function checkNodesIndent(nodes, indent, excludeCommas) {
         nodes.forEach(function(node) {
-            var nodeIndent = getNodeIndent(node, false, excludeCommas);
-            if (
-                node.type !== "ArrayExpression" && node.type !== "ObjectExpression" &&
-                nodeIndent !== indent && isNodeFirstInLine(node)
-            ) {
-                report(node, indent, nodeIndent);
+            if (node.type === "IfStatement" && node.alternate) {
+                var elseToken = context.getTokenBefore(node.alternate);
+
+                checkNodeIndent(elseToken, indent, excludeCommas);
             }
+            checkNodeIndent(node, indent, excludeCommas);
         });
     }
 
@@ -241,6 +261,7 @@ module.exports = function(context) {
      */
     function checkFirstNodeLineIndent(node, firstLineIndent) {
         var startIndent = getNodeIndent(node, false);
+
         if (startIndent !== firstLineIndent && isNodeFirstInLine(node)) {
             report(
                 node,
@@ -303,26 +324,30 @@ module.exports = function(context) {
      */
     function checkIndentInFunctionBlock(node) {
 
-        // Search first caller in chain.
-        // Ex.:
-        //
-        // Models <- Identifier
-        //   .User
-        //   .find()
-        //   .exec(function() {
-        //   // function body
-        // });
-        //
-        // Looks for 'Models'
+        /*
+         * Search first caller in chain.
+         * Ex.:
+         *
+         * Models <- Identifier
+         *   .User
+         *   .find()
+         *   .exec(function() {
+         *   // function body
+         * });
+         *
+         * Looks for 'Models'
+         */
         var calleeNode = node.parent; // FunctionExpression
         var indent;
 
         if (calleeNode.parent &&
             (calleeNode.parent.type === "Property" ||
             calleeNode.parent.type === "ArrayExpression")) {
+
             // If function is part of array or object, comma can be put at left
             indent = getNodeIndent(calleeNode, false, false);
         } else {
+
             // If function is standalone, simple calculate indent
             indent = getNodeIndent(calleeNode);
         }
@@ -348,6 +373,7 @@ module.exports = function(context) {
 
         // check if the node is inside a variable
         var parentVarNode = getVariableDeclaratorNode(node);
+
         if (parentVarNode && isNodeInVarOnTop(node, parentVarNode)) {
             indent += indentSize * options.VariableDeclarator[parentVarNode.parent.kind];
         }
@@ -393,6 +419,7 @@ module.exports = function(context) {
      * @returns {void}
      */
     function checkIndentInArrayOrObjectBlock(node) {
+
         // Skip inline
         if (isSingleLineNode(node)) {
             return;
@@ -429,9 +456,15 @@ module.exports = function(context) {
             nodeIndent = getNodeIndent(effectiveParent);
             if (parentVarNode && parentVarNode.loc.start.line !== node.loc.start.line) {
                 if (parent.type !== "VariableDeclarator" || parentVarNode === parentVarNode.parent.declarations[0]) {
-                    if (parentVarNode.loc.start.line === effectiveParent.loc.start.line) {
+                    if (parent.type === "VariableDeclarator" && parentVarNode.loc.start.line === effectiveParent.loc.start.line) {
                         nodeIndent = nodeIndent + (indentSize * options.VariableDeclarator[parentVarNode.parent.kind]);
-                    } else if (parent.type === "ObjectExpression" || parent.type === "ArrayExpression") {
+                    } else if (
+                        parent.type === "ObjectExpression" ||
+                        parent.type === "ArrayExpression" ||
+                        parent.type === "CallExpression" ||
+                        parent.type === "ArrowFunctionExpression" ||
+                        parent.type === "NewExpression"
+                    ) {
                         nodeIndent = nodeIndent + indentSize;
                     }
                 }
@@ -447,8 +480,10 @@ module.exports = function(context) {
             elementsIndent = nodeIndent + indentSize;
         }
 
-        // check if the node is a multiple variable declaration, if yes then make sure indentation takes into account
-        // variable indentation concept
+        /*
+         * Check if the node is a multiple variable declaration; if so, then
+         * make sure indentation takes that into account.
+         */
         if (isNodeInVarOnTop(node, parentVarNode)) {
             elementsIndent += indentSize * options.VariableDeclarator[parentVarNode.parent.kind];
         }
@@ -457,6 +492,7 @@ module.exports = function(context) {
         checkNodesIndent(elements, elementsIndent, true);
 
         if (elements.length > 0) {
+
             // Skip last block line check if last item in same line
             if (elements[elements.length - 1].loc.end.line === node.loc.end.line) {
                 return;
@@ -472,7 +508,7 @@ module.exports = function(context) {
      * @returns {boolean} True if it or its body is a block statement
      */
     function isNodeBodyBlock(node) {
-        return node.type === "BlockStatement" || (node.body && node.body.type === "BlockStatement") ||
+        return node.type === "BlockStatement" || node.type === "ClassBody" || (node.body && node.body.type === "BlockStatement") ||
             (node.consequent && node.consequent.type === "BlockStatement");
     }
 
@@ -482,6 +518,7 @@ module.exports = function(context) {
      * @returns {void}
      */
     function blockIndentationCheck(node) {
+
         // Skip inline blocks
         if (isSingleLineNode(node)) {
             return;
@@ -499,10 +536,12 @@ module.exports = function(context) {
         var indent;
         var nodesToCheck = [];
 
-        // For this statements we should check indent from statement begin
-        // (not from block begin)
+        /*
+         * For this statements we should check indent from statement beginning,
+         * not from the beginning of the block.
+         */
         var statementsWithProperties = [
-            "IfStatement", "WhileStatement", "ForStatement", "ForInStatement", "ForOfStatement", "DoWhileStatement"
+            "IfStatement", "WhileStatement", "ForStatement", "ForInStatement", "ForOfStatement", "DoWhileStatement", "ClassDeclaration"
         ];
 
         if (node.parent && statementsWithProperties.indexOf(node.parent.type) !== -1 && isNodeBodyBlock(node)) {
@@ -570,6 +609,7 @@ module.exports = function(context) {
         var tokenBeforeLastElement = context.getTokenBefore(lastElement);
 
         if (tokenBeforeLastElement.value === ",") {
+
             // Special case for comma-first syntax where the semicolon is indented
             checkLastNodeLineIndent(node, getNodeIndent(tokenBeforeLastElement));
         } else {
@@ -620,6 +660,7 @@ module.exports = function(context) {
     return {
         "Program": function(node) {
             if (node.body.length > 0) {
+
                 // Root nodes should have no indent
                 checkNodesIndent(node.body, getNodeIndent(node));
             }
@@ -660,9 +701,11 @@ module.exports = function(context) {
         },
 
         "SwitchStatement": function(node) {
+
             // Switch is not a 'BlockStatement'
             var switchIndent = getNodeIndent(node);
             var caseIndent = expectedCaseIndent(node, switchIndent);
+
             checkNodesIndent(node.cases, caseIndent);
 
 
@@ -670,11 +713,13 @@ module.exports = function(context) {
         },
 
         "SwitchCase": function(node) {
+
             // Skip inline cases
             if (isSingleLineNode(node)) {
                 return;
             }
             var caseIndent = expectedCaseIndent(node);
+
             checkNodesIndent(node.consequent, caseIndent + indentSize);
         }
     };

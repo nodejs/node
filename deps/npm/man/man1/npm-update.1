@@ -1,4 +1,4 @@
-.TH "NPM\-UPDATE" "1" "February 2016" "" ""
+.TH "NPM\-UPDATE" "1" "March 2016" "" ""
 .SH "NAME"
 \fBnpm-update\fR \- Update a package
 .SH SYNOPSIS
@@ -6,6 +6,8 @@
 .RS 2
 .nf
 npm update [\-g] [<pkg>\.\.\.]
+
+aliases: up, upgrade
 .fi
 .RE
 .SH DESCRIPTION
@@ -25,7 +27,7 @@ or local) will be updated\.
 .P
 As of \fBnpm@2\.6\.1\fP, the \fBnpm update\fP will only inspect top\-level packages\.
 Prior versions of \fBnpm\fP would also recursively inspect all dependencies\.
-To get the old behavior, use \fBnpm \-\-depth Infinity update\fP\|\.
+To get the old behavior, use \fBnpm \-\-depth 9999 update\fP\|\.
 .SH EXAMPLES
 .P
 IMPORTANT VERSION NOTE: these examples assume \fBnpm@2\.6\.1\fP or later\.  For
@@ -39,7 +41,7 @@ on dependencies, \fBdep1\fP (\fBdep2\fP, \.\. etc\.)\.  The published versions o
 .nf
 {
   "dist\-tags": { "latest": "1\.2\.2" },
-  "versions": {
+  "versions": [
     "1\.2\.2",
     "1\.2\.1",
     "1\.2\.0",
@@ -49,7 +51,7 @@ on dependencies, \fBdep1\fP (\fBdep2\fP, \.\. etc\.)\.  The published versions o
     "0\.4\.1",
     "0\.4\.0",
     "0\.2\.0"
-  }
+  ]
 }
 .fi
 .RE

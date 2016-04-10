@@ -53,6 +53,7 @@ module.exports = function(context) {
     }
 
     return {
+
         // Initializes the stack of state of member declarations.
         "Program": function() {
             stack = [];
@@ -77,6 +78,7 @@ module.exports = function(context) {
             var name = getName(node.key);
             var state = getState(name, node.static);
             var isDuplicate = false;
+
             if (node.kind === "get") {
                 isDuplicate = (state.init || state.get);
                 state.get = true;

@@ -20,6 +20,7 @@ var iteratorSymbol = typeof (iteratorSymbol = Symbol && Symbol.iterator) == 'sym
  * Converts `value` to an array.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Lang
  * @param {*} value The value to convert.
