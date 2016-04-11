@@ -1,5 +1,71 @@
 # Node.js ChangeLog
 
+## 2016-04-12, Version 4.4.3 'Argon' (LTS), @thealphanerd
+
+### Notable Changes
+
+* **deps**:
+  - Fix `--gdbjit` for embedders. Backported from v8 upstream. (Ben Noordhuis) [#5577](https://github.com/nodejs/node/pull/5577)
+* **etw**:
+  - Correctly display descriptors for ETW events 9 and 23 on the windows platform. (João Reis) [#5742](https://github.com/nodejs/node/pull/5742)
+* **querystring**:
+  - Restore throw when attempting to stringify bad surrogate pair. (Brian White) [#5858](https://github.com/nodejs/node/pull/5858)
+
+### Commits
+
+* [[`f949c273cd`](https://github.com/nodejs/node/commit/f949c273cd)] - **assert**: Check typed array view type in deepEqual (Anna Henningsen) [#5910](https://github.com/nodejs/node/pull/5910)
+* [[`132acea0d4`](https://github.com/nodejs/node/commit/132acea0d4)] - **build**: introduce ci targets for lint/benchmark (Johan Bergström) [#5921](https://github.com/nodejs/node/pull/5921)
+* [[`9a8f922dee`](https://github.com/nodejs/node/commit/9a8f922dee)] - **build**: add missing `openssl_fips%` to common.gypi (Fedor Indutny) [#5919](https://github.com/nodejs/node/pull/5919)
+* [[`d275cdf202`](https://github.com/nodejs/node/commit/d275cdf202)] - **child_process**: refactor self=this in socket_list (Benjamin Gruenbaum) [#5860](https://github.com/nodejs/node/pull/5860)
+* [[`aadf356aa2`](https://github.com/nodejs/node/commit/aadf356aa2)] - **deps**: backport 8d00c2c from v8 upstream (Ben Noordhuis) [#5577](https://github.com/nodejs/node/pull/5577)
+* [[`200f763c43`](https://github.com/nodejs/node/commit/200f763c43)] - **deps**: completely upgrade npm in LTS to 2.15.1 (Forrest L Norvell) [#5989](https://github.com/nodejs/node/pull/5989)
+* [[`86e3903626`](https://github.com/nodejs/node/commit/86e3903626)] - **dns**: Use object without protoype for map (Benjamin Gruenbaum) [#5843](https://github.com/nodejs/node/pull/5843)
+* [[`9a33f43f73`](https://github.com/nodejs/node/commit/9a33f43f73)] - **doc**: update openssl LICENSE using license-builder.sh (Steven R. Loomis) [#6065](https://github.com/nodejs/node/pull/6065)
+* [[`9679e2dc70`](https://github.com/nodejs/node/commit/9679e2dc70)] - **doc**: clarify that __dirname is module local (James M Snell) [#6018](https://github.com/nodejs/node/pull/6018)
+* [[`86d2af58d6`](https://github.com/nodejs/node/commit/86d2af58d6)] - **doc**: simple doc typo fix (Brendon Pierson) [#6041](https://github.com/nodejs/node/pull/6041)
+* [[`f16802f3ca`](https://github.com/nodejs/node/commit/f16802f3ca)] - **doc**: note about Android support (Rich Trott) [#6040](https://github.com/nodejs/node/pull/6040)
+* [[`8c2befe176`](https://github.com/nodejs/node/commit/8c2befe176)] - **doc**: note assert.throws() pitfall (Rich Trott) [#6029](https://github.com/nodejs/node/pull/6029)
+* [[`0870ac65f2`](https://github.com/nodejs/node/commit/0870ac65f2)] - **doc**: use HTTPS for links where possible (Rich Trott) [#6019](https://github.com/nodejs/node/pull/6019)
+* [[`56755de96e`](https://github.com/nodejs/node/commit/56755de96e)] - **doc**: clarify stdout/stderr arguments to callback (James M Snell) [#6015](https://github.com/nodejs/node/pull/6015)
+* [[`bb603b89a2`](https://github.com/nodejs/node/commit/bb603b89a2)] - **doc**: add 'Command Line Options' to 'View on single page' (firedfox) [#6011](https://github.com/nodejs/node/pull/6011)
+* [[`c91f3d897a`](https://github.com/nodejs/node/commit/c91f3d897a)] - **doc**: add copy about how to curl SHA256.txt (Myles Borins) [#6120](https://github.com/nodejs/node/pull/6120)
+* [[`f9cf232284`](https://github.com/nodejs/node/commit/f9cf232284)] - **doc**: add example using algorithms not directly exposed (Brad Hill) [#6108](https://github.com/nodejs/node/pull/6108)
+* [[`f60ce1078d`](https://github.com/nodejs/node/commit/f60ce1078d)] - **doc**: document unspecified behavior for buf.write* methods (James M Snell) [#5925](https://github.com/nodejs/node/pull/5925)
+* [[`02401a6cbd`](https://github.com/nodejs/node/commit/02401a6cbd)] - **doc**: fix scrolling on iOS devices (Luigi Pinca) [#5878](https://github.com/nodejs/node/pull/5878)
+* [[`aed22d0855`](https://github.com/nodejs/node/commit/aed22d0855)] - **doc**: path.format provide more examples (John Eversole) [#5838](https://github.com/nodejs/node/pull/5838)
+* [[`6e2bfbe1fd`](https://github.com/nodejs/node/commit/6e2bfbe1fd)] - **doc**: fix doc for Buffer.readInt32LE() (ghaiklor) [#5890](https://github.com/nodejs/node/pull/5890)
+* [[`940d204401`](https://github.com/nodejs/node/commit/940d204401)] - **doc**: consolidate timers docs in timers.markdown (Bryan English) [#5837](https://github.com/nodejs/node/pull/5837)
+* [[`505faf6360`](https://github.com/nodejs/node/commit/505faf6360)] - **doc**: refine child_process detach behaviour (Robert Jefe Lindstaedt) [#5330](https://github.com/nodejs/node/pull/5330)
+* [[`feedca7879`](https://github.com/nodejs/node/commit/feedca7879)] - **doc**: add topic - event loop, timers, `nextTick()` (Jeff Harris) [#4936](https://github.com/nodejs/node/pull/4936)
+* [[`6d3822c12b`](https://github.com/nodejs/node/commit/6d3822c12b)] - **etw**: fix descriptors of events 9 and 23 (João Reis) [#5742](https://github.com/nodejs/node/pull/5742)
+* [[`56dda6f336`](https://github.com/nodejs/node/commit/56dda6f336)] - **fs**: Remove unused branches (Benjamin Gruenbaum) [#5289](https://github.com/nodejs/node/pull/5289)
+* [[`dfe9e157c1`](https://github.com/nodejs/node/commit/dfe9e157c1)] - **governance**: remove target size for CTC (Rich Trott) [#5879](https://github.com/nodejs/node/pull/5879)
+* [[`c4103b154f`](https://github.com/nodejs/node/commit/c4103b154f)] - **lib**: refactor code with startsWith/endsWith (Jackson Tian) [#5753](https://github.com/nodejs/node/pull/5753)
+* [[`16216a81de`](https://github.com/nodejs/node/commit/16216a81de)] - **meta**: add "joining a wg" section to WORKING_GROUPS.md (Matteo Collina) [#5488](https://github.com/nodejs/node/pull/5488)
+* [[`65fc4e36ce`](https://github.com/nodejs/node/commit/65fc4e36ce)] - **querystring**: don't stringify bad surrogate pair (Brian White) [#5858](https://github.com/nodejs/node/pull/5858)
+* [[`4f683ab912`](https://github.com/nodejs/node/commit/4f683ab912)] - **src,tools**: use template literals (Rich Trott) [#5778](https://github.com/nodejs/node/pull/5778)
+* [[`ac40a4510d`](https://github.com/nodejs/node/commit/ac40a4510d)] - **test**: explicitly set global in test-repl (Rich Trott) [#6026](https://github.com/nodejs/node/pull/6026)
+* [[`a7b3a7533a`](https://github.com/nodejs/node/commit/a7b3a7533a)] - **test**: be explicit about polluting of `global` (Rich Trott) [#6017](https://github.com/nodejs/node/pull/6017)
+* [[`73e3b7b9a8`](https://github.com/nodejs/node/commit/73e3b7b9a8)] - **test**: make use of globals explicit (Rich Trott) [#6014](https://github.com/nodejs/node/pull/6014)
+* [[`e7877e61b6`](https://github.com/nodejs/node/commit/e7877e61b6)] - **test**: fix flaky test-net-socket-timeout-unref (Rich Trott) [#6003](https://github.com/nodejs/node/pull/6003)
+* [[`a39051f5b3`](https://github.com/nodejs/node/commit/a39051f5b3)] - **test**: make arch available in status files (Santiago Gimeno) [#5997](https://github.com/nodejs/node/pull/5997)
+* [[`ccf90b651a`](https://github.com/nodejs/node/commit/ccf90b651a)] - **test**: fix test-dns.js flakiness (Rich Trott) [#5996](https://github.com/nodejs/node/pull/5996)
+* [[`1994ac0912`](https://github.com/nodejs/node/commit/1994ac0912)] - **test**: add test for piping large input from stdin (Anna Henningsen) [#5949](https://github.com/nodejs/node/pull/5949)
+* [[`cc1aab9f6a`](https://github.com/nodejs/node/commit/cc1aab9f6a)] - **test**: mitigate flaky test-https-agent (Rich Trott) [#5939](https://github.com/nodejs/node/pull/5939)
+* [[`10fe79b809`](https://github.com/nodejs/node/commit/10fe79b809)] - **test**: fix offending max-len linter error (Sakthipriyan Vairamani) [#5980](https://github.com/nodejs/node/pull/5980)
+* [[`63d82960fd`](https://github.com/nodejs/node/commit/63d82960fd)] - **test**: stdin is not always a net.Socket (Jeremiah Senkpiel) [#5935](https://github.com/nodejs/node/pull/5935)
+* [[`fe0233b923`](https://github.com/nodejs/node/commit/fe0233b923)] - **test**: add known_issues test for GH-2148 (Rich Trott) [#5920](https://github.com/nodejs/node/pull/5920)
+* [[`d59be4d248`](https://github.com/nodejs/node/commit/d59be4d248)] - **test**: ensure _handle property existence (Rich Trott) [#5916](https://github.com/nodejs/node/pull/5916)
+* [[`9702153107`](https://github.com/nodejs/node/commit/9702153107)] - **test**: fix flaky test-repl (Brian White) [#5914](https://github.com/nodejs/node/pull/5914)
+* [[`a0a2e69097`](https://github.com/nodejs/node/commit/a0a2e69097)] - **test**: move dns test to test/internet (Ben Noordhuis) [#5905](https://github.com/nodejs/node/pull/5905)
+* [[`8462d8f465`](https://github.com/nodejs/node/commit/8462d8f465)] - **test**: fix flaky test-net-socket-timeout (Brian White) [#5902](https://github.com/nodejs/node/pull/5902)
+* [[`e0b283af73`](https://github.com/nodejs/node/commit/e0b283af73)] - **test**: fix flaky test-http-set-timeout (Rich Trott) [#5856](https://github.com/nodejs/node/pull/5856)
+* [[`5853fec36f`](https://github.com/nodejs/node/commit/5853fec36f)] - **test**: fix test-debugger-client.js (Rich Trott) [#5851](https://github.com/nodejs/node/pull/5851)
+* [[`ea83c382f9`](https://github.com/nodejs/node/commit/ea83c382f9)] - **test**: ensure win32.isAbsolute() is consistent (Brian White) [#6043](https://github.com/nodejs/node/pull/6043)
+* [[`c33a23fd1e`](https://github.com/nodejs/node/commit/c33a23fd1e)] - **tools**: fix json doc generation (firedfox) [#5943](https://github.com/nodejs/node/pull/5943)
+* [[`6f0bd64122`](https://github.com/nodejs/node/commit/6f0bd64122)] - **tools,doc**: fix incomplete json produced by doctool (firedfox) [#5966](https://github.com/nodejs/node/pull/5966)
+* [[`f7eb48302c`](https://github.com/nodejs/node/commit/f7eb48302c)] - **win,build**: build and test add-ons on test-ci (Bogdan Lobor) [#5886](https://github.com/nodejs/node/pull/5886)
+
 ## 2016-03-31, Version 4.4.2 'Argon' (LTS), @thealphanerd
 
 ### Notable Changes
