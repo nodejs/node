@@ -241,6 +241,22 @@ static void After(uv_fs_t *req) {
         }
         break;
 
+      case UV_FS_REALPATH:
+        link = StringBytes::Encode(env->isolate(),
+                                   static_cast<const char*>(req->ptr),
+                                   req_wrap->encoding_);
+        if (link.IsEmpty()) {
+          argv[0] = UVException(env->isolate(),
+                                UV_EINVAL,
+                                req_wrap->syscall(),
+                                "Invalid character encoding for link",
+                                req->path,
+                                req_wrap->data());
+        } else {
+          argv[1] = link;
+        }
+        break;
+
       case UV_FS_READ:
         // Buffer interface
         argv[1] = Integer::New(env->isolate(), req->result);
@@ -863,6 +879,41 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void RealPath(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+
+  if (argc < 1)
+    return TYPE_ERROR("path required");
+
+  BufferValue path(env->isolate(), args[0]);
+  ASSERT_PATH(path)
+
+  const enum encoding encoding = ParseEncoding(env->isolate(), args[1], UTF8);
+
+  Local<Value> callback = Null(env->isolate());
+  if (argc == 3)
+    callback = args[2];
+
+  if (callback->IsObject()) {
+    ASYNC_CALL(realpath, callback, encoding, *path);
+  } else {
+    SYNC_CALL(realpath, *path, *path);
+    const char* link_path = static_cast<const char*>(SYNC_REQ.ptr);
+    Local<Value> rc = StringBytes::Encode(env->isolate(),
+                                          link_path,
+                                          encoding);
+    if (rc.IsEmpty()) {
+      return env->ThrowUVException(UV_EINVAL,
+                                   "realpath",
+                                   "Invalid character encoding for path",
+                                   *path);
+    }
+    args.GetReturnValue().Set(rc);
+  }
+}
+
 static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1432,6 +1483,7 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "writeBuffer", WriteBuffer);
   env->SetMethod(target, "writeBuffers", WriteBuffers);
   env->SetMethod(target, "writeString", WriteString);
+  env->SetMethod(target, "realpath", RealPath);
 
   env->SetMethod(target, "chmod", Chmod);
   env->SetMethod(target, "fchmod", FChmod);

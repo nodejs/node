@@ -916,26 +916,20 @@ object with an `encoding` property specifying the character encoding to use for
 the link path passed to the callback. If the `encoding` is set to `'buffer'`,
 the link path returned will be passed as a `Buffer` object.
 
-## fs.realpath(path[, cache], callback)
+## fs.realpath(path[, options], callback)
 
 * `path` {String | Buffer}
-* `cache` {Object}
+* `options` {String | Object}
+  * `encoding` {String} default = `'utf8'`
 * `callback` {Function}
 
 Asynchronous realpath(2). The `callback` gets two arguments `(err,
-resolvedPath)`. May use `process.cwd` to resolve relative paths. `cache` is an
-object literal of mapped paths that can be used to force a specific path
-resolution or avoid additional `fs.stat` calls for known real paths.
+resolvedPath)`. May use `process.cwd` to resolve relative paths.
 
-Example:
-
-```js
-var cache = {'/etc':'/private/etc'};
-fs.realpath('/etc/passwd', cache, (err, resolvedPath) => {
-  if (err) throw err;
-  console.log(resolvedPath);
-});
-```
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the path passed to the callback. If the `encoding` is set to `'buffer'`,
+the path returned will be passed as a `Buffer` object.
 
 ## fs.readSync(fd, buffer, offset, length, position)
 
@@ -947,14 +941,18 @@ fs.realpath('/etc/passwd', cache, (err, resolvedPath) => {
 
 Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 
-## fs.realpathSync(path[, cache])
+## fs.realpathSync(path[, options])
 
 * `path` {String | Buffer};
-* `cache` {Object}
+* `options` {String | Object}
+  * `encoding` {String} default = `'utf8'`
 
-Synchronous realpath(2). Returns the resolved path. `cache` is an
-object literal of mapped paths that can be used to force a specific path
-resolution or avoid additional `fs.stat` calls for known real paths.
+Synchronous realpath(2). Returns the resolved path.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use for
+the path passed to the callback. If the `encoding` is set to `'buffer'`,
+the path returned will be passed as a `Buffer` object.
 
 ## fs.rename(oldPath, newPath, callback)
 
