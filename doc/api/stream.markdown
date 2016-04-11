@@ -256,9 +256,13 @@ end
 
 * Return: {Boolean}
 
-This method returns whether or not the `readable` has been **explicitly**
-paused by client code (using [`stream.pause()`][stream-pause] without a
-corresponding [`stream.resume()`][stream-resume]).
+This method returns whether or not the `readable` has been paused by client code including the following cases:
+
+* If there are no pipe destinations, by calling the
+  [`stream.pause()`][stream-pause] method.
+* If there are pipe destinations, by removing any [`'data'`][] event
+  handlers, and removing all pipe destinations by calling the
+  [`stream.unpipe()`][] method.
 
 ```js
 var readable = new stream.Readable
