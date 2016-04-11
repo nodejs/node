@@ -1225,7 +1225,7 @@ help an attacker guess one of the values. This is suitable for comparing HMAC
 digests or secret values like authentication cookies or
 [capability urls](http://www.w3.org/TR/capability-urls/).
 
-A `TypeError` will be thrown if `a` or `b` are not [`Buffer`][] instances.
+A `TypeError` will be thrown if either `a` or `b` is not a [`Buffer`][] instance.
 
 ### crypto.privateEncrypt(private_key, buffer)
 
