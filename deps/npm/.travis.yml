@@ -11,7 +11,7 @@ env:
   - DEPLOY_VERSION=testing
 before_install:
   - "npm config set spin false"
-  - "npm install -g npm/npm#2.x"
+  - "npm install -g npm/npm#lts"
   - "mkdir -p /var/run/couchdb"
 script: "npm test"
 notifications:

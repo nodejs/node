@@ -1,5 +1,0 @@
-{ "name" : "npm-test-failer"
-, "version" : "9999.999.99"
-, "dependencies" : { "base64" : "*" }
-, "scripts" : { "install" : "exit 1", "test": "echo 'This is where the test output would go'; echo 'more test output'; echo 'MOAR MOAR MoAR'; exit 1" }
-}
