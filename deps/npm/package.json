@@ -207,7 +207,7 @@
     "tap": "tap --timeout 240",
     "test": "standard && npm run test-tap",
     "test-tap": "npm run tap -- \"test/tap/*.js\"",
-    "test-node": "\"$NODE\" ./test/run.js && \"$NODE\" \"node_modules/.bin/tap\" --timeout 240 \"test/tap/*.js\""
+    "test-node": "\"$NODE\" \"node_modules/.bin/tap\" --timeout 240 \"test/tap/*.js\""
   },
   "license": "Artistic-2.0"
 }
