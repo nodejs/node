@@ -31,7 +31,6 @@ export npm_config_tmp="npm-tmp"
 # install npm devDependencies and run npm's tests
 
 ../$NODE cli.js install --ignore-scripts
-../$NODE cli.js run-script test-legacy
 ../$NODE cli.js run-script test
 
 # clean up everything one single shot
