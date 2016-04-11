@@ -170,7 +170,6 @@ function npmUsage (valid, cb) {
     '',
     'npm <cmd> -h     quick help on <cmd>',
     'npm -l           display full usage info',
-    'npm faq          commonly asked questions',
     'npm help <term>  search for help on <term>',
     'npm help npm     involved overview',
     '',
