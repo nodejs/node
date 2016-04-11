@@ -1,3 +1,47 @@
+### v2.15.2 (2016-03-24):
+
+It's always nice to see new contributors. 💚
+
+This week sees another small release, but we're still chugging along on our
+[Windows efforts](https://github.com/npm/npm/pull/11444).
+
+There's also some small process changes to our LTS process relatively recently
+that you might wanna know about! 💁
+
+For one, the `2.x` branch was removed in favor of just `lts`. If you're making
+PRs exclusively against npm's LTS, please use that name from now on. `2.x` was
+deleted.
+
+Also, [@othiym23](https://github.com/othiym23) put some time into [writing down
+our LTS process and policy](https://github.com/npm/npm/wiki/LTS). Check it out
+and ping us if you have questions or comments about it!
+
+In general, we're trying to make sure all our policy and such for our
+contributors is written down, and we hope it makes it easier in general for
+y'all. Forrest is also working on a shiny new Contributor's Guide right now, but
+we'll link to that in the (near?) future, when it's ready to roll out.
+
+#### TESTS
+
+* [`1d0e468`](https://github.com/npm/npm/commit/1d0e468c06c7b8e2b95b7fe874a3399a16d9db74)
+  [#11931](https://github.com/npm/npm/pull/11931)
+  Removes a bunch of old, disabled tests that have just been sitting around,
+  doing nothing.
+  ([@othiym23](https://github.com/othiym23))
+* [`7ae8aa1`](https://github.com/npm/npm/commit/7ae8aa1d9dc47761024f6756114205db3fb2c80b)
+  [#11987](https://github.com/npm/npm/pull/11987)
+  There was a failure in the `outdated-symlink` test caused by using the default
+  registry instead of the mock registry tests.
+  ([@yodeyer](https://github.com/yodeyer))
+
+#### DOCS
+
+* [`b2649fb`](https://github.com/npm/npm/commit/b2649fb360f239aadef1ab51a580cbf4fdf29722)
+  [#12006](https://github.com/npm/npm/pull/12006)
+  Access was Team and Team was Access, but someone from the community rolled
+  around and corrected it for us. Thanks a bunch!
+  ([@yaelz](https://github.com/yaelz))
+
 ### v2.15.1 (2016-03-17):
 
 It's another one of those releases again! Docs and tests, it turns out, have a
