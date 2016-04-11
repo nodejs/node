@@ -13,21 +13,21 @@ if (!common.isWindows) {
 
 function test(p) {
   var result = fs.realpathSync(p);
-  assert.strictEqual(result, path.resolve(p));
+  assert.strictEqual(result.toLowerCase(), path.resolve(p).toLowerCase());
 
   fs.realpath(p, function(err, result) {
     assert.ok(!err);
-    assert.strictEqual(result, path.resolve(p));
+    assert.strictEqual(result.toLowerCase(), path.resolve(p).toLowerCase());
     succeeded++;
   });
 }
 
-test('//localhost/c$/windows/system32');
-test('//localhost/c$/windows');
+test('//localhost/c$/Windows/System32');
+test('//localhost/c$/Windows');
 test('//localhost/c$/');
-test('\\\\localhost\\c$');
-test('c:\\');
-test('c:');
+test('\\\\localhost\\c$\\');
+test('C:\\');
+test('C:');
 test(process.env.windir);
 
 process.on('exit', function() {
