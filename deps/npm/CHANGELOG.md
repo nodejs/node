@@ -1,8 +1,210 @@
+### v3.8.6 (2016-03-31)
+
+Heeeeeey y'all.
+
+Kat here! Rebecca's been schmoozing with folks at [Microsoft
+Build](https://build.microsoft.com/), so I'm doing the `npm@3` release this
+week.
+
+Speaking of Build, it looks like Microsoft is doing some bash thing. This might
+be really good news for our Windows users once it rolls around. We're keeping an
+eye out and feeling hopeful. 🙆
+
+As far as the release goes: We're really happy to be getting more and more
+community contributions! Keep it up! We really appreciate folks trying to help
+us, and we'll do our best to help point you in the right direction. Even things
+like documentation are a huge help. And remember -- you get socks for it, too!
+
+#### FIXES
+
+* [`f8fb4d8`](https://github.com/npm/npm/commit/f8fb4d83923810eb78d075bd200a9376c64c3e3a)
+  [#12079](https://github.com/npm/npm/pull/12079)
+  Back in `npm@3.2.2` we included [a patch that made it so `npm install pkg` was
+  basically `npm install pkg@latest` instead of
+  `pkg@*`](https://github.com/npm/npm/pull/9170)
+  This is probably what most users expected, but it also ended up [breaking `npm
+  deprecate`](https://github.com/npm/npm/pull/9170) when no version was provided
+  for a package. In that case, we were using `*` to mean "deprecate all
+  versions" and relying on the `pkg` -> `pkg@*` conversion.
+  This patch fixes `npm deprecate pkg` to work as it used to by special casing
+  that particular command's behavior.
+  ([@polm](https://github.com/polm))
+* [`458f773`](https://github.com/npm/npm/commit/458f7734f3376aba0b6ff16d34a25892f7717e40)
+  [#12146](https://github.com/npm/npm/pull/12146)
+  Adds `make doc-clean` to `prepublish` script, to clear out previously built
+  docs before publishing a new npm version
+  ([@watilde](https://github.com/watilde))
+* [`f0d1521`](https://github.com/npm/npm/commit/f0d1521038e956b2197673f36c464684293ce99d)
+  [#12146](https://github.com/npm/npm/pull/12146)
+  Adds `doc-clean` phony target to `make publish`.
+  ([@watilde](https://github.com/watilde))
+
+#### DOC UPDATES
+
+* [`ea92ffc`](https://github.com/npm/npm/commit/ea92ffc9dd2a063896353fc52c104e85ec061360)
+  [#12147](https://github.com/npm/npm/pull/12147)
+  Document that the current behavior of `engines` is just to warn if the node
+  platform is incompatible.
+  ([@reconbot](https://github.com/reconbot))
+* [`cd1ba44`](https://github.com/npm/npm/commit/cd1ba4423b3ca889c741141b95b0d9472b9f71ea)
+  [#12143](https://github.com/npm/npm/pull/12143)
+  Remove `npm faq` command, since the [FAQ was
+  removed](https://github.com/npm/npm/pull/10547).
+  ([@watilde](https://github.com/watilde))
+* [`50a12cb`](https://github.com/npm/npm/commit/50a12cb1f5f158af78d6962ad20ff0a98bc18f18)
+  [#12143](https://github.com/npm/npm/pull/12143)
+  Remove references to the FAQ from the docs, since [it was
+  removed](https://github.com/npm/npm/pull/10547).
+  ([@watilde](https://github.com/watilde))
+* [`60051c2`](https://github.com/npm/npm/commit/60051c25e2ab80c667137dfcd04b242eea25980e)
+  [#12093](https://github.com/npm/npm/pull/12093)
+  Update `bugs` url in `package.json` to use the `https` URL for Github.
+  ([@watilde](https://github.com/watilde))
+* [`af30c37`](https://github.com/npm/npm/commit/af30c374ef22ed1a1c71b14fced7c4b8350e4e82)
+  [#12075](https://github.com/npm/npm/pull/12075)
+  Add the `--ignore-scripts` flag to the `npm install` docs.
+  ([@paulirish](https://github.com/paulirish))
+* [`632b214`](https://github.com/npm/npm/commit/632b214b2f2450e844410792e5947e46844612ff)
+  [#12063](https://github.com/npm/npm/pull/12063)
+  Various minor fixes to the html docs homepage.
+  ([@watilde](https://github.com/watilde))
+
+#### DEP BUMPS
+
+* [`3da0171`](https://github.com/npm/npm/commit/3da01716a0e41d6b5adee2b4fc70fcaf08c0eb24)
+  `lodash.without@4.1.2`
+  ([@jdalton](https://github.com/jdalton))
+* [`69ccf6d`](https://github.com/npm/npm/commit/69ccf6dd4caf95cd0628054307487cae1885acd0)
+  `lodash.uniq@4.2.1`
+  ([@jdalton](https://github.com/jdalton))
+* [`b50c41a`](https://github.com/npm/npm/commit/b50c41a9930dc5353a23c5ae2ff87bb99e11d482)
+  `lodash.union@4.2.1`
+  ([@jdalton](https://github.com/jdalton))
+* [`59c1ad7`](https://github.com/npm/npm/commit/59c1ad7b6f243d07618ed5703bd11d787732fc57)
+  `lodash.clonedeep@4.3.2`
+  ([@jdalton](https://github.com/jdalton))
+* [`2b4f797`](https://github.com/npm/npm/commit/2b4f797dba8e7a1376c8335b7223e82d02cd8243)
+  `lodash._baseuniq@4.5.1`
+  ([@jdalton](https://github.com/jdalton))
+
+### v3.8.5 (2016-03-24)
+
+Like my esteemed colleague [@zkat](https://github.com/zkat) said in this
+week's [LTS release notes](https://github.com/npm/npm/releases/tag/v2.15.2),
+this week is another small release but we are continuing to work on our
+[Windows efforts](https://github.com/npm/npm/pull/11444).
+
+You may also be interested in reading the [LTS process and
+policy](https://github.com/npm/npm/wiki/LTS) that
+[@othiym23](https://github.com/othiym23) put together recently. If you have any
+feedback, we would love to hear.
+
+#### DOCTOR IT HURTS WHEN LINK TO MY LINK
+
+Well then, don't do that.
+
+* [`0d4a0b1`](https://github.com/npm/npm/commit/0d4a0b1)
+  [#11442](https://github.com/npm/npm/pull/11442)
+  Fail if the user asks us to make a link from a module back on to itself.
+  ([@antialias](https://github.com/antialias))
+
+#### ERR MODULE LIST TOO LONG
+
+* [`b271ed2`](https://github.com/npm/npm/commit/b271ed2)
+  [#11983](https://github.com/npm/npm/issues/11983)
+  Exit early if no arguments were provided to search instead of trying to display all the modules,
+  running out of memory, and then crashing.
+  ([@SimenB](https://github.com/SimenB))
+
+#### ELIMINATE UNUSED MODULE
+
+* [`b8c7cd7`](https://github.com/npm/npm/commit/b8c7cd7)
+  [#12000](https://github.com/npm/npm/pull/12000)
+  Stop depending on [`async-some`](https://npmjs.com/package/async-some) as it's no
+  longer used in npm.
+  ([@watilde](https://github.com/watilde))
+
+#### DOCUMENTATION IMPROVEMENTS
+
+* [`fdd6b28`](https://github.com/npm/npm/commit/fdd6b28)
+  [#11884](https://github.com/npm/npm/pull/11884)
+  Include `node_modules` in the list of files and directories that npm won't
+  include in packages ordinarily. (Modules listed in `bundledDependencies` and things
+  that those modules rely on, ARE included of course.)
+  ([@Jameskmonger](https://github.com/Jameskmonger))
+* [`aac15eb`](https://github.com/npm/npm/commit/aac15eb)
+  [#12006](https://github.com/npm/npm/pull/12006)
+  Fix typo in npm-orgs documentation, where teams docs went to access docs and vice versa.
+  ([@yaelz](https://github.com/yaelz))
+
+#### FEWER NETWORK TESTS
+
+* [`3e41360`](https://github.com/npm/npm/commit/3e41360)
+  [#11987](https://github.com/npm/npm/pull/11987)
+  Fix test that was inappropriately hitting the network
+  ([@yodeyer](https://github.com/yodeyer))
+
+### v3.8.4 (2016-03-24)
+
+Was erroneously released with just a changelog typo correction and was
+otherwise the same as 3.8.3.
+
 ### v3.8.3 (2016-03-17):
+
+#### SECURITY ADVISORY: BEARER TOKEN DISCLOSURE
+
+This release includes [the fix for a
+vulnerability](https://github.com/npm/npm/commit/f67ecad59e99a03e5aad8e93cd1a086ae087cb29)
+that could cause the unintentional leakage of bearer tokens.
+
+Here are details on this vulnerability and how it affects you.
+
+##### DETAILS
+
+Since 2014, npm’s registry has used HTTP bearer tokens to authenticate requests
+from the npm’s command-line interface. A design flaw meant that the CLI was
+sending these bearer tokens with _every_ request made by logged-in users,
+regardless of the destination of their request. (The bearers only should have
+been included for requests made against a registry or registries used for the
+current install.)
+
+An attacker could exploit this flaw by setting up an HTTP server that could
+collect authentication information, then use this authentication information to
+impersonate the users whose tokens they collected. This impersonation would
+allow them to do anything the compromised users could do, including publishing
+new versions of packages.
+
+With the fixes we’ve released, the CLI will only send bearer tokens with
+requests made against a registry.
+
+##### THINK YOU'RE AT RISK? REGENERATE YOUR TOKENS
+
+If you believe that your bearer token may have been leaked, [invalidate your
+current npm bearer tokens](https://www.npmjs.com/settings/tokens) and rerun
+`npm login` to generate new tokens. Keep in mind that this may cause continuous
+integration builds in services like Travis to break, in which case you’ll need
+to update the tokens in your CI server’s configuration.
+
+##### WILL THIS BREAK MY CURRENT SETUP?
+
+Maybe.
+
+npm’s CLI team believes that the fix won’t break any existing registry setups.
+Due to the large number of registry software suites out in the wild, though,
+it’s possible our change will be breaking in some cases.
+
+If so, please [file an issue](https://github.com/npm/npm/issues/new) describing
+the software you’re using and how it broke. Our team will work with you to
+mitigate the breakage.
+
+##### CREDIT & THANKS
+
+Thanks to Mitar, Will White & the team at Mapbox, Max Motovilov, and James
+Taylor for reporting this vulnerability to npm.
 
 #### PERFORMANCE IMPROVEMENTS
 
-The updated [`are-we-there-yet`](https://npm.com/package/are-we-there-yet)
+The updated [`are-we-there-yet`](https://npmjs.com/package/are-we-there-yet)
 changes how it tracks how complete things are to be much more efficient.
 The summary is that `are-we-there-yet` was refactored to remove an expensive
 tree walk.

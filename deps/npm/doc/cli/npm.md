@@ -156,7 +156,6 @@ will no doubt tell you to put the output in a gist or email.
 ## SEE ALSO
 
 * npm-help(1)
-* npm-faq(7)
 * README
 * package.json(5)
 * npm-install(1)
