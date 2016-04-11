@@ -166,7 +166,7 @@ ls-ok:
 gitclean:
 	git clean -fd
 
-publish: gitclean ls-ok link doc
+publish: gitclean ls-ok link doc-clean doc
 	@git push origin :v$(shell npm -v) 2>&1 || true
 	git push origin $(BRANCH) &&\
 	git push origin --tags &&\
