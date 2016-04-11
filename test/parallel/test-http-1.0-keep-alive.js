@@ -120,9 +120,9 @@ function check(tests) {
       function ondata(s) {
         console.error(' > CLIENT ONDATA %j %j', s.length, s.toString());
         current++;
+        conn.removeListener('data', ondata);
         if (ctx.expectClose) return;
         conn.removeListener('close', onclose);
-        conn.removeListener('data', ondata);
         connected();
       }
       conn.on('data', ondata);
