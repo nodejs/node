@@ -211,7 +211,6 @@ Tell the world how easy it is to install your program!
 
 ## SEE ALSO
 
-* npm-faq(7)
 * npm(1)
 * npm-init(1)
 * package.json(5)

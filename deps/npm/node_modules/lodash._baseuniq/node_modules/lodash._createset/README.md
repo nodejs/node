@@ -1,4 +1,4 @@
-# lodash._createset v4.0.0
+# lodash._createset v4.0.1
 
 The internal [lodash](https://lodash.com/) function `createSet` exported as a [Node.js](https://nodejs.org/) module.
 
@@ -15,4 +15,4 @@ In Node.js:
 var createSet = require('lodash._createset');
 ```
 
-See the [package source](https://github.com/lodash/lodash/blob/4.0.0-npm-packages/lodash._createset) for more details.
+See the [package source](https://github.com/lodash/lodash/blob/4.0.1-npm-packages/lodash._createset) for more details.

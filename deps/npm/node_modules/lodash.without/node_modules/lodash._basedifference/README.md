@@ -1,4 +1,4 @@
-# lodash._basedifference v4.4.0
+# lodash._basedifference v4.4.1
 
 The internal [lodash](https://lodash.com/) function `baseDifference` exported as a [Node.js](https://nodejs.org/) module.
 
@@ -15,4 +15,4 @@ In Node.js:
 var baseDifference = require('lodash._basedifference');
 ```
 
-See the [package source](https://github.com/lodash/lodash/blob/4.4.0-npm-packages/lodash._basedifference) for more details.
+See the [package source](https://github.com/lodash/lodash/blob/4.4.1-npm-packages/lodash._basedifference) for more details.
