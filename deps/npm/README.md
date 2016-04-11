@@ -141,7 +141,6 @@ you have chosen.
 ## More Docs
 
 Check out the [docs](https://docs.npmjs.com/),
-especially the [faq](https://docs.npmjs.com/misc/faq).
 
 You can use the `npm help` command to read any of them.
 
@@ -164,6 +163,5 @@ will no doubt tell you to put the output in a gist or email.
 ## SEE ALSO
 
 * npm(1)
-* npm-faq(7)
 * npm-help(1)
 * npm-index(7)

@@ -85,7 +85,6 @@ var cmdList = [
   'docs',
   'repo',
   'bugs',
-  'faq',
   'root',
   'prefix',
   'bin',

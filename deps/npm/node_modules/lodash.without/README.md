@@ -1,4 +1,4 @@
-# lodash.without v4.1.1
+# lodash.without v4.1.2
 
 The [lodash](https://lodash.com/) method `_.without` exported as a [Node.js](https://nodejs.org/) module.
 
@@ -15,4 +15,4 @@ In Node.js:
 var without = require('lodash.without');
 ```
 
-See the [documentation](https://lodash.com/docs#without) or [package source](https://github.com/lodash/lodash/blob/4.1.1-npm-packages/lodash.without) for more details.
+See the [documentation](https://lodash.com/docs#without) or [package source](https://github.com/lodash/lodash/blob/4.1.2-npm-packages/lodash.without) for more details.
