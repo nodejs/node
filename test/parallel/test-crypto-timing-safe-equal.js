@@ -6,9 +6,9 @@ if (!common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
-assert.ok(crypto.timingSafeEqual(new Buffer('alpha'), new Buffer('alpha')),
+assert.ok(crypto.timingSafeEqual(Buffer.from('alpha'), Buffer.from('alpha')),
   'equal strings not equal');
-assert.ok(!crypto.timingSafeEqual(new Buffer('alpha'), new Buffer('beta')),
+assert.ok(!crypto.timingSafeEqual(Buffer.from('alpha'), Buffer.from('beta')),
   'inequal strings considered equal');

@@ -16,18 +16,18 @@ assert.equal(h1.digest('hex'),
              '19fd6e1ba73d9ed2224dd5094a71babe85d9a892',
              'test HMAC');
 
-var h2 = crypto.createHmac('sha1', 'Node')
+const h2 = crypto.createHmac('sha1', 'Node')
                .update('some data')
                .update('to hmac');
 assert.ok(h2.validate(
-  new Buffer('19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'hex'),
+  Buffer.from('19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'hex'),
   'test HMAC valid'));
 
-var h3 = crypto.createHmac('sha1', 'Node')
+const h3 = crypto.createHmac('sha1', 'Node')
                .update('some data')
                .update('to hmac');
 assert.ok(!h3.validate(
-  new Buffer('6bdee6ee47fb42c53a4f44c3e4bb97591c0c3635', 'hex'),
+  Buffer.from('6bdee6ee47fb42c53a4f44c3e4bb97591c0c3635', 'hex'),
   'test HMAC not valid'));
 
 // Test HMAC (Wikipedia Test Cases)

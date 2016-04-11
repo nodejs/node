@@ -605,14 +605,6 @@ encoding of `'binary'` is enforced. If `data` is a [`Buffer`][] then
 
 This can be called many times with new data as it is streamed.
 
-### hmac.validate(inputHmac)
-
-Return true if and only if the computed hmac matches the input hmac,
-provided as a [`Buffer`][]. This uses a timing-safe comparison.
-
-The `hmac` object can not be used after `validate()` method has been
-called.
-
 ## Class: Hmac
 
 The `Hmac` Class is a utility for creating cryptographic HMAC digests. It can
@@ -678,7 +670,7 @@ is very likely to introduce a
 [timing attack](http://codahale.com/a-lesson-in-timing-attacks/).
 Such a timing attack would allow someone to construct an
 HMAC value for a message of their choosing without posessing the key.
-Prefer `validate()`, which does a timing-safe comparison.
+Use `timingSafeEqual(a, b)` to compare digest values.
 
 The `Hmac` object can not be used again after `hmac.digest()` has been
 called. Multiple calls to `hmac.digest()` will result in an error being thrown.
@@ -1171,11 +1163,11 @@ All paddings are defined in the `constants` module.
 ### crypto.timingSafeEqual(a, b)
 
 Returns true if `a` is equal to `b`, without leaking timing information that would
-help an attacker guess one of the values. This is suitable for comparing secret
-values like authentication cookies or
+help an attacker guess one of the values. This is suitable for comparing HMAC
+digests or secret values like authentication cookies or
 [capability urls](http://www.w3.org/TR/capability-urls/).
 
-Each of `a` and `b` should be a [`Buffer`][].
+A `TypeError` will be thrown if `a` or `b` are not [`Buffer`][] instances.
 
 ### crypto.privateEncrypt(private_key, buffer)
 
