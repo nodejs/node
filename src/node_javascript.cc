@@ -4,32 +4,32 @@
 #include "env.h"
 #include "env-inl.h"
 
-#include <string.h>
-#if !defined(_MSC_VER)
-#include <strings.h>
-#endif
-
 namespace node {
 
 using v8::HandleScope;
 using v8::Local;
+using v8::NewStringType;
 using v8::Object;
 using v8::String;
 
 Local<String> MainSource(Environment* env) {
-  return OneByteString(env->isolate(), node_native, sizeof(node_native) - 1);
+  return String::NewFromUtf8(
+      env->isolate(),
+      reinterpret_cast<const char*>(internal_bootstrap_node_native),
+      NewStringType::kNormal,
+      sizeof(internal_bootstrap_node_native)).ToLocalChecked();
 }
 
 void DefineJavaScript(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
-  for (int i = 0; natives[i].name; i++) {
-    if (natives[i].source != node_native) {
-      Local<String> name = String::NewFromUtf8(env->isolate(), natives[i].name);
-      Local<String> source = String::NewFromUtf8(env->isolate(),
-                                                  natives[i].source,
-                                                  String::kNormalString,
-                                                  natives[i].source_len);
+  for (auto native : natives) {
+    if (native.source != internal_bootstrap_node_native) {
+      Local<String> name = String::NewFromUtf8(env->isolate(), native.name);
+      Local<String> source =
+          String::NewFromUtf8(
+              env->isolate(), reinterpret_cast<const char*>(native.source),
+              NewStringType::kNormal, native.source_len).ToLocalChecked();
       target->Set(name, source);
     }
   }

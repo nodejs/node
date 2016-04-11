@@ -185,7 +185,7 @@ will contain an array of IPv6 addresses.
 
 Uses the DNS protocol to resolve `CNAME` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
-will contain an of canonical name records available for the `hostname`
+will contain an array of canonical name records available for the `hostname`
 (e.g. `['bar.example.com']`).
 
 ## dns.resolveMx(hostname, callback)

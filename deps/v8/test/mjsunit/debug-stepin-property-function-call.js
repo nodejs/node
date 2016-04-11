@@ -38,13 +38,13 @@ var state = 1;
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      if (state == 1) {
-        exec_state.prepareStep(Debug.StepAction.StepIn, 3);
-        state = 2;
-      } else if (state == 2) {
+      if (state < 4) {
+        exec_state.prepareStep(Debug.StepAction.StepIn);
+        state++;
+      } else {
         assertTrue(event_data.sourceLineText().indexOf("Expected to step") > 0,
           "source line: \"" + event_data.sourceLineText() + "\"");
-        state = 3;
+        state = 5;
       }
     }
   } catch(e) {
@@ -143,7 +143,7 @@ for (var n in this) {
   this[n]();
   ++functionsCalled;
   assertNull(exception, n);
-  assertEquals(3, state, n);
+  assertEquals(5, state, n);
   assertEquals(functionsCalled, count, n);
 }
 

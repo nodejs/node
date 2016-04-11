@@ -16,7 +16,7 @@ var N = 10240, complete = 0;
 for (var i = 0; i < N; i++) {
   // Create a new buffer for each write. Before the write is actually
   // executed by the thread pool, the buffer will be collected.
-  var buffer = new Buffer(line);
+  var buffer = Buffer.from(line);
   fs.write(fd, buffer, 0, buffer.length, null, function(er, written) {
     complete++;
     if (complete === N) {
@@ -44,4 +44,3 @@ process.on('exit', function() {
   // few...
   assert.ok(bytesChecked > 1000);
 });
-

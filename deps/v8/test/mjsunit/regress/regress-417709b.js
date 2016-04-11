@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=100
+// Flags: --harmony-object-observe --stack-size=100
 
 var a = [];
 

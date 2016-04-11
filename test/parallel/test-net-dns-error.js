@@ -7,12 +7,7 @@ var net = require('net');
 var expected_bad_connections = 1;
 var actual_bad_connections = 0;
 
-var host = '********';
-host += host;
-host += host;
-host += host;
-host += host;
-host += host;
+var host = '*'.repeat(256);
 
 function do_not_call() {
   throw new Error('This function should not have been called.');

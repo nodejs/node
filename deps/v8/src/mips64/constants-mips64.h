@@ -119,8 +119,11 @@ const int kInvalidFPURegister = -1;
 const int kFCSRRegister = 31;
 const int kInvalidFPUControlRegister = -1;
 const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1 << 31) - 1;
+const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1 << 31);
 const uint64_t kFPU64InvalidResult =
     static_cast<uint64_t>(static_cast<uint64_t>(1) << 63) - 1;
+const int64_t kFPU64InvalidResultNegative =
+    static_cast<int64_t>(static_cast<uint64_t>(1) << 63);
 
 // FCSR constants.
 const uint32_t kFCSRInexactFlagBit = 2;
@@ -128,12 +131,14 @@ const uint32_t kFCSRUnderflowFlagBit = 3;
 const uint32_t kFCSROverflowFlagBit = 4;
 const uint32_t kFCSRDivideByZeroFlagBit = 5;
 const uint32_t kFCSRInvalidOpFlagBit = 6;
+const uint32_t kFCSRNaN2008FlagBit = 18;
 
 const uint32_t kFCSRInexactFlagMask = 1 << kFCSRInexactFlagBit;
 const uint32_t kFCSRUnderflowFlagMask = 1 << kFCSRUnderflowFlagBit;
 const uint32_t kFCSROverflowFlagMask = 1 << kFCSROverflowFlagBit;
 const uint32_t kFCSRDivideByZeroFlagMask = 1 << kFCSRDivideByZeroFlagBit;
 const uint32_t kFCSRInvalidOpFlagMask = 1 << kFCSRInvalidOpFlagBit;
+const uint32_t kFCSRNaN2008FlagMask = 1 << kFCSRNaN2008FlagBit;
 
 const uint32_t kFCSRFlagMask =
     kFCSRInexactFlagMask |
@@ -232,6 +237,7 @@ const int kRdShift       = 11;
 const int kRdBits        = 5;
 const int kSaShift       = 6;
 const int kSaBits        = 5;
+const int kLsaSaBits = 2;
 const int kFunctionShift = 0;
 const int kFunctionBits  = 6;
 const int kLuiShift      = 16;
@@ -298,355 +304,366 @@ const int64_t  kSe16MaskOf64 =   (int64_t)0xffff << 32;
 const int64_t  kTh16MaskOf64 =   (int64_t)0xffff << 16;
 const int32_t kJalRawMark = 0x00000000;
 const int32_t kJRawMark = 0xf0000000;
+const int32_t kJumpRawMask = 0xf0000000;
 
 // ----- MIPS Opcodes and Function Fields.
 // We use this presentation to stay close to the table representation in
 // MIPS32 Architecture For Programmers, Volume II: The MIPS32 Instruction Set.
-enum Opcode {
-  SPECIAL = 0 << kOpcodeShift,
-  REGIMM = 1 << kOpcodeShift,
+enum Opcode : uint32_t {
+  SPECIAL = 0U << kOpcodeShift,
+  REGIMM = 1U << kOpcodeShift,
 
-  J = ((0 << 3) + 2) << kOpcodeShift,
-  JAL = ((0 << 3) + 3) << kOpcodeShift,
-  BEQ = ((0 << 3) + 4) << kOpcodeShift,
-  BNE = ((0 << 3) + 5) << kOpcodeShift,
-  BLEZ = ((0 << 3) + 6) << kOpcodeShift,
-  BGTZ = ((0 << 3) + 7) << kOpcodeShift,
+  J = ((0U << 3) + 2) << kOpcodeShift,
+  JAL = ((0U << 3) + 3) << kOpcodeShift,
+  BEQ = ((0U << 3) + 4) << kOpcodeShift,
+  BNE = ((0U << 3) + 5) << kOpcodeShift,
+  BLEZ = ((0U << 3) + 6) << kOpcodeShift,
+  BGTZ = ((0U << 3) + 7) << kOpcodeShift,
 
-  ADDI = ((1 << 3) + 0) << kOpcodeShift,
-  ADDIU = ((1 << 3) + 1) << kOpcodeShift,
-  SLTI = ((1 << 3) + 2) << kOpcodeShift,
-  SLTIU = ((1 << 3) + 3) << kOpcodeShift,
-  ANDI = ((1 << 3) + 4) << kOpcodeShift,
-  ORI = ((1 << 3) + 5) << kOpcodeShift,
-  XORI = ((1 << 3) + 6) << kOpcodeShift,
-  LUI = ((1 << 3) + 7) << kOpcodeShift,  // LUI/AUI family.
-  DAUI = ((3 << 3) + 5) << kOpcodeShift,
+  ADDI = ((1U << 3) + 0) << kOpcodeShift,
+  ADDIU = ((1U << 3) + 1) << kOpcodeShift,
+  SLTI = ((1U << 3) + 2) << kOpcodeShift,
+  SLTIU = ((1U << 3) + 3) << kOpcodeShift,
+  ANDI = ((1U << 3) + 4) << kOpcodeShift,
+  ORI = ((1U << 3) + 5) << kOpcodeShift,
+  XORI = ((1U << 3) + 6) << kOpcodeShift,
+  LUI = ((1U << 3) + 7) << kOpcodeShift,  // LUI/AUI family.
+  DAUI = ((3U << 3) + 5) << kOpcodeShift,
 
-  BEQC = ((2 << 3) + 0) << kOpcodeShift,
-  COP1 = ((2 << 3) + 1) << kOpcodeShift,  // Coprocessor 1 class.
-  BEQL = ((2 << 3) + 4) << kOpcodeShift,
-  BNEL = ((2 << 3) + 5) << kOpcodeShift,
-  BLEZL = ((2 << 3) + 6) << kOpcodeShift,
-  BGTZL = ((2 << 3) + 7) << kOpcodeShift,
+  BEQC = ((2U << 3) + 0) << kOpcodeShift,
+  COP1 = ((2U << 3) + 1) << kOpcodeShift,  // Coprocessor 1 class.
+  BEQL = ((2U << 3) + 4) << kOpcodeShift,
+  BNEL = ((2U << 3) + 5) << kOpcodeShift,
+  BLEZL = ((2U << 3) + 6) << kOpcodeShift,
+  BGTZL = ((2U << 3) + 7) << kOpcodeShift,
 
-  DADDI = ((3 << 3) + 0) << kOpcodeShift,  // This is also BNEC.
-  DADDIU = ((3 << 3) + 1) << kOpcodeShift,
-  LDL = ((3 << 3) + 2) << kOpcodeShift,
-  LDR = ((3 << 3) + 3) << kOpcodeShift,
-  SPECIAL2 = ((3 << 3) + 4) << kOpcodeShift,
-  SPECIAL3 = ((3 << 3) + 7) << kOpcodeShift,
+  DADDI = ((3U << 3) + 0) << kOpcodeShift,  // This is also BNEC.
+  DADDIU = ((3U << 3) + 1) << kOpcodeShift,
+  LDL = ((3U << 3) + 2) << kOpcodeShift,
+  LDR = ((3U << 3) + 3) << kOpcodeShift,
+  SPECIAL2 = ((3U << 3) + 4) << kOpcodeShift,
+  SPECIAL3 = ((3U << 3) + 7) << kOpcodeShift,
 
-  LB = ((4 << 3) + 0) << kOpcodeShift,
-  LH = ((4 << 3) + 1) << kOpcodeShift,
-  LWL = ((4 << 3) + 2) << kOpcodeShift,
-  LW = ((4 << 3) + 3) << kOpcodeShift,
-  LBU = ((4 << 3) + 4) << kOpcodeShift,
-  LHU = ((4 << 3) + 5) << kOpcodeShift,
-  LWR = ((4 << 3) + 6) << kOpcodeShift,
-  LWU = ((4 << 3) + 7) << kOpcodeShift,
+  LB = ((4U << 3) + 0) << kOpcodeShift,
+  LH = ((4U << 3) + 1) << kOpcodeShift,
+  LWL = ((4U << 3) + 2) << kOpcodeShift,
+  LW = ((4U << 3) + 3) << kOpcodeShift,
+  LBU = ((4U << 3) + 4) << kOpcodeShift,
+  LHU = ((4U << 3) + 5) << kOpcodeShift,
+  LWR = ((4U << 3) + 6) << kOpcodeShift,
+  LWU = ((4U << 3) + 7) << kOpcodeShift,
 
-  SB = ((5 << 3) + 0) << kOpcodeShift,
-  SH = ((5 << 3) + 1) << kOpcodeShift,
-  SWL = ((5 << 3) + 2) << kOpcodeShift,
-  SW = ((5 << 3) + 3) << kOpcodeShift,
-  SDL = ((5 << 3) + 4) << kOpcodeShift,
-  SDR = ((5 << 3) + 5) << kOpcodeShift,
-  SWR = ((5 << 3) + 6) << kOpcodeShift,
+  SB = ((5U << 3) + 0) << kOpcodeShift,
+  SH = ((5U << 3) + 1) << kOpcodeShift,
+  SWL = ((5U << 3) + 2) << kOpcodeShift,
+  SW = ((5U << 3) + 3) << kOpcodeShift,
+  SDL = ((5U << 3) + 4) << kOpcodeShift,
+  SDR = ((5U << 3) + 5) << kOpcodeShift,
+  SWR = ((5U << 3) + 6) << kOpcodeShift,
 
-  LWC1 = ((6 << 3) + 1) << kOpcodeShift,
-  BC = ((6 << 3) + 2) << kOpcodeShift,
-  LLD = ((6 << 3) + 4) << kOpcodeShift,
-  LDC1 = ((6 << 3) + 5) << kOpcodeShift,
-  POP66 = ((6 << 3) + 6) << kOpcodeShift,
-  LD = ((6 << 3) + 7) << kOpcodeShift,
+  LWC1 = ((6U << 3) + 1) << kOpcodeShift,
+  BC = ((6U << 3) + 2) << kOpcodeShift,
+  LLD = ((6U << 3) + 4) << kOpcodeShift,
+  LDC1 = ((6U << 3) + 5) << kOpcodeShift,
+  POP66 = ((6U << 3) + 6) << kOpcodeShift,
+  LD = ((6U << 3) + 7) << kOpcodeShift,
 
-  PREF = ((6 << 3) + 3) << kOpcodeShift,
+  PREF = ((6U << 3) + 3) << kOpcodeShift,
 
-  SWC1 = ((7 << 3) + 1) << kOpcodeShift,
-  BALC = ((7 << 3) + 2) << kOpcodeShift,
-  PCREL = ((7 << 3) + 3) << kOpcodeShift,
-  SCD = ((7 << 3) + 4) << kOpcodeShift,
-  SDC1 = ((7 << 3) + 5) << kOpcodeShift,
-  POP76 = ((7 << 3) + 6) << kOpcodeShift,
-  SD = ((7 << 3) + 7) << kOpcodeShift,
+  SWC1 = ((7U << 3) + 1) << kOpcodeShift,
+  BALC = ((7U << 3) + 2) << kOpcodeShift,
+  PCREL = ((7U << 3) + 3) << kOpcodeShift,
+  SCD = ((7U << 3) + 4) << kOpcodeShift,
+  SDC1 = ((7U << 3) + 5) << kOpcodeShift,
+  POP76 = ((7U << 3) + 6) << kOpcodeShift,
+  SD = ((7U << 3) + 7) << kOpcodeShift,
 
-  COP1X = ((1 << 4) + 3) << kOpcodeShift
+  COP1X = ((1U << 4) + 3) << kOpcodeShift,
+
+  // New r6 instruction.
+  POP06 = BLEZ,   // bgeuc/bleuc, blezalc, bgezalc
+  POP07 = BGTZ,   // bltuc/bgtuc, bgtzalc, bltzalc
+  POP10 = ADDI,   // beqzalc, bovc, beqc
+  POP26 = BLEZL,  // bgezc, blezc, bgec/blec
+  POP27 = BGTZL,  // bgtzc, bltzc, bltc/bgtc
+  POP30 = DADDI,  // bnezalc, bnvc, bnec
 };
 
-enum SecondaryField {
+enum SecondaryField : uint32_t {
   // SPECIAL Encoding of Function Field.
-  SLL = ((0 << 3) + 0),
-  MOVCI = ((0 << 3) + 1),
-  SRL = ((0 << 3) + 2),
-  SRA = ((0 << 3) + 3),
-  SLLV = ((0 << 3) + 4),
-  SRLV = ((0 << 3) + 6),
-  SRAV = ((0 << 3) + 7),
+  SLL = ((0U << 3) + 0),
+  MOVCI = ((0U << 3) + 1),
+  SRL = ((0U << 3) + 2),
+  SRA = ((0U << 3) + 3),
+  SLLV = ((0U << 3) + 4),
+  LSA = ((0U << 3) + 5),
+  SRLV = ((0U << 3) + 6),
+  SRAV = ((0U << 3) + 7),
 
-  JR = ((1 << 3) + 0),
-  JALR = ((1 << 3) + 1),
-  MOVZ = ((1 << 3) + 2),
-  MOVN = ((1 << 3) + 3),
-  BREAK = ((1 << 3) + 5),
+  JR = ((1U << 3) + 0),
+  JALR = ((1U << 3) + 1),
+  MOVZ = ((1U << 3) + 2),
+  MOVN = ((1U << 3) + 3),
+  BREAK = ((1U << 3) + 5),
 
-  MFHI = ((2 << 3) + 0),
-  CLZ_R6 = ((2 << 3) + 0),
-  CLO_R6 = ((2 << 3) + 1),
-  MFLO = ((2 << 3) + 2),
-  DCLZ_R6 = ((2 << 3) + 2),
-  DCLO_R6 = ((2 << 3) + 3),
-  DSLLV = ((2 << 3) + 4),
-  DSRLV = ((2 << 3) + 6),
-  DSRAV = ((2 << 3) + 7),
+  MFHI = ((2U << 3) + 0),
+  CLZ_R6 = ((2U << 3) + 0),
+  CLO_R6 = ((2U << 3) + 1),
+  MFLO = ((2U << 3) + 2),
+  DCLZ_R6 = ((2U << 3) + 2),
+  DCLO_R6 = ((2U << 3) + 3),
+  DSLLV = ((2U << 3) + 4),
+  DLSA = ((2U << 3) + 5),
+  DSRLV = ((2U << 3) + 6),
+  DSRAV = ((2U << 3) + 7),
 
-  MULT = ((3 << 3) + 0),
-  MULTU = ((3 << 3) + 1),
-  DIV = ((3 << 3) + 2),
-  DIVU = ((3 << 3) + 3),
-  DMULT = ((3 << 3) + 4),
-  DMULTU = ((3 << 3) + 5),
-  DDIV = ((3 << 3) + 6),
-  DDIVU = ((3 << 3) + 7),
+  MULT = ((3U << 3) + 0),
+  MULTU = ((3U << 3) + 1),
+  DIV = ((3U << 3) + 2),
+  DIVU = ((3U << 3) + 3),
+  DMULT = ((3U << 3) + 4),
+  DMULTU = ((3U << 3) + 5),
+  DDIV = ((3U << 3) + 6),
+  DDIVU = ((3U << 3) + 7),
 
-  ADD = ((4 << 3) + 0),
-  ADDU = ((4 << 3) + 1),
-  SUB = ((4 << 3) + 2),
-  SUBU = ((4 << 3) + 3),
-  AND = ((4 << 3) + 4),
-  OR = ((4 << 3) + 5),
-  XOR = ((4 << 3) + 6),
-  NOR = ((4 << 3) + 7),
+  ADD = ((4U << 3) + 0),
+  ADDU = ((4U << 3) + 1),
+  SUB = ((4U << 3) + 2),
+  SUBU = ((4U << 3) + 3),
+  AND = ((4U << 3) + 4),
+  OR = ((4U << 3) + 5),
+  XOR = ((4U << 3) + 6),
+  NOR = ((4U << 3) + 7),
 
-  SLT = ((5 << 3) + 2),
-  SLTU = ((5 << 3) + 3),
-  DADD = ((5 << 3) + 4),
-  DADDU = ((5 << 3) + 5),
-  DSUB = ((5 << 3) + 6),
-  DSUBU = ((5 << 3) + 7),
+  SLT = ((5U << 3) + 2),
+  SLTU = ((5U << 3) + 3),
+  DADD = ((5U << 3) + 4),
+  DADDU = ((5U << 3) + 5),
+  DSUB = ((5U << 3) + 6),
+  DSUBU = ((5U << 3) + 7),
 
-  TGE = ((6 << 3) + 0),
-  TGEU = ((6 << 3) + 1),
-  TLT = ((6 << 3) + 2),
-  TLTU = ((6 << 3) + 3),
-  TEQ = ((6 << 3) + 4),
-  SELEQZ_S = ((6 << 3) + 5),
-  TNE = ((6 << 3) + 6),
-  SELNEZ_S = ((6 << 3) + 7),
+  TGE = ((6U << 3) + 0),
+  TGEU = ((6U << 3) + 1),
+  TLT = ((6U << 3) + 2),
+  TLTU = ((6U << 3) + 3),
+  TEQ = ((6U << 3) + 4),
+  SELEQZ_S = ((6U << 3) + 5),
+  TNE = ((6U << 3) + 6),
+  SELNEZ_S = ((6U << 3) + 7),
 
-  DSLL = ((7 << 3) + 0),
-  DSRL = ((7 << 3) + 2),
-  DSRA = ((7 << 3) + 3),
-  DSLL32 = ((7 << 3) + 4),
-  DSRL32 = ((7 << 3) + 6),
-  DSRA32 = ((7 << 3) + 7),
+  DSLL = ((7U << 3) + 0),
+  DSRL = ((7U << 3) + 2),
+  DSRA = ((7U << 3) + 3),
+  DSLL32 = ((7U << 3) + 4),
+  DSRL32 = ((7U << 3) + 6),
+  DSRA32 = ((7U << 3) + 7),
 
   // Multiply integers in r6.
-  MUL_MUH = ((3 << 3) + 0),      // MUL, MUH.
-  MUL_MUH_U = ((3 << 3) + 1),    // MUL_U, MUH_U.
-  D_MUL_MUH = ((7 << 2) + 0),    // DMUL, DMUH.
-  D_MUL_MUH_U = ((7 << 2) + 1),  // DMUL_U, DMUH_U.
-  RINT = ((3 << 3) + 2),
+  MUL_MUH = ((3U << 3) + 0),      // MUL, MUH.
+  MUL_MUH_U = ((3U << 3) + 1),    // MUL_U, MUH_U.
+  D_MUL_MUH = ((7U << 2) + 0),    // DMUL, DMUH.
+  D_MUL_MUH_U = ((7U << 2) + 1),  // DMUL_U, DMUH_U.
+  RINT = ((3U << 3) + 2),
 
-  MUL_OP = ((0 << 3) + 2),
-  MUH_OP = ((0 << 3) + 3),
-  DIV_OP = ((0 << 3) + 2),
-  MOD_OP = ((0 << 3) + 3),
+  MUL_OP = ((0U << 3) + 2),
+  MUH_OP = ((0U << 3) + 3),
+  DIV_OP = ((0U << 3) + 2),
+  MOD_OP = ((0U << 3) + 3),
 
-  DIV_MOD = ((3 << 3) + 2),
-  DIV_MOD_U = ((3 << 3) + 3),
-  D_DIV_MOD = ((3 << 3) + 6),
-  D_DIV_MOD_U = ((3 << 3) + 7),
+  DIV_MOD = ((3U << 3) + 2),
+  DIV_MOD_U = ((3U << 3) + 3),
+  D_DIV_MOD = ((3U << 3) + 6),
+  D_DIV_MOD_U = ((3U << 3) + 7),
 
   // drotr in special4?
 
   // SPECIAL2 Encoding of Function Field.
-  MUL = ((0 << 3) + 2),
-  CLZ = ((4 << 3) + 0),
-  CLO = ((4 << 3) + 1),
-  DCLZ = ((4 << 3) + 4),
-  DCLO = ((4 << 3) + 5),
+  MUL = ((0U << 3) + 2),
+  CLZ = ((4U << 3) + 0),
+  CLO = ((4U << 3) + 1),
+  DCLZ = ((4U << 3) + 4),
+  DCLO = ((4U << 3) + 5),
 
   // SPECIAL3 Encoding of Function Field.
-  EXT = ((0 << 3) + 0),
-  DEXTM = ((0 << 3) + 1),
-  DEXTU = ((0 << 3) + 2),
-  DEXT = ((0 << 3) + 3),
-  INS = ((0 << 3) + 4),
-  DINSM = ((0 << 3) + 5),
-  DINSU = ((0 << 3) + 6),
-  DINS = ((0 << 3) + 7),
+  EXT = ((0U << 3) + 0),
+  DEXTM = ((0U << 3) + 1),
+  DEXTU = ((0U << 3) + 2),
+  DEXT = ((0U << 3) + 3),
+  INS = ((0U << 3) + 4),
+  DINSM = ((0U << 3) + 5),
+  DINSU = ((0U << 3) + 6),
+  DINS = ((0U << 3) + 7),
 
-  BSHFL = ((4 << 3) + 0),
-  DBSHFL = ((4 << 3) + 4),
+  BSHFL = ((4U << 3) + 0),
+  DBSHFL = ((4U << 3) + 4),
 
   // SPECIAL3 Encoding of sa Field.
-  BITSWAP = ((0 << 3) + 0),
-  ALIGN = ((0 << 3) + 2),
-  WSBH = ((0 << 3) + 2),
-  SEB = ((2 << 3) + 0),
-  SEH = ((3 << 3) + 0),
+  BITSWAP = ((0U << 3) + 0),
+  ALIGN = ((0U << 3) + 2),
+  WSBH = ((0U << 3) + 2),
+  SEB = ((2U << 3) + 0),
+  SEH = ((3U << 3) + 0),
 
-  DBITSWAP = ((0 << 3) + 0),
-  DALIGN = ((0 << 3) + 1),
-  DBITSWAP_SA = ((0 << 3) + 0) << kSaShift,
-  DSBH = ((0 << 3) + 2),
-  DSHD = ((0 << 3) + 5),
+  DBITSWAP = ((0U << 3) + 0),
+  DALIGN = ((0U << 3) + 1),
+  DBITSWAP_SA = ((0U << 3) + 0) << kSaShift,
+  DSBH = ((0U << 3) + 2),
+  DSHD = ((0U << 3) + 5),
 
   // REGIMM  encoding of rt Field.
-  BLTZ = ((0 << 3) + 0) << 16,
-  BGEZ = ((0 << 3) + 1) << 16,
-  BLTZAL = ((2 << 3) + 0) << 16,
-  BGEZAL = ((2 << 3) + 1) << 16,
-  BGEZALL = ((2 << 3) + 3) << 16,
-  DAHI = ((0 << 3) + 6) << 16,
-  DATI = ((3 << 3) + 6) << 16,
+  BLTZ = ((0U << 3) + 0) << 16,
+  BGEZ = ((0U << 3) + 1) << 16,
+  BLTZAL = ((2U << 3) + 0) << 16,
+  BGEZAL = ((2U << 3) + 1) << 16,
+  BGEZALL = ((2U << 3) + 3) << 16,
+  DAHI = ((0U << 3) + 6) << 16,
+  DATI = ((3U << 3) + 6) << 16,
 
   // COP1 Encoding of rs Field.
-  MFC1 = ((0 << 3) + 0) << 21,
-  DMFC1 = ((0 << 3) + 1) << 21,
-  CFC1 = ((0 << 3) + 2) << 21,
-  MFHC1 = ((0 << 3) + 3) << 21,
-  MTC1 = ((0 << 3) + 4) << 21,
-  DMTC1 = ((0 << 3) + 5) << 21,
-  CTC1 = ((0 << 3) + 6) << 21,
-  MTHC1 = ((0 << 3) + 7) << 21,
-  BC1 = ((1 << 3) + 0) << 21,
-  S = ((2 << 3) + 0) << 21,
-  D = ((2 << 3) + 1) << 21,
-  W = ((2 << 3) + 4) << 21,
-  L = ((2 << 3) + 5) << 21,
-  PS = ((2 << 3) + 6) << 21,
+  MFC1 = ((0U << 3) + 0) << 21,
+  DMFC1 = ((0U << 3) + 1) << 21,
+  CFC1 = ((0U << 3) + 2) << 21,
+  MFHC1 = ((0U << 3) + 3) << 21,
+  MTC1 = ((0U << 3) + 4) << 21,
+  DMTC1 = ((0U << 3) + 5) << 21,
+  CTC1 = ((0U << 3) + 6) << 21,
+  MTHC1 = ((0U << 3) + 7) << 21,
+  BC1 = ((1U << 3) + 0) << 21,
+  S = ((2U << 3) + 0) << 21,
+  D = ((2U << 3) + 1) << 21,
+  W = ((2U << 3) + 4) << 21,
+  L = ((2U << 3) + 5) << 21,
+  PS = ((2U << 3) + 6) << 21,
   // COP1 Encoding of Function Field When rs=S.
 
-  ADD_S = ((0 << 3) + 0),
-  SUB_S = ((0 << 3) + 1),
-  MUL_S = ((0 << 3) + 2),
-  DIV_S = ((0 << 3) + 3),
-  ABS_S = ((0 << 3) + 5),
-  SQRT_S = ((0 << 3) + 4),
-  MOV_S = ((0 << 3) + 6),
-  NEG_S = ((0 << 3) + 7),
-  ROUND_L_S = ((1 << 3) + 0),
-  TRUNC_L_S = ((1 << 3) + 1),
-  CEIL_L_S = ((1 << 3) + 2),
-  FLOOR_L_S = ((1 << 3) + 3),
-  ROUND_W_S = ((1 << 3) + 4),
-  TRUNC_W_S = ((1 << 3) + 5),
-  CEIL_W_S = ((1 << 3) + 6),
-  FLOOR_W_S = ((1 << 3) + 7),
-  RECIP_S = ((2 << 3) + 5),
-  RSQRT_S = ((2 << 3) + 6),
-  CLASS_S = ((3 << 3) + 3),
-  CVT_D_S = ((4 << 3) + 1),
-  CVT_W_S = ((4 << 3) + 4),
-  CVT_L_S = ((4 << 3) + 5),
-  CVT_PS_S = ((4 << 3) + 6),
+  ADD_S = ((0U << 3) + 0),
+  SUB_S = ((0U << 3) + 1),
+  MUL_S = ((0U << 3) + 2),
+  DIV_S = ((0U << 3) + 3),
+  ABS_S = ((0U << 3) + 5),
+  SQRT_S = ((0U << 3) + 4),
+  MOV_S = ((0U << 3) + 6),
+  NEG_S = ((0U << 3) + 7),
+  ROUND_L_S = ((1U << 3) + 0),
+  TRUNC_L_S = ((1U << 3) + 1),
+  CEIL_L_S = ((1U << 3) + 2),
+  FLOOR_L_S = ((1U << 3) + 3),
+  ROUND_W_S = ((1U << 3) + 4),
+  TRUNC_W_S = ((1U << 3) + 5),
+  CEIL_W_S = ((1U << 3) + 6),
+  FLOOR_W_S = ((1U << 3) + 7),
+  RECIP_S = ((2U << 3) + 5),
+  RSQRT_S = ((2U << 3) + 6),
+  CLASS_S = ((3U << 3) + 3),
+  CVT_D_S = ((4U << 3) + 1),
+  CVT_W_S = ((4U << 3) + 4),
+  CVT_L_S = ((4U << 3) + 5),
+  CVT_PS_S = ((4U << 3) + 6),
   // COP1 Encoding of Function Field When rs=D.
-  ADD_D = ((0 << 3) + 0),
-  SUB_D = ((0 << 3) + 1),
-  MUL_D = ((0 << 3) + 2),
-  DIV_D = ((0 << 3) + 3),
-  SQRT_D = ((0 << 3) + 4),
-  ABS_D = ((0 << 3) + 5),
-  MOV_D = ((0 << 3) + 6),
-  NEG_D = ((0 << 3) + 7),
-  ROUND_L_D = ((1 << 3) + 0),
-  TRUNC_L_D = ((1 << 3) + 1),
-  CEIL_L_D = ((1 << 3) + 2),
-  FLOOR_L_D = ((1 << 3) + 3),
-  ROUND_W_D = ((1 << 3) + 4),
-  TRUNC_W_D = ((1 << 3) + 5),
-  CEIL_W_D = ((1 << 3) + 6),
-  FLOOR_W_D = ((1 << 3) + 7),
-  RECIP_D = ((2 << 3) + 5),
-  RSQRT_D = ((2 << 3) + 6),
-  CLASS_D = ((3 << 3) + 3),
-  MIN = ((3 << 3) + 4),
-  MINA = ((3 << 3) + 5),
-  MAX = ((3 << 3) + 6),
-  MAXA = ((3 << 3) + 7),
-  CVT_S_D = ((4 << 3) + 0),
-  CVT_W_D = ((4 << 3) + 4),
-  CVT_L_D = ((4 << 3) + 5),
-  C_F_D = ((6 << 3) + 0),
-  C_UN_D = ((6 << 3) + 1),
-  C_EQ_D = ((6 << 3) + 2),
-  C_UEQ_D = ((6 << 3) + 3),
-  C_OLT_D = ((6 << 3) + 4),
-  C_ULT_D = ((6 << 3) + 5),
-  C_OLE_D = ((6 << 3) + 6),
-  C_ULE_D = ((6 << 3) + 7),
+  ADD_D = ((0U << 3) + 0),
+  SUB_D = ((0U << 3) + 1),
+  MUL_D = ((0U << 3) + 2),
+  DIV_D = ((0U << 3) + 3),
+  SQRT_D = ((0U << 3) + 4),
+  ABS_D = ((0U << 3) + 5),
+  MOV_D = ((0U << 3) + 6),
+  NEG_D = ((0U << 3) + 7),
+  ROUND_L_D = ((1U << 3) + 0),
+  TRUNC_L_D = ((1U << 3) + 1),
+  CEIL_L_D = ((1U << 3) + 2),
+  FLOOR_L_D = ((1U << 3) + 3),
+  ROUND_W_D = ((1U << 3) + 4),
+  TRUNC_W_D = ((1U << 3) + 5),
+  CEIL_W_D = ((1U << 3) + 6),
+  FLOOR_W_D = ((1U << 3) + 7),
+  RECIP_D = ((2U << 3) + 5),
+  RSQRT_D = ((2U << 3) + 6),
+  CLASS_D = ((3U << 3) + 3),
+  MIN = ((3U << 3) + 4),
+  MINA = ((3U << 3) + 5),
+  MAX = ((3U << 3) + 6),
+  MAXA = ((3U << 3) + 7),
+  CVT_S_D = ((4U << 3) + 0),
+  CVT_W_D = ((4U << 3) + 4),
+  CVT_L_D = ((4U << 3) + 5),
+  C_F_D = ((6U << 3) + 0),
+  C_UN_D = ((6U << 3) + 1),
+  C_EQ_D = ((6U << 3) + 2),
+  C_UEQ_D = ((6U << 3) + 3),
+  C_OLT_D = ((6U << 3) + 4),
+  C_ULT_D = ((6U << 3) + 5),
+  C_OLE_D = ((6U << 3) + 6),
+  C_ULE_D = ((6U << 3) + 7),
 
   // COP1 Encoding of Function Field When rs=W or L.
-  CVT_S_W = ((4 << 3) + 0),
-  CVT_D_W = ((4 << 3) + 1),
-  CVT_S_L = ((4 << 3) + 0),
-  CVT_D_L = ((4 << 3) + 1),
-  BC1EQZ = ((2 << 2) + 1) << 21,
-  BC1NEZ = ((3 << 2) + 1) << 21,
+  CVT_S_W = ((4U << 3) + 0),
+  CVT_D_W = ((4U << 3) + 1),
+  CVT_S_L = ((4U << 3) + 0),
+  CVT_D_L = ((4U << 3) + 1),
+  BC1EQZ = ((2U << 2) + 1) << 21,
+  BC1NEZ = ((3U << 2) + 1) << 21,
   // COP1 CMP positive predicates Bit 5..4 = 00.
-  CMP_AF = ((0 << 3) + 0),
-  CMP_UN = ((0 << 3) + 1),
-  CMP_EQ = ((0 << 3) + 2),
-  CMP_UEQ = ((0 << 3) + 3),
-  CMP_LT = ((0 << 3) + 4),
-  CMP_ULT = ((0 << 3) + 5),
-  CMP_LE = ((0 << 3) + 6),
-  CMP_ULE = ((0 << 3) + 7),
-  CMP_SAF = ((1 << 3) + 0),
-  CMP_SUN = ((1 << 3) + 1),
-  CMP_SEQ = ((1 << 3) + 2),
-  CMP_SUEQ = ((1 << 3) + 3),
-  CMP_SSLT = ((1 << 3) + 4),
-  CMP_SSULT = ((1 << 3) + 5),
-  CMP_SLE = ((1 << 3) + 6),
-  CMP_SULE = ((1 << 3) + 7),
+  CMP_AF = ((0U << 3) + 0),
+  CMP_UN = ((0U << 3) + 1),
+  CMP_EQ = ((0U << 3) + 2),
+  CMP_UEQ = ((0U << 3) + 3),
+  CMP_LT = ((0U << 3) + 4),
+  CMP_ULT = ((0U << 3) + 5),
+  CMP_LE = ((0U << 3) + 6),
+  CMP_ULE = ((0U << 3) + 7),
+  CMP_SAF = ((1U << 3) + 0),
+  CMP_SUN = ((1U << 3) + 1),
+  CMP_SEQ = ((1U << 3) + 2),
+  CMP_SUEQ = ((1U << 3) + 3),
+  CMP_SSLT = ((1U << 3) + 4),
+  CMP_SSULT = ((1U << 3) + 5),
+  CMP_SLE = ((1U << 3) + 6),
+  CMP_SULE = ((1U << 3) + 7),
   // COP1 CMP negative predicates Bit 5..4 = 01.
-  CMP_AT = ((2 << 3) + 0),  // Reserved, not implemented.
-  CMP_OR = ((2 << 3) + 1),
-  CMP_UNE = ((2 << 3) + 2),
-  CMP_NE = ((2 << 3) + 3),
-  CMP_UGE = ((2 << 3) + 4),  // Reserved, not implemented.
-  CMP_OGE = ((2 << 3) + 5),  // Reserved, not implemented.
-  CMP_UGT = ((2 << 3) + 6),  // Reserved, not implemented.
-  CMP_OGT = ((2 << 3) + 7),  // Reserved, not implemented.
-  CMP_SAT = ((3 << 3) + 0),  // Reserved, not implemented.
-  CMP_SOR = ((3 << 3) + 1),
-  CMP_SUNE = ((3 << 3) + 2),
-  CMP_SNE = ((3 << 3) + 3),
-  CMP_SUGE = ((3 << 3) + 4),  // Reserved, not implemented.
-  CMP_SOGE = ((3 << 3) + 5),  // Reserved, not implemented.
-  CMP_SUGT = ((3 << 3) + 6),  // Reserved, not implemented.
-  CMP_SOGT = ((3 << 3) + 7),  // Reserved, not implemented.
+  CMP_AT = ((2U << 3) + 0),  // Reserved, not implemented.
+  CMP_OR = ((2U << 3) + 1),
+  CMP_UNE = ((2U << 3) + 2),
+  CMP_NE = ((2U << 3) + 3),
+  CMP_UGE = ((2U << 3) + 4),  // Reserved, not implemented.
+  CMP_OGE = ((2U << 3) + 5),  // Reserved, not implemented.
+  CMP_UGT = ((2U << 3) + 6),  // Reserved, not implemented.
+  CMP_OGT = ((2U << 3) + 7),  // Reserved, not implemented.
+  CMP_SAT = ((3U << 3) + 0),  // Reserved, not implemented.
+  CMP_SOR = ((3U << 3) + 1),
+  CMP_SUNE = ((3U << 3) + 2),
+  CMP_SNE = ((3U << 3) + 3),
+  CMP_SUGE = ((3U << 3) + 4),  // Reserved, not implemented.
+  CMP_SOGE = ((3U << 3) + 5),  // Reserved, not implemented.
+  CMP_SUGT = ((3U << 3) + 6),  // Reserved, not implemented.
+  CMP_SOGT = ((3U << 3) + 7),  // Reserved, not implemented.
 
-  SEL = ((2 << 3) + 0),
-  MOVF = ((2 << 3) + 1),      // Function field for MOVT.fmt and MOVF.fmt
-  MOVZ_C = ((2 << 3) + 2),    // COP1 on FPR registers.
-  MOVN_C = ((2 << 3) + 3),    // COP1 on FPR registers.
-  SELEQZ_C = ((2 << 3) + 4),  // COP1 on FPR registers.
-  SELNEZ_C = ((2 << 3) + 7),  // COP1 on FPR registers.
+  SEL = ((2U << 3) + 0),
+  MOVF = ((2U << 3) + 1),      // Function field for MOVT.fmt and MOVF.fmt
+  MOVZ_C = ((2U << 3) + 2),    // COP1 on FPR registers.
+  MOVN_C = ((2U << 3) + 3),    // COP1 on FPR registers.
+  SELEQZ_C = ((2U << 3) + 4),  // COP1 on FPR registers.
+  SELNEZ_C = ((2U << 3) + 7),  // COP1 on FPR registers.
 
   // COP1 Encoding of Function Field When rs=PS.
   // COP1X Encoding of Function Field.
-  MADD_D = ((4 << 3) + 1),
+  MADD_D = ((4U << 3) + 1),
 
   // PCREL Encoding of rt Field.
-  ADDIUPC = ((0 << 2) + 0),
-  LWPC = ((0 << 2) + 1),
-  LWUPC = ((0 << 2) + 2),
-  LDPC = ((0 << 3) + 6),
-  // reserved ((1 << 3) + 6),
-  AUIPC = ((3 << 3) + 6),
-  ALUIPC = ((3 << 3) + 7),
+  ADDIUPC = ((0U << 2) + 0),
+  LWPC = ((0U << 2) + 1),
+  LWUPC = ((0U << 2) + 2),
+  LDPC = ((0U << 3) + 6),
+  // reserved ((1U << 3) + 6),
+  AUIPC = ((3U << 3) + 6),
+  ALUIPC = ((3U << 3) + 7),
 
   // POP66 Encoding of rs Field.
-  JIC = ((0 << 5) + 0),
+  JIC = ((0U << 5) + 0),
 
   // POP76 Encoding of rs Field.
-  JIALC = ((0 << 5) + 0),
+  JIALC = ((0U << 5) + 0),
 
-  NULLSF = 0
+  NULLSF = 0U
 };
 
 
@@ -808,7 +825,12 @@ enum FPURoundingMode {
   kRoundToNearest = RN,
   kRoundToZero = RZ,
   kRoundToPlusInf = RP,
-  kRoundToMinusInf = RM
+  kRoundToMinusInf = RM,
+
+  mode_round = RN,
+  mode_ceil = RP,
+  mode_floor = RM,
+  mode_trunc = RZ
 };
 
 const uint32_t kFPURoundingModeMask = 3 << 0;
@@ -864,6 +886,11 @@ const Instr rtCallRedirInstr = SPECIAL | BREAK | call_rt_redirected << 6;
 // A nop instruction. (Encoding of sll 0 0 0).
 const Instr nopInstr = 0;
 
+static constexpr uint64_t OpcodeToBitNumber(Opcode opcode) {
+  return 1ULL << (static_cast<uint32_t>(opcode) >> kOpcodeShift);
+}
+
+
 class Instruction {
  public:
   enum {
@@ -891,7 +918,7 @@ class Instruction {
 
   // Read a bit field out of the instruction bits.
   inline int Bits(int hi, int lo) const {
-    return (InstructionBits() >> lo) & ((2 << (hi - lo)) - 1);
+    return (InstructionBits() >> lo) & ((2U << (hi - lo)) - 1);
   }
 
   // Instruction type.
@@ -905,10 +932,7 @@ class Instruction {
   enum TypeChecks { NORMAL, EXTRA };
 
 
-#define OpcodeToBitNumber(opcode) \
-  (1ULL << (static_cast<uint32_t>(opcode) >> kOpcodeShift))
-
-  static const uint64_t kOpcodeImmediateTypeMask =
+  static constexpr uint64_t kOpcodeImmediateTypeMask =
       OpcodeToBitNumber(REGIMM) | OpcodeToBitNumber(BEQ) |
       OpcodeToBitNumber(BNE) | OpcodeToBitNumber(BLEZ) |
       OpcodeToBitNumber(BGTZ) | OpcodeToBitNumber(ADDI) |
@@ -927,7 +951,7 @@ class Instruction {
       OpcodeToBitNumber(SWR) | OpcodeToBitNumber(LWC1) |
       OpcodeToBitNumber(LDC1) | OpcodeToBitNumber(SWC1) |
       OpcodeToBitNumber(SDC1) | OpcodeToBitNumber(PCREL) |
-      OpcodeToBitNumber(BC) | OpcodeToBitNumber(BALC);
+      OpcodeToBitNumber(DAUI) | OpcodeToBitNumber(BC) | OpcodeToBitNumber(BALC);
 
 #define FunctionFieldToBitNumber(function) (1ULL << function)
 
@@ -942,6 +966,7 @@ class Instruction {
       FunctionFieldToBitNumber(SLLV) | FunctionFieldToBitNumber(DSLLV) |
       FunctionFieldToBitNumber(SRLV) | FunctionFieldToBitNumber(DSRLV) |
       FunctionFieldToBitNumber(SRAV) | FunctionFieldToBitNumber(DSRAV) |
+      FunctionFieldToBitNumber(LSA) | FunctionFieldToBitNumber(DLSA) |
       FunctionFieldToBitNumber(MFHI) | FunctionFieldToBitNumber(MFLO) |
       FunctionFieldToBitNumber(MULT) | FunctionFieldToBitNumber(DMULT) |
       FunctionFieldToBitNumber(MULTU) | FunctionFieldToBitNumber(DMULTU) |
@@ -992,6 +1017,11 @@ class Instruction {
   inline int SaValue() const {
     DCHECK(InstructionType() == kRegisterType);
     return Bits(kSaShift + kSaBits - 1, kSaShift);
+  }
+
+  inline int LsaSaValue() const {
+    DCHECK(InstructionType() == kRegisterType);
+    return Bits(kSaShift + kLsaSaBits - 1, kSaShift);
   }
 
   inline int FunctionValue() const {
@@ -1092,6 +1122,11 @@ class Instruction {
     }
   }
 
+  inline int32_t ImmValue(int bits) const {
+    DCHECK(InstructionType() == kImmediateType);
+    return Bits(bits - 1, 0);
+  }
+
   inline int32_t Imm16Value() const {
     DCHECK(InstructionType() == kImmediateType);
     return Bits(kImm16Shift + kImm16Bits - 1, kImm16Shift);
@@ -1118,8 +1153,14 @@ class Instruction {
     return Bits(kImm26Shift + kImm26Bits - 1, kImm26Shift);
   }
 
-  // Say if the instruction should not be used in a branch delay slot.
-  bool IsForbiddenInBranchDelay() const;
+  static bool IsForbiddenAfterBranchInstr(Instr instr);
+
+  // Say if the instruction should not be used in a branch delay slot or
+  // immediately after a compact branch.
+  inline bool IsForbiddenAfterBranch() const {
+    return IsForbiddenAfterBranchInstr(InstructionBits());
+  }
+
   // Say if the instruction 'links'. e.g. jal, bal.
   bool IsLinkingInstruction() const;
   // Say if the instruction is a break or a trap.
@@ -1187,6 +1228,8 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
         case INS:
         case EXT:
         case DEXT:
+        case DEXTM:
+        case DEXTU:
           return kRegisterType;
         case BSHFL: {
           int sa = SaFieldRaw() >> kSaShift;

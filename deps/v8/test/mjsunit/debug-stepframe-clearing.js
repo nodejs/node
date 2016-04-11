@@ -48,7 +48,7 @@ function listener(event, exec_state, event_data, data) {
     if (break_count >= 0 && break_count < 2) {
       // 0, 1: Keep stepping through frames.
       assertEquals(break_count, match_value);
-      exec_state.prepareStep(Debug.StepAction.StepFrame, 1);
+      exec_state.prepareStep(Debug.StepAction.StepFrame);
     } else if (break_count === 2) {
       // 2: let the code run to a breakpoint we set. The load should
       // go monomorphic.
@@ -58,7 +58,7 @@ function listener(event, exec_state, event_data, data) {
       // call still have the ability to break like before?
       assertEquals(break_count, match_value);
       Debug.clearBreakPoint(bp_f1_line7);
-      exec_state.prepareStep(Debug.StepAction.StepFrame, 1);
+      exec_state.prepareStep(Debug.StepAction.StepFrame);
     } else {
       assertEquals(4, break_count);
       assertEquals(2, match_value);

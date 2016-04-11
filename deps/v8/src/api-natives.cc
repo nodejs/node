@@ -438,8 +438,16 @@ void ApiNatives::AddNativeDataProperty(Isolate* isolate,
 Handle<JSFunction> ApiNatives::CreateApiFunction(
     Isolate* isolate, Handle<FunctionTemplateInfo> obj,
     Handle<Object> prototype, ApiInstanceType instance_type) {
-  Handle<Code> code = isolate->builtins()->HandleApiCall();
-  Handle<Code> construct_stub = isolate->builtins()->JSConstructStubApi();
+  Handle<Code> code;
+  if (obj->call_code()->IsCallHandlerInfo() &&
+      CallHandlerInfo::cast(obj->call_code())->fast_handler()->IsCode()) {
+    code = isolate->builtins()->HandleFastApiCall();
+  } else {
+    code = isolate->builtins()->HandleApiCall();
+  }
+  Handle<Code> construct_stub =
+      prototype.is_null() ? isolate->builtins()->ConstructedNonConstructable()
+                          : isolate->builtins()->JSConstructStubApi();
 
   obj->set_instantiated(true);
   Handle<JSFunction> result;
@@ -540,7 +548,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   // Mark instance as callable in the map.
   if (!obj->instance_call_handler()->IsUndefined()) {
     map->set_is_callable();
-    map->set_is_constructor(true);
+    map->set_is_constructor();
   }
 
   // Recursively copy parent instance templates' accessors,

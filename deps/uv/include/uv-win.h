@@ -634,11 +634,6 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   struct uv_req_s signal_req;                                                 \
   unsigned long pending_signum;
 
-int uv_utf16_to_utf8(const WCHAR* utf16Buffer, size_t utf16Size,
-    char* utf8Buffer, size_t utf8Size);
-int uv_utf8_to_utf16(const char* utf8Buffer, WCHAR* utf16Buffer,
-    size_t utf16Size);
-
 #ifndef F_OK
 #define F_OK 0
 #endif

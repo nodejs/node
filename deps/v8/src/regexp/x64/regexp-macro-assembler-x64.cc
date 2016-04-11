@@ -64,7 +64,8 @@ namespace internal {
  *    - backup of callee save registers (rbx, possibly rsi and rdi).
  *    - success counter      (only useful for global regexp to count matches)
  *    - Offset of location before start of input (effectively character
- *      position -1).  Used to initialize capture registers to a non-position.
+ *      string start - 1).  Used to initialize capture registers to a
+ *      non-position.
  *    - At start of string (if 1, we are starting at the start of the
  *      string, otherwise 0)
  *    - register 0  rbp[-n]   (Only positions must be stored in the first
@@ -94,7 +95,7 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone,
                                                  Mode mode,
                                                  int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(isolate, NULL, kRegExpCodeSize),
+      masm_(isolate, NULL, kRegExpCodeSize, CodeObjectRequired::kYes),
       no_root_array_scope_(&masm_),
       code_relative_fixup_positions_(4, zone),
       mode_(mode),
@@ -171,25 +172,16 @@ void RegExpMacroAssemblerX64::CheckCharacterGT(uc16 limit, Label* on_greater) {
 
 
 void RegExpMacroAssemblerX64::CheckAtStart(Label* on_at_start) {
-  Label not_at_start;
-  // Did we start the match at the start of the string at all?
-  __ cmpl(Operand(rbp, kStartIndex), Immediate(0));
-  BranchOrBacktrack(not_equal, &not_at_start);
-  // If we did, are we still at the start of the input?
-  __ leap(rax, Operand(rsi, rdi, times_1, 0));
-  __ cmpp(rax, Operand(rbp, kInputStart));
+  __ leap(rax, Operand(rdi, -char_size()));
+  __ cmpp(rax, Operand(rbp, kStringStartMinusOne));
   BranchOrBacktrack(equal, on_at_start);
-  __ bind(&not_at_start);
 }
 
 
-void RegExpMacroAssemblerX64::CheckNotAtStart(Label* on_not_at_start) {
-  // Did we start the match at the start of the string at all?
-  __ cmpl(Operand(rbp, kStartIndex), Immediate(0));
-  BranchOrBacktrack(not_equal, on_not_at_start);
-  // If we did, are we still at the start of the input?
-  __ leap(rax, Operand(rsi, rdi, times_1, 0));
-  __ cmpp(rax, Operand(rbp, kInputStart));
+void RegExpMacroAssemblerX64::CheckNotAtStart(int cp_offset,
+                                              Label* on_not_at_start) {
+  __ leap(rax, Operand(rdi, -char_size() + cp_offset * char_size()));
+  __ cmpp(rax, Operand(rbp, kStringStartMinusOne));
   BranchOrBacktrack(not_equal, on_not_at_start);
 }
 
@@ -211,8 +203,7 @@ void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
 
 
 void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
-    int start_reg,
-    Label* on_no_match) {
+    int start_reg, bool read_backward, Label* on_no_match) {
   Label fallthrough;
   ReadPositionFromRegister(rdx, start_reg);  // Offset of start of capture
   ReadPositionFromRegister(rbx, start_reg + 1);  // Offset of end of capture
@@ -222,23 +213,25 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
   // rdx  = Start offset of capture.
   // rbx = Length of capture
 
-  // If length is negative, this code will fail (it's a symptom of a partial or
-  // illegal capture where start of capture after end of capture).
-  // This must not happen (no back-reference can reference a capture that wasn't
-  // closed before in the reg-exp, and we must not generate code that can cause
-  // this condition).
-
-  // If length is zero, either the capture is empty or it is nonparticipating.
-  // In either case succeed immediately.
+  // At this point, the capture registers are either both set or both cleared.
+  // If the capture length is zero, then the capture is either empty or cleared.
+  // Fall through in both cases.
   __ j(equal, &fallthrough);
 
   // -----------------------
   // rdx - Start of capture
   // rbx - length of capture
   // Check that there are sufficient characters left in the input.
-  __ movl(rax, rdi);
-  __ addl(rax, rbx);
-  BranchOrBacktrack(greater, on_no_match);
+  if (read_backward) {
+    __ movl(rax, Operand(rbp, kStringStartMinusOne));
+    __ addl(rax, rbx);
+    __ cmpl(rdi, rax);
+    BranchOrBacktrack(less_equal, on_no_match);
+  } else {
+    __ movl(rax, rdi);
+    __ addl(rax, rbx);
+    BranchOrBacktrack(greater, on_no_match);
+  }
 
   if (mode_ == LATIN1) {
     Label loop_increment;
@@ -248,6 +241,9 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 
     __ leap(r9, Operand(rsi, rdx, times_1, 0));
     __ leap(r11, Operand(rsi, rdi, times_1, 0));
+    if (read_backward) {
+      __ subp(r11, rbx);  // Offset by length when matching backwards.
+    }
     __ addp(rbx, r9);  // End of capture
     // ---------------------
     // r11 - current input character address
@@ -290,6 +286,11 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Compute new value of character position after the matched part.
     __ movp(rdi, r11);
     __ subq(rdi, rsi);
+    if (read_backward) {
+      // Subtract match length if we matched backward.
+      __ addq(rdi, register_location(start_reg));
+      __ subq(rdi, register_location(start_reg + 1));
+    }
   } else {
     DCHECK(mode_ == UC16);
     // Save important/volatile registers before calling C function.
@@ -313,6 +314,9 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ leap(rcx, Operand(rsi, rdx, times_1, 0));
     // Set byte_offset2.
     __ leap(rdx, Operand(rsi, rdi, times_1, 0));
+    if (read_backward) {
+      __ subq(rdx, rbx);
+    }
     // Set byte_length.
     __ movp(r8, rbx);
     // Isolate.
@@ -324,6 +328,9 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ leap(rdi, Operand(rsi, rdx, times_1, 0));
     // Set byte_offset2.
     __ movp(rsi, rax);
+    if (read_backward) {
+      __ subq(rsi, rbx);
+    }
     // Set byte_length.
     __ movp(rdx, rbx);
     // Isolate.
@@ -349,17 +356,21 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Check if function returned non-zero for success or zero for failure.
     __ testp(rax, rax);
     BranchOrBacktrack(zero, on_no_match);
-    // On success, increment position by length of capture.
+    // On success, advance position by length of capture.
     // Requires that rbx is callee save (true for both Win64 and AMD64 ABIs).
-    __ addq(rdi, rbx);
+    if (read_backward) {
+      __ subq(rdi, rbx);
+    } else {
+      __ addq(rdi, rbx);
+    }
   }
   __ bind(&fallthrough);
 }
 
 
-void RegExpMacroAssemblerX64::CheckNotBackReference(
-    int start_reg,
-    Label* on_no_match) {
+void RegExpMacroAssemblerX64::CheckNotBackReference(int start_reg,
+                                                    bool read_backward,
+                                                    Label* on_no_match) {
   Label fallthrough;
 
   // Find length of back-referenced capture.
@@ -367,25 +378,31 @@ void RegExpMacroAssemblerX64::CheckNotBackReference(
   ReadPositionFromRegister(rax, start_reg + 1);  // Offset of end of capture
   __ subp(rax, rdx);  // Length to check.
 
-  // Fail on partial or illegal capture (start of capture after end of capture).
-  // This must not happen (no back-reference can reference a capture that wasn't
-  // closed before in the reg-exp).
-  __ Check(greater_equal, kInvalidCaptureReferenced);
-
-  // Succeed on empty capture (including non-participating capture)
+  // At this point, the capture registers are either both set or both cleared.
+  // If the capture length is zero, then the capture is either empty or cleared.
+  // Fall through in both cases.
   __ j(equal, &fallthrough);
 
   // -----------------------
   // rdx - Start of capture
   // rax - length of capture
-
   // Check that there are sufficient characters left in the input.
-  __ movl(rbx, rdi);
-  __ addl(rbx, rax);
-  BranchOrBacktrack(greater, on_no_match);
+  if (read_backward) {
+    __ movl(rbx, Operand(rbp, kStringStartMinusOne));
+    __ addl(rbx, rax);
+    __ cmpl(rdi, rbx);
+    BranchOrBacktrack(less_equal, on_no_match);
+  } else {
+    __ movl(rbx, rdi);
+    __ addl(rbx, rax);
+    BranchOrBacktrack(greater, on_no_match);
+  }
 
   // Compute pointers to match string and capture string
   __ leap(rbx, Operand(rsi, rdi, times_1, 0));  // Start of match.
+  if (read_backward) {
+    __ subq(rbx, rax);  // Offset by length when matching backwards.
+  }
   __ addp(rdx, rsi);  // Start of capture.
   __ leap(r9, Operand(rdx, rax, times_1, 0));  // End of capture
 
@@ -416,6 +433,11 @@ void RegExpMacroAssemblerX64::CheckNotBackReference(
   // Set current character position to position after match.
   __ movp(rdi, rbx);
   __ subq(rdi, rsi);
+  if (read_backward) {
+    // Subtract match length if we matched backward.
+    __ addq(rdi, register_location(start_reg));
+    __ subq(rdi, register_location(start_reg + 1));
+  }
 
   __ bind(&fallthrough);
 }
@@ -682,7 +704,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #endif
 
   __ Push(Immediate(0));  // Number of successful matches in a global regexp.
-  __ Push(Immediate(0));  // Make room for "input start - 1" constant.
+  __ Push(Immediate(0));  // Make room for "string start - 1" constant.
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
@@ -732,7 +754,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   }
   // Store this value in a local variable, for use when clearing
   // position registers.
-  __ movp(Operand(rbp, kInputStartMinusOne), rax);
+  __ movp(Operand(rbp, kStringStartMinusOne), rax);
 
 #if V8_OS_WIN
   // Ensure that we have written to each stack page, in order. Skipping a page
@@ -835,7 +857,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
               Immediate(num_saved_registers_ * kIntSize));
 
       // Prepare rax to initialize registers with its value in the next run.
-      __ movp(rax, Operand(rbp, kInputStartMinusOne));
+      __ movp(rax, Operand(rbp, kStringStartMinusOne));
 
       if (global_with_zero_length_check()) {
         // Special case for zero-length matches.
@@ -1018,10 +1040,13 @@ void RegExpMacroAssemblerX64::LoadCurrentCharacter(int cp_offset,
                                                    Label* on_end_of_input,
                                                    bool check_bounds,
                                                    int characters) {
-  DCHECK(cp_offset >= -1);      // ^ and \b can look behind one character.
   DCHECK(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
   if (check_bounds) {
-    CheckPosition(cp_offset + characters - 1, on_end_of_input);
+    if (cp_offset >= 0) {
+      CheckPosition(cp_offset + characters - 1, on_end_of_input);
+    } else {
+      CheckPosition(cp_offset, on_end_of_input);
+    }
   }
   LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
@@ -1124,7 +1149,7 @@ void RegExpMacroAssemblerX64::WriteCurrentPositionToRegister(int reg,
 
 void RegExpMacroAssemblerX64::ClearRegisters(int reg_from, int reg_to) {
   DCHECK(reg_from <= reg_to);
-  __ movp(rax, Operand(rbp, kInputStartMinusOne));
+  __ movp(rax, Operand(rbp, kStringStartMinusOne));
   for (int reg = reg_from; reg <= reg_to; reg++) {
     __ movp(register_location(reg), rax);
   }
@@ -1205,8 +1230,14 @@ Operand RegExpMacroAssemblerX64::register_location(int register_index) {
 
 void RegExpMacroAssemblerX64::CheckPosition(int cp_offset,
                                             Label* on_outside_input) {
-  __ cmpl(rdi, Immediate(-cp_offset * char_size()));
-  BranchOrBacktrack(greater_equal, on_outside_input);
+  if (cp_offset >= 0) {
+    __ cmpl(rdi, Immediate(-cp_offset * char_size()));
+    BranchOrBacktrack(greater_equal, on_outside_input);
+  } else {
+    __ leap(rax, Operand(rdi, cp_offset * char_size()));
+    __ cmpp(rax, Operand(rbp, kStringStartMinusOne));
+    BranchOrBacktrack(less_equal, on_outside_input);
+  }
 }
 
 

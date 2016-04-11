@@ -18,6 +18,7 @@ class DateCache {
   static const int kMsPerMin = 60 * 1000;
   static const int kSecPerDay = 24 * 60 * 60;
   static const int64_t kMsPerDay = kSecPerDay * 1000;
+  static const int64_t kMsPerMonth = kMsPerDay * 30;
 
   // The largest time that can be passed to OS date-time library functions.
   static const int kMaxEpochTimeInSec = kMaxInt;
@@ -30,8 +31,7 @@ class DateCache {
 
   // Conservative upper bound on time that can be stored in JSDate
   // before UTC conversion.
-  static const int64_t kMaxTimeBeforeUTCInMs =
-      kMaxTimeInMs + 10 * kMsPerDay;
+  static const int64_t kMaxTimeBeforeUTCInMs = kMaxTimeInMs + kMsPerMonth;
 
   // Sentinel that denotes an invalid local offset.
   static const int kInvalidLocalOffsetInMs = kMaxInt;
@@ -189,6 +189,10 @@ class DateCache {
   // Computes the number of days since the epoch for
   // the first day of the given month in the given year.
   int DaysFromYearMonth(int year, int month);
+
+  // Breaks down the time value.
+  void BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
+                     int* weekday, int* hour, int* min, int* sec, int* ms);
 
   // Cache stamp is used for invalidating caches in JSDate.
   // We increment the stamp each time when the timezone information changes.

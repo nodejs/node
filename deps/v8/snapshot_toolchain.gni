@@ -34,10 +34,10 @@
 if (host_cpu == "x64" && host_os == "linux") {
   if (target_cpu == "arm" || target_cpu == "mipsel" || target_cpu == "x86") {
     snapshot_toolchain = "//build/toolchain/linux:clang_x86"
-  } else if (target_cpu == "x64") {
+  } else if (target_cpu == "x64" || target_cpu == "arm64" || target_cpu == "mips64el") {
     snapshot_toolchain = "//build/toolchain/linux:clang_x64"
   } else {
-    assert(false, "Need environment for this arch")
+    assert(false, "Need environment for this arch: $target_cpu")
   }
 } else {
   snapshot_toolchain = default_toolchain

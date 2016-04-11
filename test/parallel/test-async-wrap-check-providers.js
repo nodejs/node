@@ -11,6 +11,7 @@ const tls = require('tls');
 const zlib = require('zlib');
 const ChildProcess = require('child_process').ChildProcess;
 const StreamWrap = require('_stream_wrap').StreamWrap;
+const HTTPParser = process.binding('http_parser').HTTPParser;
 const async_wrap = process.binding('async_wrap');
 const pkeys = Object.keys(async_wrap.Providers);
 
@@ -18,14 +19,24 @@ let keyList = pkeys.slice();
 // Drop NONE
 keyList.splice(0, 1);
 
+// fs-watch currently needs special configuration on AIX and we
+// want to improve under https://github.com/nodejs/node/issues/5085.
+// strip out fs watch related parts for now
+if (common.isAix) {
+  for (var i = 0; i < keyList.length; i++) {
+    if ((keyList[i] === 'FSEVENTWRAP') || (keyList[i] === 'STATWATCHER')) {
+      keyList.splice(i, 1);
+    }
+  }
+}
 
-function init(id) {
-  keyList = keyList.filter((e) => e != pkeys[id]);
+function init(id, provider) {
+  keyList = keyList.filter((e) => e != pkeys[provider]);
 }
 
 function noop() { }
 
-async_wrap.setupHooks(init, noop, noop);
+async_wrap.setupHooks({ init });
 
 async_wrap.enable();
 
@@ -33,9 +44,15 @@ async_wrap.enable();
 setTimeout(function() { });
 
 fs.stat(__filename, noop);
-fs.watchFile(__filename, noop);
-fs.unwatchFile(__filename);
-fs.watch(__filename).close();
+
+if (!common.isAix) {
+  // fs-watch currently needs special configuration on AIX and we
+  // want to improve under https://github.com/nodejs/node/issues/5085.
+  // strip out fs watch related parts for now
+  fs.watchFile(__filename, noop);
+  fs.unwatchFile(__filename);
+  fs.watch(__filename).close();
+}
 
 dns.lookup('localhost', noop);
 dns.lookupService('::', 0, noop);
@@ -64,7 +81,7 @@ net.createServer(function(c) {
 });
 
 dgram.createSocket('udp4').bind(common.PORT, function() {
-  this.send(new Buffer(2), 0, 2, common.PORT, '::', () => {
+  this.send(Buffer.allocUnsafe(2), 0, 2, common.PORT, '::', () => {
     this.close();
   });
 });
@@ -89,6 +106,8 @@ function checkTLS() {
 zlib.createGzip();
 
 new ChildProcess();
+
+new HTTPParser(HTTPParser.REQUEST);
 
 process.on('exit', function() {
   if (keyList.length !== 0) {

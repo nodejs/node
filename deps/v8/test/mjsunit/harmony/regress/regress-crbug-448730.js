@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --harmony-proxies
 
 function bar() {}
-bar({ a: Proxy.create({}) });
+bar({ a: new Proxy({}, {}) });
 function foo(x) { x.a.b == ""; }
 var x = {a: {b: "" }};
 foo(x);

@@ -394,7 +394,7 @@ Causes npm to install the package into your local `node_modules` folder with
 the same layout it uses with the global `node_modules` folder.  Only your
 direct dependencies will show in `node_modules` and everything they depend
 on will be flattened in their `node_modules` folders.  This obviously will
-elminate some deduping. If used with `legacy-bundling`, `legacy-bundling` will be
+eliminate some deduping. If used with `legacy-bundling`, `legacy-bundling` will be
 preferred.
 
 ### group
@@ -570,6 +570,14 @@ colored output if it is a TTY.
 * Type: Boolean
 
 Show extended information in `npm ls` and `npm search`.
+
+### maxsockets
+
+* Default: 50
+* Type: Number
+
+The maximum number of connections to use per origin (protocol/host/port
+combination). Passed to the `http` `Agent` used to make the request.
 
 ### message
 

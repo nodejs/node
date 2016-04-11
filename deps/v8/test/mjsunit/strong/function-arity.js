@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --strong-mode --harmony-reflect
-// Flags: --harmony-rest-parameters --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 'use strict';
 

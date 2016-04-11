@@ -7,9 +7,9 @@
 #include "src/arguments.h"
 #include "src/char-predicates-inl.h"
 #include "src/isolate-inl.h"
-#include "src/json-parser.h"
 #include "src/json-stringifier.h"
 #include "src/objects-inl.h"
+#include "src/parsing/json-parser.h"
 
 namespace v8 {
 namespace internal {

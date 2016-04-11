@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
@@ -14,7 +11,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/pipeline.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -22,55 +19,13 @@ namespace internal {
 namespace compiler {
 
 
-TEST(RunOptimizedMathFloorStub) {
-  HandleAndZoneScope scope;
-  Isolate* isolate = scope.main_isolate();
-
-  // Create code and an accompanying descriptor.
-  MathFloorStub stub(isolate, TurboFanIC::CALL_FROM_OPTIMIZED_CODE);
-  Handle<Code> code = stub.GenerateCode();
-  Zone* zone = scope.main_zone();
-  CompilationInfo info(&stub, isolate, zone);
-  CallDescriptor* descriptor = Linkage::ComputeIncoming(zone, &info);
-  Handle<FixedArray> tv = isolate->factory()->NewFixedArray(10);
-
-  // Create a function to call the code using the descriptor.
-  Graph graph(zone);
-  CommonOperatorBuilder common(zone);
-  JSOperatorBuilder javascript(zone);
-  MachineOperatorBuilder machine(zone);
-  JSGraph js(isolate, &graph, &common, &javascript, nullptr, &machine);
-
-  // FunctionTester (ab)uses a 2-argument function
-  Node* start = graph.NewNode(common.Start(4));
-  // Parameter 0 is the number to round
-  Node* numberParam = graph.NewNode(common.Parameter(1), start);
-  Node* theCode = graph.NewNode(common.HeapConstant(code));
-  Node* vector = graph.NewNode(common.HeapConstant(tv));
-  Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
-  Node* call =
-      graph.NewNode(common.Call(descriptor), theCode, js.UndefinedConstant(),
-                    js.OneConstant(), vector, js.UndefinedConstant(),
-                    numberParam, dummyContext, start, start);
-  Node* ret = graph.NewNode(common.Return(), call, call, start);
-  Node* end = graph.NewNode(common.End(1), ret);
-  graph.SetStart(start);
-  graph.SetEnd(end);
-  FunctionTester ft(&graph);
-
-  Handle<Object> value = ft.Val(1.5);
-  Handle<Object> result = ft.Call(value, value).ToHandleChecked();
-  CHECK_EQ(1, Smi::cast(*result)->value());
-}
-
-
-TEST(RunStringLengthTFStub) {
+TEST(RunStringLengthStub) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Zone* zone = scope.main_zone();
 
   // Create code and an accompanying descriptor.
-  StringLengthTFStub stub(isolate);
+  StringLengthStub stub(isolate);
   Handle<Code> code = stub.GenerateCode();
   CompilationInfo info(&stub, isolate, zone);
   CallDescriptor* descriptor = Linkage::ComputeIncoming(zone, &info);
@@ -94,7 +49,7 @@ TEST(RunStringLengthTFStub) {
   Node* end = graph.NewNode(common.End(1), ret);
   graph.SetStart(start);
   graph.SetEnd(end);
-  FunctionTester ft(&graph);
+  FunctionTester ft(&graph, 4);
 
   // Actuall call through to the stub, verifying its result.
   const char* testString = "Und das Lamm schrie HURZ!";
@@ -108,42 +63,6 @@ TEST(RunStringLengthTFStub) {
   CHECK_EQ(static_cast<int>(strlen(testString)), Smi::cast(*result)->value());
 }
 
-
-TEST(RunStringAddTFStub) {
-  HandleAndZoneScope scope;
-  Isolate* isolate = scope.main_isolate();
-  Zone* zone = scope.main_zone();
-
-  // Create code and an accompanying descriptor.
-  StringAddTFStub stub(isolate, STRING_ADD_CHECK_BOTH, NOT_TENURED);
-  Handle<Code> code = stub.GenerateCode();
-  CompilationInfo info(&stub, isolate, zone);
-  CallDescriptor* descriptor = Linkage::ComputeIncoming(zone, &info);
-
-  // Create a function to call the code using the descriptor.
-  Graph graph(zone);
-  CommonOperatorBuilder common(zone);
-  // FunctionTester (ab)uses a 2-argument function
-  Node* start = graph.NewNode(common.Start(4));
-  // Parameter 0 is the receiver
-  Node* leftParam = graph.NewNode(common.Parameter(1), start);
-  Node* rightParam = graph.NewNode(common.Parameter(2), start);
-  Node* theCode = graph.NewNode(common.HeapConstant(code));
-  Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
-  Node* call = graph.NewNode(common.Call(descriptor), theCode, leftParam,
-                             rightParam, dummyContext, start, start);
-  Node* ret = graph.NewNode(common.Return(), call, call, start);
-  Node* end = graph.NewNode(common.End(1), ret);
-  graph.SetStart(start);
-  graph.SetEnd(end);
-  FunctionTester ft(&graph);
-
-  // Actuall call through to the stub, verifying its result.
-  Handle<String> leftArg = ft.Val("links");
-  Handle<String> rightArg = ft.Val("rechts");
-  Handle<Object> result = ft.Call(leftArg, rightArg).ToHandleChecked();
-  CHECK(String::Equals(ft.Val("linksrechts"), Handle<String>::cast(result)));
-}
 
 }  // namespace compiler
 }  // namespace internal

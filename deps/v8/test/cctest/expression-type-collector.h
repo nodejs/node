@@ -5,7 +5,7 @@
 #ifndef V8_EXPRESSION_TYPE_COLLECTOR_H_
 #define V8_EXPRESSION_TYPE_COLLECTOR_H_
 
-#include "src/ast-expression-visitor.h"
+#include "src/ast/ast-expression-visitor.h"
 
 namespace v8 {
 namespace internal {

@@ -34,25 +34,7 @@ MaybeHandle<Context> JSContextSpecialization::GetSpecializationContext(
   DCHECK(node->opcode() == IrOpcode::kJSLoadContext ||
          node->opcode() == IrOpcode::kJSStoreContext);
   Node* const object = NodeProperties::GetValueInput(node, 0);
-  switch (object->opcode()) {
-    case IrOpcode::kHeapConstant:
-      return Handle<Context>::cast(OpParameter<Handle<HeapObject>>(object));
-    case IrOpcode::kParameter: {
-      Node* const start = NodeProperties::GetValueInput(object, 0);
-      DCHECK_EQ(IrOpcode::kStart, start->opcode());
-      int const index = ParameterIndexOf(object->op());
-      // The context is always the last parameter to a JavaScript function, and
-      // {Parameter} indices start at -1, so value outputs of {Start} look like
-      // this: closure, receiver, param0, ..., paramN, context.
-      if (index == start->op()->ValueOutputCount() - 2) {
-        return context();
-      }
-      break;
-    }
-    default:
-      break;
-  }
-  return MaybeHandle<Context>();
+  return NodeProperties::GetSpecializationContext(object, context());
 }
 
 
@@ -95,9 +77,6 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
   // Success. The context load can be replaced with the constant.
   // TODO(titzer): record the specialization for sharing code across multiple
   // contexts that have the same value in the corresponding context slot.
-  if (value->IsConsString()) {
-    value = String::Flatten(Handle<String>::cast(value), TENURED);
-  }
   Node* constant = jsgraph_->Constant(value);
   ReplaceWithValue(node, constant);
   return Replace(constant);

@@ -16,6 +16,7 @@ module.exports = function(context) {
 
         "BinaryExpression": function(node) {
             var operators = ["===", "==", "!==", "!=", ">", "<", ">=", "<="];
+
             if (operators.indexOf(node.operator) > -1 &&
                 (node.left.type === "Identifier" && node.right.type === "Identifier" && node.left.name === node.right.name ||
                 node.left.type === "Literal" && node.right.type === "Literal" && node.left.value === node.right.value)) {

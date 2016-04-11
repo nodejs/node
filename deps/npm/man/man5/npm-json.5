@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "January 2016" "" ""
+.TH "PACKAGE\.JSON" "5" "March 2016" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -130,7 +130,7 @@ expression syntax version 2\.0 string \fIhttps://npmjs\.com/package/spdx\fR, lik
 .RE
 .P
 If you are using a license that hasn't been assigned an SPDX identifier, or if
-you are using a custom license, use the following valid SPDX expression:
+you are using a custom license, use a string value like this one:
 .P
 .RS 2
 .nf
@@ -227,13 +227,17 @@ Certain files are always included, regardless of settings:
 .IP \(bu 2
 \fBpackage\.json\fP
 .IP \(bu 2
-\fBREADME\fP (and its variants)
+\fBREADME\fP
 .IP \(bu 2
-\fBCHANGELOG\fP (and its variants)
+\fBCHANGES\fP / \fBCHANGELOG\fP / \fBHISTORY\fP
 .IP \(bu 2
 \fBLICENSE\fP / \fBLICENCE\fP
+.IP \(bu 2
+The file in the "main" field
 
 .RE
+.P
+\fBREADME\fP, \fBCHANGES\fP & \fBLICENSE\fP can have any case and extension\.
 .P
 Conversely, some files are always ignored:
 .RS 0
@@ -250,13 +254,15 @@ Conversely, some files are always ignored:
 .IP \(bu 2
 \fB\|\.wafpickle\-N\fP
 .IP \(bu 2
-\fB*\.swp\fP
+\fB\|\.*\.swp\fP
 .IP \(bu 2
 \fB\|\.DS_Store\fP
 .IP \(bu 2
 \fB\|\._*\fP
 .IP \(bu 2
 \fBnpm\-debug\.log\fP
+.IP \(bu 2
+\fB\|\.npmrc\fP
 
 .RE
 .SH main
@@ -395,6 +401,10 @@ maybe, someday\.
 .SS directories\.example
 .P
 Put example scripts in here\.  Someday, it might be exposed in some clever way\.
+.SS directories\.test
+.P
+Put your tests in here\. It is currently not exposed, but it might be in the
+future\.
 .SH repository
 .P
 Specify the place where your code lives\. This is helpful for people who
@@ -692,7 +702,34 @@ with every 1\.x version of the host package, use \fB"^1\.0"\fP or \fB"1\.x"\fP t
 this\. If you depend on features introduced in 1\.5\.2, use \fB">= 1\.5\.2 < 2"\fP\|\.
 .SH bundledDependencies
 .P
-Array of package names that will be bundled when publishing the package\.
+This defines an array of package names that will be bundled when publishing
+the package\.
+.P
+In cases where you need to preserve npm packages locally or have them
+available through a single file download, you can bundle the packages in a
+tarball file by specifying the package names in the \fBbundledDependencies\fP
+array and executing \fBnpm pack\fP\|\.
+.P
+For example:
+.P
+If we define a package\.json like this:
+.P
+.RS 2
+.nf
+{
+  "name": "awesome\-web\-framework",
+  "version": "1\.0\.0",
+  "bundledDependencies": [
+    'renderized', 'super\-streams'
+  ]
+}
+.fi
+.RE
+.P
+we can obtain \fBawesome\-web\-framework\-1\.0\.0\.tgz\fP file by running \fBnpm pack\fP\|\.
+This file contains the dependencies \fBrenderized\fP and \fBsuper\-streams\fP which
+can be installed in a new project by executing \fBnpm install
+awesome\-web\-framework\-1\.0\.0\.tgz\fP\|\.
 .P
 If this is spelled \fB"bundleDependencies"\fP, then that is also honored\.
 .SH optionalDependencies

@@ -24,6 +24,7 @@ function emitComments(comments, emitter, locs, eventName) {
     if (comments.length > 0) {
         comments.forEach(function(node) {
             var index = locs.indexOf(node.loc);
+
             if (index >= 0) {
                 locs.splice(index, 1);
             } else {

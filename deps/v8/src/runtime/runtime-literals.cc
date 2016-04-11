@@ -6,9 +6,9 @@
 
 #include "src/allocation-site-scopes.h"
 #include "src/arguments.h"
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/isolate-inl.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -159,11 +159,9 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
     DisallowHeapAllocation no_gc;
     DCHECK(IsFastElementsKind(constant_elements_kind));
     Context* native_context = isolate->context()->native_context();
-    Object* maps_array = is_strong
-        ? native_context->js_array_strong_maps()
-        : native_context->js_array_maps();
-    DCHECK(!maps_array->IsUndefined());
-    Object* map = FixedArray::cast(maps_array)->get(constant_elements_kind);
+    Strength strength = is_strong ? Strength::STRONG : Strength::WEAK;
+    Object* map = native_context->get(
+        Context::ArrayMapIndex(constant_elements_kind, strength));
     object->set_map(Map::cast(map));
   }
 
@@ -236,13 +234,33 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
 }
 
 
+RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
+  CONVERT_SMI_ARG_CHECKED(flags, 3);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(closure->literals()->literal(index), isolate);
+  if (boilerplate->IsUndefined()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, boilerplate, JSRegExp::New(pattern, JSRegExp::Flags(flags)));
+    closure->literals()->set_literal(index, *boilerplate);
+  }
+  return *JSRegExp::Copy(Handle<JSRegExp>::cast(boilerplate));
+}
+
+
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, constant_properties, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<LiteralsArray> literals(closure->literals(), isolate);
   bool should_have_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
   bool has_function_literal = (flags & ObjectLiteral::kHasFunction) != 0;
   bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
@@ -351,13 +369,14 @@ static MaybeHandle<JSObject> CreateArrayLiteralImpl(
 
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
 
   Handle<JSObject> result;
+  Handle<LiteralsArray> literals(closure->literals(), isolate);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, CreateArrayLiteralImpl(isolate, literals, literals_index,
                                               elements, flags));
@@ -367,12 +386,13 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
 
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteralStubBailout) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
 
   Handle<JSObject> result;
+  Handle<LiteralsArray> literals(closure->literals(), isolate);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       CreateArrayLiteralImpl(isolate, literals, literals_index, elements,

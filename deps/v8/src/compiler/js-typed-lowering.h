@@ -15,6 +15,7 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
+class TypeCache;
 
 
 namespace compiler {
@@ -34,6 +35,7 @@ class JSTypedLowering final : public AdvancedReducer {
   enum Flag {
     kNoFlags = 0u,
     kDeoptimizationEnabled = 1u << 0,
+    kDisableBinaryOpReduction = 1u << 1,
   };
   typedef base::Flags<Flag> Flags;
 
@@ -59,7 +61,6 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSStoreContext(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
-  Reduction ReduceJSUnaryNot(Node* node);
   Reduction ReduceJSToBoolean(Node* node);
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToNumber(Node* node);
@@ -67,28 +68,41 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSToString(Node* node);
   Reduction ReduceJSToObject(Node* node);
   Reduction ReduceJSConvertReceiver(Node* node);
+  Reduction ReduceJSCreate(Node* node);
   Reduction ReduceJSCreateArguments(Node* node);
+  Reduction ReduceJSCreateArray(Node* node);
   Reduction ReduceJSCreateClosure(Node* node);
+  Reduction ReduceJSCreateIterResultObject(Node* node);
   Reduction ReduceJSCreateLiteralArray(Node* node);
   Reduction ReduceJSCreateLiteralObject(Node* node);
   Reduction ReduceJSCreateFunctionContext(Node* node);
   Reduction ReduceJSCreateWithContext(Node* node);
+  Reduction ReduceJSCreateCatchContext(Node* node);
   Reduction ReduceJSCreateBlockContext(Node* node);
+  Reduction ReduceJSCallConstruct(Node* node);
   Reduction ReduceJSCallFunction(Node* node);
   Reduction ReduceJSForInDone(Node* node);
   Reduction ReduceJSForInNext(Node* node);
   Reduction ReduceJSForInPrepare(Node* node);
   Reduction ReduceJSForInStep(Node* node);
+  Reduction ReduceSelect(Node* node);
   Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);
   Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
                             const Operator* shift_op);
+  Reduction ReduceNewArray(Node* node, Node* length, int capacity,
+                           Handle<AllocationSite> site);
 
   Node* Word32Shl(Node* const lhs, int32_t const rhs);
   Node* AllocateArguments(Node* effect, Node* control, Node* frame_state);
+  Node* AllocateRestArguments(Node* effect, Node* control, Node* frame_state,
+                              int start_index);
   Node* AllocateAliasedArguments(Node* effect, Node* control, Node* frame_state,
                                  Node* context, Handle<SharedFunctionInfo>,
                                  bool* has_aliased_arguments);
+  Node* AllocateElements(Node* effect, Node* control,
+                         ElementsKind elements_kind, int capacity,
+                         PretenureFlag pretenure);
 
   Factory* factory() const;
   Graph* graph() const;
@@ -109,6 +123,10 @@ class JSTypedLowering final : public AdvancedReducer {
   Flags flags_;
   JSGraph* jsgraph_;
   Type* shifted_int32_ranges_[4];
+  Type* const true_type_;
+  Type* const false_type_;
+  Type* const the_hole_type_;
+  TypeCache const& type_cache_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSTypedLowering::Flags)

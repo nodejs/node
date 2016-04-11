@@ -90,7 +90,8 @@ static void natural_mask(struct apattern *pat);
     !defined(ANDROID) && !defined(__ANDROID__) && !defined(CARES_USE_LIBRESOLV)
 static int config_domain(ares_channel channel, char *str);
 static int config_lookup(ares_channel channel, const char *str,
-                         const char *bindch, const char *filech);
+                         const char *bindch, const char *altbindch,
+                         const char *filech);
 static char *try_config(char *s, const char *opt, char scc);
 #endif
 
@@ -164,6 +165,8 @@ int ares_init_options(ares_channel *channelptr, struct ares_options *options,
   channel->sock_state_cb_data = NULL;
   channel->sock_create_cb = NULL;
   channel->sock_create_cb_data = NULL;
+  channel->sock_config_cb = NULL;
+  channel->sock_config_cb_data = NULL;
 
   channel->last_server = 0;
   channel->last_timeout_processed = (time_t)now.tv_sec;
@@ -291,6 +294,8 @@ int ares_dup(ares_channel *dest, ares_channel src)
   /* Now clone the options that ares_save_options() doesn't support. */
   (*dest)->sock_create_cb      = src->sock_create_cb;
   (*dest)->sock_create_cb_data = src->sock_create_cb_data;
+  (*dest)->sock_config_cb      = src->sock_config_cb;
+  (*dest)->sock_config_cb_data = src->sock_config_cb_data;
 
   strncpy((*dest)->local_dev_name, src->local_dev_name,
           sizeof(src->local_dev_name));
@@ -1269,7 +1274,7 @@ static int init_by_resolv_conf(ares_channel channel)
         if ((p = try_config(line, "domain", ';')) && update_domains)
           status = config_domain(channel, p);
         else if ((p = try_config(line, "lookup", ';')) && !channel->lookups)
-          status = config_lookup(channel, p, "bind", "file");
+          status = config_lookup(channel, p, "bind", NULL, "file");
         else if ((p = try_config(line, "search", ';')) && update_domains)
           status = set_search(channel, p);
         else if ((p = try_config(line, "nameserver", ';')) &&
@@ -1310,8 +1315,7 @@ static int init_by_resolv_conf(ares_channel channel)
                ARES_SUCCESS)
         {
           if ((p = try_config(line, "hosts:", '\0')) && !channel->lookups)
-            /* ignore errors */
-            (void)config_lookup(channel, p, "dns", "files");
+            (void)config_lookup(channel, p, "dns", "resolve", "files");
         }
         fclose(fp);
       }
@@ -1320,15 +1324,16 @@ static int init_by_resolv_conf(ares_channel channel)
         switch(error) {
         case ENOENT:
         case ESRCH:
-          status = ARES_EOF;
           break;
         default:
           DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n",
                          error, strerror(error)));
           DEBUGF(fprintf(stderr, "Error opening file: %s\n",
                          "/etc/nsswitch.conf"));
-          status = ARES_EFILE;
         }
+
+        /* ignore error, maybe we will get luck in next if clause */
+        status = ARES_EOF;
       }
     }
 
@@ -1341,7 +1346,7 @@ static int init_by_resolv_conf(ares_channel channel)
         {
           if ((p = try_config(line, "order", '\0')) && !channel->lookups)
             /* ignore errors */
-            (void)config_lookup(channel, p, "bind", "hosts");
+            (void)config_lookup(channel, p, "bind", NULL, "hosts");
         }
         fclose(fp);
       }
@@ -1350,15 +1355,16 @@ static int init_by_resolv_conf(ares_channel channel)
         switch(error) {
         case ENOENT:
         case ESRCH:
-          status = ARES_EOF;
           break;
         default:
           DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n",
                          error, strerror(error)));
           DEBUGF(fprintf(stderr, "Error opening file: %s\n",
                          "/etc/host.conf"));
-          status = ARES_EFILE;
         }
+
+        /* ignore error, maybe we will get luck in next if clause */
+        status = ARES_EOF;
       }
     }
 
@@ -1371,7 +1377,7 @@ static int init_by_resolv_conf(ares_channel channel)
         {
           if ((p = try_config(line, "hosts=", '\0')) && !channel->lookups)
             /* ignore errors */
-            (void)config_lookup(channel, p, "bind", "local");
+            (void)config_lookup(channel, p, "bind", NULL, "local");
         }
         fclose(fp);
       }
@@ -1380,14 +1386,15 @@ static int init_by_resolv_conf(ares_channel channel)
         switch(error) {
         case ENOENT:
         case ESRCH:
-          status = ARES_EOF;
           break;
         default:
           DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n",
                          error, strerror(error)));
           DEBUGF(fprintf(stderr, "Error opening file: %s\n", "/etc/svc.conf"));
-          status = ARES_EFILE;
         }
+
+        /* ignore error, default value will be chosen for `channel->lookups` */
+        status = ARES_EOF;
       }
     }
 
@@ -1591,10 +1598,14 @@ static int config_domain(ares_channel channel, char *str)
 #endif
 
 static int config_lookup(ares_channel channel, const char *str,
-                         const char *bindch, const char *filech)
+                         const char *bindch, const char *altbindch,
+                         const char *filech)
 {
   char lookups[3], *l;
   const char *vqualifier p;
+
+  if (altbindch == NULL)
+    altbindch = bindch;
 
   /* Set the lookup order.  Only the first letter of each work
    * is relevant, and it has to be "b" for DNS or "f" for the
@@ -1604,8 +1615,8 @@ static int config_lookup(ares_channel channel, const char *str,
   p = str;
   while (*p)
     {
-      if ((*p == *bindch || *p == *filech) && l < lookups + 2) {
-        if (*p == *bindch) *l++ = 'b';
+      if ((*p == *bindch || *p == *altbindch || *p == *filech) && l < lookups + 2) {
+        if (*p == *bindch || *p == *altbindch) *l++ = 'b';
         else *l++ = 'f';
       }
       while (*p && !ISSPACE(*p) && (*p != ','))
@@ -2088,6 +2099,14 @@ void ares_set_socket_callback(ares_channel channel,
 {
   channel->sock_create_cb = cb;
   channel->sock_create_cb_data = data;
+}
+
+void ares_set_socket_configure_callback(ares_channel channel,
+                                        ares_sock_config_callback cb,
+                                        void *data)
+{
+  channel->sock_config_cb = cb;
+  channel->sock_config_cb_data = data;
 }
 
 int ares_set_sortlist(ares_channel channel, const char *sortstr)

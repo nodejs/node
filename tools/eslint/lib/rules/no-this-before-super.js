@@ -7,136 +7,274 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Checks whether or not a given node is a constructor.
+ * @param {ASTNode} node - A node to check. This node type is one of
+ *   `Program`, `FunctionDeclaration`, `FunctionExpression`, and
+ *   `ArrowFunctionExpression`.
+ * @returns {boolean} `true` if the node is a constructor.
+ */
+function isConstructorFunction(node) {
+    return (
+        node.type === "FunctionExpression" &&
+        node.parent.type === "MethodDefinition" &&
+        node.parent.kind === "constructor"
+    );
+}
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
 
-    /**
-     * Searches a class node that a node is belonging to.
-     * @param {Node} node - A node to start searching.
-     * @returns {ClassDeclaration|ClassExpression|null} the found class node, or `null`.
+    /*
+     * Information for each constructor.
+     * - upper:      Information of the upper constructor.
+     * - hasExtends: A flag which shows whether the owner class has a valid
+     *   `extends` part.
+     * - scope:      The scope of the owner class.
+     * - codePath:   The code path of this constructor.
      */
-    function getClassInAncestor(node) {
-        while (node) {
-            if (node.type === "ClassDeclaration" || node.type === "ClassExpression") {
-                return node;
-            }
-            node = node.parent;
-        }
-        /* istanbul ignore next */
-        return null;
+    var funcInfo = null;
+
+    /*
+     * Information for each code path segment.
+     * Each key is the id of a code path segment.
+     * Each value is an object:
+     * - superCalled:  The flag which shows `super()` called in all code paths.
+     * - invalidNodes: The array of invalid ThisExpression and Super nodes.
+     */
+    var segInfoMap = Object.create(null);
+
+    /**
+     * Gets whether or not `super()` is called in a given code path segment.
+     * @param {CodePathSegment} segment - A code path segment to get.
+     * @returns {boolean} `true` if `super()` is called.
+     */
+    function isCalled(segment) {
+        return segInfoMap[segment.id].superCalled;
     }
 
     /**
-     * Checks whether or not a node is the null literal.
-     * @param {Node} node - A node to check.
-     * @returns {boolean} whether or not a node is the null literal.
+     * Checks whether or not this is in a constructor.
+     * @returns {boolean} `true` if this is in a constructor.
      */
-    function isNullLiteral(node) {
-        return node && node.type === "Literal" && node.value === null;
+    function isInConstructorOfDerivedClass() {
+        return Boolean(funcInfo && funcInfo.isConstructor && funcInfo.hasExtends);
     }
 
     /**
-     * Checks whether or not a node is the callee of a call expression.
-     * @param {Node} node - A node to check.
-     * @returns {boolean} whether or not a node is the callee of a call expression.
+     * Checks whether or not this is before `super()` is called.
+     * @returns {boolean} `true` if this is before `super()` is called.
      */
-    function isCallee(node) {
-        return node && node.parent.type === "CallExpression" && node.parent.callee === node;
-    }
-
-    /**
-     * Checks whether or not the current traversal context is before `super()`.
-     * @param {object} item - A checking context.
-     * @returns {boolean} whether or not the current traversal context is before `super()`.
-     */
-    function isBeforeSuperCalling(item) {
+    function isBeforeCallOfSuper() {
         return (
-            item &&
-            item.scope === context.getScope().variableScope.upper.variableScope &&
-            item.superCalled === false
+            isInConstructorOfDerivedClass(funcInfo) &&
+            !funcInfo.codePath.currentSegments.every(isCalled)
         );
     }
 
-    var stack = [];
+    /**
+     * Sets a given node as invalid.
+     * @param {ASTNode} node - A node to set as invalid. This is one of
+     *      a ThisExpression and a Super.
+     * @returns {void}
+     */
+    function setInvalid(node) {
+        var segments = funcInfo.codePath.currentSegments;
+
+        for (var i = 0; i < segments.length; ++i) {
+            segInfoMap[segments[i].id].invalidNodes.push(node);
+        }
+    }
+
+    /**
+     * Sets the current segment as `super` was called.
+     * @returns {void}
+     */
+    function setSuperCalled() {
+        var segments = funcInfo.codePath.currentSegments;
+
+        for (var i = 0; i < segments.length; ++i) {
+            segInfoMap[segments[i].id].superCalled = true;
+        }
+    }
 
     return {
+
         /**
-         * Start checking.
-         * @param {MethodDefinition} node - A target node.
+         * Adds information of a constructor into the stack.
+         * @param {CodePath} codePath - A code path which was started.
+         * @param {ASTNode} node - The current node.
          * @returns {void}
          */
-        "MethodDefinition": function(node) {
-            if (node.kind !== "constructor") {
+        "onCodePathStart": function(codePath, node) {
+            if (isConstructorFunction(node)) {
+
+                // Class > ClassBody > MethodDefinition > FunctionExpression
+                var classNode = node.parent.parent.parent;
+
+                funcInfo = {
+                    upper: funcInfo,
+                    isConstructor: true,
+                    hasExtends: Boolean(
+                        classNode.superClass &&
+                        !astUtils.isNullOrUndefined(classNode.superClass)
+                    ),
+                    codePath: codePath
+                };
+            } else {
+                funcInfo = {
+                    upper: funcInfo,
+                    isConstructor: false,
+                    hasExtends: false,
+                    codePath: codePath
+                };
+            }
+        },
+
+        /**
+         * Removes the top of stack item.
+         *
+         * And this treverses all segments of this code path then reports every
+         * invalid node.
+         *
+         * @param {CodePath} codePath - A code path which was ended.
+         * @param {ASTNode} node - The current node.
+         * @returns {void}
+         */
+        "onCodePathEnd": function(codePath) {
+            var isDerivedClass = funcInfo.hasExtends;
+
+            funcInfo = funcInfo.upper;
+            if (!isDerivedClass) {
                 return;
             }
-            stack.push({
-                thisOrSuperBeforeSuperCalled: [],
-                superCalled: false,
-                scope: context.getScope().variableScope
+
+            codePath.traverseSegments(function(segment, controller) {
+                var info = segInfoMap[segment.id];
+
+                for (var i = 0; i < info.invalidNodes.length; ++i) {
+                    var invalidNode = info.invalidNodes[i];
+
+                    context.report({
+                        message: "'{{kind}}' is not allowed before 'super()'.",
+                        node: invalidNode,
+                        data: {
+                            kind: invalidNode.type === "Super" ? "super" : "this"
+                        }
+                    });
+                }
+
+                if (info.superCalled) {
+                    controller.skip();
+                }
             });
         },
 
         /**
-         * Treats the result of checking and reports invalid `this`/`super`.
-         * @param {MethodDefinition} node - A target node.
+         * Initialize information of a given code path segment.
+         * @param {CodePathSegment} segment - A code path segment to initialize.
          * @returns {void}
          */
-        "MethodDefinition:exit": function(node) {
-            if (node.kind !== "constructor") {
-                return;
-            }
-            var result = stack.pop();
-
-            // Skip if it has no extends or `extends null`.
-            var classNode = getClassInAncestor(node);
-            if (!classNode || !classNode.superClass || isNullLiteral(classNode.superClass)) {
+        "onCodePathSegmentStart": function(segment) {
+            if (!isInConstructorOfDerivedClass(funcInfo)) {
                 return;
             }
 
-            // Reports.
-            result.thisOrSuperBeforeSuperCalled.forEach(function(thisOrSuper) {
-                var type = (thisOrSuper.type === "Super" ? "super" : "this");
-                context.report(thisOrSuper, "\"{{type}}\" is not allowed before super()", {type: type});
-            });
+            // Initialize info.
+            segInfoMap[segment.id] = {
+                superCalled: (
+                    segment.prevSegments.length > 0 &&
+                    segment.prevSegments.every(isCalled)
+                ),
+                invalidNodes: []
+            };
         },
 
         /**
-         * Marks the node if is before `super()`.
-         * @param {ThisExpression} node - A target node.
+         * Update information of the code path segment when a code path was
+         * looped.
+         * @param {CodePathSegment} fromSegment - The code path segment of the
+         *      end of a loop.
+         * @param {CodePathSegment} toSegment - A code path segment of the head
+         *      of a loop.
+         * @returns {void}
+         */
+        "onCodePathSegmentLoop": function(fromSegment, toSegment) {
+            if (!isInConstructorOfDerivedClass(funcInfo)) {
+                return;
+            }
+
+            // Update information inside of the loop.
+            funcInfo.codePath.traverseSegments(
+                {first: toSegment, last: fromSegment},
+                function(segment, controller) {
+                    var info = segInfoMap[segment.id];
+
+                    if (info.superCalled) {
+                        info.invalidNodes = [];
+                        controller.skip();
+                    } else if (
+                        segment.prevSegments.length > 0 &&
+                        segment.prevSegments.every(isCalled)
+                    ) {
+                        info.superCalled = true;
+                        info.invalidNodes = [];
+                    }
+                }
+            );
+        },
+
+        /**
+         * Reports if this is before `super()`.
+         * @param {ASTNode} node - A target node.
          * @returns {void}
          */
         "ThisExpression": function(node) {
-            var item = stack[stack.length - 1];
-            if (isBeforeSuperCalling(item)) {
-                item.thisOrSuperBeforeSuperCalled.push(node);
+            if (isBeforeCallOfSuper()) {
+                setInvalid(node);
             }
         },
 
         /**
-         * Marks the node if is before `super()`. (exclude `super()` itself)
-         * @param {Super} node - A target node.
+         * Reports if this is before `super()`.
+         * @param {ASTNode} node - A target node.
          * @returns {void}
          */
         "Super": function(node) {
-            var item = stack[stack.length - 1];
-            if (isBeforeSuperCalling(item) && isCallee(node) === false) {
-                item.thisOrSuperBeforeSuperCalled.push(node);
+            if (!astUtils.isCallee(node) && isBeforeCallOfSuper()) {
+                setInvalid(node);
             }
         },
 
         /**
          * Marks `super()` called.
-         * To catch `super(this.a);`, marks on `CallExpression:exit`.
-         * @param {CallExpression} node - A target node.
+         * @param {ASTNode} node - A target node.
          * @returns {void}
          */
         "CallExpression:exit": function(node) {
-            var item = stack[stack.length - 1];
-            if (isBeforeSuperCalling(item) && node.callee.type === "Super") {
-                item.superCalled = true;
+            if (node.callee.type === "Super" && isBeforeCallOfSuper()) {
+                setSuperCalled();
             }
+        },
+
+        /**
+         * Resets state.
+         * @returns {void}
+         */
+        "Program:exit": function() {
+            segInfoMap = Object.create(null);
         }
     };
 };

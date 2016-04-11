@@ -599,19 +599,6 @@ enum InlineCacheState {
 };
 
 
-enum CallConstructorFlags {
-  NO_CALL_CONSTRUCTOR_FLAGS = 0,
-  // The call target is cached in the instruction stream.
-  RECORD_CONSTRUCTOR_TARGET = 1,
-  // TODO(bmeurer): Kill these SUPER_* modes and use the Construct builtin
-  // directly instead; also there's no point in collecting any "targets" for
-  // super constructor calls, since these are known when we optimize the
-  // constructor that contains the super call.
-  SUPER_CONSTRUCTOR_CALL = 1 << 1,
-  SUPER_CALL_RECORD_TARGET = SUPER_CONSTRUCTOR_CALL | RECORD_CONSTRUCTOR_TARGET
-};
-
-
 enum CacheHolderFlag {
   kCacheOnPrototype,
   kCacheOnPrototypeReceiverIsDictionary,
@@ -1032,6 +1019,15 @@ inline bool IsSubclassConstructor(FunctionKind kind) {
 inline bool IsClassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kClassConstructor;
+}
+
+
+inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
+  if (IsAccessorFunction(kind)) return false;
+  if (IsConciseMethod(kind) && !IsGeneratorFunction(kind)) return false;
+  if (IsArrowFunction(kind)) return false;
+  if (is_strong(mode)) return IsClassConstructor(kind);
+  return true;
 }
 
 

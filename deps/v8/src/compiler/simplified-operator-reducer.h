@@ -25,6 +25,8 @@ class SimplifiedOperatorReducer final : public Reducer {
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceReferenceEqual(Node* node);
+
   Reduction Change(Node* node, const Operator* op, Node* a);
   Reduction ReplaceFloat64(double value);
   Reduction ReplaceInt32(int32_t value);

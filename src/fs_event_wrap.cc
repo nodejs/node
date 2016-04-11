@@ -6,6 +6,7 @@
 #include "util-inl.h"
 #include "node.h"
 #include "handle_wrap.h"
+#include "string_bytes.h"
 
 #include <stdlib.h>
 
@@ -41,6 +42,7 @@ class FSEventWrap: public HandleWrap {
 
   uv_fs_event_t handle_;
   bool initialized_;
+  enum encoding encoding_;
 };
 
 
@@ -86,15 +88,19 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
 
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
 
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    return env->ThrowTypeError("filename must be a valid string");
-  }
+  static const char kErrMsg[] = "filename must be a string or Buffer";
+  if (args.Length() < 1)
+    return env->ThrowTypeError(kErrMsg);
 
-  node::Utf8Value path(env->isolate(), args[0]);
+  BufferValue path(env->isolate(), args[0]);
+  if (*path == nullptr)
+    return env->ThrowTypeError(kErrMsg);
 
   unsigned int flags = 0;
   if (args[2]->IsTrue())
     flags |= UV_FS_EVENT_RECURSIVE;
+
+  wrap->encoding_ = ParseEncoding(env->isolate(), args[3], UTF8);
 
   int err = uv_fs_event_init(wrap->env()->event_loop(), &wrap->handle_);
   if (err == 0) {
@@ -156,10 +162,21 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   };
 
   if (filename != nullptr) {
-    argv[2] = OneByteString(env->isolate(), filename);
+    Local<Value> fn = StringBytes::Encode(env->isolate(),
+                                          filename,
+                                          wrap->encoding_);
+    if (fn.IsEmpty()) {
+      argv[0] = Integer::New(env->isolate(), UV_EINVAL);
+      argv[2] = StringBytes::Encode(env->isolate(),
+                                    filename,
+                                    strlen(filename),
+                                    BUFFER);
+    } else {
+      argv[2] = fn;
+    }
   }
 
-  wrap->MakeCallback(env->onchange_string(), ARRAY_SIZE(argv), argv);
+  wrap->MakeCallback(env->onchange_string(), arraysize(argv), argv);
 }
 
 

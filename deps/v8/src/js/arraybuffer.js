@@ -12,30 +12,19 @@
 // Imports
 
 var GlobalArrayBuffer = global.ArrayBuffer;
-var GlobalObject = global.Object;
 var MakeTypeError;
 var MaxSimple;
 var MinSimple;
-var ToPositiveInteger;
-var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+var SpeciesConstructor;
 
 utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  ToPositiveInteger = from.ToPositiveInteger;
+  SpeciesConstructor = from.SpeciesConstructor;
 });
 
 // -------------------------------------------------------------------
-
-function ArrayBufferConstructor(length) { // length = 1
-  if (%_IsConstructCall()) {
-    var byteLength = ToPositiveInteger(length, kInvalidArrayBufferLength);
-    %ArrayBufferInitialize(this, byteLength, kNotShared);
-  } else {
-    throw MakeTypeError(kConstructorNotFunction, "ArrayBuffer");
-  }
-}
 
 function ArrayBufferGetByteLen() {
   if (!IS_ARRAYBUFFER(this)) {
@@ -75,35 +64,26 @@ function ArrayBufferSlice(start, end) {
     fin = first;
   }
   var newLen = fin - first;
-  // TODO(dslomov): implement inheritance
-  var result = new GlobalArrayBuffer(newLen);
+  var constructor = SpeciesConstructor(this, GlobalArrayBuffer, true);
+  var result = new constructor(newLen);
+  if (!IS_ARRAYBUFFER(result)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'ArrayBuffer.prototype.slice', result);
+  }
+  // TODO(littledan): Check for a detached ArrayBuffer
+  if (result === this) {
+    throw MakeTypeError(kArrayBufferSpeciesThis);
+  }
+  if (%_ArrayBufferGetByteLength(result) < newLen) {
+    throw MakeTypeError(kArrayBufferTooShort);
+  }
 
-  %ArrayBufferSliceImpl(this, result, first);
+  %ArrayBufferSliceImpl(this, result, first, newLen);
   return result;
 }
 
-function ArrayBufferIsViewJS(obj) {
-  return %ArrayBufferIsView(obj);
-}
-
-
-// Set up the ArrayBuffer constructor function.
-%SetCode(GlobalArrayBuffer, ArrayBufferConstructor);
-%FunctionSetPrototype(GlobalArrayBuffer, new GlobalObject());
-
-// Set up the constructor property on the ArrayBuffer prototype object.
-%AddNamedProperty(
-    GlobalArrayBuffer.prototype, "constructor", GlobalArrayBuffer, DONT_ENUM);
-
-%AddNamedProperty(GlobalArrayBuffer.prototype,
-    toStringTagSymbol, "ArrayBuffer", DONT_ENUM | READ_ONLY);
-
 utils.InstallGetter(GlobalArrayBuffer.prototype, "byteLength",
                     ArrayBufferGetByteLen);
-
-utils.InstallFunctions(GlobalArrayBuffer, DONT_ENUM, [
-  "isView", ArrayBufferIsViewJS
-]);
 
 utils.InstallFunctions(GlobalArrayBuffer.prototype, DONT_ENUM, [
   "slice", ArrayBufferSlice

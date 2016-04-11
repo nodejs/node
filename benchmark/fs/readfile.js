@@ -1,6 +1,7 @@
 // Call fs.readFile over and over again really fast.
 // Then see how many times it got called.
 // Yes, this is a silly benchmark.  Most benchmarks are silly.
+'use strict';
 
 var path = require('path');
 var common = require('../common.js');
@@ -16,8 +17,7 @@ var bench = common.createBenchmark(main, {
 function main(conf) {
   var len = +conf.len;
   try { fs.unlinkSync(filename); } catch (e) {}
-  var data = new Buffer(len);
-  data.fill('x');
+  var data = Buffer.alloc(len, 'x');
   fs.writeFileSync(filename, data);
   data = null;
 

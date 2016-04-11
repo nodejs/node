@@ -32,6 +32,7 @@ module.exports = function(context) {
         "SwitchCase": function(node) {
             for (var i = 0; i < node.consequent.length; i++) {
                 var statement = node.consequent[i];
+
                 if (isLexicalDeclaration(statement)) {
                     context.report({
                         node: node,

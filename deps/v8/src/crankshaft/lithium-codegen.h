@@ -53,6 +53,9 @@ class LCodeGenBase BASE_EMBEDDED {
                              Translation* translation);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
 
+  void PopulateDeoptimizationData(Handle<Code> code);
+  void PopulateDeoptimizationLiteralsWithInlinedFunctions();
+
   // Check that an environment assigned via AssignEnvironment is actually being
   // used. Redundant assignments keep things alive longer than necessary, and
   // consequently lead to worse code, so it's important to minimize this.
@@ -74,8 +77,12 @@ class LCodeGenBase BASE_EMBEDDED {
   int current_block_;
   int current_instruction_;
   const ZoneList<LInstruction*>* instructions_;
+  ZoneList<LEnvironment*> deoptimizations_;
   ZoneList<Handle<Object> > deoptimization_literals_;
+  TranslationBuffer translations_;
+  int inlined_function_count_;
   int last_lazy_deopt_pc_;
+  int osr_pc_offset_;
 
   bool is_unused() const { return status_ == UNUSED; }
   bool is_generating() const { return status_ == GENERATING; }

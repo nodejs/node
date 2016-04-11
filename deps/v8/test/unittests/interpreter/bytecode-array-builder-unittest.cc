@@ -6,6 +6,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-register-allocator.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -22,12 +23,12 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeArrayBuilder builder(isolate(), zone());
 
-  builder.set_locals_count(1);
+  builder.set_locals_count(200);
   builder.set_context_count(1);
   builder.set_parameter_count(0);
-  CHECK_EQ(builder.locals_count(), 1);
+  CHECK_EQ(builder.locals_count(), 200);
   CHECK_EQ(builder.context_count(), 1);
-  CHECK_EQ(builder.fixed_register_count(), 2);
+  CHECK_EQ(builder.fixed_register_count(), 201);
 
   // Emit constant loads.
   builder.LoadLiteral(Smi::FromInt(0))
@@ -39,68 +40,77 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadTrue()
       .LoadFalse();
 
-  // Emit accumulator transfers.
+  // Emit accumulator transfers. Stores followed by loads to the same register
+  // are not generated. Hence, a dummy instruction in between.
   Register reg(0);
-  builder.LoadAccumulatorWithRegister(reg).StoreAccumulatorInRegister(reg);
+  builder.LoadAccumulatorWithRegister(reg)
+      .LoadNull()
+      .StoreAccumulatorInRegister(reg);
+
+  // Emit register-register transfer.
+  Register other(1);
+  builder.MoveRegister(reg, other);
+
+  // Emit register-register exchanges.
+  Register wide(150);
+  builder.ExchangeRegisters(reg, wide);
+  builder.ExchangeRegisters(wide, reg);
+  Register wider(151);
+  builder.ExchangeRegisters(wide, wider);
 
   // Emit global load / store operations.
-  builder.LoadGlobal(0, 1, LanguageMode::SLOPPY, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(0, 1, LanguageMode::STRICT, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(0, 1, LanguageMode::SLOPPY, TypeofMode::INSIDE_TYPEOF)
-      .LoadGlobal(0, 1, LanguageMode::STRICT, TypeofMode::INSIDE_TYPEOF)
-      .StoreGlobal(0, 1, LanguageMode::SLOPPY)
-      .StoreGlobal(0, 1, LanguageMode::STRICT);
-
-  // Emit wide global load / store operations.
-  builder.LoadGlobal(0, 1024, LanguageMode::SLOPPY,
+  Factory* factory = isolate()->factory();
+  Handle<String> name = factory->NewStringFromStaticChars("var_name");
+  builder.LoadGlobal(name, 1, LanguageMode::SLOPPY,
                      TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(1024, 1, LanguageMode::STRICT, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(0, 1024, LanguageMode::SLOPPY, TypeofMode::INSIDE_TYPEOF)
-      .LoadGlobal(1024, 1, LanguageMode::STRICT, TypeofMode::INSIDE_TYPEOF)
-      .StoreGlobal(0, 1024, LanguageMode::SLOPPY)
-      .StoreGlobal(1024, 1, LanguageMode::STRICT);
+      .LoadGlobal(name, 1, LanguageMode::STRICT, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, 1, LanguageMode::SLOPPY, TypeofMode::INSIDE_TYPEOF)
+      .LoadGlobal(name, 1, LanguageMode::STRICT, TypeofMode::INSIDE_TYPEOF)
+      .StoreGlobal(name, 1, LanguageMode::SLOPPY)
+      .StoreGlobal(name, 1, LanguageMode::STRICT);
 
   // Emit context operations.
-  builder.PushContext(reg);
-  builder.PopContext(reg);
-  builder.LoadContextSlot(reg, 1);
-  builder.StoreContextSlot(reg, 1);
+  builder.PushContext(reg)
+      .PopContext(reg)
+      .LoadContextSlot(reg, 1)
+      .StoreContextSlot(reg, 1);
 
   // Emit load / store property operations.
-  builder.LoadNamedProperty(reg, 0, 0, LanguageMode::SLOPPY)
+  builder.LoadNamedProperty(reg, name, 0, LanguageMode::SLOPPY)
       .LoadKeyedProperty(reg, 0, LanguageMode::SLOPPY)
-      .StoreNamedProperty(reg, 0, 0, LanguageMode::SLOPPY)
+      .StoreNamedProperty(reg, name, 0, LanguageMode::SLOPPY)
       .StoreKeyedProperty(reg, reg, 0, LanguageMode::SLOPPY)
-      .LoadNamedProperty(reg, 0, 0, LanguageMode::STRICT)
+      .LoadNamedProperty(reg, name, 0, LanguageMode::STRICT)
       .LoadKeyedProperty(reg, 0, LanguageMode::STRICT)
-      .StoreNamedProperty(reg, 0, 0, LanguageMode::STRICT)
+      .StoreNamedProperty(reg, name, 0, LanguageMode::STRICT)
       .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT);
 
-  // Emit wide load / store property operations.
-  builder.LoadNamedProperty(reg, 2056, 0, LanguageMode::SLOPPY)
-      .LoadKeyedProperty(reg, 2056, LanguageMode::SLOPPY)
-      .StoreNamedProperty(reg, 0, 2056, LanguageMode::SLOPPY)
-      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::SLOPPY)
-      .LoadNamedProperty(reg, 2056, 0, LanguageMode::STRICT)
-      .LoadKeyedProperty(reg, 2056, LanguageMode::STRICT)
-      .StoreNamedProperty(reg, 0, 2056, LanguageMode::STRICT)
-      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
+  // Emit load / store lookup slots.
+  builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadLookupSlot(name, TypeofMode::INSIDE_TYPEOF)
+      .StoreLookupSlot(name, LanguageMode::SLOPPY)
+      .StoreLookupSlot(name, LanguageMode::STRICT);
 
   // Emit closure operations.
-  builder.CreateClosure(NOT_TENURED);
+  Handle<SharedFunctionInfo> shared_info = factory->NewSharedFunctionInfo(
+      factory->NewStringFromStaticChars("function_a"), MaybeHandle<Code>(),
+      false);
+  builder.CreateClosure(shared_info, NOT_TENURED);
 
   // Emit argument creation operations.
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)
       .CreateArguments(CreateArgumentsType::kUnmappedArguments);
 
-  // Emit literal creation operations
-  builder.CreateRegExpLiteral(0, reg)
-      .CreateArrayLiteral(0, 0)
-      .CreateObjectLiteral(0, 0);
+  // Emit literal creation operations.
+  builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0)
+      .CreateArrayLiteral(factory->NewFixedArray(1), 0, 0)
+      .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0);
 
   // Call operations.
-  builder.Call(reg, reg, 0)
+  builder.Call(reg, reg, 0, 0)
+      .Call(reg, reg, 0, 1024)
       .CallRuntime(Runtime::kIsArray, reg, 1)
+      .CallRuntimeForPair(Runtime::kLoadLookupSlot, reg, 1, reg)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg, 1);
 
   // Emit binary operator invocations.
@@ -128,7 +138,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LogicalNot().TypeOf();
 
   // Emit delete
-  builder.Delete(reg, LanguageMode::SLOPPY).Delete(reg, LanguageMode::STRICT);
+  builder.Delete(reg, LanguageMode::SLOPPY)
+      .Delete(reg, LanguageMode::STRICT)
+      .DeleteLookupSlot();
 
   // Emit new.
   builder.New(reg, reg, 0);
@@ -147,7 +159,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit cast operator invocations.
   builder.CastAccumulatorToNumber()
-      .CastAccumulatorToBoolean()
       .CastAccumulatorToJSObject()
       .CastAccumulatorToName();
 
@@ -198,14 +209,75 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     .Throw()
     .Bind(&after_throw);
 
-  builder.ForInPrepare(reg).ForInDone(reg).ForInNext(reg, reg);
+  builder.ForInPrepare(reg, reg, reg)
+      .ForInDone(reg, reg)
+      .ForInNext(reg, reg, reg, reg)
+      .ForInStep(reg);
 
   // Wide constant pool loads
   for (int i = 0; i < 256; i++) {
     // Emit junk in constant pool to force wide constant pool index.
-    builder.GetConstantPoolEntry(handle(Smi::FromInt(i), isolate()));
+    builder.LoadLiteral(factory->NewNumber(2.5321 + i));
   }
   builder.LoadLiteral(Smi::FromInt(20000000));
+  Handle<String> wide_name = factory->NewStringFromStaticChars("var_wide_name");
+
+  // Emit wide global load / store operations.
+  builder.LoadGlobal(name, 1024, LanguageMode::SLOPPY,
+                     TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(wide_name, 1, LanguageMode::STRICT,
+                  TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, 1024, LanguageMode::SLOPPY, TypeofMode::INSIDE_TYPEOF)
+      .LoadGlobal(wide_name, 1, LanguageMode::STRICT, TypeofMode::INSIDE_TYPEOF)
+      .StoreGlobal(name, 1024, LanguageMode::SLOPPY)
+      .StoreGlobal(wide_name, 1, LanguageMode::STRICT);
+
+  // Emit wide load / store property operations.
+  builder.LoadNamedProperty(reg, wide_name, 0, LanguageMode::SLOPPY)
+      .LoadKeyedProperty(reg, 2056, LanguageMode::SLOPPY)
+      .StoreNamedProperty(reg, wide_name, 0, LanguageMode::SLOPPY)
+      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::SLOPPY)
+      .LoadNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
+      .LoadKeyedProperty(reg, 2056, LanguageMode::STRICT)
+      .StoreNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
+      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
+
+  // Emit wide context operations.
+  builder.LoadContextSlot(reg, 1024)
+      .StoreContextSlot(reg, 1024);
+
+  // Emit wide load / store lookup slots.
+  builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadLookupSlot(wide_name, TypeofMode::INSIDE_TYPEOF)
+      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY)
+      .StoreLookupSlot(wide_name, LanguageMode::STRICT);
+
+  // CreateClosureWide
+  Handle<SharedFunctionInfo> shared_info2 = factory->NewSharedFunctionInfo(
+      factory->NewStringFromStaticChars("function_b"), MaybeHandle<Code>(),
+      false);
+  builder.CreateClosure(shared_info2, NOT_TENURED);
+
+  // Emit wide variant of literal creation operations.
+  builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("wide_literal"),
+                              0, 0)
+      .CreateArrayLiteral(factory->NewFixedArray(2), 0, 0)
+      .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0);
+
+  // Longer jumps requiring ConstantWide operand
+  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start);
+  // Perform an operation that returns boolean value to
+  // generate JumpIfTrue/False
+  builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .JumpIfTrue(&start)
+      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .JumpIfFalse(&start);
+  // Perform an operation that returns a non-boolean operation to
+  // generate JumpIfToBooleanTrue/False.
+  builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .JumpIfTrue(&start)
+      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .JumpIfFalse(&start);
 
   builder.Return();
 
@@ -246,7 +318,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
         builder.set_locals_count(locals);
         builder.set_context_count(contexts);
 
-        TemporaryRegisterScope temporaries(&builder);
+        BytecodeRegisterAllocator temporaries(&builder);
         for (int i = 0; i < temps; i++) {
           builder.StoreAccumulatorInRegister(temporaries.NewRegister());
         }
@@ -258,32 +330,6 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
       }
     }
   }
-}
-
-
-TEST_F(BytecodeArrayBuilderTest, TemporariesRecycled) {
-  BytecodeArrayBuilder builder(isolate(), zone());
-  builder.set_parameter_count(0);
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.Return();
-
-  int first;
-  {
-    TemporaryRegisterScope temporaries(&builder);
-    first = temporaries.NewRegister().index();
-    temporaries.NewRegister();
-    temporaries.NewRegister();
-    temporaries.NewRegister();
-  }
-
-  int second;
-  {
-    TemporaryRegisterScope temporaries(&builder);
-    second = temporaries.NewRegister().index();
-  }
-
-  CHECK_EQ(first, second);
 }
 
 
@@ -320,15 +366,15 @@ TEST_F(BytecodeArrayBuilderTest, RegisterType) {
   builder.set_locals_count(3);
   builder.set_context_count(0);
 
-  TemporaryRegisterScope temporary_register_scope(&builder);
-  Register temp0 = temporary_register_scope.NewRegister();
+  BytecodeRegisterAllocator register_allocator(&builder);
+  Register temp0 = register_allocator.NewRegister();
   Register param0(builder.Parameter(0));
   Register param9(builder.Parameter(9));
-  Register temp1 = temporary_register_scope.NewRegister();
+  Register temp1 = register_allocator.NewRegister();
   Register reg0(0);
   Register reg1(1);
   Register reg2(2);
-  Register temp2 = temporary_register_scope.NewRegister();
+  Register temp2 = register_allocator.NewRegister();
   CHECK_EQ(builder.RegisterIsParameterOrLocal(temp0), false);
   CHECK_EQ(builder.RegisterIsParameterOrLocal(temp1), false);
   CHECK_EQ(builder.RegisterIsParameterOrLocal(temp2), false);
@@ -635,67 +681,6 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
     CHECK_EQ(iterator.GetImmediateOperand(0), -2);
     iterator.Advance();
   }
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
-  iterator.Advance();
-  CHECK(iterator.done());
-}
-
-
-TEST_F(BytecodeArrayBuilderTest, ToBoolean) {
-  BytecodeArrayBuilder builder(isolate(), zone());
-  builder.set_parameter_count(0);
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-
-  // Check ToBoolean emitted at start of a basic block.
-  builder.CastAccumulatorToBoolean();
-
-  // Check ToBoolean emitted preceding bytecode is non-boolean.
-  builder.LoadNull().CastAccumulatorToBoolean();
-
-  // Check ToBoolean omitted if preceding bytecode is boolean.
-  builder.LoadFalse().CastAccumulatorToBoolean();
-
-  // Check ToBoolean emitted if it is at the start of a basic block caused by a
-  // bound label.
-  BytecodeLabel label;
-  builder.LoadFalse()
-      .Bind(&label)
-      .CastAccumulatorToBoolean();
-
-  // Check ToBoolean emitted if it is at the start of a basic block caused by a
-  // jump.
-  builder.LoadFalse()
-      .JumpIfTrue(&label)
-      .CastAccumulatorToBoolean();
-
-  builder.Return();
-
-  Handle<BytecodeArray> array = builder.ToBytecodeArray();
-  BytecodeArrayIterator iterator(array);
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
-  iterator.Advance();
-
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaNull);
-  iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
-  iterator.Advance();
-
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaFalse);
-  iterator.Advance();
-
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaFalse);
-  iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
-  iterator.Advance();
-
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaFalse);
-  iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfTrue);
-  iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
-  iterator.Advance();
-
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
   iterator.Advance();
   CHECK(iterator.done());

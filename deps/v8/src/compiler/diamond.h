@@ -49,8 +49,8 @@ struct Diamond {
     }
   }
 
-  Node* Phi(MachineType machine_type, Node* tv, Node* fv) {
-    return graph->NewNode(common->Phi(machine_type, 2), tv, fv, merge);
+  Node* Phi(MachineRepresentation rep, Node* tv, Node* fv) {
+    return graph->NewNode(common->Phi(rep, 2), tv, fv, merge);
   }
 };
 

@@ -22,9 +22,8 @@ var server = http.createServer(function(req, res) {
 }).listen(common.PORT, function() {
   const s = net.connect(common.PORT);
 
-  var big = '';
-  for (var i = 0; i < COUNT; i++)
-    big += 'GET / HTTP/1.0\r\n\r\n';
+  var big = 'GET / HTTP/1.0\r\n\r\n'.repeat(COUNT);
+
   s.write(big);
   s.resume();
 });

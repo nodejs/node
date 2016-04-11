@@ -12,7 +12,6 @@ var defaultProxyHeaderWhiteList = [
   'cache-control',
   'content-encoding',
   'content-language',
-  'content-length',
   'content-location',
   'content-md5',
   'content-range',
@@ -24,7 +23,6 @@ var defaultProxyHeaderWhiteList = [
   'pragma',
   'referer',
   'te',
-  'transfer-encoding',
   'user-agent',
   'via'
 ]

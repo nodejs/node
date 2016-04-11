@@ -1,4 +1,5 @@
 // Measure the time it takes for the HTTP client to send a request body.
+'use strict';
 
 var common = require('../common.js');
 var http = require('http');
@@ -18,8 +19,7 @@ function main(conf) {
   var chunk;
   switch (conf.type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
       encoding = 'utf8';

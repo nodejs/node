@@ -21,15 +21,6 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   static Handle<Code> ComputeStore(Isolate* isolate, InlineCacheState ic_state,
                                    ExtraICState extra_state);
 
-  static Handle<Code> ComputeMonomorphic(Code::Kind kind, Handle<Name> name,
-                                         Handle<Map> map, Handle<Code> handler,
-                                         ExtraICState extra_ic_state);
-  static Handle<Code> ComputePolymorphic(Code::Kind kind, MapHandleList* maps,
-                                         CodeHandleList* handlers,
-                                         int number_of_valid_maps,
-                                         Handle<Name> name,
-                                         ExtraICState extra_ic_state);
-
   // Keyed
   static Handle<Code> ComputeKeyedLoadMonomorphicHandler(
       Handle<Map> receiver_map, ExtraICState extra_ic_state);
@@ -37,15 +28,9 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   static Handle<Code> ComputeKeyedStoreMonomorphicHandler(
       Handle<Map> receiver_map, LanguageMode language_mode,
       KeyedAccessStoreMode store_mode);
-  static Handle<Code> ComputeKeyedStoreMonomorphic(
-      Handle<Map> receiver_map, LanguageMode language_mode,
-      KeyedAccessStoreMode store_mode);
   static void ComputeKeyedStorePolymorphicHandlers(
       MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
       CodeHandleList* handlers, KeyedAccessStoreMode store_mode,
-      LanguageMode language_mode);
-  static Handle<Code> ComputeKeyedStorePolymorphic(
-      MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode,
       LanguageMode language_mode);
 
   // Compare nil
@@ -77,25 +62,14 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   Handle<Code> CompileStoreGeneric(Code::Flags flags);
   Handle<Code> CompileStoreMegamorphic(Code::Flags flags);
 
-  Handle<Code> CompileMonomorphic(Handle<Map> map, Handle<Code> handler,
-                                  Handle<Name> name, IcCheckType check);
-  Handle<Code> CompilePolymorphic(MapHandleList* maps, CodeHandleList* handlers,
-                                  Handle<Name> name, Code::StubType type,
-                                  IcCheckType check);
-
   Handle<Code> CompileKeyedStoreMonomorphicHandler(
       Handle<Map> receiver_map, KeyedAccessStoreMode store_mode);
   Handle<Code> CompileKeyedStoreMonomorphic(Handle<Map> receiver_map,
-                                            KeyedAccessStoreMode store_mode);
-  Handle<Code> CompileKeyedStorePolymorphic(MapHandleList* receiver_maps,
                                             KeyedAccessStoreMode store_mode);
   void CompileKeyedStorePolymorphicHandlers(MapHandleList* receiver_maps,
                                             MapHandleList* transitioned_maps,
                                             CodeHandleList* handlers,
                                             KeyedAccessStoreMode store_mode);
-  Handle<Code> CompileKeyedStorePolymorphic(MapHandleList* receiver_maps,
-                                            CodeHandleList* handler_stubs,
-                                            MapHandleList* transitioned_maps);
 
   bool IncludesNumberMap(MapHandleList* maps);
 

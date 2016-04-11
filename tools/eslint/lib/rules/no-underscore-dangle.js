@@ -11,7 +11,9 @@
 
 module.exports = function(context) {
 
-    var ALLOWED_VARIABLES = context.options[0] && context.options[0].allow ? context.options[0].allow : [];
+    var options = context.options[0] || {};
+    var ALLOWED_VARIABLES = options.allow ? options.allow : [];
+    var allowAfterThis = typeof options.allowAfterThis !== "undefined" ? options.allowAfterThis : false;
 
     //-------------------------------------------------------------------------
     // Helpers
@@ -58,6 +60,7 @@ module.exports = function(context) {
      * @private
      */
     function isSpecialCaseIdentifierInVariableExpression(identifier) {
+
         // Checks for the underscore library usage here
         return identifier === "_";
     }
@@ -73,7 +76,7 @@ module.exports = function(context) {
             var identifier = node.id.name;
 
             if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) && !isAllowed(identifier)) {
-                context.report(node, "Unexpected dangling \"_\" in \"" + identifier + "\".");
+                context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
             }
         }
     }
@@ -89,7 +92,7 @@ module.exports = function(context) {
 
         if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
             !isSpecialCaseIdentifierInVariableExpression(identifier) && !isAllowed(identifier)) {
-            context.report(node, "Unexpected dangling \"_\" in \"" + identifier + "\".");
+            context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
         }
     }
 
@@ -100,11 +103,13 @@ module.exports = function(context) {
      * @private
      */
     function checkForTrailingUnderscoreInMemberExpression(node) {
-        var identifier = node.property.name;
+        var identifier = node.property.name,
+            isMemberOfThis = node.object.type === "ThisExpression";
 
         if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
+            !(isMemberOfThis && allowAfterThis) &&
             !isSpecialCaseIdentifierForMemberExpression(identifier) && !isAllowed(identifier)) {
-            context.report(node, "Unexpected dangling \"_\" in \"" + identifier + "\".");
+            context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
         }
     }
 
@@ -129,6 +134,9 @@ module.exports.schema = [
                 "items": {
                     "type": "string"
                 }
+            },
+            "allowAfterThis": {
+                "type": "boolean"
             }
         },
         "additionalProperties": false

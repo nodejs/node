@@ -98,41 +98,37 @@ class GCTracer {
    public:
     enum ScopeId {
       EXTERNAL,
+      MC_CLEAR,
+      MC_CLEAR_CODE_FLUSH,
+      MC_CLEAR_DEPENDENT_CODE,
+      MC_CLEAR_GLOBAL_HANDLES,
+      MC_CLEAR_MAPS,
+      MC_CLEAR_SLOTS_BUFFER,
+      MC_CLEAR_STORE_BUFFER,
+      MC_CLEAR_STRING_TABLE,
+      MC_CLEAR_WEAK_CELLS,
+      MC_CLEAR_WEAK_COLLECTIONS,
+      MC_CLEAR_WEAK_LISTS,
+      MC_EVACUATE,
+      MC_EVACUATE_CANDIDATES,
+      MC_EVACUATE_CLEAN_UP,
+      MC_EVACUATE_NEW_SPACE,
+      MC_EVACUATE_UPDATE_POINTERS,
+      MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED,
+      MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED,
+      MC_EVACUATE_UPDATE_POINTERS_TO_NEW,
+      MC_EVACUATE_UPDATE_POINTERS_WEAK,
+      MC_FINISH,
+      MC_INCREMENTAL_FINALIZE,
       MC_MARK,
       MC_MARK_FINISH_INCREMENTAL,
       MC_MARK_PREPARE_CODE_FLUSH,
-      MC_MARK_ROOT,
-      MC_MARK_TOPOPT,
-      MC_MARK_RETAIN_MAPS,
+      MC_MARK_ROOTS,
       MC_MARK_WEAK_CLOSURE,
-      MC_MARK_STRING_TABLE,
-      MC_MARK_WEAK_REFERENCES,
-      MC_MARK_GLOBAL_HANDLES,
-      MC_MARK_CODE_FLUSH,
-      MC_MARK_OPTIMIZED_CODE_MAPS,
-      MC_STORE_BUFFER_CLEAR,
-      MC_SLOTS_BUFFER_CLEAR,
       MC_SWEEP,
-      MC_SWEEP_NEWSPACE,
-      MC_SWEEP_OLDSPACE,
       MC_SWEEP_CODE,
-      MC_SWEEP_CELL,
       MC_SWEEP_MAP,
-      MC_SWEEP_ABORTED,
-      MC_EVACUATE_PAGES,
-      MC_UPDATE_NEW_TO_NEW_POINTERS,
-      MC_UPDATE_ROOT_TO_NEW_POINTERS,
-      MC_UPDATE_OLD_TO_NEW_POINTERS,
-      MC_UPDATE_POINTERS_TO_EVACUATED,
-      MC_UPDATE_POINTERS_BETWEEN_EVACUATED,
-      MC_UPDATE_MISC_POINTERS,
-      MC_INCREMENTAL_FINALIZE,
-      MC_WEAKCOLLECTION_PROCESS,
-      MC_WEAKCOLLECTION_CLEAR,
-      MC_WEAKCOLLECTION_ABORT,
-      MC_WEAKCELL,
-      MC_NONLIVEREFERENCES,
-      MC_FLUSH_CODE,
+      MC_SWEEP_OLD,
       SCAVENGER_CODE_FLUSH_CANDIDATES,
       SCAVENGER_OBJECT_GROUPS,
       SCAVENGER_OLD_TO_NEW_POINTERS,
@@ -143,15 +139,8 @@ class GCTracer {
       NUMBER_OF_SCOPES
     };
 
-    Scope(GCTracer* tracer, ScopeId scope) : tracer_(tracer), scope_(scope) {
-      start_time_ = base::OS::TimeCurrentMillis();
-    }
-
-    ~Scope() {
-      DCHECK(scope_ < NUMBER_OF_SCOPES);  // scope_ is unsigned.
-      tracer_->current_.scopes[scope_] +=
-          base::OS::TimeCurrentMillis() - start_time_;
-    }
+    Scope(GCTracer* tracer, ScopeId scope);
+    ~Scope();
 
    private:
     GCTracer* tracer_;
@@ -358,6 +347,8 @@ class GCTracer {
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
 
+  void AddIncrementalMarkingFinalizationStep(double duration);
+
   // Log time spent in marking.
   void AddMarkingTime(double duration) {
     cumulative_marking_duration_ += duration;
@@ -508,6 +499,9 @@ class GCTracer {
     cumulative_incremental_marking_duration_ = 0;
     cumulative_pure_incremental_marking_duration_ = 0;
     longest_incremental_marking_step_ = 0;
+    cumulative_incremental_marking_finalization_steps_ = 0;
+    cumulative_incremental_marking_finalization_duration_ = 0;
+    longest_incremental_marking_finalization_step_ = 0;
     cumulative_marking_duration_ = 0;
     cumulative_sweeping_duration_ = 0;
   }
@@ -563,6 +557,17 @@ class GCTracer {
 
   // Longest incremental marking step since start of marking.
   double longest_incremental_marking_step_;
+
+  // Cumulative number of incremental marking finalization steps since creation
+  // of tracer.
+  int cumulative_incremental_marking_finalization_steps_;
+
+  // Cumulative duration of incremental marking finalization steps since
+  // creation of tracer.
+  double cumulative_incremental_marking_finalization_duration_;
+
+  // Longest incremental marking finalization step since start of marking.
+  double longest_incremental_marking_finalization_step_;
 
   // Total marking time.
   // This timer is precise when run with --print-cumulative-gc-stat

@@ -34,3 +34,18 @@ assert.equal(fs._stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
   .forEach(function(flags) {
     assert.throws(function() { fs._stringToFlags(flags); });
   });
+
+assert.throws(
+  () => fs._stringToFlags({}),
+  /Unknown file open flag: \[object Object\]/
+);
+
+assert.throws(
+  () => fs._stringToFlags(true),
+  /Unknown file open flag: true/
+);
+
+assert.throws(
+  () => fs._stringToFlags(null),
+  /Unknown file open flag: null/
+);

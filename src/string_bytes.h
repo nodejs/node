@@ -106,51 +106,9 @@ class StringBytes {
                                      const uint16_t* buf,
                                      size_t buflen);
 
-  // Deprecated legacy interface
-
-  NODE_DEPRECATED("Use IsValidString(isolate, ...)",
-                  static inline bool IsValidString(
-      v8::Local<v8::String> string,
-      enum encoding enc) {
-    return IsValidString(v8::Isolate::GetCurrent(), string, enc);
-  })
-
-  NODE_DEPRECATED("Use StorageSize(isolate, ...)",
-                  static inline size_t StorageSize(v8::Local<v8::Value> val,
-                                                  enum encoding enc) {
-    return StorageSize(v8::Isolate::GetCurrent(), val, enc);
-  })
-
-  NODE_DEPRECATED("Use Size(isolate, ...)",
-                  static inline size_t Size(v8::Local<v8::Value> val,
-                                            enum encoding enc) {
-    return Size(v8::Isolate::GetCurrent(), val, enc);
-  })
-
-  NODE_DEPRECATED("Use GetExternalParts(isolate, ...)",
-                  static inline bool GetExternalParts(v8::Local<v8::Value> val,
-                                                      const char** data,
-                                                      size_t* len) {
-    return GetExternalParts(v8::Isolate::GetCurrent(), val, data, len);
-  })
-
-  NODE_DEPRECATED("Use Write(isolate, ...)",
-                  static inline size_t Write(char* buf,
-                                             size_t buflen,
-                                             v8::Local<v8::Value> val,
-                                             enum encoding enc,
-                                             int* chars_written = nullptr) {
-    v8::Isolate* isolate = v8::Isolate::GetCurrent();
-    return Write(isolate, buf, buflen, val, enc, chars_written);
-  })
-
-  NODE_DEPRECATED("Use Encode(isolate, ...)",
-                  static inline v8::Local<v8::Value> Encode(
-      const char* buf,
-      size_t buflen,
-      enum encoding encoding) {
-    return Encode(v8::Isolate::GetCurrent(), buf, buflen, encoding);
-  })
+  static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
+                                     const char* buf,
+                                     enum encoding encoding);
 
  private:
   static size_t WriteUCS2(char* buf,

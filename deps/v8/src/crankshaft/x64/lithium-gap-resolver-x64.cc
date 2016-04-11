@@ -244,7 +244,9 @@ void LGapResolver::EmitSwap(int index) {
     // Swap two general-purpose registers.
     Register src = cgen_->ToRegister(source);
     Register dst = cgen_->ToRegister(destination);
-    __ xchgq(dst, src);
+    __ movp(kScratchRegister, src);
+    __ movp(src, dst);
+    __ movp(dst, kScratchRegister);
 
   } else if ((source->IsRegister() && destination->IsStackSlot()) ||
              (source->IsStackSlot() && destination->IsRegister())) {

@@ -82,11 +82,23 @@ void MessageHandler::ReportMessage(Isolate* isolate, MessageLocation* loc,
   if (message->argument()->IsJSObject()) {
     HandleScope scope(isolate);
     Handle<Object> argument(message->argument(), isolate);
-    Handle<Object> args[] = {argument};
-    MaybeHandle<Object> maybe_stringified = Execution::TryCall(
-        isolate, isolate->to_detail_string_fun(),
-        isolate->factory()->undefined_value(), arraysize(args), args);
+
+    MaybeHandle<Object> maybe_stringified;
     Handle<Object> stringified;
+    // Make sure we don't leak uncaught internally generated Error objects.
+    if (Object::IsErrorObject(isolate, argument)) {
+      Handle<Object> args[] = {argument};
+      maybe_stringified = Execution::TryCall(
+          isolate, isolate->no_side_effects_to_string_fun(),
+          isolate->factory()->undefined_value(), arraysize(args), args);
+    } else {
+      v8::TryCatch catcher(reinterpret_cast<v8::Isolate*>(isolate));
+      catcher.SetVerbose(false);
+      catcher.SetCaptureMessage(false);
+
+      maybe_stringified = Object::ToString(isolate, argument);
+    }
+
     if (!maybe_stringified.ToHandle(&stringified)) {
       stringified = isolate->factory()->NewStringFromAsciiChecked("exception");
     }
@@ -151,10 +163,9 @@ CallSite::CallSite(Isolate* isolate, Handle<JSObject> call_site_obj)
   fun_ = Handle<JSFunction>::cast(maybe_function);
   receiver_ = JSObject::GetDataProperty(
       call_site_obj, isolate->factory()->call_site_receiver_symbol());
-  pos_ = Handle<Smi>::cast(JSObject::GetDataProperty(
-                               call_site_obj,
-                               isolate->factory()->call_site_position_symbol()))
-             ->value();
+  CHECK(JSObject::GetDataProperty(
+            call_site_obj, isolate->factory()->call_site_position_symbol())
+            ->ToInt32(&pos_));
 }
 
 
@@ -168,8 +179,9 @@ Handle<Object> CallSite::GetFileName() {
 
 
 Handle<Object> CallSite::GetFunctionName() {
-  Handle<String> result = JSFunction::GetDebugName(fun_);
+  Handle<String> result = JSFunction::GetName(fun_);
   if (result->length() != 0) return result;
+
   Handle<Object> script(fun_->shared()->script(), isolate_);
   if (script->IsScript() &&
       Handle<Script>::cast(script)->compilation_type() ==
@@ -316,7 +328,7 @@ Handle<String> MessageTemplate::FormatMessage(Isolate* isolate,
   if (arg->IsString()) {
     result_string = Handle<String>::cast(arg);
   } else {
-    Handle<JSFunction> fun = isolate->no_side_effect_to_string_fun();
+    Handle<JSFunction> fun = isolate->no_side_effects_to_string_fun();
 
     MaybeHandle<Object> maybe_result =
         Execution::TryCall(isolate, fun, factory->undefined_value(), 1, &arg);
@@ -389,95 +401,6 @@ MaybeHandle<String> MessageTemplate::FormatMessage(int template_index,
   return builder.Finish();
 }
 
-
-MaybeHandle<String> ErrorToStringHelper::Stringify(Isolate* isolate,
-                                                   Handle<JSObject> error) {
-  VisitedScope scope(this, error);
-  if (scope.has_visited()) return isolate->factory()->empty_string();
-
-  Handle<String> name;
-  Handle<String> message;
-  Handle<Name> internal_key = isolate->factory()->internal_error_symbol();
-  Handle<String> message_string =
-      isolate->factory()->NewStringFromStaticChars("message");
-  Handle<String> name_string = isolate->factory()->name_string();
-  LookupIterator internal_error_lookup(
-      error, internal_key, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-
-  // Find out whether an internally created error object is on the prototype
-  // chain. If the name property is found on a holder prior to the internally
-  // created error object, use that name property. Otherwise just use the
-  // constructor name to avoid triggering possible side effects.
-  // Similar for the message property. If the message property shadows the
-  // internally created error object, use that message property. Otherwise
-  // use empty string as message.
-  LookupIterator name_lookup(error, name_string,
-                             LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  if (internal_error_lookup.IsFound() &&
-      !ShadowsInternalError(isolate, &name_lookup, &internal_error_lookup)) {
-    Handle<JSObject> holder = internal_error_lookup.GetHolder<JSObject>();
-    name = Handle<String>(holder->constructor_name());
-  } else {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, name,
-        GetStringifiedProperty(isolate, &name_lookup,
-                               isolate->factory()->Error_string()),
-        String);
-  }
-
-  LookupIterator message_lookup(
-      error, message_string, LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  if (internal_error_lookup.IsFound() &&
-      !ShadowsInternalError(isolate, &message_lookup, &internal_error_lookup)) {
-    message = isolate->factory()->empty_string();
-  } else {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, message,
-        GetStringifiedProperty(isolate, &message_lookup,
-                               isolate->factory()->empty_string()),
-        String);
-  }
-
-  if (name->length() == 0) return message;
-  if (message->length() == 0) return name;
-  IncrementalStringBuilder builder(isolate);
-  builder.AppendString(name);
-  builder.AppendCString(": ");
-  builder.AppendString(message);
-  return builder.Finish();
-}
-
-
-bool ErrorToStringHelper::ShadowsInternalError(
-    Isolate* isolate, LookupIterator* property_lookup,
-    LookupIterator* internal_error_lookup) {
-  if (!property_lookup->IsFound()) return false;
-  Handle<JSObject> holder = property_lookup->GetHolder<JSObject>();
-  // It's fine if the property is defined on the error itself.
-  if (holder.is_identical_to(property_lookup->GetReceiver())) return true;
-  PrototypeIterator it(isolate, holder, PrototypeIterator::START_AT_RECEIVER);
-  while (true) {
-    if (it.IsAtEnd()) return false;
-    if (it.IsAtEnd(internal_error_lookup->GetHolder<JSObject>())) return true;
-    it.AdvanceIgnoringProxies();
-  }
-}
-
-
-MaybeHandle<String> ErrorToStringHelper::GetStringifiedProperty(
-    Isolate* isolate, LookupIterator* property_lookup,
-    Handle<String> default_value) {
-  if (!property_lookup->IsFound()) return default_value;
-  Handle<Object> obj;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::GetProperty(property_lookup),
-                             String);
-  if (obj->IsUndefined()) return default_value;
-  if (!obj->IsString()) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, obj, Object::ToString(isolate, obj),
-                               String);
-  }
-  return Handle<String>::cast(obj);
-}
 
 }  // namespace internal
 }  // namespace v8

@@ -714,7 +714,11 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(map_space_bytes_used, V8.MemoryMapSpaceBytesUsed)                         \
   SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)                 \
   SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)                 \
-  SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)
+  SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)                           \
+  SC(turbo_escape_allocs_replaced, V8.TurboEscapeAllocsReplaced)               \
+  SC(crankshaft_escape_allocs_replaced, V8.CrankshaftEscapeAllocsReplaced)     \
+  SC(turbo_escape_loads_replaced, V8.TurboEscapeLoadsReplaced)                 \
+  SC(crankshaft_escape_loads_replaced, V8.CrankshaftEscapeLoadsReplaced)
 
 
 // This file contains all the v8 counters that are in use.

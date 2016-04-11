@@ -5,7 +5,7 @@
 #ifndef V8_CRANKSHAFT_HYDROGEN_OSR_H_
 #define V8_CRANKSHAFT_HYDROGEN_OSR_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/crankshaft/hydrogen.h"
 #include "src/zone.h"
 

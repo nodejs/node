@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var EventEmitter = require('events').EventEmitter;
 

@@ -2,18 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <stdlib.h>
 
 #include "src/v8.h"
 
-#include "src/ast.h"
-#include "src/ast-expression-visitor.h"
-#include "src/parser.h"
-#include "src/rewriter.h"
-#include "src/scopes.h"
+#include "src/ast/ast.h"
+#include "src/ast/ast-expression-visitor.h"
+#include "src/ast/scopes.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 #include "src/typing-reset.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"

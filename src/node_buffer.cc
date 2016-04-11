@@ -48,7 +48,21 @@
   CHECK_NOT_OOB(end <= end_max);                                            \
   size_t length = end - start;
 
+#define BUFFER_MALLOC(length)                                               \
+  zero_fill_all_buffers ? calloc(length, 1) : malloc(length)
+
+#define SWAP_BYTES(arr, a, b)                                               \
+  do {                                                                      \
+    const uint8_t lo = arr[a];                                              \
+    arr[a] = arr[b];                                                        \
+    arr[b] = lo;                                                            \
+  } while (0)
+
 namespace node {
+
+// if true, all Buffer and SlowBuffer instances will automatically zero-fill
+bool zero_fill_all_buffers = false;
+
 namespace Buffer {
 
 using v8::ArrayBuffer;
@@ -72,28 +86,28 @@ using v8::Uint32;
 using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Value;
-using v8::WeakCallbackData;
-
+using v8::WeakCallbackInfo;
 
 class CallbackInfo {
  public:
   static inline void Free(char* data, void* hint);
   static inline CallbackInfo* New(Isolate* isolate,
-                                  Local<Object> object,
+                                  Local<ArrayBuffer> object,
                                   FreeCallback callback,
+                                  char* data,
                                   void* hint = 0);
-  inline void Dispose(Isolate* isolate);
-  inline Persistent<Object>* persistent();
  private:
-  static void WeakCallback(const WeakCallbackData<Object, CallbackInfo>&);
-  inline void WeakCallback(Isolate* isolate, Local<Object> object);
+  static void WeakCallback(const WeakCallbackInfo<CallbackInfo>&);
+  inline void WeakCallback(Isolate* isolate);
   inline CallbackInfo(Isolate* isolate,
-                      Local<Object> object,
+                      Local<ArrayBuffer> object,
                       FreeCallback callback,
+                      char* data,
                       void* hint);
   ~CallbackInfo();
-  Persistent<Object> persistent_;
+  Persistent<ArrayBuffer> persistent_;
   FreeCallback const callback_;
+  char* const data_;
   void* const hint_;
   DISALLOW_COPY_AND_ASSIGN(CallbackInfo);
 };
@@ -105,31 +119,29 @@ void CallbackInfo::Free(char* data, void*) {
 
 
 CallbackInfo* CallbackInfo::New(Isolate* isolate,
-                                Local<Object> object,
+                                Local<ArrayBuffer> object,
                                 FreeCallback callback,
+                                char* data,
                                 void* hint) {
-  return new CallbackInfo(isolate, object, callback, hint);
-}
-
-
-void CallbackInfo::Dispose(Isolate* isolate) {
-  WeakCallback(isolate, PersistentToLocal(isolate, persistent_));
-}
-
-
-Persistent<Object>* CallbackInfo::persistent() {
-  return &persistent_;
+  return new CallbackInfo(isolate, object, callback, data, hint);
 }
 
 
 CallbackInfo::CallbackInfo(Isolate* isolate,
-                           Local<Object> object,
+                           Local<ArrayBuffer> object,
                            FreeCallback callback,
+                           char* data,
                            void* hint)
     : persistent_(isolate, object),
       callback_(callback),
+      data_(data),
       hint_(hint) {
-  persistent_.SetWeak(this, WeakCallback);
+  ArrayBuffer::Contents obj_c = object->GetContents();
+  CHECK_EQ(data_, static_cast<char*>(obj_c.Data()));
+  if (object->ByteLength() != 0)
+    CHECK_NE(data_, nullptr);
+
+  persistent_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   persistent_.SetWrapperClassId(BUFFER_ID);
   persistent_.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(*this));
@@ -142,25 +154,17 @@ CallbackInfo::~CallbackInfo() {
 
 
 void CallbackInfo::WeakCallback(
-    const WeakCallbackData<Object, CallbackInfo>& data) {
-  data.GetParameter()->WeakCallback(data.GetIsolate(), data.GetValue());
+    const WeakCallbackInfo<CallbackInfo>& data) {
+  CallbackInfo* self = data.GetParameter();
+  self->WeakCallback(data.GetIsolate());
+  delete self;
 }
 
 
-void CallbackInfo::WeakCallback(Isolate* isolate, Local<Object> object) {
-  CHECK(object->IsArrayBuffer());
-  Local<ArrayBuffer> buf = object.As<ArrayBuffer>();
-  ArrayBuffer::Contents obj_c = buf->GetContents();
-  char* const obj_data = static_cast<char*>(obj_c.Data());
-  if (buf->ByteLength() != 0)
-    CHECK_NE(obj_data, nullptr);
-
-  buf->Neuter();
-  callback_(obj_data, hint_);
+void CallbackInfo::WeakCallback(Isolate* isolate) {
+  callback_(data_, hint_);
   int64_t change_in_bytes = -static_cast<int64_t>(sizeof(*this));
   isolate->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
-
-  delete this;
 }
 
 
@@ -220,7 +224,7 @@ MaybeLocal<Object> New(Isolate* isolate,
   // nullptr for zero-sized allocation requests.  Normalize by always using
   // a nullptr.
   if (length > 0) {
-    data = static_cast<char*>(malloc(length));
+    data = static_cast<char*>(BUFFER_MALLOC(length));
 
     if (data == nullptr)
       return Local<Object>();
@@ -266,7 +270,7 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 
   void* data;
   if (length > 0) {
-    data = malloc(length);
+    data = BUFFER_MALLOC(length);
     if (data == nullptr)
       return Local<Object>();
   } else {
@@ -374,7 +378,7 @@ MaybeLocal<Object> New(Environment* env,
   if (!mb.FromMaybe(false))
     return Local<Object>();
 
-  CallbackInfo::New(env->isolate(), ab, callback, hint);
+  CallbackInfo::New(env->isolate(), ab, callback, data, hint);
   return scope.Escape(ui);
 }
 
@@ -429,7 +433,20 @@ void CreateFromArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsArrayBuffer())
     return env->ThrowTypeError("argument is not an ArrayBuffer");
   Local<ArrayBuffer> ab = args[0].As<ArrayBuffer>();
-  Local<Uint8Array> ui = Uint8Array::New(ab, 0, ab->ByteLength());
+
+  size_t ab_length = ab->ByteLength();
+  size_t offset;
+  size_t max_length;
+
+  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &offset));
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], ab_length - offset, &max_length));
+
+  if (offset >= ab_length)
+    return env->ThrowRangeError("'offset' is out of bounds");
+  if (max_length > ab_length - offset)
+    return env->ThrowRangeError("'length' is out of bounds");
+
+  Local<Uint8Array> ui = Uint8Array::New(ab, offset, max_length);
   Maybe<bool> mb =
       ui->SetPrototype(env->context(), env->buffer_prototype_object());
   if (!mb.FromMaybe(false))
@@ -804,14 +821,14 @@ void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   size_t offset = args[2]->IntegerValue(env->context()).FromMaybe(0);
 
   size_t memcpy_num = sizeof(T);
-  if (offset + sizeof(T) > ts_obj_length)
-    memcpy_num = ts_obj_length - offset;
 
   if (should_assert) {
     CHECK_NOT_OOB(offset + memcpy_num >= memcpy_num);
     CHECK_NOT_OOB(offset + memcpy_num <= ts_obj_length);
   }
-  CHECK_LE(offset + memcpy_num, ts_obj_length);
+
+  if (offset + memcpy_num > ts_obj_length)
+    memcpy_num = ts_obj_length - offset;
 
   union NoAlias {
     T val;
@@ -853,6 +870,62 @@ void ByteLengthUtf8(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(args[0].As<String>()->Utf8Length());
 }
 
+// Normalize val to be an integer in the range of [1, -1] since
+// implementations of memcmp() can vary by platform.
+static int normalizeCompareVal(int val, size_t a_length, size_t b_length) {
+  if (val == 0) {
+    if (a_length > b_length)
+      return 1;
+    else if (a_length < b_length)
+      return -1;
+  } else {
+    if (val > 0)
+      return 1;
+    else
+      return -1;
+  }
+  return val;
+}
+
+void CompareOffset(const FunctionCallbackInfo<Value> &args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
+  SPREAD_ARG(args[0], ts_obj);
+  SPREAD_ARG(args[1], target);
+
+  size_t target_start;
+  size_t source_start;
+  size_t source_end;
+  size_t target_end;
+
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &target_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[3], 0, &source_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[4], target_length, &target_end));
+  CHECK_NOT_OOB(ParseArrayIndex(args[5], ts_obj_length, &source_end));
+
+  if (source_start > ts_obj_length)
+    return env->ThrowRangeError("out of range index");
+  if (target_start > target_length)
+    return env->ThrowRangeError("out of range index");
+
+  CHECK_LE(source_start, source_end);
+  CHECK_LE(target_start, target_end);
+
+  size_t to_cmp = MIN(MIN(source_end - source_start,
+                      target_end - target_start),
+                      ts_obj_length - source_start);
+
+  int val = normalizeCompareVal(to_cmp > 0 ?
+                                  memcmp(ts_obj_data + source_start,
+                                         target_data + target_start,
+                                         to_cmp) : 0,
+                                source_end - source_start,
+                                target_end - target_start);
+
+  args.GetReturnValue().Set(val);
+}
 
 void Compare(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
@@ -864,22 +937,9 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 
   size_t cmp_length = MIN(obj_a_length, obj_b_length);
 
-  int val = cmp_length > 0 ? memcmp(obj_a_data, obj_b_data, cmp_length) : 0;
-
-  // Normalize val to be an integer in the range of [1, -1] since
-  // implementations of memcmp() can vary by platform.
-  if (val == 0) {
-    if (obj_a_length > obj_b_length)
-      val = 1;
-    else if (obj_a_length < obj_b_length)
-      val = -1;
-  } else {
-    if (val > 0)
-      val = 1;
-    else
-      val = -1;
-  }
-
+  int val = normalizeCompareVal(cmp_length > 0 ?
+                                memcmp(obj_a_data, obj_b_data, cmp_length) : 0,
+                                obj_a_length, obj_b_length);
   args.GetReturnValue().Set(val);
 }
 
@@ -1082,6 +1142,28 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
                                 : -1);
 }
 
+void Swap16(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
+  SPREAD_ARG(args.This(), ts_obj);
+
+  for (size_t i = 0; i < ts_obj_length; i += 2) {
+    SWAP_BYTES(ts_obj_data, i, i + 1);
+  }
+  args.GetReturnValue().Set(args.This());
+}
+
+void Swap32(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
+  SPREAD_ARG(args.This(), ts_obj);
+
+  for (size_t i = 0; i < ts_obj_length; i += 4) {
+    SWAP_BYTES(ts_obj_data, i, i + 3);
+    SWAP_BYTES(ts_obj_data, i + 1, i + 2);
+  }
+  args.GetReturnValue().Set(args.This());
+}
 
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
@@ -1133,6 +1215,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
   env->SetMethod(target, "compare", Compare);
+  env->SetMethod(target, "compareOffset", CompareOffset);
   env->SetMethod(target, "fill", Fill);
   env->SetMethod(target, "indexOfBuffer", IndexOfBuffer);
   env->SetMethod(target, "indexOfNumber", IndexOfNumber);
@@ -1147,6 +1230,9 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
   env->SetMethod(target, "writeFloatBE", WriteFloatBE);
   env->SetMethod(target, "writeFloatLE", WriteFloatLE);
+
+  env->SetMethod(target, "swap16", Swap16);
+  env->SetMethod(target, "swap32", Swap32);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),

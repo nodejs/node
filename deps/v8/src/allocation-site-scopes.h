@@ -5,7 +5,7 @@
 #ifndef V8_ALLOCATION_SITE_SCOPES_H_
 #define V8_ALLOCATION_SITE_SCOPES_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/handles.h"
 #include "src/objects.h"
 #include "src/zone.h"

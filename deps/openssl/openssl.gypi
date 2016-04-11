@@ -1040,7 +1040,7 @@
     #
     'conditions': [
       ['(OS=="win" and MSVS_VERSION>="2012") or '
-       'llvm_version>="3.3" or gas_version>="2.23"', {
+       'llvm_version>="3.3" or xcode_version>="5.0" or gas_version>="2.23"', {
         'openssl_sources_x64_win_masm': [
           '<@(openssl_sources_asm_latest_x64_win_masm)',
           '<@(openssl_sources_common_x64_win_masm)',
@@ -1251,10 +1251,6 @@
       # No clue what these are for.
       'PURIFY',
       '_REENTRANT',
-
-      # SSLv2 is known broken and has been superseded by SSLv3 for almost
-      # twenty years now.
-      'OPENSSL_NO_SSL2',
 
       # SSLv3 is susceptible to downgrade attacks (POODLE.)
       'OPENSSL_NO_SSL3',

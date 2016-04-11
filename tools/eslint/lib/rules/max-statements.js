@@ -17,7 +17,37 @@ module.exports = function(context) {
     //--------------------------------------------------------------------------
 
     var functionStack = [],
-        maxStatements = context.options[0] || 10;
+        option = context.options[0],
+        maxStatements = 10,
+        ignoreTopLevelFunctions = context.options[1] && context.options[1].ignoreTopLevelFunctions || false,
+        topLevelFunctions = [];
+
+    if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
+        maxStatements = option.maximum;
+    }
+    if (typeof option === "object" && option.hasOwnProperty("max") && typeof option.max === "number") {
+        maxStatements = option.max;
+    }
+    if (typeof option === "number") {
+        maxStatements = option;
+    }
+
+    /**
+     * Reports a node if it has too many statements
+     * @param {ASTNode} node node to evaluate
+     * @param {int} count Number of statements in node
+     * @param {int} max Maximum number of statements allowed
+     * @returns {void}
+     * @private
+     */
+    function reportIfTooManyStatements(node, count, max) {
+        if (count > max) {
+            context.report(
+                node,
+                "This function has too many statements ({{count}}). Maximum allowed is {{max}}.",
+                { count: count, max: max });
+        }
+    }
 
     /**
      * When parsing a new function, store it in our function stack
@@ -37,9 +67,10 @@ module.exports = function(context) {
     function endFunction(node) {
         var count = functionStack.pop();
 
-        if (count > maxStatements) {
-            context.report(node, "This function has too many statements ({{count}}). Maximum allowed is {{max}}.",
-                    { count: count, max: maxStatements });
+        if (ignoreTopLevelFunctions && functionStack.length === 0) {
+            topLevelFunctions.push({ node: node, count: count});
+        } else {
+            reportIfTooManyStatements(node, count, maxStatements);
         }
     }
 
@@ -66,13 +97,54 @@ module.exports = function(context) {
 
         "FunctionDeclaration:exit": endFunction,
         "FunctionExpression:exit": endFunction,
-        "ArrowFunctionExpression:exit": endFunction
+        "ArrowFunctionExpression:exit": endFunction,
+
+        "Program:exit": function() {
+            if (topLevelFunctions.length === 1) {
+                return;
+            }
+
+            topLevelFunctions.forEach(function(element) {
+                var count = element.count;
+                var node = element.node;
+
+                reportIfTooManyStatements(node, count, maxStatements);
+            });
+        }
     };
 
 };
 
 module.exports.schema = [
     {
-        "type": "integer"
+        "oneOf": [
+            {
+                "type": "integer",
+                "minimum": 0
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "maximum": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "max": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "additionalProperties": false
+            }
+        ]
+    },
+    {
+        "type": "object",
+        "properties": {
+            "ignoreTopLevelFunctions": {
+                "type": "boolean"
+            }
+        },
+        "additionalProperties": false
     }
 ];

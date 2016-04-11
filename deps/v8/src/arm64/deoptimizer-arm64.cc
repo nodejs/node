@@ -49,7 +49,8 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
 
-    PatchingAssembler patcher(call_address, patch_size() / kInstructionSize);
+    PatchingAssembler patcher(isolate, call_address,
+                              patch_size() / kInstructionSize);
     patcher.ldr_pcrel(ip0, (2 * kInstructionSize) >> kLoadLiteralScaleLog2);
     patcher.blr(ip0);
     patcher.dc64(reinterpret_cast<intptr_t>(deopt_entry));
@@ -190,11 +191,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   // Copy FP registers to the input frame.
+  CPURegList copy_fp_to_input = saved_fp_registers;
   for (int i = 0; i < saved_fp_registers.Count(); i++) {
-    int dst_offset = FrameDescription::double_registers_offset() +
-        (i * kDoubleSize);
     int src_offset = kFPRegistersOffset + (i * kDoubleSize);
     __ Peek(x2, src_offset);
+    CPURegister reg = copy_fp_to_input.PopLowestIndex();
+    int dst_offset = FrameDescription::double_registers_offset() +
+                     (reg.code() * kDoubleSize);
     __ Str(x2, MemOperand(x1, dst_offset));
   }
 
@@ -263,11 +266,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   DCHECK(!saved_fp_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
          !saved_fp_registers.IncludesAliasOf(fp_zero) &&
          !saved_fp_registers.IncludesAliasOf(fp_scratch));
-  int src_offset = FrameDescription::double_registers_offset();
   while (!saved_fp_registers.IsEmpty()) {
     const CPURegister reg = saved_fp_registers.PopLowestIndex();
+    int src_offset = FrameDescription::double_registers_offset() +
+                     (reg.code() * kDoubleSize);
     __ Ldr(reg, MemOperand(x1, src_offset));
-    src_offset += kDoubleSize;
   }
 
   // Push state from the last output frame.

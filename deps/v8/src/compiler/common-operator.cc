@@ -36,6 +36,27 @@ BranchHint BranchHintOf(const Operator* const op) {
 }
 
 
+size_t hash_value(DeoptimizeKind kind) { return static_cast<size_t>(kind); }
+
+
+std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
+  switch (kind) {
+    case DeoptimizeKind::kEager:
+      return os << "Eager";
+    case DeoptimizeKind::kSoft:
+      return os << "Soft";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
+DeoptimizeKind DeoptimizeKindOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kDeoptimize, op->opcode());
+  return OpParameter<DeoptimizeKind>(op);
+}
+
+
 size_t hash_value(IfExceptionHint hint) { return static_cast<size_t>(hint); }
 
 
@@ -52,7 +73,8 @@ std::ostream& operator<<(std::ostream& os, IfExceptionHint hint) {
 
 
 bool operator==(SelectParameters const& lhs, SelectParameters const& rhs) {
-  return lhs.type() == rhs.type() && lhs.hint() == rhs.hint();
+  return lhs.representation() == rhs.representation() &&
+         lhs.hint() == rhs.hint();
 }
 
 
@@ -62,12 +84,12 @@ bool operator!=(SelectParameters const& lhs, SelectParameters const& rhs) {
 
 
 size_t hash_value(SelectParameters const& p) {
-  return base::hash_combine(p.type(), p.hint());
+  return base::hash_combine(p.representation(), p.hint());
 }
 
 
 std::ostream& operator<<(std::ostream& os, SelectParameters const& p) {
-  return os << p.type() << "|" << p.hint();
+  return os << p.representation() << "|" << p.hint();
 }
 
 
@@ -80,6 +102,12 @@ SelectParameters const& SelectParametersOf(const Operator* const op) {
 size_t ProjectionIndexOf(const Operator* const op) {
   DCHECK_EQ(IrOpcode::kProjection, op->opcode());
   return OpParameter<size_t>(op);
+}
+
+
+MachineRepresentation PhiRepresentationOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kPhi, op->opcode());
+  return OpParameter<MachineRepresentation>(op);
 }
 
 
@@ -122,7 +150,6 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
   V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
-  V(Deoptimize, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)      \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)       \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
@@ -183,15 +210,15 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
 
 
 #define CACHED_PHI_LIST(V) \
-  V(kMachAnyTagged, 1)     \
-  V(kMachAnyTagged, 2)     \
-  V(kMachAnyTagged, 3)     \
-  V(kMachAnyTagged, 4)     \
-  V(kMachAnyTagged, 5)     \
-  V(kMachAnyTagged, 6)     \
-  V(kMachBool, 2)          \
-  V(kMachFloat64, 2)       \
-  V(kMachInt32, 2)
+  V(kTagged, 1)            \
+  V(kTagged, 2)            \
+  V(kTagged, 3)            \
+  V(kTagged, 4)            \
+  V(kTagged, 5)            \
+  V(kTagged, 6)            \
+  V(kBit, 2)               \
+  V(kFloat64, 2)           \
+  V(kWord32, 2)
 
 
 #define CACHED_PROJECTION_LIST(V) \
@@ -230,6 +257,18 @@ struct CommonOperatorGlobalCache final {
   Name##Operator k##Name##Operator;
   CACHED_OP_LIST(CACHED)
 #undef CACHED
+
+  template <DeoptimizeKind kKind>
+  struct DeoptimizeOperator final : public Operator1<DeoptimizeKind> {
+    DeoptimizeOperator()
+        : Operator1<DeoptimizeKind>(                      // --
+              IrOpcode::kDeoptimize, Operator::kNoThrow,  // opcode
+              "Deoptimize",                               // name
+              1, 1, 1, 0, 0, 1,                           // counts
+              kKind) {}                                   // parameter
+  };
+  DeoptimizeOperator<DeoptimizeKind::kEager> kDeoptimizeEagerOperator;
+  DeoptimizeOperator<DeoptimizeKind::kSoft> kDeoptimizeSoftOperator;
 
   template <IfExceptionHint kCaughtLocally>
   struct IfExceptionOperator final : public Operator1<IfExceptionHint> {
@@ -321,17 +360,18 @@ struct CommonOperatorGlobalCache final {
   CACHED_MERGE_LIST(CACHED_MERGE)
 #undef CACHED_MERGE
 
-  template <MachineType kType, int kInputCount>
-  struct PhiOperator final : public Operator1<MachineType> {
+  template <MachineRepresentation kRep, int kInputCount>
+  struct PhiOperator final : public Operator1<MachineRepresentation> {
     PhiOperator()
-        : Operator1<MachineType>(               //--
+        : Operator1<MachineRepresentation>(     //--
               IrOpcode::kPhi, Operator::kPure,  // opcode
               "Phi",                            // name
               kInputCount, 0, 1, 1, 0, 0,       // counts
-              kType) {}                         // parameter
+              kRep) {}                          // parameter
   };
-#define CACHED_PHI(type, input_count) \
-  PhiOperator<type, input_count> kPhi##type##input_count##Operator;
+#define CACHED_PHI(rep, input_count)                   \
+  PhiOperator<MachineRepresentation::rep, input_count> \
+      kPhi##rep##input_count##Operator;
   CACHED_PHI_LIST(CACHED_PHI)
 #undef CACHED_PHI
 
@@ -399,7 +439,6 @@ CACHED_OP_LIST(CACHED)
 
 
 const Operator* CommonOperatorBuilder::End(size_t control_input_count) {
-  DCHECK_NE(0u, control_input_count);  // Disallow empty ends.
   switch (control_input_count) {
 #define CACHED_END(input_count) \
   case input_count:             \
@@ -449,6 +488,18 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
 }
 
 
+const Operator* CommonOperatorBuilder::Deoptimize(DeoptimizeKind kind) {
+  switch (kind) {
+    case DeoptimizeKind::kEager:
+      return &cache_.kDeoptimizeEagerOperator;
+    case DeoptimizeKind::kSoft:
+      return &cache_.kDeoptimizeSoftOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+
 const Operator* CommonOperatorBuilder::IfException(IfExceptionHint hint) {
   switch (hint) {
     case IfExceptionHint::kLocallyCaught:
@@ -462,7 +513,6 @@ const Operator* CommonOperatorBuilder::IfException(IfExceptionHint hint) {
 
 
 const Operator* CommonOperatorBuilder::Switch(size_t control_output_count) {
-  DCHECK_GE(control_output_count, 3u);        // Disallow trivial switches.
   return new (zone()) Operator(               // --
       IrOpcode::kSwitch, Operator::kKontrol,  // opcode
       "Switch",                               // name
@@ -573,22 +623,20 @@ const Operator* CommonOperatorBuilder::Int64Constant(int64_t value) {
 
 
 const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
-  return new (zone())
-      Operator1<float, base::bit_equal_to<float>, base::bit_hash<float>>(  // --
-          IrOpcode::kFloat32Constant, Operator::kPure,  // opcode
-          "Float32Constant",                            // name
-          0, 0, 0, 1, 0, 0,                             // counts
-          value);                                       // parameter
+  return new (zone()) Operator1<float>(             // --
+      IrOpcode::kFloat32Constant, Operator::kPure,  // opcode
+      "Float32Constant",                            // name
+      0, 0, 0, 1, 0, 0,                             // counts
+      value);                                       // parameter
 }
 
 
 const Operator* CommonOperatorBuilder::Float64Constant(volatile double value) {
-  return new (zone()) Operator1<double, base::bit_equal_to<double>,
-                                base::bit_hash<double>>(  // --
-      IrOpcode::kFloat64Constant, Operator::kPure,        // opcode
-      "Float64Constant",                                  // name
-      0, 0, 0, 1, 0, 0,                                   // counts
-      value);                                             // parameter
+  return new (zone()) Operator1<double>(            // --
+      IrOpcode::kFloat64Constant, Operator::kPure,  // opcode
+      "Float64Constant",                            // name
+      0, 0, 0, 1, 0, 0,                             // counts
+      value);                                       // parameter
 }
 
 
@@ -603,52 +651,50 @@ const Operator* CommonOperatorBuilder::ExternalConstant(
 
 
 const Operator* CommonOperatorBuilder::NumberConstant(volatile double value) {
-  return new (zone()) Operator1<double, base::bit_equal_to<double>,
-                                base::bit_hash<double>>(  // --
-      IrOpcode::kNumberConstant, Operator::kPure,         // opcode
-      "NumberConstant",                                   // name
-      0, 0, 0, 1, 0, 0,                                   // counts
-      value);                                             // parameter
+  return new (zone()) Operator1<double>(           // --
+      IrOpcode::kNumberConstant, Operator::kPure,  // opcode
+      "NumberConstant",                            // name
+      0, 0, 0, 1, 0, 0,                            // counts
+      value);                                      // parameter
 }
 
 
 const Operator* CommonOperatorBuilder::HeapConstant(
     const Handle<HeapObject>& value) {
-  return new (zone())
-      Operator1<Handle<HeapObject>, Handle<HeapObject>::equal_to,
-                Handle<HeapObject>::hash>(           // --
-          IrOpcode::kHeapConstant, Operator::kPure,  // opcode
-          "HeapConstant",                            // name
-          0, 0, 0, 1, 0, 0,                          // counts
-          value);                                    // parameter
+  return new (zone()) Operator1<Handle<HeapObject>>(  // --
+      IrOpcode::kHeapConstant, Operator::kPure,       // opcode
+      "HeapConstant",                                 // name
+      0, 0, 0, 1, 0, 0,                               // counts
+      value);                                         // parameter
 }
 
 
-const Operator* CommonOperatorBuilder::Select(MachineType type,
+const Operator* CommonOperatorBuilder::Select(MachineRepresentation rep,
                                               BranchHint hint) {
   return new (zone()) Operator1<SelectParameters>(  // --
       IrOpcode::kSelect, Operator::kPure,           // opcode
       "Select",                                     // name
       3, 0, 0, 1, 0, 0,                             // counts
-      SelectParameters(type, hint));                // parameter
+      SelectParameters(rep, hint));                 // parameter
 }
 
 
-const Operator* CommonOperatorBuilder::Phi(MachineType type,
+const Operator* CommonOperatorBuilder::Phi(MachineRepresentation rep,
                                            int value_input_count) {
   DCHECK(value_input_count > 0);  // Disallow empty phis.
-#define CACHED_PHI(kType, kValueInputCount)                     \
-  if (kType == type && kValueInputCount == value_input_count) { \
-    return &cache_.kPhi##kType##kValueInputCount##Operator;     \
+#define CACHED_PHI(kRep, kValueInputCount)                 \
+  if (MachineRepresentation::kRep == rep &&                \
+      kValueInputCount == value_input_count) {             \
+    return &cache_.kPhi##kRep##kValueInputCount##Operator; \
   }
   CACHED_PHI_LIST(CACHED_PHI)
 #undef CACHED_PHI
   // Uncached.
-  return new (zone()) Operator1<MachineType>(  // --
-      IrOpcode::kPhi, Operator::kPure,         // opcode
-      "Phi",                                   // name
-      value_input_count, 0, 1, 1, 0, 0,        // counts
-      type);                                   // parameter
+  return new (zone()) Operator1<MachineRepresentation>(  // --
+      IrOpcode::kPhi, Operator::kPure,                   // opcode
+      "Phi",                                             // name
+      value_input_count, 0, 1, 1, 0, 0,                  // counts
+      rep);                                              // parameter
 }
 
 
@@ -704,6 +750,14 @@ const Operator* CommonOperatorBuilder::StateValues(int arguments) {
       IrOpcode::kStateValues, Operator::kPure,  // opcode
       "StateValues",                            // name
       arguments, 0, 0, 1, 0, 0);                // counts
+}
+
+
+const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots, int id) {
+  return new (zone()) Operator1<int>(           // --
+      IrOpcode::kObjectState, Operator::kPure,  // opcode
+      "ObjectState",                            // name
+      pointer_slots, 0, 0, 1, 0, 0, id);        // counts
 }
 
 
@@ -795,7 +849,7 @@ const Operator* CommonOperatorBuilder::Projection(size_t index) {
 const Operator* CommonOperatorBuilder::ResizeMergeOrPhi(const Operator* op,
                                                         int size) {
   if (op->opcode() == IrOpcode::kPhi) {
-    return Phi(OpParameter<MachineType>(op), size);
+    return Phi(PhiRepresentationOf(op), size);
   } else if (op->opcode() == IrOpcode::kEffectPhi) {
     return EffectPhi(size);
   } else if (op->opcode() == IrOpcode::kMerge) {

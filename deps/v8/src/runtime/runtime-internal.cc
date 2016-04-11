@@ -5,14 +5,14 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/parser.h"
-#include "src/prettyprinter.h"
+#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {
@@ -92,7 +92,7 @@ RUNTIME_FUNCTION(Runtime_ReThrow) {
 
 RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
+  DCHECK_LE(0, args.length());
   return isolate->StackOverflow();
 }
 
@@ -153,6 +153,14 @@ RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ThrowIllegalInvocation) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kIllegalInvocation));
+}
+
+
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -168,6 +176,16 @@ RUNTIME_FUNCTION(Runtime_ThrowStrongModeImplicitConversion) {
   DCHECK(args.length() == 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kStrongImplicitConversion));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<String> type = Object::TypeOf(isolate, object);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kApplyNonFunction, object, type));
 }
 
 
@@ -284,18 +302,6 @@ RUNTIME_FUNCTION(Runtime_MessageGetScript) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ErrorToStringRT) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, error, 0);
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      isolate->error_tostring_helper()->Stringify(isolate, error));
-  return *result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_FormatMessageString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
@@ -329,8 +335,8 @@ static inline Object* ReturnDereferencedHandle(Handle<Object> obj,
 }
 
 
-static inline Object* ReturnPositiveSmiOrNull(int value, Isolate* isolate) {
-  if (value >= 0) return Smi::FromInt(value);
+static inline Object* ReturnPositiveNumberOrNull(int value, Isolate* isolate) {
+  if (value >= 0) return *isolate->factory()->NewNumberFromInt(value);
   return isolate->heap()->null_value();
 }
 
@@ -344,8 +350,8 @@ CALLSITE_GET(GetFileName, ReturnDereferencedHandle)
 CALLSITE_GET(GetFunctionName, ReturnDereferencedHandle)
 CALLSITE_GET(GetScriptNameOrSourceUrl, ReturnDereferencedHandle)
 CALLSITE_GET(GetMethodName, ReturnDereferencedHandle)
-CALLSITE_GET(GetLineNumber, ReturnPositiveSmiOrNull)
-CALLSITE_GET(GetColumnNumber, ReturnPositiveSmiOrNull)
+CALLSITE_GET(GetLineNumber, ReturnPositiveNumberOrNull)
+CALLSITE_GET(GetColumnNumber, ReturnPositiveNumberOrNull)
 CALLSITE_GET(IsNative, ReturnBoolean)
 CALLSITE_GET(IsToplevel, ReturnBoolean)
 CALLSITE_GET(IsEval, ReturnBoolean)
@@ -372,50 +378,46 @@ RUNTIME_FUNCTION(Runtime_IncrementStatsCounter) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_HarmonyToString) {
-  // TODO(caitp): Delete this runtime method when removing --harmony-tostring
-  return isolate->heap()->ToBoolean(FLAG_harmony_tostring);
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetTypeFeedbackVector) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  return function->shared()->feedback_vector();
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetCallerJSFunction) {
-  SealHandleScope shs(isolate);
-  StackFrameIterator it(isolate);
-  RUNTIME_ASSERT(it.frame()->type() == StackFrame::STUB);
-  it.Advance();
-  RUNTIME_ASSERT(it.frame()->type() == StackFrame::JAVA_SCRIPT);
-  return JavaScriptFrame::cast(it.frame())->function();
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetCodeStubExportsObject) {
-  HandleScope shs(isolate);
-  return isolate->heap()->code_stub_exports_object();
-}
-
-
 namespace {
+
+bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
+  JavaScriptFrameIterator it(isolate);
+  if (!it.done()) {
+    JavaScriptFrame* frame = it.frame();
+    JSFunction* fun = frame->function();
+    Object* script = fun->shared()->script();
+    if (script->IsScript() &&
+        !(Script::cast(script)->source()->IsUndefined())) {
+      Handle<Script> casted_script(Script::cast(script));
+      // Compute the location from the function and the relocation info of the
+      // baseline code. For optimized code this will use the deoptimization
+      // information to get canonical location information.
+      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+      it.frame()->Summarize(&frames);
+      FrameSummary& summary = frames.last();
+      int pos = summary.code()->SourcePosition(summary.pc());
+      *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
+      return true;
+    }
+  }
+  return false;
+}
+
 
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
-  if (isolate->ComputeLocation(&location)) {
+  if (ComputeLocation(isolate, &location)) {
     Zone zone;
     base::SmartPointer<ParseInfo> info(
         location.function()->shared()->is_function()
             ? new ParseInfo(&zone, location.function())
             : new ParseInfo(&zone, location.script()));
     if (Parser::ParseStatic(info.get())) {
-      CallPrinter printer(isolate);
+      CallPrinter printer(isolate, location.function()->shared()->IsBuiltin());
       const char* string = printer.Print(info->literal(), location.start_pos());
-      return isolate->factory()->NewStringFromAsciiChecked(string);
+      if (strlen(string) > 0) {
+        return isolate->factory()->NewStringFromAsciiChecked(string);
+      }
     } else {
       isolate->clear_pending_exception();
     }
@@ -433,6 +435,38 @@ RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   Handle<String> callsite = RenderCallSite(isolate, object);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kCalledNonCallable, callsite));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<String> callsite = RenderCallSite(isolate, object);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNotConstructor, callsite));
+}
+
+
+// ES6 section 7.3.17 CreateListFromArrayLike (obj)
+RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<FixedArray> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Object::CreateListFromArrayLike(isolate, object, ElementTypes::kAll));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(counter, 0);
+  isolate->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(counter));
+  return isolate->heap()->undefined_value();
 }
 
 }  // namespace internal

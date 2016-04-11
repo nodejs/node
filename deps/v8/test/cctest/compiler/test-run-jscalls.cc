@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -145,7 +142,7 @@ TEST(RuntimeCallCPP2) {
 
 TEST(RuntimeCallInline) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %_IsSpecObject(a); })");
+  FunctionTester T("(function(a) { return %_IsJSReceiver(a); })");
 
   T.CheckCall(T.false_value(), T.Val(23), T.undefined());
   T.CheckCall(T.false_value(), T.Val(4.2), T.undefined());

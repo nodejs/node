@@ -4,8 +4,8 @@ var path = require('path');
 var http = require('http');
 var fs = require('fs');
 var spawn = require('child_process').spawn;
-var common = require('../common.js')
-var test = require('../../test/common.js')
+require('../common.js');
+var test = require('../../test/common.js');
 var pep = path.dirname(process.argv[1]) + '/_chunky_http_client.js';
 var PIPE = test.PIPE;
 
@@ -38,17 +38,17 @@ try {
   child = spawn(process.execPath, [pep], { });
 
   child.on('error', function(err) {
-    throw new Error('spawn error: ' + err );
+    throw new Error('spawn error: ' + err);
   });
 
   child.stdout.pipe(process.stdout);
   child.stderr.pipe(process.stderr);
 
-  child.on('close', function (exitCode) {
+  child.on('close', function(exitCode) {
     server.close();
   });
 
-} catch(e) {
-  throw new Error('error: ' + e );
+} catch (e) {
+  throw new Error('error: ' + e);
 }
 

@@ -24,7 +24,7 @@ MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
 
 
 void MemoryReducer::TimerTask::RunInternal() {
-  const double kJsCallsPerMsThreshold = 0.25;
+  const double kJsCallsPerMsThreshold = 0.5;
   Heap* heap = memory_reducer_->heap();
   Event event;
   double time_ms = heap->MonotonicallyIncreasingTimeInMs();
@@ -73,14 +73,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       PrintIsolate(heap()->isolate(), "Memory reducer: started GC #%d\n",
                    state_.started_gcs);
     }
-    if (heap()->ShouldOptimizeForMemoryUsage()) {
-      // TODO(ulan): Remove this once crbug.com/552305 is fixed.
-      // Do full GC if memory usage has higher priority than latency.
-      heap()->CollectAllGarbage(Heap::kReduceMemoryFootprintMask,
-                                "memory reducer");
-    } else {
-      heap()->StartIdleIncrementalMarking();
-    }
+    heap()->StartIdleIncrementalMarking();
   } else if (state_.action == kWait) {
     if (!heap()->incremental_marking()->IsStopped() &&
         heap()->ShouldOptimizeForMemoryUsage()) {

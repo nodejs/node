@@ -42,12 +42,12 @@ TEST(StrictUndeclaredGlobalVariable) {
   LocalContext context;
   v8::TryCatch try_catch(CcTest::isolate());
   v8::Local<v8::Script> script = v8_compile("\"use strict\"; x = 42;");
-  v8::Handle<v8::Object> proto = v8::Object::New(CcTest::isolate());
-  v8::Handle<v8::Object> global =
+  v8::Local<v8::Object> proto = v8::Object::New(CcTest::isolate());
+  v8::Local<v8::Object> global =
       context->Global()->GetPrototype().As<v8::Object>();
-  proto->Set(var_name, v8_num(100));
-  global->SetPrototype(proto);
-  script->Run();
+  proto->Set(context.local(), var_name, v8_num(100)).FromJust();
+  global->SetPrototype(context.local(), proto).FromJust();
+  CHECK(script->Run(context.local()).IsEmpty());
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value exception(try_catch.Exception());
   CHECK_EQ(0, strcmp("ReferenceError: x is not defined", *exception));
@@ -59,7 +59,7 @@ TEST(KeysGlobalObject_Regress2764) {
   v8::HandleScope scope(env1->GetIsolate());
 
   // Create second environment.
-  v8::Handle<Context> env2 = Context::New(env1->GetIsolate());
+  v8::Local<Context> env2 = Context::New(env1->GetIsolate());
 
   Local<Value> token = v8_str("foo");
 
@@ -68,17 +68,25 @@ TEST(KeysGlobalObject_Regress2764) {
   env2->SetSecurityToken(token);
 
   // Create a reference to env2 global from env1 global.
-  env1->Global()->Set(v8_str("global2"), env2->Global());
+  env1->Global()
+      ->Set(env1.local(), v8_str("global2"), env2->Global())
+      .FromJust();
   // Set some global variables in global2
-  env2->Global()->Set(v8_str("a"), v8_str("a"));
-  env2->Global()->Set(v8_str("42"), v8_str("42"));
+  env2->Global()->Set(env2, v8_str("a"), v8_str("a")).FromJust();
+  env2->Global()->Set(env2, v8_str("42"), v8_str("42")).FromJust();
 
   // List all entries from global2.
   Local<Array> result;
   result = Local<Array>::Cast(CompileRun("Object.keys(global2)"));
   CHECK_EQ(2u, result->Length());
-  CHECK(v8_str("42")->Equals(result->Get(0)));
-  CHECK(v8_str("a")->Equals(result->Get(1)));
+  CHECK(
+      v8_str("42")
+          ->Equals(env1.local(), result->Get(env1.local(), 0).ToLocalChecked())
+          .FromJust());
+  CHECK(
+      v8_str("a")
+          ->Equals(env1.local(), result->Get(env1.local(), 1).ToLocalChecked())
+          .FromJust());
 
   result =
       Local<Array>::Cast(CompileRun("Object.getOwnPropertyNames(global2)"));

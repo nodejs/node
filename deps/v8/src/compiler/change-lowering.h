@@ -13,6 +13,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
+struct ElementAccess;
 class JSGraph;
 class Linkage;
 class MachineOperatorBuilder;
@@ -49,6 +50,13 @@ class ChangeLowering final : public Reducer {
                                Signedness signedness);
   Reduction ChangeUint32ToTagged(Node* value, Node* control);
 
+  Reduction LoadField(Node* node);
+  Reduction StoreField(Node* node);
+  Reduction LoadElement(Node* node);
+  Reduction StoreElement(Node* node);
+  Reduction Allocate(Node* node);
+
+  Node* ComputeIndex(const ElementAccess& access, Node* const key);
   Graph* graph() const;
   Isolate* isolate() const;
   JSGraph* jsgraph() const { return jsgraph_; }

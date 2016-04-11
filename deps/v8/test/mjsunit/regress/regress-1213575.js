@@ -28,6 +28,8 @@
 // Make sure that a const definition does not try
 // to pass 'the hole' to a defined setter.
 
+// Flags: --legacy-const
+
 this.__defineSetter__('x', function(value) { assertTrue(value === 1); });
 
 var caught = false;

@@ -8,10 +8,12 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var fs = require("fs"),
+var lodash = require("lodash"),
+    fs = require("fs"),
+    path = require("path"),
     debug = require("debug"),
-    minimatch = require("minimatch"),
-    FileFinder = require("./file-finder");
+    ignore = require("ignore"),
+    pathUtil = require("./util/path-util");
 
 debug = debug("eslint:ignored-paths");
 
@@ -21,56 +23,43 @@ debug = debug("eslint:ignored-paths");
 //------------------------------------------------------------------------------
 
 var ESLINT_IGNORE_FILENAME = ".eslintignore";
+var DEFAULT_IGNORE_PATTERNS = [
+    "/node_modules/*",
+    "/bower_components/*"
+];
+var DEFAULT_OPTIONS = {
+    dotfiles: false,
+    cwd: process.cwd()
+};
 
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-/**
- * Load and parse ignore patterns from the file at the given path
- * @param {string} filepath Path to the ignore file.
- * @returns {string[]} An array of ignore patterns or an empty array if no ignore file.
- */
-function loadIgnoreFile(filepath) {
-    var ignorePatterns = [];
-
-    /**
-     * Check if string is not empty
-     * @param {string} line string to examine
-     * @returns {boolean} True is its not empty
-     * @private
-     */
-    function nonEmpty(line) {
-        return line.trim() !== "" && line[0] !== "#";
-    }
-
-    if (filepath) {
-        try {
-            ignorePatterns = fs.readFileSync(filepath, "utf8").split(/\r?\n/).filter(nonEmpty);
-        } catch (e) {
-            e.message = "Cannot read ignore file: " + filepath + "\nError: " + e.message;
-            throw e;
-        }
-    }
-
-    return ["node_modules/**"].concat(ignorePatterns);
-}
-
-var ignoreFileFinder;
 
 /**
- * Find an ignore file in the current directory or a parent directory.
+ * Find an ignore file in the current directory.
+ * @param {stirng} cwd Current working directory
  * @returns {string} Path of ignore file or an empty string.
  */
-function findIgnoreFile() {
-    if (!ignoreFileFinder) {
-        ignoreFileFinder = new FileFinder(ESLINT_IGNORE_FILENAME);
-    }
+function findIgnoreFile(cwd) {
+    cwd = cwd || DEFAULT_OPTIONS.cwd;
 
-    return ignoreFileFinder.findInDirectoryOrParents();
+    var ignoreFilePath = path.resolve(cwd, ESLINT_IGNORE_FILENAME);
+
+    return fs.existsSync(ignoreFilePath) ? ignoreFilePath : "";
 }
 
+/**
+ * Merge options with defaults
+ * @param {object} options Options to merge with DEFAULT_OPTIONS constant
+ * @returns {object} Merged options
+ */
+function mergeDefaultOptions(options) {
+    options = (options || {});
+    return lodash.assign({}, DEFAULT_OPTIONS, options);
+}
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -80,64 +69,123 @@ function findIgnoreFile() {
  * IgnoredPaths
  * @constructor
  * @class IgnoredPaths
- * @param {Array} patterns to be matched against file paths
+ * @param {Object} options object containing 'ignore', 'ignorePath' and 'patterns' properties
  */
-function IgnoredPaths(patterns) {
-    this.patterns = patterns;
+function IgnoredPaths(options) {
+
+    options = mergeDefaultOptions(options);
+
+    /**
+     * add pattern to node-ignore instance
+     * @param {object} ig, instance of node-ignore
+     * @param {string} pattern, pattern do add to ig
+     * @returns {array} raw ignore rules
+     */
+    function addPattern(ig, pattern) {
+        return ig.addPattern(pattern);
+    }
+
+    /**
+     * add ignore file to node-ignore instance
+     * @param {object} ig, instance of node-ignore
+     * @param {string} filepath, file to add to ig
+     * @returns {array} raw ignore rules
+     */
+    function addIgnoreFile(ig, filepath) {
+        ig.ignoreFiles.push(filepath);
+        return ig.add(fs.readFileSync(filepath, "utf8"));
+    }
+
+    this.defaultPatterns = DEFAULT_IGNORE_PATTERNS.concat(options.patterns || []);
+    this.baseDir = options.cwd;
+
+    this.ig = {
+        custom: ignore(),
+        default: ignore()
+    };
+
+    // Add a way to keep track of ignored files.  This was present in node-ignore
+    // 2.x, but dropped for now as of 3.0.10.
+    this.ig.custom.ignoreFiles = [];
+    this.ig.default.ignoreFiles = [];
+
+    if (options.dotfiles !== true) {
+
+        /*
+         * ignore files beginning with a dot, but not files in a parent or
+         * ancestor directory (which in relative format will begin with `../`).
+         */
+        addPattern(this.ig.default, [".*", "!../"]);
+    }
+
+    addPattern(this.ig.default, this.defaultPatterns);
+
+    if (options.ignore !== false) {
+        var ignorePath;
+
+        if (options.ignorePattern) {
+            addPattern(this.ig.custom, options.ignorePattern);
+            addPattern(this.ig.default, options.ignorePattern);
+        }
+
+        if (options.ignorePath) {
+            debug("Using specific ignore file");
+
+            try {
+                fs.statSync(options.ignorePath);
+                ignorePath = options.ignorePath;
+            } catch (e) {
+                e.message = "Cannot read ignore file: " + options.ignorePath + "\nError: " + e.message;
+                throw e;
+            }
+        } else {
+            debug("Looking for ignore file in " + options.cwd);
+            ignorePath = findIgnoreFile(options.cwd);
+
+            try {
+                fs.statSync(ignorePath);
+                debug("Loaded ignore file " + ignorePath);
+            } catch (e) {
+                debug("Could not find ignore file in cwd");
+                this.options = options;
+            }
+        }
+
+        if (ignorePath) {
+            debug("Adding " + ignorePath);
+            this.baseDir = path.dirname(path.resolve(options.cwd, ignorePath));
+            addIgnoreFile(this.ig.custom, ignorePath);
+            addIgnoreFile(this.ig.default, ignorePath);
+        }
+
+    }
+
+    this.options = options;
+
 }
 
 /**
- * IgnoredPaths initializer
- * @param {Object} options object containing 'ignore' and 'ignorePath' properties
- * @returns {IgnoredPaths} object, with patterns loaded from the ignore file
- */
-IgnoredPaths.load = function(options) {
-    var patterns;
-
-    options = options || {};
-
-    if (options.ignore) {
-        patterns = loadIgnoreFile(options.ignorePath || findIgnoreFile());
-    } else {
-        patterns = [];
-    }
-
-    if (options.ignorePattern) {
-        patterns = patterns.concat(options.ignorePattern);
-    }
-
-    return new IgnoredPaths(patterns);
-};
-
-/**
- * Determine whether a file path is included in the configured ignore patterns
+ * Determine whether a file path is included in the default or custom ignore patterns
  * @param {string} filepath Path to check
+ * @param {string} [category=null] check 'default', 'custom' or both (null)
  * @returns {boolean} true if the file path matches one or more patterns, false otherwise
  */
-IgnoredPaths.prototype.contains = function(filepath) {
-    if (this.patterns === null) {
-        throw new Error("No ignore patterns loaded, call 'load' first");
+IgnoredPaths.prototype.contains = function(filepath, category) {
+
+    var result = false;
+    var absolutePath = path.resolve(this.options.cwd, filepath);
+    var relativePath = pathUtil.getRelativePath(absolutePath, this.options.cwd);
+
+    if ((typeof category === "undefined") || (category === "default")) {
+        result = result || (this.ig.default.filter([relativePath]).length === 0);
     }
 
-    filepath = filepath.replace("\\", "/");
-    filepath = filepath.replace(/^\.\//, "");
-    return this.patterns.reduce(function(ignored, pattern) {
-        var negated = pattern[0] === "!",
-            matches;
+    if ((typeof category === "undefined") || (category === "custom")) {
+        result = result || (this.ig.custom.filter([relativePath]).length === 0);
+    }
 
-        if (negated) {
-            pattern = pattern.slice(1);
-        }
+    return result;
 
-        // Remove leading "current folder" prefix
-        if (pattern.indexOf("./") === 0) {
-            pattern = pattern.slice(2);
-        }
-
-        matches = minimatch(filepath, pattern) || minimatch(filepath, pattern + "/**");
-
-        return matches ? !negated : ignored;
-    }, false);
 };
 
 module.exports = IgnoredPaths;

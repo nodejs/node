@@ -1,6 +1,9 @@
 //
 // Constants
 //
+
+'use strict';
+
 module.exports.EOL = '\n';
 
 module.exports.SUPPRESS = '==SUPPRESS==';

@@ -5,7 +5,7 @@
 #ifndef V8_INTERPRETER_BYTECODE_GENERATOR_H_
 #define V8_INTERPRETER_BYTECODE_GENERATOR_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecodes.h"
 
@@ -13,10 +13,9 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class BytecodeGenerator : public AstVisitor {
+class BytecodeGenerator final : public AstVisitor {
  public:
   BytecodeGenerator(Isolate* isolate, Zone* zone);
-  virtual ~BytecodeGenerator();
 
   Handle<BytecodeArray> MakeBytecode(CompilationInfo* info);
 
@@ -24,18 +23,20 @@ class BytecodeGenerator : public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  // Visiting function for declarations list is overridden.
+  // Visiting function for declarations list and statements are overridden.
   void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+  void VisitStatements(ZoneList<Statement*>* statments) override;
 
  private:
   class ContextScope;
   class ControlScope;
+  class ControlScopeForBreakable;
   class ControlScopeForIteration;
-  class ControlScopeForSwitch;
   class ExpressionResultScope;
   class EffectResultScope;
   class AccumulatorResultScope;
   class RegisterResultScope;
+  class RegisterAllocationScope;
 
   void MakeBytecodeBody();
   Register NextContextRegister() const;
@@ -53,6 +54,9 @@ class BytecodeGenerator : public AstVisitor {
   void VisitTypeOf(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
   void VisitDelete(UnaryOperation* expr);
+
+  // Used by flow control routines to evaluate loop condition.
+  void VisitCondition(Expression* expr);
 
   // Helper visitors which perform common operations.
   Register VisitArguments(ZoneList<Expression*>* arguments);
@@ -84,16 +88,11 @@ class BytecodeGenerator : public AstVisitor {
                                   Register value_out);
   void VisitForInAssignment(Expression* expr, FeedbackVectorSlot slot);
 
-
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect.
   void VisitForAccumulatorValue(Expression* expression);
   MUST_USE_RESULT Register VisitForRegisterValue(Expression* expression);
   void VisitForEffect(Expression* node);
-
-  // Methods marking the start and end of binary expressions.
-  void PrepareForBinaryExpression();
-  void CompleteBinaryExpression();
 
   // Methods for tracking and remapping register.
   void RecordStoreToRegister(Register reg);
@@ -121,6 +120,13 @@ class BytecodeGenerator : public AstVisitor {
     execution_result_ = execution_result;
   }
   ExpressionResultScope* execution_result() const { return execution_result_; }
+  inline void set_register_allocator(
+      RegisterAllocationScope* register_allocator) {
+    register_allocator_ = register_allocator;
+  }
+  RegisterAllocationScope* register_allocator() const {
+    return register_allocator_;
+  }
 
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
   inline LanguageMode language_mode() const;
@@ -136,9 +142,7 @@ class BytecodeGenerator : public AstVisitor {
   ControlScope* execution_control_;
   ContextScope* execution_context_;
   ExpressionResultScope* execution_result_;
-
-  int binary_expression_depth_;
-  ZoneSet<int> binary_expression_hazard_set_;
+  RegisterAllocationScope* register_allocator_;
 };
 
 }  // namespace interpreter

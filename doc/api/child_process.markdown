@@ -32,7 +32,7 @@ mean that data sent to the child process may not be immediately consumed.*
 The `child_process.spawn()` method spawns the child process asynchronously,
 without blocking the Node.js event loop. The `child_process.spawnSync()`
 function provides equivalent functionality in a synchronous manner that blocks
-the event loop until the spawned process either exits of is terminated.
+the event loop until the spawned process either exits or is terminated.
 
 For convenience, the `child_process` module provides a handful of synchronous
 and asynchronous alternatives to [`child_process.spawn()`][] and
@@ -124,15 +124,15 @@ exec('my.bat', (err, stdout, stderr) => {
      understand the `-c` switch on UNIX or `/s /c` on Windows. On Windows,
      command line parsing should be compatible with `cmd.exe`.)
   * `timeout` {Number} (Default: 0)
-  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
-    stderr - if exceeded child process is killed (Default: `200*1024`)
+  * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
+    stdout or stderr - if exceeded child process is killed (Default: `200*1024`)
   * `killSignal` {String} (Default: 'SIGTERM')
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
-  * `stdout` {Buffer}
-  * `stderr` {Buffer}
+  * `stdout` {String|Buffer}
+  * `stderr` {String|Buffer}
 * Return: {ChildProcess}
 
 Spawns a shell then executes the `command` within that shell, buffering any
@@ -157,6 +157,13 @@ the exit code of the child process while `error.signal` will be set to the
 signal that terminated the process. Any exit code other than `0` is considered
 to be an error.
 
+The `stdout` and `stderr` arguments passed to the callback will contain the
+stdout and stderr output of the child process. By default, Node.js will decode
+the output as UTF-8 and pass strings to the callback. The `encoding` option
+can be used to specify the character encoding used to decode the stdout and
+stderr output. If `encoding` is `'buffer'`, `Buffer` objects will be passed to
+the callback instead.
+
 The `options` argument may be passed as the second argument to customize how
 the process is spawned. The default options are:
 
@@ -175,31 +182,27 @@ If `timeout` is greater than `0`, the parent will send the the signal
 identified by the `killSignal` property (the default is `'SIGTERM'`) if the
 child runs longer than `timeout` milliseconds.
 
-The `maxBuffer` option specifies the largest amount of data (in bytes) allowed
-on stdout or stderr - if this value is exceeded then the child process is
-terminated.
-
 *Note: Unlike the `exec()` POSIX system call, `child_process.exec()` does not
 replace the existing process and uses a shell to execute the command.*
 
 ### child_process.execFile(file[, args][, options][, callback])
 
-* `file` {String} A path to an executable file
+* `file` {String} The name or path of the executable file to run
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
   * `encoding` {String} (Default: 'utf8')
   * `timeout` {Number} (Default: 0)
-  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
-    stderr - if exceeded child process is killed (Default: 200\*1024)
+  * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
+    stdout or stderr - if exceeded child process is killed (Default: 200\*1024)
   * `killSignal` {String} (Default: 'SIGTERM')
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
-  * `stdout` {Buffer}
-  * `stderr` {Buffer}
+  * `stdout` {String|Buffer}
+  * `stderr` {String|Buffer}
 * Return: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
@@ -219,6 +222,13 @@ const child = execFile('node', ['--version'], (error, stdout, stderr) => {
   console.log(stdout);
 });
 ```
+
+The `stdout` and `stderr` arguments passed to the callback will contain the
+stdout and stderr output of the child process. By default, Node.js will decode
+the output as UTF-8 and pass strings to the callback. The `encoding` option
+can be used to specify the character encoding used to decode the stdout and
+stderr output. If `encoding` is `'buffer'`, `Buffer` objects will be passed to
+the callback instead.
 
 ### child_process.fork(modulePath[, args][, options])
 
@@ -391,8 +401,27 @@ Doing so will cause the parent's event loop to not include the child in its
 reference count, allowing the parent to exit independently of the child, unless
 there is an established IPC channel between the child and parent.
 
-Example of detaching a long-running process and redirecting its output to a
-file:
+When using the `detached` option to start a long-running process, the process
+will not stay running in the background after the parent exits unless it is
+provided with a `stdio` configuration that is not connected to the parent.
+If the parent's `stdio` is inherited, the child will remain attached to the
+controlling terminal.
+
+Example of a long-running process, by detaching and also ignoring its parent
+`stdio` file descriptors, in order to ignore the parent's termination:
+
+```js
+const spawn = require('child_process').spawn;
+
+const child = spawn(process.argv[0], ['child_program.js'], {
+  detached: true,
+  stdio: ['ignore']
+});
+
+child.unref();
+```
+
+Alternatively one can redirect the child process' output into files:
 
 ```js
 const fs = require('fs');
@@ -407,12 +436,6 @@ const child = spawn('prg', [], {
 
 child.unref();
 ```
-
-When using the `detached` option to start a long-running process, the process
-will not stay running in the background after the parent exits unless it is
-provided with a `stdio` configuration that is not connected to the parent.
-If the parent's `stdio` is inherited, the child will remain attached to the
-controlling terminal.
 
 #### options.stdio
 
@@ -502,11 +525,12 @@ configuration at startup.
 
 ### child_process.execFileSync(file[, args][, options])
 
-* `file` {String} The filename of the program to run
+* `file` {String} The name or path of the executable file to run
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer} The value which will be passed as stdin to the spawned process
+  * `input` {String|Buffer} The value which will be passed as stdin to the
+    spawned process
     - supplying this value will override `stdio[0]`
   * `stdio` {Array} Child's stdio configuration. (Default: 'pipe')
     - `stderr` by default will be output to the parent process' stderr unless
@@ -514,10 +538,12 @@ configuration at startup.
   * `env` {Object} Environment key-value pairs
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-  * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
-  * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
-  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
-    stderr - if exceeded child process is killed
+  * `timeout` {Number} In milliseconds the maximum amount of time the process
+    is allowed to run. (Default: undefined)
+  * `killSignal` {String} The signal value to be used when the spawned process
+    will be killed. (Default: 'SIGTERM')
+  * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
+    stdout or stderr - if exceeded child process is killed
   * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
 * return: {Buffer|String} The stdout from the command
 
@@ -538,7 +564,8 @@ throw.  The [`Error`][] object will contain the entire result from
 * `command` {String} The command to run
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer} The value which will be passed as stdin to the spawned process
+  * `input` {String|Buffer} The value which will be passed as stdin to the
+    spawned process
     - supplying this value will override `stdio[0]`
   * `stdio` {Array} Child's stdio configuration. (Default: 'pipe')
     - `stderr` by default will be output to the parent process' stderr unless
@@ -550,11 +577,14 @@ throw.  The [`Error`][] object will contain the entire result from
      command line parsing should be compatible with `cmd.exe`.)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-  * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
-  * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
-  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
-    stderr - if exceeded child process is killed
-  * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
+  * `timeout` {Number} In milliseconds the maximum amount of time the process
+    is allowed to run. (Default: undefined)
+  * `killSignal` {String} The signal value to be used when the spawned process
+    will be killed. (Default: 'SIGTERM')
+  * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
+    stdout or stderr - if exceeded child process is killed
+  * `encoding` {String} The encoding used for all stdio inputs and outputs.
+    (Default: 'buffer')
 * return: {Buffer|String} The stdout from the command
 
 The `child_process.execSync()` method is generally identical to
@@ -575,17 +605,21 @@ throw.  The [`Error`][] object will contain the entire result from
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer} The value which will be passed as stdin to the spawned process
+  * `input` {String|Buffer} The value which will be passed as stdin to the
+    spawned process
     - supplying this value will override `stdio[0]`
   * `stdio` {Array} Child's stdio configuration.
   * `env` {Object} Environment key-value pairs
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-  * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
-  * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
-  * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
-    stderr - if exceeded child process is killed
-  * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
+  * `timeout` {Number} In milliseconds the maximum amount of time the process
+    is allowed to run. (Default: undefined)
+  * `killSignal` {String} The signal value to be used when the spawned process
+    will be killed. (Default: 'SIGTERM')
+  * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
+    stdout or stderr - if exceeded child process is killed
+  * `encoding` {String} The encoding used for all stdio inputs and outputs.
+    (Default: 'buffer')
   * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
     '/bin/sh' on UNIX, and 'cmd.exe' on Windows. A different shell can be
     specified as a string. The shell should understand the `-c` switch on UNIX,
@@ -732,7 +766,29 @@ delivered to that process instead which can have unexpected results.
 Note that while the function is called `kill`, the signal delivered to the
 child process may not actually terminate the process.
 
-See `kill(2)`
+See `kill(2)` for reference.
+
+Also note: on Linux, child processes of child processes will not be terminated
+when attempting to kill their parent. This is likely to happen when running a
+new process in a shell or with use of the `shell` option of `ChildProcess`, such
+as in this example:
+
+```js
+'use strict';
+const spawn = require('child_process').spawn;
+
+let child = spawn('sh', ['-c',
+  `node -e "setInterval(() => {
+      console.log(process.pid + 'is alive')
+    }, 500);"`
+  ], {
+    stdio: ['inherit', 'inherit', 'inherit']
+  });
+
+setTimeout(() => {
+  child.kill(); // does not terminate the node process in the shell
+}, 2000);
+```
 
 ### child.pid
 
@@ -750,10 +806,11 @@ console.log(`Spawned child pid: ${grep.pid}`);
 grep.stdin.end();
 ```
 
-### child.send(message[, sendHandle][, callback])
+### child.send(message[, sendHandle[, options]][, callback])
 
 * `message` {Object}
 * `sendHandle` {Handle}
+* `options` {Object}
 * `callback` {Function}
 * Return: {Boolean}
 
@@ -801,6 +858,14 @@ passing a TCP server or socket object to the child process. The child will
 receive the object as the second argument passed to the callback function
 registered on the `process.on('message')` event.
 
+The `options` argument, if present, is an object used to parameterize the
+sending of certain types of handles. `options` supports the following
+properties:
+
+  * `keepOpen` - A Boolean value that can be used when passing instances of
+    `net.Socket`. When `true`, the socket is kept open in the sending process.
+    Defaults to `false`.
+
 The optional `callback` is a function that is invoked after the message is
 sent but before the child may have received it.  The function is called with a
 single argument: `null` on success, or an [`Error`][] object on failure.
@@ -817,7 +882,7 @@ used to implement flow control.
 #### Example: sending a server object
 
 The `sendHandle` argument can be used, for instance, to pass the handle of
-a TSCP server object to the child process as illustrated in the example below:
+a TCP server object to the child process as illustrated in the example below:
 
 ```js
 const child = require('child_process').fork('child.js');
@@ -892,6 +957,9 @@ Once a socket has been passed to a child, the parent is no longer capable of
 tracking when the socket is destroyed. To indicate this, the `.connections`
 property becomes `null`. It is recommended not to use `.maxConnections` when
 this occurs.
+
+*Note: this function uses [`JSON.stringify()`][] internally to serialize the
+`message`.*
 
 ### child.stderr
 
@@ -969,6 +1037,19 @@ then this will be `undefined`.
 `child.stdout` is an alias for `child.stdio[1]`. Both properties will refer
 to the same value.
 
+## `maxBuffer` and Unicode
+
+It is important to keep in mind that the `maxBuffer` option specifies the
+largest number of *octets* allowed on `stdout` or `stderr` - if this value is
+exceeded then the child process is terminated. This particularly impacts
+output that includes multi-byte character encodings such as UTF-8 or UTF-16.
+For instance, the following will output 13 UTF-8 encoded octets to `stdout`
+although there are only 4 characters:
+
+```js
+console.log('中文测试');
+```
+
 [`popen(3)`]: http://linux.die.net/man/3/popen
 [`ChildProcess`]: #child_process_child_process
 [`child_process.exec()`]: #child_process_child_process_exec_command_options_callback
@@ -987,3 +1068,5 @@ to the same value.
 [`options.stdio`]: #child_process_options_stdio
 [`stdio`]: #child_process_options_stdio
 [synchronous counterparts]: #child_process_synchronous_process_creation
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[`maxBuffer`]: #child_process_maxbuffer_and_unicode

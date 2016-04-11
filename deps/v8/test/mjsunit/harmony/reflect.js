@@ -71,7 +71,7 @@ function prepare(target) {
 
 
 (function testReflectGetArity() {
-  assertEquals(3, Reflect.get.length);
+  assertEquals(2, Reflect.get.length);
 })();
 
 
@@ -87,7 +87,7 @@ function prepare(target) {
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertEquals(42, Reflect.get(target, a));
-  assertThrows(function() { Reflect.get(target, b); }, "gaga");
+  assertThrowsEquals(function() { Reflect.get(target, b); }, "gaga");
 })();
 
 
@@ -156,7 +156,7 @@ function prepare(target) {
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertTrue(Reflect.set(target, a, 42));
   assertEquals(42, target.bla);
-  assertThrows(function() { Reflect.set(target, b, 42); }, "gaga");
+  assertThrowsEquals(function() { Reflect.set(target, b, 42); }, "gaga");
 })();
 
 
@@ -297,7 +297,7 @@ function prepare(target) {
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertTrue(Reflect.has(target, a));
-  assertThrows(function() { Reflect.has(target, b); }, "gaga");
+  assertThrowsEquals(function() { Reflect.has(target, b); }, "gaga");
 })();
 
 
@@ -350,7 +350,7 @@ function prepare(target) {
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertTrue(Reflect.defineProperty(target, a, {value: 42}));
   assertEquals(target.bla, 42);
-  assertThrows(function() { Reflect.defineProperty(target, b); }, "gaga");
+  assertThrowsEquals(function() { Reflect.defineProperty(target, b); }, "gaga");
 })();
 
 
@@ -379,7 +379,7 @@ function prepare(target) {
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertTrue(Reflect.deleteProperty(target, a));
-  assertThrows(function() { Reflect.deleteProperty(target, b); }, "gaga");
+  assertThrowsEquals(function() { Reflect.deleteProperty(target, b); }, "gaga");
 })();
 
 
@@ -530,12 +530,44 @@ function prepare(target) {
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertEquals(42, Reflect.getOwnPropertyDescriptor(target, a).value);
-  assertThrows(function() { Reflect.getOwnPropertyDescriptor(target, b); },
-      "gaga");
+  assertThrowsEquals(() => Reflect.getOwnPropertyDescriptor(target, b), "gaga");
 })();
 
 
 // See reflect-get-own-property-descriptor.js for further tests.
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Reflect.ownKeys
+
+
+(function testReflectOwnKeysArity() {
+  assertEquals(1, Reflect.ownKeys.length);
+})();
+
+
+(function testReflectOwnKeysOnNonObject() {
+  assertThrows(function() { Reflect.ownKeys(); }, TypeError);
+  assertThrows(function() { Reflect.ownKeys(42); }, TypeError);
+  assertThrows(function() { Reflect.ownKeys(null); }, TypeError);
+})();
+
+
+(function testReflectOwnKeysOnObject(){
+  assertEquals(["z", "y", "x"], Reflect.ownKeys({z: 3, y: 2, x: 1}));
+  assertEquals(["length"], Reflect.ownKeys([]));
+
+  var s1 = Symbol("foo");
+  var s2 = Symbol("bar");
+  var obj = { [s1]: 0, "bla": 0, 42: 0, "0": 0,
+      [s2]: 0, "-1": 0, "88": 0, "aaa": 0 };
+  assertEquals(["0", "42", "88", "bla", "-1", "aaa", s1, s2],
+      Reflect.ownKeys(obj));
+})();
+
+
+// See reflect-own-keys.js for further tests.
 
 
 

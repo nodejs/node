@@ -204,6 +204,8 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
         if_false->opcode() == IrOpcode::kIfFalse &&
         if_true->InputAt(0) == if_false->InputAt(0)) {
       Node* const branch = if_true->InputAt(0);
+      // Check that the branch is not dead already.
+      if (branch->opcode() != IrOpcode::kBranch) return NoChange();
       Node* const cond = branch->InputAt(0);
       if (cond->opcode() == IrOpcode::kFloat32LessThan) {
         Float32BinopMatcher mcond(cond);

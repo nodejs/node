@@ -93,8 +93,8 @@ function setopts (self, pattern, options) {
   if (!ownProp(options, "cwd"))
     self.cwd = cwd
   else {
-    self.cwd = options.cwd
-    self.changedCwd = path.resolve(options.cwd) !== cwd
+    self.cwd = path.resolve(options.cwd)
+    self.changedCwd = self.cwd !== cwd
   }
 
   self.root = options.root || path.resolve(self.cwd, "/")
@@ -102,6 +102,7 @@ function setopts (self, pattern, options) {
   if (process.platform === "win32")
     self.root = self.root.replace(/\\/g, "/")
 
+  self.cwdAbs = makeAbs(self, self.cwd)
   self.nomount = !!options.nomount
 
   // disable comments and negation in Minimatch.
@@ -153,7 +154,11 @@ function finish (self) {
     }
     if (self.nodir) {
       all = all.filter(function (e) {
-        return !(/\/$/.test(e))
+        var notDir = !(/\/$/.test(e))
+        var c = self.cache[e] || self.cache[makeAbs(self, e)]
+        if (notDir && c)
+          notDir = c !== 'DIR' && !Array.isArray(c)
+        return notDir
       })
     }
   }
@@ -201,6 +206,10 @@ function makeAbs (self, f) {
   } else {
     abs = path.resolve(f)
   }
+
+  if (process.platform === 'win32')
+    abs = abs.replace(/\\/g, '/')
+
   return abs
 }
 

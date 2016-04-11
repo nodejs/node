@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/v8.h"
 
 #include "test/cctest/cctest.h"
@@ -42,6 +39,7 @@ inline int32_t ToInt32(v8::Local<v8::Value> value) {
 
 
 TEST(PerIsolateState) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context1(CcTest::isolate());
 
@@ -105,6 +103,7 @@ TEST(PerIsolateState) {
 
 
 TEST(EndOfMicrotaskDelivery) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -118,6 +117,7 @@ TEST(EndOfMicrotaskDelivery) {
 
 
 TEST(DeliveryOrdering) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -149,6 +149,7 @@ TEST(DeliveryOrdering) {
 
 
 TEST(DeliveryCallbackThrows) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -177,6 +178,7 @@ TEST(DeliveryCallbackThrows) {
 
 
 TEST(DeliveryChangesMutationInCallback) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -202,6 +204,7 @@ TEST(DeliveryChangesMutationInCallback) {
 
 
 TEST(DeliveryOrderingReentrant) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -233,6 +236,7 @@ TEST(DeliveryOrderingReentrant) {
 
 
 TEST(DeliveryOrderingDeliverChangeRecords) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -257,6 +261,7 @@ TEST(DeliveryOrderingDeliverChangeRecords) {
 
 
 TEST(ObjectHashTableGrowth) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   // Initializing this context sets up initial hash tables.
   LocalContext context(CcTest::isolate());
@@ -352,6 +357,7 @@ static void ExpectRecords(v8::Isolate* isolate, Local<Value> records,
                 arraysize(expectations))
 
 TEST(APITestBasicMutation) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* v8_isolate = CcTest::isolate();
   HandleScope scope(v8_isolate);
   LocalContext context(v8_isolate);
@@ -411,6 +417,7 @@ TEST(APITestBasicMutation) {
 
 
 TEST(HiddenPrototypeObservation) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* v8_isolate = CcTest::isolate();
   HandleScope scope(v8_isolate);
   LocalContext context(v8_isolate);
@@ -473,6 +480,7 @@ static int NumberOfElements(i::Handle<i::JSWeakMap> map) {
 
 
 TEST(ObservationWeakMap) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -543,6 +551,7 @@ static int TestObserveSecurity(Local<Context> observer_context,
 
 
 TEST(ObserverSecurityAAA) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA = Context::New(isolate);
@@ -551,6 +560,7 @@ TEST(ObserverSecurityAAA) {
 
 
 TEST(ObserverSecurityA1A2A3) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
@@ -568,6 +578,7 @@ TEST(ObserverSecurityA1A2A3) {
 
 
 TEST(ObserverSecurityAAB) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA = Context::New(isolate);
@@ -577,6 +588,7 @@ TEST(ObserverSecurityAAB) {
 
 
 TEST(ObserverSecurityA1A2B) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
@@ -593,6 +605,7 @@ TEST(ObserverSecurityA1A2B) {
 
 
 TEST(ObserverSecurityABA) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA = Context::New(isolate);
@@ -602,6 +615,7 @@ TEST(ObserverSecurityABA) {
 
 
 TEST(ObserverSecurityA1BA2) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA1 = Context::New(isolate);
@@ -617,6 +631,7 @@ TEST(ObserverSecurityA1BA2) {
 
 
 TEST(ObserverSecurityBAA) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA = Context::New(isolate);
@@ -626,6 +641,7 @@ TEST(ObserverSecurityBAA) {
 
 
 TEST(ObserverSecurityBA1A2) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA1 = Context::New(isolate);
@@ -641,6 +657,7 @@ TEST(ObserverSecurityBA1A2) {
 
 
 TEST(ObserverSecurityNotify) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA = Context::New(isolate);
@@ -676,6 +693,7 @@ TEST(ObserverSecurityNotify) {
 
 
 TEST(HiddenPropertiesLeakage) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun("var obj = {};"
@@ -697,6 +715,7 @@ TEST(HiddenPropertiesLeakage) {
 
 
 TEST(GetNotifierFromOtherContext) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun("var obj = {};");
@@ -713,6 +732,7 @@ TEST(GetNotifierFromOtherContext) {
 
 
 TEST(GetNotifierFromOtherOrigin) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   Local<Value> foo = v8_str("foo");
   Local<Value> bar = v8_str("bar");
@@ -733,6 +753,7 @@ TEST(GetNotifierFromOtherOrigin) {
 
 
 TEST(GetNotifierFromSameOrigin) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   Local<Value> foo = v8_str("foo");
   LocalContext context(CcTest::isolate());
@@ -784,6 +805,7 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
 
 
 TEST(DontLeakContextOnObserve) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   Local<Value> foo = v8_str("foo");
   LocalContext context(CcTest::isolate());
@@ -804,11 +826,12 @@ TEST(DontLeakContextOnObserve) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(1);
+  CheckSurvivingGlobalObjectsCount(0);
 }
 
 
 TEST(DontLeakContextOnGetNotifier) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   Local<Value> foo = v8_str("foo");
   LocalContext context(CcTest::isolate());
@@ -827,11 +850,12 @@ TEST(DontLeakContextOnGetNotifier) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(1);
+  CheckSurvivingGlobalObjectsCount(0);
 }
 
 
 TEST(DontLeakContextOnNotifierPerformChange) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   Local<Value> foo = v8_str("foo");
   LocalContext context(CcTest::isolate());
@@ -858,7 +882,7 @@ TEST(DontLeakContextOnNotifierPerformChange) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(1);
+  CheckSurvivingGlobalObjectsCount(0);
 }
 
 
@@ -869,6 +893,7 @@ static void ObserverCallback(const FunctionCallbackInfo<Value>& args) {
 
 
 TEST(ObjectObserveCallsCppFunction) {
+  i::FLAG_harmony_object_observe = true;
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   LocalContext context(isolate);
@@ -891,6 +916,7 @@ TEST(ObjectObserveCallsCppFunction) {
 
 
 TEST(ObjectObserveCallsFunctionTemplateInstance) {
+  i::FLAG_harmony_object_observe = true;
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   LocalContext context(isolate);
@@ -926,6 +952,7 @@ static void AccessorSetter(Local<Name> property, Local<Value> value,
 
 
 TEST(APIAccessorsShouldNotNotify) {
+  i::FLAG_harmony_object_observe = true;
   Isolate* isolate = CcTest::isolate();
   HandleScope handle_scope(isolate);
   LocalContext context(isolate);
@@ -959,6 +986,7 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 
 
 TEST(UseCountObjectObserve) {
+  i::FLAG_harmony_object_observe = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
@@ -986,6 +1014,7 @@ TEST(UseCountObjectObserve) {
 
 
 TEST(UseCountObjectGetNotifier) {
+  i::FLAG_harmony_object_observe = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
@@ -1005,6 +1034,7 @@ static bool NamedAccessCheckAlwaysAllow(Local<v8::Context> accessing_context,
 
 
 TEST(DisallowObserveAccessCheckedObject) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
@@ -1026,6 +1056,7 @@ TEST(DisallowObserveAccessCheckedObject) {
 
 
 TEST(DisallowGetNotifierAccessCheckedObject) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;

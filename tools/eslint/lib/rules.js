@@ -23,7 +23,7 @@ var rules = Object.create(null);
 
 /**
  * Registers a rule module for rule id in storage.
- * @param {String} ruleId Rule id (file name).
+ * @param {string} ruleId Rule id (file name).
  * @param {Function} ruleModule Rule handler.
  * @returns {void}
  */
@@ -33,11 +33,13 @@ function define(ruleId, ruleModule) {
 
 /**
  * Loads and registers all rules from passed rules directory.
- * @param {String} [rulesDir] Path to rules directory, may be relative. Defaults to `lib/rules`.
+ * @param {string} [rulesDir] Path to rules directory, may be relative. Defaults to `lib/rules`.
+ * @param {string} cwd Current working directory
  * @returns {void}
  */
-function load(rulesDir) {
-    var newRules = loadRules(rulesDir);
+function load(rulesDir, cwd) {
+    var newRules = loadRules(rulesDir, cwd);
+
     Object.keys(newRules).forEach(function(ruleId) {
         define(ruleId, newRules[ruleId]);
     });
@@ -46,7 +48,7 @@ function load(rulesDir) {
 /**
  * Registers all given rules of a plugin.
  * @param {Object} pluginRules A key/value map of rule definitions.
- * @param {String} pluginName The name of the plugin without prefix (`eslint-plugin-`).
+ * @param {string} pluginName The name of the plugin without prefix (`eslint-plugin-`).
  * @returns {void}
  */
 function importPlugin(pluginRules, pluginName) {
@@ -60,7 +62,7 @@ function importPlugin(pluginRules, pluginName) {
 
 /**
  * Access rule handler by id (file name).
- * @param {String} ruleId Rule id (file name).
+ * @param {string} ruleId Rule id (file name).
  * @returns {Function} Rule handler.
  */
 function get(ruleId) {
@@ -85,7 +87,16 @@ module.exports = {
     load: load,
     import: importPlugin,
     get: get,
-    testClear: testClear
+    testClear: testClear,
+
+    /**
+     * Resets rules to its starting state. Use for tests only.
+     * @returns {void}
+     */
+    testReset: function() {
+        testClear();
+        load();
+    }
 };
 
 //------------------------------------------------------------------------------

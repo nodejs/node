@@ -41,7 +41,7 @@ function test(cert, key, cb) {
 
 var completed = false;
 test(cert, key, function() {
-  test(new Buffer(cert), new Buffer(key), function() {
+  test(Buffer.from(cert), Buffer.from(key), function() {
     completed = true;
   });
 });

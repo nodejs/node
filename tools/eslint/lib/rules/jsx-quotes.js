@@ -19,11 +19,17 @@ var astUtils = require("../ast-utils");
 var QUOTE_SETTINGS = {
     "prefer-double": {
         quote: "\"",
-        description: "singlequote"
+        description: "singlequote",
+        convert: function(str) {
+            return str.replace(/'/g, "\"");
+        }
     },
     "prefer-single": {
         quote: "'",
-        description: "doublequote"
+        description: "doublequote",
+        convert: function(str) {
+            return str.replace(/"/g, "'");
+        }
     }
 };
 
@@ -50,7 +56,13 @@ module.exports = function(context) {
             var attributeValue = node.value;
 
             if (attributeValue && astUtils.isStringLiteral(attributeValue) && !usesExpectedQuotes(attributeValue)) {
-                context.report(attributeValue, "Unexpected usage of {{description}}.", setting);
+                context.report({
+                    node: attributeValue,
+                    message: "Unexpected usage of " + setting.description + ".",
+                    fix: function(fixer) {
+                        return fixer.replaceText(attributeValue, setting.convert(attributeValue.raw));
+                    }
+                });
             }
         }
     };

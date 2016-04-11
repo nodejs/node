@@ -310,7 +310,7 @@ class QueryWrap : public AsyncWrap {
       Integer::New(env()->isolate(), 0),
       answer
     };
-    MakeCallback(env()->oncomplete_string(), ARRAY_SIZE(argv), argv);
+    MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
   }
 
   void CallOnComplete(Local<Value> answer, Local<Value> family) {
@@ -321,7 +321,7 @@ class QueryWrap : public AsyncWrap {
       answer,
       family
     };
-    MakeCallback(env()->oncomplete_string(), ARRAY_SIZE(argv), argv);
+    MakeCallback(env()->oncomplete_string(), arraysize(argv), argv);
   }
 
   void ParseError(int status) {
@@ -1037,7 +1037,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   uv_freeaddrinfo(res);
 
   // Make the callback into JavaScript
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }
@@ -1068,7 +1068,7 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
   }
 
   // Make the callback into JavaScript
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }
@@ -1087,6 +1087,27 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc);
 }
 
+static void IsIPv4(const FunctionCallbackInfo<Value>& args) {
+  node::Utf8Value ip(args.GetIsolate(), args[0]);
+  char address_buffer[sizeof(struct in_addr)];
+
+  if (uv_inet_pton(AF_INET, *ip, &address_buffer) == 0) {
+    args.GetReturnValue().Set(true);
+  } else {
+    args.GetReturnValue().Set(false);
+  }
+}
+
+static void IsIPv6(const FunctionCallbackInfo<Value>& args) {
+  node::Utf8Value ip(args.GetIsolate(), args[0]);
+  char address_buffer[sizeof(struct in6_addr)];
+
+  if (uv_inet_pton(AF_INET6, *ip, &address_buffer) == 0) {
+    args.GetReturnValue().Set(true);
+  } else {
+    args.GetReturnValue().Set(false);
+  }
+}
 
 static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1327,6 +1348,8 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "getaddrinfo", GetAddrInfo);
   env->SetMethod(target, "getnameinfo", GetNameInfo);
   env->SetMethod(target, "isIP", IsIP);
+  env->SetMethod(target, "isIPv4", IsIPv4);
+  env->SetMethod(target, "isIPv6", IsIPv6);
 
   env->SetMethod(target, "strerror", StrError);
   env->SetMethod(target, "getServers", GetServers);

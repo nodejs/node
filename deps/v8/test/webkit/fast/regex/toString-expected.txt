@@ -28,17 +28,17 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 PASS RegExp('/').source is "\\/"
 PASS RegExp('').source is "(?:)"
-FAIL RegExp.prototype.source should be (?:). Threw exception TypeError: RegExp.prototype.source getter called on non-RegExp object
+FAIL RegExp.prototype.source should be (?:) (of type string). Was undefined (of type undefined).
 PASS RegExp('/').toString() is "/\\//"
 PASS RegExp('').toString() is "/(?:)/"
-FAIL RegExp.prototype.toString() should be /(?:)/. Threw exception TypeError: Method RegExp.prototype.toString called on incompatible receiver [object Object]
+PASS RegExp.prototype.toString() is "/(?:)/"
 PASS testForwardSlash("^/$", "/"); is true
 PASS testForwardSlash("^/$", "/"); is true
 PASS testForwardSlash("^\/$", "/"); is true
 PASS testForwardSlash("^\\/$", "\/"); is true
 PASS testForwardSlash("^\\\/$", "\/"); is true
-FAIL testForwardSlash("^\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Unexpected end of input
-FAIL testForwardSlash("^\\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Unexpected end of input
+FAIL testForwardSlash("^\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Invalid regular expression flags
+FAIL testForwardSlash("^\\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Invalid regular expression flags
 PASS testForwardSlash("x/x/x", "x\/x\/x"); is true
 PASS testForwardSlash("x\/x/x", "x\/x\/x"); is true
 PASS testForwardSlash("x/x\/x", "x\/x\/x"); is true

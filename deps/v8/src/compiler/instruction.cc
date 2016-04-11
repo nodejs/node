@@ -6,6 +6,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/state-values-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -56,6 +57,22 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
   }
   UNREACHABLE();
   return condition;
+}
+
+
+void InstructionOperand::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstructionOperand wrapper;
+  wrapper.register_configuration_ = config;
+  wrapper.op_ = *this;
+  os << wrapper << std::endl;
+}
+
+
+void InstructionOperand::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
 }
 
 
@@ -122,24 +139,33 @@ std::ostream& operator<<(std::ostream& os,
       if (allocated.IsExplicit()) {
         os << "|E";
       }
-      switch (allocated.machine_type()) {
-        case kRepWord32:
+      switch (allocated.representation()) {
+        case MachineRepresentation::kNone:
+          os << "|-";
+          break;
+        case MachineRepresentation::kBit:
+          os << "|b";
+          break;
+        case MachineRepresentation::kWord8:
+          os << "|w8";
+          break;
+        case MachineRepresentation::kWord16:
+          os << "|w16";
+          break;
+        case MachineRepresentation::kWord32:
           os << "|w32";
           break;
-        case kRepWord64:
+        case MachineRepresentation::kWord64:
           os << "|w64";
           break;
-        case kRepFloat32:
+        case MachineRepresentation::kFloat32:
           os << "|f32";
           break;
-        case kRepFloat64:
+        case MachineRepresentation::kFloat64:
           os << "|f64";
           break;
-        case kRepTagged:
+        case MachineRepresentation::kTagged:
           os << "|t";
-          break;
-        default:
-          os << "|?";
           break;
       }
       return os << "]";
@@ -149,6 +175,24 @@ std::ostream& operator<<(std::ostream& os,
   }
   UNREACHABLE();
   return os;
+}
+
+
+void MoveOperands::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstructionOperand wrapper;
+  wrapper.register_configuration_ = config;
+  wrapper.op_ = destination();
+  os << wrapper << " = ";
+  wrapper.op_ = source();
+  os << wrapper << std::endl;
+}
+
+
+void MoveOperands::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
 }
 
 
@@ -195,12 +239,12 @@ MoveOperands* ParallelMove::PrepareInsertAfter(MoveOperands* move) const {
 }
 
 
-ExplicitOperand::ExplicitOperand(LocationKind kind, MachineType machine_type,
+ExplicitOperand::ExplicitOperand(LocationKind kind, MachineRepresentation rep,
                                  int index)
-    : LocationOperand(EXPLICIT, kind, machine_type, index) {
-  DCHECK_IMPLIES(kind == REGISTER && !IsFloatingPoint(machine_type),
+    : LocationOperand(EXPLICIT, kind, rep, index) {
+  DCHECK_IMPLIES(kind == REGISTER && !IsFloatingPoint(rep),
                  Register::from_code(index).IsAllocatable());
-  DCHECK_IMPLIES(kind == REGISTER && IsFloatingPoint(machine_type),
+  DCHECK_IMPLIES(kind == REGISTER && IsFloatingPoint(rep),
                  DoubleRegister::from_code(index).IsAllocatable());
 }
 
@@ -209,7 +253,7 @@ Instruction::Instruction(InstructionCode opcode)
     : opcode_(opcode),
       bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
                  TempCountField::encode(0) | IsCallField::encode(false)),
-      reference_map_(NULL) {
+      reference_map_(nullptr) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
 }
@@ -224,7 +268,7 @@ Instruction::Instruction(InstructionCode opcode, size_t output_count,
                  InputCountField::encode(input_count) |
                  TempCountField::encode(temp_count) |
                  IsCallField::encode(false)),
-      reference_map_(NULL) {
+      reference_map_(nullptr) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
   size_t offset = 0;
@@ -251,6 +295,22 @@ bool Instruction::AreMovesRedundant() const {
     }
   }
   return true;
+}
+
+
+void Instruction::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstruction wrapper;
+  wrapper.instr_ = this;
+  wrapper.register_configuration_ = config;
+  os << wrapper << std::endl;
+}
+
+
+void Instruction::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
 }
 
 
@@ -399,7 +459,7 @@ std::ostream& operator<<(std::ostream& os,
   for (int i = Instruction::FIRST_GAP_POSITION;
        i <= Instruction::LAST_GAP_POSITION; i++) {
     os << "(";
-    if (instr.parallel_moves()[i] != NULL) {
+    if (instr.parallel_moves()[i] != nullptr) {
       PrintableParallelMove ppm = {printable.register_configuration_,
                                    instr.parallel_moves()[i]};
       os << ppm;
@@ -508,7 +568,7 @@ size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {
 
 
 static RpoNumber GetRpo(const BasicBlock* block) {
-  if (block == NULL) return RpoNumber::Invalid();
+  if (block == nullptr) return RpoNumber::Invalid();
   return RpoNumber::FromInt(block->rpo_number());
 }
 
@@ -543,7 +603,7 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     Zone* zone, const Schedule* schedule) {
   InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
   new (blocks) InstructionBlocks(
-      static_cast<int>(schedule->rpo_order()->size()), NULL, zone);
+      static_cast<int>(schedule->rpo_order()->size()), nullptr, zone);
   size_t rpo_number = 0;
   for (BasicBlockVector::const_iterator it = schedule->rpo_order()->begin();
        it != schedule->rpo_order()->end(); ++it, ++rpo_number) {
@@ -629,7 +689,7 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
   int index = static_cast<int>(instructions_.size());
   instructions_.push_back(instr);
   if (instr->NeedsReferenceMap()) {
-    DCHECK(instr->reference_map() == NULL);
+    DCHECK(instr->reference_map() == nullptr);
     ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
     reference_map->set_instruction_position(index);
     instr->set_reference_map(reference_map);
@@ -656,28 +716,28 @@ InstructionBlock* InstructionSequence::GetInstructionBlock(
 }
 
 
-static MachineType FilterRepresentation(MachineType rep) {
-  DCHECK_EQ(rep, RepresentationOf(rep));
+static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
   switch (rep) {
-    case kRepBit:
-    case kRepWord8:
-    case kRepWord16:
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kWord8:
+    case MachineRepresentation::kWord16:
       return InstructionSequence::DefaultRepresentation();
-    case kRepWord32:
-    case kRepWord64:
-    case kRepFloat32:
-    case kRepFloat64:
-    case kRepTagged:
+    case MachineRepresentation::kWord32:
+    case MachineRepresentation::kWord64:
+    case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kFloat64:
+    case MachineRepresentation::kTagged:
       return rep;
-    default:
+    case MachineRepresentation::kNone:
       break;
   }
   UNREACHABLE();
-  return kMachNone;
+  return MachineRepresentation::kNone;
 }
 
 
-MachineType InstructionSequence::GetRepresentation(int virtual_register) const {
+MachineRepresentation InstructionSequence::GetRepresentation(
+    int virtual_register) const {
   DCHECK_LE(0, virtual_register);
   DCHECK_LT(virtual_register, VirtualRegisterCount());
   if (virtual_register >= static_cast<int>(representations_.size())) {
@@ -687,17 +747,17 @@ MachineType InstructionSequence::GetRepresentation(int virtual_register) const {
 }
 
 
-void InstructionSequence::MarkAsRepresentation(MachineType machine_type,
+void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
                                                int virtual_register) {
   DCHECK_LE(0, virtual_register);
   DCHECK_LT(virtual_register, VirtualRegisterCount());
   if (virtual_register >= static_cast<int>(representations_.size())) {
     representations_.resize(VirtualRegisterCount(), DefaultRepresentation());
   }
-  machine_type = FilterRepresentation(machine_type);
-  DCHECK_IMPLIES(representations_[virtual_register] != machine_type,
+  rep = FilterRepresentation(rep);
+  DCHECK_IMPLIES(representations_[virtual_register] != rep,
                  representations_[virtual_register] == DefaultRepresentation());
-  representations_[virtual_register] = machine_type;
+  representations_[virtual_register] = rep;
 }
 
 
@@ -744,6 +804,22 @@ void InstructionSequence::SetSourcePosition(const Instruction* instr,
 }
 
 
+void InstructionSequence::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstructionSequence wrapper;
+  wrapper.register_configuration_ = config;
+  wrapper.sequence_ = this;
+  os << wrapper << std::endl;
+}
+
+
+void InstructionSequence::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
+}
+
+
 FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BailoutId bailout_id,
     OutputFrameStateCombine state_combine, size_t parameters_count,
@@ -756,11 +832,9 @@ FrameStateDescriptor::FrameStateDescriptor(
       parameters_count_(parameters_count),
       locals_count_(locals_count),
       stack_count_(stack_count),
-      types_(zone),
+      values_(zone),
       shared_info_(shared_info),
-      outer_state_(outer_state) {
-  types_.resize(GetSize(), kMachNone);
-}
+      outer_state_(outer_state) {}
 
 
 size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
@@ -779,7 +853,7 @@ size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
 
 size_t FrameStateDescriptor::GetTotalSize() const {
   size_t total_size = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = this; iter != nullptr;
        iter = iter->outer_state_) {
     total_size += iter->GetSize();
   }
@@ -789,7 +863,7 @@ size_t FrameStateDescriptor::GetTotalSize() const {
 
 size_t FrameStateDescriptor::GetFrameCount() const {
   size_t count = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = this; iter != nullptr;
        iter = iter->outer_state_) {
     ++count;
   }
@@ -799,24 +873,13 @@ size_t FrameStateDescriptor::GetFrameCount() const {
 
 size_t FrameStateDescriptor::GetJSFrameCount() const {
   size_t count = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = this; iter != nullptr;
        iter = iter->outer_state_) {
-    if (iter->type_ == FrameStateType::kJavaScriptFunction) {
+    if (FrameStateFunctionInfo::IsJSFunctionType(iter->type_)) {
       ++count;
     }
   }
   return count;
-}
-
-
-MachineType FrameStateDescriptor::GetType(size_t index) const {
-  return types_[index];
-}
-
-
-void FrameStateDescriptor::SetType(size_t index, MachineType type) {
-  DCHECK(index < GetSize());
-  types_[index] = type;
 }
 
 

@@ -1,5 +1,20 @@
 ## Change Log
 
+### v2.68.0 (2016/01/27)
+- [#2036](https://github.com/request/request/pull/2036) Add AWS Signature Version 4 (@simov, @mirkods)
+- [#2022](https://github.com/request/request/pull/2022) Convert numeric multipart bodies to string (@simov, @feross)
+- [#2024](https://github.com/request/request/pull/2024) Update har-validator dependency for nsp advisory #76 (@TylerDixon)
+- [#2016](https://github.com/request/request/pull/2016) Update qs to version 6.0.2 🚀 (@greenkeeperio-bot)
+- [#2007](https://github.com/request/request/pull/2007) Use the `extend` module instead of util._extend (@simov)
+- [#2003](https://github.com/request/request/pull/2003) Update browserify to version 13.0.0 🚀 (@greenkeeperio-bot)
+- [#1989](https://github.com/request/request/pull/1989) Update buffer-equal to version 1.0.0 🚀 (@greenkeeperio-bot)
+- [#1956](https://github.com/request/request/pull/1956) Check form-data content-length value before setting up the header (@jongyoonlee)
+- [#1958](https://github.com/request/request/pull/1958) Use IncomingMessage.destroy method (@simov)
+- [#1952](https://github.com/request/request/pull/1952) Adds example for Tor proxy (@prometheansacrifice)
+- [#1943](https://github.com/request/request/pull/1943) Update eslint to version 1.10.3 🚀 (@simov, @greenkeeperio-bot)
+- [#1924](https://github.com/request/request/pull/1924) Update eslint to version 1.10.1 🚀 (@greenkeeperio-bot)
+- [#1915](https://github.com/request/request/pull/1915) Remove content-length and transfer-encoding headers from defaultProxyHeaderWhiteList (@yaxia)
+
 ### v2.67.0 (2015/11/19)
 - [#1913](https://github.com/request/request/pull/1913) Update http-signature to version 1.1.0 🚀 (@greenkeeperio-bot)
 
@@ -455,7 +470,7 @@
 - [#521](https://github.com/request/request/pull/521) Improving test-localAddress.js (@noway421)
 - [#529](https://github.com/request/request/pull/529) dependencies versions bump (@jodaka)
 
-### v2.17.0 (2013/04/22)
+### v2.18.0 (2013/04/22)
 - [#523](https://github.com/request/request/pull/523) Updating dependencies (@noway421)
 - [#520](https://github.com/request/request/pull/520) Fixing test-tunnel.js (@noway421)
 - [#519](https://github.com/request/request/pull/519) Update internal path state on post-creation QS changes (@jblebrun)

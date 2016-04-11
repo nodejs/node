@@ -308,6 +308,11 @@ exports.header = function (credentials, artifacts, options) {
  * 'hostHeaderName', 'localtimeOffsetMsec', 'host', 'port'
  */
 
+
+//                       1     2             3           4
+internals.bewitRegex = /^(\/.*)([\?&])bewit\=([^&$]*)(?:&(.+))?$/;
+
+
 exports.authenticateBewit = function (req, credentialsFunc, options, callback) {
 
     callback = Hoek.nextTick(callback);
@@ -325,8 +330,11 @@ exports.authenticateBewit = function (req, credentialsFunc, options, callback) {
 
     // Extract bewit
 
-    //                                 1     2             3           4
-    var resource = request.url.match(/^(\/.*)([\?&])bewit\=([^&$]*)(?:&(.+))?$/);
+    if (request.url.length > Utils.limits.maxMatchLength) {
+        return callback(Boom.badRequest('Resource path exceeds max length'));
+    }
+
+    var resource = request.url.match(internals.bewitRegex);
     if (!resource) {
         return callback(Boom.unauthorized(null, 'Hawk'));
     }

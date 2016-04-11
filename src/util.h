@@ -232,6 +232,25 @@ class TwoByteValue {
     uint16_t str_st_[1024];
 };
 
+class BufferValue {
+  public:
+    explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+
+    ~BufferValue() {
+      if (str_ != str_st_)
+        free(str_);
+    }
+
+    const char* operator*() const {
+      return fail_ ? nullptr : str_;
+    };
+
+  private:
+    char* str_;
+    char str_st_[1024];
+    bool fail_;
+};
+
 }  // namespace node
 
 #endif  // SRC_UTIL_H_

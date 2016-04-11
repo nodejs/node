@@ -324,7 +324,7 @@ Returns a new [Unzip][] object with an [options][].
 
 <!--type=misc-->
 
-All of these take a string or buffer as the first argument, an optional second
+All of these take a [Buffer][] or string as the first argument, an optional second
 argument to supply options to the zlib classes and will call the supplied
 callback with `callback(error, result)`.
 
@@ -332,45 +332,39 @@ Every method has a `*Sync` counterpart, which accept the same arguments, but
 without a callback.
 
 ### zlib.deflate(buf[, options], callback)
+### zlib.deflateSync(buf[, options])
 
-Compress a string with Deflate.
+Compress a Buffer or string with Deflate.
 
 ### zlib.deflateRaw(buf[, options], callback)
 ### zlib.deflateRawSync(buf[, options])
 
-Compress a string with DeflateRaw.
-
-### zlib.deflateSync(buf[, options])
-
-Compress a string with Deflate.
+Compress a Buffer or string with DeflateRaw.
 
 ### zlib.gunzip(buf[, options], callback)
 ### zlib.gunzipSync(buf[, options])
 
-Decompress a raw Buffer with Gunzip.
+Decompress a Buffer or string with Gunzip.
 
 ### zlib.gzip(buf[, options], callback)
 ### zlib.gzipSync(buf[, options])
 
-Compress a string with Gzip.
+Compress a Buffer or string with Gzip.
 
 ### zlib.inflate(buf[, options], callback)
+### zlib.inflateSync(buf[, options])
 
-Decompress a raw Buffer with Inflate.
+Decompress a Buffer or string with Inflate.
 
 ### zlib.inflateRaw(buf[, options], callback)
 ### zlib.inflateRawSync(buf[, options])
 
-Decompress a raw Buffer with InflateRaw.
-
-### zlib.inflateSync(buf[, options])
-
-Decompress a raw Buffer with Inflate.
+Decompress a Buffer or string with InflateRaw.
 
 ### zlib.unzip(buf[, options], callback)
 ### zlib.unzipSync(buf[, options])
 
-Decompress a raw Buffer with Unzip.
+Decompress a Buffer or string with Unzip.
 
 [accept-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [content-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
@@ -384,3 +378,4 @@ Decompress a raw Buffer with Unzip.
 [Inflate]: #zlib_class_zlib_inflate
 [InflateRaw]: #zlib_class_zlib_inflateraw
 [Unzip]: #zlib_class_zlib_unzip
+[Buffer]: buffer.html

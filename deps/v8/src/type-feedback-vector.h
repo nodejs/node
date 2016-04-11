@@ -182,14 +182,9 @@ class TypeFeedbackVector : public FixedArray {
   static inline TypeFeedbackVector* cast(Object* obj);
 
   static const int kMetadataIndex = 0;
-  static const int kWithTypesIndex = 1;
-  static const int kGenericCountIndex = 2;
-  static const int kReservedIndexCount = 3;
+  static const int kReservedIndexCount = 1;
 
-  inline int ic_with_type_info_count();
-  inline void change_ic_with_type_info_count(int delta);
-  inline int ic_generic_count();
-  inline void change_ic_generic_count(int delta);
+  inline void ComputeCounts(int* with_type_info, int* generic);
 
   inline bool is_empty() const;
 
@@ -258,10 +253,6 @@ class TypeFeedbackVector : public FixedArray {
     DCHECK(dummyIndex >= 0 && dummyIndex <= kDummyKeyedStoreICSlot);
     return FeedbackVectorSlot(dummyIndex);
   }
-
-  static int PushAppliedArgumentsIndex();
-  static Handle<TypeFeedbackVector> CreatePushAppliedArgumentsVector(
-      Isolate* isolate);
 
  private:
   void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
@@ -375,9 +366,9 @@ class FeedbackNexus {
   inline Object* GetFeedback() const;
   inline Object* GetFeedbackExtra() const;
 
- protected:
   inline Isolate* GetIsolate() const;
 
+ protected:
   inline void SetFeedback(Object* feedback,
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetFeedbackExtra(Object* feedback_extra,
@@ -399,7 +390,7 @@ class FeedbackNexus {
 };
 
 
-class CallICNexus : public FeedbackNexus {
+class CallICNexus final : public FeedbackNexus {
  public:
   // Monomorphic call ics store call counts. Platform code needs to increment
   // the count appropriately (ie, by 2).
@@ -418,17 +409,19 @@ class CallICNexus : public FeedbackNexus {
 
   void ConfigureMonomorphicArray();
   void ConfigureMonomorphic(Handle<JSFunction> function);
+  void ConfigureMegamorphic() final;
+  void ConfigureMegamorphic(int call_count);
 
-  InlineCacheState StateFromFeedback() const override;
+  InlineCacheState StateFromFeedback() const final;
 
-  int ExtractMaps(MapHandleList* maps) const override {
+  int ExtractMaps(MapHandleList* maps) const final {
     // CallICs don't record map feedback.
     return 0;
   }
-  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const override {
+  MaybeHandle<Code> FindHandlerForMap(Handle<Map> map) const final {
     return MaybeHandle<Code>();
   }
-  bool FindHandlers(CodeHandleList* code_list, int length = -1) const override {
+  bool FindHandlers(CodeHandleList* code_list, int length = -1) const final {
     return length == 0;
   }
 

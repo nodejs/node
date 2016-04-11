@@ -15,7 +15,7 @@ class DebugEvaluate : public AllStatic {
  public:
   static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source,
                                     bool disable_break,
-                                    Handle<Object> context_extension);
+                                    Handle<HeapObject> context_extension);
 
   // Evaluate a piece of JavaScript in the context of a stack frame for
   // debugging.  Things that need special attention are:
@@ -25,7 +25,7 @@ class DebugEvaluate : public AllStatic {
   static MaybeHandle<Object> Local(Isolate* isolate, StackFrame::Id frame_id,
                                    int inlined_jsframe_index,
                                    Handle<String> source, bool disable_break,
-                                   Handle<Object> context_extension);
+                                   Handle<HeapObject> context_extension);
 
  private:
   // This class builds a context chain for evaluation of expressions
@@ -54,6 +54,7 @@ class DebugEvaluate : public AllStatic {
     void UpdateValues();
 
     Handle<Context> innermost_context() const { return innermost_context_; }
+    Handle<Context> native_context() const { return native_context_; }
     Handle<SharedFunctionInfo> outer_info() const { return outer_info_; }
 
    private:
@@ -74,12 +75,29 @@ class DebugEvaluate : public AllStatic {
     void MaterializeArgumentsObject(Handle<JSObject> target,
                                     Handle<JSFunction> function);
 
-    Handle<Context> MaterializeReceiver(Handle<Context> target,
-                                        Handle<JSFunction> function);
+    void MaterializeContextChain(Handle<JSObject> target,
+                                 Handle<Context> context);
+
+    void UpdateContextChainFromMaterializedObject(Handle<JSObject> source,
+                                                  Handle<Context> context);
+
+    Handle<Context> MaterializeReceiver(Handle<Context> parent_context,
+                                        Handle<Context> lookup_context,
+                                        Handle<JSFunction> local_function,
+                                        Handle<JSFunction> global_function,
+                                        bool this_is_non_local);
+
+    MaybeHandle<Object> LoadFromContext(Handle<Context> context,
+                                        Handle<String> name, bool* global);
+
+    void StoreToContext(Handle<Context> context, Handle<String> name,
+                        Handle<Object> value);
 
     Handle<SharedFunctionInfo> outer_info_;
     Handle<Context> innermost_context_;
+    Handle<Context> native_context_;
     List<ContextChainElement> context_chain_;
+    List<Handle<String> > non_locals_;
     Isolate* isolate_;
     JavaScriptFrame* frame_;
     int inlined_jsframe_index_;
@@ -88,7 +106,7 @@ class DebugEvaluate : public AllStatic {
   static MaybeHandle<Object> Evaluate(Isolate* isolate,
                                       Handle<SharedFunctionInfo> outer_info,
                                       Handle<Context> context,
-                                      Handle<Object> context_extension,
+                                      Handle<HeapObject> context_extension,
                                       Handle<Object> receiver,
                                       Handle<String> source);
 };

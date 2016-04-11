@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_JS_OPERATOR_H_
 #define V8_COMPILER_JS_OPERATOR_H_
 
+#include "src/compiler/type-hints.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -43,7 +44,11 @@ size_t hash_value(VectorSlotPair const&);
 
 
 // The ConvertReceiverMode is used as parameter by JSConvertReceiver operators.
-ConvertReceiverMode ConvertReceiverModeOf(const Operator* op);
+ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
+
+
+// The ToBooleanHints are used as parameter by JSToBoolean operators.
+ToBooleanHints ToBooleanHintsOf(Operator const* op);
 
 
 // Defines whether tail call optimization is allowed.
@@ -52,6 +57,59 @@ enum class TailCallMode : unsigned { kAllow, kDisallow };
 size_t hash_value(TailCallMode);
 
 std::ostream& operator<<(std::ostream&, TailCallMode);
+
+
+// Defines the language mode and hints for a JavaScript binary operations.
+// This is used as parameter by JSAdd, JSSubtract, etc. operators.
+class BinaryOperationParameters final {
+ public:
+  BinaryOperationParameters(LanguageMode language_mode,
+                            BinaryOperationHints hints)
+      : language_mode_(language_mode), hints_(hints) {}
+
+  LanguageMode language_mode() const { return language_mode_; }
+  BinaryOperationHints hints() const { return hints_; }
+
+ private:
+  LanguageMode const language_mode_;
+  BinaryOperationHints const hints_;
+};
+
+bool operator==(BinaryOperationParameters const&,
+                BinaryOperationParameters const&);
+bool operator!=(BinaryOperationParameters const&,
+                BinaryOperationParameters const&);
+
+size_t hash_value(BinaryOperationParameters const&);
+
+std::ostream& operator<<(std::ostream&, BinaryOperationParameters const&);
+
+BinaryOperationParameters const& BinaryOperationParametersOf(Operator const*);
+
+
+// Defines the arity and the feedback for a JavaScript constructor call. This is
+// used as a parameter by JSCallConstruct operators.
+class CallConstructParameters final {
+ public:
+  CallConstructParameters(size_t arity, VectorSlotPair const& feedback)
+      : arity_(arity), feedback_(feedback) {}
+
+  size_t arity() const { return arity_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
+
+ private:
+  size_t const arity_;
+  VectorSlotPair const feedback_;
+};
+
+bool operator==(CallConstructParameters const&, CallConstructParameters const&);
+bool operator!=(CallConstructParameters const&, CallConstructParameters const&);
+
+size_t hash_value(CallConstructParameters const&);
+
+std::ostream& operator<<(std::ostream&, CallConstructParameters const&);
+
+CallConstructParameters const& CallConstructParametersOf(Operator const*);
 
 
 // Defines the arity and the call flags for a JavaScript function call. This is
@@ -327,6 +385,31 @@ const CreateArgumentsParameters& CreateArgumentsParametersOf(
     const Operator* op);
 
 
+// Defines shared information for the array that should be created. This is
+// used as parameter by JSCreateArray operators.
+class CreateArrayParameters final {
+ public:
+  explicit CreateArrayParameters(size_t arity, Handle<AllocationSite> site)
+      : arity_(arity), site_(site) {}
+
+  size_t arity() const { return arity_; }
+  Handle<AllocationSite> site() const { return site_; }
+
+ private:
+  size_t const arity_;
+  Handle<AllocationSite> const site_;
+};
+
+bool operator==(CreateArrayParameters const&, CreateArrayParameters const&);
+bool operator!=(CreateArrayParameters const&, CreateArrayParameters const&);
+
+size_t hash_value(CreateArrayParameters const&);
+
+std::ostream& operator<<(std::ostream&, CreateArrayParameters const&);
+
+const CreateArrayParameters& CreateArrayParametersOf(const Operator* op);
+
+
 // Defines shared information for the closure that should be created. This is
 // used as a parameter by JSCreateClosure operators.
 class CreateClosureParameters final {
@@ -353,6 +436,34 @@ std::ostream& operator<<(std::ostream&, CreateClosureParameters const&);
 const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
 
 
+// Defines shared information for the literal that should be created. This is
+// used as parameter by JSCreateLiteralArray, JSCreateLiteralObject and
+// JSCreateLiteralRegExp operators.
+class CreateLiteralParameters final {
+ public:
+  CreateLiteralParameters(Handle<HeapObject> constant, int flags, int index)
+      : constant_(constant), flags_(flags), index_(index) {}
+
+  Handle<HeapObject> constant() const { return constant_; }
+  int flags() const { return flags_; }
+  int index() const { return index_; }
+
+ private:
+  Handle<HeapObject> const constant_;
+  int const flags_;
+  int const index_;
+};
+
+bool operator==(CreateLiteralParameters const&, CreateLiteralParameters const&);
+bool operator!=(CreateLiteralParameters const&, CreateLiteralParameters const&);
+
+size_t hash_value(CreateLiteralParameters const&);
+
+std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
+
+const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
+
+
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.
@@ -368,20 +479,29 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* GreaterThan(LanguageMode language_mode);
   const Operator* LessThanOrEqual(LanguageMode language_mode);
   const Operator* GreaterThanOrEqual(LanguageMode language_mode);
-  const Operator* BitwiseOr(LanguageMode language_mode);
-  const Operator* BitwiseXor(LanguageMode language_mode);
-  const Operator* BitwiseAnd(LanguageMode language_mode);
-  const Operator* ShiftLeft(LanguageMode language_mode);
-  const Operator* ShiftRight(LanguageMode language_mode);
-  const Operator* ShiftRightLogical(LanguageMode language_mode);
-  const Operator* Add(LanguageMode language_mode);
-  const Operator* Subtract(LanguageMode language_mode);
-  const Operator* Multiply(LanguageMode language_mode);
-  const Operator* Divide(LanguageMode language_mode);
-  const Operator* Modulus(LanguageMode language_mode);
+  const Operator* BitwiseOr(LanguageMode language_mode,
+                            BinaryOperationHints hints);
+  const Operator* BitwiseXor(LanguageMode language_mode,
+                             BinaryOperationHints hints);
+  const Operator* BitwiseAnd(LanguageMode language_mode,
+                             BinaryOperationHints hints);
+  const Operator* ShiftLeft(LanguageMode language_mode,
+                            BinaryOperationHints hints);
+  const Operator* ShiftRight(LanguageMode language_mode,
+                             BinaryOperationHints hints);
+  const Operator* ShiftRightLogical(LanguageMode language_mode,
+                                    BinaryOperationHints hints);
+  const Operator* Add(LanguageMode language_mode, BinaryOperationHints hints);
+  const Operator* Subtract(LanguageMode language_mode,
+                           BinaryOperationHints hints);
+  const Operator* Multiply(LanguageMode language_mode,
+                           BinaryOperationHints hints);
+  const Operator* Divide(LanguageMode language_mode,
+                         BinaryOperationHints hints);
+  const Operator* Modulus(LanguageMode language_mode,
+                          BinaryOperationHints hints);
 
-  const Operator* UnaryNot();
-  const Operator* ToBoolean();
+  const Operator* ToBoolean(ToBooleanHints hints);
   const Operator* ToNumber();
   const Operator* ToString();
   const Operator* ToName();
@@ -391,10 +511,16 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsParameters::Type type,
                                   int start_index);
+  const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 PretenureFlag pretenure);
-  const Operator* CreateLiteralArray(int literal_flags);
-  const Operator* CreateLiteralObject(int literal_flags);
+  const Operator* CreateIterResultObject();
+  const Operator* CreateLiteralArray(Handle<FixedArray> constant_elements,
+                                     int literal_flags, int literal_index);
+  const Operator* CreateLiteralObject(Handle<FixedArray> constant_properties,
+                                      int literal_flags, int literal_index);
+  const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
+                                      int literal_flags, int literal_index);
 
   const Operator* CallFunction(
       size_t arity, LanguageMode language_mode,
@@ -402,7 +528,7 @@ class JSOperatorBuilder final : public ZoneObject {
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
-  const Operator* CallConstruct(int arguments);
+  const Operator* CallConstruct(size_t arity, VectorSlotPair const& feedback);
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
 

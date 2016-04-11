@@ -58,8 +58,8 @@ function testCipher2(key, iv) {
 }
 
 testCipher1('0123456789abcd0123456789', '12345678');
-testCipher1('0123456789abcd0123456789', new Buffer('12345678'));
-testCipher1(new Buffer('0123456789abcd0123456789'), '12345678');
-testCipher1(new Buffer('0123456789abcd0123456789'), new Buffer('12345678'));
+testCipher1('0123456789abcd0123456789', Buffer.from('12345678'));
+testCipher1(Buffer.from('0123456789abcd0123456789'), '12345678');
+testCipher1(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));
 
-testCipher2(new Buffer('0123456789abcd0123456789'), new Buffer('12345678'));
+testCipher2(Buffer.from('0123456789abcd0123456789'), Buffer.from('12345678'));

@@ -33,6 +33,7 @@ if (process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH) {
 // retry() whenever a close happens *anywhere* in the program.
 // This is essential when multiple graceful-fs instances are
 // in play at the same time.
+module.exports.close =
 fs.close = (function (fs$close) { return function (fd, cb) {
   return fs$close.call(fs, fd, function (err) {
     if (!err)
@@ -43,6 +44,7 @@ fs.close = (function (fs$close) { return function (fd, cb) {
   })
 }})(fs.close)
 
+module.exports.closeSync =
 fs.closeSync = (function (fs$closeSync) { return function (fd) {
   // Note that graceful-fs also retries when fs.closeSync() fails.
   // Looks like a bug to me, although it's probably a harmless one.

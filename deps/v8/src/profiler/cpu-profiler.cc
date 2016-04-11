@@ -7,6 +7,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
+#include "src/locked-queue-inl.h"
 #include "src/log-inl.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/vm-state-inl.h"
@@ -35,14 +36,14 @@ ProfilerEventsProcessor::~ProfilerEventsProcessor() {}
 
 
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
-  event.generic.order = ++last_code_event_id_;
+  event.generic.order = last_code_event_id_.Increment(1);
   events_buffer_.Enqueue(event);
 }
 
 
 void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
                                             int fp_to_sp_delta) {
-  TickSampleEventRecord record(last_code_event_id_);
+  TickSampleEventRecord record(last_code_event_id_.Value());
   RegisterState regs;
   Address fp = isolate->c_entry_fp(isolate->thread_local_top());
   regs.sp = fp - fp_to_sp_delta;
@@ -54,7 +55,7 @@ void ProfilerEventsProcessor::AddDeoptStack(Isolate* isolate, Address from,
 
 
 void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
-  TickSampleEventRecord record(last_code_event_id_);
+  TickSampleEventRecord record(last_code_event_id_.Value());
   RegisterState regs;
   StackFrameIterator it(isolate);
   if (!it.done()) {
@@ -96,9 +97,9 @@ bool ProfilerEventsProcessor::ProcessCodeEvent() {
 
 ProfilerEventsProcessor::SampleProcessingResult
     ProfilerEventsProcessor::ProcessOneSample() {
-  if (!ticks_from_vm_buffer_.IsEmpty()
-      && ticks_from_vm_buffer_.Peek()->order ==
-         last_processed_code_event_id_) {
+  TickSampleEventRecord record1;
+  if (ticks_from_vm_buffer_.Peek(&record1) &&
+      (record1.order == last_processed_code_event_id_)) {
     TickSampleEventRecord record;
     ticks_from_vm_buffer_.Dequeue(&record);
     generator_->RecordTickSample(record.sample);

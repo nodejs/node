@@ -11,6 +11,7 @@
 //------------------------------------------------------------------------------
 
 var INDEX_OF_PATTERN = /^(?:i|lastI)ndexOf$/;
+var ALLOWABLE_OPERATORS = ["~", "!!", "+", "*"];
 
 /**
  * Parses and normalizes an option object.
@@ -22,7 +23,8 @@ function parseOptions(options) {
     return {
         boolean: "boolean" in options ? Boolean(options.boolean) : true,
         number: "number" in options ? Boolean(options.number) : true,
-        string: "string" in options ? Boolean(options.string) : true
+        string: "string" in options ? Boolean(options.string) : true,
+        allow: options.allow || []
     };
 }
 
@@ -87,10 +89,11 @@ function isNumeric(node) {
  * used from bottom to up since it walks up the BinaryExpression trees using
  * node.parent to find the result.
  * @param {BinaryExpression} node The BinaryExpression node to be walked up on
- * @returns {ASTNode|undefined} The first non-numeric item in the BinaryExpression tree or undefined
+ * @returns {ASTNode|null} The first non-numeric item in the BinaryExpression tree or null
  */
 function getNonNumericOperand(node) {
-    var left = node.left, right = node.right;
+    var left = node.left,
+        right = node.right;
 
     if (right.type !== "BinaryExpression" && !isNumeric(right)) {
         return right;
@@ -99,6 +102,8 @@ function getNonNumericOperand(node) {
     if (left.type !== "BinaryExpression" && !isNumeric(left)) {
         return left;
     }
+
+    return null;
 }
 
 /**
@@ -140,81 +145,103 @@ function getOtherOperand(node, value) {
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-    var options = parseOptions(context.options[0]);
+    var options = parseOptions(context.options[0]),
+        operatorAllowed = false;
 
     return {
         "UnaryExpression": function(node) {
+
             // !!foo
-            if (options.boolean && isDoubleLogicalNegating(node)) {
+            operatorAllowed = options.allow.indexOf("!!") >= 0;
+            if (!operatorAllowed && options.boolean && isDoubleLogicalNegating(node)) {
                 context.report(
                     node,
-                    "use `Boolean({{code}})` instead.",
-                    {code: context.getSource(node.argument.argument)});
+                    "use `Boolean({{code}})` instead.", {
+                        code: context.getSource(node.argument.argument)
+                    });
             }
 
             // ~foo.indexOf(bar)
-            if (options.boolean && isBinaryNegatingOfIndexOf(node)) {
+            operatorAllowed = options.allow.indexOf("~") >= 0;
+            if (!operatorAllowed && options.boolean && isBinaryNegatingOfIndexOf(node)) {
                 context.report(
                     node,
-                    "use `{{code}} !== -1` instead.",
-                    {code: context.getSource(node.argument)});
+                    "use `{{code}} !== -1` instead.", {
+                        code: context.getSource(node.argument)
+                    });
             }
 
             // +foo
-            if (options.number && node.operator === "+" && !isNumeric(node.argument)) {
+            operatorAllowed = options.allow.indexOf("+") >= 0;
+            if (!operatorAllowed && options.number && node.operator === "+" && !isNumeric(node.argument)) {
                 context.report(
                     node,
-                    "use `Number({{code}})` instead.",
-                    {code: context.getSource(node.argument)});
+                    "use `Number({{code}})` instead.", {
+                        code: context.getSource(node.argument)
+                    });
             }
         },
 
         // Use `:exit` to prevent double reporting
         "BinaryExpression:exit": function(node) {
+
             // 1 * foo
-            var nonNumericOperand = options.number && isMultiplyByOne(node) && getNonNumericOperand(node);
+            operatorAllowed = options.allow.indexOf("*") >= 0;
+            var nonNumericOperand = !operatorAllowed && options.number && isMultiplyByOne(node) && getNonNumericOperand(node);
+
             if (nonNumericOperand) {
                 context.report(
                     node,
-                    "use `Number({{code}})` instead.",
-                    {code: context.getSource(nonNumericOperand)});
+                    "use `Number({{code}})` instead.", {
+                        code: context.getSource(nonNumericOperand)
+                    });
             }
 
             // "" + foo
-            if (options.string && isConcatWithEmptyString(node)) {
+            operatorAllowed = options.allow.indexOf("+") >= 0;
+            if (!operatorAllowed && options.string && isConcatWithEmptyString(node)) {
                 context.report(
                     node,
-                    "use `String({{code}})` instead.",
-                    {code: context.getSource(getOtherOperand(node, ""))});
+                    "use `String({{code}})` instead.", {
+                        code: context.getSource(getOtherOperand(node, ""))
+                    });
             }
         },
 
         "AssignmentExpression": function(node) {
+
             // foo += ""
+            operatorAllowed = options.allow.indexOf("+") >= 0;
             if (options.string && isAppendEmptyString(node)) {
                 context.report(
                     node,
-                    "use `{{code}} = String({{code}})` instead.",
-                    {code: context.getSource(getOtherOperand(node, ""))});
+                    "use `{{code}} = String({{code}})` instead.", {
+                        code: context.getSource(getOtherOperand(node, ""))
+                    });
             }
         }
     };
 };
 
-module.exports.schema = [
-    {
-        "type": "object",
-        "properties": {
-            "boolean": {
-                "type": "boolean"
-            },
-            "number": {
-                "type": "boolean"
-            },
-            "string": {
-                "type": "boolean"
-            }
+module.exports.schema = [{
+    "type": "object",
+    "properties": {
+        "boolean": {
+            "type": "boolean"
         },
-        "additionalProperties": false
-    }
-];
+        "number": {
+            "type": "boolean"
+        },
+        "string": {
+            "type": "boolean"
+        },
+        "allow": {
+            "type": "array",
+            "items": {
+                "enum": ALLOWABLE_OPERATORS
+            },
+            "uniqueItems": true
+        }
+    },
+    "additionalProperties": false
+}];

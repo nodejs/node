@@ -12,15 +12,9 @@ if (!common.hasCrypto) {
 var tls = require('tls');
 var fs = require('fs');
 
-
-var body = '';
-
 process.stdout.write('build body...');
-for (var i = 0; i < 1024 * 1024; i++) {
-  body += 'hello world\n';
-}
+var body = 'hello world\n'.repeat(1024 * 1024);
 process.stdout.write('done\n');
-
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),

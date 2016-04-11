@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -51,6 +48,7 @@ static const char* bind_tests[] = {
 
 
 static void RunVariableTests(const char* source, const char* tests[]) {
+  i::FLAG_legacy_const = true;
   EmbeddedVector<char, 512> buffer;
 
   for (int i = 0; tests[i] != NULL; i += 3) {

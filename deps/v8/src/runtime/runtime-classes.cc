@@ -36,9 +36,11 @@ RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
 
 RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
+  Handle<Object> name(constructor->shared()->name(), isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kConstructorNonCallable));
+      isolate, NewTypeError(MessageTemplate::kConstructorNonCallable, name));
 }
 
 
@@ -106,7 +108,7 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
                                      isolate->factory()->prototype_string(),
                                      SLOPPY),
           Object);
-      if (!prototype_parent->IsNull() && !prototype_parent->IsSpecObject()) {
+      if (!prototype_parent->IsNull() && !prototype_parent->IsJSReceiver()) {
         THROW_NEW_ERROR(
             isolate, NewTypeError(MessageTemplate::kPrototypeParentNotAnObject,
                                   prototype_parent),
@@ -142,7 +144,11 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
   constructor->shared()->set_name(*name_string);
 
   if (!super_class->IsTheHole()) {
-    Handle<Code> stub(isolate->builtins()->JSConstructStubForDerived());
+    // Derived classes, just like builtins, don't create implicit receivers in
+    // [[construct]]. Instead they just set up new.target and call into the
+    // constructor. Hence we can reuse the builtins construct stub for derived
+    // classes.
+    Handle<Code> stub(isolate->builtins()->JSBuiltinsConstructStub());
     constructor->shared()->set_construct_stub(*stub);
   }
 
@@ -228,38 +234,14 @@ RUNTIME_FUNCTION(Runtime_FinalizeClassDefinition) {
 
   if (constructor->map()->is_strong()) {
     DCHECK(prototype->map()->is_strong());
-    RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::Freeze(prototype));
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                       JSObject::Freeze(constructor));
-    return *result;
+    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(prototype, FROZEN,
+                                               Object::THROW_ON_ERROR),
+                 isolate->heap()->exception());
+    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(constructor, FROZEN,
+                                               Object::THROW_ON_ERROR),
+                 isolate->heap()->exception());
   }
   return *constructor;
-}
-
-
-RUNTIME_FUNCTION(Runtime_ClassGetSourceCode) {
-  HandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-
-  Handle<Symbol> start_position_symbol(
-      isolate->heap()->class_start_position_symbol());
-  Handle<Object> start_position =
-      JSReceiver::GetDataProperty(fun, start_position_symbol);
-  if (!start_position->IsSmi()) return isolate->heap()->undefined_value();
-
-  Handle<Symbol> end_position_symbol(
-      isolate->heap()->class_end_position_symbol());
-  Handle<Object> end_position =
-      JSReceiver::GetDataProperty(fun, end_position_symbol);
-  CHECK(end_position->IsSmi());
-
-  Handle<String> source(
-      String::cast(Script::cast(fun->shared()->script())->source()));
-  return *isolate->factory()->NewSubString(
-      source, Handle<Smi>::cast(start_position)->value(),
-      Handle<Smi>::cast(end_position)->value());
 }
 
 
@@ -482,36 +464,11 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_HandleStepInForDerivedConstructors) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  Debug* debug = isolate->debug();
-  // Handle stepping into constructors if step into is active.
-  if (debug->StepInActive()) debug->HandleStepIn(function, true);
-  return *isolate->factory()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, original_constructor, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, super_constructor, 1);
-  JavaScriptFrameIterator it(isolate);
-
-  // Determine the actual arguments passed to the function.
-  int argument_count = 0;
-  base::SmartArrayPointer<Handle<Object>> arguments =
-      Runtime::GetCallerArguments(isolate, 0, &argument_count);
-
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::New(isolate, super_constructor, original_constructor,
-                     argument_count, arguments.get()));
-
-  return *result;
+RUNTIME_FUNCTION(Runtime_GetSuperConstructor) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(JSFunction, active_function, 0);
+  return active_function->map()->prototype();
 }
 
 }  // namespace internal

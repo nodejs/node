@@ -33,12 +33,6 @@
 
   ##############################################################################
 
-  # TODO(danno): These tests fail because the incoming descriptor for JavaScript
-  # calls has nothing to do with the interface descriptors of some code stubs,
-  # and they cannot be used interchangably.
-  'test-run-stubs/RunOptimizedMathFloorStub': [SKIP],
-  'test-run-stubs/RunStringAddTFStub': [SKIP],
-
   # BUG(382): Weird test. Can't guarantee that it never times out.
   'test-api/ApplyInterruption': [PASS, TIMEOUT],
 
@@ -96,8 +90,8 @@
   'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
   'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
 
-  # Fails sometimes.
-  'test-debug/ProcessDebugMessagesThreaded': [PASS, FLAKY],
+  # BUG(v8:4358). Hangs flakily.
+  'test-debug/ProcessDebugMessagesThreaded': [SKIP],
 
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
@@ -121,10 +115,13 @@
   # optimized and hence scripts don't "return" the correct value. Fix this.
   'test-compiler/CompileFunctionInContext*': [PASS, NO_VARIANTS],
 
-  # TurboFan doesn't support allocation sites currently.
-  'test-heap/CellsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
-  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_VARIANTS],
+  # TODO(bmeurer): TurboFan embeds strong references to all kinds of objects
+  # via deoptimization data (Crankshaft also does this, but lack proper test
+  # coverage).
   'test-heap/ObjectsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
+
+  # TurboFan doesn't support allocation sites currently.
+  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_VARIANTS],
   'test-heap/OptimizedPretenuringAllocationFolding': [PASS, NO_VARIANTS],
   'test-heap/OptimizedPretenuringdoubleArrayLiterals': [PASS, NO_VARIANTS],
   'test-heap/OptimizedPretenuringDoubleArrayProperties': [PASS, NO_VARIANTS],
@@ -240,6 +237,11 @@
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
 
+  # BUG(v8:4573).
+  'test-api/MultipleIsolatesOnIndividualThreads': [PASS, NO_VARIANTS],
+
+  # BUG(v8:4642).
+  'test-lockers/LockAndUnlockDifferentIsolates': [PASS, NO_VARIANTS],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -250,6 +252,26 @@
   'test-debug/DebugStepLinear': [PASS, FLAKY],
   'test-debug/DebuggerClearMessageHandler': [PASS, FLAKY],
 }],  # 'system == macos'
+
+##############################################################################
+['byteorder == big', {
+  # TODO(mips-team): Fix Wasm for big-endian.
+  'test-run-wasm-module/Run_WasmModule_CallAdd_rev': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_ReadLoadedDataSegment': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CheckMemoryIsZero': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_Global': [SKIP],
+  'test-run-wasm/Run_WasmInt32*': [SKIP],
+  'test-run-wasm/Run_Wasm_TableSwitch*': [SKIP],
+  'test-run-wasm/Run_Wasm_StoreMemI32_offset': [SKIP],
+  'test-run-wasm/Run_Wasm_Int32LoadInt16_*': [SKIP],
+  'test-run-wasm/Run_WasmMixedGlobals': [SKIP],
+  'test-run-wasm/Run_WasmCall*': [SKIP],
+  'test-run-wasm/Run_WasmMixedCall_*': [SKIP],
+  'test-run-wasm/Run_WasmInt64*': [SKIP],
+  'test-run-wasm/Run_Wasm_LoadStoreI64_sx': [SKIP],
+  'test-run-wasm/Run_WASM_Int64DivS_byzero_const': [SKIP],
+  'test-run-wasm/Run_TestI64WasmRunner': [SKIP],
+}],  # 'byteorder == big'
 
 ##############################################################################
 ['arch == arm', {
@@ -307,6 +329,9 @@
 
   # BUG(v8:3154).
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
+
+  # TODO(mips-team): Improve code-size on large RegExp's.
+  'test-heap/TestSizeOfRegExpCode':  [SKIP],
 
   # BUG(1075): Unresolved crashes on MIPS also.
   'test-serialize/Deserialize': [SKIP],
@@ -453,8 +478,11 @@
 ##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {
 
-  # Test currently broken for platforms with function desciptors
+  # TODO(ppc): Fix for platforms with function desciptors.
   'test-run-machops/RunComputedCodeObject' : [SKIP],
+  'test-run-wasm-module/Run_WasmModule_Return114' : [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CallAdd' : [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CallMain_recursive' : [SKIP],
 
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
@@ -467,4 +495,95 @@
   'test-api/ExternalArrays': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run == True'
+
+['ignition == True', {
+  'test-api/*' : [SKIP],
+  'test-cpu-profiler/*' : [SKIP],
+  'test-debug/*' : [SKIP],
+  'test-func-name-inference/*' : [SKIP],
+  'test-inobject-slack-tracking/*' : [SKIP],
+  'test-run-jsexceptions/*' : [SKIP],
+  'test-serialize/*' : [SKIP],
+
+  'test-api-interceptors/InterceptorCallICInvalidatedConstantFunctionViaGlobal': [SKIP],
+  'test-api-interceptors/InterceptorLoadICInvalidatedCallbackViaGlobal': [SKIP],
+  'test-api-interceptors/InterceptorLoadICInvalidatedFieldViaGlobal': [SKIP],
+  'test-bytecode-generator/TryCatch': [SKIP],
+  'test-bytecode-generator/TryFinally': [SKIP],
+  'test-compiler/C2JSFrames': [SKIP],
+  'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [SKIP],
+  'test-compiler/FeedbackVectorUnaffectedByScopeChanges': [SKIP],
+  'test-compiler/OptimizedCodeSharing2': [SKIP],
+  'test-compiler/OptimizedCodeSharing3': [SKIP],
+  'test-compiler/Print': [SKIP],
+  'test-compiler/UncaughtThrow': [SKIP],
+  'test-decls/CrossScriptDynamicLookup': [SKIP],
+  'test-decls/Regress425510': [SKIP],
+  'test-feedback-vector/VectorCallICStates': [SKIP],
+  'test-heap/AddInstructionChangesNewSpacePromotion': [SKIP],
+  'test-heap/ArrayShiftSweeping': [SKIP],
+  'test-heap/CanonicalSharedFunctionInfo': [SKIP],
+  'test-heap/CellsInOptimizedCodeAreWeak': [SKIP],
+  'test-heap/CompilationCacheCachingBehavior': [SKIP],
+  'test-heap/CountForcedGC': [SKIP],
+  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [SKIP],
+  'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [SKIP],
+  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [SKIP],
+  'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
+  'test-heap-profiler/HeapSnapshotCollection': [SKIP],
+  'test-heap-profiler/HeapSnapshotSimd': [SKIP],
+  'test-heap-profiler/HeapSnapshotWeakCollection': [SKIP],
+  'test-heap/OptimizedAllocationAlwaysInNewSpace': [SKIP],
+  'test-heap/PromotionQueue': [SKIP],
+  'test-heap/Regress169209': [SKIP],
+  'test-heap/Regress1878': [SKIP],
+  'test-heap/Regress357137': [SKIP],
+  'test-heap/Regress3631': [SKIP],
+  'test-heap/Regress388880': [SKIP],
+  'test-heap/TestCodeFlushingIncrementalAbort': [SKIP],
+  'test-heap/TestCodeFlushingIncrementalScavenge': [SKIP],
+  'test-heap/TestCodeFlushingIncremental': [SKIP],
+  'test-heap/TestCodeFlushingPreAged': [SKIP],
+  'test-heap/TestCodeFlushing': [SKIP],
+  'test-heap/WeakFunctionInConstructor': [SKIP],
+  'test-log-stack-tracer/CFromJSStackTrace': [SKIP],
+  'test-log-stack-tracer/JsEntrySp': [SKIP],
+  'test-log-stack-tracer/PureCStackTrace': [SKIP],
+  'test-log-stack-tracer/PureJSStackTrace': [SKIP],
+  'test-parsing/DestructuringNegativeTests': [SKIP],
+  'test-parsing/StrongModeFreeVariablesDeclaredByLanguage': [SKIP],
+  'test-parsing/StrongModeFreeVariablesDeclaredByPreviousScript': [SKIP],
+  'test-parsing/StrongModeFreeVariablesDeclaredInGlobalPrototype': [SKIP],
+  'test-pipeline/PipelineGeneric': [SKIP],
+  'test-pipeline/PipelineTyped': [SKIP],
+  'test-profile-generator/BailoutReason': [SKIP],
+  'test-profile-generator/LineNumber': [SKIP],
+  'test-profile-generator/ProfileNodeScriptId': [SKIP],
+  'test-profile-generator/RecordStackTraceAtStartProfiling': [SKIP],
+  'test-run-inlining/InlineTwice': [SKIP],
+  'test-run-jsbranches/ForOfContinueStatement': [SKIP],
+  'test-run-jscalls/LookupCall': [SKIP],
+  'test-run-jsobjects/ArgumentsRest': [SKIP],
+  'test-run-jsops/ClassLiteral': [SKIP],
+  'test-run-jsops/LookupLoad': [SKIP],
+  'test-run-jsops/LookupStore': [SKIP],
+  'test-run-variables/ContextInitializeVariables': [SKIP],
+  'test-run-variables/ContextLoadVariables': [SKIP],
+  'test-run-variables/ContextStoreVariables': [SKIP],
+  'test-run-variables/StackInitializeVariables': [SKIP],
+  'test-run-variables/StackLoadVariables': [SKIP],
+  'test-run-variables/StackStoreVariables': [SKIP],
+  'test-sampler-api/StackFramesConsistent': [SKIP],
+  'test-thread-termination/TerminateCancelTerminateFromThreadItself': [SKIP],
+  'test-thread-termination/TerminateFromOtherThreadWhileMicrotaskRunning': [SKIP],
+  'test-thread-termination/TerminateOnlyV8ThreadFromThreadItselfNoLoop': [SKIP],
+  'test-thread-termination/TerminationInInnerTryCall': [SKIP],
+  'test-unscopables-hidden-prototype/Unscopables': [SKIP],
+}],  # ignition == True
+
+['ignition == True and arch == arm64', {
+  'test-js-arm64-variables/lookup_slots': [SKIP],
+  'test-spaces/SizeOfFirstPageIsLargeEnough': [SKIP],
+}],  # ignition == True and arch == arm64
+
 ]

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-import glob
 import os
-import shlex
 import sys
 
 script_dir = os.path.dirname(__file__)

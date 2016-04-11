@@ -259,20 +259,19 @@ var parseTests = {
     path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
   },
 
-  'http://user:pass@mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=':
-    {
-      href: 'http://user:pass@mt0.google.com/vt/lyrs=m@114???' +
-            '&hl=en&src=api&x=2&y=2&z=3&s=',
-      protocol: 'http:',
-      slashes: true,
-      host: 'mt0.google.com',
-      auth: 'user:pass',
-      hostname: 'mt0.google.com',
-      search: '???&hl=en&src=api&x=2&y=2&z=3&s=',
-      query: '??&hl=en&src=api&x=2&y=2&z=3&s=',
-      pathname: '/vt/lyrs=m@114',
-      path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
-    },
+  'http://user:pass@mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=': {
+    href: 'http://user:pass@mt0.google.com/vt/lyrs=m@114???' +
+          '&hl=en&src=api&x=2&y=2&z=3&s=',
+    protocol: 'http:',
+    slashes: true,
+    host: 'mt0.google.com',
+    auth: 'user:pass',
+    hostname: 'mt0.google.com',
+    search: '???&hl=en&src=api&x=2&y=2&z=3&s=',
+    query: '??&hl=en&src=api&x=2&y=2&z=3&s=',
+    pathname: '/vt/lyrs=m@114',
+    path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
+  },
 
   'file:///etc/passwd': {
     href: 'file:///etc/passwd',
@@ -852,6 +851,21 @@ var parseTests = {
     pathname: '/:npm/npm',
     path: '/:npm/npm',
     href: 'git+ssh://git@github.com/:npm/npm'
+  },
+
+  'https://*': {
+    protocol: 'https:',
+    slashes: true,
+    auth: null,
+    host: '',
+    port: null,
+    hostname: '',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/*',
+    path: '/*',
+    href: 'https:///*'
   }
 
 };

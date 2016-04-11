@@ -32,6 +32,7 @@ function isConcatenation(node) {
  */
 function getLeft(node) {
     var left = node.left;
+
     while (isConcatenation(left)) {
         left = left.right;
     }
@@ -45,6 +46,7 @@ function getLeft(node) {
  */
 function getRight(node) {
     var right = node.right;
+
     while (isConcatenation(right)) {
         right = right.left;
     }
@@ -58,6 +60,7 @@ function getRight(node) {
 module.exports = function(context) {
     return {
         BinaryExpression: function(node) {
+
             // check if not concatenation
             if (node.operator !== "+") {
                 return;
@@ -71,8 +74,10 @@ module.exports = function(context) {
                 astUtils.isStringLiteral(right) &&
                 astUtils.isTokenOnSameLine(left, right)
             ) {
+
                 // move warning location to operator
                 var operatorToken = context.getTokenAfter(left);
+
                 while (operatorToken.value !== "+") {
                     operatorToken = context.getTokenAfter(operatorToken);
                 }

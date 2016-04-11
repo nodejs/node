@@ -1,3 +1,4 @@
+'use strict';
 var util = require('util');
 
 var common = require('../common.js');
@@ -9,7 +10,7 @@ function main(conf) {
 
   bench.start();
   for (var i = 0; i < n; i += 1) {
-    var r = util.inspect({a: 'a', b: 'b', c: 'c', d: 'd'});
+    util.inspect({a: 'a', b: 'b', c: 'c', d: 'd'});
   }
   bench.end(n);
 }

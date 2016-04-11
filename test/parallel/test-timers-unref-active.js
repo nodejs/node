@@ -31,7 +31,7 @@ var nbTimeouts = 0;
  * and thus expect 5 timers to be able to fire in under 100 ms.
  */
 const N = 5;
-const TEST_DURATION = 100;
+const TEST_DURATION = 1000;
 
 timers.unenroll(someObject);
 timers.enroll(someObject, 1);

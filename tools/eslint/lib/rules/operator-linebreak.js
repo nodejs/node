@@ -6,7 +6,7 @@
 
 "use strict";
 
-var assign = require("object-assign"),
+var lodash = require("lodash"),
     astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
@@ -18,7 +18,7 @@ module.exports = function(context) {
     var usedDefaultGlobal = !context.options[0];
     var globalStyle = context.options[0] || "after";
     var options = context.options[1] || {};
-    var styleOverrides = options.overrides ? assign({}, options.overrides) : {};
+    var styleOverrides = options.overrides ? lodash.assign({}, options.overrides) : {};
 
     if (usedDefaultGlobal && !styleOverrides["?"]) {
         styleOverrides["?"] = "before";
@@ -55,7 +55,8 @@ module.exports = function(context) {
 
         var rightToken = context.getTokenAfter(operatorToken);
         var operator = operatorToken.value;
-        var style = styleOverrides[operator] || globalStyle;
+        var operatorStyleOverride = styleOverrides[operator];
+        var style = operatorStyleOverride || globalStyle;
 
         // if single line
         if (astUtils.isTokenOnSameLine(leftToken, operatorToken) &&
@@ -63,7 +64,7 @@ module.exports = function(context) {
 
             return;
 
-        } else if (!astUtils.isTokenOnSameLine(leftToken, operatorToken) &&
+        } else if (operatorStyleOverride !== "ignore" && !astUtils.isTokenOnSameLine(leftToken, operatorToken) &&
                 !astUtils.isTokenOnSameLine(operatorToken, rightToken)) {
 
             // lone operator
@@ -137,7 +138,7 @@ module.exports.schema = [
                 "properties": {
                     "anyOf": {
                         "type": "string",
-                        "enum": ["after", "before", "none"]
+                        "enum": ["after", "before", "none", "ignore"]
                     }
                 }
             }

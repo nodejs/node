@@ -22,10 +22,10 @@ struct sockaddr;
         v8::String::NewFromUtf8(isolate, constant);                           \
     v8::PropertyAttribute constant_attributes =                               \
         static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);    \
-    target->ForceSet(isolate->GetCurrentContext(),                            \
-                     constant_name,                                           \
-                     constant_value,                                          \
-                     constant_attributes);                                    \
+    target->DefineOwnProperty(isolate->GetCurrentContext(),                   \
+                              constant_name,                                  \
+                              constant_value,                                 \
+                              constant_attributes).FromJust();                \
   } while (0)
 
 namespace node {
@@ -69,8 +69,6 @@ v8::Local<v8::Value> MakeCallback(Environment* env,
                                    int argc = 0,
                                    v8::Local<v8::Value>* argv = nullptr);
 
-bool KickNextTick();
-
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
 // If |info| is omitted, a new object is returned.
@@ -109,8 +107,11 @@ inline static int snprintf(char *buffer, size_t n, const char *format, ...) {
 #endif
 #endif
 
-#ifndef ARRAY_SIZE
-# define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define arraysize(a) (sizeof(a) / sizeof(*a))  // Workaround for VS 2013.
+#else
+template <typename T, size_t N>
+constexpr size_t arraysize(const T(&)[N]) { return N; }
 #endif
 
 #ifndef ROUND_UP
@@ -168,7 +169,7 @@ inline MUST_USE_RESULT bool ParseArrayIndex(v8::Local<v8::Value> arg,
     return true;
   }
 
-  int32_t tmp_i = arg->Uint32Value();
+  int64_t tmp_i = arg->IntegerValue();
 
   if (tmp_i < 0)
     return false;
@@ -192,38 +193,6 @@ void ThrowUVException(v8::Isolate* isolate,
                       const char* path = nullptr,
                       const char* dest = nullptr);
 
-NODE_DEPRECATED("Use ThrowError(isolate)",
-                inline void ThrowError(const char* errmsg) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  return ThrowError(isolate, errmsg);
-})
-NODE_DEPRECATED("Use ThrowTypeError(isolate)",
-                inline void ThrowTypeError(const char* errmsg) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  return ThrowTypeError(isolate, errmsg);
-})
-NODE_DEPRECATED("Use ThrowRangeError(isolate)",
-                inline void ThrowRangeError(const char* errmsg) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  return ThrowRangeError(isolate, errmsg);
-})
-NODE_DEPRECATED("Use ThrowErrnoException(isolate)",
-                inline void ThrowErrnoException(int errorno,
-                                                const char* syscall = nullptr,
-                                                const char* message = nullptr,
-                                                const char* path = nullptr) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  return ThrowErrnoException(isolate, errorno, syscall, message, path);
-})
-NODE_DEPRECATED("Use ThrowUVException(isolate)",
-                inline void ThrowUVException(int errorno,
-                                             const char* syscall = nullptr,
-                                             const char* message = nullptr,
-                                             const char* path = nullptr) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  return ThrowUVException(isolate, errorno, syscall, message, path);
-})
-
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   ArrayBufferAllocator() : env_(nullptr) { }
@@ -237,6 +206,11 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  private:
   Environment* env_;
 };
+
+// Clear any domain and/or uncaughtException handlers to force the error's
+// propagation and shutdown the process. Use this to force the process to exit
+// by clearing all callbacks that could handle the error.
+void ClearFatalExceptionHandlers(Environment* env);
 
 enum NodeInstanceType { MAIN, WORKER };
 

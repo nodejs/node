@@ -7,8 +7,7 @@ var once = false;
 var first = null;
 var second = null;
 
-const chunk = new Buffer(1024);
-chunk.fill('X');
+const chunk = Buffer.alloc(1024, 'X');
 
 var size = 0;
 

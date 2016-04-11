@@ -5,7 +5,8 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
-#include "src/ast.h"
+#include "src/assembler.h"
+#include "src/regexp/regexp-ast.h"
 
 namespace v8 {
 namespace internal {
@@ -71,9 +72,11 @@ class RegExpMacroAssembler {
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position) = 0;
-  virtual void CheckNotAtStart(Label* on_not_at_start) = 0;
-  virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
+  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start) = 0;
+  virtual void CheckNotBackReference(int start_reg, bool read_backward,
+                                     Label* on_no_match) = 0;
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
+                                               bool read_backward,
                                                Label* on_no_match) = 0;
   // Check the current character for a match with a literal character.  If we
   // fail to match then goto the on_failure label.  End of input always
@@ -102,17 +105,12 @@ class RegExpMacroAssembler {
 
   // Checks whether the given offset from the current position is before
   // the end of the string.  May overwrite the current character.
-  virtual void CheckPosition(int cp_offset, Label* on_outside_input) {
-    LoadCurrentCharacter(cp_offset, on_outside_input, true);
-  }
+  virtual void CheckPosition(int cp_offset, Label* on_outside_input) = 0;
   // Check whether a standard/default character class matches the current
   // character. Returns false if the type of special character class does
   // not have custom support.
   // May clobber the current loaded character.
-  virtual bool CheckSpecialCharacterClass(uc16 type,
-                                          Label* on_no_match) {
-    return false;
-  }
+  virtual bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match) = 0;
   virtual void Fail() = 0;
   virtual Handle<HeapObject> GetCode(Handle<String> source) = 0;
   virtual void GoTo(Label* label) = 0;

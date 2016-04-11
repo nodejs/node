@@ -50,10 +50,11 @@ module.exports = function(context) {
     function reportNoBeginningSpace(node, token) {
         context.report({
             node: node,
-            loc: token.loc.end,
+            loc: token.loc.start,
             message: "There should be no space after '" + token.value + "'",
             fix: function(fixer) {
                 var nextToken = context.getSourceCode().getTokenAfter(token);
+
                 return fixer.removeRange([token.range[1], nextToken.range[0]]);
             }
         });
@@ -72,6 +73,7 @@ module.exports = function(context) {
             message: "There should be no space before '" + token.value + "'",
             fix: function(fixer) {
                 var previousToken = context.getSourceCode().getTokenBefore(token);
+
                 return fixer.removeRange([previousToken.range[1], token.range[0]]);
             }
         });
@@ -86,7 +88,7 @@ module.exports = function(context) {
     function reportRequiredBeginningSpace(node, token) {
         context.report({
             node: node,
-            loc: token.loc.end,
+            loc: token.loc.start,
             message: "A space is required after '" + token.value + "'",
             fix: function(fixer) {
                 return fixer.insertTextAfter(token, " ");
@@ -121,11 +123,11 @@ module.exports = function(context) {
      * @returns {void}
      */
     function validateBraceSpacing(node, first, second, penultimate, last) {
-        var closingCurlyBraceMustBeSpaced =
-            options.arraysInObjectsException && penultimate.value === "]" ||
-            options.objectsInObjectsException && penultimate.value === "}"
-                ? !options.spaced : options.spaced,
-            firstSpaced, lastSpaced;
+        var shouldCheckPenultimate,
+            penultimateType,
+            closingCurlyBraceMustBeSpaced,
+            firstSpaced,
+            lastSpaced;
 
         if (astUtils.isTokenOnSameLine(first, second)) {
             firstSpaced = sourceCode.isSpaceBetweenTokens(first, second);
@@ -138,7 +140,19 @@ module.exports = function(context) {
         }
 
         if (astUtils.isTokenOnSameLine(penultimate, last)) {
+            shouldCheckPenultimate = (
+                options.arraysInObjectsException && penultimate.value === "]" ||
+                options.objectsInObjectsException && penultimate.value === "}"
+            );
+            penultimateType = shouldCheckPenultimate && sourceCode.getNodeByRangeIndex(penultimate.start).type;
+
+            closingCurlyBraceMustBeSpaced = (
+                options.arraysInObjectsException && penultimateType === "ArrayExpression" ||
+                options.objectsInObjectsException && penultimateType === "ObjectExpression"
+            ) ? !options.spaced : options.spaced;
+
             lastSpaced = sourceCode.isSpaceBetweenTokens(penultimate, last);
+
             if (closingCurlyBraceMustBeSpaced && !lastSpaced) {
                 reportRequiredEndingSpace(node, last);
             }
@@ -231,6 +245,7 @@ module.exports = function(context) {
     //--------------------------------------------------------------------------
 
     return {
+
         // var {x} = y;
         ObjectPattern: checkForObject,
 

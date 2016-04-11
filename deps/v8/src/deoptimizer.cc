@@ -5,13 +5,13 @@
 #include "src/deoptimizer.h"
 
 #include "src/accessors.h"
+#include "src/ast/prettyprinter.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/macro-assembler.h"
-#include "src/prettyprinter.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/v8.h"
 
@@ -763,6 +763,10 @@ void Deoptimizer::DoComputeOutputFrames() {
         DoComputeJSFrame(frame_index);
         jsframe_count_++;
         break;
+      case TranslatedFrame::kInterpretedFunction:
+        DoComputeInterpretedFrame(frame_index);
+        jsframe_count_++;
+        break;
       case TranslatedFrame::kArgumentsAdaptor:
         DoComputeArgumentsAdaptorFrame(frame_index);
         break;
@@ -828,7 +832,7 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
 
   // The 'fixed' part of the frame consists of the incoming parameters and
   // the part described by JavaScriptFrameConstants.
-  unsigned fixed_frame_size = ComputeFixedSize(function);
+  unsigned fixed_frame_size = ComputeJavascriptFixedSize(function);
   unsigned input_frame_size = input_->GetFrameSize();
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
@@ -943,8 +947,6 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   input_offset -= kPointerSize;
   // Read the context from the translations.
   Object* context = value_iterator->GetRawValue();
-  // The context should not be a placeholder for a materialized object.
-  CHECK(context != isolate_->heap()->arguments_marker());
   if (context == isolate_->heap()->undefined_value()) {
     // If the context was optimized away, just use the context from
     // the activation. This should only apply to Crankshaft code.
@@ -959,6 +961,12 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
   WriteValueToOutput(context, input_index, frame_index, output_offset,
                      "context    ");
+  if (context == isolate_->heap()->arguments_marker()) {
+    Address output_address =
+        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
+        output_offset;
+    values_to_materialize_.push_back({output_address, value_iterator});
+  }
   value_iterator++;
   input_index++;
 
@@ -1013,6 +1021,222 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
       continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
     } else if (bailout_type_ == SOFT) {
       continuation = builtins->builtin(Builtins::kNotifySoftDeoptimized);
+    } else {
+      CHECK_EQ(bailout_type_, EAGER);
+    }
+    output_frame->SetContinuation(
+        reinterpret_cast<intptr_t>(continuation->entry()));
+  }
+}
+
+
+void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
+  TranslatedFrame* translated_frame =
+      &(translated_state_.frames()[frame_index]);
+  TranslatedFrame::iterator value_iterator = translated_frame->begin();
+  int input_index = 0;
+
+  BailoutId bytecode_offset = translated_frame->node_id();
+  unsigned height = translated_frame->height();
+  unsigned height_in_bytes = height * kPointerSize;
+  JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
+  value_iterator++;
+  input_index++;
+  if (trace_scope_ != NULL) {
+    PrintF(trace_scope_->file(), "  translating interpreted frame ");
+    function->PrintName(trace_scope_->file());
+    PrintF(trace_scope_->file(), " => bytecode_offset=%d, height=%d\n",
+           bytecode_offset.ToInt(), height_in_bytes);
+  }
+
+  // The 'fixed' part of the frame consists of the incoming parameters and
+  // the part described by InterpreterFrameConstants.
+  unsigned fixed_frame_size = ComputeInterpretedFixedSize(function);
+  unsigned input_frame_size = input_->GetFrameSize();
+  unsigned output_frame_size = height_in_bytes + fixed_frame_size;
+
+  // Allocate and store the output frame description.
+  FrameDescription* output_frame =
+      new (output_frame_size) FrameDescription(output_frame_size, function);
+  output_frame->SetFrameType(StackFrame::INTERPRETED);
+
+  bool is_bottommost = (0 == frame_index);
+  bool is_topmost = (output_count_ - 1 == frame_index);
+  CHECK(frame_index >= 0 && frame_index < output_count_);
+  CHECK_NULL(output_[frame_index]);
+  output_[frame_index] = output_frame;
+
+  // The top address for the bottommost output frame can be computed from
+  // the input frame pointer and the output frame's height.  For all
+  // subsequent output frames, it can be computed from the previous one's
+  // top address and the current frame's size.
+  Register fp_reg = InterpretedFrame::fp_register();
+  intptr_t top_address;
+  if (is_bottommost) {
+    // Subtract interpreter fixed frame size for the context function slots,
+    // new,target and bytecode offset.
+    top_address = input_->GetRegister(fp_reg.code()) -
+                  InterpreterFrameConstants::kFixedFrameSizeFromFp -
+                  height_in_bytes;
+  } else {
+    top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
+  }
+  output_frame->SetTop(top_address);
+
+  // Compute the incoming parameter translation.
+  int parameter_count =
+      function->shared()->internal_formal_parameter_count() + 1;
+  unsigned output_offset = output_frame_size;
+  unsigned input_offset = input_frame_size;
+  for (int i = 0; i < parameter_count; ++i) {
+    output_offset -= kPointerSize;
+    WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
+                                 output_offset);
+  }
+  input_offset -= (parameter_count * kPointerSize);
+
+  // There are no translation commands for the caller's pc and fp, the
+  // context, the function, new.target and the bytecode offset.  Synthesize
+  // their values and set them up
+  // explicitly.
+  //
+  // The caller's pc for the bottommost output frame is the same as in the
+  // input frame.  For all subsequent output frames, it can be read from the
+  // previous one.  This frame's pc can be computed from the non-optimized
+  // function code and AST id of the bailout.
+  output_offset -= kPCOnStackSize;
+  input_offset -= kPCOnStackSize;
+  intptr_t value;
+  if (is_bottommost) {
+    value = input_->GetFrameSlot(input_offset);
+  } else {
+    value = output_[frame_index - 1]->GetPc();
+  }
+  output_frame->SetCallerPc(output_offset, value);
+  DebugPrintOutputSlot(value, frame_index, output_offset, "caller's pc\n");
+
+  // The caller's frame pointer for the bottommost output frame is the same
+  // as in the input frame.  For all subsequent output frames, it can be
+  // read from the previous one.  Also compute and set this frame's frame
+  // pointer.
+  output_offset -= kFPOnStackSize;
+  input_offset -= kFPOnStackSize;
+  if (is_bottommost) {
+    value = input_->GetFrameSlot(input_offset);
+  } else {
+    value = output_[frame_index - 1]->GetFp();
+  }
+  output_frame->SetCallerFp(output_offset, value);
+  intptr_t fp_value = top_address + output_offset;
+  DCHECK(!is_bottommost ||
+         (input_->GetRegister(fp_reg.code()) +
+          has_alignment_padding_ * kPointerSize) == fp_value);
+  output_frame->SetFp(fp_value);
+  if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
+  DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
+  DCHECK(!is_bottommost || !has_alignment_padding_ ||
+         (fp_value & kPointerSize) != 0);
+
+  if (FLAG_enable_embedded_constant_pool) {
+    // For the bottommost output frame the constant pool pointer can be gotten
+    // from the input frame. For subsequent output frames, it can be read from
+    // the previous frame.
+    output_offset -= kPointerSize;
+    input_offset -= kPointerSize;
+    if (is_bottommost) {
+      value = input_->GetFrameSlot(input_offset);
+    } else {
+      value = output_[frame_index - 1]->GetConstantPool();
+    }
+    output_frame->SetCallerConstantPool(output_offset, value);
+    DebugPrintOutputSlot(value, frame_index, output_offset,
+                         "caller's constant_pool\n");
+  }
+
+  // For the bottommost output frame the context can be gotten from the input
+  // frame. For all subsequent output frames it can be gotten from the function
+  // so long as we don't inline functions that need local contexts.
+  Register context_reg = InterpretedFrame::context_register();
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  // Read the context from the translations.
+  Object* context = value_iterator->GetRawValue();
+  // The context should not be a placeholder for a materialized object.
+  CHECK(context != isolate_->heap()->arguments_marker());
+  value = reinterpret_cast<intptr_t>(context);
+  output_frame->SetContext(value);
+  if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
+  WriteValueToOutput(context, input_index, frame_index, output_offset,
+                     "context    ");
+  value_iterator++;
+  input_index++;
+
+  // The function was mentioned explicitly in the BEGIN_FRAME.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(function);
+  // The function for the bottommost output frame should also agree with the
+  // input frame.
+  DCHECK(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
+  WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
+
+  // TODO(rmcilroy): Deal with new.target correctly - currently just set it to
+  // undefined.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  Object* new_target = isolate_->heap()->undefined_value();
+  WriteValueToOutput(new_target, 0, frame_index, output_offset, "new_target  ");
+
+  // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  int raw_bytecode_offset =
+      BytecodeArray::kHeaderSize - kHeapObjectTag + bytecode_offset.ToInt();
+  Smi* smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
+  WriteValueToOutput(smi_bytecode_offset, 0, frame_index, output_offset,
+                     "bytecode offset ");
+
+  // Translate the rest of the interpreter registers in the frame.
+  for (unsigned i = 0; i < height; ++i) {
+    output_offset -= kPointerSize;
+    WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
+                                 output_offset);
+  }
+  CHECK_EQ(0u, output_offset);
+
+  // Set the accumulator register.
+  output_frame->SetRegister(
+      kInterpreterAccumulatorRegister.code(),
+      reinterpret_cast<intptr_t>(value_iterator->GetRawValue()));
+  value_iterator++;
+
+  Builtins* builtins = isolate_->builtins();
+  Code* trampoline = builtins->builtin(Builtins::kInterpreterEntryTrampoline);
+  output_frame->SetPc(reinterpret_cast<intptr_t>(trampoline->entry()));
+  output_frame->SetState(0);
+
+  // Update constant pool.
+  if (FLAG_enable_embedded_constant_pool) {
+    intptr_t constant_pool_value =
+        reinterpret_cast<intptr_t>(trampoline->constant_pool());
+    output_frame->SetConstantPool(constant_pool_value);
+    if (is_topmost) {
+      Register constant_pool_reg =
+          InterpretedFrame::constant_pool_pointer_register();
+      output_frame->SetRegister(constant_pool_reg.code(), constant_pool_value);
+    }
+  }
+
+  // Set the continuation for the topmost frame.
+  if (is_topmost && bailout_type_ != DEBUGGER) {
+    Code* continuation =
+        builtins->builtin(Builtins::kInterpreterNotifyDeoptimized);
+    if (bailout_type_ == LAZY) {
+      continuation =
+          builtins->builtin(Builtins::kInterpreterNotifyLazyDeoptimized);
+    } else if (bailout_type_ == SOFT) {
+      continuation =
+          builtins->builtin(Builtins::kInterpreterNotifySoftDeoptimized);
     } else {
       CHECK_EQ(bailout_type_, EAGER);
     }
@@ -1234,12 +1458,6 @@ void Deoptimizer::DoComputeConstructStubFrame(int frame_index) {
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(), "(%d)\n", height - 1);
   }
-
-  // The original constructor.
-  output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(isolate_->heap()->undefined_value());
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "new.target\n");
 
   // The newly allocated object was passed as receiver in the artificial
   // constructor stub environment created by HEnvironment::CopyForInlining().
@@ -1762,7 +1980,7 @@ void Deoptimizer::DebugPrintOutputSlot(intptr_t value, int frame_index,
 
 
 unsigned Deoptimizer::ComputeInputFrameSize() const {
-  unsigned fixed_size = ComputeFixedSize(function_);
+  unsigned fixed_size = ComputeJavascriptFixedSize(function_);
   // The fp-to-sp delta already takes the context, constant pool pointer and the
   // function into account so we have to avoid double counting them.
   unsigned result = fixed_size + fp_to_sp_delta_ -
@@ -1777,11 +1995,20 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
 }
 
 
-unsigned Deoptimizer::ComputeFixedSize(JSFunction* function) const {
+unsigned Deoptimizer::ComputeJavascriptFixedSize(JSFunction* function) const {
   // The fixed part of the frame consists of the return address, frame
   // pointer, function, context, and all the incoming arguments.
   return ComputeIncomingArgumentSize(function) +
          StandardFrameConstants::kFixedFrameSize;
+}
+
+
+unsigned Deoptimizer::ComputeInterpretedFixedSize(JSFunction* function) const {
+  // The fixed part of the frame consists of the return address, frame
+  // pointer, function, context, new.target, bytecode offset and all the
+  // incoming arguments.
+  return ComputeIncomingArgumentSize(function) +
+         InterpreterFrameConstants::kFixedFrameSize;
 }
 
 
@@ -1831,7 +2058,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   while (max_entry_id >= entry_count) entry_count *= 2;
   CHECK(entry_count <= Deoptimizer::kMaxNumberOfEntries);
 
-  MacroAssembler masm(isolate, NULL, 16 * KB);
+  MacroAssembler masm(isolate, NULL, 16 * KB, CodeObjectRequired::kYes);
   masm.set_emit_debug_code(false);
   GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;
@@ -1878,8 +2105,13 @@ FrameDescription::FrameDescription(uint32_t frame_size,
 
 
 int FrameDescription::ComputeFixedSize() {
-  return StandardFrameConstants::kFixedFrameSize +
-      (ComputeParametersCount() + 1) * kPointerSize;
+  if (type_ == StackFrame::INTERPRETED) {
+    return InterpreterFrameConstants::kFixedFrameSize +
+           (ComputeParametersCount() + 1) * kPointerSize;
+  } else {
+    return StandardFrameConstants::kFixedFrameSize +
+           (ComputeParametersCount() + 1) * kPointerSize;
+  }
 }
 
 
@@ -2017,6 +2249,15 @@ void Translation::BeginJSFrame(BailoutId node_id,
 }
 
 
+void Translation::BeginInterpretedFrame(BailoutId bytecode_offset,
+                                        int literal_id, unsigned height) {
+  buffer_->Add(INTERPRETED_FRAME, zone());
+  buffer_->Add(bytecode_offset.ToInt(), zone());
+  buffer_->Add(literal_id, zone());
+  buffer_->Add(height, zone());
+}
+
+
 void Translation::BeginCompiledStubFrame(int height) {
   buffer_->Add(COMPILED_STUB_FRAME, zone());
   buffer_->Add(height, zone());
@@ -2149,6 +2390,7 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case CONSTRUCT_STUB_FRAME:
       return 2;
     case JS_FRAME:
+    case INTERPRETED_FRAME:
       return 3;
   }
   FATAL("Unexpected translation type");
@@ -2622,6 +2864,15 @@ TranslatedFrame TranslatedFrame::JSFrame(BailoutId node_id,
 }
 
 
+TranslatedFrame TranslatedFrame::InterpretedFrame(
+    BailoutId bytecode_offset, SharedFunctionInfo* shared_info, int height) {
+  TranslatedFrame frame(kInterpretedFunction, shared_info->GetIsolate(),
+                        shared_info, height);
+  frame.node_id_ = bytecode_offset;
+  return frame;
+}
+
+
 TranslatedFrame TranslatedFrame::AccessorFrame(
     Kind kind, SharedFunctionInfo* shared_info) {
   DCHECK(kind == kSetter || kind == kGetter);
@@ -2648,7 +2899,15 @@ int TranslatedFrame::GetValueCount() {
     case kFunction: {
       int parameter_count =
           raw_shared_info_->internal_formal_parameter_count() + 1;
+      // + 1 for function.
       return height_ + parameter_count + 1;
+    }
+
+    case kInterpretedFunction: {
+      int parameter_count =
+          raw_shared_info_->internal_formal_parameter_count() + 1;
+      // + 3 for function, context and accumulator.
+      return height_ + parameter_count + 3;
     }
 
     case kGetter:
@@ -2704,6 +2963,24 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
                node_id.ToInt(), arg_count, height);
       }
       return TranslatedFrame::JSFrame(node_id, shared_info, height);
+    }
+
+    case Translation::INTERPRETED_FRAME: {
+      BailoutId bytecode_offset = BailoutId(iterator->Next());
+      SharedFunctionInfo* shared_info =
+          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
+      int height = iterator->Next();
+      if (trace_file != nullptr) {
+        base::SmartArrayPointer<char> name =
+            shared_info->DebugName()->ToCString();
+        PrintF(trace_file, "  reading input frame %s", name.get());
+        int arg_count = shared_info->internal_formal_parameter_count() + 1;
+        PrintF(trace_file,
+               " => bytecode_offset=%d, args=%d, height=%d; inputs:\n",
+               bytecode_offset.ToInt(), arg_count, height);
+      }
+      return TranslatedFrame::InterpretedFrame(bytecode_offset, shared_info,
+                                               height);
     }
 
     case Translation::ARGUMENTS_ADAPTOR_FRAME: {
@@ -2818,6 +3095,7 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
   switch (opcode) {
     case Translation::BEGIN:
     case Translation::JS_FRAME:
+    case Translation::INTERPRETED_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
     case Translation::GETTER_STUB_FRAME:
@@ -3210,6 +3488,42 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           object->set_properties(FixedArray::cast(*properties));
           object->set_elements(FixedArrayBase::cast(*elements));
           object->set_length(*length);
+          return object;
+        }
+        case FIXED_ARRAY_TYPE: {
+          Handle<Object> lengthObject = MaterializeAt(frame_index, value_index);
+          int32_t length = 0;
+          CHECK(lengthObject->ToInt32(&length));
+          Handle<FixedArray> object =
+              isolate_->factory()->NewFixedArray(length);
+          // We need to set the map, because the fixed array we are
+          // materializing could be a context or an arguments object,
+          // in which case we must retain that information.
+          object->set_map(*map);
+          slot->value_ = object;
+          for (int i = 0; i < length; ++i) {
+            Handle<Object> value = MaterializeAt(frame_index, value_index);
+            object->set(i, *value);
+          }
+          return object;
+        }
+        case FIXED_DOUBLE_ARRAY_TYPE: {
+          DCHECK_EQ(*map, isolate_->heap()->fixed_double_array_map());
+          Handle<Object> lengthObject = MaterializeAt(frame_index, value_index);
+          int32_t length = 0;
+          CHECK(lengthObject->ToInt32(&length));
+          Handle<FixedArrayBase> object =
+              isolate_->factory()->NewFixedDoubleArray(length);
+          slot->value_ = object;
+          if (length > 0) {
+            Handle<FixedDoubleArray> double_array =
+                Handle<FixedDoubleArray>::cast(object);
+            for (int i = 0; i < length; ++i) {
+              Handle<Object> value = MaterializeAt(frame_index, value_index);
+              CHECK(value->IsNumber());
+              double_array->set(i, value->Number());
+            }
+          }
           return object;
         }
         default:

@@ -20,7 +20,6 @@
 #include "src/conversions.h"
 #include "src/double.h"
 #include "src/objects-inl.h"
-#include "src/scanner.h"
 #include "src/strtod.h"
 
 namespace v8 {
@@ -295,7 +294,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
   return std::ldexp(static_cast<double>(negative ? -number : number), exponent);
 }
 
-
+// ES6 18.2.5 parseInt(string, radix)
 template <class Iterator, class EndMark>
 double InternalStringToInt(UnicodeCache* unicode_cache,
                            Iterator current,

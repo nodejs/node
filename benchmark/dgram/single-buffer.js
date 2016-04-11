@@ -19,14 +19,13 @@ var len;
 var num;
 var type;
 var chunk;
-var encoding;
 
 function main(conf) {
   dur = +conf.dur;
   len = +conf.len;
   num = +conf.num;
   type = conf.type;
-  chunk = new Buffer(len);
+  chunk = Buffer.allocUnsafe(len);
   server();
 }
 

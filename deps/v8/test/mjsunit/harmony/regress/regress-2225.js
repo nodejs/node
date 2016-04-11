@@ -28,12 +28,13 @@
 // Flags: --harmony-proxies
 
 var proxy_has_x = false;
-var proxy = Proxy.create({ getPropertyDescriptor:function(key) {
-  assertSame('x', key);
-  if (proxy_has_x) {
-    return { configurable:true, writable:false, value:19 };
+var proxy = new Proxy({}, {
+  get(t, key, receiver) {
+    assertSame('x', key);
+    if (proxy_has_x) { return 19 }
+    return 8;
   }
-}});
+});
 
 // Test __lookupGetter__/__lookupSetter__ with proxy.
 assertSame(undefined, Object.prototype.__lookupGetter__.call(proxy, 'foo'));
@@ -49,17 +50,27 @@ assertSame(undefined, Object.prototype.__lookupGetter__.call(object, '123'));
 assertSame(undefined, Object.prototype.__lookupSetter__.call(object, '456'));
 
 // Test inline constructors with proxy as prototype.
-function f() { this.x = 23; }
-f.prototype = proxy;
+function F() { this.x = 42 }
+F.prototype = proxy;
+var instance = new F();
+
 proxy_has_x = false;
-assertSame(23, new f().x);
+assertSame(42, instance.x);
+delete instance.x;
+assertSame(8, instance.x);
+
 proxy_has_x = true;
-assertSame(19, new f().x);
+assertSame(19, instance.x);
 
 // Test inline constructors with proxy in prototype chain.
-function g() { this.x = 42; }
-g.prototype.__proto__ = proxy;
+function G() { this.x = 42; }
+G.prototype.__proto__ = proxy;
+instance = new G();
+
 proxy_has_x = false;
-assertSame(42, new g().x);
+assertSame(42, instance.x);
+delete instance.x;
+assertSame(8, instance.x);
+
 proxy_has_x = true;
-assertSame(19, new g().x);
+assertSame(19, instance.x);

@@ -1187,7 +1187,7 @@ class DebugInfoSection : public DebugSection {
       DCHECK(Context::CLOSURE_INDEX == 0);
       DCHECK(Context::PREVIOUS_INDEX == 1);
       DCHECK(Context::EXTENSION_INDEX == 2);
-      DCHECK(Context::GLOBAL_OBJECT_INDEX == 3);
+      DCHECK(Context::NATIVE_CONTEXT_INDEX == 3);
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".closure");
       w->WriteULEB128(current_abbreviation++);
@@ -1195,7 +1195,7 @@ class DebugInfoSection : public DebugSection {
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".extension");
       w->WriteULEB128(current_abbreviation++);
-      w->WriteString(".global");
+      w->WriteString(".native_context");
 
       for (int context_slot = 0;
            context_slot < context_slots;

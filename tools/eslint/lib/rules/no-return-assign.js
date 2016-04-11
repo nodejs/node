@@ -37,10 +37,31 @@ function isEnclosedInParens(node, context) {
 module.exports = function(context) {
     var always = (context.options[0] || "except-parens") !== "except-parens";
 
+    /**
+     * Check whether return statement contains assignment
+     * @param {ASTNode} nodeToCheck node to check
+     * @param {ASTNode} nodeToReport node to report
+     * @param {string} message message to report
+     * @returns {void}
+     * @private
+     */
+    function checkForAssignInReturn(nodeToCheck, nodeToReport, message) {
+        if (isAssignment(nodeToCheck) && (always || !isEnclosedInParens(nodeToCheck, context))) {
+            context.report(nodeToReport, message);
+        }
+    }
+
     return {
         "ReturnStatement": function(node) {
-            if (isAssignment(node.argument) && (always || !isEnclosedInParens(node.argument, context))) {
-                context.report(node, "Return statement should not contain assignment.");
+            var message = "Return statement should not contain assignment.";
+
+            checkForAssignInReturn(node.argument, node, message);
+        },
+        "ArrowFunctionExpression": function(node) {
+            if (node.body.type !== "BlockStatement") {
+                var message = "Arrow function should not return assignment.";
+
+                checkForAssignInReturn(node.body, node, message);
             }
         }
     };

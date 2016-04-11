@@ -11,9 +11,9 @@ const opts = { level: 0 };
 const deflater = zlib.createDeflate(opts);
 
 const chunk = file.slice(0, chunkSize);
-const expectedNone = new Buffer([0x78, 0x01]);
-const blkhdr = new Buffer([0x00, 0x10, 0x00, 0xef, 0xff]);
-const adler32 = new Buffer([0x00, 0x00, 0x00, 0xff, 0xff]);
+const expectedNone = Buffer.from([0x78, 0x01]);
+const blkhdr = Buffer.from([0x00, 0x10, 0x00, 0xef, 0xff]);
+const adler32 = Buffer.from([0x00, 0x00, 0x00, 0xff, 0xff]);
 const expectedFull = Buffer.concat([blkhdr, chunk, adler32]);
 let actualNone;
 let actualFull;

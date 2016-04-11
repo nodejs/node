@@ -20,10 +20,9 @@ static inline bool IsDebugContext(Isolate* isolate, Context* context) {
 }
 
 
-MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
-                                          Handle<String> source,
-                                          bool disable_break,
-                                          Handle<Object> context_extension) {
+MaybeHandle<Object> DebugEvaluate::Global(
+    Isolate* isolate, Handle<String> source, bool disable_break,
+    Handle<HeapObject> context_extension) {
   // Handle the processing of break.
   DisableBreak disable_break_scope(isolate->debug(), disable_break);
 
@@ -50,7 +49,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
                                          int inlined_jsframe_index,
                                          Handle<String> source,
                                          bool disable_break,
-                                         Handle<Object> context_extension) {
+                                         Handle<HeapObject> context_extension) {
   // Handle the processing of break.
   DisableBreak disable_break_scope(isolate->debug(), disable_break);
 
@@ -65,15 +64,23 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   SaveContext savex(isolate);
   isolate->set_context(*(save->context()));
 
-  // Materialize stack locals and the arguments object.
+  // This is not a lot different than DebugEvaluate::Global, except that
+  // variables accessible by the function we are evaluating from are
+  // materialized and included on top of the native context. Changes to
+  // the materialized object are written back afterwards.
+  // Note that the native context is taken from the original context chain,
+  // which may not be the current native context of the isolate.
   ContextBuilder context_builder(isolate, frame, inlined_jsframe_index);
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
-  Handle<Object> receiver(frame->receiver(), isolate);
+  Handle<Context> context = context_builder.native_context();
+  Handle<JSObject> receiver(context->global_proxy());
   MaybeHandle<Object> maybe_result = Evaluate(
       isolate, context_builder.outer_info(),
       context_builder.innermost_context(), context_extension, receiver, source);
-  if (!maybe_result.is_null()) context_builder.UpdateValues();
+  if (!maybe_result.is_null() && !FLAG_debug_eval_readonly_locals) {
+    context_builder.UpdateValues();
+  }
   return maybe_result;
 }
 
@@ -81,7 +88,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
 // Compile and evaluate source for the given context.
 MaybeHandle<Object> DebugEvaluate::Evaluate(
     Isolate* isolate, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> context, Handle<Object> context_extension,
+    Handle<Context> context, Handle<HeapObject> context_extension,
     Handle<Object> receiver, Handle<String> source) {
   if (context_extension->IsJSObject()) {
     Handle<JSObject> extension = Handle<JSObject>::cast(context_extension);
@@ -120,42 +127,68 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       frame_(frame),
       inlined_jsframe_index_(inlined_jsframe_index) {
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
-  Handle<JSFunction> function =
+  Handle<JSFunction> local_function =
       handle(JSFunction::cast(frame_inspector.GetFunction()));
-  Handle<Context> outer_context = handle(function->context(), isolate);
-  outer_info_ = handle(function->shared());
+  Handle<Context> outer_context(local_function->context());
+  native_context_ = Handle<Context>(outer_context->native_context());
+  Handle<JSFunction> global_function(native_context_->closure());
+  outer_info_ = handle(global_function->shared());
   Handle<Context> inner_context;
 
   bool stop = false;
-  for (ScopeIterator it(isolate, &frame_inspector);
+
+  // Iterate the original context chain to create a context chain that reflects
+  // our needs. The original context chain may look like this:
+  // <native context> <outer contexts> <function context> <inner contexts>
+  // In the resulting context chain, we want to materialize the receiver,
+  // the parameters of the current function, the stack locals. We only
+  // materialize context variables that the function already references,
+  // because only for those variables we can be sure that they will be resolved
+  // correctly. Variables that are not referenced by the function may be
+  // context-allocated and thus accessible, but may be shadowed by stack-
+  // allocated variables and the resolution would be incorrect.
+  // The result will look like this:
+  // <native context> <receiver context>
+  //     <materialized stack and accessible context vars> <inner contexts>
+  // All contexts use the closure of the native context, since there is no
+  // function context in the chain. Variables that cannot be resolved are
+  // bound to toplevel (script contexts or global object).
+  // Once debug-evaluate has been executed, the changes to the materialized
+  // objects are written back to the original context chain. Any changes to
+  // the original context chain will therefore be overwritten.
+  const ScopeIterator::Option option = ScopeIterator::COLLECT_NON_LOCALS;
+  for (ScopeIterator it(isolate, &frame_inspector, option);
        !it.Failed() && !it.Done() && !stop; it.Next()) {
     ScopeIterator::ScopeType scope_type = it.Type();
-
     if (scope_type == ScopeIterator::ScopeTypeLocal) {
-      Handle<Context> parent_context =
+      DCHECK_EQ(FUNCTION_SCOPE, it.CurrentScopeInfo()->scope_type());
+      it.GetNonLocals(&non_locals_);
+      Handle<Context> local_context =
           it.HasContext() ? it.CurrentContext() : outer_context;
 
       // The "this" binding, if any, can't be bound via "with".  If we need
       // to, add another node onto the outer context to bind "this".
-      parent_context = MaterializeReceiver(parent_context, function);
+      Handle<Context> receiver_context =
+          MaterializeReceiver(native_context_, local_context, local_function,
+                              global_function, it.ThisIsNonLocal());
 
       Handle<JSObject> materialized_function = NewJSObjectWithNullProto();
-
-      frame_inspector.MaterializeStackLocals(materialized_function, function);
-
-      MaterializeArgumentsObject(materialized_function, function);
+      frame_inspector.MaterializeStackLocals(materialized_function,
+                                             local_function);
+      MaterializeArgumentsObject(materialized_function, local_function);
+      MaterializeContextChain(materialized_function, local_context);
 
       Handle<Context> with_context = isolate->factory()->NewWithContext(
-          function, parent_context, materialized_function);
+          global_function, receiver_context, materialized_function);
 
       ContextChainElement context_chain_element;
-      context_chain_element.original_context = it.CurrentContext();
+      context_chain_element.original_context = local_context;
       context_chain_element.materialized_object = materialized_function;
       context_chain_element.scope_info = it.CurrentScopeInfo();
       context_chain_.Add(context_chain_element);
 
       stop = true;
-      RecordContextsInChain(&inner_context, with_context, with_context);
+      RecordContextsInChain(&inner_context, receiver_context, with_context);
     } else if (scope_type == ScopeIterator::ScopeTypeCatch ||
                scope_type == ScopeIterator::ScopeTypeWith) {
       Handle<Context> cloned_context = Handle<Context>::cast(
@@ -175,7 +208,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
         Handle<Context> cloned_context = Handle<Context>::cast(
             isolate->factory()->CopyFixedArray(it.CurrentContext()));
         Handle<Context> with_context = isolate->factory()->NewWithContext(
-            function, cloned_context, materialized_object);
+            global_function, cloned_context, materialized_object);
 
         ContextChainElement context_chain_element;
         context_chain_element.original_context = it.CurrentContext();
@@ -187,7 +220,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
         RecordContextsInChain(&inner_context, cloned_context, with_context);
       } else {
         Handle<Context> with_context = isolate->factory()->NewWithContext(
-            function, outer_context, materialized_object);
+            global_function, outer_context, materialized_object);
 
         ContextChainElement context_chain_element;
         context_chain_element.materialized_object = materialized_object;
@@ -208,6 +241,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
 
 
 void DebugEvaluate::ContextBuilder::UpdateValues() {
+  // TODO(yangguo): remove updating values.
   for (int i = 0; i < context_chain_.length(); i++) {
     ContextChainElement element = context_chain_[i];
     if (!element.original_context.is_null() &&
@@ -224,6 +258,11 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
       FrameInspector(frame_, inlined_jsframe_index_, isolate_)
           .UpdateStackLocalsFromMaterializedObject(element.materialized_object,
                                                    element.scope_info);
+      if (element.scope_info->scope_type() == FUNCTION_SCOPE) {
+        DCHECK_EQ(context_chain_.length() - 1, i);
+        UpdateContextChainFromMaterializedObject(element.materialized_object,
+                                                 element.original_context);
+      }
     }
   }
 }
@@ -272,41 +311,96 @@ void DebugEvaluate::ContextBuilder::MaterializeArgumentsObject(
 }
 
 
-Handle<Context> DebugEvaluate::ContextBuilder::MaterializeReceiver(
-    Handle<Context> target, Handle<JSFunction> function) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-  Handle<Object> receiver;
-  switch (scope_info->scope_type()) {
-    case FUNCTION_SCOPE: {
-      VariableMode mode;
-      InitializationFlag init_flag;
-      MaybeAssignedFlag maybe_assigned_flag;
-
-      // Don't bother creating a fake context node if "this" is in the context
-      // already.
-      if (ScopeInfo::ContextSlotIndex(scope_info,
-                                      isolate_->factory()->this_string(), &mode,
-                                      &init_flag, &maybe_assigned_flag) >= 0) {
-        return target;
-      }
-      receiver = handle(frame_->receiver(), isolate_);
-      break;
-    }
-    case MODULE_SCOPE:
-      receiver = isolate_->factory()->undefined_value();
-      break;
-    case SCRIPT_SCOPE:
-      receiver = handle(function->global_proxy(), isolate_);
-      break;
-    default:
-      // For eval code, arrow functions, and the like, there's no "this" binding
-      // to materialize.
-      return target;
+MaybeHandle<Object> DebugEvaluate::ContextBuilder::LoadFromContext(
+    Handle<Context> context, Handle<String> name, bool* global) {
+  static const ContextLookupFlags flags = FOLLOW_CONTEXT_CHAIN;
+  int index;
+  PropertyAttributes attributes;
+  BindingFlags binding;
+  Handle<Object> holder =
+      context->Lookup(name, flags, &index, &attributes, &binding);
+  if (holder.is_null()) return MaybeHandle<Object>();
+  Handle<Object> value;
+  if (index != Context::kNotFound) {  // Found on context.
+    Handle<Context> context = Handle<Context>::cast(holder);
+    // Do not shadow variables on the script context.
+    *global = context->IsScriptContext();
+    return Handle<Object>(context->get(index), isolate_);
+  } else {  // Found on object.
+    Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
+    // Do not shadow properties on the global object.
+    *global = object->IsJSGlobalObject();
+    return JSReceiver::GetDataProperty(object, name);
   }
+}
 
-  return isolate_->factory()->NewCatchContext(
-      function, target, isolate_->factory()->this_string(), receiver);
+
+void DebugEvaluate::ContextBuilder::MaterializeContextChain(
+    Handle<JSObject> target, Handle<Context> context) {
+  for (const Handle<String>& name : non_locals_) {
+    HandleScope scope(isolate_);
+    Handle<Object> value;
+    bool global;
+    if (!LoadFromContext(context, name, &global).ToHandle(&value) || global) {
+      // If resolving the variable fails, skip it. If it resolves to a global
+      // variable, skip it as well since it's not read-only and can be resolved
+      // within debug-evaluate.
+      continue;
+    }
+    JSObject::SetOwnPropertyIgnoreAttributes(target, name, value, NONE).Check();
+  }
+}
+
+
+void DebugEvaluate::ContextBuilder::StoreToContext(Handle<Context> context,
+                                                   Handle<String> name,
+                                                   Handle<Object> value) {
+  static const ContextLookupFlags flags = FOLLOW_CONTEXT_CHAIN;
+  int index;
+  PropertyAttributes attributes;
+  BindingFlags binding;
+  Handle<Object> holder =
+      context->Lookup(name, flags, &index, &attributes, &binding);
+  if (holder.is_null()) return;
+  if (attributes & READ_ONLY) return;
+  if (index != Context::kNotFound) {  // Found on context.
+    Handle<Context> context = Handle<Context>::cast(holder);
+    context->set(index, *value);
+  } else {  // Found on object.
+    Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
+    LookupIterator lookup(object, name);
+    if (lookup.state() != LookupIterator::DATA) return;
+    CHECK(JSReceiver::SetDataProperty(&lookup, value).FromJust());
+  }
+}
+
+
+void DebugEvaluate::ContextBuilder::UpdateContextChainFromMaterializedObject(
+    Handle<JSObject> source, Handle<Context> context) {
+  // TODO(yangguo): check whether overwriting context fields is actually safe
+  //                wrt fields we consider constant.
+  for (const Handle<String>& name : non_locals_) {
+    HandleScope scope(isolate_);
+    Handle<Object> value = JSReceiver::GetDataProperty(source, name);
+    StoreToContext(context, name, value);
+  }
+}
+
+
+Handle<Context> DebugEvaluate::ContextBuilder::MaterializeReceiver(
+    Handle<Context> parent_context, Handle<Context> lookup_context,
+    Handle<JSFunction> local_function, Handle<JSFunction> global_function,
+    bool this_is_non_local) {
+  Handle<Object> receiver = isolate_->factory()->undefined_value();
+  Handle<String> this_string = isolate_->factory()->this_string();
+  if (this_is_non_local) {
+    bool global;
+    LoadFromContext(lookup_context, this_string, &global).ToHandle(&receiver);
+  } else if (local_function->shared()->scope_info()->HasReceiver()) {
+    receiver = handle(frame_->receiver(), isolate_);
+  }
+  return isolate_->factory()->NewCatchContext(global_function, parent_context,
+                                              this_string, receiver);
 }
 
 }  // namespace internal

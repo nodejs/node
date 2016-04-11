@@ -390,7 +390,7 @@ void ArmDebugger::Debug() {
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int value = *cur;
-          Heap* current_heap = v8::internal::Isolate::Current()->heap();
+          Heap* current_heap = sim_->isolate_->heap();
           if (((value & 1) == 0) || current_heap->Contains(obj)) {
             PrintF(" (");
             if ((value & 1) == 0) {
@@ -785,12 +785,12 @@ Simulator::~Simulator() { free(stack_); }
 // offset from the svc instruction so the simulator knows what to call.
 class Redirection {
  public:
-  Redirection(void* external_function, ExternalReference::Type type)
+  Redirection(Isolate* isolate, void* external_function,
+              ExternalReference::Type type)
       : external_function_(external_function),
-        swi_instruction_(al | (0xf*B24) | kCallRtRedirected),
+        swi_instruction_(al | (0xf * B24) | kCallRtRedirected),
         type_(type),
         next_(NULL) {
-    Isolate* isolate = Isolate::Current();
     next_ = isolate->simulator_redirection();
     Simulator::current(isolate)->
         FlushICache(isolate->simulator_i_cache(),
@@ -806,9 +806,8 @@ class Redirection {
   void* external_function() { return external_function_; }
   ExternalReference::Type type() { return type_; }
 
-  static Redirection* Get(void* external_function,
+  static Redirection* Get(Isolate* isolate, void* external_function,
                           ExternalReference::Type type) {
-    Isolate* isolate = Isolate::Current();
     Redirection* current = isolate->simulator_redirection();
     for (; current != NULL; current = current->next_) {
       if (current->external_function_ == external_function) {
@@ -816,7 +815,7 @@ class Redirection {
         return current;
       }
     }
-    return new Redirection(external_function, type);
+    return new Redirection(isolate, external_function, type);
   }
 
   static Redirection* FromSwiInstruction(Instruction* swi_instruction) {
@@ -861,9 +860,10 @@ void Simulator::TearDown(HashMap* i_cache, Redirection* first) {
 }
 
 
-void* Simulator::RedirectExternalReference(void* external_function,
+void* Simulator::RedirectExternalReference(Isolate* isolate,
+                                           void* external_function,
                                            ExternalReference::Type type) {
-  Redirection* redirection = Redirection::Get(external_function, type);
+  Redirection* redirection = Redirection::Get(isolate, external_function, type);
   return redirection->address_of_swi_instruction();
 }
 
@@ -3157,14 +3157,15 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         DecodeVCMP(instr);
       } else if (((instr->Opc2Value() == 0x1)) && (instr->Opc3Value() == 0x3)) {
         // vsqrt
+        lazily_initialize_fast_sqrt(isolate_);
         if (instr->SzValue() == 0x1) {
           double dm_value = get_double_from_d_register(vm);
-          double dd_value = fast_sqrt(dm_value);
+          double dd_value = fast_sqrt(dm_value, isolate_);
           dd_value = canonicalizeNaN(dd_value);
           set_d_register_from_double(vd, dd_value);
         } else {
           float sm_value = get_float_from_s_register(m);
-          float sd_value = fast_sqrt(sm_value);
+          float sd_value = fast_sqrt(sm_value, isolate_);
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);
         }
@@ -3177,10 +3178,17 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         }
       } else if (((instr->Opc2Value() == 0x6)) && (instr->Opc3Value() == 0x3)) {
         // vrintz - truncate
-        double dm_value = get_double_from_d_register(vm);
-        double dd_value = trunc(dm_value);
-        dd_value = canonicalizeNaN(dd_value);
-        set_d_register_from_double(vd, dd_value);
+        if (instr->SzValue() == 0x1) {
+          double dm_value = get_double_from_d_register(vm);
+          double dd_value = trunc(dm_value);
+          dd_value = canonicalizeNaN(dd_value);
+          set_d_register_from_double(vd, dd_value);
+        } else {
+          float sm_value = get_float_from_s_register(m);
+          float sd_value = truncf(sm_value);
+          sd_value = canonicalizeNaN(sd_value);
+          set_s_register_from_float(d, sd_value);
+        }
       } else {
         UNREACHABLE();  // Not used by V8.
       }
@@ -3869,44 +3877,60 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
       break;
     case 0x1D:
       if (instr->Opc1Value() == 0x7 && instr->Opc3Value() == 0x1 &&
-          instr->Bits(11, 9) == 0x5 && instr->Bits(19, 18) == 0x2 &&
-          instr->Bit(8) == 0x1) {
-        int vm = instr->VFPMRegValue(kDoublePrecision);
-        int vd = instr->VFPDRegValue(kDoublePrecision);
-        double dm_value = get_double_from_d_register(vm);
-        double dd_value = 0.0;
-        int rounding_mode = instr->Bits(17, 16);
-        switch (rounding_mode) {
-          case 0x0:  // vrinta - round with ties to away from zero
-            dd_value = round(dm_value);
-            break;
-          case 0x1: {  // vrintn - round with ties to even
-            dd_value = std::floor(dm_value);
-            double error = dm_value - dd_value;
-            // Take care of correctly handling the range [-0.5, -0.0], which
-            // must yield -0.0.
-            if ((-0.5 <= dm_value) && (dm_value < 0.0)) {
-              dd_value = -0.0;
-              // If the error is greater than 0.5, or is equal to 0.5 and the
-              // integer result is odd, round up.
-            } else if ((error > 0.5) ||
-                       ((error == 0.5) && (fmod(dd_value, 2) != 0))) {
-              dd_value++;
+          instr->Bits(11, 9) == 0x5 && instr->Bits(19, 18) == 0x2) {
+        if (instr->SzValue() == 0x1) {
+          int vm = instr->VFPMRegValue(kDoublePrecision);
+          int vd = instr->VFPDRegValue(kDoublePrecision);
+          double dm_value = get_double_from_d_register(vm);
+          double dd_value = 0.0;
+          int rounding_mode = instr->Bits(17, 16);
+          switch (rounding_mode) {
+            case 0x0:  // vrinta - round with ties to away from zero
+              dd_value = round(dm_value);
+              break;
+            case 0x1: {  // vrintn - round with ties to even
+              dd_value = nearbyint(dm_value);
+              break;
             }
-            break;
+            case 0x2:  // vrintp - ceil
+              dd_value = ceil(dm_value);
+              break;
+            case 0x3:  // vrintm - floor
+              dd_value = floor(dm_value);
+              break;
+            default:
+              UNREACHABLE();  // Case analysis is exhaustive.
+              break;
           }
-          case 0x2:  // vrintp - ceil
-            dd_value = std::ceil(dm_value);
-            break;
-          case 0x3:  // vrintm - floor
-            dd_value = std::floor(dm_value);
-            break;
-          default:
-            UNREACHABLE();  // Case analysis is exhaustive.
-            break;
+          dd_value = canonicalizeNaN(dd_value);
+          set_d_register_from_double(vd, dd_value);
+        } else {
+          int m = instr->VFPMRegValue(kSinglePrecision);
+          int d = instr->VFPDRegValue(kSinglePrecision);
+          float sm_value = get_float_from_s_register(m);
+          float sd_value = 0.0;
+          int rounding_mode = instr->Bits(17, 16);
+          switch (rounding_mode) {
+            case 0x0:  // vrinta - round with ties to away from zero
+              sd_value = roundf(sm_value);
+              break;
+            case 0x1: {  // vrintn - round with ties to even
+              sd_value = nearbyintf(sm_value);
+              break;
+            }
+            case 0x2:  // vrintp - ceil
+              sd_value = ceilf(sm_value);
+              break;
+            case 0x3:  // vrintm - floor
+              sd_value = floorf(sm_value);
+              break;
+            default:
+              UNREACHABLE();  // Case analysis is exhaustive.
+              break;
+          }
+          sd_value = canonicalizeNaN(sd_value);
+          set_s_register_from_float(d, sd_value);
         }
-        dd_value = canonicalizeNaN(dd_value);
-        set_d_register_from_double(vd, dd_value);
       } else {
         UNIMPLEMENTED();
       }

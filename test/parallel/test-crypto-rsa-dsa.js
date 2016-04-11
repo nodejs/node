@@ -29,7 +29,7 @@ var dsaKeyPemEncrypted = fs.readFileSync(
 // Test RSA encryption/decryption
 (function() {
   var input = 'I AM THE WALRUS';
-  var bufferToEncrypt = new Buffer(input);
+  var bufferToEncrypt = Buffer.from(input);
 
   var encryptedBuffer = crypto.publicEncrypt(rsaPubPem, bufferToEncrypt);
 
@@ -55,12 +55,12 @@ var dsaKeyPemEncrypted = fs.readFileSync(
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: new Buffer('password')
+    passphrase: Buffer.from('password')
   }, bufferToEncrypt);
 
   decryptedBufferWithPassword = crypto.publicDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: new Buffer('password')
+    passphrase: Buffer.from('password')
   }, encryptedBuffer);
   assert.equal(input, decryptedBufferWithPassword.toString());
 
@@ -95,22 +95,22 @@ var dsaKeyPemEncrypted = fs.readFileSync(
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: new Buffer('password')
+    passphrase: Buffer.from('password')
   }, bufferToEncrypt);
 
   assert.throws(function() {
     crypto.publicDecrypt({
       key: rsaKeyPemEncrypted,
-      passphrase: [].concat.apply([], new Buffer('password'))
+      passphrase: [].concat.apply([], Buffer.from('password'))
     }, encryptedBuffer);
   });
 })();
 
 function test_rsa(padding) {
-  var input = new Buffer(padding === 'RSA_NO_PADDING' ? 1024 / 8 : 32);
+  var input = Buffer.allocUnsafe(padding === 'RSA_NO_PADDING' ? 1024 / 8 : 32);
   for (var i = 0; i < input.length; i++)
     input[i] = (i * 7 + 11) & 0xff;
-  var bufferToEncrypt = new Buffer(input);
+  var bufferToEncrypt = Buffer.from(input);
 
   padding = constants[padding];
 

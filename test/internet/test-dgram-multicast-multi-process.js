@@ -6,10 +6,10 @@ const fork = require('child_process').fork;
 const LOCAL_BROADCAST_HOST = '224.0.0.114';
 const TIMEOUT = common.platformTimeout(5000);
 const messages = [
-  new Buffer('First message to send'),
-  new Buffer('Second message to send'),
-  new Buffer('Third message to send'),
-  new Buffer('Fourth message to send')
+  Buffer.from('First message to send'),
+  Buffer.from('Second message to send'),
+  Buffer.from('Third message to send'),
+  Buffer.from('Fourth message to send')
 ];
 const workers = {};
 const listeners = 3;
@@ -132,10 +132,6 @@ if (process.argv[2] !== 'child') {
   }
 
   var sendSocket = dgram.createSocket('udp4');
-  // FIXME: a libuv limitation makes it necessary to bind()
-  // before calling any of the set*() functions. The bind()
-  // call is what creates the actual socket.
-  sendSocket.bind();
 
   // The socket is actually created async now.
   sendSocket.on('listening', function() {

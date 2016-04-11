@@ -7,6 +7,8 @@ npm-dist-tag(1) -- Modify package distribution tags
     npm dist-tag rm <pkg> <tag>
     npm dist-tag ls [<pkg>]
 
+    aliases: dist-tags
+
 ## DESCRIPTION
 
 Add, remove, and enumerate distribution tags on a package:

@@ -136,8 +136,6 @@ class SerializerDeserializer: public ObjectVisitor {
  public:
   static void Iterate(Isolate* isolate, ObjectVisitor* visitor);
 
-  static int nop() { return kNop; }
-
   // No reservation for large object space necessary.
   static const int kNumberOfPreallocatedSpaces = LAST_PAGED_SPACE + 1;
   static const int kNumberOfSpaces = LAST_SPACE + 1;
@@ -221,10 +219,7 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kNativesStringResource = 0x5d;
   // Used for the source code for compiled stubs, which is in the executable,
   // but is referred to from external strings in the snapshot.
-  static const int kCodeStubNativesStringResource = 0x5e;
-  // Used for the source code for V8 extras, which is in the executable,
-  // but is referred to from external strings in the snapshot.
-  static const int kExtraNativesStringResource = 0x5f;
+  static const int kExtraNativesStringResource = 0x5e;
   // A tag emitted at strategic points in the snapshot to delineate sections.
   // If the deserializer does not find these at the expected moments then it
   // is an indication that the snapshot and the VM do not fit together.
@@ -373,9 +368,8 @@ class Deserializer: public SerializerDeserializer {
   void Deserialize(Isolate* isolate);
 
   // Deserialize a single object and the objects reachable from it.
-  MaybeHandle<Object> DeserializePartial(
-      Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
-      Handle<FixedArray>* outdated_contexts_out);
+  MaybeHandle<Object> DeserializePartial(Isolate* isolate,
+                                         Handle<JSGlobalProxy> global_proxy);
 
   // Deserialize a shared function info. Fail gracefully.
   MaybeHandle<SharedFunctionInfo> DeserializeCode(Isolate* isolate);
@@ -618,7 +612,6 @@ class PartialSerializer : public Serializer {
                     SnapshotByteSink* sink)
       : Serializer(isolate, sink),
         startup_serializer_(startup_snapshot_serializer),
-        outdated_contexts_(0),
         global_object_(NULL) {
     InitializeCodeAddressMap();
   }
@@ -634,10 +627,7 @@ class PartialSerializer : public Serializer {
   int PartialSnapshotCacheIndex(HeapObject* o);
   bool ShouldBeInThePartialSnapshotCache(HeapObject* o);
 
-  void SerializeOutdatedContextsAsFixedArray();
-
   Serializer* startup_serializer_;
-  List<Context*> outdated_contexts_;
   Object* global_object_;
   PartialCacheIndexMap partial_cache_index_map_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);
@@ -661,10 +651,6 @@ class StartupSerializer : public Serializer {
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
   void SerializeWeakReferencesAndDeferred();
-  void Serialize() {
-    SerializeStrongReferences();
-    SerializeWeakReferencesAndDeferred();
-  }
 
  private:
   intptr_t root_index_wave_front_;

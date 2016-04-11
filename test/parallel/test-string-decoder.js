@@ -6,10 +6,10 @@ var StringDecoder = require('string_decoder').StringDecoder;
 process.stdout.write('scanning ');
 
 // UTF-8
-test('utf-8', new Buffer('$', 'utf-8'), '$');
-test('utf-8', new Buffer('¢', 'utf-8'), '¢');
-test('utf-8', new Buffer('€', 'utf-8'), '€');
-test('utf-8', new Buffer('𤭢', 'utf-8'), '𤭢');
+test('utf-8', Buffer.from('$', 'utf-8'), '$');
+test('utf-8', Buffer.from('¢', 'utf-8'), '¢');
+test('utf-8', Buffer.from('€', 'utf-8'), '€');
+test('utf-8', Buffer.from('𤭢', 'utf-8'), '𤭢');
 // A mixed ascii and non-ascii string
 // Test stolen from deps/v8/test/cctest/test-strings.cc
 // U+02E4 -> CB A4
@@ -19,15 +19,15 @@ test('utf-8', new Buffer('𤭢', 'utf-8'), '𤭢');
 // U+3045 -> E3 81 85
 test(
   'utf-8',
-  new Buffer([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4, 0x30, 0xE3, 0x81, 0x85]),
+  Buffer.from([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4, 0x30, 0xE3, 0x81, 0x85]),
   '\u02e4\u0064\u12e4\u0030\u3045'
 );
 
 // UCS-2
-test('ucs2', new Buffer('ababc', 'ucs2'), 'ababc');
+test('ucs2', Buffer.from('ababc', 'ucs2'), 'ababc');
 
 // UTF-16LE
-test('ucs2', new Buffer('3DD84DDC', 'hex'),  '\ud83d\udc4d'); // thumbs up
+test('ucs2', Buffer.from('3DD84DDC', 'hex'),  '\ud83d\udc4d'); // thumbs up
 
 console.log(' crayon!');
 
@@ -96,4 +96,3 @@ function writeSequences(length, start, sequence) {
   }
   return sequences;
 }
-

@@ -82,8 +82,6 @@ class Bootstrapper final {
       v8::ExtensionConfiguration* extensions,
       ContextType context_type = FULL_CONTEXT);
 
-  bool CreateCodeStubContext(Isolate* isolate);
-
   // Detach the environment from its outer global object.
   void DetachGlobal(Handle<Context> env);
 
@@ -116,8 +114,6 @@ class Bootstrapper final {
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
   static bool CompileExtraBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalExtraBuiltin(Isolate* isolate, int index);
-  static bool CompileCodeStubBuiltin(Isolate* isolate, int index);
-  static bool InstallCodeStubNatives(Isolate* isolate);
 
   static void ExportFromRuntime(Isolate* isolate, Handle<JSObject> container);
   static void ExportExperimentalFromRuntime(Isolate* isolate,

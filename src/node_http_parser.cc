@@ -2,8 +2,8 @@
 #include "node_buffer.h"
 #include "node_http_parser.h"
 
-#include "base-object.h"
-#include "base-object-inl.h"
+#include "async-wrap.h"
+#include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
 #include "stream_base.h"
@@ -147,10 +147,10 @@ struct StringPtr {
 };
 
 
-class Parser : public BaseObject {
+class Parser : public AsyncWrap {
  public:
   Parser(Environment* env, Local<Object> wrap, enum http_parser_type type)
-      : BaseObject(env, wrap),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTPPARSER),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
     Wrap(object(), this);
@@ -161,6 +161,11 @@ class Parser : public BaseObject {
   ~Parser() override {
     ClearWrap(object());
     persistent().Reset();
+  }
+
+
+  size_t self_size() const override {
+    return sizeof(*this);
   }
 
 
@@ -188,7 +193,7 @@ class Parser : public BaseObject {
     if (num_fields_ == num_values_) {
       // start of new field name
       num_fields_++;
-      if (num_fields_ == ARRAY_SIZE(fields_)) {
+      if (num_fields_ == arraysize(fields_)) {
         // ran out of space - flush to javascript land
         Flush();
         num_fields_ = 1;
@@ -197,7 +202,7 @@ class Parser : public BaseObject {
       fields_[num_fields_ - 1].Reset();
     }
 
-    CHECK_LT(num_fields_, static_cast<int>(ARRAY_SIZE(fields_)));
+    CHECK_LT(num_fields_, arraysize(fields_));
     CHECK_EQ(num_fields_, num_values_ + 1);
 
     fields_[num_fields_ - 1].Update(at, length);
@@ -213,7 +218,7 @@ class Parser : public BaseObject {
       values_[num_values_ - 1].Reset();
     }
 
-    CHECK_LT(num_values_, static_cast<int>(ARRAY_SIZE(values_)));
+    CHECK_LT(num_values_, arraysize(values_));
     CHECK_EQ(num_values_, num_fields_);
 
     values_[num_values_ - 1].Update(at, length);
@@ -247,7 +252,7 @@ class Parser : public BaseObject {
       return 0;
 
     Local<Value> undefined = Undefined(env()->isolate());
-    for (size_t i = 0; i < ARRAY_SIZE(argv); i++)
+    for (size_t i = 0; i < arraysize(argv); i++)
       argv[i] = undefined;
 
     if (have_flushed_) {
@@ -285,8 +290,10 @@ class Parser : public BaseObject {
 
     argv[A_UPGRADE] = Boolean::New(env()->isolate(), parser_.upgrade);
 
+    Environment::AsyncCallbackScope callback_scope(env());
+
     Local<Value> head_response =
-        cb.As<Function>()->Call(obj, ARRAY_SIZE(argv), argv);
+        MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (head_response.IsEmpty()) {
       got_exception_ = true;
@@ -321,7 +328,7 @@ class Parser : public BaseObject {
       Integer::NewFromUnsigned(env()->isolate(), length)
     };
 
-    Local<Value> r = cb.As<Function>()->Call(obj, ARRAY_SIZE(argv), argv);
+    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -344,7 +351,9 @@ class Parser : public BaseObject {
     if (!cb->IsFunction())
       return 0;
 
-    Local<Value> r = cb.As<Function>()->Call(obj, 0, nullptr);
+    Environment::AsyncCallbackScope callback_scope(env());
+
+    Local<Value> r = MakeCallback(cb.As<Function>(), 0, nullptr);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -376,11 +385,11 @@ class Parser : public BaseObject {
     url_.Save();
     status_message_.Save();
 
-    for (int i = 0; i < num_fields_; i++) {
+    for (size_t i = 0; i < num_fields_; i++) {
       fields_[i].Save();
     }
 
-    for (int i = 0; i < num_values_; i++) {
+    for (size_t i = 0; i < num_values_; i++) {
       values_[i].Save();
     }
   }
@@ -582,12 +591,10 @@ class Parser : public BaseObject {
     parser->current_buffer_len_ = nread;
     parser->current_buffer_data_ = buf->base;
 
-    cb.As<Function>()->Call(obj, 1, &ret);
+    parser->MakeCallback(cb.As<Function>(), 1, &ret);
 
     parser->current_buffer_len_ = 0;
     parser->current_buffer_data_ = nullptr;
-
-    parser->env()->KickNextTick();
   }
 
 
@@ -630,16 +637,14 @@ class Parser : public BaseObject {
   }
 
   Local<Array> CreateHeaders() {
-    // num_values_ is either -1 or the entry # of the last header
-    // so num_values_ == 0 means there's a single header
     Local<Array> headers = Array::New(env()->isolate());
     Local<Function> fn = env()->push_values_to_array_function();
     Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 2];
-    int i = 0;
+    size_t i = 0;
 
     do {
       size_t j = 0;
-      while (i < num_values_ && j < ARRAY_SIZE(argv) / 2) {
+      while (i < num_values_ && j < arraysize(argv) / 2) {
         argv[j * 2] = fields_[i].ToString(env());
         argv[j * 2 + 1] = values_[i].ToString(env());
         i++;
@@ -669,7 +674,7 @@ class Parser : public BaseObject {
       url_.ToString(env())
     };
 
-    Local<Value> r = cb.As<Function>()->Call(obj, ARRAY_SIZE(argv), argv);
+    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (r.IsEmpty())
       got_exception_ = true;
@@ -695,8 +700,8 @@ class Parser : public BaseObject {
   StringPtr values_[32];  // header values
   StringPtr url_;
   StringPtr status_message_;
-  int num_fields_;
-  int num_values_;
+  size_t num_fields_;
+  size_t num_values_;
   bool have_flushed_;
   bool got_exception_;
   Local<Object> current_buffer_;

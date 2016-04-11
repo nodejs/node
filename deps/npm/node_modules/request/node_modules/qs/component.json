@@ -2,7 +2,7 @@
   "name": "qs",
   "repository": "hapijs/qs",
   "description": "query-string parser / stringifier with nesting support",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "keywords": ["querystring", "query", "parser"],
   "main": "lib/index.js",
   "scripts": [

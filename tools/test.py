@@ -430,7 +430,7 @@ class TestCase(object):
     self.thread_id = 0
 
   def IsNegative(self):
-    return False
+    return self.context.expect_fail
 
   def CompareTime(self, other):
     return cmp(other.duration, self.duration)
@@ -709,6 +709,10 @@ class TestRepository(TestSuite):
       (file, pathname, description) = imp.find_module('testcfg', [ self.path ])
       module = imp.load_module('testcfg', file, pathname, description)
       self.config = module.GetConfiguration(context, self.path)
+      if hasattr(self.config, 'additional_flags'):
+        self.config.additional_flags += context.node_args
+      else:
+        self.config.additional_flags = context.node_args
     finally:
       if file:
         file.close()
@@ -769,16 +773,20 @@ TIMEOUT_SCALEFACTOR = {
     'armv6' : { 'debug' : 12, 'release' : 3 },  # The ARM buildbots are slow.
     'arm'   : { 'debug' :  8, 'release' : 2 },
     'ia32'  : { 'debug' :  4, 'release' : 1 },
-    'ppc'   : { 'debug' :  4, 'release' : 1 } }
+    'ppc'   : { 'debug' :  4, 'release' : 1 },
+    's390'  : { 'debug' :  4, 'release' : 1 } }
 
 
 class Context(object):
 
-  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs, store_unexpected_output):
+  def __init__(self, workspace, buildspace, verbose, vm, args, expect_fail,
+               timeout, processor, suppress_dialogs, store_unexpected_output):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
     self.vm_root = vm
+    self.node_args = args
+    self.expect_fail = expect_fail
     self.timeout = timeout
     self.processor = processor
     self.suppress_dialogs = suppress_dialogs
@@ -1281,6 +1289,10 @@ def BuildOptions():
   result.add_option("--snapshot", help="Run the tests with snapshot turned on",
       default=False, action="store_true")
   result.add_option("--special-command", default=None)
+  result.add_option("--node-args", dest="node_args", help="Args to pass through to Node",
+      default=[], action="append")
+  result.add_option("--expect-fail", dest="expect_fail",
+      help="Expect test cases to fail", default=False, action="store_true")
   result.add_option("--valgrind", help="Run tests through valgrind",
       default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
@@ -1471,6 +1483,8 @@ def Main():
                     buildspace,
                     VERBOSE,
                     shell,
+                    options.node_args,
+                    options.expect_fail,
                     options.timeout,
                     processor,
                     options.suppress_dialogs,
@@ -1509,10 +1523,15 @@ def Main():
         if not exists(vm):
           print "Can't find shell executable: '%s'" % vm
           continue
+        archEngineContext = Execute([vm, "-p", "process.arch"], context)
+        vmArch = archEngineContext.stdout.rstrip()
+        if archEngineContext.exit_code is not 0 or vmArch == "undefined":
+          print "Can't determine the arch of: '%s'" % vm
+          continue
         env = {
           'mode': mode,
           'system': utils.GuessOS(),
-          'arch': arch,
+          'arch': vmArch,
         }
         test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list

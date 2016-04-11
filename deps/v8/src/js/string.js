@@ -17,9 +17,13 @@ var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeRangeError;
 var MakeTypeError;
+var MathMax;
+var MathMin;
+var matchSymbol = utils.ImportNow("match_symbol");
 var RegExpExec;
 var RegExpExecNoTests;
 var RegExpLastMatchInfo;
+var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
 
 utils.Import(function(from) {
@@ -27,6 +31,8 @@ utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
   MakeRangeError = from.MakeRangeError;
   MakeTypeError = from.MakeTypeError;
+  MathMax = from.MathMax;
+  MathMin = from.MathMin;
   RegExpExec = from.RegExpExec;
   RegExpExecNoTests = from.RegExpExecNoTests;
   RegExpLastMatchInfo = from.RegExpLastMatchInfo;
@@ -150,19 +156,21 @@ function StringLocaleCompareJS(other) {
 }
 
 
-// ECMA-262 section 15.5.4.10
-function StringMatchJS(regexp) {
+// ES6 21.1.3.11.
+function StringMatchJS(pattern) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.match");
 
-  var subject = TO_STRING(this);
-  if (IS_REGEXP(regexp)) {
-    if (!REGEXP_GLOBAL(regexp)) return RegExpExecNoTests(regexp, subject, 0);
-    var result = %StringMatch(subject, regexp, RegExpLastMatchInfo);
-    regexp.lastIndex = 0;
-    return result;
+  if (!IS_NULL_OR_UNDEFINED(pattern)) {
+    var matcher = pattern[matchSymbol];
+    if (!IS_UNDEFINED(matcher)) {
+      return %_Call(matcher, pattern, this);
+    }
   }
+
+  var subject = TO_STRING(this);
+
   // Non-regexp argument.
-  regexp = new GlobalRegExp(regexp);
+  var regexp = new GlobalRegExp(pattern);
   return RegExpExecNoTests(regexp, subject, 0);
 }
 
@@ -495,21 +503,20 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
 }
 
 
-// ECMA-262 section 15.5.4.12
-function StringSearch(re) {
+// ES6 21.1.3.15.
+function StringSearch(pattern) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.search");
 
-  var regexp;
-  if (IS_REGEXP(re)) {
-    regexp = re;
-  } else {
-    regexp = new GlobalRegExp(re);
+  if (!IS_NULL_OR_UNDEFINED(pattern)) {
+    var searcher = pattern[searchSymbol];
+    if (!IS_UNDEFINED(searcher)) {
+      return %_Call(searcher, pattern, this);
+    }
   }
-  var match = RegExpExec(regexp, TO_STRING(this), 0);
-  if (match) {
-    return match[CAPTURE0];
-  }
-  return -1;
+
+  var subject = TO_STRING(this);
+  var regexp = new GlobalRegExp(pattern);
+  return %_Call(regexp[searchSymbol], regexp, subject);
 }
 
 
@@ -562,9 +569,6 @@ function StringSplitJS(separator, limit) {
   if (!IS_NULL_OR_UNDEFINED(separator)) {
     var splitter = separator[splitSymbol];
     if (!IS_UNDEFINED(splitter)) {
-      if (!IS_CALLABLE(splitter)) {
-        throw MakeTypeError(kCalledNonCallable, splitter);
-      }
       return %_Call(splitter, separator, this, limit);
     }
   }
@@ -839,15 +843,21 @@ function StringSup() {
   return "<sup>" + TO_STRING(this) + "</sup>";
 }
 
-// ES6 draft 01-20-14, section 21.1.3.13
+// ES6, section 21.1.3.13
 function StringRepeat(count) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.repeat");
 
   var s = TO_STRING(this);
   var n = TO_INTEGER(count);
+
+  if (n < 0 || n === INFINITY) throw MakeRangeError(kInvalidCountValue);
+
+  // Early return to allow an arbitrarily-large repeat of the empty string.
+  if (s.length === 0) return "";
+
   // The maximum string length is stored in a smi, so a longer repeat
   // must result in a range error.
-  if (n < 0 || n > %_MaxSmi()) throw MakeRangeError(kInvalidCountValue);
+  if (n > %_MaxSmi()) throw MakeRangeError(kInvalidCountValue);
 
   var r = "";
   while (true) {
@@ -879,21 +889,13 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   }
 
   var s_len = s.length;
-  if (pos < 0) pos = 0;
-  if (pos > s_len) pos = s_len;
+  var start = MathMin(MathMax(pos, 0), s_len);
   var ss_len = ss.length;
-
-  if (ss_len + pos > s_len) {
+  if (ss_len + start > s_len) {
     return false;
   }
 
-  for (var i = 0; i < ss_len; i++) {
-    if (%_StringCharCodeAt(s, pos + i) !== %_StringCharCodeAt(ss, i)) {
-      return false;
-    }
-  }
-
-  return true;
+  return %_SubString(s, start, start + ss_len) === ss;
 }
 
 
@@ -917,22 +919,14 @@ function StringEndsWith(searchString /* position */) {  // length == 1
     }
   }
 
-  if (pos < 0) pos = 0;
-  if (pos > s_len) pos = s_len;
+  var end = MathMin(MathMax(pos, 0), s_len);
   var ss_len = ss.length;
-  pos = pos - ss_len;
-
-  if (pos < 0) {
+  var start = end - ss_len;
+  if (start < 0) {
     return false;
   }
 
-  for (var i = 0; i < ss_len; i++) {
-    if (%_StringCharCodeAt(s, pos + i) !== %_StringCharCodeAt(ss, i)) {
-      return false;
-    }
-  }
-
-  return true;
+  return %_SubString(s, start, start + ss_len) === ss;
 }
 
 

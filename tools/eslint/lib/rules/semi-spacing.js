@@ -35,6 +35,7 @@ module.exports = function(context) {
      */
     function hasLeadingSpace(token) {
         var tokenBefore = context.getTokenBefore(token);
+
         return tokenBefore && astUtils.isTokenOnSameLine(tokenBefore, token) && sourceCode.isSpaceBetweenTokens(tokenBefore, token);
     }
 
@@ -45,6 +46,7 @@ module.exports = function(context) {
      */
     function hasTrailingSpace(token) {
         var tokenAfter = context.getTokenAfter(token);
+
         return tokenAfter && astUtils.isTokenOnSameLine(token, tokenAfter) && sourceCode.isSpaceBetweenTokens(token, tokenAfter);
     }
 
@@ -55,6 +57,7 @@ module.exports = function(context) {
      */
     function isLastTokenInCurrentLine(token) {
         var tokenAfter = context.getTokenAfter(token);
+
         return !(tokenAfter && astUtils.isTokenOnSameLine(token, tokenAfter));
     }
 
@@ -65,6 +68,7 @@ module.exports = function(context) {
      */
     function isFirstTokenInCurrentLine(token) {
         var tokenBefore = context.getTokenBefore(token);
+
         return !(tokenBefore && astUtils.isTokenOnSameLine(token, tokenBefore));
     }
 
@@ -75,6 +79,7 @@ module.exports = function(context) {
      */
     function isBeforeClosingParen(token) {
         var nextToken = context.getTokenAfter(token);
+
         return (
             nextToken &&
             nextToken.type === "Punctuator" &&
@@ -105,22 +110,54 @@ module.exports = function(context) {
 
             if (hasLeadingSpace(token)) {
                 if (!requireSpaceBefore) {
-                    context.report(node, location, "Unexpected whitespace before semicolon.");
+                    context.report({
+                        node: node,
+                        loc: location,
+                        message: "Unexpected whitespace before semicolon.",
+                        fix: function(fixer) {
+                            var tokenBefore = context.getTokenBefore(token);
+
+                            return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
+                        }
+                    });
                 }
             } else {
                 if (requireSpaceBefore) {
-                    context.report(node, location, "Missing whitespace before semicolon.");
+                    context.report({
+                        node: node,
+                        loc: location,
+                        message: "Missing whitespace before semicolon.",
+                        fix: function(fixer) {
+                            return fixer.insertTextBefore(token, " ");
+                        }
+                    });
                 }
             }
 
             if (!isFirstTokenInCurrentLine(token) && !isLastTokenInCurrentLine(token) && !isBeforeClosingParen(token)) {
                 if (hasTrailingSpace(token)) {
                     if (!requireSpaceAfter) {
-                        context.report(node, location, "Unexpected whitespace after semicolon.");
+                        context.report({
+                            node: node,
+                            loc: location,
+                            message: "Unexpected whitespace after semicolon.",
+                            fix: function(fixer) {
+                                var tokenAfter = context.getTokenAfter(token);
+
+                                return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
+                            }
+                        });
                     }
                 } else {
                     if (requireSpaceAfter) {
-                        context.report(node, location, "Missing whitespace after semicolon.");
+                        context.report({
+                            node: node,
+                            loc: location,
+                            message: "Missing whitespace after semicolon.",
+                            fix: function(fixer) {
+                                return fixer.insertTextAfter(token, " ");
+                            }
+                        });
                     }
                 }
             }
@@ -134,6 +171,7 @@ module.exports = function(context) {
      */
     function checkNode(node) {
         var token = context.getLastToken(node);
+
         checkSemicolonSpacing(token, node);
     }
 

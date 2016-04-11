@@ -210,3 +210,48 @@ function testRegexpHelper(r) {
   helper(/foo/u);
   helper(new RegExp("foo", "u"));
 })();
+
+// Non-BMP patterns.
+// Single character atom.
+assertTrue(new RegExp("\u{12345}", "u").test("\u{12345}"));
+assertTrue(/\u{12345}/u.test("\u{12345}"));
+assertTrue(new RegExp("\u{12345}", "u").test("\ud808\udf45"));
+assertTrue(/\u{12345}/u.test("\ud808\udf45"));
+assertFalse(new RegExp("\u{12345}", "u").test("\udf45"));
+assertFalse(/\u{12345}/u.test("\udf45"));
+
+// Multi-character atom.
+assertTrue(new RegExp("\u{12345}\u{23456}", "u").test("a\u{12345}\u{23456}b"));
+assertTrue(/\u{12345}\u{23456}/u.test("b\u{12345}\u{23456}c"));
+assertFalse(new RegExp("\u{12345}\u{23456}", "u").test("a\udf45\u{23456}b"));
+assertFalse(/\u{12345}\u{23456}/u.test("b\udf45\u{23456}c"));
+
+// Disjunction.
+assertTrue(new RegExp("\u{12345}(?:\u{23456})", "u").test(
+    "a\u{12345}\u{23456}b"));
+assertTrue(/\u{12345}(?:\u{23456})/u.test("b\u{12345}\u{23456}c"));
+assertFalse(new RegExp("\u{12345}(?:\u{23456})", "u").test(
+    "a\udf45\u{23456}b"));
+assertFalse(/\u{12345}(?:\u{23456})/u.test("b\udf45\u{23456}c"));
+
+// Alternative.
+assertTrue(new RegExp("\u{12345}|\u{23456}", "u").test("a\u{12345}b"));
+assertTrue(/\u{12345}|\u{23456}/u.test("b\u{23456}c"));
+assertFalse(new RegExp("\u{12345}|\u{23456}", "u").test("a\udf45\ud84db"));
+assertFalse(/\u{12345}|\u{23456}/u.test("b\udf45\ud808c"));
+
+// Capture.
+assertTrue(new RegExp("(\u{12345}|\u{23456}).\\1", "u").test(
+    "\u{12345}b\u{12345}"));
+assertTrue(/(\u{12345}|\u{23456}).\1/u.test("\u{12345}b\u{12345}"));
+assertFalse(new RegExp("(\u{12345}|\u{23456}).\\1", "u").test(
+    "\u{12345}b\u{23456}"));
+assertFalse(/(\u{12345}|\u{23456}).\1/u.test("\u{12345}b\u{23456}"));
+
+// Quantifier.
+assertTrue(new RegExp("\u{12345}{3}", "u").test("\u{12345}\u{12345}\u{12345}"));
+assertTrue(/\u{12345}{3}/u.test("\u{12345}\u{12345}\u{12345}"));
+assertTrue(new RegExp("\u{12345}{3}").test("\u{12345}\udf45\udf45"));
+assertTrue(/\ud808\udf45{3}/u.test("\u{12345}\udf45\udf45"));
+assertFalse(new RegExp("\u{12345}{3}", "u").test("\u{12345}\udf45\udf45"));
+assertFalse(/\u{12345}{3}/u.test("\u{12345}\udf45\udf45"));

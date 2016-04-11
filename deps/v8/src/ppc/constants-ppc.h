@@ -275,24 +275,29 @@ enum OpcodeExt4 {
   FMADD = 29 << 1,  // Floating Multiply-Add
 
   // Bits 10-1
-  FCMPU = 0 << 1,     // Floating Compare Unordered
-  FRSP = 12 << 1,     // Floating-Point Rounding
-  FCTIW = 14 << 1,    // Floating Convert to Integer Word X-form
-  FCTIWZ = 15 << 1,   // Floating Convert to Integer Word with Round to Zero
-  FNEG = 40 << 1,     // Floating Negate
-  MCRFS = 64 << 1,    // Move to Condition Register from FPSCR
-  FMR = 72 << 1,      // Floating Move Register
-  MTFSFI = 134 << 1,  // Move to FPSCR Field Immediate
-  FABS = 264 << 1,    // Floating Absolute Value
-  FRIN = 392 << 1,    // Floating Round to Integer Nearest
-  FRIZ = 424 << 1,    // Floating Round to Integer Toward Zero
-  FRIP = 456 << 1,    // Floating Round to Integer Plus
-  FRIM = 488 << 1,    // Floating Round to Integer Minus
-  MFFS = 583 << 1,    // move from FPSCR x-form
-  MTFSF = 711 << 1,   // move to FPSCR fields XFL-form
-  FCFID = 846 << 1,   // Floating convert from integer doubleword
-  FCTID = 814 << 1,   // Floating convert from integer doubleword
-  FCTIDZ = 815 << 1   // Floating convert from integer doubleword
+  FCMPU = 0 << 1,      // Floating Compare Unordered
+  FRSP = 12 << 1,      // Floating-Point Rounding
+  FCTIW = 14 << 1,     // Floating Convert to Integer Word X-form
+  FCTIWZ = 15 << 1,    // Floating Convert to Integer Word with Round to Zero
+  MTFSB1 = 38 << 1,    // Move to FPSCR Bit 1
+  FNEG = 40 << 1,      // Floating Negate
+  MCRFS = 64 << 1,     // Move to Condition Register from FPSCR
+  MTFSB0 = 70 << 1,    // Move to FPSCR Bit 0
+  FMR = 72 << 1,       // Floating Move Register
+  MTFSFI = 134 << 1,   // Move to FPSCR Field Immediate
+  FABS = 264 << 1,     // Floating Absolute Value
+  FRIN = 392 << 1,     // Floating Round to Integer Nearest
+  FRIZ = 424 << 1,     // Floating Round to Integer Toward Zero
+  FRIP = 456 << 1,     // Floating Round to Integer Plus
+  FRIM = 488 << 1,     // Floating Round to Integer Minus
+  MFFS = 583 << 1,     // move from FPSCR x-form
+  MTFSF = 711 << 1,    // move to FPSCR fields XFL-form
+  FCTID = 814 << 1,    // Floating convert to integer doubleword
+  FCTIDZ = 815 << 1,   // ^^^ with round toward zero
+  FCFID = 846 << 1,    // Floating convert from integer doubleword
+  FCTIDU = 942 << 1,   // Floating convert to integer doubleword unsigned
+  FCTIDUZ = 943 << 1,  // ^^^ with round toward zero
+  FCFIDU = 974 << 1    // Floating convert from integer doubleword unsigned
 };
 
 enum OpcodeExt5 {
@@ -398,6 +403,13 @@ enum BOfield {        // Bits 25-21
 enum CRBit { CR_LT = 0, CR_GT = 1, CR_EQ = 2, CR_SO = 3, CR_FU = 3 };
 
 #define CRWIDTH 4
+
+// These are the documented bit positions biased down by 32
+enum FPSCRBit {
+  VXSOFT = 21,  // 53: Software-Defined Condition
+  VXSQRT = 22,  // 54: Invalid Square Root
+  VXCVI = 23    // 55: Invalid Integer Convert
+};
 
 // -----------------------------------------------------------------------------
 // Supervisor Call (svc) specific support.

@@ -207,7 +207,7 @@ release schedule is designed to minimize the frequency and impact of such
 changes but there is little that Node.js can do currently to ensure stability
 of the V8 APIs.
 
-The [Native Abstrations for Node.js][] (or `nan`) provide a set of tools that
+The [Native Abstractions for Node.js][] (or `nan`) provide a set of tools that
 Addon developers are recommended to use to keep compatibility between past and
 future releases of V8 and Node.js. See the `nan` [examples][] for an
 illustration of how it can be used.
@@ -318,7 +318,7 @@ Once compiled, the example Addon can be required and used from within Node.js:
 // test.js
 const addon = require('./build/Release/addon');
 
-console.log('This should be eight:', addon.add(3,5));
+console.log('This should be eight:', addon.add(3, 5));
 ```
 
 
@@ -423,7 +423,7 @@ const addon = require('./build/Release/addon');
 
 var obj1 = addon('hello');
 var obj2 = addon('world');
-console.log(obj1.msg+' '+obj2.msg); // 'hello world'
+console.log(obj1.msg + ' ' + obj2.msg); // 'hello world'
 ```
 
 
@@ -638,9 +638,9 @@ Test it with:
 const addon = require('./build/Release/addon');
 
 var obj = new addon.MyObject(10);
-console.log( obj.plusOne() ); // 11
-console.log( obj.plusOne() ); // 12
-console.log( obj.plusOne() ); // 13
+console.log(obj.plusOne()); // 11
+console.log(obj.plusOne()); // 12
+console.log(obj.plusOne()); // 13
 ```
 
 ### Factory of wrapped objects
@@ -824,14 +824,14 @@ Test it with:
 const createObject = require('./build/Release/addon');
 
 var obj = createObject(10);
-console.log( obj.plusOne() ); // 11
-console.log( obj.plusOne() ); // 12
-console.log( obj.plusOne() ); // 13
+console.log(obj.plusOne()); // 11
+console.log(obj.plusOne()); // 12
+console.log(obj.plusOne()); // 13
 
 var obj2 = createObject(20);
-console.log( obj2.plusOne() ); // 21
-console.log( obj2.plusOne() ); // 22
-console.log( obj2.plusOne() ); // 23
+console.log(obj2.plusOne()); // 21
+console.log(obj2.plusOne()); // 22
+console.log(obj2.plusOne()); // 23
 ```
 
 
@@ -1085,7 +1085,7 @@ const addon = require('./build/Release/addon');
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
 [Linking to Node.js' own dependencies]: #linking-to-nodejs-own-dependencies
-[Native Abstrations for Node.js]: https://github.com/nodejs/nan
+[Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [node-gyp]: https://github.com/nodejs/node-gyp
 [require]: globals.html#globals_require
 [v8-docs]: https://v8docs.nodesource.com/

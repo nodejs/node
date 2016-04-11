@@ -94,6 +94,13 @@ extern int events_enabled;
                              dataDescriptors);                                \
   CHECK_EQ(status, ERROR_SUCCESS);
 
+#define ETW_WRITE_EMPTY_EVENT(eventDescriptor)                                \
+  DWORD status = event_write(node_provider,                                   \
+                             &eventDescriptor,                                \
+                             0,                                               \
+                             NULL);                                           \
+  CHECK_EQ(status, ERROR_SUCCESS);
+
 
 void NODE_HTTP_SERVER_REQUEST(node_dtrace_http_server_request_t* req,
     node_dtrace_connection_t* conn, const char *remote, int port,
@@ -189,16 +196,13 @@ void NODE_V8SYMBOL_MOVE(const void* addr1, const void* addr2) {
 
 void NODE_V8SYMBOL_RESET() {
   if (events_enabled > 0) {
-    int val = 0;
-    EVENT_DATA_DESCRIPTOR descriptors[1];
-    ETW_WRITE_INT32_DATA(descriptors, &val);
-    ETW_WRITE_EVENT(NODE_V8SYMBOL_RESET_EVENT, descriptors);
+    ETW_WRITE_EMPTY_EVENT(NODE_V8SYMBOL_RESET_EVENT);
   }
 }
 
 #define SETSYMBUF(s)  \
   wcscpy(symbuf, s);  \
-  symbol_len = ARRAY_SIZE(s) - 1;
+  symbol_len = arraysize(s) - 1;
 
 void NODE_V8SYMBOL_ADD(LPCSTR symbol,
                        int symbol_len,
@@ -244,7 +248,7 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
                                   line,
                                   col,
                                   symbuf,
-                                  symbol_len * sizeof(symbuf[0]));
+                                  (symbol_len + 1) * sizeof(symbuf[0]));
     ETW_WRITE_EVENT(MethodLoad, descriptors);
   }
 }

@@ -36,7 +36,8 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   Register reg_0(0);
   Register reg_1(1);
   Register reg_2 = Register::FromParameterIndex(2, builder.parameter_count());
-  int name_index = 21;
+  Handle<String> name = factory->NewStringFromStaticChars("abc");
+  int name_index = 3;
   int feedback_slot = 97;
 
   builder.LoadLiteral(heap_num_0)
@@ -45,7 +46,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadLiteral(smi_0)
       .LoadLiteral(smi_1)
       .LoadAccumulatorWithRegister(reg_0)
-      .LoadNamedProperty(reg_1, name_index, feedback_slot, LanguageMode::SLOPPY)
+      .LoadNamedProperty(reg_1, name, feedback_slot, LanguageMode::SLOPPY)
       .StoreAccumulatorInRegister(reg_2)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0, 1)
       .Return();

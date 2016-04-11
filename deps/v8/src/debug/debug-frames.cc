@@ -45,11 +45,6 @@ int FrameInspector::GetParametersCount() {
 }
 
 
-int FrameInspector::expression_count() {
-  return deoptimized_frame_->expression_count();
-}
-
-
 Object* FrameInspector::GetFunction() {
   return is_optimized_ ? deoptimized_frame_->GetFunction() : frame_->function();
 }
@@ -109,6 +104,8 @@ void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
   // First fill all parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
     // Do not materialize the parameter if it is shadowed by a context local.
+    // TODO(yangguo): check whether this is necessary, now that we materialize
+    //                context locals as well.
     Handle<String> name(scope_info->ParameterName(i));
     if (ParameterIsShadowedByContextLocal(scope_info, name)) continue;
 

@@ -15,12 +15,10 @@ var GeneratorFunctionPrototype = utils.ImportNow("GeneratorFunctionPrototype");
 var GeneratorFunction = utils.ImportNow("GeneratorFunction");
 var GlobalFunction = global.Function;
 var MakeTypeError;
-var NewFunctionString;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
-  NewFunctionString = from.NewFunctionString;
 });
 
 // ----------------------------------------------------------------------------
@@ -78,19 +76,6 @@ function GeneratorObjectThrow(exn) {
   }
 }
 
-
-function GeneratorFunctionConstructor(arg1) {  // length == 1
-  var source = NewFunctionString(arguments, 'function*');
-  var global_proxy = %GlobalProxy(GeneratorFunctionConstructor);
-  // Compile the string in the constructor and not a helper so that errors
-  // appear to come from here.
-  var func = %_Call(%CompileString(source, true), global_proxy);
-  // Set name-should-print-as-anonymous flag on the ShareFunctionInfo and
-  // ensure that |func| uses correct initial map from |new.target| if
-  // it's available.
-  return %CompleteFunctionConstruction(func, GeneratorFunction, new.target);
-}
-
 // ----------------------------------------------------------------------------
 
 // Both Runtime_GeneratorNext and Runtime_GeneratorThrow are supported by
@@ -115,6 +100,5 @@ utils.InstallFunctions(GeneratorObjectPrototype,
 %AddNamedProperty(GeneratorFunctionPrototype, "constructor",
     GeneratorFunction, DONT_ENUM | READ_ONLY);
 %InternalSetPrototype(GeneratorFunction, GlobalFunction);
-%SetCode(GeneratorFunction, GeneratorFunctionConstructor);
 
 })

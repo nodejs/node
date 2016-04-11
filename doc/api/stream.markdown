@@ -201,7 +201,7 @@ readable.on('end', () => {
 
 #### Event: 'error'
 
-* {Error Object}
+* {Error}
 
 Emitted if there was an error receiving data.
 
@@ -415,6 +415,10 @@ This properly handles multi-byte characters that would otherwise be
 potentially mangled if you simply pulled the Buffers directly and
 called [`buf.toString(encoding)`][] on them. If you want to read the data
 as strings, always use this method.
+
+Also you can disable any encoding at all with `readable.setEncoding(null)`.
+This approach is very useful if you deal with binary data or with large
+multi-byte strings spread out over multiple chunks.
 
 ```js
 var readable = getReadableStreamSomehow();
@@ -706,7 +710,9 @@ Flush all data, buffered since [`stream.cork()`][] call.
 * Returns: {Boolean} `true` if the data was handled completely.
 
 This method writes some data to the underlying system, and calls the
-supplied callback once the data has been fully handled.
+supplied callback once the data has been fully handled.  If an error
+occurs, the callback may or may not be called with the error as its
+first argument.  To detect write errors, listen for the `'error'` event.
 
 The return value indicates if you should continue writing right now.
 If the data had to be buffered internally, then it will return
@@ -1020,15 +1026,14 @@ function SimpleProtocol(source, options) {
   // source is a readable stream, such as a socket or file
   this._source = source;
 
-  var self = this;
   source.on('end', () => {
-    self.push(null);
+    this.push(null);
   });
 
   // give it a kick whenever the source is readable
   // read(0) will not consume any bytes
   source.on('readable', () => {
-    self.read(0);
+    this.read(0);
   });
 
   this._rawHeader = [];

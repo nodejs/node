@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --no-legacy-const --harmony-sloppy --harmony-sloppy-let
-// Flags: --harmony-sloppy-function --harmony-destructuring
-// Flags: --harmony-rest-parameters
+// Flags: --harmony-sloppy-function --harmony-destructuring-bind
 
 // Test Annex B 3.3 semantics for functions declared in blocks in sloppy mode.
 // http://www.ecma-international.org/ecma-262/6.0/#sec-block-level-function-declarations-web-legacy-compatibility-semantics

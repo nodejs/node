@@ -57,9 +57,8 @@ class SnapshotByteSource final {
     return answer;
   }
 
-  bool GetBlob(const byte** data, int* number_of_bytes);
-
-  bool AtEOF();
+  // Returns length.
+  int GetBlob(const byte** data);
 
   int position() { return position_; }
 

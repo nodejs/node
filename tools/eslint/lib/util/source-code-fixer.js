@@ -16,6 +16,8 @@ var debug = require("debug")("eslint:text-fixer");
 // Helpers
 //------------------------------------------------------------------------------
 
+var BOM = "\uFEFF";
+
 /**
  * Compares items in a messages array by line and column.
  * @param {Message} a The first message.
@@ -69,7 +71,8 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
     var remainingMessages = [],
         fixes = [],
         text = sourceCode.text,
-        lastFixPos = text.length + 1;
+        lastFixPos = text.length + 1,
+        prefix = (sourceCode.hasBOM ? BOM : "");
 
     messages.forEach(function(problem) {
         if (problem.hasOwnProperty("fix")) {
@@ -96,10 +99,27 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
 
         fixes.forEach(function(problem) {
             var fix = problem.fix;
+            var start = fix.range[0];
+            var end = fix.range[1];
+            var insertionText = fix.text;
 
-            if (fix.range[1] < lastFixPos) {
-                chars.splice(fix.range[0], fix.range[1] - fix.range[0], fix.text);
-                lastFixPos = fix.range[0];
+            if (end < lastFixPos) {
+                if (start < 0) {
+
+                    // Remove BOM.
+                    prefix = "";
+                    start = 0;
+                }
+
+                if (start === 0 && insertionText[0] === BOM) {
+
+                    // Set BOM.
+                    prefix = BOM;
+                    insertionText = insertionText.slice(1);
+                }
+
+                chars.splice(start, end - start, insertionText);
+                lastFixPos = start;
             } else {
                 remainingMessages.push(problem);
             }
@@ -108,14 +128,14 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         return {
             fixed: true,
             messages: remainingMessages.sort(compareMessagesByLocation),
-            output: chars.join("")
+            output: prefix + chars.join("")
         };
     } else {
         debug("No fixes to apply");
         return {
             fixed: false,
             messages: messages,
-            output: text
+            output: prefix + text
         };
     }
 };

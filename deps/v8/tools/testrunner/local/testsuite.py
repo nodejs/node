@@ -41,9 +41,9 @@ ALL_VARIANT_FLAGS = {
   "turbofan": [["--turbo"]],
   "turbofan_opt": [["--turbo", "--always-opt"]],
   "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition", "--ignition-filter=*",
-                "--ignition-fake-try-catch",
+  "ignition": [["--ignition", "--turbo", "--ignition-fake-try-catch",
                 "--ignition-fallback-on-eval-and-catch"]],
+  "preparser": [["--min-preparse-length=0"]],
 }
 
 # FAST_VARIANTS implies no --always-opt.
@@ -52,13 +52,13 @@ FAST_VARIANT_FLAGS = {
   "stress": [["--stress-opt"]],
   "turbofan": [["--turbo"]],
   "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition", "--ignition-filter=*",
-                "--ignition-fake-try-catch",
+  "ignition": [["--ignition", "--turbo", "--ignition-fake-try-catch",
                 "--ignition-fallback-on-eval-and-catch"]],
+  "preparser": [["--min-preparse-length=0"]],
 }
 
 ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
-                    "nocrankshaft", "ignition"])
+                    "nocrankshaft", "ignition", "preparser"])
 FAST_VARIANTS = set(["default", "turbofan"])
 STANDARD_VARIANT = set(["default"])
 
@@ -88,14 +88,14 @@ class VariantGenerator(object):
 class TestSuite(object):
 
   @staticmethod
-  def LoadTestSuite(root):
+  def LoadTestSuite(root, global_init=True):
     name = root.split(os.path.sep)[-1]
     f = None
     try:
       (f, pathname, description) = imp.find_module("testcfg", [root])
       module = imp.load_module("testcfg", f, pathname, description)
       return module.GetSuite(name, root)
-    except:
+    except ImportError:
       # Use default if no testcfg is present.
       return GoogleTestSuite(name, root)
     finally:
@@ -103,12 +103,19 @@ class TestSuite(object):
         f.close()
 
   def __init__(self, name, root):
+    # Note: This might be called concurrently from different processes.
+    # Changing harddisk state should be done in 'SetupWorkingDirectory' below.
     self.name = name  # string
     self.root = root  # string containing path
     self.tests = None  # list of TestCase objects
     self.rules = None  # dictionary mapping test path to list of outcomes
     self.wildcards = None  # dictionary mapping test paths to list of outcomes
     self.total_duration = None  # float, assigned on demand
+
+  def SetupWorkingDirectory(self):
+    # This is called once per test suite object in a multi-process setting.
+    # Multi-process-unsafe work-directory setup can go here.
+    pass
 
   def shell(self):
     return "d8"

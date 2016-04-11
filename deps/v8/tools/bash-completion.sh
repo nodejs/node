@@ -39,12 +39,16 @@ _v8_flag() {
   cur="${COMP_WORDS[COMP_CWORD]}"
   defines=$(cat $v8_source/src/flag-definitions.h \
     | grep "^DEFINE" \
-    | grep -v "DEFINE_implication" \
+    | grep -v "DEFINE_IMPLICATION" \
+    | sed -e 's/_/-/g'; \
+    cat $v8_source/src/flag-definitions.h \
+    | grep "^  V(harmony_" \
+    | sed -e 's/^  V/DEFINE-BOOL/' \
     | sed -e 's/_/-/g')
   targets=$(echo "$defines" \
     | sed -ne 's/^DEFINE-[^(]*(\([^,]*\).*/--\1/p'; \
     echo "$defines" \
-    | sed -ne 's/^DEFINE-bool(\([^,]*\).*/--no\1/p'; \
+    | sed -ne 's/^DEFINE-BOOL(\([^,]*\).*/--no\1/p'; \
     cat $v8_source/src/d8.cc \
     | grep "strcmp(argv\[i\]" \
     | sed -ne 's/^[^"]*"--\([^"]*\)".*/--\1/p')

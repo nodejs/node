@@ -23,7 +23,7 @@ namespace v8 {
 namespace internal {
 
 // When running without a simulator we call the entry directly.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
+#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
   entry(p0, p1, p2, p3, p4)
 
 
@@ -43,9 +43,10 @@ typedef int (*mips_regexp_matcher)(String* input,
                                    void* return_address,
                                    Isolate* isolate);
 
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-  (FUNCTION_CAST<mips_regexp_matcher>(entry)( \
-      p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
+#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
+                                   p7, p8)                                     \
+  (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,   \
+                                             NULL, p8))
 
 #else  // O32 Abi.
 
@@ -60,9 +61,10 @@ typedef int (*mips_regexp_matcher)(String* input,
                                    int32_t direct_call,
                                    Isolate* isolate);
 
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-  (FUNCTION_CAST<mips_regexp_matcher>(entry)( \
-      p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8))
+#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
+                                   p7, p8)                                     \
+  (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, NULL, p4, p5, p6, \
+                                             p7, p8))
 
 #endif  // MIPS_ABI_N64
 
@@ -77,11 +79,13 @@ class SimulatorStack : public v8::internal::AllStatic {
     return c_limit;
   }
 
-  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
+  static inline uintptr_t RegisterCTryCatch(Isolate* isolate,
+                                            uintptr_t try_catch_address) {
+    USE(isolate);
     return try_catch_address;
   }
 
-  static inline void UnregisterCTryCatch() { }
+  static inline void UnregisterCTryCatch(Isolate* isolate) { USE(isolate); }
 };
 
 }  // namespace internal
@@ -198,6 +202,12 @@ class Simulator {
   void set_fpu_register_hi_word(int fpureg, int32_t value);
   void set_fpu_register_float(int fpureg, float value);
   void set_fpu_register_double(int fpureg, double value);
+  void set_fpu_register_invalid_result64(float original, float rounded);
+  void set_fpu_register_invalid_result(float original, float rounded);
+  void set_fpu_register_word_invalid_result(float original, float rounded);
+  void set_fpu_register_invalid_result64(double original, double rounded);
+  void set_fpu_register_invalid_result(double original, double rounded);
+  void set_fpu_register_word_invalid_result(double original, double rounded);
   int64_t get_fpu_register(int fpureg) const;
   int32_t get_fpu_register_word(int fpureg) const;
   int32_t get_fpu_register_signed_word(int fpureg) const;
@@ -369,6 +379,7 @@ class Simulator {
   inline int32_t ft_reg() const { return currentInstr_->FtValue(); }
   inline int32_t fd_reg() const { return currentInstr_->FdValue(); }
   inline int32_t sa() const { return currentInstr_->SaValue(); }
+  inline int32_t lsa_sa() const { return currentInstr_->LsaSaValue(); }
 
   inline void SetResult(const int32_t rd_reg, const int64_t alu_out) {
     set_register(rd_reg, alu_out);
@@ -380,6 +391,18 @@ class Simulator {
 
   // Used for breakpoints and traps.
   void SoftwareInterrupt(Instruction* instr);
+
+  // Compact branch guard.
+  void CheckForbiddenSlot(int64_t current_pc) {
+    Instruction* instr_after_compact_branch =
+        reinterpret_cast<Instruction*>(current_pc + Instruction::kInstrSize);
+    if (instr_after_compact_branch->IsForbiddenAfterBranch()) {
+      V8_Fatal(__FILE__, __LINE__,
+               "Error: Unexpected instruction 0x%08x immediately after a "
+               "compact branch instruction.",
+               *reinterpret_cast<uint32_t*>(instr_after_compact_branch));
+    }
+  }
 
   // Stop helper functions.
   bool IsWatchpoint(uint64_t code);
@@ -403,7 +426,7 @@ class Simulator {
       return;
     }
 
-    if (instr->IsForbiddenInBranchDelay()) {
+    if (instr->IsForbiddenAfterBranch()) {
       V8_Fatal(__FILE__, __LINE__,
                "Eror:Unexpected %i opcode in a branch delay slot.",
                instr->OpcodeValue());
@@ -430,7 +453,8 @@ class Simulator {
   void SignalException(Exception e);
 
   // Runtime call support.
-  static void* RedirectExternalReference(void* external_function,
+  static void* RedirectExternalReference(Isolate* isolate,
+                                         void* external_function,
                                          ExternalReference::Type type);
 
   // Handle arguments and return value for runtime FP functions.
@@ -485,24 +509,24 @@ class Simulator {
 
 // When running with the simulator transition into simulated execution at this
 // point.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4)                    \
-  reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->Call( \
-      FUNCTION_ADDR(entry), 5, reinterpret_cast<int64_t*>(p0),            \
-      reinterpret_cast<int64_t*>(p1), reinterpret_cast<int64_t*>(p2),     \
+#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4)       \
+  reinterpret_cast<Object*>(Simulator::current(isolate)->Call(        \
+      FUNCTION_ADDR(entry), 5, reinterpret_cast<int64_t*>(p0),        \
+      reinterpret_cast<int64_t*>(p1), reinterpret_cast<int64_t*>(p2), \
       reinterpret_cast<int64_t*>(p3), reinterpret_cast<int64_t*>(p4)))
 
 
 #ifdef MIPS_ABI_N64
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-  static_cast<int>(Simulator::current(Isolate::Current())                     \
-                       ->Call(entry, 10, p0, p1, p2, p3, p4,                  \
-                              reinterpret_cast<int64_t*>(p5), p6, p7, NULL,   \
-                              p8))
+#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
+                                   p7, p8)                                     \
+  static_cast<int>(Simulator::current(isolate)->Call(                          \
+      entry, 10, p0, p1, p2, p3, p4, reinterpret_cast<int64_t*>(p5), p6, p7,   \
+      NULL, p8))
 #else  // Must be O32 Abi.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-  static_cast<int>(                                                           \
-      Simulator::current(Isolate::Current())                                  \
-          ->Call(entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8))
+#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
+                                   p7, p8)                                     \
+  static_cast<int>(Simulator::current(isolate)->Call(                          \
+      entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8))
 #endif  // MIPS_ABI_N64
 
 
@@ -517,13 +541,14 @@ class SimulatorStack : public v8::internal::AllStatic {
     return Simulator::current(isolate)->StackLimit(c_limit);
   }
 
-  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    Simulator* sim = Simulator::current(Isolate::Current());
+  static inline uintptr_t RegisterCTryCatch(Isolate* isolate,
+                                            uintptr_t try_catch_address) {
+    Simulator* sim = Simulator::current(isolate);
     return sim->PushAddress(try_catch_address);
   }
 
-  static inline void UnregisterCTryCatch() {
-    Simulator::current(Isolate::Current())->PopAddress();
+  static inline void UnregisterCTryCatch(Isolate* isolate) {
+    Simulator::current(isolate)->PopAddress();
   }
 };
 

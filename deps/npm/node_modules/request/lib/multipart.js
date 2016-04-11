@@ -68,6 +68,9 @@ Multipart.prototype.build = function (parts, chunked) {
   var body = chunked ? new CombinedStream() : []
 
   function add (part) {
+    if (typeof part === 'number') {
+      part = part.toString()
+    }
     return chunked ? body.append(part) : body.push(new Buffer(part))
   }
 

@@ -6,7 +6,6 @@
 #define V8_COMPILER_JS_NATIVE_CONTEXT_SPECIALIZATION_H_
 
 #include "src/base/flags.h"
-#include "src/compiler/access-info.h"
 #include "src/compiler/graph-reducer.h"
 
 namespace v8 {
@@ -22,6 +21,7 @@ class TypeCache;
 namespace compiler {
 
 // Forward declarations.
+enum class AccessMode;
 class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
@@ -43,14 +43,13 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   typedef base::Flags<Flag> Flags;
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph, Flags flags,
-                                Handle<Context> native_context,
+                                MaybeHandle<Context> native_context,
                                 CompilationDependencies* dependencies,
                                 Zone* zone);
 
   Reduction Reduce(Node* node) final;
 
  private:
-  Reduction ReduceJSCallFunction(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
@@ -59,11 +58,13 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
                                 MapHandleList const& receiver_maps,
                                 AccessMode access_mode,
-                                LanguageMode language_mode);
+                                LanguageMode language_mode,
+                                KeyedAccessStoreMode store_mode);
   Reduction ReduceKeyedAccess(Node* node, Node* index, Node* value,
                               FeedbackNexus const& nexus,
                               AccessMode access_mode,
-                              LanguageMode language_mode);
+                              LanguageMode language_mode,
+                              KeyedAccessStoreMode store_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
                               MapHandleList const& receiver_maps,
                               Handle<Name> name, AccessMode access_mode,
@@ -72,11 +73,16 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   // Adds stability dependencies on all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
-  void AssumePrototypesStable(Type* receiver_type, Handle<JSObject> holder);
+  void AssumePrototypesStable(Type* receiver_type,
+                              Handle<Context> native_context,
+                              Handle<JSObject> holder);
 
   // Assuming that {if_projection} is either IfTrue or IfFalse, adds a hint on
   // the dominating Branch that {if_projection} is the unlikely (deferred) case.
   void MarkAsDeferred(Node* if_projection);
+
+  // Retrieve the native context from the given {node} if known.
+  MaybeHandle<Context> GetNativeContext(Node* node);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -87,18 +93,16 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   SimplifiedOperatorBuilder* simplified() const;
   MachineOperatorBuilder* machine() const;
   Flags flags() const { return flags_; }
-  Handle<Context> native_context() const { return native_context_; }
+  MaybeHandle<Context> native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
-  AccessInfoFactory& access_info_factory() { return access_info_factory_; }
 
   JSGraph* const jsgraph_;
   Flags const flags_;
-  Handle<Context> native_context_;
+  MaybeHandle<Context> native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
   TypeCache const& type_cache_;
-  AccessInfoFactory access_info_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(JSNativeContextSpecialization);
 };

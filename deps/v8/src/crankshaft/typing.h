@@ -6,9 +6,9 @@
 #define V8_CRANKSHAFT_TYPING_H_
 
 #include "src/allocation.h"
-#include "src/ast.h"
+#include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/effects.h"
-#include "src/scopes.h"
 #include "src/type-info.h"
 #include "src/types.h"
 #include "src/zone.h"

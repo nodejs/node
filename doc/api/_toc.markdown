@@ -7,6 +7,7 @@
 * [C/C++ Addons](addons.html)
 * [Child Processes](child_process.html)
 * [Cluster](cluster.html)
+* [Command Line Options](cli.html)
 * [Console](console.html)
 * [Crypto](crypto.html)
 * [Debugger](debugger.html)

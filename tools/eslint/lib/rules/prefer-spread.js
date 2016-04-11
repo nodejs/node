@@ -83,7 +83,7 @@ module.exports = function(context) {
             var thisArg = node.arguments[0];
 
             if (isValidThisArg(expectedThis, thisArg, context)) {
-                context.report(node, "use the spread operator instead of the \".apply()\".");
+                context.report(node, "use the spread operator instead of the '.apply()'.");
             }
         }
     };

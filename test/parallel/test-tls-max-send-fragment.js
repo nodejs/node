@@ -10,7 +10,7 @@ var tls = require('tls');
 
 var fs = require('fs');
 
-var buf = new Buffer(10000);
+var buf = Buffer.allocUnsafe(10000);
 var received = 0;
 var ended = 0;
 var maxChunk = 768;

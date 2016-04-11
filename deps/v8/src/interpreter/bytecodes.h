@@ -25,11 +25,14 @@ namespace interpreter {
   V(Count8, OperandSize::kByte)    \
   V(Imm8, OperandSize::kByte)      \
   V(Idx8, OperandSize::kByte)      \
-  V(Reg8, OperandSize::kByte)      \
   V(MaybeReg8, OperandSize::kByte) \
+  V(Reg8, OperandSize::kByte)      \
+  V(RegPair8, OperandSize::kByte)  \
                                    \
   /* Short operands. */            \
-  V(Idx16, OperandSize::kShort)
+  V(Count16, OperandSize::kShort)  \
+  V(Idx16, OperandSize::kShort)    \
+  V(Reg16, OperandSize::kShort)
 
 // The list of bytecodes which are interpreted by the interpreter.
 #define BYTECODE_LIST(V)                                                       \
@@ -64,10 +67,27 @@ namespace interpreter {
   V(PopContext, OperandType::kReg8)                                            \
   V(LdaContextSlot, OperandType::kReg8, OperandType::kIdx8)                    \
   V(StaContextSlot, OperandType::kReg8, OperandType::kIdx8)                    \
+  V(LdaContextSlotWide, OperandType::kReg8, OperandType::kIdx16)               \
+  V(StaContextSlotWide, OperandType::kReg8, OperandType::kIdx16)               \
+                                                                               \
+  /* Load-Store lookup slots */                                                \
+  V(LdaLookupSlot, OperandType::kIdx8)                                         \
+  V(LdaLookupSlotInsideTypeof, OperandType::kIdx8)                             \
+  V(LdaLookupSlotWide, OperandType::kIdx16)                                    \
+  V(LdaLookupSlotInsideTypeofWide, OperandType::kIdx16)                        \
+  V(StaLookupSlotSloppy, OperandType::kIdx8)                                   \
+  V(StaLookupSlotStrict, OperandType::kIdx8)                                   \
+  V(StaLookupSlotSloppyWide, OperandType::kIdx16)                              \
+  V(StaLookupSlotStrictWide, OperandType::kIdx16)                              \
                                                                                \
   /* Register-accumulator transfers */                                         \
   V(Ldar, OperandType::kReg8)                                                  \
   V(Star, OperandType::kReg8)                                                  \
+                                                                               \
+  /* Register-register transfers */                                            \
+  V(Mov, OperandType::kReg8, OperandType::kReg8)                               \
+  V(Exchange, OperandType::kReg8, OperandType::kReg16)                         \
+  V(ExchangeWide, OperandType::kReg16, OperandType::kReg16)                    \
                                                                                \
   /* LoadIC operations */                                                      \
   V(LoadICSloppy, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \
@@ -119,11 +139,17 @@ namespace interpreter {
   V(TypeOf, OperandType::kNone)                                                \
   V(DeletePropertyStrict, OperandType::kReg8)                                  \
   V(DeletePropertySloppy, OperandType::kReg8)                                  \
+  V(DeleteLookupSlot, OperandType::kNone)                                      \
                                                                                \
   /* Call operations */                                                        \
-  V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8)        \
+  V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8,        \
+    OperandType::kIdx8)                                                        \
+  V(CallWide, OperandType::kReg8, OperandType::kReg8, OperandType::kCount16,   \
+    OperandType::kIdx16)                                                       \
   V(CallRuntime, OperandType::kIdx16, OperandType::kMaybeReg8,                 \
     OperandType::kCount8)                                                      \
+  V(CallRuntimeForPair, OperandType::kIdx16, OperandType::kMaybeReg8,          \
+    OperandType::kCount8, OperandType::kRegPair8)                              \
   V(CallJSRuntime, OperandType::kIdx16, OperandType::kReg8,                    \
     OperandType::kCount8)                                                      \
                                                                                \
@@ -143,18 +169,27 @@ namespace interpreter {
   V(TestIn, OperandType::kReg8)                                                \
                                                                                \
   /* Cast operators */                                                         \
-  V(ToBoolean, OperandType::kNone)                                             \
   V(ToName, OperandType::kNone)                                                \
   V(ToNumber, OperandType::kNone)                                              \
   V(ToObject, OperandType::kNone)                                              \
                                                                                \
   /* Literals */                                                               \
-  V(CreateRegExpLiteral, OperandType::kIdx8, OperandType::kReg8)               \
-  V(CreateArrayLiteral, OperandType::kIdx8, OperandType::kImm8)                \
-  V(CreateObjectLiteral, OperandType::kIdx8, OperandType::kImm8)               \
+  V(CreateRegExpLiteral, OperandType::kIdx8, OperandType::kIdx8,               \
+    OperandType::kImm8)                                                        \
+  V(CreateArrayLiteral, OperandType::kIdx8, OperandType::kIdx8,                \
+    OperandType::kImm8)                                                        \
+  V(CreateObjectLiteral, OperandType::kIdx8, OperandType::kIdx8,               \
+    OperandType::kImm8)                                                        \
+  V(CreateRegExpLiteralWide, OperandType::kIdx16, OperandType::kIdx16,         \
+    OperandType::kImm8)                                                        \
+  V(CreateArrayLiteralWide, OperandType::kIdx16, OperandType::kIdx16,          \
+    OperandType::kImm8)                                                        \
+  V(CreateObjectLiteralWide, OperandType::kIdx16, OperandType::kIdx16,         \
+    OperandType::kImm8)                                                        \
                                                                                \
   /* Closure allocation */                                                     \
-  V(CreateClosure, OperandType::kImm8)                                         \
+  V(CreateClosure, OperandType::kIdx8, OperandType::kImm8)                     \
+  V(CreateClosureWide, OperandType::kIdx16, OperandType::kImm8)                \
                                                                                \
   /* Arguments allocation */                                                   \
   V(CreateMappedArguments, OperandType::kNone)                                 \
@@ -163,23 +198,32 @@ namespace interpreter {
   /* Control Flow */                                                           \
   V(Jump, OperandType::kImm8)                                                  \
   V(JumpConstant, OperandType::kIdx8)                                          \
+  V(JumpConstantWide, OperandType::kIdx16)                                     \
   V(JumpIfTrue, OperandType::kImm8)                                            \
   V(JumpIfTrueConstant, OperandType::kIdx8)                                    \
+  V(JumpIfTrueConstantWide, OperandType::kIdx16)                               \
   V(JumpIfFalse, OperandType::kImm8)                                           \
   V(JumpIfFalseConstant, OperandType::kIdx8)                                   \
+  V(JumpIfFalseConstantWide, OperandType::kIdx16)                              \
   V(JumpIfToBooleanTrue, OperandType::kImm8)                                   \
   V(JumpIfToBooleanTrueConstant, OperandType::kIdx8)                           \
+  V(JumpIfToBooleanTrueConstantWide, OperandType::kIdx16)                      \
   V(JumpIfToBooleanFalse, OperandType::kImm8)                                  \
   V(JumpIfToBooleanFalseConstant, OperandType::kIdx8)                          \
+  V(JumpIfToBooleanFalseConstantWide, OperandType::kIdx16)                     \
   V(JumpIfNull, OperandType::kImm8)                                            \
   V(JumpIfNullConstant, OperandType::kIdx8)                                    \
+  V(JumpIfNullConstantWide, OperandType::kIdx16)                               \
   V(JumpIfUndefined, OperandType::kImm8)                                       \
   V(JumpIfUndefinedConstant, OperandType::kIdx8)                               \
+  V(JumpIfUndefinedConstantWide, OperandType::kIdx16)                          \
                                                                                \
   /* Complex flow control For..in */                                           \
-  V(ForInPrepare, OperandType::kReg8)                                          \
-  V(ForInNext, OperandType::kReg8, OperandType::kReg8)                         \
-  V(ForInDone, OperandType::kReg8)                                             \
+  V(ForInPrepare, OperandType::kReg8, OperandType::kReg8, OperandType::kReg8)  \
+  V(ForInDone, OperandType::kReg8, OperandType::kReg8)                         \
+  V(ForInNext, OperandType::kReg8, OperandType::kReg8, OperandType::kReg8,     \
+    OperandType::kReg8)                                                        \
+  V(ForInStep, OperandType::kReg8)                                             \
                                                                                \
   /* Non-local flow control */                                                 \
   V(Throw, OperandType::kNone)                                                 \
@@ -224,15 +268,9 @@ enum class Bytecode : uint8_t {
 // in its stack-frame. Register hold parameters, this, and expression values.
 class Register {
  public:
-  static const int kMaxRegisterIndex = 127;
-  static const int kMinRegisterIndex = -128;
-
   Register() : index_(kIllegalIndex) {}
 
-  explicit Register(int index) : index_(index) {
-    DCHECK_LE(index_, kMaxRegisterIndex);
-    DCHECK_GE(index_, kMinRegisterIndex);
-  }
+  explicit Register(int index) : index_(index) {}
 
   int index() const {
     DCHECK(index_ != kIllegalIndex);
@@ -253,8 +291,15 @@ class Register {
   static Register function_context();
   bool is_function_context() const;
 
+  // Returns the register for the incoming new target value.
+  static Register new_target();
+  bool is_new_target() const;
+
   static Register FromOperand(uint8_t operand);
   uint8_t ToOperand() const;
+
+  static Register FromWideOperand(uint16_t operand);
+  uint16_t ToWideOperand() const;
 
   static bool AreContiguous(Register reg1, Register reg2,
                             Register reg3 = Register(),
@@ -320,13 +365,40 @@ class Bytecodes {
   // Returns the size of |operand|.
   static OperandSize SizeOfOperand(OperandType operand);
 
+  // Return true if the bytecode is a conditional jump taking
+  // an immediate byte operand (OperandType::kImm8).
+  static bool IsConditionalJumpImmediate(Bytecode bytecode);
+
+  // Return true if the bytecode is a conditional jump taking
+  // a constant pool entry (OperandType::kIdx8).
+  static bool IsConditionalJumpConstant(Bytecode bytecode);
+
+  // Return true if the bytecode is a conditional jump taking
+  // a constant pool entry (OperandType::kIdx16).
+  static bool IsConditionalJumpConstantWide(Bytecode bytecode);
+
+  // Return true if the bytecode is a conditional jump taking
+  // any kind of operand.
+  static bool IsConditionalJump(Bytecode bytecode);
+
   // Return true if the bytecode is a jump or a conditional jump taking
   // an immediate byte operand (OperandType::kImm8).
-  static bool IsJump(Bytecode bytecode);
+  static bool IsJumpImmediate(Bytecode bytecode);
 
   // Return true if the bytecode is a jump or conditional jump taking a
-  // constant pool entry (OperandType::kIdx).
+  // constant pool entry (OperandType::kIdx8).
   static bool IsJumpConstant(Bytecode bytecode);
+
+  // Return true if the bytecode is a jump or conditional jump taking a
+  // constant pool entry (OperandType::kIdx16).
+  static bool IsJumpConstantWide(Bytecode bytecode);
+
+  // Return true if the bytecode is a jump or conditional jump taking
+  // any kind of operand.
+  static bool IsJump(Bytecode bytecode);
+
+  // Return true if the bytecode is a conditional jump, a jump, or a return.
+  static bool IsJumpOrReturn(Bytecode bytecode);
 
   // Decode a single bytecode and operands to |os|.
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,

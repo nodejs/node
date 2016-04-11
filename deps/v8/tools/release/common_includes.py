@@ -738,9 +738,12 @@ class Step(GitRecipesMixin):
 
 
 class BootstrapStep(Step):
-  MESSAGE = "Bootstapping v8 checkout."
+  MESSAGE = "Bootstrapping checkout and state."
 
   def RunStep(self):
+    # Reserve state entry for json output.
+    self['json_output'] = {}
+
     if os.path.realpath(self.default_cwd) == os.path.realpath(V8_BASE):
       self.Die("Can't use v8 checkout with calling script as work checkout.")
     # Directory containing the working v8 checkout.
@@ -764,32 +767,6 @@ class UploadStep(Step):
     self.GitUpload(reviewer, self._options.author, self._options.force_upload,
                    bypass_hooks=self._options.bypass_upload_hooks,
                    cc=self._options.cc)
-
-
-class DetermineV8Sheriff(Step):
-  MESSAGE = "Determine the V8 sheriff for code review."
-
-  def RunStep(self):
-    self["sheriff"] = None
-    if not self._options.sheriff:  # pragma: no cover
-      return
-
-    # The sheriff determined by the rotation on the waterfall has a
-    # @google.com account.
-    url = "https://chromium-build.appspot.com/p/chromium/sheriff_v8.js"
-    match = re.match(r"document\.write\('(\w+)'\)", self.ReadURL(url))
-
-    # If "channel is sheriff", we can't match an account.
-    if match:
-      g_name = match.group(1)
-      # Optimistically assume that google and chromium account name are the
-      # same.
-      self["sheriff"] = g_name + "@chromium.org"
-      self._options.reviewer = ("%s,%s" %
-                                (self["sheriff"], self._options.reviewer))
-      print "Found active sheriff: %s" % self["sheriff"]
-    else:
-      print "No active sheriff found."
 
 
 def MakeStep(step_class=Step, number=0, state=None, config=None,
@@ -838,12 +815,10 @@ class ScriptsBase(object):
                         help="The author email used for rietveld.")
     parser.add_argument("--dry-run", default=False, action="store_true",
                         help="Perform only read-only actions.")
+    parser.add_argument("--json-output",
+                        help="File to write results summary to.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
-    parser.add_argument("--sheriff", default=False, action="store_true",
-                        help=("Determine current sheriff to review CLs. On "
-                              "success, this will overwrite the reviewer "
-                              "option."))
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
@@ -896,9 +871,16 @@ class ScriptsBase(object):
     for (number, step_class) in enumerate([BootstrapStep] + step_classes):
       steps.append(MakeStep(step_class, number, self._state, self._config,
                             options, self._side_effect_handler))
-    for step in steps[options.step:]:
-      if step.Run():
-        return 0
+
+    try:
+      for step in steps[options.step:]:
+        if step.Run():
+          return 0
+    finally:
+      if options.json_output:
+        with open(options.json_output, "w") as f:
+          json.dump(self._state['json_output'], f)
+
     return 0
 
   def Run(self, args=None):

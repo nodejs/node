@@ -18,13 +18,26 @@ var gotRequests = 0;
 var gotResponses = 0;
 
 function execAndClose() {
-  process.stdout.write('.');
   if (parsers.length === 0)
     return;
+  process.stdout.write('.');
 
   const parser = parsers.pop();
   parser.reinitialize(HTTPParser.RESPONSE);
+
   const socket = net.connect(common.PORT);
+  socket.on('error', (e) => {
+    // If SmartOS and ECONNREFUSED, then retry. See
+    // https://github.com/nodejs/node/issues/2663.
+    if (common.isSunOS && e.code === 'ECONNREFUSED') {
+      parsers.push(parser);
+      socket.destroy();
+      setImmediate(execAndClose);
+      return;
+    }
+    throw e;
+  });
+
   parser.consume(socket._handle._externalStream);
 
   parser.onIncoming = function onIncoming() {

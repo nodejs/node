@@ -7,10 +7,7 @@ var exec = require('child_process').exec;
 
 var bodyLength = 12345;
 
-var body = '';
-for (var i = 0; i < bodyLength; i++) {
-  body += 'c';
-}
+var body = 'c'.repeat(bodyLength);
 
 var server = http.createServer(function(req, res) {
   res.writeHead(200, {

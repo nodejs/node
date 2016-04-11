@@ -77,9 +77,8 @@ class IC {
 
   static bool ICUseVector(Code::Kind kind) {
     return kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
-           kind == Code::CALL_IC ||
-           (FLAG_vector_stores &&
-            (kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC));
+           kind == Code::CALL_IC || kind == Code::STORE_IC ||
+           kind == Code::KEYED_STORE_IC;
   }
 
  protected:
@@ -144,9 +143,7 @@ class IC {
                                     State old_state, State new_state,
                                     bool target_remains_ic_stub);
   // As a vector-based IC, type feedback must be updated differently.
-  static void OnTypeFeedbackChanged(Isolate* isolate, Code* host,
-                                    TypeFeedbackVector* vector, State old_state,
-                                    State new_state);
+  static void OnTypeFeedbackChanged(Isolate* isolate, Code* host);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.
@@ -532,20 +529,8 @@ class KeyedStoreIC : public StoreIC {
            IcCheckTypeField::encode(ELEMENT);
   }
 
-  static KeyedAccessStoreMode GetKeyedAccessStoreMode(
-      ExtraICState extra_state) {
-    DCHECK(!FLAG_vector_stores);
-    return ExtraICStateKeyedAccessStoreMode::decode(extra_state);
-  }
-
   KeyedAccessStoreMode GetKeyedAccessStoreMode() {
-    DCHECK(FLAG_vector_stores);
     return casted_nexus<KeyedStoreICNexus>()->GetKeyedAccessStoreMode();
-  }
-
-  static IcCheckType GetKeyType(ExtraICState extra_state) {
-    DCHECK(!FLAG_vector_stores);
-    return IcCheckTypeField::decode(extra_state);
   }
 
   KeyedStoreIC(FrameDepth depth, Isolate* isolate,
@@ -603,8 +588,6 @@ class KeyedStoreIC : public StoreIC {
 
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
-
-  void ValidateStoreMode(Handle<Code> stub);
 
   friend class IC;
 };
@@ -679,7 +662,8 @@ class ToBooleanIC : public IC {
 
 // Helper for BinaryOpIC and CompareIC.
 enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
-void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
+void PatchInlinedSmiCode(Isolate* isolate, Address address,
+                         InlinedSmiCheck check);
 
 }  // namespace internal
 }  // namespace v8

@@ -36,7 +36,7 @@ class OFStreamBase : public std::streambuf {
 class OFStream : public std::ostream {
  public:
   explicit OFStream(FILE* f);
-  ~OFStream();
+  virtual ~OFStream();
 
  private:
   OFStreamBase buf_;

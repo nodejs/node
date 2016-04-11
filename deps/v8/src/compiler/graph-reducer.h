@@ -73,7 +73,8 @@ class AdvancedReducer : public Reducer {
     // Revisit the {node} again later.
     virtual void Revisit(Node* node) = 0;
     // Replace value uses of {node} with {value} and effect uses of {node} with
-    // {effect}. If {effect == NULL}, then use the effect input to {node}. All
+    // {effect}. If {effect == nullptr}, then use the effect input to {node}.
+    // All
     // control uses will be relaxed assuming {node} cannot throw.
     virtual void ReplaceWithValue(Node* node, Node* value, Node* effect,
                                   Node* control) = 0;
@@ -149,7 +150,7 @@ class GraphReducer : public AdvancedReducer::Editor {
   void Replace(Node* node, Node* replacement) final;
 
   // Replace value uses of {node} with {value} and effect uses of {node} with
-  // {effect}. If {effect == NULL}, then use the effect input to {node}. All
+  // {effect}. If {effect == nullptr}, then use the effect input to {node}. All
   // control uses will be relaxed assuming {node} cannot throw.
   void ReplaceWithValue(Node* node, Node* value, Node* effect,
                         Node* control) final;

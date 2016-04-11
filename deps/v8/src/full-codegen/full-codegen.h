@@ -7,7 +7,8 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
-#include "src/ast.h"
+#include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/bit-vector.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
@@ -15,7 +16,6 @@
 #include "src/compiler.h"
 #include "src/globals.h"
 #include "src/objects.h"
-#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -83,8 +83,7 @@ class FullCodeGenerator: public AstVisitor {
 #elif V8_TARGET_ARCH_ARM
   static const int kCodeSizeMultiplier = 149;
 #elif V8_TARGET_ARCH_ARM64
-// TODO(all): Copied ARM value. Check this is sensible for ARM64.
-  static const int kCodeSizeMultiplier = 149;
+  static const int kCodeSizeMultiplier = 220;
 #elif V8_TARGET_ARCH_PPC64
   static const int kCodeSizeMultiplier = 200;
 #elif V8_TARGET_ARCH_PPC
@@ -477,27 +476,25 @@ class FullCodeGenerator: public AstVisitor {
   F(IsTypedArray)                       \
   F(IsRegExp)                           \
   F(IsJSProxy)                          \
-  F(IsConstructCall)                    \
   F(Call)                               \
-  F(DefaultConstructorCallSuper)        \
   F(ArgumentsLength)                    \
   F(Arguments)                          \
   F(ValueOf)                            \
   F(SetValueOf)                         \
   F(IsDate)                             \
-  F(DateField)                          \
   F(StringCharFromCode)                 \
   F(StringCharAt)                       \
   F(OneByteSeqStringSetChar)            \
   F(TwoByteSeqStringSetChar)            \
   F(ObjectEquals)                       \
   F(IsFunction)                         \
-  F(IsSpecObject)                       \
+  F(IsJSReceiver)                       \
   F(IsSimdValue)                        \
   F(MathPow)                            \
   F(IsMinusZero)                        \
   F(HasCachedArrayIndex)                \
   F(GetCachedArrayIndex)                \
+  F(GetSuperConstructor)                \
   F(FastOneByteArrayJoin)               \
   F(GeneratorNext)                      \
   F(GeneratorThrow)                     \
@@ -632,8 +629,6 @@ class FullCodeGenerator: public AstVisitor {
   void EmitSetHomeObjectAccumulator(Expression* initializer, int offset,
                                     FeedbackVectorSlot slot);
 
-  void EmitLoadSuperConstructor(SuperCallReference* super_call_ref);
-
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
@@ -660,9 +655,12 @@ class FullCodeGenerator: public AstVisitor {
   // This is used in loop headers where we want to break for each iteration.
   void SetExpressionAsStatementPosition(Expression* expr);
 
-  void SetCallPosition(Expression* expr, int argc);
+  void SetCallPosition(Expression* expr);
 
-  void SetConstructCallPosition(Expression* expr);
+  void SetConstructCallPosition(Expression* expr) {
+    // Currently call and construct calls are treated the same wrt debugging.
+    SetCallPosition(expr);
+  }
 
   // Non-local control flow support.
   void EnterTryBlock(int handler_index, Label* handler);

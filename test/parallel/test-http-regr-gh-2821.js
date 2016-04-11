@@ -16,8 +16,7 @@ server.listen(common.PORT, function() {
     port: common.PORT
   });
 
-  const payload = new Buffer(16390);
-  payload.fill('Й');
+  const payload = Buffer.alloc(16390, 'Й');
   req.write(payload);
   req.end();
 });

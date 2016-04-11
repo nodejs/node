@@ -22,24 +22,7 @@ var IteratorPrototype = utils.ImportNow("IteratorPrototype");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var MakeTypeError;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
-
-macro TYPED_ARRAYS(FUNCTION)
-  FUNCTION(Uint8Array)
-  FUNCTION(Int8Array)
-  FUNCTION(Uint16Array)
-  FUNCTION(Int16Array)
-  FUNCTION(Uint32Array)
-  FUNCTION(Int32Array)
-  FUNCTION(Float32Array)
-  FUNCTION(Float64Array)
-  FUNCTION(Uint8ClampedArray)
-endmacro
-
-macro COPY_FROM_GLOBAL(NAME)
-  var GlobalNAME = global.NAME;
-endmacro
-
-TYPED_ARRAYS(COPY_FROM_GLOBAL)
+var GlobalTypedArray = global.Uint8Array.__proto__;
 
 utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
@@ -78,7 +61,7 @@ function ArrayIteratorNext() {
   var value = UNDEFINED;
   var done = true;
 
-  if (!IS_SPEC_OBJECT(iterator) ||
+  if (!IS_RECEIVER(iterator) ||
       !HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'Array Iterator.prototype.next', this);
@@ -152,15 +135,12 @@ utils.SetFunctionName(ArrayValues, 'values');
 %AddNamedProperty(GlobalArray.prototype, iteratorSymbol, ArrayValues,
                   DONT_ENUM);
 
-macro EXTEND_TYPED_ARRAY(NAME)
-  %AddNamedProperty(GlobalNAME.prototype, 'entries', ArrayEntries, DONT_ENUM);
-  %AddNamedProperty(GlobalNAME.prototype, 'values', ArrayValues, DONT_ENUM);
-  %AddNamedProperty(GlobalNAME.prototype, 'keys', ArrayKeys, DONT_ENUM);
-  %AddNamedProperty(GlobalNAME.prototype, iteratorSymbol, ArrayValues,
-                    DONT_ENUM);
-endmacro
-
-TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
+%AddNamedProperty(GlobalTypedArray.prototype,
+                  'entries', ArrayEntries, DONT_ENUM);
+%AddNamedProperty(GlobalTypedArray.prototype, 'values', ArrayValues, DONT_ENUM);
+%AddNamedProperty(GlobalTypedArray.prototype, 'keys', ArrayKeys, DONT_ENUM);
+%AddNamedProperty(GlobalTypedArray.prototype,
+                  iteratorSymbol, ArrayValues, DONT_ENUM);
 
 // -------------------------------------------------------------------
 // Exports

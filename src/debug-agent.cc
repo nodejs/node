@@ -22,7 +22,7 @@
 #include "debug-agent.h"
 
 #include "node.h"
-#include "node_internals.h"  // ARRAY_SIZE
+#include "node_internals.h"  // arraysize
 #include "env.h"
 #include "env-inl.h"
 #include "v8.h"
@@ -120,11 +120,12 @@ bool Agent::Start(int port, bool wait) {
 
 
 void Agent::Enable() {
-  v8::Debug::SetMessageHandler(MessageHandler);
+  v8::Debug::SetMessageHandler(parent_env()->isolate(), MessageHandler);
 
   // Assign environment to the debugger's context
   // NOTE: The debugger context is created after `SetMessageHandler()` call
-  parent_env()->AssignToContext(v8::Debug::GetDebugContext());
+  auto debug_context = v8::Debug::GetDebugContext(parent_env()->isolate());
+  parent_env()->AssignToContext(debug_context);
 }
 
 
@@ -135,7 +136,7 @@ void Agent::Stop() {
     return;
   }
 
-  v8::Debug::SetMessageHandler(nullptr);
+  v8::Debug::SetMessageHandler(parent_env()->isolate(), nullptr);
 
   // Send empty message to terminate things
   EnqueueMessage(new AgentMessage(nullptr, 0));
@@ -175,9 +176,9 @@ void Agent::WorkerRun() {
         isolate,
         &child_loop_,
         context,
-        ARRAY_SIZE(argv),
+        arraysize(argv),
         argv,
-        ARRAY_SIZE(argv),
+        arraysize(argv),
         argv);
 
     child_env_ = env;
@@ -215,7 +216,8 @@ void Agent::InitAdaptor(Environment* env) {
   NODE_SET_PROTOTYPE_METHOD(t, "notifyWait", NotifyWait);
   NODE_SET_PROTOTYPE_METHOD(t, "sendCommand", SendCommand);
 
-  Local<Object> api = t->GetFunction()->NewInstance();
+  Local<Object> api =
+      t->GetFunction()->NewInstance(env->context()).ToLocalChecked();
   api->SetAlignedPointerInInternalField(0, this);
 
   api->Set(String::NewFromUtf8(isolate, "port"), Integer::New(isolate, port_));
@@ -301,7 +303,7 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
     MakeCallback(isolate,
                  api,
                  "onmessage",
-                 ARRAY_SIZE(argv),
+                 arraysize(argv),
                  argv);
     delete msg;
   }

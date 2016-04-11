@@ -101,6 +101,19 @@ inline void Environment::AsyncHooks::set_enable_callbacks(uint32_t flag) {
   fields_[kEnableCallbacks] = flag;
 }
 
+inline Environment::AsyncCallbackScope::AsyncCallbackScope(Environment* env)
+    : env_(env) {
+  env_->makecallback_cntr_++;
+}
+
+inline Environment::AsyncCallbackScope::~AsyncCallbackScope() {
+  env_->makecallback_cntr_--;
+}
+
+inline bool Environment::AsyncCallbackScope::in_makecallback() {
+  return env_->makecallback_cntr_ > 1;
+}
+
 inline Environment::DomainFlag::DomainFlag() {
   for (int i = 0; i < kFieldsCount; ++i) fields_[i] = 0;
 }
@@ -117,7 +130,7 @@ inline uint32_t Environment::DomainFlag::count() const {
   return fields_[kCount];
 }
 
-inline Environment::TickInfo::TickInfo() : in_tick_(false), last_threw_(false) {
+inline Environment::TickInfo::TickInfo() {
   for (int i = 0; i < kFieldsCount; ++i)
     fields_[i] = 0;
 }
@@ -130,32 +143,16 @@ inline int Environment::TickInfo::fields_count() const {
   return kFieldsCount;
 }
 
-inline bool Environment::TickInfo::in_tick() const {
-  return in_tick_;
-}
-
 inline uint32_t Environment::TickInfo::index() const {
   return fields_[kIndex];
-}
-
-inline bool Environment::TickInfo::last_threw() const {
-  return last_threw_;
 }
 
 inline uint32_t Environment::TickInfo::length() const {
   return fields_[kLength];
 }
 
-inline void Environment::TickInfo::set_in_tick(bool value) {
-  in_tick_ = value;
-}
-
 inline void Environment::TickInfo::set_index(uint32_t value) {
   fields_[kIndex] = value;
-}
-
-inline void Environment::TickInfo::set_last_threw(bool value) {
-  last_threw_ = value;
 }
 
 inline Environment::ArrayBufferAllocatorInfo::ArrayBufferAllocatorInfo() {
@@ -223,6 +220,7 @@ inline Environment::Environment(v8::Local<v8::Context> context,
       using_domains_(false),
       printed_error_(false),
       trace_sync_io_(false),
+      makecallback_cntr_(0),
       async_wrap_uid_(0),
       debugger_agent_(this),
       http_parser_buffer_(nullptr),

@@ -156,6 +156,7 @@ class ProfileNode {
   const std::vector<CpuProfileDeoptInfo>& deopt_infos() const {
     return deopt_infos_;
   }
+  Isolate* isolate() const;
 
   void Print(int indent);
 
@@ -186,7 +187,7 @@ class ProfileNode {
 
 class ProfileTree {
  public:
-  ProfileTree();
+  explicit ProfileTree(Isolate* isolate);
   ~ProfileTree();
 
   ProfileNode* AddPathFromEnd(
@@ -200,6 +201,8 @@ class ProfileTree {
     root_->Print(0);
   }
 
+  Isolate* isolate() const { return isolate_; }
+
  private:
   template <typename Callback>
   void TraverseDepthFirst(Callback* callback);
@@ -207,6 +210,7 @@ class ProfileTree {
   CodeEntry root_entry_;
   unsigned next_node_id_;
   ProfileNode* root_;
+  Isolate* isolate_;
 
   unsigned next_function_id_;
   HashMap function_ids_;
@@ -217,7 +221,7 @@ class ProfileTree {
 
 class CpuProfile {
  public:
-  CpuProfile(const char* title, bool record_samples);
+  CpuProfile(Isolate* isolate, const char* title, bool record_samples);
 
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(base::TimeTicks timestamp, const Vector<CodeEntry*>& path,
@@ -338,6 +342,8 @@ class CpuProfilesCollection {
   StringsStorage function_and_resource_names_;
   List<CodeEntry*> code_entries_;
   List<CpuProfile*> finished_profiles_;
+
+  Isolate* isolate_;
 
   // Accessed by VM thread and profile generator thread.
   List<CpuProfile*> current_profiles_;

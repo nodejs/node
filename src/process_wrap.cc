@@ -40,6 +40,7 @@ class ProcessWrap : public HandleWrap {
 
     env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
+    env->SetProtoMethod(constructor, "isRefed", HandleWrap::IsRefed);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"),
                 constructor->GetFunction());
@@ -252,7 +253,7 @@ class ProcessWrap : public HandleWrap {
       OneByteString(env->isolate(), signo_string(term_signal))
     };
 
-    wrap->MakeCallback(env->onexit_string(), ARRAY_SIZE(argv), argv);
+    wrap->MakeCallback(env->onexit_string(), arraysize(argv), argv);
   }
 
   uv_process_t process_;

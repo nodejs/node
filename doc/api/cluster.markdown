@@ -244,7 +244,7 @@ Causes `.suicide` to be set.
 Note that after a server is closed, it will no longer accept new connections,
 but connections may be accepted by any other listening worker. Existing
 connections will be allowed to close as usual. When no more connections exist,
-see [server.close()][], the IPC channel to the worker will close allowing it to
+see [`server.close()`][], the IPC channel to the worker will close allowing it to
 die gracefully.
 
 The above applies *only* to server connections, client connections are not
@@ -487,10 +487,28 @@ The `addressType` is one of:
 
 * `worker` {cluster.Worker}
 * `message` {Object}
+* `handle` {undefined|Object}
 
 Emitted when any worker receives a message.
 
 See [child_process event: 'message'][].
+
+Before Node.js v6.0, this event emitted only the message and the handle,
+but not the worker object, contrary to what the documentation stated.
+
+If you need to support older versions and don't need the worker object,
+you can work around the discrepancy by checking the number of arguments:
+
+```js
+cluster.on('message', function(worker, message, handle) {
+  if (arguments.length === 2) {
+    handle = message;
+    message = worker;
+    worker = undefined;
+  }
+  // ...
+});
+```
 
 ## Event: 'online'
 
@@ -624,6 +642,7 @@ cluster.setupMaster({
 });
 cluster.fork(); // https worker
 cluster.setupMaster({
+  exec: 'worker.js',
   args: ['--use', 'http']
 });
 cluster.fork(); // http worker

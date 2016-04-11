@@ -6,7 +6,7 @@ var dgram = require('dgram');
 var dns = require('dns');
 
 var socket = dgram.createSocket('udp4');
-var buffer = new Buffer('gary busey');
+var buffer = Buffer.from('gary busey');
 
 dns.setServers([]);
 

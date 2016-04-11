@@ -208,7 +208,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
 #endif
 
   // The target for C calls is always an address (i.e. machine pointer).
-  MachineType target_type = kMachPtr;
+  MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
   return new (zone) CallDescriptor(  // --
       CallDescriptor::kCallAddress,  // kind

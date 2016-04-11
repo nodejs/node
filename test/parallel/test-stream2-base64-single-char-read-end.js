@@ -14,7 +14,7 @@ src._read = function(n) {
   if (!hasRead) {
     hasRead = true;
     process.nextTick(function() {
-      src.push(new Buffer('1'));
+      src.push(Buffer.from('1'));
       src.push(null);
     });
   }

@@ -18,7 +18,7 @@ if (process.argv[2] === 'child') {
 }
 
 // Run the script in a shell but close stdout and stderr.
-var cmd = '"' + process.execPath + '" "' + __filename + '" child 1>&- 2>&-';
+var cmd = `"${process.execPath}" "${__filename}" child 1>&- 2>&-`;
 var proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit' });
 
 proc.on('exit', common.mustCall(function(exitCode) {

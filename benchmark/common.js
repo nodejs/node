@@ -1,3 +1,4 @@
+'use strict';
 var assert = require('assert');
 var fs = require('fs');
 var path = require('path');
@@ -27,7 +28,7 @@ if (module === require.main) {
   var tests = fs.readdirSync(dir);
 
   if (testFilter) {
-    var filteredTests = tests.filter(function(item){
+    var filteredTests = tests.filter(function(item) {
       if (item.lastIndexOf(testFilter) >= 0) {
         return item;
       }
@@ -48,7 +49,7 @@ function hasWrk() {
   if (result.error && result.error.code === 'ENOENT') {
     console.error('Couldn\'t locate `wrk` which is needed for running ' +
       'benchmarks. Check benchmark/README.md for further instructions.');
-      process.exit(-1);
+    process.exit(-1);
   }
 }
 
@@ -86,7 +87,7 @@ function Benchmark(fn, options) {
   this.options = options;
   this.config = parseOpts(options);
   this._name = require.main.filename.split(/benchmark[\/\\]/).pop();
-  this._start = [0,0];
+  this._start = [0, 0];
   this._started = false;
 
   var self = this;
@@ -120,7 +121,7 @@ Benchmark.prototype.http = function(p, args, cb) {
 
     if (code) {
       console.error('wrk failed with ' + code);
-      process.exit(code)
+      process.exit(code);
     }
     var match = out.match(regexp);
     var qps = match && +match[1];
@@ -140,8 +141,6 @@ Benchmark.prototype._run = function() {
   // some options weren't set.
   // run with all combinations
   var main = require.main.filename;
-  var settings = [];
-  var queueLen = 1;
   var options = this.options;
 
   var queue = Object.keys(options).reduce(function(set, key) {
@@ -153,6 +152,10 @@ Benchmark.prototype._run = function() {
     var j = 0;
     set.forEach(function(s) {
       vals.forEach(function(val) {
+        if (typeof val !== 'number' && typeof val !== 'string') {
+          throw new TypeError(`configuration "${key}" had type ${typeof val}`);
+        }
+
         newSet[j++] = s.concat(key + '=' + val);
       });
     });
@@ -205,7 +208,7 @@ function parseOpts(options) {
     });
   }
   return num === 0 ? conf : null;
-};
+}
 
 Benchmark.prototype.start = function() {
   if (this._started)
@@ -223,8 +226,8 @@ Benchmark.prototype.end = function(operations) {
   if (typeof operations !== 'number')
     throw new Error('called end() without specifying operation count');
 
-  var time = elapsed[0] + elapsed[1]/1e9;
-  var rate = operations/time;
+  var time = elapsed[0] + elapsed[1] / 1e9;
+  var rate = operations / time;
   this.report(rate);
 };
 

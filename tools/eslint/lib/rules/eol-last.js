@@ -17,16 +17,15 @@ module.exports = function(context) {
     return {
 
         "Program": function checkBadEOF(node) {
+
             // Get the whole source code, not for node only.
             var src = context.getSource(),
                 location = {column: 1},
                 linebreakStyle = context.options[0] || "unix",
                 linebreak = linebreakStyle === "unix" ? "\n" : "\r\n";
-            if (src.length === 0) {
-                return;
-            }
 
             if (src[src.length - 1] !== "\n") {
+
                 // file is not newline-terminated
                 location.line = src.split(/\n/g).length;
                 context.report({

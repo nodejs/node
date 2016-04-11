@@ -21,7 +21,7 @@ var t = new Transform({
   flush: _flush
 });
 
-t.end(new Buffer('blerg'));
+t.end(Buffer.from('blerg'));
 t.resume();
 
 process.on('exit', function() {

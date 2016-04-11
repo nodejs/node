@@ -212,6 +212,26 @@ inline bool SignedSubOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
 }
 
 
+// SignedAddOverflow64(lhs,rhs,val) performs a signed summation of |lhs| and
+// |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed summation resulted in an overflow.
+inline bool SignedAddOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
+  uint64_t res = static_cast<uint64_t>(lhs) + static_cast<uint64_t>(rhs);
+  *val = bit_cast<int64_t>(res);
+  return ((res ^ lhs) & (res ^ rhs) & (1ULL << 63)) != 0;
+}
+
+
+// SignedSubOverflow64(lhs,rhs,val) performs a signed subtraction of |lhs| and
+// |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed subtraction resulted in an overflow.
+inline bool SignedSubOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
+  uint64_t res = static_cast<uint64_t>(lhs) - static_cast<uint64_t>(rhs);
+  *val = bit_cast<int64_t>(res);
+  return ((res ^ lhs) & (res ^ ~rhs) & (1ULL << 63)) != 0;
+}
+
+
 // SignedMulHigh32(lhs, rhs) multiplies two signed 32-bit values |lhs| and
 // |rhs|, extracts the most significant 32 bits of the result, and returns
 // those.

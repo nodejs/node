@@ -4,12 +4,12 @@ const assert = require('assert');
 
 const Buffer = require('buffer').Buffer;
 
-const b = new Buffer('abcdef');
-const buf_a = new Buffer('a');
-const buf_bc = new Buffer('bc');
-const buf_f = new Buffer('f');
-const buf_z = new Buffer('z');
-const buf_empty = new Buffer('');
+const b = Buffer.from('abcdef');
+const buf_a = Buffer.from('a');
+const buf_bc = Buffer.from('bc');
+const buf_f = Buffer.from('f');
+const buf_z = Buffer.from('z');
+const buf_empty = Buffer.from('');
 
 assert(b.includes('a'));
 assert(!b.includes('a', 1));
@@ -71,70 +71,72 @@ assert(b.includes('f', 5));
 assert(b.includes('f', -1));
 assert(!b.includes('f', 6));
 
-assert(b.includes(Buffer('d'), 2));
-assert(b.includes(Buffer('f'), 5));
-assert(b.includes(Buffer('f'), -1));
-assert(!b.includes(Buffer('f'), 6));
+assert(b.includes(Buffer.from('d'), 2));
+assert(b.includes(Buffer.from('f'), 5));
+assert(b.includes(Buffer.from('f'), -1));
+assert(!b.includes(Buffer.from('f'), 6));
 
-assert(!Buffer('ff').includes(Buffer('f'), 1, 'ucs2'));
+assert(!Buffer.from('ff').includes(Buffer.from('f'), 1, 'ucs2'));
 
 // test hex encoding
 assert(
-    Buffer(b.toString('hex'), 'hex')
+    Buffer.from(b.toString('hex'), 'hex')
     .includes('64', 0, 'hex'));
 assert(
-    Buffer(b.toString('hex'), 'hex')
-    .includes(Buffer('64', 'hex'), 0, 'hex'));
+    Buffer.from(b.toString('hex'), 'hex')
+    .includes(Buffer.from('64', 'hex'), 0, 'hex'));
 
 // test base64 encoding
 assert(
-    Buffer(b.toString('base64'), 'base64')
+    Buffer.from(b.toString('base64'), 'base64')
     .includes('ZA==', 0, 'base64'));
 assert(
-    Buffer(b.toString('base64'), 'base64')
-    .includes(Buffer('ZA==', 'base64'), 0, 'base64'));
+    Buffer.from(b.toString('base64'), 'base64')
+    .includes(Buffer.from('ZA==', 'base64'), 0, 'base64'));
 
 // test ascii encoding
 assert(
-    Buffer(b.toString('ascii'), 'ascii')
+    Buffer.from(b.toString('ascii'), 'ascii')
     .includes('d', 0, 'ascii'));
 assert(
-    Buffer(b.toString('ascii'), 'ascii')
-    .includes(Buffer('d', 'ascii'), 0, 'ascii'));
+    Buffer.from(b.toString('ascii'), 'ascii')
+    .includes(Buffer.from('d', 'ascii'), 0, 'ascii'));
 
 // test binary encoding
 assert(
-    Buffer(b.toString('binary'), 'binary')
+    Buffer.from(b.toString('binary'), 'binary')
     .includes('d', 0, 'binary'));
 assert(
-    Buffer(b.toString('binary'), 'binary')
-    .includes(Buffer('d', 'binary'), 0, 'binary'));
+    Buffer.from(b.toString('binary'), 'binary')
+    .includes(Buffer.from('d', 'binary'), 0, 'binary'));
 
 
 // test usc2 encoding
-var twoByteString = new Buffer('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
+var twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
 assert(twoByteString.includes('\u0395', 4, 'ucs2'));
 assert(twoByteString.includes('\u03a3', -4, 'ucs2'));
 assert(twoByteString.includes('\u03a3', -6, 'ucs2'));
 assert(twoByteString.includes(
-  new Buffer('\u03a3', 'ucs2'), -6, 'ucs2'));
+  Buffer.from('\u03a3', 'ucs2'), -6, 'ucs2'));
 assert(!twoByteString.includes('\u03a3', -2, 'ucs2'));
 
 const mixedByteStringUcs2 =
-    new Buffer('\u039a\u0391abc\u03a3\u03a3\u0395', 'ucs2');
+    Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395', 'ucs2');
 assert(mixedByteStringUcs2.includes('bc', 0, 'ucs2'));
 assert(mixedByteStringUcs2.includes('\u03a3', 0, 'ucs2'));
 assert(!mixedByteStringUcs2.includes('\u0396', 0, 'ucs2'));
 
 assert(
-    6, mixedByteStringUcs2.includes(new Buffer('bc', 'ucs2'), 0, 'ucs2'));
+    6, mixedByteStringUcs2.includes(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
 assert(
-    10, mixedByteStringUcs2.includes(new Buffer('\u03a3', 'ucs2'), 0, 'ucs2'));
+    10, mixedByteStringUcs2.includes(Buffer.from('\u03a3', 'ucs2'),
+    0, 'ucs2'));
 assert(
-    -1, mixedByteStringUcs2.includes(new Buffer('\u0396', 'ucs2'), 0, 'ucs2'));
+    -1, mixedByteStringUcs2.includes(Buffer.from('\u0396', 'ucs2'),
+    0, 'ucs2'));
 
-twoByteString = new Buffer('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
+twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
 // Test single char pattern
 assert(twoByteString.includes('\u039a', 0, 'ucs2'));
@@ -150,7 +152,7 @@ assert(twoByteString.includes('\u0391\u03a3', 0, 'ucs2'), 'Alpha Sigma');
 assert(twoByteString.includes('\u03a3\u03a3', 0, 'ucs2'), 'Sigma Sigma');
 assert(twoByteString.includes('\u03a3\u0395', 0, 'ucs2'), 'Sigma Epsilon');
 
-const mixedByteStringUtf8 = new Buffer('\u039a\u0391abc\u03a3\u03a3\u0395');
+const mixedByteStringUtf8 = Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395');
 assert(mixedByteStringUtf8.includes('bc'));
 assert(mixedByteStringUtf8.includes('bc', 5));
 assert(mixedByteStringUtf8.includes('bc', -8));
@@ -165,7 +167,7 @@ for (let i = 66; i < 76; i++) {  // from 'B' to 'K'
   longString =  longString + String.fromCharCode(i) + longString;
 }
 
-const longBufferString = new Buffer(longString);
+const longBufferString = Buffer.from(longString);
 
 // pattern of 15 chars, repeated every 16 chars in long
 var pattern = 'ABACABADABACABA';
@@ -181,7 +183,7 @@ assert(longBufferString.includes(pattern), 'Long JABACABA..., First J');
 assert(longBufferString.includes(pattern, 512), 'Long JABACABA..., Second J');
 
 // Search for a non-ASCII string in a pure ASCII string.
-const asciiString = new Buffer(
+const asciiString = Buffer.from(
     'arglebargleglopglyfarglebargleglopglyfarglebargleglopglyf');
 assert(!asciiString.includes('\x2061'));
 assert(asciiString.includes('leb', 0));
@@ -190,8 +192,8 @@ assert(asciiString.includes('leb', 0));
 const allCodePoints = [];
 for (let i = 0; i < 65536; i++) allCodePoints[i] = i;
 const allCharsString = String.fromCharCode.apply(String, allCodePoints);
-const allCharsBufferUtf8 = new Buffer(allCharsString);
-const allCharsBufferUcs2 = new Buffer(allCharsString, 'ucs2');
+const allCharsBufferUtf8 = Buffer.from(allCharsString);
+const allCharsBufferUcs2 = Buffer.from(allCharsString, 'ucs2');
 
 // Search for string long enough to trigger complex search with ASCII pattern
 // and UC16 subject.

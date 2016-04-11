@@ -3,7 +3,7 @@ require('../common');
 var assert = require('assert');
 var dgram = require('dgram');
 
-var buf = Buffer('test');
+var buf = Buffer.from('test');
 var host = '127.0.0.1';
 var sock = dgram.createSocket('udp4');
 

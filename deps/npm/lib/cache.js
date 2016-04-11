@@ -285,7 +285,7 @@ function add (args, where, cb) {
         break
       case 'remote':
         // get auth, if possible
-        mapToRegistry(spec, npm.config, function (err, uri, auth) {
+        mapToRegistry(p.raw, npm.config, function (err, uri, auth) {
           if (err) return cb(err)
 
           addRemoteTarball(p.spec, { name: p.name }, null, auth, cb)

@@ -1,4 +1,4 @@
-*%(basename)s:7: SyntaxError: Unexpected token const
+*%(basename)s:8: SyntaxError: Unexpected token const
 const x = 42;
 ^^^^^
 

@@ -27,6 +27,9 @@
 #include <errno.h>
 
 #include <sys/time.h>
+#include <sys/resource.h>  /* getrlimit() */
+
+#include <limits.h>
 
 #undef NANOSEC
 #define NANOSEC ((uint64_t) 1e9)
@@ -55,6 +58,11 @@ static void* uv__thread_start(void *arg)
 int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   struct thread_ctx* ctx;
   int err;
+  pthread_attr_t* attr;
+#if defined(__APPLE__)
+  pthread_attr_t attr_storage;
+  struct rlimit lim;
+#endif
 
   ctx = uv__malloc(sizeof(*ctx));
   if (ctx == NULL)
@@ -63,7 +71,30 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   ctx->entry = entry;
   ctx->arg = arg;
 
-  err = pthread_create(tid, NULL, uv__thread_start, ctx);
+  /* On OSX threads other than the main thread are created with a reduced stack
+   * size by default, adjust it to RLIMIT_STACK.
+   */
+#if defined(__APPLE__)
+  if (getrlimit(RLIMIT_STACK, &lim))
+    abort();
+
+  attr = &attr_storage;
+  if (pthread_attr_init(attr))
+    abort();
+
+  if (lim.rlim_cur != RLIM_INFINITY &&
+      lim.rlim_cur >= PTHREAD_STACK_MIN) {
+    if (pthread_attr_setstacksize(attr, lim.rlim_cur))
+      abort();
+  }
+#else
+  attr = NULL;
+#endif
+
+  err = pthread_create(tid, attr, uv__thread_start, ctx);
+
+  if (attr != NULL)
+    pthread_attr_destroy(attr);
 
   if (err)
     uv__free(ctx);

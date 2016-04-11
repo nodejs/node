@@ -90,10 +90,24 @@
   # ES2015 ToLength semantics
   'ecma_3/RegExp/15.10.6.2-2': [FAIL],
 
+  # Escaped keywords are early errors in ES6
+  'ecma_3/Unicode/uc-003': [FAIL],
+
   # RegExp.multiline is not part of any ECMAScript specification, and is
   # slated for deprecation in Mozilla
   # (https://bugzilla.mozilla.org/show_bug.cgi?id=1220457)
   'js1_5/Regress/regress-418504': [FAIL],
+
+  # ES2015 const redefinition throws, initializers are required, and no
+  # global object properties are made, unlike Mozilla legacy const
+  'js1_5/Regress/regress-103602': [FAIL],
+  'js1_5/Regress/regress-321874': [FAIL],
+  'js1_5/Regress/regress-383674': [FAIL],
+  'js1_5/extensions/regress-452565': [FAIL],
+  'js1_5/extensions/scope-001': [FAIL],
+  # To add insult to injury, these tests time out in debug mode
+  'js1_5/Regress/regress-360969-03': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-360969-04': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
   ##################### SKIPPED TESTS #####################
 
@@ -158,8 +172,6 @@
   ##################### FLAKY TESTS #####################
 
   # These tests time out in debug mode but pass in product mode
-  'js1_5/Regress/regress-360969-03': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
-  'js1_5/Regress/regress-360969-04': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
   'js1_5/Regress/regress-360969-05': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
   'js1_5/Regress/regress-360969-06': [PASS, ['mode == debug', TIMEOUT, NO_VARIANTS]],
   'js1_5/extensions/regress-365527': [PASS, SLOW, ['mode == debug', TIMEOUT, NO_VARIANTS]],
@@ -603,27 +615,12 @@
   'js1_5/Regress/regress-290575': [PASS, FAIL_OK],
 
 
-  # Fails because of the way function declarations are
-  # handled in V8/JSC. V8 follows IE behavior and introduce
-  # all nested function declarations when entering the
-  # surrounding function, whereas Spidermonkey declares
-  # them dynamically when the statement is executed.
-  'ecma_3/Function/scope-001': [FAIL_OK],
-  'ecma_3/FunExpr/fe-001': [FAIL_OK],
-  'js1_5/Scope/regress-184107': [FAIL_OK],
-
-
   # Function is deletable in V8 and JSC.
   'js1_5/Regress/regress-352604': [FAIL_OK],
 
 
   # Cannot call strings as functions. Expects not to crash.
   'js1_5/Regress/regress-417893': [FAIL_OK],
-
-
-  # Unsupported use of "[]" as function parameter. We match JSC.
-  'js1_5/Regress/regress-416737-01': [FAIL_OK],
-  'js1_5/Regress/regress-416737-02': [FAIL_OK],
 
 
   # Illegal escape-sequences in string literals. Has already been fixed
@@ -674,6 +671,9 @@
   # Bug 762: http://code.google.com/p/v8/issues/detail?id=762
   # We do not correctly handle assignments within "with"
   'ecma_3/Statements/12.10-01': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4647
+  'ecma_3/FunExpr/fe-001': [FAIL_OK],
 
   ##################### MOZILLA EXTENSION TESTS #####################
 

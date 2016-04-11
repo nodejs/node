@@ -64,6 +64,7 @@ module.exports = function (obj, opts) {
                 ;
                 out.push(indent + space + keyValue);
             }
+            seen.splice(seen.indexOf(node), 1);
             return '{' + out.join(',') + indent + '}';
         }
     })({ '': obj }, '', obj, 0);

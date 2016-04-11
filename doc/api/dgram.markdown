@@ -187,7 +187,7 @@ drop membership on all valid interfaces.
 
 ### socket.send(msg, [offset, length,] port, address[, callback])
 
-* `buf` {Buffer|String|Array} Message to be sent
+* `msg` {Buffer|String|Array} Message to be sent
 * `offset` {Number} Integer. Optional. Offset in the buffer where the message starts.
 * `length` {Number} Integer. Optional. Number of bytes in the message.
 * `port` {Number} Integer. Destination port.
@@ -197,22 +197,19 @@ drop membership on all valid interfaces.
 Broadcasts a datagram on the socket. The destination `port` and `address` must
 be specified.
 
-The `msg` argument containins the message to be sent.
+The `msg` argument contains the message to be sent.
 Depending on its type, different behavior can apply. If `msg` is a `Buffer`,
 the `offset` and `length` specify the offset within the `Buffer` where the
 message begins and the number of bytes in the message, respectively.
 If `msg` is a `String`, then it is automatically converted to a `Buffer`
-with `'utf8'` enecoding. With messages that
+with `'utf8'` encoding. With messages that
 contain  multi-byte characters, `offset` and `length` will be calculated with
 respect to [byte length][] and not the character position.
 If `msg` is an array, `offset` and `length` must not be specified.
 
 The `address` argument is a string. If the value of `address` is a host name,
 DNS will be used to resolve the address of the host. If the `address` is not
-specified or is an empty string, `'0.0.0.0'` or `'::0'` will be used instead.
-It is possible, depending on the network configuration, that these defaults
-may not work; accordingly, it is best to be explicit about the destination
-address.
+specified or is an empty string, `'127.0.0.1'` or `'::1'` will be used instead.
 
 If the socket has not been previously bound with a call to `bind`, the socket
 is assigned a random port number and is bound to the "all interfaces" address

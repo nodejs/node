@@ -20,11 +20,11 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
                                   public CallHelper<ReturnType>,
                                   public RawMachineAssembler {
  public:
-  RawMachineAssemblerTester(MachineType p0 = kMachNone,
-                            MachineType p1 = kMachNone,
-                            MachineType p2 = kMachNone,
-                            MachineType p3 = kMachNone,
-                            MachineType p4 = kMachNone)
+  RawMachineAssemblerTester(MachineType p0 = MachineType::None(),
+                            MachineType p1 = MachineType::None(),
+                            MachineType p2 = MachineType::None(),
+                            MachineType p3 = MachineType::None(),
+                            MachineType p4 = MachineType::None())
       : HandleAndZoneScope(),
         CallHelper<ReturnType>(
             main_isolate(),
@@ -36,7 +36,8 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
                 main_zone(),
                 CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p0,
                                 p1, p2, p3, p4)),
-            kMachPtr, InstructionSelector::SupportedMachineOperatorFlags()) {}
+            MachineType::PointerRepresentation(),
+            InstructionSelector::SupportedMachineOperatorFlags()) {}
 
   void CheckNumber(double expected, Object* number) {
     CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
@@ -77,10 +78,10 @@ template <typename ReturnType>
 class BufferedRawMachineAssemblerTester
     : public RawMachineAssemblerTester<int32_t> {
  public:
-  BufferedRawMachineAssemblerTester(MachineType p0 = kMachNone,
-                                    MachineType p1 = kMachNone,
-                                    MachineType p2 = kMachNone,
-                                    MachineType p3 = kMachNone)
+  BufferedRawMachineAssemblerTester(MachineType p0 = MachineType::None(),
+                                    MachineType p1 = MachineType::None(),
+                                    MachineType p2 = MachineType::None(),
+                                    MachineType p3 = MachineType::None())
       : BufferedRawMachineAssemblerTester(ComputeParameterCount(p0, p1, p2, p3),
                                           p0, p1, p2, p3) {}
 
@@ -101,7 +102,7 @@ class BufferedRawMachineAssemblerTester
   // Store node is provided as a parameter. By storing the return value in
   // memory it is possible to return 64 bit values.
   void Return(Node* input) {
-    Store(MachineTypeForC<ReturnType>(),
+    Store(MachineTypeForC<ReturnType>().representation(),
           RawMachineAssembler::Parameter(return_parameter_index_), input,
           kNoWriteBarrier);
     RawMachineAssembler::Return(Int32Constant(1234));
@@ -159,36 +160,45 @@ class BufferedRawMachineAssemblerTester
                                     MachineType p0, MachineType p1,
                                     MachineType p2, MachineType p3)
       : RawMachineAssemblerTester<int32_t>(
-            kMachPtr, p0 == kMachNone ? kMachNone : kMachPtr,
-            p1 == kMachNone ? kMachNone : kMachPtr,
-            p2 == kMachNone ? kMachNone : kMachPtr,
-            p3 == kMachNone ? kMachNone : kMachPtr),
+            MachineType::Pointer(),
+            p0 == MachineType::None() ? MachineType::None()
+                                      : MachineType::Pointer(),
+            p1 == MachineType::None() ? MachineType::None()
+                                      : MachineType::Pointer(),
+            p2 == MachineType::None() ? MachineType::None()
+                                      : MachineType::Pointer(),
+            p3 == MachineType::None() ? MachineType::None()
+                                      : MachineType::Pointer()),
         test_graph_signature_(
-            CSignature::New(main_zone(), kMachInt32, p0, p1, p2, p3)),
+            CSignature::New(main_zone(), MachineType::Int32(), p0, p1, p2, p3)),
         return_parameter_index_(return_parameter_index) {
-    parameter_nodes_[0] =
-        p0 == kMachNone ? nullptr : Load(p0, RawMachineAssembler::Parameter(0));
-    parameter_nodes_[1] =
-        p1 == kMachNone ? nullptr : Load(p1, RawMachineAssembler::Parameter(1));
-    parameter_nodes_[2] =
-        p2 == kMachNone ? nullptr : Load(p2, RawMachineAssembler::Parameter(2));
-    parameter_nodes_[3] =
-        p3 == kMachNone ? nullptr : Load(p3, RawMachineAssembler::Parameter(3));
+    parameter_nodes_[0] = p0 == MachineType::None()
+                              ? nullptr
+                              : Load(p0, RawMachineAssembler::Parameter(0));
+    parameter_nodes_[1] = p1 == MachineType::None()
+                              ? nullptr
+                              : Load(p1, RawMachineAssembler::Parameter(1));
+    parameter_nodes_[2] = p2 == MachineType::None()
+                              ? nullptr
+                              : Load(p2, RawMachineAssembler::Parameter(2));
+    parameter_nodes_[3] = p3 == MachineType::None()
+                              ? nullptr
+                              : Load(p3, RawMachineAssembler::Parameter(3));
   }
 
 
   static uint32_t ComputeParameterCount(MachineType p0, MachineType p1,
                                         MachineType p2, MachineType p3) {
-    if (p0 == kMachNone) {
+    if (p0 == MachineType::None()) {
       return 0;
     }
-    if (p1 == kMachNone) {
+    if (p1 == MachineType::None()) {
       return 1;
     }
-    if (p2 == kMachNone) {
+    if (p2 == MachineType::None()) {
       return 2;
     }
-    if (p3 == kMachNone) {
+    if (p3 == MachineType::None()) {
       return 3;
     }
     return 4;
@@ -205,25 +215,34 @@ template <>
 class BufferedRawMachineAssemblerTester<void>
     : public RawMachineAssemblerTester<void> {
  public:
-  BufferedRawMachineAssemblerTester(MachineType p0 = kMachNone,
-                                    MachineType p1 = kMachNone,
-                                    MachineType p2 = kMachNone,
-                                    MachineType p3 = kMachNone)
-      : RawMachineAssemblerTester<void>(p0 == kMachNone ? kMachNone : kMachPtr,
-                                        p1 == kMachNone ? kMachNone : kMachPtr,
-                                        p2 == kMachNone ? kMachNone : kMachPtr,
-                                        p3 == kMachNone ? kMachNone : kMachPtr),
+  BufferedRawMachineAssemblerTester(MachineType p0 = MachineType::None(),
+                                    MachineType p1 = MachineType::None(),
+                                    MachineType p2 = MachineType::None(),
+                                    MachineType p3 = MachineType::None())
+      : RawMachineAssemblerTester<void>(
+            p0 == MachineType::None() ? MachineType::None()
+                                      : MachineType::Pointer(),
+            p1 == MachineType::None() ? MachineType::None()
+                                      : MachineType::Pointer(),
+            p2 == MachineType::None() ? MachineType::None()
+                                      : MachineType::Pointer(),
+            p3 == MachineType::None() ? MachineType::None()
+                                      : MachineType::Pointer()),
         test_graph_signature_(
             CSignature::New(RawMachineAssemblerTester<void>::main_zone(),
-                            kMachNone, p0, p1, p2, p3)) {
-    parameter_nodes_[0] =
-        p0 == kMachNone ? nullptr : Load(p0, RawMachineAssembler::Parameter(0));
-    parameter_nodes_[1] =
-        p1 == kMachNone ? nullptr : Load(p1, RawMachineAssembler::Parameter(1));
-    parameter_nodes_[2] =
-        p2 == kMachNone ? nullptr : Load(p2, RawMachineAssembler::Parameter(2));
-    parameter_nodes_[3] =
-        p3 == kMachNone ? nullptr : Load(p3, RawMachineAssembler::Parameter(3));
+                            MachineType::None(), p0, p1, p2, p3)) {
+    parameter_nodes_[0] = p0 == MachineType::None()
+                              ? nullptr
+                              : Load(p0, RawMachineAssembler::Parameter(0));
+    parameter_nodes_[1] = p1 == MachineType::None()
+                              ? nullptr
+                              : Load(p1, RawMachineAssembler::Parameter(1));
+    parameter_nodes_[2] = p2 == MachineType::None()
+                              ? nullptr
+                              : Load(p2, RawMachineAssembler::Parameter(2));
+    parameter_nodes_[3] = p3 == MachineType::None()
+                              ? nullptr
+                              : Load(p3, RawMachineAssembler::Parameter(3));
   }
 
 
@@ -283,13 +302,15 @@ static const int32_t CHECK_VALUE = 0x99BEEDCE;
 
 // TODO(titzer): use the C-style calling convention, or any register-based
 // calling convention for binop tests.
-template <typename CType, MachineType rep, bool use_result_buffer>
+template <typename CType, bool use_result_buffer>
 class BinopTester {
  public:
-  explicit BinopTester(RawMachineAssemblerTester<int32_t>* tester)
+  explicit BinopTester(RawMachineAssemblerTester<int32_t>* tester,
+                       MachineType rep)
       : T(tester),
         param0(T->LoadFromPointer(&p0, rep)),
         param1(T->LoadFromPointer(&p1, rep)),
+        rep(rep),
         p0(static_cast<CType>(0)),
         p1(static_cast<CType>(0)),
         result(static_cast<CType>(0)) {}
@@ -311,8 +332,8 @@ class BinopTester {
 
   void AddReturn(Node* val) {
     if (use_result_buffer) {
-      T->Store(rep, T->PointerConstant(&result), T->Int32Constant(0), val,
-               kNoWriteBarrier);
+      T->Store(rep.representation(), T->PointerConstant(&result),
+               T->Int32Constant(0), val, kNoWriteBarrier);
       T->Return(T->Int32Constant(CHECK_VALUE));
     } else {
       T->Return(val);
@@ -331,6 +352,7 @@ class BinopTester {
   }
 
  protected:
+  MachineType rep;
   CType p0;
   CType p1;
   CType result;
@@ -339,21 +361,31 @@ class BinopTester {
 
 // A helper class for testing code sequences that take two int parameters and
 // return an int value.
-class Int32BinopTester
-    : public BinopTester<int32_t, kMachInt32, USE_RETURN_REGISTER> {
+class Int32BinopTester : public BinopTester<int32_t, USE_RETURN_REGISTER> {
  public:
   explicit Int32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<int32_t, kMachInt32, USE_RETURN_REGISTER>(tester) {}
+      : BinopTester<int32_t, USE_RETURN_REGISTER>(tester,
+                                                  MachineType::Int32()) {}
+};
+
+
+// A helper class for testing code sequences that take two int parameters and
+// return an int value.
+class Int64BinopTester : public BinopTester<int64_t, USE_RETURN_REGISTER> {
+ public:
+  explicit Int64BinopTester(RawMachineAssemblerTester<int32_t>* tester)
+      : BinopTester<int64_t, USE_RETURN_REGISTER>(tester,
+                                                  MachineType::Int64()) {}
 };
 
 
 // A helper class for testing code sequences that take two uint parameters and
 // return an uint value.
-class Uint32BinopTester
-    : public BinopTester<uint32_t, kMachUint32, USE_RETURN_REGISTER> {
+class Uint32BinopTester : public BinopTester<uint32_t, USE_RETURN_REGISTER> {
  public:
   explicit Uint32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<uint32_t, kMachUint32, USE_RETURN_REGISTER>(tester) {}
+      : BinopTester<uint32_t, USE_RETURN_REGISTER>(tester,
+                                                   MachineType::Uint32()) {}
 
   uint32_t call(uint32_t a0, uint32_t a1) {
     p0 = a0;
@@ -366,22 +398,21 @@ class Uint32BinopTester
 // A helper class for testing code sequences that take two float parameters and
 // return a float value.
 // TODO(titzer): figure out how to return floats correctly on ia32.
-class Float32BinopTester
-    : public BinopTester<float, kMachFloat32, USE_RESULT_BUFFER> {
+class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
  public:
   explicit Float32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<float, kMachFloat32, USE_RESULT_BUFFER>(tester) {}
+      : BinopTester<float, USE_RESULT_BUFFER>(tester, MachineType::Float32()) {}
 };
 
 
 // A helper class for testing code sequences that take two double parameters and
 // return a double value.
 // TODO(titzer): figure out how to return doubles correctly on ia32.
-class Float64BinopTester
-    : public BinopTester<double, kMachFloat64, USE_RESULT_BUFFER> {
+class Float64BinopTester : public BinopTester<double, USE_RESULT_BUFFER> {
  public:
   explicit Float64BinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<double, kMachFloat64, USE_RESULT_BUFFER>(tester) {}
+      : BinopTester<double, USE_RESULT_BUFFER>(tester, MachineType::Float64()) {
+  }
 };
 
 
@@ -389,22 +420,22 @@ class Float64BinopTester
 // and return a pointer value.
 // TODO(titzer): pick word size of pointers based on V8_TARGET.
 template <typename Type>
-class PointerBinopTester
-    : public BinopTester<Type*, kMachPtr, USE_RETURN_REGISTER> {
+class PointerBinopTester : public BinopTester<Type*, USE_RETURN_REGISTER> {
  public:
   explicit PointerBinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<Type*, kMachPtr, USE_RETURN_REGISTER>(tester) {}
+      : BinopTester<Type*, USE_RETURN_REGISTER>(tester,
+                                                MachineType::Pointer()) {}
 };
 
 
 // A helper class for testing code sequences that take two tagged parameters and
 // return a tagged value.
 template <typename Type>
-class TaggedBinopTester
-    : public BinopTester<Type*, kMachAnyTagged, USE_RETURN_REGISTER> {
+class TaggedBinopTester : public BinopTester<Type*, USE_RETURN_REGISTER> {
  public:
   explicit TaggedBinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<Type*, kMachAnyTagged, USE_RETURN_REGISTER>(tester) {}
+      : BinopTester<Type*, USE_RETURN_REGISTER>(tester,
+                                                MachineType::AnyTagged()) {}
 };
 
 // A helper class for testing compares. Wraps a machine opcode and provides
@@ -512,7 +543,7 @@ static inline void CheckFloatEq(volatile float x, volatile float y) {
   if (std::isnan(x)) {
     CHECK(std::isnan(y));
   } else {
-    CHECK(x == y);
+    CHECK_EQ(x, y);
   }
 }
 

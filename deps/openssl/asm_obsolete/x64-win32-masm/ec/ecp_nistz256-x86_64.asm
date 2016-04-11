@@ -1303,6 +1303,7 @@ $L$SEH_begin_ecp_nistz256_point_double::
 	push	r15
 	sub	rsp,32*5+8
 
+$L$point_double_shortcutq::
 	movdqu	xmm0,XMMWORD PTR[rsi]
 	mov	rbx,rsi
 	movdqu	xmm1,XMMWORD PTR[16+rsi]
@@ -1577,6 +1578,7 @@ DB	102,72,15,110,199
 	mov	r14,QWORD PTR[((64+8))+rbx]
 	mov	r15,QWORD PTR[((64+16))+rbx]
 	mov	r8,QWORD PTR[((64+24))+rbx]
+DB	102,72,15,110,203
 
 	lea	rsi,QWORD PTR[((64-0))+rbx]
 	lea	rdi,QWORD PTR[32+rsp]
@@ -1668,7 +1670,7 @@ DB	102,73,15,126,217
 	test	r8,r8
 	jnz	$L$add_proceedq
 	test	r9,r9
-	jz	$L$add_proceedq
+	jz	$L$add_doubleq
 
 DB	102,72,15,126,199
 	pxor	xmm0,xmm0
@@ -1679,6 +1681,13 @@ DB	102,72,15,126,199
 	movdqu	XMMWORD PTR[64+rdi],xmm0
 	movdqu	XMMWORD PTR[80+rdi],xmm0
 	jmp	$L$add_doneq
+
+ALIGN	32
+$L$add_doubleq::
+DB	102,72,15,126,206
+DB	102,72,15,126,199
+	add	rsp,416
+	jmp	$L$point_double_shortcutq
 
 ALIGN	32
 $L$add_proceedq::

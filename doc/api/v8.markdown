@@ -89,5 +89,5 @@ v8.setFlagsFromString('--trace_gc');
 setTimeout(function() { v8.setFlagsFromString('--notrace_gc'); }, 60e3);
 ```
 
-[V8]: https://code.google.com/p/v8/
+[V8]: https://developers.google.com/v8/
 [here]: https://github.com/thlorenz/v8-flags/blob/master/flags-0.11.md

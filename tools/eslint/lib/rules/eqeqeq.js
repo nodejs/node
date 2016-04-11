@@ -13,12 +13,6 @@
 
 module.exports = function(context) {
 
-    var sourceCode = context.getSourceCode(),
-        replacements = {
-            "==": "===",
-            "!=": "!=="
-        };
-
     /**
      * Checks if an expression is a typeof expression
      * @param  {ASTNode} node The node to check
@@ -69,6 +63,7 @@ module.exports = function(context) {
      */
     function getOperatorLocation(node) {
         var opToken = context.getTokenAfter(node.left);
+
         return {line: opToken.loc.start.line, column: opToken.loc.start.column};
     }
 
@@ -91,21 +86,7 @@ module.exports = function(context) {
                 node: node,
                 loc: getOperatorLocation(node),
                 message: "Expected '{{op}}=' and instead saw '{{op}}'.",
-                data: { op: node.operator },
-                fix: function(fixer) {
-                    var tokens = sourceCode.getTokensBetween(node.left, node.right),
-                        opToken,
-                        i;
-
-                    for (i = 0; i < tokens.length; ++i) {
-                        if (tokens[i].value === node.operator) {
-                            opToken = tokens[i];
-                            break;
-                        }
-                    }
-
-                    return fixer.replaceTextRange(opToken.range, replacements[node.operator]);
-                }
+                data: { op: node.operator }
             });
 
         }

@@ -7,7 +7,7 @@ const spawnSync = require('child_process').spawnSync;
 const msgOut = 'this is stdout';
 
 // This is actually not os.EOL?
-const msgOutBuf = new Buffer(msgOut + '\n');
+const msgOutBuf = Buffer.from(msgOut + '\n');
 
 const args = [
   '-e',

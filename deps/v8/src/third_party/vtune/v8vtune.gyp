@@ -37,10 +37,6 @@
       'dependencies': [
         '../../../tools/gyp/v8.gyp:v8',
       ],
-      'defines': [
-        # TODO(jochen): Remove again after this is globally turned on.
-        'V8_IMMINENT_DEPRECATION_WARNINGS',
-      ],
       'sources': [
         'ittnotify_config.h',
         'ittnotify_types.h',

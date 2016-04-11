@@ -114,7 +114,8 @@ TEST_F(DiamondTest, DiamondPhis) {
   Node* p2 = Parameter(2);
   Diamond d(graph(), common(), p0);
 
-  MachineType types[] = {kMachAnyTagged, kMachUint32, kMachInt32};
+  MachineRepresentation types[] = {MachineRepresentation::kTagged,
+                                   MachineRepresentation::kWord32};
 
   for (size_t i = 0; i < arraysize(types); i++) {
     Node* phi = d.Phi(types[i], p1, p2);

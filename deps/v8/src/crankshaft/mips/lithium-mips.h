@@ -33,7 +33,6 @@ class LCodeGen;
   V(CallJSFunction)                          \
   V(CallWithDescriptor)                      \
   V(CallFunction)                            \
-  V(CallNew)                                 \
   V(CallNewArray)                            \
   V(CallRuntime)                             \
   V(CallStub)                                \
@@ -61,7 +60,6 @@ class LCodeGen;
   V(ConstantT)                               \
   V(ConstructDouble)                         \
   V(Context)                                 \
-  V(DateField)                               \
   V(DebugBreak)                              \
   V(DeclareGlobals)                          \
   V(Deoptimize)                              \
@@ -89,7 +87,6 @@ class LCodeGen;
   V(InstructionGap)                          \
   V(Integer32ToDouble)                       \
   V(InvokeFunction)                          \
-  V(IsConstructCallAndBranch)                \
   V(IsStringAndBranch)                       \
   V(IsSmiAndBranch)                          \
   V(IsUndetectableAndBranch)                 \
@@ -130,7 +127,6 @@ class LCodeGen;
   V(Power)                                   \
   V(Prologue)                                \
   V(PushArgument)                            \
-  V(RegExpLiteral)                           \
   V(Return)                                  \
   V(SeqStringGetChar)                        \
   V(SeqStringSetChar)                        \
@@ -1340,25 +1336,6 @@ class LMapEnumLength final : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LDateField final : public LTemplateInstruction<1, 1, 1> {
- public:
-  LDateField(LOperand* date, LOperand* temp, Smi* index) : index_(index) {
-    inputs_[0] = date;
-    temps_[0] = temp;
-  }
-
-  LOperand* date() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-  Smi* index() const { return index_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(DateField, "date-field")
-  DECLARE_HYDROGEN_ACCESSOR(DateField)
-
- private:
-  Smi* index_;
-};
-
-
 class LSeqStringGetChar final : public LTemplateInstruction<1, 2, 0> {
  public:
   LSeqStringGetChar(LOperand* string, LOperand* index) {
@@ -1855,25 +1832,6 @@ class LCallFunction final : public LTemplateInstruction<1, 2, 2> {
 
   int arity() const { return hydrogen()->argument_count() - 1; }
   void PrintDataTo(StringStream* stream) override;
-};
-
-
-class LCallNew final : public LTemplateInstruction<1, 2, 0> {
- public:
-  LCallNew(LOperand* context, LOperand* constructor) {
-    inputs_[0] = context;
-    inputs_[1] = constructor;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* constructor() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallNew, "call-new")
-  DECLARE_HYDROGEN_ACCESSOR(CallNew)
-
-  void PrintDataTo(StringStream* stream) override;
-
-  int arity() const { return hydrogen()->argument_count() - 1; }
 };
 
 
@@ -2476,19 +2434,6 @@ class LAllocate final : public LTemplateInstruction<1, 2, 2> {
 };
 
 
-class LRegExpLiteral final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LRegExpLiteral(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral, "regexp-literal")
-  DECLARE_HYDROGEN_ACCESSOR(RegExpLiteral)
-};
-
-
 class LToFastProperties final : public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LToFastProperties(LOperand* value) {
@@ -2530,19 +2475,6 @@ class LTypeofIsAndBranch final : public LControlInstruction<1, 0> {
   Handle<String> type_literal() { return hydrogen()->type_literal(); }
 
   void PrintDataTo(StringStream* stream) override;
-};
-
-
-class LIsConstructCallAndBranch final : public LControlInstruction<0, 1> {
- public:
-  explicit LIsConstructCallAndBranch(LOperand* temp) {
-    temps_[0] = temp;
-  }
-
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsConstructCallAndBranch,
-                               "is-construct-call-and-branch")
 };
 
 

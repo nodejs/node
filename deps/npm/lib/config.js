@@ -195,6 +195,25 @@ function list (cb) {
     msg += '\n'
   }
 
+  // project config file
+  var project = npm.config.sources.project
+  var pconf = project.data
+  var ppath = project.path
+  var pconfKeys = getKeys(pconf)
+  if (pconfKeys.length) {
+    msg += '; project config ' + ppath + '\n'
+    pconfKeys.forEach(function (k) {
+      var val = (k.charAt(0) === '_')
+              ? '---sekretz---'
+              : JSON.stringify(pconf[k])
+      if (pconf[k] !== npm.config.get(k)) {
+        if (!long) return
+        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
+      } else msg += k + ' = ' + val + '\n'
+    })
+    msg += '\n'
+  }
+
   // user config file
   var uconf = npm.config.sources.user.data
   var uconfKeys = getKeys(uconf)

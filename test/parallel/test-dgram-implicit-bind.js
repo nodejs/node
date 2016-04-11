@@ -22,8 +22,8 @@ target.on('message', function(buf) {
 
 target.on('listening', function() {
   // Second .send() call should not throw a bind error.
-  source.send(Buffer('abc'), 0, 3, common.PORT, '127.0.0.1');
-  source.send(Buffer('def'), 0, 3, common.PORT, '127.0.0.1');
+  source.send(Buffer.from('abc'), 0, 3, common.PORT, '127.0.0.1');
+  source.send(Buffer.from('def'), 0, 3, common.PORT, '127.0.0.1');
 });
 
 target.bind(common.PORT);

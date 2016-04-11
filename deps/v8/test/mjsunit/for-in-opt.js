@@ -17,6 +17,7 @@ function f(o) {
 
 assertEquals(["0"], f("a"));
 assertEquals(["0"], f("a"));
+
 %OptimizeFunctionOnNextCall(f);
 assertEquals(["0","1","2"], f("bla"));
 
@@ -27,15 +28,15 @@ var deopt_has = false;
 var deopt_enum = false;
 
 var handler = {
-  enumerate: function(target) {
+  enumerate(target) {
     if (deopt_enum) {
       %DeoptimizeFunction(f2);
       deopt_enum = false;
     }
-    return keys;
+    return keys[Symbol.iterator]();
   },
 
-  getPropertyDescriptor: function(k) {
+  has(target, k) {
     if (deopt_has) {
       %DeoptimizeFunction(f2);
       deopt_has = false;
@@ -46,7 +47,7 @@ var handler = {
 };
 
 
-var proxy = Proxy.create(handler);
+var proxy = new Proxy({}, handler);
 var o = {__proto__: proxy};
 
 function f2(o) {
@@ -65,10 +66,12 @@ function check_f2() {
 
 check_f2();
 check_f2();
+
 // Test lazy deopt after GetPropertyNamesFast
 %OptimizeFunctionOnNextCall(f2);
 deopt_enum = true;
 check_f2();
+
 // Test lazy deopt after FILTER_KEY
 %OptimizeFunctionOnNextCall(f2);
 deopt_has = true;
@@ -81,18 +84,19 @@ function f3(o) {
 
 f3({__proto__:{x:1}});
 f3({__proto__:{x:1}});
+
 %OptimizeFunctionOnNextCall(f3);
 f3(undefined);
 f3(null);
 
 // Reliable repro for an issue previously flushed out by GC stress.
 var handler2 = {
-  getPropertyDescriptor: function(k) {
+  getPropertyDescriptor(target, k) {
     has_keys.push(k);
     return {value: 10, configurable: true, writable: false, enumerable: true};
   }
 }
-var proxy2 = Proxy.create(handler2);
+var proxy2 = new Proxy({}, handler2);
 var o2 = {__proto__: proxy2};
 var p = {x: "x"}
 
@@ -104,14 +108,18 @@ function f4(o, p) {
   }
   return result;
 }
+
 function check_f4() {
   assertEquals(keys, f4(o, p));
   assertEquals(keys, has_keys);
   has_keys.length = 0;
 }
+
 check_f4();
 check_f4();
+
 %OptimizeFunctionOnNextCall(f4);
+
 p.y = "y";  // Change map, cause eager deopt.
 check_f4();
 
@@ -128,18 +136,18 @@ function listener(event, exec_state, event_data, data) {
 }
 
 var handler3 = {
-  enumerate: function(target) {
-    return ["a", "b"];
+  enumerate(target) {
+    return ["a", "b"][Symbol.iterator]();
   },
 
-  getPropertyDescriptor: function(k) {
+  has(target, k) {
     if (k == "a") count++;
     if (x) %ScheduleBreak();
     return {value: 10, configurable: true, writable: false, enumerable: true};
   }
 };
 
-var proxy3 = Proxy.create(handler3);
+var proxy3 = new Proxy({}, handler3);
 var o3 = {__proto__: proxy3};
 
 function f5() {

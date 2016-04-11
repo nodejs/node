@@ -137,17 +137,29 @@ bool DateParser::Parse(Vector<Char> str,
       tz.SetSign(token.ascii_sign());
       // The following number may be empty.
       int n = 0;
+      int length = 0;
       if (scanner.Peek().IsNumber()) {
-        n = scanner.Next().number();
+        DateToken token = scanner.Next();
+        length = token.length();
+        n = token.number();
       }
       has_read_number = true;
 
       if (scanner.Peek().IsSymbol(':')) {
         tz.SetAbsoluteHour(n);
+        // TODO(littledan): Use minutes as part of timezone?
         tz.SetAbsoluteMinute(kNone);
-      } else {
+      } else if (length == 2 || length == 1) {
+        // Handle time zones like GMT-8
+        tz.SetAbsoluteHour(n);
+        tz.SetAbsoluteMinute(0);
+      } else if (length == 4 || length == 3) {
+        // Looks like the hhmm format
         tz.SetAbsoluteHour(n / 100);
         tz.SetAbsoluteMinute(n % 100);
+      } else {
+        // No need to accept time zones like GMT-12345
+        return false;
       }
     } else if ((token.IsAsciiSign() || token.IsSymbol(')')) &&
                has_read_number) {

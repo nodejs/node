@@ -9,6 +9,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction.h"
+#include "src/compiler/instruction-scheduler.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/zone-containers.h"
@@ -25,8 +26,20 @@ class Linkage;
 class OperandGenerator;
 struct SwitchInfo;
 
-typedef ZoneVector<InstructionOperand> InstructionOperandVector;
+// This struct connects nodes of parameters which are going to be pushed on the
+// call stack with their parameter index in the call descriptor of the callee.
+class PushParameter {
+ public:
+  PushParameter() : node_(nullptr), type_(MachineType::None()) {}
+  PushParameter(Node* node, MachineType type) : node_(node), type_(type) {}
 
+  Node* node() const { return node_; }
+  MachineType type() const { return type_; }
+
+ private:
+  Node* node_;
+  MachineType type_;
+};
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
 class InstructionSelector final {
@@ -46,40 +59,44 @@ class InstructionSelector final {
   // Visit code for the entire graph with the included schedule.
   void SelectInstructions();
 
+  void StartBlock(RpoNumber rpo);
+  void EndBlock(RpoNumber rpo);
+  void AddInstruction(Instruction* instr);
+
   // ===========================================================================
   // ============= Architecture-independent code emission methods. =============
   // ===========================================================================
 
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, InstructionOperand d,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, InstructionOperand d,
                     InstructionOperand e, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, InstructionOperand d,
                     InstructionOperand e, InstructionOperand f,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, size_t output_count,
                     InstructionOperand* outputs, size_t input_count,
                     InstructionOperand* inputs, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(Instruction* instr);
 
   // ===========================================================================
@@ -153,16 +170,34 @@ class InstructionSelector final {
 
   // Inform the register allocation of the representation of the value produced
   // by {node}.
-  void MarkAsRepresentation(MachineType rep, Node* node);
-  void MarkAsWord32(Node* node) { MarkAsRepresentation(kRepWord32, node); }
-  void MarkAsWord64(Node* node) { MarkAsRepresentation(kRepWord64, node); }
-  void MarkAsFloat32(Node* node) { MarkAsRepresentation(kRepFloat32, node); }
-  void MarkAsFloat64(Node* node) { MarkAsRepresentation(kRepFloat64, node); }
-  void MarkAsReference(Node* node) { MarkAsRepresentation(kRepTagged, node); }
+  void MarkAsRepresentation(MachineRepresentation rep, Node* node);
+  void MarkAsWord32(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kWord32, node);
+  }
+  void MarkAsWord64(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kWord64, node);
+  }
+  void MarkAsFloat32(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kFloat32, node);
+  }
+  void MarkAsFloat64(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kFloat64, node);
+  }
+  void MarkAsReference(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kTagged, node);
+  }
 
   // Inform the register allocation of the representation of the unallocated
   // operand {op}.
-  void MarkAsRepresentation(MachineType rep, const InstructionOperand& op);
+  void MarkAsRepresentation(MachineRepresentation rep,
+                            const InstructionOperand& op);
+
+  enum CallBufferFlag {
+    kCallCodeImmediate = 1u << 0,
+    kCallAddressImmediate = 1u << 1,
+    kCallTail = 1u << 2
+  };
+  typedef base::Flags<CallBufferFlag> CallBufferFlags;
 
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding
@@ -170,8 +205,7 @@ class InstructionSelector final {
   // {call_code_immediate} to generate immediate operands to calls of code.
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
-                            bool call_code_immediate,
-                            bool call_address_immediate);
+                            CallBufferFlags flags, int stack_param_delta = 0);
   bool IsTailCallAddressImmediate();
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
@@ -207,11 +241,11 @@ class InstructionSelector final {
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
-  void VisitDeoptimize(Node* value);
+  void VisitDeoptimize(DeoptimizeKind kind, Node* value);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* value);
 
-  void EmitPrepareArguments(NodeVector* arguments,
+  void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* descriptor, Node* node);
 
   // ===========================================================================
@@ -236,6 +270,7 @@ class InstructionSelector final {
   BoolVector defined_;
   BoolVector used_;
   IntVector virtual_registers_;
+  InstructionScheduler* scheduler_;
 };
 
 }  // namespace compiler

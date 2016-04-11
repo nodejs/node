@@ -32,7 +32,7 @@ assert.throws(function() {
 }, /Command failed: iamabadcommand/);
 
 var msg = 'foobar';
-var msgBuf = new Buffer(msg + '\n');
+var msgBuf = Buffer.from(msg + '\n');
 
 // console.log ends every line with just '\n', even on Windows.
 

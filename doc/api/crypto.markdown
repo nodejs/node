@@ -19,6 +19,21 @@ console.log(hash);
   //   c0fa1bc00531bd78ef38c628449c5102aeabd49b5dc3a2a516ea6ea959d6658e
 ```
 
+## Determining if crypto support is unavailable
+
+It is possible for Node.js to be built without including support for the
+`crypto` module. In such cases, calling `require('crypto')` will result in an
+error being thrown.
+
+```js
+var crypto;
+try {
+  crypto = require('crypto');
+} catch (err) {
+  console.log('crypto support is disabled!');
+}
+```
+
 ## Class: Certificate
 
 SPKAC is a Certificate Signing Request mechanism originally implemented by
@@ -55,7 +70,7 @@ console.log(challenge.toString('utf8'));
   // Prints the challenge as a UTF8 string
 ```
 
-### Certificate.exportPublicKey(spkac)
+### certificate.exportPublicKey(spkac)
 
 The `spkac` data structure includes a public key and a challenge. The
 `certificate.exportPublicKey()` returns the public key component in the
@@ -70,7 +85,7 @@ console.log(publicKey);
   // Prints the public key as <Buffer ...>
 ```
 
-### Certificate.verifySpkac(spkac)
+### certificate.verifySpkac(spkac)
 
 Returns `true` if the given `spkac` data structure is valid, `false` otherwise.
 The `spkac` argument must be a Node.js [`Buffer`][].
@@ -89,12 +104,12 @@ used in one of two ways:
 
 - As a [stream][] that is both readable and writable, where plain unencrypted
   data is written to produce encrypted data on the readable side, or
-- Using the `cipher.update()` and `cipher.final()` methods to produce the
-  encrypted data.
+- Using the [`cipher.update()`][] and [`cipher.final()`][] methods to produce
+  the encrypted data.
 
-The `crypto.createCipher()` or `crypto.createCipheriv()` methods are used to
-create `Cipher` instances. `Cipher` objects are not to be created directly
-using the `new` keyword.
+The [`crypto.createCipher()`][] or [`crypto.createCipheriv()`][] methods are
+used to create `Cipher` instances. `Cipher` objects are not to be created
+directly using the `new` keyword.
 
 Example: Using `Cipher` objects as streams:
 
@@ -130,7 +145,7 @@ const output = fs.createWriteStream('test.enc');
 input.pipe(cipher).pipe(output);
 ```
 
-Example: Using the `cipher.update()` and `cipher.final()` methods:
+Example: Using the [`cipher.update()`][] and [`cipher.final()`][] methods:
 
 ```js
 const crypto = require('crypto');
@@ -155,7 +170,7 @@ once will result in an error being thrown.
 ### cipher.setAAD(buffer)
 
 When using an authenticated encryption mode (only `GCM` is currently
-supported), the `cipher.getAAD()` method sets the value used for the
+supported), the `cipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
 ### cipher.getAuthTag()
@@ -165,7 +180,7 @@ supported), the `cipher.getAuthTag()` method returns a [`Buffer`][] containing
 the _authentication tag_ that has been computed from the given data.
 
 The `cipher.getAuthTag()` method should only be called after encryption has
-been completed using the `cipher.final()` method.
+been completed using the [`cipher.final()`][] method.
 
 ### cipher.setAutoPadding(auto_padding=true)
 
@@ -174,11 +189,11 @@ add padding to the input data to the appropriate block size. To disable the
 default padding call `cipher.setAutoPadding(false)`.
 
 When `auto_padding` is `false`, the length of the entire input data must be a
-multiple of the cipher's block size or `cipher.final()` will throw an Error.
+multiple of the cipher's block size or [`cipher.final()`][] will throw an Error.
 Disabling automatic padding is useful for non-standard padding, for instance
 using `0x0` instead of PKCS padding.
 
-The `cipher.setAutoPadding()` method must be called before `cipher.final()`.
+The `cipher.setAutoPadding()` method must be called before [`cipher.final()`][].
 
 ### cipher.update(data[, input_encoding][, output_encoding])
 
@@ -194,8 +209,8 @@ is specified, a string using the specified encoding is returned. If no
 `output_encoding` is provided, a [`Buffer`][] is returned.
 
 The `cipher.update()` method can be called multiple times with new data until
-`cipher.final()` is called. Calling `cipher.update()` after `cipher.final()`
-will result in an error being thrown.
+[`cipher.final()`][] is called. Calling `cipher.update()` after
+[`cipher.final()`][] will result in an error being thrown.
 
 ## Class: Decipher
 
@@ -204,11 +219,11 @@ used in one of two ways:
 
 - As a [stream][] that is both readable and writable, where plain encrypted
   data is written to produce unencrypted data on the readable side, or
-- Using the `decipher.update()` and `decipher.final()` methods to produce the
-  unencrypted data.
+- Using the [`decipher.update()`][] and [`decipher.final()`][] methods to
+  produce the unencrypted data.
 
-The `crypto.createDecipher()` or `crypto.createDecipheriv()` methods are used
-to create `Decipher` instances. `Decipher` objects are not to be created
+The [`crypto.createDecipher()`][] or [`crypto.createDecipheriv()`][] methods are
+used to create `Decipher` instances. `Decipher` objects are not to be created
 directly using the `new` keyword.
 
 Example: Using `Decipher` objects as streams:
@@ -246,7 +261,7 @@ const output = fs.createWriteStream('test.js');
 input.pipe(decipher).pipe(output);
 ```
 
-Example: Using the `decipher.update()` and `decipher.final()` methods:
+Example: Using the [`decipher.update()`][] and [`decipher.final()`][] methods:
 
 ```js
 const crypto = require('crypto');
@@ -272,28 +287,28 @@ than once will result in an error being thrown.
 ### decipher.setAAD(buffer)
 
 When using an authenticated encryption mode (only `GCM` is currently
-supported), the `cipher.getAAD()` method sets the value used for the
+supported), the `cipher.setAAD()` method sets the value used for the
 _additional authenticated data_ (AAD) input parameter.
 
 ### decipher.setAuthTag(buffer)
 
 When using an authenticated encryption mode (only `GCM` is currently
 supported), the `decipher.setAuthTag()` method is used to pass in the
-received _authentication tag_. If no tag is provided, or if the ciphertext
-has been tampered with, `decipher.final()` with throw, indicating that the
-ciphertext should be discarded due to failed authentication.
+received _authentication tag_. If no tag is provided, or if the cipher text
+has been tampered with, [`decipher.final()`][] with throw, indicating that the
+cipher text should be discarded due to failed authentication.
 
 ### decipher.setAutoPadding(auto_padding=true)
 
 When data has been encrypted without standard block padding, calling
-`decipher.setAuthPadding(false)` will disable automatic padding to prevent
-`decipher.final()` from checking for and removing padding.
+`decipher.setAutoPadding(false)` will disable automatic padding to prevent
+[`decipher.final()`][] from checking for and removing padding.
 
 Turning auto padding off will only work if the input data's length is a
 multiple of the ciphers block size.
 
 The `decipher.setAutoPadding()` method must be called before
-`decipher.update()`.
+[`decipher.update()`][].
 
 ### decipher.update(data[, input_encoding][, output_encoding])
 
@@ -309,8 +324,8 @@ is specified, a string using the specified encoding is returned. If no
 `output_encoding` is provided, a [`Buffer`][] is returned.
 
 The `decipher.update()` method can be called multiple times with new data until
-`decipher.final()` is called. Calling `decipher.update()` after
-`decipher.final()` will result in an error being thrown.
+[`decipher.final()`][] is called. Calling `decipher.update()` after
+[`decipher.final()`][] will result in an error being thrown.
 
 ## Class: DiffieHellman
 
@@ -318,26 +333,26 @@ The `DiffieHellman` class is a utility for creating Diffie-Hellman key
 exchanges.
 
 Instances of the `DiffieHellman` class can be created using the
-`crypto.createDiffieHellman()` function.
+[`crypto.createDiffieHellman()`][] function.
 
 ```js
 const crypto = require('crypto');
 const assert = require('assert');
 
 // Generate Alice's keys...
-const alice = crypto.createDiffieHellman(11);
+const alice = crypto.createDiffieHellman(2048);
 const alice_key = alice.generateKeys();
 
 // Generate Bob's keys...
-const bob = crypto.createDiffieHellman(11);
+const bob = crypto.createDiffieHellman(alice.getPrime(), alice.getGenerator());
 const bob_key = bob.generateKeys();
 
 // Exchange and generate the secret...
 const alice_secret = alice.computeSecret(bob_key);
 const bob_secret = bob.computeSecret(alice_key);
 
-assert(alice_secret, bob_secret);
-  // OK
+// OK
+assert.equal(alice_secret.toString('hex'), bob_secret.toString('hex'));
 ```
 
 ### diffieHellman.computeSecret(other_public_key[, input_encoding][, output_encoding])
@@ -357,7 +372,7 @@ If `output_encoding` is given a string is returned; otherwise, a
 Generates private and public Diffie-Hellman key values, and returns
 the public key in the specified `encoding`. This key should be
 transferred to the other party. Encoding can be `'binary'`, `'hex'`,
-or `'base64'`.  If `encoding` is provided a string is returned; otherwise a
+or `'base64'`. If `encoding` is provided a string is returned; otherwise a
 [`Buffer`][] is returned.
 
 ### diffieHellman.getGenerator([encoding])
@@ -417,7 +432,7 @@ The `ECDH` class is a utility for creating Elliptic Curve Diffie-Hellman (ECDH)
 key exchanges.
 
 Instances of the `ECDH` class can be created using the
-`crypto.createECDH()` function.
+[`crypto.createECDH()`][] function.
 
 ```js
 const crypto = require('crypto');
@@ -439,7 +454,7 @@ assert(alice_secret, bob_secret);
   // OK
 ```
 
-### ECDH.computeSecret(other_public_key[, input_encoding][, output_encoding])
+### ecdh.computeSecret(other_public_key[, input_encoding][, output_encoding])
 
 Computes the shared secret using `other_public_key` as the other
 party's public key and returns the computed shared secret. The supplied
@@ -451,7 +466,7 @@ provided, `other_public_key` is expected to be a [`Buffer`][].
 If `output_encoding` is given a string will be returned; otherwise a
 [`Buffer`][] is returned.
 
-### ECDH.generateKeys([encoding[, format]])
+### ecdh.generateKeys([encoding[, format]])
 
 Generates private and public EC Diffie-Hellman key values, and returns
 the public key in the specified `format` and `encoding`. This key should be
@@ -465,13 +480,13 @@ The `encoding` argument can be `'binary'`, `'hex'`, or `'base64'`. If
 `encoding` is provided a string is returned; otherwise a [`Buffer`][]
 is returned.
 
-### ECDH.getPrivateKey([encoding])
+### ecdh.getPrivateKey([encoding])
 
 Returns the EC Diffie-Hellman private key in the specified `encoding`,
 which can be `'binary'`, `'hex'`, or `'base64'`. If `encoding` is provided
 a string is returned; otherwise a [`Buffer`][] is returned.
 
-### ECDH.getPublicKey([encoding[, format]])
+### ecdh.getPublicKey([encoding[, format]])
 
 Returns the EC Diffie-Hellman public key in the specified `encoding` and
 `format`.
@@ -484,7 +499,7 @@ The `encoding` argument can be `'binary'`, `'hex'`, or `'base64'`. If
 `encoding` is specified, a string is returned; otherwise a [`Buffer`][] is
 returned.
 
-### ECDH.setPrivateKey(private_key[, encoding])
+### ecdh.setPrivateKey(private_key[, encoding])
 
 Sets the EC Diffie-Hellman private key. The `encoding` can be `'binary'`,
 `'hex'` or `'base64'`. If `encoding` is provided, `private_key` is expected
@@ -493,7 +508,7 @@ to be a string; otherwise `private_key` is expected to be a [`Buffer`][]. If
 created, an error is thrown. Upon setting the private key, the associated
 public point (key) is also generated and set in the ECDH object.
 
-### ECDH.setPublicKey(public_key[, encoding])
+### ecdh.setPublicKey(public_key[, encoding])
 
     Stability: 0 - Deprecated
 
@@ -503,9 +518,10 @@ be a string; otherwise a [`Buffer`][] is expected.
 
 Note that there is not normally a reason to call this method because `ECDH`
 only requires a private key and the other party's public key to compute the
-shared secret. Typically either `ecdh.generateKeys()` or `ecdh.setPrivateKey()`
-will be called. The `ecdh.setPrivateKey()` method attempts to generate the
-public point/key associated with the private key being set.
+shared secret. Typically either [`ecdh.generateKeys()`][] or
+[`ecdh.setPrivateKey()`][] will be called. The [`ecdh.setPrivateKey()`][] method
+attempts to generate the public point/key associated with the private key being
+set.
 
 Example (obtaining a shared secret):
 
@@ -538,10 +554,10 @@ used in one of two ways:
 
 - As a [stream][] that is both readable and writable, where data is written
   to produce a computed hash digest on the readable side, or
-- Using the `hash.update()` and `hash.digest()` methods to produce the
+- Using the [`hash.update()`][] and [`hash.digest()`][] methods to produce the
   computed hash.
 
-The `crypto.createHash()` method is used to create `Hash` instances. `Hash`
+The [`crypto.createHash()`][] method is used to create `Hash` instances. `Hash`
 objects are not to be created directly using the `new` keyword.
 
 Example: Using `Hash` objects as streams:
@@ -573,7 +589,7 @@ const input = fs.createReadStream('test.js');
 input.pipe(hash).pipe(process.stdout);
 ```
 
-Example: Using the `hash.update()` and `hash.digest()` methods:
+Example: Using the [`hash.update()`][] and [`hash.digest()`][] methods:
 
 ```js
 const crypto = require('crypto');
@@ -588,8 +604,8 @@ console.log(hash.digest('hex'));
 ### hash.digest([encoding])
 
 Calculates the digest of all of the data passed to be hashed (using the
-`hash.update()` method). The `encoding` can be `'hex'`, `'binary'` or
-`'base64'`.  If `encoding` is provided a string will be returned; otherwise
+[`hash.update()`][] method). The `encoding` can be `'hex'`, `'binary'` or
+`'base64'`. If `encoding` is provided a string will be returned; otherwise
 a [`Buffer`][] is returned.
 
 The `Hash` object can not be used again after `hash.digest()` method has been
@@ -599,8 +615,8 @@ called. Multiple calls will cause an error to be thrown.
 
 Updates the hash content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
-`'binary'`.  If `encoding` is not provided, and the `data` is a string, an
-encoding of `'binary'` is enforced. If `data` is a [`Buffer`][] then
+`'binary'`. If `encoding` is not provided, and the `data` is a string, an
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
 `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
@@ -612,10 +628,10 @@ be used in one of two ways:
 
 - As a [stream][] that is both readable and writable, where data is written
   to produce a computed HMAC digest on the readable side, or
-- Using the `hmac.update()` and `hmac.final()` methods to produce the
+- Using the [`hmac.update()`][] and [`hmac.digest()`][] methods to produce the
   computed HMAC digest.
 
-The `crypto.createHmac()` method is used to create `Hmac` instances. `Hmac`
+The [`crypto.createHmac()`][] method is used to create `Hmac` instances. `Hmac`
 objects are not to be created directly using the `new` keyword.
 
 Example: Using `Hmac` objects as streams:
@@ -647,7 +663,7 @@ const input = fs.createReadStream('test.js');
 input.pipe(hmac).pipe(process.stdout);
 ```
 
-Example: Using the `hmac.update()` and `hmac.digest()` methods:
+Example: Using the [`hmac.update()`][] and [`hmac.digest()`][] methods:
 
 ```js
 const crypto = require('crypto');
@@ -661,9 +677,9 @@ console.log(hmac.digest('hex'));
 
 ### hmac.digest([encoding])
 
-Calculates the HMAC digest of all of the data passed using `hmac.update()`. The
-`encoding` can be `'hex'`, `'binary'` or `'base64'`.  If `encoding` is provided
-a string is returned; otherwise a [`Buffer`][] is returned;
+Calculates the HMAC digest of all of the data passed using [`hmac.update()`][].
+The `encoding` can be `'hex'`, `'binary'` or `'base64'`. If `encoding` is
+provided a string is returned; otherwise a [`Buffer`][] is returned;
 
 Caution: Code that uses `digest()` directly for comparison with an input value
 is very likely to introduce a
@@ -675,10 +691,15 @@ Use `timingSafeEqual(a, b)` to compare digest values.
 The `Hmac` object can not be used again after `hmac.digest()` has been
 called. Multiple calls to `hmac.digest()` will result in an error being thrown.
 
-### hmac.update(data)
+### hmac.update(data[, input_encoding])
 
-Update the `Hmac` content with the given `data`.  This can be called
-many times with new data as it is streamed.
+Updates the `Hmac` content with the given `data`, the encoding of which
+is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
+`'binary'`. If `encoding` is not provided, and the `data` is a string, an
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
+`input_encoding` is ignored.
+
+This can be called many times with new data as it is streamed.
 
 ## Class: Sign
 
@@ -686,11 +707,11 @@ The `Sign` Class is a utility for generating signatures. It can be used in one
 of two ways:
 
 - As a writable [stream][], where data to be signed is written and the
-  `sign.sign()` method is used to generate and return the signature, or
-- Using the `sign.update()` and `sign.sign()` methods to produce the
+  [`sign.sign()`][] method is used to generate and return the signature, or
+- Using the [`sign.update()`][] and [`sign.sign()`][] methods to produce the
   signature.
 
-The `crypto.createSign()` method is used to create `Sign` instances. `Sign`
+The [`crypto.createSign()`][] method is used to create `Sign` instances. `Sign`
 objects are not to be created directly using the `new` keyword.
 
 Example: Using `Sign` objects as streams:
@@ -707,7 +728,7 @@ console.log(sign.sign(private_key, 'hex'));
   // Prints the calculated signature
 ```
 
-Example: Using the `sign.update()` and `sign.sign()` methods:
+Example: Using the [`sign.update()`][] and [`sign.sign()`][] methods:
 
 ```js
 const crypto = require('crypto');
@@ -720,10 +741,32 @@ console.log(sign.sign(private_key, 'hex'));
   // Prints the calculated signature
 ```
 
+A [`sign`][] instance can also be created by just passing in the digest
+algorithm name, in which case OpenSSL will infer the full signature algorithm
+from the type of the PEM-formatted private key, including algorithms that
+do not have directly exposed name constants, e.g. 'ecdsa-with-SHA256'.
+
+Example: signing using ECDSA with SHA256
+
+```js
+const crypto = require('crypto');
+const sign = crypto.createSign('sha256');
+
+sign.update('some data to sign');
+
+const private_key = '-----BEGIN EC PRIVATE KEY-----\n' +
+        'MHcCAQEEIF+jnWY1D5kbVYDNvxxo/Y+ku2uJPDwS0r/VuPZQrjjVoAoGCCqGSM49\n' +
+        'AwEHoUQDQgAEurOxfSxmqIRYzJVagdZfMMSjRNNhB8i3mXyIMq704m2m52FdfKZ2\n' +
+        'pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==\n' +
+        '-----END EC PRIVATE KEY-----\n';
+
+console.log(sign.sign(private_key).toString('hex'));
+```
+
 ### sign.sign(private_key[, output_format])
 
 Calculates the signature on all the data passed through using either
-`sign.update()` or `sign.write()`.
+[`sign.update()`][] or [`sign.write()`][stream-writable-write].
 
 The `private_key` argument can be an object or a string. If `private_key` is a
 string, it is treated as a raw key with no passphrase. If `private_key` is an
@@ -739,10 +782,15 @@ returned.
 The `Sign` object can not be again used after `sign.sign()` method has been
 called. Multiple calls to `sign.sign()` will result in an error being thrown.
 
-### sign.update(data)
+### sign.update(data[, input_encoding])
 
-Updates the sign object with the given `data`.  This can be called many times
-with new data as it is streamed.
+Updates the `Sign` content with the given `data`, the encoding of which
+is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
+`'binary'`. If `encoding` is not provided, and the `data` is a string, an
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
+`input_encoding` is ignored.
+
+This can be called many times with new data as it is streamed.
 
 ## Class: Verify
 
@@ -751,11 +799,11 @@ of two ways:
 
 - As a writable [stream][] where written data is used to validate against the
   supplied signature, or
-- Using the `verify.update()` and `verify.verify()` methods to verify the
-  signature.
+- Using the [`verify.update()`][] and [`verify.verify()`][] methods to verify
+  the signature.
 
-  The `crypto.createSign()` method is used to create `Sign` instances. `Sign`
-  objects are not to be created directly using the `new` keyword.
+  The [`crypto.createSign()`][] method is used to create `Sign` instances.
+  `Sign` objects are not to be created directly using the `new` keyword.
 
 Example: Using `Verify` objects as streams:
 
@@ -772,7 +820,7 @@ console.log(sign.verify(public_key, signature));
   // Prints true or false
 ```
 
-Example: Using the `verify.update()` and `verify.verify()` methods:
+Example: Using the [`verify.update()`][] and [`verify.verify()`][] methods:
 
 ```js
 const crypto = require('crypto');
@@ -786,10 +834,15 @@ console.log(verify.verify(public_key, signature));
   // Prints true or false
 ```
 
-### verifier.update(data)
+### verifier.update(data[, input_encoding])
 
-Updates the verifier object with the given `data`.  This can be called many
-times with new data as it is streamed.
+Updates the `Verify` content with the given `data`, the encoding of which
+is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
+`'binary'`. If `encoding` is not provided, and the `data` is a string, an
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] then
+`input_encoding` is ignored.
+
+This can be called many times with new data as it is streamed.
 
 ### verifier.verify(object, signature[, signature_format])
 
@@ -813,8 +866,8 @@ thrown.
 ### crypto.DEFAULT_ENCODING
 
 The default encoding to use for functions that can take either strings
-or [buffers][].  The default value is `'buffer'`, which makes methods default
-to [`Buffer`][] objects.
+or [buffers][`Buffer`]. The default value is `'buffer'`, which makes methods
+default to [`Buffer`][] objects.
 
 The `crypto.DEFAULT_ENCODING` mechanism is provided for backwards compatibility
 with legacy programs that expect `'binary'` to be the default encoding.
@@ -822,17 +875,22 @@ with legacy programs that expect `'binary'` to be the default encoding.
 New applications should expect the default to be `'buffer'`. This property may
 become deprecated in a future Node.js release.
 
+### crypto.fips
+
+Property for checking and controlling whether a FIPS compliant crypto provider is
+currently in use. Setting to true requires a FIPS build of Node.js.
+
 ### crypto.createCipher(algorithm, password)
 
 Creates and returns a `Cipher` object that uses the given `algorithm` and
 `password`.
 
-The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc.  On
+The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `password` is used to derive the cipher key and initialization vector (IV).
-The value must be either a `'binary'` encoded string or a [`Buffer`[].
+The value must be either a `'binary'` encoded string or a [`Buffer`][].
 
 The implementation of `crypto.createCipher()` derives keys using the OpenSSL
 function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
@@ -843,7 +901,7 @@ rapidly.
 
 In line with OpenSSL's recommendation to use pbkdf2 instead of
 [`EVP_BytesToKey`][] it is recommended that developers derive a key and IV on
-their own using [`crypto.pbkdf2`][] and to use [`crypto.createCipheriv()`][]
+their own using [`crypto.pbkdf2()`][] and to use [`crypto.createCipheriv()`][]
 to create the `Cipher` object.
 
 ### crypto.createCipheriv(algorithm, key, iv)
@@ -851,13 +909,13 @@ to create the `Cipher` object.
 Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
 initialization vector (`iv`).
 
-The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc.  On
+The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'binary'` encoded strings or
-[buffers][].
+[buffers][`Buffer`].
 
 ### crypto.createCredentials(details)
 
@@ -898,7 +956,7 @@ rapidly.
 
 In line with OpenSSL's recommendation to use pbkdf2 instead of
 [`EVP_BytesToKey`][] it is recommended that developers derive a key and IV on
-their own using [`crypto.pbkdf2`][] and to use [`crypto.createDecipheriv()`][]
+their own using [`crypto.pbkdf2()`][] and to use [`crypto.createDecipheriv()`][]
 to create the `Decipher` object.
 
 ### crypto.createDecipheriv(algorithm, key, iv)
@@ -906,15 +964,15 @@ to create the `Decipher` object.
 Creates and returns a `Decipher` object that uses the given `algorithm`, `key`
 and initialization vector (`iv`).
 
-The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc.  On
+The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'binary'` encoded strings or
-[buffers][].
+[buffers][`Buffer`].
 
-## crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
+### crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
 
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
 optional specific `generator`.
@@ -1042,7 +1100,7 @@ console.log(curves); // ['secp256k1', 'secp384r1', ...]
 
 ### crypto.getDiffieHellman(group_name)
 
-Creates a predefined `DiffieHellman` key exchange object.  The
+Creates a predefined `DiffieHellman` key exchange object. The
 supported groups are: `'modp1'`, `'modp2'`, `'modp5'` (defined in
 [RFC 2412][], but see [Caveats][]) and `'modp14'`, `'modp15'`,
 `'modp16'`, `'modp17'`, `'modp18'` (defined in [RFC 3526][]). The
@@ -1084,7 +1142,7 @@ console.log(hashes); // ['sha', 'sha1', 'sha1WithRSAEncryption', ...]
 ### crypto.pbkdf2(password, salt, iterations, keylen, digest, callback)
 
 Provides an asynchronous Password-Based Key Derivation Function 2 (PBKDF2)
-implementation.  A selected HMAC digest algorithm specified by `digest` is
+implementation. A selected HMAC digest algorithm specified by `digest` is
 applied to derive a key of the requested byte length (`keylen`) from the
 `password`, `salt` and `iterations`.
 
@@ -1116,7 +1174,7 @@ An array of supported digest functions can be retrieved using
 ### crypto.pbkdf2Sync(password, salt, iterations, keylen, digest)
 
 Provides a synchronous Password-Based Key Derivation Function 2 (PBKDF2)
-implementation.  A selected HMAC digest algorithm specified by `digest` is
+implementation. A selected HMAC digest algorithm specified by `digest` is
 applied to derive a key of the requested byte length (`keylen`) from the
 `password`, `salt` and `iterations`.
 
@@ -1135,7 +1193,7 @@ Example:
 
 ```js
 const crypto = require('crypto');
-const key = crypto.pbkdf2sync('secret', 'salt', 100000, 512, 'sha512');
+const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
 console.log(key.toString('hex'));  // 'c5e478d...1469e50'
 ```
 
@@ -1244,8 +1302,7 @@ If an error occurs, `err` will be an Error object; otherwise it is null. The
 const crypto = require('crypto');
 crypto.randomBytes(256, (err, buf) => {
   if (err) throw err;
-  console.log(
-    `${buf.length}` bytes of random data: ${buf.toString('hex')});
+  console.log(`${buf.length} bytes of random data: ${buf.toString('hex')}`);
 });
 ```
 
@@ -1257,7 +1314,7 @@ there is a problem generating the bytes.
 // Synchronous
 const buf = crypto.randomBytes(256);
 console.log(
-  `${buf.length}` bytes of random data: ${buf.toString('hex')});
+  `${buf.length} bytes of random data: ${buf.toString('hex')}`);
 ```
 
 The `crypto.randomBytes()` method will block until there is sufficient entropy.
@@ -1284,8 +1341,8 @@ is a bit field taking one of or a mix of the following flags (defined in the
 * `ENGINE_METHOD_CIPHERS`
 * `ENGINE_METHOD_DIGESTS`
 * `ENGINE_METHOD_STORE`
-* `ENGINE_METHOD_PKEY_METH`
-* `ENGINE_METHOD_PKEY_ASN1_METH`
+* `ENGINE_METHOD_PKEY_METHS`
+* `ENGINE_METHOD_PKEY_ASN1_METHS`
 * `ENGINE_METHOD_ALL`
 * `ENGINE_METHOD_NONE`
 
@@ -1296,26 +1353,26 @@ is a bit field taking one of or a mix of the following flags (defined in the
 The Crypto module was added to Node.js before there was the concept of a
 unified Stream API, and before there were [`Buffer`][] objects for handling
 binary data. As such, the many of the `crypto` defined classes have methods not
-typically found on other Node.js classes that implement the [streams][]
-API (e.g. `update()`, `final()`, or `digest()`).  Also, many methods accepted
-and returned `'binary'` encoded strings by default rather than Buffers.  This
+typically found on other Node.js classes that implement the [streams][stream]
+API (e.g. `update()`, `final()`, or `digest()`). Also, many methods accepted
+and returned `'binary'` encoded strings by default rather than Buffers. This
 default was changed after Node.js v0.8 to use [`Buffer`][] objects by default
 instead.
 
 ### Recent ECDH Changes
 
 Usage of `ECDH` with non-dynamically generated key pairs has been simplified.
-Now, `ecdh.setPrivateKey()` can be called with a preselected private key and the
-associated public point (key) will be computed and stored in the object.
+Now, [`ecdh.setPrivateKey()`][] can be called with a preselected private key
+and the associated public point (key) will be computed and stored in the object.
 This allows code to only store and provide the private part of the EC key pair.
-`ecdh.setPrivateKey()` now also validates that the private key is valid for the
-selected curve.
+[`ecdh.setPrivateKey()`][] now also validates that the private key is valid for
+the selected curve.
 
-The `ecdh.setPublicKey()` method is now deprecated as its inclusion in the API
-is not useful. Either a previously stored private key should be set, which
-automatically generates the associated public key, or `ecdh.generateKeys()`
-should be called. The main drawback of using `ecdh.setPublicKey()` is that it
-can be used to put the ECDH key pair into an inconsistent state.
+The [`ecdh.setPublicKey()`][] method is now deprecated as its inclusion in the
+API is not useful. Either a previously stored private key should be set, which
+automatically generates the associated public key, or [`ecdh.generateKeys()`][]
+should be called. The main drawback of using [`ecdh.setPublicKey()`][] is that
+it can be used to put the ECDH key pair into an inconsistent state.
 
 ### Support for weak or compromised algorithms
 
@@ -1339,30 +1396,46 @@ Based on the recommendations of [NIST SP 800-131A][]:
 
 See the reference for other recommendations and details.
 
-[HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
-[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/apps/spkac.html
-[`createCipher()`]: #crypto_crypto_createcipher_algorithm_password
-[`createCipheriv()`]: #crypto_crypto_createcipheriv_algorithm_key_iv
-[`createHash()`]: #crypto_crypto_createhash_algorithm
-[`crypto.createDecipher`]: #crypto_crypto_createdecipher_algorithm_password
-[`crypto.createDecipheriv`]: #crypto_crypto_createdecipheriv_algorithm_key_iv
-[`crypto.createDiffieHellman()`]: #crypto_crypto_creatediffiehellman_prime_prime_encoding_generator_generator_encoding
-[`crypto.getHashes()`]: #crypto_crypto_gethashes
-[`crypto.pbkdf2`]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
-[`decipher.update`]: #crypto_decipher_update_data_input_encoding_output_encoding
-[`diffieHellman.setPublicKey()`]: #crypto_diffiehellman_setpublickey_public_key_encoding
-[`EVP_BytesToKey`]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
-[`getCurves()`]: #crypto_crypto_getcurves
-[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_details
 [`Buffer`]: buffer.html
-[buffers]: buffer.html
+[`cipher.final()`]: #crypto_cipher_final_output_encoding
+[`cipher.update()`]: #crypto_cipher_update_data_input_encoding_output_encoding
+[`crypto.createCipher()`]: #crypto_crypto_createcipher_algorithm_password
+[`crypto.createCipheriv()`]: #crypto_crypto_createcipheriv_algorithm_key_iv
+[`crypto.createDecipher()`]: #crypto_crypto_createdecipher_algorithm_password
+[`crypto.createDecipheriv()`]: #crypto_crypto_createdecipheriv_algorithm_key_iv
+[`crypto.createDiffieHellman()`]: #crypto_crypto_creatediffiehellman_prime_prime_encoding_generator_generator_encoding
+[`crypto.createECDH()`]: #crypto_crypto_createecdh_curve_name
+[`crypto.createHash()`]: #crypto_crypto_createhash_algorithm
+[`crypto.createHmac()`]: #crypto_crypto_createhmac_algorithm_key
+[`crypto.createSign()`]: #crypto_crypto_createsign_algorithm
+[`crypto.getCurves()`]: #crypto_crypto_getcurves
+[`crypto.getHashes()`]: #crypto_crypto_gethashes
+[`crypto.pbkdf2()`]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
+[`decipher.final()`]: #crypto_decipher_final_output_encoding
+[`decipher.update()`]: #crypto_decipher_update_data_input_encoding_output_encoding
+[`diffieHellman.setPublicKey()`]: #crypto_diffiehellman_setpublickey_public_key_encoding
+[`ecdh.generateKeys()`]: #crypto_ecdh_generatekeys_encoding_format
+[`ecdh.setPrivateKey()`]: #crypto_ecdh_setprivatekey_private_key_encoding
+[`ecdh.setPublicKey()`]: #crypto_ecdh_setpublickey_public_key_encoding
+[`EVP_BytesToKey`]: https://www.openssl.org/docs/crypto/EVP_BytesToKey.html
+[`hash.digest()`]: #crypto_hash_digest_encoding
+[`hash.update()`]: #crypto_hash_update_data_input_encoding
+[`hmac.digest()`]: #crypto_hmac_digest_encoding
+[`hmac.update()`]: #crypto_hmac_update_data
+[`sign.sign()`]: #crypto_sign_sign_private_key_output_format
+[`sign.update()`]: #crypto_sign_update_data
+[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_details
+[`verify.update()`]: #crypto_verifier_update_data
+[`verify.verify()`]: #crypto_verifier_verify_object_signature_signature_format
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
+[HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
+[OpenSSL cipher list format]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
+[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/apps/spkac.html
+[publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [stream]: stream.html
-[streams]: stream.html
-[OpenSSL cipher list format]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
-[publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
+[stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback

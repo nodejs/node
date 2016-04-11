@@ -1,4 +1,5 @@
 // test the speed of .pipe() with sockets
+'use strict';
 
 var common = require('../common.js');
 var PORT = common.PORT;
@@ -22,8 +23,7 @@ function main(conf) {
 
   switch (type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
       encoding = 'utf8';
@@ -35,7 +35,6 @@ function main(conf) {
       break;
     default:
       throw new Error('invalid type: ' + type);
-      break;
   }
 
   server();
@@ -77,8 +76,8 @@ function server() {
     socket.on('connect', function() {
       bench.start();
 
-      socket.on('drain', send)
-      send()
+      socket.on('drain', send);
+      send();
 
       setTimeout(function() {
         var bytes = writer.received;
@@ -88,7 +87,7 @@ function server() {
 
       function send() {
         socket.cork();
-        while(socket.write(chunk, encoding)) {}
+        while (socket.write(chunk, encoding)) {}
         socket.uncork();
       }
     });

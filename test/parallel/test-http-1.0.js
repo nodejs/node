@@ -15,13 +15,6 @@ function test(handler, request_generator, response_validator) {
   var client_got_eof = false;
   var server_response = '';
 
-  function cleanup() {
-    server.close();
-    response_validator(server_response, client_got_eof, true);
-  }
-  var timer = setTimeout(cleanup, common.platformTimeout(1000));
-  process.on('exit', cleanup);
-
   server.listen(port);
   server.on('listening', function() {
     var c = net.createConnection(port);
@@ -36,14 +29,12 @@ function test(handler, request_generator, response_validator) {
       server_response += chunk;
     });
 
-    c.on('end', function() {
+    c.on('end', common.mustCall(function() {
       client_got_eof = true;
       c.end();
       server.close();
-      clearTimeout(timer);
-      process.removeListener('exit', cleanup);
       response_validator(server_response, client_got_eof, false);
-    });
+    }));
   });
 }
 

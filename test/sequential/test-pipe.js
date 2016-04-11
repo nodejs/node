@@ -16,7 +16,7 @@ var bufferSize = 5 * 1024 * 1024;
 /*
  * 5MB of random buffer.
  */
-var buffer = Buffer(bufferSize);
+var buffer = Buffer.allocUnsafe(bufferSize);
 for (var i = 0; i < buffer.length; i++) {
   buffer[i] = parseInt(Math.random() * 10000) % 256;
 }
@@ -108,4 +108,3 @@ process.on('exit', function() {
   assert.ok(gotThanks);
   assert.equal(bufferSize, tcpLengthSeen);
 });
-

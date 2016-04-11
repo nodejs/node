@@ -44,17 +44,13 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_CompileOptimized) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
+namespace {
 
+Object* CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
+                         Compiler::ConcurrencyMode mode) {
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
 
-  Compiler::ConcurrencyMode mode =
-      concurrent ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
   Handle<Code> code;
   Handle<Code> unoptimized(function->shared()->code());
   if (Compiler::GetOptimizedCode(function, unoptimized, mode).ToHandle(&code)) {
@@ -78,6 +74,24 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
          function->code()->kind() == Code::OPTIMIZED_FUNCTION ||
          function->IsInOptimizationQueue());
   return function->code();
+}
+
+}  // namespace
+
+
+RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  return CompileOptimized(isolate, function, Compiler::CONCURRENT);
+}
+
+
+RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  return CompileOptimized(isolate, function, Compiler::NOT_CONCURRENT);
 }
 
 
@@ -136,6 +150,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   JavaScriptFrame* frame = it.frame();
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   DCHECK(frame->function() == *function);
+
+  // Ensure the context register is updated for materialized objects.
+  JavaScriptFrameIterator top_it(isolate);
+  JavaScriptFrame* top_frame = top_it.frame();
+  isolate->set_context(Context::cast(top_frame->context()));
 
   if (type == Deoptimizer::LAZY) {
     return isolate->heap()->undefined_value();
@@ -349,40 +368,6 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
     VMState<EXTERNAL> state(isolate);
     return callback(v8::Utils::ToLocal(context));
   }
-}
-
-
-RUNTIME_FUNCTION(Runtime_CompileString) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(function_literal_only, 1);
-
-  // Extract native context.
-  Handle<Context> context(isolate->native_context());
-
-  // Check if native context allows code generation from
-  // strings. Throw an exception if it doesn't.
-  if (context->allow_code_gen_from_strings()->IsFalse() &&
-      !CodeGenerationFromStringsAllowed(isolate, context)) {
-    Handle<Object> error_message =
-        context->ErrorMessageForCodeGenerationFromStrings();
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewEvalError(MessageTemplate::kCodeGenFromStrings, error_message));
-  }
-
-  // Compile source string in the native context.
-  ParseRestriction restriction = function_literal_only
-                                     ? ONLY_SINGLE_FUNCTION_LITERAL
-                                     : NO_PARSE_RESTRICTION;
-  Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
-  Handle<JSFunction> fun;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, fun,
-      Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
-                                    restriction, RelocInfo::kNoPosition));
-  return *fun;
 }
 
 

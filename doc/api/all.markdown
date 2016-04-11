@@ -5,6 +5,7 @@
 @include buffer
 @include child_process
 @include cluster
+@include cli
 @include console
 @include crypto
 @include debugger

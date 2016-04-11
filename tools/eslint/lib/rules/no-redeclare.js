@@ -33,7 +33,7 @@ module.exports = function(context) {
                 for (var i = (hasBuiltin ? 0 : 1), l = variable.identifiers.length; i < l; i++) {
                     context.report(
                         variable.identifiers[i],
-                        "\"{{a}}\" is already defined",
+                        "'{{a}}' is already defined",
                         {a: variable.name});
                 }
             }
@@ -43,14 +43,17 @@ module.exports = function(context) {
 
     /**
      * Find variables in the current scope.
+     * @param {ASTNode} node - The Program node.
      * @returns {void}
      * @private
      */
-    function checkForGlobal() {
-        var scope = context.getScope();
+    function checkForGlobal(node) {
+        var scope = context.getScope(),
+            parserOptions = context.parserOptions,
+            ecmaFeatures = parserOptions.ecmaFeatures || {};
 
         // Nodejs env or modules has a special scope.
-        if (context.ecmaFeatures.globalReturn || context.ecmaFeatures.modules) {
+        if (ecmaFeatures.globalReturn || node.sourceType === "module") {
             findVariablesInScope(scope.childScopes[0]);
         } else {
             findVariablesInScope(scope);
@@ -66,7 +69,7 @@ module.exports = function(context) {
         findVariablesInScope(context.getScope());
     }
 
-    if (context.ecmaFeatures.blockBindings) {
+    if (context.parserOptions.ecmaVersion >= 6) {
         return {
             "Program": checkForGlobal,
             "BlockStatement": checkForBlock,

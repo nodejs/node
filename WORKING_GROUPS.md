@@ -1,11 +1,11 @@
-# Node.js Working Groups
+# Node.js Core Working Groups
 
-Node.js Working Groups are autonomous projects created by the
-[Technical Steering Committee (TSC)](https://github.com/nodejs/node/blob/master/GOVERNANCE.md#technical-committee).
+Node.js Core Working Groups are autonomous projects created by the
+[Core Technical Committee (CTC)](https://github.com/nodejs/node/blob/master/GOVERNANCE.md#core-technical-committee).
 
-Working Groups can be formed at any time but must be ratified by the TSC.
+Working Groups can be formed at any time but must be ratified by the CTC.
 Once formed the work defined in the Working Group charter is the
-responsibility of the WG rather than the TSC.
+responsibility of the WG rather than the CTC.
 
 It is important that Working Groups are not formed pre-maturely. Working
 Groups are not formed to *begin* a set of tasks but instead are formed
@@ -14,7 +14,7 @@ think it would benefit from being done as an autonomous project.
 
 If the work defined in a Working Group charter is completed the Working
 Group should be dissolved and the responsibility for governance absorbed
-back in to the TSC.
+back in to the CTC.
 
 ## Current Working Groups
 
@@ -32,6 +32,7 @@ back in to the TSC.
 * [Intl](#intl)
 * [HTTP](#http)
 * [Documentation](#documentation)
+* [Testing](#testing)
 
 #### Process:
 
@@ -229,9 +230,9 @@ Their responsibilities are:
 * Maintaining the [addon-examples](https://github.com/nodejs/node-addon-examples)
   GitHub repository, including code, issues and documentation.
 * Maintaining the C++ Addon API within the Node.js project, in subordination to
-  the Node.js TSC.
+  the Node.js CTC.
 * Maintaining the Addon documentation within the Node.js project, in
-  subordination to the Node.js TSC.
+  subordination to the Node.js CTC.
 * Maintaining the _nan_ package in npm, releasing new versions as appropriate.
 * Messaging about the future of the Node.js and NAN interface to give the
   community advance notice of changes.
@@ -286,6 +287,23 @@ Its responsibilities are:
 * Ensuring that Node's documentation addresses a wide variety of audiences.
 * Creating and operating a process for documentation review that produces
   quality documentation and avoids impeding the progress of Core work.
+
+### [Testing](https://github.com/nodejs/testing)
+
+The Node.js Testing Working Group's purpose is to extend and improve testing of
+the Node.js source code.
+
+It's responsibilities are:
+
+* Coordinating an overall strategy for improving testing.
+* Documenting guidelines around tests.
+* Working with the Build Working Group to improve continuous integration.
+* Improving tooling for testing.
+
+## Joining a WG
+
+To find out how to join a working group, consult the GOVERNANCE.md in
+the working group's repository, or simply open an issue there.
 
 ## Starting a WG
 

@@ -23,7 +23,7 @@ utils.Import(function(from) {
 // -------------------------------------------------------------------
 
 function ReflectEnumerate(obj) {
-  if (!IS_SPEC_OBJECT(obj))
+  if (!IS_RECEIVER(obj))
     throw MakeTypeError(kCalledOnNonObject, "Reflect.enumerate")
   return (function* () { for (var x in obj) yield x })();
 }

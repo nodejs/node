@@ -32,6 +32,13 @@ void BreakableControlFlowBuilder::EmitJumpIfTrue(
 }
 
 
+void BreakableControlFlowBuilder::EmitJumpIfFalse(
+    ZoneVector<BytecodeLabel>* sites) {
+  sites->push_back(BytecodeLabel());
+  builder()->JumpIfFalse(&sites->back());
+}
+
+
 void BreakableControlFlowBuilder::EmitJumpIfUndefined(
     ZoneVector<BytecodeLabel>* sites) {
   sites->push_back(BytecodeLabel());
@@ -58,6 +65,12 @@ void BreakableControlFlowBuilder::EmitJumpIfTrue(
 }
 
 
+void BreakableControlFlowBuilder::EmitJumpIfFalse(
+    ZoneVector<BytecodeLabel>* sites, int index) {
+  builder()->JumpIfFalse(&sites->at(index));
+}
+
+
 void BreakableControlFlowBuilder::BindLabels(const BytecodeLabel& target,
                                              ZoneVector<BytecodeLabel>* sites) {
   for (size_t i = 0; i < sites->size(); i++) {
@@ -68,7 +81,41 @@ void BreakableControlFlowBuilder::BindLabels(const BytecodeLabel& target,
 }
 
 
+void BlockBuilder::EndBlock() {
+  builder()->Bind(&block_end_);
+  SetBreakTarget(block_end_);
+}
+
+
 LoopBuilder::~LoopBuilder() { DCHECK(continue_sites_.empty()); }
+
+
+void LoopBuilder::LoopHeader() {
+  // Jumps from before the loop header into the loop violate ordering
+  // requirements of bytecode basic blocks. The only entry into a loop
+  // must be the loop header. Surely breaks is okay? Not if nested
+  // and misplaced between the headers.
+  DCHECK(break_sites_.empty() && continue_sites_.empty());
+  builder()->Bind(&loop_header_);
+}
+
+
+void LoopBuilder::EndLoop() {
+  // Loop must have closed form, i.e. all loop elements are within the loop,
+  // the loop header precedes the body and next elements in the loop.
+  DCHECK(loop_header_.is_bound());
+  builder()->Bind(&loop_end_);
+  SetBreakTarget(loop_end_);
+  if (next_.is_bound()) {
+    DCHECK(!condition_.is_bound() || next_.offset() >= condition_.offset());
+    SetContinueTarget(next_);
+  } else {
+    DCHECK(condition_.is_bound());
+    DCHECK_GE(condition_.offset(), loop_header_.offset());
+    DCHECK_LE(condition_.offset(), loop_end_.offset());
+    SetContinueTarget(condition_);
+  }
+}
 
 
 void LoopBuilder::SetContinueTarget(const BytecodeLabel& target) {

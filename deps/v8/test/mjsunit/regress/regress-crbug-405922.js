@@ -5,13 +5,15 @@
 // Flags: --allow-natives-syntax --expose-debug-as debug
 
 Debug = debug.Debug
+var exception = null;
 
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      exec_state.prepareStep(Debug.StepAction.StepIn, 3);
+      exec_state.prepareStep(Debug.StepAction.StepIn);
     }
   } catch (e) {
+    exception = e;
   }
 }
 
@@ -25,3 +27,4 @@ debugger;
 f(2);
 
 Debug.setListener(null);
+assertNull(exception);

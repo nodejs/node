@@ -153,6 +153,26 @@ template <typename T>
 T FromObject(Handle<Object> number);
 
 template <>
+inline uint8_t FromObject<uint8_t>(Handle<Object> number) {
+  return NumberToUint32(*number);
+}
+
+template <>
+inline int8_t FromObject<int8_t>(Handle<Object> number) {
+  return NumberToInt32(*number);
+}
+
+template <>
+inline uint16_t FromObject<uint16_t>(Handle<Object> number) {
+  return NumberToUint32(*number);
+}
+
+template <>
+inline int16_t FromObject<int16_t>(Handle<Object> number) {
+  return NumberToInt32(*number);
+}
+
+template <>
 inline uint32_t FromObject<uint32_t>(Handle<Object> number) {
   return NumberToUint32(*number);
 }
@@ -162,117 +182,51 @@ inline int32_t FromObject<int32_t>(Handle<Object> number) {
   return NumberToInt32(*number);
 }
 
-template <typename T, typename F>
-inline T ToAtomic(F from) {
-  return static_cast<T>(from);
-}
 
-template <typename T, typename F>
-inline T FromAtomic(F from) {
-  return static_cast<T>(from);
-}
+inline Object* ToObject(Isolate* isolate, int8_t t) { return Smi::FromInt(t); }
 
-template <typename T>
-inline Object* ToObject(Isolate* isolate, T t);
+inline Object* ToObject(Isolate* isolate, uint8_t t) { return Smi::FromInt(t); }
 
-template <>
-inline Object* ToObject<int8_t>(Isolate* isolate, int8_t t) {
+inline Object* ToObject(Isolate* isolate, int16_t t) { return Smi::FromInt(t); }
+
+inline Object* ToObject(Isolate* isolate, uint16_t t) {
   return Smi::FromInt(t);
 }
 
-template <>
-inline Object* ToObject<uint8_t>(Isolate* isolate, uint8_t t) {
-  return Smi::FromInt(t);
-}
 
-template <>
-inline Object* ToObject<int16_t>(Isolate* isolate, int16_t t) {
-  return Smi::FromInt(t);
-}
-
-template <>
-inline Object* ToObject<uint16_t>(Isolate* isolate, uint16_t t) {
-  return Smi::FromInt(t);
-}
-
-template <>
-inline Object* ToObject<int32_t>(Isolate* isolate, int32_t t) {
+inline Object* ToObject(Isolate* isolate, int32_t t) {
   return *isolate->factory()->NewNumber(t);
 }
 
-template <>
-inline Object* ToObject<uint32_t>(Isolate* isolate, uint32_t t) {
+
+inline Object* ToObject(Isolate* isolate, uint32_t t) {
   return *isolate->factory()->NewNumber(t);
 }
-
-template <typename T>
-struct FromObjectTraits {};
-
-template <>
-struct FromObjectTraits<int8_t> {
-  typedef int32_t convert_type;
-  typedef int8_t atomic_type;
-};
-
-template <>
-struct FromObjectTraits<uint8_t> {
-  typedef uint32_t convert_type;
-  typedef uint8_t atomic_type;
-};
-
-template <>
-struct FromObjectTraits<int16_t> {
-  typedef int32_t convert_type;
-  typedef int16_t atomic_type;
-};
-
-template <>
-struct FromObjectTraits<uint16_t> {
-  typedef uint32_t convert_type;
-  typedef uint16_t atomic_type;
-};
-
-template <>
-struct FromObjectTraits<int32_t> {
-  typedef int32_t convert_type;
-  typedef int32_t atomic_type;
-};
-
-template <>
-struct FromObjectTraits<uint32_t> {
-  typedef uint32_t convert_type;
-  typedef uint32_t atomic_type;
-};
 
 
 template <typename T>
 inline Object* DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
                                  Handle<Object> oldobj, Handle<Object> newobj) {
-  typedef typename FromObjectTraits<T>::atomic_type atomic_type;
-  typedef typename FromObjectTraits<T>::convert_type convert_type;
-  atomic_type oldval = ToAtomic<atomic_type>(FromObject<convert_type>(oldobj));
-  atomic_type newval = ToAtomic<atomic_type>(FromObject<convert_type>(newobj));
-  atomic_type result = CompareExchangeSeqCst(
-      static_cast<atomic_type*>(buffer) + index, oldval, newval);
-  return ToObject<T>(isolate, FromAtomic<T>(result));
+  T oldval = FromObject<T>(oldobj);
+  T newval = FromObject<T>(newobj);
+  T result =
+      CompareExchangeSeqCst(static_cast<T*>(buffer) + index, oldval, newval);
+  return ToObject(isolate, result);
 }
 
 
 template <typename T>
 inline Object* DoLoad(Isolate* isolate, void* buffer, size_t index) {
-  typedef typename FromObjectTraits<T>::atomic_type atomic_type;
-  atomic_type result = LoadSeqCst(static_cast<atomic_type*>(buffer) + index);
-  return ToObject<T>(isolate, FromAtomic<T>(result));
+  T result = LoadSeqCst(static_cast<T*>(buffer) + index);
+  return ToObject(isolate, result);
 }
 
 
 template <typename T>
 inline Object* DoStore(Isolate* isolate, void* buffer, size_t index,
                        Handle<Object> obj) {
-  typedef typename FromObjectTraits<T>::atomic_type atomic_type;
-  typedef typename FromObjectTraits<T>::convert_type convert_type;
-  atomic_type value = ToAtomic<atomic_type>(FromObject<convert_type>(obj));
-  StoreSeqCst(static_cast<atomic_type*>(buffer) + index, value);
+  T value = FromObject<T>(obj);
+  StoreSeqCst(static_cast<T*>(buffer) + index, value);
   return *obj;
 }
 
@@ -280,72 +234,54 @@ inline Object* DoStore(Isolate* isolate, void* buffer, size_t index,
 template <typename T>
 inline Object* DoAdd(Isolate* isolate, void* buffer, size_t index,
                      Handle<Object> obj) {
-  typedef typename FromObjectTraits<T>::atomic_type atomic_type;
-  typedef typename FromObjectTraits<T>::convert_type convert_type;
-  atomic_type value = ToAtomic<atomic_type>(FromObject<convert_type>(obj));
-  atomic_type result =
-      AddSeqCst(static_cast<atomic_type*>(buffer) + index, value);
-  return ToObject<T>(isolate, FromAtomic<T>(result));
+  T value = FromObject<T>(obj);
+  T result = AddSeqCst(static_cast<T*>(buffer) + index, value);
+  return ToObject(isolate, result);
 }
 
 
 template <typename T>
 inline Object* DoSub(Isolate* isolate, void* buffer, size_t index,
                      Handle<Object> obj) {
-  typedef typename FromObjectTraits<T>::atomic_type atomic_type;
-  typedef typename FromObjectTraits<T>::convert_type convert_type;
-  atomic_type value = ToAtomic<atomic_type>(FromObject<convert_type>(obj));
-  atomic_type result =
-      SubSeqCst(static_cast<atomic_type*>(buffer) + index, value);
-  return ToObject<T>(isolate, FromAtomic<T>(result));
+  T value = FromObject<T>(obj);
+  T result = SubSeqCst(static_cast<T*>(buffer) + index, value);
+  return ToObject(isolate, result);
 }
 
 
 template <typename T>
 inline Object* DoAnd(Isolate* isolate, void* buffer, size_t index,
                      Handle<Object> obj) {
-  typedef typename FromObjectTraits<T>::atomic_type atomic_type;
-  typedef typename FromObjectTraits<T>::convert_type convert_type;
-  atomic_type value = ToAtomic<atomic_type>(FromObject<convert_type>(obj));
-  atomic_type result =
-      AndSeqCst(static_cast<atomic_type*>(buffer) + index, value);
-  return ToObject<T>(isolate, FromAtomic<T>(result));
+  T value = FromObject<T>(obj);
+  T result = AndSeqCst(static_cast<T*>(buffer) + index, value);
+  return ToObject(isolate, result);
 }
 
 
 template <typename T>
 inline Object* DoOr(Isolate* isolate, void* buffer, size_t index,
                     Handle<Object> obj) {
-  typedef typename FromObjectTraits<T>::atomic_type atomic_type;
-  typedef typename FromObjectTraits<T>::convert_type convert_type;
-  atomic_type value = ToAtomic<atomic_type>(FromObject<convert_type>(obj));
-  atomic_type result =
-      OrSeqCst(static_cast<atomic_type*>(buffer) + index, value);
-  return ToObject<T>(isolate, FromAtomic<T>(result));
+  T value = FromObject<T>(obj);
+  T result = OrSeqCst(static_cast<T*>(buffer) + index, value);
+  return ToObject(isolate, result);
 }
 
 
 template <typename T>
 inline Object* DoXor(Isolate* isolate, void* buffer, size_t index,
                      Handle<Object> obj) {
-  typedef typename FromObjectTraits<T>::atomic_type atomic_type;
-  typedef typename FromObjectTraits<T>::convert_type convert_type;
-  atomic_type value = ToAtomic<atomic_type>(FromObject<convert_type>(obj));
-  atomic_type result =
-      XorSeqCst(static_cast<atomic_type*>(buffer) + index, value);
-  return ToObject<T>(isolate, FromAtomic<T>(result));
+  T value = FromObject<T>(obj);
+  T result = XorSeqCst(static_cast<T*>(buffer) + index, value);
+  return ToObject(isolate, result);
 }
 
 
 template <typename T>
 inline Object* DoExchange(Isolate* isolate, void* buffer, size_t index,
                           Handle<Object> obj) {
-  typedef typename FromObjectTraits<T>::atomic_type atomic_type;
-  typedef typename FromObjectTraits<T>::convert_type convert_type;
-  atomic_type value = ToAtomic<atomic_type>(FromObject<convert_type>(obj));
-  atomic_type result =
-      ExchangeSeqCst(static_cast<atomic_type*>(buffer) + index, value);
-  return ToObject<T>(isolate, FromAtomic<T>(result));
+  T value = FromObject<T>(obj);
+  T result = ExchangeSeqCst(static_cast<T*>(buffer) + index, value);
+  return ToObject(isolate, result);
 }
 
 
@@ -363,21 +299,19 @@ inline Object* DoCompareExchangeUint8Clamped(Isolate* isolate, void* buffer,
                                              Handle<Object> oldobj,
                                              Handle<Object> newobj) {
   typedef int32_t convert_type;
-  typedef uint8_t atomic_type;
-  atomic_type oldval = ClampToUint8(FromObject<convert_type>(oldobj));
-  atomic_type newval = ClampToUint8(FromObject<convert_type>(newobj));
-  atomic_type result = CompareExchangeSeqCst(
-      static_cast<atomic_type*>(buffer) + index, oldval, newval);
-  return ToObject<uint8_t>(isolate, FromAtomic<uint8_t>(result));
+  uint8_t oldval = ClampToUint8(FromObject<convert_type>(oldobj));
+  uint8_t newval = ClampToUint8(FromObject<convert_type>(newobj));
+  uint8_t result = CompareExchangeSeqCst(static_cast<uint8_t*>(buffer) + index,
+                                         oldval, newval);
+  return ToObject(isolate, result);
 }
 
 
 inline Object* DoStoreUint8Clamped(Isolate* isolate, void* buffer, size_t index,
                                    Handle<Object> obj) {
   typedef int32_t convert_type;
-  typedef uint8_t atomic_type;
-  atomic_type value = ClampToUint8(FromObject<convert_type>(obj));
-  StoreSeqCst(static_cast<atomic_type*>(buffer) + index, value);
+  uint8_t value = ClampToUint8(FromObject<convert_type>(obj));
+  StoreSeqCst(static_cast<uint8_t*>(buffer) + index, value);
   return *obj;
 }
 
@@ -386,16 +320,15 @@ inline Object* DoStoreUint8Clamped(Isolate* isolate, void* buffer, size_t index,
   inline Object* Do##name##Uint8Clamped(Isolate* isolate, void* buffer,      \
                                         size_t index, Handle<Object> obj) {  \
     typedef int32_t convert_type;                                            \
-    typedef uint8_t atomic_type;                                             \
-    atomic_type* p = static_cast<atomic_type*>(buffer) + index;              \
+    uint8_t* p = static_cast<uint8_t*>(buffer) + index;                      \
     convert_type operand = FromObject<convert_type>(obj);                    \
-    atomic_type expected;                                                    \
-    atomic_type result;                                                      \
+    uint8_t expected;                                                        \
+    uint8_t result;                                                          \
     do {                                                                     \
       expected = *p;                                                         \
       result = ClampToUint8(static_cast<convert_type>(expected) op operand); \
     } while (CompareExchangeSeqCst(p, expected, result) != expected);        \
-    return ToObject<uint8_t>(isolate, expected);                             \
+    return ToObject(isolate, expected);                                      \
   }
 
 DO_UINT8_CLAMPED_OP(Add, +)
@@ -410,14 +343,13 @@ DO_UINT8_CLAMPED_OP(Xor, ^)
 inline Object* DoExchangeUint8Clamped(Isolate* isolate, void* buffer,
                                       size_t index, Handle<Object> obj) {
   typedef int32_t convert_type;
-  typedef uint8_t atomic_type;
-  atomic_type* p = static_cast<atomic_type*>(buffer) + index;
-  atomic_type result = ClampToUint8(FromObject<convert_type>(obj));
-  atomic_type expected;
+  uint8_t* p = static_cast<uint8_t*>(buffer) + index;
+  uint8_t result = ClampToUint8(FromObject<convert_type>(obj));
+  uint8_t expected;
   do {
     expected = *p;
   } while (CompareExchangeSeqCst(p, expected, result) != expected);
-  return ToObject<uint8_t>(isolate, expected);
+  return ToObject(isolate, expected);
 }
 
 
@@ -444,18 +376,19 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
   RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
-  void* buffer = sta->GetBuffer()->backing_store();
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(isolate, sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
   case kExternal##Type##Array:                              \
-    return DoCompareExchange<ctype>(isolate, buffer, index, oldobj, newobj);
+    return DoCompareExchange<ctype>(isolate, source, index, oldobj, newobj);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     case kExternalUint8ClampedArray:
-      return DoCompareExchangeUint8Clamped(isolate, buffer, index, oldobj,
+      return DoCompareExchangeUint8Clamped(isolate, source, index, oldobj,
                                            newobj);
 
     default:
@@ -475,18 +408,19 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoad) {
   RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
   RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
-  void* buffer = sta->GetBuffer()->backing_store();
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(isolate, sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
   case kExternal##Type##Array:                              \
-    return DoLoad<ctype>(isolate, buffer, index);
+    return DoLoad<ctype>(isolate, source, index);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     case kExternalUint8ClampedArray:
-      return DoLoad<uint8_t>(isolate, buffer, index);
+      return DoLoad<uint8_t>(isolate, source, index);
 
     default:
       break;
@@ -506,18 +440,19 @@ RUNTIME_FUNCTION(Runtime_AtomicsStore) {
   RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
   RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
-  void* buffer = sta->GetBuffer()->backing_store();
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(isolate, sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
   case kExternal##Type##Array:                              \
-    return DoStore<ctype>(isolate, buffer, index, value);
+    return DoStore<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     case kExternalUint8ClampedArray:
-      return DoStoreUint8Clamped(isolate, buffer, index, value);
+      return DoStoreUint8Clamped(isolate, source, index, value);
 
     default:
       break;
@@ -537,18 +472,19 @@ RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
   RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
   RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
-  void* buffer = sta->GetBuffer()->backing_store();
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(isolate, sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
   case kExternal##Type##Array:                              \
-    return DoAdd<ctype>(isolate, buffer, index, value);
+    return DoAdd<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     case kExternalUint8ClampedArray:
-      return DoAddUint8Clamped(isolate, buffer, index, value);
+      return DoAddUint8Clamped(isolate, source, index, value);
 
     default:
       break;
@@ -568,18 +504,19 @@ RUNTIME_FUNCTION(Runtime_AtomicsSub) {
   RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
   RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
-  void* buffer = sta->GetBuffer()->backing_store();
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(isolate, sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
   case kExternal##Type##Array:                              \
-    return DoSub<ctype>(isolate, buffer, index, value);
+    return DoSub<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     case kExternalUint8ClampedArray:
-      return DoSubUint8Clamped(isolate, buffer, index, value);
+      return DoSubUint8Clamped(isolate, source, index, value);
 
     default:
       break;
@@ -599,18 +536,19 @@ RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
   RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
   RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
-  void* buffer = sta->GetBuffer()->backing_store();
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(isolate, sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
   case kExternal##Type##Array:                              \
-    return DoAnd<ctype>(isolate, buffer, index, value);
+    return DoAnd<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     case kExternalUint8ClampedArray:
-      return DoAndUint8Clamped(isolate, buffer, index, value);
+      return DoAndUint8Clamped(isolate, source, index, value);
 
     default:
       break;
@@ -630,18 +568,19 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) {
   RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
   RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
-  void* buffer = sta->GetBuffer()->backing_store();
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(isolate, sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
   case kExternal##Type##Array:                              \
-    return DoOr<ctype>(isolate, buffer, index, value);
+    return DoOr<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     case kExternalUint8ClampedArray:
-      return DoOrUint8Clamped(isolate, buffer, index, value);
+      return DoOrUint8Clamped(isolate, source, index, value);
 
     default:
       break;
@@ -661,18 +600,19 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
   RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
   RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
-  void* buffer = sta->GetBuffer()->backing_store();
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(isolate, sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
   case kExternal##Type##Array:                              \
-    return DoXor<ctype>(isolate, buffer, index, value);
+    return DoXor<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     case kExternalUint8ClampedArray:
-      return DoXorUint8Clamped(isolate, buffer, index, value);
+      return DoXorUint8Clamped(isolate, source, index, value);
 
     default:
       break;
@@ -692,18 +632,19 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
   RUNTIME_ASSERT(sta->GetBuffer()->is_shared());
   RUNTIME_ASSERT(index < NumberToSize(isolate, sta->length()));
 
-  void* buffer = sta->GetBuffer()->backing_store();
+  uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
+                    NumberToSize(isolate, sta->byte_offset());
 
   switch (sta->type()) {
 #define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size) \
   case kExternal##Type##Array:                              \
-    return DoExchange<ctype>(isolate, buffer, index, value);
+    return DoExchange<ctype>(isolate, source, index, value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
 
     case kExternalUint8ClampedArray:
-      return DoExchangeUint8Clamped(isolate, buffer, index, value);
+      return DoExchangeUint8Clamped(isolate, source, index, value);
 
     default:
       break;

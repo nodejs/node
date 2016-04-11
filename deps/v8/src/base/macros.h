@@ -102,66 +102,6 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
 #endif  // V8_OS_NACL
 
 
-// The COMPILE_ASSERT macro can be used to verify that a compile time
-// expression is true. For example, you could use it to verify the
-// size of a static array:
-//
-//   COMPILE_ASSERT(ARRAYSIZE_UNSAFE(content_type_names) == CONTENT_NUM_TYPES,
-//                  content_type_names_incorrect_size);
-//
-// or to make sure a struct is smaller than a certain size:
-//
-//   COMPILE_ASSERT(sizeof(foo) < 128, foo_too_large);
-//
-// The second argument to the macro is the name of the variable. If
-// the expression is false, most compilers will issue a warning/error
-// containing the name of the variable.
-#if V8_HAS_CXX11_STATIC_ASSERT
-
-// Under C++11, just use static_assert.
-#define COMPILE_ASSERT(expr, msg) static_assert(expr, #msg)
-
-#else
-
-template <bool>
-struct CompileAssert {};
-
-#define COMPILE_ASSERT(expr, msg)                \
-  typedef CompileAssert<static_cast<bool>(expr)> \
-      msg[static_cast<bool>(expr) ? 1 : -1] ALLOW_UNUSED_TYPE
-
-// Implementation details of COMPILE_ASSERT:
-//
-// - COMPILE_ASSERT works by defining an array type that has -1
-//   elements (and thus is invalid) when the expression is false.
-//
-// - The simpler definition
-//
-//     #define COMPILE_ASSERT(expr, msg) typedef char msg[(expr) ? 1 : -1]
-//
-//   does not work, as gcc supports variable-length arrays whose sizes
-//   are determined at run-time (this is gcc's extension and not part
-//   of the C++ standard).  As a result, gcc fails to reject the
-//   following code with the simple definition:
-//
-//     int foo;
-//     COMPILE_ASSERT(foo, msg); // not supposed to compile as foo is
-//                               // not a compile-time constant.
-//
-// - By using the type CompileAssert<static_cast<bool>(expr)>, we ensure that
-//   expr is a compile-time constant.  (Template arguments must be
-//   determined at compile-time.)
-//
-// - The array size is (static_cast<bool>(expr) ? 1 : -1), instead of simply
-//
-//     ((expr) ? 1 : -1).
-//
-//   This is to avoid running into a bug in MS VC 7.1, which
-//   causes ((0.0) ? 1 : -1) to incorrectly evaluate to 1.
-
-#endif
-
-
 // bit_cast<Dest,Source> is a template function that implements the
 // equivalent of "*reinterpret_cast<Dest*>(&source)".  We need this in
 // very low-level functions like the protobuf library and fast math
@@ -217,8 +157,8 @@ struct CompileAssert {};
 // is likely to surprise you.
 template <class Dest, class Source>
 V8_INLINE Dest bit_cast(Source const& source) {
-  COMPILE_ASSERT(sizeof(Dest) == sizeof(Source), VerifySizesAreEqual);
-
+  static_assert(sizeof(Dest) == sizeof(Source),
+                "source and dest must be same size");
   Dest dest;
   memcpy(&dest, &source, sizeof(dest));
   return dest;
@@ -278,32 +218,8 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #endif
 
 
-// Use C++11 static_assert if possible, which gives error
-// messages that are easier to understand on first sight.
-#if V8_HAS_CXX11_STATIC_ASSERT
+// TODO(all) Replace all uses of this macro with static_assert, remove macro.
 #define STATIC_ASSERT(test) static_assert(test, #test)
-#else
-// This is inspired by the static assertion facility in boost.  This
-// is pretty magical.  If it causes you trouble on a platform you may
-// find a fix in the boost code.
-template <bool> class StaticAssertion;
-template <> class StaticAssertion<true> { };
-// This macro joins two tokens.  If one of the tokens is a macro the
-// helper call causes it to be resolved before joining.
-#define SEMI_STATIC_JOIN(a, b) SEMI_STATIC_JOIN_HELPER(a, b)
-#define SEMI_STATIC_JOIN_HELPER(a, b) a##b
-// Causes an error during compilation of the condition is not
-// statically known to be true.  It is formulated as a typedef so that
-// it can be used wherever a typedef can be used.  Beware that this
-// actually causes each use to introduce a new defined type with a
-// name depending on the source line.
-template <int> class StaticAssertionHelper { };
-#define STATIC_ASSERT(test)                               \
-  typedef StaticAssertionHelper<                          \
-      sizeof(StaticAssertion<static_cast<bool>((test))>)> \
-      SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__) ALLOW_UNUSED_TYPE
-
-#endif
 
 
 // The USE(x) template is used to silence C++ compiler warnings

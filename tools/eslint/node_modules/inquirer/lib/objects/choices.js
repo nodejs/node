@@ -80,7 +80,7 @@ Choices.prototype.get = function (selector) {
  */
 
 Choices.prototype.where = function (whereClause) {
-  return _.where(this.realChoices, whereClause);
+  return _.filter(this.realChoices, whereClause);
 };
 
 
@@ -91,7 +91,7 @@ Choices.prototype.where = function (whereClause) {
  */
 
 Choices.prototype.pluck = function (propertyName) {
-  return _.pluck(this.realChoices, propertyName);
+  return _.map(this.realChoices, propertyName);
 };
 
 

@@ -30,7 +30,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsFutexWait) {
   RUNTIME_ASSERT(timeout == V8_INFINITY || !std::isnan(timeout));
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = index << 2;
+  size_t addr = (index << 2) + NumberToSize(isolate, sta->byte_offset());
 
   return FutexEmulation::Wait(isolate, array_buffer, addr, value, timeout);
 }
@@ -47,7 +47,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsFutexWake) {
   RUNTIME_ASSERT(sta->type() == kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = index << 2;
+  size_t addr = (index << 2) + NumberToSize(isolate, sta->byte_offset());
 
   return FutexEmulation::Wake(isolate, array_buffer, addr, count);
 }
@@ -67,8 +67,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsFutexWakeOrRequeue) {
   RUNTIME_ASSERT(sta->type() == kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr1 = index1 << 2;
-  size_t addr2 = index2 << 2;
+  size_t addr1 = (index1 << 2) + NumberToSize(isolate, sta->byte_offset());
+  size_t addr2 = (index2 << 2) + NumberToSize(isolate, sta->byte_offset());
 
   return FutexEmulation::WakeOrRequeue(isolate, array_buffer, addr1, count,
                                        value, addr2);
@@ -85,7 +85,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsFutexNumWaitersForTesting) {
   RUNTIME_ASSERT(sta->type() == kExternalInt32Array);
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t addr = index << 2;
+  size_t addr = (index << 2) + NumberToSize(isolate, sta->byte_offset());
 
   return FutexEmulation::NumWaitersForTesting(isolate, array_buffer, addr);
 }

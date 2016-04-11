@@ -42,6 +42,10 @@ ProfileNode::ProfileNode(ProfileTree* tree, CodeEntry* entry)
 inline unsigned ProfileNode::function_id() const {
   return tree_->GetFunctionId(this);
 }
+
+
+inline Isolate* ProfileNode::isolate() const { return tree_->isolate(); }
+
 }  // namespace internal
 }  // namespace v8
 

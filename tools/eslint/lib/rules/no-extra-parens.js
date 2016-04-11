@@ -10,9 +10,13 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+var astUtils = require("../ast-utils.js");
 
+module.exports = function(context) {
+    var isParenthesised = astUtils.isParenthesised.bind(astUtils, context);
     var ALL_NODES = context.options[0] !== "functions";
+    var EXCEPT_COND_ASSIGN = ALL_NODES && context.options[1] && context.options[1].conditionalAssign === false;
+    var sourceCode = context.getSourceCode();
 
     /**
      * Determines if this rule should be enforced for a node given the current configuration.
@@ -22,21 +26,6 @@ module.exports = function(context) {
      */
     function ruleApplies(node) {
         return ALL_NODES || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression";
-    }
-
-    /**
-     * Determines if a node is surrounded by parentheses.
-     * @param {ASTNode} node - The node to be checked.
-     * @returns {boolean} True if the node is parenthesised.
-     * @private
-     */
-    function isParenthesised(node) {
-        var previousToken = context.getTokenBefore(node),
-            nextToken = context.getTokenAfter(node);
-
-        return previousToken && nextToken &&
-            previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
-            nextToken.value === ")" && nextToken.range[0] >= node.range[1];
     }
 
     /**
@@ -76,12 +65,39 @@ module.exports = function(context) {
     }
 
     /**
+     * Determines if a node test expression is allowed to have a parenthesised assignment
+     * @param {ASTNode} node - The node to be checked.
+     * @returns {boolean} True if the assignment can be parenthesised.
+     * @private
+     */
+    function isCondAssignException(node) {
+        return EXCEPT_COND_ASSIGN && node.test.type === "AssignmentExpression";
+    }
+
+    /**
+     * Determines if a node following a [no LineTerminator here] restriction is
+     * surrounded by (potentially) invalid extra parentheses.
+     * @param {Token} token - The token preceding the [no LineTerminator here] restriction.
+     * @param {ASTNode} node - The node to be checked.
+     * @returns {boolean} True if the node is incorrectly parenthesised.
+     * @private
+     */
+    function hasExcessParensNoLineTerminator(token, node) {
+        if (token.loc.end.line === node.loc.start.line) {
+            return hasExcessParens(node);
+        }
+
+        return hasDoubleExcessParens(node);
+    }
+
+    /**
      * Checks whether or not a given node is located at the head of ExpressionStatement.
      * @param {ASTNode} node - A node to check.
      * @returns {boolean} `true` if the node is located at the head of ExpressionStatement.
      */
     function isHeadOfExpressionStatement(node) {
         var parent = node.parent;
+
         while (parent) {
             switch (parent.type) {
                 case "SequenceExpression":
@@ -163,11 +179,14 @@ module.exports = function(context) {
                         return 4;
                     case "&&":
                         return 5;
+
                     // no default
                 }
 
                 /* falls through */
+
             case "BinaryExpression":
+
                 switch (node.operator) {
                     case "|":
                         return 6;
@@ -198,21 +217,29 @@ module.exports = function(context) {
                     case "/":
                     case "%":
                         return 13;
+
                     // no default
                 }
+
                 /* falls through */
+
             case "UnaryExpression":
                 return 14;
+
             case "UpdateExpression":
                 return 15;
+
             case "CallExpression":
+
                 // IIFE is allowed to have parens in any position (#655)
                 if (node.callee.type === "FunctionExpression") {
                     return -1;
                 }
                 return 16;
+
             case "NewExpression":
                 return 17;
+
             // no default
         }
         return 18;
@@ -226,6 +253,7 @@ module.exports = function(context) {
      */
     function report(node) {
         var previousToken = context.getTokenBefore(node);
+
         context.report(node, previousToken.loc.start, "Gratuitous parentheses around expression.");
     }
 
@@ -251,6 +279,7 @@ module.exports = function(context) {
         if (hasExcessParens(node.callee) && precedence(node.callee) >= precedence(node) && !(
             node.type === "CallExpression" &&
             node.callee.type === "FunctionExpression" &&
+
             // One set of parentheses are allowed for a function expression
             !hasDoubleExcessParens(node.callee)
         )) {
@@ -277,6 +306,7 @@ module.exports = function(context) {
      */
     function dryBinaryLogical(node) {
         var prec = precedence(node);
+
         if (hasExcessParens(node.left) && precedence(node.left) >= prec) {
             report(node.left);
         }
@@ -293,6 +323,7 @@ module.exports = function(context) {
                 }
             });
         },
+
         "ArrowFunctionExpression": function(node) {
             if (node.body.type !== "BlockStatement") {
                 if (node.body.type !== "ObjectExpression" && hasExcessParens(node.body) && precedence(node.body) >= precedence({type: "AssignmentExpression"})) {
@@ -300,20 +331,23 @@ module.exports = function(context) {
                     return;
                 }
 
-                // Object literals *must* be parenthesized
+                // Object literals *must* be parenthesised
                 if (node.body.type === "ObjectExpression" && hasDoubleExcessParens(node.body)) {
                     report(node.body);
                     return;
                 }
             }
         },
+
         "AssignmentExpression": function(node) {
             if (hasExcessParens(node.right) && precedence(node.right) >= precedence(node)) {
                 report(node.right);
             }
         },
+
         "BinaryExpression": dryBinaryLogical,
         "CallExpression": dryCallNew,
+
         "ConditionalExpression": function(node) {
             if (hasExcessParens(node.test) && precedence(node.test) >= precedence({type: "LogicalExpression", operator: "||"})) {
                 report(node.test);
@@ -325,53 +359,55 @@ module.exports = function(context) {
                 report(node.alternate);
             }
         },
+
         "DoWhileStatement": function(node) {
-            if (hasDoubleExcessParens(node.test)) {
+            if (hasDoubleExcessParens(node.test) && !isCondAssignException(node)) {
                 report(node.test);
             }
         },
-        "ExpressionStatement": function(node) {
-            var firstToken;
-            if (hasExcessParens(node.expression)) {
-                firstToken = context.getFirstToken(node.expression);
 
-                // Pure object literals ({}) do not need parentheses but
-                // member expressions do ({}.toString())
-                if ((
-                        firstToken.value !== "{" ||
-                        node.expression.type === "ObjectExpression"
-                    ) &&
-                    // For such as `(function(){}.foo.bar)`
+        "ExpressionStatement": function(node) {
+            var firstToken, secondToken, firstTokens;
+
+            if (hasExcessParens(node.expression)) {
+                firstTokens = context.getFirstTokens(node.expression, 2);
+                firstToken = firstTokens[0];
+                secondToken = firstTokens[1];
+
+                if (
+                    !firstToken ||
+                    firstToken.value !== "{" &&
+                    firstToken.value !== "function" &&
+                    firstToken.value !== "class" &&
                     (
-                        firstToken.value !== "function" ||
-                        node.expression.type === "FunctionExpression"
-                    ) &&
-                    // For such as `(class{}.foo.bar)`
-                    (
-                        firstToken.value !== "class" ||
-                        node.expression.type === "ClassExpression"
+                        firstToken.value !== "let" ||
+                        !secondToken ||
+                        secondToken.value !== "["
                     )
                 ) {
                     report(node.expression);
                 }
             }
         },
+
         "ForInStatement": function(node) {
             if (hasExcessParens(node.right)) {
                 report(node.right);
             }
         },
+
         "ForOfStatement": function(node) {
             if (hasExcessParens(node.right)) {
                 report(node.right);
             }
         },
+
         "ForStatement": function(node) {
             if (node.init && hasExcessParens(node.init)) {
                 report(node.init);
             }
 
-            if (node.test && hasExcessParens(node.test)) {
+            if (node.test && hasExcessParens(node.test) && !isCondAssignException(node)) {
                 report(node.test);
             }
 
@@ -379,12 +415,15 @@ module.exports = function(context) {
                 report(node.update);
             }
         },
+
         "IfStatement": function(node) {
-            if (hasDoubleExcessParens(node.test)) {
+            if (hasDoubleExcessParens(node.test) && !isCondAssignException(node)) {
                 report(node.test);
             }
         },
+
         "LogicalExpression": dryBinaryLogical,
+
         "MemberExpression": function(node) {
             if (
                 hasExcessParens(node.object) &&
@@ -396,6 +435,7 @@ module.exports = function(context) {
                         typeof node.object.value === "number" &&
                         /^[0-9]+$/.test(context.getFirstToken(node.object).value))
                         ||
+
                         // RegExp literal is allowed to have parens (#1589)
                         (node.object.type === "Literal" && node.object.regex)
                     )
@@ -412,22 +452,31 @@ module.exports = function(context) {
                 report(node.property);
             }
         },
+
         "NewExpression": dryCallNew,
+
         "ObjectExpression": function(node) {
             [].forEach.call(node.properties, function(e) {
                 var v = e.value;
+
                 if (v && hasExcessParens(v) && precedence(v) >= precedence({type: "AssignmentExpression"})) {
                     report(v);
                 }
             });
         },
+
         "ReturnStatement": function(node) {
-            if (node.argument && hasExcessParens(node.argument) &&
+            var returnToken = sourceCode.getFirstToken(node);
+
+            if (node.argument &&
+                    hasExcessParensNoLineTerminator(returnToken, node.argument) &&
+
                     // RegExp literal is allowed to have parens (#1589)
                     !(node.argument.type === "Literal" && node.argument.regex)) {
                 report(node.argument);
             }
         },
+
         "SequenceExpression": function(node) {
             [].forEach.call(node.expressions, function(e) {
                 if (hasExcessParens(e) && precedence(e) >= precedence(node)) {
@@ -435,47 +484,97 @@ module.exports = function(context) {
                 }
             });
         },
+
         "SwitchCase": function(node) {
             if (node.test && hasExcessParens(node.test)) {
                 report(node.test);
             }
         },
+
         "SwitchStatement": function(node) {
             if (hasDoubleExcessParens(node.discriminant)) {
                 report(node.discriminant);
             }
         },
+
         "ThrowStatement": function(node) {
-            if (hasExcessParens(node.argument)) {
+            var throwToken = sourceCode.getFirstToken(node);
+
+            if (hasExcessParensNoLineTerminator(throwToken, node.argument)) {
                 report(node.argument);
             }
         },
+
         "UnaryExpression": dryUnaryUpdate,
         "UpdateExpression": dryUnaryUpdate,
+
         "VariableDeclarator": function(node) {
             if (node.init && hasExcessParens(node.init) &&
                     precedence(node.init) >= precedence({type: "AssignmentExpression"}) &&
+
                     // RegExp literal is allowed to have parens (#1589)
                     !(node.init.type === "Literal" && node.init.regex)) {
                 report(node.init);
             }
         },
+
         "WhileStatement": function(node) {
-            if (hasDoubleExcessParens(node.test)) {
+            if (hasDoubleExcessParens(node.test) && !isCondAssignException(node)) {
                 report(node.test);
             }
         },
+
         "WithStatement": function(node) {
             if (hasDoubleExcessParens(node.object)) {
                 report(node.object);
+            }
+        },
+
+        "YieldExpression": function(node) {
+            var yieldToken;
+
+            if (node.argument) {
+                yieldToken = sourceCode.getFirstToken(node);
+
+                if ((precedence(node.argument) >= precedence(node) &&
+                        hasExcessParensNoLineTerminator(yieldToken, node.argument)) ||
+                        hasDoubleExcessParens(node.argument)) {
+                    report(node.argument);
+                }
             }
         }
     };
 
 };
 
-module.exports.schema = [
-    {
-        "enum": ["all", "functions"]
-    }
-];
+module.exports.schema = {
+    "anyOf": [
+        {
+            "type": "array",
+            "items": [
+                {
+                    "enum": ["functions"]
+                }
+            ],
+            "minItems": 0,
+            "maxItems": 1
+        },
+        {
+            "type": "array",
+            "items": [
+                {
+                    "enum": ["all"]
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "conditionalAssign": {"type": "boolean"}
+                    },
+                    "additionalProperties": false
+                }
+            ],
+            "minItems": 0,
+            "maxItems": 2
+        }
+    ]
+};

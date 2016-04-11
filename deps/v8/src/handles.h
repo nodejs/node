@@ -171,8 +171,6 @@ V8_INLINE Handle<T> handle(T* object) {
 // into a Handle requires checking that it does not point to NULL.  This
 // ensures NULL checks before use.
 //
-// Do not use MaybeHandle as argument type.
-//
 // Also note that Handles do not provide default equality comparison or hashing
 // operators on purpose. Such operators would be misleading, because intended
 // semantics is ambiguous between Handle location and object identity.

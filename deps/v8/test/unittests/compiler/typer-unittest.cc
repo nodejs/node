@@ -51,6 +51,7 @@ class TyperTest : public TypedGraphTest {
 
   Types<Type, Type*, Zone> types_;
   JSOperatorBuilder javascript_;
+  BinaryOperationHints const hints_ = BinaryOperationHints::Any();
   Node* context_node_;
   v8::base::RandomNumberGenerator* rng_;
   std::vector<double> integers;
@@ -239,68 +240,78 @@ int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
 
 
 TEST_F(TyperTest, TypeJSAdd) {
-  TestBinaryArithOp(javascript_.Add(LanguageMode::SLOPPY), std::plus<double>());
-  TestBinaryArithOp(javascript_.Add(LanguageMode::STRONG), std::plus<double>());
+  TestBinaryArithOp(javascript_.Add(LanguageMode::SLOPPY, hints_),
+                    std::plus<double>());
+  TestBinaryArithOp(javascript_.Add(LanguageMode::STRONG, hints_),
+                    std::plus<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSSubtract) {
-  TestBinaryArithOp(javascript_.Subtract(LanguageMode::SLOPPY),
+  TestBinaryArithOp(javascript_.Subtract(LanguageMode::SLOPPY, hints_),
                     std::minus<double>());
-  TestBinaryArithOp(javascript_.Subtract(LanguageMode::STRONG),
+  TestBinaryArithOp(javascript_.Subtract(LanguageMode::STRONG, hints_),
                     std::minus<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSMultiply) {
-  TestBinaryArithOp(javascript_.Multiply(LanguageMode::SLOPPY),
+  TestBinaryArithOp(javascript_.Multiply(LanguageMode::SLOPPY, hints_),
                     std::multiplies<double>());
-  TestBinaryArithOp(javascript_.Multiply(LanguageMode::STRONG),
+  TestBinaryArithOp(javascript_.Multiply(LanguageMode::STRONG, hints_),
                     std::multiplies<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSDivide) {
-  TestBinaryArithOp(javascript_.Divide(LanguageMode::SLOPPY),
+  TestBinaryArithOp(javascript_.Divide(LanguageMode::SLOPPY, hints_),
                     std::divides<double>());
-  TestBinaryArithOp(javascript_.Divide(LanguageMode::STRONG),
+  TestBinaryArithOp(javascript_.Divide(LanguageMode::STRONG, hints_),
                     std::divides<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSModulus) {
-  TestBinaryArithOp(javascript_.Modulus(LanguageMode::SLOPPY), modulo);
-  TestBinaryArithOp(javascript_.Modulus(LanguageMode::STRONG), modulo);
+  TestBinaryArithOp(javascript_.Modulus(LanguageMode::SLOPPY, hints_), modulo);
+  TestBinaryArithOp(javascript_.Modulus(LanguageMode::STRONG, hints_), modulo);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseOr) {
-  TestBinaryBitOp(javascript_.BitwiseOr(LanguageMode::SLOPPY), bit_or);
-  TestBinaryBitOp(javascript_.BitwiseOr(LanguageMode::STRONG), bit_or);
+  TestBinaryBitOp(javascript_.BitwiseOr(LanguageMode::SLOPPY, hints_), bit_or);
+  TestBinaryBitOp(javascript_.BitwiseOr(LanguageMode::STRONG, hints_), bit_or);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseAnd) {
-  TestBinaryBitOp(javascript_.BitwiseAnd(LanguageMode::SLOPPY), bit_and);
-  TestBinaryBitOp(javascript_.BitwiseAnd(LanguageMode::STRONG), bit_and);
+  TestBinaryBitOp(javascript_.BitwiseAnd(LanguageMode::SLOPPY, hints_),
+                  bit_and);
+  TestBinaryBitOp(javascript_.BitwiseAnd(LanguageMode::STRONG, hints_),
+                  bit_and);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseXor) {
-  TestBinaryBitOp(javascript_.BitwiseXor(LanguageMode::SLOPPY), bit_xor);
-  TestBinaryBitOp(javascript_.BitwiseXor(LanguageMode::STRONG), bit_xor);
+  TestBinaryBitOp(javascript_.BitwiseXor(LanguageMode::SLOPPY, hints_),
+                  bit_xor);
+  TestBinaryBitOp(javascript_.BitwiseXor(LanguageMode::STRONG, hints_),
+                  bit_xor);
 }
 
 
 TEST_F(TyperTest, TypeJSShiftLeft) {
-  TestBinaryBitOp(javascript_.ShiftLeft(LanguageMode::SLOPPY), shift_left);
-  TestBinaryBitOp(javascript_.ShiftLeft(LanguageMode::STRONG), shift_left);
+  TestBinaryBitOp(javascript_.ShiftLeft(LanguageMode::SLOPPY, hints_),
+                  shift_left);
+  TestBinaryBitOp(javascript_.ShiftLeft(LanguageMode::STRONG, hints_),
+                  shift_left);
 }
 
 
 TEST_F(TyperTest, TypeJSShiftRight) {
-  TestBinaryBitOp(javascript_.ShiftRight(LanguageMode::SLOPPY), shift_right);
-  TestBinaryBitOp(javascript_.ShiftRight(LanguageMode::STRONG), shift_right);
+  TestBinaryBitOp(javascript_.ShiftRight(LanguageMode::SLOPPY, hints_),
+                  shift_right);
+  TestBinaryBitOp(javascript_.ShiftRight(LanguageMode::STRONG, hints_),
+                  shift_right);
 }
 
 
@@ -362,47 +373,48 @@ TEST_F(TyperTest, TypeJSStrictNotEqual) {
 // Monotonicity
 
 
-// List should be in sync with JS_SIMPLE_BINOP_LIST.
-#define JSBINOP_LIST(V) \
-  V(Equal)              \
-  V(NotEqual)           \
-  V(StrictEqual)        \
-  V(StrictNotEqual)
-
-
-#define JSBINOP_WITH_STRONG_LIST(V) \
-  V(LessThan)                       \
-  V(GreaterThan)                    \
-  V(LessThanOrEqual)                \
-  V(GreaterThanOrEqual)             \
-  V(BitwiseOr)                      \
-  V(BitwiseXor)                     \
-  V(BitwiseAnd)                     \
-  V(ShiftLeft)                      \
-  V(ShiftRight)                     \
-  V(ShiftRightLogical)              \
-  V(Add)                            \
-  V(Subtract)                       \
-  V(Multiply)                       \
-  V(Divide)                         \
-  V(Modulus)
-
-
-#define TEST_FUNC(name)                         \
+#define TEST_BINARY_MONOTONICITY(name)          \
   TEST_F(TyperTest, Monotonicity_##name) {      \
     TestBinaryMonotonicity(javascript_.name()); \
   }
-JSBINOP_LIST(TEST_FUNC)
-#undef TEST_FUNC
+TEST_BINARY_MONOTONICITY(Equal)
+TEST_BINARY_MONOTONICITY(NotEqual)
+TEST_BINARY_MONOTONICITY(StrictEqual)
+TEST_BINARY_MONOTONICITY(StrictNotEqual)
+#undef TEST_BINARY_MONOTONICITY
 
 
-#define TEST_FUNC(name)                                             \
+#define TEST_BINARY_MONOTONICITY(name)                              \
   TEST_F(TyperTest, Monotonicity_##name) {                          \
     TestBinaryMonotonicity(javascript_.name(LanguageMode::SLOPPY)); \
     TestBinaryMonotonicity(javascript_.name(LanguageMode::STRONG)); \
   }
-JSBINOP_WITH_STRONG_LIST(TEST_FUNC)
-#undef TEST_FUNC
+TEST_BINARY_MONOTONICITY(LessThan)
+TEST_BINARY_MONOTONICITY(GreaterThan)
+TEST_BINARY_MONOTONICITY(LessThanOrEqual)
+TEST_BINARY_MONOTONICITY(GreaterThanOrEqual)
+#undef TEST_BINARY_MONOTONICITY
+
+
+#define TEST_BINARY_MONOTONICITY(name)                                        \
+  TEST_F(TyperTest, Monotonicity_##name) {                                    \
+    TestBinaryMonotonicity(                                                   \
+        javascript_.name(LanguageMode::SLOPPY, BinaryOperationHints::Any())); \
+    TestBinaryMonotonicity(                                                   \
+        javascript_.name(LanguageMode::STRONG, BinaryOperationHints::Any())); \
+  }
+TEST_BINARY_MONOTONICITY(BitwiseOr)
+TEST_BINARY_MONOTONICITY(BitwiseXor)
+TEST_BINARY_MONOTONICITY(BitwiseAnd)
+TEST_BINARY_MONOTONICITY(ShiftLeft)
+TEST_BINARY_MONOTONICITY(ShiftRight)
+TEST_BINARY_MONOTONICITY(ShiftRightLogical)
+TEST_BINARY_MONOTONICITY(Add)
+TEST_BINARY_MONOTONICITY(Subtract)
+TEST_BINARY_MONOTONICITY(Multiply)
+TEST_BINARY_MONOTONICITY(Divide)
+TEST_BINARY_MONOTONICITY(Modulus)
+#undef TEST_BINARY_MONOTONICITY
 
 
 //------------------------------------------------------------------------------

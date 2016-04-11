@@ -239,28 +239,47 @@ function search (data, fields, version, title) {
 function printData (data, name, cb) {
   var versions = Object.keys(data)
   var msg = ''
+  var msgJson = []
   var includeVersions = versions.length > 1
   var includeFields
 
   versions.forEach(function (v) {
     var fields = Object.keys(data[v])
     includeFields = includeFields || (fields.length > 1)
+    msgJson.push({})
     fields.forEach(function (f) {
       var d = cleanup(data[v][f])
+      if (fields.length === 1 && npm.config.get('json')) {
+        msgJson[msgJson.length - 1][f] = d
+      }
       if (includeVersions || includeFields || typeof d !== 'string') {
-        d = cleanup(data[v][f])
-        d = npm.config.get('json')
-          ? JSON.stringify(d, null, 2)
-          : util.inspect(d, false, 5, npm.color)
+        if (npm.config.get('json')) {
+          msgJson[msgJson.length - 1][f] = d
+        } else {
+          d = util.inspect(d, false, 5, npm.color)
+        }
       } else if (typeof d === 'string' && npm.config.get('json')) {
         d = JSON.stringify(d)
       }
-      if (f && includeFields) f += ' = '
-      if (d.indexOf('\n') !== -1) d = ' \n' + d
-      msg += (includeVersions ? name + '@' + v + ' ' : '') +
-             (includeFields ? f : '') + d + '\n'
+      if (!npm.config.get('json')) {
+        if (f && includeFields) f += ' = '
+        if (d.indexOf('\n') !== -1) d = ' \n' + d
+        msg += (includeVersions ? name + '@' + v + ' ' : '') +
+               (includeFields ? f : '') + d + '\n'
+      }
     })
   })
+
+  if (msgJson.length && Object.keys(msgJson[0]).length === 1) {
+    var k = Object.keys(msgJson[0])[0]
+    msgJson = msgJson.map(function (m) { return m[k] })
+  }
+
+  if (!msg) {
+    msg = JSON.stringify(msgJson[0], null, 2) + '\n'
+  } else if (msgJson.length > 1) {
+    msg = JSON.stringify(msgJson, null, 2) + '\n'
+  }
 
   // preserve output symmetry by adding a whitespace-only line at the end if
   // there's one at the beginning

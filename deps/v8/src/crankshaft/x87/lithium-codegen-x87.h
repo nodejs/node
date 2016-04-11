@@ -7,13 +7,13 @@
 
 #include <map>
 
+#include "src/ast/scopes.h"
 #include "src/base/logging.h"
 #include "src/crankshaft/lithium-codegen.h"
 #include "src/crankshaft/x87/lithium-gap-resolver-x87.h"
 #include "src/crankshaft/x87/lithium-x87.h"
 #include "src/deoptimizer.h"
 #include "src/safepoint-table.h"
-#include "src/scopes.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -28,15 +28,11 @@ class LCodeGen: public LCodeGenBase {
  public:
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : LCodeGenBase(chunk, assembler, info),
-        deoptimizations_(4, info->zone()),
         jump_table_(4, info->zone()),
-        inlined_function_count_(0),
         scope_(info->scope()),
-        translations_(info->zone()),
         deferred_(8, info->zone()),
         dynamic_frame_alignment_(false),
         support_aligned_spilled_doubles_(false),
-        osr_pc_offset_(-1),
         frame_is_built_(false),
         x87_stack_(assembler),
         safepoints_(info->zone()),
@@ -209,6 +205,11 @@ class LCodeGen: public LCodeGenBase {
     CallRuntime(function, argc, instr);
   }
 
+  void CallRuntime(Runtime::FunctionId id, LInstruction* instr) {
+    const Runtime::Function* function = Runtime::FunctionForId(id);
+    CallRuntime(function, function->nargs, instr);
+  }
+
   void CallRuntimeFromDeferred(Runtime::FunctionId id,
                                int argc,
                                LInstruction* instr,
@@ -244,9 +245,6 @@ class LCodeGen: public LCodeGenBase {
                         bool is_uint32,
                         int* object_index_pointer,
                         int* dematerialized_index_pointer);
-  void PopulateDeoptimizationData(Handle<Code> code);
-
-  void PopulateDeoptimizationLiteralsWithInlinedFunctions();
 
   Register ToRegister(int index) const;
   X87Register ToX87Register(int index) const;
@@ -306,10 +304,6 @@ class LCodeGen: public LCodeGenBase {
                          Label* is_not_string,
                          SmiCheck check_needed);
 
-  // Emits optimized code for %_IsConstructCall().
-  // Caller should branch on equal condition.
-  void EmitIsConstructCall(Register temp);
-
   // Emits optimized code to deep-copy the contents of statically known
   // object graphs (e.g. object literal boilerplate).
   void EmitDeepCopy(Handle<JSObject> object,
@@ -353,15 +347,11 @@ class LCodeGen: public LCodeGenBase {
   void MakeSureStackPagesMapped(int offset);
 #endif
 
-  ZoneList<LEnvironment*> deoptimizations_;
   ZoneList<Deoptimizer::JumpTableEntry> jump_table_;
-  int inlined_function_count_;
   Scope* const scope_;
-  TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
   bool dynamic_frame_alignment_;
   bool support_aligned_spilled_doubles_;
-  int osr_pc_offset_;
   bool frame_is_built_;
 
   class X87Stack : public ZoneObject {

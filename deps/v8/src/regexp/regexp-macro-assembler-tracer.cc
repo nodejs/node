@@ -4,7 +4,7 @@
 
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 
 namespace v8 {
 namespace internal {
@@ -13,9 +13,9 @@ RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
     Isolate* isolate, RegExpMacroAssembler* assembler)
     : RegExpMacroAssembler(isolate, assembler->zone()), assembler_(assembler) {
   unsigned int type = assembler->Implementation();
-  DCHECK(type < 6);
-  const char* impl_names[] = {"IA32", "ARM", "ARM64",
-                              "MIPS", "X64", "X87", "Bytecode"};
+  DCHECK(type < 8);
+  const char* impl_names[] = {"IA32", "ARM", "ARM64", "MIPS",
+                              "PPC",  "X64", "X87",   "Bytecode"};
   PrintF("RegExpMacroAssembler%s();\n", impl_names[type]);
 }
 
@@ -241,9 +241,11 @@ void RegExpMacroAssemblerTracer::CheckAtStart(Label* on_at_start) {
 }
 
 
-void RegExpMacroAssemblerTracer::CheckNotAtStart(Label* on_not_at_start) {
-  PrintF(" CheckNotAtStart(label[%08x]);\n", LabelToInt(on_not_at_start));
-  assembler_->CheckNotAtStart(on_not_at_start);
+void RegExpMacroAssemblerTracer::CheckNotAtStart(int cp_offset,
+                                                 Label* on_not_at_start) {
+  PrintF(" CheckNotAtStart(cp_offset=%d, label[%08x]);\n", cp_offset,
+         LabelToInt(on_not_at_start));
+  assembler_->CheckNotAtStart(cp_offset, on_not_at_start);
 }
 
 
@@ -349,19 +351,29 @@ void RegExpMacroAssemblerTracer::CheckBitInTable(
 
 
 void RegExpMacroAssemblerTracer::CheckNotBackReference(int start_reg,
+                                                       bool read_backward,
                                                        Label* on_no_match) {
-  PrintF(" CheckNotBackReference(register=%d, label[%08x]);\n", start_reg,
-         LabelToInt(on_no_match));
-  assembler_->CheckNotBackReference(start_reg, on_no_match);
+  PrintF(" CheckNotBackReference(register=%d, %s, label[%08x]);\n", start_reg,
+         read_backward ? "backward" : "forward", LabelToInt(on_no_match));
+  assembler_->CheckNotBackReference(start_reg, read_backward, on_no_match);
 }
 
 
 void RegExpMacroAssemblerTracer::CheckNotBackReferenceIgnoreCase(
-    int start_reg,
-    Label* on_no_match) {
-  PrintF(" CheckNotBackReferenceIgnoreCase(register=%d, label[%08x]);\n",
-         start_reg, LabelToInt(on_no_match));
-  assembler_->CheckNotBackReferenceIgnoreCase(start_reg, on_no_match);
+    int start_reg, bool read_backward, Label* on_no_match) {
+  PrintF(" CheckNotBackReferenceIgnoreCase(register=%d, %s, label[%08x]);\n",
+         start_reg, read_backward ? "backward" : "forward",
+         LabelToInt(on_no_match));
+  assembler_->CheckNotBackReferenceIgnoreCase(start_reg, read_backward,
+                                              on_no_match);
+}
+
+
+void RegExpMacroAssemblerTracer::CheckPosition(int cp_offset,
+                                               Label* on_outside_input) {
+  PrintF(" CheckPosition(cp_offset=%d, label[%08x]);\n", cp_offset,
+         LabelToInt(on_outside_input));
+  assembler_->CheckPosition(cp_offset, on_outside_input);
 }
 
 

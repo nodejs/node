@@ -25,10 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/assembler.h"
+#include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -36,7 +34,7 @@ namespace internal {
 
 static void WriteRinfo(RelocInfoWriter* writer,
                        byte* pc, RelocInfo::Mode mode, intptr_t data) {
-  RelocInfo rinfo(pc, mode, data, NULL);
+  RelocInfo rinfo(CcTest::i_isolate(), pc, mode, data, NULL);
   writer->Write(&rinfo);
 }
 
@@ -44,6 +42,7 @@ static void WriteRinfo(RelocInfoWriter* writer,
 // Tests that writing both types of positions and then reading either
 // or both works as expected.
 TEST(Positions) {
+  CcTest::InitializeVM();
   const int code_size = 10 * KB;
   int relocation_info_size = 10 * KB;
   const int buffer_size = code_size + relocation_info_size;
@@ -68,8 +67,9 @@ TEST(Positions) {
 
   writer.Finish();
   relocation_info_size = static_cast<int>(buffer_end - writer.pos());
-  CodeDesc desc = {buffer.get(), buffer_size, code_size, relocation_info_size,
-                   0, NULL};
+  MacroAssembler assm(CcTest::i_isolate(), nullptr, 0, CodeObjectRequired::kNo);
+  CodeDesc desc = {buffer.get(),         buffer_size, code_size,
+                   relocation_info_size, 0,           &assm};
 
   // Read only (non-statement) positions.
   {

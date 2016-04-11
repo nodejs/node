@@ -212,6 +212,12 @@ module (loading from `node_modules` folders), it is not a *guarantee*
 that `require('foo')` will always return the exact same object, if it
 would resolve to different files.
 
+Additionally, on case-insensitive file systems or operating systems, different
+resolved filenames can point to the same file, but the cache will still treat
+them as different modules and will reload the file multiple times. For example,
+`require('./foo')` and `require('./FOO')` return two different objects,
+irrespective of whether or not `./foo` and `./FOO` are the same file.
+
 ## Core Modules
 
 <!--type=misc-->
@@ -339,6 +345,14 @@ If this was in a folder at `./some-library`, then
 `./some-library/lib/some-library.js`.
 
 This is the extent of Node.js's awareness of package.json files.
+
+Note: If the file specified by the `"main"` entry of `package.json` is missing
+and can not be resolved, Node.js will report the entire module as missing with
+the default error:
+
+```
+Error: Cannot find module 'some-library'
+```
 
 If there is no package.json file present in the directory, then Node.js
 will attempt to load an `index.js` or `index.node` file out of that

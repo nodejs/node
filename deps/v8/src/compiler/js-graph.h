@@ -158,7 +158,6 @@ class JSGraph : public ZoneObject {
   CommonNodeCache cache_;
   Node* cached_nodes_[kNumCachedNodes];
 
-  Node* ImmovableHeapConstant(Handle<HeapObject> value);
   Node* NumberConstant(double value);
 
   DISALLOW_COPY_AND_ASSIGN(JSGraph);

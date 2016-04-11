@@ -56,8 +56,11 @@
 #define ABI_RETURNS_OBJECT_PAIRS_IN_REGS \
   (!V8_HOST_ARCH_PPC || !V8_TARGET_ARCH_PPC64 || V8_TARGET_LITTLE_ENDIAN)
 
-#define ABI_TOC_ADDRESSABILITY_VIA_IP \
-  (V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN)
+#if !V8_HOST_ARCH_PPC || (V8_TARGET_ARCH_PPC64 && V8_TARGET_LITTLE_ENDIAN)
+#define ABI_CALL_VIA_IP 1
+#else
+#define ABI_CALL_VIA_IP 0
+#endif
 
 #if !V8_HOST_ARCH_PPC || V8_OS_AIX || V8_TARGET_ARCH_PPC64
 #define ABI_TOC_REGISTER Register::kCode_r2
@@ -457,17 +460,18 @@ class Assembler : public AssemblerBase {
   // Read/Modify the code target address in the branch/call instruction at pc.
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
-      Address pc, Address constant_pool, Address target,
+      Isolate* isolate, Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(static Address target_address_at(Address pc, Code* code)) {
     Address constant_pool = code ? code->constant_pool() : NULL;
     return target_address_at(pc, constant_pool);
   }
   INLINE(static void set_target_address_at(
-      Address pc, Code* code, Address target,
+      Isolate* isolate, Address pc, Code* code, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
     Address constant_pool = code ? code->constant_pool() : NULL;
-    set_target_address_at(pc, constant_pool, target, icache_flush_mode);
+    set_target_address_at(isolate, pc, constant_pool, target,
+                          icache_flush_mode);
   }
 
   // Return the code target address at a call site from the return address
@@ -481,11 +485,12 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code* code, Address target);
+      Isolate* isolate, Address instruction_payload, Code* code,
+      Address target);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Isolate* isolate, Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Size of an instruction.
@@ -982,7 +987,7 @@ class Assembler : public AssemblerBase {
   void mtlr(Register src);
   void mtctr(Register src);
   void mtxer(Register src);
-  void mcrfs(int bf, int bfa);
+  void mcrfs(CRegister cr, FPSCRBit bit);
   void mfcr(Register dst);
 #if V8_TARGET_ARCH_PPC64
   void mffprd(Register dst, DoubleRegister src);
@@ -1050,17 +1055,27 @@ class Assembler : public AssemblerBase {
             RCBit rc = LeaveRC);
   void fcfid(const DoubleRegister frt, const DoubleRegister frb,
              RCBit rc = LeaveRC);
+  void fcfidu(const DoubleRegister frt, const DoubleRegister frb,
+              RCBit rc = LeaveRC);
+  void fcfidus(const DoubleRegister frt, const DoubleRegister frb,
+               RCBit rc = LeaveRC);
   void fcfids(const DoubleRegister frt, const DoubleRegister frb,
               RCBit rc = LeaveRC);
   void fctid(const DoubleRegister frt, const DoubleRegister frb,
              RCBit rc = LeaveRC);
   void fctidz(const DoubleRegister frt, const DoubleRegister frb,
               RCBit rc = LeaveRC);
+  void fctidu(const DoubleRegister frt, const DoubleRegister frb,
+              RCBit rc = LeaveRC);
+  void fctiduz(const DoubleRegister frt, const DoubleRegister frb,
+               RCBit rc = LeaveRC);
   void fsel(const DoubleRegister frt, const DoubleRegister fra,
             const DoubleRegister frc, const DoubleRegister frb,
             RCBit rc = LeaveRC);
   void fneg(const DoubleRegister frt, const DoubleRegister frb,
             RCBit rc = LeaveRC);
+  void mtfsb0(FPSCRBit bit, RCBit rc = LeaveRC);
+  void mtfsb1(FPSCRBit bit, RCBit rc = LeaveRC);
   void mtfsfi(int bf, int immediate, RCBit rc = LeaveRC);
   void mffs(const DoubleRegister frt, RCBit rc = LeaveRC);
   void mtfsf(const DoubleRegister frb, bool L = 1, int FLM = 0, bool W = 0,
@@ -1164,7 +1179,7 @@ class Assembler : public AssemblerBase {
   void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
+  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.

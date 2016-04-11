@@ -33,7 +33,7 @@ function master() {
       return;
 
     // Start sending messages.
-    var buf = new Buffer('hello world');
+    var buf = Buffer.from('hello world');
     var socket = dgram.createSocket('udp4');
     var sent = 0;
     doSend();

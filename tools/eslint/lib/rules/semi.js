@@ -13,8 +13,9 @@
 module.exports = function(context) {
 
     var OPT_OUT_PATTERN = /[\[\(\/\+\-]/; // One of [(/+-
-
-    var always = context.options[0] !== "never",
+    var options = context.options[1];
+    var never = context.options[0] === "never",
+        exceptOneLine = options && options.omitLastInOneLineBlock === true,
         sourceCode = context.getSourceCode();
 
     //--------------------------------------------------------------------------
@@ -24,15 +25,16 @@ module.exports = function(context) {
     /**
      * Reports a semicolon error with appropriate location and message.
      * @param {ASTNode} node The node with an extra or missing semicolon.
+     * @param {boolean} missing True if the semicolon is missing.
      * @returns {void}
      */
-    function report(node) {
+    function report(node, missing) {
         var message,
             fix,
             lastToken = sourceCode.getLastToken(node),
             loc = lastToken.loc;
 
-        if (always) {
+        if (!missing) {
             message = "Missing semicolon.";
             loc = loc.end;
             fix = function(fixer) {
@@ -93,6 +95,24 @@ module.exports = function(context) {
     }
 
     /**
+     * Checks a node to see if it's in a one-liner block statement.
+     * @param {ASTNode} node The node to check.
+     * @returns {boolean} whether the node is in a one-liner block statement.
+     */
+    function isOneLinerBlock(node) {
+        var nextToken = context.getTokenAfter(node);
+
+        if (!nextToken || nextToken.value !== "}") {
+            return false;
+        }
+
+        var parent = node.parent;
+
+        return parent && parent.type === "BlockStatement" &&
+          parent.loc.start.line === parent.loc.end.line;
+    }
+
+    /**
      * Checks a node to see if it's followed by a semicolon.
      * @param {ASTNode} node The node to check.
      * @returns {void}
@@ -100,13 +120,19 @@ module.exports = function(context) {
     function checkForSemicolon(node) {
         var lastToken = context.getLastToken(node);
 
-        if (always) {
-            if (!isSemicolon(lastToken)) {
-                report(node);
+        if (never) {
+            if (isUnnecessarySemicolon(lastToken)) {
+                report(node, true);
             }
         } else {
-            if (isUnnecessarySemicolon(lastToken)) {
-                report(node);
+            if (!isSemicolon(lastToken)) {
+                if (!exceptOneLine || !isOneLinerBlock(node)) {
+                    report(node);
+                }
+            } else {
+                if (exceptOneLine && isOneLinerBlock(node)) {
+                    report(node, true);
+                }
             }
         }
     }
@@ -133,7 +159,6 @@ module.exports = function(context) {
     //--------------------------------------------------------------------------
 
     return {
-
         "VariableDeclaration": checkForSemicolonForVariableDeclaration,
         "ExpressionStatement": checkForSemicolon,
         "ReturnStatement": checkForSemicolon,
@@ -158,8 +183,34 @@ module.exports = function(context) {
 
 };
 
-module.exports.schema = [
-    {
-        "enum": ["always", "never"]
-    }
-];
+module.exports.schema = {
+    "anyOf": [
+        {
+            "type": "array",
+            "items": [
+                {
+                    "enum": ["never"]
+                }
+            ],
+            "minItems": 0,
+            "maxItems": 1
+        },
+        {
+            "type": "array",
+            "items": [
+                {
+                    "enum": ["always"]
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "omitLastInOneLineBlock": {"type": "boolean"}
+                    },
+                    "additionalProperties": false
+                }
+            ],
+            "minItems": 0,
+            "maxItems": 2
+        }
+    ]
+};

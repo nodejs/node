@@ -48,8 +48,8 @@ myConsole.warn(`Danger ${name}! Danger!`);
 ```
 
 While the API for the `Console` class is designed fundamentally around the
-Web browser `console` object, the `Console` is Node.js is *not* intended to
-duplicate the browsers functionality exactly.
+browser `console` object, the `Console` in Node.js is *not* intended to
+duplicate the browser's functionality exactly.
 
 ## Asynchronous vs Synchronous Consoles
 
@@ -75,8 +75,8 @@ const Console = console.Console;
 
 Creates a new `Console` by passing one or two writable stream instances.
 `stdout` is a writable stream to print log or info output. `stderr`
-is used for warning or error output. If `stderr` isn't passed, the warning
-and error output will be sent to the `stdout`.
+is used for warning or error output. If `stderr` isn't passed, warning and error
+output will be sent to `stdout`.
 
 ```js
 const output = fs.createWriteStream('./stdout.log');
@@ -90,7 +90,7 @@ logger.log('count: %d', count);
 ```
 
 The global `console` is a special `Console` whose output is sent to
-`process.stdout` and `process.stderr`. It is equivalent to calling:
+[`process.stdout`][] and [`process.stderr`][]. It is equivalent to calling:
 
 ```js
 new Console(process.stdout, process.stderr);
@@ -99,7 +99,7 @@ new Console(process.stdout, process.stderr);
 ### console.assert(value[, message][, ...])
 
 A simple assertion test that verifies whether `value` is truthy. If it is not,
-an `AssertionError` is throw. If provided, the error `message` is formatted
+an `AssertionError` is thrown. If provided, the error `message` is formatted
 using [`util.format()`][] and used as the error message.
 
 ```js
@@ -111,17 +111,17 @@ console.assert(false, 'Whoops %s', 'didn\'t work');
 
 ### console.dir(obj[, options])
 
-Uses [`util.inspect()`][] on `obj` and prints the resulting string to stdout.
+Uses [`util.inspect()`][] on `obj` and prints the resulting string to `stdout`.
 This function bypasses any custom `inspect()` function defined on `obj`. An
-optional `options` object may be passed that alters certain aspects of the
+optional `options` object may be passed to alter certain aspects of the
 formatted string:
 
 - `showHidden` - if `true` then the object's non-enumerable and symbol
 properties will be shown too. Defaults to `false`.
 
-- `depth` - tells `inspect` how many times to recurse while formatting the
-object. This is useful for inspecting large complicated objects. Defaults to
-`2`. To make it recurse indefinitely, pass `null`.
+- `depth` - tells [`util.inspect()`][] how many times to recurse while
+formatting the object. This is useful for inspecting large complicated objects.
+Defaults to `2`. To make it recurse indefinitely, pass `null`.
 
 - `colors` - if `true`, then the output will be styled with ANSI color codes.
 Defaults to `false`. Colors are customizable; see
@@ -129,9 +129,9 @@ Defaults to `false`. Colors are customizable; see
 
 ### console.error([data][, ...])
 
-Prints to stderr with newline. Multiple arguments can be passed, with the first
-used as the primary message and all additional used as substitution
-values similar to `printf()` (the arguments are all passed to
+Prints to `stderr` with newline. Multiple arguments can be passed, with the
+first used as the primary message and all additional used as substitution
+values similar to `printf(3)` (the arguments are all passed to
 [`util.format()`][]).
 
 ```js
@@ -144,7 +144,7 @@ console.error('error', code);
 
 If formatting elements (e.g. `%d`) are not found in the first string then
 [`util.inspect()`][] is called on each argument and the resulting string
-values are concatenated.  See [`util.format()`][] for more information.
+values are concatenated. See [`util.format()`][] for more information.
 
 ### console.info([data][, ...])
 
@@ -152,9 +152,9 @@ The `console.info()` function is an alias for [`console.log()`][].
 
 ### console.log([data][, ...])
 
-Prints to stdout with newline. Multiple arguments can be passed, with the first
-used as the primary message and all additional used as substitution
-values similar to `printf()` (the arguments are all passed to
+Prints to `stdout` with newline. Multiple arguments can be passed, with the
+first used as the primary message and all additional used as substitution
+values similar to `printf(3)` (the arguments are all passed to
 [`util.format()`][]).
 
 ```js
@@ -167,7 +167,7 @@ console.log('count: ', count);
 
 If formatting elements (e.g. `%d`) are not found in the first string then
 [`util.inspect()`][] is called on each argument and the resulting string
-values are concatenated.  See [`util.format()`][] for more information.
+values are concatenated. See [`util.format()`][] for more information.
 
 ### console.time(label)
 
@@ -192,7 +192,7 @@ console.timeEnd('100-elements');
 
 ### console.trace(message[, ...])
 
-Prints to stderr the string `'Trace :'`, followed by the [`util.format()`][]
+Prints to `stderr` the string `'Trace :'`, followed by the [`util.format()`][]
 formatted message and stack trace to the current position in the code.
 
 ```js
@@ -219,5 +219,8 @@ The `console.warn()` function is an alias for [`console.error()`][].
 [`console.log()`]: #console_console_log_data
 [`console.time()`]: #console_console_time_label
 [`console.timeEnd()`]: #console_console_timeend_label
+[`process.stderr`]: process.html#process_process_stderr
+[`process.stdout`]: process.html#process_process_stdout
 [`util.format()`]: util.html#util_util_format_format
 [`util.inspect()`]: util.html#util_util_inspect_object_options
+[customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors

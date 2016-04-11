@@ -63,6 +63,11 @@ const Register ArgumentsAccessNewDescriptor::parameter_count() { return rcx; }
 const Register ArgumentsAccessNewDescriptor::parameter_pointer() { return rdx; }
 
 
+const Register RestParamAccessDescriptor::parameter_count() { return rcx; }
+const Register RestParamAccessDescriptor::parameter_pointer() { return rdx; }
+const Register RestParamAccessDescriptor::rest_parameter_index() { return rbx; }
+
+
 const Register ApiGetterDescriptor::function_address() { return r8; }
 
 
@@ -122,6 +127,13 @@ const Register ToObjectDescriptor::ReceiverRegister() { return rax; }
 void NumberToStringDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rax};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
+void FastCloneRegExpDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rdi, rax, rcx, rdx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -186,12 +198,11 @@ void CallConstructDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // rax : number of arguments
   // rbx : feedback vector
-  // rcx : original constructor (for IsSuperConstructorCall)
   // rdx : slot in feedback vector (Smi, for RecordCallTarget)
   // rdi : constructor function
   // TODO(turbofan): So far we don't gather type feedback and hence skip the
   // slot parameter, but ArrayConstructStub needs the vector to be undefined.
-  Register registers[] = {rax, rdi, rcx, rbx};
+  Register registers[] = {rax, rdi, rbx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -201,6 +212,27 @@ void CallTrampolineDescriptor::InitializePlatformSpecific(
   // rax : number of arguments
   // rdi : the target to call
   Register registers[] = {rdi, rax};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
+void ConstructStubDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // rax : number of arguments
+  // rdx : the new target
+  // rdi : the target to call
+  // rbx : allocation site or undefined
+  Register registers[] = {rdi, rdx, rax, rbx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
+void ConstructTrampolineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // rax : number of arguments
+  // rdx : the new target
+  // rdi : the target to call
+  Register registers[] = {rdi, rdx, rax};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -342,6 +374,7 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       rdi,  // JSFunction
+      rdx,  // the new target
       rax,  // actual number of arguments
       rbx,  // expected number of arguments
   };
@@ -374,27 +407,6 @@ void ApiAccessorDescriptor::InitializePlatformSpecific(
 }
 
 
-void MathRoundVariantCallFromUnoptimizedCodeDescriptor::
-    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      rdi,  // math rounding function
-      rdx,  // vector slot id
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void MathRoundVariantCallFromOptimizedCodeDescriptor::
-    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      rdi,  // math rounding function
-      rdx,  // vector slot id
-      rbx   // type vector
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
 void InterpreterPushArgsAndCallDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
@@ -410,7 +422,7 @@ void InterpreterPushArgsAndConstructDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       rax,  // argument count (not including receiver)
-      rdx,  // original constructor
+      rdx,  // new target
       rdi,  // constructor
       rbx,  // address of first argument
   };

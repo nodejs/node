@@ -12,13 +12,14 @@
 var nodeTypes = require("espree").Syntax;
 
 module.exports = function(context) {
+
     /**
      * Generates a warning from the provided node, saying that node type is not allowed.
      * @param {ASTNode} node The node to warn on
      * @returns {void}
      */
     function warn(node) {
-        context.report(node, "Using \"{{type}}\" is not allowed.", node);
+        context.report(node, "Using '{{type}}' is not allowed.", node);
     }
 
     return context.options.reduce(function(result, nodeType) {
@@ -33,14 +34,11 @@ module.exports.schema = {
     "type": "array",
     "items": [
         {
-            "enum": [0, 1, 2]
-        },
-        {
             "enum": Object.keys(nodeTypes).map(function(k) {
                 return nodeTypes[k];
             })
         }
     ],
     "uniqueItems": true,
-    "minItems": 1
+    "minItems": 0
 };

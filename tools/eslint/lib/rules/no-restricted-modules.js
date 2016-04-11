@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+
     // trim restricted module names
     var restrictedModules = context.options;
 
@@ -73,12 +74,7 @@ module.exports = function(context) {
 
 module.exports.schema = {
     "type": "array",
-    "items": [
-        {
-            "enum": [0, 1, 2]
-        }
-    ],
-    "additionalItems": {
+    "items": {
         "type": "string"
     },
     "uniqueItems": true

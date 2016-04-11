@@ -1,4 +1,6 @@
-/* eslint-disable strict, required-modules */
+/* eslint-disable required-modules */
+'use strict';
+
 try {
   var crypto = require('crypto');
 } catch (e) {
@@ -6,8 +8,9 @@ try {
   return;
 }
 
-// the missing var keyword is intentional
-domain = require('domain');
+// Pollution of global is intentional as part of test.
+// See https://github.com/nodejs/node/commit/d1eff9ab
+global.domain = require('domain');
 
 // should not throw a 'TypeError: undefined is not a function' exception
 crypto.randomBytes(8);

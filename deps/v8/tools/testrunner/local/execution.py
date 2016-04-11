@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import collections
 import os
 import shutil
 import sys
@@ -35,10 +36,17 @@ from pool import Pool
 from . import commands
 from . import perfdata
 from . import statusfile
+from . import testsuite
 from . import utils
 
 
-class Job(object):
+# Base dir of the v8 checkout.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))))
+TEST_DIR = os.path.join(BASE_DIR, "test")
+
+
+class Instructions(object):
   def __init__(self, command, dep_command, test_id, timeout, verbose):
     self.command = command
     self.dep_command = dep_command
@@ -47,24 +55,119 @@ class Job(object):
     self.verbose = verbose
 
 
-def RunTest(job):
-  start_time = time.time()
-  if job.dep_command is not None:
-    dep_output = commands.Execute(job.dep_command, job.verbose, job.timeout)
-    # TODO(jkummerow): We approximate the test suite specific function
-    # IsFailureOutput() by just checking the exit code here. Currently
-    # only cctests define dependencies, for which this simplification is
-    # correct.
-    if dep_output.exit_code != 0:
-      return (job.id, dep_output, time.time() - start_time)
-  output = commands.Execute(job.command, job.verbose, job.timeout)
-  return (job.id, output, time.time() - start_time)
+# Structure that keeps global information per worker process.
+ProcessContext = collections.namedtuple(
+    "process_context", ["suites", "context"])
+
+
+def MakeProcessContext(context):
+  """Generate a process-local context.
+
+  This reloads all suites per process and stores the global context.
+
+  Args:
+    context: The global context from the test runner.
+  """
+  suite_paths = utils.GetSuitePaths(TEST_DIR)
+  suites = {}
+  for root in suite_paths:
+    # Don't reinitialize global state as this is concurrently called from
+    # different processes.
+    suite = testsuite.TestSuite.LoadTestSuite(
+        os.path.join(TEST_DIR, root), global_init=False)
+    if suite:
+      suites[suite.name] = suite
+  return ProcessContext(suites, context)
+
+
+def GetCommand(test, context):
+  d8testflag = []
+  shell = test.suite.shell()
+  if shell == "d8":
+    d8testflag = ["--test"]
+  if utils.IsWindows():
+    shell += ".exe"
+  if context.random_seed:
+    d8testflag += ["--random-seed=%s" % context.random_seed]
+  cmd = (context.command_prefix +
+         [os.path.abspath(os.path.join(context.shell_dir, shell))] +
+         d8testflag +
+         test.suite.GetFlagsForTestCase(test, context) +
+         context.extra_flags)
+  return cmd
+
+
+def _GetInstructions(test, context):
+  command = GetCommand(test, context)
+  timeout = context.timeout
+  if ("--stress-opt" in test.flags or
+      "--stress-opt" in context.mode_flags or
+      "--stress-opt" in context.extra_flags):
+    timeout *= 4
+  if "--noenable-vfp3" in context.extra_flags:
+    timeout *= 2
+  # FIXME(machenbach): Make this more OO. Don't expose default outcomes or
+  # the like.
+  if statusfile.IsSlow(test.outcomes or [statusfile.PASS]):
+    timeout *= 2
+  if test.dependency is not None:
+    dep_command = [ c.replace(test.path, test.dependency) for c in command ]
+  else:
+    dep_command = None
+  return Instructions(
+      command, dep_command, test.id, timeout, context.verbose)
+
+
+class Job(object):
+  """Stores data to be sent over the multi-process boundary.
+
+  All contained fields will be pickled/unpickled.
+  """
+
+  def Run(self, process_context):
+    """Executes the job.
+
+    Args:
+      process_context: Process-local information that is initialized by the
+                       executing worker.
+    """
+    raise NotImplementedError()
+
+
+class TestJob(Job):
+  def __init__(self, test):
+    self.test = test
+
+  def Run(self, process_context):
+    # Retrieve a new suite object on the worker-process side. The original
+    # suite object isn't pickled.
+    self.test.SetSuiteObject(process_context.suites)
+    instr = _GetInstructions(self.test, process_context.context)
+
+    start_time = time.time()
+    if instr.dep_command is not None:
+      dep_output = commands.Execute(
+          instr.dep_command, instr.verbose, instr.timeout)
+      # TODO(jkummerow): We approximate the test suite specific function
+      # IsFailureOutput() by just checking the exit code here. Currently
+      # only cctests define dependencies, for which this simplification is
+      # correct.
+      if dep_output.exit_code != 0:
+        return (instr.id, dep_output, time.time() - start_time)
+    output = commands.Execute(instr.command, instr.verbose, instr.timeout)
+    return (instr.id, output, time.time() - start_time)
+
+
+def RunTest(job, process_context):
+  return job.Run(process_context)
+
 
 class Runner(object):
 
   def __init__(self, suites, progress_indicator, context):
     self.datapath = os.path.join("out", "testrunner_data")
-    self.perf_data_manager = perfdata.PerfDataManager(self.datapath)
+    self.perf_data_manager = perfdata.GetPerfDataManager(
+        context, self.datapath)
     self.perfdata = self.perf_data_manager.GetStore(context.arch, context.mode)
     self.perf_failures = False
     self.printed_allocations = False
@@ -99,25 +202,6 @@ class Runner(object):
       print("PerfData exception: %s" % e)
       self.perf_failures = True
 
-  def _GetJob(self, test):
-    command = self.GetCommand(test)
-    timeout = self.context.timeout
-    if ("--stress-opt" in test.flags or
-        "--stress-opt" in self.context.mode_flags or
-        "--stress-opt" in self.context.extra_flags):
-      timeout *= 4
-    if "--noenable-vfp3" in self.context.extra_flags:
-      timeout *= 2
-    # FIXME(machenbach): Make this more OO. Don't expose default outcomes or
-    # the like.
-    if statusfile.IsSlow(test.outcomes or [statusfile.PASS]):
-      timeout *= 2
-    if test.dependency is not None:
-      dep_command = [ c.replace(test.path, test.dependency) for c in command ]
-    else:
-      dep_command = None
-    return Job(command, dep_command, test.id, timeout, self.context.verbose)
-
   def _MaybeRerun(self, pool, test):
     if test.run <= self.context.rerun_failures_count:
       # Possibly rerun this test if its run count is below the maximum per
@@ -138,7 +222,7 @@ class Runner(object):
       test.duration = None
       test.output = None
       test.run += 1
-      pool.add([self._GetJob(test)])
+      pool.add([TestJob(test)])
       self.remaining += 1
       self.total += 1
 
@@ -208,7 +292,7 @@ class Runner(object):
       # remember the output for comparison.
       test.run += 1
       test.output = result[1]
-      pool.add([self._GetJob(test)])
+      pool.add([TestJob(test)])
     # Always update the perf database.
     return True
 
@@ -231,14 +315,19 @@ class Runner(object):
         assert test.id >= 0
         test_map[test.id] = test
         try:
-          yield [self._GetJob(test)]
+          yield [TestJob(test)]
         except Exception, e:
           # If this failed, save the exception and re-raise it later (after
           # all other tests have had a chance to run).
           queued_exception[0] = e
           continue
     try:
-      it = pool.imap_unordered(RunTest, gen_tests())
+      it = pool.imap_unordered(
+          fn=RunTest,
+          gen=gen_tests(),
+          process_context_fn=MakeProcessContext,
+          process_context_args=[self.context],
+      )
       for result in it:
         if result.heartbeat:
           self.indicator.Heartbeat()
@@ -275,22 +364,6 @@ class Runner(object):
     if self.context.verbose:
       print text
       sys.stdout.flush()
-
-  def GetCommand(self, test):
-    d8testflag = []
-    shell = test.suite.shell()
-    if shell == "d8":
-      d8testflag = ["--test"]
-    if utils.IsWindows():
-      shell += ".exe"
-    if self.context.random_seed:
-      d8testflag += ["--random-seed=%s" % self.context.random_seed]
-    cmd = (self.context.command_prefix +
-           [os.path.abspath(os.path.join(self.context.shell_dir, shell))] +
-           d8testflag +
-           test.suite.GetFlagsForTestCase(test, self.context) +
-           self.context.extra_flags)
-    return cmd
 
 
 class BreakNowException(Exception):

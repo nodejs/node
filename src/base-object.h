@@ -9,8 +9,8 @@ class Environment;
 
 class BaseObject {
  public:
-  BaseObject(Environment* env, v8::Local<v8::Object> handle);
-  virtual ~BaseObject();
+  inline BaseObject(Environment* env, v8::Local<v8::Object> handle);
+  inline virtual ~BaseObject();
 
   // Returns the wrapped object.  Returns an empty handle when
   // persistent.IsEmpty() is true.
@@ -40,7 +40,7 @@ class BaseObject {
 
   template <typename Type>
   static inline void WeakCallback(
-      const v8::WeakCallbackData<v8::Object, Type>& data);
+      const v8::WeakCallbackInfo<Type>& data);
 
   v8::Persistent<v8::Object> handle_;
   Environment* env_;

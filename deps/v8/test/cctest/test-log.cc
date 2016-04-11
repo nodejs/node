@@ -85,7 +85,7 @@ class ScopedLoggerInitializer {
     i::FLAG_log = saved_log_;
   }
 
-  v8::Handle<v8::Context>& env() { return env_; }
+  v8::Local<v8::Context>& env() { return env_; }
 
   v8::Isolate* isolate() { return isolate_; }
 
@@ -106,7 +106,7 @@ class ScopedLoggerInitializer {
   v8::Isolate* isolate_;
   v8::Isolate::Scope isolate_scope_;
   v8::HandleScope scope_;
-  v8::Handle<v8::Context> env_;
+  v8::Local<v8::Context> env_;
   Logger* logger_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedLoggerInitializer);
@@ -307,18 +307,21 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
 
 TEST(Issue23768) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
+  v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
 
   SimpleExternalString source_ext_str("(function ext() {})();");
   v8::Local<v8::String> source =
-      v8::String::NewExternal(CcTest::isolate(), &source_ext_str);
+      v8::String::NewExternalTwoByte(CcTest::isolate(), &source_ext_str)
+          .ToLocalChecked();
   // Script needs to have a name in order to trigger InitLineEnds execution.
-  v8::Handle<v8::String> origin =
-      v8::String::NewFromUtf8(CcTest::isolate(), "issue-23768-test");
-  v8::Handle<v8::Script> evil_script = CompileWithOrigin(source, origin);
+  v8::Local<v8::String> origin =
+      v8::String::NewFromUtf8(CcTest::isolate(), "issue-23768-test",
+                              v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  v8::Local<v8::Script> evil_script = CompileWithOrigin(source, origin);
   CHECK(!evil_script.IsEmpty());
-  CHECK(!evil_script->Run().IsEmpty());
+  CHECK(!evil_script->Run(env).IsEmpty());
   i::Handle<i::ExternalTwoByteString> i_source(
       i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)));
   // This situation can happen if source was an external string disposed
@@ -346,14 +349,18 @@ TEST(LogCallbacks) {
     v8::Local<v8::FunctionTemplate> obj = v8::Local<v8::FunctionTemplate>::New(
         isolate, v8::FunctionTemplate::New(isolate));
     obj->SetClassName(v8_str("Obj"));
-    v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
+    v8::Local<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
     v8::Local<v8::Signature> signature = v8::Signature::New(isolate, obj);
     proto->Set(v8_str("method1"),
                v8::FunctionTemplate::New(isolate, ObjMethod1,
-                                         v8::Handle<v8::Value>(), signature),
+                                         v8::Local<v8::Value>(), signature),
                static_cast<v8::PropertyAttribute>(v8::DontDelete));
 
-    initialize_logger.env()->Global()->Set(v8_str("Obj"), obj->GetFunction());
+    initialize_logger.env()
+        ->Global()
+        ->Set(initialize_logger.env(), v8_str("Obj"),
+              obj->GetFunction(initialize_logger.env()).ToLocalChecked())
+        .FromJust();
     CompileRun("Obj.prototype.method1.toString();");
 
     logger->LogCompiledFunctions();
@@ -401,7 +408,7 @@ TEST(LogAccessorCallbacks) {
     v8::Local<v8::FunctionTemplate> obj = v8::Local<v8::FunctionTemplate>::New(
         isolate, v8::FunctionTemplate::New(isolate));
     obj->SetClassName(v8_str("Obj"));
-    v8::Handle<v8::ObjectTemplate> inst = obj->InstanceTemplate();
+    v8::Local<v8::ObjectTemplate> inst = obj->InstanceTemplate();
     inst->SetAccessor(v8_str("prop1"), Prop1Getter, Prop1Setter);
     inst->SetAccessor(v8_str("prop2"), Prop2Getter);
 
@@ -475,29 +482,37 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     i::Vector<const char> log(
         i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
     CHECK(exists);
-    v8::Handle<v8::String> log_str = v8::String::NewFromUtf8(
-        isolate, log.start(), v8::String::kNormalString, log.length());
-    initialize_logger.env()->Global()->Set(v8_str("_log"), log_str);
+    v8::Local<v8::String> log_str =
+        v8::String::NewFromUtf8(isolate, log.start(),
+                                v8::NewStringType::kNormal, log.length())
+            .ToLocalChecked();
+    initialize_logger.env()
+        ->Global()
+        ->Set(initialize_logger.env(), v8_str("_log"), log_str)
+        .FromJust();
 
     i::Vector<const char> source = TestSources::GetScriptsSource();
-    v8::Handle<v8::String> source_str = v8::String::NewFromUtf8(
-        isolate, source.start(), v8::String::kNormalString, source.length());
+    v8::Local<v8::String> source_str =
+        v8::String::NewFromUtf8(isolate, source.start(),
+                                v8::NewStringType::kNormal, source.length())
+            .ToLocalChecked();
     v8::TryCatch try_catch(isolate);
-    v8::Handle<v8::Script> script = CompileWithOrigin(source_str, "");
+    v8::Local<v8::Script> script = CompileWithOrigin(source_str, "");
     if (script.IsEmpty()) {
       v8::String::Utf8Value exception(try_catch.Exception());
       printf("compile: %s\n", *exception);
       CHECK(false);
     }
-    v8::Handle<v8::Value> result = script->Run();
-    if (result.IsEmpty()) {
+    v8::Local<v8::Value> result;
+    if (!script->Run(initialize_logger.env()).ToLocal(&result)) {
       v8::String::Utf8Value exception(try_catch.Exception());
       printf("run: %s\n", *exception);
       CHECK(false);
     }
     // The result either be a "true" literal or problem description.
     if (!result->IsTrue()) {
-      v8::Local<v8::String> s = result->ToString(isolate);
+      v8::Local<v8::String> s =
+          result->ToString(initialize_logger.env()).ToLocalChecked();
       i::ScopedVector<char> data(s->Utf8Length() + 1);
       CHECK(data.start());
       s->WriteUtf8(data.start());

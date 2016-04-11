@@ -852,7 +852,8 @@ case "$GUESSOS" in
   # *-dgux) OUT="dgux" ;;
   mips-sony-newsos4) OUT="newsos4-gcc" ;;
   *-*-cygwin_pre1.3) OUT="Cygwin-pre1.3" ;;
-  *-*-cygwin) OUT="Cygwin" ;;
+  i[3456]86-*-cygwin) OUT="Cygwin" ;;
+  *-*-cygwin) OUT="Cygwin-${MACHINE}" ;;
   t3e-cray-unicosmk) OUT="cray-t3e" ;;
   j90-cray-unicos) OUT="cray-j90" ;;
   nsr-tandem-nsk) OUT="tandem-c89" ;;

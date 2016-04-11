@@ -56,6 +56,16 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
   Node* node;
   bool is_inline;
 
+#if DEBUG
+  // Verify that none of the inputs are {nullptr}.
+  for (int i = 0; i < input_count; i++) {
+    if (inputs[i] == nullptr) {
+      V8_Fatal(__FILE__, __LINE__, "Node::New() Error: #%d:%s[%d] is nullptr",
+               static_cast<int>(id), op->mnemonic(), i);
+    }
+  }
+#endif
+
   if (input_count > kMaxInlineCapacity) {
     // Allocate out-of-line inputs.
     int capacity =
@@ -268,6 +278,12 @@ bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
     }
   }
   return mask == 3;
+}
+
+
+void Node::Print() const {
+  OFStream os(stdout);
+  os << *this << std::endl;
 }
 
 

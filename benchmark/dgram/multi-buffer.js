@@ -21,7 +21,6 @@ var num;
 var type;
 var chunk;
 var chunks;
-var encoding;
 
 function main(conf) {
   dur = +conf.dur;
@@ -30,9 +29,9 @@ function main(conf) {
   type = conf.type;
   chunks = +conf.chunks;
 
-  chunk = []
+  chunk = [];
   for (var i = 0; i < chunks; i++) {
-    chunk.push(new Buffer(Math.round(len / chunks)));
+    chunk.push(Buffer.allocUnsafe(Math.round(len / chunks)));
   }
 
   server();

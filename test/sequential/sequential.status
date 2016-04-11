@@ -9,11 +9,17 @@ prefix sequential
 [$system==win32]
 
 [$system==linux]
-test-vm-syntax-error-stderr : PASS,FLAKY
 
 [$system==macos]
 
 [$system==solaris] # Also applies to SmartOS
+test-http-regr-gh-2928      : PASS,FLAKY
 
 [$system==freebsd]
 
+# fs-watch currently needs special configuration on AIX and we
+# want to improve under https://github.com/nodejs/node/issues/5085.
+# Tests are disabled so CI can be green and we can spot other
+# regressions until this work is complete
+[$system==aix]
+test-fs-watch               : FAIL,PASS

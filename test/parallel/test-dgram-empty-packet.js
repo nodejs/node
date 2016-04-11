@@ -29,9 +29,10 @@ client.on('message', function(buffer, bytes) {
   callback();
 });
 
-client.send(new Buffer(1), 0, 0, common.PORT, '127.0.0.1', function(err, len) {
-  callback();
-});
+client.send(
+  Buffer.allocUnsafe(1), 0, 0, common.PORT, '127.0.0.1', (err, len) => {
+    callback();
+  });
 
 timer = setTimeout(function() {
   throw new Error('Timeout');

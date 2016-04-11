@@ -73,7 +73,7 @@ assert.equal(true, util.isPrimitive(Symbol('symbol')));
 
 // isBuffer
 assert.equal(false, util.isBuffer('foo'));
-assert.equal(true, util.isBuffer(new Buffer('foo')));
+assert.equal(true, util.isBuffer(Buffer.from('foo')));
 
 // _extend
 assert.deepEqual(util._extend({a:1}),             {a:1});

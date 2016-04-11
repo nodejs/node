@@ -3,7 +3,7 @@
 var fs = require('fs')
 var qs = require('querystring')
 var validate = require('har-validator')
-var util = require('util')
+var extend = require('extend')
 
 function Har (request) {
   this.request = request
@@ -118,7 +118,8 @@ Har.prototype.options = function (options) {
     return options
   }
 
-  var har = util._extend({}, options.har)
+  var har = {}
+  extend(har, options.har)
 
   // only process the first entry
   if (har.log && har.log.entries) {

@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var xmlescape = require("xml-escape");
+var lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helper Functions
@@ -45,12 +45,13 @@ module.exports = function(results) {
 
         messages.forEach(function(message) {
             var type = message.fatal ? "error" : "failure";
+
             output += "<testcase time=\"0\" name=\"org.eslint." + (message.ruleId || "unknown") + "\">";
-            output += "<" + type + " message=\"" + xmlescape(message.message || "") + "\">";
+            output += "<" + type + " message=\"" + lodash.escape(message.message || "") + "\">";
             output += "<![CDATA[";
             output += "line " + (message.line || 0) + ", col ";
             output += (message.column || 0) + ", " + getMessageType(message);
-            output += " - " + xmlescape(message.message || "");
+            output += " - " + lodash.escape(message.message || "");
             output += (message.ruleId ? " (" + message.ruleId + ")" : "");
             output += "]]>";
             output += "</" + type + ">";

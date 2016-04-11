@@ -44,6 +44,10 @@ class CcTestSuite(testsuite.TestSuite):
       build_dir = "out"
     self.serdes_dir = os.path.normpath(
         os.path.join(root, "..", "..", build_dir, ".serdes"))
+
+  def SetupWorkingDirectory(self):
+    # This is only called once per machine, while init above is called once per
+    # process.
     if os.path.exists(self.serdes_dir):
       shutil.rmtree(self.serdes_dir, True)
     os.makedirs(self.serdes_dir)

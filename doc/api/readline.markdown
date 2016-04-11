@@ -354,6 +354,11 @@ a `'resize'` event on the `output` if/when the columns ever change
 
 Move cursor to the specified position in a given TTY stream.
 
+## readline.emitKeypressEvents(stream)
+
+Causes `stream` to begin emitting `'keypress'` events corresponding to its
+input.
+
 ## readline.moveCursor(stream, dx, dy)
 
 Move cursor relative to it's current position in a given TTY stream.

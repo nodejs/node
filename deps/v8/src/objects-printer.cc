@@ -76,6 +76,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case BYTECODE_ARRAY_TYPE:
       BytecodeArray::cast(this)->BytecodeArrayPrint(os);
       break;
+    case TRANSITION_ARRAY_TYPE:
+      TransitionArray::cast(this)->TransitionArrayPrint(os);
+      break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpacePrint(os);
       break;
@@ -95,6 +98,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_ARRAY_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_PROMISE_TYPE:
       JSObject::cast(this)->JSObjectPrint(os);
       break;
     case JS_REGEXP_TYPE:
@@ -105,6 +109,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case JS_MODULE_TYPE:
       JSModule::cast(this)->JSModulePrint(os);
+      break;
+    case JS_BOUND_FUNCTION_TYPE:
+      JSBoundFunction::cast(this)->JSBoundFunctionPrint(os);
       break;
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionPrint(os);
@@ -126,9 +133,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyPrint(os);
-      break;
-    case JS_FUNCTION_PROXY_TYPE:
-      JSFunctionProxy::cast(this)->JSFunctionProxyPrint(os);
       break;
     case JS_SET_TYPE:
       JSSet::cast(this)->JSSetPrint(os);
@@ -427,17 +431,6 @@ void JSModule::JSModulePrint(std::ostream& os) {  // NOLINT
 }
 
 
-static const char* TypeToString(InstanceType type) {
-  switch (type) {
-#define TYPE_TO_STRING(TYPE) case TYPE: return #TYPE;
-  INSTANCE_TYPE_LIST(TYPE_TO_STRING)
-#undef TYPE_TO_STRING
-  }
-  UNREACHABLE();
-  return "UNKNOWN";  // Keep the compiler happy.
-}
-
-
 void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Symbol");
   os << " - hash: " << Hash();
@@ -452,7 +445,7 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
 
 void Map::MapPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Map");
-  os << " - type: " << TypeToString(instance_type()) << "\n";
+  os << " - type: " << instance_type() << "\n";
   os << " - instance size: " << instance_size() << "\n";
   if (IsJSObjectMap()) {
     os << " - inobject properties: " << GetInObjectProperties() << "\n";
@@ -494,6 +487,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - constructor: " << Brief(GetConstructor());
   os << "\n - code cache: " << Brief(code_cache());
   os << "\n - dependent code: " << Brief(dependent_code());
+  os << "\n - construction counter: " << construction_counter();
   os << "\n";
 }
 
@@ -552,6 +546,19 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
 }
 
 
+void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "TransitionArray");
+  os << " - capacity: " << length();
+  for (int i = 0; i < length(); i++) {
+    os << "\n  [" << i << "]: " << Brief(get(i));
+    if (i == kNextLinkIndex) os << " (next link)";
+    if (i == kPrototypeTransitionsIndex) os << " (prototype transitions)";
+    if (i == kTransitionLengthIndex) os << " (number of transitions)";
+  }
+  os << "\n";
+}
+
+
 void TypeFeedbackMetadata::Print() {
   OFStream os(stdout);
   TypeFeedbackMetadataPrint(os);
@@ -592,9 +599,6 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
     os << " (empty)\n";
     return;
   }
-
-  os << "\n - ics with type info: " << ic_with_type_info_count();
-  os << "\n - generic ics: " << ic_generic_count();
 
   TypeFeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
@@ -733,24 +737,13 @@ void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
 
 void JSProxy::JSProxyPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSProxy");
-  os << " - map = " << reinterpret_cast<void*>(map()) << "\n";
-  os << " - handler = ";
-  handler()->Print(os);
+  os << " - map = " << reinterpret_cast<void*>(map());
+  os << "\n - target = ";
+  target()->ShortPrint(os);
+  os << "\n - handler = ";
+  handler()->ShortPrint(os);
   os << "\n - hash = ";
-  hash()->Print(os);
-  os << "\n";
-}
-
-
-void JSFunctionProxy::JSFunctionProxyPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "JSFunctionProxy");
-  os << " - map = " << reinterpret_cast<void*>(map()) << "\n";
-  os << " - handler = ";
-  handler()->Print(os);
-  os << "\n - call_trap = ";
-  call_trap()->Print(os);
-  os << "\n - construct_trap = ";
-  construct_trap()->Print(os);
+  hash()->ShortPrint(os);
   os << "\n";
 }
 
@@ -854,21 +847,26 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
 }
 
 
+void JSBoundFunction::JSBoundFunctionPrint(std::ostream& os) {  // NOLINT
+  JSObjectPrintHeader(os, this, "JSBoundFunction");
+  os << "\n - bound_target_function = " << Brief(bound_target_function());
+  os << "\n - bound_this = " << Brief(bound_this());
+  os << "\n - bound_arguments = " << Brief(bound_arguments());
+  JSObjectPrintBody(os, this);
+}
+
+
 void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "Function");
   os << "\n - initial_map = ";
   if (has_initial_map()) os << Brief(initial_map());
   os << "\n - shared_info = " << Brief(shared());
-  os << "\n   - name = " << Brief(shared()->name());
+  os << "\n - name = " << Brief(shared()->name());
   if (shared()->is_generator()) {
     os << "\n   - generator";
   }
   os << "\n - context = " << Brief(context());
-  if (shared()->bound()) {
-    os << "\n - bindings = " << Brief(function_bindings());
-  } else {
-    os << "\n - literals = " << Brief(literals());
-  }
+  os << "\n - literals = " << Brief(literals());
   os << "\n - code = " << Brief(code());
   JSObjectPrintBody(os, this);
 }
@@ -992,7 +990,6 @@ void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - prototype users: " << Brief(prototype_users());
   os << "\n - registry slot: " << registry_slot();
   os << "\n - validity cell: " << Brief(validity_cell());
-  os << "\n - constructor name: " << Brief(constructor_name());
   os << "\n";
 }
 
@@ -1075,13 +1072,6 @@ void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - property_accessors: " << Brief(property_accessors());
   os << "\n - constructor: " << Brief(constructor());
   os << "\n - internal_field_count: " << Brief(internal_field_count());
-  os << "\n";
-}
-
-
-void TypeSwitchInfo::TypeSwitchInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "TypeSwitchInfo");
-  os << "\n - types: " << Brief(types());
   os << "\n";
 }
 
@@ -1304,6 +1294,10 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
     } else if (key == heap->elements_transition_symbol()) {
       os << "(transition to " << ElementsKindToString(target->elements_kind())
          << ")";
+    } else if (key == heap->strict_function_transition_symbol()) {
+      os << " (transition to strict function)";
+    } else if (key == heap->strong_function_transition_symbol()) {
+      os << " (transition to strong function)";
     } else if (key == heap->observed_symbol()) {
       os << " (transition to Object.observe)";
     } else {

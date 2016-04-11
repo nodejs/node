@@ -31,17 +31,41 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSObject::elements() field.
   static FieldAccess ForJSObjectElements();
 
+  // Provides access to JSObject inobject property fields.
+  static FieldAccess ForJSObjectInObjectProperty(Handle<Map> map, int index);
+
   // Provides access to JSFunction::context() field.
   static FieldAccess ForJSFunctionContext();
 
   // Provides access to JSFunction::shared() field.
   static FieldAccess ForJSFunctionSharedFunctionInfo();
 
+  // Provides access to JSArray::length() field.
+  static FieldAccess ForJSArrayLength(ElementsKind elements_kind);
+
   // Provides access to JSArrayBuffer::backing_store() field.
   static FieldAccess ForJSArrayBufferBackingStore();
 
+  // Provides access to JSArrayBuffer::bit_field() field.
+  static FieldAccess ForJSArrayBufferBitField();
+
+  // Provides access to JSArrayBufferView::buffer() field.
+  static FieldAccess ForJSArrayBufferViewBuffer();
+
   // Provides access to JSDate fields.
   static FieldAccess ForJSDateField(JSDate::FieldIndex index);
+
+  // Provides access to JSIteratorResult::done() field.
+  static FieldAccess ForJSIteratorResultDone();
+
+  // Provides access to JSIteratorResult::value() field.
+  static FieldAccess ForJSIteratorResultValue();
+
+  // Provides access to JSRegExp::flags() field.
+  static FieldAccess ForJSRegExpFlags();
+
+  // Provides access to JSRegExp::source() field.
+  static FieldAccess ForJSRegExpSource();
 
   // Provides access to FixedArray::length() field.
   static FieldAccess ForFixedArrayLength();
@@ -51,6 +75,9 @@ class AccessBuilder final : public AllStatic {
 
   // Provides access to DescriptorArray::enum_cache_bridge_cache() field.
   static FieldAccess ForDescriptorArrayEnumCacheBridgeCache();
+
+  // Provides access to Map::bit_field() byte.
+  static FieldAccess ForMapBitField();
 
   // Provides access to Map::bit_field3() field.
   static FieldAccess ForMapBitField3();
@@ -96,27 +123,18 @@ class AccessBuilder final : public AllStatic {
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
 
+  // Provides access to FixedDoubleArray elements.
+  static ElementAccess ForFixedDoubleArrayElement();
+
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);
-
-  // Provides access to the characters of sequential strings.
-  static ElementAccess ForSeqStringChar(String::Encoding encoding);
 
   // ===========================================================================
   // Access to global per-isolate variables (based on external reference).
 
   // Provides access to the backing store of a StatsCounter.
   static FieldAccess ForStatsCounter();
-
-  // ===========================================================================
-  // Access to activation records on the stack (based on frame pointer).
-
-  // Provides access to the next frame pointer in a stack frame.
-  static FieldAccess ForFrameCallerFramePtr();
-
-  // Provides access to the marker in a stack frame.
-  static FieldAccess ForFrameMarker();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);

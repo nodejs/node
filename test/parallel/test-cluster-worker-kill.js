@@ -60,8 +60,6 @@ if (cluster.isWorker) {
     results.cluster_exitCode = worker.process.exitCode;
     results.cluster_signalCode = worker.process.signalCode;
     results.cluster_emitExit += 1;
-    assert.ok(results.cluster_emitDisconnect,
-        "cluster: 'exit' event before 'disconnect' event");
   });
 
   // Check worker events and properties
@@ -77,26 +75,11 @@ if (cluster.isWorker) {
     results.worker_signalCode = signalCode;
     results.worker_emitExit += 1;
     results.worker_died = !alive(worker.process.pid);
-    assert.ok(results.worker_emitDisconnect,
-        "worker: 'exit' event before 'disconnect' event");
-
-    process.nextTick(function() { finish_test(); });
   });
 
-  var finish_test = function() {
-    try {
-      checkResults(expected_results, results);
-    } catch (exc) {
-      console.error('FAIL: ' + exc.message);
-      if (exc.name != 'AssertionError') {
-        console.trace(exc);
-      }
-
-      process.exit(1);
-      return;
-    }
-    process.exit(0);
-  };
+  process.on('exit', function() {
+    checkResults(expected_results, results);
+  });
 }
 
 // some helper functions ...

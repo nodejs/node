@@ -600,7 +600,8 @@ Reduction MachineOperatorReducer::ReduceInt32Mod(Node* node) {
           1, Int32Sub(zero, Word32And(Int32Sub(zero, dividend), mask)));
       node->ReplaceInput(2, Word32And(dividend, mask));
       NodeProperties::ChangeOp(
-          node, common()->Select(kMachInt32, BranchHint::kFalse));
+          node,
+          common()->Select(MachineRepresentation::kWord32, BranchHint::kFalse));
     } else {
       Node* quotient = Int32Div(dividend, divisor);
       DCHECK_EQ(dividend, node->InputAt(0));
@@ -648,10 +649,9 @@ Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
   Float64Matcher m(node->InputAt(0));
   if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
   if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
-  if (m.IsRoundInt64ToFloat64()) return Replace(m.node()->InputAt(0));
   if (m.IsPhi()) {
     Node* const phi = m.node();
-    DCHECK_EQ(kRepFloat64, RepresentationOf(OpParameter<MachineType>(phi)));
+    DCHECK_EQ(MachineRepresentation::kFloat64, PhiRepresentationOf(phi->op()));
     if (phi->OwnedBy(node)) {
       // TruncateFloat64ToInt32[mode](Phi[Float64](x1,...,xn))
       //   => Phi[Int32](TruncateFloat64ToInt32[mode](x1),
@@ -666,8 +666,9 @@ Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
         if (reduction.Changed()) input = reduction.replacement();
         phi->ReplaceInput(i, input);
       }
-      NodeProperties::ChangeOp(phi,
-                               common()->Phi(kMachInt32, value_input_count));
+      NodeProperties::ChangeOp(
+          phi,
+          common()->Phi(MachineRepresentation::kWord32, value_input_count));
       return Replace(phi);
     }
   }
@@ -676,15 +677,16 @@ Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
 
 
 Reduction MachineOperatorReducer::ReduceStore(Node* node) {
-  MachineType const rep =
-      RepresentationOf(StoreRepresentationOf(node->op()).machine_type());
+  MachineRepresentation const rep =
+      StoreRepresentationOf(node->op()).representation();
   Node* const value = node->InputAt(2);
   switch (value->opcode()) {
     case IrOpcode::kWord32And: {
       Uint32BinopMatcher m(value);
-      if (m.right().HasValue() &&
-          ((rep == kRepWord8 && (m.right().Value() & 0xff) == 0xff) ||
-           (rep == kRepWord16 && (m.right().Value() & 0xffff) == 0xffff))) {
+      if (m.right().HasValue() && ((rep == MachineRepresentation::kWord8 &&
+                                    (m.right().Value() & 0xff) == 0xff) ||
+                                   (rep == MachineRepresentation::kWord16 &&
+                                    (m.right().Value() & 0xffff) == 0xffff))) {
         node->ReplaceInput(2, m.left().node());
         return Changed(node);
       }
@@ -692,9 +694,10 @@ Reduction MachineOperatorReducer::ReduceStore(Node* node) {
     }
     case IrOpcode::kWord32Sar: {
       Int32BinopMatcher m(value);
-      if (m.left().IsWord32Shl() &&
-          ((rep == kRepWord8 && m.right().IsInRange(1, 24)) ||
-           (rep == kRepWord16 && m.right().IsInRange(1, 16)))) {
+      if (m.left().IsWord32Shl() && ((rep == MachineRepresentation::kWord8 &&
+                                      m.right().IsInRange(1, 24)) ||
+                                     (rep == MachineRepresentation::kWord16 &&
+                                      m.right().IsInRange(1, 16)))) {
         Int32BinopMatcher mleft(m.left().node());
         if (mleft.right().Is(m.right().Value())) {
           node->ReplaceInput(2, mleft.left().node());
@@ -812,12 +815,14 @@ Reduction MachineOperatorReducer::ReduceWord32Sar(Node* node) {
       }
     } else if (mleft.left().IsLoad()) {
       LoadRepresentation const rep =
-          OpParameter<LoadRepresentation>(mleft.left().node());
-      if (m.right().Is(24) && mleft.right().Is(24) && rep == kMachInt8) {
+          LoadRepresentationOf(mleft.left().node()->op());
+      if (m.right().Is(24) && mleft.right().Is(24) &&
+          rep == MachineType::Int8()) {
         // Load[kMachInt8] << 24 >> 24 => Load[kMachInt8]
         return Replace(mleft.left().node());
       }
-      if (m.right().Is(16) && mleft.right().Is(16) && rep == kMachInt16) {
+      if (m.right().Is(16) && mleft.right().Is(16) &&
+          rep == MachineType::Int16()) {
         // Load[kMachInt16] << 16 >> 16 => Load[kMachInt8]
         return Replace(mleft.left().node());
       }
@@ -939,8 +944,8 @@ Reduction MachineOperatorReducer::ReduceWord32Or(Node* node) {
   }
   if (m.LeftEqualsRight()) return Replace(m.left().node());  // x | x => x
 
-  Node* shl = NULL;
-  Node* shr = NULL;
+  Node* shl = nullptr;
+  Node* shr = nullptr;
   // Recognize rotation, we are matching either:
   //  * x << y | x >>> (32 - y) => x ror (32 - y), i.e  x rol y
   //  * x << (32 - y) | x >>> y => x ror y
@@ -963,8 +968,8 @@ Reduction MachineOperatorReducer::ReduceWord32Or(Node* node) {
     // Case where y is a constant.
     if (mshl.right().Value() + mshr.right().Value() != 32) return NoChange();
   } else {
-    Node* sub = NULL;
-    Node* y = NULL;
+    Node* sub = nullptr;
+    Node* y = nullptr;
     if (mshl.right().IsInt32Sub()) {
       sub = mshl.right().node();
       y = mshr.right().node();

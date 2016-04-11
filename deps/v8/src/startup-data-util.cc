@@ -9,6 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/utils.h"
 
 
 namespace v8 {
@@ -44,10 +45,13 @@ void Load(const char* blob_file, v8::StartupData* startup_data,
           void (*setter_fn)(v8::StartupData*)) {
   ClearStartupData(startup_data);
 
-  if (!blob_file) return;
+  CHECK(blob_file);
 
   FILE* file = fopen(blob_file, "rb");
-  if (!file) return;
+  if (!file) {
+    PrintF(stderr, "Failed to open startup resource '%s'.\n", blob_file);
+    return;
+  }
 
   fseek(file, 0, SEEK_END);
   startup_data->raw_size = static_cast<int>(ftell(file));
@@ -58,7 +62,11 @@ void Load(const char* blob_file, v8::StartupData* startup_data,
                                          1, startup_data->raw_size, file));
   fclose(file);
 
-  if (startup_data->raw_size == read_size) (*setter_fn)(startup_data);
+  if (startup_data->raw_size == read_size) {
+    (*setter_fn)(startup_data);
+  } else {
+    PrintF(stderr, "Corrupted startup resource '%s'.\n", blob_file);
+  }
 }
 
 

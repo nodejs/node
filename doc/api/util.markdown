@@ -254,7 +254,7 @@ util.inspect(obj);
 
 Internal alias for [`Array.isArray`][].
 
-Returns `true` if the given "object" is an `Array`. `false` otherwise.
+Returns `true` if the given "object" is an `Array`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -271,7 +271,7 @@ util.isArray({})
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Boolean`. `false` otherwise.
+Returns `true` if the given "object" is a `Boolean`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -288,7 +288,7 @@ util.isBoolean(false)
 
     Stability: 0 - Deprecated: Use [`Buffer.isBuffer()`][] instead.
 
-Returns `true` if the given "object" is a `Buffer`. `false` otherwise.
+Returns `true` if the given "object" is a `Buffer`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -305,7 +305,7 @@ util.isBuffer(new Buffer('hello world'))
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Date`. `false` otherwise.
+Returns `true` if the given "object" is a `Date`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -322,7 +322,8 @@ util.isDate({})
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is an [`Error`][]. `false` otherwise.
+Returns `true` if the given "object" is an [`Error`][]. Otherwise, returns
+`false`.
 
 ```js
 const util = require('util');
@@ -335,11 +336,28 @@ util.isError({ name: 'Error', message: 'an error occurred' })
   // false
 ```
 
+Note that this method relies on `Object.prototype.toString()` behavior. It is
+possible to obtain an incorrect result when the `object` argument manipulates
+`@@toStringTag`.
+
+```js
+// This example requires the `--harmony-tostring` flag
+const util = require('util');
+const obj = { name: 'Error', message: 'an error occurred' };
+
+util.isError(obj);
+  // false
+obj[Symbol.toStringTag] = 'Error';
+util.isError(obj);
+  // true
+```
+
 ## util.isFunction(object)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Function`. `false` otherwise.
+Returns `true` if the given "object" is a `Function`. Otherwise, returns
+`false`.
 
 ```js
 const util = require('util');
@@ -359,7 +377,8 @@ util.isFunction(Bar)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is strictly `null`. `false` otherwise.
+Returns `true` if the given "object" is strictly `null`. Otherwise, returns
+`false`.
 
 ```js
 const util = require('util');
@@ -376,7 +395,8 @@ util.isNull(null)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is `null` or `undefined`. `false` otherwise.
+Returns `true` if the given "object" is `null` or `undefined`. Otherwise,
+returns `false`.
 
 ```js
 const util = require('util');
@@ -393,7 +413,7 @@ util.isNullOrUndefined(null)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Number`. `false` otherwise.
+Returns `true` if the given "object" is a `Number`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -413,7 +433,7 @@ util.isNumber(NaN)
     Stability: 0 - Deprecated
 
 Returns `true` if the given "object" is strictly an `Object` __and__ not a
-`Function`. `false` otherwise.
+`Function`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -432,7 +452,8 @@ util.isObject(function(){})
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a primitive type. `false` otherwise.
+Returns `true` if the given "object" is a primitive type. Otherwise, returns
+`false`.
 
 ```js
 const util = require('util');
@@ -461,7 +482,7 @@ util.isPrimitive(new Date())
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `RegExp`. `false` otherwise.
+Returns `true` if the given "object" is a `RegExp`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -478,7 +499,7 @@ util.isRegExp({})
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `String`. `false` otherwise.
+Returns `true` if the given "object" is a `String`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -497,7 +518,7 @@ util.isString(5)
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is a `Symbol`. `false` otherwise.
+Returns `true` if the given "object" is a `Symbol`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -514,7 +535,7 @@ util.isSymbol(Symbol('foo'))
 
     Stability: 0 - Deprecated
 
-Returns `true` if the given "object" is `undefined`. `false` otherwise.
+Returns `true` if the given "object" is `undefined`. Otherwise, returns `false`.
 
 ```js
 const util = require('util');
@@ -545,6 +566,16 @@ Deprecated predecessor of `console.log`.
     Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
+
+## util._extend(obj)
+
+    Stability: 0 - Deprecated: Use Object.assign() instead.
+
+`_extend` was never intended to be used outside of internal NodeJS modules. The
+community found and used it anyway.
+
+It is deprecated and should not be used in new code. JavaScript comes with very
+similar built-in functionality through `Object.assign`.
 
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor

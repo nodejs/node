@@ -51,7 +51,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
       v8::base::OS::Allocate(actual_size, &actual_size, true));
   CHECK(buffer);
   HandleScope handles(isolate);
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      v8::internal::CodeObjectRequired::kYes);
   DoubleToIStub stub(isolate, source_reg, destination_reg, 0, true,
                      inline_fastpath);
 
@@ -146,7 +147,7 @@ int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
       Simulator::CallArgument(from),
       Simulator::CallArgument::End()
   };
-  return static_cast<int32_t>(Simulator::current(Isolate::Current())
+  return static_cast<int32_t>(Simulator::current(CcTest::i_isolate())
                                   ->CallInt64(FUNCTION_ADDR(func), args));
 #else
   return (*func)(from);

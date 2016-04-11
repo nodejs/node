@@ -6,7 +6,7 @@
 
 #include "src/regexp/interpreter-irregexp.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/regexp/bytecodes-irregexp.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -270,7 +270,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         break;
       BYTECODE(LOAD_CURRENT_CHAR) {
         int pos = current + (insn >> BYTECODE_SHIFT);
-        if (pos >= subject.length()) {
+        if (pos >= subject.length() || pos < 0) {
           pc = code_base + Load32Aligned(pc + 4);
         } else {
           current_char = subject[pos];
@@ -286,7 +286,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
       }
       BYTECODE(LOAD_2_CURRENT_CHARS) {
         int pos = current + (insn >> BYTECODE_SHIFT);
-        if (pos + 2 > subject.length()) {
+        if (pos + 2 > subject.length() || pos < 0) {
           pc = code_base + Load32Aligned(pc + 4);
         } else {
           Char next = subject[pos + 1];
@@ -306,7 +306,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
       BYTECODE(LOAD_4_CURRENT_CHARS) {
         DCHECK(sizeof(Char) == 1);
         int pos = current + (insn >> BYTECODE_SHIFT);
-        if (pos + 4 > subject.length()) {
+        if (pos + 4 > subject.length() || pos < 0) {
           pc = code_base + Load32Aligned(pc + 4);
         } else {
           Char next1 = subject[pos + 1];
@@ -497,46 +497,59 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
       BYTECODE(CHECK_NOT_BACK_REF) {
         int from = registers[insn >> BYTECODE_SHIFT];
         int len = registers[(insn >> BYTECODE_SHIFT) + 1] - from;
-        if (from < 0 || len <= 0) {
-          pc += BC_CHECK_NOT_BACK_REF_LENGTH;
-          break;
-        }
-        if (current + len > subject.length()) {
-          pc = code_base + Load32Aligned(pc + 4);
-          break;
-        } else {
-          int i;
-          for (i = 0; i < len; i++) {
-            if (subject[from + i] != subject[current + i]) {
-              pc = code_base + Load32Aligned(pc + 4);
-              break;
-            }
+        if (from >= 0 && len > 0) {
+          if (current + len > subject.length() ||
+              CompareChars(&subject[from], &subject[current], len) != 0) {
+            pc = code_base + Load32Aligned(pc + 4);
+            break;
           }
-          if (i < len) break;
           current += len;
         }
         pc += BC_CHECK_NOT_BACK_REF_LENGTH;
         break;
       }
+      BYTECODE(CHECK_NOT_BACK_REF_BACKWARD) {
+        int from = registers[insn >> BYTECODE_SHIFT];
+        int len = registers[(insn >> BYTECODE_SHIFT) + 1] - from;
+        if (from >= 0 && len > 0) {
+          if (current - len < 0 ||
+              CompareChars(&subject[from], &subject[current - len], len) != 0) {
+            pc = code_base + Load32Aligned(pc + 4);
+            break;
+          }
+          current -= len;
+        }
+        pc += BC_CHECK_NOT_BACK_REF_BACKWARD_LENGTH;
+        break;
+      }
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE) {
         int from = registers[insn >> BYTECODE_SHIFT];
         int len = registers[(insn >> BYTECODE_SHIFT) + 1] - from;
-        if (from < 0 || len <= 0) {
-          pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
-          break;
-        }
-        if (current + len > subject.length()) {
-          pc = code_base + Load32Aligned(pc + 4);
-          break;
-        } else {
-          if (BackRefMatchesNoCase(isolate->interp_canonicalize_mapping(),
-                                   from, current, len, subject)) {
-            current += len;
-            pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
-          } else {
+        if (from >= 0 && len > 0) {
+          if (current + len > subject.length() ||
+              !BackRefMatchesNoCase(isolate->interp_canonicalize_mapping(),
+                                    from, current, len, subject)) {
             pc = code_base + Load32Aligned(pc + 4);
+            break;
           }
+          current += len;
         }
+        pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
+        break;
+      }
+      BYTECODE(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD) {
+        int from = registers[insn >> BYTECODE_SHIFT];
+        int len = registers[(insn >> BYTECODE_SHIFT) + 1] - from;
+        if (from >= 0 && len > 0) {
+          if (current - len < 0 ||
+              !BackRefMatchesNoCase(isolate->interp_canonicalize_mapping(),
+                                    from, current - len, len, subject)) {
+            pc = code_base + Load32Aligned(pc + 4);
+            break;
+          }
+          current -= len;
+        }
+        pc += BC_CHECK_NOT_BACK_REF_NO_CASE_BACKWARD_LENGTH;
         break;
       }
       BYTECODE(CHECK_AT_START)
@@ -547,7 +560,7 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         }
         break;
       BYTECODE(CHECK_NOT_AT_START)
-        if (current == 0) {
+        if (current + (insn >> BYTECODE_SHIFT) == 0) {
           pc += BC_CHECK_NOT_AT_START_LENGTH;
         } else {
           pc = code_base + Load32Aligned(pc + 4);

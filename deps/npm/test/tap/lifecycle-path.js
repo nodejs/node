@@ -67,7 +67,8 @@ test('make sure the path is correct', function (t) {
     // get the ones we tacked on, then the system-specific requirements
     var expect = [
       '{{ROOT}}/bin/node-gyp-bin',
-      '{{ROOT}}/test/tap/lifecycle-path/node_modules/.bin'
+      '{{ROOT}}/test/tap/lifecycle-path/node_modules/.bin',
+      path.dirname(process.execPath)
     ].concat(PATH.split(pathSplit).map(function (p) {
       return p.replace(/\\/g, '/')
     }))

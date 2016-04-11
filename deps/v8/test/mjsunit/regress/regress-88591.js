@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --legacy-const
+
 // Regression test for a crash.  A data property in the global object's
 // prototype shadowed by a setter in the global object's prototype's
 // prototype would crash or assert when seen by Runtime_DeclareContextSlot.

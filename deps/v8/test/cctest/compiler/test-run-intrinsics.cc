@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -34,17 +31,6 @@ TEST(ClassOf) {
   T.CheckCall(T.null(), T.null());
   T.CheckCall(T.null(), T.Val("x"));
   T.CheckCall(T.null(), T.Val(1));
-}
-
-
-TEST(HeapObjectGetMap) {
-  FunctionTester T("(function(a) { return %_HeapObjectGetMap(a); })", flags);
-
-  Factory* factory = T.main_isolate()->factory();
-  T.CheckCall(factory->null_map(), T.null());
-  T.CheckCall(factory->undefined_map(), T.undefined());
-  T.CheckCall(factory->heap_number_map(), T.Val(3.1415));
-  T.CheckCall(factory->symbol_map(), factory->NewSymbol());
 }
 
 
@@ -159,19 +145,6 @@ TEST(IsSmi) {
   T.CheckFalse(T.Val(-0.0));
   T.CheckTrue(T.Val(-2));
   T.CheckFalse(T.Val(-2.3));
-}
-
-
-TEST(MapGetInstanceType) {
-  FunctionTester T(
-      "(function(a) { return %_MapGetInstanceType(%_HeapObjectGetMap(a)); })",
-      flags);
-
-  Factory* factory = T.main_isolate()->factory();
-  T.CheckCall(T.Val(ODDBALL_TYPE), T.null());
-  T.CheckCall(T.Val(ODDBALL_TYPE), T.undefined());
-  T.CheckCall(T.Val(HEAP_NUMBER_TYPE), T.Val(3.1415));
-  T.CheckCall(T.Val(SYMBOL_TYPE), factory->NewSymbol());
 }
 
 

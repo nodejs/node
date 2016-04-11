@@ -25,26 +25,26 @@ void EmitDebugBreakSlot(Assembler* masm) {
 }
 
 
-void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
-                                int call_argc) {
+void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode) {
   // Generate enough nop's to make space for a call instruction. Avoid emitting
   // the constant pool in the debug break slot code.
   InstructionAccurateScope scope(masm, Assembler::kDebugBreakSlotInstructions);
-  masm->RecordDebugBreakSlot(mode, call_argc);
+  masm->RecordDebugBreakSlot(mode);
   EmitDebugBreakSlot(masm);
 }
 
 
-void DebugCodegen::ClearDebugBreakSlot(Address pc) {
-  PatchingAssembler patcher(reinterpret_cast<Instruction*>(pc),
+void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
+  PatchingAssembler patcher(isolate, reinterpret_cast<Instruction*>(pc),
                             Assembler::kDebugBreakSlotInstructions);
   EmitDebugBreakSlot(&patcher);
 }
 
 
-void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
+void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
+                                       Handle<Code> code) {
   DCHECK_EQ(Code::BUILTIN, code->kind());
-  PatchingAssembler patcher(reinterpret_cast<Instruction*>(pc),
+  PatchingAssembler patcher(isolate, reinterpret_cast<Instruction*>(pc),
                             Assembler::kDebugBreakSlotInstructions);
   // Patch the code emitted by DebugCodegen::GenerateSlots, changing the debug
   // break slot code from
@@ -124,29 +124,24 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  __ Ret();
-}
-
-
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  ExternalReference restarter_frame_function_slot =
-      ExternalReference::debug_restarter_frame_function_pointer_address(
-          masm->isolate());
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.AcquireX();
-
-  __ Mov(scratch, restarter_frame_function_slot);
-  __ Str(xzr, MemOperand(scratch));
-
   // We do not know our frame height, but set sp based on fp.
   __ Sub(masm->StackPointer(), fp, kPointerSize);
   __ AssertStackConsistency();
 
   __ Pop(x1, fp, lr);  // Function, Frame, Return address.
 
+  ParameterCount dummy(0);
+  __ FloodFunctionIfStepping(x1, no_reg, dummy, dummy);
+
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+
   // Load context from the function.
   __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
+
+  // Clear new.target as a safety measure.
+  __ LoadRoot(x3, Heap::kUndefinedValueRootIndex);
 
   // Get function code.
   __ Ldr(scratch, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));

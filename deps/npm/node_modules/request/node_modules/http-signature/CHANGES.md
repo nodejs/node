@@ -1,5 +1,12 @@
 # node-http-signature changelog
 
+## 1.1.1
+
+- Version of dependency `assert-plus` updated: old version was missing
+  some license information
+- Corrected examples in `http_signing.md`, added auto-tests to
+  automatically validate these examples
+
 ## 1.1.0
 
 - Bump version of `sshpk` dependency, remove peerDependency on it since

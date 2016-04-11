@@ -29,15 +29,13 @@ function parent() {
 
   // Write until the buffer fills up.
   do {
-    var buf = new Buffer(BUFSIZE);
-    buf.fill('.');
+    var buf = Buffer.alloc(BUFSIZE, '.');
     sent += BUFSIZE;
   } while (child.stdin.write(buf));
 
   // then write a bunch more times.
   for (var i = 0; i < 100; i++) {
-    const buf = new Buffer(BUFSIZE);
-    buf.fill('.');
+    const buf = Buffer.alloc(BUFSIZE, '.');
     sent += BUFSIZE;
     child.stdin.write(buf);
   }

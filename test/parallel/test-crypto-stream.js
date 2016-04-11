@@ -43,9 +43,9 @@ if (!common.hasFipsCrypto) {
 }
 
 // Decipher._flush() should emit an error event, not an exception.
-const key = new Buffer('48fb56eb10ffeb13fc0ef551bbca3b1b', 'hex');
-const badkey = new Buffer('12341234123412341234123412341234', 'hex');
-const iv = new Buffer('6d358219d1f488f5f4eb12820a66d146', 'hex');
+const key = Buffer.from('48fb56eb10ffeb13fc0ef551bbca3b1b', 'hex');
+const badkey = Buffer.from('12341234123412341234123412341234', 'hex');
+const iv = Buffer.from('6d358219d1f488f5f4eb12820a66d146', 'hex');
 const cipher = crypto.createCipheriv('aes-128-cbc', key, iv);
 const decipher = crypto.createDecipheriv('aes-128-cbc', badkey, iv);
 

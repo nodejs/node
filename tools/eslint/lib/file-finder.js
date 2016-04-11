@@ -40,11 +40,35 @@ function getDirectoryEntries(directory) {
 /**
  * FileFinder
  * @constructor
- * @param {...string} arguments The basename(s) of the file(s) to find.
+ * @param {string[]} files The basename(s) of the file(s) to find.
+ * @param {stirng} cwd Current working directory
  */
-function FileFinder() {
-    this.fileNames = Array.prototype.slice.call(arguments);
+function FileFinder(files, cwd) {
+    this.fileNames = Array.isArray(files) ? files : [files];
+    this.cwd = cwd || process.cwd();
     this.cache = {};
+}
+
+/**
+ * Create a hash of filenames from a directory listing
+ * @param {string[]} entries Array of directory entries.
+ * @param {string} directory Path to a current directory.
+ * @param {string[]} supportedConfigs List of support filenames.
+ * @returns {Object} Hashmap of filenames
+ */
+function normalizeDirectoryEntries(entries, directory, supportedConfigs) {
+    var fileHash = {};
+
+    entries.forEach(function(entry) {
+        if (supportedConfigs.indexOf(entry) >= 0) {
+            var resolvedEntry = path.resolve(directory, entry);
+
+            if (fs.statSync(resolvedEntry).isFile()) {
+                fileHash[entry] = resolvedEntry;
+            }
+        }
+    });
+    return fileHash;
 }
 
 /**
@@ -53,7 +77,7 @@ function FileFinder() {
  * Does not check if a matching directory entry is a file, and intentionally
  * only searches for the first file name in this.fileNames.
  * Is currently used by lib/ignored_paths.js to find an .eslintignore file.
- * @param  {string} directory The directory to start the search from.
+ * @param {string} directory The directory to start the search from.
  * @returns {string} Path of the file found, or an empty string if not found.
  */
 FileFinder.prototype.findInDirectoryOrParents = function(directory) {
@@ -62,12 +86,11 @@ FileFinder.prototype.findInDirectoryOrParents = function(directory) {
         dirs,
         filePath,
         i,
-        name,
         names,
         searched;
 
     if (!directory) {
-        directory = process.cwd();
+        directory = this.cwd;
     }
 
     if (cache.hasOwnProperty(directory)) {
@@ -76,18 +99,19 @@ FileFinder.prototype.findInDirectoryOrParents = function(directory) {
 
     dirs = [];
     searched = 0;
-    name = this.fileNames[0];
-    names = Array.isArray(name) ? name : [name];
+    names = this.fileNames;
 
     (function() {
         while (directory !== child) {
             dirs[searched++] = directory;
+            var filesMap = normalizeDirectoryEntries(getDirectoryEntries(directory), directory, names);
 
-            for (var k = 0, found = false; k < names.length && !found; k++) {
-
-                if (getDirectoryEntries(directory).indexOf(names[k]) !== -1 && fs.statSync(path.resolve(directory, names[k])).isFile()) {
-                    filePath = path.resolve(directory, names[k]);
-                    return;
+            if (Object.keys(filesMap).length) {
+                for (var k = 0; k < names.length; k++) {
+                    if (filesMap[names[k]]) {
+                        filePath = filesMap[names[k]];
+                        return;
+                    }
                 }
             }
 
@@ -118,16 +142,14 @@ FileFinder.prototype.findAllInDirectoryAndParents = function(directory) {
     var cache = this.cache,
         child,
         dirs,
-        name,
         fileNames,
-        fileNamesCount,
         filePath,
         i,
         j,
         searched;
 
     if (!directory) {
-        directory = process.cwd();
+        directory = this.cwd;
     }
 
     if (cache.hasOwnProperty(directory)) {
@@ -137,33 +159,27 @@ FileFinder.prototype.findAllInDirectoryAndParents = function(directory) {
     dirs = [];
     searched = 0;
     fileNames = this.fileNames;
-    fileNamesCount = fileNames.length;
 
     do {
         dirs[searched++] = directory;
         cache[directory] = [];
 
-        for (i = 0; i < fileNamesCount; i++) {
-            name = fileNames[i];
+        var filesMap = normalizeDirectoryEntries(getDirectoryEntries(directory), directory, fileNames);
 
-            // convert to an array for easier handling
-            if (!Array.isArray(name)) {
-                name = [name];
-            }
+        if (Object.keys(filesMap).length) {
+            for (var k = 0; k < fileNames.length; k++) {
 
-            for (var k = 0, found = false; k < name.length && !found; k++) {
-
-                if (getDirectoryEntries(directory).indexOf(name[k]) !== -1 && fs.statSync(path.resolve(directory, name[k])).isFile()) {
-                    filePath = path.resolve(directory, name[k]);
-                    found = true;
+                if (filesMap[fileNames[k]]) {
+                    filePath = filesMap[fileNames[k]];
 
                     // Add the file path to the cache of each directory searched.
                     for (j = 0; j < searched; j++) {
                         cache[dirs[j]].push(filePath);
                     }
+
+                    break;
                 }
             }
-
         }
         child = directory;
 

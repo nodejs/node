@@ -25,6 +25,7 @@
 .cproject
 .d8_history
 .gclient_entries
+.gdb_history
 .landmines
 .project
 .pydevproject

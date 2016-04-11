@@ -66,9 +66,7 @@ class CodeFactory final {
   // code-stubs.h.
   static Callable InstanceOf(Isolate* isolate);
 
-  static Callable ToBoolean(
-      Isolate* isolate, ToBooleanStub::ResultMode mode,
-      ToBooleanStub::Types types = ToBooleanStub::Types());
+  static Callable ToBoolean(Isolate* isolate);
 
   static Callable ToNumber(Isolate* isolate);
   static Callable ToString(Isolate* isolate);
@@ -77,13 +75,16 @@ class CodeFactory final {
   static Callable NumberToString(Isolate* isolate);
 
   static Callable RegExpConstructResult(Isolate* isolate);
+  static Callable RegExpExec(Isolate* isolate);
 
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
   static Callable StringCompare(Isolate* isolate);
+  static Callable SubString(Isolate* isolate);
 
   static Callable Typeof(Isolate* isolate);
 
+  static Callable FastCloneRegExp(Isolate* isolate);
   static Callable FastCloneShallowArray(Isolate* isolate);
   static Callable FastCloneShallowObject(Isolate* isolate, int length);
 
@@ -93,6 +94,7 @@ class CodeFactory final {
 
   static Callable ArgumentsAccess(Isolate* isolate, bool is_unmapped_arguments,
                                   bool has_duplicate_parameters);
+  static Callable RestArgumentsAccess(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
   static Callable AllocateMutableHeapNumber(Isolate* isolate);
@@ -103,10 +105,12 @@ class CodeFactory final {
                        ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable CallFunction(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable Construct(Isolate* isolate);
+  static Callable ConstructFunction(Isolate* isolate);
 
   static Callable InterpreterPushArgsAndCall(Isolate* isolate);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
-  static Callable InterpreterCEntry(Isolate* isolate);
+  static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
 };
 
 }  // namespace internal

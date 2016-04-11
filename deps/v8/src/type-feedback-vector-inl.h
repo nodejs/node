@@ -81,35 +81,6 @@ FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
 }
 
 
-int TypeFeedbackVector::ic_with_type_info_count() {
-  return length() > 0 ? Smi::cast(get(kWithTypesIndex))->value() : 0;
-}
-
-
-void TypeFeedbackVector::change_ic_with_type_info_count(int delta) {
-  if (delta == 0) return;
-  int value = ic_with_type_info_count() + delta;
-  // Could go negative because of the debugger.
-  if (value >= 0) {
-    set(kWithTypesIndex, Smi::FromInt(value));
-  }
-}
-
-
-int TypeFeedbackVector::ic_generic_count() {
-  return length() > 0 ? Smi::cast(get(kGenericCountIndex))->value() : 0;
-}
-
-
-void TypeFeedbackVector::change_ic_generic_count(int delta) {
-  if (delta == 0) return;
-  int value = ic_generic_count() + delta;
-  if (value >= 0) {
-    set(kGenericCountIndex, Smi::FromInt(value));
-  }
-}
-
-
 int TypeFeedbackVector::GetIndex(FeedbackVectorSlot slot) const {
   DCHECK(slot.ToInt() < slot_count());
   return kReservedIndexCount + slot.ToInt();
@@ -132,6 +103,34 @@ Object* TypeFeedbackVector::Get(FeedbackVectorSlot slot) const {
 void TypeFeedbackVector::Set(FeedbackVectorSlot slot, Object* value,
                              WriteBarrierMode mode) {
   set(GetIndex(slot), value, mode);
+}
+
+
+void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic) {
+  Object* uninitialized_sentinel =
+      TypeFeedbackVector::RawUninitializedSentinel(GetIsolate());
+  Object* megamorphic_sentinel =
+      *TypeFeedbackVector::MegamorphicSentinel(GetIsolate());
+  int with = 0;
+  int gen = 0;
+  TypeFeedbackMetadataIterator iter(metadata());
+  while (iter.HasNext()) {
+    FeedbackVectorSlot slot = iter.Next();
+    FeedbackVectorSlotKind kind = iter.kind();
+
+    Object* obj = Get(slot);
+    if (obj != uninitialized_sentinel &&
+        kind != FeedbackVectorSlotKind::GENERAL) {
+      if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
+        with++;
+      } else if (obj == megamorphic_sentinel) {
+        gen++;
+      }
+    }
+  }
+
+  *with_type_info = with;
+  *generic = gen;
 }
 
 

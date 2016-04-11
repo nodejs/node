@@ -7,8 +7,8 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at _combinedTickCallback (internal/process/next_tick.js:*:*)
+    at process._tickCallback (internal/process/next_tick.js:*:*)
 42
 42
 [eval]:1
@@ -20,8 +20,8 @@ Error: hello
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at _combinedTickCallback (internal/process/next_tick.js:*:*)
+    at process._tickCallback (internal/process/next_tick.js:*:*)
 [eval]:1
 throw new Error("hello")
 ^
@@ -31,8 +31,8 @@ Error: hello
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at _combinedTickCallback (internal/process/next_tick.js:*:*)
+    at process._tickCallback (internal/process/next_tick.js:*:*)
 100
 [eval]:1
 var x = 100; y = x;
@@ -43,8 +43,8 @@ ReferenceError: y is not defined
     at Object.<anonymous> ([eval]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at _combinedTickCallback (internal/process/next_tick.js:*:*)
+    at process._tickCallback (internal/process/next_tick.js:*:*)
 [eval]:1
 var ______________________________________________; throw 10
                                                     ^

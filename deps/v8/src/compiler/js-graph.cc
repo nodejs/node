@@ -11,12 +11,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> value) {
-  // TODO(bmeurer): Flatten cons strings here before we canonicalize them?
-  return graph()->NewNode(common()->HeapConstant(value));
-}
-
-
 #define CACHED(name, expr) \
   cached_nodes_[name] ? cached_nodes_[name] : (cached_nodes_[name] = (expr))
 
@@ -24,43 +18,40 @@ Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> value) {
 Node* JSGraph::CEntryStubConstant(int result_size) {
   if (result_size == 1) {
     return CACHED(kCEntryStubConstant,
-                  ImmovableHeapConstant(CEntryStub(isolate(), 1).GetCode()));
+                  HeapConstant(CEntryStub(isolate(), 1).GetCode()));
   }
-  return ImmovableHeapConstant(CEntryStub(isolate(), result_size).GetCode());
+  return HeapConstant(CEntryStub(isolate(), result_size).GetCode());
 }
 
 
 Node* JSGraph::EmptyFixedArrayConstant() {
   return CACHED(kEmptyFixedArrayConstant,
-                ImmovableHeapConstant(factory()->empty_fixed_array()));
+                HeapConstant(factory()->empty_fixed_array()));
 }
 
 
 Node* JSGraph::UndefinedConstant() {
-  return CACHED(kUndefinedConstant,
-                ImmovableHeapConstant(factory()->undefined_value()));
+  return CACHED(kUndefinedConstant, HeapConstant(factory()->undefined_value()));
 }
 
 
 Node* JSGraph::TheHoleConstant() {
-  return CACHED(kTheHoleConstant,
-                ImmovableHeapConstant(factory()->the_hole_value()));
+  return CACHED(kTheHoleConstant, HeapConstant(factory()->the_hole_value()));
 }
 
 
 Node* JSGraph::TrueConstant() {
-  return CACHED(kTrueConstant, ImmovableHeapConstant(factory()->true_value()));
+  return CACHED(kTrueConstant, HeapConstant(factory()->true_value()));
 }
 
 
 Node* JSGraph::FalseConstant() {
-  return CACHED(kFalseConstant,
-                ImmovableHeapConstant(factory()->false_value()));
+  return CACHED(kFalseConstant, HeapConstant(factory()->false_value()));
 }
 
 
 Node* JSGraph::NullConstant() {
-  return CACHED(kNullConstant, ImmovableHeapConstant(factory()->null_value()));
+  return CACHED(kNullConstant, HeapConstant(factory()->null_value()));
 }
 
 
@@ -81,11 +72,14 @@ Node* JSGraph::NaNConstant() {
 
 
 Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
-  // TODO(turbofan): canonicalize heap constants using <magic approach>.
-  // TODO(titzer): We could also match against the addresses of immortable
-  // immovables here, even without access to the heap, thus always
-  // canonicalizing references to them.
-  return ImmovableHeapConstant(value);
+  if (value->IsConsString()) {
+    value = String::Flatten(Handle<String>::cast(value), TENURED);
+  }
+  Node** loc = cache_.FindHeapConstant(value);
+  if (*loc == nullptr) {
+    *loc = graph()->NewNode(common()->HeapConstant(value));
+  }
+  return *loc;
 }
 
 
@@ -126,7 +120,7 @@ Node* JSGraph::Constant(int32_t value) {
 
 Node* JSGraph::Int32Constant(int32_t value) {
   Node** loc = cache_.FindInt32Constant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->Int32Constant(value));
   }
   return *loc;
@@ -135,7 +129,7 @@ Node* JSGraph::Int32Constant(int32_t value) {
 
 Node* JSGraph::Int64Constant(int64_t value) {
   Node** loc = cache_.FindInt64Constant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->Int64Constant(value));
   }
   return *loc;
@@ -144,7 +138,7 @@ Node* JSGraph::Int64Constant(int64_t value) {
 
 Node* JSGraph::NumberConstant(double value) {
   Node** loc = cache_.FindNumberConstant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->NumberConstant(value));
   }
   return *loc;
@@ -153,7 +147,7 @@ Node* JSGraph::NumberConstant(double value) {
 
 Node* JSGraph::Float32Constant(float value) {
   Node** loc = cache_.FindFloat32Constant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->Float32Constant(value));
   }
   return *loc;
@@ -162,7 +156,7 @@ Node* JSGraph::Float32Constant(float value) {
 
 Node* JSGraph::Float64Constant(double value) {
   Node** loc = cache_.FindFloat64Constant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->Float64Constant(value));
   }
   return *loc;
@@ -171,7 +165,7 @@ Node* JSGraph::Float64Constant(double value) {
 
 Node* JSGraph::ExternalConstant(ExternalReference reference) {
   Node** loc = cache_.FindExternalConstant(reference);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->ExternalConstant(reference));
   }
   return *loc;

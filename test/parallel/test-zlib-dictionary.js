@@ -5,7 +5,7 @@ require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
-const spdyDict = new Buffer([
+const spdyDict = Buffer.from([
   'optionsgetheadpostputdeletetraceacceptaccept-charsetaccept-encodingaccept-',
   'languageauthorizationexpectfromhostif-modified-sinceif-matchif-none-matchi',
   'f-rangeif-unmodifiedsincemax-forwardsproxy-authorizationrangerefererteuser',

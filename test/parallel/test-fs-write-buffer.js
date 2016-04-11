@@ -5,7 +5,7 @@ const path = require('path');
 const Buffer = require('buffer').Buffer;
 const fs = require('fs');
 const filename = path.join(common.tmpDir, 'write.txt');
-const expected = new Buffer('hello');
+const expected = Buffer.from('hello');
 let openCalled = 0;
 let writeCalled = 0;
 
@@ -33,4 +33,3 @@ process.on('exit', function() {
   assert.equal(1, openCalled);
   assert.equal(1, writeCalled);
 });
-

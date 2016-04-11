@@ -36,15 +36,16 @@ function setupIgnores (self, options) {
   }
 }
 
+// ignore patterns are always in dot:true mode.
 function ignoreMap (pattern) {
   var gmatcher = null
   if (pattern.slice(-3) === '/**') {
     var gpattern = pattern.replace(/(\/\*\*)+$/, '')
-    gmatcher = new Minimatch(gpattern)
+    gmatcher = new Minimatch(gpattern, { dot: true })
   }
 
   return {
-    matcher: new Minimatch(pattern),
+    matcher: new Minimatch(pattern, { dot: true }),
     gmatcher: gmatcher
   }
 }
@@ -92,8 +93,8 @@ function setopts (self, pattern, options) {
   if (!ownProp(options, "cwd"))
     self.cwd = cwd
   else {
-    self.cwd = options.cwd
-    self.changedCwd = path.resolve(options.cwd) !== cwd
+    self.cwd = path.resolve(options.cwd)
+    self.changedCwd = self.cwd !== cwd
   }
 
   self.root = options.root || path.resolve(self.cwd, "/")
@@ -101,35 +102,16 @@ function setopts (self, pattern, options) {
   if (process.platform === "win32")
     self.root = self.root.replace(/\\/g, "/")
 
+  self.cwdAbs = makeAbs(self, self.cwd)
   self.nomount = !!options.nomount
 
-  // disable comments and negation unless the user explicitly
-  // passes in false as the option.
-  options.nonegate = options.nonegate === false ? false : true
-  options.nocomment = options.nocomment === false ? false : true
-  deprecationWarning(options)
+  // disable comments and negation in Minimatch.
+  // Note that they are not supported in Glob itself anyway.
+  options.nonegate = true
+  options.nocomment = true
 
   self.minimatch = new Minimatch(pattern, options)
   self.options = self.minimatch.options
-}
-
-// TODO(isaacs): remove entirely in v6
-// exported to reset in tests
-exports.deprecationWarned
-function deprecationWarning(options) {
-  if (!options.nonegate || !options.nocomment) {
-    if (process.noDeprecation !== true && !exports.deprecationWarned) {
-      var msg = 'glob WARNING: comments and negation will be disabled in v6'
-      if (process.throwDeprecation)
-        throw new Error(msg)
-      else if (process.traceDeprecation)
-        console.trace(msg)
-      else
-        console.error(msg)
-
-      exports.deprecationWarned = true
-    }
-  }
 }
 
 function finish (self) {
@@ -172,7 +154,11 @@ function finish (self) {
     }
     if (self.nodir) {
       all = all.filter(function (e) {
-        return !(/\/$/.test(e))
+        var notDir = !(/\/$/.test(e))
+        var c = self.cache[e] || self.cache[makeAbs(self, e)]
+        if (notDir && c)
+          notDir = c !== 'DIR' && !Array.isArray(c)
+        return notDir
       })
     }
   }
@@ -220,6 +206,10 @@ function makeAbs (self, f) {
   } else {
     abs = path.resolve(f)
   }
+
+  if (process.platform === 'win32')
+    abs = abs.replace(/\\/g, '/')
+
   return abs
 }
 

@@ -120,9 +120,9 @@ class BinaryOpICState final BASE_EMBEDDED {
   Token::Value op() const { return op_; }
   Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
 
-  Type* GetLeftType(Zone* zone) const { return KindToType(left_kind_, zone); }
-  Type* GetRightType(Zone* zone) const { return KindToType(right_kind_, zone); }
-  Type* GetResultType(Zone* zone) const;
+  Type* GetLeftType() const { return KindToType(left_kind_); }
+  Type* GetRightType() const { return KindToType(right_kind_); }
+  Type* GetResultType() const;
 
   void Update(Handle<Object> left, Handle<Object> right, Handle<Object> result);
 
@@ -136,7 +136,7 @@ class BinaryOpICState final BASE_EMBEDDED {
   Kind UpdateKind(Handle<Object> object, Kind kind) const;
 
   static const char* KindToString(Kind kind);
-  static Type* KindToType(Kind kind, Zone* zone);
+  static Type* KindToType(Kind kind);
   static bool KindMaybeSmi(Kind kind) {
     return (kind >= SMI && kind <= NUMBER) || kind == GENERIC;
   }
@@ -174,7 +174,7 @@ class CompareICState {
   //   SMI < NUMBER
   //   INTERNALIZED_STRING < STRING
   //   INTERNALIZED_STRING < UNIQUE_NAME
-  //   KNOWN_OBJECT < OBJECT
+  //   KNOWN_RECEIVER < RECEIVER
   enum State {
     UNINITIALIZED,
     BOOLEAN,
@@ -182,9 +182,9 @@ class CompareICState {
     NUMBER,
     STRING,
     INTERNALIZED_STRING,
-    UNIQUE_NAME,   // Symbol or InternalizedString
-    OBJECT,        // JSObject
-    KNOWN_OBJECT,  // JSObject with specific map (faster check)
+    UNIQUE_NAME,     // Symbol or InternalizedString
+    RECEIVER,        // JSReceiver
+    KNOWN_RECEIVER,  // JSReceiver with specific map (faster check)
     GENERIC
   };
 

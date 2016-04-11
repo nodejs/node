@@ -27,6 +27,25 @@ DEFAULT_BOTS = [
   'v8_nexus10_perf_try',
 ]
 
+PUBLIC_BENCHMARKS = [
+  'arewefastyet',
+  'embenchen',
+  'emscripten',
+  'compile',
+  'jetstream',
+  'jsbench',
+  'jstests',
+  'kraken_orig',
+  'massive',
+  'memory',
+  'octane',
+  'octane-pr',
+  'octane-tf',
+  'octane-tf-pr',
+  'simdjs',
+  'sunspider',
+]
+
 V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 def main():
@@ -46,6 +65,16 @@ def main():
   if not options.benchmarks:
     print 'Please specify the benchmarks to run as arguments.'
     return 1
+
+  for benchmark in options.benchmarks:
+    if benchmark not in PUBLIC_BENCHMARKS:
+      print ('%s not found in our benchmark list. The respective trybot might '
+            'fail, unless you run something this script isn\'t aware of. '
+            'Available public benchmarks: %s' % (benchmark, PUBLIC_BENCHMARKS))
+      print 'Proceed anyways? [Y/n] ',
+      answer = sys.stdin.readline().strip()
+      if answer != "" and answer != "Y" and answer != "y":
+        return 1
 
   assert '"' not in options.extra_flags and '\'' not in options.extra_flags, (
       'Invalid flag specification.')

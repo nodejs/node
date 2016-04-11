@@ -4,8 +4,11 @@
 
 #include "src/full-codegen/full-codegen.h"
 
-#include "src/ast.h"
-#include "src/ast-numbering.h"
+#include "src/ast/ast.h"
+#include "src/ast/ast-numbering.h"
+#include "src/ast/prettyprinter.h"
+#include "src/ast/scopeinfo.h"
+#include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
@@ -13,9 +16,6 @@
 #include "src/debug/liveedit.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
-#include "src/prettyprinter.h"
-#include "src/scopeinfo.h"
-#include "src/scopes.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -38,7 +38,8 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   }
   CodeGenerator::MakeCodePrologue(info, "full");
   const int kInitialBufferSize = 4 * KB;
-  MacroAssembler masm(info->isolate(), NULL, kInitialBufferSize);
+  MacroAssembler masm(info->isolate(), NULL, kInitialBufferSize,
+                      CodeObjectRequired::kYes);
   if (info->will_serialize()) masm.enable_serializer();
 
   LOG_CODE_EVENT(isolate,
@@ -601,36 +602,24 @@ void FullCodeGenerator::SetExpressionAsStatementPosition(Expression* expr) {
 }
 
 
-void FullCodeGenerator::SetCallPosition(Expression* expr, int argc) {
+void FullCodeGenerator::SetCallPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
   RecordPosition(masm_, expr->position());
   if (info_->is_debug()) {
     // Always emit a debug break slot before a call.
-    DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_CALL,
-                               argc);
-  }
-}
-
-
-void FullCodeGenerator::SetConstructCallPosition(Expression* expr) {
-  if (expr->position() == RelocInfo::kNoPosition) return;
-  RecordPosition(masm_, expr->position());
-  if (info_->is_debug()) {
-    // Always emit a debug break slot before a construct call.
-    DebugCodegen::GenerateSlot(masm_,
-                               RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL);
+    DebugCodegen::GenerateSlot(masm_, RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
   }
 }
 
 
 void FullCodeGenerator::VisitSuperPropertyReference(
     SuperPropertyReference* super) {
-  __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
+  __ CallRuntime(Runtime::kThrowUnsupportedSuperError);
 }
 
 
 void FullCodeGenerator::VisitSuperCallReference(SuperCallReference* super) {
-  __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
+  __ CallRuntime(Runtime::kThrowUnsupportedSuperError);
 }
 
 
@@ -925,15 +914,9 @@ void FullCodeGenerator::EmitUnwindBeforeReturn() {
 void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
                                         BailoutId bailout_id) {
   VisitForStackValue(property->key());
-  __ CallRuntime(Runtime::kToName, 1);
+  __ CallRuntime(Runtime::kToName);
   PrepareForBailoutForId(bailout_id, NO_REGISTERS);
   __ Push(result_register());
-}
-
-
-void FullCodeGenerator::EmitLoadSuperConstructor(SuperCallReference* ref) {
-  VisitForStackValue(ref->this_function_var());
-  __ CallRuntime(Runtime::kGetPrototype, 1);
 }
 
 
@@ -951,9 +934,14 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   Comment cmnt(masm_, "[ WithStatement");
   SetStatementPosition(stmt);
 
-  VisitForStackValue(stmt->expression());
+  VisitForAccumulatorValue(stmt->expression());
+  Callable callable = CodeFactory::ToObject(isolate());
+  __ Move(callable.descriptor().GetRegisterParameter(0), result_register());
+  __ Call(callable.code(), RelocInfo::CODE_TARGET);
+  PrepareForBailoutForId(stmt->ToObjectId(), NO_REGISTERS);
+  __ Push(result_register());
   PushFunctionArgumentForContextAllocation();
-  __ CallRuntime(Runtime::kPushWithContext, 2);
+  __ CallRuntime(Runtime::kPushWithContext);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
 
@@ -1150,7 +1138,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
     __ Push(stmt->variable()->name());
     __ Push(result_register());
     PushFunctionArgumentForContextAllocation();
-    __ CallRuntime(Runtime::kPushCatchContext, 3);
+    __ CallRuntime(Runtime::kPushCatchContext);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
                       context_register());
   }
@@ -1220,7 +1208,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // rethrow the exception if it returns.
   __ Call(&finally_entry);
   __ Push(result_register());
-  __ CallRuntime(Runtime::kReThrow, 1);
+  __ CallRuntime(Runtime::kReThrow);
 
   // Finally block implementation.
   __ bind(&finally_entry);
@@ -1337,14 +1325,14 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     __ Push(Smi::FromInt(lit->start_position()));
     __ Push(Smi::FromInt(lit->end_position()));
 
-    __ CallRuntime(Runtime::kDefineClass, 5);
+    __ CallRuntime(Runtime::kDefineClass);
     PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
 
     EmitClassDefineProperties(lit);
 
     if (lit->class_variable_proxy() != nullptr) {
-      EmitVariableAssignment(lit->class_variable_proxy()->var(),
-                             Token::INIT_CONST, lit->ProxySlot());
+      EmitVariableAssignment(lit->class_variable_proxy()->var(), Token::INIT,
+                             lit->ProxySlot());
     }
   }
 
@@ -1392,7 +1380,7 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
   VisitForStackValue(expr->exception());
   SetExpressionPosition(expr);
-  __ CallRuntime(Runtime::kThrow, 1);
+  __ CallRuntime(Runtime::kThrow);
   // Never returns here.
 }
 
@@ -1490,6 +1478,12 @@ void FullCodeGenerator::VisitSpread(Spread* expr) { UNREACHABLE(); }
 
 void FullCodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
   UNREACHABLE();
+}
+
+
+void FullCodeGenerator::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* expr) {
+  Visit(expr->expression());
 }
 
 
@@ -1648,7 +1642,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
         Comment cmnt(masm(), "[ Extend block context");
         __ Push(scope->GetScopeInfo(codegen->isolate()));
         codegen_->PushFunctionArgumentForContextAllocation();
-        __ CallRuntime(Runtime::kPushBlockContext, 2);
+        __ CallRuntime(Runtime::kPushBlockContext);
 
         // Replace the context stored in the frame.
         codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,

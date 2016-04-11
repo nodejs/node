@@ -10,9 +10,9 @@ test2();
 function test1() {
   const r = new Readable();
 
-  // should not end when we get a Buffer(0) or '' as the _read result
-  // that just means that there is *temporarily* no data, but to go
-  // ahead and try again later.
+  // should not end when we get a Buffer.alloc(0) or '' as the _read
+  // result that just means that there is *temporarily* no data, but to
+  // go ahead and try again later.
   //
   // note that this is very unusual.  it only works for crypto streams
   // because the other side of the stream will call read(0) to cycle
@@ -20,7 +20,7 @@ function test1() {
   // r.read(0) again later, otherwise there is no more work being done
   // and the process just exits.
 
-  const buf = Buffer(5).fill('x');
+  const buf = Buffer.alloc(5, 'x');
   let reads = 5;
   const timeout = common.platformTimeout(50);
   r._read = function(n) {
@@ -31,16 +31,16 @@ function test1() {
         return r.push(buf);
       case 2:
         setTimeout(r.read.bind(r, 0), timeout);
-        return r.push(new Buffer(0)); // Not-EOF!
+        return r.push(Buffer.alloc(0)); // Not-EOF!
       case 3:
         setTimeout(r.read.bind(r, 0), timeout);
         return process.nextTick(function() {
-          return r.push(new Buffer(0));
+          return r.push(Buffer.alloc(0));
         });
       case 4:
         setTimeout(r.read.bind(r, 0), timeout);
         return setTimeout(function() {
-          return r.push(new Buffer(0));
+          return r.push(Buffer.alloc(0));
         });
       case 5:
         return setTimeout(function() {
@@ -76,7 +76,7 @@ function test2() {
     if (!reads--)
       return r.push(null); // EOF
     else
-      return r.push(new Buffer('x'));
+      return r.push(Buffer.from('x'));
   };
 
   var results = [];

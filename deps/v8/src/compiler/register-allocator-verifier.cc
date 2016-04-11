@@ -172,7 +172,12 @@ void RegisterAllocatorVerifier::BuildConstraint(const InstructionOperand* op,
           }
           break;
         case UnallocatedOperand::FIXED_REGISTER:
-          constraint->type_ = kFixedRegister;
+          if (unallocated->HasSecondaryStorage()) {
+            constraint->type_ = kRegisterAndSlot;
+            constraint->spilled_slot_ = unallocated->GetSecondaryStorage();
+          } else {
+            constraint->type_ = kFixedRegister;
+          }
           constraint->value_ = unallocated->fixed_register_index();
           break;
         case UnallocatedOperand::FIXED_DOUBLE_REGISTER:
@@ -225,6 +230,7 @@ void RegisterAllocatorVerifier::CheckConstraint(
       CHECK(op->IsExplicit());
       return;
     case kFixedRegister:
+    case kRegisterAndSlot:
       CHECK(op->IsRegister());
       CHECK_EQ(LocationOperand::cast(op)->GetRegister().code(),
                constraint->value_);
@@ -386,11 +392,13 @@ class OperandMap : public ZoneObject {
     }
   }
 
-  void Define(Zone* zone, const InstructionOperand* op, int virtual_register) {
+  MapValue* Define(Zone* zone, const InstructionOperand* op,
+                   int virtual_register) {
     auto value = new (zone) MapValue();
     value->define_vreg = virtual_register;
     auto res = map().insert(std::make_pair(op, value));
     if (!res.second) res.first->second = value;
+    return value;
   }
 
   void Use(const InstructionOperand* op, int use_vreg, bool initial_pass) {
@@ -704,7 +712,20 @@ void RegisterAllocatorVerifier::VerifyGapMoves(BlockMaps* block_maps,
       }
       for (size_t i = 0; i < instr->OutputCount(); ++i, ++count) {
         int virtual_register = op_constraints[count].virtual_register_;
-        current->Define(zone(), instr->OutputAt(i), virtual_register);
+        OperandMap::MapValue* value =
+            current->Define(zone(), instr->OutputAt(i), virtual_register);
+        if (op_constraints[count].type_ == kRegisterAndSlot) {
+          const AllocatedOperand* reg_op =
+              AllocatedOperand::cast(instr->OutputAt(i));
+          MachineRepresentation rep = reg_op->representation();
+          const AllocatedOperand* stack_op = AllocatedOperand::New(
+              zone(), LocationOperand::LocationKind::STACK_SLOT, rep,
+              op_constraints[i].spilled_slot_);
+          auto insert_result =
+              current->map().insert(std::make_pair(stack_op, value));
+          DCHECK(insert_result.second);
+          USE(insert_result);
+        }
       }
     }
   }

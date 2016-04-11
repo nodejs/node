@@ -20,6 +20,10 @@ const winPaths = [
   '\\\\?\\UNC\\server\\share'
 ];
 
+const winSpecialCaseParseTests = [
+  ['/foo/bar', {root: '/'}]
+];
+
 const winSpecialCaseFormatTests = [
   [{dir: 'some\\dir'}, 'some\\dir\\'],
   [{base: 'index.html'}, 'index.html'],
@@ -86,6 +90,7 @@ const errors = [
 
 checkParseFormat(path.win32, winPaths);
 checkParseFormat(path.posix, unixPaths);
+checkSpecialCaseParseFormat(path.win32, winSpecialCaseParseTests);
 checkErrors(path.win32);
 checkErrors(path.posix);
 checkFormat(path.win32, winSpecialCaseFormatTests);
@@ -181,6 +186,17 @@ function checkParseFormat(path, paths) {
     assert.strictEqual(output.dir, output.dir ? path.dirname(element) : '');
     assert.strictEqual(output.base, path.basename(element));
     assert.strictEqual(output.ext, path.extname(element));
+  });
+}
+
+function checkSpecialCaseParseFormat(path, testCases) {
+  testCases.forEach(function(testCase) {
+    const element = testCase[0];
+    const expect = testCase[1];
+    const output = path.parse(element);
+    Object.keys(expect).forEach(function(key) {
+      assert.strictEqual(output[key], expect[key]);
+    });
   });
 }
 

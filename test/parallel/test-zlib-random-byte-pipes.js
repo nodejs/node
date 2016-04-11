@@ -78,7 +78,7 @@ RandomReadStream.prototype._process = function() {
     block += Math.ceil(Math.random() * jitter - (jitter / 2));
   }
   block = Math.min(block, this._remaining);
-  var buf = new Buffer(block);
+  var buf = Buffer.allocUnsafe(block);
   for (var i = 0; i < block; i++) {
     buf[i] = Math.random() * 256;
   }

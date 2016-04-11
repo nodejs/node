@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var EventEmitter = require('events').EventEmitter;
 
@@ -7,7 +8,6 @@ function main(conf) {
   var n = conf.n | 0;
 
   var ee = new EventEmitter();
-  var listeners = [];
 
   for (var k = 0; k < 10; k += 1)
     ee.on('dummy', function() {});

@@ -10,12 +10,7 @@ if (common.hasCrypto) {
   console.log('1..0 # Skipped: missing crypto');
 }
 
-var host = '********';
-host += host;
-host += host;
-host += host;
-host += host;
-host += host;
+var host = '*'.repeat(256);
 
 function do_not_call() {
   throw new Error('This function should not have been called.');

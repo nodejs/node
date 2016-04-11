@@ -11,7 +11,9 @@
 // -------------------------------------------------------------------
 // Imports
 
+var GlobalDate = global.Date;
 var GlobalJSON = global.JSON;
+var GlobalSet = global.Set;
 var InternalArray = utils.InternalArray;
 var MakeTypeError;
 var MaxSimple;
@@ -28,24 +30,33 @@ utils.Import(function(from) {
 
 // -------------------------------------------------------------------
 
-function Revive(holder, name, reviver) {
+function CreateDataProperty(o, p, v) {
+  var desc = {value: v, enumerable: true, writable: true, configurable: true};
+  return %reflect_define_property(o, p, desc);
+}
+
+
+function InternalizeJSONProperty(holder, name, reviver) {
   var val = holder[name];
-  if (IS_OBJECT(val)) {
-    if (IS_ARRAY(val)) {
-      var length = val.length;
+  if (IS_RECEIVER(val)) {
+    if (%is_arraylike(val)) {
+      var length = TO_LENGTH(val.length);
       for (var i = 0; i < length; i++) {
-        var newElement = Revive(val, %_NumberToString(i), reviver);
-        val[i] = newElement;
+        var newElement =
+            InternalizeJSONProperty(val, %_NumberToString(i), reviver);
+        if (IS_UNDEFINED(newElement)) {
+          %reflect_delete_property(val, i);
+        } else {
+          CreateDataProperty(val, i, newElement);
+        }
       }
     } else {
-      for (var p in val) {
-        if (HAS_OWN_PROPERTY(val, p)) {
-          var newElement = Revive(val, p, reviver);
-          if (IS_UNDEFINED(newElement)) {
-            delete val[p];
-          } else {
-            val[p] = newElement;
-          }
+      for (var p of %object_keys(val)) {
+        var newElement = InternalizeJSONProperty(val, p, reviver);
+        if (IS_UNDEFINED(newElement)) {
+          %reflect_delete_property(val, p);
+        } else {
+          CreateDataProperty(val, p, newElement);
         }
       }
     }
@@ -57,7 +68,7 @@ function Revive(holder, name, reviver) {
 function JSONParse(text, reviver) {
   var unfiltered = %ParseJson(text);
   if (IS_CALLABLE(reviver)) {
-    return Revive({'': unfiltered}, '', reviver);
+    return InternalizeJSONProperty({'': unfiltered}, '', reviver);
   } else {
     return unfiltered;
   }
@@ -69,7 +80,7 @@ function SerializeArray(value, replacer, stack, indent, gap) {
   var stepback = indent;
   indent += gap;
   var partial = new InternalArray();
-  var len = value.length;
+  var len = TO_LENGTH(value.length);
   for (var i = 0; i < len; i++) {
     var strP = JSONSerialize(%_NumberToString(i), value, replacer, stack,
                              indent, gap);
@@ -101,27 +112,23 @@ function SerializeObject(value, replacer, stack, indent, gap) {
   if (IS_ARRAY(replacer)) {
     var length = replacer.length;
     for (var i = 0; i < length; i++) {
-      if (HAS_OWN_PROPERTY(replacer, i)) {
-        var p = replacer[i];
-        var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
-        if (!IS_UNDEFINED(strP)) {
-          var member = %QuoteJSONString(p) + ":";
-          if (gap != "") member += " ";
-          member += strP;
-          partial.push(member);
-        }
+      var p = replacer[i];
+      var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
+      if (!IS_UNDEFINED(strP)) {
+        var member = %QuoteJSONString(p) + ":";
+        if (gap != "") member += " ";
+        member += strP;
+        partial.push(member);
       }
     }
   } else {
-    for (var p in value) {
-      if (HAS_OWN_PROPERTY(value, p)) {
-        var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
-        if (!IS_UNDEFINED(strP)) {
-          var member = %QuoteJSONString(p) + ":";
-          if (gap != "") member += " ";
-          member += strP;
-          partial.push(member);
-        }
+    for (var p of %object_keys(value)) {
+      var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
+      if (!IS_UNDEFINED(strP)) {
+        var member = %QuoteJSONString(p) + ":";
+        if (gap != "") member += " ";
+        member += strP;
+        partial.push(member);
       }
     }
   }
@@ -142,7 +149,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
 
 function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   var value = holder[key];
-  if (IS_SPEC_OBJECT(value)) {
+  if (IS_RECEIVER(value)) {
     var toJSON = value.toJSON;
     if (IS_CALLABLE(toJSON)) {
       value = %_Call(toJSON, value, key);
@@ -159,9 +166,9 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
     return value ? "true" : "false";
   } else if (IS_NULL(value)) {
     return "null";
-  } else if (IS_SPEC_OBJECT(value) && !IS_CALLABLE(value)) {
+  } else if (IS_RECEIVER(value) && !IS_CALLABLE(value)) {
     // Non-callable object. If it's a primitive wrapper, it must be unwrapped.
-    if (IS_ARRAY(value)) {
+    if (%is_arraylike(value)) {
       return SerializeArray(value, replacer, stack, indent, gap);
     } else if (IS_NUMBER_WRAPPER(value)) {
       value = TO_NUMBER(value);
@@ -180,14 +187,13 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
 
 
 function JSONStringify(value, replacer, space) {
-  if (%_ArgumentsLength() == 1) {
+  if (%_ArgumentsLength() == 1 && !IS_PROXY(value)) {
     return %BasicJSONStringify(value);
   }
-  if (IS_ARRAY(replacer)) {
-    // Deduplicate replacer array items.
+  if (!IS_CALLABLE(replacer) && %is_arraylike(replacer)) {
     var property_list = new InternalArray();
-    var seen_properties = { __proto__: null };
-    var length = replacer.length;
+    var seen_properties = new GlobalSet();
+    var length = TO_LENGTH(replacer.length);
     for (var i = 0; i < length; i++) {
       var v = replacer[i];
       var item;
@@ -200,9 +206,9 @@ function JSONStringify(value, replacer, space) {
       } else {
         continue;
       }
-      if (!seen_properties[item]) {
+      if (!seen_properties.has(item)) {
         property_list.push(item);
-        seen_properties[item] = true;
+        seen_properties.add(item);
       }
     }
     replacer = property_list;
@@ -239,6 +245,24 @@ function JSONStringify(value, replacer, space) {
 utils.InstallFunctions(GlobalJSON, DONT_ENUM, [
   "parse", JSONParse,
   "stringify", JSONStringify
+]);
+
+// -------------------------------------------------------------------
+// Date.toJSON
+
+// 20.3.4.37 Date.prototype.toJSON ( key )
+function DateToJSON(key) {
+  var o = TO_OBJECT(this);
+  var tv = TO_PRIMITIVE_NUMBER(o);
+  if (IS_NUMBER(tv) && !NUMBER_IS_FINITE(tv)) {
+    return null;
+  }
+  return o.toISOString();
+}
+
+// Set up non-enumerable functions of the Date prototype object.
+utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
+  "toJSON", DateToJSON
 ]);
 
 // -------------------------------------------------------------------

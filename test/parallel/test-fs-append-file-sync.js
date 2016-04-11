@@ -41,7 +41,7 @@ assert.equal(Buffer.byteLength(data) + currentFileData.length,
 var filename3 = join(common.tmpDir, 'append-sync3.txt');
 fs.writeFileSync(filename3, currentFileData);
 
-var buf = new Buffer(data, 'utf8');
+var buf = Buffer.from(data, 'utf8');
 fs.appendFileSync(filename3, buf);
 
 var fileData3 = fs.readFileSync(filename3);

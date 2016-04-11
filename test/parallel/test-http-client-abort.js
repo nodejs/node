@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
 var clientAborts = 0;
 
-var server = http.Server(function(req, res) {
+const server = http.Server(function(req, res) {
   console.log('Got connection');
   res.writeHead(200);
   res.write('Working on it...');
@@ -24,8 +24,8 @@ var server = http.Server(function(req, res) {
 });
 
 var responses = 0;
-var N = 16;
-var requests = [];
+const N = 8;
+const requests = [];
 
 server.listen(common.PORT, function() {
   console.log('Server listening.');

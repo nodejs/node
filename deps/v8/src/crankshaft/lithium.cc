@@ -4,7 +4,7 @@
 
 #include "src/crankshaft/lithium.h"
 
-#include "src/scopes.h"
+#include "src/ast/scopes.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/crankshaft/ia32/lithium-ia32.h"  // NOLINT
@@ -406,54 +406,6 @@ Representation LChunk::LookupLiteralRepresentation(
 }
 
 
-static void AddWeakObjectToCodeDependency(Isolate* isolate,
-                                          Handle<HeapObject> object,
-                                          Handle<Code> code) {
-  Handle<WeakCell> cell = Code::WeakCellFor(code);
-  Heap* heap = isolate->heap();
-  Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
-  dep = DependentCode::InsertWeakCode(dep, DependentCode::kWeakCodeGroup, cell);
-  heap->AddWeakObjectToCodeDependency(object, dep);
-}
-
-
-void LChunk::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) const {
-  DCHECK(code->is_optimized_code());
-  ZoneList<Handle<Map> > maps(1, zone());
-  ZoneList<Handle<HeapObject> > objects(1, zone());
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                  RelocInfo::ModeMask(RelocInfo::CELL);
-  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (mode == RelocInfo::CELL &&
-        code->IsWeakObjectInOptimizedCode(it.rinfo()->target_cell())) {
-      objects.Add(Handle<HeapObject>(it.rinfo()->target_cell()), zone());
-    } else if (mode == RelocInfo::EMBEDDED_OBJECT &&
-               code->IsWeakObjectInOptimizedCode(it.rinfo()->target_object())) {
-      if (it.rinfo()->target_object()->IsMap()) {
-        Handle<Map> map(Map::cast(it.rinfo()->target_object()));
-        maps.Add(map, zone());
-      } else {
-        Handle<HeapObject> object(
-            HeapObject::cast(it.rinfo()->target_object()));
-        objects.Add(object, zone());
-      }
-    }
-  }
-  for (int i = 0; i < maps.length(); i++) {
-    if (maps.at(i)->dependent_code()->number_of_entries(
-            DependentCode::kWeakCodeGroup) == 0) {
-      isolate()->heap()->AddRetainedMap(maps.at(i));
-    }
-    Map::AddDependentCode(maps.at(i), DependentCode::kWeakCodeGroup, code);
-  }
-  for (int i = 0; i < objects.length(); i++) {
-    AddWeakObjectToCodeDependency(isolate(), objects.at(i), code);
-  }
-  code->set_can_have_weak_objects(true);
-}
-
-
 void LChunk::CommitDependencies(Handle<Code> code) const {
   if (!code->is_optimized_code()) return;
   HandleScope scope(isolate());
@@ -471,7 +423,6 @@ void LChunk::CommitDependencies(Handle<Code> code) const {
   }
 
   info_->dependencies()->Commit(code);
-  RegisterWeakObjectsInOptimizedCode(code);
 }
 
 
@@ -503,7 +454,8 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
 
 
 Handle<Code> LChunk::Codegen() {
-  MacroAssembler assembler(info()->isolate(), NULL, 0);
+  MacroAssembler assembler(info()->isolate(), NULL, 0,
+                           CodeObjectRequired::kYes);
   LOG_CODE_EVENT(info()->isolate(),
                  CodeStartLinePosInfoRecordEvent(
                      assembler.positions_recorder()));

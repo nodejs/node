@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-rest-parameters
+//
 'use strict';
 
 var _bad = "setting this should fail!";

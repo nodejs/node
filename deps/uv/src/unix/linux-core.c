@@ -39,7 +39,7 @@
 #define HAVE_IFADDRS_H 1
 
 #ifdef __UCLIBC__
-# if __UCLIBC_MAJOR__ < 0 || __UCLIBC_MINOR__ < 9 || __UCLIBC_SUBLEVEL__ < 32
+# if __UCLIBC_MAJOR__ < 0 && __UCLIBC_MINOR__ < 9 && __UCLIBC_SUBLEVEL__ < 32
 #  undef HAVE_IFADDRS_H
 # endif
 #endif
@@ -52,7 +52,7 @@
 # endif
 # include <sys/socket.h>
 # include <net/ethernet.h>
-# include <linux/if_packet.h>
+# include <netpacket/packet.h>
 #endif /* HAVE_IFADDRS_H */
 
 /* Available from 2.6.32 onwards. */
@@ -69,7 +69,7 @@
 #endif
 
 static int read_models(unsigned int numcpus, uv_cpu_info_t* ci);
-static int read_times(unsigned int numcpus, uv_cpu_info_t* ci);
+static int read_times(FILE* statfile_fp, unsigned int numcpus, uv_cpu_info_t* ci);
 static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci);
 static unsigned long read_cpufreq(unsigned int cpunum);
 
@@ -137,6 +137,26 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
     memset(&dummy, 0, sizeof(dummy));
     uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_DEL, fd, &dummy);
   }
+}
+
+
+int uv__io_check_fd(uv_loop_t* loop, int fd) {
+  struct uv__epoll_event e;
+  int rc;
+
+  e.events = UV__EPOLLIN;
+  e.data = -1;
+
+  rc = 0;
+  if (uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_ADD, fd, &e))
+    if (errno != EEXIST)
+      rc = -errno;
+
+  if (rc == 0)
+    if (uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_DEL, fd, &e))
+      abort();
+
+  return rc;
 }
 
 
@@ -532,15 +552,42 @@ int uv_uptime(double* uptime) {
 }
 
 
+static int uv__cpu_num(FILE* statfile_fp, unsigned int* numcpus) {
+  unsigned int num;
+  char buf[1024];
+
+  if (!fgets(buf, sizeof(buf), statfile_fp))
+    abort();
+
+  num = 0;
+  while (fgets(buf, sizeof(buf), statfile_fp)) {
+    if (strncmp(buf, "cpu", 3))
+      break;
+    num++;
+  }
+
+  *numcpus = num;
+  return 0;
+}
+
+
 int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   unsigned int numcpus;
   uv_cpu_info_t* ci;
   int err;
+  FILE* statfile_fp;
 
   *cpu_infos = NULL;
   *count = 0;
 
-  numcpus = sysconf(_SC_NPROCESSORS_ONLN);
+  statfile_fp = uv__open_file("/proc/stat");
+  if (statfile_fp == NULL)
+    return -errno;
+
+  err = uv__cpu_num(statfile_fp, &numcpus);
+  if (err < 0)
+    return err;
+
   assert(numcpus != (unsigned int) -1);
   assert(numcpus != 0);
 
@@ -550,7 +597,11 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   err = read_models(numcpus, ci);
   if (err == 0)
-    err = read_times(numcpus, ci);
+    err = read_times(statfile_fp, numcpus, ci);
+
+  if (fclose(statfile_fp))
+    if (errno != EINTR && errno != EINPROGRESS)
+      abort();
 
   if (err) {
     uv_free_cpu_info(ci, numcpus);
@@ -608,7 +659,7 @@ static int read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
     defined(__i386__) || \
     defined(__mips__) || \
     defined(__x86_64__)
-  fp = fopen("/proc/cpuinfo", "r");
+  fp = uv__open_file("/proc/cpuinfo");
   if (fp == NULL)
     return -errno;
 
@@ -676,7 +727,7 @@ static int read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
 }
 
 
-static int read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
+static int read_times(FILE* statfile_fp, unsigned int numcpus, uv_cpu_info_t* ci) {
   unsigned long clock_ticks;
   struct uv_cpu_times_s ts;
   unsigned long user;
@@ -688,22 +739,19 @@ static int read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
   unsigned int num;
   unsigned int len;
   char buf[1024];
-  FILE* fp;
 
   clock_ticks = sysconf(_SC_CLK_TCK);
   assert(clock_ticks != (unsigned long) -1);
   assert(clock_ticks != 0);
 
-  fp = fopen("/proc/stat", "r");
-  if (fp == NULL)
-    return -errno;
+  rewind(statfile_fp);
 
-  if (!fgets(buf, sizeof(buf), fp))
+  if (!fgets(buf, sizeof(buf), statfile_fp))
     abort();
 
   num = 0;
 
-  while (fgets(buf, sizeof(buf), fp)) {
+  while (fgets(buf, sizeof(buf), statfile_fp)) {
     if (num >= numcpus)
       break;
 
@@ -742,7 +790,6 @@ static int read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
     ts.irq  = clock_ticks * irq;
     ci[num++].cpu_times = ts;
   }
-  fclose(fp);
   assert(num == numcpus);
 
   return 0;
@@ -759,7 +806,7 @@ static unsigned long read_cpufreq(unsigned int cpunum) {
            "/sys/devices/system/cpu/cpu%u/cpufreq/scaling_cur_freq",
            cpunum);
 
-  fp = fopen(buf, "r");
+  fp = uv__open_file(buf);
   if (fp == NULL)
     return 0;
 

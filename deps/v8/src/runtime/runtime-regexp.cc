@@ -658,7 +658,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceGlobalRegExpWithString) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
 
-  RUNTIME_ASSERT(regexp->GetFlags().is_global());
+  RUNTIME_ASSERT(regexp->GetFlags() & JSRegExp::kGlobal);
   RUNTIME_ASSERT(last_match_info->HasFastObjectElements());
 
   subject = String::Flatten(subject);
@@ -825,163 +825,16 @@ RUNTIME_FUNCTION(Runtime_RegExpConstructResult) {
 }
 
 
-static JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags,
-                                             bool* success) {
-  uint32_t value = JSRegExp::NONE;
-  int length = flags->length();
-  // A longer flags string cannot be valid.
-  if (length > 5) return JSRegExp::Flags(0);
-  for (int i = 0; i < length; i++) {
-    uint32_t flag = JSRegExp::NONE;
-    switch (flags->Get(i)) {
-      case 'g':
-        flag = JSRegExp::GLOBAL;
-        break;
-      case 'i':
-        flag = JSRegExp::IGNORE_CASE;
-        break;
-      case 'm':
-        flag = JSRegExp::MULTILINE;
-        break;
-      case 'u':
-        if (!FLAG_harmony_unicode_regexps) return JSRegExp::Flags(0);
-        flag = JSRegExp::UNICODE_ESCAPES;
-        break;
-      case 'y':
-        if (!FLAG_harmony_regexps) return JSRegExp::Flags(0);
-        flag = JSRegExp::STICKY;
-        break;
-      default:
-        return JSRegExp::Flags(0);
-    }
-    // Duplicate flag.
-    if (value & flag) return JSRegExp::Flags(0);
-    value |= flag;
-  }
-  *success = true;
-  return JSRegExp::Flags(value);
-}
-
-
-template <typename Char>
-inline int CountRequiredEscapes(Handle<String> source) {
-  DisallowHeapAllocation no_gc;
-  int escapes = 0;
-  Vector<const Char> src = source->GetCharVector<Char>();
-  for (int i = 0; i < src.length(); i++) {
-    if (src[i] == '/' && (i == 0 || src[i - 1] != '\\')) escapes++;
-  }
-  return escapes;
-}
-
-
-template <typename Char, typename StringType>
-inline Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
-                                                   Handle<StringType> result) {
-  DisallowHeapAllocation no_gc;
-  Vector<const Char> src = source->GetCharVector<Char>();
-  Vector<Char> dst(result->GetChars(), result->length());
-  int s = 0;
-  int d = 0;
-  while (s < src.length()) {
-    if (src[s] == '/' && (s == 0 || src[s - 1] != '\\')) dst[d++] = '\\';
-    dst[d++] = src[s++];
-  }
-  DCHECK_EQ(result->length(), d);
-  return result;
-}
-
-
-MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
-                                       Handle<String> source) {
-  String::Flatten(source);
-  if (source->length() == 0) return isolate->factory()->query_colon_string();
-  bool one_byte = source->IsOneByteRepresentationUnderneath();
-  int escapes = one_byte ? CountRequiredEscapes<uint8_t>(source)
-                         : CountRequiredEscapes<uc16>(source);
-  if (escapes == 0) return source;
-  int length = source->length() + escapes;
-  if (one_byte) {
-    Handle<SeqOneByteString> result;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               isolate->factory()->NewRawOneByteString(length),
-                               String);
-    return WriteEscapedRegExpSource<uint8_t>(source, result);
-  } else {
-    Handle<SeqTwoByteString> result;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               isolate->factory()->NewRawTwoByteString(length),
-                               String);
-    return WriteEscapedRegExpSource<uc16>(source, result);
-  }
-}
-
-
 RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, flags_string, 2);
-  Factory* factory = isolate->factory();
-  // If source is the empty string we set it to "(?:)" instead as
-  // suggested by ECMA-262, 5th, section 15.10.4.1.
-  if (source->length() == 0) source = factory->query_colon_string();
+  CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);
 
-  bool success = false;
-  JSRegExp::Flags flags = RegExpFlagsFromString(flags_string, &success);
-  if (!success) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string));
-  }
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
+                              JSRegExp::Initialize(regexp, source, flags));
 
-  Handle<String> escaped_source;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, escaped_source,
-                                     EscapeRegExpSource(isolate, source));
-
-  regexp->set_source(*escaped_source);
-  regexp->set_flags(Smi::FromInt(flags.value()));
-
-  Map* map = regexp->map();
-  Object* constructor = map->GetConstructor();
-  if (constructor->IsJSFunction() &&
-      JSFunction::cast(constructor)->initial_map() == map) {
-    // If we still have the original map, set in-object properties directly.
-    regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
-                                  Smi::FromInt(0), SKIP_WRITE_BARRIER);
-  } else {
-    // Map has changed, so use generic, but slower, method.
-    PropertyAttributes writable =
-        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->last_index_string(),
-        Handle<Smi>(Smi::FromInt(0), isolate), writable)
-        .Check();
-  }
-
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, RegExpImpl::Compile(regexp, source, flags));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_MaterializeRegExpLiteral) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, flags, 3);
-
-  Handle<JSFunction> constructor = isolate->regexp_function();
-  // Compute the regular expression literal.
-  Handle<Object> regexp;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, regexp,
-      RegExpImpl::CreateRegExpLiteral(constructor, pattern, flags));
-  literals->set_literal(index, *regexp);
   return *regexp;
 }
 
@@ -1147,7 +1000,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
   RUNTIME_ASSERT(result_array->HasFastObjectElements());
 
   subject = String::Flatten(subject);
-  RUNTIME_ASSERT(regexp->GetFlags().is_global());
+  RUNTIME_ASSERT(regexp->GetFlags() & JSRegExp::kGlobal);
 
   if (regexp->CaptureCount() == 0) {
     return SearchRegExpMultiple<false>(isolate, subject, regexp,

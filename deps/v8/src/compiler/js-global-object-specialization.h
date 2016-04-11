@@ -13,7 +13,6 @@ namespace internal {
 
 // Forward declarations.
 class CompilationDependencies;
-class ScriptContextTable;
 class TypeCache;
 
 
@@ -39,7 +38,7 @@ class JSGlobalObjectSpecialization final : public AdvancedReducer {
   typedef base::Flags<Flag> Flags;
 
   JSGlobalObjectSpecialization(Editor* editor, JSGraph* jsgraph, Flags flags,
-                               Handle<JSGlobalObject> global_object,
+                               MaybeHandle<Context> native_context,
                                CompilationDependencies* dependencies);
 
   Reduction Reduce(Node* node) final;
@@ -48,8 +47,12 @@ class JSGlobalObjectSpecialization final : public AdvancedReducer {
   Reduction ReduceJSLoadGlobal(Node* node);
   Reduction ReduceJSStoreGlobal(Node* node);
 
+  // Retrieve the global object from the given {node} if known.
+  MaybeHandle<JSGlobalObject> GetGlobalObject(Node* node);
+
   struct ScriptContextTableLookupResult;
-  bool LookupInScriptContextTable(Handle<Name> name,
+  bool LookupInScriptContextTable(Handle<JSGlobalObject> global_object,
+                                  Handle<Name> name,
                                   ScriptContextTableLookupResult* result);
 
   Graph* graph() const;
@@ -59,16 +62,12 @@ class JSGlobalObjectSpecialization final : public AdvancedReducer {
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
   Flags flags() const { return flags_; }
-  Handle<JSGlobalObject> global_object() const { return global_object_; }
-  Handle<ScriptContextTable> script_context_table() const {
-    return script_context_table_;
-  }
+  MaybeHandle<Context> native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
 
   JSGraph* const jsgraph_;
   Flags const flags_;
-  Handle<JSGlobalObject> global_object_;
-  Handle<ScriptContextTable> script_context_table_;
+  MaybeHandle<Context> native_context_;
   CompilationDependencies* const dependencies_;
   TypeCache const& type_cache_;
 

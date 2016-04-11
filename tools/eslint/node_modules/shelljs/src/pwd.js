@@ -4,7 +4,7 @@ var common = require('./common');
 //@
 //@ ### pwd()
 //@ Returns the current directory.
-function _pwd(options) {
+function _pwd() {
   var pwd = path.resolve(process.cwd());
   return common.ShellString(pwd);
 }

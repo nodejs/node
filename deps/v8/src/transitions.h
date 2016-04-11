@@ -113,14 +113,13 @@ class TransitionArray: public FixedArray {
     Object* raw = proto_transitions->get(kProtoTransitionNumberOfEntriesOffset);
     return Smi::cast(raw)->value();
   }
+  static int NumberOfPrototypeTransitionsForTest(Map* map);
 
   static void SetNumberOfPrototypeTransitions(FixedArray* proto_transitions,
                                               int value);
 
   inline FixedArray* GetPrototypeTransitions();
-  inline void SetPrototypeTransitions(
-      FixedArray* prototype_transitions,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void SetPrototypeTransitions(FixedArray* prototype_transitions);
   inline Object** GetPrototypeTransitionsSlot();
   inline bool HasPrototypeTransitions();
 
@@ -164,8 +163,11 @@ class TransitionArray: public FixedArray {
 
   static int Capacity(Object* raw_transitions);
 
-  // Casting.
-  static inline TransitionArray* cast(Object* obj);
+  inline static TransitionArray* cast(Object* object);
+
+  // This field should be used only by GC.
+  inline void set_next_link(Object* next, WriteBarrierMode mode);
+  inline Object* next_link();
 
   static const int kTransitionSize = 2;
   static const int kProtoTransitionHeaderSize = 1;
@@ -177,6 +179,14 @@ class TransitionArray: public FixedArray {
   // Print all the transitions.
   static void PrintTransitions(std::ostream& os, Object* transitions,
                                bool print_header = true);  // NOLINT
+#endif
+
+#ifdef OBJECT_PRINT
+  void TransitionArrayPrint(std::ostream& os);  // NOLINT
+#endif
+
+#ifdef VERIFY_HEAP
+  void TransitionArrayVerify();
 #endif
 
 #ifdef DEBUG
@@ -198,9 +208,10 @@ class TransitionArray: public FixedArray {
 
  private:
   // Layout for full transition arrays.
-  static const int kPrototypeTransitionsIndex = 0;
-  static const int kTransitionLengthIndex = 1;
-  static const int kFirstIndex = 2;
+  static const int kNextLinkIndex = 0;
+  static const int kPrototypeTransitionsIndex = 1;
+  static const int kTransitionLengthIndex = 2;
+  static const int kFirstIndex = 3;
 
   // Layout of map transition entries in full transition arrays.
   static const int kTransitionKey = 0;
@@ -272,6 +283,11 @@ class TransitionArray: public FixedArray {
   static void SetPrototypeTransitions(Handle<Map> map,
                                       Handle<FixedArray> proto_transitions);
 
+  static bool CompactPrototypeTransitionArray(FixedArray* array);
+
+  static Handle<FixedArray> GrowPrototypeTransitionArray(
+      Handle<FixedArray> array, int new_capacity, Isolate* isolate);
+
   // Compares two tuples <key, kind, attributes>, returns -1 if
   // tuple1 is "less" than tuple2, 0 if tuple1 equal to tuple2 and 1 otherwise.
   static inline int CompareKeys(Name* key1, uint32_t hash1, PropertyKind kind1,
@@ -291,20 +307,14 @@ class TransitionArray: public FixedArray {
                                    PropertyKind kind2,
                                    PropertyAttributes attributes2);
 
-  inline void NoIncrementalWriteBarrierSet(int transition_number,
-                                           Name* key,
-                                           Map* target);
-
-  // Copy a single transition from the origin array.
-  inline void NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
-                                                int origin_transition,
-                                                int target_transition);
+  inline void Set(int transition_number, Name* key, Map* target);
 
 #ifdef DEBUG
   static void CheckNewTransitionsAreConsistent(Handle<Map> map,
                                                TransitionArray* old_transitions,
                                                Object* transitions);
 #endif
+  static void ZapTransitionArray(TransitionArray* transitions);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TransitionArray);
 };

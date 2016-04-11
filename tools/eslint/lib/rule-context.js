@@ -38,8 +38,7 @@ var PASSTHROUGHS = [
     "getTokensAfter",
     "getTokensBefore",
     "getTokensBetween",
-    "markVariableAsUsed",
-    "isMarkedAsUsed"
+    "markVariableAsUsed"
 ];
 
 //------------------------------------------------------------------------------
@@ -67,47 +66,39 @@ var PASSTHROUGHS = [
  * @param {string} ruleId The ID of the rule using this object.
  * @param {eslint} eslint The eslint object.
  * @param {number} severity The configured severity level of the rule.
- * @param {array} options The configuration information to be added to the rule.
- * @param {object} settings The configuration settings passed from the config file.
- * @param {object} ecmaFeatures The ecmaFeatures settings passed from the config file.
+ * @param {Array} options The configuration information to be added to the rule.
+ * @param {Object} settings The configuration settings passed from the config file.
+ * @param {Object} parserOptions The parserOptions settings passed from the config file.
+ * @param {Object} parserPath The parser setting passed from the config file.
+ * @param {Object} meta The metadata of the rule
  */
-function RuleContext(ruleId, eslint, severity, options, settings, ecmaFeatures) {
+function RuleContext(ruleId, eslint, severity, options, settings, parserOptions, parserPath, meta) {
+
+    // public.
+    this.id = ruleId;
+    this.options = options;
+    this.settings = settings;
+    this.parserOptions = parserOptions;
+    this.parserPath = parserPath;
+    this.meta = meta;
+
+    // private.
+    this.eslint = eslint;
+    this.severity = severity;
+
+    Object.freeze(this);
+}
+
+RuleContext.prototype = {
+    constructor: RuleContext,
 
     /**
-     * The read-only ID of the rule.
+     * Passthrough to eslint.getSourceCode().
+     * @returns {SourceCode} The SourceCode object for the code.
      */
-    Object.defineProperty(this, "id", {
-        value: ruleId
-    });
-
-    /**
-     * The read-only options of the rule
-     */
-    Object.defineProperty(this, "options", {
-        value: options
-    });
-
-    /**
-     * The read-only settings shared between all rules
-     */
-    Object.defineProperty(this, "settings", {
-        value: settings
-    });
-
-    /**
-     * The read-only ecmaFeatures shared across all rules
-     */
-    Object.defineProperty(this, "ecmaFeatures", {
-        value: Object.create(ecmaFeatures)
-    });
-    Object.freeze(this.ecmaFeatures);
-
-    // copy over passthrough methods
-    PASSTHROUGHS.forEach(function(name) {
-        this[name] = function() {
-            return eslint[name].apply(eslint, arguments);
-        };
-    }, this);
+    getSourceCode: function() {
+        return this.eslint.getSourceCode();
+    },
 
     /**
      * Passthrough to eslint.report() that automatically assigns the rule ID and severity.
@@ -119,8 +110,7 @@ function RuleContext(ruleId, eslint, severity, options, settings, ecmaFeatures) 
      *     with symbols being replaced by this object's values.
      * @returns {void}
      */
-    this.report = function(nodeOrDescriptor, location, message, opts) {
-
+    report: function(nodeOrDescriptor, location, message, opts) {
         var descriptor,
             fix = null;
 
@@ -133,31 +123,38 @@ function RuleContext(ruleId, eslint, severity, options, settings, ecmaFeatures) 
                 fix = descriptor.fix(new RuleFixer());
             }
 
-            eslint.report(
-                ruleId, severity, descriptor.node,
+            this.eslint.report(
+                this.id,
+                this.severity,
+                descriptor.node,
                 descriptor.loc || descriptor.node.loc.start,
-                descriptor.message, descriptor.data, fix
+                descriptor.message,
+                descriptor.data,
+                fix,
+                this.meta
             );
 
             return;
         }
 
         // old style call
-        eslint.report(ruleId, severity, nodeOrDescriptor, location, message, opts);
-    };
-
-    /**
-     * Passthrough to eslint.getSourceCode().
-     * @returns {SourceCode} The SourceCode object for the code.
-     */
-    this.getSourceCode = function() {
-        return eslint.getSourceCode();
-    };
-
-}
-
-RuleContext.prototype = {
-    constructor: RuleContext
+        this.eslint.report(
+            this.id,
+            this.severity,
+            nodeOrDescriptor,
+            location,
+            message,
+            opts,
+            this.meta
+        );
+    }
 };
+
+// Copy over passthrough methods. All functions will have 5 or fewer parameters.
+PASSTHROUGHS.forEach(function(name) {
+    this[name] = function(a, b, c, d, e) {
+        return this.eslint[name](a, b, c, d, e);
+    };
+}, RuleContext.prototype);
 
 module.exports = RuleContext;

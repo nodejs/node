@@ -76,6 +76,9 @@ void HeapObject::HeapObjectVerify() {
     case BYTECODE_ARRAY_TYPE:
       BytecodeArray::cast(this)->BytecodeArrayVerify();
       break;
+    case TRANSITION_ARRAY_TYPE:
+      TransitionArray::cast(this)->TransitionArrayVerify();
+      break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpaceVerify();
       break;
@@ -96,6 +99,7 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case JS_PROMISE_TYPE:
       JSObject::cast(this)->JSObjectVerify();
       break;
     case JS_GENERATOR_OBJECT_TYPE:
@@ -109,6 +113,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_DATE_TYPE:
       JSDate::cast(this)->JSDateVerify();
+      break;
+    case JS_BOUND_FUNCTION_TYPE:
+      JSBoundFunction::cast(this)->JSBoundFunctionVerify();
       break;
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionVerify();
@@ -159,9 +166,6 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyVerify();
-      break;
-    case JS_FUNCTION_PROXY_TYPE:
-      JSFunctionProxy::cast(this)->JSFunctionProxyVerify();
       break;
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignVerify();
@@ -329,6 +333,8 @@ void Map::MapVerify() {
   CHECK(instance_size() == kVariableSizeSentinel ||
          (kPointerSize <= instance_size() &&
           instance_size() < heap->Capacity()));
+  CHECK(GetBackPointer()->IsUndefined() ||
+        !Map::cast(GetBackPointer())->is_stable());
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
   SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
@@ -354,8 +360,7 @@ void Map::VerifyOmittedMapChecks() {
   if (!is_stable() ||
       is_deprecated() ||
       is_dictionary_map()) {
-    CHECK_EQ(0, dependent_code()->number_of_entries(
-        DependentCode::kPrototypeCheckGroup));
+    CHECK(dependent_code()->IsEmpty(DependentCode::kPrototypeCheckGroup));
   }
 }
 
@@ -408,6 +413,17 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
             (value & V8_UINT64_C(0x0007FFFFFFFFFFFF)) == V8_UINT64_C(0));
     }
   }
+}
+
+
+void TransitionArray::TransitionArrayVerify() {
+  for (int i = 0; i < length(); i++) {
+    Object* e = get(i);
+    VerifyPointer(e);
+  }
+  CHECK_LE(LengthFor(number_of_transitions()), length());
+  CHECK(next_link()->IsUndefined() || next_link()->IsSmi() ||
+        next_link()->IsTransitionArray());
 }
 
 
@@ -528,6 +544,20 @@ void SlicedString::SlicedStringVerify() {
   CHECK(!this->parent()->IsConsString());
   CHECK(!this->parent()->IsSlicedString());
   CHECK(this->length() >= SlicedString::kMinLength);
+}
+
+
+void JSBoundFunction::JSBoundFunctionVerify() {
+  CHECK(IsJSBoundFunction());
+  JSObjectVerify();
+  VerifyObjectField(kBoundThisOffset);
+  VerifyObjectField(kBoundTargetFunctionOffset);
+  VerifyObjectField(kBoundArgumentsOffset);
+  VerifyObjectField(kCreationContextOffset);
+  CHECK(bound_target_function()->IsCallable());
+  CHECK(creation_context()->IsNativeContext());
+  CHECK(IsCallable());
+  CHECK_EQ(IsConstructor(), bound_target_function()->IsConstructor());
 }
 
 
@@ -805,17 +835,14 @@ void JSRegExp::JSRegExpVerify() {
 
 void JSProxy::JSProxyVerify() {
   CHECK(IsJSProxy());
+  VerifyPointer(target());
   VerifyPointer(handler());
+  CHECK_EQ(target()->IsCallable(), map()->is_callable());
+  CHECK_EQ(target()->IsConstructor(), map()->is_constructor());
   CHECK(hash()->IsSmi() || hash()->IsUndefined());
-}
-
-
-void JSFunctionProxy::JSFunctionProxyVerify() {
-  CHECK(IsJSFunctionProxy());
-  JSProxyVerify();
-  VerifyPointer(call_trap());
-  VerifyPointer(construct_trap());
-  CHECK(map()->is_callable());
+  CHECK(map()->prototype()->IsNull());
+  // There should be no properties on a Proxy.
+  CHECK_EQ(0, map()->NumberOfOwnDescriptors());
 }
 
 
@@ -881,7 +908,6 @@ void PrototypeInfo::PrototypeInfoVerify() {
     CHECK(prototype_users()->IsSmi());
   }
   CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
-  VerifyPointer(constructor_name());
 }
 
 
@@ -970,12 +996,6 @@ void ObjectTemplateInfo::ObjectTemplateInfoVerify() {
   TemplateInfoVerify();
   VerifyPointer(constructor());
   VerifyPointer(internal_field_count());
-}
-
-
-void TypeSwitchInfo::TypeSwitchInfoVerify() {
-  CHECK(IsTypeSwitchInfo());
-  VerifyPointer(types());
 }
 
 

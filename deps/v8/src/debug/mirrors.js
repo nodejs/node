@@ -9,7 +9,6 @@
 // Imports
 
 var ErrorToString;
-var FunctionSourceString;
 var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
@@ -25,7 +24,6 @@ var SymbolToString;
 
 utils.Import(function(from) {
   ErrorToString = from.ErrorToString;
-  FunctionSourceString = from.FunctionSourceString;
   MakeError = from.MakeError;
   MapEntries = from.MapEntries;
   MapIteratorNext = from.MapIteratorNext;
@@ -116,7 +114,7 @@ function ClearMirrorCache(value) {
 
 
 function ObjectIsPromise(value) {
-  return IS_SPEC_OBJECT(value) &&
+  return IS_RECEIVER(value) &&
          !IS_UNDEFINED(%DebugGetProperty(value, promiseStatusSymbol));
 }
 
@@ -238,11 +236,6 @@ function inherits(ctor, superCtor) {
 
 // Maximum length when sending strings through the JSON protocol.
 var kMaxProtocolStringLength = 80;
-
-// Different kind of properties.
-var PropertyKind = {};
-PropertyKind.Named   = 1;
-PropertyKind.Indexed = 2;
 
 
 // A copy of the PropertyType enum from property-details.h
@@ -750,19 +743,6 @@ ObjectMirror.prototype.hasIndexedInterceptor = function() {
 };
 
 
-// Get all own property names except for private symbols.
-function TryGetPropertyNames(object) {
-  try {
-    // TODO(yangguo): Should there be a special debugger implementation of
-    // %GetOwnPropertyNames that doesn't perform access checks?
-    return %GetOwnPropertyNames(object, PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL);
-  } catch (e) {
-    // Might have hit a failed access check.
-    return [];
-  }
-}
-
-
 /**
  * Return the property names for this object.
  * @param {number} kind Indicate whether named, indexed or both kinds of
@@ -771,66 +751,8 @@ function TryGetPropertyNames(object) {
        value
  * @return {Array} Property names for this object
  */
-ObjectMirror.prototype.propertyNames = function(kind, limit) {
-  // Find kind and limit and allocate array for the result
-  kind = kind || PropertyKind.Named | PropertyKind.Indexed;
-
-  var propertyNames;
-  var elementNames;
-  var total = 0;
-
-  // Find all the named properties.
-  if (kind & PropertyKind.Named) {
-    propertyNames = TryGetPropertyNames(this.value_);
-    total += propertyNames.length;
-
-    // Get names for named interceptor properties if any.
-    if (this.hasNamedInterceptor() && (kind & PropertyKind.Named)) {
-      var namedInterceptorNames =
-          %GetNamedInterceptorPropertyNames(this.value_);
-      if (namedInterceptorNames) {
-        propertyNames = propertyNames.concat(namedInterceptorNames);
-        total += namedInterceptorNames.length;
-      }
-    }
-  }
-
-  // Find all the indexed properties.
-  if (kind & PropertyKind.Indexed) {
-    // Get own element names.
-    elementNames = %GetOwnElementNames(this.value_);
-    total += elementNames.length;
-
-    // Get names for indexed interceptor properties.
-    if (this.hasIndexedInterceptor() && (kind & PropertyKind.Indexed)) {
-      var indexedInterceptorNames =
-          %GetIndexedInterceptorElementNames(this.value_);
-      if (indexedInterceptorNames) {
-        elementNames = elementNames.concat(indexedInterceptorNames);
-        total += indexedInterceptorNames.length;
-      }
-    }
-  }
-  limit = MathMin(limit || total, total);
-
-  var names = new GlobalArray(limit);
-  var index = 0;
-
-  // Copy names for named properties.
-  if (kind & PropertyKind.Named) {
-    for (var i = 0; index < limit && i < propertyNames.length; i++) {
-      names[index++] = propertyNames[i];
-    }
-  }
-
-  // Copy names for indexed properties.
-  if (kind & PropertyKind.Indexed) {
-    for (var i = 0; index < limit && i < elementNames.length; i++) {
-      names[index++] = elementNames[i];
-    }
-  }
-
-  return names;
+ObjectMirror.prototype.propertyNames = function() {
+  return %GetOwnPropertyKeys(this.value_, PROPERTY_FILTER_NONE);
 };
 
 
@@ -842,8 +764,8 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
        specified value
  * @return {Array} Property mirrors for this object
  */
-ObjectMirror.prototype.properties = function(kind, limit) {
-  var names = this.propertyNames(kind, limit);
+ObjectMirror.prototype.properties = function() {
+  var names = this.propertyNames();
   var properties = new GlobalArray(names.length);
   for (var i = 0; i < names.length; i++) {
     properties[i] = this.property(names[i]);
@@ -887,7 +809,7 @@ ObjectMirror.prototype.lookupProperty = function(value) {
   // Look for property value in properties.
   for (var i = 0; i < properties.length; i++) {
 
-    // Skip properties which are defined through assessors.
+    // Skip properties which are defined through accessors.
     var property = properties[i];
     if (property.propertyType() != PropertyType.AccessorConstant) {
       if (%_ObjectEquals(property.value_, value.value_)) {
@@ -987,6 +909,16 @@ FunctionMirror.prototype.name = function() {
 
 
 /**
+ * Returns the displayName if it is set, otherwise name, otherwise inferred
+ * name.
+ * @return {string} Name of the function
+ */
+FunctionMirror.prototype.debugName = function() {
+  return %FunctionGetDebugName(this.value_);
+}
+
+
+/**
  * Returns the inferred name of the function.
  * @return {string} Name of the function
  */
@@ -1004,7 +936,7 @@ FunctionMirror.prototype.source = function() {
   // Return source if function is resolved. Otherwise just fall through to
   // return undefined.
   if (this.resolved()) {
-    return FunctionSourceString(this.value_);
+    return %FunctionToString(this.value_);
   }
 };
 
@@ -2873,24 +2805,15 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
   }
 
   // Add actual properties - named properties followed by indexed properties.
-  var propertyNames = mirror.propertyNames(PropertyKind.Named);
-  var propertyIndexes = mirror.propertyNames(PropertyKind.Indexed);
-  var p = new GlobalArray(propertyNames.length + propertyIndexes.length);
-  for (var i = 0; i < propertyNames.length; i++) {
-    var propertyMirror = mirror.property(propertyNames[i]);
-    p[i] = this.serializeProperty_(propertyMirror);
+  var properties = mirror.propertyNames();
+  for (var i = 0; i < properties.length; i++) {
+    var propertyMirror = mirror.property(properties[i]);
+    properties[i] = this.serializeProperty_(propertyMirror);
     if (details) {
       this.add_(propertyMirror.value());
     }
   }
-  for (var i = 0; i < propertyIndexes.length; i++) {
-    var propertyMirror = mirror.property(propertyIndexes[i]);
-    p[propertyNames.length + i] = this.serializeProperty_(propertyMirror);
-    if (details) {
-      this.add_(propertyMirror.value());
-    }
-  }
-  content.properties = p;
+  content.properties = properties;
 
   var internalProperties = mirror.internalProperties();
   if (internalProperties.length > 0) {
@@ -3088,7 +3011,6 @@ utils.InstallFunctions(global, DONT_ENUM, [
 
 utils.InstallConstants(global, [
   "ScopeType", ScopeType,
-  "PropertyKind", PropertyKind,
   "PropertyType", PropertyType,
   "PropertyAttribute", PropertyAttribute,
   "Mirror", Mirror,

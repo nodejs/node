@@ -11,7 +11,7 @@ var server = http.createServer(function(req, res) {
     // write should accept string
     res.write('string');
     // write should accept buffer
-    res.write(new Buffer('asdf'));
+    res.write(Buffer.from('asdf'));
 
     // write should not accept an Array
     assert.throws(function() {
@@ -27,7 +27,7 @@ var server = http.createServer(function(req, res) {
     res.end('string');
   } else if (test === 2) {
     // end should accept Buffer
-    res.end(new Buffer('asdf'));
+    res.end(Buffer.from('asdf'));
   }
 });
 

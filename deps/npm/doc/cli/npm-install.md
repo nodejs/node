@@ -13,7 +13,7 @@ npm-install(1) -- Install a package
     npm install <folder>
 
     alias: npm i
-    common options: [-S|--save|-D|--save-dev|-O|--save-optional] [-E|--save-exact] [--dry-run]
+    common options: [-S|--save|-D|--save-dev|-O|--save-optional] [-E|--save-exact] [-B|--save-bundle] [--dry-run]
 
 ## DESCRIPTION
 
@@ -97,11 +97,13 @@ after packing it up into a tarball (b).
     * `-O, --save-optional`: Package will appear in your `optionalDependencies`.
 
     When using any of the above options to save dependencies to your
-    package.json, there is an additional, optional flag:
+    package.json, there are two additional, optional flags:
 
     * `-E, --save-exact`: Saved dependencies will be configured with an
       exact version rather than using npm's default semver range
       operator.
+
+    * `-B, --save-bundle`: Saved dependencies will also be added to your `bundleDependencies` list.
 
     Further, if you have an `npm-shrinkwrap.json` then it will be updated as
     well.
@@ -122,6 +124,7 @@ after packing it up into a tarball (b).
           npm install node-tap --save-dev
           npm install dtrace-provider --save-optional
           npm install readable-stream --save --save-exact
+          npm install ansi-regex --save --save-bundle
 
 
     **Note**: If there is a file or folder named `<name>` in the current
@@ -169,9 +172,12 @@ after packing it up into a tarball (b).
 
           <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit-ish>]
 
-    `<protocol>` is one of `git`, `git+ssh`, `git+http`, or
-    `git+https`.  If no `<commit-ish>` is specified, then `master` is
-    used.
+    `<protocol>` is one of `git`, `git+ssh`, `git+http`, `git+https`,
+    or `git+file`.
+    If no `<commit-ish>` is specified, then `master` is used.
+
+    If the repository makes use of submodules, those submodules will
+    be cloned as well.
 
     The following git environment variables are recognized by npm and will be added
     to the environment when running git:
@@ -263,7 +269,7 @@ The `--global-style` argument will cause npm to install the package into
 your local `node_modules` folder with the same layout it uses with the
 global `node_modules` folder. Only your direct dependencies will show in
 `node_modules` and everything they depend on will be flattened in their
-`node_modules` folders. This obviously will elminate some deduping.
+`node_modules` folders. This obviously will eliminate some deduping.
 
 The `--legacy-bundling` argument will cause npm to install the package such
 that versions of npm prior to 1.4, such as the one included with node 0.8,

@@ -39,17 +39,25 @@ const char* ProfilerExtension::kSource =
     "native function startProfiling();"
     "native function stopProfiling();";
 
-v8::Handle<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate, v8::Handle<v8::String> name) {
-  if (name->Equals(v8::String::NewFromUtf8(isolate, "startProfiling"))) {
+v8::Local<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate, v8::Local<v8::String> name) {
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  if (name->Equals(context, v8::String::NewFromUtf8(isolate, "startProfiling",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+          .FromJust()) {
     return v8::FunctionTemplate::New(isolate,
                                      ProfilerExtension::StartProfiling);
-  } else if (name->Equals(v8::String::NewFromUtf8(isolate, "stopProfiling"))) {
+  } else if (name->Equals(context,
+                          v8::String::NewFromUtf8(isolate, "stopProfiling",
+                                                  v8::NewStringType::kNormal)
+                              .ToLocalChecked())
+                 .FromJust()) {
     return v8::FunctionTemplate::New(isolate,
                                      ProfilerExtension::StopProfiling);
   } else {
     CHECK(false);
-    return v8::Handle<v8::FunctionTemplate>();
+    return v8::Local<v8::FunctionTemplate>();
   }
 }
 

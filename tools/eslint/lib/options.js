@@ -18,8 +18,10 @@ var optionator = require("optionator");
 // exports "parse(args)", "generateHelp()", and "generateHelpForOption(optionName)"
 module.exports = optionator({
     prepend: "eslint [options] file.js [file.js] [dir]",
-    concatRepeatedArrays: true,
-    mergeRepeatedObjects: true,
+    defaults: {
+        concatRepeatedArrays: true,
+        mergeRepeatedObjects: true
+    },
     options: [
         {
             heading: "Basic configuration"
@@ -57,6 +59,11 @@ module.exports = optionator({
             type: "String",
             default: "espree",
             description: "Specify the parser to be used"
+        },
+        {
+            option: "parser-options",
+            type: "Object",
+            description: "Specify parser options"
         },
         {
             heading: "Caching"
@@ -113,7 +120,10 @@ module.exports = optionator({
         {
             option: "ignore-pattern",
             type: "[String]",
-            description: "Pattern of files to ignore (in addition to those in .eslintignore)"
+            description: "Pattern of files to ignore (in addition to those in .eslintignore)",
+            concatRepeatedArrays: [true, {
+                oneValuePerFlag: true
+            }]
         },
         {
             heading: "Using stdin"
@@ -140,7 +150,7 @@ module.exports = optionator({
         },
         {
             option: "max-warnings",
-            type: "Number",
+            type: "Int",
             default: "-1",
             description: "Number of warnings to trigger nonzero exit code"
         },
@@ -197,13 +207,18 @@ module.exports = optionator({
             option: "version",
             alias: "v",
             type: "Boolean",
-            description: "Outputs the version number"
+            description: "Output the version number"
         },
         {
             option: "inline-config",
             type: "Boolean",
             default: "true",
             description: "Allow comments to change eslint config/rules"
+        },
+        {
+            option: "print-config",
+            type: "Boolean",
+            description: "Print the configuration to be used"
         }
     ]
 });

@@ -1031,6 +1031,17 @@ static int open_tcp_socket(ares_channel channel, struct server_state *server)
     }
 #endif
 
+  if (channel->sock_config_cb)
+    {
+      int err = channel->sock_config_cb(s, SOCK_STREAM,
+                                        channel->sock_config_cb_data);
+      if (err < 0)
+        {
+          sclose(s);
+          return err;
+        }
+    }
+
   /* Connect to the server. */
   if (connect(s, sa, salen) == -1)
     {
@@ -1113,6 +1124,17 @@ static int open_udp_socket(ares_channel channel, struct server_state *server)
     {
        sclose(s);
        return -1;
+    }
+
+  if (channel->sock_config_cb)
+    {
+      int err = channel->sock_config_cb(s, SOCK_DGRAM,
+                                        channel->sock_config_cb_data);
+      if (err < 0)
+        {
+          sclose(s);
+          return err;
+        }
     }
 
   /* Connect to the server. */

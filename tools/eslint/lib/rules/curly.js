@@ -35,6 +35,7 @@ module.exports = function(context) {
     function isCollapsedOneLiner(node) {
         var before = context.getTokenBefore(node),
             last = context.getLastToken(node);
+
         return before.loc.start.line === last.loc.end.line;
     }
 
@@ -197,6 +198,7 @@ module.exports = function(context) {
      */
     function prepareIfChecks(node) {
         var preparedChecks = [];
+
         do {
             preparedChecks.push(prepareCheck(node, node.consequent, "if", "condition"));
             if (node.alternate && node.alternate.type !== "IfStatement") {
@@ -207,8 +209,12 @@ module.exports = function(context) {
         } while (node);
 
         if (consistent) {
-            // If any node should have or already have braces, make sure they all have braces.
-            // If all nodes shouldn't have braces, make sure they don't.
+
+            /*
+             * If any node should have or already have braces, make sure they
+             * all have braces.
+             * If all nodes shouldn't have braces, make sure they don't.
+             */
             var expected = preparedChecks.some(function(preparedCheck) {
                 if (preparedCheck.expected !== null) {
                     return preparedCheck.expected;
@@ -265,21 +271,15 @@ module.exports.schema = {
             "type": "array",
             "items": [
                 {
-                    "enum": [0, 1, 2]
-                },
-                {
                     "enum": ["all"]
                 }
             ],
-            "minItems": 1,
-            "maxItems": 2
+            "minItems": 0,
+            "maxItems": 1
         },
         {
             "type": "array",
             "items": [
-                {
-                    "enum": [0, 1, 2]
-                },
                 {
                     "enum": ["multi", "multi-line", "multi-or-nest"]
                 },
@@ -287,8 +287,8 @@ module.exports.schema = {
                     "enum": ["consistent"]
                 }
             ],
-            "minItems": 1,
-            "maxItems": 3
+            "minItems": 0,
+            "maxItems": 2
         }
     ]
 };

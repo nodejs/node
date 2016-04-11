@@ -56,6 +56,7 @@ module.exports = function(context) {
      * @returns {void}
      */
     function checkSpacingInsideBraces(node) {
+
         // Gets braces and the first/last token of content.
         var openBrace = getOpenBrace(node);
         var closeBrace = context.getLastToken(node);
@@ -82,7 +83,7 @@ module.exports = function(context) {
             context.report({
                 node: node,
                 loc: openBrace.loc.start,
-                message: message + " after \"{\".",
+                message: message + " after '{'.",
                 fix: function(fixer) {
                     if (always) {
                         return fixer.insertTextBefore(firstToken, " ");
@@ -96,7 +97,7 @@ module.exports = function(context) {
             context.report({
                 node: node,
                 loc: closeBrace.loc.start,
-                message: message + " before \"}\".",
+                message: message + " before '}'.",
                 fix: function(fixer) {
                     if (always) {
                         return fixer.insertTextAfter(lastToken, " ");

@@ -161,8 +161,6 @@ class ConstructFrameConstants : public AllStatic {
  public:
   // FP-relative.
   static const int kImplicitReceiverOffset =
-      StandardFrameConstants::kExpressionsOffset - 4 * kPointerSize;
-  static const int kOriginalConstructorOffset =
       StandardFrameConstants::kExpressionsOffset - 3 * kPointerSize;
   static const int kLengthOffset =
       StandardFrameConstants::kExpressionsOffset - 2 * kPointerSize;
@@ -172,17 +170,30 @@ class ConstructFrameConstants : public AllStatic {
       StandardFrameConstants::kExpressionsOffset - 0 * kPointerSize;
 
   static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 5 * kPointerSize;
+      StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
 };
 
 
 class InterpreterFrameConstants : public AllStatic {
  public:
+  // Fixed frame includes new.target and bytecode offset.
+  static const int kFixedFrameSize =
+      StandardFrameConstants::kFixedFrameSize + 2 * kPointerSize;
+  static const int kFixedFrameSizeFromFp =
+      StandardFrameConstants::kFixedFrameSizeFromFp + 2 * kPointerSize;
+
+  // FP-relative.
+  static const int kRegisterFilePointerFromFp =
+      -StandardFrameConstants::kFixedFrameSizeFromFp - 3 * kPointerSize;
+
   // Register file pointer relative.
   static const int kLastParamFromRegisterPointer =
-      StandardFrameConstants::kFixedFrameSize + kPointerSize;
-  static const int kFunctionFromRegisterPointer = kPointerSize;
-  static const int kContextFromRegisterPointer = 2 * kPointerSize;
+      StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
+
+  static const int kBytecodeOffsetFromRegisterPointer = 1 * kPointerSize;
+  static const int kNewTargetFromRegisterPointer = 2 * kPointerSize;
+  static const int kFunctionFromRegisterPointer = 3 * kPointerSize;
+  static const int kContextFromRegisterPointer = 4 * kPointerSize;
 };
 
 
@@ -582,10 +593,6 @@ class JavaScriptFrame: public StandardFrame {
   // Determines whether this frame includes inlined activations. To get details
   // about the inlined frames use {GetFunctions} and {Summarize}.
   bool HasInlinedFrames() const;
-
-  // Returns the original constructor function that was used in the constructor
-  // call to this frame. Note that this is only valid on constructor frames.
-  Object* GetOriginalConstructor() const;
 
   // Check if this frame has "adapted" arguments in the sense that the
   // actual passed arguments are available in an arguments adaptor

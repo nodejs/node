@@ -4,7 +4,7 @@
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
- - [Involving the TC](#involving-the-tc)
+ - [Involving the CTC](#involving-the-ctc)
 * [Landing Pull Requests](#landing-pull-requests)
  - [Technical HOWTO](#technical-howto)
  - [I Just Made a Mistake](#i-just-made-a-mistake)
@@ -26,7 +26,7 @@ pull requests to the Node.js project.
 Collaborators should feel free to take full responsibility for
 managing issues and pull requests they feel qualified to handle, as
 long as this is done while being mindful of these guidelines, the
-opinions of other Collaborators and guidance of the TC.
+opinions of other Collaborators and guidance of the CTC.
 
 Collaborators may **close** any issue or pull request they believe is
 not relevant for the future of the Node.js project. Where this is
@@ -40,7 +40,7 @@ necessary.
 
 All modifications to the Node.js code and documentation should be
 performed via GitHub pull requests, including modifications by
-Collaborators and TC members.
+Collaborators and CTC members.
 
 All pull requests must be reviewed and accepted by a Collaborator with
 sufficient expertise who is able to take full responsibility for the
@@ -64,7 +64,7 @@ Where there is no disagreement amongst Collaborators, a pull request
 may be landed given appropriate review. Where there is discussion
 amongst Collaborators, consensus should be sought if possible. The
 lack of consensus may indicate the need to elevate discussion to the
-TC for resolution (see below).
+CTC for resolution (see below).
 
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
@@ -73,10 +73,10 @@ All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
 
-### Involving the TC
+### Involving the CTC
 
-Collaborators may opt to elevate pull requests or issues to the TC for
-discussion by assigning the ***tc-agenda*** tag. This should be done
+Collaborators may opt to elevate pull requests or issues to the CTC for
+discussion by assigning the ***ctc-agenda*** tag. This should be done
 where a pull request:
 
 - has a significant impact on the codebase,
@@ -84,7 +84,7 @@ where a pull request:
 - has failed to reach consensus amongst the Collaborators who are
   actively participating in the discussion.
 
-The TC should serve as the final arbiter where required.
+The CTC should serve as the final arbiter where required.
 
 ## Landing Pull Requests
 
@@ -93,13 +93,16 @@ information regarding the change process:
 
 - A `Reviewed-By: Name <email>` line for yourself and any
   other Collaborators who have reviewed the change.
-- A `PR-URL:` line that references the full GitHub URL of the original
+- A `PR-URL:` line that references the *full* GitHub URL of the original
   pull request being merged so it's easy to trace a commit back to the
   conversation that led up to that change.
-- A `Fixes: X` line, where _X_ is either includes the full GitHub URL
+- A `Fixes: X` line, where _X_ either includes the *full* GitHub URL
   for an issue, and/or the hash and commit message if the commit fixes
   a bug in a previous commit. Multiple `Fixes:` lines may be added if
   appropriate.
+
+Review the commit message to ensure that it adheres to the guidelines
+outlined in the [contributing](https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#step-3-commit) guide.
 
 See the commit log for examples such as
 [this one](https://github.com/nodejs/node/commit/b636ba8186) if unsure

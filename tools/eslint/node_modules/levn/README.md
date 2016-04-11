@@ -2,7 +2,7 @@
 __Light ECMAScript (JavaScript) Value Notation__
 Levn is a library which allows you to parse a string into a JavaScript value based on an expected type. It is meant for short amounts of human entered data (eg. config files, command line arguments).
 
-Levn aims to concisely describe JavaScript values in text, and allow for the extraction and validation of those values. Levn uses [type-check](https://github.com/gkz/type-check) for its type format, and to validate the results. MIT license. Version 0.2.5.
+Levn aims to concisely describe JavaScript values in text, and allow for the extraction and validation of those values. Levn uses [type-check](https://github.com/gkz/type-check) for its type format, and to validate the results. MIT license. Version 0.3.0.
 
 __How is this different than JSON?__ levn is meant to be written by humans only, is (due to the previous point) much more concise, can be validated against supplied types, has regex and date literals, and can easily be extended with custom types. On the other hand, it is probably slower and thus less efficient at transporting large amounts of data, which is fine since this is not its purpose.
 
@@ -25,6 +25,7 @@ parse('Date', '#2011-11-11#'); // (Date object)
 parse('Date', '2011-11-11');   // (Date object)
 parse('RegExp', '/[a-z]/gi');  // /[a-z]/gi
 parse('RegExp', 're');         // /re/
+parse('Int', '2');             // 2
 
 parse('Number | String', 'str'); // 'str'
 parse('Number | String', '2');   // 2

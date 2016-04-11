@@ -28,24 +28,38 @@ enum class AccessMode { kLoad, kStore };
 std::ostream& operator<<(std::ostream&, AccessMode);
 
 
+// Mapping of transition source to transition target.
+typedef std::vector<std::pair<Handle<Map>, Handle<Map>>> MapTransitionList;
+
+
 // This class encapsulates all information required to access a certain element.
 class ElementAccessInfo final {
  public:
   ElementAccessInfo();
   ElementAccessInfo(Type* receiver_type, ElementsKind elements_kind,
-                    MaybeHandle<JSObject> holder)
-      : elements_kind_(elements_kind),
-        holder_(holder),
-        receiver_type_(receiver_type) {}
+                    MaybeHandle<JSObject> holder);
 
   MaybeHandle<JSObject> holder() const { return holder_; }
   ElementsKind elements_kind() const { return elements_kind_; }
   Type* receiver_type() const { return receiver_type_; }
+  MapTransitionList& transitions() { return transitions_; }
+  MapTransitionList const& transitions() const { return transitions_; }
 
  private:
   ElementsKind elements_kind_;
   MaybeHandle<JSObject> holder_;
   Type* receiver_type_;
+  MapTransitionList transitions_;
+};
+
+
+// Additional checks that need to be perform for data field accesses.
+enum class FieldCheck : uint8_t {
+  // No additional checking needed.
+  kNone,
+  // Check that the [[ViewedArrayBuffer]] of {JSArrayBufferView}s
+  // was not neutered.
+  kJSArrayBufferViewBufferNotNeutered,
 };
 
 
@@ -62,6 +76,7 @@ class PropertyAccessInfo final {
                                          MaybeHandle<JSObject> holder);
   static PropertyAccessInfo DataField(
       Type* receiver_type, FieldIndex field_index, Type* field_type,
+      FieldCheck field_check = FieldCheck::kNone,
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
 
@@ -77,6 +92,7 @@ class PropertyAccessInfo final {
   MaybeHandle<JSObject> holder() const { return holder_; }
   MaybeHandle<Map> transition_map() const { return transition_map_; }
   Handle<Object> constant() const { return constant_; }
+  FieldCheck field_check() const { return field_check_; }
   FieldIndex field_index() const { return field_index_; }
   Type* field_type() const { return field_type_; }
   Type* receiver_type() const { return receiver_type_; }
@@ -87,7 +103,8 @@ class PropertyAccessInfo final {
                      Type* receiver_type);
   PropertyAccessInfo(MaybeHandle<JSObject> holder,
                      MaybeHandle<Map> transition_map, FieldIndex field_index,
-                     Type* field_type, Type* receiver_type);
+                     FieldCheck field_check, Type* field_type,
+                     Type* receiver_type);
 
   Kind kind_;
   Type* receiver_type_;
@@ -95,6 +112,7 @@ class PropertyAccessInfo final {
   MaybeHandle<Map> transition_map_;
   MaybeHandle<JSObject> holder_;
   FieldIndex field_index_;
+  FieldCheck field_check_;
   Type* field_type_;
 };
 

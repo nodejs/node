@@ -29,24 +29,24 @@ MachineType BufferAccess::machine_type() const {
   switch (external_array_type_) {
     case kExternalUint8Array:
     case kExternalUint8ClampedArray:
-      return kMachUint8;
+      return MachineType::Uint8();
     case kExternalInt8Array:
-      return kMachInt8;
+      return MachineType::Int8();
     case kExternalUint16Array:
-      return kMachUint16;
+      return MachineType::Uint16();
     case kExternalInt16Array:
-      return kMachInt16;
+      return MachineType::Int16();
     case kExternalUint32Array:
-      return kMachUint32;
+      return MachineType::Uint32();
     case kExternalInt32Array:
-      return kMachInt32;
+      return MachineType::Int32();
     case kExternalFloat32Array:
-      return kMachFloat32;
+      return MachineType::Float32();
     case kExternalFloat64Array:
-      return kMachFloat64;
+      return MachineType::Float64();
   }
   UNREACHABLE();
-  return kMachNone;
+  return MachineType::None();
 }
 
 
@@ -176,6 +176,7 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(NumberShiftRightLogical, Operator::kNoProperties, 2) \
   V(NumberToInt32, Operator::kNoProperties, 1)           \
   V(NumberToUint32, Operator::kNoProperties, 1)          \
+  V(NumberIsHoleNaN, Operator::kNoProperties, 1)         \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1)  \
   V(ChangeTaggedToInt32, Operator::kNoProperties, 1)     \
   V(ChangeTaggedToUint32, Operator::kNoProperties, 1)    \

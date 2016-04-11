@@ -90,7 +90,7 @@ function test_simple_relative_symlink(callback) {
   [
     [entry, '../' + common.tmpDirName + '/cycles/root.js']
   ].forEach(function(t) {
-    try {fs.unlinkSync(t[0]);}catch (e) {}
+    try {fs.unlinkSync(t[0]);} catch (e) {}
     console.log('fs.symlinkSync(%j, %j, %j)', t[1], t[0], 'file');
     fs.symlinkSync(t[1], t[0], 'file');
     unlink.push(t[0]);
@@ -219,7 +219,7 @@ function test_cyclic_link_overprotection(callback) {
   var folder = cycles + '/folder';
   var link = folder + '/cycles';
   var testPath = cycles;
-  for (var i = 0; i < 10; i++) testPath += '/folder/cycles';
+  testPath += '/folder/cycles'.repeat(10);
   try {fs.unlinkSync(link);} catch (ex) {}
   fs.symlinkSync(cycles, link, 'dir');
   unlink.push(link);

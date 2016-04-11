@@ -21,7 +21,7 @@ parser.on('data', function(obj) {
   parsed = obj;
 });
 
-parser.end(new Buffer([42]));
+parser.end(Buffer.from([42]));
 
 process.on('exit', function() {
   assert(parsed.val === 42);
@@ -36,7 +36,7 @@ assert(serializer._readableState.highWaterMark === (16 * 1024));
 assert(serializer._writableState.highWaterMark === 16);
 
 serializer._transform = function(obj, _, callback) {
-  callback(null, new Buffer([obj.val]));
+  callback(null, Buffer.from([obj.val]));
 };
 
 var serialized;

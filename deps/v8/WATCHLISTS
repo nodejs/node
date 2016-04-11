@@ -50,6 +50,12 @@
     'feature_shipping_status': {
       'filepath': 'src/flag-definitions.h',
     },
+    'gc_changes': {
+      'filepath': 'src/heap/',
+    },
+    'merges': {
+      'filepath': '.',
+    },
   },
 
   'WATCHLISTS': {
@@ -68,6 +74,14 @@
     ],
     'feature_shipping_status': [
       'hablich@chromium.org',
+    ],
+    'gc_changes': [
+      'hpayer@chromium.org',
+      'ulan@chromium.org',
+    ],
+    'merges': [
+      # Only enabled on branches created with tools/release/create_release.py
+      'v8-merges@googlegroups.com',
     ],
   },
 }

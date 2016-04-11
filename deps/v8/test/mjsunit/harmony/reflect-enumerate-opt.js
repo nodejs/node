@@ -47,31 +47,32 @@ var handler = {
   }
 };
 
-
-var proxy = Proxy.create(handler);
-var o = {__proto__: proxy};
-
-function f2(o) {
-  var result = [];
-  for (var i of Reflect.enumerate(o)) {
-    result.push(i);
-  }
-  return result;
-}
-
-function check_f2() {
-  assertEquals(keys, f2(o));
-  assertEquals(keys, has_keys);
-  has_keys.length = 0;
-}
-
-check_f2();
-check_f2();
+// TODO(neis,cbruni): Enable once the enumerate proxy trap is properly
+// implemented.
+// var proxy = new Proxy({}, handler);
+// var o = {__proto__: proxy};
+//
+// function f2(o) {
+//   var result = [];
+//   for (var i of Reflect.enumerate(o)) {
+//     result.push(i);
+//   }
+//   return result;
+// }
+//
+// function check_f2() {
+//   assertEquals(keys, f2(o));
+//   assertEquals(keys, has_keys);
+//   has_keys.length = 0;
+// }
+//
+// check_f2();
+// check_f2();
 // Test lazy deopt after GetPropertyNamesFast
-%OptimizeFunctionOnNextCall(f2);
-deopt_enum = true;
-check_f2();
+// %OptimizeFunctionOnNextCall(f2);
+// deopt_enum = true;
+// check_f2();
 // Test lazy deopt after FILTER_KEY
-%OptimizeFunctionOnNextCall(f2);
-deopt_has = true;
-check_f2();
+// %OptimizeFunctionOnNextCall(f2);
+// deopt_has = true;
+// check_f2();

@@ -77,6 +77,10 @@ TEST_MAP = {
     "intl",
     "unittests",
   ],
+  "ignition": [
+    "mjsunit",
+    "cctest",
+  ],
   "optimize_for_size": [
     "mjsunit",
     "cctest",
@@ -224,6 +228,9 @@ def BuildOptions():
   result.add_option("--gc-stress",
                     help="Switch on GC stress mode",
                     default=False, action="store_true")
+  result.add_option("--gcov-coverage",
+                    help="Uses executables instrumented for gcov coverage",
+                    default=False, action="store_true")
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
                     default="")
@@ -312,6 +319,9 @@ def BuildOptions():
                     dest="dont_skip_simulator_slow_tests")
   result.add_option("--stress-only",
                     help="Only run tests with --always-opt --stress-opt",
+                    default=False, action="store_true")
+  result.add_option("--swarming",
+                    help="Indicates running test driver on swarming.",
                     default=False, action="store_true")
   result.add_option("--time", help="Print timing information after running",
                     default=False, action="store_true")
@@ -583,7 +593,7 @@ def Main():
   # suites as otherwise filters would break.
   def ExpandTestGroups(name):
     if name in TEST_MAP:
-      return [suite for suite in TEST_MAP[arg]]
+      return [suite for suite in TEST_MAP[name]]
     else:
       return [name]
   args = reduce(lambda x, y: x + y,
@@ -600,6 +610,7 @@ def Main():
     suite = testsuite.TestSuite.LoadTestSuite(
         os.path.join(BASE_DIR, "test", root))
     if suite:
+      suite.SetupWorkingDirectory()
       suites.append(suite)
 
   if options.download_data or options.download_data_only:
@@ -670,7 +681,8 @@ def Execute(arch, mode, args, options, suites):
                         options.rerun_failures_count,
                         options.rerun_failures_max,
                         options.predictable,
-                        options.no_harness)
+                        options.no_harness,
+                        use_perf_data=not options.swarming)
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
@@ -683,6 +695,7 @@ def Execute(arch, mode, args, options, suites):
     "asan": options.asan,
     "deopt_fuzzer": False,
     "gc_stress": options.gc_stress,
+    "gcov_coverage": options.gcov_coverage,
     "ignition": options.ignition,
     "isolates": options.isolates,
     "mode": MODES[mode]["status_mode"],

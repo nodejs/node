@@ -17,6 +17,16 @@ static const int kMaxAllocatableGeneralRegisterCount =
 static const int kMaxAllocatableDoubleRegisterCount =
     ALLOCATABLE_DOUBLE_REGISTERS(REGISTER_COUNT)0;
 
+static const int kAllocatableGeneralCodes[] = {
+#define REGISTER_CODE(R) Register::kCode_##R,
+    ALLOCATABLE_GENERAL_REGISTERS(REGISTER_CODE)};
+#undef REGISTER_CODE
+
+static const int kAllocatableDoubleCodes[] = {
+#define REGISTER_CODE(R) DoubleRegister::kCode_##R,
+    ALLOCATABLE_DOUBLE_REGISTERS(REGISTER_CODE)};
+#undef REGISTER_CODE
+
 static const char* const kGeneralRegisterNames[] = {
 #define REGISTER_NAME(R) #R,
     GENERAL_REGISTERS(REGISTER_NAME)
@@ -37,71 +47,55 @@ STATIC_ASSERT(RegisterConfiguration::kMaxDoubleRegisters >=
 class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
  public:
   explicit ArchDefaultRegisterConfiguration(CompilerSelector compiler)
-      : RegisterConfiguration(
-            Register::kNumRegisters, DoubleRegister::kMaxNumRegisters,
+      : RegisterConfiguration(Register::kNumRegisters,
+                              DoubleRegister::kMaxNumRegisters,
 #if V8_TARGET_ARCH_IA32
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableGeneralRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_X87
-            kMaxAllocatableGeneralRegisterCount,
-            compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
-            compiler == TURBOFAN ? 1 : kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableGeneralRegisterCount,
+                              compiler == TURBOFAN
+                                  ? 1
+                                  : kMaxAllocatableDoubleRegisterCount,
+                              compiler == TURBOFAN
+                                  ? 1
+                                  : kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_X64
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableGeneralRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_ARM
-            FLAG_enable_embedded_constant_pool
-                ? (kMaxAllocatableGeneralRegisterCount - 1)
-                : kMaxAllocatableGeneralRegisterCount,
-            CpuFeatures::IsSupported(VFP32DREGS)
-                ? kMaxAllocatableDoubleRegisterCount
-                : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT)0),
-            ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(REGISTER_COUNT)0,
+                              FLAG_enable_embedded_constant_pool
+                                  ? (kMaxAllocatableGeneralRegisterCount - 1)
+                                  : kMaxAllocatableGeneralRegisterCount,
+                              CpuFeatures::IsSupported(VFP32DREGS)
+                                  ? kMaxAllocatableDoubleRegisterCount
+                                  : (ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(
+                                        REGISTER_COUNT)0),
+                              ALLOCATABLE_NO_VFP32_DOUBLE_REGISTERS(
+                                  REGISTER_COUNT)0,
 #elif V8_TARGET_ARCH_ARM64
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableGeneralRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_MIPS
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableGeneralRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_MIPS64
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableGeneralRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
 #elif V8_TARGET_ARCH_PPC
-            kMaxAllocatableGeneralRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
-            kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableGeneralRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
+                              kMaxAllocatableDoubleRegisterCount,
 #else
-            GetAllocatableGeneralRegisterCount(),
-            GetAllocatableDoubleRegisterCount(),
-            GetAllocatableAliasedDoubleRegisterCount(),
+#error Unsupported target architecture.
 #endif
-            GetAllocatableGeneralCodes(), GetAllocatableDoubleCodes(),
-            kGeneralRegisterNames, kDoubleRegisterNames) {
-  }
-
-  const char* general_register_name_table_[Register::kNumRegisters];
-  const char* double_register_name_table_[DoubleRegister::kMaxNumRegisters];
-
- private:
-  static const int* GetAllocatableGeneralCodes() {
-#define REGISTER_CODE(R) Register::kCode_##R,
-    static const int general_codes[] = {
-        ALLOCATABLE_GENERAL_REGISTERS(REGISTER_CODE)};
-#undef REGISTER_CODE
-    return general_codes;
-  }
-
-  static const int* GetAllocatableDoubleCodes() {
-#define REGISTER_CODE(R) DoubleRegister::kCode_##R,
-    static const int double_codes[] = {
-        ALLOCATABLE_DOUBLE_REGISTERS(REGISTER_CODE)};
-#undef REGISTER_CODE
-    return double_codes;
+                              kAllocatableGeneralCodes, kAllocatableDoubleCodes,
+                              kGeneralRegisterNames, kDoubleRegisterNames) {
   }
 };
 

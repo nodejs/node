@@ -3,9 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const buf = new Buffer(10 * 1024 * 1024);
-
-buf.fill(0x62);
+const buf = Buffer.alloc(10 * 1024 * 1024, 0x62);
 
 const errs = [];
 var clientSocket;

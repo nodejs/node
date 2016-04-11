@@ -28,7 +28,7 @@ parser = optparse.OptionParser()
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
             'android', 'aix')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'ppc', 'ppc64', 'x32',
-              'x64', 'x86')
+              'x64', 'x86', 's390', 's390x')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
 valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
@@ -202,14 +202,33 @@ shared_optgroup.add_option('--shared-zlib-libpath',
     dest='shared_zlib_libpath',
     help='a directory to search for the shared zlib DLL')
 
+shared_optgroup.add_option('--shared-cares',
+    action='store_true',
+    dest='shared_libcares',
+    help='link to a shared cares DLL instead of static linking')
+
+shared_optgroup.add_option('--shared-cares-includes',
+    action='store',
+    dest='shared_libcares_includes',
+    help='directory containing cares header files')
+
+shared_optgroup.add_option('--shared-cares-libname',
+    action='store',
+    dest='shared_libcares_libname',
+    default='cares',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_option('--shared-cares-libpath',
+    action='store',
+    dest='shared_libcares_libpath',
+    help='a directory to search for the shared cares DLL')
+
 parser.add_option_group(shared_optgroup)
 
-# TODO document when we've decided on what the tracing API and its options will
-# look like
 parser.add_option('--systemtap-includes',
     action='store',
     dest='systemtap_includes',
-    help=optparse.SUPPRESS_HELP)
+    help='directory containing systemtap header files')
 
 parser.add_option('--tag',
     action='store',
@@ -375,6 +394,12 @@ parser.add_option('--enable-static',
     dest='enable_static',
     help='build as static library')
 
+parser.add_option('--no-browser-globals',
+    action='store_true',
+    dest='no_browser_globals',
+    help='do not export browser globals like setTimeout, console, etc. ' +
+         '(This mode is not officially supported for regular applications)')
+
 (options, args) = parser.parse_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
@@ -443,7 +468,7 @@ def try_check_compiler(cc, lang):
 # Commands and regular expressions to obtain its version number are taken from
 # https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha512-x86_64.pl#L112-L129
 #
-def get_llvm_version(cc):
+def get_version_helper(cc, regexp):
   try:
     proc = subprocess.Popen(shlex.split(cc) + ['-v'], stdin=subprocess.PIPE,
                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -456,14 +481,20 @@ def get_llvm_version(cc):
         '''
     sys.exit()
 
-  match = re.search(r"(^clang version|based on LLVM) ([3-9]\.[0-9]+)",
-                    proc.communicate()[1])
+  match = re.search(regexp, proc.communicate()[1])
 
   if match:
     return match.group(2)
   else:
     return 0
 
+def get_llvm_version(cc):
+  return get_version_helper(
+      cc, r"(^clang version|based on LLVM) ([3-9]\.[0-9]+)")
+
+def get_xcode_version(cc):
+  return get_version_helper(
+      cc, r"(^Apple LLVM version) ([5-9]\.[0-9]+)")
 
 def get_gas_version(cc):
   try:
@@ -518,6 +549,8 @@ def check_compiler(o):
 
   if is_clang:
     o['variables']['llvm_version'] = get_llvm_version(CC)
+    if sys.platform == 'darwin':
+      o['variables']['xcode_version'] = get_xcode_version(CC)
   else:
     o['variables']['gas_version'] = get_gas_version(CC)
 
@@ -595,6 +628,8 @@ def host_arch_cc():
     '__PPC64__'   : 'ppc64',
     '__PPC__'     : 'ppc',
     '__x86_64__'  : 'x64',
+    '__s390__'    : 's390',
+    '__s390x__'   : 's390x',
   }
 
   rtn = 'ia32' # default
@@ -602,7 +637,8 @@ def host_arch_cc():
   for i in matchup:
     if i in k and k[i] != '0':
       rtn = matchup[i]
-      break
+      if rtn != 's390':
+        break
 
   return rtn
 
@@ -756,6 +792,8 @@ def configure_node(o):
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
 
+  o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
+
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module
 
@@ -831,21 +869,6 @@ def configure_static(o):
       if options.enable_asan:
         o['libraries'] += ['-static-libasan']
 
-
-def configure_winsdk(o):
-  if flavor != 'win':
-    return
-
-  winsdk_dir = os.environ.get('WindowsSdkDir')
-
-  if winsdk_dir and os.path.isfile(winsdk_dir + '\\bin\\ctrpp.exe'):
-    print('Found ctrpp in WinSDK--will build generated files '
-          'into tools/msvs/genfiles.')
-    o['variables']['node_has_winsdk'] = 'true'
-    return
-
-  print('ctrpp not found in WinSDK path--using pre-gen files '
-        'from tools/msvs/genfiles.')
 
 def write(filename, data):
   filename = os.path.join(root_dir, filename)
@@ -1050,7 +1073,7 @@ def configure_intl(o):
   if not icu_ver_major:
     print ' Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h
     sys.exit(1)
-  icu_endianness = sys.byteorder[0];  # TODO(srl295): EBCDIC should be 'e'
+  icu_endianness = sys.byteorder[0];
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
   icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l')
@@ -1123,9 +1146,12 @@ configure_node(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
+configure_library('libcares', output)
+# stay backwards compatible with shared cares builds
+output['variables']['node_shared_cares'] = \
+    output['variables'].pop('node_shared_libcares')
 configure_v8(output)
 configure_openssl(output)
-configure_winsdk(output)
 configure_intl(output)
 configure_static(output)
 

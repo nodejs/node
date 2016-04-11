@@ -32,22 +32,11 @@ import os
 import sys
 import time
 
+from . import execution
 from . import junit_output
 
 
 ABS_PATH_PREFIX = os.getcwd() + os.sep
-
-
-def EscapeCommand(command):
-  parts = []
-  for part in command:
-    if ' ' in part:
-      # Escape spaces.  We may need to escape more characters for this
-      # to work properly.
-      parts.append('"%s"' % part)
-    else:
-      parts.append(part)
-  return " ".join(parts)
 
 
 class ProgressIndicator(object):
@@ -82,6 +71,18 @@ class ProgressIndicator(object):
       'label': test.GetLabel(),
       'negative': negative_marker
     }
+
+  def _EscapeCommand(self, test):
+    command = execution.GetCommand(test, self.runner.context)
+    parts = []
+    for part in command:
+      if ' ' in part:
+        # Escape spaces.  We may need to escape more characters for this
+        # to work properly.
+        parts.append('"%s"' % part)
+      else:
+        parts.append(part)
+    return " ".join(parts)
 
 
 class IndicatorNotifier(object):
@@ -124,7 +125,7 @@ class SimpleProgressIndicator(ProgressIndicator):
       if failed.output.stdout:
         print "--- stdout ---"
         print failed.output.stdout.strip()
-      print "Command: %s" % EscapeCommand(self.runner.GetCommand(failed))
+      print "Command: %s" % self._EscapeCommand(failed)
       if failed.output.HasCrashed():
         print "exit code: %d" % failed.output.exit_code
         print "--- CRASHED ---"
@@ -212,7 +213,7 @@ class CompactProgressIndicator(ProgressIndicator):
       stderr = test.output.stderr.strip()
       if len(stderr):
         print self.templates['stderr'] % stderr
-      print "Command: %s" % EscapeCommand(self.runner.GetCommand(test))
+      print "Command: %s" % self._EscapeCommand(test)
       if test.output.HasCrashed():
         print "exit code: %d" % test.output.exit_code
         print "--- CRASHED ---"
@@ -300,7 +301,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
       stderr = test.output.stderr.strip()
       if len(stderr):
         fail_text += "stderr:\n%s\n" % stderr
-      fail_text += "Command: %s" % EscapeCommand(self.runner.GetCommand(test))
+      fail_text += "Command: %s" % self._EscapeCommand(test)
       if test.output.HasCrashed():
         fail_text += "exit code: %d\n--- CRASHED ---" % test.output.exit_code
       if test.output.HasTimedOut():
@@ -335,8 +336,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       {
         "name": test.GetLabel(),
         "flags": test.flags,
-        "command": EscapeCommand(self.runner.GetCommand(test)).replace(
-            ABS_PATH_PREFIX, ""),
+        "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
         "duration": test.duration,
       } for test in timed_tests[:20]
     ]
@@ -362,8 +362,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.results.append({
       "name": test.GetLabel(),
       "flags": test.flags,
-      "command": EscapeCommand(self.runner.GetCommand(test)).replace(
-          ABS_PATH_PREFIX, ""),
+      "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
       "run": test.run,
       "stdout": test.output.stdout,
       "stderr": test.output.stderr,

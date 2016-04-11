@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
-// Flags: --harmony-destructuring --harmony-rest-parameters --harmony-sloppy
+// Flags: --harmony-destructuring-bind --harmony-sloppy
 
 (function TestSuperNamedLoads() {
   function Base() { }

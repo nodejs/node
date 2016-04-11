@@ -36,7 +36,24 @@ module.exports = function(context) {
         return stateMap[key][isStatic ? "static" : "nonStatic"];
     }
 
+    /**
+     * Gets the name text of a given node.
+     *
+     * @param {ASTNode} node - A node to get the name.
+     * @returns {string} The name text of the node.
+     */
+    function getName(node) {
+        switch (node.type) {
+            case "Identifier": return node.name;
+            case "Literal": return String(node.value);
+
+            /* istanbul ignore next: syntax error */
+            default: return "";
+        }
+    }
+
     return {
+
         // Initializes the stack of state of member declarations.
         "Program": function() {
             stack = [];
@@ -58,9 +75,10 @@ module.exports = function(context) {
                 return;
             }
 
-            var name = node.key.name;
+            var name = getName(node.key);
             var state = getState(name, node.static);
             var isDuplicate = false;
+
             if (node.kind === "get") {
                 isDuplicate = (state.init || state.get);
                 state.get = true;
@@ -73,7 +91,7 @@ module.exports = function(context) {
             }
 
             if (isDuplicate) {
-                context.report(node, "Duplicate name \"{{name}}\".", {name: name});
+                context.report(node, "Duplicate name '{{name}}'.", {name: name});
             }
         }
     };

@@ -19,7 +19,7 @@ function listener(event, exec_state, event_data, data) {
   try {
     Debug.debuggerFlags().breakPointsActive.setValue(false);
     breaks.push(exec_state.frame().sourceLineText().trimLeft());
-    exec_state.prepareStep(Debug.StepAction.StepIn, 1);
+    exec_state.prepareStep(Debug.StepAction.StepIn);
   } catch (e) {
     exception = e;
   }

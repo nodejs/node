@@ -427,7 +427,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     Handle<Map> transition, Handle<Name> name) {
   Label miss;
 
-  if (FLAG_vector_stores) PushVectorAndSlot();
+  PushVectorAndSlot();
 
   // Check that we are allowed to write this.
   bool is_nonexistent = holder()->map() == transition->GetBackPointer();
@@ -471,7 +471,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     if (virtual_args) {
       // This will move the map from tmp into map_reg.
       RearrangeVectorAndSlot(tmp, map_reg);
-    } else if (FLAG_vector_stores) {
+    } else {
       PopVectorAndSlot();
     }
     GenerateRestoreName(name);
@@ -493,7 +493,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     GenerateRestoreMap(transition, tmp, scratch2(), &miss);
     if (virtual_args) {
       RearrangeVectorAndSlot(tmp, map_reg);
-    } else if (FLAG_vector_stores) {
+    } else {
       PopVectorAndSlot();
     }
     GenerateRestoreName(name);
@@ -504,7 +504,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   }
 
   GenerateRestoreName(&miss, name);
-  if (FLAG_vector_stores) PopVectorAndSlot();
+  PopVectorAndSlot();
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   return GetCode(kind(), Code::FAST, name);

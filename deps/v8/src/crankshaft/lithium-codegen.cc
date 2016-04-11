@@ -53,8 +53,12 @@ LCodeGenBase::LCodeGenBase(LChunk* chunk, MacroAssembler* assembler,
       current_block_(-1),
       current_instruction_(-1),
       instructions_(chunk->instructions()),
+      deoptimizations_(4, info->zone()),
       deoptimization_literals_(8, info->zone()),
-      last_lazy_deopt_pc_(0) {}
+      translations_(info->zone()),
+      inlined_function_count_(0),
+      last_lazy_deopt_pc_(0),
+      osr_pc_offset_(-1) {}
 
 
 bool LCodeGenBase::GenerateBody() {
@@ -276,6 +280,68 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
     case STUB:
       translation->BeginCompiledStubFrame(translation_size);
       break;
+  }
+}
+
+
+void LCodeGenBase::PopulateDeoptimizationData(Handle<Code> code) {
+  int length = deoptimizations_.length();
+  if (length == 0) return;
+  Handle<DeoptimizationInputData> data =
+      DeoptimizationInputData::New(isolate(), length, TENURED);
+
+  Handle<ByteArray> translations =
+      translations_.CreateByteArray(isolate()->factory());
+  data->SetTranslationByteArray(*translations);
+  data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
+  data->SetOptimizationId(Smi::FromInt(info_->optimization_id()));
+  if (info_->IsOptimizing()) {
+    // Reference to shared function info does not change between phases.
+    AllowDeferredHandleDereference allow_handle_dereference;
+    data->SetSharedFunctionInfo(*info_->shared_info());
+  } else {
+    data->SetSharedFunctionInfo(Smi::FromInt(0));
+  }
+  data->SetWeakCellCache(Smi::FromInt(0));
+
+  Handle<FixedArray> literals =
+      factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
+  {
+    AllowDeferredHandleDereference copy_handles;
+    for (int i = 0; i < deoptimization_literals_.length(); i++) {
+      literals->set(i, *deoptimization_literals_[i]);
+    }
+    data->SetLiteralArray(*literals);
+  }
+
+  data->SetOsrAstId(Smi::FromInt(info_->osr_ast_id().ToInt()));
+  data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
+
+  // Populate the deoptimization entries.
+  for (int i = 0; i < length; i++) {
+    LEnvironment* env = deoptimizations_[i];
+    data->SetAstId(i, env->ast_id());
+    data->SetTranslationIndex(i, Smi::FromInt(env->translation_index()));
+    data->SetArgumentsStackHeight(i,
+                                  Smi::FromInt(env->arguments_stack_height()));
+    data->SetPc(i, Smi::FromInt(env->pc_offset()));
+  }
+  code->set_deoptimization_data(*data);
+}
+
+
+void LCodeGenBase::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
+  DCHECK_EQ(0, deoptimization_literals_.length());
+  for (Handle<SharedFunctionInfo> function : chunk()->inlined_functions()) {
+    DefineDeoptimizationLiteral(function);
+  }
+  inlined_function_count_ = deoptimization_literals_.length();
+
+  // Define deoptimization literals for all unoptimized code objects of inlined
+  // functions. This ensures unoptimized code is kept alive by optimized code.
+  AllowDeferredHandleDereference allow_shared_function_info_dereference;
+  for (Handle<SharedFunctionInfo> function : chunk()->inlined_functions()) {
+    DefineDeoptimizationLiteral(handle(function->code()));
   }
 }
 

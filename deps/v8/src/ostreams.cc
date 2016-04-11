@@ -71,6 +71,7 @@ std::ostream& operator<<(std::ostream& os, const AsReversiblyEscapedUC16& c) {
 std::ostream& operator<<(std::ostream& os, const AsEscapedUC16ForJSON& c) {
   if (c.value == '\n') return os << "\\n";
   if (c.value == '\r') return os << "\\r";
+  if (c.value == '\t') return os << "\\t";
   if (c.value == '\"') return os << "\\\"";
   return PrintUC16(os, c.value, IsOK);
 }

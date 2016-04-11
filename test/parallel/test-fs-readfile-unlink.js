@@ -6,8 +6,7 @@ const path = require('path');
 const dirName = path.resolve(common.fixturesDir, 'test-readfile-unlink');
 const fileName = path.resolve(dirName, 'test.bin');
 
-var buf = new Buffer(512 * 1024);
-buf.fill(42);
+var buf = Buffer.alloc(512 * 1024, 42);
 
 try {
   fs.mkdirSync(dirName);

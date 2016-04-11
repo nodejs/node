@@ -11,10 +11,7 @@ var connections_per_client = 5;
 // measured
 var total_connections = 0;
 
-var body = '';
-for (var i = 0; i < bytes; i++) {
-  body += 'C';
-}
+var body = 'C'.repeat(bytes);
 
 var server = net.createServer(function(c) {
   console.log('connected');

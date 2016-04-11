@@ -62,9 +62,9 @@ for (var i in TEST_CASES) {
 
   (function() {
     var encrypt = crypto.createCipheriv(test.algo,
-      new Buffer(test.key, 'hex'), new Buffer(test.iv, 'hex'));
+      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
     if (test.aad)
-      encrypt.setAAD(new Buffer(test.aad, 'hex'));
+      encrypt.setAAD(Buffer.from(test.aad, 'hex'));
     var hex = encrypt.update(test.plain, 'ascii', 'hex');
     hex += encrypt.final('hex');
     var auth_tag = encrypt.getAuthTag();
@@ -77,10 +77,10 @@ for (var i in TEST_CASES) {
 
   (function() {
     var decrypt = crypto.createDecipheriv(test.algo,
-      new Buffer(test.key, 'hex'), new Buffer(test.iv, 'hex'));
-    decrypt.setAuthTag(new Buffer(test.tag, 'hex'));
+      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+    decrypt.setAuthTag(Buffer.from(test.tag, 'hex'));
     if (test.aad)
-      decrypt.setAAD(new Buffer(test.aad, 'hex'));
+      decrypt.setAAD(Buffer.from(test.aad, 'hex'));
     var msg = decrypt.update(test.ct, 'hex', 'ascii');
     if (!test.tampered) {
       msg += decrypt.final('ascii');
@@ -100,7 +100,7 @@ for (var i in TEST_CASES) {
     } else {
       var encrypt = crypto.createCipher(test.algo, test.password);
       if (test.aad)
-        encrypt.setAAD(new Buffer(test.aad, 'hex'));
+        encrypt.setAAD(Buffer.from(test.aad, 'hex'));
       var hex = encrypt.update(test.plain, 'ascii', 'hex');
       hex += encrypt.final('hex');
       var auth_tag = encrypt.getAuthTag();
@@ -120,9 +120,9 @@ for (var i in TEST_CASES) {
                     /not supported in FIPS mode/);
     } else {
       var decrypt = crypto.createDecipher(test.algo, test.password);
-      decrypt.setAuthTag(new Buffer(test.tag, 'hex'));
+      decrypt.setAuthTag(Buffer.from(test.tag, 'hex'));
       if (test.aad)
-        decrypt.setAAD(new Buffer(test.aad, 'hex'));
+        decrypt.setAAD(Buffer.from(test.aad, 'hex'));
       var msg = decrypt.update(test.ct, 'hex', 'ascii');
       if (!test.tampered) {
         msg += decrypt.final('ascii');
@@ -149,13 +149,13 @@ for (var i in TEST_CASES) {
     encrypt.final();
     assert.throws(function() { encrypt.getAuthTag(); }, / state/);
     assert.throws(function() {
-      encrypt.setAAD(new Buffer('123', 'ascii')); }, / state/);
+      encrypt.setAAD(Buffer.from('123', 'ascii')); }, / state/);
   })();
 
   (function() {
     // trying to get tag before inputting all data:
     var encrypt = crypto.createCipheriv(test.algo,
-      new Buffer(test.key, 'hex'), new Buffer(test.iv, 'hex'));
+      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
     encrypt.update('blah', 'ascii');
     assert.throws(function() { encrypt.getAuthTag(); }, / state/);
   })();
@@ -163,15 +163,15 @@ for (var i in TEST_CASES) {
   (function() {
     // trying to set tag on encryption object:
     var encrypt = crypto.createCipheriv(test.algo,
-      new Buffer(test.key, 'hex'), new Buffer(test.iv, 'hex'));
+      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
     assert.throws(function() {
-      encrypt.setAuthTag(new Buffer(test.tag, 'hex')); }, / state/);
+      encrypt.setAuthTag(Buffer.from(test.tag, 'hex')); }, / state/);
   })();
 
   (function() {
     // trying to read tag from decryption object:
     var decrypt = crypto.createDecipheriv(test.algo,
-      new Buffer(test.key, 'hex'), new Buffer(test.iv, 'hex'));
+      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
     assert.throws(function() { decrypt.getAuthTag(); }, / state/);
   })();
 }

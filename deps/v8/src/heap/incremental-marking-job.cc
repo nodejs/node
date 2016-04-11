@@ -91,7 +91,7 @@ void IncrementalMarkingJob::IdleTask::RunInternal(double deadline_in_seconds) {
   double deadline_in_ms =
       deadline_in_seconds *
       static_cast<double>(base::Time::kMillisecondsPerSecond);
-  Heap* heap = isolate_->heap();
+  Heap* heap = isolate()->heap();
   double start_ms = heap->MonotonicallyIncreasingTimeInMs();
   job_->NotifyIdleTask();
   job_->NotifyIdleTaskProgress();
@@ -102,7 +102,7 @@ void IncrementalMarkingJob::IdleTask::RunInternal(double deadline_in_seconds) {
     double current_time_ms = heap->MonotonicallyIncreasingTimeInMs();
     double idle_time_in_ms = deadline_in_ms - start_ms;
     double deadline_difference = deadline_in_ms - current_time_ms;
-    PrintIsolate(isolate_, "%8.0f ms: ", isolate_->time_millis_since_init());
+    PrintIsolate(isolate(), "%8.0f ms: ", isolate()->time_millis_since_init());
     PrintF(
         "Idle task: requested idle time %.2f ms, used idle time %.2f "
         "ms, deadline usage %.2f ms\n",
@@ -127,7 +127,7 @@ void IncrementalMarkingJob::DelayedTask::Step(Heap* heap) {
 
 
 void IncrementalMarkingJob::DelayedTask::RunInternal() {
-  Heap* heap = isolate_->heap();
+  Heap* heap = isolate()->heap();
   job_->NotifyDelayedTask();
   IncrementalMarking* incremental_marking = heap->incremental_marking();
   if (!incremental_marking->IsStopped()) {

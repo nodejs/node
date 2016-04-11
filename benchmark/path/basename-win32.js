@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var path = require('path');
 var v8 = require('v8');
@@ -8,7 +9,7 @@ var bench = common.createBenchmark(main, {
     'C:\\',
     'C:\\foo',
     'D:\\foo\\.bar.baz',
-    ['E:\\foo\\.bar.baz','.baz'].join('|'),
+    ['E:\\foo\\.bar.baz', '.baz'].join('|'),
     'foo',
     'foo\\bar.',
     ['foo\\bar.', '.'].join('|'),

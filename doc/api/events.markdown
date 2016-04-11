@@ -201,7 +201,7 @@ added and `'removeListener'` when a listener is removed.
 
 ### Event: 'newListener'
 
-* `event` {String|Symbol} The event name
+* `eventName` {String|Symbol} The name of the event being listened for
 * `listener` {Function} The event handler function
 
 The `EventEmitter` instance will emit it's own `'newListener'` event *before*
@@ -237,16 +237,16 @@ myEmitter.emit('event');
 
 ### Event: 'removeListener'
 
-* `event` {String|Symbol} The event name
+* `eventName` {String|Symbol} The event name
 * `listener` {Function} The event handler function
 
 The `'removeListener'` event is emitted *after* a listener is removed.
 
-### EventEmitter.listenerCount(emitter, event)
+### EventEmitter.listenerCount(emitter, eventName)
 
     Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
 
-A class method that returns the number of listeners for the given `event`
+A class method that returns the number of listeners for the given `eventName`
 registered on the given `emitter`.
 
 ```js
@@ -284,16 +284,35 @@ emitter.once('event', () => {
 });
 ```
 
-### emitter.addListener(event, listener)
+### emitter.addListener(eventName, listener)
 
-Alias for `emitter.on(event, listener)`.
+Alias for `emitter.on(eventName, listener)`.
 
-### emitter.emit(event[, arg1][, arg2][, ...])
+### emitter.emit(eventName[, arg1][, arg2][, ...])
 
-Synchronously calls each of the listeners registered for `event`, in the order
-they were registered, passing the supplied arguments to each.
+Synchronously calls each of the listeners registered for the event named
+`eventName`, in the order they were registered, passing the supplied arguments
+to each.
 
-Returns `true` if event had listeners, `false` otherwise.
+Returns `true` if the event had listeners, `false` otherwise.
+
+### emitter.eventNames()
+
+Returns an array listing the events for which the emitter has registered
+listeners. The values in the array will be strings or Symbols.
+
+```js
+const EventEmitter = require('events');
+const myEE = new EventEmitter();
+myEE.on('foo', () => {});
+myEE.on('bar', () => {});
+
+const sym = Symbol('symbol');
+myEE.on(sym, () => {});
+
+console.log(myErr.eventNames());
+  // Prints ['foo', 'bar', Symbol('symbol')]
+```
 
 ### emitter.getMaxListeners()
 
@@ -301,15 +320,15 @@ Returns the current max listener value for the `EventEmitter` which is either
 set by [`emitter.setMaxListeners(n)`][] or defaults to
 [`EventEmitter.defaultMaxListeners`][].
 
-### emitter.listenerCount(event)
+### emitter.listenerCount(eventName)
 
-* `event` {Value} The type of event
+* `eventName` {Value} The name of the event being listened for
 
-Returns the number of listeners listening to the `event` type.
+Returns the number of listeners listening to the event named `eventName`.
 
-### emitter.listeners(event)
+### emitter.listeners(eventName)
 
-Returns a copy of the array of listeners for the specified `event`.
+Returns a copy of the array of listeners for the event named `eventName`.
 
 ```js
 server.on('connection', (stream) => {
@@ -319,12 +338,12 @@ console.log(util.inspect(server.listeners('connection')));
   // Prints: [ [Function] ]
 ```
 
-### emitter.on(event, listener)
+### emitter.on(eventName, listener)
 
 Adds the `listener` function to the end of the listeners array for the
-specified `event`. No checks are made to see if the `listener` has already
-been added. Multiple calls passing the same combination of `event` and
-`listener` will result in the `listener` being added, and called, multiple
+event named `eventName`. No checks are made to see if the `listener` has
+already been added. Multiple calls passing the same combination of `eventName`
+and `listener` will result in the `listener` being added, and called, multiple
 times.
 
 ```js
@@ -335,10 +354,11 @@ server.on('connection', (stream) => {
 
 Returns a reference to the `EventEmitter` so calls can be chained.
 
-### emitter.once(event, listener)
+### emitter.once(eventName, listener)
 
-Adds a **one time** `listener` function for the `event`. This listener is
-invoked only the next time `event` is triggered, after which it is removed.
+Adds a **one time** `listener` function for the event named `eventName`. This
+listener is invoked only the next time `eventName` is triggered, after which
+it is removed.
 
 ```js
 server.once('connection', (stream) => {
@@ -348,9 +368,9 @@ server.once('connection', (stream) => {
 
 Returns a reference to the `EventEmitter` so calls can be chained.
 
-### emitter.removeAllListeners([event])
+### emitter.removeAllListeners([eventName])
 
-Removes all listeners, or those of the specified `event`.
+Removes all listeners, or those of the specified `eventName`.
 
 Note that it is bad practice to remove listeners added elsewhere in the code,
 particularly when the `EventEmitter` instance was created by some other
@@ -358,10 +378,10 @@ component or module (e.g. sockets or file streams).
 
 Returns a reference to the `EventEmitter` so calls can be chained.
 
-### emitter.removeListener(event, listener)
+### emitter.removeListener(eventName, listener)
 
-Removes the specified `listener` from the listener array for the specified
-`event`.
+Removes the specified `listener` from the listener array for the event named
+`eventName`.
 
 ```js
 var callback = (stream) => {
@@ -374,8 +394,45 @@ server.removeListener('connection', callback);
 
 `removeListener` will remove, at most, one instance of a listener from the
 listener array. If any single listener has been added multiple times to the
-listener array for the specified `event`, then `removeListener` must be called
-multiple times to remove each instance.
+listener array for the specified `eventName`, then `removeListener` must be
+called multiple times to remove each instance.
+
+Note that once an event has been emitted, all listeners attached to it at the
+time of emitting will be called in order. This implies that any `removeListener()`
+or `removeAllListeners()` calls *after* emitting and *before* the last listener
+finishes execution will not remove them from `emit()` in progress. Subsequent
+events will behave as expected.
+
+```js
+const myEmitter = new MyEmitter();
+
+var callbackA = () => {
+  console.log('A');
+  myEmitter.removeListener('event', callbackB);
+};
+
+var callbackB = () => {
+  console.log('B');
+};
+
+myEmitter.on('event', callbackA);
+
+myEmitter.on('event', callbackB);
+
+// callbackA removes listener callbackB but it will still be called.
+// Internal listener array at time of emit [callbackA, callbackB]
+myEmitter.emit('event');
+  // Prints:
+  //   A
+  //   B
+
+// callbackB is now removed.
+// Internal listener array [callbackA]
+myEmitter.emit('event');
+  // Prints:
+  //   A
+
+```
 
 Because listeners are managed using an internal array, calling this will
 change the position indices of any listener registered *after* the listener

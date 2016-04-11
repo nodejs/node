@@ -13,7 +13,7 @@ var crypto = require('crypto');
 // Test hashing
 var a1 = crypto.createHash('sha1').update('Test123').digest('hex');
 var a2 = crypto.createHash('sha256').update('Test123').digest('base64');
-var a3 = crypto.createHash('sha512').update('Test123').digest(); // binary
+var a3 = crypto.createHash('sha512').update('Test123').digest(); // buffer
 var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
 // stream interface
@@ -47,7 +47,7 @@ assert.equal(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
              'Test SHA256 as base64');
 assert.deepEqual(
   a3,
-  new Buffer(
+  Buffer.from(
     '\u00c1(4\u00f1\u0003\u001fd\u0097!O\'\u00d4C/&Qz\u00d4' +
     '\u0094\u0015l\u00b8\u008dQ+\u00db\u001d\u00c4\u00b5}\u00b2' +
     '\u00d6\u0092\u00a3\u00df\u00a2i\u00a1\u009b\n\n*\u000f' +
@@ -56,7 +56,7 @@ assert.deepEqual(
     'binary'),
   'Test SHA512 as assumed buffer');
 assert.deepEqual(a4,
-                 new Buffer('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
+                Buffer.from('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
                  'Test SHA1');
 
 // stream interface should produce the same result.
@@ -87,3 +87,14 @@ fileStream.on('close', function() {
 assert.throws(function() {
   crypto.createHash('xyzzy');
 });
+
+// Default UTF-8 encoding
+var hutf8 = crypto.createHash('sha512').update('УТФ-8 text').digest('hex');
+assert.equal(
+    hutf8,
+    '4b21bbd1a68e690a730ddcb5a8bc94ead9879ffe82580767ad7ec6fa8ba2dea6' +
+        '43a821af66afa9a45b6a78c712fecf0e56dc7f43aef4bcfc8eb5b4d8dca6ea5b');
+
+assert.notEqual(
+    hutf8,
+    crypto.createHash('sha512').update('УТФ-8 text', 'binary').digest('hex'));

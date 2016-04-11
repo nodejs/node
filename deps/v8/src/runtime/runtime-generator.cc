@@ -209,14 +209,6 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_FunctionIsGenerator) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  return isolate->heap()->ToBoolean(f->shared()->is_generator());
-}
-
-
 RUNTIME_FUNCTION(Runtime_GeneratorNext) {
   UNREACHABLE();  // Optimization disabled in SetUpGenerators().
   return NULL;

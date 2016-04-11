@@ -2,14 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/assembler.h"
 #include "src/codegen.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/machine-type.h"
 #include "src/compiler/raw-machine-assembler.h"
+#include "src/machine-type.h"
 #include "src/register-configuration.h"
 
 #include "test/cctest/cctest.h"
@@ -20,15 +17,6 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-typedef RawMachineAssembler::Label MLabel;
-
-#if V8_TARGET_ARCH_ARM64
-// TODO(titzer): fix native stack parameters on arm64
-#define DISABLE_NATIVE_STACK_PARAMS true
-#else
-#define DISABLE_NATIVE_STACK_PARAMS false
-#endif
 
 namespace {
 typedef float float32;
@@ -145,7 +133,7 @@ struct Allocator {
   int stack_offset;
 
   LinkageLocation Next(MachineType type) {
-    if (IsFloatingPoint(type)) {
+    if (IsFloatingPoint(type.representation())) {
       // Allocate a floating point register/stack location.
       if (fp_offset < fp_count) {
         return LinkageLocation::ForRegister(fp_regs[fp_offset++]);
@@ -165,16 +153,11 @@ struct Allocator {
       }
     }
   }
-  bool IsFloatingPoint(MachineType type) {
-    return RepresentationOf(type) == kRepFloat32 ||
-           RepresentationOf(type) == kRepFloat64;
-  }
   int StackWords(MachineType type) {
     // TODO(titzer): hack. float32 occupies 8 bytes on stack.
-    int size = (RepresentationOf(type) == kRepFloat32 ||
-                RepresentationOf(type) == kRepFloat64)
+    int size = IsFloatingPoint(type.representation())
                    ? kDoubleSize
-                   : ElementSizeOf(type);
+                   : (1 << ElementSizeLog2Of(type.representation()));
     return size <= kPointerSize ? 1 : size / kPointerSize;
   }
   void Reset() {
@@ -210,7 +193,7 @@ class RegisterConfig {
     const RegList kCalleeSaveRegisters = 0;
     const RegList kCalleeSaveFPRegisters = 0;
 
-    MachineType target_type = compiler::kMachAnyTagged;
+    MachineType target_type = MachineType::AnyTagged();
     LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
     int stack_param_count = params.stack_offset;
     return new (zone) CallDescriptor(       // --
@@ -223,7 +206,7 @@ class RegisterConfig {
         compiler::Operator::kNoProperties,  // properties
         kCalleeSaveRegisters,               // callee-saved registers
         kCalleeSaveFPRegisters,             // callee-saved fp regs
-        CallDescriptor::kNoFlags,           // flags
+        CallDescriptor::kUseNativeStack,    // flags
         "c-call");
   }
 
@@ -235,17 +218,28 @@ class RegisterConfig {
 const int kMaxParamCount = 64;
 
 MachineType kIntTypes[kMaxParamCount + 1] = {
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32,
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32,
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32,
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32,
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32,
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32,
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32,
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32,
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32,
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32,
-    kMachInt32, kMachInt32, kMachInt32, kMachInt32, kMachInt32};
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+    MachineType::Int32(), MachineType::Int32()};
 
 
 // For making uniform int32 signatures shorter.
@@ -364,8 +358,8 @@ class ArgsBuffer {
   Node* StoreOutput(RawMachineAssembler& raw, Node* value) {
     Node* base = raw.PointerConstant(&output);
     Node* offset = raw.Int32Constant(0);
-    return raw.Store(MachineTypeForC<CType>(), base, offset, value,
-                     kNoWriteBarrier);
+    return raw.Store(MachineTypeForC<CType>().representation(), base, offset,
+                     value, kNoWriteBarrier);
   }
 
   // Computes the next set of inputs by updating the {input} array.
@@ -561,8 +555,6 @@ static void TestInt32Sub(CallDescriptor* desc) {
 
 
 static void CopyTwentyInt32(CallDescriptor* desc) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
-
   const int kNumParams = 20;
   int32_t input[kNumParams];
   int32_t output[kNumParams];
@@ -577,7 +569,8 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
     Node* base = raw.PointerConstant(output);
     for (int i = 0; i < kNumParams; i++) {
       Node* offset = raw.Int32Constant(i * sizeof(int32_t));
-      raw.Store(kMachInt32, base, offset, raw.Parameter(i), kNoWriteBarrier);
+      raw.Store(MachineRepresentation::kWord32, base, offset, raw.Parameter(i),
+                kNoWriteBarrier);
     }
     raw.Return(raw.Int32Constant(42));
     inner = CompileGraph("CopyTwentyInt32", desc, &graph, raw.Export());
@@ -596,7 +589,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
     Node** args = zone.NewArray<Node*>(kNumParams);
     for (int i = 0; i < kNumParams; i++) {
       Node* offset = raw.Int32Constant(i * sizeof(int32_t));
-      args[i] = raw.Load(kMachInt32, base, offset);
+      args[i] = raw.Load(MachineType::Int32(), base, offset);
     }
 
     Node* call = raw.CallN(desc, target, args);
@@ -674,7 +667,6 @@ TEST_INT32_SUB_WITH_RET(19)
 
 
 TEST(Run_Int32Sub_all_allocatable_single) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   Int32Signature sig(2);
   RegisterPairs pairs;
   while (pairs.More()) {
@@ -692,7 +684,6 @@ TEST(Run_Int32Sub_all_allocatable_single) {
 
 
 TEST(Run_CopyTwentyInt32_all_allocatable_pairs) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   Int32Signature sig(20);
   RegisterPairs pairs;
   while (pairs.More()) {
@@ -745,7 +736,6 @@ static int32_t Compute_Int32_WeightedSum(CallDescriptor* desc, int32_t* input) {
 
 
 static void Test_Int32_WeightedSum_of_size(int count) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   Int32Signature sig(count);
   for (int p0 = 0; p0 < Register::kNumRegisters; p0++) {
     if (Register::from_code(p0).IsAllocatable()) {
@@ -807,8 +797,6 @@ static void RunSelect(CallDescriptor* desc) {
 
 template <int which>
 void Test_Int32_Select() {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
-
   int parray[] = {
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
           ->GetAllocatableGeneralCode(0)};
@@ -932,7 +920,6 @@ TEST(Float64Select_registers) {
 
 
 TEST(Float32Select_stack_params_return_reg) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   int rarray[] = {
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
           ->GetAllocatableDoubleCode(0)};
@@ -955,7 +942,6 @@ TEST(Float32Select_stack_params_return_reg) {
 
 
 TEST(Float64Select_stack_params_return_reg) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   int rarray[] = {
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
           ->GetAllocatableDoubleCode(0)};
@@ -1010,8 +996,6 @@ static void Build_Select_With_Call(CallDescriptor* desc,
 
 
 TEST(Float64StackParamsToStackParams) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
-
   int rarray[] = {
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
           ->GetAllocatableDoubleCode(0)};
@@ -1032,7 +1016,6 @@ TEST(Float64StackParamsToStackParams) {
 
 
 void MixedParamTest(int start) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
           ->num_double_registers() < 2)
     return;
@@ -1040,16 +1023,21 @@ void MixedParamTest(int start) {
 // TODO(titzer): mix in 64-bit types on all platforms when supported.
 #if V8_TARGET_ARCH_32_BIT
   static MachineType types[] = {
-      kMachInt32,   kMachFloat32, kMachFloat64, kMachInt32,   kMachFloat64,
-      kMachFloat32, kMachFloat32, kMachFloat64, kMachInt32,   kMachFloat32,
-      kMachInt32,   kMachFloat64, kMachFloat64, kMachFloat32, kMachInt32,
-      kMachFloat64, kMachInt32,   kMachFloat32};
+      MachineType::Int32(),   MachineType::Float32(), MachineType::Float64(),
+      MachineType::Int32(),   MachineType::Float64(), MachineType::Float32(),
+      MachineType::Float32(), MachineType::Float64(), MachineType::Int32(),
+      MachineType::Float32(), MachineType::Int32(),   MachineType::Float64(),
+      MachineType::Float64(), MachineType::Float32(), MachineType::Int32(),
+      MachineType::Float64(), MachineType::Int32(),   MachineType::Float32()};
 #else
   static MachineType types[] = {
-      kMachInt32,   kMachInt64,   kMachFloat32, kMachFloat64, kMachInt32,
-      kMachFloat64, kMachFloat32, kMachInt64,   kMachFloat64, kMachInt32,
-      kMachFloat32, kMachInt32,   kMachFloat64, kMachFloat64, kMachInt64,
-      kMachInt32,   kMachFloat64, kMachInt32,   kMachFloat32};
+      MachineType::Int32(),   MachineType::Int64(),   MachineType::Float32(),
+      MachineType::Float64(), MachineType::Int32(),   MachineType::Float64(),
+      MachineType::Float32(), MachineType::Int64(),   MachineType::Int64(),
+      MachineType::Float32(), MachineType::Float32(), MachineType::Int32(),
+      MachineType::Float64(), MachineType::Float64(), MachineType::Int64(),
+      MachineType::Int32(),   MachineType::Float64(), MachineType::Int32(),
+      MachineType::Float32()};
 #endif
 
   Isolate* isolate = CcTest::InitIsolateOnce();
@@ -1118,22 +1106,22 @@ void MixedParamTest(int start) {
         for (int i = 0; i < num_params; i++) {
           MachineType param_type = sig->GetParam(i);
           Node* konst = nullptr;
-          if (param_type == kMachInt32) {
+          if (param_type == MachineType::Int32()) {
             int32_t value[] = {static_cast<int32_t>(constant)};
             konst = raw.Int32Constant(value[0]);
             if (i == which) memcpy(bytes, value, expected_size = 4);
           }
-          if (param_type == kMachInt64) {
+          if (param_type == MachineType::Int64()) {
             int64_t value[] = {static_cast<int64_t>(constant)};
             konst = raw.Int64Constant(value[0]);
             if (i == which) memcpy(bytes, value, expected_size = 8);
           }
-          if (param_type == kMachFloat32) {
+          if (param_type == MachineType::Float32()) {
             float32 value[] = {static_cast<float32>(constant)};
             konst = raw.Float32Constant(value[0]);
             if (i == which) memcpy(bytes, value, expected_size = 4);
           }
-          if (param_type == kMachFloat64) {
+          if (param_type == MachineType::Float64()) {
             float64 value[] = {static_cast<float64>(constant)};
             konst = raw.Float64Constant(value[0]);
             if (i == which) memcpy(bytes, value, expected_size = 8);
@@ -1145,7 +1133,8 @@ void MixedParamTest(int start) {
         }
 
         Node* call = raw.CallN(desc, target, args);
-        Node* store = raw.StoreToPointer(output, sig->GetReturn(), call);
+        Node* store =
+            raw.StoreToPointer(output, sig->GetReturn().representation(), call);
         USE(store);
         expected_ret = static_cast<int32_t>(constant);
         raw.Return(raw.Int32Constant(expected_ret));

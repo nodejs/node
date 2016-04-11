@@ -6,6 +6,7 @@
 #include "src/compiler/control-equivalence.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/source-position.h"
 #include "src/zone-containers.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
@@ -30,7 +31,8 @@ class ControlEquivalenceTest : public GraphTest {
     graph()->SetEnd(graph()->NewNode(common()->End(1), node));
     if (FLAG_trace_turbo) {
       OFStream os(stdout);
-      os << AsDOT(*graph());
+      SourcePositionTable table(graph());
+      os << AsJSON(*graph(), &table);
     }
     ControlEquivalence equivalence(zone(), graph());
     equivalence.Run(node);

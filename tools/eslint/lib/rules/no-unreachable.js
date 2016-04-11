@@ -1,6 +1,8 @@
 /**
  * @fileoverview Checks for unreachable code due to return, throws, break, and continue.
  * @author Joel Feenstra
+ * @copyright 2015 Toru Nagashima. All rights reserved.
+ * See LICENSE file in root directory for full license.
  */
 "use strict";
 
@@ -9,97 +11,84 @@
 //------------------------------------------------------------------------------
 
 /**
- * Report the node
- * @param {object} context Current context as passed to the rule
- * @param {ASTNode} node node to evaluate
- * @param {string} unreachableType Type of the statement
- * @returns {void}
- * @private
+ * Checks whether or not a given variable declarator has the initializer.
+ * @param {ASTNode} node - A VariableDeclarator node to check.
+ * @returns {boolean} `true` if the node has the initializer.
  */
-function report(context, node, unreachableType) {
-    var keyword;
-    switch (unreachableType) {
-        case "BreakStatement":
-            keyword = "break";
-            break;
-        case "ContinueStatement":
-            keyword = "continue";
-            break;
-        case "ReturnStatement":
-            keyword = "return";
-            break;
-        case "ThrowStatement":
-            keyword = "throw";
-            break;
-        default:
-            return;
-    }
-    context.report(node, "Found unexpected statement after a {{type}}.", { type: keyword });
+function isInitialized(node) {
+    return Boolean(node.init);
 }
 
+/**
+ * Checks whether or not a given code path segment is unreachable.
+ * @param {CodePathSegment} segment - A CodePathSegment to check.
+ * @returns {boolean} `true` if the segment is unreachable.
+ */
+function isUnreachable(segment) {
+    return !segment.reachable;
+}
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+    var currentCodePath = null;
 
     /**
-     * Checks if a node is an exception for no-unreachable because of variable/function hoisting
-     * @param {ASTNode} node The AST node to check.
-     * @returns {boolean} if the node doesn't trigger unreachable
-     * @private
-     */
-    function isUnreachableAllowed(node) {
-        return node.type === "FunctionDeclaration" ||
-            node.type === "VariableDeclaration" &&
-            node.declarations.every(function(declaration) {
-                return declaration.type === "VariableDeclarator" && declaration.init === null;
-            });
-    }
-
-    /**
-     * Verifies that the given node is the last node or followed exclusively by
-     * hoisted declarations
-     * @param {ASTNode} node Node that should be the last node
+     * Reports a given node if it's unreachable.
+     * @param {ASTNode} node - A statement node to report.
      * @returns {void}
-     * @private
      */
-    function checkNode(node) {
-        var parent = context.getAncestors().pop();
-        var field, i, sibling;
-
-        switch (parent.type) {
-            case "SwitchCase":
-                field = "consequent";
-                break;
-            case "Program":
-            case "BlockStatement":
-                field = "body";
-                break;
-            default:
-                return;
-        }
-
-        for (i = parent[field].length - 1; i >= 0; i--) {
-            sibling = parent[field][i];
-            if (sibling === node) {
-                return; // Found the last reachable statement, all done
-            }
-
-            if (!isUnreachableAllowed(sibling)) {
-                report(context, sibling, node.type);
-            }
+    function reportIfUnreachable(node) {
+        if (currentCodePath.currentSegments.every(isUnreachable)) {
+            context.report({message: "Unreachable code.", node: node});
         }
     }
 
     return {
-        "ReturnStatement": checkNode,
-        "ThrowStatement": checkNode,
-        "ContinueStatement": checkNode,
-        "BreakStatement": checkNode
-    };
 
+        // Manages the current code path.
+        "onCodePathStart": function(codePath) {
+            currentCodePath = codePath;
+        },
+
+        "onCodePathEnd": function() {
+            currentCodePath = currentCodePath.upper;
+        },
+
+        // Registers for all statement nodes (excludes FunctionDeclaration).
+        BlockStatement: reportIfUnreachable,
+        BreakStatement: reportIfUnreachable,
+        ClassDeclaration: reportIfUnreachable,
+        ContinueStatement: reportIfUnreachable,
+        DebuggerStatement: reportIfUnreachable,
+        DoWhileStatement: reportIfUnreachable,
+        EmptyStatement: reportIfUnreachable,
+        ExpressionStatement: reportIfUnreachable,
+        ForInStatement: reportIfUnreachable,
+        ForOfStatement: reportIfUnreachable,
+        ForStatement: reportIfUnreachable,
+        IfStatement: reportIfUnreachable,
+        ImportDeclaration: reportIfUnreachable,
+        LabeledStatement: reportIfUnreachable,
+        ReturnStatement: reportIfUnreachable,
+        SwitchStatement: reportIfUnreachable,
+        ThrowStatement: reportIfUnreachable,
+        TryStatement: reportIfUnreachable,
+
+        VariableDeclaration: function(node) {
+            if (node.kind !== "var" || node.declarations.some(isInitialized)) {
+                reportIfUnreachable(node);
+            }
+        },
+
+        WhileStatement: reportIfUnreachable,
+        WithStatement: reportIfUnreachable,
+        ExportNamedDeclaration: reportIfUnreachable,
+        ExportDefaultDeclaration: reportIfUnreachable,
+        ExportAllDeclaration: reportIfUnreachable
+    };
 };
 
 module.exports.schema = [];

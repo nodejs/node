@@ -76,8 +76,10 @@ class OutputFrameStateCombine {
 
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
-  kJavaScriptFunction,  // Represents an unoptimized JavaScriptFrame.
-  kArgumentsAdaptor     // Represents an ArgumentsAdaptorFrame.
+  kJavaScriptFunction,   // Represents an unoptimized JavaScriptFrame.
+  kInterpretedFunction,  // Represents an InterpretedFrame.
+  kArgumentsAdaptor,     // Represents an ArgumentsAdaptorFrame.
+  kConstructStub         // Represents a ConstructStubFrame.
 };
 
 
@@ -105,6 +107,11 @@ class FrameStateFunctionInfo {
   FrameStateType type() const { return type_; }
   ContextCallingMode context_calling_mode() const {
     return context_calling_mode_;
+  }
+
+  static bool IsJSFunctionType(FrameStateType type) {
+    return type == FrameStateType::kJavaScriptFunction ||
+           type == FrameStateType::kInterpretedFunction;
   }
 
  private:

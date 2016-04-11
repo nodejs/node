@@ -1018,11 +1018,7 @@ function CheckFunctionPillDescriptor(func, name) {
     assertThrows(function() { 'use strict'; pill.property = "value"; },
                  TypeError);
     assertThrows(pill, TypeError);
-    assertEquals(pill.prototype, (function(){}).prototype);
-    var d = Object.getOwnPropertyDescriptor(pill, "prototype");
-    assertFalse(d.writable);
-    assertFalse(d.configurable);
-    assertFalse(d.enumerable);
+    assertEquals(undefined, pill.prototype);
   }
 
   // Poisoned accessors are no longer own properties
@@ -1046,11 +1042,7 @@ function CheckArgumentsPillDescriptor(func, name) {
     assertThrows(function() { 'use strict'; pill.property = "value"; },
                  TypeError);
     assertThrows(pill, TypeError);
-    assertEquals(pill.prototype, (function(){}).prototype);
-    var d = Object.getOwnPropertyDescriptor(pill, "prototype");
-    assertFalse(d.writable);
-    assertFalse(d.configurable);
-    assertFalse(d.enumerable);
+    assertEquals(undefined, pill.prototype);
   }
 
   var descriptor = Object.getOwnPropertyDescriptor(func, name);

@@ -34,6 +34,7 @@ var QUOTE_SETTINGS = {
         description: "backtick"
     }
 };
+
 /**
  * Switches quoting of javascript string between ' " and `
  * escaping and unescaping as necessary.
@@ -48,6 +49,7 @@ QUOTE_SETTINGS.single.convert =
 QUOTE_SETTINGS.backtick.convert = function(str) {
     var newQuote = this.quote;
     var oldQuote = str[0];
+
     if (newQuote === oldQuote) {
         return str;
     }
@@ -73,6 +75,12 @@ var AVOID_ESCAPE = "avoid-escape",
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+
+    var quoteOption = context.options[0],
+        settings = QUOTE_SETTINGS[quoteOption || "double"],
+        avoidEscape = context.options[1] === AVOID_ESCAPE,
+        sourceCode = context.getSourceCode();
+
     /**
      * Determines if a given node is part of JSX syntax.
      * @param {ASTNode} node The node to check.
@@ -107,6 +115,7 @@ module.exports = function(context) {
      */
     function isPartOfDirectivePrologue(node) {
         var block = node.parent.parent;
+
         if (block.type !== "Program" && (block.type !== "BlockStatement" || !FUNCTION_TYPE.test(block.parent.type))) {
             return false;
         }
@@ -136,6 +145,7 @@ module.exports = function(context) {
         var parent = node.parent;
 
         switch (parent.type) {
+
             // Directive Prologues.
             case "ExpressionStatement":
                 return isPartOfDirectivePrologue(node);
@@ -161,13 +171,12 @@ module.exports = function(context) {
         "Literal": function(node) {
             var val = node.value,
                 rawVal = node.raw,
-                quoteOption = context.options[0],
-                settings = QUOTE_SETTINGS[quoteOption || "double"],
-                avoidEscape = context.options[1] === AVOID_ESCAPE,
                 isValid;
 
             if (settings && typeof val === "string") {
-                isValid = (quoteOption === "backtick" && isAllowedAsNonBacktick(node)) || isJSXElement(node.parent) || astUtils.isSurroundedBy(rawVal, settings.quote);
+                isValid = (quoteOption === "backtick" && isAllowedAsNonBacktick(node)) ||
+                    isJSXElement(node.parent) ||
+                    astUtils.isSurroundedBy(rawVal, settings.quote);
 
                 if (!isValid && avoidEscape) {
                     isValid = astUtils.isSurroundedBy(rawVal, settings.alternateQuote) && rawVal.indexOf(settings.quote) >= 0;
@@ -182,6 +191,26 @@ module.exports = function(context) {
                         }
                     });
                 }
+            }
+        },
+
+        "TemplateLiteral": function(node) {
+
+            // If backticks are expected or it's a tagged template, then this shouldn't throw an errors
+            if (quoteOption === "backtick" || node.parent.type === "TaggedTemplateExpression") {
+                return;
+            }
+
+            var shouldWarn = node.quasis.length === 1 && (node.quasis[0].value.cooked.indexOf("\n") === -1);
+
+            if (shouldWarn) {
+                context.report({
+                    node: node,
+                    message: "Strings must use " + settings.description + ".",
+                    fix: function(fixer) {
+                        return fixer.replaceText(node, settings.convert(sourceCode.getText(node)));
+                    }
+                });
             }
         }
     };

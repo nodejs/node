@@ -142,10 +142,9 @@ class RegisteredExtension {
   V(ObjectTemplate, ObjectTemplateInfo)      \
   V(Signature, FunctionTemplateInfo)         \
   V(AccessorSignature, FunctionTemplateInfo) \
-  V(TypeSwitch, TypeSwitchInfo)              \
   V(Data, Object)                            \
   V(RegExp, JSRegExp)                        \
-  V(Object, JSObject)                        \
+  V(Object, JSReceiver)                      \
   V(Array, JSArray)                          \
   V(Map, JSMap)                              \
   V(Set, JSSet)                              \
@@ -174,6 +173,7 @@ class RegisteredExtension {
   V(External, Object)                        \
   V(StackTrace, JSArray)                     \
   V(StackFrame, JSObject)                    \
+  V(Proxy, JSProxy)                          \
   V(NativeWeakMap, JSWeakMap)
 
 class Utils {
@@ -201,6 +201,8 @@ class Utils {
   static inline Local<RegExp> ToLocal(
       v8::internal::Handle<v8::internal::JSRegExp> obj);
   static inline Local<Object> ToLocal(
+      v8::internal::Handle<v8::internal::JSReceiver> obj);
+  static inline Local<Object> ToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<Array> ToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
@@ -208,13 +210,14 @@ class Utils {
       v8::internal::Handle<v8::internal::JSMap> obj);
   static inline Local<Set> ToLocal(
       v8::internal::Handle<v8::internal::JSSet> obj);
+  static inline Local<Proxy> ToLocal(
+      v8::internal::Handle<v8::internal::JSProxy> obj);
   static inline Local<ArrayBuffer> ToLocal(
       v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
   static inline Local<ArrayBufferView> ToLocal(
       v8::internal::Handle<v8::internal::JSArrayBufferView> obj);
   static inline Local<DataView> ToLocal(
       v8::internal::Handle<v8::internal::JSDataView> obj);
-
   static inline Local<TypedArray> ToLocal(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<Uint8Array> ToLocalUint8Array(
@@ -261,8 +264,6 @@ class Utils {
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<AccessorSignature> AccessorSignatureToLocal(
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
-  static inline Local<TypeSwitch> ToLocal(
-      v8::internal::Handle<v8::internal::TypeSwitchInfo> obj);
   static inline Local<External> ExternalToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<NativeWeakMap> NativeWeakMapToLocal(
@@ -353,10 +354,12 @@ MAKE_TO_LOCAL(ToLocal, Name, Name)
 MAKE_TO_LOCAL(ToLocal, String, String)
 MAKE_TO_LOCAL(ToLocal, Symbol, Symbol)
 MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
+MAKE_TO_LOCAL(ToLocal, JSReceiver, Object)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
 MAKE_TO_LOCAL(ToLocal, JSMap, Map)
 MAKE_TO_LOCAL(ToLocal, JSSet, Set)
+MAKE_TO_LOCAL(ToLocal, JSProxy, Proxy)
 MAKE_TO_LOCAL(ToLocal, JSArrayBuffer, ArrayBuffer)
 MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
 MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
@@ -369,7 +372,6 @@ MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)
 MAKE_TO_LOCAL(SignatureToLocal, FunctionTemplateInfo, Signature)
 MAKE_TO_LOCAL(AccessorSignatureToLocal, FunctionTemplateInfo, AccessorSignature)
-MAKE_TO_LOCAL(ToLocal, TypeSwitchInfo, TypeSwitch)
 MAKE_TO_LOCAL(MessageToLocal, Object, Message)
 MAKE_TO_LOCAL(PromiseToLocal, JSObject, Promise)
 MAKE_TO_LOCAL(StackTraceToLocal, JSArray, StackTrace)

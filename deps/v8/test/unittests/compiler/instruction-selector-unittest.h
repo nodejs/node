@@ -37,17 +37,19 @@ class InstructionSelectorTest : public TestWithContext,
   class StreamBuilder final : public RawMachineAssembler {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
-        : RawMachineAssembler(
-              test->isolate(), new (test->zone()) Graph(test->zone()),
-              MakeCallDescriptor(test->zone(), return_type), kMachPtr,
-              MachineOperatorBuilder::kAllOptionalOps),
+        : RawMachineAssembler(test->isolate(),
+                              new (test->zone()) Graph(test->zone()),
+                              MakeCallDescriptor(test->zone(), return_type),
+                              MachineType::PointerRepresentation(),
+                              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type)
         : RawMachineAssembler(
               test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type),
-              kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
+              MachineType::PointerRepresentation(),
+              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)
@@ -55,7 +57,8 @@ class InstructionSelectorTest : public TestWithContext,
               test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type,
                                  parameter1_type),
-              kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
+              MachineType::PointerRepresentation(),
+              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type,
@@ -64,7 +67,8 @@ class InstructionSelectorTest : public TestWithContext,
               test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type,
                                  parameter1_type, parameter2_type),
-              kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
+              MachineType::PointerRepresentation(),
+              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
 
     Stream Build(CpuFeature feature) {

@@ -23,6 +23,7 @@ module.exports = function(context) {
     function wrapped(node) {
         var previousToken = context.getTokenBefore(node),
             nextToken = context.getTokenAfter(node);
+
         return previousToken && previousToken.value === "(" &&
             nextToken && nextToken.value === ")";
     }

@@ -77,8 +77,8 @@ function runTest(highWaterMark, objectMode, produce) {
   }
 }
 
-runTest(100, false, function() { return new Buffer(100); });
-runTest(10, false, function() { return new Buffer('xxxxxxxxxx'); });
+runTest(100, false, function() { return Buffer.allocUnsafe(100); });
+runTest(10, false, function() { return Buffer.from('xxxxxxxxxx'); });
 runTest(1, true, function() { return { foo: 'bar' }; });
 
 var objectChunks = [ 5, 'a', false, 0, '', 'xyz', { x: 4 }, 7, [], 555 ];

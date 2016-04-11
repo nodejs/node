@@ -10,8 +10,9 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-    var style = context.options[0] || "1tbs";
-    var params = context.options[1] || {};
+    var style = context.options[0] || "1tbs",
+        params = context.options[1] || {},
+        sourceCode = context.getSourceCode();
 
     var OPEN_MESSAGE = "Opening curly brace does not appear on the same line as controlling statement.",
         OPEN_MESSAGE_ALLMAN = "Opening curly brace appears on the same line as controlling statement.",
@@ -56,31 +57,41 @@ module.exports = function(context) {
         var blockProperties = arguments;
 
         return function(node) {
-            [].forEach.call(blockProperties, function(blockProp) {
-                var block = node[blockProp], previousToken, curlyToken, curlyTokenEnd, curlyTokensOnSameLine;
+            Array.prototype.forEach.call(blockProperties, function(blockProp) {
+                var block = node[blockProp],
+                    previousToken,
+                    curlyToken,
+                    curlyTokenEnd,
+                    allOnSameLine;
 
                 if (!isBlock(block)) {
                     return;
                 }
 
-                previousToken = context.getTokenBefore(block);
-                curlyToken = context.getFirstToken(block);
-                curlyTokenEnd = context.getLastToken(block);
-                curlyTokensOnSameLine = curlyToken.loc.start.line === curlyTokenEnd.loc.start.line;
+                previousToken = sourceCode.getTokenBefore(block);
+                curlyToken = sourceCode.getFirstToken(block);
+                curlyTokenEnd = sourceCode.getLastToken(block);
+                allOnSameLine = previousToken.loc.start.line === curlyTokenEnd.loc.start.line;
+
+                if (allOnSameLine && params.allowSingleLine) {
+                    return;
+                }
 
                 if (style !== "allman" && previousToken.loc.start.line !== curlyToken.loc.start.line) {
                     context.report(node, OPEN_MESSAGE);
-                } else if (style === "allman" && previousToken.loc.start.line === curlyToken.loc.start.line && !params.allowSingleLine) {
+                } else if (style === "allman" && previousToken.loc.start.line === curlyToken.loc.start.line) {
                     context.report(node, OPEN_MESSAGE_ALLMAN);
                 }
 
-                if (!block.body.length || curlyTokensOnSameLine && params.allowSingleLine) {
+                if (!block.body.length) {
                     return;
                 }
 
                 if (curlyToken.loc.start.line === block.body[0].loc.start.line) {
                     context.report(block.body[0], BODY_MESSAGE);
-                } else if (curlyTokenEnd.loc.start.line === block.body[block.body.length - 1].loc.start.line) {
+                }
+
+                if (curlyTokenEnd.loc.start.line === block.body[block.body.length - 1].loc.start.line) {
                     context.report(block.body[block.body.length - 1], CLOSE_MESSAGE_SINGLE);
                 }
             });
@@ -94,29 +105,22 @@ module.exports = function(context) {
      * @private
      */
     function checkIfStatement(node) {
-        var tokens,
-            alternateIsBlock = false,
-            alternateIsIfBlock = false;
+        var tokens;
 
         checkBlock("consequent", "alternate")(node);
 
         if (node.alternate) {
 
-            alternateIsBlock = isBlock(node.alternate);
-            alternateIsIfBlock = node.alternate.type === "IfStatement" && isBlock(node.alternate.consequent);
+            tokens = sourceCode.getTokensBefore(node.alternate, 2);
 
-            if (alternateIsBlock || alternateIsIfBlock) {
-                tokens = context.getTokensBefore(node.alternate, 2);
-
-                if (style === "1tbs") {
-                    if (tokens[0].loc.start.line !== tokens[1].loc.start.line &&
-                        node.consequent.type === "BlockStatement" &&
-                        isCurlyPunctuator(tokens[0]) ) {
-                        context.report(node.alternate, CLOSE_MESSAGE);
-                    }
-                } else if (tokens[0].loc.start.line === tokens[1].loc.start.line) {
-                    context.report(node.alternate, CLOSE_MESSAGE_STROUSTRUP_ALLMAN);
+            if (style === "1tbs") {
+                if (tokens[0].loc.start.line !== tokens[1].loc.start.line &&
+                    node.consequent.type === "BlockStatement" &&
+                    isCurlyPunctuator(tokens[0])) {
+                    context.report(node.alternate, CLOSE_MESSAGE);
                 }
+            } else if (tokens[0].loc.start.line === tokens[1].loc.start.line) {
+                context.report(node.alternate, CLOSE_MESSAGE_STROUSTRUP_ALLMAN);
             }
 
         }
@@ -134,7 +138,7 @@ module.exports = function(context) {
         checkBlock("block", "finalizer")(node);
 
         if (isBlock(node.finalizer)) {
-            tokens = context.getTokensBefore(node.finalizer, 2);
+            tokens = sourceCode.getTokensBefore(node.finalizer, 2);
             if (style === "1tbs") {
                 if (tokens[0].loc.start.line !== tokens[1].loc.start.line) {
                     context.report(node.finalizer, CLOSE_MESSAGE);
@@ -152,8 +156,8 @@ module.exports = function(context) {
      * @private
      */
     function checkCatchClause(node) {
-        var previousToken = context.getTokenBefore(node),
-            firstToken = context.getFirstToken(node);
+        var previousToken = sourceCode.getTokenBefore(node),
+            firstToken = sourceCode.getFirstToken(node);
 
         checkBlock("body")(node);
 
@@ -178,10 +182,11 @@ module.exports = function(context) {
      */
     function checkSwitchStatement(node) {
         var tokens;
+
         if (node.cases && node.cases.length) {
-            tokens = context.getTokensBefore(node.cases[0], 2);
+            tokens = sourceCode.getTokensBefore(node.cases[0], 2);
         } else {
-            tokens = context.getLastTokens(node, 3);
+            tokens = sourceCode.getLastTokens(node, 3);
         }
 
         if (style !== "allman" && tokens[0].loc.start.line !== tokens[1].loc.start.line) {

@@ -10,11 +10,11 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var estraverse = require("./util/estraverse"),
+var lodash = require("lodash"),
+    Traverser = require("./util/traverser"),
     escope = require("escope"),
-    environments = require("../conf/environments"),
+    Environments = require("./config/environments"),
     blankScriptAST = require("../conf/blank-script.json"),
-    assign = require("object-assign"),
     rules = require("./rules"),
     RuleContext = require("./rule-context"),
     timing = require("./timing"),
@@ -25,7 +25,8 @@ var estraverse = require("./util/estraverse"),
     ConfigOps = require("./config/config-ops"),
     validator = require("./config/config-validator"),
     replacements = require("../conf/replacements.json"),
-    assert = require("assert");
+    assert = require("assert"),
+    CodePathAnalyzer = require("./code-path-analysis/code-path-analyzer");
 
 var DEFAULT_PARSER = require("../conf/eslint.json").parser;
 
@@ -42,16 +43,20 @@ var DEFAULT_PARSER = require("../conf/eslint.json").parser;
  */
 function parseBooleanConfig(string, comment) {
     var items = {};
+
     // Collapse whitespace around : to make parsing easier
     string = string.replace(/\s*:\s*/g, ":");
+
     // Collapse whitespace around ,
     string = string.replace(/\s*,\s*/g, ",");
+
     string.split(/\s|,+/).forEach(function(name) {
         if (!name) {
             return;
         }
         var pos = name.indexOf(":"),
             value;
+
         if (pos !== -1) {
             value = name.substring(pos + 1, name.length);
             name = name.substring(0, pos);
@@ -75,14 +80,17 @@ function parseBooleanConfig(string, comment) {
  */
 function parseJsonConfig(string, location, messages) {
     var items = {};
+
     string = string.replace(/([a-zA-Z0-9\-\/]+):/g, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/, "$1,");
     try {
         items = JSON.parse("{" + string + "}");
     } catch (ex) {
 
         messages.push({
+            ruleId: null,
             fatal: true,
             severity: 2,
+            source: null,
             message: "Failed to parse JSON from '" + string + "': " + ex.message,
             line: location.start.line,
             column: location.start.column + 1
@@ -100,8 +108,10 @@ function parseJsonConfig(string, location, messages) {
  */
 function parseListConfig(string) {
     var items = {};
+
     // Collapse whitespace around ,
     string = string.replace(/\s*,\s*/g, ",");
+
     string.split(/,+/).forEach(function(name) {
         name = name.trim();
         if (!name) {
@@ -125,25 +135,28 @@ function addDeclaredGlobals(program, globalScope, config) {
     var declaredGlobals = {},
         exportedGlobals = {},
         explicitGlobals = {},
-        builtin = environments.builtin;
+        builtin = Environments.get("builtin");
 
-    assign(declaredGlobals, builtin);
+    lodash.assign(declaredGlobals, builtin);
 
     Object.keys(config.env).forEach(function(name) {
         if (config.env[name]) {
-            var environmentGlobals = environments[name] && environments[name].globals;
+            var env = Environments.get(name),
+                environmentGlobals = env && env.globals;
+
             if (environmentGlobals) {
-                assign(declaredGlobals, environmentGlobals);
+                lodash.assign(declaredGlobals, environmentGlobals);
             }
         }
     });
 
-    assign(exportedGlobals, config.exported);
-    assign(declaredGlobals, config.globals);
-    assign(explicitGlobals, config.astGlobals);
+    lodash.assign(exportedGlobals, config.exported);
+    lodash.assign(declaredGlobals, config.globals);
+    lodash.assign(explicitGlobals, config.astGlobals);
 
     Object.keys(declaredGlobals).forEach(function(name) {
         var variable = globalScope.set.get(name);
+
         if (!variable) {
             variable = new escope.Variable(name, globalScope);
             variable.eslintExplicitGlobal = false;
@@ -155,6 +168,7 @@ function addDeclaredGlobals(program, globalScope, config) {
 
     Object.keys(explicitGlobals).forEach(function(name) {
         var variable = globalScope.set.get(name);
+
         if (!variable) {
             variable = new escope.Variable(name, globalScope);
             variable.eslintExplicitGlobal = true;
@@ -168,9 +182,34 @@ function addDeclaredGlobals(program, globalScope, config) {
     // mark all exported variables as such
     Object.keys(exportedGlobals).forEach(function(name) {
         var variable = globalScope.set.get(name);
+
         if (variable) {
             variable.eslintUsed = true;
         }
+    });
+
+    /*
+     * "through" contains all references which definitions cannot be found.
+     * Since we augment the global scope using configuration, we need to update
+     * references and remove the ones that were added by configuration.
+     */
+    globalScope.through = globalScope.through.filter(function(reference) {
+        var name = reference.identifier.name;
+        var variable = globalScope.set.get(name);
+
+        if (variable) {
+
+            /*
+             * Links the variable and the reference.
+             * And this reference is removed from `Scope#through`.
+             */
+            reference.resolved = variable;
+            variable.references.push(reference);
+
+            return false;
+        }
+
+        return true;
     });
 }
 
@@ -215,15 +254,17 @@ function enableReporting(reportingConfig, start, rulesToEnable) {
     if (rulesToEnable.length) {
         rulesToEnable.forEach(function(rule) {
             for (i = reportingConfig.length - 1; i >= 0; i--) {
-                if (!reportingConfig[i].end && reportingConfig[i].rule === rule ) {
+                if (!reportingConfig[i].end && reportingConfig[i].rule === rule) {
                     reportingConfig[i].end = start;
                     break;
                 }
             }
         });
     } else {
+
         // find all previous disabled locations if they was started as list of rules
         var prevStart;
+
         for (i = reportingConfig.length - 1; i >= 0; i--) {
             if (prevStart && prevStart !== reportingConfig[i].start) {
                 break;
@@ -261,7 +302,7 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
     ast.comments.forEach(function(comment) {
 
         var value = comment.value.trim();
-        var match = /^(eslint-\w+|eslint-\w+-\w+|eslint|exported|globals?)(\s|$)/.exec(value);
+        var match = /^(eslint(-\w+){0,3}|exported|globals?)(\s|$)/.exec(value);
 
         if (match) {
             value = value.substring(match.index + match[1].length);
@@ -269,16 +310,16 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
             if (comment.type === "Block") {
                 switch (match[1]) {
                     case "exported":
-                        assign(commentConfig.exported, parseBooleanConfig(value, comment));
+                        lodash.assign(commentConfig.exported, parseBooleanConfig(value, comment));
                         break;
 
                     case "globals":
                     case "global":
-                        assign(commentConfig.astGlobals, parseBooleanConfig(value, comment));
+                        lodash.assign(commentConfig.astGlobals, parseBooleanConfig(value, comment));
                         break;
 
                     case "eslint-env":
-                        assign(commentConfig.env, parseListConfig(value));
+                        lodash.assign(commentConfig.env, parseListConfig(value));
                         break;
 
                     case "eslint-disable":
@@ -291,8 +332,10 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
 
                     case "eslint":
                         var items = parseJsonConfig(value, comment.loc, messages);
+
                         Object.keys(items).forEach(function(name) {
                             var ruleValue = items[name];
+
                             validator.validateRuleOptions(name, ruleValue, filename + " line " + comment.loc.start.line);
                             commentRules[name] = ruleValue;
                         });
@@ -300,11 +343,13 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
 
                     // no default
                 }
-            } else {
-                // comment.type === "Line"
+            } else {        // comment.type === "Line"
                 if (match[1] === "eslint-disable-line") {
                     disableReporting(reportingConfig, { "line": comment.loc.start.line, "column": 0 }, Object.keys(parseListConfig(value)));
                     enableReporting(reportingConfig, comment.loc.end, Object.keys(parseListConfig(value)));
+                } else if (match[1] === "eslint-disable-next-line") {
+                    disableReporting(reportingConfig, comment.loc.start, Object.keys(parseListConfig(value)));
+                    enableReporting(reportingConfig, { "line": comment.loc.start.line + 2 }, Object.keys(parseListConfig(value)));
                 }
             }
         }
@@ -312,11 +357,13 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
 
     // apply environment configs
     Object.keys(commentConfig.env).forEach(function(name) {
-        if (environments[name]) {
-            commentConfig = ConfigOps.merge(commentConfig, environments[name]);
+        var env = Environments.get(name);
+
+        if (env) {
+            commentConfig = ConfigOps.merge(commentConfig, env);
         }
     });
-    assign(commentConfig.rules, commentRules);
+    lodash.assign(commentConfig.rules, commentRules);
 
     return ConfigOps.merge(config, commentConfig);
 }
@@ -333,6 +380,7 @@ function isDisabledByReportingConfig(reportingConfig, ruleId, location) {
     for (var i = 0, c = reportingConfig.length; i < c; i++) {
 
         var ignore = reportingConfig[i];
+
         if ((!ignore.rule || ignore.rule === ruleId) &&
             (location.line > ignore.start.line || (location.line === ignore.start.line && location.column >= ignore.start.column)) &&
             (!ignore.end || (location.line < ignore.end.line || (location.line === ignore.end.line && location.column <= ignore.end.column)))) {
@@ -354,12 +402,13 @@ function prepareConfig(config) {
     delete config.global;
 
     var copiedRules = {},
-        ecmaFeatures = {},
+        parserOptions = {},
         preparedConfig;
 
     if (typeof config.rules === "object") {
         Object.keys(config.rules).forEach(function(k) {
             var rule = config.rules[k];
+
             if (rule === null) {
                 throw new Error("Invalid config for rule '" + k + "'\.");
             }
@@ -371,11 +420,13 @@ function prepareConfig(config) {
         });
     }
 
-    // merge in environment ecmaFeatures
+    // merge in environment parserOptions
     if (typeof config.env === "object") {
-        Object.keys(config.env).forEach(function(env) {
-            if (config.env[env] && environments[env] && environments[env].ecmaFeatures) {
-                assign(ecmaFeatures, environments[env].ecmaFeatures);
+        Object.keys(config.env).forEach(function(envName) {
+            var env = Environments.get(envName);
+
+            if (config.env[envName] && env && env.parserOptions) {
+                parserOptions = ConfigOps.merge(parserOptions, env.parserOptions);
             }
         });
     }
@@ -386,12 +437,21 @@ function prepareConfig(config) {
         globals: ConfigOps.merge({}, config.globals),
         env: ConfigOps.merge({}, config.env || {}),
         settings: ConfigOps.merge({}, config.settings || {}),
-        ecmaFeatures: ConfigOps.merge(ecmaFeatures, config.ecmaFeatures || {})
+        parserOptions: ConfigOps.merge(parserOptions, config.parserOptions || {})
     };
 
-    // can't have global return inside of modules
-    if (preparedConfig.ecmaFeatures.modules) {
-        preparedConfig.ecmaFeatures.globalReturn = false;
+    if (preparedConfig.parserOptions.sourceType === "module") {
+        if (!preparedConfig.parserOptions.ecmaFeatures) {
+            preparedConfig.parserOptions.ecmaFeatures = {};
+        }
+
+        // can't have global return inside of modules
+        preparedConfig.parserOptions.ecmaFeatures.globalReturn = false;
+
+        // also need at least ES6 for modules
+        if (!preparedConfig.parserOptions.ecmaVersion || preparedConfig.parserOptions.ecmaVersion < 6) {
+            preparedConfig.parserOptions.ecmaVersion = 6;
+        }
     }
 
     return preparedConfig;
@@ -432,8 +492,11 @@ function createStubRule(message) {
 function getRuleReplacementMessage(ruleId) {
     if (ruleId in replacements.rules) {
         var newRules = replacements.rules[ruleId];
+
         return "Rule \'" + ruleId + "\' was removed and replaced by: " + newRules.join(", ");
     }
+
+    return null;
 }
 
 var eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)\*\//g;
@@ -447,11 +510,31 @@ function findEslintEnv(text) {
     var match, retv;
 
     eslintEnvPattern.lastIndex = 0;
+
     while ((match = eslintEnvPattern.exec(text))) {
-        retv = assign(retv || {}, parseListConfig(match[1]));
+        retv = lodash.assign(retv || {}, parseListConfig(match[1]));
     }
 
     return retv;
+}
+
+/**
+ * Strips Unicode BOM from a given text.
+ *
+ * @param {string} text - A text to strip.
+ * @returns {string} The stripped text.
+ */
+function stripUnicodeBOM(text) {
+
+    /*
+     * Check Unicode BOM.
+     * In JavaScript, string data is stored as UTF-16, so BOM is 0xFEFF.
+     * http://www.ecma-international.org/ecma-262/6.0/#sec-unicode-format-control-characters
+     */
+    if (text.charCodeAt(0) === 0xFEFF) {
+        return text.slice(1);
+    }
+    return text;
 }
 
 //------------------------------------------------------------------------------
@@ -471,7 +554,7 @@ module.exports = (function() {
         scopeMap = null,
         scopeManager = null,
         currentFilename = null,
-        controller = null,
+        traverser = null,
         reportingConfig = [],
         sourceCode = null;
 
@@ -486,20 +569,35 @@ module.exports = (function() {
      */
     function parse(text, config) {
 
-        var parser;
+        var parser,
+            parserOptions = {
+                loc: true,
+                range: true,
+                raw: true,
+                tokens: true,
+                comment: true,
+                attachComment: true
+            };
 
         try {
             parser = require(config.parser);
         } catch (ex) {
             messages.push({
+                ruleId: null,
                 fatal: true,
                 severity: 2,
+                source: null,
                 message: ex.message,
                 line: 0,
                 column: 0
             });
 
             return null;
+        }
+
+        // merge in any additional parser options
+        if (config.parserOptions) {
+            parserOptions = lodash.assign({}, config.parserOptions, parserOptions);
         }
 
         /*
@@ -509,28 +607,22 @@ module.exports = (function() {
          * problem that ESLint identified just like any other.
          */
         try {
-            return parser.parse(text, {
-                loc: true,
-                range: true,
-                raw: true,
-                tokens: true,
-                comment: true,
-                attachComment: true,
-                ecmaFeatures: config.ecmaFeatures
-            });
+            return parser.parse(text, parserOptions);
         } catch (ex) {
 
             // If the message includes a leading line number, strip it:
             var message = ex.message.replace(/^line \d+:/i, "").trim();
+            var source = (ex.lineNumber) ? SourceCode.splitLines(text)[ex.lineNumber - 1] : null;
 
             messages.push({
+                ruleId: null,
                 fatal: true,
                 severity: 2,
-
+                source: source,
                 message: "Parsing error: " + message,
 
                 line: ex.lineNumber,
-                column: ex.column + 1
+                column: ex.column
             });
 
             return null;
@@ -580,15 +672,26 @@ module.exports = (function() {
         currentScopes = null;
         scopeMap = null;
         scopeManager = null;
-        controller = null;
+        traverser = null;
         reportingConfig = [];
         sourceCode = null;
     };
 
     /**
+     * Configuration object for the `verify` API. A JS representation of the eslintrc files.
+     * @typedef {Object} ESLintConfig
+     * @property {Object} rules The rule configuration to verify against.
+     * @property {string} [parser] Parser to use when generatig the AST.
+     * @property {Object} [parserOptions] Options for the parsed used.
+     * @property {Object} [settings] Global settings passed to each rule.
+     * @property {Object} [env] The environment to verify in.
+     * @property {Object} [globals] Available globalsto the code.
+     */
+
+    /**
      * Verifies the text against the rules specified by the second argument.
      * @param {string|SourceCode} textOrSourceCode The text to parse or a SourceCode object.
-     * @param {Object} config An object whose keys specify the rules to use.
+     * @param {ESLintConfig} config An ESLintConfig instance to configure everything.
      * @param {(string|Object)} [filenameOrOptions] The optional filename of the file being checked.
      *      If this is not set, the filename will default to '<input>' in the rule context. If
      *      an object, then it has "filename", "saveState", and "allowInlineConfig" properties.
@@ -622,12 +725,13 @@ module.exports = (function() {
 
         // search and apply "eslint-env *".
         var envInFile = findEslintEnv(text || textOrSourceCode.text);
+
         if (envInFile) {
             if (!config || !config.env) {
-                config = assign({}, config || {}, {env: envInFile});
+                config = lodash.assign({}, config || {}, {env: envInFile});
             } else {
-                config = assign({}, config);
-                config.env = assign({}, config.env, envInFile);
+                config = lodash.assign({}, config);
+                config.env = lodash.assign({}, config.env, envInFile);
             }
         }
 
@@ -643,10 +747,13 @@ module.exports = (function() {
                 return messages;
             }
 
-            ast = parse(text.replace(/^#!([^\r\n]+)/, function(match, captured) {
-                shebang = captured;
-                return "//" + captured;
-            }), config);
+            ast = parse(
+                stripUnicodeBOM(text).replace(/^#!([^\r\n]+)/, function(match, captured) {
+                    shebang = captured;
+                    return "//" + captured;
+                }),
+                config
+            );
 
             if (ast) {
                 sourceCode = new SourceCode(text, ast);
@@ -665,6 +772,9 @@ module.exports = (function() {
                 config = modifyConfigsFromComments(currentFilename, ast, config, reportingConfig, messages);
             }
 
+            // ensure that severities are normalized in the config
+            ConfigOps.normalize(config);
+
             // enable appropriate rules
             Object.keys(config.rules).filter(function(key) {
                 return getRuleSeverity(config.rules[key]) > 0;
@@ -675,8 +785,10 @@ module.exports = (function() {
                     rule;
 
                 ruleCreator = rules.get(key);
+
                 if (!ruleCreator) {
                     var replacementMsg = getRuleReplacementMessage(key);
+
                     if (replacementMsg) {
                         ruleCreator = createStubRule(replacementMsg);
                     } else {
@@ -689,10 +801,12 @@ module.exports = (function() {
                 options = getRuleOptions(config.rules[key]);
 
                 try {
-                    rule = ruleCreator(new RuleContext(
+                    var ruleContext = new RuleContext(
                         key, api, severity, options,
-                        config.settings, config.ecmaFeatures
-                    ));
+                        config.settings, config.parserOptions, config.parser, ruleCreator.meta);
+
+                    rule = ruleCreator.create ? ruleCreator.create(ruleContext) :
+                        ruleCreator(ruleContext);
 
                     // add all the node types as listeners
                     Object.keys(rule).forEach(function(nodeType) {
@@ -709,21 +823,21 @@ module.exports = (function() {
 
             // save config so rules can access as necessary
             currentConfig = config;
-            controller = new estraverse.Controller();
+            traverser = new Traverser();
 
-            ecmaFeatures = currentConfig.ecmaFeatures;
-            ecmaVersion = (ecmaFeatures.blockBindings || ecmaFeatures.classes ||
-                    ecmaFeatures.modules || ecmaFeatures.defaultParams ||
-                    ecmaFeatures.destructuring) ? 6 : 5;
+            ecmaFeatures = currentConfig.parserOptions.ecmaFeatures || {};
+            ecmaVersion = currentConfig.parserOptions.ecmaVersion || 5;
 
-
-            // gather data that may be needed by the rules
+            // gather scope data that may be needed by the rules
             scopeManager = escope.analyze(ast, {
                 ignoreEval: true,
                 nodejsScope: ecmaFeatures.globalReturn,
+                impliedStrict: ecmaFeatures.impliedStrict,
                 ecmaVersion: ecmaVersion,
-                sourceType: ecmaFeatures.modules ? "module" : "script"
+                sourceType: currentConfig.parserOptions.sourceType || "script",
+                fallback: Traverser.getKeys
             });
+
             currentScopes = scopeManager.scopes;
 
             /*
@@ -731,11 +845,14 @@ module.exports = (function() {
              * lookup in getScope.
              */
             scopeMap = [];
+
             currentScopes.forEach(function(scope, index) {
                 var range = scope.block.range[0];
 
-                // Sometimes two scopes are returned for a given node. This is
-                // handled later in a known way, so just don't overwrite here.
+                /*
+                 * Sometimes two scopes are returned for a given node. This is
+                 * handled later in a known way, so just don't overwrite here.
+                 */
                 if (!scopeMap[range]) {
                     scopeMap[range] = index;
                 }
@@ -754,14 +871,17 @@ module.exports = (function() {
             }
 
             var eventGenerator = new NodeEventGenerator(api);
+
+            eventGenerator = new CodePathAnalyzer(eventGenerator);
             eventGenerator = new CommentEventGenerator(eventGenerator, sourceCode);
 
             /*
-             * Each node has a type property. Whenever a particular type of node is found,
-             * an event is fired. This allows any listeners to automatically be informed
-             * that this type of node has been found and react accordingly.
+             * Each node has a type property. Whenever a particular type of
+             * node is found, an event is fired. This allows any listeners to
+             * automatically be informed that this type of node has been found
+             * and react accordingly.
              */
-            controller.traverse(ast, {
+            traverser.traverse(ast, {
                 enter: function(node, parent) {
                     node.parent = parent;
                     eventGenerator.enterNode(node);
@@ -770,7 +890,6 @@ module.exports = (function() {
                     eventGenerator.leaveNode(node);
                 }
             });
-
         }
 
         // sort by line and column
@@ -799,9 +918,10 @@ module.exports = (function() {
      * @param {Object} opts Optional template data which produces a formatted message
      *     with symbols being replaced by this object's values.
      * @param {Object} fix A fix command description.
+     * @param {Object} meta Metadata of the rule
      * @returns {void}
      */
-    api.report = function(ruleId, severity, node, location, message, opts, fix) {
+    api.report = function(ruleId, severity, node, location, message, opts, fix, meta) {
         if (node) {
             assert.strictEqual(typeof node, "object", "Node must be an object");
         }
@@ -809,11 +929,13 @@ module.exports = (function() {
         if (typeof location === "string") {
             assert.ok(node, "Node must be provided when reporting error if location is not provided");
 
+            meta = fix;
             fix = opts;
             opts = message;
             message = location;
             location = node.loc.start;
         }
+
         // else, assume location was provided, so node may be omitted
 
         if (isDisabledByReportingConfig(reportingConfig, ruleId, location)) {
@@ -841,8 +963,8 @@ module.exports = (function() {
             source: sourceCode.lines[location.line - 1] || ""
         };
 
-        // ensure there's range and text properties, otherwise it's not a valid fix
-        if (fix && Array.isArray(fix.range) && (typeof fix.text === "string")) {
+        // ensure there's range and text properties as well as metadata switch, otherwise it's not a valid fix
+        if (fix && Array.isArray(fix.range) && (typeof fix.text === "string") && (!meta || !meta.docs || meta.docs.fixable)) {
             problem.fix = fix;
         }
 
@@ -896,7 +1018,7 @@ module.exports = (function() {
      * @returns {ASTNode[]} Array of objects representing ancestors.
      */
     api.getAncestors = function() {
-        return controller.parents();
+        return traverser.parents();
     };
 
     /**
@@ -904,15 +1026,16 @@ module.exports = (function() {
      * @returns {Object} An object representing the current node's scope.
      */
     api.getScope = function() {
-        var parents = controller.parents(),
+        var parents = traverser.parents(),
             scope = currentScopes[0];
 
         // Don't do this for Program nodes - they have no parents
         if (parents.length) {
 
             // if current node introduces a scope, add it to the list
-            var current = controller.current();
-            if (currentConfig.ecmaFeatures.blockBindings) {
+            var current = traverser.current();
+
+            if (currentConfig.parserOptions.ecmaVersion >= 6) {
                 if (["BlockStatement", "SwitchStatement", "CatchClause", "FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].indexOf(current.type) >= 0) {
                     parents.push(current);
                 }
@@ -950,7 +1073,8 @@ module.exports = (function() {
      */
     api.markVariableAsUsed = function(name) {
         var scope = this.getScope(),
-            specialScope = currentConfig.ecmaFeatures.globalReturn || currentConfig.ecmaFeatures.modules,
+            hasGlobalReturn = currentConfig.parserOptions.ecmaFeatures && currentConfig.parserOptions.ecmaFeatures.globalReturn,
+            specialScope = hasGlobalReturn || currentConfig.parserOptions.sourceType === "module",
             variables,
             i,
             len;
@@ -968,7 +1092,7 @@ module.exports = (function() {
                     return true;
                 }
             }
-        } while ( (scope = scope.upper) );
+        } while ((scope = scope.upper));
 
         return false;
     };

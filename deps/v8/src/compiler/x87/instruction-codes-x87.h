@@ -43,6 +43,7 @@ namespace compiler {
   V(X87Float32Min)                 \
   V(X87Float32Abs)                 \
   V(X87Float32Sqrt)                \
+  V(X87Float32Round)               \
   V(X87LoadFloat64Constant)        \
   V(X87Float64Add)                 \
   V(X87Float64Sub)                 \

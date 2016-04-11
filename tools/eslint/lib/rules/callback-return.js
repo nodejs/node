@@ -66,6 +66,8 @@ module.exports = function(context) {
                 return true;
             }
         }
+
+        return false;
     }
 
     //--------------------------------------------------------------------------
@@ -85,7 +87,7 @@ module.exports = function(context) {
                 lastItem, parentType;
 
             // if our parent is a return we know we're ok
-            if (closestBlock.type === "ReturnStatement" ) {
+            if (closestBlock.type === "ReturnStatement") {
                 return;
             }
 

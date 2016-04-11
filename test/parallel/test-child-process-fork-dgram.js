@@ -45,7 +45,7 @@ if (process.argv[2] === 'child') {
   var client = dgram.createSocket('udp4');
   var child = fork(__filename, ['child']);
 
-  var msg = new Buffer('Some bytes');
+  var msg = Buffer.from('Some bytes');
 
   var childGotMessage = false;
   var parentGotMessage = false;

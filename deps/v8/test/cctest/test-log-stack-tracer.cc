@@ -65,7 +65,8 @@ static bool IsAddressWithinFuncCode(JSFunction* function, Address addr) {
 static bool IsAddressWithinFuncCode(v8::Local<v8::Context> context,
                                     const char* func_name,
                                     Address addr) {
-  v8::Local<v8::Value> func = context->Global()->Get(v8_str(func_name));
+  v8::Local<v8::Value> func =
+      context->Global()->Get(context, v8_str(func_name)).ToLocalChecked();
   CHECK(func->IsFunction());
   JSFunction* js_func = JSFunction::cast(*v8::Utils::OpenHandle(*func));
   return IsAddressWithinFuncCode(js_func, addr);
@@ -85,15 +86,18 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::StackFrame* calling_frame = frame_iterator.frame();
   CHECK(calling_frame->is_java_script());
 
+  v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
 #if defined(V8_HOST_ARCH_32_BIT)
   int32_t low_bits = reinterpret_cast<int32_t>(calling_frame->fp());
-  args.This()->Set(v8_str("low_bits"), v8_num(low_bits >> 1));
+  args.This()
+      ->Set(context, v8_str("low_bits"), v8_num(low_bits >> 1))
+      .FromJust();
 #elif defined(V8_HOST_ARCH_64_BIT)
   uint64_t fp = reinterpret_cast<uint64_t>(calling_frame->fp());
   int32_t low_bits = static_cast<int32_t>(fp & 0xffffffff);
   int32_t high_bits = static_cast<int32_t>(fp >> 32);
-  args.This()->Set(v8_str("low_bits"), v8_num(low_bits));
-  args.This()->Set(v8_str("high_bits"), v8_num(high_bits));
+  args.This()->Set(context, v8_str("low_bits"), v8_num(low_bits)).FromJust();
+  args.This()->Set(context, v8_str("high_bits"), v8_num(high_bits)).FromJust();
 #else
 #error Host architecture is neither 32-bit nor 64-bit.
 #endif
@@ -107,8 +111,9 @@ void CreateFramePointerGrabberConstructor(v8::Local<v8::Context> context,
     Local<v8::FunctionTemplate> constructor_template =
         v8::FunctionTemplate::New(context->GetIsolate(), construct_call);
     constructor_template->SetClassName(v8_str("FPGrabber"));
-    Local<Function> fun = constructor_template->GetFunction();
-    context->Global()->Set(v8_str(constructor_name), fun);
+    Local<Function> fun =
+        constructor_template->GetFunction(context).ToLocalChecked();
+    context->Global()->Set(context, v8_str(constructor_name), fun).FromJust();
 }
 
 

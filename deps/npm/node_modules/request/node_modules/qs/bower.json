@@ -1,7 +1,7 @@
 {
   "name": "qs",
   "main": "dist/qs.js",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "homepage": "https://github.com/hapijs/qs",
   "authors": [
     "Nathan LaFreniere <quitlahok@gmail.com>"

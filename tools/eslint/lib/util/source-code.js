@@ -5,15 +5,14 @@
  * See LICENSE file in root directory for full license.
  */
 "use strict";
-/* eslint no-underscore-dangle: 0*/
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-var createTokenStore = require("../token-store.js"),
-    estraverse = require("./estraverse"),
-    assign = require("object-assign");
+var lodash = require("lodash"),
+    createTokenStore = require("../token-store.js"),
+    Traverser = require("./traverser");
 
 //------------------------------------------------------------------------------
 // Private
@@ -88,19 +87,25 @@ function looksLikeExport(astNode) {
 
 /**
  * Represents parsed source code.
- * @param {string} text The source code text.
- * @param {ASTNode} ast The Program node of the AST representing the code.
+ * @param {string} text - The source code text.
+ * @param {ASTNode} ast - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
  * @constructor
  */
 function SourceCode(text, ast) {
-
     validate(ast);
 
     /**
+     * The flag to indicate that the source code has Unicode BOM.
+     * @type boolean
+     */
+    this.hasBOM = (text.charCodeAt(0) === 0xFEFF);
+
+    /**
      * The original text source code.
+     * BOM was stripped from this text.
      * @type string
      */
-    this.text = text;
+    this.text = (this.hasBOM ? text.slice(1) : text);
 
     /**
      * The parsed AST for the source code.
@@ -113,7 +118,7 @@ function SourceCode(text, ast) {
      * This is done to avoid each rule needing to do so separately.
      * @type string[]
      */
-    this.lines = text.split(/\r\n|\r|\n|\u2028|\u2029/g);
+    this.lines = SourceCode.splitLines(this.text);
 
     this.tokensAndComments = ast.tokens.concat(ast.comments).sort(function(left, right) {
         return left.range[0] - right.range[0];
@@ -121,11 +126,13 @@ function SourceCode(text, ast) {
 
     // create token store methods
     var tokenStore = createTokenStore(ast.tokens);
+
     Object.keys(tokenStore).forEach(function(methodName) {
         this[methodName] = tokenStore[methodName];
     }, this);
 
     var tokensAndCommentsStore = createTokenStore(this.tokensAndComments);
+
     this.getTokenOrCommentBefore = tokensAndCommentsStore.getTokenBefore;
     this.getTokenOrCommentAfter = tokensAndCommentsStore.getTokenAfter;
 
@@ -133,6 +140,16 @@ function SourceCode(text, ast) {
     Object.freeze(this);
     Object.freeze(this.lines);
 }
+
+/**
+ * Split the source code into multiple lines based on the line delimiters
+ * @param {string} text Source code as a string
+ * @returns {string[]} Array of source code lines
+ * @public
+ */
+SourceCode.splitLines = function(text) {
+    return text.split(/\r\n|\r|\n|\u2028|\u2029/g);
+};
 
 SourceCode.prototype = {
     constructor: SourceCode,
@@ -146,8 +163,8 @@ SourceCode.prototype = {
      */
     getText: function(node, beforeCount, afterCount) {
         if (node) {
-            return (this.text !== null) ? this.text.slice(Math.max(node.range[0] - (beforeCount || 0), 0),
-                node.range[1] + (afterCount || 0)) : null;
+            return this.text.slice(Math.max(node.range[0] - (beforeCount || 0), 0),
+                node.range[1] + (afterCount || 0));
         } else {
             return this.text;
         }
@@ -207,33 +224,30 @@ SourceCode.prototype = {
      */
     getJSDocComment: function(node) {
 
-        var parent = node.parent,
-            line = node.loc.start.line;
+        var parent = node.parent;
 
         switch (node.type) {
+            case "ClassDeclaration":
             case "FunctionDeclaration":
                 if (looksLikeExport(parent)) {
-                    return findJSDocComment(parent.leadingComments, line);
-                } else {
-                    return findJSDocComment(node.leadingComments, line);
+                    return findJSDocComment(parent.leadingComments, parent.loc.start.line);
                 }
-                break;
-
-            case "ClassDeclaration":
-                return findJSDocComment(node.leadingComments, line);
+                return findJSDocComment(node.leadingComments, node.loc.start.line);
 
             case "ClassExpression":
-                return findJSDocComment(parent.parent.leadingComments, line);
+                return findJSDocComment(parent.parent.leadingComments, parent.parent.loc.start.line);
 
             case "ArrowFunctionExpression":
             case "FunctionExpression":
 
                 if (parent.type !== "CallExpression" && parent.type !== "NewExpression") {
-                    while (parent && !parent.leadingComments && !/Function/.test(parent.type)) {
+                    while (parent && !parent.leadingComments && !/Function/.test(parent.type) && parent.type !== "MethodDefinition" && parent.type !== "Property") {
                         parent = parent.parent;
                     }
 
-                    return parent && (parent.type !== "FunctionDeclaration") ? findJSDocComment(parent.leadingComments, line) : null;
+                    return parent && (parent.type !== "FunctionDeclaration") ? findJSDocComment(parent.leadingComments, parent.loc.start.line) : null;
+                } else if (node.leadingComments) {
+                    return findJSDocComment(node.leadingComments, node.loc.start.line);
                 }
 
             // falls through
@@ -249,12 +263,15 @@ SourceCode.prototype = {
      * @returns {ASTNode} The node if found or null if not found.
      */
     getNodeByRangeIndex: function(index) {
-        var result = null;
+        var result = null,
+            resultParent = null,
+            traverser = new Traverser();
 
-        estraverse.traverse(this.ast, {
+        traverser.traverse(this.ast, {
             enter: function(node, parent) {
                 if (node.range[0] <= index && index < node.range[1]) {
-                    result = assign({ parent: parent }, node);
+                    result = node;
+                    resultParent = parent;
                 } else {
                     this.skip();
                 }
@@ -266,7 +283,7 @@ SourceCode.prototype = {
             }
         });
 
-        return result;
+        return result ? lodash.assign({parent: resultParent}, result) : null;
     },
 
     /**
@@ -280,6 +297,7 @@ SourceCode.prototype = {
      */
     isSpaceBetweenTokens: function(first, second) {
         var text = this.text.slice(first.range[1], second.range[0]);
+
         return /\s/.test(text.replace(/\/\*.*?\*\//g, ""));
     }
 };

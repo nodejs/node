@@ -86,6 +86,8 @@ The special variable `_` (underscore) contains the result of the last expression
 4
 ```
 
+Explicitly setting `_` will disable this behavior until the context is reset.
+
 The REPL provides access to any variables in the global scope. You can expose
 a variable to the REPL explicitly by assigning it to the `context` object
 associated with each `REPLServer`.  For example:
@@ -243,7 +245,7 @@ blocks. The `preserveCursor` argument is passed to [`readline.prompt`][]. This i
 used primarily with `defineCommand`. It's also used internally to render each
 prompt line.
 
-## repl.start(options)
+## repl.start([options])
 
 Returns and starts a `REPLServer` instance, that inherits from
 [Readline Interface][]. Accepts an "options" Object that takes

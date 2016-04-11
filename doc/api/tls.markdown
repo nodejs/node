@@ -38,7 +38,7 @@ parameters:
 openssl dhparam -outform PEM -out dhparam.pem 2048
 ```
 
-To create .pfx or .p12, do this:
+To create a .pfx or .p12, do this:
 
 ```
 openssl pkcs12 -export -in agent5-cert.pem -inkey agent5-key.pem \
@@ -55,35 +55,36 @@ openssl pkcs12 -export -in agent5-cert.pem -inkey agent5-key.pem \
 <!-- type=misc -->
 
 ALPN (Application-Layer Protocol Negotiation Extension), NPN (Next
-Protocol Negotiation) and SNI (Server Name Indication) are TLS
-handshake extensions allowing you:
+Protocol Negotiation) and, SNI (Server Name Indication) are TLS
+handshake extensions:
 
-  * ALPN/NPN - to use one TLS server for multiple protocols (HTTP, SPDY, HTTP/2)
-  * SNI - to use one TLS server for multiple hostnames with different SSL
-    certificates.
+  * ALPN/NPN - Allows the use of one TLS server for multiple protocols (HTTP,
+    SPDY, HTTP/2)
+  * SNI - Allows the use of one TLS server for multiple hostnames with different
+    SSL certificates.
 
 ## Client-initiated renegotiation attack mitigation
 
 <!-- type=misc -->
 
 The TLS protocol lets the client renegotiate certain aspects of the TLS session.
-Unfortunately, session renegotiation requires a disproportional amount of
+Unfortunately, session renegotiation requires a disproportionate amount of
 server-side resources, which makes it a potential vector for denial-of-service
 attacks.
 
-To mitigate this, renegotiations are limited to three times every 10 minutes. An
-error is emitted on the [tls.TLSSocket][] instance when the threshold is
-exceeded. The limits are configurable:
+To mitigate this, renegotiation is limited to three times every 10 minutes. An
+error is emitted on the [`tls.TLSSocket`][] instance when the threshold is
+exceeded. These limits are configurable:
 
   - `tls.CLIENT_RENEG_LIMIT`: renegotiation limit, default is 3.
 
   - `tls.CLIENT_RENEG_WINDOW`: renegotiation window in seconds, default is
     10 minutes.
 
-Don't change the defaults unless you know what you are doing.
+Do not change the defaults without a full understanding of the implications.
 
-To test your server, connect to it with `openssl s_client -connect address:port`
-and tap `R<CR>` (that's the letter `R` followed by a carriage return) a few
+To test the server, connect to it with `openssl s_client -connect address:port`
+and tap `R<CR>` (i.e., the letter `R` followed by a carriage return) a few
 times.
 
 ## Modifying the Default TLS Cipher suite
@@ -134,14 +135,15 @@ absolutely necessary.
 <!-- type=misc -->
 
 The term "[Forward Secrecy]" or "Perfect Forward Secrecy" describes a feature of
-key-agreement (i.e. key-exchange) methods. Practically it means that even if the
-private key of a (your) server is compromised, communication can only be
+key-agreement (i.e., key-exchange) methods. Practically it means that even if
+the private key of a server is compromised, communication can only be
 decrypted by eavesdroppers if they manage to obtain the key-pair specifically
 generated for each session.
 
 This is achieved by randomly generating a key pair for key-agreement on every
-handshake (in contrary to the same key for all sessions). Methods implementing
-this technique, thus offering Perfect Forward Secrecy, are called "ephemeral".
+handshake (in contrast to using the same key for all sessions). Methods
+implementing this technique, thus offering Perfect Forward Secrecy, are
+called "ephemeral".
 
 Currently two methods are commonly used to achieve Perfect Forward Secrecy (note
 the character "E" appended to the traditional abbreviations):
@@ -155,7 +157,7 @@ is expensive.
 
 ## Class: CryptoStream
 
-    Stability: 0 - Deprecated: Use [`tls.TLSSocket()`][] instead.
+    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 This is an encrypted stream.
 
@@ -170,89 +172,90 @@ Returned by tls.createSecurePair.
 
 ### Event: 'secure'
 
-The event is emitted from the SecurePair once the pair has successfully
+This event is emitted from the SecurePair once the pair has successfully
 established a secure connection.
 
-Similarly to the checking for the server `'secureConnection'` event,
-pair.cleartext.authorized should be checked to confirm whether the certificate
-used properly authorized.
+As with checking for the server [`secureConnection`](#event-secureconnection)
+event, `pair.cleartext.authorized` should be inspected to confirm whether the
+certificate used is properly authorized.
 
 ## Class: tls.Server
 
 This class is a subclass of `net.Server` and has the same methods on it.
-Instead of accepting just raw TCP connections, this accepts encrypted
+Instead of accepting only raw TCP connections, this accepts encrypted
 connections using TLS or SSL.
 
 ### Event: 'tlsClientError'
 
 `function (exception, tlsSocket) { }`
 
-When a client connection emits an `'error'` event before secure connection is
-established - it will be forwarded here.
+When a client connection emits an `'error'` event before a secure connection is
+established it will be forwarded here.
 
-`tlsSocket` is the [tls.TLSSocket][] that the error originated from.
+`tlsSocket` is the [`tls.TLSSocket`][] that the error originated from.
 
 ### Event: 'newSession'
 
 `function (sessionId, sessionData, callback) { }`
 
-Emitted on creation of TLS session. May be used to store sessions in external
+Emitted on creation of a TLS session. May be used to store sessions in external
 storage. `callback` must be invoked eventually, otherwise no data will be
-sent or received from secure connection.
+sent or received from the secure connection.
 
-NOTE: adding this event listener will have an effect only on connections
-established after addition of event listener.
+NOTE: adding this event listener will only have an effect on connections
+established after the addition of the event listener.
 
 ### Event: 'OCSPRequest'
 
 `function (certificate, issuer, callback) { }`
 
-Emitted when the client sends a certificate status request. You could parse
-server's current certificate to obtain OCSP url and certificate id, and after
-obtaining OCSP response invoke `callback(null, resp)`, where `resp` is a
-`Buffer` instance. Both `certificate` and `issuer` are a `Buffer`
-DER-representations of the primary and issuer's certificates. They could be used
-to obtain OCSP certificate id and OCSP endpoint url.
+Emitted when the client sends a certificate status request. The server's
+current certificate can be parsed to obtain the OCSP URL and certificate ID;
+after obtaining an OCSP response `callback(null, resp)` is then invoked, where
+`resp` is a `Buffer` instance. Both `certificate` and `issuer` are `Buffer`
+DER-representations of the primary and issuer's certificates. They can be used
+to obtain the OCSP certificate ID and OCSP endpoint URL.
 
-Alternatively, `callback(null, null)` could be called, meaning that there is no
+Alternatively, `callback(null, null)` may be called, meaning that there was no
 OCSP response.
 
 Calling `callback(err)` will result in a `socket.destroy(err)` call.
 
 Typical flow:
 
-1. Client connects to server and sends `'OCSPRequest'` to it (via status info
-   extension in ClientHello.)
-2. Server receives request and invokes `'OCSPRequest'` event listener if present
-3. Server grabs OCSP url from either `certificate` or `issuer` and performs an
-   [OCSP request] to the CA
-4. Server receives `OCSPResponse` from CA and sends it back to client via
-   `callback` argument
-5. Client validates the response and either destroys socket or performs a
+1. Client connects to the server and sends an `'OCSPRequest'` to it (via status
+   info extension in ClientHello).
+2. Server receives the request and invokes the `'OCSPRequest'` event listener
+   if present.
+3. Server extracts the OCSP URL from either the `certificate` or `issuer` and
+   performs an [OCSP request] to the CA.
+4. Server receives `OCSPResponse` from the CA and sends it back to the client
+   via the `callback` argument
+5. Client validates the response and either destroys the socket or performs a
    handshake.
 
-NOTE: `issuer` could be `null`, if the certificate is self-signed or if the
+NOTE: `issuer` could be `null` if the certificate is self-signed or if the
 issuer is not in the root certificates list. (An issuer may be provided via the
-`ca` option)
+`ca` option.)
 
-NOTE: adding this event listener will have an effect only on connections
-established after addition of event listener.
+NOTE: adding this event listener will only have an effect on connections
+established after the addition of the event listener.
 
-NOTE: you may want to use some npm module like [asn1.js] to parse the
-certificates.
+NOTE: An npm module like [asn1.js] may be used to parse the certificates.
 
 ### Event: 'resumeSession'
 
 `function (sessionId, callback) { }`
 
-Emitted when client wants to resume previous TLS session. Event listener may
-perform lookup in external storage using given `sessionId`, and invoke
-`callback(null, sessionData)` once finished. If session can't be resumed
-(i.e. doesn't exist in storage) one may call `callback(null, null)`. Calling
-`callback(err)` will terminate incoming connection and destroy socket.
+Emitted when the client wants to resume the previous TLS session. The event
+listener may perform a lookup in external storage using the given `sessionId`
+and invoke `callback(null, sessionData)` once finished. If the session can't be
+resumed (i.e., doesn't exist in storage) one may call `callback(null, null)`.
+Calling `callback(err)` will terminate incoming connection and destroy the
+socket.
 
-NOTE: adding this event listener will have an effect only on connections
-established after addition of event listener.
+NOTE: adding this event listener will only have an effect on connections
+established after the addition of the event listener.
 
 Here's an example for using TLS session resumption:
 
@@ -271,36 +274,36 @@ server.on('resumeSession', (id, cb) => {
 
 `function (tlsSocket) {}`
 
-This event is emitted after a new connection has been successfully
-handshaked. The argument is an instance of [tls.TLSSocket][]. It has all the
-common stream methods and events.
+This event is emitted after the handshaking process for a new connection has
+successfully completed. The argument is an instance of [`tls.TLSSocket`][] and
+has all the common stream methods and events.
 
 `socket.authorized` is a boolean value which indicates if the
-client has verified by one of the supplied certificate authorities for the
-server. If `socket.authorized` is false, then
-`socket.authorizationError` is set to describe how authorization
-failed. Implied but worth mentioning: depending on the settings of the TLS
-server, you unauthorized connections may be accepted.
+client has been verified by one of the supplied certificate authorities for the
+server. If `socket.authorized` is false, then `socket.authorizationError` is
+set to describe how authorization failed. Implied but worth mentioning:
+depending on the settings of the TLS server, unauthorized connections may
+be accepted.
 
 `socket.npnProtocol` is a string containing the selected NPN protocol
 and `socket.alpnProtocol` is a string containing the selected ALPN
-protocol, When both NPN and ALPN extensions are received, ALPN takes
+protocol. When both NPN and ALPN extensions are received, ALPN takes
 precedence over NPN and the next protocol is selected by ALPN. When
 ALPN has no selected protocol, this returns false.
 
-`socket.servername` is a string containing servername requested with
+`socket.servername` is a string containing the server name requested with
 SNI.
 
 ### server.addContext(hostname, context)
 
-Add secure context that will be used if client request's SNI hostname is
-matching passed `hostname` (wildcards can be used). `context` can contain
-`key`, `cert`, `ca` and/or any other properties from
+Add secure context that will be used if the client request's SNI hostname
+matches the supplied `hostname` (wildcards can be used). `context` can contain
+`key`, `cert`, `ca` or any other properties from
 [`tls.createSecureContext()`][] `options` argument.
 
 ### server.address()
 
-Returns the bound address, the address family name and port of the
+Returns the bound address, the address family name, and port of the
 server as reported by the operating system.  See [`net.Server.address()`][] for
 more information.
 
@@ -316,7 +319,7 @@ The number of concurrent connections on the server.
 
 ### server.getTicketKeys()
 
-Returns `Buffer` instance holding the keys currently used for
+Returns a `Buffer` instance holding the keys currently used for
 encryption/decryption of the [TLS Session Tickets][]
 
 ### server.listen(port[, hostname][, callback])
@@ -335,16 +338,17 @@ See `net.Server` for more information.
 
 Updates the keys for encryption/decryption of the [TLS Session Tickets][].
 
-NOTE: the buffer should be 48 bytes long. See server `ticketKeys` option for
-more information oh how it is going to be used.
+NOTE: the buffer should be 48 bytes long. See `ticketKeys` option in
+[tls.createServer](#tlscreateserveroptions-secureconnectionlistener) for
+more information on how it is used.
 
-NOTE: the change is effective only for the future server connections. Existing
-or currently pending server connections will use previous keys.
+NOTE: the change is effective only for future server connections. Existing
+or currently pending server connections will use the previous keys.
 
 ### server.maxConnections
 
 Set this property to reject connections when the server's connection count
-gets high.
+exceeds the specified threshold.
 
 
 ## Class: tls.TLSSocket
@@ -352,16 +356,16 @@ gets high.
 This is a wrapped version of [`net.Socket`][] that does transparent encryption
 of written data and all required TLS negotiation.
 
-This instance implements a duplex [Stream][] interfaces.  It has all the
+This instance implements the duplex [Stream][] interface. It has all the
 common stream methods and events.
 
-Methods that return TLS connection meta data (e.g.
+Methods that return TLS connection metadata (e.g.
 [`tls.TLSSocket.getPeerCertificate()`][] will only return data while the
 connection is open.
 
 ### new tls.TLSSocket(socket[, options])
 
-Construct a new TLSSocket object from existing TCP socket.
+Construct a new TLSSocket object from an existing TCP socket.
 
 `socket` is an instance of [`net.Socket`][]
 
@@ -370,7 +374,7 @@ Construct a new TLSSocket object from existing TCP socket.
   - `secureContext`: An optional TLS context object from
      [`tls.createSecureContext()`][]
 
-  - `isServer`: If `true` - TLS socket will be instantiated in server-mode.
+  - `isServer`: If `true` the TLS socket will be instantiated in server-mode.
     Default: `false`
 
   - `server`: An optional [`net.Server`][] instance
@@ -385,44 +389,44 @@ Construct a new TLSSocket object from existing TCP socket.
 
   - `SNICallback`: Optional, see [`tls.createServer()`][]
 
-  - `session`: Optional, a `Buffer` instance, containing TLS session
+  - `session`: Optional, a `Buffer` instance, containing a TLS session
 
-  - `requestOCSP`: Optional, if `true` - OCSP status request extension would
-    be added to client hello, and `'OCSPResponse'` event will be emitted on socket
-    before establishing secure communication
+  - `requestOCSP`: Optional, if `true` the OCSP status request extension will
+    be added to the client hello and an `'OCSPResponse'` event will be emitted
+    on the socket before establishing a secure communication
 
 ### Event: 'OCSPResponse'
 
 `function (response) { }`
 
-This event will be emitted if `requestOCSP` option was set. `response` is a
-buffer object, containing server's OCSP response.
+This event will be emitted if the `requestOCSP` option was set. `response` is a
+`Buffer` containing the server's OCSP response.
 
 Traditionally, the `response` is a signed object from the server's CA that
 contains information about server's certificate revocation status.
 
 ### Event: 'secureConnect'
 
-This event is emitted after a new connection has been successfully handshaked.
-The listener will be called no matter if the server's certificate was
-authorized or not. It is up to the user to test `tlsSocket.authorized`
-to see if the server certificate was signed by one of the specified CAs.
-If `tlsSocket.authorized === false` then the error can be found in
-`tlsSocket.authorizationError`. Also if ALPN or NPN was used - you can
-check `tlsSocket.alpnProtocol` or `tlsSocket.npnProtocol` for the
+This event is emitted after the handshaking process for a new connection has
+successfully completed. The listener will be called regardless of whether or not
+the server's certificate has been authorized. It is the user's responsibility to
+test `tlsSocket.authorized` to see if the server certificate was signed by one
+of the specified CAs. If `tlsSocket.authorized === false` then the error can be
+found in `tlsSocket.authorizationError`. Also, if either ALPN or NPN was used
+`tlsSocket.alpnProtocol` or `tlsSocket.npnProtocol` can be checked for the
 negotiated protocol.
 
 ### tlsSocket.address()
 
-Returns the bound address, the address family name and port of the
+Returns the bound address, the address family name, and port of the
 underlying socket as reported by the operating system. Returns an
-object with three properties, e.g.
+object with three properties, e.g.,
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
 ### tlsSocket.authorized
 
 A boolean that is `true` if the peer certificate was signed by one of the
-specified CAs, otherwise `false`
+specified CAs, otherwise `false`.
 
 ### tlsSocket.authorizationError
 
@@ -440,7 +444,7 @@ Returns an object representing the cipher name and the SSL/TLS protocol version
 that first defined the cipher.
 
 Example:
-{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }
+`{ name: 'AES256-SHA', version: 'TLSv1/SSLv3' }`
 
 See SSL_CIPHER_get_name() and SSL_CIPHER_get_version() in
 https://www.openssl.org/docs/manmaster/ssl/SSL_CIPHER_get_name.html for more
@@ -448,12 +452,12 @@ information.
 
 ### tlsSocket.getEphemeralKeyInfo()
 
-Returns an object representing a type, name and size of parameter of
-an ephemeral key exchange in [Perfect forward Secrecy][] on a client
+Returns an object representing the type, name, and size of parameter of
+an ephemeral key exchange in [Perfect Forward Secrecy][] on a client
 connection. It returns an empty object when the key exchange is not
-ephemeral. As it is only supported on a client socket, it returns `null`
-if this is called on a server socket. The supported types are 'DH' and
-'ECDH'. The `name` property is only available in 'ECDH'.
+ephemeral. As this is only supported on a client socket, it returns `null`
+if called on a server socket. The supported types are 'DH' and 'ECDH'. The
+`name` property is only available in 'ECDH'.
 
 Example:
 
@@ -462,9 +466,9 @@ Example:
 ### tlsSocket.getPeerCertificate([ detailed ])
 
 Returns an object representing the peer's certificate. The returned object has
-some properties corresponding to the field of the certificate. If `detailed`
-argument is `true` - the full chain with `issuer` property will be returned,
-if `false` - only the top certificate without `issuer` property.
+some properties corresponding to the fields of the certificate. If the
+`detailed` argument is `true` the full chain with the `issuer` property will be
+returned, if `false` only the top certificate without the `issuer` property.
 
 Example:
 
@@ -516,15 +520,16 @@ information.
 
 ### tlsSocket.getSession()
 
-Return ASN.1 encoded TLS session or `undefined` if none was negotiated. Could
-be used to speed up handshake establishment when reconnecting to the server.
+Returns the ASN.1 encoded TLS session or `undefined` if none was negotiated.
+Could be used to speed up handshake establishment when reconnecting to the
+server.
 
 ### tlsSocket.getTLSTicket()
 
 NOTE: Works only with client TLS sockets. Useful only for debugging, for
 session reuse provide `session` option to [`tls.connect()`][].
 
-Return TLS session ticket or `undefined` if none was negotiated.
+Returns the TLS session ticket or `undefined` if none was negotiated.
 
 ### tlsSocket.localAddress
 
@@ -549,9 +554,9 @@ The numeric representation of the remote port. For example, `443`.
 
 ### tlsSocket.renegotiate(options, callback)
 
-Initiate TLS renegotiation process. The `options` may contain the following
-fields: `rejectUnauthorized`, `requestCert` (See [`tls.createServer()`][] for
-details). `callback(err)` will be executed with `null` as `err`,
+Initiate TLS renegotiation process. The `options` object may contain the
+following fields: `rejectUnauthorized`, `requestCert`. (See [`tls.createServer
+()`][] for details.) `callback(err)` will be executed with `null` as `err`,
 once the renegotiation is successfully completed.
 
 NOTE: Can be used to request peer's certificate after the secure connection
@@ -565,9 +570,9 @@ with an error after `handshakeTimeout` timeout.
 Set maximum TLS fragment size (default and maximum value is: `16384`, minimum
 is: `512`). Returns `true` on success, `false` otherwise.
 
-Smaller fragment size decreases buffering latency on the client: large
+Smaller fragment sizes decrease the buffering latency on the client: larger
 fragments are buffered by the TLS layer until the entire fragment is received
-and its integrity is verified; large fragments can span multiple roundtrips,
+and its integrity is verified; large fragments can span multiple roundtrips
 and their processing can be delayed due to packet loss or reordering. However,
 smaller fragments add extra TLS framing bytes and CPU overhead, which may
 decrease overall server throughput.
@@ -580,9 +585,9 @@ Creates a new client connection to the given `port` and `host` (old API) or
 `options.port` and `options.host`. (If `host` is omitted, it defaults to
 `localhost`.) `options` should be an object which specifies:
 
-  - `host`: Host the client should connect to
+  - `host`: Host the client should connect to.
 
-  - `port`: Port the client should connect to
+  - `port`: Port the client should connect to.
 
   - `socket`: Establish secure connection on a given socket rather than
     creating a new socket. If this option is specified, `host` and `port`
@@ -591,20 +596,20 @@ Creates a new client connection to the given `port` and `host` (old API) or
   - `path`: Creates unix socket connection to path. If this option is
     specified, `host` and `port` are ignored.
 
-  - `pfx`: A string or `Buffer` containing the private key, certificate and
+  - `pfx`: A string or `Buffer` containing the private key, certificate, and
     CA certs of the client in PFX or PKCS12 format.
 
-  - `key`: A string or `Buffer` containing the private key of the client in
-    PEM format. (Could be an array of keys).
+  - `key`: A string, `Buffer`, array of strings, or array of `Buffer`s
+    containing the private key of the client in PEM format.
 
-  - `passphrase`: A string of passphrase for the private key or pfx.
+  - `passphrase`: A string containing the passphrase for the private key or pfx.
 
-  - `cert`: A string or `Buffer` containing the certificate key of the client in
-    PEM format. (Could be an array of certs).
+  - `cert`: A string, `Buffer`, array of strings, or array of `Buffer`s
+    containing the certificate key of the client in PEM format.
 
-  - `ca`: A string, `Buffer` or array of strings or `Buffer`s of trusted
+  - `ca`: A string, `Buffer`, array of strings, or array of `Buffer`s of trusted
     certificates in PEM format. If this is omitted several well known "root"
-    CAs will be used, like VeriSign. These are used to authorize connections.
+    CAs (like VeriSign) will be used. These are used to authorize connections.
 
   - `ciphers`: A string describing the ciphers to use or exclude, separated by
    `:`. Uses the same default cipher suite as [`tls.createServer()`][].
@@ -615,41 +620,42 @@ Creates a new client connection to the given `port` and `host` (old API) or
 
   - `NPNProtocols`: An array of strings or `Buffer`s containing supported NPN
     protocols. `Buffer`s should have the following format:
-    `0x05hello0x05world`, where first byte is next protocol name's
-    length. (Passing array should usually be much simpler:
-    `['hello', 'world']`.)
+    `0x05hello0x05world`, where the first byte is the next protocol name's
+    length. (Passing an array is usually be much simpler: `['hello', 'world']`.)
 
-  - `ALPNProtocols`: An array of strings or `Buffer`s containing
+  - `ALPNProtocols`: An array of strings or `Buffer`s containing the
     supported ALPN protocols. `Buffer`s should have following format:
     `0x05hello0x05world`, where the first byte is the next protocol
-    name's length. (Passing array should usually be much simpler:
+    name's length. (Passing an array is usually be much simpler:
     `['hello', 'world']`.)
 
-  - `servername`: Servername for SNI (Server Name Indication) TLS extension.
+  - `servername`: Server name for the SNI (Server Name Indication) TLS
+    extension.
 
   - `checkServerIdentity(servername, cert)`: Provide an override for checking
-    server's hostname against the certificate. Should return an error if verification
-    fails. Return `undefined` if passing.
+    the server's hostname against the certificate. Should return an error if
+    verification fails. Returns `undefined` if passing.
 
-  - `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
-    SSL version 3. The possible values depend on your installation of
-    OpenSSL and are defined in the constant [SSL_METHODS][].
+  - `secureProtocol`: The SSL method to use, e.g., `SSLv3_method` to force
+    SSL version 3. The possible values depend on the version of OpenSSL
+    installed in the environment and are defined in the constant
+    [SSL_METHODS][].
 
   - `secureContext`: An optional TLS context object from
-     `tls.createSecureContext( ... )`. It could be used for caching client
-     certificates, key, and CA certificates.
+    `tls.createSecureContext( ... )`. It can be used for caching client
+    certificates, keys, and CA certificates.
 
   - `session`: A `Buffer` instance, containing TLS session.
 
-  - `minDHSize`: Minimum size of DH parameter in bits to accept a TLS
-    connection. When a server offers DH parameter with a size less
-    than this, the TLS connection is destroyed and throws an
-    error. Default: 1024.
+  - `minDHSize`: Minimum size of the DH parameter in bits to accept a TLS
+    connection. When a server offers a DH parameter with a size less
+    than this, the TLS connection is destroyed and an error is thrown. Default:
+    1024.
 
 The `callback` parameter will be added as a listener for the
 [`'secureConnect'`][] event.
 
-`tls.connect()` returns a [tls.TLSSocket][] object.
+`tls.connect()` returns a [`tls.TLSSocket`][] object.
 
 Here is an example of a client of echo server as described previously:
 
@@ -707,24 +713,24 @@ socket.on('end', () => {
 ```
 
 
-## tls.createSecureContext(details)
+## tls.createSecureContext(options)
 
-Creates a credentials object, with the optional details being a
-dictionary with keys:
+Creates a credentials object; the `options` object may contain the following
+fields:
 
-* `pfx` : A string or buffer holding the PFX or PKCS12 encoded private
-  key, certificate and CA certificates
+* `pfx` : A string or `Buffer` holding the PFX or PKCS12 encoded private
+  key, certificate, and CA certificates.
 * `key`: A string or `Buffer` containing the private key of the server in
   PEM format. To support multiple keys using different algorithms, an array
-  can be provided. It can either be a plain array of keys, or an array of
+  can be provided. It can either be a plain array of keys or an array of
   objects in the format `{pem: key, passphrase: passphrase}`. (Required)
-* `passphrase` : A string of passphrase for the private key or pfx
-* `cert` : A string holding the PEM encoded certificate
-* `ca`: A string, `Buffer` or array of strings or `Buffer`s of trusted
+* `passphrase` : A string containing the passphrase for the private key or pfx.
+* `cert` : A string containing the PEM encoded certificate
+* `ca`: A string, `Buffer`, array of strings, or array of `Buffer`s of trusted
   certificates in PEM format. If this is omitted several well known "root"
-  CAs will be used, like VeriSign. These are used to authorize connections.
+  CAs (like VeriSign) will be used. These are used to authorize connections.
 * `crl` : Either a string or list of strings of PEM encoded CRLs
-  (Certificate Revocation List)
+  (Certificate Revocation List).
 * `ciphers`: A string describing the ciphers to use or exclude.
   Consult
   <https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>
@@ -733,20 +739,21 @@ dictionary with keys:
   instead of the client preferences. For further details see `tls` module
   documentation.
 
-If no 'ca' details are given, then Node.js will use the default
+If no 'CA' details are given, then Node.js will use the default
 publicly trusted list of CAs as given in
 <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
 
 ## tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])
 
-Creates a new secure pair object with two streams, one of which reads/writes
-encrypted data, and one reads/writes cleartext data.
-Generally the encrypted one is piped to/from an incoming encrypted data stream,
-and the cleartext one is used as a replacement for the initial encrypted stream.
+Creates a new secure pair object with two streams, one of which reads and writes
+the encrypted data and the other of which reads and writes the cleartext data.
+Generally, the encrypted stream is piped to/from an incoming encrypted data
+stream and the cleartext one is used as a replacement for the initial encrypted
+stream.
 
- - `credentials`: A secure context object from tls.createSecureContext( ... )
+ - `credentials`: A secure context object from `tls.createSecureContext( ... )`.
 
- - `isServer`: A boolean indicating whether this tls connection should be
+ - `isServer`: A boolean indicating whether this TLS connection should be
    opened as a server or a client.
 
  - `requestCert`: A boolean indicating whether a server should request a
@@ -756,39 +763,39 @@ and the cleartext one is used as a replacement for the initial encrypted stream.
    automatically reject clients with invalid certificates. Only applies to
    servers with `requestCert` enabled.
 
- - `options`: An object with common SSL options. See [tls.TLSSocket][].
+ - `options`: An object with common SSL options. See [`tls.TLSSocket`][].
 
 `tls.createSecurePair()` returns a SecurePair object with `cleartext` and
 `encrypted` stream properties.
 
-NOTE: `cleartext` has the same APIs as [tls.TLSSocket][]
+NOTE: `cleartext` has the same API as [`tls.TLSSocket`][]
 
 ## tls.createServer(options[, secureConnectionListener])
 
 Creates a new [tls.Server][].  The `connectionListener` argument is
 automatically set as a listener for the [`'secureConnection'`][] event.  The
-`options` object has these possibilities:
+`options` object may contain the following fields:
 
   - `pfx`: A string or `Buffer` containing the private key, certificate and
     CA certs of the server in PFX or PKCS12 format. (Mutually exclusive with
-    the `key`, `cert` and `ca` options.)
+    the `key`, `cert`, and `ca` options.)
 
   - `key`: A string or `Buffer` containing the private key of the server in
-    PEM format. To support multiple keys using different algorithms, an array
-    can be provided. It can either be a plain array of keys, or an array of
+    PEM format. To support multiple keys using different algorithms an array
+    can be provided. It can either be a plain array of keys or an array of
     objects in the format `{pem: key, passphrase: passphrase}`. (Required)
 
-  - `passphrase`: A string of passphrase for the private key or pfx.
+  - `passphrase`: A string containing the passphrase for the private key or pfx.
 
-  - `cert`: A string or `Buffer` containing the certificate key of the server in
-    PEM format. (Could be an array of certs). (Required)
+  - `cert`: A string, `Buffer`, array of strings, or array of `Buffer`s
+    containing the certificate key of the server in PEM format. (Required)
 
-  - `ca`: A string, `Buffer` or array of strings or `Buffer`s of trusted
+  - `ca`: A string, `Buffer`, array of strings, or array of `Buffer`s of trusted
     certificates in PEM format. If this is omitted several well known "root"
-    CAs will be used, like VeriSign. These are used to authorize connections.
+    CAs (like VeriSign) will be used. These are used to authorize connections.
 
-  - `crl` : Either a string or list of strings of PEM encoded CRLs (Certificate
-    Revocation List)
+  - `crl` : Either a string or array of strings of PEM encoded CRLs (Certificate
+    Revocation List).
 
   - `ciphers`: A string describing the ciphers to use or exclude, separated by
     `:`. The default cipher suite is:
@@ -819,22 +826,22 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
 
     The default cipher suite prefers GCM ciphers for [Chrome's 'modern
     cryptography' setting] and also prefers ECDHE and DHE ciphers for Perfect
-    Forward secrecy, while offering *some* backward compatibiltity.
+    Forward Secrecy, while offering *some* backward compatibility.
 
     128 bit AES is preferred over 192 and 256 bit AES in light of [specific
     attacks affecting larger AES key sizes].
 
     Old clients that rely on insecure and deprecated RC4 or DES-based ciphers
-    (like Internet Explorer 6) aren't able to complete the handshake with the default
-    configuration. If you absolutely must support these clients, the
+    (like Internet Explorer 6) cannot complete the handshaking process with
+    the default configuration. If these clients _must_ be supported, the
     [TLS recommendations] may offer a compatible cipher suite. For more details
     on the format, see the [OpenSSL cipher list format documentation].
 
   - `ecdhCurve`: A string describing a named curve to use for ECDH key agreement
     or false to disable ECDH.
 
-    Defaults to `prime256v1` (NIST P-256). Use [`crypto.getCurves()`][] to obtain
-    a list of available curve names. On recent releases,
+    Defaults to `prime256v1` (NIST P-256). Use [`crypto.getCurves()`][] to
+    obtain a list of available curve names. On recent releases,
     `openssl ecparam -list_curves` will also display the name and description of
     each available elliptic curve.
 
@@ -842,11 +849,11 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
     required for Perfect Forward Secrecy. Use `openssl dhparam` to create it.
     Its key length should be greater than or equal to 1024 bits, otherwise
     it throws an error. It is strongly recommended to use 2048 bits or
-    more for stronger security. If omitted or invalid, it is silently
+    larger for stronger security. If omitted or invalid, it is silently
     discarded and DHE ciphers won't be available.
 
   - `handshakeTimeout`: Abort the connection if the SSL/TLS handshake does not
-    finish in this many milliseconds. The default is 120 seconds.
+    finish in the specified number of milliseconds. The default is 120 seconds.
 
     A `'clientError'` is emitted on the `tls.Server` object whenever a handshake
     times out.
@@ -863,40 +870,39 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
     has an effect if `requestCert` is `true`. Default: `false`.
 
   - `NPNProtocols`: An array or `Buffer` of possible NPN protocols. (Protocols
-    should be ordered by their priority).
+    should be ordered by their priority.)
 
   - `ALPNProtocols`: An array or `Buffer` of possible ALPN
-    protocols. (Protocols should be ordered by their priority). When
+    protocols. (Protocols should be ordered by their priority.) When
     the server receives both NPN and ALPN extensions from the client,
     ALPN takes precedence over NPN and the server does not send an NPN
     extension to the client.
 
-  - `SNICallback(servername, cb)`: A function that will be called if client
-    supports SNI TLS extension. Two argument will be passed to it: `servername`,
-    and `cb`. `SNICallback` should invoke `cb(null, ctx)`, where `ctx` is a
-    SecureContext instance.
-    (You can use `tls.createSecureContext(...)` to get proper
-    SecureContext). If `SNICallback` wasn't provided - default callback with
-    high-level API will be used (see below).
+  - `SNICallback(servername, cb)`: A function that will be called if the client
+    supports SNI TLS extension. Two arguments will be passed to it:
+    `servername` and `cb`. `SNICallback` should invoke `cb(null, ctx)`, where
+    `ctx` is a SecureContext instance. (`tls.createSecureContext(...)` can be
+    used to get a proper SecureContext.) If `SNICallback` wasn't provided the
+    default callback with high-level API will be used (see below).
 
-  - `sessionTimeout`: An integer specifying the seconds after which TLS
-    session identifiers and TLS session tickets created by the server are
-    timed out. See [SSL_CTX_set_timeout] for more details.
+  - `sessionTimeout`: An integer specifying the number of seconds after which
+    the TLS session identifiers and TLS session tickets created by the server
+    will time out. See [SSL_CTX_set_timeout] for more details.
 
-  - `ticketKeys`: A 48-byte `Buffer` instance consisting of 16-byte prefix,
-    16-byte hmac key, 16-byte AES key. You could use it to accept tls session
-    tickets on multiple instances of tls server.
+  - `ticketKeys`: A 48-byte `Buffer` instance consisting of a 16-byte prefix,
+    a 16-byte HMAC key, and a 16-byte AES key. This can be used to accept TLS
+    session tickets on multiple instances of the TLS server.
 
     NOTE: Automatically shared between `cluster` module workers.
 
   - `sessionIdContext`: A string containing an opaque identifier for session
     resumption. If `requestCert` is `true`, the default is a 128 bit
-    truncated SHA1 hash value generated from command-line. Otherwise,
-    the default is not provided.
+    truncated SHA1 hash value generated from the command-line. Otherwise, a
+    default is not provided.
 
-  - `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
-    SSL version 3. The possible values depend on your installation of
-    OpenSSL and are defined in the constant [SSL_METHODS][].
+  - `secureProtocol`: The SSL method to use, e.g., `SSLv3_method` to force
+    SSL version 3. The possible values depend on the version of OpenSSL
+    installed in the environment and are defined in the constant [SSL_METHODS][].
 
 Here is a simple example echo server:
 
@@ -978,7 +984,7 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
 [`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
-[`tls.TLSSocket()`]: #tls_class_tls_tlssocket
+[`tls.TLSSocket`]: #tls_class_tls_tlssocket
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.Server.address()`]: net.html#net_server_address

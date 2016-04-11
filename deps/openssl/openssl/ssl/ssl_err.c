@@ -206,7 +206,6 @@ static ERR_STRING_DATA SSL_str_functs[] = {
     {ERR_FUNC(SSL_F_SSL3_SETUP_KEY_BLOCK), "ssl3_setup_key_block"},
     {ERR_FUNC(SSL_F_SSL3_SETUP_READ_BUFFER), "ssl3_setup_read_buffer"},
     {ERR_FUNC(SSL_F_SSL3_SETUP_WRITE_BUFFER), "ssl3_setup_write_buffer"},
-    {ERR_FUNC(SSL_F_SSL3_SHUTDOWN), "ssl3_shutdown"},
     {ERR_FUNC(SSL_F_SSL3_WRITE_BYTES), "ssl3_write_bytes"},
     {ERR_FUNC(SSL_F_SSL3_WRITE_PENDING), "ssl3_write_pending"},
     {ERR_FUNC(SSL_F_SSL_ADD_CERT_CHAIN), "ssl_add_cert_chain"},

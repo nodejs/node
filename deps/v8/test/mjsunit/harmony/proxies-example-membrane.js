@@ -155,7 +155,7 @@ function createSimpleMembrane(target) {
     }
 
     var baseHandler = createHandler(obj);
-    var handler = Proxy.create(Object.freeze({
+    var handler = new Proxy({}, Object.freeze({
       get: function(receiver, name) {
         return function() {
           var arg = (name === "get" || name == "set") ? arguments[1] : "";
@@ -188,7 +188,7 @@ function createSimpleMembrane(target) {
       return Proxy.createFunction(handler, callTrap, constructTrap);
     } else {
       var prototype = wrap(Object.getPrototypeOf(obj));
-      return Proxy.create(handler, prototype);
+      return new Proxy(prototype, handler);
     }
   }
 
@@ -311,7 +311,7 @@ function createMembrane(wetTarget) {
     if (dryResult) { return dryResult; }
 
     var wetHandler = createHandler(wet);
-    var dryRevokeHandler = Proxy.create(Object.freeze({
+    var dryRevokeHandler = new Proxy({}, Object.freeze({
       get: function(receiver, name) {
         return function() {
           var arg = (name === "get" || name == "set") ? arguments[1] : "";
@@ -348,7 +348,7 @@ function createMembrane(wetTarget) {
         Proxy.createFunction(dryRevokeHandler, callTrap, constructTrap);
     } else {
       dryResult =
-        Proxy.create(dryRevokeHandler, asDry(Object.getPrototypeOf(wet)));
+        new Proxy(asDry(Object.getPrototypeOf(wet)), dryRevokeHandler);
     }
     wet2dry.set(wet, dryResult);
     dry2wet.set(dryResult, wet);
@@ -378,7 +378,7 @@ function createMembrane(wetTarget) {
     if (wetResult) { return wetResult; }
 
     var dryHandler = createHandler(dry);
-    var wetRevokeHandler = Proxy.create(Object.freeze({
+    var wetRevokeHandler = new Proxy({}, Object.freeze({
       get: function(receiver, name) {
         return function() {
           var arg = (name === "get" || name == "set") ? arguments[1] : "";
@@ -415,7 +415,7 @@ function createMembrane(wetTarget) {
         Proxy.createFunction(wetRevokeHandler, callTrap, constructTrap);
     } else {
       wetResult =
-        Proxy.create(wetRevokeHandler, asWet(Object.getPrototypeOf(dry)));
+        new Proxy(asWet(Object.getPrototypeOf(dry)), wetRevokeHandler);
     }
     dry2wet.set(dry, wetResult);
     wet2dry.set(wetResult, dry);
