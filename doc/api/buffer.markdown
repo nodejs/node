@@ -103,14 +103,13 @@ use the shared internal memory pool.
 ### The `--zero-fill-buffers` command line option
 
 Node.js can be started using the `--zero-fill-buffers` command line option to
-force all newly allocated `Buffer` and `SlowBuffer` instances created using
-either `new Buffer(size)`, `Buffer.allocUnsafe(size)`,
-`Buffer.allocUnsafeSlow(size)` or `new SlowBuffer(size)` to be *automatically
-zero-filled* upon creation. Use of this flag *changes the default behavior* of
-these methods and *can have a significant impact* on performance. Use of the
-`--zero-fill-buffers` option is recommended only when absolutely necessary to
-enforce that newly allocated `Buffer` instances cannot contain potentially
-sensitive data.
+force all newly allocated `Buffer` instances created using either
+`new Buffer(size)`, `Buffer.allocUnsafe(size)`, `Buffer.allocUnsafeSlow(size)`
+or `new SlowBuffer(size)` to be *automatically zero-filled* upon creation. Use
+of this flag *changes the default behavior* of these methods and *can have a
+significant impact* on performance. Use of the `--zero-fill-buffers` option is
+recommended only when absolutely necessary to enforce that newly allocated
+`Buffer` instances cannot contain potentially sensitive data.
 
 ```
 $ node --zero-fill-buffers
@@ -342,8 +341,8 @@ console.log(buf);
 Allocates a new `Buffer` of `size` bytes.  The `size` must be less than
 or equal to the value of `require('buffer').kMaxLength` (on 64-bit
 architectures, `kMaxLength` is `(2^31)-1`). Otherwise, a [`RangeError`][] is
-thrown. If a `size` less than 0 is specified, a zero-length Buffer will be
-created.
+thrown. A zero-length Buffer will be created if a `size` less than or equal to
+0 is specified.
 
 Unlike `ArrayBuffers`, the underlying memory for `Buffer` instances created in
 this way is *not initialized*. The contents of a newly created `Buffer` are
@@ -400,8 +399,8 @@ console.log(buf);
 
 The `size` must be less than or equal to the value of
 `require('buffer').kMaxLength` (on 64-bit architectures, `kMaxLength` is
-`(2^31)-1`). Otherwise, a [`RangeError`][] is thrown. If a `size` less than 0
-is specified, a zero-length `Buffer` will be created.
+`(2^31)-1`). Otherwise, a [`RangeError`][] is thrown. A zero-length Buffer will
+be created if a `size` less than or equal to 0 is specified.
 
 If `fill` is specified, the allocated `Buffer` will be initialized by calling
 `buf.fill(fill)`. See [`buf.fill()`][] for more information.
@@ -434,8 +433,8 @@ A `TypeError` will be thrown if `size` is not a number.
 Allocates a new *non-zero-filled* `Buffer` of `size` bytes.  The `size` must
 be less than or equal to the value of `require('buffer').kMaxLength` (on 64-bit
 architectures, `kMaxLength` is `(2^31)-1`). Otherwise, a [`RangeError`][] is
-thrown. If a `size` less than 0 is specified, a zero-length `Buffer` will be
-created.
+thrown. A zero-length Buffer will be created if a `size` less than or equal to
+0 is specified.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -476,8 +475,8 @@ additional performance that `Buffer.allocUnsafe(size)` provides.
 Allocates a new *non-zero-filled* and non-pooled `Buffer` of `size` bytes.  The
 `size` must be less than or equal to the value of
 `require('buffer').kMaxLength` (on 64-bit architectures, `kMaxLength` is
-`(2^31)-1`). Otherwise, a [`RangeError`][] is thrown. If a `size` less than 0
-is specified, a zero-length `Buffer` will be created.
+`(2^31)-1`). Otherwise, a [`RangeError`][] is thrown. A zero-length Buffer will
+be created if a `size` less than or equal to 0 is specified.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -1824,8 +1823,8 @@ has observed undue memory retention in their applications.
 Allocates a new `SlowBuffer` of `size` bytes.  The `size` must be less than
 or equal to the value of `require('buffer').kMaxLength` (on 64-bit
 architectures, `kMaxLength` is `(2^31)-1`). Otherwise, a [`RangeError`][] is
-thrown. If a `size` less than 0 is specified, a zero-length `SlowBuffer` will be
-created.
+thrown. A zero-length Buffer will be created if a `size` less than or equal to
+0 is specified.
 
 The underlying memory for `SlowBuffer` instances is *not initialized*. The
 contents of a newly created `SlowBuffer` are unknown and could contain
