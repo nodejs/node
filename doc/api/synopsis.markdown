@@ -1,6 +1,13 @@
-# Synopsis
+# Usage
 
 <!--type=misc-->
+
+`node [options] [v8 options] [script.js | -e "script"] [arguments]`
+
+Please see the [Command Line Options][] document for information about
+different options and ways to run scripts with Node.
+
+## Example
 
 An example of a [web server][] written with Node.js which responds with
 `'Hello World'`:
@@ -8,22 +15,29 @@ An example of a [web server][] written with Node.js which responds with
 ```js
 const http = require('http');
 
-http.createServer( (request, response) => {
-  response.writeHead(200, {'Content-Type': 'text/plain'});
-  response.end('Hello World\n');
-}).listen(8124);
+const hostname = '127.0.0.1';
+const port = 3000;
 
-console.log('Server running at http://127.0.0.1:8124/');
+const server = http.createServer((req, res) => {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/plain');
+  res.end('Hello World\n');
+});
+
+server.listen(port, hostname, () => {
+  console.log(`Server running at http://${hostname}:${port}/`);
+});
 ```
 
 To run the server, put the code into a file called `example.js` and execute
-it with the node program
+it with Node.js:
 
 ```
 $ node example.js
-Server running at http://127.0.0.1:8124/
+Server running at http://127.0.0.1:3000/
 ```
 
 All of the examples in the documentation can be run similarly.
 
+[Command Line Options]: cli.html#cli_command_line_options
 [web server]: http.html
