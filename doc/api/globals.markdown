@@ -145,7 +145,9 @@ global but rather local to each module.
 * {Object}
 
 Modules are cached in this object when they are required. By deleting a key
-value from this object, the next `require` will reload the module.
+value from this object, the next `require` will reload the module. Note that
+this does not apply to [native addons][], for which reloading will result in an
+Error.
 
 ### require.extensions
 
@@ -199,6 +201,7 @@ but rather than loading the module, just return the resolved filename.
 [buffer section]: buffer.html
 [module system documentation]: modules.html
 [Modules]: modules.html#modules_modules
+[native addons]: addons.html
 [timers]: timers.html
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediateobject
 [`clearInterval`]: timers.html#timers_clearinterval_intervalobject
