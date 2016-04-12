@@ -551,6 +551,8 @@ util.isUndefined(null)
 
 ## util.log(string)
 
+    Stability: 0 - Deprecated: Use a third party module instead.
+
 Output with timestamp on `stdout`.
 
     require('util').log('Timestamped message.');
