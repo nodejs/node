@@ -1,7 +1,7 @@
 @// NB(chrisdickinson): if you move this file, be sure to update tools/doc/html.js to
 @// point at the new location.
 * [About these Docs](documentation.html)
-* [Synopsis](synopsis.html)
+* [Usage & Example](synopsis.html)
 * [Assertion Testing](assert.html)
 * [Buffer](buffer.html)
 * [C/C++ Addons](addons.html)
