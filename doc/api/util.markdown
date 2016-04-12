@@ -49,7 +49,7 @@ where `3245` is the process id.  If it is not run with that
 environment variable set, then it will not print anything.
 
 You may separate multiple `NODE_DEBUG` environment variables with a
-comma.  For example, `NODE_DEBUG=fs,net,tls`.
+comma. For example, `NODE_DEBUG=fs,net,tls`.
 
 ## util.deprecate(function, string)
 
@@ -550,6 +550,8 @@ util.isUndefined(null)
 ```
 
 ## util.log(string)
+
+    Stability: 0 - Deprecated: Use a third party userland module instead.
 
 Output with timestamp on `stdout`.
 
