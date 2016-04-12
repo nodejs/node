@@ -58,6 +58,12 @@ em code {
   font-size: .8em;
 }
 
+.line {
+  width: calc(100% - 1em);
+  display: block;
+  padding-bottom: 1px;
+}
+
 .api_stability {
   color: white !important;
   margin: 0 0 1em 0;
@@ -171,6 +177,12 @@ header h1 {
 
 #apicontent {
   padding-top: 1em;
+}
+
+#apicontent .line {
+  width: calc(50% - 1em);
+  margin: 1em 1em .95em;
+  background-color: #ccc;
 }
 
 #toc + h1 {
@@ -351,8 +363,20 @@ a code {
 
 #column2 ul {
   list-style: none;
-  margin: 1.25em 0;
+  margin: .9em 0 .5em;
   background: #333;
+}
+
+#column2 > :first-child {
+  margin: 1.25em 1em;
+}
+
+#column2 > ul:nth-child(2) {
+  margin: 1.25em 0 .5em;
+}
+
+#column2 > ul:last-child {
+  margin: .9em 0 1.25em;
 }
 
 #column2 ul li {
@@ -360,6 +384,11 @@ a code {
   margin-bottom: .5em;
   padding-bottom: .5em;
   font-size: .8em;
+}
+
+#column2 .line {
+  margin: 0 .5em;
+  background-color: #707070;
 }
 
 #column2 ul li:last-child {

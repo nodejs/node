@@ -2,6 +2,9 @@
 @// point at the new location.
 * [About these Docs](documentation.html)
 * [Usage & Example](synopsis.html)
+
+<div class="line"></div>
+
 * [Assertion Testing](assert.html)
 * [Buffer](buffer.html)
 * [C/C++ Addons](addons.html)
@@ -39,3 +42,8 @@
 * [V8](v8.html)
 * [VM](vm.html)
 * [ZLIB](zlib.html)
+
+<div class="line"></div>
+
+* [GitHub Repo & Issue Tracker](https://github.com/nodejs/node)
+* [Mailing List](http://groups.google.com/group/nodejs)
