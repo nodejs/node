@@ -1225,10 +1225,10 @@ There are a few special headers that should be noted.
 [`'listening'`]: net.html#net_event_listening
 [`'response'`]: #http_event_response
 [`Agent`]: #http_class_http_agent
-[`agent.createConnection()`]: #http_agent_createconnection
+[`agent.createConnection()`]: #http_agent_createconnection_options_callback
 [`Buffer`]: buffer.html#buffer_buffer
 [`destroy()`]: #http_agent_destroy
-[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`EventEmitter`]: events.html#events_class_eventemitter
 [`http.Agent`]: #http_class_http_agent
 [`http.ClientRequest`]: #http_class_http_clientrequest
 [`http.globalAgent`]: #http_http_globalagent
@@ -1240,8 +1240,8 @@ There are a few special headers that should be noted.
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
 [`net.Server`]: net.html#net_class_net_server
 [`net.Server.close()`]: net.html#net_server_close_callback
-[`net.Server.listen()`]: net.html#net_server_listen_handle_callback
-[`net.Server.listen(path)`]: net.html#net_server_listen_path_callback
+[`net.Server.listen()`]: net.html#net_server_listen_handle_backlog_callback
+[`net.Server.listen(path)`]: net.html#net_server_listen_path_backlog_callback
 [`net.Server.listen(port)`]: net.html#net_server_listen_port_hostname_backlog_callback
 [`net.Socket`]: net.html#net_class_net_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
