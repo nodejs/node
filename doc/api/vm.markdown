@@ -124,7 +124,7 @@ requires a separate process.
 
 ### script.runInThisContext([options])
 
-Similar to [`vm.runInThisContext()`]() but a method of a precompiled `Script`
+Similar to [`vm.runInThisContext()`][] but a method of a precompiled `Script`
 object. `script.runInThisContext()` runs `script`'s compiled code and returns
 the result. Running code does not have access to local scope, but does have
 access to the current `global` object.

@@ -724,7 +724,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`dns.lookup()` hints]: #dns_supported_getaddrinfo_flags
 [`end()`]: #net_socket_end_data_encoding
-[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`EventEmitter`]: events.html#events_class_eventemitter
 [`net.Socket`]: #net_class_net_socket
 [`pause()`]: #net_socket_pause
 [`resume()`]: #net_socket_resume

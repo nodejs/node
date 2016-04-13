@@ -175,7 +175,7 @@ Returned by tls.createSecurePair.
 This event is emitted from the SecurePair once the pair has successfully
 established a secure connection.
 
-As with checking for the server [`secureConnection`](#event-secureconnection)
+As with checking for the server [`secureConnection`](#tls_event_secureconnection)
 event, `pair.cleartext.authorized` should be inspected to confirm whether the
 certificate used is properly authorized.
 
@@ -339,7 +339,7 @@ See `net.Server` for more information.
 Updates the keys for encryption/decryption of the [TLS Session Tickets][].
 
 NOTE: the buffer should be 48 bytes long. See `ticketKeys` option in
-[tls.createServer](#tlscreateserveroptions-secureconnectionlistener) for
+[tls.createServer](#tls_tls_createserver_options_secureconnectionlistener) for
 more information on how it is used.
 
 NOTE: the change is effective only for future server connections. Existing
@@ -1004,5 +1004,5 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
-[`tls.createSecureContext()`]: #tls_tls_createsecurecontext_details
+[`tls.createSecureContext()`]: #tls_tls_createsecurecontext_options
 [`tls.connect()`]: #tls_tls_connect_options_callback
