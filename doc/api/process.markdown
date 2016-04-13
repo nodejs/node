@@ -784,6 +784,52 @@ if (process.getuid) {
 }
 ```
 
+## process.gracefulExit(code[, timeout][, callback])
+
+* `code` {Integer} The exit code
+* `timeout` {Integer} The number of milliseconds to wait until forcing
+  the process to immediately exit. Default = `0`
+* `callback` {Function}
+
+Gracefully ends the process with the specified code. By default, if the
+callback function is not specified, the actual `process.exit(code)` will
+be scheduled to run on the next full tick of the event loop (using
+`setImmediate()`). This allows existing items in the queue to be completed
+before the call to `process.exit()`.
+
+If a `callback` is provided, it will be passed the exit `code` and an `exit`
+function that the callback should call to invoke `process.exit()` when
+ready. This `exit` function can be called with a different exit code to
+override the `code` passed in when calling `process.gracefulExit()`.
+
+Exits with code `1` on the next tick of the event loop:
+
+```js
+process.gracefulExit(1);
+```
+
+Exits with code '0' on `process.nextTick()`:
+
+```js
+process.gracefulExit(1, (code, exit) => {
+  console.log('exiting gracefully');
+  process.nextTick(() => exit(0));
+});
+```
+
+If the `timeout` argument is not an integer value greater than `0`, the process 
+will *not* exit unless the `exit` callback is not invoked. If `timeout` is
+an integer value greater than `0`, a timer will be scheduled to forcefully and 
+immediately exit the process after the given number of milliseconds.
+
+Immediately exit if the graceful exit is not completed within 10 seconds:
+
+```js
+process.gracefulExit(0, 10000, (code, exit) => {
+  // Wait, do nothing. don't call exit.
+});
+```
+
 ## process.hrtime()
 
 Returns the current high-resolution real time in a `[seconds, nanoseconds]`
