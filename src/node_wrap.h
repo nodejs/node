@@ -39,6 +39,8 @@ inline uv_stream_t* HandleToStream(Environment* env,
   v8::HandleScope scope(env->isolate());
 
   WITH_GENERIC_UV_STREAM(env, obj, {
+    if (wrap == nullptr)
+      return nullptr;
     return reinterpret_cast<uv_stream_t*>(wrap->UVHandle());
   }, {});
 
