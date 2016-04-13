@@ -42,6 +42,7 @@ ipch/
 *.sdf
 *.opensdf
 *.VC.opendb
+.vs/
 
 /config.mk
 /config.gypi
