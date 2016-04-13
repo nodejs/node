@@ -520,7 +520,7 @@ found [here][online].
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
 
-[`fs.readdir`]: fs.html#fs_fs_readdir_path_callback
+[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
 [`fs`]: fs.html
@@ -529,7 +529,7 @@ found [here][online].
 [`net`]: net.html
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [domains]: domain.html
-[event emitter-based]: events.html#events_class_events_eventemitter
+[event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
