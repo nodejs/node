@@ -4,7 +4,7 @@ const v8 = require('v8');
 
 const bench = common.createBenchmark(main, {
   method: ['encode', 'tostring'],
-  enc: ['utf8', 'utf16', 'hex', 'base64'],
+  enc: ['utf8', 'ucs2', 'hex', 'base64'],
   size: [16, 512, 1024, 4096],
   millions: [1]
 });
@@ -44,7 +44,7 @@ function dotostring(str, target, iter) {
 
 function main(conf) {
   const iter = (conf.millions >>> 0) * 1e6;
-  const enc = conf.env;
+  const enc = conf.enc;
   const size = (conf.size >>> 0);
   const method = conf.method === 'encode' ?
       encode : tostring;
