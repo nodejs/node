@@ -1285,9 +1285,9 @@ Will print something like:
 
 [`'message'`]: child_process.html#child_process_event_message
 [`ChildProcess.disconnect()`]: child_process.html#child_process_child_disconnect
-[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_callback
+[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
 [`Error`]: errors.html#errors_class_error
-[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`EventEmitter`]: events.html#events_class_eventemitter
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`process.exit()`]: #process_process_exit_code
@@ -1300,4 +1300,4 @@ Will print something like:
 [the tty docs]: tty.html#tty_tty
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [process_warning]: #process_event_warning
-[process_emit_warning]: #process_emitwarning_warning_name_ctor
+[process_emit_warning]: #process_process_emitwarning_warning_name_ctor

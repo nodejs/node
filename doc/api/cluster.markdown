@@ -703,7 +703,7 @@ socket.on('data', (id) => {
 ```
 
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
-[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_callback
+[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
 [`disconnect`]: child_process.html#child_process_child_disconnect
 [`kill`]: process.html#process_process_kill_pid_signal
 [`server.close()`]: net.html#net_event_close
