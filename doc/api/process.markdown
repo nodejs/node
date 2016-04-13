@@ -1085,9 +1085,9 @@ Will print something like:
 
 [`'message'`]: child_process.html#child_process_event_message
 [`ChildProcess.disconnect()`]: child_process.html#child_process_child_disconnect
-[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_callback
+[`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
 [`Error`]: errors.html#errors_class_error
-[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`EventEmitter`]: events.html#events_class_eventemitter
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`process.exit()`]: #process_process_exit_code

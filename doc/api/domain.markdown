@@ -448,7 +448,7 @@ is emitted.
 [`domain.dispose()`]: #domain_domain_dispose
 [`domain.exit()`]: #domain_domain_exit
 [`Error`]: errors.html#errors_class_error
-[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`EventEmitter`]: events.html#events_class_eventemitter
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_arg
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_arg
 [`throw`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw

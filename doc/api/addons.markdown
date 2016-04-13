@@ -1084,7 +1084,7 @@ const addon = require('./build/Release/addon');
 [examples]: https://github.com/nodejs/nan/tree/master/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
-[Linking to Node.js' own dependencies]: #linking-to-nodejs-own-dependencies
+[Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [node-gyp]: https://github.com/nodejs/node-gyp
 [require]: globals.html#globals_require
