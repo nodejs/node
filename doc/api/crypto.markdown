@@ -1405,11 +1405,11 @@ See the reference for other recommendations and details.
 [`hash.digest()`]: #crypto_hash_digest_encoding
 [`hash.update()`]: #crypto_hash_update_data_input_encoding
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
-[`hmac.update()`]: #crypto_hmac_update_data
+[`hmac.update()`]: #crypto_hmac_update_data_input_encoding
 [`sign.sign()`]: #crypto_sign_sign_private_key_output_format
-[`sign.update()`]: #crypto_sign_update_data
+[`sign.update()`]: #crypto_sign_update_data_input_encoding
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_details
-[`verify.update()`]: #crypto_verifier_update_data
+[`verify.update()`]: #crypto_verifier_update_data_input_encoding
 [`verify.verify()`]: #crypto_verifier_verify_object_signature_signature_format
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
 [HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
