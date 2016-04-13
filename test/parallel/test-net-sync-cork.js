@@ -7,7 +7,7 @@ const net = require('net');
 const server = net.createServer(handle);
 
 const N = 100;
-const buf = Buffer.alloc(2, 'a');
+const buf = new Buffer('aa');
 
 server.listen(common.PORT, function() {
   const conn = net.connect(common.PORT);
