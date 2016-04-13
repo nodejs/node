@@ -1058,10 +1058,10 @@ console.log('中文测试');
 [`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
 [`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
 [`ChildProcess#kill()`]: #child_process_child_kill_signal
-[`ChildProcess#send()`]: #child_process_child_send_message_sendhandle_callback
+[`ChildProcess#send()`]: #child_process_child_send_message_sendhandle_options_callback
 [`Error`]: errors.html#errors_class_error
-[`EventEmitter`]: events.html#events_class_events_eventemitter
-[`EventEmitters`]: events.html#events_class_events_eventemitter
+[`EventEmitter`]: events.html#events_class_eventemitter
+[`EventEmitters`]: events.html#events_class_eventemitter
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`options.detached`]: #child_process_options_detached
