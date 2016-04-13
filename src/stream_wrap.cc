@@ -170,7 +170,8 @@ static Local<Object> AcceptHandle(Environment* env, StreamWrap* parent) {
   if (wrap_obj.IsEmpty())
     return Local<Object>();
 
-  WrapType* wrap = Unwrap<WrapType>(wrap_obj);
+  WrapType* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, wrap_obj, Local<Object>());
   handle = wrap->UVHandle();
 
   if (uv_accept(parent->stream(), reinterpret_cast<uv_stream_t*>(handle)))
@@ -262,7 +263,8 @@ void StreamWrap::OnRead(uv_stream_t* handle,
 
 
 void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
-  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
+  StreamWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   CHECK_GT(args.Length(), 0);
   if (!wrap->IsAlive())

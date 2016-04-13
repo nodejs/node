@@ -343,8 +343,8 @@ class ContextifyContext {
   static void GlobalPropertyGetterCallback(
       Local<Name> property,
       const PropertyCallbackInfo<Value>& args) {
-    ContextifyContext* ctx =
-        Unwrap<ContextifyContext>(args.Data().As<Object>());
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
     // Stil initializing
     if (ctx->context_.IsEmpty())
@@ -373,8 +373,8 @@ class ContextifyContext {
       Local<Name> property,
       Local<Value> value,
       const PropertyCallbackInfo<Value>& args) {
-    ContextifyContext* ctx =
-        Unwrap<ContextifyContext>(args.Data().As<Object>());
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
     // Stil initializing
     if (ctx->context_.IsEmpty())
@@ -387,8 +387,8 @@ class ContextifyContext {
   static void GlobalPropertyQueryCallback(
       Local<Name> property,
       const PropertyCallbackInfo<Integer>& args) {
-    ContextifyContext* ctx =
-        Unwrap<ContextifyContext>(args.Data().As<Object>());
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
     // Stil initializing
     if (ctx->context_.IsEmpty())
@@ -414,8 +414,8 @@ class ContextifyContext {
   static void GlobalPropertyDeleterCallback(
       Local<Name> property,
       const PropertyCallbackInfo<Boolean>& args) {
-    ContextifyContext* ctx =
-        Unwrap<ContextifyContext>(args.Data().As<Object>());
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
     // Stil initializing
     if (ctx->context_.IsEmpty())
@@ -430,8 +430,8 @@ class ContextifyContext {
 
   static void GlobalPropertyEnumeratorCallback(
       const PropertyCallbackInfo<Array>& args) {
-    ContextifyContext* ctx =
-        Unwrap<ContextifyContext>(args.Data().As<Object>());
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
     // Stil initializing
     if (ctx->context_.IsEmpty())
@@ -806,7 +806,8 @@ class ContextifyScript : public BaseObject {
       return false;
     }
 
-    ContextifyScript* wrapped_script = Unwrap<ContextifyScript>(args.Holder());
+    ContextifyScript* wrapped_script;
+    ASSIGN_OR_RETURN_UNWRAP(&wrapped_script, args.Holder(), false);
     Local<UnboundScript> unbound_script =
         PersistentToLocal(env->isolate(), wrapped_script->script_);
     Local<Script> script = unbound_script->BindToCurrentContext();

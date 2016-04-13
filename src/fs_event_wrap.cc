@@ -86,7 +86,8 @@ void FSEventWrap::New(const FunctionCallbackInfo<Value>& args) {
 void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
+  FSEventWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   static const char kErrMsg[] = "filename must be a string or Buffer";
   if (args.Length() < 1)
@@ -181,7 +182,8 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 
 
 void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
-  FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
+  FSEventWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   if (wrap == nullptr || wrap->initialized_ == false)
     return;
