@@ -675,6 +675,48 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void StringWriteWithoutBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+
+  if (!args[0]->IsString())
+    return env->ThrowTypeError("Source must be a string");
+  enum encoding source_encoding = ParseEncoding(isolate, args[1], UTF8);
+  enum encoding target_encoding = ParseEncoding(isolate, args[2], UTF8);
+
+  Local<String> str = args[0]->ToString(isolate);
+
+  if (source_encoding == HEX && str->Length() % 2 != 0)
+    return env->ThrowTypeError("Invalid hex string");
+
+  const size_t length = StringBytes::Size(isolate, str, source_encoding);
+  size_t actual = 0;
+  char* data = nullptr;
+
+  if (length > 0) {
+    data = static_cast<char*>(BUFFER_MALLOC(length));
+
+    if (data == nullptr)
+      return env->ThrowError("Unable to encode string");
+
+    actual = StringBytes::Write(isolate, data, length, str, source_encoding);
+    CHECK(actual <= length);
+
+    if (actual == 0) {
+      free(data);
+      data = nullptr;
+    } else if (actual < length) {
+      data = static_cast<char*>(realloc(data, actual));
+      CHECK_NE(data, nullptr);
+    }
+  }
+
+  args.GetReturnValue().Set(StringBytes::Encode(isolate,
+                                                data,
+                                                target_encoding));
+
+  free(data);
+}
 
 template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
@@ -1233,6 +1275,8 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "swap16", Swap16);
   env->SetMethod(target, "swap32", Swap32);
+
+  env->SetMethod(target, "encode", StringWriteWithoutBuffer);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),

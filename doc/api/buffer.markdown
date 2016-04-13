@@ -541,6 +541,42 @@ console.log(bufA.length);
 // 42
 ```
 
+### Class Method: Buffer.encode(str[, str_encoding][, target_encoding])
+
+* `str` {String} A source string
+* `str_encoding` {String} The character encoding for `str`. Default = `'utf8'`
+* `target_encoding` {String} The target character encoding. Default = `'utf8'`
+
+Historically, a common use case for `Buffer` instances has been to convert
+text from one encoding to another. For instance, it is not uncommon to find 
+`Buffer` instances used to convert text to Hex or Base64 encodings:
+
+```js
+Buffer.from('test').toString('hex');
+  // Produces: 74657374
+```
+
+However, using `Buffer` objects in this way can create additional unnecessary
+overhead in allocating the `Buffer` and garbage collection.
+
+The `Buffer.encode()` method allows a simplified mechanism for converting text
+from one character encoding to another as a more efficient shortcut. While it
+uses the same mechanisms internally as `Buffer.prototype.toString()` to perform
+to character encoding, it does so without the overhead of creating a new
+`Buffer` instance.
+
+```js
+Buffer.encode('test', 'base64');
+  // Produces: dGVzdA==
+```
+
+To convert easily from one encoding to another:
+
+```js
+Buffer.encode('dGVzdA==', 'base64', 'hex');
+  // Produces: 74657374
+```
+
 ### Class Method: Buffer.from(array)
 
 * `array` {Array}
