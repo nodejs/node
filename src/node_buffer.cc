@@ -716,9 +716,11 @@ void StringWriteWithoutBuffer(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  args.GetReturnValue().Set(StringBytes::Encode(isolate,
-                                                data,
-                                                target_encoding));
+  Local<Value> ret = StringBytes::Encode(isolate, data, target_encoding);
+  if (target_encoding == UCS2 && ret.IsEmpty())
+    return env->ThrowError("Unable to encode UCS2 string");
+    
+  args.GetReturnValue().Set(ret);
 
   if (release)
     free(data);

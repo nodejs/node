@@ -547,8 +547,8 @@ console.log(bufA.length);
 * `str_encoding` {String} The character encoding for `str`. Default = `'utf8'`
 * `target_encoding` {String} The target character encoding. Default = `'utf8'`
 
-Historically, a common use case for `Buffer` instances has been to convert
-text from one encoding to another. For instance, it is not uncommon to find 
+Historically, a common use case for `Buffer` instances has been to reinterpret
+text from one encoding into another. For instance, it is not uncommon to find 
 `Buffer` instances used to convert text to Hex or Base64 encodings:
 
 ```js
@@ -576,6 +576,11 @@ To convert easily from one encoding to another:
 Buffer.encode('dGVzdA==', 'base64', 'hex');
   // Produces: 74657374
 ```
+
+It's important to note that, with specific exception given to `'hex'` and
+`'base64'`, `Buffer.encode()` does not *convert* text from one character set 
+encoding to another. Rather, it reads the source text and *reinterprets* the
+bytes using the target encoding.
 
 ### Class Method: Buffer.from(array)
 
