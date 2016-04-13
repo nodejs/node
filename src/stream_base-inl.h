@@ -80,8 +80,9 @@ void StreamBase::GetFD(Local<String> key,
   Base* handle = Unwrap<Base>(args.Holder());
 
   // Mimic implementation of StreamBase::GetFD() and UDPWrap::GetFD().
-  if (handle == nullptr)
-    return args.GetReturnValue().Set(-1);
+  ASSIGN_OR_RETURN_UNWRAP(&handle,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EINVAL));
 
   StreamBase* wrap = static_cast<StreamBase*>(handle);
   if (!wrap->IsAlive())
@@ -97,8 +98,9 @@ void StreamBase::GetBytesRead(Local<String> key,
   Base* handle = Unwrap<Base>(args.Holder());
 
   // The handle instance hasn't been set. So no bytes could have been read.
-  if (handle == nullptr)
-    return args.GetReturnValue().Set(0);
+  ASSIGN_OR_RETURN_UNWRAP(&handle,
+                          args.Holder(),
+                          args.GetReturnValue().Set(0));
 
   StreamBase* wrap = static_cast<StreamBase*>(handle);
   // uint64_t -> double. 53bits is enough for all real cases.
@@ -111,8 +113,7 @@ void StreamBase::GetExternal(Local<String> key,
                              const PropertyCallbackInfo<Value>& args) {
   Base* handle = Unwrap<Base>(args.Holder());
 
-  if (handle == nullptr)
-    return args.GetReturnValue().SetUndefined();
+  ASSIGN_OR_RETURN_UNWRAP(&handle, args.Holder());
 
   StreamBase* wrap = static_cast<StreamBase*>(handle);
   Local<External> ext = External::New(args.GetIsolate(), wrap);
@@ -125,8 +126,7 @@ template <class Base,
 void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
   Base* handle = Unwrap<Base>(args.Holder());
 
-  if (handle == nullptr)
-    return args.GetReturnValue().SetUndefined();
+  ASSIGN_OR_RETURN_UNWRAP(&handle, args.Holder());
 
   StreamBase* wrap = static_cast<StreamBase*>(handle);
   if (!wrap->IsAlive())
