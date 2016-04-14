@@ -410,7 +410,7 @@ allowable type. For example, passing a function to a parameter which expects a
 string would be considered a TypeError.
 
 ```js
-require('url').parse(function() { });
+require('url').parse(() => { });
   // throws TypeError, since it expected a string
 ```
 
