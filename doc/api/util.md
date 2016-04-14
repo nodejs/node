@@ -10,6 +10,10 @@ module developers as well. It can be accessed using:
 const util = require('util');
 ```
 
+## util.constants
+
+Constants for use with `util.getCharacterProperty()`.
+
 ## util.debuglog(section)
 <!-- YAML
 added: v0.11.3
@@ -132,6 +136,20 @@ Each argument is converted to a string using `util.inspect()`.
 ```js
 util.format(1, 2, 3); // '1 2 3'
 ```
+
+## util.getCharacterProperty(codepoint, property)
+
+* `codepoint` {number} A Unicode codepoint value
+* `property` {number} A Unicode codepoint constant (from `util.constants.*`)
+
+Returns a specific Unicode codepoint property for the given codepoint value.
+
+## util.getColumnWidth(cp)
+
+* `cp` {number | String} A Unicode codepoint value or a String
+
+Returns the number of terminal columns to be used to display the given Unicode
+codepoint or string.
 
 ## util.inherits(constructor, superConstructor)
 <!-- YAML

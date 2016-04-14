@@ -21,7 +21,7 @@
       'toolsets': [ 'target' ],
       'direct_dependent_settings': {
         'defines': [
-          'UCONFIG_NO_CONVERSION=1',
+          #'UCONFIG_NO_CONVERSION=1',
         ]
       },
     },
@@ -417,10 +417,10 @@
         [ 'icu_ver_major == 55', { 'sources!': [
 
           # bidi- not needed (yet!)
-          '<(icu_path)/source/common/ubidi.c',
-          '<(icu_path)/source/common/ubidiimp.h',
-          '<(icu_path)/source/common/ubidiln.c',
-          '<(icu_path)/source/common/ubidiwrt.c',
+          #'<(icu_path)/source/common/ubidi.c',
+          #'<(icu_path)/source/common/ubidiimp.h',
+          #'<(icu_path)/source/common/ubidiln.c',
+          #'<(icu_path)/source/common/ubidiwrt.c',
           #'<(icu_path)/source/common/ubidi_props.c',
           #'<(icu_path)/source/common/ubidi_props.h',
           #'<(icu_path)/source/common/ubidi_props_data.h',
@@ -433,10 +433,10 @@
           '<(icu_path)/source/common/cstr.cpp',
 
           # bidi- not needed (yet!)
-          '<(icu_path)/source/common/ubidi.c',
-          '<(icu_path)/source/common/ubidiimp.h',
-          '<(icu_path)/source/common/ubidiln.c',
-          '<(icu_path)/source/common/ubidiwrt.c',
+          #'<(icu_path)/source/common/ubidi.c',
+          #'<(icu_path)/source/common/ubidiimp.h',
+          #'<(icu_path)/source/common/ubidiln.c',
+          #'<(icu_path)/source/common/ubidiwrt.c',
           #'<(icu_path)/source/common/ubidi_props.c',
           #'<(icu_path)/source/common/ubidi_props.h',
           #'<(icu_path)/source/common/ubidi_props_data.h',

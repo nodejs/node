@@ -23,23 +23,6 @@
     if (!(r)) return env->ThrowRangeError("out of range index");            \
   } while (0)
 
-#define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
-  do {                                                                      \
-    if (!HasInstance(obj))                                                  \
-      return env->ThrowTypeError("argument should be a Buffer");            \
-  } while (0)
-
-#define SPREAD_ARG(val, name)                                                 \
-  CHECK((val)->IsUint8Array());                                               \
-  Local<Uint8Array> name = (val).As<Uint8Array>();                            \
-  ArrayBuffer::Contents name##_c = name->Buffer()->GetContents();             \
-  const size_t name##_offset = name->ByteOffset();                            \
-  const size_t name##_length = name->ByteLength();                            \
-  char* const name##_data =                                                   \
-      static_cast<char*>(name##_c.Data()) + name##_offset;                    \
-  if (name##_length > 0)                                                      \
-    CHECK_NE(name##_data, nullptr);
-
 #define SLICE_START_END(start_arg, end_arg, end_max)                        \
   size_t start;                                                             \
   size_t end;                                                               \

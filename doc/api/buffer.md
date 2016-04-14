@@ -2304,6 +2304,27 @@ added: v3.0.0
 On 32-bit architectures, this value is `(2^30)-1` (~1GB).
 On 64-bit architectures, this value is `(2^31)-1` (~2GB).
 
+## buffer.normalize(buf, form[, encoding])
+
+* `buf` {Buffer} A `Buffer` instance
+* `form` {String} A Unicode normalization form (one of: `'NFC'`, `'NFD'`,
+   `NFKC`, or `NFKD`)
+* `encoding` {String} The source character encoding of the `buf`. Defaults to
+  `'utf8'`
+
+Performs Unicode Normalization to the `buf` and returns a new `Buffer` instance
+containing the UTF-8 encoded results. Throws if the `form` does not specify a
+valid Normalization form or if the normalization cannot be successfully applied.
+
+## buffer.transcode(buf, from_enc, to_enc)
+
+* `buf` {Buffer} A `Buffer` instance
+* `from_enc` {string} The current encoding
+* `to_enc` {string} The target encoding
+
+Re-encodes the given `Buffer` from one character encoding to another. Returns
+a new `Buffer` instance.
+
 ## Class: SlowBuffer
 <!-- YAML
 deprecated: v6.0.0
