@@ -39,7 +39,7 @@ class TimerWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "close", HandleWrap::Close);
     env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
-    env->SetProtoMethod(constructor, "isRefed", HandleWrap::IsRefed);
+    env->SetProtoMethod(constructor, "unrefed", HandleWrap::Unrefed);
 
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
