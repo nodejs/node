@@ -1114,8 +1114,8 @@ buf.readUInt8(1);
 * Return: {Number}
 
 Reads an unsigned 16-bit integer from the Buffer at the specified `offset` with
-specified endian format (`readInt32BE()` returns big endian,
-`readInt32LE()` returns little endian).
+specified endian format (`readUInt16BE()` returns big endian,
+`readUInt16LE()` returns little endian).
 
 Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 `offset` to be beyond the end of the Buffer.
@@ -1147,8 +1147,8 @@ buf.readUInt16LE(2);
 * Return: {Number}
 
 Reads an unsigned 32-bit integer from the Buffer at the specified `offset` with
-specified endian format (`readInt32BE()` returns big endian,
-`readInt32LE()` returns little endian).
+specified endian format (`readUInt32BE()` returns big endian,
+`readUInt32LE()` returns little endian).
 
 Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 `offset` to be beyond the end of the Buffer.
