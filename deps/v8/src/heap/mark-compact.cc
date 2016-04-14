@@ -1675,8 +1675,8 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
         compaction_spaces_->Get(OLD_SPACE)->AllocateRaw(size_in_bytes,
                                                         alignment);
     if (allocation.IsRetry()) {
-      FatalProcessOutOfMemory(
-          "MarkCompactCollector: semi-space copy, fallback in old gen\n");
+      v8::internal::Heap::FatalProcessOutOfMemory(
+          "MarkCompactCollector: semi-space copy, fallback in old gen", true);
     }
     return allocation;
   }
