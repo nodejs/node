@@ -4018,8 +4018,7 @@ AllocationResult Heap::AllocateUninitializedFixedDoubleArray(
 AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
                                                    PretenureFlag pretenure) {
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length",
-                                                kDoubleAligned);
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
   }
   int size = FixedDoubleArray::SizeFor(length);
   AllocationSpace space = SelectSpace(pretenure);
@@ -5648,9 +5647,8 @@ void Heap::CompactRetainedMaps(ArrayList* retained_maps) {
   if (new_length != length) retained_maps->SetLength(new_length);
 }
 
-
-void Heap::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
-  v8::internal::V8::FatalProcessOutOfMemory(location, take_snapshot);
+void Heap::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
+  v8::internal::V8::FatalProcessOutOfMemory(location, is_heap_oom);
 }
 
 #ifdef DEBUG

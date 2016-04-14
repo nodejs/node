@@ -568,7 +568,7 @@ class Heap {
   static inline bool IsOneByte(T t, int chars);
 
   static void FatalProcessOutOfMemory(const char* location,
-                                      bool take_snapshot = false);
+                                      bool is_heap_oom = false);
 
   static bool RootIsImmortalImmovable(int root_index);
 
