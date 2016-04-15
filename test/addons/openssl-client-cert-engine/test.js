@@ -1,10 +1,11 @@
+'use strict';
+require('../../common');
 const assert = require('assert');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-var engine = path.dirname(module.filename) + "/build/Release/testengine.so";
-//process.env.OPENSSL_ENGINES = path.dirname(module.filename) + "/build/Release";
+var engine = path.dirname(module.filename) + '/build/Release/testengine.so';
 
 var agentKey = fs.readFileSync('test/fixtures/keys/agent1-key.pem');
 var agentCert = fs.readFileSync('test/fixtures/keys/agent1-cert.pem');
@@ -27,18 +28,17 @@ var server = https.createServer(serverOptions, (req, res) => {
 
 function testFailed(message)
 {
-    server.close();
-    assert(false, message);
+  server.close();
+  assert(false, message);
 }
 
 function testPassed()
 {
-    console.log("Test passed!");
-    server.close();
+  console.log('Test passed!');
+  server.close();
 }
 
-var clientOptions =
-{
+var clientOptions = {
   method: 'GET',
   host: '127.0.0.1',
   port: port,
@@ -50,8 +50,6 @@ var clientOptions =
   headers: {}
 };
 
-console.log("name:<" + https.globalAgent.getName(clientOptions)+">");
-
 var req = https.request(clientOptions, (response) => {
   var body = '';
   response.setEncoding('utf8');
@@ -60,16 +58,16 @@ var req = https.request(clientOptions, (response) => {
   });
 
   response.on('end', () => {
-    if( body=='hello world' ) {
+    if (body == 'hello world') {
       testPassed();
     } else {
-      testFailed("unexpected body: <"+body+">");
+      testFailed('unexpected body: <' + body + '>');
     }
   });
 });
 
 req.on('error', (e) => {
-  testFailed("request error: "+e.message);
+  testFailed('request error: ' + e.message);
 });
 
 req.end();
