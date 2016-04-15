@@ -30,7 +30,9 @@ test(function serverTimeout(cb) {
   var server = http.createServer(function(req, res) {
     // just do nothing, we should get a timeout event.
   });
-  server.listen(common.PORT);
+  server.listen(common.mustCall(function() {
+    http.get({ port: server.address().port }).on('error', function() {});
+  }));
   var s = server.setTimeout(50, function(socket) {
     caughtTimeout = true;
     socket.destroy();
@@ -38,7 +40,6 @@ test(function serverTimeout(cb) {
     cb();
   });
   assert.ok(s instanceof http.Server);
-  http.get({ port: common.PORT }).on('error', function() {});
 });
 
 test(function serverRequestTimeout(cb) {
@@ -56,11 +57,13 @@ test(function serverRequestTimeout(cb) {
     });
     assert.ok(s instanceof http.IncomingMessage);
   });
-  server.listen(common.PORT);
-  var req = http.request({ port: common.PORT, method: 'POST' });
-  req.on('error', function() {});
-  req.write('Hello');
-  // req is in progress
+  server.listen(common.mustCall(function() {
+    var port = server.address().port;
+    var req = http.request({ port: port, method: 'POST' });
+    req.on('error', function() {});
+    req.write('Hello');
+    // req is in progress
+  }));
 });
 
 test(function serverResponseTimeout(cb) {
@@ -78,8 +81,10 @@ test(function serverResponseTimeout(cb) {
     });
     assert.ok(s instanceof http.OutgoingMessage);
   });
-  server.listen(common.PORT);
-  http.get({ port: common.PORT }).on('error', function() {});
+  server.listen(common.mustCall(function() {
+    var port = server.address().port;
+    http.get({ port: port }).on('error', function() {});
+  }));
 });
 
 test(function serverRequestNotTimeoutAfterEnd(cb) {
@@ -104,8 +109,10 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
     server.close();
     cb();
   });
-  server.listen(common.PORT);
-  http.get({ port: common.PORT }).on('error', function() {});
+  server.listen(common.mustCall(function() {
+    var port = server.address().port;
+    http.get({ port: port }).on('error', function() {});
+  }));
 });
 
 test(function serverResponseTimeoutWithPipeline(cb) {
@@ -125,12 +132,14 @@ test(function serverResponseTimeoutWithPipeline(cb) {
     server.close();
     cb();
   });
-  server.listen(common.PORT);
-  var c = net.connect({ port: common.PORT, allowHalfOpen: true }, function() {
-    c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
-    c.write('GET /2 HTTP/1.1\r\nHost: localhost\r\n\r\n');
-    c.write('GET /3 HTTP/1.1\r\nHost: localhost\r\n\r\n');
-  });
+  server.listen(common.mustCall(function() {
+    var port = server.address().port;
+    var c = net.connect({ port: port, allowHalfOpen: true }, function() {
+      c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
+      c.write('GET /2 HTTP/1.1\r\nHost: localhost\r\n\r\n');
+      c.write('GET /3 HTTP/1.1\r\nHost: localhost\r\n\r\n');
+    });
+  }));
 });
 
 test(function idleTimeout(cb) {
@@ -158,9 +167,11 @@ test(function idleTimeout(cb) {
     cb();
   });
   assert.ok(s instanceof http.Server);
-  server.listen(common.PORT);
-  var c = net.connect({ port: common.PORT, allowHalfOpen: true }, function() {
-    c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
-    // Keep-Alive
-  });
+  server.listen(common.mustCall(function() {
+    var port = server.address().port;
+    var c = net.connect({ port: port, allowHalfOpen: true }, function() {
+      c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
+      // Keep-Alive
+    });
+  }));
 });
