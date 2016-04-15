@@ -18155,6 +18155,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
 void CompilationCacheTable::Age() {
   DisallowHeapAllocation no_allocation;
   Object* the_hole_value = GetHeap()->the_hole_value();
+  uint32_t capacity = Capacity();
   for (int entry = 0, size = Capacity(); entry < size; entry++) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;
