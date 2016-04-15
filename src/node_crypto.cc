@@ -289,6 +289,9 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
                       SecureContext::SetSessionTimeout);
   env->SetProtoMethod(t, "close", SecureContext::Close);
   env->SetProtoMethod(t, "loadPKCS12", SecureContext::LoadPKCS12);
+#ifndef OPENSSL_NO_ENGINE
+  env->SetProtoMethod(t, "setClientCertEngine", SecureContext::SetClientCertEngine);
+#endif  // !OPENSSL_NO_ENGINE
   env->SetProtoMethod(t, "getTicketKeys", SecureContext::GetTicketKeys);
   env->SetProtoMethod(t, "setTicketKeys", SecureContext::SetTicketKeys);
   env->SetProtoMethod(t, "setFreeListLength", SecureContext::SetFreeListLength);
@@ -1022,6 +1025,54 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError(str);
   }
 }
+
+
+#ifndef OPENSSL_NO_ENGINE
+void SecureContext::SetClientCertEngine(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args.Length() == 1 && args[0]->IsString());
+
+  SecureContext* sc = Unwrap<SecureContext>(args.This());
+
+  // If an engine was previously set, free it.
+  if (sc->ctx_->client_cert_engine != NULL) {
+    ENGINE* e = sc->ctx_->client_cert_engine;
+    sc->ctx_->client_cert_engine = NULL;
+    ENGINE_free(e);
+  }
+
+  const node::Utf8Value engine_id(env->isolate(), args[0]);
+  ENGINE* engine = ENGINE_by_id(*engine_id);
+
+  // Engine not found, try loading dynamically
+  if (engine == nullptr) {
+    engine = ENGINE_by_id("dynamic");
+    if (engine != nullptr) {
+      if (!ENGINE_ctrl_cmd_string(engine, "SO_PATH", *engine_id, 0) ||
+          !ENGINE_ctrl_cmd_string(engine, "LOAD", nullptr, 0)) {
+        ENGINE_free(engine);
+        engine = nullptr;
+      }
+    }
+  }
+
+  if (engine == nullptr) {
+    int err = ERR_get_error();
+    if (err == 0) {
+      char tmp[1024];
+      snprintf(tmp, sizeof(tmp), "Engine \"%s\" was not found", *engine_id);
+      return env->ThrowError(tmp);
+    } else {
+      return ThrowCryptoError(env, err);
+    }
+  }
+
+  int r = SSL_CTX_set_client_cert_engine(sc->ctx_, engine);
+  ENGINE_free(engine);
+  if (r == 0)
+    return ThrowCryptoError(env, ERR_get_error());
+}
+#endif  // !OPENSSL_NO_ENGINE
 
 
 void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
