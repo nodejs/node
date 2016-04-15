@@ -2,13 +2,13 @@
 require('../common');
 var assert = require('assert');
 
-var HTTPParser = process.binding('http_parser').HTTPParser;
+const binding = process.binding('http_parser');
+const methods = binding.methods;
+const HTTPParser = binding.HTTPParser;
 
 var CRLF = '\r\n';
 var REQUEST = HTTPParser.REQUEST;
 var RESPONSE = HTTPParser.RESPONSE;
-
-var methods = HTTPParser.methods;
 
 var kOnHeaders = HTTPParser.kOnHeaders | 0;
 var kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
