@@ -36,7 +36,8 @@ The output of this option is less detailed than this document.
 
 ### `-e`, `--eval "script"`
 
-Evaluate the following argument as JavaScript.
+Evaluate the following argument as JavaScript. The modules which are
+predefined in the REPL can also be used in `script`.
 
 
 ### `-p`, `--print "script"`
