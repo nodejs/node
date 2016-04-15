@@ -177,6 +177,7 @@ information about the governance of the Node.js project, see
 * [geek](https://github.com/geek) - **Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [iarna](https://github.com/iarna) - **Rebecca Turner** &lt;me@re-becca.org&gt;
 * [isaacs](https://github.com/isaacs) - **Isaac Z. Schlueter** &lt;i@izs.me&gt;
+* [iWuzHere](https://github.com/iWuzHere) - **Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [jbergstroem](https://github.com/jbergstroem) - **Johan Bergström** &lt;bugs@bergstroem.nu&gt;
 * [joaocgreis](https://github.com/joaocgreis) - **João Reis** &lt;reis@janeasystems.com&gt;
 * [julianduque](https://github.com/julianduque) - **Julian Duque** &lt;julianduquej@gmail.com&gt;
