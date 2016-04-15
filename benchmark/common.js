@@ -255,3 +255,15 @@ Benchmark.prototype.getHeading = function() {
     }).join(',');
   }
 };
+
+exports.v8ForceOptimization = function(method, ...args) {
+  if (typeof method !== 'function')
+    return;
+  const v8 = require('v8');
+  v8.setFlagsFromString('--allow_natives_syntax');
+  method.apply(null, args);
+  eval('%OptimizeFunctionOnNextCall(method)');
+  method.apply(null, args);
+  return eval('%GetOptimizationStatus(method)');
+};
+
