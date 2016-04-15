@@ -12,6 +12,7 @@ const fixture = path.join(
 
 const args = [
   'debug',
+  `--port=${common.PORT}`,
   fixture
 ];
 
