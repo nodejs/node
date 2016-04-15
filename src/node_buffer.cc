@@ -675,6 +675,56 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void StringWriteWithoutBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+
+  CHECK(args[0]->IsString());
+
+  enum encoding source_encoding = ParseEncoding(isolate, args[1], UTF8);
+  enum encoding target_encoding = ParseEncoding(isolate, args[2], UTF8);
+
+  Local<String> str = args[0].As<String>();
+
+  const size_t length = StringBytes::Size(isolate, str, source_encoding);
+  size_t actual = 0;
+  char* data = nullptr;
+  bool release = false;
+
+  if (length > 0) {
+    char buf[1024];
+    data = buf;
+
+    if (length >= sizeof(buf)) {
+      data = static_cast<char*>(BUFFER_MALLOC(length));
+      release = true;
+      if (data == nullptr)
+        return env->ThrowError("Unable to encode string");
+    }
+
+    actual = StringBytes::Write(isolate, data, length, str, source_encoding);
+    data[actual] = '\0';
+    CHECK_LE(actual, length);
+
+    if (actual == 0) {
+      if (release)
+        free(data);
+      data = nullptr;
+    } else if (actual < length) {
+      data = static_cast<char*>(realloc(data, actual));
+      CHECK_NE(data, nullptr);
+    }
+  }
+
+  Local<Value> ret = StringBytes::Encode(isolate, data, target_encoding);
+  if (target_encoding == UCS2 && ret.IsEmpty())
+    return env->ThrowError("Unable to encode UCS2 string");
+    
+  args.GetReturnValue().Set(ret);
+
+  if (release)
+    free(data);
+}
 
 template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
@@ -1233,6 +1283,8 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "swap16", Swap16);
   env->SetMethod(target, "swap32", Swap32);
+
+  env->SetMethod(target, "encode", StringWriteWithoutBuffer);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
