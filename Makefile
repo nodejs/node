@@ -114,9 +114,9 @@ v8:
 	tools/make-v8.sh v8
 	$(MAKE) -C deps/v8 $(V8_ARCH) $(V8_BUILD_OPTIONS)
 
-test: | cctest  # Depends on 'all'.
+test: | build-addons cctest  # Both targets depend on 'all'.
 	$(PYTHON) tools/test.py --mode=release -J \
-		doctool message parallel sequential
+		addon doctool message parallel sequential
 	$(MAKE) lint
 
 test-parallel: all
@@ -141,7 +141,10 @@ ADDONS_BINDING_GYPS := \
 		$(wildcard test/addons/*/binding.gyp))
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
-test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) | test/addons/.docbuildstamp
+test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) \
+	deps/uv/include/*.h deps/v8/include/*.h \
+	src/node.h src/node_buffer.h src/node_object_wrap.h \
+	| test/addons/.docbuildstamp
 	# Cannot use $(wildcard test/addons/*/) here, it's evaluated before
 	# embedded addons have been generated from the documentation.
 	for dirname in test/addons/*/; do \
