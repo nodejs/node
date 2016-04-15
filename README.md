@@ -202,6 +202,7 @@ information about the governance of the Node.js project, see
 * [seishun](https://github.com/seishun) - **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt;
 * [silverwind](https://github.com/silverwind) - **Roman Reiss** &lt;me@silverwind.io&gt;
 * [srl295](https://github.com/srl295) - **Steven R Loomis** &lt;srloomis@us.ibm.com&gt;
+* [stefanmb](https://github.com/stefanmb) - **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [targos](https://github.com/targos) - **Michaël Zasso** &lt;mic.besace@gmail.com&gt;
 * [tellnes](https://github.com/tellnes) - **Christian Tellnes** &lt;christian@tellnes.no&gt;
 * [thealphanerd](https://github.com/thealphanerd) - **Myles Borins** &lt;myles.borins@gmail.com&gt;
