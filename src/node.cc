@@ -990,6 +990,9 @@ static bool DomainHasErrorHandler(const Environment* env,
       domain_event_listeners_o->Get(env->error_string());
 
   if (domain_error_listeners_v->IsFunction() ||
+      (domain_error_listeners_v->IsObject() &&
+       domain_error_listeners_v.As<Object>()->Get(env->once_string())
+                                            ->IsFunction()) ||
       (domain_error_listeners_v->IsArray() &&
       domain_error_listeners_v.As<Array>()->Length() > 0))
     return true;

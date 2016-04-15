@@ -5,26 +5,28 @@ var EventEmitter = require('events');
 var v8 = require('v8');
 
 var bench = common.createBenchmark(main, {
-  n: [15e6]
+  n: [25e6]
 });
 
 function main(conf) {
   var n = conf.n | 0;
 
   var ee = new EventEmitter();
-  ee.setMaxListeners(101);
 
-  for (var k = 0; k < 100; k += 1)
-    ee.on('dummy', function() {});
+  function noop() {}
 
-  ee.listeners('dummy');
+  ee.once('dummy', noop);
+  ee.emit('dummy');
   v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(ee.listeners)');
-  ee.listeners('dummy');
+  eval('%OptimizeFunctionOnNextCall(ee.once)');
+  eval('%OptimizeFunctionOnNextCall(ee.emit)');
+  ee.once('dummy', noop);
+  ee.emit('dummy');
 
   bench.start();
   for (var i = 0; i < n; i += 1) {
-    ee.listeners('dummy');
+    ee.once('dummy', noop);
+    ee.emit('dummy');
   }
   bench.end(n);
 }
