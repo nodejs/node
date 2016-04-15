@@ -53,6 +53,13 @@ child.exec(nodejs + ' --eval "require(\'' + filename + '\')"',
       assert.equal(status.code, 42);
     });
 
+// Check that builtin modules are pre-defined.
+child.exec(nodejs + ' --print "os.platform()"',
+    function(status, stdout, stderr) {
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout.trim(), require('os').platform());
+    });
+
 // module path resolve bug, regression test
 child.exec(nodejs + ' --eval "require(\'./test/parallel/test-cli-eval.js\')"',
     function(status, stdout, stderr) {
