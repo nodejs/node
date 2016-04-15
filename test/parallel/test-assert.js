@@ -17,6 +17,8 @@ assert.throws(makeBlock(a, false), a.AssertionError, 'ok(false)');
 
 assert.doesNotThrow(makeBlock(a, true), a.AssertionError, 'ok(true)');
 
+
+
 assert.doesNotThrow(makeBlock(a, 'test', 'ok(\'test\')'));
 
 assert.throws(makeBlock(a.ok, false),
