@@ -38,6 +38,11 @@ using v8::Value;
 #undef V
 
 
+static void IsPrimitive(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(!args[0]->IsObject() && !args[0]->IsExternal());
+}
+
+
 static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -84,6 +89,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
+  env->SetMethod(target, "isPrimitive", IsPrimitive);
 }
 
 }  // namespace util
