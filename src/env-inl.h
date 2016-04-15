@@ -507,27 +507,25 @@ inline void Environment::SetProtoMethod(v8::Local<v8::FunctionTemplate> that,
                                         const char* name,
                                         v8::FunctionCallback callback) {
   v8::Local<v8::Signature> signature = v8::Signature::New(isolate(), that);
-  v8::Local<v8::Function> function =
-      NewFunctionTemplate(callback, signature)->GetFunction();
+  v8::Local<v8::FunctionTemplate> t = NewFunctionTemplate(callback, signature);
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
       v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
-  that->PrototypeTemplate()->Set(name_string, function);
-  function->SetName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+  that->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
 }
 
 inline void Environment::SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
                                            const char* name,
                                            v8::FunctionCallback callback) {
-  v8::Local<v8::Function> function =
-      NewFunctionTemplate(callback)->GetFunction();
+  v8::Local<v8::FunctionTemplate> t = NewFunctionTemplate(callback);
   // kInternalized strings are created in the old space.
   const v8::NewStringType type = v8::NewStringType::kInternalized;
   v8::Local<v8::String> name_string =
       v8::String::NewFromUtf8(isolate(), name, type).ToLocalChecked();
-  that->Set(name_string, function);
-  function->SetName(name_string);  // NODE_SET_METHOD() compatibility.
+  that->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_METHOD() compatibility.
 }
 
 inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
