@@ -124,7 +124,7 @@ TEST(Weakness) {
   heap->CollectAllGarbage(false);
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
-  CHECK_EQ(2,
+  CHECK_EQ(0,
            ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 }
 
