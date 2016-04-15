@@ -290,7 +290,8 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "close", SecureContext::Close);
   env->SetProtoMethod(t, "loadPKCS12", SecureContext::LoadPKCS12);
 #ifndef OPENSSL_NO_ENGINE
-  env->SetProtoMethod(t, "setClientCertEngine", SecureContext::SetClientCertEngine);
+  env->SetProtoMethod(t, "setClientCertEngine",
+    SecureContext::SetClientCertEngine);
 #endif  // !OPENSSL_NO_ENGINE
   env->SetProtoMethod(t, "getTicketKeys", SecureContext::GetTicketKeys);
   env->SetProtoMethod(t, "setTicketKeys", SecureContext::SetTicketKeys);
@@ -1028,7 +1029,8 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
 
 
 #ifndef OPENSSL_NO_ENGINE
-void SecureContext::SetClientCertEngine(const FunctionCallbackInfo<Value>& args) {
+void SecureContext::SetClientCertEngine(
+  const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args.Length() == 1 && args[0]->IsString());
 
