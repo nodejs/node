@@ -119,12 +119,26 @@ class ParallelTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):
     super(ParallelTestConfiguration, self).__init__(context, root, section,
                                                     additional)
+  def LsDirs(self, path):
+    def SelectTest(name, path):
+      return os.path.isdir(os.path.join(path, name))
+    return [f for f in os.listdir(path) if SelectTest(f, path)]
 
   def ListTests(self, current_path, path, arch, mode):
     result = super(ParallelTestConfiguration, self).ListTests(
          current_path, path, arch, mode)
     for test in result:
       test.parallel = True
+    parallel_dirs = self.LsDirs(join(self.root))
+    for subsystem in parallel_dirs:
+      sub_path = join(self.root, subsystem)
+      sub_tests = [current_path + [t] for t in self.Ls(sub_path)]
+
+      for test in sub_tests:
+        if self.Contains(path, test):
+          file_path = join(sub_path, reduce(join, test[1:], "") + ".js")
+          result.append(SimpleTestCase(test, file_path, arch, mode, self.context,
+                                       self, self.additional_flags))
     return result
 
 class AddonTestConfiguration(SimpleTestConfiguration):
