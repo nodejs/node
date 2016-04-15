@@ -537,8 +537,6 @@ class Parser : public AsyncWrap {
 
     bool upgrade = value->BooleanValue();
     parser->parser_.upgrade = upgrade;
-
-    args.GetReturnValue().Set(value->ToBoolean());
   }
 
  protected:
