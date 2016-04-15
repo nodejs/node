@@ -125,20 +125,6 @@ if (cluster.isMaster) {
     sendWork(worker);
   });
 
-  cluster.on('message', function(worker, results) {
-    if (typeof results !== 'number') {
-      // The worker sent us results that are not all successes
-      if (!workerConfig.sendAll)
-        failures += results.length;
-      outFn(formatter(results) + '\r\n');
-      printProgress();
-    } else {
-      successes += results;
-    }
-    // Try to give the worker more work to do
-    sendWork(worker);
-  });
-
   process.on('exit', function() {
     if (showProgress) {
       curPath = 'Done';
@@ -149,7 +135,21 @@ if (cluster.isMaster) {
   });
 
   for (i = 0; i < numCPUs; ++i)
-    cluster.fork();
+    cluster.fork().on('message', onWorkerMessage);
+
+  function onWorkerMessage(results) {
+    if (typeof results !== 'number') {
+      // The worker sent us results that are not all successes
+      if (!workerConfig.sendAll)
+        failures += results.length;
+      outFn(formatter(results) + '\r\n');
+      printProgress();
+    } else {
+      successes += results;
+    }
+    // Try to give the worker more work to do
+    sendWork(this);
+  }
 
   function sendWork(worker) {
     if (!files || !files.length) {
