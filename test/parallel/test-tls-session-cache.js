@@ -11,13 +11,7 @@ if (!common.hasCrypto) {
   return;
 }
 
-doTest({ tickets: false }, function() {
-  doTest({ tickets: true }, function() {
-    console.error('all done');
-  });
-});
-
-function doTest(testOptions, callback) {
+const doTest = (testOptions, callback) => {
   var assert = require('assert');
   var tls = require('tls');
   var fs = require('fs');
@@ -38,8 +32,23 @@ function doTest(testOptions, callback) {
   var resumeCount = 0;
   var session;
 
-  var server = tls.createServer(options, function(cleartext) {
-    cleartext.on('error', function(er) {
+  if (testOptions.sync) {
+    options.newSession = (id, data) => {
+      assert.ok(!session);
+      session = { id: id, data: data };
+    };
+
+    options.resumeSession = (id) => {
+      ++resumeCount;
+      assert.ok(session);
+      assert.equal(session.id.toString('hex'), id.toString('hex'));
+
+      return session.data;
+    };
+  }
+
+  var server = tls.createServer(options, (cleartext) => {
+    cleartext.on('error', (er) => {
       // We're ok with getting ECONNRESET in this test, but it's
       // timing-dependent, and thus unreliable. Any other errors
       // are just failures, though.
@@ -49,27 +58,30 @@ function doTest(testOptions, callback) {
     ++requestCount;
     cleartext.end();
   });
-  server.on('newSession', function(id, data, cb) {
-    // Emulate asynchronous store
-    setTimeout(function() {
-      assert.ok(!session);
-      session = {
-        id: id,
-        data: data
-      };
-      cb();
-    }, 1000);
-  });
-  server.on('resumeSession', function(id, callback) {
-    ++resumeCount;
-    assert.ok(session);
-    assert.equal(session.id.toString('hex'), id.toString('hex'));
 
-    // Just to check that async really works there
-    setTimeout(function() {
-      callback(null, session.data);
-    }, 100);
-  });
+  if (!testOptions.sync) {
+    server.on('newSession', (id, data, cb) => {
+      // Emulate asynchronous store
+      setTimeout(() => {
+        assert.ok(!session);
+        session = {
+          id: id,
+          data: data
+        };
+        cb();
+      }, 1000);
+    });
+    server.on('resumeSession', (id, callback) => {
+      ++resumeCount;
+      assert.ok(session);
+      assert.equal(session.id.toString('hex'), id.toString('hex'));
+
+      // Just to check that async really works there
+      setTimeout(() => {
+        callback(null, session.data);
+      }, 100);
+    });
+  }
 
   var args = [
     's_client',
@@ -85,25 +97,25 @@ function doTest(testOptions, callback) {
   if (common.isWindows)
     args.push('-no_rand_screen');
 
-  server.listen(common.PORT, function() {
+  server.listen(common.PORT, () => {
     var client = spawn(common.opensslCli, args, {
-      stdio: [ 0, 1, 'pipe' ]
+      stdio: [ 0, 'ignore', 'pipe' ]
     });
     var err = '';
     client.stderr.setEncoding('utf8');
-    client.stderr.on('data', function(chunk) {
+    client.stderr.on('data', (chunk) => {
       err += chunk;
     });
-    client.on('exit', function(code) {
+    client.on('exit', (code) => {
       console.error('done');
       assert.equal(code, 0);
-      server.close(function() {
+      server.close(() => {
         setTimeout(callback, 100);
       });
     });
   });
 
-  process.on('exit', function() {
+  process.on('exit', () => {
     if (testOptions.tickets) {
       assert.equal(requestCount, 6);
       assert.equal(resumeCount, 0);
@@ -114,4 +126,13 @@ function doTest(testOptions, callback) {
       assert.equal(resumeCount, 5);
     }
   });
-}
+};
+
+doTest({ tickets: false, sync: false }, () => {
+  doTest({ tickets: true, sync: false }, () => {
+    doTest({ tickets: false, sync: true }, () => {
+      console.error('all done');
+    });
+  });
+});
+
