@@ -28,8 +28,8 @@ oStream.on('data', function(data) {
 
 oStream.on('end', function() {
   const expect = 'process.stdout\r\n' +
-    'process.stdin\r\n' +
-    'process.stderr';
+                 'process.stdin\r\n' +
+                 'process.stderr';
   assert(new RegExp(expect).test(output));
 });
 
