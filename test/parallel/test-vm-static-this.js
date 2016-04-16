@@ -21,8 +21,8 @@ assert.equal(2, global.hello);
 
 console.error('pass values');
 var code = 'foo = 1;' +
-       'bar = 2;' +
-       'if (typeof baz !== \'undefined\') throw new Error(\'test fail\');';
+           'bar = 2;' +
+           'if (typeof baz !== \'undefined\') throw new Error(\'test fail\');';
 global.foo = 2;
 global.obj = { foo: 0, baz: 3 };
 /* eslint-disable no-unused-vars */
