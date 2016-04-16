@@ -46,7 +46,8 @@ void SetVersion(int major, int minor, int build, int patch,
   Version::soname_ = soname;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 static void CheckVersion(int major, int minor, int build,
@@ -59,17 +60,17 @@ static void CheckVersion(int major, int minor, int build,
   // Test version without specific SONAME.
   SetVersion(major, minor, build, patch, candidate, "");
   Version::GetString(version_str);
-  CHECK_EQ(expected_version_string, version_str.start());
+  CHECK_EQ(0, strcmp(expected_version_string, version_str.start()));
   Version::GetSONAME(soname_str);
-  CHECK_EQ(expected_generic_soname, soname_str.start());
+  CHECK_EQ(0, strcmp(expected_generic_soname, soname_str.start()));
 
   // Test version with specific SONAME.
   const char* soname = "libv8.so.1";
   SetVersion(major, minor, build, patch, candidate, soname);
   Version::GetString(version_str);
-  CHECK_EQ(expected_version_string, version_str.start());
+  CHECK_EQ(0, strcmp(expected_version_string, version_str.start()));
   Version::GetSONAME(soname_str);
-  CHECK_EQ(soname, soname_str.start());
+  CHECK_EQ(0, strcmp(soname, soname_str.start()));
 }
 
 

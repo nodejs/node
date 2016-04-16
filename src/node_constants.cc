@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "node_constants.h"
 
 #include "uv.h"
@@ -42,10 +21,14 @@
 
 namespace node {
 
-using v8::Handle;
+using v8::Local;
 using v8::Object;
 
-void DefineErrnoConstants(Handle<Object> target) {
+#if HAVE_OPENSSL
+const char* default_cipher_list = DEFAULT_CIPHER_LIST_CORE;
+#endif
+
+void DefineErrnoConstants(Local<Object> target) {
 #ifdef E2BIG
   NODE_DEFINE_CONSTANT(target, E2BIG);
 #endif
@@ -363,7 +346,7 @@ void DefineErrnoConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineWindowsErrorConstants(Handle<Object> target) {
+void DefineWindowsErrorConstants(Local<Object> target) {
 #ifdef WSAEINTR
   NODE_DEFINE_CONSTANT(target, WSAEINTR);
 #endif
@@ -597,7 +580,7 @@ void DefineWindowsErrorConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineSignalConstants(Handle<Object> target) {
+void DefineSignalConstants(Local<Object> target) {
 #ifdef SIGHUP
   NODE_DEFINE_CONSTANT(target, SIGHUP);
 #endif
@@ -733,6 +716,10 @@ void DefineSignalConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, SIGPWR);
 #endif
 
+#ifdef SIGINFO
+  NODE_DEFINE_CONSTANT(target, SIGINFO);
+#endif
+
 #ifdef SIGSYS
   NODE_DEFINE_CONSTANT(target, SIGSYS);
 #endif
@@ -742,7 +729,7 @@ void DefineSignalConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineOpenSSLConstants(Handle<Object> target) {
+void DefineOpenSSLConstants(Local<Object> target) {
 #ifdef SSL_OP_ALL
     NODE_DEFINE_CONSTANT(target, SSL_OP_ALL);
 #endif
@@ -881,6 +868,10 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 
 # ifndef OPENSSL_NO_ENGINE
 
+# ifdef ENGINE_METHOD_RSA
+    NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_RSA);
+# endif
+
 # ifdef ENGINE_METHOD_DSA
     NODE_DEFINE_CONSTANT(target, ENGINE_METHOD_DSA);
 # endif
@@ -952,6 +943,11 @@ void DefineOpenSSLConstants(Handle<Object> target) {
     NODE_DEFINE_CONSTANT(target, NPN_ENABLED);
 #endif
 
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+#define ALPN_ENABLED 1
+    NODE_DEFINE_CONSTANT(target, ALPN_ENABLED);
+#endif
+
 #ifdef RSA_PKCS1_PADDING
     NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PADDING);
 #endif
@@ -986,7 +982,7 @@ void DefineOpenSSLConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineSystemConstants(Handle<Object> target) {
+void DefineSystemConstants(Local<Object> target) {
   // file access modes
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);
@@ -1125,17 +1121,29 @@ void DefineSystemConstants(Handle<Object> target) {
 #endif
 }
 
-void DefineUVConstants(Handle<Object> target) {
+void DefineUVConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, UV_UDP_REUSEADDR);
 }
 
-void DefineConstants(Handle<Object> target) {
+void DefineCryptoConstants(Local<Object> target) {
+#if HAVE_OPENSSL
+  NODE_DEFINE_STRING_CONSTANT(target,
+                              "defaultCoreCipherList",
+                              DEFAULT_CIPHER_LIST_CORE);
+  NODE_DEFINE_STRING_CONSTANT(target,
+                              "defaultCipherList",
+                              default_cipher_list);
+#endif
+}
+
+void DefineConstants(Local<Object> target) {
   DefineErrnoConstants(target);
   DefineWindowsErrorConstants(target);
   DefineSignalConstants(target);
   DefineOpenSSLConstants(target);
   DefineSystemConstants(target);
   DefineUVConstants(target);
+  DefineCryptoConstants(target);
 }
 
 }  // namespace node

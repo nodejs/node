@@ -1,30 +1,10 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #ifndef SRC_UTIL_H_
 #define SRC_UTIL_H_
 
 #include "v8.h"
 
 #include <assert.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -39,16 +19,30 @@ namespace node {
   TypeName(const TypeName&) = delete;                                         \
   TypeName(TypeName&&) = delete
 
+// Windows 8+ does not like abort() in Release mode
+#ifdef _WIN32
+#define ABORT() raise(SIGABRT)
+#else
+#define ABORT() abort()
+#endif
+
 #if defined(NDEBUG)
 # define ASSERT(expression)
 # define CHECK(expression)                                                    \
   do {                                                                        \
-    if (!(expression)) abort();                                               \
+    if (!(expression)) ABORT();                                               \
   } while (0)
 #else
 # define ASSERT(expression)  assert(expression)
 # define CHECK(expression)   assert(expression)
 #endif
+
+#define ASSERT_EQ(a, b) ASSERT((a) == (b))
+#define ASSERT_GE(a, b) ASSERT((a) >= (b))
+#define ASSERT_GT(a, b) ASSERT((a) > (b))
+#define ASSERT_LE(a, b) ASSERT((a) <= (b))
+#define ASSERT_LT(a, b) ASSERT((a) < (b))
+#define ASSERT_NE(a, b) ASSERT((a) != (b))
 
 #define CHECK_EQ(a, b) CHECK((a) == (b))
 #define CHECK_GE(a, b) CHECK((a) >= (b))
@@ -57,7 +51,70 @@ namespace node {
 #define CHECK_LT(a, b) CHECK((a) < (b))
 #define CHECK_NE(a, b) CHECK((a) != (b))
 
-#define UNREACHABLE() abort()
+#define UNREACHABLE() ABORT()
+
+// TAILQ-style intrusive list node.
+template <typename T>
+class ListNode;
+
+template <typename T>
+using ListNodeMember = ListNode<T> T::*;
+
+// VS 2013 doesn't understand dependent templates.
+#ifdef _MSC_VER
+#define ListNodeMember(T) ListNodeMember
+#else
+#define ListNodeMember(T) ListNodeMember<T>
+#endif
+
+// TAILQ-style intrusive list head.
+template <typename T, ListNodeMember(T) M>
+class ListHead;
+
+template <typename T>
+class ListNode {
+ public:
+  inline ListNode();
+  inline ~ListNode();
+  inline void Remove();
+  inline bool IsEmpty() const;
+
+ private:
+  template <typename U, ListNodeMember(U) M> friend class ListHead;
+  ListNode* prev_;
+  ListNode* next_;
+  DISALLOW_COPY_AND_ASSIGN(ListNode);
+};
+
+template <typename T, ListNodeMember(T) M>
+class ListHead {
+ public:
+  class Iterator {
+   public:
+    inline T* operator*() const;
+    inline const Iterator& operator++();
+    inline bool operator!=(const Iterator& that) const;
+
+   private:
+    friend class ListHead;
+    inline explicit Iterator(ListNode<T>* node);
+    ListNode<T>* node_;
+  };
+
+  inline ListHead() = default;
+  inline ~ListHead();
+  inline void MoveBack(ListHead* that);
+  inline void PushBack(T* element);
+  inline void PushFront(T* element);
+  inline bool IsEmpty() const;
+  inline T* PopFront();
+  inline Iterator begin() const;
+  inline Iterator end() const;
+
+ private:
+  ListNode<T> head_;
+  DISALLOW_COPY_AND_ASSIGN(ListHead);
+};
 
 // The helper is for doing safe downcasts from base types to derived types.
 template <typename Inner, typename Outer>
@@ -119,12 +176,15 @@ inline void ClearWrap(v8::Local<v8::Object> object);
 template <typename TypeName>
 inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
+inline void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen);
+
 class Utf8Value {
   public:
-    explicit Utf8Value(v8::Handle<v8::Value> value);
+    explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
     ~Utf8Value() {
-      free(str_);
+      if (str_ != str_st_)
+        free(str_);
     }
 
     char* operator*() {
@@ -142,6 +202,53 @@ class Utf8Value {
   private:
     size_t length_;
     char* str_;
+    char str_st_[1024];
+};
+
+class TwoByteValue {
+  public:
+    explicit TwoByteValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+
+    ~TwoByteValue() {
+      if (str_ != str_st_)
+        free(str_);
+    }
+
+    uint16_t* operator*() {
+      return str_;
+    };
+
+    const uint16_t* operator*() const {
+      return str_;
+    };
+
+    size_t length() const {
+      return length_;
+    };
+
+  private:
+    size_t length_;
+    uint16_t* str_;
+    uint16_t str_st_[1024];
+};
+
+class BufferValue {
+  public:
+    explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+
+    ~BufferValue() {
+      if (str_ != str_st_)
+        free(str_);
+    }
+
+    const char* operator*() const {
+      return fail_ ? nullptr : str_;
+    };
+
+  private:
+    char* str_;
+    char str_st_[1024];
+    bool fail_;
 };
 
 }  // namespace node

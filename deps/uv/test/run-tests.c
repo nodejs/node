@@ -41,12 +41,14 @@ int ipc_helper_tcp_connection(void);
 int ipc_send_recv_helper(void);
 int ipc_helper_bind_twice(void);
 int stdio_over_pipes_helper(void);
+int spawn_stdin_stdout(void);
 
 static int maybe_run_test(int argc, char **argv);
 
 
 int main(int argc, char **argv) {
-  platform_init(argc, argv);
+  if (platform_init(argc, argv))
+    return EXIT_FAILURE;
 
   argv = uv_setup_args(argc, argv);
 
@@ -55,9 +57,12 @@ int main(int argc, char **argv) {
   case 2: return maybe_run_test(argc, argv);
   case 3: return run_test_part(argv[1], argv[2]);
   default:
-    LOGF("Too many arguments.\n");
-    return 1;
+    fprintf(stderr, "Too many arguments.\n");
+    fflush(stderr);
+    return EXIT_FAILURE;
   }
+
+  return EXIT_SUCCESS;
 }
 
 
@@ -167,6 +172,10 @@ static int maybe_run_test(int argc, char **argv) {
     return 1;
   }
 #endif  /* !_WIN32 */
+
+  if (strcmp(argv[1], "spawn_helper9") == 0) {
+    return spawn_stdin_stdout();
+  }
 
   return run_test(argv[1], 0, 1);
 }

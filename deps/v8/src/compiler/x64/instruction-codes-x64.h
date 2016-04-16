@@ -46,22 +46,76 @@ namespace compiler {
   V(X64Sar32)                      \
   V(X64Ror)                        \
   V(X64Ror32)                      \
+  V(X64Lzcnt)                      \
+  V(X64Lzcnt32)                    \
+  V(X64Tzcnt)                      \
+  V(X64Tzcnt32)                    \
+  V(X64Popcnt)                     \
+  V(X64Popcnt32)                   \
+  V(SSEFloat32Cmp)                 \
+  V(SSEFloat32Add)                 \
+  V(SSEFloat32Sub)                 \
+  V(SSEFloat32Mul)                 \
+  V(SSEFloat32Div)                 \
+  V(SSEFloat32Abs)                 \
+  V(SSEFloat32Neg)                 \
+  V(SSEFloat32Sqrt)                \
+  V(SSEFloat32Max)                 \
+  V(SSEFloat32Min)                 \
+  V(SSEFloat32ToFloat64)           \
+  V(SSEFloat32ToInt32)             \
+  V(SSEFloat32ToUint32)            \
+  V(SSEFloat32Round)               \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \
   V(SSEFloat64Mul)                 \
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
+  V(SSEFloat64Abs)                 \
+  V(SSEFloat64Neg)                 \
   V(SSEFloat64Sqrt)                \
-  V(SSEFloat64Floor)               \
-  V(SSEFloat64Ceil)                \
-  V(SSEFloat64RoundTruncate)       \
-  V(SSECvtss2sd)                   \
-  V(SSECvtsd2ss)                   \
+  V(SSEFloat64Round)               \
+  V(SSEFloat64Max)                 \
+  V(SSEFloat64Min)                 \
+  V(SSEFloat64ToFloat32)           \
   V(SSEFloat64ToInt32)             \
   V(SSEFloat64ToUint32)            \
+  V(SSEFloat32ToInt64)             \
+  V(SSEFloat64ToInt64)             \
+  V(SSEFloat32ToUint64)            \
+  V(SSEFloat64ToUint64)            \
   V(SSEInt32ToFloat64)             \
+  V(SSEInt32ToFloat32)             \
+  V(SSEInt64ToFloat32)             \
+  V(SSEInt64ToFloat64)             \
+  V(SSEUint64ToFloat32)            \
+  V(SSEUint64ToFloat64)            \
   V(SSEUint32ToFloat64)            \
+  V(SSEUint32ToFloat32)            \
+  V(SSEFloat64ExtractLowWord32)    \
+  V(SSEFloat64ExtractHighWord32)   \
+  V(SSEFloat64InsertLowWord32)     \
+  V(SSEFloat64InsertHighWord32)    \
+  V(SSEFloat64LoadLowWord32)       \
+  V(AVXFloat32Cmp)                 \
+  V(AVXFloat32Add)                 \
+  V(AVXFloat32Sub)                 \
+  V(AVXFloat32Mul)                 \
+  V(AVXFloat32Div)                 \
+  V(AVXFloat32Max)                 \
+  V(AVXFloat32Min)                 \
+  V(AVXFloat64Cmp)                 \
+  V(AVXFloat64Add)                 \
+  V(AVXFloat64Sub)                 \
+  V(AVXFloat64Mul)                 \
+  V(AVXFloat64Div)                 \
+  V(AVXFloat64Max)                 \
+  V(AVXFloat64Min)                 \
+  V(AVXFloat64Abs)                 \
+  V(AVXFloat64Neg)                 \
+  V(AVXFloat32Abs)                 \
+  V(AVXFloat32Neg)                 \
   V(X64Movsxbl)                    \
   V(X64Movzxbl)                    \
   V(X64Movb)                       \
@@ -73,10 +127,17 @@ namespace compiler {
   V(X64Movq)                       \
   V(X64Movsd)                      \
   V(X64Movss)                      \
+  V(X64BitcastFI)                  \
+  V(X64BitcastDL)                  \
+  V(X64BitcastIF)                  \
+  V(X64BitcastLD)                  \
   V(X64Lea32)                      \
   V(X64Lea)                        \
+  V(X64Dec32)                      \
+  V(X64Inc32)                      \
   V(X64Push)                       \
-  V(X64StoreWriteBarrier)
+  V(X64Poke)                       \
+  V(X64StackCheck)
 
 
 // Addressing modes represent the "shape" of inputs to an instruction.

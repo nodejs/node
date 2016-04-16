@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo-filter=g --allow-natives-syntax
+// Flags: --expose-debug-as debug --turbo-filter=g --allow-natives-syntax
 
 // Test that Debug::PrepareForBreakPoints can deal with turbofan code (g)
 // on the stack.  Without deoptimization support, we will not be able to
@@ -33,7 +33,7 @@ var break_count = 0;
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
-    exec_state.prepareStep(Debug.StepAction.StepNext, 1);
+    exec_state.prepareStep(Debug.StepAction.StepNext);
     print(exec_state.frame(0).sourceLineText());
     var match = exec_state.frame(0).sourceLineText().match(/Break (\d)/);
     assertNotNull(match);

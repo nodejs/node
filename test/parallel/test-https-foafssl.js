@@ -1,29 +1,9 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 
 if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
+  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  return;
 }
 
 var assert = require('assert');
@@ -32,6 +12,10 @@ var join = require('path').join;
 var fs = require('fs');
 var spawn = require('child_process').spawn;
 
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
 var https = require('https');
 
 var options = {
@@ -69,6 +53,10 @@ server.listen(common.PORT, function() {
               '-cert', join(common.fixturesDir, 'foafssl.crt'),
               '-key', join(common.fixturesDir, 'foafssl.key')];
 
+  // for the performance and stability issue in s_client on Windows
+  if (common.isWindows)
+    args.push('-no_rand_screen');
+
   var client = spawn(common.opensslCli, args);
 
   client.stdout.on('data', function(data) {
@@ -95,5 +83,5 @@ process.on('exit', function() {
       'FDA7DE954ED56DC7AD9A47EEBC37D771A366FC60A5BCB72373BEC180649B3EFA0E90' +
       '92707210B41B90032BB18BC91F2046EBDAF1191F4A4E26D71879C4C7867B62FCD508' +
       'E8CE66E82D128A71E915809FCF44E8DE774067F1DE5D70B9C03687');
-  assert.equal(exponent, '10001');
+  assert.equal(exponent, '0x10001');
 });

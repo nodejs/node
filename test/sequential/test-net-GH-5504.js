@@ -1,26 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
-var assert = require('assert');
 
 // this test only fails with CentOS 6.3 using kernel version 2.6.32
 // On other linuxes and darwin, the `read` call gets an ECONNRESET in
@@ -40,8 +19,7 @@ switch (process.argv[2]) {
 
 function server() {
   var net = require('net');
-  var content = new Buffer(64 * 1024 * 1024);
-  content.fill('#');
+  var content = Buffer.alloc(64 * 1024 * 1024, '#');
   net.createServer(function(socket) {
     this.close();
     socket.on('end', function() {
@@ -73,12 +51,6 @@ function parent() {
   var serverExited = false;
   var clientExited = false;
   var serverListened = false;
-  var opt = {
-    env: {
-      NODE_DEBUG: 'net',
-      NODE_COMMON_PORT: process.env.NODE_COMMON_PORT,
-    }
-  };
 
   process.on('exit', function() {
     assert(serverExited);
@@ -93,9 +65,13 @@ function parent() {
     setTimeout(function() {
       throw new Error('hang');
     });
-  }, 4000).unref();
+  }, common.platformTimeout(2000)).unref();
 
-  var s = spawn(node, [__filename, 'server'], opt);
+  var s = spawn(node, [__filename, 'server'], {
+    env: Object.assign(process.env, {
+      NODE_DEBUG: 'net'
+    })
+  });
   var c;
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');
@@ -125,4 +101,3 @@ function parent() {
     });
   }
 }
-

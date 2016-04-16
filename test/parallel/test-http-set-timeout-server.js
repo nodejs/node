@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common.js');
+'use strict';
+var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
@@ -37,8 +17,9 @@ function run() {
   if (fn) {
     console.log('# %s', fn.name);
     fn(run);
-  } else
+  } else {
     console.log('ok');
+  }
 }
 
 test(function serverTimeout(cb) {
@@ -50,12 +31,13 @@ test(function serverTimeout(cb) {
     // just do nothing, we should get a timeout event.
   });
   server.listen(common.PORT);
-  server.setTimeout(50, function(socket) {
+  var s = server.setTimeout(50, function(socket) {
     caughtTimeout = true;
     socket.destroy();
     server.close();
     cb();
   });
+  assert.ok(s instanceof http.Server);
   http.get({ port: common.PORT }).on('error', function() {});
 });
 
@@ -66,12 +48,13 @@ test(function serverRequestTimeout(cb) {
   });
   var server = http.createServer(function(req, res) {
     // just do nothing, we should get a timeout event.
-    req.setTimeout(50, function() {
+    var s = req.setTimeout(50, function() {
       caughtTimeout = true;
       req.socket.destroy();
       server.close();
       cb();
     });
+    assert.ok(s instanceof http.IncomingMessage);
   });
   server.listen(common.PORT);
   var req = http.request({ port: common.PORT, method: 'POST' });
@@ -87,12 +70,13 @@ test(function serverResponseTimeout(cb) {
   });
   var server = http.createServer(function(req, res) {
     // just do nothing, we should get a timeout event.
-    res.setTimeout(50, function() {
+    var s = res.setTimeout(50, function() {
       caughtTimeout = true;
       res.socket.destroy();
       server.close();
       cb();
     });
+    assert.ok(s instanceof http.OutgoingMessage);
   });
   server.listen(common.PORT);
   http.get({ port: common.PORT }).on('error', function() {});
@@ -107,9 +91,10 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
   });
   var server = http.createServer(function(req, res) {
     // just do nothing, we should get a timeout event.
-    req.setTimeout(50, function(socket) {
+    var s = req.setTimeout(50, function(socket) {
       caughtTimeoutOnRequest = true;
     });
+    assert.ok(s instanceof http.IncomingMessage);
     res.on('timeout', function(socket) {
       caughtTimeoutOnResponse = true;
     });
@@ -129,9 +114,10 @@ test(function serverResponseTimeoutWithPipeline(cb) {
     assert.equal(caughtTimeout, '/2');
   });
   var server = http.createServer(function(req, res) {
-    res.setTimeout(50, function() {
+    var s = res.setTimeout(50, function() {
       caughtTimeout += req.url;
     });
+    assert.ok(s instanceof http.OutgoingMessage);
     if (req.url === '/1') res.end();
   });
   server.on('timeout', function(socket) {
@@ -165,12 +151,13 @@ test(function idleTimeout(cb) {
     });
     res.end();
   });
-  server.setTimeout(50, function(socket) {
+  var s = server.setTimeout(50, function(socket) {
     caughtTimeoutOnServer = true;
     socket.destroy();
     server.close();
     cb();
   });
+  assert.ok(s instanceof http.Server);
   server.listen(common.PORT);
   var c = net.connect({ port: common.PORT, allowHalfOpen: true }, function() {
     c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');

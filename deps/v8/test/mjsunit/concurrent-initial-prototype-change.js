@@ -27,6 +27,14 @@
 
 // Flags: --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --nostress-opt
+
+// --nostress-opt is in place because this particular optimization
+// (guaranteeing that the Array prototype chain has no elements) is
+// maintained isolate-wide. Once it's been "broken" by the change
+// to the Object prototype below, future compiles will not use the
+// optimization anymore, and the code will remain optimized despite
+// additional changes to the prototype chain.
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");

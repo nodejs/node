@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/utils.h"
+
 #include <stdarg.h>
 #include <sys/stat.h>
-
-#include "src/v8.h"
 
 #include "src/base/functional.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -78,6 +77,11 @@ char* SimpleStringBuilder::Finalize() {
 }
 
 
+std::ostream& operator<<(std::ostream& os, FeedbackVectorSlot slot) {
+  return os << "#" << slot.id_;
+}
+
+
 size_t hash_value(BailoutId id) {
   base::hash<int> h;
   return h(id.id_);
@@ -107,6 +111,15 @@ void PrintF(FILE* out, const char* format, ...) {
 
 void PrintPID(const char* format, ...) {
   base::OS::Print("[%d] ", base::OS::GetCurrentProcessId());
+  va_list arguments;
+  va_start(arguments, format);
+  base::OS::VPrint(format, arguments);
+  va_end(arguments);
+}
+
+
+void PrintIsolate(void* isolate, const char* format, ...) {
+  base::OS::Print("[%d:%p] ", base::OS::GetCurrentProcessId(), isolate);
   va_list arguments;
   va_start(arguments, format);
   base::OS::VPrint(format, arguments);
@@ -203,7 +216,7 @@ char* ReadCharsFromFile(FILE* file,
   }
 
   // Get the size of the file and rewind it.
-  *size = ftell(file);
+  *size = static_cast<int>(ftell(file));
   rewind(file);
 
   char* result = NewArray<char>(*size + extra_space);
@@ -355,7 +368,7 @@ static void MemMoveWrapper(void* dest, const void* src, size_t size) {
 static MemMoveFunction memmove_function = &MemMoveWrapper;
 
 // Defined in codegen-ia32.cc.
-MemMoveFunction CreateMemMoveFunction();
+MemMoveFunction CreateMemMoveFunction(Isolate* isolate);
 
 // Copy memory area to disjoint memory area.
 void MemMove(void* dest, const void* src, size_t size) {
@@ -379,38 +392,47 @@ MemCopyUint8Function memcopy_uint8_function = &MemCopyUint8Wrapper;
 MemCopyUint16Uint8Function memcopy_uint16_uint8_function =
     &MemCopyUint16Uint8Wrapper;
 // Defined in codegen-arm.cc.
-MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub);
+MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
+                                                MemCopyUint8Function stub);
 MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
-    MemCopyUint16Uint8Function stub);
+    Isolate* isolate, MemCopyUint16Uint8Function stub);
 
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
 MemCopyUint8Function memcopy_uint8_function = &MemCopyUint8Wrapper;
 // Defined in codegen-mips.cc.
-MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub);
+MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
+                                                MemCopyUint8Function stub);
 #endif
 
 
-void init_memcopy_functions() {
+static bool g_memcopy_functions_initialized = false;
+
+
+void init_memcopy_functions(Isolate* isolate) {
+  if (g_memcopy_functions_initialized) return;
+  g_memcopy_functions_initialized = true;
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
-  MemMoveFunction generated_memmove = CreateMemMoveFunction();
+  MemMoveFunction generated_memmove = CreateMemMoveFunction(isolate);
   if (generated_memmove != NULL) {
     memmove_function = generated_memmove;
   }
 #elif V8_OS_POSIX && V8_HOST_ARCH_ARM
-  memcopy_uint8_function = CreateMemCopyUint8Function(&MemCopyUint8Wrapper);
+  memcopy_uint8_function =
+      CreateMemCopyUint8Function(isolate, &MemCopyUint8Wrapper);
   memcopy_uint16_uint8_function =
-      CreateMemCopyUint16Uint8Function(&MemCopyUint16Uint8Wrapper);
+      CreateMemCopyUint16Uint8Function(isolate, &MemCopyUint16Uint8Wrapper);
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
-  memcopy_uint8_function = CreateMemCopyUint8Function(&MemCopyUint8Wrapper);
+  memcopy_uint8_function =
+      CreateMemCopyUint8Function(isolate, &MemCopyUint8Wrapper);
 #endif
 }
 
 
 bool DoubleToBoolean(double d) {
   // NaN, +0, and -0 should return the false object
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if V8_TARGET_LITTLE_ENDIAN
   union IeeeDoubleLittleEndianArchType u;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#else
   union IeeeDoubleBigEndianArchType u;
 #endif
   u.d = d;
@@ -426,4 +448,5 @@ bool DoubleToBoolean(double d) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -48,6 +48,24 @@ int uv__kqueue_init(uv_loop_t* loop) {
 }
 
 
+int uv__io_check_fd(uv_loop_t* loop, int fd) {
+  struct kevent ev;
+  int rc;
+
+  rc = 0;
+  EV_SET(&ev, fd, EVFILT_READ, EV_ADD, 0, 0, 0);
+  if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
+    rc = -errno;
+
+  EV_SET(&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
+  if (rc == 0)
+    if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
+      abort();
+
+  return rc;
+}
+
+
 void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct kevent events[1024];
   struct kevent* ev;
@@ -55,9 +73,11 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   unsigned int nevents;
   unsigned int revents;
   QUEUE* q;
+  uv__io_t* w;
+  sigset_t* pset;
+  sigset_t set;
   uint64_t base;
   uint64_t diff;
-  uv__io_t* w;
   int filter;
   int fflags;
   int count;
@@ -117,6 +137,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w->events = w->pevents;
   }
 
+  pset = NULL;
+  if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
+    pset = &set;
+    sigemptyset(pset);
+    sigaddset(pset, SIGPROF);
+  }
+
   assert(timeout >= -1);
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
@@ -127,12 +154,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       spec.tv_nsec = (timeout % 1000) * 1000000;
     }
 
+    if (pset != NULL)
+      pthread_sigmask(SIG_BLOCK, pset, NULL);
+
     nfds = kevent(loop->backend_fd,
                   events,
                   nevents,
                   events,
                   ARRAY_SIZE(events),
                   timeout == -1 ? NULL : &spec);
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_UNBLOCK, pset, NULL);
 
     /* Update loop->time unconditionally. It's tempting to skip the update when
      * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
@@ -225,6 +258,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
       if (ev->flags & EV_ERROR)
         revents |= UV__POLLERR;
+
+      if ((ev->flags & EV_EOF) && (w->pevents & UV__POLLRDHUP))
+        revents |= UV__POLLRDHUP;
 
       if (revents == 0)
         continue;
@@ -348,7 +384,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   uv__handle_start(handle);
   uv__io_init(&handle->event_watcher, uv__fs_event, fd);
-  handle->path = strdup(path);
+  handle->path = uv__strdup(path);
   handle->cb = cb;
 
 #if defined(__APPLE__)
@@ -363,6 +399,10 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   /* FSEvents works only with directories */
   if (!(statbuf.st_mode & S_IFDIR))
     goto fallback;
+
+  /* The fallback fd is no longer needed */
+  uv__close(fd);
+  handle->event_watcher.fd = -1;
 
   return uv__fsevents_init(handle);
 
@@ -388,11 +428,15 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
     uv__io_close(handle->loop, &handle->event_watcher);
   }
 
-  free(handle->path);
+  uv__free(handle->path);
   handle->path = NULL;
 
-  uv__close(handle->event_watcher.fd);
-  handle->event_watcher.fd = -1;
+  if (handle->event_watcher.fd != -1) {
+    /* When FSEvents is used, we don't use the event_watcher's fd under certain
+     * confitions. (see uv_fs_event_start) */
+    uv__close(handle->event_watcher.fd);
+    handle->event_watcher.fd = -1;
+  }
 
   return 0;
 }

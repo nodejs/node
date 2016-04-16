@@ -61,6 +61,8 @@ des: des.o cbc3_enc.o lib
 
 des_enc-sparc.S:	asm/des_enc.m4
 	m4 -B 8192 asm/des_enc.m4 > des_enc-sparc.S
+dest4-sparcv9.s:	asm/dest4-sparcv9.pl
+	$(PERL) asm/dest4-sparcv9.pl $(CFLAGS) > $@
 
 des-586.s:	asm/des-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
 	$(PERL) asm/des-586.pl $(PERLASM_SCHEME) $(CFLAGS) > $@
@@ -93,6 +95,8 @@ tests:
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
+
+update: depend
 
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...

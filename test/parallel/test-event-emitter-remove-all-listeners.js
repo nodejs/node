@@ -1,24 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var events = require('events');
@@ -30,7 +10,7 @@ function expect(expected) {
     assert.deepEqual(actual.sort(), expected.sort());
   });
   function listener(name) {
-    actual.push(name)
+    actual.push(name);
   }
   return common.mustCall(listener, expected.length);
 }
@@ -78,3 +58,15 @@ e3.on('removeListener', listener);
 // there exists a removeListener listener, but there exists
 // no listeners for the provided event type
 assert.doesNotThrow(e3.removeAllListeners.bind(e3, 'foo'));
+
+var e4 = new events.EventEmitter();
+var expectLength = 2;
+e4.on('removeListener', function(name, listener) {
+  assert.equal(expectLength--, this.listeners('baz').length);
+});
+e4.on('baz', function() {});
+e4.on('baz', function() {});
+e4.on('baz', function() {});
+assert.equal(e4.listeners('baz').length, expectLength + 1);
+e4.removeAllListeners('baz');
+assert.equal(e4.listeners('baz').length, 0);

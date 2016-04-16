@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 
 import errno
-
-try:
-  import json
-except ImportError:
-  import simplejson as json
-
+import json
 import os
 import re
 import shutil
@@ -79,12 +74,6 @@ def try_remove(path, dst):
 def install(paths, dst): map(lambda path: try_copy(path, dst), paths)
 def uninstall(paths, dst): map(lambda path: try_remove(path, dst), paths)
 
-def update_shebang(path, shebang):
-  print 'updating shebang of %s to %s' % (path, shebang)
-  s = open(path, 'r').read()
-  s = re.sub(r'#!.*\n', '#!' + shebang + '\n', s)
-  open(path, 'w').write(s)
-
 def npm_files(action):
   target_path = 'lib/node_modules/npm/'
 
@@ -105,16 +94,6 @@ def npm_files(action):
     action([link_path], 'bin/npm')
   elif action == install:
     try_symlink('../lib/node_modules/npm/bin/npm-cli.js', link_path)
-    if os.environ.get('PORTABLE'):
-      # This crazy hack is necessary to make the shebang execute the copy
-      # of node relative to the same directory as the npm script. The precompiled
-      # binary tarballs use a prefix of "/" which gets translated to "/bin/node"
-      # in the regular shebang modifying logic, which is incorrect since the
-      # precompiled bundle should be able to be extracted anywhere and "just work"
-      shebang = '/bin/sh\n// 2>/dev/null; exec "`dirname "$0"`/node" "$0" "$@"'
-    else:
-      shebang = os.path.join(node_prefix or '/', 'bin/node')
-    update_shebang(link_path, shebang)
   else:
     assert(0) # unhandled action type
 
@@ -127,7 +106,9 @@ def subdir_files(path, dest, action):
     action(files, subdir + '/')
 
 def files(action):
-  exeext = '.exe' if sys.platform == 'win32' else ''
+  is_windows = sys.platform == 'win32'
+
+  exeext = '.exe' if is_windows else ''
   action(['out/Release/node' + exeext], 'bin/node' + exeext)
 
   if 'true' == variables.get('node_use_dtrace'):
@@ -136,6 +117,8 @@ def files(action):
   # behave similarly for systemtap
   action(['src/node.stp'], 'share/systemtap/tapset/')
 
+  action(['deps/v8/tools/gdbinit'], 'share/doc/node/')
+
   if 'freebsd' in sys.platform or 'openbsd' in sys.platform:
     action(['doc/node.1'], 'man/man1/')
   else:
@@ -143,6 +126,9 @@ def files(action):
 
   if 'true' == variables.get('node_install_npm'): npm_files(action)
 
+  headers(action)
+
+def headers(action):
   action([
     'common.gypi',
     'config.gypi',
@@ -151,20 +137,24 @@ def files(action):
     'src/node_internals.h',
     'src/node_object_wrap.h',
     'src/node_version.h',
-    'src/smalloc.h',
   ], 'include/node/')
 
-  subdir_files('deps/cares/include', 'include/node/', action)
+  # Add the expfile that is created on AIX
+  if sys.platform.startswith('aix'):
+    action(['out/Release/node.exp'], 'include/node/')
+
+  subdir_files('deps/v8/include', 'include/node/', action)
+
+  if 'false' == variables.get('node_shared_cares'):
+    subdir_files('deps/cares/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_openssl'):
+    subdir_files('deps/openssl/openssl/include/openssl', 'include/node/openssl/', action)
+    subdir_files('deps/openssl/config/archs', 'include/node/openssl/archs', action)
     action(['deps/openssl/config/opensslconf.h'], 'include/node/openssl/')
-    subdir_files('deps/openssl/include/openssl', 'include/node/openssl/', action)
-
-  if 'false' == variables.get('node_shared_v8'):
-    subdir_files('deps/v8/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_zlib'):
     action([
@@ -185,8 +175,8 @@ def run(args):
   # argv[2] is a custom install prefix for packagers (think DESTDIR)
   # argv[3] is a custom install prefix (think PREFIX)
   # Difference is that dst_dir won't be included in shebang lines etc.
-  if len(args) > 2:
-    dst_dir = args[2]
+  dst_dir = args[2] if len(args) > 2 else ''
+
   if len(args) > 3:
     node_prefix = args[3]
 
@@ -194,8 +184,14 @@ def run(args):
   install_path = dst_dir + node_prefix + '/'
 
   cmd = args[1] if len(args) > 1 else 'install'
-  if cmd == 'install': return files(install)
-  if cmd == 'uninstall': return files(uninstall)
+
+  if os.environ.get('HEADERS_ONLY'):
+    if cmd == 'install': return headers(install)
+    if cmd == 'uninstall': return headers(uninstall)
+  else:
+    if cmd == 'install': return files(install)
+    if cmd == 'uninstall': return files(uninstall)
+
   raise RuntimeError('Bad command: %s\n' % cmd)
 
 if __name__ == '__main__':

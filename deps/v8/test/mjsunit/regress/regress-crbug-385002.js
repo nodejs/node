@@ -4,7 +4,7 @@
 
 // Flags: --stack-size=200 --allow-natives-syntax
 
-%Break(); // Schedule an interrupt that does not go away.
+%ScheduleBreak(); // Schedule an interrupt that does not go away.
 
 function f() { f(); }
 assertThrows(f, RangeError);

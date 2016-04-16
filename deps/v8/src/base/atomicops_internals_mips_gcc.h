@@ -36,7 +36,7 @@ inline Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
                        "2:\n"
                        ".set pop\n"
                        : "=&r" (prev), "=&r" (tmp)
-                       : "Ir" (old_value), "r" (new_value), "r" (ptr)
+                       : "r" (old_value), "r" (new_value), "r" (ptr)
                        : "memory");
   return prev;
 }
@@ -155,6 +155,7 @@ inline Atomic32 Release_Load(volatile const Atomic32* ptr) {
   return *ptr;
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_ATOMICOPS_INTERNALS_MIPS_GCC_H_

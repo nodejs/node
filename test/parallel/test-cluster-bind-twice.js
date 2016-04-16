@@ -1,24 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 // This test starts two clustered HTTP servers on the same port. It expects the
 // first cluster to succeed and the second cluster to fail with EADDRINUSE.
 //
@@ -71,7 +51,7 @@ if (!id) {
     b.send('START');
   });
 
-  var ok = false;
+  let ok = false;
 
   b.on('message', function(m) {
     if (typeof m === 'object') return; // ignore system messages
@@ -88,7 +68,7 @@ if (!id) {
 else if (id === 'one') {
   if (cluster.isMaster) return startWorker();
 
-  var server = http.createServer(assert.fail).listen(common.PORT, function() {
+  http.createServer(common.fail).listen(common.PORT, function() {
     process.send('READY');
   });
 
@@ -99,17 +79,17 @@ else if (id === 'one') {
 else if (id === 'two') {
   if (cluster.isMaster) return startWorker();
 
-  var ok = false;
+  let ok = false;
   process.on('exit', function() {
     assert(ok);
   });
 
-  var server = http.createServer(assert.fail);
+  var server = http.createServer(common.fail);
   process.on('message', function(m) {
     if (typeof m === 'object') return; // ignore system messages
     if (m === 'QUIT') process.exit();
     assert.equal(m, 'START');
-    server.listen(common.PORT, assert.fail);
+    server.listen(common.PORT, common.fail);
     server.on('error', function(e) {
       assert.equal(e.code, 'EADDRINUSE');
       process.send(e.code);

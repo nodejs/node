@@ -31,11 +31,6 @@
   'bugs/*': [FAIL],
 
   ##############################################################################
-  # Flaky tests.
-  # BUG(v8:2921).
-  'debug-step-4-in-frame': [PASS, FAIL, SLOW],
-
-  ##############################################################################
   # Fails.
   'regress/regress-1119': [FAIL],
 
@@ -48,81 +43,139 @@
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
 
+  # Issue 4698: not fully supported by Turbofan yet
+  'es6/tail-call': [PASS, NO_VARIANTS],
+
   # Issue 3389: deopt_every_n_garbage_collections is unsafe
   'regress/regress-2653': [SKIP],
 
+  # Issue 3784: setters-on-elements is flaky
+  'setters-on-elements': [PASS, FAIL],
+
+  # Issue 3641: The new 'then' semantics suppress some exceptions.
+  # These tests may be changed or removed when 'chain' is deprecated.
+  'es6/debug-promises/reject-with-throw-in-reject': [FAIL],
+  'es6/debug-promises/reject-with-undefined-reject': [FAIL],
+  'es6/debug-promises/reject-with-invalid-reject': [FAIL],
+
   ##############################################################################
   # TurboFan compiler failures.
-
-  # TODO(mstarzinger): An arguments object materialized in the prologue can't
-  # be accessed indirectly. Either we drop that requirement or wait for support
-  # from the deoptimizer to do that.
-  'arguments-indirect': [PASS, NO_VARIANTS],
-
-  # TODO(rossberg): Typer doesn't like contexts very much.
-  'harmony/block-conflicts': [PASS, NO_VARIANTS],
-  'harmony/block-for': [PASS, NO_VARIANTS],
-  'harmony/block-leave': [PASS, NO_VARIANTS],
-  'harmony/block-let-crankshaft': [PASS, NO_VARIANTS],
-  'harmony/empty-for': [PASS, NO_VARIANTS],
 
   # TODO(verwaest): Some tests are over-restrictive about object layout.
   'array-constructor-feedback': [PASS, NO_VARIANTS],
   'array-feedback': [PASS, NO_VARIANTS],
   'compare-known-objects-slow': [PASS, NO_VARIANTS],
   'elements-kind': [PASS, NO_VARIANTS],
+  'opt-elements-kind': [PASS, NO_VARIANTS],
+  'smi-representation': [PASS, NO_VARIANTS],
 
   # Some tests are just too slow to run for now.
+  'big-object-literal': [PASS, NO_VARIANTS],
   'bit-not': [PASS, NO_VARIANTS],
   'json2': [PASS, NO_VARIANTS],
   'packed-elements': [PASS, NO_VARIANTS],
+  'string-indexof-1': [PASS, NO_VARIANTS],
   'unbox-double-arrays': [PASS, NO_VARIANTS],
+  'unicode-test': [PASS, NO_VARIANTS],
   'whitespaces': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
+  'es6/string-fromcodepoint': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
+  'regress/regress-2612': [PASS, NO_VARIANTS],
+
+  # Modules are busted
+  'harmony/module-linking': [SKIP],
+  'harmony/module-recompile': [SKIP],
+  'harmony/module-resolution': [SKIP],
+  'harmony/regress/regress-343928': [SKIP],
+
+  # Proxy tests rely on non ES6 version of Proxies
+  # TODO(neis,cbruni): figure out which Proxy tests can be reused
+  'harmony/proxies-example-membrane': [SKIP],
+  'strong/load-proxy': [SKIP],
 
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
 
-  # Support for %GetFrameDetails is missing and requires checkpoints.
-  'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
-  'debug-evaluate-const': [PASS, NO_VARIANTS],
-  'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
+  # TODO(mstarzinger): Optimizing top-level code revealed some issues. Fix!
+  'bitops-info': [PASS, NO_VARIANTS],  # fails on ARM hardware.
+  'md5': [PASS, NO_VARIANTS],  # fails on ARM hardware.
+  'debug-break-inline': [PASS, NO_VARIANTS],  # very flaky.
+  'debug-compile-event-newfunction': [PASS, NO_VARIANTS],
+  'debug-conditional-breakpoints': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
+  'debug-evaluate-recursive': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-ignore-breakpoints': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-setbreakpoint': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-step': [PASS, NO_VARIANTS],  # windows only.
+  'debug-step-2': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
+  'debug-step-3': [PASS, NO_VARIANTS],  # flaky in no-snap mode.
+  'debug-stepframe-clearing': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-stepin-call-function-stub': [PASS, NO_VARIANTS],  # only in no-snap debug.
+  'debug-stepin-positions': [PASS, NO_VARIANTS],  # only due to inlining.
+  'regress/regress-3717': [PASS, NO_VARIANTS],  # only in no-snap mode.
+  'regress/regress-2451': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
+  'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
+  'debug-listbreakpoints': [PASS, NO_VARIANTS],  # arm64 nosnap with turbofan
+  'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
+
+  # Issue 3956: Strong mode is deprecating. The expectations inside the
+  # following tests should be updated once deprecation is complete.
+  'strong/destructuring': [SKIP],
+  'strong/implicit-conversions': [SKIP],
+  'strong/implicit-conversions-count': [SKIP],
+  'strong/implicit-conversions-inlining': [SKIP],
+  'strong/load-builtins': [SKIP],
+  'strong/load-element': [SKIP],
+  'strong/load-element-mutate-backing-store': [SKIP],
+  'strong/load-property': [SKIP],
+  'strong/load-property-mutate-backing-store': [SKIP],
+  'strong/load-super': [SKIP],
+  'strong/literals': [SKIP], # Rest arguments do not respect strongness in Turbofan.
+
+  # Issue 4035: unexpected frame->context() in debugger
+  'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-323936': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-491943': [PASS, NO_VARIANTS],
+  'regress/regress-325676': [PASS, NO_VARIANTS],
+  'debug-evaluate-closure': [PASS, NO_VARIANTS],
+  'debug-evaluate-with': [PASS, NO_VARIANTS],
+
+  # TODO(mstarzinger): Optimizing top-level code flushed out some correctness
+  # issues on ARM and ARM64.
+  'es6/math-log2-log10': [PASS, NO_VARIANTS],  # on ARM and ARM64.
+  'mirror-script': [PASS, NO_VARIANTS],  # on ARM64 only.
+
+  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
+  'debug-evaluate-const': [PASS, NO_VARIANTS],
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
-  'debug-evaluate-with-context': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-capturing': [PASS, NO_VARIANTS],
+  'debug-liveedit-check-stack': [PASS, NO_VARIANTS],  # only in no-snap mode.
   'debug-liveedit-double-call': [PASS, NO_VARIANTS],
-  'debug-liveedit-restart-frame': [PASS, NO_VARIANTS],
-  'debug-return-value': [PASS, NO_VARIANTS],
   'debug-set-variable-value': [PASS, NO_VARIANTS],
-  'debug-step-stub-callfunction': [PASS, NO_VARIANTS],
-  'debug-stepin-accessor': [PASS, NO_VARIANTS],
-  'debug-stepin-builtin': [PASS, NO_VARIANTS],
-  'debug-stepin-constructor': [PASS, NO_VARIANTS],
-  'debug-stepin-function-call': [PASS, NO_VARIANTS],
-  'debug-stepnext-do-while': [PASS, NO_VARIANTS],
-  'debug-stepout-recursive-function': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part1': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part2': [PASS, NO_VARIANTS],
   'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
-  'debug-stepout-scope-part7': [PASS, NO_VARIANTS],
-  'debug-stepout-to-builtin': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-in-constructor': [PASS, NO_VARIANTS],
-  'es6/debug-promises/reject-in-constructor': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-with-undefined-reject': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-with-throw-in-reject': [PASS, NO_VARIANTS],
-  'es6/debug-promises/reject-with-throw-in-reject': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-uncaught-all': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-uncaught-uncaught': [PASS, NO_VARIANTS],
-  'es6/debug-promises/reject-uncaught-late': [PASS, NO_VARIANTS],
-  'es6/debug-promises/throw-caught-by-default-reject-handler': [PASS, NO_VARIANTS],
+  'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
+  # Issue 4055: Scope chain length observed by debugger is off.
   'es6/generators-debug-scopes': [PASS, NO_VARIANTS],
-  'harmony/debug-blockscopes': [PASS, NO_VARIANTS],
-  'regress/regress-1081309': [PASS, NO_VARIANTS],
-  'regress/regress-269': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
-  'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
+
+  # TODO(titzer): --always-opt incorrectly disables CrankShaft soft deopt points
+  'result-table-min': [PASS, NO_VARIANTS],
+  'result-table-max': [PASS, NO_VARIANTS],
+  # TODO(titzer): too slow in --turbo mode due to O(n^2) graph verification.
+  'regress/regress-1122': [PASS, NO_VARIANTS],
+
+  # Assumptions about optimization need investigation in TurboFan.
+  'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
+  'regress/regress-store-uncacheable': [PASS, NO_VARIANTS],
+
+  # issue 4078:
+  'allocation-site-info': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -132,22 +185,40 @@
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
+  # Too slow in debug mode for validation of elements.
+  'regress/regress-430201': [PASS, ['mode == debug', SKIP]],
+  'regress/regress-430201b': [PASS, ['mode == debug', SKIP]],
+
+  ##############################################################################
   # Too slow in debug mode for GC stress mode.
   'regress/regress-crbug-217858': [PASS, ['mode == debug', SKIP]],
 
+  # Too slow in debug mode and under turbofan.
+  'regress/regress-4595': [PASS, NO_VARIANTS, ['mode == debug', SKIP]],
+
   ##############################################################################
-  # Only regexp stuff tested, no need for extensive Crankshaft tests.
+  # Only RegExp stuff tested, no need for extensive optimizing compiler tests.
   'regexp-global': [PASS, NO_VARIANTS],
+  'third_party/regexp-pcre/regexp-pcre': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # No need to waste time for this test.
   'd8-performance-now': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
 
   # Issue 488: this test sometimes times out.
-  'array-constructor': [PASS, TIMEOUT],
+  # TODO(arm): This seems to flush out a bug on arm with simulator.
+  'array-constructor': [PASS, TIMEOUT, ['arch == arm and simulator == True', SKIP]],
+
+  # Issue 4413: this test sometimes times out with TSAN because we trigger
+  # the slow path in C++ with holey arrays in Function.prototype.apply.
+  # TODO(bmeurer): Add fast support for holey arrays in apply.
+  'apply': [PASS, TIMEOUT],
 
   # Very slow on ARM and MIPS, contains no architecture dependent code.
-  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', TIMEOUT]],
+  'unicode-case-overoptimization': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', TIMEOUT]],
+  'regress/regress-3976': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips64 or arch == mips', SKIP]],
+  'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
 
   ##############################################################################
   # This test expects to reach a certain recursion depth, which may not work
@@ -158,7 +229,7 @@
   # Skip long running tests that time out in debug mode.
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
   'migrations': [SKIP],
-  'array-functions-prototype-misc': [PASS, ['mode == debug', SKIP]],
+  'array-functions-prototype-misc': [PASS, SLOW, ['mode == debug', SKIP]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
@@ -178,7 +249,7 @@
   ##############################################################################
   # Tests verifying CHECK and ASSERT.
   'verify-check-false': [FAIL, NO_VARIANTS],
-  'verify-assert-false': [NO_VARIANTS, ['mode == release', PASS], ['mode == debug', FAIL]],
+  'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug or dcheck_always_on == True', FAIL]],
 
   ##############################################################################
   # Tests with different versions for release and debug.
@@ -202,8 +273,47 @@
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
 
   # Too slow for slow variants.
-  'asm/embenchen/*': [PASS, FAST_VARIANTS],
+  'asm/embenchen/*': [PASS, SLOW, FAST_VARIANTS],
+  'asm/poppler/*': [PASS, SLOW, FAST_VARIANTS],
+  'asm/sqlite3/*': [PASS, SLOW, FAST_VARIANTS],
+
+  # BUG(v8:3838).
+  'regress/regress-3116': [PASS, ['isolates', FLAKY]],
+
+  # BUG(v8:4458). TODO(mvstanton): reenable the test once --vector-stores is
+  # prermanently enabled.
+  'call-counts': [SKIP],
+
+  # BUG(chromium:508074). Remove this once the issue is fixed.
+  'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
+  'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
+
+  # Slow tests.
+  'copy-on-write-assert': [PASS, SLOW],
+  'debug-scopes': [PASS, SLOW],
+  'es7/object-observe': [PASS, ['mode == debug', SLOW]],
+  'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
+  'readonly': [PASS, SLOW],
+  'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
+  'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
+
+  # TODO(titzer): correct WASM adapter frame alignment on arm64
+  'wasm/*': [PASS, ['arch == arm64', SKIP]],
+  'wasm/asm-wasm': [PASS, ['arch == arm or arch == arm64', SKIP]],
+
+  # case-insensitive unicode regexp relies on case mapping provided by ICU.
+  'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
+  'harmony/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
+  # desugaring regexp property class relies on ICU.
+  'harmony/unicode-regexp-property-class': [PASS, ['no_i18n == True', FAIL]],
 }],  # ALWAYS
+
+['novfp3 == True', {
+  'asm/embenchen/box2d': [SKIP],
+  'asm/embenchen/zlib': [SKIP],
+  'asm/embenchen/memops': [SKIP],
+  'asm/embenchen/lua_binarytrees': [SKIP],
+}],  # novfp3 == True
 
 ##############################################################################
 ['gc_stress == True', {
@@ -213,16 +323,19 @@
   'array-feedback': [SKIP],
   'array-literal-feedback': [SKIP],
   'd8-performance-now': [SKIP],
-  'debug-stepout-scope-part8': [PASS, ['arch == arm ', FAIL]],
   'elements-kind': [SKIP],
   'elements-transition-hoisting': [SKIP],
   'fast-prototype': [SKIP],
+  'field-type-tracking': [SKIP],
   'getters-on-elements': [SKIP],
-  'harmony/block-let-crankshaft': [SKIP],
+  'es6/block-let-crankshaft': [SKIP],
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
+  'regress/regress-crbug-137689': [SKIP],
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
+  'regress/regress-4121': [SKIP],
+  'compare-known-objects-slow': [SKIP],
   # Tests taking too long
   'debug-stepout-scope-part8': [SKIP],
   'mirror-object': [SKIP],
@@ -246,9 +359,49 @@
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
 
+  # TODO(jkummerow): Doesn't work correctly in GC stress.
+  'regress/regress-crbug-500497': [SKIP],
+
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
+
+  # Issue 3723.
+  'regress/regress-3717': [SKIP],
+
+  # BUG(v8:4237)
+  'regress/regress-3976': [SKIP],
+
+  # BUG(v8:4359)
+  'strong/load-proxy': [SKIP],
+
+  # Slow tests.
+  'array-constructor': [PASS, SLOW],
+  'json': [PASS, SLOW],
+  'regress/regress-446389': [PASS, SLOW],
+  'regress/regress-inline-getter-near-stack-limit': [PASS, SLOW],
+
+  # BUG(v8:3097)
+  'debug-references': [SKIP],
+
+  # BUG(v8:4754).
+  'debug-referenced-by': [PASS, NO_VARIANTS],
 }],  # 'gc_stress == True'
+
+##############################################################################
+['no_i18n == True and mode == debug', {
+  # Tests too slow for no18n debug.
+  'regress/regress-1200351': [SKIP],
+}],  # 'no_i18n == True and mode == debug'
+
+##############################################################################
+['byteorder == big', {
+  # Emscripten requires little-endian, skip all tests on big endian platforms.
+  'asm/embenchen/*': [SKIP],
+  'asm/poppler/*': [SKIP],
+  'asm/sqlite3/*': [SKIP],
+  # TODO(mips-team): Fix Wasm for big-endian.
+  'wasm/*': [SKIP],
+}],  # 'byteorder == big'
 
 ##############################################################################
 ['arch == arm64 or arch == android_arm64', {
@@ -283,16 +436,11 @@
   'regress/regress-91013': [SKIP],
   'regress/regress-99167': [SKIP],
 
-  # Long running tests.
-  'regress/regress-2185': [PASS, ['mode == debug', PASS, TIMEOUT]],
-  'regress/regress-2185-2': [PASS, TIMEOUT],
-  'whitespaces': [PASS, TIMEOUT, SLOW],
-
-  # BUG(v8:3147). It works on other architectures by accident.
-  'regress/regress-conditional-position': [FAIL],
-
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
+
+  # BUG(v8:4016)
+  'regress/regress-crbug-467047': [SKIP],
 
   # Slow tests.
   'array-concat': [PASS, SLOW],
@@ -325,6 +473,7 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
+  'whitespaces': [PASS, TIMEOUT, SLOW],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -350,7 +499,21 @@
   'big-array-literal': [SKIP],
   'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
+
+  # Exception thrown during bootstrapping on ASAN builds, see issue 4236.
+  'regress/regress-1132': [SKIP],
 }],  # 'asan == True'
+
+##############################################################################
+['msan == True', {
+  # Skip tests not suitable for MSAN.
+  'big-array-literal': [SKIP],
+  # ICU upstream issues.
+  'date': [SKIP],
+  'deep-recursion': [SKIP],
+  'regress/regress-builtinbust-7': [SKIP],
+  'string-localecompare': [SKIP],
+}],  # 'msan == True'
 
 ##############################################################################
 ['arch == arm or arch == android_arm', {
@@ -359,7 +522,7 @@
   'try': [PASS, ['mode == debug', SKIP]],
   'debug-scripts-request': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
-  'regress/regress-1122': [PASS, ['mode == debug and arch == android_arm', SKIP]],
+  'regress/regress-1122': [PASS, SLOW, ['mode == debug and arch == android_arm', SKIP]],
 
   # Flaky test that can hit compilation-time stack overflow in debug mode.
   'unicode-test': [PASS, ['mode == debug', PASS, FAIL]],
@@ -367,10 +530,6 @@
   # Times out often in release mode on ARM.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == release', TIMEOUT]],
   'array-splice': [PASS, TIMEOUT],
-
-  # Long running test.
-  'string-indexof-2': [PASS, TIMEOUT],
-  'mirror-object': [PASS, TIMEOUT],
 
   # Long running tests. Skipping because having them timeout takes too long on
   # the buildbot.
@@ -389,17 +548,16 @@
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
 
-  ############################################################################
   # Slow tests.
-  'regress/regress-2185-2': [PASS, SLOW],
-  'mirror-object': [PASS, SLOW],
-  'compiler/osr-with-args': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
+  'compiler/osr-with-args': [PASS, SLOW],
+  'mirror-object': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
-  'regress/regress-91008': [PASS, SLOW],
+  'regress/regress-2185-2': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
+  'regress/regress-91008': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
-  'regress/regress-1122': [PASS, SLOW],
+  'string-indexof-2': [PASS, TIMEOUT],
 }],  # 'arch == arm or arch == android_arm'
 
 ##############################################################################
@@ -439,13 +597,17 @@
 ['arch == mips', {
   # Flaky with TF.
   'mirror-script': [PASS, NO_VARIANTS],
-
-  # Emscripten requires little-endian, skip all tests on MIPS EB.
-  'asm/embenchen/*': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
-['arch == mips64el', {
+['arch == x87', {
+  # Turbofan will hit the known issue that x87 changes sNaN to qNaN by default.
+  'regress/regress-undefined-nan': [SKIP],
+  'regress/regress-crbug-242924': [SKIP],
+}],  # 'arch == x87'
+
+##############################################################################
+['arch == mips64el or arch == mips64', {
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
@@ -493,12 +655,8 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
-}],  # 'arch == mips64el'
+}],  # 'arch == mips64el or arch == mips64'
 
-['arch == mips64el and simulator_run == False', {
-  # Random failures on HW, need investigation.
-  'debug-*': [SKIP],
-}],
 ##############################################################################
 ['system == windows', {
   # TODO(mstarzinger): Too slow with turbo fan.
@@ -510,6 +668,9 @@
 
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],
+
+  # BUG(v8:4495).
+  'es6/collections': [PASS, ['arch == ia32', FAST_VARIANTS]],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -574,11 +735,192 @@
   'assert-opt-and-deopt': [SKIP],
   'never-optimize': [SKIP],
   'regress/regress-2185-2': [SKIP],
-  'harmony/object-observe': [SKIP],
   'readonly': [SKIP],
   'array-feedback': [SKIP],
+
+  # Bounds check triggers forced deopt for array constructors.
+  'array-constructor-feedback': [SKIP],
+
+  # Deopting uses just enough memory to make this one OOM.
+  'regress/regress-3976': [SKIP],
 
   # Deopt every n garbage collections collides with deopt every n times.
   'regress/regress-2653': [SKIP],
 }],  # 'deopt_fuzzer == True'
+
+##############################################################################
+['predictable == True', {
+
+  # Skip tests that are known to be non-deterministic.
+  'd8-worker-sharedarraybuffer': [SKIP],
+  'd8-os': [SKIP],
+}],  # 'predictable == True'
+
+##############################################################################
+['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
+
+  # take too long with the simulator.
+  'regress/regress-1132': [SKIP],
+}],  # 'arch == ppc and simulator_run == True'
+
+['ignition == True', {
+  # Skip strong mode tests since strong mode is unsupported on ignition.
+  'strong/*': [SKIP],
+
+  # TODO(yangguo,4690): Requires debugger support.
+  'es6/debug*': [SKIP],
+  'harmony/debug*': [SKIP],
+  'regress/debug*': [SKIP],
+  'regress/regress-debug*': [SKIP],
+
+  # TODO(yangguo,4690): assertion failures in debugger tests.
+  'debug-allscopes-on-debugger': [FAIL],
+  'debug-liveedit-restart-frame': [FAIL],
+  'debug-return-value': [FAIL],
+  'debug-liveedit-literals': [FAIL],
+  'debug-liveedit-3': [FAIL],
+  'debug-liveedit-1': [FAIL],
+  'debug-step-into-json': [FAIL],
+  'debug-liveedit-patch-positions-replace': [FAIL],
+  'debug-step-into-valueof': [FAIL],
+  'debug-liveedit-patch-positions': [FAIL],
+  'debug-liveedit-stepin': [FAIL],
+  'debug-step-4': [FAIL],
+  'debug-liveedit-newsource': [FAIL],
+  'debug-liveedit-stack-padding': [FAIL],
+  'debug-stepframe': [FAIL],
+  'debug-negative-break-points': [FAIL],
+  'debug-stepin-accessor': [FAIL],
+  'debug-step-stub-callfunction': [FAIL],
+  'debug-liveedit-breakpoints': [FAIL],
+  'debug-stepin-accessor-ic': [FAIL],
+  'debug-stepin-builtin': [FAIL],
+  'debug-stepin-foreach': [FAIL],
+  'debug-stepnext-do-while': [FAIL],
+  'debug-stepin-builtin-callback-opt': [FAIL],
+  'debug-stepin-function-call': [FAIL],
+
+  # TODO(yangguo,4690): Check failure in debug.cc BreakLocation::SetBreakPoint
+  # DCHECK(IsDebugBreak() || IsDebuggerStatement());
+  'regress/regress-1523': [FAIL],
+  'regress/regress-102153': [FAIL],
+  'regress/regress-2825': [FAIL],
+  'regress/regress-crbug-119800': [FAIL],
+  'regress/regress-crbug-467180': [FAIL],
+  'regress/regress-opt-after-debug-deopt': [FAIL],
+
+  # TODO(rmcilroy,4681): Requires support for generators.
+  'messages': [FAIL],
+  'es6/array-from': [FAIL],
+  'regress-3225': [FAIL],
+  'es6/classes-subclass-builtins': [FAIL],
+  'es6/computed-property-names-classes': [FAIL],
+  'es6/computed-property-names-object-literals-methods': [FAIL],
+  'es6/function-length-configurable': [FAIL],
+  'es6/generators-poisoned-properties': [FAIL],
+  'es6/generators-runtime': [FAIL],
+  'es6/generators-objects': [FAIL],
+  'es6/generators-parsing': [FAIL],
+  'es6/generators-iteration': [FAIL],
+  'es6/generators-states': [FAIL],
+  'es6/iteration-semantics': [FAIL],
+  'es6/iterator-prototype': [FAIL],
+  'es6/generators-mirror': [FAIL],
+  'es6/object-literals-method': [FAIL],
+  'es6/object-literals-super': [FAIL],
+  'es6/generators-relocation': [FAIL],
+  'es6/spread-array': [FAIL],
+  'es6/generators-debug-liveedit': [FAIL],
+  'es6/spread-call': [FAIL],
+  'es6/typedarray-from': [FAIL],
+  'es6/typedarray': [FAIL],
+  'es6/regress/regress-2681': [FAIL],
+  'es6/regress/regress-2691': [FAIL],
+  'es6/regress/regress-3280': [FAIL],
+  'harmony/destructuring-assignment': [FAIL],
+  'harmony/function-sent': [FAIL],
+  'harmony/reflect-enumerate-delete': [FAIL],
+  'harmony/reflect-enumerate-special-cases': [FAIL],
+  'harmony/proxies-enumerate': [FAIL],
+  'harmony/reflect-enumerate-opt': [FAIL],
+  'harmony/reflect-enumerate': [FAIL],
+  'harmony/destructuring': [FAIL],
+  'harmony/regress/regress-4482': [FAIL],
+  'harmony/generators': [FAIL],
+  'harmony/iterator-close': [FAIL],
+  'harmony/reflect-construct': [FAIL],
+  'es6/promises': [FAIL],
+
+  # TODO(rmcilroy,4680): Check failed in
+  # BytecodeGenerator::VisitFunctionLiteral - !shared_info.is_null().
+  'regress/regress-crbug-429159': [FAIL],
+
+  # TODO(rmcilroy,4680): Pass on debug, fail on release.
+  'compiler/regress-stacktrace-methods': [PASS, ['mode == release', FAIL]],
+
+  # TODO(rmcilroy,4680): Test assert failures.
+  'array-literal-feedback': [FAIL],
+  'undetectable-compare': [FAIL],
+  'debug-liveedit-2': [FAIL],
+  'compiler/deopt-tonumber-compare': [FAIL],
+  'es6/string-search': [FAIL],
+  'es6/mirror-collections': [FAIL],
+  'es6/regress/regress-468661': [FAIL],
+  'harmony/string-replace': [FAIL],
+  'harmony/string-match': [FAIL],
+  'harmony/string-split': [FAIL],
+  'regress/regress-2618': [FAIL],
+  'regress/regress-4121': [FAIL],
+  'regress/regress-4266': [FAIL],
+  'harmony/simd': [FAIL],
+  'regress/regress-crbug-109362': [FAIL],
+  'regress/regress-crbug-568477-2': [FAIL],
+  'regress/regress-crbug-568477-3': [FAIL],
+  'regress/regress-crbug-568477-1': [FAIL],
+  'regress/regress-2318': [FAIL],
+
+  # TODO(rmcilroy, 4680): new ES6 instanceof support
+  'harmony/instanceof-es6': [SKIP],
+
+  # TODO(rmcilroy,4680): Test timeouts.
+  'array-literal-transitions': [SKIP],
+  'regress/regress-crbug-517592': [SKIP],
+  'regress/regress-crbug-568477-4': [SKIP],
+  'regress/regress-crbug-409614': [SKIP],
+  'regress/regress-crbug-42414': [SKIP],
+  'regress/regress-1853': [SKIP],
+  'regress/regress-crbug-424142': [SKIP],
+}],  # ignition == True
+
+['ignition == True and arch == arm64', {
+  # TODO(rmcilroy,4680): Fails on Arm64 due to expecting to take less than 3
+  # seconds.
+  'regress/regress-165637': [FAIL],
+}],  # ignition == True and arch == arm64
+
+['ignition == True and (arch == arm or arch == arm64)', {
+  # TODO(rmcilroy,4680): Arm / Arm64 specific timeouts.
+  'asm/construct-double': [SKIP],
+  'compiler/osr-nested': [SKIP],
+  'compiler/osr-one': [SKIP],
+  'compiler/osr-two': [SKIP],
+  'regress/regress-1257': [SKIP],
+  'regress/regress-165637': [SKIP],
+  'regress/regress-2185': [SKIP],
+  'regress/regress-91008': [SKIP],
+  'unicodelctest': [SKIP],
+  'unicodelctest-no-optimization': [SKIP],
+}],  # ignition == True and (arch == arm or arch == arm64)
+
+##############################################################################
+['gcov_coverage', {
+  # Tests taking too long.
+  'array-functions-prototype-misc': [SKIP],
+  'strong/implicit-conversions': [SKIP],
+  'strong/load-element-mutate-backing-store': [SKIP],
+
+  # Stack overflow.
+  'big-array-literal': [SKIP],
+}],  # 'gcov_coverage'
+
 ]

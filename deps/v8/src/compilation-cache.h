@@ -5,6 +5,10 @@
 #ifndef V8_COMPILATION_CACHE_H_
 #define V8_COMPILATION_CACHE_H_
 
+#include "src/allocation.h"
+#include "src/handles.h"
+#include "src/objects.h"
+
 namespace v8 {
 namespace internal {
 
@@ -72,22 +76,20 @@ class CompilationCacheScript : public CompilationSubCache {
  public:
   CompilationCacheScript(Isolate* isolate, int generations);
 
-  Handle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                    Handle<Object> name,
-                                    int line_offset,
-                                    int column_offset,
-                                    bool is_shared_cross_origin,
-                                    Handle<Context> context);
+  Handle<SharedFunctionInfo> Lookup(Handle<String> source, Handle<Object> name,
+                                    int line_offset, int column_offset,
+                                    ScriptOriginOptions resource_options,
+                                    Handle<Context> context,
+                                    LanguageMode language_mode);
   void Put(Handle<String> source,
            Handle<Context> context,
+           LanguageMode language_mode,
            Handle<SharedFunctionInfo> function_info);
 
  private:
-  bool HasOrigin(Handle<SharedFunctionInfo> function_info,
-                 Handle<Object> name,
-                 int line_offset,
-                 int column_offset,
-                 bool is_shared_cross_origin);
+  bool HasOrigin(Handle<SharedFunctionInfo> function_info, Handle<Object> name,
+                 int line_offset, int column_offset,
+                 ScriptOriginOptions resource_options);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
 };
@@ -112,7 +114,7 @@ class CompilationCacheEval: public CompilationSubCache {
 
   MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
                                          Handle<SharedFunctionInfo> outer_info,
-                                         StrictMode strict_mode,
+                                         LanguageMode language_mode,
                                          int scope_position);
 
   void Put(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
@@ -150,14 +152,15 @@ class CompilationCache {
   // script for the given source string with the right origin.
   MaybeHandle<SharedFunctionInfo> LookupScript(
       Handle<String> source, Handle<Object> name, int line_offset,
-      int column_offset, bool is_shared_cross_origin, Handle<Context> context);
+      int column_offset, ScriptOriginOptions resource_options,
+      Handle<Context> context, LanguageMode language_mode);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
   // contain a script for the given source string.
   MaybeHandle<SharedFunctionInfo> LookupEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-      Handle<Context> context, StrictMode strict_mode, int scope_position);
+      Handle<Context> context, LanguageMode language_mode, int scope_position);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
@@ -168,6 +171,7 @@ class CompilationCache {
   // info. This may overwrite an existing mapping.
   void PutScript(Handle<String> source,
                  Handle<Context> context,
+                 LanguageMode language_mode,
                  Handle<SharedFunctionInfo> function_info);
 
   // Associate the (source, context->closure()->shared(), kind) triple
@@ -232,6 +236,7 @@ class CompilationCache {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILATION_CACHE_H_

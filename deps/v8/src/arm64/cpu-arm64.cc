@@ -4,8 +4,6 @@
 
 // CPU specific code for arm independent of OS goes here.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/arm64/utils-arm64.h"
@@ -21,8 +19,8 @@ class CacheLineSizes {
     cache_type_register_ = 0;
 #else
     // Copy the content of the cache type register to a core register.
-    __asm__ __volatile__ ("mrs %[ctr], ctr_el0"  // NOLINT
-                          : [ctr] "=r" (cache_type_register_));
+    __asm__ __volatile__("mrs %[ctr], ctr_el0"  // NOLINT
+                         : [ctr] "=r"(cache_type_register_));
 #endif
   }
 
@@ -39,16 +37,8 @@ class CacheLineSizes {
   uint32_t cache_type_register_;
 };
 
-
 void CpuFeatures::FlushICache(void* address, size_t length) {
-  if (length == 0) return;
-
-#ifdef USE_SIMULATOR
-  // TODO(all): consider doing some cache simulation to ensure every address
-  // run has been synced.
-  USE(address);
-  USE(length);
-#else
+#ifdef V8_HOST_ARCH_ARM64
   // The code below assumes user space cache operations are allowed. The goal
   // of this routine is to make sure the code generated is visible to the I
   // side of the CPU.
@@ -115,9 +105,10 @@ void CpuFeatures::FlushICache(void* address, size_t length) {
     // move this code before the code is generated.
     : "cc", "memory"
   );  // NOLINT
-#endif
+#endif  // V8_HOST_ARCH_ARM64
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

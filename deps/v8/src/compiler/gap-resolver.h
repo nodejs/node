@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class GapResolver FINAL {
+class GapResolver final {
  public:
   // Interface used by the gap resolver to emit moves and swaps.
   class Assembler {
@@ -34,13 +34,14 @@ class GapResolver FINAL {
  private:
   // Perform the given move, possibly requiring other moves to satisfy
   // dependencies.
-  void PerformMove(ZoneList<MoveOperands>* moves, MoveOperands* move) const;
+  void PerformMove(ParallelMove* moves, MoveOperands* move) const;
 
   // Assembler used to emit moves and save registers.
   Assembler* const assembler_;
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_GAP_RESOLVER_H_

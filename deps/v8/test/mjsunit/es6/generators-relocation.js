@@ -25,12 +25,12 @@ function RunTest(formals_and_body, args, value1, value2) {
   // Advance to the first yield.
   assertIteratorResult(value1, false, obj.next());
 
-  // Add a breakpoint on line 3 (the second yield).
-  var bp = Debug.setBreakPoint(gen, 3);
-
   // Enable the debugger, which should force recompilation of the generator
   // function and relocation of the suspended generator activation.
   Debug.setListener(listener);
+
+  // Add a breakpoint on line 3 (the second yield).
+  var bp = Debug.setBreakPoint(gen, 3);
 
   // Check that the generator resumes and suspends properly.
   assertIteratorResult(value2, false, obj.next());

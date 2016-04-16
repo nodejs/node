@@ -16,9 +16,13 @@ experimental, and added for the benefit of IDEs and other utilities that
 wish to do programmatic things with the documentation.
 
 Every `.html` and `.json` file is generated based on the corresponding
-`.markdown` file in the `doc/api/` folder in node's source tree.  The
+`.markdown` file in the `doc/api/` folder in Node.js's source tree.  The
 documentation is generated using the `tools/doc/generate.js` program.
 The HTML template is located at `doc/template.html`.
+
+
+If you find a error in this documentation, please [submit an issue][]
+or see [the contributing guide][] for directions on how to submit a patch.
 
 ## Stability Index
 
@@ -42,34 +46,20 @@ compatibility should not be expected.
 
 ```
 Stability: 1 - Experimental
-This feature was introduced recently, and may change
-or be removed in future versions.  Please try it out and provide feedback.
-If it addresses a use-case that is important to you, tell the node core team.
+This feature is subject to change, and is gated by a command line flag.
+It may change or be removed in future versions.
 ```
 
 ```
-Stability: 2 - Unstable
-The API is in the process of settling, but has not yet had
-sufficient real-world testing to be considered stable. Backwards-compatibility
-will be maintained if reasonable.
+Stability: 2 - Stable
+The API has proven satisfactory. Compatibility with the npm ecosystem
+is a high priority, and will not be broken unless absolutely necessary.
 ```
 
 ```
-Stability: 3 - Stable
-The API has proven satisfactory, but cleanup in the underlying
-code may cause minor changes.  Backwards-compatibility is guaranteed.
-```
-
-```
-Stability: 4 - API Frozen
-This API has been tested extensively in production and is
-unlikely to ever have to change.
-```
-
-```
-Stability: 5 - Locked
-Unless serious bugs are found, this code will not ever
-change.  Please do not suggest changes in this area; they will be refused.
+Stability: 3 - Locked
+Only fixes related to security, performance, or bug fixes will be accepted.
+Please do not suggest API changes in this area; they will be refused.
 ```
 
 ## JSON Output
@@ -79,4 +69,23 @@ change.  Please do not suggest changes in this area; they will be refused.
 Every HTML file in the markdown has a corresponding JSON file with the
 same data.
 
-This feature is new as of node v0.6.12.  It is experimental.
+This feature was added in Node.js v0.6.12.  It is experimental.
+
+## Syscalls and man pages
+
+System calls like open(2) and read(2) define the interface between user programs
+and the underlying operating system. Node functions which simply wrap a syscall,
+like `fs.open()`, will document that. The docs link to the corresponding man
+pages (short for manual pages) which describe how the syscalls work.
+
+**Caveat:** some syscalls, like lchown(2), are BSD-specific. That means, for
+example, that `fs.lchown()` only works on Mac OS X and other BSD-derived systems,
+and is not available on Linux.
+
+Most Unix syscalls have Windows equivalents, but behavior may differ on Windows
+relative to Linux and OS X. For an example of the subtle ways in which it's
+sometimes impossible to replace Unix syscall semantics on Windows, see [Node
+issue 4760](https://github.com/nodejs/node/issues/4760).
+
+[submit an issue]: https://github.com/nodejs/node/issues/new
+[the contributing guide]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md

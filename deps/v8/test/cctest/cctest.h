@@ -28,9 +28,10 @@
 #ifndef CCTEST_H_
 #define CCTEST_H_
 
+#include "include/libplatform/libplatform.h"
+#include "src/isolate-inl.h"  // TODO(everyone): Make cctest IWYU.
+#include "src/objects-inl.h"  // TODO(everyone): Make cctest IWYU.
 #include "src/v8.h"
-
-#include "src/isolate-inl.h"
 
 #ifndef TEST
 #define TEST(Name)                                                             \
@@ -89,24 +90,12 @@ typedef v8::internal::EnumSet<CcTestExtensionIds> CcTestExtensionFlags;
 #undef DEFINE_EXTENSION_FLAG
 
 
-// Use this to expose protected methods in i::Heap.
-class TestHeap : public i::Heap {
- public:
-  using i::Heap::AllocateByteArray;
-  using i::Heap::AllocateFixedArray;
-  using i::Heap::AllocateHeapNumber;
-  using i::Heap::AllocateJSObject;
-  using i::Heap::AllocateJSObjectFromMap;
-  using i::Heap::AllocateMap;
-  using i::Heap::CopyCode;
-};
-
-
 class CcTest {
  public:
   typedef void (TestFunction)();
   CcTest(TestFunction* callback, const char* file, const char* name,
          const char* dependency, bool enabled, bool initialize);
+  ~CcTest() { i::DeleteArray(file_); }
   void Run();
   static CcTest* last() { return last_; }
   CcTest* prev() { return prev_; }
@@ -134,16 +123,21 @@ class CcTest {
     return i_isolate()->heap();
   }
 
-  static TestHeap* test_heap() {
-    return reinterpret_cast<TestHeap*>(i_isolate()->heap());
-  }
-
   static v8::base::RandomNumberGenerator* random_number_generator() {
     return InitIsolateOnce()->random_number_generator();
   }
 
   static v8::Local<v8::Object> global() {
     return isolate()->GetCurrentContext()->Global();
+  }
+
+  static v8::ArrayBuffer::Allocator* array_buffer_allocator() {
+    return allocator_;
+  }
+
+  static void set_array_buffer_allocator(
+      v8::ArrayBuffer::Allocator* allocator) {
+    allocator_ = allocator;
   }
 
   // TODO(dcarney): Remove.
@@ -179,6 +173,7 @@ class CcTest {
   bool initialize_;
   CcTest* prev_;
   static CcTest* last_;
+  static v8::ArrayBuffer::Allocator* allocator_;
   static v8::Isolate* isolate_;
   static bool initialize_called_;
   static v8::base::Atomic32 isolate_used_;
@@ -276,18 +271,17 @@ class RegisterThreadedTest {
 // A LocalContext holds a reference to a v8::Context.
 class LocalContext {
  public:
-  LocalContext(v8::Isolate* isolate,
-               v8::ExtensionConfiguration* extensions = 0,
-               v8::Handle<v8::ObjectTemplate> global_template =
-                   v8::Handle<v8::ObjectTemplate>(),
-               v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>()) {
+  LocalContext(v8::Isolate* isolate, v8::ExtensionConfiguration* extensions = 0,
+               v8::Local<v8::ObjectTemplate> global_template =
+                   v8::Local<v8::ObjectTemplate>(),
+               v8::Local<v8::Value> global_object = v8::Local<v8::Value>()) {
     Initialize(isolate, extensions, global_template, global_object);
   }
 
   LocalContext(v8::ExtensionConfiguration* extensions = 0,
-               v8::Handle<v8::ObjectTemplate> global_template =
-                   v8::Handle<v8::ObjectTemplate>(),
-               v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>()) {
+               v8::Local<v8::ObjectTemplate> global_template =
+                   v8::Local<v8::ObjectTemplate>(),
+               v8::Local<v8::Value> global_object = v8::Local<v8::Value>()) {
     Initialize(CcTest::isolate(), extensions, global_template, global_object);
   }
 
@@ -308,10 +302,9 @@ class LocalContext {
   }
 
  private:
-  void Initialize(v8::Isolate* isolate,
-                  v8::ExtensionConfiguration* extensions,
-                  v8::Handle<v8::ObjectTemplate> global_template,
-                  v8::Handle<v8::Value> global_object) {
+  void Initialize(v8::Isolate* isolate, v8::ExtensionConfiguration* extensions,
+                  v8::Local<v8::ObjectTemplate> global_template,
+                  v8::Local<v8::Value> global_object) {
      v8::HandleScope scope(isolate);
      v8::Local<v8::Context> context = v8::Context::New(isolate,
                                                        extensions,
@@ -342,17 +335,42 @@ static inline v8::Local<v8::Value> v8_num(double x) {
 
 
 static inline v8::Local<v8::String> v8_str(const char* x) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x);
+  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x,
+                                 v8::NewStringType::kNormal)
+      .ToLocalChecked();
 }
 
 
-static inline v8::Local<v8::Script> v8_compile(const char* x) {
-  return v8::Script::Compile(v8_str(x));
+static inline v8::Local<v8::String> v8_str(v8::Isolate* isolate,
+                                           const char* x) {
+  return v8::String::NewFromUtf8(isolate, x, v8::NewStringType::kNormal)
+      .ToLocalChecked();
+}
+
+
+static inline v8::Local<v8::Symbol> v8_symbol(const char* name) {
+  return v8::Symbol::New(v8::Isolate::GetCurrent(), v8_str(name));
 }
 
 
 static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
-  return v8::Script::Compile(x);
+  v8::Local<v8::Script> result;
+  if (v8::Script::Compile(v8::Isolate::GetCurrent()->GetCurrentContext(), x)
+          .ToLocal(&result)) {
+    return result;
+  }
+  return v8::Local<v8::Script>();
+}
+
+
+static inline v8::Local<v8::Script> v8_compile(const char* x) {
+  return v8_compile(v8_str(x));
+}
+
+
+static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  return script->Run(context).ToLocalChecked()->Int32Value(context).FromJust();
 }
 
 
@@ -361,7 +379,8 @@ static inline v8::Local<v8::Script> CompileWithOrigin(
   v8::ScriptOrigin origin(origin_url);
   v8::ScriptCompiler::Source script_source(source, origin);
   return v8::ScriptCompiler::Compile(
-      v8::Isolate::GetCurrent(), &script_source);
+             v8::Isolate::GetCurrent()->GetCurrentContext(), &script_source)
+      .ToLocalChecked();
 }
 
 
@@ -378,13 +397,54 @@ static inline v8::Local<v8::Script> CompileWithOrigin(const char* source,
 
 
 // Helper functions that compile and run the source.
-static inline v8::Local<v8::Value> CompileRun(const char* source) {
-  return v8::Script::Compile(v8_str(source))->Run();
+static inline v8::MaybeLocal<v8::Value> CompileRun(
+    v8::Local<v8::Context> context, const char* source) {
+  return v8::Script::Compile(context, v8_str(source))
+      .ToLocalChecked()
+      ->Run(context);
+}
+
+
+static inline v8::Local<v8::Value> CompileRunChecked(v8::Isolate* isolate,
+                                                     const char* source) {
+  v8::Local<v8::String> source_string =
+      v8::String::NewFromUtf8(isolate, source, v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(context, source_string).ToLocalChecked();
+  return script->Run(context).ToLocalChecked();
 }
 
 
 static inline v8::Local<v8::Value> CompileRun(v8::Local<v8::String> source) {
-  return v8::Script::Compile(source)->Run();
+  v8::Local<v8::Value> result;
+  if (v8_compile(source)
+          ->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
+          .ToLocal(&result)) {
+    return result;
+  }
+  return v8::Local<v8::Value>();
+}
+
+
+// Helper functions that compile and run the source.
+static inline v8::Local<v8::Value> CompileRun(const char* source) {
+  return CompileRun(v8_str(source));
+}
+
+
+static inline v8::Local<v8::Value> CompileRun(
+    v8::Local<v8::Context> context, v8::ScriptCompiler::Source* script_source,
+    v8::ScriptCompiler::CompileOptions options) {
+  v8::Local<v8::Value> result;
+  if (v8::ScriptCompiler::Compile(context, script_source, options)
+          .ToLocalChecked()
+          ->Run(context)
+          .ToLocal(&result)) {
+    return result;
+  }
+  return v8::Local<v8::Value>();
 }
 
 
@@ -392,16 +452,18 @@ static inline v8::Local<v8::Value> ParserCacheCompileRun(const char* source) {
   // Compile once just to get the preparse data, then compile the second time
   // using the data.
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::ScriptCompiler::Source script_source(v8_str(source));
-  v8::ScriptCompiler::Compile(isolate, &script_source,
-                              v8::ScriptCompiler::kProduceParserCache);
+  v8::ScriptCompiler::Compile(context, &script_source,
+                              v8::ScriptCompiler::kProduceParserCache)
+      .ToLocalChecked();
 
   // Check whether we received cached data, and if so use it.
   v8::ScriptCompiler::CompileOptions options =
       script_source.GetCachedData() ? v8::ScriptCompiler::kConsumeParserCache
                                     : v8::ScriptCompiler::kNoCompileOptions;
 
-  return v8::ScriptCompiler::Compile(isolate, &script_source, options)->Run();
+  return CompileRun(context, &script_source, options);
 }
 
 
@@ -411,20 +473,24 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         int line_number,
                                                         int column_number) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::ScriptOrigin origin(v8_str(origin_url),
                           v8::Integer::New(isolate, line_number),
                           v8::Integer::New(isolate, column_number));
   v8::ScriptCompiler::Source script_source(v8_str(source), origin);
-  return v8::ScriptCompiler::Compile(isolate, &script_source)->Run();
+  return CompileRun(context, &script_source,
+                    v8::ScriptCompiler::CompileOptions());
 }
 
 
 static inline v8::Local<v8::Value> CompileRunWithOrigin(
     v8::Local<v8::String> source, const char* origin_url) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::ScriptCompiler::Source script_source(
       source, v8::ScriptOrigin(v8_str(origin_url)));
-  return v8::ScriptCompiler::Compile(v8::Isolate::GetCurrent(), &script_source)
-      ->Run();
+  return CompileRun(context, &script_source,
+                    v8::ScriptCompiler::CompileOptions());
 }
 
 
@@ -439,21 +505,25 @@ static inline void ExpectString(const char* code, const char* expected) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsString());
   v8::String::Utf8Value utf8(result);
-  CHECK_EQ(expected, *utf8);
+  CHECK_EQ(0, strcmp(expected, *utf8));
 }
 
 
 static inline void ExpectInt32(const char* code, int expected) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsInt32());
-  CHECK_EQ(expected, result->Int32Value());
+  CHECK_EQ(expected,
+           result->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext())
+               .FromJust());
 }
 
 
 static inline void ExpectBoolean(const char* code, bool expected) {
   v8::Local<v8::Value> result = CompileRun(code);
   CHECK(result->IsBoolean());
-  CHECK_EQ(expected, result->BooleanValue());
+  CHECK_EQ(expected,
+           result->BooleanValue(v8::Isolate::GetCurrent()->GetCurrentContext())
+               .FromJust());
 }
 
 
@@ -480,83 +550,38 @@ static inline void ExpectUndefined(const char* code) {
 }
 
 
-// Helper function that simulates a full new-space in the heap.
-static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
-  v8::internal::AllocationResult allocation =
-      space->AllocateRaw(v8::internal::Page::kMaxRegularHeapObjectSize);
-  if (allocation.IsRetry()) return false;
-  v8::internal::FreeListNode* node =
-      v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
-  node->set_size(space->heap(), v8::internal::Page::kMaxRegularHeapObjectSize);
-  return true;
+static inline void ExpectNull(const char* code) {
+  v8::Local<v8::Value> result = CompileRun(code);
+  CHECK(result->IsNull());
 }
 
 
-static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
-  int new_linear_size = static_cast<int>(*space->allocation_limit_address() -
-                                         *space->allocation_top_address());
-  if (new_linear_size > 0) {
-    // Fill up the current page.
-    v8::internal::AllocationResult allocation =
-        space->AllocateRaw(new_linear_size);
-    v8::internal::FreeListNode* node =
-        v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
-    node->set_size(space->heap(), new_linear_size);
-  }
-  // Fill up all remaining pages.
-  while (FillUpOnePage(space))
-    ;
+static inline void CheckDoubleEquals(double expected, double actual) {
+  const double kEpsilon = 1e-10;
+  CHECK_LE(expected, actual + kEpsilon);
+  CHECK_GE(expected, actual - kEpsilon);
 }
 
 
-// Helper function that simulates a full old-space in the heap.
-static inline void SimulateFullSpace(v8::internal::PagedSpace* space) {
-  space->EmptyAllocationInfo();
-  space->ResetFreeList();
-  space->ClearStats();
+static void DummyDebugEventListener(
+    const v8::Debug::EventDetails& event_details) {}
+
+
+static inline void EnableDebugger(v8::Isolate* isolate) {
+  v8::Debug::SetDebugEventListener(isolate, &DummyDebugEventListener);
 }
 
 
-// Helper function that simulates many incremental marking steps until
-// marking is completed.
-static inline void SimulateIncrementalMarking(i::Heap* heap) {
-  i::MarkCompactCollector* collector = heap->mark_compact_collector();
-  i::IncrementalMarking* marking = heap->incremental_marking();
-  if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
-  }
-  CHECK(marking->IsMarking() || marking->IsStopped());
-  if (marking->IsStopped()) {
-    marking->Start();
-  }
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+static inline void DisableDebugger(v8::Isolate* isolate) {
+  v8::Debug::SetDebugEventListener(isolate, nullptr);
 }
 
 
-// Helper class for new allocations tracking and checking.
-// To use checking of JS allocations tracking in a test,
-// just create an instance of this class.
-class HeapObjectsTracker {
- public:
-  HeapObjectsTracker() {
-    heap_profiler_ = i::Isolate::Current()->heap_profiler();
-    CHECK_NE(NULL, heap_profiler_);
-    heap_profiler_->StartHeapObjectsTracking(true);
+static inline void EmptyMessageQueues(v8::Isolate* isolate) {
+  while (v8::platform::PumpMessageLoop(v8::internal::V8::GetCurrentPlatform(),
+                                       isolate)) {
   }
-
-  ~HeapObjectsTracker() {
-    i::Isolate::Current()->heap()->CollectAllAvailableGarbage();
-    CHECK_EQ(0, heap_profiler_->heap_object_map()->FindUntrackedObjects());
-    heap_profiler_->StopHeapObjectsTracking();
-  }
-
- private:
-  i::HeapProfiler* heap_profiler_;
-};
+}
 
 
 class InitializedHandleScope {
@@ -576,7 +601,7 @@ class InitializedHandleScope {
 
 class HandleAndZoneScope : public InitializedHandleScope {
  public:
-  HandleAndZoneScope() : main_zone_(main_isolate()) {}
+  HandleAndZoneScope() {}
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
   i::Zone* main_zone() { return &main_zone_; }

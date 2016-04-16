@@ -98,7 +98,7 @@ function listener(event, exec_state, event_data, data) {
           default:
             fail("Unexpected");
         }
-        exec_state.prepareStep(Debug.StepAction.StepIn, 1);
+        exec_state.prepareStep(Debug.StepAction.StepIn);
       } else {
         // Position at the end of the function.
         assertEquals(debugger_source_position + 50,
@@ -124,6 +124,7 @@ function listener(event, exec_state, event_data, data) {
     }
   } catch (e) {
     exception = e
+    print(e + e.stack)
   };
 };
 

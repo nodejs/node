@@ -1,33 +1,10 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 
-common.debug('load test-module-loading.js');
+console.error('load test-module-loading.js');
 
 // assert that this is the main module.
 assert.equal(require.main.id, '.', 'main module should have id of \'.\'');
@@ -56,64 +33,64 @@ var d4 = require('../fixtures/b/d');
 
 assert.equal(false, false, 'testing the test program.');
 
-assert.equal(true, common.indirectInstanceOf(a.A, Function));
+assert.ok(a.A instanceof Function);
 assert.equal('A', a.A());
 
-assert.equal(true, common.indirectInstanceOf(a.C, Function));
+assert.ok(a.C instanceof Function);
 assert.equal('C', a.C());
 
-assert.equal(true, common.indirectInstanceOf(a.D, Function));
+assert.ok(a.D instanceof Function);
 assert.equal('D', a.D());
 
-assert.equal(true, common.indirectInstanceOf(d.D, Function));
+assert.ok(d.D instanceof Function);
 assert.equal('D', d.D());
 
-assert.equal(true, common.indirectInstanceOf(d2.D, Function));
+assert.ok(d2.D instanceof Function);
 assert.equal('D', d2.D());
 
-assert.equal(true, common.indirectInstanceOf(d3.D, Function));
+assert.ok(d3.D instanceof Function);
 assert.equal('D', d3.D());
 
-assert.equal(true, common.indirectInstanceOf(d4.D, Function));
+assert.ok(d4.D instanceof Function);
 assert.equal('D', d4.D());
 
-assert.ok((new a.SomeClass) instanceof c.SomeClass);
+assert.ok((new a.SomeClass()) instanceof c.SomeClass);
 
-common.debug('test index.js modules ids and relative loading');
-var one = require('../fixtures/nested-index/one'),
-    two = require('../fixtures/nested-index/two');
+console.error('test index.js modules ids and relative loading');
+const one = require('../fixtures/nested-index/one');
+const two = require('../fixtures/nested-index/two');
 assert.notEqual(one.hello, two.hello);
 
-common.debug('test index.js in a folder with a trailing slash');
-var three = require('../fixtures/nested-index/three'),
-    threeFolder = require('../fixtures/nested-index/three/'),
-    threeIndex = require('../fixtures/nested-index/three/index.js');
+console.error('test index.js in a folder with a trailing slash');
+const three = require('../fixtures/nested-index/three');
+const threeFolder = require('../fixtures/nested-index/three/');
+const threeIndex = require('../fixtures/nested-index/three/index.js');
 assert.equal(threeFolder, threeIndex);
 assert.notEqual(threeFolder, three);
 
-common.debug('test package.json require() loading');
+console.error('test package.json require() loading');
 assert.equal(require('../fixtures/packages/main').ok, 'ok',
              'Failed loading package');
 assert.equal(require('../fixtures/packages/main-index').ok, 'ok',
              'Failed loading package with index.js in main subdir');
 
-common.debug('test cycles containing a .. path');
-var root = require('../fixtures/cycles/root'),
-    foo = require('../fixtures/cycles/folder/foo');
+console.error('test cycles containing a .. path');
+const root = require('../fixtures/cycles/root');
+const foo = require('../fixtures/cycles/folder/foo');
 assert.equal(root.foo, foo);
 assert.equal(root.sayHello(), root.hello);
 
-common.debug('test node_modules folders');
+console.error('test node_modules folders');
 // asserts are in the fixtures files themselves,
 // since they depend on the folder structure.
 require('../fixtures/node_modules/foo');
 
-common.debug('test name clashes');
+console.error('test name clashes');
 // this one exists and should import the local module
 var my_path = require('../fixtures/path');
-assert.ok(common.indirectInstanceOf(my_path.path_func, Function));
+assert.ok(my_path.path_func instanceof Function);
 // this one does not exist and should throw
-assert.throws(function() { require('./utils')});
+assert.throws(function() { require('./utils'); });
 
 var errorThrown = false;
 try {
@@ -125,7 +102,7 @@ try {
 
 assert.equal(require('path').dirname(__filename), __dirname);
 
-common.debug('load custom file types with extensions');
+console.error('load custom file types with extensions');
 require.extensions['.test'] = function(module, filename) {
   var content = fs.readFileSync(filename).toString();
   assert.equal('this is custom source\n', content);
@@ -138,7 +115,7 @@ assert.equal(require('../fixtures/registerExt').test, 'passed');
 // unknown extension, load as .js
 assert.equal(require('../fixtures/registerExt.hello.world').test, 'passed');
 
-common.debug('load custom file types that return non-strings');
+console.error('load custom file types that return non-strings');
 require.extensions['.test'] = function(module, filename) {
   module.exports = {
     custom: 'passed'
@@ -150,10 +127,6 @@ assert.equal(require('../fixtures/registerExt2').custom, 'passed');
 assert.equal(require('../fixtures/foo').foo, 'ok',
              'require module with no extension');
 
-assert.throws(function() {
-  require.paths;
-}, /removed/, 'Accessing require.paths should throw.');
-
 // Should not attempt to load a directory
 try {
   require('../fixtures/empty');
@@ -162,10 +135,10 @@ try {
 }
 
 // Check load order is as expected
-common.debug('load order');
+console.error('load order');
 
-var loadOrder = '../fixtures/module-load-order/',
-    msg = 'Load order incorrect.';
+const loadOrder = '../fixtures/module-load-order/';
+const msg = 'Load order incorrect.';
 
 require.extensions['.reg'] = require.extensions['.js'];
 require.extensions['.reg2'] = require.extensions['.js'];
@@ -211,7 +184,7 @@ assert.deepEqual(json, {
 // the appropriate children, and so on.
 
 var children = module.children.reduce(function red(set, child) {
-  var id = path.relative(path.dirname(__dirname), child.id)
+  var id = path.relative(path.dirname(__dirname), child.id);
   id = id.replace(/\\/g, '/');
   set[id] = child.children.reduce(red, {});
   return set;
@@ -274,27 +247,27 @@ assert.deepEqual(children, {
 assert.throws(function() {
   console.error('require non-string');
   require({ foo: 'bar' });
-}, 'path must be a string');
+}, /path must be a string/);
 
 assert.throws(function() {
   console.error('require empty string');
   require('');
-}, 'missing path');
+}, /missing path/);
 
 process.on('exit', function() {
-  assert.ok(common.indirectInstanceOf(a.A, Function));
+  assert.ok(a.A instanceof Function);
   assert.equal('A done', a.A());
 
-  assert.ok(common.indirectInstanceOf(a.C, Function));
+  assert.ok(a.C instanceof Function);
   assert.equal('C done', a.C());
 
-  assert.ok(common.indirectInstanceOf(a.D, Function));
+  assert.ok(a.D instanceof Function);
   assert.equal('D done', a.D());
 
-  assert.ok(common.indirectInstanceOf(d.D, Function));
+  assert.ok(d.D instanceof Function);
   assert.equal('D done', d.D());
 
-  assert.ok(common.indirectInstanceOf(d2.D, Function));
+  assert.ok(d2.D instanceof Function);
   assert.equal('D done', d2.D());
 
   assert.equal(true, errorThrown);
@@ -306,3 +279,11 @@ process.on('exit', function() {
 // #1440 Loading files with a byte order marker.
 assert.equal(42, require('../fixtures/utf8-bom.js'));
 assert.equal(42, require('../fixtures/utf8-bom.json'));
+
+// Error on the first line of a module should
+// have the correct line number
+assert.throws(function() {
+  require('../fixtures/test-error-first-line-offset.js');
+}, function(err) {
+  return /test-error-first-line-offset.js:1:/.test(err.stack);
+}, 'Expected appearance of proper offset in Error stack');

@@ -1,4 +1,4 @@
-/* crypto/ui/ui_compat.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/ui/ui_compat.c */
 /* ====================================================================
  * Copyright (c) 2001-2002 The OpenSSL Project.  All rights reserved.
  *
@@ -7,7 +7,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -56,12 +56,14 @@
 #include <string.h>
 #include <openssl/ui_compat.h>
 
-int _ossl_old_des_read_pw_string(char *buf,int length,const char *prompt,int verify)
-	{
-	return UI_UTIL_read_pw_string(buf, length, prompt, verify);
-	}
+int _ossl_old_des_read_pw_string(char *buf, int length, const char *prompt,
+                                 int verify)
+{
+    return UI_UTIL_read_pw_string(buf, length, prompt, verify);
+}
 
-int _ossl_old_des_read_pw(char *buf,char *buff,int size,const char *prompt,int verify)
-	{
-	return UI_UTIL_read_pw(buf, buff, size, prompt, verify);
-	}
+int _ossl_old_des_read_pw(char *buf, char *buff, int size, const char *prompt,
+                          int verify)
+{
+    return UI_UTIL_read_pw(buf, buff, size, prompt, verify);
+}

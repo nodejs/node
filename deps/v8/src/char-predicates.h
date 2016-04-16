@@ -13,8 +13,11 @@ namespace internal {
 // Unicode character predicates as defined by ECMA-262, 3rd,
 // used for lexical analysis.
 
+inline int AsciiAlphaToLower(uc32 c);
 inline bool IsCarriageReturn(uc32 c);
 inline bool IsLineFeed(uc32 c);
+inline bool IsAsciiIdentifier(uc32 c);
+inline bool IsAlphaNumeric(uc32 c);
 inline bool IsDecimalDigit(uc32 c);
 inline bool IsHexDigit(uc32 c);
 inline bool IsOctalDigit(uc32 c);
@@ -76,6 +79,7 @@ struct WhiteSpaceOrLineTerminator {
   }
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CHAR_PREDICATES_H_

@@ -51,6 +51,7 @@ map.set(o2, 22);
 map.delete(o1);
 var mapMirror = debug.MakeMirror(map);
 testMapMirror(mapMirror);
+
 var entries = mapMirror.entries();
 assertEquals(1, entries.length);
 assertSame(o2, entries[0].key);
@@ -59,6 +60,7 @@ map.set(o1, 33);
 map.set(o3, o2);
 map.delete(o2);
 map.set(undefined, 44);
+
 entries = mapMirror.entries();
 assertEquals(3, entries.length);
 assertSame(o1, entries[0].key);
@@ -67,6 +69,10 @@ assertSame(o3, entries[1].key);
 assertSame(o2, entries[1].value);
 assertEquals(undefined, entries[2].key);
 assertEquals(44, entries[2].value);
+
+assertEquals(3, mapMirror.entries(0).length);
+assertEquals(1, mapMirror.entries(1).length);
+assertEquals(2, mapMirror.entries(2).length);
 
 // Test the mirror object for Sets
 var set = new Set();
@@ -78,6 +84,7 @@ var setMirror = debug.MakeMirror(set);
 testSetMirror(setMirror);
 var values = setMirror.values();
 assertEquals(2, values.length);
+assertEquals(1, setMirror.values(1).length);
 assertSame(o2, values[0]);
 assertEquals(undefined, values[1]);
 
@@ -96,6 +103,8 @@ gc();
 function testWeakMapEntries(weakMapMirror) {
   var entries = weakMapMirror.entries();
   assertEquals(2, entries.length);
+  assertEquals(2, weakMapMirror.entries(0).length);
+  assertEquals(1, weakMapMirror.entries(1).length);
   var found = 0;
   for (var i = 0; i < entries.length; i++) {
     if (Object.is(entries[i].key, o1)) {
@@ -129,6 +138,8 @@ gc();
 function testWeakSetValues(weakSetMirror) {
   var values = weakSetMirror.values();
   assertEquals(2, values.length);
+  assertEquals(2, weakSetMirror.values(0).length);
+  assertEquals(1, weakSetMirror.values(1).length);
   var found = 0;
   for (var i = 0; i < values.length; i++) {
     if (Object.is(values[i], o1)) {

@@ -4,7 +4,7 @@ SERVER=127.0.0.1
 PORT=${PORT:=8000}
 
 # You may want to configure your TCP settings to make many ports available
-# to node and ab. On macintosh use: 
+# to node and ab. On macintosh use:
 #   sudo sysctl -w net.inet.ip.portrange.first=32768
 #   sudo sysctl -w net.inet.tcp.msl=1000
 
@@ -24,7 +24,7 @@ date=`date "+%Y%m%d%H%M%S"`
 ab_hello_world() {
   local type="$1"
   local ressize="$2"
-  if [ $type == "string" ]; then 
+  if [ $type == "string" ]; then
     local uri="bytes/$ressize"
   else
     local uri="buffer/$ressize"
@@ -42,7 +42,7 @@ ab_hello_world() {
   data_fn="$dir/$date.data"
 
   echo "Bench $name starts in 3 seconds..."
-  # let shit calm down
+  # let things calm down
   sleep 3
 
   # hammer that as hard as it can for 10 seconds.
@@ -54,7 +54,7 @@ ab_hello_world() {
   echo "webserver-rev: $rev" >> $summary_fn
   echo "webserver-uname: $uname" >> $summary_fn
 
-  grep Req $summary_fn 
+  grep Req $summary_fn
 
   echo "Summary: $summary_fn"
   echo
@@ -64,7 +64,7 @@ ab_hello_world() {
 ab_hello_world 'string' '1024'
 ab_hello_world 'buffer' '1024'
 
-# 100k 
+# 100k
 ab_hello_world 'string' '102400'
 ab_hello_world 'buffer' '102400'
 

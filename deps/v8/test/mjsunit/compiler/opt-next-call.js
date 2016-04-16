@@ -11,3 +11,12 @@ function foo() {
 %OptimizeFunctionOnNextCall(foo);
 assertEquals("fooed", foo());
 assertOptimized(foo);
+
+function bar() {
+  return "bared";
+}
+
+assertEquals("bared", bar());
+%OptimizeFunctionOnNextCall(bar);
+assertEquals("bared", bar());
+assertOptimized(bar);

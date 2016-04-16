@@ -2,85 +2,47 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/allocation-site-scopes.h"
 #include "src/arguments.h"
-#include "src/ast.h"
-#include "src/parser.h"
+#include "src/ast/ast.h"
+#include "src/isolate-inl.h"
+#include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
 
 static Handle<Map> ComputeObjectLiteralMap(
     Handle<Context> context, Handle<FixedArray> constant_properties,
-    bool* is_result_from_cache) {
-  Isolate* isolate = context->GetIsolate();
+    bool is_strong, bool* is_result_from_cache) {
   int properties_length = constant_properties->length();
   int number_of_properties = properties_length / 2;
-  // Check that there are only internal strings and array indices among keys.
-  int number_of_string_keys = 0;
+
   for (int p = 0; p != properties_length; p += 2) {
     Object* key = constant_properties->get(p);
     uint32_t element_index = 0;
-    if (key->IsInternalizedString()) {
-      number_of_string_keys++;
-    } else if (key->ToArrayIndex(&element_index)) {
+    if (key->ToArrayIndex(&element_index)) {
       // An index key does not require space in the property backing store.
       number_of_properties--;
-    } else {
-      // Bail out as a non-internalized-string non-index key makes caching
-      // impossible.
-      // DCHECK to make sure that the if condition after the loop is false.
-      DCHECK(number_of_string_keys != number_of_properties);
-      break;
     }
   }
-  // If we only have internalized strings and array indices among keys then we
-  // can use the map cache in the native context.
-  const int kMaxKeys = 10;
-  if ((number_of_string_keys == number_of_properties) &&
-      (number_of_string_keys < kMaxKeys)) {
-    // Create the fixed array with the key.
-    Handle<FixedArray> keys =
-        isolate->factory()->NewFixedArray(number_of_string_keys);
-    if (number_of_string_keys > 0) {
-      int index = 0;
-      for (int p = 0; p < properties_length; p += 2) {
-        Object* key = constant_properties->get(p);
-        if (key->IsInternalizedString()) {
-          keys->set(index++, key);
-        }
-      }
-      DCHECK(index == number_of_string_keys);
-    }
-    *is_result_from_cache = true;
-    return isolate->factory()->ObjectLiteralMapFromCache(context, keys);
-  }
-  *is_result_from_cache = false;
-  return Map::Create(isolate, number_of_properties);
+  Isolate* isolate = context->GetIsolate();
+  return isolate->factory()->ObjectLiteralMapFromCache(
+      context, number_of_properties, is_strong, is_result_from_cache);
 }
 
-
 MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
-    Isolate* isolate, Handle<FixedArray> literals,
-    Handle<FixedArray> constant_properties);
+    Isolate* isolate, Handle<LiteralsArray> literals,
+    Handle<FixedArray> constant_properties, bool is_strong);
 
 
 MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
-    Isolate* isolate, Handle<FixedArray> literals,
+    Isolate* isolate, Handle<LiteralsArray> literals,
     Handle<FixedArray> constant_properties, bool should_have_fast_elements,
-    bool has_function_literal) {
-  // Get the native context from the literals array.  This is the
-  // context in which the function was created and we use the object
-  // function from this context to create the object literal.  We do
-  // not use the object function from the current native context
-  // because this might be the object function from another context
-  // which we should not have access to.
-  Handle<Context> context =
-      Handle<Context>(JSFunction::NativeContextFromLiterals(*literals));
+    bool has_function_literal, bool is_strong) {
+  Handle<Context> context = isolate->native_context();
 
   // In case we have function literals, we want the object to be in
   // slow properties mode for now. We don't go in the map cache because
@@ -88,9 +50,11 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
   // not the same (which is the common case).
   bool is_result_from_cache = false;
   Handle<Map> map = has_function_literal
-                        ? Handle<Map>(context->object_function()->initial_map())
-                        : ComputeObjectLiteralMap(context, constant_properties,
-                                                  &is_result_from_cache);
+      ? Handle<Map>(is_strong
+                        ? context->js_object_strong_map()
+                        : context->object_function()->initial_map())
+      : ComputeObjectLiteralMap(context, constant_properties, is_strong,
+                                &is_result_from_cache);
 
   PretenureFlag pretenure_flag =
       isolate->heap()->InNewSpace(*literals) ? NOT_TENURED : TENURED;
@@ -109,7 +73,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
   if (should_normalize) {
     // TODO(verwaest): We might not want to ever normalize here.
     JSObject::NormalizeProperties(boilerplate, KEEP_INOBJECT_PROPERTIES,
-                                  length / 2);
+                                  length / 2, "Boilerplate");
   }
   // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index += 2) {
@@ -120,7 +84,8 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       // simple object or array literal.
       Handle<FixedArray> array = Handle<FixedArray>::cast(value);
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, value, CreateLiteralBoilerplate(isolate, literals, array),
+          isolate, value,
+          CreateLiteralBoilerplate(isolate, literals, array, is_strong),
           Object);
     }
     MaybeHandle<Object> maybe_result;
@@ -129,8 +94,8 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
         if (value->IsUninitialized()) value = handle(Smi::FromInt(0), isolate);
-        maybe_result =
-            JSObject::SetOwnElement(boilerplate, element_index, value, SLOPPY);
+        maybe_result = JSObject::SetOwnElementIgnoreAttributes(
+            boilerplate, element_index, value, NONE);
       } else {
         Handle<String> name(String::cast(*key));
         DCHECK(!name->AsArrayIndex(&element_index));
@@ -140,8 +105,8 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
     } else if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
       if (value->IsUninitialized()) value = handle(Smi::FromInt(0), isolate);
-      maybe_result =
-          JSObject::SetOwnElement(boilerplate, element_index, value, SLOPPY);
+      maybe_result = JSObject::SetOwnElementIgnoreAttributes(
+          boilerplate, element_index, value, NONE);
     } else {
       // Non-uint32 number.
       DCHECK(key->IsNumber());
@@ -166,19 +131,18 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
   // constant function properties.
   if (should_transform && !has_function_literal) {
     JSObject::MigrateSlowToFast(boilerplate,
-                                boilerplate->map()->unused_property_fields());
+                                boilerplate->map()->unused_property_fields(),
+                                "FastLiteral");
   }
-
   return boilerplate;
 }
 
 
 MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
-    Isolate* isolate, Handle<FixedArray> literals,
-    Handle<FixedArray> elements) {
+    Isolate* isolate, Handle<LiteralsArray> literals,
+    Handle<FixedArray> elements, bool is_strong) {
   // Create the JSArray.
-  Handle<JSFunction> constructor(
-      JSFunction::NativeContextFromLiterals(*literals)->array_function());
+  Handle<JSFunction> constructor = isolate->array_function();
 
   PretenureFlag pretenure_flag =
       isolate->heap()->InNewSpace(*literals) ? NOT_TENURED : TENURED;
@@ -195,9 +159,9 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
     DisallowHeapAllocation no_gc;
     DCHECK(IsFastElementsKind(constant_elements_kind));
     Context* native_context = isolate->context()->native_context();
-    Object* maps_array = native_context->js_array_maps();
-    DCHECK(!maps_array->IsUndefined());
-    Object* map = FixedArray::cast(maps_array)->get(constant_elements_kind);
+    Strength strength = is_strong ? Strength::STRONG : Strength::WEAK;
+    Object* map = native_context->get(
+        Context::ArrayMapIndex(constant_elements_kind, strength));
     object->set_map(Map::cast(map));
   }
 
@@ -225,13 +189,15 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
           isolate->factory()->CopyFixedArray(fixed_array_values);
       copied_elements_values = fixed_array_values_copy;
       for (int i = 0; i < fixed_array_values->length(); i++) {
+        HandleScope scope(isolate);
         if (fixed_array_values->get(i)->IsFixedArray()) {
           // The value contains the constant_properties of a
           // simple object or array literal.
           Handle<FixedArray> fa(FixedArray::cast(fixed_array_values->get(i)));
           Handle<Object> result;
           ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, result, CreateLiteralBoilerplate(isolate, literals, fa),
+              isolate, result,
+              CreateLiteralBoilerplate(isolate, literals, fa, is_strong),
               Object);
           fixed_array_values_copy->set(i, *result);
         }
@@ -247,19 +213,20 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
 
 
 MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
-    Isolate* isolate, Handle<FixedArray> literals, Handle<FixedArray> array) {
+    Isolate* isolate, Handle<LiteralsArray> literals, Handle<FixedArray> array,
+    bool is_strong) {
   Handle<FixedArray> elements = CompileTimeValue::GetElements(array);
   const bool kHasNoFunctionLiteral = false;
   switch (CompileTimeValue::GetLiteralType(array)) {
     case CompileTimeValue::OBJECT_LITERAL_FAST_ELEMENTS:
       return CreateObjectLiteralBoilerplate(isolate, literals, elements, true,
-                                            kHasNoFunctionLiteral);
+                                            kHasNoFunctionLiteral, is_strong);
     case CompileTimeValue::OBJECT_LITERAL_SLOW_ELEMENTS:
       return CreateObjectLiteralBoilerplate(isolate, literals, elements, false,
-                                            kHasNoFunctionLiteral);
+                                            kHasNoFunctionLiteral, is_strong);
     case CompileTimeValue::ARRAY_LITERAL:
       return Runtime::CreateArrayLiteralBoilerplate(isolate, literals,
-                                                    elements);
+                                                    elements, is_strong);
     default:
       UNREACHABLE();
       return MaybeHandle<Object>();
@@ -267,20 +234,43 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
 }
 
 
+RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
+  CONVERT_SMI_ARG_CHECKED(flags, 3);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(closure->literals()->literal(index), isolate);
+  if (boilerplate->IsUndefined()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, boilerplate, JSRegExp::New(pattern, JSRegExp::Flags(flags)));
+    closure->literals()->set_literal(index, *boilerplate);
+  }
+  return *JSRegExp::Copy(Handle<JSRegExp>::cast(boilerplate));
+}
+
+
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, constant_properties, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
+  Handle<LiteralsArray> literals(closure->literals(), isolate);
   bool should_have_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
   bool has_function_literal = (flags & ObjectLiteral::kHasFunction) != 0;
+  bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
+  bool is_strong = (flags & ObjectLiteral::kIsStrong) != 0;
 
-  RUNTIME_ASSERT(literals_index >= 0 && literals_index < literals->length());
+  RUNTIME_ASSERT(literals_index >= 0 &&
+                 literals_index < literals->literals_count());
 
   // Check if boilerplate exists. If not, create it first.
-  Handle<Object> literal_site(literals->get(literals_index), isolate);
+  Handle<Object> literal_site(literals->literal(literals_index), isolate);
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
   if (*literal_site == isolate->heap()->undefined_value()) {
@@ -289,7 +279,7 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
         isolate, raw_boilerplate,
         CreateObjectLiteralBoilerplate(isolate, literals, constant_properties,
                                        should_have_fast_elements,
-                                       has_function_literal));
+                                       has_function_literal, is_strong));
     boilerplate = Handle<JSObject>::cast(raw_boilerplate);
 
     AllocationSiteCreationContext creation_context(isolate);
@@ -299,14 +289,14 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
     creation_context.ExitScope(site, boilerplate);
 
     // Update the functions literal and return the boilerplate.
-    literals->set(literals_index, *site);
+    literals->set_literal(literals_index, *site);
   } else {
     site = Handle<AllocationSite>::cast(literal_site);
     boilerplate =
         Handle<JSObject>(JSObject::cast(site->transition_info()), isolate);
   }
 
-  AllocationSiteUsageContext usage_context(isolate, site, true);
+  AllocationSiteUsageContext usage_context(isolate, site, enable_mementos);
   usage_context.EnterNewScope();
   MaybeHandle<Object> maybe_copy =
       JSObject::DeepCopy(boilerplate, &usage_context);
@@ -318,17 +308,18 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
 
 
 MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
-    Isolate* isolate, Handle<FixedArray> literals, int literals_index,
-    Handle<FixedArray> elements) {
+    Isolate* isolate, Handle<LiteralsArray> literals, int literals_index,
+    Handle<FixedArray> elements, bool is_strong) {
   // Check if boilerplate exists. If not, create it first.
-  Handle<Object> literal_site(literals->get(literals_index), isolate);
+  Handle<Object> literal_site(literals->literal(literals_index), isolate);
   Handle<AllocationSite> site;
   if (*literal_site == isolate->heap()->undefined_value()) {
     DCHECK(*elements != isolate->heap()->empty_fixed_array());
     Handle<Object> boilerplate;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, boilerplate,
-        Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements),
+        Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements,
+                                               is_strong),
         AllocationSite);
 
     AllocationSiteCreationContext creation_context(isolate);
@@ -339,7 +330,7 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
     }
     creation_context.ExitScope(site, Handle<JSObject>::cast(boilerplate));
 
-    literals->set(literals_index, *site);
+    literals->set_literal(literals_index, *site);
   } else {
     site = Handle<AllocationSite>::cast(literal_site);
   }
@@ -348,17 +339,18 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
 }
 
 
-static MaybeHandle<JSObject> CreateArrayLiteralImpl(Isolate* isolate,
-                                                    Handle<FixedArray> literals,
-                                                    int literals_index,
-                                                    Handle<FixedArray> elements,
-                                                    int flags) {
+static MaybeHandle<JSObject> CreateArrayLiteralImpl(
+    Isolate* isolate, Handle<LiteralsArray> literals, int literals_index,
+    Handle<FixedArray> elements, int flags) {
   RUNTIME_ASSERT_HANDLIFIED(
-      literals_index >= 0 && literals_index < literals->length(), JSObject);
+      literals_index >= 0 && literals_index < literals->literals_count(),
+      JSObject);
   Handle<AllocationSite> site;
+  bool is_strong = (flags & ArrayLiteral::kIsStrong) != 0;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, site,
-      GetLiteralAllocationSite(isolate, literals, literals_index, elements),
+      GetLiteralAllocationSite(isolate, literals, literals_index, elements,
+                               is_strong),
       JSObject);
 
   bool enable_mementos = (flags & ArrayLiteral::kDisableMementos) == 0;
@@ -377,13 +369,14 @@ static MaybeHandle<JSObject> CreateArrayLiteralImpl(Isolate* isolate,
 
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
 
   Handle<JSObject> result;
+  Handle<LiteralsArray> literals(closure->literals(), isolate);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, CreateArrayLiteralImpl(isolate, literals, literals_index,
                                               elements, flags));
@@ -393,12 +386,13 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
 
 RUNTIME_FUNCTION(Runtime_CreateArrayLiteralStubBailout) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
 
   Handle<JSObject> result;
+  Handle<LiteralsArray> literals(closure->literals(), isolate);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
@@ -406,61 +400,5 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteralStubBailout) {
   return *result;
 }
 
-
-RUNTIME_FUNCTION(Runtime_StoreArrayLiteralElement) {
-  HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 5);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_SMI_ARG_CHECKED(store_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 3);
-  CONVERT_SMI_ARG_CHECKED(literal_index, 4);
-
-  Object* raw_literal_cell = literals->get(literal_index);
-  JSArray* boilerplate = NULL;
-  if (raw_literal_cell->IsAllocationSite()) {
-    AllocationSite* site = AllocationSite::cast(raw_literal_cell);
-    boilerplate = JSArray::cast(site->transition_info());
-  } else {
-    boilerplate = JSArray::cast(raw_literal_cell);
-  }
-  Handle<JSArray> boilerplate_object(boilerplate);
-  ElementsKind elements_kind = object->GetElementsKind();
-  DCHECK(IsFastElementsKind(elements_kind));
-  // Smis should never trigger transitions.
-  DCHECK(!value->IsSmi());
-
-  if (value->IsNumber()) {
-    DCHECK(IsFastSmiElementsKind(elements_kind));
-    ElementsKind transitioned_kind = IsFastHoleyElementsKind(elements_kind)
-                                         ? FAST_HOLEY_DOUBLE_ELEMENTS
-                                         : FAST_DOUBLE_ELEMENTS;
-    if (IsMoreGeneralElementsKindTransition(
-            boilerplate_object->GetElementsKind(), transitioned_kind)) {
-      JSObject::TransitionElementsKind(boilerplate_object, transitioned_kind);
-    }
-    JSObject::TransitionElementsKind(object, transitioned_kind);
-    DCHECK(IsFastDoubleElementsKind(object->GetElementsKind()));
-    FixedDoubleArray* double_array = FixedDoubleArray::cast(object->elements());
-    HeapNumber* number = HeapNumber::cast(*value);
-    double_array->set(store_index, number->Number());
-  } else {
-    if (!IsFastObjectElementsKind(elements_kind)) {
-      ElementsKind transitioned_kind = IsFastHoleyElementsKind(elements_kind)
-                                           ? FAST_HOLEY_ELEMENTS
-                                           : FAST_ELEMENTS;
-      JSObject::TransitionElementsKind(object, transitioned_kind);
-      ElementsKind boilerplate_elements_kind =
-          boilerplate_object->GetElementsKind();
-      if (IsMoreGeneralElementsKindTransition(boilerplate_elements_kind,
-                                              transitioned_kind)) {
-        JSObject::TransitionElementsKind(boilerplate_object, transitioned_kind);
-      }
-    }
-    FixedArray* object_array = FixedArray::cast(object->elements());
-    object_array->set(store_index, *value);
-  }
-  return *object;
-}
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 
 // test using assert
@@ -159,30 +139,46 @@ qsWeirdObjects.forEach(function(testCase) {
   assert.equal(testCase[1], qs.stringify(testCase[0]));
 });
 
+// invalid surrogate pair throws URIError
+assert.throws(function() {
+  qs.stringify({ foo: '\udc00' });
+}, URIError);
+
+// coerce numbers to string
+assert.strictEqual('foo=0', qs.stringify({ foo: 0 }));
+assert.strictEqual('foo=0', qs.stringify({ foo: -0 }));
+assert.strictEqual('foo=3', qs.stringify({ foo: 3 }));
+assert.strictEqual('foo=-72.42', qs.stringify({ foo: -72.42 }));
+assert.strictEqual('foo=', qs.stringify({ foo: NaN }));
+assert.strictEqual('foo=', qs.stringify({ foo: Infinity }));
+
 // nested
-var f = qs.stringify({
-  a: 'b',
-  q: qs.stringify({
-    x: 'y',
-    y: 'z'
-  })
-});
-assert.equal(f, 'a=b&q=x%3Dy%26y%3Dz');
+{
+  const f = qs.stringify({
+    a: 'b',
+    q: qs.stringify({
+      x: 'y',
+      y: 'z'
+    })
+  });
+  assert.equal(f, 'a=b&q=x%3Dy%26y%3Dz');
+}
 
 assert.doesNotThrow(function() {
   qs.parse(undefined);
 });
 
 // nested in colon
-var f = qs.stringify({
-  a: 'b',
-  q: qs.stringify({
-    x: 'y',
-    y: 'z'
-  }, ';', ':')
-}, ';', ':');
-assert.equal(f, 'a:b;q:x%3Ay%3By%3Az');
-
+{
+  const f = qs.stringify({
+    a: 'b',
+    q: qs.stringify({
+      x: 'y',
+      y: 'z'
+    }, ';', ':')
+  }, ';', ':');
+  assert.equal(f, 'a:b;q:x%3Ay%3By%3Az');
+}
 
 assert.deepEqual({}, qs.parse());
 
@@ -194,12 +190,11 @@ assert.equal(
 
 // Test removing limit
 function testUnlimitedKeys() {
-  var query = {},
-      url;
+  const query = {};
 
   for (var i = 0; i < 2000; i++) query[i] = i;
 
-  url = qs.stringify(query);
+  const url = qs.stringify(query);
 
   assert.equal(
       Object.keys(qs.parse(url, null, null, { maxKeys: 0 })).length,
@@ -253,8 +248,11 @@ assert.equal(
 
 // test overriding .unescape
 var prevUnescape = qs.unescape;
-qs.unescape = function (str) {
+qs.unescape = function(str) {
   return str.replace(/o/g, '_');
 };
 assert.deepEqual(qs.parse('foo=bor'), {f__: 'b_r'});
 qs.unescape = prevUnescape;
+
+// test separator and "equals" parsing order
+assert.deepEqual(qs.parse('foo&bar', '&', '&'), { foo: '', bar: '' });

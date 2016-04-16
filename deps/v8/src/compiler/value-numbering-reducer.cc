@@ -50,7 +50,7 @@ ValueNumberingReducer::~ValueNumberingReducer() {}
 
 
 Reduction ValueNumberingReducer::Reduce(Node* node) {
-  if (!node->op()->HasProperty(Operator::kEliminatable)) return NoChange();
+  if (!node->op()->HasProperty(Operator::kIdempotent)) return NoChange();
 
   const size_t hash = HashCode(node);
   if (!entries_) {
@@ -88,8 +88,33 @@ Reduction ValueNumberingReducer::Reduce(Node* node) {
       DCHECK(size_ * kCapacityToSizeRatio < capacity_);
       return NoChange();
     }
+
     if (entry == node) {
-      return NoChange();
+      // We need to check for a certain class of collisions here. Imagine the
+      // following scenario:
+      //
+      //  1. We insert node1 with op1 and certain inputs at index i.
+      //  2. We insert node2 with op2 and certain inputs at index i+1.
+      //  3. Some other reducer changes node1 to op2 and the inputs from node2.
+      //
+      // Now we are called again to reduce node1, and we would return NoChange
+      // in this case because we find node1 first, but what we should actually
+      // do is return Replace(node2) instead.
+      for (size_t j = (i + 1) & mask;; j = (j + 1) & mask) {
+        Node* entry = entries_[j];
+        if (!entry) {
+          // No collision, {node} is fine.
+          return NoChange();
+        }
+        if (entry->IsDead()) {
+          continue;
+        }
+        if (Equals(entry, node)) {
+          // Overwrite the colliding entry with the actual entry.
+          entries_[i] = entry;
+          return Replace(entry);
+        }
+      }
     }
 
     // Skip dead entries, but remember their indices so we can reuse them.
@@ -110,7 +135,7 @@ void ValueNumberingReducer::Grow() {
   Node** const old_entries = entries_;
   size_t const old_capacity = capacity_;
   capacity_ *= kCapacityToSizeRatio;
-  entries_ = zone()->NewArray<Node*>(static_cast<int>(capacity_));
+  entries_ = zone()->NewArray<Node*>(capacity_);
   memset(entries_, 0, sizeof(*entries_) * capacity_);
   size_ = 0;
   size_t const mask = capacity_ - 1;

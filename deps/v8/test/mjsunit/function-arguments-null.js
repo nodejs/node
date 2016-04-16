@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// The arguments property of functions should be null when not
+// The arguments property of sloppy functions should be null when not
 // executing inside the function.
-assertTrue(toString.arguments === null);
+
+function sloppy() {}
+
+assertTrue(sloppy.arguments === null);

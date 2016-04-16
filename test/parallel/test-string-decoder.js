@@ -1,35 +1,15 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 var StringDecoder = require('string_decoder').StringDecoder;
 
 process.stdout.write('scanning ');
 
 // UTF-8
-test('utf-8', new Buffer('$', 'utf-8'), '$');
-test('utf-8', new Buffer('¢', 'utf-8'), '¢');
-test('utf-8', new Buffer('€', 'utf-8'), '€');
-test('utf-8', new Buffer('𤭢', 'utf-8'), '𤭢');
+test('utf-8', Buffer.from('$', 'utf-8'), '$');
+test('utf-8', Buffer.from('¢', 'utf-8'), '¢');
+test('utf-8', Buffer.from('€', 'utf-8'), '€');
+test('utf-8', Buffer.from('𤭢', 'utf-8'), '𤭢');
 // A mixed ascii and non-ascii string
 // Test stolen from deps/v8/test/cctest/test-strings.cc
 // U+02E4 -> CB A4
@@ -39,18 +19,15 @@ test('utf-8', new Buffer('𤭢', 'utf-8'), '𤭢');
 // U+3045 -> E3 81 85
 test(
   'utf-8',
-  new Buffer([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4, 0x30, 0xE3, 0x81, 0x85]),
+  Buffer.from([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4, 0x30, 0xE3, 0x81, 0x85]),
   '\u02e4\u0064\u12e4\u0030\u3045'
 );
 
-// CESU-8
-test('utf-8', new Buffer('EDA0BDEDB18D', 'hex'), '\ud83d\udc4d'); // thumbs up
-
 // UCS-2
-test('ucs2', new Buffer('ababc', 'ucs2'), 'ababc');
+test('ucs2', Buffer.from('ababc', 'ucs2'), 'ababc');
 
 // UTF-16LE
-test('ucs2', new Buffer('3DD84DDC', 'hex'),  '\ud83d\udc4d'); // thumbs up
+test('ucs2', Buffer.from('3DD84DDC', 'hex'),  '\ud83d\udc4d'); // thumbs up
 
 console.log(' crayon!');
 
@@ -75,11 +52,11 @@ function test(encoding, input, expected, singleSequence) {
     process.stdout.write('.');
     if (output !== expected) {
       var message =
-        'Expected "'+unicodeEscape(expected)+'", '+
-        'but got "'+unicodeEscape(output)+'"\n'+
-        'Write sequence: '+JSON.stringify(sequence)+'\n'+
-        'Decoder charBuffer: 0x'+decoder.charBuffer.toString('hex')+'\n'+
-        'Full Decoder State: '+JSON.stringify(decoder, null, 2);
+        'Expected "' + unicodeEscape(expected) + '", ' +
+        'but got "' + unicodeEscape(output) + '"\n' +
+        'Write sequence: ' + JSON.stringify(sequence) + '\n' +
+        'Decoder charBuffer: 0x' + decoder.charBuffer.toString('hex') + '\n' +
+        'Full Decoder State: ' + JSON.stringify(decoder, null, 2);
       assert.fail(output, expected, message);
     }
   });
@@ -89,7 +66,7 @@ function test(encoding, input, expected, singleSequence) {
 function unicodeEscape(str) {
   var r = '';
   for (var i = 0; i < str.length; i++) {
-    r += '\\u'+str.charCodeAt(i).toString(16);
+    r += '\\u' + str.charCodeAt(i).toString(16);
   }
   return r;
 }
@@ -107,7 +84,7 @@ function unicodeEscape(str) {
 function writeSequences(length, start, sequence) {
   if (start === undefined) {
     start = 0;
-    sequence = []
+    sequence = [];
   } else if (start === length) {
     return [sequence];
   }
@@ -119,4 +96,3 @@ function writeSequences(length, start, sequence) {
   }
   return sequences;
 }
-

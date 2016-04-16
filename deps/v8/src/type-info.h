@@ -6,9 +6,11 @@
 #define V8_TYPE_INFO_H_
 
 #include "src/allocation.h"
+#include "src/contexts.h"
 #include "src/globals.h"
+#include "src/parsing/token.h"
 #include "src/types.h"
-#include "src/zone-inl.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -19,14 +21,14 @@ class SmallMapList;
 
 class TypeFeedbackOracle: public ZoneObject {
  public:
-  TypeFeedbackOracle(Handle<Code> code,
+  TypeFeedbackOracle(Isolate* isolate, Zone* zone, Handle<Code> code,
                      Handle<TypeFeedbackVector> feedback_vector,
-                     Handle<Context> native_context, Zone* zone);
+                     Handle<Context> native_context);
 
-  bool LoadIsUninitialized(TypeFeedbackId id);
-  bool StoreIsUninitialized(TypeFeedbackId id);
-  bool CallIsMonomorphic(FeedbackVectorICSlot slot);
-  bool KeyedArrayCallIsHoley(TypeFeedbackId id);
+  InlineCacheState LoadInlineCacheState(FeedbackVectorSlot slot);
+  bool StoreIsUninitialized(FeedbackVectorSlot slot);
+  bool CallIsUninitialized(FeedbackVectorSlot slot);
+  bool CallIsMonomorphic(FeedbackVectorSlot slot);
   bool CallNewIsMonomorphic(FeedbackVectorSlot slot);
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
@@ -35,43 +37,44 @@ class TypeFeedbackOracle: public ZoneObject {
   // be possible.
   byte ForInType(FeedbackVectorSlot feedback_vector_slot);
 
-  void GetStoreModeAndKeyType(TypeFeedbackId id,
+  void GetStoreModeAndKeyType(FeedbackVectorSlot slot,
                               KeyedAccessStoreMode* store_mode,
                               IcCheckType* key_type);
 
-  void PropertyReceiverTypes(TypeFeedbackId id, Handle<String> name,
+  void PropertyReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
                              SmallMapList* receiver_types);
-  void KeyedPropertyReceiverTypes(TypeFeedbackId id,
-                                  SmallMapList* receiver_types,
-                                  bool* is_string);
-  void AssignmentReceiverTypes(TypeFeedbackId id,
-                               Handle<String> name,
+  void KeyedPropertyReceiverTypes(FeedbackVectorSlot slot,
+                                  SmallMapList* receiver_types, bool* is_string,
+                                  IcCheckType* key_type);
+  void AssignmentReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
                                SmallMapList* receiver_types);
-  void KeyedAssignmentReceiverTypes(TypeFeedbackId id,
+  void KeyedAssignmentReceiverTypes(FeedbackVectorSlot slot,
                                     SmallMapList* receiver_types,
                                     KeyedAccessStoreMode* store_mode,
                                     IcCheckType* key_type);
-  void CountReceiverTypes(TypeFeedbackId id,
+  void CountReceiverTypes(FeedbackVectorSlot slot,
                           SmallMapList* receiver_types);
 
-  void CollectReceiverTypes(TypeFeedbackId id,
-                            SmallMapList* types);
+  void CollectReceiverTypes(FeedbackVectorSlot slot, SmallMapList* types);
+  template <class T>
+  void CollectReceiverTypes(T* obj, SmallMapList* types);
 
-  static bool CanRetainOtherContext(Map* map, Context* native_context);
-  static bool CanRetainOtherContext(JSFunction* function,
-                                    Context* native_context);
+  static bool IsRelevantFeedback(Map* map, Context* native_context) {
+    Object* constructor = map->GetConstructor();
+    return !constructor->IsJSFunction() ||
+           JSFunction::cast(constructor)->context()->native_context() ==
+               native_context;
+  }
 
-  Handle<JSFunction> GetCallTarget(FeedbackVectorICSlot slot);
-  Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorICSlot slot);
+  Handle<JSFunction> GetCallTarget(FeedbackVectorSlot slot);
+  Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorSlot slot);
   Handle<JSFunction> GetCallNewTarget(FeedbackVectorSlot slot);
   Handle<AllocationSite> GetCallNewAllocationSite(FeedbackVectorSlot slot);
-
-  bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
 
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
   // headers!! :-P
-  byte ToBooleanTypes(TypeFeedbackId id);
+  uint16_t ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
   void BinaryType(TypeFeedbackId id,
@@ -90,13 +93,18 @@ class TypeFeedbackOracle: public ZoneObject {
   Type* CountType(TypeFeedbackId id);
 
   Zone* zone() const { return zone_; }
-  Isolate* isolate() const { return zone_->isolate(); }
+  Isolate* isolate() const { return isolate_; }
 
  private:
-  void CollectReceiverTypes(TypeFeedbackId id,
-                            Handle<String> name,
-                            Code::Flags flags,
+  void CollectReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
+                            Code::Flags flags, SmallMapList* types);
+  template <class T>
+  void CollectReceiverTypes(T* obj, Handle<Name> name, Code::Flags flags,
                             SmallMapList* types);
+
+  // Returns true if there is at least one string map and if
+  // all maps are string maps.
+  bool HasOnlyStringMaps(SmallMapList* receiver_types);
 
   void SetInfo(TypeFeedbackId id, Object* target);
 
@@ -115,10 +123,10 @@ class TypeFeedbackOracle: public ZoneObject {
   // Returns an element from the type feedback vector. Returns undefined
   // if there is no information.
   Handle<Object> GetInfo(FeedbackVectorSlot slot);
-  Handle<Object> GetInfo(FeedbackVectorICSlot slot);
 
  private:
   Handle<Context> native_context_;
+  Isolate* isolate_;
   Zone* zone_;
   Handle<UnseededNumberDictionary> dictionary_;
   Handle<TypeFeedbackVector> feedback_vector_;
@@ -126,6 +134,7 @@ class TypeFeedbackOracle: public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPE_INFO_H_

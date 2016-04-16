@@ -165,7 +165,7 @@ function listener(event, exec_state, event_data, data) {
       assertEquals("f", response.lookup(frame.func.ref).name);
       assertTrue(frame.constructCall);
       assertEquals(31, frame.line);
-      assertEquals(3, frame.column);
+      assertEquals(2, frame.column);
       assertEquals(2, frame.arguments.length);
       assertEquals('x', frame.arguments[0].name);
       assertEquals('number', response.lookup(frame.arguments[0].value.ref).type);
@@ -179,7 +179,7 @@ function listener(event, exec_state, event_data, data) {
       assertEquals(0, frame.index);
       assertEquals("f", response.lookup(frame.func.ref).name);
       assertEquals(31, frame.line);
-      assertEquals(3, frame.column);
+      assertEquals(2, frame.column);
       assertEquals(2, frame.arguments.length);
       assertEquals('x', frame.arguments[0].name);
       assertEquals('number', response.lookup(frame.arguments[0].value.ref).type);
@@ -195,7 +195,7 @@ function listener(event, exec_state, event_data, data) {
       assertEquals("m", response.lookup(frame.func.ref).inferredName);
       assertFalse(frame.constructCall);
       assertEquals(35, frame.line);
-      assertEquals(6, frame.column);
+      assertEquals(2, frame.column);
       assertEquals(0, frame.arguments.length);
 
       json = '{"seq":0,"type":"request","command":"frame","arguments":{"number":3}}'

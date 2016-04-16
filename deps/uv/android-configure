@@ -6,7 +6,7 @@ $1/build/tools/make-standalone-toolchain.sh \
     --toolchain=arm-linux-androideabi-4.8 \
     --arch=arm \
     --install-dir=$TOOLCHAIN \
-    --platform=android-9
+    --platform=android-21
 export PATH=$TOOLCHAIN/bin:$PATH
 export AR=arm-linux-androideabi-ar
 export CC=arm-linux-androideabi-gcc
@@ -16,5 +16,5 @@ export PLATFORM=android
 
 if [ $2 -a $2 == 'gyp' ]
   then
-    ./gyp_uv.py -Dtarget_arch=arm -DOS=android
+    ./gyp_uv.py -Dtarget_arch=arm -DOS=android -f make-android
 fi

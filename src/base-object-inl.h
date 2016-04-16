@@ -1,28 +1,9 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #ifndef SRC_BASE_OBJECT_INL_H_
 #define SRC_BASE_OBJECT_INL_H_
 
 #include "base-object.h"
+#include "env.h"
+#include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -58,7 +39,7 @@ inline Environment* BaseObject::env() const {
 
 template <typename Type>
 inline void BaseObject::WeakCallback(
-    const v8::WeakCallbackData<v8::Object, Type>& data) {
+    const v8::WeakCallbackInfo<Type>& data) {
   Type* self = data.GetParameter();
   self->persistent().Reset();
   delete self;
@@ -72,7 +53,8 @@ inline void BaseObject::MakeWeak(Type* ptr) {
   CHECK_GT(handle->InternalFieldCount(), 0);
   Wrap(handle, ptr);
   handle_.MarkIndependent();
-  handle_.SetWeak<Type>(ptr, WeakCallback<Type>);
+  handle_.SetWeak<Type>(ptr, WeakCallback<Type>,
+                        v8::WeakCallbackType::kParameter);
 }
 
 

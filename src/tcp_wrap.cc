@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "tcp_wrap.h"
 
 #include "env.h"
@@ -26,7 +5,8 @@
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_wrap.h"
-#include "req_wrap.h"
+#include "req-wrap.h"
+#include "req-wrap-inl.h"
 #include "stream_wrap.h"
 #include "util.h"
 #include "util-inl.h"
@@ -43,7 +23,6 @@ using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -57,11 +36,12 @@ using v8::Value;
 class TCPConnectWrap : public ReqWrap<uv_connect_t> {
  public:
   TCPConnectWrap(Environment* env, Local<Object> req_wrap_obj);
+  size_t self_size() const override { return sizeof(*this); }
 };
 
 
 TCPConnectWrap::TCPConnectWrap(Environment* env, Local<Object> req_wrap_obj)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPWRAP) {
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP) {
   Wrap(req_wrap_obj, this);
 }
 
@@ -77,29 +57,20 @@ Local<Object> TCPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   CHECK_EQ(constructor.IsEmpty(), false);
   Local<Value> ptr = External::New(env->isolate(), parent);
-  Local<Object> instance = constructor->NewInstance(1, &ptr);
-  CHECK_EQ(instance.IsEmpty(), false);
+  Local<Object> instance =
+      constructor->NewInstance(env->context(), 1, &ptr).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
 
 
-void TCPWrap::Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+void TCPWrap::Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCP"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
-
-  enum PropertyAttribute attributes =
-      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(env->fd_string(),
-                                     StreamWrap::GetFD,
-                                     nullptr,
-                                     Handle<Value>(),
-                                     v8::DEFAULT,
-                                     attributes);
 
   // Init properties
   t->InstanceTemplate()->Set(String::NewFromUtf8(env->isolate(), "reading"),
@@ -117,17 +88,9 @@ void TCPWrap::Initialize(Handle<Object> target,
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
+  env->SetProtoMethod(t, "isRefed", HandleWrap::IsRefed);
 
-  env->SetProtoMethod(t, "readStart", StreamWrap::ReadStart);
-  env->SetProtoMethod(t, "readStop", StreamWrap::ReadStop);
-  env->SetProtoMethod(t, "shutdown", StreamWrap::Shutdown);
-
-  env->SetProtoMethod(t, "writeBuffer", StreamWrap::WriteBuffer);
-  env->SetProtoMethod(t, "writeAsciiString", StreamWrap::WriteAsciiString);
-  env->SetProtoMethod(t, "writeUtf8String", StreamWrap::WriteUtf8String);
-  env->SetProtoMethod(t, "writeUcs2String", StreamWrap::WriteUcs2String);
-  env->SetProtoMethod(t, "writeBinaryString", StreamWrap::WriteBinaryString);
-  env->SetProtoMethod(t, "writev", StreamWrap::Writev);
+  StreamWrap::AddMethods(env, t, StreamBase::kFlagHasWritev);
 
   env->SetProtoMethod(t, "open", Open);
   env->SetProtoMethod(t, "bind", Bind);
@@ -135,8 +98,10 @@ void TCPWrap::Initialize(Handle<Object> target,
   env->SetProtoMethod(t, "connect", Connect);
   env->SetProtoMethod(t, "bind6", Bind6);
   env->SetProtoMethod(t, "connect6", Connect6);
-  env->SetProtoMethod(t, "getsockname", GetSockName);
-  env->SetProtoMethod(t, "getpeername", GetPeerName);
+  env->SetProtoMethod(t, "getsockname",
+                      GetSockOrPeerName<TCPWrap, uv_tcp_getsockname>);
+  env->SetProtoMethod(t, "getpeername",
+                      GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   env->SetProtoMethod(t, "setNoDelay", SetNoDelay);
   env->SetProtoMethod(t, "setKeepAlive", SetKeepAlive);
 
@@ -181,7 +146,7 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-TCPWrap::TCPWrap(Environment* env, Handle<Object> object, AsyncWrap* parent)
+TCPWrap::TCPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
     : StreamWrap(env,
                  object,
                  reinterpret_cast<uv_stream_t*>(&handle_),
@@ -196,50 +161,6 @@ TCPWrap::TCPWrap(Environment* env, Handle<Object> object, AsyncWrap* parent)
 
 TCPWrap::~TCPWrap() {
   CHECK(persistent().IsEmpty());
-}
-
-
-void TCPWrap::GetSockName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  struct sockaddr_storage address;
-
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-
-  CHECK(args[0]->IsObject());
-  Local<Object> out = args[0].As<Object>();
-
-  int addrlen = sizeof(address);
-  int err = uv_tcp_getsockname(&wrap->handle_,
-                               reinterpret_cast<sockaddr*>(&address),
-                               &addrlen);
-  if (err == 0) {
-    const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
-    AddressToJS(env, addr, out);
-  }
-
-  args.GetReturnValue().Set(err);
-}
-
-
-void TCPWrap::GetPeerName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  struct sockaddr_storage address;
-
-  TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-
-  CHECK(args[0]->IsObject());
-  Local<Object> out = args[0].As<Object>();
-
-  int addrlen = sizeof(address);
-  int err = uv_tcp_getpeername(&wrap->handle_,
-                               reinterpret_cast<sockaddr*>(&address),
-                               &addrlen);
-  if (err == 0) {
-    const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
-    AddressToJS(env, addr, out);
-  }
-
-  args.GetReturnValue().Set(err);
 }
 
 
@@ -279,7 +200,7 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
 
 void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-  node::Utf8Value ip_address(args[0]);
+  node::Utf8Value ip_address(args.GetIsolate(), args[0]);
   int port = args[1]->Int32Value();
   sockaddr_in addr;
   int err = uv_ip4_addr(*ip_address, port, &addr);
@@ -294,7 +215,7 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
 
 void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap = Unwrap<TCPWrap>(args.Holder());
-  node::Utf8Value ip6_address(args[0]);
+  node::Utf8Value ip6_address(args.GetIsolate(), args[0]);
   int port = args[1]->Int32Value();
   sockaddr_in6 addr;
   int err = uv_ip6_addr(*ip6_address, port, &addr);
@@ -349,7 +270,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
     argv[1] = client_obj;
   }
 
-  tcp_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
+  tcp_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
 
 
@@ -375,7 +296,7 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
     v8::True(env->isolate())
   };
 
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }
@@ -388,10 +309,10 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
-  CHECK(args[2]->Uint32Value());
+  CHECK(args[2]->IsUint32());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value ip_address(args[1]);
+  node::Utf8Value ip_address(env->isolate(), args[1]);
   int port = args[2]->Uint32Value();
 
   sockaddr_in addr;
@@ -419,10 +340,10 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
-  CHECK(args[2]->Uint32Value());
+  CHECK(args[2]->IsUint32());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value ip_address(args[1]);
+  node::Utf8Value ip_address(env->isolate(), args[1]);
   int port = args[2]->Int32Value();
 
   sockaddr_in6 addr;

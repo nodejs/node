@@ -9,6 +9,10 @@
           '_GNU_SOURCE'
         ]
       }],
+      [ 'OS=="aix"', {
+        'include_dirs': [ 'config/aix' ],
+        'sources': [ 'config/aix/ares_config.h' ],
+      }],
       ['OS=="solaris"', {
         'defines': [
           '__EXTENSIONS__',
@@ -26,7 +30,6 @@
       'direct_dependent_settings': {
         'include_dirs': [ 'include' ]
       },
-      'defines': [ 'HAVE_CONFIG_H' ],
       'sources': [
         'common.gypi',
         'include/ares.h',
@@ -96,7 +99,6 @@
         'src/inet_ntop.c',
         'src/ares_inet_net_pton.h',
         'src/setup_once.h',
-        'src/windows_port.c'
       ],
       'conditions': [
         [ 'library=="static_library"', {
@@ -107,7 +109,7 @@
         [ 'OS=="win"', {
           'include_dirs': [ 'config/win32' ],
           'sources': [
-            'config/win32/ares_config.h',
+            'src/config-win32.h',
             'src/windows_port.c',
             'src/ares_getenv.c',
             'src/ares_iphlpapi.h',
@@ -126,6 +128,7 @@
             '-Wextra',
             '-Wno-unused-parameter'
           ],
+          'defines': [ 'HAVE_CONFIG_H' ],
         }],
         [ 'OS not in "win android"', {
           'cflags': [

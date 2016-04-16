@@ -125,7 +125,7 @@ function issueMessage () {
   errorMessage()
   log.error('', [ 'This is a bug in `node-gyp`.'
                 , 'Try to update node-gyp and file an Issue if it does not help:'
-                , '    <https://github.com/TooTallNate/node-gyp/issues>'
+                , '    <https://github.com/nodejs/node-gyp/issues>'
                 ].join('\n'))
 }
 

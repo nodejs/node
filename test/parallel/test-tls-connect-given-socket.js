@@ -1,27 +1,13 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
 var tls = require('tls');
+
 var net = require('net');
 var fs = require('fs');
 var path = require('path');
@@ -57,16 +43,33 @@ var server = tls.createServer(options, function(socket) {
     });
     assert(client.readable);
     assert(client.writable);
+
+    return client;
   }
 
-  // Already connected socket
-  var connected = net.connect(common.PORT, function() {
-    establish(connected);
-  });
+  // Immediate death socket
+  var immediateDeath = net.connect(common.PORT);
+  establish(immediateDeath).destroy();
 
-  // Connecting socket
-  var connecting = net.connect(common.PORT);
-  establish(connecting);
+  // Outliving
+  var outlivingTCP = net.connect(common.PORT);
+  outlivingTCP.on('connect', function() {
+    outlivingTLS.destroy();
+    next();
+  });
+  var outlivingTLS = establish(outlivingTCP);
+
+  function next() {
+    // Already connected socket
+    var connected = net.connect(common.PORT, function() {
+      establish(connected);
+    });
+
+    // Connecting socket
+    var connecting = net.connect(common.PORT);
+    establish(connecting);
+
+  }
 });
 
 process.on('exit', function() {

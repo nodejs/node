@@ -30,22 +30,63 @@ namespace compiler {
   V(IA32Shr)                       \
   V(IA32Sar)                       \
   V(IA32Ror)                       \
+  V(IA32Lzcnt)                     \
+  V(IA32Tzcnt)                     \
+  V(IA32Popcnt)                    \
+  V(SSEFloat32Cmp)                 \
+  V(SSEFloat32Add)                 \
+  V(SSEFloat32Sub)                 \
+  V(SSEFloat32Mul)                 \
+  V(SSEFloat32Div)                 \
+  V(SSEFloat32Max)                 \
+  V(SSEFloat32Min)                 \
+  V(SSEFloat32Abs)                 \
+  V(SSEFloat32Neg)                 \
+  V(SSEFloat32Sqrt)                \
+  V(SSEFloat32Round)               \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \
   V(SSEFloat64Mul)                 \
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
+  V(SSEFloat64Max)                 \
+  V(SSEFloat64Min)                 \
+  V(SSEFloat64Abs)                 \
+  V(SSEFloat64Neg)                 \
   V(SSEFloat64Sqrt)                \
-  V(SSEFloat64Floor)               \
-  V(SSEFloat64Ceil)                \
-  V(SSEFloat64RoundTruncate)       \
-  V(SSECvtss2sd)                   \
-  V(SSECvtsd2ss)                   \
+  V(SSEFloat64Round)               \
+  V(SSEFloat32ToFloat64)           \
+  V(SSEFloat64ToFloat32)           \
+  V(SSEFloat32ToInt32)             \
+  V(SSEFloat32ToUint32)            \
   V(SSEFloat64ToInt32)             \
   V(SSEFloat64ToUint32)            \
+  V(SSEInt32ToFloat32)             \
+  V(SSEUint32ToFloat32)            \
   V(SSEInt32ToFloat64)             \
   V(SSEUint32ToFloat64)            \
+  V(SSEFloat64ExtractLowWord32)    \
+  V(SSEFloat64ExtractHighWord32)   \
+  V(SSEFloat64InsertLowWord32)     \
+  V(SSEFloat64InsertHighWord32)    \
+  V(SSEFloat64LoadLowWord32)       \
+  V(AVXFloat32Add)                 \
+  V(AVXFloat32Sub)                 \
+  V(AVXFloat32Mul)                 \
+  V(AVXFloat32Div)                 \
+  V(AVXFloat32Max)                 \
+  V(AVXFloat32Min)                 \
+  V(AVXFloat64Add)                 \
+  V(AVXFloat64Sub)                 \
+  V(AVXFloat64Mul)                 \
+  V(AVXFloat64Div)                 \
+  V(AVXFloat64Max)                 \
+  V(AVXFloat64Min)                 \
+  V(AVXFloat64Abs)                 \
+  V(AVXFloat64Neg)                 \
+  V(AVXFloat32Abs)                 \
+  V(AVXFloat32Neg)                 \
   V(IA32Movsxbl)                   \
   V(IA32Movzxbl)                   \
   V(IA32Movb)                      \
@@ -55,9 +96,14 @@ namespace compiler {
   V(IA32Movl)                      \
   V(IA32Movss)                     \
   V(IA32Movsd)                     \
+  V(IA32BitcastFI)                 \
+  V(IA32BitcastIF)                 \
   V(IA32Lea)                       \
   V(IA32Push)                      \
-  V(IA32StoreWriteBarrier)
+  V(IA32PushFloat32)               \
+  V(IA32PushFloat64)               \
+  V(IA32Poke)                      \
+  V(IA32StackCheck)
 
 
 // Addressing modes represent the "shape" of inputs to an instruction.

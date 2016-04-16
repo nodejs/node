@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/jsregexp-inl.h"
-#include "src/jsregexp.h"
-#include "src/runtime/runtime-utils.h"
-#include "src/runtime/string-builder.h"
+#include "src/conversions-inl.h"
+#include "src/isolate-inl.h"
+#include "src/regexp/jsregexp-inl.h"
+#include "src/regexp/jsregexp.h"
+#include "src/string-builder.h"
 #include "src/string-search.h"
 
 namespace v8 {
@@ -121,11 +122,13 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   if (isolate->has_pending_exception()) return isolate->heap()->exception();
 
   subject = String::Flatten(subject);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      StringReplaceOneCharWithString(isolate, subject, search, replace, &found,
-                                     kRecursionLimit));
-  return *result;
+  if (StringReplaceOneCharWithString(isolate, subject, search, replace, &found,
+                                     kRecursionLimit).ToHandle(&result)) {
+    return *result;
+  }
+  if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  // In case of empty handle and no pending exception we have stack overflow.
+  return isolate->StackOverflow();
 }
 
 
@@ -137,7 +140,7 @@ RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
 
-  uint32_t start_index;
+  uint32_t start_index = 0;
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
   RUNTIME_ASSERT(start_index <= static_cast<uint32_t>(sub->length()));
@@ -188,7 +191,7 @@ RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
   CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
 
-  uint32_t start_index;
+  uint32_t start_index = 0;
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
   uint32_t pat_length = pat->length();
@@ -338,7 +341,7 @@ RUNTIME_FUNCTION(Runtime_StringMatch) {
 
   RUNTIME_ASSERT(regexp_info->HasFastObjectElements());
 
-  RegExpImpl::GlobalCache global_cache(regexp, subject, true, isolate);
+  RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
   if (global_cache.HasException()) return isolate->heap()->exception();
 
   int capture_count = regexp->CaptureCount();
@@ -402,84 +405,24 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_CharFromCode) {
-  HandleScope handlescope(isolate);
-  DCHECK(args.length() == 1);
-  if (args[0]->IsNumber()) {
-    CONVERT_NUMBER_CHECKED(uint32_t, code, Uint32, args[0]);
-    code &= 0xffff;
-    return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
-  }
-  return isolate->heap()->empty_string();
-}
-
-
 RUNTIME_FUNCTION(Runtime_StringCompare) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 2);
-
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-
   isolate->counters()->string_compare_runtime()->Increment();
-
-  // A few fast case tests before we flatten.
-  if (x.is_identical_to(y)) return Smi::FromInt(EQUAL);
-  if (y->length() == 0) {
-    if (x->length() == 0) return Smi::FromInt(EQUAL);
-    return Smi::FromInt(GREATER);
-  } else if (x->length() == 0) {
-    return Smi::FromInt(LESS);
+  switch (String::Compare(x, y)) {
+    case ComparisonResult::kLessThan:
+      return Smi::FromInt(LESS);
+    case ComparisonResult::kEqual:
+      return Smi::FromInt(EQUAL);
+    case ComparisonResult::kGreaterThan:
+      return Smi::FromInt(GREATER);
+    case ComparisonResult::kUndefined:
+      break;
   }
-
-  int d = x->Get(0) - y->Get(0);
-  if (d < 0)
-    return Smi::FromInt(LESS);
-  else if (d > 0)
-    return Smi::FromInt(GREATER);
-
-  // Slow case.
-  x = String::Flatten(x);
-  y = String::Flatten(y);
-
-  DisallowHeapAllocation no_gc;
-  Object* equal_prefix_result = Smi::FromInt(EQUAL);
-  int prefix_length = x->length();
-  if (y->length() < prefix_length) {
-    prefix_length = y->length();
-    equal_prefix_result = Smi::FromInt(GREATER);
-  } else if (y->length() > prefix_length) {
-    equal_prefix_result = Smi::FromInt(LESS);
-  }
-  int r;
-  String::FlatContent x_content = x->GetFlatContent();
-  String::FlatContent y_content = y->GetFlatContent();
-  if (x_content.IsOneByte()) {
-    Vector<const uint8_t> x_chars = x_content.ToOneByteVector();
-    if (y_content.IsOneByte()) {
-      Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
-    } else {
-      Vector<const uc16> y_chars = y_content.ToUC16Vector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
-    }
-  } else {
-    Vector<const uc16> x_chars = x_content.ToUC16Vector();
-    if (y_content.IsOneByte()) {
-      Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
-    } else {
-      Vector<const uc16> y_chars = y_content.ToUC16Vector();
-      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
-    }
-  }
-  Object* result;
-  if (r == 0) {
-    result = equal_prefix_result;
-  } else {
-    result = (r < 0) ? Smi::FromInt(LESS) : Smi::FromInt(GREATER);
-  }
-  return result;
+  UNREACHABLE();
+  return Smi::FromInt(0);
 }
 
 
@@ -1229,13 +1172,19 @@ RUNTIME_FUNCTION(Runtime_FlattenString) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_StringCharFromCode) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_CharFromCode(args, isolate);
+RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
+  HandleScope handlescope(isolate);
+  DCHECK_EQ(1, args.length());
+  if (args[0]->IsNumber()) {
+    CONVERT_NUMBER_CHECKED(uint32_t, code, Uint32, args[0]);
+    code &= 0xffff;
+    return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
+  }
+  return isolate->heap()->empty_string();
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_StringCharAt) {
+RUNTIME_FUNCTION(Runtime_StringCharAt) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   if (!args[0]->IsString()) return Smi::FromInt(0);
@@ -1243,11 +1192,20 @@ RUNTIME_FUNCTION(RuntimeReference_StringCharAt) {
   if (std::isinf(args.number_at(1))) return isolate->heap()->empty_string();
   Object* code = __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
   if (code->IsNaN()) return isolate->heap()->empty_string();
-  return __RT_impl_Runtime_CharFromCode(Arguments(1, &code), isolate);
+  return __RT_impl_Runtime_StringCharFromCode(Arguments(1, &code), isolate);
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_OneByteSeqStringSetChar) {
+RUNTIME_FUNCTION(Runtime_OneByteSeqStringGetChar) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_CHECKED(SeqOneByteString, string, 0);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  return Smi::FromInt(string->SeqOneByteStringGet(index));
+}
+
+
+RUNTIME_FUNCTION(Runtime_OneByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
   CONVERT_INT32_ARG_CHECKED(index, 0);
@@ -1258,7 +1216,16 @@ RUNTIME_FUNCTION(RuntimeReference_OneByteSeqStringSetChar) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_TwoByteSeqStringSetChar) {
+RUNTIME_FUNCTION(Runtime_TwoByteSeqStringGetChar) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_CHECKED(SeqTwoByteString, string, 0);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  return Smi::FromInt(string->SeqTwoByteStringGet(index));
+}
+
+
+RUNTIME_FUNCTION(Runtime_TwoByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
   CONVERT_INT32_ARG_CHECKED(index, 0);
@@ -1269,13 +1236,7 @@ RUNTIME_FUNCTION(RuntimeReference_TwoByteSeqStringSetChar) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_StringCompare) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_StringCompare(args, isolate);
-}
-
-
-RUNTIME_FUNCTION(RuntimeReference_StringCharCodeAt) {
+RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   if (!args[0]->IsString()) return isolate->heap()->undefined_value();
@@ -1284,22 +1245,5 @@ RUNTIME_FUNCTION(RuntimeReference_StringCharCodeAt) {
   return __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
 }
 
-
-RUNTIME_FUNCTION(RuntimeReference_SubString) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_SubString(args, isolate);
-}
-
-
-RUNTIME_FUNCTION(RuntimeReference_StringAdd) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_StringAdd(args, isolate);
-}
-
-
-RUNTIME_FUNCTION(RuntimeReference_IsStringWrapperSafeForDefaultValueOf) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

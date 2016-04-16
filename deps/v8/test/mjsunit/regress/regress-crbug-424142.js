@@ -23,6 +23,7 @@
 function sentinel() {}
 
 Debug = debug.Debug;
+Debug.setListener(function(){});
 
 var script = Debug.findScript(sentinel);
 var line = 14;
@@ -34,3 +35,5 @@ var actual = Debug.setBreakPointByScriptIdAndPosition(
 // the break point.
 assertTrue(line_start <= actual);
 assertTrue(actual <= line_end);
+
+Debug.setListener(null);

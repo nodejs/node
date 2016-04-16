@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(Conditional) {
   FunctionTester T("(function(a) { return a ? 23 : 42; })");
@@ -165,6 +164,33 @@ TEST(ForInContinueStatement) {
   T.CheckCall(T.Val("-A-B-A-B-"), T.NewObject("({x:1,y:2})"), T.false_value());
   T.CheckCall(T.Val("-A-"), T.NewObject("({x:1})"), T.true_value());
   T.CheckCall(T.Val("-A-A-"), T.NewObject("({x:1,y:2})"), T.true_value());
+}
+
+
+TEST(ForOfContinueStatement) {
+  const char* src =
+      "(function(a,b) {"
+      "  var r = '-';"
+      "  for (var x of a) {"
+      "    r += x + '-';"
+      "    if (b) continue;"
+      "    r += 'X-';"
+      "  }"
+      "  return r;"
+      "})";
+  FunctionTester T(src);
+
+  CompileRun(
+      "function wrap(v) {"
+      "  var iterable = {};"
+      "  function next() { return { done:!v.length, value:v.shift() }; };"
+      "  iterable[Symbol.iterator] = function() { return { next:next }; };"
+      "  return iterable;"
+      "}");
+
+  T.CheckCall(T.Val("-"), T.NewObject("wrap([])"), T.true_value());
+  T.CheckCall(T.Val("-1-2-"), T.NewObject("wrap([1,2])"), T.true_value());
+  T.CheckCall(T.Val("-1-X-2-X-"), T.NewObject("wrap([1,2])"), T.false_value());
 }
 
 
@@ -355,3 +381,7 @@ TEST(EmptyFor) {
   T.CheckCall(T.Val(8126.1), T.Val(0.0), T.Val(8126.1));
   T.CheckCall(T.Val(1123.1), T.Val(0.0), T.Val(1123.1));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

@@ -27,8 +27,10 @@
 
 // Flags: --allow-natives-syntax
 
-var string = "hello world";
-var expected = "Hello " + "world";
+var string = "internalized dummy";
+var expected = "internalized dummy";
+string = "hello world";
+expected = "Hello " + "world";
 function Capitalize() {
   %_OneByteSeqStringSetChar(0, 0x48, string);
 }

@@ -1,3 +1,0 @@
-{ "name":"npm-test-ignore"
-, "version":"1.2.5"
-, "scripts":{"test":"bash test.sh"}}

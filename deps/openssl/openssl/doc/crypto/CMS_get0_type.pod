@@ -2,7 +2,7 @@
 
 =head1 NAME
 
- CMS_get0_type, CMS_set1_eContentType, CMS_get0_eContentType - get and set CMS content types
+ CMS_get0_type, CMS_set1_eContentType, CMS_get0_eContentType, CMS_get0_content - get and set CMS content types and content
 
 =head1 SYNOPSIS
 
@@ -11,6 +11,7 @@
  const ASN1_OBJECT *CMS_get0_type(CMS_ContentInfo *cms);
  int CMS_set1_eContentType(CMS_ContentInfo *cms, const ASN1_OBJECT *oid);
  const ASN1_OBJECT *CMS_get0_eContentType(CMS_ContentInfo *cms);
+ ASN1_OCTET_STRING **CMS_get0_content(CMS_ContentInfo *cms);
 
 =head1 DESCRIPTION
 
@@ -26,11 +27,15 @@ undefined.
 ASN1_OBJECT *CMS_get0_eContentType() returns a pointer to the embedded
 content type.
 
+CMS_get0_content() returns a pointer to the B<ASN1_OCTET_STRING> pointer
+containing the embedded content.
+
 =head1 NOTES
 
-As the B<0> implies CMS_get0_type() and CMS_get0_eContentType() return internal
-pointers which should B<not> be freed up. CMS_set1_eContentType() copies the
-supplied OID and it B<should> be freed up after use.
+As the B<0> implies CMS_get0_type(), CMS_get0_eContentType() and
+CMS_get0_content() return internal pointers which should B<not> be freed up.
+CMS_set1_eContentType() copies the supplied OID and it B<should> be freed up
+after use.
 
 The B<ASN1_OBJECT> values returned can be converted to an integer B<NID> value
 using OBJ_obj2nid(). For the currently supported content types the following
@@ -43,6 +48,15 @@ values are returned:
  NID_pkcs7_encrypted
  NID_pkcs7_enveloped
 
+The return value of CMS_get0_content() is a pointer to the B<ASN1_OCTET_STRING>
+content pointer. That means that for example:
+
+ ASN1_OCTET_STRING **pconf = CMS_get0_content(cms);
+
+B<*pconf> could be NULL if there is no embedded content. Applications can
+access, modify or create the embedded content in a B<CMS_ContentInfo> structure
+using this function. Applications usually will not need to modify the
+embedded content as it is normally set by higher level functions.
 
 =head1 RETURN VALUES
 

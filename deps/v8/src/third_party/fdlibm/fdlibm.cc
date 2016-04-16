@@ -13,11 +13,14 @@
 // modified significantly by Google Inc.
 // Copyright 2014 the V8 project authors. All rights reserved.
 
-#include "src/v8.h"
-
-#include "src/double.h"
 #include "src/third_party/fdlibm/fdlibm.h"
 
+#include <stdint.h>
+#include <cmath>
+#include <limits>
+
+#include "src/base/macros.h"
+#include "src/double.h"
 
 namespace v8 {
 namespace fdlibm {
@@ -25,62 +28,6 @@ namespace fdlibm {
 #ifdef _MSC_VER
 inline double scalbn(double x, int y) { return _scalb(x, y); }
 #endif  // _MSC_VER
-
-const double MathConstants::constants[] = {
-    6.36619772367581382433e-01,   // invpio2   0
-    1.57079632673412561417e+00,   // pio2_1    1
-    6.07710050650619224932e-11,   // pio2_1t   2
-    6.07710050630396597660e-11,   // pio2_2    3
-    2.02226624879595063154e-21,   // pio2_2t   4
-    2.02226624871116645580e-21,   // pio2_3    5
-    8.47842766036889956997e-32,   // pio2_3t   6
-    -1.66666666666666324348e-01,  // S1        7  coefficients for sin
-    8.33333333332248946124e-03,   //           8
-    -1.98412698298579493134e-04,  //           9
-    2.75573137070700676789e-06,   //          10
-    -2.50507602534068634195e-08,  //          11
-    1.58969099521155010221e-10,   // S6       12
-    4.16666666666666019037e-02,   // C1       13  coefficients for cos
-    -1.38888888888741095749e-03,  //          14
-    2.48015872894767294178e-05,   //          15
-    -2.75573143513906633035e-07,  //          16
-    2.08757232129817482790e-09,   //          17
-    -1.13596475577881948265e-11,  // C6       18
-    3.33333333333334091986e-01,   // T0       19  coefficients for tan
-    1.33333333333201242699e-01,   //          20
-    5.39682539762260521377e-02,   //          21
-    2.18694882948595424599e-02,   //          22
-    8.86323982359930005737e-03,   //          23
-    3.59207910759131235356e-03,   //          24
-    1.45620945432529025516e-03,   //          25
-    5.88041240820264096874e-04,   //          26
-    2.46463134818469906812e-04,   //          27
-    7.81794442939557092300e-05,   //          28
-    7.14072491382608190305e-05,   //          29
-    -1.85586374855275456654e-05,  //          30
-    2.59073051863633712884e-05,   // T12      31
-    7.85398163397448278999e-01,   // pio4     32
-    3.06161699786838301793e-17,   // pio4lo   33
-    6.93147180369123816490e-01,   // ln2_hi   34
-    1.90821492927058770002e-10,   // ln2_lo   35
-    1.80143985094819840000e+16,   // 2^54     36
-    6.666666666666666666e-01,     // 2/3      37
-    6.666666666666735130e-01,     // LP1      38  coefficients for log1p
-    3.999999999940941908e-01,     //          39
-    2.857142874366239149e-01,     //          40
-    2.222219843214978396e-01,     //          41
-    1.818357216161805012e-01,     //          42
-    1.531383769920937332e-01,     //          43
-    1.479819860511658591e-01,     // LP7      44
-    7.09782712893383973096e+02,   //          45  overflow threshold for expm1
-    1.44269504088896338700e+00,   // 1/ln2    46
-    -3.33333333333331316428e-02,  // Q1       47  coefficients for expm1
-    1.58730158725481460165e-03,   //          48
-    -7.93650757867487942473e-05,  //          49
-    4.00821782732936239552e-06,   //          50
-    -2.01099218183624371326e-07,  // Q5       51
-    710.4758600739439             //          52  overflow threshold sinh, cosh
-};
 
 
 // Table of constants for 2/pi, 396 Hex digits (476 decimal) of 2/pi
@@ -113,7 +60,7 @@ static const double PIo2[] = {
 };
 
 
-int __kernel_rem_pio2(double* x, double* y, int e0, int nx) {
+INLINE(int __kernel_rem_pio2(double* x, double* y, int e0, int nx)) {
   static const int32_t jk = 3;
   double fw;
   int32_t jx = nx - 1;
@@ -122,12 +69,12 @@ int __kernel_rem_pio2(double* x, double* y, int e0, int nx) {
   int32_t q0 = e0 - 24 * (jv + 1);
   int32_t m = jx + jk;
 
-  double f[10];
+  double f[20];
   for (int i = 0, j = jv - jx; i <= m; i++, j++) {
     f[i] = (j < 0) ? zero : static_cast<double>(two_over_pi[j]);
   }
 
-  double q[10];
+  double q[20];
   for (int i = 0; i <= jk; i++) {
     fw = 0.0;
     for (int j = 0; j <= jx; j++) fw += x[j] * f[jx + i - j];
@@ -138,7 +85,7 @@ int __kernel_rem_pio2(double* x, double* y, int e0, int nx) {
 
 recompute:
 
-  int32_t iq[10];
+  int32_t iq[20];
   double z = q[jz];
   for (int i = 0, j = jz; j > 0; i++, j--) {
     fw = static_cast<double>(static_cast<int32_t>(twon24 * z));
@@ -229,7 +176,7 @@ recompute:
     fw *= twon24;
   }
 
-  double fq[10];
+  double fq[20];
   for (int i = jz; i >= 0; i--) {
     fw = 0.0;
     for (int k = 0; k <= jk && k <= jz - i; k++) fw += PIo2[k] * q[i + k];
@@ -251,7 +198,7 @@ int rempio2(double x, double* y) {
   int32_t ix = hx & 0x7fffffff;
 
   if (ix >= 0x7ff00000) {
-    *y = base::OS::nan_value();
+    *y = std::numeric_limits<double>::quiet_NaN();
     return 0;
   }
 
@@ -277,5 +224,5 @@ int rempio2(double x, double* y) {
   }
   return n;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

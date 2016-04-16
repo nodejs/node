@@ -1,3 +1,4 @@
+'use strict';
 // just like test/gc/http-client-timeout.js,
 // but using a net server/client instead
 
@@ -11,22 +12,22 @@ function serverHandler(sock) {
   sock.on('error', function(err) {
     assert.strictEqual(err.code, 'ECONNRESET');
   });
-  timer = setTimeout(function () {
+  timer = setTimeout(function() {
     sock.end('hello\n');
   }, 100);
 }
 
-var net  = require('net'),
-    weak    = require('weak'),
-    done    = 0,
-    count   = 0,
-    countGC = 0,
-    todo    = 500,
-    common = require('../common.js'),
-    assert = require('assert'),
-    PORT = common.PORT;
+const net = require('net');
+const weak = require('weak');
+const common = require('../common');
+const assert = require('assert');
+const PORT = common.PORT;
+const todo = 500;
+let done = 0;
+let count = 0;
+let countGC = 0;
 
-console.log('We should do '+ todo +' requests');
+console.log('We should do ' + todo + ' requests');
 
 var server = net.createServer(serverHandler);
 server.listen(PORT, getall);
@@ -35,7 +36,7 @@ function getall() {
   if (count >= todo)
     return;
 
-  (function(){
+  (function() {
     var req = net.connect(PORT, '127.0.0.1');
     req.resume();
     req.setTimeout(10, function() {
@@ -55,8 +56,8 @@ function getall() {
 for (var i = 0; i < 10; i++)
   getall();
 
-function afterGC(){
-  countGC ++;
+function afterGC() {
+  countGC++;
 }
 
 setInterval(status, 100).unref();

@@ -27,15 +27,11 @@
 
 
 # Variable default definitions. Override them by exporting them in your shell.
-CXX ?= g++
-LINK ?= g++
 OUTDIR ?= out
 TESTJOBS ?=
 GYPFLAGS ?=
 TESTFLAGS ?=
-ANDROID_NDK_ROOT ?=
 ANDROID_NDK_HOST_ARCH ?=
-ANDROID_TOOLCHAIN ?=
 ANDROID_V8 ?= /data/local/tmp/v8
 NACL_SDK_ROOT ?=
 
@@ -48,10 +44,6 @@ endif
 ifdef component
   GYPFLAGS += -Dcomponent=$(component)
 endif
-# console=readline
-ifdef console
-  GYPFLAGS += -Dconsole=$(console)
-endif
 # disassembler=on
 ifeq ($(disassembler), on)
   GYPFLAGS += -Dv8_enable_disassembler=1
@@ -63,6 +55,10 @@ endif
 # verifyheap=on
 ifeq ($(verifyheap), on)
   GYPFLAGS += -Dv8_enable_verify_heap=1
+endif
+# tracemaps=on
+ifeq ($(tracemaps), on)
+  GYPFLAGS += -Dv8_trace_maps=1
 endif
 # backtrace=off
 ifeq ($(backtrace), off)
@@ -78,12 +74,26 @@ endif
 ifeq ($(snapshot), off)
   GYPFLAGS += -Dv8_use_snapshot='false'
 endif
+ifeq ($(snapshot), external)
+  GYPFLAGS += -Dv8_use_external_startup_data=1
+endif
 # extrachecks=on/off
 ifeq ($(extrachecks), on)
-  GYPFLAGS += -Dv8_enable_extra_checks=1 -Dv8_enable_handle_zapping=1
+  GYPFLAGS += -Ddcheck_always_on=1 -Dv8_enable_handle_zapping=1
 endif
 ifeq ($(extrachecks), off)
-  GYPFLAGS += -Dv8_enable_extra_checks=0 -Dv8_enable_handle_zapping=0
+  GYPFLAGS += -Ddcheck_always_on=0 -Dv8_enable_handle_zapping=0
+endif
+# slowdchecks=on/off
+ifeq ($(slowdchecks), on)
+  GYPFLAGS += -Dv8_enable_slow_dchecks=1
+endif
+ifeq ($(slowdchecks), off)
+  GYPFLAGS += -Dv8_enable_slow_dchecks=0
+endif
+# debugsymbols=on
+ifeq ($(debugsymbols), on)
+  GYPFLAGS += -Drelease_extra_cflags=-ggdb3
 endif
 # gdbjit=on/off
 ifeq ($(gdbjit), on)
@@ -95,10 +105,6 @@ endif
 # vtunejit=on
 ifeq ($(vtunejit), on)
   GYPFLAGS += -Dv8_enable_vtunejit=1
-endif
-# optdebug=on
-ifeq ($(optdebug), on)
-  GYPFLAGS += -Dv8_optimized_debug=2
 endif
 # unalignedaccess=on
 ifeq ($(unalignedaccess), on)
@@ -133,24 +139,32 @@ ifeq ($(i18nsupport), off)
   GYPFLAGS += -Dv8_enable_i18n_support=0
   TESTFLAGS += --noi18n
 endif
-# deprecation_warnings=on
+# deprecationwarnings=on
 ifeq ($(deprecationwarnings), on)
   GYPFLAGS += -Dv8_deprecation_warnings=1
 endif
-# asan=/path/to/clang++
-ifneq ($(strip $(asan)),)
-  GYPFLAGS += -Dasan=1
-  export CC=$(dir $(asan))clang
-  export CXX=$(asan)
-  export CXX_host=$(asan)
-  export LINK=$(asan)
-  export ASAN_SYMBOLIZER_PATH=$(dir $(asan))llvm-symbolizer
+# vectorstores=on
+ifeq ($(vectorstores), on)
+  GYPFLAGS += -Dv8_vector_stores=1
+endif
+# imminentdeprecationwarnings=on
+ifeq ($(imminentdeprecationwarnings), on)
+  GYPFLAGS += -Dv8_imminent_deprecation_warnings=1
+endif
+# asan=on
+ifeq ($(asan), on)
+  GYPFLAGS += -Dasan=1 -Dclang=1
   TESTFLAGS += --asan
   ifeq ($(lsan), on)
     GYPFLAGS += -Dlsan=1
   endif
 endif
-
+ifdef embedscript
+  GYPFLAGS += -Dembed_script=$(embedscript)
+endif
+ifeq ($(goma), on)
+  GYPFLAGS += -Duse_goma=1
+endif
 # arm specific flags.
 # arm_version=<number | "default">
 ifneq ($(strip $(arm_version)),)
@@ -207,8 +221,6 @@ ifeq ($(arm_test_noprobe), on)
 endif
 
 # ----------------- available targets: --------------------
-# - "builddeps": pulls in external dependencies for building
-# - "dependencies": pulls in all external dependencies
 # - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
 # - any mode listed in MODES
@@ -226,17 +238,25 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64el x87
+ARCHES = ia32 x64 x32 arm arm64 mips mipsel mips64 mips64el x87 ppc ppc64 \
+		 s390 s390x
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug optdebug
 DEFAULT_MODES = release debug
-ANDROID_ARCHES = android_ia32 android_arm android_arm64 android_mipsel android_x87
+ANDROID_ARCHES = android_ia32 android_x64 android_arm android_arm64 \
+		 android_mipsel android_x87
 NACL_ARCHES = nacl_ia32 nacl_x64
 
 # List of files that trigger Makefile regeneration:
-GYPFILES = build/all.gyp build/features.gypi build/standalone.gypi \
-           build/toolchain.gypi samples/samples.gyp src/d8.gyp \
-           test/cctest/cctest.gyp test/unittests/unittests.gyp tools/gyp/v8.gyp
+GYPFILES = third_party/icu/icu.gypi third_party/icu/icu.gyp \
+	   build/shim_headers.gypi build/features.gypi build/standalone.gypi \
+	   build/toolchain.gypi build/all.gyp build/mac/asan.gyp \
+	   test/cctest/cctest.gyp test/fuzzer/fuzzer.gyp \
+	   test/unittests/unittests.gyp tools/gyp/v8.gyp \
+	   tools/parser-shell.gyp testing/gmock.gyp testing/gtest.gyp \
+	   buildtools/third_party/libc++abi/libc++abi.gyp \
+	   buildtools/third_party/libc++/libc++.gyp samples/samples.gyp \
+	   src/third_party/vtune/v8vtune.gyp src/d8.gyp
 
 # If vtunejit=on, the v8vtune.gyp will be appended.
 ifeq ($(vtunejit), on)
@@ -262,7 +282,6 @@ ENVFILE = $(OUTDIR)/environment
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
         $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES)) \
         $(ANDROID_ARCHES) $(ANDROID_BUILDS) $(ANDROID_CHECKS) \
-        must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN \
         $(NACL_ARCHES) $(NACL_BUILDS) $(NACL_CHECKS) \
         must-set-NACL_SDK_ROOT
 
@@ -284,7 +303,6 @@ $(ARCHES): $(addprefix $$@.,$(DEFAULT_MODES))
 # Defines how to build a particular target (e.g. ia32.release).
 $(BUILDS): $(OUTDIR)/Makefile.$$@
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$@ \
-	         CXX="$(CXX)" LINK="$(LINK)" \
 	         BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
 	                     python -c "print \
 	                     raw_input().replace('opt', '').capitalize()") \
@@ -292,13 +310,12 @@ $(BUILDS): $(OUTDIR)/Makefile.$$@
 
 native: $(OUTDIR)/Makefile.native
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.native \
-	         CXX="$(CXX)" LINK="$(LINK)" BUILDTYPE=Release \
+	         BUILDTYPE=Release \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
 
 $(ANDROID_ARCHES): $(addprefix $$@.,$(MODES))
 
-$(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
-                   must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN Makefile.android
+$(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) Makefile.android
 	@$(MAKE) -f Makefile.android $@ \
 	        ARCH="$(basename $@)" \
 	        MODE="$(subst .,,$(suffix $@))" \
@@ -416,6 +433,7 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	$(eval CXX_TARGET_ARCH:=$(shell $(CXX) -v 2>&1 | grep ^Target: | \
 	        cut -f 2 -d " " | cut -f 1 -d "-" ))
 	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
+	$(eval CXX_TARGET_ARCH:=$(subst x86_64,x64,$(CXX_TARGET_ARCH)))
 	$(eval V8_TARGET_ARCH:=$(subst .,,$(suffix $(basename $@))))
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
@@ -424,7 +442,7 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	              -Dv8_target_arch=$(V8_TARGET_ARCH) \
 	              $(if $(findstring $(CXX_TARGET_ARCH),$(V8_TARGET_ARCH)), \
 	              -Dtarget_arch=$(V8_TARGET_ARCH),) \
-	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=2,) \
+	              $(if $(findstring optdebug,$@),-Dv8_optimized_debug=1,) \
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
@@ -432,13 +450,6 @@ $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
-
-must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN:
-ifndef ANDROID_NDK_ROOT
-ifndef ANDROID_TOOLCHAIN
-	  $(error ANDROID_NDK_ROOT or ANDROID_TOOLCHAIN must be set))
-endif
-endif
 
 # Note that NACL_SDK_ROOT must be set to point to an appropriate
 # Native Client SDK before using this makefile. You can download
@@ -461,8 +472,11 @@ $(ENVFILE): $(ENVFILE).new
 
 # Stores current GYPFLAGS in a file.
 $(ENVFILE).new:
-	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS)" > $(ENVFILE).new; \
-	    echo "CXX=$(CXX)" >> $(ENVFILE).new
+	$(eval CXX_TARGET_ARCH:=$(shell $(CXX) -v 2>&1 | grep ^Target: | \
+	        cut -f 2 -d " " | cut -f 1 -d "-" ))
+	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
+	$(eval CXX_TARGET_ARCH:=$(subst x86_64,x64,$(CXX_TARGET_ARCH)))
+	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS) -Dtarget_arch=$(CXX_TARGET_ARCH)" > $(ENVFILE).new;
 
 # Heap constants for grokdump.
 DUMP_FILE = tools/v8heapconst.py
@@ -482,26 +496,5 @@ GPATH GRTAGS GSYMS GTAGS: gtags.files $(shell cat gtags.files 2> /dev/null)
 gtags.clean:
 	rm -f gtags.files GPATH GRTAGS GSYMS GTAGS
 
-# Dependencies. "builddeps" are dependencies required solely for building,
-# "dependencies" includes also dependencies required for development.
-# Remember to keep these in sync with the DEPS file.
-builddeps:
-	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
-	    --revision 1831
-	if svn info third_party/icu 2>&1 | grep -q icu46 ; then \
-	  svn switch --force \
-	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
-	      third_party/icu --revision 277999 ; \
-	else \
-	  svn checkout --force \
-	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
-	      third_party/icu --revision 277999 ; \
-	fi
-	svn checkout --force http://googletest.googlecode.com/svn/trunk \
-	    testing/gtest --revision 692
-	svn checkout --force http://googlemock.googlecode.com/svn/trunk \
-	    testing/gmock --revision 485
-
-dependencies: builddeps
-	# The spec is a copy of the hooks in v8's DEPS file.
-	gclient sync -r fb782d4369d5ae04f17a2fceef7de5a63e50f07b --spec="solutions = [{u'managed': False, u'name': u'buildtools', u'url': u'https://chromium.googlesource.com/chromium/buildtools.git', u'custom_deps': {}, u'custom_hooks': [{u'name': u'clang_format_win',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=win32',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/win/clang-format.exe.sha1']},{u'name': u'clang_format_mac',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=darwin',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/mac/clang-format.sha1']},{u'name': u'clang_format_linux',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=linux*',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/linux64/clang-format.sha1']}],u'deps_file': u'.DEPS.git', u'safesync_url': u''}]"
+dependencies builddeps:
+	$(error Use 'gclient sync' instead)

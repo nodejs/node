@@ -322,8 +322,10 @@ API
 
 .. c:function:: const char* uv_strerror(int err)
 
-    Returns the error message for the given error code.
+    Returns the error message for the given error code.  Leaks a few bytes
+    of memory when you call it with an unknown error code.
 
 .. c:function:: const char* uv_err_name(int err)
 
-    Returns the error name for the given error code.
+    Returns the error name for the given error code.  Leaks a few bytes
+    of memory when you call it with an unknown error code.

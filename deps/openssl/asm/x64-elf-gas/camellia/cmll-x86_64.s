@@ -1,7 +1,6 @@
 .text
 
 
-
 .globl	Camellia_EncryptBlock
 .type	Camellia_EncryptBlock,@function
 .align	16
@@ -268,7 +267,6 @@ _x86_64_Camellia_encrypt:
 	movl	%edx,%r11d
 
 .byte	0xf3,0xc3
-
 .size	_x86_64_Camellia_encrypt,.-_x86_64_Camellia_encrypt
 
 
@@ -539,7 +537,6 @@ _x86_64_Camellia_decrypt:
 	movl	%ebx,%r11d
 
 .byte	0xf3,0xc3
-
 .size	_x86_64_Camellia_decrypt,.-_x86_64_Camellia_decrypt
 .globl	Camellia_Ekeygen
 .type	Camellia_Ekeygen,@function
@@ -552,7 +549,7 @@ Camellia_Ekeygen:
 	pushq	%r15
 .Lkey_prologue:
 
-	movq	%rdi,%r15
+	movl	%edi,%r15d
 	movq	%rdx,%r13
 
 	movl	0(%rsi),%r8d
@@ -1727,7 +1724,6 @@ Camellia_cbc_encrypt:
 	movq	%r12,%rsi
 	leaq	8+24(%rsp),%rdi
 .long	0x9066A4F3
-
 	popfq
 .Lcbc_enc_popf:
 
@@ -1735,7 +1731,6 @@ Camellia_cbc_encrypt:
 	leaq	16+24(%rsp),%rax
 	movq	%rax,8(%rsp)
 	jmp	.Lcbc_eloop
-
 
 .align	16
 .LCBC_DECRYPT:
@@ -1819,7 +1814,6 @@ Camellia_cbc_encrypt:
 	leaq	8+24(%rsp),%rsi
 	leaq	(%r13),%rdi
 .long	0x9066A4F3
-
 	popfq
 .Lcbc_dec_popf:
 

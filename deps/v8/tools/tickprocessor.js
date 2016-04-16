@@ -154,7 +154,10 @@ function TickProcessor(
     snapshotLogProcessor,
     distortion,
     range,
-    sourceMap) {
+    sourceMap,
+    timedRange,
+    pairwiseTimedRange,
+    onlySummary) {
   LogReader.call(this, {
       'shared-library': { parsers: [null, parseInt, parseInt],
           processor: this.processSharedLibrary },
@@ -187,10 +190,13 @@ function TickProcessor(
       'function-move': null,
       'function-delete': null,
       'heap-sample-item': null,
+      'current-time': null,  // Handled specially, not parsed.
       // Obsolete row types.
       'code-allocate': null,
       'begin-code-region': null,
-      'end-code-region': null });
+      'end-code-region': null },
+      timedRange,
+      pairwiseTimedRange);
 
   this.cppEntriesProvider_ = cppEntriesProvider;
   this.callGraphSize_ = callGraphSize;
@@ -242,6 +248,7 @@ function TickProcessor(
 
   this.generation_ = 1;
   this.currentProducerProfile_ = null;
+  this.onlySummary_ = onlySummary;
 };
 inherits(TickProcessor, LogReader);
 
@@ -292,7 +299,7 @@ TickProcessor.prototype.isCppCode = function(name) {
 
 
 TickProcessor.prototype.isJsCode = function(name) {
-  return !(name in this.codeTypes_);
+  return name !== "UNKNOWN" && !(name in this.codeTypes_);
 };
 
 
@@ -451,29 +458,30 @@ TickProcessor.prototype.printStatistics = function() {
   if (this.ignoreUnknown_) {
     totalTicks -= this.ticks_.unaccounted;
   }
+  var printAllTicks = !this.onlySummary_;
 
   // Count library ticks
   var flatViewNodes = flatView.head.children;
   var self = this;
 
   var libraryTicks = 0;
-  this.printHeader('Shared libraries');
+  if(printAllTicks) this.printHeader('Shared libraries');
   this.printEntries(flatViewNodes, totalTicks, null,
       function(name) { return self.isSharedLibrary(name); },
-      function(rec) { libraryTicks += rec.selfTime; });
+      function(rec) { libraryTicks += rec.selfTime; }, printAllTicks);
   var nonLibraryTicks = totalTicks - libraryTicks;
 
   var jsTicks = 0;
-  this.printHeader('JavaScript');
+  if(printAllTicks) this.printHeader('JavaScript');
   this.printEntries(flatViewNodes, totalTicks, nonLibraryTicks,
       function(name) { return self.isJsCode(name); },
-      function(rec) { jsTicks += rec.selfTime; });
+      function(rec) { jsTicks += rec.selfTime; }, printAllTicks);
 
   var cppTicks = 0;
-  this.printHeader('C++');
+  if(printAllTicks) this.printHeader('C++');
   this.printEntries(flatViewNodes, totalTicks, nonLibraryTicks,
       function(name) { return self.isCppCode(name); },
-      function(rec) { cppTicks += rec.selfTime; });
+      function(rec) { cppTicks += rec.selfTime; }, printAllTicks);
 
   this.printHeader('Summary');
   this.printLine('JavaScript', jsTicks, totalTicks, nonLibraryTicks);
@@ -485,25 +493,27 @@ TickProcessor.prototype.printStatistics = function() {
                    this.ticks_.total, null);
   }
 
-  print('\n [C++ entry points]:');
-  print('   ticks    cpp   total   name');
-  var c_entry_functions = this.profile_.getCEntryProfile();
-  var total_c_entry = c_entry_functions[0].ticks;
-  for (var i = 1; i < c_entry_functions.length; i++) {
-    c = c_entry_functions[i];
-    this.printLine(c.name, c.ticks, total_c_entry, totalTicks);
-  }
+  if(printAllTicks) {
+    print('\n [C++ entry points]:');
+    print('   ticks    cpp   total   name');
+    var c_entry_functions = this.profile_.getCEntryProfile();
+    var total_c_entry = c_entry_functions[0].ticks;
+    for (var i = 1; i < c_entry_functions.length; i++) {
+      c = c_entry_functions[i];
+      this.printLine(c.name, c.ticks, total_c_entry, totalTicks);
+    }
 
-  this.printHeavyProfHeader();
-  var heavyProfile = this.profile_.getBottomUpProfile();
-  var heavyView = this.viewBuilder_.buildView(heavyProfile);
-  // To show the same percentages as in the flat profile.
-  heavyView.head.totalTime = totalTicks;
-  // Sort by total time, desc, then by name, desc.
-  heavyView.sort(function(rec1, rec2) {
-      return rec2.totalTime - rec1.totalTime ||
-          (rec2.internalFuncName < rec1.internalFuncName ? -1 : 1); });
-  this.printHeavyProfile(heavyView.head.children);
+    this.printHeavyProfHeader();
+    var heavyProfile = this.profile_.getBottomUpProfile();
+    var heavyView = this.viewBuilder_.buildView(heavyProfile);
+    // To show the same percentages as in the flat profile.
+    heavyView.head.totalTime = totalTicks;
+    // Sort by total time, desc, then by name, desc.
+    heavyView.sort(function(rec1, rec2) {
+        return rec2.totalTime - rec1.totalTime ||
+            (rec2.internalFuncName < rec1.internalFuncName ? -1 : 1); });
+    this.printHeavyProfile(heavyView.head.children);
+  }
 };
 
 
@@ -595,13 +605,15 @@ TickProcessor.prototype.formatFunctionName = function(funcName) {
 };
 
 TickProcessor.prototype.printEntries = function(
-    profile, totalTicks, nonLibTicks, filterP, callback) {
+    profile, totalTicks, nonLibTicks, filterP, callback, printAllTicks) {
   var that = this;
   this.processProfile(profile, filterP, function (rec) {
     if (rec.selfTime == 0) return;
     callback(rec);
     var funcName = that.formatFunctionName(rec.internalFuncName);
-    that.printLine(funcName, rec.selfTime, totalTicks, nonLibTicks);
+    if(printAllTicks) {
+      that.printLine(funcName, rec.selfTime, totalTicks, nonLibTicks);
+    }
   });
 };
 
@@ -745,8 +757,11 @@ inherits(MacCppEntriesProvider, UnixCppEntriesProvider);
 MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
   this.parsePos = 0;
   libName = this.targetRootFS + libName;
+
+  // It seems that in OS X `nm` thinks that `-f` is a format option, not a
+  // "flat" display option flag.
   try {
-    this.symbols = [os.system(this.nmExec, ['-n', '-f', libName], -1, -1), ''];
+    this.symbols = [os.system(this.nmExec, ['-n', libName], -1, -1), ''];
   } catch (e) {
     // If the library cannot be found on this system let's not panic.
     this.symbols = '';
@@ -875,13 +890,20 @@ function ArgumentsProcessor(args) {
     '--distortion': ['distortion', 0,
         'Specify the logging overhead in picoseconds'],
     '--source-map': ['sourceMap', null,
-        'Specify the source map that should be used for output']
+        'Specify the source map that should be used for output'],
+    '--timed-range': ['timedRange', true,
+        'Ignore ticks before first and after last Date.now() call'],
+    '--pairwise-timed-range': ['pairwiseTimedRange', true,
+        'Ignore ticks outside pairs of Date.now() calls'],
+    '--only-summary': ['onlySummary', true,
+        'Print only tick summary, exclude other information']
   };
   this.argsDispatch_['--js'] = this.argsDispatch_['-j'];
   this.argsDispatch_['--gc'] = this.argsDispatch_['-g'];
   this.argsDispatch_['--compiler'] = this.argsDispatch_['-c'];
   this.argsDispatch_['--other'] = this.argsDispatch_['-o'];
   this.argsDispatch_['--external'] = this.argsDispatch_['-e'];
+  this.argsDispatch_['--ptr'] = this.argsDispatch_['--pairwise-timed-range'];
 };
 
 
@@ -896,17 +918,20 @@ ArgumentsProcessor.DEFAULTS = {
   targetRootFS: '',
   nm: 'nm',
   range: 'auto,auto',
-  distortion: 0
+  distortion: 0,
+  timedRange: false,
+  pairwiseTimedRange: false,
+  onlySummary: false
 };
 
 
 ArgumentsProcessor.prototype.parse = function() {
   while (this.args_.length) {
-    var arg = this.args_[0];
+    var arg = this.args_.shift();
     if (arg.charAt(0) != '-') {
-      break;
+      this.result_.logFileName = arg;
+      continue;
     }
-    this.args_.shift();
     var userValue = null;
     var eqPos = arg.indexOf('=');
     if (eqPos != -1) {
@@ -919,10 +944,6 @@ ArgumentsProcessor.prototype.parse = function() {
     } else {
       return false;
     }
-  }
-
-  if (this.args_.length >= 1) {
-      this.result_.logFileName = this.args_.shift();
   }
   return true;
 };
@@ -948,15 +969,15 @@ ArgumentsProcessor.prototype.printUsageAndExit = function() {
         ArgumentsProcessor.DEFAULTS.logFileName + '".\n');
   print('Options:');
   for (var arg in this.argsDispatch_) {
-    var synonims = [arg];
+    var synonyms = [arg];
     var dispatch = this.argsDispatch_[arg];
     for (var synArg in this.argsDispatch_) {
       if (arg !== synArg && dispatch === this.argsDispatch_[synArg]) {
-        synonims.push(synArg);
+        synonyms.push(synArg);
         delete this.argsDispatch_[synArg];
       }
     }
-    print('  ' + padRight(synonims.join(', '), 20) + dispatch[2]);
+    print('  ' + padRight(synonyms.join(', '), 20) + " " + dispatch[2]);
   }
   quit(2);
 };

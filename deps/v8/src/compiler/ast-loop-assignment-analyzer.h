@@ -5,9 +5,8 @@
 #ifndef V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_
 #define V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/bit-vector.h"
-#include "src/v8.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -27,7 +26,7 @@ class LoopAssignmentAnalysis : public ZoneObject {
       if (list_[i].first == loop) return list_[i].second;
     }
     UNREACHABLE();  // should never ask for loops that aren't here!
-    return NULL;
+    return nullptr;
   }
 
   int GetAssignmentCountForTesting(Scope* scope, Variable* var);
@@ -46,7 +45,7 @@ class AstLoopAssignmentAnalyzer : public AstVisitor {
 
   LoopAssignmentAnalysis* Analyze();
 
-#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+#define DECLARE_VISIT(type) void Visit##type(type* node) override;
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
@@ -54,6 +53,7 @@ class AstLoopAssignmentAnalyzer : public AstVisitor {
 
  private:
   CompilationInfo* info_;
+  Zone* zone_;
   ZoneDeque<BitVector*> loop_stack_;
   LoopAssignmentAnalysis* result_;
 
@@ -63,7 +63,7 @@ class AstLoopAssignmentAnalyzer : public AstVisitor {
   void Exit(IterationStatement* loop);
 
   void VisitIfNotNull(AstNode* node) {
-    if (node != NULL) Visit(node);
+    if (node != nullptr) Visit(node);
   }
 
   void AnalyzeAssignment(Variable* var);
@@ -71,8 +71,8 @@ class AstLoopAssignmentAnalyzer : public AstVisitor {
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstLoopAssignmentAnalyzer);
 };
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_

@@ -113,7 +113,8 @@ static void timer_cb(uv_timer_t* handle) {
 
 
 static void idle_2_close_cb(uv_handle_t* handle) {
-  LOG("IDLE_2_CLOSE_CB\n");
+  fprintf(stderr, "%s", "IDLE_2_CLOSE_CB\n");
+  fflush(stderr);
 
   ASSERT(handle == (uv_handle_t*)&idle_2_handle);
 
@@ -125,7 +126,8 @@ static void idle_2_close_cb(uv_handle_t* handle) {
 
 
 static void idle_2_cb(uv_idle_t* handle) {
-  LOG("IDLE_2_CB\n");
+  fprintf(stderr, "%s", "IDLE_2_CB\n");
+  fflush(stderr);
 
   ASSERT(handle == &idle_2_handle);
 
@@ -138,7 +140,8 @@ static void idle_2_cb(uv_idle_t* handle) {
 static void idle_1_cb(uv_idle_t* handle) {
   int r;
 
-  LOG("IDLE_1_CB\n");
+  fprintf(stderr, "%s", "IDLE_1_CB\n");
+  fflush(stderr);
 
   ASSERT(handle != NULL);
   ASSERT(idles_1_active > 0);
@@ -164,7 +167,8 @@ static void idle_1_cb(uv_idle_t* handle) {
 
 
 static void idle_1_close_cb(uv_handle_t* handle) {
-  LOG("IDLE_1_CLOSE_CB\n");
+  fprintf(stderr, "%s", "IDLE_1_CLOSE_CB\n");
+  fflush(stderr);
 
   ASSERT(handle != NULL);
 
@@ -173,7 +177,8 @@ static void idle_1_close_cb(uv_handle_t* handle) {
 
 
 static void prepare_1_close_cb(uv_handle_t* handle) {
-  LOG("PREPARE_1_CLOSE_CB");
+  fprintf(stderr, "%s", "PREPARE_1_CLOSE_CB");
+  fflush(stderr);
   ASSERT(handle == (uv_handle_t*)&prepare_1_handle);
 
   prepare_1_close_cb_called++;
@@ -181,7 +186,8 @@ static void prepare_1_close_cb(uv_handle_t* handle) {
 
 
 static void check_close_cb(uv_handle_t* handle) {
-  LOG("CHECK_CLOSE_CB\n");
+  fprintf(stderr, "%s", "CHECK_CLOSE_CB\n");
+  fflush(stderr);
   ASSERT(handle == (uv_handle_t*)&check_handle);
 
   check_close_cb_called++;
@@ -189,7 +195,8 @@ static void check_close_cb(uv_handle_t* handle) {
 
 
 static void prepare_2_close_cb(uv_handle_t* handle) {
-  LOG("PREPARE_2_CLOSE_CB\n");
+  fprintf(stderr, "%s", "PREPARE_2_CLOSE_CB\n");
+  fflush(stderr);
   ASSERT(handle == (uv_handle_t*)&prepare_2_handle);
 
   prepare_2_close_cb_called++;
@@ -199,8 +206,8 @@ static void prepare_2_close_cb(uv_handle_t* handle) {
 static void check_cb(uv_check_t* handle) {
   int i, r;
 
-  LOG("CHECK_CB\n");
-
+  fprintf(stderr, "%s", "CHECK_CB\n");
+  fflush(stderr);
   ASSERT(handle == &check_handle);
 
   if (loop_iteration < ITERATIONS) {
@@ -235,8 +242,8 @@ static void check_cb(uv_check_t* handle) {
 static void prepare_2_cb(uv_prepare_t* handle) {
   int r;
 
-  LOG("PREPARE_2_CB\n");
-
+  fprintf(stderr, "%s", "PREPARE_2_CB\n");
+  fflush(stderr);
   ASSERT(handle == &prepare_2_handle);
 
   /* prepare_2 gets started by prepare_1 when (loop_iteration % 2 == 0), */
@@ -255,8 +262,8 @@ static void prepare_2_cb(uv_prepare_t* handle) {
 static void prepare_1_cb(uv_prepare_t* handle) {
   int r;
 
-  LOG("PREPARE_1_CB\n");
-
+  fprintf(stderr, "%s", "PREPARE_1_CB\n");
+  fflush(stderr);
   ASSERT(handle == &prepare_1_handle);
 
   if (loop_iteration % 2 == 0) {

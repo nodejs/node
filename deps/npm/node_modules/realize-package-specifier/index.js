@@ -14,6 +14,7 @@ module.exports = function (spec, where, cb) {
   catch (e) {
     return cb(e)
   }
+  if ((dep.type == "range" || dep.type == "version") && dep.name != dep.raw) return cb(null, dep)
   var specpath = dep.type == "local"
                ? path.resolve(where, dep.spec)
                : path.resolve(dep.rawSpec? dep.rawSpec: dep.name)

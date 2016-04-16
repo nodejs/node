@@ -20,16 +20,18 @@ class Graph;
 
 
 // Lowers Select nodes to diamonds.
-class SelectLowering FINAL : public Reducer {
+class SelectLowering final : public Reducer {
  public:
   SelectLowering(Graph* graph, CommonOperatorBuilder* common);
   ~SelectLowering();
 
-  Reduction Reduce(Node* node) OVERRIDE;
+  Reduction Reduce(Node* node) override;
 
  private:
-  typedef std::map<Node*, Node*, std::less<Node*>,
-                   zone_allocator<std::pair<Node* const, Node*>>> Merges;
+  typedef std::multimap<Node*, Node*, std::less<Node*>,
+                        zone_allocator<std::pair<Node* const, Node*>>> Merges;
+
+  bool ReachableFrom(Node* const sink, Node* const source);
 
   CommonOperatorBuilder* common() const { return common_; }
   Graph* graph() const { return graph_; }

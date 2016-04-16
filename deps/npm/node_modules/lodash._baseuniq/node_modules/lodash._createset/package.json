@@ -1,0 +1,101 @@
+{
+  "_args": [
+    [
+      "lodash._createset@~4.0.0",
+      "/Users/zkat/Documents/code/npm/node_modules/lodash._baseuniq"
+    ]
+  ],
+  "_from": "lodash._createset@>=4.0.0 <4.1.0",
+  "_id": "lodash._createset@4.0.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/lodash._baseuniq/lodash._createset",
+  "_nodeVersion": "5.5.0",
+  "_npmOperationalInternal": {
+    "host": "packages-13-west.internal.npmjs.com",
+    "tmp": "tmp/lodash._createset-4.0.1.tgz_1456896434807_0.3753381560090929"
+  },
+  "_npmUser": {
+    "email": "john.david.dalton@gmail.com",
+    "name": "jdalton"
+  },
+  "_npmVersion": "2.14.17",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "lodash._createset",
+    "raw": "lodash._createset@~4.0.0",
+    "rawSpec": "~4.0.0",
+    "scope": null,
+    "spec": ">=4.0.0 <4.1.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/lodash._baseuniq"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash._createset/-/lodash._createset-4.0.1.tgz",
+  "_shasum": "00e891e3dd386c4512fcb1f49060dfa4d02a9819",
+  "_shrinkwrap": null,
+  "_spec": "lodash._createset@~4.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/lodash._baseuniq",
+  "author": {
+    "email": "john.david.dalton@gmail.com",
+    "name": "John-David Dalton",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "contributors": [
+    {
+      "email": "john.david.dalton@gmail.com",
+      "name": "John-David Dalton",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "email": "blaine.bublitz@gmail.com",
+      "name": "Blaine Bublitz",
+      "url": "https://github.com/phated"
+    },
+    {
+      "email": "mathias@qiwi.be",
+      "name": "Mathias Bynens",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "dependencies": {},
+  "description": "The internal lodash function `createSet` exported as a module.",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "00e891e3dd386c4512fcb1f49060dfa4d02a9819",
+    "tarball": "https://registry.npmjs.org/lodash._createset/-/lodash._createset-4.0.1.tgz"
+  },
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "license": "MIT",
+  "maintainers": [
+    {
+      "email": "john.david.dalton@gmail.com",
+      "name": "jdalton"
+    },
+    {
+      "email": "mathias@qiwi.be",
+      "name": "mathias"
+    },
+    {
+      "email": "blaine.bublitz@gmail.com",
+      "name": "phated"
+    }
+  ],
+  "name": "lodash._createset",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "4.0.1"
+}

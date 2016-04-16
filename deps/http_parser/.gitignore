@@ -5,6 +5,7 @@ tags
 test
 test_g
 test_fast
+bench
 url_parser
 parsertrace
 parsertrace_g

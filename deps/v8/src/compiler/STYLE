@@ -1,0 +1,29 @@
+Compiler Coding Style
+=====================
+
+Coding style for the TurboFan compiler generally follows the Google C++ Style
+Guide and the Chromium Coding Style. The notes below are usually just extensions
+beyond what the Google style guide already says. If this document doesn't
+mention a rule, follow the Google C++ style.
+
+
+TODOs
+-----
+We use the following convention for putting TODOs into the code:
+
+  * A TODO(turbofan) implies a performance improvement opportunity.
+  * A TODO(name) implies an incomplete implementation.
+
+
+Use of C++11 auto keyword
+-------------------------
+Use auto to avoid type names that are just clutter. Continue to use manifest
+type declarations when it helps readability, and never use auto for anything
+but local variables, in particular auto should only be used where it is obvious
+from context what the type is:
+
+  for (auto block : x->blocks())  // clearly a Block of some kind
+  for (auto instr : x->instructions())  // clearly an Instruction of some kind
+
+  for (auto b : x->predecessors()) // less clear, better to make it explicit
+  for (BasicBlock* b : x->predecessors()) // now clear

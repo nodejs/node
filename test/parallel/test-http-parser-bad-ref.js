@@ -1,9 +1,10 @@
+'use strict';
 // Run this program with valgrind or efence with --expose_gc to expose the
 // problem.
 
 // Flags: --expose_gc
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var HTTPParser = process.binding('http_parser').HTTPParser;
 
@@ -16,7 +17,7 @@ var headersComplete = 0;
 var messagesComplete = 0;
 
 function flushPool() {
-  new Buffer(Buffer.poolSize - 1);
+  Buffer.allocUnsafe(Buffer.poolSize - 1);
   gc();
 }
 
@@ -48,7 +49,7 @@ function demoBug(part1, part2) {
   // We use a function to eliminate references to the Buffer b
   // We want b to be GCed. The parser will hold a bad reference to it.
   (function() {
-    var b = Buffer(part1);
+    var b = Buffer.from(part1);
     flushPool();
 
     console.log('parse the first part of the message');
@@ -58,7 +59,7 @@ function demoBug(part1, part2) {
   flushPool();
 
   (function() {
-    var b = Buffer(part2);
+    var b = Buffer.from(part2);
 
     console.log('parse the second part of the message');
     parser.execute(b, 0, b.length);

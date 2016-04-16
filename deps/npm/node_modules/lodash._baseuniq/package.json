@@ -1,0 +1,106 @@
+{
+  "_args": [
+    [
+      "lodash._baseuniq@4.5.1",
+      "/Users/zkat/Documents/code/npm"
+    ]
+  ],
+  "_from": "lodash._baseuniq@4.5.1",
+  "_id": "lodash._baseuniq@4.5.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/lodash._baseuniq",
+  "_nodeVersion": "5.5.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/lodash._baseuniq-4.5.1.tgz_1459310621859_0.6014031588565558"
+  },
+  "_npmUser": {
+    "email": "john.david.dalton@gmail.com",
+    "name": "jdalton"
+  },
+  "_npmVersion": "2.15.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "lodash._baseuniq",
+    "raw": "lodash._baseuniq@4.5.1",
+    "rawSpec": "4.5.1",
+    "scope": null,
+    "spec": "4.5.1",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/",
+    "/lodash.union",
+    "/lodash.uniq"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash._baseuniq/-/lodash._baseuniq-4.5.1.tgz",
+  "_shasum": "1980430c2e64ee86df6dd35794e1a301b2ab74de",
+  "_shrinkwrap": null,
+  "_spec": "lodash._baseuniq@4.5.1",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "email": "john.david.dalton@gmail.com",
+    "name": "John-David Dalton",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "contributors": [
+    {
+      "email": "john.david.dalton@gmail.com",
+      "name": "John-David Dalton",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "email": "blaine.bublitz@gmail.com",
+      "name": "Blaine Bublitz",
+      "url": "https://github.com/phated"
+    },
+    {
+      "email": "mathias@qiwi.be",
+      "name": "Mathias Bynens",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "dependencies": {
+    "lodash._createset": "~4.0.0",
+    "lodash._setcache": "~4.1.0"
+  },
+  "description": "The internal lodash function `baseUniq` exported as a module.",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "1980430c2e64ee86df6dd35794e1a301b2ab74de",
+    "tarball": "https://registry.npmjs.org/lodash._baseuniq/-/lodash._baseuniq-4.5.1.tgz"
+  },
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "license": "MIT",
+  "maintainers": [
+    {
+      "email": "john.david.dalton@gmail.com",
+      "name": "jdalton"
+    },
+    {
+      "email": "mathias@qiwi.be",
+      "name": "mathias"
+    },
+    {
+      "email": "blaine@iceddev.com",
+      "name": "phated"
+    }
+  ],
+  "name": "lodash._baseuniq",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "4.5.1"
+}

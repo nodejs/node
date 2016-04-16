@@ -1,35 +1,8 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var url = require('url');
-
-function p(x) {
-  common.error(common.inspect(x));
-}
 
 var responses_sent = 0;
 var responses_recvd = 0;
@@ -62,8 +35,6 @@ var server = http.createServer(function(req, res) {
     responses_sent += 1;
   });
   req.resume();
-
-  //assert.equal('127.0.0.1', res.connection.remoteAddress);
 });
 
 server.listen(common.PORT, function() {
@@ -77,7 +48,7 @@ server.listen(common.PORT, function() {
     responses_recvd += 1;
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body0 += chunk; });
-    common.debug('Got /hello response');
+    console.error('Got /hello response');
   });
 
   setTimeout(function() {
@@ -88,16 +59,16 @@ server.listen(common.PORT, function() {
       responses_recvd += 1;
       res.setEncoding('utf8');
       res.on('data', function(chunk) { body1 += chunk; });
-      common.debug('Got /world response');
+      console.error('Got /world response');
     });
   }, 1);
 });
 
 process.on('exit', function() {
-  common.debug('responses_recvd: ' + responses_recvd);
+  console.error('responses_recvd: ' + responses_recvd);
   assert.equal(2, responses_recvd);
 
-  common.debug('responses_sent: ' + responses_sent);
+  console.error('responses_sent: ' + responses_sent);
   assert.equal(2, responses_sent);
 
   assert.equal('The path was /hello', body0);

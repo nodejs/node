@@ -1,0 +1,133 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_add_client_custom_ext, SSL_CTX_add_server_custom_ext - custom TLS extension handling
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_CTX_add_client_custom_ext(SSL_CTX *ctx, unsigned int ext_type,
+			           custom_ext_add_cb add_cb,
+			           custom_ext_free_cb free_cb, void *add_arg,
+			           custom_ext_parse_cb parse_cb,
+				   void *parse_arg);
+
+ int SSL_CTX_add_server_custom_ext(SSL_CTX *ctx, unsigned int ext_type,
+			           custom_ext_add_cb add_cb,
+			           custom_ext_free_cb free_cb, void *add_arg,
+			           custom_ext_parse_cb parse_cb,
+				   void *parse_arg);
+
+ int SSL_extension_supported(unsigned int ext_type);
+
+ typedef int (*custom_ext_add_cb)(SSL *s, unsigned int ext_type,
+				  const unsigned char **out,
+				  size_t *outlen, int *al,
+				  void *add_arg);
+
+ typedef void (*custom_ext_free_cb)(SSL *s, unsigned int ext_type,
+				    const unsigned char *out,
+				    void *add_arg);
+
+ typedef int (*custom_ext_parse_cb)(SSL *s, unsigned int ext_type,
+				    const unsigned char *in,
+				    size_t inlen, int *al,
+				    void *parse_arg);
+
+
+=head1 DESCRIPTION
+
+SSL_CTX_add_client_custom_ext() adds a custom extension for a TLS client 
+with extension type B<ext_type> and callbacks B<add_cb>, B<free_cb> and
+B<parse_cb>.
+
+SSL_CTX_add_server_custom_ext() adds a custom extension for a TLS server 
+with extension type B<ext_type> and callbacks B<add_cb>, B<free_cb> and
+B<parse_cb>.
+
+In both cases the extension type must not be handled by OpenSSL internally
+or an error occurs.
+
+SSL_extension_supported() returns 1 if the extension B<ext_type> is handled
+internally by OpenSSL and 0 otherwise.
+
+=head1 EXTENSION CALLBACKS
+
+The callback B<add_cb> is called to send custom extension data to be 
+included in ClientHello for TLS clients or ServerHello for servers. The
+B<ext_type> parameter is set to the extension type which will be added and
+B<add_arg> to the value set when the extension handler was added.
+
+If the application wishes to include the extension B<ext_type> it should
+set B<*out> to the extension data, set B<*outlen> to the length of the
+extension data and return 1.
+
+If the B<add_cb> does not wish to include the extension it must return 0.
+
+If B<add_cb> returns -1 a fatal handshake error occurs using the TLS
+alert value specified in B<*al>.
+
+For clients (but not servers) if B<add_cb> is set to NULL a zero length
+extension is added for B<ext_type>.
+
+For clients every registered B<add_cb> is always called to see if the
+application wishes to add an extension to ClientHello.
+
+For servers every registered B<add_cb> is called once if and only if the
+corresponding extension was received in ClientHello to see if the application
+wishes to add the extension to ServerHello. That is, if no corresponding extension
+was received in ClientHello then B<add_cb> will not be called.
+
+If an extension is added (that is B<add_cb> returns 1) B<free_cb> is called
+(if it is set) with the value of B<out> set by the add callback. It can be
+used to free up any dynamic extension data set by B<add_cb>. Since B<out> is
+constant (to permit use of constant data in B<add_cb>) applications may need to
+cast away const to free the data.
+
+The callback B<parse_cb> receives data for TLS extensions. For TLS clients
+the extension data will come from ServerHello and for TLS servers it will
+come from ClientHello.
+
+The extension data consists of B<inlen> bytes in the buffer B<in> for the
+extension B<extension_type>.
+
+If the B<parse_cb> considers the extension data acceptable it must return
+1. If it returns 0 or a negative value a fatal handshake error occurs
+using the TLS alert value specified in B<*al>.
+
+The buffer B<in> is a temporary internal buffer which will not be valid after
+the callback returns.
+
+=head1 NOTES
+
+The B<add_arg> and B<parse_arg> parameters can be set to arbitrary values
+which will be passed to the corresponding callbacks. They can, for example,
+be used to store the extension data received in a convenient structure or
+pass the extension data to be added or freed when adding extensions.
+
+The B<ext_type> parameter corresponds to the B<extension_type> field of
+RFC5246 et al. It is B<not> a NID.
+
+If the same custom extension type is received multiple times a fatal
+B<decode_error> alert is sent and the handshake aborts. If a custom extension
+is received in ServerHello which was not sent in ClientHello a fatal
+B<unsupported_extension> alert is sent and the handshake is aborted. The
+ServerHello B<add_cb> callback is only called if the corresponding extension
+was received in ClientHello. This is compliant with the TLS specifications.
+This behaviour ensures that each callback is called at most once and that
+an application can never send unsolicited extensions.
+
+=head1 RETURN VALUES
+
+SSL_CTX_add_client_custom_ext() and SSL_CTX_add_server_custom_ext() return 1 for
+success and 0 for failure. A failure can occur if an attempt is made to
+add the same B<ext_type> more than once, if an attempt is made to use an
+extension type handled internally by OpenSSL or if an internal error occurs
+(for example a memory allocation failure).
+
+SSL_extension_supported() returns 1 if the extension B<ext_type> is handled
+internally by OpenSSL and 0 otherwise.
+
+=cut

@@ -33,7 +33,7 @@ function DebuggerStatement() {
   debugger;  /*pause*/
 }
 
-function TestCase(fun, frame_number) {
+function TestCase(fun, frame_number, line_number) {
   var exception = false;
   var codeSnippet = undefined;
   var resultPositions = undefined;
@@ -64,7 +64,12 @@ function TestCase(fun, frame_number) {
 
   Debug.setListener(listener);
 
+  var breakpointId;
+  if (line_number) breakpointId = Debug.setBreakPoint(fun, line_number);
+
   fun();
+
+  if (line_number) Debug.clearBreakPoint(breakpointId);
 
   Debug.setListener(null);
 
@@ -116,9 +121,7 @@ function TestCaseWithDebugger(fun) {
 }
 
 function TestCaseWithBreakpoint(fun, line_number, frame_number) {
-  var breakpointId = Debug.setBreakPoint(fun, line_number);
-  TestCase(fun, frame_number);
-  Debug.clearBreakPoint(breakpointId);
+  TestCase(fun, frame_number, line_number);
 }
 
 function TestCaseWithException(fun, frame_number) {

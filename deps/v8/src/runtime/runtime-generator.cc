@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/factory.h"
 #include "src/frames-inl.h"
-#include "src/runtime/runtime-utils.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,17 +22,13 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   RUNTIME_ASSERT(function->shared()->is_generator());
 
   Handle<JSGeneratorObject> generator;
-  if (frame->IsConstructor()) {
-    generator = handle(JSGeneratorObject::cast(frame->receiver()));
-  } else {
-    generator = isolate->factory()->NewJSGeneratorObject(function);
-  }
+  DCHECK(!frame->IsConstructor());
+  generator = isolate->factory()->NewJSGeneratorObject(function);
   generator->set_function(*function);
   generator->set_context(Context::cast(frame->context()));
   generator->set_receiver(frame->receiver());
   generator->set_continuation(0);
   generator->set_operand_stack(isolate->heap()->empty_fixed_array());
-  generator->set_stack_handler_index(-1);
 
   return *generator;
 }
@@ -52,28 +49,22 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   DCHECK_LT(0, generator_object->continuation());
 
   // We expect there to be at least two values on the operand stack: the return
-  // value of the yield expression, and the argument to this runtime call.
+  // value of the yield expression, and the arguments to this runtime call.
   // Neither of those should be saved.
   int operands_count = frame->ComputeOperandsCount();
-  DCHECK_GE(operands_count, 2);
-  operands_count -= 2;
+  DCHECK_GE(operands_count, 1 + args.length());
+  operands_count -= 1 + args.length();
 
   if (operands_count == 0) {
     // Although it's semantically harmless to call this function with an
     // operands_count of zero, it is also unnecessary.
     DCHECK_EQ(generator_object->operand_stack(),
               isolate->heap()->empty_fixed_array());
-    DCHECK_EQ(generator_object->stack_handler_index(), -1);
-    // If there are no operands on the stack, there shouldn't be a handler
-    // active either.
-    DCHECK(!frame->HasHandler());
   } else {
-    int stack_handler_index = -1;
     Handle<FixedArray> operand_stack =
         isolate->factory()->NewFixedArray(operands_count);
-    frame->SaveOperandStack(*operand_stack, &stack_handler_index);
+    frame->SaveOperandStack(*operand_stack);
     generator_object->set_operand_stack(*operand_stack);
-    generator_object->set_stack_handler_index(stack_handler_index);
   }
 
   return isolate->heap()->undefined_value();
@@ -84,9 +75,9 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
 // called if the suspended activation had operands on the stack, stack handlers
 // needing rewinding, or if the resume should throw an exception.  The fast path
 // is handled directly in FullCodeGenerator::EmitGeneratorResume(), which is
-// inlined into GeneratorNext and GeneratorThrow.  EmitGeneratorResumeResume is
-// called in any case, as it needs to reconstruct the stack frame and make space
-// for arguments and operands.
+// inlined into GeneratorNext, GeneratorReturn, and GeneratorThrow.
+// EmitGeneratorResume is called in any case, as it needs to reconstruct the
+// stack frame and make space for arguments and operands.
 RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
@@ -106,7 +97,7 @@ RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
   int offset = generator_object->continuation();
   DCHECK(offset > 0);
   frame->set_pc(pc + offset);
-  if (FLAG_enable_ool_constant_pool) {
+  if (FLAG_enable_embedded_constant_pool) {
     frame->set_constant_pool(
         generator_object->function()->code()->constant_pool());
   }
@@ -115,16 +106,17 @@ RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
   FixedArray* operand_stack = generator_object->operand_stack();
   int operands_count = operand_stack->length();
   if (operands_count != 0) {
-    frame->RestoreOperandStack(operand_stack,
-                               generator_object->stack_handler_index());
+    frame->RestoreOperandStack(operand_stack);
     generator_object->set_operand_stack(isolate->heap()->empty_fixed_array());
-    generator_object->set_stack_handler_index(-1);
   }
 
   JSGeneratorObject::ResumeMode resume_mode =
       static_cast<JSGeneratorObject::ResumeMode>(resume_mode_int);
   switch (resume_mode) {
+    // Note: this looks like NEXT and RETURN are the same but RETURN receives
+    // special treatment in the generator code (to which we return here).
     case JSGeneratorObject::NEXT:
+    case JSGeneratorObject::RETURN:
       return value;
     case JSGeneratorObject::THROW:
       return isolate->Throw(value);
@@ -135,16 +127,14 @@ RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ThrowGeneratorStateError) {
+RUNTIME_FUNCTION(Runtime_GeneratorClose) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-  int continuation = generator->continuation();
-  const char* message = continuation == JSGeneratorObject::kGeneratorClosed
-                            ? "generator_finished"
-                            : "generator_running";
-  Vector<Handle<Object> > argv = HandleVector<Object>(NULL, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewError(message, argv));
+
+  generator->set_continuation(JSGeneratorObject::kGeneratorClosed);
+
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -178,6 +168,16 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
 }
 
 
+// Returns input of generator activation.
+RUNTIME_FUNCTION(Runtime_GeneratorGetInput) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  return generator->input();
+}
+
+
 // Returns generator continuation as a PC offset, or the magic -1 or 0 values.
 RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
   HandleScope scope(isolate);
@@ -196,34 +196,33 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
   if (generator->is_suspended()) {
     Handle<Code> code(generator->function()->code(), isolate);
     int offset = generator->continuation();
-
-    RUNTIME_ASSERT(0 <= offset && offset < code->Size());
-    Address pc = code->address() + offset;
-
-    return Smi::FromInt(code->SourcePosition(pc));
+    RUNTIME_ASSERT(0 <= offset && offset < code->instruction_size());
+    return Smi::FromInt(code->SourcePosition(offset));
   }
 
   return isolate->heap()->undefined_value();
 }
 
 
-RUNTIME_FUNCTION(Runtime_FunctionIsGenerator) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  return isolate->heap()->ToBoolean(f->shared()->is_generator());
+// Optimization for the following three functions is disabled in
+// js/generator.js and compiler/ast-graph-builder.cc.
+
+
+RUNTIME_FUNCTION(Runtime_GeneratorNext) {
+  UNREACHABLE();
+  return nullptr;
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_GeneratorNext) {
-  UNREACHABLE();  // Optimization disabled in SetUpGenerators().
-  return NULL;
+RUNTIME_FUNCTION(Runtime_GeneratorReturn) {
+  UNREACHABLE();
+  return nullptr;
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_GeneratorThrow) {
-  UNREACHABLE();  // Optimization disabled in SetUpGenerators().
-  return NULL;
+RUNTIME_FUNCTION(Runtime_GeneratorThrow) {
+  UNREACHABLE();
+  return nullptr;
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

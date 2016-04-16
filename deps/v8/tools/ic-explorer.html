@@ -1,0 +1,338 @@
+<html>
+  <head>
+<style>
+  .entry-details { 
+  }
+  .entry-details TD { 
+  }
+  .details {
+    width: 2em;
+    border: 1px black dotted;
+  }
+  .count {
+    text-align: right;
+    width: 5em;
+    font-family: monospace;
+  }
+  .percentage { 
+    text-align: right;
+    width: 5em;
+    font-family: monospace;
+  }
+  .key {
+    padding-left: 1em;
+  }
+  .drilldown-group-title {
+    font-weight: bold;
+    padding: 0.5em 0 0.2em 0;
+  }
+</style>
+  <script>
+"use strict"
+var entries = [];
+
+class Entry {
+  constructor(id, line) {
+    this.id = id;
+    this.line = line;
+    var parts = line.split(" ");
+    if (parts.length < 6) return
+    this.isValid = false;
+    if (parts[0][0] !== "[") return;
+    if (parts[1] === "patching") return;
+    this.type = parts[0].substr(1);
+    this.category = "Other";
+    if (this.type.indexOf("Store") !== -1) {
+      this.category = "Store";
+    } else if (this.type.indexOf("Load") !== -1) {
+      this.category = "Load";
+    }
+    if (this.type.length == 0) return;
+    if (this.type.indexOf('BinaryOpIC(') === 0) {
+      this.type = "BinaryOpIC";
+      var split = parts[0].split('(');
+      this.state = "(" + split[1] + " => " + parts[2];
+      var offset = this.parsePositionAndFile(parts, 6);
+      if (offset == -1) return
+      if (this.file === undefined) return
+      this.file = this.file.slice(0,-1);
+    } else {
+      var offset = this.parsePositionAndFile(parts, 2);
+      if (offset == -1) return
+      this.state = parts[++offset];
+      if (this.type !== "CompareIC") {
+        // if there is no address we have a smi key
+        var address = parts[++offset];
+        if (address !== undefined && address.indexOf("0x") === 0) {
+          this.key = parts.slice(++offset).join(" ");
+        } else {
+          this.key = address;
+        }
+      }
+    }
+    this.filePosition = this.file + " " + this.position;
+    if (this.key) {
+      var isStringKey = false
+      if (this.key.indexOf("<String[") === 0) {
+       isStringKey = true;
+        this.key = "\"" + this.key.slice(this.key.indexOf(']')+3);
+      } else if (this.key.indexOf("<") === 0) {
+        this.key = this.key.slice(1);
+      }
+      if (this.key.endsWith(">]")) {
+        this.key = this.key.slice(0, -2);
+      } else if (this.key.endsWith("]")) {
+        this.key = this.key.slice(0, -1);
+      }
+      if (isStringKey) {
+        this.key = this.key + "\"";
+      }
+    }
+    this.isValid = true;
+  }
+  
+  parsePositionAndFile(parts, start) {
+    // find the position of 'at' in the parts array.
+    var offset = start;
+    for (var i = start+1; i<parts.length; i++) {
+      offset++;
+      if (parts[i] == 'at') break;
+    }
+    if (parts[offset] !== 'at') return -1;
+    this.position = parts.slice(start, offset).join(' ');
+    offset += 1;
+    this.isNative = parts[offset] == "native"
+    offset += this.isNative ? 1 : 0;
+    this.file = parts[offset];
+    return offset;
+  }
+}
+
+function loadFile() {
+  var files = document.getElementById("uploadInput").files;
+
+  var file = files[0];
+  var reader = new FileReader();
+
+  reader.onload = function(evt) {
+    entries = [];
+    var end = this.result.length;
+    var current = 0;
+    var next = 0;
+    var line;
+    var i = 0;
+    var entry;
+    while (current < end) {
+      next = this.result.indexOf("\n", current);
+      if (next === -1) break;
+      i++;
+                            
+      line = this.result.substring(current, next);
+      current = next+1;
+      entry = new Entry(i, line);
+      if (entry.isValid) entries.push(entry);
+    }
+                          
+    document.getElementById("count").innerHTML = i;
+    updateTable();
+  }
+  reader.readAsText(file);
+  initGroupKeySelect(); 
+}
+
+
+
+var properties = ['type', 'category', 'file', 'filePosition', 'state' , 'key', 'isNative']
+
+class Group {
+  constructor(property, key, entry) {
+    this.property = property;
+    this.key = key;
+    this.count = 1;
+    this.entries = [entry];
+    this.percentage = undefined;
+    this.groups = undefined;
+  }
+  
+  add(entry) {
+    this.count ++;
+    this.entries.push(entry)
+  }
+  
+  createSubGroups() {
+    this.groups = {};
+    for (var i=0; i<properties.length; i++) {
+      var subProperty = properties[i];
+      if (this.property == subProperty) continue;
+      this.groups[subProperty] = groupBy(this.entries, subProperty);
+    }
+  }
+}
+
+function groupBy(entries, property) {
+  var accumulator = {};
+  accumulator.__proto__ = null;
+  var length = entries.length;
+  for (var i = 0; i < length; i++) {
+    var entry = entries[i];
+    var key = entry[property];
+    if (accumulator[key] == undefined) {
+      accumulator[key] = new Group(property, key, entry)
+    } else {
+      var group = accumulator[key];
+      if (group.entries == undefined) console.log([group, entry]);
+      group.add(entry)
+    }
+  }
+  var result = []
+  for (var key in accumulator) {
+    var group = accumulator[key];
+    group.percentage = Math.round(group.count / length * 100 * 100) / 100;
+    result.push(group);
+  }
+  result.sort((a,b) => { return b.count - a.count });
+  return result;
+}
+
+
+
+
+function updateTable() {
+  var select = document.getElementById("group-key");
+  var key = select.options[select.selectedIndex].text;
+  console.log(key);
+  var tableBody = document.getElementById("table-body");
+  removeAllChildren(tableBody);
+  var groups = groupBy(entries, key, true);
+  display(groups, tableBody);
+}
+
+function selecedOption(node) {
+ return node.options[node.selectedIndex]
+}
+
+function removeAllChildren(node) {
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+}
+
+function display(entries, parent) {
+  var fragment = document.createDocumentFragment();
+
+  function td(tr, content, className) { 
+    var td = document.createElement("td");
+    td.innerHTML = content;
+    td.className = className
+    tr.appendChild(td);
+    return td
+  }
+  var max = Math.min(1000, entries.length)
+  for (var i = 0; i<max; i++) {
+    var entry = entries[i];
+    var tr = document.createElement("tr");
+    tr.entry = entry;
+    td(tr, '<span onclick="toggleDetails(this)">details</a>', 'details');
+    td(tr, entry.percentage +"%", 'percentage');
+    td(tr, entry.count, 'count');
+    td(tr, entry.key, 'key');
+    fragment.appendChild(tr);
+  }
+  var omitted = entries.length - max;
+  if (omitted > 0) {
+    var tr = document.createElement("tr");
+    var td = td(tr, 'Omitted ' + omitted + " entries.");
+    td.colSpan = 4;
+    fragment.appendChild(tr);
+  }
+  parent.appendChild(fragment);
+}
+
+function displayDrilldown(entry, previousSibling) {
+  var tr = document.createElement('tr');
+  tr.className = "entry-details";
+  tr.style.display = "none";
+  // indent by one td.
+  tr.appendChild(document.createElement("td"));
+  var td = document.createElement("td");
+  td.colSpan = 3;
+  for (var key in entry.groups) {
+    td.appendChild(displayDrilldownGroup(entry, key));
+  }
+  tr.appendChild(td);
+  // Append the new TR after previousSibling.
+  previousSibling.parentNode.insertBefore(tr, previousSibling.nextSibling)
+}
+
+function displayDrilldownGroup(entry, key) {
+  var max = 20;
+  var group = entry.groups[key];
+  var div = document.createElement("div")
+  div.className = 'drilldown-group-title'
+  div.innerHTML = key + ' [top ' + max + ']';
+  var table = document.createElement("table");
+  display(group.slice(0, max), table, false)
+  div.appendChild(table);
+  return div;
+}
+
+function toggleDetails(node) {
+  var tr = node.parentNode.parentNode;
+  var entry = tr.entry;
+
+  // Create subgroup in-place if the don't exist yet.
+  if (entry.groups === undefined) {
+    entry.createSubGroups();
+    displayDrilldown(entry, tr);
+  }
+  var details = tr.nextSibling;
+  var display = details.style.display;
+  if (display != "none") {
+    display = "none";
+  }else {
+    display = "table-row"
+  };
+  details.style.display = display;
+}
+
+function initGroupKeySelect() {
+  var select = document.getElementById("group-key");
+  for (var i in properties) {
+    var option = document.createElement("option");
+    option.text = properties[i];
+    select.add(option);
+  }
+}
+
+  </script>
+  </head>
+  <body>
+    <h1>
+      <span style="color: #00FF00">I</span>
+      <span style="color: #FF00FF">C</span>
+      <span style="color: #00FFFF">E</span>
+    </h1>
+    Your IC-Explorer.
+    <h2>Usage</h2>
+    Run your script with <code>--trace_ic</code> and upload on this page:<br/>
+    <code>/path/to/d8 --trace_ic your_script.js > trace.txt</code>
+    <h2>Data</h2>
+    <form name="fileForm">
+      <p>
+        <input id="uploadInput" type="file" name="files" onchange="loadFile();" >
+        trace entries: <span id="count">0</span>
+      </p>
+    </form>
+    <h2>Result</h2>
+    <p>
+    Group-Key:
+    <select id="group-key" onchange="updateTable()"></select>
+    </p>
+    <p>
+      <table id="table" width="100%">
+        <tbody id="table-body"> 
+        </tbody>
+      </table>
+    </p>
+  </body>
+</html>

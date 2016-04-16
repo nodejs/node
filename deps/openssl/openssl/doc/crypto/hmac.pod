@@ -2,8 +2,8 @@
 
 =head1 NAME
 
-HMAC, HMAC_Init, HMAC_Update, HMAC_Final, HMAC_cleanup - HMAC message
-authentication code
+HMAC, HMAC_CTX_init, HMAC_Init, HMAC_Init_ex, HMAC_Update, HMAC_Final, HMAC_CTX_cleanup,
+HMAC_cleanup - HMAC message authentication code
 
 =head1 SYNOPSIS
 

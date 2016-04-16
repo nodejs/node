@@ -1,6 +1,6 @@
 var http = require('http');
 var cluster = require('cluster');
-var common = require('../../common.js');
+var common = require('../../common');
 
 function handleRequest(request, response) {
   response.end('hello world\n');

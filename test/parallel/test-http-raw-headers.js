@@ -1,24 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -65,6 +45,7 @@ http.createServer(function(req, res) {
   });
 
   req.resume();
+  res.setHeader('Trailer', 'x-foo');
   res.addTrailers([
     ['x-fOo', 'xOxOxOx'],
     ['x-foO', 'OxOxOxO'],
@@ -73,14 +54,6 @@ http.createServer(function(req, res) {
   ]);
   res.end('x f o o');
 }).listen(common.PORT, function() {
-  var expectRawHeaders = [
-    'Date',
-    'Tue, 06 Aug 2013 01:31:54 GMT',
-    'Connection',
-    'close',
-    'Transfer-Encoding',
-    'chunked'
-  ];
   var req = http.request({ port: common.PORT, path: '/' });
   req.addTrailers([
     ['x-bAr', 'yOyOyOy'],
@@ -93,6 +66,8 @@ http.createServer(function(req, res) {
   req.end('y b a r');
   req.on('response', function(res) {
     var expectRawHeaders = [
+      'Trailer',
+      'x-foo',
       'Date',
       null,
       'Connection',
@@ -101,11 +76,12 @@ http.createServer(function(req, res) {
       'chunked'
     ];
     var expectHeaders = {
+      trailer: 'x-foo',
       date: null,
       connection: 'close',
       'transfer-encoding': 'chunked'
     };
-    res.rawHeaders[1] = null;
+    res.rawHeaders[3] = null;
     res.headers.date = null;
     assert.deepEqual(res.rawHeaders, expectRawHeaders);
     assert.deepEqual(res.headers, expectHeaders);

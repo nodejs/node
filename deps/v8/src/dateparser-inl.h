@@ -5,7 +5,9 @@
 #ifndef V8_DATEPARSER_INL_H_
 #define V8_DATEPARSER_INL_H_
 
+#include "src/char-predicates-inl.h"
 #include "src/dateparser.h"
+#include "src/unicode-cache-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -135,17 +137,29 @@ bool DateParser::Parse(Vector<Char> str,
       tz.SetSign(token.ascii_sign());
       // The following number may be empty.
       int n = 0;
+      int length = 0;
       if (scanner.Peek().IsNumber()) {
-        n = scanner.Next().number();
+        DateToken token = scanner.Next();
+        length = token.length();
+        n = token.number();
       }
       has_read_number = true;
 
       if (scanner.Peek().IsSymbol(':')) {
         tz.SetAbsoluteHour(n);
+        // TODO(littledan): Use minutes as part of timezone?
         tz.SetAbsoluteMinute(kNone);
-      } else {
+      } else if (length == 2 || length == 1) {
+        // Handle time zones like GMT-8
+        tz.SetAbsoluteHour(n);
+        tz.SetAbsoluteMinute(0);
+      } else if (length == 4 || length == 3) {
+        // Looks like the hhmm format
         tz.SetAbsoluteHour(n / 100);
         tz.SetAbsoluteMinute(n % 100);
+      } else {
+        // No need to accept time zones like GMT-12345
+        return false;
       }
     } else if ((token.IsAsciiSign() || token.IsSymbol(')')) &&
                has_read_number) {
@@ -195,10 +209,31 @@ DateParser::DateToken DateParser::DateStringTokenizer<CharType>::Scan() {
 
 
 template <typename Char>
+bool DateParser::InputReader<Char>::SkipWhiteSpace() {
+  if (unicode_cache_->IsWhiteSpaceOrLineTerminator(ch_)) {
+    Next();
+    return true;
+  }
+  return false;
+}
+
+
+template <typename Char>
+bool DateParser::InputReader<Char>::SkipParentheses() {
+  if (ch_ != '(') return false;
+  int balance = 0;
+  do {
+    if (ch_ == ')') --balance;
+    else if (ch_ == '(') ++balance;
+    Next();
+  } while (balance > 0 && ch_);
+  return true;
+}
+
+
+template <typename Char>
 DateParser::DateToken DateParser::ParseES5DateTime(
-    DateStringTokenizer<Char>* scanner,
-    DayComposer* day,
-    TimeComposer* time,
+    DateStringTokenizer<Char>* scanner, DayComposer* day, TimeComposer* time,
     TimeZoneComposer* tz) {
   DCHECK(day->IsEmpty());
   DCHECK(time->IsEmpty());
@@ -306,6 +341,7 @@ DateParser::DateToken DateParser::ParseES5DateTime(
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DATEPARSER_INL_H_

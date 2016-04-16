@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "spawn_sync.h"
 #include "env-inl.h"
 #include "string_bytes.h"
@@ -34,7 +13,6 @@ using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
@@ -186,9 +164,9 @@ void SyncProcessStdioPipe::Close() {
 }
 
 
-Local<Object> SyncProcessStdioPipe::GetOutputAsBuffer() const {
+Local<Object> SyncProcessStdioPipe::GetOutputAsBuffer(Environment* env) const {
   size_t length = OutputLength();
-  Local<Object> js_buffer = Buffer::New(length);
+  Local<Object> js_buffer = Buffer::New(env, length).ToLocalChecked();
   CopyOutput(Buffer::Data(js_buffer));
   return js_buffer;
 }
@@ -342,6 +320,14 @@ void SyncProcessStdioPipe::WriteCallback(uv_write_t* req, int result) {
 void SyncProcessStdioPipe::ShutdownCallback(uv_shutdown_t* req, int result) {
   SyncProcessStdioPipe* self =
       reinterpret_cast<SyncProcessStdioPipe*>(req->handle->data);
+
+  // On AIX, OS X and the BSDs, calling shutdown() on one end of a pipe
+  // when the other end has closed the connection fails with ENOTCONN.
+  // Libuv is not the right place to handle that because it can't tell
+  // if the error is genuine but we here can.
+  if (result == UV_ENOTCONN)
+    result = 0;
+
   self->OnShutdownDone(result);
 }
 
@@ -353,16 +339,18 @@ void SyncProcessStdioPipe::CloseCallback(uv_handle_t* handle) {
 }
 
 
-void SyncProcessRunner::Initialize(Handle<Object> target,
-                                   Handle<Value> unused,
-                                   Handle<Context> context) {
+void SyncProcessRunner::Initialize(Local<Object> target,
+                                   Local<Value> unused,
+                                   Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "spawn", Spawn);
 }
 
 
 void SyncProcessRunner::Spawn(const FunctionCallbackInfo<Value>& args) {
-  SyncProcessRunner p(Environment::GetCurrent(args));
+  Environment* env = Environment::GetCurrent(args);
+  env->PrintSyncTrace();
+  SyncProcessRunner p(env);
   Local<Value> result = p.Run(args[0]);
   args.GetReturnValue().Set(result);
 }
@@ -497,7 +485,7 @@ void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   r = uv_run(uv_loop_, UV_RUN_DEFAULT);
   if (r < 0)
     // We can't handle uv_run failure.
-    abort();
+    ABORT();
 
   // If we get here the process should have exited.
   CHECK_GE(exit_status_, 0);
@@ -520,7 +508,7 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
     // callbacks called.
     int r = uv_run(uv_loop_, UV_RUN_DEFAULT);
     if (r < 0)
-      abort();
+      ABORT();
 
     CHECK_EQ(uv_loop_close(uv_loop_), 0);
     delete uv_loop_;
@@ -692,7 +680,7 @@ Local<Array> SyncProcessRunner::BuildOutputArray() {
   for (uint32_t i = 0; i < stdio_count_; i++) {
     SyncProcessStdioPipe* h = stdio_pipes_[i];
     if (h != nullptr && h->writable())
-      js_output->Set(i, h->GetOutputAsBuffer());
+      js_output->Set(i, h->GetOutputAsBuffer(env()));
     else
       js_output->Set(i, Null(env()->isolate()));
   }
@@ -958,7 +946,7 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
   if (js_value->IsString())
     js_string = js_value.As<String>();
   else
-    js_string = js_value->ToString();
+    js_string = js_value->ToString(env()->isolate());
 
   // Include space for null terminator byte.
   size = StringBytes::StorageSize(isolate, js_string, UTF8) + 1;
@@ -992,7 +980,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   // needed - it's okay since we cloned the original object.
   for (uint32_t i = 0; i < length; i++) {
     if (!js_array->Get(i)->IsString())
-      js_array->Set(i, js_array->Get(i)->ToString());
+      js_array->Set(i, js_array->Get(i)->ToString(env()->isolate()));
   }
 
   // Index has a pointer to every string element, plus one more for a final

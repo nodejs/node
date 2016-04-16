@@ -1,0 +1,79 @@
+{
+  "_args": [
+    [
+      "has-unicode@2.0.0",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "has-unicode@2.0.0",
+  "_id": "has-unicode@2.0.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/has-unicode",
+  "_nodeVersion": "4.2.2",
+  "_npmUser": {
+    "email": "me@re-becca.org",
+    "name": "iarna"
+  },
+  "_npmVersion": "2.14.7",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "has-unicode",
+    "raw": "has-unicode@2.0.0",
+    "rawSpec": "2.0.0",
+    "scope": null,
+    "spec": "2.0.0",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "file:../has-unicode",
+  "_shasum": "a3cd96c307ba41d559c5a2ee408c12a11c4c2ec3",
+  "_shrinkwrap": null,
+  "_spec": "has-unicode@2.0.0",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "email": "me@re-becca.org",
+    "name": "Rebecca Turner"
+  },
+  "bugs": {
+    "url": "https://github.com/iarna/has-unicode/issues"
+  },
+  "dependencies": {},
+  "description": "Try to guess if your terminal supports unicode",
+  "devDependencies": {
+    "require-inject": "^1.3.0",
+    "tap": "^2.3.1"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "a3cd96c307ba41d559c5a2ee408c12a11c4c2ec3",
+    "tarball": "http://registry.npmjs.org/has-unicode/-/has-unicode-2.0.0.tgz"
+  },
+  "gitHead": "fdd5de141a5564bdb5bc991d951209da40f6a598",
+  "homepage": "https://github.com/iarna/has-unicode",
+  "keywords": [
+    "terminal",
+    "unicode"
+  ],
+  "license": "ISC",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "name": "has-unicode",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/has-unicode.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "2.0.0"
+}

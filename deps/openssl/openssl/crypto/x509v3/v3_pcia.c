@@ -1,8 +1,9 @@
-/* v3_pcia.c -*- mode:C; c-file-style: "eay" -*- */
-/* Contributed to the OpenSSL Project 2004
- * by Richard Levitte (richard@levitte.org)
+/* v3_pcia.c */
+/*
+ * Contributed to the OpenSSL Project 2004 by Richard Levitte
+ * (richard@levitte.org)
  */
-/* Copyright (c) 2004 Kungliga Tekniska Högskolan
+/* Copyright (c) 2004 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  *
@@ -39,17 +40,17 @@
 #include <openssl/x509v3.h>
 
 ASN1_SEQUENCE(PROXY_POLICY) =
-	{
-	ASN1_SIMPLE(PROXY_POLICY,policyLanguage,ASN1_OBJECT),
-	ASN1_OPT(PROXY_POLICY,policy,ASN1_OCTET_STRING)
+        {
+        ASN1_SIMPLE(PROXY_POLICY,policyLanguage,ASN1_OBJECT),
+        ASN1_OPT(PROXY_POLICY,policy,ASN1_OCTET_STRING)
 } ASN1_SEQUENCE_END(PROXY_POLICY)
 
 IMPLEMENT_ASN1_FUNCTIONS(PROXY_POLICY)
 
 ASN1_SEQUENCE(PROXY_CERT_INFO_EXTENSION) =
-	{
-	ASN1_OPT(PROXY_CERT_INFO_EXTENSION,pcPathLengthConstraint,ASN1_INTEGER),
-	ASN1_SIMPLE(PROXY_CERT_INFO_EXTENSION,proxyPolicy,PROXY_POLICY)
+        {
+        ASN1_OPT(PROXY_CERT_INFO_EXTENSION,pcPathLengthConstraint,ASN1_INTEGER),
+        ASN1_SIMPLE(PROXY_CERT_INFO_EXTENSION,proxyPolicy,PROXY_POLICY)
 } ASN1_SEQUENCE_END(PROXY_CERT_INFO_EXTENSION)
 
 IMPLEMENT_ASN1_FUNCTIONS(PROXY_CERT_INFO_EXTENSION)

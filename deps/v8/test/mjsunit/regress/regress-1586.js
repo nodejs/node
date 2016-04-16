@@ -43,8 +43,6 @@ function f() {
 
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
-// Set breakpoint on line 6.
-var bp = Debug.setBreakPoint(f, 6);
 
 function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.Break) {
@@ -54,6 +52,10 @@ function listener(event, exec_state, event_data, data) {
 
 // Add the debug event listener.
 Debug.setListener(listener);
+
+//Set breakpoint on line 6.
+var bp = Debug.setBreakPoint(f, 6);
+
 result = -1;
 f();
 assertEquals(1, result);

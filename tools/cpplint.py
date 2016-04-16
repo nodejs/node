@@ -1,4 +1,4 @@
-#!/usr/bin/python2.4
+#!/usr/bin/env python
 #
 # Copyright (c) 2009 Google Inc. All rights reserved.
 #
@@ -88,7 +88,8 @@ import sre_compile
 import string
 import sys
 import unicodedata
-
+import logging
+logger = logging.getLogger('testrunner')
 
 _USAGE = """
 Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
@@ -139,6 +140,9 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
       the top-level categories like 'build' and 'whitespace' will
       also be printed. If 'detailed' is provided, then a count
       is provided for each category like 'build/class'.
+
+    logfile=filename
+      Write TAP output to a logfile.
 """
 
 # We categorize each error message we print.  Here are the categories.
@@ -195,6 +199,7 @@ _ERROR_CATEGORIES = [
   'whitespace/comments',
   'whitespace/end_of_line',
   'whitespace/ending_newline',
+  'whitespace/if-one-line',
   'whitespace/indent',
   'whitespace/labels',
   'whitespace/line_length',
@@ -210,7 +215,7 @@ _ERROR_CATEGORIES = [
 # flag. By default all errors are on, so only add here categories that should be
 # off by default (i.e., categories that must be enabled by the --filter= flags).
 # All entries here should start with a '-' or '+', as in the --filter= flag.
-_DEFAULT_FILTERS = [ '-build/include_alpha' ]
+_DEFAULT_FILTERS = [ '-build/include_alpha', '-legal/copyright' ]
 
 # We used to check for high-bit characters, but after much discussion we
 # decided those were OK, as long as they were in UTF-8 and didn't represent
@@ -541,6 +546,11 @@ class _CppLintState(object):
         raise ValueError('Every filter in --filters must start with + or -'
                          ' (%s does not)' % filt)
 
+  def setOutputFile(self, filename):
+    """attempts to create a file which we write output to."""
+    fh = logging.FileHandler(filename, mode='wb')
+    logger.addHandler(fh)
+
   def ResetErrorCounts(self):
     """Sets the module's error statistic back to zero."""
     self.error_count = 0
@@ -558,10 +568,11 @@ class _CppLintState(object):
 
   def PrintErrorCounts(self):
     """Print a summary of errors by category, and the total."""
-    for category, count in self.errors_by_category.iteritems():
-      sys.stderr.write('Category \'%s\' errors found: %d\n' %
-                       (category, count))
-    sys.stderr.write('Total errors found: %d\n' % self.error_count)
+    if not _cpplint_state.output_format == 'tap':
+      for category, count in self.errors_by_category.iteritems():
+        sys.stderr.write('Category \'%s\' errors found: %d\n' %
+                         (category, count))
+      sys.stderr.write('Total errors found: %d\n' % self.error_count)
 
 _cpplint_state = _CppLintState()
 
@@ -607,6 +618,9 @@ def _SetFilters(filters):
              Each filter should start with + or -; else we die.
   """
   _cpplint_state.SetFilters(filters)
+
+def _setOutputFile(filename):
+  _cpplint_state.setOutputFile(filename)
 
 
 class _FunctionState(object):
@@ -695,37 +709,10 @@ class FileInfo:
     locations won't see bogus errors.
     """
     fullname = self.FullName()
-
-    if os.path.exists(fullname):
-      project_dir = os.path.dirname(fullname)
-
-      if os.path.exists(os.path.join(project_dir, ".svn")):
-        # If there's a .svn file in the current directory, we recursively look
-        # up the directory tree for the top of the SVN checkout
-        root_dir = project_dir
-        one_up_dir = os.path.dirname(root_dir)
-        while os.path.exists(os.path.join(one_up_dir, ".svn")):
-          root_dir = os.path.dirname(root_dir)
-          one_up_dir = os.path.dirname(one_up_dir)
-
-        prefix = os.path.commonprefix([root_dir, project_dir])
-        return fullname[len(prefix) + 1:]
-
-      # Not SVN? Try to find a git or hg top level directory by searching up
-      # from the current path.
-      root_dir = os.path.dirname(fullname)
-      while (root_dir != os.path.dirname(root_dir) and
-             not os.path.exists(os.path.join(root_dir, ".git")) and
-             not os.path.exists(os.path.join(root_dir, ".hg"))):
-        root_dir = os.path.dirname(root_dir)
-
-      if (os.path.exists(os.path.join(root_dir, ".git")) or
-          os.path.exists(os.path.join(root_dir, ".hg"))):
-        prefix = os.path.commonprefix([root_dir, project_dir])
-        return fullname[len(prefix) + 1:]
-
-    # Don't know what to do; header guard warnings may be wrong...
-    return fullname
+    # XXX(bnoordhuis) Expects that cpplint.py lives in the tools/ directory.
+    toplevel = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    prefix = os.path.commonprefix([fullname, toplevel])
+    return fullname[len(prefix) + 1:]
 
   def Split(self):
     """Splits the file into the directory, basename, and extension.
@@ -813,6 +800,15 @@ def Error(filename, linenum, category, confidence, message):
     if _cpplint_state.output_format == 'vs7':
       sys.stderr.write('%s(%s):  %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
+    elif _cpplint_state.output_format == 'tap':
+      template = ('not ok %s\n'
+        '  ---\n'
+        '  message: %s\n'
+        '  data:\n'
+        '    line: %d\n'
+        '    ruleId: %s\n'
+        '  ...')
+      logger.info(template % (filename, message, linenum, category))
     else:
       sys.stderr.write('%s:%s:  %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
@@ -2096,7 +2092,7 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, error):
     initial_spaces += 1
   if line and line[-1].isspace():
     error(filename, linenum, 'whitespace/end_of_line', 4,
-          'Line ends in whitespace.  Consider deleting these extra spaces.')
+          'Line ends in whitespace. Consider deleting these extra spaces.')
   # There are certain situations we allow one space, notably for labels
   elif ((initial_spaces == 1 or initial_spaces == 3) and
         not Match(r'\s*\w+\s*:\s*$', cleansed_line)):
@@ -3029,8 +3025,6 @@ def ProcessFile(filename, vlevel):
             'One or more unexpected \\r (^M) found;'
             'better to use only a \\n')
 
-  sys.stderr.write('Done processing %s\n' % filename)
-
 
 def PrintUsage(message):
   """Prints a brief usage string and exits, optionally with an error message.
@@ -3068,7 +3062,8 @@ def ParseArguments(args):
   try:
     (opts, filenames) = getopt.getopt(args, '', ['help', 'output=', 'verbose=',
                                                  'counting=',
-                                                 'filter='])
+                                                 'filter=',
+                                                 'logfile='])
   except getopt.GetoptError:
     PrintUsage('Invalid arguments.')
 
@@ -3076,13 +3071,14 @@ def ParseArguments(args):
   output_format = _OutputFormat()
   filters = ''
   counting_style = ''
+  output_filename = ''
 
   for (opt, val) in opts:
     if opt == '--help':
       PrintUsage(None)
     elif opt == '--output':
-      if not val in ('emacs', 'vs7'):
-        PrintUsage('The only allowed output formats are emacs and vs7.')
+      if not val in ('emacs', 'vs7', 'tap'):
+        PrintUsage('The only allowed output formats are emacs, vs7 and tap.')
       output_format = val
     elif opt == '--verbose':
       verbosity = int(val)
@@ -3094,6 +3090,8 @@ def ParseArguments(args):
       if val not in ('total', 'toplevel', 'detailed'):
         PrintUsage('Valid counting options are total, toplevel, and detailed')
       counting_style = val
+    elif opt == '--logfile':
+      output_filename = val
 
   if not filenames:
     PrintUsage('No files were specified.')
@@ -3102,6 +3100,8 @@ def ParseArguments(args):
   _SetVerboseLevel(verbosity)
   _SetFilters(filters)
   _SetCountingStyle(counting_style)
+  if output_filename:
+    _setOutputFile(output_filename)
 
   return filenames
 
@@ -3115,6 +3115,14 @@ def main():
                                          codecs.getreader('utf8'),
                                          codecs.getwriter('utf8'),
                                          'replace')
+
+
+  ch = logging.StreamHandler(sys.stdout)
+  logger.addHandler(ch)
+  logger.setLevel(logging.INFO)
+
+  if _cpplint_state.output_format == 'tap':
+    logger.info('TAP version 13')
 
   _cpplint_state.ResetErrorCounts()
   for filename in filenames:

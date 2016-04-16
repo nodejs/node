@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/schedule.h"
+
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/node-properties-inl.h"
-#include "src/compiler/schedule.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -13,16 +13,17 @@ namespace internal {
 namespace compiler {
 
 BasicBlock::BasicBlock(Zone* zone, Id id)
-    : ao_number_(-1),
+    : loop_number_(-1),
       rpo_number_(-1),
       deferred_(false),
       dominator_depth_(-1),
-      dominator_(NULL),
-      loop_header_(NULL),
-      loop_end_(NULL),
+      dominator_(nullptr),
+      rpo_next_(nullptr),
+      loop_header_(nullptr),
+      loop_end_(nullptr),
       loop_depth_(0),
       control_(kNone),
-      control_input_(NULL),
+      control_input_(nullptr),
       nodes_(zone),
       successors_(zone),
       predecessors_(zone),
@@ -33,7 +34,7 @@ bool BasicBlock::LoopContains(BasicBlock* block) const {
   // RPO numbers must be initialized.
   DCHECK(rpo_number_ >= 0);
   DCHECK(block->rpo_number_ >= 0);
-  if (loop_end_ == NULL) return false;  // This is not a loop.
+  if (loop_end_ == nullptr) return false;  // This is not a loop.
   return block->rpo_number_ >= rpo_number_ &&
          block->rpo_number_ < loop_end_->rpo_number_;
 }
@@ -62,16 +63,6 @@ void BasicBlock::set_control_input(Node* control_input) {
 }
 
 
-void BasicBlock::set_dominator_depth(int32_t dominator_depth) {
-  dominator_depth_ = dominator_depth;
-}
-
-
-void BasicBlock::set_dominator(BasicBlock* dominator) {
-  dominator_ = dominator;
-}
-
-
 void BasicBlock::set_loop_depth(int32_t loop_depth) {
   loop_depth_ = loop_depth;
 }
@@ -90,14 +81,35 @@ void BasicBlock::set_loop_header(BasicBlock* loop_header) {
 }
 
 
+// static
+BasicBlock* BasicBlock::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
+  while (b1 != b2) {
+    if (b1->dominator_depth() < b2->dominator_depth()) {
+      b2 = b2->dominator();
+    } else {
+      b1 = b1->dominator();
+    }
+  }
+  return b1;
+}
+
+
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
   switch (c) {
     case BasicBlock::kNone:
       return os << "none";
     case BasicBlock::kGoto:
       return os << "goto";
+    case BasicBlock::kCall:
+      return os << "call";
     case BasicBlock::kBranch:
       return os << "branch";
+    case BasicBlock::kSwitch:
+      return os << "switch";
+    case BasicBlock::kDeoptimize:
+      return os << "deoptimize";
+    case BasicBlock::kTailCall:
+      return os << "tailcall";
     case BasicBlock::kReturn:
       return os << "return";
     case BasicBlock::kThrow:
@@ -110,11 +122,6 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
 
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id) {
   return os << id.ToSize();
-}
-
-
-std::ostream& operator<<(std::ostream& os, const BasicBlock::RpoNumber& rpo) {
-  return os << rpo.ToSize();
 }
 
 
@@ -133,14 +140,13 @@ BasicBlock* Schedule::block(Node* node) const {
   if (node->id() < static_cast<NodeId>(nodeid_to_block_.size())) {
     return nodeid_to_block_[node->id()];
   }
-  return NULL;
+  return nullptr;
 }
 
 
 bool Schedule::IsScheduled(Node* node) {
-  int length = static_cast<int>(nodeid_to_block_.size());
-  if (node->id() >= length) return false;
-  return nodeid_to_block_[node->id()] != NULL;
+  if (node->id() >= nodeid_to_block_.size()) return false;
+  return nodeid_to_block_[node->id()] != nullptr;
 }
 
 
@@ -152,7 +158,7 @@ BasicBlock* Schedule::GetBlockById(BasicBlock::Id block_id) {
 
 bool Schedule::SameBasicBlock(Node* a, Node* b) const {
   BasicBlock* block = this->block(a);
-  return block != NULL && block == this->block(b);
+  return block != nullptr && block == this->block(b);
 }
 
 
@@ -170,7 +176,7 @@ void Schedule::PlanNode(BasicBlock* block, Node* node) {
     os << "Planning #" << node->id() << ":" << node->op()->mnemonic()
        << " for future add to B" << block->id() << "\n";
   }
-  DCHECK(this->block(node) == NULL);
+  DCHECK(this->block(node) == nullptr);
   SetBlockForNode(block, node);
 }
 
@@ -181,23 +187,34 @@ void Schedule::AddNode(BasicBlock* block, Node* node) {
     os << "Adding #" << node->id() << ":" << node->op()->mnemonic() << " to B"
        << block->id() << "\n";
   }
-  DCHECK(this->block(node) == NULL || this->block(node) == block);
+  DCHECK(this->block(node) == nullptr || this->block(node) == block);
   block->AddNode(node);
   SetBlockForNode(block, node);
 }
 
 
 void Schedule::AddGoto(BasicBlock* block, BasicBlock* succ) {
-  DCHECK(block->control() == BasicBlock::kNone);
+  DCHECK_EQ(BasicBlock::kNone, block->control());
   block->set_control(BasicBlock::kGoto);
   AddSuccessor(block, succ);
 }
 
 
+void Schedule::AddCall(BasicBlock* block, Node* call, BasicBlock* success_block,
+                       BasicBlock* exception_block) {
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  DCHECK_EQ(IrOpcode::kCall, call->opcode());
+  block->set_control(BasicBlock::kCall);
+  AddSuccessor(block, success_block);
+  AddSuccessor(block, exception_block);
+  SetControlInput(block, call);
+}
+
+
 void Schedule::AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
                          BasicBlock* fblock) {
-  DCHECK(block->control() == BasicBlock::kNone);
-  DCHECK(branch->opcode() == IrOpcode::kBranch);
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
   block->set_control(BasicBlock::kBranch);
   AddSuccessor(block, tblock);
   AddSuccessor(block, fblock);
@@ -205,16 +222,44 @@ void Schedule::AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
 }
 
 
+void Schedule::AddSwitch(BasicBlock* block, Node* sw, BasicBlock** succ_blocks,
+                         size_t succ_count) {
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  DCHECK_EQ(IrOpcode::kSwitch, sw->opcode());
+  block->set_control(BasicBlock::kSwitch);
+  for (size_t index = 0; index < succ_count; ++index) {
+    AddSuccessor(block, succ_blocks[index]);
+  }
+  SetControlInput(block, sw);
+}
+
+
+void Schedule::AddTailCall(BasicBlock* block, Node* input) {
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  block->set_control(BasicBlock::kTailCall);
+  SetControlInput(block, input);
+  if (block != end()) AddSuccessor(block, end());
+}
+
+
 void Schedule::AddReturn(BasicBlock* block, Node* input) {
-  DCHECK(block->control() == BasicBlock::kNone);
+  DCHECK_EQ(BasicBlock::kNone, block->control());
   block->set_control(BasicBlock::kReturn);
   SetControlInput(block, input);
   if (block != end()) AddSuccessor(block, end());
 }
 
 
+void Schedule::AddDeoptimize(BasicBlock* block, Node* input) {
+  DCHECK_EQ(BasicBlock::kNone, block->control());
+  block->set_control(BasicBlock::kDeoptimize);
+  SetControlInput(block, input);
+  if (block != end()) AddSuccessor(block, end());
+}
+
+
 void Schedule::AddThrow(BasicBlock* block, Node* input) {
-  DCHECK(block->control() == BasicBlock::kNone);
+  DCHECK_EQ(BasicBlock::kNone, block->control());
   block->set_control(BasicBlock::kThrow);
   SetControlInput(block, input);
   if (block != end()) AddSuccessor(block, end());
@@ -223,17 +268,34 @@ void Schedule::AddThrow(BasicBlock* block, Node* input) {
 
 void Schedule::InsertBranch(BasicBlock* block, BasicBlock* end, Node* branch,
                             BasicBlock* tblock, BasicBlock* fblock) {
-  DCHECK(block->control() != BasicBlock::kNone);
-  DCHECK(end->control() == BasicBlock::kNone);
+  DCHECK_NE(BasicBlock::kNone, block->control());
+  DCHECK_EQ(BasicBlock::kNone, end->control());
   end->set_control(block->control());
   block->set_control(BasicBlock::kBranch);
   MoveSuccessors(block, end);
   AddSuccessor(block, tblock);
   AddSuccessor(block, fblock);
-  if (block->control_input() != NULL) {
+  if (block->control_input() != nullptr) {
     SetControlInput(end, block->control_input());
   }
   SetControlInput(block, branch);
+}
+
+
+void Schedule::InsertSwitch(BasicBlock* block, BasicBlock* end, Node* sw,
+                            BasicBlock** succ_blocks, size_t succ_count) {
+  DCHECK_NE(BasicBlock::kNone, block->control());
+  DCHECK_EQ(BasicBlock::kNone, end->control());
+  end->set_control(block->control());
+  block->set_control(BasicBlock::kSwitch);
+  MoveSuccessors(block, end);
+  for (size_t index = 0; index < succ_count; ++index) {
+    AddSuccessor(block, succ_blocks[index]);
+  }
+  if (block->control_input() != nullptr) {
+    SetControlInput(end, block->control_input());
+  }
+  SetControlInput(block, sw);
 }
 
 
@@ -244,13 +306,10 @@ void Schedule::AddSuccessor(BasicBlock* block, BasicBlock* succ) {
 
 
 void Schedule::MoveSuccessors(BasicBlock* from, BasicBlock* to) {
-  for (BasicBlock::Predecessors::iterator i = from->successors_begin();
-       i != from->successors_end(); ++i) {
-    BasicBlock* succ = *i;
-    to->AddSuccessor(succ);
-    for (BasicBlock::Predecessors::iterator j = succ->predecessors_begin();
-         j != succ->predecessors_end(); ++j) {
-      if (*j == from) *j = to;
+  for (BasicBlock* const successor : from->successors()) {
+    to->AddSuccessor(successor);
+    for (BasicBlock*& predecessor : successor->predecessors()) {
+      if (predecessor == from) predecessor = to;
     }
   }
   from->ClearSuccessors();
@@ -264,8 +323,7 @@ void Schedule::SetControlInput(BasicBlock* block, Node* node) {
 
 
 void Schedule::SetBlockForNode(BasicBlock* block, Node* node) {
-  int length = static_cast<int>(nodeid_to_block_.size());
-  if (node->id() >= length) {
+  if (node->id() >= nodeid_to_block_.size()) {
     nodeid_to_block_.resize(node->id() + 1);
   }
   nodeid_to_block_[node->id()] = block;
@@ -273,51 +331,40 @@ void Schedule::SetBlockForNode(BasicBlock* block, Node* node) {
 
 
 std::ostream& operator<<(std::ostream& os, const Schedule& s) {
-  // TODO(svenpanne) Const-correct the RPO stuff/iterators.
-  BasicBlockVector* rpo = const_cast<Schedule*>(&s)->rpo_order();
-  for (BasicBlockVectorIter i = rpo->begin(); i != rpo->end(); ++i) {
-    BasicBlock* block = *i;
-    os << "--- BLOCK B" << block->id();
+  for (BasicBlock* block : *s.rpo_order()) {
+    os << "--- BLOCK B" << block->rpo_number();
     if (block->deferred()) os << " (deferred)";
     if (block->PredecessorCount() != 0) os << " <- ";
     bool comma = false;
-    for (BasicBlock::Predecessors::iterator j = block->predecessors_begin();
-         j != block->predecessors_end(); ++j) {
+    for (BasicBlock const* predecessor : block->predecessors()) {
       if (comma) os << ", ";
       comma = true;
-      os << "B" << (*j)->id();
+      os << "B" << predecessor->rpo_number();
     }
     os << " ---\n";
-    for (BasicBlock::const_iterator j = block->begin(); j != block->end();
-         ++j) {
-      Node* node = *j;
+    for (Node* node : *block) {
       os << "  " << *node;
       if (NodeProperties::IsTyped(node)) {
-        Bounds bounds = NodeProperties::GetBounds(node);
+        Type* type = NodeProperties::GetType(node);
         os << " : ";
-        bounds.lower->PrintTo(os);
-        if (!bounds.upper->Is(bounds.lower)) {
-          os << "..";
-          bounds.upper->PrintTo(os);
-        }
+        type->PrintTo(os);
       }
       os << "\n";
     }
     BasicBlock::Control control = block->control();
     if (control != BasicBlock::kNone) {
       os << "  ";
-      if (block->control_input() != NULL) {
+      if (block->control_input() != nullptr) {
         os << *block->control_input();
       } else {
         os << "Goto";
       }
       os << " -> ";
       comma = false;
-      for (BasicBlock::Successors::iterator j = block->successors_begin();
-           j != block->successors_end(); ++j) {
+      for (BasicBlock const* successor : block->successors()) {
         if (comma) os << ", ";
         comma = true;
-        os << "B" << (*j)->id();
+        os << "B" << successor->rpo_number();
       }
       os << "\n";
     }

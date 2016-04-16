@@ -60,6 +60,9 @@ TEST_IMPL(udp_multicast_interface6) {
   struct sockaddr_in6 addr;
   struct sockaddr_in6 baddr;
 
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   ASSERT(0 == uv_ip6_addr("::1", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &server);

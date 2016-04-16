@@ -5,10 +5,9 @@
 	.quad	_OPENSSL_cpuid_setup
 
 .private_extern	_OPENSSL_ia32cap_P
-.comm	_OPENSSL_ia32cap_P,8,2
+.comm	_OPENSSL_ia32cap_P,16,2
 
 .text
-
 
 .globl	_OPENSSL_atomic_add
 
@@ -17,12 +16,10 @@ _OPENSSL_atomic_add:
 	movl	(%rdi),%eax
 L$spin:	leaq	(%rsi,%rax,1),%r8
 .byte	0xf0
-
 	cmpxchgl	%r8d,(%rdi)
 	jne	L$spin
 	movl	%r8d,%eax
 .byte	0x48,0x98
-
 	.byte	0xf3,0xc3
 
 
@@ -43,6 +40,7 @@ _OPENSSL_ia32_cpuid:
 	movq	%rbx,%r8
 
 	xorl	%eax,%eax
+	movl	%eax,8(%rdi)
 	cpuid
 	movl	%eax,%r11d
 
@@ -110,6 +108,14 @@ L$intel:
 	shrl	$14,%r10d
 	andl	$4095,%r10d
 
+	cmpl	$7,%r11d
+	jb	L$nocacheinfo
+
+	movl	$7,%eax
+	xorl	%ecx,%ecx
+	cpuid
+	movl	%ebx,8(%rdi)
+
 L$nocacheinfo:
 	movl	$1,%eax
 	cpuid
@@ -143,13 +149,13 @@ L$generic:
 	jnc	L$clear_avx
 	xorl	%ecx,%ecx
 .byte	0x0f,0x01,0xd0
-
 	andl	$6,%eax
 	cmpl	$6,%eax
 	je	L$done
 L$clear_avx:
 	movl	$4026525695,%eax
 	andl	%eax,%r9d
+	andl	$4294967263,8(%rdi)
 L$done:
 	shlq	$32,%r9
 	movl	%r10d,%eax
@@ -233,6 +239,21 @@ L$oop_rdrand:
 	jc	L$break_rdrand
 	loop	L$oop_rdrand
 L$break_rdrand:
+	cmpq	$0,%rax
+	cmoveq	%rcx,%rax
+	.byte	0xf3,0xc3
+
+
+.globl	_OPENSSL_ia32_rdseed
+
+.p2align	4
+_OPENSSL_ia32_rdseed:
+	movl	$8,%ecx
+L$oop_rdseed:
+.byte	72,15,199,248
+	jc	L$break_rdseed
+	loop	L$oop_rdseed
+L$break_rdseed:
 	cmpq	$0,%rax
 	cmoveq	%rcx,%rax
 	.byte	0xf3,0xc3

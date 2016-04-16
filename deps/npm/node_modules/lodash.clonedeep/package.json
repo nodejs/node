@@ -1,0 +1,107 @@
+{
+  "_args": [
+    [
+      "lodash.clonedeep@4.3.2",
+      "/Users/zkat/Documents/code/npm"
+    ]
+  ],
+  "_from": "lodash.clonedeep@4.3.2",
+  "_id": "lodash.clonedeep@4.3.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/lodash.clonedeep",
+  "_nodeVersion": "5.5.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/lodash.clonedeep-4.3.2.tgz_1459310662712_0.4621682942379266"
+  },
+  "_npmUser": {
+    "email": "john.david.dalton@gmail.com",
+    "name": "jdalton"
+  },
+  "_npmVersion": "2.15.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "lodash.clonedeep",
+    "raw": "lodash.clonedeep@4.3.2",
+    "rawSpec": "4.3.2",
+    "scope": null,
+    "spec": "4.3.2",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash.clonedeep/-/lodash.clonedeep-4.3.2.tgz",
+  "_shasum": "d0112c02c76b5223833aebc6a4b6e334f0d057de",
+  "_shrinkwrap": null,
+  "_spec": "lodash.clonedeep@4.3.2",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "email": "john.david.dalton@gmail.com",
+    "name": "John-David Dalton",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "contributors": [
+    {
+      "email": "john.david.dalton@gmail.com",
+      "name": "John-David Dalton",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "email": "blaine.bublitz@gmail.com",
+      "name": "Blaine Bublitz",
+      "url": "https://github.com/phated"
+    },
+    {
+      "email": "mathias@qiwi.be",
+      "name": "Mathias Bynens",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "dependencies": {
+    "lodash._baseclone": "~4.5.0"
+  },
+  "description": "The lodash method `_.cloneDeep` exported as a module.",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "d0112c02c76b5223833aebc6a4b6e334f0d057de",
+    "tarball": "https://registry.npmjs.org/lodash.clonedeep/-/lodash.clonedeep-4.3.2.tgz"
+  },
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "keywords": [
+    "lodash-modularized",
+    "clonedeep"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "email": "john.david.dalton@gmail.com",
+      "name": "jdalton"
+    },
+    {
+      "email": "mathias@qiwi.be",
+      "name": "mathias"
+    },
+    {
+      "email": "blaine@iceddev.com",
+      "name": "phated"
+    }
+  ],
+  "name": "lodash.clonedeep",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "4.3.2"
+}

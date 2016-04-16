@@ -1,7 +1,6 @@
 // Load modules
 
 var Http = require('http');
-var NodeUtil = require('util');
 var Hoek = require('hoek');
 
 
@@ -9,107 +8,122 @@ var Hoek = require('hoek');
 
 var internals = {};
 
+exports.wrap = function (error, statusCode, message) {
 
-exports = module.exports = internals.Boom = function (/* (new Error) or (code, message) */) {
+    Hoek.assert(error instanceof Error, 'Cannot wrap non-Error object');
+    return (error.isBoom ? error : internals.initialize(error, statusCode || 500, message));
+};
 
-    var self = this;
 
-    Hoek.assert(this.constructor === internals.Boom, 'Error must be instantiated using new');
+exports.create = function (statusCode, message, data) {
 
-    Error.call(this);
-    this.isBoom = true;
+    return internals.create(statusCode, message, data, exports.create);
+};
 
-    this.response = {
-        code: 0,
+internals.create = function (statusCode, message, data, ctor) {
+
+    var error = new Error(message ? message : undefined);       // Avoids settings null message
+    Error.captureStackTrace(error, ctor);                       // Filter the stack to our external API
+    error.data = data || null;
+    internals.initialize(error, statusCode);
+    return error;
+};
+
+internals.initialize = function (error, statusCode, message) {
+
+    var numberCode = parseInt(statusCode, 10);
+    Hoek.assert(!isNaN(numberCode) && numberCode >= 400, 'First argument must be a number (400+):', statusCode);
+
+    error.isBoom = true;
+    error.isServer = numberCode >= 500;
+
+    if (!error.hasOwnProperty('data')) {
+        error.data = null;
+    }
+
+    error.output = {
+        statusCode: numberCode,
         payload: {},
         headers: {}
-        // type: 'content-type'
     };
 
-    if (arguments[0] instanceof Error) {
+    error.reformat = internals.reformat;
+    error.reformat();
 
-        // Error
+    if (!message &&
+        !error.message) {
 
-        var error = arguments[0];
-
-        this.data = error;
-        this.response.code = error.code || 500;
-        if (error.message) {
-            this.message = error.message;
-        }
-    }
-    else {
-
-        // code, message
-
-        var code = arguments[0];
-        var message = arguments[1];
-
-        Hoek.assert(!isNaN(parseFloat(code)) && isFinite(code) && code >= 400, 'First argument must be a number (400+)');
-
-        this.response.code = code;
-        if (message) {
-            this.message = message;
-        }
+        message = error.output.payload.error;
     }
 
-    // Response format
+    if (message) {
+        error.message = (message + (error.message ? ': ' + error.message : ''));
+    }
 
-    this.reformat();
-
-    return this;
+    return error;
 };
 
-NodeUtil.inherits(internals.Boom, Error);
 
+internals.reformat = function () {
 
-internals.Boom.prototype.reformat = function () {
+    this.output.payload.statusCode = this.output.statusCode;
+    this.output.payload.error = Http.STATUS_CODES[this.output.statusCode] || 'Unknown';
 
-    this.response.payload.code = this.response.code;
-    this.response.payload.error = Http.STATUS_CODES[this.response.code] || 'Unknown';
-    if (this.message) {
-        this.response.payload.message = Hoek.escapeHtml(this.message);         // Prevent XSS from error message
+    if (this.output.statusCode === 500) {
+        this.output.payload.message = 'An internal server error occurred';              // Hide actual error from user
+    }
+    else if (this.message) {
+        this.output.payload.message = this.message;
     }
 };
 
 
-// Utilities
+// 4xx Client Errors
 
-internals.Boom.badRequest = function (message) {
+exports.badRequest = function (message, data) {
 
-    return new internals.Boom(400, message);
+    return internals.create(400, message, data, exports.badRequest);
 };
 
 
-internals.Boom.unauthorized = function (message, scheme, attributes) {          // Or function (message, wwwAuthenticate[])
+exports.unauthorized = function (message, scheme, attributes) {          // Or function (message, wwwAuthenticate[])
 
-    var err = new internals.Boom(401, message);
+    var err = internals.create(401, message, undefined, exports.unauthorized);
 
     if (!scheme) {
         return err;
     }
 
     var wwwAuthenticate = '';
+    var i = 0;
+    var il = 0;
 
     if (typeof scheme === 'string') {
 
         // function (message, scheme, attributes)
 
         wwwAuthenticate = scheme;
+
+        if (attributes || message) {
+            err.output.payload.attributes = {};
+        }
+
         if (attributes) {
             var names = Object.keys(attributes);
-            for (var i = 0, il = names.length; i < il; ++i) {
+            for (i = 0, il = names.length; i < il; ++i) {
+                var name = names[i];
                 if (i) {
                     wwwAuthenticate += ',';
                 }
 
-                var value = attributes[names[i]];
+                var value = attributes[name];
                 if (value === null ||
                     value === undefined) {              // Value can be zero
 
                     value = '';
                 }
-                wwwAuthenticate += ' ' + names[i] + '="' + Hoek.escapeHeaderAttribute(value.toString()) + '"';
+                wwwAuthenticate += ' ' + name + '="' + Hoek.escapeHeaderAttribute(value.toString()) + '"';
+                err.output.payload.attributes[name] = value;
             }
         }
 
@@ -118,6 +132,7 @@ internals.Boom.unauthorized = function (message, scheme, attributes) {          
                 wwwAuthenticate += ',';
             }
             wwwAuthenticate += ' error="' + Hoek.escapeHeaderAttribute(message) + '"';
+            err.output.payload.attributes.error = message;
         }
         else {
             err.isMissing = true;
@@ -128,7 +143,7 @@ internals.Boom.unauthorized = function (message, scheme, attributes) {          
         // function (message, wwwAuthenticate[])
 
         var wwwArray = scheme;
-        for (var i = 0, il = wwwArray.length; i < il; ++i) {
+        for (i = 0, il = wwwArray.length; i < il; ++i) {
             if (i) {
                 wwwAuthenticate += ', ';
             }
@@ -137,71 +152,167 @@ internals.Boom.unauthorized = function (message, scheme, attributes) {          
         }
     }
 
-    err.response.headers['WWW-Authenticate'] = wwwAuthenticate;
+    err.output.headers['WWW-Authenticate'] = wwwAuthenticate;
 
     return err;
 };
 
 
-internals.Boom.clientTimeout = function (message) {
+exports.forbidden = function (message, data) {
 
-    return new internals.Boom(408, message);
+    return internals.create(403, message, data, exports.forbidden);
 };
 
 
-internals.Boom.serverTimeout = function (message) {
+exports.notFound = function (message, data) {
 
-    return new internals.Boom(503, message);
+    return internals.create(404, message, data, exports.notFound);
 };
 
 
-internals.Boom.forbidden = function (message) {
+exports.methodNotAllowed = function (message, data) {
 
-    return new internals.Boom(403, message);
+    return internals.create(405, message, data, exports.methodNotAllowed);
 };
 
 
-internals.Boom.notFound = function (message) {
+exports.notAcceptable = function (message, data) {
 
-    return new internals.Boom(404, message);
+    return internals.create(406, message, data, exports.notAcceptable);
 };
 
 
-internals.Boom.internal = function (message, data) {
+exports.proxyAuthRequired = function (message, data) {
 
-    var err = new internals.Boom(500, message);
+    return internals.create(407, message, data, exports.proxyAuthRequired);
+};
 
-    if (data && data.stack) {
-        err.trace = data.stack.split('\n');
-        err.outterTrace = Hoek.displayStack(1);
+
+exports.clientTimeout = function (message, data) {
+
+    return internals.create(408, message, data, exports.clientTimeout);
+};
+
+
+exports.conflict = function (message, data) {
+
+    return internals.create(409, message, data, exports.conflict);
+};
+
+
+exports.resourceGone = function (message, data) {
+
+    return internals.create(410, message, data, exports.resourceGone);
+};
+
+
+exports.lengthRequired = function (message, data) {
+
+    return internals.create(411, message, data, exports.lengthRequired);
+};
+
+
+exports.preconditionFailed = function (message, data) {
+
+    return internals.create(412, message, data, exports.preconditionFailed);
+};
+
+
+exports.entityTooLarge = function (message, data) {
+
+    return internals.create(413, message, data, exports.entityTooLarge);
+};
+
+
+exports.uriTooLong = function (message, data) {
+
+    return internals.create(414, message, data, exports.uriTooLong);
+};
+
+
+exports.unsupportedMediaType = function (message, data) {
+
+    return internals.create(415, message, data, exports.unsupportedMediaType);
+};
+
+
+exports.rangeNotSatisfiable = function (message, data) {
+
+    return internals.create(416, message, data, exports.rangeNotSatisfiable);
+};
+
+
+exports.expectationFailed = function (message, data) {
+
+    return internals.create(417, message, data, exports.expectationFailed);
+};
+
+exports.badData = function (message, data) {
+
+    return internals.create(422, message, data, exports.badData);
+};
+
+
+exports.preconditionRequired = function (message, data) {
+
+    return internals.create(428, message, data, exports.preconditionRequired);
+};
+
+
+exports.tooManyRequests = function (message, data) {
+
+    return internals.create(429, message, data, exports.tooManyRequests);
+};
+
+
+// 5xx Server Errors
+
+exports.internal = function (message, data, statusCode) {
+
+    return internals.serverError(message, data, statusCode, exports.internal);
+};
+
+internals.serverError = function (message, data, statusCode, ctor) {
+
+    var error;
+    if (data instanceof Error) {
+        error = exports.wrap(data, statusCode, message);
+    } else {
+        error = internals.create(statusCode || 500, message, undefined, ctor);
+        error.data = data;
     }
-    else {
-        err.trace = Hoek.displayStack(1);
-    }
 
-    err.data = data;
-    err.response.payload.message = 'An internal server error occurred';                     // Hide actual error from user
-
-    return err;
+    return error;
 };
 
 
-internals.Boom.passThrough = function (code, payload, contentType, headers) {
+exports.notImplemented = function (message, data) {
 
-    var err = new internals.Boom(500, 'Pass-through');                                      // 500 code is only used to initialize
-
-    err.data = {
-        code: code,
-        payload: payload,
-        type: contentType
-    };
-
-    err.response.code = code;
-    err.response.type = contentType;
-    err.response.headers = headers;
-    err.response.payload = payload;
-
-    return err;
+    return internals.serverError(message, data, 501, exports.notImplemented);
 };
 
 
+exports.badGateway = function (message, data) {
+
+    return internals.serverError(message, data, 502, exports.badGateway);
+};
+
+
+exports.serverTimeout = function (message, data) {
+
+    return internals.serverError(message, data, 503, exports.serverTimeout);
+};
+
+
+exports.gatewayTimeout = function (message, data) {
+
+    return internals.serverError(message, data, 504, exports.gatewayTimeout);
+};
+
+
+exports.badImplementation = function (message, data) {
+
+    var err = internals.serverError(message, data, 500, exports.badImplementation);
+    err.isDeveloperError = true;
+    return err;
+};

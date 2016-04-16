@@ -55,7 +55,9 @@ class WebkitTestSuite(testsuite.TestSuite):
       files.sort()
       for filename in files:
         if filename.endswith(".js"):
-          testname = os.path.join(dirname[len(self.root) + 1:], filename[:-3])
+          fullpath = os.path.join(dirname, filename)
+          relpath = fullpath[len(self.root) + 1 : -3]
+          testname = relpath.replace(os.path.sep, "/")
           test = testcase.TestCase(self, testname)
           tests.append(test)
     return tests
@@ -109,7 +111,11 @@ class WebkitTestSuite(testsuite.TestSuite):
             string.startswith("tools/nacl-run.py") or
             string.find("BYPASSING ALL ACL CHECKS") > 0 or
             string.find("Native Client module will be loaded") > 0 or
-            string.find("NaClHostDescOpen:") > 0)
+            string.find("NaClHostDescOpen:") > 0 or
+            # FIXME(machenbach): The test driver shouldn't try to use slow
+            # asserts if they weren't compiled. This fails in optdebug=2.
+            string == "Warning: unknown flag --enable-slow-asserts." or
+            string == "Try --help for options")
 
   def IsFailureOutput(self, output, testpath):
     if super(WebkitTestSuite, self).IsFailureOutput(output, testpath):

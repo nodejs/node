@@ -3,20 +3,34 @@
 This folder contains benchmark tests to measure the performance for certain
 Node.js APIs.
 
+## Prerequisites
+
+Most of the http benchmarks require [`wrk`][wrk] and [`ab`][ab] (ApacheBench) being installed.
+These may be available through your preferred package manager.
+
+If they are not available:
+- `wrk` may easily be built [from source][wrk] via `make`.
+- `ab` is sometimes bundled in a package called `apache2-utils`.
+
+[wrk]: https://github.com/wg/wrk
+[ab]: http://httpd.apache.org/docs/2.2/programs/ab.html
+
 ## How to run tests
 
-There are two ways to run benchmark tests:
+There are three ways to run benchmark tests:
 
-1. Run all tests of a given type, for example, buffers
+### Run all tests of a given type
 
-```sh
+For example, buffers:
+
+```bash
 node benchmark/common.js buffers
 ```
 
 The above command will find all scripts under `buffers` directory and require
 each of them as a module. When a test script is required, it creates an instance
 of `Benchmark` (a class defined in common.js). In the next tick, the `Benchmark`
-constructor iterates through the configuration object property values and run
+constructor iterates through the configuration object property values and runs
 the test function with each of the combined arguments in spawned processes. For
 example, buffers/buffer-read.js has the following configuration:
 
@@ -67,9 +81,13 @@ buffers/buffer-read.js noAssert=false buffer=fast type=UInt16BE millions=1: 244.
 ...
 ```
 
-2. Run an individual test, for example, buffer-slice.js
+The last number is the rate of operations. Higher is better.
 
-```sh
+### Run an individual test
+
+For example, buffer-slice.js:
+
+```bash
 node benchmark/buffers/buffer-read.js
 ```
 The output:
@@ -78,6 +96,20 @@ buffers/buffer-read.js noAssert=false buffer=fast type=UInt8 millions=1: 246.79
 buffers/buffer-read.js noAssert=false buffer=fast type=UInt16LE millions=1: 240.11
 buffers/buffer-read.js noAssert=false buffer=fast type=UInt16BE millions=1: 245.91
 ...
+```
+
+### Run tests with options
+
+This example will run only the first type of url test, with one iteration.
+(Note: benchmarks require __many__ iterations to be statistically accurate.)
+
+
+```bash
+node benchmark/url/url-parse.js type=one n=1
+```
+Output:
+```
+url/url-parse.js type=one n=1: 1663.74402
 ```
 
 ## How to write a benchmark test

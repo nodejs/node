@@ -1,24 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 // Verify that the 'upgrade' header causes an 'upgrade' event to be emitted to
 // the HTTP client. This test uses a raw TCP server to better control server
 // behavior.
@@ -52,11 +32,22 @@ var gotUpgrade = false;
 
 srv.listen(common.PORT, '127.0.0.1', function() {
 
-  var req = http.get({ port: common.PORT });
+  var req = http.get({
+    port: common.PORT,
+    headers: {
+      connection: 'upgrade',
+      upgrade: 'websocket'
+    }
+  });
   req.on('upgrade', function(res, socket, upgradeHead) {
-    // XXX: This test isn't fantastic, as it assumes that the entire response
-    //      from the server will arrive in a single data callback
-    assert.equal(upgradeHead, 'nurtzo');
+    var recvData = upgradeHead;
+    socket.on('data', function(d) {
+      recvData += d;
+    });
+
+    socket.on('close', common.mustCall(function() {
+      assert.equal(recvData, 'nurtzo');
+    }));
 
     console.log(res.headers);
     var expectedHeaders = {'hello': 'world',

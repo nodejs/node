@@ -38,7 +38,7 @@ def get_libuv_version():
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('sphinx-plugins'))
 
 # -- General configuration ------------------------------------------------
 
@@ -48,7 +48,7 @@ def get_libuv_version():
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = []
+extensions = ['manpage']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['templates']
@@ -261,7 +261,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'libuv', u'libuv API documentation',
-   u'libuv contributors', 'libuv', 'Cross-platform asychronous I/O',
+   u'libuv contributors', 'libuv', 'Cross-platform asynchronous I/O',
    'Miscellaneous'),
 ]
 

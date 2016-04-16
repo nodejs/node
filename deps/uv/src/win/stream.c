@@ -184,8 +184,22 @@ int uv_write2(uv_write_t* req,
 int uv_try_write(uv_stream_t* stream,
                  const uv_buf_t bufs[],
                  unsigned int nbufs) {
-  /* NOTE: Won't work with overlapped writes */
-  return UV_ENOSYS;
+  if (stream->flags & UV__HANDLE_CLOSING)
+    return UV_EBADF;
+  if (!(stream->flags & UV_HANDLE_WRITABLE))
+    return UV_EPIPE;
+
+  switch (stream->type) {
+    case UV_TCP:
+      return uv__tcp_try_write((uv_tcp_t*) stream, bufs, nbufs);
+    case UV_TTY:
+      return uv__tty_try_write((uv_tty_t*) stream, bufs, nbufs);
+    case UV_NAMED_PIPE:
+      return UV_EAGAIN;
+    default:
+      assert(0);
+      return UV_ENOSYS;
+  }
 }
 
 
@@ -202,7 +216,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   req->cb = cb;
 
   handle->flags &= ~UV_HANDLE_WRITABLE;
-  handle->shutdown_req = req;
+  handle->stream.conn.shutdown_req = req;
   handle->reqs_pending++;
   REGISTER_HANDLE_REQ(loop, handle, req);
 

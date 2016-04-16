@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 
 var stream = require('stream');
@@ -50,11 +30,9 @@ function test(decode, uncork, multi, next) {
   function cnt(msg) {
     expectCount++;
     var expect = expectCount;
-    var called = false;
     return function(er) {
       if (er)
         throw er;
-      called = true;
       counter++;
       assert.equal(counter, expect);
     };
@@ -65,20 +43,24 @@ function test(decode, uncork, multi, next) {
     assert(false, 'Should not call _write');
   };
 
-  var expectChunks = decode ?
-      [{ encoding: 'buffer',
-         chunk: [104, 101, 108, 108, 111, 44, 32] },
-       { encoding: 'buffer', chunk: [119, 111, 114, 108, 100] },
-       { encoding: 'buffer', chunk: [33] },
-       { encoding: 'buffer',
-         chunk: [10, 97, 110, 100, 32, 116, 104, 101, 110, 46, 46, 46] },
-       { encoding: 'buffer',
-         chunk: [250, 206, 190, 167, 222, 173, 190, 239, 222, 202, 251, 173] }] :
-      [{ encoding: 'ascii', chunk: 'hello, ' },
-       { encoding: 'utf8', chunk: 'world' },
-       { encoding: 'buffer', chunk: [33] },
-       { encoding: 'binary', chunk: '\nand then...' },
-       { encoding: 'hex', chunk: 'facebea7deadbeefdecafbad' }];
+  var expectChunks = decode ? [
+    { encoding: 'buffer',
+      chunk: [104, 101, 108, 108, 111, 44, 32] },
+    { encoding: 'buffer',
+      chunk: [119, 111, 114, 108, 100] },
+    { encoding: 'buffer',
+      chunk: [33] },
+    { encoding: 'buffer',
+      chunk: [10, 97, 110, 100, 32, 116, 104, 101, 110, 46, 46, 46] },
+    { encoding: 'buffer',
+      chunk: [250, 206, 190, 167, 222, 173, 190, 239, 222, 202, 251, 173]}
+  ] : [
+    { encoding: 'ascii', chunk: 'hello, ' },
+    { encoding: 'utf8', chunk: 'world' },
+    { encoding: 'buffer', chunk: [33] },
+    { encoding: 'binary', chunk: '\nand then...' },
+    { encoding: 'hex', chunk: 'facebea7deadbeefdecafbad' }
+  ];
 
   var actualChunks;
   w._writev = function(chunks, cb) {
@@ -99,7 +81,7 @@ function test(decode, uncork, multi, next) {
   if (multi)
     w.cork();
 
-  w.write(new Buffer('!'), 'buffer', cnt('!'));
+  w.write(Buffer.from('!'), 'buffer', cnt('!'));
   w.write('\nand then...', 'binary', cnt('and then'));
 
   if (multi)

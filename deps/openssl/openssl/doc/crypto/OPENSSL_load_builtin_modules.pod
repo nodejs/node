@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-OPENSSL_load_builtin_modules - add standard configuration modules
+OPENSSL_load_builtin_modules, ASN1_add_oid_module, ENGINE_add_conf_module - add standard configuration modules
 
 =head1 SYNOPSIS
 

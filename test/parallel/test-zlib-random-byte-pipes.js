@@ -1,32 +1,17 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
+var assert = require('assert');
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
 var crypto = require('crypto');
+
 var stream = require('stream');
 var Stream = stream.Stream;
 var util = require('util');
-var assert = require('assert');
 var zlib = require('zlib');
-
 
 
 // emit random bytes, and keep a shasum
@@ -93,7 +78,7 @@ RandomReadStream.prototype._process = function() {
     block += Math.ceil(Math.random() * jitter - (jitter / 2));
   }
   block = Math.min(block, this._remaining);
-  var buf = new Buffer(block);
+  var buf = Buffer.allocUnsafe(block);
   for (var i = 0; i < block; i++) {
     buf[i] = Math.random() * 256;
   }
@@ -142,8 +127,6 @@ HashStream.prototype.end = function(c) {
   this.emit('data', this._hash);
   this.emit('end');
 };
-
-
 
 
 var inp = new RandomReadStream({ total: 1024, block: 256, jitter: 16 });

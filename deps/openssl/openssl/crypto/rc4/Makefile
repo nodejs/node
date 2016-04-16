@@ -42,7 +42,7 @@ lib:	$(LIBOBJ)
 	@touch lib
 
 rc4-586.s:	asm/rc4-586.pl ../perlasm/x86asm.pl
-	$(PERL) asm/rc4-586.pl $(PERLASM_SCHEME) $(CFLAGS) > $@
+	$(PERL) asm/rc4-586.pl $(PERLASM_SCHEME) $(CFLAGS) $(PROCESSOR) > $@
 
 rc4-x86_64.s: asm/rc4-x86_64.pl
 	$(PERL) asm/rc4-x86_64.pl $(PERLASM_SCHEME) > $@
@@ -66,7 +66,7 @@ rc4-ia64.s: rc4-ia64.S
 rc4-%.s:	asm/rc4-%.pl;	$(PERL) $< $(PERLASM_SCHEME) $@
 
 files:
-	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
+	$(PERL) $(TOP)/util/files.pl "RC4_ENC=$(RC4_ENC)" Makefile >> $(TOP)/MINFO
 
 links:
 	@$(PERL) $(TOP)/util/mklink.pl ../../include/openssl $(EXHEADER)
@@ -88,6 +88,8 @@ tests:
 
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
+
+update: depend
 
 depend:
 	@[ -n "$(MAKEDEPEND)" ] # should be set by upper Makefile...

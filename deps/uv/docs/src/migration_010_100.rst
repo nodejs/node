@@ -80,7 +80,7 @@ In libuv 0.10 Unix used a threadpool which defaulted to 4 threads, while Windows
 threads per process.
 
 In 1.0, we unified both implementations, so Windows now uses the same implementation Unix
-does. The threadppol size can be set by exporting the ``UV_THREADPOOL_SIZE`` environment
+does. The threadpool size can be set by exporting the ``UV_THREADPOOL_SIZE`` environment
 variable. See :c:ref:`threadpool`.
 
 
@@ -95,7 +95,7 @@ In libuv 0.10 the callback had to return a filled :c:type:`uv_buf_t` by value:
         return uv_buf_init(malloc(size), size);
     }
 
-In libuv 1.0 a pointer to a buffer is passed to the callbck, which the user
+In libuv 1.0 a pointer to a buffer is passed to the callback, which the user
 needs to fill:
 
 ::
@@ -200,7 +200,7 @@ for such function looked like this:
         ...
     }
 
-In libuv 1.0, `uv_read2_start` was removed, and the user needs to check if there are penging
+In libuv 1.0, `uv_read2_start` was removed, and the user needs to check if there are pending
 handles using :c:func:`uv_pipe_pending_count` and :c:func:`uv_pipe_pending_type` while in
 the read callback:
 
@@ -222,7 +222,7 @@ Extracting the file descriptor out of a handle
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 While it wasn't supported by the API, users often accessed the libuv internals in
-order to get access to the file descript of a TCP handle, for example.
+order to get access to the file descriptor of a TCP handle, for example.
 
 ::
 

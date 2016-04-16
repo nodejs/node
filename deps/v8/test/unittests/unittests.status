@@ -3,4 +3,12 @@
 # found in the LICENSE file.
 
 [
+['byteorder == big', {
+  # TODO(mips-team): Fix Wasm for big-endian.
+  'WasmModuleVerifyTest*': [SKIP],
+  'WasmFunctionVerifyTest*': [SKIP],
+  'WasmDecoderTest.TableSwitch*': [SKIP],
+  'WasmDecoderTest.AllLoadMemCombinations': [SKIP],
+}],  # 'byteorder == big'
+
 ]

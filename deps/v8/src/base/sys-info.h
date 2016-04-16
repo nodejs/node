@@ -11,7 +11,7 @@
 namespace v8 {
 namespace base {
 
-class SysInfo FINAL {
+class SysInfo final {
  public:
   // Returns the number of logical processors/core on the current machine.
   static int NumberOfProcessors();

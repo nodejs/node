@@ -37,6 +37,7 @@
 #include "src/arm64/disasm-arm64.h"
 #include "src/arm64/simulator-arm64.h"
 #include "src/arm64/utils-arm64.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
@@ -113,16 +114,17 @@ static void InitializeVM() {
 #ifdef USE_SIMULATOR
 
 // Run tests with the simulator.
-#define SETUP_SIZE(buf_size)                    \
-  Isolate* isolate = Isolate::Current();        \
-  HandleScope scope(isolate);                   \
-  DCHECK(isolate != NULL);                      \
-  byte* buf = new byte[buf_size];               \
-  MacroAssembler masm(isolate, buf, buf_size);  \
-  Decoder<DispatchingDecoderVisitor>* decoder = \
-      new Decoder<DispatchingDecoderVisitor>(); \
-  Simulator simulator(decoder);                 \
-  PrintDisassembler* pdis = NULL;               \
+#define SETUP_SIZE(buf_size)                                   \
+  Isolate* isolate = CcTest::i_isolate();                      \
+  HandleScope scope(isolate);                                  \
+  CHECK(isolate != NULL);                                      \
+  byte* buf = new byte[buf_size];                              \
+  MacroAssembler masm(isolate, buf, buf_size,                  \
+                      v8::internal::CodeObjectRequired::kYes); \
+  Decoder<DispatchingDecoderVisitor>* decoder =                \
+      new Decoder<DispatchingDecoderVisitor>();                \
+  Simulator simulator(decoder);                                \
+  PrintDisassembler* pdis = NULL;                              \
   RegisterDump core;
 
 /*  if (Cctest::trace_sim()) {                                                 \
@@ -167,12 +169,13 @@ static void InitializeVM() {
 
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
-#define SETUP_SIZE(buf_size)                                                   \
-  Isolate* isolate = Isolate::Current();                                       \
-  HandleScope scope(isolate);                                                  \
-  DCHECK(isolate != NULL);                                                     \
-  byte* buf = new byte[buf_size];                                              \
-  MacroAssembler masm(isolate, buf, buf_size);                                 \
+#define SETUP_SIZE(buf_size)                                   \
+  Isolate* isolate = CcTest::i_isolate();                      \
+  HandleScope scope(isolate);                                  \
+  CHECK(isolate != NULL);                                      \
+  byte* buf = new byte[buf_size];                              \
+  MacroAssembler masm(isolate, buf, buf_size,                  \
+                      v8::internal::CodeObjectRequired::kYes); \
   RegisterDump core;
 
 #define RESET()                                                                \
@@ -190,12 +193,12 @@ static void InitializeVM() {
   RESET();                                                                     \
   START_AFTER_RESET();
 
-#define RUN()                                                \
-  CpuFeatures::FlushICache(buf, masm.SizeOfGeneratedCode()); \
-  {                                                          \
-    void (*test_function)(void);                             \
-    memcpy(&test_function, &buf, sizeof(buf));               \
-    test_function();                                         \
+#define RUN()                                                       \
+  Assembler::FlushICache(isolate, buf, masm.SizeOfGeneratedCode()); \
+  {                                                                 \
+    void (*test_function)(void);                                    \
+    memcpy(&test_function, &buf, sizeof(buf));                      \
+    test_function();                                                \
   }
 
 #define END()                                                                  \
@@ -228,11 +231,10 @@ static void InitializeVM() {
   CHECK(EqualFP64(expected, &core, result))
 
 #ifdef DEBUG
-#define DCHECK_LITERAL_POOL_SIZE(expected)                                     \
+#define CHECK_LITERAL_POOL_SIZE(expected) \
   CHECK((expected) == (__ LiteralPoolSize()))
 #else
-#define DCHECK_LITERAL_POOL_SIZE(expected)                                     \
-  ((void) 0)
+#define CHECK_LITERAL_POOL_SIZE(expected) ((void)0)
 #endif
 
 
@@ -2969,61 +2971,6 @@ TEST(ldp_stp_offset_wide) {
 }
 
 
-TEST(ldnp_stnp_offset) {
-  INIT_V8();
-  SETUP();
-
-  uint64_t src[3] = {0x0011223344556677UL, 0x8899aabbccddeeffUL,
-                     0xffeeddccbbaa9988UL};
-  uint64_t dst[7] = {0, 0, 0, 0, 0, 0, 0};
-  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
-  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
-
-  START();
-  __ Mov(x16, src_base);
-  __ Mov(x17, dst_base);
-  __ Mov(x18, src_base + 24);
-  __ Mov(x19, dst_base + 56);
-  __ Ldnp(w0, w1, MemOperand(x16));
-  __ Ldnp(w2, w3, MemOperand(x16, 4));
-  __ Ldnp(x4, x5, MemOperand(x16, 8));
-  __ Ldnp(w6, w7, MemOperand(x18, -12));
-  __ Ldnp(x8, x9, MemOperand(x18, -16));
-  __ Stnp(w0, w1, MemOperand(x17));
-  __ Stnp(w2, w3, MemOperand(x17, 8));
-  __ Stnp(x4, x5, MemOperand(x17, 16));
-  __ Stnp(w6, w7, MemOperand(x19, -24));
-  __ Stnp(x8, x9, MemOperand(x19, -16));
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_64(0x44556677, x0);
-  CHECK_EQUAL_64(0x00112233, x1);
-  CHECK_EQUAL_64(0x0011223344556677UL, dst[0]);
-  CHECK_EQUAL_64(0x00112233, x2);
-  CHECK_EQUAL_64(0xccddeeff, x3);
-  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[1]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[2]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[3]);
-  CHECK_EQUAL_64(0x8899aabb, x6);
-  CHECK_EQUAL_64(0xbbaa9988, x7);
-  CHECK_EQUAL_64(0xbbaa99888899aabbUL, dst[4]);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x8);
-  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[5]);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x9);
-  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[6]);
-  CHECK_EQUAL_64(src_base, x16);
-  CHECK_EQUAL_64(dst_base, x17);
-  CHECK_EQUAL_64(src_base + 24, x18);
-  CHECK_EQUAL_64(dst_base + 56, x19);
-
-  TEARDOWN();
-}
-
-
 TEST(ldp_stp_preindex) {
   INIT_V8();
   SETUP();
@@ -3353,7 +3300,7 @@ TEST(ldr_literal) {
 static void LdrLiteralRangeHelper(ptrdiff_t range_,
                                   LiteralPoolEmitOption option,
                                   bool expect_dump) {
-  DCHECK(range_ > 0);
+  CHECK(range_ > 0);
   SETUP_SIZE(range_ + 1024);
 
   Label label_1, label_2;
@@ -3372,19 +3319,19 @@ static void LdrLiteralRangeHelper(ptrdiff_t range_,
   START();
   // Force a pool dump so the pool starts off empty.
   __ EmitLiteralPool(JumpRequired);
-  DCHECK_LITERAL_POOL_SIZE(0);
+  CHECK_LITERAL_POOL_SIZE(0);
 
   __ Ldr(x0, 0x1234567890abcdefUL);
   __ Ldr(w1, 0xfedcba09);
   __ Ldr(d0, 1.234);
   __ Ldr(s1, 2.5);
-  DCHECK_LITERAL_POOL_SIZE(4);
+  CHECK_LITERAL_POOL_SIZE(4);
 
   code_size += 4 * sizeof(Instr);
 
   // Check that the requested range (allowing space for a branch over the pool)
   // can be handled by this test.
-  DCHECK((code_size + pool_guard_size) <= range);
+  CHECK((code_size + pool_guard_size) <= range);
 
   // Emit NOPs up to 'range', leaving space for the pool guard.
   while ((code_size + pool_guard_size) < range) {
@@ -3398,28 +3345,28 @@ static void LdrLiteralRangeHelper(ptrdiff_t range_,
     code_size += sizeof(Instr);
   }
 
-  DCHECK(code_size == range);
-  DCHECK_LITERAL_POOL_SIZE(4);
+  CHECK(code_size == range);
+  CHECK_LITERAL_POOL_SIZE(4);
 
   // Possibly generate a literal pool.
   __ CheckLiteralPool(option);
   __ Bind(&label_1);
   if (expect_dump) {
-    DCHECK_LITERAL_POOL_SIZE(0);
+    CHECK_LITERAL_POOL_SIZE(0);
   } else {
-    DCHECK_LITERAL_POOL_SIZE(4);
+    CHECK_LITERAL_POOL_SIZE(4);
   }
 
   // Force a pool flush to check that a second pool functions correctly.
   __ EmitLiteralPool(JumpRequired);
-  DCHECK_LITERAL_POOL_SIZE(0);
+  CHECK_LITERAL_POOL_SIZE(0);
 
   // These loads should be after the pool (and will require a new one).
   __ Ldr(x4, 0x34567890abcdef12UL);
   __ Ldr(w5, 0xdcba09fe);
   __ Ldr(d4, 123.4);
   __ Ldr(s5, 250.0);
-  DCHECK_LITERAL_POOL_SIZE(4);
+  CHECK_LITERAL_POOL_SIZE(4);
   END();
 
   RUN();
@@ -3766,17 +3713,17 @@ TEST(add_sub_zero) {
   __ Add(x0, x0, 0);
   __ Sub(x1, x1, 0);
   __ Sub(x2, x2, xzr);
-  CHECK_EQ(0, __ SizeOfCodeGeneratedSince(&blob1));
+  CHECK_EQ(0u, __ SizeOfCodeGeneratedSince(&blob1));
 
   Label blob2;
   __ Bind(&blob2);
   __ Add(w3, w3, 0);
-  CHECK_NE(0, __ SizeOfCodeGeneratedSince(&blob2));
+  CHECK_NE(0u, __ SizeOfCodeGeneratedSince(&blob2));
 
   Label blob3;
   __ Bind(&blob3);
   __ Sub(w3, w3, wzr);
-  CHECK_NE(0, __ SizeOfCodeGeneratedSince(&blob3));
+  CHECK_NE(0u, __ SizeOfCodeGeneratedSince(&blob3));
 
   END();
 
@@ -3810,7 +3757,7 @@ TEST(claim_drop_zero) {
   __ DropBySMI(xzr, 8);
   __ ClaimBySMI(xzr, 0);
   __ DropBySMI(xzr, 0);
-  CHECK_EQ(0, __ SizeOfCodeGeneratedSince(&start));
+  CHECK_EQ(0u, __ SizeOfCodeGeneratedSince(&start));
 
   END();
 
@@ -5497,12 +5444,12 @@ TEST(fmadd_fmsub_double_nans) {
   double q1 = rawbits_to_double(0x7ffaaaaa11111111);
   double q2 = rawbits_to_double(0x7ffaaaaa22222222);
   double qa = rawbits_to_double(0x7ffaaaaaaaaaaaaa);
-  DCHECK(IsSignallingNaN(s1));
-  DCHECK(IsSignallingNaN(s2));
-  DCHECK(IsSignallingNaN(sa));
-  DCHECK(IsQuietNaN(q1));
-  DCHECK(IsQuietNaN(q2));
-  DCHECK(IsQuietNaN(qa));
+  CHECK(IsSignallingNaN(s1));
+  CHECK(IsSignallingNaN(s2));
+  CHECK(IsSignallingNaN(sa));
+  CHECK(IsQuietNaN(q1));
+  CHECK(IsQuietNaN(q2));
+  CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
   double s1_proc = rawbits_to_double(0x7ffd555511111111);
@@ -5511,22 +5458,22 @@ TEST(fmadd_fmsub_double_nans) {
   double q1_proc = q1;
   double q2_proc = q2;
   double qa_proc = qa;
-  DCHECK(IsQuietNaN(s1_proc));
-  DCHECK(IsQuietNaN(s2_proc));
-  DCHECK(IsQuietNaN(sa_proc));
-  DCHECK(IsQuietNaN(q1_proc));
-  DCHECK(IsQuietNaN(q2_proc));
-  DCHECK(IsQuietNaN(qa_proc));
+  CHECK(IsQuietNaN(s1_proc));
+  CHECK(IsQuietNaN(s2_proc));
+  CHECK(IsQuietNaN(sa_proc));
+  CHECK(IsQuietNaN(q1_proc));
+  CHECK(IsQuietNaN(q2_proc));
+  CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
   double s1_proc_neg = rawbits_to_double(0xfffd555511111111);
   double sa_proc_neg = rawbits_to_double(0xfffd5555aaaaaaaa);
   double q1_proc_neg = rawbits_to_double(0xfffaaaaa11111111);
   double qa_proc_neg = rawbits_to_double(0xfffaaaaaaaaaaaaa);
-  DCHECK(IsQuietNaN(s1_proc_neg));
-  DCHECK(IsQuietNaN(sa_proc_neg));
-  DCHECK(IsQuietNaN(q1_proc_neg));
-  DCHECK(IsQuietNaN(qa_proc_neg));
+  CHECK(IsQuietNaN(s1_proc_neg));
+  CHECK(IsQuietNaN(sa_proc_neg));
+  CHECK(IsQuietNaN(q1_proc_neg));
+  CHECK(IsQuietNaN(qa_proc_neg));
 
   // Quiet NaNs are propagated.
   FmaddFmsubHelper(q1, 0, 0, q1_proc, q1_proc_neg, q1_proc_neg, q1_proc);
@@ -5580,12 +5527,12 @@ TEST(fmadd_fmsub_float_nans) {
   float q1 = rawbits_to_float(0x7fea1111);
   float q2 = rawbits_to_float(0x7fea2222);
   float qa = rawbits_to_float(0x7feaaaaa);
-  DCHECK(IsSignallingNaN(s1));
-  DCHECK(IsSignallingNaN(s2));
-  DCHECK(IsSignallingNaN(sa));
-  DCHECK(IsQuietNaN(q1));
-  DCHECK(IsQuietNaN(q2));
-  DCHECK(IsQuietNaN(qa));
+  CHECK(IsSignallingNaN(s1));
+  CHECK(IsSignallingNaN(s2));
+  CHECK(IsSignallingNaN(sa));
+  CHECK(IsQuietNaN(q1));
+  CHECK(IsQuietNaN(q2));
+  CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
   float s1_proc = rawbits_to_float(0x7fd51111);
@@ -5594,22 +5541,22 @@ TEST(fmadd_fmsub_float_nans) {
   float q1_proc = q1;
   float q2_proc = q2;
   float qa_proc = qa;
-  DCHECK(IsQuietNaN(s1_proc));
-  DCHECK(IsQuietNaN(s2_proc));
-  DCHECK(IsQuietNaN(sa_proc));
-  DCHECK(IsQuietNaN(q1_proc));
-  DCHECK(IsQuietNaN(q2_proc));
-  DCHECK(IsQuietNaN(qa_proc));
+  CHECK(IsQuietNaN(s1_proc));
+  CHECK(IsQuietNaN(s2_proc));
+  CHECK(IsQuietNaN(sa_proc));
+  CHECK(IsQuietNaN(q1_proc));
+  CHECK(IsQuietNaN(q2_proc));
+  CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
   float s1_proc_neg = rawbits_to_float(0xffd51111);
   float sa_proc_neg = rawbits_to_float(0xffd5aaaa);
   float q1_proc_neg = rawbits_to_float(0xffea1111);
   float qa_proc_neg = rawbits_to_float(0xffeaaaaa);
-  DCHECK(IsQuietNaN(s1_proc_neg));
-  DCHECK(IsQuietNaN(sa_proc_neg));
-  DCHECK(IsQuietNaN(q1_proc_neg));
-  DCHECK(IsQuietNaN(qa_proc_neg));
+  CHECK(IsQuietNaN(s1_proc_neg));
+  CHECK(IsQuietNaN(sa_proc_neg));
+  CHECK(IsQuietNaN(q1_proc_neg));
+  CHECK(IsQuietNaN(qa_proc_neg));
 
   // Quiet NaNs are propagated.
   FmaddFmsubHelper(q1, 0, 0, q1_proc, q1_proc_neg, q1_proc_neg, q1_proc);
@@ -5827,10 +5774,10 @@ TEST(fmax_fmin_d) {
   double snan_processed = rawbits_to_double(0x7ffd555512345678);
   double qnan_processed = qnan;
 
-  DCHECK(IsSignallingNaN(snan));
-  DCHECK(IsQuietNaN(qnan));
-  DCHECK(IsQuietNaN(snan_processed));
-  DCHECK(IsQuietNaN(qnan_processed));
+  CHECK(IsSignallingNaN(snan));
+  CHECK(IsQuietNaN(qnan));
+  CHECK(IsQuietNaN(snan_processed));
+  CHECK(IsQuietNaN(qnan_processed));
 
   // Bootstrap tests.
   FminFmaxDoubleHelper(0, 0, 0, 0, 0, 0);
@@ -5912,10 +5859,10 @@ TEST(fmax_fmin_s) {
   float snan_processed = rawbits_to_float(0x7fd51234);
   float qnan_processed = qnan;
 
-  DCHECK(IsSignallingNaN(snan));
-  DCHECK(IsQuietNaN(qnan));
-  DCHECK(IsQuietNaN(snan_processed));
-  DCHECK(IsQuietNaN(qnan_processed));
+  CHECK(IsSignallingNaN(snan));
+  CHECK(IsQuietNaN(qnan));
+  CHECK(IsQuietNaN(snan_processed));
+  CHECK(IsQuietNaN(qnan_processed));
 
   // Bootstrap tests.
   FminFmaxFloatHelper(0, 0, 0, 0, 0, 0);
@@ -6887,8 +6834,8 @@ TEST(fcvt_sd) {
     float expected = test[i].expected;
 
     // We only expect positive input.
-    DCHECK(std::signbit(in) == 0);
-    DCHECK(std::signbit(expected) == 0);
+    CHECK(std::signbit(in) == 0);
+    CHECK(std::signbit(expected) == 0);
 
     SETUP();
     START();
@@ -8201,7 +8148,7 @@ TEST(zero_dest) {
   uint64_t literal_base = 0x0100001000100101UL;
   __ Mov(x0, 0);
   __ Mov(x1, literal_base);
-  for (unsigned i = 2; i < x30.code(); i++) {
+  for (int i = 2; i < x30.code(); i++) {
     __ Add(Register::XRegFromCode(i), Register::XRegFromCode(i-1), x1);
   }
   before.Dump(&masm);
@@ -8599,7 +8546,7 @@ TEST(peek_poke_mixed) {
   __ Poke(x1, 8);
   __ Poke(x0, 0);
   {
-    DCHECK(__ StackPointer().Is(csp));
+    CHECK(__ StackPointer().Is(csp));
     __ Mov(x4, __ StackPointer());
     __ SetStackPointer(x4);
 
@@ -8696,7 +8643,7 @@ static void PushPopJsspSimpleHelper(int reg_count,
   uint64_t literal_base = 0x0100001000100101UL;
 
   {
-    DCHECK(__ StackPointer().Is(csp));
+    CHECK(__ StackPointer().Is(csp));
     __ Mov(jssp, __ StackPointer());
     __ SetStackPointer(jssp);
 
@@ -8725,7 +8672,9 @@ static void PushPopJsspSimpleHelper(int reg_count,
           case 3:  __ Push(r[2], r[1], r[0]); break;
           case 2:  __ Push(r[1], r[0]);       break;
           case 1:  __ Push(r[0]);             break;
-          default: DCHECK(i == 0);            break;
+          default:
+            CHECK(i == 0);
+            break;
         }
         break;
       case PushPopRegList:
@@ -8747,7 +8696,9 @@ static void PushPopJsspSimpleHelper(int reg_count,
           case 3:  __ Pop(r[i], r[i+1], r[i+2]); break;
           case 2:  __ Pop(r[i], r[i+1]);         break;
           case 1:  __ Pop(r[i]);                 break;
-          default: DCHECK(i == reg_count);       break;
+          default:
+            CHECK(i == reg_count);
+            break;
         }
         break;
       case PushPopRegList:
@@ -8878,7 +8829,7 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
   uint64_t literal_base = 0x0100001000100101UL;
 
   {
-    DCHECK(__ StackPointer().Is(csp));
+    CHECK(__ StackPointer().Is(csp));
     __ Mov(jssp, __ StackPointer());
     __ SetStackPointer(jssp);
 
@@ -8909,7 +8860,9 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
           case 3:  __ Push(v[2], v[1], v[0]); break;
           case 2:  __ Push(v[1], v[0]);       break;
           case 1:  __ Push(v[0]);             break;
-          default: DCHECK(i == 0);            break;
+          default:
+            CHECK(i == 0);
+            break;
         }
         break;
       case PushPopRegList:
@@ -8931,7 +8884,9 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
           case 3:  __ Pop(v[i], v[i+1], v[i+2]); break;
           case 2:  __ Pop(v[i], v[i+1]);         break;
           case 1:  __ Pop(v[i]);                 break;
-          default: DCHECK(i == reg_count);       break;
+          default:
+            CHECK(i == reg_count);
+            break;
         }
         break;
       case PushPopRegList:
@@ -9055,7 +9010,7 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
 
   START();
   {
-    DCHECK(__ StackPointer().Is(csp));
+    CHECK(__ StackPointer().Is(csp));
     __ Mov(jssp, __ StackPointer());
     __ SetStackPointer(jssp);
 
@@ -9160,7 +9115,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
 
   START();
   {
-    DCHECK(__ StackPointer().Is(csp));
+    CHECK(__ StackPointer().Is(csp));
     __ Mov(jssp, __ StackPointer());
     __ SetStackPointer(jssp);
 
@@ -9208,7 +9163,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
 
     int active_w_slots = 0;
     for (int i = 0; active_w_slots < requested_w_slots; i++) {
-      DCHECK(i < reg_count);
+      CHECK(i < reg_count);
       // In order to test various arguments to PushMultipleTimes, and to try to
       // exercise different alignment and overlap effects, we push each
       // register a different number of times.
@@ -9281,7 +9236,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
       }
       next_is_64 = !next_is_64;
     }
-    DCHECK(active_w_slots == 0);
+    CHECK(active_w_slots == 0);
 
     // Drop memory to restore jssp.
     __ Drop(claim, kByteSizeInBytes);
@@ -9317,7 +9272,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
       CHECK_EQUAL_64(expected, x[i]);
     }
   }
-  DCHECK(slot == requested_w_slots);
+  CHECK(slot == requested_w_slots);
 
   TEARDOWN();
 }
@@ -9347,7 +9302,7 @@ TEST(push_pop_csp) {
 
   START();
 
-  DCHECK(csp.Is(__ StackPointer()));
+  CHECK(csp.Is(__ StackPointer()));
 
   __ Mov(x3, 0x3333333333333333UL);
   __ Mov(x2, 0x2222222222222222UL);
@@ -9436,7 +9391,7 @@ TEST(push_queued) {
 
   START();
 
-  DCHECK(__ StackPointer().Is(csp));
+  CHECK(__ StackPointer().Is(csp));
   __ Mov(jssp, __ StackPointer());
   __ SetStackPointer(jssp);
 
@@ -9511,7 +9466,7 @@ TEST(pop_queued) {
 
   START();
 
-  DCHECK(__ StackPointer().Is(csp));
+  CHECK(__ StackPointer().Is(csp));
   __ Mov(jssp, __ StackPointer());
   __ SetStackPointer(jssp);
 
@@ -10132,7 +10087,7 @@ TEST(printf) {
   __ Printf("%%%%%s%%%c%%\n", x2, w13);
 
   // Print the stack pointer (csp).
-  DCHECK(csp.Is(__ StackPointer()));
+  CHECK(csp.Is(__ StackPointer()));
   __ Printf("StackPointer(csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
             __ StackPointer(), __ StackPointer().W());
 
@@ -10290,75 +10245,6 @@ TEST(printf_no_preserve) {
 }
 
 
-// This is a V8-specific test.
-static void CopyFieldsHelper(CPURegList temps) {
-  static const uint64_t kLiteralBase = 0x0100001000100101UL;
-  static const uint64_t src[] = {kLiteralBase * 1,
-                                 kLiteralBase * 2,
-                                 kLiteralBase * 3,
-                                 kLiteralBase * 4,
-                                 kLiteralBase * 5,
-                                 kLiteralBase * 6,
-                                 kLiteralBase * 7,
-                                 kLiteralBase * 8,
-                                 kLiteralBase * 9,
-                                 kLiteralBase * 10,
-                                 kLiteralBase * 11};
-  static const uint64_t src_tagged =
-      reinterpret_cast<uint64_t>(src) + kHeapObjectTag;
-
-  static const unsigned kTestCount = sizeof(src) / sizeof(src[0]) + 1;
-  uint64_t* dst[kTestCount];
-  uint64_t dst_tagged[kTestCount];
-
-  // The first test will be to copy 0 fields. The destination (and source)
-  // should not be accessed in any way.
-  dst[0] = NULL;
-  dst_tagged[0] = kHeapObjectTag;
-
-  // Allocate memory for each other test. Each test <n> will have <n> fields.
-  // This is intended to exercise as many paths in CopyFields as possible.
-  for (unsigned i = 1; i < kTestCount; i++) {
-    dst[i] = new uint64_t[i];
-    memset(dst[i], 0, i * sizeof(kLiteralBase));
-    dst_tagged[i] = reinterpret_cast<uint64_t>(dst[i]) + kHeapObjectTag;
-  }
-
-  SETUP();
-  START();
-
-  __ Mov(x0, dst_tagged[0]);
-  __ Mov(x1, 0);
-  __ CopyFields(x0, x1, temps, 0);
-  for (unsigned i = 1; i < kTestCount; i++) {
-    __ Mov(x0, dst_tagged[i]);
-    __ Mov(x1, src_tagged);
-    __ CopyFields(x0, x1, temps, i);
-  }
-
-  END();
-  RUN();
-  TEARDOWN();
-
-  for (unsigned i = 1; i < kTestCount; i++) {
-    for (unsigned j = 0; j < i; j++) {
-      CHECK(src[j] == dst[i][j]);
-    }
-    delete [] dst[i];
-  }
-}
-
-
-// This is a V8-specific test.
-TEST(copyfields) {
-  INIT_V8();
-  CopyFieldsHelper(CPURegList(x10));
-  CopyFieldsHelper(CPURegList(x10, x11));
-  CopyFieldsHelper(CPURegList(x10, x11, x12));
-  CopyFieldsHelper(CPURegList(x10, x11, x12, x13));
-}
-
-
 TEST(blr_lr) {
   // A simple test to check that the simulator correcty handle "blr lr".
   INIT_V8();
@@ -10454,14 +10340,14 @@ TEST(process_nan_double) {
   // Make sure that NaN propagation works correctly.
   double sn = rawbits_to_double(0x7ff5555511111111);
   double qn = rawbits_to_double(0x7ffaaaaa11111111);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsQuietNaN(qn));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
   double sn_proc = rawbits_to_double(0x7ffd555511111111);
   double qn_proc = qn;
-  DCHECK(IsQuietNaN(sn_proc));
-  DCHECK(IsQuietNaN(qn_proc));
+  CHECK(IsQuietNaN(sn_proc));
+  CHECK(IsQuietNaN(qn_proc));
 
   SETUP();
   START();
@@ -10530,14 +10416,14 @@ TEST(process_nan_float) {
   // Make sure that NaN propagation works correctly.
   float sn = rawbits_to_float(0x7f951111);
   float qn = rawbits_to_float(0x7fea1111);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsQuietNaN(qn));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
   float sn_proc = rawbits_to_float(0x7fd51111);
   float qn_proc = qn;
-  DCHECK(IsQuietNaN(sn_proc));
-  DCHECK(IsQuietNaN(qn_proc));
+  CHECK(IsQuietNaN(sn_proc));
+  CHECK(IsQuietNaN(qn_proc));
 
   SETUP();
   START();
@@ -10602,8 +10488,8 @@ TEST(process_nan_float) {
 
 
 static void ProcessNaNsHelper(double n, double m, double expected) {
-  DCHECK(std::isnan(n) || std::isnan(m));
-  DCHECK(std::isnan(expected));
+  CHECK(std::isnan(n) || std::isnan(m));
+  CHECK(std::isnan(expected));
 
   SETUP();
   START();
@@ -10641,20 +10527,20 @@ TEST(process_nans_double) {
   double sm = rawbits_to_double(0x7ff5555522222222);
   double qn = rawbits_to_double(0x7ffaaaaa11111111);
   double qm = rawbits_to_double(0x7ffaaaaa22222222);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsSignallingNaN(sm));
-  DCHECK(IsQuietNaN(qn));
-  DCHECK(IsQuietNaN(qm));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsSignallingNaN(sm));
+  CHECK(IsQuietNaN(qn));
+  CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
   double sn_proc = rawbits_to_double(0x7ffd555511111111);
   double sm_proc = rawbits_to_double(0x7ffd555522222222);
   double qn_proc = qn;
   double qm_proc = qm;
-  DCHECK(IsQuietNaN(sn_proc));
-  DCHECK(IsQuietNaN(sm_proc));
-  DCHECK(IsQuietNaN(qn_proc));
-  DCHECK(IsQuietNaN(qm_proc));
+  CHECK(IsQuietNaN(sn_proc));
+  CHECK(IsQuietNaN(sm_proc));
+  CHECK(IsQuietNaN(qn_proc));
+  CHECK(IsQuietNaN(qm_proc));
 
   // Quiet NaNs are propagated.
   ProcessNaNsHelper(qn, 0, qn_proc);
@@ -10674,8 +10560,8 @@ TEST(process_nans_double) {
 
 
 static void ProcessNaNsHelper(float n, float m, float expected) {
-  DCHECK(std::isnan(n) || std::isnan(m));
-  DCHECK(std::isnan(expected));
+  CHECK(std::isnan(n) || std::isnan(m));
+  CHECK(std::isnan(expected));
 
   SETUP();
   START();
@@ -10713,20 +10599,20 @@ TEST(process_nans_float) {
   float sm = rawbits_to_float(0x7f952222);
   float qn = rawbits_to_float(0x7fea1111);
   float qm = rawbits_to_float(0x7fea2222);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsSignallingNaN(sm));
-  DCHECK(IsQuietNaN(qn));
-  DCHECK(IsQuietNaN(qm));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsSignallingNaN(sm));
+  CHECK(IsQuietNaN(qn));
+  CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
   float sn_proc = rawbits_to_float(0x7fd51111);
   float sm_proc = rawbits_to_float(0x7fd52222);
   float qn_proc = qn;
   float qm_proc = qm;
-  DCHECK(IsQuietNaN(sn_proc));
-  DCHECK(IsQuietNaN(sm_proc));
-  DCHECK(IsQuietNaN(qn_proc));
-  DCHECK(IsQuietNaN(qm_proc));
+  CHECK(IsQuietNaN(sn_proc));
+  CHECK(IsQuietNaN(sm_proc));
+  CHECK(IsQuietNaN(qn_proc));
+  CHECK(IsQuietNaN(qm_proc));
 
   // Quiet NaNs are propagated.
   ProcessNaNsHelper(qn, 0, qn_proc);
@@ -10746,7 +10632,7 @@ TEST(process_nans_float) {
 
 
 static void DefaultNaNHelper(float n, float m, float a) {
-  DCHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
+  CHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
 
   bool test_1op = std::isnan(n);
   bool test_2op = std::isnan(n) || std::isnan(m);
@@ -10839,12 +10725,12 @@ TEST(default_nan_float) {
   float qn = rawbits_to_float(0x7fea1111);
   float qm = rawbits_to_float(0x7fea2222);
   float qa = rawbits_to_float(0x7feaaaaa);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsSignallingNaN(sm));
-  DCHECK(IsSignallingNaN(sa));
-  DCHECK(IsQuietNaN(qn));
-  DCHECK(IsQuietNaN(qm));
-  DCHECK(IsQuietNaN(qa));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsSignallingNaN(sm));
+  CHECK(IsSignallingNaN(sa));
+  CHECK(IsQuietNaN(qn));
+  CHECK(IsQuietNaN(qm));
+  CHECK(IsQuietNaN(qa));
 
   //   - Signalling NaNs
   DefaultNaNHelper(sn, 0.0f, 0.0f);
@@ -10874,7 +10760,7 @@ TEST(default_nan_float) {
 
 
 static void DefaultNaNHelper(double n, double m, double a) {
-  DCHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
+  CHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
 
   bool test_1op = std::isnan(n);
   bool test_2op = std::isnan(n) || std::isnan(m);
@@ -10967,12 +10853,12 @@ TEST(default_nan_double) {
   double qn = rawbits_to_double(0x7ffaaaaa11111111);
   double qm = rawbits_to_double(0x7ffaaaaa22222222);
   double qa = rawbits_to_double(0x7ffaaaaaaaaaaaaa);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsSignallingNaN(sm));
-  DCHECK(IsSignallingNaN(sa));
-  DCHECK(IsQuietNaN(qn));
-  DCHECK(IsQuietNaN(qm));
-  DCHECK(IsQuietNaN(qa));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsSignallingNaN(sm));
+  CHECK(IsSignallingNaN(sa));
+  CHECK(IsQuietNaN(qn));
+  CHECK(IsQuietNaN(qm));
+  CHECK(IsQuietNaN(qa));
 
   //   - Signalling NaNs
   DefaultNaNHelper(sn, 0.0, 0.0);
@@ -11210,16 +11096,186 @@ TEST(pool_size) {
   for (RelocIterator it(*code, pool_mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (RelocInfo::IsConstPool(info->rmode())) {
-      DCHECK(info->data() == constant_pool_size);
+      CHECK(info->data() == constant_pool_size);
       ++pool_count;
     }
     if (RelocInfo::IsVeneerPool(info->rmode())) {
-      DCHECK(info->data() == veneer_pool_size);
+      CHECK(info->data() == veneer_pool_size);
       ++pool_count;
     }
   }
 
-  DCHECK(pool_count == 2);
+  CHECK(pool_count == 2);
+
+  TEARDOWN();
+}
+
+
+TEST(jump_tables_forward) {
+  // Test jump tables with forward jumps.
+  const int kNumCases = 512;
+
+  INIT_V8();
+  SETUP_SIZE(kNumCases * 5 * kInstructionSize + 8192);
+  START();
+
+  int32_t values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  int32_t results[kNumCases];
+  memset(results, 0, sizeof(results));
+  uintptr_t results_ptr = reinterpret_cast<uintptr_t>(results);
+
+  Label loop;
+  Label labels[kNumCases];
+  Label done;
+
+  const Register& index = x0;
+  STATIC_ASSERT(sizeof(results[0]) == 4);
+  const Register& value = w1;
+  const Register& target = x2;
+
+  __ Mov(index, 0);
+  __ Mov(target, results_ptr);
+  __ Bind(&loop);
+
+  {
+    Assembler::BlockPoolsScope block_pools(&masm);
+    Label base;
+
+    __ Adr(x10, &base);
+    __ Ldr(x11, MemOperand(x10, index, LSL, kPointerSizeLog2));
+    __ Br(x11);
+    __ Bind(&base);
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dcptr(&labels[i]);
+    }
+  }
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ Bind(&labels[i]);
+    __ Mov(value, values[i]);
+    __ B(&done);
+  }
+
+  __ Bind(&done);
+  __ Str(value, MemOperand(target, 4, PostIndex));
+  __ Add(index, index, 1);
+  __ Cmp(index, kNumCases);
+  __ B(ne, &loop);
+
+  END();
+
+  RUN();
+
+  for (int i = 0; i < kNumCases; ++i) {
+    CHECK_EQ(values[i], results[i]);
+  }
+
+  TEARDOWN();
+}
+
+
+TEST(jump_tables_backward) {
+  // Test jump tables with backward jumps.
+  const int kNumCases = 512;
+
+  INIT_V8();
+  SETUP_SIZE(kNumCases * 5 * kInstructionSize + 8192);
+  START();
+
+  int32_t values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  int32_t results[kNumCases];
+  memset(results, 0, sizeof(results));
+  uintptr_t results_ptr = reinterpret_cast<uintptr_t>(results);
+
+  Label loop;
+  Label labels[kNumCases];
+  Label done;
+
+  const Register& index = x0;
+  STATIC_ASSERT(sizeof(results[0]) == 4);
+  const Register& value = w1;
+  const Register& target = x2;
+
+  __ Mov(index, 0);
+  __ Mov(target, results_ptr);
+  __ B(&loop);
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ Bind(&labels[i]);
+    __ Mov(value, values[i]);
+    __ B(&done);
+  }
+
+  __ Bind(&loop);
+  {
+    Assembler::BlockPoolsScope block_pools(&masm);
+    Label base;
+
+    __ Adr(x10, &base);
+    __ Ldr(x11, MemOperand(x10, index, LSL, kPointerSizeLog2));
+    __ Br(x11);
+    __ Bind(&base);
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dcptr(&labels[i]);
+    }
+  }
+
+  __ Bind(&done);
+  __ Str(value, MemOperand(target, 4, PostIndex));
+  __ Add(index, index, 1);
+  __ Cmp(index, kNumCases);
+  __ B(ne, &loop);
+
+  END();
+
+  RUN();
+
+  for (int i = 0; i < kNumCases; ++i) {
+    CHECK_EQ(values[i], results[i]);
+  }
+
+  TEARDOWN();
+}
+
+
+TEST(internal_reference_linked) {
+  // Test internal reference when they are linked in a label chain.
+
+  INIT_V8();
+  SETUP();
+  START();
+
+  Label done;
+
+  __ Mov(x0, 0);
+  __ Cbnz(x0, &done);
+
+  {
+    Assembler::BlockPoolsScope block_pools(&masm);
+    Label base;
+
+    __ Adr(x10, &base);
+    __ Ldr(x11, MemOperand(x10));
+    __ Br(x11);
+    __ Bind(&base);
+    __ dcptr(&done);
+  }
+
+  // Dead code, just to extend the label chain.
+  __ B(&done);
+  __ dcptr(&done);
+  __ Tbz(x0, 1, &done);
+
+  __ Bind(&done);
+  __ Mov(x0, 1);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(0x1, x0);
 
   TEARDOWN();
 }

@@ -2,26 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/flags.h"
+
 #include <cctype>
 #include <cstdlib>
 #include <sstream>
 
-#include "src/v8.h"
-
+#include "src/allocation.h"
 #include "src/assembler.h"
+#include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/list-inl.h"
 #include "src/ostreams.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
 // Define all of our flags.
 #define FLAG_MODE_DEFINE
-#include "src/flag-definitions.h"  // NOLINT
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 
 // Define all of our flags default values.
 #define FLAG_MODE_DEFINE_DEFAULTS
-#include "src/flag-definitions.h"  // NOLINT
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 
 namespace {
 
@@ -160,7 +164,7 @@ struct Flag {
 
 Flag flags[] = {
 #define FLAG_MODE_META
-#include "src/flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 };
 
 const size_t num_flags = sizeof(flags) / sizeof(*flags);
@@ -393,7 +397,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           *flag->maybe_bool_variable() = MaybeBoolFlag::Create(true, !is_bool);
           break;
         case Flag::TYPE_INT:
-          *flag->int_variable() = strtol(value, &endp, 10);  // NOLINT
+          *flag->int_variable() = static_cast<int>(strtol(value, &endp, 10));
           break;
         case Flag::TYPE_FLOAT:
           *flag->float_variable() = strtod(value, &endp);
@@ -542,11 +546,36 @@ void FlagList::PrintHelp() {
 }
 
 
+static uint32_t flag_hash = 0;
+
+
+void ComputeFlagListHash() {
+  std::ostringstream modified_args_as_string;
+#ifdef DEBUG
+  modified_args_as_string << "debug";
+#endif  // DEBUG
+  for (size_t i = 0; i < num_flags; ++i) {
+    Flag* current = &flags[i];
+    if (!current->IsDefault()) {
+      modified_args_as_string << i;
+      modified_args_as_string << *current;
+    }
+  }
+  std::string args(modified_args_as_string.str());
+  flag_hash = static_cast<uint32_t>(
+      base::hash_range(args.c_str(), args.c_str() + args.length()));
+}
+
+
 // static
 void FlagList::EnforceFlagImplications() {
 #define FLAG_MODE_DEFINE_IMPLICATIONS
-#include "src/flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
+  ComputeFlagListHash();
 }
 
-} }  // namespace v8::internal
+
+uint32_t FlagList::Hash() { return flag_hash; }
+}  // namespace internal
+}  // namespace v8

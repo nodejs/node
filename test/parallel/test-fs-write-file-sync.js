@@ -1,29 +1,8 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
-var isWindows = process.platform === 'win32';
 var openCount = 0;
 var mode;
 var content;
@@ -36,32 +15,30 @@ fs._closeSync = fs.closeSync;
 fs.closeSync = closeSync;
 
 // Reset the umask for testing
-var mask = process.umask(0000);
+process.umask(0o000);
 
 // On Windows chmod is only able to manipulate read-only bit. Test if creating
 // the file in read-only mode works.
-if (isWindows) {
-  mode = 0444;
+if (common.isWindows) {
+  mode = 0o444;
 } else {
-  mode = 0755;
+  mode = 0o755;
 }
+
+common.refreshTmpDir();
 
 // Test writeFileSync
 var file1 = path.join(common.tmpDir, 'testWriteFileSync.txt');
-removeFile(file1);
 
 fs.writeFileSync(file1, '123', {mode: mode});
 
 content = fs.readFileSync(file1, {encoding: 'utf8'});
 assert.equal('123', content);
 
-assert.equal(mode, fs.statSync(file1).mode & 0777);
-
-removeFile(file1);
+assert.equal(mode, fs.statSync(file1).mode & 0o777);
 
 // Test appendFileSync
 var file2 = path.join(common.tmpDir, 'testAppendFileSync.txt');
-removeFile(file2);
 
 fs.appendFileSync(file2, 'abc', {mode: mode});
 
@@ -70,22 +47,20 @@ assert.equal('abc', content);
 
 assert.equal(mode, fs.statSync(file2).mode & mode);
 
-removeFile(file2);
+// Test writeFileSync with file descriptor
+var file3 = path.join(common.tmpDir, 'testWriteFileSyncFd.txt');
+
+var fd = fs.openSync(file3, 'w+', mode);
+fs.writeFileSync(fd, '123');
+fs.closeSync(fd);
+
+content = fs.readFileSync(file3, {encoding: 'utf8'});
+assert.equal('123', content);
+
+assert.equal(mode, fs.statSync(file3).mode & 0o777);
 
 // Verify that all opened files were closed.
 assert.equal(0, openCount);
-
-// Removes a file if it exists.
-function removeFile(file) {
-  try {
-    if (isWindows)
-      fs.chmodSync(file, 0666);
-    fs.unlinkSync(file);
-  } catch (err) {
-    if (err && err.code !== 'ENOENT')
-      throw err;
-  }
-}
 
 function openSync() {
   openCount++;

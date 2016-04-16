@@ -1,45 +1,34 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
 var PORT = common.PORT;
-var spawn = require('child_process').spawn;
 var cluster = require('cluster');
 
-console.error('Cluster listen fd test', process.argv.slice(2));
+console.error('Cluster listen fd test', process.argv[2] || 'runner');
 
-if (process.platform === 'win32') {
-  console.error('This test is disabled on windows.');
+if (common.isWindows) {
+  console.log('1..0 # Skipped: This test is disabled on windows.');
   return;
 }
 
+// Process relationship is:
+//
+// parent: the test main script
+//   -> master: the cluster master
+//        -> worker: the cluster worker
 switch (process.argv[2]) {
   case 'master': return master();
   case 'worker': return worker();
   case 'parent': return parent();
-  default: return test();
 }
+
+var ok;
+
+process.on('exit', function() {
+  assert.ok(ok);
+});
 
 // spawn the parent, and listen for it to tell us the pid of the cluster.
 // WARNING: This is an example of listening on some arbitrary FD number
@@ -47,43 +36,32 @@ switch (process.argv[2]) {
 // server handles to stdio fd's is NOT a good or reliable way to do
 // concurrency in HTTP servers!  Use the cluster module, or if you want
 // a more low-level approach, use child process IPC manually.
-function test() {
-  var parent = spawn(process.execPath, [__filename, 'parent'], {
-    stdio: [ 0, 'pipe', 2 ]
-  });
-  var json = '';
-  parent.stdout.on('data', function(c) {
-    json += c.toString();
-    if (json.indexOf('\n') !== -1) next();
-  });
-  function next() {
-    console.error('output from parent = %s', json);
-    var cluster = JSON.parse(json);
-    // now make sure that we can request to the worker, then kill it.
-    http.get({
-      server: 'localhost',
-      port: PORT,
-      path: '/',
-    }).on('response', function (res) {
-      var s = '';
-      res.on('data', function(c) {
-        s += c.toString();
-      });
-      res.on('end', function() {
-        // kill the worker before we start doing asserts.
-        // it's really annoying when tests leave orphans!
-        parent.kill();
-        process.kill(cluster.master, 'SIGKILL');
-
+test(function(parent) {
+  // now make sure that we can request to the worker, then kill it.
+  http.get({
+    server: 'localhost',
+    port: PORT,
+    path: '/',
+  }).on('response', function(res) {
+    var s = '';
+    res.on('data', function(c) {
+      s += c.toString();
+    });
+    res.on('end', function() {
+      // kill the worker before we start doing asserts.
+      // it's really annoying when tests leave orphans!
+      parent.kill();
+      parent.on('exit', function() {
         assert.equal(s, 'hello from worker\n');
         assert.equal(res.statusCode, 200);
         console.log('ok');
+        ok = true;
       });
-    })
-  }
-}
+    });
+  });
+});
 
-function parent() {
+function test(cb) {
   console.error('about to listen in parent');
   var server = net.createServer(function(conn) {
     console.error('connection on parent');
@@ -93,7 +71,7 @@ function parent() {
 
     var spawn = require('child_process').spawn;
     var master = spawn(process.execPath, [__filename, 'master'], {
-      stdio: [ 0, 1, 2, server._handle ],
+      stdio: [ 0, 'pipe', 2, server._handle, 'ipc' ],
       detached: true
     });
 
@@ -110,6 +88,11 @@ function parent() {
       console.error('master closed');
     });
     console.error('master spawned');
+    master.on('message', function(msg) {
+      if (msg === 'started worker') {
+        cb(master);
+      }
+    });
   });
 }
 
@@ -119,7 +102,17 @@ function master() {
     args: [ 'worker' ]
   });
   var worker = cluster.fork();
-  console.log('%j\n', { master: process.pid, worker: worker.pid });
+  worker.on('message', function(msg) {
+    if (msg === 'worker ready') {
+      process.send('started worker');
+    }
+  });
+  // Prevent outliving our parent process in case it is abnormally killed -
+  // under normal conditions our parent kills this process before exiting.
+  process.on('disconnect', function() {
+    console.error('master exit on disconnect');
+    process.exit(0);
+  });
 }
 
 
@@ -132,5 +125,6 @@ function worker() {
     res.end('hello from worker\n');
   }).listen({ fd: 3 }, function() {
     console.error('worker listening on fd=3');
+    process.send('worker ready');
   });
 }

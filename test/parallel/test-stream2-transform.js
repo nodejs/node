@@ -1,26 +1,6 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
+require('../common');
 var assert = require('assert');
-var common = require('../common.js');
 var PassThrough = require('_stream_passthrough');
 var Transform = require('_stream_transform');
 
@@ -45,7 +25,7 @@ function run() {
     same: assert.deepEqual,
     equal: assert.equal,
     ok: assert,
-    end: function () {
+    end: function() {
       count--;
       run();
     }
@@ -53,7 +33,7 @@ function run() {
 }
 
 // ensure all tests have run
-process.on("exit", function () {
+process.on('exit', function() {
   assert.equal(count, 0);
 });
 
@@ -74,14 +54,14 @@ test('writable side consumption', function(t) {
   };
 
   for (var i = 1; i <= 10; i++) {
-    tx.write(new Buffer(i));
+    tx.write(Buffer.allocUnsafe(i));
   }
   tx.end();
 
   t.equal(tx._readableState.length, 10);
   t.equal(transformed, 10);
   t.equal(tx._transformState.writechunk.length, 5);
-  t.same(tx._writableState.buffer.map(function(c) {
+  t.same(tx._writableState.getBuffer().map(function(c) {
     return c.chunk.length;
   }), [6, 7, 8, 9, 10]);
 
@@ -91,10 +71,10 @@ test('writable side consumption', function(t) {
 test('passthrough', function(t) {
   var pt = new PassThrough();
 
-  pt.write(new Buffer('foog'));
-  pt.write(new Buffer('bark'));
-  pt.write(new Buffer('bazy'));
-  pt.write(new Buffer('kuel'));
+  pt.write(Buffer.from('foog'));
+  pt.write(Buffer.from('bark'));
+  pt.write(Buffer.from('bazy'));
+  pt.write(Buffer.from('kuel'));
   pt.end();
 
   t.equal(pt.read(5).toString(), 'foogb');
@@ -104,7 +84,7 @@ test('passthrough', function(t) {
   t.end();
 });
 
-test('object passthrough', function (t) {
+test('object passthrough', function(t) {
   var pt = new PassThrough({ objectMode: true });
 
   pt.write(1);
@@ -127,18 +107,17 @@ test('object passthrough', function (t) {
 });
 
 test('simple transform', function(t) {
-  var pt = new Transform;
+  var pt = new Transform();
   pt._transform = function(c, e, cb) {
-    var ret = new Buffer(c.length);
-    ret.fill('x');
+    var ret = Buffer.alloc(c.length, 'x');
     pt.push(ret);
     cb();
   };
 
-  pt.write(new Buffer('foog'));
-  pt.write(new Buffer('bark'));
-  pt.write(new Buffer('bazy'));
-  pt.write(new Buffer('kuel'));
+  pt.write(Buffer.from('foog'));
+  pt.write(Buffer.from('bark'));
+  pt.write(Buffer.from('bazy'));
+  pt.write(Buffer.from('kuel'));
   pt.end();
 
   t.equal(pt.read(5).toString(), 'xxxxx');
@@ -175,7 +154,7 @@ test('simple object transform', function(t) {
 });
 
 test('async passthrough', function(t) {
-  var pt = new Transform;
+  var pt = new Transform();
   pt._transform = function(chunk, encoding, cb) {
     setTimeout(function() {
       pt.push(chunk);
@@ -183,10 +162,10 @@ test('async passthrough', function(t) {
     }, 10);
   };
 
-  pt.write(new Buffer('foog'));
-  pt.write(new Buffer('bark'));
-  pt.write(new Buffer('bazy'));
-  pt.write(new Buffer('kuel'));
+  pt.write(Buffer.from('foog'));
+  pt.write(Buffer.from('bark'));
+  pt.write(Buffer.from('bazy'));
+  pt.write(Buffer.from('kuel'));
   pt.end();
 
   pt.on('finish', function() {
@@ -199,7 +178,7 @@ test('async passthrough', function(t) {
 });
 
 test('assymetric transform (expand)', function(t) {
-  var pt = new Transform;
+  var pt = new Transform();
 
   // emit each chunk 2 times.
   pt._transform = function(chunk, encoding, cb) {
@@ -208,14 +187,14 @@ test('assymetric transform (expand)', function(t) {
       setTimeout(function() {
         pt.push(chunk);
         cb();
-      }, 10)
+      }, 10);
     }, 10);
   };
 
-  pt.write(new Buffer('foog'));
-  pt.write(new Buffer('bark'));
-  pt.write(new Buffer('bazy'));
-  pt.write(new Buffer('kuel'));
+  pt.write(Buffer.from('foog'));
+  pt.write(Buffer.from('bark'));
+  pt.write(Buffer.from('bazy'));
+  pt.write(Buffer.from('kuel'));
   pt.end();
 
   pt.on('finish', function() {
@@ -231,7 +210,7 @@ test('assymetric transform (expand)', function(t) {
 });
 
 test('assymetric transform (compress)', function(t) {
-  var pt = new Transform;
+  var pt = new Transform();
 
   // each output is the first char of 3 consecutive chunks,
   // or whatever's left.
@@ -244,7 +223,7 @@ test('assymetric transform (compress)', function(t) {
     setTimeout(function() {
       this.state += s.charAt(0);
       if (this.state.length === 3) {
-        pt.push(new Buffer(this.state));
+        pt.push(Buffer.from(this.state));
         this.state = '';
       }
       cb();
@@ -253,25 +232,25 @@ test('assymetric transform (compress)', function(t) {
 
   pt._flush = function(cb) {
     // just output whatever we have.
-    pt.push(new Buffer(this.state));
+    pt.push(Buffer.from(this.state));
     this.state = '';
     cb();
   };
 
-  pt.write(new Buffer('aaaa'));
-  pt.write(new Buffer('bbbb'));
-  pt.write(new Buffer('cccc'));
-  pt.write(new Buffer('dddd'));
-  pt.write(new Buffer('eeee'));
-  pt.write(new Buffer('aaaa'));
-  pt.write(new Buffer('bbbb'));
-  pt.write(new Buffer('cccc'));
-  pt.write(new Buffer('dddd'));
-  pt.write(new Buffer('eeee'));
-  pt.write(new Buffer('aaaa'));
-  pt.write(new Buffer('bbbb'));
-  pt.write(new Buffer('cccc'));
-  pt.write(new Buffer('dddd'));
+  pt.write(Buffer.from('aaaa'));
+  pt.write(Buffer.from('bbbb'));
+  pt.write(Buffer.from('cccc'));
+  pt.write(Buffer.from('dddd'));
+  pt.write(Buffer.from('eeee'));
+  pt.write(Buffer.from('aaaa'));
+  pt.write(Buffer.from('bbbb'));
+  pt.write(Buffer.from('cccc'));
+  pt.write(Buffer.from('dddd'));
+  pt.write(Buffer.from('eeee'));
+  pt.write(Buffer.from('aaaa'));
+  pt.write(Buffer.from('bbbb'));
+  pt.write(Buffer.from('cccc'));
+  pt.write(Buffer.from('dddd'));
   pt.end();
 
   // 'abcdeabcdeabcd'
@@ -305,8 +284,8 @@ test('complex transform', function(t) {
 
   pt.once('readable', function() {
     process.nextTick(function() {
-      pt.write(new Buffer('d'));
-      pt.write(new Buffer('ef'), function() {
+      pt.write(Buffer.from('d'));
+      pt.write(Buffer.from('ef'), function() {
         pt.end();
         t.end();
       });
@@ -315,7 +294,7 @@ test('complex transform', function(t) {
     });
   });
 
-  pt.write(new Buffer('abc'));
+  pt.write(Buffer.from('abc'));
 });
 
 
@@ -323,17 +302,14 @@ test('passthrough event emission', function(t) {
   var pt = new PassThrough();
   var emits = 0;
   pt.on('readable', function() {
-    var state = pt._readableState;
     console.error('>>> emit readable %d', emits);
     emits++;
   });
 
-  var i = 0;
-
-  pt.write(new Buffer('foog'));
+  pt.write(Buffer.from('foog'));
 
   console.error('need emit 0');
-  pt.write(new Buffer('bark'));
+  pt.write(Buffer.from('bark'));
 
   console.error('should have emitted readable now 1 === %d', emits);
   t.equal(emits, 1);
@@ -343,9 +319,9 @@ test('passthrough event emission', function(t) {
 
   console.error('need emit 1');
 
-  pt.write(new Buffer('bazy'));
+  pt.write(Buffer.from('bazy'));
   console.error('should have emitted, but not again');
-  pt.write(new Buffer('kuel'));
+  pt.write(Buffer.from('kuel'));
 
   console.error('should have emitted readable now 2 === %d', emits);
   t.equal(emits, 2);
@@ -369,16 +345,16 @@ test('passthrough event emission', function(t) {
 });
 
 test('passthrough event emission reordered', function(t) {
-  var pt = new PassThrough;
+  var pt = new PassThrough();
   var emits = 0;
   pt.on('readable', function() {
-    console.error('emit readable', emits)
+    console.error('emit readable', emits);
     emits++;
   });
 
-  pt.write(new Buffer('foog'));
+  pt.write(Buffer.from('foog'));
   console.error('need emit 0');
-  pt.write(new Buffer('bark'));
+  pt.write(Buffer.from('bark'));
   console.error('should have emitted readable now 1 === %d', emits);
   t.equal(emits, 1);
 
@@ -403,15 +379,15 @@ test('passthrough event emission reordered', function(t) {
       });
       pt.end();
     });
-    pt.write(new Buffer('kuel'));
+    pt.write(Buffer.from('kuel'));
   });
 
-  pt.write(new Buffer('bazy'));
+  pt.write(Buffer.from('bazy'));
 });
 
 test('passthrough facaded', function(t) {
   console.error('passthrough facaded');
-  var pt = new PassThrough;
+  var pt = new PassThrough();
   var datas = [];
   pt.on('data', function(chunk) {
     datas.push(chunk.toString());
@@ -422,13 +398,13 @@ test('passthrough facaded', function(t) {
     t.end();
   });
 
-  pt.write(new Buffer('foog'));
+  pt.write(Buffer.from('foog'));
   setTimeout(function() {
-    pt.write(new Buffer('bark'));
+    pt.write(Buffer.from('bark'));
     setTimeout(function() {
-      pt.write(new Buffer('bazy'));
+      pt.write(Buffer.from('bazy'));
       setTimeout(function() {
-        pt.write(new Buffer('kuel'));
+        pt.write(Buffer.from('kuel'));
         setTimeout(function() {
           pt.end();
         }, 10);
@@ -454,8 +430,8 @@ test('object transform (json parse)', function(t) {
   var objects = [
     { foo: 'bar' },
     100,
-    "string",
-    { nested: { things: [ { foo: 'bar' }, 100, "string" ] } }
+    'string',
+    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
   ];
 
   var ended = false;
@@ -476,7 +452,7 @@ test('object transform (json parse)', function(t) {
   process.nextTick(function() {
     t.ok(ended);
     t.end();
-  })
+  });
 });
 
 test('object transform (json stringify)', function(t) {
@@ -496,8 +472,8 @@ test('object transform (json stringify)', function(t) {
   var objects = [
     { foo: 'bar' },
     100,
-    "string",
-    { nested: { things: [ { foo: 'bar' }, 100, "string" ] } }
+    'string',
+    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
   ];
 
   var ended = false;
@@ -518,5 +494,5 @@ test('object transform (json stringify)', function(t) {
   process.nextTick(function() {
     t.ok(ended);
     t.end();
-  })
+  });
 });

@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "node.h"
 #include "node_buffer.h"
 
@@ -43,7 +22,6 @@ using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -63,13 +41,10 @@ enum node_zlib_mode {
   UNZIP
 };
 
-enum node_zlib_error {
-  kNoError,
-  kFailed,
-  kWritePending
-};
+#define GZIP_HEADER_ID1 0x1f
+#define GZIP_HEADER_ID2 0x8b
 
-void InitZlib(v8::Handle<v8::Object> target);
+void InitZlib(v8::Local<v8::Object> target);
 
 
 /**
@@ -93,7 +68,8 @@ class ZCtx : public AsyncWrap {
         windowBits_(0),
         write_in_progress_(false),
         pending_close_(false),
-        refs_(0) {
+        refs_(0),
+        gzip_id_bytes_read_(0) {
     MakeWeak<ZCtx>(this);
   }
 
@@ -168,6 +144,7 @@ class ZCtx : public AsyncWrap {
     Bytef *in;
     Bytef *out;
     size_t in_off, in_len, out_off, out_len;
+    Environment* env = ctx->env();
 
     if (args[1]->IsNull()) {
       // just a flush
@@ -178,7 +155,7 @@ class ZCtx : public AsyncWrap {
     } else {
       CHECK(Buffer::HasInstance(args[1]));
       Local<Object> in_buf;
-      in_buf = args[1]->ToObject();
+      in_buf = args[1]->ToObject(env->isolate());
       in_off = args[2]->Uint32Value();
       in_len = args[3]->Uint32Value();
 
@@ -187,7 +164,7 @@ class ZCtx : public AsyncWrap {
     }
 
     CHECK(Buffer::HasInstance(args[4]));
-    Local<Object> out_buf = args[4]->ToObject();
+    Local<Object> out_buf = args[4]->ToObject(env->isolate());
     out_off = args[5]->Uint32Value();
     out_len = args[6]->Uint32Value();
     CHECK(Buffer::IsWithinBounds(out_off, out_len, Buffer::Length(out_buf)));
@@ -207,8 +184,9 @@ class ZCtx : public AsyncWrap {
 
     if (!async) {
       // sync version
+      ctx->env()->PrintSyncTrace();
       Process(work_req);
-      if (CheckError(ctx) == kNoError)
+      if (CheckError(ctx))
         AfterSync(ctx, args);
       return;
     }
@@ -224,7 +202,7 @@ class ZCtx : public AsyncWrap {
 
 
   static void AfterSync(ZCtx* ctx, const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
+    Environment* env = ctx->env();
     Local<Integer> avail_out = Integer::New(env->isolate(),
                                             ctx->strm_.avail_out);
     Local<Integer> avail_in = Integer::New(env->isolate(),
@@ -248,6 +226,8 @@ class ZCtx : public AsyncWrap {
   static void Process(uv_work_t* work_req) {
     ZCtx *ctx = ContainerOf(&ZCtx::work_req_, work_req);
 
+    const Bytef* next_expected_header_byte = nullptr;
+
     // If the avail_out is left at 0, then it means that it ran out
     // of room.  If there was avail_out left over, then it means
     // that all of the input was consumed.
@@ -258,6 +238,50 @@ class ZCtx : public AsyncWrap {
         ctx->err_ = deflate(&ctx->strm_, ctx->flush_);
         break;
       case UNZIP:
+        if (ctx->strm_.avail_in > 0) {
+          next_expected_header_byte = ctx->strm_.next_in;
+        }
+
+        switch (ctx->gzip_id_bytes_read_) {
+          case 0:
+            if (next_expected_header_byte == nullptr) {
+              break;
+            }
+
+            if (*next_expected_header_byte == GZIP_HEADER_ID1) {
+              ctx->gzip_id_bytes_read_ = 1;
+              next_expected_header_byte++;
+
+              if (ctx->strm_.avail_in == 1) {
+                // The only available byte was already read.
+                break;
+              }
+            } else {
+              ctx->mode_ = INFLATE;
+              break;
+            }
+
+            // fallthrough
+          case 1:
+            if (next_expected_header_byte == nullptr) {
+              break;
+            }
+
+            if (*next_expected_header_byte == GZIP_HEADER_ID2) {
+              ctx->gzip_id_bytes_read_ = 2;
+              ctx->mode_ = GUNZIP;
+            } else {
+              // There is no actual difference between INFLATE and INFLATERAW
+              // (after initialization).
+              ctx->mode_ = INFLATE;
+            }
+
+            break;
+          default:
+            CHECK(0 && "invalid number of gzip magic number bytes read");
+        }
+
+        // fallthrough
       case INFLATE:
       case GUNZIP:
       case INFLATERAW:
@@ -279,6 +303,19 @@ class ZCtx : public AsyncWrap {
             ctx->err_ = Z_NEED_DICT;
           }
         }
+
+        while (ctx->strm_.avail_in > 0 &&
+               ctx->mode_ == GUNZIP &&
+               ctx->err_ == Z_STREAM_END &&
+               ctx->strm_.next_in[0] != 0x00) {
+          // Bytes remain in input buffer. Perhaps this is another compressed
+          // member in the same archive, or just trailing garbage.
+          // Trailing zero bytes are okay, though, since they are frequently
+          // used for padding.
+
+          Reset(ctx);
+          ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
+        }
         break;
       default:
         CHECK(0 && "wtf?");
@@ -292,12 +329,16 @@ class ZCtx : public AsyncWrap {
   }
 
 
-  static node_zlib_error CheckError(ZCtx* ctx) {
+  static bool CheckError(ZCtx* ctx) {
     // Acceptable error states depend on the type of zlib stream.
     switch (ctx->err_) {
     case Z_OK:
-    case Z_STREAM_END:
     case Z_BUF_ERROR:
+      if (ctx->strm_.avail_out != 0 && ctx->flush_ == Z_FINISH) {
+        ZCtx::Error(ctx, "unexpected end of file");
+        return false;
+      }
+    case Z_STREAM_END:
       // normal statuses, not fatal
       break;
     case Z_NEED_DICT:
@@ -305,18 +346,14 @@ class ZCtx : public AsyncWrap {
         ZCtx::Error(ctx, "Missing dictionary");
       else
         ZCtx::Error(ctx, "Bad dictionary");
-      return kFailed;
+      return false;
     default:
       // something else.
-      if (ctx->strm_.total_out == 0) {
-        ZCtx::Error(ctx, "Zlib error");
-        return kFailed;
-      } else {
-        return kWritePending;
-      }
+      ZCtx::Error(ctx, "Zlib error");
+      return false;
     }
 
-    return kNoError;
+    return true;
   }
 
 
@@ -330,8 +367,7 @@ class ZCtx : public AsyncWrap {
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
 
-    node_zlib_error error = CheckError(ctx);
-    if (error == kFailed)
+    if (!CheckError(ctx))
       return;
 
     Local<Integer> avail_out = Integer::New(env->isolate(),
@@ -343,12 +379,7 @@ class ZCtx : public AsyncWrap {
 
     // call the write() cb
     Local<Value> args[2] = { avail_in, avail_out };
-    ctx->MakeCallback(env->callback_string(), ARRAY_SIZE(args), args);
-
-    if (error == kWritePending) {
-      ZCtx::Error(ctx, "Zlib error");
-      return;
-    }
+    ctx->MakeCallback(env->callback_string(), arraysize(args), args);
 
     ctx->Unref();
     if (ctx->pending_close_)
@@ -370,11 +401,12 @@ class ZCtx : public AsyncWrap {
       OneByteString(env->isolate(), message),
       Number::New(env->isolate(), ctx->err_)
     };
-    ctx->MakeCallback(env->onerror_string(), ARRAY_SIZE(args), args);
+    ctx->MakeCallback(env->onerror_string(), arraysize(args), args);
 
     // no hope of rescue.
+    if (ctx->write_in_progress_)
+      ctx->Unref();
     ctx->write_in_progress_ = false;
-    ctx->Unref();
     if (ctx->pending_close_)
       ctx->Close();
   }
@@ -420,7 +452,7 @@ class ZCtx : public AsyncWrap {
     char* dictionary = nullptr;
     size_t dictionary_len = 0;
     if (args.Length() >= 5 && Buffer::HasInstance(args[4])) {
-      Local<Object> dictionary_ = args[4]->ToObject();
+      Local<Object> dictionary_ = args[4]->ToObject(args.GetIsolate());
 
       dictionary_len = Buffer::Length(dictionary_);
       dictionary = new char[dictionary_len];
@@ -571,6 +603,8 @@ class ZCtx : public AsyncWrap {
     }
   }
 
+  size_t self_size() const override { return sizeof(*this); }
+
  private:
   void Ref() {
     if (++refs_ == 1) {
@@ -604,12 +638,13 @@ class ZCtx : public AsyncWrap {
   bool write_in_progress_;
   bool pending_close_;
   unsigned int refs_;
+  unsigned int gzip_id_bytes_read_;
 };
 
 
-void InitZlib(Handle<Object> target,
-              Handle<Value> unused,
-              Handle<Context> context,
+void InitZlib(Local<Object> target,
+              Local<Value> unused,
+              Local<Context> context,
               void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> z = env->NewFunctionTemplate(ZCtx::New);

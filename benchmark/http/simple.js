@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var PORT = common.PORT;
 
@@ -11,7 +12,6 @@ var bench = common.createBenchmark(main, {
 
 function main(conf) {
   process.env.PORT = PORT;
-  var spawn = require('child_process').spawn;
   var server = require('../http_simple.js');
   setTimeout(function() {
     var path = '/' + conf.type + '/' + conf.length + '/' + conf.chunks;

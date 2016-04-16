@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 var events = require('events');
 
@@ -33,6 +13,8 @@ var times_hello_emited = 0;
 assert.equal(e.addListener, e.on);
 
 e.on('newListener', function(event, listener) {
+  if (event === 'newListener')
+    return; // Don't track our adding of newListener listeners.
   console.log('newListener: ' + event);
   events_new_listener_emited.push(event);
   listeners_new_listener_emited.push(listener);
@@ -44,6 +26,11 @@ function hello(a, b) {
   assert.equal('a', a);
   assert.equal('b', b);
 }
+e.once('newListener', function(name, listener) {
+  assert.equal(name, 'hello');
+  assert.equal(listener, hello);
+  assert.deepEqual(this.listeners('hello'), []);
+});
 e.on('hello', hello);
 
 var foo = function() {};
@@ -65,4 +52,17 @@ process.on('exit', function() {
   assert.equal(1, times_hello_emited);
 });
 
-
+var listen1 = function listen1() {};
+var listen2 = function listen2() {};
+var e1 = new events.EventEmitter();
+e1.once('newListener', function() {
+  assert.deepEqual(e1.listeners('hello'), []);
+  e1.once('newListener', function() {
+    assert.deepEqual(e1.listeners('hello'), []);
+  });
+  e1.on('hello', listen2);
+});
+e1.on('hello', listen1);
+// The order of listeners on an event is not always the order in which the
+// listeners were added.
+assert.deepEqual(e1.listeners('hello'), [listen2, listen1]);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/mips/codegen-mips.h"
 
 #if V8_TARGET_ARCH_MIPS
 
@@ -18,23 +18,22 @@ namespace internal {
 
 
 #if defined(USE_SIMULATOR)
-byte* fast_exp_mips_machine_code = NULL;
-double fast_exp_simulator(double x) {
-  return Simulator::current(Isolate::Current())->CallFP(
-      fast_exp_mips_machine_code, x, 0);
+byte* fast_exp_mips_machine_code = nullptr;
+double fast_exp_simulator(double x, Isolate* isolate) {
+  return Simulator::current(isolate)->CallFP(fast_exp_mips_machine_code, x, 0);
 }
 #endif
 
 
-UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &std::exp;
+UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
   size_t actual_size;
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::exp;
+  if (buffer == nullptr) return nullptr;
   ExternalReference::InitializeMathExpData();
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   {
     DoubleRegister input = f12;
@@ -59,11 +58,11 @@ UnaryMathFunction CreateExpFunction() {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
 
 #if !defined(USE_SIMULATOR)
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #else
   fast_exp_mips_machine_code = buffer;
   return &fast_exp_simulator;
@@ -72,7 +71,8 @@ UnaryMathFunction CreateExpFunction() {
 
 
 #if defined(V8_HOST_ARCH_MIPS)
-MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
+MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
+                                                MemCopyUint8Function stub) {
 #if defined(USE_SIMULATOR) || defined(_MIPS_ARCH_MIPS32R6) || \
     defined(_MIPS_ARCH_MIPS32RX)
   return stub;
@@ -80,11 +80,12 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
   size_t actual_size;
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(3 * KB, &actual_size, true));
-  if (buffer == NULL) return stub;
+  if (buffer == nullptr) return stub;
 
   // This code assumes that cache lines are 32 bytes and if the cache line is
   // larger it will not work correctly.
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   {
     Label lastb, unaligned, aligned, chkw,
@@ -597,23 +598,24 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<MemCopyUint8Function>(buffer);
 #endif
 }
 #endif
 
-UnaryMathFunction CreateSqrtFunction() {
+UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 #if defined(USE_SIMULATOR)
-  return &std::sqrt;
+  return nullptr;
 #else
   size_t actual_size;
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::sqrt;
+  if (buffer == nullptr) return nullptr;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   __ MovFromFloatParameter(f12);
   __ sqrt_d(f0, f12);
@@ -624,9 +626,9 @@ UnaryMathFunction CreateSqrtFunction() {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #endif
 }
 
@@ -750,7 +752,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       OMIT_SMI_CHECK);
   // Replace receiver's backing store with newly created FixedDoubleArray.
   __ Addu(scratch1, array, Operand(kHeapObjectTag));
-  __ sw(scratch1, FieldMemOperand(a2, JSObject::kElementsOffset));
+  __ sw(scratch1, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ RecordWriteField(receiver,
                       JSObject::kElementsOffset,
                       scratch1,
@@ -765,21 +767,21 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ Addu(scratch1, elements,
       Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ Addu(scratch3, array, Operand(FixedDoubleArray::kHeaderSize));
-  __ sll(at, length, 2);
-  __ Addu(array_end, scratch3, at);
+  __ Lsa(array_end, scratch3, length, 2);
 
   // Repurpose registers no longer in use.
   Register hole_lower = elements;
   Register hole_upper = length;
-
   __ li(hole_lower, Operand(kHoleNanLower32));
+  __ li(hole_upper, Operand(kHoleNanUpper32));
+
   // scratch1: begin of source FixedArray element fields, not tagged
   // hole_lower: kHoleNanLower32
   // hole_upper: kHoleNanUpper32
   // array_end: end of destination FixedDoubleArray, not tagged
   // scratch3: begin of FixedDoubleArray element fields, not tagged
-  __ Branch(USE_DELAY_SLOT, &entry);
-  __ li(hole_upper, Operand(kHoleNanUpper32));  // In delay slot.
+
+  __ Branch(&entry);
 
   __ bind(&only_change_map);
   __ sw(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
@@ -826,9 +828,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ sw(hole_lower, MemOperand(scratch3, Register::kMantissaOffset));
   // exponent
   __ sw(hole_upper, MemOperand(scratch3, Register::kExponentOffset));
-  __ bind(&entry);
   __ addiu(scratch3, scratch3, kDoubleSize);
 
+  __ bind(&entry);
   __ Branch(&loop, lt, scratch3, Operand(array_end));
 
   __ bind(&done);
@@ -896,8 +898,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
         FixedDoubleArray::kHeaderSize - kHeapObjectTag
         + Register::kExponentOffset));
   __ Addu(dst_elements, array, Operand(FixedArray::kHeaderSize));
-  __ sll(dst_end, dst_end, 1);
-  __ Addu(dst_end, dst_elements, dst_end);
+  __ Lsa(dst_end, dst_elements, dst_end, 1);
 
   // Allocating heap numbers in the loop below can fail and cause a jump to
   // gc_required. We can't leave a partly initialized FixedArray behind,
@@ -1079,8 +1080,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ And(at, result, Operand(kStringEncodingMask));
   __ Branch(&one_byte, ne, at, Operand(zero_reg));
   // Two-byte string.
-  __ sll(at, index, 1);
-  __ Addu(at, string, at);
+  __ Lsa(at, string, index, 1);
   __ lhu(result, MemOperand(at));
   __ jmp(&done);
   __ bind(&one_byte);
@@ -1145,7 +1145,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   // Mov 1 in double_scratch2 as math_exp_constants_array[8] == 1.
   DCHECK(*reinterpret_cast<double*>
          (ExternalReference::math_exp_constants(8).address()) == 1);
-  __ Move(double_scratch2, 1);
+  __ Move(double_scratch2, 1.);
   __ add_d(result, result, double_scratch2);
   __ srl(temp1, temp2, 11);
   __ Ext(temp2, temp2, 0, 11);
@@ -1153,8 +1153,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
   // Must not call ExpConstant() after overwriting temp3!
   __ li(temp3, Operand(ExternalReference::math_exp_log_table()));
-  __ sll(at, temp2, 3);
-  __ Addu(temp3, temp3, Operand(at));
+  __ Lsa(temp3, temp3, temp2, 3);
   __ lw(temp2, MemOperand(temp3, Register::kMantissaOffset));
   __ lw(temp3, MemOperand(temp3, Register::kExponentOffset));
   // The first word is loaded is the lower number register.
@@ -1186,14 +1185,15 @@ static const uint32_t kCodeAgePatchFirstInstruction = 0x00010180;
 #endif
 
 
-CodeAgingHelper::CodeAgingHelper() {
+CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
+  USE(isolate);
   DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // Since patcher is a large object, allocate it dynamically when needed,
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
   // the process, before MIPS simulator ICache is setup.
-  SmartPointer<CodePatcher> patcher(
-      new CodePatcher(young_sequence_.start(),
+  base::SmartPointer<CodePatcher> patcher(
+      new CodePatcher(isolate, young_sequence_.start(),
                       young_sequence_.length() / Assembler::kInstrSize,
                       CodePatcher::DONT_FLUSH));
   PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
@@ -1239,10 +1239,11 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
   uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
   if (age == kNoAgeCodeAge) {
     isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
-    CpuFeatures::FlushICache(sequence, young_length);
+    Assembler::FlushICache(isolate, sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);
-    CodePatcher patcher(sequence, young_length / Assembler::kInstrSize);
+    CodePatcher patcher(isolate, sequence,
+                        young_length / Assembler::kInstrSize);
     // Mark this code sequence for FindPlatformCodeAgeSequence().
     patcher.masm()->nop(Assembler::CODE_AGE_MARKER_NOP);
     // Load the stub address to t9 and call it,
@@ -1261,6 +1262,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
 
 #undef __
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_MIPS

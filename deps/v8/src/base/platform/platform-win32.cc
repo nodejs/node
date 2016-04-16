@@ -46,7 +46,7 @@ inline void MemoryBarrier() {
 
 
 int localtime_s(tm* out_tm, const time_t* time) {
-  tm* posix_local_time_struct = localtime(time);
+  tm* posix_local_time_struct = localtime(time);  // NOLINT
   if (posix_local_time_struct == NULL) return 1;
   *out_tm = *posix_local_time_struct;
   return 0;
@@ -346,26 +346,41 @@ void Win32Time::SetToCurrentTime() {
 }
 
 
-int64_t FileTimeToInt64(FILETIME ft) {
-  ULARGE_INTEGER result;
-  result.LowPart = ft.dwLowDateTime;
-  result.HighPart = ft.dwHighDateTime;
-  return static_cast<int64_t>(result.QuadPart);
-}
-
-
 // Return the local timezone offset in milliseconds east of UTC. This
 // takes into account whether daylight saving is in effect at the time.
 // Only times in the 32-bit Unix range may be passed to this function.
 // Also, adding the time-zone offset to the input must not overflow.
 // The function EquivalentTime() in date.js guarantees this.
 int64_t Win32Time::LocalOffset(TimezoneCache* cache) {
-  FILETIME local;
-  SYSTEMTIME system_utc, system_local;
-  FileTimeToSystemTime(&time_.ft_, &system_utc);
-  SystemTimeToTzSpecificLocalTime(NULL, &system_utc, &system_local);
-  SystemTimeToFileTime(&system_local, &local);
-  return (FileTimeToInt64(local) - FileTimeToInt64(time_.ft_)) / kTimeScaler;
+  cache->InitializeIfNeeded();
+
+  Win32Time rounded_to_second(*this);
+  rounded_to_second.t() =
+      rounded_to_second.t() / 1000 / kTimeScaler * 1000 * kTimeScaler;
+  // Convert to local time using POSIX localtime function.
+  // Windows XP Service Pack 3 made SystemTimeToTzSpecificLocalTime()
+  // very slow.  Other browsers use localtime().
+
+  // Convert from JavaScript milliseconds past 1/1/1970 0:00:00 to
+  // POSIX seconds past 1/1/1970 0:00:00.
+  double unchecked_posix_time = rounded_to_second.ToJSTime() / 1000;
+  if (unchecked_posix_time > INT_MAX || unchecked_posix_time < 0) {
+    return 0;
+  }
+  // Because _USE_32BIT_TIME_T is defined, time_t is a 32-bit int.
+  time_t posix_time = static_cast<time_t>(unchecked_posix_time);
+
+  // Convert to local time, as struct with fields for day, hour, year, etc.
+  tm posix_local_time_struct;
+  if (localtime_s(&posix_local_time_struct, &posix_time)) return 0;
+
+  if (posix_local_time_struct.tm_isdst > 0) {
+    return (cache->tzinfo_.Bias + cache->tzinfo_.DaylightBias) * -kMsPerMinute;
+  } else if (posix_local_time_struct.tm_isdst == 0) {
+    return (cache->tzinfo_.Bias + cache->tzinfo_.StandardBias) * -kMsPerMinute;
+  } else {
+    return cache->tzinfo_.Bias * -kMsPerMinute;
+  }
 }
 
 
@@ -560,6 +575,11 @@ bool OS::Remove(const char* path) {
 }
 
 
+bool OS::isDirectorySeparator(const char ch) {
+  return ch == '/' || ch == '\\';
+}
+
+
 FILE* OS::OpenTemporaryFile() {
   // tmpfile_s tries to use the root dir, don't use it.
   char tempPathBuffer[MAX_PATH];
@@ -713,15 +733,17 @@ void* OS::GetRandomMmapAddr() {
   // Note: This does not guarantee RWX regions will be within the
   // range kAllocationRandomAddressMin to kAllocationRandomAddressMax
 #ifdef V8_HOST_ARCH_64_BIT
-  static const intptr_t kAllocationRandomAddressMin = 0x0000000080000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
+  static const uintptr_t kAllocationRandomAddressMin = 0x0000000080000000;
+  static const uintptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
 #else
-  static const intptr_t kAllocationRandomAddressMin = 0x04000000;
-  static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
+  static const uintptr_t kAllocationRandomAddressMin = 0x04000000;
+  static const uintptr_t kAllocationRandomAddressMax = 0x3FFF0000;
 #endif
-  uintptr_t address =
-      (platform_random_number_generator.Pointer()->NextInt() << kPageSizeBits) |
-      kAllocationRandomAddressMin;
+  uintptr_t address;
+  platform_random_number_generator.Pointer()->NextBytes(&address,
+                                                        sizeof(address));
+  address <<= kPageSizeBits;
+  address += kAllocationRandomAddressMin;
   address &= kAllocationRandomAddressMax;
   return reinterpret_cast<void *>(address);
 }
@@ -729,9 +751,19 @@ void* OS::GetRandomMmapAddr() {
 
 static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
   LPVOID base = NULL;
+  static BOOL use_aslr = -1;
+#ifdef V8_HOST_ARCH_32_BIT
+  // Don't bother randomizing on 32-bit hosts, because they lack the room and
+  // don't have viable ASLR anyway.
+  if (use_aslr == -1 && !IsWow64Process(GetCurrentProcess(), &use_aslr))
+    use_aslr = FALSE;
+#else
+  use_aslr = TRUE;
+#endif
 
-  if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
-    // For exectutable pages try and randomize the allocation address
+  if (use_aslr &&
+      (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS)) {
+    // For executable pages try and randomize the allocation address
     for (size_t attempts = 0; base == NULL && attempts < 3; ++attempts) {
       base = VirtualAlloc(OS::GetRandomMmapAddr(), size, action, protection);
     }
@@ -790,8 +822,8 @@ void OS::Guard(void* address, const size_t size) {
 }
 
 
-void OS::Sleep(int milliseconds) {
-  ::Sleep(milliseconds);
+void OS::Sleep(TimeDelta interval) {
+  ::Sleep(static_cast<DWORD>(interval.InMilliseconds()));
 }
 
 
@@ -801,6 +833,9 @@ void OS::Abort() {
   }
   // Make the MSVCRT do a silent abort.
   raise(SIGABRT);
+
+  // Make sure function doesn't return.
+  abort();
 }
 
 
@@ -816,38 +851,38 @@ void OS::DebugBreak() {
 }
 
 
-class Win32MemoryMappedFile : public OS::MemoryMappedFile {
+class Win32MemoryMappedFile final : public OS::MemoryMappedFile {
  public:
-  Win32MemoryMappedFile(HANDLE file,
-                        HANDLE file_mapping,
-                        void* memory,
-                        int size)
+  Win32MemoryMappedFile(HANDLE file, HANDLE file_mapping, void* memory,
+                        size_t size)
       : file_(file),
         file_mapping_(file_mapping),
         memory_(memory),
-        size_(size) { }
-  virtual ~Win32MemoryMappedFile();
-  virtual void* memory() { return memory_; }
-  virtual int size() { return size_; }
+        size_(size) {}
+  ~Win32MemoryMappedFile() final;
+  void* memory() const final { return memory_; }
+  size_t size() const final { return size_; }
+
  private:
-  HANDLE file_;
-  HANDLE file_mapping_;
-  void* memory_;
-  int size_;
+  HANDLE const file_;
+  HANDLE const file_mapping_;
+  void* const memory_;
+  size_t const size_;
 };
 
 
+// static
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
   // Open a physical file
   HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
       FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
   if (file == INVALID_HANDLE_VALUE) return NULL;
 
-  int size = static_cast<int>(GetFileSize(file, NULL));
+  DWORD size = GetFileSize(file, NULL);
 
   // Create a file mapping for the physical file
-  HANDLE file_mapping = CreateFileMapping(file, NULL,
-      PAGE_READWRITE, 0, static_cast<DWORD>(size), NULL);
+  HANDLE file_mapping =
+      CreateFileMapping(file, NULL, PAGE_READWRITE, 0, size, NULL);
   if (file_mapping == NULL) return NULL;
 
   // Map a view of the file into memory
@@ -856,15 +891,17 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
 }
 
 
-OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
-    void* initial) {
+// static
+OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
+                                                   size_t size, void* initial) {
   // Open a physical file
   HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
-      FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, 0, NULL);
+                            FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                            OPEN_ALWAYS, 0, NULL);
   if (file == NULL) return NULL;
   // Create a file mapping for the physical file
-  HANDLE file_mapping = CreateFileMapping(file, NULL,
-      PAGE_READWRITE, 0, static_cast<DWORD>(size), NULL);
+  HANDLE file_mapping = CreateFileMapping(file, NULL, PAGE_READWRITE, 0,
+                                          static_cast<DWORD>(size), NULL);
   if (file_mapping == NULL) return NULL;
   // Map a view of the file into memory
   void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
@@ -874,8 +911,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
 
 
 Win32MemoryMappedFile::~Win32MemoryMappedFile() {
-  if (memory_ != NULL)
-    UnmapViewOfFile(memory_);
+  if (memory_) UnmapViewOfFile(memory_);
   CloseHandle(file_mapping_);
   CloseHandle(file_);
 }
@@ -1110,9 +1146,9 @@ static std::vector<OS::SharedLibraryAddress> LoadSymbols(
     WideCharToMultiByte(CP_UTF8, 0, module_entry.szExePath, -1, &lib_name[0],
                         lib_name_length, NULL, NULL);
     result.push_back(OS::SharedLibraryAddress(
-        lib_name, reinterpret_cast<unsigned int>(module_entry.modBaseAddr),
-        reinterpret_cast<unsigned int>(module_entry.modBaseAddr +
-                                       module_entry.modBaseSize)));
+        lib_name, reinterpret_cast<uintptr_t>(module_entry.modBaseAddr),
+        reinterpret_cast<uintptr_t>(module_entry.modBaseAddr +
+                                    module_entry.modBaseSize)));
     cont = _Module32NextW(snapshot, &module_entry);
   }
   CloseHandle(snapshot);
@@ -1145,11 +1181,6 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 
 void OS::SignalCodeMovingGC() { }
 #endif  // __MINGW32__
-
-
-double OS::nan_value() {
-  return std::numeric_limits<double>::quiet_NaN();
-}
 
 
 int OS::ActivationFrameAlignment() {
@@ -1366,10 +1397,5 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   DCHECK(result);
 }
 
-
-
-void Thread::YieldCPU() {
-  Sleep(0);
-}
-
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

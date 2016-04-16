@@ -77,10 +77,9 @@ int STDCALL ConvertDToICVersion(double d) {
 void RunOneTruncationTestWithTest(ConvertDToICallWrapper callWrapper,
                                   ConvertDToIFunc func,
                                   double from,
-                                  double raw) {
-  uint64_t to = static_cast<int64_t>(raw);
-  int result = (*callWrapper)(func, from);
-  CHECK_EQ(static_cast<int>(to), result);
+                                  int32_t to) {
+  int32_t result = (*callWrapper)(func, from);
+  CHECK_EQ(to, result);
 }
 
 
@@ -92,7 +91,7 @@ int32_t DefaultCallWrapper(ConvertDToIFunc func,
 
 // #define NaN and Infinity so that it's possible to cut-and-paste these tests
 // directly to a .js file and run them.
-#define NaN (v8::base::OS::nan_value())
+#define NaN (std::numeric_limits<double>::quiet_NaN())
 #define Infinity (std::numeric_limits<double>::infinity())
 #define RunOneTruncationTest(p1, p2) \
     RunOneTruncationTestWithTest(callWrapper, func, p1, p2)
@@ -123,15 +122,15 @@ void RunAllTruncationTests(ConvertDToICallWrapper callWrapper,
   RunOneTruncationTest(-0.9999999999999999, 0);
   RunOneTruncationTest(4294967296.0, 0);
   RunOneTruncationTest(-4294967296.0, 0);
-  RunOneTruncationTest(9223372036854775000.0, 4294966272.0);
-  RunOneTruncationTest(-9223372036854775000.0, -4294966272.0);
+  RunOneTruncationTest(9223372036854775000.0, -1024);
+  RunOneTruncationTest(-9223372036854775000.0, 1024);
   RunOneTruncationTest(4.5036e+15, 372629504);
   RunOneTruncationTest(-4.5036e+15, -372629504);
 
   RunOneTruncationTest(287524199.5377777, 0x11234567);
   RunOneTruncationTest(-287524199.5377777, -0x11234567);
-  RunOneTruncationTest(2300193596.302222, 2300193596.0);
-  RunOneTruncationTest(-2300193596.302222, -2300193596.0);
+  RunOneTruncationTest(2300193596.302222, -1994773700);
+  RunOneTruncationTest(-2300193596.302222, 1994773700);
   RunOneTruncationTest(4600387192.604444, 305419896);
   RunOneTruncationTest(-4600387192.604444, -305419896);
   RunOneTruncationTest(4823855600872397.0, 1737075661);
@@ -154,14 +153,14 @@ void RunAllTruncationTests(ConvertDToICallWrapper callWrapper,
   RunOneTruncationTest(4.8357078901445341e+24, -1073741824);
   RunOneTruncationTest(-4.8357078901445341e+24, 1073741824);
 
-  RunOneTruncationTest(2147483647.0, 2147483647.0);
-  RunOneTruncationTest(-2147483648.0, -2147483648.0);
-  RunOneTruncationTest(9.6714111686030497e+24, -2147483648.0);
-  RunOneTruncationTest(-9.6714111686030497e+24, -2147483648.0);
-  RunOneTruncationTest(9.6714157802890681e+24, -2147483648.0);
-  RunOneTruncationTest(-9.6714157802890681e+24, -2147483648.0);
-  RunOneTruncationTest(1.9342813113834065e+25, 2147483648.0);
-  RunOneTruncationTest(-1.9342813113834065e+25, 2147483648.0);
+  RunOneTruncationTest(2147483647.0, 2147483647);
+  RunOneTruncationTest(-2147483648.0, -2147483647-1);
+  RunOneTruncationTest(9.6714111686030497e+24, -2147483647-1);
+  RunOneTruncationTest(-9.6714111686030497e+24, -2147483647-1);
+  RunOneTruncationTest(9.6714157802890681e+24, -2147483647-1);
+  RunOneTruncationTest(-9.6714157802890681e+24, -2147483647-1);
+  RunOneTruncationTest(1.9342813113834065e+25, -2147483647-1);
+  RunOneTruncationTest(-1.9342813113834065e+25, -2147483647-1);
 
   RunOneTruncationTest(3.868562622766813e+25, 0);
   RunOneTruncationTest(-3.868562622766813e+25, 0);

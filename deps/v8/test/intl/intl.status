@@ -27,16 +27,8 @@
 
 [
 [ALWAYS, {
-  # The following tests use getDefaultTimeZone().
-  'date-format/resolved-options': [FAIL],
-  'date-format/timezone': [FAIL],
-  'general/v8Intl-exists': [FAIL],
-
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
-
-  # BUG(2899): default locale for search fails on mac and on android.
-  'collator/default-locale': [['system == macos or arch == android_arm or arch == android_ia32', FAIL]],
 
   # BUG(v8:3454).
   'date-format/parse-MMMdy': [FAIL],
@@ -44,4 +36,22 @@
   'number-format/parse-decimal': [FAIL],
   'number-format/parse-percent': [FAIL],
 }],  # ALWAYS
+
+##############################################################################
+['system == linux', {
+  # BUG(v8:2899).
+  'collator/default-locale': [PASS, FAIL],
+}],  # 'system == linux'
+
+##############################################################################
+['system == macos', {
+  # BUG(v8:4459).
+  'collator/default-locale': [FAIL],
+}],  # 'system == macos'
+
+##############################################################################
+['arch == arm or arch == arm64', {
+  # BUG(v8:4459).
+  'collator/default-locale': [PASS, FAIL],
+}],  # 'arch == arm or arch == arm64'
 ]

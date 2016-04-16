@@ -36,12 +36,12 @@ namespace internal {
 class PrintExtension : public v8::Extension {
  public:
   PrintExtension() : v8::Extension("v8/print", "native function print();") { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate,
-      v8::Handle<v8::String> name);
+  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name);
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif

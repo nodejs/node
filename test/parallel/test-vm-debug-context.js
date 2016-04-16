@@ -1,34 +1,16 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+/* eslint-disable no-debugger */
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var vm = require('vm');
+var spawn = require('child_process').spawn;
 
 assert.throws(function() {
   vm.runInDebugContext('*');
 }, /SyntaxError/);
 
 assert.throws(function() {
-  vm.runInDebugContext({ toString: assert.fail });
+  vm.runInDebugContext({ toString: common.fail });
 }, /AssertionError/);
 
 assert.throws(function() {
@@ -39,10 +21,76 @@ assert.throws(function() {
   vm.runInDebugContext('(function(f) { f(f) })(function(f) { f(f) })');
 }, /RangeError/);
 
-assert.equal(typeof(vm.runInDebugContext('this')), 'object');
-assert.equal(typeof(vm.runInDebugContext('Debug')), 'object');
+assert.equal(typeof vm.runInDebugContext('this'), 'object');
+assert.equal(typeof vm.runInDebugContext('Debug'), 'object');
 
 assert.strictEqual(vm.runInDebugContext(), undefined);
 assert.strictEqual(vm.runInDebugContext(0), 0);
 assert.strictEqual(vm.runInDebugContext(null), null);
 assert.strictEqual(vm.runInDebugContext(undefined), undefined);
+
+// See https://github.com/nodejs/node/issues/1190, accessing named interceptors
+// and accessors inside a debug event listener should not crash.
+(function() {
+  var Debug = vm.runInDebugContext('Debug');
+  var breaks = 0;
+
+  function ondebugevent(evt, exc) {
+    if (evt !== Debug.DebugEvent.Break) return;
+    exc.frame(0).evaluate('process.env').properties();  // Named interceptor.
+    exc.frame(0).evaluate('process.title').getTruncatedValue();  // Accessor.
+    breaks += 1;
+  }
+
+  function breakpoint() {
+    debugger;
+  }
+
+  assert.equal(breaks, 0);
+  Debug.setListener(ondebugevent);
+  assert.equal(breaks, 0);
+  breakpoint();
+  assert.equal(breaks, 1);
+})();
+
+// Can set listeners and breakpoints on a single line file
+(function() {
+  const Debug = vm.runInDebugContext('Debug');
+  const fn = require(common.fixturesDir + '/exports-function-with-param');
+  let called = false;
+
+  Debug.setListener(function(event, state, data) {
+    if (data.constructor.name === 'BreakEvent') {
+      called = true;
+    }
+  });
+
+  Debug.setBreakPoint(fn);
+  fn('foo');
+  assert.strictEqual(Debug.showBreakPoints(fn), '(arg) { [B0]return arg; }');
+  assert.strictEqual(called, true);
+})();
+
+// See https://github.com/nodejs/node/issues/1190, fatal errors should not
+// crash the process.
+var script = common.fixturesDir + '/vm-run-in-debug-context.js';
+var proc = spawn(process.execPath, [script]);
+var data = [];
+proc.stdout.on('data', common.fail);
+proc.stderr.on('data', data.push.bind(data));
+proc.stderr.once('end', common.mustCall(function() {
+  var haystack = Buffer.concat(data).toString('utf8');
+  assert(/SyntaxError: Unexpected token \*/.test(haystack));
+}));
+proc.once('exit', common.mustCall(function(exitCode, signalCode) {
+  assert.equal(exitCode, 1);
+  assert.equal(signalCode, null);
+}));
+
+proc = spawn(process.execPath, [script, 'handle-fatal-exception']);
+proc.stdout.on('data', common.fail);
+proc.stderr.on('data', common.fail);
+proc.once('exit', common.mustCall(function(exitCode, signalCode) {
+  assert.equal(exitCode, 42);
+  assert.equal(signalCode, null);
+}));

@@ -5,6 +5,7 @@
 #ifndef V8_RUNTIME_RUNTIME_UTILS_H_
 #define V8_RUNTIME_RUNTIME_UTILS_H_
 
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -54,6 +55,17 @@ namespace internal {
   RUNTIME_ASSERT(args[index]->IsNumber());      \
   double name = args.number_at(index);
 
+
+// Cast the given argument to a size_t and store its value in a variable with
+// the given name.  If the argument is not a size_t call IllegalOperation and
+// return.
+#define CONVERT_SIZE_ARG_CHECKED(name, index)            \
+  RUNTIME_ASSERT(args[index]->IsNumber());               \
+  Handle<Object> name##_object = args.at<Object>(index); \
+  size_t name = 0;                                       \
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *name##_object, &name));
+
+
 // Call the specified converter on the object *comand store the result in
 // a variable of the specified type with the given name.  If the
 // object is not a Number call IllegalOperation and return.
@@ -70,13 +82,12 @@ namespace internal {
   PropertyDetails name = PropertyDetails(Smi::cast(args[index]));
 
 
-// Assert that the given argument has a valid value for a StrictMode
-// and store it in a StrictMode variable with the given name.
-#define CONVERT_STRICT_MODE_ARG_CHECKED(name, index) \
-  RUNTIME_ASSERT(args[index]->IsSmi());              \
-  RUNTIME_ASSERT(args.smi_at(index) == STRICT ||     \
-                 args.smi_at(index) == SLOPPY);      \
-  StrictMode name = static_cast<StrictMode>(args.smi_at(index));
+// Assert that the given argument has a valid value for a LanguageMode
+// and store it in a LanguageMode variable with the given name.
+#define CONVERT_LANGUAGE_MODE_ARG_CHECKED(name, index)        \
+  RUNTIME_ASSERT(args[index]->IsSmi());                       \
+  RUNTIME_ASSERT(is_valid_language_mode(args.smi_at(index))); \
+  LanguageMode name = static_cast<LanguageMode>(args.smi_at(index));
 
 
 // Assert that the given argument is a number within the Int32 range
@@ -86,6 +97,16 @@ namespace internal {
   RUNTIME_ASSERT(args[index]->IsNumber());     \
   int32_t name = 0;                            \
   RUNTIME_ASSERT(args[index]->ToInt32(&name));
+
+
+// Cast the given argument to PropertyAttributes and store its value in a
+// variable with the given name.  If the argument is not a Smi call or the
+// enum value is out of range, call IllegalOperation and return.
+#define CONVERT_PROPERTY_ATTRIBUTES_CHECKED(name, index)                   \
+  RUNTIME_ASSERT(args[index]->IsSmi());                                    \
+  RUNTIME_ASSERT(                                                          \
+      (args.smi_at(index) & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0); \
+  PropertyAttributes name = static_cast<PropertyAttributes>(args.smi_at(index));
 
 
 // A mechanism to return a pair of Object pointers in registers (if possible).
@@ -141,7 +162,23 @@ static inline ObjectPair MakePair(Object* x, Object* y) {
 }
 #endif
 
+
+// A mechanism to return a triple of Object pointers. In all calling
+// conventions, a struct of two pointers is returned in memory,
+// allocated by the caller, and passed as a pointer in a hidden first parameter.
+struct ObjectTriple {
+  Object* x;
+  Object* y;
+  Object* z;
+};
+
+static inline ObjectTriple MakeTriple(Object* x, Object* y, Object* z) {
+  ObjectTriple result = {x, y, z};
+  // ObjectTriple is assigned to a hidden first argument.
+  return result;
 }
-}  // namespace v8::internal
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_RUNTIME_RUNTIME_UTILS_H_

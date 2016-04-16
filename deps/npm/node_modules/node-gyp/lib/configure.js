@@ -1,4 +1,5 @@
 module.exports = exports = configure
+module.exports.test = { findPython: findPython }
 
 /**
  * Module dependencies.
@@ -13,102 +14,33 @@ var fs = require('graceful-fs')
   , semver = require('semver')
   , mkdirp = require('mkdirp')
   , cp = require('child_process')
+  , PathArray = require('path-array')
   , extend = require('util')._extend
+  , processRelease = require('./process-release')
   , spawn = cp.spawn
   , execFile = cp.execFile
   , win = process.platform == 'win32'
+  , findNodeDirectory = require('./find-node-directory')
 
 exports.usage = 'Generates ' + (win ? 'MSVC project files' : 'a Makefile') + ' for the current module'
 
 function configure (gyp, argv, callback) {
 
-  var python = gyp.opts.python || process.env.PYTHON || 'python'
+  var python = gyp.opts.python || process.env.PYTHON || 'python2'
     , buildDir = path.resolve('build')
     , configNames = [ 'config.gypi', 'common.gypi' ]
     , configs = []
     , nodeDir
+    , release = processRelease(argv, gyp, process.version, process.release)
 
-  checkPython()
-
-  // Check if Python is in the $PATH
-  function checkPython () {
-    log.verbose('check python', 'checking for Python executable "%s" in the PATH', python)
-    which(python, function (err, execPath) {
-      if (err) {
-        log.verbose('`which` failed', python, err)
-        if (win) {
-          guessPython()
-        } else {
-          failNoPython()
-        }
-      } else {
-        log.verbose('`which` succeeded', python, execPath)
-        checkPythonVersion()
-      }
-    })
-  }
-
-  // Called on Windows when "python" isn't available in the current $PATH.
-  // We're gonna check if "%SystemDrive%\python27\python.exe" exists.
-  function guessPython () {
-    log.verbose('could not find "' + python + '". guessing location')
-    var rootDir = process.env.SystemDrive || 'C:\\'
-    if (rootDir[rootDir.length - 1] !== '\\') {
-      rootDir += '\\'
+  findPython(python, function (err, found) {
+    if (err) {
+      callback(err)
+    } else {
+      python = found
+      getNodeDir()
     }
-    var pythonPath = path.resolve(rootDir, 'Python27', 'python.exe')
-    log.verbose('ensuring that file exists:', pythonPath)
-    fs.stat(pythonPath, function (err, stat) {
-      if (err) {
-        if (err.code == 'ENOENT') {
-          failNoPython()
-        } else {
-          callback(err)
-        }
-        return
-      }
-      python = pythonPath
-      checkPythonVersion()
-    })
-  }
-
-  function checkPythonVersion () {
-    var env = extend({}, process.env);
-    env.TERM = 'dumb';
-
-    execFile(python, ['-c', 'import platform; print(platform.python_version());'], { env: env }, function (err, stdout) {
-      if (err) {
-        return callback(err)
-      }
-      log.verbose('check python version', '`%s -c "import platform; print(platform.python_version());"` returned: %j', python, stdout)
-      var version = stdout.trim()
-      if (~version.indexOf('+')) {
-        log.silly('stripping "+" sign(s) from version')
-        version = version.replace(/\+/g, '')
-      }
-      if (~version.indexOf('rc')) {
-        log.silly('stripping "rc" identifier from version')
-        version = version.replace(/rc(.*)$/ig, '')
-      }
-      var range = semver.Range('>=2.5.0 <3.0.0')
-      if (range.test(version)) {
-        getNodeDir()
-      } else {
-        failPythonVersion(version)
-      }
-    })
-  }
-
-  function failNoPython () {
-    callback(new Error('Can\'t find Python executable "' + python +
-          '", you can set the PYTHON env variable.'))
-  }
-
-  function failPythonVersion (badVersion) {
-    callback(new Error('Python executable "' + python +
-          '" is v' + badVersion + ', which is not supported by gyp.\n' +
-          'You can pass the --python switch to point to Python >= v2.5.0 & < 3.0.0.'))
-  }
+  })
 
   function getNodeDir () {
 
@@ -124,35 +56,25 @@ function configure (gyp, argv, callback) {
 
     } else {
       // if no --nodedir specified, ensure node dependencies are installed
-      var version
-      var versionStr
-
-      if (gyp.opts.target) {
+      if ('v' + release.version !== process.version) {
         // if --target was given, then determine a target version to compile for
-        versionStr = gyp.opts.target
-        log.verbose('get node dir', 'compiling against --target node version: %s', versionStr)
+        log.verbose('get node dir', 'compiling against --target node version: %s', release.version)
       } else {
         // if no --target was specified then use the current host node version
-        versionStr = process.version
-        log.verbose('get node dir', 'no --target version specified, falling back to host node version: %s', versionStr)
+        log.verbose('get node dir', 'no --target version specified, falling back to host node version: %s', release.version)
       }
 
-      // make sure we have a valid version
-      try {
-        version = semver.parse(versionStr)
-      } catch (e) {
-        return callback(e)
-      }
-      if (!version) {
-        return callback(new Error('Invalid version number: ' + versionStr))
+      if (!release.semver) {
+        // could not parse the version string with semver
+        return callback(new Error('Invalid version number: ' + release.version))
       }
 
       // ensure that the target node version's dev files are installed
       gyp.opts.ensure = true
-      gyp.commands.install([ versionStr ], function (err, version) {
+      gyp.commands.install([ release.version ], function (err, version) {
         if (err) return callback(err)
-        log.verbose('get node dir', 'target node version installed:', version)
-        nodeDir = path.resolve(gyp.devDir, version)
+        log.verbose('get node dir', 'target node version installed:', release.versionDir)
+        nodeDir = path.resolve(gyp.devDir, release.versionDir)
         createBuildDir()
       })
     }
@@ -296,42 +218,82 @@ function configure (gyp, argv, callback) {
       argv.push('-I', config)
     })
 
+    // for AIX we need to set up the path to the exp file
+    // which contains the symbols needed for linking.
+    // The file will either be in one of the following
+    // depending on whether it is an installed or
+    // development environment:
+    //  - the include/node directory
+    //  - the out/Release directory
+    //  - the out/Debug directory
+    //  - the root directory
+    var node_exp_file = ''
+    if (process.platform === 'aix') {
+      var node_root_dir = findNodeDirectory()
+      var candidates = ['include/node/node.exp',
+                        'out/Release/node.exp',
+                        'out/Debug/node.exp',
+                        'node.exp']
+      for (var next = 0; next < candidates.length; next++) {
+         node_exp_file = path.resolve(node_root_dir, candidates[next])
+         try {
+           fs.accessSync(node_exp_file, fs.R_OK)
+           // exp file found, stop looking
+           break
+         } catch (exception) {
+           // this candidate was not found or not readable, do nothing
+         }
+      }
+    }
+
     // this logic ported from the old `gyp_addon` python file
     var gyp_script = path.resolve(__dirname, '..', 'gyp', 'gyp_main.py')
     var addon_gypi = path.resolve(__dirname, '..', 'addon.gypi')
-    var common_gypi = path.resolve(nodeDir, 'common.gypi')
-    var output_dir = 'build'
-    if (win) {
-      // Windows expects an absolute path
-      output_dir = buildDir
-    }
+    var common_gypi = path.resolve(nodeDir, 'include/node/common.gypi')
+    fs.stat(common_gypi, function (err, stat) {
+      if (err)
+        common_gypi = path.resolve(nodeDir, 'common.gypi')
 
-    argv.push('-I', addon_gypi)
-    argv.push('-I', common_gypi)
-    argv.push('-Dlibrary=shared_library')
-    argv.push('-Dvisibility=default')
-    argv.push('-Dnode_root_dir=' + nodeDir)
-    argv.push('-Dmodule_root_dir=' + process.cwd())
-    argv.push('--depth=.')
-    argv.push('--no-parallel')
+      var output_dir = 'build'
+      if (win) {
+        // Windows expects an absolute path
+        output_dir = buildDir
+      }
+      var nodeGypDir = path.resolve(__dirname, '..')
 
-    // tell gyp to write the Makefile/Solution files into output_dir
-    argv.push('--generator-output', output_dir)
+      argv.push('-I', addon_gypi)
+      argv.push('-I', common_gypi)
+      argv.push('-Dlibrary=shared_library')
+      argv.push('-Dvisibility=default')
+      argv.push('-Dnode_root_dir=' + nodeDir)
+      if (process.platform === 'aix') {
+        argv.push('-Dnode_exp_file=' + node_exp_file)
+      }
+      argv.push('-Dnode_gyp_dir=' + nodeGypDir)
+      argv.push('-Dnode_lib_file=' + release.name + '.lib')
+      argv.push('-Dmodule_root_dir=' + process.cwd())
+      argv.push('--depth=.')
+      argv.push('--no-parallel')
 
-    // tell make to write its output into the same dir
-    argv.push('-Goutput_dir=.')
+      // tell gyp to write the Makefile/Solution files into output_dir
+      argv.push('--generator-output', output_dir)
 
-    // enforce use of the "binding.gyp" file
-    argv.unshift('binding.gyp')
+      // tell make to write its output into the same dir
+      argv.push('-Goutput_dir=.')
 
-    // execute `gyp` from the current target nodedir
-    argv.unshift(gyp_script)
+      // enforce use of the "binding.gyp" file
+      argv.unshift('binding.gyp')
 
-    // make sure python uses files that came with this particular node package
-    process.env.PYTHONPATH = path.resolve(__dirname, '..', 'gyp', 'pylib')
+      // execute `gyp` from the current target nodedir
+      argv.unshift(gyp_script)
 
-    var cp = gyp.spawn(python, argv)
-    cp.on('exit', onCpExit)
+      // make sure python uses files that came with this particular node package
+      var pypath = new PathArray(process.env, 'PYTHONPATH')
+      pypath.unshift(path.join(__dirname, '..', 'gyp', 'pylib'))
+
+      var cp = gyp.spawn(python, argv)
+      cp.on('exit', onCpExit)
+    })
   }
 
   /**
@@ -347,4 +309,102 @@ function configure (gyp, argv, callback) {
     }
   }
 
+}
+
+function findPython (python, callback) {
+  checkPython()
+
+  // Check if Python is in the $PATH
+  function checkPython () {
+    log.verbose('check python', 'checking for Python executable "%s" in the PATH', python)
+    which(python, function (err, execPath) {
+      if (err) {
+        log.verbose('`which` failed', python, err)
+        if (python === 'python2') {
+          python = 'python'
+          return checkPython()
+        }
+        if (win) {
+          guessPython()
+        } else {
+          failNoPython()
+        }
+      } else {
+        log.verbose('`which` succeeded', python, execPath)
+        // Found the `python` exceutable, and from now on we use it explicitly.
+        // This solves #667 and #750 (`execFile` won't run batch files
+        // (*.cmd, and *.bat))
+        python = execPath
+        checkPythonVersion()
+      }
+    })
+  }
+
+  // Called on Windows when "python" isn't available in the current $PATH.
+  // We're gonna check if "%SystemDrive%\python27\python.exe" exists.
+  function guessPython () {
+    log.verbose('could not find "' + python + '". guessing location')
+    var rootDir = process.env.SystemDrive || 'C:\\'
+    if (rootDir[rootDir.length - 1] !== '\\') {
+      rootDir += '\\'
+    }
+    var pythonPath = path.resolve(rootDir, 'Python27', 'python.exe')
+    log.verbose('ensuring that file exists:', pythonPath)
+    fs.stat(pythonPath, function (err, stat) {
+      if (err) {
+        if (err.code == 'ENOENT') {
+          failNoPython()
+        } else {
+          callback(err)
+        }
+        return
+      }
+      python = pythonPath
+      checkPythonVersion()
+    })
+  }
+
+  function checkPythonVersion () {
+    var env = extend({}, process.env)
+    env.TERM = 'dumb'
+
+    execFile(python, ['-c', 'import platform; print(platform.python_version());'], { env: env }, function (err, stdout) {
+      if (err) {
+        return callback(err)
+      }
+      log.verbose('check python version', '`%s -c "import platform; print(platform.python_version());"` returned: %j', python, stdout)
+      var version = stdout.trim()
+      if (~version.indexOf('+')) {
+        log.silly('stripping "+" sign(s) from version')
+        version = version.replace(/\+/g, '')
+      }
+      if (~version.indexOf('rc')) {
+        log.silly('stripping "rc" identifier from version')
+        version = version.replace(/rc(.*)$/ig, '')
+      }
+      var range = semver.Range('>=2.5.0 <3.0.0')
+      var valid = false
+      try {
+        valid = range.test(version)
+      } catch (e) {
+        log.silly('range.test() error', e)
+      }
+      if (valid) {
+        callback(null, python)
+      } else {
+        failPythonVersion(version)
+      }
+    })
+  }
+
+  function failNoPython () {
+    callback(new Error('Can\'t find Python executable "' + python +
+          '", you can set the PYTHON env variable.'))
+  }
+
+  function failPythonVersion (badVersion) {
+    callback(new Error('Python executable "' + python +
+          '" is v' + badVersion + ', which is not supported by gyp.\n' +
+          'You can pass the --python switch to point to Python >= v2.5.0 & < 3.0.0.'))
+  }
 }

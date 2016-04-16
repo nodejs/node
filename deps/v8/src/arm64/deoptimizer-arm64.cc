@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
+#include "src/arm64/frames-arm64.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
-#include "src/full-codegen.h"
+#include "src/full-codegen/full-codegen.h"
+#include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 
@@ -20,6 +20,11 @@ int Deoptimizer::patch_size() {
   return 4 * kInstructionSize;
 }
 
+
+void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
+  // Empty because there is no need for relocation information for the code
+  // patching in Deoptimizer::PatchCodeForDeoptimization below.
+}
 
 
 void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
@@ -44,7 +49,8 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
 
-    PatchingAssembler patcher(call_address, patch_size() / kInstructionSize);
+    PatchingAssembler patcher(isolate, call_address,
+                              patch_size() / kInstructionSize);
     patcher.ldr_pcrel(ip0, (2 * kInstructionSize) >> kLoadLiteralScaleLog2);
     patcher.blr(ip0);
     patcher.dc64(reinterpret_cast<intptr_t>(deopt_entry));
@@ -59,30 +65,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-  for (int i = 0; i < Register::NumRegisters(); i++) {
-    input_->SetRegister(i, 0);
-  }
-
-  // TODO(all): Do we also need to set a value to csp?
-  input_->SetRegister(jssp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint64_at(tos + i));
-  }
-}
-
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
   // There is no dynamic alignment padding on ARM64 in the input frame.
   return false;
 }
@@ -110,7 +93,7 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 
 #define __ masm()->
 
-void Deoptimizer::EntryGenerator::Generate() {
+void Deoptimizer::TableEntryGenerator::Generate() {
   GeneratePrologue();
 
   // TODO(all): This code needs to be revisited. We probably only need to save
@@ -118,14 +101,19 @@ void Deoptimizer::EntryGenerator::Generate() {
   // in the input frame.
 
   // Save all allocatable floating point registers.
-  CPURegList saved_fp_registers(CPURegister::kFPRegister, kDRegSizeInBits,
-                                FPRegister::kAllocatableFPRegisters);
+  CPURegList saved_fp_registers(
+      CPURegister::kFPRegister, kDRegSizeInBits,
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+          ->allocatable_double_codes_mask());
   __ PushCPURegList(saved_fp_registers);
 
   // We save all the registers expcept jssp, sp and lr.
   CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 27);
   saved_registers.Combine(fp);
   __ PushCPURegList(saved_registers);
+
+  __ Mov(x3, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
+  __ Str(fp, MemOperand(x3));
 
   const int kSavedRegistersAreaSize =
       (saved_registers.Count() * kXRegSize) +
@@ -180,11 +168,13 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Copy FP registers to the input frame.
+  CPURegList copy_fp_to_input = saved_fp_registers;
   for (int i = 0; i < saved_fp_registers.Count(); i++) {
-    int dst_offset = FrameDescription::double_registers_offset() +
-        (i * kDoubleSize);
     int src_offset = kFPRegistersOffset + (i * kDoubleSize);
     __ Peek(x2, src_offset);
+    CPURegister reg = copy_fp_to_input.PopLowestIndex();
+    int dst_offset = FrameDescription::double_registers_offset() +
+                     (reg.code() * kDoubleSize);
     __ Str(x2, MemOperand(x1, dst_offset));
   }
 
@@ -253,11 +243,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   DCHECK(!saved_fp_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
          !saved_fp_registers.IncludesAliasOf(fp_zero) &&
          !saved_fp_registers.IncludesAliasOf(fp_scratch));
-  int src_offset = FrameDescription::double_registers_offset();
   while (!saved_fp_registers.IsEmpty()) {
     const CPURegister reg = saved_fp_registers.PopLowestIndex();
+    int src_offset = FrameDescription::double_registers_offset() +
+                     (reg.code() * kDoubleSize);
     __ Ldr(reg, MemOperand(x1, src_offset));
-    src_offset += kDoubleSize;
   }
 
   // Push state from the last output frame.
@@ -346,11 +336,12 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-  // No out-of-line constant pool support.
+  // No embedded constant pool support.
   UNREACHABLE();
 }
 
 
 #undef __
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax --expose-natives-as=builtins --expose-gc
 
+var SetIterator = builtins.ImportNow("SetIterator");
+var MapIterator = builtins.ImportNow("MapIterator");
 var __v_7 = [];
 var __v_8 = {};
 var __v_10 = {};
@@ -21,9 +23,9 @@ assertEquals("good", __f_1());
 } catch(e) { print("Caught: " + e); }
 try {
 __v_3 = new Set();
-__v_5 = new builtins.SetIterator(__v_3, -12);
+__v_5 = new SetIterator(__v_3, -12);
 __v_4 = new Map();
-__v_6 = new builtins.MapIterator(__v_4, 2);
+__v_6 = new MapIterator(__v_4, 2);
 __f_3(Array);
 } catch(e) { print("Caught: " + e); }
 function __f_4(__v_8, filter) {

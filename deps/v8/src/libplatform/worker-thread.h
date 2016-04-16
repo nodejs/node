@@ -22,7 +22,7 @@ class WorkerThread : public base::Thread {
   virtual ~WorkerThread();
 
   // Thread implementation.
-  virtual void Run() OVERRIDE;
+  void Run() override;
 
  private:
   friend class QuitTask;
@@ -32,7 +32,8 @@ class WorkerThread : public base::Thread {
   DISALLOW_COPY_AND_ASSIGN(WorkerThread);
 };
 
-} }  // namespace v8::platform
+}  // namespace platform
+}  // namespace v8
 
 
 #endif  // V8_LIBPLATFORM_WORKER_THREAD_H_

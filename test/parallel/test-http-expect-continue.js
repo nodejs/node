@@ -1,24 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
@@ -31,7 +11,7 @@ var got_continue = false;
 
 function handler(req, res) {
   assert.equal(sent_continue, true, 'Full response sent before 100 Continue');
-  common.debug('Server sending full response...');
+  console.error('Server sending full response...');
   res.writeHead(200, {
     'Content-Type' : 'text/plain',
     'ABCD' : '1'
@@ -41,7 +21,7 @@ function handler(req, res) {
 
 var server = http.createServer(handler);
 server.on('checkContinue', function(req, res) {
-  common.debug('Server got Expect: 100-continue...');
+  console.error('Server got Expect: 100-continue...');
   res.writeContinue();
   sent_continue = true;
   setTimeout(function() {
@@ -51,7 +31,6 @@ server.on('checkContinue', function(req, res) {
 server.listen(common.PORT);
 
 
-
 server.on('listening', function() {
   var req = http.request({
     port: common.PORT,
@@ -59,11 +38,11 @@ server.on('listening', function() {
     path: '/world',
     headers: { 'Expect': '100-continue' }
   });
-  common.debug('Client sending request...');
+  console.error('Client sending request...');
   outstanding_reqs++;
   var body = '';
   req.on('continue', function() {
-    common.debug('Client got 100 Continue...');
+    console.error('Client got 100 Continue...');
     got_continue = true;
     req.end(test_req_body);
   });
@@ -75,7 +54,7 @@ server.on('listening', function() {
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body += chunk; });
     res.on('end', function() {
-      common.debug('Got full response.');
+      console.error('Got full response.');
       assert.equal(body, test_res_body, 'Response body doesn\'t match.');
       assert.ok('abcd' in res.headers, 'Response headers missing.');
       outstanding_reqs--;

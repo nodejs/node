@@ -1,47 +1,28 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 
 if (!process.features.tls_ocsp) {
-  console.error('Skipping because node compiled without OpenSSL or ' +
-                'with old OpenSSL version.');
-  process.exit(0);
+  console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
+              'with old OpenSSL version.');
+  return;
 }
 if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
+  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  return;
 }
 
-var assert = require('assert');
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
 var tls = require('tls');
+
+var assert = require('assert');
 var constants = require('constants');
 var fs = require('fs');
 var join = require('path').join;
 
-test({ response: false }, function() {
-  test({ response: 'hello world' }, function() {
-    test({ ocsp: false });
-  });
-});
+var pfx = fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-pfx.pem'));
 
 function test(testOptions, cb) {
 
@@ -60,7 +41,13 @@ function test(testOptions, cb) {
   var clientSecure = 0;
   var ocspCount = 0;
   var ocspResponse;
-  var session;
+
+  if (testOptions.pfx) {
+    delete options.key;
+    delete options.cert;
+    options.pfx = testOptions.pfx;
+    options.passphrase = testOptions.passphrase;
+  }
 
   var server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {
@@ -81,7 +68,7 @@ function test(testOptions, cb) {
     // Just to check that async really works there
     setTimeout(function() {
       callback(null,
-               testOptions.response ? new Buffer(testOptions.response) : null);
+               testOptions.response ? Buffer.from(testOptions.response) : null);
     }, 100);
   });
   server.listen(common.PORT, function() {
@@ -121,3 +108,23 @@ function test(testOptions, cb) {
     assert.equal(ocspCount, 1);
   });
 }
+
+var tests = [
+  { response: false },
+  { response: 'hello world' },
+  { ocsp: false }
+];
+
+if (!common.hasFipsCrypto) {
+  tests.push({ pfx: pfx, passphrase: 'sample', response: 'hello pfx' });
+}
+
+function runTests(i) {
+  if (i === tests.length) return;
+
+  test(tests[i], common.mustCall(function() {
+    runTests(i + 1);
+  }));
+}
+
+runTests(0);

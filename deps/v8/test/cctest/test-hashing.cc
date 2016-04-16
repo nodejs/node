@@ -90,6 +90,14 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ pop(kRootRegister);
   __ jr(ra);
   __ nop();
+#elif V8_TARGET_ARCH_PPC
+  __ function_descriptor();
+  __ push(kRootRegister);
+  __ InitializeRootRegister();
+  __ li(r3, Operand(key));
+  __ GetNumberHash(r3, ip);
+  __ pop(kRootRegister);
+  __ blr();
 #else
 #error Unsupported architecture.
 #endif
@@ -102,7 +110,8 @@ void check(uint32_t key) {
   HandleScope scope(isolate);
 
   v8::internal::byte buffer[2048];
-  MacroAssembler masm(CcTest::i_isolate(), buffer, sizeof buffer);
+  MacroAssembler masm(CcTest::i_isolate(), buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
 
   generate(&masm, key);
 
@@ -116,14 +125,14 @@ void check(uint32_t key) {
 
   HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(code->entry());
 #ifdef USE_SIMULATOR
-  uint32_t codegen_hash = static_cast<uint32_t>(
-        reinterpret_cast<uintptr_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0)));
+  uint32_t codegen_hash = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
+      CALL_GENERATED_CODE(isolate, hash, 0, 0, 0, 0, 0)));
 #else
   uint32_t codegen_hash = hash();
 #endif
 
   uint32_t runtime_hash = ComputeIntegerHash(key, isolate->heap()->HashSeed());
-  CHECK(runtime_hash == codegen_hash);
+  CHECK_EQ(runtime_hash, codegen_hash);
 }
 
 

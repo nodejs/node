@@ -28,6 +28,7 @@
 #include <stdlib.h> /* abort */
 #include <string.h> /* strrchr */
 #include <fcntl.h>  /* O_CLOEXEC, may be */
+#include <stdio.h>
 
 #if defined(__STRICT_ANSI__)
 # define inline __inline
@@ -52,11 +53,11 @@
 # include <CoreServices/CoreServices.h>
 #endif
 
-#define STATIC_ASSERT(expr)                                                   \
-  void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
-
 #define ACCESS_ONCE(type, var)                                                \
   (*(volatile type*) &(var))
+
+#define ROUND_UP(a, b)                                                        \
+  ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
 
 #define UNREACHABLE()                                                         \
   do {                                                                        \
@@ -89,17 +90,18 @@
 #endif
 
 #if defined(__linux__)
-# define UV__POLLIN   UV__EPOLLIN
-# define UV__POLLOUT  UV__EPOLLOUT
-# define UV__POLLERR  UV__EPOLLERR
-# define UV__POLLHUP  UV__EPOLLHUP
+# define UV__POLLIN     UV__EPOLLIN
+# define UV__POLLOUT    UV__EPOLLOUT
+# define UV__POLLERR    UV__EPOLLERR
+# define UV__POLLHUP    UV__EPOLLHUP
+# define UV__POLLRDHUP  UV__EPOLLRDHUP
 #endif
 
 #if defined(__sun) || defined(_AIX)
-# define UV__POLLIN   POLLIN
-# define UV__POLLOUT  POLLOUT
-# define UV__POLLERR  POLLERR
-# define UV__POLLHUP  POLLHUP
+# define UV__POLLIN     POLLIN
+# define UV__POLLOUT    POLLOUT
+# define UV__POLLERR    POLLERR
+# define UV__POLLHUP    POLLHUP
 #endif
 
 #ifndef UV__POLLIN
@@ -116,6 +118,14 @@
 
 #ifndef UV__POLLHUP
 # define UV__POLLHUP  8
+#endif
+
+#ifndef UV__POLLRDHUP
+# ifdef POLLRDHUP
+#  define UV__POLLRDHUP POLLRDHUP
+# else
+#  define UV__POLLRDHUP 0x200
+# endif
 #endif
 
 #if !defined(O_CLOEXEC) && defined(__FreeBSD__)
@@ -143,7 +153,13 @@ enum {
   UV_TCP_NODELAY          = 0x400,  /* Disable Nagle. */
   UV_TCP_KEEPALIVE        = 0x800,  /* Turn on keep-alive. */
   UV_TCP_SINGLE_ACCEPT    = 0x1000, /* Only accept() when idle. */
-  UV_HANDLE_IPV6          = 0x10000 /* Handle is bound to a IPv6 socket. */
+  UV_HANDLE_IPV6          = 0x10000, /* Handle is bound to a IPv6 socket. */
+  UV_UDP_PROCESSING       = 0x20000  /* Handle is running the send callback queue. */
+};
+
+/* loop flags */
+enum {
+  UV_LOOP_BLOCK_SIGPROF = 1
 };
 
 typedef enum {
@@ -161,11 +177,13 @@ struct uv__stream_queued_fds_s {
 /* core */
 int uv__nonblock(int fd, int set);
 int uv__close(int fd);
+int uv__close_nocheckstdio(int fd);
 int uv__cloexec(int fd, int set);
 int uv__socket(int domain, int type, int protocol);
 int uv__dup(int fd);
 ssize_t uv__recvmsg(int fd, struct msghdr *msg, int flags);
 void uv__make_close_pending(uv_handle_t* handle);
+int uv__getiovmax(void);
 
 void uv__io_init(uv__io_t* w, uv__io_cb cb, int fd);
 void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events);
@@ -173,6 +191,7 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 void uv__io_close(uv_loop_t* loop, uv__io_t* w);
 void uv__io_feed(uv_loop_t* loop, uv__io_t* w);
 int uv__io_active(const uv__io_t* w, unsigned int events);
+int uv__io_check_fd(uv_loop_t* loop, int fd);
 void uv__io_poll(uv_loop_t* loop, int timeout); /* in milliseconds or -1 */
 
 /* async */
@@ -219,7 +238,7 @@ void uv__signal_loop_cleanup(uv_loop_t* loop);
 /* platform specific */
 uint64_t uv__hrtime(uv_clocktype_t type);
 int uv__kqueue_init(uv_loop_t* loop);
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop);
+int uv__platform_loop_init(uv_loop_t* loop);
 void uv__platform_loop_delete(uv_loop_t* loop);
 void uv__platform_invalidate_fd(uv_loop_t* loop, int fd);
 
@@ -238,6 +257,9 @@ void uv__timer_close(uv_timer_t* handle);
 void uv__udp_close(uv_udp_t* handle);
 void uv__udp_finish_close(uv_udp_t* handle);
 uv_handle_type uv__handle_type(int fd);
+FILE* uv__open_file(const char* path);
+int uv__getpwuid_r(uv_passwd_t* pwd);
+
 
 #if defined(__APPLE__)
 int uv___stream_fd(const uv_stream_t* handle);

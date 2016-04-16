@@ -1,0 +1,4 @@
+*%(basename)s:5: ReferenceError: Invalid left-hand side expression in prefix operation
+function f() { ++new.target }
+                 ^^^^^^^^^^
+ReferenceError: Invalid left-hand side expression in prefix operation

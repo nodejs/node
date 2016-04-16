@@ -1,25 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
@@ -27,7 +6,7 @@ var net = require('net');
 
 function forEach(obj, fn) {
   Object.keys(obj).forEach(function(name, index) {
-    fn(obj[name], name, index);
+    fn(obj[name], name);
   });
 }
 
@@ -66,6 +45,10 @@ if (cluster.isWorker) {
 else if (cluster.isMaster) {
 
   var checks = {
+    global: {
+      'receive': false,
+      'correct': false
+    },
     master: {
       'receive': false,
       'correct': false
@@ -97,12 +80,16 @@ else if (cluster.isMaster) {
   // Spawn worker
   var worker = cluster.fork();
 
-  // When a IPC message is received form the worker
+  // When a IPC message is received from the worker
   worker.on('message', function(message) {
     check('master', message === 'message from worker');
   });
+  cluster.on('message', function(worker_, message) {
+    assert.strictEqual(worker_, worker);
+    check('global', message === 'message from worker');
+  });
 
-  // When a TCP connection is made with the worker connect to it
+  // When a TCP server is listening in the worker connect to it
   worker.on('listening', function() {
 
     client = net.connect(common.PORT, function() {

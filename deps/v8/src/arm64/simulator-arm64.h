@@ -8,8 +8,6 @@
 #include <stdarg.h>
 #include <vector>
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64.h"
@@ -19,12 +17,6 @@
 #include "src/globals.h"
 #include "src/utils.h"
 
-#define REGISTER_CODE_LIST(R)                                                  \
-R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \
-R(8)  R(9)  R(10) R(11) R(12) R(13) R(14) R(15)                                \
-R(16) R(17) R(18) R(19) R(20) R(21) R(22) R(23)                                \
-R(24) R(25) R(26) R(27) R(28) R(29) R(30) R(31)
-
 namespace v8 {
 namespace internal {
 
@@ -32,7 +24,7 @@ namespace internal {
 
 // Running without a simulator on a native ARM64 platform.
 // When running without a simulator we call the entry directly.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
+#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
   (entry(p0, p1, p2, p3, p4))
 
 typedef int (*arm64_regexp_matcher)(String* input,
@@ -50,33 +42,32 @@ typedef int (*arm64_regexp_matcher)(String* input,
 // should act as a function matching the type arm64_regexp_matcher.
 // The ninth argument is a dummy that reserves the space used for
 // the return address added by the ExitFrame in native calls.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-  (FUNCTION_CAST<arm64_regexp_matcher>(entry)(                                \
-      p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
+#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
+                                   p7, p8)                                     \
+  (FUNCTION_CAST<arm64_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,  \
+                                              NULL, p8))
 
 // Running without a simulator there is nothing to do.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
   static uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
-                                            uintptr_t c_limit) {
+                                     uintptr_t c_limit) {
     USE(isolate);
     return c_limit;
   }
 
-  static uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
+  static uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
+                                     uintptr_t try_catch_address) {
+    USE(isolate);
     return try_catch_address;
   }
 
-  static void UnregisterCTryCatch() { }
+  static void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
+    USE(isolate);
+  }
 };
 
 #else  // !defined(USE_SIMULATOR)
-
-enum ReverseByteMode {
-  Reverse16 = 0,
-  Reverse32 = 1,
-  Reverse64 = 2
-};
 
 
 // The proper way to initialize a simulated system register (such as NZCV) is as
@@ -159,6 +150,13 @@ typedef SimRegisterBase SimFPRegister;    // v0-v31
 
 class Simulator : public DecoderVisitor {
  public:
+  static void FlushICache(v8::internal::HashMap* i_cache, void* start,
+                          size_t size) {
+    USE(i_cache);
+    USE(start);
+    USE(size);
+  }
+
   explicit Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
                      Isolate* isolate = NULL,
                      FILE* stream = stderr);
@@ -168,6 +166,8 @@ class Simulator : public DecoderVisitor {
   // System functions.
 
   static void Initialize(Isolate* isolate);
+
+  static void TearDown(HashMap* i_cache, Redirection* first);
 
   static Simulator* current(v8::internal::Isolate* isolate);
 
@@ -186,8 +186,8 @@ class Simulator : public DecoderVisitor {
   // generated RegExp code with 10 parameters. These are convenience functions,
   // which set up the simulator state and grab the result on return.
   int64_t CallJS(byte* entry,
-                 byte* function_entry,
-                 JSFunction* func,
+                 Object* new_target,
+                 Object* target,
                  Object* revc,
                  int64_t argc,
                  Object*** argv);
@@ -272,12 +272,13 @@ class Simulator : public DecoderVisitor {
   uintptr_t PopAddress();
 
   // Accessor to the internal simulator stack area.
-  uintptr_t StackLimit() const;
+  uintptr_t StackLimit(uintptr_t c_limit) const;
 
   void ResetState();
 
   // Runtime call support.
-  static void* RedirectExternalReference(void* external_function,
+  static void* RedirectExternalReference(Isolate* isolate,
+                                         void* external_function,
                                          ExternalReference::Type type);
   void DoRuntimeCall(Instruction* instr);
 
@@ -407,7 +408,7 @@ class Simulator : public DecoderVisitor {
   }
   Instruction* lr() { return reg<Instruction*>(kLinkRegCode); }
 
-  Address get_sp() { return reg<Address>(31, Reg31IsStackPointer); }
+  Address get_sp() const { return reg<Address>(31, Reg31IsStackPointer); }
 
   template<typename T>
   T fpreg(unsigned code) const {
@@ -706,9 +707,6 @@ class Simulator : public DecoderVisitor {
   template <typename T>
   void BitfieldHelper(Instruction* instr);
 
-  uint64_t ReverseBits(uint64_t value, unsigned num_bits);
-  uint64_t ReverseBytes(uint64_t value, ReverseByteMode mode);
-
   template <typename T>
   T FPDefaultNaN() const;
 
@@ -879,39 +877,41 @@ class Simulator : public DecoderVisitor {
 
 // When running with the simulator transition into simulated execution at this
 // point.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->CallJS(    \
-      FUNCTION_ADDR(entry),                                                    \
-      p0, p1, p2, p3, p4))
+#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4)  \
+  reinterpret_cast<Object*>(Simulator::current(isolate)->CallJS( \
+      FUNCTION_ADDR(entry), p0, p1, p2, p3, p4))
 
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8)  \
-  Simulator::current(Isolate::Current())->CallRegExp(                          \
-      entry,                                                                   \
-      p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8)
+#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
+                                   p7, p8)                                     \
+  static_cast<int>(Simulator::current(isolate)->CallRegExp(                    \
+      entry, p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
 
 
 // The simulator has its own stack. Thus it has a different stack limit from
-// the C-based native code.
-// See also 'class SimulatorStack' in arm/simulator-arm.h.
+// the C-based native code.  The JS-based limit normally points near the end of
+// the simulator stack.  When the C-based limit is exhausted we reflect that by
+// lowering the JS-based limit as well, to make stack checks trigger.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
   static uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
                                             uintptr_t c_limit) {
-    return Simulator::current(isolate)->StackLimit();
+    return Simulator::current(isolate)->StackLimit(c_limit);
   }
 
-  static uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    Simulator* sim = Simulator::current(Isolate::Current());
+  static uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
+                                     uintptr_t try_catch_address) {
+    Simulator* sim = Simulator::current(isolate);
     return sim->PushAddress(try_catch_address);
   }
 
-  static void UnregisterCTryCatch() {
-    Simulator::current(Isolate::Current())->PopAddress();
+  static void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
+    Simulator::current(isolate)->PopAddress();
   }
 };
 
 #endif  // !defined(USE_SIMULATOR)
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_SIMULATOR_ARM64_H_

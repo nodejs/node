@@ -1,42 +1,28 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var os = require('os');
+var path = require('path');
 
 
 process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
 process.env.TEMP = '/temp';
-if (process.platform === 'win32') {
+if (common.isWindows) {
   assert.equal(os.tmpdir(), '/temp');
   process.env.TEMP = '';
   assert.equal(os.tmpdir(), '/tmp');
   process.env.TMP = '';
-  var expected = (process.env.SystemRoot || process.env.windir) + '\\temp';
+  const expected = (process.env.SystemRoot || process.env.windir) + '\\temp';
   assert.equal(os.tmpdir(), expected);
+  process.env.TEMP = '\\temp\\';
+  assert.equal(os.tmpdir(), '\\temp');
+  process.env.TEMP = '\\tmpdir/';
+  assert.equal(os.tmpdir(), '\\tmpdir/');
+  process.env.TEMP = '\\';
+  assert.equal(os.tmpdir(), '\\');
+  process.env.TEMP = 'C:\\';
+  assert.equal(os.tmpdir(), 'C:\\');
 } else {
   assert.equal(os.tmpdir(), '/tmpdir');
   process.env.TMPDIR = '';
@@ -45,6 +31,12 @@ if (process.platform === 'win32') {
   assert.equal(os.tmpdir(), '/temp');
   process.env.TEMP = '';
   assert.equal(os.tmpdir(), '/tmp');
+  process.env.TMPDIR = '/tmpdir/';
+  assert.equal(os.tmpdir(), '/tmpdir');
+  process.env.TMPDIR = '/tmpdir\\';
+  assert.equal(os.tmpdir(), '/tmpdir\\');
+  process.env.TMPDIR = '/';
+  assert.equal(os.tmpdir(), '/');
 }
 
 var endianness = os.endianness();
@@ -91,22 +83,69 @@ var interfaces = os.networkInterfaces();
 console.error(interfaces);
 switch (platform) {
   case 'linux':
-    var filter = function(e) { return e.address == '127.0.0.1'; };
-    var actual = interfaces.lo.filter(filter);
-    var expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                      mac: '00:00:00:00:00:00', family: 'IPv4',
-                      internal: true }];
-    assert.deepEqual(actual, expected);
-    break;
+    {
+      const filter = function(e) { return e.address == '127.0.0.1'; };
+      const actual = interfaces.lo.filter(filter);
+      const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
+                        mac: '00:00:00:00:00:00', family: 'IPv4',
+                        internal: true }];
+      assert.deepEqual(actual, expected);
+      break;
+    }
   case 'win32':
-    var filter = function(e) { return e.address == '127.0.0.1'; };
-    var actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
-    var expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                      mac: '00:00:00:00:00:00', family: 'IPv4',
-                      internal: true }];
-    assert.deepEqual(actual, expected);
-    break;
+    {
+      const filter = function(e) { return e.address == '127.0.0.1'; };
+      const actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
+      const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
+                        mac: '00:00:00:00:00:00', family: 'IPv4',
+                        internal: true }];
+      assert.deepEqual(actual, expected);
+      break;
+    }
 }
 
 var EOL = os.EOL;
 assert.ok(EOL.length > 0);
+
+
+var home = os.homedir();
+
+console.log('homedir = ' + home);
+assert.ok(typeof home === 'string');
+assert.ok(home.indexOf(path.sep) !== -1);
+
+if (common.isWindows && process.env.USERPROFILE) {
+  assert.equal(home, process.env.USERPROFILE);
+  delete process.env.USERPROFILE;
+  assert.ok(os.homedir().indexOf(path.sep) !== -1);
+  process.env.USERPROFILE = home;
+} else if (!common.isWindows && process.env.HOME) {
+  assert.equal(home, process.env.HOME);
+  delete process.env.HOME;
+  assert.ok(os.homedir().indexOf(path.sep) !== -1);
+  process.env.HOME = home;
+}
+
+const pwd = os.userInfo();
+const pwdBuf = os.userInfo({ encoding: 'buffer' });
+
+if (common.isWindows) {
+  assert.strictEqual(pwd.uid, -1);
+  assert.strictEqual(pwd.gid, -1);
+  assert.strictEqual(pwd.shell, null);
+  assert.strictEqual(pwdBuf.uid, -1);
+  assert.strictEqual(pwdBuf.gid, -1);
+  assert.strictEqual(pwdBuf.shell, null);
+} else {
+  assert.strictEqual(typeof pwd.uid, 'number');
+  assert.strictEqual(typeof pwd.gid, 'number');
+  assert.notStrictEqual(pwd.shell.indexOf(path.sep), -1);
+  assert.strictEqual(pwd.uid, pwdBuf.uid);
+  assert.strictEqual(pwd.gid, pwdBuf.gid);
+  assert.strictEqual(pwd.shell, pwdBuf.shell.toString('utf8'));
+}
+
+assert.strictEqual(typeof pwd.username, 'string');
+assert.notStrictEqual(pwd.homedir.indexOf(path.sep), -1);
+assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
+assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));

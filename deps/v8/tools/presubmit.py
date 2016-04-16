@@ -35,6 +35,7 @@ except ImportError, e:
   md5er = md5.new
 
 
+import json
 import optparse
 import os
 from os.path import abspath, join, dirname, basename, exists
@@ -45,65 +46,28 @@ import subprocess
 import multiprocessing
 from subprocess import PIPE
 
-# Disabled LINT rules and reason.
+from testrunner.local import statusfile
+from testrunner.local import testsuite
+from testrunner.local import utils
+
+# Special LINT rules diverging from default and reason.
+# build/header_guard: Our guards have the form "V8_FOO_H_", not "SRC_FOO_H_".
 # build/include_what_you_use: Started giving false positives for variables
-#  named "string" and "map" assuming that you needed to include STL headers.
-
-ENABLED_LINT_RULES = """
-build/class
-build/deprecated
-build/endif_comment
-build/forward_decl
-build/include_alpha
-build/include_order
-build/printf_format
-build/storage_class
-legal/copyright
-readability/boost
-readability/braces
-readability/casting
-readability/constructors
-readability/fn_size
-readability/function
-readability/multiline_comment
-readability/multiline_string
-readability/streams
-readability/todo
-readability/utf8
-runtime/arrays
-runtime/casting
-runtime/deprecated_fn
-runtime/explicit
-runtime/int
-runtime/memset
-runtime/mutex
-runtime/nonconf
-runtime/printf
-runtime/printf_format
-runtime/rtti
-runtime/sizeof
-runtime/string
-runtime/virtual
-runtime/vlog
-whitespace/blank_line
-whitespace/braces
-whitespace/comma
-whitespace/comments
-whitespace/ending_newline
-whitespace/indent
-whitespace/labels
-whitespace/line_length
-whitespace/newline
-whitespace/operators
-whitespace/parens
-whitespace/tab
-whitespace/todo
-""".split()
-
+#   named "string" and "map" assuming that you needed to include STL headers.
 # TODO(bmeurer): Fix and re-enable readability/check
 
-LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
+LINT_RULES = """
+-build/header_guard
++build/include_alpha
+-build/include_what_you_use
+-build/namespaces
+-readability/check
++readability/streams
+-runtime/references
+""".split()
 
+LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
+FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
 
 def CppLintWorker(command):
   try:
@@ -256,15 +220,15 @@ class CppLintProcessor(SourceFileProcessor):
       print 'No changes in files detected. Skipping cpplint check.'
       return True
 
-    filt = '-,' + ",".join(['+' + n for n in ENABLED_LINT_RULES])
-    command = [sys.executable, 'cpplint.py', '--filter', filt]
+    filters = ",".join([n for n in LINT_RULES])
+    command = [sys.executable, 'cpplint.py', '--filter', filters]
     cpplint = self.GetCpplintScript(join(path, "tools"))
     if cpplint is None:
       print('Could not find cpplint.py. Make sure '
             'depot_tools is installed and in the path.')
       sys.exit(1)
 
-    command = [sys.executable, cpplint, '--filter', filt]
+    command = [sys.executable, cpplint, '--filter', filters]
 
     commands = join([command + [file] for file in files])
     count = multiprocessing.cpu_count()
@@ -327,16 +291,30 @@ class SourceProcessor(SourceFileProcessor):
     return (super(SourceProcessor, self).IgnoreDir(name) or
             name in ('third_party', 'gyp', 'out', 'obj', 'DerivedSources'))
 
-  IGNORE_COPYRIGHTS = ['cpplint.py',
+  IGNORE_COPYRIGHTS = ['box2d.js',
+                       'cpplint.py',
+                       'copy.js',
+                       'corrections.js',
+                       'crypto.js',
                        'daemon.py',
                        'earley-boyer.js',
-                       'raytrace.js',
-                       'crypto.js',
+                       'fannkuch.js',
+                       'fasta.js',
+                       'jsmin.py',
                        'libraries.cc',
                        'libraries-empty.cc',
-                       'jsmin.py',
+                       'lua_binarytrees.js',
+                       'memops.js',
+                       'poppler.js',
+                       'primes.js',
+                       'raytrace.js',
                        'regexp-pcre.js',
-                       'gnuplot-4.6.3-emscripten.js']
+                       'sqlite.js',
+                       'sqlite-change-heap.js',
+                       'sqlite-pointer-masking.js',
+                       'sqlite-safe-heap.js',
+                       'gnuplot-4.6.3-emscripten.js',
+                       'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
 
   def EndOfDeclaration(self, line):
@@ -376,29 +354,11 @@ class SourceProcessor(SourceFileProcessor):
     if not contents.endswith('\n') or contents.endswith('\n\n'):
       print "%s does not end with a single new line." % name
       result = False
-    # Check two empty lines between declarations.
-    if name.endswith(".cc"):
-      line = 0
-      lines = []
-      parts = contents.split('\n')
-      while line < len(parts) - 2:
-        if self.EndOfDeclaration(parts[line]):
-          if self.StartOfDeclaration(parts[line + 1]):
-            lines.append(str(line + 1))
-            line += 1
-          elif parts[line + 1] == "" and \
-               self.StartOfDeclaration(parts[line + 2]):
-            lines.append(str(line + 1))
-            line += 2
-        line += 1
-      if len(lines) >= 1:
-        linenumbers = ', '.join(lines)
-        if len(lines) > 1:
-          print "%s does not have two empty lines between declarations " \
-                "in lines %s." % (name, linenumbers)
-        else:
-          print "%s does not have two empty lines between declarations " \
-                "in line %s." % (name, linenumbers)
+    # Sanitize flags for fuzzer.
+    if "mjsunit" in name:
+      match = FLAGS_LINE.search(contents)
+      if match:
+        print "%s Flags should use '-' (not '_')" % name
         result = False
     return result
 
@@ -418,17 +378,93 @@ class SourceProcessor(SourceFileProcessor):
     return success
 
 
-def CheckRuntimeVsNativesNameClashes(workspace):
-  code = subprocess.call(
-      [sys.executable, join(workspace, "tools", "check-name-clashes.py")])
-  return code == 0
-
-
 def CheckExternalReferenceRegistration(workspace):
   code = subprocess.call(
       [sys.executable, join(workspace, "tools", "external-reference-check.py")])
   return code == 0
 
+
+def _CheckStatusFileForDuplicateKeys(filepath):
+  comma_space_bracket = re.compile(", *]")
+  lines = []
+  with open(filepath) as f:
+    for line in f.readlines():
+      # Skip all-comment lines.
+      if line.lstrip().startswith("#"): continue
+      # Strip away comments at the end of the line.
+      comment_start = line.find("#")
+      if comment_start != -1:
+        line = line[:comment_start]
+      line = line.strip()
+      # Strip away trailing commas within the line.
+      line = comma_space_bracket.sub("]", line)
+      if len(line) > 0:
+        lines.append(line)
+
+  # Strip away trailing commas at line ends. Ugh.
+  for i in range(len(lines) - 1):
+    if (lines[i].endswith(",") and len(lines[i + 1]) > 0 and
+        lines[i + 1][0] in ("}", "]")):
+      lines[i] = lines[i][:-1]
+
+  contents = "\n".join(lines)
+  # JSON wants double-quotes.
+  contents = contents.replace("'", '"')
+  # Fill in keywords (like PASS, SKIP).
+  for key in statusfile.KEYWORDS:
+    contents = re.sub(r"\b%s\b" % key, "\"%s\"" % key, contents)
+
+  status = {"success": True}
+  def check_pairs(pairs):
+    keys = {}
+    for key, value in pairs:
+      if key in keys:
+        print("%s: Error: duplicate key %s" % (filepath, key))
+        status["success"] = False
+      keys[key] = True
+
+  json.loads(contents, object_pairs_hook=check_pairs)
+  return status["success"]
+
+def CheckStatusFiles(workspace):
+  success = True
+  suite_paths = utils.GetSuitePaths(join(workspace, "test"))
+  for root in suite_paths:
+    suite_path = join(workspace, "test", root)
+    status_file_path = join(suite_path, root + ".status")
+    suite = testsuite.TestSuite.LoadTestSuite(suite_path)
+    if suite and exists(status_file_path):
+      success &= statusfile.PresubmitCheck(status_file_path)
+      success &= _CheckStatusFileForDuplicateKeys(status_file_path)
+  return success
+
+def CheckAuthorizedAuthor(input_api, output_api):
+  """For non-googler/chromites committers, verify the author's email address is
+  in AUTHORS.
+  """
+  # TODO(maruel): Add it to input_api?
+  import fnmatch
+
+  author = input_api.change.author_email
+  if not author:
+    input_api.logging.info('No author, skipping AUTHOR check')
+    return []
+  authors_path = input_api.os_path.join(
+      input_api.PresubmitLocalPath(), 'AUTHORS')
+  valid_authors = (
+      input_api.re.match(r'[^#]+\s+\<(.+?)\>\s*$', line)
+      for line in open(authors_path))
+  valid_authors = [item.group(1).lower() for item in valid_authors if item]
+  if not any(fnmatch.fnmatch(author.lower(), valid) for valid in valid_authors):
+    input_api.logging.info('Valid authors are %s', ', '.join(valid_authors))
+    return [output_api.PresubmitPromptWarning(
+        ('%s is not in AUTHORS file. If you are a new contributor, please visit'
+        '\n'
+        'http://www.chromium.org/developers/contributing-code and read the '
+        '"Legal" section\n'
+        'If you are a chromite, verify the contributor signed the CLA.') %
+        author)]
+  return []
 
 def GetOptions():
   result = optparse.OptionParser()
@@ -444,12 +480,12 @@ def Main():
   success = True
   print "Running C++ lint check..."
   if not options.no_lint:
-    success = CppLintProcessor().Run(workspace) and success
+    success &= CppLintProcessor().Run(workspace)
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
-  success = SourceProcessor().Run(workspace) and success
-  success = CheckRuntimeVsNativesNameClashes(workspace) and success
-  success = CheckExternalReferenceRegistration(workspace) and success
+  success &= SourceProcessor().Run(workspace)
+  success &= CheckExternalReferenceRegistration(workspace)
+  success &= CheckStatusFiles(workspace)
   if success:
     return 0
   else:

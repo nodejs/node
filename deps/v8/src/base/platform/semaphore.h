@@ -31,7 +31,7 @@ class TimeDelta;
 // count reaches zero,  threads waiting for the semaphore blocks until the
 // count becomes non-zero.
 
-class Semaphore FINAL {
+class Semaphore final {
  public:
   explicit Semaphore(int count);
   ~Semaphore();
@@ -96,6 +96,7 @@ struct LazySemaphore {
 
 #define LAZY_SEMAPHORE_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_SEMAPHORE_H_

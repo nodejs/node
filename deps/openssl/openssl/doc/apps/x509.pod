@@ -51,6 +51,7 @@ B<openssl> B<x509>
 [B<-CAkey filename>]
 [B<-CAcreateserial>]
 [B<-CAserial filename>]
+[B<-force_pubkey key>]
 [B<-text>]
 [B<-certopt option>]
 [B<-C>]
@@ -418,6 +419,15 @@ specified then the extensions should either be contained in the unnamed
 L<x509v3_config(5)|x509v3_config(5)> manual page for details of the
 extension section format.
 
+=item B<-force_pubkey key>
+
+when a certificate is created set its public key to B<key> instead of the
+key in the certificate or certificate request. This option is useful for
+creating certificates where the algorithm can't normally sign requests, for
+example DH.
+
+The format or B<key> can be specified using the B<-keyform> option.
+
 =back
 
 =head2 NAME OPTIONS
@@ -529,7 +539,8 @@ very rare and their use is discouraged). The options ending in
 "space" additionally place a space after the separator to make it
 more readable. The B<sep_multiline> uses a linefeed character for
 the RDN separator and a spaced B<+> for the AVA separator. It also
-indents the fields by four characters.
+indents the fields by four characters. If no field separator is specified
+then B<sep_comma_plus_space> is used by default.
 
 =item B<dn_rev>
 

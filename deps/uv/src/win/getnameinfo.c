@@ -20,7 +20,6 @@
 */
 
 #include <assert.h>
-#include <malloc.h>
 #include <stdio.h>
 
 #include "uv.h"
@@ -98,7 +97,8 @@ static void uv__getnameinfo_done(struct uv__work* w, int status) {
     service = req->service;
   }
 
-  req->getnameinfo_cb(req, req->retcode, host, service);
+  if (req->getnameinfo_cb)
+    req->getnameinfo_cb(req, req->retcode, host, service);
 }
 
 
@@ -112,7 +112,7 @@ int uv_getnameinfo(uv_loop_t* loop,
                    uv_getnameinfo_cb getnameinfo_cb,
                    const struct sockaddr* addr,
                    int flags) {
-  if (req == NULL || getnameinfo_cb == NULL || addr == NULL)
+  if (req == NULL || addr == NULL)
     return UV_EINVAL;
 
   if (addr->sa_family == AF_INET) {
@@ -136,10 +136,15 @@ int uv_getnameinfo(uv_loop_t* loop,
   req->loop = loop;
   req->retcode = 0;
 
-  uv__work_submit(loop,
-                  &req->work_req,
-                  uv__getnameinfo_work,
-                  uv__getnameinfo_done);
-
-  return 0;
+  if (getnameinfo_cb) {
+    uv__work_submit(loop,
+                    &req->work_req,
+                    uv__getnameinfo_work,
+                    uv__getnameinfo_done);
+    return 0;
+  } else {
+    uv__getnameinfo_work(&req->work_req);
+    uv__getnameinfo_done(&req->work_req, 0);
+    return req->retcode;
+  }
 }

@@ -7,10 +7,24 @@
 
 {
   'variables': {
-    'icu_src_derb': [ '../../deps/icu/source/tools/genrb/derb.c' ],
+    'icu_src_derb': [
+      '../../deps/icu/source/tools/genrb/derb.c',
+      '../../deps/icu/source/tools/genrb/derb.cpp'
+    ],
   },
   'includes': [ '../../icu_config.gypi' ],
   'targets': [
+    {
+      # a target for additional uconfig defines, target only
+      'target_name': 'icu_uconfig_target',
+      'type': 'none',
+      'toolsets': [ 'target' ],
+      'direct_dependent_settings': {
+        'defines': [
+          'UCONFIG_NO_CONVERSION=1',
+        ]
+      },
+    },
     {
       # a target to hold uconfig defines.
       # for now these are hard coded, but could be defined.
@@ -18,9 +32,17 @@
       'type': 'none',
       'toolsets': [ 'host', 'target' ],
       'direct_dependent_settings': {
+        'conditions': [
+          [ 'icu_endianness == "l"', {
+             'defines': [
+                # ICU cannot swap the initial data without this.
+                # http://bugs.icu-project.org/trac/ticket/11046
+                'UCONFIG_NO_LEGACY_CONVERSION=1',
+                'UCONFIG_NO_IDNA=1',
+             ],
+          }],
+        ],
         'defines': [
-          'UCONFIG_NO_LEGACY_CONVERSION=1',
-          'UCONFIG_NO_IDNA=1',
           'UCONFIG_NO_TRANSLITERATION=1',
           'UCONFIG_NO_SERVICE=1',
           'UCONFIG_NO_REGULAR_EXPRESSIONS=1',
@@ -92,24 +114,74 @@
     },
     {
       'target_name': 'icui18n',
-      'type': '<(library)',
-      'toolsets': [ 'target' ],
-      'sources': [
-        '<@(icu_src_i18n)'
+      'toolsets': [ 'target', 'host' ],
+      'conditions' : [
+        ['_toolset=="target"', {
+          'type': '<(library)',
+          'sources': [
+            '<@(icu_src_i18n)'
+          ],
+          'conditions': [
+            [ 'icu_ver_major == 55', { 'sources!': [
+              ## Strip out the following for ICU 55 only.
+              ## add more conditions in the future?
+              ## if your compiler can dead-strip, this will
+              ## make ZERO difference to binary size.
+              ## Made ICU-specific for future-proofing.
+
+              # alphabetic index
+              '../../deps/icu/source/i18n/alphaindex.cpp',
+              # BOCSU
+              # misc
+              '../../deps/icu/source/i18n/regexcmp.cpp',
+              '../../deps/icu/source/i18n/regexcmp.h',
+              '../../deps/icu/source/i18n/regexcst.h',
+              '../../deps/icu/source/i18n/regeximp.cpp',
+              '../../deps/icu/source/i18n/regeximp.h',
+              '../../deps/icu/source/i18n/regexst.cpp',
+              '../../deps/icu/source/i18n/regexst.h',
+              '../../deps/icu/source/i18n/regextxt.cpp',
+              '../../deps/icu/source/i18n/regextxt.h',
+              '../../deps/icu/source/i18n/region.cpp',
+              '../../deps/icu/source/i18n/region_impl.h',
+              '../../deps/icu/source/i18n/reldatefmt.cpp',
+              '../../deps/icu/source/i18n/reldatefmt.h'
+              '../../deps/icu/source/i18n/scientificformathelper.cpp',
+              '../../deps/icu/source/i18n/tmunit.cpp',
+              '../../deps/icu/source/i18n/tmutamt.cpp',
+              '../../deps/icu/source/i18n/tmutfmt.cpp',
+              '../../deps/icu/source/i18n/uregex.cpp',
+              '../../deps/icu/source/i18n/uregexc.cpp',
+              '../../deps/icu/source/i18n/uregion.cpp',
+              '../../deps/icu/source/i18n/uspoof.cpp',
+              '../../deps/icu/source/i18n/uspoof_build.cpp',
+              '../../deps/icu/source/i18n/uspoof_conf.cpp',
+              '../../deps/icu/source/i18n/uspoof_conf.h',
+              '../../deps/icu/source/i18n/uspoof_impl.cpp',
+              '../../deps/icu/source/i18n/uspoof_impl.h',
+              '../../deps/icu/source/i18n/uspoof_wsconf.cpp',
+              '../../deps/icu/source/i18n/uspoof_wsconf.h',
+            ]}]],
+          'include_dirs': [
+            '../../deps/icu/source/i18n',
+          ],
+          'defines': [
+            'U_I18N_IMPLEMENTATION=1',
+          ],
+          'dependencies': [ 'icuucx', 'icu_implementation', 'icu_uconfig', 'icu_uconfig_target' ],
+          'direct_dependent_settings': {
+            'include_dirs': [
+              '../../deps/icu/source/i18n',
+            ],
+          },
+          'export_dependent_settings': [ 'icuucx', 'icu_uconfig_target' ],
+        }],
+        ['_toolset=="host"', {
+          'type': 'none',
+          'dependencies': [ 'icutools' ],
+          'export_dependent_settings': [ 'icutools' ],
+        }],
       ],
-      'include_dirs': [
-        '../../deps/icu/source/i18n',
-      ],
-      'defines': [
-        'U_I18N_IMPLEMENTATION=1',
-      ],
-      'dependencies': [ 'icuucx', 'icu_implementation', 'icu_uconfig' ],
-      'direct_dependent_settings': {
-        'include_dirs': [
-          '../../deps/icu/source/i18n',
-        ],
-      },
-      'export_dependent_settings': [ 'icuucx' ],
     },
     # This exports actual ICU data
     {
@@ -146,32 +218,33 @@
                   # trim down ICU
                   'action_name': 'icutrim',
                   'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
-                  'outputs': [ '../../out/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
                   'action': [ 'python',
                               'icutrim.py',
                               '-P', '../../<(CONFIGURATION_NAME)',
                               '-D', '<(icu_data_in)',
                               '--delete-tmp',
-                              '-T', '../../out/icutmp',
+                              '-T', '<(SHARED_INTERMEDIATE_DIR)/icutmp',
                               '-F', 'icu_small.json',
                               '-O', 'icudt<(icu_ver_major)<(icu_endianness).dat',
-                              '-v' ],
+                              '-v',
+                              '-L', '<(icu_locales)'],
                 },
                 {
                   # build final .dat -> .obj
                   'action_name': 'genccode',
-                  'inputs': [ '../../out/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
-                  'outputs': [ '../../out/icudt<(icu_ver_major)<(icu_endianness)_dat.obj' ],
+                  'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
+                  'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.obj' ],
                   'action': [ '../../<(CONFIGURATION_NAME)/genccode',
                               '-o',
-                              '-d', '../../out/',
+                              '-d', '<(SHARED_INTERMEDIATE_DIR)/',
                               '-n', 'icudata',
                               '-e', 'icusmdt<(icu_ver_major)',
                               '<@(_inputs)' ],
                 },
               ],
               # This file contains the small ICU data.
-              'sources': [ '../../out/icudt<(icu_ver_major)<(icu_endianness)_dat.obj' ],
+              'sources': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.obj' ],
             } ] ], #end of OS==win and icu_small == true
         }, { # OS != win
           'conditions': [
@@ -235,7 +308,8 @@
                               '-T', '<(SHARED_INTERMEDIATE_DIR)/icutmp',
                               '-F', 'icu_small.json',
                               '-O', 'icudt<(icu_ver_major)<(icu_endianness).dat',
-                              '-v' ],
+                              '-v',
+                              '-L', '<(icu_locales)'],
                 }, {
                   # rename to get the final entrypoint name right
                    'action_name': 'rename',
@@ -284,19 +358,52 @@
     {
       'target_name': 'icuuc',
       'type': 'none',
-      'toolsets': [ 'target' ],
-      'dependencies': [ 'icuucx', 'icudata' ],
-      'export_dependent_settings': [ 'icuucx', 'icudata' ],
+      'toolsets': [ 'target', 'host' ],
+      'conditions' : [
+        ['_toolset=="host"', {
+          'dependencies': [ 'icutools' ],
+          'export_dependent_settings': [ 'icutools' ],
+        }],
+        ['_toolset=="target"', {
+          'dependencies': [ 'icuucx', 'icudata' ],
+          'export_dependent_settings': [ 'icuucx', 'icudata' ],
+        }],
+      ],
     },
     # This is the 'real' icuuc.
-    # tools can depend on 'icuuc + stubdata'
     {
       'target_name': 'icuucx',
       'type': '<(library)',
-      'dependencies': [ 'icu_implementation', 'icu_uconfig' ],
+      'dependencies': [ 'icu_implementation', 'icu_uconfig', 'icu_uconfig_target' ],
       'toolsets': [ 'target' ],
       'sources': [
-        '<@(icu_src_common)'
+        '<@(icu_src_common)',
+      ],
+      'conditions': [
+        [ 'icu_ver_major == 55', { 'sources!': [
+          ## Strip out the following for ICU 55 only.
+          ## add more conditions in the future?
+          ## if your compiler can dead-strip, this will
+          ## make ZERO difference to binary size.
+          ## Made ICU-specific for future-proofing.
+
+          # bidi- not needed (yet!)
+          '../../deps/icu/source/common/ubidi.c',
+          '../../deps/icu/source/common/ubidiimp.h',
+          '../../deps/icu/source/common/ubidiln.c',
+          '../../deps/icu/source/common/ubidiwrt.c',
+          #'../../deps/icu/source/common/ubidi_props.c',
+          #'../../deps/icu/source/common/ubidi_props.h',
+          #'../../deps/icu/source/common/ubidi_props_data.h',
+          # and the callers
+          '../../deps/icu/source/common/ushape.cpp',
+          '../../deps/icu/source/common/usprep.cpp',
+          '../../deps/icu/source/common/uts46.cpp',
+          '../../deps/icu/source/common/uidna.cpp',
+        ]}],
+        [ 'OS == "solaris"', { 'defines': [
+          '_XOPEN_SOURCE_EXTENDED=0',
+        ]}],
       ],
       'include_dirs': [
         '../../deps/icu/source/common',
@@ -304,7 +411,8 @@
       'defines': [
         'U_COMMON_IMPLEMENTATION=1',
       ],
-      'export_dependent_settings': [ 'icu_uconfig' ],
+      'cflags_c': ['-std=c99'],
+      'export_dependent_settings': [ 'icu_uconfig', 'icu_uconfig_target' ],
       'direct_dependent_settings': {
         'include_dirs': [
           '../../deps/icu/source/common',
@@ -331,6 +439,12 @@
         '<@(icu_src_io)',
         '<@(icu_src_stubdata)',
       ],
+      'sources!': [
+        '../../deps/icu/source/tools/toolutil/udbgutil.cpp',
+        '../../deps/icu/source/tools/toolutil/udbgutil.h',
+        '../../deps/icu/source/tools/toolutil/dbgutil.cpp',
+        '../../deps/icu/source/tools/toolutil/dbgutil.h',
+      ],
       'include_dirs': [
         '../../deps/icu/source/common',
         '../../deps/icu/source/i18n',
@@ -343,6 +457,12 @@
         'U_IO_IMPLEMENTATION=1',
         'U_TOOLUTIL_IMPLEMENTATION=1',
         #'DEBUG=0', # http://bugs.icu-project.org/trac/ticket/10977
+      ],
+      'cflags_c': ['-std=c99'],
+      'conditions': [
+        ['OS == "solaris"', {
+          'defines': [ '_XOPEN_SOURCE_EXTENDED=0' ]
+        }]
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -359,7 +479,7 @@
           }],
         ],
       },
-      'export_dependent_settings': [ 'icu_implementation', 'icu_uconfig' ],
+      'export_dependent_settings': [ 'icu_uconfig' ],
     },
     # This tool is needed to rebuild .res files from .txt,
     # or to build index (res_index.txt) files for small-icu

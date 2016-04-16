@@ -14,20 +14,24 @@
     'node_tag%': '',
     'uv_library%': 'static_library',
 
+    'openssl_fips%': '',
+
     # Default to -O0 for debug builds.
     'v8_optimized_debug%': 0,
 
     # Enable disassembler for `--print-code` v8 options
     'v8_enable_disassembler': 1,
 
-    # Enable V8's post-mortem debugging only on unix flavors.
+    # Don't bake anything extra into the snapshot.
+    'v8_use_external_startup_data%': 0,
+
     'conditions': [
       ['OS == "win"', {
         'os_posix': 0,
-        'v8_postmortem_support': 'false'
+        'v8_postmortem_support%': 'false',
       }, {
         'os_posix': 1,
-        'v8_postmortem_support': 'true'
+        'v8_postmortem_support%': 'true',
       }],
       ['GENERATOR == "ninja" or OS== "mac"', {
         'OBJ_DIR': '<(PRODUCT_DIR)/obj',
@@ -35,6 +39,11 @@
       }, {
         'OBJ_DIR': '<(PRODUCT_DIR)/obj.target',
         'V8_BASE': '<(PRODUCT_DIR)/obj.target/deps/v8/tools/gyp/libv8_base.a',
+      }],
+      ['openssl_fips != ""', {
+        'OPENSSL_PRODUCT': 'libcrypto.a',
+      }, {
+        'OPENSSL_PRODUCT': 'libopenssl.a',
       }],
       ['OS=="mac"', {
         'clang%': 1,
@@ -49,7 +58,7 @@
     'configurations': {
       'Debug': {
         'variables': {
-          'v8_enable_handle_zapping%': 1,
+          'v8_enable_handle_zapping': 1,
         },
         'defines': [ 'DEBUG', '_DEBUG' ],
         'cflags': [ '-g', '-O0' ],
@@ -57,6 +66,14 @@
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
           }],
+          ['OS=="aix"', {
+            'cflags': [ '-gxcoff' ],
+            'ldflags': [ '-Wl,-bbigtoc' ],
+          }],
+          ['OS == "android"', {
+            'cflags': [ '-fPIE' ],
+            'ldflags': [ '-fPIE', '-pie' ]
+          }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -76,9 +93,9 @@
       },
       'Release': {
         'variables': {
-          'v8_enable_handle_zapping%': 0,
+          'v8_enable_handle_zapping': 0,
         },
-        'cflags': [ '-O3', '-ffunction-sections', '-fdata-sections' ],
+        'cflags': [ '-O3' ],
         'conditions': [
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
@@ -90,6 +107,10 @@
           ['OS!="mac" and OS!="win"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
+          ['OS == "android"', {
+            'cflags': [ '-fPIE' ],
+            'ldflags': [ '-fPIE', '-pie' ]
+          }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -102,7 +123,6 @@
             'EnableFunctionLevelLinking': 'true',
             'EnableIntrinsicFunctions': 'true',
             'RuntimeTypeInfo': 'false',
-            'ExceptionHandling': '0',
             'AdditionalOptions': [
               '/MP', # compile across multiple CPUs
             ],
@@ -131,7 +151,7 @@
         'DebugInformationFormat': 3, # Generate a PDB
         'WarningLevel': 3,
         'BufferSecurityCheck': 'true',
-        'ExceptionHandling': 1, # /EHsc
+        'ExceptionHandling': 0, # /EHsc
         'SuppressStartupBanner': 'true',
         'WarnAsError': 'false',
       },
@@ -139,33 +159,60 @@
       },
       'VCLinkerTool': {
         'conditions': [
+          ['target_arch=="ia32"', {
+            'TargetMachine' : 1, # /MACHINE:X86
+            'target_conditions': [
+              ['_type=="executable"', {
+                'AdditionalOptions': [ '/SubSystem:Console,"5.01"' ],
+              }],
+            ],
+          }],
           ['target_arch=="x64"', {
-            'TargetMachine' : 17 # /MACHINE:X64
+            'TargetMachine' : 17, # /MACHINE:AMD64
+            'target_conditions': [
+              ['_type=="executable"', {
+                'AdditionalOptions': [ '/SubSystem:Console,"5.02"' ],
+              }],
+            ],
           }],
         ],
         'GenerateDebugInformation': 'true',
+        'GenerateMapFile': 'true', # /MAP
+        'MapExports': 'true', # /MAPINFO:EXPORTS
         'RandomizedBaseAddress': 2, # enable ASLR
         'DataExecutionPrevention': 2, # enable DEP
         'AllowIsolation': 'true',
         'SuppressStartupBanner': 'true',
-        'target_conditions': [
-          ['_type=="executable"', {
-            'SubSystem': 1, # console executable
-          }],
-        ],
       },
     },
     'msvs_disabled_warnings': [4351, 4355, 4800],
     'conditions': [
-      ['asan != 0', {
+      ['asan == 1 and OS != "mac"', {
         'cflags+': [
           '-fno-omit-frame-pointer',
           '-fsanitize=address',
-          '-w',  # http://crbug.com/162783
+          '-DLEAK_SANITIZER'
         ],
-        'cflags_cc+': [ '-gline-tables-only' ],
         'cflags!': [ '-fomit-frame-pointer' ],
         'ldflags': [ '-fsanitize=address' ],
+      }],
+      ['asan == 1 and OS == "mac"', {
+        'xcode_settings': {
+          'OTHER_CFLAGS+': [
+            '-fno-omit-frame-pointer',
+            '-gline-tables-only',
+            '-fsanitize=address',
+            '-DLEAK_SANITIZER'
+          ],
+          'OTHER_CFLAGS!': [
+            '-fomit-frame-pointer',
+          ],
+        },
+        'target_conditions': [
+          ['_type!="static_library"', {
+            'xcode_settings': {'OTHER_LDFLAGS': ['-fsanitize=address']},
+          }],
+        ],
       }],
       ['OS == "win"', {
         'msvs_cygwin_shell': 0, # prevent actions from trying to use cygwin
@@ -177,15 +224,17 @@
           # ... or that C implementations shouldn't use
           # POSIX names
           '_CRT_NONSTDC_NO_DEPRECATE',
+          # Make sure the STL doesn't try to use exceptions
+          '_HAS_EXCEPTIONS=0',
           'BUILDING_V8_SHARED=1',
           'BUILDING_UV_SHARED=1',
         ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris"', {
+      [ 'OS in "linux freebsd openbsd solaris aix"', {
         'cflags': [ '-pthread', ],
         'ldflags': [ '-pthread' ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris android"', {
+      [ 'OS in "linux freebsd openbsd solaris android aix"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions', '-std=gnu++0x' ],
         'ldflags': [ '-rdynamic' ],
@@ -207,11 +256,39 @@
             'cflags': [ '-m64' ],
             'ldflags': [ '-m64' ],
           }],
+          [ 'target_arch=="ppc" and OS!="aix"', {
+            'cflags': [ '-m32' ],
+            'ldflags': [ '-m32' ],
+          }],
+          [ 'target_arch=="ppc64" and OS!="aix"', {
+	    'cflags': [ '-m64', '-mminimal-toc' ],
+	    'ldflags': [ '-m64' ],
+	   }],
+          [ 'target_arch=="s390"', {
+            'cflags': [ '-m31' ],
+            'ldflags': [ '-m31' ],
+          }],
+          [ 'target_arch=="s390x"', {
+            'cflags': [ '-m64' ],
+            'ldflags': [ '-m64' ],
+          }],
           [ 'OS=="solaris"', {
             'cflags': [ '-pthreads' ],
             'ldflags': [ '-pthreads' ],
             'cflags!': [ '-pthread' ],
             'ldflags!': [ '-pthread' ],
+          }],
+          [ 'OS=="aix"', {
+            'conditions': [
+              [ 'target_arch=="ppc"', {
+                'ldflags': [ '-Wl,-bmaxdata:0x60000000/dsa' ],
+              }],
+              [ 'target_arch=="ppc64"', {
+                'cflags': [ '-maix64' ],
+                'ldflags': [ '-maix64' ],
+              }],
+            ],
+            'ldflags!': [ '-rdynamic' ],
           }],
         ],
       }],

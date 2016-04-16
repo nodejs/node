@@ -31,12 +31,11 @@
 
 #include "src/api.h"
 #include "src/base/platform/platform.h"
+#include "src/base/smart-pointers.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/isolate.h"
-#include "src/parser.h"
-#include "src/smart-pointers.h"
-#include "src/snapshot.h"
+#include "src/parsing/parser.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
@@ -58,7 +57,7 @@ using ::v8::V8;
 // Migrating an isolate
 class KangarooThread : public v8::base::Thread {
  public:
-  KangarooThread(v8::Isolate* isolate, v8::Handle<v8::Context> context)
+  KangarooThread(v8::Isolate* isolate, v8::Local<v8::Context> context)
       : Thread(Options("KangarooThread")),
         isolate_(isolate),
         context_(isolate, context) {}
@@ -67,14 +66,14 @@ class KangarooThread : public v8::base::Thread {
     {
       v8::Locker locker(isolate_);
       v8::Isolate::Scope isolate_scope(isolate_);
-      CHECK_EQ(isolate_, v8::internal::Isolate::Current());
+      CHECK_EQ(isolate_, v8::Isolate::GetCurrent());
       v8::HandleScope scope(isolate_);
       v8::Local<v8::Context> context =
           v8::Local<v8::Context>::New(isolate_, context_);
       v8::Context::Scope context_scope(context);
       Local<Value> v = CompileRun("getValue()");
       CHECK(v->IsNumber());
-      CHECK_EQ(30, static_cast<int>(v->NumberValue()));
+      CHECK_EQ(30, static_cast<int>(v->NumberValue(context).FromJust()));
     }
     {
       v8::Locker locker(isolate_);
@@ -85,7 +84,7 @@ class KangarooThread : public v8::base::Thread {
       v8::Context::Scope context_scope(context);
       Local<Value> v = CompileRun("getValue()");
       CHECK(v->IsNumber());
-      CHECK_EQ(30, static_cast<int>(v->NumberValue()));
+      CHECK_EQ(30, static_cast<int>(v->NumberValue(context).FromJust()));
     }
     isolate_->Dispose();
   }
@@ -98,15 +97,17 @@ class KangarooThread : public v8::base::Thread {
 
 // Migrates an isolate from one thread to another
 TEST(KangarooIsolates) {
-  v8::Isolate* isolate = v8::Isolate::New();
-  i::SmartPointer<KangarooThread> thread1;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  v8::base::SmartPointer<KangarooThread> thread1;
   {
     v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(context);
-    CHECK_EQ(isolate, v8::internal::Isolate::Current());
+    CHECK_EQ(isolate, v8::Isolate::GetCurrent());
     CompileRun("function getValue() { return 30; }");
     thread1.Reset(new KangarooThread(isolate, context));
   }
@@ -115,14 +116,14 @@ TEST(KangarooIsolates) {
 }
 
 
-static void CalcFibAndCheck() {
+static void CalcFibAndCheck(v8::Local<v8::Context> context) {
   Local<Value> v = CompileRun("function fib(n) {"
                               "  if (n <= 2) return 1;"
                               "  return fib(n-1) + fib(n-2);"
                               "}"
                               "fib(10)");
   CHECK(v->IsNumber());
-  CHECK_EQ(55, static_cast<int>(v->NumberValue()));
+  CHECK_EQ(55, static_cast<int>(v->NumberValue(context).FromJust()));
 }
 
 class JoinableThread {
@@ -184,8 +185,8 @@ class IsolateLockingThreadWithLocalContext : public JoinableThread {
     v8::Isolate::Scope isolate_scope(isolate_);
     v8::HandleScope handle_scope(isolate_);
     LocalContext local_context(isolate_);
-    CHECK_EQ(isolate_, v8::internal::Isolate::Current());
-    CalcFibAndCheck();
+    CHECK_EQ(isolate_, v8::Isolate::GetCurrent());
+    CalcFibAndCheck(local_context.local());
   }
  private:
   v8::Isolate* isolate_;
@@ -207,54 +208,21 @@ static void StartJoinAndDeleteThreads(const i::List<JoinableThread*>& threads) {
 
 // Run many threads all locking on the same isolate
 TEST(IsolateLockingStress) {
+  i::FLAG_always_opt = false;
 #if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
 #endif
   i::List<JoinableThread*> threads(kNThreads);
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new IsolateLockingThreadWithLocalContext(isolate));
   }
   StartJoinAndDeleteThreads(threads);
   isolate->Dispose();
-}
-
-class IsolateNonlockingThread : public JoinableThread {
- public:
-  IsolateNonlockingThread() : JoinableThread("IsolateNonlockingThread") {}
-
-  virtual void Run() {
-    v8::Isolate* isolate = v8::Isolate::New();
-    {
-      v8::Isolate::Scope isolate_scope(isolate);
-      v8::HandleScope handle_scope(isolate);
-      v8::Handle<v8::Context> context = v8::Context::New(isolate);
-      v8::Context::Scope context_scope(context);
-      CHECK_EQ(isolate, v8::internal::Isolate::Current());
-      CalcFibAndCheck();
-    }
-    isolate->Dispose();
-  }
- private:
-};
-
-
-// Run many threads each accessing its own isolate without locking
-TEST(MultithreadedParallelIsolates) {
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
-  const int kNThreads = 10;
-#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-  const int kNThreads = 4;
-#else
-  const int kNThreads = 50;
-#endif
-  i::List<JoinableThread*> threads(kNThreads);
-  for (int i = 0; i < kNThreads; i++) {
-    threads.Add(new IsolateNonlockingThread());
-  }
-  StartJoinAndDeleteThreads(threads);
 }
 
 
@@ -270,11 +238,11 @@ class IsolateNestedLockingThread : public JoinableThread {
     LocalContext local_context(isolate_);
     {
       v8::Locker another_lock(isolate_);
-      CalcFibAndCheck();
+      CalcFibAndCheck(local_context.local());
     }
     {
       v8::Locker another_lock(isolate_);
-      CalcFibAndCheck();
+      CalcFibAndCheck(local_context.local());
     }
   }
  private:
@@ -284,12 +252,15 @@ class IsolateNestedLockingThread : public JoinableThread {
 
 // Run  many threads with nested locks
 TEST(IsolateNestedLocking) {
+  i::FLAG_always_opt = false;
 #if V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
 #endif
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::List<JoinableThread*> threads(kNThreads);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new IsolateNestedLockingThread(isolate));
@@ -315,7 +286,7 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
 
     IsolateLockingThreadWithLocalContext threadB(isolate2_);
     threadB.Start();
-    CalcFibAndCheck();
+    CalcFibAndCheck(local_context.local());
     threadB.Join();
   }
  private:
@@ -326,13 +297,16 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
 
 // Run parallel threads that lock and access different isolates in parallel
 TEST(SeparateIsolatesLocksNonexclusive) {
+  i::FLAG_always_opt = false;
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
 #endif
-  v8::Isolate* isolate1 = v8::Isolate::New();
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   i::List<JoinableThread*> threads(kNThreads);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new SeparateIsolatesLocksNonexclusiveThread(isolate1,
@@ -346,11 +320,10 @@ TEST(SeparateIsolatesLocksNonexclusive) {
 class LockIsolateAndCalculateFibSharedContextThread : public JoinableThread {
  public:
   explicit LockIsolateAndCalculateFibSharedContextThread(
-      v8::Isolate* isolate, v8::Handle<v8::Context> context)
-    : JoinableThread("LockIsolateAndCalculateFibThread"),
-      isolate_(isolate),
-      context_(isolate, context) {
-  }
+      v8::Isolate* isolate, v8::Local<v8::Context> context)
+      : JoinableThread("LockIsolateAndCalculateFibThread"),
+        isolate_(isolate),
+        context_(isolate, context) {}
 
   virtual void Run() {
     v8::Locker lock(isolate_);
@@ -359,7 +332,7 @@ class LockIsolateAndCalculateFibSharedContextThread : public JoinableThread {
     v8::Local<v8::Context> context =
         v8::Local<v8::Context>::New(isolate_, context_);
     v8::Context::Scope context_scope(context);
-    CalcFibAndCheck();
+    CalcFibAndCheck(context);
   }
  private:
   v8::Isolate* isolate_;
@@ -374,26 +347,31 @@ class LockerUnlockerThread : public JoinableThread {
   }
 
   virtual void Run() {
-    v8::Locker lock(isolate_);
-    v8::Isolate::Scope isolate_scope(isolate_);
-    v8::HandleScope handle_scope(isolate_);
-    v8::Local<v8::Context> context = v8::Context::New(isolate_);
+    isolate_->DiscardThreadSpecificMetadata();  // No-op
     {
-      v8::Context::Scope context_scope(context);
-      CalcFibAndCheck();
+      v8::Locker lock(isolate_);
+      v8::Isolate::Scope isolate_scope(isolate_);
+      v8::HandleScope handle_scope(isolate_);
+      v8::Local<v8::Context> context = v8::Context::New(isolate_);
+      {
+        v8::Context::Scope context_scope(context);
+        CalcFibAndCheck(context);
+      }
+      {
+        LockIsolateAndCalculateFibSharedContextThread thread(isolate_, context);
+        isolate_->Exit();
+        v8::Unlocker unlocker(isolate_);
+        thread.Start();
+        thread.Join();
+      }
+      isolate_->Enter();
+      {
+        v8::Context::Scope context_scope(context);
+        CalcFibAndCheck(context);
+      }
     }
-    {
-      LockIsolateAndCalculateFibSharedContextThread thread(isolate_, context);
-      isolate_->Exit();
-      v8::Unlocker unlocker(isolate_);
-      thread.Start();
-      thread.Join();
-    }
-    isolate_->Enter();
-    {
-      v8::Context::Scope context_scope(context);
-      CalcFibAndCheck();
-    }
+    isolate_->DiscardThreadSpecificMetadata();
+    isolate_->DiscardThreadSpecificMetadata();  // No-op
   }
 
  private:
@@ -403,13 +381,16 @@ class LockerUnlockerThread : public JoinableThread {
 
 // Use unlocker inside of a Locker, multiple threads.
 TEST(LockerUnlocker) {
+  i::FLAG_always_opt = false;
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
 #endif
   i::List<JoinableThread*> threads(kNThreads);
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new LockerUnlockerThread(isolate));
   }
@@ -431,7 +412,7 @@ class LockTwiceAndUnlockThread : public JoinableThread {
     v8::Local<v8::Context> context = v8::Context::New(isolate_);
     {
       v8::Context::Scope context_scope(context);
-      CalcFibAndCheck();
+      CalcFibAndCheck(context);
     }
     {
       v8::Locker second_lock(isolate_);
@@ -446,7 +427,7 @@ class LockTwiceAndUnlockThread : public JoinableThread {
     isolate_->Enter();
     {
       v8::Context::Scope context_scope(context);
-      CalcFibAndCheck();
+      CalcFibAndCheck(context);
     }
   }
 
@@ -457,13 +438,16 @@ class LockTwiceAndUnlockThread : public JoinableThread {
 
 // Use Unlocker inside two Lockers.
 TEST(LockTwiceAndUnlock) {
+  i::FLAG_always_opt = false;
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
 #endif
   i::List<JoinableThread*> threads(kNThreads);
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   for (int i = 0; i < kNThreads; i++) {
     threads.Add(new LockTwiceAndUnlockThread(isolate));
   }
@@ -481,17 +465,18 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
   }
 
   virtual void Run() {
-    i::SmartPointer<LockIsolateAndCalculateFibSharedContextThread> thread;
+    v8::base::SmartPointer<LockIsolateAndCalculateFibSharedContextThread>
+        thread;
     v8::Locker lock1(isolate1_);
     CHECK(v8::Locker::IsLocked(isolate1_));
     CHECK(!v8::Locker::IsLocked(isolate2_));
     {
       v8::Isolate::Scope isolate_scope(isolate1_);
       v8::HandleScope handle_scope(isolate1_);
-      v8::Handle<v8::Context> context1 = v8::Context::New(isolate1_);
+      v8::Local<v8::Context> context1 = v8::Context::New(isolate1_);
       {
         v8::Context::Scope context_scope(context1);
-        CalcFibAndCheck();
+        CalcFibAndCheck(context1);
       }
       thread.Reset(new LockIsolateAndCalculateFibSharedContextThread(
           isolate1_, context1));
@@ -502,17 +487,17 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
     {
       v8::Isolate::Scope isolate_scope(isolate2_);
       v8::HandleScope handle_scope(isolate2_);
-      v8::Handle<v8::Context> context2 = v8::Context::New(isolate2_);
+      v8::Local<v8::Context> context2 = v8::Context::New(isolate2_);
       {
         v8::Context::Scope context_scope(context2);
-        CalcFibAndCheck();
+        CalcFibAndCheck(context2);
       }
       v8::Unlocker unlock1(isolate1_);
       CHECK(!v8::Locker::IsLocked(isolate1_));
       CHECK(v8::Locker::IsLocked(isolate2_));
       v8::Context::Scope context_scope(context2);
       thread->Start();
-      CalcFibAndCheck();
+      CalcFibAndCheck(context2);
       thread->Join();
     }
   }
@@ -525,8 +510,10 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
 
 // Lock two isolates and unlock one of them.
 TEST(LockAndUnlockDifferentIsolates) {
-  v8::Isolate* isolate1 = v8::Isolate::New();
-  v8::Isolate* isolate2 = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate1 = v8::Isolate::New(create_params);
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
   LockAndUnlockDifferentIsolatesThread thread(isolate1, isolate2);
   thread.Start();
   thread.Join();
@@ -536,11 +523,10 @@ TEST(LockAndUnlockDifferentIsolates) {
 
 class LockUnlockLockThread : public JoinableThread {
  public:
-  LockUnlockLockThread(v8::Isolate* isolate, v8::Handle<v8::Context> context)
-    : JoinableThread("LockUnlockLockThread"),
-      isolate_(isolate),
-      context_(isolate, context) {
-  }
+  LockUnlockLockThread(v8::Isolate* isolate, v8::Local<v8::Context> context)
+      : JoinableThread("LockUnlockLockThread"),
+        isolate_(isolate),
+        context_(isolate, context) {}
 
   virtual void Run() {
     v8::Locker lock1(isolate_);
@@ -552,7 +538,7 @@ class LockUnlockLockThread : public JoinableThread {
       v8::Local<v8::Context> context =
           v8::Local<v8::Context>::New(isolate_, context_);
       v8::Context::Scope context_scope(context);
-      CalcFibAndCheck();
+      CalcFibAndCheck(context);
     }
     {
       v8::Unlocker unlock1(isolate_);
@@ -567,7 +553,7 @@ class LockUnlockLockThread : public JoinableThread {
         v8::Local<v8::Context> context =
             v8::Local<v8::Context>::New(isolate_, context_);
         v8::Context::Scope context_scope(context);
-        CalcFibAndCheck();
+        CalcFibAndCheck(context);
       }
     }
   }
@@ -585,13 +571,15 @@ TEST(LockUnlockLockMultithreaded) {
 #else
   const int kNThreads = 100;
 #endif
-  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
   i::List<JoinableThread*> threads(kNThreads);
   {
     v8::Locker locker_(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
-    v8::Handle<v8::Context> context = v8::Context::New(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
     for (int i = 0; i < kNThreads; i++) {
       threads.Add(new LockUnlockLockThread(
           isolate, context));
@@ -603,7 +591,7 @@ TEST(LockUnlockLockMultithreaded) {
 
 class LockUnlockLockDefaultIsolateThread : public JoinableThread {
  public:
-  explicit LockUnlockLockDefaultIsolateThread(v8::Handle<v8::Context> context)
+  explicit LockUnlockLockDefaultIsolateThread(v8::Local<v8::Context> context)
       : JoinableThread("LockUnlockLockDefaultIsolateThread"),
         context_(CcTest::isolate(), context) {}
 
@@ -615,7 +603,7 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
       v8::Local<v8::Context> context =
           v8::Local<v8::Context>::New(CcTest::isolate(), context_);
       v8::Context::Scope context_scope(context);
-      CalcFibAndCheck();
+      CalcFibAndCheck(context);
     }
     {
       v8::Unlocker unlock1(CcTest::isolate());
@@ -626,7 +614,7 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
         v8::Local<v8::Context> context =
             v8::Local<v8::Context>::New(CcTest::isolate(), context_);
         v8::Context::Scope context_scope(context);
-        CalcFibAndCheck();
+        CalcFibAndCheck(context);
       }
     }
   }
@@ -660,16 +648,19 @@ TEST(LockUnlockLockDefaultIsolateMultithreaded) {
 
 TEST(Regress1433) {
   for (int i = 0; i < 10; i++) {
-    v8::Isolate* isolate = v8::Isolate::New();
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
     {
       v8::Locker lock(isolate);
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
-      v8::Handle<Context> context = v8::Context::New(isolate);
+      v8::Local<Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
-      v8::Handle<String> source = v8::String::NewFromUtf8(isolate, "1+1");
-      v8::Handle<Script> script = v8::Script::Compile(source);
-      v8::Handle<Value> result = script->Run();
+      v8::Local<String> source = v8_str("1+1");
+      v8::Local<Script> script =
+          v8::Script::Compile(context, source).ToLocalChecked();
+      v8::Local<Value> result = script->Run(context).ToLocalChecked();
       v8::String::Utf8Value utf8(result);
     }
     isolate->Dispose();
@@ -691,17 +682,21 @@ class IsolateGenesisThread : public JoinableThread {
   {}
 
   virtual void Run() {
-    v8::Isolate* isolate = v8::Isolate::New();
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
-      CHECK(!i::Isolate::Current()->has_installed_extensions());
+      CHECK(
+          !reinterpret_cast<i::Isolate*>(isolate)->has_installed_extensions());
       v8::ExtensionConfiguration extensions(count_, extension_names_);
       v8::HandleScope handle_scope(isolate);
       v8::Context::New(isolate, &extensions);
-      CHECK(i::Isolate::Current()->has_installed_extensions());
+      CHECK(reinterpret_cast<i::Isolate*>(isolate)->has_installed_extensions());
     }
     isolate->Dispose();
   }
+
  private:
   int count_;
   const char** extension_names_;

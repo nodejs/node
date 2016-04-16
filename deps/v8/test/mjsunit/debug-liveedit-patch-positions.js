@@ -33,6 +33,7 @@
 // corresponding byte-code PCs should coincide before change and after it.
 
 Debug = debug.Debug
+Debug.setListener(function() {});
 
 eval(
     "function F1() {  return 5; }\n" +
@@ -124,3 +125,5 @@ print(pcArray2);
 if (pcArray1 && pcArray2) {
   assertArrayEquals(pcArray1, pcArray2);
 }
+
+Debug.setListener(null);

@@ -36,23 +36,23 @@ void PipelineStatistics::CommonStats::End(
       diff->max_allocated_bytes_ + allocated_bytes_at_start_;
   diff->total_allocated_bytes_ =
       outer_zone_diff + scope_->GetTotalAllocatedBytes();
-  scope_.Reset(NULL);
+  scope_.Reset(nullptr);
   timer_.Stop();
 }
 
 
 PipelineStatistics::PipelineStatistics(CompilationInfo* info,
                                        ZonePool* zone_pool)
-    : isolate_(info->zone()->isolate()),
+    : isolate_(info->isolate()),
       outer_zone_(info->zone()),
       zone_pool_(zone_pool),
       compilation_stats_(isolate_->GetTurboStatistics()),
       source_size_(0),
-      phase_kind_name_(NULL),
-      phase_name_(NULL) {
-  if (!info->shared_info().is_null()) {
+      phase_kind_name_(nullptr),
+      phase_name_(nullptr) {
+  if (info->has_shared_info()) {
     source_size_ = static_cast<size_t>(info->shared_info()->SourceSize());
-    SmartArrayPointer<char> name =
+    base::SmartArrayPointer<char> name =
         info->shared_info()->DebugName()->ToCString();
     function_name_ = name.get();
   }

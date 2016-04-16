@@ -32,7 +32,7 @@ function listener(event, exec_state, event_data, data) {
   for (var i = 0, n = exec_state.frameCount(); i < n; i++) {
     exec_state.frame().scopeCount(i);
   }
-  exec_state.prepareStep(Debug.StepAction.Continue, 1);
+  exec_state.prepareStep(Debug.StepAction.StepNext);
 }
 
 Debug.setListener(listener);

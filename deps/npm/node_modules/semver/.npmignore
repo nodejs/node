@@ -1,1 +1,4 @@
-# nada
+node_modules/
+coverage/
+.nyc_output/
+nyc_output/

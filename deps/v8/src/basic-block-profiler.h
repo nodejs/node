@@ -8,14 +8,12 @@
 #include <iosfwd>
 #include <list>
 #include <string>
+#include <vector>
 
-#include "src/v8.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
-
-class Schedule;
-class Graph;
 
 class BasicBlockProfiler {
  public:

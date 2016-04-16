@@ -4,36 +4,38 @@
 
 #include <limits>
 
+#include "src/ast/scopes.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/control-builders.h"
-#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/select-lowering.h"
 #include "src/compiler/simplified-lowering.h"
+#include "src/compiler/typer.h"
 #include "src/compiler/verifier.h"
 #include "src/execution.h"
 #include "src/globals.h"
-#include "src/parser.h"
-#include "src/rewriter.h"
-#include "src/scopes.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 template <typename ReturnType>
 class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
  public:
-  explicit ChangesLoweringTester(MachineType p0 = kMachNone)
+  explicit ChangesLoweringTester(MachineType p0 = MachineType::None())
       : GraphBuilderTester<ReturnType>(p0),
         javascript(this->zone()),
-        jsgraph(this->graph(), this->common(), &javascript, this->machine()),
+        jsgraph(this->isolate(), this->graph(), this->common(), &javascript,
+                nullptr, this->machine()),
         function(Handle<JSFunction>::null()) {}
 
   JSOperatorBuilder javascript;
@@ -58,22 +60,22 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
 
   void StoreFloat64(Node* node, double* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    this->Store(kMachFloat64, ptr_node, node);
+    this->Store(MachineType::Float64(), ptr_node, node);
   }
 
   Node* LoadInt32(int32_t* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    return this->Load(kMachInt32, ptr_node);
+    return this->Load(MachineType::Int32(), ptr_node);
   }
 
   Node* LoadUint32(uint32_t* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    return this->Load(kMachUint32, ptr_node);
+    return this->Load(MachineType::Uint32(), ptr_node);
   }
 
   Node* LoadFloat64(double* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    return this->Load(kMachFloat64, ptr_node);
+    return this->Load(MachineType::Float64(), ptr_node);
   }
 
   void CheckNumber(double expected, Object* number) {
@@ -87,7 +89,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     Node* change = this->graph()->NewNode(op, p0);
     Node* ret = this->graph()->NewNode(this->common()->Return(), change,
                                        this->start(), this->start());
-    Node* end = this->graph()->NewNode(this->common()->End(), ret);
+    Node* end = this->graph()->NewNode(this->common()->End(1), ret);
     this->graph()->SetEnd(end);
     LowerChange(change);
   }
@@ -103,7 +105,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
         change, this->start(), this->start());
     Node* ret = this->graph()->NewNode(
         this->common()->Return(), this->Int32Constant(0), store, this->start());
-    Node* end = this->graph()->NewNode(this->common()->End(), ret);
+    Node* end = this->graph()->NewNode(this->common()->End(1), ret);
     this->graph()->SetEnd(end);
     LowerChange(change);
   }
@@ -118,18 +120,18 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     Node* change = this->graph()->NewNode(op, load);
     Node* ret = this->graph()->NewNode(this->common()->Return(), change,
                                        this->start(), this->start());
-    Node* end = this->graph()->NewNode(this->common()->End(), ret);
+    Node* end = this->graph()->NewNode(this->common()->End(1), ret);
     this->graph()->SetEnd(end);
     LowerChange(change);
   }
 
   void LowerChange(Node* change) {
     // Run the graph reducer with changes lowering on a single node.
-    CompilationInfo info(this->isolate(), this->zone());
-    Linkage linkage(this->zone(), &info);
-    ChangeLowering change_lowering(&jsgraph, &linkage);
+    Typer typer(this->isolate(), this->graph());
+    typer.Run();
+    ChangeLowering change_lowering(&jsgraph);
     SelectLowering select_lowering(this->graph(), this->common());
-    GraphReducer reducer(this->graph());
+    GraphReducer reducer(this->zone(), this->graph());
     reducer.AddReducer(&change_lowering);
     reducer.AddReducer(&select_lowering);
     reducer.ReduceNode(change);
@@ -143,10 +145,9 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
 
 TEST(RunChangeTaggedToInt32) {
   // Build and lower a graph by hand.
-  ChangesLoweringTester<int32_t> t(kMachAnyTagged);
+  ChangesLoweringTester<int32_t> t(MachineType::AnyTagged());
   t.BuildAndLower(t.simplified()->ChangeTaggedToInt32());
 
-  if (Pipeline::SupportedTarget()) {
     FOR_INT32_INPUTS(i) {
       int32_t input = *i;
 
@@ -166,17 +167,15 @@ TEST(RunChangeTaggedToInt32) {
         int32_t result = t.Call(*number);
         CHECK_EQ(input, result);
       }
-    }
   }
 }
 
 
 TEST(RunChangeTaggedToUint32) {
   // Build and lower a graph by hand.
-  ChangesLoweringTester<uint32_t> t(kMachAnyTagged);
+  ChangesLoweringTester<uint32_t> t(MachineType::AnyTagged());
   t.BuildAndLower(t.simplified()->ChangeTaggedToUint32());
 
-  if (Pipeline::SupportedTarget()) {
     FOR_UINT32_INPUTS(i) {
       uint32_t input = *i;
 
@@ -197,20 +196,19 @@ TEST(RunChangeTaggedToUint32) {
         CHECK_EQ(static_cast<int32_t>(input), static_cast<int32_t>(result));
       }
     }
-  }
 }
 
 
 TEST(RunChangeTaggedToFloat64) {
-  ChangesLoweringTester<int32_t> t(kMachAnyTagged);
+  ChangesLoweringTester<int32_t> t(MachineType::AnyTagged());
   double result;
 
-  t.BuildStoreAndLower(
-      t.simplified()->ChangeTaggedToFloat64(),
-      t.machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
-      &result);
+  t.BuildStoreAndLower(t.simplified()->ChangeTaggedToFloat64(),
+                       t.machine()->Store(StoreRepresentation(
+                           MachineRepresentation::kFloat64, kNoWriteBarrier)),
+                       &result);
 
-  if (Pipeline::SupportedTarget()) {
+  {
     FOR_INT32_INPUTS(i) {
       int32_t input = *i;
 
@@ -233,19 +231,19 @@ TEST(RunChangeTaggedToFloat64) {
     }
   }
 
-  if (Pipeline::SupportedTarget()) {
+  {
     FOR_FLOAT64_INPUTS(i) {
       double input = *i;
       {
         Handle<Object> number = t.factory()->NewNumber(input);
         t.Call(*number);
-        CHECK_EQ(input, result);
+        CheckDoubleEq(input, result);
       }
 
       {
         Handle<HeapNumber> number = t.factory()->NewHeapNumber(input);
         t.Call(*number);
-        CHECK_EQ(input, result);
+        CheckDoubleEq(input, result);
       }
     }
   }
@@ -253,16 +251,16 @@ TEST(RunChangeTaggedToFloat64) {
 
 
 TEST(RunChangeBoolToBit) {
-  ChangesLoweringTester<int32_t> t(kMachAnyTagged);
+  ChangesLoweringTester<int32_t> t(MachineType::AnyTagged());
   t.BuildAndLower(t.simplified()->ChangeBoolToBit());
 
-  if (Pipeline::SupportedTarget()) {
+  {
     Object* true_obj = t.heap()->true_value();
     int32_t result = t.Call(true_obj);
     CHECK_EQ(1, result);
   }
 
-  if (Pipeline::SupportedTarget()) {
+  {
     Object* false_obj = t.heap()->false_value();
     int32_t result = t.Call(false_obj);
     CHECK_EQ(0, result);
@@ -271,125 +269,22 @@ TEST(RunChangeBoolToBit) {
 
 
 TEST(RunChangeBitToBool) {
-  ChangesLoweringTester<Object*> t(kMachInt32);
+  ChangesLoweringTester<Object*> t(MachineType::Int32());
   t.BuildAndLower(t.simplified()->ChangeBitToBool());
 
-  if (Pipeline::SupportedTarget()) {
+  {
     Object* result = t.Call(1);
     Object* true_obj = t.heap()->true_value();
     CHECK_EQ(true_obj, result);
   }
 
-  if (Pipeline::SupportedTarget()) {
+  {
     Object* result = t.Call(0);
     Object* false_obj = t.heap()->false_value();
     CHECK_EQ(false_obj, result);
   }
 }
 
-
-#if V8_TURBOFAN_BACKEND
-// TODO(titzer): disabled on ARM
-
-TEST(RunChangeInt32ToTaggedSmi) {
-  ChangesLoweringTester<Object*> t;
-  int32_t input;
-  t.BuildLoadAndLower(t.simplified()->ChangeInt32ToTagged(),
-                      t.machine()->Load(kMachInt32), &input);
-
-  if (Pipeline::SupportedTarget()) {
-    FOR_INT32_INPUTS(i) {
-      input = *i;
-      if (!Smi::IsValid(input)) continue;
-      Object* result = t.Call();
-      t.CheckNumber(static_cast<double>(input), result);
-    }
-  }
-}
-
-
-TEST(RunChangeUint32ToTaggedSmi) {
-  ChangesLoweringTester<Object*> t;
-  uint32_t input;
-  t.BuildLoadAndLower(t.simplified()->ChangeUint32ToTagged(),
-                      t.machine()->Load(kMachUint32), &input);
-
-  if (Pipeline::SupportedTarget()) {
-    FOR_UINT32_INPUTS(i) {
-      input = *i;
-      if (input > static_cast<uint32_t>(Smi::kMaxValue)) continue;
-      Object* result = t.Call();
-      double expected = static_cast<double>(input);
-      t.CheckNumber(expected, result);
-    }
-  }
-}
-
-
-TEST(RunChangeInt32ToTagged) {
-  ChangesLoweringTester<Object*> t;
-  int32_t input;
-  t.BuildLoadAndLower(t.simplified()->ChangeInt32ToTagged(),
-                      t.machine()->Load(kMachInt32), &input);
-
-  if (Pipeline::SupportedTarget()) {
-    for (int m = 0; m < 3; m++) {  // Try 3 GC modes.
-      FOR_INT32_INPUTS(i) {
-        if (m == 0) CcTest::heap()->EnableInlineAllocation();
-        if (m == 1) CcTest::heap()->DisableInlineAllocation();
-        if (m == 2) SimulateFullSpace(CcTest::heap()->new_space());
-
-        input = *i;
-        Object* result = t.CallWithPotentialGC<Object>();
-        t.CheckNumber(static_cast<double>(input), result);
-      }
-    }
-  }
-}
-
-
-TEST(RunChangeUint32ToTagged) {
-  ChangesLoweringTester<Object*> t;
-  uint32_t input;
-  t.BuildLoadAndLower(t.simplified()->ChangeUint32ToTagged(),
-                      t.machine()->Load(kMachUint32), &input);
-
-  if (Pipeline::SupportedTarget()) {
-    for (int m = 0; m < 3; m++) {  // Try 3 GC modes.
-      FOR_UINT32_INPUTS(i) {
-        if (m == 0) CcTest::heap()->EnableInlineAllocation();
-        if (m == 1) CcTest::heap()->DisableInlineAllocation();
-        if (m == 2) SimulateFullSpace(CcTest::heap()->new_space());
-
-        input = *i;
-        Object* result = t.CallWithPotentialGC<Object>();
-        double expected = static_cast<double>(input);
-        t.CheckNumber(expected, result);
-      }
-    }
-  }
-}
-
-
-TEST(RunChangeFloat64ToTagged) {
-  ChangesLoweringTester<Object*> t;
-  double input;
-  t.BuildLoadAndLower(t.simplified()->ChangeFloat64ToTagged(),
-                      t.machine()->Load(kMachFloat64), &input);
-
-  if (Pipeline::SupportedTarget()) {
-    for (int m = 0; m < 3; m++) {  // Try 3 GC modes.
-      FOR_FLOAT64_INPUTS(i) {
-        if (m == 0) CcTest::heap()->EnableInlineAllocation();
-        if (m == 1) CcTest::heap()->DisableInlineAllocation();
-        if (m == 2) SimulateFullSpace(CcTest::heap()->new_space());
-
-        input = *i;
-        Object* result = t.CallWithPotentialGC<Object>();
-        t.CheckNumber(input, result);
-      }
-    }
-  }
-}
-
-#endif  // V8_TURBOFAN_BACKEND
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

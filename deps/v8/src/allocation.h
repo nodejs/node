@@ -21,7 +21,6 @@ class Malloced {
   void* operator new(size_t size) { return New(size); }
   void  operator delete(void* p) { Delete(p); }
 
-  static void FatalProcessOutOfMemory();
   static void* New(size_t size);
   static void Delete(void* p);
 };
@@ -59,7 +58,7 @@ class AllStatic {
 template <typename T>
 T* NewArray(size_t size) {
   T* result = new T[size];
-  if (result == NULL) Malloced::FatalProcessOutOfMemory();
+  if (result == NULL) FatalProcessOutOfMemory("NewArray");
   return result;
 }
 
@@ -89,6 +88,7 @@ class FreeStoreAllocationPolicy {
 void* AlignedAlloc(size_t size, size_t alignment);
 void AlignedFree(void *ptr);
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ALLOCATION_H_

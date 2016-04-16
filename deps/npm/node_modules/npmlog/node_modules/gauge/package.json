@@ -1,0 +1,88 @@
+{
+  "_args": [
+    [
+      "gauge@~1.2.5",
+      "/Users/rebecca/code/npm/node_modules/npmlog"
+    ]
+  ],
+  "_from": "gauge@>=1.2.5 <1.3.0",
+  "_id": "gauge@1.2.7",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/npmlog/gauge",
+  "_nodeVersion": "4.2.2",
+  "_npmOperationalInternal": {
+    "host": "packages-9-west.internal.npmjs.com",
+    "tmp": "tmp/gauge-1.2.7.tgz_1455835409513_0.6293477965518832"
+  },
+  "_npmUser": {
+    "email": "me@re-becca.org",
+    "name": "iarna"
+  },
+  "_npmVersion": "3.7.2",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "gauge",
+    "raw": "gauge@~1.2.5",
+    "rawSpec": "~1.2.5",
+    "scope": null,
+    "spec": ">=1.2.5 <1.3.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/npmlog"
+  ],
+  "_shasum": "e9cec5483d3d4ee0ef44b60a7d99e4935e136d93",
+  "_shrinkwrap": null,
+  "_spec": "gauge@~1.2.5",
+  "_where": "/Users/rebecca/code/npm/node_modules/npmlog",
+  "author": {
+    "email": "me@re-becca.org",
+    "name": "Rebecca Turner"
+  },
+  "bugs": {
+    "url": "https://github.com/iarna/gauge/issues"
+  },
+  "dependencies": {
+    "ansi": "^0.3.0",
+    "has-unicode": "^2.0.0",
+    "lodash.pad": "^4.1.0",
+    "lodash.padend": "^4.1.0",
+    "lodash.padstart": "^4.1.0"
+  },
+  "description": "A terminal based horizontal guage",
+  "devDependencies": {
+    "tap": "^5.6.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "e9cec5483d3d4ee0ef44b60a7d99e4935e136d93",
+    "tarball": "http://registry.npmjs.org/gauge/-/gauge-1.2.7.tgz"
+  },
+  "gitHead": "75a7d0a4ed67489ac992ed3d211bed60376ca7c1",
+  "homepage": "https://github.com/iarna/gauge",
+  "keywords": [
+    "progressbar",
+    "progress",
+    "gauge"
+  ],
+  "license": "ISC",
+  "main": "progress-bar.js",
+  "maintainers": [
+    {
+      "email": "me@re-becca.org",
+      "name": "iarna"
+    }
+  ],
+  "name": "gauge",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/gauge.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "1.2.7"
+}

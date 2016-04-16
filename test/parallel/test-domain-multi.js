@@ -1,31 +1,9 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
+'use strict';
 // Tests of multiple domains happening at once.
 
 var common = require('../common');
 var assert = require('assert');
 var domain = require('domain');
-var events = require('events');
 
 var caughtA = false;
 var caughtB = false;
@@ -42,7 +20,7 @@ a.on('error', function(er) {
 
 
 var http = require('http');
-var server = http.createServer(function (req, res) {
+var server = http.createServer(function(req, res) {
   // child domain of a.
   var b = domain.create();
   a.add(b);
@@ -53,9 +31,9 @@ var server = http.createServer(function (req, res) {
   b.add(req);
   b.add(res);
 
-  b.on('error', function (er) {
+  b.on('error', function(er) {
     caughtB = true;
-    console.error('Error encountered', er)
+    console.error('Error encountered', er);
     if (res) {
       res.writeHead(500);
       res.end('An error occurred');
@@ -74,7 +52,7 @@ var server = http.createServer(function (req, res) {
 }).listen(common.PORT);
 
 var c = domain.create();
-var req = http.get({ host: 'localhost', port: common.PORT })
+var req = http.get({ host: 'localhost', port: common.PORT });
 
 // add the request to the C domain
 c.add(req);
@@ -93,7 +71,7 @@ c.on('error', function(er) {
 
 process.on('exit', function() {
   assert.equal(caughtA, false);
-  assert.equal(caughtB, true)
-  assert.equal(caughtC, true)
+  assert.equal(caughtB, true);
+  assert.equal(caughtC, true);
   console.log('ok - Errors went where they were supposed to go');
 });

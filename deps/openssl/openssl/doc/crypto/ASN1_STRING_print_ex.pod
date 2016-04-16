@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-ASN1_STRING_print_ex, ASN1_STRING_print_ex_fp - ASN1_STRING output routines.
+ASN1_STRING_print_ex, ASN1_STRING_print_ex_fp, ASN1_STRING_print - ASN1_STRING output routines.
 
 =head1 SYNOPSIS
 

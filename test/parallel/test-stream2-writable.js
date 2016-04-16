@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common.js');
+'use strict';
+require('../common');
 var W = require('_stream_writable');
 var D = require('_stream_duplex');
 var assert = require('assert');
@@ -67,7 +47,7 @@ function run() {
   fn({
     same: assert.deepEqual,
     equal: assert.equal,
-    end: function () {
+    end: function() {
       count--;
       run();
     }
@@ -75,7 +55,7 @@ function run() {
 }
 
 // ensure all tests have run
-process.on("exit", function () {
+process.on('exit', function() {
   assert.equal(count, 0);
 });
 
@@ -174,7 +154,7 @@ test('write bufferize', function(t) {
 
   chunks.forEach(function(chunk, i) {
     var enc = encodings[ i % encodings.length ];
-    chunk = new Buffer(chunk);
+    chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });
   t.end();
@@ -188,7 +168,7 @@ test('write no bufferize', function(t) {
 
   tw._write = function(chunk, encoding, cb) {
     assert(typeof chunk === 'string');
-    chunk = new Buffer(chunk, encoding);
+    chunk = Buffer.from(chunk, encoding);
     return TestWriter.prototype._write.call(this, chunk, encoding, cb);
   };
 
@@ -211,13 +191,13 @@ test('write no bufferize', function(t) {
 
   chunks.forEach(function(chunk, i) {
     var enc = encodings[ i % encodings.length ];
-    chunk = new Buffer(chunk);
+    chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });
   t.end();
 });
 
-test('write callbacks', function (t) {
+test('write callbacks', function(t) {
   var callbacks = chunks.map(function(chunk, i) {
     return [i, function(er) {
       callbacks._called[i] = chunk;
@@ -246,42 +226,42 @@ test('write callbacks', function (t) {
   tw.end();
 });
 
-test('end callback', function (t) {
+test('end callback', function(t) {
   var tw = new TestWriter();
-  tw.end(function () {
+  tw.end(function() {
     t.end();
   });
 });
 
-test('end callback with chunk', function (t) {
+test('end callback with chunk', function(t) {
   var tw = new TestWriter();
-  tw.end(new Buffer('hello world'), function () {
+  tw.end(Buffer.from('hello world'), function() {
     t.end();
   });
 });
 
-test('end callback with chunk and encoding', function (t) {
+test('end callback with chunk and encoding', function(t) {
   var tw = new TestWriter();
-  tw.end('hello world', 'ascii', function () {
+  tw.end('hello world', 'ascii', function() {
     t.end();
   });
 });
 
-test('end callback after .write() call', function (t) {
+test('end callback after .write() call', function(t) {
   var tw = new TestWriter();
-  tw.write(new Buffer('hello world'));
-  tw.end(function () {
+  tw.write(Buffer.from('hello world'));
+  tw.end(function() {
     t.end();
   });
 });
 
-test('end callback called after write callback', function (t) {
+test('end callback called after write callback', function(t) {
   var tw = new TestWriter();
   var writeCalledback = false;
-  tw.write(new Buffer('hello world'),  function() {
+  tw.write(Buffer.from('hello world'),  function() {
     writeCalledback = true;
   });
-  tw.end(function () {
+  tw.end(function() {
     t.equal(writeCalledback, true);
     t.end();
   });
@@ -294,7 +274,7 @@ test('encoding should be ignored for buffers', function(t) {
     t.equal(chunk.toString('hex'), hex);
     t.end();
   };
-  var buf = new Buffer(hex, 'hex');
+  var buf = Buffer.from(hex, 'hex');
   tw.write(buf, 'binary');
 });
 
@@ -355,7 +335,7 @@ test('dont end while writing', function(t) {
     assert(wrote);
     t.end();
   });
-  w.write(Buffer(0));
+  w.write(Buffer.alloc(0));
   w.end();
 });
 
@@ -372,7 +352,7 @@ test('finish does not come before write cb', function(t) {
     assert(writeCb);
     t.end();
   });
-  w.write(Buffer(0));
+  w.write(Buffer.alloc(0));
   w.end();
 });
 
@@ -386,7 +366,7 @@ test('finish does not come before sync _write cb', function(t) {
     assert(writeCb);
     t.end();
   });
-  w.write(Buffer(0), function(er) {
+  w.write(Buffer.alloc(0), function(er) {
     writeCb = true;
   });
   w.end();
@@ -400,6 +380,6 @@ test('finish is emitted if last chunk is empty', function(t) {
   w.on('finish', function() {
     t.end();
   });
-  w.write(Buffer(1));
-  w.end(Buffer(0));
+  w.write(Buffer.allocUnsafe(1));
+  w.end(Buffer.alloc(0));
 });

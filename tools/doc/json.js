@@ -1,23 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+'use strict';
 
 module.exports = doJSON;
 
@@ -33,7 +14,7 @@ function doJSON(input, filename, cb) {
   var current = root;
   var state = null;
   var lexed = marked.lexer(input);
-  lexed.forEach(function (tok) {
+  lexed.forEach(function(tok) {
     var type = tok.type;
     var text = tok.text;
 
@@ -52,7 +33,7 @@ function doJSON(input, filename, cb) {
     if (type === 'heading' &&
         !text.trim().match(/^example/i)) {
       if (tok.depth - depth > 1) {
-        return cb(new Error('Inappropriate heading level\n'+
+        return cb(new Error('Inappropriate heading level\n' +
                             JSON.stringify(tok)));
       }
 
@@ -98,7 +79,7 @@ function doJSON(input, filename, cb) {
     //
     // If one of these isnt' found, then anything that comes between
     // here and the next heading should be parsed as the desc.
-    var stability
+    var stability;
     if (state === 'AFTERHEADING') {
       if (type === 'code' &&
           (stability = text.match(/^Stability: ([0-5])(?:\s*-\s*)?(.*)$/))) {
@@ -146,7 +127,7 @@ function doJSON(input, filename, cb) {
     finishSection(current, stack[stack.length - 1]);
   }
 
-  return cb(null, root)
+  return cb(null, root);
 }
 
 
@@ -167,7 +148,7 @@ function doJSON(input, filename, cb) {
 //   { type: 'list_item_end' },
 //   { type: 'list_item_start' },
 //   { type: 'text',
-//     text: 'silent: Boolean, whether or not to send output to parent\'s stdio.' },
+//     text: 'silent: Boolean, whether to send output to parent\'s stdio.' },
 //   { type: 'text', text: 'Default: `false`' },
 //   { type: 'space' },
 //   { type: 'list_item_end' },
@@ -189,7 +170,7 @@ function doJSON(input, filename, cb) {
 //          desc: 'string arguments passed to worker.' },
 //        { name: 'silent',
 //          type: 'boolean',
-//          desc: 'whether or not to send output to parent\'s stdio.',
+//          desc: 'whether to send output to parent\'s stdio.',
 //          default: 'false' } ] } ]
 
 function processList(section) {
@@ -202,15 +183,14 @@ function processList(section) {
   list.forEach(function(tok) {
     var type = tok.type;
     if (type === 'space') return;
-    if (type === 'list_item_start') {
+    if (type === 'list_item_start' || type === 'loose_item_start') {
+      var n = {};
       if (!current) {
-        var n = {};
         values.push(n);
         current = n;
       } else {
         current.options = current.options || [];
         stack.push(current);
-        var n = {};
         current.options.push(n);
         current = n;
       }
@@ -252,7 +232,7 @@ function processList(section) {
       // each item is an argument, unless the name is 'return',
       // in which case it's the return value.
       section.signatures = section.signatures || [];
-      var sig = {}
+      var sig = {};
       section.signatures.push(sig);
       sig.params = values.filter(function(v) {
         if (v.name === 'return') {
@@ -269,7 +249,7 @@ function processList(section) {
       // copy the data up to the section.
       var value = values[0] || {};
       delete value.name;
-      section.typeof = value.type;
+      section.typeof = value.type || section.typeof;
       delete value.type;
       Object.keys(value).forEach(function(k) {
         section[k] = value[k];
@@ -280,6 +260,14 @@ function processList(section) {
       // event: each item is an argument.
       section.params = values;
       break;
+
+    default:
+      if (section.list.length > 0) {
+        section.desc = section.desc || [];
+        for (var i = 0; i < section.list.length; i++) {
+          section.desc.push(section.list[i]);
+        }
+      }
   }
 
   // section.listParsed = values;
@@ -292,21 +280,30 @@ function parseSignature(text, sig) {
   var params = text.match(paramExpr);
   if (!params) return;
   params = params[1];
-  // the [ is irrelevant. ] indicates optionalness.
-  params = params.replace(/\[/g, '');
-  params = params.split(/,/)
+  params = params.split(/,/);
+  var optionalLevel = 0;
+  var optionalCharDict = {'[': 1, ' ': 0, ']': -1};
   params.forEach(function(p, i, _) {
     p = p.trim();
     if (!p) return;
     var param = sig.params[i];
     var optional = false;
     var def;
-    // [foo] -> optional
-    if (p.charAt(p.length - 1) === ']') {
-      optional = true;
-      p = p.substr(0, p.length - 1);
-      p = p.trim();
+
+    // for grouped optional params such as someMethod(a[, b[, c]])
+    var pos;
+    for (pos = 0; pos < p.length; pos++) {
+      if (optionalCharDict[p[pos]] === undefined) { break; }
+      optionalLevel += optionalCharDict[p[pos]];
     }
+    p = p.substring(pos);
+    optional = (optionalLevel > 0);
+    for (pos = p.length - 1; pos >= 0; pos--) {
+      if (optionalCharDict[p[pos]] === undefined) { break; }
+      optionalLevel += optionalCharDict[p[pos]];
+    }
+    p = p.substring(0, pos + 1);
+
     var eq = p.indexOf('=');
     if (eq !== -1) {
       def = p.substr(eq + 1);
@@ -383,7 +380,7 @@ function parseListItem(item) {
 
 function finishSection(section, parent) {
   if (!section || !parent) {
-    throw new Error('Invalid finishSection call\n'+
+    throw new Error('Invalid finishSection call\n' +
                     JSON.stringify(section) + '\n' +
                     JSON.stringify(parent));
   }
@@ -426,7 +423,7 @@ function finishSection(section, parent) {
   // properties are a bit special.
   // their "type" is the type of object, not "property"
   if (section.properties) {
-    section.properties.forEach(function (p) {
+    section.properties.forEach(function(p) {
       if (p.typeof) p.type = p.typeof;
       else delete p.type;
       delete p.typeof;
@@ -497,14 +494,14 @@ function deepCopy(src, dest) {
 function deepCopy_(src) {
   if (!src) return src;
   if (Array.isArray(src)) {
-    var c = new Array(src.length);
+    const c = new Array(src.length);
     src.forEach(function(v, i) {
       c[i] = deepCopy_(v);
     });
     return c;
   }
   if (typeof src === 'object') {
-    var c = {};
+    const c = {};
     Object.keys(src).forEach(function(k) {
       c[k] = deepCopy_(src[k]);
     });
@@ -523,7 +520,7 @@ var classMethExpr =
   /^class\s*method\s*:?[^\.]+\.([^ \.\(\)]+)\([^\)]*\)\s*?$/i;
 var methExpr =
   /^(?:method:?\s*)?(?:[^\.]+\.)?([^ \.\(\)]+)\([^\)]*\)\s*?$/i;
-var newExpr = /^new ([A-Z][a-z]+)\([^\)]*\)\s*?$/;
+var newExpr = /^new ([A-Z][a-zA-Z]+)\([^\)]*\)\s*?$/;
 var paramExpr = /\((.*)\);?$/;
 
 function newSection(tok) {

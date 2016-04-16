@@ -51,13 +51,13 @@ Close and unlink the lockfile.
 
 Check if the lockfile is locked and not stale.
 
-Returns boolean.
+Callback is called with `cb(error, isLocked)`.
 
-### lockFile.checkSync(path, [opts], cb)
+### lockFile.checkSync(path, [opts])
 
 Check if the lockfile is locked and not stale.
 
-Callback is called with `cb(error, isLocked)`.
+Returns boolean.
 
 ## Options
 

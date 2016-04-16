@@ -29,12 +29,13 @@
 #include "test/cctest/cctest.h"
 
 #include "src/api.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
+#include "test/cctest/heap/utils-inl.h"
 
 using namespace v8::internal;
 
@@ -110,7 +111,6 @@ TEST(HashMap) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   TestHashMap(ObjectHashTable::New(isolate, 23));
-  TestHashMap(isolate->factory()->NewOrderedHashMap());
 }
 
 
@@ -172,17 +172,11 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
   Factory* factory = isolate->factory();
 
   Handle<JSObject> key = factory->NewJSArray(0);
-  v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
-
-  // Force allocation of hash table backing store for hidden properties.
-  key_obj->SetHiddenValue(v8_str("key 1"), v8_str("val 1"));
-  key_obj->SetHiddenValue(v8_str("key 2"), v8_str("val 2"));
-  key_obj->SetHiddenValue(v8_str("key 3"), v8_str("val 3"));
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
   SimulateFullSpace(CcTest::heap()->new_space());
-  SimulateFullSpace(CcTest::heap()->old_pointer_space());
+  SimulateFullSpace(CcTest::heap()->old_space());
 
   // Calling Contains() should not cause GC ever.
   int gc_count = isolate->heap()->gc_count();
@@ -199,15 +193,6 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
   table = HashSet::Add(table, key);
   CHECK(gc_count < isolate->heap()->gc_count());
 }
-
-
-TEST(ObjectHashSetCausesGC) {
-  i::FLAG_stress_compaction = false;
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
-  TestHashSetCausesGC(isolate->factory()->NewOrderedHashSet());
-}
 #endif
 
 
@@ -218,17 +203,11 @@ static void TestHashMapCausesGC(Handle<HashMap> table) {
   Factory* factory = isolate->factory();
 
   Handle<JSObject> key = factory->NewJSArray(0);
-  v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
-
-  // Force allocation of hash table backing store for hidden properties.
-  key_obj->SetHiddenValue(v8_str("key 1"), v8_str("val 1"));
-  key_obj->SetHiddenValue(v8_str("key 2"), v8_str("val 2"));
-  key_obj->SetHiddenValue(v8_str("key 3"), v8_str("val 3"));
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
   SimulateFullSpace(CcTest::heap()->new_space());
-  SimulateFullSpace(CcTest::heap()->old_pointer_space());
+  SimulateFullSpace(CcTest::heap()->old_space());
 
   // Calling Lookup() should not cause GC ever.
   CHECK(table->Lookup(key)->IsTheHole());
@@ -246,9 +225,21 @@ TEST(ObjectHashTableCausesGC) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   TestHashMapCausesGC(ObjectHashTable::New(isolate, 1));
-  TestHashMapCausesGC(isolate->factory()->NewOrderedHashMap());
 }
 #endif
 
-
+TEST(SetRequiresCopyOnCapacityChange) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<NameDictionary> dict = NameDictionary::New(isolate, 0, TENURED);
+  dict->SetRequiresCopyOnCapacityChange();
+  Handle<Name> key = isolate->factory()->InternalizeString(
+      v8::Utils::OpenHandle(*v8_str("key")));
+  Handle<Object> value = handle(Smi::FromInt(0), isolate);
+  Handle<NameDictionary> new_dict =
+      NameDictionary::Add(dict, key, value, PropertyDetails::Empty());
+  CHECK_NE(*dict, *new_dict);
 }
+
+}  // namespace

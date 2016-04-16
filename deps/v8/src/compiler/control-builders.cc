@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "control-builders.h"
+#include "src/compiler/control-builders.h"
 
 namespace v8 {
 namespace internal {
@@ -32,9 +32,8 @@ void IfBuilder::End() {
 }
 
 
-void LoopBuilder::BeginLoop(BitVector* assigned) {
-  builder_->NewLoop();
-  loop_environment_ = environment()->CopyForLoop(assigned);
+void LoopBuilder::BeginLoop(BitVector* assigned, bool is_osr) {
+  loop_environment_ = environment()->CopyForLoop(assigned, is_osr);
   continue_environment_ = environment()->CopyAsUnreachable();
   break_environment_ = environment()->CopyAsUnreachable();
 }
@@ -74,11 +73,20 @@ void LoopBuilder::BreakUnless(Node* condition) {
 }
 
 
+void LoopBuilder::BreakWhen(Node* condition) {
+  IfBuilder control_if(builder_);
+  control_if.If(condition);
+  control_if.Then();
+  Break();
+  control_if.Else();
+  control_if.End();
+}
+
+
 void SwitchBuilder::BeginSwitch() {
   body_environment_ = environment()->CopyAsUnreachable();
   label_environment_ = environment()->CopyAsUnreachable();
   break_environment_ = environment()->CopyAsUnreachable();
-  body_environments_.AddBlock(NULL, case_count(), zone());
 }
 
 
@@ -135,10 +143,90 @@ void BlockBuilder::Break() {
 }
 
 
+void BlockBuilder::BreakWhen(Node* condition, BranchHint hint) {
+  IfBuilder control_if(builder_);
+  control_if.If(condition, hint);
+  control_if.Then();
+  Break();
+  control_if.Else();
+  control_if.End();
+}
+
+
+void BlockBuilder::BreakUnless(Node* condition, BranchHint hint) {
+  IfBuilder control_if(builder_);
+  control_if.If(condition, hint);
+  control_if.Then();
+  control_if.Else();
+  Break();
+  control_if.End();
+}
+
+
 void BlockBuilder::EndBlock() {
   break_environment_->Merge(environment());
   set_environment(break_environment_);
 }
+
+
+void TryCatchBuilder::BeginTry() {
+  exit_environment_ = environment()->CopyAsUnreachable();
+  catch_environment_ = environment()->CopyAsUnreachable();
+  catch_environment_->Push(the_hole());
 }
+
+
+void TryCatchBuilder::Throw(Node* exception) {
+  environment()->Push(exception);
+  catch_environment_->Merge(environment());
+  environment()->Pop();
+  environment()->MarkAsUnreachable();
 }
-}  // namespace v8::internal::compiler
+
+
+void TryCatchBuilder::EndTry() {
+  exit_environment_->Merge(environment());
+  exception_node_ = catch_environment_->Pop();
+  set_environment(catch_environment_);
+}
+
+
+void TryCatchBuilder::EndCatch() {
+  exit_environment_->Merge(environment());
+  set_environment(exit_environment_);
+}
+
+
+void TryFinallyBuilder::BeginTry() {
+  finally_environment_ = environment()->CopyAsUnreachable();
+  finally_environment_->Push(the_hole());
+  finally_environment_->Push(the_hole());
+}
+
+
+void TryFinallyBuilder::LeaveTry(Node* token, Node* value) {
+  environment()->Push(value);
+  environment()->Push(token);
+  finally_environment_->Merge(environment());
+  environment()->Drop(2);
+}
+
+
+void TryFinallyBuilder::EndTry(Node* fallthrough_token, Node* value) {
+  environment()->Push(value);
+  environment()->Push(fallthrough_token);
+  finally_environment_->Merge(environment());
+  environment()->Drop(2);
+  token_node_ = finally_environment_->Pop();
+  value_node_ = finally_environment_->Pop();
+  set_environment(finally_environment_);
+}
+
+
+void TryFinallyBuilder::EndFinally() {
+  // Nothing to be done here.
+}
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

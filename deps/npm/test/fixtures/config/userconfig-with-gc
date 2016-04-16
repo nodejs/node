@@ -1,4 +1,4 @@
-globalconfig=/Users/ogd/Documents/projects/npm/npm/test/fixtures/config/globalconfig
+globalconfig=/Users/zkat/Documents/code/npm/test/fixtures/config/globalconfig
 email=i@izs.me
 env-thing=asdf
 init.author.name=Isaac Z. Schlueter
@@ -12,7 +12,7 @@ npm-www:nocache=1
 sign-git-tag=false
 message=v%s
 strict-ssl=false
-_auth=dXNlcm5hbWU6cGFzc3dvcmQ=
+_auth="dXNlcm5hbWU6cGFzc3dvcmQ="
 
 [_token]
 AuthSession=yabba-dabba-doodle

@@ -13,9 +13,11 @@
 #include <mach/mach_time.h>
 #endif
 
-#include <string.h>
+#include <cstring>
+#include <ostream>
 
 #if V8_OS_WIN
+#include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/win32-headers.h"
 #endif
@@ -110,7 +112,7 @@ TimeDelta TimeDelta::FromMachTimespec(struct mach_timespec ts) {
 struct mach_timespec TimeDelta::ToMachTimespec() const {
   struct mach_timespec ts;
   DCHECK(delta_ >= 0);
-  ts.tv_sec = delta_ / Time::kMicrosecondsPerSecond;
+  ts.tv_sec = static_cast<unsigned>(delta_ / Time::kMicrosecondsPerSecond);
   ts.tv_nsec = (delta_ % Time::kMicrosecondsPerSecond) *
       Time::kNanosecondsPerMicrosecond;
   return ts;
@@ -132,7 +134,7 @@ TimeDelta TimeDelta::FromTimespec(struct timespec ts) {
 
 struct timespec TimeDelta::ToTimespec() const {
   struct timespec ts;
-  ts.tv_sec = delta_ / Time::kMicrosecondsPerSecond;
+  ts.tv_sec = static_cast<time_t>(delta_ / Time::kMicrosecondsPerSecond);
   ts.tv_nsec = (delta_ % Time::kMicrosecondsPerSecond) *
       Time::kNanosecondsPerMicrosecond;
   return ts;
@@ -146,7 +148,7 @@ struct timespec TimeDelta::ToTimespec() const {
 // We implement time using the high-resolution timers so that we can get
 // timeouts which are smaller than 10-15ms. To avoid any drift, we
 // periodically resync the internal clock to the system clock.
-class Clock FINAL {
+class Clock final {
  public:
   Clock() : initial_ticks_(GetSystemTicks()), initial_time_(GetSystemTime()) {}
 
@@ -291,7 +293,7 @@ struct timespec Time::ToTimespec() const {
     ts.tv_nsec = static_cast<long>(kNanosecondsPerSecond - 1);  // NOLINT
     return ts;
   }
-  ts.tv_sec = us_ / kMicrosecondsPerSecond;
+  ts.tv_sec = static_cast<time_t>(us_ / kMicrosecondsPerSecond);
   ts.tv_nsec = (us_ % kMicrosecondsPerSecond) * kNanosecondsPerMicrosecond;
   return ts;
 }
@@ -323,7 +325,7 @@ struct timeval Time::ToTimeval() const {
     tv.tv_usec = static_cast<suseconds_t>(kMicrosecondsPerSecond - 1);
     return tv;
   }
-  tv.tv_sec = us_ / kMicrosecondsPerSecond;
+  tv.tv_sec = static_cast<time_t>(us_ / kMicrosecondsPerSecond);
   tv.tv_usec = us_ % kMicrosecondsPerSecond;
   return tv;
 }
@@ -352,6 +354,11 @@ double Time::ToJsTime() const {
     return std::numeric_limits<double>::max();
   }
   return static_cast<double>(us_) / kMicrosecondsPerMillisecond;
+}
+
+
+std::ostream& operator<<(std::ostream& os, const Time& time) {
+  return os << time.ToJsTime();
 }
 
 
@@ -393,7 +400,7 @@ class TickClock {
 // (3) System time. The system time provides a low-resolution (typically 10ms
 // to 55 milliseconds) time stamp but is comparatively less expensive to
 // retrieve and more reliable.
-class HighResolutionTickClock FINAL : public TickClock {
+class HighResolutionTickClock final : public TickClock {
  public:
   explicit HighResolutionTickClock(int64_t ticks_per_second)
       : ticks_per_second_(ticks_per_second) {
@@ -401,7 +408,7 @@ class HighResolutionTickClock FINAL : public TickClock {
   }
   virtual ~HighResolutionTickClock() {}
 
-  virtual int64_t Now() OVERRIDE {
+  int64_t Now() override {
     LARGE_INTEGER now;
     BOOL result = QueryPerformanceCounter(&now);
     DCHECK(result);
@@ -419,49 +426,44 @@ class HighResolutionTickClock FINAL : public TickClock {
     return ticks + 1;
   }
 
-  virtual bool IsHighResolution() OVERRIDE {
-    return true;
-  }
+  bool IsHighResolution() override { return true; }
 
  private:
   int64_t ticks_per_second_;
 };
 
 
-class RolloverProtectedTickClock FINAL : public TickClock {
+class RolloverProtectedTickClock final : public TickClock {
  public:
-  // We initialize rollover_ms_ to 1 to ensure that we will never
-  // return 0 from TimeTicks::HighResolutionNow() and TimeTicks::Now() below.
-  RolloverProtectedTickClock() : last_seen_now_(0), rollover_ms_(1) {}
+  RolloverProtectedTickClock() : rollover_(0) {}
   virtual ~RolloverProtectedTickClock() {}
 
-  virtual int64_t Now() OVERRIDE {
-    LockGuard<Mutex> lock_guard(&mutex_);
+  int64_t Now() override {
     // We use timeGetTime() to implement TimeTicks::Now(), which rolls over
     // every ~49.7 days. We try to track rollover ourselves, which works if
-    // TimeTicks::Now() is called at least every 49 days.
+    // TimeTicks::Now() is called at least every 24 days.
     // Note that we do not use GetTickCount() here, since timeGetTime() gives
     // more predictable delta values, as described here:
     // http://blogs.msdn.com/b/larryosterman/archive/2009/09/02/what-s-the-difference-between-gettickcount-and-timegettime.aspx
     // timeGetTime() provides 1ms granularity when combined with
     // timeBeginPeriod(). If the host application for V8 wants fast timers, it
     // can use timeBeginPeriod() to increase the resolution.
-    DWORD now = timeGetTime();
-    if (now < last_seen_now_) {
-      rollover_ms_ += V8_INT64_C(0x100000000);  // ~49.7 days.
+    // We use a lock-free version because the sampler thread calls it
+    // while having the rest of the world stopped, that could cause a deadlock.
+    base::Atomic32 rollover = base::Acquire_Load(&rollover_);
+    uint32_t now = static_cast<uint32_t>(timeGetTime());
+    if ((now >> 31) != static_cast<uint32_t>(rollover & 1)) {
+      base::Release_CompareAndSwap(&rollover_, rollover, rollover + 1);
+      ++rollover;
     }
-    last_seen_now_ = now;
-    return (now + rollover_ms_) * Time::kMicrosecondsPerMillisecond;
+    uint64_t ms = (static_cast<uint64_t>(rollover) << 31) | now;
+    return static_cast<int64_t>(ms * Time::kMicrosecondsPerMillisecond);
   }
 
-  virtual bool IsHighResolution() OVERRIDE {
-    return false;
-  }
+  bool IsHighResolution() override { return false; }
 
  private:
-  Mutex mutex_;
-  DWORD last_seen_now_;
-  int64_t rollover_ms_;
+  base::Atomic32 rollover_;
 };
 
 
@@ -546,15 +548,6 @@ TimeTicks TimeTicks::HighResolutionNow() {
            info.numer / info.denom);
 #elif V8_OS_SOLARIS
   ticks = (gethrtime() / Time::kNanosecondsPerMicrosecond);
-#elif V8_LIBRT_NOT_AVAILABLE
-  // TODO(bmeurer): This is a temporary hack to support cross-compiling
-  // Chrome for Android in AOSP. Remove this once AOSP is fixed, also
-  // cleanup the tools/gyp/v8.gyp file.
-  struct timeval tv;
-  int result = gettimeofday(&tv, NULL);
-  DCHECK_EQ(0, result);
-  USE(result);
-  ticks = (tv.tv_sec * Time::kMicrosecondsPerSecond + tv.tv_usec);
 #elif V8_OS_POSIX
   struct timespec ts;
   int result = clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -574,7 +567,7 @@ bool TimeTicks::IsHighResolutionClockWorking() {
 }
 
 
-#if V8_OS_LINUX && !V8_LIBRT_NOT_AVAILABLE
+#if V8_OS_LINUX
 
 class KernelTimestampClock {
  public:
@@ -630,7 +623,7 @@ class KernelTimestampClock {
   bool Available() { return false; }
 };
 
-#endif  // V8_OS_LINUX && !V8_LIBRT_NOT_AVAILABLE
+#endif  // V8_OS_LINUX
 
 static LazyStaticInstance<KernelTimestampClock,
                           DefaultConstructTrait<KernelTimestampClock>,
@@ -651,4 +644,5 @@ bool TimeTicks::KernelTimestampAvailable() {
 
 #endif  // V8_OS_WIN
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

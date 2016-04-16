@@ -1,0 +1,107 @@
+{
+  "_args": [
+    [
+      "lodash.uniq@4.2.1",
+      "/Users/zkat/Documents/code/npm"
+    ]
+  ],
+  "_from": "lodash.uniq@4.2.1",
+  "_id": "lodash.uniq@4.2.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/lodash.uniq",
+  "_nodeVersion": "5.5.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/lodash.uniq-4.2.1.tgz_1459310991318_0.029993396950885653"
+  },
+  "_npmUser": {
+    "email": "john.david.dalton@gmail.com",
+    "name": "jdalton"
+  },
+  "_npmVersion": "2.15.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "lodash.uniq",
+    "raw": "lodash.uniq@4.2.1",
+    "rawSpec": "4.2.1",
+    "scope": null,
+    "spec": "4.2.1",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/lodash.uniq/-/lodash.uniq-4.2.1.tgz",
+  "_shasum": "4210d4b90647ee24211b469aed0ef84902069743",
+  "_shrinkwrap": null,
+  "_spec": "lodash.uniq@4.2.1",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "email": "john.david.dalton@gmail.com",
+    "name": "John-David Dalton",
+    "url": "http://allyoucanleet.com/"
+  },
+  "bugs": {
+    "url": "https://github.com/lodash/lodash/issues"
+  },
+  "contributors": [
+    {
+      "email": "john.david.dalton@gmail.com",
+      "name": "John-David Dalton",
+      "url": "http://allyoucanleet.com/"
+    },
+    {
+      "email": "blaine.bublitz@gmail.com",
+      "name": "Blaine Bublitz",
+      "url": "https://github.com/phated"
+    },
+    {
+      "email": "mathias@qiwi.be",
+      "name": "Mathias Bynens",
+      "url": "https://mathiasbynens.be/"
+    }
+  ],
+  "dependencies": {
+    "lodash._baseuniq": "~4.5.0"
+  },
+  "description": "The lodash method `_.uniq` exported as a module.",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "4210d4b90647ee24211b469aed0ef84902069743",
+    "tarball": "https://registry.npmjs.org/lodash.uniq/-/lodash.uniq-4.2.1.tgz"
+  },
+  "homepage": "https://lodash.com/",
+  "icon": "https://lodash.com/icon.svg",
+  "keywords": [
+    "lodash-modularized",
+    "uniq"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "email": "john.david.dalton@gmail.com",
+      "name": "jdalton"
+    },
+    {
+      "email": "mathias@qiwi.be",
+      "name": "mathias"
+    },
+    {
+      "email": "blaine@iceddev.com",
+      "name": "phated"
+    }
+  ],
+  "name": "lodash.uniq",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lodash/lodash.git"
+  },
+  "scripts": {
+    "test": "echo \"See https://travis-ci.org/lodash/lodash-cli for testing details.\""
+  },
+  "version": "4.2.1"
+}

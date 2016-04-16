@@ -42,7 +42,7 @@ static void set_title(const char* title) {
 
 
 TEST_IMPL(process_title) {
-#if defined(__sun)
+#if defined(__sun) || defined(_AIX)
   RETURN_SKIP("uv_(get|set)_process_title is not implemented.");
 #else
   /* Check for format string vulnerabilities. */

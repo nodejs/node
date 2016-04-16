@@ -20,6 +20,15 @@ Print a v8 Code object from an internal code address
 Usage: jco pc
 end
 
+# Print TypeFeedbackVector
+define jfv
+print ((v8::internal::TypeFeedbackVector*)($arg0))->Print()
+end
+document jfv
+Print a v8 TypeFeedbackVector object
+Usage: jtv tagged_ptr
+end
+
 # Print DescriptorArray.
 define jda
 print ((v8::internal::DescriptorArray*)($arg0))->Print()
@@ -40,7 +49,7 @@ end
 
 # Print JavaScript stack trace.
 define jst
-print v8::internal::Isolate::Current()->PrintStack((FILE*) stdout)
+print v8::internal::Isolate::Current()->PrintStack((FILE*) stdout, 1)
 end
 document jst
 Print the current JavaScript stack trace

@@ -48,7 +48,8 @@ class IntSet {
 
   void Insert(int x) {
     CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value
-    HashMap::Entry* p = map_.Lookup(reinterpret_cast<void*>(x), hash_(x), true);
+    HashMap::Entry* p =
+        map_.LookupOrInsert(reinterpret_cast<void*>(x), hash_(x));
     CHECK(p != NULL);  // insert is set!
     CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     // we don't care about p->value
@@ -60,8 +61,7 @@ class IntSet {
   }
 
   bool Present(int x) {
-    HashMap::Entry* p =
-        map_.Lookup(reinterpret_cast<void*>(x), hash_(x), false);
+    HashMap::Entry* p = map_.Lookup(reinterpret_cast<void*>(x), hash_(x));
     if (p != NULL) {
       CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     }
@@ -93,37 +93,37 @@ static uint32_t CollisionHash(uint32_t key)  { return key & 0x3; }
 
 void TestSet(IntKeyHash hash, int size) {
   IntSet set(hash);
-  CHECK_EQ(0, set.occupancy());
+  CHECK_EQ(0u, set.occupancy());
 
   set.Insert(1);
   set.Insert(2);
   set.Insert(3);
-  CHECK_EQ(3, set.occupancy());
+  CHECK_EQ(3u, set.occupancy());
 
   set.Insert(2);
   set.Insert(3);
-  CHECK_EQ(3, set.occupancy());
+  CHECK_EQ(3u, set.occupancy());
 
   CHECK(set.Present(1));
   CHECK(set.Present(2));
   CHECK(set.Present(3));
   CHECK(!set.Present(4));
-  CHECK_EQ(3, set.occupancy());
+  CHECK_EQ(3u, set.occupancy());
 
   set.Remove(1);
   CHECK(!set.Present(1));
   CHECK(set.Present(2));
   CHECK(set.Present(3));
-  CHECK_EQ(2, set.occupancy());
+  CHECK_EQ(2u, set.occupancy());
 
   set.Remove(3);
   CHECK(!set.Present(1));
   CHECK(set.Present(2));
   CHECK(!set.Present(3));
-  CHECK_EQ(1, set.occupancy());
+  CHECK_EQ(1u, set.occupancy());
 
   set.Clear();
-  CHECK_EQ(0, set.occupancy());
+  CHECK_EQ(0u, set.occupancy());
 
   // Insert a long series of values.
   const int start = 453;
@@ -167,11 +167,11 @@ void TestSet(IntKeyHash hash, int size) {
       y = y * factor + offset;
     }
   }
-  CHECK_EQ(0, set.occupancy());
+  CHECK_EQ(0u, set.occupancy());
 }
 
 
-TEST(Set) {
+TEST(HashSet) {
   TestSet(Hash, 100);
   TestSet(CollisionHash, 50);
 }

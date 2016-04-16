@@ -2,42 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
-#include "src/debug.h"
-#include "src/liveedit.h"
+#include "src/debug/debug.h"
+#include "src/debug/debug-frames.h"
+#include "src/debug/liveedit.h"
+#include "src/frames-inl.h"
+#include "src/isolate-inl.h"
 #include "src/runtime/runtime.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
-
-
-static int FindSharedFunctionInfosForScript(HeapIterator* iterator,
-                                            Script* script,
-                                            FixedArray* buffer) {
-  DisallowHeapAllocation no_allocation;
-  int counter = 0;
-  int buffer_size = buffer->length();
-  for (HeapObject* obj = iterator->next(); obj != NULL;
-       obj = iterator->next()) {
-    DCHECK(obj != NULL);
-    if (!obj->IsSharedFunctionInfo()) {
-      continue;
-    }
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-    if (shared->script() != script) {
-      continue;
-    }
-    if (counter < buffer_size) {
-      buffer->set(counter, shared);
-    }
-    counter++;
-  }
-  return counter;
-}
-
 
 // For a script finds all SharedFunctionInfo's in the heap that points
 // to this script. Returns JSArray of SharedFunctionInfo wrapped
@@ -51,32 +27,29 @@ RUNTIME_FUNCTION(Runtime_LiveEditFindSharedFunctionInfosForScript) {
   RUNTIME_ASSERT(script_value->value()->IsScript());
   Handle<Script> script = Handle<Script>(Script::cast(script_value->value()));
 
-  const int kBufferSize = 32;
-
-  Handle<FixedArray> array;
-  array = isolate->factory()->NewFixedArray(kBufferSize);
-  int number;
+  List<Handle<SharedFunctionInfo> > found;
   Heap* heap = isolate->heap();
   {
-    HeapIterator heap_iterator(heap);
-    Script* scr = *script;
-    FixedArray* arr = *array;
-    number = FindSharedFunctionInfosForScript(&heap_iterator, scr, arr);
-  }
-  if (number > kBufferSize) {
-    array = isolate->factory()->NewFixedArray(number);
-    HeapIterator heap_iterator(heap);
-    Script* scr = *script;
-    FixedArray* arr = *array;
-    FindSharedFunctionInfosForScript(&heap_iterator, scr, arr);
+    HeapIterator iterator(heap);
+    HeapObject* heap_obj;
+    while ((heap_obj = iterator.next())) {
+      if (!heap_obj->IsSharedFunctionInfo()) continue;
+      SharedFunctionInfo* shared = SharedFunctionInfo::cast(heap_obj);
+      if (shared->script() != *script) continue;
+      found.Add(Handle<SharedFunctionInfo>(shared));
+    }
   }
 
-  Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(array);
-  result->set_length(Smi::FromInt(number));
-
-  LiveEdit::WrapSharedFunctionInfos(result);
-
-  return *result;
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(found.length());
+  for (int i = 0; i < found.length(); ++i) {
+    Handle<SharedFunctionInfo> shared = found[i];
+    SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create(isolate);
+    Handle<String> name(String::cast(shared->name()));
+    info_wrapper.SetProperties(name, shared->start_position(),
+                               shared->end_position(), shared);
+    result->set(i, *info_wrapper.GetJSArray());
+  }
+  return *isolate->factory()->NewJSArrayWithElements(result);
 }
 
 
@@ -227,21 +200,34 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchFunctionPositions) {
 RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(do_drop, 1);
-  RUNTIME_ASSERT(shared_array->length()->IsSmi());
-  RUNTIME_ASSERT(shared_array->HasFastElements())
-  int array_length = Smi::cast(shared_array->length())->value();
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, old_shared_array, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, new_shared_array, 1);
+  CONVERT_BOOLEAN_ARG_CHECKED(do_drop, 2);
+  USE(new_shared_array);
+  RUNTIME_ASSERT(old_shared_array->length()->IsSmi());
+  RUNTIME_ASSERT(new_shared_array->length() == old_shared_array->length());
+  RUNTIME_ASSERT(old_shared_array->HasFastElements())
+  RUNTIME_ASSERT(new_shared_array->HasFastElements())
+  int array_length = Smi::cast(old_shared_array->length())->value();
   for (int i = 0; i < array_length; i++) {
-    Handle<Object> element =
-        Object::GetElement(isolate, shared_array, i).ToHandleChecked();
+    Handle<Object> old_element;
+    Handle<Object> new_element;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, old_element, Object::GetElement(isolate, old_shared_array, i));
     RUNTIME_ASSERT(
-        element->IsJSValue() &&
-        Handle<JSValue>::cast(element)->value()->IsSharedFunctionInfo());
+        old_element->IsJSValue() &&
+        Handle<JSValue>::cast(old_element)->value()->IsSharedFunctionInfo());
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, new_element, Object::GetElement(isolate, new_shared_array, i));
+    RUNTIME_ASSERT(
+        new_element->IsUndefined() ||
+        (new_element->IsJSValue() &&
+         Handle<JSValue>::cast(new_element)->value()->IsSharedFunctionInfo()));
   }
 
-  return *LiveEdit::CheckAndDropActivations(shared_array, do_drop);
+  return *LiveEdit::CheckAndDropActivations(old_shared_array, new_shared_array,
+                                            do_drop);
 }
 
 
@@ -255,7 +241,14 @@ RUNTIME_FUNCTION(Runtime_LiveEditCompareStrings) {
   CONVERT_ARG_HANDLE_CHECKED(String, s1, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, s2, 1);
 
-  return *LiveEdit::CompareStrings(s1, s2);
+  Handle<JSArray> result = LiveEdit::CompareStrings(s1, s2);
+  uint32_t array_length;
+  CHECK(result->length()->ToArrayLength(&array_length));
+  if (array_length > 0) {
+    isolate->debug()->feature_tracker()->Track(DebugFeatureTracker::kLiveEdit);
+  }
+
+  return *result;
 }
 
 
@@ -279,7 +272,8 @@ RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
   }
 
   JavaScriptFrameIterator it(isolate, id);
-  int inlined_jsframe_index = Runtime::FindIndexedNonNativeFrame(&it, index);
+  int inlined_jsframe_index =
+      DebugFrameHelper::FindIndexedNonNativeFrame(&it, index);
   if (inlined_jsframe_index == -1) return heap->undefined_value();
   // We don't really care what the inlined frame index is, since we are
   // throwing away the entire frame anyways.
@@ -289,5 +283,5 @@ RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
   }
   return heap->true_value();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

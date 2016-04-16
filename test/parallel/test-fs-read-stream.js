@@ -1,33 +1,6 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
-
-// TODO Improved this test. test_ca.pem is too small. A proper test would
-// great a large utf8 (with multibyte chars) file and stream it in,
-// performing sanity checks throughout.
 
 var path = require('path');
 var fs = require('fs');
@@ -82,7 +55,7 @@ file.on('close', function() {
 var file3 = fs.createReadStream(fn, {encoding: 'utf8'});
 file3.length = 0;
 file3.on('data', function(data) {
-  assert.equal('string', typeof(data));
+  assert.equal('string', typeof data);
   file3.length += data.length;
 
   for (var i = 0; i < data.length; i++) {
@@ -134,7 +107,7 @@ file6.on('end', function() {
 
 assert.throws(function() {
   fs.createReadStream(rangeFile, {start: 10, end: 2});
-}, /start must be <= end/);
+}, /"start" option must be <= "end" option/);
 
 var stream = fs.createReadStream(rangeFile, { start: 0, end: 0 });
 stream.data = '';
@@ -162,7 +135,7 @@ file7.on('end', function() {
   });
 });
 
-function file7Next(){
+function file7Next() {
   // This will tell us if the fd is usable again or not.
   file7 = fs.createReadStream(null, {fd: file7.fd, start: 0 });
   file7.data = '';

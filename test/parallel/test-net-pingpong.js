@@ -1,24 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 
@@ -47,20 +27,17 @@ function pingPongTest(port, host) {
       // than one message.
       assert.ok(0 <= socket.bufferSize && socket.bufferSize <= 4);
 
-      console.log('server got: ' + data);
       assert.equal(true, socket.writable);
       assert.equal(true, socket.readable);
       assert.equal(true, count <= N);
-      if (/PING/.exec(data)) {
-        socket.write('PONG', function() {
-          sentPongs++;
-          console.error('sent PONG');
-        });
-      }
+      assert.equal(data, 'PING');
+
+      socket.write('PONG', function() {
+        sentPongs++;
+      });
     });
 
     socket.on('end', function() {
-      console.error(socket);
       assert.equal(true, socket.allowHalfOpen);
       assert.equal(true, socket.writable); // because allowHalfOpen
       assert.equal(false, socket.readable);
@@ -93,8 +70,6 @@ function pingPongTest(port, host) {
     });
 
     client.on('data', function(data) {
-      console.log('client got: ' + data);
-
       assert.equal('PONG', data);
       count += 1;
 
@@ -131,7 +106,7 @@ function pingPongTest(port, host) {
 }
 
 /* All are run at once, so run on different ports */
-console.log(common.PIPE);
+common.refreshTmpDir();
 pingPongTest(common.PIPE);
 pingPongTest(common.PORT);
 pingPongTest(common.PORT + 1, 'localhost');

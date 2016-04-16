@@ -1,25 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
+'use strict';
 // test-cluster-worker-kill.js
 // verifies that, when a child process is killed (we use SIGKILL)
 // - the parent receives the proper events in the proper order, no duplicates
@@ -45,14 +24,16 @@ if (cluster.isWorker) {
       cluster_emitDisconnect: [1, "the cluster did not emit 'disconnect'"],
       cluster_emitExit: [1, "the cluster did not emit 'exit'"],
       cluster_exitCode: [null, 'the cluster exited w/ incorrect exitCode'],
-      cluster_signalCode: [KILL_SIGNAL, 'the cluster exited w/ incorrect signalCode'],
+      cluster_signalCode: [KILL_SIGNAL,
+                           'the cluster exited w/ incorrect signalCode'],
       worker_emitDisconnect: [1, "the worker did not emit 'disconnect'"],
       worker_emitExit: [1, "the worker did not emit 'exit'"],
       worker_state: ['disconnected', 'the worker state is incorrect'],
       worker_suicideMode: [false, 'the worker.suicide flag is incorrect'],
       worker_died: [true, 'the worker is still running'],
       worker_exitCode: [null, 'the worker exited w/ incorrect exitCode'],
-      worker_signalCode: [KILL_SIGNAL, 'the worker exited w/ incorrect signalCode']
+      worker_signalCode: [KILL_SIGNAL,
+                          'the worker exited w/ incorrect signalCode']
     },
     results = {
       cluster_emitDisconnect: 0,
@@ -79,8 +60,6 @@ if (cluster.isWorker) {
     results.cluster_exitCode = worker.process.exitCode;
     results.cluster_signalCode = worker.process.signalCode;
     results.cluster_emitExit += 1;
-    assert.ok(results.cluster_emitDisconnect,
-        "cluster: 'exit' event before 'disconnect' event");
   });
 
   // Check worker events and properties
@@ -96,54 +75,35 @@ if (cluster.isWorker) {
     results.worker_signalCode = signalCode;
     results.worker_emitExit += 1;
     results.worker_died = !alive(worker.process.pid);
-    assert.ok(results.worker_emitDisconnect,
-        "worker: 'exit' event before 'disconnect' event");
-
-    process.nextTick(function() { finish_test(); });
   });
 
-  var finish_test = function() {
-    try {
-      checkResults(expected_results, results);
-    } catch (exc) {
-      console.error('FAIL: ' + exc.message);
-      if (exc.name != 'AssertionError') {
-        console.trace(exc);
-      }
-
-      process.exit(1);
-      return;
-    }
-    process.exit(0);
-  };
+  process.on('exit', function() {
+    checkResults(expected_results, results);
+  });
 }
 
 // some helper functions ...
 
-  function checkResults(expected_results, results) {
-    for (var k in expected_results) {
-      var actual = results[k],
-          expected = expected_results[k];
+function checkResults(expected_results, results) {
+  for (var k in expected_results) {
+    const actual = results[k];
+    const expected = expected_results[k];
 
-      if (typeof expected === 'function') {
-        expected(r[k]);
-      } else {
-        var msg = (expected[1] || '') +
-            (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
-        if (expected && expected.length) {
-          assert.equal(actual, expected[0], msg);
-        } else {
-          assert.equal(actual, expected, msg);
-        }
-      }
+    var msg = (expected[1] || '') +
+        (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
+    if (expected && expected.length) {
+      assert.equal(actual, expected[0], msg);
+    } else {
+      assert.equal(actual, expected, msg);
     }
   }
+}
 
-  function alive(pid) {
-    try {
-      process.kill(pid, 'SIGCONT');
-      return true;
-    } catch (e) {
-      return false;
-    }
+function alive(pid) {
+  try {
+    process.kill(pid, 'SIGCONT');
+    return true;
+  } catch (e) {
+    return false;
   }
+}

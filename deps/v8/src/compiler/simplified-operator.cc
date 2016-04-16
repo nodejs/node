@@ -7,7 +7,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/types-inl.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {
@@ -22,6 +22,64 @@ std::ostream& operator<<(std::ostream& os, BaseTaggedness base_taggedness) {
   }
   UNREACHABLE();
   return os;
+}
+
+
+MachineType BufferAccess::machine_type() const {
+  switch (external_array_type_) {
+    case kExternalUint8Array:
+    case kExternalUint8ClampedArray:
+      return MachineType::Uint8();
+    case kExternalInt8Array:
+      return MachineType::Int8();
+    case kExternalUint16Array:
+      return MachineType::Uint16();
+    case kExternalInt16Array:
+      return MachineType::Int16();
+    case kExternalUint32Array:
+      return MachineType::Uint32();
+    case kExternalInt32Array:
+      return MachineType::Int32();
+    case kExternalFloat32Array:
+      return MachineType::Float32();
+    case kExternalFloat64Array:
+      return MachineType::Float64();
+  }
+  UNREACHABLE();
+  return MachineType::None();
+}
+
+
+bool operator==(BufferAccess lhs, BufferAccess rhs) {
+  return lhs.external_array_type() == rhs.external_array_type();
+}
+
+
+bool operator!=(BufferAccess lhs, BufferAccess rhs) { return !(lhs == rhs); }
+
+
+size_t hash_value(BufferAccess access) {
+  return base::hash<ExternalArrayType>()(access.external_array_type());
+}
+
+
+std::ostream& operator<<(std::ostream& os, BufferAccess access) {
+  switch (access.external_array_type()) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
+    return os << #Type;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
+BufferAccess const BufferAccessOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kLoadBuffer ||
+         op->opcode() == IrOpcode::kStoreBuffer);
+  return OpParameter<BufferAccess>(op);
 }
 
 
@@ -57,18 +115,6 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
 }
 
 
-std::ostream& operator<<(std::ostream& os, BoundsCheckMode bounds_check_mode) {
-  switch (bounds_check_mode) {
-    case kNoBoundsCheck:
-      return os << "no bounds check";
-    case kTypedArrayBoundsCheck:
-      return os << "ignore out of bounds";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-
 bool operator==(ElementAccess const& lhs, ElementAccess const& rhs) {
   return lhs.base_is_tagged == rhs.base_is_tagged &&
          lhs.header_size == rhs.header_size &&
@@ -90,7 +136,7 @@ size_t hash_value(ElementAccess const& access) {
 std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   os << access.base_is_tagged << ", " << access.header_size << ", ";
   access.type->PrintTo(os);
-  os << ", " << access.machine_type << ", " << access.bounds_check;
+  os << ", " << access.machine_type;
   return os;
 }
 
@@ -111,38 +157,47 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
 }
 
 
-#define PURE_OP_LIST(V)                                \
-  V(BooleanNot, Operator::kNoProperties, 1)            \
-  V(BooleanToNumber, Operator::kNoProperties, 1)       \
-  V(NumberEqual, Operator::kCommutative, 2)            \
-  V(NumberLessThan, Operator::kNoProperties, 2)        \
-  V(NumberLessThanOrEqual, Operator::kNoProperties, 2) \
-  V(NumberAdd, Operator::kCommutative, 2)              \
-  V(NumberSubtract, Operator::kNoProperties, 2)        \
-  V(NumberMultiply, Operator::kCommutative, 2)         \
-  V(NumberDivide, Operator::kNoProperties, 2)          \
-  V(NumberModulus, Operator::kNoProperties, 2)         \
-  V(NumberToInt32, Operator::kNoProperties, 1)         \
-  V(NumberToUint32, Operator::kNoProperties, 1)        \
-  V(StringEqual, Operator::kCommutative, 2)            \
-  V(StringLessThan, Operator::kNoProperties, 2)        \
-  V(StringLessThanOrEqual, Operator::kNoProperties, 2) \
-  V(StringAdd, Operator::kNoProperties, 2)             \
-  V(ChangeTaggedToInt32, Operator::kNoProperties, 1)   \
-  V(ChangeTaggedToUint32, Operator::kNoProperties, 1)  \
-  V(ChangeTaggedToFloat64, Operator::kNoProperties, 1) \
-  V(ChangeInt32ToTagged, Operator::kNoProperties, 1)   \
-  V(ChangeUint32ToTagged, Operator::kNoProperties, 1)  \
-  V(ChangeFloat64ToTagged, Operator::kNoProperties, 1) \
-  V(ChangeBoolToBit, Operator::kNoProperties, 1)       \
-  V(ChangeBitToBool, Operator::kNoProperties, 1)       \
-  V(ObjectIsSmi, Operator::kNoProperties, 1)           \
-  V(ObjectIsNonNegativeSmi, Operator::kNoProperties, 1)
+#define PURE_OP_LIST(V)                                  \
+  V(BooleanNot, Operator::kNoProperties, 1)              \
+  V(BooleanToNumber, Operator::kNoProperties, 1)         \
+  V(NumberEqual, Operator::kCommutative, 2)              \
+  V(NumberLessThan, Operator::kNoProperties, 2)          \
+  V(NumberLessThanOrEqual, Operator::kNoProperties, 2)   \
+  V(NumberAdd, Operator::kCommutative, 2)                \
+  V(NumberSubtract, Operator::kNoProperties, 2)          \
+  V(NumberMultiply, Operator::kCommutative, 2)           \
+  V(NumberDivide, Operator::kNoProperties, 2)            \
+  V(NumberModulus, Operator::kNoProperties, 2)           \
+  V(NumberBitwiseOr, Operator::kCommutative, 2)          \
+  V(NumberBitwiseXor, Operator::kCommutative, 2)         \
+  V(NumberBitwiseAnd, Operator::kCommutative, 2)         \
+  V(NumberShiftLeft, Operator::kNoProperties, 2)         \
+  V(NumberShiftRight, Operator::kNoProperties, 2)        \
+  V(NumberShiftRightLogical, Operator::kNoProperties, 2) \
+  V(NumberToInt32, Operator::kNoProperties, 1)           \
+  V(NumberToUint32, Operator::kNoProperties, 1)          \
+  V(NumberIsHoleNaN, Operator::kNoProperties, 1)         \
+  V(PlainPrimitiveToNumber, Operator::kNoProperties, 1)  \
+  V(ChangeTaggedToInt32, Operator::kNoProperties, 1)     \
+  V(ChangeTaggedToUint32, Operator::kNoProperties, 1)    \
+  V(ChangeTaggedToFloat64, Operator::kNoProperties, 1)   \
+  V(ChangeInt32ToTagged, Operator::kNoProperties, 1)     \
+  V(ChangeUint32ToTagged, Operator::kNoProperties, 1)    \
+  V(ChangeFloat64ToTagged, Operator::kNoProperties, 1)   \
+  V(ChangeBoolToBit, Operator::kNoProperties, 1)         \
+  V(ChangeBitToBool, Operator::kNoProperties, 1)         \
+  V(ObjectIsNumber, Operator::kNoProperties, 1)          \
+  V(ObjectIsReceiver, Operator::kNoProperties, 1)        \
+  V(ObjectIsSmi, Operator::kNoProperties, 1)
 
+#define NO_THROW_OP_LIST(V)                 \
+  V(StringEqual, Operator::kCommutative, 2) \
+  V(StringLessThan, Operator::kNoThrow, 2)  \
+  V(StringLessThanOrEqual, Operator::kNoThrow, 2)
 
-struct SimplifiedOperatorGlobalCache FINAL {
+struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, input_count)                                \
-  struct Name##Operator FINAL : public Operator {                          \
+  struct Name##Operator final : public Operator {                          \
     Name##Operator()                                                       \
         : Operator(IrOpcode::k##Name, Operator::kPure | properties, #Name, \
                    input_count, 0, 0, 1, 0, 0) {}                          \
@@ -150,6 +205,36 @@ struct SimplifiedOperatorGlobalCache FINAL {
   Name##Operator k##Name;
   PURE_OP_LIST(PURE)
 #undef PURE
+
+#define NO_THROW(Name, properties, input_count)                               \
+  struct Name##Operator final : public Operator {                             \
+    Name##Operator()                                                          \
+        : Operator(IrOpcode::k##Name, Operator::kNoThrow | properties, #Name, \
+                   input_count, 1, 1, 1, 1, 0) {}                             \
+  };                                                                          \
+  Name##Operator k##Name;
+  NO_THROW_OP_LIST(NO_THROW)
+#undef NO_THROW
+
+#define BUFFER_ACCESS(Type, type, TYPE, ctype, size)                          \
+  struct LoadBuffer##Type##Operator final : public Operator1<BufferAccess> {  \
+    LoadBuffer##Type##Operator()                                              \
+        : Operator1<BufferAccess>(IrOpcode::kLoadBuffer,                      \
+                                  Operator::kNoThrow | Operator::kNoWrite,    \
+                                  "LoadBuffer", 3, 1, 1, 1, 1, 0,             \
+                                  BufferAccess(kExternal##Type##Array)) {}    \
+  };                                                                          \
+  struct StoreBuffer##Type##Operator final : public Operator1<BufferAccess> { \
+    StoreBuffer##Type##Operator()                                             \
+        : Operator1<BufferAccess>(IrOpcode::kStoreBuffer,                     \
+                                  Operator::kNoRead | Operator::kNoThrow,     \
+                                  "StoreBuffer", 4, 1, 1, 0, 1, 0,            \
+                                  BufferAccess(kExternal##Type##Array)) {}    \
+  };                                                                          \
+  LoadBuffer##Type##Operator kLoadBuffer##Type;                               \
+  StoreBuffer##Type##Operator kStoreBuffer##Type;
+  TYPED_ARRAYS(BUFFER_ACCESS)
+#undef BUFFER_ACCESS
 };
 
 
@@ -161,25 +246,58 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
     : cache_(kCache.Get()), zone_(zone) {}
 
 
-#define PURE(Name, properties, input_count) \
+#define GET_FROM_CACHE(Name, properties, input_count) \
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
-PURE_OP_LIST(PURE)
-#undef PURE
+PURE_OP_LIST(GET_FROM_CACHE)
+NO_THROW_OP_LIST(GET_FROM_CACHE)
+#undef GET_FROM_CACHE
 
 
 const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
-  // TODO(titzer): What about the type parameter?
   return new (zone()) Operator(IrOpcode::kReferenceEqual,
                                Operator::kCommutative | Operator::kPure,
                                "ReferenceEqual", 2, 0, 0, 1, 0, 0);
 }
 
 
+const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {
+  return new (zone())
+      Operator1<PretenureFlag>(IrOpcode::kAllocate, Operator::kNoThrow,
+                               "Allocate", 1, 1, 1, 1, 1, 0, pretenure);
+}
+
+
+const Operator* SimplifiedOperatorBuilder::LoadBuffer(BufferAccess access) {
+  switch (access.external_array_type()) {
+#define LOAD_BUFFER(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                     \
+    return &cache_.kLoadBuffer##Type;
+    TYPED_ARRAYS(LOAD_BUFFER)
+#undef LOAD_BUFFER
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+
+const Operator* SimplifiedOperatorBuilder::StoreBuffer(BufferAccess access) {
+  switch (access.external_array_type()) {
+#define STORE_BUFFER(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                      \
+    return &cache_.kStoreBuffer##Type;
+    TYPED_ARRAYS(STORE_BUFFER)
+#undef STORE_BUFFER
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+
 #define ACCESS_OP_LIST(V)                                    \
   V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1, 1)     \
   V(StoreField, FieldAccess, Operator::kNoRead, 2, 1, 0)     \
-  V(LoadElement, ElementAccess, Operator::kNoWrite, 3, 0, 1) \
-  V(StoreElement, ElementAccess, Operator::kNoRead, 4, 1, 0)
+  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1, 1) \
+  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 1, 0)
 
 
 #define ACCESS(Name, Type, properties, value_input_count, control_input_count, \

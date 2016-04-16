@@ -39,6 +39,7 @@ class EntryFrameConstants : public AllStatic {
  public:
   static const int kCallerFPOffset      = -6 * kPointerSize;
 
+  static const int kNewTargetArgOffset = +2 * kPointerSize;
   static const int kFunctionArgOffset   = +3 * kPointerSize;
   static const int kReceiverArgOffset   = +4 * kPointerSize;
   static const int kArgcOffset          = +5 * kPointerSize;
@@ -79,47 +80,7 @@ class JavaScriptFrameConstants : public AllStatic {
 };
 
 
-class ArgumentsAdaptorFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + kPointerSize;
-};
-
-
-class ConstructFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kImplicitReceiverOffset = -5 * kPointerSize;
-  static const int kConstructorOffset      = kMinInt;
-  static const int kLengthOffset           = -4 * kPointerSize;
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
-
-  static const int kFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
-};
-
-
-class InternalFrameConstants : public AllStatic {
- public:
-  // FP-relative.
-  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
-};
-
-
-inline Object* JavaScriptFrame::function_slot_object() const {
-  const int offset = JavaScriptFrameConstants::kFunctionOffset;
-  return Memory::Object_at(fp() + offset);
-}
-
-
-inline void StackHandler::SetFp(Address slot, Address fp) {
-  Memory::Address_at(slot) = fp;
-}
-
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_FRAMES_X87_H_

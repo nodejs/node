@@ -32,8 +32,14 @@ Data types
 
     Callback called when data was read on a stream.
 
-    `nread` is > 0 if there is data available, 0 if libuv is done reading for
-    now, or < 0 on error.
+    `nread` is > 0 if there is data available or < 0 on error. When we've
+    reached EOF, `nread` will be set to ``UV_EOF``. When `nread` < 0,
+    the `buf` parameter might not point to a valid buffer; in that case
+    `buf.len` and `buf.base` are both set to 0.
+
+    .. note::
+        `nread` might be 0, which does *not* indicate an error or EOF. This
+        is equivalent to ``EAGAIN`` or ``EWOULDBLOCK`` under ``read(2)``.
 
     The callee is responsible for stopping closing the stream when an error happens
     by calling :c:func:`uv_read_stop` or :c:func:`uv_close`. Trying to read
@@ -62,7 +68,7 @@ Data types
 
     Callback called when a stream server has received an incoming connection.
     The user can accept the connection by calling :c:func:`uv_accept`.
-    `status` will de 0 in case of success, < 0 otherwise.
+    `status` will be 0 in case of success, < 0 otherwise.
 
 
 Public members
@@ -104,7 +110,7 @@ API
 .. c:function:: int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb)
 
     Start listening for incoming connections. `backlog` indicates the number of
-    connections the kernel might queue, same as ``listen(2)``. When a new
+    connections the kernel might queue, same as :man:`listen(2)`. When a new
     incoming connection is received the :c:type:`uv_connection_cb` callback is
     called.
 
@@ -123,30 +129,28 @@ API
     .. note::
         `server` and `client` must be handles running on the same loop.
 
-.. c:function:: int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb)
+.. c:function:: int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb)
 
-    Read data from an incoming stream. The callback will be made several
-    times until there is no more data to read or :c:func:`uv_read_stop` is called.
-    When we've reached EOF `nread` will be set to ``UV_EOF``.
-
-    When `nread` < 0, the `buf` parameter might not point to a valid buffer;
-    in that case `buf.len` and `buf.base` are both set to 0.
-
-    .. note::
-        `nread` might also be 0, which does *not* indicate an error or EOF, it happens when
-        libuv requested a buffer through the alloc callback but then decided that it didn't
-        need that buffer.
+    Read data from an incoming stream. The :c:type:`uv_read_cb` callback will
+    be made several times until there is no more data to read or
+    :c:func:`uv_read_stop` is called.
 
 .. c:function:: int uv_read_stop(uv_stream_t*)
 
     Stop reading data from the stream. The :c:type:`uv_read_cb` callback will
     no longer be called.
 
+    This function is idempotent and may be safely called on a stopped stream.
+
 .. c:function:: int uv_write(uv_write_t* req, uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs, uv_write_cb cb)
 
     Write data to stream. Buffers are written in order. Example:
 
     ::
+
+        void cb(uv_write_t* req, int status) {
+            /* Logic which handles the write result */
+        }
 
         uv_buf_t a[] = {
             { .base = "1", .len = 1 },
@@ -162,8 +166,8 @@ API
         uv_write_t req2;
 
         /* writes "1234" */
-        uv_write(&req1, stream, a, 2);
-        uv_write(&req2, stream, b, 2);
+        uv_write(&req1, stream, a, 2, cb);
+        uv_write(&req2, stream, b, 2, cb);
 
 .. c:function:: int uv_write2(uv_write_t* req, uv_stream_t* handle, const uv_buf_t bufs[], unsigned int nbufs, uv_stream_t* send_handle, uv_write_cb cb)
 
@@ -200,18 +204,20 @@ API
     When blocking mode is enabled all writes complete synchronously. The
     interface remains unchanged otherwise, e.g. completion or failure of the
     operation will still be reported through a callback which is made
-    asychronously.
+    asynchronously.
 
     .. warning::
         Relying too much on this API is not recommended. It is likely to change
         significantly in the future.
 
-        Currently this only works on Windows and only for
-        :c:type:`uv_pipe_t` handles.
+        Currently only works on Windows for :c:type:`uv_pipe_t` handles.
+        On UNIX platforms, all :c:type:`uv_stream_t` handles are supported.
 
         Also libuv currently makes no ordering guarantee when the blocking mode
         is changed after write requests have already been submitted. Therefore it is
         recommended to set the blocking mode immediately after opening or creating
         the stream.
+
+    .. versionchanged:: 1.4.0 UNIX implementation added.
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.

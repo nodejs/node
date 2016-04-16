@@ -445,6 +445,37 @@ function TestSortDoesNotDependOnArrayPrototypeSort() {
     fail('Should not call sort');
   };
   sortfn.call(arr);
+  // Restore for the next test
+  Array.prototype.sort = sortfn;
 }
 
 TestSortDoesNotDependOnArrayPrototypeSort();
+
+function TestSortToObject() {
+  Number.prototype[0] = 5;
+  Number.prototype[1] = 4;
+  Number.prototype.length = 2;
+  x = new Number(0);
+  assertEquals(0, Number(Array.prototype.sort.call(x)));
+  assertEquals(4, x[0]);
+  assertEquals(5, x[1]);
+  assertArrayEquals(["0", "1"], Object.getOwnPropertyNames(x));
+  // The following would throw if ToObject weren't called.
+  assertEquals(0, Number(Array.prototype.sort.call(0)));
+}
+TestSortToObject();
+
+function TestSortOnProxy() {
+  {
+    var p = new Proxy([2,1,3], {});
+    assertEquals([1,2,3], p.sort());
+  }
+
+  {
+    function f() { return arguments };
+    var a = f(2,1,3);
+    a.__proto__ = new Proxy({}, {});
+    assertEquals([1,2,3], [...(Array.prototype.sort.apply(a))]);
+  }
+}
+TestSortOnProxy();

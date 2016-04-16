@@ -1,28 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 
 assert.ok(process.stdout.writable);
@@ -31,8 +8,17 @@ assert.ok(process.stderr.writable);
 assert.equal('number', typeof process.stdout.fd);
 assert.equal('number', typeof process.stderr.fd);
 
+assert.throws(function() {
+  console.timeEnd('no such label');
+});
+
+assert.doesNotThrow(function() {
+  console.time('label');
+  console.timeEnd('label');
+});
+
 // an Object with a custom .inspect() function
-var custom_inspect = { foo: 'bar', inspect: function () { return 'inspect'; } };
+var custom_inspect = { foo: 'bar', inspect: function() { return 'inspect'; } };
 
 var stdout_write = global.process.stdout.write;
 var strings = [];
@@ -57,8 +43,29 @@ console.dir({ foo : { bar : { baz : true } } }, { depth: 1 });
 // test console.trace()
 console.trace('This is a %j %d', { formatted: 'trace' }, 10, 'foo');
 
+// test console.time() and console.timeEnd() output
+console.time('label');
+console.timeEnd('label');
+
+// verify that Object.prototype properties can be used as labels
+console.time('__proto__');
+console.timeEnd('__proto__');
+console.time('constructor');
+console.timeEnd('constructor');
+console.time('hasOwnProperty');
+console.timeEnd('hasOwnProperty');
 
 global.process.stdout.write = stdout_write;
+
+// verify that console.timeEnd() doesn't leave dead links
+const timesMapSize = console._times.size;
+console.time('label1');
+console.time('label2');
+console.time('label3');
+console.timeEnd('label1');
+console.timeEnd('label2');
+console.timeEnd('label3');
+assert.strictEqual(console._times.size, timesMapSize);
 
 assert.equal('foo\n', strings.shift());
 assert.equal('foo bar\n', strings.shift());
@@ -71,12 +78,8 @@ assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
 assert.equal(-1, strings.shift().indexOf('baz'));
 assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',
              strings.shift().split('\n').shift());
-
-assert.throws(function () {
-  console.timeEnd('no such label');
-});
-
-assert.doesNotThrow(function () {
-  console.time('label');
-  console.timeEnd('label');
-});
+assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+assert.equal(strings.length, 0);

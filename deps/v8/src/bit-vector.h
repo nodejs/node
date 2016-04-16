@@ -5,12 +5,8 @@
 #ifndef V8_DATAFLOW_H_
 #define V8_DATAFLOW_H_
 
-#include "src/v8.h"
-
 #include "src/allocation.h"
-#include "src/ast.h"
-#include "src/compiler.h"
-#include "src/zone-inl.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -70,7 +66,7 @@ class BitVector : public ZoneObject {
       : length_(length),
         data_length_(SizeFor(length)),
         data_(zone->NewArray<uintptr_t>(data_length_)) {
-    DCHECK(length > 0);
+    DCHECK_LE(0, length);
     Clear();
   }
 
@@ -81,7 +77,10 @@ class BitVector : public ZoneObject {
     CopyFrom(other);
   }
 
-  static int SizeFor(int length) { return 1 + ((length - 1) / kDataBits); }
+  static int SizeFor(int length) {
+    if (length == 0) return 1;
+    return 1 + ((length - 1) / kDataBits);
+  }
 
   void CopyFrom(const BitVector& other) {
     DCHECK(other.length() <= length());
@@ -103,6 +102,8 @@ class BitVector : public ZoneObject {
     DCHECK(i >= 0 && i < length());
     data_[i / kDataBits] |= (kOne << (i % kDataBits));
   }
+
+  void AddAll() { memset(data_, -1, sizeof(uintptr_t) * data_length_); }
 
   void Remove(int i) {
     DCHECK(i >= 0 && i < length());

@@ -1,29 +1,8 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 #include "node.h"
 #include "v8.h"
 #include "env.h"
 #include "env-inl.h"
+#include "string_bytes.h"
 
 #include <errno.h>
 #include <string.h>
@@ -33,6 +12,7 @@
 #endif  // __MINGW32__
 
 #ifdef __POSIX__
+# include <limits.h>        // PATH_MAX on Solaris.
 # include <netdb.h>         // MAXHOSTNAMELEN on Solaris.
 # include <unistd.h>        // gethostname, sysconf
 # include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
@@ -51,9 +31,9 @@ using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::Handle;
 using v8::Integer;
 using v8::Local;
+using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::String;
@@ -106,12 +86,15 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowErrnoException(errno, "uname");
   }
   rval = info.release;
-#else  // __MINGW32__
+#else  // Windows
   char release[256];
-  OSVERSIONINFO info;
+  OSVERSIONINFOW info;
 
   info.dwOSVersionInfoSize = sizeof(info);
-  if (GetVersionEx(&info) == 0)
+
+  // Don't complain that GetVersionEx is deprecated; there is no alternative.
+  #pragma warning(suppress : 4996)
+  if (GetVersionExW(&info) == 0)
     return;
 
   snprintf(release,
@@ -219,7 +202,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
   ret = Object::New(env->isolate());
 
   if (err == UV_ENOSYS) {
-    args.GetReturnValue().Set(ret);
+    return args.GetReturnValue().Set(ret);
   } else if (err) {
     return env->ThrowUVException(err, "uv_interface_addresses");
   }
@@ -236,7 +219,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     name = OneByteString(env->isolate(), raw_name);
 #endif
 
-    if (ret->Has(name)) {
+    if (ret->Has(env->context(), name).FromJust()) {
       ifarr = Local<Array>::Cast(ret->Get(name));
     } else {
       ifarr = Array::New(env->isolate());
@@ -290,9 +273,94 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Initialize(Handle<Object> target,
-                Handle<Value> unused,
-                Handle<Context> context) {
+static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  char buf[PATH_MAX];
+
+  size_t len = sizeof(buf);
+  const int err = uv_os_homedir(buf, &len);
+
+  if (err) {
+    return env->ThrowUVException(err, "uv_os_homedir");
+  }
+
+  Local<String> home = String::NewFromUtf8(env->isolate(),
+                                           buf,
+                                           String::kNormalString,
+                                           len);
+  args.GetReturnValue().Set(home);
+}
+
+
+static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  uv_passwd_t pwd;
+  enum encoding encoding;
+
+  if (args[0]->IsObject()) {
+    Local<Object> options = args[0].As<Object>();
+    Local<Value> encoding_opt = options->Get(env->encoding_string());
+    encoding = ParseEncoding(env->isolate(), encoding_opt, UTF8);
+  } else {
+    encoding = UTF8;
+  }
+
+  const int err = uv_os_get_passwd(&pwd);
+
+  if (err) {
+    return env->ThrowUVException(err, "uv_os_get_passwd");
+  }
+
+  Local<Value> uid = Number::New(env->isolate(), pwd.uid);
+  Local<Value> gid = Number::New(env->isolate(), pwd.gid);
+  Local<Value> username = StringBytes::Encode(env->isolate(),
+                                              pwd.username,
+                                              encoding);
+  Local<Value> homedir = StringBytes::Encode(env->isolate(),
+                                             pwd.homedir,
+                                             encoding);
+  Local<Value> shell;
+
+  if (pwd.shell == NULL)
+    shell = Null(env->isolate());
+  else
+    shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding);
+
+  uv_os_free_passwd(&pwd);
+
+  if (username.IsEmpty()) {
+    return env->ThrowUVException(UV_EINVAL,
+                                 "uv_os_get_passwd",
+                                 "Invalid character encoding for username");
+  }
+
+  if (homedir.IsEmpty()) {
+    return env->ThrowUVException(UV_EINVAL,
+                                 "uv_os_get_passwd",
+                                 "Invalid character encoding for homedir");
+  }
+
+  if (shell.IsEmpty()) {
+    return env->ThrowUVException(UV_EINVAL,
+                                 "uv_os_get_passwd",
+                                 "Invalid character encoding for shell");
+  }
+
+  Local<Object> entry = Object::New(env->isolate());
+
+  entry->Set(env->uid_string(), uid);
+  entry->Set(env->gid_string(), gid);
+  entry->Set(env->username_string(), username);
+  entry->Set(env->homedir_string(), homedir);
+  entry->Set(env->shell_string(), shell);
+
+  args.GetReturnValue().Set(entry);
+}
+
+
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "getHostname", GetHostname);
   env->SetMethod(target, "getLoadAvg", GetLoadAvg);
@@ -303,6 +371,8 @@ void Initialize(Handle<Object> target,
   env->SetMethod(target, "getOSType", GetOSType);
   env->SetMethod(target, "getOSRelease", GetOSRelease);
   env->SetMethod(target, "getInterfaceAddresses", GetInterfaceAddresses);
+  env->SetMethod(target, "getHomeDirectory", GetHomeDirectory);
+  env->SetMethod(target, "getUserInfo", GetUserInfo);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
               Boolean::New(env->isolate(), IsBigEndian()));
 }

@@ -12,37 +12,35 @@
 #endif
 #endif
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM
 
 #include "src/assembler.h"
 #include "src/macro-assembler.h"
-#include "src/simulator.h"  // for cache flushing.
 
 namespace v8 {
 namespace internal {
 
-
 void CpuFeatures::FlushICache(void* start, size_t size) {
-  if (size == 0) return;
-
-#if defined(USE_SIMULATOR)
-  // Not generating ARM instructions for C-code. This means that we are
-  // building an ARM emulator based target.  We should notify the simulator
-  // that the Icache was flushed.
-  // None of this code ends up in the snapshot so there are no issues
-  // around whether or not to generate the code when building snapshots.
-  Simulator::FlushICache(Isolate::Current()->simulator_i_cache(), start, size);
-
-#elif V8_OS_QNX
+#if !defined(USE_SIMULATOR)
+#if V8_OS_QNX
   msync(start, size, MS_SYNC | MS_INVALIDATE_ICACHE);
-
 #else
   register uint32_t beg asm("r0") = reinterpret_cast<uint32_t>(start);
   register uint32_t end asm("r1") = beg + size;
   register uint32_t flg asm("r2") = 0;
 
+#ifdef __clang__
+  // This variant of the asm avoids a constant pool entry, which can be
+  // problematic when LTO'ing. It is also slightly shorter.
+  register uint32_t scno asm("r7") = __ARM_NR_cacheflush;
+
+  asm volatile("svc 0\n"
+               :
+               : "r"(beg), "r"(end), "r"(flg), "r"(scno)
+               : "memory");
+#else
+  // Use a different variant of the asm with GCC because some versions doesn't
+  // support r7 as an asm input.
   asm volatile(
     // This assembly works for both ARM and Thumb targets.
 
@@ -60,8 +58,11 @@ void CpuFeatures::FlushICache(void* start, size_t size) {
     : "r" (beg), "r" (end), "r" (flg), [scno] "i" (__ARM_NR_cacheflush)
     : "memory");
 #endif
+#endif
+#endif  // !USE_SIMULATOR
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM

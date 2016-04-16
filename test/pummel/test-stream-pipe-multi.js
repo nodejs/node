@@ -1,28 +1,8 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 // Test that having a bunch of streams piping in parallel
 // doesn't break anything.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var Stream = require('stream').Stream;
 var rr = [];
@@ -30,7 +10,7 @@ var ww = [];
 var cnt = 100;
 var chunks = 1000;
 var chunkSize = 250;
-var data = new Buffer(chunkSize);
+var data = Buffer.allocUnsafe(chunkSize);
 var wclosed = 0;
 var rclosed = 0;
 
@@ -69,11 +49,11 @@ process.on('exit', function() {
   assert.equal(cnt, rclosed, 'readable streams closed');
 });
 
-for (var i = 0; i < chunkSize; i++) {
-  chunkSize[i] = i % 256;
+for (let i = 0; i < chunkSize; i++) {
+  data[i] = i;
 }
 
-for (var i = 0; i < cnt; i++) {
+for (let i = 0; i < cnt; i++) {
   var r = new FakeStream();
   r.on('close', function() {
     console.error(this.ID, 'read close');

@@ -1,32 +1,12 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
 var join = require('path').join;
 
-var filename = join(common.tmpDir, 'test.txt');
+common.refreshTmpDir();
 
-common.error('writing to ' + filename);
+var filename = join(common.tmpDir, 'test.txt');
 
 var n = 220;
 var s = '南越国是前203年至前111年存在于岭南地区的一个国家，国都位于番禺，疆域包括今天中国的广东、' +
@@ -43,11 +23,9 @@ fs.writeFile(filename, s, function(e) {
   if (e) throw e;
 
   ncallbacks++;
-  common.error('file written');
 
   fs.readFile(filename, function(e, buffer) {
     if (e) throw e;
-    common.error('file read');
     ncallbacks++;
     assert.equal(Buffer.byteLength(s), buffer.length);
   });
@@ -55,18 +33,15 @@ fs.writeFile(filename, s, function(e) {
 
 // test that writeFile accepts buffers
 var filename2 = join(common.tmpDir, 'test2.txt');
-var buf = new Buffer(s, 'utf8');
-common.error('writing to ' + filename2);
+var buf = Buffer.from(s, 'utf8');
 
 fs.writeFile(filename2, buf, function(e) {
   if (e) throw e;
 
   ncallbacks++;
-  common.error('file2 written');
 
   fs.readFile(filename2, function(e, buffer) {
     if (e) throw e;
-    common.error('file2 read');
     ncallbacks++;
     assert.equal(buf.length, buffer.length);
   });
@@ -74,35 +49,59 @@ fs.writeFile(filename2, buf, function(e) {
 
 // test that writeFile accepts numbers.
 var filename3 = join(common.tmpDir, 'test3.txt');
-common.error('writing to ' + filename3);
 
-var m = 0600;
+var m = 0o600;
 fs.writeFile(filename3, n, { mode: m }, function(e) {
   if (e) throw e;
 
   // windows permissions aren't unix
-  if (process.platform !== 'win32') {
+  if (!common.isWindows) {
     var st = fs.statSync(filename3);
-    assert.equal(st.mode & 0700, m);
+    assert.equal(st.mode & 0o700, m);
   }
 
   ncallbacks++;
-  common.error('file3 written');
 
   fs.readFile(filename3, function(e, buffer) {
     if (e) throw e;
-    common.error('file3 read');
     ncallbacks++;
     assert.equal(Buffer.byteLength('' + n), buffer.length);
   });
 });
 
+// test that writeFile accepts file descriptors
+var filename4 = join(common.tmpDir, 'test4.txt');
+
+fs.open(filename4, 'w+', function(e, fd) {
+  if (e) throw e;
+
+  ncallbacks++;
+
+  fs.writeFile(fd, s, function(e) {
+    if (e) throw e;
+
+    ncallbacks++;
+
+    fs.close(fd, function(e) {
+      if (e) throw e;
+
+      ncallbacks++;
+
+      fs.readFile(filename4, function(e, buffer) {
+        if (e) throw e;
+
+        ncallbacks++;
+        assert.equal(Buffer.byteLength(s), buffer.length);
+      });
+    });
+  });
+});
 
 process.on('exit', function() {
-  common.error('done');
-  assert.equal(6, ncallbacks);
+  assert.equal(10, ncallbacks);
 
   fs.unlinkSync(filename);
   fs.unlinkSync(filename2);
   fs.unlinkSync(filename3);
+  fs.unlinkSync(filename4);
 });

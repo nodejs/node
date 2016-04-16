@@ -4,12 +4,15 @@
 
 #include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/node-properties-inl.h"
+#include "src/compiler/node-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/typer.h"
+#include "src/isolate-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
 
+using testing::BitEq;
 using testing::Capture;
 
 namespace v8 {
@@ -23,19 +26,18 @@ class JSBuiltinReducerTest : public TypedGraphTest {
  protected:
   Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =
                                    MachineOperatorBuilder::Flag::kNoFlags) {
-    MachineOperatorBuilder machine(kMachPtr, flags);
-    JSGraph jsgraph(graph(), common(), javascript(), &machine);
-    JSBuiltinReducer reducer(&jsgraph);
+    MachineOperatorBuilder machine(zone(), MachineType::PointerRepresentation(),
+                                   flags);
+    SimplifiedOperatorBuilder simplified(zone());
+    JSGraph jsgraph(isolate(), graph(), common(), javascript(), &simplified,
+                    &machine);
+    // TODO(titzer): mock the GraphReducer here for better unit testing.
+    GraphReducer graph_reducer(zone(), graph());
+    JSBuiltinReducer reducer(&graph_reducer, &jsgraph);
     return reducer.Reduce(node);
   }
 
-  Node* Parameter(Type* t, int32_t index = 0) {
-    Node* n = graph()->NewNode(common()->Parameter(index), graph()->start());
-    NodeProperties::SetBounds(n, Bounds(Type::None(), t));
-    return n;
-  }
-
-  Handle<JSFunction> MathFunction(const char* name) {
+  Node* MathFunction(const char* name) {
     Handle<Object> m =
         JSObject::GetProperty(isolate()->global_object(),
                               isolate()->factory()->NewStringFromAsciiChecked(
@@ -44,7 +46,7 @@ class JSBuiltinReducerTest : public TypedGraphTest {
         JSObject::GetProperty(
             m, isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
-    return f;
+    return HeapConstant(f);
   }
 
   JSOperatorBuilder* javascript() { return &javascript_; }
@@ -56,65 +58,19 @@ class JSBuiltinReducerTest : public TypedGraphTest {
 
 namespace {
 
-// TODO(mstarzinger): Find a common place and unify with test-js-typed-lowering.
+Type* const kIntegral32Types[] = {Type::UnsignedSmall(), Type::Negative32(),
+                                  Type::Unsigned31(),    Type::SignedSmall(),
+                                  Type::Signed32(),      Type::Unsigned32(),
+                                  Type::Integral32()};
+
+
 Type* const kNumberTypes[] = {
-    Type::UnsignedSmall(),   Type::OtherSignedSmall(), Type::OtherUnsigned31(),
-    Type::OtherUnsigned32(), Type::OtherSigned32(),    Type::SignedSmall(),
-    Type::Signed32(),        Type::Unsigned32(),       Type::Integral32(),
-    Type::MinusZero(),       Type::NaN(),              Type::OtherNumber(),
-    Type::OrderedNumber(),   Type::Number()};
+    Type::UnsignedSmall(), Type::Negative32(),  Type::Unsigned31(),
+    Type::SignedSmall(),   Type::Signed32(),    Type::Unsigned32(),
+    Type::Integral32(),    Type::MinusZero(),   Type::NaN(),
+    Type::OrderedNumber(), Type::PlainNumber(), Type::Number()};
 
 }  // namespace
-
-
-// -----------------------------------------------------------------------------
-// Math.abs
-
-
-TEST_F(JSBuiltinReducerTest, MathAbs) {
-  Handle<JSFunction> f = MathFunction("abs");
-
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    Node* p0 = Parameter(t0, 0);
-    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call =
-        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
-                         fun, UndefinedConstant(), p0);
-    Reduction r = Reduce(call);
-
-    if (t0->Is(Type::Unsigned32())) {
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(), p0);
-    } else {
-      Capture<Node*> branch;
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(),
-                  IsSelect(kMachNone, IsNumberLessThan(IsNumberConstant(0), p0),
-                           p0, IsNumberSubtract(IsNumberConstant(0), p0)));
-    }
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// Math.sqrt
-
-
-TEST_F(JSBuiltinReducerTest, MathSqrt) {
-  Handle<JSFunction> f = MathFunction("sqrt");
-
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    Node* p0 = Parameter(t0, 0);
-    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call =
-        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
-                         fun, UndefinedConstant(), p0);
-    Reduction r = Reduce(call);
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsFloat64Sqrt(p0));
-  }
-}
 
 
 // -----------------------------------------------------------------------------
@@ -122,12 +78,15 @@ TEST_F(JSBuiltinReducerTest, MathSqrt) {
 
 
 TEST_F(JSBuiltinReducerTest, MathMax0) {
-  Handle<JSFunction> f = MathFunction("max");
+  Node* function = MathFunction("max");
 
-  Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-  Node* call =
-      graph()->NewNode(javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS),
-                       fun, UndefinedConstant());
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* call = graph()->NewNode(javascript()->CallFunction(2), function,
+                                UndefinedConstant(), context, frame_state,
+                                frame_state, effect, control);
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -136,14 +95,17 @@ TEST_F(JSBuiltinReducerTest, MathMax0) {
 
 
 TEST_F(JSBuiltinReducerTest, MathMax1) {
-  Handle<JSFunction> f = MathFunction("max");
+  Node* function = MathFunction("max");
 
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     Node* p0 = Parameter(t0, 0);
-    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call =
-        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
-                         fun, UndefinedConstant(), p0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  frame_state, effect, control);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
@@ -153,26 +115,24 @@ TEST_F(JSBuiltinReducerTest, MathMax1) {
 
 
 TEST_F(JSBuiltinReducerTest, MathMax2) {
-  Handle<JSFunction> f = MathFunction("max");
+  Node* function = MathFunction("max");
 
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    TRACED_FOREACH(Type*, t1, kNumberTypes) {
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kIntegral32Types) {
+    TRACED_FOREACH(Type*, t1, kIntegral32Types) {
       Node* p0 = Parameter(t0, 0);
       Node* p1 = Parameter(t1, 1);
-      Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-      Node* call = graph()->NewNode(
-          javascript()->CallFunction(4, NO_CALL_FUNCTION_FLAGS), fun,
-          UndefinedConstant(), p0, p1);
+      Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
+                                    UndefinedConstant(), p0, p1, context,
+                                    frame_state, frame_state, effect, control);
       Reduction r = Reduce(call);
 
-      if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
-        ASSERT_TRUE(r.Changed());
-        EXPECT_THAT(r.replacement(),
-                    IsSelect(kMachNone, IsNumberLessThan(p1, p0), p1, p0));
-      } else {
-        ASSERT_FALSE(r.Changed());
-        EXPECT_EQ(IrOpcode::kJSCallFunction, call->opcode());
-      }
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsSelect(MachineRepresentation::kNone,
+                                            IsNumberLessThan(p1, p0), p0, p1));
     }
   }
 }
@@ -183,25 +143,23 @@ TEST_F(JSBuiltinReducerTest, MathMax2) {
 
 
 TEST_F(JSBuiltinReducerTest, MathImul) {
-  Handle<JSFunction> f = MathFunction("imul");
+  Node* function = MathFunction("imul");
 
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    TRACED_FOREACH(Type*, t1, kNumberTypes) {
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kIntegral32Types) {
+    TRACED_FOREACH(Type*, t1, kIntegral32Types) {
       Node* p0 = Parameter(t0, 0);
       Node* p1 = Parameter(t1, 1);
-      Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-      Node* call = graph()->NewNode(
-          javascript()->CallFunction(4, NO_CALL_FUNCTION_FLAGS), fun,
-          UndefinedConstant(), p0, p1);
+      Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
+                                    UndefinedConstant(), p0, p1, context,
+                                    frame_state, frame_state, effect, control);
       Reduction r = Reduce(call);
 
-      if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
-        ASSERT_TRUE(r.Changed());
-        EXPECT_THAT(r.replacement(), IsInt32Mul(p0, p1));
-      } else {
-        ASSERT_FALSE(r.Changed());
-        EXPECT_EQ(IrOpcode::kJSCallFunction, call->opcode());
-      }
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt32Mul(p0, p1));
     }
   }
 }
@@ -212,14 +170,17 @@ TEST_F(JSBuiltinReducerTest, MathImul) {
 
 
 TEST_F(JSBuiltinReducerTest, MathFround) {
-  Handle<JSFunction> f = MathFunction("fround");
+  Node* function = MathFunction("fround");
 
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     Node* p0 = Parameter(t0, 0);
-    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call =
-        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
-                         fun, UndefinedConstant(), p0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  frame_state, effect, control);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
@@ -227,79 +188,6 @@ TEST_F(JSBuiltinReducerTest, MathFround) {
   }
 }
 
-
-// -----------------------------------------------------------------------------
-// Math.floor
-
-
-TEST_F(JSBuiltinReducerTest, MathFloorAvailable) {
-  Handle<JSFunction> f = MathFunction("floor");
-
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    Node* p0 = Parameter(t0, 0);
-    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call =
-        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
-                         fun, UndefinedConstant(), p0);
-    Reduction r = Reduce(call, MachineOperatorBuilder::Flag::kFloat64Floor);
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsFloat64Floor(p0));
-  }
-}
-
-
-TEST_F(JSBuiltinReducerTest, MathFloorUnavailable) {
-  Handle<JSFunction> f = MathFunction("floor");
-
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    Node* p0 = Parameter(t0, 0);
-    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call =
-        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
-                         fun, UndefinedConstant(), p0);
-    Reduction r = Reduce(call, MachineOperatorBuilder::Flag::kNoFlags);
-
-    ASSERT_FALSE(r.Changed());
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// Math.ceil
-
-
-TEST_F(JSBuiltinReducerTest, MathCeilAvailable) {
-  Handle<JSFunction> f = MathFunction("ceil");
-
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    Node* p0 = Parameter(t0, 0);
-    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call =
-        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
-                         fun, UndefinedConstant(), p0);
-    Reduction r = Reduce(call, MachineOperatorBuilder::Flag::kFloat64Ceil);
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsFloat64Ceil(p0));
-  }
-}
-
-
-TEST_F(JSBuiltinReducerTest, MathCeilUnavailable) {
-  Handle<JSFunction> f = MathFunction("ceil");
-
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    Node* p0 = Parameter(t0, 0);
-    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call =
-        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
-                         fun, UndefinedConstant(), p0);
-    Reduction r = Reduce(call, MachineOperatorBuilder::Flag::kNoFlags);
-
-    ASSERT_FALSE(r.Changed());
-  }
-}
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

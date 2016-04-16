@@ -1,52 +1,30 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 var os = require('os');
-var util = require('util');
 
 if (os.type() != 'SunOS') {
-  console.error('Skipping because DTrace not available.');
-  process.exit(0);
+  console.log('1..0 # Skipped: no DTRACE support');
+  return;
 }
 
 /*
  * Some functions to create a recognizable stack.
  */
 var frames = [ 'stalloogle', 'bagnoogle', 'doogle' ];
-var expected;
 
-var stalloogle = function (str) {
-  expected = str;
+var stalloogle = function(str) {
+  global.expected = str;
   os.loadavg();
 };
 
-var bagnoogle = function (arg0, arg1) {
+var bagnoogle = function(arg0, arg1) {
   stalloogle(arg0 + ' is ' + arg1 + ' except that it is read-only');
 };
 
 var done = false;
 
-var doogle = function () {
+var doogle = function() {
   if (!done)
     setTimeout(doogle, 10);
 
@@ -54,8 +32,6 @@ var doogle = function () {
 };
 
 var spawn = require('child_process').spawn;
-var prefix = '/var/tmp/node';
-var corefile = prefix + '.' + process.pid;
 
 /*
  * We're going to use DTrace to stop us, gcore us, and set us running again
@@ -67,15 +43,15 @@ var dtrace = spawn('dtrace', [ '-qwn', 'syscall::getloadavg:entry/pid == ' +
 
 var output = '';
 
-dtrace.stderr.on('data', function (data) {
+dtrace.stderr.on('data', function(data) {
   console.log('dtrace: ' + data);
 });
 
-dtrace.stdout.on('data', function (data) {
+dtrace.stdout.on('data', function(data) {
   output += data;
 });
 
-dtrace.on('exit', function (code) {
+dtrace.on('exit', function(code) {
   if (code != 0) {
     console.error('dtrace exited with code ' + code);
     process.exit(code);

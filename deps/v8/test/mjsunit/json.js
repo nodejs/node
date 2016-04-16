@@ -140,9 +140,16 @@ var pointJson = '{"x": 1, "y": 2}';
 assertEquals({'x': 1, 'y': 2}, JSON.parse(pointJson));
 assertEquals({'x': 1}, JSON.parse(pointJson, GetFilter('y')));
 assertEquals({'y': 2}, JSON.parse(pointJson, GetFilter('x')));
+
 assertEquals([1, 2, 3], JSON.parse("[1, 2, 3]"));
-assertEquals([1, undefined, 3], JSON.parse("[1, 2, 3]", GetFilter(1)));
-assertEquals([1, 2, undefined], JSON.parse("[1, 2, 3]", GetFilter(2)));
+
+var array1 = JSON.parse("[1, 2, 3]", GetFilter(1));
+assertEquals([1, , 3], array1);
+assertFalse(array1.hasOwnProperty(1));  // assertEquals above is not enough
+
+var array2 = JSON.parse("[1, 2, 3]", GetFilter(2));
+assertEquals([1, 2, ,], array2);
+assertFalse(array2.hasOwnProperty(2));
 
 function DoubleNumbers(key, value) {
   return (typeof value == 'number') ? 2 * value : value;
@@ -482,3 +489,32 @@ assertTrue(Object.prototype.isPrototypeOf(o2));
 
 var json = '{"stuff before slash\\\\stuff after slash":"whatever"}';
 TestStringify(json, JSON.parse(json));
+
+
+// https://bugs.chromium.org/p/v8/issues/detail?id=3139
+
+reviver = function(p, v) {
+  if (p == "a") {
+    this.b = { get x() {return null}, set x(_){throw 666} }
+  }
+  return v;
+}
+assertEquals({a: 0, b: {x: null}}, JSON.parse('{"a":0,"b":1}', reviver));
+
+
+// Make sure a failed [[Delete]] doesn't throw
+
+reviver = function(p, v) {
+  Object.freeze(this);
+  return p === "" ? v : undefined;
+}
+assertEquals({a: 0, b: 1}, JSON.parse('{"a":0,"b":1}', reviver));
+
+
+// Make sure a failed [[DefineProperty]] doesn't throw
+
+reviver = function(p, v) {
+  Object.freeze(this);
+  return p === "" ? v : 42;
+}
+assertEquals({a: 0, b: 1}, JSON.parse('{"a":0,"b":1}', reviver));

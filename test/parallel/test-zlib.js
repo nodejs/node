@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common.js');
+'use strict';
+var common = require('../common');
 var assert = require('assert');
 var zlib = require('zlib');
 var path = require('path');
@@ -62,7 +42,7 @@ var testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
 
 if (process.env.FAST) {
   zlibPairs = [[zlib.Gzip, zlib.Unzip]];
-  var testFiles = ['person.jpg'];
+  testFiles = ['person.jpg'];
 }
 
 var tests = {};
@@ -93,7 +73,7 @@ BufferStream.prototype.write = function(c) {
 BufferStream.prototype.end = function(c) {
   if (c) this.write(c);
   // flatten
-  var buf = new Buffer(this.length);
+  var buf = Buffer.allocUnsafe(this.length);
   var i = 0;
   this.chunks.forEach(function(c) {
     c.copy(buf, i);
@@ -145,13 +125,11 @@ SlowStream.prototype.resume = function() {
 
 SlowStream.prototype.end = function(chunk) {
   // walk over the chunk in blocks.
-  var self = this;
-  self.chunk = chunk;
-  self.length = chunk.length;
-  self.resume();
-  return self.ended;
+  this.chunk = chunk;
+  this.length = chunk.length;
+  this.resume();
+  return this.ended;
 };
-
 
 
 // for each of the files, make sure that compressing and

@@ -56,7 +56,7 @@
 #define V8_StringTag                V8DBG_STRINGTAG
 
 #define V8_StringEncodingMask       V8DBG_STRINGENCODINGMASK
-#define V8_AsciiStringTag           V8DBG_ASCIISTRINGTAG
+#define V8_AsciiStringTag           V8DBG_ONEBYTESTRINGTAG
 
 #define V8_StringRepresentationMask V8DBG_STRINGREPRESENTATIONMASK
 #define V8_SeqStringTag             V8DBG_SEQSTRINGTAG

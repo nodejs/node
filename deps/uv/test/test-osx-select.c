@@ -39,6 +39,7 @@ static void alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
 
 static void read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
   fprintf(stdout, "got data %d\n", ++read_count);
+  fflush(stdout);
 
   if (read_count == 3)
     uv_close((uv_handle_t*) stream, NULL);
@@ -54,8 +55,11 @@ TEST_IMPL(osx_select) {
   uv_tty_t tty;
 
   fd = open("/dev/tty", O_RDONLY);
-
-  ASSERT(fd >= 0);
+  if (fd < 0) {
+    fprintf(stderr, "Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    fflush(stderr);
+    return TEST_SKIP;
+  }
 
   r = uv_tty_init(uv_default_loop(), &tty, fd, 1);
   ASSERT(r == 0);
@@ -90,6 +94,8 @@ TEST_IMPL(osx_select_many_fds) {
   uv_tty_t tty;
   uv_tcp_t tcps[1500];
 
+  TEST_FILE_LIMIT(ARRAY_SIZE(tcps) + 100);
+
   r = uv_ip4_addr("127.0.0.1", 0, &addr);
   ASSERT(r == 0);
 
@@ -102,7 +108,11 @@ TEST_IMPL(osx_select_many_fds) {
   }
 
   fd = open("/dev/tty", O_RDONLY);
-  ASSERT(fd >= 0);
+  if (fd < 0) {
+    fprintf(stderr, "Cannot open /dev/tty as read-only: %s\n", strerror(errno));
+    fflush(stderr);
+    return TEST_SKIP;
+  }
 
   r = uv_tty_init(uv_default_loop(), &tty, fd, 1);
   ASSERT(r == 0);

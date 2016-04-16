@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/ic/stub-cache.h"
 
 #include "src/base/bits.h"
-#include "src/ic/stub-cache.h"
 #include "src/type-info.h"
 
 namespace v8 {
@@ -118,7 +117,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
 
       int offset = PrimaryOffset(*name, flags, map);
       if (entry(primary_, offset) == &primary_[i] &&
-          !TypeFeedbackOracle::CanRetainOtherContext(map, *native_context)) {
+          TypeFeedbackOracle::IsRelevantFeedback(map, *native_context)) {
         types->AddMapIfMissing(Handle<Map>(map), zone);
       }
     }
@@ -137,11 +136,11 @@ void StubCache::CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
       // Lookup in secondary table and add matches.
       int offset = SecondaryOffset(*name, flags, primary_offset);
       if (entry(secondary_, offset) == &secondary_[i] &&
-          !TypeFeedbackOracle::CanRetainOtherContext(map, *native_context)) {
+          TypeFeedbackOracle::IsRelevantFeedback(map, *native_context)) {
         types->AddMapIfMissing(Handle<Map>(map), zone);
       }
     }
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

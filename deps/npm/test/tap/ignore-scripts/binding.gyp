@@ -1,1 +1,0 @@
-bad_binding_file

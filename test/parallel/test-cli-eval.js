@@ -1,34 +1,15 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 if (module.parent) {
   // signal we've been loaded as a module
   console.log('Loaded as a module, exiting with status code 42.');
   process.exit(42);
 }
 
-var common = require('../common.js'),
-    assert = require('assert'),
-    child = require('child_process'),
-    nodejs = '"' + process.execPath + '"';
+const common = require('../common');
+const assert = require('assert');
+const child = require('child_process');
+const path = require('path');
+const nodejs = '"' + process.execPath + '"';
 
 
 // replace \ by / because windows uses backslashes in paths, but they're still
@@ -94,4 +75,12 @@ child.exec(nodejs + ' -p "\\-42"',
 child.exec(nodejs + ' --use-strict -p process.execArgv',
     function(status, stdout, stderr) {
       assert.equal(stdout, "[ '--use-strict', '-p', 'process.execArgv' ]\n");
+    });
+
+// Regression test for https://github.com/nodejs/node/issues/3574
+const emptyFile = path.join(common.fixturesDir, 'empty.js');
+child.exec(nodejs + ` -e 'require("child_process").fork("${emptyFile}")'`,
+    function(status, stdout, stderr) {
+      assert.equal(stdout, '');
+      assert.equal(stderr, '');
     });

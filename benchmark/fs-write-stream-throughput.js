@@ -1,5 +1,5 @@
-
 // If there are no args, then this is the root.  Run all the benchmarks!
+'use strict';
 if (!process.argv[2])
   parent();
 else
@@ -39,24 +39,23 @@ function parent() {
 function runTest(dur, size, type) {
   if (type !== 'string')
     type = 'buffer';
+  var chunk;
   switch (type) {
     case 'string':
-      var chunk = new Array(size + 1).join('a');
+      chunk = new Array(size + 1).join('a');
       break;
     case 'buffer':
-      var chunk = new Buffer(size);
-      chunk.fill('a');
+      chunk = Buffer.alloc(size, 'a');
       break;
   }
 
-  var writes = 0;
   var fs = require('fs');
   try { fs.unlinkSync('write_stream_throughput'); } catch (e) {}
 
-  var start
+  var start;
   var end;
   function done() {
-    var time = end[0] + end[1]/1E9;
+    var time = end[0] + end[1] / 1E9;
     var written = fs.statSync('write_stream_throughput').size / 1024;
     var rate = (written / time).toFixed(2);
     console.log('fs_write_stream_dur_%d_size_%d_type_%s: %d',

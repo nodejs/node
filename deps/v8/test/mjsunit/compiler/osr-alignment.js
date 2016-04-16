@@ -25,37 +25,40 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --use-osr
+// Flags: --allow-natives-syntax --use-osr --turbo-osr
 
 function f1() {
   var sum = 0;
-  for (var i = 0; i < 1000000; i++) {
+  for (var i = 0; i < 1000; i++) {
     var x = i + 2;
     var y = x + 5;
     var z = y + 3;
     sum += z;
+    if (i == 18) %OptimizeOsr();
   }
   return sum;
 }
 
 function f2() {
   var sum = 0;
-  for (var i = 0; i < 1000000; i++) {
+  for (var i = 0; i < 1000; i++) {
     var x = i + 2;
     var y = x + 5;
     var z = y + 3;
     sum += z;
+    if (i == 19) %OptimizeOsr();
   }
   return sum;
 }
 
 function f3() {
   var sum = 0;
-  for (var i = 0; i < 1000000; i++) {
+  for (var i = 0; i < 1000; i++) {
     var x = i + 2;
     var y = x + 5;
     var z = y + 3;
     sum += z;
+    if (i == 20) %OptimizeOsr();
   }
   return sum;
 }
@@ -63,21 +66,21 @@ function f3() {
 function test1() {
   var j = 11;
   for (var i = 0; i < 2; i++) {
-    assertEquals(500009500000, f1());
+    assertEquals(509500, f1());
   }
 }
 
 function test2() {
   for (var i = 0; i < 2; i++) {
     var j = 11, k = 12;
-    assertEquals(500009500000, f2());
+    assertEquals(509500, f2());
   }
 }
 
 function test3() {
   for (var i = 0; i < 2; i++) {
     var j = 11, k = 13, m = 14;
-    assertEquals(500009500000, f3());
+    assertEquals(509500, f3());
   }
 }
 

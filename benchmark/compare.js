@@ -1,10 +1,13 @@
+'use strict';
 var usage = 'node benchmark/compare.js ' +
             '<node-binary1> <node-binary2> ' +
-            '[--html] [--red|-r] [--green|-g]';
+            '[--html] [--red|-r] [--green|-g] ' +
+            '[-- <type> [testFilter]]';
 
 var show = 'both';
 var nodes = [];
 var html = false;
+var benchmarks;
 
 for (var i = 2; i < process.argv.length; i++) {
   var arg = process.argv[i];
@@ -21,24 +24,32 @@ for (var i = 2; i < process.argv.length; i++) {
     case '-h': case '-?': case '--help':
       console.log(usage);
       process.exit(0);
+      break;
+    case '--':
+      benchmarks = [];
+      break;
     default:
-      nodes.push(arg);
+      if (Array.isArray(benchmarks))
+        benchmarks.push(arg);
+      else
+        nodes.push(arg);
       break;
   }
 }
 
+var start, green, red, reset, end;
 if (!html) {
-  var start = '';
-  var green = '\033[1;32m';
-  var red = '\033[1;31m';
-  var reset = '\033[m';
-  var end = '';
+  start = '';
+  green = '\u001b[1;32m';
+  red = '\u001b[1;31m';
+  reset = '\u001b[m';
+  end = '';
 } else {
-  var start = '<pre style="background-color:#333;color:#eee">';
-  var green = '<span style="background-color:#0f0;color:#000">';
-  var red = '<span style="background-color:#f00;color:#fff">';
-  var reset = '</span>';
-  var end = '</pre>';
+  start = '<pre style="background-color:#333;color:#eee">';
+  green = '<span style="background-color:#0f0;color:#000">';
+  red = '<span style="background-color:#f00;color:#fff">';
+  reset = '</span>';
+  end = '</pre>';
 }
 
 var runBench = process.env.NODE_BENCH || 'bench';
@@ -65,7 +76,16 @@ function run() {
   env.NODE = node;
 
   var out = '';
-  var child = spawn('make', [runBench], { env: env });
+  var child;
+  if (Array.isArray(benchmarks) && benchmarks.length) {
+    child = spawn(
+      node,
+      ['benchmark/common.js'].concat(benchmarks),
+      { env: env }
+    );
+  } else {
+    child = spawn('make', [runBench], { env: env });
+  }
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(c) {
     out += c;
@@ -121,9 +141,19 @@ function compare() {
     if (show === 'green' && !g || show === 'red' && !r)
       return;
 
-    var r0 = util.format('%s%s: %d%s', g, nodes[0], n0.toPrecision(5), g ? reset : '');
-    var r1 = util.format('%s%s: %d%s', r, nodes[1], n1.toPrecision(5), r ? reset : '');
-    var pct = c + pct + '%' + reset;
+    var r0 = util.format(
+      '%s%s: %d%s',
+      g,
+      nodes[0],
+      n0.toPrecision(5), g ? reset : ''
+    );
+    var r1 = util.format(
+      '%s%s: %d%s',
+      r,
+      nodes[1],
+      n1.toPrecision(5), r ? reset : ''
+    );
+    pct = c + pct + '%' + reset;
     var l = util.format('%s: %s %s', bench, r0, r1);
     maxLen = Math.max(l.length + pct.length, maxLen);
     return [l, pct];

@@ -1,32 +1,9 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-
+'use strict';
 (function() {
-  var assert = require('assert'),
-      child = require('child_process'),
-      util = require('util'),
-      common = require('../common');
+  const assert = require('assert');
+  const child = require('child_process');
+  const util = require('util');
+  const common = require('../common');
   if (process.env['TEST_INIT']) {
     util.print('Loaded successfully!');
   } else {
@@ -38,12 +15,12 @@
     var envCopy = JSON.parse(JSON.stringify(process.env));
     envCopy.TEST_INIT = 1;
 
-    child.exec(process.execPath + ' test-init', {env: envCopy},
+    child.exec('"' + process.execPath + '" test-init', {env: envCopy},
         function(err, stdout, stderr) {
           assert.equal(stdout, 'Loaded successfully!',
                        '`node test-init` failed!');
         });
-    child.exec(process.execPath + ' test-init.js', {env: envCopy},
+    child.exec('"' + process.execPath + '" test-init.js', {env: envCopy},
         function(err, stdout, stderr) {
           assert.equal(stdout, 'Loaded successfully!',
                        '`node test-init.js` failed!');
@@ -52,7 +29,7 @@
     // test-init-index is in fixtures dir as requested by ry, so go there
     process.chdir(common.fixturesDir);
 
-    child.exec(process.execPath + ' test-init-index', {env: envCopy},
+    child.exec('"' + process.execPath + '" test-init-index', {env: envCopy},
         function(err, stdout, stderr) {
           assert.equal(stdout, 'Loaded successfully!',
                        '`node test-init-index failed!');
@@ -63,7 +40,7 @@
     // expected in node
     process.chdir(common.fixturesDir + '/test-init-native/');
 
-    child.exec(process.execPath + ' fs', {env: envCopy},
+    child.exec('"' + process.execPath + '" fs', {env: envCopy},
         function(err, stdout, stderr) {
           assert.equal(stdout, 'fs loaded successfully',
                        '`node fs` failed!');

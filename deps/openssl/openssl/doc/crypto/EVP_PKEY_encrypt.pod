@@ -43,19 +43,23 @@ indicates the operation is not supported by the public key algorithm.
 
 =head1 EXAMPLE
 
-Encrypt data using OAEP (for RSA keys):
+Encrypt data using OAEP (for RSA keys). See also L<PEM_read_PUBKEY(3)|pem(3)> or
+L<d2i_X509(3)|d2i_X509(3)> for means to load a public key. You may also simply
+set 'eng = NULL;' to start with the default OpenSSL RSA implementation:
 
  #include <openssl/evp.h>
  #include <openssl/rsa.h>
+ #include <openssl/engine.h>
 
  EVP_PKEY_CTX *ctx;
+ ENGINE *eng;
  unsigned char *out, *in;
  size_t outlen, inlen; 
  EVP_PKEY *key;
- /* NB: assumes key in, inlen are already set up
+ /* NB: assumes eng, key, in, inlen are already set up,
   * and that key is an RSA public key
   */
- ctx = EVP_PKEY_CTX_new(key);
+ ctx = EVP_PKEY_CTX_new(key,eng);
  if (!ctx)
 	/* Error occurred */
  if (EVP_PKEY_encrypt_init(ctx) <= 0)
@@ -79,6 +83,8 @@ Encrypt data using OAEP (for RSA keys):
 
 =head1 SEE ALSO
 
+L<d2i_X509(3)|d2i_X509(3)>,
+L<engine(3)|engine(3)>,
 L<EVP_PKEY_CTX_new(3)|EVP_PKEY_CTX_new(3)>,
 L<EVP_PKEY_decrypt(3)|EVP_PKEY_decrypt(3)>,
 L<EVP_PKEY_sign(3)|EVP_PKEY_sign(3)>,

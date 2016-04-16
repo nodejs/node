@@ -33,6 +33,7 @@ B<openssl> B<s_server>
 [B<-state>]
 [B<-CApath directory>]
 [B<-CAfile filename>]
+[B<-no_alt_chains>]
 [B<-nocert>]
 [B<-cipher cipherlist>]
 [B<-serverpref>]
@@ -45,7 +46,6 @@ B<openssl> B<s_server>
 [B<-no_ssl3>]
 [B<-no_tls1>]
 [B<-no_dhe>]
-[B<-no_ecdhe>]
 [B<-bugs>]
 [B<-hack>]
 [B<-www>]
@@ -56,6 +56,8 @@ B<openssl> B<s_server>
 [B<-no_ticket>]
 [B<-id_prefix arg>]
 [B<-rand file(s)>]
+[B<-serverinfo file>]
+[B<-no_resumption_on_reneg>]
 [B<-status>]
 [B<-status_verbose>]
 [B<-status_timeout nsec>]
@@ -138,11 +140,6 @@ a static set of parameters hard coded into the s_server program will be used.
 if this option is set then no DH parameters will be loaded effectively
 disabling the ephemeral DH cipher suites.
 
-=item B<-no_ecdhe>
-
-if this option is set then no ECDH parameters will be loaded effectively
-disabling the ephemeral ECDH cipher suites.
-
 =item B<-no_tmp_rsa>
 
 certain export cipher suites sometimes use a temporary RSA key, this option
@@ -177,6 +174,10 @@ A file containing trusted certificates to use during client authentication
 and to use when attempting to build the server certificate chain. The list
 is also used in the list of acceptable client CAs passed to the client when
 a certificate is requested.
+
+=item B<-no_alt_chains>
+
+See the L<B<verify>|verify(1)> manual page for details.
 
 =item B<-state>
 
@@ -216,11 +217,11 @@ Use the PSK key B<key> when using a PSK cipher suite. The key is
 given as a hexadecimal number without leading 0x, for example -psk
 1a2b3c4d.
 
-=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>
+=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-tls1_1>, B<-tls1_2>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
 
-these options disable the use of certain SSL or TLS protocols. By default
-the initial handshake uses a method which should be compatible with all
-servers and permit them to use SSL v3, SSL v2 or TLS as appropriate.
+These options require or disable the use of the specified SSL or TLS protocols.
+By default the initial handshake uses a I<version-flexible> method which will
+negotiate the highest mutually supported protocol version.
 
 =item B<-bugs>
 
@@ -294,6 +295,18 @@ generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
 Multiple files can be specified separated by a OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others.
+
+=item B<-serverinfo file>
+
+a file containing one or more blocks of PEM data.  Each PEM block
+must encode a TLS ServerHello extension (2 bytes type, 2 bytes length,
+followed by "length" bytes of extension data).  If the client sends
+an empty TLS ClientHello extension matching the type, the corresponding
+ServerHello extension will be returned.
+
+=item B<-no_resumption_on_reneg>
+
+set SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION flag.
 
 =item B<-status>
 
@@ -397,5 +410,9 @@ unknown cipher suites a client says it supports.
 =head1 SEE ALSO
 
 L<sess_id(1)|sess_id(1)>, L<s_client(1)|s_client(1)>, L<ciphers(1)|ciphers(1)>
+
+=head1 HISTORY
+
+The -no_alt_chains options was first added to OpenSSL 1.0.2b.
 
 =cut

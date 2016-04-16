@@ -168,6 +168,7 @@ pkcs1 5			: RSA-SHA1		: sha1WithRSAEncryption
 # According to PKCS #1 version 2.1
 pkcs1 7			: RSAES-OAEP		: rsaesOaep
 pkcs1 8			: MGF1			: mgf1
+pkcs1 9			: PSPECIFIED		: pSpecified
 pkcs1 10		: RSASSA-PSS		: rsassaPss
 
 pkcs1 11		: RSA-SHA256		: sha256WithRSAEncryption
@@ -1290,3 +1291,60 @@ kisa 1 6                : SEED-OFB      : seed-ofb
 			: AES-128-CBC-HMAC-SHA1		: aes-128-cbc-hmac-sha1
 			: AES-192-CBC-HMAC-SHA1		: aes-192-cbc-hmac-sha1
 			: AES-256-CBC-HMAC-SHA1		: aes-256-cbc-hmac-sha1
+			: AES-128-CBC-HMAC-SHA256	: aes-128-cbc-hmac-sha256
+			: AES-192-CBC-HMAC-SHA256	: aes-192-cbc-hmac-sha256
+			: AES-256-CBC-HMAC-SHA256	: aes-256-cbc-hmac-sha256
+
+ISO-US 10046 2 1	: dhpublicnumber		: X9.42 DH
+
+# RFC 5639 curve OIDs (see http://www.ietf.org/rfc/rfc5639.txt)
+# versionOne OBJECT IDENTIFIER ::= {
+# iso(1) identifified-organization(3) teletrust(36) algorithm(3)
+# signature-algorithm(3) ecSign(2) ecStdCurvesAndGeneration(8)
+# ellipticCurve(1) 1 }
+1 3 36 3 3 2 8 1 1 1 : brainpoolP160r1
+1 3 36 3 3 2 8 1 1 2 : brainpoolP160t1
+1 3 36 3 3 2 8 1 1 3 : brainpoolP192r1
+1 3 36 3 3 2 8 1 1 4 : brainpoolP192t1
+1 3 36 3 3 2 8 1 1 5 : brainpoolP224r1
+1 3 36 3 3 2 8 1 1 6 : brainpoolP224t1
+1 3 36 3 3 2 8 1 1 7 : brainpoolP256r1
+1 3 36 3 3 2 8 1 1 8 : brainpoolP256t1
+1 3 36 3 3 2 8 1 1 9 : brainpoolP320r1
+1 3 36 3 3 2 8 1 1 10 : brainpoolP320t1
+1 3 36 3 3 2 8 1 1 11 : brainpoolP384r1
+1 3 36 3 3 2 8 1 1 12 : brainpoolP384t1
+1 3 36 3 3 2 8 1 1 13 : brainpoolP512r1
+1 3 36 3 3 2 8 1 1 14 : brainpoolP512t1            
+
+# ECDH schemes from RFC5753
+!Alias x9-63-scheme 1 3 133 16 840 63 0
+!Alias secg-scheme certicom-arc 1
+
+x9-63-scheme 2   : dhSinglePass-stdDH-sha1kdf-scheme
+secg-scheme 11 0 : dhSinglePass-stdDH-sha224kdf-scheme
+secg-scheme 11 1 : dhSinglePass-stdDH-sha256kdf-scheme
+secg-scheme 11 2 : dhSinglePass-stdDH-sha384kdf-scheme
+secg-scheme 11 3 : dhSinglePass-stdDH-sha512kdf-scheme
+
+x9-63-scheme 3   : dhSinglePass-cofactorDH-sha1kdf-scheme
+secg-scheme 14 0 : dhSinglePass-cofactorDH-sha224kdf-scheme
+secg-scheme 14 1 : dhSinglePass-cofactorDH-sha256kdf-scheme
+secg-scheme 14 2 : dhSinglePass-cofactorDH-sha384kdf-scheme
+secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
+# NIDs for use with lookup tables.
+                 : dh-std-kdf
+                 : dh-cofactor-kdf
+
+# RFC 6962 Extension OIDs (see http://www.ietf.org/rfc/rfc6962.txt)
+1 3 6 1 4 1 11129 2 4 2	: ct_precert_scts		: CT Precertificate SCTs
+1 3 6 1 4 1 11129 2 4 3	: ct_precert_poison		: CT Precertificate Poison
+1 3 6 1 4 1 11129 2 4 4	: ct_precert_signer		: CT Precertificate Signer
+1 3 6 1 4 1 11129 2 4 5	: ct_cert_scts			: CT Certificate SCTs
+
+# CABForum EV SSL Certificate Guidelines
+# (see https://cabforum.org/extended-validation/)
+# OIDs for Subject Jurisdiction of Incorporation or Registration
+1 3 6 1 4 1 311 60 2 1 1	: jurisdictionL		: jurisdictionLocalityName
+1 3 6 1 4 1 311 60 2 1 2	: jurisdictionST	: jurisdictionStateOrProvinceName
+1 3 6 1 4 1 311 60 2 1 3	: jurisdictionC		: jurisdictionCountryName

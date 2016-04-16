@@ -70,25 +70,18 @@ the TLS standard, when the RSA key can be used for signing only, that is
 for export ciphers. Using ephemeral RSA key exchange for other purposes
 violates the standard and can break interoperability with clients.
 It is therefore strongly recommended to not use ephemeral RSA key
-exchange and use EDH (Ephemeral Diffie-Hellman) key exchange instead
+exchange and use DHE (Ephemeral Diffie-Hellman) key exchange instead
 in order to achieve forward secrecy (see
 L<SSL_CTX_set_tmp_dh_callback(3)|SSL_CTX_set_tmp_dh_callback(3)>).
 
-On OpenSSL servers ephemeral RSA key exchange is therefore disabled by default
-and must be explicitly enabled  using the SSL_OP_EPHEMERAL_RSA option of
-L<SSL_CTX_set_options(3)|SSL_CTX_set_options(3)>, violating the TLS/SSL
-standard. When ephemeral RSA key exchange is required for export ciphers,
-it will automatically be used without this option!
-
-An application may either directly specify the key or can supply the key via
-a callback function. The callback approach has the advantage, that the
-callback may generate the key only in case it is actually needed. As the
-generation of a RSA key is however costly, it will lead to a significant
-delay in the handshake procedure.  Another advantage of the callback function
-is that it can supply keys of different size (e.g. for SSL_OP_EPHEMERAL_RSA
-usage) while the explicit setting of the key is only useful for key size of
-512 bits to satisfy the export restricted ciphers and does give away key length
-if a longer key would be allowed.
+An application may either directly specify the key or can supply the key via a
+callback function. The callback approach has the advantage, that the callback
+may generate the key only in case it is actually needed. As the generation of a
+RSA key is however costly, it will lead to a significant delay in the handshake
+procedure.  Another advantage of the callback function is that it can supply
+keys of different size while the explicit setting of the key is only useful for
+key size of 512 bits to satisfy the export restricted ciphers and does give
+away key length if a longer key would be allowed.
 
 The B<tmp_rsa_callback> is called with the B<keylength> needed and
 the B<is_export> information. The B<is_export> flag is set, when the

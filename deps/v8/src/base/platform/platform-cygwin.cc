@@ -29,7 +29,7 @@ namespace base {
 const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
-  struct tm* t = localtime(&tv);
+  struct tm* t = localtime(&tv);  // NOLINT(runtime/threadsafe_fn)
   if (NULL == t) return "";
   return tzname[0];  // The location of the timezone string on Cygwin.
 }
@@ -39,7 +39,7 @@ double OS::LocalTimeOffset(TimezoneCache* cache) {
   // On Cygwin, struct tm does not contain a tm_gmtoff field.
   time_t utc = time(NULL);
   DCHECK(utc != -1);
-  struct tm* loc = localtime(&utc);
+  struct tm* loc = localtime(&utc);  // NOLINT(runtime/threadsafe_fn)
   DCHECK(loc != NULL);
   // time - localtime includes any daylight savings offset, so subtract it.
   return static_cast<double>((mktime(loc) - utc) * msPerSecond -
@@ -56,54 +56,6 @@ void* OS::Allocate(const size_t requested,
   if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
-}
-
-
-class PosixMemoryMappedFile : public OS::MemoryMappedFile {
- public:
-  PosixMemoryMappedFile(FILE* file, void* memory, int size)
-    : file_(file), memory_(memory), size_(size) { }
-  virtual ~PosixMemoryMappedFile();
-  virtual void* memory() { return memory_; }
-  virtual int size() { return size_; }
- private:
-  FILE* file_;
-  void* memory_;
-  int size_;
-};
-
-
-OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
-  FILE* file = fopen(name, "r+");
-  if (file == NULL) return NULL;
-
-  fseek(file, 0, SEEK_END);
-  int size = ftell(file);
-
-  void* memory =
-      mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
-  return new PosixMemoryMappedFile(file, memory, size);
-}
-
-
-OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
-    void* initial) {
-  FILE* file = fopen(name, "w+");
-  if (file == NULL) return NULL;
-  int result = fwrite(initial, size, 1, file);
-  if (result < 1) {
-    fclose(file);
-    return NULL;
-  }
-  void* memory =
-      mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
-  return new PosixMemoryMappedFile(file, memory, size);
-}
-
-
-PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) munmap(memory_, size_);
-  fclose(file_);
 }
 
 
@@ -300,4 +252,5 @@ bool VirtualMemory::HasLazyCommits() {
   return false;
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

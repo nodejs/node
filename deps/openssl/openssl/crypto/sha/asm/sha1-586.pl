@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # ====================================================================
-# [Re]written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
+# [Re]written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
 # CRYPTOGAMS licenses depending on where you obtain it. For further
 # details see http://www.openssl.org/~appro/cryptogams/.
@@ -66,9 +66,9 @@
 # switch to AVX alone improves performance by as little as 4% in
 # comparison to SSSE3 code path. But below result doesn't look like
 # 4% improvement... Trouble is that Sandy Bridge decodes 'ro[rl]' as
-# pair of µ-ops, and it's the additional µ-ops, two per round, that
+# pair of Âµ-ops, and it's the additional Âµ-ops, two per round, that
 # make it run slower than Core2 and Westmere. But 'sh[rl]d' is decoded
-# as single µ-op by Sandy Bridge and it's replacing 'ro[rl]' with
+# as single Âµ-op by Sandy Bridge and it's replacing 'ro[rl]' with
 # equivalent 'sh[rl]d' that is responsible for the impressive 5.1
 # cycles per processed byte. But 'sh[rl]d' is not something that used
 # to be fast, nor does it appear to be fast in upcoming Bulldozer
@@ -79,6 +79,10 @@
 # strongly, it's probably more appropriate to discuss possibility of
 # using vector rotate XOP on AMD...
 
+# March 2014.
+#
+# Add support for Intel SHA Extensions.
+
 ######################################################################
 # Current performance is summarized in following table. Numbers are
 # CPU clock cycles spent to process single byte (less is better).
@@ -88,13 +92,20 @@
 # PIII		11.5		-
 # P4		10.6		-
 # AMD K8	7.1		-
-# Core2		7.3		6.1/+20%	-
-# Atom		12.5		9.5(*)/+32%	-
-# Westmere	7.3		5.6/+30%	-
-# Sandy Bridge	8.8		6.2/+40%	5.1(**)/+70%
+# Core2		7.3		6.0/+22%	-
+# Westmere	7.3		5.5/+33%	-
+# Sandy Bridge	8.8		6.2/+40%	5.1(**)/+73%
+# Ivy Bridge	7.2		4.8/+51%	4.7(**)/+53%
+# Haswell	6.5		4.3/+51%	4.1(**)/+58%
+# Bulldozer	11.6		6.0/+92%
+# VIA Nano	10.6		7.5/+41%
+# Atom		12.5		9.3(*)/+35%
+# Silvermont	14.5		9.9(*)/+46%
 #
 # (*)	Loop is 1056 instructions long and expected result is ~8.25.
-#	It remains mystery [to me] why ILP is limited to 1.7.
+#	The discrepancy is because of front-end limitations, so
+#	called MS-ROM penalties, and on Silvermont even rotate's
+#	limited parallelism.
 #
 # (**)	As per above comment, the result is for AVX *plus* sh[rl]d.
 
@@ -115,6 +126,15 @@ $ymm=1 if ($xmm &&
 $ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32n" && 
 		`nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)/ &&
 		$1>=2.03);	# first version supporting AVX
+
+$ymm=1 if ($xmm && !$ymm && $ARGV[0] eq "win32" &&
+		`ml 2>&1` =~ /Version ([0-9]+)\./ &&
+		$1>=10);	# first version supporting AVX
+
+$ymm=1 if ($xmm && !$ymm && `$ENV{CC} -v 2>&1` =~ /(^clang version|based on LLVM) ([3-9]\.[0-9]+)/ &&
+		$2>=3.0);	# first version supporting AVX
+
+$shaext=$xmm;	### set to zero if compiling for 1.0.1
 
 &external_label("OPENSSL_ia32cap_P") if ($xmm);
 
@@ -295,6 +315,7 @@ if ($alt) {
 
 &function_begin("sha1_block_data_order");
 if ($xmm) {
+  &static_label("shaext_shortcut")	if ($shaext);
   &static_label("ssse3_shortcut");
   &static_label("avx_shortcut")		if ($ymm);
   &static_label("K_XX_XX");
@@ -309,8 +330,13 @@ if ($xmm) {
 	&mov	($D,&DWP(4,$T));
 	&test	($D,1<<9);		# check SSSE3 bit
 	&jz	(&label("x86"));
+	&mov	($C,&DWP(8,$T));
 	&test	($A,1<<24);		# check FXSR bit
 	&jz	(&label("x86"));
+	if ($shaext) {
+		&test	($C,1<<29);		# check SHA bit
+		&jnz	(&label("shaext_shortcut"));
+	}
 	if ($ymm) {
 		&and	($D,1<<28);		# mask AVX bit
 		&and	($A,1<<30);		# mask "Intel CPU" bit
@@ -389,6 +415,117 @@ if ($xmm) {
 &function_end("sha1_block_data_order");
 
 if ($xmm) {
+if ($shaext) {
+######################################################################
+# Intel SHA Extensions implementation of SHA1 update function.
+#
+my ($ctx,$inp,$num)=("edi","esi","ecx");
+my ($ABCD,$E,$E_,$BSWAP)=map("xmm$_",(0..3));
+my @MSG=map("xmm$_",(4..7));
+
+sub sha1rnds4 {
+ my ($dst,$src,$imm)=@_;
+    if ("$dst:$src" =~ /xmm([0-7]):xmm([0-7])/)
+    {	&data_byte(0x0f,0x3a,0xcc,0xc0|($1<<3)|$2,$imm);	}
+}
+sub sha1op38 {
+ my ($opcodelet,$dst,$src)=@_;
+    if ("$dst:$src" =~ /xmm([0-7]):xmm([0-7])/)
+    {	&data_byte(0x0f,0x38,$opcodelet,0xc0|($1<<3)|$2);	}
+}
+sub sha1nexte	{ sha1op38(0xc8,@_); }
+sub sha1msg1	{ sha1op38(0xc9,@_); }
+sub sha1msg2	{ sha1op38(0xca,@_); }
+
+&function_begin("_sha1_block_data_order_shaext");
+	&call	(&label("pic_point"));	# make it PIC!
+	&set_label("pic_point");
+	&blindpop($tmp1);
+	&lea	($tmp1,&DWP(&label("K_XX_XX")."-".&label("pic_point"),$tmp1));
+&set_label("shaext_shortcut");
+	&mov	($ctx,&wparam(0));
+	&mov	("ebx","esp");
+	&mov	($inp,&wparam(1));
+	&mov	($num,&wparam(2));
+	&sub	("esp",32);
+
+	&movdqu	($ABCD,&QWP(0,$ctx));
+	&movd	($E,&DWP(16,$ctx));
+	&and	("esp",-32);
+	&movdqa	($BSWAP,&QWP(0x50,$tmp1));	# byte-n-word swap
+
+	&movdqu	(@MSG[0],&QWP(0,$inp));
+	&pshufd	($ABCD,$ABCD,0b00011011);	# flip word order
+	&movdqu	(@MSG[1],&QWP(0x10,$inp));
+	&pshufd	($E,$E,0b00011011);		# flip word order
+	&movdqu	(@MSG[2],&QWP(0x20,$inp));
+	&pshufb	(@MSG[0],$BSWAP);
+	&movdqu	(@MSG[3],&QWP(0x30,$inp));
+	&pshufb	(@MSG[1],$BSWAP);
+	&pshufb	(@MSG[2],$BSWAP);
+	&pshufb	(@MSG[3],$BSWAP);
+	&jmp	(&label("loop_shaext"));
+
+&set_label("loop_shaext",16);
+	&dec		($num);
+	&lea		("eax",&DWP(0x40,$inp));
+	&movdqa		(&QWP(0,"esp"),$E);	# offload $E
+	&paddd		($E,@MSG[0]);
+	&cmovne		($inp,"eax");
+	&movdqa		(&QWP(16,"esp"),$ABCD);	# offload $ABCD
+
+for($i=0;$i<20-4;$i+=2) {
+	&sha1msg1	(@MSG[0],@MSG[1]);
+	&movdqa		($E_,$ABCD);
+	&sha1rnds4	($ABCD,$E,int($i/5));	# 0-3...
+	&sha1nexte	($E_,@MSG[1]);
+	&pxor		(@MSG[0],@MSG[2]);
+	&sha1msg1	(@MSG[1],@MSG[2]);
+	&sha1msg2	(@MSG[0],@MSG[3]);
+
+	&movdqa		($E,$ABCD);
+	&sha1rnds4	($ABCD,$E_,int(($i+1)/5));
+	&sha1nexte	($E,@MSG[2]);
+	&pxor		(@MSG[1],@MSG[3]);
+	&sha1msg2	(@MSG[1],@MSG[0]);
+
+	push(@MSG,shift(@MSG));	push(@MSG,shift(@MSG));
+}
+	&movdqu		(@MSG[0],&QWP(0,$inp));
+	&movdqa		($E_,$ABCD);
+	&sha1rnds4	($ABCD,$E,3);		# 64-67
+	&sha1nexte	($E_,@MSG[1]);
+	&movdqu		(@MSG[1],&QWP(0x10,$inp));
+	&pshufb		(@MSG[0],$BSWAP);
+
+	&movdqa		($E,$ABCD);
+	&sha1rnds4	($ABCD,$E_,3);		# 68-71
+	&sha1nexte	($E,@MSG[2]);
+	&movdqu		(@MSG[2],&QWP(0x20,$inp));
+	&pshufb		(@MSG[1],$BSWAP);
+
+	&movdqa		($E_,$ABCD);
+	&sha1rnds4	($ABCD,$E,3);		# 72-75
+	&sha1nexte	($E_,@MSG[3]);
+	&movdqu		(@MSG[3],&QWP(0x30,$inp));
+	&pshufb		(@MSG[2],$BSWAP);
+
+	&movdqa		($E,$ABCD);
+	&sha1rnds4	($ABCD,$E_,3);		# 76-79
+	&movdqa		($E_,&QWP(0,"esp"));
+	&pshufb		(@MSG[3],$BSWAP);
+	&sha1nexte	($E,$E_);
+	&paddd		($ABCD,&QWP(16,"esp"));
+
+	&jnz		(&label("loop_shaext"));
+
+	&pshufd	($ABCD,$ABCD,0b00011011);
+	&pshufd	($E,$E,0b00011011);
+	&movdqu	(&QWP(0,$ctx),$ABCD)
+	&movd	(&DWP(16,$ctx),$E);
+	&mov	("esp","ebx");
+&function_end("_sha1_block_data_order_shaext");
+}
 ######################################################################
 # The SSSE3 implementation.
 #
@@ -416,6 +553,7 @@ my $Xi=4;			# 4xSIMD Xupdate round, start pre-seeded
 my @X=map("xmm$_",(4..7,0..3));	# pre-seeded for $Xi=4
 my @V=($A,$B,$C,$D,$E);
 my $j=0;			# hash round
+my $rx=0;
 my @T=($T,$tmp1);
 my $inp;
 
@@ -501,8 +639,11 @@ my $_ror=sub { &ror(@_) };
 	&movdqa	(&QWP(0+16,"esp"),@X[-3&7]);
 	&psubd	(@X[-3&7],@X[3]);
 	&movdqa	(&QWP(0+32,"esp"),@X[-2&7]);
+	&mov	(@T[1],$C);
 	&psubd	(@X[-2&7],@X[3]);
-	&movdqa	(@X[0],@X[-3&7]);
+	&xor	(@T[1],$D);
+	&pshufd	(@X[0],@X[-4&7],0xee);		# was &movdqa	(@X[0],@X[-3&7]);
+	&and	(@T[0],@T[1]);
 	&jmp	(&label("loop"));
 
 ######################################################################
@@ -528,76 +669,77 @@ sub Xupdate_ssse3_16_31()		# recall that $Xi starts wtih 4
   my @insns = (&$body,&$body,&$body,&$body);	# 40 instructions
   my ($a,$b,$c,$d,$e);
 
+	 eval(shift(@insns));		# ror
 	 eval(shift(@insns));
 	 eval(shift(@insns));
-	&palignr(@X[0],@X[-4&7],8);	# compose "X[-14]" in "X[0]"
+	&punpcklqdq(@X[0],@X[-3&7]);	# compose "X[-14]" in "X[0]", was &palignr(@X[0],@X[-4&7],8);
 	&movdqa	(@X[2],@X[-1&7]);
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 
 	  &paddd	(@X[3],@X[-1&7]);
 	  &movdqa	(&QWP(64+16*(($Xi-4)%3),"esp"),@X[-4&7]);# save X[] to backtrace buffer
-	 eval(shift(@insns));
+	 eval(shift(@insns));		# rol
 	 eval(shift(@insns));
 	&psrldq	(@X[2],4);		# "X[-3]", 3 dwords
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 	&pxor	(@X[0],@X[-4&7]);	# "X[0]"^="X[-16]"
 	 eval(shift(@insns));
-	 eval(shift(@insns));
+	 eval(shift(@insns));		# ror
 
 	&pxor	(@X[2],@X[-2&7]);	# "X[-3]"^"X[-8]"
-	 eval(shift(@insns));
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 
 	&pxor	(@X[0],@X[2]);		# "X[0]"^="X[-3]"^"X[-8]"
 	 eval(shift(@insns));
-	 eval(shift(@insns));
+	 eval(shift(@insns));		# rol
 	  &movdqa	(&QWP(0+16*(($Xi-1)&3),"esp"),@X[3]);	# X[]+K xfer to IALU
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 
 	&movdqa	(@X[4],@X[0]);
-	&movdqa	(@X[2],@X[0]);
 	 eval(shift(@insns));
 	 eval(shift(@insns));
-	 eval(shift(@insns));
+	 eval(shift(@insns));		# ror
+	&movdqa (@X[2],@X[0]);
 	 eval(shift(@insns));
 
 	&pslldq	(@X[4],12);		# "X[0]"<<96, extract one dword
 	&paddd	(@X[0],@X[0]);
 	 eval(shift(@insns));
 	 eval(shift(@insns));
-	 eval(shift(@insns));
-	 eval(shift(@insns));
 
 	&psrld	(@X[2],31);
 	 eval(shift(@insns));
-	 eval(shift(@insns));
+	 eval(shift(@insns));		# rol
 	&movdqa	(@X[3],@X[4]);
+	 eval(shift(@insns));
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 
 	&psrld	(@X[4],30);
-	&por	(@X[0],@X[2]);		# "X[0]"<<<=1
 	 eval(shift(@insns));
+	 eval(shift(@insns));		# ror
+	&por	(@X[0],@X[2]);		# "X[0]"<<<=1
 	 eval(shift(@insns));
 	  &movdqa	(@X[2],&QWP(64+16*(($Xi-6)%3),"esp")) if ($Xi>5);	# restore X[] from backtrace buffer
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 
 	&pslld	(@X[3],2);
-	&pxor	(@X[0],@X[4]);
 	 eval(shift(@insns));
-	 eval(shift(@insns));
+	 eval(shift(@insns));		# rol
+	&pxor   (@X[0],@X[4]);
 	  &movdqa	(@X[4],&QWP(112-16+16*(($Xi)/5),"esp"));	# K_XX_XX
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 
 	&pxor	(@X[0],@X[3]);		# "X[0]"^=("X[0]"<<96)<<<2
-	  &movdqa	(@X[1],@X[-2&7])	if ($Xi<7);
+	  &pshufd	(@X[1],@X[-3&7],0xee)	if ($Xi<7);	# was &movdqa	(@X[1],@X[-2&7])
+	  &pshufd	(@X[3],@X[-1&7],0xee)	if ($Xi==7);
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 
@@ -609,13 +751,12 @@ sub Xupdate_ssse3_16_31()		# recall that $Xi starts wtih 4
 sub Xupdate_ssse3_32_79()
 { use integer;
   my $body = shift;
-  my @insns = (&$body,&$body,&$body,&$body);	# 32 to 48 instructions
+  my @insns = (&$body,&$body,&$body,&$body);	# 32 to 44 instructions
   my ($a,$b,$c,$d,$e);
 
-	&movdqa	(@X[2],@X[-1&7])	if ($Xi==8);
 	 eval(shift(@insns));		# body_20_39
 	&pxor	(@X[0],@X[-4&7]);	# "X[0]"="X[-32]"^"X[-16]"
-	&palignr(@X[2],@X[-2&7],8);	# compose "X[-6]"
+	&punpcklqdq(@X[2],@X[-1&7]);	# compose "X[-6]", was &palignr(@X[2],@X[-2&7],8)
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 	 eval(shift(@insns));		# rol
@@ -624,13 +765,14 @@ sub Xupdate_ssse3_32_79()
 	  &movdqa	(&QWP(64+16*(($Xi-4)%3),"esp"),@X[-4&7]);	# save X[] to backtrace buffer
 	 eval(shift(@insns));
 	 eval(shift(@insns));
+	 eval(shift(@insns))		if (@insns[0] =~ /_rol/);
 	 if ($Xi%5) {
 	  &movdqa	(@X[4],@X[3]);	# "perpetuate" K_XX_XX...
 	 } else {			# ... or load next one
 	  &movdqa	(@X[4],&QWP(112-16+16*($Xi/5),"esp"));
 	 }
-	  &paddd	(@X[3],@X[-1&7]);
 	 eval(shift(@insns));		# ror
+	  &paddd	(@X[3],@X[-1&7]);
 	 eval(shift(@insns));
 
 	&pxor	(@X[0],@X[2]);		# "X[0]"^="X[-6]"
@@ -645,6 +787,7 @@ sub Xupdate_ssse3_32_79()
 	 eval(shift(@insns));
 	 eval(shift(@insns));		# ror
 	 eval(shift(@insns));
+	 eval(shift(@insns))		if (@insns[0] =~ /_rol/);
 
 	&pslld	(@X[0],2);
 	 eval(shift(@insns));		# body_20_39
@@ -656,6 +799,8 @@ sub Xupdate_ssse3_32_79()
 	 eval(shift(@insns));
 	 eval(shift(@insns));		# ror
 	 eval(shift(@insns));
+	 eval(shift(@insns))		if (@insns[1] =~ /_rol/);
+	 eval(shift(@insns))		if (@insns[0] =~ /_rol/);
 
 	&por	(@X[0],@X[2]);		# "X[0]"<<<=2
 	 eval(shift(@insns));		# body_20_39
@@ -666,7 +811,7 @@ sub Xupdate_ssse3_32_79()
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 	 eval(shift(@insns));		# ror
-	  &movdqa	(@X[3],@X[0])	if ($Xi<19);
+	  &pshufd	(@X[3],@X[-1],0xee)	if ($Xi<19);	# was &movdqa	(@X[3],@X[0])
 	 eval(shift(@insns));
 
 	 foreach (@insns) { eval; }	# remaining instructions
@@ -680,6 +825,12 @@ sub Xuplast_ssse3_80()
   my @insns = (&$body,&$body,&$body,&$body);	# 32 instructions
   my ($a,$b,$c,$d,$e);
 
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
 	 eval(shift(@insns));
 	  &paddd	(@X[3],@X[-1&7]);
 	 eval(shift(@insns));
@@ -717,7 +868,14 @@ sub Xloop_ssse3()
 
 	 eval(shift(@insns));
 	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
+	 eval(shift(@insns));
 	&pshufb	(@X[($Xi-3)&7],@X[2]);
+	 eval(shift(@insns));
+	 eval(shift(@insns));
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 	&paddd	(@X[($Xi-4)&7],@X[3]);
@@ -726,6 +884,8 @@ sub Xloop_ssse3()
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 	&movdqa	(&QWP(0+16*$Xi,"esp"),@X[($Xi-4)&7]);	# X[]+K xfer to IALU
+	 eval(shift(@insns));
+	 eval(shift(@insns));
 	 eval(shift(@insns));
 	 eval(shift(@insns));
 	&psubd	(@X[($Xi-4)&7],@X[3]);
@@ -743,51 +903,124 @@ sub Xtail_ssse3()
 	foreach (@insns) { eval; }
 }
 
-sub body_00_19 () {
+sub body_00_19 () {	# ((c^d)&b)^d
+	# on start @T[0]=(c^d)&b
+	return &body_20_39()	if ($rx==19);	$rx++;
+	(
+	'($a,$b,$c,$d,$e)=@V;'.
+	'&$_ror	($b,$j?7:2);',	# $b>>>2
+	'&xor	(@T[0],$d);',
+	'&mov	(@T[1],$a);',	# $b in next round
+
+	'&add	($e,&DWP(4*($j&15),"esp"));',	# X[]+K xfer
+	'&xor	($b,$c);',	# $c^$d for next round
+
+	'&$_rol	($a,5);',
+	'&add	($e,@T[0]);',
+	'&and	(@T[1],$b);',	# ($b&($c^$d)) for next round
+
+	'&xor	($b,$c);',	# restore $b
+	'&add	($e,$a);'	.'$j++; unshift(@V,pop(@V)); unshift(@T,pop(@T));'
+	);
+}
+
+sub body_20_39 () {	# b^d^c
+	# on entry @T[0]=b^d
+	return &body_40_59()	if ($rx==39);	$rx++;
 	(
 	'($a,$b,$c,$d,$e)=@V;'.
 	'&add	($e,&DWP(4*($j&15),"esp"));',	# X[]+K xfer
-	'&xor	($c,$d);',
+	'&xor	(@T[0],$d)	if($j==19);'.
+	'&xor	(@T[0],$c)	if($j> 19);',	# ($b^$d^$c)
 	'&mov	(@T[1],$a);',	# $b in next round
+
 	'&$_rol	($a,5);',
-	'&and	(@T[0],$c);',	# ($b&($c^$d))
-	'&xor	($c,$d);',	# restore $c
-	'&xor	(@T[0],$d);',
-	'&add	($e,$a);',
-	'&$_ror	($b,$j?7:2);',	# $b>>>2
+	'&add	($e,@T[0]);',
+	'&xor	(@T[1],$c)	if ($j< 79);',	# $b^$d for next round
+
+	'&$_ror	($b,7);',	# $b>>>2
+	'&add	($e,$a);'	.'$j++; unshift(@V,pop(@V)); unshift(@T,pop(@T));'
+	);
+}
+
+sub body_40_59 () {	# ((b^c)&(c^d))^c
+	# on entry @T[0]=(b^c), (c^=d)
+	$rx++;
+	(
+	'($a,$b,$c,$d,$e)=@V;'.
+	'&add	($e,&DWP(4*($j&15),"esp"));',	# X[]+K xfer
+	'&and	(@T[0],$c)	if ($j>=40);',	# (b^c)&(c^d)
+	'&xor	($c,$d)		if ($j>=40);',	# restore $c
+
+	'&$_ror	($b,7);',	# $b>>>2
+	'&mov	(@T[1],$a);',	# $b for next round
+	'&xor	(@T[0],$c);',
+
+	'&$_rol	($a,5);',
+	'&add	($e,@T[0]);',
+	'&xor	(@T[1],$c)	if ($j==59);'.
+	'&xor	(@T[1],$b)	if ($j< 59);',	# b^c for next round
+
+	'&xor	($b,$c)		if ($j< 59);',	# c^d for next round
+	'&add	($e,$a);'	.'$j++; unshift(@V,pop(@V)); unshift(@T,pop(@T));'
+	);
+}
+######
+sub bodyx_00_19 () {	# ((c^d)&b)^d
+	# on start @T[0]=(b&c)^(~b&d), $e+=X[]+K
+	return &bodyx_20_39()	if ($rx==19);	$rx++;
+	(
+	'($a,$b,$c,$d,$e)=@V;'.
+
+	'&rorx	($b,$b,2)			if ($j==0);'.	# $b>>>2
+	'&rorx	($b,@T[1],7)			if ($j!=0);',	# $b>>>2
+	'&lea	($e,&DWP(0,$e,@T[0]));',
+	'&rorx	(@T[0],$a,5);',
+
+	'&andn	(@T[1],$a,$c);',
+	'&and	($a,$b)',
+	'&add	($d,&DWP(4*(($j+1)&15),"esp"));',	# X[]+K xfer
+
+	'&xor	(@T[1],$a)',
 	'&add	($e,@T[0]);'	.'$j++; unshift(@V,pop(@V)); unshift(@T,pop(@T));'
 	);
 }
 
-sub body_20_39 () {
+sub bodyx_20_39 () {	# b^d^c
+	# on start $b=b^c^d
+	return &bodyx_40_59()	if ($rx==39);	$rx++;
 	(
 	'($a,$b,$c,$d,$e)=@V;'.
-	'&add	($e,&DWP(4*($j++&15),"esp"));',	# X[]+K xfer
-	'&xor	(@T[0],$d);',	# ($b^$d)
-	'&mov	(@T[1],$a);',	# $b in next round
-	'&$_rol	($a,5);',
-	'&xor	(@T[0],$c);',	# ($b^$d^$c)
-	'&add	($e,$a);',
-	'&$_ror	($b,7);',	# $b>>>2
-	'&add	($e,@T[0]);'	.'unshift(@V,pop(@V)); unshift(@T,pop(@T));'
+
+	'&add	($e,($j==19?@T[0]:$b))',
+	'&rorx	($b,@T[1],7);',	# $b>>>2
+	'&rorx	(@T[0],$a,5);',
+
+	'&xor	($a,$b)				if ($j<79);',
+	'&add	($d,&DWP(4*(($j+1)&15),"esp"))	if ($j<79);',	# X[]+K xfer
+	'&xor	($a,$c)				if ($j<79);',
+	'&add	($e,@T[0]);'	.'$j++; unshift(@V,pop(@V)); unshift(@T,pop(@T));'
 	);
 }
 
-sub body_40_59 () {
+sub bodyx_40_59 () {	# ((b^c)&(c^d))^c
+	# on start $b=((b^c)&(c^d))^c
+	return &bodyx_20_39()	if ($rx==59);	$rx++;
 	(
 	'($a,$b,$c,$d,$e)=@V;'.
-	'&mov	(@T[1],$c);',
-	'&xor	($c,$d);',
-	'&add	($e,&DWP(4*($j++&15),"esp"));',	# X[]+K xfer
-	'&and	(@T[1],$d);',
-	'&and	(@T[0],$c);',	# ($b&($c^$d))
-	'&$_ror	($b,7);',	# $b>>>2
-	'&add	($e,@T[1]);',
-	'&mov	(@T[1],$a);',	# $b in next round
-	'&$_rol	($a,5);',
-	'&add	($e,@T[0]);',
-	'&xor	($c,$d);',	# restore $c
-	'&add	($e,$a);'	.'unshift(@V,pop(@V)); unshift(@T,pop(@T));'
+
+	'&rorx	(@T[0],$a,5)',
+	'&lea	($e,&DWP(0,$e,$b))',
+	'&rorx	($b,@T[1],7)',	# $b>>>2
+	'&add	($d,&DWP(4*(($j+1)&15),"esp"))',	# X[]+K xfer
+
+	'&mov	(@T[1],$c)',
+	'&xor	($a,$b)',	# b^c for next round
+	'&xor	(@T[1],$b)',	# c^d for next round
+
+	'&and	($a,@T[1])',
+	'&add	($e,@T[0])',
+	'&xor	($a,$b)'	.'$j++; unshift(@V,pop(@V)); unshift(@T,pop(@T));'
 	);
 }
 
@@ -825,10 +1058,14 @@ sub body_40_59 () {
 	&mov	(&DWP(4,@T[1]),@T[0]);
 	&add	($E,&DWP(16,@T[1]));
 	&mov	(&DWP(8,@T[1]),$C);
-	&mov	($B,@T[0]);
+	&mov	($B,$C);
 	&mov	(&DWP(12,@T[1]),$D);
+	&xor	($B,$D);
 	&mov	(&DWP(16,@T[1]),$E);
-	&movdqa	(@X[0],@X[-3&7]);
+	&mov	(@T[1],@T[0]);
+	&pshufd	(@X[0],@X[-4&7],0xee);		# was &movdqa	(@X[0],@X[-3&7]);
+	&and	(@T[0],$B);
+	&mov	($B,$T[1]);
 
 	&jmp	(&label("loop"));
 
@@ -852,6 +1089,8 @@ sub body_40_59 () {
 	&mov	(&DWP(16,@T[1]),$E);
 
 &function_end("_sha1_block_data_order_ssse3");
+
+$rx=0;	# reset
 
 if ($ymm) {
 my $Xi=4;			# 4xSIMD Xupdate round, start pre-seeded
@@ -940,8 +1179,11 @@ my $_ror=sub { &shrd(@_[0],@_) };
 	&vpaddd	(@X[1],@X[-3&7],@X[3]);
 	&vpaddd	(@X[2],@X[-2&7],@X[3]);
 	&vmovdqa(&QWP(0,"esp"),@X[0]);		# X[]+K xfer to IALU
+	&mov	(@T[1],$C);
 	&vmovdqa(&QWP(0+16,"esp"),@X[1]);
+	&xor	(@T[1],$D);
 	&vmovdqa(&QWP(0+32,"esp"),@X[2]);
+	&and	(@T[0],@T[1]);
 	&jmp	(&label("loop"));
 
 sub Xupdate_avx_16_31()		# recall that $Xi starts wtih 4
@@ -1025,7 +1267,7 @@ sub Xupdate_avx_16_31()		# recall that $Xi starts wtih 4
 sub Xupdate_avx_32_79()
 { use integer;
   my $body = shift;
-  my @insns = (&$body,&$body,&$body,&$body);	# 32 to 48 instructions
+  my @insns = (&$body,&$body,&$body,&$body);	# 32 to 44 instructions
   my ($a,$b,$c,$d,$e);
 
 	&vpalignr(@X[2],@X[-1&7],@X[-2&7],8);	# compose "X[-6]"
@@ -1188,10 +1430,14 @@ sub Xtail_avx()
 	&add	($D,&DWP(12,@T[1]));
 	&mov	(&DWP(4,@T[1]),@T[0]);
 	&add	($E,&DWP(16,@T[1]));
+	&mov	($B,$C);
 	&mov	(&DWP(8,@T[1]),$C);
-	&mov	($B,@T[0]);
+	&xor	($B,$D);
 	&mov	(&DWP(12,@T[1]),$D);
 	&mov	(&DWP(16,@T[1]),$E);
+	&mov	(@T[1],@T[0]);
+	&and	(@T[0],$B);
+	&mov	($B,@T[1]);
 
 	&jmp	(&label("loop"));
 
@@ -1223,6 +1469,7 @@ sub Xtail_avx()
 &data_word(0x8f1bbcdc,0x8f1bbcdc,0x8f1bbcdc,0x8f1bbcdc);	# K_40_59
 &data_word(0xca62c1d6,0xca62c1d6,0xca62c1d6,0xca62c1d6);	# K_60_79
 &data_word(0x00010203,0x04050607,0x08090a0b,0x0c0d0e0f);	# pbswap mask
+&data_byte(0xf,0xe,0xd,0xc,0xb,0xa,0x9,0x8,0x7,0x6,0x5,0x4,0x3,0x2,0x1,0x0);
 }
 &asciz("SHA1 block transform for x86, CRYPTOGAMS by <appro\@openssl.org>");
 

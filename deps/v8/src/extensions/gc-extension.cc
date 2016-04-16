@@ -10,17 +10,20 @@ namespace v8 {
 namespace internal {
 
 
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
+v8::Local<v8::FunctionTemplate> GCExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate, v8::Local<v8::String> str) {
   return v8::FunctionTemplate::New(isolate, GCExtension::GC);
 }
 
 
 void GCExtension::GC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetIsolate()->RequestGarbageCollectionForTesting(
-      args[0]->BooleanValue() ? v8::Isolate::kMinorGarbageCollection
-                              : v8::Isolate::kFullGarbageCollection);
+      args[0]
+              ->BooleanValue(args.GetIsolate()->GetCurrentContext())
+              .FromMaybe(false)
+          ? v8::Isolate::kMinorGarbageCollection
+          : v8::Isolate::kFullGarbageCollection);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

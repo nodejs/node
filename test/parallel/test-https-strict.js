@@ -1,38 +1,18 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
-
+'use strict';
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 var common = require('../common');
 var assert = require('assert');
 
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
+var https = require('https');
+
 var fs = require('fs');
 var path = require('path');
-var https = require('https');
 
 function file(fname) {
   return path.resolve(common.fixturesDir, 'keys', fname);
@@ -99,7 +79,6 @@ var responseCount = 0;
 var pending = 0;
 
 
-
 function server(options, port) {
   var s = https.createServer(options, handler);
   s.requests = [];
@@ -121,7 +100,7 @@ function listening() {
     if (listenWait === 0) {
       allListening();
     }
-  }
+  };
 }
 
 function makeReq(path, port, error, host, ca) {
@@ -131,7 +110,7 @@ function makeReq(path, port, error, host, ca) {
     path: path,
     ca: ca
   };
-  var whichCa = 0;
+
   if (!ca) {
     options.agent = agent0;
   } else {
@@ -148,7 +127,7 @@ function makeReq(path, port, error, host, ca) {
   }
 
   if (host) {
-    options.headers = { host: host }
+    options.headers = { host: host };
   }
   var req = https.get(options);
   expectResponseCount++;
@@ -157,7 +136,7 @@ function makeReq(path, port, error, host, ca) {
       : port === port3 ? server3
       : null;
 
-  if (!server) throw new Error('invalid port: '+port);
+  if (!server) throw new Error('invalid port: ' + port);
   server.expectCount++;
 
   req.on('response', function(res) {
@@ -171,7 +150,7 @@ function makeReq(path, port, error, host, ca) {
       server3.close();
     }
     res.resume();
-  })
+  });
 }
 
 function allListening() {

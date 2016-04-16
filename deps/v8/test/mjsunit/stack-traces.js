@@ -94,6 +94,37 @@ function testAnonymousMethod() {
   (function () { FAIL }).call([1, 2, 3]);
 }
 
+function testFunctionName() {
+  function gen(name, counter) {
+    var f = function foo() {
+      if (counter === 0) {
+        FAIL;
+      }
+      gen(name, counter - 1)();
+    }
+    if (counter === 4) {
+      Object.defineProperty(f, 'name', {get: function(){ throw 239; }});
+    } else if (counter == 3) {
+      Object.defineProperty(f, 'name', {value: 'boo' + '_' + counter});
+    } else {
+      Object.defineProperty(f, 'name', {writable: true});
+      if (counter === 2)
+        f.name = 42;
+      else
+        f.name = name + '_' + counter;
+    }
+    return f;
+  }
+  gen('foo', 4)();
+}
+
+function testFunctionInferredName() {
+  var f = function() {
+    FAIL;
+  }
+  f();
+}
+
 function CustomError(message, stripPoint) {
   this.message = message;
   Error.captureStackTrace(this, stripPoint);
@@ -182,27 +213,11 @@ function testErrorsDuringFormatting() {
   Nasty.prototype.foo = function () { throw new RangeError(); };
   var n = new Nasty();
   n.__defineGetter__('constructor', function () { CONS_FAIL; });
-  var threw = false;
-  try {
-    n.foo();
-  } catch (e) {
-    threw = true;
-    assertTrue(e.stack.indexOf('<error: ReferenceError') != -1,
-               "ErrorsDuringFormatting didn't contain error: ReferenceError");
-  }
-  assertTrue(threw, "ErrorsDuringFormatting didn't throw");
-  threw = false;
+  assertThrows(()=>n.foo(), RangeError);
   // Now we can't even format the message saying that we couldn't format
   // the stack frame.  Put that in your pipe and smoke it!
   ReferenceError.prototype.toString = function () { NESTED_FAIL; };
-  try {
-    n.foo();
-  } catch (e) {
-    threw = true;
-    assertTrue(e.stack.indexOf('<error>') != -1,
-               "ErrorsDuringFormatting didn't contain <error>");
-  }
-  assertTrue(threw, "ErrorsDuringFormatting didnt' throw (2)");
+  assertThrows(()=>n.foo(), RangeError);
 }
 
 
@@ -261,6 +276,9 @@ testTrace("testValue", testValue, ["at Number.causeError"]);
 testTrace("testConstructor", testConstructor, ["new Plonk"]);
 testTrace("testRenamedMethod", testRenamedMethod, ["Wookie.a$b$c$d [as d]"]);
 testTrace("testAnonymousMethod", testAnonymousMethod, ["Array.<anonymous>"]);
+testTrace("testFunctionName", testFunctionName,
+    [" at foo_0 ", " at foo_1", " at foo ", " at boo_3 ", " at foo "]);
+testTrace("testFunctionInferredName", testFunctionInferredName, [" at f "]);
 testTrace("testDefaultCustomError", testDefaultCustomError,
     ["hep-hey", "new CustomError"],
     ["collectStackTrace"]);
@@ -273,13 +291,10 @@ testUnintendedCallerCensorship();
 testErrorsDuringFormatting();
 
 testTraceNativeConversion(String);  // Does ToString on argument.
-testTraceNativeConversion(Number);  // Does ToNumber on argument.
 testTraceNativeConversion(RegExp);  // Does ToString on argument.
 
 testTraceNativeConstructor(String);  // Does ToString on argument.
-testTraceNativeConstructor(Number);  // Does ToNumber on argument.
 testTraceNativeConstructor(RegExp);  // Does ToString on argument.
-testTraceNativeConstructor(Date);    // Does ToNumber on argument.
 
 // Omitted because QuickSort has builtins object as receiver, and is non-native
 // builtin.

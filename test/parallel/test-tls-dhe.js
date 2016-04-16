@@ -1,34 +1,14 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
-
-if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
-}
-
 var assert = require('assert');
-var spawn = require('child_process').spawn;
+
+if (!common.hasCrypto) {
+  console.log('1..0 # Skipped: missing crypto');
+  return;
+}
 var tls = require('tls');
+
+var spawn = require('child_process').spawn;
 var fs = require('fs');
 var key =  fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
 var cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
@@ -47,6 +27,7 @@ function test(keylen, expectedCipher, cb) {
   var options = {
     key: key,
     cert: cert,
+    ciphers: ciphers,
     dhparam: loadDHParam(keylen)
   };
 
@@ -62,6 +43,11 @@ function test(keylen, expectedCipher, cb) {
   server.listen(common.PORT, '127.0.0.1', function() {
     var args = ['s_client', '-connect', '127.0.0.1:' + common.PORT,
                 '-cipher', ciphers];
+
+    // for the performance and stability issue in s_client on Windows
+    if (common.isWindows)
+      args.push('-no_rand_screen');
+
     var client = spawn(common.opensslCli, args);
     var out = '';
     client.stdout.setEncoding('utf8');
@@ -81,8 +67,9 @@ function test(keylen, expectedCipher, cb) {
 }
 
 function test512() {
-  test(512, 'DHE-RSA-AES128-SHA256', test1024);
-  ntests++;
+  assert.throws(function() {
+    test(512, 'DHE-RSA-AES128-SHA256', null);
+  }, /DH parameter is less than 1024 bits/);
 }
 
 function test1024() {
@@ -96,12 +83,13 @@ function test2048() {
 }
 
 function testError() {
-  test('error', 'ECDHE-RSA-AES128-SHA256', null);
+  test('error', 'ECDHE-RSA-AES128-SHA256', test512);
   ntests++;
 }
 
-test512();
+test1024();
 
 process.on('exit', function() {
   assert.equal(ntests, nsuccess);
+  assert.equal(ntests, 3);
 });

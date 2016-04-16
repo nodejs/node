@@ -13,7 +13,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_PREREQ(2.57)
-AC_INIT([libuv], [1.0.1], [https://github.com/libuv/libuv/issues])
+AC_INIT([libuv], [1.9.0], [https://github.com/libuv/libuv/issues])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/libuv-extra-automake-flags.m4])
 m4_include([m4/as_case.m4])
@@ -24,9 +24,17 @@ AC_ENABLE_SHARED
 AC_ENABLE_STATIC
 AC_PROG_CC
 AM_PROG_CC_C_O
-CC_CHECK_CFLAGS_APPEND([-Wno-dollar-in-identifier-extension])
+CC_CHECK_CFLAGS_APPEND([-fvisibility=hidden])
+CC_CHECK_CFLAGS_APPEND([-g])
+CC_CHECK_CFLAGS_APPEND([-std=gnu89])
+CC_CHECK_CFLAGS_APPEND([-pedantic])
+CC_CHECK_CFLAGS_APPEND([-Wall])
+CC_CHECK_CFLAGS_APPEND([-Wextra])
+CC_CHECK_CFLAGS_APPEND([-Wno-unused-parameter])
 # AM_PROG_AR is not available in automake v0.11 but it's essential in v0.12.
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
+# autoconf complains if AC_PROG_LIBTOOL precedes AM_PROG_AR.
+AC_PROG_LIBTOOL
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 LT_INIT
 # TODO(bnoordhuis) Check for -pthread vs. -pthreads
@@ -50,6 +58,7 @@ AM_CONDITIONAL([NETBSD],   [AS_CASE([$host_os],[netbsd*],       [true], [false])
 AM_CONDITIONAL([OPENBSD],  [AS_CASE([$host_os],[openbsd*],      [true], [false])])
 AM_CONDITIONAL([SUNOS],    [AS_CASE([$host_os],[solaris*],      [true], [false])])
 AM_CONDITIONAL([WINNT],    [AS_CASE([$host_os],[mingw*],        [true], [false])])
+AC_CHECK_HEADERS([sys/ahafs_evProds.h])
 AC_CHECK_PROG(PKG_CONFIG, pkg-config, yes)
 AM_CONDITIONAL([HAVE_PKG_CONFIG], [test "x$PKG_CONFIG" != "x"])
 AS_IF([test "x$PKG_CONFIG" != "x"], [

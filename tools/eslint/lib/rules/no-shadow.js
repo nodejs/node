@@ -1,0 +1,179 @@
+/**
+ * @fileoverview Rule to flag on declaring variables already declared in the outer scope
+ * @author Ilya Volodin
+ * @copyright 2013 Ilya Volodin. All rights reserved.
+ */
+
+"use strict";
+
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
+// Rule Definition
+//------------------------------------------------------------------------------
+
+module.exports = function(context) {
+
+    var options = {
+        builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals),
+        hoist: (context.options[0] && context.options[0].hoist) || "functions",
+        allow: (context.options[0] && context.options[0].allow) || []
+    };
+
+    /**
+     * Check if variable name is allowed.
+     *
+     * @param  {ASTNode} variable The variable to check.
+     * @returns {boolean} Whether or not the variable name is allowed.
+     */
+    function isAllowed(variable) {
+        return options.allow.indexOf(variable.name) !== -1;
+    }
+
+    /**
+     * Checks if a variable of the class name in the class scope of ClassDeclaration.
+     *
+     * ClassDeclaration creates two variables of its name into its outer scope and its class scope.
+     * So we should ignore the variable in the class scope.
+     *
+     * @param {Object} variable The variable to check.
+     * @returns {boolean} Whether or not the variable of the class name in the class scope of ClassDeclaration.
+     */
+    function isDuplicatedClassNameVariable(variable) {
+        var block = variable.scope.block;
+
+        return block.type === "ClassDeclaration" && block.id === variable.identifiers[0];
+    }
+
+    /**
+     * Checks if a variable is inside the initializer of scopeVar.
+     *
+     * To avoid reporting at declarations such as `var a = function a() {};`.
+     * But it should report `var a = function(a) {};` or `var a = function() { function a() {} };`.
+     *
+     * @param {Object} variable The variable to check.
+     * @param {Object} scopeVar The scope variable to look for.
+     * @returns {boolean} Whether or not the variable is inside initializer of scopeVar.
+     */
+    function isOnInitializer(variable, scopeVar) {
+        var outerScope = scopeVar.scope;
+        var outerDef = scopeVar.defs[0];
+        var outer = outerDef && outerDef.parent && outerDef.parent.range;
+        var innerScope = variable.scope;
+        var innerDef = variable.defs[0];
+        var inner = innerDef && innerDef.name.range;
+
+        return (
+            outer &&
+            inner &&
+            outer[0] < inner[0] &&
+            inner[1] < outer[1] &&
+            ((innerDef.type === "FunctionName" && innerDef.node.type === "FunctionExpression") || innerDef.node.type === "ClassExpression") &&
+            outerScope === innerScope.upper
+        );
+    }
+
+    /**
+     * Get a range of a variable's identifier node.
+     * @param {Object} variable The variable to get.
+     * @returns {Array|undefined} The range of the variable's identifier node.
+     */
+    function getNameRange(variable) {
+        var def = variable.defs[0];
+
+        return def && def.name.range;
+    }
+
+    /**
+     * Checks if a variable is in TDZ of scopeVar.
+     * @param {Object} variable The variable to check.
+     * @param {Object} scopeVar The variable of TDZ.
+     * @returns {boolean} Whether or not the variable is in TDZ of scopeVar.
+     */
+    function isInTdz(variable, scopeVar) {
+        var outerDef = scopeVar.defs[0];
+        var inner = getNameRange(variable);
+        var outer = getNameRange(scopeVar);
+
+        return (
+            inner &&
+            outer &&
+            inner[1] < outer[0] &&
+
+            // Excepts FunctionDeclaration if is {"hoist":"function"}.
+            (options.hoist !== "functions" || !outerDef || outerDef.node.type !== "FunctionDeclaration")
+        );
+    }
+
+    /**
+     * Checks the current context for shadowed variables.
+     * @param {Scope} scope - Fixme
+     * @returns {void}
+     */
+    function checkForShadows(scope) {
+        var variables = scope.variables;
+
+        for (var i = 0; i < variables.length; ++i) {
+            var variable = variables[i];
+
+            // Skips "arguments" or variables of a class name in the class scope of ClassDeclaration.
+            if (variable.identifiers.length === 0 ||
+                isDuplicatedClassNameVariable(variable) ||
+                isAllowed(variable)
+            ) {
+                continue;
+            }
+
+            // Gets shadowed variable.
+            var shadowed = astUtils.getVariableByName(scope.upper, variable.name);
+
+            if (shadowed &&
+                (shadowed.identifiers.length > 0 || (options.builtinGlobals && "writeable" in shadowed)) &&
+                !isOnInitializer(variable, shadowed) &&
+                !(options.hoist !== "all" && isInTdz(variable, shadowed))
+            ) {
+                context.report({
+                    node: variable.identifiers[0],
+                    message: "'{{name}}' is already declared in the upper scope.",
+                    data: variable
+                });
+            }
+        }
+    }
+
+    return {
+        "Program:exit": function() {
+            var globalScope = context.getScope();
+            var stack = globalScope.childScopes.slice();
+            var scope;
+
+            while (stack.length) {
+                scope = stack.pop();
+                stack.push.apply(stack, scope.childScopes);
+                checkForShadows(scope);
+            }
+        }
+    };
+
+};
+
+module.exports.schema = [
+    {
+        "type": "object",
+        "properties": {
+            "builtinGlobals": {"type": "boolean"},
+            "hoist": {"enum": ["all", "functions", "never"]},
+            "allow": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }
+        },
+        "additionalProperties": false
+    }
+];

@@ -76,7 +76,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                                      Register r0,
                                      Register r1);
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
  private:
   static const int kInlinedProbes = 4;
@@ -139,7 +139,7 @@ class RecordWriteStub: public PlatformCodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
   static const byte kTwoByteNopInstruction = 0x3c;  // Cmpb al, #imm8.
   static const byte kTwoByteJumpInstruction = 0xeb;  // Jmp #imm8.
@@ -185,7 +185,7 @@ class RecordWriteStub: public PlatformCodeStub {
         break;
     }
     DCHECK(GetMode(stub) == mode);
-    CpuFeatures::FlushICache(stub->instruction_start(), 7);
+    Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(), 7);
   }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
@@ -271,24 +271,12 @@ class RecordWriteStub: public PlatformCodeStub {
     // registers are eax, ecx and edx.  The three scratch registers (incl. ecx)
     // will be restored by other means so we don't bother pushing them here.
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
-      if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->push(eax);
-      if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->push(edx);
-      if (mode == kSaveFPRegs) {
-        // Save FPU state in m108byte.
-        masm->sub(esp, Immediate(108));
-        masm->fnsave(Operand(esp, 0));
-      }
+      masm->PushCallerSaved(mode, ecx, scratch0_, scratch1_);
     }
 
     inline void RestoreCallerSaveRegisters(MacroAssembler* masm,
                                            SaveFPRegsMode mode) {
-      if (mode == kSaveFPRegs) {
-        // Restore FPU state in m108byte.
-        masm->frstor(Operand(esp, 0));
-        masm->add(esp, Immediate(108));
-      }
-      if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->pop(edx);
-      if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->pop(eax);
+      masm->PopCallerSaved(mode, ecx, scratch0_, scratch1_);
     }
 
     inline Register object() { return object_; }
@@ -309,13 +297,15 @@ class RecordWriteStub: public PlatformCodeStub {
     Register GetRegThatIsNotEcxOr(Register r1,
                                   Register r2,
                                   Register r3) {
-      for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
-        Register candidate = Register::FromAllocationIndex(i);
-        if (candidate.is(ecx)) continue;
-        if (candidate.is(r1)) continue;
-        if (candidate.is(r2)) continue;
-        if (candidate.is(r3)) continue;
-        return candidate;
+      for (int i = 0; i < Register::kNumRegisters; i++) {
+        Register candidate = Register::from_code(i);
+        if (candidate.IsAllocatable()) {
+          if (candidate.is(ecx)) continue;
+          if (candidate.is(r1)) continue;
+          if (candidate.is(r2)) continue;
+          if (candidate.is(r3)) continue;
+          return candidate;
+        }
       }
       UNREACHABLE();
       return no_reg;
@@ -328,9 +318,9 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE { return RecordWrite; }
+  inline Major MajorKey() const final { return RecordWrite; }
 
-  virtual void Generate(MacroAssembler* masm) OVERRIDE;
+  void Generate(MacroAssembler* masm) override;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
@@ -338,7 +328,7 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  void Activate(Code* code) {
+  void Activate(Code* code) override {
     code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
   }
 
@@ -374,6 +364,7 @@ class RecordWriteStub: public PlatformCodeStub {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_CODE_STUBS_X87_H_

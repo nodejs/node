@@ -35,13 +35,29 @@
  *
  * @param {Array.<Object>} dispatchTable A table used for parsing and processing
  *     log records.
+ * @param {boolean} timedRange Ignore ticks outside timed range.
+ * @param {boolean} pairwiseTimedRange Ignore ticks outside pairs of timer
+ *     markers.
  * @constructor
  */
-function LogReader(dispatchTable) {
+function LogReader(dispatchTable, timedRange, pairwiseTimedRange) {
   /**
    * @type {Array.<Object>}
    */
   this.dispatchTable_ = dispatchTable;
+
+  /**
+   * @type {boolean}
+   */
+  this.timedRange_ = timedRange;
+
+  /**
+   * @type {boolean}
+   */
+  this.pairwiseTimedRange_ = pairwiseTimedRange;
+  if (pairwiseTimedRange) {
+    this.timedRange_ = true;
+  }
 
   /**
    * Current line.
@@ -54,6 +70,18 @@ function LogReader(dispatchTable) {
    * @type {CsvParser}
    */
   this.csvParser_ = new CsvParser();
+
+  /**
+   * Keeps track of whether we've seen a "current-time" tick yet.
+   * @type {boolean}
+   */
+  this.hasSeenTimerMarker_ = false;
+
+  /**
+   * List of log lines seen since last "current-time" tick.
+   * @type {Array.<String>}
+   */
+  this.logLinesSinceLastTimerMarker_ = [];
 };
 
 
@@ -83,7 +111,28 @@ LogReader.prototype.processLogChunk = function(chunk) {
  * @param {string} line A line of log.
  */
 LogReader.prototype.processLogLine = function(line) {
-  this.processLog_([line]);
+  if (!this.timedRange_) {
+    this.processLog_([line]);
+    return;
+  }
+  if (line.startsWith("current-time")) {
+    if (this.hasSeenTimerMarker_) {
+      this.processLog_(this.logLinesSinceLastTimerMarker_);
+      this.logLinesSinceLastTimerMarker_ = [];
+      // In pairwise mode, a "current-time" line ends the timed range.
+      if (this.pairwiseTimedRange_) {
+        this.hasSeenTimerMarker_ = false;
+      }
+    } else {
+      this.hasSeenTimerMarker_ = true;
+    }
+  } else {
+    if (this.hasSeenTimerMarker_) {
+      this.logLinesSinceLastTimerMarker_.push(line);
+    } else if (!line.startsWith("tick")) {
+      this.processLog_([line]);
+    }
+  }
 };
 
 

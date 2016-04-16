@@ -14,15 +14,10 @@ namespace internal {
 inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Map* map) {
   DCHECK((offset % kPointerSize) == 0);
   int index = offset / kPointerSize;
-  if (map == NULL) {
-    return FieldIndex(true, index, false, index + 1, 0, true);
-  }
-  int first_inobject_offset = map->GetInObjectPropertyOffset(0);
-  if (offset < first_inobject_offset) {
-    return FieldIndex(true, index, false, 0, 0, true);
-  } else {
-    return FieldIndex::ForPropertyIndex(map, offset / kPointerSize);
-  }
+  DCHECK(map == NULL ||
+         index < (map->GetInObjectPropertyOffset(0) / kPointerSize +
+                  map->GetInObjectProperties()));
+  return FieldIndex(true, index, false, 0, 0, true);
 }
 
 
@@ -30,7 +25,7 @@ inline FieldIndex FieldIndex::ForPropertyIndex(Map* map,
                                                int property_index,
                                                bool is_double) {
   DCHECK(map->instance_type() >= FIRST_NONSTRING_TYPE);
-  int inobject_properties = map->inobject_properties();
+  int inobject_properties = map->GetInObjectProperties();
   bool is_inobject = property_index < inobject_properties;
   int first_inobject_offset;
   if (is_inobject) {
@@ -63,7 +58,7 @@ inline FieldIndex FieldIndex::ForLoadByFieldIndex(Map* map, int orig_index) {
     field_index += JSObject::kHeaderSize / kPointerSize;
   }
   FieldIndex result(is_inobject, field_index, is_double,
-                    map->inobject_properties(), first_inobject_offset);
+                    map->GetInObjectProperties(), first_inobject_offset);
   DCHECK(result.GetLoadByFieldIndex() == orig_index);
   return result;
 }
@@ -94,8 +89,7 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
 inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {
   PropertyDetails details =
       map->instance_descriptors()->GetDetails(descriptor_index);
-  int field_index =
-      map->instance_descriptors()->GetFieldIndex(descriptor_index);
+  int field_index = details.field_index();
   return ForPropertyIndex(map, field_index,
                           details.representation().IsDouble());
 }
@@ -124,6 +118,7 @@ inline int FieldIndex::GetKeyedLookupCacheIndex() const {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif

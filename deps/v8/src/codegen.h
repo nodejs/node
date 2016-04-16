@@ -32,7 +32,6 @@
 //   ~CodeGenerator
 //   Generate
 //   ComputeLazyCompile
-//   BuildFunctionInfo
 //   ProcessDeclarations
 //   DeclareGlobals
 //   CheckForInlineRuntimeCall
@@ -43,8 +42,6 @@
 //   CodeForDoWhileConditionPosition
 //   CodeForSourcePosition
 
-enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
-
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/codegen-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
@@ -53,6 +50,8 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 #include "src/arm64/codegen-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/codegen-arm.h"  // NOLINT
+#elif V8_TARGET_ARCH_PPC
+#include "src/ppc/codegen-ppc.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/codegen-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
@@ -77,15 +76,10 @@ class CodeGenerator {
 
   // Allocate and install the code.
   static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
-                                       Code::Flags flags,
                                        CompilationInfo* info);
 
   // Print the code after compiling it.
   static void PrintCode(Handle<Code> code, CompilationInfo* info);
-
-  static bool RecordPositions(MacroAssembler* masm,
-                              int pos,
-                              bool right_here = false);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
@@ -95,22 +89,19 @@ class CodeGenerator {
 // Results of the library implementation of transcendental functions may differ
 // from the one we use in our generated code.  Therefore we use the same
 // generated code both in runtime and compiled code.
-typedef double (*UnaryMathFunction)(double x);
+typedef double (*UnaryMathFunctionWithIsolate)(double x, Isolate* isolate);
 
-UnaryMathFunction CreateExpFunction();
-UnaryMathFunction CreateSqrtFunction();
+UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate);
+UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate);
 
 
 double modulo(double x, double y);
 
 // Custom implementation of math functions.
-double fast_exp(double input);
-double fast_sqrt(double input);
-#ifdef _WIN64
-void init_modulo_function();
-#endif
-void lazily_initialize_fast_exp();
-void init_fast_sqrt_function();
+double fast_exp(double input, Isolate* isolate);
+double fast_sqrt(double input, Isolate* isolate);
+void lazily_initialize_fast_exp(Isolate* isolate);
+void lazily_initialize_fast_sqrt(Isolate* isolate);
 
 
 class ElementsTransitionGenerator : public AllStatic {
@@ -151,7 +142,7 @@ static const int kNumberDictionaryProbes = 4;
 
 class CodeAgingHelper {
  public:
-  CodeAgingHelper();
+  explicit CodeAgingHelper(Isolate* isolate);
 
   uint32_t young_sequence_length() const { return young_sequence_.length(); }
   bool IsYoung(byte* candidate) const {
@@ -176,6 +167,7 @@ class CodeAgingHelper {
 #endif
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CODEGEN_H_

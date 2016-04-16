@@ -13,6 +13,7 @@
 #include <pthread_np.h>  // for pthread_set_name_np
 #endif
 #include <sched.h>  // for sched_yield
+#include <stdio.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -54,7 +55,7 @@
 #include <sys/prctl.h>  // NOLINT, for prctl
 #endif
 
-#if !V8_OS_NACL
+#if !defined(V8_OS_NACL) && !defined(_AIX)
 #include <sys/syscall.h>
 #endif
 
@@ -84,8 +85,8 @@ int OS::ActivationFrameAlignment() {
   // Otherwise we just assume 16 byte alignment, i.e.:
   // - With gcc 4.4 the tree vectorization optimizer can generate code
   //   that requires 16 byte alignment such as movdqa on x86.
-  // - Mac OS X and Solaris (64-bit) activation frames must be 16 byte-aligned;
-  //   see "Mac OS X ABI Function Call Guide"
+  // - Mac OS X, PPC and Solaris (64-bit) activation frames must
+  //   be 16 byte-aligned;  see "Mac OS X ABI Function Call Guide"
   return 16;
 #endif
 }
@@ -170,6 +171,20 @@ void* OS::GetRandomMmapAddr() {
   // the hint address to 46 bits to give the kernel a fighting chance of
   // fulfilling our placement request.
   raw_addr &= V8_UINT64_C(0x3ffffffff000);
+#elif V8_TARGET_ARCH_PPC64
+#if V8_OS_AIX
+  // AIX: 64 bits of virtual addressing, but we limit address range to:
+  //   a) minimize Segment Lookaside Buffer (SLB) misses and
+  raw_addr &= V8_UINT64_C(0x3ffff000);
+  // Use extra address space to isolate the mmap regions.
+  raw_addr += V8_UINT64_C(0x400000000000);
+#elif V8_TARGET_BIG_ENDIAN
+  // Big-endian Linux: 44 bits of virtual addressing.
+  raw_addr &= V8_UINT64_C(0x03fffffff000);
+#else
+  // Little-endian Linux: 48 bits of virtual addressing.
+  raw_addr &= V8_UINT64_C(0x3ffffffff000);
+#endif
 #else
   raw_addr &= 0x3ffff000;
 
@@ -184,6 +199,10 @@ void* OS::GetRandomMmapAddr() {
   // no hint at all. The high hint prevents the break from getting hemmed in
   // at low values, ceding half of the address space to the system heap.
   raw_addr += 0x80000000;
+#elif V8_OS_AIX
+  // The range 0x30000000 - 0xD0000000 is available on AIX;
+  // choose the upper range.
+  raw_addr += 0x90000000;
 # else
   // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
   // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
@@ -200,9 +219,8 @@ size_t OS::AllocateAlignment() {
 }
 
 
-void OS::Sleep(int milliseconds) {
-  useconds_t ms = static_cast<useconds_t>(milliseconds);
-  usleep(1000 * ms);
+void OS::Sleep(TimeDelta interval) {
+  usleep(static_cast<useconds_t>(interval.InMicroseconds()));
 }
 
 
@@ -224,6 +242,8 @@ void OS::DebugBreak() {
   asm("break");
 #elif V8_HOST_ARCH_MIPS64
   asm("break");
+#elif V8_HOST_ARCH_PPC
+  asm("twge 2,2");
 #elif V8_HOST_ARCH_IA32
 #if V8_OS_NACL
   asm("hlt");
@@ -238,12 +258,62 @@ void OS::DebugBreak() {
 }
 
 
-// ----------------------------------------------------------------------------
-// Math functions
+class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
+ public:
+  PosixMemoryMappedFile(FILE* file, void* memory, size_t size)
+      : file_(file), memory_(memory), size_(size) {}
+  ~PosixMemoryMappedFile() final;
+  void* memory() const final { return memory_; }
+  size_t size() const final { return size_; }
 
-double OS::nan_value() {
-  // NAN from math.h is defined in C99 and not in POSIX.
-  return NAN;
+ private:
+  FILE* const file_;
+  void* const memory_;
+  size_t const size_;
+};
+
+
+// static
+OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
+  if (FILE* file = fopen(name, "r+")) {
+    if (fseek(file, 0, SEEK_END) == 0) {
+      long size = ftell(file);  // NOLINT(runtime/int)
+      if (size >= 0) {
+        void* const memory =
+            mmap(OS::GetRandomMmapAddr(), size, PROT_READ | PROT_WRITE,
+                 MAP_SHARED, fileno(file), 0);
+        if (memory != MAP_FAILED) {
+          return new PosixMemoryMappedFile(file, memory, size);
+        }
+      }
+    }
+    fclose(file);
+  }
+  return nullptr;
+}
+
+
+// static
+OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
+                                                   size_t size, void* initial) {
+  if (FILE* file = fopen(name, "w+")) {
+    size_t result = fwrite(initial, 1, size, file);
+    if (result == size && !ferror(file)) {
+      void* memory = mmap(OS::GetRandomMmapAddr(), result,
+                          PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+      if (memory != MAP_FAILED) {
+        return new PosixMemoryMappedFile(file, memory, result);
+      }
+    }
+    fclose(file);
+  }
+  return nullptr;
+}
+
+
+PosixMemoryMappedFile::~PosixMemoryMappedFile() {
+  if (memory_) OS::Free(memory_, size_);
+  fclose(file_);
 }
 
 
@@ -253,14 +323,18 @@ int OS::GetCurrentProcessId() {
 
 
 int OS::GetCurrentThreadId() {
-#if V8_OS_MACOSX
+#if V8_OS_MACOSX || (V8_OS_ANDROID && defined(__APPLE__))
   return static_cast<int>(pthread_mach_thread_np(pthread_self()));
 #elif V8_OS_LINUX
   return static_cast<int>(syscall(__NR_gettid));
 #elif V8_OS_ANDROID
   return static_cast<int>(gettid());
-#else
+#elif V8_OS_AIX
+  return static_cast<int>(thread_self());
+#elif V8_OS_SOLARIS
   return static_cast<int>(pthread_self());
+#else
+  return static_cast<int>(reinterpret_cast<intptr_t>(pthread_self()));
 #endif
 }
 
@@ -269,7 +343,7 @@ int OS::GetCurrentThreadId() {
 // POSIX date/time support.
 //
 
-int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
+int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
 #if V8_OS_NACL
   // Optionally used in Logger::ResourceEvent.
   return -1;
@@ -277,8 +351,8 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
   struct rusage usage;
 
   if (getrusage(RUSAGE_SELF, &usage) < 0) return -1;
-  *secs = usage.ru_utime.tv_sec;
-  *usecs = usage.ru_utime.tv_usec;
+  *secs = static_cast<uint32_t>(usage.ru_utime.tv_sec);
+  *usecs = static_cast<uint32_t>(usage.ru_utime.tv_usec);
   return 0;
 #endif
 }
@@ -308,10 +382,10 @@ void OS::ClearTimezoneCache(TimezoneCache* cache) {
 
 
 double OS::DaylightSavingsOffset(double time, TimezoneCache*) {
-  if (std::isnan(time)) return nan_value();
+  if (std::isnan(time)) return std::numeric_limits<double>::quiet_NaN();
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
-  struct tm* t = localtime(&tv);
-  if (NULL == t) return nan_value();
+  struct tm* t = localtime(&tv);  // NOLINT(runtime/threadsafe_fn)
+  if (NULL == t) return std::numeric_limits<double>::quiet_NaN();
   return t->tm_isdst > 0 ? 3600 * msPerSecond : 0;
 }
 
@@ -339,6 +413,11 @@ FILE* OS::FOpen(const char* path, const char* mode) {
 
 bool OS::Remove(const char* path) {
   return (remove(path) == 0);
+}
+
+
+bool OS::isDirectorySeparator(const char ch) {
+  return ch == '/';
 }
 
 
@@ -522,8 +601,15 @@ void Thread::Start() {
   DCHECK_EQ(0, result);
   // Native client uses default stack size.
 #if !V8_OS_NACL
-  if (stack_size_ > 0) {
-    result = pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
+  size_t stack_size = stack_size_;
+#if V8_OS_AIX
+  if (stack_size == 0) {
+    // Default on AIX is 96KB -- bump up to 2MB
+    stack_size = 2 * 1024 * 1024;
+  }
+#endif
+  if (stack_size > 0) {
+    result = pthread_attr_setstacksize(&attr, stack_size);
     DCHECK_EQ(0, result);
   }
 #endif
@@ -541,13 +627,6 @@ void Thread::Start() {
 
 void Thread::Join() {
   pthread_join(data_->thread_, NULL);
-}
-
-
-void Thread::YieldCPU() {
-  int result = sched_yield();
-  DCHECK_EQ(0, result);
-  USE(result);
 }
 
 
@@ -674,5 +753,5 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   USE(result);
 }
 
-
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

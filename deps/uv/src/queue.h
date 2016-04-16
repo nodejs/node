@@ -16,6 +16,8 @@
 #ifndef QUEUE_H_
 #define QUEUE_H_
 
+#include <stddef.h>
+
 typedef void *QUEUE[2];
 
 /* Private macros. */
@@ -26,8 +28,11 @@ typedef void *QUEUE[2];
 
 /* Public macros. */
 #define QUEUE_DATA(ptr, type, field)                                          \
-  ((type *) ((char *) (ptr) - ((char *) &((type *) 0)->field)))
+  ((type *) ((char *) (ptr) - offsetof(type, field)))
 
+/* Important note: mutating the list while QUEUE_FOREACH is
+ * iterating over its elements results in undefined behavior.
+ */
 #define QUEUE_FOREACH(q, h)                                                   \
   for ((q) = QUEUE_NEXT(h); (q) != (h); (q) = QUEUE_NEXT(q))
 
@@ -61,6 +66,17 @@ typedef void *QUEUE[2];
     QUEUE_PREV(h) = QUEUE_PREV(q);                                            \
     QUEUE_PREV_NEXT(h) = (h);                                                 \
     QUEUE_PREV(q) = (n);                                                      \
+  }                                                                           \
+  while (0)
+
+#define QUEUE_MOVE(h, n)                                                      \
+  do {                                                                        \
+    if (QUEUE_EMPTY(h))                                                       \
+      QUEUE_INIT(n);                                                          \
+    else {                                                                    \
+      QUEUE* q = QUEUE_HEAD(h);                                               \
+      QUEUE_SPLIT(h, q, n);                                                   \
+    }                                                                         \
   }                                                                           \
   while (0)
 

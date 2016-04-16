@@ -4,10 +4,9 @@
 	call	OPENSSL_cpuid_setup
 
 .hidden	OPENSSL_ia32cap_P
-.comm	OPENSSL_ia32cap_P,8,4
+.comm	OPENSSL_ia32cap_P,16,4
 
 .text
-
 
 .globl	OPENSSL_atomic_add
 .type	OPENSSL_atomic_add,@function
@@ -16,12 +15,10 @@ OPENSSL_atomic_add:
 	movl	(%rdi),%eax
 .Lspin:	leaq	(%rsi,%rax,1),%r8
 .byte	0xf0
-
 	cmpxchgl	%r8d,(%rdi)
 	jne	.Lspin
 	movl	%r8d,%eax
 .byte	0x48,0x98
-
 	.byte	0xf3,0xc3
 .size	OPENSSL_atomic_add,.-OPENSSL_atomic_add
 
@@ -42,6 +39,7 @@ OPENSSL_ia32_cpuid:
 	movq	%rbx,%r8
 
 	xorl	%eax,%eax
+	movl	%eax,8(%rdi)
 	cpuid
 	movl	%eax,%r11d
 
@@ -109,6 +107,14 @@ OPENSSL_ia32_cpuid:
 	shrl	$14,%r10d
 	andl	$4095,%r10d
 
+	cmpl	$7,%r11d
+	jb	.Lnocacheinfo
+
+	movl	$7,%eax
+	xorl	%ecx,%ecx
+	cpuid
+	movl	%ebx,8(%rdi)
+
 .Lnocacheinfo:
 	movl	$1,%eax
 	cpuid
@@ -142,13 +148,13 @@ OPENSSL_ia32_cpuid:
 	jnc	.Lclear_avx
 	xorl	%ecx,%ecx
 .byte	0x0f,0x01,0xd0
-
 	andl	$6,%eax
 	cmpl	$6,%eax
 	je	.Ldone
 .Lclear_avx:
 	movl	$4026525695,%eax
 	andl	%eax,%r9d
+	andl	$4294967263,8(%rdi)
 .Ldone:
 	shlq	$32,%r9
 	movl	%r10d,%eax
@@ -236,3 +242,18 @@ OPENSSL_ia32_rdrand:
 	cmoveq	%rcx,%rax
 	.byte	0xf3,0xc3
 .size	OPENSSL_ia32_rdrand,.-OPENSSL_ia32_rdrand
+
+.globl	OPENSSL_ia32_rdseed
+.type	OPENSSL_ia32_rdseed,@function
+.align	16
+OPENSSL_ia32_rdseed:
+	movl	$8,%ecx
+.Loop_rdseed:
+.byte	72,15,199,248
+	jc	.Lbreak_rdseed
+	loop	.Loop_rdseed
+.Lbreak_rdseed:
+	cmpq	$0,%rax
+	cmoveq	%rcx,%rax
+	.byte	0xf3,0xc3
+.size	OPENSSL_ia32_rdseed,.-OPENSSL_ia32_rdseed

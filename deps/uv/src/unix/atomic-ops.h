@@ -18,6 +18,11 @@
 
 #include "internal.h"  /* UV_UNUSED */
 
+#if defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+#include <atomic.h>
+#define __sync_val_compare_and_swap(p, o, n) atomic_cas_ptr(p, o, n)
+#endif
+
 UV_UNUSED(static int cmpxchgi(int* ptr, int oldval, int newval));
 UV_UNUSED(static long cmpxchgl(long* ptr, long oldval, long newval));
 UV_UNUSED(static void cpu_relax(void));
@@ -33,6 +38,10 @@ UV_UNUSED(static int cmpxchgi(int* ptr, int oldval, int newval)) {
                         : "r" (newval), "0" (oldval)
                         : "memory");
   return out;
+#elif defined(_AIX) && defined(__xlC__)
+  const int out = (*(volatile int*) ptr);
+  __compare_and_swap(ptr, &oldval, newval);
+  return out;
 #else
   return __sync_val_compare_and_swap(ptr, oldval, newval);
 #endif
@@ -45,6 +54,14 @@ UV_UNUSED(static long cmpxchgl(long* ptr, long oldval, long newval)) {
                         : "=a" (out), "+m" (*(volatile long*) ptr)
                         : "r" (newval), "0" (oldval)
                         : "memory");
+  return out;
+#elif defined(_AIX) && defined(__xlC__)
+  const long out = (*(volatile int*) ptr);
+# if defined(__64BIT__)
+  __compare_and_swaplp(ptr, &oldval, newval);
+# else
+  __compare_and_swap(ptr, &oldval, newval);
+# endif /* if defined(__64BIT__) */
   return out;
 #else
   return __sync_val_compare_and_swap(ptr, oldval, newval);

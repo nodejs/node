@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "pipe_wrap.h"
 
 #include "async-wrap.h"
@@ -28,7 +7,8 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "node_wrap.h"
-#include "req_wrap.h"
+#include "req-wrap.h"
+#include "req-wrap-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
 #include "util.h"
@@ -42,7 +22,6 @@ using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
@@ -57,11 +36,13 @@ using v8::Value;
 class PipeConnectWrap : public ReqWrap<uv_connect_t> {
  public:
   PipeConnectWrap(Environment* env, Local<Object> req_wrap_obj);
+
+  size_t self_size() const override { return sizeof(*this); }
 };
 
 
 PipeConnectWrap::PipeConnectWrap(Environment* env, Local<Object> req_wrap_obj)
-    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPEWRAP) {
+    : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPECONNECTWRAP) {
   Wrap(req_wrap_obj, this);
 }
 
@@ -82,45 +63,27 @@ Local<Object> PipeWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   Local<Function> constructor = env->pipe_constructor_template()->GetFunction();
   CHECK_EQ(false, constructor.IsEmpty());
   Local<Value> ptr = External::New(env->isolate(), parent);
-  Local<Object> instance = constructor->NewInstance(1, &ptr);
-  CHECK_EQ(false, instance.IsEmpty());
+  Local<Object> instance =
+      constructor->NewInstance(env->context(), 1, &ptr).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
 
 
-void PipeWrap::Initialize(Handle<Object> target,
-                          Handle<Value> unused,
-                          Handle<Context> context) {
+void PipeWrap::Initialize(Local<Object> target,
+                          Local<Value> unused,
+                          Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "Pipe"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  enum PropertyAttribute attributes =
-      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(env->fd_string(),
-                                     StreamWrap::GetFD,
-                                     nullptr,
-                                     Handle<Value>(),
-                                     v8::DEFAULT,
-                                     attributes);
-
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
+  env->SetProtoMethod(t, "isRefed", HandleWrap::IsRefed);
 
-  env->SetProtoMethod(t, "setBlocking", StreamWrap::SetBlocking);
-
-  env->SetProtoMethod(t, "readStart", StreamWrap::ReadStart);
-  env->SetProtoMethod(t, "readStop", StreamWrap::ReadStop);
-  env->SetProtoMethod(t, "shutdown", StreamWrap::Shutdown);
-
-  env->SetProtoMethod(t, "writeBuffer", StreamWrap::WriteBuffer);
-  env->SetProtoMethod(t, "writeAsciiString", StreamWrap::WriteAsciiString);
-  env->SetProtoMethod(t, "writeUtf8String", StreamWrap::WriteUtf8String);
-  env->SetProtoMethod(t, "writeUcs2String", StreamWrap::WriteUcs2String);
-  env->SetProtoMethod(t, "writeBinaryString", StreamWrap::WriteBinaryString);
+  StreamWrap::AddMethods(env, t);
 
   env->SetProtoMethod(t, "bind", Bind);
   env->SetProtoMethod(t, "listen", Listen);
@@ -160,7 +123,7 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 
 PipeWrap::PipeWrap(Environment* env,
-                   Handle<Object> object,
+                   Local<Object> object,
                    bool ipc,
                    AsyncWrap* parent)
     : StreamWrap(env,
@@ -177,7 +140,7 @@ PipeWrap::PipeWrap(Environment* env,
 
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap = Unwrap<PipeWrap>(args.Holder());
-  node::Utf8Value name(args[0]);
+  node::Utf8Value name(args.GetIsolate(), args[0]);
   int err = uv_pipe_bind(&wrap->handle_, *name);
   args.GetReturnValue().Set(err);
 }
@@ -221,7 +184,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   };
 
   if (status != 0) {
-    pipe_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
+    pipe_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
     return;
   }
 
@@ -236,7 +199,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
 
   // Successful accept. Call the onconnection callback in JavaScript land.
   argv[1] = client_obj;
-  pipe_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
+  pipe_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
 
 // TODO(bnoordhuis) Maybe share this with TCPWrap?
@@ -271,7 +234,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
     Boolean::New(env->isolate(), writable)
   };
 
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }
@@ -300,7 +263,7 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsString());
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
-  node::Utf8Value name(args[1]);
+  node::Utf8Value name(env->isolate(), args[1]);
 
   PipeConnectWrap* req_wrap = new PipeConnectWrap(env, req_wrap_obj);
   uv_pipe_connect(&req_wrap->req_,

@@ -30,12 +30,15 @@
 # This script is wrapper for V8 that adds some support for how GYP
 # is invoked by V8 beyond what can be done in the gclient hooks.
 
+import argparse
 import glob
+import gyp_environment
 import os
 import platform
 import shlex
 import subprocess
 import sys
+import vs_toolchain
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 v8_root = os.path.abspath(os.path.join(script_dir, os.pardir))
@@ -48,32 +51,23 @@ sys.path.insert(
     1, os.path.abspath(os.path.join(v8_root, 'tools', 'generate_shim_headers')))
 
 
-def apply_gyp_environment(file_path=None):
-  """
-  Reads in a *.gyp_env file and applies the valid keys to os.environ.
-  """
-  if not file_path or not os.path.exists(file_path):
-    return
-  file_contents = open(file_path).read()
-  try:
-    file_data = eval(file_contents, {'__builtins__': None}, None)
-  except SyntaxError, e:
-    e.filename = os.path.abspath(file_path)
-    raise
-  supported_vars = ( 'V8_GYP_FILE',
-                     'V8_GYP_SYNTAX_CHECK',
-                     'GYP_DEFINES',
-                     'GYP_GENERATOR_FLAGS',
-                     'GYP_GENERATOR_OUTPUT', )
-  for var in supported_vars:
-    val = file_data.get(var)
-    if val:
-      if var in os.environ:
-        print 'INFO: Environment value for "%s" overrides value in %s.' % (
-            var, os.path.abspath(file_path)
-        )
-      else:
-        os.environ[var] = val
+def GetOutputDirectory():
+  """Returns the output directory that GYP will use."""
+
+  # Handle command line generator flags.
+  parser = argparse.ArgumentParser()
+  parser.add_argument('-G', dest='genflags', default=[], action='append')
+  genflags = parser.parse_known_args()[0].genflags
+
+  # Handle generator flags from the environment.
+  genflags += shlex.split(os.environ.get('GYP_GENERATOR_FLAGS', ''))
+
+  needle = 'output_dir='
+  for item in genflags:
+    if item.startswith(needle):
+      return item[len(needle):]
+
+  return 'out'
 
 
 def additional_include_files(args=[]):
@@ -109,12 +103,12 @@ def additional_include_files(args=[]):
 def run_gyp(args):
   rc = gyp.main(args)
 
-  # Check for landmines (reasons to clobber the build). This must be run here,
-  # rather than a separate runhooks step so that any environment modifications
-  # from above are picked up.
-  print 'Running build/landmines.py...'
-  subprocess.check_call(
-      [sys.executable, os.path.join(script_dir, 'landmines.py')])
+  vs2013_runtime_dll_dirs = vs_toolchain.SetEnvironmentAndGetRuntimeDllDirs()
+  if vs2013_runtime_dll_dirs:
+    x64_runtime, x86_runtime = vs2013_runtime_dll_dirs
+    vs_toolchain.CopyVsRuntimeDlls(
+      os.path.join(v8_root, GetOutputDirectory()),
+      (x86_runtime, x64_runtime))
 
   if rc != 0:
     print 'Error running GYP'
@@ -124,10 +118,7 @@ def run_gyp(args):
 if __name__ == '__main__':
   args = sys.argv[1:]
 
-  if 'SKIP_V8_GYP_ENV' not in os.environ:
-    # Update the environment based on v8.gyp_env
-    gyp_env_path = os.path.join(os.path.dirname(v8_root), 'v8.gyp_env')
-    apply_gyp_environment(gyp_env_path)
+  gyp_environment.set_environment()
 
   # This could give false positives since it doesn't actually do real option
   # parsing.  Oh well.
@@ -167,7 +158,8 @@ if __name__ == '__main__':
 
   # Generate for the architectures supported on the given platform.
   gyp_args = list(args)
-  gyp_generators = os.environ.get('GYP_GENERATORS')
+  gyp_args.extend(['-D', 'gyp_output_dir=' + GetOutputDirectory()])
+  gyp_generators = os.environ.get('GYP_GENERATORS', '')
   if platform.system() == 'Linux' and gyp_generators != 'ninja':
     # Work around for crbug.com/331475.
     for f in glob.glob(os.path.join(v8_root, 'out', 'Makefile.*')):
@@ -177,4 +169,13 @@ if __name__ == '__main__':
     # -Goutput_dir defines where the build output goes, relative to the
     # Makefile. Set it to . so that the build output doesn't end up in out/out.
     gyp_args.append('-Goutput_dir=.')
+
+  gyp_defines = os.environ.get('GYP_DEFINES', '')
+
+  # Automatically turn on crosscompile support for platforms that need it.
+  if all(('ninja' in gyp_generators,
+          'OS=android' in gyp_defines,
+          'GYP_CROSSCOMPILE' not in os.environ)):
+    os.environ['GYP_CROSSCOMPILE'] = '1'
+
   run_gyp(gyp_args)

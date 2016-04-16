@@ -1,24 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -33,17 +13,7 @@ function test(handler, request_generator, response_validator) {
   var server = http.createServer(handler);
 
   var client_got_eof = false;
-  var server_response = {
-    data: '',
-    chunks: []
-  };
-
-  function cleanup() {
-    server.close();
-    response_validator(server_response, client_got_eof, true);
-  }
-  var timer = setTimeout(cleanup, 1000);
-  process.on('exit', cleanup);
+  var server_response = '';
 
   server.listen(port);
   server.on('listening', function() {
@@ -56,18 +26,15 @@ function test(handler, request_generator, response_validator) {
     });
 
     c.on('data', function(chunk) {
-      server_response.data += chunk;
-      server_response.chunks.push(chunk);
+      server_response += chunk;
     });
 
-    c.on('end', function() {
+    c.on('end', common.mustCall(function() {
       client_got_eof = true;
       c.end();
       server.close();
-      clearTimeout(timer);
-      process.removeListener('exit', cleanup);
       response_validator(server_response, client_got_eof, false);
-    });
+    }));
   });
 }
 
@@ -85,7 +52,7 @@ function test(handler, request_generator, response_validator) {
   }
 
   function response_validator(server_response, client_got_eof, timed_out) {
-    var m = server_response.data.split('\r\n\r\n');
+    var m = server_response.split('\r\n\r\n');
     assert.equal(m[1], body);
     assert.equal(true, client_got_eof);
     assert.equal(false, timed_out);
@@ -127,8 +94,7 @@ function test(handler, request_generator, response_validator) {
         '\r\n' +
         'Hello, world!');
 
-    assert.equal(expected_response, server_response.data);
-    assert.equal(1, server_response.chunks.length);
+    assert.equal(expected_response, server_response);
     assert.equal(true, client_got_eof);
     assert.equal(false, timed_out);
   }
@@ -171,8 +137,7 @@ function test(handler, request_generator, response_validator) {
         '0\r\n' +
         '\r\n');
 
-    assert.equal(expected_response, server_response.data);
-    assert.equal(1, server_response.chunks.length);
+    assert.equal(expected_response, server_response);
     assert.equal(true, client_got_eof);
     assert.equal(false, timed_out);
   }

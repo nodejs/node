@@ -474,8 +474,8 @@ int WSAAPI uv_wsarecvfrom_workaround(SOCKET socket, WSABUF* buffers,
 }
 
 
-int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info,
-    OVERLAPPED* overlapped) {
+int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info_in,
+    AFD_POLL_INFO* info_out, OVERLAPPED* overlapped) {
   IO_STATUS_BLOCK iosb;
   IO_STATUS_BLOCK* iosb_ptr;
   HANDLE event = NULL;
@@ -513,10 +513,10 @@ int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info,
                                   apc_context,
                                   iosb_ptr,
                                   IOCTL_AFD_POLL,
-                                  info,
-                                  sizeof *info,
-                                  info,
-                                  sizeof *info);
+                                  info_in,
+                                  sizeof *info_in,
+                                  info_out,
+                                  sizeof *info_out);
 
   if (overlapped == NULL) {
     /* If this is a blocking operation, wait for the event to become */

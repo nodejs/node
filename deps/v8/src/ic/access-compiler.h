@@ -40,7 +40,10 @@ class PropertyAccessCompiler BASE_EMBEDDED {
         kind_(kind),
         cache_holder_(cache_holder),
         isolate_(isolate),
-        masm_(isolate, NULL, 256) {}
+        masm_(isolate, NULL, 256, CodeObjectRequired::kYes) {
+    // TODO(yangguo): remove this once we can serialize IC stubs.
+    masm_.enable_serializer();
+  }
 
   Code::Kind kind() const { return kind_; }
   CacheHolderFlag cache_holder() const { return cache_holder_; }
@@ -51,12 +54,11 @@ class PropertyAccessCompiler BASE_EMBEDDED {
 
   Register receiver() const { return registers_[0]; }
   Register name() const { return registers_[1]; }
+  Register slot() const;
+  Register vector() const;
   Register scratch1() const { return registers_[2]; }
   Register scratch2() const { return registers_[3]; }
   Register scratch3() const { return registers_[4]; }
-
-  // Calling convention between indexed store IC and handler.
-  Register transition_map() const { return scratch1(); }
 
   static Register* GetCallingConvention(Code::Kind);
   static Register* load_calling_convention();
@@ -76,8 +78,10 @@ class PropertyAccessCompiler BASE_EMBEDDED {
 
   Isolate* isolate_;
   MacroAssembler masm_;
+  // Ensure that MacroAssembler has a reasonable size.
+  STATIC_ASSERT(sizeof(MacroAssembler) < 128 * kPointerSize);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_ACCESS_COMPILER_H_

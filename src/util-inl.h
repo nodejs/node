@@ -1,30 +1,111 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #ifndef SRC_UTIL_INL_H_
 #define SRC_UTIL_INL_H_
 
 #include "util.h"
 
 namespace node {
+
+template <typename T>
+ListNode<T>::ListNode() : prev_(this), next_(this) {}
+
+template <typename T>
+ListNode<T>::~ListNode() {
+  Remove();
+}
+
+template <typename T>
+void ListNode<T>::Remove() {
+  prev_->next_ = next_;
+  next_->prev_ = prev_;
+  prev_ = this;
+  next_ = this;
+}
+
+template <typename T>
+bool ListNode<T>::IsEmpty() const {
+  return prev_ == this;
+}
+
+template <typename T, ListNodeMember(T) M>
+ListHead<T, M>::Iterator::Iterator(ListNode<T>* node) : node_(node) {}
+
+template <typename T, ListNodeMember(T) M>
+T* ListHead<T, M>::Iterator::operator*() const {
+  return ContainerOf(M, node_);
+}
+
+template <typename T, ListNodeMember(T) M>
+const typename ListHead<T, M>::Iterator&
+ListHead<T, M>::Iterator::operator++() {
+  node_ = node_->next_;
+  return *this;
+}
+
+template <typename T, ListNodeMember(T) M>
+bool ListHead<T, M>::Iterator::operator!=(const Iterator& that) const {
+  return node_ != that.node_;
+}
+
+template <typename T, ListNodeMember(T) M>
+ListHead<T, M>::~ListHead() {
+  while (IsEmpty() == false)
+    head_.next_->Remove();
+}
+
+template <typename T, ListNodeMember(T) M>
+void ListHead<T, M>::MoveBack(ListHead* that) {
+  if (IsEmpty())
+    return;
+  ListNode<T>* to = &that->head_;
+  head_.next_->prev_ = to->prev_;
+  to->prev_->next_ = head_.next_;
+  head_.prev_->next_ = to;
+  to->prev_ = head_.prev_;
+  head_.prev_ = &head_;
+  head_.next_ = &head_;
+}
+
+template <typename T, ListNodeMember(T) M>
+void ListHead<T, M>::PushBack(T* element) {
+  ListNode<T>* that = &(element->*M);
+  head_.prev_->next_ = that;
+  that->prev_ = head_.prev_;
+  that->next_ = &head_;
+  head_.prev_ = that;
+}
+
+template <typename T, ListNodeMember(T) M>
+void ListHead<T, M>::PushFront(T* element) {
+  ListNode<T>* that = &(element->*M);
+  head_.next_->prev_ = that;
+  that->prev_ = &head_;
+  that->next_ = head_.next_;
+  head_.next_ = that;
+}
+
+template <typename T, ListNodeMember(T) M>
+bool ListHead<T, M>::IsEmpty() const {
+  return head_.IsEmpty();
+}
+
+template <typename T, ListNodeMember(T) M>
+T* ListHead<T, M>::PopFront() {
+  if (IsEmpty())
+    return nullptr;
+  ListNode<T>* node = head_.next_;
+  node->Remove();
+  return ContainerOf(M, node);
+}
+
+template <typename T, ListNodeMember(T) M>
+typename ListHead<T, M>::Iterator ListHead<T, M>::begin() const {
+  return Iterator(head_.next_);
+}
+
+template <typename T, ListNodeMember(T) M>
+typename ListHead<T, M>::Iterator ListHead<T, M>::end() const {
+  return Iterator(const_cast<ListNode<T>*>(&head_));
+}
 
 template <typename Inner, typename Outer>
 ContainerOfHelper<Inner, Outer>::ContainerOfHelper(Inner Outer::*field,
@@ -76,8 +157,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            int length) {
   return v8::String::NewFromOneByte(isolate,
                                     reinterpret_cast<const uint8_t*>(data),
-                                    v8::String::kNormalString,
-                                    length);
+                                    v8::NewStringType::kNormal,
+                                    length).ToLocalChecked();
 }
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
@@ -85,8 +166,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            int length) {
   return v8::String::NewFromOneByte(isolate,
                                     reinterpret_cast<const uint8_t*>(data),
-                                    v8::String::kNormalString,
-                                    length);
+                                    v8::NewStringType::kNormal,
+                                    length).ToLocalChecked();
 }
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
@@ -94,8 +175,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            int length) {
   return v8::String::NewFromOneByte(isolate,
                                     reinterpret_cast<const uint8_t*>(data),
-                                    v8::String::kNormalString,
-                                    length);
+                                    v8::NewStringType::kNormal,
+                                    length).ToLocalChecked();
 }
 
 template <typename TypeName>
@@ -116,6 +197,13 @@ TypeName* Unwrap(v8::Local<v8::Object> object) {
   void* pointer = object->GetAlignedPointerFromInternalField(0);
   return static_cast<TypeName*>(pointer);
 }
+
+void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen) {
+  for (size_t i = 0; i < buflen; i += 1)
+    dst[i] = (src[i] << 8) | (src[i] >> 8);
+}
+
+
 
 }  // namespace node
 

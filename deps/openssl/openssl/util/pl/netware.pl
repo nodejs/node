@@ -212,7 +212,7 @@ else
    #        Turned off the "possible" warnings ( -w nopossible ).  Metrowerks
    #        complained a lot about various stuff.  May want to turn back
    #        on for further development.
-   $cflags.=" -nostdinc -ir crypto -ir engines -ir apps -I$include_path \\
+   $cflags.=" -nostdinc -ir crypto -ir ssl -ir engines -ir apps -I$include_path \\
          -msgstyle gcc -align 4 -processor pentium -char unsigned \\
          -w on -w nolargeargs -w nopossible -w nounusedarg -w nounusedexpr \\
          -w noimplicitconv -relax_pointers -nosyspath -maxerrors 20";
@@ -506,22 +506,22 @@ sub do_link_rule
       if ($gnuc)
       {
          $ret.="\t\$(MKLIB) $lib_flags \$(TMP_D)${o}\$(E_EXE).a \$(filter-out \$(TMP_D)${o}\$(E_EXE)${obj},$files)\n";
-         $ret.="\t\$(LINK) \$(LFLAGS) $def_file2\n";
+         $ret.="\t\$(LINK_CMD) \$(LFLAGS) $def_file2\n";
          $ret.="\t\@$mv \$(E_EXE)2.nlm \$(TEST_D)\n";
       }
       else
       {
-         $ret.="\t\$(LINK) \$(LFLAGS) $def_file2 $files \"$prelude\" $libs -o $target2\n";
+         $ret.="\t\$(LINK_CMD) \$(LFLAGS) $def_file2 $files \"$prelude\" $libs -o $target2\n";
       }
    }
    if ($gnuc)
    {
-      $ret.="\t\$(LINK) \$(LFLAGS) $def_file\n";
+      $ret.="\t\$(LINK_CMD) \$(LFLAGS) $def_file\n";
       $ret.="\t\@$mv \$(\@F) \$(TEST_D)\n";
    }
    else
    {
-      $ret.="\t\$(LINK) \$(LFLAGS) $def_file $files \"$prelude\" $libs -o $target\n";
+      $ret.="\t\$(LINK_CMD) \$(LFLAGS) $def_file $files \"$prelude\" $libs -o $target\n";
    }
 
    $ret.="\n";

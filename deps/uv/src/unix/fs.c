@@ -35,8 +35,10 @@
 #include <string.h>
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -48,78 +50,75 @@
     defined(__OpenBSD__)    ||                                            \
     defined(__NetBSD__)
 # define HAVE_PREADV 1
-#elif defined(__linux__)
-# include <linux/version.h>
-# if defined(__GLIBC_PREREQ)
-#   if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30) &&                    \
-       __GLIBC_PREREQ(2,10)
-#    define HAVE_PREADV 1
-#   else
-#    define HAVE_PREADV 0
-#   endif
-# else
-#  define HAVE_PREADV 0
-# endif
 #else
 # define HAVE_PREADV 0
 #endif
 
 #if defined(__linux__) || defined(__sun)
 # include <sys/sendfile.h>
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-# include <sys/socket.h>
 #endif
 
-#if HAVE_PREADV || defined(__APPLE__)
-# include <sys/uio.h>
-#endif
-
-#define INIT(type)                                                            \
+#define INIT(subtype)                                                         \
   do {                                                                        \
-    uv__req_init((loop), (req), UV_FS);                                       \
-    (req)->fs_type = UV_FS_ ## type;                                          \
-    (req)->result = 0;                                                        \
-    (req)->ptr = NULL;                                                        \
-    (req)->loop = loop;                                                       \
-    (req)->path = NULL;                                                       \
-    (req)->new_path = NULL;                                                   \
-    (req)->cb = (cb);                                                         \
+    req->type = UV_FS;                                                        \
+    if (cb != NULL)                                                           \
+      uv__req_init(loop, req, UV_FS);                                         \
+    req->fs_type = UV_FS_ ## subtype;                                         \
+    req->result = 0;                                                          \
+    req->ptr = NULL;                                                          \
+    req->loop = loop;                                                         \
+    req->path = NULL;                                                         \
+    req->new_path = NULL;                                                     \
+    req->cb = cb;                                                             \
   }                                                                           \
   while (0)
 
 #define PATH                                                                  \
   do {                                                                        \
-    (req)->path = strdup(path);                                               \
-    if ((req)->path == NULL)                                                  \
-      return -ENOMEM;                                                         \
+    assert(path != NULL);                                                     \
+    if (cb == NULL) {                                                         \
+      req->path = path;                                                       \
+    } else {                                                                  \
+      req->path = uv__strdup(path);                                           \
+      if (req->path == NULL) {                                                \
+        uv__req_unregister(loop, req);                                        \
+        return -ENOMEM;                                                       \
+      }                                                                       \
+    }                                                                         \
   }                                                                           \
   while (0)
 
 #define PATH2                                                                 \
   do {                                                                        \
-    size_t path_len;                                                          \
-    size_t new_path_len;                                                      \
-    path_len = strlen((path)) + 1;                                            \
-    new_path_len = strlen((new_path)) + 1;                                    \
-    (req)->path = malloc(path_len + new_path_len);                            \
-    if ((req)->path == NULL)                                                  \
-      return -ENOMEM;                                                         \
-    (req)->new_path = (req)->path + path_len;                                 \
-    memcpy((void*) (req)->path, (path), path_len);                            \
-    memcpy((void*) (req)->new_path, (new_path), new_path_len);                \
+    if (cb == NULL) {                                                         \
+      req->path = path;                                                       \
+      req->new_path = new_path;                                               \
+    } else {                                                                  \
+      size_t path_len;                                                        \
+      size_t new_path_len;                                                    \
+      path_len = strlen(path) + 1;                                            \
+      new_path_len = strlen(new_path) + 1;                                    \
+      req->path = uv__malloc(path_len + new_path_len);                        \
+      if (req->path == NULL) {                                                \
+        uv__req_unregister(loop, req);                                        \
+        return -ENOMEM;                                                       \
+      }                                                                       \
+      req->new_path = req->path + path_len;                                   \
+      memcpy((void*) req->path, path, path_len);                              \
+      memcpy((void*) req->new_path, new_path, new_path_len);                  \
+    }                                                                         \
   }                                                                           \
   while (0)
 
 #define POST                                                                  \
   do {                                                                        \
-    if ((cb) != NULL) {                                                       \
-      uv__work_submit((loop), &(req)->work_req, uv__fs_work, uv__fs_done);    \
+    if (cb != NULL) {                                                         \
+      uv__work_submit(loop, &req->work_req, uv__fs_work, uv__fs_done);        \
       return 0;                                                               \
     }                                                                         \
     else {                                                                    \
-      uv__fs_work(&(req)->work_req);                                          \
-      uv__fs_done(&(req)->work_req, 0);                                       \
-      return (req)->result;                                                   \
+      uv__fs_work(&req->work_req);                                            \
+      return req->result;                                                     \
     }                                                                         \
   }                                                                           \
   while (0)
@@ -128,8 +127,8 @@
 static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
 #if defined(__linux__) || defined(__sun) || defined(__NetBSD__)
   return fdatasync(req->file);
-#elif defined(__APPLE__) && defined(F_FULLFSYNC)
-  return fcntl(req->file, F_FULLFSYNC);
+#elif defined(__APPLE__) && defined(SYS_fdatasync)
+  return syscall(SYS_fdatasync, req->file);
 #else
   return fsync(req->file);
 #endif
@@ -218,7 +217,48 @@ static ssize_t uv__fs_mkdtemp(uv_fs_t* req) {
 }
 
 
+static ssize_t uv__fs_open(uv_fs_t* req) {
+  static int no_cloexec_support;
+  int r;
+
+  /* Try O_CLOEXEC before entering locks */
+  if (no_cloexec_support == 0) {
+#ifdef O_CLOEXEC
+    r = open(req->path, req->flags | O_CLOEXEC, req->mode);
+    if (r >= 0)
+      return r;
+    if (errno != EINVAL)
+      return r;
+    no_cloexec_support = 1;
+#endif  /* O_CLOEXEC */
+  }
+
+  if (req->cb != NULL)
+    uv_rwlock_rdlock(&req->loop->cloexec_lock);
+
+  r = open(req->path, req->flags, req->mode);
+
+  /* In case of failure `uv__cloexec` will leave error in `errno`,
+   * so it is enough to just set `r` to `-1`.
+   */
+  if (r >= 0 && uv__cloexec(r, 1) != 0) {
+    r = uv__close(r);
+    if (r != 0 && r != -EINPROGRESS)
+      abort();
+    r = -1;
+  }
+
+  if (req->cb != NULL)
+    uv_rwlock_rdunlock(&req->loop->cloexec_lock);
+
+  return r;
+}
+
+
 static ssize_t uv__fs_read(uv_fs_t* req) {
+#if defined(__linux__)
+  static int no_preadv;
+#endif
   ssize_t result;
 
 #if defined(_AIX)
@@ -245,16 +285,12 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
     result = preadv(req->file, (struct iovec*) req->bufs, req->nbufs, req->off);
 #else
 # if defined(__linux__)
-    static int no_preadv;
-    if (no_preadv)
+    if (no_preadv) retry:
 # endif
     {
       off_t nread;
       size_t index;
 
-# if defined(__linux__)
-    retry:
-# endif
       nread = 0;
       index = 0;
       result = 1;
@@ -288,8 +324,6 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
   }
 
 done:
-  if (req->bufs != req->bufsml)
-    free(req->bufs);
   return result;
 }
 
@@ -329,8 +363,8 @@ out:
     int i;
 
     for (i = 0; i < n; i++)
-      free(dents[i]);
-    free(dents);
+      uv__free(dents[i]);
+    uv__free(dents);
   }
   errno = saved_errno;
 
@@ -340,21 +374,28 @@ out:
 }
 
 
+static ssize_t uv__fs_pathmax_size(const char* path) {
+  ssize_t pathmax;
+
+  pathmax = pathconf(path, _PC_PATH_MAX);
+
+  if (pathmax == -1) {
+#if defined(PATH_MAX)
+    return PATH_MAX;
+#else
+    return 4096;
+#endif
+  }
+
+  return pathmax;
+}
+
 static ssize_t uv__fs_readlink(uv_fs_t* req) {
   ssize_t len;
   char* buf;
 
-  len = pathconf(req->path, _PC_PATH_MAX);
-
-  if (len == -1) {
-#if defined(PATH_MAX)
-    len = PATH_MAX;
-#else
-    len = 4096;
-#endif
-  }
-
-  buf = malloc(len + 1);
+  len = uv__fs_pathmax_size(req->path);
+  buf = uv__malloc(len + 1);
 
   if (buf == NULL) {
     errno = ENOMEM;
@@ -364,7 +405,7 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
   len = readlink(req->path, buf, len);
 
   if (len == -1) {
-    free(buf);
+    uv__free(buf);
     return -1;
   }
 
@@ -374,6 +415,27 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
   return 0;
 }
 
+static ssize_t uv__fs_realpath(uv_fs_t* req) {
+  ssize_t len;
+  char* buf;
+
+  len = uv__fs_pathmax_size(req->path);
+  buf = uv__malloc(len + 1);
+
+  if (buf == NULL) {
+    errno = ENOMEM;
+    return -1;
+  }
+
+  if (realpath(req->path, buf) == NULL) {
+    uv__free(buf);
+    return -1;
+  }
+
+  req->ptr = buf;
+
+  return 0;
+}
 
 static ssize_t uv__fs_sendfile_emul(uv_fs_t* req) {
   struct pollfd pfd;
@@ -524,7 +586,7 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
 
     return -1;
   }
-#elif defined(__FreeBSD__) || defined(__APPLE__)
+#elif defined(__FreeBSD__) || defined(__APPLE__) || defined(__DragonFly__)
   {
     off_t len;
     ssize_t r;
@@ -534,7 +596,7 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
      * number of bytes have been sent, we don't consider it an error.
      */
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__DragonFly__)
     len = 0;
     r = sendfile(in_fd, out_fd, req->off, req->bufsml[0].len, NULL, &len, 0);
 #else
@@ -544,7 +606,14 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
     r = sendfile(in_fd, out_fd, req->off, &len, NULL, 0);
 #endif
 
-    if (r != -1 || len != 0) {
+     /*
+     * The man page for sendfile(2) on DragonFly states that `len` contains
+     * a meaningful value ONLY in case of EAGAIN and EINTR.
+     * Nothing is said about it's value in case of other errors, so better
+     * not depend on the potential wrong assumption that is was not modified
+     * by the syscall.
+     */
+    if (r == 0 || ((errno == EAGAIN || errno == EINTR) && len != 0)) {
       req->off += len;
       return (ssize_t) len;
     }
@@ -578,6 +647,9 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
 
 
 static ssize_t uv__fs_write(uv_fs_t* req) {
+#if defined(__linux__)
+  static int no_pwritev;
+#endif
   ssize_t r;
 
   /* Serialize writes on OS X, concurrent write() and pwrite() calls result in
@@ -586,7 +658,9 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
    */
 #if defined(__APPLE__)
   static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-  pthread_mutex_lock(&lock);
+
+  if (pthread_mutex_lock(&lock))
+    abort();
 #endif
 
   if (req->off < 0) {
@@ -603,16 +677,12 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
     r = pwritev(req->file, (struct iovec*) req->bufs, req->nbufs, req->off);
 #else
 # if defined(__linux__)
-    static int no_pwritev;
-    if (no_pwritev)
+    if (no_pwritev) retry:
 # endif
     {
       off_t written;
       size_t index;
 
-# if defined(__linux__)
-    retry:
-# endif
       written = 0;
       index = 0;
       r = 0;
@@ -647,11 +717,9 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
 
 done:
 #if defined(__APPLE__)
-  pthread_mutex_unlock(&lock);
+  if (pthread_mutex_unlock(&lock))
+    abort();
 #endif
-
-  if (req->bufs != req->bufsml)
-    free(req->bufs);
 
   return r;
 }
@@ -679,8 +747,22 @@ static void uv__to_stat(struct stat* src, uv_stat_t* dst) {
   dst->st_birthtim.tv_nsec = src->st_birthtimespec.tv_nsec;
   dst->st_flags = src->st_flags;
   dst->st_gen = src->st_gen;
-#elif !defined(_AIX) && \
-  (defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || defined(_XOPEN_SOURCE))
+#elif defined(__ANDROID__)
+  dst->st_atim.tv_sec = src->st_atime;
+  dst->st_atim.tv_nsec = src->st_atimensec;
+  dst->st_mtim.tv_sec = src->st_mtime;
+  dst->st_mtim.tv_nsec = src->st_mtimensec;
+  dst->st_ctim.tv_sec = src->st_ctime;
+  dst->st_ctim.tv_nsec = src->st_ctimensec;
+  dst->st_birthtim.tv_sec = src->st_ctime;
+  dst->st_birthtim.tv_nsec = src->st_ctimensec;
+  dst->st_flags = 0;
+  dst->st_gen = 0;
+#elif !defined(_AIX) && (       \
+    defined(_BSD_SOURCE)     || \
+    defined(_SVID_SOURCE)    || \
+    defined(_XOPEN_SOURCE)   || \
+    defined(_DEFAULT_SOURCE))
   dst->st_atim.tv_sec = src->st_atim.tv_sec;
   dst->st_atim.tv_nsec = src->st_atim.tv_nsec;
   dst->st_mtim.tv_sec = src->st_mtim.tv_sec;
@@ -743,13 +825,56 @@ static int uv__fs_fstat(int fd, uv_stat_t *buf) {
 }
 
 
+typedef ssize_t (*uv__fs_buf_iter_processor)(uv_fs_t* req);
+static ssize_t uv__fs_buf_iter(uv_fs_t* req, uv__fs_buf_iter_processor process) {
+  unsigned int iovmax;
+  unsigned int nbufs;
+  uv_buf_t* bufs;
+  ssize_t total;
+  ssize_t result;
+
+  iovmax = uv__getiovmax();
+  nbufs = req->nbufs;
+  bufs = req->bufs;
+  total = 0;
+
+  while (nbufs > 0) {
+    req->nbufs = nbufs;
+    if (req->nbufs > iovmax)
+      req->nbufs = iovmax;
+
+    result = process(req);
+    if (result <= 0) {
+      if (total == 0)
+        total = result;
+      break;
+    }
+
+    if (req->off >= 0)
+      req->off += result;
+
+    req->bufs += req->nbufs;
+    nbufs -= req->nbufs;
+    total += result;
+  }
+
+  if (errno == EINTR && total == -1)
+    return total;
+
+  if (bufs != req->bufsml)
+    uv__free(bufs);
+
+  req->bufs = NULL;
+  req->nbufs = 0;
+
+  return total;
+}
+
+
 static void uv__fs_work(struct uv__work* w) {
   int retry_on_eintr;
   uv_fs_t* req;
   ssize_t r;
-#ifdef O_CLOEXEC
-  static int no_cloexec_support;
-#endif  /* O_CLOEXEC */
 
   req = container_of(w, uv_fs_t, work_req);
   retry_on_eintr = !(req->fs_type == UV_FS_CLOSE);
@@ -778,9 +903,11 @@ static void uv__fs_work(struct uv__work* w) {
     X(LINK, link(req->path, req->new_path));
     X(MKDIR, mkdir(req->path, req->mode));
     X(MKDTEMP, uv__fs_mkdtemp(req));
-    X(READ, uv__fs_read(req));
+    X(OPEN, uv__fs_open(req));
+    X(READ, uv__fs_buf_iter(req, uv__fs_read));
     X(SCANDIR, uv__fs_scandir(req));
     X(READLINK, uv__fs_readlink(req));
+    X(REALPATH, uv__fs_realpath(req));
     X(RENAME, rename(req->path, req->new_path));
     X(RMDIR, rmdir(req->path));
     X(SENDFILE, uv__fs_sendfile(req));
@@ -788,42 +915,11 @@ static void uv__fs_work(struct uv__work* w) {
     X(SYMLINK, symlink(req->path, req->new_path));
     X(UNLINK, unlink(req->path));
     X(UTIME, uv__fs_utime(req));
-    X(WRITE, uv__fs_write(req));
-    case UV_FS_OPEN:
-#ifdef O_CLOEXEC
-      /* Try O_CLOEXEC before entering locks */
-      if (!no_cloexec_support) {
-        r = open(req->path, req->flags | O_CLOEXEC, req->mode);
-        if (r >= 0)
-          break;
-        if (errno != EINVAL)
-          break;
-        no_cloexec_support = 1;
-      }
-#endif  /* O_CLOEXEC */
-      if (req->cb != NULL)
-        uv_rwlock_rdlock(&req->loop->cloexec_lock);
-      r = open(req->path, req->flags, req->mode);
-
-      /*
-       * In case of failure `uv__cloexec` will leave error in `errno`,
-       * so it is enough to just set `r` to `-1`.
-       */
-      if (r >= 0 && uv__cloexec(r, 1) != 0) {
-        r = uv__close(r);
-        if (r != 0 && r != -EINPROGRESS)
-          abort();
-        r = -1;
-      }
-      if (req->cb != NULL)
-        uv_rwlock_rdunlock(&req->loop->cloexec_lock);
-      break;
+    X(WRITE, uv__fs_buf_iter(req, uv__fs_write));
     default: abort();
     }
-
 #undef X
-  }
-  while (r == -1 && errno == EINTR && retry_on_eintr);
+  } while (r == -1 && errno == EINTR && retry_on_eintr);
 
   if (r == -1)
     req->result = -errno;
@@ -849,8 +945,7 @@ static void uv__fs_done(struct uv__work* w, int status) {
     req->result = -ECANCELED;
   }
 
-  if (req->cb != NULL)
-    req->cb(req);
+  req->cb(req);
 }
 
 
@@ -1007,9 +1102,12 @@ int uv_fs_mkdtemp(uv_loop_t* loop,
                   const char* tpl,
                   uv_fs_cb cb) {
   INIT(MKDTEMP);
-  req->path = strdup(tpl);
-  if (req->path == NULL)
+  req->path = uv__strdup(tpl);
+  if (req->path == NULL) {
+    if (cb != NULL)
+      uv__req_unregister(loop, req);
     return -ENOMEM;
+  }
   POST;
 }
 
@@ -1034,16 +1132,22 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req,
                unsigned int nbufs,
                int64_t off,
                uv_fs_cb cb) {
+  if (bufs == NULL || nbufs == 0)
+    return -EINVAL;
+
   INIT(READ);
   req->file = file;
 
   req->nbufs = nbufs;
   req->bufs = req->bufsml;
   if (nbufs > ARRAY_SIZE(req->bufsml))
-    req->bufs = malloc(nbufs * sizeof(*bufs));
+    req->bufs = uv__malloc(nbufs * sizeof(*bufs));
 
-  if (req->bufs == NULL)
+  if (req->bufs == NULL) {
+    if (cb != NULL)
+      uv__req_unregister(loop, req);
     return -ENOMEM;
+  }
 
   memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
 
@@ -1069,6 +1173,16 @@ int uv_fs_readlink(uv_loop_t* loop,
                    const char* path,
                    uv_fs_cb cb) {
   INIT(READLINK);
+  PATH;
+  POST;
+}
+
+
+int uv_fs_realpath(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  const char * path,
+                  uv_fs_cb cb) {
+  INIT(REALPATH);
   PATH;
   POST;
 }
@@ -1156,16 +1270,22 @@ int uv_fs_write(uv_loop_t* loop,
                 unsigned int nbufs,
                 int64_t off,
                 uv_fs_cb cb) {
+  if (bufs == NULL || nbufs == 0)
+    return -EINVAL;
+
   INIT(WRITE);
   req->file = file;
 
   req->nbufs = nbufs;
   req->bufs = req->bufsml;
   if (nbufs > ARRAY_SIZE(req->bufsml))
-    req->bufs = malloc(nbufs * sizeof(*bufs));
+    req->bufs = uv__malloc(nbufs * sizeof(*bufs));
 
-  if (req->bufs == NULL)
+  if (req->bufs == NULL) {
+    if (cb != NULL)
+      uv__req_unregister(loop, req);
     return -ENOMEM;
+  }
 
   memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
 
@@ -1175,7 +1295,14 @@ int uv_fs_write(uv_loop_t* loop,
 
 
 void uv_fs_req_cleanup(uv_fs_t* req) {
-  free((void*) req->path);
+  /* Only necessary for asychronous requests, i.e., requests with a callback.
+   * Synchronous ones don't copy their arguments and have req->path and
+   * req->new_path pointing to user-owned memory.  UV_FS_MKDTEMP is the
+   * exception to the rule, it always allocates memory.
+   */
+  if (req->path != NULL && (req->cb != NULL || req->fs_type == UV_FS_MKDTEMP))
+    uv__free((void*) req->path);  /* Memory is shared with req->new_path. */
+
   req->path = NULL;
   req->new_path = NULL;
 
@@ -1183,6 +1310,6 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
     uv__fs_scandir_cleanup(req);
 
   if (req->ptr != &req->statbuf)
-    free(req->ptr);
+    uv__free(req->ptr);
   req->ptr = NULL;
 }

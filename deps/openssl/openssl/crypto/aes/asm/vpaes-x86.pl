@@ -27,9 +27,10 @@
 #
 #		aes-586.pl		vpaes-x86.pl
 #
-# Core 2(**)	29.1/42.3/18.3		22.0/25.6(***)
-# Nehalem	27.9/40.4/18.1		10.3/12.0
-# Atom		102./119./60.1		64.5/85.3(***)
+# Core 2(**)	28.1/41.4/18.3		21.9/25.2(***)
+# Nehalem	27.9/40.4/18.1		10.2/11.9
+# Atom		70.7/92.1/60.1		61.1/75.4(***)
+# Silvermont	45.4/62.9/24.1		49.2/61.1(***)
 #
 # (*)	"Hyper-threading" in the context refers rather to cache shared
 #	among multiple cores, than to specifically Intel HTT. As vast
@@ -40,8 +41,8 @@
 # (**)	"Core 2" refers to initial 65nm design, a.k.a. Conroe.
 #
 # (***)	Less impressive improvement on Core 2 and Atom is due to slow
-#	pshufb,	yet it's respectable +32%/65%  improvement on Core 2
-#	and +58%/40% on Atom (as implied, over "hyper-threading-safe"
+#	pshufb,	yet it's respectable +28%/64%  improvement on Core 2
+#	and +15% on Atom (as implied, over "hyper-threading-safe"
 #	code path).
 #
 #						<appro@openssl.org>
@@ -183,35 +184,35 @@ $k_dsbo=0x2c0;		# decryption sbox final output
 	&movdqa	("xmm1","xmm6")
 	&movdqa	("xmm2",&QWP($k_ipt,$const));
 	&pandn	("xmm1","xmm0");
-	&movdqu	("xmm5",&QWP(0,$key));
-	&psrld	("xmm1",4);
 	&pand	("xmm0","xmm6");
+	&movdqu	("xmm5",&QWP(0,$key));
 	&pshufb	("xmm2","xmm0");
 	&movdqa	("xmm0",&QWP($k_ipt+16,$const));
-	&pshufb	("xmm0","xmm1");
 	&pxor	("xmm2","xmm5");
-	&pxor	("xmm0","xmm2");
+	&psrld	("xmm1",4);
 	&add	($key,16);
+	&pshufb	("xmm0","xmm1");
 	&lea	($base,&DWP($k_mc_backward,$const));
+	&pxor	("xmm0","xmm2");
 	&jmp	(&label("enc_entry"));
 
 
 &set_label("enc_loop",16);
 	# middle of middle round
 	&movdqa	("xmm4",&QWP($k_sb1,$const));	# 4 : sb1u
-	&pshufb	("xmm4","xmm2");		# 4 = sb1u
-	&pxor	("xmm4","xmm5");		# 4 = sb1u + k
 	&movdqa	("xmm0",&QWP($k_sb1+16,$const));# 0 : sb1t
+	&pshufb	("xmm4","xmm2");		# 4 = sb1u
 	&pshufb	("xmm0","xmm3");		# 0 = sb1t
-	&pxor	("xmm0","xmm4");		# 0 = A
+	&pxor	("xmm4","xmm5");		# 4 = sb1u + k
 	&movdqa	("xmm5",&QWP($k_sb2,$const));	# 4 : sb2u
-	&pshufb	("xmm5","xmm2");		# 4 = sb2u
+	&pxor	("xmm0","xmm4");		# 0 = A
 	&movdqa	("xmm1",&QWP(-0x40,$base,$magic));# .Lk_mc_forward[]
+	&pshufb	("xmm5","xmm2");		# 4 = sb2u
 	&movdqa	("xmm2",&QWP($k_sb2+16,$const));# 2 : sb2t
-	&pshufb	("xmm2","xmm3");		# 2 = sb2t
-	&pxor	("xmm2","xmm5");		# 2 = 2A
 	&movdqa	("xmm4",&QWP(0,$base,$magic));	# .Lk_mc_backward[]
+	&pshufb	("xmm2","xmm3");		# 2 = sb2t
 	&movdqa	("xmm3","xmm0");		# 3 = A
+	&pxor	("xmm2","xmm5");		# 2 = 2A
 	&pshufb	("xmm0","xmm1");		# 0 = B
 	&add	($key,16);			# next key
 	&pxor	("xmm0","xmm2");		# 0 = 2A+B
@@ -220,30 +221,30 @@ $k_dsbo=0x2c0;		# decryption sbox final output
 	&pxor	("xmm3","xmm0");		# 3 = 2A+B+D
 	&pshufb	("xmm0","xmm1");		# 0 = 2B+C
 	&and	($magic,0x30);			# ... mod 4
-	&pxor	("xmm0","xmm3");		# 0 = 2A+3B+C+D
 	&sub	($round,1);			# nr--
+	&pxor	("xmm0","xmm3");		# 0 = 2A+3B+C+D
 
 &set_label("enc_entry");
 	# top of round
 	&movdqa	("xmm1","xmm6");		# 1 : i
+	&movdqa	("xmm5",&QWP($k_inv+16,$const));# 2 : a/k
 	&pandn	("xmm1","xmm0");		# 1 = i<<4
 	&psrld	("xmm1",4);			# 1 = i
 	&pand	("xmm0","xmm6");		# 0 = k
-	&movdqa	("xmm5",&QWP($k_inv+16,$const));# 2 : a/k
 	&pshufb	("xmm5","xmm0");		# 2 = a/k
-	&pxor	("xmm0","xmm1");		# 0 = j
 	&movdqa	("xmm3","xmm7");		# 3 : 1/i
+	&pxor	("xmm0","xmm1");		# 0 = j
 	&pshufb	("xmm3","xmm1");		# 3 = 1/i
-	&pxor	("xmm3","xmm5");		# 3 = iak = 1/i + a/k
 	&movdqa	("xmm4","xmm7");		# 4 : 1/j
+	&pxor	("xmm3","xmm5");		# 3 = iak = 1/i + a/k
 	&pshufb	("xmm4","xmm0");		# 4 = 1/j
-	&pxor	("xmm4","xmm5");		# 4 = jak = 1/j + a/k
 	&movdqa	("xmm2","xmm7");		# 2 : 1/iak
+	&pxor	("xmm4","xmm5");		# 4 = jak = 1/j + a/k
 	&pshufb	("xmm2","xmm3");		# 2 = 1/iak
-	&pxor	("xmm2","xmm0");		# 2 = io
 	&movdqa	("xmm3","xmm7");		# 3 : 1/jak
-	&movdqu	("xmm5",&QWP(0,$key));
+	&pxor	("xmm2","xmm0");		# 2 = io
 	&pshufb	("xmm3","xmm4");		# 3 = 1/jak
+	&movdqu	("xmm5",&QWP(0,$key));
 	&pxor	("xmm3","xmm1");		# 3 = jo
 	&jnz	(&label("enc_loop"));
 
@@ -265,8 +266,8 @@ $k_dsbo=0x2c0;		# decryption sbox final output
 ##  Same API as encryption core.
 ##
 &function_begin_B("_vpaes_decrypt_core");
-	&mov	($round,&DWP(240,$key));
 	&lea	($base,&DWP($k_dsbd,$const));
+	&mov	($round,&DWP(240,$key));
 	&movdqa	("xmm1","xmm6");
 	&movdqa	("xmm2",&QWP($k_dipt-$k_dsbd,$base));
 	&pandn	("xmm1","xmm0");
@@ -292,62 +293,61 @@ $k_dsbo=0x2c0;		# decryption sbox final output
 ##  Inverse mix columns
 ##
 	&movdqa	("xmm4",&QWP(-0x20,$base));	# 4 : sb9u
+	&movdqa	("xmm1",&QWP(-0x10,$base));	# 0 : sb9t
 	&pshufb	("xmm4","xmm2");		# 4 = sb9u
-	&pxor	("xmm4","xmm0");
-	&movdqa	("xmm0",&QWP(-0x10,$base));	# 0 : sb9t
-	&pshufb	("xmm0","xmm3");		# 0 = sb9t
-	&pxor	("xmm0","xmm4");		# 0 = ch
-	&add	($key,16);			# next round key
-
-	&pshufb	("xmm0","xmm5");		# MC ch
+	&pshufb	("xmm1","xmm3");		# 0 = sb9t
+	&pxor	("xmm0","xmm4");
 	&movdqa	("xmm4",&QWP(0,$base));		# 4 : sbdu
+	&pxor	("xmm0","xmm1");		# 0 = ch
+	&movdqa	("xmm1",&QWP(0x10,$base));	# 0 : sbdt
+
 	&pshufb	("xmm4","xmm2");		# 4 = sbdu
-	&pxor	("xmm4","xmm0");		# 4 = ch
-	&movdqa	("xmm0",&QWP(0x10,$base));	# 0 : sbdt
-	&pshufb	("xmm0","xmm3");		# 0 = sbdt
-	&pxor	("xmm0","xmm4");		# 0 = ch
-	&sub	($round,1);			# nr--
-
 	&pshufb	("xmm0","xmm5");		# MC ch
+	&pshufb	("xmm1","xmm3");		# 0 = sbdt
+	&pxor	("xmm0","xmm4");		# 4 = ch
 	&movdqa	("xmm4",&QWP(0x20,$base));	# 4 : sbbu
+	&pxor	("xmm0","xmm1");		# 0 = ch
+	&movdqa	("xmm1",&QWP(0x30,$base));	# 0 : sbbt
+
 	&pshufb	("xmm4","xmm2");		# 4 = sbbu
-	&pxor	("xmm4","xmm0");		# 4 = ch
-	&movdqa	("xmm0",&QWP(0x30,$base));	# 0 : sbbt
-	&pshufb	("xmm0","xmm3");		# 0 = sbbt
-	&pxor	("xmm0","xmm4");		# 0 = ch
-
 	&pshufb	("xmm0","xmm5");		# MC ch
+	&pshufb	("xmm1","xmm3");		# 0 = sbbt
+	&pxor	("xmm0","xmm4");		# 4 = ch
 	&movdqa	("xmm4",&QWP(0x40,$base));	# 4 : sbeu
-	&pshufb	("xmm4","xmm2");		# 4 = sbeu
-	&pxor	("xmm4","xmm0");		# 4 = ch
-	&movdqa	("xmm0",&QWP(0x50,$base));	# 0 : sbet
-	&pshufb	("xmm0","xmm3");		# 0 = sbet
-	&pxor	("xmm0","xmm4");		# 0 = ch
+	&pxor	("xmm0","xmm1");		# 0 = ch
+	&movdqa	("xmm1",&QWP(0x50,$base));	# 0 : sbet
 
+	&pshufb	("xmm4","xmm2");		# 4 = sbeu
+	&pshufb	("xmm0","xmm5");		# MC ch
+	&pshufb	("xmm1","xmm3");		# 0 = sbet
+	&pxor	("xmm0","xmm4");		# 4 = ch
+	&add	($key,16);			# next round key
 	&palignr("xmm5","xmm5",12);
+	&pxor	("xmm0","xmm1");		# 0 = ch
+	&sub	($round,1);			# nr--
 
 &set_label("dec_entry");
 	# top of round
 	&movdqa	("xmm1","xmm6");		# 1 : i
-	&pandn	("xmm1","xmm0");		# 1 = i<<4
-	&psrld	("xmm1",4);			# 1 = i
-	&pand	("xmm0","xmm6");		# 0 = k
 	&movdqa	("xmm2",&QWP($k_inv+16,$const));# 2 : a/k
+	&pandn	("xmm1","xmm0");		# 1 = i<<4
+	&pand	("xmm0","xmm6");		# 0 = k
+	&psrld	("xmm1",4);			# 1 = i
 	&pshufb	("xmm2","xmm0");		# 2 = a/k
-	&pxor	("xmm0","xmm1");		# 0 = j
 	&movdqa	("xmm3","xmm7");		# 3 : 1/i
+	&pxor	("xmm0","xmm1");		# 0 = j
 	&pshufb	("xmm3","xmm1");		# 3 = 1/i
-	&pxor	("xmm3","xmm2");		# 3 = iak = 1/i + a/k
 	&movdqa	("xmm4","xmm7");		# 4 : 1/j
+	&pxor	("xmm3","xmm2");		# 3 = iak = 1/i + a/k
 	&pshufb	("xmm4","xmm0");		# 4 = 1/j
 	&pxor	("xmm4","xmm2");		# 4 = jak = 1/j + a/k
 	&movdqa	("xmm2","xmm7");		# 2 : 1/iak
 	&pshufb	("xmm2","xmm3");		# 2 = 1/iak
-	&pxor	("xmm2","xmm0");		# 2 = io
 	&movdqa	("xmm3","xmm7");		# 3 : 1/jak
+	&pxor	("xmm2","xmm0");		# 2 = io
 	&pshufb	("xmm3","xmm4");		# 3 = 1/jak
-	&pxor	("xmm3","xmm1");		# 3 = jo
 	&movdqu	("xmm0",&QWP(0,$key));
+	&pxor	("xmm3","xmm1");		# 3 = jo
 	&jnz	(&label("dec_loop"));
 
 	# middle of last round
@@ -542,12 +542,12 @@ $k_dsbo=0x2c0;		# decryption sbox final output
 ##    %xmm0: b+c+d  b+c  b  a
 ##
 &function_begin_B("_vpaes_schedule_192_smear");
-	&pshufd	("xmm0","xmm6",0x80);		# d c 0 0 -> c 0 0 0
-	&pxor	("xmm6","xmm0");		# -> c+d c 0 0
+	&pshufd	("xmm1","xmm6",0x80);		# d c 0 0 -> c 0 0 0
 	&pshufd	("xmm0","xmm7",0xFE);		# b a _ _ -> b b b a
+	&pxor	("xmm6","xmm1");		# -> c+d c 0 0
+	&pxor	("xmm1","xmm1");
 	&pxor	("xmm6","xmm0");		# -> b+c+d b+c b a
 	&movdqa	("xmm0","xmm6");
-	&pxor	("xmm1","xmm1");
 	&movhlps("xmm6","xmm1");		# clobber low side with zeros
 	&ret	();
 &function_end_B("_vpaes_schedule_192_smear");

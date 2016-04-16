@@ -1,24 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
@@ -26,43 +6,33 @@ var fs = require('fs');
 
 var emptyFile = path.join(common.fixturesDir, 'empty.txt');
 
-fs.open(emptyFile, 'r', function (error, fd) {
+fs.open(emptyFile, 'r', function(error, fd) {
   assert.ifError(error);
 
   var read = fs.createReadStream(emptyFile, { 'fd': fd });
 
-  read.once('data', function () {
+  read.once('data', function() {
     throw new Error('data event should not emit');
   });
 
-  var readEmit = false;
-  read.once('end', function () {
-    readEmit = true;
-    console.error('end event 1');
-  });
-
-  setTimeout(function () {
-    assert.equal(readEmit, true);
-  }, 50);
+  read.once('end', common.mustCall(function endEvent1() {}));
 });
 
-fs.open(emptyFile, 'r', function (error, fd) {
+fs.open(emptyFile, 'r', function(error, fd) {
   assert.ifError(error);
 
   var read = fs.createReadStream(emptyFile, { 'fd': fd });
   read.pause();
 
-  read.once('data', function () {
+  read.once('data', function() {
     throw new Error('data event should not emit');
   });
 
-  var readEmit = false;
-  read.once('end', function () {
-    readEmit = true;
-    console.error('end event 2');
+  read.once('end', function endEvent2() {
+    throw new Error('end event should not emit');
   });
 
-  setTimeout(function () {
-    assert.equal(readEmit, false);
-  }, 50);
+  setTimeout(function() {
+    assert.equal(read.isPaused(), true);
+  }, common.platformTimeout(50));
 });

@@ -4,19 +4,18 @@
 
 #include "src/compiler/source-position.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/node-aux-data-inl.h"
+#include "src/compiler/node-aux-data.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SourcePositionTable::Decorator : public GraphDecorator {
+class SourcePositionTable::Decorator final : public GraphDecorator {
  public:
   explicit Decorator(SourcePositionTable* source_positions)
       : source_positions_(source_positions) {}
 
-  virtual void Decorate(Node* node) {
-    DCHECK(!source_positions_->current_position_.IsInvalid());
+  void Decorate(Node* node) final {
     source_positions_->table_.Set(node, source_positions_->current_position_);
   }
 
@@ -27,27 +26,45 @@ class SourcePositionTable::Decorator : public GraphDecorator {
 
 SourcePositionTable::SourcePositionTable(Graph* graph)
     : graph_(graph),
-      decorator_(NULL),
-      current_position_(SourcePosition::Invalid()),
+      decorator_(nullptr),
+      current_position_(SourcePosition::Unknown()),
       table_(graph->zone()) {}
 
 
 void SourcePositionTable::AddDecorator() {
-  DCHECK(decorator_ == NULL);
+  DCHECK_NULL(decorator_);
   decorator_ = new (graph_->zone()) Decorator(this);
   graph_->AddDecorator(decorator_);
 }
 
 
 void SourcePositionTable::RemoveDecorator() {
-  DCHECK(decorator_ != NULL);
+  DCHECK_NOT_NULL(decorator_);
   graph_->RemoveDecorator(decorator_);
-  decorator_ = NULL;
+  decorator_ = nullptr;
 }
 
 
 SourcePosition SourcePositionTable::GetSourcePosition(Node* node) const {
   return table_.Get(node);
+}
+
+
+void SourcePositionTable::Print(std::ostream& os) const {
+  os << "{";
+  bool needs_comma = false;
+  for (auto i : table_) {
+    SourcePosition pos = i.second;
+    if (pos.IsKnown()) {
+      if (needs_comma) {
+        os << ",";
+      }
+      os << "\"" << i.first << "\""
+         << ":" << pos.raw();
+      needs_comma = true;
+    }
+  }
+  os << "}";
 }
 
 }  // namespace compiler

@@ -1,36 +1,38 @@
-var fs = require('fs');
-var path = require('path');
-var marked = require('marked');
+'use strict';
 
-var doc = path.resolve(__dirname, '..', '..', 'doc', 'api', 'addons.markdown');
-var verifyDir = path.resolve(__dirname, '..', '..', 'test', 'addons');
+const fs = require('fs');
+const path = require('path');
+const marked = require('marked');
 
-var contents = fs.readFileSync(doc).toString();
+const rootDir = path.resolve(__dirname, '..', '..');
+const doc = path.resolve(rootDir, 'doc', 'api', 'addons.markdown');
+const verifyDir = path.resolve(rootDir, 'test', 'addons');
 
-var tokens = marked.lexer(contents, {});
-var files = null;
-var id = 0;
+const contents = fs.readFileSync(doc).toString();
+
+const tokens = marked.lexer(contents, {});
+let files = null;
+let id = 0;
 
 // Just to make sure that all examples will be processed
 tokens.push({ type: 'heading' });
 
 var oldDirs = fs.readdirSync(verifyDir);
 oldDirs = oldDirs.filter(function(dir) {
-  return /^doc-/.test(dir);
+  return /^\d{2}_/.test(dir);
 }).map(function(dir) {
   return path.resolve(verifyDir, dir);
 });
 
 for (var i = 0; i < tokens.length; i++) {
   var token = tokens[i];
-  if (token.type === 'heading') {
+  if (token.type === 'heading' && token.text) {
+    const blockName = token.text;
     if (files && Object.keys(files).length !== 0) {
-      verifyFiles(files, function(err) {
-        if (err)
-          console.log(err);
-        else
-          console.log('done');
-      });
+      verifyFiles(files,
+                  blockName,
+                  console.log.bind(null, 'wrote'),
+                  function(err) { if (err) throw err; });
     }
     files = {};
   } else if (token.type === 'code') {
@@ -51,16 +53,36 @@ function once(fn) {
   };
 }
 
-function verifyFiles(files, callback) {
-  var dir = path.resolve(verifyDir, 'doc-' + id++);
+function verifyFiles(files, blockName, onprogress, ondone) {
+  // must have a .cc and a .js to be a valid test
+  if (!Object.keys(files).some((name) => /\.cc$/.test(name)) ||
+      !Object.keys(files).some((name) => /\.js$/.test(name))) {
+    return;
+  }
+
+  blockName = blockName
+    .toLowerCase()
+    .replace(/\s/g, '_')
+    .replace(/[^a-z\d_]/g, '');
+  const dir = path.resolve(
+    verifyDir,
+    `${(++id < 10 ? '0' : '') + id}_${blockName}`
+  );
 
   files = Object.keys(files).map(function(name) {
+    if (name === 'test.js') {
+      files[name] = `'use strict';
+require('../../common');
+${files[name]}
+`;
+    }
     return {
       path: path.resolve(dir, name),
       name: name,
       content: files[name]
     };
   });
+
   files.push({
     path: path.resolve(dir, 'binding.gyp'),
     content: JSON.stringify({
@@ -78,17 +100,19 @@ function verifyFiles(files, callback) {
   fs.mkdir(dir, function() {
     // Ignore errors
 
+    var done = once(ondone);
     var waiting = files.length;
-    for (var i = 0; i < files.length; i++)
-      fs.writeFile(files[i].path, files[i].content, next);
+    files.forEach(function(file) {
+      fs.writeFile(file.path, file.content, function(err) {
+        if (err)
+          return done(err);
 
-    var done = once(callback);
-    function next(err) {
-      if (err)
-        return done(err);
+        if (onprogress)
+          onprogress(file.path);
 
-      if (--waiting === 0)
-        done();
-    }
+        if (--waiting === 0)
+          done();
+      });
+    });
   });
 }

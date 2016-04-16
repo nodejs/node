@@ -14,6 +14,7 @@ namespace internal {
 class CallOptimization;
 
 enum PrototypeCheckType { CHECK_ALL_MAPS, SKIP_RECEIVER };
+enum ReturnHolder { RETURN_HOLDER, DONT_RETURN_ANYTHING };
 
 class PropertyHandlerCompiler : public PropertyAccessCompiler {
  public:
@@ -21,33 +22,45 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                            CacheHolderFlag cache_holder, Code::StubType type);
 
  protected:
-  PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind,
-                          Handle<HeapType> type, Handle<JSObject> holder,
-                          CacheHolderFlag cache_holder)
+  PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind, Handle<Map> map,
+                          Handle<JSObject> holder, CacheHolderFlag cache_holder)
       : PropertyAccessCompiler(isolate, kind, cache_holder),
-        type_(type),
+        map_(map),
         holder_(holder) {}
 
   virtual ~PropertyHandlerCompiler() {}
 
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
-                                  Label* miss) {
+                                  Label* miss, ReturnHolder return_what) {
     UNREACHABLE();
     return receiver();
   }
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss) { UNREACHABLE(); }
 
-  Register Frontend(Register object_reg, Handle<Name> name);
+  // Frontend loads from receiver(), returns holder register which may be
+  // different.
+  Register Frontend(Handle<Name> name);
   void NonexistentFrontendHeader(Handle<Name> name, Label* miss,
                                  Register scratch1, Register scratch2);
 
+  // When FLAG_vector_ics is true, handlers that have the possibility of missing
+  // will need to save and pass these to miss handlers.
+  void PushVectorAndSlot() { PushVectorAndSlot(vector(), slot()); }
+  void PushVectorAndSlot(Register vector, Register slot);
+  void PopVectorAndSlot() { PopVectorAndSlot(vector(), slot()); }
+  void PopVectorAndSlot(Register vector, Register slot);
+
+  void DiscardVectorAndSlot();
+
   // TODO(verwaest): Make non-static.
-  static void GenerateFastApiCall(MacroAssembler* masm,
-                                  const CallOptimization& optimization,
-                                  Handle<Map> receiver_map, Register receiver,
-                                  Register scratch, bool is_store, int argc,
-                                  Register* values);
+  static void GenerateApiAccessorCall(MacroAssembler* masm,
+                                      const CallOptimization& optimization,
+                                      Handle<Map> receiver_map,
+                                      Register receiver, Register scratch,
+                                      bool is_store, Register store_parameter,
+                                      Register accessor_holder,
+                                      int accessor_index);
 
   // Helper function used to check that the dictionary doesn't contain
   // the property. This function may return false negatives, so miss_label
@@ -83,26 +96,26 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   Register CheckPrototypes(Register object_reg, Register holder_reg,
                            Register scratch1, Register scratch2,
                            Handle<Name> name, Label* miss,
-                           PrototypeCheckType check = CHECK_ALL_MAPS);
+                           PrototypeCheckType check, ReturnHolder return_what);
 
   Handle<Code> GetCode(Code::Kind kind, Code::StubType type, Handle<Name> name);
-  void set_type_for_object(Handle<Object> object);
   void set_holder(Handle<JSObject> holder) { holder_ = holder; }
-  Handle<HeapType> type() const { return type_; }
+  Handle<Map> map() const { return map_; }
+  void set_map(Handle<Map> map) { map_ = map; }
   Handle<JSObject> holder() const { return holder_; }
 
  private:
-  Handle<HeapType> type_;
+  Handle<Map> map_;
   Handle<JSObject> holder_;
 };
 
 
 class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  NamedLoadHandlerCompiler(Isolate* isolate, Handle<HeapType> type,
+  NamedLoadHandlerCompiler(Isolate* isolate, Handle<Map> map,
                            Handle<JSObject> holder,
                            CacheHolderFlag cache_holder)
-      : PropertyHandlerCompiler(isolate, Code::LOAD_IC, type, holder,
+      : PropertyHandlerCompiler(isolate, Code::LOAD_IC, map, holder,
                                 cache_holder) {}
 
   virtual ~NamedLoadHandlerCompiler() {}
@@ -110,10 +123,11 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   Handle<Code> CompileLoadField(Handle<Name> name, FieldIndex index);
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
-                                   Handle<ExecutableAccessorInfo> callback);
+                                   Handle<AccessorInfo> callback);
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
-                                   const CallOptimization& call_optimization);
+                                   const CallOptimization& call_optimization,
+                                   int accessor_index);
 
   Handle<Code> CompileLoadConstant(Handle<Name> name, int constant_index);
 
@@ -122,23 +136,24 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   // inlined.
   Handle<Code> CompileLoadInterceptor(LookupIterator* it);
 
-  Handle<Code> CompileLoadViaGetter(Handle<Name> name,
-                                    Handle<JSFunction> getter);
+  Handle<Code> CompileLoadViaGetter(Handle<Name> name, int accessor_index,
+                                    int expected_arguments);
 
   Handle<Code> CompileLoadGlobal(Handle<PropertyCell> cell, Handle<Name> name,
                                  bool is_configurable);
 
   // Static interface
   static Handle<Code> ComputeLoadNonexistent(Handle<Name> name,
-                                             Handle<HeapType> type);
+                                             Handle<Map> map);
 
-  static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<HeapType> type,
-                                    Register receiver,
-                                    Handle<JSFunction> getter);
+  static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<Map> map,
+                                    Register receiver, Register holder,
+                                    int accessor_index, int expected_arguments,
+                                    Register scratch);
 
   static void GenerateLoadViaGetterForDeopt(MacroAssembler* masm) {
-    GenerateLoadViaGetter(masm, Handle<HeapType>::null(), no_reg,
-                          Handle<JSFunction>());
+    GenerateLoadViaGetter(masm, Handle<Map>::null(), no_reg, no_reg, -1, -1,
+                          no_reg);
   }
 
   static void GenerateLoadFunctionPrototype(MacroAssembler* masm,
@@ -152,24 +167,28 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   // PushInterceptorArguments and read by LoadPropertyWithInterceptorOnly and
   // LoadWithInterceptor.
   static const int kInterceptorArgsNameIndex = 0;
-  static const int kInterceptorArgsInfoIndex = 1;
-  static const int kInterceptorArgsThisIndex = 2;
-  static const int kInterceptorArgsHolderIndex = 3;
-  static const int kInterceptorArgsLength = 4;
+  static const int kInterceptorArgsThisIndex = 1;
+  static const int kInterceptorArgsHolderIndex = 2;
+  static const int kInterceptorArgsLength = 3;
 
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
-                                  Label* miss);
+                                  Label* miss, ReturnHolder return_what);
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
 
  private:
   Handle<Code> CompileLoadNonexistent(Handle<Name> name);
   void GenerateLoadConstant(Handle<Object> value);
-  void GenerateLoadCallback(Register reg,
-                            Handle<ExecutableAccessorInfo> callback);
+  void GenerateLoadCallback(Register reg, Handle<AccessorInfo> callback);
   void GenerateLoadCallback(const CallOptimization& call_optimization,
                             Handle<Map> receiver_map);
+
+  // Helper emits no code if vector-ics are disabled.
+  void InterceptorVectorSlotPush(Register holder_reg);
+  enum PopMode { POP, DISCARD };
+  void InterceptorVectorSlotPop(Register holder_reg, PopMode mode = POP);
+
   void GenerateLoadInterceptor(Register holder_reg);
   void GenerateLoadInterceptorWithFollowup(LookupIterator* it,
                                            Register holder_reg);
@@ -193,9 +212,9 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
 class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  explicit NamedStoreHandlerCompiler(Isolate* isolate, Handle<HeapType> type,
+  explicit NamedStoreHandlerCompiler(Isolate* isolate, Handle<Map> map,
                                      Handle<JSObject> holder)
-      : PropertyHandlerCompiler(isolate, Code::STORE_IC, type, holder,
+      : PropertyHandlerCompiler(isolate, Code::STORE_IC, map, holder,
                                 kCacheOnReceiver) {}
 
   virtual ~NamedStoreHandlerCompiler() {}
@@ -204,38 +223,50 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                       Handle<Name> name);
   Handle<Code> CompileStoreField(LookupIterator* it);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
-                                    Handle<ExecutableAccessorInfo> callback);
+                                    Handle<AccessorInfo> callback,
+                                    LanguageMode language_mode);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
-                                    const CallOptimization& call_optimization);
+                                    const CallOptimization& call_optimization,
+                                    int accessor_index);
   Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
-                                     Handle<JSFunction> setter);
+                                     int accessor_index,
+                                     int expected_arguments);
   Handle<Code> CompileStoreInterceptor(Handle<Name> name);
 
-  static void GenerateStoreViaSetter(MacroAssembler* masm,
-                                     Handle<HeapType> type, Register receiver,
-                                     Handle<JSFunction> setter);
+  static void GenerateStoreViaSetter(MacroAssembler* masm, Handle<Map> map,
+                                     Register receiver, Register holder,
+                                     int accessor_index, int expected_arguments,
+                                     Register scratch);
 
   static void GenerateStoreViaSetterForDeopt(MacroAssembler* masm) {
-    GenerateStoreViaSetter(masm, Handle<HeapType>::null(), no_reg,
-                           Handle<JSFunction>());
+    GenerateStoreViaSetter(masm, Handle<Map>::null(), no_reg, no_reg, -1, -1,
+                           no_reg);
   }
 
   static void GenerateSlow(MacroAssembler* masm);
 
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
-                                  Label* miss);
+                                  Label* miss, ReturnHolder return_what);
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
   void GenerateRestoreName(Label* label, Handle<Name> name);
 
- private:
-  void GenerateRestoreNameAndMap(Handle<Name> name, Handle<Map> transition);
+  // Pop the vector and slot into appropriate registers, moving the map in
+  // the process. (This is an accomodation for register pressure on ia32).
+  void RearrangeVectorAndSlot(Register current_map, Register destination_map);
 
-  void GenerateConstantCheck(Object* constant, Register value_reg,
+ private:
+  void GenerateRestoreName(Handle<Name> name);
+  void GenerateRestoreMap(Handle<Map> transition, Register map_reg,
+                          Register scratch, Label* miss);
+
+  void GenerateConstantCheck(Register map_reg, int descriptor,
+                             Register value_reg, Register scratch,
                              Label* miss_label);
 
-  void GenerateFieldTypeChecks(HeapType* field_type, Register value_reg,
+  bool RequiresFieldTypeChecks(FieldType* field_type) const;
+  void GenerateFieldTypeChecks(FieldType* field_type, Register value_reg,
                                Label* miss_label);
 
   static Builtins::Name SlowBuiltin(Code::Kind kind) {
@@ -258,8 +289,8 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
  public:
   explicit ElementHandlerCompiler(Isolate* isolate)
       : PropertyHandlerCompiler(isolate, Code::KEYED_LOAD_IC,
-                                Handle<HeapType>::null(),
-                                Handle<JSObject>::null(), kCacheOnReceiver) {}
+                                Handle<Map>::null(), Handle<JSObject>::null(),
+                                kCacheOnReceiver) {}
 
   virtual ~ElementHandlerCompiler() {}
 
@@ -268,7 +299,7 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
 
   static void GenerateStoreSlow(MacroAssembler* masm);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_HANDLER_COMPILER_H_

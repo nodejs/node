@@ -1,30 +1,12 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-var common = require('../common');
-var assert = require('assert');
-var Stream = require('stream');
-var Console = require('console').Console;
+'use strict';
+require('../common');
+const assert = require('assert');
+const Stream = require('stream');
+const Console = require('console').Console;
 var called = false;
+
+const out = new Stream();
+const err = new Stream();
 
 // ensure the Console instance doesn't write to the
 // process' "stdout" or "stderr" streams
@@ -37,13 +19,17 @@ assert.equal('function', typeof Console);
 
 // make sure that the Console constructor throws
 // when not given a writable stream instance
-assert.throws(function () {
+assert.throws(function() {
   new Console();
 }, /Console expects a writable stream/);
 
-var out = new Stream();
-var err = new Stream();
-out.writable = err.writable = true;
+// Console constructor should throw if stderr exists but is not writable
+assert.throws(function() {
+  out.write = function() {};
+  err.write = undefined;
+  new Console(out, err);
+}, /Console expects writable stream instances/);
+
 out.write = err.write = function(d) {};
 
 var c = new Console(out, err);

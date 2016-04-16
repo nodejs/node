@@ -42,24 +42,7 @@ import jsmin
 
 
 def ToCArray(filename, lines):
-  result = []
-  row = 1
-  col = 0
-  for chr in lines:
-    col += 1
-    if chr == "\n" or chr == "\r":
-      row += 1
-      col = 0
-
-    value = ord(chr)
-
-    if value >= 128:
-      print 'non-ascii value ' + filename + ':' + str(row) + ':' + str(col)
-      sys.exit(1);
-
-    result.append(str(value))
-  result.append("0")
-  return ", ".join(result)
+  return ','.join(str(ord(c)) for c in lines)
 
 
 def CompressScript(lines, do_jsmin):
@@ -220,17 +203,11 @@ namespace node {
 
 struct _native {
   const char* name;
-  const char* source;
+  const unsigned char* source;
   size_t source_len;
 };
 
-static const struct _native natives[] = {
-
-%(native_lines)s\
-
-  { NULL, NULL, 0 } /* sentinel */
-
-};
+static const struct _native natives[] = { %(native_lines)s };
 
 }
 #endif
@@ -238,11 +215,11 @@ static const struct _native natives[] = {
 
 
 NATIVE_DECLARATION = """\
-  { "%(id)s", %(id)s_native, sizeof(%(id)s_native)-1 },
+  { "%(id)s", %(escaped_id)s_native, sizeof(%(escaped_id)s_native) },
 """
 
 SOURCE_DECLARATION = """\
-  const char %(id)s_native[] = { %(data)s };
+  const unsigned char %(escaped_id)s_native[] = { %(data)s };
 """
 
 
@@ -293,16 +270,39 @@ def JS2C(source, target):
     lines = ExpandMacros(lines, macros)
     lines = CompressScript(lines, do_jsmin)
     data = ToCArray(s, lines)
-    id = os.path.basename(str(s)).split('.')[0]
+
+    # On Windows, "./foo.bar" in the .gyp file is passed as "foo.bar"
+    # so don't assume there is always a slash in the file path.
+    if '/' in s or '\\' in s:
+      id = '/'.join(re.split('/|\\\\', s)[1:])
+    else:
+      id = s
+
+    if '.' in id:
+      id = id.split('.', 1)[0]
+
     if delay: id = id[:-6]
     if delay:
       delay_ids.append((id, len(lines)))
     else:
       ids.append((id, len(lines)))
-    source_lines.append(SOURCE_DECLARATION % { 'id': id, 'data': data })
-    source_lines_empty.append(SOURCE_DECLARATION % { 'id': id, 'data': 0 })
-    native_lines.append(NATIVE_DECLARATION % { 'id': id })
-  
+
+    escaped_id = id.replace('-', '_').replace('/', '_')
+    source_lines.append(SOURCE_DECLARATION % {
+      'id': id,
+      'escaped_id': escaped_id,
+      'data': data
+    })
+    source_lines_empty.append(SOURCE_DECLARATION % {
+      'id': id,
+      'escaped_id': escaped_id,
+      'data': 0
+    })
+    native_lines.append(NATIVE_DECLARATION % {
+      'id': id,
+      'escaped_id': escaped_id
+    })
+
   # Build delay support functions
   get_index_cases = [ ]
   get_script_source_cases = [ ]

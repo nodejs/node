@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax
+// Flags: --expose-debug-as debug --allow-natives-syntax --promise-extra
 
 // Test debug events when we listen to all exceptions and
 // there is no catch handler for the exception thrown in a Promise.
@@ -61,10 +61,7 @@ function testDone(iteration) {
     }
   }
 
-  // Rerun testDone through the Object.observe processing loop.
-  var dummy = {};
-  Object.observe(dummy, checkResult);
-  dummy.dummy = dummy;
+  %EnqueueMicrotask(checkResult);
 }
 
 testDone(0);

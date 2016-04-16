@@ -62,7 +62,7 @@
 #endif
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   int err;
   int fd;
 
@@ -116,12 +116,25 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
 }
 
 
+int uv__io_check_fd(uv_loop_t* loop, int fd) {
+  if (port_associate(loop->backend_fd, PORT_SOURCE_FD, fd, POLLIN, 0))
+    return -errno;
+
+  if (port_dissociate(loop->backend_fd, PORT_SOURCE_FD, fd))
+    abort();
+
+  return 0;
+}
+
+
 void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct port_event events[1024];
   struct port_event* pe;
   struct timespec spec;
   QUEUE* q;
   uv__io_t* w;
+  sigset_t* pset;
+  sigset_t set;
   uint64_t base;
   uint64_t diff;
   unsigned int nfds;
@@ -129,6 +142,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int saved_errno;
   int nevents;
   int count;
+  int err;
   int fd;
 
   if (loop->nfds == 0) {
@@ -150,6 +164,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     w->events = w->pevents;
   }
 
+  pset = NULL;
+  if (loop->flags & UV_LOOP_BLOCK_SIGPROF) {
+    pset = &set;
+    sigemptyset(pset);
+    sigaddset(pset, SIGPROF);
+  }
+
   assert(timeout >= -1);
   base = loop->time;
   count = 48; /* Benchmarks suggest this gives the best throughput. */
@@ -165,11 +186,20 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     nfds = 1;
     saved_errno = 0;
-    if (port_getn(loop->backend_fd,
-                  events,
-                  ARRAY_SIZE(events),
-                  &nfds,
-                  timeout == -1 ? NULL : &spec)) {
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_BLOCK, pset, NULL);
+
+    err = port_getn(loop->backend_fd,
+                    events,
+                    ARRAY_SIZE(events),
+                    &nfds,
+                    timeout == -1 ? NULL : &spec);
+
+    if (pset != NULL)
+      pthread_sigmask(SIG_UNBLOCK, pset, NULL);
+
+    if (err) {
       /* Work around another kernel bug: port_getn() may return events even
        * on error.
        */
@@ -281,11 +311,15 @@ int uv_exepath(char* buffer, size_t* size) {
   ssize_t res;
   char buf[128];
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
   snprintf(buf, sizeof(buf), "/proc/%lu/path/a.out", (unsigned long) getpid());
-  res = readlink(buf, buffer, *size - 1);
+
+  res = *size - 1;
+  if (res > 0)
+    res = readlink(buf, buffer, res);
+
   if (res == -1)
     return -errno;
 
@@ -410,7 +444,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   }
 
   uv__handle_start(handle);
-  handle->path = strdup(path);
+  handle->path = uv__strdup(path);
   handle->fd = PORT_UNUSED;
   handle->cb = cb;
 
@@ -440,7 +474,7 @@ int uv_fs_event_stop(uv_fs_event_t* handle) {
   }
 
   handle->fd = PORT_DELETED;
-  free(handle->path);
+  uv__free(handle->path);
   handle->path = NULL;
   handle->fo.fo_name = NULL;
   uv__handle_stop(handle);
@@ -559,7 +593,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     lookup_instance++;
   }
 
-  *cpu_infos =  malloc(lookup_instance * sizeof(**cpu_infos));
+  *cpu_infos = uv__malloc(lookup_instance * sizeof(**cpu_infos));
   if (!(*cpu_infos)) {
     kstat_close(kc);
     return -ENOMEM;
@@ -582,7 +616,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
       knp = kstat_data_lookup(ksp, (char*) "brand");
       assert(knp->data_type == KSTAT_DATA_STRING);
-      cpu_info->model = strdup(KSTAT_NAMED_STR_PTR(knp));
+      cpu_info->model = uv__strdup(KSTAT_NAMED_STR_PTR(knp));
     }
 
     lookup_instance++;
@@ -636,10 +670,10 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   int i;
 
   for (i = 0; i < count; i++) {
-    free(cpu_infos[i].model);
+    uv__free(cpu_infos[i].model);
   }
 
-  free(cpu_infos);
+  uv__free(cpu_infos);
 }
 
 
@@ -669,9 +703,11 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     (*count)++;
   }
 
-  *addresses = malloc(*count * sizeof(**addresses));
-  if (!(*addresses))
+  *addresses = uv__malloc(*count * sizeof(**addresses));
+  if (!(*addresses)) {
+    freeifaddrs(addrs);
     return -ENOMEM;
+  }
 
   address = *addresses;
 
@@ -682,7 +718,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     if (ent->ifa_addr == NULL)
       continue;
 
-    address->name = strdup(ent->ifa_name);
+    address->name = uv__strdup(ent->ifa_name);
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
       address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
@@ -733,8 +769,8 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses,
   int i;
 
   for (i = 0; i < count; i++) {
-    free(addresses[i].name);
+    uv__free(addresses[i].name);
   }
 
-  free(addresses);
+  uv__free(addresses);
 }

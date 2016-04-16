@@ -56,7 +56,7 @@ L<pkcs7(3)|pkcs7(3)>, L<pkcs12(3)|pkcs12(3)>
 
 =item INTERNAL FUNCTIONS
 
-L<bn(3)|bn(3)>, L<buffer(3)|buffer(3)>, L<lhash(3)|lhash(3)>,
+L<bn(3)|bn(3)>, L<buffer(3)|buffer(3)>, L<ec(3)|ec(3)>, L<lhash(3)|lhash(3)>,
 L<objects(3)|objects(3)>, L<stack(3)|stack(3)>,
 L<txt_db(3)|txt_db(3)> 
 

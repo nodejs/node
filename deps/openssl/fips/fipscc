@@ -1,0 +1,15 @@
+#!/bin/sh
+ARGS=
+CXX=${CXX:-g++}
+
+while [ "x$1" != "x" ]; do
+  ARG=$1
+  shift
+  case $ARG in
+    *fips_premain.c) ARGS="$ARGS -x c $ARG -x none";;
+    *) ARGS="$ARGS $ARG";;
+  esac
+done
+
+echo $CXX $ARGS
+${CXX} $ARGS

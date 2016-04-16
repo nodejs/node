@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-BIO_find_type, BIO_next - BIO chain traversal
+BIO_find_type, BIO_next, BIO_method_type - BIO chain traversal
 
 =head1 SYNOPSIS
 

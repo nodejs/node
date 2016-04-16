@@ -1,24 +1,3 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "tty_wrap.h"
 
 #include "env.h"
@@ -26,7 +5,8 @@
 #include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_wrap.h"
-#include "req_wrap.h"
+#include "req-wrap.h"
+#include "req-wrap-inl.h"
 #include "stream_wrap.h"
 #include "util.h"
 #include "util-inl.h"
@@ -38,7 +18,6 @@ using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Handle;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
@@ -47,35 +26,20 @@ using v8::String;
 using v8::Value;
 
 
-void TTYWrap::Initialize(Handle<Object> target,
-                         Handle<Value> unused,
-                         Handle<Context> context) {
+void TTYWrap::Initialize(Local<Object> target,
+                         Local<Value> unused,
+                         Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
-  enum PropertyAttribute attributes =
-      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
-  t->InstanceTemplate()->SetAccessor(env->fd_string(),
-                                     StreamWrap::GetFD,
-                                     nullptr,
-                                     Handle<Value>(),
-                                     v8::DEFAULT,
-                                     attributes);
-
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
+  env->SetProtoMethod(t, "isRefed", HandleWrap::IsRefed);
 
-  env->SetProtoMethod(t, "readStart", StreamWrap::ReadStart);
-  env->SetProtoMethod(t, "readStop", StreamWrap::ReadStop);
-
-  env->SetProtoMethod(t, "writeBuffer", StreamWrap::WriteBuffer);
-  env->SetProtoMethod(t, "writeAsciiString", StreamWrap::WriteAsciiString);
-  env->SetProtoMethod(t, "writeUtf8String", StreamWrap::WriteUtf8String);
-  env->SetProtoMethod(t, "writeUcs2String", StreamWrap::WriteUcs2String);
-  env->SetProtoMethod(t, "writeBinaryString", StreamWrap::WriteBinaryString);
+  StreamWrap::AddMethods(env, t, StreamBase::kFlagNoShutdown);
 
   env->SetProtoMethod(t, "getWindowSize", TTYWrap::GetWindowSize);
   env->SetProtoMethod(t, "setRawMode", SetRawMode);
@@ -109,7 +73,7 @@ void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   case UV_NAMED_PIPE: type = "PIPE"; break;
   case UV_UNKNOWN_HANDLE: type = "UNKNOWN"; break;
   default:
-    abort();
+    ABORT();
   }
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), type));
@@ -166,7 +130,7 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-TTYWrap::TTYWrap(Environment* env, Handle<Object> object, int fd, bool readable)
+TTYWrap::TTYWrap(Environment* env, Local<Object> object, int fd, bool readable)
     : StreamWrap(env,
                  object,
                  reinterpret_cast<uv_stream_t*>(&handle_),

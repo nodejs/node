@@ -3,9 +3,8 @@
 // how the underlying system looks up module paths and runs
 // child processes, and all that stuff is cached.
 if (process.platform !== 'win32') {
-  console.log('TAP Version 13\n' +
-              '1..0\n' +
-              '# Skip windows tests, this is not windows\n')
+  console.log('TAP version 13\n' +
+              '1..0 # Skip windows tests, this is not windows\n')
   return
 }
 

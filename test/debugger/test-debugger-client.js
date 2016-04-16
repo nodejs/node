@@ -1,27 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-
+'use strict';
 process.env.NODE_DEBUGGER_TIMEOUT = 2000;
 var common = require('../common');
 var assert = require('assert');
@@ -90,13 +67,13 @@ var d = 'Content-Length: 466\r\n\r\n' +
         '{"seq":10,"type":"event","event":"afterCompile","success":true,' +
         '"body":{"script":{"handle":1,"type":"script","name":"dns.js",' +
         '"id":34,"lineOffset":0,"columnOffset":0,"lineCount":241,' +
-        '"sourceStart":"(function (module, exports, require) {' +
+        '"sourceStart":"(function(module, exports, require) {' +
         'var dns = process.binding(\'cares\')' +
         ';\\nvar ne","sourceLength":6137,"scriptType":2,"compilationType":0,' +
         '"context":{"ref":0},"text":"dns.js (lines: 241)"}},"refs":' +
         '[{"handle":0' +
         ',"type":"context","text":"#<a ContextMirror>"}],"running":true}' +
-        'Content-Length: 119\r\n\r\n' +
+        '\r\n\r\nContent-Length: 119\r\n\r\n' +
         '{"seq":11,"type":"event","event":"scriptCollected","success":true,' +
         '"body":{"script":{"id":26}},"refs":[],"running":true}';
 p.execute(d);
@@ -151,8 +128,8 @@ addTest(function(client, done) {
 
 
 var connectCount = 0;
-var script = 'setTimeout(function () { console.log("blah"); });' +
-             'setInterval(function () {}, 1000000);';
+var script = 'setTimeout(function() { console.log("blah"); });' +
+             'setInterval(function() {}, 1000000);';
 
 var nodeProcess;
 
