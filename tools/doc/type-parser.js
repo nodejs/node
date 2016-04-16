@@ -1,9 +1,9 @@
 'use strict';
 const nodeDocUrl = '';
 const jsDocUrl = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/' +
-  'Reference/Global_Objects/';
+                 'Reference/Global_Objects/';
 const jsPrimitiveUrl = 'https://developer.mozilla.org/en-US/docs/Web/' +
-  'JavaScript/Data_structures';
+                       'JavaScript/Data_structures';
 const jsPrimitives = [
   'Number', 'String', 'Boolean', 'Null', 'Symbol'
 ];

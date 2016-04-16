@@ -165,9 +165,9 @@ Object.keys(tests).forEach(function(file) {
                 // verify that the same exact buffer comes out the other end.
                 buf.on('data', function(c) {
                   var msg = file + ' ' +
-                      chunkSize + ' ' +
-                      JSON.stringify(opts) + ' ' +
-                      Def.name + ' -> ' + Inf.name;
+                            chunkSize + ' ' +
+                            JSON.stringify(opts) + ' ' +
+                            Def.name + ' -> ' + Inf.name;
                   var ok = true;
                   var testNum = ++done;
                   for (var i = 0; i < Math.max(c.length, test.length); i++) {
