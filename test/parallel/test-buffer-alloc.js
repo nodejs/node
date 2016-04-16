@@ -536,17 +536,17 @@ assert.equal('TWFu', (Buffer.from('Man')).toString('base64'));
 {
   // big example
   const quote = 'Man is distinguished, not only by his reason, but by this ' +
-              'singular passion from other animals, which is a lust ' +
-              'of the mind, that by a perseverance of delight in the ' +
-              'continued and indefatigable generation of knowledge, exceeds ' +
-              'the short vehemence of any carnal pleasure.';
+                'singular passion from other animals, which is a lust ' +
+                'of the mind, that by a perseverance of delight in the ' +
+                'continued and indefatigable generation of knowledge, ' +
+                'exceeds the short vehemence of any carnal pleasure.';
   const expected = 'TWFuIGlzIGRpc3Rpbmd1aXNoZWQsIG5vdCBvbmx5IGJ5IGhpcyByZWFzb' +
-                 '24sIGJ1dCBieSB0aGlzIHNpbmd1bGFyIHBhc3Npb24gZnJvbSBvdGhlciBh' +
-                 'bmltYWxzLCB3aGljaCBpcyBhIGx1c3Qgb2YgdGhlIG1pbmQsIHRoYXQgYnk' +
-                 'gYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWdodCBpbiB0aGUgY29udGludWVkIG' +
-                 'FuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZGdlLCBle' +
-                 'GNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm5hbCBwbGVh' +
-                 'c3VyZS4=';
+                   '24sIGJ1dCBieSB0aGlzIHNpbmd1bGFyIHBhc3Npb24gZnJvbSBvdGhlci' +
+                   'BhbmltYWxzLCB3aGljaCBpcyBhIGx1c3Qgb2YgdGhlIG1pbmQsIHRoYXQ' +
+                   'gYnkgYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWdodCBpbiB0aGUgY29udGlu' +
+                   'dWVkIGFuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZ' +
+                   'GdlLCBleGNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm' +
+                   '5hbCBwbGVhc3VyZS4=';
   assert.equal(expected, (Buffer.from(quote)).toString('base64'));
 
   let b = Buffer.allocUnsafe(1024);
@@ -556,11 +556,11 @@ assert.equal('TWFu', (Buffer.from('Man')).toString('base64'));
 
   // check that the base64 decoder ignores whitespace
   const expectedWhite = expected.slice(0, 60) + ' \n' +
-                      expected.slice(60, 120) + ' \n' +
-                      expected.slice(120, 180) + ' \n' +
-                      expected.slice(180, 240) + ' \n' +
-                      expected.slice(240, 300) + '\n' +
-                      expected.slice(300, 360) + '\n';
+                        expected.slice(60, 120) + ' \n' +
+                        expected.slice(120, 180) + ' \n' +
+                        expected.slice(180, 240) + ' \n' +
+                        expected.slice(240, 300) + '\n' +
+                        expected.slice(300, 360) + '\n';
   b = Buffer.allocUnsafe(1024);
   bytesWritten = b.write(expectedWhite, 0, 'base64');
   assert.equal(quote.length, bytesWritten);
@@ -574,11 +574,11 @@ assert.equal('TWFu', (Buffer.from('Man')).toString('base64'));
 
   // check that the base64 decoder ignores illegal chars
   const expectedIllegal = expected.slice(0, 60) + ' \x80' +
-                        expected.slice(60, 120) + ' \xff' +
-                        expected.slice(120, 180) + ' \x00' +
-                        expected.slice(180, 240) + ' \x98' +
-                        expected.slice(240, 300) + '\x03' +
-                        expected.slice(300, 360);
+                          expected.slice(60, 120) + ' \xff' +
+                          expected.slice(120, 180) + ' \x00' +
+                          expected.slice(180, 240) + ' \x98' +
+                          expected.slice(240, 300) + '\x03' +
+                          expected.slice(300, 360);
   b = Buffer.from(expectedIllegal, 'base64');
   assert.equal(quote.length, b.length);
   assert.equal(quote, b.toString('ascii', 0, quote.length));
