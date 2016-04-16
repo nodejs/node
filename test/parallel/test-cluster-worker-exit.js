@@ -107,7 +107,7 @@ function checkResults(expected_results, results) {
     const expected = expected_results[k];
 
     var msg = (expected[1] || '') +
-        (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
+              (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
 
     if (expected && expected.length) {
       assert.equal(actual, expected[0], msg);
