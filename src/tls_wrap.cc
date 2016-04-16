@@ -888,7 +888,10 @@ void TLSWrap::Initialize(Local<Object> target,
 
   env->SetMethod(target, "wrap", TLSWrap::Wrap);
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate());
+  auto constructor = [](const FunctionCallbackInfo<Value>& args) {
+    args.This()->SetAlignedPointerInInternalField(0, nullptr);
+  };
+  auto t = env->NewFunctionTemplate(constructor);
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TLSWrap"));
 
