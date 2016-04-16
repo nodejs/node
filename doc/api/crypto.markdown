@@ -36,6 +36,10 @@ try {
 
 ## Class: Certificate
 
+    Stability: 0 - Deprecated: Use `crypto.certExportChallenge(spkac)`,
+    `crypto.certExportPublicKey(spkac)` and `crypto.certVerifySpkac(spkac)`
+    instead.
+
 SPKAC is a Certificate Signing Request mechanism originally implemented by
 Netscape and now specified formally as part of [HTML5's `keygen` element][].
 
@@ -867,6 +871,45 @@ with legacy programs that expect `'binary'` to be the default encoding.
 
 New applications should expect the default to be `'buffer'`. This property may
 become deprecated in a future Node.js release.
+
+### crypto.certExportChallenge(spkac)
+
+The `spkac` data structure includes a public key and a challenge. The
+`certificate.exportChallenge()` returns the challenge component in the
+form of a Node.js [`Buffer`][]. The `spkac` argument can be either a string
+or a [`Buffer`][].
+
+```js
+const spkac = getSpkacSomehow();
+const challenge = crypto.certExportChallenge(spkac);
+console.log(challenge.toString('utf8'));
+  // Prints the challenge as a UTF8 string
+```
+
+### crypto.certExportPublicKey(spkac)
+
+The `spkac` data structure includes a public key and a challenge. The
+`certificate.exportPublicKey()` returns the public key component in the
+form of a Node.js [`Buffer`][]. The `spkac` argument can be either a string
+or a [`Buffer`][].
+
+```js
+const spkac = getSpkacSomehow();
+const publicKey = crypto.certExportPublicKey(spkac);
+console.log(publicKey);
+  // Prints the public key as <Buffer ...>
+```
+
+### crypto.certVerifySpkac(spkac)
+
+Returns `true` if the given `spkac` data structure is valid, `false` otherwise.
+The `spkac` argument must be a Node.js [`Buffer`][].
+
+```js
+const spkac = getSpkacSomehow();
+console.log(crypto.certVerifySpkac(Buffer.from(spkac)));
+  // Prints true or false
+```
 
 ### crypto.fips
 
