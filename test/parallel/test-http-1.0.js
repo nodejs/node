@@ -88,11 +88,11 @@ function test(handler, request_generator, response_validator) {
   }
 
   function response_validator(server_response, client_got_eof, timed_out) {
-    var expected_response = ('HTTP/1.1 200 OK\r\n' +
-        'Content-Type: text/plain\r\n' +
-        'Connection: close\r\n' +
-        '\r\n' +
-        'Hello, world!');
+    var expected_response = 'HTTP/1.1 200 OK\r\n' +
+                            'Content-Type: text/plain\r\n' +
+                            'Connection: close\r\n' +
+                            '\r\n' +
+                            'Hello, world!';
 
     assert.equal(expected_response, server_response);
     assert.equal(true, client_got_eof);
@@ -125,17 +125,17 @@ function test(handler, request_generator, response_validator) {
   }
 
   function response_validator(server_response, client_got_eof, timed_out) {
-    var expected_response = ('HTTP/1.1 200 OK\r\n' +
-        'Content-Type: text/plain\r\n' +
-        'Connection: close\r\n' +
-        'Transfer-Encoding: chunked\r\n' +
-        '\r\n' +
-        '7\r\n' +
-        'Hello, \r\n' +
-        '6\r\n' +
-        'world!\r\n' +
-        '0\r\n' +
-        '\r\n');
+    var expected_response = 'HTTP/1.1 200 OK\r\n' +
+                            'Content-Type: text/plain\r\n' +
+                            'Connection: close\r\n' +
+                            'Transfer-Encoding: chunked\r\n' +
+                            '\r\n' +
+                            '7\r\n' +
+                            'Hello, \r\n' +
+                            '6\r\n' +
+                            'world!\r\n' +
+                            '0\r\n' +
+                            '\r\n';
 
     assert.equal(expected_response, server_response);
     assert.equal(true, client_got_eof);

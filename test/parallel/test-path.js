@@ -76,7 +76,6 @@ assert.equal(path.win32.dirname('\\\\unc\\share\\foo\\bar\\'),
 assert.equal(path.win32.dirname('\\\\unc\\share\\foo\\bar\\baz'),
              '\\\\unc\\share\\foo\\bar');
 
-
 assert.equal(path.extname(''), '');
 assert.equal(path.extname('/path/to/file'), '');
 assert.equal(path.extname('/path/to/file.ext'), '.ext');
