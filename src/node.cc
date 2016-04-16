@@ -2976,6 +2976,13 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(versions,
                     "icu",
                     OneByteString(env->isolate(), U_ICU_VERSION));
+
+  if (icu_data_dir != nullptr) {
+    // Did the user attempt (via env var or parameter) to set an ICU path?
+    READONLY_PROPERTY(process,
+                      "icu_data_dir",
+                      OneByteString(env->isolate(), icu_data_dir));
+  }
 #endif
 
   const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
