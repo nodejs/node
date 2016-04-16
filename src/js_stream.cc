@@ -22,8 +22,8 @@ using v8::Value;
 
 
 JSStream::JSStream(Environment* env, Local<Object> obj, AsyncWrap* parent)
-    : StreamBase(env),
-      AsyncWrap(env, obj, AsyncWrap::PROVIDER_JSSTREAM, parent) {
+    : AsyncWrap(env, obj, AsyncWrap::PROVIDER_JSSTREAM, parent),
+      StreamBase(env) {
   node::Wrap(obj, this);
   MakeWeak<JSStream>(this);
 }
