@@ -13,7 +13,7 @@ rules:
   no-duplicate-case: 2
   no-empty-character-class: 2
   no-ex-assign: 2
-  no-extra-boolean-cast : 2
+  no-extra-boolean-cast: 2
   no-extra-parens: [2, "functions"]
   no-extra-semi: 2
   no-func-assign: 2
@@ -86,7 +86,7 @@ rules:
 
   # Custom rules in tools/eslint-rules
   new-with-error: [2, "Error", "RangeError", "TypeError", "SyntaxError", "ReferenceError"]
-
+  align-multiline-assignment: 2
 
 # Global scoped method and vars
 globals:
