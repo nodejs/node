@@ -322,7 +322,7 @@ class SSLWrap {
 // Connection inherits from AsyncWrap because SSLWrap makes calls to
 // MakeCallback, but SSLWrap doesn't store the handle itself. Instead it
 // assumes that any args.This() called will be the handle from Connection.
-class Connection : public SSLWrap<Connection>, public AsyncWrap {
+class Connection : public AsyncWrap, public SSLWrap<Connection> {
  public:
   ~Connection() override {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
@@ -387,8 +387,8 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
              v8::Local<v8::Object> wrap,
              SecureContext* sc,
              SSLWrap<Connection>::Kind kind)
-      : SSLWrap<Connection>(env, sc, kind),
-        AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO),
+        SSLWrap<Connection>(env, sc, kind),
         bio_read_(nullptr),
         bio_write_(nullptr),
         hello_offset_(0) {
