@@ -27,39 +27,46 @@ assert.doesNotThrow(makeBlock(a.ok, true),
 
 assert.doesNotThrow(makeBlock(a.ok, 'test'), 'ok(\'test\')');
 
-assert.throws(makeBlock(a.equal, true, false), a.AssertionError, 'equal');
+assert.throws(makeBlock(a.equal, true, false),
+                a.AssertionError, 'equal(true, false)');
 
-assert.doesNotThrow(makeBlock(a.equal, null, null), 'equal');
+assert.doesNotThrow(makeBlock(a.equal, null, null),
+                    'equal(null, null)');
 
-assert.doesNotThrow(makeBlock(a.equal, undefined, undefined), 'equal');
+assert.doesNotThrow(makeBlock(a.equal, undefined, undefined),
+                    'equal(undefined, undefined)');
 
-assert.doesNotThrow(makeBlock(a.equal, null, undefined), 'equal');
+assert.doesNotThrow(makeBlock(a.equal, null, undefined),
+                    'equal(null, undefined)');
 
-assert.doesNotThrow(makeBlock(a.equal, true, true), 'equal');
+assert.doesNotThrow(makeBlock(a.equal, true, true), 'equal(true, true)');
 
-assert.doesNotThrow(makeBlock(a.equal, 2, '2'), 'equal');
+assert.doesNotThrow(makeBlock(a.equal, 2, '2'), 'equal(2, \'2\')');
 
-assert.doesNotThrow(makeBlock(a.notEqual, true, false), 'notEqual');
+assert.doesNotThrow(makeBlock(a.notEqual, true, false),
+                    'notEqual(true, false)');
 
 assert.throws(makeBlock(a.notEqual, true, true),
-              a.AssertionError, 'notEqual');
+              a.AssertionError, 'notEqual(true, true)');
 
 assert.throws(makeBlock(a.strictEqual, 2, '2'),
-              a.AssertionError, 'strictEqual');
+              a.AssertionError, 'strictEqual(2, \'2\')');
 
 assert.throws(makeBlock(a.strictEqual, null, undefined),
-              a.AssertionError, 'strictEqual');
+              a.AssertionError, 'strictEqual(null, undefined)');
 
-assert.doesNotThrow(makeBlock(a.notStrictEqual, 2, '2'), 'notStrictEqual');
+assert.doesNotThrow(makeBlock(a.notStrictEqual, 2, '2'),
+                    'notStrictEqual(2, \'2\')');
 
 // deepEquals joy!
 // 7.2
 assert.doesNotThrow(makeBlock(a.deepEqual, new Date(2000, 3, 14),
-                    new Date(2000, 3, 14)), 'deepEqual date');
+                    new Date(2000, 3, 14)),
+                    'deepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))');
 
 assert.throws(makeBlock(a.deepEqual, new Date(), new Date(2000, 3, 14)),
               a.AssertionError,
-              'deepEqual date');
+              'deepEqual(new Date(), new Date(2000, 3, 14))');
 
 // 7.3
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/, /a/));
@@ -81,11 +88,11 @@ assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im));
 
 
 // 7.4
-assert.doesNotThrow(makeBlock(a.deepEqual, 4, '4'), 'deepEqual == check');
-assert.doesNotThrow(makeBlock(a.deepEqual, true, 1), 'deepEqual == check');
+assert.doesNotThrow(makeBlock(a.deepEqual, 4, '4'), 'deepEqual(4, \'4\')');
+assert.doesNotThrow(makeBlock(a.deepEqual, true, 1), 'deepEqual(true, 1)');
 assert.throws(makeBlock(a.deepEqual, 4, '5'),
               a.AssertionError,
-              'deepEqual == check');
+              'deepEqual( 4, \'5\')');
 
 // 7.5
 // having the same number of owned properties && the same set of keys
@@ -156,11 +163,13 @@ assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}),
 
 //deepStrictEqual
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, new Date(2000, 3, 14),
-                    new Date(2000, 3, 14)), 'deepStrictEqual date');
+                    new Date(2000, 3, 14)),
+                    'deepStrictEqual(new Date(2000, 3, 14),\
+                    new Date(2000, 3, 14))');
 
 assert.throws(makeBlock(a.deepStrictEqual, new Date(), new Date(2000, 3, 14)),
               a.AssertionError,
-              'deepStrictEqual date');
+              'deepStrictEqual(new Date(), new Date(2000, 3, 14))');
 
 // 7.3 - strict
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/, /a/));
@@ -183,15 +192,15 @@ assert.throws(makeBlock(a.deepStrictEqual, /a/igm, /a/im));
 // 7.4 - strict
 assert.throws(makeBlock(a.deepStrictEqual, 4, '4'),
               a.AssertionError,
-              'deepStrictEqual === check');
+              'deepStrictEqual(4, \'4\')');
 
 assert.throws(makeBlock(a.deepStrictEqual, true, 1),
               a.AssertionError,
-              'deepStrictEqual === check');
+              'deepStrictEqual(true, 1)');
 
 assert.throws(makeBlock(a.deepStrictEqual, 4, '5'),
               a.AssertionError,
-              'deepStrictEqual === check');
+              'deepStrictEqual(4, \'5\')');
 
 // 7.5 - strict
 // having the same number of owned properties && the same set of keys
