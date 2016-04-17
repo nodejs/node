@@ -64,6 +64,7 @@ TLSWrap::TLSWrap(Environment* env,
   stream_->set_after_write_cb({ OnAfterWriteImpl, this });
   stream_->set_alloc_cb({ OnAllocImpl, this });
   stream_->set_read_cb({ OnReadImpl, this });
+  stream_->set_close_cb({ OnCloseImpl, this });
 
   set_alloc_cb({ OnAllocSelf, this });
   set_read_cb({ OnReadSelf, this });
@@ -191,6 +192,9 @@ void TLSWrap::Wrap(const FunctionCallbackInfo<Value>& args) {
 
 void TLSWrap::Receive(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap = Unwrap<TLSWrap>(args.Holder());
+
+  if (wrap->stream_ == nullptr)
+    return;
 
   CHECK(Buffer::HasInstance(args[0]));
   char* data = Buffer::Data(args[0]);
@@ -510,31 +514,43 @@ AsyncWrap* TLSWrap::GetAsyncWrap() {
 
 
 bool TLSWrap::IsIPCPipe() {
+  if (stream_ == nullptr)
+    return false;
   return stream_->IsIPCPipe();
 }
 
 
 int TLSWrap::GetFD() {
+  if (stream_ == nullptr)
+    return UV_EINVAL;
   return stream_->GetFD();
 }
 
 
 bool TLSWrap::IsAlive() {
+  if (stream_ == nullptr)
+    return false;
   return ssl_ != nullptr && stream_->IsAlive();
 }
 
 
 bool TLSWrap::IsClosing() {
+  if (stream_ == nullptr)
+    return false;
   return stream_->IsClosing();
 }
 
 
 int TLSWrap::ReadStart() {
+  if (stream_ == nullptr)
+    return UV_EINVAL;
   return stream_->ReadStart();
 }
 
 
 int TLSWrap::ReadStop() {
+  if (stream_ == nullptr)
+    return UV_EINVAL;
   return stream_->ReadStop();
 }
 
@@ -658,6 +674,12 @@ void TLSWrap::OnReadImpl(ssize_t nread,
 }
 
 
+void TLSWrap::OnCloseImpl(void* ctx) {
+  TLSWrap* wrap = static_cast<TLSWrap*>(ctx);
+  wrap->stream_ = nullptr;
+}
+
+
 void TLSWrap::OnAllocSelf(size_t suggested_size, uv_buf_t* buf, void* ctx) {
   buf->base = static_cast<char*>(malloc(suggested_size));
   CHECK_NE(buf->base, nullptr);
@@ -726,6 +748,8 @@ int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
 
   shutdown_ = true;
   EncOut();
+  if (stream_ == nullptr)
+    return UV_EINVAL;
   return stream_->DoShutdown(req_wrap);
 }
 

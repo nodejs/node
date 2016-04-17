@@ -135,10 +135,11 @@ class StreamResource {
                          const uv_buf_t* buf,
                          uv_handle_type pending,
                          void* ctx);
+  typedef void (*CloseCb)(void* ctx);
 
   StreamResource() {
   }
-  virtual ~StreamResource() = default;
+  virtual ~StreamResource();
 
   virtual int DoShutdown(ShutdownWrap* req_wrap) = 0;
   virtual int DoTryWrite(uv_buf_t** bufs, size_t* count);
@@ -167,21 +168,29 @@ class StreamResource {
       read_cb_.fn(nread, buf, pending, read_cb_.ctx);
   }
 
+  inline void OnClose() {
+    if (!close_cb_.is_empty())
+      close_cb_.fn(close_cb_.ctx);
+  }
+
   inline void set_after_write_cb(Callback<AfterWriteCb> c) {
     after_write_cb_ = c;
   }
 
   inline void set_alloc_cb(Callback<AllocCb> c) { alloc_cb_ = c; }
   inline void set_read_cb(Callback<ReadCb> c) { read_cb_ = c; }
+  inline void set_close_cb(Callback<CloseCb> c) { close_cb_ = c; }
 
   inline Callback<AfterWriteCb> after_write_cb() { return after_write_cb_; }
   inline Callback<AllocCb> alloc_cb() { return alloc_cb_; }
   inline Callback<ReadCb> read_cb() { return read_cb_; }
+  inline Callback<CloseCb> close_cb() { return close_cb_; }
 
  private:
   Callback<AfterWriteCb> after_write_cb_;
   Callback<AllocCb> alloc_cb_;
   Callback<ReadCb> read_cb_;
+  Callback<CloseCb> close_cb_;
 };
 
 class StreamBase : public StreamResource {
