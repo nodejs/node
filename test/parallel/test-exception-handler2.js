@@ -1,22 +1,14 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 process.on('uncaughtException', function(err) {
   console.log('Caught exception: ' + err);
 });
 
-var timeoutFired = false;
-setTimeout(function() {
+setTimeout(common.mustCall(function() {
   console.log('This will still run.');
-  timeoutFired = true;
-}, 500);
-
-process.on('exit', function() {
-  assert.ok(timeoutFired);
-});
+}), 50);
 
 // Intentionally cause an exception, but don't catch it.
-nonexistentFunc();
-console.log('This will not run.');
-
+nonexistentFunc(); // eslint-disable-line no-undef
+common.fail('This will not run.');

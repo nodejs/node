@@ -301,7 +301,7 @@ errors.forEach(function(err) {
   assert.equal(util.inspect(err), err.stack);
 });
 try {
-  undef();
+  undef(); // eslint-disable-line no-undef
 } catch (e) {
   assert.equal(util.inspect(e), e.stack);
 }

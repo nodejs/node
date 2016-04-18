@@ -22,7 +22,7 @@ function err() {
 
   function err2() {
     // this function doesn't exist, and throws an error as a result.
-    err3();
+    err3(); // eslint-disable-line no-undef
   }
 
   function handleDomainError(e) {
