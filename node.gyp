@@ -93,6 +93,15 @@
       'deps/v8/tools/SourceMap.js',
       'deps/v8/tools/tickprocessor-driver.js',
     ],
+    'conditions': [
+      [ 'OS=="win" and '
+        'node_use_openssl=="true" and '
+        'node_shared_openssl=="false"', {
+        'use_openssl_def': 1,
+      }, {
+        'use_openssl_def': 0,
+      }],
+    ],
   },
 
   'targets': [
@@ -291,6 +300,9 @@
                         '-Wl,--no-whole-archive',
                       ],
                     }],
+                    ['use_openssl_def==1', {
+                      'sources': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
+                    }],
                   ],
                 }],
               ],
@@ -463,6 +475,52 @@
           'AdditionalManifestFiles': 'src/res/node.exe.extra.manifest'
         }
       },
+    },
+    {
+      'target_name': 'mkssldef',
+      'type': 'none',
+      # TODO(bnoordhuis) Make all platforms export the same list of symbols.
+      # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
+      'conditions': [
+        [ 'use_openssl_def==1', {
+          'variables': {
+            'mkssldef_flags': [
+              # Categories to export.
+              '-CAES,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,MD4,MD5,'
+              'NEXTPROTONEG,PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,TLSEXT',
+              # Defines.
+              '-DWIN32',
+              # Symbols to filter from the export list.
+              '-X^DSO',
+              '-X^_',
+              '-X^private_',
+            ],
+          },
+          'conditions': [
+            ['openssl_fips!=""', {
+              'variables': { 'mkssldef_flags': ['-DOPENSSL_FIPS'] },
+            }],
+          ],
+          'actions': [
+            {
+              'action_name': 'mkssldef',
+              'inputs': [
+                'deps/openssl/openssl/util/libeay.num',
+                'deps/openssl/openssl/util/ssleay.num',
+              ],
+              'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
+              'action': [
+                'python',
+                'tools/mkssldef.py',
+                '<@(mkssldef_flags)',
+                '-o',
+                '<@(_outputs)',
+                '<@(_inputs)',
+              ],
+            },
+          ],
+        }],
+      ],
     },
     # generate ETW header and resource files
     {
