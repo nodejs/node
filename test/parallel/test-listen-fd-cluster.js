@@ -21,7 +21,6 @@ if (common.isWindows) {
 switch (process.argv[2]) {
   case 'master': return master();
   case 'worker': return worker();
-  case 'parent': return parent();
 }
 
 var ok;

@@ -182,7 +182,7 @@ assert.equal(util.inspect(new Error('FAIL')), '[Error: FAIL]');
 assert.equal(util.inspect(new TypeError('FAIL')), '[TypeError: FAIL]');
 assert.equal(util.inspect(new SyntaxError('FAIL')), '[SyntaxError: FAIL]');
 try {
-  undef();
+  undef(); // eslint-disable-line no-undef
 } catch (e) {
   assert.equal(util.inspect(e), '[ReferenceError: undef is not defined]');
 }
