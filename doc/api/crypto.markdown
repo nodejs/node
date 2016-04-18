@@ -1330,6 +1330,13 @@ is a bit field taking one of or a mix of the following flags (defined in the
 * `ENGINE_METHOD_ALL`
 * `ENGINE_METHOD_NONE`
 
+### crypto.areKeysEqual(userKey, originalKey)
+
+Securely compares two cryptographic keys. Using this function to compare keys
+prevents timing attacks. Usually slower than plain comparsion.
+
+Both `userKey` and `originalKey` should be a string or a [`Buffer`][].
+
 ## Notes
 
 ### Legacy Streams API (pre Node.js v0.10)

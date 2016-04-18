@@ -88,6 +88,73 @@ assert.notEqual(-1, crypto.getCurves().indexOf('secp384r1'));
 assert.equal(-1, crypto.getCurves().indexOf('SECP384R1'));
 assertSorted(crypto.getCurves());
 
+// Checking if key comparsion is valid for strings
+var originalKey = 'abcdefg';
+var emptyKey = '';
+var wrongKey = 'abbdefg';
+var shorterKey = 'abc';
+var longerKey = 'abcdefghijklmnopqrstuvwxyz';
+assert.equal(true, crypto.areKeysEqual(originalKey, originalKey));
+assert.notEqual(true, crypto.areKeysEqual(emptyKey, originalKey));
+assert.notEqual(true, crypto.areKeysEqual(wrongKey, originalKey));
+assert.notEqual(true, crypto.areKeysEqual(shorterKey, originalKey));
+assert.notEqual(true, crypto.areKeysEqual(longerKey, originalKey));
+
+// Checking if key comparsion is valid for buffers
+var originalKeyBuffer = new Buffer(originalKey);
+var emptyKeyBuffer = new Buffer(emptyKey);
+var wrongKeyBuffer = new Buffer(wrongKey);
+var shorterKeyBuffer = new Buffer(shorterKey);
+var longerKeyBuffer = new Buffer(longerKey);
+assert.equal(true, crypto.areKeysEqual(originalKeyBuffer, originalKeyBuffer));
+assert.notEqual(true, crypto.areKeysEqual(emptyKeyBuffer, originalKeyBuffer));
+assert.notEqual(true, crypto.areKeysEqual(wrongKeyBuffer, originalKeyBuffer));
+assert.notEqual(true, crypto.areKeysEqual(shorterKeyBuffer, originalKeyBuffer));
+assert.notEqual(true, crypto.areKeysEqual(longerKeyBuffer, originalKeyBuffer));
+
+function measureTime(func, arg1, arg2) {
+  var start = process.hrtime();
+  func(arg1, arg2);
+  return process.hrtime(start)[1];
+}
+
+function getMedian(measuresCount, func, arg1, arg2) {
+  var times = [];
+  for (var i = 0; i < measuresCount; i++)
+    times.push(measureTime(func, arg1, arg2));
+  times.sort();
+  var mid = Math.floor(times.length / 2);
+  return (times[mid - 1] + times[mid] + times[mid + 1]) / 3;
+}
+
+function compareStrings(s1, s2) {
+  return s1 === s2;
+}
+
+var key1 = crypto.randomBytes(256);
+key1[0] = 0;
+var key2 = new Buffer(key1);
+var key3 = new Buffer(key1);
+key3[0] = 1; // guaranteed mismatch at first symbol
+
+// Converting to strings for more stable time check
+key1 = key1.toString('hex');
+key2 = key2.toString('hex');
+key3 = key3.toString('hex');
+
+var measures = 10000;
+
+var equalTimeSec = getMedian(measures, crypto.areKeysEqual, key1, key2);
+var firstMismatchTimeSec = getMedian(measures, crypto.areKeysEqual, key1, key3);
+var secureRatio = equalTimeSec / firstMismatchTimeSec;
+
+var equalTime = getMedian(measures, compareStrings, key1, key2);
+var firstMismatchTime = getMedian(measures, compareStrings, key1, key3);
+var insecureRatio = equalTime / firstMismatchTime;
+
+// Checking if key comparsion time depends on symbol mismatch position
+assert.equal(true, secureRatio < insecureRatio);
+
 // Regression tests for #5725: hex input that's not a power of two should
 // throw, not assert in C++ land.
 assert.throws(function() {
