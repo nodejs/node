@@ -109,9 +109,10 @@ console.assert(false, 'Whoops %s', 'didn\'t work');
   // AssertionError: Whoops didn't work
 ```
 
-It is important to note that the `console.assert()` method in Node.js is
-implemented differently than the `console.assert()` method available in
-browsers. Specifically, in browsers, calling `console.assert()` with a falsy
+*Note: the `console.assert()` method is implemented differently in Node.js
+than the `console.assert()` method [available in browsers][web-api-assert].* 
+
+Specifically, in browsers, calling `console.assert()` with a falsy
 assertion will cause the `message` to be printed to the console without
 interrupting execution of subsequent code. In Node.js, however, a falsy
 assertion will cause an `AssertionError` to be thrown.
@@ -263,3 +264,4 @@ The `console.warn()` function is an alias for [`console.error()`][].
 [`util.format()`]: util.html#util_util_format_format
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
+[web-api-assert]: https://developer.mozilla.org/en-US/docs/Web/API/console/assert
