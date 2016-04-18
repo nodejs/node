@@ -85,6 +85,7 @@ rules:
   prefer-const: 2
 
   # Custom rules in tools/eslint-rules
+  assert-fail-single-argument: 2
   new-with-error: [2, "Error", "RangeError", "TypeError", "SyntaxError", "ReferenceError"]
 
 
