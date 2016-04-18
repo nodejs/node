@@ -165,6 +165,7 @@ class ProcessWrap : public HandleWrap {
       for (int i = 0; i < argc; i++) {
         node::Utf8Value arg(env->isolate(), js_argv->Get(i));
         options.args[i] = strdup(*arg);
+        CHECK_NE(options.args[i], nullptr);
       }
       options.args[argc] = nullptr;
     }
@@ -186,6 +187,7 @@ class ProcessWrap : public HandleWrap {
       for (int i = 0; i < envc; i++) {
         node::Utf8Value pair(env->isolate(), env_opt->Get(i));
         options.env[i] = strdup(*pair);
+        CHECK_NE(options.env[i], nullptr);
       }
       options.env[envc] = nullptr;
     }
