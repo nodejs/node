@@ -2,19 +2,38 @@
 require('../common');
 const assert = require('assert');
 const vm = require('vm');
+const spawnSync = require('child_process').spawnSync;
 const Buffer = require('buffer').Buffer;
 
 function getSource(tag) {
   return `(function ${tag}() { return \'${tag}\'; })`;
 }
 
-function produce(source) {
-  const script = new vm.Script(source, {
-    produceCachedData: true
-  });
-  assert(!script.cachedDataProduced || script.cachedData instanceof Buffer);
+function produce(source, count) {
+  if (!count)
+    count = 1;
 
-  return script.cachedData;
+  const out = spawnSync(process.execPath, [ '-e', `
+    var assert = require('assert');
+    var vm = require('vm');
+
+    let data;
+    for (var i = 0; i < ${count}; i++) {
+      var script = new vm.Script(process.argv[1], {
+        produceCachedData: true
+      });
+
+      assert(!script.cachedDataProduced || script.cachedData instanceof Buffer);
+
+      if (script.cachedDataProduced)
+        data = script.cachedData.toString('base64');
+    }
+    console.log(data);
+  `, source]);
+
+  assert.equal(out.status, 0, out.stderr + '');
+
+  return Buffer.from(out.stdout.toString(), 'base64');
 }
 
 function testProduceConsume() {
@@ -34,9 +53,7 @@ testProduceConsume();
 function testProduceMultiple() {
   const source = getSource('original');
 
-  produce(source);
-  produce(source);
-  produce(source);
+  produce(source, 3);
 }
 testProduceMultiple();
 
