@@ -11,7 +11,7 @@ function timeout(nargs) {
   setTimeout.apply(null, [callback, 1].concat(args));
 
   function callback() {
-    assert.deepEqual([].slice.call(arguments), args);
+    assert.deepStrictEqual([].slice.call(arguments), args);
     if (nargs < 128) timeout(nargs + 1);
   }
 }
@@ -22,7 +22,7 @@ function interval(nargs) {
 
   function callback() {
     clearInterval(timer);
-    assert.deepEqual([].slice.call(arguments), args);
+    assert.deepStrictEqual([].slice.call(arguments), args);
     if (nargs < 128) interval(nargs + 1);
   }
 }

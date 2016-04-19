@@ -27,8 +27,8 @@ function checkSpawnSyncRet(ret) {
 
 function verifyBufOutput(ret) {
   checkSpawnSyncRet(ret);
-  assert.deepEqual(ret.stdout, msgOutBuf);
-  assert.deepEqual(ret.stderr, msgErrBuf);
+  assert.deepStrictEqual(ret.stdout, msgOutBuf);
+  assert.deepStrictEqual(ret.stderr, msgErrBuf);
 }
 
 if (process.argv.indexOf('spawnchild') !== -1) {
@@ -77,8 +77,8 @@ options = {
 ret = spawnSync('cat', [], options);
 
 checkSpawnSyncRet(ret);
-assert.deepEqual(ret.stdout, options.input);
-assert.deepEqual(ret.stderr, Buffer.from(''));
+assert.deepStrictEqual(ret.stdout, options.input);
+assert.deepStrictEqual(ret.stderr, Buffer.from(''));
 
 verifyBufOutput(spawnSync(process.execPath, args));
 

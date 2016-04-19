@@ -335,7 +335,7 @@ function isWarned(emitter) {
   assert.equal(readline.getStringWidth('\u001b[31m\u001b[39m'), 0);
   assert.equal(readline.getStringWidth('> '), 2);
 
-  assert.deepEqual(fi.listeners(terminal ? 'keypress' : 'data'), []);
+  assert.deepStrictEqual(fi.listeners(terminal ? 'keypress' : 'data'), []);
 
   // check EventEmitter memory leak
   for (var i = 0; i < 12; i++) {

@@ -117,7 +117,7 @@ else if (cluster.isMaster) {
                          port: common.PORT,
                          addressType: 4,
                          fd: undefined };
-          assert.deepEqual(arguments[0], expect);
+          assert.deepStrictEqual(arguments[0], expect);
           break;
 
         default:

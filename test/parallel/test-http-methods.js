@@ -9,4 +9,4 @@ assert(http.METHODS.length > 0);
 assert(http.METHODS.indexOf('GET') !== -1);
 assert(http.METHODS.indexOf('HEAD') !== -1);
 assert(http.METHODS.indexOf('POST') !== -1);
-assert.deepEqual(util._extend([], http.METHODS), http.METHODS.sort());
+assert.deepStrictEqual(util._extend([], http.METHODS), http.METHODS.sort());

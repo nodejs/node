@@ -57,7 +57,7 @@ assert.throws(function() {
 function assertSorted(list) {
   // Array#sort() modifies the list in place so make a copy.
   var sorted = util._extend([], list).sort();
-  assert.deepEqual(list, sorted);
+  assert.deepStrictEqual(list, sorted);
 }
 
 // Assume that we have at least AES-128-CBC.

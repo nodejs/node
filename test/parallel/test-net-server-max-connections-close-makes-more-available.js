@@ -79,9 +79,9 @@ server.listen(common.PORT, function() {
 
 process.on('exit', function() {
   // Confirm that all connections tried to send data...
-  assert.deepEqual(sent, [0, 1, 2, 3]);
+  assert.deepStrictEqual(sent, ['0', '1', '2', '3']);
   // ...but that only connections 0 and 2 were successful.
-  assert.deepEqual(received, [0, 2]);
+  assert.deepStrictEqual(received, ['0', '2']);
 });
 
 process.on('unhandledRejection', function() {

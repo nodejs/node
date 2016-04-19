@@ -31,6 +31,6 @@ deflater.write(chunk, function() {
 });
 
 process.once('exit', function() {
-  assert.deepEqual(actualNone, expectedNone);
-  assert.deepEqual(actualFull, expectedFull);
+  assert.deepStrictEqual(actualNone, expectedNone);
+  assert.deepStrictEqual(actualFull, expectedFull);
 });

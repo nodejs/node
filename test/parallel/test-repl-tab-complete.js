@@ -41,13 +41,13 @@ putIn.run([
 testMe.complete('inner.o', getDoNotCallFunction());
 
 testMe.complete('console.lo', common.mustCall(function(error, data) {
-  assert.deepEqual(data, [['console.log'], 'console.lo']);
+  assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
 
 // Tab Complete will return globaly scoped variables
 putIn.run(['};']);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 }));
 
 putIn.run(['.clear']);
@@ -68,7 +68,7 @@ putIn.run([
   'var inner = {one:1};'
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 }));
 
 // When you close the function scope tab complete will not return the
@@ -86,7 +86,7 @@ putIn.run([
   '};'
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 }));
 
 putIn.run(['.clear']);
@@ -100,7 +100,7 @@ putIn.run([
   '};'
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 }));
 
 putIn.run(['.clear']);
@@ -115,7 +115,7 @@ putIn.run([
   '};'
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 }));
 
 putIn.run(['.clear']);
@@ -165,7 +165,7 @@ putIn.run([
   'var str = "test";'
 ]);
 testMe.complete('str.len', common.mustCall(function(error, data) {
-  assert.deepEqual(data, [['str.length'], 'str.len']);
+  assert.deepStrictEqual(data, [['str.length'], 'str.len']);
 }));
 
 putIn.run(['.clear']);
@@ -183,7 +183,7 @@ testMe.complete(' ', common.mustCall(function(error, data) {
 // tab completion should pick up the global "toString" object, and
 // any other properties up the "global" object's prototype chain
 testMe.complete('toSt', common.mustCall(function(error, data) {
-  assert.deepEqual(data, [['toString'], 'toSt']);
+  assert.deepStrictEqual(data, [['toString'], 'toSt']);
 }));
 
 // Tab complete provides built in libs for require()
@@ -215,7 +215,7 @@ putIn.run([
   'var custom = "test";'
 ]);
 testMe.complete('cus', common.mustCall(function(error, data) {
-  assert.deepEqual(data, [['custom'], 'cus']);
+  assert.deepStrictEqual(data, [['custom'], 'cus']);
 }));
 
 // Make sure tab completion doesn't crash REPL with half-baked proxy objects.

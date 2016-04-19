@@ -10,7 +10,7 @@ var b = domain.create();
 
 a.enter(); // push
 b.enter(); // push
-assert.deepEqual(domain._stack, [a, b], 'b not pushed');
+assert.deepStrictEqual(domain._stack, [a, b], 'b not pushed');
 
 domain.create().exit(); // no-op
-assert.deepEqual(domain._stack, [a, b], 'stack mangled!');
+assert.deepStrictEqual(domain._stack, [a, b], 'stack mangled!');

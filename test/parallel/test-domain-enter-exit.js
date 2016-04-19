@@ -19,21 +19,21 @@ var c = domain.create();
 c.name = 'c';
 
 a.enter(); // push
-assert.deepEqual(domain._stack, [a],
-                 'a not pushed: ' + names(domain._stack));
+assert.deepStrictEqual(domain._stack, [a],
+                       'a not pushed: ' + names(domain._stack));
 
 b.enter(); // push
-assert.deepEqual(domain._stack, [a, b],
-                 'b not pushed: ' + names(domain._stack));
+assert.deepStrictEqual(domain._stack, [a, b],
+                       'b not pushed: ' + names(domain._stack));
 
 c.enter(); // push
-assert.deepEqual(domain._stack, [a, b, c],
-                 'c not pushed: ' + names(domain._stack));
+assert.deepStrictEqual(domain._stack, [a, b, c],
+                       'c not pushed: ' + names(domain._stack));
 
 b.exit(); // pop
-assert.deepEqual(domain._stack, [a],
-                 'b and c not popped: ' + names(domain._stack));
+assert.deepStrictEqual(domain._stack, [a],
+                       'b and c not popped: ' + names(domain._stack));
 
 b.enter(); // push
-assert.deepEqual(domain._stack, [a, b],
-                 'b not pushed: ' + names(domain._stack));
+assert.deepStrictEqual(domain._stack, [a, b],
+                       'b not pushed: ' + names(domain._stack));

@@ -31,7 +31,7 @@ if (process.argv[2] === 'child') {
   });
 
   child.once('exit', function() {
-    assert.deepEqual(ipc, ['1', '2']);
+    assert.deepStrictEqual(ipc, ['1', '2']);
     assert.equal(stdout, '3');
   });
 }

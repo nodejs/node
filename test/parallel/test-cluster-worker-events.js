@@ -46,7 +46,7 @@ function check(m) {
 
   if (messages.length < 2) return;
 
-  assert.deepEqual(messages[0], messages[1]);
+  assert.deepStrictEqual(messages[0], messages[1]);
 
   cluster.worker.once('error', function(e) {
     assert.equal(e, 'HI');
