@@ -9,12 +9,19 @@ const v8 = require('v8');
 v8.setFlagsFromString('--allow_natives_syntax');
 
 var bench = common.createBenchmark(main, {
-  method: ['restAndSpread', 'argumentsAndApply', 'restAndApply'],
+  method: ['restAndSpread',
+           'argumentsAndApply',
+           'restAndApply',
+           'restAndConcat'],
   concat: [1, 0],
   n: [1000000]
 });
 
 const nullStream = createNullStream();
+
+function usingRestAndConcat(...args) {
+  nullStream.write('this is ' + args[0] + ' of ' + args[1] + '\n');
+}
 
 function usingRestAndSpreadTS(...args) {
   nullStream.write(`${util.format(...args)}\n`);
@@ -44,6 +51,16 @@ function optimize(method, ...args) {
   method(...args);
   eval(`%OptimizeFunctionOnNextCall(${method.name})`);
   method(...args);
+}
+
+function runUsingRestAndConcat(n) {
+  optimize(usingRestAndConcat, 'a', 1);
+
+  var i = 0;
+  bench.start();
+  for (; i < n; i++)
+    usingRestAndConcat('a', 1);
+  bench.end(n);
 }
 
 function runUsingRestAndSpread(n, concat) {
@@ -89,11 +106,15 @@ function main(conf) {
       runUsingRestAndSpread(n, conf.concat);
       break;
     case 'restAndApply':
-      runUsingRestAndApply(n);
+      runUsingRestAndApply(n, conf.concat);
       break;
     case 'argumentsAndApply':
-      runUsingArgumentsAndApply(n);
+      runUsingArgumentsAndApply(n, conf.concat);
       break;
+    case 'restAndConcat':
+      if (conf.concat)
+        runUsingRestAndConcat(n);
+    break;
     default:
       throw new Error('Unexpected method');
   }
