@@ -42,10 +42,14 @@ extern "C" const char U_DATA_API SMALL_ICUDATA_ENTRY_POINT[];
 #endif
 
 namespace node {
+
+bool flag_icu_data_dir = false;
+
 namespace i18n {
 
 bool InitializeICUDirectory(const char* icu_data_path) {
   if (icu_data_path != nullptr) {
+    flag_icu_data_dir = true;
     u_setDataDirectory(icu_data_path);
     return true;  // no error
   } else {
