@@ -172,6 +172,9 @@ struct MaybeBoolFlag {
 //
 #define FLAG FLAG_FULL
 
+DEFINE_BOOL(warn_template_set, true,
+            "warn on deprecated v8::Template::Set() use")
+
 DEFINE_BOOL(experimental_extras, false,
             "enable code compiled in via v8_experimental_extra_library_files")
 

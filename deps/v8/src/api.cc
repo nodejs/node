@@ -1031,6 +1031,16 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
       i::Handle<i::FunctionTemplateInfo>::cast(templ)->set_do_not_cache(true);
     }
   }
+  if (i::FLAG_warn_template_set &&
+      value_obj->IsJSReceiver() &&
+      !value_obj->IsTemplateInfo()) {
+    base::OS::PrintError(
+        "(node) v8::%sTemplate::Set() with non-primitive values is deprecated\n"
+        "(node) and will stop working in the next major release.\n",
+        templ->IsFunctionTemplateInfo() ? "Function" : "Object");
+    isolate->PrintStack(stderr, i::Isolate::kPrintStackConcise);
+    base::DumpBacktrace();
+  }
   i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
                                  value_obj,
                                  static_cast<i::PropertyAttributes>(attribute));
