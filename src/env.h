@@ -54,6 +54,7 @@ namespace node {
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
+  V(bytes_read_string, "bytesRead")                                           \
   V(callback_string, "callback")                                              \
   V(change_string, "change")                                                  \
   V(oncertcb_string, "oncertcb")                                              \
