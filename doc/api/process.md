@@ -375,6 +375,10 @@ An example of the possible output looks like:
 }
 ```
 
+*Note: the `process.config` property is **not** read-only and there are existing
+modules in the ecosystem that are known to extend, modify, or entirely replace
+the value of `process.config`.*
+
 ## process.connected
 
 * {Boolean} Set to false after `process.disconnect()` is called
