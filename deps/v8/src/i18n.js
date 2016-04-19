@@ -1099,11 +1099,19 @@ function initializeNumberFormat(numberFormat, locales, options) {
   var mnid = getNumberOption(options, 'minimumIntegerDigits', 1, 21, 1);
   defineWEProperty(internalOptions, 'minimumIntegerDigits', mnid);
 
-  var mnfd = getNumberOption(options, 'minimumFractionDigits', 0, 20, 0);
-  defineWEProperty(internalOptions, 'minimumFractionDigits', mnfd);
+  var mnfd = options['minimumFractionDigits'];
+  var mxfd = options['maximumFractionDigits'];
+  if (!IS_UNDEFINED(mnfd) || !internalOptions.style === 'currency') {
+    mnfd = getNumberOption(options, 'minimumFractionDigits', 0, 20, 0);
+    defineWEProperty(internalOptions, 'minimumFractionDigits', mnfd);
+  }
 
-  var mxfd = getNumberOption(options, 'maximumFractionDigits', mnfd, 20, 3);
-  defineWEProperty(internalOptions, 'maximumFractionDigits', mxfd);
+  if (!IS_UNDEFINED(mxfd) || !internalOptions.style === 'currency') {
+    mnfd = IS_UNDEFINED(mnfd) ? 0 : mnfd;
+    fallback_limit = (mnfd > 3) ? mnfd : 3;
+    mxfd = getNumberOption(options, 'maximumFractionDigits', mnfd, 20, fallback_limit);
+    defineWEProperty(internalOptions, 'maximumFractionDigits', mxfd);
+  }
 
   var mnsd = options['minimumSignificantDigits'];
   var mxsd = options['maximumSignificantDigits'];
@@ -1157,8 +1165,6 @@ function initializeNumberFormat(numberFormat, locales, options) {
                                       internalOptions,
                                       resolved);
 
-  // We can't get information about number or currency style from ICU, so we
-  // assume user request was fulfilled.
   if (internalOptions.style === 'currency') {
     ObjectDefineProperty(resolved, 'currencyDisplay', {value: currencyDisplay,
                                                        writable: true});
