@@ -16,7 +16,7 @@ assert.strictEqual(ret_err.code, 'ENOENT');
 assert.strictEqual(ret_err.errno, 'ENOENT');
 assert.strictEqual(ret_err.syscall, 'spawnSync command_does_not_exist');
 assert.strictEqual(ret_err.path, 'command_does_not_exist');
-assert.deepEqual(ret_err.spawnargs, ['bar']);
+assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
 
 // Verify that the cwd option works - GH #7824
 (function() {

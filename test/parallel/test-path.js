@@ -586,6 +586,6 @@ assert.equal(path.win32._makeLong(emptyObj), emptyObj);
 
 
 if (common.isWindows)
-  assert.deepEqual(path, path.win32, 'should be win32 path module');
+  assert.deepStrictEqual(path, path.win32, 'should be win32 path module');
 else
-  assert.deepEqual(path, path.posix, 'should be posix path module');
+  assert.deepStrictEqual(path, path.posix, 'should be posix path module');

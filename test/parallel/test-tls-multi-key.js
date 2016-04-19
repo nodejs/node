@@ -43,7 +43,7 @@ var server = tls.createServer(options, function(conn) {
 });
 
 process.on('exit', function() {
-  assert.deepEqual(ciphers, [{
+  assert.deepStrictEqual(ciphers, [{
     name: 'ECDHE-ECDSA-AES256-GCM-SHA384',
     version: 'TLSv1/SSLv3'
   }, {

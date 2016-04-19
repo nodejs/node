@@ -30,13 +30,13 @@ e1.on('removeListener', common.mustCall(function(name, cb) {
   assert.equal(cb, listener1);
 }));
 e1.removeListener('hello', listener1);
-assert.deepEqual([], e1.listeners('hello'));
+assert.deepStrictEqual([], e1.listeners('hello'));
 
 var e2 = new events.EventEmitter();
 e2.on('hello', listener1);
 e2.on('removeListener', common.fail);
 e2.removeListener('hello', listener2);
-assert.deepEqual([listener1], e2.listeners('hello'));
+assert.deepStrictEqual([listener1], e2.listeners('hello'));
 
 var e3 = new events.EventEmitter();
 e3.on('hello', listener1);
@@ -44,17 +44,17 @@ e3.on('hello', listener2);
 e3.once('removeListener', common.mustCall(function(name, cb) {
   assert.equal(name, 'hello');
   assert.equal(cb, listener1);
-  assert.deepEqual([listener2], e3.listeners('hello'));
+  assert.deepStrictEqual([listener2], e3.listeners('hello'));
 }));
 e3.removeListener('hello', listener1);
-assert.deepEqual([listener2], e3.listeners('hello'));
+assert.deepStrictEqual([listener2], e3.listeners('hello'));
 e3.once('removeListener', common.mustCall(function(name, cb) {
   assert.equal(name, 'hello');
   assert.equal(cb, listener2);
-  assert.deepEqual([], e3.listeners('hello'));
+  assert.deepStrictEqual([], e3.listeners('hello'));
 }));
 e3.removeListener('hello', listener2);
-assert.deepEqual([], e3.listeners('hello'));
+assert.deepStrictEqual([], e3.listeners('hello'));
 
 var e4 = new events.EventEmitter();
 e4.on('removeListener', common.mustCall(function(name, cb) {
@@ -72,17 +72,17 @@ e5.on('hello', listener2);
 e5.once('removeListener', common.mustCall(function(name, cb) {
   assert.equal(name, 'hello');
   assert.equal(cb, listener1);
-  assert.deepEqual([listener2], e5.listeners('hello'));
+  assert.deepStrictEqual([listener2], e5.listeners('hello'));
   e5.once('removeListener', common.mustCall(function(name, cb) {
     assert.equal(name, 'hello');
     assert.equal(cb, listener2);
-    assert.deepEqual([], e5.listeners('hello'));
+    assert.deepStrictEqual([], e5.listeners('hello'));
   }));
   e5.removeListener('hello', listener2);
-  assert.deepEqual([], e5.listeners('hello'));
+  assert.deepStrictEqual([], e5.listeners('hello'));
 }));
 e5.removeListener('hello', listener1);
-assert.deepEqual([], e5.listeners('hello'));
+assert.deepStrictEqual([], e5.listeners('hello'));
 
 const e6 = new events.EventEmitter();
 

@@ -32,7 +32,7 @@ else {
     env: envCopy
   });
   child.on('message', common.mustCall(function(recv) {
-    assert.deepEqual(msg, recv);
+    assert.deepStrictEqual(msg, recv);
   }));
   child.on('exit', common.mustCall(function(code) {
     fs.unlinkSync(copyPath);

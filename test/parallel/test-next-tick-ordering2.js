@@ -14,5 +14,5 @@ process.nextTick(function() {
 });
 
 process.on('exit', function() {
-  assert.deepEqual(order, ['nextTick', 'setTimeout']);
+  assert.deepStrictEqual(order, ['nextTick', 'setTimeout']);
 });

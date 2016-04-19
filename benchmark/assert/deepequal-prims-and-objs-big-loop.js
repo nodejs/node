@@ -1,3 +1,4 @@
+/* eslint no-deepEqual: 0 */
 'use strict';
 var common = require('../common.js');
 var assert = require('assert');

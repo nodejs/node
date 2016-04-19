@@ -10,7 +10,7 @@ var expectedHeadersMultipleWrites = {
 
 var expectedHeadersEndWithData = {
   'connection': 'close',
-  'content-length': 'hello world'.length,
+  'content-length': String('hello world'.length)
 };
 
 var expectedHeadersEndNoData = {
@@ -26,16 +26,16 @@ var server = http.createServer(function(req, res) {
 
   switch (req.url.substr(1)) {
     case 'multiple-writes':
-      assert.deepEqual(req.headers, expectedHeadersMultipleWrites);
+      assert.deepStrictEqual(req.headers, expectedHeadersMultipleWrites);
       res.write('hello');
       res.end('world');
       break;
     case 'end-with-data':
-      assert.deepEqual(req.headers, expectedHeadersEndWithData);
+      assert.deepStrictEqual(req.headers, expectedHeadersEndWithData);
       res.end('hello world');
       break;
     case 'empty':
-      assert.deepEqual(req.headers, expectedHeadersEndNoData);
+      assert.deepStrictEqual(req.headers, expectedHeadersEndNoData);
       res.end();
       break;
     default:
@@ -59,7 +59,7 @@ server.listen(common.PORT, function() {
   req.write('hello ');
   req.end('world');
   req.on('response', function(res) {
-    assert.deepEqual(res.headers, expectedHeadersMultipleWrites);
+    assert.deepStrictEqual(res.headers, expectedHeadersMultipleWrites);
   });
 
   req = http.request({
@@ -71,7 +71,7 @@ server.listen(common.PORT, function() {
   req.removeHeader('Host');
   req.end('hello world');
   req.on('response', function(res) {
-    assert.deepEqual(res.headers, expectedHeadersEndWithData);
+    assert.deepStrictEqual(res.headers, expectedHeadersEndWithData);
   });
 
   req = http.request({
@@ -83,7 +83,7 @@ server.listen(common.PORT, function() {
   req.removeHeader('Host');
   req.end();
   req.on('response', function(res) {
-    assert.deepEqual(res.headers, expectedHeadersEndNoData);
+    assert.deepStrictEqual(res.headers, expectedHeadersEndNoData);
   });
 
 });

@@ -29,6 +29,6 @@ child.on('close', function(code) {
     process.exit(1);
   }
 
-  assert.deepEqual(output, outputExpect);
+  assert.deepStrictEqual(output, outputExpect);
   console.log('ok');
 });

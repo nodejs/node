@@ -154,16 +154,18 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.deepEqual(serverResults, [
+  assert.deepStrictEqual(serverResults, [
     { sni: 'a.example.com', authorized: false },
     { sni: 'a.example.com', authorized: true },
     { sni: 'b.example.com', authorized: false },
     { sni: 'c.wrong.com', authorized: false },
     null
   ]);
-  assert.deepEqual(clientResults, [true, true, true, false, false]);
-  assert.deepEqual(clientErrors, [null, null, null, null, 'socket hang up']);
-  assert.deepEqual(serverErrors, [
+  assert.deepStrictEqual(clientResults, [true, true, true, false, false]);
+  assert.deepStrictEqual(clientErrors, [
+    null, null, null, null, 'socket hang up'
+  ]);
+  assert.deepStrictEqual(serverErrors, [
     null, null, null, null, 'Invalid SNI context'
   ]);
 });

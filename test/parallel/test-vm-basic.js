@@ -9,7 +9,7 @@ var result = vm.runInNewContext(
   'foo = "bar"; this.typeofProcess = typeof process; typeof Object;',
   sandbox
 );
-assert.deepEqual(sandbox, {
+assert.deepStrictEqual(sandbox, {
   foo: 'bar',
   typeofProcess: 'undefined',
 });
@@ -22,7 +22,7 @@ result = vm.runInContext(
   'baz = foo; this.typeofProcess = typeof process; typeof Object;',
   context
 );
-assert.deepEqual(sandbox2, {
+assert.deepStrictEqual(sandbox2, {
   foo: 'bar',
   baz: 'bar',
   typeofProcess: 'undefined'
