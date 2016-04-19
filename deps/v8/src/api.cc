@@ -939,6 +939,17 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
   i::Isolate* isolate = templ->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
+  auto value_obj = Utils::OpenHandle(*value);
+  if (i::FLAG_warn_template_set &&
+      value_obj->IsJSReceiver() &&
+      !value_obj->IsTemplateInfo()) {
+    base::OS::PrintError(
+        "(node) v8::%sTemplate::Set() with non-primitive values is deprecated\n"
+        "(node) and will stop working in the next major release.\n",
+        templ->IsFunctionTemplateInfo() ? "Function" : "Object");
+    isolate->PrintStack(stderr, i::Isolate::kPrintStackConcise);
+    base::DumpBacktrace();
+  }
   // TODO(dcarney): split api to allow values of v8::Value or v8::TemplateInfo.
   i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
                                  Utils::OpenHandle(*value),
