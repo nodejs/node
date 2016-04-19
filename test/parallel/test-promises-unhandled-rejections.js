@@ -658,7 +658,7 @@ asyncTest('nextTick is immediately scheduled when called inside an event' +
     });
     setTimeout(function() {
       order.push(2);
-      assert.deepEqual([1, 2], order);
+      assert.deepStrictEqual([1, 2], order);
       done();
     }, 1);
   });

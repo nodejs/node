@@ -48,6 +48,6 @@ process.on('uncaughtException', function() {
 });
 
 process.on('exit', function() {
-  assert.deepEqual(['A', 'B', 'C'], order);
+  assert.deepStrictEqual(['A', 'B', 'C'], order);
 });
 

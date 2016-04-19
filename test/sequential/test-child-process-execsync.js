@@ -41,7 +41,7 @@ cmd = `"${process.execPath}" -e "console.log(\'${msg}\');"`;
 ret = execSync(cmd);
 
 assert.strictEqual(ret.length, msgBuf.length);
-assert.deepEqual(ret, msgBuf, 'execSync result buffer should match');
+assert.deepStrictEqual(ret, msgBuf, 'execSync result buffer should match');
 
 ret = execSync(cmd, { encoding: 'utf8' });
 
@@ -53,7 +53,7 @@ var args = [
 ];
 ret = execFileSync(process.execPath, args);
 
-assert.deepEqual(ret, msgBuf);
+assert.deepStrictEqual(ret, msgBuf);
 
 ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
 

@@ -54,6 +54,6 @@ var expect =
     'yyyyy' ];
 
 r.on('end', function() {
-  assert.deepEqual(seen, expect);
+  assert.deepStrictEqual(seen, expect);
   console.log('ok');
 });
