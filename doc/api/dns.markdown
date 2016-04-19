@@ -168,6 +168,23 @@ corresponding lookup methods.
 On error, `err` is an [`Error`][] object, where `err.code` is
 one of the error codes listed [here](#dns_error_codes).
 
+Returns an `EventEmitter` object that will emit a single `'complete'` event
+on the next next tick of the Node.js event loop (using `setImmediate()`) after
+the resolve operation completes, or an `'error'` event if an error occurs
+while *creating* the resolve request.
+
+For instance, the `dns.setServers()` method will throw an error if called
+while an outstanding `dns.resolve()` operation is still being processed. The
+`'complete'` event, then, can be used to determine when the resolve is
+completely finished so that the `dns.setServers()` call can be invoked:
+
+```js
+dns.resolve('example.com', 'A', (err, addr) => { /** ... **/ })
+   .on('complete', () => {
+     dns.setServers(newServerArray);
+   });
+```
+
 ## dns.resolve4(hostname, callback)
 
 Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
@@ -283,8 +300,8 @@ If a port specified on the address it will be removed.
 
 An error will be thrown if an invalid address is provided.
 
-The `dns.setServers()` method must not be called while a DNS query is in
-progress.
+An error will be thrown if the `dns.setServers()` method is called while a
+DNS query is in progress.
 
 ## Error codes
 
