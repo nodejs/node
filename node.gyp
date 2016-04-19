@@ -124,6 +124,7 @@
         'src/js_stream.cc',
         'src/node.cc',
         'src/node_buffer.cc',
+        'src/node_config.cc',
         'src/node_constants.cc',
         'src/node_contextify.cc',
         'src/node_file.cc',
