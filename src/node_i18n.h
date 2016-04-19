@@ -6,6 +6,9 @@
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
 namespace node {
+
+extern bool flag_icu_data_dir;
+
 namespace i18n {
 
 bool InitializeICUDirectory(const char* icu_data_path);

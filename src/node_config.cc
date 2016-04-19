@@ -1,4 +1,5 @@
 #include "node.h"
+#include "node_i18n.h"
 #include "env.h"
 #include "env-inl.h"
 #include "util.h"
@@ -28,7 +29,18 @@ using v8::ReadOnly;
 void InitConfig(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
-  // Environment* env = Environment::GetCurrent(context);
+  Environment* env = Environment::GetCurrent(context);
+
+#ifdef NODE_HAVE_I18N_SUPPORT
+  READONLY_BOOLEAN_PROPERTY("hasIntl");
+
+#ifdef NODE_HAVE_SMALL_ICU
+  READONLY_BOOLEAN_PROPERTY("hasSmallICU");
+#endif  // NODE_HAVE_SMALL_ICU
+
+  if (flag_icu_data_dir)
+    READONLY_BOOLEAN_PROPERTY("usingICUDataDir");
+#endif  // NODE_HAVE_I18N_SUPPORT
 }
 
 }  // namespace node
