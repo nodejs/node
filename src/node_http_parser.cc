@@ -519,6 +519,26 @@ class Parser : public AsyncWrap {
     args.GetReturnValue().Set(ret);
   }
 
+  static void GetUpgrade(Local<String> property,
+                         const PropertyCallbackInfo<Value>& args) {
+    Parser* parser = Unwrap<Parser>(args.Holder());
+
+    Local<Value> ret = Boolean::New(
+        parser->env()->isolate(),
+        parser->parser_.upgrade);
+
+    args.GetReturnValue().Set(ret);
+  }
+
+  static void SetUpgrade(Local<String> property,
+                         Local<Value> value,
+                         const PropertyCallbackInfo<void>& args) {
+    Parser* parser = Unwrap<Parser>(args.Holder());
+
+    bool upgrade = value->BooleanValue();
+    parser->parser_.upgrade = upgrade;
+  }
+
  protected:
   class ScopedRetainParser {
    public:
@@ -736,6 +756,7 @@ void InitHttpParser(Local<Object> target,
                     void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
+
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"));
 
@@ -770,6 +791,10 @@ void InitHttpParser(Local<Object> target,
   env->SetProtoMethod(t, "consume", Parser::Consume);
   env->SetProtoMethod(t, "unconsume", Parser::Unconsume);
   env->SetProtoMethod(t, "getCurrentBuffer", Parser::GetCurrentBuffer);
+
+  Local<v8::ObjectTemplate> o = t->InstanceTemplate();
+  o->SetAccessor(FIXED_ONE_BYTE_STRING(env->isolate(), "upgrade"),
+                 Parser::GetUpgrade, Parser::SetUpgrade);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"),
               t->GetFunction());
