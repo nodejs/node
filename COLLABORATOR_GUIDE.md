@@ -66,6 +66,12 @@ amongst Collaborators, consensus should be sought if possible. The
 lack of consensus may indicate the need to elevate discussion to the
 CTC for resolution (see below).
 
+When the author of a pull request is another Collaborator, in _most_ cases it
+should be left for them to merge. If the issue has gone stale, the Collaborator
+should first be asked if they are ok with it being merged, as sometimes that is
+not the case. Exceptions for this are frequently made for npm upgrades and
+sometimes critical bug fixes.
+
 All bugfixes require a test case which demonstrates the defect. The
 test should *fail* before the change, and *pass* after the change.
 
