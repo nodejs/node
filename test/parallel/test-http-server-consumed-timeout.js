@@ -10,7 +10,7 @@ const server = http.createServer((req, res) => {
   res.writeHead(200);
   res.flushHeaders();
 
-  req.setTimeout(100, () => {
+  req.setTimeout(200, () => {
     assert(false, 'Should not happen');
   });
   req.resume();
@@ -30,7 +30,7 @@ server.listen(common.PORT, () => {
     setTimeout(() => {
       clearInterval(interval);
       req.end();
-    }, 150);
+    }, 400);
   });
   req.write('.');
 });
