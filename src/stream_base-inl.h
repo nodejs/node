@@ -43,6 +43,13 @@ void StreamBase::AddMethods(Environment* env,
                                      v8::DEFAULT,
                                      attributes);
 
+  t->InstanceTemplate()->SetAccessor(env->bytes_read_string(),
+                                     GetBytesRead<Base>,
+                                     nullptr,
+                                     env->as_external(),
+                                     v8::DEFAULT,
+                                     attributes);
+
   env->SetProtoMethod(t, "readStart", JSMethod<Base, &StreamBase::ReadStart>);
   env->SetProtoMethod(t, "readStop", JSMethod<Base, &StreamBase::ReadStop>);
   if ((flags & kFlagNoShutdown) == 0)
@@ -76,6 +83,16 @@ void StreamBase::GetFD(Local<String> key,
     return args.GetReturnValue().Set(UV_EINVAL);
 
   args.GetReturnValue().Set(wrap->GetFD());
+}
+
+
+template <class Base>
+void StreamBase::GetBytesRead(Local<String> key,
+                              const PropertyCallbackInfo<Value>& args) {
+  StreamBase* wrap = Unwrap<Base>(args.Holder());
+
+  // uint64_t -> double. 53bits is enough for all real cases.
+  args.GetReturnValue().Set(static_cast<double>(wrap->bytes_read_));
 }
 
 
