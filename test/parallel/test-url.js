@@ -927,7 +927,7 @@ var parseTestsWithQueryString = {
     path: '/example',
     href: '/example'
   },
-  '/example?query=value':{
+  '/example?query=value': {
     protocol: null,
     slashes: null,
     auth: null,
@@ -950,6 +950,8 @@ for (const u in parseTestsWithQueryString) {
       expected[i] = null;
     }
   }
+
+  assert.notStrictEqual(Object.getPrototypeOf(actual.query), Object.prototype);
 
   assert.deepEqual(actual, expected);
 }
