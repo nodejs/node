@@ -32,7 +32,7 @@ assert.equal(fs.readFileSync(saveFileName, 'utf8'), testFile.join('\n') + '\n');
 // make sure that the REPL data is "correct"
 // so when I load it back I know I'm good
 testMe.complete('inner.o', function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 });
 
 // clear the REPL
@@ -43,7 +43,7 @@ putIn.run(['.load ' + saveFileName]);
 
 // make sure that the REPL data is "correct"
 testMe.complete('inner.o', function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 });
 
 // clear the REPL

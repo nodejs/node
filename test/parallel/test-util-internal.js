@@ -26,7 +26,7 @@ assert.throws(getHiddenValue(85, 'foo'), /obj must be an object/);
 assert.throws(getHiddenValue({}), /name must be a string/);
 assert.throws(getHiddenValue({}, null), /name must be a string/);
 assert.throws(getHiddenValue({}, []), /name must be a string/);
-assert.deepEqual(internalUtil.getHiddenValue({}, 'foo'), undefined);
+assert.deepStrictEqual(internalUtil.getHiddenValue({}, 'foo'), undefined);
 
 assert.throws(setHiddenValue(), /obj must be an object/);
 assert.throws(setHiddenValue(null, 'foo'), /obj must be an object/);

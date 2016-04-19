@@ -28,5 +28,5 @@ setImmediate(function(x, y, z) {
 process.on('exit', function() {
   assert.ok(immediateA, 'Immediate should happen after normal execution');
   assert.notStrictEqual(immediateB, true, 'immediateB should not fire');
-  assert.deepEqual(immediateC, [1, 2, 3], 'immediateC args should match');
+  assert.deepStrictEqual(immediateC, [1, 2, 3], 'immediateC args should match');
 });

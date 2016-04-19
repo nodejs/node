@@ -15,7 +15,7 @@ enoentChild.on('error', function(err) {
   assert.equal(err.errno, 'ENOENT');
   assert.equal(err.syscall, 'spawn ' + enoentPath);
   assert.equal(err.path, enoentPath);
-  assert.deepEqual(err.spawnargs, spawnargs);
+  assert.deepStrictEqual(err.spawnargs, spawnargs);
   errors++;
 });
 

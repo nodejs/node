@@ -73,7 +73,7 @@ function runTest(highWaterMark, objectMode, produce) {
   function performAsserts() {
     assert(ended);
     assert(oldEnded);
-    assert.deepEqual(written, expected);
+    assert.deepStrictEqual(written, expected);
   }
 }
 

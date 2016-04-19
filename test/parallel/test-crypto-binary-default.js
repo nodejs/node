@@ -363,9 +363,11 @@ assert.equal(a3, '\u00c1(4\u00f1\u0003\u001fd\u0097!O\'\u00d4C/&Qz\u00d4' +
                  '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
              'Test SHA512 as assumed binary');
 
-assert.deepEqual(a4,
-                 Buffer.from('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
-                 'Test SHA1');
+assert.deepStrictEqual(
+  a4,
+  Buffer.from('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
+  'Test SHA1'
+);
 
 // Test multiple updates to same hash
 var h1 = crypto.createHash('sha1').update('Test123').digest('hex');

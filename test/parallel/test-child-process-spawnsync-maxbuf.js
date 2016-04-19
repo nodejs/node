@@ -24,4 +24,4 @@ assert.ok(ret.error, 'maxBuffer should error');
 assert.strictEqual(ret.error.errno, 'ENOBUFS');
 // We can have buffers larger than maxBuffer because underneath we alloc 64k
 // that matches our read sizes
-assert.deepEqual(ret.stdout, msgOutBuf);
+assert.deepStrictEqual(ret.stdout, msgOutBuf);
