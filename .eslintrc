@@ -85,6 +85,7 @@ rules:
   prefer-const: 2
 
   # Custom rules in tools/eslint-rules
+  align-function-arguments: 2
   align-multiline-assignment: 2
   assert-fail-single-argument: 2
   new-with-error: [2, "Error", "RangeError", "TypeError", "SyntaxError", "ReferenceError"]
