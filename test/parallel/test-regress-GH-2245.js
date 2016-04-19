@@ -25,4 +25,4 @@ function test() {
 
 }
 
-assert.deepEqual(test(), {m: 1});
+assert.deepStrictEqual(test(), {m: 1});

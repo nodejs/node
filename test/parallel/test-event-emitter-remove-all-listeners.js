@@ -7,7 +7,7 @@ var events = require('events');
 function expect(expected) {
   var actual = [];
   process.on('exit', function() {
-    assert.deepEqual(actual.sort(), expected.sort());
+    assert.deepStrictEqual(actual.sort(), expected.sort());
   });
   function listener(name) {
     actual.push(name);
@@ -28,14 +28,14 @@ var bazListeners = e1.listeners('baz');
 e1.on('removeListener', expect(['bar', 'baz', 'baz']));
 e1.removeAllListeners('bar');
 e1.removeAllListeners('baz');
-assert.deepEqual(e1.listeners('foo'), [listener]);
-assert.deepEqual(e1.listeners('bar'), []);
-assert.deepEqual(e1.listeners('baz'), []);
+assert.deepStrictEqual(e1.listeners('foo'), [listener]);
+assert.deepStrictEqual(e1.listeners('bar'), []);
+assert.deepStrictEqual(e1.listeners('baz'), []);
 // after calling removeAllListeners,
 // the old listeners array should stay unchanged
-assert.deepEqual(fooListeners, [listener]);
-assert.deepEqual(barListeners, [listener]);
-assert.deepEqual(bazListeners, [listener, listener]);
+assert.deepStrictEqual(fooListeners, [listener]);
+assert.deepStrictEqual(barListeners, [listener]);
+assert.deepStrictEqual(bazListeners, [listener, listener]);
 // after calling removeAllListeners,
 // new listeners arrays are different from the old
 assert.notEqual(e1.listeners('bar'), barListeners);
@@ -49,8 +49,8 @@ e2.on('removeListener', expect(['foo', 'bar', 'removeListener']));
 e2.on('removeListener', expect(['foo', 'bar']));
 e2.removeAllListeners();
 console.error(e2);
-assert.deepEqual([], e2.listeners('foo'));
-assert.deepEqual([], e2.listeners('bar'));
+assert.deepStrictEqual([], e2.listeners('foo'));
+assert.deepStrictEqual([], e2.listeners('bar'));
 
 var e3 = new events.EventEmitter();
 e3.on('removeListener', listener);

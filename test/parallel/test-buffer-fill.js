@@ -140,18 +140,25 @@ testBufs('Yci0Ysi1Y8i2', 12, 1, 'ucs2');
 
 
 // Buffer
+function deepStrictEqualValues(buf, arr) {
+  for (const [index, value] of buf.entries()) {
+    assert.deepStrictEqual(value, arr[index]);
+  }
+}
+
+
 const buf2Fill = Buffer.allocUnsafe(1).fill(2);
-assert.deepEqual(genBuffer(4, [buf2Fill]), [2, 2, 2, 2]);
-assert.deepEqual(genBuffer(4, [buf2Fill, 1]), [0, 2, 2, 2]);
-assert.deepEqual(genBuffer(4, [buf2Fill, 1, 3]), [0, 2, 2, 0]);
-assert.deepEqual(genBuffer(4, [buf2Fill, 1, 1]), [0, 0, 0, 0]);
-assert.deepEqual(genBuffer(4, [buf2Fill, 1, -1]), [0, 0, 0, 0]);
+deepStrictEqualValues(genBuffer(4, [buf2Fill]), [2, 2, 2, 2]);
+deepStrictEqualValues(genBuffer(4, [buf2Fill, 1]), [0, 2, 2, 2]);
+deepStrictEqualValues(genBuffer(4, [buf2Fill, 1, 3]), [0, 2, 2, 0]);
+deepStrictEqualValues(genBuffer(4, [buf2Fill, 1, 1]), [0, 0, 0, 0]);
+deepStrictEqualValues(genBuffer(4, [buf2Fill, 1, -1]), [0, 0, 0, 0]);
 const hexBufFill = Buffer.allocUnsafe(2).fill(0).fill('0102', 'hex');
-assert.deepEqual(genBuffer(4, [hexBufFill]), [1, 2, 1, 2]);
-assert.deepEqual(genBuffer(4, [hexBufFill, 1]), [0, 1, 2, 1]);
-assert.deepEqual(genBuffer(4, [hexBufFill, 1, 3]), [0, 1, 2, 0]);
-assert.deepEqual(genBuffer(4, [hexBufFill, 1, 1]), [0, 0, 0, 0]);
-assert.deepEqual(genBuffer(4, [hexBufFill, 1, -1]), [0, 0, 0, 0]);
+deepStrictEqualValues(genBuffer(4, [hexBufFill]), [1, 2, 1, 2]);
+deepStrictEqualValues(genBuffer(4, [hexBufFill, 1]), [0, 1, 2, 1]);
+deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, 3]), [0, 1, 2, 0]);
+deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, 1]), [0, 0, 0, 0]);
+deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, -1]), [0, 0, 0, 0]);
 
 
 // Check exceptions

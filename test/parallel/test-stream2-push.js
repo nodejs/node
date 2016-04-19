@@ -103,7 +103,7 @@ function data() {
 
 function finish() {
   console.error('finish');
-  assert.deepEqual(written, expectWritten);
+  assert.deepStrictEqual(written, expectWritten);
   console.log('ok');
 }
 

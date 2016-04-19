@@ -84,8 +84,8 @@ function nextTest() {
                      'testing');
         assert.equal(response.headers['x-test-array-header'],
                      [1, 2, 3].join(', '));
-        assert.deepEqual(cookies,
-                         response.headers['set-cookie']);
+        assert.deepStrictEqual(cookies,
+                               response.headers['set-cookie']);
         assert.equal(response.headers['x-test-header2'] !== undefined, false);
         // Make the next request
         test = 'contentLength';

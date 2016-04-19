@@ -11,7 +11,7 @@ var keys = [
   'total_heap_size_executable',
   'total_physical_size',
   'used_heap_size'];
-assert.deepEqual(Object.keys(s).sort(), keys);
+assert.deepStrictEqual(Object.keys(s).sort(), keys);
 keys.forEach(function(key) {
   assert.equal(typeof s[key], 'number');
 });
@@ -26,7 +26,7 @@ const expectedHeapSpaces = [
 ];
 const heapSpaceStatistics = v8.getHeapSpaceStatistics();
 const actualHeapSpaceNames = heapSpaceStatistics.map((s) => s.space_name);
-assert.deepEqual(actualHeapSpaceNames.sort(), expectedHeapSpaces.sort());
+assert.deepStrictEqual(actualHeapSpaceNames.sort(), expectedHeapSpaces.sort());
 heapSpaceStatistics.forEach((heapSpace) => {
   assert.strictEqual(typeof heapSpace.space_name, 'string');
   assert.strictEqual(typeof heapSpace.space_size, 'number');

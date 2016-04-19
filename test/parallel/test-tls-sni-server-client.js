@@ -109,9 +109,9 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.deepEqual(serverResults, [
+  assert.deepStrictEqual(serverResults, [
     'a.example.com', 'b.test.com', 'a.b.test.com', 'c.wrong.com',
     'chain.example.com'
   ]);
-  assert.deepEqual(clientResults, [true, true, false, false, true]);
+  assert.deepStrictEqual(clientResults, [true, true, false, false, true]);
 });

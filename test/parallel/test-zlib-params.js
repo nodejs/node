@@ -30,5 +30,5 @@ deflater.write(chunk1, function() {
 });
 
 process.once('exit', function() {
-  assert.deepEqual(actual, expected);
+  assert.deepStrictEqual(actual, expected);
 });

@@ -34,7 +34,7 @@ var proxy = http.createServer(function(req, res) {
 
     assert.equal('world', proxy_res.headers['hello']);
     assert.equal('text/plain', proxy_res.headers['content-type']);
-    assert.deepEqual(cookies, proxy_res.headers['set-cookie']);
+    assert.deepStrictEqual(cookies, proxy_res.headers['set-cookie']);
 
     res.writeHead(proxy_res.statusCode, proxy_res.headers);
 
@@ -65,7 +65,7 @@ function startReq() {
 
     assert.equal('world', res.headers['hello']);
     assert.equal('text/plain', res.headers['content-type']);
-    assert.deepEqual(cookies, res.headers['set-cookie']);
+    assert.deepStrictEqual(cookies, res.headers['set-cookie']);
 
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body += chunk; });

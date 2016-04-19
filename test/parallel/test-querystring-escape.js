@@ -4,10 +4,10 @@ const assert = require('assert');
 
 const qs = require('querystring');
 
-assert.deepEqual(qs.escape(5), '5');
-assert.deepEqual(qs.escape('test'), 'test');
-assert.deepEqual(qs.escape({}), '%5Bobject%20Object%5D');
-assert.deepEqual(qs.escape([5, 10]), '5%2C10');
+assert.deepStrictEqual(qs.escape(5), '5');
+assert.deepStrictEqual(qs.escape('test'), 'test');
+assert.deepStrictEqual(qs.escape({}), '%5Bobject%20Object%5D');
+assert.deepStrictEqual(qs.escape([5, 10]), '5%2C10');
 
 // using toString for objects
 assert.strictEqual(

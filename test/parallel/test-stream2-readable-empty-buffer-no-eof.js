@@ -64,7 +64,7 @@ function test1() {
   flow();
 
   process.on('exit', function() {
-    assert.deepEqual(results, [ 'xxxxx', 'xxxxx', 'EOF' ]);
+    assert.deepStrictEqual(results, [ 'xxxxx', 'xxxxx', 'EOF' ]);
     console.log('ok');
   });
 }
@@ -92,7 +92,7 @@ function test2() {
   flow();
 
   process.on('exit', function() {
-    assert.deepEqual(results, [ 'eHh4', 'eHg=', 'EOF' ]);
+    assert.deepStrictEqual(results, [ 'eHh4', 'eHg=', 'EOF' ]);
     console.log('ok');
   });
 }

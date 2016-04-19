@@ -32,7 +32,7 @@ if (process.argv[2] === 'child') {
   });
 
   process.on('exit', function() {
-    assert.deepEqual(gotNormal, normal);
-    assert.deepEqual(gotInternal, internal);
+    assert.deepStrictEqual(gotNormal, normal);
+    assert.deepStrictEqual(gotInternal, internal);
   });
 }
