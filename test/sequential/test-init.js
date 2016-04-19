@@ -16,24 +16,24 @@
     envCopy.TEST_INIT = 1;
 
     child.exec('"' + process.execPath + '" test-init', {env: envCopy},
-        function(err, stdout, stderr) {
-          assert.equal(stdout, 'Loaded successfully!',
-                       '`node test-init` failed!');
-        });
+               function(err, stdout, stderr) {
+                 assert.equal(stdout, 'Loaded successfully!',
+                              '`node test-init` failed!');
+               });
     child.exec('"' + process.execPath + '" test-init.js', {env: envCopy},
-        function(err, stdout, stderr) {
-          assert.equal(stdout, 'Loaded successfully!',
-                       '`node test-init.js` failed!');
-        });
+               function(err, stdout, stderr) {
+                 assert.equal(stdout, 'Loaded successfully!',
+                              '`node test-init.js` failed!');
+               });
 
     // test-init-index is in fixtures dir as requested by ry, so go there
     process.chdir(common.fixturesDir);
 
     child.exec('"' + process.execPath + '" test-init-index', {env: envCopy},
-        function(err, stdout, stderr) {
-          assert.equal(stdout, 'Loaded successfully!',
-                       '`node test-init-index failed!');
-        });
+               function(err, stdout, stderr) {
+                 assert.equal(stdout, 'Loaded successfully!',
+                              '`node test-init-index failed!');
+               });
 
     // ensures that `node fs` does not mistakenly load the native 'fs' module
     // instead of the desired file and that the fs module loads as
@@ -41,9 +41,9 @@
     process.chdir(common.fixturesDir + '/test-init-native/');
 
     child.exec('"' + process.execPath + '" fs', {env: envCopy},
-        function(err, stdout, stderr) {
-          assert.equal(stdout, 'fs loaded successfully',
-                       '`node fs` failed!');
-        });
+               function(err, stdout, stderr) {
+                 assert.equal(stdout, 'fs loaded successfully',
+                              '`node fs` failed!');
+               });
   }
 })();

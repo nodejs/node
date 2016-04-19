@@ -6,14 +6,20 @@ const fs = require('fs');
 const exec = require('child_process').exec;
 const spawn = require('child_process').spawn;
 
-const linkTarget = path.join(common.fixturesDir,
-  '/module-require-symlink/node_modules/dep2/');
+const linkTarget = path.join(
+  common.fixturesDir,
+  '/module-require-symlink/node_modules/dep2/'
+);
 
-const linkDir = path.join(common.fixturesDir,
-  '/module-require-symlink/node_modules/dep1/node_modules/dep2');
+const linkDir = path.join(
+  common.fixturesDir,
+  '/module-require-symlink/node_modules/dep1/node_modules/dep2'
+);
 
-const linkScriptTarget = path.join(common.fixturesDir,
-  '/module-require-symlink/symlinked.js');
+const linkScriptTarget = path.join(
+  common.fixturesDir,
+  '/module-require-symlink/symlinked.js'
+);
 
 const linkScript = path.join(common.tmpDir, 'module-require-symlink.js');
 

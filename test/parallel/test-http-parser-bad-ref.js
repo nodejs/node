@@ -76,7 +76,8 @@ demoBug('POST /1', '/22 HTTP/1.1\r\n' +
         'pong');
 
 demoBug('POST /1/22 HTTP/1.1\r\n' +
-        'Content-Type: tex', 't/plain\r\n' +
+        'Content-Type: tex',
+        't/plain\r\n' +
         'Content-Length: 4\r\n\r\n' +
         'pong');
 

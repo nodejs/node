@@ -81,43 +81,54 @@ assert.equal(Buffer.from('ff').indexOf(Buffer.from('f'), 1, 'ucs2'), -1);
 // test hex encoding
 assert.equal(
     Buffer.from(b.toString('hex'), 'hex')
-    .indexOf('64', 0, 'hex'), 3);
+    .indexOf('64', 0, 'hex'),
+    3);
 assert.equal(
     Buffer.from(b.toString('hex'), 'hex')
-    .indexOf(Buffer.from('64', 'hex'), 0, 'hex'), 3);
+    .indexOf(Buffer.from('64', 'hex'), 0, 'hex'),
+    3);
 
 // test base64 encoding
 assert.equal(
     Buffer.from(b.toString('base64'), 'base64')
-    .indexOf('ZA==', 0, 'base64'), 3);
+    .indexOf('ZA==', 0, 'base64'),
+    3);
 assert.equal(
     Buffer.from(b.toString('base64'), 'base64')
-    .indexOf(Buffer.from('ZA==', 'base64'), 0, 'base64'), 3);
+    .indexOf(Buffer.from('ZA==', 'base64'), 0, 'base64'),
+    3);
 
 // test ascii encoding
 assert.equal(
     Buffer.from(b.toString('ascii'), 'ascii')
-    .indexOf('d', 0, 'ascii'), 3);
+    .indexOf('d', 0, 'ascii'),
+    3);
 assert.equal(
     Buffer.from(b.toString('ascii'), 'ascii')
-    .indexOf(Buffer.from('d', 'ascii'), 0, 'ascii'), 3);
+    .indexOf(Buffer.from('d', 'ascii'), 0, 'ascii'),
+    3);
 
 // test binary encoding
 assert.equal(
     Buffer.from(b.toString('binary'), 'binary')
-    .indexOf('d', 0, 'binary'), 3);
+    .indexOf('d', 0, 'binary'),
+    3);
 assert.equal(
     Buffer.from(b.toString('binary'), 'binary')
-    .indexOf(Buffer.from('d', 'binary'), 0, 'binary'), 3);
+    .indexOf(Buffer.from('d', 'binary'), 0, 'binary'),
+    3);
 assert.equal(
     Buffer.from('aa\u00e8aa', 'binary')
-    .indexOf('\u00e8', 'binary'), 2);
+    .indexOf('\u00e8', 'binary'),
+    2);
 assert.equal(
     Buffer.from('\u00e8', 'binary')
-    .indexOf('\u00e8', 'binary'), 0);
+    .indexOf('\u00e8', 'binary'),
+    0);
 assert.equal(
     Buffer.from('\u00e8', 'binary')
-    .indexOf(Buffer.from('\u00e8', 'binary'), 'binary'), 0);
+    .indexOf(Buffer.from('\u00e8', 'binary'), 'binary'),
+    0);
 
 
 // test optional offset with passed encoding

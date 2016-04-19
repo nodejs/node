@@ -26,7 +26,7 @@ vals.forEach(function(t) {
   assert.equal(t.constructor, T);
   assert.equal(Object.getPrototypeOf(t), T.prototype);
   assert.equal(Object.getPrototypeOf(Object.getPrototypeOf(t)),
-    Buffer.prototype);
+               Buffer.prototype);
 
   t.fill(5);
   let cntr = 0;

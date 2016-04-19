@@ -121,7 +121,7 @@ if (process.argv[2] === 'child') {
         if (!options.useTryCatch && options.throwInDomainErrHandler) {
           if (cmdLineOption === '--abort_on_uncaught_exception') {
             assert(common.nodeProcessAborted(exitCode, signal),
-              'process should have aborted, but did not');
+                   'process should have aborted, but did not');
           } else {
             // By default, uncaught exceptions make node exit with an exit
             // code of 7.

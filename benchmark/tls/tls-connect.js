@@ -42,16 +42,18 @@ function onConnection(conn) {
 }
 
 function makeConnection() {
-  var conn = tls.connect({ port: common.PORT,
-                           rejectUnauthorized: false }, function() {
-    clientConn++;
-    conn.on('error', function(er) {
-      console.error('client error', er);
-      throw er;
-    });
-    conn.end();
-    if (running) makeConnection();
-  });
+  var conn = tls.connect(
+    { port: common.PORT, rejectUnauthorized: false },
+    function() {
+      clientConn++;
+      conn.on('error', function(er) {
+        console.error('client error', er);
+        throw er;
+      });
+      conn.end();
+      if (running) makeConnection();
+    }
+  );
 }
 
 function done() {

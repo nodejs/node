@@ -29,7 +29,7 @@ assert.doesNotThrow(makeBlock(a.ok, true),
 assert.doesNotThrow(makeBlock(a.ok, 'test'), 'ok(\'test\')');
 
 assert.throws(makeBlock(a.equal, true, false),
-                a.AssertionError, 'equal(true, false)');
+              a.AssertionError, 'equal(true, false)');
 
 assert.doesNotThrow(makeBlock(a.equal, null, null),
                     'equal(null, null)');
@@ -61,9 +61,10 @@ assert.doesNotThrow(makeBlock(a.notStrictEqual, 2, '2'),
 
 // deepEquals joy!
 // 7.2
-assert.doesNotThrow(makeBlock(a.deepEqual, new Date(2000, 3, 14),
-                    new Date(2000, 3, 14)),
-                    'deepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))');
+assert.doesNotThrow(
+  makeBlock(a.deepEqual, new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  'deepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
 
 assert.throws(makeBlock(a.deepEqual, new Date(), new Date(2000, 3, 14)),
               a.AssertionError,
@@ -163,10 +164,10 @@ assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}),
                     a.AssertionError);
 
 //deepStrictEqual
-assert.doesNotThrow(makeBlock(a.deepStrictEqual, new Date(2000, 3, 14),
-                    new Date(2000, 3, 14)),
-                    'deepStrictEqual(new Date(2000, 3, 14),\
-                    new Date(2000, 3, 14))');
+assert.doesNotThrow(
+  makeBlock(a.deepStrictEqual, new Date(2000, 3, 14), new Date(2000, 3, 14)),
+  'deepStrictEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))'
+);
 
 assert.throws(makeBlock(a.deepStrictEqual, new Date(), new Date(2000, 3, 14)),
               a.AssertionError,
@@ -331,10 +332,13 @@ assert.throws(function() {assert.ifError(new Error('test error'));});
 assert.doesNotThrow(function() {assert.ifError(null);});
 assert.doesNotThrow(function() {assert.ifError();});
 
-assert.throws(() => {
-  assert.doesNotThrow(makeBlock(thrower, Error), 'user message');
-}, /Got unwanted exception. user message/,
-   'a.doesNotThrow ignores user message');
+assert.throws(
+  () => {
+    assert.doesNotThrow(makeBlock(thrower, Error), 'user message');
+  },
+  /Got unwanted exception. user message/,
+  'a.doesNotThrow ignores user message'
+);
 
 // make sure that validating using constructor really works
 threw = false;
@@ -376,7 +380,7 @@ try {
 } catch (e) {
   threw = true;
   assert(e instanceof AnotherErrorType,
-    `expected AnotherErrorType, received ${e}`);
+         `expected AnotherErrorType, received ${e}`);
 }
 
 assert.ok(threw);
@@ -410,7 +414,7 @@ function testAssertionMessage(actual, expected) {
     assert.equal(actual, '');
   } catch (e) {
     assert.equal(e.toString(),
-        ['AssertionError:', expected, '==', '\'\''].join(' '));
+                 ['AssertionError:', expected, '==', '\'\''].join(' '));
     assert.ok(e.generatedMessage, 'Message not marked as generated');
   }
 }
@@ -436,7 +440,7 @@ testAssertionMessage({}, '{}');
 testAssertionMessage(circular, '{ y: 1, x: [Circular] }');
 testAssertionMessage({a: undefined, b: null}, '{ a: undefined, b: null }');
 testAssertionMessage({a: NaN, b: Infinity, c: -Infinity},
-    '{ a: NaN, b: Infinity, c: -Infinity }');
+                     '{ a: NaN, b: Infinity, c: -Infinity }');
 
 // #2893
 try {
@@ -462,7 +466,7 @@ try {
 } catch (e) {
   assert.equal(e.toString().split('\n')[0], 'AssertionError: oh no');
   assert.equal(e.generatedMessage, false,
-              'Message incorrectly marked as generated');
+               'Message incorrectly marked as generated');
 }
 
 // Verify that throws() and doesNotThrow() throw on non-function block

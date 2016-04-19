@@ -490,8 +490,8 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
   {
     const f = Buffer.from('привет', encoding);
     console.error('f.length: %d     (should be 12)', f.length);
-    assert.deepStrictEqual(f,
-      Buffer.from([63, 4, 64, 4, 56, 4, 50, 4, 53, 4, 66, 4]));
+    const expected = Buffer.from([63, 4, 64, 4, 56, 4, 50, 4, 53, 4, 66, 4]);
+    assert.deepStrictEqual(f, expected);
     assert.equal(f.toString(encoding), 'привет');
   }
 
@@ -645,18 +645,30 @@ assert.equal(Buffer.from('KioqKioqKioqKioqKioqKioqKio', 'base64').toString(),
              '********************');
 
 // handle padding graciously, multiple-of-4 or not
-assert.equal(Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==',
-                        'base64').length, 32);
-assert.equal(Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw=',
-                        'base64').length, 32);
-assert.equal(Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw',
-                        'base64').length, 32);
-assert.equal(Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==',
-                        'base64').length, 31);
-assert.equal(Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=',
-                        'base64').length, 31);
-assert.equal(Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg',
-                        'base64').length, 31);
+assert.equal(
+  Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==', 'base64').length,
+  32
+);
+assert.equal(
+  Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw=', 'base64').length,
+  32
+);
+assert.equal(
+  Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw', 'base64').length,
+  32
+);
+assert.equal(
+  Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==', 'base64').length,
+  31
+);
+assert.equal(
+  Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=', 'base64').length,
+  31
+);
+assert.equal(
+  Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg', 'base64').length,
+  31
+);
 
 // This string encodes single '.' character in UTF-16
 var dot = Buffer.from('//4uAA==', 'base64');
@@ -1131,16 +1143,16 @@ assert.throws(function() {
   var buf = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
 
   assert.equal(buf['readUInt' + bits + 'BE'](0),
-                (0xFFFFFFFF >>> (32 - bits)));
+               0xFFFFFFFF >>> (32 - bits));
 
   assert.equal(buf['readUInt' + bits + 'LE'](0),
-                (0xFFFFFFFF >>> (32 - bits)));
+               0xFFFFFFFF >>> (32 - bits));
 
   assert.equal(buf['readInt' + bits + 'BE'](0),
-                (0xFFFFFFFF >> (32 - bits)));
+               0xFFFFFFFF >> (32 - bits));
 
   assert.equal(buf['readInt' + bits + 'LE'](0),
-                (0xFFFFFFFF >> (32 - bits)));
+               0xFFFFFFFF >> (32 - bits));
 });
 
 // test for common read(U)IntLE/BE

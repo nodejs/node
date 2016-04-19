@@ -62,7 +62,8 @@ for (var i in TEST_CASES) {
 
   (function() {
     var encrypt = crypto.createCipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                        Buffer.from(test.key, 'hex'),
+                                        Buffer.from(test.iv, 'hex'));
     if (test.aad)
       encrypt.setAAD(Buffer.from(test.aad, 'hex'));
     var hex = encrypt.update(test.plain, 'ascii', 'hex');
@@ -77,7 +78,8 @@ for (var i in TEST_CASES) {
 
   (function() {
     var decrypt = crypto.createDecipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                          Buffer.from(test.key, 'hex'),
+                                          Buffer.from(test.iv, 'hex'));
     decrypt.setAuthTag(Buffer.from(test.tag, 'hex'));
     if (test.aad)
       decrypt.setAAD(Buffer.from(test.aad, 'hex'));
@@ -144,18 +146,21 @@ for (var i in TEST_CASES) {
   (function() {
     // non-authenticating mode:
     var encrypt = crypto.createCipheriv('aes-128-cbc',
-      'ipxp9a6i1Mb4USb4', '6fKjEjR3Vl30EUYC');
+                                        'ipxp9a6i1Mb4USb4', '6fKjEjR3Vl30EUYC');
     encrypt.update('blah', 'ascii');
     encrypt.final();
     assert.throws(function() { encrypt.getAuthTag(); }, / state/);
-    assert.throws(function() {
-      encrypt.setAAD(Buffer.from('123', 'ascii')); }, / state/);
+    assert.throws(
+      function() {
+        encrypt.setAAD(Buffer.from('123', 'ascii'));
+      }, / state/);
   })();
 
   (function() {
     // trying to get tag before inputting all data:
     var encrypt = crypto.createCipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                        Buffer.from(test.key, 'hex'),
+                                        Buffer.from(test.iv, 'hex'));
     encrypt.update('blah', 'ascii');
     assert.throws(function() { encrypt.getAuthTag(); }, / state/);
   })();
@@ -163,15 +168,19 @@ for (var i in TEST_CASES) {
   (function() {
     // trying to set tag on encryption object:
     var encrypt = crypto.createCipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
-    assert.throws(function() {
-      encrypt.setAuthTag(Buffer.from(test.tag, 'hex')); }, / state/);
+                                        Buffer.from(test.key, 'hex'),
+                                        Buffer.from(test.iv, 'hex'));
+    assert.throws(
+      function() {
+        encrypt.setAuthTag(Buffer.from(test.tag, 'hex'));
+      }, / state/);
   })();
 
   (function() {
     // trying to read tag from decryption object:
     var decrypt = crypto.createDecipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                          Buffer.from(test.key, 'hex'),
+                                          Buffer.from(test.iv, 'hex'));
     assert.throws(function() { decrypt.getAuthTag(); }, / state/);
   })();
 }

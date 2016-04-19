@@ -643,18 +643,30 @@ assert.equal(new Buffer('KioqKioqKioqKioqKioqKioqKio', 'base64').toString(),
              '********************');
 
 // handle padding graciously, multiple-of-4 or not
-assert.equal(new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==',
-                        'base64').length, 32);
-assert.equal(new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw=',
-                        'base64').length, 32);
-assert.equal(new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw',
-                        'base64').length, 32);
-assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==',
-                        'base64').length, 31);
-assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=',
-                        'base64').length, 31);
-assert.equal(new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg',
-                        'base64').length, 31);
+assert.equal(
+  new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==', 'base64').length,
+  32
+);
+assert.equal(
+  new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw=', 'base64').length,
+  32
+);
+assert.equal(
+  new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw', 'base64').length,
+  32
+);
+assert.equal(
+  new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==', 'base64').length,
+  31
+);
+assert.equal(
+  new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=', 'base64').length,
+  31
+);
+assert.equal(
+  new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg', 'base64').length,
+  31
+);
 
 // This string encodes single '.' character in UTF-16
 var dot = new Buffer('//4uAA==', 'base64');
@@ -1134,16 +1146,16 @@ assert.throws(function() {
   var buf = new Buffer([0xFF, 0xFF, 0xFF, 0xFF]);
 
   assert.equal(buf['readUInt' + bits + 'BE'](0),
-                (0xFFFFFFFF >>> (32 - bits)));
+               0xFFFFFFFF >>> (32 - bits));
 
   assert.equal(buf['readUInt' + bits + 'LE'](0),
-                (0xFFFFFFFF >>> (32 - bits)));
+               0xFFFFFFFF >>> (32 - bits));
 
   assert.equal(buf['readInt' + bits + 'BE'](0),
-                (0xFFFFFFFF >> (32 - bits)));
+               0xFFFFFFFF >> (32 - bits));
 
   assert.equal(buf['readInt' + bits + 'LE'](0),
-                (0xFFFFFFFF >> (32 - bits)));
+               0xFFFFFFFF >> (32 - bits));
 });
 
 // test for common read(U)IntLE/BE

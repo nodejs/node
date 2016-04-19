@@ -133,8 +133,10 @@ assert.throws(function() {
   //   $ openssl pkcs8 -topk8 -inform PEM -outform PEM -in mykey.pem \
   //     -out private_key.pem -nocrypt;
   //   Then open private_key.pem and change its header and footer.
-  var sha1_privateKey = fs.readFileSync(common.fixturesDir +
-                                        '/test_bad_rsa_privkey.pem', 'ascii');
+  var sha1_privateKey = fs.readFileSync(
+    common.fixturesDir + '/test_bad_rsa_privkey.pem',
+    'ascii'
+  );
   // this would inject errors onto OpenSSL's error stack
   crypto.createSign('sha1').sign(sha1_privateKey);
 }, /asn1 encoding routines:ASN1_CHECK_TLEN:wrong tag/);
