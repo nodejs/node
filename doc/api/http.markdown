@@ -641,6 +641,26 @@ passed as the second parameter to the `'request'` event.
 The response implements the [Writable Stream][] interface. This is an
 [`EventEmitter`][] with the following events:
 
+### Event: 'beforeFlushingHead'
+
+`function (messageHead) {}`
+
+Indicates that the server is about to flush the HTTP headers to the underlying 
+socket. This event can be used for measuring time to first byte or customizing 
+the response headers and status code.
+
+The `messageHead` parameter allows overriding the http response code, message and headers. 
+It includes
+
+* `responseCode` {Number}
+* `responseMessage` {String}
+* `headers` {Object|Array}
+
+The headers member will be either an object of the form
+`{header-names: header value}`
+or an array of the form
+`[['header-name', 'header-value'] ...]`
+
 ### Event: 'close'
 
 `function () { }`
