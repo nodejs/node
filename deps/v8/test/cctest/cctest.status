@@ -615,4 +615,11 @@
   'test-api/InitializeDefaultIsolateOnSecondaryThread1': [PASS, ['mode == debug', FAIL]],
 }],
 
+##############################################################################
+# exclude test issues for which fixes for PPC did not make it into 5.0
+# These should be removed when we upgrade Node.js to use v8 5.1
+['arch == ppc64', {
+  'test-heap/ReleaseOverReservedPages' : [SKIP],
+}],  # 'arch == ppc64''
+
 ]
