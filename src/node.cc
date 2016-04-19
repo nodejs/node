@@ -3229,7 +3229,8 @@ void SetupProcessObject(Environment* env,
 
   // pre-set _events object for faster emit checks
   Local<Object> events_obj = Object::New(env->isolate());
-  events_obj->SetPrototype(env->context(), Null(env->isolate()));
+  maybe = events_obj->SetPrototype(env->context(), Null(env->isolate()));
+  CHECK(maybe.FromJust());
   process->Set(env->events_string(), events_obj);
 }
 
