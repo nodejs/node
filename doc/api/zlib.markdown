@@ -180,6 +180,36 @@ fewer calls to zlib, since it'll be able to process more data in a
 single `write` operation.  So, this is another factor that affects the
 speed, at the cost of memory usage.
 
+## Flushing
+
+Calling [`.flush()`][] on a compression stream will make zlib return as much
+output as currently possible. This may come at the cost of degraded compression
+quality, but can be useful when data needs to be available as soon as possible.
+
+In the following example, `flush()` is used to write a compressed partial
+HTTP response to the client:
+```js
+const zlib = require('zlib');
+const http = require('http');
+
+http.createServer((request, response) => {
+  // For the sake of simplicity, the Accept-Encoding checks are omitted.
+  response.writeHead(200, { 'content-encoding': 'gzip' });
+  const output = zlib.createGzip();
+  output.pipe(response);
+
+  setInterval(() => {
+    output.write(`The current time is ${Date()}\n`, () => {
+      // The data has been passed to zlib, but the compression algorithm may
+      // have decided to buffer the data for more efficient compression.
+      // Calling .flush() will make the data available as soon as the client
+      // is ready to receive it.
+      output.flush();
+    });
+  }, 1000);
+}).listen(1337);
+```
+
 ## Constants
 
 <!--type=misc-->
@@ -409,4 +439,5 @@ Decompress a Buffer or string with Unzip.
 [Inflate]: #zlib_class_zlib_inflate
 [InflateRaw]: #zlib_class_zlib_inflateraw
 [Unzip]: #zlib_class_zlib_unzip
+[`.flush()`]: #zlib_zlib_flush_kind_callback
 [Buffer]: buffer.html
