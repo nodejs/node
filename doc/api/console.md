@@ -110,7 +110,7 @@ console.assert(false, 'Whoops %s', 'didn\'t work');
 ```
 
 *Note: the `console.assert()` method is implemented differently in Node.js
-than the `console.assert()` method [available in browsers][web-api-assert].* 
+than the `console.assert()` method [available in browsers][web-api-assert].*
 
 Specifically, in browsers, calling `console.assert()` with a falsy
 assertion will cause the `message` to be printed to the console without
