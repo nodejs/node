@@ -73,3 +73,11 @@ assert.ok(/^__proto__: \d+ms$/.test(strings.shift().trim()));
 assert.ok(/^constructor: \d+ms$/.test(strings.shift().trim()));
 assert.ok(/^hasOwnProperty: \d+ms$/.test(strings.shift().trim()));
 assert.equal(strings.length, 0);
+
+assert.throws(() => {
+  console.assert(false, 'should throw');
+}, /should throw/);
+
+assert.doesNotThrow(() => {
+  console.assert(true, 'this should not throw');
+});
