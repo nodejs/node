@@ -9,7 +9,7 @@ If you consistently can reproduce a test failure, search for it in the
 file a new issue.
 
 
-### Unix / Macintosh
+### Unix / OS X
 
 Prerequisites:
 
@@ -17,7 +17,16 @@ Prerequisites:
 * `clang` and `clang++` 3.4 or newer
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
+
+On OS X, you will also need:
+* [Xcode](https://developer.apple.com/xcode/download/)
+  * You also need to install the `Command Line Tools` via Xcode. You can find 
+    this under the menu `Xcode -> Preferences -> Downloads`
+  * This step will install `gcc` and the related toolchain containing `make`
+
+On FreeBSD and OpenBSD, you may also need:
 * libexecinfo (FreeBSD and OpenBSD only)
+
 
 ```text
 $ ./configure
@@ -118,7 +127,7 @@ This option will build with "small" (English only) support, but
 the full `Intl` (ECMA-402) APIs.  With `--download=all` it will
 download the ICU library as needed.
 
-##### Unix / Macintosh:
+##### Unix / OS X:
 
 ```text
 $ ./configure --with-intl=small-icu --download=all
@@ -141,7 +150,7 @@ data at runtime.
 With the `--download=all`, this may download ICU if you don't have an
 ICU in `deps/icu`.
 
-##### Unix / Macintosh:
+##### Unix / OS X:
 
 ```text
 $ ./configure --with-intl=full-icu --download=all
@@ -158,7 +167,7 @@ $ ./configure --with-intl=full-icu --download=all
 The `Intl` object will not be available. This is the default at
 present, so this option is not normally needed.
 
-##### Unix / Macintosh:
+##### Unix / OS X:
 
 ```text
 $ ./configure --with-intl=none
@@ -170,7 +179,7 @@ $ ./configure --with-intl=none
 > vcbuild intl-none
 ```
 
-#### Use existing installed ICU (Unix / Macintosh only):
+#### Use existing installed ICU (Unix / OS X only):
 
 ```text
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
@@ -186,7 +195,7 @@ You can find other ICU releases at
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
 
-##### Unix / Macintosh
+##### Unix / OS X
 
 ```text
 # from an already-unpacked ICU:
