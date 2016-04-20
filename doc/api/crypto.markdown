@@ -236,7 +236,7 @@ var decrypted = '';
 decipher.on('readable', () => {
   var data = decipher.read();
   if (data)
-  decrypted += data.toString('utf8');
+    decrypted += data.toString('utf8');
 });
 decipher.on('end', () => {
   console.log(decrypted);

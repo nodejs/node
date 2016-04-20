@@ -1408,7 +1408,7 @@ var duplex = new stream.Duplex({
     // sets this._write under the hood
 
     // An optional error can be passed as the first argument
-    next()
+    next();
   }
 });
 
@@ -1426,7 +1426,7 @@ var duplex = new stream.Duplex({
     // sets this._writev under the hood
 
     // An optional error can be passed as the first argument
-    next()
+    next();
   }
 });
 ```
@@ -1477,7 +1477,7 @@ var writable = new stream.Writable({
     // sets this._write under the hood
 
     // An optional error can be passed as the first argument
-    next()
+    next();
   }
 });
 
@@ -1488,7 +1488,7 @@ var writable = new stream.Writable({
     // sets this._writev under the hood
 
     // An optional error can be passed as the first argument
-    next()
+    next();
   }
 });
 ```
