@@ -13,10 +13,11 @@ function produce(source, count) {
   if (!count)
     count = 1;
 
-  const out = spawnSync(process.execPath, [ '-p', `
+  const out = spawnSync(process.execPath, [ '-e', `
     var assert = require('assert');
     var vm = require('vm');
 
+    let data;
     for (var i = 0; i < ${count}; i++) {
       var script = new vm.Script(process.argv[1], {
         produceCachedData: true
@@ -25,8 +26,9 @@ function produce(source, count) {
       assert(!script.cachedDataProduced || script.cachedData instanceof Buffer);
 
       if (script.cachedDataProduced)
-        script.cachedData.toString('base64');
+        data = script.cachedData.toString('base64');
     }
+    console.log(data);
   `, source]);
 
   assert.equal(out.status, 0, out.stderr + '');
