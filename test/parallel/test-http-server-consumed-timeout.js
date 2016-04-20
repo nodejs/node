@@ -10,27 +10,27 @@ const server = http.createServer((req, res) => {
   res.writeHead(200);
   res.flushHeaders();
 
-  req.setTimeout(200, () => {
+  req.setTimeout(common.platformTimeout(200), () => {
     assert(false, 'Should not happen');
   });
   req.resume();
-  req.once('end', () => {
+  req.once('end', common.mustCall(() => {
     res.end();
-  });
+  }));
 });
 
-server.listen(common.PORT, () => {
+server.listen(common.PORT, common.mustCall(() => {
   const req = http.request({
     port: common.PORT,
     method: 'POST'
   }, (res) => {
     const interval = setInterval(() => {
       req.write('a');
-    }, 25);
+    }, common.platformTimeout(25));
     setTimeout(() => {
       clearInterval(interval);
       req.end();
-    }, 400);
+    }, common.platformTimeout(400));
   });
   req.write('.');
-});
+}));
