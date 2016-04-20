@@ -372,6 +372,36 @@ srv.listen(1337, '127.0.0.1', () => {
 Marks the request as aborting. Calling this will cause remaining data
 in the response to be dropped and the socket to be destroyed.
 
+### request.addTrailers(headers)
+
+This method adds HTTP trailing headers (a header but at the end of the
+message) to the response.
+
+Trailers will **only** be emitted if chunked encoding is used for the
+response; if it is not (e.g., if the request was HTTP/1.0), they will
+be silently discarded.
+
+Note that HTTP requires the `Trailer` header to be sent if you intend to
+emit trailers, with a list of the header fields in its value.
+
+Example:
+
+```js
+var request = http.request({
+  method: 'POST',
+  headers: {
+    'Content-Type': 'text/plain',
+    'Trailer': 'Content-MD5'
+  }
+});
+request.write(fileData);
+request.addTrailers({'Content-MD5': '7895bf4b8828b55ceaf47747b4bca667'});
+request.end();
+```
+
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
+
 ### request.end([data][, encoding][, callback])
 
 Finishes sending the request. If any parts of the body are
@@ -395,6 +425,49 @@ hard to pack the request headers and data into a single TCP packet.
 That's usually what you want (it saves a TCP round-trip) but not when the first
 data isn't sent until possibly much later.  `request.flushHeaders()` lets you bypass
 the optimization and kickstart the request.
+
+### request.getHeader(name)
+
+Reads out a header that's already been queued but not sent to the client.  Note
+that the name is case insensitive.  This can only be called before headers get
+implicitly flushed.
+
+Example:
+
+```js
+var contentType = request.getHeader('content-type');
+```
+
+### request.removeHeader(name)
+
+Removes a header that's queued for implicit sending.
+
+Example:
+
+```js
+request.removeHeader('Content-Encoding');
+```
+
+### request.setHeader(name, value)
+
+Sets a single header value for implicit headers.  If this header already exists
+in the to-be-sent headers, its value will be replaced.  Use an array of strings
+here if you need to send multiple headers with the same name.
+
+Example:
+
+```js
+request.setHeader('Content-Type', 'text/html');
+```
+
+or
+
+```js
+request.setHeader('Set-Cookie', ['type=ninja', 'language=javascript']);
+```
+
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
 
 ### request.setNoDelay([noDelay])
 
@@ -669,7 +742,9 @@ response; if it is not (e.g., if the request was HTTP/1.0), they will
 be silently discarded.
 
 Note that HTTP requires the `Trailer` header to be sent if you intend to
-emit trailers, with a list of the header fields in its value. E.g.,
+emit trailers, with a list of the header fields in its value.
+
+Example:
 
 ```js
 response.writeHead(200, { 'Content-Type': 'text/plain',
