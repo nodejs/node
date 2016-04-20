@@ -87,6 +87,22 @@ To test the server, connect to it with `openssl s_client -connect address:port`
 and tap `R<CR>` (i.e., the letter `R` followed by a carriage return) a few
 times.
 
+## Use system default OpenSSL configuration
+
+Use the `--openssl-system-conf` command line switch to force Node.js use system
+default configuration for OpenSSL.
+
+```
+node --openssl-system-conf
+```
+
+When Node.js is run with this switch, OpenSSL is initialized with the
+configuration file specified in the OPENSSL_CONF environment variable, and if
+that is not set then a system default configuration file location is used.
+See [OPENSSL_config]
+(https://www.openssl.org/docs/manmaster/crypto/OPENSSL_config.html)
+for defails.
+
 ## Modifying the Default TLS Cipher suite
 
 Node.js is built with a default suite of enabled and disabled TLS ciphers.

@@ -5696,6 +5696,13 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
 
 
 void InitCryptoOnce() {
+#ifdef HAVE_OPENSSL
+  // Use system's openssl.cnf for OpenSSL configuration
+  if (openssl_system_conf) {
+    OPENSSL_config(nullptr);
+  }
+#endif  // HAVE_OPENSSL
+
   SSL_library_init();
   OpenSSL_add_all_algorithms();
   SSL_load_error_strings();

@@ -167,10 +167,14 @@ static const char* icu_data_dir = nullptr;
 // used by C++ modules as well
 bool no_deprecation = false;
 
-#if HAVE_OPENSSL && NODE_FIPS_MODE
+#if HAVE_OPENSSL
+// used by crypto module
+bool openssl_system_conf = false;
+# if NODE_FIPS_MODE
 // used by crypto module
 bool enable_fips_crypto = false;
 bool force_fips_crypto = false;
+# endif
 #endif
 
 // true if process warnings should be suppressed
@@ -3406,6 +3410,8 @@ static void PrintHelp() {
          "  --v8-pool-size=num    set v8's thread pool size\n"
 #if HAVE_OPENSSL
          "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
+         "  --openssl-system-conf use system's openssl.cnf for OpenSSL\n"
+         "                        configuration\n"
 #if NODE_FIPS_MODE
          "  --enable-fips         enable FIPS crypto at startup\n"
          "  --force-fips          force FIPS crypto (cannot be disabled)\n"
@@ -3560,6 +3566,8 @@ static void ParseArgs(int* argc,
 #if HAVE_OPENSSL
     } else if (strncmp(arg, "--tls-cipher-list=", 18) == 0) {
       default_cipher_list = arg + 18;
+    } else if (strcmp(arg, "--openssl-system-conf") == 0) {
+      openssl_system_conf = true;
 #if NODE_FIPS_MODE
     } else if (strcmp(arg, "--enable-fips") == 0) {
       enable_fips_crypto = true;
