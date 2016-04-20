@@ -16,7 +16,7 @@ experimental, and added for the benefit of IDEs and other utilities that
 wish to do programmatic things with the documentation.
 
 Every `.html` and `.json` file is generated based on the corresponding
-`.markdown` file in the `doc/api/` folder in Node.js's source tree.  The
+`.md` file in the `doc/api/` folder in Node.js's source tree.  The
 documentation is generated using the `tools/doc/generate.js` program.
 The HTML template is located at `doc/template.html`.
 

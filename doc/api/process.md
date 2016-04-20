@@ -7,12 +7,12 @@ It is an instance of [`EventEmitter`][].
 
 ## Event: 'beforeExit'
 
-This event is emitted when Node.js empties its event loop and has nothing else 
-to schedule. Normally, Node.js exits when there is no work scheduled, but a 
-listener for `'beforeExit'` can make asynchronous calls, and cause Node.js to 
+This event is emitted when Node.js empties its event loop and has nothing else
+to schedule. Normally, Node.js exits when there is no work scheduled, but a
+listener for `'beforeExit'` can make asynchronous calls, and cause Node.js to
 continue.
 
-`'beforeExit'` is not emitted for conditions causing explicit termination, such 
+`'beforeExit'` is not emitted for conditions causing explicit termination, such
 as [`process.exit()`][] or uncaught exceptions, and should not be used as an
 alternative to the `'exit'` event unless the intention is to schedule more work.
 
@@ -93,7 +93,7 @@ indefinitely) or upon process exit (more convenient for scripts).
 ## Event: 'uncaughtException'
 
 The `'uncaughtException'` event is emitted when an exception bubbles all the
-way back to the event loop. By default, Node.js handles such exceptions by 
+way back to the event loop. By default, Node.js handles such exceptions by
 printing the stack trace to stderr and exiting. Adding a handler for the
 `'uncaughtException'` event overrides this default behavior.
 
@@ -145,7 +145,7 @@ a promise chain. This event is useful for detecting and keeping track of
 promises that were rejected whose rejections were not handled yet. This event
 is emitted with the following arguments:
 
- - `reason` the object with which the promise was rejected (usually an 
+ - `reason` the object with which the promise was rejected (usually an
    [`Error`][] instance).
  - `p` the promise that was rejected.
 
@@ -257,9 +257,9 @@ Note:
 
 - `SIGUSR1` is reserved by Node.js to start the debugger.  It's possible to
   install a listener but that won't stop the debugger from starting.
-- `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that 
-  resets the terminal mode before exiting with code `128 + signal number`. If 
-  one of these signals has a listener installed, its default behavior will be 
+- `SIGTERM` and `SIGINT` have default handlers on non-Windows platforms that
+  resets the terminal mode before exiting with code `128 + signal number`. If
+  one of these signals has a listener installed, its default behavior will be
   removed (Node.js will no longer exit).
 - `SIGPIPE` is ignored by default. It can have a listener installed.
 - `SIGHUP` is generated on Windows when the console window is closed, and on other
@@ -272,11 +272,11 @@ Note:
 - `SIGINT` from the terminal is supported on all platforms, and can usually be
   generated with `CTRL+C` (though this may be configurable). It is not generated
   when terminal raw mode is enabled.
-- `SIGBREAK` is delivered on Windows when `CTRL+BREAK` is pressed, on 
+- `SIGBREAK` is delivered on Windows when `CTRL+BREAK` is pressed, on
   non-Windows
   platforms it can be listened on, but there is no way to send or generate it.
-- `SIGWINCH` is delivered when the console has been resized. On Windows, this 
-  will only happen on write to the console when the cursor is being moved, or 
+- `SIGWINCH` is delivered when the console has been resized. On Windows, this
+  will only happen on write to the console when the cursor is being moved, or
   when a readable tty is used in raw mode.
 - `SIGKILL` cannot have a listener installed, it will unconditionally terminate
   Node.js on all platforms.
