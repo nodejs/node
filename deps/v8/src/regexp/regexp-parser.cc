@@ -358,13 +358,17 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             uc32 p = Next();
             Advance(2);
             if (unicode()) {
-              ZoneList<CharacterRange>* ranges = ParsePropertyClass();
-              if (ranges == nullptr) {
-                return ReportError(CStrVector("Invalid property name"));
+              if (FLAG_harmony_regexp_property) {
+                ZoneList<CharacterRange>* ranges = ParsePropertyClass();
+                if (ranges == nullptr) {
+                  return ReportError(CStrVector("Invalid property name"));
+                }
+                RegExpCharacterClass* cc =
+                    new (zone()) RegExpCharacterClass(ranges, p == 'P');
+                builder->AddCharacterClass(cc);
+              } else {
+                return ReportError(CStrVector("Invalid escape"));
               }
-              RegExpCharacterClass* cc =
-                  new (zone()) RegExpCharacterClass(ranges, p == 'P');
-              builder->AddCharacterClass(cc);
             } else {
               builder->AddCharacter(p);
             }
