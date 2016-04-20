@@ -90,7 +90,7 @@ http.get({
   agent: false  // create a new agent just for this one request
 }, (res) => {
   // Do stuff with response
-})
+});
 ```
 
 ### new Agent([options])
@@ -1452,7 +1452,7 @@ var req = http.request(options, (res) => {
   });
   res.on('end', () => {
     console.log('No more data in response.')
-  })
+  });
 });
 
 req.on('error', (e) => {
