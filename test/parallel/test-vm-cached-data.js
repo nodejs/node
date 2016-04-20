@@ -33,7 +33,7 @@ function produce(source, count) {
 
   assert.equal(out.status, 0, out.stderr + '');
 
-  return new Buffer(out.stdout.toString(), 'base64');
+  return Buffer.from(out.stdout.toString(), 'base64');
 }
 
 function testProduceConsume() {
