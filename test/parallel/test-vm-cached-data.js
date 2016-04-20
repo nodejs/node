@@ -14,10 +14,11 @@ function produce(source, count) {
     count = 1;
 
   const out = spawnSync(process.execPath, [ '-e', `
+    'use strict';
     var assert = require('assert');
     var vm = require('vm');
 
-    let data;
+    var data;
     for (var i = 0; i < ${count}; i++) {
       var script = new vm.Script(process.argv[1], {
         produceCachedData: true
