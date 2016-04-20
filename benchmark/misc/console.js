@@ -114,7 +114,7 @@ function main(conf) {
     case 'restAndConcat':
       if (conf.concat)
         runUsingRestAndConcat(n);
-    break;
+      break;
     default:
       throw new Error('Unexpected method');
   }
