@@ -2,10 +2,12 @@ var common = require('./common');
 var fs = require('fs');
 var path = require('path');
 
+// XP's system default value for PATHEXT system variable, just in case it's not
+// set on Windows.
+var XP_DEFAULT_PATHEXT = '.com;.exe;.bat;.cmd;.vbs;.vbe;.js;.jse;.wsf;.wsh';
+
 // Cross-platform method for splitting environment PATH variables
 function splitPath(p) {
-  for (i=1;i<2;i++) {}
-
   if (!p)
     return [];
 
@@ -16,7 +18,7 @@ function splitPath(p) {
 }
 
 function checkPath(path) {
-  return fs.existsSync(path) && fs.statSync(path).isDirectory() == false;
+  return fs.existsSync(path) && !fs.statSync(path).isDirectory();
 }
 
 //@
@@ -28,7 +30,8 @@ function checkPath(path) {
 //@ var nodeExec = which('node');
 //@ ```
 //@
-//@ Searches for `command` in the system's PATH. On Windows looks for `.exe`, `.cmd`, and `.bat` extensions.
+//@ Searches for `command` in the system's PATH. On Windows, this uses the
+//@ `PATHEXT` variable to append the extension if it's not already executable.
 //@ Returns string containing the absolute path to the command.
 function _which(options, cmd) {
   if (!cmd)
@@ -45,30 +48,42 @@ function _which(options, cmd) {
       if (where)
         return; // already found it
 
-      var attempt = path.resolve(dir + '/' + cmd);
-      if (checkPath(attempt)) {
-        where = attempt;
-        return;
-      }
+      var attempt = path.resolve(dir, cmd);
 
       if (common.platform === 'win') {
+        attempt = attempt.toUpperCase();
+
+        // In case the PATHEXT variable is somehow not set (e.g.
+        // child_process.spawn with an empty environment), use the XP default.
+        var pathExtEnv = process.env.PATHEXT || XP_DEFAULT_PATHEXT;
+        var pathExtArray = splitPath(pathExtEnv.toUpperCase());
+        var i;
+
+        // If the extension is already in PATHEXT, just return that.
+        for (i = 0; i < pathExtArray.length; i++) {
+          var ext = pathExtArray[i];
+          if (attempt.slice(-ext.length) === ext && checkPath(attempt)) {
+            where = attempt;
+            return;
+          }
+        }
+
+        // Cycle through the PATHEXT variable
         var baseAttempt = attempt;
-        attempt = baseAttempt + '.exe';
+        for (i = 0; i < pathExtArray.length; i++) {
+          attempt = baseAttempt + pathExtArray[i];
+          if (checkPath(attempt)) {
+            where = attempt;
+            return;
+          }
+        }
+      } else {
+        // Assume it's Unix-like
         if (checkPath(attempt)) {
           where = attempt;
           return;
         }
-        attempt = baseAttempt + '.cmd';
-        if (checkPath(attempt)) {
-          where = attempt;
-          return;
-        }
-        attempt = baseAttempt + '.bat';
-        if (checkPath(attempt)) {
-          where = attempt;
-          return;
-        }
-      } // if 'win'
+      }
     });
   }
 

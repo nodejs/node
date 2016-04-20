@@ -1,4 +1,4 @@
-# lodash._baseuniq v4.5.0
+# lodash._baseuniq v4.5.1
 
 The internal [lodash](https://lodash.com/) function `baseUniq` exported as a [Node.js](https://nodejs.org/) module.
 
@@ -15,4 +15,4 @@ In Node.js:
 var baseUniq = require('lodash._baseuniq');
 ```
 
-See the [package source](https://github.com/lodash/lodash/blob/4.5.0-npm-packages/lodash._baseuniq) for more details.
+See the [package source](https://github.com/lodash/lodash/blob/4.5.1-npm-packages/lodash._baseuniq) for more details.

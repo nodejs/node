@@ -6,13 +6,13 @@ Applications running in Node.js will generally experience four categories of
 errors:
 
 - Standard JavaScript errors such as:
-  - [`EvalError`][]: thrown when a call to `eval()` fails.
-  - [`SyntaxError`][]: thrown in response to improper JavaScript language
+  - {EvalError} : thrown when a call to `eval()` fails.
+  - {SyntaxError} : thrown in response to improper JavaScript language
     syntax.
-  - [`RangeError`][]: thrown when a value is not within an expected range
-  - [`ReferenceError`][]: thrown when using undefined variables
-  - [`TypeError`][]: thrown when passing arguments of the wrong type
-  - [`URIError`][]: thrown when a global URI handling function is misused.
+  - {RangeError} : thrown when a value is not within an expected range
+  - {ReferenceError} : thrown when using undefined variables
+  - {TypeError} : thrown when passing arguments of the wrong type
+  - {URIError} : thrown when a global URI handling function is misused.
 - System errors triggered by underlying operating system constraints such
   as attempting to open a file that does not exist, attempting to send data
   over a closed socket, etc;
@@ -22,7 +22,7 @@ errors:
   are raised typically by the `assert` module.
 
 All JavaScript and System errors raised by Node.js inherit from, or are
-instances of, the standard JavaScript [`Error`][] class and are guaranteed
+instances of, the standard JavaScript {Error} class and are guaranteed
 to provide *at least* the properties available on that class.
 
 ## Error Propagation and Interception
@@ -36,7 +36,7 @@ called.
 
 All JavaScript errors are handled as exceptions that *immediately* generate
 and throw an error using the standard JavaScript `throw` mechanism. These
-are handled using the [`try / catch` construct][] provided by the JavaScript
+are handled using the [`try / catch` construct][try-catch] provided by the JavaScript
 language.
 
 ```js
@@ -105,7 +105,7 @@ pass or fail).
 
 For *all* `EventEmitter` objects, if an `'error'` event handler is not
 provided, the error will be thrown, causing the Node.js process to report an
-unhandled exception and  crash unless either: The [`domain`][] module is used
+unhandled exception and  crash unless either: The [`domain`][domains] module is used
 appropriately or a handler has been registered for the
 [`process.on('uncaughtException')`][] event.
 
@@ -410,7 +410,7 @@ allowable type. For example, passing a function to a parameter which expects a
 string would be considered a TypeError.
 
 ```js
-require('url').parse(function() { });
+require('url').parse(() => { });
   // throws TypeError, since it expected a string
 ```
 
@@ -520,10 +520,7 @@ found [here][online].
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
 
-[`domain`]: domain.html
-[`EvalError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/EvalError
-[`Error`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
-[`fs.readdir`]: fs.html#fs_fs_readdir_path_callback
+[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
 [`fs`]: fs.html
@@ -531,18 +528,12 @@ found [here][online].
 [`https`]: https.html
 [`net`]: net.html
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
-[`try / catch` construct]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
-[`try { } catch(err) { }`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [domains]: domain.html
-[event emitter-based]: events.html#events_class_events_eventemitter
+[event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
+[try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [vm]: vm.html
-[`SyntaxError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError
-[`RangeError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RangeError
-[`ReferenceError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ReferenceError
-[`TypeError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError
-[`URIError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/URIError

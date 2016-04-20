@@ -106,16 +106,23 @@ module.exports = function(context) {
 
             // Multiple members of an import declaration should also be sorted alphabetically.
             if (!ignoreMemberSort && node.specifiers.length > 1) {
-                node.specifiers.reduce(function(previousSpecifier, currentSpecifier) {
-                    var currentSpecifierName = currentSpecifier.local.name,
-                        previousSpecifierName = previousSpecifier.local.name;
+                var previousSpecifier = null;
+                var previousSpecifierName = null;
+
+                for (var i = 0; i < node.specifiers.length; ++i) {
+                    var currentSpecifier = node.specifiers[i];
+
+                    if (currentSpecifier.type !== "ImportSpecifier") {
+                        continue;
+                    }
+
+                    var currentSpecifierName = currentSpecifier.local.name;
 
                     if (ignoreCase) {
                         currentSpecifierName = currentSpecifierName.toLowerCase();
-                        previousSpecifierName = previousSpecifierName.toLowerCase();
                     }
 
-                    if (currentSpecifierName < previousSpecifierName) {
+                    if (previousSpecifier && currentSpecifierName < previousSpecifierName) {
                         context.report({
                             node: currentSpecifier,
                             message: "Member '{{memberName}}' of the import declaration should be sorted alphabetically.",
@@ -125,8 +132,9 @@ module.exports = function(context) {
                         });
                     }
 
-                    return currentSpecifier;
-                }, node.specifiers[0]);
+                    previousSpecifier = currentSpecifier;
+                    previousSpecifierName = currentSpecifierName;
+                }
             }
 
             previousDeclaration = node;

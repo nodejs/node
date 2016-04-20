@@ -72,6 +72,7 @@ module.exports = function(context) {
      */
     function isLastNode(node) {
         var token = sourceCode.getTokenAfter(node);
+
         return !token || (token.type === "Punctuator" && token.value === "}");
     }
 
@@ -83,10 +84,12 @@ module.exports = function(context) {
      */
     function hasBlankLineAfterComment(token, commentStartLine) {
         var commentEnd = commentEndLine[commentStartLine];
+
         // If there's another comment, repeat check for blank line
         if (commentEndLine[commentEnd + 1]) {
             return hasBlankLineAfterComment(token, commentEnd + 1);
         }
+
         return (token.loc.start.line > commentEndLine[commentStartLine] + 1);
     }
 

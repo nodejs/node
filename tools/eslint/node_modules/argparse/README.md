@@ -42,6 +42,12 @@ parser.addArgument(
     help: 'bar foo'
   }
 );
+parser.addArgument(
+  '--baz',
+  {
+    help: 'baz bar'
+  }
+);
 var args = parser.parseArgs();
 console.dir(args);
 ```
@@ -50,7 +56,7 @@ Display help:
 
 ```
 $ ./test.js -h
-usage: example.js [-h] [-v] [-f FOO] [-b BAR]
+usage: example.js [-h] [-v] [-f FOO] [-b BAR] [--baz BAZ]
 
 Argparse example
 
@@ -59,13 +65,14 @@ Optional arguments:
   -v, --version      Show program's version number and exit.
   -f FOO, --foo FOO  foo bar
   -b BAR, --bar BAR  bar foo
+  --baz BAZ          baz bar
 ```
 
 Parse arguments:
 
 ```
-$ ./test.js -f=3 --bar=4
-{ foo: '3', bar: '4' }
+$ ./test.js -f=3 --bar=4 --baz 5
+{ foo: '3', bar: '4', baz: '5' }
 ```
 
 More [examples](https://github.com/nodeca/argparse/tree/master/examples).
@@ -105,12 +112,15 @@ addArgument() method
 ====================
 
 ```
-ArgumentParser.addArgument([names or flags], {options})
+ArgumentParser.addArgument(name or flag or [name] or [flags...], {options})
 ```
 
 Defines how a single command-line argument should be parsed.
 
-- ```name or flags``` - Either a name or a list of option strings, e.g. foo or -f, --foo.
+- ```name or flag or [name] or [flags...]``` - Either a positional name
+  (e.g., `'foo'`), a single option (e.g., `'-f'` or `'--foo'`), an array
+  of a single positional name (e.g., `['foo']`), or an array of options
+  (e.g., `['-f', '--foo']`).
 
 Options:
 

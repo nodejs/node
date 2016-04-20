@@ -1,11 +1,13 @@
 var lodash = require('./wrapperLodash');
 
 /**
- * Creates a `lodash` object that wraps `value` with explicit method chaining enabled.
- * The result of such method chaining must be unwrapped with `_#value`.
+ * Creates a `lodash` wrapper instance that wraps `value` with explicit method
+ * chain sequences enabled. The result of such sequences must be unwrapped
+ * with `_#value`.
  *
  * @static
  * @memberOf _
+ * @since 1.3.0
  * @category Seq
  * @param {*} value The value to wrap.
  * @returns {Object} Returns the new `lodash` wrapper instance.

@@ -7,6 +7,7 @@ var baseUnset = require('./_baseUnset');
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Object
  * @param {Object} object The object to modify.
  * @param {Array|string} path The path of the property to unset.
@@ -20,7 +21,7 @@ var baseUnset = require('./_baseUnset');
  * console.log(object);
  * // => { 'a': [{ 'b': {} }] };
  *
- * _.unset(object, 'a[0].b.c');
+ * _.unset(object, ['a', '0', 'b', 'c']);
  * // => true
  *
  * console.log(object);

@@ -96,15 +96,20 @@ function same(a, b) {
     switch (a.type) {
         case "Identifier":
             return a.name === b.name;
+
         case "Literal":
             return a.value === b.value;
+
         case "MemberExpression":
+
             // x[0] = x[0]
             // x[y] = x[y]
             // x.y = x.y
             return same(a.object, b.object) && same(a.property, b.property);
+
         case "ThisExpression":
             return true;
+
         default:
             return false;
     }

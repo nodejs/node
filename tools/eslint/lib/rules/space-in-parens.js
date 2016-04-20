@@ -38,6 +38,7 @@ module.exports = function(context) {
     function getExceptions() {
         var openers = [],
             closers = [];
+
         if (options.braceException) {
             openers.push("{");
             closers.push("}");
@@ -189,6 +190,7 @@ module.exports = function(context) {
     return {
         "Program": function checkParenSpaces(node) {
             var tokens, prevToken, nextToken;
+
             exceptions = getExceptions();
             tokens = sourceCode.tokensAndComments;
 
@@ -223,6 +225,7 @@ module.exports = function(context) {
                         }
                     });
                 } else if (token.value === ")" && shouldCloserHaveSpace(prevToken, token)) {
+
                     // context.report(node, token.loc.start, MISSING_SPACE_MESSAGE);
                     context.report({
                         node: node,

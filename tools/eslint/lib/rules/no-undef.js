@@ -17,6 +17,7 @@
  */
 function hasTypeOfOperator(node) {
     var parent = node.parent;
+
     return parent.type === "UnaryExpression" && parent.operator === "typeof";
 }
 

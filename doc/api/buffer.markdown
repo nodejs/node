@@ -1114,8 +1114,8 @@ buf.readUInt8(1);
 * Return: {Number}
 
 Reads an unsigned 16-bit integer from the Buffer at the specified `offset` with
-specified endian format (`readInt32BE()` returns big endian,
-`readInt32LE()` returns little endian).
+specified endian format (`readUInt16BE()` returns big endian,
+`readUInt16LE()` returns little endian).
 
 Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 `offset` to be beyond the end of the Buffer.
@@ -1147,8 +1147,8 @@ buf.readUInt16LE(2);
 * Return: {Number}
 
 Reads an unsigned 32-bit integer from the Buffer at the specified `offset` with
-specified endian format (`readInt32BE()` returns big endian,
-`readInt32LE()` returns little endian).
+specified endian format (`readUInt32BE()` returns big endian,
+`readUInt32LE()` returns little endian).
 
 Setting `noAssert` to `true` skips validation of the `offset`. This allows the
 `offset` to be beyond the end of the Buffer.
@@ -1745,11 +1745,11 @@ console.log(buf);
 [`Array#includes()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
 [`Array#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
 [`buf.entries()`]: #buffer_buf_entries
-[`buf.fill(0)`]: #buffer_buf_fill_value_offset_end
+[`buf.fill(0)`]: #buffer_buf_fill_value_offset_end_encoding
 [`buf.keys()`]: #buffer_buf_keys
 [`buf.slice()`]: #buffer_buf_slice_start_end
 [`buf.values()`]: #buffer_buf_values
-[`buf1.compare(buf2)`]: #buffer_buf_compare_otherbuffer
+[`buf1.compare(buf2)`]: #buffer_buf_compare_target_targetstart_targetend_sourcestart_sourceend
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`RangeError`]: errors.html#errors_class_rangeerror
 [`String.prototype.length`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
@@ -1758,7 +1758,7 @@ console.log(buf);
 [RFC 4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
 [buffer_from_array]: #buffer_class_method_buffer_from_array
 [buffer_from_buffer]: #buffer_class_method_buffer_from_buffer
-[buffer_from_arraybuf]: #buffer_class_method_buffer_from_arraybuffer
+[buffer_from_arraybuf]: #buffer_class_method_buffer_from_arraybuffer_byteoffset_length
 [buffer_from_string]: #buffer_class_method_buffer_from_str_encoding
 [buffer_allocunsafe]: #buffer_class_method_buffer_allocraw_size
 [buffer_alloc]: #buffer_class_method_buffer_alloc_size_fill_encoding

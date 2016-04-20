@@ -10,6 +10,7 @@ var FUNC_ERROR_TEXT = 'Expected a function';
  *
  * @static
  * @memberOf _
+ * @since 3.0.0
  * @category Function
  * @param {number} n The number of calls at which `func` is no longer invoked.
  * @param {Function} func The function to restrict.

@@ -75,6 +75,15 @@ module.exports = function(context) {
     }
 
     /**
+     * Returns whether the number should be ignored when used to define a JSX prop
+     * @param {ASTNode} parent - the non-"UnaryExpression" parent
+     * @returns {boolean} true if the number should be ignored
+     */
+    function shouldIgnoreJSXNumbers(parent) {
+        return parent.type.indexOf("JSX") === 0;
+    }
+
+    /**
      * Returns whether the number should be ignored when used as an array index with enabled 'ignoreArrayIndexes' option.
      * @param {ASTNode} parent - the non-"UnaryExpression" parent.
      * @returns {boolean} true if the number should be ignored
@@ -104,7 +113,8 @@ module.exports = function(context) {
 
             if (shouldIgnoreNumber(value) ||
                 shouldIgnoreParseInt(parent, node) ||
-                shouldIgnoreArrayIndexes(parent)) {
+                shouldIgnoreArrayIndexes(parent) ||
+                shouldIgnoreJSXNumbers(parent)) {
                 return;
             }
 

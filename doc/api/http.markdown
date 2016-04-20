@@ -152,6 +152,13 @@ connection can be reused.  In the http agent, this returns
 CA, cert, ciphers, and other HTTPS/TLS-specific options that determine
 socket reusability.
 
+Options:
+
+- `host`: A domain name or IP address of the server to issue the request to.
+- `port`: Port of remote server.
+- `localAddress`: Local interface to bind for network connections when issuing
+  the request.
+
 ### agent.maxFreeSockets
 
 By default set to 256.  For Agents supporting HTTP KeepAlive, this
@@ -302,12 +309,6 @@ the client should send the request body.
 
 Emitted when a response is received to this request. This event is emitted only
 once. The `response` argument will be an instance of [`http.IncomingMessage`][].
-
-Options:
-
-- `host`: A domain name or IP address of the server to issue the request to.
-- `port`: Port of remote server.
-- `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
 
 ### Event: 'socket'
 
@@ -1203,10 +1204,10 @@ There are a few special headers that should be noted.
 [`'listening'`]: net.html#net_event_listening
 [`'response'`]: #http_event_response
 [`Agent`]: #http_class_http_agent
-[`agent.createConnection()`]: #http_agent_createconnection
+[`agent.createConnection()`]: #http_agent_createconnection_options_callback
 [`Buffer`]: buffer.html#buffer_buffer
 [`destroy()`]: #http_agent_destroy
-[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`EventEmitter`]: events.html#events_class_eventemitter
 [`http.Agent`]: #http_class_http_agent
 [`http.ClientRequest`]: #http_class_http_clientrequest
 [`http.globalAgent`]: #http_http_globalagent
@@ -1218,8 +1219,8 @@ There are a few special headers that should be noted.
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
 [`net.Server`]: net.html#net_class_net_server
 [`net.Server.close()`]: net.html#net_server_close_callback
-[`net.Server.listen()`]: net.html#net_server_listen_handle_callback
-[`net.Server.listen(path)`]: net.html#net_server_listen_path_callback
+[`net.Server.listen()`]: net.html#net_server_listen_handle_backlog_callback
+[`net.Server.listen(path)`]: net.html#net_server_listen_path_backlog_callback
 [`net.Server.listen(port)`]: net.html#net_server_listen_port_hostname_backlog_callback
 [`net.Socket`]: net.html#net_class_net_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed

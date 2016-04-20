@@ -10,21 +10,10 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Helpers
+// Requirements
 //------------------------------------------------------------------------------
 
-/**
- * Gets the last element of a given array.
- *
- * @param {*[]} xs - An array to get.
- * @returns {*} The last element, or undefined.
- */
-function getLast(xs) {
-    if (xs.length === 0) {
-        return null;
-    }
-    return xs[xs.length - 1];
-}
+var lodash = require("lodash");
 
 /**
  * Checks whether or not a trailing comma is allowed in a given node.
@@ -37,6 +26,7 @@ function getLast(xs) {
 function isTrailingCommaAllowed(node, lastItem) {
     switch (node.type) {
         case "ArrayPattern":
+
             // TODO(t-nagashima): Remove SpreadElement after https://github.com/eslint/espree/issues/194 was fixed.
             return (
                 lastItem.type !== "RestElement" &&
@@ -74,7 +64,8 @@ module.exports = function(context) {
      * @returns {boolean} `true` if the node is multiline.
      */
     function isMultiline(node) {
-        var lastItem = getLast(node.properties || node.elements || node.specifiers);
+        var lastItem = lodash.last(node.properties || node.elements || node.specifiers);
+
         if (!lastItem) {
             return false;
         }
@@ -106,7 +97,8 @@ module.exports = function(context) {
      * @returns {void}
      */
     function forbidTrailingComma(node) {
-        var lastItem = getLast(node.properties || node.elements || node.specifiers);
+        var lastItem = lodash.last(node.properties || node.elements || node.specifiers);
+
         if (!lastItem || (node.type === "ImportDeclaration" && lastItem.type !== "ImportSpecifier")) {
             return;
         }
@@ -142,7 +134,8 @@ module.exports = function(context) {
      * @returns {void}
      */
     function forceTrailingComma(node) {
-        var lastItem = getLast(node.properties || node.elements || node.specifiers);
+        var lastItem = lodash.last(node.properties || node.elements || node.specifiers);
+
         if (!lastItem || (node.type === "ImportDeclaration" && lastItem.type !== "ImportSpecifier")) {
             return;
         }
@@ -205,6 +198,7 @@ module.exports = function(context) {
 
     // Chooses a checking function.
     var checkForTrailingComma;
+
     if (mode === "always") {
         checkForTrailingComma = forceTrailingComma;
     } else if (mode === "always-multiline") {

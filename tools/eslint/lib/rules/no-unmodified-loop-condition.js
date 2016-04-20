@@ -12,7 +12,7 @@
 //------------------------------------------------------------------------------
 
 var Map = require("es6-map"),
-    estraverse = require("../util/estraverse"),
+    Traverser = require("../util/traverser"),
     astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
@@ -29,8 +29,8 @@ var DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
 /**
  * @typedef {object} LoopConditionInfo
  * @property {escope.Reference} reference - The reference.
- * @property {ASTNode[]} groups - BinaryExpression or ConditionalExpression
- *      nodes that the reference is belonging to.
+ * @property {ASTNode} group - BinaryExpression or ConditionalExpression nodes
+ *      that the reference is belonging to.
  * @property {function} isInLoop - The predicate which checks a given reference
  *      is in this loop.
  * @property {boolean} modified - The flag that the reference is modified in
@@ -46,6 +46,7 @@ var DYNAMIC_PATTERN = /^(?:Call|Member|New|TaggedTemplate|Yield)Expression$/;
 function isWriteReference(reference) {
     if (reference.init) {
         var def = reference.resolved && reference.resolved.defs[0];
+
         if (!def || def.type !== "Variable" || def.parent.kind !== "var") {
             return false;
         }
@@ -66,13 +67,13 @@ function isUnmodified(condition) {
 
 /**
  * Checks whether or not a given loop condition info does not have the modified
- * flag and does not have any groups that this condition is belonging to.
+ * flag and does not have the group this condition belongs to.
  *
  * @param {LoopConditionInfo} condition - A loop condition info to check.
  * @returns {boolean} `true` if the loop condition info is "unmodified".
  */
 function isUnmodifiedAndNotBelongToGroup(condition) {
-    return !condition.modified && condition.groups.length === 0;
+    return !(condition.modified || condition.group);
 }
 
 /**
@@ -85,6 +86,7 @@ function isUnmodifiedAndNotBelongToGroup(condition) {
 function isInRange(node, reference) {
     var or = node.range;
     var ir = reference.identifier.range;
+
     return or[0] <= ir[0] && ir[1] <= or[1];
 }
 
@@ -115,9 +117,10 @@ var isInLoop = {
  * @returns {boolean} `true` if the node is dynamic.
  */
 function hasDynamicExpressions(root) {
-    var retv = false;
+    var retv = false,
+        traverser = new Traverser();
 
-    estraverse.traverse(root, {
+    traverser.traverse(root, {
         enter: function(node) {
             if (DYNAMIC_PATTERN.test(node.type)) {
                 retv = true;
@@ -142,32 +145,38 @@ function toLoopCondition(reference) {
         return null;
     }
 
-    var groups = [];
+    var group = null;
     var child = reference.identifier;
     var node = child.parent;
+
     while (node) {
         if (SENTINEL_PATTERN.test(node.type)) {
             if (LOOP_PATTERN.test(node.type) && node.test === child) {
+
                 // This reference is inside of a loop condition.
                 return {
                     reference: reference,
-                    groups: groups,
+                    group: group,
                     isInLoop: isInLoop[node.type].bind(null, node),
                     modified: false
                 };
             }
+
             // This reference is outside of a loop condition.
             break;
         }
 
-        // If it's inside of a group, OK if either operand is modified.
-        // So stores the group that the reference is belonging to.
+        /*
+         * If it's inside of a group, OK if either operand is modified.
+         * So stores the group this reference belongs to.
+         */
         if (GROUP_PATTERN.test(node.type)) {
+
+            // If this expression is dynamic, no need to check.
             if (hasDynamicExpressions(node)) {
-                // This expression is dynamic, so don't check.
                 break;
             } else {
-                groups.push(node);
+                group = node;
             }
         }
 
@@ -213,9 +222,16 @@ function updateModifiedFlag(conditions, modifiers) {
         var condition = conditions[i];
 
         for (var j = 0; !condition.modified && j < modifiers.length; ++j) {
-            var modifier = modifiers[j];
-            var inLoop = condition.isInLoop(modifier) || Boolean(
-                // Checks the function that this modifier is belonging to is used in the loop.
+            var modifier = modifiers[j],
+                inLoop;
+
+            /*
+             * Besides checking for the condition being in the loop, we want to
+             * check the function that this modifier is belonging to is called
+             * in the loop.
+             * FIXME: This should probably be extracted to a function.
+             */
+            inLoop = condition.isInLoop(modifier) || Boolean(
                 (funcNode = getEncloseFunctionDeclaration(modifier)) &&
                 (funcVar = astUtils.getVariableByName(modifier.from.upper, funcNode.id.name)) &&
                 funcVar.references.some(condition.isInLoop)
@@ -249,7 +265,7 @@ module.exports = function(context) {
     }
 
     /**
-     * Registers given conditions to groups that the condition is belonging to.
+     * Registers given conditions to the group the condition belongs to.
      *
      * @param {LoopConditionInfo[]} conditions - A loop condition info to
      *      register.
@@ -259,12 +275,12 @@ module.exports = function(context) {
         for (var i = 0; i < conditions.length; ++i) {
             var condition = conditions[i];
 
-            for (var j = 0; j < condition.groups.length; ++j) {
-                var be = condition.groups[j];
-                var group = groupMap.get(be);
+            if (condition.group) {
+                var group = groupMap.get(condition.group);
+
                 if (!group) {
                     group = [];
-                    groupMap.set(be, group);
+                    groupMap.set(condition.group, group);
                 }
                 group.push(condition);
             }
@@ -291,6 +307,7 @@ module.exports = function(context) {
      * @returns {void}
      */
     function checkReferences(variable) {
+
         // Gets references that exist in loop conditions.
         var conditions = variable
             .references
@@ -306,12 +323,15 @@ module.exports = function(context) {
 
         // Check the conditions are modified.
         var modifiers = variable.references.filter(isWriteReference);
+
         if (modifiers.length > 0) {
             updateModifiedFlag(conditions, modifiers);
         }
 
-        // Reports the conditions which are not belonging to groups.
-        // Others will be reported after all variables are done.
+        /*
+         * Reports the conditions which are not belonging to groups.
+         * Others will be reported after all variables are done.
+         */
         conditions
             .filter(isUnmodifiedAndNotBelongToGroup)
             .forEach(report);
@@ -320,9 +340,11 @@ module.exports = function(context) {
     return {
         "Program:exit": function() {
             var queue = [context.getScope()];
+
             groupMap = new Map();
 
             var scope;
+
             while ((scope = queue.pop())) {
                 pushAll(queue, scope.childScopes);
                 scope.variables.forEach(checkReferences);

@@ -17,8 +17,8 @@ The developer will be able to access packages based on the teams they are on. Ac
 
 There are two main commands:
 
-1. `npm team` see npm-access(1) for more details
-2. `npm access` see npm-team(1) for more details
+1. `npm team` see npm-team(1) for more details
+2. `npm access` see npm-access(1) for more details
 
 ## Team Admins create teams
 

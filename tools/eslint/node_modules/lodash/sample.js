@@ -7,6 +7,7 @@ var baseRandom = require('./_baseRandom'),
  *
  * @static
  * @memberOf _
+ * @since 2.0.0
  * @category Collection
  * @param {Array|Object} collection The collection to sample.
  * @returns {*} Returns the random element.

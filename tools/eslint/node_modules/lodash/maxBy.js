@@ -9,9 +9,11 @@ var baseExtremum = require('./_baseExtremum'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Math
  * @param {Array} array The array to iterate over.
- * @param {Function|Object|string} [iteratee=_.identity] The iteratee invoked per element.
+ * @param {Array|Function|Object|string} [iteratee=_.identity]
+ *  The iteratee invoked per element.
  * @returns {*} Returns the maximum value.
  * @example
  *

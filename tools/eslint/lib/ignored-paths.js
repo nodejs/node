@@ -12,7 +12,8 @@ var lodash = require("lodash"),
     fs = require("fs"),
     path = require("path"),
     debug = require("debug"),
-    ignore = require("ignore");
+    ignore = require("ignore"),
+    pathUtil = require("./util/path-util");
 
 debug = debug("eslint:ignored-paths");
 
@@ -23,8 +24,8 @@ debug = debug("eslint:ignored-paths");
 
 var ESLINT_IGNORE_FILENAME = ".eslintignore";
 var DEFAULT_IGNORE_PATTERNS = [
-    "/node_modules/",
-    "/bower_components/"
+    "/node_modules/*",
+    "/bower_components/*"
 ];
 var DEFAULT_OPTIONS = {
     dotfiles: false,
@@ -46,59 +47,8 @@ function findIgnoreFile(cwd) {
     cwd = cwd || DEFAULT_OPTIONS.cwd;
 
     var ignoreFilePath = path.resolve(cwd, ESLINT_IGNORE_FILENAME);
+
     return fs.existsSync(ignoreFilePath) ? ignoreFilePath : "";
-}
-
-/**
- * Replace Windows with Unix style paths and remove ./ prefix
- * @param {string} filepath Path to normalize
- * @returns {string} Normalized filepath
- */
-function normalizeFilepath(filepath) {
-    filepath = filepath.replace(/\\/g, "/");
-    filepath = filepath.replace(/^\.\//, "");
-    return filepath;
-}
-
-/**
- * Remove a prefix from a filepath
- * @param {string} filepath Path to remove the prefix from
- * @param {string} prefix Prefix to remove from filepath
- * @returns {string} Normalized filepath
- */
-function removePrefixFromFilepath(filepath, prefix) {
-    prefix += "/";
-    if (filepath.indexOf(prefix) === 0) {
-        filepath = filepath.substr(prefix.length);
-    }
-    return filepath;
-}
-
-/**
- * Resolves a filepath
- * @param {string} filepath Path resolve
- * @param {string} baseDir Base directory to resolve the filepath from
- * @returns {string} Resolved filepath
- */
-function resolveFilepath(filepath, baseDir) {
-    if (baseDir) {
-        var base = normalizeFilepath(path.resolve(baseDir));
-        filepath = removePrefixFromFilepath(filepath, base);
-        filepath = removePrefixFromFilepath(filepath, fs.realpathSync(base));
-    }
-    filepath.replace(/^\//, "");
-    return filepath;
-}
-
-/**
- * Normalize and resolve a filepath relative to a given base directory
- * @param {string} filepath Path resolve
- * @param {string} baseDir Base directory to resolve the filepath from
- * @returns {string} Normalized and resolved filepath
- */
-function normalizeAndResolveFilepath(filepath, baseDir) {
-    filepath = normalizeFilepath(filepath);
-    return resolveFilepath(filepath, baseDir);
 }
 
 /**
@@ -142,35 +92,40 @@ function IgnoredPaths(options) {
      * @returns {array} raw ignore rules
      */
     function addIgnoreFile(ig, filepath) {
-        return ig.addIgnoreFile(filepath);
+        ig.ignoreFiles.push(filepath);
+        return ig.add(fs.readFileSync(filepath, "utf8"));
     }
 
     this.defaultPatterns = DEFAULT_IGNORE_PATTERNS.concat(options.patterns || []);
-    this.baseDir = ".";
+    this.baseDir = options.cwd;
 
     this.ig = {
-        custom: new ignore.Ignore({
-            twoGlobstars: true,
-            ignore: []
-        }),
-        default: new ignore.Ignore({
-            twoGlobstars: true,
-            ignore: []
-        })
+        custom: ignore(),
+        default: ignore()
     };
 
+    // Add a way to keep track of ignored files.  This was present in node-ignore
+    // 2.x, but dropped for now as of 3.0.10.
+    this.ig.custom.ignoreFiles = [];
+    this.ig.default.ignoreFiles = [];
+
     if (options.dotfiles !== true) {
-        addPattern(this.ig.default, ".*");
+
+        /*
+         * ignore files beginning with a dot, but not files in a parent or
+         * ancestor directory (which in relative format will begin with `../`).
+         */
+        addPattern(this.ig.default, [".*", "!../"]);
     }
 
+    addPattern(this.ig.default, this.defaultPatterns);
+
     if (options.ignore !== false) {
-
-        addPattern(this.ig.default, this.defaultPatterns);
-
         var ignorePath;
 
         if (options.ignorePattern) {
             addPattern(this.ig.custom, options.ignorePattern);
+            addPattern(this.ig.default, options.ignorePattern);
         }
 
         if (options.ignorePath) {
@@ -198,8 +153,9 @@ function IgnoredPaths(options) {
 
         if (ignorePath) {
             debug("Adding " + ignorePath);
-            this.baseDir = path.dirname(ignorePath);
+            this.baseDir = path.dirname(path.resolve(options.cwd, ignorePath));
             addIgnoreFile(this.ig.custom, ignorePath);
+            addIgnoreFile(this.ig.default, ignorePath);
         }
 
     }
@@ -217,14 +173,15 @@ function IgnoredPaths(options) {
 IgnoredPaths.prototype.contains = function(filepath, category) {
 
     var result = false;
-    filepath = normalizeAndResolveFilepath(filepath, this.baseDir);
+    var absolutePath = path.resolve(this.options.cwd, filepath);
+    var relativePath = pathUtil.getRelativePath(absolutePath, this.options.cwd);
 
     if ((typeof category === "undefined") || (category === "default")) {
-        result = result || (this.ig.default.filter([filepath]).length === 0);
+        result = result || (this.ig.default.filter([relativePath]).length === 0);
     }
 
     if ((typeof category === "undefined") || (category === "custom")) {
-        result = result || (this.ig.custom.filter([filepath]).length === 0);
+        result = result || (this.ig.custom.filter([relativePath]).length === 0);
     }
 
     return result;

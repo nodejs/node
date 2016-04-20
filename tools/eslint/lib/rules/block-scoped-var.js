@@ -37,6 +37,7 @@ module.exports = function(context) {
      */
     function report(reference) {
         var identifier = reference.identifier;
+
         context.report(
             identifier,
             "'{{name}}' used outside of binding context.",
@@ -64,12 +65,15 @@ module.exports = function(context) {
          */
         function isOutsideOfScope(reference) {
             var idRange = reference.identifier.range;
+
             return idRange[0] < scopeRange[0] || idRange[1] > scopeRange[1];
         }
 
         // Gets declared variables, and checks its references.
         var variables = context.getDeclaredVariables(node);
+
         for (var i = 0; i < variables.length; ++i) {
+
             // Reports.
             variables[i]
                 .references

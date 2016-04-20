@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('range', require('../range'));
+var convert = require('./convert'),
+    func = convert('range', require('../range'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

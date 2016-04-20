@@ -50,6 +50,11 @@ module.exports = function(context) {
             var isConciseProperty = node.method || node.shorthand,
                 type;
 
+            // Ignore destructuring assignment
+            if (node.parent.type === "ObjectPattern") {
+                return;
+            }
+
             // if we're "never" and concise we should warn now
             if (APPLY_NEVER && isConciseProperty) {
                 type = node.method ? "method" : "property";

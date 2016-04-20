@@ -7,6 +7,7 @@ var baseIteratee = require('./_baseIteratee'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Array
  * @param {Array} array The array to inspect.
  * @param {Function} [iteratee] The iteratee invoked per element.

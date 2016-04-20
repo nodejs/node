@@ -15,6 +15,7 @@ var FUNCTION_TYPE = /^(?:ArrowFunctionExpression|Function(?:Declaration|Expressi
 module.exports = function(context) {
     return {
         "BlockStatement": function(node) {
+
             // if the body is not empty, we can just return immediately
             if (node.body.length !== 0) {
                 return;

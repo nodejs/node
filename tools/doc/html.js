@@ -112,6 +112,7 @@ function parseText(lexed) {
   lexed.forEach(function(tok) {
     if (tok.text && tok.type !== 'code') {
       tok.text = linkManPages(tok.text);
+      tok.text = linkJsTypeDocs(tok.text);
     }
   });
 }
@@ -166,9 +167,6 @@ function parseLists(input) {
         }
         return;
       }
-      if (tok.text) {
-        tok.text = parseListItem(tok.text);
-      }
     }
     output.push(tok);
   });
@@ -197,7 +195,7 @@ function linkManPages(text) {
   });
 }
 
-function parseListItem(text) {
+function linkJsTypeDocs(text) {
   var parts = text.split('`');
   var i;
   var typeMatches;

@@ -39,6 +39,7 @@ function define(ruleId, ruleModule) {
  */
 function load(rulesDir, cwd) {
     var newRules = loadRules(rulesDir, cwd);
+
     Object.keys(newRules).forEach(function(ruleId) {
         define(ruleId, newRules[ruleId]);
     });
