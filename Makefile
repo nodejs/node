@@ -264,10 +264,39 @@ RELEASE=$(shell sed -ne 's/\#define NODE_VERSION_IS_RELEASE \([01]\)/\1/p' src/n
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
 NPMVERSION=v$(shell cat deps/npm/package.json | grep '"version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
 
-ifeq ($(findstring x86_64,$(shell uname -m)),x86_64)
+UNAME_M=$(shell uname -m)
+ifeq ($(findstring x86_64,$(UNAME_M)),x86_64)
 DESTCPU ?= x64
 else
+ifeq ($(findstring ppc64,$(UNAME_M)),ppc64)
+DESTCPU ?= ppc64
+else
+ifeq ($(findstring ppc,$(UNAME_M)),ppc)
+DESTCPU ?= ppc
+else
+ifeq ($(findstring s390x,$(UNAME_M)),s390x)
+DESTCPU ?= s390x
+else
+ifeq ($(findstring s390,$(UNAME_M)),s390)
+DESTCPU ?= s390
+else
+ifeq ($(findstring arm,$(UNAME_M)),arm)
+DESTCPU ?= arm
+else
+ifeq ($(findstring aarch64,$(UNAME_M)),aarch64)
+DESTCPU ?= aarch64
+else
+ifeq ($(findstring powerpc,$(shell uname -p)),powerpc)
+DESTCPU ?= ppc64
+else
 DESTCPU ?= x86
+endif
+endif
+endif
+endif
+endif
+endif
+endif
 endif
 ifeq ($(DESTCPU),x64)
 ARCH=x64
