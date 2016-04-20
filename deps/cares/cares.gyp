@@ -12,6 +12,10 @@
       [ 'OS=="aix"', {
         'include_dirs': [ 'config/aix' ],
         'sources': [ 'config/aix/ares_config.h' ],
+        'defines': [
+          # Support for malloc(0)
+          '_LINUX_SOURCE_COMPAT=1',
+          '_ALL_SOURCE=1'],
       }],
       ['OS=="solaris"', {
         'defines': [
