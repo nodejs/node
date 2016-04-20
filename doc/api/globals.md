@@ -36,7 +36,7 @@ For instance, given two modules: `a` and `b`, where `b` is a dependency of
 * `/Users/mjr/app/a.js`
 * `/Users/mjr/app/node_modules/b/b.js`
 
-References to `__dirname` within `b.js` will return 
+References to `__dirname` within `b.js` will return
 `/Users/mjr/app/node_modules/b` while references to `__dirname` within `a.js`
 will return `/Users/mj/app`.
 
