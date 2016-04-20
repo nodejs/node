@@ -764,8 +764,8 @@ console.log(buf2.compare(buf3));
   // produces sort order [buf1, buf3, buf2]
 ```
 
-The optional `targetStart`, `targetEnd`, `sourceStart`, and `sourceEnd` 
-arguments can be used to limit the comparison to specific ranges within the two 
+The optional `targetStart`, `targetEnd`, `sourceStart`, and `sourceEnd`
+arguments can be used to limit the comparison to specific ranges within the two
 `Buffer` objects.
 
 ```js
