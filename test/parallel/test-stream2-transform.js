@@ -177,91 +177,111 @@ test('async passthrough', function(t) {
   });
 });
 
-test('assymetric transform (expand)', function(t) {
-  var pt = new Transform();
+function testFlush(asyncTransform, asyncFlush, useFlush) {
+  var msg = 'assymetric transform (compress)';
+  if (asyncTransform) {
+    msg += ' with asnyc _transform';
+  }
+  msg += ' using';
+  if (asyncFlush) {
+    msg += ' async';
+  }
+  if (useFlush) {
+    msg += ' _flush';
+  } else {
+    msg += ' _end';
+  }
+  test(msg, function(t) {
+    var pt = new Transform();
 
-  // emit each chunk 2 times.
-  pt._transform = function(chunk, encoding, cb) {
-    setTimeout(function() {
-      pt.push(chunk);
-      setTimeout(function() {
-        pt.push(chunk);
+    // each output is the first char of 3 consecutive chunks,
+    // or whatever's left.
+    pt.state = '';
+
+    pt._transform = function(chunk, encoding, cb) {
+      if (!chunk)
+        chunk = '';
+      var s = chunk.toString();
+      var inner = function() {
+        this.state += s.charAt(0);
+        if (this.state.length === 3) {
+          pt.push(new Buffer(this.state));
+          this.state = '';
+        }
         cb();
-      }, 10);
-    }, 10);
-  };
-
-  pt.write(Buffer.from('foog'));
-  pt.write(Buffer.from('bark'));
-  pt.write(Buffer.from('bazy'));
-  pt.write(Buffer.from('kuel'));
-  pt.end();
-
-  pt.on('finish', function() {
-    t.equal(pt.read(5).toString(), 'foogf');
-    t.equal(pt.read(5).toString(), 'oogba');
-    t.equal(pt.read(5).toString(), 'rkbar');
-    t.equal(pt.read(5).toString(), 'kbazy');
-    t.equal(pt.read(5).toString(), 'bazyk');
-    t.equal(pt.read(5).toString(), 'uelku');
-    t.equal(pt.read(5).toString(), 'el');
-    t.end();
-  });
-});
-
-test('assymetric transform (compress)', function(t) {
-  var pt = new Transform();
-
-  // each output is the first char of 3 consecutive chunks,
-  // or whatever's left.
-  pt.state = '';
-
-  pt._transform = function(chunk, encoding, cb) {
-    if (!chunk)
-      chunk = '';
-    var s = chunk.toString();
-    setTimeout(function() {
-      this.state += s.charAt(0);
-      if (this.state.length === 3) {
-        pt.push(Buffer.from(this.state));
-        this.state = '';
+      }.bind(this);
+      if (asyncTransform) {
+        setTimeout(inner, 10);
+      } else {
+        inner();
       }
-      cb();
-    }.bind(this), 10);
-  };
+    };
+    function flushOrEnd(cb) {
+      var inner = function() {
+        // just output whatever we have.
+        pt.push(new Buffer(this.state));
+        this.state = '';
+        cb();
+      }.bind(this);
+      if (asyncFlush) {
+        setTimeout(inner, 10);
+      } else {
+        inner();
+      }
+    }
+    if (useFlush) {
+      pt._flush = flushOrEnd;
+    } else {
+      pt._end = flushOrEnd;
+    }
+    pt.write(new Buffer('aaaa'));
+    pt.write(new Buffer('bbbb'));
+    pt.write(new Buffer('cccc'));
+    pt.write(new Buffer('dddd'));
+    pt.write(new Buffer('eeee'));
+    pt.write(new Buffer('aaaa'));
+    pt.write(new Buffer('bbbb'));
+    pt.write(new Buffer('cccc'));
+    pt.write(new Buffer('dddd'));
+    pt.write(new Buffer('eeee'));
+    pt.write(new Buffer('aaaa'));
+    pt.write(new Buffer('bbbb'));
+    pt.write(new Buffer('cccc'));
+    pt.write(new Buffer('dddd'));
+    pt.end();
 
-  pt._flush = function(cb) {
-    // just output whatever we have.
-    pt.push(Buffer.from(this.state));
-    this.state = '';
-    cb();
-  };
+    if (asyncFlush && useFlush) {
+      // since fllush doesn't delay finish this should throw
+      pt.on('finish', function() {
+        try {
+          pt.read(5).toString();
+          pt.read(5).toString();
+          pt.read(5).toString();
+        } catch (e) {
+          t.ok(e);
+          t.end();
+        }
+      });
+    } else {
+      // 'abcdeabcdeabcd'
+      pt.on('finish', function() {
+        t.equal(pt.read(5).toString(), 'abcde');
+        t.equal(pt.read(5).toString(), 'abcde');
+        t.equal(pt.read(5).toString(), 'abcd');
+        t.end();
+      });
+    }
 
-  pt.write(Buffer.from('aaaa'));
-  pt.write(Buffer.from('bbbb'));
-  pt.write(Buffer.from('cccc'));
-  pt.write(Buffer.from('dddd'));
-  pt.write(Buffer.from('eeee'));
-  pt.write(Buffer.from('aaaa'));
-  pt.write(Buffer.from('bbbb'));
-  pt.write(Buffer.from('cccc'));
-  pt.write(Buffer.from('dddd'));
-  pt.write(Buffer.from('eeee'));
-  pt.write(Buffer.from('aaaa'));
-  pt.write(Buffer.from('bbbb'));
-  pt.write(Buffer.from('cccc'));
-  pt.write(Buffer.from('dddd'));
-  pt.end();
-
-  // 'abcdeabcdeabcd'
-  pt.on('finish', function() {
-    t.equal(pt.read(5).toString(), 'abcde');
-    t.equal(pt.read(5).toString(), 'abcde');
-    t.equal(pt.read(5).toString(), 'abcd');
-    t.end();
   });
-});
-
+}
+function runAlltestFlush() {
+  var i = -1;
+  var len = 8;
+  while (++i < len) {
+    testFlush(i % 2, (i % 4)  > 1, i > 3);
+  }
+}
+runAlltestFlush();
 // this tests for a stall when data is written to a full stream
 // that has empty transforms.
 test('complex transform', function(t) {

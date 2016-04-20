@@ -1138,8 +1138,9 @@ initialized.
 #### Events: 'finish' and 'end'
 
 The [`'finish'`][] and [`'end'`][] events are from the parent Writable
-and Readable classes respectively. The `'finish'` event is fired after
-[`stream.end()`][stream-end] is called and all chunks have been processed by
+and Readable classes respectively. The `'finish'` event is fired after the
+callback in `_end` has been called which is after [`stream.end()`][stream-end]
+is called and all chunks have been processed by
 [`stream._transform()`][stream-_transform], `'end'` is fired after all data has
 been output which is after the callback in [`stream._flush()`][stream-_flush]
 has been called.
@@ -1381,6 +1382,18 @@ This function is completely optional to implement. In most cases it is
 unnecessary. If implemented, it will be called with all the chunks
 that are buffered in the write queue.
 
+#### writable.\_end(callback)
+
+* `callback` {Function} Call this function (optionally with an error
+  argument) when you are done writing any remaining data.
+
+Note: **This function MUST NOT be called directly.**  It MAY be implemented
+by child classes, and if so, will be called by the internal Writable
+class methods only.
+
+When the stream ends this function will be called before the stream closes,
+useful if you need to close a resource or write some data that you had buffered.
+This function is completely optional to implement.
 
 ## Simplified Constructor API
 

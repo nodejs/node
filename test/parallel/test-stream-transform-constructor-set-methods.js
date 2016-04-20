@@ -10,15 +10,15 @@ function _transform(d, e, n) {
   n();
 }
 
-var _flushCalled = false;
-function _flush(n) {
-  _flushCalled = true;
+var _endCalled = false;
+function _end(n) {
+  _endCalled = true;
   n();
 }
 
 var t = new Transform({
   transform: _transform,
-  flush: _flush
+  end: _end
 });
 
 t.end(Buffer.from('blerg'));
@@ -26,7 +26,7 @@ t.resume();
 
 process.on('exit', function() {
   assert.equal(t._transform, _transform);
-  assert.equal(t._flush, _flush);
+  assert.equal(t._end, _end);
   assert(_transformCalled);
-  assert(_flushCalled);
+  assert(_endCalled);
 });
