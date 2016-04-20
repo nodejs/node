@@ -4,8 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const big = new Buffer(1024 * 1024);
-big.fill('-');
+const big = Buffer.alloc(1024 * 1024);
 
 const server = net.createServer((socket) => {
   socket.end(big);
