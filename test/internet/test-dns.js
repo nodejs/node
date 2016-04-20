@@ -44,20 +44,13 @@ function checkWrap(req) {
 
 
 TEST(function test_reverse_bogus(done) {
-  var error;
 
-  try {
-    dns.reverse('bogus ip', function() {
-      assert.ok(false);
-    });
-  } catch (e) {
-    error = e;
-  }
+  dns.reverse('bogus ip', (err) => {
+    assert(err);
+    assert.strictEqual(err.errno, 'EINVAL');
+    done();
+  });
 
-  assert.ok(error instanceof Error);
-  assert.strictEqual(error.errno, 'EINVAL');
-
-  done();
 });
 
 
