@@ -164,7 +164,7 @@ class StreamResource {
                      const uv_buf_t* buf,
                      uv_handle_type pending = UV_UNKNOWN_HANDLE) {
     if (nread > 0)
-      bytes_read_ += nread;
+      bytes_read_ += static_cast<uint64_t>(nread);
     if (!read_cb_.is_empty())
       read_cb_.fn(nread, buf, pending, read_cb_.ctx);
   }
@@ -184,7 +184,7 @@ class StreamResource {
   Callback<AfterWriteCb> after_write_cb_;
   Callback<AllocCb> alloc_cb_;
   Callback<ReadCb> read_cb_;
-  int bytes_read_;
+  uint64_t bytes_read_;
 
   friend class StreamBase;
 };

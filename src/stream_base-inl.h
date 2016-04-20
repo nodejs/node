@@ -91,7 +91,8 @@ void StreamBase::GetBytesRead(Local<String> key,
                               const PropertyCallbackInfo<Value>& args) {
   StreamBase* wrap = Unwrap<Base>(args.Holder());
 
-  args.GetReturnValue().Set(wrap->bytes_read_);
+  // int64_t -> double. 53bits is enough for all real cases.
+  args.GetReturnValue().Set(static_cast<double>(wrap->bytes_read_));
 }
 
 
