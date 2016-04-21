@@ -7,7 +7,10 @@ const invalidPort = -1 >>> 0;
 const errorMessage = /"port" argument must be \>= 0 and \< 65536/;
 
 net.Server().listen(common.PORT, function() {
-  assert.equal(this._connectionKey, '6::::' + common.PORT);
+  const address = this.address();
+  const key = `${address.family.slice(-1)}:${address.address}:${common.PORT}`;
+
+  assert.equal(this._connectionKey, key);
   this.close();
 });
 
