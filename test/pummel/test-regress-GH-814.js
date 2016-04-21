@@ -38,7 +38,7 @@ var timeToQuit = Date.now() + 8e3; //Test during no more than this seconds.
 
   if (PASS) {
     fs.write(testFileFD, newBuffer(kBufSize, 0x61), 0, kBufSize, -1, cb);
-    gc();
+    global.gc();
     var nuBuf = Buffer.allocUnsafe(kBufSize);
     neverWrittenBuffer.copy(nuBuf);
     if (bufPool.push(nuBuf) > 100) {

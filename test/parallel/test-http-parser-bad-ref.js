@@ -18,7 +18,7 @@ var messagesComplete = 0;
 
 function flushPool() {
   Buffer.allocUnsafe(Buffer.poolSize - 1);
-  gc();
+  global.gc();
 }
 
 function demoBug(part1, part2) {

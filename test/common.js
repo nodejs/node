@@ -275,7 +275,7 @@ var knownGlobals = [setTimeout,
                     global];
 
 if (global.gc) {
-  knownGlobals.push(gc);
+  knownGlobals.push(global.gc);
 }
 
 if (global.DTRACE_HTTP_SERVER_RESPONSE) {

@@ -5,7 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-assert.equal(typeof gc, 'function', 'Run this test with --expose-gc');
+assert.equal(typeof global.gc, 'function', 'Run this test with --expose-gc');
 
 common.globalCheck = false;
 
@@ -48,6 +48,6 @@ assert.equal(f.a, 2);
 
 console.error('use function in context without referencing context');
 var fn = vm.runInNewContext('(function() { obj.p = {}; })', { obj: {} });
-gc();
+global.gc();
 fn();
 // Should not crash
