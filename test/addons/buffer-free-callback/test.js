@@ -1,5 +1,6 @@
 'use strict';
 // Flags: --expose-gc
+/* global gc:false */
 
 require('../../common');
 var binding = require('./build/Release/binding');

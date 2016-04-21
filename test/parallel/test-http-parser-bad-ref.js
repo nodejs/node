@@ -3,6 +3,7 @@
 // problem.
 
 // Flags: --expose_gc
+/* global gc:false */
 
 require('../common');
 var assert = require('assert');

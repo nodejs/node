@@ -1,5 +1,6 @@
 'use strict';
 // Flags: --expose-gc
+/* global gc:false */
 
 var common = require('../common');
 var assert = require('assert');
