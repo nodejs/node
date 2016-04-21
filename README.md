@@ -21,19 +21,19 @@ If you need help using or installing Node.js, please use the
 
 The Node.js project maintains multiple types of releases:
 
-* **Stable**: Released from active development branches of this repository,
+* **Current**: Released from active development branches of this repository,
   versioned by [SemVer](http://semver.org/) and signed by a member of the
   [Release Team](#release-team).
-  Code for Stable releases is organized in this repository by major version
+  Code for Current releases is organized in this repository by major version
   number, For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
-  The major version number of Stable releases will increment every 6 months
+  The major version number of Current releases will increment every 6 months
   allowing for breaking changes to be introduced. This happens in April and
-  October every year. Stable release lines beginning in October each year have
-  a maximum support life of 8 months. Stable release lines beginning in April
+  October every year. Current release lines beginning in October each year have
+  a maximum support life of 8 months. Current release lines beginning in April
   each year will convert to LTS (see below) after 6 months and receive further
   support for 30 months.
 * **LTS**: Releases that receive Long-term Support, with a focus on stability
-  and security. Every second Stable release line (major version) will become an
+  and security. Every second Current release line (major version) will become an
   LTS line and receive 18 months of _Active LTS_ support and a further 12
   months of _Maintenance_. LTS release lines are given alphabetically
   ordered codenames, beginning with v4 Argon. LTS releases are less frequent
@@ -41,7 +41,7 @@ The Node.js project maintains multiple types of releases:
   only incrementing patch version numbers. There are no breaking changes or
   feature additions, except in some special circumstances. More information
   can be found in the [LTS README](https://github.com/nodejs/LTS/).
-* **Nightly**: Versions of code in this repository on the current Stable
+* **Nightly**: Versions of code in this repository on the current Current
   branch, automatically built every 24-hours where changes exist. Use with
   caution.
 
@@ -50,10 +50,10 @@ The Node.js project maintains multiple types of releases:
 Binaries, installers, and source tarballs are available at
 <https://nodejs.org>.
 
-**Stable** and **LTS** releases are available at
+**Current** and **LTS** releases are available at
 <https://nodejs.org/download/release/>, listed under their version strings.
 The [latest](https://nodejs.org/download/release/latest/) directory is an
-alias for the latest Stable release. The latest LTS release from an LTS
+alias for the latest Current release. The latest LTS release from an LTS
 line is available in the form: latest-_codename_. For example:
 <https://nodejs.org/download/release/latest-argon>
 
@@ -68,7 +68,7 @@ documentation of the latest stable version.
 
 ### Verifying Binaries
 
-Stable, LTS and Nightly download directories all contain a *SHASUM256.txt*
+Current, LTS and Nightly download directories all contain a *SHASUM256.txt*
 file that lists the SHA checksums for each file available for
 download.
 
@@ -88,7 +88,7 @@ $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 _(Where "node-vx.y.z.tar.gz" is the name of the file you have
 downloaded)_
 
-Additionally, Stable and LTS releases (not Nightlies) have GPG signed
+Additionally, Current and LTS releases (not Nightlies) have GPG signed
 copies of SHASUM256.txt files available as SHASUM256.txt.asc. You can use
 `gpg` to verify that the file has not been tampered with.
 
