@@ -2416,7 +2416,7 @@ DebugCommandProcessor.prototype.restartFrameRequest_ = function(
     frame_mirror = this.exec_state_.frame();
   }
 
-  var result_description = Debug.LiveEdit.RestartFrame(frame_mirror);
+  var result_description = frame_mirror.restart();
   response.body = {result: result_description};
 };
 

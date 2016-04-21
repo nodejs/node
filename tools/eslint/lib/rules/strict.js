@@ -189,6 +189,7 @@ module.exports = function(context) {
 
     if (mode === "function") {
         lodash.assign(rule, {
+
             // Inside of class bodies are always strict mode.
             "ClassBody": function() {
                 classScopes.push(true);

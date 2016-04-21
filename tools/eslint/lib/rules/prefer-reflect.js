@@ -56,6 +56,7 @@ module.exports = function(context) {
             var isReflectCall = (node.callee.object || {}).name === "Reflect";
             var hasReflectSubsitute = reflectSubsitutes.hasOwnProperty(methodName);
             var userConfiguredException = exceptions.indexOf(methodName) !== -1;
+
             if (hasReflectSubsitute && !isReflectCall && !userConfiguredException) {
                 report(node, existingNames[methodName], reflectSubsitutes[methodName]);
             }
@@ -64,6 +65,7 @@ module.exports = function(context) {
             var isDeleteOperator = node.operator === "delete";
             var targetsIdentifier = node.argument.type === "Identifier";
             var userConfiguredException = exceptions.indexOf("delete") !== -1;
+
             if (isDeleteOperator && !targetsIdentifier && !userConfiguredException) {
                 report(node, "the delete keyword", "Reflect.deleteProperty");
             }

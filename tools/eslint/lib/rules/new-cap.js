@@ -38,6 +38,7 @@ var CAPS_ALLOWED = [
  * @returns {string[]} Returns obj[key] if it's an Array, otherwise `fallback`
  */
 function checkArray(obj, key, fallback) {
+
     /* istanbul ignore if */
     if (Object.prototype.hasOwnProperty.call(obj, key) && !Array.isArray(obj[key])) {
         throw new TypeError(key + ", if provided, must be an Array");
@@ -78,6 +79,7 @@ function calculateCapIsNewExceptions(config) {
 module.exports = function(context) {
 
     var config = context.options[0] ? lodash.assign({}, context.options[0]) : {};
+
     config.newIsCap = config.newIsCap !== false;
     config.capIsNew = config.capIsNew !== false;
     var skipProperties = config.properties === false;
@@ -129,6 +131,7 @@ module.exports = function(context) {
         var firstCharUpper = firstChar.toUpperCase();
 
         if (firstCharLower === firstCharUpper) {
+
             // char has no uppercase variant, so it's non-alphabetic
             return "non-alpha";
         } else if (firstChar === firstCharLower) {
@@ -151,6 +154,7 @@ module.exports = function(context) {
         }
 
         if (calleeName === "UTC" && node.callee.type === "MemberExpression") {
+
             // allow if callee is Date.UTC
             return node.callee.object.type === "Identifier" &&
                 node.callee.object.name === "Date";
@@ -183,9 +187,11 @@ module.exports = function(context) {
         listeners.NewExpression = function(node) {
 
             var constructorName = extractNameFromExpression(node);
+
             if (constructorName) {
                 var capitalization = getCap(constructorName);
                 var isAllowed = capitalization !== "lower" || isCapAllowed(newIsCapExceptions, node, constructorName);
+
                 if (!isAllowed) {
                     report(node, "A constructor name should not start with a lowercase letter.");
                 }
@@ -197,9 +203,11 @@ module.exports = function(context) {
         listeners.CallExpression = function(node) {
 
             var calleeName = extractNameFromExpression(node);
+
             if (calleeName) {
                 var capitalization = getCap(calleeName);
                 var isAllowed = capitalization !== "upper" || isCapAllowed(capIsNewExceptions, node, calleeName);
+
                 if (!isAllowed) {
                     report(node, "A function with a name starting with an uppercase letter should only be used as a constructor.");
                 }

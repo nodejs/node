@@ -139,6 +139,7 @@ function getOtherOperand(node, value) {
     }
     return node.left;
 }
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -149,6 +150,7 @@ module.exports = function(context) {
 
     return {
         "UnaryExpression": function(node) {
+
             // !!foo
             operatorAllowed = options.allow.indexOf("!!") >= 0;
             if (!operatorAllowed && options.boolean && isDoubleLogicalNegating(node)) {
@@ -158,6 +160,7 @@ module.exports = function(context) {
                         code: context.getSource(node.argument.argument)
                     });
             }
+
             // ~foo.indexOf(bar)
             operatorAllowed = options.allow.indexOf("~") >= 0;
             if (!operatorAllowed && options.boolean && isBinaryNegatingOfIndexOf(node)) {
@@ -181,9 +184,11 @@ module.exports = function(context) {
 
         // Use `:exit` to prevent double reporting
         "BinaryExpression:exit": function(node) {
+
             // 1 * foo
             operatorAllowed = options.allow.indexOf("*") >= 0;
             var nonNumericOperand = !operatorAllowed && options.number && isMultiplyByOne(node) && getNonNumericOperand(node);
+
             if (nonNumericOperand) {
                 context.report(
                     node,
@@ -204,6 +209,7 @@ module.exports = function(context) {
         },
 
         "AssignmentExpression": function(node) {
+
             // foo += ""
             operatorAllowed = options.allow.indexOf("+") >= 0;
             if (options.string && isAppendEmptyString(node)) {

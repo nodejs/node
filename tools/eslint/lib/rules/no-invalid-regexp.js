@@ -17,6 +17,13 @@ var espree = require("espree");
 
 module.exports = function(context) {
 
+    var options = context.options[0],
+        allowedFlags = "";
+
+    if (options && options.allowConstructorFlags) {
+        allowedFlags = options.allowConstructorFlags.join("");
+    }
+
     /**
      * Check if node is a string
      * @param {ASTNode} node node to evaluate
@@ -36,6 +43,10 @@ module.exports = function(context) {
     function check(node) {
         if (node.callee.type === "Identifier" && node.callee.name === "RegExp" && isString(node.arguments[0])) {
             var flags = isString(node.arguments[1]) ? node.arguments[1].value : "";
+
+            if (allowedFlags) {
+                flags = flags.replace(new RegExp("[" + allowedFlags + "]", "gi"), "");
+            }
 
             try {
                 void new RegExp(node.arguments[0].value);
@@ -62,4 +73,15 @@ module.exports = function(context) {
 
 };
 
-module.exports.schema = [];
+module.exports.schema = [{
+    "type": "object",
+    "properties": {
+        "allowConstructorFlags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+    "additionalProperties": false
+}];

@@ -31,6 +31,7 @@ function couldBeError(node) {
 
         case "SequenceExpression":
             var exprs = node.expressions;
+
             return exprs.length !== 0 && couldBeError(exprs[exprs.length - 1]);
 
         case "LogicalExpression":

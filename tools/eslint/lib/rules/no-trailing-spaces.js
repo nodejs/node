@@ -26,9 +26,13 @@ module.exports = function(context) {
      * @returns {void}
      */
     function report(node, location, fixRange) {
-        // Passing node is a bit dirty, because message data will contain
-        // big text in `source`. But... who cares :) ?
-        // One more kludge will not make worse the bloody wizardry of this plugin.
+
+        /*
+         * Passing node is a bit dirty, because message data will contain big
+         * text in `source`. But... who cares :) ?
+         * One more kludge will not make worse the bloody wizardry of this
+         * plugin.
+         */
         context.report({
             node: node,
             loc: location,
@@ -54,7 +58,8 @@ module.exports = function(context) {
             var src = context.getSource(),
                 re = new RegExp(NONBLANK),
                 skipMatch = new RegExp(SKIP_BLANK),
-                matches, lines = src.split(/\r?\n/),
+                matches,
+                lines = src.split(/\r?\n/),
                 linebreaks = context.getSource().match(/\r\n|\r|\n|\u2028|\u2029/g),
                 location,
                 totalLength = 0,

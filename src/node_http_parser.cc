@@ -300,7 +300,7 @@ class Parser : public AsyncWrap {
       return -1;
     }
 
-    return head_response->IsTrue() ? 1 : 0;
+    return head_response->IntegerValue();
   }
 
 

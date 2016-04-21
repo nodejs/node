@@ -1,10 +1,12 @@
-var sum = require('./sum');
+var baseMean = require('./_baseMean'),
+    identity = require('./identity');
 
 /**
  * Computes the mean of the values in `array`.
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Math
  * @param {Array} array The array to iterate over.
  * @returns {number} Returns the mean.
@@ -14,7 +16,7 @@ var sum = require('./sum');
  * // => 5
  */
 function mean(array) {
-  return sum(array) / (array ? array.length : 0);
+  return baseMean(array, identity);
 }
 
 module.exports = mean;

@@ -11,11 +11,15 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
-    // takes some ideas from http://tools.ietf.org/html/rfc3986#appendix-B, however:
-    // - They're matching an entire string that we know is a URI
-    // - We're matching part of a string where we think there *might* be a URL
-    // - We're only concerned about URLs, as picking out any URI would cause too many false positives
-    // - We don't care about matching the entire URL, any small segment is fine
+
+    /*
+     * Inspired by http://tools.ietf.org/html/rfc3986#appendix-B, however:
+     * - They're matching an entire string that we know is a URI
+     * - We're matching part of a string where we think there *might* be a URL
+     * - We're only concerned about URLs, as picking out any URI would cause
+     *   too many false positives
+     * - We don't care about matching the entire URL, any small segment is fine
+     */
     var URL_REGEXP = /[^:/?#]:\/\/[^?#]/;
 
     /**
@@ -28,10 +32,12 @@ module.exports = function(context) {
      */
     function computeLineLength(line, tabWidth) {
         var extraCharacterCount = 0;
+
         line.replace(/\t/g, function(match, offset) {
             var totalOffset = offset + extraCharacterCount,
                 previousTabStopOffset = tabWidth ? totalOffset % tabWidth : 0,
                 spaceCount = tabWidth - previousTabStopOffset;
+
             extraCharacterCount += spaceCount - 1;  // -1 for the replaced tab
         });
         return line.length + extraCharacterCount;
@@ -40,10 +46,12 @@ module.exports = function(context) {
     // The options object must be the last option specified…
     var lastOption = context.options[context.options.length - 1];
     var options = typeof lastOption === "object" ? Object.create(lastOption) : {};
+
     // …but max code length…
     if (typeof context.options[0] === "number") {
         options.code = context.options[0];
     }
+
     // …and tabWidth can be optionally specified directly as integers.
     if (typeof context.options[1] === "number") {
         options.tabWidth = context.options[1];
@@ -104,6 +112,7 @@ module.exports = function(context) {
      * @returns {string} Line without comment and trailing whitepace
      */
     function stripTrailingComment(line, lineNumber, comment) {
+
         // loc.column is zero-indexed
         return line.slice(0, comment.loc.start.column).replace(/\s+$/, "");
     }
@@ -115,26 +124,38 @@ module.exports = function(context) {
      * @private
      */
     function checkProgramForMaxLength(node) {
+
         // split (honors line-ending)
         var lines = context.getSourceLines(),
+
             // list of comments to ignore
-            comments = ignoreComments || maxCommentLength ? context.getAllComments() : [],
+            comments = ignoreComments || maxCommentLength || ignoreTrailingComments ? context.getAllComments() : [],
+
             // we iterate over comments in parallel with the lines
             commentsIndex = 0;
 
         lines.forEach(function(line, i) {
+
             // i is zero-indexed, line numbers are one-indexed
             var lineNumber = i + 1;
-            // if we're checking comment length; we need to know whether this
-            // line is a comment
+
+            /*
+             * if we're checking comment length; we need to know whether this
+             * line is a comment
+             */
             var lineIsComment = false;
 
-            // we can short-circuit the comment checks if we're already out of comments to check
+            /*
+             * We can short-circuit the comment checks if we're already out of
+             * comments to check.
+             */
             if (commentsIndex < comments.length) {
+
                 // iterate over comments until we find one past the current line
                 do {
                     var comment = comments[++commentsIndex];
                 } while (comment && comment.loc.start.line <= lineNumber);
+
                 // and step back by one
                 comment = comments[--commentsIndex];
 
@@ -146,6 +167,7 @@ module.exports = function(context) {
             }
             if (ignorePattern && ignorePattern.test(line) ||
                 ignoreUrls && URL_REGEXP.test(line)) {
+
                 // ignore this line
                 return;
             }

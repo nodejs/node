@@ -692,6 +692,12 @@ const char *signo_string(int signo) {
 # endif
 #endif
 
+#ifdef SIGINFO
+# if !defined(SIGPWR) || SIGINFO != SIGPWR
+  SIGNO_CASE(SIGINFO);
+# endif
+#endif
+
 #ifdef SIGSYS
   SIGNO_CASE(SIGSYS);
 #endif
@@ -3303,7 +3309,7 @@ static bool ParseDebugOpt(const char* arg) {
 
 static void PrintHelp() {
   // XXX: If you add an option here, please also add it to doc/node.1 and
-  // doc/api/cli.markdown
+  // doc/api/cli.md
   printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
          "       node debug script.js [arguments] \n"
          "\n"

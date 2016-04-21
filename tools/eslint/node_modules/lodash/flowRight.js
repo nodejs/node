@@ -5,6 +5,7 @@ var createFlow = require('./_createFlow');
  * invokes the given functions from right to left.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Util
  * @param {...(Function|Function[])} [funcs] Functions to invoke.

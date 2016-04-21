@@ -49,6 +49,10 @@ function search (args, silent, staleness, cb) {
     return s.toLowerCase()
   }).filter(function (s) { return s })
 
+  if (opts.length === 0) {
+    return cb(new Error('search must be called with arguments'))
+  }
+
   if (typeof searchexclude === 'string') {
     searchexclude = searchexclude.split(/\s+/)
   } else {

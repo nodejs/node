@@ -1,14 +1,14 @@
 #!/usr/bin/env node
+/* globals cd, echo, exec, exit, ls, pwd, test */
 require('../global');
-
-var path = require('path');
+var common = require('../src/common');
 
 var failed = false;
 
 //
 // Lint
 //
-JSHINT_BIN = './node_modules/jshint/bin/jshint';
+var JSHINT_BIN = 'node_modules/jshint/bin/jshint';
 cd(__dirname + '/..');
 
 if (!test('-f', JSHINT_BIN)) {
@@ -16,7 +16,12 @@ if (!test('-f', JSHINT_BIN)) {
   exit(1);
 }
 
-if (exec(JSHINT_BIN + ' *.js test/*.js').code !== 0) {
+var jsfiles = common.expand([pwd() + '/*.js',
+                             pwd() + '/scripts/*.js',
+                             pwd() + '/src/*.js',
+                             pwd() + '/test/*.js'
+                            ]).join(' ');
+if (exec('node ' + pwd() + '/' + JSHINT_BIN + ' ' + jsfiles).code !== 0) {
   failed = true;
   echo('*** JSHINT FAILED! (return code != 0)');
   echo();

@@ -79,6 +79,7 @@ function isReachable(segment) {
  * @param {boolean} reachable - A flag which shows this is reachable.
  */
 function CodePathSegment(id, allPrevSegments, reachable) {
+
     /**
      * The identifier of this code path.
      * Rules use it to store additional information of each rule.
@@ -120,7 +121,8 @@ function CodePathSegment(id, allPrevSegments, reachable) {
 
     // Internal data.
     Object.defineProperty(this, "internal", {value: {
-        used: false
+        used: false,
+        loopedPrevSegments: []
     }});
 
     /* istanbul ignore if */
@@ -129,6 +131,20 @@ function CodePathSegment(id, allPrevSegments, reachable) {
         this.internal.exitNodes = [];
     }
 }
+
+CodePathSegment.prototype = {
+    constructor: CodePathSegment,
+
+    /**
+     * Checks a given previous segment is coming from the end of a loop.
+     *
+     * @param {CodePathSegment} segment - A previous segment to check.
+     * @returns {boolean} `true` if the segment is coming from the end of a loop.
+     */
+    isLoopedPrevSegment: function(segment) {
+        return this.internal.loopedPrevSegments.indexOf(segment) !== -1;
+    }
+};
 
 /**
  * Creates the root segment.
@@ -191,6 +207,7 @@ CodePathSegment.markUsed = function(segment) {
     segment.internal.used = true;
 
     var i;
+
     if (segment.reachable) {
         for (i = 0; i < segment.allPrevSegments.length; ++i) {
             var prevSegment = segment.allPrevSegments[i];
@@ -203,6 +220,17 @@ CodePathSegment.markUsed = function(segment) {
             segment.allPrevSegments[i].allNextSegments.push(segment);
         }
     }
+};
+
+/**
+ * Marks a previous segment as looped.
+ *
+ * @param {CodePathSegment} segment - A segment.
+ * @param {CodePathSegment} prevSegment - A previous segment to mark.
+ * @returns {void}
+ */
+CodePathSegment.markPrevSegmentAsLooped = function(segment, prevSegment) {
+    segment.internal.loopedPrevSegments.push(prevSegment);
 };
 
 module.exports = CodePathSegment;

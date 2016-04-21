@@ -9,6 +9,7 @@ var MAX_ARRAY_LENGTH = 4294967295;
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Collection
  * @param {Array|Object} collection The collection to shuffle.
  * @returns {Array} Returns the new shuffled array.

@@ -1,5 +1,5 @@
 {
-  "version": "3.8.3",
+  "version": "3.8.6",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "keywords": [
@@ -19,7 +19,7 @@
     "url": "https://github.com/npm/npm"
   },
   "bugs": {
-    "url": "http://github.com/npm/npm/issues"
+    "url": "https://github.com/npm/npm/issues"
   },
   "directories": {
     "bin": "./bin",
@@ -35,7 +35,6 @@
     "ansistyles": "~0.1.3",
     "aproba": "~1.0.1",
     "archy": "~1.0.0",
-    "async-some": "~1.0.2",
     "chownr": "~1.0.1",
     "cmd-shim": "~2.0.2",
     "columnify": "~1.5.4",
@@ -56,13 +55,13 @@
     "ini": "~1.3.4",
     "init-package-json": "~1.9.3",
     "lockfile": "~1.0.1",
-    "lodash._baseuniq": "~4.5.0",
-    "lodash.clonedeep": "~4.3.1",
+    "lodash._baseuniq": "~4.5.1",
+    "lodash.clonedeep": "~4.3.2",
     "lodash.isarray": "~4.0.0",
     "lodash.keys": "~4.0.5",
-    "lodash.union": "~4.2.0",
-    "lodash.uniq": "~4.2.0",
-    "lodash.without": "~4.1.1",
+    "lodash.union": "~4.2.1",
+    "lodash.uniq": "~4.2.1",
+    "lodash.without": "~4.1.2",
     "mkdirp": "~0.5.1",
     "node-gyp": "~3.3.1",
     "nopt": "~3.0.6",
@@ -111,7 +110,6 @@
     "ansistyles",
     "aproba",
     "archy",
-    "async-some",
     "chownr",
     "cmd-shim",
     "columnify",
@@ -204,12 +202,12 @@
   },
   "scripts": {
     "dumpconf": "env | grep npm | sort | uniq",
-    "prepublish": "node bin/npm-cli.js prune --prefix=. --no-global && rimraf test/*/*/node_modules && make -j4 doc",
+    "prepublish": "node bin/npm-cli.js prune --prefix=. --no-global && rimraf test/*/*/node_modules && make doc-clean && make -j4 doc",
     "preversion": "bash scripts/update-authors.sh && git add AUTHORS && git commit -m \"update AUTHORS\" || true",
     "tap": "tap --timeout 240",
     "test": "standard && npm run test-tap",
     "test-tap": "npm run tap -- \"test/tap/*.js\"",
-    "test-node": "\"$NODE\" ./test/run.js && \"$NODE\" \"node_modules/.bin/tap\" --timeout 240 \"test/tap/*.js\""
+    "test-node": "\"$NODE\" \"node_modules/.bin/tap\" --timeout 240 \"test/tap/*.js\""
   },
   "license": "Artistic-2.0"
 }
