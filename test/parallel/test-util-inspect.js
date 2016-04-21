@@ -648,3 +648,58 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
   const x = Object.create(null);
   assert.equal(util.inspect(x), '{}');
 }
+
+// The following maxArrayLength tests were introduced after v6.0.0 was released.
+// Do not backport to v5/v4 unless all of
+// https://github.com/nodejs/node/pull/6334 is backported.
+{
+  const x = Array(101);
+  assert(/1 more item/.test(util.inspect(x)));
+}
+
+{
+  const x = Array(101);
+  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: 101})));
+}
+
+{
+  const x = Array(101);
+  assert(/^\[ ... 101 more items \]$/.test(
+      util.inspect(x, {maxArrayLength: 0})));
+}
+
+{
+  const x = new Uint8Array(101);
+  assert(/1 more item/.test(util.inspect(x)));
+}
+
+{
+  const x = new Uint8Array(101);
+  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: 101})));
+}
+
+{
+  const x = new Uint8Array(101);
+  assert(/\[ ... 101 more items \]$/.test(
+      util.inspect(x, {maxArrayLength: 0})));
+}
+
+{
+  const x = Array(101);
+  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: null})));
+}
+
+{
+  const x = Array(101);
+  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: Infinity})));
+}
+
+{
+  const x = new Uint8Array(101);
+  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: null})));
+}
+
+{
+  const x = new Uint8Array(101);
+  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: Infinity})));
+}
