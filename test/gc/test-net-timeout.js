@@ -43,7 +43,7 @@ function getall() {
       //console.log('timeout (expected)')
       req.destroy();
       done++;
-      gc();
+      global.gc();
     });
 
     count++;
@@ -63,13 +63,13 @@ function afterGC() {
 setInterval(status, 100).unref();
 
 function status() {
-  gc();
+  global.gc();
   console.log('Done: %d/%d', done, todo);
   console.log('Collected: %d/%d', countGC, count);
   if (done === todo) {
     /* Give libuv some time to make close callbacks. */
     setTimeout(function() {
-      gc();
+      global.gc();
       console.log('All should be collected now.');
       console.log('Collected: %d/%d', countGC, count);
       assert(count === countGC);

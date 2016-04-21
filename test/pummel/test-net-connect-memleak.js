@@ -5,25 +5,25 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-assert(typeof gc === 'function', 'Run this test with --expose-gc');
+assert(typeof global.gc === 'function', 'Run this test with --expose-gc');
 net.createServer(function() {}).listen(common.PORT);
 
 var before = 0;
 (function() {
   // 2**26 == 64M entries
-  gc();
+  global.gc();
   for (var i = 0, junk = [0]; i < 26; ++i) junk = junk.concat(junk);
   before = process.memoryUsage().rss;
 
   net.createConnection(common.PORT, '127.0.0.1', function() {
     assert(junk.length != 0);  // keep reference alive
     setTimeout(done, 10);
-    gc();
+    global.gc();
   });
 })();
 
 function done() {
-  gc();
+  global.gc();
   var after = process.memoryUsage().rss;
   var reclaimed = (before - after) / 1024;
   console.log('%d kB reclaimed', reclaimed);
