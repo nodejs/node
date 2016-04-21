@@ -127,7 +127,7 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 * Include the full list of commits since the last release here. Do not include "Working on X.Y.Z+1" commits.
 ```
 
-The release type should be either Stable, LTS, or Maintenance, depending on the type of release being produced.
+The release type should be either Current, LTS, or Maintenance, depending on the type of release being produced.
 
 ### 4. Create Release Commit
 
@@ -187,7 +187,7 @@ Jenkins collects the artifacts from the builds, allowing you to download and ins
 
 Once you have produced builds that you're happy with, create a new tag. By waiting until this stage to create tags, you can discard a proposed release if something goes wrong or additional commits are required. Once you have created a tag and pushed it to GitHub, you ***should not*** delete and re-tag. If you make a mistake after tagging then you'll have to version-bump and start again and count that tag/version as lost.
 
-Tag summaries have a predictable format, look at a recent tag to see, `git tag -v v5.3.0`. The message should look something like `2015-12-16 Node.js v5.3.0 (Stable) Release`.
+Tag summaries have a predictable format, look at a recent tag to see, `git tag -v v6.0.0`. The message should look something like `2016-04-26 Node.js v6.0.0 (Current) Release`.
 
 Create a tag using the following command:
 
