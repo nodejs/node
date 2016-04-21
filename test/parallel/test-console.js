@@ -1,6 +1,6 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
@@ -8,7 +8,11 @@ assert.ok(process.stderr.writable);
 assert.equal('number', typeof process.stdout.fd);
 assert.equal('number', typeof process.stderr.fd);
 
-assert.throws(function() {
+assert.doesNotThrow(function() {
+  process.once('warning', common.mustCall((warning) => {
+    assert(/no such label/.test(warning.message));
+  }));
+
   console.timeEnd('no such label');
 });
 
