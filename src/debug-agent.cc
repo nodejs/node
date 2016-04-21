@@ -128,6 +128,11 @@ void Agent::Enable() {
   parent_env()->AssignToContext(debug_context);
 }
 
+static void close_handle(uv_handle_t* handle, void* data) {
+  if (!uv_is_closing(handle)) {
+    uv_close(handle, nullptr);
+  }
+}
 
 void Agent::Stop() {
   int err;
@@ -149,6 +154,9 @@ void Agent::Stop() {
   CHECK_EQ(err, 0);
 
   uv_close(reinterpret_cast<uv_handle_t*>(&child_signal_), nullptr);
+  // Close all remaining handles:
+  // uv_loop_close will return UV_EBUSY for handles which are not closed.
+  uv_walk(&child_loop_, close_handle, nullptr);
   uv_run(&child_loop_, UV_RUN_NOWAIT);
 
   err = uv_loop_close(&child_loop_);
