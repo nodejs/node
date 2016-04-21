@@ -183,6 +183,10 @@ formatted string:
    will be introspected to show their `target` and `hander` objects. Defaults to
    `false`.
 
+ - `maxArrayLength` - specifies the maximum number of Array and TypedArray
+   elements to include when formatting. Defaults to `100`. Set to `null` to
+   show all array elements. Set to `0` or negative to show no array elements.
+
 Example of inspecting all properties of the `util` object:
 
 ```js
