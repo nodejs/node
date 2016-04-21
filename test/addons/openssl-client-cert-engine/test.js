@@ -1,5 +1,5 @@
 'use strict';
-require('../../common');
+const common = require('../../common');
 const assert = require('assert');
 const https = require('https');
 const fs = require('fs');
