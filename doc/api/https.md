@@ -199,6 +199,8 @@ The following options from [`tls.connect()`][] can also be specified. However, a
 - `key`: Private key to use for SSL. Default `null`.
 - `passphrase`: A string of passphrase for the private key or pfx. Default `null`.
 - `cert`: Public x509 certificate to use. Default `null`.
+- `clientCertEngine`: A string containing the name of and OpenSSL engine for
+   providing the client certificate.
 - `ca`: A string, [`Buffer`][] or array of strings or [`Buffer`][]s of trusted
   certificates in PEM format. If this is omitted several well known "root"
   CAs will be used, like VeriSign. These are used to authorize connections.
