@@ -77,7 +77,11 @@ bool Parser::PatternRewriter::IsBindingContext(PatternContext c) const {
 Parser::PatternRewriter::PatternContext
 Parser::PatternRewriter::SetAssignmentContextIfNeeded(Expression* node) {
   PatternContext old_context = context();
-  if (node->IsAssignment() && node->AsAssignment()->op() == Token::ASSIGN) {
+  // AssignmentExpressions may occur in the Initializer position of a
+  // SingleNameBinding. Such expressions should not prompt a change in the
+  // pattern's context.
+  if (node->IsAssignment() && node->AsAssignment()->op() == Token::ASSIGN &&
+      !IsInitializerContext()) {
     set_context(ASSIGNMENT);
   }
   return old_context;
