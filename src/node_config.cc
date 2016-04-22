@@ -29,9 +29,9 @@ using v8::ReadOnly;
 void InitConfig(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
+#ifdef NODE_HAVE_I18N_SUPPORT
   Environment* env = Environment::GetCurrent(context);
 
-#ifdef NODE_HAVE_I18N_SUPPORT
   READONLY_BOOLEAN_PROPERTY("hasIntl");
 
 #ifdef NODE_HAVE_SMALL_ICU
