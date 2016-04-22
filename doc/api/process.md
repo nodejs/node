@@ -1303,7 +1303,6 @@ Will print something like:
 [`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
-[`EventEmitter`]: events.html#events_class_events_eventemitter
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
@@ -1314,7 +1313,7 @@ Will print something like:
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_arg
 [child_process `'disconnect'` event]: child_process.html#child_process_event_disconnect
-[process_emit_warning]: #process_emitwarning_warning_name_ctor
+[process_emit_warning]: #process_process_emitwarning_warning_name_ctor
 [process_warning]: #process_event_warning
 [Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
