@@ -1069,7 +1069,7 @@ console.log('中文测试');
 [`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
 [`ChildProcess`]: #child_process_child_process
 [`Error`]: errors.html#errors_class_error
-[`EventEmitter`]: events.html#events_class_events_eventemitter
+[`EventEmitter`]: events.html#events_class_eventemitter
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`maxBuffer`]: #child_process_maxbuffer_and_unicode
 [`net.Server`]: net.html#net_class_net_server
@@ -1080,6 +1080,6 @@ console.log('中文测试');
 [`process.execPath`]: process.html#process_process_execpath
 [`process.on('disconnect')`]: process.html#process_event_disconnect
 [`process.on('message')`]: process.html#process_event_message
-[`process.send()`]: process.html#process_process_send_message_sendhandle_callback
+[`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`stdio`]: #child_process_options_stdio
 [synchronous counterparts]: #child_process_synchronous_process_creation
