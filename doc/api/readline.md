@@ -300,7 +300,8 @@ the following values:
    treated like a TTY, and have ANSI/VT100 escape codes written to it.
    Defaults to checking `isTTY` on the `output` stream upon instantiation.
 
- - `historySize` - maximum number of history lines retained. Defaults to `30`.
+ - `historySize` - maximum number of history lines retained. To disable the
+   history set this value to `0`. Defaults to `30`.
 
 The `completer` function is given the current line entered by the user, and
 is supposed to return an Array with 2 entries:
