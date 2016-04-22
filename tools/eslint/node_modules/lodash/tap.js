@@ -1,10 +1,11 @@
 /**
  * This method invokes `interceptor` and returns `value`. The interceptor
  * is invoked with one argument; (value). The purpose of this method is to
- * "tap into" a method chain in order to modify intermediate results.
+ * "tap into" a method chain sequence in order to modify intermediate results.
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Seq
  * @param {*} value The value to provide to `interceptor`.
  * @param {Function} interceptor The function to invoke.

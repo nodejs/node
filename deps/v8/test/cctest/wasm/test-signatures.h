@@ -72,6 +72,15 @@ class TestSignatures {
   FunctionSig* v_ii() { return &sig_v_ii; }
   FunctionSig* v_iii() { return &sig_v_iii; }
 
+  FunctionSig* many(Zone* zone, LocalType ret, LocalType param, int count) {
+    FunctionSig::Builder builder(zone, ret == kAstStmt ? 0 : 1, count);
+    if (ret != kAstStmt) builder.AddReturn(ret);
+    for (int i = 0; i < count; i++) {
+      builder.AddParam(param);
+    }
+    return builder.Build();
+  }
+
  private:
   LocalType kIntTypes4[4];
   LocalType kLongTypes4[4];

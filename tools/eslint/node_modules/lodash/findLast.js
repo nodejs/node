@@ -10,9 +10,11 @@ var baseEachRight = require('./_baseEachRight'),
  *
  * @static
  * @memberOf _
+ * @since 2.0.0
  * @category Collection
  * @param {Array|Object} collection The collection to search.
- * @param {Function|Object|string} [predicate=_.identity] The function invoked per iteration.
+ * @param {Array|Function|Object|string} [predicate=_.identity]
+ *  The function invoked per iteration.
  * @returns {*} Returns the matched element, else `undefined`.
  * @example
  *

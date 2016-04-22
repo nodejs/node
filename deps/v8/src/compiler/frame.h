@@ -34,19 +34,10 @@ class CallDescriptor;
 //   determined after register allocation once the number of used callee-saved
 //   register is certain.
 //
-// Every pointer in a frame has a slot id. On 32-bit platforms, doubles consume
-// two slots.
-//
-// Stack slot indices >= 0 access the callee stack with slot 0 corresponding to
-// the callee's saved return address and 1 corresponding to the saved frame
-// pointer. Some frames have additional information stored in the fixed header,
-// for example JSFunctions store the function context and marker in the fixed
-// header, with slot index 2 corresponding to the current function context and 3
-// corresponding to the frame marker/JSFunction. The frame region immediately
-// below the fixed header contains spill slots starting at 4 for JsFunctions.
-// The callee-saved frame region below that starts at 4+spill_slot_count_.
-// Callee stack slots corresponding to parameters are accessible through
-// negative slot ids.
+// The frame region immediately below the fixed header contains spill slots
+// starting at slot 4 for JSFunctions.  The callee-saved frame region below that
+// starts at 4+spill_slot_count_.  Callee stack slots corresponding to
+// parameters are accessible through negative slot ids.
 //
 // Every slot of a caller or callee frame is accessible by the register
 // allocator and gap resolver with a SpillSlotOperand containing its
@@ -76,29 +67,19 @@ class CallDescriptor;
 //       |- - - - - - - - -|   |                   frame slots
 //  ...  |      ...        | Spill slots           (slot >= 0)
 //       |- - - - - - - - -|   |                        |
-//  m+4  |    spill m      |   v                        |
+//  m+3  |    spill m      |   v                        |
 //       +-----------------+----                        |
-//  m+5  |  callee-saved 1 |   ^                        |
+//  m+4  |  callee-saved 1 |   ^                        |
 //       |- - - - - - - - -|   |                        |
 //       |      ...        | Callee-saved               |
 //       |- - - - - - - - -|   |                        |
-// m+r+4 |  callee-saved r |   v                        v
+// m+r+3 |  callee-saved r |   v                        v
 //  -----+-----------------+----- <-- stack ptr -------------
 //
 class Frame : public ZoneObject {
  public:
   explicit Frame(int fixed_frame_size_in_slots,
                  const CallDescriptor* descriptor);
-
-  static int FPOffsetToSlot(int frame_offset) {
-    return StandardFrameConstants::kFixedSlotCountAboveFp - 1 -
-           frame_offset / kPointerSize;
-  }
-
-  static int SlotToFPOffset(int slot) {
-    return (StandardFrameConstants::kFixedSlotCountAboveFp - 1 - slot) *
-           kPointerSize;
-  }
 
   inline bool needs_frame() const { return needs_frame_; }
   inline void MarkNeedsFrame() { needs_frame_ = true; }

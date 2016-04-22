@@ -14,9 +14,21 @@ assert.throws(function() {
 
 // Requiring a module that does not exist should throw an
 // error with its `code` set to MODULE_NOT_FOUND
-assert.throws(function() {
-  require(common.fixturesDir + '/DOES_NOT_EXIST');
-}, function(e) {
-  assert.equal('MODULE_NOT_FOUND', e.code);
-  return true;
-});
+assertModuleNotFound('/DOES_NOT_EXIST');
+
+assertExists('/module-require/not-found/trailingSlash.js');
+assertExists('/module-require/not-found/node_modules/module1/package.json');
+assertModuleNotFound('/module-require/not-found/trailingSlash');
+
+function assertModuleNotFound(path) {
+  assert.throws(function() {
+    require(common.fixturesDir + path);
+  }, function(e) {
+    assert.strictEqual(e.code, 'MODULE_NOT_FOUND');
+    return true;
+  });
+}
+
+function assertExists(fixture) {
+  assert(common.fileExists(common.fixturesDir + fixture));
+}

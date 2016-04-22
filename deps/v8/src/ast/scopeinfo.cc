@@ -19,16 +19,12 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   ZoneList<Variable*> stack_locals(scope->StackLocalCount(), zone);
   ZoneList<Variable*> context_locals(scope->ContextLocalCount(), zone);
   ZoneList<Variable*> context_globals(scope->ContextGlobalCount(), zone);
-  ZoneList<Variable*> strong_mode_free_variables(0, zone);
 
   scope->CollectStackAndContextLocals(&stack_locals, &context_locals,
-                                      &context_globals,
-                                      &strong_mode_free_variables);
+                                      &context_globals);
   const int stack_local_count = stack_locals.length();
   const int context_local_count = context_locals.length();
   const int context_global_count = context_globals.length();
-  const int strong_mode_free_variable_count =
-      strong_mode_free_variables.length();
   // Make sure we allocate the correct amount.
   DCHECK_EQ(scope->ContextLocalCount(), context_local_count);
   DCHECK_EQ(scope->ContextGlobalCount(), context_global_count);
@@ -77,7 +73,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   const int length = kVariablePartIndex + parameter_count +
                      (1 + stack_local_count) + 2 * context_local_count +
                      2 * context_global_count +
-                     3 * strong_mode_free_variable_count +
                      (has_receiver ? 1 : 0) + (has_function_name ? 2 : 0);
 
   Factory* factory = isolate->factory();
@@ -104,7 +99,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
   scope_info->SetStackLocalCount(stack_local_count);
   scope_info->SetContextLocalCount(context_local_count);
   scope_info->SetContextGlobalCount(context_global_count);
-  scope_info->SetStrongModeFreeVariableCount(strong_mode_free_variable_count);
 
   int index = kVariablePartIndex;
   // Add parameters.
@@ -173,25 +167,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
     scope_info->set(index++, Smi::FromInt(value));
   }
 
-  DCHECK(index == scope_info->StrongModeFreeVariableNameEntriesIndex());
-  for (int i = 0; i < strong_mode_free_variable_count; ++i) {
-    scope_info->set(index++, *strong_mode_free_variables[i]->name());
-  }
-
-  DCHECK(index == scope_info->StrongModeFreeVariablePositionEntriesIndex());
-  for (int i = 0; i < strong_mode_free_variable_count; ++i) {
-    // Unfortunately, the source code positions are stored as int even though
-    // int32_t would be enough (given the maximum source code length).
-    Handle<Object> start_position = factory->NewNumberFromInt(
-        static_cast<int32_t>(strong_mode_free_variables[i]
-                                 ->strong_mode_reference_start_position()));
-    scope_info->set(index++, *start_position);
-    Handle<Object> end_position = factory->NewNumberFromInt(
-        static_cast<int32_t>(strong_mode_free_variables[i]
-                                 ->strong_mode_reference_end_position()));
-    scope_info->set(index++, *end_position);
-  }
-
   // If the receiver is allocated, add its index.
   DCHECK(index == scope_info->ReceiverEntryIndex());
   if (has_receiver) {
@@ -226,7 +201,6 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   const int stack_local_count = 0;
   const int context_local_count = 1;
   const int context_global_count = 0;
-  const int strong_mode_free_variable_count = 0;
   const bool has_simple_parameters = true;
   const VariableAllocationInfo receiver_info = CONTEXT;
   const VariableAllocationInfo function_name_info = NONE;
@@ -237,7 +211,6 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   const int length = kVariablePartIndex + parameter_count +
                      (1 + stack_local_count) + 2 * context_local_count +
                      2 * context_global_count +
-                     3 * strong_mode_free_variable_count +
                      (has_receiver ? 1 : 0) + (has_function_name ? 2 : 0);
 
   Factory* factory = isolate->factory();
@@ -259,7 +232,6 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   scope_info->SetStackLocalCount(stack_local_count);
   scope_info->SetContextLocalCount(context_local_count);
   scope_info->SetContextGlobalCount(context_global_count);
-  scope_info->SetStrongModeFreeVariableCount(strong_mode_free_variable_count);
 
   int index = kVariablePartIndex;
   const int first_slot_index = 0;
@@ -275,9 +247,6 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
                          ContextLocalInitFlag::encode(kCreatedInitialized) |
                          ContextLocalMaybeAssignedFlag::encode(kNotAssigned);
   scope_info->set(index++, Smi::FromInt(value));
-
-  DCHECK(index == scope_info->StrongModeFreeVariableNameEntriesIndex());
-  DCHECK(index == scope_info->StrongModeFreeVariablePositionEntriesIndex());
 
   // And here we record that this scopeinfo binds a receiver.
   DCHECK(index == scope_info->ReceiverEntryIndex());
@@ -482,35 +451,6 @@ bool ScopeInfo::LocalIsSynthetic(int var) {
 }
 
 
-String* ScopeInfo::StrongModeFreeVariableName(int var) {
-  DCHECK(0 <= var && var < StrongModeFreeVariableCount());
-  int info_index = StrongModeFreeVariableNameEntriesIndex() + var;
-  return String::cast(get(info_index));
-}
-
-
-int ScopeInfo::StrongModeFreeVariableStartPosition(int var) {
-  DCHECK(0 <= var && var < StrongModeFreeVariableCount());
-  int info_index = StrongModeFreeVariablePositionEntriesIndex() + var * 2;
-  int32_t value = 0;
-  bool ok = get(info_index)->ToInt32(&value);
-  USE(ok);
-  DCHECK(ok);
-  return value;
-}
-
-
-int ScopeInfo::StrongModeFreeVariableEndPosition(int var) {
-  DCHECK(0 <= var && var < StrongModeFreeVariableCount());
-  int info_index = StrongModeFreeVariablePositionEntriesIndex() + var * 2 + 1;
-  int32_t value = 0;
-  bool ok = get(info_index)->ToInt32(&value);
-  USE(ok);
-  DCHECK(ok);
-  return value;
-}
-
-
 int ScopeInfo::StackSlotIndex(String* name) {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
@@ -691,20 +631,8 @@ int ScopeInfo::ContextGlobalInfoEntriesIndex() {
 }
 
 
-int ScopeInfo::StrongModeFreeVariableNameEntriesIndex() {
-  return ContextGlobalInfoEntriesIndex() + ContextGlobalCount();
-}
-
-
-int ScopeInfo::StrongModeFreeVariablePositionEntriesIndex() {
-  return StrongModeFreeVariableNameEntriesIndex() +
-         StrongModeFreeVariableCount();
-}
-
-
 int ScopeInfo::ReceiverEntryIndex() {
-  return StrongModeFreeVariablePositionEntriesIndex() +
-         2 * StrongModeFreeVariableCount();
+  return ContextGlobalInfoEntriesIndex() + ContextGlobalCount();
 }
 
 

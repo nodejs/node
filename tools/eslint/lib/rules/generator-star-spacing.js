@@ -41,6 +41,7 @@ module.exports = function(context) {
             var node = after ? leftToken : rightToken;
             var type = spaceRequired ? "Missing" : "Unexpected";
             var message = type + " space " + side + " *.";
+
             context.report({
                 node: node,
                 message: message,
@@ -81,11 +82,8 @@ module.exports = function(context) {
             checkSpacing("before", prevToken, starToken);
         }
 
-        // Only check after when followed by an identifier
         nextToken = context.getTokenAfter(starToken);
-        if (nextToken.type === "Identifier") {
-            checkSpacing("after", starToken, nextToken);
-        }
+        checkSpacing("after", starToken, nextToken);
     }
 
     return {

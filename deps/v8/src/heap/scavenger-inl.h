@@ -28,7 +28,7 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
-  object->GetHeap()->UpdateAllocationSite(
+  object->GetHeap()->UpdateAllocationSite<Heap::kGlobal>(
       object, object->GetHeap()->global_pretenuring_feedback_);
 
   // AllocationMementos are unrooted and shouldn't survive a scavenge

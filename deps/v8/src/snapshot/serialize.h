@@ -383,6 +383,8 @@ class Deserializer: public SerializerDeserializer {
  private:
   void VisitPointers(Object** start, Object** end) override;
 
+  void Synchronize(VisitorSynchronization::SyncTag tag) override;
+
   void VisitRuntimeEntry(RelocInfo* rinfo) override { UNREACHABLE(); }
 
   void Initialize(Isolate* isolate);
@@ -471,7 +473,6 @@ class Serializer : public SerializerDeserializer {
  public:
   Serializer(Isolate* isolate, SnapshotByteSink* sink);
   ~Serializer() override;
-  void VisitPointers(Object** start, Object** end) override;
 
   void EncodeReservations(List<SerializedData::Reservation>* out) const;
 
@@ -578,6 +579,8 @@ class Serializer : public SerializerDeserializer {
   friend class SnapshotData;
 
  private:
+  void VisitPointers(Object** start, Object** end) override;
+
   CodeAddressMap* code_address_map_;
   // Objects from the same space are put into chunks for bulk-allocation
   // when deserializing. We have to make sure that each chunk fits into a
@@ -620,10 +623,11 @@ class PartialSerializer : public Serializer {
 
   // Serialize the objects reachable from a single object pointer.
   void Serialize(Object** o);
+
+ private:
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
- private:
   int PartialSnapshotCacheIndex(HeapObject* o);
   bool ShouldBeInThePartialSnapshotCache(HeapObject* o);
 
@@ -639,21 +643,23 @@ class StartupSerializer : public Serializer {
   StartupSerializer(Isolate* isolate, SnapshotByteSink* sink);
   ~StartupSerializer() override { OutputStatistics("StartupSerializer"); }
 
-  // The StartupSerializer has to serialize the root array, which is slightly
-  // different.
-  void VisitPointers(Object** start, Object** end) override;
-
   // Serialize the current state of the heap.  The order is:
   // 1) Strong references.
   // 2) Partial snapshot cache.
   // 3) Weak references (e.g. the string table).
-  virtual void SerializeStrongReferences();
-  void SerializeObject(HeapObject* o, HowToCode how_to_code,
-                       WhereToPoint where_to_point, int skip) override;
+  void SerializeStrongReferences();
   void SerializeWeakReferencesAndDeferred();
 
  private:
+  // The StartupSerializer has to serialize the root array, which is slightly
+  // different.
+  void VisitPointers(Object** start, Object** end) override;
+  void SerializeObject(HeapObject* o, HowToCode how_to_code,
+                       WhereToPoint where_to_point, int skip) override;
+  void Synchronize(VisitorSynchronization::SyncTag tag) override;
+
   intptr_t root_index_wave_front_;
+  bool serializing_builtins_;
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };
 

@@ -38,6 +38,8 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kJSLoadContext:
+      return ReduceJSLoadContext(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSStoreNamed:
@@ -52,6 +54,21 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   return NoChange();
 }
 
+Reduction JSNativeContextSpecialization::ReduceJSLoadContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
+  ContextAccess const& access = ContextAccessOf(node->op());
+  Handle<Context> native_context;
+  // Specialize JSLoadContext(NATIVE_CONTEXT_INDEX) to the known native
+  // context (if any), so we can constant-fold those fields, which is
+  // safe, since the NATIVE_CONTEXT_INDEX slot is always immutable.
+  if (access.index() == Context::NATIVE_CONTEXT_INDEX &&
+      GetNativeContext(node).ToHandle(&native_context)) {
+    Node* value = jsgraph()->HeapConstant(native_context);
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+  return NoChange();
+}
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandleList const& receiver_maps,
@@ -418,6 +435,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                        frame_state, exit_effect, exit_control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+  Revisit(graph()->end());
 
   // Generate the final merge point for all (polymorphic) branches.
   int const control_count = static_cast<int>(controls.size());
@@ -443,21 +461,49 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 }
 
 
+Reduction JSNativeContextSpecialization::ReduceNamedAccess(
+    Node* node, Node* value, FeedbackNexus const& nexus, Handle<Name> name,
+    AccessMode access_mode, LanguageMode language_mode) {
+  DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
+         node->opcode() == IrOpcode::kJSStoreNamed);
+
+  // Check if the {nexus} reports type feedback for the IC.
+  if (nexus.IsUninitialized()) {
+    if ((flags() & kDeoptimizationEnabled) &&
+        (flags() & kBailoutOnUninitialized)) {
+      // TODO(turbofan): Implement all eager bailout points correctly in
+      // the graph builder.
+      Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+      if (!OpParameter<FrameStateInfo>(frame_state).bailout_id().IsNone()) {
+        return ReduceSoftDeoptimize(node);
+      }
+    }
+    return NoChange();
+  }
+
+  // Extract receiver maps from the IC using the {nexus}.
+  MapHandleList receiver_maps;
+  if (nexus.ExtractMaps(&receiver_maps) == 0) return NoChange();
+  DCHECK_LT(0, receiver_maps.length());
+
+  // Try to lower the named access based on the {receiver_maps}.
+  return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
+                           language_mode);
+}
+
+
 Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   NamedAccess const& p = NamedAccessOf(node->op());
   Node* const value = jsgraph()->Dead();
 
   // Extract receiver maps from the LOAD_IC using the LoadICNexus.
-  MapHandleList receiver_maps;
   if (!p.feedback().IsValid()) return NoChange();
   LoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
-  if (nexus.ExtractMaps(&receiver_maps) == 0) return NoChange();
-  DCHECK_LT(0, receiver_maps.length());
 
   // Try to lower the named access based on the {receiver_maps}.
-  return ReduceNamedAccess(node, value, receiver_maps, p.name(),
-                           AccessMode::kLoad, p.language_mode());
+  return ReduceNamedAccess(node, value, nexus, p.name(), AccessMode::kLoad,
+                           p.language_mode());
 }
 
 
@@ -467,15 +513,12 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   Node* const value = NodeProperties::GetValueInput(node, 1);
 
   // Extract receiver maps from the STORE_IC using the StoreICNexus.
-  MapHandleList receiver_maps;
   if (!p.feedback().IsValid()) return NoChange();
   StoreICNexus nexus(p.feedback().vector(), p.feedback().slot());
-  if (nexus.ExtractMaps(&receiver_maps) == 0) return NoChange();
-  DCHECK_LT(0, receiver_maps.length());
 
   // Try to lower the named access based on the {receiver_maps}.
-  return ReduceNamedAccess(node, value, receiver_maps, p.name(),
-                           AccessMode::kStore, p.language_mode());
+  return ReduceNamedAccess(node, value, nexus, p.name(), AccessMode::kStore,
+                           p.language_mode());
 }
 
 
@@ -705,7 +748,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Type* element_type = Type::Any();
     MachineType element_machine_type = MachineType::AnyTagged();
     if (IsFastDoubleElementsKind(elements_kind)) {
-      element_type = type_cache_.kFloat64;
+      element_type = Type::Number();
       element_machine_type = MachineType::Float64();
     } else if (IsFastSmiElementsKind(elements_kind)) {
       element_type = type_cache_.kSmi;
@@ -850,6 +893,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                        frame_state, exit_effect, exit_control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+  Revisit(graph()->end());
 
   // Generate the final merge point for all (polymorphic) branches.
   int const control_count = static_cast<int>(controls.size());
@@ -881,6 +925,20 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty);
+
+  // Check if the {nexus} reports type feedback for the IC.
+  if (nexus.IsUninitialized()) {
+    if ((flags() & kDeoptimizationEnabled) &&
+        (flags() & kBailoutOnUninitialized)) {
+      // TODO(turbofan): Implement all eager bailout points correctly in
+      // the graph builder.
+      Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+      if (!OpParameter<FrameStateInfo>(frame_state).bailout_id().IsNone()) {
+        return ReduceSoftDeoptimize(node);
+      }
+    }
+    return NoChange();
+  }
 
   // Extract receiver maps from the {nexus}.
   MapHandleList receiver_maps;
@@ -918,6 +976,22 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   // Try to lower the element access based on the {receiver_maps}.
   return ReduceElementAccess(node, index, value, receiver_maps, access_mode,
                              language_mode, store_mode);
+}
+
+
+Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(Node* node) {
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* deoptimize =
+      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kSoft), frame_state,
+                       effect, control);
+  // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+  Revisit(graph()->end());
+  node->TrimInputCount(0);
+  NodeProperties::ChangeOp(node, common()->Dead());
+  return Changed(node);
 }
 
 

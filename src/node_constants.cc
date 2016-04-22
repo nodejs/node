@@ -716,6 +716,10 @@ void DefineSignalConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, SIGPWR);
 #endif
 
+#ifdef SIGINFO
+  NODE_DEFINE_CONSTANT(target, SIGINFO);
+#endif
+
 #ifdef SIGSYS
   NODE_DEFINE_CONSTANT(target, SIGSYS);
 #endif

@@ -31,17 +31,16 @@ enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX, PROXY_MAGIC };
 // are more compact and allow for reasonably fast includes check.
 class KeyAccumulator final BASE_EMBEDDED {
  public:
-  KeyAccumulator(Isolate* isolate, PropertyFilter filter)
-      : isolate_(isolate), filter_(filter) {}
+  KeyAccumulator(Isolate* isolate, KeyCollectionType type,
+                 PropertyFilter filter)
+      : isolate_(isolate), type_(type), filter_(filter) {}
   ~KeyAccumulator();
 
   bool AddKey(uint32_t key);
-  bool AddKey(Object* key, AddKeyConversion convert = DO_NOT_CONVERT);
-  bool AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
-  void AddKeys(Handle<FixedArray> array,
-               AddKeyConversion convert = DO_NOT_CONVERT);
-  void AddKeys(Handle<JSObject> array,
-               AddKeyConversion convert = DO_NOT_CONVERT);
+  bool AddKey(Object* key, AddKeyConversion convert);
+  bool AddKey(Handle<Object> key, AddKeyConversion convert);
+  void AddKeys(Handle<FixedArray> array, AddKeyConversion convert);
+  void AddKeys(Handle<JSObject> array, AddKeyConversion convert);
   void AddKeysFromProxy(Handle<JSObject> array);
   Maybe<bool> AddKeysFromProxy(Handle<JSProxy> proxy, Handle<FixedArray> keys);
   void AddElementKeysFromInterceptor(Handle<JSObject> array);
@@ -61,6 +60,7 @@ class KeyAccumulator final BASE_EMBEDDED {
   void SortCurrentElementsListRemoveDuplicates();
 
   Isolate* isolate_;
+  KeyCollectionType type_;
   PropertyFilter filter_;
   // |elements_| contains the sorted element keys (indices) per level.
   std::vector<std::vector<uint32_t>*> elements_;
@@ -73,6 +73,7 @@ class KeyAccumulator final BASE_EMBEDDED {
   // |symbol_properties_| contains the unique Symbol property keys for all
   // levels in insertion order per level.
   Handle<OrderedHashSet> symbol_properties_;
+  Handle<FixedArray> ownProxyKeys_;
   // |length_| keeps track of the total number of all element and property keys.
   int length_ = 0;
   // |levelLength_| keeps track of the number of String keys in the current

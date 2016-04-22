@@ -31,10 +31,11 @@ setTimeout(function() {
 
       // Wrap it
       global.target[t] = function() {
-        if (oldTarget.done)
-          return;
-        oldTarget.done = true;
-        return oldTarget.apply(oldTarget, arguments);
+        if (!oldTarget.done){
+          oldTarget.done = true;
+          oldTarget.result = oldTarget.apply(oldTarget, arguments);
+        }
+        return oldTarget.result;
       };
 
     })(t, global.target[t]);

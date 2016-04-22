@@ -78,10 +78,12 @@ Handle<Code> CodeGenerator::GenerateCode() {
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
     ProfileEntryHookStub::MaybeCallEntryHook(masm());
   }
-
   // Architecture-specific, linkage-specific prologue.
   info->set_prologue_offset(masm()->pc_offset());
   AssemblePrologue();
+  if (linkage()->GetIncomingDescriptor()->InitializeRootRegister()) {
+    masm()->InitializeRootRegister();
+  }
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
@@ -175,12 +177,12 @@ Handle<Code> CodeGenerator::GenerateCode() {
     }
   }
 
-  safepoints()->Emit(masm(), frame()->GetSpillSlotCount());
+  safepoints()->Emit(masm(), frame()->GetTotalFrameSlotCount());
 
   Handle<Code> result =
       v8::internal::CodeGenerator::MakeCodeEpilogue(masm(), info);
   result->set_is_turbofanned(true);
-  result->set_stack_slots(frame()->GetSpillSlotCount());
+  result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
 
   // Emit exception handler table.
@@ -234,9 +236,12 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
     if (operand.IsStackSlot()) {
       int index = LocationOperand::cast(operand).index();
       DCHECK(index >= 0);
-      // Safepoint table indices are 0-based from the beginning of the spill
-      // slot area, adjust appropriately.
-      index -= stackSlotToSpillSlotDelta;
+      // We might index values in the fixed part of the frame (i.e. the
+      // closure pointer or the context pointer); these are not spill slots
+      // and therefore don't work with the SafepointTable currently, but
+      // we also don't need to worry about them, since the GC has special
+      // knowledge about those fields anyway.
+      if (index < stackSlotToSpillSlotDelta) continue;
       safepoint.DefinePointerSlot(index, zone());
     } else if (operand.IsRegister() && (kind & Safepoint::kWithRegisters)) {
       Register reg = LocationOperand::cast(operand).GetRegister();
@@ -583,7 +588,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
     case FrameStateType::kInterpretedFunction:
       translation->BeginInterpretedFrame(
           descriptor->bailout_id(), shared_info_id,
-          static_cast<unsigned int>(descriptor->locals_count()));
+          static_cast<unsigned int>(descriptor->locals_count() + 1));
       break;
     case FrameStateType::kArgumentsAdaptor:
       translation->BeginArgumentsAdaptorFrame(

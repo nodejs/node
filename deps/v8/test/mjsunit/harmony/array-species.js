@@ -16,6 +16,8 @@ assertEquals(MyArray, new MyArray().map(()=>{}).constructor);
 assertEquals(MyArray, new MyArray().filter(()=>{}).constructor);
 assertEquals(MyArray, new MyArray().slice().constructor);
 assertEquals(MyArray, new MyArray().splice().constructor);
+assertEquals(MyArray, new MyArray().concat([1]).constructor);
+assertEquals(1, new MyArray().concat([1])[0]);
 
 // Subclasses can override @@species to return the another class
 
@@ -27,6 +29,7 @@ assertEquals(MyArray, new MyOtherArray().map(()=>{}).constructor);
 assertEquals(MyArray, new MyOtherArray().filter(()=>{}).constructor);
 assertEquals(MyArray, new MyOtherArray().slice().constructor);
 assertEquals(MyArray, new MyOtherArray().splice().constructor);
+assertEquals(MyArray, new MyOtherArray().concat().constructor);
 
 // Array  methods on non-arrays return arrays
 
@@ -44,11 +47,15 @@ assertEquals(MyObject,
              Array.prototype.slice.call(new MyNonArray()).constructor);
 assertEquals(MyObject,
              Array.prototype.splice.call(new MyNonArray()).constructor);
+assertEquals(MyObject,
+             Array.prototype.concat.call(new MyNonArray()).constructor);
 
 assertEquals(undefined,
              Array.prototype.map.call(new MyNonArray(), ()=>{}).length);
 assertEquals(undefined,
              Array.prototype.filter.call(new MyNonArray(), ()=>{}).length);
+assertEquals(undefined,
+             Array.prototype.concat.call(new MyNonArray(), ()=>{}).length);
 // slice and splice actually do explicitly define the length for some reason
 assertEquals(0, Array.prototype.slice.call(new MyNonArray()).length);
 assertEquals(0, Array.prototype.splice.call(new MyNonArray()).length);
@@ -61,6 +68,9 @@ assertEquals(Array,
                  Realm.eval(realm, "[]"), ()=>{}).constructor);
 assertFalse(Array === Realm.eval(realm, "[]").map(()=>{}).constructor);
 assertFalse(Array === Realm.eval(realm, "[].map(()=>{}).constructor"));
+assertEquals(Array,
+             Array.prototype.concat.call(
+                 Realm.eval(realm, "[]")).constructor);
 
 // Defaults when constructor or @@species is missing or non-constructor
 
@@ -74,6 +84,7 @@ assertEquals(MyOtherDefaultArray,
              new MyOtherDefaultArray().map(()=>{}).constructor);
 MyOtherDefaultArray.prototype.constructor = undefined;
 assertEquals(Array, new MyOtherDefaultArray().map(()=>{}).constructor);
+assertEquals(Array, new MyOtherDefaultArray().concat().constructor);
 
 // Exceptions propagated when getting constructor @@species throws
 
@@ -100,6 +111,7 @@ assertThrows(() => new FrozenArray([1]).map(()=>0), TypeError);
 assertThrows(() => new FrozenArray([1]).filter(()=>true), TypeError);
 assertThrows(() => new FrozenArray([1]).slice(0, 1), TypeError);
 assertThrows(() => new FrozenArray([1]).splice(0, 1), TypeError);
+assertThrows(() => new FrozenArray([]).concat([1]), TypeError);
 
 // Verify call counts and constructor parameters
 
@@ -133,17 +145,22 @@ assertArrayEquals([0], params);
 count = 0;
 params = undefined;
 assertEquals(MyObservedArray,
+             new MyObservedArray().concat().constructor);
+assertEquals(1, count);
+assertArrayEquals([0], params);
+
+count = 0;
+params = undefined;
+assertEquals(MyObservedArray,
              new MyObservedArray().slice().constructor);
-// TODO(littledan): Should be 1
-assertEquals(2, count);
+assertEquals(1, count);
 assertArrayEquals([0], params);
 
 count = 0;
 params = undefined;
 assertEquals(MyObservedArray,
              new MyObservedArray().splice().constructor);
-// TODO(littledan): Should be 1
-assertEquals(2, count);
+assertEquals(1, count);
 assertArrayEquals([0], params);
 
 // @@species constructor can be a Proxy, and the realm access doesn't

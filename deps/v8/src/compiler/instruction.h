@@ -67,8 +67,10 @@ class InstructionOperand {
   inline bool IsAnyRegister() const;
   inline bool IsRegister() const;
   inline bool IsDoubleRegister() const;
+  inline bool IsSimd128Register() const;
   inline bool IsStackSlot() const;
   inline bool IsDoubleStackSlot() const;
+  inline bool IsSimd128StackSlot() const;
 
   template <typename SubKindOperand>
   static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {
@@ -411,7 +413,7 @@ class LocationOperand : public InstructionOperand {
   }
 
   int index() const {
-    DCHECK(IsStackSlot() || IsDoubleStackSlot());
+    DCHECK(IsStackSlot() || IsDoubleStackSlot() || IsSimd128StackSlot());
     return static_cast<int64_t>(value_) >> IndexField::kShift;
   }
 
@@ -425,6 +427,12 @@ class LocationOperand : public InstructionOperand {
     DCHECK(IsDoubleRegister());
     return DoubleRegister::from_code(static_cast<int64_t>(value_) >>
                                      IndexField::kShift);
+  }
+
+  Simd128Register GetSimd128Register() const {
+    DCHECK(IsSimd128Register());
+    return Simd128Register::from_code(static_cast<int64_t>(value_) >>
+                                      IndexField::kShift);
   }
 
   LocationKind location_kind() const {
@@ -441,6 +449,7 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
+      case MachineRepresentation::kSimd128:
       case MachineRepresentation::kTagged:
         return true;
       case MachineRepresentation::kBit:
@@ -522,6 +531,12 @@ bool InstructionOperand::IsDoubleRegister() const {
          IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
+bool InstructionOperand::IsSimd128Register() const {
+  return IsAnyRegister() &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kSimd128;
+}
+
 bool InstructionOperand::IsStackSlot() const {
   return (IsAllocated() || IsExplicit()) &&
          LocationOperand::cast(this)->location_kind() ==
@@ -534,6 +549,14 @@ bool InstructionOperand::IsDoubleStackSlot() const {
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::STACK_SLOT &&
          IsFloatingPoint(LocationOperand::cast(this)->representation());
+}
+
+bool InstructionOperand::IsSimd128StackSlot() const {
+  return (IsAllocated() || IsExplicit()) &&
+         LocationOperand::cast(this)->location_kind() ==
+             LocationOperand::STACK_SLOT &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kSimd128;
 }
 
 uint64_t InstructionOperand::GetCanonicalizedValue() const {
@@ -633,8 +656,14 @@ class ParallelMove final : public ZoneVector<MoveOperands*>, public ZoneObject {
 
   MoveOperands* AddMove(const InstructionOperand& from,
                         const InstructionOperand& to) {
-    auto zone = get_allocator().zone();
-    auto move = new (zone) MoveOperands(from, to);
+    Zone* zone = get_allocator().zone();
+    return AddMove(from, to, zone);
+  }
+
+  MoveOperands* AddMove(const InstructionOperand& from,
+                        const InstructionOperand& to,
+                        Zone* operand_allocation_zone) {
+    MoveOperands* move = new (operand_allocation_zone) MoveOperands(from, to);
     push_back(move);
     return move;
   }
@@ -732,7 +761,6 @@ class Instruction final {
     return FlagsConditionField::decode(opcode());
   }
 
-  // TODO(titzer): make call into a flags.
   static Instruction* New(Zone* zone, InstructionCode opcode) {
     return New(zone, opcode, 0, nullptr, 0, nullptr, 0, nullptr);
   }
@@ -1322,6 +1350,11 @@ class InstructionSequence final : public ZoneObject {
   }
   void Print(const RegisterConfiguration* config) const;
   void Print() const;
+
+  void PrintBlock(const RegisterConfiguration* config, int block_id) const;
+  void PrintBlock(int block_id) const;
+
+  void Validate();
 
  private:
   friend std::ostream& operator<<(std::ostream& os,

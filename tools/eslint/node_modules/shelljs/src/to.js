@@ -22,6 +22,7 @@ function _to(options, file) {
 
   try {
     fs.writeFileSync(file, this.toString(), 'utf8');
+    return this;
   } catch(e) {
     common.error('could not write to file (code '+e.code+'): '+file, true);
   }

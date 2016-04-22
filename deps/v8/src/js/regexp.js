@@ -9,7 +9,7 @@
 // -------------------------------------------------------------------
 // Imports
 
-var FLAG_harmony_tolength;
+var ExpandReplacement;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
 var GlobalRegExpPrototype;
@@ -17,14 +17,12 @@ var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
 var matchSymbol = utils.ImportNow("match_symbol");
+var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
 
-utils.ImportFromExperimental(function(from) {
-  FLAG_harmony_tolength = from.FLAG_harmony_tolength;
-});
-
 utils.Import(function(from) {
+  ExpandReplacement = from.ExpandReplacement;
   MakeTypeError = from.MakeTypeError;
 });
 
@@ -176,7 +174,7 @@ function RegExpExecJS(string) {
 
   // Conversion is required by the ES2015 specification (RegExpBuiltinExec
   // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH_OR_INTEGER(lastIndex);
+  var i = TO_LENGTH(lastIndex);
 
   var updateLastIndex = REGEXP_GLOBAL(this) || REGEXP_STICKY(this);
   if (updateLastIndex) {
@@ -223,7 +221,7 @@ function RegExpTest(string) {
 
   // Conversion is required by the ES2015 specification (RegExpBuiltinExec
   // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH_OR_INTEGER(lastIndex);
+  var i = TO_LENGTH(lastIndex);
 
   if (REGEXP_GLOBAL(this) || REGEXP_STICKY(this)) {
     if (i < 0 || i > string.length) {
@@ -262,7 +260,7 @@ function RegExpTest(string) {
 }
 
 function TrimRegExp(regexp) {
-  if (!%_ObjectEquals(regexp_key, regexp)) {
+  if (regexp_key !== regexp) {
     regexp_key = regexp;
     regexp_val =
       new GlobalRegExp(
@@ -283,8 +281,11 @@ function RegExpToString() {
       %IncrementUseCounter(kRegExpPrototypeToString);
       return '/(?:)/';
     }
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.toString', this);
+    if (!IS_RECEIVER(this)) {
+      throw MakeTypeError(
+          kIncompatibleMethodReceiver, 'RegExp.prototype.toString', this);
+    }
+    return '/' + TO_STRING(this.source) + '/' + TO_STRING(this.flags);
   }
   var result = '/' + REGEXP_SOURCE(this) + '/';
   if (REGEXP_GLOBAL(this)) result += 'g';
@@ -293,6 +294,15 @@ function RegExpToString() {
   if (REGEXP_UNICODE(this)) result += 'u';
   if (REGEXP_STICKY(this)) result += 'y';
   return result;
+}
+
+
+function AtSurrogatePair(subject, index) {
+  if (index + 1 >= subject.length) return false;
+  var first = %_StringCharCodeAt(subject, index);
+  if (first < 0xD800 || first > 0xDBFF) return false;
+  var second = %_StringCharCodeAt(subject, index + 1);
+  return second >= 0xDC00 || second <= 0xDFFF;
 }
 
 
@@ -337,7 +347,11 @@ function RegExpSplit(string, limit) {
 
     // We ignore a zero-length match at the currentIndex.
     if (startIndex === endIndex && endIndex === currentIndex) {
-      startIndex++;
+      if (REGEXP_UNICODE(this) && AtSurrogatePair(subject, startIndex)) {
+        startIndex += 2;
+      } else {
+        startIndex++;
+      }
       continue;
     }
 
@@ -379,6 +393,175 @@ function RegExpMatch(string) {
   this.lastIndex = 0;
   var result = %StringMatch(subject, this, RegExpLastMatchInfo);
   return result;
+}
+
+
+// ES6 21.2.5.8.
+
+// TODO(lrn): This array will survive indefinitely if replace is never
+// called again. However, it will be empty, since the contents are cleared
+// in the finally block.
+var reusableReplaceArray = new InternalArray(4);
+
+// Helper function for replacing regular expressions with the result of a
+// function application in String.prototype.replace.
+function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
+  var resultArray = reusableReplaceArray;
+  if (resultArray) {
+    reusableReplaceArray = null;
+  } else {
+    // Inside a nested replace (replace called from the replacement function
+    // of another replace) or we have failed to set the reusable array
+    // back due to an exception in a replacement function. Create a new
+    // array to use in the future, or until the original is written back.
+    resultArray = new InternalArray(16);
+  }
+  var res = %RegExpExecMultiple(regexp,
+                                subject,
+                                RegExpLastMatchInfo,
+                                resultArray);
+  regexp.lastIndex = 0;
+  if (IS_NULL(res)) {
+    // No matches at all.
+    reusableReplaceArray = resultArray;
+    return subject;
+  }
+  var len = res.length;
+  if (NUMBER_OF_CAPTURES(RegExpLastMatchInfo) == 2) {
+    // If the number of captures is two then there are no explicit captures in
+    // the regexp, just the implicit capture that captures the whole match.  In
+    // this case we can simplify quite a bit and end up with something faster.
+    // The builder will consist of some integers that indicate slices of the
+    // input string and some replacements that were returned from the replace
+    // function.
+    var match_start = 0;
+    for (var i = 0; i < len; i++) {
+      var elem = res[i];
+      if (%_IsSmi(elem)) {
+        // Integers represent slices of the original string.
+        if (elem > 0) {
+          match_start = (elem >> 11) + (elem & 0x7ff);
+        } else {
+          match_start = res[++i] - elem;
+        }
+      } else {
+        var func_result = replace(elem, match_start, subject);
+        // Overwrite the i'th element in the results with the string we got
+        // back from the callback function.
+        res[i] = TO_STRING(func_result);
+        match_start += elem.length;
+      }
+    }
+  } else {
+    for (var i = 0; i < len; i++) {
+      var elem = res[i];
+      if (!%_IsSmi(elem)) {
+        // elem must be an Array.
+        // Use the apply argument as backing for global RegExp properties.
+        var func_result = %Apply(replace, UNDEFINED, elem, 0, elem.length);
+        // Overwrite the i'th element in the results with the string we got
+        // back from the callback function.
+        res[i] = TO_STRING(func_result);
+      }
+    }
+  }
+  var result = %StringBuilderConcat(res, len, subject);
+  resultArray.length = 0;
+  reusableReplaceArray = resultArray;
+  return result;
+}
+
+
+// Compute the string of a given regular expression capture.
+function CaptureString(string, lastCaptureInfo, index) {
+  // Scale the index.
+  var scaled = index << 1;
+  // Compute start and end.
+  var start = lastCaptureInfo[CAPTURE(scaled)];
+  // If start isn't valid, return undefined.
+  if (start < 0) return;
+  var end = lastCaptureInfo[CAPTURE(scaled + 1)];
+  return %_SubString(string, start, end);
+}
+
+
+function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
+  var matchInfo = DoRegExpExec(regexp, subject, 0);
+  if (IS_NULL(matchInfo)) {
+    regexp.lastIndex = 0;
+    return subject;
+  }
+  var index = matchInfo[CAPTURE0];
+  var result = %_SubString(subject, 0, index);
+  var endOfMatch = matchInfo[CAPTURE1];
+  // Compute the parameter list consisting of the match, captures, index,
+  // and subject for the replace function invocation.
+  // The number of captures plus one for the match.
+  var m = NUMBER_OF_CAPTURES(matchInfo) >> 1;
+  var replacement;
+  if (m == 1) {
+    // No captures, only the match, which is always valid.
+    var s = %_SubString(subject, index, endOfMatch);
+    // Don't call directly to avoid exposing the built-in global object.
+    replacement = replace(s, index, subject);
+  } else {
+    var parameters = new InternalArray(m + 2);
+    for (var j = 0; j < m; j++) {
+      parameters[j] = CaptureString(subject, matchInfo, j);
+    }
+    parameters[j] = index;
+    parameters[j + 1] = subject;
+
+    replacement = %Apply(replace, UNDEFINED, parameters, 0, j + 2);
+  }
+
+  result += replacement;  // The add method converts to string if necessary.
+  // Can't use matchInfo any more from here, since the function could
+  // overwrite it.
+  return result + %_SubString(subject, endOfMatch, subject.length);
+}
+
+
+function RegExpReplace(string, replace) {
+  // TODO(littledan): allow non-regexp receivers.
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "RegExp.prototype.@@replace", this);
+  }
+  var subject = TO_STRING(string);
+  var search = this;
+
+  if (!IS_CALLABLE(replace)) {
+    replace = TO_STRING(replace);
+
+    if (!REGEXP_GLOBAL(search)) {
+      // Non-global regexp search, string replace.
+      var match = DoRegExpExec(search, subject, 0);
+      if (match == null) {
+        search.lastIndex = 0
+        return subject;
+      }
+      if (replace.length == 0) {
+        return %_SubString(subject, 0, match[CAPTURE0]) +
+               %_SubString(subject, match[CAPTURE1], subject.length)
+      }
+      return ExpandReplacement(replace, subject, RegExpLastMatchInfo,
+                                 %_SubString(subject, 0, match[CAPTURE0])) +
+             %_SubString(subject, match[CAPTURE1], subject.length);
+    }
+
+    // Global regexp search, string replace.
+    search.lastIndex = 0;
+    return %StringReplaceGlobalRegExpWithString(
+        subject, search, replace, RegExpLastMatchInfo);
+  }
+
+  if (REGEXP_GLOBAL(search)) {
+    // Global regexp search, function replace.
+    return StringReplaceGlobalRegExpWithFunction(subject, search, replace);
+  }
+  // Non-global regexp search, function replace.
+  return StringReplaceNonGlobalRegExpWithFunction(subject, search, replace);
 }
 
 
@@ -530,6 +713,7 @@ utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "toString", RegExpToString,
   "compile", RegExpCompileJS,
   matchSymbol, RegExpMatch,
+  replaceSymbol, RegExpReplace,
   searchSymbol, RegExpSearch,
   splitSymbol, RegExpSplit,
 ]);
@@ -538,9 +722,6 @@ utils.InstallGetter(GlobalRegExp.prototype, 'global', RegExpGetGlobal);
 utils.InstallGetter(GlobalRegExp.prototype, 'ignoreCase', RegExpGetIgnoreCase);
 utils.InstallGetter(GlobalRegExp.prototype, 'multiline', RegExpGetMultiline);
 utils.InstallGetter(GlobalRegExp.prototype, 'source', RegExpGetSource);
-
-// The length of compile is 1 in SpiderMonkey.
-%FunctionSetLength(GlobalRegExp.prototype.compile, 1);
 
 // The properties `input` and `$_` are aliases for each other.  When this
 // value is set the value it is set to is coerced to a string.

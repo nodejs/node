@@ -9,6 +9,10 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/simulator.h"
 
+#ifdef V8_I18N_SUPPORT
+#include "unicode/uchar.h"
+#endif  // V8_I18N_SUPPORT
+
 namespace v8 {
 namespace internal {
 
@@ -20,6 +24,80 @@ RegExpMacroAssembler::RegExpMacroAssembler(Isolate* isolate, Zone* zone)
 
 
 RegExpMacroAssembler::~RegExpMacroAssembler() {
+}
+
+
+int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
+                                                     Address byte_offset2,
+                                                     size_t byte_length,
+                                                     Isolate* isolate) {
+  unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
+      isolate->regexp_macro_assembler_canonicalize();
+  // This function is not allowed to cause a garbage collection.
+  // A GC might move the calling generated code and invalidate the
+  // return address on the stack.
+  DCHECK(byte_length % 2 == 0);
+  uc16* substring1 = reinterpret_cast<uc16*>(byte_offset1);
+  uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
+  size_t length = byte_length >> 1;
+
+#ifdef V8_I18N_SUPPORT
+  if (isolate == nullptr) {
+    for (size_t i = 0; i < length; i++) {
+      uc32 c1 = substring1[i];
+      uc32 c2 = substring2[i];
+      if (unibrow::Utf16::IsLeadSurrogate(c1)) {
+        // Non-BMP characters do not have case-equivalents in the BMP.
+        // Both have to be non-BMP for them to be able to match.
+        if (!unibrow::Utf16::IsLeadSurrogate(c2)) return 0;
+        if (i + 1 < length) {
+          uc16 c1t = substring1[i + 1];
+          uc16 c2t = substring2[i + 1];
+          if (unibrow::Utf16::IsTrailSurrogate(c1t) &&
+              unibrow::Utf16::IsTrailSurrogate(c2t)) {
+            c1 = unibrow::Utf16::CombineSurrogatePair(c1, c1t);
+            c2 = unibrow::Utf16::CombineSurrogatePair(c2, c2t);
+            i++;
+          }
+        }
+      }
+      c1 = u_foldCase(c1, U_FOLD_CASE_DEFAULT);
+      c2 = u_foldCase(c2, U_FOLD_CASE_DEFAULT);
+      if (c1 != c2) return 0;
+    }
+    return 1;
+  }
+#endif  // V8_I18N_SUPPORT
+  DCHECK_NOT_NULL(isolate);
+  for (size_t i = 0; i < length; i++) {
+    unibrow::uchar c1 = substring1[i];
+    unibrow::uchar c2 = substring2[i];
+    if (c1 != c2) {
+      unibrow::uchar s1[1] = {c1};
+      canonicalize->get(c1, '\0', s1);
+      if (s1[0] != c2) {
+        unibrow::uchar s2[1] = {c2};
+        canonicalize->get(c2, '\0', s2);
+        if (s1[0] != s2[0]) {
+          return 0;
+        }
+      }
+    }
+  }
+  return 1;
+}
+
+
+void RegExpMacroAssembler::CheckNotInSurrogatePair(int cp_offset,
+                                                   Label* on_failure) {
+  Label ok;
+  // Check that current character is not a trail surrogate.
+  LoadCurrentCharacter(cp_offset, &ok);
+  CheckCharacterNotInRange(kTrailSurrogateStart, kTrailSurrogateEnd, &ok);
+  // Check that previous character is not a lead surrogate.
+  LoadCurrentCharacter(cp_offset - 1, &ok);
+  CheckCharacterInRange(kLeadSurrogateStart, kLeadSurrogateEnd, on_failure);
+  Bind(&ok);
 }
 
 
@@ -243,40 +321,6 @@ const byte NativeRegExpMacroAssembler::word_character_map[] = {
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
     0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
 };
-
-
-int NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16(
-    Address byte_offset1,
-    Address byte_offset2,
-    size_t byte_length,
-    Isolate* isolate) {
-  unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
-      isolate->regexp_macro_assembler_canonicalize();
-  // This function is not allowed to cause a garbage collection.
-  // A GC might move the calling generated code and invalidate the
-  // return address on the stack.
-  DCHECK(byte_length % 2 == 0);
-  uc16* substring1 = reinterpret_cast<uc16*>(byte_offset1);
-  uc16* substring2 = reinterpret_cast<uc16*>(byte_offset2);
-  size_t length = byte_length >> 1;
-
-  for (size_t i = 0; i < length; i++) {
-    unibrow::uchar c1 = substring1[i];
-    unibrow::uchar c2 = substring2[i];
-    if (c1 != c2) {
-      unibrow::uchar s1[1] = { c1 };
-      canonicalize->get(c1, '\0', s1);
-      if (s1[0] != c2) {
-        unibrow::uchar s2[1] = { c2 };
-        canonicalize->get(c2, '\0', s2);
-        if (s1[0] != s2[0]) {
-          return 0;
-        }
-      }
-    }
-  }
-  return 1;
-}
 
 
 Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,

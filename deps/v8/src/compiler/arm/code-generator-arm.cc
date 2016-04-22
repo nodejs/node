@@ -206,6 +206,19 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       : OutOfLineCode(gen),
         object_(object),
         index_(index),
+        index_immediate_(0),
+        value_(value),
+        scratch0_(scratch0),
+        scratch1_(scratch1),
+        mode_(mode) {}
+
+  OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t index,
+                       Register value, Register scratch0, Register scratch1,
+                       RecordWriteMode mode)
+      : OutOfLineCode(gen),
+        object_(object),
+        index_(no_reg),
+        index_immediate_(index),
         value_(value),
         scratch0_(scratch0),
         scratch1_(scratch1),
@@ -215,24 +228,36 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
     }
-    if (mode_ > RecordWriteMode::kValueIsMap) {
-      __ CheckPageFlag(value_, scratch0_,
-                       MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                       exit());
-    }
+    __ CheckPageFlag(value_, scratch0_,
+                     MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                     exit());
+    RememberedSetAction const remembered_set_action =
+        mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
+                                             : OMIT_REMEMBERED_SET;
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-    // TODO(turbofan): Once we get frame elision working, we need to save
-    // and restore lr properly here if the frame was elided.
+    if (!frame()->needs_frame()) {
+      // We need to save and restore lr if the frame was elided.
+      __ Push(lr);
+    }
     RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
-                         EMIT_REMEMBERED_SET, save_fp_mode);
-    __ add(scratch1_, object_, index_);
+                         remembered_set_action, save_fp_mode);
+    if (index_.is(no_reg)) {
+      __ add(scratch1_, object_, Operand(index_immediate_));
+    } else {
+      DCHECK_EQ(0, index_immediate_);
+      __ add(scratch1_, object_, Operand(index_));
+    }
     __ CallStub(&stub);
+    if (!frame()->needs_frame()) {
+      __ Pop(lr);
+    }
   }
 
  private:
   Register const object_;
   Register const index_;
+  int32_t const index_immediate_;  // Valid if index_.is(no_reg).
   Register const value_;
   Register const scratch0_;
   Register const scratch1_;
@@ -449,11 +474,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchLazyBailout: {
-      EnsureSpaceForLazyDeopt();
-      RecordCallPosition(instr);
-      break;
-    }
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       __ PrepareCallCFunction(num_parameters, kScratchReg);
@@ -514,6 +534,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ mov(i.OutputRegister(), fp);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArchParentFramePointer:
+      if (frame_access_state()->frame()->needs_frame()) {
+        __ ldr(i.OutputRegister(), MemOperand(fp, 0));
+      } else {
+        __ mov(i.OutputRegister(), fp);
+      }
+      break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputFloat64Register(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -522,17 +549,41 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       RecordWriteMode mode =
           static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
       Register object = i.InputRegister(0);
-      Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = new (zone()) OutOfLineRecordWrite(this, object, index, value,
-                                                   scratch0, scratch1, mode);
-      __ str(value, MemOperand(object, index));
+      OutOfLineRecordWrite* ool;
+
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
+      if (addressing_mode == kMode_Offset_RI) {
+        int32_t index = i.InputInt32(1);
+        ool = new (zone()) OutOfLineRecordWrite(this, object, index, value,
+                                                scratch0, scratch1, mode);
+        __ str(value, MemOperand(object, index));
+      } else {
+        DCHECK_EQ(kMode_Offset_RR, addressing_mode);
+        Register index(i.InputRegister(1));
+        ool = new (zone()) OutOfLineRecordWrite(this, object, index, value,
+                                                scratch0, scratch1, mode);
+        __ str(value, MemOperand(object, index));
+      }
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                        ool->entry());
       __ bind(ool->exit());
+      break;
+    }
+    case kArchStackSlot: {
+      FrameOffset offset =
+          frame_access_state()->GetFrameOffset(i.InputInt32(0));
+      Register base;
+      if (offset.from_stack_pointer()) {
+        base = sp;
+      } else {
+        base = fp;
+      }
+      __ add(i.OutputRegister(0), base, Operand(offset.offset()));
       break;
     }
     case kArmAdd:
@@ -622,6 +673,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmSbfx: {
+      CpuFeatureScope scope(masm(), ARMv7);
+      __ sbfx(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
+              i.InputInt8(2));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArmSxtb:
       __ sxtb(i.OutputRegister(), i.InputRegister(0), i.InputInt32(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -658,6 +716,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                i.InputInt32(2));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArmRbit: {
+      CpuFeatureScope scope(masm(), ARMv7);
+      __ rbit(i.OutputRegister(), i.InputRegister(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArmClz:
       __ clz(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -831,6 +895,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmVcvtF32S32: {
+      SwVfpRegister scratch = kScratchDoubleReg.low();
+      __ vmov(scratch, i.InputRegister(0));
+      __ vcvt_f32_s32(i.OutputFloat32Register(), scratch);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArmVcvtF32U32: {
+      SwVfpRegister scratch = kScratchDoubleReg.low();
+      __ vmov(scratch, i.InputRegister(0));
+      __ vcvt_f32_u32(i.OutputFloat32Register(), scratch);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArmVcvtF64S32: {
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vmov(scratch, i.InputRegister(0));
@@ -842,6 +920,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vmov(scratch, i.InputRegister(0));
       __ vcvt_f64_u32(i.OutputFloat64Register(), scratch);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArmVcvtS32F32: {
+      SwVfpRegister scratch = kScratchDoubleReg.low();
+      __ vcvt_s32_f32(scratch, i.InputFloat32Register(0));
+      __ vmov(i.OutputRegister(), scratch);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArmVcvtU32F32: {
+      SwVfpRegister scratch = kScratchDoubleReg.low();
+      __ vcvt_u32_f32(scratch, i.InputFloat32Register(0));
+      __ vmov(i.OutputRegister(), scratch);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -1098,8 +1190,6 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    // TODO(titzer): cannot address target function == local #-1
-    __ ldr(r1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
   }
 

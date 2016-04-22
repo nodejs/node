@@ -38,6 +38,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmMvn:
     case kArmBfc:
     case kArmUbfx:
+    case kArmSbfx:
     case kArmSxtb:
     case kArmSxth:
     case kArmSxtab:
@@ -46,6 +47,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmUxth:
     case kArmUxtab:
     case kArmUxtah:
+    case kArmRbit:
     case kArmVcmpF32:
     case kArmVaddF32:
     case kArmVsubF32:
@@ -78,8 +80,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmVrintnF64:
     case kArmVcvtF32F64:
     case kArmVcvtF64F32:
+    case kArmVcvtF32S32:
+    case kArmVcvtF32U32:
     case kArmVcvtF64S32:
     case kArmVcvtF64U32:
+    case kArmVcvtS32F32:
+    case kArmVcvtU32F32:
     case kArmVcvtS32F64:
     case kArmVcvtU32F64:
     case kArmVmovLowU32F64:

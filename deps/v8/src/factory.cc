@@ -211,13 +211,6 @@ Handle<String> Factory::InternalizeUtf8String(Vector<const char> string) {
 }
 
 
-// Internalized strings are created in the old generation (data space).
-Handle<String> Factory::InternalizeString(Handle<String> string) {
-  if (string->IsInternalizedString()) return string;
-  return StringTable::LookupString(isolate(), string);
-}
-
-
 Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
   OneByteStringKey key(string, isolate()->heap()->HashSeed());
   return InternalizeStringWithKey(&key);
@@ -240,12 +233,6 @@ Handle<String> Factory::InternalizeTwoByteString(Vector<const uc16> string) {
 template<class StringTableKey>
 Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
   return StringTable::LookupKey(isolate(), key);
-}
-
-
-Handle<Name> Factory::InternalizeName(Handle<Name> name) {
-  if (name->IsUniqueName()) return name;
-  return InternalizeString(Handle<String>::cast(name));
 }
 
 
@@ -868,10 +855,9 @@ Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
 }
 
 
-Handle<ExecutableAccessorInfo> Factory::NewExecutableAccessorInfo() {
-  Handle<ExecutableAccessorInfo> info =
-      Handle<ExecutableAccessorInfo>::cast(
-          NewStruct(EXECUTABLE_ACCESSOR_INFO_TYPE));
+Handle<AccessorInfo> Factory::NewAccessorInfo() {
+  Handle<AccessorInfo> info =
+      Handle<AccessorInfo>::cast(NewStruct(ACCESSOR_INFO_TYPE));
   info->set_flag(0);  // Must clear the flag, it was initialized as undefined.
   return info;
 }
@@ -1042,6 +1028,13 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
                      FixedArray);
 }
 
+Handle<FixedArray> Factory::CopyFixedArrayUpTo(Handle<FixedArray> array,
+                                               int new_len,
+                                               PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->CopyFixedArrayUpTo(
+                                    *array, new_len, pretenure),
+                     FixedArray);
+}
 
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
   CALL_HEAP_FUNCTION(isolate(),
@@ -1488,6 +1481,12 @@ Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
                      Code);
 }
 
+Handle<BytecodeArray> Factory::CopyBytecodeArray(
+    Handle<BytecodeArray> bytecode_array) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyBytecodeArray(*bytecode_array),
+                     BytecodeArray);
+}
 
 Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
                                       PretenureFlag pretenure) {
@@ -1738,16 +1737,6 @@ Handle<JSSetIterator> Factory::NewJSSetIterator() {
 }
 
 
-Handle<JSIteratorResult> Factory::NewJSIteratorResult(Handle<Object> value,
-                                                      Handle<Object> done) {
-  Handle<JSIteratorResult> result = Handle<JSIteratorResult>::cast(
-      NewJSObjectFromMap(isolate()->iterator_result_map()));
-  result->set_value(*value);
-  result->set_done(*done);
-  return result;
-}
-
-
 namespace {
 
 ElementsKind GetExternalArrayElementsKind(ExternalArrayType type) {
@@ -1967,9 +1956,9 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
 
   // Determine the prototype of the {target_function}.
   Handle<Object> prototype;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate(), prototype,
-                             Object::GetPrototype(isolate(), target_function),
-                             JSBoundFunction);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate(), prototype,
+      JSReceiver::GetPrototype(isolate(), target_function), JSBoundFunction);
 
   // Create the [[BoundArguments]] for the result.
   Handle<FixedArray> bound_arguments;
@@ -2001,7 +1990,6 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
   result->set_bound_target_function(*target_function);
   result->set_bound_this(*bound_this);
   result->set_bound_arguments(*bound_arguments);
-  result->set_creation_context(*isolate()->native_context());
   result->set_length(Smi::FromInt(0));
   result->set_name(*undefined_value(), SKIP_WRITE_BARRIER);
   return result;
@@ -2124,6 +2112,10 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name, MaybeHandle<Code> maybe_code, bool is_constructor) {
+  // Function names are assumed to be flat elsewhere. Must flatten before
+  // allocating SharedFunctionInfo to avoid GC seeing the uninitialized SFI.
+  name = String::Flatten(name, TENURED);
+
   Handle<Map> map = shared_function_info_map();
   Handle<SharedFunctionInfo> share = New<SharedFunctionInfo>(map, OLD_SPACE);
 
@@ -2143,7 +2135,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_instance_class_name(*Object_string());
   share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_debug_info(DebugInfo::uninitialized(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
   StaticFeedbackVectorSpec empty_spec;
   Handle<TypeFeedbackMetadata> feedback_metadata =
@@ -2261,7 +2253,14 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   Handle<DebugInfo> debug_info =
       Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
   debug_info->set_shared(*shared);
-  debug_info->set_code(shared->code());
+  if (shared->HasBytecodeArray()) {
+    // Create a copy for debugging.
+    Handle<BytecodeArray> original(shared->bytecode_array(), isolate());
+    Handle<BytecodeArray> copy = CopyBytecodeArray(original);
+    debug_info->set_abstract_code(AbstractCode::cast(*copy));
+  } else {
+    debug_info->set_abstract_code(AbstractCode::cast(shared->code()));
+  }
   debug_info->set_break_points(*break_points);
 
   // Link debug info to function.

@@ -56,9 +56,12 @@ void SlotsBuffer::RemoveInvalidSlots(Heap* heap, SlotsBuffer* buffer) {
         // - point to a heap object in new space
         // - are not within a live heap object on a valid pointer slot
         // - point to a heap object not on an evacuation candidate
-        if (!object->IsHeapObject() || heap->InNewSpace(object) ||
+        // TODO(mlippautz): Move InNewSpace check above IsSlotInLiveObject once
+        //   we filter out unboxed double slots eagerly.
+        if (!object->IsHeapObject() ||
             !heap->mark_compact_collector()->IsSlotInLiveObject(
                 reinterpret_cast<Address>(slot)) ||
+            heap->InNewSpace(object) ||
             !Page::FromAddress(reinterpret_cast<Address>(object))
                  ->IsEvacuationCandidate()) {
           // TODO(hpayer): Instead of replacing slots with kRemovedEntry we

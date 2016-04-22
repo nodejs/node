@@ -59,18 +59,12 @@ function TestGeneratorObject() {
   assertEquals("[object Generator]", String(iter));
   assertEquals([], Object.getOwnPropertyNames(iter));
   assertTrue(iter !== g());
-
-  // g() is the same as new g().
-  iter = new g();
-  assertSame(g.prototype, Object.getPrototypeOf(iter));
-  assertTrue(iter instanceof g);
-  assertEquals("Generator", %_ClassOf(iter));
-  assertEquals("[object Generator]", String(iter));
   assertEquals("[object Generator]", Object.prototype.toString.call(iter));
   var gf = iter.__proto__.constructor;
   assertEquals("[object GeneratorFunction]", Object.prototype.toString.call(gf));
-  assertEquals([], Object.getOwnPropertyNames(iter));
-  assertTrue(iter !== new g());
+
+  // generators are not constructable.
+  assertThrows(()=>new g());
 }
 TestGeneratorObject();
 

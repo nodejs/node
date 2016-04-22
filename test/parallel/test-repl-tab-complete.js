@@ -176,7 +176,7 @@ var spaceTimeout = setTimeout(function() {
 }, 1000);
 
 testMe.complete(' ', common.mustCall(function(error, data) {
-  assert.deepEqual(data, [[], undefined]);
+  assert.deepStrictEqual(data, [[], undefined]);
   clearTimeout(spaceTimeout);
 }));
 
@@ -248,4 +248,12 @@ testMe.complete('obj.', common.mustCall(function(error, data) {
   assert.strictEqual(data[0].indexOf('obj.1'), -1);
   assert.strictEqual(data[0].indexOf('obj.1a'), -1);
   assert.notStrictEqual(data[0].indexOf('obj.a'), -1);
+}));
+
+// Don't try to complete results of non-simple expressions
+putIn.run(['.clear']);
+putIn.run(['function a() {}']);
+
+testMe.complete('a().b.', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [[], undefined]);
 }));

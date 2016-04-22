@@ -193,5 +193,10 @@ const char* DefaultPlatform::GetCategoryGroupName(
   static const char dummy[] = "dummy";
   return dummy;
 }
+
+size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {
+  return static_cast<size_t>(thread_pool_size_);
+}
+
 }  // namespace platform
 }  // namespace v8

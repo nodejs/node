@@ -686,9 +686,9 @@ THREADED_TEST(Regress433458) {
 
 static bool security_check_value = false;
 
-
 static bool SecurityTestCallback(Local<v8::Context> accessing_context,
-                                 Local<v8::Object> accessed_object) {
+                                 Local<v8::Object> accessed_object,
+                                 Local<v8::Value> data) {
   return security_check_value;
 }
 

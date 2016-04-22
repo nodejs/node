@@ -3,7 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 
 var Buffer = require('buffer').Buffer;
-var SlowBuffer = require('buffer').SlowBuffer;
 
 // counter to ensure unique value is always copied
 var cntr = 0;
@@ -428,7 +427,7 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
 
 {
   // also from a non-pooled instance
-  const b = new SlowBuffer(5);
+  const b = Buffer.allocUnsafeSlow(5);
   const c = b.slice(0, 4);
   const d = c.slice(0, 2);
   assert.equal(c.parent, d.parent);
@@ -536,17 +535,17 @@ assert.equal('TWFu', (Buffer.from('Man')).toString('base64'));
 {
   // big example
   const quote = 'Man is distinguished, not only by his reason, but by this ' +
-              'singular passion from other animals, which is a lust ' +
-              'of the mind, that by a perseverance of delight in the ' +
-              'continued and indefatigable generation of knowledge, exceeds ' +
-              'the short vehemence of any carnal pleasure.';
+                'singular passion from other animals, which is a lust ' +
+                'of the mind, that by a perseverance of delight in the ' +
+                'continued and indefatigable generation of knowledge, ' +
+                'exceeds the short vehemence of any carnal pleasure.';
   const expected = 'TWFuIGlzIGRpc3Rpbmd1aXNoZWQsIG5vdCBvbmx5IGJ5IGhpcyByZWFzb' +
-                 '24sIGJ1dCBieSB0aGlzIHNpbmd1bGFyIHBhc3Npb24gZnJvbSBvdGhlciBh' +
-                 'bmltYWxzLCB3aGljaCBpcyBhIGx1c3Qgb2YgdGhlIG1pbmQsIHRoYXQgYnk' +
-                 'gYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWdodCBpbiB0aGUgY29udGludWVkIG' +
-                 'FuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZGdlLCBle' +
-                 'GNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm5hbCBwbGVh' +
-                 'c3VyZS4=';
+                   '24sIGJ1dCBieSB0aGlzIHNpbmd1bGFyIHBhc3Npb24gZnJvbSBvdGhlci' +
+                   'BhbmltYWxzLCB3aGljaCBpcyBhIGx1c3Qgb2YgdGhlIG1pbmQsIHRoYXQ' +
+                   'gYnkgYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWdodCBpbiB0aGUgY29udGlu' +
+                   'dWVkIGFuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZ' +
+                   'GdlLCBleGNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm' +
+                   '5hbCBwbGVhc3VyZS4=';
   assert.equal(expected, (Buffer.from(quote)).toString('base64'));
 
   let b = Buffer.allocUnsafe(1024);
@@ -556,11 +555,11 @@ assert.equal('TWFu', (Buffer.from('Man')).toString('base64'));
 
   // check that the base64 decoder ignores whitespace
   const expectedWhite = expected.slice(0, 60) + ' \n' +
-                      expected.slice(60, 120) + ' \n' +
-                      expected.slice(120, 180) + ' \n' +
-                      expected.slice(180, 240) + ' \n' +
-                      expected.slice(240, 300) + '\n' +
-                      expected.slice(300, 360) + '\n';
+                        expected.slice(60, 120) + ' \n' +
+                        expected.slice(120, 180) + ' \n' +
+                        expected.slice(180, 240) + ' \n' +
+                        expected.slice(240, 300) + '\n' +
+                        expected.slice(300, 360) + '\n';
   b = Buffer.allocUnsafe(1024);
   bytesWritten = b.write(expectedWhite, 0, 'base64');
   assert.equal(quote.length, bytesWritten);
@@ -574,11 +573,11 @@ assert.equal('TWFu', (Buffer.from('Man')).toString('base64'));
 
   // check that the base64 decoder ignores illegal chars
   const expectedIllegal = expected.slice(0, 60) + ' \x80' +
-                        expected.slice(60, 120) + ' \xff' +
-                        expected.slice(120, 180) + ' \x00' +
-                        expected.slice(180, 240) + ' \x98' +
-                        expected.slice(240, 300) + '\x03' +
-                        expected.slice(300, 360);
+                          expected.slice(60, 120) + ' \xff' +
+                          expected.slice(120, 180) + ' \x00' +
+                          expected.slice(180, 240) + ' \x98' +
+                          expected.slice(240, 300) + '\x03' +
+                          expected.slice(300, 360);
   b = Buffer.from(expectedIllegal, 'base64');
   assert.equal(quote.length, b.length);
   assert.equal(quote, b.toString('ascii', 0, quote.length));
@@ -1305,7 +1304,7 @@ assert.throws(function() {
 
   // try to slice a zero length Buffer
   // see https://github.com/joyent/node/issues/5881
-  SlowBuffer(0).slice(0, 1);
+  Buffer.alloc(0).slice(0, 1);
 })();
 
 // Regression test for #5482: should throw but not assert in C++ land.
@@ -1336,7 +1335,7 @@ assert.throws(function() {
 }, RangeError);
 
 assert.throws(function() {
-  SlowBuffer((-1 >>> 0) + 1);
+  Buffer.allocUnsafeSlow((-1 >>> 0) + 1);
 }, RangeError);
 
 if (common.hasCrypto) {
@@ -1435,14 +1434,13 @@ assert.throws(function() {
 }, regErrorMsg);
 
 
-// Test prototype getters don't throw
-assert.equal(Buffer.prototype.parent, undefined);
-assert.equal(Buffer.prototype.offset, undefined);
-assert.equal(SlowBuffer.prototype.parent, undefined);
-assert.equal(SlowBuffer.prototype.offset, undefined);
-
-
 // Test that ParseArrayIndex handles full uint32
 assert.throws(function() {
   Buffer.from(new ArrayBuffer(0), -1 >>> 0);
 }, /RangeError: 'offset' is out of bounds/);
+
+// Unpooled buffer (replaces SlowBuffer)
+const ubuf = Buffer.allocUnsafeSlow(10);
+assert(ubuf);
+assert(ubuf.buffer);
+assert.equal(ubuf.buffer.byteLength, 10);

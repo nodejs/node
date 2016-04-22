@@ -428,11 +428,13 @@ TEST(SampleIds) {
   // (root)#1 -> aaa #2 -> bbb #4 -> ccc #5 - sample2
   //                    -> ccc #6 -> aaa #7 - sample3
   TickSample sample1;
+  sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample1.pc = ToAddress(0x1600);
   sample1.stack[0] = ToAddress(0x1510);
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
   TickSample sample2;
+  sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample2.pc = ToAddress(0x1925);
   sample2.stack[0] = ToAddress(0x1780);
   sample2.stack[1] = ToAddress(0x10000);  // non-existent.
@@ -440,6 +442,7 @@ TEST(SampleIds) {
   sample2.frames_count = 3;
   generator.RecordTickSample(sample2);
   TickSample sample3;
+  sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample3.pc = ToAddress(0x1510);
   sample3.stack[0] = ToAddress(0x1910);
   sample3.stack[1] = ToAddress(0x1610);

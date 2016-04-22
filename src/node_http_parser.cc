@@ -300,7 +300,7 @@ class Parser : public AsyncWrap {
       return -1;
     }
 
-    return head_response->IsTrue() ? 1 : 0;
+    return head_response->IntegerValue();
   }
 
 
@@ -759,7 +759,7 @@ void InitHttpParser(Local<Object> target,
     methods->Set(num, FIXED_ONE_BYTE_STRING(env->isolate(), #string));
   HTTP_METHOD_MAP(V)
 #undef V
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "execute", Parser::Execute);

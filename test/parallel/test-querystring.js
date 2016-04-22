@@ -9,6 +9,12 @@ var qs = require('querystring');
 // {{{
 // [ wonkyQS, canonicalQS, obj ]
 var qsTestCases = [
+  ['__proto__=1',
+   '__proto__=1',
+   JSON.parse('{"__proto__":"1"}')],
+  ['__defineGetter__=asdf',
+   '__defineGetter__=asdf',
+   JSON.parse('{"__defineGetter__":"asdf"}')],
   ['foo=918854443121279438895193',
    'foo=918854443121279438895193',
    {'foo': '918854443121279438895193'}],

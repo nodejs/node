@@ -32,11 +32,8 @@ function _cat(options, files) {
     if (!fs.existsSync(file))
       common.error('no such file or directory: ' + file);
 
-    cat += fs.readFileSync(file, 'utf8') + '\n';
+    cat += fs.readFileSync(file, 'utf8');
   });
-
-  if (cat[cat.length-1] === '\n')
-    cat = cat.substring(0, cat.length-1);
 
   return common.ShellString(cat);
 }

@@ -7,6 +7,7 @@
 
 #include "src/base/bits.h"
 #include "src/heap/spaces.h"
+#include "src/heap/store-buffer.h"
 
 namespace v8 {
 namespace internal {
@@ -406,7 +407,8 @@ class MarkCompactCollector {
 
   void MigrateObject(HeapObject* dst, HeapObject* src, int size,
                      AllocationSpace to_old_space,
-                     SlotsBuffer** evacuation_slots_buffer);
+                     SlotsBuffer** evacuation_slots_buffer,
+                     LocalStoreBuffer* local_store_buffer);
 
   void InvalidateCode(Code* code);
 
@@ -421,7 +423,8 @@ class MarkCompactCollector {
   // required_freed_bytes was freed. If required_freed_bytes was set to zero
   // then the whole given space is swept. It returns the size of the maximum
   // continuous freed memory chunk.
-  int SweepInParallel(PagedSpace* space, int required_freed_bytes);
+  int SweepInParallel(PagedSpace* space, int required_freed_bytes,
+                      int max_pages = 0);
 
   // Sweeps a given page concurrently to the sweeper threads. It returns the
   // size of the maximum continuous freed memory chunk.
@@ -508,10 +511,11 @@ class MarkCompactCollector {
   class EvacuateNewSpaceVisitor;
   class EvacuateOldSpaceVisitor;
   class EvacuateVisitorBase;
+  class Evacuator;
   class HeapObjectVisitor;
   class SweeperTask;
 
-  static const int kInitialLocalPretenuringFeedbackCapacity = 256;
+  typedef std::vector<Page*> SweepingList;
 
   explicit MarkCompactCollector(Heap* heap);
 
@@ -693,31 +697,26 @@ class MarkCompactCollector {
   //          evacuation.
   //
 
+  inline SweepingList& sweeping_list(Space* space);
+
   // If we are not compacting the heap, we simply sweep the spaces except
   // for the large object space, clearing mark bits and adding unmarked
   // regions to each space's free list.
   void SweepSpaces();
 
   void EvacuateNewSpacePrologue();
-
-  // Returns local pretenuring feedback.
-  HashMap* EvacuateNewSpaceInParallel();
+  void EvacuateNewSpaceEpilogue();
 
   void AddEvacuationSlotsBufferSynchronized(
       SlotsBuffer* evacuation_slots_buffer);
 
-  void EvacuatePages(CompactionSpaceCollection* compaction_spaces,
-                     SlotsBuffer** evacuation_slots_buffer);
-
   void EvacuatePagesInParallel();
 
   // The number of parallel compaction tasks, including the main thread.
-  int NumberOfParallelCompactionTasks();
+  int NumberOfParallelCompactionTasks(int pages, intptr_t live_bytes);
 
-
-  void StartParallelCompaction(CompactionSpaceCollection** compaction_spaces,
-                               uint32_t* task_ids, int len);
-  void WaitUntilCompactionCompleted(uint32_t* task_ids, int len);
+  void StartParallelCompaction(Evacuator** evacuators, int len);
+  void WaitUntilCompactionCompleted(Evacuator** evacuators, int len);
 
   void EvacuateNewSpaceAndCandidates();
 
@@ -736,10 +735,6 @@ class MarkCompactCollector {
 
   void ReleaseEvacuationCandidates();
 
-  // Moves the pages of the evacuation_candidates_ list to the end of their
-  // corresponding space pages list.
-  void MoveEvacuationCandidatesToEndOfPagesList();
-
   // Starts sweeping of a space by contributing on the main thread and setting
   // up other pages for sweeping.
   void StartSweepSpace(PagedSpace* space);
@@ -748,11 +743,10 @@ class MarkCompactCollector {
   // swept in parallel.
   void ParallelSweepSpacesComplete();
 
-  void ParallelSweepSpaceComplete(PagedSpace* space);
-
   // Updates store buffer and slot buffer for a pointer in a migrating object.
   void RecordMigratedSlot(Object* value, Address slot,
-                          SlotsBuffer** evacuation_slots_buffer);
+                          SlotsBuffer** evacuation_slots_buffer,
+                          LocalStoreBuffer* local_store_buffer);
 
   // Adds the code entry slot to the slots buffer.
   void RecordMigratedCodeEntrySlot(Address code_entry, Address code_entry_slot,
@@ -778,8 +772,7 @@ class MarkCompactCollector {
   bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;
-
-  List<MemoryChunk*> newspace_evacuation_candidates_;
+  List<NewSpacePage*> newspace_evacuation_candidates_;
 
   // The evacuation_slots_buffers_ are used by the compaction threads.
   // When a compaction task finishes, it uses
@@ -792,6 +785,10 @@ class MarkCompactCollector {
   base::SmartPointer<FreeList> free_list_old_space_;
   base::SmartPointer<FreeList> free_list_code_space_;
   base::SmartPointer<FreeList> free_list_map_space_;
+
+  SweepingList sweeping_list_old_space_;
+  SweepingList sweeping_list_code_space_;
+  SweepingList sweeping_list_map_space_;
 
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.

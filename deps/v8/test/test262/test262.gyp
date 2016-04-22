@@ -19,6 +19,14 @@
           'sources': [
             'test262.isolate',
           ],
+          'actions': [
+            {
+              'action_name': 'archive_test262',
+              'inputs': ['archive.py', '<!@(python list.py)'],
+              'outputs': ['data.tar'],
+              'action': ['python', 'archive.py'],
+            },
+          ],
         },
       ],
     }],

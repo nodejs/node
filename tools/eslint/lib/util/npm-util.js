@@ -28,8 +28,10 @@ var fs = require("fs"),
  */
 function findPackageJson(startDir) {
     var dir = path.resolve(startDir || process.cwd());
+
     do {
         var pkgfile = path.join(dir, "package.json");
+
         if (!fs.existsSync(pkgfile)) {
             dir = path.join(dir, "..");
             continue;
@@ -69,10 +71,12 @@ function installSyncSaveDev(packages) {
 function check(packages, opt) {
     var deps = [];
     var pkgJson = (opt) ? findPackageJson(opt.startDir) : findPackageJson();
+
     if (!pkgJson) {
         throw new Error("Could not find a package.json file. Run 'npm init' to create one.");
     }
     var fileJson = JSON.parse(fs.readFileSync(pkgJson, "utf8"));
+
     if (opt.devDependencies && typeof fileJson.devDependencies === "object") {
         deps = deps.concat(Object.keys(fileJson.devDependencies));
     }

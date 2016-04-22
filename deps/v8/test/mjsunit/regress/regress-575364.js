@@ -9,4 +9,4 @@ function f() {
 
 }
 assertFalse(_WASMEXP_ == undefined);
-assertThrows(function() { _WASMEXP_.asmCompileRun(f.toString()); });
+assertThrows(function() { _WASMEXP_.instantiateModuleFromAsm(f.toString()); });

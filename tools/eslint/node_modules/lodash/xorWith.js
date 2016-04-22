@@ -11,6 +11,7 @@ var arrayFilter = require('./_arrayFilter'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Array
  * @param {...Array} [arrays] The arrays to inspect.
  * @param {Function} [comparator] The comparator invoked per element.

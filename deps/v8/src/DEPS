@@ -12,18 +12,12 @@ include_rules = [
   "+src/interpreter/bytecode-array-iterator.h",
   "+src/interpreter/bytecodes.h",
   "+src/interpreter/interpreter.h",
+  "+src/interpreter/source-position-table.h",
   "-src/libplatform",
   "-include/libplatform"
 ]
 
 specific_include_rules = {
-  ".*\.h": [
-    # Note that src/v8.h by now is a regular header file, it doesn't provide
-    # any special declarations besides the V8 class. There should be no need
-    # for including it in any .h files though. This rule is just a reminder,
-    # and can be removed once the dust has settled.
-    "-src/v8.h",
-  ],
   "d8\.cc": [
     "+include/libplatform/libplatform.h",
   ],

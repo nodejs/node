@@ -123,7 +123,6 @@ class UpdateChromiumCheckout(Step):
     cwd = self._options.chromium
     self.GitCheckout("master", cwd=cwd)
     self.DeleteBranch("work-branch", cwd=cwd)
-    self.Command("gclient", "sync --nohooks", cwd=cwd)
     self.GitPull(cwd=cwd)
 
     # Update v8 remotes.

@@ -274,9 +274,8 @@ unsigned ProfileTree::GetFunctionId(const ProfileNode* node) {
   return static_cast<unsigned>(reinterpret_cast<uintptr_t>(entry->value));
 }
 
-
 ProfileNode* ProfileTree::AddPathFromEnd(const Vector<CodeEntry*>& path,
-                                         int src_line) {
+                                         int src_line, bool update_stats) {
   ProfileNode* node = root_;
   CodeEntry* last_entry = NULL;
   for (CodeEntry** entry = path.start() + path.length() - 1;
@@ -290,9 +289,11 @@ ProfileNode* ProfileTree::AddPathFromEnd(const Vector<CodeEntry*>& path,
   if (last_entry && last_entry->has_deopt_info()) {
     node->CollectDeoptInfo(last_entry);
   }
-  node->IncrementSelfTicks();
-  if (src_line != v8::CpuProfileNode::kNoLineNumberInfo) {
-    node->IncrementLineTicks(src_line);
+  if (update_stats) {
+    node->IncrementSelfTicks();
+    if (src_line != v8::CpuProfileNode::kNoLineNumberInfo) {
+      node->IncrementLineTicks(src_line);
+    }
   }
   return node;
 }
@@ -354,11 +355,12 @@ CpuProfile::CpuProfile(Isolate* isolate, const char* title, bool record_samples)
       start_time_(base::TimeTicks::HighResolutionNow()),
       top_down_(isolate) {}
 
-
 void CpuProfile::AddPath(base::TimeTicks timestamp,
-                         const Vector<CodeEntry*>& path, int src_line) {
-  ProfileNode* top_frame_node = top_down_.AddPathFromEnd(path, src_line);
-  if (record_samples_) {
+                         const Vector<CodeEntry*>& path, int src_line,
+                         bool update_stats) {
+  ProfileNode* top_frame_node =
+      top_down_.AddPathFromEnd(path, src_line, update_stats);
+  if (record_samples_ && !timestamp.IsNull()) {
     timestamps_.Add(timestamp);
     samples_.Add(top_frame_node);
   }
@@ -522,15 +524,15 @@ void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
   UNREACHABLE();
 }
 
-
 void CpuProfilesCollection::AddPathToCurrentProfiles(
-    base::TimeTicks timestamp, const Vector<CodeEntry*>& path, int src_line) {
+    base::TimeTicks timestamp, const Vector<CodeEntry*>& path, int src_line,
+    bool update_stats) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
   current_profiles_semaphore_.Wait();
   for (int i = 0; i < current_profiles_.length(); ++i) {
-    current_profiles_[i]->AddPath(timestamp, path, src_line);
+    current_profiles_[i]->AddPath(timestamp, path, src_line, update_stats);
   }
   current_profiles_semaphore_.Signal();
 }
@@ -595,7 +597,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // Don't use PC when in external callback code, as it can point
       // inside callback's code, and we will erroneously report
       // that a callback calls itself.
-      *entry++ = code_map_.FindEntry(sample.external_callback);
+      *entry++ = code_map_.FindEntry(sample.external_callback_entry);
     } else {
       CodeEntry* pc_entry = code_map_.FindEntry(sample.pc);
       // If there is no pc_entry we're likely in native code.
@@ -634,10 +636,9 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       }
     }
 
-    for (const Address* stack_pos = sample.stack,
-           *stack_end = stack_pos + sample.frames_count;
-         stack_pos != stack_end;
-         ++stack_pos) {
+    for (const Address *stack_pos = sample.stack,
+                       *stack_end = stack_pos + sample.frames_count;
+         stack_pos != stack_end; ++stack_pos) {
       *entry = code_map_.FindEntry(*stack_pos);
 
       // Skip unresolved frames (e.g. internal frame) and get source line of
@@ -670,7 +671,8 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
     }
   }
 
-  profiles_->AddPathToCurrentProfiles(sample.timestamp, entries, src_line);
+  profiles_->AddPathToCurrentProfiles(sample.timestamp, entries, src_line,
+                                      sample.update_stats);
 }
 
 

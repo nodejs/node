@@ -223,9 +223,12 @@ bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
 
 
 Handle<Object> CallSite::GetMethodName() {
-  MaybeHandle<JSReceiver> maybe = Object::ToObject(isolate_, receiver_);
-  Handle<JSReceiver> receiver;
-  if (!maybe.ToHandle(&receiver) || !receiver->IsJSObject()) {
+  if (receiver_->IsNull() || receiver_->IsUndefined()) {
+    return isolate_->factory()->null_value();
+  }
+  Handle<JSReceiver> receiver =
+      Object::ToObject(isolate_, receiver_).ToHandleChecked();
+  if (!receiver->IsJSObject()) {
     return isolate_->factory()->null_value();
   }
 
@@ -247,7 +250,7 @@ Handle<Object> CallSite::GetMethodName() {
     if (!current->IsJSObject()) break;
     Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
     if (current_obj->IsAccessCheckNeeded()) break;
-    Handle<FixedArray> keys = JSObject::GetEnumPropertyKeys(current_obj, false);
+    Handle<FixedArray> keys = JSObject::GetEnumPropertyKeys(current_obj);
     for (int i = 0; i < keys->length(); i++) {
       HandleScope inner_scope(isolate_);
       if (!keys->get(i)->IsName()) continue;

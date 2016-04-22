@@ -15,7 +15,7 @@ var gtocPath = path.resolve(path.join(
     '..',
     'doc',
     'api',
-    '_toc.markdown'
+    '_toc.md'
 ));
 var gtocLoading = null;
 var gtocData = null;
@@ -75,7 +75,7 @@ function render(lexed, filename, template, cb) {
   // get the section
   var section = getSection(lexed);
 
-  filename = path.basename(filename, '.markdown');
+  filename = path.basename(filename, '.md');
 
   parseText(lexed);
   lexed = parseLists(lexed);
@@ -112,6 +112,7 @@ function parseText(lexed) {
   lexed.forEach(function(tok) {
     if (tok.text && tok.type !== 'code') {
       tok.text = linkManPages(tok.text);
+      tok.text = linkJsTypeDocs(tok.text);
     }
   });
 }
@@ -166,9 +167,6 @@ function parseLists(input) {
         }
         return;
       }
-      if (tok.text) {
-        tok.text = parseListItem(tok.text);
-      }
     }
     output.push(tok);
   });
@@ -197,7 +195,7 @@ function linkManPages(text) {
   });
 }
 
-function parseListItem(text) {
+function linkJsTypeDocs(text) {
   var parts = text.split('`');
   var i;
   var typeMatches;

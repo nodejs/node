@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
@@ -34,20 +40,25 @@ module.exports = function(context) {
     function checkLastSegment(node) {
         var loc, type;
 
-        // Skip if it expected no return value or unreachable.
-        // When unreachable, all paths are returned or thrown.
+        /*
+         * Skip if it expected no return value or unreachable.
+         * When unreachable, all paths are returned or thrown.
+         */
         if (!funcInfo.hasReturnValue ||
-            funcInfo.codePath.currentSegments.every(isUnreachable)
+            funcInfo.codePath.currentSegments.every(isUnreachable) ||
+            astUtils.isES5Constructor(node)
         ) {
             return;
         }
 
         // Adjust a location and a message.
         if (node.type === "Program") {
+
             // The head of program.
             loc = {line: 1, column: 0};
             type = "program";
         } else if (node.type === "ArrowFunctionExpression") {
+
             // `=>` token
             loc = context.getSourceCode().getTokenBefore(node.body).loc.start;
             type = "function";
@@ -55,10 +66,12 @@ module.exports = function(context) {
             node.parent.type === "MethodDefinition" ||
             (node.parent.type === "Property" && node.parent.method)
         ) {
+
             // Method name.
             loc = node.parent.key.loc.start;
             type = "method";
         } else {
+
             // Function name or `function` keyword.
             loc = (node.id || node).loc.start;
             type = "function";
@@ -74,6 +87,7 @@ module.exports = function(context) {
     }
 
     return {
+
         // Initializes/Disposes state of each code path.
         "onCodePathStart": function(codePath) {
             funcInfo = {

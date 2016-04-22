@@ -5,6 +5,7 @@ var createRound = require('./_createRound');
  *
  * @static
  * @memberOf _
+ * @since 3.10.0
  * @category Math
  * @param {number} number The number to round up.
  * @param {number} [precision=0] The precision to round up to.

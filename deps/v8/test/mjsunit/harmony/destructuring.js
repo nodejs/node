@@ -263,6 +263,63 @@
 }());
 
 
+(function TestAssignmentExprInInitializers() {
+  {
+    let x, y;
+    {
+      let { x = y = 1 } = {};
+      assertSame(x, 1);
+      assertSame(y, 1);
+    }
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+
+  {
+    let x, y;
+    {
+      let { x: x = y = 1 } = {};
+      assertSame(1, x);
+      assertSame(1, y);
+    }
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+
+  {
+    let x, y;
+    {
+      let [ x = y = 1 ] = [];
+      assertSame(1, x);
+      assertSame(1, y);
+    }
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+
+  {
+    let x, y;
+    (function({ x = y = 1 }) {}({}));
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+
+  {
+    let x, y;
+    (function({ x: x = y = 1 }) {}({}));
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+
+  {
+    let x, y;
+    (function([ x = y = 1 ]) {}([]));
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+}());
+
+
 (function TestMultipleAccesses() {
   assertThrows(
     "'use strict';"+
@@ -1061,8 +1118,8 @@
 
 
 (function TestForInOfTDZ() {
-  assertThrows("'use strict'; let x = {}; for (let [x, y] of {x});", ReferenceError);
-  assertThrows("'use strict'; let x = {}; for (let [y, x] of {x});", ReferenceError);
+  assertThrows("'use strict'; let x = {}; for (let [x, y] of [x]);", ReferenceError);
+  assertThrows("'use strict'; let x = {}; for (let [y, x] of [x]);", ReferenceError);
   assertThrows("'use strict'; let x = {}; for (let [x, y] in {x});", ReferenceError);
   assertThrows("'use strict'; let x = {}; for (let [y, x] in {x});", ReferenceError);
 }());

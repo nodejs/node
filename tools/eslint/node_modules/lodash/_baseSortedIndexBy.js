@@ -16,7 +16,8 @@ var nativeFloor = Math.floor,
  * @param {*} value The value to evaluate.
  * @param {Function} iteratee The iteratee invoked per element.
  * @param {boolean} [retHighest] Specify returning the highest qualified index.
- * @returns {number} Returns the index at which `value` should be inserted into `array`.
+ * @returns {number} Returns the index at which `value` should be inserted
+ *  into `array`.
  */
 function baseSortedIndexBy(array, value, iteratee, retHighest) {
   value = iteratee(value);

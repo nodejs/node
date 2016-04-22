@@ -1812,6 +1812,9 @@ reexecute:
             case 0:
               break;
 
+            case 2:
+              parser->upgrade = 1;
+
             case 1:
               parser->flags |= F_SKIPBODY;
               break;

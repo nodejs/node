@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('omitBy', require('../omitBy'));
+var convert = require('./convert'),
+    func = convert('omitBy', require('../omitBy'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

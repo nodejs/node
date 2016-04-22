@@ -25,6 +25,7 @@ module.exports = function(context) {
 
         if (reference.init === false &&
             reference.isWrite() &&
+
             // Destructuring assignments can have multiple default value,
             // so possibly there are multiple writeable references for the same identifier.
             (index === 0 || references[index - 1].identifier !== identifier)
@@ -51,6 +52,7 @@ module.exports = function(context) {
     return {
         "Program": function() {
             var globalScope = context.getScope();
+
             globalScope.variables.forEach(checkVariable);
         }
     };

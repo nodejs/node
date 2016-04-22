@@ -28,6 +28,8 @@
 
 "use strict";
 
+var astUtils = require("../ast-utils.js");
+
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
@@ -38,7 +40,7 @@
  * @returns {boolean} `true` if the node is a conditional expression.
  */
 function isConditional(node) {
-    return node.body && node.body.type === "ConditionalExpression";
+    return node && node.type === "ConditionalExpression";
 }
 
 //------------------------------------------------------------------------------
@@ -46,13 +48,17 @@ function isConditional(node) {
 //------------------------------------------------------------------------------
 
 module.exports = function(context) {
+    var config = context.options[0] || {};
+
     /**
      * Reports if an arrow function contains an ambiguous conditional.
      * @param {ASTNode} node - A node to check and report.
      * @returns {void}
      */
     function checkArrowFunc(node) {
-        if (isConditional(node)) {
+        var body = node.body;
+
+        if (isConditional(body) && !(config.allowParens && astUtils.isParenthesised(context, body))) {
             context.report(node, "Arrow function used ambiguously with a conditional expression.");
         }
     }
@@ -62,4 +68,10 @@ module.exports = function(context) {
     };
 };
 
-module.exports.schema = [];
+module.exports.schema = [{
+    type: "object",
+    properties: {
+        allowParens: {type: "boolean"}
+    },
+    additionalProperties: false
+}];

@@ -3676,6 +3676,7 @@ bool Hash::HashInit(const char* hash_type) {
     return false;
   }
   initialised_ = true;
+  finalized_ = false;
   return true;
 }
 
@@ -3694,6 +3695,13 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
   Hash* hash = Unwrap<Hash>(args.Holder());
 
   THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0], "Data");
+
+  if (!hash->initialised_) {
+    return env->ThrowError("Not initialized");
+  }
+  if (hash->finalized_) {
+    return env->ThrowError("Digest already called");
+  }
 
   // Only copy the data if we have to, because it's a string
   bool r;
@@ -3722,6 +3730,9 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
   if (!hash->initialised_) {
     return env->ThrowError("Not initialized");
   }
+  if (hash->finalized_) {
+    return env->ThrowError("Digest already called");
+  }
 
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {
@@ -3735,7 +3746,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 
   EVP_DigestFinal_ex(&hash->mdctx_, md_value, &md_len);
   EVP_MD_CTX_cleanup(&hash->mdctx_);
-  hash->initialised_ = false;
+  hash->finalized_ = true;
 
   Local<Value> rc = StringBytes::Encode(env->isolate(),
                                         reinterpret_cast<const char*>(md_value),

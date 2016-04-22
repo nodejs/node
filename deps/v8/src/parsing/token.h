@@ -280,6 +280,22 @@ class Token {
     }
   }
 
+  static bool EvalComparison(Value op, double op1, double op2) {
+    DCHECK(IsArithmeticCompareOp(op));
+    switch (op) {
+      case Token::EQ:
+      case Token::EQ_STRICT: return (op1 == op2);
+      case Token::NE: return (op1 != op2);
+      case Token::LT: return (op1 < op2);
+      case Token::GT: return (op1 > op2);
+      case Token::LTE: return (op1 <= op2);
+      case Token::GTE: return (op1 >= op2);
+      default:
+        UNREACHABLE();
+        return false;
+    }
+  }
+
   static bool IsBitOp(Value op) {
     return (BIT_OR <= op && op <= SHR) || op == BIT_NOT;
   }

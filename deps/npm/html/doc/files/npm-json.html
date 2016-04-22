@@ -162,6 +162,7 @@ works just like a <code>.gitignore</code>.</p>
 <li><code>._*</code></li>
 <li><code>npm-debug.log</code></li>
 <li><code>.npmrc</code></li>
+<li><code>node_modules</code></li>
 </ul>
 <h2 id="main">main</h2>
 <p>The main field is a module ID that is the primary entry point to your program.
@@ -494,8 +495,8 @@ that it works on node.</p>
 <p>You can also use the &quot;engines&quot; field to specify which versions of npm
 are capable of properly installing your program.  For example:</p>
 <pre><code>{ &quot;engines&quot; : { &quot;npm&quot; : &quot;~1.0.20&quot; } }
-</code></pre><p>Note that, unless the user has set the <code>engine-strict</code> config flag, this
-field is advisory only.</p>
+</code></pre><p>Unless the user has set the <code>engine-strict</code> config flag, this
+field is advisory only will produce warnings when your package is installed as a dependency.</p>
 <h2 id="enginestrict">engineStrict</h2>
 <p><strong>This feature was deprecated with npm 3.0.0</strong></p>
 <p>Prior to npm 3.0.0, this feature was used to treat this package as if the
@@ -566,7 +567,6 @@ ignored.</p>
 <li><a href="../cli/npm-config.html">npm-config(1)</a></li>
 <li><a href="../misc/npm-config.html">npm-config(7)</a></li>
 <li><a href="../cli/npm-help.html">npm-help(1)</a></li>
-<li><a href="../misc/npm-faq.html">npm-faq(7)</a></li>
 <li><a href="../cli/npm-install.html">npm-install(1)</a></li>
 <li><a href="../cli/npm-publish.html">npm-publish(1)</a></li>
 <li><a href="../cli/npm-uninstall.html">npm-uninstall(1)</a></li>
@@ -583,5 +583,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@3.8.3</p>
+<p id="footer">package.json &mdash; npm@3.8.6</p>
 

@@ -122,5 +122,10 @@ void FastAccessorBuilder::CheckNotZeroOrJump(ValueId value_id,
   FromApi(this)->CheckNotZeroOrJump(value_id, label_id);
 }
 
+FastAccessorBuilder::ValueId FastAccessorBuilder::Call(
+    v8::FunctionCallback callback, ValueId value_id) {
+  return FromApi(this)->Call(callback, value_id);
+}
+
 }  // namespace experimental
 }  // namespace v8

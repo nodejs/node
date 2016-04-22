@@ -17,6 +17,7 @@ var util = require("util"),
     ProgressBar = require("progress"),
     autoconfig = require("./autoconfig.js"),
     ConfigFile = require("./config-file"),
+    ConfigOps = require("./config-ops"),
     getSourceCodeOfFiles = require("../util/source-code-util").getSourceCodeOfFiles,
     npmUtil = require("../util/npm-util"),
     recConfig = require("../../conf/eslint.json"),
@@ -39,6 +40,7 @@ function writeFile(config, format) {
 
     // default is .js
     var extname = ".js";
+
     if (format === "YAML") {
         extname = ".yml";
     } else if (format === "JSON") {
@@ -148,12 +150,14 @@ function configureRules(answers, config) {
 
     // Create a list of recommended rules, because we don't want to disable them
     var recRules = Object.keys(recConfig.rules).filter(function(ruleId) {
-        return (recConfig.rules[ruleId] === 2 || recConfig.rules[ruleId][0] === 2);
+        return ConfigOps.isErrorSeverity(recConfig.rules[ruleId]);
     });
 
     // Find and disable rules which had no error-free configuration
     failingRegistry = registry.getFailingRulesRegistry();
+
     Object.keys(failingRegistry.rules).forEach(function(ruleId) {
+
         // If the rule is recommended, set it to error, otherwise disable it
         disabledConfigs[ruleId] = (recRules.indexOf(ruleId) !== -1) ? 2 : 0;
     });
@@ -184,8 +188,9 @@ function configureRules(answers, config) {
     bar.update(BAR_TOTAL);
 
     // Log out some stats to let the user know what happened
-    var totalRules = Object.keys(newConfig.rules).length;
-    var enabledRules = Object.keys(newConfig.rules).filter(function(ruleId) {
+    var finalRuleIds = Object.keys(newConfig.rules),
+        totalRules = finalRuleIds.length;
+    var enabledRules = finalRuleIds.filter(function(ruleId) {
         return (newConfig.rules[ruleId] !== 0);
     }).length;
     var resultMessage = [
@@ -193,7 +198,10 @@ function configureRules(answers, config) {
         "rules based on " + fileQty,
         "file" + ((fileQty === 1) ? "." : "s.")
     ].join(" ");
+
     log.info(resultMessage);
+
+    ConfigOps.normalizeToStrings(newConfig);
     return newConfig;
 }
 
@@ -230,10 +238,10 @@ function processAnswers(answers) {
 
     if (answers.source === "prompt") {
         config.extends = "eslint:recommended";
-        config.rules.indent = [2, answers.indent];
-        config.rules.quotes = [2, answers.quotes];
-        config.rules["linebreak-style"] = [2, answers.linebreak];
-        config.rules.semi = [2, answers.semi ? "always" : "never"];
+        config.rules.indent = ["error", answers.indent];
+        config.rules.quotes = ["error", answers.quotes];
+        config.rules["linebreak-style"] = ["error", answers.linebreak];
+        config.rules.semi = ["error", answers.semi ? "always" : "never"];
     }
 
     installModules(config);
@@ -242,6 +250,8 @@ function processAnswers(answers) {
         config = configureRules(answers, config);
         config = autoconfig.extendFromRecommended(config);
     }
+
+    ConfigOps.normalizeToStrings(config);
     return config;
 }
 
@@ -256,6 +266,7 @@ function getConfigForStyleGuide(guide) {
         airbnb: {extends: "airbnb", plugins: ["react"]},
         standard: {extends: "standard", plugins: ["standard"]}
     };
+
     if (!guides[guide]) {
         throw new Error("You referenced an unsupported guide.");
     }
@@ -273,6 +284,7 @@ function getConfigForStyleGuide(guide) {
  */
 function promptUser(callback) {
     var config;
+
     inquirer.prompt([
         {
             type: "list",
@@ -387,11 +399,8 @@ function promptUser(callback) {
             // early exit if you are using automatic style generation
             if (earlyAnswers.source === "auto") {
                 try {
-                    if (secondAnswers.jsx) {
-                        log.error("Unfortunately, autoconfig does not yet work for JSX code.\nPlease see https://github.com/eslint/eslint/issues/5007 for current status.");
-                        return;
-                    }
                     var combinedAnswers = lodash.assign({}, earlyAnswers, secondAnswers);
+
                     config = processAnswers(combinedAnswers);
                     installModules(config);
                     writeFile(config, earlyAnswers.format);
@@ -408,7 +417,7 @@ function promptUser(callback) {
                     type: "list",
                     name: "indent",
                     message: "What style of indentation do you use?",
-                    default: "tabs",
+                    default: "tab",
                     choices: [{name: "Tabs", value: "tab"}, {name: "Spaces", value: 4}]
                 },
                 {
@@ -441,6 +450,7 @@ function promptUser(callback) {
             ], function(answers) {
                 try {
                     var totalAnswers = lodash.assign({}, earlyAnswers, secondAnswers, answers);
+
                     config = processAnswers(totalAnswers);
                     installModules(config);
                     writeFile(config, answers.format);

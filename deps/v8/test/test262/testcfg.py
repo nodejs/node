@@ -39,6 +39,8 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
+ARCHIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.tar")
+
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 
 TEST_262_SUITE_PATH = ["data", "test"]
@@ -198,6 +200,11 @@ class Test262TestSuite(testsuite.TestSuite):
       print "Clobber outdated test archives ..."
       for f in archive_files:
         os.remove(os.path.join(self.root, f))
+
+    print "Extracting archive..."
+    tar = tarfile.open(ARCHIVE)
+    tar.extractall(path=os.path.dirname(ARCHIVE))
+    tar.close()
 
 
 def GetSuite(name, root):

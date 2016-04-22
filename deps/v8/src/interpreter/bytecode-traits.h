@@ -28,6 +28,18 @@ struct OperandTraits {};
 OPERAND_TYPE_LIST(DECLARE_OPERAND_SIZE)
 #undef DECLARE_OPERAND_SIZE
 
+template <OperandType>
+struct RegisterOperandTraits {
+  static const int kIsRegisterOperand = 0;
+};
+
+#define DECLARE_REGISTER_OPERAND(Name, _)              \
+  template <>                                          \
+  struct RegisterOperandTraits<OperandType::k##Name> { \
+    static const int kIsRegisterOperand = 1;           \
+  };
+REGISTER_OPERAND_TYPE_LIST(DECLARE_REGISTER_OPERAND)
+#undef DECLARE_REGISTER_OPERAND
 
 template <OperandType... Args>
 struct BytecodeTraits {};
@@ -63,12 +75,27 @@ struct BytecodeTraits<operand_0, operand_1, operand_2, operand_3,
     return kOperandOffsets[i];
   }
 
+  template <OperandType ot>
+  static inline bool HasAnyOperandsOfType() {
+    return operand_0 == ot || operand_1 == ot || operand_2 == ot ||
+           operand_3 == ot;
+  }
+
   static const int kOperandCount = 4;
+  static const int kRegisterOperandCount =
+      RegisterOperandTraits<operand_0>::kIsRegisterOperand +
+      RegisterOperandTraits<operand_1>::kIsRegisterOperand +
+      RegisterOperandTraits<operand_2>::kIsRegisterOperand +
+      RegisterOperandTraits<operand_3>::kIsRegisterOperand;
+  static const int kRegisterOperandBitmap =
+      RegisterOperandTraits<operand_0>::kIsRegisterOperand +
+      (RegisterOperandTraits<operand_1>::kIsRegisterOperand << 1) +
+      (RegisterOperandTraits<operand_2>::kIsRegisterOperand << 2) +
+      (RegisterOperandTraits<operand_3>::kIsRegisterOperand << 3);
   static const int kSize =
       1 + OperandTraits<operand_0>::kSize + OperandTraits<operand_1>::kSize +
       OperandTraits<operand_2>::kSize + OperandTraits<operand_3>::kSize;
 };
-
 
 template <OperandType operand_0, OperandType operand_1, OperandType operand_2>
 struct BytecodeTraits<operand_0, operand_1, operand_2, OPERAND_TERM> {
@@ -96,7 +123,20 @@ struct BytecodeTraits<operand_0, operand_1, operand_2, OPERAND_TERM> {
     return kOperandOffsets[i];
   }
 
+  template <OperandType ot>
+  static inline bool HasAnyOperandsOfType() {
+    return operand_0 == ot || operand_1 == ot || operand_2 == ot;
+  }
+
   static const int kOperandCount = 3;
+  static const int kRegisterOperandCount =
+      RegisterOperandTraits<operand_0>::kIsRegisterOperand +
+      RegisterOperandTraits<operand_1>::kIsRegisterOperand +
+      RegisterOperandTraits<operand_2>::kIsRegisterOperand;
+  static const int kRegisterOperandBitmap =
+      RegisterOperandTraits<operand_0>::kIsRegisterOperand +
+      (RegisterOperandTraits<operand_1>::kIsRegisterOperand << 1) +
+      (RegisterOperandTraits<operand_2>::kIsRegisterOperand << 2);
   static const int kSize =
       1 + OperandTraits<operand_0>::kSize + OperandTraits<operand_1>::kSize +
       OperandTraits<operand_2>::kSize;
@@ -126,7 +166,18 @@ struct BytecodeTraits<operand_0, operand_1, OPERAND_TERM> {
     return kOperandOffsets[i];
   }
 
+  template <OperandType ot>
+  static inline bool HasAnyOperandsOfType() {
+    return operand_0 == ot || operand_1 == ot;
+  }
+
   static const int kOperandCount = 2;
+  static const int kRegisterOperandCount =
+      RegisterOperandTraits<operand_0>::kIsRegisterOperand +
+      RegisterOperandTraits<operand_1>::kIsRegisterOperand;
+  static const int kRegisterOperandBitmap =
+      RegisterOperandTraits<operand_0>::kIsRegisterOperand +
+      (RegisterOperandTraits<operand_1>::kIsRegisterOperand << 1);
   static const int kSize =
       1 + OperandTraits<operand_0>::kSize + OperandTraits<operand_1>::kSize;
 };
@@ -148,7 +199,16 @@ struct BytecodeTraits<operand_0, OPERAND_TERM> {
     return 1;
   }
 
+  template <OperandType ot>
+  static inline bool HasAnyOperandsOfType() {
+    return operand_0 == ot;
+  }
+
   static const int kOperandCount = 1;
+  static const int kRegisterOperandCount =
+      RegisterOperandTraits<operand_0>::kIsRegisterOperand;
+  static const int kRegisterOperandBitmap =
+      RegisterOperandTraits<operand_0>::kIsRegisterOperand;
   static const int kSize = 1 + OperandTraits<operand_0>::kSize;
 };
 
@@ -169,7 +229,14 @@ struct BytecodeTraits<OperandType::kNone, OPERAND_TERM> {
     return 1;
   }
 
+  template <OperandType ot>
+  static inline bool HasAnyOperandsOfType() {
+    return false;
+  }
+
   static const int kOperandCount = 0;
+  static const int kRegisterOperandCount = 0;
+  static const int kRegisterOperandBitmap = 0;
   static const int kSize = 1 + OperandTraits<OperandType::kNone>::kSize;
 };
 

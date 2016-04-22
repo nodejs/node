@@ -35,9 +35,8 @@
   'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
   # TODO(turbofan): We run out of stack earlier on 64-bit for now.
   'fast/js/deep-recursion-test': [PASS, NO_VARIANTS],
-  # This test leads to a SyntaxError from conflicting let declarations
-  # in ES2015
-  'function-declarations-in-switch-statement': [FAIL],
+  # Irregexp interpreter overflows stack. We should just not crash.
+  'fast/js/regexp-stack-overflow': [PASS, FAIL],
 }],  # ALWAYS
 ['mode == debug', {
   # Too slow in debug mode.
