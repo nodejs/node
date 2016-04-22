@@ -256,7 +256,8 @@ end
 
 * Return: `Boolean`
 
-This method returns whether or not the `readable` has been paused by client code including the following cases:
+This method returns whether or not the `readable` has been paused 
+by client code including the following cases:
 
 * If there are no pipe destinations, by calling the
   [`stream.pause()`][stream-pause] method.
