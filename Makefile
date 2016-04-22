@@ -455,6 +455,7 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	rm -rf $(TARNAME)/.{editorconfig,git*,mailmap}
 	rm -rf $(TARNAME)/tools/{eslint,eslint-rules,osx-pkg.pmdoc,pkgsrc}
 	rm -rf $(TARNAME)/tools/{osx-*,license-builder.sh,cpplint.py}
+	rm -rf $(TARNAME)/test*.tap
 	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs rm
 	find $(TARNAME)/ -type l | xargs rm # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
