@@ -7,22 +7,14 @@
 #include "node.h"
 #include "env.h"
 #include "env-inl.h"
+#include "util.h"
 
 namespace node {
 
 class StringBytes {
  public:
-  class InlineDecoder {
+  class InlineDecoder : public MaybeStackBuffer<char> {
    public:
-    InlineDecoder() : out_(nullptr) {
-    }
-
-    ~InlineDecoder() {
-      if (out_ != out_st_)
-        delete[] out_;
-      out_ = nullptr;
-    }
-
     inline bool Decode(Environment* env,
                        v8::Local<v8::String> string,
                        v8::Local<v8::Value> encoding,
@@ -33,28 +25,22 @@ class StringBytes {
         return false;
       }
 
-      size_t buflen = StringBytes::StorageSize(env->isolate(), string, enc);
-      if (buflen > sizeof(out_st_))
-        out_ = new char[buflen];
-      else
-        out_ = out_st_;
-      size_ = StringBytes::Write(env->isolate(),
-                                 out_,
-                                 buflen,
-                                 string,
-                                 enc);
+      const size_t storage = StringBytes::StorageSize(env->isolate(),
+                                                      string,
+                                                      enc);
+      AllocateSufficientStorage(storage);
+      const size_t length = StringBytes::Write(env->isolate(),
+                                               out(),
+                                               storage,
+                                               string,
+                                               enc);
+
+      // No zero terminator is included when using this method.
+      SetLength(length);
       return true;
     }
 
-    inline const char* out() const { return out_; }
-    inline size_t size() const { return size_; }
-
-   private:
-    static const int kStorageSize = 1024;
-
-    char out_st_[kStorageSize];
-    char* out_;
-    size_t size_;
+    inline size_t size() const { return length(); }
   };
 
   // Does the string match the encoding? Quick but non-exhaustive.
