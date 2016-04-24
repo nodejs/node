@@ -1142,6 +1142,55 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
                                 : -1);
 }
 
+void Indexes(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
+  SPREAD_ARG(args[0], js_buf);
+  SPREAD_ARG(args[1], js_sep_buf);
+
+  Local<v8::Array> res;
+  std::vector<size_t> index_arr;
+  size_t res_length = 0;
+
+  char* buf = js_buf_data;
+  size_t sep_buf_len = js_sep_buf_length;
+  char *sep_buf = js_sep_buf_data;
+  unsigned char first_match_byte = (unsigned char) sep_buf[0];
+
+  // bail early
+  if (sep_buf_len == 0 || sep_buf_len > js_buf_length) {
+    res = v8::Array::New(env->isolate(), 0);
+    goto return_array;
+  }
+
+  for (size_t i = 0; i < js_buf_length; ++i) {
+    unsigned char byte = (unsigned char)buf[i];
+    // check first occurence...
+    // ...and if separator > 1 check consecutive bytes for equalness.
+    if (sep_buf_len == 1 && byte == first_match_byte) {
+      index_arr.push_back(i);
+    } else if (byte == first_match_byte) {
+      for (size_t j = 0; j < sep_buf_len; ++j) {
+        unsigned char sep_byte = (unsigned char)buf[i + j];
+        // only push to array when the whole separator got compared
+        if (sep_byte == sep_buf[j] && j == sep_buf_len - 1) {
+          index_arr.push_back(i);
+        }
+      }
+    }
+  }
+
+  res = v8::Array::New(env->isolate(), index_arr.size());
+  for (size_t i = 0; i < index_arr.size(); i++) {
+    res->Set(i, v8::Integer::New(env->isolate(), index_arr[i]));
+  }
+
+return_array:
+  return args.GetReturnValue().Set(res);
+}
+
 void Split(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1359,13 +1408,15 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "indexOfNumber", IndexOfNumber);
   env->SetMethod(target, "indexOfString", IndexOfString);
 
+  env->SetMethod(target, "indexes", Indexes);
+  env->SetMethod(target, "split", Split);
+  env->SetMethod(target, "join", Join);
+
   env->SetMethod(target, "readDoubleBE", ReadDoubleBE);
   env->SetMethod(target, "readDoubleLE", ReadDoubleLE);
   env->SetMethod(target, "readFloatBE", ReadFloatBE);
   env->SetMethod(target, "readFloatLE", ReadFloatLE);
 
-  env->SetMethod(target, "split", Split);
-  env->SetMethod(target, "join", Join);
 
   env->SetMethod(target, "writeDoubleBE", WriteDoubleBE);
   env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
