@@ -1142,6 +1142,139 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
                                 : -1);
 }
 
+void Split(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_ARG(args[0], js_buf);
+  SPREAD_ARG(args[1], js_sep_buf);
+
+  std::vector<size_t> index_arr;
+  Local<Object> obj;
+  Persistent<Object> persistent(env->isolate(), obj);
+  Local<v8::Array> res_buffers;
+  size_t cursor = 0;
+  size_t len = 0;
+
+  // Rationale: Find all occurences of the buffer bytes, store those index and
+  // copy bytes from index bounds to new array of buffers
+
+  // REVIEW(eljefedelrodeodeljefe): copy first necessary?
+  char* buf = new char[js_buf_length];
+  memcpy(buf, js_buf_data, js_buf_length);
+
+  size_t sep_buf_len = js_sep_buf_length;
+  char* sep_buf = new char[sep_buf_len];
+  memcpy(sep_buf, js_sep_buf_data, sep_buf_len);
+
+  unsigned char first_match_byte = *((unsigned char *)&sep_buf + 0);
+  /* emtpy buffer separator? Then skip indexing and fancy mapping! */
+  if (sep_buf_len == 0)
+    goto map_bytes;
+
+  for (size_t i = 0; i < js_buf_length; ++i) {
+    unsigned char byte = *((unsigned char *)&buf + i);
+    // check first occurence...
+    // ...and if separator > 1 check consecutive bytes for equalness.
+    if (sep_buf_len == 1 && byte == first_match_byte) {
+      index_arr.push_back(i);
+    } else if (byte == first_match_byte) {
+      for (size_t j = 0; j < sep_buf_len; ++j) {
+        unsigned char sep_byte = *((unsigned char *)&buf + i + j);
+        // only push to array when the whole separator got compared
+        if (sep_byte == sep_buf[j] && j == sep_buf_len - 1) {
+          index_arr.push_back(i);
+        }
+      }
+    }
+  }
+
+  res_buffers = v8::Array::New(env->isolate(), index_arr.size());
+  len = (size_t)index_arr.size();
+
+  for (size_t i = 0; i < len + 1; i++) {
+    size_t index = index_arr[i] - cursor;
+    size_t read_len = index;
+    // handle last iteration, REVIEW(eljefedelrodeodeljefe): simplify
+    if (len == i)
+      read_len = js_buf_length - cursor;
+
+    char* data = (char*)malloc(read_len * sizeof(char));
+    memcpy(data, buf + cursor, read_len);
+
+    obj = Buffer::New(env->isolate(), data, read_len).ToLocalChecked();
+    res_buffers->Set(i, obj);
+    cursor = index_arr[i] + sep_buf_len;
+  }
+  goto return_array;
+
+map_bytes:
+  res_buffers = v8::Array::New(env->isolate(), js_buf_length);
+
+  for (size_t i = 0; i < js_buf_length; i++) {
+    char* data = (char*)malloc(1 * sizeof(char));
+    memcpy(data, buf + i, 1);
+
+    obj = Buffer::New(env->isolate(), data, 1).ToLocalChecked();
+    res_buffers->Set(i, obj);
+  }
+
+return_array:
+  persistent.Reset();
+  return args.GetReturnValue().Set(res_buffers);
+}
+
+void Join(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<v8::Array> arr = args[0].As<v8::Array>();
+  char* data;
+  bool has_insert = !args[2]->IsNull();
+  // local fixed copies, since spreading insert is optional
+  size_t ins_length;
+  char* ins_data;
+  // count resulting buffer size based on every buffer in data length in array
+  size_t num_buffers = (size_t)args[1]->IntegerValue();
+  size_t buffers_size = 0;
+  for (size_t i = 0; i < num_buffers; i++) {
+    THROW_AND_RETURN_UNLESS_BUFFER(env, arr->Get(i));
+    buffers_size += arr->Get(i).As<Uint8Array>()->Length();
+  }
+  // handle insert here. Increase length of resulting buffer
+  // minus last insert to match Array.prototype.join behavior
+  if (has_insert) {
+    SPREAD_ARG(args[2], insert);
+    buffers_size += num_buffers * insert_length - insert_length; // no last ins
+    ins_length = insert_length;
+    // allocate and copy the insert for use in second loop
+    ins_data = (char*)malloc(buffers_size * sizeof(char));
+    memcpy(ins_data, insert_data, insert_length);
+  }
+
+  data = (char*)malloc(buffers_size * sizeof(char));
+  Local<Object> buff = Buffer::New(env->isolate(), data, buffers_size).ToLocalChecked();
+  Persistent<Object> persistent(env->isolate(), buff);
+
+  size_t cursor = 0;
+  size_t len = (size_t)args[1]->IntegerValue();
+  for (size_t i = 0; i < len; i++) {
+    SPREAD_ARG(arr->Get(i), buf);
+    memcpy(data + cursor, buf_data, buf_length);
+    cursor += buf_length;
+    // handle case for insert; move cursor again
+    if (has_insert) {
+      if (len - 1 == i) // bail for last iteration (see definitions above)
+        break;
+
+      memcpy(data + cursor, ins_data, ins_length);
+      cursor += ins_length;
+    }
+  }
+
+  persistent.Reset();
+  args.GetReturnValue().Set(buff);
+}
+
 void Swap16(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
