@@ -48,6 +48,14 @@ assert.doesNotThrow(() => {
   assert(Buffer.compare(res[6], new Buffer('ws past')) === 0);
 }
 
+{
+  const buf = new Buffer('Hello World, the day of tomorrows past');
+  let res = buf.split(new Buffer('or'));
+  res = Buffer.join(res, new Buffer('01'))
+  let comp = new Buffer('Hello W01ld, the day of tom01rows past')
+  assert(Buffer.compare(res, comp) === 0);
+}
+
 /*
   edge cases
  */

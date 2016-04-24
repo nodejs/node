@@ -1191,58 +1191,6 @@ return_array:
   return args.GetReturnValue().Set(res);
 }
 
-
-void Join(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  Local<v8::Array> arr = args[0].As<v8::Array>();
-  char* data;
-  bool has_insert = !args[2]->IsNull();
-  // local fixed copies, since spreading insert is optional
-  size_t ins_length;
-  char* ins_data;
-  // count resulting buffer size based on every buffer in data length in array
-  size_t num_buffers = (size_t)args[1]->IntegerValue();
-  size_t buffers_size = 0;
-  for (size_t i = 0; i < num_buffers; i++) {
-    THROW_AND_RETURN_UNLESS_BUFFER(env, arr->Get(i));
-    buffers_size += arr->Get(i).As<Uint8Array>()->Length();
-  }
-  // handle insert here. Increase length of resulting buffer
-  // minus last insert to match Array.prototype.join behavior
-  if (has_insert) {
-    SPREAD_ARG(args[2], insert);
-    buffers_size += num_buffers * insert_length - insert_length; // no last ins
-    ins_length = insert_length;
-    // allocate and copy the insert for use in second loop
-    ins_data = (char*)malloc(buffers_size * sizeof(char));
-    memcpy(ins_data, insert_data, insert_length);
-  }
-
-  data = (char*)malloc(buffers_size * sizeof(char));
-  Local<Object> buff = Buffer::New(env->isolate(), data, buffers_size).ToLocalChecked();
-  Persistent<Object> persistent(env->isolate(), buff);
-
-  size_t cursor = 0;
-  size_t len = (size_t)args[1]->IntegerValue();
-  for (size_t i = 0; i < len; i++) {
-    SPREAD_ARG(arr->Get(i), buf);
-    memcpy(data + cursor, buf_data, buf_length);
-    cursor += buf_length;
-    // handle case for insert; move cursor again
-    if (has_insert) {
-      if (len - 1 == i) // bail for last iteration (see definitions above)
-        break;
-
-      memcpy(data + cursor, ins_data, ins_length);
-      cursor += ins_length;
-    }
-  }
-
-  persistent.Reset();
-  args.GetReturnValue().Set(buff);
-}
-
 void Swap16(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
@@ -1323,7 +1271,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "indexOfString", IndexOfString);
 
   env->SetMethod(target, "indexes", Indexes);
-  env->SetMethod(target, "join", Join);
 
   env->SetMethod(target, "readDoubleBE", ReadDoubleBE);
   env->SetMethod(target, "readDoubleLE", ReadDoubleLE);
