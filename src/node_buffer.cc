@@ -1191,92 +1191,6 @@ return_array:
   return args.GetReturnValue().Set(res);
 }
 
-void Split(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
-  SPREAD_ARG(args[0], js_buf);
-  SPREAD_ARG(args[1], js_sep_buf);
-
-  std::vector<size_t> index_arr;
-  Local<Object> obj;
-  Persistent<Object> persistent(env->isolate(), obj);
-  Local<v8::Array> res_buffers;
-  size_t cursor = 0;
-  size_t len = 0;
-
-  // Rationale: Find all occurences of the buffer bytes, store those index and
-  // copy bytes from index bounds to new array of buffers
-
-  // REVIEW(eljefedelrodeodeljefe): copy first necessary?
-  char* buf = new char[js_buf_length];
-  memcpy(buf, js_buf_data, js_buf_length);
-
-  size_t sep_buf_len = js_sep_buf_length;
-  char* sep_buf = new char[sep_buf_len];
-  memcpy(sep_buf, js_sep_buf_data, sep_buf_len);
-
-  unsigned char first_match_byte = *((unsigned char *)&sep_buf + 0);
-  /* emtpy buffer separator? Then skip indexing and fancy mapping! */
-  if (sep_buf_len == 0)
-    goto map_bytes;
-
-  for (size_t i = 0; i < js_buf_length; ++i) {
-    unsigned char byte = *((unsigned char *)&buf + i);
-    // check first occurence...
-    // ...and if separator > 1 check consecutive bytes for equalness.
-    if (sep_buf_len == 1 && byte == first_match_byte) {
-      index_arr.push_back(i);
-    } else if (byte == first_match_byte) {
-      for (size_t j = 0; j < sep_buf_len; ++j) {
-        unsigned char sep_byte = *((unsigned char *)&buf + i + j);
-        // only push to array when the whole separator got compared
-        if (sep_byte == sep_buf[j] && j == sep_buf_len - 1) {
-          index_arr.push_back(i);
-        }
-      }
-    }
-  }
-
-  res_buffers = v8::Array::New(env->isolate(), index_arr.size());
-  len = (size_t)index_arr.size();
-  if (len == 0) {
-    obj = Buffer::New(env->isolate(), buf, js_buf_length).ToLocalChecked();
-    res_buffers->Set(0, obj);
-    goto return_array;
-  }
-
-  for (size_t i = 0; i < len + 1; i++) {
-    size_t index = index_arr[i] - cursor;
-    size_t read_len = index;
-    // handle last iteration, REVIEW(eljefedelrodeodeljefe): simplify
-    if (len == i)
-      read_len = js_buf_length - cursor;
-
-    char* data = (char*)malloc(read_len * sizeof(char));
-    memcpy(data, buf + cursor, read_len);
-
-    obj = Buffer::New(env->isolate(), data, read_len).ToLocalChecked();
-    res_buffers->Set(i, obj);
-    cursor = index_arr[i] + sep_buf_len;
-  }
-  goto return_array;
-
-map_bytes:
-  res_buffers = v8::Array::New(env->isolate(), js_buf_length);
-
-  for (size_t i = 0; i < js_buf_length; i++) {
-    char* data = (char*)malloc(1 * sizeof(char));
-    memcpy(data, buf + i, 1);
-
-    obj = Buffer::New(env->isolate(), data, 1).ToLocalChecked();
-    res_buffers->Set(i, obj);
-  }
-
-return_array:
-  persistent.Reset();
-  return args.GetReturnValue().Set(res_buffers);
-}
 
 void Join(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1409,7 +1323,6 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "indexOfString", IndexOfString);
 
   env->SetMethod(target, "indexes", Indexes);
-  env->SetMethod(target, "split", Split);
   env->SetMethod(target, "join", Join);
 
   env->SetMethod(target, "readDoubleBE", ReadDoubleBE);
