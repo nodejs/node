@@ -1191,6 +1191,11 @@ void Split(const FunctionCallbackInfo<Value>& args) {
 
   res_buffers = v8::Array::New(env->isolate(), index_arr.size());
   len = (size_t)index_arr.size();
+  if (len == 0) {
+    obj = Buffer::New(env->isolate(), buf, js_buf_length).ToLocalChecked();
+    res_buffers->Set(0, obj);
+    goto return_array;
+  }
 
   for (size_t i = 0; i < len + 1; i++) {
     size_t index = index_arr[i] - cursor;
