@@ -184,11 +184,22 @@ NODE_EXTERN extern bool enable_fips_crypto;
 NODE_EXTERN extern bool force_fips_crypto;
 #endif
 
+struct DebuggerSettings {
+  bool use_agent;
+  bool wait_connect;
+  int port;
+};
+
 NODE_EXTERN int Start(int argc, char *argv[]);
 NODE_EXTERN void Init(int* argc,
                       const char** argv,
                       int* exec_argc,
-                      const char*** exec_argv);
+                      const char*** exec_argv,
+                      DebuggerSettings* debugger_settings);
+
+NODE_EXTERN void EnableDebug(Environment* env);
+NODE_EXTERN void StartDebug(Environment* env, int debug_port, bool wait);
+NODE_EXTERN bool SetMainIsolate(v8::Isolate* isolate);
 
 class Environment;
 
