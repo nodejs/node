@@ -1359,6 +1359,9 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "readFloatBE", ReadFloatBE);
   env->SetMethod(target, "readFloatLE", ReadFloatLE);
 
+  env->SetMethod(target, "split", Split);
+  env->SetMethod(target, "join", Join);
+
   env->SetMethod(target, "writeDoubleBE", WriteDoubleBE);
   env->SetMethod(target, "writeDoubleLE", WriteDoubleLE);
   env->SetMethod(target, "writeFloatBE", WriteFloatBE);
