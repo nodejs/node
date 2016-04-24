@@ -589,6 +589,71 @@ console.log(bufA.length);
 // 42
 ```
 
+### Class Method: Buffer.split([separator])
+
+* `separator` {Buffer} A separator that gets matched against the input buffer
+* Return: {Array} Array of Buffers
+
+`Buffer.split()` behaves similar to `String.prototype.split`, as such it matches
+an input against a source buffer, splits the source buffer, removes the input
+and returns the number of resulting buffers in an array.
+
+```js
+const buf = new Buffer('Hello World');
+const res = buf.split(new Buffer(' '))
+
+console.log(res);
+// [ <Buffer 48 65 6c 6c 6f>, <Buffer 57 6f 72 6c 64> ]
+```
+
+It is also possible to split with an empty buffer, which results in an array
+with the single bytes of buffer contents wrapped in new buffers.
+
+```js
+const buf = new Buffer('Hello');
+const res = buf.split(new Buffer(''))
+
+console.log(res);
+// [ <Buffer 48>, <Buffer 65>, <Buffer 6c>, <Buffer 6c>, <Buffer 6f> ]
+```
+
+### Class Method: Buffer.join(array[, insert])
+
+* `array` {Array} Array of buffers that will be joined together
+* `insert` {Buffer} Buffer that gets inserted between the subjects
+* Return: {Buffer}
+
+`Buffer.join()` behaves similar to `Array.prototype.join`, as such it matches
+takes an array of buffers and generate new buffer with the concatenated buffers.
+Optionally it takes a an `insert` as argument that will be inserted between the
+buffers.
+
+```js
+const res = Buffer.join([
+  new Buffer('Hello'),
+  new Buffer('World'),
+], new Buffer('\n'));
+
+console.log(res);
+// <Buffer 48 65 6c 6c 6f 0a 57 6f 72 6c 64>
+console.log(res.toString());
+// Hello
+// World
+```
+
+_Note: `Array.prototype.join` would fill in commas if no insert will be
+provided. `Buffer.join()` though will simply concat against the next buffer._
+
+```js
+const res = Buffer.join([
+  new Buffer('Hello'),
+  new Buffer('World'),
+]);
+
+console.log(res.toString());
+// HelloWorld
+```
+
 ### Class Method: Buffer.from(array)
 
 * `array` {Array}
