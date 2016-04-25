@@ -45,10 +45,12 @@ myEmitter.emit('event');
 
 Any object can become an `EventEmitter` through inheritance. The example above
 uses the traditional Node.js style prototypical inheritance using
-the `util.inherits()` method. It is, however, possible to use ES6 classes as
-well:
+the `util.inherits()` method. It is, however, possible when using strict mode,
+to use ES6 classes as well:
 
 ```js
+'use strict';
+
 const EventEmitter = require('events');
 
 class MyEmitter extends EventEmitter {}
@@ -86,6 +88,8 @@ It is possible to use ES6 Arrow Functions as listeners, however, when doing so,
 the `this` keyword will no longer reference the `EventEmitter` instance:
 
 ```js
+'use strict';
+
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   console.log(a, b, this);
@@ -103,6 +107,8 @@ listener functions can switch to an asynchronous mode of operation using
 the `setImmediate()` or `process.nextTick()` methods:
 
 ```js
+'use strict';
+
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   setImmediate(() => {
@@ -118,6 +124,8 @@ When a listener is registered using the `eventEmitter.on()` method, that
 listener will be invoked _every time_ the named event is emitted.
 
 ```js
+'use strict';
+
 const myEmitter = new MyEmitter();
 var m = 0;
 myEmitter.on('event', () => {
@@ -133,6 +141,8 @@ Using the `eventEmitter.once()` method, it is possible to register a listener
 that is immediately unregistered after it is called.
 
 ```js
+'use strict';
+
 const myEmitter = new MyEmitter();
 var m = 0;
 myEmitter.once('event', () => {
@@ -180,6 +190,8 @@ As a best practice, developers should always register listeners for the
 `'error'` event:
 
 ```js
+'use strict';
+
 const myEmitter = new MyEmitter();
 myEmitter.on('error', (err) => {
   console.log('whoops! there was an error');
@@ -216,6 +228,8 @@ but important side effect: any *additional* listeners registered to the same
 listener that is in the process of being added.
 
 ```js
+'use strict';
+
 const myEmitter = new MyEmitter();
 // Only do this once so we don't loop forever
 myEmitter.once('newListener', (event, listener) => {
@@ -250,6 +264,8 @@ A class method that returns the number of listeners for the given `eventName`
 registered on the given `emitter`.
 
 ```js
+'use strict';
+
 const myEmitter = new MyEmitter();
 myEmitter.on('event', () => {});
 myEmitter.on('event', () => {});
@@ -302,6 +318,8 @@ Returns an array listing the events for which the emitter has registered
 listeners. The values in the array will be strings or Symbols.
 
 ```js
+'use strict';
+
 const EventEmitter = require('events');
 const myEE = new EventEmitter();
 myEE.on('foo', () => {});
@@ -362,6 +380,8 @@ By default, event listeners are invoked in the order they are added. The
 event listener to the beginning of the listeners array.
 
 ```js
+'use strict';
+
 const myEE = new EventEmitter();
 myEE.on('foo', () => console.log('a'));
 myEE.prependListener('foo', () => console.log('b'));
@@ -393,6 +413,8 @@ By default, event listeners are invoked in the order they are added. The
 event listener to the beginning of the listeners array.
 
 ```js
+'use strict';
+
 const myEE = new EventEmitter();
 myEE.once('foo', () => console.log('a'));
 myEE.prependOnceListener('foo', () => console.log('b'));
@@ -474,6 +496,8 @@ finishes execution will not remove them from `emit()` in progress. Subsequent
 events will behave as expected.
 
 ```js
+'use strict';
+
 const myEmitter = new MyEmitter();
 
 var callbackA = () => {
