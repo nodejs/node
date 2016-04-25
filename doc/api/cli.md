@@ -90,6 +90,11 @@ Print stack traces for process warnings (including deprecations).
 Prints a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
 
+### `--stack-trace-limit=N`
+
+Sets the number of lines shown in a stack trace. `N` can be any Javascript
+number. Defaults to 10.
+
 
 ### `--zero-fill-buffers`
 
