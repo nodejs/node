@@ -32,6 +32,7 @@ class HeapProfiler {
 
   bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth);
   void StopSamplingHeapProfiler();
+  bool is_sampling_allocations() { return !sampling_heap_profiler_.is_empty(); }
   AllocationProfile* GetAllocationProfile();
 
   void StartHeapObjectsTracking(bool track_allocations);
