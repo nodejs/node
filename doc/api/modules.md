@@ -598,13 +598,35 @@ filename scales linearly with the number of registered extensions.
 In other words, adding extensions slows down the module loader and
 should be discouraged.
 
-#### require.resolve()
+#### require.resolve(request[, options])
 <!-- YAML
 added: v0.3.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/16397
+    description: The `paths` option is now supported.
 -->
+
+* `request` {string} The module path to resolve.
+* `options` {Object}
+  * `paths` {Array} Paths to resolve module location from. If present, these
+    paths are used instead of the default resolution paths. Note that each of
+    these paths is used as a starting point for the module resolution algorithm,
+    meaning that the `node_modules` hierarchy is checked from this location.
+* Returns: {string}
 
 Use the internal `require()` machinery to look up the location of a module,
 but rather than loading the module, just return the resolved filename.
+
+#### require.resolve.paths(request)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `request` {string} The module path whose lookup paths are being retrieved.
+* Returns: {Array}
+
+Returns an array containing the paths searched during resolution of `request`.
 
 ## The `module` Object
 <!-- YAML
