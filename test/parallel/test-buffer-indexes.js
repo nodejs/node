@@ -11,5 +11,7 @@ assert(TEST_BUF.indexes(new Buffer('o')).length === 6);
 assert(TEST_BUF.indexes(new Buffer('k')).length === 0);
 assert(TEST_BUF.indexes(new Buffer('')).length === 0);
 
+assert(new Buffer('oooo').indexes(new Buffer('o'), 2).length === 3);
+
 assert(new Buffer('short').indexes(new Buffer('veeeerylong')).length === 0);
 assert(new Buffer('short').indexes(new Buffer('shortnotshort')).length === 0);
