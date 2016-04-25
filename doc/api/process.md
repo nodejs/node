@@ -149,10 +149,11 @@ most convenient for scripts).
 added: v0.1.18
 -->
 
-The `'uncaughtException'` event is emitted when an exception bubbles all the
-way back to the event loop. By default, Node.js handles such exceptions by
-printing the stack trace to `stderr` and exiting. Adding a handler for the
-`'uncaughtException'` event overrides this default behavior.
+The `'uncaughtException'` event is emitted when an uncaught JavaScript
+exception bubbles all the way back to the event loop. By default, Node.js
+handles such exceptions by printing the stack trace to `stderr` and exiting.
+Adding a handler for the `'uncaughtException'` event overrides this default
+behavior.
 
 The listener function is called with the `Error` object passed as the only
 argument.
@@ -161,7 +162,7 @@ For example:
 
 ```js
 process.on('uncaughtException', (err) => {
-  console.log(`Caught exception: ${err}`);
+  fs.writeSync(1, `Caught exception: ${err}`);
 });
 
 setTimeout(() => {
@@ -192,8 +193,12 @@ times nothing happens - but the 10th time, the system becomes corrupted.
 
 The correct use of `'uncaughtException'` is to perform synchronous cleanup
 of allocated resources (e.g. file descriptors, handles, etc) before shutting
-down the process. It is not safe to resume normal operation after
-`'uncaughtException'`.
+down the process. **It is not safe to resume normal operation after
+`'uncaughtException'`.**
+
+To restart a crashed application in a more reliable way, whether `uncaughtException`
+is emitted or not, an external monitor should be employed in a separate process
+to detect application failures and recover or restart as needed.
 
 ### Event: 'unhandledRejection'
 <!-- YAML
@@ -201,11 +206,11 @@ added: v1.4.1
 -->
 
 The `'unhandledRejection`' event is emitted whenever a `Promise` is rejected and
-no error handler is attached to the promise within a turn of the event loop. 
+no error handler is attached to the promise within a turn of the event loop.
 When programming with Promises, exceptions are encapsulated as "rejected
 promises". Rejections can be caught and handled using [`promise.catch()`][] and
 are propagated through a `Promise` chain. The `'unhandledRejection'` event is
-useful for detecting and keeping track of promises that were rejected whose 
+useful for detecting and keeping track of promises that were rejected whose
 rejections have not yet been handled.
 
 The listener function is called with the following arguments:
@@ -637,7 +642,7 @@ An example of this object looks like:
   SHLVL: '1',
   HOME: '/Users/maciej',
   LOGNAME: 'maciej',
-  _: '/usr/local/bin/node' 
+  _: '/usr/local/bin/node'
 }
 ```
 
@@ -1108,10 +1113,10 @@ console.log(util.inspect(process.memoryUsage()));
 Will generate:
 
 ```js
-{ 
+{
   rss: 4935680,
   heapTotal: 1826816,
-  heapUsed: 650472 
+  heapUsed: 650472
 }
 ```
 
