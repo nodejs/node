@@ -8,7 +8,6 @@
 #include "v8.h"
 #include "v8-profiler.h"
 
-using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::Function;
