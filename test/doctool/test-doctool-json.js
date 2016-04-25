@@ -81,7 +81,7 @@ var testData = [
                 'added': ['v1.0.0']
               },
               'desc': '<p>Describe <code>Foobar</code> in more detail ' +
-                'here.\n\n</p>\n',
+                'here.</p>\n',
               'type': 'module',
               'displayName': 'Foobar'
             },
@@ -92,7 +92,7 @@ var testData = [
                 'added': ['v5.3.0', 'v4.2.0']
               },
               'desc': '<p>Describe <code>Foobar II</code> in more detail ' +
-                'here.\n\n</p>\n',
+                'here.</p>\n',
               'type': 'module',
               'displayName': 'Foobar II'
             },
@@ -104,15 +104,15 @@ var testData = [
                 'deprecated': ['v2.0.0']
               },
               'desc': '<p>Describe <code>Deprecated thingy</code> in more ' +
-                'detail here.\n\n</p>\n',
+                'detail here.</p>\n',
               'type': 'module',
               'displayName': 'Deprecated thingy'
             },
             {
               'textRaw': 'Something',
               'name': 'something',
-              'desc': '<!-- This is not a metadata comment -->\n\n<p>' +
-                'Describe <code>Something</code> in more detail here.\n</p>\n',
+              'desc': '<!-- This is not a metadata comment -->\n<p>' +
+                'Describe <code>Something</code> in more detail here.</p>\n',
               'type': 'module',
               'displayName': 'Something'
             }
