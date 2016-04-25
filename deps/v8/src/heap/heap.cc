@@ -3069,6 +3069,9 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
 bool Heap::CanMoveObjectStart(HeapObject* object) {
   if (!FLAG_move_object_start) return false;
 
+  // Sampling heap profiler may have a reference to the object.
+  if (isolate()->heap_profiler()->is_sampling_allocations()) return false;
+
   Address address = object->address();
 
   if (lo_space()->Contains(object)) return false;
