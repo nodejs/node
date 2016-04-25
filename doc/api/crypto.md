@@ -93,7 +93,7 @@ The `spkac` argument must be a Node.js [`Buffer`][].
 ```js
 const cert = require('crypto').Certificate();
 const spkac = getSpkacSomehow();
-console.log(cert.verifySpkac(new Buffer(spkac)));
+console.log(cert.verifySpkac(Buffer.from(spkac)));
   // Prints true or false
 ```
 

@@ -490,7 +490,7 @@ function parseHeader(stream, callback) {
         var split = str.split(/\n\n/);
         header += split.shift();
         var remaining = split.join('\n\n');
-        var buf = new Buffer(remaining, 'utf8');
+        var buf = Buffer.from(remaining, 'utf8');
         if (buf.length)
           stream.unshift(buf);
         stream.removeListener('error', callback);
@@ -985,7 +985,7 @@ Counter.prototype._read = function() {
     this.push(null);
   else {
     var str = '' + i;
-    var buf = new Buffer(str, 'ascii');
+    var buf = Buffer.from(str, 'ascii');
     this.push(buf);
   }
 };
