@@ -1,0 +1,16 @@
+exit event emitted
+*test*message*promise_fast_reject.js:*
+  consol.log('One'); // eslint-disable-line no-undef
+  ^
+
+ReferenceError: consol is not defined
+    at *test*message*promise_fast_reject.js:*:*
+    at Object.<anonymous> (*test*message*promise_fast_reject.js:*:*)
+    at Module._compile (module.js:*:*)
+    at Object.Module._extensions..js (module.js:*:*)
+    at Module.load (module.js:*:*)
+    at tryModuleLoad (module.js:*:*)
+    at Function.Module._load (module.js:*:*)
+    at Module.runMain (module.js:*:*)
+    at run (bootstrap_node.js:*:*)
+    at startup (bootstrap_node.js:*:*)
