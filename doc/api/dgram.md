@@ -233,7 +233,7 @@ Example of sending a UDP packet to a random port on `localhost`;
 
 ```js
 const dgram = require('dgram');
-const message = new Buffer('Some bytes');
+const message = Buffer.from('Some bytes');
 const client = dgram.createSocket('udp4');
 client.send(message, 41234, 'localhost', (err) => {
   client.close();
@@ -244,8 +244,8 @@ Example of sending a UDP packet composed of multiple buffers to a random port on
 
 ```js
 const dgram = require('dgram');
-const buf1 = new Buffer('Some ');
-const buf2 = new Buffer('bytes');
+const buf1 = Buffer.from('Some ');
+const buf2 = Buffer.from('bytes');
 const client = dgram.createSocket('udp4');
 client.send([buf1, buf2], 41234, 'localhost', (err) => {
   client.close();

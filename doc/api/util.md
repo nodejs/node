@@ -297,7 +297,7 @@ util.isBuffer({ length: 0 })
   // false
 util.isBuffer([])
   // false
-util.isBuffer(new Buffer('hello world'))
+util.isBuffer(Buffer.from('hello world'))
   // true
 ```
 
