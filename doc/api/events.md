@@ -130,7 +130,7 @@ myEmitter.emit('event');
 ```
 
 Using the `eventEmitter.once()` method, it is possible to register a listener
-that is unregistered as it is called.
+that is unregistered before it is called.
 
 ```js
 const myEmitter = new MyEmitter();
