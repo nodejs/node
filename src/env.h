@@ -233,6 +233,7 @@ namespace node {
   V(zero_return_string, "ZERO_RETURN")                                        \
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
+  V(array_from, v8::Function)                                                 \
   V(as_external, v8::External)                                                \
   V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
@@ -250,7 +251,10 @@ namespace node {
   V(module_load_list_array, v8::Array)                                        \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
   V(process_object, v8::Object)                                               \
-  V(promise_reject_function, v8::Function)                                    \
+  V(promise_unhandled_rejection_function, v8::Function)                       \
+  V(promise_unhandled_rejection, v8::Function)                                \
+  V(promise_unhandled_reject_map, v8::NativeWeakMap)                          \
+  V(promise_unhandled_reject_keys, v8::Set)                                   \
   V(push_values_to_array_function, v8::Function)                              \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
