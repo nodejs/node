@@ -94,6 +94,29 @@ assert.doesNotThrow(() => {
 }
 
 {
+  const buf = new Buffer('Heeello');
+  const res = buf.split('e', 4);
+
+  assert(res.length === 3);
+
+  assert(Buffer.compare(res[0], new Buffer('H')) === 0);
+  assert(Buffer.compare(res[1], new Buffer('')) === 0);
+  assert(Buffer.compare(res[2], new Buffer('')) === 0);
+}
+
+{
+  const buf = new Buffer('Heeello');
+  const res = buf.split('e', 5);
+
+  assert(res.length === 4);
+
+  assert(Buffer.compare(res[0], new Buffer('H')) === 0);
+  assert(Buffer.compare(res[1], new Buffer('')) === 0);
+  assert(Buffer.compare(res[2], new Buffer('')) === 0);
+  assert(Buffer.compare(res[3], new Buffer('llo')) === 0);
+}
+
+{
   const res = Buffer.join([
     new Buffer('Hello'),
     new Buffer(' World')
