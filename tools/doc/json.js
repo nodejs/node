@@ -8,6 +8,15 @@ module.exports = doJSON;
 const common = require('./common.js');
 const marked = require('marked');
 
+// customized heading without id attribute
+var renderer = new marked.Renderer();
+renderer.heading = function(text, level) {
+  return '<h' + level + '>' + text + '</h' + level + '>\n';
+};
+marked.setOptions({
+  renderer: renderer
+});
+
 function doJSON(input, filename, cb) {
   var root = {source: filename};
   var stack = [root];
