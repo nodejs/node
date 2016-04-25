@@ -37,7 +37,7 @@ zlib.deflate(input, (err, buffer) => {
   }
 });
 
-const buffer = new Buffer('eJzT0yMAAGTvBe8=', 'base64');
+const buffer = Buffer.from('eJzT0yMAAGTvBe8=', 'base64');
 zlib.unzip(buffer, (err, buffer) => {
   if (!err) {
     console.log(buffer.toString());
@@ -117,7 +117,7 @@ method that is used to compressed the last chunk of input data:
 
 ```js
 // This is a truncated version of the buffer from the above examples
-const buffer = new Buffer('eJzT0yMA', 'base64');
+const buffer = Buffer.from('eJzT0yMA', 'base64');
 
 zlib.unzip(buffer, { finishFlush: zlib.Z_SYNC_FLUSH }, (err, buffer) => {
   if (!err) {
