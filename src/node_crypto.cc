@@ -5696,10 +5696,10 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
 
 
 void InitCryptoOnce() {
+  OPENSSL_config(NULL);
   SSL_library_init();
   OpenSSL_add_all_algorithms();
   SSL_load_error_strings();
-  OPENSSL_config(NULL);
 
   crypto_lock_init();
   CRYPTO_set_locking_callback(crypto_lock_cb);
