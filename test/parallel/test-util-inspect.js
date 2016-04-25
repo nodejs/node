@@ -532,6 +532,9 @@ assert.equal(util.inspect(set, true), 'Set { \'foo\', [size]: 1, bar: 42 }');
 
 // test Promise
 assert.equal(util.inspect(Promise.resolve(3)), 'Promise { 3 }');
+process.on('unhandledRejection', (message) => {
+  assert.strictEqual(3, message);
+});
 assert.equal(util.inspect(Promise.reject(3)), 'Promise { <rejected> 3 }');
 assert.equal(util.inspect(new Promise(function() {})), 'Promise { <pending> }');
 var promise = Promise.resolve('foo');

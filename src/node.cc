@@ -37,6 +37,7 @@
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
+#include "track-promise.h"
 #include "util.h"
 #include "uv.h"
 #include "libplatform/libplatform.h"
@@ -104,6 +105,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
+using v8::Debug;
 using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
@@ -118,10 +120,12 @@ using v8::Locker;
 using v8::MaybeLocal;
 using v8::Message;
 using v8::Name;
+using v8::NativeWeakMap;
 using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::Persistent;
 using v8::Promise;
 using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
@@ -166,6 +170,10 @@ static const char* icu_data_dir = nullptr;
 
 // used by C++ modules as well
 bool no_deprecation = false;
+
+// Unhandled promises tracking
+Persistent<NativeWeakMap>* remainingURs;
+Persistent<Object>* first_ur_key;
 
 #if HAVE_OPENSSL && NODE_FIPS_MODE
 // used by crypto module
@@ -1138,14 +1146,59 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   callback->Call(process, arraysize(args), args);
 }
 
+void OnPromiseGC(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsObject());
+  Local<Object> promise = args[0].As<Object>();
+
+  TrackPromise::New(env->isolate(), promise);
+
+  HandleScope scope(env->isolate());
+  Local<NativeWeakMap> l_remainingURs =
+      Local<NativeWeakMap>::New(env->isolate(), *remainingURs);
+  Local<Object> l_first_ur_key =
+      Local<Object>::New(env->isolate(), *first_ur_key);
+  if (!l_remainingURs->Has(l_first_ur_key)) {
+    l_remainingURs->Set(l_first_ur_key, promise);
+  }
+}
+
+void UntrackPromise(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsObject());
+  Local<Value> promise = args[0].As<Value>();
+
+  HandleScope scope(env->isolate());
+  Local<NativeWeakMap> l_remainingURs =
+      Local<NativeWeakMap>::New(env->isolate(), *remainingURs);
+  Local<Object> l_first_ur_key =
+      Local<Object>::New(env->isolate(), *first_ur_key);
+  if (l_remainingURs->Get(l_first_ur_key) == promise) {
+    l_remainingURs->Delete(l_first_ur_key);
+  }
+}
+
 void SetupPromises(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
+  HandleScope scope(isolate);
+  remainingURs = new Persistent<NativeWeakMap>(isolate,
+                                NativeWeakMap::New(isolate));
+  first_ur_key = new Persistent<Object>(isolate, Object::New(isolate));
+
   CHECK(args[0]->IsFunction());
+  CHECK(args[1]->IsFunction());
+  CHECK(args[2]->IsObject());
 
   isolate->SetPromiseRejectCallback(PromiseRejectCallback);
   env->set_promise_reject_function(args[0].As<Function>());
+  env->set_promise_unhandled_rejection(args[1].As<Function>());
+
+  env->SetMethod(args[2].As<Object>(), "onPromiseGC", OnPromiseGC);
+  env->SetMethod(args[2].As<Object>(), "untrackPromise", UntrackPromise);
 
   env->process_object()->Delete(
       env->context(),
@@ -1574,8 +1627,26 @@ void AppendExceptionLine(Environment* env,
   PrintErrorString("\n%s", arrow);
 }
 
+void ReportPromiseRejection(Isolate* isolate, Local<Object> object) {
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Function> fn = env->promise_unhandled_rejection();
 
-static void ReportException(Environment* env,
+  if (!fn.IsEmpty()) {
+    HandleScope scope(isolate);
+    Local<Value> promise = object.As<Value>();
+    Local<Value> internalProps =
+        Debug::GetInternalProperties(isolate,
+                                     promise).ToLocalChecked().As<Value>();
+
+    Local<Value> err = fn->Call(env->context(), Null(env->isolate()), 1,
+                         &internalProps).ToLocalChecked();
+
+    ReportException(env, err, Exception::CreateMessage(isolate, err));
+  }
+  exit(1);
+}
+
+void ReportException(Environment* env,
                             Local<Value> er,
                             Local<Message> message) {
   HandleScope scope(env->isolate());
@@ -4321,6 +4392,16 @@ static void StartNodeInstance(void* arg) {
             more = true;
         }
       } while (more == true);
+    }
+
+    HandleScope scope(isolate);
+    Local<NativeWeakMap> l_remainingURs =
+        Local<NativeWeakMap>::New(isolate, *remainingURs);
+    Local<Object> l_first_ur_key =
+        Local<Object>::New(env->isolate(), *first_ur_key);
+    if (l_remainingURs->Has(l_first_ur_key)) {
+      Local<Object> firstUR = l_remainingURs->Get(l_first_ur_key).As<Object>();
+      ReportPromiseRejection(isolate, firstUR);
     }
 
     env->set_trace_sync_io(false);
