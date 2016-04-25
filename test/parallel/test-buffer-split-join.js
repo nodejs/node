@@ -94,8 +94,9 @@ assert.doesNotThrow(() => {
 }
 
 {
+  // conexecutive matches reult in empty buffers, limit to three results
   const buf = new Buffer('Heeello');
-  const res = buf.split('e', 4);
+  const res = buf.split('e', 3);
 
   assert(res.length === 3);
 
@@ -105,8 +106,9 @@ assert.doesNotThrow(() => {
 }
 
 {
+  // conexecutive matches reult in empty buffers
   const buf = new Buffer('Heeello');
-  const res = buf.split('e', 5);
+  const res = buf.split('e', 4);
 
   assert(res.length === 4);
 
@@ -114,6 +116,38 @@ assert.doesNotThrow(() => {
   assert(Buffer.compare(res[1], new Buffer('')) === 0);
   assert(Buffer.compare(res[2], new Buffer('')) === 0);
   assert(Buffer.compare(res[3], new Buffer('llo')) === 0);
+}
+
+{
+  // isolated: split limit
+  const buf = new Buffer('ABABABA');
+  const res = buf.split('B', 2);
+
+  assert(res.length === 2);
+
+  assert(Buffer.compare(res[0], new Buffer('A')) === 0);
+  assert(Buffer.compare(res[1], new Buffer('A')) === 0);
+}
+
+{
+  // octets as input
+  const buf = new Buffer('ABCdEF');
+  const res = buf.split([0x43, 0x64]);
+
+  assert(res.length === 2);
+
+  assert(Buffer.compare(res[0], new Buffer('AB')) === 0);
+  assert(Buffer.compare(res[1], new Buffer('EF')) === 0);
+}
+
+{
+  // string input with encoding
+  const buf = new Buffer('this is a tést, tést', 'ascii');
+  const res = buf.split('é', 'ascii', 2);
+  assert(res.length === 2);
+
+  assert(Buffer.compare(res[0], new Buffer('this is a t')) === 0);
+  assert(Buffer.compare(res[1], new Buffer('st, t')) === 0);
 }
 
 {
