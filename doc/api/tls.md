@@ -168,6 +168,8 @@ the total bytes written to the socket, *including the TLS overhead*.
 
 ## Class: SecurePair
 
+    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+
 Returned by tls.createSecurePair.
 
 ### Event: 'secure'
@@ -379,9 +381,9 @@ Construct a new TLSSocket object from an existing TCP socket.
 
   - `server`: An optional [`net.Server`][] instance
 
-  - `requestCert`: Optional, see [`tls.createSecurePair()`][]
+  - `requestCert`: Optional, see [`tls.createServer()`][]
 
-  - `rejectUnauthorized`: Optional, see [`tls.createSecurePair()`][]
+  - `rejectUnauthorized`: Optional, see [`tls.createServer()`][]
 
   - `NPNProtocols`: Optional, see [`tls.createServer()`][]
 
@@ -745,6 +747,8 @@ publicly trusted list of CAs as given in
 
 ## tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])
 
+    Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+
 Creates a new secure pair object with two streams, one of which reads and writes
 the encrypted data and the other of which reads and writes the cleartext data.
 Generally, the encrypted stream is piped to/from an incoming encrypted data
@@ -769,6 +773,19 @@ stream.
 `encrypted` stream properties.
 
 NOTE: `cleartext` has the same API as [`tls.TLSSocket`][]
+
+**Deprecated** `tls.createSecurePair()` is now deprecated in favor of
+`tls.TLSSocket()`. For example:
+```
+pair = tls.createSecurePair( ... );
+pair.encrypted.pipe(socket);
+socket.pipe(pair.encrypted);
+```
+can be replaced with:
+```
+secure_socket = tls.TLSSocket(socket, options);
+```
+where `secure_socket` has the same API as `pair.cleartext`.
 
 ## tls.createServer(options[, secureConnectionListener])
 
