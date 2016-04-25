@@ -130,7 +130,7 @@ myEmitter.emit('event');
 ```
 
 Using the `eventEmitter.once()` method, it is possible to register a listener
-that is immediately unregistered after it is called.
+that is unregistered as it is called.
 
 ```js
 const myEmitter = new MyEmitter();
@@ -376,9 +376,8 @@ myEE.emit('foo');
 * `eventName` {string|Symbol} The name of the event.
 * `listener` {Function} The callback function
 
-Adds a **one time** `listener` function for the event named `eventName`. This
-listener is invoked only the next time `eventName` is triggered, after which
-it is removed.
+Adds a **one time** `listener` function for the event named `eventName`. The
+next time `eventName` is triggered, this listener is removed and then invoked.
 
 ```js
 server.once('connection', (stream) => {
