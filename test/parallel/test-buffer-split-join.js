@@ -7,10 +7,6 @@ assert(common);
 /*
   gatekeepers
  */
-assert.throws(() => {
-  const buf = new Buffer('Hello World, the day of tomorrows past');
-  buf.split('o');
-}, TypeError);
 
 assert.doesNotThrow(() => {
   const buf = new Buffer('Hello World, the day of tomorrows past');
