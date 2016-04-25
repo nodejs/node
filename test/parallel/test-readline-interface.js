@@ -32,12 +32,18 @@ function isWarned(emitter) {
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal,
                               historySize: 0 });
   assert.strictEqual(rli.historySize, 0);
+
+  fi.emit('data', 'asdf\n');
+  assert.deepStrictEqual(rli.history, terminal ? [] : undefined);
   rli.close();
 
   // default history size 30
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
   assert.strictEqual(rli.historySize, 30);
+
+  fi.emit('data', 'asdf\n');
+  assert.deepStrictEqual(rli.history, terminal ? ['asdf'] : undefined);
   rli.close();
 
   // sending a full line
