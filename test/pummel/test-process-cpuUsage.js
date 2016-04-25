@@ -1,30 +1,26 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var start = process.cpuUsage();
+const start = process.cpuUsage();
 
-// process.cpuUsage() should return {user: [int, int], system: [int, int]}
+// process.cpuUsage() should return {user: aNumber, system: aNumber}
 assert(start != null);
-assert(Array.isArray(start.user));
-assert(Array.isArray(start.system));
+assert(Number.isFinite(start.user));
+assert(Number.isFinite(start.system));
 
-// busy-loop for 2 seconds
-var now = Date.now();
+// Run a busy-loop for 2 seconds.
+const now = Date.now();
 while (Date.now() - now < 2000);
 
-// get a diff reading
-var diff = process.cpuUsage(start);
+// Get a diff reading from when we started
+const diff = process.cpuUsage(start);
 
-// user should be at least 1 second, at most 2 seconds later
-// (the while loop will usually exit a few nanoseconds before 2)
-assert(diff.user[0] >= 1);
-assert(diff.user[0] <= 2);
+const MICROSECONDS_PER_SECOND = 1000 * 1000;
 
-// hard to tell what the system number should be, but at least > 0, < 2
-assert(diff.system[0] >= 0);
-assert(diff.system[0] <= 2);
+// For a busy loop of 2 seconds, CPU usage should be > 0 but < 3 seconds.
+assert(diff.user >= 0);
+assert(diff.user <= 3 * MICROSECONDS_PER_SECOND);
 
-// make sure nanosecond value is not negative
-assert(diff.user[1] >= 0);
-assert(diff.system[1] >= 0);
+assert(diff.system >= 0);
+assert(diff.system <= 3 * MICROSECONDS_PER_SECOND);

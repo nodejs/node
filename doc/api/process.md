@@ -504,27 +504,27 @@ the value of `process.config`.*
 
 If `process.connected` is `false`, it is no longer possible to send messages.
 
-## process.cpuUsage()
+## process.cpuUsage([previousValue])
 
-Returns the user and system cpu time usage of the current process, in an object
-with properties `user` and `system`, whose values are arrays of integers as
-`[seconds, nanoseconds]` tuples. These values measure time spent in user and
+Returns the user and system CPU time usage of the current process, in an object
+with properties `user` and `system`, whose values are microsecond values
+(millionth of a second). These values measure time spent in user and
 system code respectively, and may end up being greater than actual elapsed time
-if multiple cpu cores are performing work for this process.
+if multiple CPU cores are performing work for this process.
 
-You may pass in the result of a previous call to `process.cpuUsage()` to get a
-diff reading.
+The result of a previous call to `process.cpuUsage()` can be passed as the
+argument to the function, to get a diff reading.
 
 ```js
-var startUsage  = process.cpuUsage();
-// { user: [ 0, 35884000 ], system: [ 0, 7320000 ] }
+const startUsage  = process.cpuUsage();
+// { user: 38579, system: 6986 }
 
 // spin the CPU for 500 milliseconds
-var now = Date.now();
+const now = Date.now();
 while (Date.now() - now < 500);
 
 console.log(process.cpuUsage(startUsage));
-// { user: [ 0, 509627000 ], system: [ 0, 9993000 ] }
+// { user: 514883, system: 11226 }
 ```
 
 ## process.cwd()
@@ -816,15 +816,16 @@ if (process.getuid) {
 }
 ```
 
-## process.hrtime()
+## process.hrtime([previousValue])
 
 Returns the current high-resolution real time in a `[seconds, nanoseconds]`
 tuple Array. It is relative to an arbitrary time in the past. It is not
 related to the time of day and therefore not subject to clock drift. The
 primary use is for measuring performance between intervals.
 
-You may pass in the result of a previous call to `process.hrtime()` to get
-a diff reading, useful for benchmarks and measuring intervals:
+The result of a previous call to `process.hrtime()` can be passed as the
+argument to the function, to get a diff reading, which can be useful for
+benchmarks and measuring intervals:
 
 ```js
 var time = process.hrtime();

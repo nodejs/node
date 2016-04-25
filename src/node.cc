@@ -106,6 +106,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
+using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -2220,33 +2221,33 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
   fields[2] = t % NANOS_PER_SEC;
 }
 
-// CPUUsage exposes libuv's uv_getrusage() this-process resource usage accessor,
+// Microseconds in a second, used in CPUUsage() below
+#define MICROS_PER_SEC 1000000
+
+// CPUUsage use libuv's uv_getrusage() this-process resource usage accessor,
 // to access ru_utime (user CPU time used) and ru_stime (system CPU time used),
-// which are uv_timeval_t structs (long tv_sec, long tv_usec) as tuples
-// similar to process.hrtime() values.  Only it's seconds/microseconds instead
-// of hrtime()'s seconds/nanoseconds.
+// which are uv_timeval_t structs (long tv_sec, long tv_usec).
+// Returns those values as Float64 microseconds in the elements of the array
+// passed to the function.
 void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   uv_rusage_t rusage;
 
-  // call to libuv to get the values we'll return
+  // Call libuv to get the values we'll return, and set the return code.
   int err = uv_getrusage(&rusage);
-
-  // expecting to be passed in a uint array, of length 8
-  Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
-  uint32_t* fields = static_cast<uint32_t*>(ab->GetContents().Data());
-
-  // results passed as split values, reassembled in JS
-  fields[0] = (rusage.ru_utime.tv_sec) >> 32;
-  fields[1] = (rusage.ru_utime.tv_sec) & 0xffffffff;
-  fields[2] = (rusage.ru_utime.tv_usec) >> 32;
-  fields[3] = (rusage.ru_utime.tv_usec) & 0xffffffff;
-  fields[4] = (rusage.ru_stime.tv_sec) >> 32;
-  fields[5] = (rusage.ru_stime.tv_sec) & 0xffffffff;
-  fields[6] = (rusage.ru_stime.tv_usec) >> 32;
-  fields[7] = (rusage.ru_stime.tv_usec) & 0xffffffff;
-
-  // return value will be return code from the libuv call
   args.GetReturnValue().Set(err);
+
+  // Immediately return if an error occurred.
+  if (err) return;
+
+  // Get the double array pointer from the Float64Array argument.
+  Local<ArrayBuffer> ab = args[0].As<Float64Array>()->Buffer();
+  double* fields = static_cast<double*>(ab->GetContents().Data());
+
+  // Set the Float64Array elements to be user / system values in microseconds.
+  fields[0] = 1.0L * rusage.ru_utime.tv_sec * MICROS_PER_SEC +
+    rusage.ru_utime.tv_usec;
+  fields[1] = 1.0L * rusage.ru_stime.tv_sec * MICROS_PER_SEC +
+    rusage.ru_stime.tv_usec;
 }
 
 extern "C" void node_module_register(void* m) {
