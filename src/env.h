@@ -31,6 +31,8 @@
 #endif
 #include "handle_wrap.h"
 #include "req-wrap.h"
+#include "track-promise.h"
+#include "tree.h"
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
@@ -236,6 +238,7 @@ class ModuleWrap;
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(produce_cached_data_string, "produceCachedData")                          \
+  V(promise_rejection_index_string, "_promiseRejectionIndex")                 \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \
@@ -294,6 +297,7 @@ class ModuleWrap;
   V(zero_return_string, "ZERO_RETURN")
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
+  V(array_from, v8::Function)                                                 \
   V(as_external, v8::External)                                                \
   V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
@@ -312,8 +316,8 @@ class ModuleWrap;
   V(performance_entry_callback, v8::Function)                                 \
   V(performance_entry_template, v8::Function)                                 \
   V(process_object, v8::Object)                                               \
-  V(promise_reject_function, v8::Function)                                    \
-  V(promise_wrap_template, v8::ObjectTemplate)                                \
+  V(promise_unhandled_rejection_function, v8::Function)                       \
+  V(promise_unhandled_rejection, v8::Function)                                \
   V(push_values_to_array_function, v8::Function)                              \
   V(randombytes_constructor_template, v8::ObjectTemplate)                     \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
@@ -677,6 +681,9 @@ class Environment {
   void AddPromiseHook(promise_hook_func fn, void* arg);
   bool RemovePromiseHook(promise_hook_func fn, void* arg);
   bool EmitNapiWarning();
+
+  PromiseTracker promise_tracker_;
+  int64_t promise_tracker_index_ = 0;
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
