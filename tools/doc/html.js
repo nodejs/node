@@ -9,6 +9,15 @@ const typeParser = require('./type-parser.js');
 
 module.exports = toHTML;
 
+// customized heading without id attribute
+var renderer = new marked.Renderer();
+renderer.heading = function(text, level) {
+  return '<h' + level + '>' + text + '</h' + level + '>\n';
+};
+marked.setOptions({
+  renderer: renderer
+});
+
 // TODO(chrisdickinson): never stop vomitting / fix this.
 var gtocPath = path.resolve(path.join(
   __dirname,
