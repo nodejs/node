@@ -426,8 +426,8 @@ Returns a reference to the `EventEmitter` so calls can be chained.
 * `listener` {Function} The callback function
 
 Adds a **one time** `listener` function for the event named `eventName` to the
-*beginning* of the listeners array. This listener is removed, and then invoked
-only the next time `eventName` is triggered.
+*beginning* of the listeners array. The next time `eventName` is triggered, this
+listener is removed, and then invoked.
 
 ```js
 server.prependOnceListener('connection', (stream) => {
