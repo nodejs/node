@@ -37,11 +37,11 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void HandleWrap::Unrefed(const FunctionCallbackInfo<Value>& args) {
+void HandleWrap::IsRefed(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
 
-  bool unrefed = wrap->flags_ & kUnref == 1;
-  args.GetReturnValue().Set(unrefed);
+  bool refed = IsAlive(wrap) && (wrap->flags_ & kUnref) == 0;
+  args.GetReturnValue().Set(refed);
 }
 
 

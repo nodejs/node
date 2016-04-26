@@ -87,7 +87,7 @@ void TCPWrap::Initialize(Local<Object> target,
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
-  env->SetProtoMethod(t, "unrefed", HandleWrap::Unrefed);
+  env->SetProtoMethod(t, "isRefed", HandleWrap::IsRefed);
 
   StreamWrap::AddMethods(env, t, StreamBase::kFlagHasWritev);
 

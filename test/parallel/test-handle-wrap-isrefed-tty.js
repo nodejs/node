@@ -9,18 +9,16 @@ function makeAssert(message) {
     strictEqual(actual, expected, message);
   };
 }
-const assert = makeAssert('unrefed() not working on tty_wrap');
+const assert = makeAssert('isRefed() not working on tty_wrap');
 
 if (process.argv[2] === 'child') {
   // Test tty_wrap in piped child to guarentee stdin being a TTY.
   const ReadStream = require('tty').ReadStream;
   const tty = new ReadStream(0);
-  assert(Object.getPrototypeOf(tty._handle).hasOwnProperty('unrefed'), true);
-  assert(tty._handle.unrefed(), false);
+  assert(Object.getPrototypeOf(tty._handle).hasOwnProperty('isRefed'), true);
+  assert(tty._handle.isRefed(), true);
   tty.unref();
-  assert(tty._handle.unrefed(), true);
-  tty._handle.close();
-  assert(tty._handle.unrefed(), true);
+  assert(tty._handle.isRefed(), false);
   return;
 }
 
