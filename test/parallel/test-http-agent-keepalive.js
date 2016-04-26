@@ -74,7 +74,7 @@ function remoteClose() {
         setTimeout(function() {
           assert.equal(agent.sockets[name], undefined);
           assert.equal(agent.freeSockets[name], undefined,
-            'freeSockets is not empty');
+                       'freeSockets is not empty');
           remoteError();
         }, common.platformTimeout(200));
       });
