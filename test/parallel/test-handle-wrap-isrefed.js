@@ -23,6 +23,7 @@ function makeAssert(message) {
   cp.ref();
   assert(cp._handle.unrefed(), false);
   cp._handle.close(common.mustCall(() => assert(cp._handle.unrefed(), true)));
+  cp._handle.close(common.fail);
   assert(cp._handle.unrefed(), false);
 }
 
@@ -41,6 +42,7 @@ function makeAssert(message) {
   assert(sock4._handle.unrefed(), false);
   sock4._handle.close(
       common.mustCall(() => assert(sock4._handle.unrefed(), true)));
+  sock4._handle.close(common.fail);
   assert(sock4._handle.unrefed(), false);
 
   const sock6 = dgram.createSocket('udp6');
@@ -52,6 +54,7 @@ function makeAssert(message) {
   assert(sock6._handle.unrefed(), false);
   sock6._handle.close(
       common.mustCall(() => assert(sock6._handle.unrefed(), true)));
+  sock6._handle.close(common.fail);
   assert(sock6._handle.unrefed(), false);
 }
 
@@ -68,6 +71,7 @@ function makeAssert(message) {
   handle.ref();
   assert(handle.unrefed(), false);
   handle.close(common.mustCall(() => assert(handle.unrefed(), true)));
+  handle.close(common.fail);
   assert(handle.unrefed(), false);
 }
 
@@ -88,6 +92,7 @@ function makeAssert(message) {
   assert(server._unref, false);
   server._handle.close(
       common.mustCall(() => assert(server._handle.unrefed(), true)));
+  server._handle.close(common.fail);
   assert(server._handle.unrefed(), false);
 }
 
@@ -103,5 +108,6 @@ function makeAssert(message) {
   assert(timer._handle.unrefed(), false);
   timer._handle.close(
       common.mustCall(() => assert(timer._handle.unrefed(), true)));
+  timer._handle.close(common.fail);
   assert(timer._handle.unrefed(), false);
 }
