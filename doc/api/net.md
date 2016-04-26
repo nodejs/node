@@ -400,6 +400,12 @@ The `connectListener` parameter will be added as a listener for the
 As [`socket.connect(options\[, connectListener\])`][`socket.connect(options, connectListener)`],
 with options either as either `{port: port, host: host}` or `{path: path}`.
 
+### socket.connecting
+
+If `true` - [`socket.connect(options\[, connectListener\])`][] was called and
+haven't yet finished. Will be set to `false` before emitting `connect` event
+and/or calling [`socket.connect(options\[, connectListener\])`][]'s callback.
+
 ### socket.destroy()
 
 Ensures that no more I/O activity happens on this socket. Only necessary in

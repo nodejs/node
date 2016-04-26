@@ -40,7 +40,7 @@ tcp.listen(common.PORT, function() {
     connectHappened = true;
   });
 
-  console.log('_connecting = ' + socket._connecting);
+  console.log('connecting = ' + socket.connecting);
 
   assert.equal('opening', socket.readyState);
 
