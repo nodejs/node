@@ -2232,13 +2232,14 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
 void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   uv_rusage_t rusage;
 
-  // Call libuv to get the values we'll return, and set the return code.
+  // Call libuv to get the values we'll return.
   int err = uv_getrusage(&rusage);
-  args.GetReturnValue().Set(err);
-
-  // Immediately return if an error occurred.
-  if (err)
+  if (err) {
+    // On error, return the strerror version of the error code.
+    Local<String> errmsg = OneByteString(args.GetIsolate(), uv_strerror(err));
+    args.GetReturnValue().Set(errmsg);
     return;
+  }
 
   // Get the double array pointer from the Float64Array argument.
   CHECK(args[0]->IsFloat64Array());
