@@ -645,18 +645,30 @@ assert.equal(Buffer.from('KioqKioqKioqKioqKioqKioqKio', 'base64').toString(),
              '********************');
 
 // handle padding graciously, multiple-of-4 or not
-assert.equal(Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==',
-                        'base64').length, 32);
-assert.equal(Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw=',
-                        'base64').length, 32);
-assert.equal(Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw',
-                        'base64').length, 32);
-assert.equal(Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==',
-                        'base64').length, 31);
-assert.equal(Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=',
-                        'base64').length, 31);
-assert.equal(Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg',
-                        'base64').length, 31);
+assert.equal(
+  Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==', 'base64').length,
+  32
+);
+assert.equal(
+  Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw=', 'base64').length,
+  32
+);
+assert.equal(
+  Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw', 'base64').length,
+  32
+);
+assert.equal(
+  Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==', 'base64').length,
+  31
+);
+assert.equal(
+  Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=', 'base64').length,
+  31
+);
+assert.equal(
+  Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg', 'base64').length,
+  31
+);
 
 // This string encodes single '.' character in UTF-16
 var dot = Buffer.from('//4uAA==', 'base64');

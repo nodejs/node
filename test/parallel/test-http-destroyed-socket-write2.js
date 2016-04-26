@@ -37,8 +37,8 @@ server.listen(common.PORT, function() {
         break;
       default:
         assert.strictEqual(er.code,
-          'ECONNRESET',
-          'Writing to a torn down client should RESET or ABORT');
+                           'ECONNRESET',
+                           'Write to a torn down client should RESET or ABORT');
         break;
     }
 

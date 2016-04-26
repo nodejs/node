@@ -342,14 +342,14 @@ function test_escape_cwd(cb) {
   console.log('test_escape_cwd');
   asynctest(fs.realpath, ['..'], cb, function(er, uponeActual) {
     assertEqualPath(upone, uponeActual,
-        'realpath("..") expected: ' + path.resolve(upone) +
-        ' actual:' + uponeActual);
+                    'realpath("..") expected: ' + path.resolve(upone) +
+                    ' actual:' + uponeActual);
   });
 }
 var uponeActual = fs.realpathSync('..');
 assertEqualPath(upone, uponeActual,
-    'realpathSync("..") expected: ' + path.resolve(upone) +
-    ' actual:' + uponeActual);
+                'realpathSync("..") expected: ' + path.resolve(upone) +
+                ' actual:' + uponeActual);
 
 
 // going up with .. multiple times
