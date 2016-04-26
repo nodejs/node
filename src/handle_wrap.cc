@@ -37,15 +37,6 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void HandleWrap::IsRefed(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
-
-  bool refed = IsAlive(wrap) && (wrap->flags_ & kUnref) == 0;
-  args.GetReturnValue().Set(refed);
-}
-
-
 void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 

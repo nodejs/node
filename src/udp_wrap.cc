@@ -108,7 +108,6 @@ void UDPWrap::Initialize(Local<Object> target,
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
-  env->SetProtoMethod(t, "isRefed", HandleWrap::IsRefed);
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "UDP"), t->GetFunction());
   env->set_udp_constructor_function(t->GetFunction());
