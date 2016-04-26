@@ -33,6 +33,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h> /* PATH_MAX */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -383,7 +384,7 @@ static ssize_t uv__fs_pathmax_size(const char* path) {
 #if defined(PATH_MAX)
     return PATH_MAX;
 #else
-    return 4096;
+#error "PATH_MAX undefined in the current platform"
 #endif
   }
 
