@@ -34,7 +34,7 @@ timeout = setTimeout(function() {}, 10 * 1000);
 
 process.on('exit', function() {
   assert.equal(timeout_err.message, 'Timeout UNREFd',
-      'Domain should catch timer error');
+               'Domain should catch timer error');
   assert.equal(immediate_err.message, 'Immediate Error',
-      'Domain should catch immediate error');
+               'Domain should catch immediate error');
 });
