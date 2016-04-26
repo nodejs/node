@@ -26,7 +26,7 @@ crypto.DEFAULT_ENCODING = 'buffer';
 
 (function() {
   var decrypt = crypto.createDecipheriv('BF-ECB', 'SomeRandomBlahz0c5GZVnR',
-      '');
+                                        '');
   var msg = decrypt.update('6D385F424AAB0CFBF0BB86E07FFB7D71', 'hex', 'ascii');
   msg += decrypt.final('ascii');
   assert.equal(msg, 'Hello World!');

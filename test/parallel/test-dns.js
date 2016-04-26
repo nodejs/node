@@ -101,7 +101,7 @@ assert.doesNotThrow(function() {
  */
 assert.throws(function() {
   dns.lookup('www.google.com', { hints: (dns.V4MAPPED | dns.ADDRCONFIG) + 1 },
-    noop);
+             noop);
 });
 
 assert.throws(function() {

@@ -398,7 +398,7 @@ exports.mustCall = function(fn, expected) {
 var etcServicesFileName = path.join('/etc', 'services');
 if (exports.isWindows) {
   etcServicesFileName = path.join(process.env.SystemRoot, 'System32', 'drivers',
-    'etc', 'services');
+                                  'etc', 'services');
 }
 
 /*
@@ -428,7 +428,7 @@ exports.getServiceName = function getServiceName(port, protocol) {
 
   try {
     var servicesContent = fs.readFileSync(etcServicesFileName,
-      { encoding: 'utf8'});
+                                          { encoding: 'utf8'});
     var regexp = `^(\\w+)\\s+\\s${port}/${protocol}\\s`;
     var re = new RegExp(regexp, 'm');
 

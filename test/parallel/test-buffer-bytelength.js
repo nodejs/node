@@ -71,8 +71,10 @@ assert.equal(Buffer.byteLength('ßœ∑≈', 'unkn0wn enc0ding'), 10);
 assert.equal(Buffer.byteLength('aGVsbG8gd29ybGQ=', 'base64'), 11);
 assert.equal(Buffer.byteLength('bm9kZS5qcyByb2NrcyE=', 'base64'), 14);
 assert.equal(Buffer.byteLength('aGkk', 'base64'), 3);
-assert.equal(Buffer.byteLength('bHNrZGZsa3NqZmtsc2xrZmFqc2RsZmtqcw==',
-    'base64'), 25);
+assert.equal(
+  Buffer.byteLength('bHNrZGZsa3NqZmtsc2xrZmFqc2RsZmtqcw==', 'base64'),
+  25
+);
 // special padding
 assert.equal(Buffer.byteLength('aaa=', 'base64'), 2);
 assert.equal(Buffer.byteLength('aaaa==', 'base64'), 3);

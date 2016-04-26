@@ -23,7 +23,7 @@ d.on('error', common.mustCall(function() {
       // call to process._fatalException, and so on recursively and
       // indefinitely.
       console.error('domains stack length should be 1, but instead is:',
-        domain._stack.length);
+                    domain._stack.length);
       process.exit(1);
     }
   });

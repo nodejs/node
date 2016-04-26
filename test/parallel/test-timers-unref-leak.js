@@ -18,8 +18,7 @@ timeout._handle.close = function() {
 };
 
 // Just to keep process alive and let previous timer's handle die
-setTimeout(function() {
-}, 50);
+setTimeout(function() {}, 50);
 
 process.on('exit', function() {
   assert.equal(called, 1);

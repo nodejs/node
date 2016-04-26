@@ -12,8 +12,7 @@ crypto.DEFAULT_ENCODING = 'buffer';
 
 function aes256(decipherFinal) {
   var iv  = Buffer.from('00000000000000000000000000000000', 'hex');
-  var key = Buffer.from('0123456789abcdef0123456789abcdef' +
-                       '0123456789abcdef0123456789abcdef', 'hex');
+  var key = Buffer.from('0123456789abcdef0123456789abcdef'.repeat(2), 'hex');
 
   function encrypt(val, pad) {
     var c = crypto.createCipheriv('aes256', key, iv);

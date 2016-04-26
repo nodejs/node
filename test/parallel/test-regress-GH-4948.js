@@ -16,15 +16,16 @@ var server = http.createServer(function(serverReq, serverRes) {
 
   // normally the use case would be to call an external site
   // does not require connecting locally or to itself to fail
-  var r = http.request({hostname: 'localhost',
-                        port: common.PORT}, function(res) {
-    // required, just needs to be in the client response somewhere
-    serverRes.end();
+  var r = http.request(
+    {hostname: 'localhost', port: common.PORT},
+    function(res) {
+      // required, just needs to be in the client response somewhere
+      serverRes.end();
 
-    // required for test to fail
-    res.on('data', function(data) { });
-
-  });
+      // required for test to fail
+      res.on('data', function(data) { });
+    }
+  );
   r.on('error', function(e) {});
   r.end();
 

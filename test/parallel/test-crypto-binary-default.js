@@ -23,10 +23,14 @@ var path = require('path');
 var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
 var certPfx = fs.readFileSync(common.fixturesDir + '/test_cert.pfx');
 var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
-var rsaPubPem = fs.readFileSync(common.fixturesDir + '/test_rsa_pubkey.pem',
-    'ascii');
-var rsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_rsa_privkey.pem',
-    'ascii');
+var rsaPubPem = fs.readFileSync(
+  common.fixturesDir + '/test_rsa_pubkey.pem',
+  'ascii'
+);
+var rsaKeyPem = fs.readFileSync(
+  common.fixturesDir + '/test_rsa_privkey.pem',
+  'ascii'
+);
 
 // PFX tests
 assert.doesNotThrow(function() {
@@ -74,7 +78,8 @@ var rfc4231 = [
   {
     key: Buffer.from('4a656665', 'hex'), // 'Jefe'
     data: Buffer.from('7768617420646f2079612077616e7420666f72206e6f74686' +
-                     '96e673f', 'hex'), // 'what do ya want for nothing?'
+                      '96e673f',
+                      'hex'), // 'what do ya want for nothing?'
     hmac: {
       sha224: 'a30e01098bc6dbbf45690f3a7e9e6d0f8bbea2a39e6148008fd05e44',
       sha256:
@@ -110,10 +115,10 @@ var rfc4231 = [
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
-                    'hex'),
-    data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
-                     'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd',
                      'hex'),
+    data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
+                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd',
+                      'hex'),
     hmac: {
       sha224: '6c11506874013cac6a2abc1bb382627cec6a90d86efc012de7afec5a',
       sha256:
@@ -234,7 +239,7 @@ var rfc2202_md5 = [
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
-                    'hex'),
+                     'hex'),
     data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
                      'cdcdcdcdcd',
@@ -288,7 +293,7 @@ var rfc2202_sha1 = [
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
-                    'hex'),
+                     'hex'),
     data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
                      'cdcdcdcdcd',
@@ -347,8 +352,11 @@ var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
 if (!common.hasFipsCrypto) {
   var a0 = crypto.createHash('md5').update('Test123').digest('binary');
-  assert.equal(a0, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
-               '\u00bd\u008c', 'Test MD5 as binary');
+  assert.equal(
+    a0,
+    'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca\u00bd\u008c',
+    'Test MD5 as binary'
+  );
 }
 
 assert.equal(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');

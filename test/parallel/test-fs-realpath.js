@@ -141,7 +141,7 @@ function test_deep_relative_file_symlink(callback) {
 
   var expected = path.join(common.fixturesDir, 'cycles', 'root.js');
   var linkData1 = path.relative(path.join(targetsAbsDir, 'nested-index', 'one'),
-    expected);
+                                expected);
   var linkPath1 = path.join(targetsAbsDir,
                             'nested-index', 'one', 'symlink1.js');
   try {fs.unlinkSync(linkPath1);} catch (e) {}
@@ -243,7 +243,7 @@ function test_relative_input_cwd(callback) {
   // we need to calculate the relative path to the tmp dir from cwd
   var entrydir = process.cwd();
   var entry = path.relative(entrydir,
-      path.join(common.tmpDir + '/cycles/realpath-3a'));
+                            path.join(common.tmpDir + '/cycles/realpath-3a'));
   var expected = common.tmpDir + '/cycles/root.js';
   [
     [entry, '../cycles/realpath-3b'],
@@ -342,14 +342,14 @@ function test_escape_cwd(cb) {
   console.log('test_escape_cwd');
   asynctest(fs.realpath, ['..'], cb, function(er, uponeActual) {
     assertEqualPath(upone, uponeActual,
-        'realpath("..") expected: ' + path.resolve(upone) +
-        ' actual:' + uponeActual);
+                    'realpath("..") expected: ' + path.resolve(upone) +
+                    ' actual:' + uponeActual);
   });
 }
 var uponeActual = fs.realpathSync('..');
 assertEqualPath(upone, uponeActual,
-    'realpathSync("..") expected: ' + path.resolve(upone) +
-    ' actual:' + uponeActual);
+                'realpathSync("..") expected: ' + path.resolve(upone) +
+                ' actual:' + uponeActual);
 
 
 // going up with .. multiple times

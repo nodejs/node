@@ -96,7 +96,8 @@ var rfc4231 = [
   {
     key: Buffer.from('4a656665', 'hex'), // 'Jefe'
     data: Buffer.from('7768617420646f2079612077616e7420666f72206e6f74686' +
-                     '96e673f', 'hex'), // 'what do ya want for nothing?'
+                      '96e673f',
+                      'hex'), // 'what do ya want for nothing?'
     hmac: {
       sha224: 'a30e01098bc6dbbf45690f3a7e9e6d0f8bbea2a39e6148008fd05e44',
       sha256:
@@ -132,7 +133,7 @@ var rfc4231 = [
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
-                    'hex'),
+                     'hex'),
     data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd',
                      'hex'),
@@ -261,7 +262,7 @@ var rfc2202_md5 = [
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
-                    'hex'),
+                     'hex'),
     data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
                      'cdcdcdcdcd',
@@ -315,7 +316,7 @@ var rfc2202_sha1 = [
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
-                    'hex'),
+                     'hex'),
     data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
                      'cdcdcdcdcd',

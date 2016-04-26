@@ -53,7 +53,7 @@ fs.createReadStream(pmmFileGz)
   .on('data', (data) => pmmResultBuffers.push(data))
   .on('finish', common.mustCall(() => {
     assert.deepStrictEqual(Buffer.concat(pmmResultBuffers), pmmExpected,
-      'result should match original random garbage');
+                           'result should match original random garbage');
   }));
 
 // test that the next gzip member can wrap around the input buffer boundary
@@ -66,8 +66,11 @@ fs.createReadStream(pmmFileGz)
    })
    .on('data', (data) => resultBuffers.push(data))
    .on('finish', common.mustCall(() => {
-     assert.strictEqual(Buffer.concat(resultBuffers).toString(), 'abcdef',
-      `result should match original input (offset = ${offset})`);
+     assert.strictEqual(
+       Buffer.concat(resultBuffers).toString(),
+       'abcdef',
+       `result should match original input (offset = ${offset})`
+     );
    }));
 
   // first write: write "abc" + the first bytes of "def"

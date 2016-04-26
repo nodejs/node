@@ -36,9 +36,11 @@ server.listen(common.PORT, function() {
       case 'EPIPE':
         break;
       default:
-        assert.strictEqual(er.code,
+        assert.strictEqual(
+          er.code,
           'ECONNRESET',
-          'Writing to a torn down client should RESET or ABORT');
+          'Writing to a torn down client should RESET or ABORT'
+        );
         break;
     }
 
