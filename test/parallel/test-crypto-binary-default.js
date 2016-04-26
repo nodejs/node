@@ -347,8 +347,11 @@ var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
 if (!common.hasFipsCrypto) {
   var a0 = crypto.createHash('md5').update('Test123').digest('binary');
-  assert.equal(a0, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
-               '\u00bd\u008c', 'Test MD5 as binary');
+  assert.equal(
+    a0,
+    'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca\u00bd\u008c',
+    'Test MD5 as binary'
+  );
 }
 
 assert.equal(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');

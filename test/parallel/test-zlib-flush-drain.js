@@ -38,11 +38,11 @@ deflater.on('drain', function() {
 
 process.once('exit', function() {
   assert.equal(beforeFlush, true,
-    'before calling flush the writable stream should need to drain');
+               'before calling flush, writable stream should need to drain');
   assert.equal(afterFlush, false,
-    'after calling flush the writable stream should not need to drain');
+               'after calling flush, writable stream should not need to drain');
   assert.equal(drainCount, 1,
-    'the deflater should have emitted a single drain event');
+               'the deflater should have emitted a single drain event');
   assert.equal(flushCount, 2,
-    'flush should be called twice');
+               'flush should be called twice');
 });
