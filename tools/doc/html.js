@@ -11,11 +11,11 @@ module.exports = toHTML;
 // TODO(chrisdickinson): never stop vomitting / fix this.
 var gtocPath = path.resolve(path.join(
   __dirname,
-    '..',
-    '..',
-    'doc',
-    'api',
-    '_toc.markdown'
+  '..',
+  '..',
+  'doc',
+  'api',
+  '_toc.markdown'
 ));
 var gtocLoading = null;
 var gtocData = null;

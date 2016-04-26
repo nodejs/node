@@ -19,7 +19,7 @@ var f = function(i) {
     var now = Timer.now();
     console.log(i, now);
     assert(now >= last_ts + 1,
-        'current ts ' + now + ' < prev ts ' + last_ts + ' + 1');
+           'current ts ' + now + ' < prev ts ' + last_ts + ' + 1');
     last_ts = now;
 
     // schedule next iteration

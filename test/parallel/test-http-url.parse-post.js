@@ -14,7 +14,7 @@ function check(request) {
   assert.strictEqual(request.url, '/asdf?qwer=zxcv');
   //the host header should use the url.parse.hostname
   assert.strictEqual(request.headers.host,
-      testURL.hostname + ':' + testURL.port);
+                     testURL.hostname + ':' + testURL.port);
 }
 
 var server = http.createServer(function(request, response) {

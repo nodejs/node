@@ -461,7 +461,7 @@ try {
 } catch (e) {
   assert.equal(e.toString().split('\n')[0], 'AssertionError: oh no');
   assert.equal(e.generatedMessage, false,
-              'Message incorrectly marked as generated');
+               'Message incorrectly marked as generated');
 }
 
 // Verify that throws() and doesNotThrow() throw on non-function block

@@ -38,7 +38,7 @@ setTimeout(function firstTimer() {
     d.dispose();
     console.error(err);
     console.error('in domain error handler',
-        process.domain, process.domain === d);
+                  process.domain, process.domain === d);
   });
 
   d.run(function() {
