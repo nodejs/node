@@ -174,6 +174,7 @@ information about the governance of the Node.js project, see
 * [calvinmetcalf](https://github.com/calvinmetcalf) - **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
 * [claudiorodriguez](https://github.com/claudiorodriguez) - **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [domenic](https://github.com/domenic) - **Domenic Denicola** &lt;d@domenic.me&gt;
+* [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) - **Robert Lindstaedt** &lt;robert.lindstaedt@gmail.com&gt;
 * [estliberitas](https://github.com/estliberitas) - **Alexander Makarenko** &lt;estliberitas@gmail.com&gt;
 * [geek](https://github.com/geek) - **Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [iarna](https://github.com/iarna) - **Rebecca Turner** &lt;me@re-becca.org&gt;
