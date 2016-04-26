@@ -945,6 +945,16 @@ object with an `encoding` property specifying the character encoding to use for
 the link path passed to the callback. If the `encoding` is set to `'buffer'`,
 the link path returned will be passed as a `Buffer` object.
 
+## fs.readSync(fd, buffer, offset, length, position)
+
+* `fd` {Integer}
+* `buffer` {String | Buffer}
+* `offset` {Integer}
+* `length` {Integer}
+* `position` {Integer}
+
+Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
+
 ## fs.realpath(path[, options], callback)
 
 * `path` {String | Buffer}
@@ -959,16 +969,6 @@ The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
 the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
-
-## fs.readSync(fd, buffer, offset, length, position)
-
-* `fd` {Integer}
-* `buffer` {String | Buffer}
-* `offset` {Integer}
-* `length` {Integer}
-* `position` {Integer}
-
-Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 
 ## fs.realpathSync(path[, options])
 
