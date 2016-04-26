@@ -35,10 +35,7 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 
 void HandleWrap::Unrefed(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
-  // XXX(bnoordhuis) It's debatable whether a nullptr wrap should count
-  // as having a reference count but it's compatible with the logic that
-  // it replaces.
-  args.GetReturnValue().Set(wrap == nullptr || !HasRef(wrap));
+  args.GetReturnValue().Set(!HasRef(wrap));
 }
 
 
@@ -49,6 +46,9 @@ void HandleWrap::Close(const FunctionCallbackInfo<Value>& args) {
 
   // Guard against uninitialized handle or double close.
   if (!IsAlive(wrap))
+    return;
+
+  if (wrap->state_ != kInitialized)
     return;
 
   CHECK_EQ(false, wrap->persistent().IsEmpty());

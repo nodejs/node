@@ -19,7 +19,7 @@ if (process.argv[2] === 'child') {
   assert(tty._handle.unrefed(), false);
   tty.unref();
   assert(tty._handle.unrefed(), true);
-  tty._handle.close();
+  tty._handle.close(common.mustCall(() => assert(tty._handle.unrefed(), true)));
   assert(tty._handle.unrefed(), true);
   return;
 }
