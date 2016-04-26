@@ -301,7 +301,9 @@ the following values:
    Defaults to checking `isTTY` on the `output` stream upon instantiation.
 
  - `historySize` - maximum number of history lines retained. To disable the
-   history set this value to `0`. Defaults to `30`.
+   history set this value to `0`. Defaults to `30`. This option makes sense
+   only if `terminal` is set to `true` by the user or by an internal `output`
+   check, otherwise the history caching mechanism is not initialized at all.
 
 The `completer` function is given the current line entered by the user, and
 is supposed to return an Array with 2 entries:
