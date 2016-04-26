@@ -333,6 +333,12 @@ socket as reported by the operating system. Returns an object with
 three properties, e.g.
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
+### socket.connecting
+
+If `true` - [`socket.connect(options\[, connectListener\])`][] was called and
+haven't yet finished. Will be set to `false` before emitting `connect` event
+and/or calling [`socket.connect(options\[, connectListener\])`][]'s callback.
+
 ### socket.bufferSize
 
 `net.Socket` has the property that `socket.write()` always works. This is to
