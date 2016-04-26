@@ -1723,7 +1723,7 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Local<String> owner_sym = env->owner_string();
 
   for (auto w : *env->handle_wrap_queue()) {
-    if (w->persistent().IsEmpty() || (w->flags_ & HandleWrap::kUnref))
+    if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w))
       continue;
     Local<Object> object = w->object();
     Local<Value> owner = object->Get(owner_sym);
