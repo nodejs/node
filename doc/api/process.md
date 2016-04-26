@@ -1046,13 +1046,15 @@ relied upon to exist.
 * `callback` {Function}
 * Return: {Boolean}
 
-When Node.js is spawned with an IPC channel attached, it can send messages to its
-parent process using `process.send()`. Each will be received as a
+When Node.js is spawned with an IPC channel attached, it can send messages to
+its parent process using `process.send()`. Each will be received as a
 [`'message'`][] event on the parent's [`ChildProcess`][] object.
 
-*Note: this function uses [`JSON.stringify()`][] internally to serialize the `message`.*
+By default, [`JSON.stringify()`][] is used to serialize the `message`. This can
+be overridden using the `serializer` option.
 
-If Node.js was not spawned with an IPC channel, `process.send()` will be undefined.
+If Node.js was not spawned with an IPC channel, `process.send()` will be
+undefined.
 
 ## process.setegid(id)
 

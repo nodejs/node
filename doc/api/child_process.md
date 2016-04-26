@@ -859,12 +859,15 @@ receive the object as the second argument passed to the callback function
 registered on the [`process.on('message')`][] event.
 
 The `options` argument, if present, is an object used to parameterize the
-sending of certain types of handles. `options` supports the following
+sending of messages. `options` supports the following
 properties:
 
   * `keepOpen` - A Boolean value that can be used when passing instances of
     `net.Socket`. When `true`, the socket is kept open in the sending process.
     Defaults to `false`.
+  * `serializer(message)` - A function used to serialize messages before
+    sending. The receiving process deserializes the message using `JSON.parse()`
+    so this function should output valid JSON. Defaults to `JSON.stringify()`.
 
 The optional `callback` is a function that is invoked after the message is
 sent but before the child may have received it.  The function is called with a
@@ -957,9 +960,6 @@ Once a socket has been passed to a child, the parent is no longer capable of
 tracking when the socket is destroyed. To indicate this, the `.connections`
 property becomes `null`. It is recommended not to use `.maxConnections` when
 this occurs.
-
-*Note: this function uses [`JSON.stringify()`][] internally to serialize the
-`message`.*
 
 ### child.stderr
 
