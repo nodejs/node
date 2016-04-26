@@ -2999,6 +2999,7 @@ Statement* Parser::ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
   Block* cases_block =
       factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
   Scope* cases_scope = NewScope(scope_, BLOCK_SCOPE);
+  cases_scope->SetNonlinear();
 
   SwitchStatement* switch_statement =
       factory()->NewSwitchStatement(labels, switch_pos);

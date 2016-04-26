@@ -552,6 +552,8 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitAccessor(Expression* expression);
 
+  bool NeedsHoleCheckForLoad(VariableProxy* proxy);
+
   // Expects the arguments and the function already pushed.
   void EmitResolvePossiblyDirectEval(int arg_count);
 
