@@ -93,14 +93,16 @@ information regarding the change process:
 
 - A `PR-URL:` line that references the *full* GitHub URL of the original
   pull request being merged so it's easy to trace a commit back to the
-  conversation that led up to that change. Please be sure that the `PR-URL`
-  line appears first, above the `Reviewed-By` lines and any `Fixes` lines.
+  conversation that led up to that change.
 - A `Fixes: X` line, where _X_ either includes the *full* GitHub URL
   for an issue, and/or the hash and commit message if the commit fixes
   a bug in a previous commit. Multiple `Fixes:` lines may be added if
   appropriate.
 - A `Reviewed-By: Name <email>` line for yourself and any
   other Collaborators who have reviewed the change.
+
+Make sure that the order of metadata follows the outline above; meaning
+`PR-URL`, followed by `Fixes` and so on.
 
 Review the commit message to ensure that it adheres to the guidelines
 outlined in the [contributing](https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#step-3-commit) guide.
@@ -213,8 +215,8 @@ fixup 7d6f433 test for feature B
 
 Save the file and close the editor. You'll be asked to enter a new
 commit message for that commit. This is a good moment to fix incorrect
-commit logs, ensure that they are properly formatted, and add
-`Reviewed-By` lines.
+commit logs, ensure that they are properly formatted, and add metadata as
+appropriate.
 
 Time to push it:
 
