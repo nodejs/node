@@ -246,6 +246,10 @@ class Scope: public ZoneObject {
   //     for (let x ...) stmt
   //   start position: start position of '('
   //   end position: end position of last token of 'stmt'
+  // * For the scope of a switch statement
+  //     switch (tag) { cases }
+  //   start position: start position of '{'
+  //   end position: end position of '}'
   int start_position() const { return start_position_; }
   void set_start_position(int statement_pos) {
     start_position_ = statement_pos;

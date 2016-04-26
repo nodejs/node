@@ -1069,8 +1069,8 @@ class Parser : public ParserBase<ParserTraits> {
   Statement* ParseWithStatement(ZoneList<const AstRawString*>* labels,
                                 bool* ok);
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
-  SwitchStatement* ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
-                                        bool* ok);
+  Statement* ParseSwitchStatement(ZoneList<const AstRawString*>* labels,
+                                  bool* ok);
   DoWhileStatement* ParseDoWhileStatement(ZoneList<const AstRawString*>* labels,
                                           bool* ok);
   WhileStatement* ParseWhileStatement(ZoneList<const AstRawString*>* labels,
