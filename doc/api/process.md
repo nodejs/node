@@ -816,16 +816,15 @@ if (process.getuid) {
 }
 ```
 
-## process.hrtime([previousValue])
+## process.hrtime()
 
 Returns the current high-resolution real time in a `[seconds, nanoseconds]`
 tuple Array. It is relative to an arbitrary time in the past. It is not
 related to the time of day and therefore not subject to clock drift. The
 primary use is for measuring performance between intervals.
 
-The result of a previous call to `process.hrtime()` can be passed as the
-argument to the function, to get a diff reading, which can be useful for
-benchmarks and measuring intervals:
+You may pass in the result of a previous call to `process.hrtime()` to get
+a diff reading, useful for benchmarks and measuring intervals:
 
 ```js
 var time = process.hrtime();

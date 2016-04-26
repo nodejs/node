@@ -2237,17 +2237,21 @@ void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 
   // Immediately return if an error occurred.
-  if (err) return;
+  if (err)
+    return;
 
   // Get the double array pointer from the Float64Array argument.
-  Local<ArrayBuffer> ab = args[0].As<Float64Array>()->Buffer();
+  CHECK(args[0]->IsFloat64Array());
+  Local<Float64Array> array = args[0].As<Float64Array>();
+  CHECK_EQ(array->Length(), 2);
+  Local<ArrayBuffer> ab = array->Buffer();
   double* fields = static_cast<double*>(ab->GetContents().Data());
 
   // Set the Float64Array elements to be user / system values in microseconds.
   fields[0] = 1.0L * rusage.ru_utime.tv_sec * MICROS_PER_SEC +
-    rusage.ru_utime.tv_usec;
+      rusage.ru_utime.tv_usec;
   fields[1] = 1.0L * rusage.ru_stime.tv_sec * MICROS_PER_SEC +
-    rusage.ru_stime.tv_usec;
+      rusage.ru_stime.tv_usec;
 }
 
 extern "C" void node_module_register(void* m) {
