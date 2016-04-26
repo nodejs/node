@@ -95,12 +95,12 @@ information regarding the change process:
   pull request being merged so it's easy to trace a commit back to the
   conversation that led up to that change. Please be sure that the `PR-URL`
   line appears first, above the `Reviewed-By` lines and any `Fixes` lines.
-- A `Reviewed-By: Name <email>` line for yourself and any
-  other Collaborators who have reviewed the change.
 - A `Fixes: X` line, where _X_ either includes the *full* GitHub URL
   for an issue, and/or the hash and commit message if the commit fixes
   a bug in a previous commit. Multiple `Fixes:` lines may be added if
   appropriate.
+- A `Reviewed-By: Name <email>` line for yourself and any
+  other Collaborators who have reviewed the change.
 
 Review the commit message to ensure that it adheres to the guidelines
 outlined in the [contributing](https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#step-3-commit) guide.
