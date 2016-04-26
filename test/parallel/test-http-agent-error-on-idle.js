@@ -47,7 +47,7 @@ server.listen(common.PORT, function() {
 
 function done() {
   assert.equal(Object.keys(agent.freeSockets).length, 0,
-              'expect the freeSockets pool to be empty');
+               'expect the freeSockets pool to be empty');
 
   agent.destroy();
   server.close();
