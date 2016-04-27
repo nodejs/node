@@ -381,25 +381,22 @@ try {
 
 assert.ok(threw);
 
-// GH-207. Make sure deepEqual doesn't loop forever on circular refs
+// https://github.com/nodejs/node/issues/6416
+// Make sure circular refs don't throw.
 var b = {};
 b.b = b;
 
 var c = {};
 c.b = c;
 
-var gotError = false;
-try {
-  assert.deepEqual(b, c);
-} catch (e) {
-  gotError = true;
-}
+a.doesNotThrow(makeBlock(a.deepEqual, b, c));
+a.doesNotThrow(makeBlock(a.deepStrictEqual, b, c));
+
 
 // GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
 var args = (function() { return arguments; })();
 a.throws(makeBlock(a.deepEqual, [], args));
 a.throws(makeBlock(a.deepEqual, args, []));
-assert.ok(gotError);
 
 
 var circular = {y: 1};
