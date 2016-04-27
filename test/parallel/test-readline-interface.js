@@ -1,9 +1,11 @@
+// Flags: --expose_internals
 'use strict';
 require('../common');
-var assert = require('assert');
-var readline = require('readline');
-var EventEmitter = require('events').EventEmitter;
-var inherits = require('util').inherits;
+const assert = require('assert');
+const readline = require('readline');
+const internalReadline = require('internal/readline');
+const EventEmitter = require('events').EventEmitter;
+const inherits = require('util').inherits;
 
 function FakeInput() {
   EventEmitter.call(this);
@@ -322,37 +324,31 @@ function isWarned(emitter) {
   }
 
   // wide characters should be treated as two columns.
-  assert.equal(readline.isFullWidthCodePoint('a'.charCodeAt(0)), false);
-  assert.equal(readline.isFullWidthCodePoint('あ'.charCodeAt(0)), true);
-  assert.equal(readline.isFullWidthCodePoint('谢'.charCodeAt(0)), true);
-  assert.equal(readline.isFullWidthCodePoint('고'.charCodeAt(0)), true);
-  assert.equal(readline.isFullWidthCodePoint(0x1f251), true); // surrogate
-  assert.equal(readline.codePointAt('ABC', 0), 0x41);
-  assert.equal(readline.codePointAt('あいう', 1), 0x3044);
-  assert.equal(readline.codePointAt('\ud800\udc00', 0),  // surrogate
-      0x10000);
-  assert.equal(readline.codePointAt('\ud800\udc00A', 2), // surrogate
-      0x41);
-  assert.equal(readline.getStringWidth('abcde'), 5);
-  assert.equal(readline.getStringWidth('古池や'), 6);
-  assert.equal(readline.getStringWidth('ノード.js'), 9);
-  assert.equal(readline.getStringWidth('你好'), 4);
-  assert.equal(readline.getStringWidth('안녕하세요'), 10);
-  assert.equal(readline.getStringWidth('A\ud83c\ude00BC'), 5); // surrogate
+  assert.equal(internalReadline.isFullWidthCodePoint('a'.charCodeAt(0)), false);
+  assert.equal(internalReadline.isFullWidthCodePoint('あ'.charCodeAt(0)), true);
+  assert.equal(internalReadline.isFullWidthCodePoint('谢'.charCodeAt(0)), true);
+  assert.equal(internalReadline.isFullWidthCodePoint('고'.charCodeAt(0)), true);
+  assert.equal(internalReadline.isFullWidthCodePoint(0x1f251), true);
+  assert.equal(internalReadline.getStringWidth('abcde'), 5);
+  assert.equal(internalReadline.getStringWidth('古池や'), 6);
+  assert.equal(internalReadline.getStringWidth('ノード.js'), 9);
+  assert.equal(internalReadline.getStringWidth('你好'), 4);
+  assert.equal(internalReadline.getStringWidth('안녕하세요'), 10);
+  assert.equal(internalReadline.getStringWidth('A\ud83c\ude00BC'), 5);
 
   // check if vt control chars are stripped
-  assert.equal(readline
+  assert.equal(internalReadline
                .stripVTControlCharacters('\u001b[31m> \u001b[39m'), '> ');
-  assert.equal(readline
+  assert.equal(internalReadline
                .stripVTControlCharacters('\u001b[31m> \u001b[39m> '), '> > ');
-  assert.equal(readline
+  assert.equal(internalReadline
                .stripVTControlCharacters('\u001b[31m\u001b[39m'), '');
-  assert.equal(readline
+  assert.equal(internalReadline
                .stripVTControlCharacters('> '), '> ');
-  assert.equal(readline.getStringWidth('\u001b[31m> \u001b[39m'), 2);
-  assert.equal(readline.getStringWidth('\u001b[31m> \u001b[39m> '), 4);
-  assert.equal(readline.getStringWidth('\u001b[31m\u001b[39m'), 0);
-  assert.equal(readline.getStringWidth('> '), 2);
+  assert.equal(internalReadline.getStringWidth('\u001b[31m> \u001b[39m'), 2);
+  assert.equal(internalReadline.getStringWidth('\u001b[31m> \u001b[39m> '), 4);
+  assert.equal(internalReadline.getStringWidth('\u001b[31m\u001b[39m'), 0);
+  assert.equal(internalReadline.getStringWidth('> '), 2);
 
   assert.deepStrictEqual(fi.listeners(terminal ? 'keypress' : 'data'), []);
 
