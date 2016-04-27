@@ -40,7 +40,6 @@ class ProcessWrap : public HandleWrap {
 
     env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
-    env->SetProtoMethod(constructor, "unrefed", HandleWrap::Unrefed);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"),
                 constructor->GetFunction());
