@@ -729,8 +729,12 @@ Example:
 
 ## process.exit([code])
 
-Ends the process with the specified `code`.  If omitted, exit uses the
-'success' code `0`.
+* `code` {Integer} The exit code. Defaults to `0`.
+
+The `process.exit()` method instructs Node.js to terminate the process as
+quickly as possible with the specified exit `code`. If the `code` is omitted, 
+exit uses either the 'success' code `0` or the value of `process.exitCode` if
+specified.
 
 To exit with a 'failure' code:
 
@@ -738,8 +742,51 @@ To exit with a 'failure' code:
 process.exit(1);
 ```
 
-The shell that executed Node.js should see the exit code as 1.
+The shell that executed Node.js should see the exit code as `1`.
 
+It is important to note that calling `process.exit()` will force the process to
+exit as quickly as possible *even if there are still asynchronous operations 
+pending* that have not yet completed fully, *including* I/O operations to
+`process.stdout` and `process.stderr`.
+
+In most situations, it is not actually necessary to call `process.exit()`
+explicitly. The Node.js process will exit on it's own *if there is no additional
+work pending* in the event loop. The `process.exitCode` property can be set to
+tell the process which exit code to use when the process exits gracefully.
+
+For instance, the following example illustrates a *misuse* of the 
+`process.exit()` method that could lead to data printed to stdout being 
+truncated and lost:
+
+```js
+// This is an example of what *not* to do:
+if (someConditionNotMet()) {
+  printUsageToStdout();
+  process.exit(1);
+}
+```
+
+The reason this is problematic is because writes to `process.stdout` in Node.js
+are *non-blocking* and may occur over multiple ticks of the Node.js event loop.
+Calling `process.exit()`, however, forces the process to exit *before* those
+additional writes to `stdout` can be performed.
+
+Rather than calling `process.exit()` directly, the code *should* set the
+`process.exitCode` and allow the process to exit naturally by avoiding
+scheduling any additional work for the event loop:
+
+```js
+// How to properly set the exit code while letting
+// the process exit gracefully.
+if (someConditionNotMet()) {
+  printUsageToStdout();
+  process.exitCode = 1;
+}
+```
+
+If it is necessary to terminate the Node.js process due to an error condition,
+throwing an *uncaught* error and allowing the process to terminate accordingly
+is safer than calling `process.exit()`.
 
 ## process.exitCode
 
@@ -747,8 +794,8 @@ A number which will be the process exit code, when the process either
 exits gracefully, or is exited via [`process.exit()`][] without specifying
 a code.
 
-Specifying a code to [`process.exit(code)`][`process.exit()`] will override any previous
-setting of `process.exitCode`.
+Specifying a code to [`process.exit(code)`][`process.exit()`] will override any 
+previous setting of `process.exitCode`.
 
 
 ## process.getegid()
