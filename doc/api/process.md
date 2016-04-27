@@ -459,6 +459,34 @@ catch (err) {
 }
 ```
 
+## process.children()
+
+Returns a list of children `pid`s, the current process has spawned.
+
+_Note: the child processes do not de-register from their parent automatically.
+General bookkeeping must be done by application. This means for certain
+subsequent operations the application must check for errors._
+
+```js
+const spawn = require('child_process').spawn;
+
+const code = 'setTimeout(() => {}, 400)';
+
+spawn(process.argv[0], ['-e', code]);
+spawn(process.argv[0], ['-e', code]);
+
+console.log(process.children().length);
+// => [ 12355 , 12359]
+
+process.children().forEach((el) => {
+  try {
+    process.kill(el);
+  } catch (e) {
+    console.log('Process was dead already or pid was reassiagned', e);
+  }   
+});
+```
+
 ## process.config
 
 An Object containing the JavaScript representation of the configure options
