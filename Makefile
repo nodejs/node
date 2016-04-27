@@ -115,9 +115,9 @@ v8:
 	$(MAKE) -C deps/v8 $(V8_ARCH) $(V8_BUILD_OPTIONS)
 
 test: | cctest  # Depends on 'all'.
-	$(PYTHON) tools/test.py --mode=release doctool message parallel sequential -J
-	$(MAKE) jslint
-	$(MAKE) cpplint
+	$(PYTHON) tools/test.py --mode=release -J \
+		doctool message parallel sequential
+	$(MAKE) lint
 
 test-parallel: all
 	$(PYTHON) tools/test.py --mode=release parallel -J
