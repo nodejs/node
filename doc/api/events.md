@@ -310,8 +310,8 @@ myEE.on('bar', () => {});
 const sym = Symbol('symbol');
 myEE.on(sym, () => {});
 
-console.log(myErr.eventNames());
-  // Prints ['foo', 'bar', Symbol('symbol')]
+console.log(myEE.eventNames());
+  // Prints [ 'foo', 'bar', Symbol(symbol) ]
 ```
 
 ### emitter.getMaxListeners()
