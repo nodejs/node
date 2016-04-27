@@ -8,14 +8,14 @@ const server = net.createServer((conn) => {
   server.close();
 }).listen(common.PORT, () => {
   const client = net.connect(common.PORT, () => {
-    assert.equal(client.connecting, false);
+    assert.strictEqual(client.connecting, false);
 
     // Legacy getter
-    assert.equal(client._connecting, false);
+    assert.strictEqual(client._connecting, false);
     client.end();
-  })
-  assert.equal(client.connecting, true);
+  });
+  assert.strictEqual(client.connecting, true);
 
   // Legacy getter
-  assert.equal(client._connecting, true);
+  assert.strictEqual(client._connecting, true);
 });
