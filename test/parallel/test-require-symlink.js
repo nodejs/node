@@ -47,6 +47,10 @@ function test() {
   assert.equal(fooModule.dep1.bar.version, 'CORRECT_VERSION');
   assert.equal(fooModule.dep2.bar.version, 'CORRECT_VERSION');
 
+  // make sure same realpath load once
+  assert(require(linkTarget) === fooModule.dep2);
+  assert(require(linkTarget) === require(linkDir));
+
   // load symlinked-script as main
   var node = process.execPath;
   var child = spawn(node, [linkScript]);
