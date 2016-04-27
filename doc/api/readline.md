@@ -302,7 +302,7 @@ the following values:
 
  - `historySize` - maximum number of history lines retained. To disable the
    history set this value to `0`. Defaults to `30`. This option makes sense
-   only if `terminal` is set `true` by user or by internal `output` check,
+   only if `terminal` is set to `true` by user or by internal `output` check,
    otherwise the history caching mechanism is not initialized at all.
 
 The `completer` function is given the current line entered by the user, and
