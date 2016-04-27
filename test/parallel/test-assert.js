@@ -394,12 +394,13 @@ try {
 } catch (e) {
   gotError = true;
 }
+assert.ok(gotError);
+
 
 // GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
 var args = (function() { return arguments; })();
 a.throws(makeBlock(a.deepEqual, [], args));
 a.throws(makeBlock(a.deepEqual, args, []));
-assert.ok(gotError);
 
 
 var circular = {y: 1};
