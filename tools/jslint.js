@@ -125,23 +125,28 @@ if (cluster.isMaster) {
     sendWork(worker);
   });
 
-  process.on('exit', function() {
+  process.on('exit', function(code) {
     if (showProgress) {
       curPath = 'Done';
       printProgress();
       outFn('\r\n');
     }
-    process.exit(failures ? 1 : 0);
+    if (code === 0)
+      process.exit(failures ? 1 : 0);
   });
 
   for (i = 0; i < numCPUs; ++i)
-    cluster.fork().on('message', onWorkerMessage);
+    cluster.fork().on('message', onWorkerMessage).on('exit', onWorkerExit);
 
   function onWorkerMessage(results) {
     if (typeof results !== 'number') {
       // The worker sent us results that are not all successes
-      if (!workerConfig.sendAll)
+      if (workerConfig.sendAll) {
+        failures += results.errorCount;
+        results = results.results;
+      } else {
         failures += results.length;
+      }
       outFn(formatter(results) + '\r\n');
       printProgress();
     } else {
@@ -149,6 +154,11 @@ if (cluster.isMaster) {
     }
     // Try to give the worker more work to do
     sendWork(this);
+  }
+
+  function onWorkerExit(code, signal) {
+    if (code !== 0 || signal)
+      process.exit(2);
   }
 
   function sendWork(worker) {
@@ -245,7 +255,7 @@ if (cluster.isMaster) {
             }
           }
         }
-        process.send(results);
+        process.send({ results: results, errorCount: report.errorCount });
       } else if (report.errorCount === 0) {
         // No errors, return number of successful lint operations
         process.send(files.length);
