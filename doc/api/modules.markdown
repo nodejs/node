@@ -30,8 +30,9 @@ The module `circle.js` has exported the functions `area()` and
 `circumference()`.  To add functions and objects to the root of your module,
 you can add them to the special `exports` object.
 
-Variables local to the module will be private, as though the module was wrapped
-in a function. In this example the variable `PI` is private to `circle.js`.
+Variables local to the module will be private, because the module is wrapped
+in a function by Node.js (see [module wrapper](#modules_the_module_wrapper)).
+In this example, the variable `PI` is private to `circle.js`.
 
 If you want the root of your module's export to be a function (such as a
 constructor) or if you want to export a complete object in one assignment
@@ -424,6 +425,30 @@ configured `node_prefix`.
 These are mostly for historic reasons.  **You are highly encouraged
 to place your dependencies locally in `node_modules` folders.**  They
 will be loaded faster, and more reliably.
+
+## The module wrapper
+
+<!-- type=misc -->
+
+Before a module's code is executed, Node.js will wrap it with a function
+wrapper that looks like the following:
+
+```js
+(function (exports, require, module, __filename, __dirname) {
+// Your module code actually lives in here
+});
+```
+
+By doing this, Node.js achieves a few things:
+
+- It keeps top-level variables (defined with `var`, `const` or `let`) scoped to
+the module rather than the global object.
+- It helps to provide some global-looking variables that are actually specific
+to the module, such as:
+  - The `module` and `exports` objects that the implementor can use to export
+  values from the module.
+  - The convenience variables `__filename` and `__dirname`, containing the
+  module's absolute filename and directory path.
 
 ## The `module` Object
 
