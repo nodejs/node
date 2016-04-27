@@ -7,7 +7,7 @@
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
-function getBinaryExpressionStarts(binaryExpression, starts = []) {
+function getBinaryExpressionStarts(binaryExpression, starts) {
   function getStartsFromOneSide(side, starts) {
     starts.push(side.loc.start);
     if (side.type === 'BinaryExpression') {
@@ -29,7 +29,7 @@ function checkExpressionAlignment(expression) {
 
   switch (expression.type) {
     case 'BinaryExpression':
-      var starts = getBinaryExpressionStarts(expression);
+      var starts = getBinaryExpressionStarts(expression, []);
       var startLine = starts[0].line;
       const startColumn = starts[0].column;
       starts.forEach((loc) => {
