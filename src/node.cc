@@ -2221,8 +2221,8 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
   fields[2] = t % NANOS_PER_SEC;
 }
 
-// Microseconds in a second, used in CPUUsage() below
-#define MICROS_PER_SEC 1000000
+// Microseconds in a second, as a float, used in CPUUsage() below
+#define MICROS_PER_SEC 1e6
 
 // CPUUsage use libuv's uv_getrusage() this-process resource usage accessor,
 // to access ru_utime (user CPU time used) and ru_stime (system CPU time used),
@@ -2249,10 +2249,8 @@ void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   double* fields = static_cast<double*>(ab->GetContents().Data());
 
   // Set the Float64Array elements to be user / system values in microseconds.
-  fields[0] = 1.0L * rusage.ru_utime.tv_sec * MICROS_PER_SEC +
-      rusage.ru_utime.tv_usec;
-  fields[1] = 1.0L * rusage.ru_stime.tv_sec * MICROS_PER_SEC +
-      rusage.ru_stime.tv_usec;
+  fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
+  fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
 }
 
 extern "C" void node_module_register(void* m) {
