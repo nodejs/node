@@ -475,3 +475,15 @@ th > *:last-child, td > *:last-child {
     font-size: 3.5em;
   }
 }
+
+@media only screen and (min-width: 1280px) and (max-width: 2047px) {
+  ::-webkit-scrollbar {
+    width: 12px;
+  }
+}
+
+@media only screen and (min-width: 2048px) {
+  ::-webkit-scrollbar {
+    width: 0.5vw;
+  }
+}
