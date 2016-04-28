@@ -708,7 +708,7 @@ Example:
 
 * `code` {Integer} The exit code. Defaults to `0`.
 
-The `process.exit()` methods instructs Node.js to terminate the process as
+The `process.exit()` method instructs Node.js to terminate the process as
 quickly as possible with the specified exit `code`. If the `code` is omitted, 
 exit uses either the 'success' code `0` or the value of `process.exitCode` if
 specified.
@@ -723,8 +723,8 @@ The shell that executed Node.js should see the exit code as `1`.
 
 It is important to note that calling `process.exit()` will force the process to
 exit as quickly as possible *even if there are still asynchronous operations 
-pending* in the event loop, *including* i/o operations to `process.stdout` and
-`process.stderr`.
+pending* that have not yet completed fully, *including* I/O operations to
+`process.stdout` and `process.stderr`.
 
 In most situations, it is not actually necessary to call `process.exit()`
 explicitly. The Node.js process will exit on it's own *if there is no additional
@@ -760,6 +760,10 @@ if (someConditionNotMet()) {
   process.exitCode = 1;
 }
 ```
+
+If it is necessary to terminate the Node.js process due to an error condition,
+throwing an *uncaught* error and allowing the process to terminate accordingly
+is safer than calling `process.exit()`.
 
 ## process.exitCode
 
