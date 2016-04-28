@@ -1,13 +1,13 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const EventEmitter = require('events');
+const events = require('events');
 
 function listener1() {}
 function listener2() {}
 
 {
-  const ee = new EventEmitter();
+  const ee = new events.EventEmitter();
   ee.on('hello', listener1);
   ee.on('removeListener', common.mustCall((name, cb) => {
     assert.strictEqual(name, 'hello');
@@ -18,7 +18,7 @@ function listener2() {}
 }
 
 {
-  const ee = new EventEmitter();
+  const ee = new events.EventEmitter();
   ee.on('hello', listener1);
   ee.on('removeListener', common.fail);
   ee.removeListener('hello', listener2);
@@ -26,7 +26,7 @@ function listener2() {}
 }
 
 {
-  const ee = new EventEmitter();
+  const ee = new events.EventEmitter();
   ee.on('hello', listener1);
   ee.on('hello', listener2);
   ee.once('removeListener', common.mustCall((name, cb) => {
@@ -46,7 +46,7 @@ function listener2() {}
 }
 
 {
-  const ee = new EventEmitter();
+  const ee = new events.EventEmitter();
 
   function remove1() {
     common.fail('remove1 should not have been called');
@@ -67,7 +67,7 @@ function listener2() {}
 }
 
 {
-  const ee = new EventEmitter();
+  const ee = new events.EventEmitter();
   ee.on('hello', listener1);
   ee.on('hello', listener2);
   ee.once('removeListener', common.mustCall((name, cb) => {
@@ -87,7 +87,7 @@ function listener2() {}
 }
 
 {
-  const ee = new EventEmitter();
+  const ee = new events.EventEmitter();
   const listener3 = common.mustCall(() => {
     ee.removeListener('hello', listener4);
   }, 2);
@@ -106,7 +106,7 @@ function listener2() {}
 }
 
 {
-  const ee = new EventEmitter();
+  const ee = new events.EventEmitter();
 
   ee.once('hello', listener1);
   ee.on('removeListener', common.mustCall((eventName, listener) => {
