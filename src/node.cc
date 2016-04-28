@@ -141,6 +141,8 @@ static bool trace_deprecation = false;
 static bool throw_deprecation = false;
 static bool trace_sync_io = false;
 static bool track_heap_objects = false;
+static bool trace_unhandled_rejection = false;
+static bool throw_unhandled_rejection = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
@@ -3140,6 +3142,18 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
+  // --trace-unhandled-rejection
+  if (trace_unhandled_rejection) {
+    READONLY_PROPERTY(
+        process, "traceUnhandledRejection", True(env->isolate()));
+  }
+
+  // --throw-unhandled-rejection
+  if (throw_unhandled_rejection) {
+    READONLY_PROPERTY(
+        process, "throwUnhandledRejection", True(env->isolate()));
+  }
+
   // --security-revert flags
 #define V(code, _, __)                                                        \
   do {                                                                        \
@@ -3569,6 +3583,10 @@ static void ParseArgs(int* argc,
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
       icu_data_dir = arg + 15;
 #endif
+    } else if (strcmp(arg, "--trace-unhandled-rejection") == 0) {
+      trace_unhandled_rejection = true;
+    } else if (strcmp(arg, "--throw-unhandled-rejection") == 0) {
+      throw_unhandled_rejection = true;
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       // consumed in js

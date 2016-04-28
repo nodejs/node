@@ -191,6 +191,12 @@ this, you can either attach a dummy [`.catch(() => { })`][`promise.catch()`] han
 `resource.loaded`, preventing the `'unhandledRejection'` event from being
 emitted, or you can use the [`'rejectionHandled'`][] event.
 
+When `'--throw-unhandled-rejection'` option is on, Node process throws 
+an exception if `unhandledRejection` listener is not exist.
+
+And `'--trace-unhandled-rejection'` option is on, Node outputs stderr message
+an exception if `unhandledRejection` listener is not exist.
+
 ## Event: 'warning'
 
 Emitted whenever Node.js emits a process warning.
