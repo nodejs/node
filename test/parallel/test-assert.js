@@ -401,8 +401,8 @@ assert.ok(threw);
   e.a = 1;
   e.b = e.a;
 
-  a.throws(makeBlock(a.deepEqual, d, e));
-  a.throws(makeBlock(a.deepStrictEqual, d, e));
+  a.throws(makeBlock(a.deepEqual, d, e), /AssertionError/);
+  a.throws(makeBlock(a.deepStrictEqual, d, e), /AssertionError/);
 }
 // GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
 var args = (function() { return arguments; })();
