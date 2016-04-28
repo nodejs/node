@@ -1,6 +1,5 @@
 'use strict';
 // Flags: --expose_gc
-/* global gc:false */
 
 var common = require('../common');
 
@@ -45,12 +44,12 @@ function writer() {
       }, 555);
     } else {
       fs.write(testFD, newBuffer(kBufSize, 0x61), 0, kBufSize, -1, writerCB);
-      gc();
-      gc();
-      gc();
-      gc();
-      gc();
-      gc();
+      global.gc();
+      global.gc();
+      global.gc();
+      global.gc();
+      global.gc();
+      global.gc();
       var nuBuf = Buffer.allocUnsafe(kBufSize);
       neverWrittenBuffer.copy(nuBuf);
       if (bufPool.push(nuBuf) > 100) {

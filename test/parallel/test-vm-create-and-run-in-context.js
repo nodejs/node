@@ -1,6 +1,5 @@
 'use strict';
 // Flags: --expose-gc
-/* global gc:false */
 require('../common');
 var assert = require('assert');
 
@@ -25,6 +24,6 @@ assert.equal('lala', context.thing);
 console.error('run in contextified sandbox without referencing the context');
 var sandbox = {x: 1};
 vm.createContext(sandbox);
-gc();
+global.gc();
 vm.runInContext('x = 2', sandbox);
 // Should not crash.
