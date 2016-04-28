@@ -13,7 +13,7 @@ dropped into the REPL. It has simplistic emacs line-editing.
 ```
 $ node
 Type '.help' for options.
-> a = [ 1, 2, 3];
+> a = [1, 2, 3];
 [ 1, 2, 3 ]
 > a.forEach((v) => {
 ...   console.log(v);
