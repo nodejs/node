@@ -41,7 +41,7 @@ function checkArgumentAlignment(context, node) {
   // For now, don't bother trying to validate potentially complicating things
   // like closures. Different people will have very different ideas and it's
   // probably best to implement configuration options.
-  if (args.some((node) => { return ignoreTypes.indexOf(node.type) !== -1; })) {
+  if (args.some((node) => ignoreTypes.indexOf(node.type) !== -1)) {
     return;
   }
 

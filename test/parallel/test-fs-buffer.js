@@ -31,9 +31,7 @@ assert.throws(() => {
 const dir = Buffer.from(common.fixturesDir);
 fs.readdir(dir, 'hex', common.mustCall((err, list) => {
   if (err) throw err;
-  list = list.map((i) => {
-    return Buffer.from(i, 'hex').toString();
-  });
+  list = list.map((i) => Buffer.from(i, 'hex').toString());
   fs.readdir(dir, common.mustCall((err, list2) => {
     if (err) throw err;
     assert.deepStrictEqual(list, list2);
