@@ -962,7 +962,7 @@ Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
   * `encoding` {String} default = `'utf8'`
 * `callback` {Function}
 
-Asynchronous realpath(2). The `callback` gets two arguments `(err,
+Asynchronous realpath(3). The `callback` gets two arguments `(err,
 resolvedPath)`. May use `process.cwd` to resolve relative paths.
 
 The optional `options` argument can be a string specifying an encoding, or an
@@ -976,7 +976,7 @@ the path returned will be passed as a `Buffer` object.
 * `options` {String | Object}
   * `encoding` {String} default = `'utf8'`
 
-Synchronous realpath(2). Returns the resolved path.
+Synchronous realpath(3). Returns the resolved path.
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
