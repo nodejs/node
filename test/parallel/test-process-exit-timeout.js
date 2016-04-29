@@ -4,26 +4,19 @@ const common = require('../common');
 const assert = require('assert');
 
 // Schedule something that'll keep the loop active normally
-const timer1 = setInterval(() => {}, 1000);
-const timer2 = setInterval(() => {}, 1000);
+var tick = 0;
+setInterval(() => {
+  tick++;
+  // Abort just in case this goes on too long
+  assert(tick < 10);
+}, common.platformTimeout(1000));
 
-// Register an exitingSoon handler to clean up before exit
-process.on('exitingSoon', common.mustCall((ready) => {
-  // Simulate some async task
-  assert.strictEqual(process.exitCode, 0);
-  // Shouldn't be callable twice
-  assert.strictEqual(process.exit(0, 10000), false);
-  setImmediate(() => {
-    // Clean up resources
-    clearInterval(timer1);
-    // Notify that we're done
-    ready();
-  });
+process.on('exitingSoon', common.mustCall((ready, timed) => {
+  // timed is true because there is a timer
+  assert.strictEqual(timed, true);
+  // Purposefully do not call the ready callback.
 }));
 
-process.on('exitingSoon', common.mustCall((ready) => {
-  clearInterval(timer2);
-  ready();
-}));
-
-assert.strictEqual(process.exit(0, 10000), true);
+// This will sit for about five seconds then exit normally with exit code
+// zero. The test fails if it hangs forever.
+assert.strictEqual(process.exitSoon(0, common.platformTimeout(5000)), true);
