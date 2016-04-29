@@ -28,6 +28,20 @@ fs.symlinkSync('../real-module', realModuleSymlinkPath);
 fs.symlinkSync('../real-module', linkModuleSymlinkPath);
 
 assert.equal(_require('./real-module'), _require('real-module'));
+
+// Ensure that _-prefixed symlinks are being required properly when requesting a
+// nested file.
+assert.equal(_require('./real-module'), _require('real-module/index.js'));
+assert.equal(
+  _require('./real-module/nested/index.js'),
+  _require('real-module/nested/index.js')
+);
+assert.equal(
+  _require('./real-module/nested'),
+  _require('real-module/nested')
+);
+
+assert.equal(_require('./real-module/index.js'), _require('real-module'));
 assert.equal(_require('real-module').dirname, localRealModulePath);
 
 // When required directly with the _-prefix, resolve to path of symlink.
