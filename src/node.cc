@@ -85,6 +85,7 @@ typedef int mode_t;
 
 #ifdef __APPLE__
 #include <crt_externs.h>
+#include <mach-o/dyld.h>
 #include <spawn.h>
 #define environ (*_NSGetEnviron())
 #elif !defined(_MSC_VER)
@@ -3914,7 +3915,7 @@ inline void PlatformInit(int argc, char** argv) {
   // ignored for setuid/setgid binaries; in that particular case the only
   // option is to recompile with `make LINK="c++ -Wl,-no_pie"` to disable
   // PIE (and therefore ASLR) altogether.
-  if (v8_is_profiling) {
+  if (v8_is_profiling && _dyld_get_image_vmaddr_slide(0) != 0) {
     // Use a key that is unlikely to have been set by the user.
     static const char kRespawnEnvKey[] = "\x01NODE_MAC_RESPAWN_FOR_PROFILING";
     if (getenv(kRespawnEnvKey)) {
