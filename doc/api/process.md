@@ -46,7 +46,7 @@ process.on('exit', (code) => {
 ```
 ## Event: 'exitingSoon'
 
-Emitted when `process.exit()` is called using the optional `timeout` argument.
+Emitted when `process.exitSoon()` is called.
 
 Calling `process.exitSoon()` will trigger all `exitingSoon` listeners and
 pass each a callback to be invoked when the listener is ready for the process
@@ -752,7 +752,7 @@ a code.
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any previous
 setting of `process.exitCode`.
 
-## process.exitSoon([code][, forceExitTimeout])
+## process.exitSoon([code[, forceExitTimeout]])
 
 * `code` {Number} The exit code. Defaults to `0` or `process.exitCode`
 * `forceExitTimeOut` {Number} A number of milliseconds to wait until forcing
