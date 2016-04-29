@@ -85,6 +85,7 @@ typedef int mode_t;
 
 #ifdef __APPLE__
 #include <crt_externs.h>
+#include <spawn.h>
 #define environ (*_NSGetEnviron())
 #elif !defined(_MSC_VER)
 extern char **environ;
@@ -3906,7 +3907,31 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-inline void PlatformInit() {
+inline void PlatformInit(int argc, char** argv) {
+#ifdef __APPLE__
+  // ASLR makes the output of `-prof` useless for C++ code so re-exec the
+  // process with ASLR disabled.  Note that _POSIX_SPAWN_DISABLE_ASLR is
+  // ignored for setuid/setgid binaries; in that particular case the only
+  // option is to recompile with `make LINK="c++ -Wl,-no_pie"` to disable
+  // PIE (and therefore ASLR) altogether.
+  if (v8_is_profiling) {
+    // Use a key that is unlikely to have been set by the user.
+    static const char kRespawnEnvKey[] = "\x01NODE_MAC_RESPAWN_FOR_PROFILING";
+    if (getenv(kRespawnEnvKey)) {
+      CHECK_EQ(0, unsetenv(kRespawnEnvKey));
+    } else {
+      const bool overwrite = true;
+      CHECK_EQ(0, setenv(kRespawnEnvKey, "1", overwrite));
+      posix_spawnattr_t attr;
+      CHECK_EQ(0, posix_spawnattr_init(&attr));
+      // POSIX_SPAWN_SETEXEC + _POSIX_SPAWN_DISABLE_ASLR
+      CHECK_EQ(0, posix_spawnattr_setflags(&attr, 64 + 256));
+      pid_t pid;
+      CHECK_EQ(0, posix_spawnp(&pid, argv[0], nullptr, &attr, argv, environ));
+      UNREACHABLE();
+    }
+  }
+#endif  // __APPLE__
 #ifdef __POSIX__
   sigset_t sigmask;
   sigemptyset(&sigmask);
@@ -3997,17 +4022,6 @@ void Init(int* argc,
   int v8_argc;
   const char** v8_argv;
   ParseArgs(argc, argv, exec_argc, exec_argv, &v8_argc, &v8_argv);
-
-  // TODO(bnoordhuis) Intercept --prof arguments and start the CPU profiler
-  // manually?  That would give us a little more control over its runtime
-  // behavior but it could also interfere with the user's intentions in ways
-  // we fail to anticipate.  Dillema.
-  for (int i = 1; i < v8_argc; ++i) {
-    if (strncmp(v8_argv[i], "--prof", sizeof("--prof") - 1) == 0) {
-      v8_is_profiling = true;
-      break;
-    }
-  }
 
 #ifdef __POSIX__
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
@@ -4350,7 +4364,24 @@ static void StartNodeInstance(void* arg) {
 }
 
 int Start(int argc, char** argv) {
-  PlatformInit();
+  // Search until the first non-flag argument for `-prof` and `-noprof`.
+  // `--prof` and `--noprof` are allowed as alternative spellings, as are
+  // any variation of `-no-prof` and `-no_prof`.
+  for (int i = 1; i < argc && argv[i][0] == '-'; i += 1) {
+    const char* arg = &argv[i][1];
+    if (*arg == '-')
+      arg += 1;
+    const bool off = !strncmp(arg, "no", 2);
+    if (off) {
+      arg += 2;
+      if (*arg == '-' || *arg == '_')
+        arg += 1;
+    }
+    if (!strcmp(arg, "prof"))
+      v8_is_profiling = !off;
+  }
+
+  PlatformInit(argc, argv);
 
   CHECK_GT(argc, 0);
 
