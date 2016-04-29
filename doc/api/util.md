@@ -478,6 +478,22 @@ util.isPrimitive(new Date())
   // false
 ```
 
+## util.isProxy(object)
+
+Returns `true` if the given "object" is a `Proxy` object. Otherwise, returns
+`false`.
+
+```js
+const util = require('util');
+const proxyObj = new Proxy({}, {get: () => { return 5; }});
+
+util.isProxy(proxyObj);
+  // true
+
+util.isProxy({});
+  // false
+```
+
 ## util.isRegExp(object)
 
     Stability: 0 - Deprecated

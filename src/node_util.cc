@@ -11,6 +11,7 @@ using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::Object;
 using v8::Private;
+using v8::Proxy;
 using v8::String;
 using v8::Value;
 
@@ -22,6 +23,7 @@ using v8::Value;
   V(isMap, IsMap)                                                             \
   V(isMapIterator, IsMapIterator)                                             \
   V(isPromise, IsPromise)                                                     \
+  V(isProxy, IsProxy)                                                         \
   V(isRegExp, IsRegExp)                                                       \
   V(isSet, IsSet)                                                             \
   V(isSetIterator, IsSetIterator)                                             \
@@ -37,6 +39,21 @@ using v8::Value;
   VALUE_METHOD_MAP(V)
 #undef V
 
+static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  // Return nothing if it's not a proxy.
+  if (!args[0]->IsProxy())
+    return;
+
+  Local<Proxy> proxy = args[0].As<Proxy>();
+
+  Local<Object> ret = Object::New(env->isolate());
+  ret->Set(env->handler_string(), proxy->GetHandler());
+  ret->Set(env->target_string(), proxy->GetTarget());
+
+  args.GetReturnValue().Set(ret);
+}
 
 static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -84,6 +101,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
+  env->SetMethod(target, "getProxyDetails", GetProxyDetails);
 }
 
 }  // namespace util
