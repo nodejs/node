@@ -98,3 +98,14 @@ e6.emit('hello');
 
 // Interal listener array [listener3]
 e6.emit('hello');
+
+const e7 = new events.EventEmitter();
+
+const listener5 = () => {};
+
+e7.once('hello', listener5);
+e7.on('removeListener', common.mustCall((eventName, listener) => {
+  assert.strictEqual(eventName, 'hello');
+  assert.strictEqual(listener, listener5);
+}));
+e7.emit('hello');
