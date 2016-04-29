@@ -44,6 +44,32 @@ process.on('exit', (code) => {
   console.log('About to exit with code:', code);
 });
 ```
+## Event: 'exitingSoon'
+
+Emitted when `process.exitSoon()` is called.
+
+Calling `process.exitSoon()` will trigger all `exitingSoon` listeners and
+pass each a callback to be invoked when the listener is ready for the process
+to exit. The 'exitingSoon' event is similar to 'exit' with the exception that
+it is emitted *before* calling `process.exit()` and allows the listeners to
+delay the exist until the listener is ready to exit.
+
+```js
+// Some ongoing task that would normally keep the event loop active
+const timer1 = setInterval(() => {}, 1000);
+
+// Register an exitingSoon handler to clean up before exit
+process.on('exitingSoon', (ready) => {
+  setImmediate(() => {
+    // Clean up resources
+    clearInterval(timer1);
+    // Notify that we're done
+    ready();
+  });
+});
+
+process.exitSoon(0);
+```
 
 ## Event: 'message'
 
@@ -740,7 +766,6 @@ process.exit(1);
 
 The shell that executed Node.js should see the exit code as 1.
 
-
 ## process.exitCode
 
 A number which will be the process exit code, when the process either
@@ -750,6 +775,74 @@ a code.
 Specifying a code to [`process.exit(code)`][`process.exit()`] will override any previous
 setting of `process.exitCode`.
 
+## process.exitSoon([code[, forceExitTimeout]])
+
+* `code` {Number} The exit code. Defaults to `0` or `process.exitCode`
+* `forceExitTimeOut` {Number} A number of milliseconds to wait until forcing
+  the exit. Defaults to `undefined`. Must be a positive, finite number.
+
+Triggers the 'endingSoon' event to allow any registered listeners to perform
+cleanup actions *prior* calling the `process.exit()` method. Listeners are
+given the opportunity to delay or defer the actual exit. When a listener is
+invoked, it is passed two arguments: a `ready` callback and a `boolean` that
+indicates whether the optional `forceExitTimeout` has been set. When the
+listener is ready for the exit to proceed, it calls the ready callback. Once
+all listeners have called their ready callbacks, `process.exit()` will be
+called.
+
+If there are no 'endingSoon' listeners registered, `process.exit()` will be
+called immediately.
+
+This method will return `true` if the exit was successfully scheduled. It will
+return `false` if the exit has already been scheduled.
+
+```js
+// Some ongoing task that would normally keep the event loop active
+const timer1 = setInterval(() => {}, 1000);
+
+// Register an exitingSoon handler to clean up before exit
+process.on('exitingSoon', (ready, timed) => {
+  // timed is false because there is no timer
+  setImmediate(() => {
+    // Clean up resources
+    clearInterval(timer1);
+    // Notify that we're done
+    ready();
+  });
+});
+
+// Exit only when all of the handlers are ready.
+process.exitSoon(0);
+```
+
+If the optional `forceExitTimeout` value is specified, an internal timer will
+be created that will end the process after `forceExitTimeout` milliseconds. The 
+process will exit either when all listeners have signaled that they are ready 
+(by invoking the callback) or when the exit timer expires, whichever comes
+first.
+
+The `forceExitTimeout` argument is ignored if it is not a positive, finite
+number.
+
+```js
+// Some ongoing task that would normally keep the event loop active
+const timer1 = setInterval(() => {}, 1000);
+
+// Register an exitingSoon handler to clean up before exit
+process.on('exitingSoon', (ready, timed) => {
+  // timed is true because there is a timer
+  setImmediate(() => {
+    // Clean up resources
+    clearInterval(timer1);
+    // Notify that we're done
+    ready();
+  });
+});
+
+// Exit either when the handlers are ready or after 10 seconds.
+// Whichever comes first.
+process.exitSoon(0, 10000);
+```
 
 ## process.getegid()
 
