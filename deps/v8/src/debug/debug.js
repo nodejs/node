@@ -51,8 +51,7 @@ Debug.DebugEvent = { Break: 1,
                      BeforeCompile: 4,
                      AfterCompile: 5,
                      CompileError: 6,
-                     PromiseEvent: 7,
-                     AsyncTaskEvent: 8 };
+                     AsyncTaskEvent: 7 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -1138,39 +1137,6 @@ function MakeScriptObject_(script, include_source) {
     o.source = script.source();
   }
   return o;
-}
-
-
-function MakePromiseEvent(event_data) {
-  return new PromiseEvent(event_data);
-}
-
-
-function PromiseEvent(event_data) {
-  this.promise_ = event_data.promise;
-  this.parentPromise_ = event_data.parentPromise;
-  this.status_ = event_data.status;
-  this.value_ = event_data.value;
-}
-
-
-PromiseEvent.prototype.promise = function() {
-  return MakeMirror(this.promise_);
-}
-
-
-PromiseEvent.prototype.parentPromise = function() {
-  return MakeMirror(this.parentPromise_);
-}
-
-
-PromiseEvent.prototype.status = function() {
-  return this.status_;
-}
-
-
-PromiseEvent.prototype.value = function() {
-  return MakeMirror(this.value_);
 }
 
 
@@ -2517,7 +2483,6 @@ utils.InstallFunctions(utils, DONT_ENUM, [
   "MakeExceptionEvent", MakeExceptionEvent,
   "MakeBreakEvent", MakeBreakEvent,
   "MakeCompileEvent", MakeCompileEvent,
-  "MakePromiseEvent", MakePromiseEvent,
   "MakeAsyncTaskEvent", MakeAsyncTaskEvent,
   "IsBreakPointTriggered", IsBreakPointTriggered,
   "UpdateScriptBreakPoints", UpdateScriptBreakPoints,

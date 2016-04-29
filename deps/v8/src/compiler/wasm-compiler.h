@@ -40,7 +40,9 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
 // Wraps a JS function, producing a code object that can be called from WASM.
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
                                     Handle<JSFunction> function,
-                                    wasm::FunctionSig* sig, const char* name);
+                                    wasm::FunctionSig* sig,
+                                    wasm::WasmName module_name,
+                                    wasm::WasmName function_name);
 
 // Wraps a given wasm code object, producing a JSFunction that can be called
 // from JavaScript.
@@ -162,8 +164,12 @@ class WasmGraphBuilder {
   Node* MemBuffer(uint32_t offset);
   void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset);
 
+  Node* MaskShiftCount32(Node* node);
+  Node* MaskShiftCount64(Node* node);
+
   Node* BuildCCall(MachineSignature* sig, Node** args);
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args);
+
   Node* BuildF32Neg(Node* input);
   Node* BuildF64Neg(Node* input);
   Node* BuildF32CopySign(Node* left, Node* right);
@@ -180,8 +186,8 @@ class WasmGraphBuilder {
   Node* BuildI32Popcnt(Node* input);
   Node* BuildI64Ctz(Node* input);
   Node* BuildI64Popcnt(Node* input);
-  Node* BuildRoundingInstruction(Node* input, ExternalReference ref,
-                                 MachineType type);
+  Node* BuildCFuncInstruction(ExternalReference ref, MachineType type,
+                              Node* input0, Node* input1 = nullptr);
   Node* BuildF32Trunc(Node* input);
   Node* BuildF32Floor(Node* input);
   Node* BuildF32Ceil(Node* input);
@@ -190,10 +196,54 @@ class WasmGraphBuilder {
   Node* BuildF64Floor(Node* input);
   Node* BuildF64Ceil(Node* input);
   Node* BuildF64NearestInt(Node* input);
+  Node* BuildI32Rol(Node* left, Node* right);
+  Node* BuildI64Rol(Node* left, Node* right);
 
-  Node** Realloc(Node** buffer, size_t count) {
-    Node** buf = Buffer(count);
-    if (buf != buffer) memcpy(buf, buffer, count * sizeof(Node*));
+  Node* BuildF64Acos(Node* input);
+  Node* BuildF64Asin(Node* input);
+  Node* BuildF64Atan(Node* input);
+  Node* BuildF64Cos(Node* input);
+  Node* BuildF64Sin(Node* input);
+  Node* BuildF64Tan(Node* input);
+  Node* BuildF64Exp(Node* input);
+  Node* BuildF64Log(Node* input);
+  Node* BuildF64Pow(Node* left, Node* right);
+  Node* BuildF64Atan2(Node* left, Node* right);
+  Node* BuildF64Mod(Node* left, Node* right);
+
+  Node* BuildIntToFloatConversionInstruction(
+      Node* input, ExternalReference ref,
+      MachineRepresentation parameter_representation,
+      const MachineType result_type);
+  Node* BuildF32SConvertI64(Node* input);
+  Node* BuildF32UConvertI64(Node* input);
+  Node* BuildF64SConvertI64(Node* input);
+  Node* BuildF64UConvertI64(Node* input);
+
+  Node* BuildFloatToIntConversionInstruction(
+      Node* input, ExternalReference ref,
+      MachineRepresentation parameter_representation,
+      const MachineType result_type);
+  Node* BuildI64SConvertF32(Node* input);
+  Node* BuildI64UConvertF32(Node* input);
+  Node* BuildI64SConvertF64(Node* input);
+  Node* BuildI64UConvertF64(Node* input);
+
+  Node* BuildI32DivS(Node* left, Node* right);
+  Node* BuildI32RemS(Node* left, Node* right);
+  Node* BuildI32DivU(Node* left, Node* right);
+  Node* BuildI32RemU(Node* left, Node* right);
+
+  Node* BuildI64DivS(Node* left, Node* right);
+  Node* BuildI64RemS(Node* left, Node* right);
+  Node* BuildI64DivU(Node* left, Node* right);
+  Node* BuildI64RemU(Node* left, Node* right);
+  Node* BuildDiv64Call(Node* left, Node* right, ExternalReference ref,
+                       MachineType result_type, int trap_zero);
+
+  Node** Realloc(Node** buffer, size_t old_count, size_t new_count) {
+    Node** buf = Buffer(new_count);
+    if (buf != buffer) memcpy(buf, buffer, old_count * sizeof(Node*));
     return buf;
   }
 };

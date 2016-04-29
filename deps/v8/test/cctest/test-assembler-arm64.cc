@@ -37,6 +37,7 @@
 #include "src/arm64/disasm-arm64.h"
 #include "src/arm64/simulator-arm64.h"
 #include "src/arm64/utils-arm64.h"
+#include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
@@ -173,8 +174,10 @@ static void InitializeVM() {
   Isolate* isolate = CcTest::i_isolate();                      \
   HandleScope scope(isolate);                                  \
   CHECK(isolate != NULL);                                      \
-  byte* buf = new byte[buf_size];                              \
-  MacroAssembler masm(isolate, buf, buf_size,                  \
+  size_t actual_size;                                          \
+  byte* buf = static_cast<byte*>(                              \
+      v8::base::OS::Allocate(buf_size, &actual_size, true));   \
+  MacroAssembler masm(isolate, buf, actual_size,               \
                       v8::internal::CodeObjectRequired::kYes); \
   RegisterDump core;
 
@@ -208,7 +211,7 @@ static void InitializeVM() {
   __ GetCode(NULL);
 
 #define TEARDOWN()                                                             \
-  delete[] buf;
+  v8::base::OS::Free(buf, actual_size);
 
 #endif  // ifdef USE_SIMULATOR.
 

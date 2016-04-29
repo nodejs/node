@@ -115,3 +115,14 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
   fflush(stderr);
   v8::base::OS::Abort();
 }
+
+extern "C" void V8_RuntimeError(const char* file, int line,
+                                const char* message) {
+  fflush(stdout);
+  fflush(stderr);
+  v8::base::OS::PrintError("\n\n#\n# Runtime error in %s, line %d\n# ", file,
+                           line);
+  v8::base::OS::PrintError("\n# %s\n", message);
+  v8::base::DumpBacktrace();
+  fflush(stderr);
+}

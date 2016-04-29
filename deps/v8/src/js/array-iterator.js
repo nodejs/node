@@ -109,6 +109,24 @@ function ArrayKeys() {
   return CreateArrayIterator(this, ITERATOR_KIND_KEYS);
 }
 
+// TODO(littledan): Check for detached TypedArray in these three methods
+function TypedArrayEntries() {
+  if (!IS_TYPEDARRAY(this)) throw MakeTypeError(kNotTypedArray);
+  return %_Call(ArrayEntries, this);
+}
+
+
+function TypedArrayValues() {
+  if (!IS_TYPEDARRAY(this)) throw MakeTypeError(kNotTypedArray);
+  return %_Call(ArrayValues, this);
+}
+
+
+function TypedArrayKeys() {
+  if (!IS_TYPEDARRAY(this)) throw MakeTypeError(kNotTypedArray);
+  return %_Call(ArrayKeys, this);
+}
+
 
 %FunctionSetPrototype(ArrayIterator, {__proto__: IteratorPrototype});
 %FunctionSetInstanceClassName(ArrayIterator, 'Array Iterator');
@@ -117,8 +135,6 @@ utils.InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
   'next', ArrayIteratorNext
 ]);
 utils.SetFunctionName(ArrayIteratorIterator, iteratorSymbol);
-%AddNamedProperty(ArrayIterator.prototype, iteratorSymbol,
-                  ArrayIteratorIterator, DONT_ENUM);
 %AddNamedProperty(ArrayIterator.prototype, toStringTagSymbol,
                   "Array Iterator", READ_ONLY | DONT_ENUM);
 
@@ -135,12 +151,13 @@ utils.SetFunctionName(ArrayValues, 'values');
 %AddNamedProperty(GlobalArray.prototype, iteratorSymbol, ArrayValues,
                   DONT_ENUM);
 
+utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
+  'entries', TypedArrayEntries,
+  'keys', TypedArrayKeys,
+  'values', TypedArrayValues
+]);
 %AddNamedProperty(GlobalTypedArray.prototype,
-                  'entries', ArrayEntries, DONT_ENUM);
-%AddNamedProperty(GlobalTypedArray.prototype, 'values', ArrayValues, DONT_ENUM);
-%AddNamedProperty(GlobalTypedArray.prototype, 'keys', ArrayKeys, DONT_ENUM);
-%AddNamedProperty(GlobalTypedArray.prototype,
-                  iteratorSymbol, ArrayValues, DONT_ENUM);
+                  iteratorSymbol, TypedArrayValues, DONT_ENUM);
 
 // -------------------------------------------------------------------
 // Exports

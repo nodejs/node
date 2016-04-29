@@ -171,14 +171,6 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ThrowStrongModeImplicitConversion) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kStrongImplicitConversion));
-}
-
-
 RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -271,7 +263,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
 RUNTIME_FUNCTION(Runtime_CollectStackTrace) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, error_object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, error_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, caller, 1);
 
   if (!isolate->bootstrapper()->IsActive()) {
@@ -317,7 +309,6 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
   return *result;
 }
 
-
 #define CALLSITE_GET(NAME, RETURN)                          \
   RUNTIME_FUNCTION(Runtime_CallSite##NAME##RT) {            \
     HandleScope scope(isolate);                             \
@@ -325,7 +316,7 @@ RUNTIME_FUNCTION(Runtime_FormatMessageString) {
     CONVERT_ARG_HANDLE_CHECKED(JSObject, call_site_obj, 0); \
     Handle<String> result;                                  \
     CallSite call_site(isolate, call_site_obj);             \
-    RUNTIME_ASSERT(call_site.IsValid())                     \
+    RUNTIME_ASSERT(call_site.IsValid());                    \
     return RETURN(call_site.NAME(), isolate);               \
   }
 
@@ -366,18 +357,6 @@ RUNTIME_FUNCTION(Runtime_IS_VAR) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IncrementStatsCounter) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(String, name, 0);
-
-  if (FLAG_native_code_counters) {
-    StatsCounter(isolate, name->ToCString().get()).Increment();
-  }
-  return isolate->heap()->undefined_value();
-}
-
-
 namespace {
 
 bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
@@ -407,7 +386,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
-    Zone zone;
+    Zone zone(isolate->allocator());
     base::SmartPointer<ParseInfo> info(
         location.function()->shared()->is_function()
             ? new ParseInfo(&zone, location.function())
@@ -477,6 +456,12 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_GetOrdinaryHasInstance) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  return isolate->native_context()->ordinary_has_instance();
+}
 
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);

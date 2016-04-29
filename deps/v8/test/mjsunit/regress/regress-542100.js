@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-sloppy --harmony-sloppy-function
+// Flags: --no-harmony-restrictive-declarations
 
 (function() {
   var x = {a: 1}

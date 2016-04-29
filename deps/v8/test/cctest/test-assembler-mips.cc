@@ -1490,7 +1490,7 @@ TEST(min_max) {
 
     float inputse[kTableLength] = {2.0,  3.0,  fnan, 3.0,   -0.0, 0.0, finf,
                                    fnan, 42.0, finf, fminf, finf, fnan};
-    float inputsf[kTableLength] = {3.0,  2.0,  3.0,  fnan, -0.0,  0.0, fnan,
+    float inputsf[kTableLength] = {3.0,  2.0,  3.0,  fnan, 0.0,   -0.0, fnan,
                                    finf, finf, 42.0, finf, fminf, fnan};
     float outputsfmin[kTableLength] = {2.0,   2.0,   3.0,  3.0,  -0.0,
                                        -0.0,  finf,  finf, 42.0, 42.0,
@@ -1524,19 +1524,12 @@ TEST(min_max) {
       test.e = inputse[i];
       test.f = inputsf[i];
 
-      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+      CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0);
 
-      if (i < kTableLength - 1) {
-        CHECK_EQ(test.c, outputsdmin[i]);
-        CHECK_EQ(test.d, outputsdmax[i]);
-        CHECK_EQ(test.g, outputsfmin[i]);
-        CHECK_EQ(test.h, outputsfmax[i]);
-      } else {
-        CHECK(std::isnan(test.c));
-        CHECK(std::isnan(test.d));
-        CHECK(std::isnan(test.g));
-        CHECK(std::isnan(test.h));
-      }
+      CHECK_EQ(0, memcmp(&test.c, &outputsdmin[i], sizeof(test.c)));
+      CHECK_EQ(0, memcmp(&test.d, &outputsdmax[i], sizeof(test.d)));
+      CHECK_EQ(0, memcmp(&test.g, &outputsfmin[i], sizeof(test.g)));
+      CHECK_EQ(0, memcmp(&test.h, &outputsfmax[i], sizeof(test.h)));
     }
   }
 }
@@ -5356,78 +5349,6 @@ TEST(bal) {
   size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseBal);
   for (size_t i = 0; i < nr_test_cases; ++i) {
     CHECK_EQ(tc[i].expected_res, run_bal(tc[i].offset));
-  }
-}
-
-
-static uint32_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0,
-                      v8::internal::CodeObjectRequired::kYes);
-
-  __ lsa(v0, a0, a1, sa);
-  __ jr(ra);
-  __ nop();
-
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-
-  F1 f = FUNCTION_CAST<F1>(code->entry());
-
-  uint32_t res = reinterpret_cast<uint32_t>(
-      CALL_GENERATED_CODE(isolate, f, rt, rs, 0, 0, 0));
-
-  return res;
-}
-
-
-TEST(lsa) {
-  if (!IsMipsArchVariant(kMips32r6)) return;
-
-  CcTest::InitializeVM();
-  struct TestCaseLsa {
-    int32_t rt;
-    int32_t rs;
-    uint8_t sa;
-    uint32_t expected_res;
-  };
-
-  struct TestCaseLsa tc[] = {
-      // rt, rs, sa, expected_res
-      {0x4, 0x1, 1, 0x6},
-      {0x4, 0x1, 2, 0x8},
-      {0x4, 0x1, 3, 0xc},
-      {0x4, 0x1, 4, 0x14},
-      {0x0, 0x1, 1, 0x2},
-      {0x0, 0x1, 2, 0x4},
-      {0x0, 0x1, 3, 0x8},
-      {0x0, 0x1, 4, 0x10},
-      {0x4, 0x0, 1, 0x4},
-      {0x4, 0x0, 2, 0x4},
-      {0x4, 0x0, 3, 0x4},
-      {0x4, 0x0, 4, 0x4},
-      {0x4, INT32_MAX, 1, 0x2},              // Shift overflow.
-      {0x4, INT32_MAX >> 1, 2, 0x0},         // Shift overflow.
-      {0x4, INT32_MAX >> 2, 3, 0xfffffffc},  // Shift overflow.
-      {0x4, INT32_MAX >> 3, 4, 0xfffffff4},  // Shift overflow.
-      {INT32_MAX - 1, 0x1, 1, 0x80000000},   // Signed adition overflow.
-      {INT32_MAX - 3, 0x1, 2, 0x80000000},   // Signed addition overflow.
-      {INT32_MAX - 7, 0x1, 3, 0x80000000},   // Signed addition overflow.
-      {INT32_MAX - 15, 0x1, 4, 0x80000000},  // Signed addition overflow.
-      {-2, 0x1, 1, 0x0},                     // Addition overflow.
-      {-4, 0x1, 2, 0x0},                     // Addition overflow.
-      {-8, 0x1, 3, 0x0},                     // Addition overflow.
-      {-16, 0x1, 4, 0x0}};                   // Addition overflow.
-
-  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseLsa);
-  for (size_t i = 0; i < nr_test_cases; ++i) {
-    uint32_t res = run_lsa(tc[i].rt, tc[i].rs, tc[i].sa);
-    PrintF("0x%x =? 0x%x == lsa(v0, %x, %x, %hhu)\n", tc[i].expected_res, res,
-           tc[i].rt, tc[i].rs, tc[i].sa);
-    CHECK_EQ(tc[i].expected_res, res);
   }
 }
 

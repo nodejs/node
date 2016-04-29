@@ -116,6 +116,8 @@ class LoopTree : public ZoneObject {
     return nullptr;
   }
 
+  Zone* zone() const { return zone_; }
+
  private:
   friend class LoopFinderImpl;
 

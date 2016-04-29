@@ -29,7 +29,7 @@ void GapResolver::Resolve(ParallelMove* moves) const {
   auto it =
       std::remove_if(moves->begin(), moves->end(), std::ptr_fun(IsRedundant));
   moves->erase(it, moves->end());
-  for (auto move : *moves) {
+  for (MoveOperands* move : *moves) {
     if (!move->IsEliminated()) PerformMove(moves, move);
   }
 }
@@ -53,7 +53,7 @@ void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) const {
   // Perform a depth-first traversal of the move graph to resolve dependencies.
   // Any unperformed, unpending move with a source the same as this one's
   // destination blocks this one so recursively perform all such moves.
-  for (auto other : *moves) {
+  for (MoveOperands* other : *moves) {
     if (other->Blocks(destination) && !other->IsPending()) {
       // Though PerformMove can change any source operand in the move graph,
       // this call cannot create a blocking move via a swap (this loop does not
@@ -103,7 +103,7 @@ void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) const {
   // Any unperformed (including pending) move with a source of either this
   // move's source or destination needs to have their source changed to
   // reflect the state of affairs after the swap.
-  for (auto other : *moves) {
+  for (MoveOperands* other : *moves) {
     if (other->Blocks(source)) {
       other->set_source(destination);
     } else if (other->Blocks(destination)) {

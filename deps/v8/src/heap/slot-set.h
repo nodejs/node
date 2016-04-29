@@ -7,9 +7,12 @@
 
 #include "src/allocation.h"
 #include "src/base/bits.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+enum SlotCallbackResult { KEEP_SLOT, REMOVE_SLOT };
 
 // Data structure for maintaining a set of slots in a standard (non-large)
 // page. The base address of the page must be set with SetPageStart before any
@@ -19,8 +22,6 @@ namespace internal {
 // Each bucket is a bitmap with a bit corresponding to a single slot offset.
 class SlotSet : public Malloced {
  public:
-  enum CallbackResult { KEEP_SLOT, REMOVE_SLOT };
-
   SlotSet() {
     for (int i = 0; i < kBuckets; i++) {
       bucket[i] = nullptr;
@@ -211,6 +212,124 @@ class SlotSet : public Malloced {
 
   uint32_t* bucket[kBuckets];
   Address page_start_;
+};
+
+enum SlotType {
+  EMBEDDED_OBJECT_SLOT,
+  OBJECT_SLOT,
+  RELOCATED_CODE_OBJECT,
+  CELL_TARGET_SLOT,
+  CODE_TARGET_SLOT,
+  CODE_ENTRY_SLOT,
+  DEBUG_TARGET_SLOT,
+  NUMBER_OF_SLOT_TYPES
+};
+
+// Data structure for maintaining a multiset of typed slots in a page.
+// Typed slots can only appear in Code and JSFunction objects, so
+// the maximum possible offset is limited by the LargePage::kMaxCodePageSize.
+// The implementation is a chain of chunks, where each chunks is an array of
+// encoded (slot type, slot offset) pairs.
+// There is no duplicate detection and we do not expect many duplicates because
+// typed slots contain V8 internal pointers that are not directly exposed to JS.
+class TypedSlotSet {
+ public:
+  typedef uint32_t TypedSlot;
+  static const int kMaxOffset = 1 << 29;
+
+  explicit TypedSlotSet(Address page_start) : page_start_(page_start) {
+    chunk_ = new Chunk(nullptr, kInitialBufferSize);
+  }
+
+  ~TypedSlotSet() {
+    Chunk* chunk = chunk_;
+    while (chunk != nullptr) {
+      Chunk* next = chunk->next;
+      delete chunk;
+      chunk = next;
+    }
+  }
+
+  // The slot offset specifies a slot at address page_start_ + offset.
+  void Insert(SlotType type, int offset) {
+    TypedSlot slot = ToTypedSlot(type, offset);
+    if (!chunk_->AddSlot(slot)) {
+      chunk_ = new Chunk(chunk_, NextCapacity(chunk_->capacity));
+      bool added = chunk_->AddSlot(slot);
+      DCHECK(added);
+      USE(added);
+    }
+  }
+
+  // Iterate over all slots in the set and for each slot invoke the callback.
+  // If the callback returns REMOVE_SLOT then the slot is removed from the set.
+  // Returns the new number of slots.
+  //
+  // Sample usage:
+  // Iterate([](SlotType slot_type, Address slot_address) {
+  //    if (good(slot_type, slot_address)) return KEEP_SLOT;
+  //    else return REMOVE_SLOT;
+  // });
+  template <typename Callback>
+  int Iterate(Callback callback) {
+    STATIC_ASSERT(NUMBER_OF_SLOT_TYPES < 8);
+    const TypedSlot kRemovedSlot = TypeField::encode(NUMBER_OF_SLOT_TYPES);
+    Chunk* chunk = chunk_;
+    int new_count = 0;
+    while (chunk != nullptr) {
+      TypedSlot* buffer = chunk->buffer;
+      int count = chunk->count;
+      for (int i = 0; i < count; i++) {
+        TypedSlot slot = buffer[i];
+        if (slot != kRemovedSlot) {
+          SlotType type = TypeField::decode(slot);
+          Address addr = page_start_ + OffsetField::decode(slot);
+          if (callback(type, addr) == KEEP_SLOT) {
+            new_count++;
+          } else {
+            buffer[i] = kRemovedSlot;
+          }
+        }
+      }
+      chunk = chunk->next;
+    }
+    return new_count;
+  }
+
+ private:
+  static const int kInitialBufferSize = 100;
+  static const int kMaxBufferSize = 16 * KB;
+
+  static int NextCapacity(int capacity) {
+    return Min(kMaxBufferSize, capacity * 2);
+  }
+
+  static TypedSlot ToTypedSlot(SlotType type, int offset) {
+    return TypeField::encode(type) | OffsetField::encode(offset);
+  }
+
+  class OffsetField : public BitField<int, 0, 29> {};
+  class TypeField : public BitField<SlotType, 29, 3> {};
+
+  struct Chunk : Malloced {
+    explicit Chunk(Chunk* next_chunk, int capacity)
+        : next(next_chunk), count(0), capacity(capacity) {
+      buffer = NewArray<TypedSlot>(capacity);
+    }
+    bool AddSlot(TypedSlot slot) {
+      if (count == capacity) return false;
+      buffer[count++] = slot;
+      return true;
+    }
+    ~Chunk() { DeleteArray(buffer); }
+    Chunk* next;
+    int count;
+    int capacity;
+    TypedSlot* buffer;
+  };
+
+  Address page_start_;
+  Chunk* chunk_;
 };
 
 }  // namespace internal

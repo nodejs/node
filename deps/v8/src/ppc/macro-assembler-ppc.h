@@ -156,12 +156,6 @@ class MacroAssembler : public Assembler {
 
   void Call(Label* target);
 
-  // Emit call to the code we are currently generating.
-  void CallSelf() {
-    Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
-    Call(self, RelocInfo::CODE_TARGET);
-  }
-
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<Object> value);
@@ -344,10 +338,14 @@ class MacroAssembler : public Assembler {
     addi(sp, sp, Operand(5 * kPointerSize));
   }
 
-  // Push a fixed frame, consisting of lr, fp, context and
-  // JS function / marker id if marker_reg is a valid register.
-  void PushFixedFrame(Register marker_reg = no_reg);
-  void PopFixedFrame(Register marker_reg = no_reg);
+  // Push a fixed frame, consisting of lr, fp, constant pool.
+  void PushCommonFrame(Register marker_reg = no_reg);
+
+  // Push a standard frame, consisting of lr, fp, constant pool,
+  // context and JS function
+  void PushStandardFrame(Register function_reg);
+
+  void PopCommonFrame(Register marker_reg = no_reg);
 
   // Restore caller's frame pointer and return address prior to being
   // overwritten by tail call stack preparation.
@@ -416,8 +414,24 @@ class MacroAssembler : public Assembler {
       FPRoundingMode rounding_mode = kRoundToZero);
 #endif
 
+#if !V8_TARGET_ARCH_PPC64
+  void ShiftLeftPair(Register dst_low, Register dst_high, Register src_low,
+                     Register src_high, Register scratch, Register shift);
+  void ShiftLeftPair(Register dst_low, Register dst_high, Register src_low,
+                     Register src_high, uint32_t shift);
+  void ShiftRightPair(Register dst_low, Register dst_high, Register src_low,
+                      Register src_high, Register scratch, Register shift);
+  void ShiftRightPair(Register dst_low, Register dst_high, Register src_low,
+                      Register src_high, uint32_t shift);
+  void ShiftRightAlgPair(Register dst_low, Register dst_high, Register src_low,
+                         Register src_high, Register scratch, Register shift);
+  void ShiftRightAlgPair(Register dst_low, Register dst_high, Register src_low,
+                         Register src_high, uint32_t shift);
+#endif
+
   // Generates function and stub prologue code.
-  void StubPrologue(Register base = no_reg, int prologue_offset = 0);
+  void StubPrologue(StackFrame::Type type, Register base = no_reg,
+                    int prologue_offset = 0);
   void Prologue(bool code_pre_aging, Register base, int prologue_offset = 0);
 
   // Enter exit frame.
@@ -563,6 +577,15 @@ class MacroAssembler : public Assembler {
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
+
+  // Removes current frame and its arguments from the stack preserving
+  // the arguments and a return address pushed to the stack for the next call.
+  // Both |callee_args_count| and |caller_args_count_reg| do not include
+  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // is trashed.
+  void PrepareForTailCall(const ParameterCount& callee_args_count,
+                          Register caller_args_count_reg, Register scratch0,
+                          Register scratch1);
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
@@ -1096,14 +1119,16 @@ class MacroAssembler : public Assembler {
   // (for consistency between 32/64-bit).
 
   // Extract consecutive bits (defined by rangeStart - rangeEnd) from src
-  // and place them into the least significant bits of dst.
+  // and, if !test, shift them into the least significant bits of dst.
   inline void ExtractBitRange(Register dst, Register src, int rangeStart,
-                              int rangeEnd, RCBit rc = LeaveRC) {
+                              int rangeEnd, RCBit rc = LeaveRC,
+                              bool test = false) {
     DCHECK(rangeStart >= rangeEnd && rangeStart < kBitsPerPointer);
     int rotate = (rangeEnd == 0) ? 0 : kBitsPerPointer - rangeEnd;
     int width = rangeStart - rangeEnd + 1;
-    if (rc == SetRC && rangeEnd == 0 && width <= 16) {
-      andi(dst, src, Operand((1 << width) - 1));
+    if (rc == SetRC && rangeStart < 16 && (rangeEnd == 0 || test)) {
+      // Prefer faster andi when applicable.
+      andi(dst, src, Operand(((1 << width) - 1) << rangeEnd));
     } else {
 #if V8_TARGET_ARCH_PPC64
       rldicl(dst, src, rotate, kBitsPerPointer - width, rc);
@@ -1115,14 +1140,14 @@ class MacroAssembler : public Assembler {
   }
 
   inline void ExtractBit(Register dst, Register src, uint32_t bitNumber,
-                         RCBit rc = LeaveRC) {
-    ExtractBitRange(dst, src, bitNumber, bitNumber, rc);
+                         RCBit rc = LeaveRC, bool test = false) {
+    ExtractBitRange(dst, src, bitNumber, bitNumber, rc, test);
   }
 
   // Extract consecutive bits (defined by mask) from src and place them
   // into the least significant bits of dst.
   inline void ExtractBitMask(Register dst, Register src, uintptr_t mask,
-                             RCBit rc = LeaveRC) {
+                             RCBit rc = LeaveRC, bool test = false) {
     int start = kBitsPerPointer - 1;
     int end;
     uintptr_t bit = (1L << start);
@@ -1142,25 +1167,25 @@ class MacroAssembler : public Assembler {
     // 1-bits in mask must be contiguous
     DCHECK(bit == 0 || (mask & ((bit << 1) - 1)) == 0);
 
-    ExtractBitRange(dst, src, start, end, rc);
+    ExtractBitRange(dst, src, start, end, rc, test);
   }
 
   // Test single bit in value.
   inline void TestBit(Register value, int bitNumber, Register scratch = r0) {
-    ExtractBitRange(scratch, value, bitNumber, bitNumber, SetRC);
+    ExtractBitRange(scratch, value, bitNumber, bitNumber, SetRC, true);
   }
 
   // Test consecutive bit range in value.  Range is defined by
   // rangeStart - rangeEnd.
   inline void TestBitRange(Register value, int rangeStart, int rangeEnd,
                            Register scratch = r0) {
-    ExtractBitRange(scratch, value, rangeStart, rangeEnd, SetRC);
+    ExtractBitRange(scratch, value, rangeStart, rangeEnd, SetRC, true);
   }
 
   // Test consecutive bit range in value.  Range is defined by mask.
   inline void TestBitMask(Register value, uintptr_t mask,
                           Register scratch = r0) {
-    ExtractBitMask(scratch, value, mask, SetRC);
+    ExtractBitMask(scratch, value, mask, SetRC, true);
   }
 
 
@@ -1306,6 +1331,9 @@ class MacroAssembler : public Assembler {
   void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
   // Jump if either of the registers contain a smi.
   void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
+
+  // Abort execution if argument is a number, enabled via --debug-code.
+  void AssertNotNumber(Register object);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
@@ -1481,13 +1509,15 @@ class MacroAssembler : public Assembler {
   // If allocation info is present, condition flags are set to eq.
   void TestJSArrayForAllocationMemento(Register receiver_reg,
                                        Register scratch_reg,
+                                       Register scratch2_reg,
                                        Label* no_memento_found);
 
   void JumpIfJSArrayHasAllocationMemento(Register receiver_reg,
                                          Register scratch_reg,
+                                         Register scratch2_reg,
                                          Label* memento_found) {
     Label no_memento_found;
-    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg,
+    TestJSArrayForAllocationMemento(receiver_reg, scratch_reg, scratch2_reg,
                                     &no_memento_found);
     beq(memento_found);
     bind(&no_memento_found);

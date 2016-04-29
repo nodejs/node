@@ -158,8 +158,8 @@ RUNTIME_FUNCTION(Runtime_GetLanguageTagVariants) {
   Handle<Name> base = factory->NewStringFromStaticChars("base");
   for (unsigned int i = 0; i < length; ++i) {
     Handle<Object> locale_id;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, locale_id,
-                                       Object::GetElement(isolate, input, i));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, locale_id, JSReceiver::GetElement(isolate, input, i));
     if (!locale_id->IsString()) {
       return isolate->Throw(*factory->illegal_argument_string());
     }

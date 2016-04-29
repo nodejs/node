@@ -44,7 +44,7 @@
     'v8_deprecation_warnings': 1,
     'v8_imminent_deprecation_warnings': 1,
     'msvs_multi_core_compile%': '1',
-    'mac_deployment_target%': '10.5',
+    'mac_deployment_target%': '10.7',
     'release_extra_cflags%': '',
     'variables': {
       'variables': {
@@ -68,7 +68,9 @@
         'target_arch%': '<(host_arch)',
         'base_dir%': '<!(cd <(DEPTH) && python -c "import os; print os.getcwd()")',
 
-        # Instrument for code coverage with gcov.
+        # Instrument for code coverage and use coverage wrapper to exclude some
+        # files. Uses gcov if clang=0 is set explicitly. Otherwise,
+        # sanitizer_coverage must be set too.
         'coverage%': 0,
       },
       'base_dir%': '<(base_dir)',
@@ -113,6 +115,8 @@
       # Check if valgrind directories are present.
       'has_valgrind%': '<!pymod_do_main(has_valgrind)',
 
+      'test_isolation_mode%': 'noop',
+
       'conditions': [
         # Set default gomadir.
         ['OS=="win"', {
@@ -120,8 +124,7 @@
         }, {
           'gomadir': '<!(/bin/echo -n ${HOME}/goma)',
         }],
-        ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le" and host_arch!="s390" and host_arch!="s390x" and \
-          coverage==0', {
+        ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le" and host_arch!="s390" and host_arch!="s390x"', {
           'host_clang%': 1,
         }, {
           'host_clang%': 0,
@@ -135,14 +138,6 @@
           'linux_use_bundled_gold%': 1,
         }, {
           'linux_use_bundled_gold%': 0,
-        }],
-
-        # TODO(machenbach): Remove the conditions as more configurations are
-        # supported.
-        ['OS=="linux" or OS=="win"', {
-          'test_isolation_mode%': 'check',
-        }, {
-          'test_isolation_mode%': 'noop',
         }],
       ],
     },
@@ -234,7 +229,7 @@
         'v8_enable_gdbjit%': 0,
       }],
       ['(OS=="linux" or OS=="mac") and (target_arch=="ia32" or target_arch=="x64") and \
-        (v8_target_arch!="x87" and v8_target_arch!="x32") and coverage==0', {
+        (v8_target_arch!="x87" and v8_target_arch!="x32")', {
         'clang%': 1,
       }, {
         'clang%': 0,
@@ -706,7 +701,7 @@
           '-Wnon-virtual-dtor',
           '-fno-exceptions',
           '-fno-rtti',
-          '-std=gnu++0x',
+          '-std=gnu++11',
         ],
         'ldflags': [ '-pthread', ],
         'conditions': [
@@ -733,7 +728,7 @@
           [ 'component=="shared_library"', {
             'cflags': [ '-fPIC', ],
           }],
-          [ 'coverage==1', {
+          [ 'clang==0 and coverage==1', {
             'cflags': [ '-fprofile-arcs', '-ftest-coverage'],
             'ldflags': [ '-fprofile-arcs'],
           }],
@@ -756,7 +751,7 @@
           '-Wnon-virtual-dtor',
           '-fno-exceptions',
           '-fno-rtti',
-          '-std=gnu++0x',
+          '-std=gnu++11',
         ],
         'conditions': [
           [ 'visibility=="hidden"', {
@@ -986,7 +981,7 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
+              'CLANG_CXX_LANGUAGE_STANDARD': 'c++11',  # -std=c++11
             },
             'conditions': [
               ['v8_target_arch=="x64" or v8_target_arch=="arm64" \
@@ -1262,11 +1257,36 @@
     #  make generator doesn't support CC_wrapper without CC
     #  in make_global_settings yet.
     ['use_goma==1 and ("<(GENERATOR)"=="ninja" or clang==1)', {
-      'make_global_settings': [
-       ['CC_wrapper', '<(gomadir)/gomacc'],
-       ['CXX_wrapper', '<(gomadir)/gomacc'],
-       ['CC.host_wrapper', '<(gomadir)/gomacc'],
-       ['CXX.host_wrapper', '<(gomadir)/gomacc'],
+      'conditions': [
+        ['coverage==1', {
+          # Wrap goma with coverage wrapper.
+          'make_global_settings': [
+            ['CC_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
+            ['CXX_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
+            ['CC.host_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
+            ['CXX.host_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
+          ],
+        }, {
+          # Use only goma wrapper.
+          'make_global_settings': [
+            ['CC_wrapper', '<(gomadir)/gomacc'],
+            ['CXX_wrapper', '<(gomadir)/gomacc'],
+            ['CC.host_wrapper', '<(gomadir)/gomacc'],
+            ['CXX.host_wrapper', '<(gomadir)/gomacc'],
+          ],
+        }],
+      ],
+    }, {
+      'conditions': [
+        ['coverage==1', {
+          # Use only coverage wrapper.
+          'make_global_settings': [
+            ['CC_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
+            ['CXX_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
+            ['CC.host_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
+            ['CXX.host_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
+          ],
+        }],
       ],
     }],
     ['use_lto==1', {

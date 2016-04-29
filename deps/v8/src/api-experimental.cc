@@ -11,20 +11,17 @@
 #include "include/v8.h"
 #include "include/v8-experimental.h"
 #include "src/api.h"
-#include "src/compiler/fast-accessor-assembler.h"
+#include "src/fast-accessor-assembler.h"
 
 namespace {
 
-
-v8::internal::compiler::FastAccessorAssembler* FromApi(
+v8::internal::FastAccessorAssembler* FromApi(
     v8::experimental::FastAccessorBuilder* builder) {
-  return reinterpret_cast<v8::internal::compiler::FastAccessorAssembler*>(
-      builder);
+  return reinterpret_cast<v8::internal::FastAccessorAssembler*>(builder);
 }
 
-
 v8::experimental::FastAccessorBuilder* FromInternal(
-    v8::internal::compiler::FastAccessorAssembler* fast_accessor_assembler) {
+    v8::internal::FastAccessorAssembler* fast_accessor_assembler) {
   return reinterpret_cast<v8::experimental::FastAccessorBuilder*>(
       fast_accessor_assembler);
 }
@@ -57,8 +54,8 @@ namespace experimental {
 
 FastAccessorBuilder* FastAccessorBuilder::New(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal::compiler::FastAccessorAssembler* faa =
-      new internal::compiler::FastAccessorAssembler(i_isolate);
+  internal::FastAccessorAssembler* faa =
+      new internal::FastAccessorAssembler(i_isolate);
   return FromInternal(faa);
 }
 

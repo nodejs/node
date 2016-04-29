@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-proxies --harmony-object-observe
+// Flags: --harmony-object-observe
 // Flags: --allow-natives-syntax
 
 var allObservers = [];

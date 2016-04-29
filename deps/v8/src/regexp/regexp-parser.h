@@ -174,7 +174,7 @@ class RegExpParser BASE_EMBEDDED {
   bool ParseHexEscape(int length, uc32* value);
   bool ParseUnicodeEscape(uc32* value);
   bool ParseUnlimitedLengthHexNumber(int max_value, uc32* value);
-  ZoneList<CharacterRange>* ParsePropertyClass();
+  bool ParsePropertyClass(ZoneList<CharacterRange>* result);
 
   uc32 ParseOctalLiteral();
 
@@ -184,6 +184,7 @@ class RegExpParser BASE_EMBEDDED {
   // can be reparsed.
   bool ParseBackReferenceIndex(int* index_out);
 
+  bool ParseClassProperty(ZoneList<CharacterRange>* result);
   CharacterRange ParseClassAtom(uc16* char_class);
   RegExpTree* ReportError(Vector<const char> message);
   void Advance();

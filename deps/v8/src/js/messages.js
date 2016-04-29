@@ -23,7 +23,6 @@ var callSitePositionSymbol =
     utils.ImportNow("call_site_position_symbol");
 var callSiteStrictSymbol =
     utils.ImportNow("call_site_strict_symbol");
-var FLAG_harmony_tostring;
 var Float32x4ToString;
 var formattedStackTraceSymbol =
     utils.ImportNow("formatted_stack_trace_symbol");
@@ -34,6 +33,7 @@ var Int8x16ToString;
 var InternalArray = utils.InternalArray;
 var internalErrorSymbol = utils.ImportNow("internal_error_symbol");
 var ObjectDefineProperty;
+var ObjectHasOwnProperty;
 var ObjectToString = utils.ImportNow("object_to_string");
 var Script = utils.ImportNow("Script");
 var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
@@ -56,6 +56,7 @@ utils.Import(function(from) {
   Int32x4ToString = from.Int32x4ToString;
   Int8x16ToString = from.Int8x16ToString;
   ObjectDefineProperty = from.ObjectDefineProperty;
+  ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;
@@ -63,10 +64,6 @@ utils.Import(function(from) {
   Uint16x8ToString = from.Uint16x8ToString;
   Uint32x4ToString = from.Uint32x4ToString;
   Uint8x16ToString = from.Uint8x16ToString;
-});
-
-utils.ImportFromExperimental(function(from) {
-  FLAG_harmony_tostring = from.FLAG_harmony_tostring;
 });
 
 // -------------------------------------------------------------------
@@ -85,13 +82,8 @@ function NoSideEffectsObjectToString() {
   if (IS_NULL(this)) return "[object Null]";
   var O = TO_OBJECT(this);
   var builtinTag = %_ClassOf(O);
-  var tag;
-  if (FLAG_harmony_tostring) {
-    tag = %GetDataProperty(O, toStringTagSymbol);
-    if (!IS_STRING(tag)) {
-      tag = builtinTag;
-    }
-  } else {
+  var tag = %GetDataProperty(O, toStringTagSymbol);
+  if (!IS_STRING(tag)) {
     tag = builtinTag;
   }
   return `[object ${tag}]`;
@@ -578,69 +570,90 @@ function CallSite(receiver, fun, pos, strict_mode) {
   SET_PRIVATE(this, callSiteStrictSymbol, TO_BOOLEAN(strict_mode));
 }
 
+function CheckCallSite(obj, name) {
+  if (!IS_RECEIVER(obj) || !HAS_PRIVATE(obj, callSiteFunctionSymbol)) {
+    throw MakeTypeError(kCallSiteMethod, name);
+  }
+}
+
 function CallSiteGetThis() {
+  CheckCallSite(this, "getThis");
   return GET_PRIVATE(this, callSiteStrictSymbol)
       ? UNDEFINED : GET_PRIVATE(this, callSiteReceiverSymbol);
 }
 
 function CallSiteGetFunction() {
+  CheckCallSite(this, "getFunction");
   return GET_PRIVATE(this, callSiteStrictSymbol)
       ? UNDEFINED : GET_PRIVATE(this, callSiteFunctionSymbol);
 }
 
 function CallSiteGetPosition() {
+  CheckCallSite(this, "getPosition");
   return GET_PRIVATE(this, callSitePositionSymbol);
 }
 
 function CallSiteGetTypeName() {
+  CheckCallSite(this, "getTypeName");
   return GetTypeName(GET_PRIVATE(this, callSiteReceiverSymbol), false);
 }
 
 function CallSiteIsToplevel() {
+  CheckCallSite(this, "isTopLevel");
   return %CallSiteIsToplevelRT(this);
 }
 
 function CallSiteIsEval() {
+  CheckCallSite(this, "isEval");
   return %CallSiteIsEvalRT(this);
 }
 
 function CallSiteGetEvalOrigin() {
+  CheckCallSite(this, "getEvalOrigin");
   var script = %FunctionGetScript(GET_PRIVATE(this, callSiteFunctionSymbol));
   return FormatEvalOrigin(script);
 }
 
 function CallSiteGetScriptNameOrSourceURL() {
+  CheckCallSite(this, "getScriptNameOrSourceURL");
   return %CallSiteGetScriptNameOrSourceUrlRT(this);
 }
 
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
+  CheckCallSite(this, "getFunctionName");
   return %CallSiteGetFunctionNameRT(this);
 }
 
 function CallSiteGetMethodName() {
   // See if we can find a unique property on the receiver that holds
   // this function.
+  CheckCallSite(this, "getMethodName");
   return %CallSiteGetMethodNameRT(this);
 }
 
 function CallSiteGetFileName() {
+  CheckCallSite(this, "getFileName");
   return %CallSiteGetFileNameRT(this);
 }
 
 function CallSiteGetLineNumber() {
+  CheckCallSite(this, "getLineNumber");
   return %CallSiteGetLineNumberRT(this);
 }
 
 function CallSiteGetColumnNumber() {
+  CheckCallSite(this, "getColumnNumber");
   return %CallSiteGetColumnNumberRT(this);
 }
 
 function CallSiteIsNative() {
+  CheckCallSite(this, "isNative");
   return %CallSiteIsNativeRT(this);
 }
 
 function CallSiteIsConstructor() {
+  CheckCallSite(this, "isConstructor");
   return %CallSiteIsConstructorRT(this);
 }
 

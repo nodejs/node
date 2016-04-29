@@ -39,7 +39,8 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-ARCHIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.tar")
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+ARCHIVE = DATA + ".tar"
 
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 
@@ -128,7 +129,8 @@ class Test262TestSuite(testsuite.TestSuite):
   def GetFlagsForTestCase(self, testcase, context):
     return (testcase.flags + context.mode_flags + self.harness +
             self.GetIncludesForTest(testcase) + ["--harmony"] +
-            [os.path.join(self.testroot, testcase.path + ".js")])
+            [os.path.join(self.testroot, testcase.path + ".js")] +
+            (["--throws"] if "negative" in self.GetTestRecord(testcase) else []))
 
   def _VariantGeneratorFactory(self):
     return Test262VariantGenerator
@@ -143,7 +145,7 @@ class Test262TestSuite(testsuite.TestSuite):
         self.ParseTestRecord = module.parseTestRecord
       except:
         raise ImportError("Cannot load parseTestRecord; you may need to "
-                          "--download-data for test262")
+                          "gclient sync for test262")
       finally:
         if f:
           f.close()
@@ -170,13 +172,20 @@ class Test262TestSuite(testsuite.TestSuite):
     with open(filename) as f:
       return f.read()
 
-  def IsNegativeTest(self, testcase):
-    test_record = self.GetTestRecord(testcase)
-    return "negative" in test_record
+  def _ParseException(self, str):
+    for line in str.split("\n")[::-1]:
+      if line and not line[0].isspace() and ":" in line:
+        return line.split(":")[0]
 
-  def IsFailureOutput(self, output, testpath):
+
+  def IsFailureOutput(self, testcase):
+    output = testcase.output
+    test_record = self.GetTestRecord(testcase)
     if output.exit_code != 0:
       return True
+    if "negative" in test_record:
+      if self._ParseException(output.stdout) != test_record["negative"]:
+        return True
     return "FAILED!" in output.stdout
 
   def HasUnexpectedOutput(self, testcase):
@@ -201,10 +210,13 @@ class Test262TestSuite(testsuite.TestSuite):
       for f in archive_files:
         os.remove(os.path.join(self.root, f))
 
-    print "Extracting archive..."
-    tar = tarfile.open(ARCHIVE)
-    tar.extractall(path=os.path.dirname(ARCHIVE))
-    tar.close()
+    # The archive is created only on swarming. Local checkouts have the
+    # data folder.
+    if os.path.exists(ARCHIVE) and not os.path.exists(DATA):
+      print "Extracting archive..."
+      tar = tarfile.open(ARCHIVE)
+      tar.extractall(path=os.path.dirname(ARCHIVE))
+      tar.close()
 
 
 def GetSuite(name, root):

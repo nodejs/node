@@ -220,7 +220,8 @@ class CallHelper {
         Simulator::CallArgument(p5), Simulator::CallArgument::End()};
     return CastReturnValue<R>(CallSimulator(FUNCTION_ADDR(f), args));
   }
-#elif USE_SIMULATOR && (V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64)
+#elif USE_SIMULATOR && \
+    (V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X)
   uintptr_t CallSimulator(byte* f, int64_t p1 = 0, int64_t p2 = 0,
                           int64_t p3 = 0, int64_t p4 = 0, int64_t p5 = 0) {
     Simulator* simulator = Simulator::current(isolate_);
@@ -264,8 +265,8 @@ class CallHelper {
         ParameterTraits<P2>::Cast(p2), ParameterTraits<P3>::Cast(p3),
         ParameterTraits<P4>::Cast(p4), ParameterTraits<P5>::Cast(p5)));
   }
-#elif USE_SIMULATOR && \
-    (V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_PPC)
+#elif USE_SIMULATOR && (V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || \
+                        V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390)
   uintptr_t CallSimulator(byte* f, int32_t p1 = 0, int32_t p2 = 0,
                           int32_t p3 = 0, int32_t p4 = 0, int32_t p5 = 0) {
     Simulator* simulator = Simulator::current(isolate_);

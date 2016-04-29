@@ -236,9 +236,20 @@ Handle<Object> CallSite::GetMethodName() {
   Handle<Object> function_name(fun_->shared()->name(), isolate_);
   if (function_name->IsName()) {
     Handle<Name> name = Handle<Name>::cast(function_name);
+    // ES2015 gives getters and setters name prefixes which must
+    // be stripped to find the property name.
+    if (name->IsString() && FLAG_harmony_function_name) {
+      Handle<String> name_string = Handle<String>::cast(name);
+      if (name_string->IsUtf8EqualTo(CStrVector("get "), true) ||
+          name_string->IsUtf8EqualTo(CStrVector("set "), true)) {
+        name = isolate_->factory()->NewProperSubString(name_string, 4,
+                                                       name_string->length());
+      }
+    }
     if (CheckMethodName(isolate_, obj, name, fun_,
-                        LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR))
+                        LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR)) {
       return name;
+    }
   }
 
   HandleScope outer_scope(isolate_);

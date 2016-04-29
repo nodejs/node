@@ -56,6 +56,8 @@ enum class SmiOperationConstraint {
   kBailoutOnOverflow = 1 << 2
 };
 
+enum class ReturnAddressState { kOnStack, kNotOnStack };
+
 typedef base::Flags<SmiOperationConstraint> SmiOperationConstraints;
 
 DEFINE_OPERATORS_FOR_FLAGS(SmiOperationConstraints)
@@ -326,7 +328,7 @@ class MacroAssembler: public Assembler {
   void DebugBreak();
 
   // Generates function and stub prologue code.
-  void StubPrologue();
+  void StubPrologue(StackFrame::Type type);
   void Prologue(bool code_pre_aging);
 
   // Enter specific kind of exit frame; either in normal or
@@ -369,6 +371,16 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
+
+  // Removes current frame and its arguments from the stack preserving
+  // the arguments and a return address pushed to the stack for the next call.
+  // |ra_state| defines whether return address is already pushed to stack or
+  // not. Both |callee_args_count| and |caller_args_count_reg| do not include
+  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // is trashed.
+  void PrepareForTailCall(const ParameterCount& callee_args_count,
+                          Register caller_args_count_reg, Register scratch0,
+                          Register scratch1, ReturnAddressState ra_state);
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
@@ -806,6 +818,7 @@ class MacroAssembler: public Assembler {
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
+  void Set(Register dst, int64_t x, RelocInfo::Mode rmode);
   void Set(const Operand& dst, intptr_t x);
 
   void Cvtss2sd(XMMRegister dst, XMMRegister src);
@@ -1014,12 +1027,6 @@ class MacroAssembler: public Assembler {
     return (target.requires_rex() ? 2 : 1) + target.operand_size();
   }
 
-  // Emit call to the code we are currently generating.
-  void CallSelf() {
-    Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
-    Call(self, RelocInfo::CODE_TARGET);
-  }
-
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
   void Pinsrd(XMMRegister dst, Register src, int8_t imm8);
@@ -1191,6 +1198,7 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is not a number, enabled via --debug-code.
   void AssertNumber(Register object);
+  void AssertNotNumber(Register object);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);

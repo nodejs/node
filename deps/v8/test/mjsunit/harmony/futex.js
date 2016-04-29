@@ -51,24 +51,36 @@
 
   // Valid indexes are 0-3.
   [-1, 4, 100].forEach(function(invalidIndex) {
-    assertEquals(undefined, Atomics.futexWait(i32a, invalidIndex, 0));
-    assertEquals(undefined, Atomics.futexWake(i32a, invalidIndex, 0));
+    assertThrows(function() {
+      Atomics.futexWait(i32a, invalidIndex, 0);
+    }, RangeError);
+    assertThrows(function() {
+      Atomics.futexWake(i32a, invalidIndex, 0);
+    }, RangeError);
     var validIndex = 0;
-    assertEquals(undefined, Atomics.futexWakeOrRequeue(i32a, invalidIndex, 0, 0,
-                                                       validIndex));
-    assertEquals(undefined, Atomics.futexWakeOrRequeue(i32a, validIndex, 0, 0,
-                                                       invalidIndex));
+    assertThrows(function() {
+      Atomics.futexWakeOrRequeue(i32a, invalidIndex, 0, 0, validIndex);
+    }, RangeError);
+    assertThrows(function() {
+      Atomics.futexWakeOrRequeue(i32a, validIndex, 0, 0, invalidIndex);
+    }, RangeError);
   });
 
   i32a = new Int32Array(sab, 8);
   [-1, 2, 100].forEach(function(invalidIndex) {
-    assertEquals(undefined, Atomics.futexWait(i32a, invalidIndex, 0));
-    assertEquals(undefined, Atomics.futexWake(i32a, invalidIndex, 0));
+    assertThrows(function() {
+      Atomics.futexWait(i32a, invalidIndex, 0);
+    }, RangeError);
+    assertThrows(function() {
+      Atomics.futexWake(i32a, invalidIndex, 0);
+    }, RangeError);
     var validIndex = 0;
-    assertEquals(undefined, Atomics.futexWakeOrRequeue(i32a, invalidIndex, 0, 0,
-                                                       validIndex));
-    assertEquals(undefined, Atomics.futexWakeOrRequeue(i32a, validIndex, 0, 0,
-                                                       invalidIndex));
+    assertThrows(function() {
+      Atomics.futexWakeOrRequeue(i32a, invalidIndex, 0, 0, validIndex);
+    }, RangeError);
+    assertThrows(function() {
+      Atomics.futexWakeOrRequeue(i32a, validIndex, 0, 0, invalidIndex);
+    }, RangeError);
   });
 })();
 

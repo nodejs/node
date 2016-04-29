@@ -108,27 +108,36 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   ZoneVector<Node*> effects(zone());
   ZoneVector<Node*> controls(zone());
 
-  // The list of "exiting" controls, which currently go to a single deoptimize.
-  // TODO(bmeurer): Consider using an IC as fallback.
-  Node* const exit_effect = effect;
-  ZoneVector<Node*> exit_controls(zone());
-
   // Ensure that {index} matches the specified {name} (if {index} is given).
   if (index != nullptr) {
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(Type::Name()),
                                    index, jsgraph()->HeapConstant(name));
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-    exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
-    control = graph()->NewNode(common()->IfTrue(), branch);
+    control = graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                               effect, control);
+  }
+
+  // Check if {receiver} may be a number.
+  bool receiverissmi_possible = false;
+  for (PropertyAccessInfo const& access_info : access_infos) {
+    if (access_info.receiver_type()->Is(Type::Number())) {
+      receiverissmi_possible = true;
+      break;
+    }
   }
 
   // Ensure that {receiver} is a heap object.
   Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
-  Node* branch = graph()->NewNode(common()->Branch(), check, control);
-  control = graph()->NewNode(common()->IfFalse(), branch);
-  Node* receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
+  Node* receiverissmi_control = nullptr;
   Node* receiverissmi_effect = effect;
+  if (receiverissmi_possible) {
+    Node* branch = graph()->NewNode(common()->Branch(), check, control);
+    control = graph()->NewNode(common()->IfFalse(), branch);
+    receiverissmi_control = graph()->NewNode(common()->IfTrue(), branch);
+    receiverissmi_effect = effect;
+  } else {
+    control = graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
+                               effect, control);
+  }
 
   // Load the {receiver} map. The resulting effect is the dominating effect for
   // all (polymorphic) branches.
@@ -138,7 +147,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Generate code for the various different property access patterns.
   Node* fallthrough_control = control;
-  for (PropertyAccessInfo const& access_info : access_infos) {
+  for (size_t j = 0; j < access_infos.size(); ++j) {
+    PropertyAccessInfo const& access_info = access_infos[j];
     Node* this_value = value;
     Node* this_receiver = receiver;
     Node* this_effect = effect;
@@ -154,37 +164,52 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       Node* check =
           graph()->NewNode(machine()->Uint32LessThan(), receiver_instance_type,
                            jsgraph()->Uint32Constant(FIRST_NONSTRING_TYPE));
-      Node* branch =
-          graph()->NewNode(common()->Branch(), check, fallthrough_control);
-      fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
-      this_control = graph()->NewNode(common()->IfTrue(), branch);
+      if (j == access_infos.size() - 1) {
+        this_control =
+            graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                             this_effect, fallthrough_control);
+        fallthrough_control = nullptr;
+      } else {
+        Node* branch =
+            graph()->NewNode(common()->Branch(), check, fallthrough_control);
+        fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+        this_control = graph()->NewNode(common()->IfTrue(), branch);
+      }
     } else {
       // Emit a (sequence of) map checks for other {receiver}s.
       ZoneVector<Node*> this_controls(zone());
       ZoneVector<Node*> this_effects(zone());
+      int num_classes = access_info.receiver_type()->NumClasses();
       for (auto i = access_info.receiver_type()->Classes(); !i.Done();
            i.Advance()) {
+        DCHECK_LT(0, num_classes);
         Handle<Map> map = i.Current();
         Node* check =
             graph()->NewNode(simplified()->ReferenceEqual(Type::Internal()),
                              receiver_map, jsgraph()->Constant(map));
-        Node* branch =
-            graph()->NewNode(common()->Branch(), check, fallthrough_control);
-        fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
-        this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
-        this_effects.push_back(this_effect);
+        if (--num_classes == 0 && j == access_infos.size() - 1) {
+          this_controls.push_back(
+              graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                               this_effect, fallthrough_control));
+          this_effects.push_back(this_effect);
+          fallthrough_control = nullptr;
+        } else {
+          Node* branch =
+              graph()->NewNode(common()->Branch(), check, fallthrough_control);
+          fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+          this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+          this_effects.push_back(this_effect);
+        }
       }
 
       // The Number case requires special treatment to also deal with Smis.
       if (receiver_type->Is(Type::Number())) {
-        // Join this check with the "receiver is smi" check above, and mark the
-        // "receiver is smi" check as "consumed" so that we don't deoptimize if
-        // the {receiver} is actually a Smi.
-        if (receiverissmi_control != nullptr) {
-          this_controls.push_back(receiverissmi_control);
-          this_effects.push_back(receiverissmi_effect);
-          receiverissmi_control = receiverissmi_effect = nullptr;
-        }
+        // Join this check with the "receiver is smi" check above.
+        DCHECK_NOT_NULL(receiverissmi_effect);
+        DCHECK_NOT_NULL(receiverissmi_control);
+        this_effects.push_back(receiverissmi_effect);
+        this_controls.push_back(receiverissmi_control);
+        receiverissmi_effect = receiverissmi_control = nullptr;
       }
 
       // Create dominating Merge+EffectPhi for this {receiver} type.
@@ -212,23 +237,14 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Generate the actual property access.
     if (access_info.IsNotFound()) {
       DCHECK_EQ(AccessMode::kLoad, access_mode);
-      if (is_strong(language_mode)) {
-        // TODO(bmeurer/mstarzinger): Add support for lowering inside try
-        // blocks rewiring the IfException edge to a runtime call/throw.
-        exit_controls.push_back(this_control);
-        continue;
-      } else {
-        this_value = jsgraph()->UndefinedConstant();
-      }
+      this_value = jsgraph()->UndefinedConstant();
     } else if (access_info.IsDataConstant()) {
       this_value = jsgraph()->Constant(access_info.constant());
       if (access_mode == AccessMode::kStore) {
         Node* check = graph()->NewNode(
             simplified()->ReferenceEqual(Type::Tagged()), value, this_value);
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, this_control);
-        exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
-        this_control = graph()->NewNode(common()->IfTrue(), branch);
+        this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                        frame_state, this_effect, this_control);
       }
     } else {
       DCHECK(access_info.IsDataField());
@@ -253,10 +269,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                jsgraph()->Int32Constant(
                                    1 << JSArrayBuffer::WasNeutered::kShift)),
               jsgraph()->Int32Constant(0));
-          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                          check, this_control);
-          exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
-          this_control = graph()->NewNode(common()->IfFalse(), branch);
+          this_control =
+              graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
+                               this_effect, this_control);
           break;
         }
       }
@@ -292,11 +307,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         if (field_type->Is(Type::UntaggedFloat64())) {
           Node* check =
               graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
-          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                          check, this_control);
-          exit_controls.push_back(
-              graph()->NewNode(common()->IfFalse(), branch));
-          this_control = graph()->NewNode(common()->IfTrue(), branch);
+          this_control =
+              graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                               this_effect, this_control);
           this_value = graph()->NewNode(common()->Guard(Type::Number()),
                                         this_value, this_control);
 
@@ -335,46 +348,30 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         } else if (field_type->Is(Type::TaggedSigned())) {
           Node* check =
               graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
-          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                          check, this_control);
-          exit_controls.push_back(
-              graph()->NewNode(common()->IfFalse(), branch));
-          this_control = graph()->NewNode(common()->IfTrue(), branch);
+          this_control =
+              graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                               this_effect, this_control);
           this_value = graph()->NewNode(common()->Guard(type_cache_.kSmi),
                                         this_value, this_control);
         } else if (field_type->Is(Type::TaggedPointer())) {
           Node* check =
               graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
-          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                          check, this_control);
-          exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
-          this_control = graph()->NewNode(common()->IfFalse(), branch);
-          if (field_type->NumClasses() > 0) {
-            // Emit a (sequence of) map checks for the value.
-            ZoneVector<Node*> this_controls(zone());
+          this_control =
+              graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
+                               this_effect, this_control);
+          if (field_type->NumClasses() == 1) {
+            // Emit a map check for the value.
             Node* this_value_map = this_effect = graph()->NewNode(
                 simplified()->LoadField(AccessBuilder::ForMap()), this_value,
                 this_effect, this_control);
-            for (auto i = field_type->Classes(); !i.Done(); i.Advance()) {
-              Handle<Map> field_map(i.Current());
-              check = graph()->NewNode(
-                  simplified()->ReferenceEqual(Type::Internal()),
-                  this_value_map, jsgraph()->Constant(field_map));
-              branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, this_control);
-              this_control = graph()->NewNode(common()->IfFalse(), branch);
-              this_controls.push_back(
-                  graph()->NewNode(common()->IfTrue(), branch));
-            }
-            exit_controls.push_back(this_control);
-            int const this_control_count =
-                static_cast<int>(this_controls.size());
+            Node* check = graph()->NewNode(
+                simplified()->ReferenceEqual(Type::Internal()), this_value_map,
+                jsgraph()->Constant(field_type->Classes().Current()));
             this_control =
-                (this_control_count == 1)
-                    ? this_controls.front()
-                    : graph()->NewNode(common()->Merge(this_control_count),
-                                       this_control_count,
-                                       &this_controls.front());
+                graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                 frame_state, this_effect, this_control);
+          } else {
+            DCHECK_EQ(0, field_type->NumClasses());
           }
         } else {
           DCHECK(field_type->Is(Type::Tagged()));
@@ -403,39 +400,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     controls.push_back(this_control);
   }
 
-  // Collect the fallthrough control as final "exit" control.
-  if (fallthrough_control != control) {
-    // Mark the last fallthrough branch as deferred.
-    MarkAsDeferred(fallthrough_control);
-  }
-  exit_controls.push_back(fallthrough_control);
-
-  // Also collect the "receiver is smi" control if we didn't handle the case of
-  // Number primitives in the polymorphic branches above.
-  if (receiverissmi_control != nullptr) {
-    // Mark the "receiver is smi" case as deferred.
-    MarkAsDeferred(receiverissmi_control);
-    DCHECK_EQ(exit_effect, receiverissmi_effect);
-    exit_controls.push_back(receiverissmi_control);
-  }
-
-  // Generate the single "exit" point, where we get if either all map/instance
-  // type checks failed, or one of the assumptions inside one of the cases
-  // failes (i.e. failing prototype chain check).
-  // TODO(bmeurer): Consider falling back to IC here if deoptimization is
-  // disabled.
-  int const exit_control_count = static_cast<int>(exit_controls.size());
-  Node* exit_control =
-      (exit_control_count == 1)
-          ? exit_controls.front()
-          : graph()->NewNode(common()->Merge(exit_control_count),
-                             exit_control_count, &exit_controls.front());
-  Node* deoptimize =
-      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                       frame_state, exit_effect, exit_control);
-  // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-  Revisit(graph()->end());
+  DCHECK_NULL(fallthrough_control);
 
   // Generate the final merge point for all (polymorphic) branches.
   int const control_count = static_cast<int>(controls.size());
@@ -562,17 +527,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   ZoneVector<Node*> effects(zone());
   ZoneVector<Node*> controls(zone());
 
-  // The list of "exiting" controls, which currently go to a single deoptimize.
-  // TODO(bmeurer): Consider using an IC as fallback.
-  Node* const exit_effect = effect;
-  ZoneVector<Node*> exit_controls(zone());
-
   // Ensure that {receiver} is a heap object.
   Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
-  exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
-  control = graph()->NewNode(common()->IfFalse(), branch);
+  control = graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
+                             effect, control);
 
   // Load the {receiver} map. The resulting effect is the dominating effect for
   // all (polymorphic) branches.
@@ -582,7 +540,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
   // Generate code for the various different element access patterns.
   Node* fallthrough_control = control;
-  for (ElementAccessInfo const& access_info : access_infos) {
+  for (size_t j = 0; j < access_infos.size(); ++j) {
+    ElementAccessInfo const& access_info = access_infos[j];
     Node* this_receiver = receiver;
     Node* this_value = value;
     Node* this_index = index;
@@ -595,35 +554,61 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     {
       ZoneVector<Node*> this_controls(zone());
       ZoneVector<Node*> this_effects(zone());
+      size_t num_transitions = access_info.transitions().size();
+      int num_classes = access_info.receiver_type()->NumClasses();
       for (auto i = access_info.receiver_type()->Classes(); !i.Done();
            i.Advance()) {
+        DCHECK_LT(0, num_classes);
         Handle<Map> map = i.Current();
         Node* check =
             graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
                              receiver_map, jsgraph()->Constant(map));
-        Node* branch =
-            graph()->NewNode(common()->Branch(), check, fallthrough_control);
-        this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+        if (--num_classes == 0 && num_transitions == 0 &&
+            j == access_infos.size() - 1) {
+          // Last map check on the fallthrough control path, do a conditional
+          // eager deoptimization exit here.
+          // TODO(turbofan): This is ugly as hell! We should probably introduce
+          // macro-ish operators for property access that encapsulate this whole
+          // mess.
+          this_controls.push_back(graph()->NewNode(common()->DeoptimizeUnless(),
+                                                   check, frame_state, effect,
+                                                   fallthrough_control));
+          fallthrough_control = nullptr;
+        } else {
+          Node* branch =
+              graph()->NewNode(common()->Branch(), check, fallthrough_control);
+          this_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+          fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+        }
         this_effects.push_back(effect);
-        fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
         if (!map->IsJSArrayMap()) receiver_is_jsarray = false;
       }
 
       // Generate possible elements kind transitions.
       for (auto transition : access_info.transitions()) {
+        DCHECK_LT(0u, num_transitions);
         Handle<Map> transition_source = transition.first;
         Handle<Map> transition_target = transition.second;
+        Node* transition_control;
+        Node* transition_effect = effect;
 
         // Check if {receiver} has the specified {transition_source} map.
         Node* check = graph()->NewNode(
             simplified()->ReferenceEqual(Type::Any()), receiver_map,
             jsgraph()->HeapConstant(transition_source));
-        Node* branch =
-            graph()->NewNode(common()->Branch(), check, fallthrough_control);
+        if (--num_transitions == 0 && j == access_infos.size() - 1) {
+          transition_control =
+              graph()->NewNode(common()->DeoptimizeUnless(), check, frame_state,
+                               transition_effect, fallthrough_control);
+          fallthrough_control = nullptr;
+        } else {
+          Node* branch =
+              graph()->NewNode(common()->Branch(), check, fallthrough_control);
+          fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+          transition_control = graph()->NewNode(common()->IfTrue(), branch);
+        }
 
         // Migrate {receiver} from {transition_source} to {transition_target}.
-        Node* transition_control = graph()->NewNode(common()->IfTrue(), branch);
-        Node* transition_effect = effect;
         if (IsSimpleMapChangeTransition(transition_source->elements_kind(),
                                         transition_target->elements_kind())) {
           // In-place migration, just store the {transition_target} map.
@@ -647,8 +632,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         }
         this_controls.push_back(transition_control);
         this_effects.push_back(transition_effect);
-
-        fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
       }
 
       // Create single chokepoint for the control.
@@ -679,10 +662,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     if (!NumberMatcher(this_index).HasValue()) {
       Node* check =
           graph()->NewNode(simplified()->ObjectIsNumber(), this_index);
-      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                      check, this_control);
-      exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
-      this_control = graph()->NewNode(common()->IfTrue(), branch);
+      this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                      frame_state, this_effect, this_control);
       this_index = graph()->NewNode(common()->Guard(Type::Number()), this_index,
                                     this_control);
     }
@@ -694,10 +675,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           graph()->NewNode(simplified()->NumberToUint32(), this_index);
       Node* check = graph()->NewNode(simplified()->NumberEqual(), this_index32,
                                      this_index);
-      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                      check, this_control);
-      exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
-      this_control = graph()->NewNode(common()->IfTrue(), branch);
+      this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                      frame_state, this_effect, this_control);
       this_index = this_index32;
     }
 
@@ -716,13 +695,11 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       Node* this_elements_map = this_effect =
           graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
                            this_elements, this_effect, this_control);
-      check = graph()->NewNode(
+      Node* check = graph()->NewNode(
           simplified()->ReferenceEqual(Type::Any()), this_elements_map,
           jsgraph()->HeapConstant(factory()->fixed_array_map()));
-      branch = graph()->NewNode(common()->Branch(BranchHint::kTrue), check,
-                                this_control);
-      exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
-      this_control = graph()->NewNode(common()->IfTrue(), branch);
+      this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                      frame_state, this_effect, this_control);
     }
 
     // Load the length of the {receiver}.
@@ -739,10 +716,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // Check that the {index} is in the valid range for the {receiver}.
     Node* check = graph()->NewNode(simplified()->NumberLessThan(), this_index,
                                    this_length);
-    Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue), check,
-                                    this_control);
-    exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
-    this_control = graph()->NewNode(common()->IfTrue(), branch);
+    this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                    frame_state, this_effect, this_control);
 
     // Compute the element access.
     Type* element_type = Type::Any();
@@ -781,16 +756,16 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         Node* check =
             graph()->NewNode(simplified()->ReferenceEqual(element_access.type),
                              this_value, jsgraph()->TheHoleConstant());
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                        check, this_control);
-        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
         // Check if we are allowed to turn the hole into undefined.
         Type* initial_holey_array_type = Type::Class(
             handle(isolate()->get_initial_js_array_map(elements_kind)),
             graph()->zone());
         if (receiver_type->NowIs(initial_holey_array_type) &&
             isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
+          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                          check, this_control);
+          Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+          Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
           // Add a code dependency on the array protector cell.
           AssumePrototypesStable(receiver_type, native_context,
                                  isolate()->initial_object_prototype());
@@ -805,8 +780,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
               Type::Union(element_type, Type::Undefined(), graph()->zone());
         } else {
           // Deoptimize in case of the hole.
-          exit_controls.push_back(if_true);
-          this_control = if_false;
+          this_control =
+              graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
+                               this_effect, this_control);
         }
         // Rename the result to represent the actual type (not polluted by the
         // hole).
@@ -833,29 +809,24 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
               check, jsgraph()->UndefinedConstant(), this_value);
         } else {
           // Deoptimize in case of the hole.
-          Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                          check, this_control);
-          this_control = graph()->NewNode(common()->IfFalse(), branch);
-          exit_controls.push_back(graph()->NewNode(common()->IfTrue(), branch));
+          this_control =
+              graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
+                               this_effect, this_control);
         }
       }
     } else {
       DCHECK_EQ(AccessMode::kStore, access_mode);
       if (IsFastSmiElementsKind(elements_kind)) {
         Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, this_control);
-        exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
-        this_control = graph()->NewNode(common()->IfTrue(), branch);
+        this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                        frame_state, this_effect, this_control);
         this_value = graph()->NewNode(common()->Guard(type_cache_.kSmi),
                                       this_value, this_control);
       } else if (IsFastDoubleElementsKind(elements_kind)) {
         Node* check =
             graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                        check, this_control);
-        exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
-        this_control = graph()->NewNode(common()->IfTrue(), branch);
+        this_control = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                        frame_state, this_effect, this_control);
         this_value = graph()->NewNode(common()->Guard(Type::Number()),
                                       this_value, this_control);
       }
@@ -870,30 +841,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     controls.push_back(this_control);
   }
 
-  // Collect the fallthrough control as final "exit" control.
-  if (fallthrough_control != control) {
-    // Mark the last fallthrough branch as deferred.
-    MarkAsDeferred(fallthrough_control);
-  }
-  exit_controls.push_back(fallthrough_control);
-
-  // Generate the single "exit" point, where we get if either all map/instance
-  // type checks failed, or one of the assumptions inside one of the cases
-  // failes (i.e. failing prototype chain check).
-  // TODO(bmeurer): Consider falling back to IC here if deoptimization is
-  // disabled.
-  int const exit_control_count = static_cast<int>(exit_controls.size());
-  Node* exit_control =
-      (exit_control_count == 1)
-          ? exit_controls.front()
-          : graph()->NewNode(common()->Merge(exit_control_count),
-                             exit_control_count, &exit_controls.front());
-  Node* deoptimize =
-      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                       frame_state, exit_effect, exit_control);
-  // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-  Revisit(graph()->end());
+  DCHECK_NULL(fallthrough_control);
 
   // Generate the final merge point for all (polymorphic) branches.
   int const control_count = static_cast<int>(controls.size());
@@ -1044,18 +992,6 @@ void JSNativeContextSpecialization::AssumePrototypesStable(
       map = handle(constructor->initial_map(), isolate());
     }
     dependencies()->AssumePrototypeMapsStable(map, holder);
-  }
-}
-
-
-void JSNativeContextSpecialization::MarkAsDeferred(Node* if_projection) {
-  Node* branch = NodeProperties::GetControlInput(if_projection);
-  DCHECK_EQ(IrOpcode::kBranch, branch->opcode());
-  if (if_projection->opcode() == IrOpcode::kIfTrue) {
-    NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kFalse));
-  } else {
-    DCHECK_EQ(IrOpcode::kIfFalse, if_projection->opcode());
-    NodeProperties::ChangeOp(branch, common()->Branch(BranchHint::kTrue));
   }
 }
 

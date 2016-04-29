@@ -51,11 +51,13 @@ v8::base::Atomic32 CcTest::isolate_used_ = 0;
 v8::ArrayBuffer::Allocator* CcTest::allocator_ = NULL;
 v8::Isolate* CcTest::isolate_ = NULL;
 
-
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
-               const char* dependency, bool enabled, bool initialize)
-    : callback_(callback), name_(name), dependency_(dependency),
-      enabled_(enabled), initialize_(initialize), prev_(last_) {
+               bool enabled, bool initialize)
+    : callback_(callback),
+      name_(name),
+      enabled_(enabled),
+      initialize_(initialize),
+      prev_(last_) {
   // Find the base name of this test (const_cast required on Windows).
   char *basename = strrchr(const_cast<char *>(file), '/');
   if (!basename) {
@@ -128,12 +130,7 @@ void CcTest::DisableAutomaticDispose() {
 static void PrintTestList(CcTest* current) {
   if (current == NULL) return;
   PrintTestList(current->prev());
-  if (current->dependency() != NULL) {
-    printf("%s/%s<%s\n",
-           current->file(), current->name(), current->dependency());
-  } else {
-    printf("%s/%s<\n", current->file(), current->name());
-  }
+  printf("%s/%s\n", current->file(), current->name());
 }
 
 

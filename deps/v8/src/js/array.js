@@ -73,17 +73,13 @@ function DefineIndexedProperty(array, i, value) {
   }
 }
 
+function KeySortCompare(a, b) {
+  return a - b;
+}
 
-// Global list of arrays visited during toString, toLocaleString and
-// join invocations.
-var visited_arrays = new InternalArray();
-
-
-// Gets a sorted array of array keys.  Useful for operations on sparse
-// arrays.  Dupes have not been removed.
 function GetSortedArrayKeys(array, indices) {
-  var keys = new InternalArray();
   if (IS_NUMBER(indices)) {
+    var keys = new InternalArray();
     // It's an interval
     var limit = indices;
     for (var i = 0; i < limit; ++i) {
@@ -92,61 +88,34 @@ function GetSortedArrayKeys(array, indices) {
         keys.push(i);
       }
     }
-  } else {
-    var length = indices.length;
-    for (var k = 0; k < length; ++k) {
-      var key = indices[k];
-      if (!IS_UNDEFINED(key)) {
-        var e = array[key];
-        if (!IS_UNDEFINED(e) || key in array) {
-          keys.push(key);
-        }
-      }
-    }
-    keys.sort(function(a, b) { return a - b; });
+    return keys;
   }
-  return keys;
+  return InnerArraySort(indices, indices.length, KeySortCompare);
 }
 
 
-function SparseJoinWithSeparatorJS(array, len, convert, separator) {
-  var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
-  var totalLength = 0;
-  var elements = new InternalArray(keys.length * 2);
-  var previousKey = -1;
-  for (var i = 0; i < keys.length; i++) {
+function SparseJoinWithSeparatorJS(array, keys, length, convert, separator) {
+  var keys_length = keys.length;
+  var elements = new InternalArray(keys_length * 2);
+  for (var i = 0; i < keys_length; i++) {
     var key = keys[i];
-    if (key != previousKey) {  // keys may contain duplicates.
-      var e = array[key];
-      if (!IS_STRING(e)) e = convert(e);
-      elements[i * 2] = key;
-      elements[i * 2 + 1] = e;
-      previousKey = key;
-    }
+    var e = array[key];
+    elements[i * 2] = key;
+    elements[i * 2 + 1] = IS_STRING(e) ? e : convert(e);
   }
-  return %SparseJoinWithSeparator(elements, len, separator);
+  return %SparseJoinWithSeparator(elements, length, separator);
 }
 
 
 // Optimized for sparse arrays if separator is ''.
-function SparseJoin(array, len, convert) {
-  var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
-  var last_key = -1;
+function SparseJoin(array, keys, convert) {
   var keys_length = keys.length;
-
   var elements = new InternalArray(keys_length);
-  var elements_length = 0;
-
   for (var i = 0; i < keys_length; i++) {
-    var key = keys[i];
-    if (key != last_key) {
-      var e = array[key];
-      if (!IS_STRING(e)) e = convert(e);
-      elements[elements_length++] = e;
-      last_key = key;
-    }
+    var e = array[keys[i]];
+    elements[i] = IS_STRING(e) ? e : convert(e);
   }
-  return %StringBuilderConcat(elements, elements_length, '');
+  return %StringBuilderConcat(elements, keys_length, '');
 }
 
 
@@ -167,94 +136,122 @@ function UseSparseVariant(array, length, is_array, touched) {
     (touched > estimated_elements * 4);
 }
 
+function Stack() {
+  this.length = 0;
+  this.values = new InternalArray();
+}
+
+// Predeclare the instance variables on the prototype. Otherwise setting them in
+// the constructor will leak the instance through settings on Object.prototype.
+Stack.prototype.length = null;
+Stack.prototype.values = null;
+
+function StackPush(stack, value) {
+  stack.values[stack.length++] = value;
+}
+
+function StackPop(stack) {
+  stack.values[--stack.length] = null
+}
+
+function StackHas(stack, v) {
+  var length = stack.length;
+  var values = stack.values;
+  for (var i = 0; i < length; i++) {
+    if (values[i] === v) return true;
+  }
+  return false;
+}
+
+// Global list of arrays visited during toString, toLocaleString and
+// join invocations.
+var visited_arrays = new Stack();
+
+function DoJoin(array, length, is_array, separator, convert) {
+  if (UseSparseVariant(array, length, is_array, length)) {
+    %NormalizeElements(array);
+    var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, length));
+    if (separator === '') {
+      if (keys.length === 0) return '';
+      return SparseJoin(array, keys, convert);
+    } else {
+      return SparseJoinWithSeparatorJS(array, keys, length, convert, separator);
+    }
+  }
+
+  // Fast case for one-element arrays.
+  if (length === 1) {
+    var e = array[0];
+    return IS_STRING(e) ? e : convert(e);
+  }
+
+  // Construct an array for the elements.
+  var elements = new InternalArray(length);
+
+  // We pull the empty separator check outside the loop for speed!
+  if (separator === '') {
+    for (var i = 0; i < length; i++) {
+      var e = array[i];
+      elements[i] = IS_STRING(e) ? e : convert(e);
+    }
+    return %StringBuilderConcat(elements, length, '');
+  }
+  // Non-empty separator case.
+  // If the first element is a number then use the heuristic that the
+  // remaining elements are also likely to be numbers.
+  var e = array[0];
+  if (IS_NUMBER(e)) {
+    elements[0] = %_NumberToString(e);
+    for (var i = 1; i < length; i++) {
+      e = array[i];
+      if (IS_NUMBER(e)) {
+        elements[i] = %_NumberToString(e);
+      } else {
+        elements[i] = IS_STRING(e) ? e : convert(e);
+      }
+    }
+  } else {
+    elements[0] = IS_STRING(e) ? e : convert(e);
+    for (var i = 1; i < length; i++) {
+      e = array[i];
+      elements[i] = IS_STRING(e) ? e : convert(e);
+    }
+  }
+  return %StringBuilderJoin(elements, length, separator);
+}
 
 function Join(array, length, separator, convert) {
-  if (length == 0) return '';
+  if (length === 0) return '';
 
   var is_array = IS_ARRAY(array);
 
   if (is_array) {
     // If the array is cyclic, return the empty string for already
     // visited arrays.
-    if (!%PushIfAbsent(visited_arrays, array)) return '';
+    if (StackHas(visited_arrays, array)) return '';
+    StackPush(visited_arrays, array);
   }
 
   // Attempt to convert the elements.
   try {
-    if (UseSparseVariant(array, length, is_array, length)) {
-      %NormalizeElements(array);
-      if (separator.length == 0) {
-        return SparseJoin(array, length, convert);
-      } else {
-        return SparseJoinWithSeparatorJS(array, length, convert, separator);
-      }
-    }
-
-    // Fast case for one-element arrays.
-    if (length == 1) {
-      var e = array[0];
-      if (IS_STRING(e)) return e;
-      return convert(e);
-    }
-
-    // Construct an array for the elements.
-    var elements = new InternalArray(length);
-
-    // We pull the empty separator check outside the loop for speed!
-    if (separator.length == 0) {
-      var elements_length = 0;
-      for (var i = 0; i < length; i++) {
-        var e = array[i];
-        if (!IS_STRING(e)) e = convert(e);
-        elements[elements_length++] = e;
-      }
-      elements.length = elements_length;
-      return %StringBuilderConcat(elements, elements_length, '');
-    }
-    // Non-empty separator case.
-    // If the first element is a number then use the heuristic that the
-    // remaining elements are also likely to be numbers.
-    if (!IS_NUMBER(array[0])) {
-      for (var i = 0; i < length; i++) {
-        var e = array[i];
-        if (!IS_STRING(e)) e = convert(e);
-        elements[i] = e;
-      }
-    } else {
-      for (var i = 0; i < length; i++) {
-        var e = array[i];
-        if (IS_NUMBER(e)) {
-          e = %_NumberToString(e);
-        } else if (!IS_STRING(e)) {
-          e = convert(e);
-        }
-        elements[i] = e;
-      }
-    }
-    return %StringBuilderJoin(elements, length, separator);
+    return DoJoin(array, length, is_array, separator, convert);
   } finally {
     // Make sure to remove the last element of the visited array no
     // matter what happens.
-    if (is_array) visited_arrays.length = visited_arrays.length - 1;
+    if (is_array) StackPop(visited_arrays);
   }
 }
 
 
 function ConvertToString(x) {
-  if (IS_NULL_OR_UNDEFINED(x)) {
-    return '';
-  } else {
-    return TO_STRING(x);
-  }
+  if (IS_NULL_OR_UNDEFINED(x)) return '';
+  return TO_STRING(x);
 }
 
 
 function ConvertToLocaleString(e) {
-  if (IS_NULL_OR_UNDEFINED(e)) {
-    return '';
-  } else {
-    return TO_STRING(e.toLocaleString());
-  }
+  if (IS_NULL_OR_UNDEFINED(e)) return '';
+  return TO_STRING(e.toLocaleString());
 }
 
 
@@ -275,12 +272,10 @@ function SparseSlice(array, start_i, del_count, len, deleted_elements) {
     var length = indices.length;
     for (var k = 0; k < length; ++k) {
       var key = indices[k];
-      if (!IS_UNDEFINED(key)) {
-        if (key >= start_i) {
-          var current = array[key];
-          if (!IS_UNDEFINED(current) || key in array) {
-            DefineIndexedProperty(deleted_elements, key - start_i, current);
-          }
+      if (key >= start_i) {
+        var current = array[key];
+        if (!IS_UNDEFINED(current) || key in array) {
+          DefineIndexedProperty(deleted_elements, key - start_i, current);
         }
       }
     }
@@ -317,21 +312,19 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
     var length = indices.length;
     for (var k = 0; k < length; ++k) {
       var key = indices[k];
-      if (!IS_UNDEFINED(key)) {
-        if (key < start_i) {
-          var current = array[key];
-          if (!IS_UNDEFINED(current) || key in array) {
-            new_array[key] = current;
-          }
-        } else if (key >= start_i + del_count) {
-          var current = array[key];
-          if (!IS_UNDEFINED(current) || key in array) {
-            var new_key = key - del_count + num_additional_args;
-            new_array[new_key] = current;
-            if (new_key > 0xfffffffe) {
-              big_indices = big_indices || new InternalArray();
-              big_indices.push(new_key);
-            }
+      if (key < start_i) {
+        var current = array[key];
+        if (!IS_UNDEFINED(current) || key in array) {
+          new_array[key] = current;
+        }
+      } else if (key >= start_i + del_count) {
+        var current = array[key];
+        if (!IS_UNDEFINED(current) || key in array) {
+          var new_key = key - del_count + num_additional_args;
+          new_array[new_key] = current;
+          if (new_key > 0xfffffffe) {
+            big_indices = big_indices || new InternalArray();
+            big_indices.push(new_key);
           }
         }
       }
@@ -1069,8 +1062,7 @@ function InnerArraySort(array, length, comparefn) {
       } else {
         for (var i = 0; i < indices.length; i++) {
           var index = indices[i];
-          if (!IS_UNDEFINED(index) && !HAS_OWN_PROPERTY(obj, index)
-              && HAS_OWN_PROPERTY(proto, index)) {
+          if (!HAS_OWN_PROPERTY(obj, index) && HAS_OWN_PROPERTY(proto, index)) {
             obj[index] = proto[index];
             if (index >= max) { max = index + 1; }
           }
@@ -1097,8 +1089,7 @@ function InnerArraySort(array, length, comparefn) {
       } else {
         for (var i = 0; i < indices.length; i++) {
           var index = indices[i];
-          if (!IS_UNDEFINED(index) && from <= index &&
-              HAS_OWN_PROPERTY(proto, index)) {
+          if (from <= index && HAS_OWN_PROPERTY(proto, index)) {
             obj[index] = UNDEFINED;
           }
         }
@@ -1247,10 +1238,19 @@ function InnerArrayForEach(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   var is_array = IS_ARRAY(array);
-  for (var i = 0; i < length; i++) {
-    if (HAS_INDEX(array, i, is_array)) {
-      var element = array[i];
-      %_Call(f, receiver, element, i, array);
+  if (IS_UNDEFINED(receiver)) {
+    for (var i = 0; i < length; i++) {
+      if (HAS_INDEX(array, i, is_array)) {
+        var element = array[i];
+        f(element, i, array);
+      }
+    }
+  } else {
+    for (var i = 0; i < length; i++) {
+      if (HAS_INDEX(array, i, is_array)) {
+        var element = array[i];
+        %_Call(f, receiver, element, i, array);
+      }
     }
   }
 }
@@ -1347,7 +1347,7 @@ function InnerArrayIndexOf(array, element, index, length) {
   if (IS_UNDEFINED(index)) {
     index = 0;
   } else {
-    index = TO_INTEGER(index);
+    index = TO_INTEGER(index) + 0;  // Add 0 to convert -0 to 0
     // If index is negative, index from the end of the array.
     if (index < 0) {
       index = length + index;
@@ -1373,7 +1373,7 @@ function InnerArrayIndexOf(array, element, index, length) {
       while (i < n && sortedKeys[i] < index) i++;
       while (i < n) {
         var key = sortedKeys[i];
-        if (!IS_UNDEFINED(key) && array[key] === element) return key;
+        if (array[key] === element) return key;
         i++;
       }
       return -1;
@@ -1409,7 +1409,7 @@ function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
   if (argumentsLength < 2) {
     index = length - 1;
   } else {
-    index = TO_INTEGER(index);
+    index = TO_INTEGER(index) + 0;  // Add 0 to convert -0 to 0
     // If index is negative, index from end of the array.
     if (index < 0) index += length;
     // If index is still negative, do not search the array.
@@ -1432,7 +1432,7 @@ function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
       var i = sortedKeys.length - 1;
       while (i >= 0) {
         var key = sortedKeys[i];
-        if (!IS_UNDEFINED(key) && array[key] === element) return key;
+        if (array[key] === element) return key;
         i--;
       }
       return -1;
@@ -1946,6 +1946,10 @@ utils.Export(function(to) {
   to.InnerArraySort = InnerArraySort;
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;
   to.PackedArrayReverse = PackedArrayReverse;
+  to.Stack = Stack;
+  to.StackHas = StackHas;
+  to.StackPush = StackPush;
+  to.StackPop = StackPop;
 });
 
 %InstallToContext([

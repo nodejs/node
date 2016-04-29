@@ -18,19 +18,24 @@ namespace internal {
 // code. On buffer overflow the slots are moved to the remembered set.
 class StoreBuffer {
  public:
-  explicit StoreBuffer(Heap* heap);
+  static const int kStoreBufferSize = 1 << (14 + kPointerSizeLog2);
+  static const int kStoreBufferMask = kStoreBufferSize - 1;
+
   static void StoreBufferOverflow(Isolate* isolate);
+
+  explicit StoreBuffer(Heap* heap);
   void SetUp();
   void TearDown();
 
-  static const int kStoreBufferOverflowBit = 1 << (14 + kPointerSizeLog2);
-  static const int kStoreBufferSize = kStoreBufferOverflowBit;
-  static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
+  // Used to add entries from generated code.
+  inline Address* top_address() { return reinterpret_cast<Address*>(&top_); }
 
   void MoveEntriesToRememberedSet();
 
  private:
   Heap* heap_;
+
+  Address* top_;
 
   // The start and the limit of the buffer that contains store slots
   // added from the generated code.
@@ -38,41 +43,6 @@ class StoreBuffer {
   Address* limit_;
 
   base::VirtualMemory* virtual_memory_;
-};
-
-
-class LocalStoreBuffer BASE_EMBEDDED {
- public:
-  explicit LocalStoreBuffer(Heap* heap)
-      : top_(new Node(nullptr)), heap_(heap) {}
-
-  ~LocalStoreBuffer() {
-    Node* current = top_;
-    while (current != nullptr) {
-      Node* tmp = current->next;
-      delete current;
-      current = tmp;
-    }
-  }
-
-  inline void Record(Address addr);
-  inline void Process(StoreBuffer* store_buffer);
-
- private:
-  static const int kBufferSize = 16 * KB;
-
-  struct Node : Malloced {
-    explicit Node(Node* next_node) : next(next_node), count(0) {}
-
-    inline bool is_full() { return count == kBufferSize; }
-
-    Node* next;
-    Address buffer[kBufferSize];
-    int count;
-  };
-
-  Node* top_;
-  Heap* heap_;
 };
 
 }  // namespace internal

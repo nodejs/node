@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/schedule.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/source-position.h"
@@ -136,6 +136,51 @@ TARGET_TEST_F(SchedulerTest, FloatingDiamond1) {
   ComputeAndVerifySchedule(13);
 }
 
+TARGET_TEST_F(SchedulerTest, FloatingDeadDiamond1) {
+  Node* start = graph()->NewNode(common()->Start(1));
+  graph()->SetStart(start);
+
+  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
+  Node* d1 = CreateDiamond(graph(), common(), p0);
+  USE(d1);
+  Node* ret = graph()->NewNode(common()->Return(), p0, start, start);
+  Node* end = graph()->NewNode(common()->End(1), ret);
+
+  graph()->SetEnd(end);
+
+  ComputeAndVerifySchedule(4);
+}
+
+TARGET_TEST_F(SchedulerTest, FloatingDeadDiamond2) {
+  Graph* g = graph();
+  Node* start = g->NewNode(common()->Start(1));
+  g->SetStart(start);
+
+  Node* n1 = g->NewNode(common()->Parameter(1), start);
+
+  Node* n2 = g->NewNode(common()->Branch(), n1, start);
+  Node* n3 = g->NewNode(common()->IfTrue(), n2);
+  Node* n4 = g->NewNode(common()->IfFalse(), n2);
+  Node* n5 = g->NewNode(common()->Int32Constant(-100));
+  Node* n6 = g->NewNode(common()->Return(), n5, start, n4);
+  Node* n7 = g->NewNode(common()->Int32Constant(0));
+  Node* n8 = g->NewNode(common()->Return(), n7, start, n3);
+  Node* n9 = g->NewNode(common()->End(2), n6, n8);
+
+  // Dead nodes
+  Node* n10 = g->NewNode(common()->Branch(), n1, n3);
+  Node* n11 = g->NewNode(common()->IfTrue(), n10);
+  Node* n12 = g->NewNode(common()->IfFalse(), n10);
+  Node* n13 = g->NewNode(common()->Merge(2), n11, n12);
+  Node* n14 =
+      g->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), n1, n7, n13);
+
+  USE(n14);
+
+  g->SetEnd(n9);
+
+  ComputeAndVerifySchedule(10);
+}
 
 TARGET_TEST_F(SchedulerTest, FloatingDiamond2) {
   Node* start = graph()->NewNode(common()->Start(2));

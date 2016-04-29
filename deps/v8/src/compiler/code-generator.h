@@ -16,6 +16,7 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
+class DeoptimizationExit;
 class FrameAccessState;
 class Linkage;
 class OutOfLineCode;
@@ -76,15 +77,18 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   // Check if a heap object can be materialized by loading from the frame, which
   // is usually way cheaper than materializing the actual heap object constant.
-  bool IsMaterializableFromFrame(Handle<HeapObject> object, int* offset_return);
+  bool IsMaterializableFromFrame(Handle<HeapObject> object, int* slot_return);
   // Check if a heap object can be materialized by loading from a heap root,
   // which is cheaper on some platforms than materializing the actual heap
   // object constant.
   bool IsMaterializableFromRoot(Handle<HeapObject> object,
                                 Heap::RootListIndex* index_return);
 
+  // Assemble instructions for the specified block.
+  void AssembleBlock(const InstructionBlock* block);
+
   // Assemble code for the specified instruction.
-  void AssembleInstruction(Instruction* instr);
+  void AssembleInstruction(Instruction* instr, const InstructionBlock* block);
   void AssembleSourcePosition(Instruction* instr);
   void AssembleGaps(Instruction* instr);
 
@@ -105,6 +109,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
   void AssemblePrologue();
+
+  void AssembleSetupStackPointer();
+
   // Generates an architecture-specific, descriptor-specific return sequence
   // to tear down a stack frame.
   void AssembleReturn();
@@ -112,8 +119,14 @@ class CodeGenerator final : public GapResolver::Assembler {
   // Generates code to deconstruct a the caller's frame, including arguments.
   void AssembleDeconstructActivationRecord(int stack_param_delta);
 
+  void AssembleDeconstructFrame();
+
   // Generates code to manipulate the stack in preparation for a tail call.
   void AssemblePrepareTailCall(int stack_param_delta);
+
+  // Generates code to pop current frame if it is an arguments adaptor frame.
+  void AssemblePopArgumentsAdaptorFrame(Register args_reg, Register scratch1,
+                                        Register scratch2, Register scratch3);
 
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================
@@ -144,10 +157,10 @@ class CodeGenerator final : public GapResolver::Assembler {
   void RecordCallPosition(Instruction* instr);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
-  FrameStateDescriptor* GetFrameStateDescriptor(
-      Instruction* instr, size_t frame_access_state_offset);
+  FrameStateDescriptor* GetFrameStateDescriptor(Instruction* instr,
+                                                size_t frame_state_offset);
   int BuildTranslation(Instruction* instr, int pc_offset,
-                       size_t frame_access_state_offset,
+                       size_t frame_state_offset,
                        OutputFrameStateCombine state_combine);
   void BuildTranslationForFrameStateDescriptor(
       FrameStateDescriptor* descriptor, InstructionOperandIterator* iter,
@@ -164,6 +177,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AddNopForSmiCodeInlining();
   void EnsureSpaceForLazyDeopt();
   void MarkLazyDeoptSite();
+
+  DeoptimizationExit* AddDeoptimizationExit(Instruction* instr,
+                                            size_t frame_state_offset);
 
   // Converts the delta in the number of stack parameter passed from a tail
   // caller to the callee into the distance (in pointers) the SP must be
@@ -210,6 +226,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
   ZoneVector<HandlerInfo> handlers_;
+  ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
   ZoneDeque<DeoptimizationState*> deoptimization_states_;
   ZoneDeque<Handle<Object>> deoptimization_literals_;
   size_t inlined_function_count_;

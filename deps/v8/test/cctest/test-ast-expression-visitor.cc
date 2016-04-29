@@ -378,14 +378,17 @@ TEST(VisitYield) {
           CHECK_EXPR(CallRuntime, Bounds::Unbounded());
         }
       }
-      // Explicit yield
+      // Explicit yield (argument wrapped with CreateIterResultObject)
       CHECK_EXPR(Yield, Bounds::Unbounded()) {
         CHECK_VAR(.generator_object, Bounds::Unbounded());
-        CHECK_EXPR(Literal, Bounds::Unbounded());
+        CHECK_EXPR(CallRuntime, Bounds::Unbounded()) {
+          CHECK_EXPR(Literal, Bounds::Unbounded());
+          CHECK_EXPR(Literal, Bounds::Unbounded());
+        }
       }
-      // Implicit final yield
-      CHECK_EXPR(Yield, Bounds::Unbounded()) {
-        CHECK_VAR(.generator_object, Bounds::Unbounded());
+      // Argument to implicit final return
+      CHECK_EXPR(CallRuntime, Bounds::Unbounded()) {  // CreateIterResultObject
+        CHECK_EXPR(Literal, Bounds::Unbounded());
         CHECK_EXPR(Literal, Bounds::Unbounded());
       }
       // Implicit finally clause

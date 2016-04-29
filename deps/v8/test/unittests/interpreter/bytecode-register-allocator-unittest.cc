@@ -140,29 +140,6 @@ TEST_F(TemporaryRegisterAllocatorTest, RangeAllocationAvailableInTemporaries) {
   }
 }
 
-TEST_F(TemporaryRegisterAllocatorTest, RangeAvoidsTranslationBoundary) {
-  int boundary = RegisterTranslator::DistanceToTranslationWindow(Register(0));
-  int limit = boundary + 64;
-
-  for (int run_length = 2; run_length < 32; run_length += 7) {
-    ZoneVector<int> run_starts(zone());
-    for (int start = 0; start < limit; start += run_length) {
-      int run_start =
-          allocator()->PrepareForConsecutiveTemporaryRegisters(run_length);
-      run_starts.push_back(run_start);
-      for (int i = 0; i < run_length; i++) {
-        allocator()->BorrowConsecutiveTemporaryRegister(run_start + i);
-      }
-      CHECK(run_start >= boundary || run_start + run_length <= boundary);
-    }
-    for (size_t batch = 0; batch < run_starts.size(); batch++) {
-      for (int i = run_starts[batch]; i < run_starts[batch] + run_length; i++) {
-        allocator()->ReturnTemporaryRegister(i);
-      }
-    }
-  }
-}
-
 TEST_F(TemporaryRegisterAllocatorTest, NotInRange) {
   for (int i = 0; i < 10; i++) {
     int reg = allocator()->BorrowTemporaryRegisterNotInRange(2, 5);

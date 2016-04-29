@@ -162,6 +162,9 @@ endif
 ifdef embedscript
   GYPFLAGS += -Dembed_script=$(embedscript)
 endif
+ifdef warmupscript
+  GYPFLAGS += -Dwarmup_script=$(warmupscript)
+endif
 ifeq ($(goma), on)
   GYPFLAGS += -Duse_goma=1
 endif
@@ -218,6 +221,10 @@ endif
 # the specified values.
 ifeq ($(arm_test_noprobe), on)
   GYPFLAGS += -Darm_test_noprobe=on
+endif
+# Do not omit the frame pointer, needed for profiling with perf
+ifeq ($(no_omit_framepointer), on)
+  GYPFLAGS += -Drelease_extra_cflags=-fno-omit-frame-pointer
 endif
 
 # ----------------- available targets: --------------------

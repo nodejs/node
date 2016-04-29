@@ -36,18 +36,16 @@ class ExpressionClassifier {
     AssignmentPatternProduction = 1 << 3,
     DistinctFormalParametersProduction = 1 << 4,
     StrictModeFormalParametersProduction = 1 << 5,
-    StrongModeFormalParametersProduction = 1 << 6,
-    ArrowFormalParametersProduction = 1 << 7,
-    LetPatternProduction = 1 << 8,
-    CoverInitializedNameProduction = 1 << 9,
+    ArrowFormalParametersProduction = 1 << 6,
+    LetPatternProduction = 1 << 7,
+    CoverInitializedNameProduction = 1 << 8,
 
     ExpressionProductions =
         (ExpressionProduction | FormalParameterInitializerProduction),
     PatternProductions = (BindingPatternProduction |
                           AssignmentPatternProduction | LetPatternProduction),
     FormalParametersProductions = (DistinctFormalParametersProduction |
-                                   StrictModeFormalParametersProduction |
-                                   StrongModeFormalParametersProduction),
+                                   StrictModeFormalParametersProduction),
     StandardProductions = ExpressionProductions | PatternProductions,
     AllProductions =
         (StandardProductions | FormalParametersProductions |
@@ -110,12 +108,6 @@ class ExpressionClassifier {
     return is_valid(StrictModeFormalParametersProduction);
   }
 
-  // Note: callers should also check is_valid_strict_mode_formal_parameters()
-  // and is_valid_formal_parameter_list_without_duplicates().
-  bool is_valid_strong_mode_formal_parameters() const {
-    return is_valid(StrongModeFormalParametersProduction);
-  }
-
   bool is_valid_let_pattern() const { return is_valid(LetPatternProduction); }
 
   const Error& expression_error() const { return expression_error_; }
@@ -140,10 +132,6 @@ class ExpressionClassifier {
 
   const Error& strict_mode_formal_parameter_error() const {
     return strict_mode_formal_parameter_error_;
-  }
-
-  const Error& strong_mode_formal_parameter_error() const {
-    return strong_mode_formal_parameter_error_;
   }
 
   const Error& let_pattern_error() const { return let_pattern_error_; }
@@ -252,16 +240,6 @@ class ExpressionClassifier {
     strict_mode_formal_parameter_error_.arg = arg;
   }
 
-  void RecordStrongModeFormalParameterError(const Scanner::Location& loc,
-                                            MessageTemplate::Template message,
-                                            const char* arg = nullptr) {
-    if (!is_valid_strong_mode_formal_parameters()) return;
-    invalid_productions_ |= StrongModeFormalParametersProduction;
-    strong_mode_formal_parameter_error_.location = loc;
-    strong_mode_formal_parameter_error_.message = message;
-    strong_mode_formal_parameter_error_.arg = arg;
-  }
-
   void RecordLetPatternError(const Scanner::Location& loc,
                              MessageTemplate::Template message,
                              const char* arg = nullptr) {
@@ -323,9 +301,6 @@ class ExpressionClassifier {
       if (errors & StrictModeFormalParametersProduction)
         strict_mode_formal_parameter_error_ =
             inner->strict_mode_formal_parameter_error_;
-      if (errors & StrongModeFormalParametersProduction)
-        strong_mode_formal_parameter_error_ =
-            inner->strong_mode_formal_parameter_error_;
       if (errors & LetPatternProduction)
         let_pattern_error_ = inner->let_pattern_error_;
       if (errors & CoverInitializedNameProduction)
@@ -372,7 +347,6 @@ class ExpressionClassifier {
   Error arrow_formal_parameters_error_;
   Error duplicate_formal_parameter_error_;
   Error strict_mode_formal_parameter_error_;
-  Error strong_mode_formal_parameter_error_;
   Error let_pattern_error_;
   Error cover_initialized_name_error_;
   DuplicateFinder* duplicate_finder_;

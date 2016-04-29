@@ -403,7 +403,7 @@ TEST(TerminateFromOtherThreadWhileMicrotaskRunning) {
   thread.Start();
 
   v8::Isolate* isolate = CcTest::isolate();
-  isolate->SetAutorunMicrotasks(false);
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global =
       CreateGlobalTemplate(CcTest::isolate(), Signal, DoLoop);

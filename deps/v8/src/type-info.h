@@ -71,7 +71,7 @@ class TypeFeedbackOracle: public ZoneObject {
   Handle<JSFunction> GetCallNewTarget(FeedbackVectorSlot slot);
   Handle<AllocationSite> GetCallNewAllocationSite(FeedbackVectorSlot slot);
 
-  // TODO(1571) We can't use ToBooleanStub::Types as the return value because
+  // TODO(1571) We can't use ToBooleanICStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
   // headers!! :-P
   uint16_t ToBooleanTypes(TypeFeedbackId id);

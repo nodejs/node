@@ -33,10 +33,6 @@ class PropertyICCompiler : public PropertyAccessCompiler {
       CodeHandleList* handlers, KeyedAccessStoreMode store_mode,
       LanguageMode language_mode);
 
-  // Compare nil
-  static Handle<Code> ComputeCompareNil(Handle<Map> receiver_map,
-                                        CompareNilICStub* stub);
-
   // Helpers
   // TODO(verwaest): Move all uses of these helpers to the PropertyICCompiler
   // and make the helpers private.

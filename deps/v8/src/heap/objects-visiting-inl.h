@@ -220,11 +220,12 @@ void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
     Heap* heap, RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   HeapObject* object = HeapObject::cast(rinfo->target_object());
-  heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+  Code* host = rinfo->host();
+  heap->mark_compact_collector()->RecordRelocSlot(host, rinfo, object);
   // TODO(ulan): It could be better to record slots only for strongly embedded
   // objects here and record slots for weakly embedded object during clearing
   // of non-live references in mark-compact.
-  if (!rinfo->host()->IsWeakObject(object)) {
+  if (!host->IsWeakObject(object)) {
     StaticVisitor::MarkObject(heap, object);
   }
 }
@@ -235,8 +236,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCell(Heap* heap,
                                                     RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::CELL);
   Cell* cell = rinfo->target_cell();
-  heap->mark_compact_collector()->RecordRelocSlot(rinfo, cell);
-  if (!rinfo->host()->IsWeakObject(cell)) {
+  Code* host = rinfo->host();
+  heap->mark_compact_collector()->RecordRelocSlot(host, rinfo, cell);
+  if (!host->IsWeakObject(cell)) {
     StaticVisitor::MarkObject(heap, cell);
   }
 }
@@ -248,7 +250,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitDebugTarget(Heap* heap,
   DCHECK(RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
          rinfo->IsPatchedDebugBreakSlotSequence());
   Code* target = Code::GetCodeFromTargetAddress(rinfo->debug_call_address());
-  heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+  Code* host = rinfo->host();
+  heap->mark_compact_collector()->RecordRelocSlot(host, rinfo, target);
   StaticVisitor::MarkObject(heap, target);
 }
 
@@ -268,7 +271,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(Heap* heap,
                      rinfo->host()->constant_pool());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   }
-  heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+  Code* host = rinfo->host();
+  heap->mark_compact_collector()->RecordRelocSlot(host, rinfo, target);
   StaticVisitor::MarkObject(heap, target);
 }
 
@@ -279,7 +283,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeAgeSequence(
   DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
   Code* target = rinfo->code_age_stub();
   DCHECK(target != NULL);
-  heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+  Code* host = rinfo->host();
+  heap->mark_compact_collector()->RecordRelocSlot(host, rinfo, target);
   StaticVisitor::MarkObject(heap, target);
 }
 

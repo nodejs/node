@@ -69,6 +69,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(12, g4(1));
   }
   test();
+  test();
   %OptimizeFunctionOnNextCall(test);
   test();
 })();
@@ -110,6 +111,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(19, g3());
     assertEquals(12, g4());
   }
+  test();
   test();
   %OptimizeFunctionOnNextCall(test);
   test();
@@ -162,6 +164,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(12, g4(1));
   }
   test();
+  test();
   %OptimizeFunctionOnNextCall(test);
   test();
 })();
@@ -212,6 +215,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(12, g4());
   }
   test();
+  test();
   %OptimizeFunctionOnNextCall(test);
   test();
 })();
@@ -236,6 +240,53 @@ function f_153(expected_call_stack, a) {
     assertEquals(true, g2());
     assertEquals(153, g3());
   }
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Tail calling from various statements.
+(function() {
+  function g1() {
+    for (var v in {a:0}) {
+      return f_153([f_153, g1, test]);
+    }
+  }
+
+  function g2() {
+    for (var v of [1, 2, 3]) {
+      return f_153([f_153, g2, test]);
+    }
+  }
+
+  function g3() {
+    for (var i = 0; i < 10; i++) {
+      return f_153([f_153, test]);
+    }
+  }
+
+  function g4() {
+    while (true) {
+      return f_153([f_153, test]);
+    }
+  }
+
+  function g5() {
+    do {
+      return f_153([f_153, test]);
+    } while (true);
+  }
+
+  function test() {
+    assertEquals(153, g1());
+    assertEquals(153, g2());
+    assertEquals(153, g3());
+    assertEquals(153, g4());
+    assertEquals(153, g5());
+  }
+  test();
   test();
   %OptimizeFunctionOnNextCall(test);
   test();
@@ -280,6 +331,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(153, tc3());
   }
   test();
+  test();
   %OptimizeFunctionOnNextCall(test);
   test();
 })();
@@ -320,6 +372,7 @@ function f_153(expected_call_stack, a) {
     assertEquals(153, tf2());
     assertEquals(153, tf3());
   }
+  test();
   test();
   %OptimizeFunctionOnNextCall(test);
   test();
@@ -380,6 +433,28 @@ function f_153(expected_call_stack, a) {
     assertEquals(153, tcf3());
     assertEquals(153, tcf4());
   }
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Test tail calls from arrow functions.
+(function () {
+  function g1(a) {
+    return (() => { return f_153([f_153, test]); })();
+  }
+
+  function g2(a) {
+    return (() => f_153([f_153, test]))();
+  }
+
+  function test() {
+    assertEquals(153, g1());
+    assertEquals(153, g2());
+  }
+  test();
   test();
   %OptimizeFunctionOnNextCall(test);
   test();

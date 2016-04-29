@@ -523,8 +523,9 @@ void Assembler::arithmetic_op_16(byte opcode,
 void Assembler::arithmetic_op_8(byte opcode, Register reg, const Operand& op) {
   EnsureSpace ensure_space(this);
   if (!reg.is_byte_register()) {
-    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
-    emit_rex_32(reg);
+    emit_rex_32(reg, op);
+  } else {
+    emit_optional_rex_32(reg, op);
   }
   emit(opcode);
   emit_operand(reg, op);
@@ -1469,17 +1470,18 @@ void Assembler::movp(Register dst, void* value, RelocInfo::Mode rmode) {
   emitp(value, rmode);
 }
 
-
-void Assembler::movq(Register dst, int64_t value) {
+void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   emit_rex_64(dst);
   emit(0xB8 | dst.low_bits());
+  if (!RelocInfo::IsNone(rmode)) {
+    RecordRelocInfo(rmode, value);
+  }
   emitq(value);
 }
 
-
-void Assembler::movq(Register dst, uint64_t value) {
-  movq(dst, static_cast<int64_t>(value));
+void Assembler::movq(Register dst, uint64_t value, RelocInfo::Mode rmode) {
+  movq(dst, static_cast<int64_t>(value), rmode);
 }
 
 
@@ -2014,6 +2016,50 @@ void Assembler::testb(const Operand& op, Register reg) {
   emit_operand(reg, op);
 }
 
+void Assembler::testw(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  if (src.low_bits() == 4) {
+    emit_rex_32(src, dst);
+  }
+  emit(0x85);
+  emit_modrm(src, dst);
+}
+
+void Assembler::testw(Register reg, Immediate mask) {
+  DCHECK(is_int16(mask.value_) || is_uint16(mask.value_));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  if (reg.is(rax)) {
+    emit(0xA9);
+    emit(mask.value_);
+  } else {
+    if (reg.low_bits() == 4) {
+      emit_rex_32(reg);
+    }
+    emit(0xF7);
+    emit_modrm(0x0, reg);
+    emit(mask.value_);
+  }
+}
+
+void Assembler::testw(const Operand& op, Immediate mask) {
+  DCHECK(is_int16(mask.value_) || is_uint16(mask.value_));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(rax, op);
+  emit(0xF7);
+  emit_operand(rax, op);
+  emit(mask.value_);
+}
+
+void Assembler::testw(const Operand& op, Register reg) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(reg, op);
+  emit(0x85);
+  emit_operand(rax, op);
+}
 
 void Assembler::emit_test(Register dst, Register src, int size) {
   EnsureSpace ensure_space(this);

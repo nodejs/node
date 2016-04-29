@@ -29,7 +29,6 @@ class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
   explicit GraphTest(int num_parameters = 1);
   ~GraphTest() override;
 
- protected:
   Node* start() { return graph()->start(); }
   Node* end() { return graph()->end(); }
 

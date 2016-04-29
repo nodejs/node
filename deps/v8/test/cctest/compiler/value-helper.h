@@ -274,7 +274,7 @@ class ValueHelper {
         0x00003fffffffffff, 0x00001fffffffffff, 0x00000fffffffffff,
         0x000007ffffffffff, 0x000003ffffffffff, 0x000001ffffffffff,
         0x8000008000000000, 0x8000008000000001, 0x8000000000000400,
-        0x8000000000000401};
+        0x8000000000000401, 0x0000000000000020};
     return std::vector<uint64_t>(&kValues[0], &kValues[arraysize(kValues)]);
   }
 
@@ -321,6 +321,12 @@ static inline void CheckFloatEq(volatile float x, volatile float y) {
   }
 }
 
+#define CHECK_FLOAT_EQ(lhs, rhs) \
+  do {                           \
+    volatile float tmp = lhs;    \
+    CheckFloatEq(tmp, rhs);      \
+  } while (0)
+
 static inline void CheckDoubleEq(volatile double x, volatile double y) {
   if (std::isnan(x)) {
     CHECK(std::isnan(y));
@@ -328,6 +334,12 @@ static inline void CheckDoubleEq(volatile double x, volatile double y) {
     CHECK_EQ(x, y);
   }
 }
+
+#define CHECK_DOUBLE_EQ(lhs, rhs) \
+  do {                            \
+    volatile double tmp = lhs;    \
+    CheckDoubleEq(tmp, rhs);      \
+  } while (0)
 
 }  // namespace compiler
 }  // namespace internal

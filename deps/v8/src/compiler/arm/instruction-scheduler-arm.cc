@@ -48,6 +48,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmUxtab:
     case kArmUxtah:
     case kArmRbit:
+    case kArmAddPair:
+    case kArmSubPair:
+    case kArmMulPair:
+    case kArmLslPair:
+    case kArmLsrPair:
+    case kArmAsrPair:
     case kArmVcmpF32:
     case kArmVaddF32:
     case kArmVsubF32:

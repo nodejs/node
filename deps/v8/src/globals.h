@@ -59,6 +59,9 @@ namespace internal {
 #if (V8_TARGET_ARCH_MIPS64 && !V8_HOST_ARCH_MIPS64)
 #define USE_SIMULATOR 1
 #endif
+#if (V8_TARGET_ARCH_S390 && !V8_HOST_ARCH_S390)
+#define USE_SIMULATOR 1
+#endif
 #endif
 
 // Determine whether the architecture uses an embedded constant pool
@@ -110,6 +113,7 @@ const int kMaxUInt16 = (1 << 16) - 1;
 const int kMinUInt16 = 0;
 
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
+const int kMinUInt32 = 0;
 
 const int kCharSize      = sizeof(char);      // NOLINT
 const int kShortSize     = sizeof(short);     // NOLINT
@@ -120,6 +124,11 @@ const int kFloatSize     = sizeof(float);     // NOLINT
 const int kDoubleSize    = sizeof(double);    // NOLINT
 const int kIntptrSize    = sizeof(intptr_t);  // NOLINT
 const int kPointerSize   = sizeof(void*);     // NOLINT
+#if V8_TARGET_ARCH_ARM64
+const int kFrameAlignmentInBytes = 2 * kPointerSize;
+#else
+const int kFrameAlignmentInBytes = kPointerSize;
+#endif
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
 const int kRegisterSize  = kPointerSize + kPointerSize;
 #else
@@ -127,6 +136,12 @@ const int kRegisterSize  = kPointerSize;
 #endif
 const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;
+
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
+const int kElidedFrameSlots = kPCOnStackSize / kPointerSize;
+#else
+const int kElidedFrameSlots = 0;
+#endif
 
 const int kDoubleSizeLog2 = 3;
 
@@ -243,89 +258,36 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 
-enum LanguageMode {
-  // LanguageMode is expressed as a bitmask. Descriptions of the bits:
-  STRICT_BIT = 1 << 0,
-  STRONG_BIT = 1 << 1,
-  LANGUAGE_END,
-
-  // Shorthands for some common language modes.
-  SLOPPY = 0,
-  STRICT = STRICT_BIT,
-  STRONG = STRICT_BIT | STRONG_BIT
-};
+enum LanguageMode { SLOPPY, STRICT, LANGUAGE_END = 3 };
 
 
 inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   switch (mode) {
-    case SLOPPY:
-      return os << "sloppy";
-    case STRICT:
-      return os << "strict";
-    case STRONG:
-      return os << "strong";
-    default:
-      return os << "unknown";
+    case SLOPPY: return os << "sloppy";
+    case STRICT: return os << "strict";
+    default: UNREACHABLE();
   }
+  return os;
 }
 
 
 inline bool is_sloppy(LanguageMode language_mode) {
-  return (language_mode & STRICT_BIT) == 0;
+  return language_mode == SLOPPY;
 }
 
 
 inline bool is_strict(LanguageMode language_mode) {
-  return language_mode & STRICT_BIT;
-}
-
-
-inline bool is_strong(LanguageMode language_mode) {
-  return language_mode & STRONG_BIT;
+  return language_mode != SLOPPY;
 }
 
 
 inline bool is_valid_language_mode(int language_mode) {
-  return language_mode == SLOPPY || language_mode == STRICT ||
-         language_mode == STRONG;
+  return language_mode == SLOPPY || language_mode == STRICT;
 }
 
 
-inline LanguageMode construct_language_mode(bool strict_bit, bool strong_bit) {
-  int language_mode = 0;
-  if (strict_bit) language_mode |= STRICT_BIT;
-  if (strong_bit) language_mode |= STRONG_BIT;
-  DCHECK(is_valid_language_mode(language_mode));
-  return static_cast<LanguageMode>(language_mode);
-}
-
-
-// Strong mode behaviour must sometimes be signalled by a two valued enum where
-// caching is involved, to prevent sloppy and strict mode from being incorrectly
-// differentiated.
-enum class Strength : bool {
-  WEAK,   // sloppy, strict behaviour
-  STRONG  // strong behaviour
-};
-
-
-inline bool is_strong(Strength strength) {
-  return strength == Strength::STRONG;
-}
-
-
-inline std::ostream& operator<<(std::ostream& os, const Strength& strength) {
-  return os << (is_strong(strength) ? "strong" : "weak");
-}
-
-
-inline Strength strength(LanguageMode language_mode) {
-  return is_strong(language_mode) ? Strength::STRONG : Strength::WEAK;
-}
-
-
-inline size_t hash_value(Strength strength) {
-  return static_cast<size_t>(strength);
+inline LanguageMode construct_language_mode(bool strict_bit) {
+  return static_cast<LanguageMode>(strict_bit);
 }
 
 
@@ -525,7 +487,9 @@ enum VisitMode {
   VISIT_ALL,
   VISIT_ALL_IN_SCAVENGE,
   VISIT_ALL_IN_SWEEP_NEWSPACE,
-  VISIT_ONLY_STRONG
+  VISIT_ONLY_STRONG,
+  VISIT_ONLY_STRONG_FOR_SERIALIZATION,
+  VISIT_ONLY_STRONG_ROOT_LIST,
 };
 
 // Flag indicating whether code is built into the VM (one of the natives files).
@@ -726,9 +690,12 @@ enum CpuFeature {
   FPR_GPR_MOV,
   LWSYNC,
   ISELECT,
+  // S390
+  DISTINCT_OPS,
+  GENERAL_INSTR_EXT,
+  FLOATING_POINT_EXT,
   NUMBER_OF_CPU_FEATURES
 };
-
 
 // Defines hints about receiver values based on structural knowledge.
 enum class ConvertReceiverMode : unsigned {
@@ -959,12 +926,6 @@ enum MaybeAssignedFlag { kNotAssigned, kMaybeAssigned };
 enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };
 
 
-enum ClearExceptionFlag {
-  KEEP_EXCEPTION,
-  CLEAR_EXCEPTION
-};
-
-
 enum MinusZeroMode {
   TREAT_MINUS_ZERO_AS_ZERO,
   FAIL_ON_MINUS_ZERO
@@ -1069,7 +1030,6 @@ inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
   if (IsConciseMethod(kind)) return false;
   if (IsArrowFunction(kind)) return false;
   if (IsGeneratorFunction(kind)) return false;
-  if (is_strong(mode)) return IsClassConstructor(kind);
   return true;
 }
 

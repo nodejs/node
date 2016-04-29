@@ -73,7 +73,7 @@ assertEquals(6, mirror.scopeCount());
 
 CheckScope(mirror.scope(0), { a: 4, b: 5 }, ScopeType.Closure);
 CheckScope(mirror.scope(1), { w: 5, v: "Capybara" }, ScopeType.With);
-CheckScope(mirror.scope(2), { y: 17, z: 22 }, ScopeType.Closure);
+CheckScope(mirror.scope(2), { z: 22 }, ScopeType.Closure);
 CheckScope(mirror.scope(3), { x: 5 }, ScopeType.Closure);
 CheckScope(mirror.scope(4), {}, ScopeType.Script);
 CheckScope(mirror.scope(5), {}, ScopeType.Global);

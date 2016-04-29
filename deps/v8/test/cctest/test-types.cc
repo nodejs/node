@@ -40,7 +40,7 @@ struct Tests {
   Tests()
       : isolate(CcTest::InitIsolateOnce()),
         scope(isolate),
-        zone(),
+        zone(isolate->allocator()),
         T(&zone, isolate, isolate->random_number_generator()) {}
 
   bool IsBitset(Type* type) { return type->IsBitsetForTesting(); }
@@ -941,7 +941,7 @@ struct Tests {
     CheckSub(T.Object, T.Receiver);
     CheckSub(T.Proxy, T.Receiver);
     CheckSub(T.OtherObject, T.Object);
-    CheckSub(T.Undetectable, T.Object);
+    CheckSub(T.OtherUndetectable, T.Object);
     CheckSub(T.OtherObject, T.Object);
 
     CheckUnordered(T.Object, T.Proxy);

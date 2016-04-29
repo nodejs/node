@@ -123,6 +123,26 @@ LinkageLocation regloc(Register reg) {
       d20.bit() | d21.bit() | d22.bit() | d23.bit() | d24.bit() | d25.bit() | \
       d26.bit() | d27.bit() | d28.bit() | d29.bit() | d30.bit() | d31.bit()
 
+#elif V8_TARGET_ARCH_S390X
+// ===========================================================================
+// == s390x ==================================================================
+// ===========================================================================
+#define PARAM_REGISTERS r2, r3, r4, r5, r6
+#define CALLEE_SAVE_REGISTERS \
+  r6.bit() | r7.bit() | r8.bit() | r9.bit() | r10.bit() | ip.bit() | r13.bit()
+#define CALLEE_SAVE_FP_REGISTERS                                        \
+  d8.bit() | d9.bit() | d10.bit() | d11.bit() | d12.bit() | d13.bit() | \
+      d14.bit() | d15.bit()
+
+#elif V8_TARGET_ARCH_S390
+// ===========================================================================
+// == s390 ===================================================================
+// ===========================================================================
+#define PARAM_REGISTERS r2, r3, r4, r5, r6
+#define CALLEE_SAVE_REGISTERS \
+  r6.bit() | r7.bit() | r8.bit() | r9.bit() | r10.bit() | ip.bit() | r13.bit()
+#define CALLEE_SAVE_FP_REGISTERS (d4.bit() | d6.bit())
+
 #else
 // ===========================================================================
 // == unknown ================================================================
@@ -210,6 +230,11 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   // The target for C calls is always an address (i.e. machine pointer).
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
+  CallDescriptor::Flags flags = CallDescriptor::kUseNativeStack;
+  if (set_initialize_root_flag) {
+    flags |= CallDescriptor::kInitializeRootRegister;
+  }
+
   return new (zone) CallDescriptor(  // --
       CallDescriptor::kCallAddress,  // kind
       target_type,                   // target MachineType
@@ -220,10 +245,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
       Operator::kNoProperties,       // properties
       kCalleeSaveRegisters,          // callee-saved registers
       kCalleeSaveFPRegisters,        // callee-saved fp regs
-      set_initialize_root_flag ?     // flags
-          CallDescriptor::kInitializeRootRegister
-                               : CallDescriptor::kNoFlags,
-      "c-call");
+      flags, "c-call");
 }
 
 }  // namespace compiler

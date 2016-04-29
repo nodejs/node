@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-object-values-entries --harmony-proxies --harmony-reflect
+// Flags: --harmony-object-values-entries
 // Flags: --allow-natives-syntax
 
 function TestMeta() {
@@ -227,3 +227,66 @@ function TestMutateDuringEnumeration() {
   assertEquals([1, 2], Object.values(aMakesBEnumerable));
 }
 TestMutateDuringEnumeration();
+
+
+(function TestElementKinds() {
+  var O1 = { name: "1" }, O2 = { name: "2" }, O3 = { name: "3" };
+  var PI = 3.141592653589793;
+  var E = 2.718281828459045;
+  function fastSloppyArguments(a, b, c) {
+    delete arguments[0];
+    arguments[0] = a;
+    return arguments;
+  }
+
+  function slowSloppyArguments(a, b, c) {
+    delete arguments[0];
+    arguments[0] = a;
+    Object.defineProperties(arguments, {
+      0: {
+        enumerable: true,
+        value: a
+      },
+      9999: {
+        enumerable: false,
+        value: "Y"
+      }
+    });
+    arguments[10000] = "X";
+    return arguments;
+  }
+
+  var element_kinds = {
+    FAST_SMI_ELEMENTS: [ [1, 2, 3], [1, 2, 3] ],
+    FAST_HOLEY_SMI_ELEMENTS: [ [, , 3], [ 3 ] ],
+    FAST_ELEMENTS: [ [O1, O2, O3], [O1, O2, O3] ],
+    FAST_HOLEY_ELEMENTS: [ [, , O3], [O3] ],
+    FAST_DOUBLE_ELEMENTS: [ [E, NaN, PI], [E, NaN, PI] ],
+    FAST_HOLEY_DOUBLE_ELEMENTS: [ [, , NaN], [NaN] ],
+
+    DICTIONARY_ELEMENTS: [ Object.defineProperties({ 10000: "world" }, {
+        100: { enumerable: true, value: "hello" },
+        99: { enumerable: false, value: "nope" }
+      }), [ "hello", "world" ] ],
+    FAST_SLOPPY_ARGUMENTS_ELEMENTS: [
+        fastSloppyArguments("a", "b", "c"), ["a", "b", "c"] ],
+    SLOW_SLOPPY_ARGUMENTS_ELEMENTS: [
+        slowSloppyArguments("a", "b", "c"), [ "a", "b", "c", "X"]],
+
+    FAST_STRING_WRAPPER_ELEMENTS: [ new String("str"), ["s", "t", "r"] ],
+    SLOW_STRING_WRAPPER_ELEMENTS: [
+        Object.defineProperties(new String("str"), {
+          10000: { enumerable: false, value: "X" },
+          9999: { enumerable: true, value: "Y" }
+        }), ["s", "t", "r", "Y"] ],
+  };
+
+  for (let [kind, [object, expected]] of Object.entries(element_kinds)) {
+    let result1 = Object.values(object);
+    assertEquals(expected, result1, `fast Object.values() with ${kind}`);
+
+    let proxy = new Proxy(object, {});
+    let result2 = Object.values(proxy);
+    assertEquals(result1, result2, `slow Object.values() with ${kind}`);
+  }
+})();

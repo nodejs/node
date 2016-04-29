@@ -6,88 +6,114 @@
 #define V8_HEAP_GC_TRACER_H_
 
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/globals.h"
 
 namespace v8 {
 namespace internal {
 
-// A simple ring buffer class with maximum size known at compile time.
-// The class only implements the functionality required in GCTracer.
-template <typename T, size_t MAX_SIZE>
+template <typename T>
 class RingBuffer {
  public:
-  class const_iterator {
-   public:
-    const_iterator() : index_(0), elements_(NULL) {}
-
-    const_iterator(size_t index, const T* elements)
-        : index_(index), elements_(elements) {}
-
-    bool operator==(const const_iterator& rhs) const {
-      return elements_ == rhs.elements_ && index_ == rhs.index_;
+  RingBuffer() { Reset(); }
+  static const int kSize = 10;
+  void Push(const T& value) {
+    if (count_ == kSize) {
+      elements_[start_++] = value;
+      if (start_ == kSize) start_ = 0;
+    } else {
+      DCHECK_EQ(start_, 0);
+      elements_[count_++] = value;
     }
-
-    bool operator!=(const const_iterator& rhs) const {
-      return elements_ != rhs.elements_ || index_ != rhs.index_;
-    }
-
-    operator const T*() const { return elements_ + index_; }
-
-    const T* operator->() const { return elements_ + index_; }
-
-    const T& operator*() const { return elements_[index_]; }
-
-    const_iterator& operator++() {
-      index_ = (index_ + 1) % (MAX_SIZE + 1);
-      return *this;
-    }
-
-    const_iterator& operator--() {
-      index_ = (index_ + MAX_SIZE) % (MAX_SIZE + 1);
-      return *this;
-    }
-
-   private:
-    size_t index_;
-    const T* elements_;
-  };
-
-  RingBuffer() : begin_(0), end_(0) {}
-
-  bool empty() const { return begin_ == end_; }
-  size_t size() const {
-    return (end_ - begin_ + MAX_SIZE + 1) % (MAX_SIZE + 1);
-  }
-  const_iterator begin() const { return const_iterator(begin_, elements_); }
-  const_iterator end() const { return const_iterator(end_, elements_); }
-  const_iterator back() const { return --end(); }
-  void push_back(const T& element) {
-    elements_[end_] = element;
-    end_ = (end_ + 1) % (MAX_SIZE + 1);
-    if (end_ == begin_) begin_ = (begin_ + 1) % (MAX_SIZE + 1);
-  }
-  void push_front(const T& element) {
-    begin_ = (begin_ + MAX_SIZE) % (MAX_SIZE + 1);
-    if (begin_ == end_) end_ = (end_ + MAX_SIZE) % (MAX_SIZE + 1);
-    elements_[begin_] = element;
   }
 
-  void reset() {
-    begin_ = 0;
-    end_ = 0;
+  int Count() const { return count_; }
+
+  template <typename Callback>
+  T Sum(Callback callback, const T& initial) const {
+    int j = start_ + count_ - 1;
+    if (j >= kSize) j -= kSize;
+    T result = initial;
+    for (int i = 0; i < count_; i++) {
+      result = callback(result, elements_[j]);
+      if (--j == -1) j += kSize;
+    }
+    return result;
   }
+
+  void Reset() { start_ = count_ = 0; }
 
  private:
-  T elements_[MAX_SIZE + 1];
-  size_t begin_;
-  size_t end_;
-
+  T elements_[kSize];
+  int start_;
+  int count_;
   DISALLOW_COPY_AND_ASSIGN(RingBuffer);
 };
 
+typedef std::pair<uint64_t, double> BytesAndDuration;
+
+inline BytesAndDuration MakeBytesAndDuration(uint64_t bytes, double duration) {
+  return std::make_pair(bytes, duration);
+}
 
 enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
+#define TRACER_SCOPES(F)                           \
+  F(EXTERNAL_WEAK_GLOBAL_HANDLES)                  \
+  F(MC_CLEAR)                                      \
+  F(MC_CLEAR_CODE_FLUSH)                           \
+  F(MC_CLEAR_DEPENDENT_CODE)                       \
+  F(MC_CLEAR_GLOBAL_HANDLES)                       \
+  F(MC_CLEAR_MAPS)                                 \
+  F(MC_CLEAR_SLOTS_BUFFER)                         \
+  F(MC_CLEAR_STORE_BUFFER)                         \
+  F(MC_CLEAR_STRING_TABLE)                         \
+  F(MC_CLEAR_WEAK_CELLS)                           \
+  F(MC_CLEAR_WEAK_COLLECTIONS)                     \
+  F(MC_CLEAR_WEAK_LISTS)                           \
+  F(MC_EVACUATE)                                   \
+  F(MC_EVACUATE_CANDIDATES)                        \
+  F(MC_EVACUATE_CLEAN_UP)                          \
+  F(MC_EVACUATE_COPY)                              \
+  F(MC_EVACUATE_UPDATE_POINTERS)                   \
+  F(MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED) \
+  F(MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED)      \
+  F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW)            \
+  F(MC_EVACUATE_UPDATE_POINTERS_WEAK)              \
+  F(MC_EXTERNAL_EPILOGUE)                          \
+  F(MC_EXTERNAL_PROLOGUE)                          \
+  F(MC_FINISH)                                     \
+  F(MC_INCREMENTAL_FINALIZE)                       \
+  F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)              \
+  F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)              \
+  F(MC_MARK)                                       \
+  F(MC_MARK_FINISH_INCREMENTAL)                    \
+  F(MC_MARK_PREPARE_CODE_FLUSH)                    \
+  F(MC_MARK_ROOTS)                                 \
+  F(MC_MARK_WEAK_CLOSURE)                          \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)                \
+  F(MC_MARK_WEAK_CLOSURE_WEAK_HANDLES)             \
+  F(MC_MARK_WEAK_CLOSURE_WEAK_ROOTS)               \
+  F(MC_MARK_WEAK_CLOSURE_HARMONY)                  \
+  F(MC_SWEEP)                                      \
+  F(MC_SWEEP_CODE)                                 \
+  F(MC_SWEEP_MAP)                                  \
+  F(MC_SWEEP_OLD)                                  \
+  F(SCAVENGER_CODE_FLUSH_CANDIDATES)               \
+  F(SCAVENGER_EXTERNAL_EPILOGUE)                   \
+  F(SCAVENGER_EXTERNAL_PROLOGUE)                   \
+  F(SCAVENGER_OBJECT_GROUPS)                       \
+  F(SCAVENGER_OLD_TO_NEW_POINTERS)                 \
+  F(SCAVENGER_ROOTS)                               \
+  F(SCAVENGER_SCAVENGE)                            \
+  F(SCAVENGER_SEMISPACE)                           \
+  F(SCAVENGER_WEAK)
+
+#define TRACE_GC(tracer, scope_id)                             \
+  GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);       \
+  GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id); \
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"),                \
+               GCTracer::Scope::Name(gc_tracer_scope_id))
 
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
@@ -97,109 +123,23 @@ class GCTracer {
   class Scope {
    public:
     enum ScopeId {
-      EXTERNAL,
-      MC_CLEAR,
-      MC_CLEAR_CODE_FLUSH,
-      MC_CLEAR_DEPENDENT_CODE,
-      MC_CLEAR_GLOBAL_HANDLES,
-      MC_CLEAR_MAPS,
-      MC_CLEAR_SLOTS_BUFFER,
-      MC_CLEAR_STORE_BUFFER,
-      MC_CLEAR_STRING_TABLE,
-      MC_CLEAR_WEAK_CELLS,
-      MC_CLEAR_WEAK_COLLECTIONS,
-      MC_CLEAR_WEAK_LISTS,
-      MC_EVACUATE,
-      MC_EVACUATE_CANDIDATES,
-      MC_EVACUATE_CLEAN_UP,
-      MC_EVACUATE_NEW_SPACE,
-      MC_EVACUATE_UPDATE_POINTERS,
-      MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED,
-      MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED,
-      MC_EVACUATE_UPDATE_POINTERS_TO_NEW,
-      MC_EVACUATE_UPDATE_POINTERS_WEAK,
-      MC_FINISH,
-      MC_INCREMENTAL_FINALIZE,
-      MC_MARK,
-      MC_MARK_FINISH_INCREMENTAL,
-      MC_MARK_PREPARE_CODE_FLUSH,
-      MC_MARK_ROOTS,
-      MC_MARK_WEAK_CLOSURE,
-      MC_SWEEP,
-      MC_SWEEP_CODE,
-      MC_SWEEP_MAP,
-      MC_SWEEP_OLD,
-      SCAVENGER_CODE_FLUSH_CANDIDATES,
-      SCAVENGER_OBJECT_GROUPS,
-      SCAVENGER_OLD_TO_NEW_POINTERS,
-      SCAVENGER_ROOTS,
-      SCAVENGER_SCAVENGE,
-      SCAVENGER_SEMISPACE,
-      SCAVENGER_WEAK,
-      NUMBER_OF_SCOPES
+#define DEFINE_SCOPE(scope) scope,
+      TRACER_SCOPES(DEFINE_SCOPE)
+#undef DEFINE_SCOPE
+          NUMBER_OF_SCOPES
     };
 
     Scope(GCTracer* tracer, ScopeId scope);
     ~Scope();
+    static const char* Name(ScopeId id);
 
    private:
     GCTracer* tracer_;
     ScopeId scope_;
     double start_time_;
+    RuntimeCallTimer timer_;
 
     DISALLOW_COPY_AND_ASSIGN(Scope);
-  };
-
-
-  class AllocationEvent {
-   public:
-    // Default constructor leaves the event uninitialized.
-    AllocationEvent() {}
-
-    AllocationEvent(double duration, size_t allocation_in_bytes);
-
-    // Time spent in the mutator during the end of the last sample to the
-    // beginning of the next sample.
-    double duration_;
-
-    // Memory allocated in the new space during the end of the last sample
-    // to the beginning of the next sample
-    size_t allocation_in_bytes_;
-  };
-
-
-  class CompactionEvent {
-   public:
-    CompactionEvent() : duration(0), live_bytes_compacted(0) {}
-
-    CompactionEvent(double duration, intptr_t live_bytes_compacted)
-        : duration(duration), live_bytes_compacted(live_bytes_compacted) {}
-
-    double duration;
-    intptr_t live_bytes_compacted;
-  };
-
-
-  class ContextDisposalEvent {
-   public:
-    // Default constructor leaves the event uninitialized.
-    ContextDisposalEvent() {}
-
-    explicit ContextDisposalEvent(double time);
-
-    // Time when context disposal event happened.
-    double time_;
-  };
-
-
-  class SurvivalEvent {
-   public:
-    // Default constructor leaves the event uninitialized.
-    SurvivalEvent() {}
-
-    explicit SurvivalEvent(double survival_ratio);
-
-    double promotion_ratio_;
   };
 
 
@@ -307,19 +247,6 @@ class GCTracer {
     double scopes[Scope::NUMBER_OF_SCOPES];
   };
 
-  static const size_t kRingBufferMaxSize = 10;
-
-  typedef RingBuffer<Event, kRingBufferMaxSize> EventBuffer;
-
-  typedef RingBuffer<AllocationEvent, kRingBufferMaxSize> AllocationEventBuffer;
-
-  typedef RingBuffer<ContextDisposalEvent, kRingBufferMaxSize>
-      ContextDisposalEventBuffer;
-
-  typedef RingBuffer<CompactionEvent, kRingBufferMaxSize> CompactionEventBuffer;
-
-  typedef RingBuffer<SurvivalEvent, kRingBufferMaxSize> SurvivalEventBuffer;
-
   static const int kThroughputTimeFrameMs = 5000;
 
   explicit GCTracer(Heap* heap);
@@ -369,63 +296,27 @@ class GCTracer {
     return cumulative_sweeping_duration_;
   }
 
-  // Compute the mean duration of the last scavenger events. Returns 0 if no
-  // events have been recorded.
-  double MeanScavengerDuration() const {
-    return MeanDuration(scavenger_events_);
-  }
-
-  // Compute the max duration of the last scavenger events. Returns 0 if no
-  // events have been recorded.
-  double MaxScavengerDuration() const { return MaxDuration(scavenger_events_); }
-
-  // Compute the mean duration of the last mark compactor events. Returns 0 if
-  // no events have been recorded.
-  double MeanMarkCompactorDuration() const {
-    return MeanDuration(mark_compactor_events_);
-  }
-
-  // Compute the max duration of the last mark compactor events. Return 0 if no
-  // events have been recorded.
-  double MaxMarkCompactorDuration() const {
-    return MaxDuration(mark_compactor_events_);
-  }
-
-  // Compute the mean duration of the last incremental mark compactor
-  // events. Returns 0 if no events have been recorded.
-  double MeanIncrementalMarkCompactorDuration() const {
-    return MeanDuration(incremental_mark_compactor_events_);
-  }
-
-  // Compute the mean step duration of the last incremental marking round.
-  // Returns 0 if no incremental marking round has been completed.
-  double MeanIncrementalMarkingDuration() const;
-
-  // Compute the max step duration of the last incremental marking round.
-  // Returns 0 if no incremental marking round has been completed.
-  double MaxIncrementalMarkingDuration() const;
-
   // Compute the average incremental marking speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
-  intptr_t IncrementalMarkingSpeedInBytesPerMillisecond() const;
+  double IncrementalMarkingSpeedInBytesPerMillisecond() const;
 
   // Compute the average scavenge speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
-  intptr_t ScavengeSpeedInBytesPerMillisecond(
+  double ScavengeSpeedInBytesPerMillisecond(
       ScavengeSpeedMode mode = kForAllObjects) const;
 
   // Compute the average compaction speed in bytes/millisecond.
   // Returns 0 if not enough events have been recorded.
-  intptr_t CompactionSpeedInBytesPerMillisecond() const;
+  double CompactionSpeedInBytesPerMillisecond() const;
 
   // Compute the average mark-sweep speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
-  intptr_t MarkCompactSpeedInBytesPerMillisecond() const;
+  double MarkCompactSpeedInBytesPerMillisecond() const;
 
   // Compute the average incremental mark-sweep finalize speed in
   // bytes/millisecond.
   // Returns 0 if no events have been recorded.
-  intptr_t FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const;
+  double FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const;
 
   // Compute the overall mark compact speed including incremental steps
   // and the final mark-compact step.
@@ -433,29 +324,29 @@ class GCTracer {
 
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
-  size_t NewSpaceAllocationThroughputInBytesPerMillisecond(
+  double NewSpaceAllocationThroughputInBytesPerMillisecond(
       double time_ms = 0) const;
 
   // Allocation throughput in the old generation in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t OldGenerationAllocationThroughputInBytesPerMillisecond(
+  double OldGenerationAllocationThroughputInBytesPerMillisecond(
       double time_ms = 0) const;
 
   // Allocation throughput in heap in bytes/millisecond in the last time_ms
   // milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t AllocationThroughputInBytesPerMillisecond(double time_ms) const;
+  double AllocationThroughputInBytesPerMillisecond(double time_ms) const;
 
   // Allocation throughput in heap in bytes/milliseconds in the last
   // kThroughputTimeFrameMs seconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t CurrentAllocationThroughputInBytesPerMillisecond() const;
+  double CurrentAllocationThroughputInBytesPerMillisecond() const;
 
   // Allocation throughput in old generation in bytes/milliseconds in the last
   // kThroughputTimeFrameMs seconds.
   // Returns 0 if no allocation events have been recorded.
-  size_t CurrentOldGenerationAllocationThroughputInBytesPerMillisecond() const;
+  double CurrentOldGenerationAllocationThroughputInBytesPerMillisecond() const;
 
   // Computes the context disposal rate in milliseconds. It takes the time
   // frame of the first recorded context disposal to the current time and
@@ -474,6 +365,13 @@ class GCTracer {
   // Discard all recorded survival events.
   void ResetSurvivalEvents();
 
+  // Returns the average speed of the events in the buffer.
+  // If the buffer is empty, the result is 0.
+  // Otherwise, the result is between 1 byte/ms and 1 GB/ms.
+  static double AverageSpeed(const RingBuffer<BytesAndDuration>& buffer);
+  static double AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
+                             const BytesAndDuration& initial, double time_ms);
+
  private:
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -486,12 +384,6 @@ class GCTracer {
   // Prints a line and also adds it to the heap's ring buffer so that
   // it can be included in later crash dumps.
   void Output(const char* format, ...) const;
-
-  // Compute the mean duration of the events in the given ring buffer.
-  double MeanDuration(const EventBuffer& events) const;
-
-  // Compute the max duration of the events in the given ring buffer.
-  double MaxDuration(const EventBuffer& events) const;
 
   void ClearMarkCompactStatistics() {
     cumulative_incremental_marking_steps_ = 0;
@@ -506,6 +398,16 @@ class GCTracer {
     cumulative_sweeping_duration_ = 0;
   }
 
+  double TotalExternalTime() const {
+    return current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES] +
+           current_.scopes[Scope::MC_EXTERNAL_EPILOGUE] +
+           current_.scopes[Scope::MC_EXTERNAL_PROLOGUE] +
+           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE] +
+           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE] +
+           current_.scopes[Scope::SCAVENGER_EXTERNAL_EPILOGUE] +
+           current_.scopes[Scope::SCAVENGER_EXTERNAL_PROLOGUE];
+  }
+
   // Pointer to the heap that owns this tracer.
   Heap* heap_;
 
@@ -518,28 +420,6 @@ class GCTracer {
 
   // Previous INCREMENTAL_MARK_COMPACTOR event.
   Event previous_incremental_mark_compactor_event_;
-
-  // RingBuffers for SCAVENGER events.
-  EventBuffer scavenger_events_;
-
-  // RingBuffers for MARK_COMPACTOR events.
-  EventBuffer mark_compactor_events_;
-
-  // RingBuffers for INCREMENTAL_MARK_COMPACTOR events.
-  EventBuffer incremental_mark_compactor_events_;
-
-  // RingBuffer for allocation events.
-  AllocationEventBuffer new_space_allocation_events_;
-  AllocationEventBuffer old_generation_allocation_events_;
-
-  // RingBuffer for context disposal events.
-  ContextDisposalEventBuffer context_disposal_events_;
-
-  // RingBuffer for compaction events.
-  CompactionEventBuffer compaction_events_;
-
-  // RingBuffer for survival events.
-  SurvivalEventBuffer survival_events_;
 
   // Cumulative number of incremental marking steps since creation of tracer.
   int cumulative_incremental_marking_steps_;
@@ -596,6 +476,20 @@ class GCTracer {
 
   // Counts how many tracers were started without stopping.
   int start_counter_;
+
+  // Separate timer used for --runtime_call_stats
+  RuntimeCallTimer timer_;
+
+  RingBuffer<BytesAndDuration> recorded_incremental_marking_steps_;
+  RingBuffer<BytesAndDuration> recorded_scavenges_total_;
+  RingBuffer<BytesAndDuration> recorded_scavenges_survived_;
+  RingBuffer<BytesAndDuration> recorded_compactions_;
+  RingBuffer<BytesAndDuration> recorded_mark_compacts_;
+  RingBuffer<BytesAndDuration> recorded_incremental_mark_compacts_;
+  RingBuffer<BytesAndDuration> recorded_new_generation_allocations_;
+  RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
+  RingBuffer<double> recorded_context_disposal_times_;
+  RingBuffer<double> recorded_survival_ratios_;
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };

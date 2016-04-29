@@ -224,29 +224,13 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Illegal redeclaration support.
 
-  // Set an expression node that will be executed when the scope is
-  // entered. We only keep track of one illegal redeclaration node per
-  // scope - the first one - so if you try to set it multiple times
-  // the additional requests will be silently ignored.
-  void SetIllegalRedeclaration(Expression* expression);
-
-  // Retrieve the illegal redeclaration expression. Do not call if the
-  // scope doesn't have an illegal redeclaration node.
-  Expression* GetIllegalRedeclaration();
-
-  // Check if the scope has (at least) one illegal redeclaration.
-  bool HasIllegalRedeclaration() const { return illegal_redecl_ != NULL; }
-
-  // For harmony block scoping mode: Check if the scope has conflicting var
+  // Check if the scope has conflicting var
   // declarations, i.e. a var declaration that has been hoisted from a nested
   // scope over a let binding of the same name.
   Declaration* CheckConflictingVarDeclarations();
 
   // ---------------------------------------------------------------------------
   // Scope-specific info.
-
-  // Inform the scope that the corresponding code contains a with statement.
-  void RecordWithStatement() { scope_contains_with_ = true; }
 
   // Inform the scope that the corresponding code contains an eval call.
   void RecordEvalCall() { scope_calls_eval_ = true; }
@@ -556,14 +540,7 @@ class Scope: public ZoneObject {
 
   Handle<ScopeInfo> GetScopeInfo(Isolate* isolate);
 
-  // Get the chain of nested scopes within this scope for the source statement
-  // position. The scopes will be added to the list from the outermost scope to
-  // the innermost scope. Only nested block, catch or with scopes are tracked
-  // and will be returned, but no inner function scopes.
-  void GetNestedScopeChain(Isolate* isolate, List<Handle<ScopeInfo> >* chain,
-                           int statement_position);
-
-  void CollectNonLocals(HashMap* non_locals);
+  Handle<StringSet> CollectNonLocals(Handle<StringSet> non_locals);
 
   // ---------------------------------------------------------------------------
   // Strict mode support.
@@ -646,15 +623,10 @@ class Scope: public ZoneObject {
   // Map of function names to lists of functions defined in sloppy blocks
   SloppyBlockFunctionMap sloppy_block_function_map_;
 
-  // Illegal redeclaration.
-  Expression* illegal_redecl_;
-
   // Scope-specific information computed during parsing.
   //
   // This scope is inside a 'with' of some outer scope.
   bool scope_inside_with_;
-  // This scope contains a 'with' statement.
-  bool scope_contains_with_;
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_;

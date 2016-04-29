@@ -36,6 +36,7 @@ class BytecodeExpectationsPrinter final {
         const_pool_type_(t),
         execute_(true),
         wrap_(true),
+        top_level_(false),
         test_function_name_(kDefaultTopFunctionName) {}
 
   void PrintExpectation(std::ostream& stream,  // NOLINT

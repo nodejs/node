@@ -29,13 +29,13 @@
   V(TestMemoryReducerSampleJsCalls)                       \
   V(TestSizeOfObjects)                                    \
   V(Regress587004)                                        \
+  V(Regress589413)                                        \
   V(WriteBarriersInCopyJSObject)
 
 #define HEAP_TEST(Name)                                                       \
   CcTest register_test_##Name(v8::internal::HeapTester::Test##Name, __FILE__, \
-                              #Name, NULL, true, true);                       \
+                              #Name, true, true);                             \
   void v8::internal::HeapTester::Test##Name()
-
 
 #define THREADED_HEAP_TEST(Name)                                             \
   RegisterThreadedTest register_##Name(v8::internal::HeapTester::Test##Name, \

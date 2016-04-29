@@ -15,10 +15,10 @@ namespace compiler {
 BranchElimination::BranchElimination(Editor* editor, JSGraph* js_graph,
                                      Zone* zone)
     : AdvancedReducer(editor),
+      jsgraph_(js_graph),
       node_conditions_(zone, js_graph->graph()->NodeCount()),
       zone_(zone),
       dead_(js_graph->graph()->NewNode(js_graph->common()->Dead())) {}
-
 
 BranchElimination::~BranchElimination() {}
 
@@ -27,6 +27,9 @@ Reduction BranchElimination::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kDead:
       return NoChange();
+    case IrOpcode::kDeoptimizeIf:
+    case IrOpcode::kDeoptimizeUnless:
+      return ReduceDeoptimizeConditional(node);
     case IrOpcode::kMerge:
       return ReduceMerge(node);
     case IrOpcode::kLoop:
@@ -76,6 +79,41 @@ Reduction BranchElimination::ReduceBranch(Node* node) {
   return TakeConditionsFromFirstControl(node);
 }
 
+Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kDeoptimizeIf ||
+         node->opcode() == IrOpcode::kDeoptimizeUnless);
+  bool condition_is_true = node->opcode() == IrOpcode::kDeoptimizeUnless;
+  Node* condition = NodeProperties::GetValueInput(node, 0);
+  Node* frame_state = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  ControlPathConditions const* conditions = node_conditions_.Get(control);
+  // If we do not know anything about the predecessor, do not propagate just
+  // yet because we will have to recompute anyway once we compute the
+  // predecessor.
+  if (conditions == nullptr) {
+    DCHECK_NULL(node_conditions_.Get(node));
+    return NoChange();
+  }
+  Maybe<bool> condition_value = conditions->LookupCondition(condition);
+  if (condition_value.IsJust()) {
+    // If we know the condition we can discard the branch.
+    if (condition_is_true == condition_value.FromJust()) {
+      // We don't to update the conditions here, because we're replacing with
+      // the {control} node that already contains the right information.
+      return Replace(control);
+    } else {
+      control = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                                 frame_state, effect, control);
+      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+      NodeProperties::MergeControlToEnd(graph(), common(), control);
+      Revisit(graph()->end());
+      return Replace(dead());
+    }
+  }
+  return UpdateConditions(
+      node, conditions->AddCondition(zone_, condition, condition_is_true));
+}
 
 Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
   // Add the condition to the list arriving from the input branch.
@@ -262,6 +300,12 @@ bool BranchElimination::ControlPathConditions::operator==(
   }
   UNREACHABLE();
   return false;
+}
+
+Graph* BranchElimination::graph() const { return jsgraph()->graph(); }
+
+CommonOperatorBuilder* BranchElimination::common() const {
+  return jsgraph()->common();
 }
 
 }  // namespace compiler

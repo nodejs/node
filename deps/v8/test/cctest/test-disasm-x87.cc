@@ -96,6 +96,7 @@ TEST(DisasmIa320) {
   __ nop();
   __ add(ebx, Immediate(12));
   __ nop();
+  __ adc(edx, Operand(ebx));
   __ adc(ecx, 12);
   __ adc(ecx, 1000);
   __ nop();
@@ -119,8 +120,10 @@ TEST(DisasmIa320) {
 
   __ nop();
   __ imul(edx, ecx);
-  __ shld(edx, ecx);
-  __ shrd(edx, ecx);
+  __ shld(edx, ecx, 10);
+  __ shld_cl(edx, ecx);
+  __ shrd(edx, ecx, 10);
+  __ shrd_cl(edx, ecx);
   __ bts(edx, ecx);
   __ bts(Operand(ebx, ecx, times_4, 0), ecx);
   __ nop();
@@ -214,14 +217,13 @@ TEST(DisasmIa320) {
   __ sar(Operand(ebx, ecx, times_4, 10000), 6);
   __ sar_cl(Operand(ebx, ecx, times_4, 10000));
   __ sbb(edx, Operand(ebx, ecx, times_4, 10000));
-  __ shld(edx, Operand(ebx, ecx, times_4, 10000));
   __ shl(edx, 1);
   __ shl(edx, 6);
   __ shl_cl(edx);
   __ shl(Operand(ebx, ecx, times_4, 10000), 1);
   __ shl(Operand(ebx, ecx, times_4, 10000), 6);
   __ shl_cl(Operand(ebx, ecx, times_4, 10000));
-  __ shrd(edx, Operand(ebx, ecx, times_4, 10000));
+  __ shrd_cl(Operand(ebx, ecx, times_4, 10000), edx);
   __ shr(edx, 1);
   __ shr(edx, 7);
   __ shr_cl(edx);
@@ -242,7 +244,7 @@ TEST(DisasmIa320) {
   __ cmp(ebx, 12345);
   __ cmp(ebx, Immediate(12));
   __ cmp(Operand(edx, ecx, times_4, 10000), Immediate(12));
-  __ cmpb(eax, 100);
+  __ cmpb(eax, Immediate(100));
 
   __ or_(ebx, 12345);
 
@@ -266,7 +268,7 @@ TEST(DisasmIa320) {
   __ test(edx, Operand(ebx, ecx, times_8, 10000));
   __ test(Operand(esi, edi, times_1, -20000000), Immediate(300000000));
   __ test_b(edx, Operand(ecx, ebx, times_2, 1000));
-  __ test_b(Operand(eax, -20), 0x9A);
+  __ test_b(Operand(eax, -20), Immediate(0x9A));
   __ nop();
 
   __ xor_(edx, 12345);

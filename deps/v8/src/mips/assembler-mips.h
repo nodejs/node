@@ -528,7 +528,11 @@ class Assembler : public AssemblerBase {
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
+#ifdef _MIPS_ARCH_MIPS32R6
+  static const int kCallTargetAddressOffset = 3 * kInstrSize;
+#else
   static const int kCallTargetAddressOffset = 4 * kInstrSize;
+#endif
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
@@ -538,7 +542,11 @@ class Assembler : public AssemblerBase {
   // register.
   static const int kPcLoadDelta = 4;
 
+#ifdef _MIPS_ARCH_MIPS32R6
+  static const int kDebugBreakSlotInstructions = 3;
+#else
   static const int kDebugBreakSlotInstructions = 4;
+#endif
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
 
@@ -749,9 +757,6 @@ class Assembler : public AssemblerBase {
   void srav(Register rt, Register rd, Register rs);
   void rotr(Register rd, Register rt, uint16_t sa);
   void rotrv(Register rd, Register rt, Register rs);
-
-  // Address computing instructions with shift.
-  void lsa(Register rd, Register rt, Register rs, uint8_t sa);
 
   // ------------Memory-instructions-------------
 
@@ -1048,7 +1053,9 @@ class Assembler : public AssemblerBase {
   void dp(uintptr_t data) { dd(data); }
   void dd(Label* label);
 
-  PositionsRecorder* positions_recorder() { return &positions_recorder_; }
+  AssemblerPositionsRecorder* positions_recorder() {
+    return &positions_recorder_;
+  }
 
   // Postpone the generation of the trampoline pool for the specified number of
   // instructions.
@@ -1082,6 +1089,7 @@ class Assembler : public AssemblerBase {
   static bool IsBnezc(Instr instr);
   static bool IsBeqc(Instr instr);
   static bool IsBnec(Instr instr);
+  static bool IsJicOrJialc(Instr instr);
 
   static bool IsJump(Instr instr);
   static bool IsJ(Instr instr);
@@ -1121,12 +1129,20 @@ class Assembler : public AssemblerBase {
   static int32_t GetBranchOffset(Instr instr);
   static bool IsLw(Instr instr);
   static int16_t GetLwOffset(Instr instr);
+  static int16_t GetJicOrJialcOffset(Instr instr);
+  static int16_t GetLuiOffset(Instr instr);
   static Instr SetLwOffset(Instr instr, int16_t offset);
 
   static bool IsSw(Instr instr);
   static Instr SetSwOffset(Instr instr, int16_t offset);
   static bool IsAddImmediate(Instr instr);
   static Instr SetAddImmediateOffset(Instr instr, int16_t offset);
+  static uint32_t CreateTargetAddress(Instr instr_lui, Instr instr_jic);
+  static void UnpackTargetAddress(uint32_t address, int16_t& lui_offset,
+                                  int16_t& jic_offset);
+  static void UnpackTargetAddressUnsigned(uint32_t address,
+                                          uint32_t& lui_offset,
+                                          uint32_t& jic_offset);
 
   static bool IsAndImmediate(Instr instr);
   static bool IsEmittedConstant(Instr instr);
@@ -1143,6 +1159,9 @@ class Assembler : public AssemblerBase {
   bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
 
  protected:
+  // Load Scaled Address instruction.
+  void lsa(Register rd, Register rt, Register rs, uint8_t sa);
+
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
   // the relocation info.
@@ -1213,6 +1232,8 @@ class Assembler : public AssemblerBase {
 
   inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
 
+  inline void CheckBuffer();
+
  private:
   inline static void set_target_internal_reference_encoded_at(Address pc,
                                                               Address target);
@@ -1259,7 +1280,6 @@ class Assembler : public AssemblerBase {
   enum class CompactBranchType : bool { NO = false, COMPACT_BRANCH = true };
 
   // Code emission.
-  inline void CheckBuffer();
   void GrowBuffer();
   inline void emit(Instr x,
                    CompactBranchType is_compact_branch = CompactBranchType::NO);
@@ -1406,7 +1426,11 @@ class Assembler : public AssemblerBase {
   // branch instruction generation, where we use jump instructions rather
   // than regular branch instructions.
   bool trampoline_emitted_;
+#ifdef _MIPS_ARCH_MIPS32R6
+  static const int kTrampolineSlotsSize = 2 * kInstrSize;
+#else
   static const int kTrampolineSlotsSize = 4 * kInstrSize;
+#endif
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
   static const int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
   static const int kInvalidSlotPos = -1;
@@ -1427,8 +1451,8 @@ class Assembler : public AssemblerBase {
   friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
 
-  PositionsRecorder positions_recorder_;
-  friend class PositionsRecorder;
+  AssemblerPositionsRecorder positions_recorder_;
+  friend class AssemblerPositionsRecorder;
   friend class EnsureSpace;
 };
 

@@ -612,6 +612,8 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
       Handle<JSObject> tmp = Run<JSObject>(new_script);
       CHECK_EQ(initial_map->IsInobjectSlackTrackingInProgress(),
                IsObjectShrinkable(*tmp));
+      CHECK_EQ(Map::kSlackTrackingCounterStart - i - 1,
+               initial_map->construction_counter());
     }
     CHECK(!initial_map->IsInobjectSlackTrackingInProgress());
     CHECK(!IsObjectShrinkable(*obj));
