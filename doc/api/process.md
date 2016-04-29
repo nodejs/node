@@ -44,6 +44,35 @@ process.on('exit', (code) => {
   console.log('About to exit with code:', code);
 });
 ```
+## Event: 'exitingSoon'
+
+Emitted when `process.exit()` is called using the optional `timeout` argument.
+
+Calling `process.exit()` with the optional `timeout` creates an internal timer
+that will exit the Node.js process after the given period of time (in
+milliseconds). Each `exitingSoon` listener registered at the time the 
+`process.exit()` was called will be invoked and passed a callback that must be
+called when the listener has completed it's work and is ready for the process
+to exit. The process will exit either when all of the listeners have called
+the callback indicating that they are ready or when the internal exit timer
+is triggered, whichever comes first.
+
+```js
+// Some ongoing task that would normally keep the event loop active
+const timer1 = setInterval(() => {}, 1000);
+
+// Register an exitingSoon handler to clean up before exit
+process.on('exitingSoon', (ready) => {
+  setImmediate(() => {
+    // Clean up resources
+    clearInterval(timer1);
+    // Notify that we're done
+    ready();
+  });
+});
+
+process.exit(0, 10000);
+```
 
 ## Event: 'message'
 
@@ -704,7 +733,7 @@ Example:
 ```
 
 
-## process.exit([code])
+## process.exit([code][, timeout])
 
 Ends the process with the specified `code`.  If omitted, exit uses the
 'success' code `0`.
@@ -717,6 +746,32 @@ process.exit(1);
 
 The shell that executed Node.js should see the exit code as 1.
 
+When the optional `timeout` value is specified, an internal timer will be
+created that will end the process after `timeout` milliseconds. Any listeners
+registered for the `'exitingSoon'` event will be invoked and will be passed
+a callback that should be called when the listener is ready for the exit to
+proceed. The process will exit either when all listeners have signaled that
+they are ready (by invoking the callback) or when the exit timer expires,
+whichever comes first.
+
+The `timeout` argument is ignored if it is not a positive, finite number.
+
+```js
+// Some ongoing task that would normally keep the event loop active
+const timer1 = setInterval(() => {}, 1000);
+
+// Register an exitingSoon handler to clean up before exit
+process.on('exitingSoon', (ready) => {
+  setImmediate(() => {
+    // Clean up resources
+    clearInterval(timer1);
+    // Notify that we're done
+    ready();
+  });
+});
+
+process.exit(0, 10000);
+```
 
 ## process.exitCode
 
