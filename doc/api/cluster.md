@@ -305,7 +305,7 @@ this value.
 ```js
 cluster.on('exit', (worker, code, signal) => {
   if (worker.exitedAfterDisconnect === true) {
-    console.log('Oh, it was just voluntary\' – no need to worry').
+    console.log('Oh, it was just voluntary – no need to worry');
   }
 });
 
@@ -408,7 +408,7 @@ this value.
 ```js
 cluster.on('exit', (worker, code, signal) => {
   if (worker.suicide === true) {
-    console.log('Oh, it was just voluntary\' – no need to worry').
+    console.log('Oh, it was just voluntary – no need to worry');
   }
 });
 
