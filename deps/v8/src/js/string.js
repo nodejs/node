@@ -15,12 +15,13 @@ var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
+var IsRegExp;
 var MakeRangeError;
 var MakeTypeError;
 var MaxSimple;
 var MinSimple;
+var RegExpInitialize;
 var matchSymbol = utils.ImportNow("match_symbol");
-var RegExpExecNoTests;
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
@@ -28,11 +29,12 @@ var splitSymbol = utils.ImportNow("split_symbol");
 utils.Import(function(from) {
   ArrayIndexOf = from.ArrayIndexOf;
   ArrayJoin = from.ArrayJoin;
+  IsRegExp = from.IsRegExp;
   MakeRangeError = from.MakeRangeError;
   MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  RegExpExecNoTests = from.RegExpExecNoTests;
+  RegExpInitialize = from.RegExpInitialize;
 });
 
 //-------------------------------------------------------------------
@@ -159,9 +161,10 @@ function StringMatchJS(pattern) {
 
   var subject = TO_STRING(this);
 
-  // Non-regexp argument.
-  var regexp = new GlobalRegExp(pattern);
-  return RegExpExecNoTests(regexp, subject, 0);
+  // Equivalent to RegExpCreate (ES#sec-regexpcreate)
+  var regexp = %_NewObject(GlobalRegExp, GlobalRegExp);
+  RegExpInitialize(regexp, pattern);
+  return regexp[matchSymbol](subject);
 }
 
 
@@ -355,7 +358,10 @@ function StringSearch(pattern) {
   }
 
   var subject = TO_STRING(this);
-  var regexp = new GlobalRegExp(pattern);
+
+  // Equivalent to RegExpCreate (ES#sec-regexpcreate)
+  var regexp = %_NewObject(GlobalRegExp, GlobalRegExp);
+  RegExpInitialize(regexp, pattern);
   return %_Call(regexp[searchSymbol], regexp, subject);
 }
 
@@ -701,7 +707,7 @@ function StringStartsWith(searchString, position) {  // length == 1
 
   var s = TO_STRING(this);
 
-  if (IS_REGEXP(searchString)) {
+  if (IsRegExp(searchString)) {
     throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.startsWith");
   }
 
@@ -727,7 +733,7 @@ function StringEndsWith(searchString, position) {  // length == 1
 
   var s = TO_STRING(this);
 
-  if (IS_REGEXP(searchString)) {
+  if (IsRegExp(searchString)) {
     throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.endsWith");
   }
 
@@ -754,7 +760,7 @@ function StringIncludes(searchString, position) {  // length == 1
 
   var string = TO_STRING(this);
 
-  if (IS_REGEXP(searchString)) {
+  if (IsRegExp(searchString)) {
     throw MakeTypeError(kFirstArgumentNotRegExp, "String.prototype.includes");
   }
 

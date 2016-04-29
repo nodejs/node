@@ -23,10 +23,12 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
 
   class InterpreterAssemblerForTest final : public InterpreterAssembler {
    public:
-    InterpreterAssemblerForTest(InterpreterAssemblerTest* test,
-                                Bytecode bytecode)
-        : InterpreterAssembler(test->isolate(), test->zone(), bytecode) {}
-    ~InterpreterAssemblerForTest() override {}
+    InterpreterAssemblerForTest(
+        InterpreterAssemblerTest* test, Bytecode bytecode,
+        OperandScale operand_scale = OperandScale::kSingle)
+        : InterpreterAssembler(test->isolate(), test->zone(), bytecode,
+                               operand_scale) {}
+    ~InterpreterAssemblerForTest() override;
 
     Matcher<compiler::Node*> IsLoad(
         const Matcher<compiler::LoadRepresentation>& rep_matcher,
@@ -38,10 +40,17 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
         const Matcher<compiler::Node*>& index_matcher,
         const Matcher<compiler::Node*>& value_matcher);
 
-    Matcher<compiler::Node*> IsBytecodeOperand(int offset);
-    Matcher<compiler::Node*> IsBytecodeOperandSignExtended(int offset);
-    Matcher<compiler::Node*> IsBytecodeOperandShort(int offset);
-    Matcher<compiler::Node*> IsBytecodeOperandShortSignExtended(int offset);
+    Matcher<compiler::Node*> IsUnsignedByteOperand(int offset);
+    Matcher<compiler::Node*> IsSignedByteOperand(int offset);
+    Matcher<compiler::Node*> IsUnsignedShortOperand(int offset);
+    Matcher<compiler::Node*> IsSignedShortOperand(int offset);
+    Matcher<compiler::Node*> IsUnsignedQuadOperand(int offset);
+    Matcher<compiler::Node*> IsSignedQuadOperand(int offset);
+
+    Matcher<compiler::Node*> IsSignedOperand(int offset,
+                                             OperandSize operand_size);
+    Matcher<compiler::Node*> IsUnsignedOperand(int offset,
+                                               OperandSize operand_size);
 
     using InterpreterAssembler::graph;
 

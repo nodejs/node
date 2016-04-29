@@ -6,13 +6,13 @@
 
 function Foo() { }
 
-assertThrows(function() { _WASMEXP_.verifyFunction(); })
-assertThrows(function() { _WASMEXP_.verifyFunction(0); })
-assertThrows(function() { _WASMEXP_.verifyFunction("s"); })
-assertThrows(function() { _WASMEXP_.verifyFunction(undefined); })
-assertThrows(function() { _WASMEXP_.verifyFunction(1.1); })
-assertThrows(function() { _WASMEXP_.verifyFunction(1/0); })
-assertThrows(function() { _WASMEXP_.verifyFunction(null); })
-assertThrows(function() { _WASMEXP_.verifyFunction(new Foo()); })
-assertThrows(function() { _WASMEXP_.verifyFunction(new ArrayBuffer(0)); })
-assertThrows(function() { _WASMEXP_.verifyFunction(new ArrayBuffer(140000)); })
+assertThrows(function() { Wasm.verifyFunction(); })
+assertThrows(function() { Wasm.verifyFunction(0); })
+assertThrows(function() { Wasm.verifyFunction("s"); })
+assertThrows(function() { Wasm.verifyFunction(undefined); })
+assertThrows(function() { Wasm.verifyFunction(1.1); })
+assertThrows(function() { Wasm.verifyFunction(1/0); })
+assertThrows(function() { Wasm.verifyFunction(null); })
+assertThrows(function() { Wasm.verifyFunction(new Foo()); })
+assertThrows(function() { Wasm.verifyFunction(new ArrayBuffer(0)); })
+assertThrows(function() { Wasm.verifyFunction(new ArrayBuffer(140000)); })

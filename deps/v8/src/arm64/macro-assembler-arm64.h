@@ -788,6 +788,9 @@ class MacroAssembler : public Assembler {
   // If emit_debug_code() is false, this emits no code.
   void AssertStackConsistency();
 
+  // Emits a runtime assert that the CSP is aligned.
+  void AssertCspAligned();
+
   // Preserve the callee-saved registers (as defined by AAPCS64).
   //
   // Higher-numbered registers are pushed before lower-numbered registers, and
@@ -895,6 +898,7 @@ class MacroAssembler : public Assembler {
   // This is required for compatibility with architecture independant code.
   // Remove if not needed.
   inline void Move(Register dst, Register src) { Mov(dst, src); }
+  inline void Move(Register dst, Handle<Object> x) { LoadObject(dst, x); }
   inline void Move(Register dst, Smi* src) { Mov(dst, src); }
 
   void LoadInstanceDescriptors(Register map,
@@ -986,6 +990,7 @@ class MacroAssembler : public Assembler {
 
   // Abort execution if argument is not a number (heap number or smi).
   void AssertNumber(Register value);
+  void AssertNotNumber(Register value);
 
   void JumpIfHeapNumber(Register object, Label* on_heap_number,
                         SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
@@ -1164,6 +1169,15 @@ class MacroAssembler : public Assembler {
   static int CallSize(Handle<Code> code,
                       RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
                       TypeFeedbackId ast_id = TypeFeedbackId::None());
+
+  // Removes current frame and its arguments from the stack preserving
+  // the arguments and a return address pushed to the stack for the next call.
+  // Both |callee_args_count| and |caller_args_count_reg| do not include
+  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // is trashed.
+  void PrepareForTailCall(const ParameterCount& callee_args_count,
+                          Register caller_args_count_reg, Register scratch0,
+                          Register scratch1);
 
   // Registers used through the invocation chain are hard-coded.
   // We force passing the parameters to ensure the contracts are correctly
@@ -1621,7 +1635,7 @@ class MacroAssembler : public Assembler {
   void ExitFrameRestoreFPRegs();
 
   // Generates function and stub prologue code.
-  void StubPrologue();
+  void StubPrologue(StackFrame::Type type, int frame_slots);
   void Prologue(bool code_pre_aging);
 
   // Enter exit frame. Exit frames are used when calling C code from generated

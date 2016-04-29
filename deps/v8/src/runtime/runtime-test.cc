@@ -398,7 +398,7 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   DCHECK(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  if (!Compiler::Compile(func, KEEP_EXCEPTION)) {
+  if (!Compiler::Compile(func, Compiler::KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
   OFStream os(stdout);

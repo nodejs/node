@@ -20,7 +20,7 @@ namespace compiler {
 void GraphReplayPrinter::PrintReplay(Graph* graph) {
   GraphReplayPrinter replay;
   PrintF("  Node* nil = graph()->NewNode(common()->Dead());\n");
-  Zone zone;
+  Zone zone(graph->zone()->allocator());
   AllNodes nodes(&zone, graph);
 
   // Allocate the nodes first.

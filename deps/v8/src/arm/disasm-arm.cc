@@ -604,6 +604,26 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
           Print("s");
         }
         return 4;
+      } else if (format[1] == 'p') {
+        if (format[8] == '_') {  // 'spec_reg_fields
+          DCHECK(STRING_STARTS_WITH(format, "spec_reg_fields"));
+          Print("_");
+          int mask = instr->Bits(19, 16);
+          if (mask == 0) Print("(none)");
+          if ((mask & 0x8) != 0) Print("f");
+          if ((mask & 0x4) != 0) Print("s");
+          if ((mask & 0x2) != 0) Print("x");
+          if ((mask & 0x1) != 0) Print("c");
+          return 15;
+        } else {  // 'spec_reg
+          DCHECK(STRING_STARTS_WITH(format, "spec_reg"));
+          if (instr->Bit(22) == 0) {
+            Print("CPSR");
+          } else {
+            Print("SPSR");
+          }
+          return 8;
+        }
       }
       // 's: S field of data processing instructions
       if (instr->HasS()) {
@@ -822,7 +842,13 @@ void Decoder::DecodeType01(Instruction* instr) {
       return;
     }
   } else if ((type == 0) && instr->IsMiscType0()) {
-    if (instr->Bits(22, 21) == 1) {
+    if ((instr->Bits(27, 23) == 2) && (instr->Bits(21, 20) == 2) &&
+        (instr->Bits(15, 4) == 0xf00)) {
+      Format(instr, "msr'cond 'spec_reg'spec_reg_fields, 'rm");
+    } else if ((instr->Bits(27, 23) == 2) && (instr->Bits(21, 20) == 0) &&
+               (instr->Bits(11, 0) == 0)) {
+      Format(instr, "mrs'cond 'rd, 'spec_reg");
+    } else if (instr->Bits(22, 21) == 1) {
       switch (instr->BitField(7, 4)) {
         case BX:
           Format(instr, "bx'cond 'rm");
@@ -1404,7 +1430,7 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
         if (instr->SzValue() == 0x1) {
           Format(instr, "vmov'cond.f64 'Dd, 'd");
         } else {
-          Unknown(instr);  // Not used by V8.
+          Format(instr, "vmov'cond.f32 'Sd, 'd");
         }
       } else if (((instr->Opc2Value() == 0x6)) && instr->Opc3Value() == 0x3) {
         // vrintz - round towards zero (truncate)

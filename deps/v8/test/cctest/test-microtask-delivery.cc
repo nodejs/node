@@ -105,7 +105,7 @@ TEST(MicrotaskPerIsolateState) {
   HarmonyIsolate isolate;
   v8::HandleScope scope(isolate.GetIsolate());
   LocalContext context1(isolate.GetIsolate());
-  isolate.GetIsolate()->SetAutorunMicrotasks(false);
+  isolate.GetIsolate()->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   CompileRun(
       "var obj = { calls: 0 };");
   v8::Local<v8::Value> obj = CompileRun("obj");

@@ -142,6 +142,7 @@ class OS {
   static FILE* FOpen(const char* path, const char* mode);
   static bool Remove(const char* path);
 
+  static char DirectorySeparator();
   static bool isDirectorySeparator(const char ch);
 
   // Opens a temporary file, the file is auto removed on close.
@@ -289,6 +290,10 @@ class VirtualMemory {
   // is aligned per alignment. This may not be at the position returned
   // by address().
   VirtualMemory(size_t size, size_t alignment);
+
+  // Construct a virtual memory by assigning it some already mapped address
+  // and size.
+  VirtualMemory(void* address, size_t size) : address_(address), size_(size) {}
 
   // Releases the reserved memory, if any, controlled by this VirtualMemory
   // object.

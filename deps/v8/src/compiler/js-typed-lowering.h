@@ -62,6 +62,8 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
   Reduction ReduceJSToBoolean(Node* node);
+  Reduction ReduceJSToInteger(Node* node);
+  Reduction ReduceJSToLength(Node* node);
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToNumber(Node* node);
   Reduction ReduceJSToStringInput(Node* input);

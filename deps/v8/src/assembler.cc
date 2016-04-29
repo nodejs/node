@@ -60,7 +60,8 @@
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/simulator.h"  // For flushing instruction cache.
-#include "src/snapshot/serialize.h"
+#include "src/snapshot/serializer-common.h"
+#include "src/wasm/wasm-external-refs.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/assembler-ia32-inl.h"  // NOLINT
@@ -76,6 +77,8 @@
 #include "src/mips/assembler-mips-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/mips64/assembler-mips64-inl.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/s390/assembler-s390-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/assembler-x87-inl.h"  // NOLINT
 #else
@@ -98,6 +101,8 @@
 #include "src/regexp/mips/regexp-macro-assembler-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/regexp/mips64/regexp-macro-assembler-mips64.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/regexp/s390/regexp-macro-assembler-s390.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
 #include "src/regexp/x87/regexp-macro-assembler-x87.h"  // NOLINT
 #else  // Unknown architecture.
@@ -833,10 +838,14 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "debug break slot at return";
     case DEBUG_BREAK_SLOT_AT_CALL:
       return "debug break slot at call";
+    case DEBUG_BREAK_SLOT_AT_TAIL_CALL:
+      return "debug break slot at tail call";
     case CODE_AGE_SEQUENCE:
       return "code age sequence";
     case GENERATOR_CONTINUATION:
       return "generator continuation";
+    case WASM_MEMORY_REFERENCE:
+      return "wasm memory reference";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -929,7 +938,9 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEBUG_BREAK_SLOT_AT_POSITION:
     case DEBUG_BREAK_SLOT_AT_RETURN:
     case DEBUG_BREAK_SLOT_AT_CALL:
+    case DEBUG_BREAK_SLOT_AT_TAIL_CALL:
     case GENERATOR_CONTINUATION:
+    case WASM_MEMORY_REFERENCE:
     case NONE32:
     case NONE64:
       break;
@@ -1147,66 +1158,199 @@ ExternalReference ExternalReference::compute_output_frames_function(
       Redirect(isolate, FUNCTION_ADDR(Deoptimizer::ComputeOutputFrames)));
 }
 
-static void f32_trunc_wrapper(float* param) { *param = truncf(*param); }
-
-ExternalReference ExternalReference::f32_trunc_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_trunc_wrapper)));
-}
-
-static void f32_floor_wrapper(float* param) { *param = floorf(*param); }
-
-ExternalReference ExternalReference::f32_floor_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_floor_wrapper)));
-}
-
-static void f32_ceil_wrapper(float* param) { *param = ceilf(*param); }
-
-ExternalReference ExternalReference::f32_ceil_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_ceil_wrapper)));
-}
-
-static void f32_nearest_int_wrapper(float* param) {
-  *param = nearbyintf(*param);
-}
-
-ExternalReference ExternalReference::f32_nearest_int_wrapper_function(
-    Isolate* isolate) {
+ExternalReference ExternalReference::wasm_f32_trunc(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(f32_nearest_int_wrapper)));
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_trunc_wrapper)));
 }
-
-static void f64_trunc_wrapper(double* param) { *param = trunc(*param); }
-
-ExternalReference ExternalReference::f64_trunc_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_trunc_wrapper)));
-}
-
-static void f64_floor_wrapper(double* param) { *param = floor(*param); }
-
-ExternalReference ExternalReference::f64_floor_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_floor_wrapper)));
-}
-
-static void f64_ceil_wrapper(double* param) { *param = ceil(*param); }
-
-ExternalReference ExternalReference::f64_ceil_wrapper_function(
-    Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_ceil_wrapper)));
-}
-
-static void f64_nearest_int_wrapper(double* param) {
-  *param = nearbyint(*param);
-}
-
-ExternalReference ExternalReference::f64_nearest_int_wrapper_function(
-    Isolate* isolate) {
+ExternalReference ExternalReference::wasm_f32_floor(Isolate* isolate) {
   return ExternalReference(
-      Redirect(isolate, FUNCTION_ADDR(f64_nearest_int_wrapper)));
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_floor_wrapper)));
+}
+ExternalReference ExternalReference::wasm_f32_ceil(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_ceil_wrapper)));
+}
+ExternalReference ExternalReference::wasm_f32_nearest_int(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f32_nearest_int_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_trunc(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_trunc_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_floor(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_floor_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_ceil(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_ceil_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_f64_nearest_int(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::f64_nearest_int_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_int64_to_float32(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::int64_to_float32_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_uint64_to_float32(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_to_float32_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_int64_to_float64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::int64_to_float64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_uint64_to_float64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_to_float64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_float32_to_int64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::float32_to_int64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_float32_to_uint64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::float32_to_uint64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_float64_to_int64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::float64_to_int64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_float64_to_uint64(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::float64_to_uint64_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_int64_div(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::int64_div_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_int64_mod(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::int64_mod_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_uint64_div(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_div_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_uint64_mod(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::uint64_mod_wrapper)));
+}
+
+static void f64_acos_wrapper(double* param) { *param = std::acos(*param); }
+
+ExternalReference ExternalReference::f64_acos_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_acos_wrapper)));
+}
+
+static void f64_asin_wrapper(double* param) { *param = std::asin(*param); }
+
+ExternalReference ExternalReference::f64_asin_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_asin_wrapper)));
+}
+
+static void f64_atan_wrapper(double* param) { *param = std::atan(*param); }
+
+ExternalReference ExternalReference::f64_atan_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_atan_wrapper)));
+}
+
+static void f64_cos_wrapper(double* param) { *param = std::cos(*param); }
+
+ExternalReference ExternalReference::f64_cos_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_cos_wrapper)));
+}
+
+static void f64_sin_wrapper(double* param) { *param = std::sin(*param); }
+
+ExternalReference ExternalReference::f64_sin_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_sin_wrapper)));
+}
+
+static void f64_tan_wrapper(double* param) { *param = std::tan(*param); }
+
+ExternalReference ExternalReference::f64_tan_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_tan_wrapper)));
+}
+
+static void f64_exp_wrapper(double* param) { *param = std::exp(*param); }
+
+ExternalReference ExternalReference::f64_exp_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_exp_wrapper)));
+}
+
+static void f64_log_wrapper(double* param) { *param = std::log(*param); }
+
+ExternalReference ExternalReference::f64_log_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_log_wrapper)));
+}
+
+static void f64_pow_wrapper(double* param0, double* param1) {
+  *param0 = power_double_double(*param0, *param1);
+}
+
+ExternalReference ExternalReference::f64_pow_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_pow_wrapper)));
+}
+
+static void f64_atan2_wrapper(double* param0, double* param1) {
+  double x = *param0;
+  double y = *param1;
+  // TODO(bradnelson): Find a good place to put this to share
+  // with the same code in src/runtime/runtime-math.cc
+  static const double kPiDividedBy4 = 0.78539816339744830962;
+  if (std::isinf(x) && std::isinf(y)) {
+    // Make sure that the result in case of two infinite arguments
+    // is a multiple of Pi / 4. The sign of the result is determined
+    // by the first argument (x) and the sign of the second argument
+    // determines the multiplier: one or three.
+    int multiplier = (x < 0) ? -1 : 1;
+    if (y < 0) multiplier *= 3;
+    *param0 = multiplier * kPiDividedBy4;
+  } else {
+    *param0 = std::atan2(x, y);
+  }
+}
+
+ExternalReference ExternalReference::f64_atan2_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_atan2_wrapper)));
+}
+
+static void f64_mod_wrapper(double* param0, double* param1) {
+  *param0 = modulo(*param0, *param1);
+}
+
+ExternalReference ExternalReference::f64_mod_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_mod_wrapper)));
 }
 
 ExternalReference ExternalReference::log_enter_external_function(
@@ -1261,12 +1405,6 @@ ExternalReference ExternalReference::address_of_regexp_stack_limit(
     Isolate* isolate) {
   return ExternalReference(isolate->regexp_stack()->limit_address());
 }
-
-
-ExternalReference ExternalReference::new_space_start(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->NewSpaceStart());
-}
-
 
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
   return ExternalReference(isolate->heap()->store_buffer_top_address());
@@ -1404,6 +1542,8 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
 #elif V8_TARGET_ARCH_MIPS64
   function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
+#elif V8_TARGET_ARCH_S390
+  function = FUNCTION_ADDR(RegExpMacroAssemblerS390::CheckStackGuardState);
 #elif V8_TARGET_ARCH_X87
   function = FUNCTION_ADDR(RegExpMacroAssemblerX87::CheckStackGuardState);
 #else
@@ -1489,6 +1629,10 @@ ExternalReference ExternalReference::cpu_features() {
   return ExternalReference(&CpuFeatures::supported_);
 }
 
+ExternalReference ExternalReference::is_tail_call_elimination_enabled_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->is_tail_call_elimination_enabled_address());
+}
 
 ExternalReference ExternalReference::debug_is_active_address(
     Isolate* isolate) {
@@ -1559,34 +1703,12 @@ double power_double_int(double x, int y) {
 
 
 double power_double_double(double x, double y) {
-#if (defined(__MINGW64_VERSION_MAJOR) &&                              \
-     (!defined(__MINGW64_VERSION_RC) || __MINGW64_VERSION_RC < 1)) || \
-    defined(V8_OS_AIX)
-  // MinGW64 and AIX have a custom implementation for pow.  This handles certain
-  // special cases that are different.
-  if ((x == 0.0 || std::isinf(x)) && y != 0.0 && std::isfinite(y)) {
-    double f;
-    double result = ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
-    /* retain sign if odd integer exponent */
-    return ((std::modf(y, &f) == 0.0) && (static_cast<int64_t>(y) & 1))
-               ? copysign(result, x)
-               : result;
-  }
-
-  if (x == 2.0) {
-    int y_int = static_cast<int>(y);
-    if (y == y_int) {
-      return std::ldexp(1.0, y_int);
-    }
-  }
-#endif
-
   // The checks for special cases can be dropped in ia32 because it has already
   // been done in generated code before bailing out here.
   if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  return std::pow(x, y);
+  return Pow(x, y);
 }
 
 
@@ -1648,8 +1770,7 @@ std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
   return os;
 }
 
-
-void PositionsRecorder::RecordPosition(int pos) {
+void AssemblerPositionsRecorder::RecordPosition(int pos) {
   DCHECK(pos != RelocInfo::kNoPosition);
   DCHECK(pos >= 0);
   state_.current_position = pos;
@@ -1659,8 +1780,7 @@ void PositionsRecorder::RecordPosition(int pos) {
                                                  pos));
 }
 
-
-void PositionsRecorder::RecordStatementPosition(int pos) {
+void AssemblerPositionsRecorder::RecordStatementPosition(int pos) {
   DCHECK(pos != RelocInfo::kNoPosition);
   DCHECK(pos >= 0);
   state_.current_statement_position = pos;
@@ -1671,8 +1791,7 @@ void PositionsRecorder::RecordStatementPosition(int pos) {
                      pos));
 }
 
-
-bool PositionsRecorder::WriteRecordedPositions() {
+bool AssemblerPositionsRecorder::WriteRecordedPositions() {
   bool written = false;
 
   // Write the statement position if it is different from what was written last

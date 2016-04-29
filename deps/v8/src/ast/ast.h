@@ -198,9 +198,7 @@ class AstNode: public ZoneObject {
 
 #ifdef DEBUG
   void PrettyPrint(Isolate* isolate);
-  void PrettyPrint();
   void Print(Isolate* isolate);
-  void Print();
 #endif  // DEBUG
 
   // Type testing & conversion functions overridden by concrete subclasses.
@@ -332,8 +330,9 @@ class Expression : public AstNode {
   // True iff the expression is the null literal.
   bool IsNullLiteral() const;
 
-  // True if we can prove that the expression is the undefined literal.
-  bool IsUndefinedLiteral(Isolate* isolate) const;
+  // True if we can prove that the expression is the undefined literal. Note
+  // that this also checks for loads of the global "undefined" variable.
+  bool IsUndefinedLiteral() const;
 
   // True iff the expression is a valid target for an assignment.
   bool IsValidReferenceExpressionOrThis() const;
@@ -792,10 +791,6 @@ class ForEachStatement : public IterationStatement {
   void set_each(Expression* e) { each_ = e; }
   void set_subject(Expression* e) { subject_ = e; }
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override;
-  FeedbackVectorSlot EachFeedbackSlot() const { return each_slot_; }
-
   static const char* VisitModeString(VisitMode mode) {
     return mode == ITERATE ? "for-of" : "for-in";
   }
@@ -807,7 +802,6 @@ class ForEachStatement : public IterationStatement {
  private:
   Expression* each_;
   Expression* subject_;
-  FeedbackVectorSlot each_slot_;
 };
 
 
@@ -821,11 +815,8 @@ class ForInStatement final : public ForEachStatement {
 
   // Type feedback information.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override {
-    ForEachStatement::AssignFeedbackVectorSlots(isolate, spec, cache);
-    for_in_feedback_slot_ = spec->AddGeneralSlot();
-  }
-
+                                 FeedbackVectorSlotCache* cache) override;
+  FeedbackVectorSlot EachFeedbackSlot() const { return each_slot_; }
   FeedbackVectorSlot ForInFeedbackSlot() {
     DCHECK(!for_in_feedback_slot_.IsInvalid());
     return for_in_feedback_slot_;
@@ -854,6 +845,7 @@ class ForInStatement final : public ForEachStatement {
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   ForInType for_in_type_;
+  FeedbackVectorSlot each_slot_;
   FeedbackVectorSlot for_in_feedback_slot_;
 };
 
@@ -1191,18 +1183,33 @@ class TryCatchStatement final : public TryStatement {
   Block* catch_block() const { return catch_block_; }
   void set_catch_block(Block* b) { catch_block_ = b; }
 
+  // The clear_pending_message flag indicates whether or not to clear the
+  // isolate's pending exception message before executing the catch_block.  In
+  // the normal use case, this flag is always on because the message object
+  // is not needed anymore when entering the catch block and should not be kept
+  // alive.
+  // The use case where the flag is off is when the catch block is guaranteed to
+  // rethrow the caught exception (using %ReThrow), which reuses the pending
+  // message instead of generating a new one.
+  // (When the catch block doesn't rethrow but is guaranteed to perform an
+  // ordinary throw, not clearing the old message is safe but not very useful.)
+  bool clear_pending_message() { return clear_pending_message_; }
+
  protected:
   TryCatchStatement(Zone* zone, Block* try_block, Scope* scope,
-                    Variable* variable, Block* catch_block, int pos)
+                    Variable* variable, Block* catch_block,
+                    bool clear_pending_message, int pos)
       : TryStatement(zone, try_block, pos),
         scope_(scope),
         variable_(variable),
-        catch_block_(catch_block) {}
+        catch_block_(catch_block),
+        clear_pending_message_(clear_pending_message) {}
 
  private:
   Scope* scope_;
   Variable* variable_;
   Block* catch_block_;
+  bool clear_pending_message_;
 };
 
 
@@ -1339,14 +1346,11 @@ class MaterializedLiteral : public Expression {
     return depth_;
   }
 
-  bool is_strong() const { return is_strong_; }
-
  protected:
-  MaterializedLiteral(Zone* zone, int literal_index, bool is_strong, int pos)
+  MaterializedLiteral(Zone* zone, int literal_index, int pos)
       : Expression(zone, pos),
         literal_index_(literal_index),
         is_simple_(false),
-        is_strong_(is_strong),
         depth_(0) {}
 
   // A materialized literal is simple if the values consist of only
@@ -1375,7 +1379,6 @@ class MaterializedLiteral : public Expression {
  private:
   int literal_index_;
   bool is_simple_;
-  bool is_strong_;
   int depth_;
 
   friend class AstLiteralReindexer;
@@ -1463,7 +1466,6 @@ class ObjectLiteral final : public MaterializedLiteral {
   ZoneList<Property*>* properties() const { return properties_; }
   bool fast_elements() const { return fast_elements_; }
   bool may_store_doubles() const { return may_store_doubles_; }
-  bool has_function() const { return has_function_; }
   bool has_elements() const { return has_elements_; }
   bool has_shallow_properties() const {
     return depth() == 1 && !has_elements() && !may_store_doubles();
@@ -1483,15 +1485,11 @@ class ObjectLiteral final : public MaterializedLiteral {
   // Assemble bitfield of flags for the CreateObjectLiteral helper.
   int ComputeFlags(bool disable_mementos = false) const {
     int flags = fast_elements() ? kFastElements : kNoFlags;
-    flags |= has_function() ? kHasFunction : kNoFlags;
     if (has_shallow_properties()) {
       flags |= kShallowProperties;
     }
     if (disable_mementos) {
       flags |= kDisableMementos;
-    }
-    if (is_strong()) {
-      flags |= kIsStrong;
     }
     return flags;
   }
@@ -1499,10 +1497,8 @@ class ObjectLiteral final : public MaterializedLiteral {
   enum Flags {
     kNoFlags = 0,
     kFastElements = 1,
-    kHasFunction = 1 << 1,
-    kShallowProperties = 1 << 2,
-    kDisableMementos = 1 << 3,
-    kIsStrong = 1 << 4
+    kShallowProperties = 1 << 1,
+    kDisableMementos = 1 << 2
   };
 
   struct Accessors: public ZoneObject {
@@ -1534,15 +1530,13 @@ class ObjectLiteral final : public MaterializedLiteral {
 
  protected:
   ObjectLiteral(Zone* zone, ZoneList<Property*>* properties, int literal_index,
-                int boilerplate_properties, bool has_function, bool is_strong,
-                int pos)
-      : MaterializedLiteral(zone, literal_index, is_strong, pos),
+                int boilerplate_properties, int pos)
+      : MaterializedLiteral(zone, literal_index, pos),
         properties_(properties),
         boilerplate_properties_(boilerplate_properties),
         fast_elements_(false),
         has_elements_(false),
-        may_store_doubles_(false),
-        has_function_(has_function) {}
+        may_store_doubles_(false) {}
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
 
  private:
@@ -1553,7 +1547,6 @@ class ObjectLiteral final : public MaterializedLiteral {
   bool fast_elements_;
   bool has_elements_;
   bool may_store_doubles_;
-  bool has_function_;
   FeedbackVectorSlot slot_;
 };
 
@@ -1589,8 +1582,8 @@ class RegExpLiteral final : public MaterializedLiteral {
 
  protected:
   RegExpLiteral(Zone* zone, const AstRawString* pattern, int flags,
-                int literal_index, bool is_strong, int pos)
-      : MaterializedLiteral(zone, literal_index, is_strong, pos),
+                int literal_index, int pos)
+      : MaterializedLiteral(zone, literal_index, pos),
         pattern_(pattern),
         flags_(flags) {
     set_depth(1);
@@ -1635,9 +1628,6 @@ class ArrayLiteral final : public MaterializedLiteral {
     if (disable_mementos) {
       flags |= kDisableMementos;
     }
-    if (is_strong()) {
-      flags |= kIsStrong;
-    }
     return flags;
   }
 
@@ -1657,8 +1647,7 @@ class ArrayLiteral final : public MaterializedLiteral {
   enum Flags {
     kNoFlags = 0,
     kShallowElements = 1,
-    kDisableMementos = 1 << 1,
-    kIsStrong = 1 << 2
+    kDisableMementos = 1 << 1
   };
 
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
@@ -1667,9 +1656,8 @@ class ArrayLiteral final : public MaterializedLiteral {
 
  protected:
   ArrayLiteral(Zone* zone, ZoneList<Expression*>* values,
-               int first_spread_index, int literal_index, bool is_strong,
-               int pos)
-      : MaterializedLiteral(zone, literal_index, is_strong, pos),
+               int first_spread_index, int literal_index, int pos)
+      : MaterializedLiteral(zone, literal_index, pos),
         values_(values),
         first_spread_index_(first_spread_index) {}
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
@@ -2313,7 +2301,7 @@ class CompareOperation final : public Expression {
 
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
-  bool IsLiteralCompareUndefined(Expression** expr, Isolate* isolate);
+  bool IsLiteralCompareUndefined(Expression** expr);
   bool IsLiteralCompareNull(Expression** expr);
 
  protected:
@@ -2529,37 +2517,29 @@ class RewritableExpression : public Expression {
   Expression* expr_;
 };
 
-
+// Our Yield is different from the JS yield in that it "returns" its argument as
+// is, without wrapping it in an iterator result object.  Such wrapping, if
+// desired, must be done beforehand (see the parser).
 class Yield final : public Expression {
  public:
   DECLARE_NODE_TYPE(Yield)
 
-  enum Kind {
-    kInitial,  // The initial yield that returns the unboxed generator object.
-    kSuspend,  // A normal yield: { value: EXPRESSION, done: false }
-    kDelegating,  // A yield*.
-    kFinal        // A return: { value: EXPRESSION, done: true }
-  };
-
   Expression* generator_object() const { return generator_object_; }
   Expression* expression() const { return expression_; }
-  Kind yield_kind() const { return yield_kind_; }
 
   void set_generator_object(Expression* e) { generator_object_ = e; }
   void set_expression(Expression* e) { expression_ = e; }
 
  protected:
   Yield(Zone* zone, Expression* generator_object, Expression* expression,
-        Kind yield_kind, int pos)
+        int pos)
       : Expression(zone, pos),
         generator_object_(generator_object),
-        expression_(expression),
-        yield_kind_(yield_kind) {}
+        expression_(expression) {}
 
  private:
   Expression* generator_object_;
   Expression* expression_;
-  Kind yield_kind_;
 };
 
 
@@ -3169,8 +3149,17 @@ class AstNodeFactory final BASE_EMBEDDED {
   TryCatchStatement* NewTryCatchStatement(Block* try_block, Scope* scope,
                                           Variable* variable,
                                           Block* catch_block, int pos) {
-    return new (local_zone_) TryCatchStatement(local_zone_, try_block, scope,
-                                               variable, catch_block, pos);
+    return new (local_zone_) TryCatchStatement(
+        local_zone_, try_block, scope, variable, catch_block, true, pos);
+  }
+
+  TryCatchStatement* NewTryCatchStatementForReThrow(Block* try_block,
+                                                    Scope* scope,
+                                                    Variable* variable,
+                                                    Block* catch_block,
+                                                    int pos) {
+    return new (local_zone_) TryCatchStatement(
+        local_zone_, try_block, scope, variable, catch_block, false, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,
@@ -3243,12 +3232,9 @@ class AstNodeFactory final BASE_EMBEDDED {
       ZoneList<ObjectLiteral::Property*>* properties,
       int literal_index,
       int boilerplate_properties,
-      bool has_function,
-      bool is_strong,
       int pos) {
-    return new (local_zone_)
-        ObjectLiteral(local_zone_, properties, literal_index,
-                      boilerplate_properties, has_function, is_strong, pos);
+    return new (local_zone_) ObjectLiteral(
+        local_zone_, properties, literal_index, boilerplate_properties, pos);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(
@@ -3267,24 +3253,23 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern, int flags,
-                                  int literal_index, bool is_strong, int pos) {
-    return new (local_zone_) RegExpLiteral(local_zone_, pattern, flags,
-                                           literal_index, is_strong, pos);
+                                  int literal_index, int pos) {
+    return new (local_zone_)
+        RegExpLiteral(local_zone_, pattern, flags, literal_index, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
                                 int literal_index,
-                                bool is_strong,
                                 int pos) {
     return new (local_zone_)
-        ArrayLiteral(local_zone_, values, -1, literal_index, is_strong, pos);
+        ArrayLiteral(local_zone_, values, -1, literal_index, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
                                 int first_spread_index, int literal_index,
-                                bool is_strong, int pos) {
+                                int pos) {
     return new (local_zone_) ArrayLiteral(
-        local_zone_, values, first_spread_index, literal_index, is_strong, pos);
+        local_zone_, values, first_spread_index, literal_index, pos);
   }
 
   VariableProxy* NewVariableProxy(Variable* var,
@@ -3399,11 +3384,10 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   Yield* NewYield(Expression *generator_object,
                   Expression* expression,
-                  Yield::Kind yield_kind,
                   int pos) {
     if (!expression) expression = NewUndefinedLiteral(pos);
     return new (local_zone_)
-        Yield(local_zone_, generator_object, expression, yield_kind, pos);
+        Yield(local_zone_, generator_object, expression, pos);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {

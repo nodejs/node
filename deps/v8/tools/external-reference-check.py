@@ -8,7 +8,7 @@ import os
 import sys
 
 DECLARE_FILE = "src/assembler.h"
-REGISTER_FILE = "src/snapshot/serialize.cc"
+REGISTER_FILE = "src/external-reference-table.cc"
 DECLARE_RE = re.compile("\s*static ExternalReference ([^(]+)\(")
 REGISTER_RE = re.compile("\s*Add\(ExternalReference::([^(]+)\(")
 

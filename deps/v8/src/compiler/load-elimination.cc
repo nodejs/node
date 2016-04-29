@@ -4,15 +4,17 @@
 
 #include "src/compiler/load-elimination.h"
 
+#include "src/compiler/common-operator.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
 LoadElimination::~LoadElimination() {}
-
 
 Reduction LoadElimination::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -23,7 +25,6 @@ Reduction LoadElimination::Reduce(Node* node) {
   }
   return NoChange();
 }
-
 
 Reduction LoadElimination::ReduceLoadField(Node* node) {
   DCHECK_EQ(IrOpcode::kLoadField, node->opcode());
@@ -45,8 +46,22 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
         if (access == FieldAccessOf(effect->op())) {
           if (object == NodeProperties::GetValueInput(effect, 0)) {
             Node* const value = NodeProperties::GetValueInput(effect, 1);
-            ReplaceWithValue(node, value);
-            return Replace(value);
+            Type* stored_value_type = NodeProperties::GetType(value);
+            Type* load_type = NodeProperties::GetType(node);
+            // Make sure the replacement's type is a subtype of the node's
+            // type. Otherwise we could confuse optimizations that were
+            // based on the original type.
+            if (stored_value_type->Is(load_type)) {
+              ReplaceWithValue(node, value);
+              return Replace(value);
+            } else {
+              Node* renamed = graph()->NewNode(
+                  common()->Guard(Type::Intersect(stored_value_type, load_type,
+                                                  graph()->zone())),
+                  value, NodeProperties::GetControlInput(node));
+              ReplaceWithValue(node, renamed);
+              return Replace(renamed);
+            }
           }
           // TODO(turbofan): Alias analysis to the rescue?
           return NoChange();

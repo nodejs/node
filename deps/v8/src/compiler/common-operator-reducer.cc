@@ -57,6 +57,9 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kBranch:
       return ReduceBranch(node);
+    case IrOpcode::kDeoptimizeIf:
+    case IrOpcode::kDeoptimizeUnless:
+      return ReduceDeoptimizeConditional(node);
     case IrOpcode::kMerge:
       return ReduceMerge(node);
     case IrOpcode::kEffectPhi:
@@ -123,6 +126,37 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   return Replace(dead());
 }
 
+Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kDeoptimizeIf ||
+         node->opcode() == IrOpcode::kDeoptimizeUnless);
+  bool condition_is_true = node->opcode() == IrOpcode::kDeoptimizeUnless;
+  Node* condition = NodeProperties::GetValueInput(node, 0);
+  Node* frame_state = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  // Swap DeoptimizeIf/DeoptimizeUnless on {node} if {cond} is a BooleaNot
+  // and use the input to BooleanNot as new condition for {node}.  Note we
+  // assume that {cond} was already properly optimized before we get here
+  // (as guaranteed by the graph reduction logic).
+  if (condition->opcode() == IrOpcode::kBooleanNot) {
+    NodeProperties::ReplaceValueInput(node, condition->InputAt(0), 0);
+    NodeProperties::ChangeOp(node, condition_is_true
+                                       ? common()->DeoptimizeIf()
+                                       : common()->DeoptimizeUnless());
+    return Changed(node);
+  }
+  Decision const decision = DecideCondition(condition);
+  if (decision == Decision::kUnknown) return NoChange();
+  if (condition_is_true == (decision == Decision::kTrue)) {
+    return Replace(control);
+  }
+  control = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                             frame_state, effect, control);
+  // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+  NodeProperties::MergeControlToEnd(graph(), common(), control);
+  Revisit(graph()->end());
+  return Replace(dead());
+}
 
 Reduction CommonOperatorReducer::ReduceMerge(Node* node) {
   DCHECK_EQ(IrOpcode::kMerge, node->opcode());

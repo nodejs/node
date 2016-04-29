@@ -42,14 +42,6 @@ utils.ImportFromExperimental(function(from) {
    ---------------------------------
 */
 
-function ConcatIterableToArray(target, iterable) {
-   var index = target.length;
-   for (var element of iterable) {
-     AddIndexedProperty(target, index++, element);
-   }
-   return target;
-}
-
 
 // This function should be called rather than %AddElement in contexts where the
 // argument might not be less than 2**32-1. ES2015 ToLength semantics mean that
@@ -136,9 +128,5 @@ utils.Export(function(to) {
   to.ToPositiveInteger = ToPositiveInteger;
   to.SpeciesConstructor = SpeciesConstructor;
 });
-
-%InstallToContext([
-  "concat_iterable_to_array", ConcatIterableToArray,
-]);
 
 })

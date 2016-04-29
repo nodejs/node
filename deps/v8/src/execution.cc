@@ -138,16 +138,6 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
     Handle<JSFunction> function = Handle<JSFunction>::cast(callable);
     SaveContext save(isolate);
     isolate->set_context(function->context());
-    // Do proper receiver conversion for non-strict mode api functions.
-    if (!receiver->IsJSReceiver() &&
-        is_sloppy(function->shared()->language_mode())) {
-      if (receiver->IsUndefined() || receiver->IsNull()) {
-        receiver = handle(function->global_proxy(), isolate);
-      } else {
-        ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                                   Object::ToObject(isolate, receiver), Object);
-      }
-    }
     DCHECK(function->context()->global_object()->IsJSGlobalObject());
     auto value = Builtins::InvokeApiFunction(function, receiver, argc, argv);
     bool has_exception = value.is_null();

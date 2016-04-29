@@ -117,10 +117,10 @@ class WebkitTestSuite(testsuite.TestSuite):
             string == "Warning: unknown flag --enable-slow-asserts." or
             string == "Try --help for options")
 
-  def IsFailureOutput(self, output, testpath):
-    if super(WebkitTestSuite, self).IsFailureOutput(output, testpath):
+  def IsFailureOutput(self, testcase):
+    if super(WebkitTestSuite, self).IsFailureOutput(testcase):
       return True
-    file_name = os.path.join(self.root, testpath) + "-expected.txt"
+    file_name = os.path.join(self.root, testcase.path) + "-expected.txt"
     with file(file_name, "r") as expected:
       expected_lines = expected.readlines()
 
@@ -136,7 +136,7 @@ class WebkitTestSuite(testsuite.TestSuite):
 
     def ActBlockIterator():
       """Iterates over blocks of actual output lines."""
-      lines = output.stdout.splitlines()
+      lines = testcase.output.stdout.splitlines()
       start_index = 0
       found_eqeq = False
       for index, line in enumerate(lines):
@@ -147,7 +147,7 @@ class WebkitTestSuite(testsuite.TestSuite):
             found_eqeq = True
           else:
             yield ActIterator(lines[start_index:index])
-          # The next block of ouput lines starts after the separator.
+          # The next block of output lines starts after the separator.
           start_index = index + 1
       # Iterate over complete output if no separator was found.
       if not found_eqeq:

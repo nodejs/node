@@ -7,7 +7,6 @@
 
 #include "src/base/logging.h"
 #include "src/handles-inl.h"
-#include "src/snapshot/serialize.h"  // for SerializerDeserializer::nop()
 
 
 namespace v8 {

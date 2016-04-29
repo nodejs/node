@@ -97,6 +97,19 @@
 }],  # 'gc_stress == True and mode == debug'
 
 ##############################################################################
+['ignition == True', {
+  # TODO(4680): Throws a RangeError due to stack overflow. Need investigation.
+  'fast/js/excessive-comma-usage': [SKIP],  # Stack is brittle, SKIP not FAIL.
+}],  # ignition == True
+
+##############################################################################
+['ignition == True and msan', {
+  # TODO(mythria,4680): Too slow and timeout on ignition.
+  'dfg-double-vote-fuzz': [SKIP],
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # ignition == True and msan
+
+##############################################################################
 ['gcov_coverage', {
   # Tests taking too long or getting too large call stacks.
   'fast/js/excessive-comma-usage': [SKIP],

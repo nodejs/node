@@ -17,7 +17,11 @@ namespace compiler {
   V(X87Add)                        \
   V(X87And)                        \
   V(X87Cmp)                        \
+  V(X87Cmp16)                      \
+  V(X87Cmp8)                       \
   V(X87Test)                       \
+  V(X87Test16)                     \
+  V(X87Test8)                      \
   V(X87Or)                         \
   V(X87Xor)                        \
   V(X87Sub)                        \
@@ -31,6 +35,12 @@ namespace compiler {
   V(X87Shl)                        \
   V(X87Shr)                        \
   V(X87Sar)                        \
+  V(X87AddPair)                    \
+  V(X87SubPair)                    \
+  V(X87MulPair)                    \
+  V(X87ShlPair)                    \
+  V(X87ShrPair)                    \
+  V(X87SarPair)                    \
   V(X87Ror)                        \
   V(X87Lzcnt)                      \
   V(X87Popcnt)                     \

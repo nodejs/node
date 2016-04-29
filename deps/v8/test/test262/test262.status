@@ -27,18 +27,7 @@
 
 [
 [ALWAYS, {
-  ############################### BUGS ###################################
-
-  # BUG(v8:3455)
-  'intl402/11.2.3_b': [FAIL],
-  'intl402/12.2.3_b': [FAIL],
-
   ###################### NEEDS INVESTIGATION #######################
-
-  # Possibly same cause as S8.5_A2.1, below: floating-point tests.
-  'built-ins/Math/cos/S15.8.2.7_A7': [PASS, FAIL_OK],
-  'built-ins/Math/sin/S15.8.2.16_A7': [PASS, FAIL_OK],
-  'built-ins/Math/tan/S15.8.2.18_A7': [PASS, FAIL_OK],
 
   # This is an incompatibility between ES5 and V8 on enumerating
   # shadowed elements in a for..in loop.
@@ -47,62 +36,11 @@
 
   ###################### MISSING ES6 FEATURES #######################
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4768
-  # The Reflect.enumerate trap is removed
-  'built-ins/Reflect/enumerate/*': [SKIP],
-  'built-ins/Proxy/enumerate/*': [SKIP],
-
-  # https://code.google.com/p/v8/issues/detail?id=4163
-  'built-ins/GeneratorPrototype/next/context-constructor-invocation': [FAIL],
-
-  # https://code.google.com/p/v8/issues/detail?id=3566
-  'built-ins/Array/from/iter-map-fn-err': [FAIL],
-  'built-ins/Array/from/iter-set-elem-prop-err': [FAIL],
-  'built-ins/Map/iterator-close-after-set-failure': [FAIL],
-  'built-ins/Map/iterator-item-first-entry-returns-abrupt': [FAIL],
-  'built-ins/Map/iterator-item-second-entry-returns-abrupt': [FAIL],
-  'built-ins/Map/iterator-items-are-not-object-close-iterator': [FAIL],
-  'built-ins/Promise/all/iter-close': [FAIL],
-  'built-ins/Promise/race/iter-close': [PASS, FAIL],
-  'built-ins/Set/set-iterator-close-after-add-failure': [FAIL],
-  'built-ins/WeakMap/iterator-close-after-set-failure': [FAIL],
-  'built-ins/WeakMap/iterator-item-first-entry-returns-abrupt': [FAIL],
-  'built-ins/WeakMap/iterator-item-second-entry-returns-abrupt': [FAIL],
-  'built-ins/WeakMap/iterator-items-are-not-object-close-iterator': [FAIL],
-  'built-ins/WeakSet/iterator-close-after-add-failure': [FAIL],
-
-  # https://code.google.com/p/v8/issues/detail?id=4348
-  'built-ins/String/prototype/Symbol.iterator/this-val-non-obj-coercible': [FAIL],
-
   # The order of adding the name property is wrong
   # https://code.google.com/p/v8/issues/detail?id=4199
   'language/computed-property-names/class/static/method-number': [FAIL, FAIL_SLOPPY],
   'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
   'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
-
-  # https://code.google.com/p/v8/issues/detail?id=3566
-  'language/statements/for-of/body-dstr-assign-error': [FAIL],
-  'language/statements/for-of/body-put-error': [FAIL],
-  'language/statements/for-of/generator-close-via-break': [FAIL],
-  'language/statements/for-of/generator-close-via-return': [FAIL],
-  'language/statements/for-of/generator-close-via-throw': [FAIL],
-  'language/statements/for-of/iterator-close-get-method-error': [FAIL],
-  'language/statements/for-of/iterator-close-non-object': [FAIL],
-  'language/statements/for-of/iterator-close-via-break': [FAIL],
-  'language/statements/for-of/iterator-close-via-return': [FAIL],
-  'language/statements/for-of/iterator-close-via-throw': [FAIL],
-
-  # We do not expose Array.prototype.values
-  # https://code.google.com/p/v8/issues/detail?id=4247
-  'built-ins/Array/prototype/Symbol.iterator': [FAIL],
-  'built-ins/Array/prototype/values/returns-iterator': [FAIL],
-  'built-ins/Array/prototype/values/returns-iterator-from-object': [FAIL],
-  'built-ins/Array/prototype/values/prop-desc': [FAIL],
-  'built-ins/Array/prototype/values/name': [FAIL],
-  'built-ins/Array/prototype/values/length': [FAIL],
-  'built-ins/Array/prototype/values/iteration': [FAIL],
-  'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
-  'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
@@ -139,6 +77,14 @@
   'language/expressions/class/name': [FAIL],
   'language/expressions/function/name': [FAIL],
   'language/expressions/generators/name': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-function-name': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/format-function-name': [FAIL],
+  'intl402/Collator/prototype/compare/compare-function-name': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4778
+  'intl402/Collator/prototype/compare/name': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/name': [FAIL],
+  'intl402/NumberFormat/prototype/format/name': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4251
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
@@ -153,41 +99,48 @@
   # https://code.google.com/p/v8/issues/detail?id=4253
   'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
 
-   # https://code.google.com/p/v8/issues/detail?id=4602
+  ###### BEGIN REGEXP SUBCLASSING SECTION ######
+  # Spec change in progress https://github.com/tc39/ecma262/pull/494
+  # RegExpBuiltinMatch reads flags from [[OriginalFlags]]
+  'built-ins/RegExp/prototype/Symbol.match/builtin-coerce-sticky': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-get-global-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-get-sticky-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-success-g-set-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-success-g-set-lastindex-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/coerce-sticky': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/get-sticky-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/coerce-global': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/coerce-unicode': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/get-sticky-coerce': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/get-sticky-err': [SKIP],
+  'built-ins/RegExp/prototype/Symbol.search/get-sticky-coerce': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.search/get-sticky-err': [FAIL],
   'built-ins/RegExp/prototype/exec/get-sticky-coerce': [FAIL],
   'built-ins/RegExp/prototype/exec/get-sticky-err': [FAIL],
   'built-ins/RegExp/prototype/test/get-sticky-err': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4504
-  'built-ins/RegExp/prototype/exec/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/test/y-fail-lastindex-no-write': [PASS, FAIL],
+  # Missing lastIndex support
+  'built-ins/RegExp/prototype/Symbol.split/str-result-coerce-length-err': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4305
-  # SKIP rather than FAIL some tests, as they may check for an exception which
-  # happens to be thrown for some other reason (e.g,
-  # built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err)
-  'built-ins/RegExp/prototype/Symbol.match/*': [SKIP],
-  'built-ins/String/prototype/endsWith/return-abrupt-from-searchstring-regexp-test': [FAIL],
-  'built-ins/String/prototype/includes/return-abrupt-from-searchstring-regexp-test': [FAIL],
-  'built-ins/String/prototype/startsWith/return-abrupt-from-searchstring-regexp-test': [FAIL],
-  'built-ins/String/prototype/match/invoke-builtin-match': [FAIL],
+  # Times out
+  'built-ins/RegExp/prototype/Symbol.split/str-coerce-lastindex': [SKIP],
+  'built-ins/RegExp/prototype/Symbol.match/coerce-global': [SKIP],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-coerce-global': [SKIP],
 
-  # https://code.google.com/p/v8/issues/detail?id=4343
-  'built-ins/RegExp/prototype/Symbol.replace/*': [SKIP],
+  # Sticky support busted
+  'built-ins/RegExp/prototype/Symbol.replace/y-init-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4344
-  'built-ins/RegExp/prototype/Symbol.search/*': [SKIP],
+  # SKIP rather than FAIL, as the test checks for an exception which
+  # happens to be thrown for some other reason.
+  'built-ins/RegExp/prototype/Symbol.split/str-result-get-length-err': [SKIP],
 
-  # https://code.google.com/p/v8/issues/detail?id=4345
-  'built-ins/RegExp/prototype/Symbol.split/*': [SKIP],
+  ###### END REGEXP SUBCLASSING SECTION ######
 
   # https://code.google.com/p/v8/issues/detail?id=4360
   'intl402/Collator/10.1.1_1': [FAIL],
   'intl402/DateTimeFormat/12.1.1_1': [FAIL],
   'intl402/NumberFormat/11.1.1_1': [FAIL],
-
-  # https://code.google.com/p/v8/issues/detail?id=4361
-  'intl402/Collator/10.1.1_a': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4476
   'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
@@ -220,12 +173,6 @@
   'built-ins/Promise/resolve-function-name': [FAIL],
   'built-ins/Promise/all/resolve-element-function-name': [FAIL],
   'built-ins/Promise/executor-function-name': [FAIL],
-  'built-ins/Promise/all/capability-executor-not-callable': [FAIL],
-  'built-ins/Promise/reject/capability-executor-not-callable': [FAIL],
-  'built-ins/Promise/race/capability-executor-not-callable': [FAIL],
-  'built-ins/Promise/prototype/then/capability-executor-not-callable': [FAIL],
-  'built-ins/Promise/resolve/capability-executor-not-callable': [FAIL],
-  'built-ins/Promise/race/S25.4.4.3_A3.1_T2': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4634
   'built-ins/DataView/prototype/setFloat64/index-check-before-value-conversion': [FAIL],
@@ -246,17 +193,20 @@
   'language/statements/class/subclass/builtin-objects/NativeError/URIError-message': [FAIL],
   'language/statements/class/subclass/builtin-objects/Error/message-property-assignment': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4663
-  'built-ins/object/entries/*': [SKIP],
-  'built-ins/object/values/*': [SKIP],
-  'built-ins/Object/entries/*': [SKIP],
-  'built-ins/Object/values/*': [SKIP],
-
   # https://code.google.com/p/chromium/issues/detail?id=581577
   'built-ins/RegExp/prototype/source/15.10.7.1-1': [FAIL],
   'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
   'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-1': [FAIL],
   'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4727
+  'built-ins/TypedArrays/length-arg-is-undefined-throws': [FAIL],
+  'built-ins/TypedArrays/length-arg-is-symbol-throws': [FAIL],
+  'built-ins/TypedArrays/length-arg-is-float-throws-rangeerror': [FAIL],
+  'built-ins/TypedArrays/length-arg-is-nan-throws-rangeerror': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4784
+  'built-ins/TypedArrays/buffer-arg-defined-negative-length': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -272,16 +222,12 @@
   'intl402/Collator/10.2.3_b': [PASS, FAIL],
   'intl402/Collator/prototype/10.3_a': [FAIL],
   'intl402/DateTimeFormat/12.1.1': [FAIL],
-  'intl402/DateTimeFormat/12.1.1_a': [FAIL],
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
   'intl402/DateTimeFormat/12.1.2.1_4': [FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],
-  'intl402/DateTimeFormat/prototype/12.3.3': [FAIL],
   'intl402/DateTimeFormat/prototype/12.3_a': [FAIL],
   'intl402/Number/prototype/toLocaleString/13.2.1_5': [PASS, FAIL],
   'intl402/NumberFormat/11.1.1_20_c': [FAIL],
-  'intl402/NumberFormat/11.1.1_a': [FAIL],
-  'intl402/NumberFormat/11.1.1': [FAIL],
   'intl402/NumberFormat/11.1.2': [PASS, FAIL],
   'intl402/NumberFormat/11.1.2.1_4': [FAIL],
   'intl402/NumberFormat/11.2.3_b': [FAIL],
@@ -289,15 +235,6 @@
   'intl402/String/prototype/localeCompare/13.1.1_7': [PASS, FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
-
-  'built-ins/Math/exp/S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
-
-  # Linux for ia32 (and therefore simulators) default to extended 80 bit
-  # floating point formats, so these tests checking 64-bit FP precision fail.
-  # The other platforms/arch's pass these tests.
-  # We follow the other major JS engines by keeping this default.
-  'language/types/number/S8.5_A2.1': [PASS, FAIL_OK],
-  'language/types/number/S8.5_A2.2': [PASS, FAIL_OK],
 
   # https://code.google.com/p/v8/issues/detail?id=4693
   'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
@@ -319,26 +256,19 @@
   # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
   'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
 
-  # Tests do not return boolean.
-  'built-ins/Object/keys/15.2.3.14-1-1': [PASS, FAIL_OK],
-  'built-ins/Object/keys/15.2.3.14-1-2': [PASS, FAIL_OK],
-  'built-ins/Object/keys/15.2.3.14-1-3': [PASS, FAIL_OK],
+  # Test bug https://github.com/tc39/test262/issues/518
+  'built-ins/TypedArrays/object-arg-throws-setting-typedarray-property': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptors/duplicate-keys': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptors/symbols-included': [FAIL],
 
-  # Test bug https://github.com/tc39/test262/issues/405
-  'intl402/Collator/prototype/compare/10.3.2_1_c': [PASS, FAIL_OK],
-  'intl402/Collator/prototype/compare/10.3.2_CS_b_NN': [PASS, FAIL_OK],
-  'intl402/Collator/prototype/compare/10.3.2_CS_c_NN': [PASS, FAIL_OK],
-  'intl402/Collator/prototype/compare/10.3.2_CS_d_NN': [PASS, FAIL_OK],
-  'intl402/Date/prototype/13.3.0_7': [PASS, FAIL_OK],
+  # Test bug https://github.com/tc39/test262/issues/521
+  'built-ins/TypedArray/from/mapfn-is-not-callable': [FAIL],
 
-  # Some tests are too strict, checking SameValue rather than ===
-  # https://github.com/tc39/test262/issues/435
-  'built-ins/Array/prototype/indexOf/15.4.4.14-5-9': [FAIL],
-  'built-ins/Array/prototype/lastIndexOf/15.4.4.15-5-9': [FAIL],
-
-  # https://github.com/tc39/test262/issues/489
-  # Test will pass in 0 or -GMT, but fail in +GMT
-  'language/statements/class/subclass/builtin-objects/Date/regular-subclassing': [PASS, FAIL_OK],
+  # Test bug https://github.com/tc39/test262/issues/529
+  'built-ins/Math/cos/S15.8.2.7_A7': [PASS, FAIL_OK],
+  'built-ins/Math/sin/S15.8.2.16_A7': [PASS, FAIL_OK],
+  'built-ins/Math/tan/S15.8.2.18_A7': [PASS, FAIL_OK],
+  'built-ins/Math/exp/S15.8.2.8_A6': [PASS, FAIL_OK],  # Math.exp (less precise with --fast-math)
 
   ############################ SKIPPED TESTS #############################
 
@@ -373,9 +303,6 @@
 }],  # system == linux
 
 ['system == macos', {
-  'intl402/11.3.2_TRP': [FAIL],
-  'intl402/9.2.5_11_g_ii_2': [FAIL],
-
   # BUG(v8:4437).
   'intl402/Collator/10.1.1_19_c': [SKIP],
   'intl402/Collator/9.2.5_11_g_ii_2': [SKIP],
@@ -425,196 +352,5 @@
   # The failed allocation causes an asan/msan/tsan error
   'built-ins/ArrayBuffer/allocation-limit': [SKIP],
 }],  # asan == True or msan == True or tsan == True
-
-['ignition == True', {
-  'annexB/B.2.3.*': [SKIP],
-  'built-ins/Array/prototype/reduce/*': [SKIP],
-  'built-ins/Array/prototype/reduceRight/*': [SKIP],
-  'built-ins/GeneratorFunction/*': [SKIP],
-  'built-ins/GeneratorPrototype/*': [SKIP],
-  'built-ins/Promise/prototype/then/capability-executor-not-callable': [SKIP],
-  'built-ins/Reflect/enumerate/*': [SKIP],
-  'language/computed-property-names/class/*': [SKIP],
-  'language/computed-property-names/to-name-side-effects/*': [SKIP],
-  'language/directive-prologue/*': [SKIP],
-  'language/expressions/arrow-function/*': [SKIP],
-  'language/expressions/assignment/destructuring/*': [SKIP],
-  'language/expressions/class/subclass/builtin-objects/GeneratorFunction/*': [SKIP],
-  'language/expressions/generators/*': [SKIP],
-  'language/expressions/instanceof/primitive-prototype-with-object': [SKIP],
-  'language/expressions/instanceof/prototype-getter-with-object-throws': [SKIP],
-  'language/expressions/instanceof/prototype-getter-with-object': [SKIP],
-  'language/expressions/object/method-definition/yield*': [SKIP],
-  'language/expressions/object/method-definition/generator*': [SKIP],
-  'language/expressions/yield/*': [SKIP],
-  'language/statements/class/definition/methods-gen-no-yield': [SKIP],
-  'language/statements/class/definition/methods-gen-return': [SKIP],
-  'language/statements/class/definition/methods-gen-yield-as-expression-with-rhs': [SKIP],
-  'language/statements/class/definition/methods-gen-yield-as-generator-method-binding-identifier': [SKIP],
-  'language/statements/class/definition/methods-gen-yield-as-literal-property-name': [SKIP],
-  'language/statements/class/definition/methods-gen-yield-as-property-name': [SKIP],
-  'language/statements/class/definition/methods-gen-yield-as-statement': [SKIP],
-  'language/statements/class/definition/methods-gen-yield-as-expression-without-rhs': [SKIP],
-  'language/statements/class/definition/methods-gen-yield-as-yield-operand': [SKIP],
-  'language/statements/class/definition/methods-gen-yield-newline': [SKIP],
-  'language/statements/class/definition/methods-gen-yield-star-before-newline': [SKIP],
-  'language/statements/class/subclass/builtin-objects/GeneratorFunction/*': [SKIP],
-  'language/statements/generators/*': [SKIP],
-
-  'built-ins/Array/prototype/concat/Array.prototype.concat_non-array': [SKIP],
-  'built-ins/Date/prototype/toISOString/15.9.5.43-0-13': [SKIP],
-  'built-ins/Object/prototype/hasOwnProperty/S15.2.4.5_A12': [SKIP],
-  'built-ins/Object/prototype/isPrototypeOf/S15.2.4.6_A12': [SKIP],
-  'built-ins/Object/prototype/propertyIsEnumerable/S15.2.4.7_A12': [SKIP],
-  'built-ins/Object/prototype/toLocaleString/S15.2.4.3_A12': [SKIP],
-  'built-ins/Object/prototype/toString/15.2.4.2-1-1': [SKIP],
-  'built-ins/Object/prototype/toString/15.2.4.2-1-2': [SKIP],
-  'built-ins/Object/prototype/toString/S15.2.4.2_A12': [SKIP],
-  'built-ins/Object/prototype/valueOf/S15.2.4.4_A12': [SKIP],
-  'built-ins/Object/prototype/valueOf/S15.2.4.4_A14': [SKIP],
-  'built-ins/Object/prototype/valueOf/S15.2.4.4_A15': [SKIP],
-  'built-ins/Promise/all/S25.4.4.1_A4.1_T1': [SKIP],
-  'built-ins/Promise/prototype/then/on-rejected-throw': [SKIP],
-  'built-ins/Promise/reject/S25.4.4.4_A3.1_T1': [SKIP],
-  'built-ins/String/prototype/codePointAt/this-is-undefined-throws': [SKIP],
-  'built-ins/String/prototype/concat/S15.5.4.6_A2': [SKIP],
-  'built-ins/String/prototype/endsWith/this-is-undefined-throws': [SKIP],
-  'built-ins/String/prototype/includes/this-is-undefined-throws': [SKIP],
-  'built-ins/String/prototype/repeat/this-is-undefined-throws': [SKIP],
-  'built-ins/String/prototype/startsWith/this-is-undefined-throws': [SKIP],
-  'built-ins/String/prototype/trim/15.5.4.20-1-1': [SKIP],
-  'language/block-scope/leave/nested-block-let-declaration-only-shadows-outer-parameter-value-1': [SKIP],
-  'language/block-scope/leave/nested-block-let-declaration-only-shadows-outer-parameter-value-2': [SKIP],
-  'language/block-scope/leave/verify-context-in-labelled-block': [SKIP],
-  'language/block-scope/leave/x-after-break-to-label': [SKIP],
-  'language/default-parameters/class-definitions': [SKIP],
-  'language/default-parameters/generators': [SKIP],
-  'language/expressions/object/method-definition/name-prop-name-yield-expr': [SKIP],
-  'language/expressions/tagged-template/call-expression-context-no-strict': [SKIP],
-  'language/expressions/tagged-template/call-expression-context-strict': [SKIP],
-  'language/expressions/template-literal/evaluation-order': [SKIP],
-  'language/statements/for-of/body-dstr-assign': [SKIP],
-  'language/statements/for-of/break': [SKIP],
-  'language/statements/for-of/break-from-catch': [SKIP],
-  'language/statements/for-of/break-from-finally': [SKIP],
-  'language/statements/for-of/break-from-try': [SKIP],
-  'language/statements/for-of/break-label': [SKIP],
-  'language/statements/for-of/break-label-from-catch': [SKIP],
-  'language/statements/for-of/break-label-from-finally': [SKIP],
-  'language/statements/for-of/break-label-from-try': [SKIP],
-  'language/statements/for-of/continue': [SKIP],
-  'language/statements/for-of/continue-from-catch': [SKIP],
-  'language/statements/for-of/continue-from-finally': [SKIP],
-  'language/statements/for-of/continue-from-try': [SKIP],
-  'language/statements/for-of/continue-label': [SKIP],
-  'language/statements/for-of/continue-label-from-catch': [SKIP],
-  'language/statements/for-of/continue-label-from-finally': [SKIP],
-  'language/statements/for-of/continue-label-from-try': [SKIP],
-  'language/statements/for-of/generator': [SKIP],
-  'language/statements/for-of/generator-next-error': [SKIP],
-  'language/statements/for-of/nested': [SKIP],
-  'language/statements/for-of/return': [SKIP],
-  'language/statements/for-of/return-from-catch': [SKIP],
-  'language/statements/for-of/return-from-finally': [SKIP],
-  'language/statements/for-of/return-from-try': [SKIP],
-  'language/statements/for-of/throw': [SKIP],
-  'language/statements/for-of/throw-from-catch': [SKIP],
-  'language/statements/for-of/throw-from-finally': [SKIP],
-  'language/statements/for-of/yield': [SKIP],
-  'language/statements/for-of/yield-from-catch': [SKIP],
-  'language/statements/for-of/yield-from-finally': [SKIP],
-  'language/statements/for-of/yield-from-try': [SKIP],
-  'language/statements/for-of/yield-star': [SKIP],
-  'language/statements/for-of/yield-star-from-catch': [SKIP],
-  'language/statements/for-of/yield-star-from-finally': [SKIP],
-  'language/statements/for-of/yield-star-from-try': [SKIP],
-  'language/object-literal/concise-generator': [SKIP],
-  'language/statements/do-while/S12.6.1_A4_T5': [SKIP],
-  'language/statements/while/S12.6.2_A4_T5': [SKIP],
-  'language/expressions/instanceof/symbol-hasinstance-not-callable': [SKIP],
-
-}],  # ignition == True
-
-['ignition == True and (arch == arm or arch == arm64)', {
-  'built-ins/Promise/all/ctx-ctor': [SKIP],
-  'built-ins/Promise/race/ctx-ctor': [SKIP],
-  'built-ins/decodeURI/S15.1.3.1_A1.12_T3': [SKIP],
-  'built-ins/decodeURIComponent/S15.1.3.2_A1.10_T1': [SKIP],
-  'built-ins/decodeURIComponent/S15.1.3.2_A1.11_T2': [SKIP],
-  'built-ins/decodeURIComponent/S15.1.3.2_A1.12_T2': [SKIP],
-  'built-ins/decodeURIComponent/S15.1.3.2_A1.12_T3': [SKIP],
-  'intl402/9.2.2': [SKIP],
-  'language/statements/class/arguments/default-constructor': [SKIP],
-  'language/statements/class/definition/constructor-strict-by-default': [SKIP],
-  'language/statements/class/definition/fn-name-accessor-get': [SKIP],
-  'language/statements/class/definition/fn-name-accessor-set': [SKIP],
-  'language/statements/class/definition/fn-name-gen-method': [SKIP],
-  'language/statements/class/definition/fn-name-method': [SKIP],
-  'language/statements/class/definition/methods-restricted-properties': [SKIP],
-  'language/statements/class/definition/prototype-getter': [SKIP],
-  'language/statements/class/definition/prototype-wiring': [SKIP],
-  'language/statements/class/definition/this-access-restriction': [SKIP],
-  'language/statements/class/definition/this-access-restriction-2': [SKIP],
-  'language/statements/class/definition/this-check-ordering': [SKIP],
-  'language/statements/class/name': [SKIP],
-  'language/statements/class/restricted-properties': [SKIP],
-  'language/statements/class/subclass/binding': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Array/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/ArrayBuffer/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Boolean/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/DataView/regular-subclassing': [SKIP],
-  'language/statements/class/subclass/builtin-objects/DataView/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Date/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Error/regular-subclassing': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Error/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Function/instance-length': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Function/instance-name': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Function/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Map/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/EvalError-name': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/EvalError-super': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/RangeError-name': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/RangeError-super': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/ReferenceError-name': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/ReferenceError-super': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/SyntaxError-name': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/SyntaxError-super': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/TypeError-name': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/TypeError-super': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/URIError-name': [SKIP],
-  'language/statements/class/subclass/builtin-objects/NativeError/URIError-super': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Number/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Object/constructor-return-undefined-throws': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Object/constructor-returns-non-object': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Promise/regular-subclassing': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Promise/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/RegExp/lastIndex': [SKIP],
-  'language/statements/class/subclass/builtin-objects/RegExp/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Set/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/String/length': [SKIP],
-  'language/statements/class/subclass/builtin-objects/String/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/Symbol/new-symbol-with-super-throws': [SKIP],
-  'language/statements/class/subclass/builtin-objects/WeakMap/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/builtin-objects/WeakSet/super-must-be-called': [SKIP],
-  'language/statements/class/subclass/class-definition-null-proto-missing-return-override': [SKIP],
-  'language/statements/class/subclass/default-constructor': [SKIP],
-  'language/statements/class/subclass/default-constructor-2': [SKIP],
-  'language/statements/class/subclass/derived-class-return-override-with-boolean': [SKIP],
-  'language/statements/class/subclass/derived-class-return-override-with-null': [SKIP],
-  'language/statements/class/subclass/derived-class-return-override-with-number': [SKIP],
-  'language/statements/class/subclass/derived-class-return-override-with-string': [SKIP],
-  'language/statements/class/subclass/derived-class-return-override-with-symbol': [SKIP],
-  'language/statements/const/fn-name-arrow': [SKIP],
-  'language/statements/const/fn-name-class': [SKIP],
-  'language/statements/const/fn-name-cover': [SKIP],
-  'language/statements/const/fn-name-fn': [SKIP],
-  'language/statements/const/fn-name-gen': [SKIP],
-  'language/statements/let/fn-name-arrow': [SKIP],
-  'language/statements/let/fn-name-class': [SKIP],
-  'language/statements/let/fn-name-cover': [SKIP],
-  'language/statements/let/fn-name-fn': [SKIP],
-  'language/statements/let/fn-name-gen': [SKIP],
-  'test-api/Regress470113': [SKIP],
-}],  # ignition == True and (arch == arm or arch == arm64)
 
 ]

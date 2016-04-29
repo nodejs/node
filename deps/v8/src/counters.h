@@ -492,8 +492,11 @@ struct RuntimeCallCounter {
 // timers used for properly measuring the own time of a RuntimeCallCounter.
 class RuntimeCallTimer {
  public:
-  RuntimeCallTimer(RuntimeCallCounter* counter, RuntimeCallTimer* parent)
-      : counter_(counter), parent_(parent) {}
+  inline void Initialize(RuntimeCallCounter* counter,
+                         RuntimeCallTimer* parent) {
+    counter_ = counter;
+    parent_ = parent;
+  }
 
   inline void Start() {
     timer_.Start();
@@ -509,7 +512,9 @@ class RuntimeCallTimer {
     return parent_;
   }
 
-  void AdjustForSubTimer(base::TimeDelta delta) { counter_->time -= delta; }
+  inline void AdjustForSubTimer(base::TimeDelta delta) {
+    counter_->time -= delta;
+  }
 
  private:
   RuntimeCallCounter* counter_;
@@ -523,6 +528,7 @@ struct RuntimeCallStats {
       RuntimeCallCounter("UnexpectedStubMiss");
   // Counter for runtime callbacks into JavaScript.
   RuntimeCallCounter ExternalCallback = RuntimeCallCounter("ExternalCallback");
+  RuntimeCallCounter GC = RuntimeCallCounter("GC");
 #define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
   RuntimeCallCounter Runtime_##name = RuntimeCallCounter(#name);
   FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
@@ -557,8 +563,16 @@ struct RuntimeCallStats {
 // the time of C++ scope.
 class RuntimeCallTimerScope {
  public:
-  explicit RuntimeCallTimerScope(Isolate* isolate, RuntimeCallCounter* counter);
-  ~RuntimeCallTimerScope();
+  inline explicit RuntimeCallTimerScope(Isolate* isolate,
+                                        RuntimeCallCounter* counter) {
+    if (FLAG_runtime_call_stats) Enter(isolate, counter);
+  }
+  inline ~RuntimeCallTimerScope() {
+    if (FLAG_runtime_call_stats) Leave();
+  }
+
+  void Enter(Isolate* isolate, RuntimeCallCounter* counter);
+  void Leave();
 
  private:
   Isolate* isolate_;
@@ -742,17 +756,11 @@ class RuntimeCallTimerScope {
   SC(regexp_entry_native, V8.RegExpEntryNative)                                \
   SC(number_to_string_native, V8.NumberToStringNative)                         \
   SC(number_to_string_runtime, V8.NumberToStringRuntime)                       \
-  SC(math_acos_runtime, V8.MathAcosRuntime)                                    \
-  SC(math_asin_runtime, V8.MathAsinRuntime)                                    \
-  SC(math_atan_runtime, V8.MathAtanRuntime)                                    \
   SC(math_atan2_runtime, V8.MathAtan2Runtime)                                  \
   SC(math_clz32_runtime, V8.MathClz32Runtime)                                  \
   SC(math_exp_runtime, V8.MathExpRuntime)                                      \
-  SC(math_floor_runtime, V8.MathFloorRuntime)                                  \
   SC(math_log_runtime, V8.MathLogRuntime)                                      \
   SC(math_pow_runtime, V8.MathPowRuntime)                                      \
-  SC(math_round_runtime, V8.MathRoundRuntime)                                  \
-  SC(math_sqrt_runtime, V8.MathSqrtRuntime)                                    \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
   SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
   SC(runtime_calls, V8.RuntimeCalls)                          \

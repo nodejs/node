@@ -124,14 +124,6 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
   Handle<Map> map =
       isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   map->set_is_prototype_map(true);
-  if (constructor->map()->is_strong()) {
-    map->set_is_strong();
-    if (super_class->IsNull()) {
-      // Strong class is not permitted to extend null.
-      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kStrongExtendNull),
-                      Object);
-    }
-  }
   Map::SetPrototype(map, prototype_parent);
   map->SetConstructor(*constructor);
   Handle<JSObject> prototype = isolate->factory()->NewJSObjectFromMap(map);
@@ -206,19 +198,7 @@ RUNTIME_FUNCTION(Runtime_FinalizeClassDefinition) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, constructor, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, prototype, 1);
-
   JSObject::MigrateSlowToFast(constructor, 0, "RuntimeToFastProperties");
-
-  if (constructor->map()->is_strong()) {
-    DCHECK(prototype->map()->is_strong());
-    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(prototype, FROZEN,
-                                               Object::THROW_ON_ERROR),
-                 isolate->heap()->exception());
-    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(constructor, FROZEN,
-                                               Object::THROW_ON_ERROR),
-                 isolate->heap()->exception());
-  }
   return *constructor;
 }
 

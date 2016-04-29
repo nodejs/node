@@ -54,21 +54,30 @@ uint32_t AddJsFunction(TestingModule* module, FunctionSig* sig,
   Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
   module->AddFunction(sig, Handle<Code>::null());
-  uint32_t index = static_cast<uint32_t>(module->module->functions->size() - 1);
+  uint32_t index = static_cast<uint32_t>(module->module->functions.size() - 1);
   Isolate* isolate = CcTest::InitIsolateOnce();
-  Handle<Code> code =
-      CompileWasmToJSWrapper(isolate, module, jsfunc, sig, "test");
-  module->instance->function_code->at(index) = code;
+  WasmName module_name = {"test", 4};
+  WasmName function_name = {nullptr, 0};
+  Handle<Code> code = CompileWasmToJSWrapper(isolate, module, jsfunc, sig,
+                                             module_name, function_name);
+  module->instance->function_code[index] = code;
   return index;
 }
 
 
 uint32_t AddJSSelector(TestingModule* module, FunctionSig* sig, int which) {
-  const int kMaxParams = 8;
-  static const char* formals[kMaxParams] = {
-      "",        "a",         "a,b",         "a,b,c",
-      "a,b,c,d", "a,b,c,d,e", "a,b,c,d,e,f", "a,b,c,d,e,f,g",
-  };
+  const int kMaxParams = 11;
+  static const char* formals[kMaxParams] = {"",
+                                            "a",
+                                            "a,b",
+                                            "a,b,c",
+                                            "a,b,c,d",
+                                            "a,b,c,d,e",
+                                            "a,b,c,d,e,f",
+                                            "a,b,c,d,e,f,g",
+                                            "a,b,c,d,e,f,g,h",
+                                            "a,b,c,d,e,f,g,h,i",
+                                            "a,b,c,d,e,f,g,h,i,j"};
   CHECK_LT(which, static_cast<int>(sig->parameter_count()));
   CHECK_LT(static_cast<int>(sig->parameter_count()), kMaxParams);
 
@@ -86,7 +95,7 @@ Handle<JSFunction> WrapCode(ModuleEnv* module, uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Handle<String> name = isolate->factory()->NewStringFromStaticChars("main");
   Handle<JSObject> module_object = Handle<JSObject>(0, isolate);
-  Handle<Code> code = module->instance->function_code->at(index);
+  Handle<Code> code = module->instance->function_code[index];
   WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
   return compiler::CompileJSToWasmWrapper(isolate, module, name, code,
                                           module_object, index);
@@ -171,8 +180,6 @@ TEST(Run_I32Popcount_jswrapped) {
 }
 
 
-#if !V8_TARGET_ARCH_ARM64
-// TODO(titzer): dynamic frame alignment on arm64
 TEST(Run_CallJS_Add_jswrapped) {
   TestSignatures sigs;
   TestingModule module;
@@ -187,12 +194,9 @@ TEST(Run_CallJS_Add_jswrapped) {
   EXPECT_CALL(199, jsfunc, 100, -1);
   EXPECT_CALL(-666666801, jsfunc, -666666900, -1);
 }
-#endif
 
 
 void RunJSSelectTest(int which) {
-#if !V8_TARGET_ARCH_ARM
-  // TODO(titzer): fix tests on arm and reenable
   const int kMaxParams = 8;
   PredictableInputValues inputs(0x100);
   LocalType type = kAstF64;
@@ -223,7 +227,6 @@ void RunJSSelectTest(int which) {
     double expected = inputs.arg_d(which);
     EXPECT_CALL(expected, jsfunc, 0.0, 0.0);
   }
-#endif
 }
 
 
@@ -296,10 +299,11 @@ TEST(Run_WASMSelect_7) { RunWASMSelectTest(7); }
 void RunWASMSelectAlignTest(int num_args, int num_params) {
   PredictableInputValues inputs(0x300);
   Isolate* isolate = CcTest::InitIsolateOnce();
-  const int kMaxParams = 4;
+  const int kMaxParams = 10;
   DCHECK_LE(num_args, kMaxParams);
   LocalType type = kAstF64;
-  LocalType types[kMaxParams + 1] = {type, type, type, type, type};
+  LocalType types[kMaxParams + 1] = {type, type, type, type, type, type,
+                                     type, type, type, type, type};
   FunctionSig sig(1, num_params, types);
 
   for (int which = 0; which < num_params; which++) {
@@ -308,12 +312,16 @@ void RunWASMSelectAlignTest(int num_args, int num_params) {
     BUILD(t, WASM_GET_LOCAL(which));
     Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd());
 
-    Handle<Object> args[] = {
-        isolate->factory()->NewNumber(inputs.arg_d(0)),
-        isolate->factory()->NewNumber(inputs.arg_d(1)),
-        isolate->factory()->NewNumber(inputs.arg_d(2)),
-        isolate->factory()->NewNumber(inputs.arg_d(3)),
-    };
+    Handle<Object> args[] = {isolate->factory()->NewNumber(inputs.arg_d(0)),
+                             isolate->factory()->NewNumber(inputs.arg_d(1)),
+                             isolate->factory()->NewNumber(inputs.arg_d(2)),
+                             isolate->factory()->NewNumber(inputs.arg_d(3)),
+                             isolate->factory()->NewNumber(inputs.arg_d(4)),
+                             isolate->factory()->NewNumber(inputs.arg_d(5)),
+                             isolate->factory()->NewNumber(inputs.arg_d(6)),
+                             isolate->factory()->NewNumber(inputs.arg_d(7)),
+                             isolate->factory()->NewNumber(inputs.arg_d(8)),
+                             isolate->factory()->NewNumber(inputs.arg_d(9))};
 
     double nan = std::numeric_limits<double>::quiet_NaN();
     double expected = which < num_args ? inputs.arg_d(which) : nan;
@@ -351,16 +359,43 @@ TEST(Run_WASMSelectAlign_4) {
   RunWASMSelectAlignTest(4, 4);
 }
 
+TEST(Run_WASMSelectAlign_7) {
+  RunWASMSelectAlignTest(7, 5);
+  RunWASMSelectAlignTest(7, 6);
+  RunWASMSelectAlignTest(7, 7);
+}
+
+TEST(Run_WASMSelectAlign_8) {
+  RunWASMSelectAlignTest(8, 5);
+  RunWASMSelectAlignTest(8, 6);
+  RunWASMSelectAlignTest(8, 7);
+  RunWASMSelectAlignTest(8, 8);
+}
+
+TEST(Run_WASMSelectAlign_9) {
+  RunWASMSelectAlignTest(9, 6);
+  RunWASMSelectAlignTest(9, 7);
+  RunWASMSelectAlignTest(9, 8);
+  RunWASMSelectAlignTest(9, 9);
+}
+
+TEST(Run_WASMSelectAlign_10) {
+  RunWASMSelectAlignTest(10, 7);
+  RunWASMSelectAlignTest(10, 8);
+  RunWASMSelectAlignTest(10, 9);
+  RunWASMSelectAlignTest(10, 10);
+}
 
 void RunJSSelectAlignTest(int num_args, int num_params) {
   PredictableInputValues inputs(0x400);
   Isolate* isolate = CcTest::InitIsolateOnce();
   Factory* factory = isolate->factory();
-  const int kMaxParams = 4;
+  const int kMaxParams = 10;
   CHECK_LE(num_args, kMaxParams);
   CHECK_LE(num_params, kMaxParams);
   LocalType type = kAstF64;
-  LocalType types[kMaxParams + 1] = {type, type, type, type, type};
+  LocalType types[kMaxParams + 1] = {type, type, type, type, type, type,
+                                     type, type, type, type, type};
   FunctionSig sig(1, num_params, types);
 
   // Build the calling code.
@@ -390,6 +425,12 @@ void RunJSSelectAlignTest(int num_args, int num_params) {
         factory->NewNumber(inputs.arg_d(1)),
         factory->NewNumber(inputs.arg_d(2)),
         factory->NewNumber(inputs.arg_d(3)),
+        factory->NewNumber(inputs.arg_d(4)),
+        factory->NewNumber(inputs.arg_d(5)),
+        factory->NewNumber(inputs.arg_d(6)),
+        factory->NewNumber(inputs.arg_d(7)),
+        factory->NewNumber(inputs.arg_d(8)),
+        factory->NewNumber(inputs.arg_d(9)),
     };
 
     double nan = std::numeric_limits<double>::quiet_NaN();
@@ -404,29 +445,50 @@ TEST(Run_JSSelectAlign_0) {
   RunJSSelectAlignTest(0, 2);
 }
 
+TEST(Run_JSSelectAlign_1) {
+  RunJSSelectAlignTest(1, 2);
+  RunJSSelectAlignTest(1, 3);
+}
 
 TEST(Run_JSSelectAlign_2) {
   RunJSSelectAlignTest(2, 3);
   RunJSSelectAlignTest(2, 4);
 }
 
+TEST(Run_JSSelectAlign_3) {
+  RunJSSelectAlignTest(3, 3);
+  RunJSSelectAlignTest(3, 4);
+}
 
 TEST(Run_JSSelectAlign_4) {
   RunJSSelectAlignTest(4, 3);
   RunJSSelectAlignTest(4, 4);
 }
 
-
-#if !V8_TARGET_ARCH_ARM64
-// TODO(titzer): dynamic frame alignment on arm64
-TEST(Run_JSSelectAlign_1) {
-  RunJSSelectAlignTest(1, 2);
-  RunJSSelectAlignTest(1, 3);
+TEST(Run_JSSelectAlign_7) {
+  RunJSSelectAlignTest(7, 3);
+  RunJSSelectAlignTest(7, 4);
+  RunJSSelectAlignTest(7, 4);
+  RunJSSelectAlignTest(7, 4);
 }
 
-
-TEST(Run_JSSelectAlign_3) {
-  RunJSSelectAlignTest(3, 3);
-  RunJSSelectAlignTest(3, 4);
+TEST(Run_JSSelectAlign_8) {
+  RunJSSelectAlignTest(8, 5);
+  RunJSSelectAlignTest(8, 6);
+  RunJSSelectAlignTest(8, 7);
+  RunJSSelectAlignTest(8, 8);
 }
-#endif
+
+TEST(Run_JSSelectAlign_9) {
+  RunJSSelectAlignTest(9, 6);
+  RunJSSelectAlignTest(9, 7);
+  RunJSSelectAlignTest(9, 8);
+  RunJSSelectAlignTest(9, 9);
+}
+
+TEST(Run_JSSelectAlign_10) {
+  RunJSSelectAlignTest(10, 7);
+  RunJSSelectAlignTest(10, 8);
+  RunJSSelectAlignTest(10, 9);
+  RunJSSelectAlignTest(10, 10);
+}

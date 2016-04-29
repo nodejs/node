@@ -139,7 +139,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CompareOperation(Token::Value::EQ, reg)
       .CompareOperation(Token::Value::NE, reg)
       .CompareOperation(Token::Value::EQ_STRICT, reg)
-      .CompareOperation(Token::Value::NE_STRICT, reg)
       .CompareOperation(Token::Value::LT, reg)
       .CompareOperation(Token::Value::GT, reg)
       .CompareOperation(Token::Value::LTE, reg)
@@ -160,6 +159,21 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .JumpIfNull(&start)
       .JumpIfUndefined(&start)
       .JumpIfNotHole(&start);
+
+  // Longer jumps with constant operands
+  BytecodeLabel end[8];
+  builder.Jump(&end[0])
+      .LoadTrue()
+      .JumpIfTrue(&end[1])
+      .LoadTrue()
+      .JumpIfFalse(&end[2])
+      .LoadLiteral(Smi::FromInt(0))
+      .JumpIfTrue(&end[3])
+      .LoadLiteral(Smi::FromInt(0))
+      .JumpIfFalse(&end[4])
+      .JumpIfNull(&end[5])
+      .JumpIfUndefined(&end[6])
+      .JumpIfNotHole(&end[7]);
 
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
@@ -205,11 +219,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   builder.ForInPrepare(reg)
       .ForInDone(reg, reg)
-      .ForInNext(reg, reg, reg)
+      .ForInNext(reg, reg, reg, 1)
       .ForInStep(reg);
   builder.ForInPrepare(wide)
       .ForInDone(reg, other)
-      .ForInNext(wide, wide, wide)
+      .ForInNext(wide, wide, wide, 1024)
       .ForInStep(reg);
 
   // Wide constant pool loads
@@ -223,8 +237,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit wide global load / store operations.
   builder.LoadGlobal(name, 1024, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
+      .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
       .StoreGlobal(name, 1024, LanguageMode::SLOPPY)
       .StoreGlobal(wide_name, 1, LanguageMode::STRICT);
+
+  // Emit extra wide global load.
+  builder.LoadGlobal(name, 1024 * 1024, TypeofMode::NOT_INSIDE_TYPEOF);
 
   // Emit wide load / store property operations.
   builder.LoadNamedProperty(reg, wide_name, 0)
@@ -271,27 +289,43 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&start);
 
-  builder.Debugger();
+  // Intrinsics handled by the interpreter.
+  builder.CallRuntime(Runtime::kInlineIsArray, reg, 1)
+      .CallRuntime(Runtime::kInlineIsArray, wide, 1);
 
+  builder.Debugger();
+  for (size_t i = 0; i < arraysize(end); i++) {
+    builder.Bind(&end[i]);
+  }
   builder.Return();
 
   // Generate BytecodeArray.
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray();
   CHECK_EQ(the_array->frame_size(),
-           (builder.fixed_and_temporary_register_count() +
-            builder.translation_register_count()) *
-               kPointerSize);
+           builder.fixed_and_temporary_register_count() * kPointerSize);
 
   // Build scorecard of bytecodes encountered in the BytecodeArray.
   std::vector<int> scorecard(Bytecodes::ToByte(Bytecode::kLast) + 1);
+
   Bytecode final_bytecode = Bytecode::kLdaZero;
   int i = 0;
   while (i < the_array->length()) {
     uint8_t code = the_array->get(i);
     scorecard[code] += 1;
     final_bytecode = Bytecodes::FromByte(code);
-    i += Bytecodes::Size(Bytecodes::FromByte(code));
+    OperandScale operand_scale = OperandScale::kSingle;
+    int prefix_offset = 0;
+    if (Bytecodes::IsPrefixScalingBytecode(final_bytecode)) {
+      operand_scale = Bytecodes::PrefixBytecodeToOperandScale(final_bytecode);
+      prefix_offset = 1;
+      code = the_array->get(i + 1);
+      final_bytecode = Bytecodes::FromByte(code);
+    }
+    i += prefix_offset + Bytecodes::Size(final_bytecode, operand_scale);
   }
+
+  // Insert entry for illegal bytecode as this is never willingly emitted.
+  scorecard[Bytecodes::ToByte(Bytecode::kIllegal)] = 1;
 
   // Check return occurs at the end and only once in the BytecodeArray.
   CHECK_EQ(final_bytecode, Bytecode::kReturn);
@@ -330,7 +364,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
 
 TEST_F(BytecodeArrayBuilderTest, RegisterValues) {
   int index = 1;
-  uint8_t operand = static_cast<uint8_t>(-index);
+  int32_t operand = -index;
 
   Register the_register(index);
   CHECK_EQ(the_register.index(), index);
@@ -531,6 +565,12 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   for (int i = 0; i < 63; i++) {
     builder.Jump(&label4);
   }
+
+  // Add padding to force wide backwards jumps.
+  for (int i = 0; i < 256; i++) {
+    builder.LoadTrue();
+  }
+
   builder.BinaryOperation(Token::Value::ADD, reg).JumpIfFalse(&label4);
   builder.BinaryOperation(Token::Value::ADD, reg).JumpIfTrue(&label3);
   builder.CompareOperation(Token::Value::EQ, reg).JumpIfFalse(&label2);
@@ -546,51 +586,65 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   // Ignore compare operation.
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfTrue);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK_EQ(iterator.GetImmediateOperand(0), -2);
   iterator.Advance();
   // Ignore compare operation.
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfFalse);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK_EQ(iterator.GetImmediateOperand(0), -2);
   iterator.Advance();
   // Ignore binary operation.
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanTrue);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK_EQ(iterator.GetImmediateOperand(0), -2);
   iterator.Advance();
   // Ignore binary operation.
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanFalse);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   CHECK_EQ(iterator.GetImmediateOperand(0), -2);
   iterator.Advance();
   for (int i = 0; i < 63; i++) {
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
+    CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
     CHECK_EQ(iterator.GetImmediateOperand(0), -i * 2 - 4);
+    iterator.Advance();
+  }
+  // Check padding to force wide backwards jumps.
+  for (int i = 0; i < 256; i++) {
+    CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaTrue);
     iterator.Advance();
   }
   // Ignore binary operation.
   iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(),
-           Bytecode::kJumpIfToBooleanFalseConstant);
-  CHECK_EQ(Smi::cast(*iterator.GetConstantForIndexOperand(0))->value(), -132);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanFalse);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kDouble);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -389);
   iterator.Advance();
   // Ignore binary operation.
   iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanTrueConstant);
-  CHECK_EQ(Smi::cast(*iterator.GetConstantForIndexOperand(0))->value(), -140);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanTrue);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kDouble);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -399);
   iterator.Advance();
   // Ignore compare operation.
   iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfFalseConstant);
-  CHECK_EQ(Smi::cast(*iterator.GetConstantForIndexOperand(0))->value(), -148);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfFalse);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kDouble);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -409);
   iterator.Advance();
   // Ignore compare operation.
   iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfTrueConstant);
-  CHECK_EQ(Smi::cast(*iterator.GetConstantForIndexOperand(0))->value(), -156);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfTrue);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kDouble);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -419);
   iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpConstant);
-  CHECK_EQ(Smi::cast(*iterator.GetConstantForIndexOperand(0))->value(), -160);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
+  CHECK_EQ(iterator.current_operand_scale(), OperandScale::kDouble);
+  CHECK_EQ(iterator.GetImmediateOperand(0), -425);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
   iterator.Advance();
@@ -650,6 +704,85 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
   iterator.Advance();
   CHECK(iterator.done());
+}
+
+TEST_F(BytecodeArrayBuilderTest, OperandScales) {
+  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(OperandSize::kByte),
+           OperandScale::kSingle);
+  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(OperandSize::kShort),
+           OperandScale::kDouble);
+  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(OperandSize::kQuad),
+           OperandScale::kQuadruple);
+  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(
+               OperandSize::kShort, OperandSize::kShort, OperandSize::kShort,
+               OperandSize::kShort),
+           OperandScale::kDouble);
+  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(
+               OperandSize::kQuad, OperandSize::kShort, OperandSize::kShort,
+               OperandSize::kShort),
+           OperandScale::kQuadruple);
+  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(
+               OperandSize::kShort, OperandSize::kQuad, OperandSize::kShort,
+               OperandSize::kShort),
+           OperandScale::kQuadruple);
+  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(
+               OperandSize::kShort, OperandSize::kShort, OperandSize::kQuad,
+               OperandSize::kShort),
+           OperandScale::kQuadruple);
+  CHECK_EQ(BytecodeArrayBuilder::OperandSizesToScale(
+               OperandSize::kShort, OperandSize::kShort, OperandSize::kShort,
+               OperandSize::kQuad),
+           OperandScale::kQuadruple);
+}
+
+TEST_F(BytecodeArrayBuilderTest, SizesForSignOperands) {
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(0) == OperandSize::kByte);
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMaxInt8) ==
+        OperandSize::kByte);
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMinInt8) ==
+        OperandSize::kByte);
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMaxInt8 + 1) ==
+        OperandSize::kShort);
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMinInt8 - 1) ==
+        OperandSize::kShort);
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMaxInt16) ==
+        OperandSize::kShort);
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMinInt16) ==
+        OperandSize::kShort);
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMaxInt16 + 1) ==
+        OperandSize::kQuad);
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMinInt16 - 1) ==
+        OperandSize::kQuad);
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMaxInt) ==
+        OperandSize::kQuad);
+  CHECK(BytecodeArrayBuilder::SizeForSignedOperand(kMinInt) ==
+        OperandSize::kQuad);
+}
+
+TEST_F(BytecodeArrayBuilderTest, SizesForUnsignOperands) {
+  // int overloads
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(0) == OperandSize::kByte);
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(kMaxUInt8) ==
+        OperandSize::kByte);
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(kMaxUInt8 + 1) ==
+        OperandSize::kShort);
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(kMaxUInt16) ==
+        OperandSize::kShort);
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(kMaxUInt16 + 1) ==
+        OperandSize::kQuad);
+  // size_t overloads
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(static_cast<size_t>(0)) ==
+        OperandSize::kByte);
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(
+            static_cast<size_t>(kMaxUInt8)) == OperandSize::kByte);
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(
+            static_cast<size_t>(kMaxUInt8 + 1)) == OperandSize::kShort);
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(
+            static_cast<size_t>(kMaxUInt16)) == OperandSize::kShort);
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(
+            static_cast<size_t>(kMaxUInt16 + 1)) == OperandSize::kQuad);
+  CHECK(BytecodeArrayBuilder::SizeForUnsignedOperand(
+            static_cast<size_t>(kMaxUInt32)) == OperandSize::kQuad);
 }
 
 }  // namespace interpreter

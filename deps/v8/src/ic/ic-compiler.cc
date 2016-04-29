@@ -132,29 +132,6 @@ Handle<Code> PropertyICCompiler::ComputeStore(Isolate* isolate,
 }
 
 
-Handle<Code> PropertyICCompiler::ComputeCompareNil(Handle<Map> receiver_map,
-                                                   CompareNilICStub* stub) {
-  Isolate* isolate = receiver_map->GetIsolate();
-  Handle<String> name(isolate->heap()->empty_string());
-  if (!receiver_map->is_dictionary_map()) {
-    Handle<Code> cached_ic =
-        Find(name, receiver_map, Code::COMPARE_NIL_IC, stub->GetExtraICState());
-    if (!cached_ic.is_null()) return cached_ic;
-  }
-
-  Code::FindAndReplacePattern pattern;
-  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
-  pattern.Add(isolate->factory()->meta_map(), cell);
-  Handle<Code> ic = stub->GetCodeCopy(pattern);
-
-  if (!receiver_map->is_dictionary_map()) {
-    Map::UpdateCodeCache(receiver_map, name, ic);
-  }
-
-  return ic;
-}
-
-
 void PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
     MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
     CodeHandleList* handlers, KeyedAccessStoreMode store_mode,
@@ -175,7 +152,8 @@ void PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
 Handle<Code> PropertyICCompiler::CompileLoadInitialize(Code::Flags flags) {
   LoadIC::GenerateInitialize(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadInitialize");
-  PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_INITIALIZE_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_INITIALIZE_TAG,
+                                     AbstractCode::cast(*code), 0));
   return code;
 }
 
@@ -183,7 +161,8 @@ Handle<Code> PropertyICCompiler::CompileLoadInitialize(Code::Flags flags) {
 Handle<Code> PropertyICCompiler::CompileStoreInitialize(Code::Flags flags) {
   StoreIC::GenerateInitialize(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreInitialize");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_INITIALIZE_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_INITIALIZE_TAG,
+                                     AbstractCode::cast(*code), 0));
   return code;
 }
 
@@ -191,8 +170,8 @@ Handle<Code> PropertyICCompiler::CompileStoreInitialize(Code::Flags flags) {
 Handle<Code> PropertyICCompiler::CompileStorePreMonomorphic(Code::Flags flags) {
   StoreIC::GeneratePreMonomorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStorePreMonomorphic");
-  PROFILE(isolate(),
-          CodeCreateEvent(Logger::STORE_PREMONOMORPHIC_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_PREMONOMORPHIC_TAG,
+                                     AbstractCode::cast(*code), 0));
   return code;
 }
 
@@ -202,7 +181,8 @@ Handle<Code> PropertyICCompiler::CompileStoreGeneric(Code::Flags flags) {
   LanguageMode language_mode = StoreICState::GetLanguageMode(extra_state);
   GenerateRuntimeSetProperty(masm(), language_mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_GENERIC_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_GENERIC_TAG,
+                                     AbstractCode::cast(*code), 0));
   return code;
 }
 
@@ -210,7 +190,8 @@ Handle<Code> PropertyICCompiler::CompileStoreGeneric(Code::Flags flags) {
 Handle<Code> PropertyICCompiler::CompileStoreMegamorphic(Code::Flags flags) {
   StoreIC::GenerateMegamorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreMegamorphic");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG,
+                                     AbstractCode::cast(*code), 0));
   return code;
 }
 
@@ -221,7 +202,8 @@ Handle<Code> PropertyICCompiler::GetCode(Code::Kind kind, Code::StubType type,
   Code::Flags flags =
       Code::ComputeFlags(kind, state, extra_ic_state_, type, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
-  PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
+  PROFILE(isolate(),
+          CodeCreateEvent(log_kind(code), AbstractCode::cast(*code), *name));
 #ifdef DEBUG
   code->VerifyEmbeddedObjects();
 #endif

@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --debug-eval-readonly-locals
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 

@@ -446,7 +446,7 @@ class Shell : public i::AllStatic {
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
 #ifndef V8_SHARED
-  static Global<Context> utility_context_;
+  static Global<Function> stringify_function_;
   static CounterMap* counter_map_;
   // We statically allocate a set of local counters to be used if we
   // don't want to store the stats in a memory-mapped file
@@ -462,7 +462,7 @@ class Shell : public i::AllStatic {
   static i::List<SharedArrayBuffer::Contents> externalized_shared_contents_;
 
   static Counter* GetCounter(const char* name, bool is_histogram);
-  static void InstallUtilityScript(Isolate* isolate);
+  static Local<String> Stringify(Isolate* isolate, Local<Value> value);
 #endif  // !V8_SHARED
   static void Initialize(Isolate* isolate);
   static void RunShell(Isolate* isolate);

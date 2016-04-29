@@ -5,44 +5,14 @@
 // Flags: --expose-wasm
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
-function testStack(func, check) {
-  var kBodySize = 2;
-  var kNameFunOffset = 22 + kBodySize + 1;
-  var kNameMainOffset = kNameFunOffset + 4;
-
-  var ffi = new Object();
-  ffi.fun = func;
-
-  var data = bytes(
-      // signatures
-      kDeclSignatures, 1,  //  --
-      0, kAstStmt,         // () -> void
-      // -- foreign function
-      kDeclFunctions, 2,                        //  --
-      kDeclFunctionName | kDeclFunctionImport,  // --
-      0, 0,                                     //  --
-      kNameFunOffset, 0, 0, 0,                  // name offset
-      // -- main function
-      kDeclFunctionName | kDeclFunctionExport,  // --
-      0, 0,                                     //  --
-      kNameMainOffset, 0, 0, 0,                 // name offset
-      kBodySize, 0,
-      // main body
-      kExprCallFunction, 0,  // --
-      // names
-      kDeclEnd,              //  --
-      'f', 'u', 'n', 0,      //  --
-      'm', 'a', 'i', 'n', 0  //  --
-      );
-
-  var module = _WASMEXP_.instantiateModule(data, ffi);
-
-  assertEquals("function", typeof module.main);
-
-  module.main();
-  check();
-}
+var expected = "Error\n" +
+    // The line numbers below will change as this test gains / loses lines..
+    "    at STACK (stack.js:24:11)\n" +     // --
+    "    at <WASM> (<anonymous>)\n" +       // TODO(jfb): wasm stack here.
+    "    at testStack (stack.js:38:18)\n" + // --
+    "    at stack.js:40:3";                 // --
 
 // The stack trace contains file path, only keep "stack.js".
 function stripPath(s) {
@@ -55,15 +25,16 @@ function STACK() {
   stack = e.stack;
 }
 
-function check_STACK() {
+(function testStack() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addImport("func", [kAstStmt]);
+
+  builder.addFunction(undefined, [kAstStmt])
+    .addBody([kExprCallImport, 0])
+    .exportAs("main");
+
+  var module = builder.instantiate({func: STACK});
+  module.exports.main();
   assertEquals(expected, stripPath(stack));
-}
-
-var expected = "Error\n" +
-    // The line numbers below will change as this test gains / loses lines..
-    "    at STACK (stack.js:54:11)\n" +  // --
-    "    at testStack (stack.js:43:10)\n" +
-    // TODO(jfb) Add WebAssembly stack here.
-    "    at stack.js:69:1";
-
-testStack(STACK, check_STACK);
+})();

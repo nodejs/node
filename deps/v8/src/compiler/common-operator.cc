@@ -142,20 +142,20 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   return os;
 }
 
-
-#define CACHED_OP_LIST(V)                                  \
-  V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)           \
-  V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)          \
-  V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
-  V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
-  V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
-  V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
-  V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)       \
-  V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
-  V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
-  V(BeginRegion, Operator::kNoThrow, 0, 1, 0, 0, 1, 0)     \
+#define CACHED_OP_LIST(V)                                    \
+  V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)             \
+  V(DeoptimizeIf, Operator::kFoldable, 2, 1, 1, 0, 0, 1)     \
+  V(DeoptimizeUnless, Operator::kFoldable, 2, 1, 1, 0, 0, 1) \
+  V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)            \
+  V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)           \
+  V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
+  V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)         \
+  V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)             \
+  V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)         \
+  V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
+  V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)     \
+  V(BeginRegion, Operator::kNoThrow, 0, 1, 0, 0, 1, 0)       \
   V(FinishRegion, Operator::kNoThrow, 1, 1, 0, 1, 1, 0)
-
 
 #define CACHED_RETURN_LIST(V) \
   V(1)                        \

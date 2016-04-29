@@ -22,7 +22,7 @@ HType HType::FromType(Type* type) {
   if (type->Is(Type::Boolean())) return HType::Boolean();
   if (type->Is(Type::Undefined())) return HType::Undefined();
   if (type->Is(Type::Object())) return HType::JSObject();
-  if (type->Is(Type::Receiver())) return HType::JSReceiver();
+  if (type->Is(Type::DetectableReceiver())) return HType::JSReceiver();
   return HType::Tagged();
 }
 
@@ -43,8 +43,13 @@ HType HType::FromValue(Handle<Object> value) {
   if (value->IsString()) return HType::String();
   if (value->IsBoolean()) return HType::Boolean();
   if (value->IsUndefined()) return HType::Undefined();
-  if (value->IsJSArray()) return HType::JSArray();
-  if (value->IsJSObject()) return HType::JSObject();
+  if (value->IsJSArray()) {
+    DCHECK(!value->IsUndetectable());
+    return HType::JSArray();
+  }
+  if (value->IsJSObject() && !value->IsUndetectable()) {
+    return HType::JSObject();
+  }
   DCHECK(value->IsHeapObject());
   return HType::HeapObject();
 }

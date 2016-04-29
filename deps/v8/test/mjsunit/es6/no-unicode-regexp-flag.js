@@ -7,7 +7,7 @@
 // mjsunit/es6/regexp-flags tests that the property is there when the
 // flag is on.
 
-// Flags: --harmony-regexps --no-harmony-unicode-regexps
+// Flags: --no-harmony-unicode-regexps
 
 'use strict';
 

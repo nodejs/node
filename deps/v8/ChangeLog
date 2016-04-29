@@ -1,3 +1,1764 @@
+2016-04-06: Version 5.1.281
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-05: Version 5.1.280
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-05: Version 5.1.279
+
+        Ship --harmony-regexp-exec (issue 4602).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-05: Version 5.1.278
+
+        [V8] Removed debugger V8::PromiseEvent (Chromium issue 526811).
+
+        [asm.js] Fix typing bug for non-literals in heap access (Chromium issue
+        599825).
+
+        Ensure CreateDataProperty works correctly on TypedArrays (Chromium issue
+        596394).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-05: Version 5.1.277
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-05: Version 5.1.276
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-05: Version 5.1.275
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-05: Version 5.1.274
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-05: Version 5.1.273
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-05: Version 5.1.272
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-05: Version 5.1.271
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.270
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.269
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.268
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.267
+
+        [api] Restrict Template::Set to take templates or primitive values.
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.266
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.265
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.264
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.263
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.262
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.261
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.260
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-04: Version 5.1.259
+
+        Further ES2015 RegExp spec compliance fixes (issue 4602).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-03: Version 5.1.258
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-02: Version 5.1.257
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-02: Version 5.1.256
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-02: Version 5.1.255
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.254
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.253
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.252
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.251
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.250
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.249
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.248
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.247
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.246
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.245
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.244
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.243
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.242
+
+        Performance and stability improvements on all platforms.
+
+
+2016-04-01: Version 5.1.241
+
+        [GN] Define USE_EABI_HARDFLOAT=1 when arm_float_abi=="hard" (Chromium
+        issue 592660).
+
+        Ship --harmony-regexp-exec (issue 4602).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.240
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.239
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.238
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.237
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.236
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.235
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.234
+
+        [arm/Linux] Don't rely on KUSER_HELPERS feature (Chromium issue 599051).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.233
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.232
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.231
+
+        Turn scavenge_reclaim_unmodified_objects on by default (Chromium issue
+        4880).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.230
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.229
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.228
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.227
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.226
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.225
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.224
+
+        Raise minimum Mac OS version to 10.7 (issue 4847).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-31: Version 5.1.223
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-30: Version 5.1.222
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-30: Version 5.1.221
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-30: Version 5.1.220
+
+        Stage --harmony-regexp-exec (issue 4602).
+
+        Add fast paths for native RegExps in ES2015 subclass-aware code (issue
+        4602).
+
+        [V8] Add FunctionMirror.prototype.contextDebugId method (Chromium issue
+        595206).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-30: Version 5.1.219
+
+        Remove RegExp.prototype.source getter compat workaround (issue 4827,
+        Chromium issue 581577).
+
+        Check for proper types from error handling code (Chromium issue 596718).
+
+        Add ES2015 RegExp full subclassing semantics behind a flag (issue 4602).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-24: Version 5.1.218
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-24: Version 5.1.217
+
+        [esnext] implement String padding proposal.
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-24: Version 5.1.216
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-24: Version 5.1.215
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-24: Version 5.1.214
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.213
+
+        Implement ES2015 labelled function declaration restrictions (Chromium
+        issue 595309).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.212
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.211
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.210
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.209
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.208
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.207
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.206
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.205
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.204
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.203
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.202
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.201
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-23: Version 5.1.200
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-22: Version 5.1.199
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-22: Version 5.1.198
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-22: Version 5.1.197
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-22: Version 5.1.196
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-22: Version 5.1.195
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-22: Version 5.1.194
+
+        Fix match default behavior on strings for ES2015 semantics (issue 4602).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-22: Version 5.1.193
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-22: Version 5.1.192
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-22: Version 5.1.191
+
+        [Interpreter] TurboFan implementation of intrinsics (issue 4822).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-22: Version 5.1.190
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-21: Version 5.1.189
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-21: Version 5.1.188
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-21: Version 5.1.187
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-21: Version 5.1.186
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-21: Version 5.1.185
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-21: Version 5.1.184
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-21: Version 5.1.183
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-21: Version 5.1.182
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-21: Version 5.1.181
+
+        Temporarily undeprecate ForceSet (Chromium issue 595601).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-21: Version 5.1.180
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-20: Version 5.1.179
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-20: Version 5.1.178
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-20: Version 5.1.177
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-19: Version 5.1.176
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-18: Version 5.1.175
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-18: Version 5.1.174
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-18: Version 5.1.173
+
+        Parser: Make skipping HTML comments optional (Chromium issue 573887).
+
+        [es7] implement exponentiation operator proposal (issue 3915).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-18: Version 5.1.172
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-18: Version 5.1.171
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-18: Version 5.1.170
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-18: Version 5.1.169
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.168
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.167
+
+        Throw the right exceptions from setting elements in
+        Array.prototype.concat (Chromium issue 595319).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.166
+
+        Throw exceptions from CreateDataProperty when should_throw (Chromium
+        issue 595319).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.165
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.164
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.163
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.162
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.161
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.160
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.159
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.158
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.157
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.156
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.155
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.154
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.153
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.152
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.151
+
+        Move FastAccessorAssembler from RawMachineAssembler to CodeStubAssembler
+        (Chromium issue 508898).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.150
+
+        [serializer] Add API to warm up startup snapshot with an additional
+        script (issue 4836).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.149
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.148
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-17: Version 5.1.147
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-16: Version 5.1.146
+
+        Ship ES2015 restrictions on function declaration locations (issue 4824).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-16: Version 5.1.145
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-16: Version 5.1.144
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-16: Version 5.1.143
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-16: Version 5.1.142
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-16: Version 5.1.141
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-16: Version 5.1.140
+
+        Put RegExp js code in strict mode (issue 4504).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.139
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.138
+
+        [builtins] Fix Array.prototype.concat bug (Chromium issue 594574).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.137
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.136
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.135
+
+        Ship Array.prototype.values (issue 4247).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.134
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.133
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.132
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.131
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.130
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.129
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-15: Version 5.1.128
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-14: Version 5.1.127
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-14: Version 5.1.126
+
+        Remove --harmony-modules flag and let embedder decide when modules are
+        used (issue 1569, Chromium issue 594639).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-14: Version 5.1.125
+
+        Make test262 test runner check for which exception is thrown (issue
+        4803).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-14: Version 5.1.124
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-14: Version 5.1.123
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-14: Version 5.1.122
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-14: Version 5.1.121
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-14: Version 5.1.120
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-14: Version 5.1.119
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-13: Version 5.1.118
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-11: Version 5.1.117
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-11: Version 5.1.116
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-11: Version 5.1.115
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-11: Version 5.1.114
+
+        [arm64] Fix i/d cache line size confusion typo (Chromium issue 593867).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-11: Version 5.1.113
+
+        Fix expression positions for for-loops (issue 4690).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-11: Version 5.1.112
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-11: Version 5.1.111
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.110
+
+        Minor library function fixes for TypedArray spec compliance (issue
+        4785).
+
+        Check that Promise subclasses have callable resolve/reject (issue 4633).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.109
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.108
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.107
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.106
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.105
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.104
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.103
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.102
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.101
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.100
+
+        [strong] Remove all remainders of strong mode (issue 3956).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.99
+
+        Marks the label associated with the runtime call in
+        CodeStubAssembler::Allocate as deferred (Chromium issue 593359).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.98
+
+        Implement iterator finalization in array destructuring (issue 3566).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.97
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.96
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-10: Version 5.1.95
+
+        String.prototype[Symbol.iterator] does RequireObjectCoercible(this)
+        (issue 4348).
+
+        Stage restrictive declarations flag (issue 4824).
+
+        Expose Array.prototype.values behind a flag and stage it (issue 4247).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.94
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.93
+
+        Ensure appropriate bounds checking for Array subclass concat (Chromium
+        issue 592340).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.92
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.91
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.90
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.89
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.88
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.87
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.86
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.85
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-09: Version 5.1.84
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.83
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.82
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.81
+
+        Optimize new TypedArray(typedArray) constructor (Chromium issue 592007).
+
+        Ensure the @@species protector is updated for accessors (issue 4093).
+
+        Add UseCounters for various RegExp compatibility issues (Chromium issue
+        581577).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.80
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.79
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.78
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.77
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.76
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.75
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.74
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.73
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.72
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-08: Version 5.1.71
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.70
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.69
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.68
+
+        [key-accumulator] Starting to reimplement the key-accumulator (issue
+        4758, Chromium issue 545503).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.67
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.66
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.65
+
+        [key-accumulator] Starting to reimplement the key-accumulator (issue
+        4758, Chromium issue 545503).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.64
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.63
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.62
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.61
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.60
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.59
+
+        Use v8::kGCCallbackFlagCollectAllAvailableGarbage in
+        Heap::CollectAllAvailableGarbage (Chromium issue 591463).
+
+        [key-accumulator] Starting to reimplement the key-accumulator (issue
+        4758, Chromium issue 545503).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.58
+
+        [regexp] Fix off-by-one in CharacterRange::Negate (Chromium issue
+        592343).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.57
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-07: Version 5.1.56
+
+        Use v8::kGCCallbackFlagCollectAllAvailableGarbage in
+        Heap::CollectAllAvailableGarbage (Chromium issue 591463).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-06: Version 5.1.55
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-06: Version 5.1.54
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.53
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.52
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.51
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.50
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.49
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.48
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.47
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.46
+
+        Introduce v8::MicrotasksScope (Chromium issue 585949).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.45
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.44
+
+        Use a different GCCallbackFlag for GCs triggered by
+        CollectAllAvailableGarbage (Chromium issue 591463).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.43
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.42
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.41
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.40
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.39
+
+        Ship ES2015 Function.name reform (issue 3699, Chromium issue 588803).
+
+        Introduce v8::MicrotasksScope (Chromium issue 585949).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-04: Version 5.1.38
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-03: Version 5.1.37
+
+        Restrict FunctionDeclarations in Statement position (issue 4647).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-03: Version 5.1.36
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-03: Version 5.1.35
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-03: Version 5.1.34
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-03: Version 5.1.33
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-03: Version 5.1.32
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-03: Version 5.1.31
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-03: Version 5.1.30
+
+        Implement TypedArray(typedarray) constructor (issue 4726).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-02: Version 5.1.29
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-02: Version 5.1.28
+
+        [turbofan] Adds an Allocate macro to the CodeStubAssembler (Chromium
+        issue 588692).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-02: Version 5.1.27
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-02: Version 5.1.26
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-02: Version 5.1.25
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-02: Version 5.1.24
+
+        Devtools: expose scopes source location to debugger (Chromium issue
+        327092).
+
+        CodeStubAssembler can generate code for builtins (issue 4614).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.23
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.22
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.21
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.20
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.19
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.18
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.17
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.16
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.15
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.14
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.13
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.12
+
+        Performance and stability improvements on all platforms.
+
+
+2016-03-01: Version 5.1.11
+
+        Make %TypedArray%.from spec-compliant (issue 4782).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-29: Version 5.1.10
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-29: Version 5.1.9
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-28: Version 5.1.8
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-28: Version 5.1.7
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-28: Version 5.1.6
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-28: Version 5.1.5
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-28: Version 5.1.4
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-28: Version 5.1.3
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-28: Version 5.1.2
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-27: Version 5.1.1
+
+        Fix strict mode function error message (issue 2198).
+
+        Reland of Make Intl install properties more like how other builtins do
+        (patchset #1 id:1 of https://codereview.chromium.org/1733293003/ )
+        (issue 4778).
+
+        [turbofan] Bailout if LoadBuffer typing assumption doesn't hold
+        (Chromium issue 589792).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-26: Version 5.0.104
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-26: Version 5.0.103
+
+        Make Intl install properties more like how other builtins do (issue
+        4778).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-26: Version 5.0.102
+
+        Make TypedArray.from and TypedArray.of writable and configurable (issue
+        4315).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.101
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.100
+
+        Ship ES2015 iterator finalization (issue 3566).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.99
+
+        Introduce MicrotasksCompletedCallback (Chromium issue 585949).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.98
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.97
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.96
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.95
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.94
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.93
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.92
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.91
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.90
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.89
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.88
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.87
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.86
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-25: Version 5.0.85
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.84
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.83
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.82
+
+        Ensure IteratorClose is called for errors in non-declaring assignments
+        (issue 4776).
+
+        Fix priority of exceptions being thrown from for-of loops (issue 4775).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.81
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.80
+
+        Encode interpreter::SourcePositionTable as variable-length ints (issue
+        4690).
+
+        Stage ES2015 iterator finalization (issue 3566).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.79
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.78
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.77
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.76
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.75
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.74
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.73
+
+        Intl: Use private symbols to memoize bound functions (issue 3785).
+
+        Ensure Array.prototype.indexOf returns +0 rather than -0.
+
+        Ship ES2015 Symbol.species (issue 4093).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.72
+
+        Performance and stability improvements on all platforms.
+
+
 2016-02-23: Version 5.0.71
 
         Performance and stability improvements on all platforms.

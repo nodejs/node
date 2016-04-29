@@ -58,7 +58,7 @@ struct TickSample {
   unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
   bool has_external_callback : 1;
   bool update_stats : 1;  // Whether the sample should update aggregated stats.
-  StackFrame::Type top_frame_type : 4;
+  StackFrame::Type top_frame_type : 5;
 };
 
 class Sampler {

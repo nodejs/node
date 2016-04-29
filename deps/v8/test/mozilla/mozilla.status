@@ -109,6 +109,9 @@
   'js1_5/Regress/regress-360969-03': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
   'js1_5/Regress/regress-360969-04': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
+  # Function declarations are no longer allowed as the body of a with statement.
+  'js1_5/Regress/regress-326453': [FAIL],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory
@@ -168,6 +171,8 @@
   # in the test: "This test will probably run out of memory".
   'js1_5/extensions/regress-345967': [SKIP],
 
+  # Slow with arm64 simulator in debug.
+  'ecma_3/Statements/regress-302439': [PASS, ['mode == debug', SLOW]],
 
   ##################### FLAKY TESTS #####################
 
@@ -671,9 +676,6 @@
   # Bug 762: http://code.google.com/p/v8/issues/detail?id=762
   # We do not correctly handle assignments within "with"
   'ecma_3/Statements/12.10-01': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4647
-  'ecma_3/FunExpr/fe-001': [FAIL_OK],
 
   ##################### MOZILLA EXTENSION TESTS #####################
 

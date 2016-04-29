@@ -197,7 +197,8 @@ class JSONGraphEdgeWriter {
 
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
-  Zone tmp_zone;
+  base::AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   os << "{\n\"nodes\":[";
   JSONGraphNodeWriter(os, &tmp_zone, &ad.graph, ad.positions).Print();
   os << "],\n\"edges\":[";
@@ -231,8 +232,8 @@ class GraphC1Visualizer {
   void PrintInputs(InputIterator* i, int count, const char* prefix);
   void PrintType(Node* node);
 
-  void PrintLiveRange(LiveRange* range, const char* type, int vreg);
-  void PrintLiveRangeChain(TopLevelLiveRange* range, const char* type);
+  void PrintLiveRange(const LiveRange* range, const char* type, int vreg);
+  void PrintLiveRangeChain(const TopLevelLiveRange* range, const char* type);
 
   class Tag final BASE_EMBEDDED {
    public:
@@ -505,31 +506,30 @@ void GraphC1Visualizer::PrintLiveRanges(const char* phase,
   Tag tag(this, "intervals");
   PrintStringProperty("name", phase);
 
-  for (auto range : data->fixed_double_live_ranges()) {
+  for (const TopLevelLiveRange* range : data->fixed_double_live_ranges()) {
     PrintLiveRangeChain(range, "fixed");
   }
 
-  for (auto range : data->fixed_live_ranges()) {
+  for (const TopLevelLiveRange* range : data->fixed_live_ranges()) {
     PrintLiveRangeChain(range, "fixed");
   }
 
-  for (auto range : data->live_ranges()) {
+  for (const TopLevelLiveRange* range : data->live_ranges()) {
     PrintLiveRangeChain(range, "object");
   }
 }
 
-
-void GraphC1Visualizer::PrintLiveRangeChain(TopLevelLiveRange* range,
+void GraphC1Visualizer::PrintLiveRangeChain(const TopLevelLiveRange* range,
                                             const char* type) {
   if (range == nullptr || range->IsEmpty()) return;
   int vreg = range->vreg();
-  for (LiveRange* child = range; child != nullptr; child = child->next()) {
+  for (const LiveRange* child = range; child != nullptr;
+       child = child->next()) {
     PrintLiveRange(child, type, vreg);
   }
 }
 
-
-void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
+void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
                                        int vreg) {
   if (range != nullptr && !range->IsEmpty()) {
     PrintIndent();
@@ -545,7 +545,7 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
         os_ << " \"" << assigned_reg.ToString() << "\"";
       }
     } else if (range->spilled()) {
-      auto top = range->TopLevel();
+      const TopLevelLiveRange* top = range->TopLevel();
       int index = -1;
       if (top->HasSpillRange()) {
         index = kMaxInt;  // This hasn't been set yet.
@@ -564,8 +564,8 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
     }
 
     os_ << " " << vreg;
-    for (auto interval = range->first_interval(); interval != nullptr;
-         interval = interval->next()) {
+    for (const UseInterval* interval = range->first_interval();
+         interval != nullptr; interval = interval->next()) {
       os_ << " [" << interval->start().value() << ", "
           << interval->end().value() << "[";
     }
@@ -584,14 +584,16 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1VCompilation& ac) {
-  Zone tmp_zone;
+  base::AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone).PrintCompilation(ac.info_);
   return os;
 }
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
-  Zone tmp_zone;
+  base::AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone)
       .PrintSchedule(ac.phase_, ac.schedule_, ac.positions_, ac.instructions_);
   return os;
@@ -600,7 +602,8 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
 
 std::ostream& operator<<(std::ostream& os,
                          const AsC1VRegisterAllocationData& ac) {
-  Zone tmp_zone;
+  base::AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone).PrintLiveRanges(ac.phase_, ac.data_);
   return os;
 }
@@ -610,7 +613,8 @@ const int kOnStack = 1;
 const int kVisited = 2;
 
 std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
-  Zone local_zone;
+  base::AccountingAllocator allocator;
+  Zone local_zone(&allocator);
   ZoneVector<byte> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
   ZoneStack<Node*> stack(&local_zone);
 

@@ -81,9 +81,15 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     __ mov(ip, Operand(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
     __ push(ip);
 
-    if (mode == SAVE_RESULT_REGISTER) __ push(r0);
-
-    __ mov(r0, Operand::Zero());  // no arguments
+    // Push arguments for DebugBreak call.
+    if (mode == SAVE_RESULT_REGISTER) {
+      // Break on return.
+      __ push(r0);
+    } else {
+      // Non-return breaks.
+      __ Push(masm->isolate()->factory()->the_hole_value());
+    }
+    __ mov(r0, Operand(1));
     __ mov(r1,
            Operand(ExternalReference(
                Runtime::FunctionForId(Runtime::kDebugBreak), masm->isolate())));
@@ -94,11 +100,13 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; i++) {
         Register reg = {JSCallerSavedCode(i)};
-        __ mov(reg, Operand(kDebugZapValue));
+        // Do not clobber r0 if mode is SAVE_RESULT_REGISTER. It will
+        // contain return value of the function.
+        if (!(reg.is(r0) && (mode == SAVE_RESULT_REGISTER))) {
+          __ mov(reg, Operand(kDebugZapValue));
+        }
       }
     }
-
-    if (mode == SAVE_RESULT_REGISTER) __ pop(r0);
 
     // Don't bother removing padding bytes pushed on the stack
     // as the frame is going to be restored right away.
@@ -119,8 +127,7 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // Load the function pointer off of our current stack frame.
-  __ ldr(r1, MemOperand(fp,
-         StandardFrameConstants::kConstantPoolOffset - kPointerSize));
+  __ ldr(r1, MemOperand(fp, FrameDropperFrameConstants::kFunctionOffset));
 
   // Pop return address, frame and constant pool pointer (if
   // FLAG_enable_embedded_constant_pool).

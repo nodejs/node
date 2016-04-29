@@ -10,7 +10,7 @@
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
-#include "src/snapshot/serialize.h"
+#include "src/snapshot/serializer-common.h"
 #include "src/string-stream.h"
 
 namespace v8 {

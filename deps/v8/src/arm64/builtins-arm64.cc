@@ -518,6 +518,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- x2     : allocation site or undefined
   //  -- x3     : new target
   //  -- lr     : return address
+  //  -- cp     : context pointer
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
@@ -537,6 +538,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     // Preserve the incoming parameters on the stack.
     __ AssertUndefinedOrAllocationSite(allocation_site, x10);
+    __ Push(cp);
     __ SmiTag(argc);
     __ Push(allocation_site, argc);
 
@@ -623,7 +625,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // x0: result
     // jssp[0]: receiver
     // jssp[1]: number of arguments (smi-tagged)
-    __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ Ldr(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
 
     if (create_implicit_receiver) {
       // If the result is an object (in the ECMA sense), we should get rid
@@ -762,9 +764,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   Register scratch = x10;
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
-  // Clear the context before we push it when entering the internal frame.
-  __ Mov(cp, 0);
 
   {
     // Enter an internal frame.
@@ -1394,23 +1393,6 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
-  // We check the stack limit as indicator that recompilation might be done.
-  Label ok;
-  __ CompareRoot(jssp, Heap::kStackLimitRootIndex);
-  __ B(hs, &ok);
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kStackGuard);
-  }
-  __ Jump(masm->isolate()->builtins()->OnStackReplacement(),
-          RelocInfo::CODE_TARGET);
-
-  __ Bind(&ok);
-  __ Ret();
-}
-
-
 // static
 void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
                                                int field_index) {
@@ -1456,6 +1438,29 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
   __ TailCallRuntime(Runtime::kThrowNotDateError);
 }
 
+// static
+void Builtins::Generate_FunctionHasInstance(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- x0      : argc
+  //  -- jssp[0] : first argument (left-hand side)
+  //  -- jssp[8] : receiver (right-hand side)
+  // -----------------------------------
+  ASM_LOCATION("Builtins::Generate_FunctionHasInstance");
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Ldr(InstanceOfDescriptor::LeftRegister(),
+           MemOperand(fp, 2 * kPointerSize));  // Load left-hand side.
+    __ Ldr(InstanceOfDescriptor::RightRegister(),
+           MemOperand(fp, 3 * kPointerSize));  // Load right-hand side.
+    InstanceOfStub stub(masm->isolate(), true);
+    __ CallStub(&stub);
+  }
+
+  // Pop the argument and the receiver.
+  __ Drop(2);
+  __ Ret();
+}
 
 // static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
@@ -1972,19 +1977,21 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   DCHECK(!AreAliased(args_reg, scratch1, scratch2, scratch3));
   Comment cmnt(masm, "[ PrepareForTailCall");
 
-  // Prepare for tail call only if the debugger is not active.
+  // Prepare for tail call only if ES2015 tail call elimination is enabled.
   Label done;
-  ExternalReference debug_is_active =
-      ExternalReference::debug_is_active_address(masm->isolate());
-  __ Mov(scratch1, Operand(debug_is_active));
+  ExternalReference is_tail_call_elimination_enabled =
+      ExternalReference::is_tail_call_elimination_enabled_address(
+          masm->isolate());
+  __ Mov(scratch1, Operand(is_tail_call_elimination_enabled));
   __ Ldrb(scratch1, MemOperand(scratch1));
   __ Cmp(scratch1, Operand(0));
-  __ B(ne, &done);
+  __ B(eq, &done);
 
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
-    __ Ldr(scratch3, MemOperand(fp, StandardFrameConstants::kMarkerOffset));
+    __ Ldr(scratch3,
+           MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
     __ Cmp(scratch3, Operand(Smi::FromInt(StackFrame::STUB)));
     __ B(ne, &no_interpreter_frame);
     __ Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -1992,18 +1999,19 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   }
 
   // Check if next frame is an arguments adaptor frame.
+  Register caller_args_count_reg = scratch1;
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ Ldr(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ Ldr(scratch3,
-         MemOperand(scratch2, StandardFrameConstants::kContextOffset));
+         MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Cmp(scratch3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ B(ne, &no_arguments_adaptor);
 
-  // Drop arguments adaptor frame and load arguments count.
+  // Drop current frame and load arguments count from arguments adaptor frame.
   __ mov(fp, scratch2);
-  __ Ldr(scratch1,
+  __ Ldr(caller_args_count_reg,
          MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiUntag(scratch1);
+  __ SmiUntag(caller_args_count_reg);
   __ B(&formal_parameter_count_loaded);
 
   __ bind(&no_arguments_adaptor);
@@ -2011,54 +2019,14 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ Ldr(scratch1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ Ldr(scratch1,
          FieldMemOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldrsw(scratch1,
+  __ Ldrsw(caller_args_count_reg,
            FieldMemOperand(scratch1,
                            SharedFunctionInfo::kFormalParameterCountOffset));
   __ bind(&formal_parameter_count_loaded);
 
-  // Calculate the end of destination area where we will put the arguments
-  // after we drop current frame. We add kPointerSize to count the receiver
-  // argument which is not included into formal parameters count.
-  Register dst_reg = scratch2;
-  __ add(dst_reg, fp, Operand(scratch1, LSL, kPointerSizeLog2));
-  __ add(dst_reg, dst_reg,
-         Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
-
-  Register src_reg = scratch1;
-  __ add(src_reg, jssp, Operand(args_reg, LSL, kPointerSizeLog2));
-  // Count receiver argument as well (not included in args_reg).
-  __ add(src_reg, src_reg, Operand(kPointerSize));
-
-  if (FLAG_debug_code) {
-    __ Cmp(src_reg, dst_reg);
-    __ Check(lo, kStackAccessBelowStackPointer);
-  }
-
-  // Restore caller's frame pointer and return address now as they will be
-  // overwritten by the copying loop.
-  __ Ldr(lr, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-  __ Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-
-  // Now copy callee arguments to the caller frame going backwards to avoid
-  // callee arguments corruption (source and destination areas could overlap).
-
-  // Both src_reg and dst_reg are pointing to the word after the one to copy,
-  // so they must be pre-decremented in the loop.
-  Register tmp_reg = scratch3;
-  Label loop, entry;
-  __ B(&entry);
-  __ bind(&loop);
-  __ Ldr(tmp_reg, MemOperand(src_reg, -kPointerSize, PreIndex));
-  __ Str(tmp_reg, MemOperand(dst_reg, -kPointerSize, PreIndex));
-  __ bind(&entry);
-  __ Cmp(jssp, src_reg);
-  __ B(ne, &loop);
-
-  // Leave current frame.
-  __ Mov(jssp, dst_reg);
-  __ SetStackPointer(jssp);
-  __ AssertStackConsistency();
-
+  ParameterCount callee_args_count(args_reg);
+  __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
+                        scratch3);
   __ bind(&done);
 }
 }  // namespace
@@ -2610,30 +2578,6 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     Register copy_to = x12;
     Register scratch1 = x13, scratch2 = x14;
 
-    // If the function is strong we need to throw an error.
-    Label no_strong_error;
-    __ Ldr(scratch1,
-           FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-    __ Ldr(scratch2.W(),
-           FieldMemOperand(scratch1, SharedFunctionInfo::kCompilerHintsOffset));
-    __ TestAndBranchIfAllClear(scratch2.W(),
-                               (1 << SharedFunctionInfo::kStrongModeFunction),
-                               &no_strong_error);
-
-    // What we really care about is the required number of arguments.
-    DCHECK_EQ(kPointerSize, kInt64Size);
-    __ Ldr(scratch2.W(),
-           FieldMemOperand(scratch1, SharedFunctionInfo::kLengthOffset));
-    __ Cmp(argc_actual, Operand(scratch2, LSR, 1));
-    __ B(ge, &no_strong_error);
-
-    {
-      FrameScope frame(masm, StackFrame::MANUAL);
-      EnterArgumentsAdaptorFrame(masm);
-      __ CallRuntime(Runtime::kThrowStrongModeTooFewArguments);
-    }
-
-    __ Bind(&no_strong_error);
     EnterArgumentsAdaptorFrame(masm);
     ArgumentAdaptorStackCheck(masm, &stack_overflow);
 

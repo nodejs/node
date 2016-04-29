@@ -617,8 +617,8 @@ void Assembler::and_(const Operand& dst, Register src) {
   emit_operand(src, dst);
 }
 
-
-void Assembler::cmpb(const Operand& op, int8_t imm8) {
+void Assembler::cmpb(const Operand& op, Immediate imm8) {
+  DCHECK(imm8.is_int8() || imm8.is_uint8());
   EnsureSpace ensure_space(this);
   if (op.is_reg(eax)) {
     EMIT(0x3C);
@@ -626,7 +626,7 @@ void Assembler::cmpb(const Operand& op, int8_t imm8) {
     EMIT(0x80);
     emit_operand(edi, op);  // edi == 7
   }
-  EMIT(imm8);
+  emit_b(imm8);
 }
 
 
@@ -655,6 +655,19 @@ void Assembler::cmpw(const Operand& op, Immediate imm16) {
   emit_w(imm16);
 }
 
+void Assembler::cmpw(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x39);
+  emit_operand(reg, op);
+}
+
+void Assembler::cmpw(const Operand& op, Register reg) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x3B);
+  emit_operand(reg, op);
+}
 
 void Assembler::cmp(Register reg, int32_t imm32) {
   EnsureSpace ensure_space(this);
@@ -939,19 +952,26 @@ void Assembler::sar_cl(const Operand& dst) {
   emit_operand(edi, dst);
 }
 
-
 void Assembler::sbb(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0x1B);
   emit_operand(dst, src);
 }
 
+void Assembler::shld(Register dst, Register src, uint8_t shift) {
+  DCHECK(is_uint5(shift));
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xA4);
+  emit_operand(src, Operand(dst));
+  EMIT(shift);
+}
 
-void Assembler::shld(Register dst, const Operand& src) {
+void Assembler::shld_cl(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0xA5);
-  emit_operand(dst, src);
+  emit_operand(src, Operand(dst));
 }
 
 
@@ -975,15 +995,6 @@ void Assembler::shl_cl(const Operand& dst) {
   emit_operand(esp, dst);
 }
 
-
-void Assembler::shrd(Register dst, const Operand& src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0xAD);
-  emit_operand(dst, src);
-}
-
-
 void Assembler::shr(const Operand& dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   DCHECK(is_uint5(imm8));  // illegal shift count
@@ -1004,6 +1015,21 @@ void Assembler::shr_cl(const Operand& dst) {
   emit_operand(ebp, dst);
 }
 
+void Assembler::shrd(Register dst, Register src, uint8_t shift) {
+  DCHECK(is_uint5(shift));
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xAC);
+  emit_operand(dst, Operand(src));
+  EMIT(shift);
+}
+
+void Assembler::shrd_cl(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xAD);
+  emit_operand(src, dst);
+}
 
 void Assembler::sub(const Operand& dst, const Immediate& x) {
   EnsureSpace ensure_space(this);
@@ -1026,8 +1052,8 @@ void Assembler::sub(const Operand& dst, Register src) {
 
 
 void Assembler::test(Register reg, const Immediate& imm) {
-  if (RelocInfo::IsNone(imm.rmode_) && is_uint8(imm.x_)) {
-    test_b(reg, imm.x_);
+  if (imm.is_uint8()) {
+    test_b(reg, imm);
     return;
   }
 
@@ -1064,8 +1090,8 @@ void Assembler::test(const Operand& op, const Immediate& imm) {
     test(op.reg(), imm);
     return;
   }
-  if (RelocInfo::IsNone(imm.rmode_) && is_uint8(imm.x_)) {
-    return test_b(op, imm.x_);
+  if (imm.is_uint8()) {
+    return test_b(op, imm);
   }
   EnsureSpace ensure_space(this);
   EMIT(0xF7);
@@ -1073,25 +1099,25 @@ void Assembler::test(const Operand& op, const Immediate& imm) {
   emit(imm);
 }
 
-
-void Assembler::test_b(Register reg, uint8_t imm8) {
+void Assembler::test_b(Register reg, Immediate imm8) {
+  DCHECK(imm8.is_uint8());
   EnsureSpace ensure_space(this);
   // Only use test against byte for registers that have a byte
   // variant: eax, ebx, ecx, and edx.
   if (reg.is(eax)) {
     EMIT(0xA8);
-    EMIT(imm8);
+    emit_b(imm8);
   } else if (reg.is_byte_register()) {
-    emit_arith_b(0xF6, 0xC0, reg, imm8);
+    emit_arith_b(0xF6, 0xC0, reg, static_cast<uint8_t>(imm8.x_));
   } else {
+    EMIT(0x66);
     EMIT(0xF7);
     EMIT(0xC0 | reg.code());
-    emit(imm8);
+    emit_w(imm8);
   }
 }
 
-
-void Assembler::test_b(const Operand& op, uint8_t imm8) {
+void Assembler::test_b(const Operand& op, Immediate imm8) {
   if (op.is_reg_only()) {
     test_b(op.reg(), imm8);
     return;
@@ -1099,9 +1125,42 @@ void Assembler::test_b(const Operand& op, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   EMIT(0xF6);
   emit_operand(eax, op);
-  EMIT(imm8);
+  emit_b(imm8);
 }
 
+void Assembler::test_w(Register reg, Immediate imm16) {
+  DCHECK(imm16.is_int16() || imm16.is_uint16());
+  EnsureSpace ensure_space(this);
+  if (reg.is(eax)) {
+    EMIT(0xA9);
+    emit_w(imm16);
+  } else {
+    EMIT(0x66);
+    EMIT(0xF7);
+    EMIT(0xc0 | reg.code());
+    emit_w(imm16);
+  }
+}
+
+void Assembler::test_w(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x85);
+  emit_operand(reg, op);
+}
+
+void Assembler::test_w(const Operand& op, Immediate imm16) {
+  DCHECK(imm16.is_int16() || imm16.is_uint16());
+  if (op.is_reg_only()) {
+    test_w(op.reg(), imm16);
+    return;
+  }
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0xF7);
+  emit_operand(eax, op);
+  emit_w(imm16);
+}
 
 void Assembler::xor_(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);

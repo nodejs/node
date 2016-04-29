@@ -74,10 +74,11 @@ class Histogram:
 
 
 class Category:
-  def __init__(self, key, histogram):
+  def __init__(self, key, histogram, csv):
     self.key = key
     self.values = []
     self.histogram = histogram
+    self.csv = csv
 
   def process_entry(self, entry):
     if self.key in entry:
@@ -92,18 +93,32 @@ class Category:
     return max(self.values)
 
   def avg(self):
+    if len(self.values) == 0:
+      return 0.0
     return sum(self.values) / len(self.values)
 
+  def empty(self):
+    return len(self.values) == 0
+
   def __str__(self):
-    ret = [self.key]
-    ret.append("  len: {0}".format(len(self.values)))
-    if len(self.values) > 0:
-      ret.append("  min: {0}".format(min(self.values)))
-      ret.append("  max: {0}".format(max(self.values)))
-      ret.append("  avg: {0}".format(sum(self.values) / len(self.values)))
-      if self.histogram:
-        ret.append(str(self.histogram))
-    return "\n".join(ret)
+    if self.csv:
+      ret = [self.key]
+      ret.append(len(self.values))
+      ret.append(self.min())
+      ret.append(self.max())
+      ret.append(self.avg())
+      ret = [str(x) for x in ret]
+      return ",".join(ret)
+    else:
+      ret = [self.key]
+      ret.append("  len: {0}".format(len(self.values)))
+      if len(self.values) > 0:
+        ret.append("  min: {0}".format(self.min()))
+        ret.append("  max: {0}".format(self.max()))
+        ret.append("  avg: {0}".format(self.avg()))
+        if self.histogram:
+          ret.append(str(self.histogram))
+      return "\n".join(ret)
 
   def __repr__(self):
     return "<Category: {0}>".format(self.key)
@@ -143,6 +158,8 @@ def main():
                       type=str, nargs='?',
                       default="no",
                       help="rank keys by metric (default: no)")
+  parser.add_argument('--csv', dest='csv',
+                      action='store_true', help='provide output as csv')
   args = parser.parse_args()
 
   histogram = None
@@ -154,7 +171,7 @@ def main():
       bucket_trait = LinearBucket(args.linear_histogram_granularity)
     histogram = Histogram(bucket_trait, not args.histogram_omit_empty)
 
-  categories = [ Category(key, deepcopy(histogram))
+  categories = [ Category(key, deepcopy(histogram), args.csv)
                  for key in args.keys ]
 
   while True:
@@ -164,6 +181,9 @@ def main():
     obj = split_nvp(line)
     for category in categories:
       category.process_entry(obj)
+
+  # Filter out empty categories.
+  categories = [x for x in categories if not x.empty()]
 
   if args.rank != "no":
     categories = sorted(categories, key=make_key_func(args.rank), reverse=True)

@@ -132,7 +132,7 @@ TEST(ProfileTreeAddPathFromEnd) {
   CHECK(!helper.Walk(&entry3));
 
   CodeEntry* path[] = {NULL, &entry3, NULL, &entry2, NULL, NULL, &entry1, NULL};
-  Vector<CodeEntry*> path_vec(path, sizeof(path) / sizeof(path[0]));
+  std::vector<CodeEntry*> path_vec(path, path + arraysize(path));
   tree.AddPathFromEnd(path_vec);
   CHECK(!helper.Walk(&entry2));
   CHECK(!helper.Walk(&entry3));
@@ -162,7 +162,7 @@ TEST(ProfileTreeAddPathFromEnd) {
   CHECK_EQ(2u, node3->self_ticks());
 
   CodeEntry* path2[] = {&entry2, &entry2, &entry1};
-  Vector<CodeEntry*> path2_vec(path2, sizeof(path2) / sizeof(path2[0]));
+  std::vector<CodeEntry*> path2_vec(path2, path2 + arraysize(path2));
   tree.AddPathFromEnd(path2_vec);
   CHECK(!helper.Walk(&entry2));
   CHECK(!helper.Walk(&entry3));
@@ -189,8 +189,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
 
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* e1_path[] = {&entry1};
-  Vector<CodeEntry*> e1_path_vec(
-      e1_path, sizeof(e1_path) / sizeof(e1_path[0]));
+  std::vector<CodeEntry*> e1_path_vec(e1_path, e1_path + arraysize(e1_path));
 
   ProfileTree single_child_tree(CcTest::i_isolate());
   single_child_tree.AddPathFromEnd(e1_path_vec);
@@ -204,8 +203,8 @@ TEST(ProfileTreeCalculateTotalTicks) {
 
   CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry* e2_e1_path[] = {&entry2, &entry1};
-  Vector<CodeEntry*> e2_e1_path_vec(e2_e1_path,
-                                    sizeof(e2_e1_path) / sizeof(e2_e1_path[0]));
+  std::vector<CodeEntry*> e2_e1_path_vec(e2_e1_path,
+                                         e2_e1_path + arraysize(e2_e1_path));
 
   ProfileTree flat_tree(CcTest::i_isolate());
   ProfileTreeTestHelper flat_helper(&flat_tree);
@@ -227,12 +226,10 @@ TEST(ProfileTreeCalculateTotalTicks) {
   CHECK_EQ(2u, node1->self_ticks());
 
   CodeEntry* e2_path[] = {&entry2};
-  Vector<CodeEntry*> e2_path_vec(
-      e2_path, sizeof(e2_path) / sizeof(e2_path[0]));
+  std::vector<CodeEntry*> e2_path_vec(e2_path, e2_path + arraysize(e2_path));
   CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
   CodeEntry* e3_path[] = {&entry3};
-  Vector<CodeEntry*> e3_path_vec(
-      e3_path, sizeof(e3_path) / sizeof(e3_path[0]));
+  std::vector<CodeEntry*> e3_path_vec(e3_path, e3_path + arraysize(e3_path));
 
   ProfileTree wide_tree(CcTest::i_isolate());
   ProfileTreeTestHelper wide_helper(&wide_tree);
@@ -649,7 +646,7 @@ int GetFunctionLineNumber(LocalContext* env, const char* name) {
               ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
                     v8_str(name))
               .ToLocalChecked())));
-  CodeEntry* func_entry = code_map->FindEntry(func->code()->address());
+  CodeEntry* func_entry = code_map->FindEntry(func->abstract_code()->address());
   if (!func_entry)
     FATAL(name);
   return func_entry->line_number();
@@ -675,10 +672,13 @@ TEST(LineNumber) {
 
   profiler->processor()->StopSynchronously();
 
+  bool is_lazy = i::FLAG_lazy && !(i::FLAG_ignition && i::FLAG_ignition_eager);
   CHECK_EQ(1, GetFunctionLineNumber(&env, "foo_at_the_first_line"));
-  CHECK_EQ(0, GetFunctionLineNumber(&env, "lazy_func_at_forth_line"));
+  CHECK_EQ(is_lazy ? 0 : 4,
+           GetFunctionLineNumber(&env, "lazy_func_at_forth_line"));
   CHECK_EQ(2, GetFunctionLineNumber(&env, "bar_at_the_second_line"));
-  CHECK_EQ(0, GetFunctionLineNumber(&env, "lazy_func_at_6th_line"));
+  CHECK_EQ(is_lazy ? 0 : 6,
+           GetFunctionLineNumber(&env, "lazy_func_at_6th_line"));
 
   profiler->StopProfiling("LineNumber");
 }

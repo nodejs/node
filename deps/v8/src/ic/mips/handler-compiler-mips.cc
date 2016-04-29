@@ -6,6 +6,7 @@
 
 #include "src/ic/handler-compiler.h"
 
+#include "src/api-arguments.h"
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
@@ -28,6 +29,9 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Save context register
+    __ push(cp);
+
     if (accessor_index >= 0) {
       DCHECK(!holder.is(scratch));
       DCHECK(!receiver.is(scratch));
@@ -39,11 +43,11 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
         receiver = scratch;
       }
       __ push(receiver);
-      ParameterCount actual(0);
-      ParameterCount expected(expected_arguments);
       __ LoadAccessor(a1, holder, accessor_index, ACCESSOR_GETTER);
-      __ InvokeFunction(a1, expected, actual, CALL_FUNCTION,
-                        CheckDebugStepCallWrapper());
+      __ li(a0, Operand(0));
+      __ Call(masm->isolate()->builtins()->CallFunction(
+                  ConvertReceiverMode::kNotNullOrUndefined),
+              RelocInfo::CODE_TARGET);
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -51,7 +55,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
     }
 
     // Restore context register.
-    __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ pop(cp);
   }
   __ Ret();
 }
@@ -66,8 +70,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Save value register, so we can restore it later.
-    __ push(value());
+    // Save context and value registers, so we can restore them later.
+    __ Push(cp, value());
 
     if (accessor_index >= 0) {
       DCHECK(!holder.is(scratch));
@@ -81,11 +85,11 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
         receiver = scratch;
       }
       __ Push(receiver, value());
-      ParameterCount actual(1);
-      ParameterCount expected(expected_arguments);
       __ LoadAccessor(a1, holder, accessor_index, ACCESSOR_SETTER);
-      __ InvokeFunction(a1, expected, actual, CALL_FUNCTION,
-                        CheckDebugStepCallWrapper());
+      __ li(a0, Operand(1));
+      __ Call(masm->isolate()->builtins()->CallFunction(
+                  ConvertReceiverMode::kNotNullOrUndefined),
+              RelocInfo::CODE_TARGET);
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -93,10 +97,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     }
 
     // We have to return the passed value, not the return value of the setter.
-    __ pop(v0);
-
     // Restore context register.
-    __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ Pop(cp, v0);
   }
   __ Ret();
 }
@@ -241,7 +243,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   }
   DCHECK(optimization.is_simple_api_call());
 
-  // Abi for CallApiFunctionStub.
+  // Abi for CallApiCallbackStub.
   Register callee = a0;
   Register data = t0;
   Register holder = a2;
@@ -308,7 +310,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ li(api_function_address, Operand(ref));
 
   // Jump to stub.
-  CallApiAccessorStub stub(isolate, is_store, call_data_undefined,
+  CallApiCallbackStub stub(isolate, is_store, call_data_undefined,
                            !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }
@@ -733,18 +735,6 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 
   // Do tail-call to the runtime system.
   __ TailCallRuntime(Runtime::kStoreCallbackProperty);
-
-  // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
-}
-
-
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
-    Handle<Name> name) {
-  __ Push(receiver(), this->name(), value());
-
-  // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

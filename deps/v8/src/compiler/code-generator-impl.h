@@ -139,6 +139,19 @@ class InstructionOperandConverter {
   Instruction* instr_;
 };
 
+// Eager deoptimization exit.
+class DeoptimizationExit : public ZoneObject {
+ public:
+  explicit DeoptimizationExit(int deoptimization_id)
+      : deoptimization_id_(deoptimization_id) {}
+
+  int deoptimization_id() const { return deoptimization_id_; }
+  Label* label() { return &label_; }
+
+ private:
+  int const deoptimization_id_;
+  Label label_;
+};
 
 // Generator for out-of-line code that is emitted after the main code is done.
 class OutOfLineCode : public ZoneObject {

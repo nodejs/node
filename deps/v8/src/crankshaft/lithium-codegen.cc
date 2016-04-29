@@ -30,6 +30,9 @@
 #elif V8_TARGET_ARCH_PPC
 #include "src/crankshaft/ppc/lithium-ppc.h"          // NOLINT
 #include "src/crankshaft/ppc/lithium-codegen-ppc.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/crankshaft/s390/lithium-s390.h"          // NOLINT
+#include "src/crankshaft/s390/lithium-codegen-s390.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif
@@ -237,8 +240,8 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
       break;
     }
     case JS_GETTER: {
-      DCHECK(translation_size == 1);
-      DCHECK(height == 0);
+      DCHECK_EQ(1, translation_size);
+      DCHECK_EQ(0, height);
       int shared_id = DefineDeoptimizationLiteral(
           environment->entry() ? environment->entry()->shared()
                                : info()->shared_info());
@@ -252,12 +255,26 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
       break;
     }
     case JS_SETTER: {
-      DCHECK(translation_size == 2);
-      DCHECK(height == 0);
+      DCHECK_EQ(2, translation_size);
+      DCHECK_EQ(0, height);
       int shared_id = DefineDeoptimizationLiteral(
           environment->entry() ? environment->entry()->shared()
                                : info()->shared_info());
       translation->BeginSetterStubFrame(shared_id);
+      if (info()->closure().is_identical_to(environment->closure())) {
+        translation->StoreJSFrameFunction();
+      } else {
+        int closure_id = DefineDeoptimizationLiteral(environment->closure());
+        translation->StoreLiteral(closure_id);
+      }
+      break;
+    }
+    case TAIL_CALLER_FUNCTION: {
+      DCHECK_EQ(0, translation_size);
+      int shared_id = DefineDeoptimizationLiteral(
+          environment->entry() ? environment->entry()->shared()
+                               : info()->shared_info());
+      translation->BeginTailCallerFrame(shared_id);
       if (info()->closure().is_identical_to(environment->closure())) {
         translation->StoreJSFrameFunction();
       } else {

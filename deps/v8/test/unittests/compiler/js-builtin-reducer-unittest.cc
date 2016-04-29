@@ -43,7 +43,7 @@ class JSBuiltinReducerTest : public TypedGraphTest {
                               isolate()->factory()->NewStringFromAsciiChecked(
                                   "Math")).ToHandleChecked();
     Handle<JSFunction> f = Handle<JSFunction>::cast(
-        JSObject::GetProperty(
+        Object::GetProperty(
             m, isolate()->factory()->NewStringFromAsciiChecked(name))
             .ToHandleChecked());
     return HeapConstant(f);

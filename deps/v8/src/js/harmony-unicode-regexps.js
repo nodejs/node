@@ -31,10 +31,9 @@ function RegExpGetUnicode() {
     }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.unicode");
   }
-  return !!REGEXP_UNICODE(this);
+  return TO_BOOLEAN(REGEXP_UNICODE(this));
 }
-%FunctionSetName(RegExpGetUnicode, "RegExp.prototype.unicode");
-%SetNativeFlag(RegExpGetUnicode);
+%SetForceInlineFlag(RegExpGetUnicode);
 
 utils.InstallGetter(GlobalRegExp.prototype, 'unicode', RegExpGetUnicode);
 

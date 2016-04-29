@@ -20,26 +20,30 @@
 var ArrayIndexOf;
 var ArrayJoin;
 var ArrayPush;
-var IsFinite;
-var IsNaN;
 var GlobalBoolean = global.Boolean;
 var GlobalDate = global.Date;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
+var InstallFunctions = utils.InstallFunctions;
+var InstallGetter = utils.InstallGetter;
+var InternalPackedArray = utils.InternalPackedArray;
+var InternalRegExpMatch;
+var InternalRegExpReplace
+var IsFinite;
+var IsNaN;
 var MakeError;
 var MakeRangeError;
 var MakeTypeError;
-var MathFloor;
 var ObjectDefineProperties = utils.ImportNow("ObjectDefineProperties");
 var ObjectDefineProperty = utils.ImportNow("ObjectDefineProperty");
+var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
+var OverrideFunction = utils.OverrideFunction;
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
-var RegExpTest;
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
+var SetFunctionName = utils.SetFunctionName;
 var StringIndexOf;
 var StringLastIndexOf;
-var StringMatch;
-var StringReplace;
 var StringSplit;
 var StringSubstr;
 var StringSubstring;
@@ -53,16 +57,71 @@ utils.Import(function(from) {
   MakeError = from.MakeError;
   MakeRangeError = from.MakeRangeError;
   MakeTypeError = from.MakeTypeError;
-  MathFloor = from.MathFloor;
-  RegExpTest = from.RegExpTest;
+  InternalRegExpMatch = from.InternalRegExpMatch;
+  InternalRegExpReplace = from.InternalRegExpReplace;
   StringIndexOf = from.StringIndexOf;
   StringLastIndexOf = from.StringLastIndexOf;
-  StringMatch = from.StringMatch;
-  StringReplace = from.StringReplace;
   StringSplit = from.StringSplit;
   StringSubstr = from.StringSubstr;
   StringSubstring = from.StringSubstring;
 });
+
+// Utilities for definitions
+
+function InstallFunction(object, name, func) {
+  InstallFunctions(object, DONT_ENUM, [name, func]);
+}
+
+
+function InstallConstructor(object, name, func) {
+  %CheckIsBootstrapping();
+  SetFunctionName(func, name);
+  %AddNamedProperty(object, name, func, DONT_ENUM);
+  %SetNativeFlag(func);
+  %ToFastProperties(object);
+}
+
+/**
+ * Adds bound method to the prototype of the given object.
+ */
+function AddBoundMethod(obj, methodName, implementation, length) {
+  %CheckIsBootstrapping();
+  var internalName = %CreatePrivateSymbol(methodName);
+  var getter = function() {
+    if (!%IsInitializedIntlObject(this)) {
+      throw MakeTypeError(kMethodCalledOnWrongObject, methodName);
+    }
+    if (IS_UNDEFINED(this[internalName])) {
+      var boundMethod;
+      if (IS_UNDEFINED(length) || length === 2) {
+        boundMethod = (x, y) => implementation(this, x, y);
+      } else if (length === 1) {
+        boundMethod = x => implementation(this, x);
+      } else {
+        boundMethod = (...args) => {
+          // DateTimeFormat.format needs to be 0 arg method, but can stil
+          // receive optional dateValue param. If one was provided, pass it
+          // along.
+          if (args.length > 0) {
+            return implementation(this, args[0]);
+          } else {
+            return implementation(this);
+          }
+        }
+      }
+      // TODO(littledan): Once function name reform is shipped, remove the
+      // following line and wrap the boundMethod definition in an anonymous
+      // function macro.
+      %FunctionSetName(boundMethod, '__bound' + methodName + '__');
+      %FunctionRemovePrototype(boundMethod);
+      %SetNativeFlag(boundMethod);
+      this[internalName] = boundMethod;
+    }
+    return this[internalName];
+  };
+
+  InstallGetter(obj.prototype, methodName, getter, DONT_ENUM);
+}
 
 // -------------------------------------------------------------------
 
@@ -197,74 +256,13 @@ function GetTimezoneNameLocationPartRE() {
   return TIMEZONE_NAME_LOCATION_PART_RE;
 }
 
-/**
- * Adds bound method to the prototype of the given object.
- */
-function addBoundMethod(obj, methodName, implementation, length) {
-  %CheckIsBootstrapping();
-  function getter() {
-    if (!%IsInitializedIntlObject(this)) {
-      throw MakeTypeError(kMethodCalledOnWrongObject, methodName);
-    }
-    var internalName = '__bound' + methodName + '__';
-    if (IS_UNDEFINED(this[internalName])) {
-      var that = this;
-      var boundMethod;
-      if (IS_UNDEFINED(length) || length === 2) {
-        boundMethod = function(x, y) {
-          if (!IS_UNDEFINED(new.target)) {
-            throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
-          }
-          return implementation(that, x, y);
-        }
-      } else if (length === 1) {
-        boundMethod = function(x) {
-          if (!IS_UNDEFINED(new.target)) {
-            throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
-          }
-          return implementation(that, x);
-        }
-      } else {
-        boundMethod = function() {
-          if (!IS_UNDEFINED(new.target)) {
-            throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
-          }
-          // DateTimeFormat.format needs to be 0 arg method, but can stil
-          // receive optional dateValue param. If one was provided, pass it
-          // along.
-          if (arguments.length > 0) {
-            return implementation(that, arguments[0]);
-          } else {
-            return implementation(that);
-          }
-        }
-      }
-      %FunctionSetName(boundMethod, internalName);
-      %FunctionRemovePrototype(boundMethod);
-      %SetNativeFlag(boundMethod);
-      this[internalName] = boundMethod;
-    }
-    return this[internalName];
-  }
-
-  %FunctionSetName(getter, methodName);
-  %FunctionRemovePrototype(getter);
-  %SetNativeFlag(getter);
-
-  ObjectDefineProperty(obj.prototype, methodName, {
-    get: getter,
-    enumerable: false,
-    configurable: true
-  });
-}
-
 
 /**
  * Returns an intersection of locales and service supported locales.
  * Parameter locales is treated as a priority list.
  */
 function supportedLocalesOf(service, locales, options) {
-  if (IS_NULL(%_Call(StringMatch, service, GetServiceRE()))) {
+  if (IS_NULL(InternalRegExpMatch(GetServiceRE(), service))) {
     throw MakeError(kWrongServiceType, service);
   }
 
@@ -312,10 +310,8 @@ function lookupSupportedLocalesOf(requestedLocales, availableLocales) {
   var matchedLocales = [];
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove -u- extension.
-    var locale = %_Call(StringReplace,
-                        requestedLocales[i],
-                        GetUnicodeExtensionRE(),
-                        '');
+    var locale = InternalRegExpReplace(
+        GetUnicodeExtensionRE(), requestedLocales[i], '');
     do {
       if (!IS_UNDEFINED(availableLocales[locale])) {
         // Push requested locale not the resolved one.
@@ -421,7 +417,7 @@ function resolveLocale(service, requestedLocales, options) {
  * lookup algorithm.
  */
 function lookupMatcher(service, requestedLocales) {
-  if (IS_NULL(%_Call(StringMatch, service, GetServiceRE()))) {
+  if (IS_NULL(InternalRegExpMatch(GetServiceRE(), service))) {
     throw MakeError(kWrongServiceType, service);
   }
 
@@ -432,13 +428,13 @@ function lookupMatcher(service, requestedLocales) {
 
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove all extensions.
-    var locale = %_Call(StringReplace, requestedLocales[i],
-                        GetAnyExtensionRE(), '');
+    var locale = InternalRegExpReplace(
+        GetAnyExtensionRE(), requestedLocales[i], '');
     do {
       if (!IS_UNDEFINED(AVAILABLE_LOCALES[service][locale])) {
         // Return the resolved locale and extension.
-        var extensionMatch =
-            %_Call(StringMatch, requestedLocales[i], GetUnicodeExtensionRE());
+        var extensionMatch = InternalRegExpMatch(
+            GetUnicodeExtensionRE(), requestedLocales[i]);
         var extension = IS_NULL(extensionMatch) ? '' : extensionMatch[0];
         return {'locale': locale, 'extension': extension, 'position': i};
       }
@@ -535,7 +531,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
   }
 
   for (var key in keyValues) {
-    if (%HasOwnProperty(keyValues, key)) {
+    if (HAS_OWN_PROPERTY(keyValues, key)) {
       var value = UNDEFINED;
       var map = keyValues[key];
       if (!IS_UNDEFINED(map.property)) {
@@ -551,7 +547,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
       // User options didn't have it, check Unicode extension.
       // Here we want to convert strings 'true', 'false' into proper Boolean
       // values (not a user error).
-      if (%HasOwnProperty(extensionMap, key)) {
+      if (HAS_OWN_PROPERTY(extensionMap, key)) {
         value = extensionMap[key];
         if (!IS_UNDEFINED(value)) {
           updateProperty(map.property, map.type, value);
@@ -612,8 +608,8 @@ function getOptimalLanguageTag(original, resolved) {
   }
 
   // Preserve extensions of resolved locale, but swap base tags with original.
-  var resolvedBase = new GlobalRegExp('^' + locales[1].base);
-  return %_Call(StringReplace, resolved, resolvedBase, locales[0].base);
+  var resolvedBase = new GlobalRegExp('^' + locales[1].base, 'g');
+  return InternalRegExpReplace(resolvedBase, resolved, locales[0].base);
 }
 
 
@@ -627,10 +623,10 @@ function getAvailableLocalesOf(service) {
   var available = %AvailableLocalesOf(service);
 
   for (var i in available) {
-    if (%HasOwnProperty(available, i)) {
-      var parts =
-          %_Call(StringMatch, i, /^([a-z]{2,3})-([A-Z][a-z]{3})-([A-Z]{2})$/);
-      if (parts !== null) {
+    if (HAS_OWN_PROPERTY(available, i)) {
+      var parts = InternalRegExpMatch(
+          /^([a-z]{2,3})-([A-Z][a-z]{3})-([A-Z]{2})$/, i);
+      if (!IS_NULL(parts)) {
         // Build xx-ZZ. We don't care about the actual value,
         // as long it's not undefined.
         available[parts[1] + '-' + parts[3]] = null;
@@ -700,7 +696,7 @@ function toTitleCaseWord(word) {
  * 'of', 'au' and 'es' are special-cased and lowercased.
  */
 function toTitleCaseTimezoneLocation(location) {
-  var match = %_Call(StringMatch, location, GetTimezoneNameLocationPartRE());
+  var match = InternalRegExpMatch(GetTimezoneNameLocationPartRE(), location)
   if (IS_NULL(match)) throw MakeRangeError(kExpectedLocation, location);
 
   var result = toTitleCaseWord(match[1]);
@@ -797,7 +793,7 @@ function initializeLocaleList(locales) {
  */
 function isValidLanguageTag(locale) {
   // Check if it's well-formed, including grandfadered tags.
-  if (!%_Call(RegExpTest, GetLanguageTagRE(), locale)) {
+  if (IS_NULL(InternalRegExpMatch(GetLanguageTagRE(), locale))) {
     return false;
   }
 
@@ -809,17 +805,17 @@ function isValidLanguageTag(locale) {
   // Check if there are any duplicate variants or singletons (extensions).
 
   // Remove private use section.
-  locale = %_Call(StringSplit, locale, /-x-/)[0];
+  locale = %_Call(StringSplit, locale, '-x-')[0];
 
   // Skip language since it can match variant regex, so we start from 1.
   // We are matching i-klingon here, but that's ok, since i-klingon-klingon
   // is not valid and would fail LANGUAGE_TAG_RE test.
   var variants = [];
   var extensions = [];
-  var parts = %_Call(StringSplit, locale, /-/);
+  var parts = %_Call(StringSplit, locale, '-');
   for (var i = 1; i < parts.length; i++) {
     var value = parts[i];
-    if (%_Call(RegExpTest, GetLanguageVariantRE(), value) &&
+    if (!IS_NULL(InternalRegExpMatch(GetLanguageVariantRE(), value)) &&
         extensions.length === 0) {
       if (%_Call(ArrayIndexOf, variants, value) === -1) {
         %_Call(ArrayPush, variants, value);
@@ -828,7 +824,7 @@ function isValidLanguageTag(locale) {
       }
     }
 
-    if (%_Call(RegExpTest, GetLanguageSingletonRE(), value)) {
+    if (!IS_NULL(InternalRegExpMatch(GetLanguageSingletonRE(), value))) {
       if (%_Call(ArrayIndexOf, extensions, value) === -1) {
         %_Call(ArrayPush, extensions, value);
       } else {
@@ -943,7 +939,7 @@ function initializeCollator(collator, locales, options) {
 
   var collation = 'default';
   var extension = '';
-  if (%HasOwnProperty(extensionMap, 'co') && internalOptions.usage === 'sort') {
+  if (HAS_OWN_PROPERTY(extensionMap, 'co') && internalOptions.usage === 'sort') {
 
     /**
      * Allowed -u-co- values. List taken from:
@@ -1001,7 +997,7 @@ function initializeCollator(collator, locales, options) {
  *
  * @constructor
  */
-%AddNamedProperty(Intl, 'Collator', function() {
+InstallConstructor(Intl, 'Collator', function() {
     var locales = arguments[0];
     var options = arguments[1];
 
@@ -1011,15 +1007,14 @@ function initializeCollator(collator, locales, options) {
     }
 
     return initializeCollator(TO_OBJECT(this), locales, options);
-  },
-  DONT_ENUM
+  }
 );
 
 
 /**
  * Collator resolvedOptions method.
  */
-%AddNamedProperty(Intl.Collator.prototype, 'resolvedOptions', function() {
+InstallFunction(Intl.Collator.prototype, 'resolvedOptions', function() {
     if (!IS_UNDEFINED(new.target)) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
@@ -1041,12 +1036,8 @@ function initializeCollator(collator, locales, options) {
       caseFirst: coll[resolvedSymbol].caseFirst,
       collation: coll[resolvedSymbol].collation
     };
-  },
-  DONT_ENUM
+  }
 );
-%FunctionSetName(Intl.Collator.prototype.resolvedOptions, 'resolvedOptions');
-%FunctionRemovePrototype(Intl.Collator.prototype.resolvedOptions);
-%SetNativeFlag(Intl.Collator.prototype.resolvedOptions);
 
 
 /**
@@ -1055,18 +1046,14 @@ function initializeCollator(collator, locales, options) {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-%AddNamedProperty(Intl.Collator, 'supportedLocalesOf', function(locales) {
+InstallFunction(Intl.Collator, 'supportedLocalesOf', function(locales) {
     if (!IS_UNDEFINED(new.target)) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
     return supportedLocalesOf('collator', locales, arguments[1]);
-  },
-  DONT_ENUM
+  }
 );
-%FunctionSetName(Intl.Collator.supportedLocalesOf, 'supportedLocalesOf');
-%FunctionRemovePrototype(Intl.Collator.supportedLocalesOf);
-%SetNativeFlag(Intl.Collator.supportedLocalesOf);
 
 
 /**
@@ -1085,7 +1072,7 @@ function compare(collator, x, y) {
 };
 
 
-addBoundMethod(Intl.Collator, 'compare', compare, 2);
+AddBoundMethod(Intl.Collator, 'compare', compare, 2);
 
 /**
  * Verifies that the input is a well-formed ISO 4217 currency code.
@@ -1093,9 +1080,8 @@ addBoundMethod(Intl.Collator, 'compare', compare, 2);
  * For example \u00DFP (Eszett+P) becomes SSP.
  */
 function isWellFormedCurrencyCode(currency) {
-  return typeof currency == "string" &&
-      currency.length == 3 &&
-      %_Call(StringMatch, currency, /[^A-Za-z]/) == null;
+  return typeof currency == "string" && currency.length == 3 &&
+      IS_NULL(InternalRegExpMatch(/[^A-Za-z]/, currency));
 }
 
 
@@ -1110,7 +1096,7 @@ function getNumberOption(options, property, min, max, fallback) {
     if (IsNaN(value) || value < min || value > max) {
       throw MakeRangeError(kPropertyValueOutOfRange, property);
     }
-    return MathFloor(value);
+    return %math_floor(value);
   }
 
   return fallback;
@@ -1225,10 +1211,10 @@ function initializeNumberFormat(numberFormat, locales, options) {
     style: {value: internalOptions.style, writable: true},
     useGrouping: {writable: true}
   });
-  if (%HasOwnProperty(internalOptions, 'minimumSignificantDigits')) {
+  if (HAS_OWN_PROPERTY(internalOptions, 'minimumSignificantDigits')) {
     defineWEProperty(resolved, 'minimumSignificantDigits', UNDEFINED);
   }
-  if (%HasOwnProperty(internalOptions, 'maximumSignificantDigits')) {
+  if (HAS_OWN_PROPERTY(internalOptions, 'maximumSignificantDigits')) {
     defineWEProperty(resolved, 'maximumSignificantDigits', UNDEFINED);
   }
   var formatter = %CreateNumberFormat(requestedLocale,
@@ -1254,7 +1240,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
  *
  * @constructor
  */
-%AddNamedProperty(Intl, 'NumberFormat', function() {
+InstallConstructor(Intl, 'NumberFormat', function() {
     var locales = arguments[0];
     var options = arguments[1];
 
@@ -1264,15 +1250,14 @@ function initializeNumberFormat(numberFormat, locales, options) {
     }
 
     return initializeNumberFormat(TO_OBJECT(this), locales, options);
-  },
-  DONT_ENUM
+  }
 );
 
 
 /**
  * NumberFormat resolvedOptions method.
  */
-%AddNamedProperty(Intl.NumberFormat.prototype, 'resolvedOptions', function() {
+InstallFunction(Intl.NumberFormat.prototype, 'resolvedOptions', function() {
     if (!IS_UNDEFINED(new.target)) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
@@ -1301,24 +1286,19 @@ function initializeNumberFormat(numberFormat, locales, options) {
                         format[resolvedSymbol].currencyDisplay);
     }
 
-    if (%HasOwnProperty(format[resolvedSymbol], 'minimumSignificantDigits')) {
+    if (HAS_OWN_PROPERTY(format[resolvedSymbol], 'minimumSignificantDigits')) {
       defineWECProperty(result, 'minimumSignificantDigits',
                         format[resolvedSymbol].minimumSignificantDigits);
     }
 
-    if (%HasOwnProperty(format[resolvedSymbol], 'maximumSignificantDigits')) {
+    if (HAS_OWN_PROPERTY(format[resolvedSymbol], 'maximumSignificantDigits')) {
       defineWECProperty(result, 'maximumSignificantDigits',
                         format[resolvedSymbol].maximumSignificantDigits);
     }
 
     return result;
-  },
-  DONT_ENUM
+  }
 );
-%FunctionSetName(Intl.NumberFormat.prototype.resolvedOptions,
-                 'resolvedOptions');
-%FunctionRemovePrototype(Intl.NumberFormat.prototype.resolvedOptions);
-%SetNativeFlag(Intl.NumberFormat.prototype.resolvedOptions);
 
 
 /**
@@ -1327,18 +1307,14 @@ function initializeNumberFormat(numberFormat, locales, options) {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-%AddNamedProperty(Intl.NumberFormat, 'supportedLocalesOf', function(locales) {
+InstallFunction(Intl.NumberFormat, 'supportedLocalesOf', function(locales) {
     if (!IS_UNDEFINED(new.target)) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
     return supportedLocalesOf('numberformat', locales, arguments[1]);
-  },
-  DONT_ENUM
+  }
 );
-%FunctionSetName(Intl.NumberFormat.supportedLocalesOf, 'supportedLocalesOf');
-%FunctionRemovePrototype(Intl.NumberFormat.supportedLocalesOf);
-%SetNativeFlag(Intl.NumberFormat.supportedLocalesOf);
 
 
 /**
@@ -1364,8 +1340,8 @@ function parseNumber(formatter, value) {
 }
 
 
-addBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1);
-addBoundMethod(Intl.NumberFormat, 'v8Parse', parseNumber, 1);
+AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1);
+AddBoundMethod(Intl.NumberFormat, 'v8Parse', parseNumber, 1);
 
 /**
  * Returns a string that matches LDML representation of the options object.
@@ -1435,57 +1411,57 @@ function appendToLDMLString(option, pairs) {
  */
 function fromLDMLString(ldmlString) {
   // First remove '' quoted text, so we lose 'Uhr' strings.
-  ldmlString = %_Call(StringReplace, ldmlString, GetQuotedStringRE(), '');
+  ldmlString = InternalRegExpReplace(GetQuotedStringRE(), ldmlString, '');
 
   var options = {};
-  var match = %_Call(StringMatch, ldmlString, /E{3,5}/g);
+  var match = InternalRegExpMatch(/E{3,5}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'weekday', match, {EEEEE: 'narrow', EEE: 'short', EEEE: 'long'});
 
-  match = %_Call(StringMatch, ldmlString, /G{3,5}/g);
+  match = InternalRegExpMatch(/G{3,5}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'era', match, {GGGGG: 'narrow', GGG: 'short', GGGG: 'long'});
 
-  match = %_Call(StringMatch, ldmlString, /y{1,2}/g);
+  match = InternalRegExpMatch(/y{1,2}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'year', match, {y: 'numeric', yy: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /M{1,5}/g);
+  match = InternalRegExpMatch(/M{1,5}/, ldmlString);
   options = appendToDateTimeObject(options, 'month', match, {MM: '2-digit',
       M: 'numeric', MMMMM: 'narrow', MMM: 'short', MMMM: 'long'});
 
   // Sometimes we get L instead of M for month - standalone name.
-  match = %_Call(StringMatch, ldmlString, /L{1,5}/g);
+  match = InternalRegExpMatch(/L{1,5}/, ldmlString);
   options = appendToDateTimeObject(options, 'month', match, {LL: '2-digit',
       L: 'numeric', LLLLL: 'narrow', LLL: 'short', LLLL: 'long'});
 
-  match = %_Call(StringMatch, ldmlString, /d{1,2}/g);
+  match = InternalRegExpMatch(/d{1,2}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'day', match, {d: 'numeric', dd: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /h{1,2}/g);
+  match = InternalRegExpMatch(/h{1,2}/, ldmlString);
   if (match !== null) {
     options['hour12'] = true;
   }
   options = appendToDateTimeObject(
       options, 'hour', match, {h: 'numeric', hh: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /H{1,2}/g);
+  match = InternalRegExpMatch(/H{1,2}/, ldmlString);
   if (match !== null) {
     options['hour12'] = false;
   }
   options = appendToDateTimeObject(
       options, 'hour', match, {H: 'numeric', HH: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /m{1,2}/g);
+  match = InternalRegExpMatch(/m{1,2}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'minute', match, {m: 'numeric', mm: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /s{1,2}/g);
+  match = InternalRegExpMatch(/s{1,2}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'second', match, {s: 'numeric', ss: '2-digit'});
 
-  match = %_Call(StringMatch, ldmlString, /z|zzzz/g);
+  match = InternalRegExpMatch(/z|zzzz/, ldmlString);
   options = appendToDateTimeObject(
       options, 'timeZoneName', match, {z: 'short', zzzz: 'long'});
 
@@ -1495,7 +1471,7 @@ function fromLDMLString(ldmlString) {
 
 function appendToDateTimeObject(options, option, match, pairs) {
   if (IS_NULL(match)) {
-    if (!%HasOwnProperty(options, option)) {
+    if (!HAS_OWN_PROPERTY(options, option)) {
       defineWEProperty(options, option, UNDEFINED);
     }
     return options;
@@ -1658,7 +1634,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  *
  * @constructor
  */
-%AddNamedProperty(Intl, 'DateTimeFormat', function() {
+InstallConstructor(Intl, 'DateTimeFormat', function() {
     var locales = arguments[0];
     var options = arguments[1];
 
@@ -1668,15 +1644,14 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     }
 
     return initializeDateTimeFormat(TO_OBJECT(this), locales, options);
-  },
-  DONT_ENUM
+  }
 );
 
 
 /**
  * DateTimeFormat resolvedOptions method.
  */
-%AddNamedProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
+InstallFunction(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
     if (!IS_UNDEFINED(new.target)) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
@@ -1735,13 +1710,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     addWECPropertyIfDefined(result, 'second', fromPattern.second);
 
     return result;
-  },
-  DONT_ENUM
+  }
 );
-%FunctionSetName(Intl.DateTimeFormat.prototype.resolvedOptions,
-                 'resolvedOptions');
-%FunctionRemovePrototype(Intl.DateTimeFormat.prototype.resolvedOptions);
-%SetNativeFlag(Intl.DateTimeFormat.prototype.resolvedOptions);
 
 
 /**
@@ -1750,18 +1720,14 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-%AddNamedProperty(Intl.DateTimeFormat, 'supportedLocalesOf', function(locales) {
+InstallFunction(Intl.DateTimeFormat, 'supportedLocalesOf', function(locales) {
     if (!IS_UNDEFINED(new.target)) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
     return supportedLocalesOf('dateformat', locales, arguments[1]);
-  },
-  DONT_ENUM
+  }
 );
-%FunctionSetName(Intl.DateTimeFormat.supportedLocalesOf, 'supportedLocalesOf');
-%FunctionRemovePrototype(Intl.DateTimeFormat.supportedLocalesOf);
-%SetNativeFlag(Intl.DateTimeFormat.supportedLocalesOf);
 
 
 /**
@@ -1797,8 +1763,8 @@ function parseDate(formatter, value) {
 
 
 // 0 because date is optional argument.
-addBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0);
-addBoundMethod(Intl.DateTimeFormat, 'v8Parse', parseDate, 1);
+AddBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0);
+AddBoundMethod(Intl.DateTimeFormat, 'v8Parse', parseDate, 1);
 
 
 /**
@@ -1822,7 +1788,7 @@ function canonicalizeTimeZoneID(tzID) {
 
   // We expect only _, '-' and / beside ASCII letters.
   // All inputs should conform to Area/Location(/Location)* from now on.
-  var match = %_Call(StringMatch, tzID, GetTimezoneNameCheckRE());
+  var match = InternalRegExpMatch(GetTimezoneNameCheckRE(), tzID);
   if (IS_NULL(match)) throw MakeRangeError(kExpectedTimezoneID, tzID);
 
   var result = toTitleCaseTimezoneLocation(match[1]) + '/' +
@@ -1885,7 +1851,7 @@ function initializeBreakIterator(iterator, locales, options) {
  *
  * @constructor
  */
-%AddNamedProperty(Intl, 'v8BreakIterator', function() {
+InstallConstructor(Intl, 'v8BreakIterator', function() {
     var locales = arguments[0];
     var options = arguments[1];
 
@@ -1895,15 +1861,14 @@ function initializeBreakIterator(iterator, locales, options) {
     }
 
     return initializeBreakIterator(TO_OBJECT(this), locales, options);
-  },
-  DONT_ENUM
+  }
 );
 
 
 /**
  * BreakIterator resolvedOptions method.
  */
-%AddNamedProperty(Intl.v8BreakIterator.prototype, 'resolvedOptions',
+InstallFunction(Intl.v8BreakIterator.prototype, 'resolvedOptions',
   function() {
     if (!IS_UNDEFINED(new.target)) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
@@ -1922,13 +1887,8 @@ function initializeBreakIterator(iterator, locales, options) {
       locale: locale,
       type: segmenter[resolvedSymbol].type
     };
-  },
-  DONT_ENUM
+  }
 );
-%FunctionSetName(Intl.v8BreakIterator.prototype.resolvedOptions,
-                 'resolvedOptions');
-%FunctionRemovePrototype(Intl.v8BreakIterator.prototype.resolvedOptions);
-%SetNativeFlag(Intl.v8BreakIterator.prototype.resolvedOptions);
 
 
 /**
@@ -1937,19 +1897,15 @@ function initializeBreakIterator(iterator, locales, options) {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-%AddNamedProperty(Intl.v8BreakIterator, 'supportedLocalesOf',
+InstallFunction(Intl.v8BreakIterator, 'supportedLocalesOf',
   function(locales) {
     if (!IS_UNDEFINED(new.target)) {
       throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
     }
 
     return supportedLocalesOf('breakiterator', locales, arguments[1]);
-  },
-  DONT_ENUM
+  }
 );
-%FunctionSetName(Intl.v8BreakIterator.supportedLocalesOf, 'supportedLocalesOf');
-%FunctionRemovePrototype(Intl.v8BreakIterator.supportedLocalesOf);
-%SetNativeFlag(Intl.v8BreakIterator.supportedLocalesOf);
 
 
 /**
@@ -1994,11 +1950,11 @@ function breakType(iterator) {
 }
 
 
-addBoundMethod(Intl.v8BreakIterator, 'adoptText', adoptText, 1);
-addBoundMethod(Intl.v8BreakIterator, 'first', first, 0);
-addBoundMethod(Intl.v8BreakIterator, 'next', next, 0);
-addBoundMethod(Intl.v8BreakIterator, 'current', current, 0);
-addBoundMethod(Intl.v8BreakIterator, 'breakType', breakType, 0);
+AddBoundMethod(Intl.v8BreakIterator, 'adoptText', adoptText, 1);
+AddBoundMethod(Intl.v8BreakIterator, 'first', first, 0);
+AddBoundMethod(Intl.v8BreakIterator, 'next', next, 0);
+AddBoundMethod(Intl.v8BreakIterator, 'current', current, 0);
+AddBoundMethod(Intl.v8BreakIterator, 'breakType', breakType, 0);
 
 // Save references to Intl objects and methods we use, for added security.
 var savedObjects = {
@@ -2034,18 +1990,6 @@ function cachedOrNewService(service, locales, options, defaults) {
     return defaultObjects[service];
   }
   return new savedObjects[service](locales, useOptions);
-}
-
-
-function OverrideFunction(object, name, f) {
-  %CheckIsBootstrapping();
-  ObjectDefineProperty(object, name, { value: f,
-                                       writeable: true,
-                                       configurable: true,
-                                       enumerable: false });
-  %FunctionSetName(f, name);
-  %FunctionRemovePrototype(f);
-  %SetNativeFlag(f);
 }
 
 /**

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=100 --harmony --harmony-reflect --harmony-regexps
-// Flags: --harmony-simd
+// Flags: --stack-size=100 --harmony
+// Flags: --harmony-simd --harmony-instanceof
 
 function test(f, expected, type) {
   try {
@@ -150,7 +150,7 @@ TypeError);
 // kInstanceofFunctionExpected
 test(function() {
   1 instanceof 1;
-}, "Expecting an object in instanceof check", TypeError);
+}, "Right-hand side of 'instanceof' is not an object", TypeError);
 
 // kInstanceofNonobjectProto
 test(function() {
@@ -338,6 +338,11 @@ test(function() {
 test(function() {
   eval("/a/x.test(\"a\");");
 }, "Invalid regular expression flags", SyntaxError);
+
+// kInvalidOrUnexpectedToken
+test(function() {
+  eval("'\n'");
+}, "Invalid or unexpected token", SyntaxError);
 
 //kJsonParseUnexpectedEOS
 test(function() {

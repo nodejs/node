@@ -41,6 +41,7 @@ using namespace v8::internal;
 
 typedef void* (*F)(int64_t x, int64_t y, int p2, int p3, int p4);
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
+typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 
 #define __ masm->
 
@@ -316,7 +317,7 @@ TEST(jump_tables5) {
         masm, kNumCases * kPointerSize + ((6 + 1) * Assembler::kInstrSize));
 
     __ addiupc(at, 6 + 1);
-    __ dlsa(at, at, a0, 3);
+    __ Dlsa(at, at, a0, 3);
     __ ld(at, MemOperand(at));
     __ jalr(at);
     __ nop();  // Branch delay slot nop.
@@ -519,6 +520,270 @@ TEST(Dlsa) {
            ", %hhu)\n",
            tc[i].expected_res, res, tc[i].rt, tc[i].rs, tc[i].sa);
     CHECK_EQ(tc[i].expected_res, res);
+  }
+}
+
+static const std::vector<uint32_t> uint32_test_values() {
+  static const uint32_t kValues[] = {0x00000000, 0x00000001, 0x00ffff00,
+                                     0x7fffffff, 0x80000000, 0x80000001,
+                                     0x80ffff00, 0x8fffffff, 0xffffffff};
+  return std::vector<uint32_t>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+static const std::vector<int32_t> int32_test_values() {
+  static const int32_t kValues[] = {
+      static_cast<int32_t>(0x00000000), static_cast<int32_t>(0x00000001),
+      static_cast<int32_t>(0x00ffff00), static_cast<int32_t>(0x7fffffff),
+      static_cast<int32_t>(0x80000000), static_cast<int32_t>(0x80000001),
+      static_cast<int32_t>(0x80ffff00), static_cast<int32_t>(0x8fffffff),
+      static_cast<int32_t>(0xffffffff)};
+  return std::vector<int32_t>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+static const std::vector<uint64_t> uint64_test_values() {
+  static const uint64_t kValues[] = {
+      0x0000000000000000, 0x0000000000000001, 0x0000ffffffff0000,
+      0x7fffffffffffffff, 0x8000000000000000, 0x8000000000000001,
+      0x8000ffffffff0000, 0x8fffffffffffffff, 0xffffffffffffffff};
+  return std::vector<uint64_t>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+static const std::vector<int64_t> int64_test_values() {
+  static const int64_t kValues[] = {static_cast<int64_t>(0x0000000000000000),
+                                    static_cast<int64_t>(0x0000000000000001),
+                                    static_cast<int64_t>(0x0000ffffffff0000),
+                                    static_cast<int64_t>(0x7fffffffffffffff),
+                                    static_cast<int64_t>(0x8000000000000000),
+                                    static_cast<int64_t>(0x8000000000000001),
+                                    static_cast<int64_t>(0x8000ffffffff0000),
+                                    static_cast<int64_t>(0x8fffffffffffffff),
+                                    static_cast<int64_t>(0xffffffffffffffff)};
+  return std::vector<int64_t>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+// Helper macros that can be used in FOR_INT32_INPUTS(i) { ... *i ... }
+#define FOR_INPUTS(ctype, itype, var)                        \
+  std::vector<ctype> var##_vec = itype##_test_values();      \
+  for (std::vector<ctype>::iterator var = var##_vec.begin(); \
+       var != var##_vec.end(); ++var)
+
+#define FOR_INT32_INPUTS(var) FOR_INPUTS(int32_t, int32, var)
+#define FOR_INT64_INPUTS(var) FOR_INPUTS(int64_t, int64, var)
+#define FOR_UINT32_INPUTS(var) FOR_INPUTS(uint32_t, uint32, var)
+#define FOR_UINT64_INPUTS(var) FOR_INPUTS(uint64_t, uint64, var)
+
+template <typename RET_TYPE, typename IN_TYPE, typename Func>
+RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
+  typedef RET_TYPE (*F_CVT)(IN_TYPE x0, int x1, int x2, int x3, int x4);
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assm;
+
+  GenerateConvertInstructionFunc(masm);
+  __ dmfc1(v0, f2);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F_CVT f = FUNCTION_CAST<F_CVT>(code->entry());
+
+  return reinterpret_cast<RET_TYPE>(
+      CALL_GENERATED_CODE(isolate, f, x, 0, 0, 0, 0));
+}
+
+TEST(Cvt_s_uw_Trunc_uw_s) {
+  CcTest::InitializeVM();
+  FOR_UINT32_INPUTS(i) {
+    uint32_t input = *i;
+    CHECK_EQ(static_cast<float>(input),
+             run_Cvt<uint64_t>(input, [](MacroAssembler* masm) {
+               __ Cvt_s_uw(f0, a0);
+               __ mthc1(zero_reg, f2);
+               __ Trunc_uw_s(f2, f0, f1);
+             }));
+  }
+}
+
+TEST(Cvt_s_ul_Trunc_ul_s) {
+  CcTest::InitializeVM();
+  FOR_UINT64_INPUTS(i) {
+    uint64_t input = *i;
+    CHECK_EQ(static_cast<float>(input),
+             run_Cvt<uint64_t>(input, [](MacroAssembler* masm) {
+               __ Cvt_s_ul(f0, a0);
+               __ Trunc_ul_s(f2, f0, f1, v0);
+             }));
+  }
+}
+
+TEST(Cvt_d_ul_Trunc_ul_d) {
+  CcTest::InitializeVM();
+  FOR_UINT64_INPUTS(i) {
+    uint64_t input = *i;
+    CHECK_EQ(static_cast<double>(input),
+             run_Cvt<uint64_t>(input, [](MacroAssembler* masm) {
+               __ Cvt_d_ul(f0, a0);
+               __ Trunc_ul_d(f2, f0, f1, v0);
+             }));
+  }
+}
+
+TEST(cvt_d_l_Trunc_l_d) {
+  CcTest::InitializeVM();
+  FOR_INT64_INPUTS(i) {
+    int64_t input = *i;
+    CHECK_EQ(static_cast<double>(input),
+             run_Cvt<int64_t>(input, [](MacroAssembler* masm) {
+               __ dmtc1(a0, f4);
+               __ cvt_d_l(f0, f4);
+               __ Trunc_l_d(f2, f0);
+             }));
+  }
+}
+
+TEST(cvt_d_l_Trunc_l_ud) {
+  CcTest::InitializeVM();
+  FOR_INT64_INPUTS(i) {
+    int64_t input = *i;
+    uint64_t abs_input = (input < 0) ? -input : input;
+    CHECK_EQ(static_cast<double>(abs_input),
+             run_Cvt<uint64_t>(input, [](MacroAssembler* masm) {
+               __ dmtc1(a0, f4);
+               __ cvt_d_l(f0, f4);
+               __ Trunc_l_ud(f2, f0, f6);
+             }));
+  }
+}
+
+TEST(cvt_d_w_Trunc_w_d) {
+  CcTest::InitializeVM();
+  FOR_INT32_INPUTS(i) {
+    int32_t input = *i;
+    CHECK_EQ(static_cast<double>(input),
+             run_Cvt<int64_t>(input, [](MacroAssembler* masm) {
+               __ mtc1(a0, f4);
+               __ cvt_d_w(f0, f4);
+               __ Trunc_w_d(f2, f0);
+               __ mfc1(v1, f2);
+               __ dmtc1(v1, f2);
+             }));
+  }
+}
+
+TEST(min_max_nan) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assembler(isolate, nullptr, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  struct TestFloat {
+    double a;
+    double b;
+    double c;
+    double d;
+    float e;
+    float f;
+    float g;
+    float h;
+  };
+
+  TestFloat test;
+  const double dnan = std::numeric_limits<double>::quiet_NaN();
+  const double dinf = std::numeric_limits<double>::infinity();
+  const double dminf = -std::numeric_limits<double>::infinity();
+  const float fnan = std::numeric_limits<float>::quiet_NaN();
+  const float finf = std::numeric_limits<float>::infinity();
+  const float fminf = std::numeric_limits<float>::infinity();
+  const int kTableLength = 13;
+
+  double inputsa[kTableLength] = {2.0,  3.0,  -0.0, 0.0,  42.0, dinf, dminf,
+                                  dinf, dnan, 3.0,  dinf, dnan, dnan};
+  double inputsb[kTableLength] = {3.0,   2.0, 0.0,  -0.0, dinf, 42.0, dinf,
+                                  dminf, 3.0, dnan, dnan, dinf, dnan};
+  double outputsdmin[kTableLength] = {2.0,  2.0,   -0.0,  -0.0, 42.0,
+                                      42.0, dminf, dminf, dnan, dnan,
+                                      dnan, dnan,  dnan};
+  double outputsdmax[kTableLength] = {3.0,  3.0,  0.0,  0.0,  dinf, dinf, dinf,
+                                      dinf, dnan, dnan, dnan, dnan, dnan};
+
+  float inputse[kTableLength] = {2.0,  3.0,  -0.0, 0.0,  42.0, finf, fminf,
+                                 finf, fnan, 3.0,  finf, fnan, fnan};
+  float inputsf[kTableLength] = {3.0,   2.0, 0.0,  -0.0, finf, 42.0, finf,
+                                 fminf, 3.0, fnan, fnan, finf, fnan};
+  float outputsfmin[kTableLength] = {2.0,   2.0,  -0.0, -0.0, 42.0, 42.0, fminf,
+                                     fminf, fnan, fnan, fnan, fnan, fnan};
+  float outputsfmax[kTableLength] = {3.0,  3.0,  0.0,  0.0,  finf, finf, finf,
+                                     finf, fnan, fnan, fnan, fnan, fnan};
+
+  auto handle_dnan = [masm](FPURegister dst, Label* nan, Label* back) {
+    __ bind(nan);
+    __ LoadRoot(at, Heap::kNanValueRootIndex);
+    __ ldc1(dst, FieldMemOperand(at, HeapNumber::kValueOffset));
+    __ Branch(back);
+  };
+
+  auto handle_snan = [masm, fnan](FPURegister dst, Label* nan, Label* back) {
+    __ bind(nan);
+    __ Move(dst, fnan);
+    __ Branch(back);
+  };
+
+  Label handle_mind_nan, handle_maxd_nan, handle_mins_nan, handle_maxs_nan;
+  Label back_mind_nan, back_maxd_nan, back_mins_nan, back_maxs_nan;
+
+  __ push(s6);
+  __ InitializeRootRegister();
+  __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
+  __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
+  __ lwc1(f2, MemOperand(a0, offsetof(TestFloat, e)));
+  __ lwc1(f6, MemOperand(a0, offsetof(TestFloat, f)));
+  __ MinNaNCheck_d(f10, f4, f8, &handle_mind_nan);
+  __ bind(&back_mind_nan);
+  __ MaxNaNCheck_d(f12, f4, f8, &handle_maxd_nan);
+  __ bind(&back_maxd_nan);
+  __ MinNaNCheck_s(f14, f2, f6, &handle_mins_nan);
+  __ bind(&back_mins_nan);
+  __ MaxNaNCheck_s(f16, f2, f6, &handle_maxs_nan);
+  __ bind(&back_maxs_nan);
+  __ sdc1(f10, MemOperand(a0, offsetof(TestFloat, c)));
+  __ sdc1(f12, MemOperand(a0, offsetof(TestFloat, d)));
+  __ swc1(f14, MemOperand(a0, offsetof(TestFloat, g)));
+  __ swc1(f16, MemOperand(a0, offsetof(TestFloat, h)));
+  __ pop(s6);
+  __ jr(ra);
+  __ nop();
+
+  handle_dnan(f10, &handle_mind_nan, &back_mind_nan);
+  handle_dnan(f12, &handle_maxd_nan, &back_maxd_nan);
+  handle_snan(f14, &handle_mins_nan, &back_mins_nan);
+  handle_snan(f16, &handle_maxs_nan, &back_maxs_nan);
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  ::F3 f = FUNCTION_CAST<::F3>(code->entry());
+  for (int i = 0; i < kTableLength; i++) {
+    test.a = inputsa[i];
+    test.b = inputsb[i];
+    test.e = inputse[i];
+    test.f = inputsf[i];
+
+    CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0);
+
+    CHECK_EQ(0, memcmp(&test.c, &outputsdmin[i], sizeof(test.c)));
+    CHECK_EQ(0, memcmp(&test.d, &outputsdmax[i], sizeof(test.d)));
+    CHECK_EQ(0, memcmp(&test.g, &outputsfmin[i], sizeof(test.g)));
+    CHECK_EQ(0, memcmp(&test.h, &outputsfmax[i], sizeof(test.h)));
   }
 }
 

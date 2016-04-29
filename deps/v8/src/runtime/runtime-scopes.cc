@@ -44,7 +44,8 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<JSGlobalObject> global,
   }
 
   // Do the lookup own properties only, see ES5 erratum.
-  LookupIterator it(global, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+  LookupIterator it(global, name, global,
+                    LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
 
@@ -102,8 +103,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
   // Traverse the name/value pairs and set the properties.
   int length = pairs->length();
-  for (int i = 0; i < length; i += 2) {
-    HandleScope scope(isolate);
+  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 2, {
     Handle<String> name(String::cast(pairs->get(i)));
     Handle<Object> initial_value(pairs->get(i + 1), isolate);
 
@@ -142,7 +142,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
                                     static_cast<PropertyAttributes>(attr),
                                     is_var, is_const, is_function);
     if (isolate->has_pending_exception()) return result;
-  }
+  });
 
   return isolate->heap()->undefined_value();
 }
@@ -182,7 +182,8 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
   Handle<JSGlobalObject> global = isolate->global_object();
 
   // Lookup the property as own on the global object.
-  LookupIterator it(global, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+  LookupIterator it(global, name, global,
+                    LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.IsJust());
   PropertyAttributes old_attributes = maybe.FromJust();
@@ -394,7 +395,8 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
     // code can run in between that modifies the declared property.
     DCHECK(holder->IsJSGlobalObject() || holder->IsJSContextExtensionObject());
 
-    LookupIterator it(holder, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+    LookupIterator it(holder, name, Handle<JSReceiver>::cast(holder),
+                      LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     if (!maybe.IsJust()) return isolate->heap()->exception();
     PropertyAttributes old_attributes = maybe.FromJust();
@@ -640,9 +642,9 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
   base::SmartArrayPointer<Handle<Object>> arguments =
       GetCallerArguments(isolate, &argument_count);
   int num_elements = std::max(0, argument_count - start_index);
-  Handle<JSObject> result = isolate->factory()->NewJSArray(
-      FAST_ELEMENTS, num_elements, num_elements, Strength::WEAK,
-      DONT_INITIALIZE_ARRAY_ELEMENTS);
+  Handle<JSObject> result =
+      isolate->factory()->NewJSArray(FAST_ELEMENTS, num_elements, num_elements,
+                                     DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
     DisallowHeapAllocation no_gc;
     FixedArray* elements = FixedArray::cast(result->elements());
@@ -708,7 +710,7 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
     }
 
     if (IsLexicalVariableMode(mode)) {
-      LookupIterator it(global_object, name,
+      LookupIterator it(global_object, name, global_object,
                         LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
       Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
       if (!maybe.IsJust()) return isolate->heap()->exception();

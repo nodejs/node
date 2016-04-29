@@ -165,7 +165,7 @@ class GlobalHandles {
   // Clear the weakness of a global handle.
   static void* ClearWeakness(Object** location);
 
-  // Clear the weakness of a global handle.
+  // Mark the reference to this object independent of any object group.
   static void MarkIndependent(Object** location);
 
   // Mark the reference to this object externaly unreachable.
@@ -241,6 +241,9 @@ class GlobalHandles {
   // which requires visiting. The callback has to return true if objects
   // can be skipped and false otherwise.
   bool IterateObjectGroups(ObjectVisitor* v, WeakSlotCallbackWithHeap can_skip);
+
+  // Print all objects in object groups
+  void PrintObjectGroups();
 
   // Add an object group.
   // Should be only used in GC callback function before a collection.

@@ -85,10 +85,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               Handle<Context> native_context,
                               Handle<JSObject> holder);
 
-  // Assuming that {if_projection} is either IfTrue or IfFalse, adds a hint on
-  // the dominating Branch that {if_projection} is the unlikely (deferred) case.
-  void MarkAsDeferred(Node* if_projection);
-
   // Retrieve the native context from the given {node} if known.
   MaybeHandle<Context> GetNativeContext(Node* node);
 

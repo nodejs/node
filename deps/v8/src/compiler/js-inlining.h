@@ -45,6 +45,8 @@ class JSInliner final : public AdvancedReducer {
                                    FrameStateType frame_state_type,
                                    Handle<SharedFunctionInfo> shared);
 
+  Node* CreateTailCallerFrameState(Node* node, Node* outer_frame_state);
+
   Reduction InlineCall(Node* call, Node* new_target, Node* context,
                        Node* frame_state, Node* start, Node* end);
 };
