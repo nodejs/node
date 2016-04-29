@@ -5,11 +5,12 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/code-stubs.h"
 #include "src/conversions-inl.h"
 #include "src/elements.h"
 #include "src/factory.h"
 #include "src/isolate-inl.h"
-#include "src/key-accumulator.h"
+#include "src/keys.h"
 #include "src/messages.h"
 #include "src/prototype.h"
 
@@ -29,17 +30,20 @@ RUNTIME_FUNCTION(Runtime_FinishArrayPrototypeSetup) {
   return Smi::FromInt(0);
 }
 
-
-static void InstallBuiltin(Isolate* isolate, Handle<JSObject> holder,
-                           const char* name, Builtins::Name builtin_name) {
+static void InstallCode(Isolate* isolate, Handle<JSObject> holder,
+                        const char* name, Handle<Code> code) {
   Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
-  Handle<Code> code(isolate->builtins()->builtin(builtin_name));
   Handle<JSFunction> optimized =
       isolate->factory()->NewFunctionWithoutPrototype(key, code);
   optimized->shared()->DontAdaptArguments();
   JSObject::AddProperty(holder, key, optimized, NONE);
 }
 
+static void InstallBuiltin(Isolate* isolate, Handle<JSObject> holder,
+                           const char* name, Builtins::Name builtin_name) {
+  InstallCode(isolate, holder, name,
+              handle(isolate->builtins()->builtin(builtin_name), isolate));
+}
 
 RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
   HandleScope scope(isolate);
@@ -48,7 +52,8 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
       isolate->factory()->NewJSObject(isolate->object_function());
 
   InstallBuiltin(isolate, holder, "pop", Builtins::kArrayPop);
-  InstallBuiltin(isolate, holder, "push", Builtins::kArrayPush);
+  FastArrayPushStub stub(isolate);
+  InstallCode(isolate, holder, "push", stub.GetCode());
   InstallBuiltin(isolate, holder, "shift", Builtins::kArrayShift);
   InstallBuiltin(isolate, holder, "unshift", Builtins::kArrayUnshift);
   InstallBuiltin(isolate, holder, "slice", Builtins::kArraySlice);
@@ -85,29 +90,6 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   CONVERT_ARG_HANDLE_CHECKED(Map, map, 1);
   JSObject::TransitionElementsKind(array, map->elements_kind());
   return *array;
-}
-
-
-// Push an object unto an array of objects if it is not already in the
-// array.  Returns true if the element was pushed on the stack and
-// false otherwise.
-RUNTIME_FUNCTION(Runtime_PushIfAbsent) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, element, 1);
-  RUNTIME_ASSERT(array->HasFastSmiOrObjectElements());
-  int length = Smi::cast(array->length())->value();
-  FixedArray* elements = FixedArray::cast(array->elements());
-  for (int i = 0; i < length; i++) {
-    if (elements->get(i) == *element) return isolate->heap()->false_value();
-  }
-
-  // Strict not needed. Used for cycle detection in Array join implementation.
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::AddDataElement(array, length, element, NONE));
-  JSObject::ValidateElements(array);
-  return isolate->heap()->true_value();
 }
 
 
@@ -234,12 +216,19 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     JSObject::CollectOwnElementKeys(current, &accumulator, ALL_PROPERTIES);
   }
   // Erase any keys >= length.
-  // TODO(adamk): Remove this step when the contract of %GetArrayKeys
-  // is changed to let this happen on the JS side.
   Handle<FixedArray> keys = accumulator.GetKeys(KEEP_NUMBERS);
+  int j = 0;
   for (int i = 0; i < keys->length(); i++) {
-    if (NumberToUint32(keys->get(i)) >= length) keys->set_undefined(i);
+    if (NumberToUint32(keys->get(i)) >= length) continue;
+    if (i != j) keys->set(j, keys->get(i));
+    j++;
   }
+
+  if (j != keys->length()) {
+    isolate->heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
+        *keys, keys->length() - j);
+  }
+
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
@@ -382,7 +371,6 @@ RUNTIME_FUNCTION(Runtime_ArrayConstructor) {
   return ArrayConstructorCommon(isolate, constructor, constructor, site,
                                 caller_args);
 }
-
 
 RUNTIME_FUNCTION(Runtime_InternalArrayConstructor) {
   HandleScope scope(isolate);

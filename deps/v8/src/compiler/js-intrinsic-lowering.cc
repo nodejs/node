@@ -15,7 +15,6 @@
 #include "src/compiler/operator-properties.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
-#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -23,11 +22,7 @@ namespace compiler {
 
 JSIntrinsicLowering::JSIntrinsicLowering(Editor* editor, JSGraph* jsgraph,
                                          DeoptimizationMode mode)
-    : AdvancedReducer(editor),
-      jsgraph_(jsgraph),
-      mode_(mode),
-      type_cache_(TypeCache::Get()) {}
-
+    : AdvancedReducer(editor), jsgraph_(jsgraph), mode_(mode) {}
 
 Reduction JSIntrinsicLowering::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kJSCallRuntime) return NoChange();
@@ -45,8 +40,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceDoubleHi(node);
     case Runtime::kInlineDoubleLo:
       return ReduceDoubleLo(node);
-    case Runtime::kInlineIncrementStatsCounter:
-      return ReduceIncrementStatsCounter(node);
     case Runtime::kInlineIsArray:
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
@@ -57,12 +50,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
       return ReduceIsSmi(node);
-    case Runtime::kInlineMathClz32:
-      return ReduceMathClz32(node);
-    case Runtime::kInlineMathFloor:
-      return ReduceMathFloor(node);
-    case Runtime::kInlineMathSqrt:
-      return ReduceMathSqrt(node);
     case Runtime::kInlineValueOf:
       return ReduceValueOf(node);
     case Runtime::kInlineFixedArrayGet:
@@ -95,10 +82,12 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceToString(node);
     case Runtime::kInlineCall:
       return ReduceCall(node);
-    case Runtime::kInlineTailCall:
-      return ReduceTailCall(node);
+    case Runtime::kInlineNewObject:
+      return ReduceNewObject(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
+    case Runtime::kInlineGetOrdinaryHasInstance:
+      return ReduceGetOrdinaryHasInstance(node);
     default:
       break;
   }
@@ -149,37 +138,20 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceDoubleHi(Node* node) {
+  // Tell the compiler to assume number input.
+  Node* renamed = graph()->NewNode(common()->Guard(Type::Number()),
+                                   node->InputAt(0), graph()->start());
+  node->ReplaceInput(0, renamed);
   return Change(node, machine()->Float64ExtractHighWord32());
 }
 
 
 Reduction JSIntrinsicLowering::ReduceDoubleLo(Node* node) {
+  // Tell the compiler to assume number input.
+  Node* renamed = graph()->NewNode(common()->Guard(Type::Number()),
+                                   node->InputAt(0), graph()->start());
+  node->ReplaceInput(0, renamed);
   return Change(node, machine()->Float64ExtractLowWord32());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceIncrementStatsCounter(Node* node) {
-  if (!FLAG_native_code_counters) return ChangeToUndefined(node);
-  HeapObjectMatcher m(NodeProperties::GetValueInput(node, 0));
-  if (!m.HasValue() || !m.Value()->IsString()) {
-    return ChangeToUndefined(node);
-  }
-  base::SmartArrayPointer<char> name =
-      Handle<String>::cast(m.Value())->ToCString();
-  StatsCounter counter(jsgraph()->isolate(), name.get());
-  if (!counter.Enabled()) return ChangeToUndefined(node);
-
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  FieldAccess access = AccessBuilder::ForStatsCounter();
-  Node* cnt = jsgraph()->ExternalConstant(ExternalReference(&counter));
-  Node* load =
-      graph()->NewNode(simplified()->LoadField(access), cnt, effect, control);
-  Node* inc =
-      graph()->NewNode(machine()->Int32Add(), load, jsgraph()->OneConstant());
-  Node* store = graph()->NewNode(simplified()->StoreField(access), cnt, inc,
-                                 load, control);
-  return ChangeToUndefined(node, store);
 }
 
 
@@ -229,22 +201,6 @@ Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceIsSmi(Node* node) {
   return Change(node, simplified()->ObjectIsSmi());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceMathClz32(Node* node) {
-  return Change(node, machine()->Word32Clz());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceMathFloor(Node* node) {
-  if (!machine()->Float64RoundDown().IsSupported()) return NoChange();
-  return Change(node, machine()->Float64RoundDown().op());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceMathSqrt(Node* node) {
-  return Change(node, machine()->Float64Sqrt());
 }
 
 
@@ -385,44 +341,8 @@ Reduction JSIntrinsicLowering::ReduceSubString(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
-  Node* value = NodeProperties::GetValueInput(node, 0);
-  Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // ToInteger is a no-op on integer values and -0.
-  Type* value_type = NodeProperties::GetType(value);
-  if (value_type->Is(type_cache().kIntegerOrMinusZero)) {
-    ReplaceWithValue(node, value);
-    return Replace(value);
-  }
-
-  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* etrue = effect;
-  Node* vtrue = value;
-
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = effect;
-  Node* vfalse;
-  {
-    vfalse = efalse =
-        graph()->NewNode(javascript()->CallRuntime(Runtime::kToInteger), value,
-                         context, frame_state, efalse, if_false);
-    if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
-  }
-
-  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-  value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           vtrue, vfalse, control);
-  // TODO(bmeurer, mstarzinger): Rewire IfException inputs to {vfalse}.
-  ReplaceWithValue(node, value, effect, control);
-  return Changed(value);
+  NodeProperties::ChangeOp(node, javascript()->ToInteger());
+  return Changed(node);
 }
 
 
@@ -439,38 +359,8 @@ Reduction JSIntrinsicLowering::ReduceToNumber(Node* node) {
 
 
 Reduction JSIntrinsicLowering::ReduceToLength(Node* node) {
-  Node* value = NodeProperties::GetValueInput(node, 0);
-  Type* value_type = NodeProperties::GetType(value);
-  if (value_type->Is(type_cache().kIntegerOrMinusZero)) {
-    if (value_type->Max() <= 0.0) {
-      value = jsgraph()->ZeroConstant();
-    } else if (value_type->Min() >= kMaxSafeInteger) {
-      value = jsgraph()->Constant(kMaxSafeInteger);
-    } else {
-      if (value_type->Min() <= 0.0) {
-        value = graph()->NewNode(
-            common()->Select(MachineRepresentation::kTagged),
-            graph()->NewNode(simplified()->NumberLessThanOrEqual(), value,
-                             jsgraph()->ZeroConstant()),
-            jsgraph()->ZeroConstant(), value);
-        value_type = Type::Range(0.0, value_type->Max(), graph()->zone());
-        NodeProperties::SetType(value, value_type);
-      }
-      if (value_type->Max() > kMaxSafeInteger) {
-        value = graph()->NewNode(
-            common()->Select(MachineRepresentation::kTagged),
-            graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                             jsgraph()->Constant(kMaxSafeInteger), value),
-            jsgraph()->Constant(kMaxSafeInteger), value);
-        value_type =
-            Type::Range(value_type->Min(), kMaxSafeInteger, graph()->zone());
-        NodeProperties::SetType(value, value_type);
-      }
-    }
-    ReplaceWithValue(node, value);
-    return Replace(value);
-  }
-  return Change(node, CodeFactory::ToLength(isolate()), 0);
+  NodeProperties::ChangeOp(node, javascript()->ToLength());
+  return Changed(node);
 }
 
 
@@ -506,16 +396,17 @@ Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
   return Changed(node);
 }
 
-
-Reduction JSIntrinsicLowering::ReduceTailCall(Node* node) {
-  size_t const arity = CallRuntimeParametersOf(node->op()).arity();
-  NodeProperties::ChangeOp(node,
-                           javascript()->CallFunction(arity, VectorSlotPair(),
-                                                      ConvertReceiverMode::kAny,
-                                                      TailCallMode::kAllow));
-  return Changed(node);
+Reduction JSIntrinsicLowering::ReduceNewObject(Node* node) {
+  Node* constructor = NodeProperties::GetValueInput(node, 0);
+  Node* new_target = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  Node* value = graph()->NewNode(javascript()->Create(), constructor,
+                                 new_target, context, frame_state, effect);
+  ReplaceWithValue(node, value, value);
+  return Replace(value);
 }
-
 
 Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
   Node* active_function = NodeProperties::GetValueInput(node, 0);
@@ -528,6 +419,16 @@ Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
                 active_function_map, effect, control);
 }
 
+Reduction JSIntrinsicLowering::ReduceGetOrdinaryHasInstance(Node* node) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* native_context = effect = graph()->NewNode(
+      javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+      context, context, effect);
+  return Change(node, javascript()->LoadContext(
+                          0, Context::ORDINARY_HAS_INSTANCE_INDEX, true),
+                native_context, context, effect);
+}
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
                                       Node* b) {

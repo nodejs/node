@@ -119,8 +119,7 @@ class TestSetup {
 
 }  // namespace
 
-
-i::Code* CreateCode(LocalContext* env) {
+i::AbstractCode* CreateCode(LocalContext* env) {
   static int counter = 0;
   i::EmbeddedVector<char, 256> script;
   i::EmbeddedVector<char, 32> name;
@@ -138,9 +137,8 @@ i::Code* CreateCode(LocalContext* env) {
 
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env->local(), name_start)));
-  return fun->code();
+  return fun->abstract_code();
 }
-
 
 TEST(CodeEvents) {
   CcTest::InitializeVM();
@@ -151,13 +149,13 @@ TEST(CodeEvents) {
 
   i::HandleScope scope(isolate);
 
-  i::Code* aaa_code = CreateCode(&env);
-  i::Code* comment_code = CreateCode(&env);
-  i::Code* args5_code = CreateCode(&env);
-  i::Code* comment2_code = CreateCode(&env);
-  i::Code* moved_code = CreateCode(&env);
-  i::Code* args3_code = CreateCode(&env);
-  i::Code* args4_code = CreateCode(&env);
+  i::AbstractCode* aaa_code = CreateCode(&env);
+  i::AbstractCode* comment_code = CreateCode(&env);
+  i::AbstractCode* args5_code = CreateCode(&env);
+  i::AbstractCode* comment2_code = CreateCode(&env);
+  i::AbstractCode* moved_code = CreateCode(&env);
+  i::AbstractCode* args3_code = CreateCode(&env);
+  i::AbstractCode* args4_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
   profiles->StartProfiling("", false);
@@ -174,7 +172,7 @@ TEST(CodeEvents) {
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code, "comment");
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, args5_code, 5);
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code, "comment2");
-  profiler.CodeMoveEvent(comment2_code->address(), moved_code->address());
+  profiler.CodeMoveEvent(comment2_code, moved_code->address());
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, args3_code, 3);
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, args4_code, 4);
 
@@ -203,12 +201,10 @@ TEST(CodeEvents) {
   CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
 
-
 template<typename T>
 static int CompareProfileNodes(const T* p1, const T* p2) {
   return strcmp((*p1)->entry()->name(), (*p2)->entry()->name());
 }
-
 
 TEST(TickEvents) {
   TestSetup test_setup;
@@ -216,9 +212,9 @@ TEST(TickEvents) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::Code* frame1_code = CreateCode(&env);
-  i::Code* frame2_code = CreateCode(&env);
-  i::Code* frame3_code = CreateCode(&env);
+  i::AbstractCode* frame1_code = CreateCode(&env);
+  i::AbstractCode* frame2_code = CreateCode(&env);
+  i::AbstractCode* frame3_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
   profiles->StartProfiling("", false);
@@ -265,7 +261,6 @@ TEST(TickEvents) {
   CHECK_EQ(0, top_down_ddd_children->length());
 }
 
-
 // http://crbug/51594
 // This test must not crash.
 TEST(CrashIfStoppingLastNonExistentProfile) {
@@ -278,7 +273,6 @@ TEST(CrashIfStoppingLastNonExistentProfile) {
   profiler->StopProfiling("");
 }
 
-
 // http://code.google.com/p/v8/issues/detail?id=1398
 // Long stacks (exceeding max frames limit) must not be erased.
 TEST(Issue1398) {
@@ -287,7 +281,7 @@ TEST(Issue1398) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::Code* code = CreateCode(&env);
+  i::AbstractCode* code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
   profiles->StartProfiling("", false);
@@ -321,7 +315,6 @@ TEST(Issue1398) {
 
   CHECK_EQ(1 + i::TickSample::kMaxFramesCount, actual_depth);  // +1 for PC.
 }
-
 
 TEST(DeleteAllCpuProfiles) {
   CcTest::InitializeVM();
@@ -990,11 +983,11 @@ TEST(BoundFunctionCall) {
   profile->Delete();
 }
 
-
 // This tests checks distribution of the samples through the source lines.
-TEST(TickLines) {
+static void TickLines(bool optimize) {
   CcTest::InitializeVM();
   LocalContext env;
+  i::FLAG_allow_natives_syntax = true;
   i::FLAG_turbo_source_positions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -1003,6 +996,8 @@ TEST(TickLines) {
   i::EmbeddedVector<char, 512> script;
 
   const char* func_name = "func";
+  const char* opt_func =
+      optimize ? "%OptimizeFunctionOnNextCall" : "%NeverOptimizeFunction";
   i::SNPrintF(script,
               "function %s() {\n"
               "  var n = 0;\n"
@@ -1012,22 +1007,17 @@ TEST(TickLines) {
               "    n += m * m * m;\n"
               "  }\n"
               "}\n"
+              "%s(%s);\n"
               "%s();\n",
-              func_name, func_name);
+              func_name, opt_func, func_name, func_name);
 
   CompileRun(script.start());
 
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
   CHECK(func->shared());
-  CHECK(func->shared()->code());
-  i::Code* code = NULL;
-  if (func->code()->is_optimized_code()) {
-    code = func->code();
-  } else {
-    CHECK(func->shared()->code() == func->code() || !i::FLAG_crankshaft);
-    code = func->shared()->code();
-  }
+  CHECK(func->shared()->abstract_code());
+  i::AbstractCode* code = func->abstract_code();
   CHECK(code);
   i::Address code_address = code->instruction_start();
   CHECK(code_address);
@@ -1087,6 +1077,10 @@ TEST(TickLines) {
     }
   CHECK_EQ(hit_count, value);
 }
+
+TEST(TickLinesBaseline) { TickLines(false); }
+
+TEST(TickLinesOptimized) { TickLines(true); }
 
 static const char* call_function_test_source =
     "%NeverOptimizeFunction(bar);\n"
@@ -1506,6 +1500,68 @@ TEST(JsNativeJsRuntimeJsSampleMultiple) {
       GetChild(env, start_node, "CallJsFunction");
   const v8::CpuProfileNode* bar_node = GetChild(env, native_node, "bar");
   GetChild(env, bar_node, "foo");
+
+  profile->Delete();
+}
+
+static const char* inlining_test_source =
+    "%NeverOptimizeFunction(action);\n"
+    "%NeverOptimizeFunction(start);\n"
+    "%OptimizeFunctionOnNextCall(level1);\n"
+    "%OptimizeFunctionOnNextCall(level2);\n"
+    "%OptimizeFunctionOnNextCall(level3);\n"
+    "var finish = false;\n"
+    "function action(n) {\n"
+    "  var s = 0;\n"
+    "  for (var i = 0; i < n; ++i) s += i*i*i;\n"
+    "  if (finish)\n"
+    "    startProfiling('my_profile');\n"
+    "  return s;\n"
+    "}\n"
+    "function level3() { return action(100); }\n"
+    "function level2() { return level3() * 2; }\n"
+    "function level1() { return level2(); }\n"
+    "function start() {\n"
+    "  var n = 100;\n"
+    "  while (--n)\n"
+    "    level1();\n"
+    "  finish = true;\n"
+    "  level1();\n"
+    "}";
+
+// The test check multiple entrances/exits between JS and native code.
+//
+// [Top down]:
+//    (root) #0 1
+//      start #16 3
+//        level1 #0 4
+//          level2 #16 5
+//            level3 #16 6
+//              action #16 7
+//      (program) #0 2
+TEST(Inlining) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+
+  CompileRun(inlining_test_source);
+  v8::Local<v8::Function> function = GetFunction(env, "start");
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8_str("my_profile");
+  function->Call(env, env->Global(), 0, NULL).ToLocalChecked();
+  v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
+  CHECK(profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(profile)->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
+  const v8::CpuProfileNode* level1_node = GetChild(env, start_node, "level1");
+  const v8::CpuProfileNode* level2_node = GetChild(env, level1_node, "level2");
+  const v8::CpuProfileNode* level3_node = GetChild(env, level2_node, "level3");
+  GetChild(env, level3_node, "action");
 
   profile->Delete();
 }

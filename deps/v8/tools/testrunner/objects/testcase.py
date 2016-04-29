@@ -30,12 +30,11 @@ from . import output
 
 class TestCase(object):
   def __init__(self, suite, path, variant='default', flags=None,
-               dependency=None, override_shell=None):
+               override_shell=None):
     self.suite = suite        # TestSuite object
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
     self.flags = flags or []  # list of strings, flags specific to this test
     self.variant = variant    # name of the used testing variant
-    self.dependency = dependency  # |path| for testcase that must be run first
     self.override_shell = override_shell
     self.outcomes = set([])
     self.output = None
@@ -45,7 +44,7 @@ class TestCase(object):
 
   def CopyAddingFlags(self, variant, flags):
     copy = TestCase(self.suite, self.path, variant, self.flags + flags,
-                    self.dependency, self.override_shell)
+                    self.override_shell)
     copy.outcomes = self.outcomes
     return copy
 
@@ -56,16 +55,16 @@ class TestCase(object):
     """
     assert self.id is not None
     return [self.suitename(), self.path, self.variant, self.flags,
-            self.dependency, self.override_shell, list(self.outcomes or []),
+            self.override_shell, list(self.outcomes or []),
             self.id]
 
   @staticmethod
   def UnpackTask(task):
     """Creates a new TestCase object based on packed task data."""
     # For the order of the fields, refer to PackTask() above.
-    test = TestCase(str(task[0]), task[1], task[2], task[3], task[4], task[5])
-    test.outcomes = set(task[6])
-    test.id = task[7]
+    test = TestCase(str(task[0]), task[1], task[2], task[3], task[4])
+    test.outcomes = set(task[5])
+    test.id = task[6]
     test.run = 1
     return test
 
@@ -101,3 +100,11 @@ class TestCase(object):
     send the name only and retrieve a process-local suite later.
     """
     return dict(self.__dict__, suite=self.suite.name)
+
+  def __cmp__(self, other):
+    # Make sure that test cases are sorted correctly if sorted without
+    # key function. But using a key function is preferred for speed.
+    return cmp(
+        (self.suite.name, self.path, self.flags),
+        (other.suite.name, other.path, other.flags),
+    )

@@ -175,7 +175,7 @@ class FunctionTester : public InitializedHandleScope {
   uint32_t flags_;
 
   Handle<JSFunction> Compile(Handle<JSFunction> function) {
-    Zone zone;
+    Zone zone(function->GetIsolate()->allocator());
     ParseInfo parse_info(&zone, function);
     CompilationInfo info(&parse_info);
     info.MarkAsDeoptimizationEnabled();
@@ -224,7 +224,7 @@ class FunctionTester : public InitializedHandleScope {
   // Compile the given machine graph instead of the source of the function
   // and replace the JSFunction's code with the result.
   Handle<JSFunction> CompileGraph(Graph* graph) {
-    Zone zone;
+    Zone zone(function->GetIsolate()->allocator());
     ParseInfo parse_info(&zone, function);
     CompilationInfo info(&parse_info);
 

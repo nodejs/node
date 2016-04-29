@@ -395,7 +395,6 @@ Handle<TransitionArray> TransitionArray::Allocate(Isolate* isolate,
                                                   int slack) {
   Handle<FixedArray> array = isolate->factory()->NewTransitionArray(
       LengthFor(number_of_transitions + slack));
-  array->set(kNextLinkIndex, isolate->heap()->undefined_value());
   array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
   array->set(kTransitionLengthIndex, Smi::FromInt(number_of_transitions));
   return Handle<TransitionArray>::cast(array);

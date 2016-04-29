@@ -468,7 +468,12 @@ CPU::CPU()
     char* end;
     architecture_ = strtol(architecture, &end, 10);
     if (end == architecture) {
-      architecture_ = 0;
+      // Kernels older than 3.18 report "CPU architecture: AArch64" on ARMv8.
+      if (strcmp(architecture, "AArch64") == 0) {
+        architecture_ = 8;
+      } else {
+        architecture_ = 0;
+      }
     }
     delete[] architecture;
 

@@ -355,14 +355,7 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     if (processor.HasStackOverflow()) return false;
 
     if (processor.result_assigned()) {
-      DCHECK(function->end_position() != RelocInfo::kNoPosition);
-      // Set the position of the assignment statement one character past the
-      // source code, such that it definitely is not in the source code range
-      // of an immediate inner scope. For example in
-      //   eval('with ({x:1}) x = 1');
-      // the end position of the function generated for executing the eval code
-      // coincides with the end of the with scope which is the position of '1'.
-      int pos = function->end_position();
+      int pos = RelocInfo::kNoPosition;
       VariableProxy* result_proxy =
           processor.factory()->NewVariableProxy(result, pos);
       Statement* result_statement =

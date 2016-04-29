@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sloppy --harmony-sloppy-let --harmony-destructuring-bind
-// Flags: --legacy-const
+// Flags: --harmony-sloppy --harmony-sloppy-let
 
-// let is usable as a variable with var or legacy const, not let or ES6 const
+// let is usable as a variable with var, but not let or ES6 const
 
 (function (){
   assertEquals(undefined, let);
@@ -46,13 +45,6 @@ assertThrows(function() { return let; }, ReferenceError);
 (function () {
   let obj = {};
   var {let} = {let() { return obj; }};
-  let().x = 1;
-  assertEquals(1, obj.x);
-})();
-
-(function () {
-  let obj = {};
-  const [let] = [function() { return obj; }];
   let().x = 1;
   assertEquals(1, obj.x);
 })();

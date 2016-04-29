@@ -138,7 +138,6 @@ void AstNumberingVisitor::VisitNativeFunctionLiteral(
 
 void AstNumberingVisitor::VisitDoExpression(DoExpression* node) {
   IncrementNodeCount();
-  DisableCrankshaft(kDoExpression);
   node->set_base_id(ReserveIdRange(DoExpression::num_ids()));
   Visit(node->block());
   Visit(node->result());
@@ -267,10 +266,6 @@ void AstNumberingVisitor::VisitFunctionDeclaration(FunctionDeclaration* node) {
 void AstNumberingVisitor::VisitCallRuntime(CallRuntime* node) {
   IncrementNodeCount();
   ReserveFeedbackSlots(node);
-  if (node->is_jsruntime()) {
-    // Don't try to optimize JS runtime calls because we bailout on them.
-    DisableOptimization(kCallToAJavaScriptRuntimeFunction);
-  }
   node->set_base_id(ReserveIdRange(CallRuntime::num_ids()));
   VisitArguments(node->arguments());
 }
@@ -504,9 +499,6 @@ void AstNumberingVisitor::VisitArrayLiteral(ArrayLiteral* node) {
 
 void AstNumberingVisitor::VisitCall(Call* node) {
   IncrementNodeCount();
-  if (node->tail_call_mode() == TailCallMode::kAllow) {
-    DisableOptimization(kTailCall);
-  }
   ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(Call::num_ids()));
   Visit(node->expression());
@@ -571,12 +563,6 @@ bool AstNumberingVisitor::Finish(FunctionLiteral* node) {
 
 bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   Scope* scope = node->scope();
-
-  if (scope->HasIllegalRedeclaration()) {
-    Visit(scope->GetIllegalRedeclaration());
-    DisableOptimization(kFunctionWithIllegalRedeclaration);
-    return Finish(node);
-  }
   if (scope->new_target_var()) DisableCrankshaft(kSuperReference);
   if (scope->calls_eval()) DisableOptimization(kFunctionCallsEval);
   if (scope->arguments() != NULL && !scope->arguments()->IsStackAllocated()) {

@@ -384,7 +384,6 @@ function driveTickProcessorTest(
                              TickProcessor.CALL_GRAPH_SIZE,
                              ignoreUnknown,
                              stateFilter,
-                             undefined,
                              "0",
                              "auto,auto",
                              false,

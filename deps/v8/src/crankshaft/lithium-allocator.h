@@ -6,6 +6,7 @@
 #define V8_CRANKSHAFT_LITHIUM_ALLOCATOR_H_
 
 #include "src/allocation.h"
+#include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/lithium.h"
 #include "src/zone.h"
 

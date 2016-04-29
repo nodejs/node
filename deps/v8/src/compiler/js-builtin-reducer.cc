@@ -129,6 +129,45 @@ Reduction JSBuiltinReducer::ReduceMathImul(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.2.2.10 Math.ceil ( x )
+Reduction JSBuiltinReducer::ReduceMathCeil(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.ceil(a:number) -> NumberCeil(a)
+    Node* value = graph()->NewNode(simplified()->NumberCeil(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.11 Math.clz32 ( x )
+Reduction JSBuiltinReducer::ReduceMathClz32(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Unsigned32())) {
+    // Math.clz32(a:unsigned32) -> NumberClz32(a)
+    Node* value = graph()->NewNode(simplified()->NumberClz32(), r.left());
+    return Replace(value);
+  }
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.clz32(a:number) -> NumberClz32(NumberToUint32(a))
+    Node* value = graph()->NewNode(
+        simplified()->NumberClz32(),
+        graph()->NewNode(simplified()->NumberToUint32(), r.left()));
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 draft 08-24-14, section 20.2.2.16.
+Reduction JSBuiltinReducer::ReduceMathFloor(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.floor(a:number) -> NumberFloor(a)
+    Node* value = graph()->NewNode(simplified()->NumberFloor(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
 
 // ES6 draft 08-24-14, section 20.2.2.17.
 Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
@@ -145,25 +184,32 @@ Reduction JSBuiltinReducer::ReduceMathFround(Node* node) {
 // ES6 section 20.2.2.28 Math.round ( x )
 Reduction JSBuiltinReducer::ReduceMathRound(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(type_cache_.kIntegerOrMinusZeroOrNaN)) {
-    // Math.round(a:integer \/ -0 \/ NaN) -> a
-    return Replace(r.left());
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.round(a:number) -> NumberRound(a)
+    Node* value = graph()->NewNode(simplified()->NumberRound(), r.left());
+    return Replace(value);
   }
-  if (r.InputsMatchOne(Type::Number()) &&
-      machine()->Float64RoundUp().IsSupported()) {
-    // Math.round(a:number) -> Select(Float64LessThan(#0.5, Float64Sub(i, a)),
-    //                                Float64Sub(i, #1.0), i)
-    //   where i = Float64RoundUp(a)
-    Node* value = r.left();
-    Node* integer = graph()->NewNode(machine()->Float64RoundUp().op(), value);
-    Node* real = graph()->NewNode(machine()->Float64Sub(), integer, value);
-    return Replace(graph()->NewNode(
-        common()->Select(MachineRepresentation::kFloat64),
-        graph()->NewNode(machine()->Float64LessThan(),
-                         jsgraph()->Float64Constant(0.5), real),
-        graph()->NewNode(machine()->Float64Sub(), integer,
-                         jsgraph()->Float64Constant(1.0)),
-        integer));
+  return NoChange();
+}
+
+// ES6 section 20.2.2.32 Math.sqrt ( x )
+Reduction JSBuiltinReducer::ReduceMathSqrt(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.sqrt(a:number) -> Float64Sqrt(a)
+    Node* value = graph()->NewNode(machine()->Float64Sqrt(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.2.2.35 Math.trunc ( x )
+Reduction JSBuiltinReducer::ReduceMathTrunc(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.trunc(a:number) -> NumberTrunc(a)
+    Node* value = graph()->NewNode(simplified()->NumberTrunc(), r.left());
+    return Replace(value);
   }
   return NoChange();
 }
@@ -181,11 +227,26 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathImul:
       reduction = ReduceMathImul(node);
       break;
+    case kMathClz32:
+      reduction = ReduceMathClz32(node);
+      break;
+    case kMathCeil:
+      reduction = ReduceMathCeil(node);
+      break;
+    case kMathFloor:
+      reduction = ReduceMathFloor(node);
+      break;
     case kMathFround:
       reduction = ReduceMathFround(node);
       break;
     case kMathRound:
       reduction = ReduceMathRound(node);
+      break;
+    case kMathSqrt:
+      reduction = ReduceMathSqrt(node);
+      break;
+    case kMathTrunc:
+      reduction = ReduceMathTrunc(node);
       break;
     default:
       break;

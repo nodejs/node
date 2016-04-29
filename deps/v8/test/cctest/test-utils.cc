@@ -32,6 +32,7 @@
 #include "src/v8.h"
 
 #include "src/base/platform/platform.h"
+#include "src/collector.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

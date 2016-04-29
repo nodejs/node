@@ -12,7 +12,6 @@ namespace v8 {
 namespace internal {
 
 const double GCIdleTimeHandler::kConservativeTimeRatio = 0.9;
-const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000;
 const size_t GCIdleTimeHandler::kMaxFinalIncrementalMarkCompactTimeInMs = 1000;
 const double GCIdleTimeHandler::kHighContextDisposalRate = 100;
 const size_t GCIdleTimeHandler::kMinTimeForOverApproximatingWeakClosureInMs = 1;
@@ -42,66 +41,37 @@ void GCIdleTimeAction::Print() {
 void GCIdleTimeHeapState::Print() {
   PrintF("contexts_disposed=%d ", contexts_disposed);
   PrintF("contexts_disposal_rate=%f ", contexts_disposal_rate);
-  PrintF("size_of_objects=%" V8_PTR_PREFIX "d ", size_of_objects);
+  PrintF("size_of_objects=%" V8_SIZET_PREFIX V8_PTR_PREFIX "d ",
+         size_of_objects);
   PrintF("incremental_marking_stopped=%d ", incremental_marking_stopped);
 }
 
-
 size_t GCIdleTimeHandler::EstimateMarkingStepSize(
-    size_t idle_time_in_ms, size_t marking_speed_in_bytes_per_ms) {
+    double idle_time_in_ms, double marking_speed_in_bytes_per_ms) {
   DCHECK(idle_time_in_ms > 0);
 
   if (marking_speed_in_bytes_per_ms == 0) {
     marking_speed_in_bytes_per_ms = kInitialConservativeMarkingSpeed;
   }
 
-  size_t marking_step_size = marking_speed_in_bytes_per_ms * idle_time_in_ms;
-  if (marking_step_size / marking_speed_in_bytes_per_ms != idle_time_in_ms) {
-    // In the case of an overflow we return maximum marking step size.
+  double marking_step_size = marking_speed_in_bytes_per_ms * idle_time_in_ms;
+  if (marking_step_size >= kMaximumMarkingStepSize) {
     return kMaximumMarkingStepSize;
   }
-
-  if (marking_step_size > kMaximumMarkingStepSize)
-    return kMaximumMarkingStepSize;
-
   return static_cast<size_t>(marking_step_size * kConservativeTimeRatio);
 }
 
-
-size_t GCIdleTimeHandler::EstimateMarkCompactTime(
-    size_t size_of_objects, size_t mark_compact_speed_in_bytes_per_ms) {
-  // TODO(hpayer): Be more precise about the type of mark-compact event. It
-  // makes a huge difference if compaction is happening.
-  if (mark_compact_speed_in_bytes_per_ms == 0) {
-    mark_compact_speed_in_bytes_per_ms = kInitialConservativeMarkCompactSpeed;
-  }
-  size_t result = size_of_objects / mark_compact_speed_in_bytes_per_ms;
-  return Min(result, kMaxMarkCompactTimeInMs);
-}
-
-
-size_t GCIdleTimeHandler::EstimateFinalIncrementalMarkCompactTime(
+double GCIdleTimeHandler::EstimateFinalIncrementalMarkCompactTime(
     size_t size_of_objects,
-    size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
+    double final_incremental_mark_compact_speed_in_bytes_per_ms) {
   if (final_incremental_mark_compact_speed_in_bytes_per_ms == 0) {
     final_incremental_mark_compact_speed_in_bytes_per_ms =
         kInitialConservativeFinalIncrementalMarkCompactSpeed;
   }
-  size_t result =
+  double result =
       size_of_objects / final_incremental_mark_compact_speed_in_bytes_per_ms;
-  return Min(result, kMaxFinalIncrementalMarkCompactTimeInMs);
+  return Min<double>(result, kMaxFinalIncrementalMarkCompactTimeInMs);
 }
-
-
-bool GCIdleTimeHandler::ShouldDoMarkCompact(
-    size_t idle_time_in_ms, size_t size_of_objects,
-    size_t mark_compact_speed_in_bytes_per_ms) {
-  return idle_time_in_ms >= kMaxScheduledIdleTime &&
-         idle_time_in_ms >=
-             EstimateMarkCompactTime(size_of_objects,
-                                     mark_compact_speed_in_bytes_per_ms);
-}
-
 
 bool GCIdleTimeHandler::ShouldDoContextDisposalMarkCompact(
     int contexts_disposed, double contexts_disposal_rate) {
@@ -109,19 +79,17 @@ bool GCIdleTimeHandler::ShouldDoContextDisposalMarkCompact(
          contexts_disposal_rate < kHighContextDisposalRate;
 }
 
-
 bool GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
-    size_t idle_time_in_ms, size_t size_of_objects,
-    size_t final_incremental_mark_compact_speed_in_bytes_per_ms) {
+    double idle_time_in_ms, size_t size_of_objects,
+    double final_incremental_mark_compact_speed_in_bytes_per_ms) {
   return idle_time_in_ms >=
          EstimateFinalIncrementalMarkCompactTime(
              size_of_objects,
              final_incremental_mark_compact_speed_in_bytes_per_ms);
 }
 
-
 bool GCIdleTimeHandler::ShouldDoOverApproximateWeakClosure(
-    size_t idle_time_in_ms) {
+    double idle_time_in_ms) {
   // TODO(jochen): Estimate the time it will take to build the object groups.
   return idle_time_in_ms >= kMinTimeForOverApproximatingWeakClosureInMs;
 }

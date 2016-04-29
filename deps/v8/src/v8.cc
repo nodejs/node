@@ -19,7 +19,6 @@
 #include "src/profiler/sampler.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
-#include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"
 
 

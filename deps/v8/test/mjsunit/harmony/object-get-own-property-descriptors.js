@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-object-own-property-descriptors
-// Flags: --harmony-proxies --harmony-reflect --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 function DataDescriptor(value) {
   return { "enumerable": true, "configurable": true, "writable": true, value };

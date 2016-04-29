@@ -133,8 +133,10 @@ void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
     if (scope_info->LocalIsSynthetic(i)) continue;
     Handle<String> name(scope_info->StackLocalName(i));
     Handle<Object> value = GetExpression(scope_info->StackLocalIndex(i));
+    // TODO(yangguo): We convert optimized out values to {undefined} when they
+    // are passed to the debugger. Eventually we should handle them somehow.
     if (value->IsTheHole()) value = isolate_->factory()->undefined_value();
-
+    if (value->IsOptimizedOut()) value = isolate_->factory()->undefined_value();
     JSObject::SetOwnPropertyIgnoreAttributes(target, name, value, NONE).Check();
   }
 }

@@ -340,6 +340,10 @@ void FeedbackNexus::ConfigurePremonomorphic() {
 
 
 void FeedbackNexus::ConfigureMegamorphic() {
+  // Keyed ICs must use ConfigureMegamorphicKeyed.
+  DCHECK_NE(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector()->GetKind(slot()));
+  DCHECK_NE(FeedbackVectorSlotKind::KEYED_STORE_IC, vector()->GetKind(slot()));
+
   Isolate* isolate = GetIsolate();
   SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(isolate),
               SKIP_WRITE_BARRIER);
@@ -347,6 +351,21 @@ void FeedbackNexus::ConfigureMegamorphic() {
                    SKIP_WRITE_BARRIER);
 }
 
+void KeyedLoadICNexus::ConfigureMegamorphicKeyed(IcCheckType property_type) {
+  Isolate* isolate = GetIsolate();
+  SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(isolate),
+              SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(static_cast<int>(property_type)),
+                   SKIP_WRITE_BARRIER);
+}
+
+void KeyedStoreICNexus::ConfigureMegamorphicKeyed(IcCheckType property_type) {
+  Isolate* isolate = GetIsolate();
+  SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(isolate),
+              SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(static_cast<int>(property_type)),
+                   SKIP_WRITE_BARRIER);
+}
 
 InlineCacheState LoadICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
@@ -824,10 +843,20 @@ KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
   return mode;
 }
 
+IcCheckType KeyedLoadICNexus::GetKeyType() const {
+  Object* feedback = GetFeedback();
+  if (feedback == *TypeFeedbackVector::MegamorphicSentinel(GetIsolate())) {
+    return static_cast<IcCheckType>(Smi::cast(GetFeedbackExtra())->value());
+  }
+  return IsPropertyNameFeedback(feedback) ? PROPERTY : ELEMENT;
+}
 
 IcCheckType KeyedStoreICNexus::GetKeyType() const {
-  // The structure of the vector slots tells us the type.
-  return GetFeedback()->IsName() ? PROPERTY : ELEMENT;
+  Object* feedback = GetFeedback();
+  if (feedback == *TypeFeedbackVector::MegamorphicSentinel(GetIsolate())) {
+    return static_cast<IcCheckType>(Smi::cast(GetFeedbackExtra())->value());
+  }
+  return IsPropertyNameFeedback(feedback) ? PROPERTY : ELEMENT;
 }
 }  // namespace internal
 }  // namespace v8

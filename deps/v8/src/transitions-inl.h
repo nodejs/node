@@ -114,7 +114,6 @@ bool TransitionArray::IsSpecialTransition(Name* name) {
          name == heap->sealed_symbol() || name == heap->frozen_symbol() ||
          name == heap->elements_transition_symbol() ||
          name == heap->strict_function_transition_symbol() ||
-         name == heap->strong_function_transition_symbol() ||
          name == heap->observed_symbol();
 }
 #endif

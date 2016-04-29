@@ -134,14 +134,6 @@ function ObjectValueOf() {
 }
 
 
-// ES6 7.3.11
-function ObjectHasOwnProperty(value) {
-  var name = TO_NAME(value);
-  var object = TO_OBJECT(this);
-  return %HasOwnProperty(object, name);
-}
-
-
 // ES6 19.1.3.3 Object.prototype.isPrototypeOf(V)
 function ObjectIsPrototypeOf(V) {
   if (!IS_RECEIVER(V)) return false;
@@ -581,11 +573,9 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
         if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
           var currentIsWritable = current.isWritable();
           if (currentIsWritable != desc.isWritable()) {
-            if (!currentIsWritable || IS_STRONG(obj)) {
+            if (!currentIsWritable) {
               if (should_throw) {
-                throw currentIsWritable
-                    ? MakeTypeError(kStrongRedefineDisallowed, obj, p)
-                    : MakeTypeError(kRedefineDisallowed, p);
+                throw MakeTypeError(kRedefineDisallowed, p);
               } else {
                 return false;
               }
@@ -850,7 +840,6 @@ utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
   "toString", ObjectToString,
   "toLocaleString", ObjectToLocaleString,
   "valueOf", ObjectValueOf,
-  "hasOwnProperty", ObjectHasOwnProperty,
   "isPrototypeOf", ObjectIsPrototypeOf,
   "propertyIsEnumerable", ObjectPropertyIsEnumerable,
   "__defineGetter__", ObjectDefineGetter,
@@ -1106,9 +1095,10 @@ utils.Export(function(to) {
   to.IsFinite = GlobalIsFinite;
   to.IsNaN = GlobalIsNaN;
   to.NumberIsNaN = NumberIsNaN;
+  to.NumberIsInteger = NumberIsInteger;
   to.ObjectDefineProperties = ObjectDefineProperties;
   to.ObjectDefineProperty = ObjectDefineProperty;
-  to.ObjectHasOwnProperty = ObjectHasOwnProperty;
+  to.ObjectHasOwnProperty = GlobalObject.prototype.hasOwnProperty;
 });
 
 %InstallToContext([

@@ -56,22 +56,44 @@ class RememberedSet {
   }
 
   // Iterates and filters the remembered set with the given callback.
-  // The callback should take (Address slot) and return SlotSet::CallbackResult.
+  // The callback should take (Address slot) and return SlotCallbackResult.
   template <typename Callback>
   static void Iterate(Heap* heap, Callback callback) {
-    PointerChunkIterator it(heap);
+    IterateMemoryChunks(
+        heap, [callback](MemoryChunk* chunk) { Iterate(chunk, callback); });
+  }
+
+  // Iterates over all memory chunks that contains non-empty slot sets.
+  // The callback should take (MemoryChunk* chunk) and return void.
+  template <typename Callback>
+  static void IterateMemoryChunks(Heap* heap, Callback callback) {
+    MemoryChunkIterator it(heap, direction == OLD_TO_OLD
+                                     ? MemoryChunkIterator::ALL
+                                     : MemoryChunkIterator::ALL_BUT_CODE_SPACE);
     MemoryChunk* chunk;
     while ((chunk = it.next()) != nullptr) {
       SlotSet* slots = GetSlotSet(chunk);
-      if (slots != nullptr) {
-        size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
-        int new_count = 0;
-        for (size_t page = 0; page < pages; page++) {
-          new_count += slots[page].Iterate(callback);
-        }
-        if (new_count == 0) {
-          ReleaseSlotSet(chunk);
-        }
+      TypedSlotSet* typed_slots = GetTypedSlotSet(chunk);
+      if (slots != nullptr || typed_slots != nullptr) {
+        callback(chunk);
+      }
+    }
+  }
+
+  // Iterates and filters the remembered set in the given memory chunk with
+  // the given callback. The callback should take (Address slot) and return
+  // SlotCallbackResult.
+  template <typename Callback>
+  static void Iterate(MemoryChunk* chunk, Callback callback) {
+    SlotSet* slots = GetSlotSet(chunk);
+    if (slots != nullptr) {
+      size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
+      int new_count = 0;
+      for (size_t page = 0; page < pages; page++) {
+        new_count += slots[page].Iterate(callback);
+      }
+      if (new_count == 0) {
+        ReleaseSlotSet(chunk);
       }
     }
   }
@@ -89,6 +111,64 @@ class RememberedSet {
     });
   }
 
+  template <typename Callback>
+  static void IterateWithWrapper(Heap* heap, MemoryChunk* chunk,
+                                 Callback callback) {
+    Iterate(chunk, [heap, callback](Address addr) {
+      return Wrapper(heap, addr, callback);
+    });
+  }
+
+  // Given a page and a typed slot in that page, this function adds the slot
+  // to the remembered set.
+  static void InsertTyped(Page* page, SlotType slot_type, Address slot_addr) {
+    STATIC_ASSERT(direction == OLD_TO_OLD);
+    TypedSlotSet* slot_set = page->typed_old_to_old_slots();
+    if (slot_set == nullptr) {
+      page->AllocateTypedOldToOldSlots();
+      slot_set = page->typed_old_to_old_slots();
+    }
+    uintptr_t offset = slot_addr - page->address();
+    DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
+    slot_set->Insert(slot_type, static_cast<uint32_t>(offset));
+  }
+
+  // Given a page and a range of typed slots in that page, this function removes
+  // the slots from the remembered set.
+  static void RemoveRangeTyped(Page* page, Address start, Address end) {
+    TypedSlotSet* slots = page->typed_old_to_old_slots();
+    if (slots != nullptr) {
+      slots->Iterate([start, end](SlotType slot_type, Address slot_addr) {
+        return start <= slot_addr && slot_addr < end ? REMOVE_SLOT : KEEP_SLOT;
+      });
+    }
+  }
+
+  // Iterates and filters typed old to old pointers in the given memory chunk
+  // with the given callback. The callback should take (SlotType slot_type,
+  // Address slot_addr) and return SlotCallbackResult.
+  template <typename Callback>
+  static void IterateTyped(MemoryChunk* chunk, Callback callback) {
+    TypedSlotSet* slots = chunk->typed_old_to_old_slots();
+    if (slots != nullptr) {
+      int new_count = slots->Iterate(callback);
+      if (new_count == 0) {
+        chunk->ReleaseTypedOldToOldSlots();
+      }
+    }
+  }
+
+  // Clear all old to old slots from the remembered set.
+  static void ClearAll(Heap* heap) {
+    STATIC_ASSERT(direction == OLD_TO_OLD);
+    MemoryChunkIterator it(heap, MemoryChunkIterator::ALL);
+    MemoryChunk* chunk;
+    while ((chunk = it.next()) != nullptr) {
+      chunk->ReleaseOldToOldSlots();
+      chunk->ReleaseTypedOldToOldSlots();
+    }
+  }
+
   // Eliminates all stale slots from the remembered set, i.e.
   // slots that are not part of live objects anymore. This method must be
   // called after marking, when the whole transitive closure is known and
@@ -103,6 +183,14 @@ class RememberedSet {
       return chunk->old_to_old_slots();
     } else {
       return chunk->old_to_new_slots();
+    }
+  }
+
+  static TypedSlotSet* GetTypedSlotSet(MemoryChunk* chunk) {
+    if (direction == OLD_TO_OLD) {
+      return chunk->typed_old_to_old_slots();
+    } else {
+      return nullptr;
     }
   }
 
@@ -125,8 +213,8 @@ class RememberedSet {
   }
 
   template <typename Callback>
-  static SlotSet::CallbackResult Wrapper(Heap* heap, Address slot_address,
-                                         Callback slot_callback) {
+  static SlotCallbackResult Wrapper(Heap* heap, Address slot_address,
+                                    Callback slot_callback) {
     STATIC_ASSERT(direction == OLD_TO_NEW);
     Object** slot = reinterpret_cast<Object**>(slot_address);
     Object* object = *slot;
@@ -140,15 +228,15 @@ class RememberedSet {
       // Unfortunately, we do not know about the slot. It could be in a
       // just freed free space object.
       if (heap->InToSpace(object)) {
-        return SlotSet::KEEP_SLOT;
+        return KEEP_SLOT;
       }
     } else {
       DCHECK(!heap->InNewSpace(object));
     }
-    return SlotSet::REMOVE_SLOT;
+    return REMOVE_SLOT;
   }
 
-  static bool IsValidSlot(Heap* heap, Object** slot);
+  static bool IsValidSlot(Heap* heap, MemoryChunk* chunk, Object** slot);
 };
 
 }  // namespace internal

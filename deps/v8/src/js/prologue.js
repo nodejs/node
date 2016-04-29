@@ -126,6 +126,18 @@ function InstallGetterSetter(object, name, getter, setter, attributes) {
 }
 
 
+function OverrideFunction(object, name, f, afterInitialBootstrap) {
+  %CheckIsBootstrapping();
+  %ObjectDefineProperty(object, name, { value: f,
+                                        writeable: true,
+                                        configurable: true,
+                                        enumerable: false });
+  SetFunctionName(f, name);
+  if (!afterInitialBootstrap) %FunctionRemovePrototype(f);
+  %SetNativeFlag(f);
+}
+
+
 // Prevents changes to the prototype of a built-in function.
 // The "prototype" property of the function object is made non-configurable,
 // and the prototype object is made non-extensible. The latter prevents
@@ -175,18 +187,26 @@ function PostNatives(utils) {
     "GetMethod",
     "IsNaN",
     "MakeError",
+    "MakeRangeError",
     "MakeTypeError",
     "MapEntries",
     "MapIterator",
     "MapIteratorNext",
     "MaxSimple",
     "MinSimple",
+    "NumberIsInteger",
     "ObjectDefineProperty",
     "ObserveArrayMethods",
     "ObserveObjectMethods",
     "PromiseChain",
     "PromiseDeferred",
     "PromiseResolved",
+    "RegExpSubclassExecJS",
+    "RegExpSubclassMatch",
+    "RegExpSubclassReplace",
+    "RegExpSubclassSearch",
+    "RegExpSubclassSplit",
+    "RegExpSubclassTest",
     "SetIterator",
     "SetIteratorNext",
     "SetValues",
@@ -206,6 +226,10 @@ function PostNatives(utils) {
     "to_string_tag_symbol",
     "object_to_string",
     "species_symbol",
+    "match_symbol",
+    "replace_symbol",
+    "search_symbol",
+    "split_symbol",
   ];
 
   var filtered_exports = {};
@@ -284,6 +308,7 @@ utils.InstallConstants = InstallConstants;
 utils.InstallFunctions = InstallFunctions;
 utils.InstallGetter = InstallGetter;
 utils.InstallGetterSetter = InstallGetterSetter;
+utils.OverrideFunction = OverrideFunction;
 utils.SetUpLockedPrototype = SetUpLockedPrototype;
 utils.PostNatives = PostNatives;
 utils.PostExperimentals = PostExperimentals;
@@ -323,14 +348,14 @@ extrasUtils.createPrivateSymbol = function createPrivateSymbol(name) {
 // indirection and slowness given how un-optimized bind is.
 
 extrasUtils.simpleBind = function simpleBind(func, thisArg) {
-  return function() {
-    return %Apply(func, thisArg, arguments, 0, arguments.length);
+  return function(...args) {
+    return %reflect_apply(func, thisArg, args);
   };
 };
 
 extrasUtils.uncurryThis = function uncurryThis(func) {
-  return function(thisArg) {
-    return %Apply(func, thisArg, arguments, 1, arguments.length - 1);
+  return function(thisArg, ...args) {
+    return %reflect_apply(func, thisArg, args);
   };
 };
 

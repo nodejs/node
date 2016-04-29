@@ -5,44 +5,21 @@
 // Flags: --expose-wasm --expose-gc --allow-natives-syntax
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function makeFFI(func) {
-  var kBodySize = 6;
-  var kNameFunOffset = 24 + kBodySize + 1;
-  var kNameMainOffset = kNameFunOffset + 4;
+  var builder = new WasmModuleBuilder();
 
-  var ffi = new Object();
-  ffi.fun = func;
+  var sig_index = builder.addSignature([kAstI32, kAstF64, kAstF64]);
+  builder.addImport("func", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprCallImport, 0,       // --
+      kExprGetLocal, 0,         // --
+      kExprGetLocal, 1])        // --
+    .exportFunc()
 
-  var data = bytes(
-    // signatures
-    kDeclSignatures, 1,
-    2, kAstI32, kAstF64, kAstF64, // (f64,f64) -> int
-    // -- foreign function
-    kDeclFunctions, 2,
-    kDeclFunctionName | kDeclFunctionImport,
-    0, 0,
-    kNameFunOffset, 0, 0, 0,    // name offset
-    // -- main function
-    kDeclFunctionName | kDeclFunctionExport,
-    0, 0,
-    kNameMainOffset, 0, 0, 0,   // name offset
-    kBodySize, 0,
-    // main body
-    kExprCallFunction, 0,       // --
-    kExprGetLocal, 0,           // --
-    kExprGetLocal, 1,           // --
-    // names
-    kDeclEnd,
-    'f', 'u', 'n', 0,           //  --
-    'm', 'a', 'i', 'n', 0       //  --
-  );
-
-  var module = _WASMEXP_.instantiateModule(data, ffi);
-
-  assertEquals("function", typeof module.main);
-
-  return module.main;
+  return builder.instantiate({func: func}).exports.main;
 }
 
 

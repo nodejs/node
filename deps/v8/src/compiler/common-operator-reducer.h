@@ -30,6 +30,7 @@ class CommonOperatorReducer final : public AdvancedReducer {
 
  private:
   Reduction ReduceBranch(Node* node);
+  Reduction ReduceDeoptimizeConditional(Node* node);
   Reduction ReduceMerge(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReducePhi(Node* node);

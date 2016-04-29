@@ -31,8 +31,6 @@ class LCodeGen: public LCodeGenBase {
         jump_table_(4, info->zone()),
         scope_(info->scope()),
         deferred_(8, info->zone()),
-        dynamic_frame_alignment_(false),
-        support_aligned_spilled_doubles_(false),
         frame_is_built_(false),
         x87_stack_(assembler),
         safepoints_(info->zone()),
@@ -221,11 +219,14 @@ class LCodeGen: public LCodeGenBase {
 
   void LoadContextFromDeferred(LOperand* context);
 
-  // Generate a direct call to a known function.  Expects the function
+  void PrepareForTailCall(const ParameterCount& actual, Register scratch1,
+                          Register scratch2, Register scratch3);
+
+  // Generate a direct call to a known function. Expects the function
   // to be in edi.
   void CallKnownFunction(Handle<JSFunction> function,
                          int formal_parameter_count, int arity,
-                         LInstruction* instr);
+                         bool is_tail_call, LInstruction* instr);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
@@ -329,7 +330,7 @@ class LCodeGen: public LCodeGenBase {
   template <class T>
   void EmitVectorStoreICRegisters(T* instr);
 
-  void EmitReturn(LReturn* instr, bool dynamic_frame_alignment);
+  void EmitReturn(LReturn* instr);
 
   // Emits code for pushing either a tagged constant, a (non-double)
   // register, or a stack slot operand.
@@ -354,8 +355,6 @@ class LCodeGen: public LCodeGenBase {
   ZoneList<Deoptimizer::JumpTableEntry> jump_table_;
   Scope* const scope_;
   ZoneList<LDeferredCode*> deferred_;
-  bool dynamic_frame_alignment_;
-  bool support_aligned_spilled_doubles_;
   bool frame_is_built_;
 
   class X87Stack : public ZoneObject {

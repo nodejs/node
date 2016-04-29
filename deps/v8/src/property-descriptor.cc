@@ -18,9 +18,9 @@ namespace {
 // Helper function for ToPropertyDescriptor. Comments describe steps for
 // "enumerable", other properties are handled the same way.
 // Returns false if an exception was thrown.
-bool GetPropertyIfPresent(Handle<Object> obj, Handle<String> name,
+bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
                           Handle<Object>* value) {
-  LookupIterator it(obj, name);
+  LookupIterator it(receiver, name, receiver);
   // 4. Let hasEnumerable be HasProperty(Obj, "enumerable").
   Maybe<bool> has_property = JSReceiver::HasProperty(&it);
   // 5. ReturnIfAbrupt(hasEnumerable).
@@ -29,7 +29,7 @@ bool GetPropertyIfPresent(Handle<Object> obj, Handle<String> name,
   if (has_property.FromJust() == true) {
     // 6a. Let enum be ToBoolean(Get(Obj, "enumerable")).
     // 6b. ReturnIfAbrupt(enum).
-    if (!JSObject::GetProperty(&it).ToHandle(value)) return false;
+    if (!Object::GetProperty(&it).ToHandle(value)) return false;
   }
   return true;
 }
@@ -39,7 +39,7 @@ bool GetPropertyIfPresent(Handle<Object> obj, Handle<String> name,
 // objects: nothing on the prototype chain, just own fast data properties.
 // Must not have observable side effects, because the slow path will restart
 // the entire conversion!
-bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<Object> obj,
+bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
                                   PropertyDescriptor* desc) {
   if (!obj->IsJSObject()) return false;
   Map* map = Handle<JSObject>::cast(obj)->map();
@@ -105,7 +105,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<Object> obj,
 
 void CreateDataProperty(Isolate* isolate, Handle<JSObject> object,
                         Handle<String> name, Handle<Object> value) {
-  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
   CHECK(result.IsJust() && result.FromJust());
 }
@@ -190,14 +190,15 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // 3. Let desc be a new Property Descriptor that initially has no fields.
   DCHECK(desc->is_empty());
 
-  if (ToPropertyDescriptorFastPath(isolate, obj, desc)) {
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(obj);
+  if (ToPropertyDescriptorFastPath(isolate, receiver, desc)) {
     return true;
   }
 
   // enumerable?
   Handle<Object> enumerable;
   // 4 through 6b.
-  if (!GetPropertyIfPresent(obj, isolate->factory()->enumerable_string(),
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->enumerable_string(),
                             &enumerable)) {
     return false;
   }
@@ -209,7 +210,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // configurable?
   Handle<Object> configurable;
   // 7 through 9b.
-  if (!GetPropertyIfPresent(obj, isolate->factory()->configurable_string(),
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->configurable_string(),
                             &configurable)) {
     return false;
   }
@@ -221,7 +222,8 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // value?
   Handle<Object> value;
   // 10 through 12b.
-  if (!GetPropertyIfPresent(obj, isolate->factory()->value_string(), &value)) {
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->value_string(),
+                            &value)) {
     return false;
   }
   // 12c. Set the [[Value]] field of desc to value.
@@ -230,7 +232,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // writable?
   Handle<Object> writable;
   // 13 through 15b.
-  if (!GetPropertyIfPresent(obj, isolate->factory()->writable_string(),
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->writable_string(),
                             &writable)) {
     return false;
   }
@@ -240,7 +242,8 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // getter?
   Handle<Object> getter;
   // 16 through 18b.
-  if (!GetPropertyIfPresent(obj, isolate->factory()->get_string(), &getter)) {
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->get_string(),
+                            &getter)) {
     return false;
   }
   if (!getter.is_null()) {
@@ -257,7 +260,8 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // setter?
   Handle<Object> setter;
   // 19 through 21b.
-  if (!GetPropertyIfPresent(obj, isolate->factory()->set_string(), &setter)) {
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->set_string(),
+                            &setter)) {
     return false;
   }
   if (!setter.is_null()) {

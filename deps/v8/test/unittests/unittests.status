@@ -9,6 +9,8 @@
   'WasmFunctionVerifyTest*': [SKIP],
   'WasmDecoderTest.TableSwitch*': [SKIP],
   'WasmDecoderTest.AllLoadMemCombinations': [SKIP],
+  'AstDecoderTest.AllLoadMemCombinations': [SKIP],
+  'AstDecoderTest.AllStoreMemCombinations': [SKIP],
+  'Bytecodes.DecodeBytecodeAndOperands': [SKIP],
 }],  # 'byteorder == big'
-
 ]

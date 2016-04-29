@@ -4,7 +4,7 @@
 
 // ES6 extends the \uxxxx escape and also allows \u{xxxxx}.
 
-// Flags: --harmony-unicode-regexps --harmony-regexps
+// Flags: --harmony-unicode-regexps
 
 function testRegexpHelper(r) {
   assertTrue(r.test("foo"));

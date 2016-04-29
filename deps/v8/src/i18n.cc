@@ -39,7 +39,8 @@ bool ExtractStringSetting(Isolate* isolate,
                           const char* key,
                           icu::UnicodeString* setting) {
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
-  Handle<Object> object = Object::GetProperty(options, str).ToHandleChecked();
+  Handle<Object> object =
+      JSReceiver::GetProperty(options, str).ToHandleChecked();
   if (object->IsString()) {
     v8::String::Utf8Value utf8_string(
         v8::Utils::ToLocal(Handle<String>::cast(object)));
@@ -55,7 +56,8 @@ bool ExtractIntegerSetting(Isolate* isolate,
                            const char* key,
                            int32_t* value) {
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
-  Handle<Object> object = Object::GetProperty(options, str).ToHandleChecked();
+  Handle<Object> object =
+      JSReceiver::GetProperty(options, str).ToHandleChecked();
   if (object->IsNumber()) {
     object->ToInt32(value);
     return true;
@@ -69,7 +71,8 @@ bool ExtractBooleanSetting(Isolate* isolate,
                            const char* key,
                            bool* value) {
   Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
-  Handle<Object> object = Object::GetProperty(options, str).ToHandleChecked();
+  Handle<Object> object =
+      JSReceiver::GetProperty(options, str).ToHandleChecked();
   if (object->IsBoolean()) {
     *value = object->BooleanValue();
     return true;

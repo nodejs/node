@@ -76,6 +76,8 @@
         '--config-variable', 'icu_use_data_file_flag=0',
         '--config-variable', 'msan=<(msan)',
         '--config-variable', 'tsan=<(tsan)',
+        '--config-variable', 'coverage=<(coverage)',
+        '--config-variable', 'sanitizer_coverage=<(sanitizer_coverage)',
         '--config-variable', 'component=<(component)',
         '--config-variable', 'target_arch=<(target_arch)',
         '--config-variable', 'use_custom_libcxx=<(use_custom_libcxx)',

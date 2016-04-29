@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-sloppy --harmony-sloppy-function
+// Flags: --no-harmony-restrictive-declarations
 
 // Previously, this caused a CHECK fail in debug mode
 // https://code.google.com/p/chromium/issues/detail?id=542099

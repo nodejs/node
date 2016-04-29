@@ -13,12 +13,13 @@ namespace internal {
 class TypeCache final {
  private:
   // This has to be first for the initialization magic to work.
+  base::AccountingAllocator allocator;
   Zone zone_;
 
  public:
   static TypeCache const& Get();
 
-  TypeCache() = default;
+  TypeCache() : zone_(&allocator) {}
 
   Type* const kInt8 =
       CreateNative(CreateRange<int8_t>(), Type::UntaggedIntegral8());

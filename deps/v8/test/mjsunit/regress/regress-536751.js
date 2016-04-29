@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-sloppy --harmony-sloppy-function --harmony-sloppy-let
+// Flags: --no-harmony-restrictive-declarations
 
 // At some point, this code led to DCHECK errors in debug mode
 

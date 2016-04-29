@@ -394,17 +394,6 @@ TEST(GlobalLoad) {
 }
 
 
-TEST(GlobalStoreSloppy) {
-  FLAG_legacy_const = true;
-  FunctionTester T("(function(a,b) { g = a + b; return g; })");
-
-  T.CheckCall(T.Val(33), T.Val(22), T.Val(11));
-  CompileRun("delete g");
-  CompileRun("const g = 23");
-  T.CheckCall(T.Val(23), T.Val(55), T.Val(44));
-}
-
-
 TEST(GlobalStoreStrict) {
   FunctionTester T("(function(a,b) { 'use strict'; g = a + b; return g; })");
 

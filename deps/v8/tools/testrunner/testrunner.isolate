@@ -11,4 +11,14 @@
       './'
     ],
   },
+  'conditions': [
+    ['coverage==1 and sanitizer_coverage=="bb"', {
+      'variables': {
+        'files': [
+          '../sanitizers/sancov_merger.py',
+          '../../third_party/llvm/projects/compiler-rt/lib/sanitizer_common/scripts/sancov.py',
+        ],
+      },
+    }],
+  ],
 }

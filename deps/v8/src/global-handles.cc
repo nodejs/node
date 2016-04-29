@@ -644,7 +644,6 @@ bool GlobalHandles::IsWeak(Object** location) {
   return Node::FromLocation(location)->IsWeak();
 }
 
-
 void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     Node* node = it.node();
@@ -811,6 +810,111 @@ bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,
   return any_group_was_visited;
 }
 
+namespace {
+// Traces the information about object groups and implicit ref groups given by
+// the embedder to the V8 during each gc prologue.
+class ObjectGroupsTracer {
+ public:
+  explicit ObjectGroupsTracer(Isolate* isolate);
+  void Print();
+
+ private:
+  void PrintObjectGroup(ObjectGroup* group);
+  void PrintImplicitRefGroup(ImplicitRefGroup* group);
+  void PrintObject(Object* object);
+  void PrintConstructor(JSObject* js_object);
+  void PrintInternalFields(JSObject* js_object);
+  Isolate* isolate_;
+  DISALLOW_COPY_AND_ASSIGN(ObjectGroupsTracer);
+};
+
+ObjectGroupsTracer::ObjectGroupsTracer(Isolate* isolate) : isolate_(isolate) {}
+
+void ObjectGroupsTracer::Print() {
+  GlobalHandles* global_handles = isolate_->global_handles();
+
+  PrintIsolate(isolate_, "### Tracing object groups:\n");
+
+  for (auto group : *(global_handles->object_groups())) {
+    PrintObjectGroup(group);
+  }
+  for (auto group : *(global_handles->implicit_ref_groups())) {
+    PrintImplicitRefGroup(group);
+  }
+
+  PrintIsolate(isolate_, "### Tracing object groups finished.\n");
+}
+
+void ObjectGroupsTracer::PrintObject(Object* object) {
+  if (object->IsJSObject()) {
+    JSObject* js_object = JSObject::cast(object);
+
+    PrintF("{ constructor_name: ");
+    PrintConstructor(js_object);
+    PrintF(", hidden_fields: [ ");
+    PrintInternalFields(js_object);
+    PrintF(" ] }\n");
+  } else {
+    PrintF("object of unexpected type: %p\n", object);
+  }
+}
+
+void ObjectGroupsTracer::PrintConstructor(JSObject* js_object) {
+  Object* maybe_constructor = js_object->map()->GetConstructor();
+  if (maybe_constructor->IsJSFunction()) {
+    JSFunction* constructor = JSFunction::cast(maybe_constructor);
+    String* name = String::cast(constructor->shared()->name());
+    if (name->length() == 0) name = constructor->shared()->inferred_name();
+
+    PrintF("%s", name->ToCString().get());
+  } else if (maybe_constructor->IsNull()) {
+    if (js_object->IsOddball()) {
+      PrintF("<oddball>");
+    } else {
+      PrintF("<null>");
+    }
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void ObjectGroupsTracer::PrintInternalFields(JSObject* js_object) {
+  for (int i = 0; i < js_object->GetInternalFieldCount(); ++i) {
+    if (i != 0) {
+      PrintF(", ");
+    }
+    PrintF("%p", js_object->GetInternalField(i));
+  }
+}
+
+void ObjectGroupsTracer::PrintObjectGroup(ObjectGroup* group) {
+  PrintIsolate(isolate_, "ObjectGroup (size: %lu)\n", group->length);
+  Object*** objects = group->objects;
+
+  for (size_t i = 0; i < group->length; ++i) {
+    PrintIsolate(isolate_, "  - Member: ");
+    PrintObject(*objects[i]);
+  }
+}
+
+void ObjectGroupsTracer::PrintImplicitRefGroup(ImplicitRefGroup* group) {
+  PrintIsolate(isolate_, "ImplicitRefGroup (children count: %lu)\n",
+               group->length);
+  PrintIsolate(isolate_, "  - Parent: ");
+  PrintObject(*(group->parent));
+
+  Object*** children = group->children;
+  for (size_t i = 0; i < group->length; ++i) {
+    PrintIsolate(isolate_, "  - Child: ");
+    PrintObject(*children[i]);
+  }
+}
+
+}  // namespace
+
+void GlobalHandles::PrintObjectGroups() {
+  ObjectGroupsTracer(isolate_).Print();
+}
 
 void GlobalHandles::InvokeSecondPassPhantomCallbacks(
     List<PendingPhantomCallback>* callbacks, Isolate* isolate) {
@@ -1119,7 +1223,8 @@ void GlobalHandles::PrintStats() {
   }
 
   PrintF("Global Handle Statistics:\n");
-  PrintF("  allocated memory = %" V8_PTR_PREFIX "dB\n", sizeof(Node) * total);
+  PrintF("  allocated memory = %" V8_SIZET_PREFIX V8_PTR_PREFIX "dB\n",
+         total * sizeof(Node));
   PrintF("  # weak       = %d\n", weak);
   PrintF("  # pending    = %d\n", pending);
   PrintF("  # near_death = %d\n", near_death);

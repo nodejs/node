@@ -13,6 +13,7 @@
 #include "src/base/logging.h"
 #include "src/base/smart-pointers.h"
 #include "src/compiler.h"
+#include "src/runtime/runtime.h"
 
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-generator.h"
@@ -94,11 +95,18 @@ void BytecodeExpectationsPrinter::PrintEscapedString(
   }
 }
 
+namespace {
+i::Runtime::FunctionId IndexToFunctionId(uint32_t index) {
+  return static_cast<i::Runtime::FunctionId>(index);
+}
+}  // namespace
+
 void BytecodeExpectationsPrinter::PrintBytecodeOperand(
     std::ostream& stream, const BytecodeArrayIterator& bytecode_iter,
     const Bytecode& bytecode, int op_index, int parameter_count) const {
   OperandType op_type = Bytecodes::GetOperandType(bytecode, op_index);
-  OperandSize op_size = Bytecodes::GetOperandSize(bytecode, op_index);
+  OperandSize op_size = Bytecodes::GetOperandSize(
+      bytecode, op_index, bytecode_iter.current_operand_scale());
 
   const char* size_tag;
   switch (op_size) {
@@ -107,6 +115,9 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
       break;
     case OperandSize::kShort:
       size_tag = "16";
+      break;
+    case OperandSize::kQuad:
+      size_tag = "32";
       break;
     default:
       UNREACHABLE();
@@ -136,15 +147,27 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
   } else {
     stream << 'U' << size_tag << '(';
 
-    if (Bytecodes::IsImmediateOperandType(op_type)) {
-      // We need a cast, otherwise the result is printed as char.
-      stream << static_cast<int>(bytecode_iter.GetImmediateOperand(op_index));
-    } else if (Bytecodes::IsRegisterCountOperandType(op_type)) {
-      stream << bytecode_iter.GetRegisterCountOperand(op_index);
-    } else if (Bytecodes::IsIndexOperandType(op_type)) {
-      stream << bytecode_iter.GetIndexOperand(op_index);
-    } else {
-      UNREACHABLE();
+    switch (op_type) {
+      case OperandType::kFlag8:
+        stream << bytecode_iter.GetFlagOperand(op_index);
+        break;
+      case OperandType::kIdx:
+        stream << bytecode_iter.GetIndexOperand(op_index);
+        break;
+      case OperandType::kImm:
+        stream << bytecode_iter.GetImmediateOperand(op_index);
+        break;
+      case OperandType::kRegCount:
+        stream << bytecode_iter.GetRegisterCountOperand(op_index);
+        break;
+      case OperandType::kRuntimeId: {
+        uint32_t operand = bytecode_iter.GetRuntimeIdOperand(op_index);
+        stream << "Runtime::k"
+               << i::Runtime::FunctionForId(IndexToFunctionId(operand))->name;
+        break;
+      }
+      default:
+        UNREACHABLE();
     }
 
     stream << ')';
@@ -155,9 +178,12 @@ void BytecodeExpectationsPrinter::PrintBytecode(
     std::ostream& stream, const BytecodeArrayIterator& bytecode_iter,
     int parameter_count) const {
   Bytecode bytecode = bytecode_iter.current_bytecode();
-
+  OperandScale operand_scale = bytecode_iter.current_operand_scale();
+  if (Bytecodes::OperandScaleRequiresPrefixBytecode(operand_scale)) {
+    Bytecode prefix = Bytecodes::OperandScaleToPrefixBytecode(operand_scale);
+    stream << "B(" << Bytecodes::ToString(prefix) << "), ";
+  }
   stream << "B(" << Bytecodes::ToString(bytecode) << ')';
-
   int operands_count = Bytecodes::NumberOfOperands(bytecode);
   for (int op_index = 0; op_index < operands_count; ++op_index) {
     stream << ", ";
@@ -212,14 +238,14 @@ void BytecodeExpectationsPrinter::PrintFrameSize(
   int frame_size = bytecode_array->frame_size();
 
   DCHECK_EQ(frame_size % kPointerSize, 0);
-  stream << "frame size: " << frame_size / kPointerSize;
-  if (frame_size > 0) stream << "  # in multiples of sizeof(void*)";
-  stream << "\nparameter count: " << bytecode_array->parameter_count() << '\n';
+  stream << "frame size: " << frame_size / kPointerSize
+         << "\nparameter count: " << bytecode_array->parameter_count() << '\n';
 }
 
 void BytecodeExpectationsPrinter::PrintBytecodeSequence(
     std::ostream& stream, i::Handle<i::BytecodeArray> bytecode_array) const {
-  stream << "bytecodes: [\n";
+  stream << "bytecode array length: " << bytecode_array->length()
+         << "\nbytecodes: [\n";
   BytecodeArrayIterator bytecode_iter(bytecode_array);
   for (; !bytecode_iter.done(); bytecode_iter.Advance()) {
     stream << "  ";

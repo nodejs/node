@@ -22,10 +22,9 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
     chunk = it.next();
     SlotSet* slots = GetSlotSet(chunk);
     if (slots != nullptr) {
-      slots->Iterate([heap](Address addr) {
+      slots->Iterate([heap, chunk](Address addr) {
         Object** slot = reinterpret_cast<Object**>(addr);
-        return IsValidSlot(heap, slot) ? SlotSet::KEEP_SLOT
-                                       : SlotSet::REMOVE_SLOT;
+        return IsValidSlot(heap, chunk, slot) ? KEEP_SLOT : REMOVE_SLOT;
       });
     }
   }
@@ -33,22 +32,30 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
 
 template <PointerDirection direction>
 void RememberedSet<direction>::VerifyValidSlots(Heap* heap) {
-  STATIC_ASSERT(direction == OLD_TO_NEW);
   Iterate(heap, [heap](Address addr) {
-    Object** slot = reinterpret_cast<Object**>(addr);
-    Object* object = *slot;
-    if (Page::FromAddress(addr)->owner() != nullptr &&
-        Page::FromAddress(addr)->owner()->identity() == OLD_SPACE) {
-      CHECK(IsValidSlot(heap, slot));
-      heap->mark_compact_collector()->VerifyIsSlotInLiveObject(
-          reinterpret_cast<Address>(slot), HeapObject::cast(object));
+    HeapObject* obj =
+        heap->mark_compact_collector()->FindBlackObjectBySlotSlow(addr);
+    if (obj == nullptr) {
+      // The slot is in dead object.
+      MemoryChunk* chunk = MemoryChunk::FromAnyPointerAddress(heap, addr);
+      AllocationSpace owner = chunk->owner()->identity();
+      // The old to old remembered set should not have dead slots.
+      CHECK_NE(direction, OLD_TO_OLD);
+      // The old to new remembered set is allowed to have slots in dead
+      // objects only in map and large object space because these space
+      // cannot have raw untagged pointers.
+      CHECK(owner == MAP_SPACE || owner == LO_SPACE);
+    } else {
+      int offset = static_cast<int>(addr - obj->address());
+      CHECK(obj->IsValidSlot(offset));
     }
-    return SlotSet::KEEP_SLOT;
+    return KEEP_SLOT;
   });
 }
 
 template <PointerDirection direction>
-bool RememberedSet<direction>::IsValidSlot(Heap* heap, Object** slot) {
+bool RememberedSet<direction>::IsValidSlot(Heap* heap, MemoryChunk* chunk,
+                                           Object** slot) {
   STATIC_ASSERT(direction == OLD_TO_NEW);
   Object* object = *slot;
   if (!heap->InNewSpace(object)) {
@@ -58,12 +65,13 @@ bool RememberedSet<direction>::IsValidSlot(Heap* heap, Object** slot) {
   // If the target object is not black, the source slot must be part
   // of a non-black (dead) object.
   return Marking::IsBlack(Marking::MarkBitFrom(heap_object)) &&
-         heap->mark_compact_collector()->IsSlotInLiveObject(
-             reinterpret_cast<Address>(slot));
+         heap->mark_compact_collector()->IsSlotInBlackObject(
+             chunk, reinterpret_cast<Address>(slot));
 }
 
 template void RememberedSet<OLD_TO_NEW>::ClearInvalidSlots(Heap* heap);
 template void RememberedSet<OLD_TO_NEW>::VerifyValidSlots(Heap* heap);
+template void RememberedSet<OLD_TO_OLD>::VerifyValidSlots(Heap* heap);
 
 }  // namespace internal
 }  // namespace v8

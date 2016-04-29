@@ -6,6 +6,7 @@
 #define V8_PARSING_PREPARSE_DATA_H_
 
 #include "src/allocation.h"
+#include "src/collector.h"
 #include "src/hashmap.h"
 #include "src/messages.h"
 #include "src/parsing/preparse-data-format.h"

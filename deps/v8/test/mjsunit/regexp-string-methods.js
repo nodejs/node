@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --no-harmony-regexp-exec
+
 // Regexp shouldn't use String.prototype.slice()
 var s = new String("foo");
 assertEquals("f", s.slice(0,1));

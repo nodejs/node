@@ -5,27 +5,16 @@
 // Flags: --expose-wasm
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
-var kReturnValue = 97;
+(function BasicTest() {
+  var kReturnValue = 107;
+  var builder = new WasmModuleBuilder();
 
-var kBodySize = 2;
-var kNameOffset = 15 + kBodySize + 1;
+  builder.addFunction("main", [kAstI32])
+    .addBody([kExprI8Const, kReturnValue])
+    .exportFunc();
 
-var data = bytes(
-  // -- signatures
-  kDeclSignatures, 1,
-  0, kAstI32,                 // signature: void -> int
-  // -- main function
-  kDeclFunctions, 1,
-  kDeclFunctionName | kDeclFunctionExport,
-  0, 0,                       // signature index
-  kNameOffset, 0, 0, 0,       // name offset
-  kBodySize, 0,               // body size
-  // -- body
-  kExprI8Const,               // --
-  kReturnValue,               // --
-  kDeclEnd,
-  'm', 'a', 'i', 'n', 0       // name
-);
-
-assertEquals(kReturnValue, _WASMEXP_.instantiateModule(data).main());
+  var main = builder.instantiate().exports.main;
+  assertEquals(kReturnValue, main());
+})();

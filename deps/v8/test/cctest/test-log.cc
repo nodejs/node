@@ -569,14 +569,13 @@ TEST(LogVersion) {
 TEST(Issue539892) {
   class : public i::CodeEventLogger {
    public:
-    virtual void CodeMoveEvent(Address from, Address to) {}
-    virtual void CodeDeleteEvent(Address from) {}
-    virtual void CodeDisableOptEvent(i::Code* code,
-                                     i::SharedFunctionInfo* shared) {}
+    void CodeMoveEvent(i::AbstractCode* from, Address to) override {}
+    void CodeDisableOptEvent(i::AbstractCode* code,
+                             i::SharedFunctionInfo* shared) override {}
 
    private:
-    virtual void LogRecordedBuffer(i::Code* code, i::SharedFunctionInfo* shared,
-                                   const char* name, int length) {}
+    void LogRecordedBuffer(i::AbstractCode* code, i::SharedFunctionInfo* shared,
+                           const char* name, int length) override {}
   } code_event_logger;
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;

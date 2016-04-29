@@ -90,6 +90,15 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ pop(kRootRegister);
   __ jr(ra);
   __ nop();
+#elif V8_TARGET_ARCH_S390
+  __ push(kRootRegister);
+  __ push(ip);
+  __ InitializeRootRegister();
+  __ lhi(r2, Operand(key));
+  __ GetNumberHash(r2, ip);
+  __ pop(ip);
+  __ pop(kRootRegister);
+  __ Ret();
 #elif V8_TARGET_ARCH_PPC
   __ function_descriptor();
   __ push(kRootRegister);

@@ -12,7 +12,7 @@ namespace compiler {
 
 class ZonePoolTest : public TestWithIsolate {
  public:
-  ZonePoolTest() {}
+  ZonePoolTest() : zone_pool_(&allocator_) {}
 
  protected:
   ZonePool* zone_pool() { return &zone_pool_; }
@@ -38,6 +38,7 @@ class ZonePoolTest : public TestWithIsolate {
   }
 
  private:
+  base::AccountingAllocator allocator_;
   ZonePool zone_pool_;
   base::RandomNumberGenerator rng;
 };
