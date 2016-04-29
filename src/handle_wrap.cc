@@ -90,13 +90,12 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
 
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
-  Local<Object> object = wrap->object();
 
   if (wrap->flags_ & kCloseCallback) {
     wrap->MakeCallback(env->onclose_string(), 0, nullptr);
   }
 
-  object->SetAlignedPointerInInternalField(0, nullptr);
+  ClearWrap(wrap->object());
   wrap->persistent().Reset();
   delete wrap;
 }
