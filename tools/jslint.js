@@ -13,9 +13,15 @@ const CLIEngine = require('./eslint').CLIEngine;
 const glob = require('./eslint/node_modules/glob');
 
 const cwd = process.cwd();
-const cli = new CLIEngine({
+const cliOptions = {
   rulePaths: rulesDirs
-});
+};
+
+// Check if we should fix errors that are fixable
+if (process.argv.indexOf('-F') !== -1)
+  cliOptions.fix = true;
+
+const cli = new CLIEngine(cliOptions);
 
 if (cluster.isMaster) {
   var numCPUs = 1;
@@ -240,6 +246,11 @@ if (cluster.isMaster) {
     if (files instanceof Array) {
       // Lint some files
       const report = cli.executeOnFiles(files);
+
+      // If we were asked to fix the fixable issues, do so.
+      if (cliOptions.fix)
+        CLIEngine.outputFixes(report);
+
       if (config.sendAll) {
         // Return both success and error results
 
