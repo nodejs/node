@@ -516,7 +516,7 @@ The result of a previous call to `process.cpuUsage()` can be passed as the
 argument to the function, to get a diff reading.
 
 ```js
-const startUsage  = process.cpuUsage();
+const startUsage = process.cpuUsage();
 // { user: 38579, system: 6986 }
 
 // spin the CPU for 500 milliseconds

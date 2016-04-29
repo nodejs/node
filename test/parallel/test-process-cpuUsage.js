@@ -53,8 +53,7 @@ assert.throws(function() { process.cpuUsage({
 
 // Ensure that the return value is the expected shape.
 function validateResult(result) {
-  assert(result.user != null);
-  assert(result.system != null);
+  assert.notEqual(result, null);
 
   assert(Number.isFinite(result.user));
   assert(Number.isFinite(result.system));
