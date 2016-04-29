@@ -5023,6 +5023,7 @@ class PBKDF2Request : public AsyncWrap {
 
   ~PBKDF2Request() override {
     release();
+    ClearWrap(object());
     persistent().Reset();
   }
 
@@ -5288,6 +5289,7 @@ class RandomBytesRequest : public AsyncWrap {
   }
 
   ~RandomBytesRequest() override {
+    ClearWrap(object());
     persistent().Reset();
   }
 
