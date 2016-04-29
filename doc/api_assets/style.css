@@ -84,6 +84,14 @@ em code {
   width: 10px;
 }
 
+#column2::-webkit-scrollbar-track {
+  background: #333;
+}
+
+#column2::-webkit-scrollbar-thumb {
+  border-color: #333;
+}
+
 #changelog #gtoc {
   display: none;
 }
