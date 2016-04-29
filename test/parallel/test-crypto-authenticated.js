@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
@@ -16,7 +16,7 @@ crypto.DEFAULT_ENCODING = 'buffer';
 // !NEVER USE STATIC IVs IN REAL LIFE!
 //
 
-var TEST_CASES = [
+const TEST_CASES = [
   { algo: 'aes-128-gcm',
     key: '6970787039613669314d623455536234',
     iv: '583673497131313748307652', plain: 'Hello World!',
