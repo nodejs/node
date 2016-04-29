@@ -72,7 +72,8 @@ em code {
   background: #d2d2d2;
   background-clip: padding-box;
   border: 3px solid #fff;
-  border-radius: 5px;
+  border-left-width: 9px;
+  border-radius: 0px;
 }
 
 ::-webkit-scrollbar-thumb:active {
@@ -81,7 +82,12 @@ em code {
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 16px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  border-width: 3px;
+  border-radius: 5px;
 }
 
 #column2::-webkit-scrollbar-track {
