@@ -341,7 +341,6 @@ possible to obtain an incorrect result when the `object` argument manipulates
 `@@toStringTag`.
 
 ```js
-// This example requires the `--harmony-tostring` flag
 const util = require('util');
 const obj = { name: 'Error', message: 'an error occurred' };
 
