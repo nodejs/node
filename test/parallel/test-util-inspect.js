@@ -42,6 +42,19 @@ assert.equal(util.inspect(Object.create({},
   '{ visible: 1 }'
 );
 
+// verify short output, no crash for long sparse arrays
+var arr = [];
+arr[2] = 1;
+assert.equal(util.inspect(arr), '[ , , 1 ]'); // dense
+arr[1000] = 1;
+assert.equal(util.inspect(arr),
+  '[ 2: 1, 1000: 1, <sparse array, length 1001> ]'); // sparse
+arr['foo'] = 'bar';
+assert.equal(util.inspect(arr),
+  '[ 2: 1, 1000: 1, foo: \'bar\', <sparse array, length 1001> ]');
+arr = new Array(1000000);
+assert.equal(util.inspect(arr), '[ <empty array, length 1000000> ]');
+
 for (const showHidden of [true, false]) {
   const ab = new ArrayBuffer(4);
   const dv = new DataView(ab, 1, 2);
