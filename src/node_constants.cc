@@ -1036,6 +1036,10 @@ void DefineSystemConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_EXCL);
 #endif
 
+#ifdef O_NOATIME
+  NODE_DEFINE_CONSTANT(target, O_NOATIME);
+#endif
+
 #ifdef O_NOFOLLOW
   NODE_DEFINE_CONSTANT(target, O_NOFOLLOW);
 #endif
