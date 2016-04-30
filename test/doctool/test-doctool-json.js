@@ -78,7 +78,7 @@ var testData = [
               'textRaw': 'Foobar',
               'name': 'foobar',
               'meta': {
-                'added': 'v1.0.0'
+                'added': ['v1.0.0']
               },
               'desc': '<p>Describe <code>Foobar</code> in more detail ' +
                 'here.\n\n</p>\n',
@@ -86,11 +86,22 @@ var testData = [
               'displayName': 'Foobar'
             },
             {
+              'textRaw': 'Foobar II',
+              'name': 'foobar_ii',
+              'meta': {
+                'added': ['v5.3.0', 'v4.2.0']
+              },
+              'desc': '<p>Describe <code>Foobar II</code> in more detail ' +
+                'here.\n\n</p>\n',
+              'type': 'module',
+              'displayName': 'Foobar II'
+            },
+            {
               'textRaw': 'Deprecated thingy',
               'name': 'deprecated_thingy',
               'meta': {
-                'added': 'v1.0.0',
-                'deprecated': 'v2.0.0'
+                'added': ['v1.0.0'],
+                'deprecated': ['v2.0.0']
               },
               'desc': '<p>Describe <code>Deprecated thingy</code> in more ' +
                 'detail here.\n\n</p>\n',

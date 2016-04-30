@@ -180,15 +180,18 @@ function parseLists(input) {
 
 function parseYAML(text) {
   const meta = common.extractAndParseYAML(text);
-  let html = '<div class="api_metadata">';
+  const html = ['<div class="api_metadata">'];
 
-  if (meta.added || meta.Added) {
-    meta.added = meta.added || meta.Added;
-
-    html += '<span>Added: ' + meta.added + '</span>';
+  if (meta.added) {
+    html.push(`<span>Added in: ${meta.added.join(', ')}</span>`);
   }
 
-  return html + '</div>';
+  if (meta.deprecated) {
+    html.push(`<span>Deprecated since: ${meta.deprecated.join(', ')} </span>`);
+  }
+
+  html.push('</div>');
+  return html.join('\n');
 }
 
 // Syscalls which appear in the docs, but which only exist in BSD / OSX
