@@ -695,6 +695,7 @@ file.end('world!');
 #### writable.setDefaultEncoding(encoding)
 
 * `encoding` {String} The new default encoding
+* Return: `this`
 
 Sets the default encoding for a writable stream.
 
