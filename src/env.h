@@ -121,7 +121,6 @@ namespace node {
   V(fsevent_string, "FSEvent")                                                \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
-  V(handler_string, "handler")                                                \
   V(heap_total_string, "heapTotal")                                           \
   V(heap_used_string, "heapUsed")                                             \
   V(homedir_string, "homedir")                                                \
@@ -223,7 +222,6 @@ namespace node {
   V(subjectaltname_string, "subjectaltname")                                  \
   V(sys_string, "sys")                                                        \
   V(syscall_string, "syscall")                                                \
-  V(target_string, "target")                                                  \
   V(tick_callback_string, "_tickCallback")                                    \
   V(tick_domain_cb_string, "_tickDomainCallback")                             \
   V(ticketkeycallback_string, "onticketkeycallback")                          \

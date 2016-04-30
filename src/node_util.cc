@@ -6,6 +6,7 @@
 namespace node {
 namespace util {
 
+using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Local;
@@ -23,7 +24,6 @@ using v8::Value;
   V(isMap, IsMap)                                                             \
   V(isMapIterator, IsMapIterator)                                             \
   V(isPromise, IsPromise)                                                     \
-  V(isProxy, IsProxy)                                                         \
   V(isRegExp, IsRegExp)                                                       \
   V(isSet, IsSet)                                                             \
   V(isSetIterator, IsSetIterator)                                             \
@@ -42,15 +42,15 @@ using v8::Value;
 static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  // Return nothing if it's not a proxy.
+  // Return undefined if it's not a proxy.
   if (!args[0]->IsProxy())
     return;
 
   Local<Proxy> proxy = args[0].As<Proxy>();
 
-  Local<Object> ret = Object::New(env->isolate());
-  ret->Set(env->handler_string(), proxy->GetHandler());
-  ret->Set(env->target_string(), proxy->GetTarget());
+  Local<Array> ret = Array::New(env->isolate(), 2);
+  ret->Set(0, proxy->GetTarget());
+  ret->Set(1, proxy->GetHandler());
 
   args.GetReturnValue().Set(ret);
 }
