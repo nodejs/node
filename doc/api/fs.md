@@ -797,8 +797,8 @@ the end of the file.
 
 _Note: The behavior of `fs.open()` is platform specific for some flags. As such,
 opening a directory on OS X and Linux with the `'a+'` flag - see example below -
-will return an error. Whereas on Windows and FreeBSD a file descriptor will be
-returned._
+will return an error. In contrast, on Windows and FreeBSD, a file descriptor
+will be returned._
 
 ```js
 // OS X and Linux
