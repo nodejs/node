@@ -92,7 +92,7 @@ function doJSON(input, filename, cb) {
         current.list = current.list || [];
         current.list.push(tok);
         current.list.level = 1;
-      } else if (type === 'html') {
+      } else if (type === 'html' && common.isYAMLBlock(tok.text)) {
         current.meta = parseYAML(tok.text);
       } else {
         current.desc = current.desc || [];
