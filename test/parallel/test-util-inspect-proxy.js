@@ -11,11 +11,11 @@ const handler = {
 };
 const proxyObj = new Proxy(target, handler);
 
-assert.strictEqual(util.isProxy(proxyObj), true);
-
 // Inspecting the proxy should not actually walk it's properties
 assert.doesNotThrow(() => util.inspect(proxyObj));
 
+// getProxyDetails is an internal method, not intended for public use.
+// This is here to test that the internals are working correctly.
 const details = processUtil.getProxyDetails(proxyObj);
 assert.deepStrictEqual(target, details.target);
 assert.deepStrictEqual(handler, details.handler);
@@ -25,5 +25,3 @@ assert.strictEqual(util.inspect(proxyObj),
 
 // Using getProxyDetails with non-proxy returns undefined
 assert.strictEqual(processUtil.getProxyDetails({}), undefined);
-// isProxy with non-Proxy returns false
-assert.strictEqual(util.isProxy({}), false);
