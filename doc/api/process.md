@@ -95,6 +95,13 @@ log, either periodically (probably best for long-running programs, allowing
 you to clear the map, which in the case of a very buggy program could grow
 indefinitely) or upon process exit (more convenient for scripts).
 
+## Event: 'spawn'
+
+Emitted whenever a process calls the internal `child_process.spawn()` and assign
+the child a `pid`. This is useful for bookkeeping - especially for subsequent
+calls to `process.kill()`, in case no reference to `child` was held and hence
+`child.kill()` is not an option.
+
 ## Event: 'uncaughtException'
 
 The `'uncaughtException'` event is emitted when an exception bubbles all the
@@ -457,34 +464,6 @@ try {
 catch (err) {
   console.log(`chdir: ${err}`);
 }
-```
-
-## process.children()
-
-Returns a list of children `pid`s, the current process has spawned.
-
-_Note: the child processes do not de-register from their parent automatically.
-General bookkeeping must be done by application. This means for certain
-subsequent operations the application must check for errors._
-
-```js
-const spawn = require('child_process').spawn;
-
-const code = 'setTimeout(() => {}, 400)';
-
-spawn(process.argv[0], ['-e', code]);
-spawn(process.argv[0], ['-e', code]);
-
-console.log(process.children().length);
-// => [ 12355 , 12359]
-
-process.children().forEach((el) => {
-  try {
-    process.kill(el);
-  } catch (e) {
-    console.log('Process was dead already or pid was reassiagned', e);
-  }   
-});
 ```
 
 ## process.config
