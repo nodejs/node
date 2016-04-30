@@ -179,8 +179,9 @@ formatted string:
  - `customInspect` - if `false`, then custom `inspect(depth, opts)` functions
    defined on the objects being inspected won't be called. Defaults to `true`.
 
- - `showProxy` - if `true`, then objects that are Proxy objects will be
-   introspected to show their `target` and `hander` objects.
+ - `showProxy` - if `true`, then objects and functions that are Proxy objects
+   will be introspected to show their `target` and `hander` objects. Defaults to
+   `false`.
 
 Example of inspecting all properties of the `util` object:
 
