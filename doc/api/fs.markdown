@@ -438,8 +438,8 @@ Synchronous fdatasync(2). Returns `undefined`.
 ## fs.fstat(fd, callback)
 
 Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a `fs.Stats` object. `fstat()` is identical to [`stat()`][], except that
-the file to be stat-ed is specified by the file descriptor `fd`.
+`stats` is a [`fs.Stats`][] object. `fstat()` is identical to [`stat()`][],
+except that the file to be stat-ed is specified by the file descriptor `fd`.
 
 ## fs.fstatSync(fd)
 
@@ -504,9 +504,9 @@ Synchronous link(2). Returns `undefined`.
 ## fs.lstat(path, callback)
 
 Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a `fs.Stats` object. `lstat()` is identical to `stat()`, except that if
-`path` is a symbolic link, then the link itself is stat-ed, not the file that it
-refers to.
+`stats` is a [`fs.Stats`][] object. `lstat()` is identical to `stat()`,
+except that if `path` is a symbolic link, then the link itself is stat-ed,
+not the file that it refers to.
 
 ## fs.lstatSync(path)
 
