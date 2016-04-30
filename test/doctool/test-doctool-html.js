@@ -34,12 +34,17 @@ const testData = [
       ' id="foo_sample_markdown_with_yaml_info">#</a></span></h1>' +
       '<h2>Foobar<span><a class="mark" href="#foo_foobar" ' +
       'id="foo_foobar">#</a></span></h2>' +
-      '<div class="api_metadata"><span>Added: v1.0.0</span></div> ' +
+      '<div class="api_metadata"><span>Added in: v1.0.0</span></div> ' +
       '<p>Describe <code>Foobar</code> in more detail here.</p>' +
+      '<h2>Foobar II<span><a class="mark" href="#foo_foobar_ii" ' +
+      'id="foo_foobar_ii">#</a></span></h2>' +
+      '<div class="api_metadata"><span>Added in: v5.3.0, v4.2.0</span></div> ' +
+      '<p>Describe <code>Foobar II</code> in more detail here.</p>' +
       '<h2>Deprecated thingy<span><a class="mark" ' +
       'href="#foo_deprecated_thingy" id="foo_deprecated_thingy">#</a>' +
       '</span></h2>' +
-      '<div class="api_metadata"><span>Added: v1.0.0</span></div><p>Describe ' +
+      '<div class="api_metadata"><span>Added in: v1.0.0</span>' +
+      '<span>Deprecated since: v2.0.0</span></div><p>Describe ' +
       '<code>Deprecated thingy</code> in more detail here.</p>' +
       '<h2>Something<span><a class="mark" href="#foo_something" ' +
       'id="foo_something">#</a></span></h2> ' +
