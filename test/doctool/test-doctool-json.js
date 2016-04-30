@@ -64,6 +64,53 @@ var testData = [
         'displayName': 'Title'
       } ]
     }
+  },
+  {
+    'file': common.fixturesDir + '/doc_with_yaml.md',
+    'json': {
+      'source': 'foo',
+      'modules': [
+        {
+          'textRaw': 'Sample Markdown with YAML info',
+          'name': 'sample_markdown_with_yaml_info',
+          'modules': [
+            {
+              'textRaw': 'Foobar',
+              'name': 'foobar',
+              'meta': {
+                'added': 'v1.0.0'
+              },
+              'desc': '<p>Describe <code>Foobar</code> in more detail ' +
+                'here.\n\n</p>\n',
+              'type': 'module',
+              'displayName': 'Foobar'
+            },
+            {
+              'textRaw': 'Deprecated thingy',
+              'name': 'deprecated_thingy',
+              'meta': {
+                'added': 'v1.0.0',
+                'deprecated': 'v2.0.0'
+              },
+              'desc': '<p>Describe <code>Deprecated thingy</code> in more ' +
+                'detail here.\n\n</p>\n',
+              'type': 'module',
+              'displayName': 'Deprecated thingy'
+            },
+            {
+              'textRaw': 'Something',
+              'name': 'something',
+              'desc': '<!-- This is not a metadata comment -->\n\n<p>' +
+                'Describe <code>Something</code> in more detail here.\n</p>\n',
+              'type': 'module',
+              'displayName': 'Something'
+            }
+          ],
+          'type': 'module',
+          'displayName': 'Sample Markdown with YAML info'
+        }
+      ]
+    }
   }
 ];
 
