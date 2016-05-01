@@ -151,6 +151,10 @@ Stop watching for changes on the given `fs.FSWatcher`.
 
 Emitted when the ReadStream's file is opened.
 
+### Event: 'close'
+
+Emitted when a ReadStream's file has ended or closed. Comes from fs.close() method. 
+
 ### readStream.path
 
 The path to the file the stream is reading from as specified in the first
@@ -237,6 +241,10 @@ on Unix systems, it never was.
 * `fd` {Integer} Integer file descriptor used by the WriteStream.
 
 Emitted when the WriteStream's file is opened.
+
+### Event: 'close'
+
+Emitted when a WriteStream's file has ended or closed. Comes from fs.close() method. 
 
 ### writeStream.bytesWritten
 
