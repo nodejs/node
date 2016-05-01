@@ -9,14 +9,24 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow `with` statements",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
-        "WithStatement": function(node) {
-            context.report(node, "Unexpected use of 'with' statement.");
-        }
-    };
+        schema: []
+    },
 
+    create: function(context) {
+
+        return {
+            WithStatement: function(node) {
+                context.report(node, "Unexpected use of 'with' statement.");
+            }
+        };
+
+    }
 };
-
-module.exports.schema = [];

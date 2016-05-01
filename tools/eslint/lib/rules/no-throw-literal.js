@@ -1,8 +1,6 @@
 /**
  * @fileoverview Rule to restrict what can be thrown as an exception.
  * @author Dieter Oberkofler
- * @copyright 2015 Ian VanSchooten. All rights reserved.
- * @copyright 2015 Dieter Oberkofler. All rights reserved.
  */
 
 "use strict";
@@ -49,23 +47,33 @@ function couldBeError(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow throwing literals as exceptions",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "ThrowStatement": function(node) {
-            if (!couldBeError(node.argument)) {
-                context.report(node, "Expected an object to be thrown.");
-            } else if (node.argument.type === "Identifier") {
-                if (node.argument.name === "undefined") {
-                    context.report(node, "Do not throw undefined.");
+    create: function(context) {
+
+        return {
+
+            ThrowStatement: function(node) {
+                if (!couldBeError(node.argument)) {
+                    context.report(node, "Expected an object to be thrown.");
+                } else if (node.argument.type === "Identifier") {
+                    if (node.argument.name === "undefined") {
+                        context.report(node, "Do not throw undefined.");
+                    }
                 }
+
             }
 
-        }
+        };
 
-    };
-
+    }
 };
-
-module.exports.schema = [];

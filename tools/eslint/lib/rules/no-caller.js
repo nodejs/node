@@ -9,21 +9,31 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of `arguments.caller` or `arguments.callee`",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "MemberExpression": function(node) {
-            var objectName = node.object.name,
-                propertyName = node.property.name;
+    create: function(context) {
 
-            if (objectName === "arguments" && !node.computed && propertyName && propertyName.match(/^calle[er]$/)) {
-                context.report(node, "Avoid arguments.{{property}}.", { property: propertyName });
+        return {
+
+            MemberExpression: function(node) {
+                var objectName = node.object.name,
+                    propertyName = node.property.name;
+
+                if (objectName === "arguments" && !node.computed && propertyName && propertyName.match(/^calle[er]$/)) {
+                    context.report(node, "Avoid arguments.{{property}}.", { property: propertyName });
+                }
+
             }
+        };
 
-        }
-    };
-
+    }
 };
-
-module.exports.schema = [];

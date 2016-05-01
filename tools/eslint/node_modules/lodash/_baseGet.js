@@ -1,4 +1,4 @@
-var baseCastPath = require('./_baseCastPath'),
+var castPath = require('./_castPath'),
     isKey = require('./_isKey');
 
 /**
@@ -10,7 +10,7 @@ var baseCastPath = require('./_baseCastPath'),
  * @returns {*} Returns the resolved value.
  */
 function baseGet(object, path) {
-  path = isKey(path, object) ? [path] : baseCastPath(path);
+  path = isKey(path, object) ? [path] : castPath(path);
 
   var index = 0,
       length = path.length;

@@ -1,7 +1,6 @@
 /**
  * @fileoverview A rule to suggest using arrow functions as callbacks.
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
  */
 
 "use strict";
@@ -27,11 +26,6 @@ function isFunctionName(variable) {
  * @returns {boolean} `true` if the node is the specific value.
  */
 function checkMetaProperty(node, metaName, propertyName) {
-
-    // TODO: Remove this if block after https://github.com/eslint/espree/issues/206 was fixed.
-    if (typeof node.meta === "string") {
-        return node.meta === metaName && node.property === propertyName;
-    }
     return node.meta.name === metaName && node.property.name === propertyName;
 }
 
@@ -125,104 +119,136 @@ function getCallbackInfo(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-
-    /*
-     * {Array<{this: boolean, super: boolean, meta: boolean}>}
-     * - this - A flag which shows there are one or more ThisExpression.
-     * - super - A flag which shows there are one or more Super.
-     * - meta - A flag which shows there are one or more MethProperty.
-     */
-    var stack = [];
-
-    /**
-     * Pushes new function scope with all `false` flags.
-     * @returns {void}
-     */
-    function enterScope() {
-        stack.push({this: false, super: false, meta: false});
-    }
-
-    /**
-     * Pops a function scope from the stack.
-     * @returns {{this: boolean, super: boolean, meta: boolean}} The information of the last scope.
-     */
-    function exitScope() {
-        return stack.pop();
-    }
-
-    return {
-
-        // Reset internal state.
-        Program: function() {
-            stack = [];
+module.exports = {
+    meta: {
+        docs: {
+            description: "require arrow functions as callbacks",
+            category: "ECMAScript 6",
+            recommended: false
         },
 
-        // If there are below, it cannot replace with arrow functions merely.
-        ThisExpression: function() {
-            var info = stack[stack.length - 1];
-
-            if (info) {
-                info.this = true;
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    allowNamedFunctions: {
+                        type: "boolean"
+                    },
+                    allowUnboundThis: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
             }
-        },
+        ]
+    },
 
-        Super: function() {
-            var info = stack[stack.length - 1];
+    create: function(context) {
+        var options = context.options[0] || {};
 
-            if (info) {
-                info.super = true;
-            }
-        },
+        var allowUnboundThis = options.allowUnboundThis !== false;  // default to true
+        var allowNamedFunctions = options.allowNamedFunctions;
 
-        MetaProperty: function(node) {
-            var info = stack[stack.length - 1];
+        /*
+         * {Array<{this: boolean, super: boolean, meta: boolean}>}
+         * - this - A flag which shows there are one or more ThisExpression.
+         * - super - A flag which shows there are one or more Super.
+         * - meta - A flag which shows there are one or more MethProperty.
+         */
+        var stack = [];
 
-            if (info && checkMetaProperty(node, "new", "target")) {
-                info.meta = true;
-            }
-        },
-
-        // To skip nested scopes.
-        FunctionDeclaration: enterScope,
-        "FunctionDeclaration:exit": exitScope,
-
-        // Main.
-        FunctionExpression: enterScope,
-        "FunctionExpression:exit": function(node) {
-            var scopeInfo = exitScope();
-
-            // Skip generators.
-            if (node.generator) {
-                return;
-            }
-
-            // Skip recursive functions.
-            var nameVar = context.getDeclaredVariables(node)[0];
-
-            if (isFunctionName(nameVar) && nameVar.references.length > 0) {
-                return;
-            }
-
-            // Skip if it's using arguments.
-            var variable = getVariableOfArguments(context.getScope());
-
-            if (variable && variable.references.length > 0) {
-                return;
-            }
-
-            // Reports if it's a callback which can replace with arrows.
-            var callbackInfo = getCallbackInfo(node);
-
-            if (callbackInfo.isCallback &&
-                (!scopeInfo.this || callbackInfo.isLexicalThis) &&
-                !scopeInfo.super &&
-                !scopeInfo.meta
-            ) {
-                context.report(node, "Unexpected function expression.");
-            }
+        /**
+         * Pushes new function scope with all `false` flags.
+         * @returns {void}
+         */
+        function enterScope() {
+            stack.push({this: false, super: false, meta: false});
         }
-    };
-};
 
-module.exports.schema = [];
+        /**
+         * Pops a function scope from the stack.
+         * @returns {{this: boolean, super: boolean, meta: boolean}} The information of the last scope.
+         */
+        function exitScope() {
+            return stack.pop();
+        }
+
+        return {
+
+            // Reset internal state.
+            Program: function() {
+                stack = [];
+            },
+
+            // If there are below, it cannot replace with arrow functions merely.
+            ThisExpression: function() {
+                var info = stack[stack.length - 1];
+
+                if (info) {
+                    info.this = true;
+                }
+            },
+
+            Super: function() {
+                var info = stack[stack.length - 1];
+
+                if (info) {
+                    info.super = true;
+                }
+            },
+
+            MetaProperty: function(node) {
+                var info = stack[stack.length - 1];
+
+                if (info && checkMetaProperty(node, "new", "target")) {
+                    info.meta = true;
+                }
+            },
+
+            // To skip nested scopes.
+            FunctionDeclaration: enterScope,
+            "FunctionDeclaration:exit": exitScope,
+
+            // Main.
+            FunctionExpression: enterScope,
+            "FunctionExpression:exit": function(node) {
+                var scopeInfo = exitScope();
+
+                // Skip named function expressions
+                if (allowNamedFunctions && node.id && node.id.name) {
+                    return;
+                }
+
+                // Skip generators.
+                if (node.generator) {
+                    return;
+                }
+
+                // Skip recursive functions.
+                var nameVar = context.getDeclaredVariables(node)[0];
+
+                if (isFunctionName(nameVar) && nameVar.references.length > 0) {
+                    return;
+                }
+
+                // Skip if it's using arguments.
+                var variable = getVariableOfArguments(context.getScope());
+
+                if (variable && variable.references.length > 0) {
+                    return;
+                }
+
+                // Reports if it's a callback which can replace with arrows.
+                var callbackInfo = getCallbackInfo(node);
+
+                if (callbackInfo.isCallback &&
+                    (!allowUnboundThis || !scopeInfo.this || callbackInfo.isLexicalThis) &&
+                    !scopeInfo.super &&
+                    !scopeInfo.meta
+                ) {
+                    context.report(node, "Unexpected function expression.");
+                }
+            }
+        };
+    }
+};

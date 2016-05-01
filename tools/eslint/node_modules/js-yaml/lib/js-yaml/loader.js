@@ -743,6 +743,7 @@ function readBlockScalar(state, nodeIndent) {
   var captureStart,
       folding,
       chomping       = CHOMPING_CLIP,
+      didReadContent = false,
       detectedIndent = false,
       textIndent     = nodeIndent,
       emptyLines     = 0,
@@ -824,9 +825,9 @@ function readBlockScalar(state, nodeIndent) {
 
       // Perform the chomping.
       if (chomping === CHOMPING_KEEP) {
-        state.result += common.repeat('\n', emptyLines);
+        state.result += common.repeat('\n', didReadContent ? 1 + emptyLines : emptyLines);
       } else if (chomping === CHOMPING_CLIP) {
-        if (detectedIndent) { // i.e. only if the scalar is not empty.
+        if (didReadContent) { // i.e. only if the scalar is not empty.
           state.result += '\n';
         }
       }
@@ -841,7 +842,8 @@ function readBlockScalar(state, nodeIndent) {
       // Lines starting with white space characters (more-indented lines) are not folded.
       if (is_WHITE_SPACE(ch)) {
         atMoreIndented = true;
-        state.result += common.repeat('\n', emptyLines + 1);
+        // except for the first content line (cf. Example 8.1)
+        state.result += common.repeat('\n', didReadContent ? 1 + emptyLines : emptyLines);
 
       // End of more-indented block.
       } else if (atMoreIndented) {
@@ -850,7 +852,7 @@ function readBlockScalar(state, nodeIndent) {
 
       // Just one line break - perceive as the same line.
       } else if (emptyLines === 0) {
-        if (detectedIndent) { // i.e. only if we have already read some scalar content.
+        if (didReadContent) { // i.e. only if we have already read some scalar content.
           state.result += ' ';
         }
 
@@ -860,14 +862,12 @@ function readBlockScalar(state, nodeIndent) {
       }
 
     // Literal style: just add exact number of line breaks between content lines.
-    } else if (detectedIndent) {
-      // If current line isn't the first one - count line break from the last content line.
-      state.result += common.repeat('\n', emptyLines + 1);
     } else {
-      // In case of the first content line - count only empty lines.
-      state.result += common.repeat('\n', emptyLines);
+      // Keep all line breaks except the header line break.
+      state.result += common.repeat('\n', didReadContent ? 1 + emptyLines : emptyLines);
     }
 
+    didReadContent = true;
     detectedIndent = true;
     emptyLines = 0;
     captureStart = state.position;

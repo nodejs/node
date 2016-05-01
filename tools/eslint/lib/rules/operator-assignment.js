@@ -1,7 +1,6 @@
 /**
  * @fileoverview Rule to replace assignment expressions with operator assignment
  * @author Brandon Mills
- * @copyright 2014 Brandon Mills. All rights reserved.
  */
 "use strict";
 
@@ -71,54 +70,64 @@ function same(a, b) {
     }
 }
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "require or disallow assignment operator shorthand where possible",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    /**
-     * Ensures that an assignment uses the shorthand form where possible.
-     * @param   {ASTNode} node An AssignmentExpression node.
-     * @returns {void}
-     */
-    function verify(node) {
-        var expr, left, operator;
-
-        if (node.operator !== "=" || node.right.type !== "BinaryExpression") {
-            return;
-        }
-
-        left = node.left;
-        expr = node.right;
-        operator = expr.operator;
-
-        if (isCommutativeOperatorWithShorthand(operator)) {
-            if (same(left, expr.left) || same(left, expr.right)) {
-                context.report(node, "Assignment can be replaced with operator assignment.");
+        schema: [
+            {
+                enum: ["always", "never"]
             }
-        } else if (isNonCommutativeOperatorWithShorthand(operator)) {
-            if (same(left, expr.left)) {
-                context.report(node, "Assignment can be replaced with operator assignment.");
+        ]
+    },
+
+    create: function(context) {
+
+        /**
+         * Ensures that an assignment uses the shorthand form where possible.
+         * @param   {ASTNode} node An AssignmentExpression node.
+         * @returns {void}
+         */
+        function verify(node) {
+            var expr, left, operator;
+
+            if (node.operator !== "=" || node.right.type !== "BinaryExpression") {
+                return;
+            }
+
+            left = node.left;
+            expr = node.right;
+            operator = expr.operator;
+
+            if (isCommutativeOperatorWithShorthand(operator)) {
+                if (same(left, expr.left) || same(left, expr.right)) {
+                    context.report(node, "Assignment can be replaced with operator assignment.");
+                }
+            } else if (isNonCommutativeOperatorWithShorthand(operator)) {
+                if (same(left, expr.left)) {
+                    context.report(node, "Assignment can be replaced with operator assignment.");
+                }
             }
         }
-    }
 
-    /**
-     * Warns if an assignment expression uses operator assignment shorthand.
-     * @param   {ASTNode} node An AssignmentExpression node.
-     * @returns {void}
-     */
-    function prohibit(node) {
-        if (node.operator !== "=") {
-            context.report(node, "Unexpected operator assignment shorthand.");
+        /**
+         * Warns if an assignment expression uses operator assignment shorthand.
+         * @param   {ASTNode} node An AssignmentExpression node.
+         * @returns {void}
+         */
+        function prohibit(node) {
+            if (node.operator !== "=") {
+                context.report(node, "Unexpected operator assignment shorthand.");
+            }
         }
+
+        return {
+            AssignmentExpression: context.options[0] !== "never" ? verify : prohibit
+        };
+
     }
-
-    return {
-        "AssignmentExpression": context.options[0] !== "never" ? verify : prohibit
-    };
-
 };
-
-module.exports.schema = [
-    {
-        "enum": ["always", "never"]
-    }
-];

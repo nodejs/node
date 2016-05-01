@@ -1,9 +1,6 @@
 /**
  * @fileoverview Source code for spaced-comments rule
  * @author Gyandeep Singh
- * @copyright 2015 Toru Nagashima. All rights reserved.
- * @copyright 2015 Gyandeep Singh. All rights reserved.
- * @copyright 2014 Greg Cochard. All rights reserved.
  */
 "use strict";
 
@@ -140,166 +137,178 @@ function createNeverStylePattern(markers) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-
-    // Unless the first option is never, require a space
-    var requireSpace = context.options[0] !== "never";
-
-    /*
-     * Parse the second options.
-     * If markers don't include `"*"`, it's added automatically for JSDoc
-     * comments.
-     */
-    var config = context.options[1] || {};
-    var styleRules = ["block", "line"].reduce(function(rule, type) {
-        var markers = parseMarkersOption(config[type] && config[type].markers || config.markers);
-        var exceptions = config[type] && config[type].exceptions || config.exceptions || [];
-
-        // Create RegExp object for valid patterns.
-        rule[type] = {
-            regex: requireSpace ? createAlwaysStylePattern(markers, exceptions) : createNeverStylePattern(markers),
-            hasExceptions: exceptions.length > 0,
-            markers: new RegExp("^(" + markers.map(escape).join("|") + ")")
-        };
-
-        return rule;
-    }, {});
-
-    /**
-     * Reports a spacing error with an appropriate message.
-     * @param {ASTNode} node - A comment node to check.
-     * @param {string} message - An error message to report
-     * @param {Array} match - An array of match results for markers.
-     * @returns {void}
-     */
-    function report(node, message, match) {
-        var type = node.type.toLowerCase(),
-            commentIdentifier = type === "block" ? "/*" : "//";
-
-        context.report({
-            node: node,
-            fix: function(fixer) {
-                var start = node.range[0],
-                    end = start + 2;
-
-                if (requireSpace) {
-                    if (match) {
-                        end += match[0].length;
-                    }
-                    return fixer.insertTextAfterRange([start, end], " ");
-                } else {
-                    end += match[0].length;
-                    return fixer.replaceTextRange([start, end], commentIdentifier + (match[1] ? match[1] : ""));
-                }
-            },
-            message: message
-        });
-    }
-
-    /**
-     * Reports a given comment if it's invalid.
-     * @param {ASTNode} node - a comment node to check.
-     * @returns {void}
-     */
-    function checkCommentForSpace(node) {
-        var type = node.type.toLowerCase(),
-            rule = styleRules[type],
-            commentIdentifier = type === "block" ? "/*" : "//";
-
-        // Ignores empty comments.
-        if (node.value.length === 0) {
-            return;
-        }
-
-        // Checks.
-        if (requireSpace) {
-            if (!rule.regex.test(node.value)) {
-                var hasMarker = rule.markers.exec(node.value);
-                var marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
-
-                if (rule.hasExceptions) {
-                    report(node, "Expected exception block, space or tab after '" + marker + "' in comment.", hasMarker);
-                } else {
-                    report(node, "Expected space or tab after '" + marker + "' in comment.", hasMarker);
-                }
-            }
-        } else {
-            var matched = rule.regex.exec(node.value);
-
-            if (matched) {
-                if (!matched[1]) {
-                    report(node, "Unexpected space or tab after '" + commentIdentifier + "' in comment.", matched);
-                } else {
-                    report(node, "Unexpected space or tab after marker (" + matched[1] + ") in comment.", matched);
-                }
-            }
-        }
-    }
-
-    return {
-
-        "LineComment": checkCommentForSpace,
-        "BlockComment": checkCommentForSpace
-
-    };
-};
-
-module.exports.schema = [
-    {
-        "enum": ["always", "never"]
-    },
-    {
-        "type": "object",
-        "properties": {
-            "exceptions": {
-                "type": "array",
-                "items": {
-                    "type": "string"
-                }
-            },
-            "markers": {
-                "type": "array",
-                "items": {
-                    "type": "string"
-                }
-            },
-            "line": {
-                "type": "object",
-                "properties": {
-                    "exceptions": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "markers": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "additionalProperties": false
-            },
-            "block": {
-                "type": "object",
-                "properties": {
-                    "exceptions": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "markers": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "additionalProperties": false
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "enforce consistent spacing after the `//` or `/*` in a comment",
+            category: "Stylistic Issues",
+            recommended: false
         },
-        "additionalProperties": false
+
+        fixable: "whitespace",
+
+        schema: [
+            {
+                enum: ["always", "never"]
+            },
+            {
+                type: "object",
+                properties: {
+                    exceptions: {
+                        type: "array",
+                        items: {
+                            type: "string"
+                        }
+                    },
+                    markers: {
+                        type: "array",
+                        items: {
+                            type: "string"
+                        }
+                    },
+                    line: {
+                        type: "object",
+                        properties: {
+                            exceptions: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                }
+                            },
+                            markers: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                }
+                            }
+                        },
+                        additionalProperties: false
+                    },
+                    block: {
+                        type: "object",
+                        properties: {
+                            exceptions: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                }
+                            },
+                            markers: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                }
+                            }
+                        },
+                        additionalProperties: false
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
+
+    create: function(context) {
+
+        // Unless the first option is never, require a space
+        var requireSpace = context.options[0] !== "never";
+
+        /*
+         * Parse the second options.
+         * If markers don't include `"*"`, it's added automatically for JSDoc
+         * comments.
+         */
+        var config = context.options[1] || {};
+        var styleRules = ["block", "line"].reduce(function(rule, type) {
+            var markers = parseMarkersOption(config[type] && config[type].markers || config.markers);
+            var exceptions = config[type] && config[type].exceptions || config.exceptions || [];
+
+            // Create RegExp object for valid patterns.
+            rule[type] = {
+                regex: requireSpace ? createAlwaysStylePattern(markers, exceptions) : createNeverStylePattern(markers),
+                hasExceptions: exceptions.length > 0,
+                markers: new RegExp("^(" + markers.map(escape).join("|") + ")")
+            };
+
+            return rule;
+        }, {});
+
+        /**
+         * Reports a spacing error with an appropriate message.
+         * @param {ASTNode} node - A comment node to check.
+         * @param {string} message - An error message to report
+         * @param {Array} match - An array of match results for markers.
+         * @returns {void}
+         */
+        function report(node, message, match) {
+            var type = node.type.toLowerCase(),
+                commentIdentifier = type === "block" ? "/*" : "//";
+
+            context.report({
+                node: node,
+                fix: function(fixer) {
+                    var start = node.range[0],
+                        end = start + 2;
+
+                    if (requireSpace) {
+                        if (match) {
+                            end += match[0].length;
+                        }
+                        return fixer.insertTextAfterRange([start, end], " ");
+                    } else {
+                        end += match[0].length;
+                        return fixer.replaceTextRange([start, end], commentIdentifier + (match[1] ? match[1] : ""));
+                    }
+                },
+                message: message
+            });
+        }
+
+        /**
+         * Reports a given comment if it's invalid.
+         * @param {ASTNode} node - a comment node to check.
+         * @returns {void}
+         */
+        function checkCommentForSpace(node) {
+            var type = node.type.toLowerCase(),
+                rule = styleRules[type],
+                commentIdentifier = type === "block" ? "/*" : "//";
+
+            // Ignores empty comments.
+            if (node.value.length === 0) {
+                return;
+            }
+
+            // Checks.
+            if (requireSpace) {
+                if (!rule.regex.test(node.value)) {
+                    var hasMarker = rule.markers.exec(node.value);
+                    var marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
+
+                    if (rule.hasExceptions) {
+                        report(node, "Expected exception block, space or tab after '" + marker + "' in comment.", hasMarker);
+                    } else {
+                        report(node, "Expected space or tab after '" + marker + "' in comment.", hasMarker);
+                    }
+                }
+            } else {
+                var matched = rule.regex.exec(node.value);
+
+                if (matched) {
+                    if (!matched[1]) {
+                        report(node, "Unexpected space or tab after '" + commentIdentifier + "' in comment.", matched);
+                    } else {
+                        report(node, "Unexpected space or tab after marker (" + matched[1] + ") in comment.", matched);
+                    }
+                }
+            }
+        }
+
+        return {
+
+            LineComment: checkCommentForSpace,
+            BlockComment: checkCommentForSpace
+
+        };
     }
-];
+};

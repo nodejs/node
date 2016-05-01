@@ -1,7 +1,6 @@
 /**
  * @fileoverview Rule to flag wrapping non-iife in parens
  * @author Gyandeep Singh
- * @copyright 2015 Gyandeep Singh. All rights reserved.
  */
 
 "use strict";
@@ -79,16 +78,16 @@ module.exports = {
             recommended: false
         },
         schema: [{
-            "type": "object",
-            "properties": {
-                "getWithoutSet": {
-                    "type": "boolean"
+            type: "object",
+            properties: {
+                getWithoutSet: {
+                    type: "boolean"
                 },
-                "setWithoutGet": {
-                    "type": "boolean"
+                setWithoutGet: {
+                    type: "boolean"
                 }
             },
-            "additionalProperties": false
+            additionalProperties: false
         }]
     },
     create: function(context) {
@@ -147,7 +146,7 @@ module.exports = {
         }
 
         return {
-            "ObjectExpression": function(node) {
+            ObjectExpression: function(node) {
                 if (checkSetWithoutGet || checkGetWithoutSet) {
                     checkLonelySetGet(node);
                 }

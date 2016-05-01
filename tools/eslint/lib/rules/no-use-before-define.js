@@ -1,7 +1,6 @@
 /**
  * @fileoverview Rule to flag use of variables before they are defined
  * @author Ilya Volodin
- * @copyright 2013 Ilya Volodin. All rights reserved.
  */
 
 "use strict";
@@ -124,114 +123,124 @@ function isInInitializer(variable, reference) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var options = parseOptions(context.options[0]);
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of variables before they are defined",
+            category: "Variables",
+            recommended: false
+        },
 
-    // Defines a function which checks whether or not a reference is allowed according to the option.
-    var isAllowed;
-
-    if (options.functions && options.classes) {
-        isAllowed = alwaysFalse;
-    } else if (options.functions) {
-        isAllowed = isOuterClass;
-    } else if (options.classes) {
-        isAllowed = isFunction;
-    } else {
-        isAllowed = isFunctionOrOuterClass;
-    }
-
-    /**
-     * Finds and validates all variables in a given scope.
-     * @param {Scope} scope The scope object.
-     * @returns {void}
-     * @private
-     */
-    function findVariablesInScope(scope) {
-        scope.references.forEach(function(reference) {
-            var variable = reference.resolved;
-
-            // Skips when the reference is:
-            // - initialization's.
-            // - referring to an undefined variable.
-            // - referring to a global environment variable (there're no identifiers).
-            // - located preceded by the variable (except in initializers).
-            // - allowed by options.
-            if (reference.init ||
-                !variable ||
-                variable.identifiers.length === 0 ||
-                (variable.identifiers[0].range[1] < reference.identifier.range[1] && !isInInitializer(variable, reference)) ||
-                isAllowed(variable, reference)
-            ) {
-                return;
-            }
-
-            // Reports.
-            context.report({
-                node: reference.identifier,
-                message: "'{{name}}' was used before it was defined",
-                data: reference.identifier
-            });
-        });
-    }
-
-    /**
-     * Validates variables inside of a node's scope.
-     * @param {ASTNode} node The node to check.
-     * @returns {void}
-     * @private
-     */
-    function findVariables() {
-        var scope = context.getScope();
-
-        findVariablesInScope(scope);
-    }
-
-    var ruleDefinition = {
-        "Program:exit": function(node) {
-            var scope = context.getScope(),
-                ecmaFeatures = context.parserOptions.ecmaFeatures || {};
-
-            findVariablesInScope(scope);
-
-            // both Node.js and Modules have an extra scope
-            if (ecmaFeatures.globalReturn || node.sourceType === "module") {
-                findVariablesInScope(scope.childScopes[0]);
-            }
-        }
-    };
-
-    if (context.parserOptions.ecmaVersion >= 6) {
-        ruleDefinition["BlockStatement:exit"] =
-            ruleDefinition["SwitchStatement:exit"] = findVariables;
-
-        ruleDefinition["ArrowFunctionExpression:exit"] = function(node) {
-            if (node.body.type !== "BlockStatement") {
-                findVariables(node);
-            }
-        };
-    } else {
-        ruleDefinition["FunctionExpression:exit"] =
-            ruleDefinition["FunctionDeclaration:exit"] =
-            ruleDefinition["ArrowFunctionExpression:exit"] = findVariables;
-    }
-
-    return ruleDefinition;
-};
-
-module.exports.schema = [
-    {
-        "oneOf": [
+        schema: [
             {
-                "enum": ["nofunc"]
-            },
-            {
-                "type": "object",
-                "properties": {
-                    "functions": {"type": "boolean"},
-                    "classes": {"type": "boolean"}
-                },
-                "additionalProperties": false
+                oneOf: [
+                    {
+                        enum: ["nofunc"]
+                    },
+                    {
+                        type: "object",
+                        properties: {
+                            functions: {type: "boolean"},
+                            classes: {type: "boolean"}
+                        },
+                        additionalProperties: false
+                    }
+                ]
             }
         ]
+    },
+
+    create: function(context) {
+        var options = parseOptions(context.options[0]);
+
+        // Defines a function which checks whether or not a reference is allowed according to the option.
+        var isAllowed;
+
+        if (options.functions && options.classes) {
+            isAllowed = alwaysFalse;
+        } else if (options.functions) {
+            isAllowed = isOuterClass;
+        } else if (options.classes) {
+            isAllowed = isFunction;
+        } else {
+            isAllowed = isFunctionOrOuterClass;
+        }
+
+        /**
+         * Finds and validates all variables in a given scope.
+         * @param {Scope} scope The scope object.
+         * @returns {void}
+         * @private
+         */
+        function findVariablesInScope(scope) {
+            scope.references.forEach(function(reference) {
+                var variable = reference.resolved;
+
+                // Skips when the reference is:
+                // - initialization's.
+                // - referring to an undefined variable.
+                // - referring to a global environment variable (there're no identifiers).
+                // - located preceded by the variable (except in initializers).
+                // - allowed by options.
+                if (reference.init ||
+                    !variable ||
+                    variable.identifiers.length === 0 ||
+                    (variable.identifiers[0].range[1] < reference.identifier.range[1] && !isInInitializer(variable, reference)) ||
+                    isAllowed(variable, reference)
+                ) {
+                    return;
+                }
+
+                // Reports.
+                context.report({
+                    node: reference.identifier,
+                    message: "'{{name}}' was used before it was defined",
+                    data: reference.identifier
+                });
+            });
+        }
+
+        /**
+         * Validates variables inside of a node's scope.
+         * @param {ASTNode} node The node to check.
+         * @returns {void}
+         * @private
+         */
+        function findVariables() {
+            var scope = context.getScope();
+
+            findVariablesInScope(scope);
+        }
+
+        var ruleDefinition = {
+            "Program:exit": function(node) {
+                var scope = context.getScope(),
+                    ecmaFeatures = context.parserOptions.ecmaFeatures || {};
+
+                findVariablesInScope(scope);
+
+                // both Node.js and Modules have an extra scope
+                if (ecmaFeatures.globalReturn || node.sourceType === "module") {
+                    findVariablesInScope(scope.childScopes[0]);
+                }
+            }
+        };
+
+        if (context.parserOptions.ecmaVersion >= 6) {
+            ruleDefinition["BlockStatement:exit"] =
+                ruleDefinition["SwitchStatement:exit"] = findVariables;
+
+            ruleDefinition["ArrowFunctionExpression:exit"] = function(node) {
+                if (node.body.type !== "BlockStatement") {
+                    findVariables(node);
+                }
+            };
+        } else {
+            ruleDefinition["FunctionExpression:exit"] =
+                ruleDefinition["FunctionDeclaration:exit"] =
+                ruleDefinition["ArrowFunctionExpression:exit"] = findVariables;
+        }
+
+        return ruleDefinition;
     }
-];
+};

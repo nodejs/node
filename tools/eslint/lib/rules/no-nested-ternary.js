@@ -9,16 +9,26 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow nested ternary expressions",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    return {
-        "ConditionalExpression": function(node) {
-            if (node.alternate.type === "ConditionalExpression" ||
-                    node.consequent.type === "ConditionalExpression") {
-                context.report(node, "Do not nest ternary expressions");
+        schema: []
+    },
+
+    create: function(context) {
+
+        return {
+            ConditionalExpression: function(node) {
+                if (node.alternate.type === "ConditionalExpression" ||
+                        node.consequent.type === "ConditionalExpression") {
+                    context.report(node, "Do not nest ternary expressions");
+                }
             }
-        }
-    };
+        };
+    }
 };
-
-module.exports.schema = [];

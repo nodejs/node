@@ -1,8 +1,6 @@
 /**
  * @fileoverview Implements the Node.js require.resolve algorithm
  * @author Nicholas C. Zakas
- * @copyright 2016 Nicholas C. Zakas. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -24,8 +22,11 @@ var DEFAULT_OPTIONS = {
      * module.paths is an array of paths to search for resolving things relative
      * to this file. Module.globalPaths contains all of the special Node.js
      * directories that can also be searched for modules.
+     *
+     * Need to check for existence of module.paths because Jest seems not to
+     * include it. See https://github.com/eslint/eslint/issues/5791.
      */
-    lookupPaths: module.paths.concat(Module.globalPaths)
+    lookupPaths: module.paths ? module.paths.concat(Module.globalPaths) : Module.globalPaths.concat()
 };
 
 /**

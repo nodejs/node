@@ -299,22 +299,26 @@ function () {
 }],
 
 // two globstars
-[/\\\/\\\*\\\*(\\\/|$)/g,
+[/\\\/\\\*\\\*(?=\\\/|$)/g,
 
 // Zero, one or several directories
 // should not use '*', or it will be replaced by the next replacer
-function (m, p1) {
-  return p1 === '\\/'
+function (m, index, str) {
+
+  // Check if it is not the last `'/**'`
+  return index + 6 < str.length
 
   // case: /**/
   // > A slash followed by two consecutive asterisks then a slash matches zero or more directories.
   // > For example, "a/**/b" matches "a/b", "a/x/b", "a/x/y/b" and so on.
   // '/**/'
-  ? '(?:\\/[^\\/]+)*\\/'
+  ? '(?:\\/[^\\/]+)*'
 
   // case: /**
   // > A trailing `"/**"` matches everything inside.
-  : '\\/';
+
+  // #21: everything inside but it should not include the current folder
+  : '\\/.+';
 }],
 
 // intermediate wildcards

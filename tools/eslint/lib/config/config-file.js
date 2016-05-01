@@ -1,8 +1,6 @@
 /**
  * @fileoverview Helper to locate and load configuration files.
  * @author Nicholas C. Zakas
- * @copyright 2015 Nicholas C. Zakas. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 /* eslint no-use-before-define: 0 */

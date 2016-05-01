@@ -9,20 +9,30 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of the `__proto__` property",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "MemberExpression": function(node) {
+    create: function(context) {
 
-            if (node.property &&
-                    (node.property.type === "Identifier" && node.property.name === "__proto__" && !node.computed) ||
-                    (node.property.type === "Literal" && node.property.value === "__proto__")) {
-                context.report(node, "The '__proto__' property is deprecated.");
+        return {
+
+            MemberExpression: function(node) {
+
+                if (node.property &&
+                        (node.property.type === "Identifier" && node.property.name === "__proto__" && !node.computed) ||
+                        (node.property.type === "Literal" && node.property.value === "__proto__")) {
+                    context.report(node, "The '__proto__' property is deprecated.");
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

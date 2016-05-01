@@ -17,7 +17,7 @@
  * // => undefined
  */
 function head(array) {
-  return array ? array[0] : undefined;
+  return (array && array.length) ? array[0] : undefined;
 }
 
 module.exports = head;

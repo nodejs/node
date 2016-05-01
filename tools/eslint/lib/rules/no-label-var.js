@@ -15,43 +15,53 @@ var astUtils = require("../ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow labels that share a name with a variable",
+            category: "Variables",
+            recommended: false
+        },
 
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
+        schema: []
+    },
 
-    /**
-     * Check if the identifier is present inside current scope
-     * @param {object} scope current scope
-     * @param {string} name To evaluate
-     * @returns {boolean} True if its present
-     * @private
-     */
-    function findIdentifier(scope, name) {
-        return astUtils.getVariableByName(scope, name) !== null;
-    }
+    create: function(context) {
 
-    //--------------------------------------------------------------------------
-    // Public API
-    //--------------------------------------------------------------------------
+        //--------------------------------------------------------------------------
+        // Helpers
+        //--------------------------------------------------------------------------
 
-    return {
-
-        "LabeledStatement": function(node) {
-
-            // Fetch the innermost scope.
-            var scope = context.getScope();
-
-            // Recursively find the identifier walking up the scope, starting
-            // with the innermost scope.
-            if (findIdentifier(scope, node.label.name)) {
-                context.report(node, "Found identifier with same name as label.");
-            }
+        /**
+         * Check if the identifier is present inside current scope
+         * @param {object} scope current scope
+         * @param {string} name To evaluate
+         * @returns {boolean} True if its present
+         * @private
+         */
+        function findIdentifier(scope, name) {
+            return astUtils.getVariableByName(scope, name) !== null;
         }
 
-    };
+        //--------------------------------------------------------------------------
+        // Public API
+        //--------------------------------------------------------------------------
 
+        return {
+
+            LabeledStatement: function(node) {
+
+                // Fetch the innermost scope.
+                var scope = context.getScope();
+
+                // Recursively find the identifier walking up the scope, starting
+                // with the innermost scope.
+                if (findIdentifier(scope, node.label.name)) {
+                    context.report(node, "Found identifier with same name as label.");
+                }
+            }
+
+        };
+
+    }
 };
-
-module.exports.schema = [];

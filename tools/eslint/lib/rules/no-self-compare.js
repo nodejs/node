@@ -10,21 +10,31 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow comparisons where both sides are exactly the same",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "BinaryExpression": function(node) {
-            var operators = ["===", "==", "!==", "!=", ">", "<", ">=", "<="];
+    create: function(context) {
 
-            if (operators.indexOf(node.operator) > -1 &&
-                (node.left.type === "Identifier" && node.right.type === "Identifier" && node.left.name === node.right.name ||
-                node.left.type === "Literal" && node.right.type === "Literal" && node.left.value === node.right.value)) {
-                context.report(node, "Comparing to itself is potentially pointless.");
+        return {
+
+            BinaryExpression: function(node) {
+                var operators = ["===", "==", "!==", "!=", ">", "<", ">=", "<="];
+
+                if (operators.indexOf(node.operator) > -1 &&
+                    (node.left.type === "Identifier" && node.right.type === "Identifier" && node.left.name === node.right.name ||
+                    node.left.type === "Literal" && node.right.type === "Literal" && node.left.value === node.right.value)) {
+                    context.report(node, "Comparing to itself is potentially pointless.");
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

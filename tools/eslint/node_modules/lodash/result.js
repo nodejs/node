@@ -1,4 +1,4 @@
-var baseCastPath = require('./_baseCastPath'),
+var castPath = require('./_castPath'),
     isFunction = require('./isFunction'),
     isKey = require('./_isKey');
 
@@ -32,7 +32,7 @@ var baseCastPath = require('./_baseCastPath'),
  * // => 'default'
  */
 function result(object, path, defaultValue) {
-  path = isKey(path, object) ? [path] : baseCastPath(path);
+  path = isKey(path, object) ? [path] : castPath(path);
 
   var index = -1,
       length = path.length;

@@ -8,26 +8,36 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow sparse arrays",
+            category: "Possible Errors",
+            recommended: true
+        },
+
+        schema: []
+    },
+
+    create: function(context) {
 
 
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
 
-    return {
+        return {
 
-        "ArrayExpression": function(node) {
+            ArrayExpression: function(node) {
 
-            var emptySpot = node.elements.indexOf(null) > -1;
+                var emptySpot = node.elements.indexOf(null) > -1;
 
-            if (emptySpot) {
-                context.report(node, "Unexpected comma in middle of array.");
+                if (emptySpot) {
+                    context.report(node, "Unexpected comma in middle of array.");
+                }
             }
-        }
 
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

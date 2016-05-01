@@ -1,4 +1,5 @@
-var charsEndIndex = require('./_charsEndIndex'),
+var castSlice = require('./_castSlice'),
+    charsEndIndex = require('./_charsEndIndex'),
     stringToArray = require('./_stringToArray'),
     toString = require('./toString');
 
@@ -32,14 +33,13 @@ function trimEnd(string, chars, guard) {
   if (guard || chars === undefined) {
     return string.replace(reTrimEnd, '');
   }
-  chars = (chars + '');
-  if (!chars) {
+  if (!(chars += '')) {
     return string;
   }
-  var strSymbols = stringToArray(string);
-  return strSymbols
-    .slice(0, charsEndIndex(strSymbols, stringToArray(chars)) + 1)
-    .join('');
+  var strSymbols = stringToArray(string),
+      end = charsEndIndex(strSymbols, stringToArray(chars)) + 1;
+
+  return castSlice(strSymbols, 0, end).join('');
 }
 
 module.exports = trimEnd;

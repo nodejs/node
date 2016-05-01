@@ -94,8 +94,9 @@ tt.incDec.updateContext = function() {
   // tokExprAllowed stays unchanged
 }
 
-tt._function.updateContext = function() {
-  if (this.curContext() !== types.b_stat)
+tt._function.updateContext = function(prevType) {
+  if (prevType.beforeExpr && prevType !== tt.semi && prevType !== tt._else &&
+      (prevType !== tt.colon || this.curContext() !== types.b_stat))
     this.context.push(types.f_expr)
   this.exprAllowed = false
 }

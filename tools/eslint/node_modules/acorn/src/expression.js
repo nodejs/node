@@ -637,18 +637,18 @@ pp.parseExprList = function(close, allowTrailingComma, allowEmpty, refDestructur
   while (!this.eat(close)) {
     if (!first) {
       this.expect(tt.comma)
-      if (this.type === close && refDestructuringErrors && !refDestructuringErrors.trailingComma) {
-        refDestructuringErrors.trailingComma = this.lastTokStart
-      }
       if (allowTrailingComma && this.afterTrailingComma(close)) break
     } else first = false
 
     let elt
     if (allowEmpty && this.type === tt.comma)
       elt = null
-    else if (this.type === tt.ellipsis)
+    else if (this.type === tt.ellipsis) {
       elt = this.parseSpread(refDestructuringErrors)
-    else
+      if (this.type === tt.comma && refDestructuringErrors && !refDestructuringErrors.trailingComma) {
+        refDestructuringErrors.trailingComma = this.lastTokStart
+      }
+    } else
       elt = this.parseMaybeAssign(false, refDestructuringErrors)
     elts.push(elt)
   }

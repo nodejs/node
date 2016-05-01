@@ -1,9 +1,8 @@
 /**
  * @fileoverview Main ESLint object.
  * @author Nicholas C. Zakas
- * @copyright 2013 Nicholas C. Zakas. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
+
 "use strict";
 
 //------------------------------------------------------------------------------
@@ -345,11 +344,11 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
                 }
             } else {        // comment.type === "Line"
                 if (match[1] === "eslint-disable-line") {
-                    disableReporting(reportingConfig, { "line": comment.loc.start.line, "column": 0 }, Object.keys(parseListConfig(value)));
+                    disableReporting(reportingConfig, { line: comment.loc.start.line, column: 0 }, Object.keys(parseListConfig(value)));
                     enableReporting(reportingConfig, comment.loc.end, Object.keys(parseListConfig(value)));
                 } else if (match[1] === "eslint-disable-next-line") {
                     disableReporting(reportingConfig, comment.loc.start, Object.keys(parseListConfig(value)));
-                    enableReporting(reportingConfig, { "line": comment.loc.start.line + 2 }, Object.keys(parseListConfig(value)));
+                    enableReporting(reportingConfig, { line: comment.loc.start.line + 2 }, Object.keys(parseListConfig(value)));
                 }
             }
         }
@@ -964,7 +963,7 @@ module.exports = (function() {
         };
 
         // ensure there's range and text properties as well as metadata switch, otherwise it's not a valid fix
-        if (fix && Array.isArray(fix.range) && (typeof fix.text === "string") && (!meta || !meta.docs || meta.docs.fixable)) {
+        if (fix && Array.isArray(fix.range) && (typeof fix.text === "string") && (!meta || meta.fixable)) {
             problem.fix = fix;
         }
 

@@ -1,5 +1,5 @@
 var apply = require('./_apply'),
-    baseCastPath = require('./_baseCastPath'),
+    castPath = require('./_castPath'),
     isKey = require('./_isKey'),
     last = require('./last'),
     parent = require('./_parent');
@@ -16,7 +16,7 @@ var apply = require('./_apply'),
  */
 function baseInvoke(object, path, args) {
   if (!isKey(path, object)) {
-    path = baseCastPath(path);
+    path = castPath(path);
     object = parent(object, path);
     path = last(path);
   }
