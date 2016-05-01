@@ -101,6 +101,9 @@ off a shared internal memory pool if `size` is less than or equal to half
 use the shared internal memory pool.
 
 ### The `--zero-fill-buffers` command line option
+<!-- YAML
+added: v5.10.0
+-->
 
 Node.js can be started using the `--zero-fill-buffers` command line option to
 force all newly allocated `Buffer` instances created using either
@@ -261,6 +264,9 @@ The Buffer class is a global type for dealing with binary data directly.
 It can be constructed in a variety of ways.
 
 ### new Buffer(array)
+<!-- YAML
+deprecated: v6.0.0
+-->
 
     Stability: 0 - Deprecated: Use [`Buffer.from(array)`][buffer_from_array]
     instead.
@@ -276,6 +282,9 @@ const buf = new Buffer([0x62,0x75,0x66,0x66,0x65,0x72]);
 ```
 
 ### new Buffer(buffer)
+<!-- YAML
+deprecated: v6.0.0
+-->
 
     Stability: 0 - Deprecated: Use [`Buffer.from(buffer)`][buffer_from_buffer]
     instead.
@@ -296,6 +305,9 @@ console.log(buf2.toString());
 ```
 
 ### new Buffer(arrayBuffer[, byteOffset [, length]])
+<!-- YAML
+deprecated: v6.0.0
+-->
 
     Stability: 0 - Deprecated: Use
     [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][buffer_from_arraybuf]
@@ -331,6 +343,9 @@ console.log(buf);
 ```
 
 ### new Buffer(size)
+<!-- YAML
+deprecated: v6.0.0
+-->
 
     Stability: 0 - Deprecated: Use
     [`Buffer.alloc(size[, fill[, encoding]])`][buffer_alloc] instead (also
@@ -360,6 +375,9 @@ console.log(buf);
 ```
 
 ### new Buffer(str[, encoding])
+<!-- YAML
+deprecated: v6.0.0
+-->
 
     Stability: 0 - Deprecated:
     Use [`Buffer.from(str[, encoding])`][buffer_from_string] instead.
@@ -383,6 +401,9 @@ console.log(buf2.toString());
 ```
 
 ### Class Method: Buffer.alloc(size[, fill[, encoding]])
+<!-- YAML
+added: v5.10.0
+-->
 
 * `size` {Number}
 * `fill` {Value} Default: `undefined`
@@ -427,6 +448,9 @@ contents will *never contain sensitive data*.
 A `TypeError` will be thrown if `size` is not a number.
 
 ### Class Method: Buffer.allocUnsafe(size)
+<!-- YAML
+added: v5.10.0
+-->
 
 * `size` {Number}
 
@@ -469,6 +493,9 @@ difference is subtle but can be important when an application requires the
 additional performance that `Buffer.allocUnsafe(size)` provides.
 
 ### Class Method: Buffer.allocUnsafeSlow(size)
+<!-- YAML
+added: v5.10.0
+-->
 
 * `size` {Number}
 
@@ -541,6 +568,9 @@ returns the actual byte length.
 Otherwise, converts to `String` and returns the byte length of string.
 
 ### Class Method: Buffer.compare(buf1, buf2)
+<!-- YAML
+added: v0.11.13
+-->
 
 * `buf1` {Buffer}
 * `buf2` {Buffer}
@@ -555,6 +585,9 @@ arr.sort(Buffer.compare);
 ```
 
 ### Class Method: Buffer.concat(list[, totalLength])
+<!-- YAML
+added: v0.7.11
+-->
 
 * `list` {Array} List of Buffer objects to concat
 * `totalLength` {Number} Total length of the Buffers in the list
@@ -590,6 +623,9 @@ console.log(bufA.length);
 ```
 
 ### Class Method: Buffer.from(array)
+<!-- YAML
+added: v3.0.0
+-->
 
 * `array` {Array}
 
@@ -604,6 +640,9 @@ const buf = Buffer.from([0x62,0x75,0x66,0x66,0x65,0x72]);
 A `TypeError` will be thrown if `array` is not an `Array`.
 
 ### Class Method: Buffer.from(arrayBuffer[, byteOffset[, length]])
+<!-- YAML
+added: v5.10.0
+-->
 
 * `arrayBuffer` {ArrayBuffer} The `.buffer` property of a `TypedArray` or
   a `new ArrayBuffer()`
@@ -644,6 +683,9 @@ console.log(buf.length);
 A `TypeError` will be thrown if `arrayBuffer` is not an `ArrayBuffer`.
 
 ### Class Method: Buffer.from(buffer)
+<!-- YAML
+added: v3.0.0
+-->
 
 * `buffer` {Buffer}
 
@@ -663,6 +705,9 @@ console.log(buf2.toString());
 A `TypeError` will be thrown if `buffer` is not a `Buffer`.
 
 ### Class Method: Buffer.from(str[, encoding])
+<!-- YAML
+added: v5.10.0
+-->
 
 * `str` {String} String to encode.
 * `encoding` {String} Encoding to use, Default: `'utf8'`
@@ -693,6 +738,9 @@ A `TypeError` will be thrown if `str` is not a string.
 Returns 'true' if `obj` is a Buffer.
 
 ### Class Method: Buffer.isEncoding(encoding)
+<!-- YAML
+added: v0.9.1
+-->
 
 * `encoding` {String} The encoding string to test
 * Return: {Boolean}
@@ -701,9 +749,10 @@ Returns true if the `encoding` is a valid encoding argument, or false
 otherwise.
 
 ### buf[index]
-
-<!--type=property-->
-<!--name=[index]-->
+<!-- YAML
+type: property
+name: [index]
+-->
 
 The index operator `[index]` can be used to get and set the octet at position
 `index` in the Buffer. The values refer to individual bytes, so the legal value
@@ -724,6 +773,9 @@ console.log(buf.toString('ascii'));
 ```
 
 ### buf.compare(target[, targetStart[, targetEnd[, sourceStart[, sourceEnd]]]])
+<!-- YAML
+added: v0.11.13
+-->
 
 * `target` {Buffer}
 * `targetStart` {Integer} The offset within `target` at which to begin
@@ -827,6 +879,9 @@ console.log(buf.toString());
 ```
 
 ### buf.entries()
+<!-- YAML
+added: v1.1.0
+-->
 
 * Return: {Iterator}
 
@@ -848,6 +903,9 @@ for (var pair of buf.entries()) {
 ```
 
 ### buf.equals(otherBuffer)
+<!-- YAML
+added: v1.0.0
+-->
 
 * `otherBuffer` {Buffer}
 * Return: {Boolean}
@@ -867,6 +925,9 @@ console.log(buf1.equals(buf3));
 ```
 
 ### buf.fill(value[, offset[, end]][, encoding])
+<!-- YAML
+added: v0.5.0
+-->
 
 * `value` {String|Buffer|Number}
 * `offset` {Number} Default: 0
@@ -899,6 +960,9 @@ Buffer(3).fill('\u0222');
 ```
 
 ### buf.indexOf(value[, byteOffset][, encoding])
+<!-- YAML
+added: v1.5.0
+-->
 
 * `value` {String|Buffer|Number}
 * `byteOffset` {Number} Default: 0
@@ -936,6 +1000,9 @@ utf16Buffer.indexOf('\u03a3', -4, 'ucs2');
 ```
 
 ### buf.includes(value[, byteOffset][, encoding])
+<!-- YAML
+added: v5.3.0
+-->
 
 * `value` {String|Buffer|Number}
 * `byteOffset` {Number} Default: 0
@@ -969,6 +1036,9 @@ buf.includes('this', 4);
 ```
 
 ### buf.keys()
+<!-- YAML
+added: v1.1.0
+-->
 
 * Return: {Iterator}
 
@@ -989,6 +1059,9 @@ for (var key of buf.keys()) {
 ```
 
 ### buf.lastIndexOf(value[, byteOffset][, encoding])
+<!-- YAML
+added: v6.0.0
+-->
 
 * `value` {String|Buffer|Number}
 * `byteOffset` {Number} Default: `buf.length`
@@ -1195,6 +1268,9 @@ buf.readInt32LE(1);
 
 ### buf.readIntBE(offset, byteLength[, noAssert])
 ### buf.readIntLE(offset, byteLength[, noAssert])
+<!-- YAML
+added: v1.0.0
+-->
 
 * `offset` {Number} `0 <= offset <= buf.length - byteLength`
 * `byteLength` {Number} `0 < byteLength <= 6`
@@ -1299,6 +1375,9 @@ console.log(buf.readUInt32LE(0));
 
 ### buf.readUIntBE(offset, byteLength[, noAssert])
 ### buf.readUIntLE(offset, byteLength[, noAssert])
+<!-- YAML
+added: v1.0.0
+-->
 
 * `offset` {Number} `0 <= offset <= buf.length - byteLength`
 * `byteLength` {Number} `0 < byteLength <= 6`
@@ -1368,6 +1447,9 @@ buf.slice(-5, -2).toString();
 ```
 
 ### buf.swap16()
+<!-- YAML
+added: v5.10.0
+-->
 
 * Return: {Buffer}
 
@@ -1386,6 +1468,9 @@ console.log(buf);
 ```
 
 ### buf.swap32()
+<!-- YAML
+added: v5.10.0
+-->
 
 * Return: {Buffer}
 
@@ -1429,6 +1514,9 @@ buf.toString(undefined,0,5);
 ```
 
 ### buf.toJSON()
+<!-- YAML
+added: v0.9.2
+-->
 
 * Return: {Object}
 
@@ -1455,6 +1543,9 @@ console.log(copy.toString());
 ```
 
 ### buf.values()
+<!-- YAML
+added: v1.1.0
+-->
 
 * Return: {Iterator}
 
@@ -1657,6 +1748,9 @@ console.log(buf);
 
 ### buf.writeIntBE(value, offset, byteLength[, noAssert])
 ### buf.writeIntLE(value, offset, byteLength[, noAssert])
+<!-- YAML
+added: v1.0.0
+-->
 
 * `value` {Number} Bytes to be written to Buffer
 * `offset` {Number} `0 <= offset <= buf.length - byteLength`
@@ -1821,6 +1915,9 @@ Note that this is a property on the `buffer` module as returned by
 `require('buffer')`, not on the Buffer global or a Buffer instance.
 
 ## Class: SlowBuffer
+<!-- YAML
+deprecated: v6.0.0
+-->
 
     Stability: 0 - Deprecated: Use
     [`Buffer.allocUnsafeSlow(size)`][buffer_allocunsafeslow] instead.
@@ -1854,6 +1951,9 @@ Use of `SlowBuffer` should be used only as a last resort *after* a developer
 has observed undue memory retention in their applications.
 
 ### new SlowBuffer(size)
+<!-- YAML
+deprecated: v6.0.0
+-->
 
     Stability: 0 - Deprecated: Use
     [`Buffer.allocUnsafeSlow(size)`][buffer_allocunsafeslow] instead.
