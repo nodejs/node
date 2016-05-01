@@ -10,20 +10,30 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow `null` comparisons without type-checking operators",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "BinaryExpression": function(node) {
-            var badOperator = node.operator === "==" || node.operator === "!=";
+    create: function(context) {
 
-            if (node.right.type === "Literal" && node.right.raw === "null" && badOperator ||
-                    node.left.type === "Literal" && node.left.raw === "null" && badOperator) {
-                context.report(node, "Use ‘===’ to compare with ‘null’.");
+        return {
+
+            BinaryExpression: function(node) {
+                var badOperator = node.operator === "==" || node.operator === "!=";
+
+                if (node.right.type === "Literal" && node.right.raw === "null" && badOperator ||
+                        node.left.type === "Literal" && node.left.raw === "null" && badOperator) {
+                    context.report(node, "Use ‘===’ to compare with ‘null’.");
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

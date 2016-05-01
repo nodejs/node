@@ -1,7 +1,6 @@
 /**
  * @fileoverview Rule to check for the usage of var.
  * @author Jamund Ferguson
- * @copyright 2014 Jamund Ferguson. All rights reserved.
  */
 
 "use strict";
@@ -10,17 +9,27 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "require `let` or `const` instead of `var`",
+            category: "ECMAScript 6",
+            recommended: false
+        },
 
-    return {
-        "VariableDeclaration": function(node) {
-            if (node.kind === "var") {
-                context.report(node, "Unexpected var, use let or const instead.");
+        schema: []
+    },
+
+    create: function(context) {
+
+        return {
+            VariableDeclaration: function(node) {
+                if (node.kind === "var") {
+                    context.report(node, "Unexpected var, use let or const instead.");
+                }
             }
-        }
 
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

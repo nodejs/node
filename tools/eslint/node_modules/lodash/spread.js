@@ -1,5 +1,6 @@
 var apply = require('./_apply'),
     arrayPush = require('./_arrayPush'),
+    castSlice = require('./_castSlice'),
     rest = require('./rest'),
     toInteger = require('./toInteger');
 
@@ -50,7 +51,7 @@ function spread(func, start) {
   start = start === undefined ? 0 : nativeMax(toInteger(start), 0);
   return rest(function(args) {
     var array = args[start],
-        otherArgs = args.slice(0, start);
+        otherArgs = castSlice(args, 0, start);
 
     if (array) {
       arrayPush(otherArgs, array);

@@ -1,7 +1,6 @@
 /**
  * @fileoverview A rule to suggest using of const declaration for variables that are never reassigned after declared.
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
  */
 
 "use strict";
@@ -179,90 +178,100 @@ function groupByDestructuring(variables) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var options = context.options[0] || {};
-    var checkingMixedDestructuring = options.destructuring !== "all";
-    var variables = null;
-
-    /**
-     * Reports a given reference.
-     *
-     * @param {escope.Reference} reference - A reference to report.
-     * @returns {void}
-     */
-    function report(reference) {
-        var id = reference.identifier;
-
-        context.report({
-            node: id,
-            message: "'{{name}}' is never reassigned, use 'const' instead.",
-            data: id
-        });
-    }
-
-    /**
-     * Reports a given variable if the variable should be declared as const.
-     *
-     * @param {escope.Variable} variable - A variable to report.
-     * @returns {void}
-     */
-    function checkVariable(variable) {
-        var writer = getWriteReferenceIfShouldBeConst(variable);
-
-        if (writer) {
-            report(writer);
-        }
-    }
-
-    /**
-     * Reports given references if all of the reference should be declared as
-     * const.
-     *
-     * The argument 'writers' is an array of references.
-     * This reference is the result of
-     * 'getWriteReferenceIfShouldBeConst(variable)', so it's nullable.
-     * In simple declaration or assignment cases, the length of the array is 1.
-     * In destructuring cases, the length of the array can be 2 or more.
-     *
-     * @param {(escope.Reference|null)[]} writers - References which are grouped
-     *      by destructuring to report.
-     * @returns {void}
-     */
-    function checkGroup(writers) {
-        if (writers.every(Boolean)) {
-            writers.forEach(report);
-        }
-    }
-
-    return {
-        "Program": function() {
-            variables = [];
+module.exports = {
+    meta: {
+        docs: {
+            description: "require `const` declarations for variables that are never reassigned after declared",
+            category: "ECMAScript 6",
+            recommended: false
         },
 
-        "Program:exit": function() {
-            if (checkingMixedDestructuring) {
-                variables.forEach(checkVariable);
-            } else {
-                groupByDestructuring(variables).forEach(checkGroup);
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    destructuring: {enum: ["any", "all"]}
+                },
+                additionalProperties: false
             }
+        ]
+    },
 
-            variables = null;
-        },
+    create: function(context) {
+        var options = context.options[0] || {};
+        var checkingMixedDestructuring = options.destructuring !== "all";
+        var variables = null;
 
-        "VariableDeclaration": function(node) {
-            if (node.kind === "let" && !isInitOfForStatement(node)) {
-                pushAll(variables, context.getDeclaredVariables(node));
+        /**
+         * Reports a given reference.
+         *
+         * @param {escope.Reference} reference - A reference to report.
+         * @returns {void}
+         */
+        function report(reference) {
+            var id = reference.identifier;
+
+            context.report({
+                node: id,
+                message: "'{{name}}' is never reassigned, use 'const' instead.",
+                data: id
+            });
+        }
+
+        /**
+         * Reports a given variable if the variable should be declared as const.
+         *
+         * @param {escope.Variable} variable - A variable to report.
+         * @returns {void}
+         */
+        function checkVariable(variable) {
+            var writer = getWriteReferenceIfShouldBeConst(variable);
+
+            if (writer) {
+                report(writer);
             }
         }
-    };
+
+        /**
+         * Reports given references if all of the reference should be declared as
+         * const.
+         *
+         * The argument 'writers' is an array of references.
+         * This reference is the result of
+         * 'getWriteReferenceIfShouldBeConst(variable)', so it's nullable.
+         * In simple declaration or assignment cases, the length of the array is 1.
+         * In destructuring cases, the length of the array can be 2 or more.
+         *
+         * @param {(escope.Reference|null)[]} writers - References which are grouped
+         *      by destructuring to report.
+         * @returns {void}
+         */
+        function checkGroup(writers) {
+            if (writers.every(Boolean)) {
+                writers.forEach(report);
+            }
+        }
+
+        return {
+            Program: function() {
+                variables = [];
+            },
+
+            "Program:exit": function() {
+                if (checkingMixedDestructuring) {
+                    variables.forEach(checkVariable);
+                } else {
+                    groupByDestructuring(variables).forEach(checkGroup);
+                }
+
+                variables = null;
+            },
+
+            VariableDeclaration: function(node) {
+                if (node.kind === "let" && !isInitOfForStatement(node)) {
+                    pushAll(variables, context.getDeclaredVariables(node));
+                }
+            }
+        };
+    }
 };
-
-module.exports.schema = [
-    {
-        type: "object",
-        properties: {
-            destructuring: {enum: ["any", "all"]}
-        },
-        additionalProperties: false
-    }
-];

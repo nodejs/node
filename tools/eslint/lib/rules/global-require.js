@@ -1,7 +1,6 @@
 /**
  * @fileoverview Rule for disallowing require() outside of the top-level module context
  * @author Jamund Ferguson
- * @copyright 2015 Jamund Ferguson. All rights reserved.
  */
 
 "use strict";
@@ -49,22 +48,32 @@ function isShadowed(scope, node) {
     return reference && reference.resolved && reference.resolved.defs.length > 0;
 }
 
-module.exports = function(context) {
-    return {
-        "CallExpression": function(node) {
-            var currentScope = context.getScope(),
-                isGoodRequire;
+module.exports = {
+    meta: {
+        docs: {
+            description: "require `require()` calls to be placed at top-level module scope",
+            category: "Node.js and CommonJS",
+            recommended: false
+        },
 
-            if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {
-                isGoodRequire = context.getAncestors().every(function(parent) {
-                    return ACCEPTABLE_PARENTS.indexOf(parent.type) > -1;
-                });
-                if (!isGoodRequire) {
-                    context.report(node, "Unexpected require().");
+        schema: []
+    },
+
+    create: function(context) {
+        return {
+            CallExpression: function(node) {
+                var currentScope = context.getScope(),
+                    isGoodRequire;
+
+                if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {
+                    isGoodRequire = context.getAncestors().every(function(parent) {
+                        return ACCEPTABLE_PARENTS.indexOf(parent.type) > -1;
+                    });
+                    if (!isGoodRequire) {
+                        context.report(node, "Unexpected require().");
+                    }
                 }
             }
-        }
-    };
+        };
+    }
 };
-
-module.exports.schema = [];

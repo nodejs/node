@@ -1,8 +1,6 @@
 /**
  * @fileoverview Validates configs.
  * @author Brandon Mills
- * @copyright 2015 Brandon Mills
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -37,16 +35,16 @@ function getRuleOptionsSchema(id) {
     if (Array.isArray(schema)) {
         if (schema.length) {
             return {
-                "type": "array",
-                "items": schema,
-                "minItems": 0,
-                "maxItems": schema.length
+                type: "array",
+                items: schema,
+                minItems: 0,
+                maxItems: schema.length
             };
         } else {
             return {
-                "type": "array",
-                "minItems": 0,
-                "maxItems": 0
+                type: "array",
+                minItems: 0,
+                maxItems: 0
             };
         }
     }

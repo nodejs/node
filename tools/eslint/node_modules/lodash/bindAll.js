@@ -14,8 +14,7 @@ var arrayEach = require('./_arrayEach'),
  * @memberOf _
  * @category Util
  * @param {Object} object The object to bind and assign the bound methods to.
- * @param {...(string|string[])} methodNames The object method names to bind,
- *  specified individually or in arrays.
+ * @param {...(string|string[])} methodNames The object method names to bind.
  * @returns {Object} Returns `object`.
  * @example
  *

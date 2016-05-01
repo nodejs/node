@@ -1,8 +1,6 @@
 /**
  * @fileoverview Plugins manager
  * @author Nicholas C. Zakas
- * @copyright 2016 Nicholas C. Zakas. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
 

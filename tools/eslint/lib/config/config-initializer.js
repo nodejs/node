@@ -1,7 +1,6 @@
 /**
  * @fileoverview Config initialization wizard.
  * @author Ilya Volodin
- * @copyright 2015 Ilya Volodin. All rights reserved.
  */
 
 "use strict";
@@ -50,6 +49,10 @@ function writeFile(config, format) {
 
     ConfigFile.write(config, "./.eslintrc" + extname);
     log.info("Successfully created .eslintrc" + extname + " file in " + process.cwd());
+
+    if (config.installedESLint) {
+        log.info("ESLint was installed locally. We recommend using this local copy instead of your globally-installed copy.");
+    }
 }
 
 /**
@@ -76,12 +79,24 @@ function installModules(config) {
     if (modules.length === 0) {
         return;
     }
+
+    // Add eslint to list in case user does not have it installed locally
+    modules.unshift("eslint");
+
     installStatus = npmUtil.checkDevDeps(modules);
 
     // Install packages which aren't already installed
     modulesToInstall = Object.keys(installStatus).filter(function(module) {
-        return installStatus[module] === false;
+        var notInstalled = installStatus[module] === false;
+
+        if (module === "eslint" && notInstalled) {
+            log.info("Local ESLint installation not found.");
+            config.installedESLint = true;
+        }
+
+        return notInstalled;
     });
+
     if (modulesToInstall.length > 0) {
         log.info("Installing " + modulesToInstall.join(", "));
         npmUtil.installSyncSaveDev(modulesToInstall);
@@ -366,7 +381,7 @@ function promptUser(callback) {
                 name: "env",
                 message: "Where will your code run?",
                 default: ["browser"],
-                choices: [{name: "Node", value: "node"}, {name: "Browser", value: "browser"}]
+                choices: [{name: "Browser", value: "browser"}, {name: "Node", value: "node"}]
             },
             {
                 type: "confirm",

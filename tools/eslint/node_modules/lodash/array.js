@@ -25,6 +25,7 @@ module.exports = {
   'join': require('./join'),
   'last': require('./last'),
   'lastIndexOf': require('./lastIndexOf'),
+  'nth': require('./nth'),
   'pull': require('./pull'),
   'pullAll': require('./pullAll'),
   'pullAllBy': require('./pullAllBy'),

@@ -9,17 +9,27 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow deleting variables",
+            category: "Variables",
+            recommended: true
+        },
 
-    return {
+        schema: []
+    },
 
-        "UnaryExpression": function(node) {
-            if (node.operator === "delete" && node.argument.type === "Identifier") {
-                context.report(node, "Variables should not be deleted.");
+    create: function(context) {
+
+        return {
+
+            UnaryExpression: function(node) {
+                if (node.operator === "delete" && node.argument.type === "Identifier") {
+                    context.report(node, "Variables should not be deleted.");
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

@@ -1,7 +1,6 @@
 /**
  * @fileoverview A rule to suggest using of the spread operator instead of `.apply()`.
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
  */
 
 "use strict";
@@ -71,22 +70,32 @@ function isValidThisArg(expectedThis, thisArg, context) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    return {
-        "CallExpression": function(node) {
-            if (!isVariadicApplyCalling(node)) {
-                return;
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "require spread operators instead of `.apply()`",
+            category: "ECMAScript 6",
+            recommended: false
+        },
 
-            var applied = node.callee.object;
-            var expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
-            var thisArg = node.arguments[0];
+        schema: []
+    },
 
-            if (isValidThisArg(expectedThis, thisArg, context)) {
-                context.report(node, "use the spread operator instead of the '.apply()'.");
+    create: function(context) {
+        return {
+            CallExpression: function(node) {
+                if (!isVariadicApplyCalling(node)) {
+                    return;
+                }
+
+                var applied = node.callee.object;
+                var expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
+                var thisArg = node.arguments[0];
+
+                if (isValidThisArg(expectedThis, thisArg, context)) {
+                    context.report(node, "use the spread operator instead of the '.apply()'.");
+                }
             }
-        }
-    };
+        };
+    }
 };
-
-module.exports.schema = [];
