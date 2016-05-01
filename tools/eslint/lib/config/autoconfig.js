@@ -1,8 +1,6 @@
 /**
  * @fileoverview Used for creating a suggested configuration based on project code.
  * @author Ian VanSchooten
- * @copyright 2015 Ian VanSchooten. All rights reserved.
- * See LICENSE in root directory for full license.
  */
 
 "use strict";
@@ -312,7 +310,13 @@ Registry.prototype = {
                 var lintResults = eslint.verify(sourceCodes[filename], lintConfig);
 
                 lintResults.forEach(function(result) {
-                    lintedRegistry.rules[result.ruleId][ruleSetIdx].errorCount += 1;
+
+                    // It is possible that the error is from a configuration comment
+                    // in a linted file, in which case there may not be a config
+                    // set in this ruleSetIdx. (https://github.com/eslint/eslint/issues/5992)
+                    if (lintedRegistry.rules[result.ruleId][ruleSetIdx]) {
+                        lintedRegistry.rules[result.ruleId][ruleSetIdx].errorCount += 1;
+                    }
                 });
 
                 ruleSetIdx += 1;

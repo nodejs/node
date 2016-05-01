@@ -1,9 +1,11 @@
 /**
  * @fileoverview Handle logging for ESLint
  * @author Gyandeep Singh
- * @copyright 2015 Gyandeep Singh. All rights reserved.
  */
+
 "use strict";
+
+/* eslint no-console: "off" */
 
 /* istanbul ignore next */
 module.exports = {

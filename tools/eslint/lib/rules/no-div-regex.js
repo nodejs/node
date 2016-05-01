@@ -9,19 +9,29 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow division operators explicitly at the beginning of regular expressions",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "Literal": function(node) {
-            var token = context.getFirstToken(node);
+    create: function(context) {
 
-            if (token.type === "RegularExpression" && token.value[1] === "=") {
-                context.report(node, "A regular expression literal can be confused with '/='.");
+        return {
+
+            Literal: function(node) {
+                var token = context.getFirstToken(node);
+
+                if (token.type === "RegularExpression" && token.value[1] === "=") {
+                    context.report(node, "A regular expression literal can be confused with '/='.");
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

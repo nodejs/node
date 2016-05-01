@@ -1,8 +1,6 @@
 /**
  * @fileoverview An object that creates fix commands for rules.
  * @author Nicholas C. Zakas
- * @copyright 2015 Nicholas C. Zakas. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
 

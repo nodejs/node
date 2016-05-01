@@ -1,7 +1,6 @@
 /**
  * @fileoverview Disallows or enforces spaces inside computed properties.
  * @author Jamund Ferguson
- * @copyright 2015 Jamund Ferguson. All rights reserved.
  */
 "use strict";
 
@@ -11,143 +10,155 @@ var astUtils = require("../ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var sourceCode = context.getSourceCode();
-    var propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
+module.exports = {
+    meta: {
+        docs: {
+            description: "enforce consistent spacing inside computed property brackets",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
+        fixable: "whitespace",
 
-    /**
-    * Reports that there shouldn't be a space after the first token
-    * @param {ASTNode} node - The node to report in the event of an error.
-    * @param {Token} token - The token to use for the report.
-    * @param {Token} tokenAfter - The token after `token`.
-    * @returns {void}
-    */
-    function reportNoBeginningSpace(node, token, tokenAfter) {
-        context.report({
-            node: node,
-            loc: token.loc.start,
-            message: "There should be no space after '" + token.value + "'",
-            fix: function(fixer) {
-                return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
+        schema: [
+            {
+                enum: ["always", "never"]
             }
-        });
-    }
+        ]
+    },
 
-    /**
-    * Reports that there shouldn't be a space before the last token
-    * @param {ASTNode} node - The node to report in the event of an error.
-    * @param {Token} token - The token to use for the report.
-    * @param {Token} tokenBefore - The token before `token`.
-    * @returns {void}
-    */
-    function reportNoEndingSpace(node, token, tokenBefore) {
-        context.report({
-            node: node,
-            loc: token.loc.start,
-            message: "There should be no space before '" + token.value + "'",
-            fix: function(fixer) {
-                return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
-            }
-        });
-    }
+    create: function(context) {
+        var sourceCode = context.getSourceCode();
+        var propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
 
-    /**
-    * Reports that there should be a space after the first token
-    * @param {ASTNode} node - The node to report in the event of an error.
-    * @param {Token} token - The token to use for the report.
-    * @returns {void}
-    */
-    function reportRequiredBeginningSpace(node, token) {
-        context.report({
-            node: node,
-            loc: token.loc.start,
-            message: "A space is required after '" + token.value + "'",
-            fix: function(fixer) {
-                return fixer.insertTextAfter(token, " ");
-            }
-        });
-    }
+        //--------------------------------------------------------------------------
+        // Helpers
+        //--------------------------------------------------------------------------
 
-    /**
-    * Reports that there should be a space before the last token
-    * @param {ASTNode} node - The node to report in the event of an error.
-    * @param {Token} token - The token to use for the report.
-    * @returns {void}
-    */
-    function reportRequiredEndingSpace(node, token) {
-        context.report({
-            node: node,
-            loc: token.loc.start,
-            message: "A space is required before '" + token.value + "'",
-            fix: function(fixer) {
-                return fixer.insertTextBefore(token, " ");
-            }
-        });
-    }
+        /**
+        * Reports that there shouldn't be a space after the first token
+        * @param {ASTNode} node - The node to report in the event of an error.
+        * @param {Token} token - The token to use for the report.
+        * @param {Token} tokenAfter - The token after `token`.
+        * @returns {void}
+        */
+        function reportNoBeginningSpace(node, token, tokenAfter) {
+            context.report({
+                node: node,
+                loc: token.loc.start,
+                message: "There should be no space after '" + token.value + "'",
+                fix: function(fixer) {
+                    return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
+                }
+            });
+        }
 
-    /**
-     * Returns a function that checks the spacing of a node on the property name
-     * that was passed in.
-     * @param {String} propertyName The property on the node to check for spacing
-     * @returns {Function} A function that will check spacing on a node
-     */
-    function checkSpacing(propertyName) {
-        return function(node) {
-            if (!node.computed) {
-                return;
-            }
+        /**
+        * Reports that there shouldn't be a space before the last token
+        * @param {ASTNode} node - The node to report in the event of an error.
+        * @param {Token} token - The token to use for the report.
+        * @param {Token} tokenBefore - The token before `token`.
+        * @returns {void}
+        */
+        function reportNoEndingSpace(node, token, tokenBefore) {
+            context.report({
+                node: node,
+                loc: token.loc.start,
+                message: "There should be no space before '" + token.value + "'",
+                fix: function(fixer) {
+                    return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
+                }
+            });
+        }
 
-            var property = node[propertyName];
+        /**
+        * Reports that there should be a space after the first token
+        * @param {ASTNode} node - The node to report in the event of an error.
+        * @param {Token} token - The token to use for the report.
+        * @returns {void}
+        */
+        function reportRequiredBeginningSpace(node, token) {
+            context.report({
+                node: node,
+                loc: token.loc.start,
+                message: "A space is required after '" + token.value + "'",
+                fix: function(fixer) {
+                    return fixer.insertTextAfter(token, " ");
+                }
+            });
+        }
 
-            var before = context.getTokenBefore(property),
-                first = context.getFirstToken(property),
-                last = context.getLastToken(property),
-                after = context.getTokenAfter(property);
+        /**
+        * Reports that there should be a space before the last token
+        * @param {ASTNode} node - The node to report in the event of an error.
+        * @param {Token} token - The token to use for the report.
+        * @returns {void}
+        */
+        function reportRequiredEndingSpace(node, token) {
+            context.report({
+                node: node,
+                loc: token.loc.start,
+                message: "A space is required before '" + token.value + "'",
+                fix: function(fixer) {
+                    return fixer.insertTextBefore(token, " ");
+                }
+            });
+        }
 
-            if (astUtils.isTokenOnSameLine(before, first)) {
-                if (propertyNameMustBeSpaced) {
-                    if (!sourceCode.isSpaceBetweenTokens(before, first) && astUtils.isTokenOnSameLine(before, first)) {
-                        reportRequiredBeginningSpace(node, before);
-                    }
-                } else {
-                    if (sourceCode.isSpaceBetweenTokens(before, first)) {
-                        reportNoBeginningSpace(node, before, first);
+        /**
+         * Returns a function that checks the spacing of a node on the property name
+         * that was passed in.
+         * @param {String} propertyName The property on the node to check for spacing
+         * @returns {Function} A function that will check spacing on a node
+         */
+        function checkSpacing(propertyName) {
+            return function(node) {
+                if (!node.computed) {
+                    return;
+                }
+
+                var property = node[propertyName];
+
+                var before = context.getTokenBefore(property),
+                    first = context.getFirstToken(property),
+                    last = context.getLastToken(property),
+                    after = context.getTokenAfter(property);
+
+                if (astUtils.isTokenOnSameLine(before, first)) {
+                    if (propertyNameMustBeSpaced) {
+                        if (!sourceCode.isSpaceBetweenTokens(before, first) && astUtils.isTokenOnSameLine(before, first)) {
+                            reportRequiredBeginningSpace(node, before);
+                        }
+                    } else {
+                        if (sourceCode.isSpaceBetweenTokens(before, first)) {
+                            reportNoBeginningSpace(node, before, first);
+                        }
                     }
                 }
-            }
 
-            if (astUtils.isTokenOnSameLine(last, after)) {
-                if (propertyNameMustBeSpaced) {
-                    if (!sourceCode.isSpaceBetweenTokens(last, after) && astUtils.isTokenOnSameLine(last, after)) {
-                        reportRequiredEndingSpace(node, after);
-                    }
-                } else {
-                    if (sourceCode.isSpaceBetweenTokens(last, after)) {
-                        reportNoEndingSpace(node, after, last);
+                if (astUtils.isTokenOnSameLine(last, after)) {
+                    if (propertyNameMustBeSpaced) {
+                        if (!sourceCode.isSpaceBetweenTokens(last, after) && astUtils.isTokenOnSameLine(last, after)) {
+                            reportRequiredEndingSpace(node, after);
+                        }
+                    } else {
+                        if (sourceCode.isSpaceBetweenTokens(last, after)) {
+                            reportNoEndingSpace(node, after, last);
+                        }
                     }
                 }
-            }
+            };
+        }
+
+
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
+
+        return {
+            Property: checkSpacing("key"),
+            MemberExpression: checkSpacing("property")
         };
+
     }
-
-
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
-
-    return {
-        Property: checkSpacing("key"),
-        MemberExpression: checkSpacing("property")
-    };
-
 };
-
-module.exports.schema = [
-    {
-        "enum": ["always", "never"]
-    }
-];

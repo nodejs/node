@@ -1,8 +1,6 @@
 /**
  * @fileoverview disallow unncessary concatenation of template strings
  * @author Henry Zhu
- * @copyright 2015 Henry Zhu. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
 
@@ -57,38 +55,48 @@ function getRight(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    return {
-        BinaryExpression: function(node) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow unnecessary concatenation of literals or template literals",
+            category: "Best Practices",
+            recommended: false
+        },
 
-            // check if not concatenation
-            if (node.operator !== "+") {
-                return;
-            }
+        schema: []
+    },
 
-            // account for the `foo + "a" + "b"` case
-            var left = getLeft(node);
-            var right = getRight(node);
+    create: function(context) {
+        return {
+            BinaryExpression: function(node) {
 
-            if (astUtils.isStringLiteral(left) &&
-                astUtils.isStringLiteral(right) &&
-                astUtils.isTokenOnSameLine(left, right)
-            ) {
-
-                // move warning location to operator
-                var operatorToken = context.getTokenAfter(left);
-
-                while (operatorToken.value !== "+") {
-                    operatorToken = context.getTokenAfter(operatorToken);
+                // check if not concatenation
+                if (node.operator !== "+") {
+                    return;
                 }
 
-                context.report(
-                    node,
-                    operatorToken.loc.start,
-                    "Unexpected string concatenation of literals.");
-            }
-        }
-    };
-};
+                // account for the `foo + "a" + "b"` case
+                var left = getLeft(node);
+                var right = getRight(node);
 
-module.exports.schema = [];
+                if (astUtils.isStringLiteral(left) &&
+                    astUtils.isStringLiteral(right) &&
+                    astUtils.isTokenOnSameLine(left, right)
+                ) {
+
+                    // move warning location to operator
+                    var operatorToken = context.getTokenAfter(left);
+
+                    while (operatorToken.value !== "+") {
+                        operatorToken = context.getTokenAfter(operatorToken);
+                    }
+
+                    context.report(
+                        node,
+                        operatorToken.loc.start,
+                        "Unexpected string concatenation of literals.");
+                }
+            }
+        };
+    }
+};

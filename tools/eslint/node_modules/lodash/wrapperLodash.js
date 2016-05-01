@@ -91,7 +91,7 @@ var hasOwnProperty = objectProto.hasOwnProperty;
  * `isSet`, `isString`, `isUndefined`, `isTypedArray`, `isWeakMap`, `isWeakSet`,
  * `join`, `kebabCase`, `last`, `lastIndexOf`, `lowerCase`, `lowerFirst`,
  * `lt`, `lte`, `max`, `maxBy`, `mean`, `meanBy`, `min`, `minBy`, `multiply`,
- * `noConflict`, `noop`, `now`, `pad`, `padEnd`, `padStart`, `parseInt`,
+ * `noConflict`, `noop`, `now`, `nth`, `pad`, `padEnd`, `padStart`, `parseInt`,
  * `pop`, `random`, `reduce`, `reduceRight`, `repeat`, `result`, `round`,
  * `runInContext`, `sample`, `shift`, `size`, `snakeCase`, `some`, `sortedIndex`,
  * `sortedIndexBy`, `sortedLastIndex`, `sortedLastIndexBy`, `startCase`,

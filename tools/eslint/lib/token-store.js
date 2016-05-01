@@ -1,8 +1,6 @@
 /**
  * @fileoverview Object to handle access and retrieval of tokens.
  * @author Brandon Mills
- * @copyright 2014 Nicholas C. Zakas. All rights reserved.
- * @copyright 2014 Brandon Mills. All rights reserved.
  */
 "use strict";
 

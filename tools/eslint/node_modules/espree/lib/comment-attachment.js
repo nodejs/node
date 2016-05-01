@@ -1,28 +1,6 @@
 /**
  * @fileoverview Attaches comments to the AST.
  * @author Nicholas C. Zakas
- * @copyright 2015 Nicholas C. Zakas. All rights reserved.
- * @copyright 2011-2013 Ariya Hidayat <ariya.hidayat@gmail.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
- * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in the
- *   documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 "use strict";
@@ -40,42 +18,9 @@ var astNodeTypes = require("./ast-node-types");
 var extra = {
     trailingComments: [],
     leadingComments: [],
-    bottomRightStack: []
+    bottomRightStack: [],
+    previousNode: null
 };
-
-/** Recursively remove leading comments that are incorrectly added when no
- * expression exists between comment and the current node
- * @param {node} node to recursively check
- * @returns {void}
- */
-function removeExtraLeadingComments(node) {
-    var i, j;
-
-    if (!node.body) {
-        return;
-    }
-
-    if (Array.isArray(node.body)) {
-        // i must start at 0 so that we can check all indices recursively
-        for (i = 0; i < node.body.length; i++) {
-            // i must be greater than 0 to perform the check on the previous node
-            if (i > 0 && node.body[i].leadingComments) {
-                for (j = 0; j < node.body[i].leadingComments.length; j++) {
-                    if (node.body[i].leadingComments[j].range[1] < node.body[i - 1].range[1]) {
-                        node.body[i].leadingComments.splice(j, 1);
-                    }
-                }
-
-                if (node.body[i].leadingComments.length === 0) {
-                    delete node.body[i].leadingComments;
-                }
-            }
-            removeExtraLeadingComments(node.body[i]);
-        }
-    } else {
-        removeExtraLeadingComments(node.body);
-    }
-}
 
 //------------------------------------------------------------------------------
 // Public
@@ -87,6 +32,7 @@ module.exports = {
         extra.trailingComments = [];
         extra.leadingComments = [];
         extra.bottomRightStack = [];
+        extra.previousNode = null;
     },
 
     addComment: function(comment) {
@@ -97,11 +43,10 @@ module.exports = {
     processComment: function(node) {
         var lastChild,
             trailingComments,
-            i;
+            i,
+            j;
 
         if (node.type === astNodeTypes.Program) {
-            removeExtraLeadingComments(node);
-
             if (node.body.length > 0) {
                 return;
             }
@@ -162,10 +107,19 @@ module.exports = {
                 }
             }
         } else if (extra.leadingComments.length > 0) {
-
             if (extra.leadingComments[extra.leadingComments.length - 1].range[1] <= node.range[0]) {
-                node.leadingComments = extra.leadingComments;
-                extra.leadingComments = [];
+                if (extra.previousNode) {
+                    for (j = 0; j < extra.leadingComments.length; j++) {
+                        if (extra.leadingComments[j].end < extra.previousNode.end) {
+                            extra.leadingComments.splice(j, 1);
+                            j--;
+                        }
+                    }
+                }
+                if (extra.leadingComments.length > 0) {
+                    node.leadingComments = extra.leadingComments;
+                    extra.leadingComments = [];
+                }
             } else {
 
                 // https://github.com/eslint/espree/issues/2
@@ -208,6 +162,8 @@ module.exports = {
                 }
             }
         }
+
+        extra.previousNode = node;
 
         if (trailingComments) {
             node.trailingComments = trailingComments;
