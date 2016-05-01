@@ -10,36 +10,46 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the unary operators `++` and `--`",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    var config = context.options[0],
-        allowInForAfterthought = false;
-
-    if (typeof config === "object") {
-        allowInForAfterthought = config.allowForLoopAfterthoughts === true;
-    }
-
-    return {
-
-        "UpdateExpression": function(node) {
-            if (allowInForAfterthought && node.parent.type === "ForStatement") {
-                return;
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    allowForLoopAfterthoughts: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
             }
-            context.report(node, "Unary operator '" + node.operator + "' used.");
+        ]
+    },
+
+    create: function(context) {
+
+        var config = context.options[0],
+            allowInForAfterthought = false;
+
+        if (typeof config === "object") {
+            allowInForAfterthought = config.allowForLoopAfterthoughts === true;
         }
 
-    };
+        return {
 
-};
-
-module.exports.schema = [
-    {
-        "type": "object",
-        "properties": {
-            "allowForLoopAfterthoughts": {
-                "type": "boolean"
+            UpdateExpression: function(node) {
+                if (allowInForAfterthought && node.parent.type === "ForStatement") {
+                    return;
+                }
+                context.report(node, "Unary operator '" + node.operator + "' used.");
             }
-        },
-        "additionalProperties": false
+
+        };
+
     }
-];
+};

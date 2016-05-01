@@ -7,8 +7,8 @@ var identity = require('./identity');
  * @param {*} value The value to inspect.
  * @returns {Function} Returns cast function.
  */
-function baseCastFunction(value) {
+function castFunction(value) {
   return typeof value == 'function' ? value : identity;
 }
 
-module.exports = baseCastFunction;
+module.exports = castFunction;

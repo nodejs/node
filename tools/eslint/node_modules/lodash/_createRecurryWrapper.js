@@ -1,5 +1,4 @@
-var copyArray = require('./_copyArray'),
-    isLaziable = require('./_isLaziable'),
+var isLaziable = require('./_isLaziable'),
     setData = require('./_setData');
 
 /** Used to compose bitmasks for wrapper metadata. */
@@ -30,7 +29,6 @@ var BIND_FLAG = 1,
  */
 function createRecurryWrapper(func, bitmask, wrapFunc, placeholder, thisArg, partials, holders, argPos, ary, arity) {
   var isCurry = bitmask & CURRY_FLAG,
-      newArgPos = argPos ? copyArray(argPos) : undefined,
       newHolders = isCurry ? holders : undefined,
       newHoldersRight = isCurry ? undefined : holders,
       newPartials = isCurry ? partials : undefined,
@@ -44,7 +42,7 @@ function createRecurryWrapper(func, bitmask, wrapFunc, placeholder, thisArg, par
   }
   var newData = [
     func, bitmask, thisArg, newPartials, newHolders, newPartialsRight,
-    newHoldersRight, newArgPos, ary, arity
+    newHoldersRight, argPos, ary, arity
   ];
 
   var result = wrapFunc.apply(undefined, newData);

@@ -1,7 +1,6 @@
 /**
  * @fileoverview Tracks performance of individual rules.
  * @author Brandon Mills
- * @copyright 2014 Brandon Mills. All rights reserved.
  */
 
 "use strict";
@@ -102,7 +101,7 @@ function display(data) {
         return ALIGN[index](":", w + 1, "-");
     }).join("|"));
 
-    console.log(table.join("\n"));
+    console.log(table.join("\n"));      // eslint-disable-line no-console
 }
 
 /* istanbul ignore next */

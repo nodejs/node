@@ -1,8 +1,6 @@
 /**
  * @fileoverview Rule to disallow use of unmodified expressions in loop conditions
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -245,115 +243,125 @@ function updateModifiedFlag(conditions, modifiers) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var groupMap = null;
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow unmodified loop conditions",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    /**
-     * Reports a given condition info.
-     *
-     * @param {LoopConditionInfo} condition - A loop condition info to report.
-     * @returns {void}
-     */
-    function report(condition) {
-        var node = condition.reference.identifier;
+        schema: []
+    },
 
-        context.report({
-            node: node,
-            message: "'{{name}}' is not modified in this loop.",
-            data: node
-        });
-    }
+    create: function(context) {
+        var groupMap = null;
 
-    /**
-     * Registers given conditions to the group the condition belongs to.
-     *
-     * @param {LoopConditionInfo[]} conditions - A loop condition info to
-     *      register.
-     * @returns {void}
-     */
-    function registerConditionsToGroup(conditions) {
-        for (var i = 0; i < conditions.length; ++i) {
-            var condition = conditions[i];
-
-            if (condition.group) {
-                var group = groupMap.get(condition.group);
-
-                if (!group) {
-                    group = [];
-                    groupMap.set(condition.group, group);
-                }
-                group.push(condition);
-            }
-        }
-    }
-
-    /**
-     * Reports references which are inside of unmodified groups.
-     *
-     * @param {LoopConditionInfo[]} conditions - A loop condition info to report.
-     * @returns {void}
-     */
-    function checkConditionsInGroup(conditions) {
-        if (conditions.every(isUnmodified)) {
-            conditions.forEach(report);
-        }
-    }
-
-    /**
-     * Finds unmodified references which are inside of a loop condition.
-     * Then reports the references which are outside of groups.
-     *
-     * @param {escope.Variable} variable - A variable to report.
-     * @returns {void}
-     */
-    function checkReferences(variable) {
-
-        // Gets references that exist in loop conditions.
-        var conditions = variable
-            .references
-            .map(toLoopCondition)
-            .filter(Boolean);
-
-        if (conditions.length === 0) {
-            return;
-        }
-
-        // Registers the conditions to belonging groups.
-        registerConditionsToGroup(conditions);
-
-        // Check the conditions are modified.
-        var modifiers = variable.references.filter(isWriteReference);
-
-        if (modifiers.length > 0) {
-            updateModifiedFlag(conditions, modifiers);
-        }
-
-        /*
-         * Reports the conditions which are not belonging to groups.
-         * Others will be reported after all variables are done.
+        /**
+         * Reports a given condition info.
+         *
+         * @param {LoopConditionInfo} condition - A loop condition info to report.
+         * @returns {void}
          */
-        conditions
-            .filter(isUnmodifiedAndNotBelongToGroup)
-            .forEach(report);
-    }
+        function report(condition) {
+            var node = condition.reference.identifier;
 
-    return {
-        "Program:exit": function() {
-            var queue = [context.getScope()];
+            context.report({
+                node: node,
+                message: "'{{name}}' is not modified in this loop.",
+                data: node
+            });
+        }
 
-            groupMap = new Map();
+        /**
+         * Registers given conditions to the group the condition belongs to.
+         *
+         * @param {LoopConditionInfo[]} conditions - A loop condition info to
+         *      register.
+         * @returns {void}
+         */
+        function registerConditionsToGroup(conditions) {
+            for (var i = 0; i < conditions.length; ++i) {
+                var condition = conditions[i];
 
-            var scope;
+                if (condition.group) {
+                    var group = groupMap.get(condition.group);
 
-            while ((scope = queue.pop())) {
-                pushAll(queue, scope.childScopes);
-                scope.variables.forEach(checkReferences);
+                    if (!group) {
+                        group = [];
+                        groupMap.set(condition.group, group);
+                    }
+                    group.push(condition);
+                }
+            }
+        }
+
+        /**
+         * Reports references which are inside of unmodified groups.
+         *
+         * @param {LoopConditionInfo[]} conditions - A loop condition info to report.
+         * @returns {void}
+         */
+        function checkConditionsInGroup(conditions) {
+            if (conditions.every(isUnmodified)) {
+                conditions.forEach(report);
+            }
+        }
+
+        /**
+         * Finds unmodified references which are inside of a loop condition.
+         * Then reports the references which are outside of groups.
+         *
+         * @param {escope.Variable} variable - A variable to report.
+         * @returns {void}
+         */
+        function checkReferences(variable) {
+
+            // Gets references that exist in loop conditions.
+            var conditions = variable
+                .references
+                .map(toLoopCondition)
+                .filter(Boolean);
+
+            if (conditions.length === 0) {
+                return;
             }
 
-            groupMap.forEach(checkConditionsInGroup);
-            groupMap = null;
-        }
-    };
-};
+            // Registers the conditions to belonging groups.
+            registerConditionsToGroup(conditions);
 
-module.exports.schema = [];
+            // Check the conditions are modified.
+            var modifiers = variable.references.filter(isWriteReference);
+
+            if (modifiers.length > 0) {
+                updateModifiedFlag(conditions, modifiers);
+            }
+
+            /*
+             * Reports the conditions which are not belonging to groups.
+             * Others will be reported after all variables are done.
+             */
+            conditions
+                .filter(isUnmodifiedAndNotBelongToGroup)
+                .forEach(report);
+        }
+
+        return {
+            "Program:exit": function() {
+                var queue = [context.getScope()];
+
+                groupMap = new Map();
+
+                var scope;
+
+                while ((scope = queue.pop())) {
+                    pushAll(queue, scope.childScopes);
+                    scope.variables.forEach(checkReferences);
+                }
+
+                groupMap.forEach(checkConditionsInGroup);
+                groupMap = null;
+            }
+        };
+    }
+};

@@ -1,8 +1,6 @@
 /**
  * @fileoverview A rule to choose between single and double quote marks
  * @author Matt DuVall <http://www.mattduvall.com/>, Brandon Payton
- * @copyright 2013 Matt DuVall. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -18,17 +16,17 @@ var astUtils = require("../ast-utils");
 //------------------------------------------------------------------------------
 
 var QUOTE_SETTINGS = {
-    "double": {
+    double: {
         quote: "\"",
         alternateQuote: "'",
         description: "doublequote"
     },
-    "single": {
+    single: {
         quote: "'",
         alternateQuote: "\"",
         description: "singlequote"
     },
-    "backtick": {
+    backtick: {
         quote: "`",
         alternateQuote: "\"",
         description: "backtick"
@@ -74,154 +72,189 @@ var AVOID_ESCAPE = "avoid-escape",
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "enforce the consistent use of either backticks, double, or single quotes",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    var quoteOption = context.options[0],
-        settings = QUOTE_SETTINGS[quoteOption || "double"],
-        avoidEscape = context.options[1] === AVOID_ESCAPE,
-        sourceCode = context.getSourceCode();
+        fixable: "code",
 
-    /**
-     * Determines if a given node is part of JSX syntax.
-     * @param {ASTNode} node The node to check.
-     * @returns {boolean} True if the node is a JSX node, false if not.
-     * @private
-     */
-    function isJSXElement(node) {
-        return node.type.indexOf("JSX") === 0;
-    }
+        schema: [
+            {
+                enum: ["single", "double", "backtick"]
+            },
+            {
+                anyOf: [
+                    {
+                        enum: ["avoid-escape"]
+                    },
+                    {
+                        type: "object",
+                        properties: {
+                            avoidEscape: {
+                                type: "boolean"
+                            },
+                            allowTemplateLiterals: {
+                                type: "boolean"
+                            }
+                        },
+                        additionalProperties: false
+                    }
+                ]
+            }
+        ]
+    },
 
-    /**
-     * Checks whether or not a given node is a directive.
-     * The directive is a `ExpressionStatement` which has only a string literal.
-     * @param {ASTNode} node - A node to check.
-     * @returns {boolean} Whether or not the node is a directive.
-     * @private
-     */
-    function isDirective(node) {
-        return (
-            node.type === "ExpressionStatement" &&
-            node.expression.type === "Literal" &&
-            typeof node.expression.value === "string"
-        );
-    }
+    create: function(context) {
 
-    /**
-     * Checks whether or not a given node is a part of directive prologues.
-     * See also: http://www.ecma-international.org/ecma-262/6.0/#sec-directive-prologues-and-the-use-strict-directive
-     * @param {ASTNode} node - A node to check.
-     * @returns {boolean} Whether or not the node is a part of directive prologues.
-     * @private
-     */
-    function isPartOfDirectivePrologue(node) {
-        var block = node.parent.parent;
+        var quoteOption = context.options[0],
+            settings = QUOTE_SETTINGS[quoteOption || "double"],
+            options = context.options[1],
+            avoidEscape = options && options.avoidEscape === true,
+            allowTemplateLiterals = options && options.allowTemplateLiterals === true,
+            sourceCode = context.getSourceCode();
 
-        if (block.type !== "Program" && (block.type !== "BlockStatement" || !FUNCTION_TYPE.test(block.parent.type))) {
+        // deprecated
+        if (options === AVOID_ESCAPE) {
+            avoidEscape = true;
+        }
+
+        /**
+         * Determines if a given node is part of JSX syntax.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} True if the node is a JSX node, false if not.
+         * @private
+         */
+        function isJSXElement(node) {
+            return node.type.indexOf("JSX") === 0;
+        }
+
+        /**
+         * Checks whether or not a given node is a directive.
+         * The directive is a `ExpressionStatement` which has only a string literal.
+         * @param {ASTNode} node - A node to check.
+         * @returns {boolean} Whether or not the node is a directive.
+         * @private
+         */
+        function isDirective(node) {
+            return (
+                node.type === "ExpressionStatement" &&
+                node.expression.type === "Literal" &&
+                typeof node.expression.value === "string"
+            );
+        }
+
+        /**
+         * Checks whether or not a given node is a part of directive prologues.
+         * See also: http://www.ecma-international.org/ecma-262/6.0/#sec-directive-prologues-and-the-use-strict-directive
+         * @param {ASTNode} node - A node to check.
+         * @returns {boolean} Whether or not the node is a part of directive prologues.
+         * @private
+         */
+        function isPartOfDirectivePrologue(node) {
+            var block = node.parent.parent;
+
+            if (block.type !== "Program" && (block.type !== "BlockStatement" || !FUNCTION_TYPE.test(block.parent.type))) {
+                return false;
+            }
+
+            // Check the node is at a prologue.
+            for (var i = 0; i < block.body.length; ++i) {
+                var statement = block.body[i];
+
+                if (statement === node.parent) {
+                    return true;
+                }
+                if (!isDirective(statement)) {
+                    break;
+                }
+            }
+
             return false;
         }
 
-        // Check the node is at a prologue.
-        for (var i = 0; i < block.body.length; ++i) {
-            var statement = block.body[i];
+        /**
+         * Checks whether or not a given node is allowed as non backtick.
+         * @param {ASTNode} node - A node to check.
+         * @returns {boolean} Whether or not the node is allowed as non backtick.
+         * @private
+         */
+        function isAllowedAsNonBacktick(node) {
+            var parent = node.parent;
 
-            if (statement === node.parent) {
-                return true;
-            }
-            if (!isDirective(statement)) {
-                break;
+            switch (parent.type) {
+
+                // Directive Prologues.
+                case "ExpressionStatement":
+                    return isPartOfDirectivePrologue(node);
+
+                // LiteralPropertyName.
+                case "Property":
+                    return parent.key === node && !parent.computed;
+
+                // ModuleSpecifier.
+                case "ImportDeclaration":
+                case "ExportNamedDeclaration":
+                case "ExportAllDeclaration":
+                    return parent.source === node;
+
+                // Others don't allow.
+                default:
+                    return false;
             }
         }
 
-        return false;
-    }
+        return {
 
-    /**
-     * Checks whether or not a given node is allowed as non backtick.
-     * @param {ASTNode} node - A node to check.
-     * @returns {boolean} Whether or not the node is allowed as non backtick.
-     * @private
-     */
-    function isAllowedAsNonBacktick(node) {
-        var parent = node.parent;
+            Literal: function(node) {
+                var val = node.value,
+                    rawVal = node.raw,
+                    isValid;
 
-        switch (parent.type) {
+                if (settings && typeof val === "string") {
+                    isValid = (quoteOption === "backtick" && isAllowedAsNonBacktick(node)) ||
+                        isJSXElement(node.parent) ||
+                        astUtils.isSurroundedBy(rawVal, settings.quote);
 
-            // Directive Prologues.
-            case "ExpressionStatement":
-                return isPartOfDirectivePrologue(node);
+                    if (!isValid && avoidEscape) {
+                        isValid = astUtils.isSurroundedBy(rawVal, settings.alternateQuote) && rawVal.indexOf(settings.quote) >= 0;
+                    }
 
-            // LiteralPropertyName.
-            case "Property":
-                return parent.key === node && !parent.computed;
+                    if (!isValid) {
+                        context.report({
+                            node: node,
+                            message: "Strings must use " + settings.description + ".",
+                            fix: function(fixer) {
+                                return fixer.replaceText(node, settings.convert(node.raw));
+                            }
+                        });
+                    }
+                }
+            },
 
-            // ModuleSpecifier.
-            case "ImportDeclaration":
-            case "ExportNamedDeclaration":
-            case "ExportAllDeclaration":
-                return parent.source === node;
+            TemplateLiteral: function(node) {
 
-            // Others don't allow.
-            default:
-                return false;
-        }
-    }
-
-    return {
-
-        "Literal": function(node) {
-            var val = node.value,
-                rawVal = node.raw,
-                isValid;
-
-            if (settings && typeof val === "string") {
-                isValid = (quoteOption === "backtick" && isAllowedAsNonBacktick(node)) ||
-                    isJSXElement(node.parent) ||
-                    astUtils.isSurroundedBy(rawVal, settings.quote);
-
-                if (!isValid && avoidEscape) {
-                    isValid = astUtils.isSurroundedBy(rawVal, settings.alternateQuote) && rawVal.indexOf(settings.quote) >= 0;
+                // If backticks are expected or it's a tagged template, then this shouldn't throw an errors
+                if (allowTemplateLiterals || quoteOption === "backtick" || node.parent.type === "TaggedTemplateExpression") {
+                    return;
                 }
 
-                if (!isValid) {
+                var shouldWarn = node.quasis.length === 1 && (node.quasis[0].value.cooked.indexOf("\n") === -1);
+
+                if (shouldWarn) {
                     context.report({
                         node: node,
                         message: "Strings must use " + settings.description + ".",
                         fix: function(fixer) {
-                            return fixer.replaceText(node, settings.convert(node.raw));
+                            return fixer.replaceText(node, settings.convert(sourceCode.getText(node)));
                         }
                     });
                 }
             }
-        },
+        };
 
-        "TemplateLiteral": function(node) {
-
-            // If backticks are expected or it's a tagged template, then this shouldn't throw an errors
-            if (quoteOption === "backtick" || node.parent.type === "TaggedTemplateExpression") {
-                return;
-            }
-
-            var shouldWarn = node.quasis.length === 1 && (node.quasis[0].value.cooked.indexOf("\n") === -1);
-
-            if (shouldWarn) {
-                context.report({
-                    node: node,
-                    message: "Strings must use " + settings.description + ".",
-                    fix: function(fixer) {
-                        return fixer.replaceText(node, settings.convert(sourceCode.getText(node)));
-                    }
-                });
-            }
-        }
-    };
-
-};
-
-module.exports.schema = [
-    {
-        "enum": ["single", "double", "backtick"]
-    },
-    {
-        "enum": ["avoid-escape"]
     }
-];
+};

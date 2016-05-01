@@ -198,7 +198,7 @@ module.exports = function(acorn) {
   pp.jsx_parseNamespacedName = function() {
     var startPos = this.start, startLoc = this.startLoc;
     var name = this.jsx_parseIdentifier();
-    if (!this.eat(tt.colon)) return name;
+    if (!this.options.plugins.jsx.allowNamespaces || !this.eat(tt.colon)) return name;
     var node = this.startNodeAt(startPos, startLoc);
     node.namespace = name;
     node.name = this.jsx_parseIdentifier();
@@ -211,6 +211,9 @@ module.exports = function(acorn) {
   pp.jsx_parseElementName = function() {
     var startPos = this.start, startLoc = this.startLoc;
     var node = this.jsx_parseNamespacedName();
+    if (this.type === tt.dot && node.type === 'JSXNamespacedName' && !this.options.plugins.jsx.allowNamespacedObjects) {
+      this.unexpected();
+    }
     while (this.eat(tt.dot)) {
       var newNode = this.startNodeAt(startPos, startLoc);
       newNode.object = node;
@@ -356,7 +359,20 @@ module.exports = function(acorn) {
     return this.jsx_parseElementAt(startPos, startLoc);
   };
 
-  acorn.plugins.jsx = function(instance) {
+  acorn.plugins.jsx = function(instance, opts) {
+    if (!opts) {
+      return;
+    }
+
+    if (typeof opts !== 'object') {
+      opts = {};
+    }
+
+    instance.options.plugins.jsx = {
+      allowNamespaces: opts.allowNamespaces !== false,
+      allowNamespacedObjects: !!opts.allowNamespacedObjects
+    };
+
     instance.extend('parseExprAtom', function(inner) {
       return function(refShortHandDefaultPos) {
         if (this.type === tt.jsxText)

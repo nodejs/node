@@ -1,10 +1,10 @@
 var arrayMap = require('./_arrayMap'),
-    baseCastKey = require('./_baseCastKey'),
     baseDifference = require('./_baseDifference'),
     baseFlatten = require('./_baseFlatten'),
     basePick = require('./_basePick'),
     getAllKeysIn = require('./_getAllKeysIn'),
-    rest = require('./rest');
+    rest = require('./rest'),
+    toKey = require('./_toKey');
 
 /**
  * The opposite of `_.pick`; this method creates an object composed of the
@@ -16,8 +16,7 @@ var arrayMap = require('./_arrayMap'),
  * @memberOf _
  * @category Object
  * @param {Object} object The source object.
- * @param {...(string|string[])} [props] The property identifiers to omit,
- *  specified individually or in arrays.
+ * @param {...(string|string[])} [props] The property identifiers to omit.
  * @returns {Object} Returns the new object.
  * @example
  *
@@ -30,7 +29,7 @@ var omit = rest(function(object, props) {
   if (object == null) {
     return {};
   }
-  props = arrayMap(baseFlatten(props, 1), baseCastKey);
+  props = arrayMap(baseFlatten(props, 1), toKey);
   return basePick(object, baseDifference(getAllKeysIn(object), props));
 });
 

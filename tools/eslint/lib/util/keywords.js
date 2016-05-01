@@ -1,7 +1,6 @@
 /**
  * @fileoverview A shared list of ES3 keywords.
  * @author Josh Perez
- * @copyright 2015 Jose Roberto Vidal. All rights reserved.
  */
 "use strict";
 
