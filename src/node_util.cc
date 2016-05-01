@@ -40,15 +40,13 @@ using v8::Value;
 #undef V
 
 static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   // Return undefined if it's not a proxy.
   if (!args[0]->IsProxy())
     return;
 
   Local<Proxy> proxy = args[0].As<Proxy>();
 
-  Local<Array> ret = Array::New(env->isolate(), 2);
+  Local<Array> ret = Array::New(args.GetIsolate(), 2);
   ret->Set(0, proxy->GetTarget());
   ret->Set(1, proxy->GetHandler());
 
