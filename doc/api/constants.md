@@ -8,7 +8,7 @@ exposed by the `constants` module itself.
 
 ## Error Constants
 
-The following error constants are adapted directly from the Posix errno
+The following error constants are adapted directly from the Posix `errno`
 standards. See http://man7.org/linux/man-pages/man3/errno.3.html for more
 details about specific error constants.
 
@@ -1070,13 +1070,13 @@ Limit engine usage to PKEY_ASN1_METHS
 #### constants.RSA_PKCS1_PSS_PADDING
 #### constants.POINT_CONVERSION_COMPRESSED
 #### constants.POINT_CONVERSION_UNCOMPRESSED
-3### constants.POINT_CONVERSION_HYBRID
+#### constants.POINT_CONVERSION_HYBRID
 
 ### Node.js Crypto Constants
 
 #### constants.defaultCoreCipherList
 
-Specifies the built in default cipher list used by Node.js
+Specifies the built in default cipher list used by Node.js.
 
 #### constants.defaultCipherList
 
