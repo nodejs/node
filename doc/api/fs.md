@@ -244,7 +244,7 @@ Emitted when the WriteStream's file is opened.
 
 ### Event: 'close'
 
-Emitted when the ReadStream's underlying file descriptor has been closed. Comes from fs.close() method. 
+Emitted when the WriteStream's underlying file descriptor has been closed. Comes from fs.close() method. 
 
 ### writeStream.bytesWritten
 
