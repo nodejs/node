@@ -1,8 +1,6 @@
 /**
  * @fileoverview Restrict usage of duplicate imports.
  * @author Simen Bekkhus
- * @copyright 2016 Simen Bekkhus. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
 
@@ -98,29 +96,39 @@ function handleExports(context, importsInFile, exportsInFile) {
     };
 }
 
-module.exports = function(context) {
-    var includeExports = (context.options[0] || {}).includeExports,
-        importsInFile = [],
-        exportsInFile = [];
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow duplicate module imports",
+            category: "ECMAScript 6",
+            recommended: false
+        },
 
-    var handlers = {
-        "ImportDeclaration": handleImports(context, includeExports, importsInFile, exportsInFile)
-    };
-
-    if (includeExports) {
-        handlers.ExportNamedDeclaration = handleExports(context, importsInFile, exportsInFile);
-        handlers.ExportAllDeclaration = handleExports(context, importsInFile, exportsInFile);
-    }
-
-    return handlers;
-};
-
-module.exports.schema = [{
-    "type": "object",
-    "properties": {
-        "includeExports": {
-            "type": "boolean"
-        }
+        schema: [{
+            type: "object",
+            properties: {
+                includeExports: {
+                    type: "boolean"
+                }
+            },
+            additionalProperties: false
+        }]
     },
-    "additionalProperties": false
-}];
+
+    create: function(context) {
+        var includeExports = (context.options[0] || {}).includeExports,
+            importsInFile = [],
+            exportsInFile = [];
+
+        var handlers = {
+            ImportDeclaration: handleImports(context, includeExports, importsInFile, exportsInFile)
+        };
+
+        if (includeExports) {
+            handlers.ExportNamedDeclaration = handleExports(context, importsInFile, exportsInFile);
+            handlers.ExportAllDeclaration = handleExports(context, importsInFile, exportsInFile);
+        }
+
+        return handlers;
+    }
+};

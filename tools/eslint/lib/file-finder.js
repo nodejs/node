@@ -1,10 +1,8 @@
 /**
  * @fileoverview Util class to find config files.
  * @author Aliaksei Shytkin
- * @copyright 2014 Michael McLaughlin. All rights reserved.
- * @copyright 2014 Aliaksei Shytkin. All rights reserved.
- * See LICENSE in root directory for full license.
  */
+
 "use strict";
 
 //------------------------------------------------------------------------------

@@ -9,24 +9,34 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "require `for-in` loops to include an `if` statement",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "ForInStatement": function(node) {
+    create: function(context) {
 
-            /*
-             * If the for-in statement has {}, then the real body is the body
-             * of the BlockStatement. Otherwise, just use body as provided.
-             */
-            var body = node.body.type === "BlockStatement" ? node.body.body[0] : node.body;
+        return {
 
-            if (body && body.type !== "IfStatement") {
-                context.report(node, "The body of a for-in should be wrapped in an if statement to filter unwanted properties from the prototype.");
+            ForInStatement: function(node) {
+
+                /*
+                 * If the for-in statement has {}, then the real body is the body
+                 * of the BlockStatement. Otherwise, just use body as provided.
+                 */
+                var body = node.body.type === "BlockStatement" ? node.body.body[0] : node.body;
+
+                if (body && body.type !== "IfStatement") {
+                    context.report(node, "The body of a for-in should be wrapped in an if statement to filter unwanted properties from the prototype.");
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

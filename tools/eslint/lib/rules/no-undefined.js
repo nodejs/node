@@ -8,21 +8,31 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of `undefined` as an identifier",
+            category: "Variables",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "Identifier": function(node) {
-            if (node.name === "undefined") {
-                var parent = context.getAncestors().pop();
+    create: function(context) {
 
-                if (!parent || parent.type !== "MemberExpression" || node !== parent.property || parent.computed) {
-                    context.report(node, "Unexpected use of undefined.");
+        return {
+
+            Identifier: function(node) {
+                if (node.name === "undefined") {
+                    var parent = context.getAncestors().pop();
+
+                    if (!parent || parent.type !== "MemberExpression" || node !== parent.property || parent.computed) {
+                        context.report(node, "Unexpected use of undefined.");
+                    }
                 }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

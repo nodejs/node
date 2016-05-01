@@ -8,8 +8,8 @@ var isArray = require('./isArray'),
  * @param {*} value The value to inspect.
  * @returns {Array} Returns the cast property path array.
  */
-function baseCastPath(value) {
+function castPath(value) {
   return isArray(value) ? value : stringToPath(value);
 }
 
-module.exports = baseCastPath;
+module.exports = castPath;

@@ -1,7 +1,6 @@
 /**
  * @fileoverview A rule to suggest using template literals instead of string concatenation.
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
  */
 
 "use strict";
@@ -55,43 +54,53 @@ function hasNonStringLiteral(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var done = Object.create(null);
-
-    /**
-     * Reports if a given node is string concatenation with non string literals.
-     *
-     * @param {ASTNode} node - A node to check.
-     * @returns {void}
-     */
-    function checkForStringConcat(node) {
-        if (!astUtils.isStringLiteral(node) || !isConcatenation(node.parent)) {
-            return;
-        }
-
-        var topBinaryExpr = getTopConcatBinaryExpression(node.parent);
-
-        // Checks whether or not this node had been checked already.
-        if (done[topBinaryExpr.range[0]]) {
-            return;
-        }
-        done[topBinaryExpr.range[0]] = true;
-
-        if (hasNonStringLiteral(topBinaryExpr)) {
-            context.report(
-                topBinaryExpr,
-                "Unexpected string concatenation.");
-        }
-    }
-
-    return {
-        Program: function() {
-            done = Object.create(null);
+module.exports = {
+    meta: {
+        docs: {
+            description: "require template literals instead of string concatenation",
+            category: "ECMAScript 6",
+            recommended: false
         },
 
-        Literal: checkForStringConcat,
-        TemplateLiteral: checkForStringConcat
-    };
-};
+        schema: []
+    },
 
-module.exports.schema = [];
+    create: function(context) {
+        var done = Object.create(null);
+
+        /**
+         * Reports if a given node is string concatenation with non string literals.
+         *
+         * @param {ASTNode} node - A node to check.
+         * @returns {void}
+         */
+        function checkForStringConcat(node) {
+            if (!astUtils.isStringLiteral(node) || !isConcatenation(node.parent)) {
+                return;
+            }
+
+            var topBinaryExpr = getTopConcatBinaryExpression(node.parent);
+
+            // Checks whether or not this node had been checked already.
+            if (done[topBinaryExpr.range[0]]) {
+                return;
+            }
+            done[topBinaryExpr.range[0]] = true;
+
+            if (hasNonStringLiteral(topBinaryExpr)) {
+                context.report(
+                    topBinaryExpr,
+                    "Unexpected string concatenation.");
+            }
+        }
+
+        return {
+            Program: function() {
+                done = Object.create(null);
+            },
+
+            Literal: checkForStringConcat,
+            TemplateLiteral: checkForStringConcat
+        };
+    }
+};

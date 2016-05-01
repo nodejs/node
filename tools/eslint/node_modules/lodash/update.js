@@ -1,5 +1,5 @@
-var baseCastFunction = require('./_baseCastFunction'),
-    baseUpdate = require('./_baseUpdate');
+var baseUpdate = require('./_baseUpdate'),
+    castFunction = require('./_castFunction');
 
 /**
  * This method is like `_.set` except that accepts `updater` to produce the
@@ -29,7 +29,7 @@ var baseCastFunction = require('./_baseCastFunction'),
  * // => 0
  */
 function update(object, path, updater) {
-  return object == null ? object : baseUpdate(object, path, baseCastFunction(updater));
+  return object == null ? object : baseUpdate(object, path, castFunction(updater));
 }
 
 module.exports = update;

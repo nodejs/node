@@ -1,9 +1,9 @@
 var arrayMap = require('./_arrayMap'),
-    baseCastKey = require('./_baseCastKey'),
     copyArray = require('./_copyArray'),
     isArray = require('./isArray'),
     isSymbol = require('./isSymbol'),
-    stringToPath = require('./_stringToPath');
+    stringToPath = require('./_stringToPath'),
+    toKey = require('./_toKey');
 
 /**
  * Converts `value` to a property path array.
@@ -33,7 +33,7 @@ var arrayMap = require('./_arrayMap'),
  */
 function toPath(value) {
   if (isArray(value)) {
-    return arrayMap(value, baseCastKey);
+    return arrayMap(value, toKey);
   }
   return isSymbol(value) ? [value] : copyArray(stringToPath(value));
 }
