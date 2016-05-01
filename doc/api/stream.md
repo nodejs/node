@@ -572,6 +572,12 @@ Examples of writable streams include:
 * [TCP sockets][]
 * [child process stdin][]
 * [`process.stdout`][], [`process.stderr`][]
+ 
+Event: 'close'
+
+Emitted when the stream and any of its underlying resources (a file descriptor, for example) have been closed. The event indicates that no more events will be emitted, and no further computation will occur.
+
+Not all streams will emit the 'close' event.
 
 #### Event: 'drain'
 
