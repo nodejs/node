@@ -8,7 +8,7 @@ exposed by the `constants` module itself.
 
 ## Error Constants
 
-The following error constants are adapted directly from the Posix `errno`
+The following error constants are adapted directly from the POSIX `errno`
 standards. See http://man7.org/linux/man-pages/man3/errno.3.html for more
 details about specific error constants.
 
@@ -719,7 +719,9 @@ Sent to a process to notify of a bad argument.
 Synonym for `constants.SIGSYS`
 
 
-## File I/O Constants
+## File Access Constants
+
+The following flags are meant for use with [`fs.access()`][].
 
 ### constants.F_OK
 
@@ -736,6 +738,8 @@ Flag indicating that the file can be written by the calling process.
 ### constants.X_OK
 
 Flag indicating that the file can be executed by the calling process.
+
+## File I/O Flags
 
 ### constants.O_RDONLY
 
@@ -1081,3 +1085,5 @@ Specifies the built in default cipher list used by Node.js.
 #### constants.defaultCipherList
 
 Specifies the active default cipher list used by the current Node.js process.
+
+[`fs.access()`]: fs.html#fs_fs_access_path_mode_callback
