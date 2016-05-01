@@ -27,20 +27,30 @@ var regex = /^\/([^\\[]|\\.|\[([^\\\]]|\\.)+\])*\/[gimuy]*$/;
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow empty character classes in regular expressions",
+            category: "Possible Errors",
+            recommended: true
+        },
 
-    return {
+        schema: []
+    },
 
-        "Literal": function(node) {
-            var token = context.getFirstToken(node);
+    create: function(context) {
 
-            if (token.type === "RegularExpression" && !regex.test(token.value)) {
-                context.report(node, "Empty class.");
+        return {
+
+            Literal: function(node) {
+                var token = context.getFirstToken(node);
+
+                if (token.type === "RegularExpression" && !regex.test(token.value)) {
+                    context.report(node, "Empty class.");
+                }
             }
-        }
 
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

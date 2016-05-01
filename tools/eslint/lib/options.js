@@ -1,8 +1,8 @@
 /**
  * @fileoverview Options configuration for optionator.
  * @author George Zahariev
- * See LICENSE in root directory for full license.
  */
+
 "use strict";
 
 //------------------------------------------------------------------------------
@@ -173,8 +173,8 @@ module.exports = optionator({
         {
             option: "color",
             type: "Boolean",
-            default: "true",
-            description: "Disable color in piped output"
+            alias: "no-color",
+            description: "Force enabling/disabling of color"
         },
         {
             heading: "Miscellaneous"
@@ -213,7 +213,7 @@ module.exports = optionator({
             option: "inline-config",
             type: "Boolean",
             default: "true",
-            description: "Allow comments to change eslint config/rules"
+            description: "Prevent comments from changing config or rules"
         },
         {
             option: "print-config",

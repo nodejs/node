@@ -98,3 +98,9 @@ x.image = function (buf, opts) {
 
 	return ret + ':' + buf.toString('base64') + '\u0007';
 };
+
+x.iTerm = {};
+
+x.iTerm.setCwd = function (cwd) {
+	return '\u001b]50;CurrentDir=' + (cwd || process.cwd()) + '\u0007';
+};

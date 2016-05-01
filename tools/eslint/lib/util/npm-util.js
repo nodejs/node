@@ -1,8 +1,6 @@
 /**
  * @fileoverview Utility for executing npm commands.
  * @author Ian VanSchooten
- * @copyright 2016 Ilya Volodin. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";

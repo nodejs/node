@@ -8,32 +8,42 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow string concatenation with `__dirname` and `__filename`",
+            category: "Node.js and CommonJS",
+            recommended: false
+        },
 
-    var MATCHER = /^__(?:dir|file)name$/;
+        schema: []
+    },
 
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
+    create: function(context) {
 
-    return {
+        var MATCHER = /^__(?:dir|file)name$/;
 
-        "BinaryExpression": function(node) {
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
 
-            var left = node.left,
-                right = node.right;
+        return {
 
-            if (node.operator === "+" &&
-                    ((left.type === "Identifier" && MATCHER.test(left.name)) ||
-                    (right.type === "Identifier" && MATCHER.test(right.name)))
-            ) {
+            BinaryExpression: function(node) {
 
-                context.report(node, "Use path.join() or path.resolve() instead of + to create paths.");
+                var left = node.left,
+                    right = node.right;
+
+                if (node.operator === "+" &&
+                        ((left.type === "Identifier" && MATCHER.test(left.name)) ||
+                        (right.type === "Identifier" && MATCHER.test(right.name)))
+                ) {
+
+                    context.report(node, "Use path.join() or path.resolve() instead of + to create paths.");
+                }
             }
-        }
 
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

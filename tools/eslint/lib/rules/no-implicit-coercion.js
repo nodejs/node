@@ -1,7 +1,6 @@
 /**
  * @fileoverview A rule to disallow the type conversions with shorter notations.
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
  */
 
 "use strict";
@@ -144,104 +143,114 @@ function getOtherOperand(node, value) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var options = parseOptions(context.options[0]),
-        operatorAllowed = false;
-
-    return {
-        "UnaryExpression": function(node) {
-
-            // !!foo
-            operatorAllowed = options.allow.indexOf("!!") >= 0;
-            if (!operatorAllowed && options.boolean && isDoubleLogicalNegating(node)) {
-                context.report(
-                    node,
-                    "use `Boolean({{code}})` instead.", {
-                        code: context.getSource(node.argument.argument)
-                    });
-            }
-
-            // ~foo.indexOf(bar)
-            operatorAllowed = options.allow.indexOf("~") >= 0;
-            if (!operatorAllowed && options.boolean && isBinaryNegatingOfIndexOf(node)) {
-                context.report(
-                    node,
-                    "use `{{code}} !== -1` instead.", {
-                        code: context.getSource(node.argument)
-                    });
-            }
-
-            // +foo
-            operatorAllowed = options.allow.indexOf("+") >= 0;
-            if (!operatorAllowed && options.number && node.operator === "+" && !isNumeric(node.argument)) {
-                context.report(
-                    node,
-                    "use `Number({{code}})` instead.", {
-                        code: context.getSource(node.argument)
-                    });
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow shorthand type conversions",
+            category: "Best Practices",
+            recommended: false
         },
 
-        // Use `:exit` to prevent double reporting
-        "BinaryExpression:exit": function(node) {
-
-            // 1 * foo
-            operatorAllowed = options.allow.indexOf("*") >= 0;
-            var nonNumericOperand = !operatorAllowed && options.number && isMultiplyByOne(node) && getNonNumericOperand(node);
-
-            if (nonNumericOperand) {
-                context.report(
-                    node,
-                    "use `Number({{code}})` instead.", {
-                        code: context.getSource(nonNumericOperand)
-                    });
-            }
-
-            // "" + foo
-            operatorAllowed = options.allow.indexOf("+") >= 0;
-            if (!operatorAllowed && options.string && isConcatWithEmptyString(node)) {
-                context.report(
-                    node,
-                    "use `String({{code}})` instead.", {
-                        code: context.getSource(getOtherOperand(node, ""))
-                    });
-            }
-        },
-
-        "AssignmentExpression": function(node) {
-
-            // foo += ""
-            operatorAllowed = options.allow.indexOf("+") >= 0;
-            if (options.string && isAppendEmptyString(node)) {
-                context.report(
-                    node,
-                    "use `{{code}} = String({{code}})` instead.", {
-                        code: context.getSource(getOtherOperand(node, ""))
-                    });
-            }
-        }
-    };
-};
-
-module.exports.schema = [{
-    "type": "object",
-    "properties": {
-        "boolean": {
-            "type": "boolean"
-        },
-        "number": {
-            "type": "boolean"
-        },
-        "string": {
-            "type": "boolean"
-        },
-        "allow": {
-            "type": "array",
-            "items": {
-                "enum": ALLOWABLE_OPERATORS
+        schema: [{
+            type: "object",
+            properties: {
+                boolean: {
+                    type: "boolean"
+                },
+                number: {
+                    type: "boolean"
+                },
+                string: {
+                    type: "boolean"
+                },
+                allow: {
+                    type: "array",
+                    items: {
+                        enum: ALLOWABLE_OPERATORS
+                    },
+                    uniqueItems: true
+                }
             },
-            "uniqueItems": true
-        }
+            additionalProperties: false
+        }]
     },
-    "additionalProperties": false
-}];
+
+    create: function(context) {
+        var options = parseOptions(context.options[0]),
+            operatorAllowed = false;
+
+        return {
+            UnaryExpression: function(node) {
+
+                // !!foo
+                operatorAllowed = options.allow.indexOf("!!") >= 0;
+                if (!operatorAllowed && options.boolean && isDoubleLogicalNegating(node)) {
+                    context.report(
+                        node,
+                        "use `Boolean({{code}})` instead.", {
+                            code: context.getSource(node.argument.argument)
+                        });
+                }
+
+                // ~foo.indexOf(bar)
+                operatorAllowed = options.allow.indexOf("~") >= 0;
+                if (!operatorAllowed && options.boolean && isBinaryNegatingOfIndexOf(node)) {
+                    context.report(
+                        node,
+                        "use `{{code}} !== -1` instead.", {
+                            code: context.getSource(node.argument)
+                        });
+                }
+
+                // +foo
+                operatorAllowed = options.allow.indexOf("+") >= 0;
+                if (!operatorAllowed && options.number && node.operator === "+" && !isNumeric(node.argument)) {
+                    context.report(
+                        node,
+                        "use `Number({{code}})` instead.", {
+                            code: context.getSource(node.argument)
+                        });
+                }
+            },
+
+            // Use `:exit` to prevent double reporting
+            "BinaryExpression:exit": function(node) {
+
+                // 1 * foo
+                operatorAllowed = options.allow.indexOf("*") >= 0;
+                var nonNumericOperand = !operatorAllowed && options.number && isMultiplyByOne(node) && getNonNumericOperand(node);
+
+                if (nonNumericOperand) {
+                    context.report(
+                        node,
+                        "use `Number({{code}})` instead.", {
+                            code: context.getSource(nonNumericOperand)
+                        });
+                }
+
+                // "" + foo
+                operatorAllowed = options.allow.indexOf("+") >= 0;
+                if (!operatorAllowed && options.string && isConcatWithEmptyString(node)) {
+                    context.report(
+                        node,
+                        "use `String({{code}})` instead.", {
+                            code: context.getSource(getOtherOperand(node, ""))
+                        });
+                }
+            },
+
+            AssignmentExpression: function(node) {
+
+                // foo += ""
+                operatorAllowed = options.allow.indexOf("+") >= 0;
+                if (options.string && isAppendEmptyString(node)) {
+                    context.report(
+                        node,
+                        "use `{{code}} = String({{code}})` instead.", {
+                            code: context.getSource(getOtherOperand(node, ""))
+                        });
+                }
+            }
+        };
+    }
+};

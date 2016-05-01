@@ -1,11 +1,8 @@
 /**
  * @fileoverview Responsible for loading config files
  * @author Seth McLaughlin
- * @copyright 2014-2016 Nicholas C. Zakas. All rights reserved.
- * @copyright 2014 Michael McLaughlin. All rights reserved.
- * @copyright 2013 Seth McLaughlin. All rights reserved.
- * See LICENSE in root directory for full license.
  */
+
 "use strict";
 
 //------------------------------------------------------------------------------

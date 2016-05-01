@@ -1,18 +1,8 @@
 var baseRepeat = require('./_baseRepeat'),
+    castSlice = require('./_castSlice'),
+    reHasComplexSymbol = require('./_reHasComplexSymbol'),
     stringSize = require('./_stringSize'),
     stringToArray = require('./_stringToArray');
-
-/** Used to compose unicode character classes. */
-var rsAstralRange = '\\ud800-\\udfff',
-    rsComboMarksRange = '\\u0300-\\u036f\\ufe20-\\ufe23',
-    rsComboSymbolsRange = '\\u20d0-\\u20f0',
-    rsVarRange = '\\ufe0e\\ufe0f';
-
-/** Used to compose unicode capture groups. */
-var rsZWJ = '\\u200d';
-
-/** Used to detect strings with [zero-width joiners or code points from the astral planes](http://eev.ee/blog/2015/09/12/dark-corners-of-unicode/). */
-var reHasComplexSymbol = RegExp('[' + rsZWJ + rsAstralRange  + rsComboMarksRange + rsComboSymbolsRange + rsVarRange + ']');
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
 var nativeCeil = Math.ceil;
@@ -35,7 +25,7 @@ function createPadding(length, chars) {
   }
   var result = baseRepeat(chars, nativeCeil(length / stringSize(chars)));
   return reHasComplexSymbol.test(chars)
-    ? stringToArray(result).slice(0, length).join('')
+    ? castSlice(stringToArray(result), 0, length).join('')
     : result.slice(0, length);
 }
 

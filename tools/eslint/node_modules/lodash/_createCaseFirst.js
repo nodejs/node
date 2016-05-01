@@ -1,17 +1,7 @@
-var stringToArray = require('./_stringToArray'),
+var castSlice = require('./_castSlice'),
+    reHasComplexSymbol = require('./_reHasComplexSymbol'),
+    stringToArray = require('./_stringToArray'),
     toString = require('./toString');
-
-/** Used to compose unicode character classes. */
-var rsAstralRange = '\\ud800-\\udfff',
-    rsComboMarksRange = '\\u0300-\\u036f\\ufe20-\\ufe23',
-    rsComboSymbolsRange = '\\u20d0-\\u20f0',
-    rsVarRange = '\\ufe0e\\ufe0f';
-
-/** Used to compose unicode capture groups. */
-var rsZWJ = '\\u200d';
-
-/** Used to detect strings with [zero-width joiners or code points from the astral planes](http://eev.ee/blog/2015/09/12/dark-corners-of-unicode/). */
-var reHasComplexSymbol = RegExp('[' + rsZWJ + rsAstralRange  + rsComboMarksRange + rsComboSymbolsRange + rsVarRange + ']');
 
 /**
  * Creates a function like `_.lowerFirst`.
@@ -28,8 +18,13 @@ function createCaseFirst(methodName) {
       ? stringToArray(string)
       : undefined;
 
-    var chr = strSymbols ? strSymbols[0] : string.charAt(0),
-        trailing = strSymbols ? strSymbols.slice(1).join('') : string.slice(1);
+    var chr = strSymbols
+      ? strSymbols[0]
+      : string.charAt(0);
+
+    var trailing = strSymbols
+      ? castSlice(strSymbols, 1).join('')
+      : string.slice(1);
 
     return chr[methodName]() + trailing;
   };

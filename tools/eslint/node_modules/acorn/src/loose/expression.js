@@ -321,6 +321,7 @@ lp.parseTemplate = function() {
       curElt = this.startNode()
       curElt.value = {cooked: '', raw: ''}
       curElt.tail = true
+      this.finishNode(curElt, "TemplateElement")
     }
     node.quasis.push(curElt)
   }

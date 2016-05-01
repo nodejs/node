@@ -1,7 +1,6 @@
 /**
  * @fileoverview "table reporter.
  * @author Gajus Kuizinas <gajus@gajus.com>
- * @copyright 2016 Gajus Kuizinas <gajus@gajus.com>. All rights reserved.
  */
 "use strict";
 

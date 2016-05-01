@@ -140,6 +140,7 @@ pp.parseBindingList = function(close, allowEmpty, allowTrailingComma, allowNonId
       let rest = this.parseRest(allowNonIdent)
       this.parseBindingListItem(rest)
       elts.push(rest)
+      if (this.type === tt.comma) this.raise(this.start, "Comma is not permitted after the rest element")
       this.expect(close)
       break
     } else {

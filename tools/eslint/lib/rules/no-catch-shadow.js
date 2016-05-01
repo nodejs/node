@@ -15,44 +15,54 @@ var astUtils = require("../ast-utils");
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow `catch` clause parameters from shadowing variables in the outer scope",
+            category: "Variables",
+            recommended: false
+        },
 
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
+        schema: []
+    },
 
-    /**
-     * Check if the parameters are been shadowed
-     * @param {object} scope current scope
-     * @param {string} name parameter name
-     * @returns {boolean} True is its been shadowed
-     */
-    function paramIsShadowing(scope, name) {
-        return astUtils.getVariableByName(scope, name) !== null;
-    }
+    create: function(context) {
 
-    //--------------------------------------------------------------------------
-    // Public API
-    //--------------------------------------------------------------------------
+        //--------------------------------------------------------------------------
+        // Helpers
+        //--------------------------------------------------------------------------
 
-    return {
-
-        "CatchClause": function(node) {
-            var scope = context.getScope();
-
-            // When blockBindings is enabled, CatchClause creates its own scope
-            // so start from one upper scope to exclude the current node
-            if (scope.block === node) {
-                scope = scope.upper;
-            }
-
-            if (paramIsShadowing(scope, node.param.name)) {
-                context.report(node, "Value of '{{name}}' may be overwritten in IE 8 and earlier.",
-                        { name: node.param.name });
-            }
+        /**
+         * Check if the parameters are been shadowed
+         * @param {object} scope current scope
+         * @param {string} name parameter name
+         * @returns {boolean} True is its been shadowed
+         */
+        function paramIsShadowing(scope, name) {
+            return astUtils.getVariableByName(scope, name) !== null;
         }
-    };
 
+        //--------------------------------------------------------------------------
+        // Public API
+        //--------------------------------------------------------------------------
+
+        return {
+
+            CatchClause: function(node) {
+                var scope = context.getScope();
+
+                // When blockBindings is enabled, CatchClause creates its own scope
+                // so start from one upper scope to exclude the current node
+                if (scope.block === node) {
+                    scope = scope.upper;
+                }
+
+                if (paramIsShadowing(scope, node.param.name)) {
+                    context.report(node, "Value of '{{name}}' may be overwritten in IE 8 and earlier.",
+                            { name: node.param.name });
+                }
+            }
+        };
+
+    }
 };
-
-module.exports.schema = [];

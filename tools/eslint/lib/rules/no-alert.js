@@ -1,8 +1,6 @@
 /**
  * @fileoverview Rule to flag use of alert, confirm, prompt
  * @author Nicholas C. Zakas
- * @copyright 2015 Mathias Schreck
- * @copyright 2013 Nicholas C. Zakas
  */
 "use strict";
 
@@ -98,39 +96,49 @@ function isGlobalThisReferenceOrGlobalWindow(scope, globalScope, node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var globalScope;
-
-    return {
-
-        "Program": function() {
-            globalScope = context.getScope();
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of `alert`, `confirm`, and `prompt`",
+            category: "Best Practices",
+            recommended: false
         },
 
-        "CallExpression": function(node) {
-            var callee = node.callee,
-                identifierName,
-                currentScope = context.getScope();
+        schema: []
+    },
 
-            // without window.
-            if (callee.type === "Identifier") {
-                identifierName = callee.name;
+    create: function(context) {
+        var globalScope;
 
-                if (!isShadowed(currentScope, globalScope, callee) && isProhibitedIdentifier(callee.name)) {
-                    report(context, node, identifierName);
+        return {
+
+            Program: function() {
+                globalScope = context.getScope();
+            },
+
+            CallExpression: function(node) {
+                var callee = node.callee,
+                    identifierName,
+                    currentScope = context.getScope();
+
+                // without window.
+                if (callee.type === "Identifier") {
+                    identifierName = callee.name;
+
+                    if (!isShadowed(currentScope, globalScope, callee) && isProhibitedIdentifier(callee.name)) {
+                        report(context, node, identifierName);
+                    }
+
+                } else if (callee.type === "MemberExpression" && isGlobalThisReferenceOrGlobalWindow(currentScope, globalScope, callee.object)) {
+                    identifierName = getPropertyName(callee);
+
+                    if (isProhibitedIdentifier(identifierName)) {
+                        report(context, node, identifierName);
+                    }
                 }
 
-            } else if (callee.type === "MemberExpression" && isGlobalThisReferenceOrGlobalWindow(currentScope, globalScope, callee.object)) {
-                identifierName = getPropertyName(callee);
-
-                if (isProhibitedIdentifier(identifierName)) {
-                    report(context, node, identifierName);
-                }
             }
+        };
 
-        }
-    };
-
+    }
 };
-
-module.exports.schema = [];

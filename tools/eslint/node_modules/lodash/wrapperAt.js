@@ -13,8 +13,7 @@ var LazyWrapper = require('./_LazyWrapper'),
  * @memberOf _
  * @since 1.0.0
  * @category Seq
- * @param {...(string|string[])} [paths] The property paths of elements to pick,
- *  specified individually or in arrays.
+ * @param {...(string|string[])} [paths] The property paths of elements to pick.
  * @returns {Object} Returns the new `lodash` wrapper instance.
  * @example
  *

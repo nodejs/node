@@ -1,4 +1,4 @@
-var copyObjectWith = require('./_copyObjectWith'),
+var copyObject = require('./_copyObject'),
     createAssigner = require('./_createAssigner'),
     keys = require('./keys');
 
@@ -30,7 +30,7 @@ var copyObjectWith = require('./_copyObjectWith'),
  * // => { 'a': 1, 'b': 2 }
  */
 var assignWith = createAssigner(function(object, source, srcIndex, customizer) {
-  copyObjectWith(source, keys(source), object, customizer);
+  copyObject(source, keys(source), object, customizer);
 });
 
 module.exports = assignWith;

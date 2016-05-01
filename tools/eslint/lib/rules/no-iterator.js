@@ -9,20 +9,30 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of the `__iterator__` property",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "MemberExpression": function(node) {
+    create: function(context) {
 
-            if (node.property &&
-                    (node.property.type === "Identifier" && node.property.name === "__iterator__" && !node.computed) ||
-                    (node.property.type === "Literal" && node.property.value === "__iterator__")) {
-                context.report(node, "Reserved name '__iterator__'.");
+        return {
+
+            MemberExpression: function(node) {
+
+                if (node.property &&
+                        (node.property.type === "Identifier" && node.property.name === "__iterator__" && !node.computed) ||
+                        (node.property.type === "Literal" && node.property.value === "__iterator__")) {
+                    context.report(node, "Reserved name '__iterator__'.");
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

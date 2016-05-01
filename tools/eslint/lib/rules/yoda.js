@@ -1,8 +1,6 @@
 /**
  * @fileoverview Rule to require or disallow yoda comparisons
  * @author Nicholas C. Zakas
- * @copyright 2014 Nicholas C. Zakas. All rights reserved.
- * @copyright 2014 Brandon Mills. All rights reserved.
  */
 "use strict";
 
@@ -119,129 +117,139 @@ function same(a, b) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-
-    // Default to "never" (!always) if no option
-    var always = (context.options[0] === "always");
-    var exceptRange = (context.options[1] && context.options[1].exceptRange);
-    var onlyEquality = (context.options[1] && context.options[1].onlyEquality);
-
-    /**
-     * Determines whether node represents a range test.
-     * A range test is a "between" test like `(0 <= x && x < 1)` or an "outside"
-     * test like `(x < 0 || 1 <= x)`. It must be wrapped in parentheses, and
-     * both operators must be `<` or `<=`. Finally, the literal on the left side
-     * must be less than or equal to the literal on the right side so that the
-     * test makes any sense.
-     * @param {ASTNode} node LogicalExpression node to test.
-     * @returns {Boolean} Whether node is a range test.
-     */
-    function isRangeTest(node) {
-        var left = node.left,
-            right = node.right;
-
-        /**
-         * Determines whether node is of the form `0 <= x && x < 1`.
-         * @returns {Boolean} Whether node is a "between" range test.
-         */
-        function isBetweenTest() {
-            var leftLiteral, rightLiteral;
-
-            return (node.operator === "&&" &&
-                (leftLiteral = getNormalizedLiteral(left.left)) &&
-                (rightLiteral = getNormalizedLiteral(right.right)) &&
-                leftLiteral.value <= rightLiteral.value &&
-                same(left.right, right.left));
-        }
-
-        /**
-         * Determines whether node is of the form `x < 0 || 1 <= x`.
-         * @returns {Boolean} Whether node is an "outside" range test.
-         */
-        function isOutsideTest() {
-            var leftLiteral, rightLiteral;
-
-            return (node.operator === "||" &&
-                (leftLiteral = getNormalizedLiteral(left.right)) &&
-                (rightLiteral = getNormalizedLiteral(right.left)) &&
-                leftLiteral.value <= rightLiteral.value &&
-                same(left.left, right.right));
-        }
-
-        /**
-         * Determines whether node is wrapped in parentheses.
-         * @returns {Boolean} Whether node is preceded immediately by an open
-         *                    paren token and followed immediately by a close
-         *                    paren token.
-         */
-        function isParenWrapped() {
-            var tokenBefore, tokenAfter;
-
-            return ((tokenBefore = context.getTokenBefore(node)) &&
-                tokenBefore.value === "(" &&
-                (tokenAfter = context.getTokenAfter(node)) &&
-                tokenAfter.value === ")");
-        }
-
-        return (node.type === "LogicalExpression" &&
-            left.type === "BinaryExpression" &&
-            right.type === "BinaryExpression" &&
-            isRangeTestOperator(left.operator) &&
-            isRangeTestOperator(right.operator) &&
-            (isBetweenTest() || isOutsideTest()) &&
-            isParenWrapped());
-    }
-
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
-
-    return {
-        "BinaryExpression": always ? function(node) {
-
-            // Comparisons must always be yoda-style: if ("blue" === color)
-            if (
-                (node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
-                !(node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
-                !(!isEqualityOperator(node.operator) && onlyEquality) &&
-                isComparisonOperator(node.operator) &&
-                !(exceptRange && isRangeTest(context.getAncestors().pop()))
-            ) {
-                context.report(node, "Expected literal to be on the left side of " + node.operator + ".");
-            }
-
-        } : function(node) {
-
-            // Comparisons must never be yoda-style (default)
-            if (
-                (node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
-                !(node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
-                !(!isEqualityOperator(node.operator) && onlyEquality) &&
-                isComparisonOperator(node.operator) &&
-                !(exceptRange && isRangeTest(context.getAncestors().pop()))
-            ) {
-                context.report(node, "Expected literal to be on the right side of " + node.operator + ".");
-            }
-
-        }
-    };
-
-};
-
-module.exports.schema = [
-    {
-        "enum": ["always", "never"]
-    },
-    {
-        "type": "object",
-        "properties": {
-            "exceptRange": {
-                "type": "boolean"
-            },
-            "onlyEquality": {
-                "type": "boolean"
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "require or disallow \"Yoda\" conditions",
+            category: "Best Practices",
+            recommended: false
         },
-        "additionalProperties": false
+
+        schema: [
+            {
+                enum: ["always", "never"]
+            },
+            {
+                type: "object",
+                properties: {
+                    exceptRange: {
+                        type: "boolean"
+                    },
+                    onlyEquality: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
+
+    create: function(context) {
+
+        // Default to "never" (!always) if no option
+        var always = (context.options[0] === "always");
+        var exceptRange = (context.options[1] && context.options[1].exceptRange);
+        var onlyEquality = (context.options[1] && context.options[1].onlyEquality);
+
+        /**
+         * Determines whether node represents a range test.
+         * A range test is a "between" test like `(0 <= x && x < 1)` or an "outside"
+         * test like `(x < 0 || 1 <= x)`. It must be wrapped in parentheses, and
+         * both operators must be `<` or `<=`. Finally, the literal on the left side
+         * must be less than or equal to the literal on the right side so that the
+         * test makes any sense.
+         * @param {ASTNode} node LogicalExpression node to test.
+         * @returns {Boolean} Whether node is a range test.
+         */
+        function isRangeTest(node) {
+            var left = node.left,
+                right = node.right;
+
+            /**
+             * Determines whether node is of the form `0 <= x && x < 1`.
+             * @returns {Boolean} Whether node is a "between" range test.
+             */
+            function isBetweenTest() {
+                var leftLiteral, rightLiteral;
+
+                return (node.operator === "&&" &&
+                    (leftLiteral = getNormalizedLiteral(left.left)) &&
+                    (rightLiteral = getNormalizedLiteral(right.right)) &&
+                    leftLiteral.value <= rightLiteral.value &&
+                    same(left.right, right.left));
+            }
+
+            /**
+             * Determines whether node is of the form `x < 0 || 1 <= x`.
+             * @returns {Boolean} Whether node is an "outside" range test.
+             */
+            function isOutsideTest() {
+                var leftLiteral, rightLiteral;
+
+                return (node.operator === "||" &&
+                    (leftLiteral = getNormalizedLiteral(left.right)) &&
+                    (rightLiteral = getNormalizedLiteral(right.left)) &&
+                    leftLiteral.value <= rightLiteral.value &&
+                    same(left.left, right.right));
+            }
+
+            /**
+             * Determines whether node is wrapped in parentheses.
+             * @returns {Boolean} Whether node is preceded immediately by an open
+             *                    paren token and followed immediately by a close
+             *                    paren token.
+             */
+            function isParenWrapped() {
+                var tokenBefore, tokenAfter;
+
+                return ((tokenBefore = context.getTokenBefore(node)) &&
+                    tokenBefore.value === "(" &&
+                    (tokenAfter = context.getTokenAfter(node)) &&
+                    tokenAfter.value === ")");
+            }
+
+            return (node.type === "LogicalExpression" &&
+                left.type === "BinaryExpression" &&
+                right.type === "BinaryExpression" &&
+                isRangeTestOperator(left.operator) &&
+                isRangeTestOperator(right.operator) &&
+                (isBetweenTest() || isOutsideTest()) &&
+                isParenWrapped());
+        }
+
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
+
+        return {
+            BinaryExpression: always ? function(node) {
+
+                // Comparisons must always be yoda-style: if ("blue" === color)
+                if (
+                    (node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
+                    !(node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
+                    !(!isEqualityOperator(node.operator) && onlyEquality) &&
+                    isComparisonOperator(node.operator) &&
+                    !(exceptRange && isRangeTest(context.getAncestors().pop()))
+                ) {
+                    context.report(node, "Expected literal to be on the left side of " + node.operator + ".");
+                }
+
+            } : function(node) {
+
+                // Comparisons must never be yoda-style (default)
+                if (
+                    (node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
+                    !(node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
+                    !(!isEqualityOperator(node.operator) && onlyEquality) &&
+                    isComparisonOperator(node.operator) &&
+                    !(exceptRange && isRangeTest(context.getAncestors().pop()))
+                ) {
+                    context.report(node, "Expected literal to be on the right side of " + node.operator + ".");
+                }
+
+            }
+        };
+
     }
-];
+};

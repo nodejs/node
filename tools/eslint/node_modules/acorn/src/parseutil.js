@@ -92,7 +92,7 @@ pp.unexpected = function(pos) {
 pp.checkPatternErrors = function(refDestructuringErrors, andThrow) {
   let pos = refDestructuringErrors && refDestructuringErrors.trailingComma
   if (!andThrow) return !!pos
-  if (pos) this.raise(pos, "Trailing comma is not permitted in destructuring patterns")
+  if (pos) this.raise(pos, "Comma is not permitted after the rest element")
 }
 
 pp.checkExpressionErrors = function(refDestructuringErrors, andThrow) {

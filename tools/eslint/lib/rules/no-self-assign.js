@@ -1,8 +1,6 @@
 /**
  * @fileoverview Rule to disallow assignments where both sides are exactly the same
  * @author Toru Nagashima
- * @copyright 2016 Toru Nagashima. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -97,29 +95,39 @@ function eachSelfAssignment(left, right, report) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow assignments where both sides are exactly the same",
+            category: "Best Practices",
+            recommended: true
+        },
 
-    /**
-     * Reports a given node as self assignments.
-     *
-     * @param {ASTNode} node - A node to report. This is an Identifier node.
-     * @returns {void}
-     */
-    function report(node) {
-        context.report({
-            node: node,
-            message: "'{{name}}' is assigned to itself.",
-            data: node
-        });
-    }
+        schema: []
+    },
 
-    return {
-        "AssignmentExpression": function(node) {
-            if (node.operator === "=") {
-                eachSelfAssignment(node.left, node.right, report);
-            }
+    create: function(context) {
+
+        /**
+         * Reports a given node as self assignments.
+         *
+         * @param {ASTNode} node - A node to report. This is an Identifier node.
+         * @returns {void}
+         */
+        function report(node) {
+            context.report({
+                node: node,
+                message: "'{{name}}' is assigned to itself.",
+                data: node
+            });
         }
-    };
-};
 
-module.exports.schema = [];
+        return {
+            AssignmentExpression: function(node) {
+                if (node.operator === "=") {
+                    eachSelfAssignment(node.left, node.right, report);
+                }
+            }
+        };
+    }
+};

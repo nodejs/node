@@ -1,8 +1,6 @@
 /**
  * @fileoverview Main CLI object.
  * @author Nicholas C. Zakas
- * @copyright 2014 Nicholas C. Zakas. All rights reserved.
- * See LICENSE in root directory for full license.
  */
 
 "use strict";
@@ -116,6 +114,79 @@ function calculateStatsPerRun(results) {
 }
 
 /**
+ * Performs multiple autofix passes over the text until as many fixes as possible
+ * have been applied.
+ * @param {string} text The source text to apply fixes to.
+ * @param {Object} config The ESLint config object to use.
+ * @param {Object} options The ESLint options object to use.
+ * @param {string} options.filename The filename from which the text was read.
+ * @param {boolean} options.allowInlineConfig Flag indicating if inline comments
+ *      should be allowed.
+ * @returns {Object} The result of the fix operation as returned from the
+ *      SourceCodeFixer.
+ * @private
+ */
+function multipassFix(text, config, options) {
+
+    var messages = [],
+        fixedResult,
+        fixed = false,
+        passNumber = 0,
+        lastMessageCount,
+        MAX_PASSES = 10;
+
+    /**
+     * This loop continues until one of the following is true:
+     *
+     * 1. No more fixes have been applied.
+     * 2. There are no more linting errors reported.
+     * 3. The number of linting errors is no different between two passes.
+     * 4. Ten passes have been made.
+     *
+     * That means anytime a fix is successfully applied, there will be another pass.
+     * Essentially, guaranteeing a minimum of two passes.
+     */
+    do {
+        passNumber++;
+        lastMessageCount = messages.length;
+
+        debug("Linting code for " + options.filename + " (pass " + passNumber + ")");
+        messages = eslint.verify(text, config, options);
+
+        debug("Generating fixed text for " + options.filename + " (pass " + passNumber + ")");
+        fixedResult = SourceCodeFixer.applyFixes(eslint.getSourceCode(), messages);
+
+        // keep track if any fixes were ever applied - important for return value
+        fixed = fixed || fixedResult.fixed;
+
+        // update to use the fixed output instead of the original text
+        text = fixedResult.output;
+
+    } while (
+        fixedResult.fixed && fixedResult.messages.length > 0 &&
+        fixedResult.messages.length !== lastMessageCount &&
+        passNumber < MAX_PASSES
+    );
+
+
+    /*
+     * If the last result had fixes, we need to lint again to me sure we have
+     * the most up-to-date information.
+     */
+    if (fixedResult.fixed) {
+        fixedResult.messages = eslint.verify(text, config, options);
+    }
+
+
+    // ensure the last result properly reflects if fixes were done
+    fixedResult.fixed = fixed;
+    fixedResult.output = text;
+
+    return fixedResult;
+
+}
+
+/**
  * Processes an source code using ESLint.
  * @param {string} text The source code to check.
  * @param {Object} configHelper The configuration options for ESLint.
@@ -179,15 +250,17 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
 
     } else {
 
-        messages = eslint.verify(text, config, {
-            filename: filename,
-            allowInlineConfig: allowInlineConfig
-        });
-
         if (fix) {
-            debug("Generating fixed text for " + filename);
-            fixedResult = SourceCodeFixer.applyFixes(eslint.getSourceCode(), messages);
+            fixedResult = multipassFix(text, config, {
+                filename: filename,
+                allowInlineConfig: allowInlineConfig
+            });
             messages = fixedResult.messages;
+        } else {
+            messages = eslint.verify(text, config, {
+                filename: filename,
+                allowInlineConfig: allowInlineConfig
+            });
         }
     }
 

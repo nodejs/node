@@ -1,8 +1,6 @@
 /**
  * @fileoverview Utilities for working with globs and the filesystem.
  * @author Ian VanSchooten
- * @copyright 2015 Ian VanSchooten. All rights reserved.
- * See LICENSE in root directory for full license.
  */
 "use strict";
 
