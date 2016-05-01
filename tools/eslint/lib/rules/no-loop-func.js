@@ -1,7 +1,6 @@
 /**
  * @fileoverview Rule to flag creation of function inside a loop
  * @author Ilya Volodin
- * @copyright 2013 Ilya Volodin. All rights reserved.
  */
 
 "use strict";
@@ -152,38 +151,48 @@ function isSafe(funcNode, loopNode, reference) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow `function` declarations and expressions inside loop statements",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    /**
-     * Reports functions which match the following condition:
-     *
-     * - has a loop node in ancestors.
-     * - has any references which refers to an unsafe variable.
-     *
-     * @param {ASTNode} node The AST node to check.
-     * @returns {boolean} Whether or not the node is within a loop.
-     */
-    function checkForLoops(node) {
-        var loopNode = getContainingLoopNode(node);
+        schema: []
+    },
 
-        if (!loopNode) {
-            return;
+    create: function(context) {
+
+        /**
+         * Reports functions which match the following condition:
+         *
+         * - has a loop node in ancestors.
+         * - has any references which refers to an unsafe variable.
+         *
+         * @param {ASTNode} node The AST node to check.
+         * @returns {boolean} Whether or not the node is within a loop.
+         */
+        function checkForLoops(node) {
+            var loopNode = getContainingLoopNode(node);
+
+            if (!loopNode) {
+                return;
+            }
+
+            var references = context.getScope().through;
+
+            if (references.length > 0 &&
+                !references.every(isSafe.bind(null, node, loopNode))
+            ) {
+                context.report(node, "Don't make functions within a loop");
+            }
         }
 
-        var references = context.getScope().through;
-
-        if (references.length > 0 &&
-            !references.every(isSafe.bind(null, node, loopNode))
-        ) {
-            context.report(node, "Don't make functions within a loop");
-        }
+        return {
+            ArrowFunctionExpression: checkForLoops,
+            FunctionExpression: checkForLoops,
+            FunctionDeclaration: checkForLoops
+        };
     }
-
-    return {
-        "ArrowFunctionExpression": checkForLoops,
-        "FunctionExpression": checkForLoops,
-        "FunctionDeclaration": checkForLoops
-    };
 };
-
-module.exports.schema = [];

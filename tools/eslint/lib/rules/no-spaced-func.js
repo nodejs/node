@@ -9,52 +9,63 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow spacing between `function` identifiers and their applications",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    var sourceCode = context.getSourceCode();
+        fixable: "whitespace",
+        schema: []
+    },
 
-    /**
-     * Check if open space is present in a function name
-     * @param {ASTNode} node node to evaluate
-     * @returns {void}
-     * @private
-     */
-    function detectOpenSpaces(node) {
-        var lastCalleeToken = sourceCode.getLastToken(node.callee),
-            prevToken = lastCalleeToken,
-            parenToken = sourceCode.getTokenAfter(lastCalleeToken);
+    create: function(context) {
 
-        // advances to an open parenthesis.
-        while (
-            parenToken &&
-            parenToken.range[1] < node.range[1] &&
-            parenToken.value !== "("
-        ) {
-            prevToken = parenToken;
-            parenToken = sourceCode.getTokenAfter(parenToken);
+        var sourceCode = context.getSourceCode();
+
+        /**
+         * Check if open space is present in a function name
+         * @param {ASTNode} node node to evaluate
+         * @returns {void}
+         * @private
+         */
+        function detectOpenSpaces(node) {
+            var lastCalleeToken = sourceCode.getLastToken(node.callee),
+                prevToken = lastCalleeToken,
+                parenToken = sourceCode.getTokenAfter(lastCalleeToken);
+
+            // advances to an open parenthesis.
+            while (
+                parenToken &&
+                parenToken.range[1] < node.range[1] &&
+                parenToken.value !== "("
+            ) {
+                prevToken = parenToken;
+                parenToken = sourceCode.getTokenAfter(parenToken);
+            }
+
+            // look for a space between the callee and the open paren
+            if (parenToken &&
+                parenToken.range[1] < node.range[1] &&
+                sourceCode.isSpaceBetweenTokens(prevToken, parenToken)
+            ) {
+                context.report({
+                    node: node,
+                    loc: lastCalleeToken.loc.start,
+                    message: "Unexpected space between function name and paren.",
+                    fix: function(fixer) {
+                        return fixer.removeRange([prevToken.range[1], parenToken.range[0]]);
+                    }
+                });
+            }
         }
 
-        // look for a space between the callee and the open paren
-        if (parenToken &&
-            parenToken.range[1] < node.range[1] &&
-            sourceCode.isSpaceBetweenTokens(prevToken, parenToken)
-        ) {
-            context.report({
-                node: node,
-                loc: lastCalleeToken.loc.start,
-                message: "Unexpected space between function name and paren.",
-                fix: function(fixer) {
-                    return fixer.removeRange([prevToken.range[1], parenToken.range[0]]);
-                }
-            });
-        }
+        return {
+            CallExpression: detectOpenSpaces,
+            NewExpression: detectOpenSpaces
+        };
+
     }
-
-    return {
-        "CallExpression": detectOpenSpaces,
-        "NewExpression": detectOpenSpaces
-    };
-
 };
-
-module.exports.schema = [];

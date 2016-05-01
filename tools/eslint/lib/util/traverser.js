@@ -1,8 +1,6 @@
 /**
  * @fileoverview Wrapper around estraverse
  * @author Nicholas C. Zakas
- * @copyright 2016 Nicholas C. Zakas. All rights reserved.
- * See LICENSE in root directory for full license.
  */
 "use strict";
 
@@ -54,3 +52,5 @@ Traverser.getKeys = function(node) {
 };
 
 module.exports = Traverser;
+
+

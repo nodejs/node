@@ -1,8 +1,6 @@
 /**
  * @fileoverview Rule to enforce return statements in callbacks of array's methods
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -166,76 +164,86 @@ function isCallbackOfArrayMethod(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var funcInfo = {
-        upper: null,
-        codePath: null,
-        hasReturn: false,
-        shouldCheck: false
-    };
-
-    /**
-     * Checks whether or not the last code path segment is reachable.
-     * Then reports this function if the segment is reachable.
-     *
-     * If the last code path segment is reachable, there are paths which are not
-     * returned or thrown.
-     *
-     * @param {ASTNode} node - A node to check.
-     * @returns {void}
-     */
-    function checkLastSegment(node) {
-        if (funcInfo.shouldCheck &&
-            funcInfo.codePath.currentSegments.some(isReachable)
-        ) {
-            context.report({
-                node: node,
-                loc: getLocation(node, context.getSourceCode()).loc.start,
-                message: funcInfo.hasReturn
-                    ? "Expected to return a value at the end of this function."
-                    : "Expected to return a value in this function."
-            });
-        }
-    }
-
-    return {
-
-        // Stacks this function's information.
-        "onCodePathStart": function(codePath, node) {
-            funcInfo = {
-                upper: funcInfo,
-                codePath: codePath,
-                hasReturn: false,
-                shouldCheck:
-                    TARGET_NODE_TYPE.test(node.type) &&
-                    node.body.type === "BlockStatement" &&
-                    isCallbackOfArrayMethod(node)
-            };
+module.exports = {
+    meta: {
+        docs: {
+            description: "enforce `return` statements in callbacks of array methods",
+            category: "Best Practices",
+            recommended: false
         },
 
-        // Pops this function's information.
-        "onCodePathEnd": function() {
-            funcInfo = funcInfo.upper;
-        },
+        schema: []
+    },
 
-        // Checks the return statement is valid.
-        "ReturnStatement": function(node) {
-            if (funcInfo.shouldCheck) {
-                funcInfo.hasReturn = true;
+    create: function(context) {
+        var funcInfo = {
+            upper: null,
+            codePath: null,
+            hasReturn: false,
+            shouldCheck: false
+        };
 
-                if (!node.argument) {
-                    context.report({
-                        node: node,
-                        message: "Expected a return value."
-                    });
-                }
+        /**
+         * Checks whether or not the last code path segment is reachable.
+         * Then reports this function if the segment is reachable.
+         *
+         * If the last code path segment is reachable, there are paths which are not
+         * returned or thrown.
+         *
+         * @param {ASTNode} node - A node to check.
+         * @returns {void}
+         */
+        function checkLastSegment(node) {
+            if (funcInfo.shouldCheck &&
+                funcInfo.codePath.currentSegments.some(isReachable)
+            ) {
+                context.report({
+                    node: node,
+                    loc: getLocation(node, context.getSourceCode()).loc.start,
+                    message: funcInfo.hasReturn
+                        ? "Expected to return a value at the end of this function."
+                        : "Expected to return a value in this function."
+                });
             }
-        },
+        }
 
-        // Reports a given function if the last path is reachable.
-        "FunctionExpression:exit": checkLastSegment,
-        "ArrowFunctionExpression:exit": checkLastSegment
-    };
+        return {
+
+            // Stacks this function's information.
+            onCodePathStart: function(codePath, node) {
+                funcInfo = {
+                    upper: funcInfo,
+                    codePath: codePath,
+                    hasReturn: false,
+                    shouldCheck:
+                        TARGET_NODE_TYPE.test(node.type) &&
+                        node.body.type === "BlockStatement" &&
+                        isCallbackOfArrayMethod(node)
+                };
+            },
+
+            // Pops this function's information.
+            onCodePathEnd: function() {
+                funcInfo = funcInfo.upper;
+            },
+
+            // Checks the return statement is valid.
+            ReturnStatement: function(node) {
+                if (funcInfo.shouldCheck) {
+                    funcInfo.hasReturn = true;
+
+                    if (!node.argument) {
+                        context.report({
+                            node: node,
+                            message: "Expected a return value."
+                        });
+                    }
+                }
+            },
+
+            // Reports a given function if the last path is reachable.
+            "FunctionExpression:exit": checkLastSegment,
+            "ArrowFunctionExpression:exit": checkLastSegment
+        };
+    }
 };
-
-module.exports.schema = [];

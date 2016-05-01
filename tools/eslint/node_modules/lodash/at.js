@@ -10,8 +10,7 @@ var baseAt = require('./_baseAt'),
  * @since 1.0.0
  * @category Object
  * @param {Object} object The object to iterate over.
- * @param {...(string|string[])} [paths] The property paths of elements to pick,
- *  specified individually or in arrays.
+ * @param {...(string|string[])} [paths] The property paths of elements to pick.
  * @returns {Array} Returns the new array of picked elements.
  * @example
  *

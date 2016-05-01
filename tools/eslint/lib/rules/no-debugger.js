@@ -9,14 +9,24 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of `debugger`",
+            category: "Possible Errors",
+            recommended: true
+        },
 
-    return {
-        "DebuggerStatement": function(node) {
-            context.report(node, "Unexpected 'debugger' statement.");
-        }
-    };
+        schema: []
+    },
 
+    create: function(context) {
+
+        return {
+            DebuggerStatement: function(node) {
+                context.report(node, "Unexpected 'debugger' statement.");
+            }
+        };
+
+    }
 };
-
-module.exports.schema = [];

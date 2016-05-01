@@ -1,8 +1,6 @@
 /**
  * @fileoverview Rule to flag references to undeclared variables.
  * @author Mark Macdonald
- * @copyright 2015 Nicholas C. Zakas. All rights reserved.
- * @copyright 2013 Mark Macdonald. All rights reserved.
  */
 "use strict";
 
@@ -25,39 +23,49 @@ function hasTypeOfOperator(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var options = context.options[0];
-    var considerTypeOf = options && options.typeof === true || false;
-
-    return {
-        "Program:exit": function(/* node */) {
-            var globalScope = context.getScope();
-
-            globalScope.through.forEach(function(ref) {
-                var identifier = ref.identifier;
-
-                if (!considerTypeOf && hasTypeOfOperator(identifier)) {
-                    return;
-                }
-
-                context.report({
-                    node: identifier,
-                    message: "'{{name}}' is not defined.",
-                    data: identifier
-                });
-            });
-        }
-    };
-};
-
-module.exports.schema = [
-    {
-        "type": "object",
-        "properties": {
-            "typeof": {
-                "type": "boolean"
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of undeclared variables unless mentioned in `/*global */` comments",
+            category: "Variables",
+            recommended: true
         },
-        "additionalProperties": false
+
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    typeof: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
+
+    create: function(context) {
+        var options = context.options[0];
+        var considerTypeOf = options && options.typeof === true || false;
+
+        return {
+            "Program:exit": function(/* node */) {
+                var globalScope = context.getScope();
+
+                globalScope.through.forEach(function(ref) {
+                    var identifier = ref.identifier;
+
+                    if (!considerTypeOf && hasTypeOfOperator(identifier)) {
+                        return;
+                    }
+
+                    context.report({
+                        node: identifier,
+                        message: "'{{name}}' is not defined.",
+                        data: identifier
+                    });
+                });
+            }
+        };
     }
-];
+};

@@ -2,6 +2,7 @@
  * @fileoverview Responsible for loading ignore config files and managing ignore patterns
  * @author Jonathan Rajavuori
  */
+
 "use strict";
 
 //------------------------------------------------------------------------------

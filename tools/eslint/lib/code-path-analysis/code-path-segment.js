@@ -1,8 +1,6 @@
 /**
  * @fileoverview A class of the code path segment.
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -11,8 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var assert = require("assert"),
-    debug = require("./debug-helpers");
+var debug = require("./debug-helpers");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -178,7 +175,13 @@ CodePathSegment.newNext = function(id, allPrevSegments) {
  * @returns {CodePathSegment} The created segment.
  */
 CodePathSegment.newUnreachable = function(id, allPrevSegments) {
-    return new CodePathSegment(id, flattenUnusedSegments(allPrevSegments), false);
+    var segment = new CodePathSegment(id, flattenUnusedSegments(allPrevSegments), false);
+
+    // In `if (a) return a; foo();` case, the unreachable segment preceded by
+    // the return statement is not used but must not be remove.
+    CodePathSegment.markUsed(segment);
+
+    return segment;
 };
 
 /**
@@ -203,7 +206,9 @@ CodePathSegment.newDisconnected = function(id, allPrevSegments) {
  * @returns {void}
  */
 CodePathSegment.markUsed = function(segment) {
-    assert(!segment.internal.used, segment.id + " is marked twice.");
+    if (segment.internal.used) {
+        return;
+    }
     segment.internal.used = true;
 
     var i;

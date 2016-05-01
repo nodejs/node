@@ -1,10 +1,6 @@
 /**
  * @fileoverview Mocha test wrapper
  * @author Ilya Volodin
- * @copyright 2015 Kevin Partington. All rights reserved.
- * @copyright 2015 Nicholas C. Zakas. All rights reserved.
- * @copyright 2014 Ilya Volodin. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
 
