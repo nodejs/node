@@ -17,6 +17,7 @@ if (cluster.isWorker) {
   };
 
   var totalWorkers = 2;
+  var onlineWorkers = 0;
 
   // Setup master
   cluster.setupMaster({
@@ -40,6 +41,8 @@ if (cluster.isWorker) {
 
   cluster.on('online', function lisenter(worker) {
 
+    onlineWorkers++;
+
     worker.once('message', function(data) {
       correctIn += (data === 'custom argument' ? 1 : 0);
       if (correctIn === totalWorkers) {
@@ -49,7 +52,7 @@ if (cluster.isWorker) {
     });
 
     // All workers are online
-    if (cluster.onlineWorkers === totalWorkers) {
+    if (onlineWorkers === totalWorkers) {
       checks.workers = true;
     }
   });
@@ -60,6 +63,7 @@ if (cluster.isWorker) {
 
   // Check all values
   process.once('exit', function() {
+    assert.ok(checks.workers, 'Not all workers went online');
     assert.ok(checks.args, 'The arguments was noy send to the worker');
     assert.ok(checks.setupEvent, 'The setup event was never emitted');
     var m = 'The settingsObject do not have correct properties';
