@@ -1,13 +1,13 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const constants = require('constants');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
 const crypto = require('crypto');
+const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
@@ -79,8 +79,8 @@ bob.generateKeys();
 var aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
 var bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
 assert.equal(aSecret, bSecret);
-assert.equal(alice.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
-assert.equal(bob.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(alice.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.equal(bob.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 /* Ensure specific generator (buffer) works as expected.
  * The values below (modp2/modp2buf) are for a 1024 bits long prime from
@@ -107,8 +107,8 @@ exmodp2.generateKeys();
 var modp2Secret = modp2.computeSecret(exmodp2.getPublicKey()).toString('hex');
 var exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey()).toString('hex');
 assert.equal(modp2Secret, exmodp2Secret);
-assert.equal(modp2.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
-assert.equal(exmodp2.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(modp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.equal(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (string with encoding) works as expected.
@@ -118,7 +118,7 @@ modp2Secret = modp2.computeSecret(exmodp2_2.getPublicKey()).toString('hex');
 var exmodp2_2Secret = exmodp2_2.computeSecret(modp2.getPublicKey())
                                .toString('hex');
 assert.equal(modp2Secret, exmodp2_2Secret);
-assert.equal(exmodp2_2.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(exmodp2_2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (string without encoding) works as expected.
@@ -128,7 +128,7 @@ modp2Secret = modp2.computeSecret(exmodp2_3.getPublicKey()).toString('hex');
 var exmodp2_3Secret = exmodp2_3.computeSecret(modp2.getPublicKey())
                                .toString('hex');
 assert.equal(modp2Secret, exmodp2_3Secret);
-assert.equal(exmodp2_3.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(exmodp2_3.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (numeric) works as expected.
@@ -138,7 +138,7 @@ modp2Secret = modp2.computeSecret(exmodp2_4.getPublicKey()).toString('hex');
 var exmodp2_4Secret = exmodp2_4.computeSecret(modp2.getPublicKey())
                                .toString('hex');
 assert.equal(modp2Secret, exmodp2_4Secret);
-assert.equal(exmodp2_4.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(exmodp2_4.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 var p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
@@ -146,7 +146,7 @@ var p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
         '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
         'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
 var bad_dh = crypto.createDiffieHellman(p, 'hex');
-assert.equal(bad_dh.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Test ECDH

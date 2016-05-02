@@ -4,7 +4,7 @@ var common = require('../common');
 
 var path = require('path');
 var fs = require('fs');
-var constants = require('constants');
+const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -14,7 +14,7 @@ if (!common.hasCrypto) {
 var tls = require('tls');
 
 var options = {
-  secureOptions: constants.SSL_OP_NO_TICKET,
+  secureOptions: SSL_OP_NO_TICKET,
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };

@@ -2,16 +2,15 @@
 require('../common');
 var assert = require('assert');
 
-var constants = require('constants');
 var fs = require('fs');
 
-var O_APPEND = constants.O_APPEND || 0;
-var O_CREAT = constants.O_CREAT || 0;
-var O_EXCL = constants.O_EXCL || 0;
-var O_RDONLY = constants.O_RDONLY || 0;
-var O_RDWR = constants.O_RDWR || 0;
-var O_TRUNC = constants.O_TRUNC || 0;
-var O_WRONLY = constants.O_WRONLY || 0;
+var O_APPEND = fs.constants.O_APPEND || 0;
+var O_CREAT = fs.constants.O_CREAT || 0;
+var O_EXCL = fs.constants.O_EXCL || 0;
+var O_RDONLY = fs.constants.O_RDONLY || 0;
+var O_RDWR = fs.constants.O_RDWR || 0;
+var O_TRUNC = fs.constants.O_TRUNC || 0;
+var O_WRONLY = fs.constants.O_WRONLY || 0;
 
 assert.equal(fs._stringToFlags('r'), O_RDONLY);
 assert.equal(fs._stringToFlags('r+'), O_RDWR);
