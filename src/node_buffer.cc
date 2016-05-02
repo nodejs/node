@@ -995,9 +995,9 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
   const char* haystack = ts_obj_data;
   const size_t haystack_length = ts_obj_length;
-  // Extended latin-1 characters are 2 bytes in Utf8.
+
   const size_t needle_length =
-      enc == BINARY ? needle->Length() : needle->Utf8Length();
+      StringBytes::Size(args.GetIsolate(), needle, enc);
 
   if (needle_length == 0 || haystack_length == 0) {
     return args.GetReturnValue().Set(-1);
