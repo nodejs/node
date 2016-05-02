@@ -10,12 +10,12 @@ if (!common.hasCrypto) {
 const assert = require('assert');
 const https = require('https');
 const fs = require('fs');
-const constants = require('constants');
+const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
-  secureOptions: constants.SSL_OP_NO_TICKET
+  secureOptions: SSL_OP_NO_TICKET
 };
 
 // Create TLS1.2 server

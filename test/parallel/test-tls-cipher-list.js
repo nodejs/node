@@ -8,13 +8,13 @@ if (!common.hasCrypto) {
 
 const assert = require('assert');
 const spawn = require('child_process').spawn;
-const defaultCoreList = require('constants').defaultCoreCipherList;
+const defaultCoreList = require('crypto').constants.defaultCoreCipherList;
 
 function doCheck(arg, check) {
   var out = '';
   arg = arg.concat([
     '-pe',
-    'require("constants").defaultCipherList'
+    'require("crypto").constants.defaultCipherList'
   ]);
   spawn(process.execPath, arg, {}).
     on('error', common.fail).
