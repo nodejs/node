@@ -122,12 +122,10 @@ function main(conf) {
 
 function createNullStream() {
   // Used to approximate /dev/null
-  function NullStream() {
-    Writable.call(this, {});
+  class NullStream extends Writable {
+    _write(cb) {
+      assert.strictEqual(cb.toString(), 'this is a of 1\n');
+    }
   }
-  util.inherits(NullStream, Writable);
-  NullStream.prototype._write = function(cb) {
-    assert.strictEqual(cb.toString(), 'this is a of 1\n');
-  };
-  return new NullStream();
+  return new NullStream({});
 }
