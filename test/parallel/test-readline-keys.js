@@ -2,16 +2,11 @@
 require('../common');
 var PassThrough = require('stream').PassThrough;
 var assert = require('assert');
-var inherits = require('util').inherits;
 var extend = require('util')._extend;
 var Interface = require('readline').Interface;
 
-
-function FakeInput() {
-  PassThrough.call(this);
+class FakeInput extends PassThrough {
 }
-inherits(FakeInput, PassThrough);
-
 
 var fi = new FakeInput();
 var fo = new FakeInput();

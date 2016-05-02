@@ -4,23 +4,22 @@ var W = require('_stream_writable');
 var D = require('_stream_duplex');
 var assert = require('assert');
 
-var util = require('util');
-util.inherits(TestWriter, W);
+class TestWriter extends W {
+  constructor(options) {
+    super(options);
+    this.buffer = [];
+    this.written = 0;
+  }
 
-function TestWriter() {
-  W.apply(this, arguments);
-  this.buffer = [];
-  this.written = 0;
+  _write(chunk, encoding, cb) {
+    // simulate a small unpredictable latency
+    setTimeout(() => {
+      this.buffer.push(chunk.toString());
+      this.written += chunk.length;
+      cb();
+    }, Math.floor(Math.random() * 10));
+  }
 }
-
-TestWriter.prototype._write = function(chunk, encoding, cb) {
-  // simulate a small unpredictable latency
-  setTimeout(function() {
-    this.buffer.push(chunk.toString());
-    this.written += chunk.length;
-    cb();
-  }.bind(this), Math.floor(Math.random() * 10));
-};
 
 var chunks = new Array(50);
 for (var i = 0; i < chunks.length; i++) {

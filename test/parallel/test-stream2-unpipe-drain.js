@@ -9,30 +9,26 @@ if (!common.hasCrypto) {
 }
 var crypto = require('crypto');
 
-var util = require('util');
-
-function TestWriter() {
-  stream.Writable.call(this);
+class TestWriter extends stream.Writable {
+  _write(buffer, encoding, callback) {
+    console.log('write called');
+    // super slow write stream (callback never called)
+  }
 }
-util.inherits(TestWriter, stream.Writable);
-
-TestWriter.prototype._write = function(buffer, encoding, callback) {
-  console.log('write called');
-  // super slow write stream (callback never called)
-};
 
 var dest = new TestWriter();
 
-function TestReader(id) {
-  stream.Readable.call(this);
-  this.reads = 0;
-}
-util.inherits(TestReader, stream.Readable);
+class TestReader extends stream.Readable {
+  constructor() {
+    super();
+    this.reads = 0;
+  }
 
-TestReader.prototype._read = function(size) {
-  this.reads += 1;
-  this.push(crypto.randomBytes(size));
-};
+  _read(size) {
+    this.reads += 1;
+    this.push(crypto.randomBytes(size));
+  }
+}
 
 var src1 = new TestReader();
 var src2 = new TestReader();

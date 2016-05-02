@@ -6,7 +6,6 @@ var assert = require('assert');
 var os = require('os');
 var child_process = require('child_process');
 const stream = require('stream');
-const util = require('util');
 
 const testRoot = path.resolve(process.env.NODE_TEST_DIR ||
                               path.dirname(__filename));
@@ -467,21 +466,21 @@ exports.fail = function(msg) {
 
 
 // A stream to push an array into a REPL
-function ArrayStream() {
-  this.run = function(data) {
-    data.forEach((line) => {
-      this.emit('data', line + '\n');
-    });
-  };
+class ArrayStream extends stream.Stream {
+  run(data) {
+    data.forEach((line) => this.emit('data', line + '\n'));
+  }
+  pause() {
+  }
+  resume() {
+  }
+  write() {
+  }
 }
 
-util.inherits(ArrayStream, stream.Stream);
-exports.ArrayStream = ArrayStream;
 ArrayStream.prototype.readable = true;
 ArrayStream.prototype.writable = true;
-ArrayStream.prototype.pause = function() {};
-ArrayStream.prototype.resume = function() {};
-ArrayStream.prototype.write = function() {};
+exports.ArrayStream = ArrayStream;
 
 // Returns true if the exit code "exitCode" and/or signal name "signal"
 // represent the exit code and/or signal name of a node process that aborted,

@@ -4,25 +4,23 @@ var R = require('_stream_readable');
 var W = require('_stream_writable');
 var assert = require('assert');
 
-var util = require('util');
-
 var ondataCalled = 0;
 
-function TestReader() {
-  R.apply(this);
-  this._buffer = Buffer.alloc(100, 'x');
+class TestReader extends R {
+  constructor() {
+    super();
+    this._buffer = Buffer.alloc(100, 'x');
 
-  this.on('data', function() {
-    ondataCalled++;
-  });
+    this.on('data', function() {
+      ondataCalled++;
+    });
+  }
+
+  _read(n) {
+    this.push(this._buffer);
+    this._buffer = Buffer.alloc(0);
+  }
 }
-
-util.inherits(TestReader, R);
-
-TestReader.prototype._read = function(n) {
-  this.push(this._buffer);
-  this._buffer = Buffer.alloc(0);
-};
 
 var reader = new TestReader();
 setImmediate(function() {
@@ -31,17 +29,17 @@ setImmediate(function() {
   reader.push(null);
 });
 
-function TestWriter() {
-  W.apply(this);
-  this.write('foo');
-  this.end();
+class TestWriter extends W {
+  constructor() {
+    super();
+    this.write('foo');
+    this.end();
+  }
+
+  _write(chunk, enc, cb) {
+    cb();
+  }
 }
-
-util.inherits(TestWriter, W);
-
-TestWriter.prototype._write = function(chunk, enc, cb) {
-  cb();
-};
 
 var writer = new TestWriter();
 

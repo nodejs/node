@@ -57,15 +57,16 @@ assert.equal(util.format('%%%s%%%%', 'hi'), '%hi%%');
 // Errors
 const err = new Error('foo');
 assert.equal(util.format(err), err.stack);
-function CustomError(msg) {
-  Error.call(this);
-  Object.defineProperty(this, 'message',
-                        { value: msg, enumerable: false });
-  Object.defineProperty(this, 'name',
-                        { value: 'CustomError', enumerable: false });
-  Error.captureStackTrace(this, CustomError);
+class CustomError extends Error {
+  constructor(msg) {
+    super();
+    Object.defineProperty(this, 'message',
+                          { value: msg, enumerable: false });
+    Object.defineProperty(this, 'name',
+                          { value: 'CustomError', enumerable: false });
+    Error.captureStackTrace(this, CustomError);
+  }
 }
-util.inherits(CustomError, Error);
 const customError = new CustomError('bar');
 assert.equal(util.format(customError), customError.stack);
 // Doesn't capture stack trace
@@ -76,5 +77,6 @@ function BadCustomError(msg) {
   Object.defineProperty(this, 'name',
                         { value: 'BadCustomError', enumerable: false });
 }
-util.inherits(BadCustomError, Error);
+BadCustomError.prototype =
+    Object.create(Error.prototype, { constructor: { value: BadCustomError } });
 assert.equal(util.format(new BadCustomError('foo')), '[BadCustomError: foo]');

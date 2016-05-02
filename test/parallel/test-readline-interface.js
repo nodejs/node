@@ -5,16 +5,17 @@ const assert = require('assert');
 const readline = require('readline');
 const internalReadline = require('internal/readline');
 const EventEmitter = require('events').EventEmitter;
-const inherits = require('util').inherits;
 
-function FakeInput() {
-  EventEmitter.call(this);
+class FakeInput extends EventEmitter {
+  resume() {
+  }
+  pause() {
+  }
+  write() {
+  }
+  end() {
+  }
 }
-inherits(FakeInput, EventEmitter);
-FakeInput.prototype.resume = function() {};
-FakeInput.prototype.pause = function() {};
-FakeInput.prototype.write = function() {};
-FakeInput.prototype.end = function() {};
 
 function isWarned(emitter) {
   for (var name in emitter) {

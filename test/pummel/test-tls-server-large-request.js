@@ -10,7 +10,6 @@ var tls = require('tls');
 
 var fs = require('fs');
 var stream = require('stream');
-var util = require('util');
 
 var clientConnected = 0;
 var serverConnected = 0;
@@ -21,21 +20,22 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-function Mediator() {
-  stream.Writable.call(this);
-  this.buf = '';
-}
-util.inherits(Mediator, stream.Writable);
-
-Mediator.prototype._write = function write(data, enc, cb) {
-  this.buf += data;
-  setTimeout(cb, 0);
-
-  if (this.buf.length >= request.length) {
-    assert.equal(this.buf, request.toString());
-    server.close();
+class Mediator extends stream.Writable {
+  constructor() {
+    super();
+    this.buf = '';
   }
-};
+
+  _write(data, enc, cb) {
+    this.buf += data;
+    setTimeout(cb, 0);
+
+    if (this.buf.length >= request.length) {
+      assert.equal(this.buf, request.toString());
+      server.close();
+    }
+  }
+}
 
 var mediator = new Mediator();
 

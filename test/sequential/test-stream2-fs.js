@@ -12,27 +12,26 @@ var size = fs.statSync(file).size;
 
 var expectLengths = [1024];
 
-var util = require('util');
 var Stream = require('stream');
 
-util.inherits(TestWriter, Stream);
+class TestWriter extends Stream {
+  constructor() {
+    super();
+    this.buffer = [];
+    this.length = 0;
+  }
 
-function TestWriter() {
-  Stream.apply(this);
-  this.buffer = [];
-  this.length = 0;
+  write(c) {
+    this.buffer.push(c.toString());
+    this.length += c.length;
+    return true;
+  }
+
+  end(c) {
+    if (c) this.buffer.push(c.toString());
+    this.emit('results', this.buffer);
+  }
 }
-
-TestWriter.prototype.write = function(c) {
-  this.buffer.push(c.toString());
-  this.length += c.length;
-  return true;
-};
-
-TestWriter.prototype.end = function(c) {
-  if (c) this.buffer.push(c.toString());
-  this.emit('results', this.buffer);
-};
 
 var r = new FSReadable(file);
 var w = new TestWriter();
