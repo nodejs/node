@@ -30,7 +30,7 @@ if (cluster.isWorker) {
     }
   });
 
-  // Throw accidently error when all workers are listening
+  // Throw accidental error when all workers are listening
   var listeningNum = 0;
   cluster.on('listening', function listeningEvent() {
 
@@ -39,10 +39,10 @@ if (cluster.isWorker) {
       // Stop listening
       cluster.removeListener('listening', listeningEvent);
 
-      // throw accidently error
+      // Throw accidental error
       process.nextTick(function() {
         console.error('about to throw');
-        throw new Error('accidently error');
+        throw new Error('accidental error');
       });
     }
 
@@ -68,8 +68,8 @@ if (cluster.isWorker) {
     }
   };
 
-  var existMaster = false;
-  var existWorker = false;
+  var masterExited = false;
+  var workersExited = false;
 
   // List all workers
   var workers = [];
@@ -89,36 +89,33 @@ if (cluster.isWorker) {
   // When cluster is dead
   master.on('exit', function(code) {
 
-    // Check that the cluster died accidently
-    existMaster = !!code;
+    // Check that the cluster died accidentally (non-zero exit code)
+    masterExited = !!code;
 
-    // Give the workers time to shut down
-    var timeout = 200;
-    if (common.isAix) {
-      // AIX needs more time due to default exit performance
-      timeout = 1000;
-    }
-    setTimeout(checkWorkers, timeout);
-
-    function checkWorkers() {
-      // When master is dead all workers should be dead to
+    var pollWorkers = function() {
+      // When master is dead all workers should be dead too
       var alive = false;
       workers.forEach(function(pid) {
         if (isAlive(pid)) {
           alive = true;
         }
       });
+      if (alive) {
+        setTimeout(pollWorkers, 50);
+      } else {
+        workersExited = true;
+      }
+    };
 
-      // If a worker was alive this did not act as expected
-      existWorker = !alive;
-    }
+    // Loop indefinitely until worker exit
+    pollWorkers();
   });
 
   process.once('exit', function() {
-    var m = 'The master did not die after an error was throwed';
-    assert.ok(existMaster, m);
+    var m = 'The master did not die after an error was thrown';
+    assert.ok(masterExited, m);
     m = 'The workers did not die after an error in the master';
-    assert.ok(existWorker, m);
+    assert.ok(workersExited, m);
   });
 
 }

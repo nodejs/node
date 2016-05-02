@@ -55,26 +55,21 @@ if (cluster.isWorker) {
   var alive = true;
   master.on('exit', function(code) {
 
-    // make sure that the master died by purpose
+    // make sure that the master died on purpose
     assert.equal(code, 0);
 
     // check worker process status
-    var timeout = 200;
-    if (common.isAix) {
-      // AIX needs more time due to default exit performance
-      timeout = 1000;
-    }
-    setTimeout(function() {
+    var pollWorker = function() {
       alive = isAlive(pid);
-    }, timeout);
+      if (alive) {
+        setTimeout(pollWorker, 50);
+      }
+    };
+    // Loop indefinitely until worker exit.
+    pollWorker();
   });
 
   process.once('exit', function() {
-    // cleanup: kill the worker if alive
-    if (alive) {
-      process.kill(pid);
-    }
-
     assert.equal(typeof pid, 'number', 'did not get worker pid info');
     assert.equal(alive, false, 'worker was alive after master died');
   });
