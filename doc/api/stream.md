@@ -1015,8 +1015,6 @@ const Readable = require('stream').Readable;
 class SimpleProtocol extends Readable {
   constructor(source, options) {
     super(options);
-    if (!(this instanceof SimpleProtocol))
-      return new SimpleProtocol(source, options);
 
     this._inBody = false;
     this._sawFirstCr = false;
@@ -1234,8 +1232,6 @@ const Transform = require('stream').Transform;
 class SimpleProtocol extends Transform {
   constructor(options) {
     super(options);
-    if (!(this instanceof SimpleProtocol))
-      return new SimpleProtocol(options);
 
     this._inBody = false;
     this._sawFirstCr = false;
@@ -1629,8 +1625,6 @@ const Transform = require('stream').Transform;
 class JSONParseStream extends Transform {
   constructor() {
     super({ readableObjectMode : true });
-    if (!(this instanceof JSONParseStream))
-      return new JSONParseStream();
 
     this._buffer = '';
     this._decoder = new StringDecoder('utf8');
