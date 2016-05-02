@@ -730,7 +730,8 @@ the [`'drain'`][] event before writing more data.
 
 To implement any sort of stream, the pattern is the same:
 
-1. Extend the appropriate parent class in your own subclass via ES6 `extends`.
+1. Extend the appropriate parent class in your own subclass via the `extends`
+   keyword.
 2. Call the appropriate parent class constructor in your constructor,
    to be sure that the internal mechanisms are set up properly.
 3. Implement one or more specific methods, as detailed below.
@@ -956,7 +957,7 @@ class SourceWrapper extends Readable {
   // the advisory size argument is ignored in this case.
   _read(size) {
     this._source.readStart();
-  };
+  }
 }
 ```
 
@@ -1094,7 +1095,7 @@ class SimpleProtocol extends Readable {
       var chunk = this._source.read();
       if (chunk) this.push(chunk);
     }
-  };
+  }
 }
 // Usage:
 // var parser = new SimpleProtocol(source);
@@ -1285,10 +1286,8 @@ class SimpleProtocol extends Transform {
       this.push(chunk);
     }
     done();
-  };
+  }
 }
-
-
 // Usage:
 // var parser = new SimpleProtocol();
 // source.pipe(parser)
@@ -1655,7 +1654,7 @@ class JSONParseStream extends Transform {
       this.push(obj);
     }
     cb();
-  };
+  }
 
   _flush(cb) {
     // Just handle any leftover
@@ -1671,7 +1670,7 @@ class JSONParseStream extends Transform {
       this.push(obj);
     }
     cb();
-  };
+  }
 }
 ```
 

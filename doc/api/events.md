@@ -39,10 +39,6 @@ myEmitter.on('event', () => {
 myEmitter.emit('event');
 ```
 
-Any object can become an `EventEmitter` through inheritance. The example above
-uses the ES6 classes. It is however possible to use traditional Node.js style
-prototypical inheritance using the `util.inherits()` method.
-
 ## Passing arguments and `this` to listeners
 
 The `eventEmitter.emit()` method allows an arbitrary set of arguments to be
