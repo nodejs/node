@@ -1,3 +1,4 @@
+// Flags: --preserve-symlinks
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -49,7 +50,7 @@ function test() {
 
   // load symlinked-script as main
   var node = process.execPath;
-  var child = spawn(node, [linkScript]);
+  var child = spawn(node, ['--preserve-symlinks', linkScript]);
   child.on('close', function(code, signal) {
     assert(!code);
     assert(!signal);
