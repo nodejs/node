@@ -21,8 +21,15 @@ if (cluster.isWorker) {
   // terminate the cluster process
   worker.once('listening', function() {
     setTimeout(function() {
-      process.exit(0);
+/* Cluster.disconnect() will exercise a different 'graceful' shutdown path.
+   From the perspective of the worker, closing the channel is equivalent
+   to the parent calling process.exit(0). */
+      worker.process._channel.close();
     }, 1000);
+  });
+
+  worker.once('exit', function() {
+    process.exit(0);
   });
 
 } else {
@@ -55,18 +62,11 @@ if (cluster.isWorker) {
   var alive = true;
   master.on('exit', function(code) {
 
-    // make sure that the master died by purpose
+    // make sure that the master died on purpose
     assert.equal(code, 0);
 
     // check worker process status
-    var timeout = 200;
-    if (common.isAix) {
-      // AIX needs more time due to default exit performance
-      timeout = 1000;
-    }
-    setTimeout(function() {
-      alive = isAlive(pid);
-    }, timeout);
+    alive = isAlive(pid);
   });
 
   process.once('exit', function() {
