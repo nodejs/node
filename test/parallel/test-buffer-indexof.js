@@ -233,6 +233,12 @@ var allCharsBufferUcs2 = new Buffer(allCharsString, 'ucs2');
 assert.equal(-1, allCharsBufferUtf8.indexOf('notfound'));
 assert.equal(-1, allCharsBufferUcs2.indexOf('notfound'));
 
+// Needle is longer than haystack, but only because it's encoded as UTF-16
+assert.strictEqual(new Buffer('aaaa').indexOf('a'.repeat(4), 'ucs2'), -1);
+
+assert.strictEqual(new Buffer('aaaa').indexOf('a'.repeat(4), 'utf8'), 0);
+assert.strictEqual(new Buffer('aaaa').indexOf('你好', 'ucs2'), -1);
+
 {
   // Find substrings in Utf8.
   const lengths = [1, 3, 15];  // Single char, simple and complex.
