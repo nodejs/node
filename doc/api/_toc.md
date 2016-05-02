@@ -2,6 +2,7 @@
 @// point at the new location.
 * [About these Docs](documentation.html)
 * [Usage & Example](synopsis.html)
+* [Guides](guides/index.html)
 
 <div class="line"></div>
 
