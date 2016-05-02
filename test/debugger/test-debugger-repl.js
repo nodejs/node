@@ -75,3 +75,14 @@ addTest('for (var i in process.env) delete process.env[i]', []);
 addTest('process.env', [
   /\{\}/
 ]);
+
+addTest('new Buffer([1, 10, 20])', [
+  '<Buffer 01 0a 14>'
+]);
+
+addTest('var bigBuf = Buffer(200); for (var i=0; i < bb.length; ++i) bb[i] = i',
+  []
+);
+addTest('bigBuf', [
+  /28 29 2a 2b 2c 2d 2e 2f 30 31 \.\.\. >$/
+]);
