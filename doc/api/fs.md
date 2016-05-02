@@ -153,7 +153,8 @@ Emitted when the ReadStream's file is opened.
 
 ### Event: 'close'
 
-Emitted when the ReadStream's underlying file descriptor has been closed. Comes from fs.close() method. 
+Emitted when the `ReadStream`'s underlying file descriptor has been closed 
+using the `fs.close()` method.
 
 ### readStream.path
 
@@ -244,7 +245,8 @@ Emitted when the WriteStream's file is opened.
 
 ### Event: 'close'
 
-Emitted when the WriteStream's underlying file descriptor has been closed. Comes from fs.close() method. 
+Emitted when the `WriteStream`'s underlying file descriptor has been closed 
+using the `fs.close()` method.
 
 ### writeStream.bytesWritten
 
