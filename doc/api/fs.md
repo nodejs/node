@@ -315,13 +315,13 @@ checks to be performed. The following constants define the possible values of
 `mode`. It is possible to create a mask consisting of the bitwise OR of two or
 more values.
 
-- `fs.F_OK` - `path` is visible to the calling process. This is useful
+- `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
 for determining if a file exists, but says nothing about `rwx` permissions.
 Default if no `mode` is specified.
-- `fs.R_OK` - `path` can be read by the calling process.
-- `fs.W_OK` - `path` can be written by the calling process.
-- `fs.X_OK` - `path` can be executed by the calling process. This has
-no effect on Windows (will behave like `fs.F_OK`).
+- `fs.constants.R_OK` - `path` can be read by the calling process.
+- `fs.constants.W_OK` - `path` can be written by the calling process.
+- `fs.constants.X_OK` - `path` can be executed by the calling process. This has
+no effect on Windows (will behave like `fs.constants.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
@@ -329,7 +329,7 @@ argument will be populated. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
 
 ```js
-fs.access('/etc/passwd', fs.R_OK | fs.W_OK, (err) => {
+fs.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK, (err) => {
   console.log(err ? 'no access!' : 'can read/write');
 });
 ```
@@ -342,8 +342,8 @@ added: v0.11.15
 * `path` {String | Buffer}
 * `mode` {Integer}
 
-Synchronous version of [`fs.access()`][]. This throws if any accessibility checks
-fail, and does nothing otherwise.
+Synchronous version of [`fs.access()`][]. This throws if any accessibility
+checks fail, and does nothing otherwise.
 
 ## fs.appendFile(file, data[, options], callback)
 <!-- YAML
@@ -460,6 +460,12 @@ added: v0.1.21
 
 Synchronous close(2). Returns `undefined`.
 
+## fs.constants
+
+Returns an object containing commonly used constants for file system
+operations. The specific constants currently defined are described in
+[FS Constants][].
+
 ## fs.createReadStream(path[, options])
 <!-- YAML
 added: v0.1.31
@@ -498,9 +504,9 @@ the file instead of the entire file.  Both `start` and `end` are inclusive and
 start at 0. The `encoding` can be any one of those accepted by [`Buffer`][].
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
-the specified file descriptor. This means that no `'open'` event will be emitted.
-Note that `fd` should be blocking; non-blocking `fd`s should be passed to
-[`net.Socket`][].
+the specified file descriptor. This means that no `'open'` event will be
+emitted. Note that `fd` should be blocking; non-blocking `fd`s should be passed
+to [`net.Socket`][].
 
 If `autoClose` is false, then the file descriptor won't be closed, even if
 there's an error.  It is your responsibility to close it and make sure
@@ -550,7 +556,8 @@ Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
 `options` may also include a `start` option to allow writing data at
 some position past the beginning of the file.  Modifying a file rather
 than replacing it may require a `flags` mode of `r+` rather than the
-default mode `w`. The `defaultEncoding` can be any one of those accepted by [`Buffer`][].
+default mode `w`. The `defaultEncoding` can be any one of those accepted by
+[`Buffer`][].
 
 If `autoClose` is set to true (default behavior) on `error` or `end`
 the file descriptor will be closed automatically. If `autoClose` is false,
@@ -597,7 +604,8 @@ added: v0.1.21
 deprecated: v1.0.0
 -->
 
-    Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][] instead.
+    Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][]
+    instead.
 
 * `path` {String | Buffer}
 
@@ -991,7 +999,7 @@ to a non-existent file. The exclusive flag may or may not work with network file
 systems.
 
 `flags` can also be a number as documented by open(2); commonly used constants
-are available from `require('constants')`.  On Windows, flags are translated to
+are available from `fs.constants`.  On Windows, flags are translated to
 their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
 or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by CreateFileW.
 
@@ -1294,11 +1302,11 @@ added: v0.1.31
 * `callback` {Function}
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
-to the completion callback.
-The `type` argument can be set to `'dir'`, `'file'`, or `'junction'` (default
-is `'file'`) and is only available on Windows (ignored on other platforms).
-Note that Windows junction points require the destination path to be absolute.  When using
-`'junction'`, the `target` argument will automatically be normalized to absolute path.
+to the completion callback. The `type` argument can be set to `'dir'`,
+`'file'`, or `'junction'` (default is `'file'`) and is only available on
+Windows (ignored on other platforms). Note that Windows junction points require
+the destination path to be absolute. When using `'junction'`, the `target`
+argument will automatically be normalized to absolute path.
 
 Here is an example below:
 
@@ -1543,9 +1551,9 @@ _Note: when an `fs.watchFile` operation results in an `ENOENT` error, it will
  of zero. If the file is created later on, the listener will be called again,
  with the latest stat objects. This is a change in functionality since v0.10._
 
-_Note: [`fs.watch()`][] is more efficient than `fs.watchFile` and `fs.unwatchFile`.
-`fs.watch` should be used instead of `fs.watchFile` and `fs.unwatchFile`
-when possible._
+_Note: [`fs.watch()`][] is more efficient than `fs.watchFile` and
+`fs.unwatchFile`. `fs.watch` should be used instead of `fs.watchFile` and
+`fs.unwatchFile` when possible._
 
 ## fs.write(fd, buffer, offset, length[, position], callback)
 <!-- YAML
@@ -1693,6 +1701,226 @@ added: v0.11.5
 
 Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 
+## FS Constants
+
+The following constants are exported by `fs.constants`. **Note:** Not every
+constant will be available on every operating system.
+
+### File Access Constants
+
+The following constants are meant for use with [`fs.access()`][].
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>F_OK</code></td>
+    <td>Flag indicating that the file is visible to the calling process.</td>
+  </tr>
+  <tr>
+    <td><code>R_OK</code></td>
+    <td>Flag indicating that the file can be read by the calling process.</td>
+  </tr>
+  <tr>
+    <td><code>W_OK</code></td>
+    <td>Flag indicating that the file can be written by the calling
+    process.</td>
+  </tr>
+  <tr>
+    <td><code>X_OK</code></td>
+    <td>Flag indicating that the file can be executed by the calling
+    process.</td>
+  </tr>
+</table>
+
+### File Open Constants
+
+The following constants are meant for use with `fs.open()`.
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>O_RDONLY</code></td>
+    <td>Flag indicating to open a file for read-only access.</td>
+  </tr>
+  <tr>
+    <td><code>O_WRONLY</code></td>
+    <td>Flag indicating to open a file for write-only access.</td>
+  </tr>
+  <tr>
+    <td><code>O_RDWR</code></td>
+    <td>Flag indicating to open a file for read-write access.</td>
+  </tr>
+  <tr>
+    <td><code>O_CREAT</code></td>
+    <td>Flag indicating to create the file if it does not already exist.</td>
+  </tr>
+  <tr>
+    <td><code>O_EXCL</code></td>
+    <td>Flag indicating that opening a file should fail if the
+    <code>O_CREAT</code> flag is set and the file already exists.</td>
+  </tr>
+  <tr>
+    <td><code>O_NOCTTY</code></td>
+    <td>Flag indicating that if path identifies a terminal device, opening the
+    path shall not cause that terminal to become the controlling terminal for
+    the process (if the process does not already have one).</td>
+  </tr>
+  <tr>
+    <td><code>O_TRUNC</code></td>
+    <td>Flag indicating that if the file exists and is a regular file, and the
+    file is opened successfully for write access, its length shall be truncated
+    to zero.</td>
+  </tr>
+  <tr>
+    <td><code>O_APPEND</code></td>
+    <td>Flag indicating that data will be appended to the end of the file.</td>
+  </tr>
+  <tr>
+    <td><code>O_DIRECTORY</code></td>
+    <td>Flag indicating that the open should fail if the path is not a
+    directory.</td>
+  </tr>
+  <tr>
+  <td><code>O_NOATIME</code></td>
+    <td>Flag indicating reading accesses to the file system will no longer
+    result in an update to the `atime` information associated with the file.
+    This flag is available on Linux operating systems only.</td>
+  </tr>
+  <tr>
+    <td><code>O_NOFOLLOW</code></td>
+    <td>Flag indicating that the open should fail if the path is a symbolic
+    link.</td>
+  </tr>
+  <tr>
+    <td><code>O_SYNC</code></td>
+    <td>Flag indicating that the file is opened for synchronous I/O.</td>
+  </tr>
+  <tr>
+    <td><code>O_SYMLINK</code></td>
+    <td>Flag indicating to open the symbolic link itself rather than the
+    resource it is pointing to.</td>
+  </tr>
+  <tr>
+    <td><code>O_DIRECT</code></td>
+    <td>When set, an attempt will be made to minimize caching effects of file
+    I/O.</td>
+  </tr>
+  <tr>
+    <td><code>O_NONBLOCK</code></td>
+    <td>Flag indicating to open the file in nonblocking mode when possible.</td>
+  </tr>
+</table>
+
+### File Type Constants
+
+The following constants are meant for use with the [`fs.Stats`][] object's
+`mode` property for determining a file's type.
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>S_IFMT</code></td>
+    <td>Bit mask used to extract the file type code.</td>
+  </tr>
+  <tr>
+    <td><code>S_IFREG</code></td>
+    <td>File type constant for a regular file.</td>
+  </tr>
+  <tr>
+    <td><code>S_IFDIR</code></td>
+    <td>File type constant for a directory.</td>
+  </tr>
+  <tr>
+    <td><code>S_IFCHR</code></td>
+    <td>File type constant for a character-oriented device file.</td>
+  </tr>
+  <tr>
+    <td><code>S_IFBLK</code></td>
+    <td>File type constant for a block-oriented device file.</td>
+  </tr>
+  <tr>
+    <td><code>S_IFIFO</code></td>
+    <td>File type constant for a FIFO/pipe.</td>
+  </tr>
+  <tr>
+    <td><code>S_IFLNK</code></td>
+    <td>File type constant for a symbolic link.</td>
+  </tr>
+  <tr>
+    <td><code>S_IFSOCK</code></td>
+    <td>File type constant for a socket.</td>
+  </tr>
+</table>
+
+### File Mode Constants
+
+The following constants are meant for use with the [`fs.Stats`][] object's
+`mode` property for determining the access permissions for a file.
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>S_IRWXU</code></td>
+    <td>File mode indicating readable, writable and executable by owner.</td>
+  </tr>
+  <tr>
+    <td><code>S_IRUSR</code></td>
+    <td>File mode indicating readable by owner.</td>
+  </tr>
+  <tr>
+    <td><code>S_IWUSR</code></td>
+    <td>File mode indicating writable by owner.</td>
+  </tr>
+  <tr>
+    <td><code>S_IXUSR</code></td>
+    <td>File mode indicating executable by owner.</td>
+  </tr>
+  <tr>
+    <td><code>S_IRWXG</code></td>
+    <td>File mode indicating readable, writable and executable by group.</td>
+  </tr>
+  <tr>
+    <td><code>S_IRGRP</code></td>
+    <td>File mode indicating readable by group.</td>
+  </tr>
+  <tr>
+    <td><code>S_IWGRP</code></td>
+    <td>File mode indicating writable by group.</td>
+  </tr>
+  <tr>
+    <td><code>S_IXGRP</code></td>
+    <td>File mode indicating executable by group.</td>
+  </tr>
+  <tr>
+    <td><code>S_IRWXO</code></td>
+    <td>File mode indicating readable, writable and executable by others.</td>
+  </tr>
+  <tr>
+    <td><code>S_IROTH</code></td>
+    <td>File mode indicating readable by others.</td>
+  </tr>
+  <tr>
+    <td><code>S_IWOTH</code></td>
+    <td>File mode indicating writable by others.</td>
+  </tr>
+  <tr>
+    <td><code>S_IXOTH</code></td>
+    <td>File mode indicating executable by others.</td>
+  </tr>
+</table>
+
 [`Buffer.byteLength`]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
 [`Buffer`]: buffer.html#buffer_buffer
 [Caveats]: #fs_caveats
@@ -1726,9 +1954,12 @@ Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 [Writable Stream]: stream.html#stream_class_stream_writable
 [inode]: http://www.linux.org/threads/intro-to-inodes.4130
 [FS Constants]: #fs_fs_constants
+<<<<<<< HEAD
 [`inotify`]: http://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue`]: https://www.freebsd.org/cgi/man.cgi?kqueue
 [`FSEvents`]: https://developer.apple.com/library/mac/documentation/Darwin/Conceptual/FSEvents_ProgGuide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40005289-CH1-SW1
 [`event ports`]: http://illumos.org/man/port_create
 [`ReadDirectoryChangesW`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365465%28v=vs.85%29.aspx
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
+=======
+>>>>>>> dcccbfd... src: refactor require('constants')

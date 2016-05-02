@@ -104,7 +104,9 @@ if (!common.hasCrypto) {
 }
 var tls = require('tls');
 
-var constants = require('constants');
+const SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION =
+  require('crypto').constants.SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
+
 var assert = require('assert');
 var fs = require('fs');
 var spawn = require('child_process').spawn;
@@ -262,7 +264,7 @@ function runTest(port, testIndex) {
    */
   if (tcase.renegotiate) {
     serverOptions.secureOptions =
-        constants.SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
+        SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
   }
 
   var renegotiated = false;

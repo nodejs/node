@@ -7,7 +7,7 @@ var fs = require('fs');
 var fn = path.join(common.tmpDir, 'write.txt');
 var fn2 = path.join(common.tmpDir, 'write2.txt');
 var expected = 'ümlaut.';
-var constants = require('constants');
+var constants = fs.constants;
 var found, found2;
 
 common.refreshTmpDir();
@@ -55,4 +55,3 @@ process.on('exit', function() {
   assert.equal(expected, found);
   assert.equal(expected, found2);
 });
-

@@ -2509,7 +2509,7 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
     cache->Set(module, exports);
   } else if (!strcmp(*module_v, "constants")) {
     exports = Object::New(env->isolate());
-    DefineConstants(exports);
+    DefineConstants(env->isolate(), exports);
     cache->Set(module, exports);
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New(env->isolate());

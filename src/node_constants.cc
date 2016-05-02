@@ -1,4 +1,6 @@
 #include "node_constants.h"
+#include "env.h"
+#include "env-inl.h"
 
 #include "uv.h"
 
@@ -1140,14 +1142,26 @@ void DefineCryptoConstants(Local<Object> target) {
 #endif
 }
 
-void DefineConstants(Local<Object> target) {
-  DefineErrnoConstants(target);
-  DefineWindowsErrorConstants(target);
-  DefineSignalConstants(target);
-  DefineOpenSSLConstants(target);
-  DefineSystemConstants(target);
-  DefineUVConstants(target);
-  DefineCryptoConstants(target);
+void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
+  Local<Object> os_constants = Object::New(isolate);
+  Local<Object> err_constants = Object::New(isolate);
+  Local<Object> sig_constants = Object::New(isolate);
+  Local<Object> fs_constants = Object::New(isolate);
+  Local<Object> crypto_constants = Object::New(isolate);
+
+  DefineErrnoConstants(err_constants);
+  DefineWindowsErrorConstants(err_constants);
+  DefineSignalConstants(sig_constants);
+  DefineUVConstants(os_constants);
+  DefineSystemConstants(fs_constants);
+  DefineOpenSSLConstants(crypto_constants);
+  DefineCryptoConstants(crypto_constants);
+
+  os_constants->Set(OneByteString(isolate, "errno"), err_constants);
+  os_constants->Set(OneByteString(isolate, "signals"), sig_constants);
+  target->Set(OneByteString(isolate, "os"), os_constants);
+  target->Set(OneByteString(isolate, "fs"), fs_constants);
+  target->Set(OneByteString(isolate, "crypto"), crypto_constants);
 }
 
 }  // namespace node

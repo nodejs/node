@@ -5,7 +5,6 @@
 
 var common = require('../common');
 var assert = require('assert');
-var constants = require('constants');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -13,6 +12,7 @@ if (!common.hasCrypto) {
 }
 var crypto = require('crypto');
 var tls = require('tls');
+const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
 
 crypto.DEFAULT_ENCODING = 'binary';
 
@@ -556,7 +556,7 @@ var p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
         '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
         'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
 var d = crypto.createDiffieHellman(p, 'hex');
-assert.equal(d.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(d.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 // Test RSA key signing/verification
 var rsaSign = crypto.createSign('RSA-SHA1');

@@ -18,9 +18,10 @@ if (!common.hasCrypto) {
 var tls = require('tls');
 
 var assert = require('assert');
-var constants = require('constants');
 var fs = require('fs');
 var join = require('path').join;
+
+const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 var pfx = fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-pfx.pem'));
 
@@ -76,7 +77,7 @@ function test(testOptions, cb) {
       port: this.address().port,
       requestOCSP: testOptions.ocsp !== false,
       secureOptions: testOptions.ocsp === false ?
-          constants.SSL_OP_NO_TICKET : 0,
+          SSL_OP_NO_TICKET : 0,
       rejectUnauthorized: false
     }, function() {
       clientSecure++;

@@ -856,6 +856,12 @@ thrown.
 
 ## `crypto` module methods and properties
 
+## crypto.constants
+
+Returns an object containing commonly used constants for crypto and security
+related operations. The specific constants currently defined are described in
+[Crypto Constants][].
+
 ### crypto.DEFAULT_ENCODING
 
 The default encoding to use for functions that can take either strings
@@ -1205,11 +1211,11 @@ keys:
 * `key` : {String} - PEM encoded private key
 * `passphrase` : {String} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
-  * `constants.RSA_NO_PADDING`
-  * `constants.RSA_PKCS1_PADDING`
-  * `constants.RSA_PKCS1_OAEP_PADDING`
+  * `crypto.constants.RSA_NO_PADDING`
+  * `crypto.constants.RSA_PKCS1_PADDING`
+  * `crypto.constants.RSA_PKCS1_OAEP_PADDING`
 
-All paddings are defined in the `constants` module.
+All paddings are defined in `crypto.constants`.
 
 ### crypto.privateEncrypt(private_key, buffer)
 
@@ -1223,11 +1229,11 @@ keys:
 * `key` : {String} - PEM encoded private key
 * `passphrase` : {String} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
-  * `constants.RSA_NO_PADDING`
-  * `constants.RSA_PKCS1_PADDING`
-  * `constants.RSA_PKCS1_OAEP_PADDING`
+  * `crypto.constants.RSA_NO_PADDING`
+  * `crypto.constants.RSA_PKCS1_PADDING`
+  * `crypto.constants.RSA_PKCS1_OAEP_PADDING`
 
-All paddings are defined in the `constants` module.
+All paddings are defined in `crypto.constants`.
 
 ### crypto.publicDecrypt(public_key, buffer)
 
@@ -1241,14 +1247,14 @@ keys:
 * `key` : {String} - PEM encoded public key
 * `passphrase` : {String} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
-  * `constants.RSA_NO_PADDING`
-  * `constants.RSA_PKCS1_PADDING`
-  * `constants.RSA_PKCS1_OAEP_PADDING`
+  * `crypto.constants.RSA_NO_PADDING`
+  * `crypto.constants.RSA_PKCS1_PADDING`
+  * `crypto.constants.RSA_PKCS1_OAEP_PADDING`
 
 Because RSA public keys can be derived from private keys, a private key may
 be passed instead of a public key.
 
-All paddings are defined in the `constants` module.
+All paddings are defined in `crypto.constants`.
 
 ### crypto.publicEncrypt(public_key, buffer)
 
@@ -1262,14 +1268,14 @@ keys:
 * `key` : {String} - PEM encoded public key
 * `passphrase` : {String} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
-  * `constants.RSA_NO_PADDING`
-  * `constants.RSA_PKCS1_PADDING`
-  * `constants.RSA_PKCS1_OAEP_PADDING`
+  * `crypto.constants.RSA_NO_PADDING`
+  * `crypto.constants.RSA_PKCS1_PADDING`
+  * `crypto.constants.RSA_PKCS1_OAEP_PADDING`
 
 Because RSA public keys can be derived from private keys, a private key may
 be passed instead of a public key.
 
-All paddings are defined in the `constants` module.
+All paddings are defined in `crypto.constants`.
 
 ### crypto.randomBytes(size[, callback])
 
@@ -1313,22 +1319,22 @@ Load and set the `engine` for some or all OpenSSL functions (selected by flags).
 `engine` could be either an id or a path to the engine's shared library.
 
 The optional `flags` argument uses `ENGINE_METHOD_ALL` by default. The `flags`
-is a bit field taking one of or a mix of the following flags (defined in the
-`constants` module):
+is a bit field taking one of or a mix of the following flags (defined in
+`crypto.constants`):
 
-* `ENGINE_METHOD_RSA`
-* `ENGINE_METHOD_DSA`
-* `ENGINE_METHOD_DH`
-* `ENGINE_METHOD_RAND`
-* `ENGINE_METHOD_ECDH`
-* `ENGINE_METHOD_ECDSA`
-* `ENGINE_METHOD_CIPHERS`
-* `ENGINE_METHOD_DIGESTS`
-* `ENGINE_METHOD_STORE`
-* `ENGINE_METHOD_PKEY_METHS`
-* `ENGINE_METHOD_PKEY_ASN1_METHS`
-* `ENGINE_METHOD_ALL`
-* `ENGINE_METHOD_NONE`
+* `crypto.constants.ENGINE_METHOD_RSA`
+* `crypto.constants.ENGINE_METHOD_DSA`
+* `crypto.constants.ENGINE_METHOD_DH`
+* `crypto.constants.ENGINE_METHOD_RAND`
+* `crypto.constants.ENGINE_METHOD_ECDH`
+* `crypto.constants.ENGINE_METHOD_ECDSA`
+* `crypto.constants.ENGINE_METHOD_CIPHERS`
+* `crypto.constants.ENGINE_METHOD_DIGESTS`
+* `crypto.constants.ENGINE_METHOD_STORE`
+* `crypto.constants.ENGINE_METHOD_PKEY_METHS`
+* `crypto.constants.ENGINE_METHOD_PKEY_ASN1_METHS`
+* `crypto.constants.ENGINE_METHOD_ALL`
+* `crypto.constants.ENGINE_METHOD_NONE`
 
 ## Notes
 
@@ -1380,6 +1386,316 @@ Based on the recommendations of [NIST SP 800-131A][]:
 
 See the reference for other recommendations and details.
 
+## Crypto Constants
+
+The following constants exported by `crypto.constants` apply to various uses of 
+the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
+
+### OpenSSL Options
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_ALL</code></td>
+    <td>Applies multiple bug workarounds within OpenSSL. See
+    https://www.openssl.org/docs/manmaster/ssl/SSL_CTX_set_options.html for
+    detail.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION</code></td>
+    <td>Allows legacy insecure renegotiation between OpenSSL and unpatched
+    clients or servers. See 
+    https://www.openssl.org/docs/manmaster/ssl/SSL_CTX_set_options.html.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_CIPHER_SERVER_PREFERENCE</code></td>
+    <td>Uses the server's preferences instead of the clients when selecting a
+    cipher. See 
+    https://www.openssl.org/docs/manmaster/ssl/SSL_CTX_set_options.html.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_CISCO_ANYCONNECT</code></td>
+    <td>Instructs OpenSSL to use Cisco's "speshul" version of DTLS_BAD_VER.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_COOKIE_EXCHANGE</code></td>
+    <td>Instructs OpenSSL to turn on cookie exchange.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_CRYPTOPRO_TLSEXT_BUG</code></td>
+    <td>Instructs OpenSSL to add server-hello extension from an early version
+    of the cryptopro draft.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS</code></td>
+    <td>Instructs OpenSSL to disable a SSL 3.0/TLS 1.0 vulnerability
+    workaround added in OpenSSL 0.9.6d.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_EPHEMERAL_RSA</code></td>
+    <td>Instructs OpenSSL to always use the tmp_rsa key when performing RSA
+    operations.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_LEGACY_SERVER_CONNECT</code></td>
+    <td>Allow initial connection to servers that do not support RI.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_MICROSOFT_SESS_ID_BUG</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_MSIE_SSLV2_RSA_PADDING</code></td>
+    <td>Instructs OpenSSL to disable the workaround for a man-in-the-middle
+    protocol-version vulnerability in the SSL 2.0 server implementation.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NETSCAPE_CA_DN_BUG</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NETSCAPE_CHALLENGE_BUG</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NO_COMPRESSION</code></td>
+    <td>Instructs OpenSSL to disable support for SSL/TLS compression.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NO_QUERY_MTU</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION</code></td>
+    <td>Instructs OpenSSL to always start a new session when performing
+    renegotiation.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NO_SSLv2</code></td>
+    <td>Instructs OpenSSL to turn off SSL v2</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NO_SSLv3</code></td>
+    <td>Instructs OpenSSL to turn off SSL v3</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NO_TICKET</code></td>
+    <td>Instructs OpenSSL to disable use of RFC4507bis tickets.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NO_TLSv1</code></td>
+    <td>Instructs OpenSSL to turn off TLS v1</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NO_TLSv1_1</code></td>
+    <td>Instructs OpenSSL to turn off TLS v1.1</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NO_TLSv1_2</code></td>
+    <td>Instructs OpenSSL to turn off TLS v1.2</td>
+  </tr>
+    <td><code>SSL_OP_PKCS1_CHECK_1</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_PKCS1_CHECK_2</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_SINGLE_DH_USE</code></td>
+    <td>Instructs OpenSSL to always create a new key when using
+    temporary/ephemeral DH parameters.</td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_SINGLE_ECDH_USE</code></td>
+    <td>Instructs OpenSSL to always create a new key when using
+    temporary/ephemeral ECDH parameters.</td>
+  </tr>
+    <td><code>SSL_OP_SSLEAY_080_CLIENT_DH_BUG</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_TLS_BLOCK_PADDING_BUG</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_TLS_D5_BUG</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_TLS_ROLLBACK_BUG</code></td>
+    <td>Instructs OpenSSL to disable version rollback attack detection.</td>
+  </tr>
+</table>
+
+### OpenSSL Engine Constants
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_RSA</code></td>
+    <td>Limit engine usage to RSA</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_DSA</code></td>
+    <td>Limit engine usage to DSA</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_DH</code></td>
+    <td>Limit engine usage to DH</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_RAND</code></td>
+    <td>Limit engine usage to RAND</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_ECDH</code></td>
+    <td>Limit engine usage to ECDH</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_ECDSA</code></td>
+    <td>Limit engine usage to ECDSA</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_CIPHERS</code></td>
+    <td>Limit engine usage to CIPHERS</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_DIGESTS</code></td>
+    <td>Limit engine usage to DIGESTS</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_STORE</code></td>
+    <td>Limit engine usage to STORE</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_PKEY_METHS</code></td>
+    <td>Limit engine usage to PKEY_METHDS</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_PKEY_ASN1_METHS</code></td>
+    <td>Limit engine usage to PKEY_ASN1_METHS</td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_ALL</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>ENGINE_METHOD_NONE</code></td>
+    <td></td>
+  </tr>
+</table>
+
+### Other OpenSSL Constants
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>DH_CHECK_P_NOT_SAFE_PRIME</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>DH_CHECK_P_NOT_PRIME</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>DH_UNABLE_TO_CHECK_GENERATOR</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>DH_NOT_SUITABLE_GENERATOR</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>NPN_ENABLED</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>ALPN_ENABLED</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>RSA_PKCS1_PADDING</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>RSA_SSLV23_PADDING</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>RSA_NO_PADDING</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>RSA_PKCS1_OAEP_PADDING</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>RSA_X931_PADDING</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>RSA_PKCS1_PSS_PADDING</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>POINT_CONVERSION_COMPRESSED</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>POINT_CONVERSION_UNCOMPRESSED</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>POINT_CONVERSION_HYBRID</code></td>
+    <td></td>
+  </tr>
+</table>
+
+### Node.js Crypto Constants
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>defaultCoreCipherList</code></td>
+    <td>Specifies the built-in default cipher list used by Node.js.</td>
+  </tr>
+  <tr>
+    <td><code>defaultCipherList</code></td>
+    <td>Specifies the active default cipher list used by the current Node.js
+    process.</td>
+  </tr>
+</table>
+
+
 [`Buffer`]: buffer.html
 [`cipher.final()`]: #crypto_cipher_final_output_encoding
 [`cipher.update()`]: #crypto_cipher_update_data_input_encoding_output_encoding
@@ -1423,3 +1739,4 @@ See the reference for other recommendations and details.
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [stream]: stream.html
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
+[Crypto Constants]: #crypto_crypto_constants
