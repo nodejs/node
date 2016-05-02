@@ -1011,7 +1011,8 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   }
   size_t offset = static_cast<size_t>(opt_offset);
   CHECK_LT(offset, haystack_length);
-  if (is_forward && needle_length + offset > haystack_length) {
+  if ((is_forward && needle_length + offset > haystack_length) ||
+      needle_length > haystack_length) {
     return args.GetReturnValue().Set(-1);
   }
 
@@ -1113,7 +1114,8 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   }
   size_t offset = static_cast<size_t>(opt_offset);
   CHECK_LT(offset, haystack_length);
-  if (is_forward && needle_length + offset > haystack_length) {
+  if ((is_forward && needle_length + offset > haystack_length) ||
+      needle_length > haystack_length) {
     return args.GetReturnValue().Set(-1);
   }
 
