@@ -140,9 +140,9 @@ Similar to the `cluster.on('exit')` event, but specific to this worker.
 ```js
 const worker = cluster.fork();
 worker.on('exit', (code, signal) => {
-  if( signal ) {
+  if (signal) {
     console.log(`worker was killed by signal: ${signal}`);
-  } else if( code !== 0 ) {
+  } else if (code !== 0) {
     console.log(`worker exited with error code: ${code}`);
   } else {
     console.log('worker success!');
@@ -285,7 +285,7 @@ if (cluster.isMaster) {
   server.listen(8000);
 
   process.on('message', (msg) => {
-    if(msg === 'shutdown') {
+    if (msg === 'shutdown') {
       // initiate graceful close of any connections to server
     }
   });
