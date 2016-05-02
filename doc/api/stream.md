@@ -987,7 +987,7 @@ class Counter extends Readable {
       var buf = Buffer.from(str, 'ascii');
       this.push(buf);
     }
-  };
+  }
 }
 ```
 
