@@ -22,14 +22,18 @@ assert.doesNotThrow(function() {
 });
 
 // an Object with a custom .inspect() function
-var custom_inspect = { foo: 'bar', inspect: function() { return 'inspect'; } };
+const custom_inspect = { foo: 'bar', inspect: () => { return 'inspect'; } };
 
-var stdout_write = global.process.stdout.write;
-var strings = [];
+const stdout_write = global.process.stdout.write;
+const stderr_write = global.process.stderr.write;
+const strings = [];
+const errStrings = [];
 global.process.stdout.write = function(string) {
   strings.push(string);
 };
-console._stderr = process.stdout;
+global.process.stderr.write = function(string) {
+  errStrings.push(string);
+};
 
 // test console.log()
 console.log('foo');
@@ -37,6 +41,27 @@ console.log('foo', 'bar');
 console.log('%s %s', 'foo', 'bar', 'hop');
 console.log({slashes: '\\\\'});
 console.log(custom_inspect);
+
+// test console.info()
+console.info('foo');
+console.info('foo', 'bar');
+console.info('%s %s', 'foo', 'bar', 'hop');
+console.info({slashes: '\\\\'});
+console.info(custom_inspect);
+
+// test console.error()
+console.error('foo');
+console.error('foo', 'bar');
+console.error('%s %s', 'foo', 'bar', 'hop');
+console.error({slashes: '\\\\'});
+console.error(custom_inspect);
+
+// test console.warn()
+console.warn('foo');
+console.warn('foo', 'bar');
+console.warn('%s %s', 'foo', 'bar', 'hop');
+console.warn({slashes: '\\\\'});
+console.warn(custom_inspect);
 
 // test console.dir()
 console.dir(custom_inspect);
@@ -60,6 +85,7 @@ console.time('hasOwnProperty');
 console.timeEnd('hasOwnProperty');
 
 global.process.stdout.write = stdout_write;
+global.process.stderr.write = stderr_write;
 
 // verify that console.timeEnd() doesn't leave dead links
 const timesMapSize = console._times.size;
@@ -71,22 +97,34 @@ console.timeEnd('label2');
 console.timeEnd('label3');
 assert.strictEqual(console._times.size, timesMapSize);
 
-assert.equal('foo\n', strings.shift());
-assert.equal('foo bar\n', strings.shift());
-assert.equal('foo bar hop\n', strings.shift());
-assert.equal("{ slashes: '\\\\\\\\' }\n", strings.shift());
-assert.equal('inspect\n', strings.shift());
+const expectedStrings = [
+  'foo', 'foo bar', 'foo bar hop', "{ slashes: '\\\\\\\\' }", 'inspect'
+];
+
+for (const expected of expectedStrings) {
+  assert.equal(expected + '\n', strings.shift());      // console.log   (stdout)
+  assert.equal(expected + '\n', errStrings.shift());   // console.error (stderr)
+}
+
+for (const expected of expectedStrings) {
+  assert.equal(expected + '\n', strings.shift());      // console.info  (stdout)
+  assert.equal(expected + '\n', errStrings.shift());   // console.warn  (stderr)
+}
+
 assert.equal("{ foo: 'bar', inspect: [Function] }\n", strings.shift());
 assert.equal("{ foo: 'bar', inspect: [Function] }\n", strings.shift());
 assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
 assert.equal(-1, strings.shift().indexOf('baz'));
-assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',
-             strings.shift().split('\n').shift());
 assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^constructor: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^hasOwnProperty: \d+\.\d{3}ms$/.test(strings.shift().trim()));
+
+assert.equal('Trace: This is a {"formatted":"trace"} 10 foo',
+             errStrings.shift().split('\n').shift());
+
 assert.equal(strings.length, 0);
+assert.equal(errStrings.length, 0);
 
 assert.throws(() => {
   console.assert(false, 'should throw');
