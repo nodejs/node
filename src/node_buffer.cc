@@ -994,7 +994,9 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   bool is_forward = args[4]->IsTrue();
 
   const char* haystack = ts_obj_data;
-  const size_t haystack_length = ts_obj_length;
+  // Round down to the nearest multiple of 2 in case of UCS2.
+  const size_t haystack_length = (enc == UCS2) ?
+      ts_obj_length &~ 1 : ts_obj_length;  // NOLINT(whitespace/operators)
 
   const size_t needle_length =
       StringBytes::Size(args.GetIsolate(), needle, enc);

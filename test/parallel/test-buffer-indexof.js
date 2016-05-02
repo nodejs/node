@@ -228,6 +228,9 @@ assert.strictEqual(Buffer.from('aaaa').indexOf('a'.repeat(4), 'ucs2'), -1);
 assert.strictEqual(Buffer.from('aaaa').indexOf('a'.repeat(4), 'utf8'), 0);
 assert.strictEqual(Buffer.from('aaaa').indexOf('你好', 'ucs2'), -1);
 
+// Haystack has odd length, but the needle is UCS2.
+assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
+
 {
   // Find substrings in Utf8.
   const lengths = [1, 3, 15];  // Single char, simple and complex.
