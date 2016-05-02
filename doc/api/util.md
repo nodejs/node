@@ -126,6 +126,10 @@ util.format(1, 2, 3); // '1 2 3'
 
 ## util.inherits(constructor, superConstructor)
 
+_Note: usage of util.inherits() is discouraged. Please use the ES6 `class` and
+`extends` keywords to get language level inheritance support. Also note that
+the two styles are [semantically incompatible][]._
+
 Inherit the prototype methods from one [constructor][] into another.  The
 prototype of `constructor` will be set to a new object created from
 `superConstructor`.
@@ -588,6 +592,7 @@ similar built-in functionality through `Object.assign`.
 
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor
+[semantically incompatible]: https://github.com/nodejs/node/issues/4179
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [here]: #util_customizing_util_inspect_colors
 [`Error`]: errors.html#errors_class_error
