@@ -43,6 +43,20 @@ $L$mul_enter::
 
 	mov	QWORD PTR[8+r9*8+rsp],rax
 $L$mul_body::
+
+
+
+
+
+
+	sub	rax,rsp
+	and	rax,-4096
+$L$mul_page_walk::
+	mov	r11,QWORD PTR[rax*1+rsp]
+	sub	rax,4096
+DB	02eh
+	jnc	$L$mul_page_walk
+
 	lea	r12,QWORD PTR[128+rdx]
 	movdqa	xmm0,XMMWORD PTR[r10]
 	movdqa	xmm1,XMMWORD PTR[16+r10]
@@ -470,6 +484,15 @@ $L$mul4xsp_alt::
 	sub	rsp,r11
 $L$mul4xsp_done::
 	and	rsp,-64
+	mov	r11,rax
+	sub	r11,rsp
+	and	r11,-4096
+$L$mul4x_page_walk::
+	mov	r10,QWORD PTR[r11*1+rsp]
+	sub	r11,4096
+DB	02eh
+	jnc	$L$mul4x_page_walk
+
 	neg	r9
 
 	mov	QWORD PTR[40+rsp],rax
@@ -1074,6 +1097,15 @@ $L$pwr_sp_alt::
 	sub	rsp,r11
 $L$pwr_sp_done::
 	and	rsp,-64
+	mov	r11,rax
+	sub	r11,rsp
+	and	r11,-4096
+$L$pwr_page_walk::
+	mov	r10,QWORD PTR[r11*1+rsp]
+	sub	r11,4096
+DB	02eh
+	jnc	$L$pwr_page_walk
+
 	mov	r10,r9
 	neg	r9
 
@@ -2030,6 +2062,15 @@ $L$from_sp_alt::
 	sub	rsp,r11
 $L$from_sp_done::
 	and	rsp,-64
+	mov	r11,rax
+	sub	r11,rsp
+	and	r11,-4096
+$L$from_page_walk::
+	mov	r10,QWORD PTR[r11*1+rsp]
+	sub	r11,4096
+DB	02eh
+	jnc	$L$from_page_walk
+
 	mov	r10,r9
 	neg	r9
 
