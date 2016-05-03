@@ -145,6 +145,7 @@ static ERR_STRING_DATA X509_str_reasons[] = {
     {ERR_REASON(X509_R_LOADING_CERT_DIR), "loading cert dir"},
     {ERR_REASON(X509_R_LOADING_DEFAULTS), "loading defaults"},
     {ERR_REASON(X509_R_METHOD_NOT_SUPPORTED), "method not supported"},
+    {ERR_REASON(X509_R_NAME_TOO_LONG), "name too long"},
     {ERR_REASON(X509_R_NO_CERT_SET_FOR_US_TO_VERIFY),
      "no cert set for us to verify"},
     {ERR_REASON(X509_R_PUBLIC_KEY_DECODE_ERROR), "public key decode error"},

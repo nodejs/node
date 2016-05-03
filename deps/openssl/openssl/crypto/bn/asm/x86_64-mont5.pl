@@ -84,6 +84,20 @@ bn_mul_mont_gather5:
 
 	mov	%rax,8(%rsp,$num,8)	# tp[num+1]=%rsp
 .Lmul_body:
+	# Some OSes, *cough*-dows, insist on stack being "wired" to
+	# physical memory in strictly sequential manner, i.e. if stack
+	# allocation spans two pages, then reference to farmost one can
+	# be punishable by SEGV. But page walking can do good even on
+	# other OSes, because it guarantees that villain thread hits
+	# the guard page before it can make damage to innocent one...
+	sub	%rsp,%rax
+	and	\$-4096,%rax
+.Lmul_page_walk:
+	mov	(%rsp,%rax),%r11
+	sub	\$4096,%rax
+	.byte	0x2e			# predict non-taken
+	jnc	.Lmul_page_walk
+
 	lea	128($bp),%r12		# reassign $bp (+size optimization)
 ___
 		$bp="%r12";
@@ -407,6 +421,14 @@ bn_mul4x_mont_gather5:
 
 	mov	%rax,8(%rsp,$num,8)	# tp[num+1]=%rsp
 .Lmul4x_body:
+	sub	%rsp,%rax
+	and	\$-4096,%rax
+.Lmul4x_page_walk:
+	mov	(%rsp,%rax),%r11
+	sub	\$4096,%rax
+	.byte	0x2e			# predict non-taken
+	jnc	.Lmul4x_page_walk
+
 	mov	$rp,16(%rsp,$num,8)	# tp[num+2]=$rp
 	lea	128(%rdx),%r12		# reassign $bp (+size optimization)
 ___
