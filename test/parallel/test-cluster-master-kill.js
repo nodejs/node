@@ -21,15 +21,8 @@ if (cluster.isWorker) {
   // terminate the cluster process
   worker.once('listening', function() {
     setTimeout(function() {
-/* Cluster.disconnect() will exercise a different 'graceful' shutdown path.
-   From the perspective of the worker, closing the channel is equivalent
-   to the parent calling process.exit(0). */
-      worker.process._channel.close();
+      process.exit(0);
     }, 1000);
-  });
-
-  worker.once('exit', function() {
-    process.exit(0);
   });
 
 } else {
@@ -66,15 +59,17 @@ if (cluster.isWorker) {
     assert.equal(code, 0);
 
     // check worker process status
-    alive = isAlive(pid);
+    var pollWorker = function() {
+      alive = isAlive(pid);
+      if (alive) {
+        setTimeout(pollWorker, 500);
+      }
+    };
+    // Loop indefinitely until worker exit.
+    pollWorker();
   });
 
   process.once('exit', function() {
-    // cleanup: kill the worker if alive
-    if (alive) {
-      process.kill(pid);
-    }
-
     assert.equal(typeof pid, 'number', 'did not get worker pid info');
     assert.equal(alive, false, 'worker was alive after master died');
   });
