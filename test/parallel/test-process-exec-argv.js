@@ -15,7 +15,7 @@ if (process.argv[2] === 'child') {
     out += chunk;
   });
 
-  child.on('exit', function() {
+  child.on('close', function() {
     assert.deepStrictEqual(JSON.parse(out), execArgv);
   });
 }
