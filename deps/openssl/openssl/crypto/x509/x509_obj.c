@@ -63,6 +63,13 @@
 #include <openssl/x509.h>
 #include <openssl/buffer.h>
 
+/*
+ * Limit to ensure we don't overflow: much greater than
+ * anything enountered in practice.
+ */
+
+#define NAME_ONELINE_MAX    (1024 * 1024)
+
 char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
 {
     X509_NAME_ENTRY *ne;
@@ -86,6 +93,8 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
             goto err;
         b->data[0] = '\0';
         len = 200;
+    } else if (len == 0) {
+        return NULL;
     }
     if (a == NULL) {
         if (b) {
@@ -110,6 +119,10 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
 
         type = ne->value->type;
         num = ne->value->length;
+        if (num > NAME_ONELINE_MAX) {
+            X509err(X509_F_X509_NAME_ONELINE, X509_R_NAME_TOO_LONG);
+            goto end;
+        }
         q = ne->value->data;
 #ifdef CHARSET_EBCDIC
         if (type == V_ASN1_GENERALSTRING ||
@@ -117,8 +130,9 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
             type == V_ASN1_PRINTABLESTRING ||
             type == V_ASN1_TELETEXSTRING ||
             type == V_ASN1_VISIBLESTRING || type == V_ASN1_IA5STRING) {
-            ascii2ebcdic(ebcdic_buf, q, (num > sizeof ebcdic_buf)
-                         ? sizeof ebcdic_buf : num);
+            if (num > (int)sizeof(ebcdic_buf))
+                num = sizeof(ebcdic_buf);
+            ascii2ebcdic(ebcdic_buf, q, num);
             q = ebcdic_buf;
         }
 #endif
@@ -154,6 +168,10 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
 
         lold = l;
         l += 1 + l1 + 1 + l2;
+        if (l > NAME_ONELINE_MAX) {
+            X509err(X509_F_X509_NAME_ONELINE, X509_R_NAME_TOO_LONG);
+            goto end;
+        }
         if (b != NULL) {
             if (!BUF_MEM_grow(b, l + 1))
                 goto err;
@@ -206,7 +224,7 @@ char *X509_NAME_oneline(X509_NAME *a, char *buf, int len)
     return (p);
  err:
     X509err(X509_F_X509_NAME_ONELINE, ERR_R_MALLOC_FAILURE);
-    if (b != NULL)
-        BUF_MEM_free(b);
+ end:
+    BUF_MEM_free(b);
     return (NULL);
 }

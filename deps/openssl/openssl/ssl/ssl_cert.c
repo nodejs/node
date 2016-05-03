@@ -504,6 +504,8 @@ void ssl_cert_free(CERT *c)
 #ifndef OPENSSL_NO_TLSEXT
     custom_exts_free(&c->cli_ext);
     custom_exts_free(&c->srv_ext);
+    if (c->alpn_proposed)
+        OPENSSL_free(c->alpn_proposed);
 #endif
     OPENSSL_free(c);
 }
@@ -1057,13 +1059,18 @@ static int ssl_add_cert_to_buf(BUF_MEM *buf, unsigned long *l, X509 *x)
     unsigned char *p;
 
     n = i2d_X509(x, NULL);
-    if (!BUF_MEM_grow_clean(buf, (int)(n + (*l) + 3))) {
+    if (n < 0 || !BUF_MEM_grow_clean(buf, (int)(n + (*l) + 3))) {
         SSLerr(SSL_F_SSL_ADD_CERT_TO_BUF, ERR_R_BUF_LIB);
         return 0;
     }
     p = (unsigned char *)&(buf->data[*l]);
     l2n3(n, p);
-    i2d_X509(x, &p);
+    n = i2d_X509(x, &p);
+    if (n < 0) {
+        /* Shouldn't happen */
+        SSLerr(SSL_F_SSL_ADD_CERT_TO_BUF, ERR_R_BUF_LIB);
+        return 0;
+    }
     *l += n + 3;
 
     return 1;
