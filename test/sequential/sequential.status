@@ -13,7 +13,6 @@ prefix sequential
 [$system==macos]
 
 [$system==solaris] # Also applies to SmartOS
-test-http-regr-gh-2928      : PASS,FLAKY
 
 [$system==freebsd]
 
