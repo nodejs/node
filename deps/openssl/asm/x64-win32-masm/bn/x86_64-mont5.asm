@@ -44,6 +44,21 @@ $L$mul_alloca::
 
 	mov	QWORD PTR[8+r9*8+rsp],rax
 $L$mul_body::
+
+
+
+
+
+
+	sub	rax,rsp
+	and	rax,-4096
+$L$mul_page_walk::
+	mov	r11,QWORD PTR[rax*1+rsp]
+	sub	rax,4096
+DB	02eh
+
+	jnc	$L$mul_page_walk
+
 	lea	r12,QWORD PTR[128+rdx]
 	movdqa	xmm0,XMMWORD PTR[r10]
 	movdqa	xmm1,XMMWORD PTR[16+r10]
@@ -447,6 +462,15 @@ $L$mul4x_alloca::
 
 	mov	QWORD PTR[8+r9*8+rsp],rax
 $L$mul4x_body::
+	sub	rax,rsp
+	and	rax,-4096
+$L$mul4x_page_walk::
+	mov	r11,QWORD PTR[rax*1+rsp]
+	sub	rax,4096
+DB	02eh
+
+	jnc	$L$mul4x_page_walk
+
 	mov	QWORD PTR[16+r9*8+rsp],rdi
 	lea	r12,QWORD PTR[128+rdx]
 	movdqa	xmm0,XMMWORD PTR[r10]
