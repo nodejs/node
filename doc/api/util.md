@@ -126,9 +126,9 @@ util.format(1, 2, 3); // '1 2 3'
 
 ## util.inherits(constructor, superConstructor)
 
-_Note: usage of `util.inherits()` is discouraged. Please use ES6 `class` and
-`extends` to get language level inheritance support, including an unbroken
-inheritance chain._
+_Note: usage of util.inherits() is discouraged. Please use the ES6 `class` and
+`extends` keywords to get language level inheritance support. Also note that
+the two styles are semantically incompatible._
 
 Inherit the prototype methods from one [constructor][] into another.  The
 prototype of `constructor` will be set to a new object created from
