@@ -200,13 +200,13 @@ ASN1_STRING *d2i_ASN1_bytes(ASN1_STRING **a, const unsigned char **pp,
     } else {
         if (len != 0) {
             if ((ret->length < len) || (ret->data == NULL)) {
-                if (ret->data != NULL)
-                    OPENSSL_free(ret->data);
                 s = (unsigned char *)OPENSSL_malloc((int)len + 1);
                 if (s == NULL) {
                     i = ERR_R_MALLOC_FAILURE;
                     goto err;
                 }
+                if (ret->data != NULL)
+                    OPENSSL_free(ret->data);
             } else
                 s = ret->data;
             memcpy(s, p, (int)len);
