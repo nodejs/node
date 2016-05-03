@@ -5,6 +5,19 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1s and OpenSSL 1.0.1t [3 May 2016]
+
+      o Prevent padding oracle in AES-NI CBC MAC check (CVE-2016-2107)
+      o Fix EVP_EncodeUpdate overflow (CVE-2016-2105)
+      o Fix EVP_EncryptUpdate overflow (CVE-2016-2106)
+      o Prevent ASN.1 BIO excessive memory allocation (CVE-2016-2109)
+      o EBCDIC overread (CVE-2016-2176)
+      o Modify behavior of ALPN to invoke callback after SNI/servername
+        callback, such that updates to the SSL_CTX affect ALPN.
+      o Remove LOW from the DEFAULT cipher list.  This removes singles DES from
+        the default.
+      o Only remove the SSLv2 methods with the no-ssl2-method option.
+
   Major changes between OpenSSL 1.0.1r and OpenSSL 1.0.1s [1 Mar 2016]
 
       o Disable weak ciphers in SSLv3 and up in default builds of OpenSSL.

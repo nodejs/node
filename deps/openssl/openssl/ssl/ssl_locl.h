@@ -435,8 +435,9 @@
 # define SSL_MEDIUM              0x00000040L
 # define SSL_HIGH                0x00000080L
 # define SSL_FIPS                0x00000100L
+# define SSL_NOT_DEFAULT         0x00000200L
 
-/* we have used 000001ff - 23 bits left to go */
+/* we have used 000003ff - 22 bits left to go */
 
 /*-
  * Macros to check the export status and cipher strength for export ciphers.

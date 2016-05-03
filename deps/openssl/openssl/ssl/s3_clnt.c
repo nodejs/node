@@ -2104,6 +2104,7 @@ int ssl3_get_certificate_request(SSL *s)
             SSLerr(SSL_F_SSL3_GET_CERTIFICATE_REQUEST, ERR_R_MALLOC_FAILURE);
             goto err;
         }
+        xn = NULL;
 
         p += l;
         nc += l + 2;
@@ -2127,6 +2128,7 @@ int ssl3_get_certificate_request(SSL *s)
  err:
     s->state = SSL_ST_ERR;
  done:
+    X509_NAME_free(xn);
     if (ca_sk != NULL)
         sk_X509_NAME_pop_free(ca_sk, X509_NAME_free);
     return (ret);

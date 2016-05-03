@@ -131,6 +131,10 @@ static int read_lebn(const unsigned char **in, unsigned int nbyte, BIGNUM **r)
 # define MS_PVKMAGIC             0xb0b5f11eL
 /* Salt length for PVK files */
 # define PVK_SALTLEN             0x10
+/* Maximum length in PVK header */
+# define PVK_MAX_KEYLEN          102400
+/* Maximum salt length */
+# define PVK_MAX_SALTLEN         10240
 
 static EVP_PKEY *b2i_rsa(const unsigned char **in, unsigned int length,
                          unsigned int bitlen, int ispub);
@@ -643,6 +647,9 @@ static int do_PVK_header(const unsigned char **in, unsigned int length,
     is_encrypted = read_ledword(&p);
     *psaltlen = read_ledword(&p);
     *pkeylen = read_ledword(&p);
+
+    if (*pkeylen > PVK_MAX_KEYLEN || *psaltlen > PVK_MAX_SALTLEN)
+        return 0;
 
     if (is_encrypted && !*psaltlen) {
         PEMerr(PEM_F_DO_PVK_HEADER, PEM_R_INCONSISTENT_HEADER);
