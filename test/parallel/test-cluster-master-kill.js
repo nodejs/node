@@ -62,7 +62,7 @@ if (cluster.isWorker) {
     var pollWorker = function() {
       alive = isAlive(pid);
       if (alive) {
-        setTimeout(pollWorker, 500);
+        setTimeout(pollWorker, 50);
       }
     };
     // Loop indefinitely until worker exit.

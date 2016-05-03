@@ -101,7 +101,7 @@ if (cluster.isWorker) {
         }
       });
       if (alive) {
-        setTimeout(pollWorkers, 500);
+        setTimeout(pollWorkers, 50);
       } else {
         workersExited = true;
       }
