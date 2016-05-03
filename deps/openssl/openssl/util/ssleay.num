@@ -98,9 +98,9 @@ SSLeay_add_ssl_algorithms               109	NOEXIST::FUNCTION:
 SSLv23_client_method                    110	EXIST::FUNCTION:RSA
 SSLv23_method                           111	EXIST::FUNCTION:RSA
 SSLv23_server_method                    112	EXIST::FUNCTION:RSA
-SSLv2_client_method                     113	EXIST::FUNCTION:RSA,SSL2
-SSLv2_method                            114	EXIST::FUNCTION:RSA,SSL2
-SSLv2_server_method                     115	EXIST::FUNCTION:RSA,SSL2
+SSLv2_client_method                     113	EXIST::FUNCTION:RSA,SSL2_METHOD
+SSLv2_method                            114	EXIST::FUNCTION:RSA,SSL2_METHOD
+SSLv2_server_method                     115	EXIST::FUNCTION:RSA,SSL2_METHOD
 SSLv3_client_method                     116	EXIST::FUNCTION:SSL3_METHOD
 SSLv3_method                            117	EXIST::FUNCTION:SSL3_METHOD
 SSLv3_server_method                     118	EXIST::FUNCTION:SSL3_METHOD

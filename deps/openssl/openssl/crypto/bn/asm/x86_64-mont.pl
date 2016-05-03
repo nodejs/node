@@ -91,6 +91,20 @@ bn_mul_mont:
 
 	mov	%r11,8(%rsp,$num,8)	# tp[num+1]=%rsp
 .Lmul_body:
+	# Some OSes, *cough*-dows, insist on stack being "wired" to
+	# physical memory in strictly sequential manner, i.e. if stack
+	# allocation spans two pages, then reference to farmost one can
+	# be punishable by SEGV. But page walking can do good even on
+	# other OSes, because it guarantees that villain thread hits
+	# the guard page before it can make damage to innocent one...
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lmul_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x66,0x2e		# predict non-taken
+	jnc	.Lmul_page_walk
+
 	mov	$bp,%r12		# reassign $bp
 ___
 		$bp="%r12";
@@ -296,6 +310,14 @@ bn_mul4x_mont:
 
 	mov	%r11,8(%rsp,$num,8)	# tp[num+1]=%rsp
 .Lmul4x_body:
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lmul4x_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x2e			# predict non-taken
+	jnc	.Lmul4x_page_walk
+
 	mov	$rp,16(%rsp,$num,8)	# tp[num+2]=$rp
 	mov	%rdx,%r12		# reassign $bp
 ___
@@ -707,6 +729,7 @@ $code.=<<___;
 .align	16
 bn_sqr4x_mont:
 .Lsqr4x_enter:
+	mov	%rsp,%rax
 	push	%rbx
 	push	%rbp
 	push	%r12
@@ -715,12 +738,23 @@ bn_sqr4x_mont:
 	push	%r15
 
 	shl	\$3,${num}d		# convert $num to bytes
-	xor	%r10,%r10
 	mov	%rsp,%r11		# put aside %rsp
-	sub	$num,%r10		# -$num
+	neg	$num			# -$num
 	mov	($n0),$n0		# *n0
-	lea	-72(%rsp,%r10,2),%rsp	# alloca(frame+2*$num)
+	lea	-72(%rsp,$num,2),%rsp	# alloca(frame+2*$num)
 	and	\$-1024,%rsp		# minimize TLB usage
+
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lsqr4x_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x2e			# predict non-taken
+	jnc	.Lsqr4x_page_walk
+
+	mov	$num,%r10
+	neg	$num			# restore $num
+	lea	-48(%rax),%r11		# restore saved %rsp
 	##############################################################
 	# Stack layout
 	#

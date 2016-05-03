@@ -903,9 +903,7 @@ int asn1_ex_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
         break;
 
     case V_ASN1_INTEGER:
-    case V_ASN1_NEG_INTEGER:
     case V_ASN1_ENUMERATED:
-    case V_ASN1_NEG_ENUMERATED:
         tint = (ASN1_INTEGER **)pval;
         if (!c2i_ASN1_INTEGER(tint, &cont, len))
             goto err;

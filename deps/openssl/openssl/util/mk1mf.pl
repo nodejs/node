@@ -282,8 +282,9 @@ $cflags.=" -DOPENSSL_FIPS"    if $fips;
 $cflags.=" -DOPENSSL_NO_JPAKE"    if $no_jpake;
 $cflags.=" -DOPENSSL_NO_EC2M"    if $no_ec2m;
 $cflags.=" -DOPENSSL_NO_WEAK_SSL_CIPHERS"   if $no_weak_ssl;
-$cflags.= " -DZLIB" if $zlib_opt;
-$cflags.= " -DZLIB_SHARED" if $zlib_opt == 2;
+$cflags.=" -DZLIB" if $zlib_opt;
+$cflags.=" -DZLIB_SHARED" if $zlib_opt == 2;
+$cflags.=" -DOPENSSL_NO_COMP" if $no_comp;
 
 if ($no_static_engine)
 	{
@@ -780,6 +781,7 @@ sub var_add
 	return("") if $no_gost   && $dir =~ /\/ccgost/;
 	return("") if $no_cms  && $dir =~ /\/cms/;
 	return("") if $no_jpake  && $dir =~ /\/jpake/;
+	return("") if $no_comp && $dir =~ /\/comp/;
 	if ($no_des && $dir =~ /\/des/)
 		{
 		if ($val =~ /read_pwd/)
@@ -1115,6 +1117,7 @@ sub read_options
 		"nw-mwasm" => \$nw_mwasm,
 		"gaswin" => \$gaswin,
 		"no-ssl2" => \$no_ssl2,
+		"no-ssl2-method" => 0,
 		"no-ssl3" => \$no_ssl3,
 		"no-ssl3-method" => 0,
 		"no-tlsext" => \$no_tlsext,
@@ -1156,6 +1159,7 @@ sub read_options
 		"no-unit-test" => 0,
 		"no-zlib" => 0,
 		"no-zlib-dynamic" => 0,
+		"no-comp" => \$no_comp,
 		"fips" => \$fips
 		);
 
@@ -1173,7 +1177,6 @@ sub read_options
 				}
 			}
 		}
-	elsif (/^no-comp$/) { $xcflags = "-DOPENSSL_NO_COMP $xcflags"; }
 	elsif (/^enable-zlib$/) { $zlib_opt = 1 if $zlib_opt == 0 }
 	elsif (/^enable-zlib-dynamic$/)
 		{
