@@ -61,6 +61,10 @@ based encryption. Careful selection of the parameters will provide a PKCS#5 PBKD
 implementation. However, new applications should not typically use this (preferring, for example,
 PBKDF2 from PCKS#5).
 
+The L<B<EVP_Encode>I<...>|EVP_EncodeInit(3)> and
+L<B<EVP_Decode>I<...>|EVP_EncodeInit(3)> functions implement base 64 encoding
+and decoding.
+
 Algorithms are loaded with L<OpenSSL_add_all_algorithms(3)|OpenSSL_add_all_algorithms(3)>.
 
 All the symmetric algorithms (ciphers), digests and asymmetric algorithms
@@ -86,6 +90,7 @@ L<EVP_SealInit(3)|EVP_SealInit(3)>,
 L<EVP_DigestSignInit(3)|EVP_DigestSignInit(3)>,
 L<EVP_SignInit(3)|EVP_SignInit(3)>,
 L<EVP_VerifyInit(3)|EVP_VerifyInit(3)>,
+L<EVP_EncodeInit(3)>,
 L<EVP_PKEY_new(3)|EVP_PKEY_new(3)>,
 L<EVP_PKEY_set1_RSA(3)|EVP_PKEY_set1_RSA(3)>,
 L<EVP_PKEY_keygen(3)|EVP_PKEY_keygen(3)>,

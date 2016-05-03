@@ -63,7 +63,7 @@
 #include <openssl/asn1_mac.h>
 
 static int asn1_get_length(const unsigned char **pp, int *inf, long *rl,
-                           int max);
+                           long max);
 static void asn1_put_length(unsigned char **pp, int length);
 const char ASN1_version[] = "ASN.1" OPENSSL_VERSION_PTEXT;
 
@@ -131,7 +131,7 @@ int ASN1_get_object(const unsigned char **pp, long *plength, int *ptag,
     }
     *ptag = tag;
     *pclass = xclass;
-    if (!asn1_get_length(&p, &inf, plength, (int)max))
+    if (!asn1_get_length(&p, &inf, plength, max))
         goto err;
 
     if (inf && !(ret & V_ASN1_CONSTRUCTED))
@@ -159,14 +159,14 @@ int ASN1_get_object(const unsigned char **pp, long *plength, int *ptag,
 }
 
 static int asn1_get_length(const unsigned char **pp, int *inf, long *rl,
-                           int max)
+                           long max)
 {
     const unsigned char *p = *pp;
     unsigned long ret = 0;
-    unsigned int i;
+    unsigned long i;
 
     if (max-- < 1)
-        return (0);
+        return 0;
     if (*p == 0x80) {
         *inf = 1;
         ret = 0;
@@ -175,15 +175,11 @@ static int asn1_get_length(const unsigned char **pp, int *inf, long *rl,
         *inf = 0;
         i = *p & 0x7f;
         if (*(p++) & 0x80) {
-            if (i > sizeof(long))
+            if (i > sizeof(ret) || max < (long)i)
                 return 0;
-            if (max-- == 0)
-                return (0);
             while (i-- > 0) {
                 ret <<= 8L;
                 ret |= *(p++);
-                if (max-- == 0)
-                    return (0);
             }
         } else
             ret = i;
@@ -192,7 +188,7 @@ static int asn1_get_length(const unsigned char **pp, int *inf, long *rl,
         return 0;
     *pp = p;
     *rl = (long)ret;
-    return (1);
+    return 1;
 }
 
 /*

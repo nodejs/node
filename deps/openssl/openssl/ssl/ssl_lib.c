@@ -244,7 +244,16 @@ int SSL_clear(SSL *s)
     ssl_clear_hash_ctx(&s->write_hash);
 
     s->first_packet = 0;
-
+#ifndef OPENSSL_NO_TLSEXT
+    if (s->cert != NULL) {
+        if (s->cert->alpn_proposed) {
+            OPENSSL_free(s->cert->alpn_proposed);
+            s->cert->alpn_proposed = NULL;
+        }
+        s->cert->alpn_proposed_len = 0;
+        s->cert->alpn_sent = 0;
+    }
+#endif
 #if 1
     /*
      * Check to see if we were changed into a different method, if so, revert
@@ -3174,6 +3183,12 @@ SSL_CTX *SSL_set_SSL_CTX(SSL *ssl, SSL_CTX *ctx)
             ssl->cert->ciphers_rawlen = ocert->ciphers_rawlen;
             ocert->ciphers_raw = NULL;
         }
+#ifndef OPENSSL_NO_TLSEXT
+        ssl->cert->alpn_proposed = ocert->alpn_proposed;
+        ssl->cert->alpn_proposed_len = ocert->alpn_proposed_len;
+        ocert->alpn_proposed = NULL;
+        ssl->cert->alpn_sent = ocert->alpn_sent;
+#endif
         ssl_cert_free(ocert);
     }
 
