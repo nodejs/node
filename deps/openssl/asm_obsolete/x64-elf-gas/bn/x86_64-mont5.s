@@ -30,6 +30,20 @@ bn_mul_mont_gather5:
 
 	movq	%rax,8(%rsp,%r9,8)
 .Lmul_body:
+
+
+
+
+
+
+	subq	%rsp,%rax
+	andq	$-4096,%rax
+.Lmul_page_walk:
+	movq	(%rsp,%rax,1),%r11
+	subq	$4096,%rax
+.byte	0x2e
+	jnc	.Lmul_page_walk
+
 	leaq	128(%rdx),%r12
 	movdqa	0(%r10),%xmm0
 	movdqa	16(%r10),%xmm1
@@ -442,6 +456,15 @@ bn_mul4x_mont_gather5:
 	subq	%r11,%rsp
 .Lmul4xsp_done:
 	andq	$-64,%rsp
+	movq	%rax,%r11
+	subq	%rsp,%r11
+	andq	$-4096,%r11
+.Lmul4x_page_walk:
+	movq	(%rsp,%r11,1),%r10
+	subq	$4096,%r11
+.byte	0x2e
+	jnc	.Lmul4x_page_walk
+
 	negq	%r9
 
 	movq	%rax,40(%rsp)
@@ -1031,6 +1054,15 @@ bn_power5:
 	subq	%r11,%rsp
 .Lpwr_sp_done:
 	andq	$-64,%rsp
+	movq	%rax,%r11
+	subq	%rsp,%r11
+	andq	$-4096,%r11
+.Lpwr_page_walk:
+	movq	(%rsp,%r11,1),%r10
+	subq	$4096,%r11
+.byte	0x2e
+	jnc	.Lpwr_page_walk
+
 	movq	%r9,%r10
 	negq	%r9
 
@@ -1972,6 +2004,15 @@ bn_from_mont8x:
 	subq	%r11,%rsp
 .Lfrom_sp_done:
 	andq	$-64,%rsp
+	movq	%rax,%r11
+	subq	%rsp,%r11
+	andq	$-4096,%r11
+.Lfrom_page_walk:
+	movq	(%rsp,%r11,1),%r10
+	subq	$4096,%r11
+.byte	0x2e
+	jnc	.Lfrom_page_walk
+
 	movq	%r9,%r10
 	negq	%r9
 

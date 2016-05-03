@@ -34,6 +34,20 @@ L$mul_enter:
 
 	movq	%r11,8(%rsp,%r9,8)
 L$mul_body:
+
+
+
+
+
+
+	subq	%rsp,%r11
+	andq	$-4096,%r11
+L$mul_page_walk:
+	movq	(%rsp,%r11,1),%r10
+	subq	$4096,%r11
+.byte	0x66,0x2e
+	jnc	L$mul_page_walk
+
 	movq	%rdx,%r12
 	movq	(%r8),%r8
 	movq	(%r12),%rbx
@@ -231,6 +245,14 @@ L$mul4x_enter:
 
 	movq	%r11,8(%rsp,%r9,8)
 L$mul4x_body:
+	subq	%rsp,%r11
+	andq	$-4096,%r11
+L$mul4x_page_walk:
+	movq	(%rsp,%r11,1),%r10
+	subq	$4096,%r11
+.byte	0x2e
+	jnc	L$mul4x_page_walk
+
 	movq	%rdi,16(%rsp,%r9,8)
 	movq	%rdx,%r12
 	movq	(%r8),%r8
@@ -653,6 +675,15 @@ L$sqr8x_sp_alt:
 	subq	%r11,%rsp
 L$sqr8x_sp_done:
 	andq	$-64,%rsp
+	movq	%rax,%r11
+	subq	%rsp,%r11
+	andq	$-4096,%r11
+L$sqr8x_page_walk:
+	movq	(%rsp,%r11,1),%r10
+	subq	$4096,%r11
+.byte	0x2e
+	jnc	L$sqr8x_page_walk
+
 	movq	%r9,%r10
 	negq	%r9
 

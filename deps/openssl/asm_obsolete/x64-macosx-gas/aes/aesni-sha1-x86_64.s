@@ -1392,8 +1392,8 @@ aesni_cbc_sha1_enc_shaext:
 	movups	16(%rcx),%xmm0
 	leaq	112(%rcx),%rcx
 
-	pshufd	$0b00011011,%xmm8,%xmm8
-	pshufd	$0b00011011,%xmm9,%xmm9
+	pshufd	$27,%xmm8,%xmm8
+	pshufd	$27,%xmm9,%xmm9
 	jmp	L$oop_shaext
 
 .p2align	4
@@ -1672,8 +1672,8 @@ L$aesenclast9:
 	leaq	64(%rdi),%rdi
 	jnz	L$oop_shaext
 
-	pshufd	$0b00011011,%xmm8,%xmm8
-	pshufd	$0b00011011,%xmm9,%xmm9
+	pshufd	$27,%xmm8,%xmm8
+	pshufd	$27,%xmm9,%xmm9
 	movups	%xmm2,(%r8)
 	movdqu	%xmm8,(%r9)
 	movd	%xmm9,16(%r9)
