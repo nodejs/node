@@ -43,6 +43,21 @@ $L$mul_enter::
 
 	mov	QWORD PTR[8+r9*8+rsp],r11
 $L$mul_body::
+
+
+
+
+
+
+	sub	r11,rsp
+	and	r11,-4096
+$L$mul_page_walk::
+	mov	r10,QWORD PTR[r11*1+rsp]
+	sub	r11,4096
+DB	066h,02eh
+
+	jnc	$L$mul_page_walk
+
 	mov	r12,rdx
 	mov	r8,QWORD PTR[r8]
 	mov	rbx,QWORD PTR[r12]
@@ -255,6 +270,15 @@ $L$mul4x_enter::
 
 	mov	QWORD PTR[8+r9*8+rsp],r11
 $L$mul4x_body::
+	sub	r11,rsp
+	and	r11,-4096
+$L$mul4x_page_walk::
+	mov	r10,QWORD PTR[r11*1+rsp]
+	sub	r11,4096
+DB	02eh
+
+	jnc	$L$mul4x_page_walk
+
 	mov	QWORD PTR[16+r9*8+rsp],rdi
 	mov	r12,rdx
 	mov	r8,QWORD PTR[r8]
@@ -652,6 +676,7 @@ $L$SEH_begin_bn_sqr4x_mont::
 
 
 $L$sqr4x_enter::
+	mov	rax,rsp
 	push	rbx
 	push	rbp
 	push	r12
@@ -660,12 +685,24 @@ $L$sqr4x_enter::
 	push	r15
 
 	shl	r9d,3
-	xor	r10,r10
 	mov	r11,rsp
-	sub	r10,r9
+	neg	r9
 	mov	r8,QWORD PTR[r8]
-	lea	rsp,QWORD PTR[((-72))+r10*2+rsp]
+	lea	rsp,QWORD PTR[((-72))+r9*2+rsp]
 	and	rsp,-1024
+
+	sub	r11,rsp
+	and	r11,-4096
+$L$sqr4x_page_walk::
+	mov	r10,QWORD PTR[r11*1+rsp]
+	sub	r11,4096
+DB	02eh
+
+	jnc	$L$sqr4x_page_walk
+
+	mov	r10,r9
+	neg	r9
+	lea	r11,QWORD PTR[((-48))+rax]
 
 
 
