@@ -1983,9 +1983,11 @@ console.log(buf);
 
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
 [`Array#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
+[`Buffer#indexOf()`]: #buffer_buf_indexof_value_byteoffset_encoding
 [`Array#includes()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
 [`buf.entries()`]: #buffer_buf_entries
 [`buf.fill(0)`]: #buffer_buf_fill_value_offset_end_encoding
+[`buf.fill()`]: #buffer_buf_fill_value_offset_end_encoding
 [`buf.keys()`]: #buffer_buf_keys
 [`buf.slice()`]: #buffer_buf_slice_start_end
 [`buf.values()`]: #buffer_buf_values
