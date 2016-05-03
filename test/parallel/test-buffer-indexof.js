@@ -359,6 +359,23 @@ assert.equal(13, bufferString.lastIndexOf('a ', -1));
 assert.equal(0, bufferString.lastIndexOf('a ', -27));
 assert.equal(-1, bufferString.lastIndexOf('a ', -28));
 
+// Test lastIndexOf for the case that the first character can be found,
+// but in a part of the buffer that does not make search to search
+// due do length constraints.
+const abInUCS2 = Buffer.from('ab', 'ucs2');
+assert.strictEqual(-1, Buffer.from('µaaaa¶bbbb', 'binary').lastIndexOf('µ'));
+assert.strictEqual(-1, Buffer.from('bc').lastIndexOf('ab'));
+assert.strictEqual(-1, Buffer.from('abc').lastIndexOf('qa'));
+assert.strictEqual(-1, Buffer.from('abcdef').lastIndexOf('qabc'));
+assert.strictEqual(-1, Buffer.from('bc').lastIndexOf(Buffer.from('ab')));
+assert.strictEqual(-1, Buffer.from('bc', 'ucs2').lastIndexOf('ab', 'ucs2'));
+assert.strictEqual(-1, Buffer.from('bc', 'ucs2').lastIndexOf(abInUCS2));
+
+assert.strictEqual(0, Buffer.from('abc').lastIndexOf('ab'));
+assert.strictEqual(0, Buffer.from('abc').lastIndexOf('ab', 1));
+assert.strictEqual(0, Buffer.from('abc').lastIndexOf('ab', 2));
+assert.strictEqual(0, Buffer.from('abc').lastIndexOf('ab', 3));
+
 // The above tests test the LINEAR and SINGLE-CHAR strategies.
 // Now, we test the BOYER-MOORE-HORSPOOL strategy.
 // Test lastIndexOf on a long buffer w multiple matches:

@@ -261,19 +261,19 @@ inline size_t FindFirstCharacter(Vector<const Char> pattern,
   const uint8_t search_byte = GetHighestValueByte(pattern_first_char);
   size_t pos = index;
   do {
-    size_t bytes_to_search;
+    const size_t bytes_to_search = (max_n - pos) * sizeof(Char);
     const void* void_pos;
     if (subject.forward()) {
       // Assert that bytes_to_search won't overflow
       CHECK_LE(pos, max_n);
       CHECK_LE(max_n - pos, SIZE_MAX / sizeof(Char));
-      bytes_to_search = (max_n - pos) * sizeof(Char);
       void_pos = memchr(subject.start() + pos, search_byte, bytes_to_search);
     } else {
       CHECK_LE(pos, subject.length());
       CHECK_LE(subject.length() - pos, SIZE_MAX / sizeof(Char));
-      bytes_to_search = (subject.length() - pos) * sizeof(Char);
-      void_pos = MemrchrFill(subject.start(), search_byte, bytes_to_search);
+      void_pos = MemrchrFill(subject.start() + pattern.length() - 1,
+                             search_byte,
+                             bytes_to_search);
     }
     const Char* char_pos = static_cast<const Char*>(void_pos);
     if (char_pos == nullptr)
@@ -308,7 +308,9 @@ inline size_t FindFirstCharacter(Vector<const uint8_t> pattern,
   if (subject.forward()) {
     pos = memchr(subject.start() + index, pattern_first_char, max_n - index);
   } else {
-    pos = MemrchrFill(subject.start(), pattern_first_char, subj_len - index);
+    pos = MemrchrFill(subject.start() + pattern.length() - 1,
+                      pattern_first_char,
+                      max_n - index);
   }
   const uint8_t* char_pos = static_cast<const uint8_t*>(pos);
   if (char_pos == nullptr) {
