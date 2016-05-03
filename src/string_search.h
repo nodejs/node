@@ -252,7 +252,7 @@ inline const void* MemrchrFill(const void* haystack, uint8_t needle,
 // `subject`. Does not check that the whole pattern matches.
 template <typename Char>
 inline size_t FindFirstCharacter(Vector<const Char> pattern,
-                              Vector<const Char> subject, size_t index) {
+                                 Vector<const Char> subject, size_t index) {
   const Char pattern_first_char = pattern[0];
   const size_t max_n = (subject.length() - pattern.length() + 1);
 
