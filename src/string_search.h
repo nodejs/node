@@ -276,7 +276,8 @@ inline uint8_t GetHighestValueByte(uint8_t character) { return character; }
 
 template <typename PatternChar, typename SubjectChar>
 inline size_t FindFirstCharacter(Vector<const PatternChar> pattern,
-                              Vector<const SubjectChar> subject, size_t index) {
+                                 Vector<const SubjectChar> subject,
+                                 size_t index) {
   const PatternChar pattern_first_char = pattern[0];
   const size_t max_n = (subject.length() - pattern.length() + 1);
 
