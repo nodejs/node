@@ -34,6 +34,20 @@ bn_mul_mont:
 
 	movq	%r11,8(%rsp,%r9,8)
 .Lmul_body:
+
+
+
+
+
+
+	subq	%rsp,%r11
+	andq	$-4096,%r11
+.Lmul_page_walk:
+	movq	(%rsp,%r11,1),%r10
+	subq	$4096,%r11
+.byte	0x66,0x2e
+	jnc	.Lmul_page_walk
+
 	movq	%rdx,%r12
 	movq	(%r8),%r8
 	movq	(%r12),%rbx
@@ -231,6 +245,14 @@ bn_mul4x_mont:
 
 	movq	%r11,8(%rsp,%r9,8)
 .Lmul4x_body:
+	subq	%rsp,%r11
+	andq	$-4096,%r11
+.Lmul4x_page_walk:
+	movq	(%rsp,%r11,1),%r10
+	subq	$4096,%r11
+.byte	0x2e
+	jnc	.Lmul4x_page_walk
+
 	movq	%rdi,16(%rsp,%r9,8)
 	movq	%rdx,%r12
 	movq	(%r8),%r8
@@ -653,6 +675,15 @@ bn_sqr8x_mont:
 	subq	%r11,%rsp
 .Lsqr8x_sp_done:
 	andq	$-64,%rsp
+	movq	%rax,%r11
+	subq	%rsp,%r11
+	andq	$-4096,%r11
+.Lsqr8x_page_walk:
+	movq	(%rsp,%r11,1),%r10
+	subq	$4096,%r11
+.byte	0x2e
+	jnc	.Lsqr8x_page_walk
+
 	movq	%r9,%r10
 	negq	%r9
 
