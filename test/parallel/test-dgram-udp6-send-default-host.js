@@ -26,7 +26,7 @@ client.on('listening', function() {
 
 client.on('message', function(buf, info) {
   const expected = toSend.shift().toString();
-  assert.ok(buf.toString() === expected, 'message was received correctly');
+  assert.strictEqual(buf.toString(), expected);
 
   if (toSend.length === 0) {
     client.close();
