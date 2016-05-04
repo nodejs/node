@@ -258,6 +258,10 @@ apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
+docguide:
+	mkdir -p out/doc/guides
+	$(NODE) tools/doc/guide.js
+
 doc: $(apidoc_dirs) $(apiassets) $(apidocs) tools/doc/ $(NODE_EXE)
 
 $(apidoc_dirs):
