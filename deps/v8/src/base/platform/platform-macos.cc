@@ -86,10 +86,10 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
     char* code_ptr = getsectdatafromheader(header, SEG_TEXT, SECT_TEXT, &size);
 #endif
     if (code_ptr == NULL) continue;
-    const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
+    const intptr_t slide = _dyld_get_image_vmaddr_slide(i);
     const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
-    result.push_back(
-        SharedLibraryAddress(_dyld_get_image_name(i), start, start + size));
+    result.push_back(SharedLibraryAddress(_dyld_get_image_name(i), start,
+                                          start + size, slide));
   }
   return result;
 }

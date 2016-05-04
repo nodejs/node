@@ -233,13 +233,20 @@ class OS {
   // Support for the profiler.  Can do nothing, in which case ticks
   // occuring in shared libraries will not be properly accounted for.
   struct SharedLibraryAddress {
-    SharedLibraryAddress(
-        const std::string& library_path, uintptr_t start, uintptr_t end)
-        : library_path(library_path), start(start), end(end) {}
+    SharedLibraryAddress(const std::string& library_path, uintptr_t start,
+                         uintptr_t end)
+        : library_path(library_path), start(start), end(end), aslr_slide(0) {}
+    SharedLibraryAddress(const std::string& library_path, uintptr_t start,
+                         uintptr_t end, intptr_t aslr_slide)
+        : library_path(library_path),
+          start(start),
+          end(end),
+          aslr_slide(aslr_slide) {}
 
     std::string library_path;
     uintptr_t start;
     uintptr_t end;
+    intptr_t aslr_slide;
   };
 
   static std::vector<SharedLibraryAddress> GetSharedLibraryAddresses();

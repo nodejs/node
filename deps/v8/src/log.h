@@ -281,9 +281,8 @@ class Logger {
   void HeapSampleStats(const char* space, const char* kind,
                        intptr_t capacity, intptr_t used);
 
-  void SharedLibraryEvent(const std::string& library_path,
-                          uintptr_t start,
-                          uintptr_t end);
+  void SharedLibraryEvent(const std::string& library_path, uintptr_t start,
+                          uintptr_t end, intptr_t aslr_slide);
 
   void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
   void CurrentTimeEvent();
