@@ -1,5 +1,25 @@
 # Node.js ChangeLog
 
+## 2016-05-05, Version 4.4.4 'Argon' (LTS), @thealphanerd
+
+### Notable changes
+
+* **deps**:
+  * update openssl to 1.0.2h. (Shigeki Ohtsu) [#6551](https://github.com/nodejs/node/pull/6551)
+		- Please see our [blog post](https://nodejs.org/en/blog/vulnerability/openssl-may-2016/) for more info on the security contents of this release.
+
+### Commits
+
+* [[`f46952e727`](https://github.com/nodejs/node/commit/f46952e727)] - **buffer**: safeguard against accidental kNoZeroFill (Сковорода Никита Андреевич) [nodejs/node-private#30](https://github.com/nodejs/node-private/pull/30)
+* [[`4f1c82f995`](https://github.com/nodejs/node/commit/4f1c82f995)] - **streams**: support unlimited synchronous cork/uncork cycles (Matteo Collina) [#6164](https://github.com/nodejs/node/pull/6164)
+* [[`1efd96c767`](https://github.com/nodejs/node/commit/1efd96c767)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#6551](https://github.com/nodejs/node/pull/6551)
+* [[`c450f4a293`](https://github.com/nodejs/node/commit/c450f4a293)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`baedfbae6a`](https://github.com/nodejs/node/commit/baedfbae6a)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`ff3045e40b`](https://github.com/nodejs/node/commit/ff3045e40b)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`dc8dc97db3`](https://github.com/nodejs/node/commit/dc8dc97db3)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`2dfeb01213`](https://github.com/nodejs/node/commit/2dfeb01213)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#6551](https://github.com/nodejs/node/pull/6551)
+* [[`72f9952516`](https://github.com/nodejs/node/commit/72f9952516)] - **deps**: upgrade openssl sources to 1.0.2h (Shigeki Ohtsu) [#6551](https://github.com/nodejs/node/pull/6551)
+
 ## 2016-04-12, Version 4.4.3 'Argon' (LTS), @thealphanerd
 
 ### Notable Changes
