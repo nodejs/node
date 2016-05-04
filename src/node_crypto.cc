@@ -28,12 +28,6 @@
 #define strcasecmp _stricmp
 #endif
 
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-#define OPENSSL_CONST const
-#else
-#define OPENSSL_CONST
-#endif
-
 #define THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(val, prefix)                  \
   do {                                                                         \
     if (!Buffer::HasInstance(val) && !val->IsString()) {                       \
@@ -351,7 +345,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
   Environment* env = sc->env();
 
-  OPENSSL_CONST SSL_METHOD *method = SSLv23_method();
+  const SSL_METHOD* method = SSLv23_method();
 
   if (args.Length() == 1 && args[0]->IsString()) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
@@ -1969,7 +1963,7 @@ void SSLWrap<Base>::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   Base* w = Unwrap<Base>(args.Holder());
   Environment* env = w->ssl_env();
 
-  OPENSSL_CONST SSL_CIPHER* c = SSL_get_current_cipher(w->ssl_);
+  const SSL_CIPHER* c = SSL_get_current_cipher(w->ssl_);
   if (c == nullptr)
     return;
 
