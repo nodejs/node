@@ -325,12 +325,7 @@
         },
         'target_conditions': [
           ['_type!="static_library"', {
-            'xcode_settings': {
-              'OTHER_LDFLAGS': [
-                '-Wl,-no_pie',
-                '-Wl,-search_paths_first',
-              ],
-            },
+            'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-search_paths_first']},
           }],
         ],
         'conditions': [
