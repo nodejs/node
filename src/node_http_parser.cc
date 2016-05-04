@@ -16,12 +16,6 @@
 #include <stdlib.h>  // free()
 #include <string.h>  // strdup()
 
-#if defined(_MSC_VER)
-#define strcasecmp _stricmp
-#else
-#include <strings.h>  // strcasecmp()
-#endif
-
 // This is a binding to http_parser (https://github.com/joyent/http-parser)
 // The goal is to decouple sockets from parsing for more javascript-level
 // agility. A Buffer is read from a socket and passed to parser.execute().
