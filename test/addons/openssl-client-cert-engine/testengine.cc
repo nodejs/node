@@ -1,4 +1,3 @@
-#undef NDEBUG
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
@@ -17,7 +16,7 @@
 #include <string>
 
 #ifndef ENGINE_CMD_BASE
-#error did not get engine.h
+# error did not get engine.h
 #endif
 
 #define TEST_ENGINE_ID      "testengine"
@@ -26,18 +25,18 @@
 #define AGENT_KEY           "test/fixtures/keys/agent1-key.pem"
 #define AGENT_CERT          "test/fixtures/keys/agent1-cert.pem"
 
-static int engineInit(ENGINE* engine) {
-  printf("engineInit\n");
+static int EngineInit(ENGINE* engine) {
+  printf("EngineInit\n");
   return 1;
 }
 
-static int engineFinish(ENGINE* engine) {
-  printf("engineFinish");
+static int EngineFinish(ENGINE* engine) {
+  printf("EngineFinish");
   return 1;
 }
 
-static int engineDestroy(ENGINE* engine) {
-  printf("engineDestroy");
+static int EngineDestroy(ENGINE* engine) {
+  printf("EngineDestroy");
   return 1;
 }
 
@@ -65,15 +64,15 @@ static std::string loadFile(const char *filename) {
 }
 
 
-static int engineLoadSSLClientCert(ENGINE* engine,
-                                   SSL *ssl,
-                                   STACK_OF(X509_NAME) *ca_dn,
-                                   X509 **ppcert,
-                                   EVP_PKEY **ppkey,
-                                   STACK_OF(X509) **pother,
-                                   UI_METHOD *ui_method,
-                                   void *callback_data) {
-  printf("engineLoadSSLClientCert\n");
+static int EngineLoadSSLClientCert(ENGINE* engine,
+                                   SSL* ssl,
+                                   STACK_OF(X509_NAME)* ca_dn,
+                                   X509** ppcert,
+                                   EVP_PKEY** ppkey,
+                                   STACK_OF(X509)** pother,
+                                   UI_METHOD* ui_method,
+                                   void* callback_data) {
+  printf("EngineLoadSSLClientCert\n");
 
   if (ppcert) {
     std::string cert = loadFile(AGENT_CERT);
@@ -81,7 +80,7 @@ static int engineLoadSSLClientCert(ENGINE* engine,
       return 0;
     }
 
-    BIO *bio = BIO_new_mem_buf(reinterpret_cast<const void*>(cert.data()),
+    BIO* bio = BIO_new_mem_buf(reinterpret_cast<const void*>(cert.data()),
                                static_cast<int>(cert.size()));
     *ppcert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
      BIO_vfree(bio);
@@ -97,7 +96,7 @@ static int engineLoadSSLClientCert(ENGINE* engine,
       return 0;
     }
 
-    BIO *bio = BIO_new_mem_buf(reinterpret_cast<const void*>(key.data()),
+    BIO* bio = BIO_new_mem_buf(reinterpret_cast<const void*>(key.data()),
                                static_cast<int>(key.size()));
     *ppkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
     BIO_vfree(bio);
@@ -110,15 +109,15 @@ static int engineLoadSSLClientCert(ENGINE* engine,
   return 1;
 }
 
-static int bind_fn(ENGINE * engine, const char *id) {
+static int bind_fn(ENGINE* engine, const char* id) {
   printf("loaded engine: id=%s\n", id);
 
   ENGINE_set_id(engine, TEST_ENGINE_ID);
   ENGINE_set_name(engine, TEST_ENGINE_NAME);
-  ENGINE_set_init_function(engine, engineInit);
-  ENGINE_set_finish_function(engine, engineFinish);
-  ENGINE_set_destroy_function(engine, engineDestroy);
-  ENGINE_set_load_ssl_client_cert_function(engine, engineLoadSSLClientCert);
+  ENGINE_set_init_function(engine, EngineInit);
+  ENGINE_set_finish_function(engine, EngineFinish);
+  ENGINE_set_destroy_function(engine, EngineDestroy);
+  ENGINE_set_load_ssl_client_cert_function(engine, EngineLoadSSLClientCert);
 
   return 1;
 }

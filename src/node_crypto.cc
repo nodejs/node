@@ -214,7 +214,7 @@ static int CryptoPemCallback(char *buf, int size, int rwflag, void *u) {
 // In case of error the appropriate js exception is schduled
 // and nullptr is returned.
 #ifndef OPENSSL_NO_ENGINE
-static ENGINE* loadEngineById(Environment* env, const char *engine_id) {
+static ENGINE* LoadEngineById(Environment* env, const char *engine_id) {
   ENGINE* engine = ENGINE_by_id(engine_id);
 
   if (engine == nullptr) {
@@ -1073,6 +1073,8 @@ void SecureContext::SetClientCertEngine(
 
   SecureContext* sc = Unwrap<SecureContext>(args.This());
 
+  ClearErrorOnReturn clear_error_on_return;
+
   // If an engine was previously set, free it.
   // This is because SSL_CTX_set_client_cert_engine does not itself
   // 'support' multiple calls by cleaning up before overwriting the
@@ -1085,7 +1087,7 @@ void SecureContext::SetClientCertEngine(
 
   // Load engine
   const node::Utf8Value engine_id(env->isolate(), args[0]);
-  ENGINE* engine = loadEngineById(env, *engine_id);
+  ENGINE* engine = LoadEngineById(env, *engine_id);
 
   if (engine == nullptr) {
     // Load failed... appropriate js exception has been scheduled
@@ -5893,9 +5895,11 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() >= 2 && args[0]->IsString());
   unsigned int flags = args[1]->Uint32Value();
 
+  ClearErrorOnReturn clear_error_on_return;
+
   // Load engine
   const node::Utf8Value engine_id(env->isolate(), args[0]);
-  ENGINE* engine = loadEngineById(env, *engine_id);
+  ENGINE* engine = LoadEngineById(env, *engine_id);
 
   if (engine == nullptr) {
     // Load failed... appropriate js exception has been scheduled
@@ -5905,7 +5909,6 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
   int r = ENGINE_set_default(engine, flags);
   ENGINE_free(engine);
   if (r == 0) {
-    ERR_clear_error();
     return ThrowCryptoError(env, ERR_get_error());
   }
 }

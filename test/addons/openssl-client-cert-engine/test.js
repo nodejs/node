@@ -5,7 +5,10 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-var engine = path.dirname(module.filename) + '/build/Release/testengine.so';
+var engine = path.join(path.dirname(module.filename),
+                       'build',
+                       'Release',
+                       'testengine.engine');
 
 var agentKey = fs.readFileSync('test/fixtures/keys/agent1-key.pem');
 var agentCert = fs.readFileSync('test/fixtures/keys/agent1-cert.pem');
@@ -26,14 +29,12 @@ var server = https.createServer(serverOptions, (req, res) => {
   res.end('hello world');
 }).listen(port);
 
-function testFailed(message)
-{
+function testFailed(message) {
   server.close();
   assert(false, message);
 }
 
-function testPassed()
-{
+function testPassed() {
   console.log('Test passed!');
   server.close();
 }
@@ -43,8 +44,6 @@ var clientOptions = {
   host: '127.0.0.1',
   port: port,
   path: '/test',
-//  key: agentKey,
-//  cert: agentCert,
   clientCertEngine: engine,   // engine will provide key+cert
   rejectUnauthorized: false,  // prevent failing on self-signed certificates
   headers: {}
