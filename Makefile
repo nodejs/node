@@ -118,7 +118,7 @@ test: all
 	$(MAKE) build-addons
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
-		addon doctool message parallel sequential
+		addon doctool known_issues message parallel sequential
 	$(MAKE) lint
 
 test-parallel: all
@@ -178,7 +178,7 @@ test-all-valgrind: test-build
 test-ci: | build-addons
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) addons doctool message parallel sequential
+		$(TEST_CI_ARGS) addons doctool known_issues message parallel sequential
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
@@ -202,7 +202,7 @@ test-debugger: all
 	$(PYTHON) tools/test.py debugger
 
 test-known-issues: all
-	$(PYTHON) tools/test.py known_issues --expect-fail
+	$(PYTHON) tools/test.py known_issues
 
 test-npm: $(NODE_EXE)
 	NODE=$(NODE) tools/test-npm.sh
