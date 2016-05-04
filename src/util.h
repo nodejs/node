@@ -178,6 +178,12 @@ inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
 inline void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen);
 
+// tolower() is locale-sensitive.  Use ToLower() instead.
+inline char ToLower(char c);
+
+// strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
+inline bool StringEqualNoCase(const char* a, const char* b);
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>
