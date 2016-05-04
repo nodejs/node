@@ -55,8 +55,8 @@ if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
-if /i "%1"=="test"          set test_args=%test_args% addons doctool sequential parallel message -J&set jslint=1&set build_addons=1&goto arg-ok
-if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap addons doctool message sequential parallel&set build_addons=1&goto arg-ok
+if /i "%1"=="test"          set test_args=%test_args% addons doctool known_issues message parallel sequential -J&set jslint=1&set build_addons=1&goto arg-ok
+if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap addons doctool known_issues message sequential parallel&set build_addons=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
 if /i "%1"=="test-message"  set test_args=%test_args% message&goto arg-ok
@@ -64,7 +64,7 @@ if /i "%1"=="test-gc"       set test_args=%test_args% gc&set buildnodeweak=1&got
 if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc internet pummel&set buildnodeweak=1&set jslint=1&goto arg-ok
-if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues --expect-fail&goto arg-ok
+if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
