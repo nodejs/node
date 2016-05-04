@@ -763,9 +763,10 @@ void VisitDiv(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
 
 void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   X64OperandGenerator g(selector);
-  selector->Emit(opcode, g.DefineAsFixed(node, rdx),
-                 g.UseFixed(node->InputAt(0), rax),
-                 g.UseUniqueRegister(node->InputAt(1)));
+  InstructionOperand temps[] = {g.TempRegister(rax)};
+  selector->Emit(
+      opcode, g.DefineAsFixed(node, rdx), g.UseFixed(node->InputAt(0), rax),
+      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 }  // namespace

@@ -1353,6 +1353,10 @@ int HeapNumber::get_sign() {
 
 
 bool Simd128Value::Equals(Simd128Value* that) {
+  // TODO(bmeurer): This doesn't match the SIMD.js specification, but it seems
+  // to be consistent with what the CompareICStub does, and what is tested in
+  // the current SIMD.js testsuite.
+  if (this == that) return true;
 #define SIMD128_VALUE(TYPE, Type, type, lane_count, lane_type) \
   if (this->Is##Type()) {                                      \
     if (!that->Is##Type()) return false;                       \

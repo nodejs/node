@@ -1967,3 +1967,26 @@ TEST(UseCountRegExp) {
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
   CHECK(resultToStringError->IsObject());
 }
+
+class UncachedExternalString
+    : public v8::String::ExternalOneByteStringResource {
+ public:
+  const char* data() const override { return "abcdefghijklmnopqrstuvwxyz"; }
+  size_t length() const override { return 26; }
+  bool IsCompressible() const override { return true; }
+};
+
+TEST(UncachedExternalString) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  v8::Local<v8::String> external =
+      v8::String::NewExternalOneByte(isolate, new UncachedExternalString())
+          .ToLocalChecked();
+  CHECK(v8::Utils::OpenHandle(*external)->map() ==
+        CcTest::i_isolate()->heap()->short_external_one_byte_string_map());
+  v8::Local<v8::Object> global = env->Global();
+  global->Set(env.local(), v8_str("external"), external).FromJust();
+  CompileRun("var re = /y(.)/; re.test('ab');");
+  ExpectString("external.substring(1).match(re)[1]", "z");
+}

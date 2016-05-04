@@ -573,13 +573,21 @@ static bool MigrateDeprecated(Handle<Object> object) {
   return true;
 }
 
-
-void IC::ConfigureVectorState(IC::State new_state) {
+void IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   DCHECK(UseVector());
   if (new_state == PREMONOMORPHIC) {
     nexus()->ConfigurePremonomorphic();
   } else if (new_state == MEGAMORPHIC) {
-    nexus()->ConfigureMegamorphic();
+    if (kind() == Code::LOAD_IC || kind() == Code::STORE_IC) {
+      nexus()->ConfigureMegamorphic();
+    } else if (kind() == Code::KEYED_LOAD_IC) {
+      KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
+      nexus->ConfigureMegamorphicKeyed(key->IsName() ? PROPERTY : ELEMENT);
+    } else {
+      DCHECK(kind() == Code::KEYED_STORE_IC);
+      KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
+      nexus->ConfigureMegamorphicKeyed(key->IsName() ? PROPERTY : ELEMENT);
+    }
   } else {
     UNREACHABLE();
   }
@@ -662,7 +670,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     // Rewrite to the generic keyed load stub.
     if (FLAG_use_ic) {
       DCHECK(UseVector());
-      ConfigureVectorState(MEGAMORPHIC);
+      ConfigureVectorState(MEGAMORPHIC, name);
       TRACE_IC("LoadIC", name);
       TRACE_GENERIC_IC(isolate(), "LoadIC", "name as array index");
     }
@@ -853,7 +861,7 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
         CopyICToMegamorphicCache(name);
       }
       if (UseVector()) {
-        ConfigureVectorState(MEGAMORPHIC);
+        ConfigureVectorState(MEGAMORPHIC, name);
       } else {
         set_target(*megamorphic_stub());
       }
@@ -1012,7 +1020,7 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
   if (state() == UNINITIALIZED) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
-    ConfigureVectorState(PREMONOMORPHIC);
+    ConfigureVectorState(PREMONOMORPHIC, Handle<Object>());
     TRACE_IC("LoadIC", lookup->name());
     return;
   }
@@ -1378,7 +1386,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   if (!is_vector_set() || stub.is_null()) {
     Code* generic = *megamorphic_stub();
     if (!stub.is_null() && *stub == generic) {
-      ConfigureVectorState(MEGAMORPHIC);
+      ConfigureVectorState(MEGAMORPHIC, key);
       TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
     }
 
@@ -1471,7 +1479,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     // Rewrite to the generic keyed store stub.
     if (FLAG_use_ic) {
       if (UseVector()) {
-        ConfigureVectorState(MEGAMORPHIC);
+        ConfigureVectorState(MEGAMORPHIC, name);
       } else if (!AddressIsDeoptimizedCode()) {
         set_target(*megamorphic_stub());
       }
@@ -1645,7 +1653,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   if (state() == UNINITIALIZED) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
-    ConfigureVectorState(PREMONOMORPHIC);
+    ConfigureVectorState(PREMONOMORPHIC, Handle<Object>());
     TRACE_IC("StoreIC", lookup->name());
     return;
   }
@@ -2072,7 +2080,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
                        JSReceiver::MAY_BE_STORE_FROM_KEYED),
         Object);
     if (!is_vector_set()) {
-      ConfigureVectorState(MEGAMORPHIC);
+      ConfigureVectorState(MEGAMORPHIC, key);
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
                        "unhandled internalized string key");
       TRACE_IC("StoreIC", key);
@@ -2147,7 +2155,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   if (!is_vector_set() || stub.is_null()) {
     Code* megamorphic = *megamorphic_stub();
     if (!stub.is_null() && (*stub == megamorphic || *stub == *slow_stub())) {
-      ConfigureVectorState(MEGAMORPHIC);
+      ConfigureVectorState(MEGAMORPHIC, key);
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
                        *stub == megamorphic ? "set generic" : "slow stub");
     }
