@@ -798,7 +798,7 @@ added: v0.1.13
 * `code` {Integer} The exit code. Defaults to `0`.
 
 The `process.exit()` method instructs Node.js to terminate the process as
-quickly as possible with the specified exit `code`. If the `code` is omitted, 
+quickly as possible with the specified exit `code`. If the `code` is omitted,
 exit uses either the 'success' code `0` or the value of `process.exitCode` if
 specified.
 
@@ -811,7 +811,7 @@ process.exit(1);
 The shell that executed Node.js should see the exit code as `1`.
 
 It is important to note that calling `process.exit()` will force the process to
-exit as quickly as possible *even if there are still asynchronous operations 
+exit as quickly as possible *even if there are still asynchronous operations
 pending* that have not yet completed fully, *including* I/O operations to
 `process.stdout` and `process.stderr`.
 
@@ -820,8 +820,8 @@ explicitly. The Node.js process will exit on it's own *if there is no additional
 work pending* in the event loop. The `process.exitCode` property can be set to
 tell the process which exit code to use when the process exits gracefully.
 
-For instance, the following example illustrates a *misuse* of the 
-`process.exit()` method that could lead to data printed to stdout being 
+For instance, the following example illustrates a *misuse* of the
+`process.exit()` method that could lead to data printed to stdout being
 truncated and lost:
 
 ```js
@@ -863,7 +863,7 @@ A number which will be the process exit code, when the process either
 exits gracefully, or is exited via [`process.exit()`][] without specifying
 a code.
 
-Specifying a code to [`process.exit(code)`][`process.exit()`] will override any 
+Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
 previous setting of `process.exitCode`.
 
 
@@ -947,15 +947,18 @@ if (process.getuid) {
 }
 ```
 
-## process.hrtime()
+## process.hrtime([time])
 <!-- YAML
 added: v0.7.6
 -->
 
 Returns the current high-resolution real time in a `[seconds, nanoseconds]`
-tuple Array. It is relative to an arbitrary time in the past. It is not
-related to the time of day and therefore not subject to clock drift. The
-primary use is for measuring performance between intervals.
+tuple Array. `time` is an optional parameter that must be the result of a
+previous `process.hrtime()` call (and therefore, a real time in a
+`[seconds, nanoseconds]` tuple Array containing a previous time) to diff with
+the current time. These times are relative to an arbitrary time in the past,
+and not related to the time of day and therefore not subject to clock drift.
+The primary use is for measuring performance between intervals.
 
 You may pass in the result of a previous call to `process.hrtime()` to get
 a diff reading, useful for benchmarks and measuring intervals:
@@ -972,6 +975,9 @@ setTimeout(() => {
   // benchmark took 1000000527 nanoseconds
 }, 1000);
 ```
+
+Constructing an array by some method other than calling `process.hrtime()` and
+passing the result to process.hrtime() will result in undefined behavior.
 
 
 ## process.initgroups(user, extra_group)
