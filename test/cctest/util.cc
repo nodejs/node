@@ -56,3 +56,21 @@ TEST(UtilTest, ListHead) {
   EXPECT_TRUE(list.IsEmpty());
   EXPECT_FALSE(list.begin() != list.end());
 }
+
+TEST(UtilTest, StringEqualNoCase) {
+  using node::StringEqualNoCase;
+  EXPECT_FALSE(StringEqualNoCase("a", "b"));
+  EXPECT_TRUE(StringEqualNoCase("", ""));
+  EXPECT_TRUE(StringEqualNoCase("equal", "equal"));
+  EXPECT_TRUE(StringEqualNoCase("equal", "EQUAL"));
+  EXPECT_TRUE(StringEqualNoCase("EQUAL", "EQUAL"));
+  EXPECT_FALSE(StringEqualNoCase("equal", "equals"));
+  EXPECT_FALSE(StringEqualNoCase("equals", "equal"));
+}
+
+TEST(UtilTest, ToLower) {
+  using node::ToLower;
+  EXPECT_EQ('0', ToLower('0'));
+  EXPECT_EQ('a', ToLower('a'));
+  EXPECT_EQ('a', ToLower('A'));
+}
