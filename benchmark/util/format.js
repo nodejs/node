@@ -9,7 +9,8 @@ const bench = common.createBenchmark(main, {
          'number',
          'object',
          'unknown',
-         'no-replace']
+         'no-replace',
+         'no-replace-object']
 });
 
 const inputs = {
@@ -17,7 +18,14 @@ const inputs = {
   'number': ['Hi, I was born in %d', 1942],
   'object': ['An error occurred %j', {msg: 'This is an error', code: 'ERR'}],
   'unknown': ['hello %a', 'test'],
-  'no-replace': [1, 2]
+  'no-replace': [1, 2],
+  'no-replace-object': [{
+    msg: 'This is an object',
+    a: 1,
+    b: true,
+    c: null,
+    d: undefined
+  }, {code: true}]
 };
 
 function main(conf) {
