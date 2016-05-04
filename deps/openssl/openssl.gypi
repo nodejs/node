@@ -1244,9 +1244,13 @@
       'openssl/include',
     ],
     'openssl_default_defines_all': [
-      # No clue what these are for.
-      'PURIFY',
       '_REENTRANT',
+
+      # PURIFY makes OpenSSL zero out some buffers.  It also stops RAND_bytes()
+      # from using the existing contents of the destination buffer as a source
+      # of entropy, which according to some papers, is a possible attack vector
+      # for reducing the overall entropy.
+      'PURIFY',
 
       # Compression is not used and considered insecure (CRIME.)
       'OPENSSL_NO_COMP',
