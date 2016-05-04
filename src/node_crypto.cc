@@ -5721,15 +5721,8 @@ void InitCryptoOnce() {
 
 
   // Turn off compression. Saves memory and protects against CRIME attacks.
-#if !defined(OPENSSL_NO_COMP)
-#if OPENSSL_VERSION_NUMBER < 0x00908000L
-  STACK_OF(SSL_COMP)* comp_methods = SSL_COMP_get_compression_method();
-#else
-  STACK_OF(SSL_COMP)* comp_methods = SSL_COMP_get_compression_methods();
-#endif
-  sk_SSL_COMP_zero(comp_methods);
-  CHECK_EQ(sk_SSL_COMP_num(comp_methods), 0);
-#endif
+  // No-op with OPENSSL_NO_COMP builds of OpenSSL.
+  sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 
 #ifndef OPENSSL_NO_ENGINE
   ERR_load_ENGINE_strings();
