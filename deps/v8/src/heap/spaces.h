@@ -278,9 +278,9 @@ class MemoryChunk {
   // Only works for addresses in pointer spaces, not data or code spaces.
   static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
 
-  Address address() { return reinterpret_cast<Address>(this); }
+  static bool IsValid(MemoryChunk* chunk) { return chunk != nullptr; }
 
-  bool is_valid() { return address() != NULL; }
+  Address address() { return reinterpret_cast<Address>(this); }
 
   MemoryChunk* next_chunk() const {
     return reinterpret_cast<MemoryChunk*>(base::Acquire_Load(&next_chunk_));
