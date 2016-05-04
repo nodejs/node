@@ -69,7 +69,6 @@
 #if defined(_MSC_VER)
 #include <direct.h>
 #include <io.h>
-#define strcasecmp _stricmp
 #define getpid GetCurrentProcessId
 #define umask _umask
 typedef int mode_t;
@@ -1350,35 +1349,35 @@ enum encoding ParseEncoding(const char* encoding,
       break;
   }
 
-  if (strcasecmp(encoding, "utf8") == 0) {
+  if (StringEqualNoCase(encoding, "utf8")) {
     return UTF8;
-  } else if (strcasecmp(encoding, "utf-8") == 0) {
+  } else if (StringEqualNoCase(encoding, "utf-8")) {
     return UTF8;
-  } else if (strcasecmp(encoding, "ascii") == 0) {
+  } else if (StringEqualNoCase(encoding, "ascii")) {
     return ASCII;
-  } else if (strcasecmp(encoding, "base64") == 0) {
+  } else if (StringEqualNoCase(encoding, "base64")) {
     return BASE64;
-  } else if (strcasecmp(encoding, "ucs2") == 0) {
+  } else if (StringEqualNoCase(encoding, "ucs2")) {
     return UCS2;
-  } else if (strcasecmp(encoding, "ucs-2") == 0) {
+  } else if (StringEqualNoCase(encoding, "ucs-2")) {
     return UCS2;
-  } else if (strcasecmp(encoding, "utf16le") == 0) {
+  } else if (StringEqualNoCase(encoding, "utf16le")) {
     return UCS2;
-  } else if (strcasecmp(encoding, "utf-16le") == 0) {
+  } else if (StringEqualNoCase(encoding, "utf-16le")) {
     return UCS2;
-  } else if (strcasecmp(encoding, "binary") == 0) {
+  } else if (StringEqualNoCase(encoding, "binary")) {
     return BINARY;
-  } else if (strcasecmp(encoding, "buffer") == 0) {
+  } else if (StringEqualNoCase(encoding, "buffer")) {
     return BUFFER;
-  } else if (strcasecmp(encoding, "hex") == 0) {
+  } else if (StringEqualNoCase(encoding, "hex")) {
     return HEX;
-  } else if (strcasecmp(encoding, "raw") == 0) {
+  } else if (StringEqualNoCase(encoding, "raw") == 0) {
     if (!no_deprecation) {
       fprintf(stderr, "'raw' (array of integers) has been removed. "
                       "Use 'binary'.\n");
     }
     return BINARY;
-  } else if (strcasecmp(encoding, "raws") == 0) {
+  } else if (StringEqualNoCase(encoding, "raws") == 0) {
     if (!no_deprecation) {
       fprintf(stderr, "'raws' encoding has been renamed to 'binary'. "
                       "Please update your code.\n");
