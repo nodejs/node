@@ -346,6 +346,7 @@ void DebugEvaluate::ContextBuilder::MaterializeContextChain(
       // within debug-evaluate.
       continue;
     }
+    if (value->IsTheHole()) continue;  // Value is not initialized yet (in TDZ).
     JSObject::SetOwnPropertyIgnoreAttributes(target, name, value, NONE).Check();
   }
 }
