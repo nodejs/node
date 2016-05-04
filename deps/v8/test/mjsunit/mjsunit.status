@@ -862,7 +862,6 @@
   'array-literal-feedback': [FAIL],
   'undetectable-compare': [FAIL],
   'debug-liveedit-2': [FAIL],
-  'compiler/deopt-tonumber-compare': [FAIL],
   'es6/string-search': [FAIL],
   'es6/mirror-collections': [FAIL],
   'es6/regress/regress-468661': [FAIL],

@@ -2512,6 +2512,7 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
 }
 
 bool Isolate::IsArraySpeciesLookupChainIntact() {
+  if (!FLAG_harmony_species) return true;
   // Note: It would be nice to have debug checks to make sure that the
   // species protector is accurate, but this would be hard to do for most of
   // what the protector stands for:
@@ -2530,6 +2531,7 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
 }
 
 void Isolate::InvalidateArraySpeciesProtector() {
+  if (!FLAG_harmony_species) return;
   DCHECK(factory()->species_protector()->value()->IsSmi());
   DCHECK(IsArraySpeciesLookupChainIntact());
   PropertyCell::SetValueWithInvalidation(

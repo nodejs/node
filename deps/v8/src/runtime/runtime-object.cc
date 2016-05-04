@@ -1073,28 +1073,6 @@ RUNTIME_FUNCTION(Runtime_ToName) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_Equals) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
-  Maybe<bool> result = Object::Equals(x, y);
-  if (!result.IsJust()) return isolate->heap()->exception();
-  // TODO(bmeurer): Change this at some point to return true/false instead.
-  return Smi::FromInt(result.FromJust() ? EQUAL : NOT_EQUAL);
-}
-
-
-RUNTIME_FUNCTION(Runtime_StrictEquals) {
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(Object, x, 0);
-  CONVERT_ARG_CHECKED(Object, y, 1);
-  // TODO(bmeurer): Change this at some point to return true/false instead.
-  return Smi::FromInt(x->StrictEquals(y) ? EQUAL : NOT_EQUAL);
-}
-
-
 RUNTIME_FUNCTION(Runtime_SameValue) {
   SealHandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
