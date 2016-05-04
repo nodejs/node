@@ -713,6 +713,8 @@ socket.on('end', () => {
   server.close();
 });
 ```
+  - `clientCertEngine`: A string with the name of an OpenSSL engine which
+    can provide the client certificate.
 
 
 ## tls.createSecureContext(options)
@@ -728,6 +730,8 @@ fields:
   objects in the format `{pem: key, passphrase: passphrase}`. (Required)
 * `passphrase` : A string containing the passphrase for the private key or pfx.
 * `cert` : A string containing the PEM encoded certificate
+* `clientCertEngine` : A string containing the name of and OpenSSL engine for
+   providing the client certificate.
 * `ca`: A string, `Buffer`, array of strings, or array of `Buffer`s of trusted
   certificates in PEM format. If this is omitted several well known "root"
   CAs (like VeriSign) will be used. These are used to authorize connections.
@@ -810,6 +814,9 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
 
   - `cert`: A string, `Buffer`, array of strings, or array of `Buffer`s
     containing the certificate key of the server in PEM format. (Required)
+
+  - `clientCertEngine`: A string with the name of an OpenSSL engine which
+    can provide the client certificate.
 
   - `ca`: A string, `Buffer`, array of strings, or array of `Buffer`s of trusted
     certificates in PEM format. If this is omitted several well known "root"
