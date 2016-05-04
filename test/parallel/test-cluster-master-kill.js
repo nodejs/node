@@ -34,6 +34,10 @@ if (cluster.isWorker) {
   var isAlive = function(pid) {
     try {
       //this will throw an error if the process is dead
+      // note that the master does not clean up after the children so
+      // even dead children will return as 'alive' zombies here.
+      // when master exits pid 1 (init) will take over as parent for the
+      // zombie children and will eventually reap them.
       process.kill(pid, 0);
 
       return true;
@@ -58,21 +62,25 @@ if (cluster.isWorker) {
     // make sure that the master died by purpose
     assert.equal(code, 0);
 
-    // check worker process status
-    var timeout = 200;
-    if (common.isAix) {
-      // AIX needs more time due to default exit performance
-      timeout = 1000;
-    }
-    setTimeout(function() {
+    // wait for init (pid 1) to collect the worker process
+    // normally 200ms is enough, but it depends on the init (pid 1)
+    // implementation. AIX's init and busybox init need more. We wait
+    // up to 1 sec (1000ms) before we trigger error.
+    var timeout = 1000;
+
+    var waitWorker = setInterval(function() {
+      timeout -= 10;
       alive = isAlive(pid);
-    }, timeout);
+      if (!alive || (timeout <= 0))
+        clearInterval(waitWorker);
+    }, 10);
   });
 
   process.once('exit', function() {
     // cleanup: kill the worker if alive
     if (alive) {
       process.kill(pid);
+      // we need waitpid(pid) here to avoid a zombie worker
     }
 
     assert.equal(typeof pid, 'number', 'did not get worker pid info');
