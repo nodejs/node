@@ -203,7 +203,19 @@ void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen) {
     dst[i] = (src[i] << 8) | (src[i] >> 8);
 }
 
+char ToLower(char c) {
+  return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+}
 
+bool StringEqualNoCase(const char* a, const char* b) {
+  do {
+    if (*a == '\0')
+      return *b == '\0';
+    if (*b == '\0')
+      return *a == '\0';
+  } while (ToLower(*a++) == ToLower(*b++));
+  return false;
+}
 
 }  // namespace node
 
