@@ -130,6 +130,20 @@ $code.=<<___;
 
 	mov	%r11,8(%rsp,$num,8)	# tp[num+1]=%rsp
 .Lmul_body:
+	# Some OSes, *cough*-dows, insist on stack being "wired" to
+	# physical memory in strictly sequential manner, i.e. if stack
+	# allocation spans two pages, then reference to farmost one can
+	# be punishable by SEGV. But page walking can do good even on
+	# other OSes, because it guarantees that villain thread hits
+	# the guard page before it can make damage to innocent one...
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lmul_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x66,0x2e		# predict non-taken
+	jnc	.Lmul_page_walk
+
 	mov	$bp,%r12		# reassign $bp
 ___
 		$bp="%r12";
@@ -342,6 +356,14 @@ $code.=<<___;
 
 	mov	%r11,8(%rsp,$num,8)	# tp[num+1]=%rsp
 .Lmul4x_body:
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lmul4x_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x2e			# predict non-taken
+	jnc	.Lmul4x_page_walk
+
 	mov	$rp,16(%rsp,$num,8)	# tp[num+2]=$rp
 	mov	%rdx,%r12		# reassign $bp
 ___
@@ -795,6 +817,15 @@ bn_sqr8x_mont:
 	sub	%r11,%rsp
 .Lsqr8x_sp_done:
 	and	\$-64,%rsp
+	mov	%rax,%r11
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lsqr8x_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x2e			# predict non-taken
+	jnc	.Lsqr8x_page_walk
+
 	mov	$num,%r10
 	neg	$num
 
@@ -932,8 +963,17 @@ bn_mulx4x_mont:
 	sub	$num,%r10		# -$num
 	mov	($n0),$n0		# *n0
 	lea	-72(%rsp,%r10),%rsp	# alloca(frame+$num+8)
-	lea	($bp,$num),%r10
 	and	\$-128,%rsp
+	mov	%rax,%r11
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lmulx4x_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x66,0x2e		# predict non-taken
+	jnc	.Lmulx4x_page_walk
+
+	lea	($bp,$num),%r10
 	##############################################################
 	# Stack layout
 	# +0	num

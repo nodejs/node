@@ -227,7 +227,7 @@ Lunaligned:
 	srwi.	$t1,$t1,6	; t1/=64
 	beq	Lcross_page
 	$UCMP	$num,$t1
-	ble-	Laligned	; didn't cross the page boundary
+	ble	Laligned	; didn't cross the page boundary
 	mtctr	$t1
 	subfc	$num,$t1,$num
 	bl	Lsha1_block_private
@@ -255,7 +255,7 @@ Lmemcpy:
 	bl	Lsha1_block_private
 	$POP	$inp,`$FRAME-$SIZE_T*18`($sp)
 	addic.	$num,$num,-1
-	bne-	Lunaligned
+	bne	Lunaligned
 
 Ldone:
 	$POP	r0,`$FRAME+$LRSAVE`($sp)
@@ -329,7 +329,7 @@ $code.=<<___;
 	stw	r20,16($ctx)
 	mr	$E,r20
 	addi	$inp,$inp,`16*4`
-	bdnz-	Lsha1_block_private
+	bdnz	Lsha1_block_private
 	blr
 	.long	0
 	.byte	0,12,0x14,0,0,0,0,0

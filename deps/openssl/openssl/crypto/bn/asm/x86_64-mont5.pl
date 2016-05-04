@@ -115,6 +115,20 @@ $code.=<<___;
 
 	mov	%rax,8(%rsp,$num,8)	# tp[num+1]=%rsp
 .Lmul_body:
+	# Some OSes, *cough*-dows, insist on stack being "wired" to
+	# physical memory in strictly sequential manner, i.e. if stack
+	# allocation spans two pages, then reference to farmost one can
+	# be punishable by SEGV. But page walking can do good even on
+	# other OSes, because it guarantees that villain thread hits
+	# the guard page before it can make damage to innocent one...
+	sub	%rsp,%rax
+	and	\$-4096,%rax
+.Lmul_page_walk:
+	mov	(%rsp,%rax),%r11
+	sub	\$4096,%rax
+	.byte	0x2e			# predict non-taken
+	jnc	.Lmul_page_walk
+
 	lea	128($bp),%r12		# reassign $bp (+size optimization)
 ___
 		$bp="%r12";
@@ -469,6 +483,15 @@ $code.=<<___;
 	sub	%r11,%rsp
 .Lmul4xsp_done:
 	and	\$-64,%rsp
+	mov	%rax,%r11
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lmul4x_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x2e			# predict non-taken
+	jnc	.Lmul4x_page_walk
+
 	neg	$num
 
 	mov	%rax,40(%rsp)
@@ -1058,6 +1081,15 @@ $code.=<<___;
 	sub	%r11,%rsp
 .Lpwr_sp_done:
 	and	\$-64,%rsp
+	mov	%rax,%r11
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lpwr_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x2e			# predict non-taken
+	jnc	.Lpwr_page_walk
+
 	mov	$num,%r10	
 	neg	$num
 
@@ -2028,7 +2060,16 @@ bn_from_mont8x:
 	sub	%r11,%rsp
 .Lfrom_sp_done:
 	and	\$-64,%rsp
-	mov	$num,%r10	
+	mov	%rax,%r11
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lfrom_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x2e			# predict non-taken
+	jnc	.Lfrom_page_walk
+
+	mov	$num,%r10
 	neg	$num
 
 	##############################################################
@@ -2173,6 +2214,15 @@ bn_mulx4x_mont_gather5:
 	sub	%r11,%rsp
 .Lmulx4xsp_done:	
 	and	\$-64,%rsp		# ensure alignment
+	mov	%rax,%r11
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lmulx4x_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x2e			# predict non-taken
+	jnc	.Lmulx4x_page_walk
+
 	##############################################################
 	# Stack layout
 	# +0	-num
@@ -2619,6 +2669,15 @@ bn_powerx5:
 	sub	%r11,%rsp
 .Lpwrx_sp_done:
 	and	\$-64,%rsp
+	mov	%rax,%r11
+	sub	%rsp,%r11
+	and	\$-4096,%r11
+.Lpwrx_page_walk:
+	mov	(%rsp,%r11),%r10
+	sub	\$4096,%r11
+	.byte	0x2e			# predict non-taken
+	jnc	.Lpwrx_page_walk
+
 	mov	$num,%r10	
 	neg	$num
 

@@ -446,14 +446,14 @@ static EVP_PKEY_CTX *init_ctx(int *pkeysize,
 
     if (!pkey)
         goto end;
-
+        
 #ifndef OPENSSL_NO_ENGINE
     if (engine_impl)
 	impl = e;
 #endif
-
+            
     ctx = EVP_PKEY_CTX_new(pkey, impl);
-
+    
     EVP_PKEY_free(pkey);
 
     if (!ctx)
