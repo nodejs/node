@@ -4,63 +4,29 @@ var assert = require('assert');
 var http = require('http');
 var url = require('url');
 
+function errChecker(protocol, expected) {
+  return function(err) {
+    if (err instanceof Error) {
+      console.log(err);
+      assert.strictEqual(err.code, 'HTTPUNSUPPORTEDPROTOCOL');
+      assert.strictEqual(err.name, 'Error[HTTPUNSUPPORTEDPROTOCOL]');
+      assert.strictEqual(
+          err.message,
+          `Protocol "${protocol}" is not supported. Expected "${expected}"`);
+      return true;
+    }
+  };
+}
 
-assert.throws(function() {
-  http.request(url.parse('file:///whatever'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "file:" not supported.' +
-                       ' Expected "http:"');
-    return true;
-  }
-});
-
-assert.throws(function() {
-  http.request(url.parse('mailto:asdf@asdf.com'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "mailto:" not supported.' +
-                       ' Expected "http:"');
-    return true;
-  }
-});
-
-assert.throws(function() {
-  http.request(url.parse('ftp://www.example.com'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "ftp:" not supported.' +
-                       ' Expected "http:"');
-    return true;
-  }
-});
-
-assert.throws(function() {
-  http.request(url.parse('javascript:alert(\'hello\');'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "javascript:" not supported.' +
-                       ' Expected "http:"');
-    return true;
-  }
-});
-
-assert.throws(function() {
-  http.request(url.parse('xmpp:isaacschlueter@jabber.org'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "xmpp:" not supported.' +
-                       ' Expected "http:"');
-    return true;
-  }
-});
-
-assert.throws(function() {
-  http.request(url.parse('f://some.host/path'));
-}, function(err) {
-  if (err instanceof Error) {
-    assert.strictEqual(err.message, 'Protocol "f:" not supported.' +
-                       ' Expected "http:"');
-    return true;
-  }
+[
+  ['file:', 'file:///whatever'],
+  ['mailto:', 'mailto:asdf@asdf.com'],
+  ['ftp:', 'ftp://www.example.org'],
+  ['javascript:', 'javascript:alert(\'hello\');'],
+  ['xmpp:', 'xmpp:example@jabber.org'],
+  ['f:', 'f://some.host/path']
+].forEach((item) => {
+  assert.throws(function() {
+    http.request(url.parse(item[1]));
+  }, errChecker(item[0], 'http:'));
 });

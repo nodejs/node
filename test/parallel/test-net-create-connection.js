@@ -25,7 +25,7 @@ server.listen(tcpPort, 'localhost', function() {
     assert.throws(function() {
       net.createConnection(opts, cb);
     }, function(err) {
-      return err instanceof errtype && msg === err.message;
+      return err instanceof errtype && msg === err.code;
     });
   }
 
@@ -39,59 +39,59 @@ server.listen(tcpPort, 'localhost', function() {
 
   fail({
     port: true
-  }, TypeError, '"port" option should be a number or string: true');
+  }, TypeError, 'INVALIDOPT');
 
   fail({
     port: false
-  }, TypeError, '"port" option should be a number or string: false');
+  }, TypeError, 'INVALIDOPT');
 
   fail({
     port: []
-  }, TypeError, '"port" option should be a number or string: ');
+  }, TypeError, 'INVALIDOPT');
 
   fail({
     port: {}
-  }, TypeError, '"port" option should be a number or string: [object Object]');
+  }, TypeError, 'INVALIDOPT');
 
   fail({
     port: null
-  }, TypeError, '"port" option should be a number or string: null');
+  }, TypeError, 'INVALIDOPT');
 
   fail({
     port: ''
-  }, RangeError, '"port" option should be >= 0 and < 65536: ');
+  }, RangeError, 'PORTRANGE');
 
   fail({
     port: ' '
-  }, RangeError, '"port" option should be >= 0 and < 65536:  ');
+  }, RangeError, 'PORTRANGE');
 
   fail({
     port: '0x'
-  }, RangeError, '"port" option should be >= 0 and < 65536: 0x');
+  }, RangeError, 'PORTRANGE');
 
   fail({
     port: '-0x1'
-  }, RangeError, '"port" option should be >= 0 and < 65536: -0x1');
+  }, RangeError, 'PORTRANGE');
 
   fail({
     port: NaN
-  }, RangeError, '"port" option should be >= 0 and < 65536: NaN');
+  }, RangeError, 'PORTRANGE');
 
   fail({
     port: Infinity
-  }, RangeError, '"port" option should be >= 0 and < 65536: Infinity');
+  }, RangeError, 'PORTRANGE');
 
   fail({
     port: -1
-  }, RangeError, '"port" option should be >= 0 and < 65536: -1');
+  }, RangeError, 'PORTRANGE');
 
   fail({
     port: 65536
-  }, RangeError, '"port" option should be >= 0 and < 65536: 65536');
+  }, RangeError, 'PORTRANGE');
 
   fail({
     hints: (dns.ADDRCONFIG | dns.V4MAPPED) + 42,
-  }, TypeError, 'Invalid argument: hints must use valid flags');
+  }, TypeError, 'INVALIDOPTVALUE');
 });
 
 // Try connecting to random ports, but do so once the server is closed

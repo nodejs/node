@@ -516,3 +516,26 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
     return expectedExitCodes.indexOf(exitCode) > -1;
   }
 };
+
+// Basically a wrapper for assert.throws that also understands Node.js
+// custom error codes. If the second argument is an object with a `code`
+// property on it, then that will be checked.
+exports.throws = function throws(...args) {
+  if (args.length > 1 &&
+      typeof args[1] === 'object' &&
+      (typeof args[1].code === 'string' ||
+       typeof args[1].name === 'string' ||
+       typeof args[1].type === 'function')) {
+    assert.throws(args[0], (err) => {
+      const check = args[1];
+      if ((typeof check.type === 'function' && !(err instanceof check.type)) ||
+          (typeof check.name === 'string' && check.name !== err.name) ||
+          (typeof check.code === 'string' && check.code !== err.code)) {
+        return false;
+      }
+      return true;
+    });
+  } else {
+    assert.throws.apply(null, args);
+  }
+};

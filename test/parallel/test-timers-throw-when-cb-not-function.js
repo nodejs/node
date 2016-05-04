@@ -1,6 +1,5 @@
 'use strict';
-require('../common');
-const assert = require('assert');
+const common = require('../common');
 
 function doSetTimeout(callback, after) {
   return function() {
@@ -8,18 +7,18 @@ function doSetTimeout(callback, after) {
   };
 }
 
-assert.throws(doSetTimeout('foo'),
-  /"callback" argument must be a function/);
-assert.throws(doSetTimeout({foo: 'bar'}),
-  /"callback" argument must be a function/);
-assert.throws(doSetTimeout(),
-  /"callback" argument must be a function/);
-assert.throws(doSetTimeout(undefined, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetTimeout(null, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetTimeout(false, 0),
-  /"callback" argument must be a function/);
+common.throws(doSetTimeout('foo'),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetTimeout({foo: 'bar'}),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetTimeout(),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetTimeout(undefined, 0),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetTimeout(null, 0),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetTimeout(false, 0),
+  {code: 'CALLBACKREQUIRED'});
 
 
 function doSetInterval(callback, after) {
@@ -28,18 +27,18 @@ function doSetInterval(callback, after) {
   };
 }
 
-assert.throws(doSetInterval('foo'),
-  /"callback" argument must be a function/);
-assert.throws(doSetInterval({foo: 'bar'}),
-  /"callback" argument must be a function/);
-assert.throws(doSetInterval(),
-  /"callback" argument must be a function/);
-assert.throws(doSetInterval(undefined, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetInterval(null, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetInterval(false, 0),
-  /"callback" argument must be a function/);
+common.throws(doSetInterval('foo'),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetInterval({foo: 'bar'}),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetInterval(),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetInterval(undefined, 0),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetInterval(null, 0),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetInterval(false, 0),
+  {code: 'CALLBACKREQUIRED'});
 
 
 function doSetImmediate(callback, after) {
@@ -48,15 +47,15 @@ function doSetImmediate(callback, after) {
   };
 }
 
-assert.throws(doSetImmediate('foo'),
-  /"callback" argument must be a function/);
-assert.throws(doSetImmediate({foo: 'bar'}),
-  /"callback" argument must be a function/);
-assert.throws(doSetImmediate(),
-  /"callback" argument must be a function/);
-assert.throws(doSetImmediate(undefined, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetImmediate(null, 0),
-  /"callback" argument must be a function/);
-assert.throws(doSetImmediate(false, 0),
-  /"callback" argument must be a function/);
+common.throws(doSetImmediate('foo'),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetImmediate({foo: 'bar'}),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetImmediate(),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetImmediate(undefined, 0),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetImmediate(null, 0),
+  {code: 'CALLBACKREQUIRED'});
+common.throws(doSetImmediate(false, 0),
+  {code: 'CALLBACKREQUIRED'});

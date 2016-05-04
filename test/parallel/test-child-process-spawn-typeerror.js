@@ -1,14 +1,14 @@
 'use strict';
+const common = require('../common');
 const assert = require('assert');
 const child_process = require('child_process');
 const spawn = child_process.spawn;
 const fork = child_process.fork;
 const execFile = child_process.execFile;
-const common = require('../common');
 const cmd = common.isWindows ? 'rundll32' : 'ls';
 const invalidcmd = 'hopefully_you_dont_have_this_on_your_machine';
-const invalidArgsMsg = /Incorrect value of args option/;
-const invalidOptionsMsg = /"options" argument must be an object/;
+const invalidArgsMsg = {code: 'INVALIDARG'};
+const invalidOptionsMsg = {code: 'INVALIDARG'};
 const empty = common.fixturesDir + '/empty.js';
 
 assert.throws(function() {
@@ -38,19 +38,19 @@ assert.throws(function() {
   spawn();
 }, /Bad argument/);
 
-assert.throws(function() {
+common.throws(function() {
   spawn(cmd, null);
 }, invalidArgsMsg);
 
-assert.throws(function() {
+common.throws(function() {
   spawn(cmd, true);
 }, invalidArgsMsg);
 
-assert.throws(function() {
+common.throws(function() {
   spawn(cmd, [], null);
 }, invalidOptionsMsg);
 
-assert.throws(function() {
+common.throws(function() {
   spawn(cmd, [], 1);
 }, invalidOptionsMsg);
 

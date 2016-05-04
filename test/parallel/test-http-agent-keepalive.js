@@ -89,7 +89,7 @@ function remoteError() {
   });
   req.on('error', function(err) {
     assert.ok(err);
-    assert.equal(err.message, 'socket hang up');
+    assert.strictEqual(err.code, 'ECONNRESET');
     assert.equal(agent.sockets[name].length, 1);
     assert.equal(agent.freeSockets[name], undefined);
     // Wait socket 'close' event emit

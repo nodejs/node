@@ -16,18 +16,18 @@ assert.doesNotThrow(function() {
   fs.createReadStream(example, {encoding: 'utf8'});
 });
 
-assert.throws(function() {
+common.throws(function() {
   fs.createReadStream(example, null);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, {code: 'INVALIDARG'});
+common.throws(function() {
   fs.createReadStream(example, 123);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, {code: 'INVALIDARG'});
+common.throws(function() {
   fs.createReadStream(example, 0);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, {code: 'INVALIDARG'});
+common.throws(function() {
   fs.createReadStream(example, true);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, {code: 'INVALIDARG'});
+common.throws(function() {
   fs.createReadStream(example, false);
-}, /"options" argument must be a string or an object/);
+}, {code: 'INVALIDARG'});

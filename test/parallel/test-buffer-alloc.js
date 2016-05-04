@@ -1436,16 +1436,13 @@ assert.throws(function() {
   Buffer.allocUnsafe(10).copy();
 });
 
-const regErrorMsg = new RegExp('First argument must be a string, Buffer, ' +
-                               'ArrayBuffer, Array, or array-like object.');
-
-assert.throws(function() {
+common.throws(function() {
   Buffer.from();
-}, regErrorMsg);
+}, {code: 'INVALIDARG'});
 
-assert.throws(function() {
+common.throws(function() {
   Buffer.from(null);
-}, regErrorMsg);
+}, {code: 'INVALIDARG'});
 
 
 // Test that ParseArrayIndex handles full uint32

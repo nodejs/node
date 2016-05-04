@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const tls = require('tls');
 
@@ -19,8 +19,8 @@ assert.throws(() => tls.createServer({key: 'dummykey', passphrase: 1}),
 assert.throws(() => tls.createServer({ecdhCurve: 1}),
               /TypeError: ECDH curve name must be a string/);
 
-assert.throws(() => tls.createServer({handshakeTimeout: 'abcd'}),
-              /TypeError: handshakeTimeout must be a number/);
+common.throws(() => tls.createServer({handshakeTimeout: 'abcd'}),
+              {code: 'INVALIDOPT'});
 
 assert.throws(() => tls.createServer({sessionTimeout: 'abcd'}),
               /TypeError: Session timeout must be a 32-bit integer/);

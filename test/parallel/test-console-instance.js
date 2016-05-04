@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const Stream = require('stream');
 const Console = require('console').Console;
@@ -19,16 +19,16 @@ assert.equal('function', typeof Console);
 
 // make sure that the Console constructor throws
 // when not given a writable stream instance
-assert.throws(function() {
+common.throws(function() {
   new Console();
-}, /Console expects a writable stream/);
+}, {code: 'CONSOLEWRITABLE'});
 
 // Console constructor should throw if stderr exists but is not writable
-assert.throws(function() {
+common.throws(function() {
   out.write = function() {};
   err.write = undefined;
   new Console(out, err);
-}, /Console expects writable stream instances/);
+}, {code: 'CONSOLEWRITABLE'});
 
 out.write = err.write = function(d) {};
 

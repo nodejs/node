@@ -1439,16 +1439,13 @@ assert.throws(function() {
   Buffer(10).copy();
 });
 
-const regErrorMsg = new RegExp('First argument must be a string, Buffer, ' +
-                               'ArrayBuffer, Array, or array-like object.');
-
-assert.throws(function() {
+common.throws(function() {
   new Buffer();
-}, regErrorMsg);
+}, {code: 'INVALIDARG'});
 
-assert.throws(function() {
+common.throws(function() {
   new Buffer(null);
-}, regErrorMsg);
+}, {code: 'INVALIDARG'});
 
 
 // Test prototype getters don't throw

@@ -16,9 +16,9 @@ net.Server().listen({ port: '' + common.PORT }, close);
   '+Infinity',
   '-Infinity'
 ].forEach(function(port) {
-  assert.throws(function() {
+  common.throws(function() {
     net.Server().listen({ port: port }, assert.fail);
-  }, /"port" argument must be >= 0 and < 65536/i);
+  }, {code: 'PORTRANGE'});
 });
 
 [null, true, false].forEach(function(port) {
