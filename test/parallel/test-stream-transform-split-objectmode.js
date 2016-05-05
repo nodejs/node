@@ -4,7 +4,7 @@ var assert = require('assert');
 
 var Transform = require('stream').Transform;
 
-var parser = new Transform({ readableObjectMode : true });
+var parser = new Transform({ readableObjectMode: true });
 
 assert(parser._readableState.objectMode);
 assert(!parser._writableState.objectMode);
@@ -12,7 +12,7 @@ assert(parser._readableState.highWaterMark === 16);
 assert(parser._writableState.highWaterMark === (16 * 1024));
 
 parser._transform = function(chunk, enc, callback) {
-  callback(null, { val : chunk[0] });
+  callback(null, { val: chunk[0] });
 };
 
 var parsed;
@@ -28,7 +28,7 @@ process.on('exit', function() {
 });
 
 
-var serializer = new Transform({ writableObjectMode : true });
+var serializer = new Transform({ writableObjectMode: true });
 
 assert(!serializer._readableState.objectMode);
 assert(serializer._writableState.objectMode);
@@ -45,7 +45,7 @@ serializer.on('data', function(chunk) {
   serialized = chunk;
 });
 
-serializer.write({ val : 42 });
+serializer.write({ val: 42 });
 
 process.on('exit', function() {
   assert(serialized[0] === 42);

@@ -29,12 +29,12 @@ const server = http.createServer((req, res) => {
       break;
     case 1:
       assert.throws(common.mustCall(() => {
-        res.writeHead(200, {'foo' : x});
+        res.writeHead(200, {'foo': x});
       }));
       break;
     case 2:
       assert.throws(common.mustCall(() => {
-        res.writeHead(200, {'foo' : y});
+        res.writeHead(200, {'foo': y});
       }));
       break;
     default:

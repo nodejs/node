@@ -16,7 +16,7 @@ const server = net.createServer((socket) => {
 server.listen(common.PORT, () => {
   // The callback should not be called because the server is sending a
   // header field that ends only in \r with no following \n
-  const req = http.get({port:common.PORT}, (res) => {
+  const req = http.get({port: common.PORT}, (res) => {
     assert.fail(null, null, 'callback should not be called');
   });
   req.on('error', common.mustCall((err) => {

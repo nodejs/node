@@ -17,7 +17,7 @@ var testData = [
       'source': 'foo',
       'modules': [ { 'textRaw': 'Sample Markdown',
         'name': 'sample_markdown',
-        'modules': [ { 'textRaw':'Seussian Rhymes',
+        'modules': [ { 'textRaw': 'Seussian Rhymes',
           'name': 'seussian_rhymes',
           'desc': '<ol>\n<li>fish</li>\n<li><p>fish</p>\n</li>\n<li>' +
                   '<p>Red fish</p>\n</li>\n<li>Blue fish</li>\n</ol>\n',
@@ -32,7 +32,7 @@ var testData = [
   {
     'file': common.fixturesDir + '/order_of_end_tags_5873.md',
     'json': {
-      'source':'foo',
+      'source': 'foo',
       'modules': [ {
         'textRaw': 'Title',
         'name': 'title',
@@ -41,8 +41,8 @@ var testData = [
           'name': 'subsection',
           'classMethods': [ {
             'textRaw': 'Class Method: Buffer.from(array)',
-            'type':'classMethod',
-            'name':'from',
+            'type': 'classMethod',
+            'name': 'from',
             'signatures': [ {
               'params': [ {
                 'textRaw': '`array` {Array} ',
@@ -51,7 +51,7 @@ var testData = [
               } ]
             },
               {
-                'params' : [ {
+                'params': [ {
                   'name': 'array'
                 } ]
               }
