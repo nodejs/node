@@ -83,6 +83,7 @@ rules:
   no-new-symbol: 2
   no-this-before-super: 2
   prefer-const: 2
+  template-curly-spacing: 2
 
   # Custom rules in tools/eslint-rules
   align-function-arguments: 2
