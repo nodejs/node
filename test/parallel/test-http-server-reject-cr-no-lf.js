@@ -20,7 +20,7 @@ server.on('clientError', common.mustCall((err) => {
   server.close();
 }));
 server.listen(common.PORT, () => {
-  const client = net.connect({port:common.PORT}, () => {
+  const client = net.connect({port: common.PORT}, () => {
     client.on('data', (chunk) => {
       assert.fail(null, null, 'this should not be called');
     });

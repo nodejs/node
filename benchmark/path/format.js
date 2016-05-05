@@ -18,11 +18,11 @@ function main(conf) {
     ext: '.html',
     name: 'index'
   } : {
-    root : '/',
-    dir : '/home/user/dir',
-    base : 'index.html',
-    ext : '.html',
-    name : 'index'
+    root: '/',
+    dir: '/home/user/dir',
+    base: 'index.html',
+    ext: '.html',
+    name: 'index'
   };
 
   // Force optimization before starting the benchmark

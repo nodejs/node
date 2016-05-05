@@ -17,7 +17,7 @@ server.listen(common.PORT, () => {
   // The callback should not be called because the server is sending
   // both a Content-Length header and a Transfer-Encoding: chunked
   // header, which is a violation of the HTTP spec.
-  const req = http.get({port:common.PORT}, (res) => {
+  const req = http.get({port: common.PORT}, (res) => {
     assert.fail(null, null, 'callback should not be called');
   });
   req.on('error', common.mustCall((err) => {
