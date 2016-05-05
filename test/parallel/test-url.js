@@ -822,7 +822,7 @@ var parseTests = {
     query: '@c'
   },
 
-  'http://a\r" \t\n<\'b:b@c\r\nd/e?f':{
+  'http://a\r" \t\n<\'b:b@c\r\nd/e?f': {
     protocol: 'http:',
     slashes: true,
     auth: 'a\r" \t\n<\'b:b',
@@ -912,7 +912,7 @@ var parseTestsWithQueryString = {
     path: '/example',
     href: '/example'
   },
-  '/example?query=value':{
+  '/example?query=value': {
     protocol: null,
     slashes: null,
     auth: null,
@@ -1091,7 +1091,7 @@ var formatTests = {
 
   // `#`,`?` in path
   '/path/to/%%23%3F+=&.txt?foo=theA1#bar': {
-    href : '/path/to/%%23%3F+=&.txt?foo=theA1#bar',
+    href: '/path/to/%%23%3F+=&.txt?foo=theA1#bar',
     pathname: '/path/to/%#?+=&.txt',
     query: {
       foo: 'theA1'
@@ -1101,7 +1101,7 @@ var formatTests = {
 
   // `#`,`?` in path + `#` in query
   '/path/to/%%23%3F+=&.txt?foo=the%231#bar': {
-    href : '/path/to/%%23%3F+=&.txt?foo=the%231#bar',
+    href: '/path/to/%%23%3F+=&.txt?foo=the%231#bar',
     pathname: '/path/to/%#?+=&.txt',
     query: {
       foo: 'the#1'

@@ -57,6 +57,7 @@ rules:
   comma-spacing: 2
   eol-last: 2
   indent: [2, 2, {SwitchCase: 1}]
+  key-spacing: [2, {mode: "minimum"}]
   keyword-spacing: 2
   max-len: [2, 80, 2]
   new-parens: 2
