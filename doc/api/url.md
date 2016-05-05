@@ -80,6 +80,9 @@ properties of URL objects:
 The following methods are provided by the URL module:
 
 ## url.format(urlObj)
+<!-- YAML
+added: v0.1.25
+-->
 
 Take a parsed URL object, and return a formatted URL string.
 
@@ -106,6 +109,9 @@ Here's how the formatting process works:
 * `hash` is treated the same with or without the leading `#` (pound sign, anchor).
 
 ## url.parse(urlStr[, parseQueryString][, slashesDenoteHost])
+<!-- YAML
+added: v0.1.25
+-->
 
 Take a URL string, and return an object.
 
@@ -120,6 +126,9 @@ Pass `true` as the third argument to treat `//foo/bar` as
 `{ pathname: '//foo/bar' }`. Defaults to `false`.
 
 ## url.resolve(from, to)
+<!-- YAML
+added: v0.1.25
+-->
 
 Take a base URL, and a href URL, and resolve them as a browser would for
 an anchor tag.  Examples:
