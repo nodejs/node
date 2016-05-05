@@ -37,8 +37,8 @@ console.log(custom_inspect);
 // test console.dir()
 console.dir(custom_inspect);
 console.dir(custom_inspect, { showHidden: false });
-console.dir({ foo : { bar : { baz : true } } }, { depth: 0 });
-console.dir({ foo : { bar : { baz : true } } }, { depth: 1 });
+console.dir({ foo: { bar: { baz: true } } }, { depth: 0 });
+console.dir({ foo: { bar: { baz: true } } }, { depth: 1 });
 
 // test console.trace()
 console.trace('This is a %j %d', { formatted: 'trace' }, 10, 'foo');

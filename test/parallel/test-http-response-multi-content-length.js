@@ -33,7 +33,7 @@ server.listen(common.PORT, common.mustCall(() => {
     // case, the error handler must be called because the client
     // is not allowed to accept multiple content-length headers.
     http.get(
-      {port:common.PORT, headers:{'x-num': n}},
+      {port: common.PORT, headers: {'x-num': n}},
       (res) => {
         assert(false, 'client allowed multiple content-length headers.');
       }
