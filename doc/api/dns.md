@@ -155,6 +155,7 @@ Valid values for `rrtype` are:
  * `'NS'` - name server records
  * `'CNAME'` - canonical name records
  * `'SOA'` - start of authority record
+ * `'NAPTR'` - name authority pointer record
 
 The `callback` function has arguments `(err, addresses)`. When successful,
 `addresses` will be an array. The type of each  item in `addresses` is
@@ -190,6 +191,33 @@ Uses the DNS protocol to resolve mail exchange records (`MX` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
 contain an array of objects containing both a `priority` and `exchange`
 property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
+
+## dns.resolveNaptr(hostname, callback)
+
+Uses the DNS protocol to resolve regular expression based records (`NAPTR`
+records) for the `hostname`. The `callback` function has arguments
+`(err, addresses)`.  The `addresses` argument passed to the `callback` function
+will contain an array of objects with the following properties:
+
+* `flags`
+* `service`
+* `regexp`
+* `replacement`
+* `order`
+* `preference`
+
+For example:
+
+```js
+{
+  flags: 's',
+  service: 'SIP+D2U',
+  regexp: '',
+  replacement: '_sip._udp.example.com',
+  order: 30,
+  preference: 100
+}
+```
 
 ## dns.resolveNs(hostname, callback)
 
