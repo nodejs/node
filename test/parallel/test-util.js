@@ -76,10 +76,10 @@ assert.equal(false, util.isBuffer('foo'));
 assert.equal(true, util.isBuffer(Buffer.from('foo')));
 
 // _extend
-assert.deepStrictEqual(util._extend({a:1}),             {a:1});
-assert.deepStrictEqual(util._extend({a:1}, []),         {a:1});
-assert.deepStrictEqual(util._extend({a:1}, null),       {a:1});
-assert.deepStrictEqual(util._extend({a:1}, true),       {a:1});
-assert.deepStrictEqual(util._extend({a:1}, false),      {a:1});
-assert.deepStrictEqual(util._extend({a:1}, {b:2}),      {a:1, b:2});
-assert.deepStrictEqual(util._extend({a:1, b:2}, {b:3}), {a:1, b:3});
+assert.deepStrictEqual(util._extend({a: 1}), {a: 1});
+assert.deepStrictEqual(util._extend({a: 1}, []), {a: 1});
+assert.deepStrictEqual(util._extend({a: 1}, null), {a: 1});
+assert.deepStrictEqual(util._extend({a: 1}, true), {a: 1});
+assert.deepStrictEqual(util._extend({a: 1}, false), {a: 1});
+assert.deepStrictEqual(util._extend({a: 1}, {b: 2}), {a: 1, b: 2});
+assert.deepStrictEqual(util._extend({a: 1, b: 2}, {b: 3}), {a: 1, b: 3});
