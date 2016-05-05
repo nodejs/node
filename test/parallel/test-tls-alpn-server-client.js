@@ -284,7 +284,7 @@ function Test7() {
                               client: {ALPN: false, NPN: false}});
     // nothing is selected by ALPN
     checkResults(results[2],
-                 {server: {ALPN: false, NPN:  'first-priority-unsupported'},
+                 {server: {ALPN: false, NPN: 'first-priority-unsupported'},
                   client: {ALPN: false, NPN: false}});
     // execute next test
     Test8();
@@ -308,7 +308,7 @@ function Test8() {
                               client: {ALPN: false, NPN: false}});
     // nothing is selected by ALPN
     checkResults(results[2],
-                 {server: {ALPN: false, NPN:  'http/1.1'},
+                 {server: {ALPN: false, NPN: 'http/1.1'},
                   client: {ALPN: false, NPN: false}});
     // execute next test
     Test9();
