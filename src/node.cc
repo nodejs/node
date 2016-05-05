@@ -144,9 +144,9 @@ static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
-static bool use_debug_agent = false;
-static bool debug_wait_connect = false;
-static int debug_port = 5858;
+// Keep a global of the debug port, as it's needed, for example, when starting
+// the debugger from within a signal handler.
+static int global_debug_port = 5858;
 static const int v8_default_thread_pool_size = 4;
 static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
@@ -2808,14 +2808,14 @@ static Local<Object> GetFeatures(Environment* env) {
 
 static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
-  info.GetReturnValue().Set(debug_port);
+  info.GetReturnValue().Set(global_debug_port);
 }
 
 
 static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
-  debug_port = value->Int32Value();
+  global_debug_port = value->Int32Value();
 }
 
 
@@ -3380,20 +3380,20 @@ void LoadEnvironment(Environment* env) {
 
 static void PrintHelp();
 
-static bool ParseDebugOpt(const char* arg) {
+static bool ParseDebugOpt(const char* arg, DebuggerSettings* settings) {
   const char* port = nullptr;
 
   if (!strcmp(arg, "--debug")) {
-    use_debug_agent = true;
+    settings->use_agent = true;
   } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-    use_debug_agent = true;
+    settings->use_agent = true;
     port = arg + sizeof("--debug=") - 1;
   } else if (!strcmp(arg, "--debug-brk")) {
-    use_debug_agent = true;
-    debug_wait_connect = true;
+    settings->use_agent = true;
+    settings->wait_connect = true;
   } else if (!strncmp(arg, "--debug-brk=", sizeof("--debug-brk=") - 1)) {
-    use_debug_agent = true;
-    debug_wait_connect = true;
+    settings->use_agent = true;
+    settings->wait_connect = true;
     port = arg + sizeof("--debug-brk=") - 1;
   } else if (!strncmp(arg, "--debug-port=", sizeof("--debug-port=") - 1)) {
     port = arg + sizeof("--debug-port=") - 1;
@@ -3402,12 +3402,13 @@ static bool ParseDebugOpt(const char* arg) {
   }
 
   if (port != nullptr) {
-    debug_port = atoi(port);
-    if (debug_port < 1024 || debug_port > 65535) {
+    int port_int = atoi(port);
+    if (port_int < 1024 || port_int > 65535) {
       fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
       PrintHelp();
       exit(12);
     }
+    settings->port = port_int;
   }
 
   return true;
@@ -3495,7 +3496,8 @@ static void ParseArgs(int* argc,
                       int* exec_argc,
                       const char*** exec_argv,
                       int* v8_argc,
-                      const char*** v8_argv) {
+                      const char*** v8_argv,
+                      DebuggerSettings* debugger_settings) {
   const unsigned int nargs = static_cast<unsigned int>(*argc);
   const char** new_exec_argv = new const char*[nargs];
   const char** new_v8_argv = new const char*[nargs];
@@ -3522,7 +3524,7 @@ static void ParseArgs(int* argc,
     const char* const arg = argv[index];
     unsigned int args_consumed = 1;
 
-    if (ParseDebugOpt(arg)) {
+    if (ParseDebugOpt(arg, debugger_settings)) {
       // Done, consumed by ParseDebugOpt().
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
@@ -3661,7 +3663,7 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 }
 
 
-static void StartDebug(Environment* env, bool wait) {
+void StartDebug(Environment* env, int debug_port, bool wait) {
   CHECK(!debugger_running);
 
   env->debugger_agent()->set_dispatch_handler(
@@ -3676,7 +3678,7 @@ static void StartDebug(Environment* env, bool wait) {
 
 
 // Called from the main thread.
-static void EnableDebug(Environment* env) {
+void EnableDebug(Environment* env) {
   CHECK(debugger_running);
 
   // Send message to enable debug in workers
@@ -3723,7 +3725,7 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
     Environment* env = Environment::GetCurrent(isolate);
     Context::Scope context_scope(env->context());
 
-    StartDebug(env, false);
+    StartDebug(env, global_debug_port, false);
     EnableDebug(env);
   }
 
@@ -4013,7 +4015,8 @@ inline void PlatformInit() {
 void Init(int* argc,
           const char** argv,
           int* exec_argc,
-          const char*** exec_argv) {
+          const char*** exec_argv,
+          DebuggerSettings* debugger_settings) {
   // Initialize prog_start_time to get relative uptime.
   prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
@@ -4037,7 +4040,8 @@ void Init(int* argc,
   // Parse a few arguments which are specific to Node.
   int v8_argc;
   const char** v8_argv;
-  ParseArgs(argc, argv, exec_argc, exec_argv, &v8_argc, &v8_argv);
+  ParseArgs(argc, argv, exec_argc, exec_argv, &v8_argc, &v8_argv,
+            debugger_settings);
 
   // TODO(bnoordhuis) Intercept --prof arguments and start the CPU profiler
   // manually?  That would give us a little more control over its runtime
@@ -4087,7 +4091,7 @@ void Init(int* argc,
     exit(9);
   }
 
-  if (debug_wait_connect) {
+  if (debugger_settings->wait_connect) {
     const char expose_debug_as[] = "--expose_debug_as=v8debug";
     V8::SetFlagsFromString(expose_debug_as, sizeof(expose_debug_as) - 1);
   }
@@ -4098,7 +4102,7 @@ void Init(int* argc,
   const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
   V8::SetFlagsFromString(no_typed_array_heap, sizeof(no_typed_array_heap) - 1);
 
-  if (!use_debug_agent) {
+  if (!debugger_settings->use_agent) {
     RegisterDebugSignalHandler();
   }
 
@@ -4295,11 +4299,16 @@ Environment* CreateEnvironment(Isolate* isolate,
   return env;
 }
 
+// Returns true if the isolate field was previously null, otherwise returns
+// false if there was another current main isolate value that was overwritten.
+bool SetMainIsolate(v8::Isolate* isolate) {
+  return node_isolate.exchange(isolate) == nullptr;
+}
 
 // Entry point for new node instances, also called directly for the main
 // node instance.
-static void StartNodeInstance(void* arg) {
-  NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
+static void StartNodeInstance(NodeInstanceData* instance_data,
+                              DebuggerSettings* debugger_settings) {
   Isolate::CreateParams params;
   ArrayBufferAllocator* array_buffer_allocator = new ArrayBufferAllocator();
   params.array_buffer_allocator = array_buffer_allocator;
@@ -4311,10 +4320,12 @@ static void StartNodeInstance(void* arg) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
 
-  // Fetch a reference to the main isolate, so we have a reference to it
+  const bool is_main = instance_data->is_main();
+
+  // Store a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
-  if (instance_data->is_main())
-    CHECK_EQ(nullptr, node_isolate.exchange(isolate));
+  if (is_main)
+    CHECK(SetMainIsolate(isolate));
 
   {
     Locker locker(isolate);
@@ -4329,8 +4340,8 @@ static void StartNodeInstance(void* arg) {
         ShouldAbortOnUncaughtException);
 
     // Start debug agent when argv has --debug
-    if (instance_data->use_debug_agent())
-      StartDebug(env, debug_wait_connect);
+    if (is_main && debugger_settings->use_agent)
+      StartDebug(env, debugger_settings->port, debugger_settings->wait_connect);
 
     {
       Environment::AsyncCallbackScope callback_scope(env);
@@ -4340,7 +4351,7 @@ static void StartNodeInstance(void* arg) {
     env->set_trace_sync_io(trace_sync_io);
 
     // Enable debugger
-    if (instance_data->use_debug_agent())
+    if (is_main && debugger_settings->use_agent)
       EnableDebug(env);
 
     {
@@ -4402,7 +4413,10 @@ int Start(int argc, char** argv) {
   // optional, in case you're wondering.
   int exec_argc;
   const char** exec_argv;
-  Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv);
+  DebuggerSettings debugger_settings = {false, false, global_debug_port};
+  Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv,
+       &debugger_settings);
+  global_debug_port = debugger_settings.port;
 
 #if HAVE_OPENSSL
 #ifdef NODE_FIPS_MODE
@@ -4426,9 +4440,9 @@ int Start(int argc, char** argv) {
                                    argc,
                                    const_cast<const char**>(argv),
                                    exec_argc,
-                                   exec_argv,
-                                   use_debug_agent);
-    StartNodeInstance(&instance_data);
+                                   exec_argv);
+
+    StartNodeInstance(&instance_data, &debugger_settings);
     exit_code = instance_data.exit_code();
   }
   V8::Dispose();

@@ -221,16 +221,14 @@ class NodeInstanceData {
                      int argc,
                      const char** argv,
                      int exec_argc,
-                     const char** exec_argv,
-                     bool use_debug_agent_flag)
+                     const char** exec_argv)
         : node_instance_type_(node_instance_type),
           exit_code_(1),
           event_loop_(event_loop),
           argc_(argc),
           argv_(argv),
           exec_argc_(exec_argc),
-          exec_argv_(exec_argv),
-          use_debug_agent_flag_(use_debug_agent_flag) {
+          exec_argv_(exec_argv) {
       CHECK_NE(event_loop_, nullptr);
     }
 
@@ -272,10 +270,6 @@ class NodeInstanceData {
       return exec_argv_;
     }
 
-    bool use_debug_agent() {
-      return is_main() && use_debug_agent_flag_;
-    }
-
   private:
     const NodeInstanceType node_instance_type_;
     int exit_code_;
@@ -284,7 +278,6 @@ class NodeInstanceData {
     const char** argv_;
     const int exec_argc_;
     const char** exec_argv_;
-    const bool use_debug_agent_flag_;
 
     DISALLOW_COPY_AND_ASSIGN(NodeInstanceData);
 };
