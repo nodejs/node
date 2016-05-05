@@ -11,7 +11,7 @@ if (process.argv[2] === 'request') {
   const http = require('http');
   const options = {
     port: common.PORT,
-    path : '/'
+    path: '/'
   };
 
   http.get(options, (res) => {

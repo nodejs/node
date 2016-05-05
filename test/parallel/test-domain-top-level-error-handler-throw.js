@@ -29,7 +29,7 @@ if (process.argv[2] === 'child') {
   var fork = require('child_process').fork;
   var assert = require('assert');
 
-  var child = fork(process.argv[1], ['child'], {silent:true});
+  var child = fork(process.argv[1], ['child'], {silent: true});
   var stderrOutput = '';
   if (child) {
     child.stderr.on('data', function onStderrData(data) {

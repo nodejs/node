@@ -18,7 +18,7 @@ var srv = http.createServer(function(req, res) {
   assert.equal(req.headers['sec-websocket-extensions'], 'foo; 1, bar; 2, baz');
   assert.equal(req.headers['constructor'], 'foo, bar, baz');
 
-  res.writeHead(200, {'Content-Type' : 'text/plain'});
+  res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('EOF');
 
   srv.close();

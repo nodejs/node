@@ -13,8 +13,8 @@ function handler(req, res) {
   assert.equal(sent_continue, true, 'Full response sent before 100 Continue');
   console.error('Server sending full response...');
   res.writeHead(200, {
-    'Content-Type' : 'text/plain',
-    'ABCD' : '1'
+    'Content-Type': 'text/plain',
+    'ABCD': '1'
   });
   res.end(test_res_body);
 }

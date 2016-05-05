@@ -152,7 +152,7 @@ function parseLists(input) {
       if (tok.type === 'list_start') {
         state = 'LIST';
         if (depth === 0) {
-          output.push({ type:'html', text: '<div class="signature">' });
+          output.push({ type: 'html', text: '<div class="signature">' });
         }
         depth++;
         output.push(tok);
@@ -176,7 +176,7 @@ function parseLists(input) {
         output.push(tok);
         if (depth === 0) {
           state = null;
-          output.push({ type:'html', text: '</div>' });
+          output.push({ type: 'html', text: '</div>' });
         }
         return;
       }
