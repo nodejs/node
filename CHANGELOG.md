@@ -1,5 +1,87 @@
 # Node.js ChangeLog
 
+## 2016-05-05, Version 6.1.0 (Current), @Fishrock123
+
+### Notable Changes
+
+* **assert**: `deep{Strict}Equal()` now works correctly with circular references. (Rich Trott) [#6432](https://github.com/nodejs/node/pull/6432)
+* **debugger**: Arrays are now formatted correctly in the debugger repl. (cjihrig) [#6448](https://github.com/nodejs/node/pull/6448)
+* **deps**: Upgrade OpenSSL sources to 1.0.2h (Shigeki Ohtsu) [#6550](https://github.com/nodejs/node/pull/6550)
+  - Please see our [blog post](https://nodejs.org/en/blog/vulnerability/openssl-may-2016/) for more info on the security contents of this release.
+* **net**: Introduced a `Socket#connecting` property. (Fedor Indutny) [#6404](https://github.com/nodejs/node/pull/6404)
+  - Previously this information was only available as the undocumented, internal `_connecting` property.
+* **process**: Introduced `process.cpuUsage()`. (Patrick Mueller) [#6157](https://github.com/nodejs/node/pull/6157)
+* **stream**: `Writable#setDefaultEncoding()` now returns `this`. (Alexander Makarenko) [#5040](https://github.com/nodejs/node/pull/5040)
+* **util**: Two new additions to `util.inspect()`:
+  - Added a `maxArrayLength` option to truncate the formatting of Arrays. (James M Snell) [#6334](https://github.com/nodejs/node/pull/6334)
+    - This is set to `100` by default.
+  - Added a `showProxy` option for formatting proxy intercepting handlers. (James M Snell) [#6465](https://github.com/nodejs/node/pull/6465)
+    - Inspecting proxies is non-trivial and as such this is off by default.
+
+### Commits
+
+* [[`76c9ab5fcf`](https://github.com/nodejs/node/commit/76c9ab5fcf)] - **assert**: allow circular references (Rich Trott) [#6432](https://github.com/nodejs/node/pull/6432)
+* [[`7b9ae70757`](https://github.com/nodejs/node/commit/7b9ae70757)] - **benchmark**: Fix crash in net benchmarks (Matt Loring) [#6407](https://www.github.com/nodejs/node/pull/6407)
+* [[`0d1985358a`](https://github.com/nodejs/node/commit/0d1985358a)] - **build**: use shorthand lint target from test (Johan Bergström) [#6406](https://github.com/nodejs/node/pull/6406)
+* [[`7153f96f0e`](https://github.com/nodejs/node/commit/7153f96f0e)] - **build**: unbreak -prof, disable PIE on OS X (Ben Noordhuis) [#6453](https://github.com/nodejs/node/pull/6453)
+* [[`8956432e18`](https://github.com/nodejs/node/commit/8956432e18)] - **build**: exclude tap files from tarballs (Brian White) [#6348](https://github.com/nodejs/node/pull/6348)
+* [[`11e7cc5310`](https://github.com/nodejs/node/commit/11e7cc5310)] - **build**: don't compile with -B (Ben Noordhuis) [#6393](https://github.com/nodejs/node/pull/6393)
+* [[`1330496bbf`](https://github.com/nodejs/node/commit/1330496bbf)] - **cluster**: remove use of bind() in destroy() (yorkie) [#6502](https://github.com/nodejs/node/pull/6502)
+* [[`fdde36909c`](https://github.com/nodejs/node/commit/fdde36909c)] - **crypto**: fix error in deprecation message (Rich Trott) [#6344](https://github.com/nodejs/node/pull/6344)
+* [[`2d503b1d4b`](https://github.com/nodejs/node/commit/2d503b1d4b)] - **debugger**: display array contents in repl (cjihrig) [#6448](https://github.com/nodejs/node/pull/6448)
+* [[`54f8600613`](https://github.com/nodejs/node/commit/54f8600613)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#6550](https://github.com/nodejs/node/pull/6550)
+* [[`a5a2944877`](https://github.com/nodejs/node/commit/a5a2944877)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`3fe68129c8`](https://github.com/nodejs/node/commit/3fe68129c8)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`d159462fed`](https://github.com/nodejs/node/commit/d159462fed)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`3af28d3693`](https://github.com/nodejs/node/commit/3af28d3693)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#6550](https://github.com/nodejs/node/pull/6550)
+* [[`e6ab3ece65`](https://github.com/nodejs/node/commit/e6ab3ece65)] - **deps**: upgrade openssl sources to 1.0.2h (Shigeki Ohtsu) [#6550](https://github.com/nodejs/node/pull/6550)
+* [[`65b6574d59`](https://github.com/nodejs/node/commit/65b6574d59)] - **deps**: backport IsValid changes from 4e8736d in V8 (Michaël Zasso) [#6544](https://github.com/nodejs/node/pull/6544)
+* [[`33f24c821b`](https://github.com/nodejs/node/commit/33f24c821b)] - **doc**: adds 'close' events to fs.ReadStream and fs.WriteStream (Jenna Vuong) [#6499](https://github.com/nodejs/node/pull/6499)
+* [[`4f728df1bf`](https://github.com/nodejs/node/commit/4f728df1bf)] - **doc**: linkify remaining references to fs.Stats object (Kevin Donahue) [#6485](https://github.com/nodejs/node/pull/6485)
+* [[`9a29b50c52`](https://github.com/nodejs/node/commit/9a29b50c52)] - **doc**: fix the lint of an example in cluster.md (yorkie) [#6516](https://github.com/nodejs/node/pull/6516)
+* [[`d674493fa5`](https://github.com/nodejs/node/commit/d674493fa5)] - **doc**: add missing underscore for markdown italics (Kevin Donahue) [#6529](https://github.com/nodejs/node/pull/6529)
+* [[`7c30f15e1b`](https://github.com/nodejs/node/commit/7c30f15e1b)] - **doc**: ensure consistent grammar in node.1 file (justshiv) [#6426](https://github.com/nodejs/node/pull/6426)
+* [[`e5ce53a217`](https://github.com/nodejs/node/commit/e5ce53a217)] - **doc**: fix sentence fragment in fs doc (Rich Trott) [#6488](https://github.com/nodejs/node/pull/6488)
+* [[`3e028a143c`](https://github.com/nodejs/node/commit/3e028a143c)] - **doc**: remove obsolete comment in isError() example (cjihrig) [#6486](https://github.com/nodejs/node/pull/6486)
+* [[`969f96a019`](https://github.com/nodejs/node/commit/969f96a019)] - **doc**: fix a typo in `__dirname` section (William Luo) [#6473](https://github.com/nodejs/node/pull/6473)
+* [[`ab7055b003`](https://github.com/nodejs/node/commit/ab7055b003)] - **doc**: fix fs.realpath man pg links (phette23) [#6451](https://github.com/nodejs/node/pull/6451)
+* [[`13e660888f`](https://github.com/nodejs/node/commit/13e660888f)] - **doc**: extra clarification of historySize option (vsemozhetbyt) [#6397](https://github.com/nodejs/node/pull/6397)
+* [[`3d5b732660`](https://github.com/nodejs/node/commit/3d5b732660)] - **doc**: clarifies http.serverResponse implementation (Allen Hernandez) [#6072](https://github.com/nodejs/node/pull/6072)
+* [[`7034ebe2bc`](https://github.com/nodejs/node/commit/7034ebe2bc)] - **doc**: use `Node.js` in synopsis document (Rich Trott) [#6476](https://github.com/nodejs/node/pull/6476)
+* [[`4ae39f9863`](https://github.com/nodejs/node/commit/4ae39f9863)] - **doc**: remove all scrollbar styling (Claudio Rodriguez) [#6479](https://github.com/nodejs/node/pull/6479)
+* [[`e6c8da45b1`](https://github.com/nodejs/node/commit/e6c8da45b1)] - **(SEMVER-MINOR)** **doc**: make `writable.setDefaultEncoding()` return `this` (Alexander Makarenko) [#5040](https://github.com/nodejs/node/pull/5040)
+* [[`4068d64f4f`](https://github.com/nodejs/node/commit/4068d64f4f)] - **doc**: fix EventEmitter#eventNames() example (Сковорода Никита Андреевич) [#6417](https://github.com/nodejs/node/pull/6417)
+* [[`bfcde97251`](https://github.com/nodejs/node/commit/bfcde97251)] - **doc**: fix incorrect syntax in examples (Evan Lucas) [#6463](https://github.com/nodejs/node/pull/6463)
+* [[`8eb87ee239`](https://github.com/nodejs/node/commit/8eb87ee239)] - **doc**: Remove extra space in REPL example (Juan) [#6447](https://github.com/nodejs/node/pull/6447)
+* [[`fd37d54eb5`](https://github.com/nodejs/node/commit/fd37d54eb5)] - **doc**: added note warning about change to console.endTime() (Ben Page) [#6454](https://github.com/nodejs/node/pull/6454)
+* [[`b3f75ec801`](https://github.com/nodejs/node/commit/b3f75ec801)] - **doc**: expand documentation for process.exit() (James M Snell) [#6410](https://github.com/nodejs/node/pull/6410)
+* [[`fc0fbf1c63`](https://github.com/nodejs/node/commit/fc0fbf1c63)] - **doc**: subdivide TOC, add auxiliary links (Jeremiah Senkpiel) [#6167](https://github.com/nodejs/node/pull/6167)
+* [[`150dd36503`](https://github.com/nodejs/node/commit/150dd36503)] - **doc**: no Node.js(1) (Jeremiah Senkpiel) [#6167](https://github.com/nodejs/node/pull/6167)
+* [[`ab84d69048`](https://github.com/nodejs/node/commit/ab84d69048)] - **doc**: better example & synopsis (Jeremiah Senkpiel) [#6167](https://github.com/nodejs/node/pull/6167)
+* [[`f6d72791a1`](https://github.com/nodejs/node/commit/f6d72791a1)] - **doc**: update build instructions for OS X (Rich Trott) [#6309](https://github.com/nodejs/node/pull/6309)
+* [[`36207c6daf`](https://github.com/nodejs/node/commit/36207c6daf)] - **doc**: correctly document the behavior of ee.once(). (Lance Ball) [#6371](https://github.com/nodejs/node/pull/6371)
+* [[`19fb1345ba`](https://github.com/nodejs/node/commit/19fb1345ba)] - **doc**: use Buffer.from() instead of new Buffer() (Jackson Tian) [#6367](https://github.com/nodejs/node/pull/6367)
+* [[`fb6753c75c`](https://github.com/nodejs/node/commit/fb6753c75c)] - **doc**: fix v6 changelog (James M Snell) [#6435](https://github.com/nodejs/node/pull/6435)
+* [[`2c92a1fe03`](https://github.com/nodejs/node/commit/2c92a1fe03)] - **events**: pass the original listener added by once (DavidCai) [#6394](https://github.com/nodejs/node/pull/6394)
+* [[`9ea6b282e8`](https://github.com/nodejs/node/commit/9ea6b282e8)] - **meta**: split CHANGELOG into two files (Myles Borins) [#6337](https://github.com/nodejs/node/pull/6337)
+* [[`cbbe95e1e1`](https://github.com/nodejs/node/commit/cbbe95e1e1)] - **(SEMVER-MINOR)** **net**: introduce `Socket#connecting` property (Fedor Indutny) [#6404](https://github.com/nodejs/node/pull/6404)
+* [[`534f03c2f0`](https://github.com/nodejs/node/commit/534f03c2f0)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`1b9fdba04e`](https://github.com/nodejs/node/commit/1b9fdba04e)] - **(SEMVER-MINOR)** **process**: add process.cpuUsage() - implementation, doc, tests (Patrick Mueller) [#6157](https://github.com/nodejs/node/pull/6157)
+* [[`fa9d82d120`](https://github.com/nodejs/node/commit/fa9d82d120)] - **src**: unify implementations of Utf8Value etc. (Anna Henningsen) [#6357](https://github.com/nodejs/node/pull/6357)
+* [[`65030c77b7`](https://github.com/nodejs/node/commit/65030c77b7)] - **test**: fix alpn tests for openssl1.0.2h (Shigeki Ohtsu) [#6550](https://github.com/nodejs/node/pull/6550)
+* [[`7641f9a6de`](https://github.com/nodejs/node/commit/7641f9a6de)] - **test**: refactor large event emitter tests (cjihrig) [#6446](https://github.com/nodejs/node/pull/6446)
+* [[`5fe5fa2897`](https://github.com/nodejs/node/commit/5fe5fa2897)] - **test**: make addon testing part of `make test` (Ben Noordhuis) [#6232](https://github.com/nodejs/node/pull/6232)
+* [[`457d12a0a1`](https://github.com/nodejs/node/commit/457d12a0a1)] - **test**: add failing url parse tests as known_issue (James M Snell) [#5885](https://github.com/nodejs/node/pull/5885)
+* [[`089362f8b8`](https://github.com/nodejs/node/commit/089362f8b8)] - **test,tools**: limit lint tolerance of gc global (Rich Trott) [#6324](https://github.com/nodejs/node/pull/6324)
+* [[`6d1606ee94`](https://github.com/nodejs/node/commit/6d1606ee94)] - **test,tools**: adjust function argument alignment (Rich Trott) [#6390](https://github.com/nodejs/node/pull/6390)
+* [[`08e0884ae0`](https://github.com/nodejs/node/commit/08e0884ae0)] - **tools**: add -F flag for fixing lint issues (Rich Trott) [#6483](https://github.com/nodejs/node/pull/6483)
+* [[`9f23cb24f2`](https://github.com/nodejs/node/commit/9f23cb24f2)] - **tools**: fix exit code when linting from CI (Brian White) [#6412](https://github.com/nodejs/node/pull/6412)
+* [[`e62c42b8f4`](https://github.com/nodejs/node/commit/e62c42b8f4)] - **tools**: remove default parameters from lint rule (Rich Trott) [#6411](https://github.com/nodejs/node/pull/6411)
+* [[`66903f6695`](https://github.com/nodejs/node/commit/66903f6695)] - **tools**: add tests for the doctool (Ian Kronquist) [#6031](https://github.com/nodejs/node/pull/6031)
+* [[`3f608b16a7`](https://github.com/nodejs/node/commit/3f608b16a7)] - **tools**: lint for function argument alignment (Rich Trott) [#6390](https://github.com/nodejs/node/pull/6390)
+* [[`91ab769940`](https://github.com/nodejs/node/commit/91ab769940)] - **(SEMVER-MINOR)** **util**: truncate inspect array and typed array (James M Snell) [#6334](https://github.com/nodejs/node/pull/6334)
+* [[`0bca959617`](https://github.com/nodejs/node/commit/0bca959617)] - **(SEMVER-MINOR)** **util**: fix inspecting of proxy objects (James M Snell) [#6465](https://github.com/nodejs/node/pull/6465)
+
 ## 2016-05-05, Version 5.11.1 (Stable), @evanlucas
 
 ### Notable changes
