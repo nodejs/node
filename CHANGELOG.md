@@ -1,5 +1,25 @@
 # Node.js ChangeLog
 
+## 2016-05-05, Version 5.11.1 (Stable), @evanlucas
+
+### Notable changes
+
+* **buffer**: safeguard against accidental kNoZeroFill (Сковорода Никита Андреевич) [nodejs/node-private#35](https://github.com/nodejs/node-private/pull/35)
+* **deps**: upgrade openssl sources to 1.0.2h (Shigeki Ohtsu) [#6552](https://github.com/nodejs/node/pull/6552)
+
+### Commits
+
+* [[`35f06df782`](https://github.com/nodejs/node/commit/35f06df782)] - **buffer**: safeguard against accidental kNoZeroFill (Сковорода Никита Андреевич) [nodejs/node-private#35](https://github.com/nodejs/node-private/pull/35)
+* [[`99920480ae`](https://github.com/nodejs/node/commit/99920480ae)] - **buffer**: fix a typo in Buffer example code (Mr C0B) [#6361](https://github.com/nodejs/node/pull/6361)
+* [[`d9f7b025d4`](https://github.com/nodejs/node/commit/d9f7b025d4)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#6552](https://github.com/nodejs/node/pull/6552)
+* [[`f316fd20a0`](https://github.com/nodejs/node/commit/f316fd20a0)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`263cc34657`](https://github.com/nodejs/node/commit/263cc34657)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`889d1151de`](https://github.com/nodejs/node/commit/889d1151de)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`ba49b636b8`](https://github.com/nodejs/node/commit/ba49b636b8)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#6552](https://github.com/nodejs/node/pull/6552)
+* [[`cdad83a789`](https://github.com/nodejs/node/commit/cdad83a789)] - **deps**: upgrade openssl sources to 1.0.2h (Shigeki Ohtsu) [#6552](https://github.com/nodejs/node/pull/6552)
+* [[`c1ddefdd79`](https://github.com/nodejs/node/commit/c1ddefdd79)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`bec5d50f1e`](https://github.com/nodejs/node/commit/bec5d50f1e)] - **test**: fix alpn tests for openssl1.0.2h (Shigeki Ohtsu) [#6552](https://github.com/nodejs/node/pull/6552)
+
 ## 2016-04-20, Version 5.11.0 (Stable), @thealphanerd
 
 ## Notable Changes
