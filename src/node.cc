@@ -3179,6 +3179,11 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
+  // --debug-brk
+  if (debug_wait_connect) {
+    READONLY_PROPERTY(process, "_debugWaitConnect", True(env->isolate()));
+  }
+
   // --security-revert flags
 #define V(code, _, __)                                                        \
   do {                                                                        \
@@ -4085,11 +4090,6 @@ void Init(int* argc,
 
   if (v8_argc > 1) {
     exit(9);
-  }
-
-  if (debug_wait_connect) {
-    const char expose_debug_as[] = "--expose_debug_as=v8debug";
-    V8::SetFlagsFromString(expose_debug_as, sizeof(expose_debug_as) - 1);
   }
 
   // Unconditionally force typed arrays to allocate outside the v8 heap. This
