@@ -2,10 +2,11 @@
 
 require('../common');
 const assert = require('assert');
+const constants = process.binding('constants');
 
-const isLinux = process.platform === 'linux';
-
-const O_NOATIME = process.binding('constants').O_NOATIME;
-const expected = isLinux ? 0x40000 : undefined;
-
-assert.strictEqual(O_NOATIME, expected);
+if (process.platform === 'linux') {
+  assert(constants.hasOwnProperty('O_NOATIME'));
+  assert.strictEqual(constants.O_NOATIME, 0x40000);
+} else {
+  assert(false === constants.hasOwnProperty('O_NOATIME'));
+}
