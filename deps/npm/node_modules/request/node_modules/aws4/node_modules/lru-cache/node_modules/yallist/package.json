@@ -1,0 +1,77 @@
+{
+  "_args": [
+    [
+      "yallist@^2.0.0",
+      "/Users/rebecca/code/npm/node_modules/request/node_modules/aws4/node_modules/lru-cache"
+    ]
+  ],
+  "_from": "yallist@>=2.0.0 <3.0.0",
+  "_id": "yallist@2.0.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/aws4/lru-cache/yallist",
+  "_nodeVersion": "4.0.0",
+  "_npmUser": {
+    "email": "i@izs.me",
+    "name": "isaacs"
+  },
+  "_npmVersion": "3.3.2",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "yallist",
+    "raw": "yallist@^2.0.0",
+    "rawSpec": "^2.0.0",
+    "scope": null,
+    "spec": ">=2.0.0 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/aws4/lru-cache"
+  ],
+  "_resolved": "https://registry.npmjs.org/yallist/-/yallist-2.0.0.tgz",
+  "_shasum": "306c543835f09ee1a4cb23b7bce9ab341c91cdd4",
+  "_shrinkwrap": null,
+  "_spec": "yallist@^2.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/request/node_modules/aws4/node_modules/lru-cache",
+  "author": {
+    "email": "i@izs.me",
+    "name": "Isaac Z. Schlueter",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/yallist/issues"
+  },
+  "dependencies": {},
+  "description": "Yet Another Linked List",
+  "devDependencies": {
+    "tap": "^2.3.2"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "306c543835f09ee1a4cb23b7bce9ab341c91cdd4",
+    "tarball": "http://registry.npmjs.org/yallist/-/yallist-2.0.0.tgz"
+  },
+  "gitHead": "702eaba87deefa9f8fc2f8e36cb225bc2141fdc3",
+  "homepage": "https://github.com/isaacs/yallist#readme",
+  "license": "ISC",
+  "main": "yallist.js",
+  "maintainers": [
+    {
+      "email": "i@izs.me",
+      "name": "isaacs"
+    }
+  ],
+  "name": "yallist",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacs/yallist.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js --cov"
+  },
+  "version": "2.0.0"
+}

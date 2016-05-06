@@ -6,10 +6,13 @@
 module.exports = installTest
 var install = require('./install.js')
 var test = require('./test.js')
+var usage = require('./utils/usage')
 
-installTest.usage = '\nnpm install-test [args]' +
-                    '\nSame args as `npm install`' +
-                    '\n\nalias: npm it'
+installTest.usage = usage(
+  'install-test',
+  '\nnpm install-test [args]' +
+  '\nSame args as `npm install`'
+)
 
 installTest.completion = install.completion
 

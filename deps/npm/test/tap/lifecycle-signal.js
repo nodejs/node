@@ -56,7 +56,7 @@ test('lifecycle propagate signal term to child', function (t) {
     cwd: pkg
   })
   child.stderr.on('data', function (data) {
-    innerChildPid = Number.parseInt(data.toString(), 10)
+    innerChildPid = parseInt(data.toString(), 10)
     t.doesNotThrow(function () {
       process.kill(innerChildPid, 0) // inner child should be running
     })

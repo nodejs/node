@@ -139,7 +139,7 @@ function parseInteger(option, optstr, arg) {
 function parsePositiveInteger(option, optstr, arg) {
     assert.string(arg, 'arg');
     var num = Number(arg);
-    if (!/^[0-9]+$/.test(arg) || isNaN(num)) {
+    if (!/^[0-9]+$/.test(arg) || isNaN(num) || num === 0) {
         throw new Error(format('arg for "%s" is not a positive integer: "%s"',
             optstr, arg));
     }

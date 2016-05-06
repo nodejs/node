@@ -19,11 +19,15 @@ var sortActions = require('./install/diff-trees.js').sortActions
 var moduleName = require('./utils/module-name.js')
 var packageId = require('./utils/package-id.js')
 var childPath = require('./utils/child-path.js')
+var usage = require('./utils/usage')
 
 module.exports = dedupe
 module.exports.Deduper = Deduper
 
-dedupe.usage = 'npm dedupe'
+dedupe.usage = usage(
+  'dedupe',
+  'npm dedupe'
+)
 
 function dedupe (args, cb) {
   validate('AF', arguments)

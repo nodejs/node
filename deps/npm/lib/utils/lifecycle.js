@@ -13,6 +13,7 @@ var Stream = require('stream').Stream
 var PATH = 'PATH'
 var uidNumber = require('uid-number')
 var umask = require('./umask')
+var usage = require('./usage')
 
 // windows calls it's path 'Path' usually, but this is not guaranteed.
 if (process.platform === 'win32') {
@@ -46,7 +47,12 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
   if (!pkg) return cb(new Error('Invalid package data'))
 
   log.info('lifecycle', logid(pkg, stage), pkg._id)
-  if (!pkg.scripts || npm.config.get('ignore-scripts')) pkg.scripts = {}
+  if (!pkg.scripts) pkg.scripts = {}
+
+  if (npm.config.get('ignore-scripts')) {
+    log.info('lifecycle', logid(pkg, stage), 'ignored because ignore-scripts is set to true', pkg._id)
+    pkg.scripts = {}
+  }
 
   validWd(wd || path.resolve(npm.dir, pkg.name), function (er, wd) {
     if (er) return cb(er)
@@ -386,7 +392,7 @@ function cmd (stage) {
   function CMD (args, cb) {
     npm.commands['run-script']([stage].concat(args), cb)
   }
-  CMD.usage = 'npm ' + stage + ' [-- <args>]'
+  CMD.usage = usage(stage, 'npm ' + stage + ' [-- <args>]')
   var installedShallow = require('./completion/installed-shallow.js')
   CMD.completion = function (opts, cb) {
     installedShallow(opts, function (d) {

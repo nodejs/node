@@ -19,9 +19,12 @@ var npm = require('./npm.js')
 var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
 var packageId = require('./utils/package-id.js')
+var usage = require('./utils/usage')
 
-ls.usage = 'npm ls [[<@scope>/]<pkg> ...]' +
-    '\n\naliases: list, la, ll'
+ls.usage = usage(
+  'ls',
+  'npm ls [[<@scope>/]<pkg> ...]'
+)
 
 ls.completion = require('./utils/completion/installed-deep.js')
 
