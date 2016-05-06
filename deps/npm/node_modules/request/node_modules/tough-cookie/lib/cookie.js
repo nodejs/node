@@ -58,11 +58,11 @@ var CONTROL_CHARS = /[\x00-\x1F]/;
 // (see: https://github.com/ChromiumWebApps/chromium/blob/b3d3b4da8bb94c1b2e061600df106d590fda3620/net/cookies/parsed_cookie.cc#L60)
 // '=' and ';' are attribute/values separators
 // (see: https://github.com/ChromiumWebApps/chromium/blob/b3d3b4da8bb94c1b2e061600df106d590fda3620/net/cookies/parsed_cookie.cc#L64)
-var COOKIE_PAIR = /^(([^=;]+))\s*=\s*(("?)[^\n\r\0]*\3)/
+var COOKIE_PAIR = /^(([^=;]+))\s*=\s*([^\n\r\0]*)/;
 
 // Used to parse non-RFC-compliant cookies like '=abc' when given the `loose`
 // option in Cookie.parse:
-var LOOSE_COOKIE_PAIR = /^((?:=)?([^=;]*)\s*=\s*)?(("?)[^\n\r\0]*\3)/;
+var LOOSE_COOKIE_PAIR = /^((?:=)?([^=;]*)\s*=\s*)?([^\n\r\0]*)/;
 
 // RFC6265 S4.1.1 defines path value as 'any CHAR except CTLs or ";"'
 // Note ';' is \x3B

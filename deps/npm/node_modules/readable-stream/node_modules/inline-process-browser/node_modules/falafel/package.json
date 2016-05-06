@@ -1,0 +1,137 @@
+{
+  "_args": [
+    [
+      "falafel@^1.0.1",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser"
+    ]
+  ],
+  "_from": "falafel@>=1.0.1 <2.0.0",
+  "_id": "falafel@1.2.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/inline-process-browser/falafel",
+  "_nodeVersion": "2.0.0",
+  "_npmUser": {
+    "email": "substack@gmail.com",
+    "name": "substack"
+  },
+  "_npmVersion": "3.0.0",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "falafel",
+    "raw": "falafel@^1.0.1",
+    "rawSpec": "^1.0.1",
+    "scope": null,
+    "spec": ">=1.0.1 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream/inline-process-browser"
+  ],
+  "_resolved": "https://registry.npmjs.org/falafel/-/falafel-1.2.0.tgz",
+  "_shasum": "c18d24ef5091174a497f318cd24b026a25cddab4",
+  "_shrinkwrap": null,
+  "_spec": "falafel@^1.0.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser",
+  "author": {
+    "email": "mail@substack.net",
+    "name": "James Halliday",
+    "url": "http://substack.net"
+  },
+  "bugs": {
+    "url": "https://github.com/substack/node-falafel/issues"
+  },
+  "dependencies": {
+    "acorn": "^1.0.3",
+    "foreach": "^2.0.5",
+    "isarray": "0.0.1",
+    "object-keys": "^1.0.6"
+  },
+  "description": "transform the ast on a recursive walk",
+  "devDependencies": {
+    "acorn-jsx": "^2.0.0",
+    "covert": "^1.1.0",
+    "tape": "^4.0.0"
+  },
+  "directories": {
+    "example": "example",
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "c18d24ef5091174a497f318cd24b026a25cddab4",
+    "tarball": "https://registry.npmjs.org/falafel/-/falafel-1.2.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.4.0"
+  },
+  "gitHead": "75c91298fbc94d22b225f2d0866d14395faf5986",
+  "homepage": "https://github.com/substack/node-falafel#readme",
+  "keywords": [
+    "ast",
+    "burrito",
+    "source",
+    "syntax",
+    "traversal",
+    "tree"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "email": "mail@substack.net",
+      "name": "substack"
+    },
+    {
+      "email": "npm@0x7f.us",
+      "name": "bobthecow"
+    },
+    {
+      "email": "nanodeath@gmail.com",
+      "name": "nanodeath"
+    },
+    {
+      "email": "tom@alltom.com",
+      "name": "alltom"
+    },
+    {
+      "email": "eugene@noblesamurai.com",
+      "name": "eugeneware"
+    }
+  ],
+  "name": "falafel",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/node-falafel.git"
+  },
+  "scripts": {
+    "coverage": "covert test/*.js",
+    "test": "node --harmony test/bin/run.js test/*.js"
+  },
+  "testling": {
+    "browsers": {
+      "chrome": [
+        "20.0"
+      ],
+      "firefox": [
+        "10.0",
+        "15.0"
+      ],
+      "iexplore": [
+        "6.0",
+        "7.0",
+        "8.0",
+        "9.0"
+      ],
+      "opera": [
+        "12.0"
+      ],
+      "safari": [
+        "5.1"
+      ]
+    },
+    "files": "test/*.js"
+  },
+  "version": "1.2.0"
+}

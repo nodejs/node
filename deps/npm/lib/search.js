@@ -4,9 +4,12 @@ module.exports = exports = search
 var npm = require('./npm.js')
 var columnify = require('columnify')
 var updateIndex = require('./cache/update-index.js')
+var usage = require('./utils/usage')
 
-search.usage = 'npm search [--long] [search terms ...]' +
-               '\n\naliases: s, se'
+search.usage = usage(
+  'search',
+  'npm search [--long] [search terms ...]'
+)
 
 search.completion = function (opts, cb) {
   var compl = {}

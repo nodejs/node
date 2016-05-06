@@ -1,0 +1,94 @@
+{
+  "_args": [
+    [
+      "through2@^0.6.5",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser"
+    ]
+  ],
+  "_from": "through2@>=0.6.5 <0.7.0",
+  "_id": "through2@0.6.5",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/inline-process-browser/through2",
+  "_npmUser": {
+    "email": "bryce@ravenwall.com",
+    "name": "bryce"
+  },
+  "_npmVersion": "1.4.28",
+  "_phantomChildren": {
+    "core-util-is": "1.0.2",
+    "inherits": "2.0.1",
+    "string_decoder": "0.10.31"
+  },
+  "_requested": {
+    "name": "through2",
+    "raw": "through2@^0.6.5",
+    "rawSpec": "^0.6.5",
+    "scope": null,
+    "spec": ">=0.6.5 <0.7.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream/inline-process-browser"
+  ],
+  "_resolved": "https://registry.npmjs.org/through2/-/through2-0.6.5.tgz",
+  "_shasum": "41ab9c67b29d57209071410e1d7a7a968cd3ad48",
+  "_shrinkwrap": null,
+  "_spec": "through2@^0.6.5",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser",
+  "author": {
+    "email": "r@va.gg",
+    "name": "Rod Vagg",
+    "url": "https://github.com/rvagg"
+  },
+  "bugs": {
+    "url": "https://github.com/rvagg/through2/issues"
+  },
+  "dependencies": {
+    "readable-stream": ">=1.0.33-1 <1.1.0-0",
+    "xtend": ">=4.0.0 <4.1.0-0"
+  },
+  "description": "A tiny wrapper around Node streams2 Transform to avoid explicit subclassing noise",
+  "devDependencies": {
+    "bl": ">=0.9.0 <0.10.0-0",
+    "stream-spigot": ">=3.0.4 <3.1.0-0",
+    "tape": ">=2.14.0 <2.15.0-0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "41ab9c67b29d57209071410e1d7a7a968cd3ad48",
+    "tarball": "https://registry.npmjs.org/through2/-/through2-0.6.5.tgz"
+  },
+  "gitHead": "ba4a87875f2c82323c10023e36f4ae4b386c1bf8",
+  "homepage": "https://github.com/rvagg/through2",
+  "keywords": [
+    "stream",
+    "streams2",
+    "through",
+    "transform"
+  ],
+  "license": "MIT",
+  "main": "through2.js",
+  "maintainers": [
+    {
+      "email": "rod@vagg.org",
+      "name": "rvagg"
+    },
+    {
+      "email": "bryce@ravenwall.com",
+      "name": "bryce"
+    }
+  ],
+  "name": "through2",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rvagg/through2.git"
+  },
+  "scripts": {
+    "test": "node test/test.js",
+    "test-local": "brtapsauce-local test/basic-test.js"
+  },
+  "version": "0.6.5"
+}

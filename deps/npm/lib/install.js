@@ -15,18 +15,22 @@
 module.exports = install
 module.exports.Installer = Installer
 
-install.usage = '\nnpm install (with no args, in package dir)' +
-                '\nnpm install [<@scope>/]<pkg>' +
-                '\nnpm install [<@scope>/]<pkg>@<tag>' +
-                '\nnpm install [<@scope>/]<pkg>@<version>' +
-                '\nnpm install [<@scope>/]<pkg>@<version range>' +
-                '\nnpm install <folder>' +
-                '\nnpm install <tarball file>' +
-                '\nnpm install <tarball url>' +
-                '\nnpm install <git:// url>' +
-                '\nnpm install <github username>/<github project>' +
-                '\n\nalias: npm i' +
-                '\ncommon options: [--save|--save-dev|--save-optional] [--save-exact]'
+var usage = require('./utils/usage')
+
+install.usage = usage(
+  'install',
+  '\nnpm install (with no args, in package dir)' +
+  '\nnpm install [<@scope>/]<pkg>' +
+  '\nnpm install [<@scope>/]<pkg>@<tag>' +
+  '\nnpm install [<@scope>/]<pkg>@<version>' +
+  '\nnpm install [<@scope>/]<pkg>@<version range>' +
+  '\nnpm install <folder>' +
+  '\nnpm install <tarball file>' +
+  '\nnpm install <tarball url>' +
+  '\nnpm install <git:// url>' +
+  '\nnpm install <github username>/<github project>',
+  '[--save|--save-dev|--save-optional] [--save-exact]'
+)
 
 install.completion = function (opts, cb) {
   validate('OF', arguments)
@@ -578,6 +582,9 @@ Installer.prototype.readLocalPackageData = function (cb) {
     readPackageTree(self.where, iferr(cb, function (currentTree) {
       self.currentTree = currentTree
       self.currentTree.warnings = []
+      if (currentTree.error && currentTree.error.code === 'EJSONPARSE') {
+        return cb(currentTree.error)
+      }
       if (!self.noPackageJsonOk && !currentTree.package) {
         log.error('install', "Couldn't read dependencies")
         var er = new Error("ENOENT, open '" + path.join(self.where, 'package.json') + "'")

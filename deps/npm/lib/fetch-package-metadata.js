@@ -111,9 +111,10 @@ function fetchNamedPackageData (dep, next) {
       npm.registry.get(url, {auth: auth}, pulseTillDone('fetchMetadata', iferr(next, pickVersionFromRegistryDocument)))
     }
     function returnAndAddMetadata (pkg) {
-      delete pkg._from
-      delete pkg._resolved
-      delete pkg._shasum
+      pkg._from = dep.raw
+      pkg._resolved = pkg.dist.tarball
+      pkg._shasum = pkg.dist.shasum
+
       next(null, pkg)
     }
     function pickVersionFromRegistryDocument (pkg) {

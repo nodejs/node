@@ -137,7 +137,8 @@ function write(key) {
 
 	for (i = 0; i < parts.length; ++i) {
 		var data = key.part[parts[i]].data;
-		data = utils.mpNormalize(data);
+		if (algInfo.normalize !== false)
+			data = utils.mpNormalize(data);
 		buf.writeBuffer(data);
 	}
 

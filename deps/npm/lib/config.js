@@ -1,13 +1,4 @@
-
 module.exports = config
-
-config.usage = 'npm config set <key> <value>' +
-               '\nnpm config get [<key>]' +
-               '\nnpm config delete <key>' +
-               '\nnpm config list' +
-               '\nnpm config edit' +
-               '\nnpm set <key> <value>' +
-               '\nnpm get [<key>]'
 
 var log = require('npmlog')
 var npm = require('./npm.js')
@@ -19,7 +10,18 @@ var ini = require('ini')
 var editor = require('editor')
 var os = require('os')
 var umask = require('./utils/umask')
+var usage = require('./utils/usage')
 
+config.usage = usage(
+  'config',
+  'npm config set <key> <value>' +
+  '\nnpm config get [<key>]' +
+  '\nnpm config delete <key>' +
+  '\nnpm config list' +
+  '\nnpm config edit' +
+  '\nnpm set <key> <value>' +
+  '\nnpm get [<key>]'
+)
 config.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
   if (argv[1] !== 'config') argv.unshift('config')
