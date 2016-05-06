@@ -100,9 +100,10 @@ log.clearProgress = function () {
   this.gauge.hide()
 }
 
-log.showProgress = function (name) {
+log.showProgress = function (name, completed) {
   if (!this.progressEnabled) return
-  this.gauge.show(name, this.tracker.completed())
+  if (completed == null) completed = this.tracker.completed()
+  this.gauge.show(name, completed)
 }.bind(log) // bind for use in tracker's on-change listener
 
 // temporarily stop emitting, but don't drop

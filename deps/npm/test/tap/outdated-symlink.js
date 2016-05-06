@@ -51,19 +51,26 @@ test('setup', function (t) {
 
 test('when outdated is called linked packages should be displayed as such', function (t) {
   var regOutLinked = /my-local-package\s*1.0.0\s*linked\s*linked/
-  var regOutInstallOne = /async\s*0.2.9\s*1.5.2\s*1.5.2/
-  var regOutInstallTwo = /underscore\s*1.3.1\s*1.8.3\s*1.8.3/
+  var regOutInstallOne = /async\s*0.2.9\s*0.2.10\s*0.2.10/
+  var regOutInstallTwo = /underscore\s*1.3.1\s*1.5.1\s*1.5.1/
 
   console.log = function () {}
   mr({ port: common.port }, function (er, s) {
-    common.npm(['outdated', '-g'], OPTS, function (err, c, out, stderr) {
-      t.ifError(err)
-      t.ok(out.match(regOutLinked), 'Global Link format as expected')
-      t.ok(out.match(regOutInstallOne), 'Global Install format as expected')
-      t.ok(out.match(regOutInstallTwo), 'Global Install format as expected')
-      s.close()
-      t.end()
-    })
+    common.npm(
+      [
+        '--registry', common.registry,
+        'outdated', '-g'
+      ],
+      OPTS,
+      function (err, c, out, stderr) {
+        t.ifError(err)
+        t.match(out, regOutLinked, 'Global Link format as expected')
+        t.match(out, regOutInstallOne, 'Global Install format as expected')
+        t.match(out, regOutInstallTwo, 'Global Install format as expected')
+        s.close()
+        t.end()
+      }
+    )
   })
 })
 
