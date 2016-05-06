@@ -58,7 +58,18 @@ function stripBOM (content) {
 }
 
 function parseJson (file, er, d, log, strict, cb) {
-  if (er && er.code === 'ENOENT') return indexjs(file, er, log, strict, cb)
+  if (er && er.code === 'ENOENT') {
+    return fs.stat(path.dirname(file), function (err, stat) {
+      if (!err && stat && !stat.isDirectory()) {
+        // ENOTDIR isn't used on Windows, but npm expects it.
+        er = Object.create(er)
+        er.code = 'ENOTDIR'
+        return cb(er)
+      } else {
+        return indexjs(file, er, log, strict, cb)
+      }
+    })
+  }
   if (er) return cb(er)
 
   try {

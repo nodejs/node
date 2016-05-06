@@ -236,7 +236,12 @@ explicitly used, and that only GET requests use the cache.
 * Default: `null`
 * Type: String
 
-A client certificate to pass when accessing the registry.
+A client certificate to pass when accessing the registry.  Values should be in
+PEM format with newlines replaced by the string "\n". For example:
+
+    cert="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
+
+It is _not_ the path to a certificate file (and there is no "certfile" option).
 
 ### color
 
@@ -501,7 +506,12 @@ change.  Only the output from `npm ls --json` is currently valid.
 * Default: `null`
 * Type: String
 
-A client key to pass when accessing the registry.
+A client key to pass when accessing the registry.  Values should be in PEM
+format with newlines replaced by the string "\n". For example:
+
+    key="-----BEGIN PRIVATE KEY-----\nXXXX\nXXXX\n-----END PRIVATE KEY-----"
+
+It is _not_ the path to a key file (and there is no "keyfile" option).
 
 ### legacy-bundling
 

@@ -81,13 +81,12 @@ for testing, or running stuff without actually installing npm itself.)
 
 ## Windows Install or Upgrade
 
-You can download a zip file from <https://github.com/npm/npm/releases>, and
-unpack it in the `node_modules\npm\` folder inside node's installation folder.
-
-To upgrade to npm 2, follow the Windows upgrade instructions in
-the npm Troubleshooting Guide:
-
-<https://github.com/npm/npm/wiki/Troubleshooting#upgrading-on-windows>
+Many improvements for Windows users have been made in npm 3 - you will have a better
+experience if you run a recent version of npm. To upgrade, either use [Microsoft's
+upgrade tool](https://github.com/felixrieseberg/npm-windows-upgrade),
+[download a new version of Node](http://nodejs.org/download/),
+or follow the Windows upgrade instructions in the
+[npm Troubleshooting Guide](https://github.com/npm/npm/wiki/Troubleshooting#upgrading-on-windows).
 
 If that's not fancy enough for you, then you can fetch the code with
 git, and mess with it directly.

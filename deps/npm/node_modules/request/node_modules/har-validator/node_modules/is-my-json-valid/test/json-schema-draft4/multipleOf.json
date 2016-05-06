@@ -56,5 +56,41 @@
                 "valid": false
             }
         ]
+    },
+    {
+        "description": "by decimal number where floating point precision is wrong",
+        "schema": {"multipleOf": 0.01},
+        "tests": [
+            {
+                "description": "Number 2 is multiple of 0.01",
+                "data": 2,
+                "valid": true
+            },
+            {
+                "description": "Number 2.1 is multiple of 0.01",
+                "data": 2.1,
+                "valid": true
+            },
+            {
+                "description": "Number 2.2 is multiple of 0.01",
+                "data": 2.2,
+                "valid": true
+            },
+            {
+                "description": "Number 2.3 is multiple of 0.01",
+                "data": 2.3,
+                "valid": true
+            },
+            {
+                "description": "Number 2.4 is multiple of 0.01",
+                "data": 2.4,
+                "valid": true
+            },
+            {
+                "description": "Number 1.211 is not multiple of 0.01",
+                "data": 1.211,
+                "valid": false
+            }
+        ]
     }
 ]

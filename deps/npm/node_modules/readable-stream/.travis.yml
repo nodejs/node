@@ -45,6 +45,8 @@ matrix:
     env: TASK=browser BROWSER_NAME=iphone BROWSER_VERSION="6.0..latest"
   - node_js: 5
     env: TASK=browser BROWSER_NAME=safari BROWSER_VERSION="5..latest"
+  - node_js: 5
+    env: TASK=browser BROWSER_NAME=microsoftedge BROWSER_VERSION=latest
 script: "npm run $TASK"
 env:
   global:

@@ -1,0 +1,107 @@
+{
+  "_args": [
+    [
+      "assert-plus@^1.0.0",
+      "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/dashdash"
+    ]
+  ],
+  "_from": "assert-plus@>=1.0.0 <2.0.0",
+  "_id": "assert-plus@1.0.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/http-signature/sshpk/dashdash/assert-plus",
+  "_nodeVersion": "0.10.40",
+  "_npmUser": {
+    "email": "patrick.f.mooney@gmail.com",
+    "name": "pfmooney"
+  },
+  "_npmVersion": "3.3.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "assert-plus",
+    "raw": "assert-plus@^1.0.0",
+    "rawSpec": "^1.0.0",
+    "scope": null,
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/http-signature/sshpk/dashdash"
+  ],
+  "_resolved": "https://registry.npmjs.org/assert-plus/-/assert-plus-1.0.0.tgz",
+  "_shasum": "f12e0f3c5d77b0b1cdd9146942e4e96c1e4dd525",
+  "_shrinkwrap": null,
+  "_spec": "assert-plus@^1.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk/node_modules/dashdash",
+  "author": {
+    "email": "mcavage@gmail.com",
+    "name": "Mark Cavage"
+  },
+  "bugs": {
+    "url": "https://github.com/mcavage/node-assert-plus/issues"
+  },
+  "contributors": [
+    {
+      "email": "dave@daveeddy.com",
+      "name": "Dave Eddy"
+    },
+    {
+      "email": "fred.kuo@joyent.com",
+      "name": "Fred Kuo"
+    },
+    {
+      "email": "ralphtheninja@riseup.net",
+      "name": "Lars-Magnus Skog"
+    },
+    {
+      "email": "mcavage@gmail.com",
+      "name": "Mark Cavage"
+    },
+    {
+      "email": "pmooney@pfmooney.com",
+      "name": "Patrick Mooney"
+    },
+    {
+      "email": "robert.gulewich@joyent.com",
+      "name": "Rob Gulewich"
+    }
+  ],
+  "dependencies": {},
+  "description": "Extra assertions on top of node's assert module",
+  "devDependencies": {
+    "faucet": "0.0.1",
+    "tape": "4.2.2"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "f12e0f3c5d77b0b1cdd9146942e4e96c1e4dd525",
+    "tarball": "http://registry.npmjs.org/assert-plus/-/assert-plus-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.8"
+  },
+  "homepage": "https://github.com/mcavage/node-assert-plus#readme",
+  "license": "MIT",
+  "main": "./assert.js",
+  "maintainers": [
+    {
+      "email": "mcavage@gmail.com",
+      "name": "mcavage"
+    },
+    {
+      "email": "patrick.f.mooney@gmail.com",
+      "name": "pfmooney"
+    }
+  ],
+  "name": "assert-plus",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mcavage/node-assert-plus.git"
+  },
+  "scripts": {
+    "test": "tape tests/*.js | ./node_modules/.bin/faucet"
+  },
+  "version": "1.0.0"
+}

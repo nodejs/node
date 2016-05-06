@@ -1,0 +1,104 @@
+{
+  "_args": [
+    [
+      "readable-stream@>=1.0.33-1 <1.1.0-0",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser/node_modules/through2"
+    ]
+  ],
+  "_from": "readable-stream@>=1.0.33-1 <1.1.0-0",
+  "_id": "readable-stream@1.0.34",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/inline-process-browser/through2/readable-stream",
+  "_nodeVersion": "5.10.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/readable-stream-1.0.34.tgz_1460562521506_0.019665231462568045"
+  },
+  "_npmUser": {
+    "email": "calvin.metcalf@gmail.com",
+    "name": "cwmma"
+  },
+  "_npmVersion": "3.8.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "readable-stream",
+    "raw": "readable-stream@>=1.0.33-1 <1.1.0-0",
+    "rawSpec": ">=1.0.33-1 <1.1.0-0",
+    "scope": null,
+    "spec": ">=1.0.33-1 <1.1.0-0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream/inline-process-browser/through2"
+  ],
+  "_resolved": "https://registry.npmjs.org/readable-stream/-/readable-stream-1.0.34.tgz",
+  "_shasum": "125820e34bc842d2f2aaafafe4c2916ee32c157c",
+  "_shrinkwrap": null,
+  "_spec": "readable-stream@>=1.0.33-1 <1.1.0-0",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser/node_modules/through2",
+  "author": {
+    "email": "i@izs.me",
+    "name": "Isaac Z. Schlueter",
+    "url": "http://blog.izs.me/"
+  },
+  "browser": {
+    "util": false
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/readable-stream/issues"
+  },
+  "dependencies": {
+    "core-util-is": "~1.0.0",
+    "inherits": "~2.0.1",
+    "isarray": "0.0.1",
+    "string_decoder": "~0.10.x"
+  },
+  "description": "Streams2, a user-land copy of the stream library from Node.js v0.10.x",
+  "devDependencies": {
+    "tap": "~0.2.6"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "125820e34bc842d2f2aaafafe4c2916ee32c157c",
+    "tarball": "https://registry.npmjs.org/readable-stream/-/readable-stream-1.0.34.tgz"
+  },
+  "gitHead": "1227c7b66deedb1dc5284a89425854d5f7ad9576",
+  "homepage": "https://github.com/isaacs/readable-stream#readme",
+  "keywords": [
+    "readable",
+    "stream",
+    "pipe"
+  ],
+  "license": "MIT",
+  "main": "readable.js",
+  "maintainers": [
+    {
+      "email": "isaacs@npmjs.com",
+      "name": "isaacs"
+    },
+    {
+      "email": "nathan@tootallnate.net",
+      "name": "tootallnate"
+    },
+    {
+      "email": "rod@vagg.org",
+      "name": "rvagg"
+    },
+    {
+      "email": "calvin.metcalf@gmail.com",
+      "name": "cwmma"
+    }
+  ],
+  "name": "readable-stream",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/readable-stream.git"
+  },
+  "scripts": {
+    "test": "tap test/simple/*.js"
+  },
+  "version": "1.0.34"
+}

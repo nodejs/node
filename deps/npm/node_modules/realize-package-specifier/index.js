@@ -17,7 +17,7 @@ module.exports = function (spec, where, cb) {
   if ((dep.type == "range" || dep.type == "version") && dep.name != dep.raw) return cb(null, dep)
   var specpath = dep.type == "local"
                ? path.resolve(where, dep.spec)
-               : path.resolve(dep.rawSpec? dep.rawSpec: dep.name)
+               : path.resolve(where, dep.rawSpec? dep.rawSpec: dep.name)
   fs.stat(specpath, function (er, s) {
     if (er) return finalize()
     if (!s.isDirectory()) return finalize("local")

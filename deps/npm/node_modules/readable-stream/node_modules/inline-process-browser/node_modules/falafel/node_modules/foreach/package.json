@@ -1,0 +1,109 @@
+{
+  "_args": [
+    [
+      "foreach@^2.0.5",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser/node_modules/falafel"
+    ]
+  ],
+  "_from": "foreach@>=2.0.5 <3.0.0",
+  "_id": "foreach@2.0.5",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/inline-process-browser/falafel/foreach",
+  "_npmUser": {
+    "email": "manuel@takimata.ch",
+    "name": "manuelstofer"
+  },
+  "_npmVersion": "1.4.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "foreach",
+    "raw": "foreach@^2.0.5",
+    "rawSpec": "^2.0.5",
+    "scope": null,
+    "spec": ">=2.0.5 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream/inline-process-browser/falafel"
+  ],
+  "_resolved": "https://registry.npmjs.org/foreach/-/foreach-2.0.5.tgz",
+  "_shasum": "0bee005018aeb260d0a3af3ae658dd0136ec1b99",
+  "_shrinkwrap": null,
+  "_spec": "foreach@^2.0.5",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser/node_modules/falafel",
+  "author": {
+    "email": "manuel@takimata.ch",
+    "name": "Manuel Stofer"
+  },
+  "bugs": {
+    "url": "https://github.com/manuelstofer/foreach/issues"
+  },
+  "contributors": [
+    {
+      "name": "Manuel Stofer"
+    },
+    {
+      "name": "Jordan Harband",
+      "url": "https://github.com/ljharb"
+    }
+  ],
+  "dependencies": {},
+  "description": "foreach component + npm package",
+  "devDependencies": {
+    "covert": "*",
+    "tape": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "0bee005018aeb260d0a3af3ae658dd0136ec1b99",
+    "tarball": "http://registry.npmjs.org/foreach/-/foreach-2.0.5.tgz"
+  },
+  "homepage": "https://github.com/manuelstofer/foreach",
+  "keywords": [
+    "shim",
+    "Array.prototype.forEach",
+    "forEach",
+    "Array#forEach",
+    "each"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "email": "manuel@takimata.ch",
+      "name": "manuelstofer"
+    }
+  ],
+  "name": "foreach",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/manuelstofer/foreach.git"
+  },
+  "scripts": {
+    "coverage": "covert test.js",
+    "coverage-quiet": "covert --quiet test.js",
+    "test": "node test.js"
+  },
+  "testling": {
+    "browsers": [
+      "iexplore/6.0..latest",
+      "firefox/3.0",
+      "firefox/15.0..latest",
+      "firefox/nightly",
+      "chrome/4.0",
+      "chrome/22.0..latest",
+      "chrome/canary",
+      "opera/10.0..latest",
+      "opera/next",
+      "safari/5.0.5..latest",
+      "ipad/6.0..latest",
+      "iphone/6.0..latest",
+      "android-browser/4.2"
+    ],
+    "files": "test.js"
+  },
+  "version": "2.0.5"
+}

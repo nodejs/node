@@ -1,0 +1,85 @@
+{
+  "_args": [
+    [
+      "private@~0.1.5",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/unreachable-branch-transform/node_modules/recast"
+    ]
+  ],
+  "_from": "private@>=0.1.5 <0.2.0",
+  "_id": "private@0.1.6",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/unreachable-branch-transform/recast/private",
+  "_npmUser": {
+    "email": "bn@cs.stanford.edu",
+    "name": "benjamn"
+  },
+  "_npmVersion": "1.4.14",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "private",
+    "raw": "private@~0.1.5",
+    "rawSpec": "~0.1.5",
+    "scope": null,
+    "spec": ">=0.1.5 <0.2.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream/unreachable-branch-transform/recast"
+  ],
+  "_resolved": "https://registry.npmjs.org/private/-/private-0.1.6.tgz",
+  "_shasum": "55c6a976d0f9bafb9924851350fe47b9b5fbb7c1",
+  "_shrinkwrap": null,
+  "_spec": "private@~0.1.5",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/unreachable-branch-transform/node_modules/recast",
+  "author": {
+    "email": "bn@cs.stanford.edu",
+    "name": "Ben Newman"
+  },
+  "bugs": {
+    "url": "https://github.com/benjamn/private/issues"
+  },
+  "dependencies": {},
+  "description": "Utility for associating truly private state with any JavaScript object",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "55c6a976d0f9bafb9924851350fe47b9b5fbb7c1",
+    "tarball": "http://registry.npmjs.org/private/-/private-0.1.6.tgz"
+  },
+  "engines": {
+    "node": ">= 0.6"
+  },
+  "gitHead": "8df9e34c8f66a5e634a1024dba3ea16704d5178d",
+  "homepage": "http://github.com/benjamn/private",
+  "keywords": [
+    "private",
+    "access control",
+    "access modifiers",
+    "encapsulation",
+    "secret",
+    "state",
+    "privilege",
+    "scope",
+    "es5"
+  ],
+  "license": "MIT",
+  "main": "private.js",
+  "maintainers": [
+    {
+      "email": "bn@cs.stanford.edu",
+      "name": "benjamn"
+    }
+  ],
+  "name": "private",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/benjamn/private.git"
+  },
+  "scripts": {
+    "test": "node test/run.js"
+  },
+  "version": "0.1.6"
+}

@@ -1,11 +1,15 @@
 module.exports = bugs
 
-bugs.usage = 'npm bugs [<pkgname>]'
-
 var npm = require('./npm.js')
 var log = require('npmlog')
 var opener = require('opener')
 var fetchPackageMetadata = require('./fetch-package-metadata.js')
+var usage = require('./utils/usage')
+
+bugs.usage = usage(
+  'bugs',
+  'npm bugs [<pkgname>]'
+)
 
 bugs.completion = function (opts, cb) {
   // FIXME: there used to be registry completion here, but it stopped making

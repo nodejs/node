@@ -1,0 +1,109 @@
+{
+  "_args": [
+    [
+      "xtend@>=4.0.0 <4.1.0-0",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser/node_modules/through2"
+    ]
+  ],
+  "_from": "xtend@>=4.0.0 <4.1.0-0",
+  "_id": "xtend@4.0.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/inline-process-browser/through2/xtend",
+  "_nodeVersion": "0.10.32",
+  "_npmUser": {
+    "email": "raynos2@gmail.com",
+    "name": "raynos"
+  },
+  "_npmVersion": "2.14.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "xtend",
+    "raw": "xtend@>=4.0.0 <4.1.0-0",
+    "rawSpec": ">=4.0.0 <4.1.0-0",
+    "scope": null,
+    "spec": ">=4.0.0 <4.1.0-0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream/inline-process-browser/through2"
+  ],
+  "_resolved": "https://registry.npmjs.org/xtend/-/xtend-4.0.1.tgz",
+  "_shasum": "a5c6d532be656e23db820efb943a1f04998d63af",
+  "_shrinkwrap": null,
+  "_spec": "xtend@>=4.0.0 <4.1.0-0",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser/node_modules/through2",
+  "author": {
+    "email": "raynos2@gmail.com",
+    "name": "Raynos"
+  },
+  "bugs": {
+    "email": "raynos2@gmail.com",
+    "url": "https://github.com/Raynos/xtend/issues"
+  },
+  "contributors": [
+    {
+      "name": "Jake Verbaten"
+    },
+    {
+      "name": "Matt Esch"
+    }
+  ],
+  "dependencies": {},
+  "description": "extend like a boss",
+  "devDependencies": {
+    "tape": "~1.1.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "a5c6d532be656e23db820efb943a1f04998d63af",
+    "tarball": "https://registry.npmjs.org/xtend/-/xtend-4.0.1.tgz"
+  },
+  "engines": {
+    "node": ">=0.4"
+  },
+  "gitHead": "23dc302a89756da89c1897bc732a752317e35390",
+  "homepage": "https://github.com/Raynos/xtend",
+  "keywords": [
+    "extend",
+    "merge",
+    "options",
+    "opts",
+    "object",
+    "array"
+  ],
+  "license": "MIT",
+  "main": "immutable",
+  "maintainers": [
+    {
+      "email": "raynos2@gmail.com",
+      "name": "raynos"
+    }
+  ],
+  "name": "xtend",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Raynos/xtend.git"
+  },
+  "scripts": {
+    "test": "node test"
+  },
+  "testling": {
+    "browsers": [
+      "ie/7..latest",
+      "firefox/16..latest",
+      "firefox/nightly",
+      "chrome/22..latest",
+      "chrome/canary",
+      "opera/12..latest",
+      "opera/next",
+      "safari/5.1..latest",
+      "ipad/6.0..latest",
+      "iphone/6.0..latest"
+    ],
+    "files": "test.js"
+  },
+  "version": "4.0.1"
+}

@@ -1,3 +1,190 @@
+### v3.8.9 (2016-04-28)
+
+Our biggest news this week is that we got the
+[Windows test suite passing](https://github.com/npm/npm/pull/11444)!
+It'll take a little longer to get it passing in our
+[Windows CI](https://ci.appveyor.com/project/npm/npm/) but that's coming
+soon too.
+
+That means we'll be shifting gears away from tests to fixing
+[Big Bugs™](https://github.com/npm/npm/issues?q=is%3Aopen+is%3Aissue+label%3Abig-bug) again.
+Join us at our [team meeting](https://github.com/npm/npm/issues/12517) next
+Tuesday to learn more about that.
+
+#### BUG FIXES AND REFACTORING
+
+* [`60da618`](https://github.com/npm/npm/commit/60da61862885fa904afba7d121860b4282a5b0df)
+  [#12347](https://github.com/npm/npm/issues/12347)
+  Fix a bug that could result in shrinkwraps missing the `resolved` field, which is
+  necessary in producing a fully reproducible build.
+  ([@sminnee](https://github.com/sminnee))
+* [`8597ba4`](https://github.com/npm/npm/commit/8597ba432e91245a1000953b612eb01308178bad)
+  [#12009](https://github.com/npm/npm/issues/12009)
+  Fix a bug in `npm view <packagename> versions` that resulted in bad output if you
+  didn't also pass in `--json`.
+  ([@watilde](https://github.com/watilde))
+* [`20125f1`](https://github.com/npm/npm/commit/20125f19b96fd05af63f8c0bd243ffb25780279a)
+  [`a53feac`](https://github.com/npm/npm/commit/a53feac2647f7dc4245f1700dfbdd1aba8745672)
+  [`6cfbae4`](https://github.com/npm/npm/commit/6cfbae403abc3cf690565b09569f71cdd41a8372)
+  [#12485](https://github.com/npm/npm/pull/12485)
+  Refactor how the help summaries for commands are produced, such that we only have
+  one list of command aliases.
+  ([@watilde](https://github.com/watilde))
+* [`2ae210c`](https://github.com/npm/npm/commit/2ae210c76ab6fd15fcf15dc1808b01ca0b94fc9e)
+  `read-package-json@2.0.4`:
+  Fix a crash we discovered while fixing up the Windows test suite where if
+  you had a file in your `node_modules` it would cause a crash on Windows
+  (but not MacOS/Linux).
+
+  This makes the error code you get on Windows match that from MacOS/Linux
+  if you try to read a `package.json` from a path that includes a file, not
+  a folder.
+  ([@zkat](https://github.com/zkat))
+
+### v3.8.8 (2016-04-21)
+
+Hi all! Long time no see! We've been heads-down working through getting
+[our test suite passing on Windows](https://github.com/npm/npm/pull/11444).
+Did you know that we have
+[Windows CI](https://ci.appveyor.com/project/npm/npm) now running over at
+Appveyor?  In the meantime, we've got a bunch of dependency updates, some
+nice documentation improvements and error messages when your `package.json`
+contains invalid JSON. (Yeah, I thought we did that last one before too!)
+
+#### BAD JSON IS BAD
+
+* [`769e620`](https://github.com/npm/npm/commit/769e6200722d8060b6769e47354032c51cfa85a1)
+  [#12406](https://github.com/npm/npm/pull/12406)
+  Failing to parse the top level `package.json` should be an error.
+  ([@watilde](https://github.com/watilde))
+
+#### DOCUMENTATION
+
+* [`7d64301`](https://github.com/npm/npm/commit/7d643018af5051c920cc73f17bfe32b7ff86e108)
+  [#12415](https://github.com/npm/npm/pull/12415)
+  Clarify that when configuring client-side certificates for authenticating
+  to non-npm registries that `cert` and `key` are not filesystem paths and should
+  actually include the certificate and key data.
+  ([@rvedotrc](https://github.com/rvedotrc))
+* [`f8539b8`](https://github.com/npm/npm/commit/f8539b8c986e81771ccc8ced7e716718423d3187)
+  [#12324](https://github.com/npm/npm/pull/12324)
+  Describe how `npm run` sets `NODE` and `PATH` in more detail.
+  Note that `npm run` changes `PATH` to include the current node
+  interpreter’s directory.
+  ([@addaleax](https://github.com/addaleax))
+* [`2b57606`](https://github.com/npm/npm/commit/2b57606852a2c2a03e4c4b7dcda85b807619c2cf)
+  [#11461](https://github.com/npm/npm/pull/11461)
+  Clarify the documentation for the package.json homepage field.
+  ([@stevemao](https://github.com/stevemao))
+
+#### TESTS
+
+* [`b5a0fbb`](https://github.com/npm/npm/commit/b5a0fbb9e1a2c4fb003dd748264571aa6e3c9e70)
+  [#12329](https://github.com/npm/npm/pull/12329)
+  Fix progress config testing to ignore local user configs.
+  Previously, _any_ local setting would cause the tests to fail as
+  they were trying to test what the default values for the progress
+  bar would be in different environments and any explicit setting
+  overrides those defaults.
+  ([@iarna](https://github.com/iarna))
+* [`3d195bc`](https://github.com/npm/npm/commit/3d195bc0a72b40df02a5c56e4f3be44152e8222b)
+  The lifecycle-signal test could crash on v0.8 due to its use of `Number.parseInt`, which
+  isn't available in that version of node.  Fortunately `global.parseInt` _is_, so
+  we just use that instead.
+  ([@iarna](https://github.com/iarna))
+
+#### DEPENDENCY UPDATES
+
+* [`05a28e3`](https://github.com/npm/npm/commit/05a28e38586082ac4bbf26ee6f863cc8d07054d6)
+  `npm-package-arg@4.1.1`:
+  Under some circumstances `file://` URLs on Windows were not handled correctly.
+
+  Also, stop converting local module/tarballs into full paths in this
+  module.  We do already do that in `realize-package-specifier`, which is
+  more appropriate as it knows what package we're installing relative to.
+  ([@zkat](https://github.com/zkat))
+* [`ada2e93`](https://github.com/npm/npm/commit/ada2e93e8b276000150a9aa93fff69ec366e03d6)
+  `realize-package-specifier@3.0.3`:
+  Require the new `npm-package-arg`, plus fix a case where specifiers that were
+  maybe a tag, maybe a local filename were resolved differently than those that were
+  definitely a local filename.
+  ([@zkat](https://github.com/zkat)) ([@iarna](https://github.com/iarna))
+* [`adc515b`](https://github.com/npm/npm/commit/adc515b22775871386cd62390079fb4bf8e1714a)
+  `fs-vacuum@1.2.9`:
+  A fix for AIX where a non-empty directory can cause `fs.rmDir` to fail with `EEXIST` instead of `ENOTEMPTY`
+  and three new tests
+  ([@richardlau](https://github.com/richardlau))
+
+  Code cleanup, CI & dependency updates.
+  ([@othiym23](https://github.com/othiym23))
+* [`ef53a46`](https://github.com/npm/npm/commit/ef53a46906ce872a4541b605dd42a563cc26e614)
+  `tap@5.7.1`
+  ([@isaacs](https://github.com/isaacs))
+* [`df1f2e4`](https://github.com/npm/npm/commit/df1f2e4838b4d7ea2ea2321a95ae868c0ec0a520)
+  `request@2.72.0`:
+  Fix crashes when response headers indicate gzipped content but the body is
+  empty.
+  Add support for the deflate content encoding.
+  ([@simov](https://github.com/simov))
+* [`776c599`](https://github.com/npm/npm/commit/776c599b204632aca9d29fd92ea5c4f099fdea9f)
+  `readable-stream@2.1.0`:
+  Adds READABLE_STREAM env var that, if set to `disable`, will make
+  `readable-stream` use the local native node streams instead.
+  ([@calvinmetcalf](https://github.com/calvinmetcalf))
+* [`10d6d55`](https://github.com/npm/npm/commit/10d6d5547354fcf50e930c7932ba4d63c0b6009c)
+  `normalize-git-url@3.0.2`:
+  Add support `git+file://` type URLs.
+  ([@zkat](https://github.com/zkat))
+* [`75017ae`](https://github.com/npm/npm/commit/75017aeecec69a1efd546df908aa5befc4467f36)
+  `lodash.union@4.3.0`
+  ([@jdalton](https://github.com/jdalton))
+
+### v3.8.7 (2016-04-07)
+
+#### IMPROVED DIAGNOSTICS
+
+* [`38cf79f`](https://github.com/npm/npm/commit/38cf79ffa564ef5cb6677b476e06d0e45351592a)
+  [#12083](https://github.com/npm/npm/pull/12083)
+  If you `ignore-scripts` to disable lifecycles, this makes npm report when it skips running
+  a script.
+  ([@bfred-it](https://github.com/bfred-it))
+
+#### IMPROVE AUTO-INCLUDES
+
+* [`c615182`](https://github.com/npm/npm/commit/c615182c8b47e418338eb1317b99bb66987cda54)
+  [#11995](https://github.com/npm/npm/pull/11995)
+  There were bugs where modules whose names matched the special files that npm always
+  includes would be included, for example, the `history` package was always included.
+
+  With `npm@3` such extraneously bundled modules would not be ordinarily
+  used, as things in `node_modules` in packages are ignored entirely if the
+  package isn't marked as bundling modules.
+
+  Because of this `npm@3` behavior, the `files-and-ignores` test failed to catch this as
+  it was testing _install output_ not what got packed. That has also been fixed.
+  ([@glenjamin](https://github.com/glenjamin))
+
+#### DOCUMENTATION UPDATES
+
+* [`823d9df`](https://github.com/npm/npm/commit/823d9dfa91d7086a26620f007aee4e3cd77b6153)
+  [#12107](https://github.com/npm/npm/pull/12107)
+  In the command summary for `adduser` mention that `login` is an alias.
+  ([@gnerkus](https://github.com/gnerkus))
+* [`7aaf47e`](https://github.com/npm/npm/commit/7aaf47e124c45dde72c961638b770ee535fb2776)
+  [#12244](https://github.com/npm/npm/pull/12244)
+  Update the README to suggest npm@3 for Windows users. Also add a reference to
+  [Microsoft's npm upgrade tool](https://github.com/felixrieseberg/npm-windows-upgrade).
+  ([@felixrieseberg](https://github.com/felixrieseberg))
+
+#### DEPENDENCY UPDATES
+
+* [`486bbc0`](https://github.com/npm/npm/commit/486bbc0e1b101f847e890e6f1925dc8cb253cf3e)
+  `request@2.70.0`
+  ([@simov](https://github.com/simov))
+* [`b1aff34`](https://github.com/npm/npm/commit/b1aff346fc41f13e3306b437e1831942aacf2f54)
+  `lodash.keys@4.0.6`
+  ([@jdalton](https://github.com/jdalton))
+
 ### v3.8.6 (2016-03-31)
 
 Heeeeeey y'all.

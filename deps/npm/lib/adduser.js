@@ -4,13 +4,17 @@ var log = require('npmlog')
 var npm = require('./npm.js')
 var read = require('read')
 var userValidate = require('npm-user-validate')
+var usage = require('./utils/usage')
 var crypto
 
 try {
   crypto = require('crypto')
 } catch (ex) {}
 
-adduser.usage = 'npm adduser [--registry=url] [--scope=@orgname] [--always-auth]'
+adduser.usage = usage(
+  'adduser',
+  'npm adduser [--registry=url] [--scope=@orgname] [--always-auth]'
+)
 
 function adduser (args, cb) {
   if (!crypto) {

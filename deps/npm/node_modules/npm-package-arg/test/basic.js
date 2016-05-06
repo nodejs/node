@@ -44,7 +44,7 @@ require("tap").test("basic", function (t) {
       raw: "@f fo o al/ a d s ;f",
       name: null,
       rawSpec: "@f fo o al/ a d s ;f",
-      spec: path.resolve("@f fo o al/ a d s ;f"),
+      spec: "@f fo o al/ a d s ;f",
       type: "local"
     },
 

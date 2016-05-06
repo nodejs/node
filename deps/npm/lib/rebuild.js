@@ -6,8 +6,12 @@ var semver = require('semver')
 var log = require('npmlog')
 var npm = require('./npm.js')
 var npa = require('npm-package-arg')
+var usage = require('./utils/usage')
 
-rebuild.usage = 'npm rebuild [[<@scope>/<name>]...]'
+rebuild.usage = usage(
+  'rebuild',
+  'npm rebuild [[<@scope>/<name>]...]'
+)
 
 rebuild.completion = require('./utils/completion/installed-deep.js')
 

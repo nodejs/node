@@ -1,0 +1,102 @@
+{
+  "_args": [
+    [
+      "recast@^0.11.4",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/unreachable-branch-transform"
+    ]
+  ],
+  "_from": "recast@>=0.11.4 <0.12.0",
+  "_id": "recast@0.11.5",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/unreachable-branch-transform/recast",
+  "_nodeVersion": "4.2.4",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/recast-0.11.5.tgz_1460645169588_0.9154388136230409"
+  },
+  "_npmUser": {
+    "email": "bn@cs.stanford.edu",
+    "name": "benjamn"
+  },
+  "_npmVersion": "3.3.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "recast",
+    "raw": "recast@^0.11.4",
+    "rawSpec": "^0.11.4",
+    "scope": null,
+    "spec": ">=0.11.4 <0.12.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream/unreachable-branch-transform"
+  ],
+  "_resolved": "https://registry.npmjs.org/recast/-/recast-0.11.5.tgz",
+  "_shasum": "a85d6333586eeaec508498e1e4c4690a14cb662b",
+  "_shrinkwrap": null,
+  "_spec": "recast@^0.11.4",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/unreachable-branch-transform",
+  "author": {
+    "email": "bn@cs.stanford.edu",
+    "name": "Ben Newman"
+  },
+  "browser": {
+    "fs": false
+  },
+  "bugs": {
+    "url": "https://github.com/benjamn/recast/issues"
+  },
+  "dependencies": {
+    "ast-types": "0.8.16",
+    "esprima": "~2.7.1",
+    "private": "~0.1.5",
+    "source-map": "~0.5.0"
+  },
+  "description": "JavaScript syntax tree transformer, nondestructive pretty-printer, and automatic source map generator",
+  "devDependencies": {
+    "babylon": "~6.4.2",
+    "esprima-fb": "^15001.1001.0-dev-harmony-fb",
+    "mocha": "~2.2.5"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "a85d6333586eeaec508498e1e4c4690a14cb662b",
+    "tarball": "https://registry.npmjs.org/recast/-/recast-0.11.5.tgz"
+  },
+  "engines": {
+    "node": ">= 0.8"
+  },
+  "gitHead": "47398cf78c9e9c0ce779c86140810528258e607d",
+  "homepage": "http://github.com/benjamn/recast",
+  "keywords": [
+    "ast",
+    "rewriting",
+    "refactoring",
+    "codegen",
+    "syntax",
+    "transformation",
+    "parsing",
+    "pretty-printing"
+  ],
+  "license": "MIT",
+  "main": "main.js",
+  "maintainers": [
+    {
+      "email": "bn@cs.stanford.edu",
+      "name": "benjamn"
+    }
+  ],
+  "name": "recast",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/benjamn/recast.git"
+  },
+  "scripts": {
+    "debug": "node ./node_modules/mocha/bin/mocha --debug-brk --reporter spec",
+    "test": "node ./node_modules/mocha/bin/mocha --reporter spec --full-trace"
+  },
+  "version": "0.11.5"
+}

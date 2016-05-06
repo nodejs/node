@@ -10,12 +10,15 @@ var chain = require('slide').chain
 var path = require('path')
 var build = require('./build.js')
 var npa = require('npm-package-arg')
+var usage = require('./utils/usage')
 
 module.exports = link
 
-link.usage = 'npm link (in package dir)' +
-             '\nnpm link [<@scope>/]<pkg>[@<version>]' +
-             '\n\nalias: npm ln'
+link.usage = usage(
+  'link',
+  'npm link (in package dir)' +
+  '\nnpm link [<@scope>/]<pkg>[@<version>]'
+)
 
 link.completion = function (opts, cb) {
   var dir = npm.globalDir
