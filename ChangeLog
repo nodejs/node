@@ -1,3 +1,23 @@
+2016-05-06, Version 0.10.45 (Maintenance), @rvagg
+
+Notable changes:
+
+* npm: Correct erroneous version number in v2.15.1 code (Forrest L Norvell) https://github.com/nodejs/node/pull/5987
+* openssl: Upgrade to v1.0.1t, addressing security vulnerabilities (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
+  - Fixes CVE-2016-2107 "Padding oracle in AES-NI CBC MAC check"
+  - See https://nodejs.org/en/blog/vulnerability/openssl-may-2016/ for full details
+
+Commits:
+
+* [3cff81c7d6] - deps: completely upgrade npm in LTS to 2.15.1 (Forrest L Norvell) https://github.com/nodejs/node/pull/5987
+* [7c22f19009] - deps: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) https://github.com/joyent/node/pull/25368
+* [5d78366937] - deps: update openssl asm files (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
+* [2bc2427cb7] - deps: fix openssl assembly error on ia32 win32 (Fedor Indutny) https://github.com/joyent/node/pull/25654
+* [8df4b0914c] - deps: separate sha256/sha512-x86_64.pl for openssl (Shigeki Ohtsu) https://github.com/joyent/node/pull/25654
+* [11eefefb17] - deps: copy all openssl header files to include dir (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
+* [61ccc27b54] - deps: upgrade openssl sources to 1.0.1t (Shigeki Ohtsu) https://github.com/nodejs/node/pull/6553
+* [aa02438274] - openssl: fix keypress requirement in apps on win32 (Shigeki Ohtsu) https://github.com/joyent/node/pull/25654
+
 2016-03-31, Version 0.10.44 (Maintenance), @rvagg
 
 Notable changes:
