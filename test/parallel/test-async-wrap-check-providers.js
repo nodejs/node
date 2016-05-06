@@ -9,7 +9,6 @@ const fs = require('fs');
 const net = require('net');
 const tls = require('tls');
 const zlib = require('zlib');
-const ChildProcess = require('child_process').ChildProcess;
 const StreamWrap = require('_stream_wrap').StreamWrap;
 const HTTPParser = process.binding('http_parser').HTTPParser;
 const async_wrap = process.binding('async_wrap');
@@ -104,8 +103,6 @@ function checkTLS() {
 }
 
 zlib.createGzip();
-
-new ChildProcess();
 
 new HTTPParser(HTTPParser.REQUEST);
 
