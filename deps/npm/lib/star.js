@@ -4,9 +4,13 @@ var npm = require('./npm.js')
 var log = require('npmlog')
 var asyncMap = require('slide').asyncMap
 var mapToRegistry = require('./utils/map-to-registry.js')
+var usage = require('./utils/usage')
 
-star.usage = 'npm star [<pkg>...]\n' +
-             'npm unstar [<pkg>...]'
+star.usage = usage(
+  'star',
+  'npm star [<pkg>...]\n' +
+  'npm unstar [<pkg>...]'
+)
 
 star.completion = function (opts, cb) {
   // FIXME: there used to be registry completion here, but it stopped making

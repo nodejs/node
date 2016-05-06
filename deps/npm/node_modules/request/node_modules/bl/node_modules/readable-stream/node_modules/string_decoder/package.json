@@ -1,0 +1,81 @@
+{
+  "_args": [
+    [
+      "string_decoder@~0.10.x",
+      "/Users/rebecca/code/npm/node_modules/readable-stream"
+    ],
+    [
+      "string_decoder@~0.10.x",
+      "/Users/rebecca/code/npm/node_modules/request/node_modules/bl/node_modules/readable-stream"
+    ]
+  ],
+  "_from": "string_decoder@>=0.10.0 <0.11.0",
+  "_id": "string_decoder@0.10.31",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/bl/readable-stream/string_decoder",
+  "_npmUser": {
+    "email": "rod@vagg.org",
+    "name": "rvagg"
+  },
+  "_npmVersion": "1.4.23",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "string_decoder",
+    "raw": "string_decoder@~0.10.x",
+    "rawSpec": "~0.10.x",
+    "scope": null,
+    "spec": ">=0.10.0 <0.11.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/bl/readable-stream"
+  ],
+  "_shrinkwrap": null,
+  "_spec": "string_decoder@~0.10.x",
+  "_where": "/Users/rebecca/code/npm/node_modules/request/node_modules/bl/node_modules/readable-stream",
+  "bugs": {
+    "url": "https://github.com/rvagg/string_decoder/issues"
+  },
+  "dependencies": {},
+  "description": "The string_decoder module from Node core",
+  "devDependencies": {
+    "tap": "~0.4.8"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "62e203bc41766c6c28c9fc84301dab1c5310fa94",
+    "tarball": "http://registry.npmjs.org/string_decoder/-/string_decoder-0.10.31.tgz"
+  },
+  "gitHead": "d46d4fd87cf1d06e031c23f1ba170ca7d4ade9a0",
+  "homepage": "https://github.com/rvagg/string_decoder",
+  "keywords": [
+    "string",
+    "decoder",
+    "browser",
+    "browserify"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "email": "mail@substack.net",
+      "name": "substack"
+    },
+    {
+      "email": "rod@vagg.org",
+      "name": "rvagg"
+    }
+  ],
+  "name": "string_decoder",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/rvagg/string_decoder.git"
+  },
+  "scripts": {
+    "test": "tap test/simple/*.js"
+  },
+  "version": "0.10.31"
+}

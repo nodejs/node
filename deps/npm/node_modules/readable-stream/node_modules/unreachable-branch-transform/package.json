@@ -1,0 +1,94 @@
+{
+  "_args": [
+    [
+      "unreachable-branch-transform@~0.5.0",
+      "/Users/rebecca/code/npm/node_modules/readable-stream"
+    ]
+  ],
+  "_from": "unreachable-branch-transform@>=0.5.0 <0.6.0",
+  "_id": "unreachable-branch-transform@0.5.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/unreachable-branch-transform",
+  "_nodeVersion": "5.10.1",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/unreachable-branch-transform-0.5.1.tgz_1460612866423_0.1859290194697678"
+  },
+  "_npmUser": {
+    "email": "zertosh@gmail.com",
+    "name": "zertosh"
+  },
+  "_npmVersion": "3.8.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "unreachable-branch-transform",
+    "raw": "unreachable-branch-transform@~0.5.0",
+    "rawSpec": "~0.5.0",
+    "scope": null,
+    "spec": ">=0.5.0 <0.6.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream"
+  ],
+  "_resolved": "https://registry.npmjs.org/unreachable-branch-transform/-/unreachable-branch-transform-0.5.1.tgz",
+  "_shasum": "5e0a5da810b4f4cc6866afc28b59aa6e8c84db5d",
+  "_shrinkwrap": null,
+  "_spec": "unreachable-branch-transform@~0.5.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream",
+  "author": {
+    "email": "zertosh@gmail.com",
+    "name": "Andres Suarez"
+  },
+  "bugs": {
+    "url": "https://github.com/zertosh/unreachable-branch-transform/issues"
+  },
+  "dependencies": {
+    "esmangle-evaluator": "^1.0.0",
+    "recast": "^0.11.4"
+  },
+  "description": "Browserify transform to remove unreachable code",
+  "devDependencies": {
+    "browserify": "^13.0.0",
+    "tap": "^5.7.1"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "5e0a5da810b4f4cc6866afc28b59aa6e8c84db5d",
+    "tarball": "https://registry.npmjs.org/unreachable-branch-transform/-/unreachable-branch-transform-0.5.1.tgz"
+  },
+  "files": [
+    "README.md",
+    "index.js",
+    "unreachableBranchTransformer.js"
+  ],
+  "gitHead": "9b47a0aea78a873a4d3efb4e48d0455ed8d72d01",
+  "homepage": "https://github.com/zertosh/unreachable-branch-transform",
+  "keywords": [
+    "browserify",
+    "browserify-transform",
+    "transform",
+    "minify",
+    "unreachable"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "email": "zertosh@gmail.com",
+      "name": "zertosh"
+    }
+  ],
+  "name": "unreachable-branch-transform",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/zertosh/unreachable-branch-transform.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "0.5.1"
+}

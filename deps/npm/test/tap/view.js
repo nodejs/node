@@ -259,6 +259,24 @@ test('npm view <package name> --global', function (t) {
   })
 })
 
+test('npm view <package name>@<semver range> versions', function (t) {
+  mr({ port: common.port, plugin: plugin }, function (er, s) {
+    common.npm([
+      'view',
+      'underscore@^1.5.0',
+      'versions',
+      '--registry=' + common.registry
+    ], { cwd: t2dir }, function (err, code, stdout) {
+      t.ifError(err, 'view command finished successfully')
+      t.equal(code, 0, 'exit ok')
+      var re = new RegExp('1.5.0')
+      t.similar(stdout, re, 'should have version `1.5.0`')
+      s.close()
+      t.end()
+    })
+  })
+})
+
 test('npm view <package name> --json', function (t) {
   t.plan(3)
   mr({ port: common.port, plugin: plugin }, function (er, s) {

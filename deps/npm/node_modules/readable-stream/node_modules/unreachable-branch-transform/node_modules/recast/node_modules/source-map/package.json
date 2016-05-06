@@ -1,0 +1,240 @@
+{
+  "_args": [
+    [
+      "source-map@~0.5.0",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/unreachable-branch-transform/node_modules/recast"
+    ]
+  ],
+  "_from": "source-map@>=0.5.0 <0.6.0",
+  "_id": "source-map@0.5.3",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/unreachable-branch-transform/recast/source-map",
+  "_npmUser": {
+    "email": "fitzgen@gmail.com",
+    "name": "nickfitzgerald"
+  },
+  "_npmVersion": "1.4.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "source-map",
+    "raw": "source-map@~0.5.0",
+    "rawSpec": "~0.5.0",
+    "scope": null,
+    "spec": ">=0.5.0 <0.6.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream/unreachable-branch-transform/recast"
+  ],
+  "_resolved": "https://registry.npmjs.org/source-map/-/source-map-0.5.3.tgz",
+  "_shasum": "82674b85a71b0be76c3e7416d15e9f5252eb3be0",
+  "_shrinkwrap": null,
+  "_spec": "source-map@~0.5.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/unreachable-branch-transform/node_modules/recast",
+  "author": {
+    "email": "nfitzgerald@mozilla.com",
+    "name": "Nick Fitzgerald"
+  },
+  "bugs": {
+    "url": "https://github.com/mozilla/source-map/issues"
+  },
+  "contributors": [
+    {
+      "email": "tobias.koppers@googlemail.com",
+      "name": "Tobias Koppers"
+    },
+    {
+      "email": "duncan@dweebd.com",
+      "name": "Duncan Beevers"
+    },
+    {
+      "email": "scrane@mozilla.com",
+      "name": "Stephen Crane"
+    },
+    {
+      "email": "seddon.ryan@gmail.com",
+      "name": "Ryan Seddon"
+    },
+    {
+      "email": "miles.elam@deem.com",
+      "name": "Miles Elam"
+    },
+    {
+      "email": "mihai.bazon@gmail.com",
+      "name": "Mihai Bazon"
+    },
+    {
+      "email": "github.public.email@michael.ficarra.me",
+      "name": "Michael Ficarra"
+    },
+    {
+      "email": "todd@twolfson.com",
+      "name": "Todd Wolfson"
+    },
+    {
+      "email": "alexander@solovyov.net",
+      "name": "Alexander Solovyov"
+    },
+    {
+      "email": "fgnass@gmail.com",
+      "name": "Felix Gnass"
+    },
+    {
+      "email": "conrad.irwin@gmail.com",
+      "name": "Conrad Irwin"
+    },
+    {
+      "email": "usrbincc@yahoo.com",
+      "name": "usrbincc"
+    },
+    {
+      "email": "glasser@davidglasser.net",
+      "name": "David Glasser"
+    },
+    {
+      "email": "chase@newrelic.com",
+      "name": "Chase Douglas"
+    },
+    {
+      "email": "evan.exe@gmail.com",
+      "name": "Evan Wallace"
+    },
+    {
+      "email": "fayearthur@gmail.com",
+      "name": "Heather Arthur"
+    },
+    {
+      "email": "hughskennedy@gmail.com",
+      "name": "Hugh Kennedy"
+    },
+    {
+      "email": "glasser@davidglasser.net",
+      "name": "David Glasser"
+    },
+    {
+      "email": "simon.lydell@gmail.com",
+      "name": "Simon Lydell"
+    },
+    {
+      "email": "jellyes2@gmail.com",
+      "name": "Jmeas Smith"
+    },
+    {
+      "email": "mzgoddard@gmail.com",
+      "name": "Michael Z Goddard"
+    },
+    {
+      "email": "azu@users.noreply.github.com",
+      "name": "azu"
+    },
+    {
+      "email": "john@gozde.ca",
+      "name": "John Gozde"
+    },
+    {
+      "email": "akirkton@truefitinnovation.com",
+      "name": "Adam Kirkton"
+    },
+    {
+      "email": "christopher.montgomery@dowjones.com",
+      "name": "Chris Montgomery"
+    },
+    {
+      "email": "jryans@gmail.com",
+      "name": "J. Ryan Stinnett"
+    },
+    {
+      "email": "jherrington@walmartlabs.com",
+      "name": "Jack Herrington"
+    },
+    {
+      "email": "jeffpalentine@gmail.com",
+      "name": "Chris Truter"
+    },
+    {
+      "email": "daniel@danielespeset.com",
+      "name": "Daniel Espeset"
+    },
+    {
+      "email": "jamie.lf.wong@gmail.com",
+      "name": "Jamie Wong"
+    },
+    {
+      "email": "ejpbruel@mozilla.com",
+      "name": "Eddy Bruël"
+    },
+    {
+      "email": "hawkrives@gmail.com",
+      "name": "Hawken Rives"
+    },
+    {
+      "email": "giladp007@gmail.com",
+      "name": "Gilad Peleg"
+    },
+    {
+      "email": "djchie.dev@gmail.com",
+      "name": "djchie"
+    },
+    {
+      "email": "garysye@gmail.com",
+      "name": "Gary Ye"
+    },
+    {
+      "email": "nicolas.lalevee@hibnet.org",
+      "name": "Nicolas Lalevée"
+    }
+  ],
+  "dependencies": {},
+  "description": "Generates and consumes source maps",
+  "devDependencies": {
+    "doctoc": "^0.15.0",
+    "webpack": "^1.12.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "82674b85a71b0be76c3e7416d15e9f5252eb3be0",
+    "tarball": "https://registry.npmjs.org/source-map/-/source-map-0.5.3.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "source-map.js",
+    "lib/",
+    "dist/source-map.debug.js",
+    "dist/source-map.js",
+    "dist/source-map.min.js",
+    "dist/source-map.min.js.map"
+  ],
+  "homepage": "https://github.com/mozilla/source-map",
+  "license": "BSD-3-Clause",
+  "main": "./source-map.js",
+  "maintainers": [
+    {
+      "email": "mozilla-developer-tools@googlegroups.com",
+      "name": "mozilla-devtools"
+    },
+    {
+      "email": "dherman@mozilla.com",
+      "name": "mozilla"
+    },
+    {
+      "email": "fitzgen@gmail.com",
+      "name": "nickfitzgerald"
+    }
+  ],
+  "name": "source-map",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/mozilla/source-map.git"
+  },
+  "scripts": {
+    "build": "webpack --color",
+    "test": "node test/run-tests.js",
+    "toc": "doctoc --title '## Table of Contents' README.md && doctoc --title '## Table of Contents' CONTRIBUTING.md"
+  },
+  "version": "0.5.3"
+}

@@ -1,4 +1,4 @@
-# lodash.keys v4.0.5
+# lodash.keys v4.0.6
 
 The [lodash](https://lodash.com/) method `_.keys` exported as a [Node.js](https://nodejs.org/) module.
 
@@ -15,4 +15,4 @@ In Node.js:
 var keys = require('lodash.keys');
 ```
 
-See the [documentation](https://lodash.com/docs#keys) or [package source](https://github.com/lodash/lodash/blob/4.0.5-npm-packages/lodash.keys) for more details.
+See the [documentation](https://lodash.com/docs#keys) or [package source](https://github.com/lodash/lodash/blob/4.0.6-npm-packages/lodash.keys) for more details.

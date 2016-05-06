@@ -2,6 +2,59 @@ TweetNaCl.js Changelog
 ======================
 
 
+v0.14.1
+-------
+
+No code changes, just tweaked packaging and added COPYING.txt.
+
+
+v0.14.0
+-------
+
+* **Breaking change!** All functions from `nacl.util` have been removed. These
+  functions are no longer available:
+
+      nacl.util.decodeUTF8
+      nacl.util.encodeUTF8
+      nacl.util.decodeBase64
+      nacl.util.encodeBase64
+
+  If want to continue using them, you can include
+  <https://github.com/dchest/tweetnacl-util-js> package:
+
+      <script src="nacl.min.js"></script>
+      <script src="nacl-util.min.js"></script>
+
+  or
+
+      var nacl = require('tweetnacl');
+      nacl.util = require('tweetnacl-util');
+
+  However it is recommended to use better packages that have wider
+  compatibility and better performance. Functions from `nacl.util` were never
+  intended to be robust solution for string conversion and were included for
+  convenience: cryptography library is not the right place for them.
+
+  Currently calling these functions will throw error pointing to
+  `tweetnacl-util-js` (in the next version this error message will be removed).
+
+* Improved detection of available random number generators, making it possible
+  to use `nacl.randomBytes` and related functions in Web Workers without
+  changes.
+
+* Changes to testing (see README).
+
+
+v0.13.3
+-------
+
+No code changes.
+
+* Reverted license field in package.json to "Public domain".
+
+* Fixed typo in README.
+
+
 v0.13.2
 -------
 

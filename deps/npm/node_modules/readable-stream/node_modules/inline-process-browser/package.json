@@ -1,0 +1,86 @@
+{
+  "_args": [
+    [
+      "inline-process-browser@~2.0.1",
+      "/Users/rebecca/code/npm/node_modules/readable-stream"
+    ]
+  ],
+  "_from": "inline-process-browser@>=2.0.1 <2.1.0",
+  "_id": "inline-process-browser@2.0.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/inline-process-browser",
+  "_nodeVersion": "5.10.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/inline-process-browser-2.0.1.tgz_1460463904288_0.8437863881699741"
+  },
+  "_npmUser": {
+    "email": "calvin.metcalf@gmail.com",
+    "name": "cwmma"
+  },
+  "_npmVersion": "3.8.3",
+  "_phantomChildren": {
+    "core-util-is": "1.0.2",
+    "inherits": "2.0.1",
+    "string_decoder": "0.10.31"
+  },
+  "_requested": {
+    "name": "inline-process-browser",
+    "raw": "inline-process-browser@~2.0.1",
+    "rawSpec": "~2.0.1",
+    "scope": null,
+    "spec": ">=2.0.1 <2.1.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream"
+  ],
+  "_resolved": "https://registry.npmjs.org/inline-process-browser/-/inline-process-browser-2.0.1.tgz",
+  "_shasum": "f697d6f3b48aefb9cc126ce0806043b31736b2b1",
+  "_shrinkwrap": null,
+  "_spec": "inline-process-browser@~2.0.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream",
+  "author": {
+    "email": "calvin.metcalf@gmail.com",
+    "name": "Calvin W. Metcalf"
+  },
+  "bugs": {
+    "url": "https://github.com/calvinmetcalf/inline-process-browser/issues"
+  },
+  "dependencies": {
+    "falafel": "^1.0.1",
+    "through2": "^0.6.5"
+  },
+  "description": "inline process.browser",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "f697d6f3b48aefb9cc126ce0806043b31736b2b1",
+    "tarball": "https://registry.npmjs.org/inline-process-browser/-/inline-process-browser-2.0.1.tgz"
+  },
+  "gitHead": "234068293e4896b9a2e133c3c572d616d67482f0",
+  "homepage": "https://github.com/calvinmetcalf/inline-process-browser#readme",
+  "keywords": [
+    "browserify-transform"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "email": "calvin.metcalf@gmail.com",
+      "name": "cwmma"
+    }
+  ],
+  "name": "inline-process-browser",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/calvinmetcalf/inline-process-browser.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "2.0.1"
+}

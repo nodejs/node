@@ -7,10 +7,14 @@ var semver = require('semver')
 var npm = require('./npm.js')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var readLocalPkg = require('./utils/read-local-package.js')
+var usage = require('./utils/usage')
 
-distTag.usage = 'npm dist-tag add <pkg>@<version> [<tag>]' +
-                '\nnpm dist-tag rm <pkg> <tag>' +
-                '\nnpm dist-tag ls [<pkg>]'
+distTag.usage = usage(
+  'dist-tag',
+  'npm dist-tag add <pkg>@<version> [<tag>]' +
+  '\nnpm dist-tag rm <pkg> <tag>' +
+  '\nnpm dist-tag ls [<pkg>]'
+)
 
 distTag.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
