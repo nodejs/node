@@ -82,16 +82,11 @@ function bad() {
 bad();
 
 $ env NODE_DEBUG=fs node script.js
-fs.js:66
-        throw err;
-              ^
-Error: EISDIR, read
-    at rethrow (fs.js:61:21)
-    at maybeCallback (fs.js:79:42)
-    at Object.fs.readFile (fs.js:153:18)
-    at bad (/path/to/script.js:2:17)
-    at Object.<anonymous> (/path/to/script.js:5:1)
-    <etc.>
+fs.js:88
+        throw backtrace;
+        ^
+Error: EISDIR: illegal operation on a directory, read
+    <stack trace.>
 ```
 
 ## Buffer API
