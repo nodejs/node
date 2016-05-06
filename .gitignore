@@ -103,6 +103,7 @@ deps/npm/node_modules/.bin/
 tools/faketime
 icu_config.gypi
 *.tap
+test-npm/
 
 # Xcode workspaces and project folders
 *.xcodeproj
