@@ -10,7 +10,7 @@ var server = http.createServer(function(req, res) {
   gotReq = true;
   assert.equal('GET', req.method);
   assert.equal('/blah', req.url);
-  assert.deepEqual({
+  assert.deepStrictEqual({
     host: 'mapdevel.trolologames.ru:443',
     origin: 'http://mapdevel.trolologames.ru',
     cookie: ''

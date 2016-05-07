@@ -1,3 +1,4 @@
+/* eslint no-deepEqual: 0 */
 'use strict';
 
 require('../common');

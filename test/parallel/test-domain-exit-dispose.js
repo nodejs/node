@@ -29,7 +29,7 @@ function err() {
     });
 
     // this function doesn't exist, and throws an error as a result.
-    err3();
+    err3(); // eslint-disable-line no-undef
   }
 
   function handle(e) {

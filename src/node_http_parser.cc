@@ -15,12 +15,6 @@
 #include <stdlib.h>  // free()
 #include <string.h>  // strdup()
 
-#if defined(_MSC_VER)
-#define strcasecmp _stricmp
-#else
-#include <strings.h>  // strcasecmp()
-#endif
-
 // This is a binding to http_parser (https://github.com/joyent/http-parser)
 // The goal is to decouple sockets from parsing for more javascript-level
 // agility. A Buffer is read from a socket and passed to parser.execute().
@@ -300,7 +294,7 @@ class Parser : public AsyncWrap {
       return -1;
     }
 
-    return head_response->IsTrue() ? 1 : 0;
+    return head_response->IntegerValue();
   }
 
 
@@ -759,7 +753,7 @@ void InitHttpParser(Local<Object> target,
     methods->Set(num, FIXED_ONE_BYTE_STRING(env->isolate(), #string));
   HTTP_METHOD_MAP(V)
 #undef V
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "execute", Parser::Execute);

@@ -151,7 +151,8 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = kMipsLw;
       break;
-    case MachineRepresentation::kWord64:  // Fall through.
+    case MachineRepresentation::kWord64:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -231,7 +232,8 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord32:
         opcode = kMipsSw;
         break;
-      case MachineRepresentation::kWord64:  // Fall through.
+      case MachineRepresentation::kWord64:   // Fall through.
+      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -401,10 +403,19 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 }
 
 
-void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 
 
-void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Ctz(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsCtz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitWord32Popcnt(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsPopcnt, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
 
 
 void InstructionSelector::VisitInt32Add(Node* node) {
@@ -503,6 +514,16 @@ void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundInt32ToFloat32(Node* node) {
+  VisitRR(this, kMipsCvtSW, node);
+}
+
+
+void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
+  VisitRR(this, kMipsCvtSUw, node);
+}
+
+
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   VisitRR(this, kMipsCvtDW, node);
 }
@@ -510,6 +531,16 @@ void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   VisitRR(this, kMipsCvtDUw, node);
+}
+
+
+void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
+  VisitRR(this, kMipsTruncWS, node);
+}
+
+
+void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
+  VisitRR(this, kMipsTruncUwS, node);
 }
 
 
@@ -821,9 +852,11 @@ void InstructionSelector::EmitPrepareArguments(
     // Poke any stack arguments.
     int slot = kCArgSlotCount;
     for (PushParameter input : (*arguments)) {
-      Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
-           g.TempImmediate(slot << kPointerSizeLog2));
-      ++slot;
+      if (input.node()) {
+        Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
+             g.TempImmediate(slot << kPointerSizeLog2));
+        ++slot;
+      }
     }
   } else {
     // Possibly align stack here for functions.
@@ -869,9 +902,10 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kFloat64:
       opcode = kCheckedLoadFloat64;
       break;
-    case MachineRepresentation::kBit:     // Fall through.
-    case MachineRepresentation::kTagged:  // Fall through.
-    case MachineRepresentation::kWord64:  // Fall through.
+    case MachineRepresentation::kBit:      // Fall through.
+    case MachineRepresentation::kTagged:   // Fall through.
+    case MachineRepresentation::kWord64:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -1318,7 +1352,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
-  return flags | MachineOperatorBuilder::kInt32DivIsSafe |
+  return flags | MachineOperatorBuilder::kWord32Ctz |
+         MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kFloat64Min |

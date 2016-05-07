@@ -28,6 +28,7 @@
 
 import collections
 import os
+import re
 import shutil
 import sys
 import time
@@ -38,6 +39,7 @@ from . import perfdata
 from . import statusfile
 from . import testsuite
 from . import utils
+from ..objects import output
 
 
 # Base dir of the v8 checkout.
@@ -82,7 +84,7 @@ def MakeProcessContext(context):
 
 def GetCommand(test, context):
   d8testflag = []
-  shell = test.suite.shell()
+  shell = test.shell()
   if shell == "d8":
     d8testflag = ["--test"]
   if utils.IsWindows():
@@ -134,15 +136,28 @@ class Job(object):
     raise NotImplementedError()
 
 
+def SetupProblem(exception, test):
+  stderr = ">>> EXCEPTION: %s\n" % exception
+  match = re.match(r"^.*No such file or directory: '(.*)'$", str(exception))
+  if match:
+    # Extra debuging information when files are claimed missing.
+    f = match.group(1)
+    stderr += ">>> File %s exists? -> %s\n" % (f, os.path.exists(f))
+  return test.id, output.Output(1, False, "", stderr), 0
+
+
 class TestJob(Job):
   def __init__(self, test):
     self.test = test
 
   def Run(self, process_context):
-    # Retrieve a new suite object on the worker-process side. The original
-    # suite object isn't pickled.
-    self.test.SetSuiteObject(process_context.suites)
-    instr = _GetInstructions(self.test, process_context.context)
+    try:
+      # Retrieve a new suite object on the worker-process side. The original
+      # suite object isn't pickled.
+      self.test.SetSuiteObject(process_context.suites)
+      instr = _GetInstructions(self.test, process_context.context)
+    except Exception, e:
+      return SetupProblem(e, self.test)
 
     start_time = time.time()
     if instr.dep_command is not None:

@@ -8,8 +8,12 @@ if (cluster.isWorker) {
   http.Server(function() {
 
   }).listen(common.PORT, '127.0.0.1');
+  const worker = cluster.worker;
+  assert.strictEqual(worker.exitedAfterDisconnect, worker.suicide);
 
   cluster.worker.on('disconnect', function() {
+    assert.strictEqual(cluster.worker.exitedAfterDisconnect,
+                       cluster.worker.suicide);
     process.exit(42);
   });
 
@@ -26,7 +30,7 @@ if (cluster.isWorker) {
       emitDisconnectInsideWorker: false,
       emitExit: false,
       state: false,
-      suicideMode: false,
+      voluntaryMode: false,
       died: false
     }
   };
@@ -60,7 +64,7 @@ if (cluster.isWorker) {
   // Check worker events and properties
   worker.once('disconnect', function() {
     checks.worker.emitDisconnect = true;
-    checks.worker.suicideMode = worker.suicide;
+    checks.worker.voluntaryMode = worker.exitedAfterDisconnect;
     checks.worker.state = worker.state;
   });
 
@@ -86,7 +90,7 @@ if (cluster.isWorker) {
 
     // flags
     assert.equal(w.state, 'disconnected', 'The state property was not set');
-    assert.equal(w.suicideMode, true, 'Suicide mode was not set');
+    assert.equal(w.voluntaryMode, true, 'Voluntary exit mode was not set');
 
     // is process alive
     assert.ok(w.died, 'The worker did not die');

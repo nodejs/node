@@ -1,7 +1,7 @@
 var arrayMap = require('./_arrayMap'),
-    baseCastArrayLikeObject = require('./_baseCastArrayLikeObject'),
     baseIntersection = require('./_baseIntersection'),
     baseIteratee = require('./_baseIteratee'),
+    castArrayLikeObject = require('./_castArrayLikeObject'),
     last = require('./last'),
     rest = require('./rest');
 
@@ -30,7 +30,7 @@ var arrayMap = require('./_arrayMap'),
  */
 var intersectionBy = rest(function(arrays) {
   var iteratee = last(arrays),
-      mapped = arrayMap(arrays, baseCastArrayLikeObject);
+      mapped = arrayMap(arrays, castArrayLikeObject);
 
   if (iteratee === last(mapped)) {
     iteratee = undefined;

@@ -1078,8 +1078,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ And(at, result, Operand(kStringEncodingMask));
   __ Branch(&one_byte, ne, at, Operand(zero_reg));
   // Two-byte string.
-  __ dsll(at, index, 1);
-  __ Daddu(at, string, at);
+  __ Dlsa(at, string, index, 1);
   __ lhu(result, MemOperand(at));
   __ jmp(&done);
   __ bind(&one_byte);
@@ -1151,8 +1150,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
   // Must not call ExpConstant() after overwriting temp3!
   __ li(temp3, Operand(ExternalReference::math_exp_log_table()));
-  __ dsll(at, temp2, 3);
-  __ Daddu(temp3, temp3, Operand(at));
+  __ Dlsa(temp3, temp3, temp2, 3);
   __ lwu(temp2, MemOperand(temp3, Register::kMantissaOffset));
   __ lwu(temp3, MemOperand(temp3, Register::kExponentOffset));
   // The first word is loaded is the lower number register.

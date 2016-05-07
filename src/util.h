@@ -178,77 +178,108 @@ inline TypeName* Unwrap(v8::Local<v8::Object> object);
 
 inline void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen);
 
-class Utf8Value {
+// tolower() is locale-sensitive.  Use ToLower() instead.
+inline char ToLower(char c);
+
+// strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
+inline bool StringEqualNoCase(const char* a, const char* b);
+
+// Allocates an array of member type T. For up to kStackStorageSize items,
+// the stack is used, otherwise malloc().
+template <typename T, size_t kStackStorageSize = 1024>
+class MaybeStackBuffer {
+  public:
+    const T* out() const {
+      return buf_;
+    }
+
+    T* out() {
+      return buf_;
+    }
+
+    // operator* for compatibility with `v8::String::(Utf8)Value`
+    T* operator*() {
+      return buf_;
+    }
+
+    const T* operator*() const {
+      return buf_;
+    }
+
+    size_t length() const {
+      return length_;
+    }
+
+    // Call to make sure enough space for `storage` entries is available.
+    // There can only be 1 call to AllocateSufficientStorage or Invalidate
+    // per instance.
+    void AllocateSufficientStorage(size_t storage) {
+      if (storage <= kStackStorageSize) {
+        buf_ = buf_st_;
+      } else {
+        // Guard against overflow.
+        CHECK_LE(storage, sizeof(T) * storage);
+
+        buf_ = static_cast<T*>(malloc(sizeof(T) * storage));
+        CHECK_NE(buf_, nullptr);
+      }
+
+      // Remember how much was allocated to check against that in SetLength().
+      length_ = storage;
+    }
+
+    void SetLength(size_t length) {
+      // length_ stores how much memory was allocated.
+      CHECK_LE(length, length_);
+      length_ = length;
+    }
+
+    void SetLengthAndZeroTerminate(size_t length) {
+      // length_ stores how much memory was allocated.
+      CHECK_LE(length + 1, length_);
+      SetLength(length);
+
+      // T() is 0 for integer types, nullptr for pointers, etc.
+      buf_[length] = T();
+    }
+
+    // Make derefencing this object return nullptr.
+    // Calling this is mutually exclusive with calling
+    // AllocateSufficientStorage.
+    void Invalidate() {
+      CHECK_EQ(buf_, buf_st_);
+      length_ = 0;
+      buf_ = nullptr;
+    }
+
+    MaybeStackBuffer() : length_(0), buf_(buf_st_) {
+      // Default to a zero-length, null-terminated buffer.
+      buf_[0] = T();
+    }
+
+    ~MaybeStackBuffer() {
+      if (buf_ != buf_st_)
+        free(buf_);
+    }
+  private:
+    size_t length_;
+    T* buf_;
+    T buf_st_[kStackStorageSize];
+};
+
+class Utf8Value : public MaybeStackBuffer<char> {
   public:
     explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
-
-    ~Utf8Value() {
-      if (str_ != str_st_)
-        free(str_);
-    }
-
-    char* operator*() {
-      return str_;
-    };
-
-    const char* operator*() const {
-      return str_;
-    };
-
-    size_t length() const {
-      return length_;
-    };
-
-  private:
-    size_t length_;
-    char* str_;
-    char str_st_[1024];
 };
 
-class TwoByteValue {
+class TwoByteValue : public MaybeStackBuffer<uint16_t> {
   public:
     explicit TwoByteValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
-
-    ~TwoByteValue() {
-      if (str_ != str_st_)
-        free(str_);
-    }
-
-    uint16_t* operator*() {
-      return str_;
-    };
-
-    const uint16_t* operator*() const {
-      return str_;
-    };
-
-    size_t length() const {
-      return length_;
-    };
-
-  private:
-    size_t length_;
-    uint16_t* str_;
-    uint16_t str_st_[1024];
 };
 
-class BufferValue {
+class BufferValue : public MaybeStackBuffer<char> {
   public:
     explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
-
-    ~BufferValue() {
-      if (str_ != str_st_)
-        free(str_);
-    }
-
-    const char* operator*() const {
-      return fail_ ? nullptr : str_;
-    };
-
-  private:
-    char* str_;
-    char str_st_[1024];
-    bool fail_;
 };
 
 }  // namespace node

@@ -82,7 +82,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
-  cache_line_size_ = 64;
+  dcache_line_size_ = 64;
 
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
@@ -137,7 +137,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.implementer() == base::CPU::ARM &&
       (cpu.part() == base::CPU::ARM_CORTEX_A5 ||
        cpu.part() == base::CPU::ARM_CORTEX_A9)) {
-    cache_line_size_ = 32;
+    dcache_line_size_ = 32;
   }
 
   if (FLAG_enable_32dregs && cpu.has_vfp3_d32()) supported_ |= 1u << VFP32DREGS;
@@ -1947,6 +1947,16 @@ void Assembler::uxtah(Register dst, Register src1, Register src2, int rotate,
 }
 
 
+void Assembler::rbit(Register dst, Register src, Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8.8.144.
+  // cond(31-28) | 011011111111(27-16) | Rd(15-12) | 11110011(11-4) | Rm(3-0)
+  DCHECK(IsEnabled(ARMv7));
+  DCHECK(!dst.is(pc));
+  DCHECK(!src.is(pc));
+  emit(cond | 0x6FF * B16 | dst.code() * B12 | 0xF3 * B4 | src.code());
+}
+
+
 // Status register access instructions.
 void Assembler::mrs(Register dst, SRegister s, Condition cond) {
   DCHECK(!dst.is(pc));
@@ -2132,6 +2142,21 @@ void Assembler::bkpt(uint32_t imm16) {  // v5 and above
 void Assembler::svc(uint32_t imm24, Condition cond) {
   DCHECK(is_uint24(imm24));
   emit(cond | 15*B24 | imm24);
+}
+
+
+void Assembler::dmb(BarrierOption option) {
+  emit(kSpecialCondition | 0x57ff*B12 | 5*B4 | option);
+}
+
+
+void Assembler::dsb(BarrierOption option) {
+  emit(kSpecialCondition | 0x57ff*B12 | 4*B4 | option);
+}
+
+
+void Assembler::isb(BarrierOption option) {
+  emit(kSpecialCondition | 0x57ff*B12 | 6*B4 | option);
 }
 
 
@@ -2920,6 +2945,24 @@ void Assembler::vcvt_f64_u32(const DwVfpRegister dst,
                              VFPConversionMode mode,
                              const Condition cond) {
   emit(EncodeVCVT(F64, dst.code(), U32, src.code(), mode, cond));
+}
+
+
+void Assembler::vcvt_f32_u32(const SwVfpRegister dst, const SwVfpRegister src,
+                             VFPConversionMode mode, const Condition cond) {
+  emit(EncodeVCVT(F32, dst.code(), U32, src.code(), mode, cond));
+}
+
+
+void Assembler::vcvt_s32_f32(const SwVfpRegister dst, const SwVfpRegister src,
+                             VFPConversionMode mode, const Condition cond) {
+  emit(EncodeVCVT(S32, dst.code(), F32, src.code(), mode, cond));
+}
+
+
+void Assembler::vcvt_u32_f32(const SwVfpRegister dst, const SwVfpRegister src,
+                             VFPConversionMode mode, const Condition cond) {
+  emit(EncodeVCVT(U32, dst.code(), F32, src.code(), mode, cond));
 }
 
 

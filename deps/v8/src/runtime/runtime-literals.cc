@@ -400,59 +400,5 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteralStubBailout) {
   return *result;
 }
 
-
-RUNTIME_FUNCTION(Runtime_StoreArrayLiteralElement) {
-  HandleScope scope(isolate);
-  RUNTIME_ASSERT(args.length() == 5);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_SMI_ARG_CHECKED(store_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 3);
-  CONVERT_SMI_ARG_CHECKED(literal_index, 4);
-
-  Object* raw_literal_cell = literals->literal(literal_index);
-  JSArray* boilerplate = NULL;
-  if (raw_literal_cell->IsAllocationSite()) {
-    AllocationSite* site = AllocationSite::cast(raw_literal_cell);
-    boilerplate = JSArray::cast(site->transition_info());
-  } else {
-    boilerplate = JSArray::cast(raw_literal_cell);
-  }
-  Handle<JSArray> boilerplate_object(boilerplate);
-  ElementsKind elements_kind = object->GetElementsKind();
-  DCHECK(IsFastElementsKind(elements_kind));
-  // Smis should never trigger transitions.
-  DCHECK(!value->IsSmi());
-
-  if (value->IsNumber()) {
-    DCHECK(IsFastSmiElementsKind(elements_kind));
-    ElementsKind transitioned_kind = IsFastHoleyElementsKind(elements_kind)
-                                         ? FAST_HOLEY_DOUBLE_ELEMENTS
-                                         : FAST_DOUBLE_ELEMENTS;
-    if (IsMoreGeneralElementsKindTransition(
-            boilerplate_object->GetElementsKind(), transitioned_kind)) {
-      JSObject::TransitionElementsKind(boilerplate_object, transitioned_kind);
-    }
-    JSObject::TransitionElementsKind(object, transitioned_kind);
-    DCHECK(IsFastDoubleElementsKind(object->GetElementsKind()));
-    FixedDoubleArray* double_array = FixedDoubleArray::cast(object->elements());
-    HeapNumber* number = HeapNumber::cast(*value);
-    double_array->set(store_index, number->Number());
-  } else {
-    if (!IsFastObjectElementsKind(elements_kind)) {
-      ElementsKind transitioned_kind = IsFastHoleyElementsKind(elements_kind)
-                                           ? FAST_HOLEY_ELEMENTS
-                                           : FAST_ELEMENTS;
-      JSObject::TransitionElementsKind(object, transitioned_kind);
-      if (IsMoreGeneralElementsKindTransition(
-              boilerplate_object->GetElementsKind(), transitioned_kind)) {
-        JSObject::TransitionElementsKind(boilerplate_object, transitioned_kind);
-      }
-    }
-    FixedArray* object_array = FixedArray::cast(object->elements());
-    object_array->set(store_index, *value);
-  }
-  return *object;
-}
 }  // namespace internal
 }  // namespace v8

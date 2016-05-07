@@ -1,5 +1,5 @@
-var baseCastFunction = require('./_baseCastFunction'),
-    baseUpdate = require('./_baseUpdate');
+var baseUpdate = require('./_baseUpdate'),
+    castFunction = require('./_castFunction');
 
 /**
  * This method is like `_.update` except that it accepts `customizer` which is
@@ -27,7 +27,7 @@ var baseCastFunction = require('./_baseCastFunction'),
  */
 function updateWith(object, path, updater, customizer) {
   customizer = typeof customizer == 'function' ? customizer : undefined;
-  return object == null ? object : baseUpdate(object, path, baseCastFunction(updater), customizer);
+  return object == null ? object : baseUpdate(object, path, castFunction(updater), customizer);
 }
 
 module.exports = updateWith;

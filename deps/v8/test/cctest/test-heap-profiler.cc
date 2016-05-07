@@ -2071,7 +2071,7 @@ TEST(AccessorInfo) {
   const v8::HeapGraphNode* length_accessor =
       GetProperty(descriptors, v8::HeapGraphEdge::kInternal, "4");
   CHECK(length_accessor);
-  CHECK_EQ(0, strcmp("system / ExecutableAccessorInfo",
+  CHECK_EQ(0, strcmp("system / AccessorInfo",
                      *v8::String::Utf8Value(length_accessor->GetName())));
   const v8::HeapGraphNode* name =
       GetProperty(length_accessor, v8::HeapGraphEdge::kInternal, "name");
@@ -2851,4 +2851,187 @@ TEST(AddressToTraceMap) {
   map.Clear();
   CHECK_EQ(0u, map.size());
   CHECK_EQ(0u, map.GetTraceNodeId(ToAddress(0x400)));
+}
+
+
+static const v8::AllocationProfile::Node* FindAllocationProfileNode(
+    v8::AllocationProfile& profile, const Vector<const char*>& names) {
+  v8::AllocationProfile::Node* node = profile.GetRootNode();
+  for (int i = 0; node != nullptr && i < names.length(); ++i) {
+    const char* name = names[i];
+    auto children = node->children;
+    node = nullptr;
+    for (v8::AllocationProfile::Node* child : children) {
+      v8::String::Utf8Value child_name(child->name);
+      if (strcmp(*child_name, name) == 0) {
+        node = child;
+        break;
+      }
+    }
+  }
+  return node;
+}
+
+
+TEST(SamplingHeapProfiler) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  // Turn off always_opt. Inlining can cause stack traces to be shorter than
+  // what we expect in this test.
+  v8::internal::FLAG_always_opt = false;
+
+  // Suppress randomness to avoid flakiness in tests.
+  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+
+  const char* script_source =
+      "var A = [];\n"
+      "function bar(size) { return new Array(size); }\n"
+      "var foo = function() {\n"
+      "  for (var i = 0; i < 1024; ++i) {\n"
+      "    A[i] = bar(1024);\n"
+      "  }\n"
+      "}\n"
+      "foo();";
+
+  // Sample should be empty if requested before sampling has started.
+  {
+    v8::AllocationProfile* profile = heap_profiler->GetAllocationProfile();
+    CHECK(profile == nullptr);
+  }
+
+  int count_1024 = 0;
+  {
+    heap_profiler->StartSamplingHeapProfiler(1024);
+    CompileRun(script_source);
+
+    v8::base::SmartPointer<v8::AllocationProfile> profile(
+        heap_profiler->GetAllocationProfile());
+    CHECK(!profile.is_empty());
+
+    const char* names[] = {"", "foo", "bar"};
+    auto node_bar = FindAllocationProfileNode(
+        *profile, Vector<const char*>(names, arraysize(names)));
+    CHECK(node_bar);
+
+    // Count the number of allocations we sampled from bar.
+    for (auto allocation : node_bar->allocations) {
+      count_1024 += allocation.count;
+    }
+
+    heap_profiler->StopSamplingHeapProfiler();
+  }
+
+  // Samples should get cleared once sampling is stopped.
+  {
+    v8::AllocationProfile* profile = heap_profiler->GetAllocationProfile();
+    CHECK(profile == nullptr);
+  }
+
+  // Sampling at a higher rate should give us similar numbers of objects.
+  {
+    heap_profiler->StartSamplingHeapProfiler(128);
+    CompileRun(script_source);
+
+    v8::base::SmartPointer<v8::AllocationProfile> profile(
+        heap_profiler->GetAllocationProfile());
+    CHECK(!profile.is_empty());
+
+    const char* names[] = {"", "foo", "bar"};
+    auto node_bar = FindAllocationProfileNode(
+        *profile, Vector<const char*>(names, arraysize(names)));
+    CHECK(node_bar);
+
+    // Count the number of allocations we sampled from bar.
+    int count_128 = 0;
+    for (auto allocation : node_bar->allocations) {
+      count_128 += allocation.count;
+    }
+
+    // We should have similar unsampled counts of allocations. Though
+    // we will sample different numbers of objects at different rates,
+    // the unsampling process should produce similar final estimates
+    // at the true number of allocations. However, the process to
+    // determine these unsampled counts is probabilisitic so we need to
+    // account for error.
+    double max_count = std::max(count_128, count_1024);
+    double min_count = std::min(count_128, count_1024);
+    double percent_difference = (max_count - min_count) / min_count;
+    CHECK_LT(percent_difference, 0.15);
+
+    heap_profiler->StopSamplingHeapProfiler();
+  }
+
+  // A more complicated test cases with deeper call graph and dynamically
+  // generated function names.
+  {
+    heap_profiler->StartSamplingHeapProfiler(64);
+    CompileRun(record_trace_tree_source);
+
+    v8::base::SmartPointer<v8::AllocationProfile> profile(
+        heap_profiler->GetAllocationProfile());
+    CHECK(!profile.is_empty());
+
+    const char* names1[] = {"", "start", "f_0_0", "f_0_1", "f_0_2"};
+    auto node1 = FindAllocationProfileNode(
+        *profile, Vector<const char*>(names1, arraysize(names1)));
+    CHECK(node1);
+
+    const char* names2[] = {"", "generateFunctions"};
+    auto node2 = FindAllocationProfileNode(
+        *profile, Vector<const char*>(names2, arraysize(names2)));
+    CHECK(node2);
+
+    heap_profiler->StopSamplingHeapProfiler();
+  }
+}
+
+
+TEST(SamplingHeapProfilerApiAllocation) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+
+  heap_profiler->StartSamplingHeapProfiler(256);
+
+  for (int i = 0; i < 8 * 1024; ++i) v8::Object::New(env->GetIsolate());
+
+  v8::base::SmartPointer<v8::AllocationProfile> profile(
+      heap_profiler->GetAllocationProfile());
+  CHECK(!profile.is_empty());
+  const char* names[] = {"(V8 API)"};
+  auto node = FindAllocationProfileNode(
+      *profile, Vector<const char*>(names, arraysize(names)));
+  CHECK(node);
+
+  heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(SamplingHeapProfilerLeftTrimming) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  // Suppress randomness to avoid flakiness in tests.
+  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+
+  heap_profiler->StartSamplingHeapProfiler(64);
+
+  CompileRun(
+      "for (var j = 0; j < 500; ++j) {\n"
+      "  var a = [];\n"
+      "  for (var i = 0; i < 5; ++i)\n"
+      "      a[i] = i;\n"
+      "  for (var i = 0; i < 3; ++i)\n"
+      "      a.shift();\n"
+      "}\n");
+
+  CcTest::heap()->CollectGarbage(v8::internal::NEW_SPACE);
+  // Should not crash.
+
+  heap_profiler->StopSamplingHeapProfiler();
 }

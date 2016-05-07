@@ -23,6 +23,6 @@ if (process.argv[2] === 'fork') {
   });
 
   child.on('exit', function() {
-    assert.deepEqual(JSON.parse(out), execArgv);
+    assert.deepStrictEqual(JSON.parse(out), execArgv);
   });
 }

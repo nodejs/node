@@ -37,6 +37,28 @@ var ast = acorn.parse(code, {
 });
 ```
 
+Note that official spec doesn't support mix of XML namespaces and object-style access in tag names (#27) like in `<namespace:Object.Property />`, so it was deprecated in `acorn-jsx@3.0`. If you still want to opt-in to support of such constructions, you can pass the following option:
+
+```javascript
+var ast = acorn.parse(code, {
+  plugins: {
+    jsx: { allowNamespacedObjects: true }
+  }
+});
+```
+
+Also, since most apps use pure React transformer, a new option was introduced that allows to prohibit namespaces completely:
+
+```javascript
+var ast = acorn.parse(code, {
+  plugins: {
+    jsx: { allowNamespaces: false }
+  }
+});
+```
+
+Note that by default `allowNamespaces` is enabled for spec compliancy.
+
 ## License
 
 This plugin is issued under the [MIT license](./LICENSE).

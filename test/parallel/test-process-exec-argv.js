@@ -16,6 +16,6 @@ if (process.argv[2] === 'child') {
   });
 
   child.on('exit', function() {
-    assert.deepEqual(JSON.parse(out), execArgv);
+    assert.deepStrictEqual(JSON.parse(out), execArgv);
   });
 }

@@ -11,7 +11,8 @@ var fl;  // foo listeners
 fl = e.listeners('foo');
 assert(Array.isArray(fl));
 assert(fl.length === 0);
-assert.deepEqual(e._events, {});
+assert(!(e._events instanceof Object));
+assert.deepStrictEqual(Object.keys(e._events), []);
 
 e.on('foo', assert.fail);
 fl = e.listeners('foo');
@@ -21,7 +22,6 @@ assert(fl.length === 1);
 assert(fl[0] === assert.fail);
 
 e.listeners('bar');
-assert(!e._events.hasOwnProperty('bar'));
 
 e.on('foo', assert.ok);
 fl = e.listeners('foo');

@@ -812,7 +812,7 @@ ObjectMirror.prototype.lookupProperty = function(value) {
     // Skip properties which are defined through accessors.
     var property = properties[i];
     if (property.propertyType() != PropertyType.AccessorConstant) {
-      if (%_ObjectEquals(property.value_, value.value_)) {
+      if (property.value_ === value.value_) {
         return property;
       }
     }

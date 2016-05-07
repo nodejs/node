@@ -65,7 +65,6 @@ include that scope, e.g.
 ## SEE ALSO
 
 * npm-developers(7)
-* npm-faq(7)
 * package.json(5)
 * npm-install(1)
 * npm-folders(5)

@@ -62,6 +62,7 @@ Writer.prototype.write = function(chunk, encoding, cb) {
 Writer.prototype.on = function() {};
 Writer.prototype.once = function() {};
 Writer.prototype.emit = function() {};
+Writer.prototype.prependListener = function() {};
 
 
 function Reader() {

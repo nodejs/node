@@ -151,7 +151,8 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = kX87Movl;
       break;
-    case MachineRepresentation::kWord64:  // Fall through.
+    case MachineRepresentation::kWord64:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -236,7 +237,8 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord32:
         opcode = kX87Movl;
         break;
-      case MachineRepresentation::kWord64:  // Fall through.
+      case MachineRepresentation::kWord64:   // Fall through.
+      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -288,9 +290,10 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kFloat64:
       opcode = kCheckedLoadFloat64;
       break;
-    case MachineRepresentation::kBit:     // Fall through.
-    case MachineRepresentation::kTagged:  // Fall through.
-    case MachineRepresentation::kWord64:  // Fall through.
+    case MachineRepresentation::kBit:      // Fall through.
+    case MachineRepresentation::kTagged:   // Fall through.
+    case MachineRepresentation::kWord64:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -334,9 +337,10 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kFloat64:
       opcode = kCheckedStoreFloat64;
       break;
-    case MachineRepresentation::kBit:     // Fall through.
-    case MachineRepresentation::kTagged:  // Fall through.
-    case MachineRepresentation::kWord64:  // Fall through.
+    case MachineRepresentation::kBit:      // Fall through.
+    case MachineRepresentation::kTagged:   // Fall through.
+    case MachineRepresentation::kWord64:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -469,9 +473,10 @@ namespace {
 void VisitMulHigh(InstructionSelector* selector, Node* node,
                   ArchOpcode opcode) {
   X87OperandGenerator g(selector);
-  selector->Emit(opcode, g.DefineAsFixed(node, edx),
-                 g.UseFixed(node->InputAt(0), eax),
-                 g.UseUniqueRegister(node->InputAt(1)));
+  InstructionOperand temps[] = {g.TempRegister(eax)};
+  selector->Emit(
+      opcode, g.DefineAsFixed(node, edx), g.UseFixed(node->InputAt(0), eax),
+      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 
@@ -547,6 +552,9 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 
 
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
+
+
+void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 
 
 void InstructionSelector::VisitWord32Popcnt(Node* node) {
@@ -655,6 +663,20 @@ void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundInt32ToFloat32(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87Int32ToFloat32, g.DefineAsFixed(node, stX_0),
+       g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87Uint32ToFloat32, g.DefineAsFixed(node, stX_0),
+       g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   X87OperandGenerator g(this);
   Emit(kX87Int32ToFloat64, g.DefineAsFixed(node, stX_0),
@@ -666,6 +688,18 @@ void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   X87OperandGenerator g(this);
   Emit(kX87Uint32ToFloat64, g.DefineAsFixed(node, stX_0),
        g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87Float32ToInt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87Float32ToUint32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 
@@ -959,6 +993,46 @@ bool InstructionSelector::IsTailCallAddressImmediate() { return true; }
 
 namespace {
 
+void VisitCompareWithMemoryOperand(InstructionSelector* selector,
+                                   InstructionCode opcode, Node* left,
+                                   InstructionOperand right,
+                                   FlagsContinuation* cont) {
+  DCHECK(left->opcode() == IrOpcode::kLoad);
+  X87OperandGenerator g(selector);
+  size_t input_count = 0;
+  InstructionOperand inputs[6];
+  AddressingMode addressing_mode =
+      g.GetEffectiveAddressMemoryOperand(left, inputs, &input_count);
+  opcode |= AddressingModeField::encode(addressing_mode);
+  opcode = cont->Encode(opcode);
+  inputs[input_count++] = right;
+
+  if (cont->IsBranch()) {
+    inputs[input_count++] = g.Label(cont->true_block());
+    inputs[input_count++] = g.Label(cont->false_block());
+    selector->Emit(opcode, 0, nullptr, input_count, inputs);
+  } else {
+    DCHECK(cont->IsSet());
+    InstructionOperand output = g.DefineAsRegister(cont->result());
+    selector->Emit(opcode, 1, &output, input_count, inputs);
+  }
+}
+
+// Determines if {input} of {node} can be replaced by a memory operand.
+bool CanUseMemoryOperand(InstructionSelector* selector, InstructionCode opcode,
+                         Node* node, Node* input) {
+  if (input->opcode() != IrOpcode::kLoad || !selector->CanCover(node, input)) {
+    return false;
+  }
+  MachineRepresentation load_representation =
+      LoadRepresentationOf(input->op()).representation();
+  if (load_representation == MachineRepresentation::kWord32 ||
+      load_representation == MachineRepresentation::kTagged) {
+    return opcode == kX87Cmp || opcode == kX87Test;
+  }
+  return false;
+}
+
 // Shared routine for multiple compare operations.
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
@@ -1020,26 +1094,41 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
   }
 }
 
-
 // Shared routine for multiple word compare operations.
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       InstructionCode opcode, FlagsContinuation* cont) {
   X87OperandGenerator g(selector);
-  Node* const left = node->InputAt(0);
-  Node* const right = node->InputAt(1);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
 
-  // Match immediates on left or right side of comparison.
-  if (g.CanBeImmediate(right)) {
-    VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right), cont);
-  } else if (g.CanBeImmediate(left)) {
+  // If one of the two inputs is an immediate, make sure it's on the right.
+  if (!g.CanBeImmediate(right) && g.CanBeImmediate(left)) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    VisitCompare(selector, opcode, g.Use(right), g.UseImmediate(left), cont);
-  } else {
-    VisitCompare(selector, opcode, left, right, cont,
-                 node->op()->HasProperty(Operator::kCommutative));
+    std::swap(left, right);
   }
-}
 
+  // Match immediates on right side of comparison.
+  if (g.CanBeImmediate(right)) {
+    if (CanUseMemoryOperand(selector, opcode, node, left)) {
+      return VisitCompareWithMemoryOperand(selector, opcode, left,
+                                           g.UseImmediate(right), cont);
+    }
+    return VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right),
+                        cont);
+  }
+
+  if (g.CanBeBetterLeftOperand(right)) {
+    if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+    std::swap(left, right);
+  }
+
+  if (CanUseMemoryOperand(selector, opcode, node, left)) {
+    return VisitCompareWithMemoryOperand(selector, opcode, left,
+                                         g.UseRegister(right), cont);
+  }
+  return VisitCompare(selector, opcode, left, right, cont,
+                      node->op()->HasProperty(Operator::kCommutative));
+}
 
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       FlagsContinuation* cont) {

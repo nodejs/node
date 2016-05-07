@@ -47,14 +47,14 @@ uint32_t BytecodeArrayIterator::GetRawOperand(int operand_index,
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index);
   switch (Bytecodes::SizeOfOperand(operand_type)) {
-    default:
-    case OperandSize::kNone:
-      UNREACHABLE();
     case OperandSize::kByte:
       return static_cast<uint32_t>(*operand_start);
     case OperandSize::kShort:
       return ReadUnalignedUInt16(operand_start);
+    case OperandSize::kNone:
+      UNREACHABLE();
   }
+  return 0;
 }
 
 
@@ -63,12 +63,11 @@ int8_t BytecodeArrayIterator::GetImmediateOperand(int operand_index) const {
   return static_cast<int8_t>(operand);
 }
 
-
-int BytecodeArrayIterator::GetCountOperand(int operand_index) const {
+int BytecodeArrayIterator::GetRegisterCountOperand(int operand_index) const {
   OperandSize size =
       Bytecodes::GetOperandSize(current_bytecode(), operand_index);
-  OperandType type = (size == OperandSize::kByte) ? OperandType::kCount8
-                                                  : OperandType::kCount16;
+  OperandType type = (size == OperandSize::kByte) ? OperandType::kRegCount8
+                                                  : OperandType::kRegCount16;
   uint32_t operand = GetRawOperand(operand_index, type);
   return static_cast<int>(operand);
 }
@@ -87,19 +86,63 @@ int BytecodeArrayIterator::GetIndexOperand(int operand_index) const {
 Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
-  DCHECK(operand_type == OperandType::kReg8 ||
-         operand_type == OperandType::kRegPair8 ||
-         operand_type == OperandType::kMaybeReg8 ||
-         operand_type == OperandType::kReg16);
+  DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
   uint32_t operand = GetRawOperand(operand_index, operand_type);
-  return Register::FromOperand(operand);
+  Register reg;
+  switch (Bytecodes::GetOperandSize(current_bytecode(), operand_index)) {
+    case OperandSize::kByte:
+      reg = Register::FromOperand(static_cast<uint8_t>(operand));
+      break;
+    case OperandSize::kShort:
+      reg = Register::FromWideOperand(static_cast<uint16_t>(operand));
+      break;
+    case OperandSize::kNone:
+      UNREACHABLE();
+      reg = Register::invalid_value();
+      break;
+  }
+  DCHECK_GE(reg.index(),
+            Register::FromParameterIndex(0, bytecode_array()->parameter_count())
+                .index());
+  DCHECK(reg.index() < bytecode_array()->register_count() ||
+         (reg.index() == 0 &&
+          Bytecodes::IsMaybeRegisterOperandType(
+              Bytecodes::GetOperandType(current_bytecode(), operand_index))));
+  return reg;
 }
 
+int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
+  interpreter::OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
+  switch (operand_type) {
+    case OperandType::kRegPair8:
+    case OperandType::kRegPair16:
+    case OperandType::kRegOutPair8:
+    case OperandType::kRegOutPair16:
+      return 2;
+    case OperandType::kRegOutTriple8:
+    case OperandType::kRegOutTriple16:
+      return 3;
+    default: {
+      if (operand_index + 1 !=
+          Bytecodes::NumberOfOperands(current_bytecode())) {
+        OperandType next_operand_type =
+            Bytecodes::GetOperandType(current_bytecode(), operand_index + 1);
+        if (Bytecodes::IsRegisterCountOperandType(next_operand_type)) {
+          return GetRegisterCountOperand(operand_index + 1);
+        }
+      }
+      return 1;
+    }
+  }
+}
 
 Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
     int operand_index) const {
-  Handle<FixedArray> constants = handle(bytecode_array()->constant_pool());
-  return FixedArray::get(constants, GetIndexOperand(operand_index));
+  return FixedArray::get(bytecode_array()->constant_pool(),
+                         GetIndexOperand(operand_index),
+                         bytecode_array()->GetIsolate());
 }
 
 

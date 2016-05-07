@@ -31,7 +31,7 @@ function getall() {
       res.resume();
       console.error('in cb');
       done += 1;
-      res.on('end', gc);
+      res.on('end', global.gc);
     }
 
     var req = http.get({
@@ -57,7 +57,7 @@ function afterGC() {
 setInterval(status, 1000).unref();
 
 function status() {
-  gc();
+  global.gc();
   console.log('Done: %d/%d', done, todo);
   console.log('Collected: %d/%d', countGC, count);
   if (done === todo) {

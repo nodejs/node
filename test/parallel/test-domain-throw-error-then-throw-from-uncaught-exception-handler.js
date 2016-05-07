@@ -62,8 +62,8 @@ function runTestWithoutAbortOnUncaughtException() {
           'include domain\'s error\'s message');
 
         assert.notEqual(err.code, 0,
-            'child process should have exited with a non-zero exit code, ' +
-            'but did not');
+                        'child process should have exited with a non-zero ' +
+                        'exit code, but did not');
       });
 }
 
@@ -72,8 +72,8 @@ function runTestWithAbortOnUncaughtException() {
     withAbortOnUncaughtException: true
   }), function onTestDone(err, stdout, stderr) {
     assert.notEqual(err.code, RAN_UNCAUGHT_EXCEPTION_HANDLER_EXIT_CODE,
-        'child process should not have run its uncaughtException event ' +
-        'handler');
+                    'child process should not have run its uncaughtException ' +
+                    'event handler');
     assert(common.nodeProcessAborted(err.code, err.signal),
         'process should have aborted, but did not');
   });

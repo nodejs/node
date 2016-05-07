@@ -873,7 +873,7 @@ var parseTests = {
 for (const u in parseTests) {
   let actual = url.parse(u);
   const spaced = url.parse(`     \t  ${u}\n\t`);
-  let expected = parseTests[u];
+  let expected = Object.assign(new url.Url(), parseTests[u]);
 
   Object.keys(actual).forEach(function(i) {
     if (expected[i] === undefined && actual[i] === null) {
@@ -881,8 +881,8 @@ for (const u in parseTests) {
     }
   });
 
-  assert.deepEqual(actual, expected);
-  assert.deepEqual(spaced, expected);
+  assert.deepStrictEqual(actual, expected);
+  assert.deepStrictEqual(spaced, expected);
 
   expected = parseTests[u].href;
   actual = url.format(parseTests[u]);
@@ -891,14 +891,29 @@ for (const u in parseTests) {
                'format(' + u + ') == ' + u + '\nactual:' + actual);
 }
 
+function createWithNoPrototype(properties = []) {
+  const noProto = Object.create(null);
+  properties.forEach((property) => {
+    noProto[property.key] = property.value;
+  });
+  return noProto;
+}
+
+function check(actual, expected) {
+  assert.notStrictEqual(Object.getPrototypeOf(actual), Object.prototype);
+  assert.deepStrictEqual(Object.keys(actual).sort(),
+                         Object.keys(expected).sort());
+  Object.keys(expected).forEach(function(key) {
+    assert.deepStrictEqual(actual[key], expected[key]);
+  });
+}
+
 var parseTestsWithQueryString = {
   '/foo/bar?baz=quux#frag': {
     href: '/foo/bar?baz=quux#frag',
     hash: '#frag',
     search: '?baz=quux',
-    query: {
-      baz: 'quux'
-    },
+    query: createWithNoPrototype([{key: 'baz', value: 'quux'}]),
     pathname: '/foo/bar',
     path: '/foo/bar?baz=quux'
   },
@@ -908,7 +923,7 @@ var parseTestsWithQueryString = {
     slashes: true,
     host: 'example.com',
     hostname: 'example.com',
-    query: {},
+    query: createWithNoPrototype(),
     search: '',
     pathname: '/',
     path: '/'
@@ -916,27 +931,27 @@ var parseTestsWithQueryString = {
   '/example': {
     protocol: null,
     slashes: null,
-    auth: null,
+    auth: undefined,
     host: null,
     port: null,
     hostname: null,
     hash: null,
     search: '',
-    query: {},
+    query: createWithNoPrototype(),
     pathname: '/example',
     path: '/example',
     href: '/example'
   },
-  '/example?query=value':{
+  '/example?query=value': {
     protocol: null,
     slashes: null,
-    auth: null,
+    auth: undefined,
     host: null,
     port: null,
     hostname: null,
     hash: null,
     search: '?query=value',
-    query: { query: 'value' },
+    query: createWithNoPrototype([{ key: 'query', value: 'value' }]),
     pathname: '/example',
     path: '/example?query=value',
     href: '/example?query=value'
@@ -944,14 +959,22 @@ var parseTestsWithQueryString = {
 };
 for (const u in parseTestsWithQueryString) {
   const actual = url.parse(u, true);
-  const expected = parseTestsWithQueryString[u];
+  const expected = Object.assign(new url.Url(), parseTestsWithQueryString[u]);
   for (const i in actual) {
     if (actual[i] === null && expected[i] === undefined) {
       expected[i] = null;
     }
   }
 
-  assert.deepEqual(actual, expected);
+  const properties = Object.keys(actual).sort();
+  assert.deepStrictEqual(properties, Object.keys(expected).sort());
+  properties.forEach((property) => {
+    if (property === 'query') {
+      check(actual[property], expected[property]);
+    } else {
+      assert.deepStrictEqual(actual[property], expected[property]);
+    }
+  });
 }
 
 // some extra formatting tests, just to verify
@@ -1515,7 +1538,21 @@ var relativeTests2 = [
   //changeing auth
   ['http://diff:auth@www.example.com',
    'http://asdf:qwer@www.example.com',
-   'http://diff:auth@www.example.com/']
+   'http://diff:auth@www.example.com/'],
+
+  // https://github.com/nodejs/node/issues/1435
+  ['https://another.host.com/',
+   'https://user:password@example.org/',
+   'https://another.host.com/'],
+  ['//another.host.com/',
+   'https://user:password@example.org/',
+   'https://another.host.com/'],
+  ['http://another.host.com/',
+   'https://user:password@example.org/',
+   'http://another.host.com/'],
+  ['mailto:another.host.com',
+   'mailto:user@example.org',
+   'mailto:another.host.com'],
 ];
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
@@ -1534,7 +1571,7 @@ relativeTests.forEach(function(relativeTest) {
   var expected = url.parse(relativeTest[2]);
 
 
-  assert.deepEqual(actual, expected);
+  assert.deepStrictEqual(actual, expected);
 
   expected = relativeTest[2];
   actual = url.format(actual);
@@ -1561,7 +1598,7 @@ relativeTests2.forEach(function(relativeTest) {
   var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]);
   var expected = url.parse(relativeTest[2]);
 
-  assert.deepEqual(actual, expected);
+  assert.deepStrictEqual(actual, expected);
 
   expected = relativeTest[2];
   actual = url.format(actual);

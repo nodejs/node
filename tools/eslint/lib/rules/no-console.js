@@ -1,7 +1,6 @@
 /**
  * @fileoverview Rule to flag use of console object
  * @author Nicholas C. Zakas
- * @copyright 2016 Eric Correia. All rights reserved.
  */
 
 "use strict";
@@ -10,47 +9,57 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of `console`",
+            category: "Possible Errors",
+            recommended: true
+        },
 
-    return {
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    allow: {
+                        type: "array",
+                        items: {
+                            type: "string"
+                        },
+                        minItems: 1,
+                        uniqueItems: true
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
 
-        "MemberExpression": function(node) {
+    create: function(context) {
 
-            if (node.object.name === "console") {
-                var blockConsole = true;
+        return {
 
-                if (context.options.length > 0) {
-                    var allowedProperties = context.options[0].allow;
-                    var passedProperty = node.property.name;
-                    var propertyIsAllowed = (allowedProperties.indexOf(passedProperty) > -1);
+            MemberExpression: function(node) {
 
-                    if (propertyIsAllowed) {
-                        blockConsole = false;
+                if (node.object.name === "console") {
+                    var blockConsole = true;
+
+                    if (context.options.length > 0) {
+                        var allowedProperties = context.options[0].allow;
+                        var passedProperty = node.property.name;
+                        var propertyIsAllowed = (allowedProperties.indexOf(passedProperty) > -1);
+
+                        if (propertyIsAllowed) {
+                            blockConsole = false;
+                        }
+                    }
+
+                    if (blockConsole) {
+                        context.report(node, "Unexpected console statement.");
                     }
                 }
-
-                if (blockConsole) {
-                    context.report(node, "Unexpected console statement.");
-                }
             }
-        }
-    };
+        };
 
-};
-
-module.exports.schema = [
-    {
-        "type": "object",
-        "properties": {
-            "allow": {
-                "type": "array",
-                "items": {
-                    "type": "string"
-                },
-                "minItems": 1,
-                "uniqueItems": true
-            }
-        },
-        "additionalProperties": false
     }
-];
+};

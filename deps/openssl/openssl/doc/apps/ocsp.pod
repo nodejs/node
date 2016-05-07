@@ -29,7 +29,7 @@ B<openssl> B<ocsp>
 [B<-path>]
 [B<-CApath dir>]
 [B<-CAfile file>]
-[B<-no_alt_chains>]]
+[B<-no_alt_chains>]
 [B<-VAfile file>]
 [B<-validity_period n>]
 [B<-status_age n>]

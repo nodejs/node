@@ -5,7 +5,7 @@ const path = require('path');
 const marked = require('marked');
 
 const rootDir = path.resolve(__dirname, '..', '..');
-const doc = path.resolve(rootDir, 'doc', 'api', 'addons.markdown');
+const doc = path.resolve(rootDir, 'doc', 'api', 'addons.md');
 const verifyDir = path.resolve(rootDir, 'test', 'addons');
 
 const contents = fs.readFileSync(doc).toString();

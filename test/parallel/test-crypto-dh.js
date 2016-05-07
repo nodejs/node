@@ -46,10 +46,10 @@ var privkey1 = dh1.getPrivateKey();
 dh3.setPublicKey(key1);
 dh3.setPrivateKey(privkey1);
 
-assert.deepEqual(dh1.getPrime(), dh3.getPrime());
-assert.deepEqual(dh1.getGenerator(), dh3.getGenerator());
-assert.deepEqual(dh1.getPublicKey(), dh3.getPublicKey());
-assert.deepEqual(dh1.getPrivateKey(), dh3.getPrivateKey());
+assert.deepStrictEqual(dh1.getPrime(), dh3.getPrime());
+assert.deepStrictEqual(dh1.getGenerator(), dh3.getGenerator());
+assert.deepStrictEqual(dh1.getPublicKey(), dh3.getPublicKey());
+assert.deepStrictEqual(dh1.getPrivateKey(), dh3.getPrivateKey());
 assert.equal(dh3.verifyError, 0);
 
 var secret3 = dh3.computeSecret(key2, 'hex', 'base64');

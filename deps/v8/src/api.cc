@@ -15,6 +15,7 @@
 #include "include/v8-experimental.h"
 #include "include/v8-profiler.h"
 #include "include/v8-testing.h"
+#include "src/accessors.h"
 #include "src/api-experimental.h"
 #include "src/api-natives.h"
 #include "src/assert-scope.h"
@@ -38,8 +39,8 @@
 #include "src/global-handles.h"
 #include "src/icu_util.h"
 #include "src/isolate-inl.h"
+#include "src/json-parser.h"
 #include "src/messages.h"
-#include "src/parsing/json-parser.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/pending-compilation-error-handler.h"
@@ -58,6 +59,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/startup-data-util.h"
+#include "src/tracing/trace-event.h"
 #include "src/unicode-inl.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -167,6 +169,7 @@ class CallDepthScope {
     isolate_->IncrementJsCallsFromApiCounter();
     isolate_->handle_scope_implementer()->IncrementCallDepth();
     if (!context_.IsEmpty()) context_->Enter();
+    if (do_callback_) isolate_->FireBeforeCallEnteredCallback();
   }
   ~CallDepthScope() {
     if (!context_.IsEmpty()) context_->Exit();
@@ -223,7 +226,7 @@ void i::FatalProcessOutOfMemory(const char* location) {
 
 // When V8 cannot allocated memory FatalProcessOutOfMemory is called.
 // The default fatal error handler is called and execution is stopped.
-void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
+void i::V8::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
   i::Isolate* isolate = i::Isolate::Current();
   char last_few_messages[Heap::kTraceRingBufferSize + 1];
   char js_stacktrace[Heap::kStacktraceBufferSize + 1];
@@ -285,7 +288,9 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
     PrintF("\n<--- Last few GCs --->\n%s\n", first_newline);
     PrintF("\n<--- JS stacktrace --->\n%s\n", js_stacktrace);
   }
-  Utils::ApiCheck(false, location, "Allocation failed - process out of memory");
+  Utils::ApiCheck(false, location, is_heap_oom
+                  ? "Allocation failed - JavaScript heap out of memory"
+                  : "Allocation failed - process out of memory");
   // If the fatal error handler returns, we stop execution.
   FATAL("API fatal error handler returned after process out of memory");
 }
@@ -934,6 +939,17 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
   i::Isolate* isolate = templ->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
+  auto value_obj = Utils::OpenHandle(*value);
+  if (i::FLAG_warn_template_set &&
+      value_obj->IsJSReceiver() &&
+      !value_obj->IsTemplateInfo()) {
+    base::OS::PrintError(
+        "(node) v8::%sTemplate::Set() with non-primitive values is deprecated\n"
+        "(node) and will stop working in the next major release.\n",
+        templ->IsFunctionTemplateInfo() ? "Function" : "Object");
+    isolate->PrintStack(stderr, i::Isolate::kPrintStackConcise);
+    base::DumpBacktrace();
+  }
   // TODO(dcarney): split api to allow values of v8::Value or v8::TemplateInfo.
   i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
                                  Utils::OpenHandle(*value),
@@ -969,6 +985,9 @@ static void InitializeFunctionTemplate(
   info->set_flag(0);
 }
 
+static Local<ObjectTemplate> ObjectTemplateNew(
+    i::Isolate* isolate, v8::Local<FunctionTemplate> constructor,
+    bool do_not_cache);
 
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
@@ -976,8 +995,9 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   i::Handle<i::Object> result(Utils::OpenHandle(this)->prototype_template(),
                               i_isolate);
   if (result->IsUndefined()) {
-    v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
-    result = Utils::OpenHandle(*ObjectTemplate::New(isolate));
+    // Do not cache prototype objects.
+    result = Utils::OpenHandle(
+        *ObjectTemplateNew(i_isolate, Local<FunctionTemplate>(), true));
     Utils::OpenHandle(this)->set_prototype_template(*result);
   }
   return ToApiHandle<ObjectTemplate>(result);
@@ -1119,21 +1139,23 @@ static i::Handle<i::AccessorInfo> SetAccessorInfoProperties(
   return obj;
 }
 
-
 template <typename Getter, typename Setter>
 static i::Handle<i::AccessorInfo> MakeAccessorInfo(
     v8::Local<Name> name, Getter getter, Setter setter, v8::Local<Value> data,
     v8::AccessControl settings, v8::PropertyAttribute attributes,
-    v8::Local<AccessorSignature> signature) {
+    v8::Local<AccessorSignature> signature, bool is_special_data_property) {
   i::Isolate* isolate = Utils::OpenHandle(*name)->GetIsolate();
-  i::Handle<i::ExecutableAccessorInfo> obj =
-      isolate->factory()->NewExecutableAccessorInfo();
+  i::Handle<i::AccessorInfo> obj = isolate->factory()->NewAccessorInfo();
   SET_FIELD_WRAPPED(obj, set_getter, getter);
+  if (is_special_data_property && setter == nullptr) {
+    setter = reinterpret_cast<Setter>(&i::Accessors::ReconfigureToDataProperty);
+  }
   SET_FIELD_WRAPPED(obj, set_setter, setter);
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
   obj->set_data(*Utils::OpenHandle(*data));
+  obj->set_is_special_data_property(is_special_data_property);
   return SetAccessorInfoProperties(obj, name, settings, attributes, signature);
 }
 
@@ -1225,9 +1247,9 @@ Local<ObjectTemplate> ObjectTemplate::New() {
   return New(i::Isolate::Current(), Local<FunctionTemplate>());
 }
 
-
-Local<ObjectTemplate> ObjectTemplate::New(
-    i::Isolate* isolate, v8::Local<FunctionTemplate> constructor) {
+static Local<ObjectTemplate> ObjectTemplateNew(
+    i::Isolate* isolate, v8::Local<FunctionTemplate> constructor,
+    bool do_not_cache) {
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // object templates when the isolate is created for serialization.
   DCHECK(!isolate->serializer_enabled());
@@ -1238,12 +1260,22 @@ Local<ObjectTemplate> ObjectTemplate::New(
   i::Handle<i::ObjectTemplateInfo> obj =
       i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
   InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
+  int next_serial_number = 0;
+  if (!do_not_cache) {
+    next_serial_number = isolate->next_serial_number() + 1;
+    isolate->set_next_serial_number(next_serial_number);
+  }
+  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (!constructor.IsEmpty())
     obj->set_constructor(*Utils::OpenHandle(*constructor));
   obj->set_internal_field_count(i::Smi::FromInt(0));
   return Utils::ToLocal(obj);
 }
 
+Local<ObjectTemplate> ObjectTemplate::New(
+    i::Isolate* isolate, v8::Local<FunctionTemplate> constructor) {
+  return ObjectTemplateNew(isolate, constructor, false);
+}
 
 // Ensure that the object template has a constructor.  If no
 // constructor is available we create one.
@@ -1264,39 +1296,20 @@ static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
 }
 
 
-static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
-    i::Isolate* isolate,
-    Template* template_obj) {
-  return Utils::OpenHandle(template_obj);
-}
-
-
-// TODO(dcarney): remove this with ObjectTemplate::SetAccessor
-static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
-    i::Isolate* isolate,
-    ObjectTemplate* object_template) {
-  EnsureConstructor(isolate, object_template);
-  return Utils::OpenHandle(object_template);
-}
-
-
-template<typename Getter, typename Setter, typename Data, typename Template>
-static bool TemplateSetAccessor(
-    Template* template_obj,
-    v8::Local<Name> name,
-    Getter getter,
-    Setter setter,
-    Data data,
-    AccessControl settings,
-    PropertyAttribute attribute,
-    v8::Local<AccessorSignature> signature) {
-  auto isolate = Utils::OpenHandle(template_obj)->GetIsolate();
+template <typename Getter, typename Setter, typename Data, typename Template>
+static bool TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
+                                Getter getter, Setter setter, Data data,
+                                AccessControl settings,
+                                PropertyAttribute attribute,
+                                v8::Local<AccessorSignature> signature,
+                                bool is_special_data_property) {
+  auto info = Utils::OpenHandle(template_obj);
+  auto isolate = info->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   auto obj = MakeAccessorInfo(name, getter, setter, data, settings, attribute,
-                              signature);
+                              signature, is_special_data_property);
   if (obj.is_null()) return false;
-  auto info = GetTemplateInfo(isolate, template_obj);
   i::ApiNatives::AddNativeDataProperty(isolate, info, obj);
   return true;
 }
@@ -1309,8 +1322,8 @@ void Template::SetNativeDataProperty(v8::Local<String> name,
                                      PropertyAttribute attribute,
                                      v8::Local<AccessorSignature> signature,
                                      AccessControl settings) {
-  TemplateSetAccessor(
-      this, name, getter, setter, data, settings, attribute, signature);
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      signature, true);
 }
 
 
@@ -1321,8 +1334,8 @@ void Template::SetNativeDataProperty(v8::Local<Name> name,
                                      PropertyAttribute attribute,
                                      v8::Local<AccessorSignature> signature,
                                      AccessControl settings) {
-  TemplateSetAccessor(
-      this, name, getter, setter, data, settings, attribute, signature);
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      signature, true);
 }
 
 
@@ -1344,8 +1357,8 @@ void ObjectTemplate::SetAccessor(v8::Local<String> name,
                                  v8::Local<Value> data, AccessControl settings,
                                  PropertyAttribute attribute,
                                  v8::Local<AccessorSignature> signature) {
-  TemplateSetAccessor(
-      this, name, getter, setter, data, settings, attribute, signature);
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      signature, i::FLAG_disable_old_api_accessors);
 }
 
 
@@ -1355,8 +1368,8 @@ void ObjectTemplate::SetAccessor(v8::Local<Name> name,
                                  v8::Local<Value> data, AccessControl settings,
                                  PropertyAttribute attribute,
                                  v8::Local<AccessorSignature> signature) {
-  TemplateSetAccessor(
-      this, name, getter, setter, data, settings, attribute, signature);
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      signature, i::FLAG_disable_old_api_accessors);
 }
 
 
@@ -1452,6 +1465,10 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   cons->set_needs_access_check(true);
 }
 
+void ObjectTemplate::SetAccessCheckCallback(
+    DeprecatedAccessCheckCallback callback, Local<Value> data) {
+  SetAccessCheckCallback(reinterpret_cast<AccessCheckCallback>(callback), data);
+}
 
 void ObjectTemplate::SetAccessCheckCallbacks(
     NamedSecurityCallback named_callback,
@@ -1602,32 +1619,7 @@ Local<Script> UnboundScript::BindToCurrentContext() {
       function_info(i::SharedFunctionInfo::cast(*obj), obj->GetIsolate());
   i::Isolate* isolate = obj->GetIsolate();
 
-  i::ScopeInfo* scope_info = function_info->scope_info();
   i::Handle<i::JSReceiver> global(isolate->native_context()->global_object());
-  for (int i = 0; i < scope_info->StrongModeFreeVariableCount(); ++i) {
-    i::Handle<i::String> name_string(scope_info->StrongModeFreeVariableName(i));
-    i::ScriptContextTable::LookupResult result;
-    i::Handle<i::ScriptContextTable> script_context_table(
-        isolate->native_context()->script_context_table());
-    if (!i::ScriptContextTable::Lookup(script_context_table, name_string,
-                                       &result)) {
-      i::Handle<i::Name> name(scope_info->StrongModeFreeVariableName(i));
-      Maybe<bool> has = i::JSReceiver::HasProperty(global, name);
-      if (has.IsJust() && !has.FromJust()) {
-        i::PendingCompilationErrorHandler pending_error_handler_;
-        pending_error_handler_.ReportMessageAt(
-            scope_info->StrongModeFreeVariableStartPosition(i),
-            scope_info->StrongModeFreeVariableEndPosition(i),
-            i::MessageTemplate::kStrongUnboundGlobal, name_string,
-            i::kReferenceError);
-        i::Handle<i::Script> script(i::Script::cast(function_info->script()));
-        pending_error_handler_.ThrowPendingError(isolate, script);
-        isolate->ReportPendingMessages();
-        isolate->OptionalRescheduleException(true);
-        return Local<Script>();
-      }
-    }
-  }
   i::Handle<i::JSFunction> function =
       obj->GetIsolate()->factory()->NewFunctionFromSharedFunctionInfo(
           function_info, isolate->native_context());
@@ -1708,6 +1700,7 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, "v8::Script::Run()", Value)
   i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  TRACE_EVENT0("v8", "V8.Execute");
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> receiver(isolate->global_proxy(), isolate);
   Local<Value> result;
@@ -1761,6 +1754,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   i::Handle<i::SharedFunctionInfo> result;
   {
     i::HistogramTimerScope total(isolate->counters()->compile_script(), true);
+    TRACE_EVENT0("v8", "V8.CompileScript");
     i::Handle<i::Object> name_obj;
     i::Handle<i::Object> source_map_url;
     int line_offset = 0;
@@ -2930,11 +2924,11 @@ Local<String> Value::ToDetailString(Isolate* isolate) const {
 
 MaybeLocal<Object> Value::ToObject(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
-  if (obj->IsJSObject()) return ToApiHandle<Object>(obj);
+  if (obj->IsJSReceiver()) return ToApiHandle<Object>(obj);
   PREPARE_FOR_EXECUTION(context, "ToObject", Object);
   Local<Object> result;
   has_pending_exception =
-      !ToLocal<Object>(i::Execution::ToObject(isolate, obj), &result);
+      !ToLocal<Object>(i::Object::ToObject(isolate, obj), &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
 }
@@ -3308,16 +3302,14 @@ double Value::NumberValue() const {
 
 Maybe<int64_t> Value::IntegerValue(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> num;
   if (obj->IsNumber()) {
-    num = obj;
-  } else {
-    PREPARE_FOR_EXECUTION_PRIMITIVE(context, "IntegerValue", int64_t);
-    has_pending_exception = !i::Object::ToInteger(isolate, obj).ToHandle(&num);
-    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int64_t);
+    return Just(NumberToInt64(*obj));
   }
-  return Just(num->IsSmi() ? static_cast<int64_t>(i::Smi::cast(*num)->value())
-                           : static_cast<int64_t>(num->Number()));
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "IntegerValue", int64_t);
+  i::Handle<i::Object> num;
+  has_pending_exception = !i::Object::ToInteger(isolate, obj).ToHandle(&num);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int64_t);
+  return Just(NumberToInt64(*num));
 }
 
 
@@ -3559,7 +3551,8 @@ static i::MaybeHandle<i::Object> DefineObjectProperty(
       isolate, js_object, key, &success, i::LookupIterator::OWN);
   if (!success) return i::MaybeHandle<i::Object>();
 
-  return i::JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs);
+  return i::JSObject::DefineOwnPropertyIgnoreAttributes(
+      &it, value, attrs, i::JSObject::FORCE_FIELD);
 }
 
 
@@ -3600,8 +3593,27 @@ bool v8::Object::ForceSet(v8::Local<Value> key, v8::Local<Value> value,
 
 Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
                                    Local<Value> value) {
-  return DefineOwnProperty(context, Local<Name>(reinterpret_cast<Name*>(*key)),
-                           value, DontEnum);
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::SetPrivate()", bool);
+  auto self = Utils::OpenHandle(this);
+  auto key_obj = Utils::OpenHandle(reinterpret_cast<Name*>(*key));
+  auto value_obj = Utils::OpenHandle(*value);
+  if (self->IsJSProxy()) {
+    i::PropertyDescriptor desc;
+    desc.set_writable(true);
+    desc.set_enumerable(false);
+    desc.set_configurable(true);
+    desc.set_value(value_obj);
+    return i::JSProxy::SetPrivateProperty(
+        isolate, i::Handle<i::JSProxy>::cast(self),
+        i::Handle<i::Symbol>::cast(key_obj), &desc, i::Object::DONT_THROW);
+  }
+  auto js_object = i::Handle<i::JSObject>::cast(self);
+  i::LookupIterator it(js_object, key_obj);
+  has_pending_exception = i::JSObject::DefineOwnPropertyIgnoreAttributes(
+                              &it, value_obj, i::DONT_ENUM)
+                              .is_null();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
 }
 
 
@@ -3753,8 +3765,7 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context) {
   auto self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value;
   has_pending_exception =
-      !i::JSReceiver::GetKeys(self, i::JSReceiver::INCLUDE_PROTOS,
-                              i::ENUMERABLE_STRINGS)
+      !i::JSReceiver::GetKeys(self, i::INCLUDE_PROTOS, i::ENUMERABLE_STRINGS)
            .ToHandle(&value);
   RETURN_ON_FAILED_EXECUTION(Array);
   // Because we use caching to speed up enumeration it is important
@@ -3776,9 +3787,9 @@ MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, "v8::Object::GetOwnPropertyNames()", Array);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value;
-  has_pending_exception = !i::JSReceiver::GetKeys(self, i::JSReceiver::OWN_ONLY,
-                                                  i::ENUMERABLE_STRINGS)
-                               .ToHandle(&value);
+  has_pending_exception =
+      !i::JSReceiver::GetKeys(self, i::OWN_ONLY, i::ENUMERABLE_STRINGS)
+           .ToHandle(&value);
   RETURN_ON_FAILED_EXECUTION(Array);
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
@@ -3921,7 +3932,7 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(self));
   v8::Local<AccessorSignature> signature;
   auto info = MakeAccessorInfo(name, getter, setter, data, settings, attributes,
-                               signature);
+                               signature, i::FLAG_disable_old_api_accessors);
   if (info.is_null()) return Nothing<bool>();
   bool fast = obj->HasFastProperties();
   i::Handle<i::Object> result;
@@ -4282,6 +4293,7 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, "v8::Object::CallAsFunction()",
                                       Value);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  TRACE_EVENT0("v8", "V8.Execute");
   auto self = Utils::OpenHandle(this);
   auto recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
@@ -4308,6 +4320,7 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   PREPARE_FOR_EXECUTION_WITH_CALLBACK(context,
                                       "v8::Object::CallAsConstructor()", Value);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  TRACE_EVENT0("v8", "V8.Execute");
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
@@ -4357,6 +4370,7 @@ MaybeLocal<Object> Function::NewInstance(Local<Context> context, int argc,
   PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, "v8::Function::NewInstance()",
                                       Object);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  TRACE_EVENT0("v8", "V8.Execute");
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
@@ -4380,6 +4394,7 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
                                      v8::Local<v8::Value> argv[]) {
   PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, "v8::Function::Call()", Value);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  TRACE_EVENT0("v8", "V8.Execute");
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
@@ -7378,6 +7393,20 @@ void Isolate::SetEventLogger(LogEventCallback that) {
 }
 
 
+void Isolate::AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback) {
+  if (callback == NULL) return;
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->AddBeforeCallEnteredCallback(callback);
+}
+
+
+void Isolate::RemoveBeforeCallEnteredCallback(
+    BeforeCallEnteredCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->RemoveBeforeCallEnteredCallback(callback);
+}
+
+
 void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
   if (callback == NULL) return;
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -7388,6 +7417,19 @@ void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
 void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->RemoveCallCompletedCallback(callback);
+}
+
+
+void Isolate::AddCallCompletedCallback(
+    DeprecatedCallCompletedCallback callback) {
+  AddCallCompletedCallback(reinterpret_cast<CallCompletedCallback>(callback));
+}
+
+
+void Isolate::RemoveCallCompletedCallback(
+    DeprecatedCallCompletedCallback callback) {
+  RemoveCallCompletedCallback(
+      reinterpret_cast<CallCompletedCallback>(callback));
 }
 
 
@@ -7483,6 +7525,7 @@ void Isolate::LowMemoryNotification() {
   {
     i::HistogramTimerScope idle_notification_scope(
         isolate->counters()->gc_low_memory_notification());
+    TRACE_EVENT0("v8", "V8.GCLowMemoryNotification");
     isolate->heap()->CollectAllAvailableGarbage("low memory notification");
   }
 }
@@ -8057,6 +8100,9 @@ void CpuProfiler::SetSamplingInterval(int us) {
       base::TimeDelta::FromMicroseconds(us));
 }
 
+void CpuProfiler::CollectSample() {
+  reinterpret_cast<i::CpuProfiler*>(this)->CollectSample();
+}
 
 void CpuProfiler::StartProfiling(Local<String> title, bool record_samples) {
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
@@ -8282,6 +8328,23 @@ SnapshotObjectId HeapProfiler::GetHeapStats(OutputStream* stream,
                                             int64_t* timestamp_us) {
   i::HeapProfiler* heap_profiler = reinterpret_cast<i::HeapProfiler*>(this);
   return heap_profiler->PushHeapObjectsStats(stream, timestamp_us);
+}
+
+
+bool HeapProfiler::StartSamplingHeapProfiler(uint64_t sample_interval,
+                                             int stack_depth) {
+  return reinterpret_cast<i::HeapProfiler*>(this)
+      ->StartSamplingHeapProfiler(sample_interval, stack_depth);
+}
+
+
+void HeapProfiler::StopSamplingHeapProfiler() {
+  reinterpret_cast<i::HeapProfiler*>(this)->StopSamplingHeapProfiler();
+}
+
+
+AllocationProfile* HeapProfiler::GetAllocationProfile() {
+  return reinterpret_cast<i::HeapProfiler*>(this)->GetAllocationProfile();
 }
 
 

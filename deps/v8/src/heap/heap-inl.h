@@ -359,10 +359,6 @@ bool Heap::InNewSpace(Object* object) {
   return result;
 }
 
-
-bool Heap::InNewSpace(Address address) { return new_space_.Contains(address); }
-
-
 bool Heap::InFromSpace(Object* object) {
   return new_space_.FromSpaceContains(object);
 }
@@ -372,14 +368,15 @@ bool Heap::InToSpace(Object* object) {
   return new_space_.ToSpaceContains(object);
 }
 
+bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
 
-bool Heap::InOldSpace(Address address) { return old_space_->Contains(address); }
-
-
-bool Heap::InOldSpace(Object* object) {
-  return InOldSpace(reinterpret_cast<Address>(object));
+bool Heap::InNewSpaceSlow(Address address) {
+  return new_space_.ContainsSlow(address);
 }
 
+bool Heap::InOldSpaceSlow(Address address) {
+  return old_space_->ContainsSlow(address);
+}
 
 bool Heap::OldGenerationAllocationLimitReached() {
   if (!incremental_marking()->IsStopped()) return false;
@@ -394,18 +391,13 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
 }
 
-
-void Heap::RecordWrite(Address address, int offset) {
-  if (!InNewSpace(address)) store_buffer_.Mark(address + offset);
-}
-
-
-void Heap::RecordWrites(Address address, int start, int len) {
-  if (!InNewSpace(address)) {
-    for (int i = 0; i < len; i++) {
-      store_buffer_.Mark(address + start + i * kPointerSize);
-    }
+void Heap::RecordWrite(Object* object, int offset, Object* o) {
+  if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
+    return;
   }
+  Page* page = Page::FromAddress(reinterpret_cast<Address>(object));
+  Address slot = HeapObject::cast(object)->address() + offset;
+  RememberedSet<OLD_TO_NEW>::Insert(page, slot);
 }
 
 
@@ -467,7 +459,7 @@ void Heap::MoveBlock(Address dst, Address src, int byte_size) {
   }
 }
 
-
+template <Heap::FindMementoMode mode>
 AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   // Check if there is potentially a memento behind the object. If
   // the last word of the memento is on another page we return
@@ -476,61 +468,77 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   Address memento_address = object_address + object->Size();
   Address last_memento_word_address = memento_address + kPointerSize;
   if (!NewSpacePage::OnSamePage(object_address, last_memento_word_address)) {
-    return NULL;
+    return nullptr;
   }
-
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
   Map* candidate_map = candidate->map();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
   MSAN_MEMORY_IS_INITIALIZED(&candidate_map, sizeof(candidate_map));
-  if (candidate_map != allocation_memento_map()) return NULL;
+  if (candidate_map != allocation_memento_map()) {
+    return nullptr;
+  }
+  AllocationMemento* memento_candidate = AllocationMemento::cast(candidate);
 
-  // Either the object is the last object in the new space, or there is another
-  // object of at least word size (the header map word) following it, so
-  // suffices to compare ptr and top here. Note that technically we do not have
-  // to compare with the current top pointer of the from space page during GC,
-  // since we always install filler objects above the top pointer of a from
-  // space page when performing a garbage collection. However, always performing
-  // the test makes it possible to have a single, unified version of
-  // FindAllocationMemento that is used both by the GC and the mutator.
-  Address top = NewSpaceTop();
-  DCHECK(memento_address == top ||
-         memento_address + HeapObject::kHeaderSize <= top ||
-         !NewSpacePage::OnSamePage(memento_address, top - 1));
-  if (memento_address == top) return NULL;
-
-  AllocationMemento* memento = AllocationMemento::cast(candidate);
-  if (!memento->IsValid()) return NULL;
-  return memento;
+  // Depending on what the memento is used for, we might need to perform
+  // additional checks.
+  Address top;
+  switch (mode) {
+    case Heap::kForGC:
+      return memento_candidate;
+    case Heap::kForRuntime:
+      if (memento_candidate == nullptr) return nullptr;
+      // Either the object is the last object in the new space, or there is
+      // another object of at least word size (the header map word) following
+      // it, so suffices to compare ptr and top here.
+      top = NewSpaceTop();
+      DCHECK(memento_address == top ||
+             memento_address + HeapObject::kHeaderSize <= top ||
+             !NewSpacePage::OnSamePage(memento_address, top - 1));
+      if ((memento_address != top) && memento_candidate->IsValid()) {
+        return memento_candidate;
+      }
+      return nullptr;
+    default:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+  return nullptr;
 }
 
-
+template <Heap::UpdateAllocationSiteMode mode>
 void Heap::UpdateAllocationSite(HeapObject* object,
                                 HashMap* pretenuring_feedback) {
   DCHECK(InFromSpace(object));
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type()))
     return;
-  AllocationMemento* memento = FindAllocationMemento(object);
-  if (memento == nullptr) return;
+  AllocationMemento* memento_candidate = FindAllocationMemento<kForGC>(object);
+  if (memento_candidate == nullptr) return;
 
-  AllocationSite* key = memento->GetAllocationSite();
-  DCHECK(!key->IsZombie());
-
-  if (pretenuring_feedback == global_pretenuring_feedback_) {
+  if (mode == kGlobal) {
+    DCHECK_EQ(pretenuring_feedback, global_pretenuring_feedback_);
+    // Entering global pretenuring feedback is only used in the scavenger, where
+    // we are allowed to actually touch the allocation site.
+    if (!memento_candidate->IsValid()) return;
+    AllocationSite* site = memento_candidate->GetAllocationSite();
+    DCHECK(!site->IsZombie());
     // For inserting in the global pretenuring storage we need to first
     // increment the memento found count on the allocation site.
-    if (key->IncrementMementoFoundCount()) {
-      global_pretenuring_feedback_->LookupOrInsert(
-          key, static_cast<uint32_t>(bit_cast<uintptr_t>(key)));
+    if (site->IncrementMementoFoundCount()) {
+      global_pretenuring_feedback_->LookupOrInsert(site,
+                                                   ObjectHash(site->address()));
     }
   } else {
-    // Any other pretenuring storage than the global one is used as a cache,
-    // where the count is later on merge in the allocation site.
-    HashMap::Entry* e = pretenuring_feedback->LookupOrInsert(
-        key, static_cast<uint32_t>(bit_cast<uintptr_t>(key)));
+    DCHECK_EQ(mode, kCached);
+    DCHECK_NE(pretenuring_feedback, global_pretenuring_feedback_);
+    // Entering cached feedback is used in the parallel case. We are not allowed
+    // to dereference the allocation site and rather have to postpone all checks
+    // till actually merging the data.
+    Address key = memento_candidate->GetAllocationSiteUnchecked();
+    HashMap::Entry* e =
+        pretenuring_feedback->LookupOrInsert(key, ObjectHash(key));
     DCHECK(e != nullptr);
     (*bit_cast<intptr_t*>(&e->value))++;
   }
@@ -614,9 +622,18 @@ void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
 #endif
 }
 
+// static
+int DescriptorLookupCache::Hash(Object* source, Name* name) {
+  DCHECK(name->IsUniqueName());
+  // Uses only lower 32 bits if pointers are larger.
+  uint32_t source_hash =
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source)) >>
+      kPointerSizeLog2;
+  uint32_t name_hash = name->hash_field();
+  return (source_hash ^ name_hash) % kLength;
+}
 
 int DescriptorLookupCache::Lookup(Map* source, Name* name) {
-  if (!name->IsUniqueName()) return kAbsent;
   int index = Hash(source, name);
   Key& key = keys_[index];
   if ((key.source == source) && (key.name == name)) return results_[index];
@@ -626,13 +643,11 @@ int DescriptorLookupCache::Lookup(Map* source, Name* name) {
 
 void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
   DCHECK(result != kAbsent);
-  if (name->IsUniqueName()) {
-    int index = Hash(source, name);
-    Key& key = keys_[index];
-    key.source = source;
-    key.name = name;
-    results_[index] = result;
-  }
+  int index = Hash(source, name);
+  Key& key = keys_[index];
+  key.source = source;
+  key.name = name;
+  results_[index] = result;
 }
 
 

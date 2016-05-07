@@ -18,7 +18,7 @@ var messagesComplete = 0;
 
 function flushPool() {
   Buffer.allocUnsafe(Buffer.poolSize - 1);
-  gc();
+  global.gc();
 }
 
 function demoBug(part1, part2) {
@@ -75,10 +75,12 @@ demoBug('POST /1', '/22 HTTP/1.1\r\n' +
         'Content-Length: 4\r\n\r\n' +
         'pong');
 
+/* eslint-disable align-function-arguments */
 demoBug('POST /1/22 HTTP/1.1\r\n' +
         'Content-Type: tex', 't/plain\r\n' +
         'Content-Length: 4\r\n\r\n' +
         'pong');
+/* eslint-enable align-function-arguments */
 
 process.on('exit', function() {
   assert.equal(2, headersComplete);

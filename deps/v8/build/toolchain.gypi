@@ -81,6 +81,9 @@
     # The setting is ignored if want_separate_host_toolset is 0.
     'v8_toolset_for_d8%': 'target',
 
+    # Control usage of a separate ignition snapshot file.
+    'v8_separate_ignition_snapshot%': 0,
+
     'host_os%': '<(OS)',
     'werror%': '-Werror',
     # For a shared library build, results in "libv8-<(soname_version).so".

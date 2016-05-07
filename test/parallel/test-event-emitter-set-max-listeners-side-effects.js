@@ -5,6 +5,7 @@ var events = require('events');
 
 var e = new events.EventEmitter();
 
-assert.deepEqual(e._events, {});
+assert(!(e._events instanceof Object));
+assert.deepStrictEqual(Object.keys(e._events), []);
 e.setMaxListeners(5);
-assert.deepEqual(e._events, {});
+assert.deepStrictEqual(Object.keys(e._events), []);

@@ -69,6 +69,14 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ArrayBufferConstructor_ConstructStub, kTargetAndNewTarget) \
   V(ArrayBufferIsView, kNone)                                  \
                                                                \
+  V(BooleanConstructor, kNone)                                 \
+  V(BooleanConstructor_ConstructStub, kTargetAndNewTarget)     \
+  V(BooleanPrototypeToString, kNone)                           \
+  V(BooleanPrototypeValueOf, kNone)                            \
+                                                               \
+  V(DataViewConstructor, kNone)                                \
+  V(DataViewConstructor_ConstructStub, kTargetAndNewTarget)    \
+                                                               \
   V(DateConstructor, kNone)                                    \
   V(DateConstructor_ConstructStub, kTargetAndNewTarget)        \
   V(DateNow, kNone)                                            \
@@ -102,6 +110,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(FunctionConstructor, kTargetAndNewTarget)                  \
   V(FunctionPrototypeBind, kNone)                              \
   V(FunctionPrototypeToString, kNone)                          \
+  V(FunctionHasInstance, kNone)                                \
                                                                \
   V(GeneratorFunctionConstructor, kTargetAndNewTarget)         \
                                                                \
@@ -110,10 +119,17 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ObjectAssign, kNone)                                       \
   V(ObjectCreate, kNone)                                       \
   V(ObjectFreeze, kNone)                                       \
+  V(ObjectGetOwnPropertyDescriptor, kNone)                     \
+  V(ObjectGetOwnPropertyNames, kNone)                          \
+  V(ObjectGetOwnPropertySymbols, kNone)                        \
+  V(ObjectIs, kNone)                                           \
   V(ObjectIsExtensible, kNone)                                 \
   V(ObjectIsFrozen, kNone)                                     \
   V(ObjectIsSealed, kNone)                                     \
   V(ObjectKeys, kNone)                                         \
+  V(ObjectValues, kNone)                                       \
+  V(ObjectEntries, kNone)                                      \
+  V(ObjectGetOwnPropertyDescriptors, kNone)                    \
   V(ObjectPreventExtensions, kNone)                            \
   V(ObjectSeal, kNone)                                         \
   V(ObjectProtoToString, kNone)                                \
@@ -155,11 +171,22 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(CallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,         \
     kNoExtraICState)                                                           \
   V(CallFunction_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(TailCallFunction_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED,        \
+    kNoExtraICState)                                                           \
+  V(TailCallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,     \
+    kNoExtraICState)                                                           \
+  V(TailCallFunction_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
   V(CallBoundFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(TailCallBoundFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
   V(Call_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
   V(Call_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,                 \
     kNoExtraICState)                                                           \
   V(Call_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
+  V(TailCall_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED,                \
+    kNoExtraICState)                                                           \
+  V(TailCall_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,             \
+    kNoExtraICState)                                                           \
+  V(TailCall_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
                                                                                \
   V(ConstructFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(ConstructBoundFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
@@ -173,6 +200,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(InOptimizationQueue, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
   V(JSConstructStubGeneric, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
   V(JSBuiltinsConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
+  V(JSBuiltinsConstructStubForDerived, BUILTIN, UNINITIALIZED,                 \
+    kNoExtraICState)                                                           \
   V(JSConstructStubApi, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
   V(JSEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
@@ -188,10 +217,12 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(InterpreterEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(InterpreterExitTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)        \
   V(InterpreterPushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(InterpreterPushArgsAndTailCall, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
   V(InterpreterPushArgsAndConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
   V(InterpreterNotifyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
   V(InterpreterNotifySoftDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState) \
   V(InterpreterNotifyLazyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState) \
+  V(InterpreterEnterBytecodeDispatch, BUILTIN, UNINITIALIZED, kNoExtraICState) \
                                                                                \
   V(LoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                      \
   V(KeyedLoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
@@ -199,9 +230,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(KeyedStoreIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(LoadIC_Getter_ForDeopt, LOAD_IC, MONOMORPHIC, kNoExtraICState)             \
   V(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, MEGAMORPHIC, kNoExtraICState)      \
-                                                                               \
-  V(KeyedLoadIC_Megamorphic_Strong, KEYED_LOAD_IC, MEGAMORPHIC,                \
-    LoadICState::kStrongModeState)                                             \
                                                                                \
   V(StoreIC_Setter_ForDeopt, STORE_IC, MONOMORPHIC,                            \
     StoreICState::kStrictModeState)                                            \
@@ -246,6 +274,9 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(InternalArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(ArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                        \
                                                                                \
+  V(MathMax, BUILTIN, UNINITIALIZED, kNoExtraICState)                          \
+  V(MathMin, BUILTIN, UNINITIALIZED, kNoExtraICState)                          \
+                                                                               \
   V(NumberConstructor, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(NumberConstructor_ConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
                                                                                \
@@ -265,13 +296,10 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
   V(LoadIC_Slow,             LOAD_IC)        \
-  V(LoadIC_Slow_Strong,      LOAD_IC)        \
   V(KeyedLoadIC_Slow,        KEYED_LOAD_IC)  \
-  V(KeyedLoadIC_Slow_Strong, KEYED_LOAD_IC)  \
   V(StoreIC_Slow,            STORE_IC)       \
   V(KeyedStoreIC_Slow,       KEYED_STORE_IC) \
   V(LoadIC_Normal,           LOAD_IC)        \
-  V(LoadIC_Normal_Strong,    LOAD_IC)        \
   V(StoreIC_Normal,          STORE_IC)
 
 // Define list of builtins used by the debugger implemented in assembly.
@@ -332,8 +360,13 @@ class Builtins {
 #undef DECLARE_BUILTIN_ACCESSOR_A
 
   // Convenience wrappers.
-  Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
-  Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
+  Handle<Code> CallFunction(
+      ConvertReceiverMode = ConvertReceiverMode::kAny,
+      TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny,
+                    TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  Handle<Code> CallBoundFunction(TailCallMode tail_call_mode);
+  Handle<Code> InterpreterPushArgsAndCall(TailCallMode tail_call_mode);
 
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins
@@ -358,7 +391,7 @@ class Builtins {
   bool is_initialized() const { return initialized_; }
 
   MUST_USE_RESULT static MaybeHandle<Object> InvokeApiFunction(
-      Handle<JSFunction> function, Handle<Object> receiver, int argc,
+      Handle<HeapObject> function, Handle<Object> receiver, int argc,
       Handle<Object> args[]);
 
  private:
@@ -383,6 +416,7 @@ class Builtins {
   static void Generate_CompileOptimizedConcurrent(MacroAssembler* masm);
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);
   static void Generate_JSBuiltinsConstructStub(MacroAssembler* masm);
+  static void Generate_JSBuiltinsConstructStubForDerived(MacroAssembler* masm);
   static void Generate_JSConstructStubApi(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
@@ -397,30 +431,71 @@ class Builtins {
 
   // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   static void Generate_CallFunction(MacroAssembler* masm,
-                                    ConvertReceiverMode mode);
+                                    ConvertReceiverMode mode,
+                                    TailCallMode tail_call_mode);
   static void Generate_CallFunction_ReceiverIsNullOrUndefined(
       MacroAssembler* masm) {
-    Generate_CallFunction(masm, ConvertReceiverMode::kNullOrUndefined);
+    Generate_CallFunction(masm, ConvertReceiverMode::kNullOrUndefined,
+                          TailCallMode::kDisallow);
   }
   static void Generate_CallFunction_ReceiverIsNotNullOrUndefined(
       MacroAssembler* masm) {
-    Generate_CallFunction(masm, ConvertReceiverMode::kNotNullOrUndefined);
+    Generate_CallFunction(masm, ConvertReceiverMode::kNotNullOrUndefined,
+                          TailCallMode::kDisallow);
   }
   static void Generate_CallFunction_ReceiverIsAny(MacroAssembler* masm) {
-    Generate_CallFunction(masm, ConvertReceiverMode::kAny);
+    Generate_CallFunction(masm, ConvertReceiverMode::kAny,
+                          TailCallMode::kDisallow);
+  }
+  static void Generate_TailCallFunction_ReceiverIsNullOrUndefined(
+      MacroAssembler* masm) {
+    Generate_CallFunction(masm, ConvertReceiverMode::kNullOrUndefined,
+                          TailCallMode::kAllow);
+  }
+  static void Generate_TailCallFunction_ReceiverIsNotNullOrUndefined(
+      MacroAssembler* masm) {
+    Generate_CallFunction(masm, ConvertReceiverMode::kNotNullOrUndefined,
+                          TailCallMode::kAllow);
+  }
+  static void Generate_TailCallFunction_ReceiverIsAny(MacroAssembler* masm) {
+    Generate_CallFunction(masm, ConvertReceiverMode::kAny,
+                          TailCallMode::kAllow);
   }
   // ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList)
-  static void Generate_CallBoundFunction(MacroAssembler* masm);
+  static void Generate_CallBoundFunctionImpl(MacroAssembler* masm,
+                                             TailCallMode tail_call_mode);
+  static void Generate_CallBoundFunction(MacroAssembler* masm) {
+    Generate_CallBoundFunctionImpl(masm, TailCallMode::kDisallow);
+  }
+  static void Generate_TailCallBoundFunction(MacroAssembler* masm) {
+    Generate_CallBoundFunctionImpl(masm, TailCallMode::kAllow);
+  }
   // ES6 section 7.3.12 Call(F, V, [argumentsList])
-  static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode);
+  static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
+                            TailCallMode tail_call_mode);
   static void Generate_Call_ReceiverIsNullOrUndefined(MacroAssembler* masm) {
-    Generate_Call(masm, ConvertReceiverMode::kNullOrUndefined);
+    Generate_Call(masm, ConvertReceiverMode::kNullOrUndefined,
+                  TailCallMode::kDisallow);
   }
   static void Generate_Call_ReceiverIsNotNullOrUndefined(MacroAssembler* masm) {
-    Generate_Call(masm, ConvertReceiverMode::kNotNullOrUndefined);
+    Generate_Call(masm, ConvertReceiverMode::kNotNullOrUndefined,
+                  TailCallMode::kDisallow);
   }
   static void Generate_Call_ReceiverIsAny(MacroAssembler* masm) {
-    Generate_Call(masm, ConvertReceiverMode::kAny);
+    Generate_Call(masm, ConvertReceiverMode::kAny, TailCallMode::kDisallow);
+  }
+  static void Generate_TailCall_ReceiverIsNullOrUndefined(
+      MacroAssembler* masm) {
+    Generate_Call(masm, ConvertReceiverMode::kNullOrUndefined,
+                  TailCallMode::kAllow);
+  }
+  static void Generate_TailCall_ReceiverIsNotNullOrUndefined(
+      MacroAssembler* masm) {
+    Generate_Call(masm, ConvertReceiverMode::kNotNullOrUndefined,
+                  TailCallMode::kAllow);
+  }
+  static void Generate_TailCall_ReceiverIsAny(MacroAssembler* masm) {
+    Generate_Call(masm, ConvertReceiverMode::kAny, TailCallMode::kAllow);
   }
 
   // ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget)
@@ -482,6 +557,17 @@ class Builtins {
   static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
 
+  enum class MathMaxMinKind { kMax, kMin };
+  static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);
+  // ES6 section 20.2.2.24 Math.max ( value1, value2 , ...values )
+  static void Generate_MathMax(MacroAssembler* masm) {
+    Generate_MathMaxMin(masm, MathMaxMinKind::kMax);
+  }
+  // ES6 section 20.2.2.25 Math.min ( value1, value2 , ...values )
+  static void Generate_MathMin(MacroAssembler* masm) {
+    Generate_MathMaxMin(masm, MathMaxMinKind::kMin);
+  }
+
   // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case.
   static void Generate_NumberConstructor(MacroAssembler* masm);
   // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case.
@@ -496,11 +582,20 @@ class Builtins {
 
   static void Generate_InterpreterEntryTrampoline(MacroAssembler* masm);
   static void Generate_InterpreterExitTrampoline(MacroAssembler* masm);
-  static void Generate_InterpreterPushArgsAndCall(MacroAssembler* masm);
+  static void Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
+    return Generate_InterpreterPushArgsAndCallImpl(masm,
+                                                   TailCallMode::kDisallow);
+  }
+  static void Generate_InterpreterPushArgsAndTailCall(MacroAssembler* masm) {
+    return Generate_InterpreterPushArgsAndCallImpl(masm, TailCallMode::kAllow);
+  }
+  static void Generate_InterpreterPushArgsAndCallImpl(
+      MacroAssembler* masm, TailCallMode tail_call_mode);
   static void Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm);
   static void Generate_InterpreterNotifyDeoptimized(MacroAssembler* masm);
   static void Generate_InterpreterNotifySoftDeoptimized(MacroAssembler* masm);
   static void Generate_InterpreterNotifyLazyDeoptimized(MacroAssembler* masm);
+  static void Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm);
 
 #define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)                \
   static void Generate_Make##C##CodeYoungAgainEvenMarking(   \

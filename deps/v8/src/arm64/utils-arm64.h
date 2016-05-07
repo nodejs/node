@@ -55,19 +55,6 @@ int MaskToBit(uint64_t mask);
 
 
 template <typename T>
-T ReverseBits(T value) {
-  DCHECK((sizeof(value) == 1) || (sizeof(value) == 2) || (sizeof(value) == 4) ||
-         (sizeof(value) == 8));
-  T result = 0;
-  for (unsigned i = 0; i < (sizeof(value) * 8); i++) {
-    result = (result << 1) | (value & 1);
-    value >>= 1;
-  }
-  return result;
-}
-
-
-template <typename T>
 T ReverseBytes(T value, int block_bytes_log2) {
   DCHECK((sizeof(value) == 4) || (sizeof(value) == 8));
   DCHECK((1U << block_bytes_log2) <= sizeof(value));

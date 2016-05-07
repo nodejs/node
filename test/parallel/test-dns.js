@@ -14,20 +14,20 @@ var goog = [
   '8.8.4.4',
 ];
 assert.doesNotThrow(function() { dns.setServers(goog); });
-assert.deepEqual(dns.getServers(), goog);
+assert.deepStrictEqual(dns.getServers(), goog);
 assert.throws(function() { dns.setServers(['foobar']); });
-assert.deepEqual(dns.getServers(), goog);
+assert.deepStrictEqual(dns.getServers(), goog);
 
 var goog6 = [
   '2001:4860:4860::8888',
   '2001:4860:4860::8844',
 ];
 assert.doesNotThrow(function() { dns.setServers(goog6); });
-assert.deepEqual(dns.getServers(), goog6);
+assert.deepStrictEqual(dns.getServers(), goog6);
 
 goog6.push('4.4.4.4');
 dns.setServers(goog6);
-assert.deepEqual(dns.getServers(), goog6);
+assert.deepStrictEqual(dns.getServers(), goog6);
 
 var ports = [
   '4.4.4.4:53',
@@ -38,10 +38,10 @@ var portsExpected = [
   '2001:4860:4860::8888',
 ];
 dns.setServers(ports);
-assert.deepEqual(dns.getServers(), portsExpected);
+assert.deepStrictEqual(dns.getServers(), portsExpected);
 
 assert.doesNotThrow(function() { dns.setServers([]); });
-assert.deepEqual(dns.getServers(), []);
+assert.deepStrictEqual(dns.getServers(), []);
 
 assert.throws(function() {
   dns.resolve('test.com', [], noop);

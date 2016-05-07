@@ -22,7 +22,7 @@ function err() {
 
   function err2() {
     // this function doesn't exist, and throws an error as a result.
-    err3();
+    err3(); // eslint-disable-line no-undef
   }
 
   function handleDomainError(e) {
@@ -36,8 +36,8 @@ function secondTimer() {
   // secondTimer was scheduled before any domain had been created, so its
   // callback should not have any active domain set when it runs.
   if (process.domain !== null) {
-    console.log('process.domain should be null in this timer callback, but ' +
-        'instead is:', process.domain);
+    console.log('process.domain should be null in this timer callback, but is:',
+                process.domain);
     // Do not use assert here, as it throws errors and if a domain with an error
     // handler is active, then asserting wouldn't make the test fail.
     process.exit(1);

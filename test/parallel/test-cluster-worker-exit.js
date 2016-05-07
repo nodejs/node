@@ -3,7 +3,7 @@
 // verifies that, when a child process exits (by calling `process.exit(code)`)
 // - the parent receives the proper events in the proper order, no duplicates
 // - the exitCode and signalCode are correct in the 'exit' event
-// - the worker.suicide flag, and worker.state are correct
+// - the worker.exitedAfterDisconnect flag, and worker.state are correct
 // - the worker process actually goes away
 
 var common = require('../common');
@@ -32,6 +32,8 @@ if (cluster.isWorker) {
     worker_emitExit: [1, "the worker did not emit 'exit'"],
     worker_state: ['disconnected', 'the worker state is incorrect'],
     worker_suicideMode: [false, 'the worker.suicide flag is incorrect'],
+    worker_exitedAfterDisconnect: [false,
+                               'the .exitedAfterDisconnect flag is incorrect'],
     worker_died: [true, 'the worker is still running'],
     worker_exitCode: [EXIT_CODE, 'the worker exited w/ incorrect exitCode'],
     worker_signalCode: [null, 'the worker exited w/ incorrect signalCode']
@@ -66,6 +68,7 @@ if (cluster.isWorker) {
   worker.on('disconnect', function() {
     results.worker_emitDisconnect += 1;
     results.worker_suicideMode = worker.suicide;
+    results.worker_exitedAfterDisconnect = worker.exitedAfterDisconnect;
     results.worker_state = worker.state;
     if (results.worker_emitExit > 0) {
       process.nextTick(function() { finish_test(); });
@@ -107,7 +110,7 @@ function checkResults(expected_results, results) {
     const expected = expected_results[k];
 
     var msg = (expected[1] || '') +
-        (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
+              (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
 
     if (expected && expected.length) {
       assert.equal(actual, expected[0], msg);

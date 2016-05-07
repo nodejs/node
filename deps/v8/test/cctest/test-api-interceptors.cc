@@ -1879,9 +1879,9 @@ THREADED_TEST(IndexedInterceptorWithNoSetter) {
   ExpectString(code, "PASSED");
 }
 
-
 static bool AccessAlwaysBlocked(Local<v8::Context> accessing_context,
-                                Local<v8::Object> accessed_object) {
+                                Local<v8::Object> accessed_object,
+                                Local<v8::Value> data) {
   return false;
 }
 
@@ -3475,9 +3475,9 @@ struct AccessCheckData {
 
 AccessCheckData* g_access_check_data = nullptr;
 
-
 bool SimpleAccessChecker(Local<v8::Context> accessing_context,
-                         Local<v8::Object> access_object) {
+                         Local<v8::Object> access_object,
+                         Local<v8::Value> data) {
   g_access_check_data->count++;
   return g_access_check_data->result;
 }

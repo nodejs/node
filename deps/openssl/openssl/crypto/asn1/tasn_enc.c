@@ -611,9 +611,7 @@ int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *putype,
         break;
 
     case V_ASN1_INTEGER:
-    case V_ASN1_NEG_INTEGER:
     case V_ASN1_ENUMERATED:
-    case V_ASN1_NEG_ENUMERATED:
         /*
          * These are all have the same content format as ASN1_INTEGER
          */

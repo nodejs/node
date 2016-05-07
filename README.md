@@ -21,19 +21,19 @@ If you need help using or installing Node.js, please use the
 
 The Node.js project maintains multiple types of releases:
 
-* **Stable**: Released from active development branches of this repository,
+* **Current**: Released from active development branches of this repository,
   versioned by [SemVer](http://semver.org/) and signed by a member of the
   [Release Team](#release-team).
-  Code for Stable releases is organized in this repository by major version
+  Code for Current releases is organized in this repository by major version
   number, For example: [v4.x](https://github.com/nodejs/node/tree/v4.x).
-  The major version number of Stable releases will increment every 6 months
+  The major version number of Current releases will increment every 6 months
   allowing for breaking changes to be introduced. This happens in April and
-  October every year. Stable release lines beginning in October each year have
-  a maximum support life of 8 months. Stable release lines beginning in April
+  October every year. Current release lines beginning in October each year have
+  a maximum support life of 8 months. Current release lines beginning in April
   each year will convert to LTS (see below) after 6 months and receive further
   support for 30 months.
 * **LTS**: Releases that receive Long-term Support, with a focus on stability
-  and security. Every second Stable release line (major version) will become an
+  and security. Every second Current release line (major version) will become an
   LTS line and receive 18 months of _Active LTS_ support and a further 12
   months of _Maintenance_. LTS release lines are given alphabetically
   ordered codenames, beginning with v4 Argon. LTS releases are less frequent
@@ -41,7 +41,7 @@ The Node.js project maintains multiple types of releases:
   only incrementing patch version numbers. There are no breaking changes or
   feature additions, except in some special circumstances. More information
   can be found in the [LTS README](https://github.com/nodejs/LTS/).
-* **Nightly**: Versions of code in this repository on the current Stable
+* **Nightly**: Versions of code in this repository on the current Current
   branch, automatically built every 24-hours where changes exist. Use with
   caution.
 
@@ -50,10 +50,10 @@ The Node.js project maintains multiple types of releases:
 Binaries, installers, and source tarballs are available at
 <https://nodejs.org>.
 
-**Stable** and **LTS** releases are available at
+**Current** and **LTS** releases are available at
 <https://nodejs.org/download/release/>, listed under their version strings.
 The [latest](https://nodejs.org/download/release/latest/) directory is an
-alias for the latest Stable release. The latest LTS release from an LTS
+alias for the latest Current release. The latest LTS release from an LTS
 line is available in the form: latest-_codename_. For example:
 <https://nodejs.org/download/release/latest-argon>
 
@@ -68,7 +68,7 @@ documentation of the latest stable version.
 
 ### Verifying Binaries
 
-Stable, LTS and Nightly download directories all contain a *SHASUM256.txt*
+Current, LTS and Nightly download directories all contain a *SHASUM256.txt*
 file that lists the SHA checksums for each file available for
 download.
 
@@ -88,7 +88,7 @@ $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 _(Where "node-vx.y.z.tar.gz" is the name of the file you have
 downloaded)_
 
-Additionally, Stable and LTS releases (not Nightlies) have GPG signed
+Additionally, Current and LTS releases (not Nightlies) have GPG signed
 copies of SHASUM256.txt files available as SHASUM256.txt.asc. You can use
 `gpg` to verify that the file has not been tampered with.
 
@@ -167,15 +167,20 @@ information about the governance of the Node.js project, see
 
 ### Collaborators
 
+* [addaleax](https://github.com/addaleax) - **Anna Henningsen** &lt;anna@addaleax.net&gt;
 * [AndreasMadsen](https://github.com/AndreasMadsen) - **Andreas Madsen** &lt;amwebdk@gmail.com&gt;
 * [benjamingr](https://github.com/benjamingr) - **Benjamin Gruenbaum** &lt;benjamingr@gmail.com&gt;
 * [brendanashworth](https://github.com/brendanashworth) - **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt;
 * [calvinmetcalf](https://github.com/calvinmetcalf) - **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
 * [claudiorodriguez](https://github.com/claudiorodriguez) - **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [domenic](https://github.com/domenic) - **Domenic Denicola** &lt;d@domenic.me&gt;
+* [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) - **Robert Lindstaedt** &lt;robert.lindstaedt@gmail.com&gt;
+* [estliberitas](https://github.com/estliberitas) - **Alexander Makarenko** &lt;estliberitas@gmail.com&gt;
 * [geek](https://github.com/geek) - **Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [iarna](https://github.com/iarna) - **Rebecca Turner** &lt;me@re-becca.org&gt;
 * [isaacs](https://github.com/isaacs) - **Isaac Z. Schlueter** &lt;i@izs.me&gt;
+* [iWuzHere](https://github.com/iWuzHere) - **Imran Iqbal** &lt;imran@imraniqbal.org&gt;
+* [JacksonTian](https://github.com/JacksonTian) - **Jackson Tian** &lt;shvyo1987@gmail.com&gt;
 * [jbergstroem](https://github.com/jbergstroem) - **Johan Bergström** &lt;bugs@bergstroem.nu&gt;
 * [joaocgreis](https://github.com/joaocgreis) - **João Reis** &lt;reis@janeasystems.com&gt;
 * [julianduque](https://github.com/julianduque) - **Julian Duque** &lt;julianduquej@gmail.com&gt;
@@ -189,16 +194,20 @@ information about the governance of the Node.js project, see
 * [Olegas](https://github.com/Olegas) - **Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt;
 * [petkaantonov](https://github.com/petkaantonov) - **Petka Antonov** &lt;petka_antonov@hotmail.com&gt;
 * [phillipj](https://github.com/phillipj) - **Phillip Johnsen** &lt;johphi@gmail.com&gt;
+* [pmq20](https://github.com/pmq20) - **Minqi Pan** &lt;pmq2001@gmail.com&gt;
 * [qard](https://github.com/qard) - **Stephen Belanger** &lt;admin@stephenbelanger.com&gt;
 * [rlidwka](https://github.com/rlidwka) - **Alex Kocharin** &lt;alex@kocharin.ru&gt;
 * [rmg](https://github.com/rmg) - **Ryan Graham** &lt;r.m.graham@gmail.com&gt;
 * [robertkowalski](https://github.com/robertkowalski) - **Robert Kowalski** &lt;rok@kowalski.gd&gt;
 * [romankl](https://github.com/romankl) - **Roman Klauke** &lt;romaaan.git@gmail.com&gt;
+* [ronkorving](https://github.com/ronkorving) - **Ron Korving** &lt;ron@ronkorving.nl&gt;
 * [saghul](https://github.com/saghul) - **Saúl Ibarra Corretgé** &lt;saghul@gmail.com&gt;
 * [sam-github](https://github.com/sam-github) - **Sam Roberts** &lt;vieuxtech@gmail.com&gt;
+* [santigimeno](https://github.com/santigimeno) - **Santiago Gimeno** &lt;santiago.gimeno@gmail.com&gt;
 * [seishun](https://github.com/seishun) - **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt;
 * [silverwind](https://github.com/silverwind) - **Roman Reiss** &lt;me@silverwind.io&gt;
 * [srl295](https://github.com/srl295) - **Steven R Loomis** &lt;srloomis@us.ibm.com&gt;
+* [stefanmb](https://github.com/stefanmb) - **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [targos](https://github.com/targos) - **Michaël Zasso** &lt;mic.besace@gmail.com&gt;
 * [tellnes](https://github.com/tellnes) - **Christian Tellnes** &lt;christian@tellnes.no&gt;
 * [thealphanerd](https://github.com/thealphanerd) - **Myles Borins** &lt;myles.borins@gmail.com&gt;

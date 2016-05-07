@@ -178,6 +178,52 @@ void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
 
 #endif
 
+// -----------------------------------------------------------------------------
+// SemiSpace
+
+bool SemiSpace::Contains(HeapObject* o) {
+  return id_ == kToSpace
+             ? MemoryChunk::FromAddress(o->address())->InToSpace()
+             : MemoryChunk::FromAddress(o->address())->InFromSpace();
+}
+
+bool SemiSpace::Contains(Object* o) {
+  return o->IsHeapObject() && Contains(HeapObject::cast(o));
+}
+
+bool SemiSpace::ContainsSlow(Address a) {
+  NewSpacePageIterator it(this);
+  while (it.has_next()) {
+    if (it.next() == MemoryChunk::FromAddress(a)) return true;
+  }
+  return false;
+}
+
+// --------------------------------------------------------------------------
+// NewSpace
+
+bool NewSpace::Contains(HeapObject* o) {
+  return MemoryChunk::FromAddress(o->address())->InNewSpace();
+}
+
+bool NewSpace::Contains(Object* o) {
+  return o->IsHeapObject() && Contains(HeapObject::cast(o));
+}
+
+bool NewSpace::ContainsSlow(Address a) {
+  return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
+}
+
+bool NewSpace::ToSpaceContainsSlow(Address a) {
+  return to_space_.ContainsSlow(a);
+}
+
+bool NewSpace::FromSpaceContainsSlow(Address a) {
+  return from_space_.ContainsSlow(a);
+}
+
+bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
+bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
 // --------------------------------------------------------------------------
 // AllocationResult
@@ -205,46 +251,61 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
   return page;
 }
 
+void MemoryChunk::IncrementLiveBytesFromGC(HeapObject* object, int by) {
+  MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
+}
+
+void MemoryChunk::ResetLiveBytes() {
+  if (FLAG_trace_live_bytes) {
+    PrintIsolate(heap()->isolate(), "live-bytes: reset page=%p %d->0\n", this,
+                 live_byte_count_);
+  }
+  live_byte_count_ = 0;
+}
+
+void MemoryChunk::IncrementLiveBytes(int by) {
+  if (FLAG_trace_live_bytes) {
+    PrintIsolate(heap()->isolate(),
+                 "live-bytes: update page=%p delta=%d %d->%d\n", this, by,
+                 live_byte_count_, live_byte_count_ + by);
+  }
+  live_byte_count_ += by;
+  DCHECK_GE(live_byte_count_, 0);
+  DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
+}
+
+void MemoryChunk::IncrementLiveBytesFromMutator(HeapObject* object, int by) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+  if (!chunk->InNewSpace() && !static_cast<Page*>(chunk)->SweepingDone()) {
+    static_cast<PagedSpace*>(chunk->owner())->Allocate(by);
+  }
+  chunk->IncrementLiveBytes(by);
+}
 
 bool PagedSpace::Contains(Address addr) {
   Page* p = Page::FromAddress(addr);
-  if (!p->is_valid()) return false;
+  if (!Page::IsValid(p)) return false;
   return p->owner() == this;
 }
 
-
-bool PagedSpace::Contains(HeapObject* o) { return Contains(o->address()); }
-
-
-void MemoryChunk::set_scan_on_scavenge(bool scan) {
-  if (scan) {
-    if (!scan_on_scavenge()) heap_->increment_scan_on_scavenge_pages();
-    SetFlag(SCAN_ON_SCAVENGE);
-  } else {
-    if (scan_on_scavenge()) heap_->decrement_scan_on_scavenge_pages();
-    ClearFlag(SCAN_ON_SCAVENGE);
-  }
-  heap_->incremental_marking()->SetOldSpacePageFlags(this);
+bool PagedSpace::Contains(Object* o) {
+  if (!o->IsHeapObject()) return false;
+  Page* p = Page::FromAddress(HeapObject::cast(o)->address());
+  if (!Page::IsValid(p)) return false;
+  return p->owner() == this;
 }
 
-
 MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
-  MemoryChunk* maybe = reinterpret_cast<MemoryChunk*>(
-      OffsetFrom(addr) & ~Page::kPageAlignmentMask);
-  if (maybe->owner() != NULL) return maybe;
-  LargeObjectIterator iterator(heap->lo_space());
-  for (HeapObject* o = iterator.Next(); o != NULL; o = iterator.Next()) {
-    // Fixed arrays are the only pointer-containing objects in large object
-    // space.
-    if (o->IsFixedArray()) {
-      MemoryChunk* chunk = MemoryChunk::FromAddress(o->address());
-      if (chunk->Contains(addr)) {
-        return chunk;
-      }
-    }
+  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
+  uintptr_t offset = addr - chunk->address();
+  if (offset < MemoryChunk::kHeaderSize || !chunk->HasPageHeader()) {
+    chunk = heap->lo_space()->FindPage(addr);
   }
-  UNREACHABLE();
-  return NULL;
+  return chunk;
+}
+
+Page* Page::FromAnyPointerAddress(Heap* heap, Address addr) {
+  return static_cast<Page*>(MemoryChunk::FromAnyPointerAddress(heap, addr));
 }
 
 
@@ -425,12 +486,18 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
 AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
                                          AllocationAlignment alignment) {
 #ifdef V8_HOST_ARCH_32_BIT
-  return alignment == kDoubleAligned
-             ? AllocateRawAligned(size_in_bytes, kDoubleAligned)
-             : AllocateRawUnaligned(size_in_bytes);
+  AllocationResult result =
+      alignment == kDoubleAligned
+          ? AllocateRawAligned(size_in_bytes, kDoubleAligned)
+          : AllocateRawUnaligned(size_in_bytes);
 #else
-  return AllocateRawUnaligned(size_in_bytes);
+  AllocationResult result = AllocateRawUnaligned(size_in_bytes);
 #endif
+  HeapObject* heap_obj = nullptr;
+  if (!result.IsRetry() && result.To(&heap_obj)) {
+    AllocationStep(heap_obj->address(), size_in_bytes);
+  }
+  return result;
 }
 
 

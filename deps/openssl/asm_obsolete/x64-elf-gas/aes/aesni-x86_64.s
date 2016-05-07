@@ -3462,11 +3462,11 @@ __aesni_set_encrypt_key:
 	movups	%xmm0,(%rax)
 	leaq	16(%rax),%rax
 .Lkey_expansion_128_cold:
-	shufps	$0b00010000,%xmm0,%xmm4
+	shufps	$16,%xmm0,%xmm4
 	xorps	%xmm4,%xmm0
-	shufps	$0b10001100,%xmm0,%xmm4
+	shufps	$140,%xmm0,%xmm4
 	xorps	%xmm4,%xmm0
-	shufps	$0b11111111,%xmm1,%xmm1
+	shufps	$255,%xmm1,%xmm1
 	xorps	%xmm1,%xmm0
 	.byte	0xf3,0xc3
 
@@ -3477,25 +3477,25 @@ __aesni_set_encrypt_key:
 .Lkey_expansion_192a_cold:
 	movaps	%xmm2,%xmm5
 .Lkey_expansion_192b_warm:
-	shufps	$0b00010000,%xmm0,%xmm4
+	shufps	$16,%xmm0,%xmm4
 	movdqa	%xmm2,%xmm3
 	xorps	%xmm4,%xmm0
-	shufps	$0b10001100,%xmm0,%xmm4
+	shufps	$140,%xmm0,%xmm4
 	pslldq	$4,%xmm3
 	xorps	%xmm4,%xmm0
-	pshufd	$0b01010101,%xmm1,%xmm1
+	pshufd	$85,%xmm1,%xmm1
 	pxor	%xmm3,%xmm2
 	pxor	%xmm1,%xmm0
-	pshufd	$0b11111111,%xmm0,%xmm3
+	pshufd	$255,%xmm0,%xmm3
 	pxor	%xmm3,%xmm2
 	.byte	0xf3,0xc3
 
 .align	16
 .Lkey_expansion_192b:
 	movaps	%xmm0,%xmm3
-	shufps	$0b01000100,%xmm0,%xmm5
+	shufps	$68,%xmm0,%xmm5
 	movups	%xmm5,(%rax)
-	shufps	$0b01001110,%xmm2,%xmm3
+	shufps	$78,%xmm2,%xmm3
 	movups	%xmm3,16(%rax)
 	leaq	32(%rax),%rax
 	jmp	.Lkey_expansion_192b_warm
@@ -3505,11 +3505,11 @@ __aesni_set_encrypt_key:
 	movups	%xmm2,(%rax)
 	leaq	16(%rax),%rax
 .Lkey_expansion_256a_cold:
-	shufps	$0b00010000,%xmm0,%xmm4
+	shufps	$16,%xmm0,%xmm4
 	xorps	%xmm4,%xmm0
-	shufps	$0b10001100,%xmm0,%xmm4
+	shufps	$140,%xmm0,%xmm4
 	xorps	%xmm4,%xmm0
-	shufps	$0b11111111,%xmm1,%xmm1
+	shufps	$255,%xmm1,%xmm1
 	xorps	%xmm1,%xmm0
 	.byte	0xf3,0xc3
 
@@ -3518,11 +3518,11 @@ __aesni_set_encrypt_key:
 	movups	%xmm0,(%rax)
 	leaq	16(%rax),%rax
 
-	shufps	$0b00010000,%xmm2,%xmm4
+	shufps	$16,%xmm2,%xmm4
 	xorps	%xmm4,%xmm2
-	shufps	$0b10001100,%xmm2,%xmm4
+	shufps	$140,%xmm2,%xmm4
 	xorps	%xmm4,%xmm2
-	shufps	$0b10101010,%xmm1,%xmm1
+	shufps	$170,%xmm1,%xmm1
 	xorps	%xmm1,%xmm2
 	.byte	0xf3,0xc3
 .size	aesni_set_encrypt_key,.-aesni_set_encrypt_key

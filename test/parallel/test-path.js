@@ -155,13 +155,16 @@ assert.throws(path.win32.dirname.bind(null, {}), TypeError);
 ].forEach(function(test) {
   [path.posix.extname, path.win32.extname].forEach(function(extname) {
     let input = test[0];
-    if (extname === path.win32.extname)
+    let os;
+    if (extname === path.win32.extname) {
       input = input.replace(/\//g, '\\');
+      os = 'win32';
+    } else {
+      os = 'posix';
+    }
     const actual = extname(input);
     const expected = test[1];
-    const fn = 'path.' +
-               (extname === path.win32.extname ? 'win32' : 'posix') +
-               '.extname(';
+    const fn = `path.${os}.extname(`;
     const message = fn + JSON.stringify(input) + ')' +
                     '\n  expect=' + JSON.stringify(expected) +
                     '\n  actual=' + JSON.stringify(actual);
@@ -319,11 +322,15 @@ joinTests.forEach(function(test) {
       // For non-Windows specific tests with the Windows join(), we need to try
       // replacing the slashes since the non-Windows specific tests' `expected`
       // use forward slashes
-      const actualAlt = (join === path.win32.join) ?
-        actual.replace(/\\/g, '/') : undefined;
-      const fn = 'path.' +
-                 (join === path.win32.join ? 'win32' : 'posix') +
-                 '.join(';
+      let actualAlt;
+      let os;
+      if (join === path.win32.join) {
+        actualAlt = actual.replace(/\\/g, '/');
+        os = 'win32';
+      } else {
+        os = 'posix';
+      }
+      const fn = `path.${os}.join(`;
       const message = fn + test[0].map(JSON.stringify).join(',') + ')' +
                       '\n  expect=' + JSON.stringify(expected) +
                       '\n  actual=' + JSON.stringify(actual);
@@ -423,14 +430,14 @@ resolveTests.forEach(function(test) {
   test[1].forEach(function(test) {
     const actual = resolve.apply(null, test[0]);
     let actualAlt;
+    const os = resolve === path.win32.resolve ? 'win32' : 'posix';
     if (resolve === path.win32.resolve && !common.isWindows)
       actualAlt = actual.replace(/\\/g, '/');
     else if (resolve !== path.win32.resolve && common.isWindows)
       actualAlt = actual.replace(/\//g, '\\');
+
     const expected = test[1];
-    const fn = 'path.' +
-               (resolve === path.win32.resolve ? 'win32' : 'posix') +
-               '.resolve(';
+    const fn = `path.${os}.resolve(`;
     const message = fn + test[0].map(JSON.stringify).join(',') + ')' +
                     '\n  expect=' + JSON.stringify(expected) +
                     '\n  actual=' + JSON.stringify(actual);
@@ -517,9 +524,8 @@ relativeTests.forEach(function(test) {
   test[1].forEach(function(test) {
     const actual = relative(test[0], test[1]);
     const expected = test[2];
-    const fn = 'path.' +
-               (relative === path.win32.relative ? 'win32' : 'posix') +
-               '.relative(';
+    const os = relative === path.win32.relative ? 'win32' : 'posix';
+    const fn = `path.${os}.relative(`;
     const message = fn +
                     test.slice(0, 2).map(JSON.stringify).join(',') +
                     ')' +
@@ -580,6 +586,6 @@ assert.equal(path.win32._makeLong(emptyObj), emptyObj);
 
 
 if (common.isWindows)
-  assert.deepEqual(path, path.win32, 'should be win32 path module');
+  assert.deepStrictEqual(path, path.win32, 'should be win32 path module');
 else
-  assert.deepEqual(path, path.posix, 'should be posix path module');
+  assert.deepStrictEqual(path, path.posix, 'should be posix path module');

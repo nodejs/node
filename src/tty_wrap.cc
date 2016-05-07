@@ -21,7 +21,6 @@ using v8::FunctionTemplate;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::PropertyAttribute;
 using v8::String;
 using v8::Value;
 
@@ -37,7 +36,7 @@ void TTYWrap::Initialize(Local<Object> target,
 
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
-  env->SetProtoMethod(t, "isRefed", HandleWrap::IsRefed);
+  env->SetProtoMethod(t, "unrefed", HandleWrap::Unrefed);
 
   StreamWrap::AddMethods(env, t, StreamBase::kFlagNoShutdown);
 

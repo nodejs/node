@@ -4,7 +4,7 @@ var assert = require('assert');
 var cluster = require('cluster');
 
 assert.equal('NODE_UNIQUE_ID' in process.env, false,
-      'NODE_UNIQUE_ID should be removed on startup');
+             'NODE_UNIQUE_ID should be removed on startup');
 
 function forEach(obj, fn) {
   Object.keys(obj).forEach(function(name, index) {
@@ -93,7 +93,7 @@ else if (cluster.isMaster) {
   worker = cluster.fork();
   assert.equal(worker.id, 1);
   assert.ok(worker instanceof cluster.Worker,
-      'the worker is not a instance of the Worker constructor');
+            'the worker is not a instance of the Worker constructor');
 
   //Check event
   forEach(checks.worker.events, function(bool, name, index) {
@@ -117,7 +117,7 @@ else if (cluster.isMaster) {
                          port: common.PORT,
                          addressType: 4,
                          fd: undefined };
-          assert.deepEqual(arguments[0], expect);
+          assert.deepStrictEqual(arguments[0], expect);
           break;
 
         default:

@@ -3,7 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 
 var Buffer = require('buffer').Buffer;
-var SlowBuffer = require('buffer').SlowBuffer;
 
 // counter to ensure unique value is always copied
 var cntr = 0;
@@ -33,7 +32,9 @@ assert.strictEqual(0, d.length);
 
 var ui32 = new Uint32Array(4).fill(42);
 var e = Buffer.from(ui32);
-assert.deepEqual(ui32, e);
+for (const [index, value] of e.entries()) {
+  assert.strictEqual(value, ui32[index]);
+}
 
 // First check Buffer#fill() works as expected.
 
@@ -428,7 +429,7 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
 
 {
   // also from a non-pooled instance
-  const b = new SlowBuffer(5);
+  const b = Buffer.allocUnsafeSlow(5);
   const c = b.slice(0, 4);
   const d = c.slice(0, 2);
   assert.equal(c.parent, d.parent);
@@ -464,32 +465,32 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
   assert.equal(d[0], 23);
   assert.equal(d[1], 42);
   assert.equal(d[2], 255);
-  assert.deepEqual(d, Buffer.from(d));
+  assert.deepStrictEqual(d, Buffer.from(d));
 }
 
 {
   const e = Buffer.from('über');
   console.error('uber: \'%s\'', e.toString());
-  assert.deepEqual(e, Buffer.from([195, 188, 98, 101, 114]));
+  assert.deepStrictEqual(e, Buffer.from([195, 188, 98, 101, 114]));
 }
 
 {
   const f = Buffer.from('über', 'ascii');
   console.error('f.length: %d     (should be 4)', f.length);
-  assert.deepEqual(f, Buffer.from([252, 98, 101, 114]));
+  assert.deepStrictEqual(f, Buffer.from([252, 98, 101, 114]));
 }
 
 ['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach(function(encoding) {
   {
     const f = Buffer.from('über', encoding);
     console.error('f.length: %d     (should be 8)', f.length);
-    assert.deepEqual(f, Buffer.from([252, 0, 98, 0, 101, 0, 114, 0]));
+    assert.deepStrictEqual(f, Buffer.from([252, 0, 98, 0, 101, 0, 114, 0]));
   }
 
   {
     const f = Buffer.from('привет', encoding);
     console.error('f.length: %d     (should be 12)', f.length);
-    assert.deepEqual(f,
+    assert.deepStrictEqual(f,
       Buffer.from([63, 4, 64, 4, 56, 4, 50, 4, 53, 4, 66, 4]));
     assert.equal(f.toString(encoding), 'привет');
   }
@@ -500,23 +501,23 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
     const size = f.write('あいうえお', encoding);
     console.error('bytes written to buffer: %d     (should be 4)', size);
     assert.equal(size, 4);
-    assert.deepEqual(f, Buffer.from([0x42, 0x30, 0x44, 0x30, 0x00]));
+    assert.deepStrictEqual(f, Buffer.from([0x42, 0x30, 0x44, 0x30, 0x00]));
   }
 });
 
 {
   const f = Buffer.from('\uD83D\uDC4D', 'utf-16le'); // THUMBS UP SIGN (U+1F44D)
   assert.equal(f.length, 4);
-  assert.deepEqual(f, Buffer.from('3DD84DDC', 'hex'));
+  assert.deepStrictEqual(f, Buffer.from('3DD84DDC', 'hex'));
 }
 
 
 var arrayIsh = {0: 0, 1: 1, 2: 2, 3: 3, length: 4};
 var g = Buffer.from(arrayIsh);
-assert.deepEqual(g, Buffer.from([0, 1, 2, 3]));
+assert.deepStrictEqual(g, Buffer.from([0, 1, 2, 3]));
 var strArrayIsh = {0: '0', 1: '1', 2: '2', 3: '3', length: 4};
 g = Buffer.from(strArrayIsh);
-assert.deepEqual(g, Buffer.from([0, 1, 2, 3]));
+assert.deepStrictEqual(g, Buffer.from([0, 1, 2, 3]));
 
 
 //
@@ -527,26 +528,26 @@ assert.equal('TWFu', (Buffer.from('Man')).toString('base64'));
 {
   // test that regular and URL-safe base64 both work
   const expected = [0xff, 0xff, 0xbe, 0xff, 0xef, 0xbf, 0xfb, 0xef, 0xff];
-  assert.deepEqual(Buffer.from('//++/++/++//', 'base64'),
-                   Buffer.from(expected));
-  assert.deepEqual(Buffer.from('__--_--_--__', 'base64'),
-                   Buffer.from(expected));
+  assert.deepStrictEqual(Buffer.from('//++/++/++//', 'base64'),
+                         Buffer.from(expected));
+  assert.deepStrictEqual(Buffer.from('__--_--_--__', 'base64'),
+                         Buffer.from(expected));
 }
 
 {
   // big example
   const quote = 'Man is distinguished, not only by his reason, but by this ' +
-              'singular passion from other animals, which is a lust ' +
-              'of the mind, that by a perseverance of delight in the ' +
-              'continued and indefatigable generation of knowledge, exceeds ' +
-              'the short vehemence of any carnal pleasure.';
+                'singular passion from other animals, which is a lust ' +
+                'of the mind, that by a perseverance of delight in the ' +
+                'continued and indefatigable generation of knowledge, ' +
+                'exceeds the short vehemence of any carnal pleasure.';
   const expected = 'TWFuIGlzIGRpc3Rpbmd1aXNoZWQsIG5vdCBvbmx5IGJ5IGhpcyByZWFzb' +
-                 '24sIGJ1dCBieSB0aGlzIHNpbmd1bGFyIHBhc3Npb24gZnJvbSBvdGhlciBh' +
-                 'bmltYWxzLCB3aGljaCBpcyBhIGx1c3Qgb2YgdGhlIG1pbmQsIHRoYXQgYnk' +
-                 'gYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWdodCBpbiB0aGUgY29udGludWVkIG' +
-                 'FuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZGdlLCBle' +
-                 'GNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm5hbCBwbGVh' +
-                 'c3VyZS4=';
+                   '24sIGJ1dCBieSB0aGlzIHNpbmd1bGFyIHBhc3Npb24gZnJvbSBvdGhlci' +
+                   'BhbmltYWxzLCB3aGljaCBpcyBhIGx1c3Qgb2YgdGhlIG1pbmQsIHRoYXQ' +
+                   'gYnkgYSBwZXJzZXZlcmFuY2Ugb2YgZGVsaWdodCBpbiB0aGUgY29udGlu' +
+                   'dWVkIGFuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZ' +
+                   'GdlLCBleGNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm' +
+                   '5hbCBwbGVhc3VyZS4=';
   assert.equal(expected, (Buffer.from(quote)).toString('base64'));
 
   let b = Buffer.allocUnsafe(1024);
@@ -556,11 +557,11 @@ assert.equal('TWFu', (Buffer.from('Man')).toString('base64'));
 
   // check that the base64 decoder ignores whitespace
   const expectedWhite = expected.slice(0, 60) + ' \n' +
-                      expected.slice(60, 120) + ' \n' +
-                      expected.slice(120, 180) + ' \n' +
-                      expected.slice(180, 240) + ' \n' +
-                      expected.slice(240, 300) + '\n' +
-                      expected.slice(300, 360) + '\n';
+                        expected.slice(60, 120) + ' \n' +
+                        expected.slice(120, 180) + ' \n' +
+                        expected.slice(180, 240) + ' \n' +
+                        expected.slice(240, 300) + '\n' +
+                        expected.slice(300, 360) + '\n';
   b = Buffer.allocUnsafe(1024);
   bytesWritten = b.write(expectedWhite, 0, 'base64');
   assert.equal(quote.length, bytesWritten);
@@ -574,11 +575,11 @@ assert.equal('TWFu', (Buffer.from('Man')).toString('base64'));
 
   // check that the base64 decoder ignores illegal chars
   const expectedIllegal = expected.slice(0, 60) + ' \x80' +
-                        expected.slice(60, 120) + ' \xff' +
-                        expected.slice(120, 180) + ' \x00' +
-                        expected.slice(180, 240) + ' \x98' +
-                        expected.slice(240, 300) + '\x03' +
-                        expected.slice(300, 360);
+                          expected.slice(60, 120) + ' \xff' +
+                          expected.slice(120, 180) + ' \x00' +
+                          expected.slice(180, 240) + ' \x98' +
+                          expected.slice(240, 300) + '\x03' +
+                          expected.slice(300, 360);
   b = Buffer.from(expectedIllegal, 'base64');
   assert.equal(quote.length, b.length);
   assert.equal(quote, b.toString('ascii', 0, quote.length));
@@ -644,18 +645,30 @@ assert.equal(Buffer.from('KioqKioqKioqKioqKioqKioqKio', 'base64').toString(),
              '********************');
 
 // handle padding graciously, multiple-of-4 or not
-assert.equal(Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==',
-                        'base64').length, 32);
-assert.equal(Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw=',
-                        'base64').length, 32);
-assert.equal(Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw',
-                        'base64').length, 32);
-assert.equal(Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==',
-                        'base64').length, 31);
-assert.equal(Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=',
-                        'base64').length, 31);
-assert.equal(Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg',
-                        'base64').length, 31);
+assert.equal(
+  Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==', 'base64').length,
+  32
+);
+assert.equal(
+  Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw=', 'base64').length,
+  32
+);
+assert.equal(
+  Buffer.from('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw', 'base64').length,
+  32
+);
+assert.equal(
+  Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==', 'base64').length,
+  31
+);
+assert.equal(
+  Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=', 'base64').length,
+  31
+);
+assert.equal(
+  Buffer.from('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg', 'base64').length,
+  31
+);
 
 // This string encodes single '.' character in UTF-16
 var dot = Buffer.from('//4uAA==', 'base64');
@@ -1022,7 +1035,7 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 
   assert.equal(string, '{"type":"Buffer","data":[116,101,115,116]}');
 
-  assert.deepEqual(buffer, JSON.parse(string, function(key, value) {
+  assert.deepStrictEqual(buffer, JSON.parse(string, function(key, value) {
     return value && value.type === 'Buffer'
       ? Buffer.from(value.data)
       : value;
@@ -1168,92 +1181,92 @@ assert.throws(function() {
 (function() {
   var buf = Buffer.allocUnsafe(3);
   buf.writeUIntLE(0x123456, 0, 3);
-  assert.deepEqual(buf.toJSON().data, [0x56, 0x34, 0x12]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x56, 0x34, 0x12]);
   assert.equal(buf.readUIntLE(0, 3), 0x123456);
 
   buf = Buffer.allocUnsafe(3);
   buf.writeUIntBE(0x123456, 0, 3);
-  assert.deepEqual(buf.toJSON().data, [0x12, 0x34, 0x56]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x12, 0x34, 0x56]);
   assert.equal(buf.readUIntBE(0, 3), 0x123456);
 
   buf = Buffer.allocUnsafe(3);
   buf.writeIntLE(0x123456, 0, 3);
-  assert.deepEqual(buf.toJSON().data, [0x56, 0x34, 0x12]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x56, 0x34, 0x12]);
   assert.equal(buf.readIntLE(0, 3), 0x123456);
 
   buf = Buffer.allocUnsafe(3);
   buf.writeIntBE(0x123456, 0, 3);
-  assert.deepEqual(buf.toJSON().data, [0x12, 0x34, 0x56]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x12, 0x34, 0x56]);
   assert.equal(buf.readIntBE(0, 3), 0x123456);
 
   buf = Buffer.allocUnsafe(3);
   buf.writeIntLE(-0x123456, 0, 3);
-  assert.deepEqual(buf.toJSON().data, [0xaa, 0xcb, 0xed]);
+  assert.deepStrictEqual(buf.toJSON().data, [0xaa, 0xcb, 0xed]);
   assert.equal(buf.readIntLE(0, 3), -0x123456);
 
   buf = Buffer.allocUnsafe(3);
   buf.writeIntBE(-0x123456, 0, 3);
-  assert.deepEqual(buf.toJSON().data, [0xed, 0xcb, 0xaa]);
+  assert.deepStrictEqual(buf.toJSON().data, [0xed, 0xcb, 0xaa]);
   assert.equal(buf.readIntBE(0, 3), -0x123456);
 
   buf = Buffer.allocUnsafe(3);
   buf.writeIntLE(-0x123400, 0, 3);
-  assert.deepEqual(buf.toJSON().data, [0x00, 0xcc, 0xed]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x00, 0xcc, 0xed]);
   assert.equal(buf.readIntLE(0, 3), -0x123400);
 
   buf = Buffer.allocUnsafe(3);
   buf.writeIntBE(-0x123400, 0, 3);
-  assert.deepEqual(buf.toJSON().data, [0xed, 0xcc, 0x00]);
+  assert.deepStrictEqual(buf.toJSON().data, [0xed, 0xcc, 0x00]);
   assert.equal(buf.readIntBE(0, 3), -0x123400);
 
   buf = Buffer.allocUnsafe(3);
   buf.writeIntLE(-0x120000, 0, 3);
-  assert.deepEqual(buf.toJSON().data, [0x00, 0x00, 0xee]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x00, 0x00, 0xee]);
   assert.equal(buf.readIntLE(0, 3), -0x120000);
 
   buf = Buffer.allocUnsafe(3);
   buf.writeIntBE(-0x120000, 0, 3);
-  assert.deepEqual(buf.toJSON().data, [0xee, 0x00, 0x00]);
+  assert.deepStrictEqual(buf.toJSON().data, [0xee, 0x00, 0x00]);
   assert.equal(buf.readIntBE(0, 3), -0x120000);
 
   buf = Buffer.allocUnsafe(5);
   buf.writeUIntLE(0x1234567890, 0, 5);
-  assert.deepEqual(buf.toJSON().data, [0x90, 0x78, 0x56, 0x34, 0x12]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x90, 0x78, 0x56, 0x34, 0x12]);
   assert.equal(buf.readUIntLE(0, 5), 0x1234567890);
 
   buf = Buffer.allocUnsafe(5);
   buf.writeUIntBE(0x1234567890, 0, 5);
-  assert.deepEqual(buf.toJSON().data, [0x12, 0x34, 0x56, 0x78, 0x90]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x12, 0x34, 0x56, 0x78, 0x90]);
   assert.equal(buf.readUIntBE(0, 5), 0x1234567890);
 
   buf = Buffer.allocUnsafe(5);
   buf.writeIntLE(0x1234567890, 0, 5);
-  assert.deepEqual(buf.toJSON().data, [0x90, 0x78, 0x56, 0x34, 0x12]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x90, 0x78, 0x56, 0x34, 0x12]);
   assert.equal(buf.readIntLE(0, 5), 0x1234567890);
 
   buf = Buffer.allocUnsafe(5);
   buf.writeIntBE(0x1234567890, 0, 5);
-  assert.deepEqual(buf.toJSON().data, [0x12, 0x34, 0x56, 0x78, 0x90]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x12, 0x34, 0x56, 0x78, 0x90]);
   assert.equal(buf.readIntBE(0, 5), 0x1234567890);
 
   buf = Buffer.allocUnsafe(5);
   buf.writeIntLE(-0x1234567890, 0, 5);
-  assert.deepEqual(buf.toJSON().data, [0x70, 0x87, 0xa9, 0xcb, 0xed]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x70, 0x87, 0xa9, 0xcb, 0xed]);
   assert.equal(buf.readIntLE(0, 5), -0x1234567890);
 
   buf = Buffer.allocUnsafe(5);
   buf.writeIntBE(-0x1234567890, 0, 5);
-  assert.deepEqual(buf.toJSON().data, [0xed, 0xcb, 0xa9, 0x87, 0x70]);
+  assert.deepStrictEqual(buf.toJSON().data, [0xed, 0xcb, 0xa9, 0x87, 0x70]);
   assert.equal(buf.readIntBE(0, 5), -0x1234567890);
 
   buf = Buffer.allocUnsafe(5);
   buf.writeIntLE(-0x0012000000, 0, 5);
-  assert.deepEqual(buf.toJSON().data, [0x00, 0x00, 0x00, 0xee, 0xff]);
+  assert.deepStrictEqual(buf.toJSON().data, [0x00, 0x00, 0x00, 0xee, 0xff]);
   assert.equal(buf.readIntLE(0, 5), -0x0012000000);
 
   buf = Buffer.allocUnsafe(5);
   buf.writeIntBE(-0x0012000000, 0, 5);
-  assert.deepEqual(buf.toJSON().data, [0xff, 0xee, 0x00, 0x00, 0x00]);
+  assert.deepStrictEqual(buf.toJSON().data, [0xff, 0xee, 0x00, 0x00, 0x00]);
   assert.equal(buf.readIntBE(0, 5), -0x0012000000);
 })();
 
@@ -1293,7 +1306,7 @@ assert.throws(function() {
   }
 
   var utf16Buf = Buffer.from('0123456789', 'utf16le');
-  assert.deepEqual(utf16Buf.slice(0, 6), Buffer.from('012', 'utf16le'));
+  assert.deepStrictEqual(utf16Buf.slice(0, 6), Buffer.from('012', 'utf16le'));
 
   assert.equal(buf.slice('0', '1'), '0');
   assert.equal(buf.slice('-5', '10'), '56789');
@@ -1305,7 +1318,7 @@ assert.throws(function() {
 
   // try to slice a zero length Buffer
   // see https://github.com/joyent/node/issues/5881
-  SlowBuffer(0).slice(0, 1);
+  Buffer.alloc(0).slice(0, 1);
 })();
 
 // Regression test for #5482: should throw but not assert in C++ land.
@@ -1336,7 +1349,7 @@ assert.throws(function() {
 }, RangeError);
 
 assert.throws(function() {
-  SlowBuffer((-1 >>> 0) + 1);
+  Buffer.allocUnsafeSlow((-1 >>> 0) + 1);
 }, RangeError);
 
 if (common.hasCrypto) {
@@ -1435,14 +1448,13 @@ assert.throws(function() {
 }, regErrorMsg);
 
 
-// Test prototype getters don't throw
-assert.equal(Buffer.prototype.parent, undefined);
-assert.equal(Buffer.prototype.offset, undefined);
-assert.equal(SlowBuffer.prototype.parent, undefined);
-assert.equal(SlowBuffer.prototype.offset, undefined);
-
-
 // Test that ParseArrayIndex handles full uint32
 assert.throws(function() {
   Buffer.from(new ArrayBuffer(0), -1 >>> 0);
 }, /RangeError: 'offset' is out of bounds/);
+
+// Unpooled buffer (replaces SlowBuffer)
+const ubuf = Buffer.allocUnsafeSlow(10);
+assert(ubuf);
+assert(ubuf.buffer);
+assert.equal(ubuf.buffer.byteLength, 10);

@@ -11,9 +11,9 @@ function check(size, alignment, offset) {
   buf = null;
   binding.check(slice);
   slice = null;
-  gc();
-  gc();
-  gc();
+  global.gc();
+  global.gc();
+  global.gc();
 }
 
 check(64, 1, 0);

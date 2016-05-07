@@ -33,6 +33,7 @@
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/factory.h"
+#include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/memory-reducer.h"
@@ -1515,6 +1516,50 @@ TEST(TestCodeFlushingIncrementalAbort) {
   CHECK(function->is_compiled() || !function->IsOptimized());
 }
 
+TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
+  // Turn off always_opt because it interferes with running the built-in for
+  // the last call to g().
+  i::FLAG_always_opt = false;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(CcTest::isolate());
+
+  CompileRun(
+      "function make_closure(x) {"
+      "  return function() { return x + 3 };"
+      "}"
+      "var f = make_closure(5); f();"
+      "var g = make_closure(5);");
+
+  // Check f is compiled.
+  Handle<String> f_name = factory->InternalizeUtf8String("f");
+  Handle<Object> f_value =
+      Object::GetProperty(isolate->global_object(), f_name).ToHandleChecked();
+  Handle<JSFunction> f_function = Handle<JSFunction>::cast(f_value);
+  CHECK(f_function->is_compiled());
+
+  // Check g is not compiled.
+  Handle<String> g_name = factory->InternalizeUtf8String("g");
+  Handle<Object> g_value =
+      Object::GetProperty(isolate->global_object(), g_name).ToHandleChecked();
+  Handle<JSFunction> g_function = Handle<JSFunction>::cast(g_value);
+  // TODO(mvstanton): change to check that g is *not* compiled when optimized
+  // cache
+  // map lookup moves to the compile lazy builtin.
+  CHECK(g_function->is_compiled());
+
+  SimulateIncrementalMarking(heap);
+  CompileRun("%OptimizeFunctionOnNextCall(f); f();");
+
+  // g should now have available an optimized function, unmarked by gc. The
+  // CompileLazy built-in will discover it and install it in the closure, and
+  // the incremental write barrier should be used.
+  CompileRun("g();");
+  CHECK(g_function->is_compiled());
+}
 
 TEST(CompilationCacheCachingBehavior) {
   // If we do not flush code, or have the compilation cache turned off, this
@@ -3514,6 +3559,13 @@ TEST(ReleaseOverReservedPages) {
   // The optimizer can allocate stuff, messing up the test.
   i::FLAG_crankshaft = false;
   i::FLAG_always_opt = false;
+  // Parallel compaction increases fragmentation, depending on how existing
+  // memory is distributed. Since this is non-deterministic because of
+  // concurrent sweeping, we disable it for this test.
+  i::FLAG_parallel_compaction = false;
+  // Concurrent sweeping adds non determinism, depending on when memory is
+  // available for further reuse.
+  i::FLAG_concurrent_sweeping = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -4163,9 +4215,6 @@ TEST(Regress169209) {
   CHECK(shared1->code()->gc_metadata() != NULL);
 
   // Optimize function and make sure the unoptimized code is replaced.
-#ifdef DEBUG
-  FLAG_stop_at = "f";
-#endif
   CompileRun("%OptimizeFunctionOnNextCall(g);"
              "g(false);");
 
@@ -5555,8 +5604,8 @@ TEST(Regress507979) {
 
   Handle<FixedArray> o1 = isolate->factory()->NewFixedArray(kFixedArrayLen);
   Handle<FixedArray> o2 = isolate->factory()->NewFixedArray(kFixedArrayLen);
-  CHECK(heap->InNewSpace(o1->address()));
-  CHECK(heap->InNewSpace(o2->address()));
+  CHECK(heap->InNewSpace(*o1));
+  CHECK(heap->InNewSpace(*o2));
 
   HeapIterator it(heap, i::HeapIterator::kFilterUnreachable);
 
@@ -5568,33 +5617,6 @@ TEST(Regress507979) {
     // Let's not optimize the loop away.
     CHECK(obj->address() != nullptr);
   }
-}
-
-
-TEST(ArrayShiftSweeping) {
-  i::FLAG_expose_gc = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-
-  v8::Local<v8::Value> result = CompileRun(
-      "var array = new Array(400);"
-      "var tmp = new Array(1000);"
-      "array[0] = 10;"
-      "gc();"
-      "gc();"
-      "array.shift();"
-      "array;");
-
-  Handle<JSObject> o = Handle<JSObject>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result)));
-  CHECK(heap->InOldSpace(o->elements()));
-  CHECK(heap->InOldSpace(*o));
-  Page* page = Page::FromAddress(o->elements()->address());
-  CHECK(page->parallel_sweeping_state().Value() <=
-            MemoryChunk::kSweepingFinalize ||
-        Marking::IsBlack(Marking::MarkBitFrom(o->elements())));
 }
 
 
@@ -5681,10 +5703,12 @@ TEST(Regress388880) {
   Heap* heap = isolate->heap();
 
   Handle<Map> map1 = Map::Create(isolate, 1);
+  Handle<String> name = factory->NewStringFromStaticChars("foo");
+  name = factory->InternalizeString(name);
   Handle<Map> map2 =
-      Map::CopyWithField(map1, factory->NewStringFromStaticChars("foo"),
-                         HeapType::Any(isolate), NONE, Representation::Tagged(),
-                         OMIT_TRANSITION).ToHandleChecked();
+      Map::CopyWithField(map1, name, FieldType::Any(isolate), NONE,
+                         Representation::Tagged(), OMIT_TRANSITION)
+          .ToHandleChecked();
 
   int desired_offset = Page::kPageSize - map1->instance_size();
 
@@ -6232,7 +6256,6 @@ TEST(MessageObjectLeak) {
   const char* flag = "--turbo-filter=*";
   FlagList::SetFlagsFromString(flag, StrLength(flag));
   FLAG_always_opt = true;
-  FLAG_turbo_try_finally = true;
 
   CompileRun(test);
 }
@@ -6470,6 +6493,43 @@ HEAP_TEST(TestMemoryReducerSampleJsCalls) {
   CheckDoubleEquals(2, calls_per_ms);
 }
 
+HEAP_TEST(Regress587004) {
+  FLAG_concurrent_sweeping = false;
+#ifdef VERIFY_HEAP
+  FLAG_verify_heap = false;
+#endif
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  const int N = (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
+                kPointerSize;
+  Handle<FixedArray> array = factory->NewFixedArray(N, TENURED);
+  CHECK(heap->old_space()->Contains(*array));
+  Handle<Object> number = factory->NewHeapNumber(1.0);
+  CHECK(heap->InNewSpace(*number));
+  for (int i = 0; i < N; i++) {
+    array->set(i, *number);
+  }
+  heap->CollectGarbage(OLD_SPACE);
+  SimulateFullSpace(heap->old_space());
+  heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(*array, N - 1);
+  heap->mark_compact_collector()->EnsureSweepingCompleted();
+  ByteArray* byte_array;
+  const int M = 256;
+  // Don't allow old space expansion. The test works without this flag too,
+  // but becomes very slow.
+  heap->set_force_oom(true);
+  while (heap->AllocateByteArray(M, TENURED).To(&byte_array)) {
+    for (int j = 0; j < M; j++) {
+      byte_array->set(j, 0x31);
+    }
+  }
+  // Re-enable old space expansion to avoid OOM crash.
+  heap->set_force_oom(false);
+  heap->CollectGarbage(NEW_SPACE);
+}
 
 }  // namespace internal
 }  // namespace v8

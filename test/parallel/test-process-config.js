@@ -21,4 +21,4 @@ config = JSON.parse(config, function(key, value) {
   return value;
 });
 
-assert.deepEqual(config, process.config);
+assert.deepStrictEqual(config, process.config);

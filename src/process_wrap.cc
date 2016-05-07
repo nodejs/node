@@ -40,7 +40,7 @@ class ProcessWrap : public HandleWrap {
 
     env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
-    env->SetProtoMethod(constructor, "isRefed", HandleWrap::IsRefed);
+    env->SetProtoMethod(constructor, "unrefed", HandleWrap::Unrefed);
 
     target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "Process"),
                 constructor->GetFunction());
@@ -166,6 +166,7 @@ class ProcessWrap : public HandleWrap {
       for (int i = 0; i < argc; i++) {
         node::Utf8Value arg(env->isolate(), js_argv->Get(i));
         options.args[i] = strdup(*arg);
+        CHECK_NE(options.args[i], nullptr);
       }
       options.args[argc] = nullptr;
     }
@@ -187,6 +188,7 @@ class ProcessWrap : public HandleWrap {
       for (int i = 0; i < envc; i++) {
         node::Utf8Value pair(env->isolate(), env_opt->Get(i));
         options.env[i] = strdup(*pair);
+        CHECK_NE(options.env[i], nullptr);
       }
       options.env[envc] = nullptr;
     }

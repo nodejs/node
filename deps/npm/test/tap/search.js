@@ -74,6 +74,20 @@ test('No previous cache, init cache triggered by first search', function (t) {
   })
 })
 
+test('no arguments provided should error', function (t) {
+  common.npm(['search'], [], function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.equal(code, 1, 'search finished unsuccessfully')
+
+    t.match(
+        stderr,
+        /search must be called with arguments/,
+        'should have correct error message'
+    )
+    t.end()
+  })
+})
+
 test('previous cache, _updated set, should trigger since request', function (t) {
   setupCache()
 

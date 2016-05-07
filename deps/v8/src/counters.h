@@ -9,8 +9,10 @@
 #include "src/allocation.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
+#include "src/builtins.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -196,6 +198,8 @@ class Histogram {
     lookup_done_ = false;
   }
 
+  const char* name() { return name_; }
+
  protected:
   // Returns the handle to the histogram.
   void* GetHistogram() {
@@ -206,7 +210,6 @@ class Histogram {
     return histogram_;
   }
 
-  const char* name() { return name_; }
   Isolate* isolate() const { return isolate_; }
 
  private:
@@ -328,8 +331,9 @@ class AggregatableHistogramTimer : public Histogram {
   base::TimeDelta time_;
 };
 
-
-// A helper class for use with AggregatableHistogramTimer.
+// A helper class for use with AggregatableHistogramTimer. This is the
+// // outer-most timer scope used with an AggregatableHistogramTimer. It will
+// // aggregate the information from the inner AggregatedHistogramTimerScope.
 class AggregatingHistogramTimerScope {
  public:
   explicit AggregatingHistogramTimerScope(AggregatableHistogramTimer* histogram)
@@ -342,8 +346,8 @@ class AggregatingHistogramTimerScope {
   AggregatableHistogramTimer* histogram_;
 };
 
-
-// A helper class for use with AggregatableHistogramTimer.
+// A helper class for use with AggregatableHistogramTimer, the "inner" scope
+// // which defines the events to be timed.
 class AggregatedHistogramTimerScope {
  public:
   explicit AggregatedHistogramTimerScope(AggregatableHistogramTimer* histogram)
@@ -475,6 +479,91 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
          value * ((current_ms - last_ms_) / interval_ms);
 }
 
+struct RuntimeCallCounter {
+  explicit RuntimeCallCounter(const char* name) : name(name) {}
+  void Reset();
+
+  const char* name;
+  int64_t count = 0;
+  base::TimeDelta time;
+};
+
+// RuntimeCallTimer is used to keep track of the stack of currently active
+// timers used for properly measuring the own time of a RuntimeCallCounter.
+class RuntimeCallTimer {
+ public:
+  RuntimeCallTimer(RuntimeCallCounter* counter, RuntimeCallTimer* parent)
+      : counter_(counter), parent_(parent) {}
+
+  inline void Start() {
+    timer_.Start();
+    counter_->count++;
+  }
+
+  inline RuntimeCallTimer* Stop() {
+    base::TimeDelta delta = timer_.Elapsed();
+    counter_->time += delta;
+    if (parent_ != NULL) {
+      parent_->AdjustForSubTimer(delta);
+    }
+    return parent_;
+  }
+
+  void AdjustForSubTimer(base::TimeDelta delta) { counter_->time -= delta; }
+
+ private:
+  RuntimeCallCounter* counter_;
+  RuntimeCallTimer* parent_;
+  base::ElapsedTimer timer_;
+};
+
+struct RuntimeCallStats {
+  // Dummy counter for the unexpected stub miss.
+  RuntimeCallCounter UnexpectedStubMiss =
+      RuntimeCallCounter("UnexpectedStubMiss");
+  // Counter for runtime callbacks into JavaScript.
+  RuntimeCallCounter ExternalCallback = RuntimeCallCounter("ExternalCallback");
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
+  RuntimeCallCounter Runtime_##name = RuntimeCallCounter(#name);
+  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
+#define CALL_BUILTIN_COUNTER(name, type) \
+  RuntimeCallCounter Builtin_##name = RuntimeCallCounter(#name);
+  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+
+  // Counter to track recursive time events.
+  RuntimeCallTimer* current_timer_ = NULL;
+
+  // Starting measuring the time for a function. This will establish the
+  // connection to the parent counter for properly calculating the own times.
+  void Enter(RuntimeCallCounter* counter);
+  void Enter(RuntimeCallTimer* timer);
+  // Leave a scope for a measured runtime function. This will properly add
+  // the time delta to the current_counter and subtract the delta from its
+  // parent.
+  void Leave();
+  void Leave(RuntimeCallTimer* timer);
+
+  RuntimeCallTimer* current_timer() { return current_timer_; }
+
+  void Reset();
+  void Print(std::ostream& os);
+
+  RuntimeCallStats() { Reset(); }
+};
+
+// A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
+// the time of C++ scope.
+class RuntimeCallTimerScope {
+ public:
+  explicit RuntimeCallTimerScope(Isolate* isolate, RuntimeCallCounter* counter);
+  ~RuntimeCallTimerScope();
+
+ private:
+  Isolate* isolate_;
+  RuntimeCallTimer timer_;
+};
 
 #define HISTOGRAM_RANGE_LIST(HR)                                              \
   /* Generic range histograms */                                              \
@@ -563,7 +652,9 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(global_handles, V8.GlobalHandles)                                \
   /* OS Memory allocated */                                           \
   SC(memory_allocated, V8.OsMemoryAllocated)                          \
-  SC(normalized_maps, V8.NormalizedMaps)                              \
+  SC(maps_normalized, V8.MapsNormalized)                            \
+  SC(maps_created, V8.MapsCreated)                                  \
+  SC(elements_transitions, V8.ObjectElementsTransitions)            \
   SC(props_to_dictionary, V8.ObjectPropertiesToDictionary)            \
   SC(elements_to_dictionary, V8.ObjectElementsToDictionary)           \
   SC(alive_after_last_gc, V8.AliveAfterLastGC)                        \
@@ -572,11 +663,7 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(string_table_capacity, V8.StringTableCapacity)                   \
   SC(number_of_symbols, V8.NumberOfSymbols)                           \
   SC(script_wrappers, V8.ScriptWrappers)                              \
-  SC(call_initialize_stubs, V8.CallInitializeStubs)                   \
-  SC(call_premonomorphic_stubs, V8.CallPreMonomorphicStubs)           \
-  SC(call_normal_stubs, V8.CallNormalStubs)                           \
-  SC(call_megamorphic_stubs, V8.CallMegamorphicStubs)                 \
-  SC(inlined_copied_elements, V8.InlinedCopiedElements)              \
+  SC(inlined_copied_elements, V8.InlinedCopiedElements)               \
   SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
   SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
   SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
@@ -588,8 +675,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(total_parse_size, V8.TotalParseSize)                             \
   /* Amount of source code skipped over using preparsing. */          \
   SC(total_preparse_skipped, V8.TotalPreparseSkipped)                 \
-  /* Number of symbol lookups skipped using preparsing */             \
-  SC(total_preparse_symbols_skipped, V8.TotalPreparseSymbolSkipped)   \
   /* Amount of compiled source code. */                               \
   SC(total_compile_size, V8.TotalCompileSize)                         \
   /* Amount of source code compiled with the full codegen. */         \
@@ -602,7 +687,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(pc_to_code, V8.PcToCode)                                         \
   SC(pc_to_code_cached, V8.PcToCodeCached)                            \
   /* The store-buffer implementation of the write barrier. */         \
-  SC(store_buffer_compactions, V8.StoreBufferCompactions)             \
   SC(store_buffer_overflows, V8.StoreBufferOverflows)
 
 
@@ -619,40 +703,22 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
      V8.GCCompactorCausedByOldspaceExhaustion)                                 \
   SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                            \
   SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)                  \
-  /* How is the generic keyed-load stub used? */                               \
-  SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                           \
-  SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)                     \
-  SC(keyed_load_generic_lookup_cache, V8.KeyedLoadGenericLookupCache)          \
-  SC(keyed_load_generic_slow, V8.KeyedLoadGenericSlow)                         \
-  SC(keyed_load_polymorphic_stubs, V8.KeyedLoadPolymorphicStubs)               \
-  SC(keyed_load_external_array_slow, V8.KeyedLoadExternalArraySlow)            \
-  /* How is the generic keyed-call stub used? */                               \
-  SC(keyed_call_generic_smi_fast, V8.KeyedCallGenericSmiFast)                  \
-  SC(keyed_call_generic_smi_dict, V8.KeyedCallGenericSmiDict)                  \
-  SC(keyed_call_generic_lookup_cache, V8.KeyedCallGenericLookupCache)          \
-  SC(keyed_call_generic_lookup_dict, V8.KeyedCallGenericLookupDict)            \
-  SC(keyed_call_generic_slow, V8.KeyedCallGenericSlow)                         \
-  SC(keyed_call_generic_slow_load, V8.KeyedCallGenericSlowLoad)                \
-  SC(named_load_global_stub, V8.NamedLoadGlobalStub)                           \
-  SC(named_store_global_inline, V8.NamedStoreGlobalInline)                     \
-  SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss)            \
-  SC(keyed_store_polymorphic_stubs, V8.KeyedStorePolymorphicStubs)             \
-  SC(keyed_store_external_array_slow, V8.KeyedStoreExternalArraySlow)          \
-  SC(store_normal_miss, V8.StoreNormalMiss)                                    \
-  SC(store_normal_hit, V8.StoreNormalHit)                                      \
-  SC(cow_arrays_created_stub, V8.COWArraysCreatedStub)                         \
+  SC(ic_keyed_load_generic_smi, V8.ICKeyedLoadGenericSmi)                      \
+  SC(ic_keyed_load_generic_symbol, V8.ICKeyedLoadGenericSymbol)                \
+  SC(ic_keyed_load_generic_slow, V8.ICKeyedLoadGenericSlow)                    \
+  SC(ic_named_load_global_stub, V8.ICNamedLoadGlobalStub)                      \
+  SC(ic_store_normal_miss, V8.ICStoreNormalMiss)                               \
+  SC(ic_store_normal_hit, V8.ICStoreNormalHit)                                 \
+  SC(ic_binary_op_miss, V8.ICBinaryOpMiss)                                     \
+  SC(ic_compare_miss, V8.ICCompareMiss)                                        \
+  SC(ic_call_miss, V8.ICCallMiss)                                              \
+  SC(ic_keyed_call_miss, V8.ICKeyedCallMiss)                                   \
+  SC(ic_load_miss, V8.ICLoadMiss)                                              \
+  SC(ic_keyed_load_miss, V8.ICKeyedLoadMiss)                                   \
+  SC(ic_store_miss, V8.ICStoreMiss)                                            \
+  SC(ic_keyed_store_miss, V8.ICKeyedStoreMiss)                                 \
   SC(cow_arrays_created_runtime, V8.COWArraysCreatedRuntime)                   \
   SC(cow_arrays_converted, V8.COWArraysConverted)                              \
-  SC(call_miss, V8.CallMiss)                                                   \
-  SC(keyed_call_miss, V8.KeyedCallMiss)                                        \
-  SC(load_miss, V8.LoadMiss)                                                   \
-  SC(keyed_load_miss, V8.KeyedLoadMiss)                                        \
-  SC(call_const, V8.CallConst)                                                 \
-  SC(call_const_fast_api, V8.CallConstFastApi)                                 \
-  SC(call_const_interceptor, V8.CallConstInterceptor)                          \
-  SC(call_const_interceptor_fast_api, V8.CallConstInterceptorFastApi)          \
-  SC(call_global_inline, V8.CallGlobalInline)                                  \
-  SC(call_global_inline_miss, V8.CallGlobalInlineMiss)                         \
   SC(constructed_objects, V8.ConstructedObjects)                               \
   SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)                \
   SC(negative_lookups, V8.NegativeLookups)                                     \
@@ -660,8 +726,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes)             \
   SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)             \
   SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \
-  SC(array_function_runtime, V8.ArrayFunctionRuntime)                          \
-  SC(array_function_native, V8.ArrayFunctionNative)                            \
   SC(enum_cache_hits, V8.EnumCacheHits)                                        \
   SC(enum_cache_misses, V8.EnumCacheMisses)                                    \
   SC(fast_new_closure_total, V8.FastNewClosureTotal)                           \
@@ -672,26 +736,26 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(string_add_runtime_ext_to_one_byte, V8.StringAddRuntimeExtToOneByte)      \
   SC(sub_string_runtime, V8.SubStringRuntime)                                  \
   SC(sub_string_native, V8.SubStringNative)                                    \
-  SC(string_add_make_two_char, V8.StringAddMakeTwoChar)                        \
   SC(string_compare_native, V8.StringCompareNative)                            \
   SC(string_compare_runtime, V8.StringCompareRuntime)                          \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \
   SC(regexp_entry_native, V8.RegExpEntryNative)                                \
   SC(number_to_string_native, V8.NumberToStringNative)                         \
   SC(number_to_string_runtime, V8.NumberToStringRuntime)                       \
-  SC(math_acos, V8.MathAcos)                                                   \
-  SC(math_asin, V8.MathAsin)                                                   \
-  SC(math_atan, V8.MathAtan)                                                   \
-  SC(math_atan2, V8.MathAtan2)                                                 \
-  SC(math_clz32, V8.MathClz32)                                                 \
-  SC(math_exp, V8.MathExp)                                                     \
-  SC(math_floor, V8.MathFloor)                                                 \
-  SC(math_log, V8.MathLog)                                                     \
-  SC(math_pow, V8.MathPow)                                                     \
-  SC(math_round, V8.MathRound)                                                 \
-  SC(math_sqrt, V8.MathSqrt)                                                   \
+  SC(math_acos_runtime, V8.MathAcosRuntime)                                    \
+  SC(math_asin_runtime, V8.MathAsinRuntime)                                    \
+  SC(math_atan_runtime, V8.MathAtanRuntime)                                    \
+  SC(math_atan2_runtime, V8.MathAtan2Runtime)                                  \
+  SC(math_clz32_runtime, V8.MathClz32Runtime)                                  \
+  SC(math_exp_runtime, V8.MathExpRuntime)                                      \
+  SC(math_floor_runtime, V8.MathFloorRuntime)                                  \
+  SC(math_log_runtime, V8.MathLogRuntime)                                      \
+  SC(math_pow_runtime, V8.MathPowRuntime)                                      \
+  SC(math_round_runtime, V8.MathRoundRuntime)                                  \
+  SC(math_sqrt_runtime, V8.MathSqrtRuntime)                                    \
   SC(stack_interrupts, V8.StackInterrupts)                                     \
   SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                          \
+  SC(runtime_calls, V8.RuntimeCalls)                          \
   SC(bounds_checks_eliminated, V8.BoundsChecksEliminated)                      \
   SC(bounds_checks_hoisted, V8.BoundsChecksHoisted)                            \
   SC(soft_deopts_requested, V8.SoftDeoptsRequested)                            \
@@ -718,8 +782,11 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(turbo_escape_allocs_replaced, V8.TurboEscapeAllocsReplaced)               \
   SC(crankshaft_escape_allocs_replaced, V8.CrankshaftEscapeAllocsReplaced)     \
   SC(turbo_escape_loads_replaced, V8.TurboEscapeLoadsReplaced)                 \
-  SC(crankshaft_escape_loads_replaced, V8.CrankshaftEscapeLoadsReplaced)
-
+  SC(crankshaft_escape_loads_replaced, V8.CrankshaftEscapeLoadsReplaced)       \
+  /* Total code size (including metadata) of baseline code or bytecode. */     \
+  SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
+  /* Total count of functions compiled using the baseline compiler. */         \
+  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
 
 // This file contains all the v8 counters that are in use.
 class Counters {
@@ -831,6 +898,7 @@ class Counters {
 
   void ResetCounters();
   void ResetHistograms();
+  RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
 
  private:
 #define HR(name, caption, min, max, num_buckets) Histogram name##_;
@@ -891,6 +959,8 @@ class Counters {
   StatsCounter count_of_CODE_AGE_##name##_;
   CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
+
+  RuntimeCallStats runtime_call_stats_;
 
   friend class Isolate;
 

@@ -245,6 +245,9 @@ exports.platformTimeout = function(ms) {
   if (process.config.target_defaults.default_configuration === 'Debug')
     ms = 2 * ms;
 
+  if (exports.isAix)
+    return 2 * ms; // default localhost speed is slower on AIX
+
   if (process.arch !== 'arm')
     return ms;
 
@@ -272,7 +275,7 @@ var knownGlobals = [setTimeout,
                     global];
 
 if (global.gc) {
-  knownGlobals.push(gc);
+  knownGlobals.push(global.gc);
 }
 
 if (global.DTRACE_HTTP_SERVER_RESPONSE) {

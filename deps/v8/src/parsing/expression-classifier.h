@@ -13,6 +13,7 @@ namespace v8 {
 namespace internal {
 
 
+template <typename Traits>
 class ExpressionClassifier {
  public:
   struct Error {
@@ -55,15 +56,25 @@ class ExpressionClassifier {
 
   enum FunctionProperties { NonSimpleParameter = 1 << 0 };
 
-  ExpressionClassifier()
-      : invalid_productions_(0),
+  explicit ExpressionClassifier(const Traits* t)
+      : zone_(t->zone()),
+        non_patterns_to_rewrite_(t->GetNonPatternList()),
+        invalid_productions_(0),
         function_properties_(0),
-        duplicate_finder_(nullptr) {}
+        duplicate_finder_(nullptr) {
+    non_pattern_begin_ = non_patterns_to_rewrite_->length();
+  }
 
-  explicit ExpressionClassifier(DuplicateFinder* duplicate_finder)
-      : invalid_productions_(0),
+  ExpressionClassifier(const Traits* t, DuplicateFinder* duplicate_finder)
+      : zone_(t->zone()),
+        non_patterns_to_rewrite_(t->GetNonPatternList()),
+        invalid_productions_(0),
         function_properties_(0),
-        duplicate_finder_(duplicate_finder) {}
+        duplicate_finder_(duplicate_finder) {
+    non_pattern_begin_ = non_patterns_to_rewrite_->length();
+  }
+
+  ~ExpressionClassifier() { Discard(); }
 
   bool is_valid(unsigned productions) const {
     return (invalid_productions_ & productions) == 0;
@@ -281,12 +292,14 @@ class ExpressionClassifier {
     assignment_pattern_error_ = Error();
   }
 
-  void Accumulate(const ExpressionClassifier& inner,
-                  unsigned productions = StandardProductions) {
+  void Accumulate(ExpressionClassifier* inner,
+                  unsigned productions = StandardProductions,
+                  bool merge_non_patterns = true) {
+    if (merge_non_patterns) MergeNonPatterns(inner);
     // Propagate errors from inner, but don't overwrite already recorded
     // errors.
     unsigned non_arrow_inner_invalid_productions =
-        inner.invalid_productions_ & ~ArrowFormalParametersProduction;
+        inner->invalid_productions_ & ~ArrowFormalParametersProduction;
     if (non_arrow_inner_invalid_productions == 0) return;
     unsigned non_arrow_productions =
         productions & ~ArrowFormalParametersProduction;
@@ -296,27 +309,27 @@ class ExpressionClassifier {
     if (errors != 0) {
       invalid_productions_ |= errors;
       if (errors & ExpressionProduction)
-        expression_error_ = inner.expression_error_;
+        expression_error_ = inner->expression_error_;
       if (errors & FormalParameterInitializerProduction)
         formal_parameter_initializer_error_ =
-            inner.formal_parameter_initializer_error_;
+            inner->formal_parameter_initializer_error_;
       if (errors & BindingPatternProduction)
-        binding_pattern_error_ = inner.binding_pattern_error_;
+        binding_pattern_error_ = inner->binding_pattern_error_;
       if (errors & AssignmentPatternProduction)
-        assignment_pattern_error_ = inner.assignment_pattern_error_;
+        assignment_pattern_error_ = inner->assignment_pattern_error_;
       if (errors & DistinctFormalParametersProduction)
         duplicate_formal_parameter_error_ =
-            inner.duplicate_formal_parameter_error_;
+            inner->duplicate_formal_parameter_error_;
       if (errors & StrictModeFormalParametersProduction)
         strict_mode_formal_parameter_error_ =
-            inner.strict_mode_formal_parameter_error_;
+            inner->strict_mode_formal_parameter_error_;
       if (errors & StrongModeFormalParametersProduction)
         strong_mode_formal_parameter_error_ =
-            inner.strong_mode_formal_parameter_error_;
+            inner->strong_mode_formal_parameter_error_;
       if (errors & LetPatternProduction)
-        let_pattern_error_ = inner.let_pattern_error_;
+        let_pattern_error_ = inner->let_pattern_error_;
       if (errors & CoverInitializedNameProduction)
-        cover_initialized_name_error_ = inner.cover_initialized_name_error_;
+        cover_initialized_name_error_ = inner->cover_initialized_name_error_;
     }
 
     // As an exception to the above, the result continues to be a valid arrow
@@ -325,16 +338,31 @@ class ExpressionClassifier {
         is_valid_arrow_formal_parameters()) {
       // Also copy function properties if expecting an arrow function
       // parameter.
-      function_properties_ |= inner.function_properties_;
+      function_properties_ |= inner->function_properties_;
 
-      if (!inner.is_valid_binding_pattern()) {
+      if (!inner->is_valid_binding_pattern()) {
         invalid_productions_ |= ArrowFormalParametersProduction;
-        arrow_formal_parameters_error_ = inner.binding_pattern_error_;
+        arrow_formal_parameters_error_ = inner->binding_pattern_error_;
       }
     }
   }
 
+  V8_INLINE int GetNonPatternBegin() const { return non_pattern_begin_; }
+
+  V8_INLINE void Discard() {
+    DCHECK_LE(non_pattern_begin_, non_patterns_to_rewrite_->length());
+    non_patterns_to_rewrite_->Rewind(non_pattern_begin_);
+  }
+
+  V8_INLINE void MergeNonPatterns(ExpressionClassifier* inner) {
+    DCHECK_LE(non_pattern_begin_, inner->non_pattern_begin_);
+    inner->non_pattern_begin_ = inner->non_patterns_to_rewrite_->length();
+  }
+
  private:
+  Zone* zone_;
+  ZoneList<typename Traits::Type::Expression>* non_patterns_to_rewrite_;
+  int non_pattern_begin_;
   unsigned invalid_productions_;
   unsigned function_properties_;
   Error expression_error_;
@@ -349,6 +377,7 @@ class ExpressionClassifier {
   Error cover_initialized_name_error_;
   DuplicateFinder* duplicate_finder_;
 };
+
 
 }  // namespace internal
 }  // namespace v8

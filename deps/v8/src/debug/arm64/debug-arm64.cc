@@ -74,6 +74,10 @@ void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
   patcher.blr(ip0);
 }
 
+bool DebugCodegen::DebugBreakSlotIsPatched(Address pc) {
+  Instruction* current_instr = reinterpret_cast<Instruction*>(pc);
+  return !current_instr->IsNop(Assembler::DEBUG_BREAK_NOP);
+}
 
 void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
                                           DebugBreakCallHelperMode mode) {

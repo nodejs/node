@@ -167,10 +167,7 @@ $code.=<<___ if ($kimdfunc);
 	lg	%r0,0(%r1)
 	tmhl	%r0,0x4000	# check for message-security assist
 	jz	.Lsoftware
-	lghi	%r0,0
-	la	%r1,`2*$SIZE_T`($sp)
-	.long	0xb93e0002	# kimd %r0,%r2
-	lg	%r0,`2*$SIZE_T`($sp)
+	lg	%r0,16(%r1)	# check kimd capabilities
 	tmhh	%r0,`0x8000>>$kimdfunc`
 	jz	.Lsoftware
 	lghi	%r0,$kimdfunc
@@ -237,7 +234,7 @@ $code.=<<___;
 	br	%r14
 .size	sha1_block_data_order,.-sha1_block_data_order
 .string	"SHA1 block transform for s390x, CRYPTOGAMS by <appro\@openssl.org>"
-.comm	OPENSSL_s390xcap_P,16,8
+.comm	OPENSSL_s390xcap_P,80,8
 ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;

@@ -49,7 +49,7 @@ and built upon.
 #### Respect the stability index
 
 The rules for the master branch are less strict; consult the
-[stability index](./doc/api/documentation.markdown#stability-index) for details.
+[stability index](./doc/api/documentation.md#stability-index) for details.
 
 In a nutshell, modules are at varying levels of API stability. Bug fixes are
 always welcome but API or behavioral changes to modules at stability level 3
@@ -173,6 +173,7 @@ to address, apply your changes in a separate commit and push that to your
 feature branch. Post a comment in the pull request afterwards; GitHub does
 not send out notifications when you add commits.
 
+<a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1
 
 By making a contribution to this project, I certify that:

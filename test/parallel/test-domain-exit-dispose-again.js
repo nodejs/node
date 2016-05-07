@@ -38,7 +38,7 @@ setTimeout(function firstTimer() {
     d.dispose();
     console.error(err);
     console.error('in domain error handler',
-        process.domain, process.domain === d);
+                  process.domain, process.domain === d);
   });
 
   d.run(function() {
@@ -56,7 +56,7 @@ setTimeout(function firstTimer() {
     // Make V8 throw an unreferenced error. As a result, the domain's error
     // handler is called, which disposes the domain "d" and should prevent the
     // nested timer that is attached to it from running.
-    err3();
+    err3(); // eslint-disable-line no-undef
   });
 }, TIMEOUT_DURATION);
 

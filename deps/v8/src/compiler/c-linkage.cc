@@ -90,6 +90,7 @@ LinkageLocation regloc(Register reg) {
 // ===========================================================================
 // == mips ===================================================================
 // ===========================================================================
+#define STACK_SHADOW_WORDS 4
 #define PARAM_REGISTERS a0, a1, a2, a3
 #define CALLEE_SAVE_REGISTERS                                                  \
   s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
@@ -133,23 +134,22 @@ LinkageLocation regloc(Register reg) {
 
 // General code uses the above configuration data.
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(
-    Zone* zone, const MachineSignature* msig) {
+    Zone* zone, const MachineSignature* msig, bool set_initialize_root_flag) {
   LocationSignature::Builder locations(zone, msig->return_count(),
                                        msig->parameter_count());
-#if 0  // TODO(titzer): instruction selector tests break here.
   // Check the types of the signature.
   // Currently no floating point parameters or returns are allowed because
   // on x87 and ia32, the FP top of stack is involved.
-
   for (size_t i = 0; i < msig->return_count(); i++) {
-    MachineType type = RepresentationOf(msig->GetReturn(i));
-    CHECK(type != kRepFloat32 && type != kRepFloat64);
+    MachineRepresentation rep = msig->GetReturn(i).representation();
+    CHECK_NE(MachineRepresentation::kFloat32, rep);
+    CHECK_NE(MachineRepresentation::kFloat64, rep);
   }
   for (size_t i = 0; i < msig->parameter_count(); i++) {
-    MachineType type = RepresentationOf(msig->GetParam(i));
-    CHECK(type != kRepFloat32 && type != kRepFloat64);
+    MachineRepresentation rep = msig->GetParam(i).representation();
+    CHECK_NE(MachineRepresentation::kFloat32, rep);
+    CHECK_NE(MachineRepresentation::kFloat64, rep);
   }
-#endif
 
 #ifdef UNSUPPORTED_C_LINKAGE
   // This method should not be called on unknown architectures.
@@ -220,7 +220,9 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
       Operator::kNoProperties,       // properties
       kCalleeSaveRegisters,          // callee-saved registers
       kCalleeSaveFPRegisters,        // callee-saved fp regs
-      CallDescriptor::kNoFlags,      // flags
+      set_initialize_root_flag ?     // flags
+          CallDescriptor::kInitializeRootRegister
+                               : CallDescriptor::kNoFlags,
       "c-call");
 }
 

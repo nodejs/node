@@ -39,6 +39,7 @@ class V8_EXPORT FastAccessorBuilder {
   LabelId MakeLabel();
   void SetLabel(LabelId label_id);
   void CheckNotZeroOrJump(ValueId value_id, LabelId label_id);
+  ValueId Call(v8::FunctionCallback callback, ValueId value_id);
 
  private:
   FastAccessorBuilder() = delete;

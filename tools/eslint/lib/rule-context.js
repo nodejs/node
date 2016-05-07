@@ -1,8 +1,6 @@
 /**
  * @fileoverview RuleContext utility for rules
  * @author Nicholas C. Zakas
- * @copyright 2013 Nicholas C. Zakas. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
 

@@ -716,6 +716,10 @@ void DefineSignalConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, SIGPWR);
 #endif
 
+#ifdef SIGINFO
+  NODE_DEFINE_CONSTANT(target, SIGINFO);
+#endif
+
 #ifdef SIGSYS
   NODE_DEFINE_CONSTANT(target, SIGSYS);
 #endif
@@ -1030,6 +1034,10 @@ void DefineSystemConstants(Local<Object> target) {
 
 #ifdef O_EXCL
   NODE_DEFINE_CONSTANT(target, O_EXCL);
+#endif
+
+#ifdef O_NOATIME
+  NODE_DEFINE_CONSTANT(target, O_NOATIME);
 #endif
 
 #ifdef O_NOFOLLOW

@@ -3,7 +3,7 @@ require('../common');
 var assert = require('assert');
 
 /*
-in node 0.10 a bug existed that caused strict functions to not capture
+In Node.js 0.10, a bug existed that caused strict functions to not capture
 their environment when evaluated. When run in 0.10 `test()` fails with a
 `ReferenceError`. See https://github.com/nodejs/node/issues/2245 for details.
 */
@@ -21,8 +21,8 @@ function test() {
 
   eval(code);
 
-  return bar();
+  return bar(); // eslint-disable-line no-undef
 
 }
 
-assert.deepEqual(test(), {m: 1});
+assert.deepStrictEqual(test(), {m: 1});

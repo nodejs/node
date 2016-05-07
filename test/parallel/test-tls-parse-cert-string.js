@@ -4,10 +4,10 @@ require('../common');
 const assert = require('assert');
 const tls = require('tls');
 
-const singles = 'C=US\nST=CA\nL=SF\nO=Node.js Foundation\nOU=Node.js\nCN=ca1\n'
-  + 'emailAddress=ry@clouds.org';
+const singles = 'C=US\nST=CA\nL=SF\nO=Node.js Foundation\nOU=Node.js\n' +
+                'CN=ca1\nemailAddress=ry@clouds.org';
 const singlesOut = tls.parseCertString(singles);
-assert.deepEqual(singlesOut, {
+assert.deepStrictEqual(singlesOut, {
   C: 'US',
   ST: 'CA',
   L: 'SF',
@@ -18,9 +18,9 @@ assert.deepEqual(singlesOut, {
 });
 
 const doubles = 'OU=Domain Control Validated\nOU=PositiveSSL Wildcard\n' +
-  'CN=*.nodejs.org';
+                'CN=*.nodejs.org';
 const doublesOut = tls.parseCertString(doubles);
-assert.deepEqual(doublesOut, {
+assert.deepStrictEqual(doublesOut, {
   OU: [ 'Domain Control Validated', 'PositiveSSL Wildcard' ],
   CN: '*.nodejs.org'
 });

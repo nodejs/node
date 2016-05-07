@@ -1,104 +1,117 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var events = require('events');
+const common = require('../common');
+const assert = require('assert');
+const events = require('events');
 
-var count = 0;
+function listener1() {}
+function listener2() {}
 
-function listener1() {
-  console.log('listener1');
-  count++;
-}
-
-function listener2() {
-  console.log('listener2');
-  count++;
-}
-
-function remove1() {
-  assert(0);
-}
-
-function remove2() {
-  assert(0);
-}
-
-var e1 = new events.EventEmitter();
-e1.on('hello', listener1);
-e1.on('removeListener', common.mustCall(function(name, cb) {
-  assert.equal(name, 'hello');
-  assert.equal(cb, listener1);
-}));
-e1.removeListener('hello', listener1);
-assert.deepEqual([], e1.listeners('hello'));
-
-var e2 = new events.EventEmitter();
-e2.on('hello', listener1);
-e2.on('removeListener', common.fail);
-e2.removeListener('hello', listener2);
-assert.deepEqual([listener1], e2.listeners('hello'));
-
-var e3 = new events.EventEmitter();
-e3.on('hello', listener1);
-e3.on('hello', listener2);
-e3.once('removeListener', common.mustCall(function(name, cb) {
-  assert.equal(name, 'hello');
-  assert.equal(cb, listener1);
-  assert.deepEqual([listener2], e3.listeners('hello'));
-}));
-e3.removeListener('hello', listener1);
-assert.deepEqual([listener2], e3.listeners('hello'));
-e3.once('removeListener', common.mustCall(function(name, cb) {
-  assert.equal(name, 'hello');
-  assert.equal(cb, listener2);
-  assert.deepEqual([], e3.listeners('hello'));
-}));
-e3.removeListener('hello', listener2);
-assert.deepEqual([], e3.listeners('hello'));
-
-var e4 = new events.EventEmitter();
-e4.on('removeListener', common.mustCall(function(name, cb) {
-  if (cb !== remove1) return;
-  this.removeListener('quux', remove2);
-  this.emit('quux');
-}, 2));
-e4.on('quux', remove1);
-e4.on('quux', remove2);
-e4.removeListener('quux', remove1);
-
-var e5 = new events.EventEmitter();
-e5.on('hello', listener1);
-e5.on('hello', listener2);
-e5.once('removeListener', common.mustCall(function(name, cb) {
-  assert.equal(name, 'hello');
-  assert.equal(cb, listener1);
-  assert.deepEqual([listener2], e5.listeners('hello'));
-  e5.once('removeListener', common.mustCall(function(name, cb) {
-    assert.equal(name, 'hello');
-    assert.equal(cb, listener2);
-    assert.deepEqual([], e5.listeners('hello'));
+{
+  const ee = new events.EventEmitter();
+  ee.on('hello', listener1);
+  ee.on('removeListener', common.mustCall((name, cb) => {
+    assert.strictEqual(name, 'hello');
+    assert.strictEqual(cb, listener1);
   }));
-  e5.removeListener('hello', listener2);
-  assert.deepEqual([], e5.listeners('hello'));
-}));
-e5.removeListener('hello', listener1);
-assert.deepEqual([], e5.listeners('hello'));
+  ee.removeListener('hello', listener1);
+  assert.deepStrictEqual([], ee.listeners('hello'));
+}
 
-const e6 = new events.EventEmitter();
+{
+  const ee = new events.EventEmitter();
+  ee.on('hello', listener1);
+  ee.on('removeListener', common.fail);
+  ee.removeListener('hello', listener2);
+  assert.deepStrictEqual([listener1], ee.listeners('hello'));
+}
 
-const listener3 = common.mustCall(() => {
-  e6.removeListener('hello', listener4);
-}, 2);
+{
+  const ee = new events.EventEmitter();
+  ee.on('hello', listener1);
+  ee.on('hello', listener2);
+  ee.once('removeListener', common.mustCall((name, cb) => {
+    assert.strictEqual(name, 'hello');
+    assert.strictEqual(cb, listener1);
+    assert.deepStrictEqual([listener2], ee.listeners('hello'));
+  }));
+  ee.removeListener('hello', listener1);
+  assert.deepStrictEqual([listener2], ee.listeners('hello'));
+  ee.once('removeListener', common.mustCall((name, cb) => {
+    assert.strictEqual(name, 'hello');
+    assert.strictEqual(cb, listener2);
+    assert.deepStrictEqual([], ee.listeners('hello'));
+  }));
+  ee.removeListener('hello', listener2);
+  assert.deepStrictEqual([], ee.listeners('hello'));
+}
 
-const listener4 = common.mustCall(() => {}, 1);
+{
+  const ee = new events.EventEmitter();
 
-e6.on('hello', listener3);
-e6.on('hello', listener4);
+  function remove1() {
+    common.fail('remove1 should not have been called');
+  }
 
-// listener4 will still be called although it is removed by listener 3.
-e6.emit('hello');
-// This is so because the interal listener array at time of emit
-// was [listener3,listener4]
+  function remove2() {
+    common.fail('remove2 should not have been called');
+  }
 
-// Interal listener array [listener3]
-e6.emit('hello');
+  ee.on('removeListener', common.mustCall(function(name, cb) {
+    if (cb !== remove1) return;
+    this.removeListener('quux', remove2);
+    this.emit('quux');
+  }, 2));
+  ee.on('quux', remove1);
+  ee.on('quux', remove2);
+  ee.removeListener('quux', remove1);
+}
+
+{
+  const ee = new events.EventEmitter();
+  ee.on('hello', listener1);
+  ee.on('hello', listener2);
+  ee.once('removeListener', common.mustCall((name, cb) => {
+    assert.strictEqual(name, 'hello');
+    assert.strictEqual(cb, listener1);
+    assert.deepStrictEqual([listener2], ee.listeners('hello'));
+    ee.once('removeListener', common.mustCall((name, cb) => {
+      assert.strictEqual(name, 'hello');
+      assert.strictEqual(cb, listener2);
+      assert.deepStrictEqual([], ee.listeners('hello'));
+    }));
+    ee.removeListener('hello', listener2);
+    assert.deepStrictEqual([], ee.listeners('hello'));
+  }));
+  ee.removeListener('hello', listener1);
+  assert.deepStrictEqual([], ee.listeners('hello'));
+}
+
+{
+  const ee = new events.EventEmitter();
+  const listener3 = common.mustCall(() => {
+    ee.removeListener('hello', listener4);
+  }, 2);
+  const listener4 = common.mustCall(() => {});
+
+  ee.on('hello', listener3);
+  ee.on('hello', listener4);
+
+  // listener4 will still be called although it is removed by listener 3.
+  ee.emit('hello');
+  // This is so because the interal listener array at time of emit
+  // was [listener3,listener4]
+
+  // Interal listener array [listener3]
+  ee.emit('hello');
+}
+
+{
+  const ee = new events.EventEmitter();
+
+  ee.once('hello', listener1);
+  ee.on('removeListener', common.mustCall((eventName, listener) => {
+    assert.strictEqual(eventName, 'hello');
+    assert.strictEqual(listener, listener1);
+  }));
+  ee.emit('hello');
+}

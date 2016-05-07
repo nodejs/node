@@ -10,7 +10,7 @@ let exceptionHandled = false;
 process.nextTick(function() {
   order.push('A');
   // cause an error
-  what();
+  what(); // eslint-disable-line no-undef
 });
 
 // This nextTick function should remain in the queue when the first one
@@ -48,6 +48,6 @@ process.on('uncaughtException', function() {
 });
 
 process.on('exit', function() {
-  assert.deepEqual(['A', 'B', 'C'], order);
+  assert.deepStrictEqual(['A', 'B', 'C'], order);
 });
 

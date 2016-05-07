@@ -5,10 +5,23 @@ var assert = require('assert');
 // test using assert
 var qs = require('querystring');
 
+function createWithNoPrototype(properties) {
+  const noProto = Object.create(null);
+  properties.forEach((property) => {
+    noProto[property.key] = property.value;
+  });
+  return noProto;
+}
 // folding block, commented to pass gjslint
 // {{{
 // [ wonkyQS, canonicalQS, obj ]
 var qsTestCases = [
+  ['__proto__=1',
+   '__proto__=1',
+   createWithNoPrototype([{key: '__proto__', value: '1'}])],
+  ['__defineGetter__=asdf',
+   '__defineGetter__=asdf',
+   JSON.parse('{"__defineGetter__":"asdf"}')],
   ['foo=918854443121279438895193',
    'foo=918854443121279438895193',
    {'foo': '918854443121279438895193'}],
@@ -91,37 +104,64 @@ var qsNoMungeTestCases = [
 assert.strictEqual('918854443121279438895193',
                    qs.parse('id=918854443121279438895193').id);
 
+
+function check(actual, expected) {
+  assert(!(actual instanceof Object));
+  assert.deepStrictEqual(Object.keys(actual).sort(),
+                         Object.keys(expected).sort());
+  Object.keys(expected).forEach(function(key) {
+    assert.deepStrictEqual(actual[key], expected[key]);
+  });
+}
+
 // test that the canonical qs is parsed properly.
 qsTestCases.forEach(function(testCase) {
-  assert.deepEqual(testCase[2], qs.parse(testCase[0]));
+  check(qs.parse(testCase[0]), testCase[2]);
 });
 
 // test that the colon test cases can do the same
 qsColonTestCases.forEach(function(testCase) {
-  assert.deepEqual(testCase[2], qs.parse(testCase[0], ';', ':'));
+  check(qs.parse(testCase[0], ';', ':'), testCase[2]);
 });
 
 // test the weird objects, that they get parsed properly
 qsWeirdObjects.forEach(function(testCase) {
-  assert.deepEqual(testCase[2], qs.parse(testCase[1]));
+  check(qs.parse(testCase[1]), testCase[2]);
 });
 
 qsNoMungeTestCases.forEach(function(testCase) {
-  assert.deepEqual(testCase[0], qs.stringify(testCase[1], '&', '='));
+  assert.deepStrictEqual(testCase[0], qs.stringify(testCase[1], '&', '='));
 });
 
 // test the nested qs-in-qs case
 (function() {
-  var f = qs.parse('a=b&q=x%3Dy%26y%3Dz');
+  const f = qs.parse('a=b&q=x%3Dy%26y%3Dz');
+  check(f, createWithNoPrototype([
+    { key: 'a', value: 'b'},
+    {key: 'q', value: 'x=y&y=z'}
+  ]));
+
   f.q = qs.parse(f.q);
-  assert.deepEqual(f, { a: 'b', q: { x: 'y', y: 'z' } });
+  const expectedInternal = createWithNoPrototype([
+    { key: 'x', value: 'y'},
+    {key: 'y', value: 'z' }
+  ]);
+  check(f.q, expectedInternal);
 })();
 
 // nested in colon
 (function() {
-  var f = qs.parse('a:b;q:x%3Ay%3By%3Az', ';', ':');
+  const f = qs.parse('a:b;q:x%3Ay%3By%3Az', ';', ':');
+  check(f, createWithNoPrototype([
+    {key: 'a', value: 'b'},
+    {key: 'q', value: 'x:y;y:z'}
+  ]));
   f.q = qs.parse(f.q, ';', ':');
-  assert.deepEqual(f, { a: 'b', q: { x: 'y', y: 'z' } });
+  const expectedInternal = createWithNoPrototype([
+    { key: 'x', value: 'y'},
+    {key: 'y', value: 'z' }
+  ]);
+  check(f.q, expectedInternal);
 })();
 
 // now test stringifying
@@ -180,7 +220,7 @@ assert.doesNotThrow(function() {
   assert.equal(f, 'a:b;q:x%3Ay%3By%3Az');
 }
 
-assert.deepEqual({}, qs.parse());
+check(qs.parse(), {});
 
 
 // Test limiting
@@ -232,9 +272,8 @@ assert.equal(0xe6, b[19]);
 function demoDecode(str) {
   return str + str;
 }
-assert.deepEqual(
-  qs.parse('a=a&b=b&c=c', null, null, { decodeURIComponent: demoDecode }),
-  { aa: 'aa', bb: 'bb', cc: 'cc' });
+check(qs.parse('a=a&b=b&c=c', null, null, { decodeURIComponent: demoDecode }),
+      { aa: 'aa', bb: 'bb', cc: 'cc' });
 
 
 // Test custom encode
@@ -251,8 +290,8 @@ var prevUnescape = qs.unescape;
 qs.unescape = function(str) {
   return str.replace(/o/g, '_');
 };
-assert.deepEqual(qs.parse('foo=bor'), {f__: 'b_r'});
+check(qs.parse('foo=bor'), createWithNoPrototype([{key: 'f__', value: 'b_r'}]));
 qs.unescape = prevUnescape;
 
 // test separator and "equals" parsing order
-assert.deepEqual(qs.parse('foo&bar', '&', '&'), { foo: '', bar: '' });
+check(qs.parse('foo&bar', '&', '&'), { foo: '', bar: '' });

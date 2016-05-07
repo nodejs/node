@@ -24,16 +24,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_MSC_VER)
-#define strcasecmp _stricmp
-#endif
-
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-#define OPENSSL_CONST const
-#else
-#define OPENSSL_CONST
-#endif
-
 #define THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(val, prefix)                  \
   do {                                                                         \
     if (!Buffer::HasInstance(val) && !val->IsString()) {                       \
@@ -351,7 +341,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc = Unwrap<SecureContext>(args.Holder());
   Environment* env = sc->env();
 
-  OPENSSL_CONST SSL_METHOD *method = SSLv23_method();
+  const SSL_METHOD* method = SSLv23_method();
 
   if (args.Length() == 1 && args[0]->IsString()) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
@@ -1969,7 +1959,7 @@ void SSLWrap<Base>::GetCurrentCipher(const FunctionCallbackInfo<Value>& args) {
   Base* w = Unwrap<Base>(args.Holder());
   Environment* env = w->ssl_env();
 
-  OPENSSL_CONST SSL_CIPHER* c = SSL_get_current_cipher(w->ssl_);
+  const SSL_CIPHER* c = SSL_get_current_cipher(w->ssl_);
   if (c == nullptr)
     return;
 
@@ -3676,6 +3666,7 @@ bool Hash::HashInit(const char* hash_type) {
     return false;
   }
   initialised_ = true;
+  finalized_ = false;
   return true;
 }
 
@@ -3694,6 +3685,13 @@ void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
   Hash* hash = Unwrap<Hash>(args.Holder());
 
   THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[0], "Data");
+
+  if (!hash->initialised_) {
+    return env->ThrowError("Not initialized");
+  }
+  if (hash->finalized_) {
+    return env->ThrowError("Digest already called");
+  }
 
   // Only copy the data if we have to, because it's a string
   bool r;
@@ -3722,6 +3720,9 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
   if (!hash->initialised_) {
     return env->ThrowError("Not initialized");
   }
+  if (hash->finalized_) {
+    return env->ThrowError("Digest already called");
+  }
 
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {
@@ -3735,7 +3736,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 
   EVP_DigestFinal_ex(&hash->mdctx_, md_value, &md_len);
   EVP_MD_CTX_cleanup(&hash->mdctx_);
-  hash->initialised_ = false;
+  hash->finalized_ = true;
 
   Local<Value> rc = StringBytes::Encode(env->isolate(),
                                         reinterpret_cast<const char*>(md_value),
@@ -4441,7 +4442,7 @@ void DiffieHellman::DiffieHellmanGroup(
   for (size_t i = 0; i < arraysize(modp_groups); ++i) {
     const modp_group* it = modp_groups + i;
 
-    if (strcasecmp(*group_name, it->name) != 0)
+    if (!StringEqualNoCase(*group_name, it->name))
       continue;
 
     initialized = diffieHellman->Init(it->prime,
@@ -5685,10 +5686,10 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
 
 
 void InitCryptoOnce() {
+  OPENSSL_config(NULL);
   SSL_library_init();
   OpenSSL_add_all_algorithms();
   SSL_load_error_strings();
-  OPENSSL_config(NULL);
 
   crypto_lock_init();
   CRYPTO_set_locking_callback(crypto_lock_cb);
@@ -5710,15 +5711,8 @@ void InitCryptoOnce() {
 
 
   // Turn off compression. Saves memory and protects against CRIME attacks.
-#if !defined(OPENSSL_NO_COMP)
-#if OPENSSL_VERSION_NUMBER < 0x00908000L
-  STACK_OF(SSL_COMP)* comp_methods = SSL_COMP_get_compression_method();
-#else
-  STACK_OF(SSL_COMP)* comp_methods = SSL_COMP_get_compression_methods();
-#endif
-  sk_SSL_COMP_zero(comp_methods);
-  CHECK_EQ(sk_SSL_COMP_num(comp_methods), 0);
-#endif
+  // No-op with OPENSSL_NO_COMP builds of OpenSSL.
+  sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 
 #ifndef OPENSSL_NO_ENGINE
   ERR_load_ENGINE_strings();

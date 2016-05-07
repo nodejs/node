@@ -6,78 +6,73 @@
 namespace node {
 
 using v8::Isolate;
-using v8::String;
 using v8::Local;
+using v8::String;
 using v8::Value;
 
-static int MakeUtf8String(Isolate* isolate,
-                          Local<Value> value,
-                          char** dst,
-                          const size_t size) {
+template <typename T>
+static void MakeUtf8String(Isolate* isolate,
+                           Local<Value> value,
+                           T* target) {
   Local<String> string = value->ToString(isolate);
   if (string.IsEmpty())
-    return 0;
-  size_t len = StringBytes::StorageSize(isolate, string, UTF8) + 1;
-  if (len > size) {
-    *dst = static_cast<char*>(malloc(len));
-    CHECK_NE(*dst, nullptr);
-  }
+    return;
+
+  const size_t storage = StringBytes::StorageSize(isolate, string, UTF8) + 1;
+  target->AllocateSufficientStorage(storage);
   const int flags =
       String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
-  const int length = string->WriteUtf8(*dst, len, 0, flags);
-  (*dst)[length] = '\0';
-  return length;
+  const int length = string->WriteUtf8(target->out(), storage, 0, flags);
+  target->SetLengthAndZeroTerminate(length);
 }
 
-Utf8Value::Utf8Value(Isolate* isolate, Local<Value> value)
-    : length_(0), str_(str_st_) {
+Utf8Value::Utf8Value(Isolate* isolate, Local<Value> value) {
   if (value.IsEmpty())
     return;
-  length_ = MakeUtf8String(isolate, value, &str_, sizeof(str_st_));
+
+  MakeUtf8String(isolate, value, this);
 }
 
 
-TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value)
-    : length_(0), str_(str_st_) {
-  if (value.IsEmpty())
+TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
+  if (value.IsEmpty()) {
     return;
+  }
 
   Local<String> string = value->ToString(isolate);
   if (string.IsEmpty())
     return;
 
   // Allocate enough space to include the null terminator
-  size_t len = StringBytes::StorageSize(isolate, string, UCS2) + 1;
-  if (len > sizeof(str_st_)) {
-    str_ = static_cast<uint16_t*>(malloc(len));
-    CHECK_NE(str_, nullptr);
-  }
+  const size_t storage = string->Length() + 1;
+  AllocateSufficientStorage(storage);
 
   const int flags =
       String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
-  length_ = string->Write(str_, 0, len, flags);
-  str_[length_] = '\0';
+  const int length = string->Write(out(), 0, storage, flags);
+  SetLengthAndZeroTerminate(length);
 }
 
-BufferValue::BufferValue(Isolate* isolate, Local<Value> value)
-    : str_(str_st_), fail_(true) {
+BufferValue::BufferValue(Isolate* isolate, Local<Value> value) {
   // Slightly different take on Utf8Value. If value is a String,
   // it will return a Utf8 encoded string. If value is a Buffer,
   // it will copy the data out of the Buffer as is.
-  if (value.IsEmpty())
+  if (value.IsEmpty()) {
+    // Dereferencing this object will return nullptr.
+    Invalidate();
     return;
+  }
+
   if (value->IsString()) {
-    MakeUtf8String(isolate, value, &str_, sizeof(str_st_));
-    fail_ = false;
+    MakeUtf8String(isolate, value, this);
   } else if (Buffer::HasInstance(value)) {
-    size_t len = Buffer::Length(value) + 1;
-    if (len > sizeof(str_st_)) {
-      str_ = static_cast<char*>(malloc(len));
-      CHECK_NE(str_, nullptr);
-    }
-    memcpy(str_, Buffer::Data(value), len);
-    str_[len - 1] = '\0';
-    fail_ = false;
+    const size_t len = Buffer::Length(value);
+    // Leave place for the terminating '\0' byte.
+    AllocateSufficientStorage(len + 1);
+    memcpy(out(), Buffer::Data(value), len);
+    SetLengthAndZeroTerminate(len);
+  } else {
+    Invalidate();
   }
 }
 

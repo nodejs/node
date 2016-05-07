@@ -300,8 +300,10 @@ function NAMESubArray(begin, end) {
   var newLength = endInt - beginInt;
   var beginByteOffset =
       %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
-  return TypedArraySpeciesCreate(this, %TypedArrayGetBuffer(this),
-                                 beginByteOffset, newLength, true);
+  // BUG(v8:4665): For web compatibility, subarray needs to always build an
+  // instance of the default constructor.
+  // TODO(littledan): Switch to the standard or standardize the fix
+  return new GlobalNAME(%TypedArrayGetBuffer(this), beginByteOffset, newLength);
 }
 endmacro
 
@@ -460,6 +462,7 @@ function TypedArraySet(obj, offset) {
       return;
   }
 }
+%FunctionSetLength(TypedArraySet, 1);
 
 function TypedArrayGetToStringTag() {
   if (!%_IsTypedArray(this)) return;
@@ -564,22 +567,20 @@ function TypedArrayReverse() {
 
 
 function TypedArrayComparefn(x, y) {
-  if (IsNaN(x) && IsNaN(y)) {
-    return IsNaN(y) ? 0 : 1;
+  if (x === 0 && x === y) {
+    x = 1 / x;
+    y = 1 / y;
   }
-  if (IsNaN(x)) {
+  if (x < y) {
+    return -1;
+  } else if (x > y) {
+    return 1;
+  } else if (IsNaN(x) && IsNaN(y)) {
+    return IsNaN(y) ? 0 : 1;
+  } else if (IsNaN(x)) {
     return 1;
   }
-  if (x === 0 && x === y) {
-    if (%_IsMinusZero(x)) {
-      if (!%_IsMinusZero(y)) {
-        return -1;
-      }
-    } else if (%_IsMinusZero(y)) {
-      return 1;
-    }
-  }
-  return x - y;
+  return 0;
 }
 
 
@@ -614,7 +615,7 @@ function TypedArrayLastIndexOf(element, index) {
   var length = %_TypedArrayGetLength(this);
 
   return InnerArrayLastIndexOf(this, element, index, length,
-                        %_ArgumentsLength());
+                               arguments.length);
 }
 %FunctionSetLength(TypedArrayLastIndexOf, 1);
 
@@ -678,7 +679,7 @@ function TypedArrayReduce(callback, current) {
 
   var length = %_TypedArrayGetLength(this);
   return InnerArrayReduce(callback, current, this, length,
-                          %_ArgumentsLength());
+                          arguments.length);
 }
 %FunctionSetLength(TypedArrayReduce, 1);
 
@@ -689,7 +690,7 @@ function TypedArrayReduceRight(callback, current) {
 
   var length = %_TypedArrayGetLength(this);
   return InnerArrayReduceRight(callback, current, this, length,
-                               %_ArgumentsLength());
+                               arguments.length);
 }
 %FunctionSetLength(TypedArrayReduceRight, 1);
 
@@ -750,10 +751,10 @@ function TypedArrayIncludes(searchElement, fromIndex) {
 
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
-  var length = %_ArgumentsLength();
+  var length = arguments.length;
   var array = TypedArrayCreate(this, length);
   for (var i = 0; i < length; i++) {
-    array[i] = %_Arguments(i);
+    array[i] = arguments[i];
   }
   return array;
 }
@@ -846,36 +847,6 @@ TYPED_ARRAYS(SETUP_TYPED_ARRAY)
 
 // --------------------------- DataView -----------------------------
 
-function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
-  if (IS_UNDEFINED(new.target)) {
-    throw MakeTypeError(kConstructorNotFunction, "DataView");
-  }
-
-  // TODO(binji): support SharedArrayBuffers?
-  if (!IS_ARRAYBUFFER(buffer)) throw MakeTypeError(kDataViewNotArrayBuffer);
-  if (!IS_UNDEFINED(byteOffset)) {
-    byteOffset = ToPositiveInteger(byteOffset, kInvalidDataViewOffset);
-  }
-  if (!IS_UNDEFINED(byteLength)) {
-    byteLength = TO_INTEGER(byteLength);
-  }
-
-  var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
-
-  var offset = IS_UNDEFINED(byteOffset) ?  0 : byteOffset;
-  if (offset > bufferByteLength) throw MakeRangeError(kInvalidDataViewOffset);
-
-  var length = IS_UNDEFINED(byteLength)
-      ? bufferByteLength - offset
-      : byteLength;
-  if (length < 0 || offset + length > bufferByteLength) {
-    throw new MakeRangeError(kInvalidDataViewLength);
-  }
-  var result = %NewObject(GlobalDataView, new.target);
-  %_DataViewInitialize(result, buffer, offset, length);
-  return result;
-}
-
 function DataViewGetBufferJS() {
   if (!IS_DATAVIEW(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver, 'DataView.buffer', this);
@@ -917,26 +888,27 @@ function DataViewGetTYPENAMEJS(offset, little_endian) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'DataView.getTYPENAME', this);
   }
-  if (%_ArgumentsLength() < 1) throw MakeTypeError(kInvalidArgument);
+  if (arguments.length < 1) throw MakeTypeError(kInvalidArgument);
   offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
   return %DataViewGetTYPENAME(this, offset, !!little_endian);
 }
+%FunctionSetLength(DataViewGetTYPENAMEJS, 1);
 
 function DataViewSetTYPENAMEJS(offset, value, little_endian) {
   if (!IS_DATAVIEW(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'DataView.setTYPENAME', this);
   }
-  if (%_ArgumentsLength() < 2) throw MakeTypeError(kInvalidArgument);
+  if (arguments.length < 2) throw MakeTypeError(kInvalidArgument);
   offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
   %DataViewSetTYPENAME(this, offset, TO_NUMBER(value), !!little_endian);
 }
+%FunctionSetLength(DataViewSetTYPENAMEJS, 2);
 endmacro
 
 DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
 
 // Setup the DataView constructor.
-%SetCode(GlobalDataView, DataViewConstructor);
 %FunctionSetPrototype(GlobalDataView, new GlobalObject);
 
 // Set up constructor property on the DataView prototype.

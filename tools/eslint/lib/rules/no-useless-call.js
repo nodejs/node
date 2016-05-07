@@ -1,7 +1,6 @@
 /**
  * @fileoverview A rule to disallow unnecessary `.call()` and `.apply()`.
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
  */
 
 "use strict";
@@ -72,25 +71,35 @@ function isValidThisArg(expectedThis, thisArg, context) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    return {
-        "CallExpression": function(node) {
-            if (!isCallOrNonVariadicApply(node)) {
-                return;
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow unnecessary calls to `.call()` and `.apply()`",
+            category: "Best Practices",
+            recommended: false
+        },
 
-            var applied = node.callee.object;
-            var expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
-            var thisArg = node.arguments[0];
+        schema: []
+    },
 
-            if (isValidThisArg(expectedThis, thisArg, context)) {
-                context.report(
-                    node,
-                    "unnecessary '.{{name}}()'.",
-                    {name: node.callee.property.name});
+    create: function(context) {
+        return {
+            CallExpression: function(node) {
+                if (!isCallOrNonVariadicApply(node)) {
+                    return;
+                }
+
+                var applied = node.callee.object;
+                var expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
+                var thisArg = node.arguments[0];
+
+                if (isValidThisArg(expectedThis, thisArg, context)) {
+                    context.report(
+                        node,
+                        "unnecessary '.{{name}}()'.",
+                        {name: node.callee.property.name});
+                }
             }
-        }
-    };
+        };
+    }
 };
-
-module.exports.schema = [];

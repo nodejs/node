@@ -1586,10 +1586,10 @@ TEST(min_max) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0,
+    MacroAssembler assm(isolate, nullptr, 0,
                         v8::internal::CodeObjectRequired::kYes);
 
-    typedef struct test_float {
+    struct TestFloat {
       double a;
       double b;
       double c;
@@ -1598,21 +1598,35 @@ TEST(min_max) {
       float f;
       float g;
       float h;
-    } TestFloat;
+    };
 
     TestFloat test;
-    const double double_nan = std::numeric_limits<double>::quiet_NaN();
-    const float  float_nan = std::numeric_limits<float>::quiet_NaN();
-    const int kTableLength = 5;
-    double inputsa[kTableLength] = {2.0, 3.0, double_nan, 3.0, double_nan};
-    double inputsb[kTableLength] = {3.0, 2.0, 3.0, double_nan, double_nan};
-    double outputsdmin[kTableLength] = {2.0, 2.0, 3.0, 3.0, double_nan};
-    double outputsdmax[kTableLength] = {3.0, 3.0, 3.0, 3.0, double_nan};
+    const double dnan = std::numeric_limits<double>::quiet_NaN();
+    const double dinf = std::numeric_limits<double>::infinity();
+    const double dminf = -std::numeric_limits<double>::infinity();
+    const float fnan = std::numeric_limits<float>::quiet_NaN();
+    const float finf = std::numeric_limits<float>::infinity();
+    const float fminf = std::numeric_limits<float>::infinity();
+    const int kTableLength = 13;
+    double inputsa[kTableLength] = {2.0,  3.0,  dnan, 3.0,   -0.0, 0.0, dinf,
+                                    dnan, 42.0, dinf, dminf, dinf, dnan};
+    double inputsb[kTableLength] = {3.0,  2.0,  3.0,  dnan, 0.0,   -0.0, dnan,
+                                    dinf, dinf, 42.0, dinf, dminf, dnan};
+    double outputsdmin[kTableLength] = {2.0,   2.0,   3.0,  3.0,  -0.0,
+                                        -0.0,  dinf,  dinf, 42.0, 42.0,
+                                        dminf, dminf, dnan};
+    double outputsdmax[kTableLength] = {3.0,  3.0,  3.0,  3.0,  0.0,  0.0, dinf,
+                                        dinf, dinf, dinf, dinf, dinf, dnan};
 
-    float inputse[kTableLength] = {2.0, 3.0, float_nan, 3.0, float_nan};
-    float inputsf[kTableLength] = {3.0, 2.0, 3.0, float_nan, float_nan};
-    float outputsfmin[kTableLength] = {2.0, 2.0, 3.0, 3.0, float_nan};
-    float outputsfmax[kTableLength] = {3.0, 3.0, 3.0, 3.0, float_nan};
+    float inputse[kTableLength] = {2.0,  3.0,  fnan, 3.0,   -0.0, 0.0, finf,
+                                   fnan, 42.0, finf, fminf, finf, fnan};
+    float inputsf[kTableLength] = {3.0,  2.0,  3.0,  fnan, -0.0,  0.0, fnan,
+                                   finf, finf, 42.0, finf, fminf, fnan};
+    float outputsfmin[kTableLength] = {2.0,   2.0,   3.0,  3.0,  -0.0,
+                                       -0.0,  finf,  finf, 42.0, 42.0,
+                                       fminf, fminf, fnan};
+    float outputsfmax[kTableLength] = {3.0,  3.0,  3.0,  3.0,  0.0,  0.0, finf,
+                                       finf, finf, finf, finf, finf, fnan};
 
     __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
     __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
@@ -1946,16 +1960,20 @@ TEST(rint_s)  {
 
 TEST(mina_maxa) {
   if (kArchVariant == kMips64r6) {
-    const int kTableLength = 15;
+    const int kTableLength = 23;
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0,
+    MacroAssembler assm(isolate, nullptr, 0,
                         v8::internal::CodeObjectRequired::kYes);
-    const double double_nan = std::numeric_limits<double>::quiet_NaN();
-    const float  float_nan = std::numeric_limits<float>::quiet_NaN();
+    const double dnan = std::numeric_limits<double>::quiet_NaN();
+    const double dinf = std::numeric_limits<double>::infinity();
+    const double dminf = -std::numeric_limits<double>::infinity();
+    const float fnan = std::numeric_limits<float>::quiet_NaN();
+    const float finf = std::numeric_limits<float>::infinity();
+    const float fminf = std::numeric_limits<float>::infinity();
 
-    typedef struct test_float {
+    struct TestFloat {
       double a;
       double b;
       double resd;
@@ -1964,41 +1982,34 @@ TEST(mina_maxa) {
       float d;
       float resf;
       float resf1;
-    }TestFloat;
+    };
 
     TestFloat test;
     double inputsa[kTableLength] = {
-      5.3, 4.8, 6.1, 9.8, 9.8, 9.8, -10.0, -8.9,
-      -9.8, -10.0, -8.9, -9.8, double_nan, 3.0, double_nan
-    };
+        5.3,  4.8, 6.1,  9.8, 9.8,  9.8,  -10.0, -8.9, -9.8,  -10.0, -8.9, -9.8,
+        dnan, 3.0, -0.0, 0.0, dinf, dnan, 42.0,  dinf, dminf, dinf,  dnan};
     double inputsb[kTableLength] = {
-      4.8, 5.3, 6.1, -10.0, -8.9, -9.8, 9.8, 9.8,
-      9.8, -9.8, -11.2, -9.8, 3.0, double_nan, double_nan
-    };
+        4.8, 5.3,  6.1, -10.0, -8.9, -9.8, 9.8,  9.8,  9.8,  -9.8,  -11.2, -9.8,
+        3.0, dnan, 0.0, -0.0,  dnan, dinf, dinf, 42.0, dinf, dminf, dnan};
     double resd[kTableLength] = {
-      4.8, 4.8, 6.1, 9.8, -8.9, -9.8, 9.8, -8.9,
-      -9.8, -9.8, -8.9, -9.8, 3.0, 3.0, double_nan
-    };
+        4.8, 4.8, 6.1,  9.8,  -8.9, -9.8, 9.8,  -8.9, -9.8,  -9.8,  -8.9, -9.8,
+        3.0, 3.0, -0.0, -0.0, dinf, dinf, 42.0, 42.0, dminf, dminf, dnan};
     double resd1[kTableLength] = {
-      5.3, 5.3, 6.1, -10.0, 9.8, 9.8, -10.0, 9.8,
-      9.8, -10.0, -11.2, -9.8, 3.0, 3.0, double_nan
-    };
+        5.3, 5.3, 6.1, -10.0, 9.8,  9.8,  -10.0, 9.8,  9.8,  -10.0, -11.2, -9.8,
+        3.0, 3.0, 0.0, 0.0,   dinf, dinf, dinf,  dinf, dinf, dinf,  dnan};
     float inputsc[kTableLength] = {
-      5.3, 4.8, 6.1, 9.8, 9.8, 9.8, -10.0, -8.9,
-      -9.8, -10.0, -8.9, -9.8, float_nan, 3.0, float_nan
-    };
-    float inputsd[kTableLength] = {
-      4.8, 5.3, 6.1, -10.0, -8.9, -9.8, 9.8, 9.8,
-      9.8, -9.8, -11.2, -9.8, 3.0, float_nan, float_nan
-    };
+        5.3,  4.8, 6.1,  9.8, 9.8,  9.8,  -10.0, -8.9, -9.8,  -10.0, -8.9, -9.8,
+        fnan, 3.0, -0.0, 0.0, finf, fnan, 42.0,  finf, fminf, finf,  fnan};
+    float inputsd[kTableLength] = {4.8,  5.3,  6.1,  -10.0, -8.9,  -9.8,
+                                   9.8,  9.8,  9.8,  -9.8,  -11.2, -9.8,
+                                   3.0,  fnan, -0.0, 0.0,   fnan,  finf,
+                                   finf, 42.0, finf, fminf, fnan};
     float resf[kTableLength] = {
-      4.8, 4.8, 6.1, 9.8, -8.9, -9.8, 9.8, -8.9,
-      -9.8, -9.8, -8.9, -9.8, 3.0, 3.0, float_nan
-    };
+        4.8, 4.8, 6.1,  9.8,  -8.9, -9.8, 9.8,  -8.9, -9.8,  -9.8,  -8.9, -9.8,
+        3.0, 3.0, -0.0, -0.0, finf, finf, 42.0, 42.0, fminf, fminf, fnan};
     float resf1[kTableLength] = {
-      5.3, 5.3, 6.1, -10.0, 9.8, 9.8, -10.0, 9.8,
-      9.8, -10.0, -11.2, -9.8, 3.0, 3.0, float_nan
-    };
+        5.3, 5.3, 6.1, -10.0, 9.8,  9.8,  -10.0, 9.8,  9.8,  -10.0, -11.2, -9.8,
+        3.0, 3.0, 0.0, 0.0,   finf, finf, finf,  finf, finf, finf,  fnan};
 
     __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
     __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, b)) );
@@ -4992,6 +5003,55 @@ TEST(r6_aui_family) {
     for (size_t i = 0; i < nr_test_cases; ++i) {
       uint64_t res = run_dahi(dahi_tc[i].rs, dahi_tc[i].offset);
       CHECK_EQ(dahi_tc[i].ref_res, res);
+    }
+  }
+}
+
+
+uint64_t run_li_macro(uint64_t rs, LiFlags mode) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(a0, rs, mode);
+  __ mov(v0, a0);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res = reinterpret_cast<uint64_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(li_macro) {
+  CcTest::InitializeVM();
+
+  uint64_t inputs[] = {
+      0x0000000000000000, 0x000000000000ffff, 0x00000000ffffffff,
+      0x0000ffffffffffff, 0xffffffffffffffff, 0xffff000000000000,
+      0xffffffff00000000, 0xffffffffffff0000, 0xffff0000ffff0000,
+      0x0000ffffffff0000, 0x0000ffff0000ffff, 0x00007fffffffffff,
+      0x7fffffffffffffff, 0x000000007fffffff, 0x00007fff7fffffff,
+  };
+
+  size_t nr_test_cases = sizeof(inputs) / sizeof(inputs[0]);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    uint64_t res = run_li_macro(inputs[i], OPTIMIZE_SIZE);
+    CHECK_EQ(inputs[i], res);
+    res = run_li_macro(inputs[i], CONSTANT_SIZE);
+    CHECK_EQ(inputs[i], res);
+    if (is_int48(inputs[i])) {
+      res = run_li_macro(inputs[i], ADDRESS_LOAD);
+      CHECK_EQ(inputs[i], res);
     }
   }
 }

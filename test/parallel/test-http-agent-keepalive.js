@@ -62,7 +62,7 @@ function second() {
 function remoteClose() {
   // mock remote server close the socket
   get('/remote_close', function(res) {
-    assert.deepEqual(res.statusCode, 200);
+    assert.deepStrictEqual(res.statusCode, 200);
     res.on('data', checkDataAndSockets);
     res.on('end', function() {
       assert.equal(agent.sockets[name].length, 1);
@@ -74,7 +74,7 @@ function remoteClose() {
         setTimeout(function() {
           assert.equal(agent.sockets[name], undefined);
           assert.equal(agent.freeSockets[name], undefined,
-            'freeSockets is not empty');
+                       'freeSockets is not empty');
           remoteError();
         }, common.platformTimeout(200));
       });

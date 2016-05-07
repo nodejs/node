@@ -26,7 +26,6 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::PropertyAttribute;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
@@ -81,7 +80,7 @@ void PipeWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
-  env->SetProtoMethod(t, "isRefed", HandleWrap::IsRefed);
+  env->SetProtoMethod(t, "unrefed", HandleWrap::Unrefed);
 
   StreamWrap::AddMethods(env, t);
 

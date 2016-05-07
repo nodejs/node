@@ -16,6 +16,7 @@ namespace internal {
 class AllocationTracker;
 class HeapObjectsMap;
 class HeapSnapshot;
+class SamplingHeapProfiler;
 class StringsStorage;
 
 class HeapProfiler {
@@ -28,6 +29,11 @@ class HeapProfiler {
   HeapSnapshot* TakeSnapshot(
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
+
+  bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth);
+  void StopSamplingHeapProfiler();
+  bool is_sampling_allocations() { return !sampling_heap_profiler_.is_empty(); }
+  AllocationProfile* GetAllocationProfile();
 
   void StartHeapObjectsTracking(bool track_allocations);
   void StopHeapObjectsTracking();
@@ -79,6 +85,7 @@ class HeapProfiler {
   base::SmartPointer<AllocationTracker> allocation_tracker_;
   bool is_tracking_object_moves_;
   base::Mutex profiler_mutex_;
+  base::SmartPointer<SamplingHeapProfiler> sampling_heap_profiler_;
 };
 
 }  // namespace internal

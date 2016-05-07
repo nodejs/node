@@ -39,13 +39,16 @@ a8 = a8.read();
 
 if (!common.hasFipsCrypto) {
   var a0 = crypto.createHash('md5').update('Test123').digest('binary');
-  assert.equal(a0, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
-               '\u00bd\u008c', 'Test MD5 as binary');
+  assert.equal(
+    a0,
+    'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca\u00bd\u008c',
+    'Test MD5 as binary'
+  );
 }
 assert.equal(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
 assert.equal(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
              'Test SHA256 as base64');
-assert.deepEqual(
+assert.deepStrictEqual(
   a3,
   Buffer.from(
     '\u00c1(4\u00f1\u0003\u001fd\u0097!O\'\u00d4C/&Qz\u00d4' +
@@ -55,13 +58,15 @@ assert.deepEqual(
     '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
     'binary'),
   'Test SHA512 as assumed buffer');
-assert.deepEqual(a4,
-                Buffer.from('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
-                 'Test SHA1');
+assert.deepStrictEqual(
+  a4,
+  Buffer.from('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
+  'Test SHA1'
+);
 
 // stream interface should produce the same result.
-assert.deepEqual(a5, a3, 'stream interface is consistent');
-assert.deepEqual(a6, a3, 'stream interface is consistent');
+assert.deepStrictEqual(a5, a3, 'stream interface is consistent');
+assert.deepStrictEqual(a6, a3, 'stream interface is consistent');
 assert.notEqual(a7, undefined, 'no data should return data');
 assert.notEqual(a8, undefined, 'empty string should generate data');
 
@@ -98,3 +103,15 @@ assert.equal(
 assert.notEqual(
     hutf8,
     crypto.createHash('sha512').update('УТФ-8 text', 'binary').digest('hex'));
+
+var h3 = crypto.createHash('sha256');
+h3.digest();
+assert.throws(function() {
+  h3.digest();
+},
+  /Digest already called/);
+
+assert.throws(function() {
+  h3.update('foo');
+},
+  /Digest already called/);

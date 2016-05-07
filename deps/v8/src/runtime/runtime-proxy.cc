@@ -58,9 +58,8 @@ RUNTIME_FUNCTION(Runtime_JSProxyCall) {
   ElementsAccessor* accessor = arg_array->GetElementsAccessor();
   {
     DisallowHeapAllocation no_gc;
-    FixedArrayBase* elements = arg_array->elements();
     for (int i = 0; i < arguments_length; i++) {
-      accessor->Set(elements, i, args[i + 1]);
+      accessor->Set(arg_array, i, args[i + 1]);
     }
   }
   // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
@@ -119,9 +118,8 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
   ElementsAccessor* accessor = arg_array->GetElementsAccessor();
   {
     DisallowHeapAllocation no_gc;
-    FixedArrayBase* elements = arg_array->elements();
     for (int i = 0; i < arguments_length; i++) {
-      accessor->Set(elements, i, args[i + 1]);
+      accessor->Set(arg_array, i, args[i + 1]);
     }
   }
   // 8. Let newObj be ? Call(trap, handler, «target, argArray, newTarget »).

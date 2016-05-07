@@ -24,7 +24,7 @@ fs.open(filename, 'w', 0o644, function(err, fd) {
     fs.closeSync(fd);
 
     var found = fs.readFileSync(filename, 'utf8');
-    assert.deepEqual(expected.toString(), found);
+    assert.deepStrictEqual(expected.toString(), found);
     fs.unlinkSync(filename);
   });
 });

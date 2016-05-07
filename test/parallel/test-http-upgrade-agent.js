@@ -59,7 +59,7 @@ srv.listen(common.PORT, '127.0.0.1', function() {
     var expectedHeaders = { 'hello': 'world',
                             'connection': 'upgrade',
                             'upgrade': 'websocket' };
-    assert.deepEqual(expectedHeaders, res.headers);
+    assert.deepStrictEqual(expectedHeaders, res.headers);
 
     // Make sure this request got removed from the pool.
     assert(!http.globalAgent.sockets.hasOwnProperty(name));

@@ -33,13 +33,11 @@ STATIC_CONST_MEMBER_DEFINITION const size_t
 TEST_F(ConstantArrayBuilderTest, AllocateAllEntries) {
   ConstantArrayBuilder builder(isolate(), zone());
   for (size_t i = 0; i < kMaxCapacity; i++) {
-    Handle<Object> object = isolate()->factory()->NewNumberFromSize(i);
-    builder.Insert(object);
-    CHECK_EQ(builder.size(), i + 1);
-    CHECK(builder.At(i)->SameValue(*object));
+    builder.Insert(handle(Smi::FromInt(static_cast<int>(i)), isolate()));
   }
+  CHECK_EQ(builder.size(), kMaxCapacity);
   for (size_t i = 0; i < kMaxCapacity; i++) {
-    CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), static_cast<double>(i));
+    CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), i);
   }
 }
 
@@ -158,8 +156,7 @@ TEST_F(ConstantArrayBuilderTest, ToFixedArray) {
     builder.Insert(object);
     CHECK(builder.At(i)->SameValue(*object));
   }
-  Handle<FixedArray> constant_array =
-      builder.ToFixedArray(isolate()->factory());
+  Handle<FixedArray> constant_array = builder.ToFixedArray();
   CHECK_EQ(constant_array->length(), kNumberOfElements);
   for (size_t i = 0; i < kNumberOfElements; i++) {
     CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));

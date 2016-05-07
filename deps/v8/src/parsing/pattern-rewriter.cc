@@ -33,7 +33,7 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
 
 
 void Parser::PatternRewriter::RewriteDestructuringAssignment(
-    Parser* parser, RewritableAssignmentExpression* to_rewrite, Scope* scope) {
+    Parser* parser, RewritableExpression* to_rewrite, Scope* scope) {
   PatternRewriter rewriter;
 
   DCHECK(!to_rewrite->is_rewritten());
@@ -58,8 +58,7 @@ Expression* Parser::PatternRewriter::RewriteDestructuringAssignment(
     Parser* parser, Assignment* assignment, Scope* scope) {
   DCHECK_NOT_NULL(assignment);
   DCHECK_EQ(Token::ASSIGN, assignment->op());
-  auto to_rewrite =
-      parser->factory()->NewRewritableAssignmentExpression(assignment);
+  auto to_rewrite = parser->factory()->NewRewritableExpression(assignment);
   RewriteDestructuringAssignment(parser, to_rewrite, scope);
   return to_rewrite->expression();
 }
@@ -78,7 +77,11 @@ bool Parser::PatternRewriter::IsBindingContext(PatternContext c) const {
 Parser::PatternRewriter::PatternContext
 Parser::PatternRewriter::SetAssignmentContextIfNeeded(Expression* node) {
   PatternContext old_context = context();
-  if (node->IsAssignment() && node->AsAssignment()->op() == Token::ASSIGN) {
+  // AssignmentExpressions may occur in the Initializer position of a
+  // SingleNameBinding. Such expressions should not prompt a change in the
+  // pattern's context.
+  if (node->IsAssignment() && node->AsAssignment()->op() == Token::ASSIGN &&
+      !IsInitializerContext()) {
     set_context(ASSIGNMENT);
   }
   return old_context;
@@ -91,8 +94,8 @@ Parser::PatternRewriter::SetInitializerContextIfNeeded(Expression* node) {
   // AssignmentElement nodes
   PatternContext old_context = context();
   bool is_destructuring_assignment =
-      node->IsRewritableAssignmentExpression() &&
-      !node->AsRewritableAssignmentExpression()->is_rewritten();
+      node->IsRewritableExpression() &&
+      !node->AsRewritableExpression()->is_rewritten();
   bool is_assignment =
       node->IsAssignment() && node->AsAssignment()->op() == Token::ASSIGN;
   if (is_destructuring_assignment || is_assignment) {
@@ -324,10 +327,11 @@ Variable* Parser::PatternRewriter::CreateTempVar(Expression* value) {
 }
 
 
-void Parser::PatternRewriter::VisitRewritableAssignmentExpression(
-    RewritableAssignmentExpression* node) {
-  if (!IsAssignmentContext()) {
-    // Mark the assignment as rewritten to prevent redundant rewriting, and
+void Parser::PatternRewriter::VisitRewritableExpression(
+    RewritableExpression* node) {
+  // If this is not a destructuring assignment...
+  if (!IsAssignmentContext() || !node->expression()->IsAssignment()) {
+    // Mark the node as rewritten to prevent redundant rewriting, and
     // perform BindingPattern rewriting
     DCHECK(!node->is_rewritten());
     node->Rewrite(node->expression());

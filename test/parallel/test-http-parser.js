@@ -2,13 +2,13 @@
 require('../common');
 var assert = require('assert');
 
-var HTTPParser = process.binding('http_parser').HTTPParser;
+const binding = process.binding('http_parser');
+const methods = binding.methods;
+const HTTPParser = binding.HTTPParser;
 
 var CRLF = '\r\n';
 var REQUEST = HTTPParser.REQUEST;
 var RESPONSE = HTTPParser.RESPONSE;
-
-var methods = HTTPParser.methods;
 
 var kOnHeaders = HTTPParser.kOnHeaders | 0;
 var kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
@@ -156,7 +156,7 @@ function expectBody(expected) {
     assert.equal(method, undefined);
     assert.equal(statusCode, 200);
     assert.equal(statusMessage, 'Connection established');
-    assert.deepEqual(headers || parser.headers, []);
+    assert.deepStrictEqual(headers || parser.headers, []);
   };
 
   var parser = newParser(RESPONSE);
@@ -184,7 +184,8 @@ function expectBody(expected) {
 
   var onHeaders = function(headers, url) {
     assert.ok(seen_body); // trailers should come after the body
-    assert.deepEqual(headers, ['Vary', '*', 'Content-Type', 'text/plain']);
+    assert.deepStrictEqual(headers,
+                           ['Vary', '*', 'Content-Type', 'text/plain']);
   };
 
   var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
@@ -228,7 +229,7 @@ function expectBody(expected) {
     assert.equal(method, methods.indexOf('GET'));
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 0);
-    assert.deepEqual(
+    assert.deepStrictEqual(
         headers || parser.headers,
         ['X-Filler', '1337', 'X-Filler', '42', 'X-Filler2', '42']);
   };
@@ -486,7 +487,7 @@ function expectBody(expected) {
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
-    assert.deepEqual(
+    assert.deepStrictEqual(
         headers || parser.headers,
         ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
   };
@@ -538,7 +539,7 @@ function expectBody(expected) {
     assert.equal(url, '/this');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
-    assert.deepEqual(
+    assert.deepStrictEqual(
         headers,
         ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
   };
@@ -550,8 +551,10 @@ function expectBody(expected) {
     assert.equal(url, '/that');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 0);
-    assert.deepEqual(headers,
-                     ['Content-Type', 'text/plain', 'Content-Length', '4']);
+    assert.deepStrictEqual(
+      headers,
+      ['Content-Type', 'text/plain', 'Content-Length', '4']
+    );
   };
 
   var parser = newParser(REQUEST);

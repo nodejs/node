@@ -39,6 +39,11 @@ $L000pic_point:
 	jz	$L001x86
 	test	ecx,536870912
 	jnz	$Lshaext_shortcut
+	and	edx,268435456
+	and	eax,1073741824
+	or	eax,edx
+	cmp	eax,1342177280
+	je	$Lavx_shortcut
 	jmp	$Lssse3_shortcut
 ALIGN	16
 $L001x86:
@@ -2794,6 +2799,1175 @@ $L007done:
 	pop	ebp
 	ret
 __sha1_block_data_order_ssse3 ENDP
+ALIGN	16
+__sha1_block_data_order_avx	PROC PRIVATE
+	push	ebp
+	push	ebx
+	push	esi
+	push	edi
+	call	$L008pic_point
+$L008pic_point:
+	pop	ebp
+	lea	ebp,DWORD PTR ($LK_XX_XX-$L008pic_point)[ebp]
+$Lavx_shortcut::
+	vzeroall
+	vmovdqa	xmm7,XMMWORD PTR [ebp]
+	vmovdqa	xmm0,XMMWORD PTR 16[ebp]
+	vmovdqa	xmm1,XMMWORD PTR 32[ebp]
+	vmovdqa	xmm2,XMMWORD PTR 48[ebp]
+	vmovdqa	xmm6,XMMWORD PTR 64[ebp]
+	mov	edi,DWORD PTR 20[esp]
+	mov	ebp,DWORD PTR 24[esp]
+	mov	edx,DWORD PTR 28[esp]
+	mov	esi,esp
+	sub	esp,208
+	and	esp,-64
+	vmovdqa	XMMWORD PTR 112[esp],xmm0
+	vmovdqa	XMMWORD PTR 128[esp],xmm1
+	vmovdqa	XMMWORD PTR 144[esp],xmm2
+	shl	edx,6
+	vmovdqa	XMMWORD PTR 160[esp],xmm7
+	add	edx,ebp
+	vmovdqa	XMMWORD PTR 176[esp],xmm6
+	add	ebp,64
+	mov	DWORD PTR 192[esp],edi
+	mov	DWORD PTR 196[esp],ebp
+	mov	DWORD PTR 200[esp],edx
+	mov	DWORD PTR 204[esp],esi
+	mov	eax,DWORD PTR [edi]
+	mov	ebx,DWORD PTR 4[edi]
+	mov	ecx,DWORD PTR 8[edi]
+	mov	edx,DWORD PTR 12[edi]
+	mov	edi,DWORD PTR 16[edi]
+	mov	esi,ebx
+	vmovdqu	xmm0,XMMWORD PTR [ebp-64]
+	vmovdqu	xmm1,XMMWORD PTR [ebp-48]
+	vmovdqu	xmm2,XMMWORD PTR [ebp-32]
+	vmovdqu	xmm3,XMMWORD PTR [ebp-16]
+	vpshufb	xmm0,xmm0,xmm6
+	vpshufb	xmm1,xmm1,xmm6
+	vpshufb	xmm2,xmm2,xmm6
+	vmovdqa	XMMWORD PTR 96[esp],xmm7
+	vpshufb	xmm3,xmm3,xmm6
+	vpaddd	xmm4,xmm0,xmm7
+	vpaddd	xmm5,xmm1,xmm7
+	vpaddd	xmm6,xmm2,xmm7
+	vmovdqa	XMMWORD PTR [esp],xmm4
+	mov	ebp,ecx
+	vmovdqa	XMMWORD PTR 16[esp],xmm5
+	xor	ebp,edx
+	vmovdqa	XMMWORD PTR 32[esp],xmm6
+	and	esi,ebp
+	jmp	$L009loop
+ALIGN	16
+$L009loop:
+	shrd	ebx,ebx,2
+	xor	esi,edx
+	vpalignr	xmm4,xmm1,xmm0,8
+	mov	ebp,eax
+	add	edi,DWORD PTR [esp]
+	vpaddd	xmm7,xmm7,xmm3
+	vmovdqa	XMMWORD PTR 64[esp],xmm0
+	xor	ebx,ecx
+	shld	eax,eax,5
+	vpsrldq	xmm6,xmm3,4
+	add	edi,esi
+	and	ebp,ebx
+	vpxor	xmm4,xmm4,xmm0
+	xor	ebx,ecx
+	add	edi,eax
+	vpxor	xmm6,xmm6,xmm2
+	shrd	eax,eax,7
+	xor	ebp,ecx
+	vmovdqa	XMMWORD PTR 48[esp],xmm7
+	mov	esi,edi
+	add	edx,DWORD PTR 4[esp]
+	vpxor	xmm4,xmm4,xmm6
+	xor	eax,ebx
+	shld	edi,edi,5
+	add	edx,ebp
+	and	esi,eax
+	vpsrld	xmm6,xmm4,31
+	xor	eax,ebx
+	add	edx,edi
+	shrd	edi,edi,7
+	xor	esi,ebx
+	vpslldq	xmm0,xmm4,12
+	vpaddd	xmm4,xmm4,xmm4
+	mov	ebp,edx
+	add	ecx,DWORD PTR 8[esp]
+	xor	edi,eax
+	shld	edx,edx,5
+	vpsrld	xmm7,xmm0,30
+	vpor	xmm4,xmm4,xmm6
+	add	ecx,esi
+	and	ebp,edi
+	xor	edi,eax
+	add	ecx,edx
+	vpslld	xmm0,xmm0,2
+	shrd	edx,edx,7
+	xor	ebp,eax
+	vpxor	xmm4,xmm4,xmm7
+	mov	esi,ecx
+	add	ebx,DWORD PTR 12[esp]
+	xor	edx,edi
+	shld	ecx,ecx,5
+	vpxor	xmm4,xmm4,xmm0
+	add	ebx,ebp
+	and	esi,edx
+	vmovdqa	xmm0,XMMWORD PTR 96[esp]
+	xor	edx,edi
+	add	ebx,ecx
+	shrd	ecx,ecx,7
+	xor	esi,edi
+	vpalignr	xmm5,xmm2,xmm1,8
+	mov	ebp,ebx
+	add	eax,DWORD PTR 16[esp]
+	vpaddd	xmm0,xmm0,xmm4
+	vmovdqa	XMMWORD PTR 80[esp],xmm1
+	xor	ecx,edx
+	shld	ebx,ebx,5
+	vpsrldq	xmm7,xmm4,4
+	add	eax,esi
+	and	ebp,ecx
+	vpxor	xmm5,xmm5,xmm1
+	xor	ecx,edx
+	add	eax,ebx
+	vpxor	xmm7,xmm7,xmm3
+	shrd	ebx,ebx,7
+	xor	ebp,edx
+	vmovdqa	XMMWORD PTR [esp],xmm0
+	mov	esi,eax
+	add	edi,DWORD PTR 20[esp]
+	vpxor	xmm5,xmm5,xmm7
+	xor	ebx,ecx
+	shld	eax,eax,5
+	add	edi,ebp
+	and	esi,ebx
+	vpsrld	xmm7,xmm5,31
+	xor	ebx,ecx
+	add	edi,eax
+	shrd	eax,eax,7
+	xor	esi,ecx
+	vpslldq	xmm1,xmm5,12
+	vpaddd	xmm5,xmm5,xmm5
+	mov	ebp,edi
+	add	edx,DWORD PTR 24[esp]
+	xor	eax,ebx
+	shld	edi,edi,5
+	vpsrld	xmm0,xmm1,30
+	vpor	xmm5,xmm5,xmm7
+	add	edx,esi
+	and	ebp,eax
+	xor	eax,ebx
+	add	edx,edi
+	vpslld	xmm1,xmm1,2
+	shrd	edi,edi,7
+	xor	ebp,ebx
+	vpxor	xmm5,xmm5,xmm0
+	mov	esi,edx
+	add	ecx,DWORD PTR 28[esp]
+	xor	edi,eax
+	shld	edx,edx,5
+	vpxor	xmm5,xmm5,xmm1
+	add	ecx,ebp
+	and	esi,edi
+	vmovdqa	xmm1,XMMWORD PTR 112[esp]
+	xor	edi,eax
+	add	ecx,edx
+	shrd	edx,edx,7
+	xor	esi,eax
+	vpalignr	xmm6,xmm3,xmm2,8
+	mov	ebp,ecx
+	add	ebx,DWORD PTR 32[esp]
+	vpaddd	xmm1,xmm1,xmm5
+	vmovdqa	XMMWORD PTR 96[esp],xmm2
+	xor	edx,edi
+	shld	ecx,ecx,5
+	vpsrldq	xmm0,xmm5,4
+	add	ebx,esi
+	and	ebp,edx
+	vpxor	xmm6,xmm6,xmm2
+	xor	edx,edi
+	add	ebx,ecx
+	vpxor	xmm0,xmm0,xmm4
+	shrd	ecx,ecx,7
+	xor	ebp,edi
+	vmovdqa	XMMWORD PTR 16[esp],xmm1
+	mov	esi,ebx
+	add	eax,DWORD PTR 36[esp]
+	vpxor	xmm6,xmm6,xmm0
+	xor	ecx,edx
+	shld	ebx,ebx,5
+	add	eax,ebp
+	and	esi,ecx
+	vpsrld	xmm0,xmm6,31
+	xor	ecx,edx
+	add	eax,ebx
+	shrd	ebx,ebx,7
+	xor	esi,edx
+	vpslldq	xmm2,xmm6,12
+	vpaddd	xmm6,xmm6,xmm6
+	mov	ebp,eax
+	add	edi,DWORD PTR 40[esp]
+	xor	ebx,ecx
+	shld	eax,eax,5
+	vpsrld	xmm1,xmm2,30
+	vpor	xmm6,xmm6,xmm0
+	add	edi,esi
+	and	ebp,ebx
+	xor	ebx,ecx
+	add	edi,eax
+	vpslld	xmm2,xmm2,2
+	vmovdqa	xmm0,XMMWORD PTR 64[esp]
+	shrd	eax,eax,7
+	xor	ebp,ecx
+	vpxor	xmm6,xmm6,xmm1
+	mov	esi,edi
+	add	edx,DWORD PTR 44[esp]
+	xor	eax,ebx
+	shld	edi,edi,5
+	vpxor	xmm6,xmm6,xmm2
+	add	edx,ebp
+	and	esi,eax
+	vmovdqa	xmm2,XMMWORD PTR 112[esp]
+	xor	eax,ebx
+	add	edx,edi
+	shrd	edi,edi,7
+	xor	esi,ebx
+	vpalignr	xmm7,xmm4,xmm3,8
+	mov	ebp,edx
+	add	ecx,DWORD PTR 48[esp]
+	vpaddd	xmm2,xmm2,xmm6
+	vmovdqa	XMMWORD PTR 64[esp],xmm3
+	xor	edi,eax
+	shld	edx,edx,5
+	vpsrldq	xmm1,xmm6,4
+	add	ecx,esi
+	and	ebp,edi
+	vpxor	xmm7,xmm7,xmm3
+	xor	edi,eax
+	add	ecx,edx
+	vpxor	xmm1,xmm1,xmm5
+	shrd	edx,edx,7
+	xor	ebp,eax
+	vmovdqa	XMMWORD PTR 32[esp],xmm2
+	mov	esi,ecx
+	add	ebx,DWORD PTR 52[esp]
+	vpxor	xmm7,xmm7,xmm1
+	xor	edx,edi
+	shld	ecx,ecx,5
+	add	ebx,ebp
+	and	esi,edx
+	vpsrld	xmm1,xmm7,31
+	xor	edx,edi
+	add	ebx,ecx
+	shrd	ecx,ecx,7
+	xor	esi,edi
+	vpslldq	xmm3,xmm7,12
+	vpaddd	xmm7,xmm7,xmm7
+	mov	ebp,ebx
+	add	eax,DWORD PTR 56[esp]
+	xor	ecx,edx
+	shld	ebx,ebx,5
+	vpsrld	xmm2,xmm3,30
+	vpor	xmm7,xmm7,xmm1
+	add	eax,esi
+	and	ebp,ecx
+	xor	ecx,edx
+	add	eax,ebx
+	vpslld	xmm3,xmm3,2
+	vmovdqa	xmm1,XMMWORD PTR 80[esp]
+	shrd	ebx,ebx,7
+	xor	ebp,edx
+	vpxor	xmm7,xmm7,xmm2
+	mov	esi,eax
+	add	edi,DWORD PTR 60[esp]
+	xor	ebx,ecx
+	shld	eax,eax,5
+	vpxor	xmm7,xmm7,xmm3
+	add	edi,ebp
+	and	esi,ebx
+	vmovdqa	xmm3,XMMWORD PTR 112[esp]
+	xor	ebx,ecx
+	add	edi,eax
+	vpalignr	xmm2,xmm7,xmm6,8
+	vpxor	xmm0,xmm0,xmm4
+	shrd	eax,eax,7
+	xor	esi,ecx
+	mov	ebp,edi
+	add	edx,DWORD PTR [esp]
+	vpxor	xmm0,xmm0,xmm1
+	vmovdqa	XMMWORD PTR 80[esp],xmm4
+	xor	eax,ebx
+	shld	edi,edi,5
+	vmovdqa	xmm4,xmm3
+	vpaddd	xmm3,xmm3,xmm7
+	add	edx,esi
+	and	ebp,eax
+	vpxor	xmm0,xmm0,xmm2
+	xor	eax,ebx
+	add	edx,edi
+	shrd	edi,edi,7
+	xor	ebp,ebx
+	vpsrld	xmm2,xmm0,30
+	vmovdqa	XMMWORD PTR 48[esp],xmm3
+	mov	esi,edx
+	add	ecx,DWORD PTR 4[esp]
+	xor	edi,eax
+	shld	edx,edx,5
+	vpslld	xmm0,xmm0,2
+	add	ecx,ebp
+	and	esi,edi
+	xor	edi,eax
+	add	ecx,edx
+	shrd	edx,edx,7
+	xor	esi,eax
+	mov	ebp,ecx
+	add	ebx,DWORD PTR 8[esp]
+	vpor	xmm0,xmm0,xmm2
+	xor	edx,edi
+	shld	ecx,ecx,5
+	vmovdqa	xmm2,XMMWORD PTR 96[esp]
+	add	ebx,esi
+	and	ebp,edx
+	xor	edx,edi
+	add	ebx,ecx
+	add	eax,DWORD PTR 12[esp]
+	xor	ebp,edi
+	mov	esi,ebx
+	shld	ebx,ebx,5
+	add	eax,ebp
+	xor	esi,edx
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	vpalignr	xmm3,xmm0,xmm7,8
+	vpxor	xmm1,xmm1,xmm5
+	add	edi,DWORD PTR 16[esp]
+	xor	esi,ecx
+	mov	ebp,eax
+	shld	eax,eax,5
+	vpxor	xmm1,xmm1,xmm2
+	vmovdqa	XMMWORD PTR 96[esp],xmm5
+	add	edi,esi
+	xor	ebp,ecx
+	vmovdqa	xmm5,xmm4
+	vpaddd	xmm4,xmm4,xmm0
+	shrd	ebx,ebx,7
+	add	edi,eax
+	vpxor	xmm1,xmm1,xmm3
+	add	edx,DWORD PTR 20[esp]
+	xor	ebp,ebx
+	mov	esi,edi
+	shld	edi,edi,5
+	vpsrld	xmm3,xmm1,30
+	vmovdqa	XMMWORD PTR [esp],xmm4
+	add	edx,ebp
+	xor	esi,ebx
+	shrd	eax,eax,7
+	add	edx,edi
+	vpslld	xmm1,xmm1,2
+	add	ecx,DWORD PTR 24[esp]
+	xor	esi,eax
+	mov	ebp,edx
+	shld	edx,edx,5
+	add	ecx,esi
+	xor	ebp,eax
+	shrd	edi,edi,7
+	add	ecx,edx
+	vpor	xmm1,xmm1,xmm3
+	add	ebx,DWORD PTR 28[esp]
+	xor	ebp,edi
+	vmovdqa	xmm3,XMMWORD PTR 64[esp]
+	mov	esi,ecx
+	shld	ecx,ecx,5
+	add	ebx,ebp
+	xor	esi,edi
+	shrd	edx,edx,7
+	add	ebx,ecx
+	vpalignr	xmm4,xmm1,xmm0,8
+	vpxor	xmm2,xmm2,xmm6
+	add	eax,DWORD PTR 32[esp]
+	xor	esi,edx
+	mov	ebp,ebx
+	shld	ebx,ebx,5
+	vpxor	xmm2,xmm2,xmm3
+	vmovdqa	XMMWORD PTR 64[esp],xmm6
+	add	eax,esi
+	xor	ebp,edx
+	vmovdqa	xmm6,XMMWORD PTR 128[esp]
+	vpaddd	xmm5,xmm5,xmm1
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	vpxor	xmm2,xmm2,xmm4
+	add	edi,DWORD PTR 36[esp]
+	xor	ebp,ecx
+	mov	esi,eax
+	shld	eax,eax,5
+	vpsrld	xmm4,xmm2,30
+	vmovdqa	XMMWORD PTR 16[esp],xmm5
+	add	edi,ebp
+	xor	esi,ecx
+	shrd	ebx,ebx,7
+	add	edi,eax
+	vpslld	xmm2,xmm2,2
+	add	edx,DWORD PTR 40[esp]
+	xor	esi,ebx
+	mov	ebp,edi
+	shld	edi,edi,5
+	add	edx,esi
+	xor	ebp,ebx
+	shrd	eax,eax,7
+	add	edx,edi
+	vpor	xmm2,xmm2,xmm4
+	add	ecx,DWORD PTR 44[esp]
+	xor	ebp,eax
+	vmovdqa	xmm4,XMMWORD PTR 80[esp]
+	mov	esi,edx
+	shld	edx,edx,5
+	add	ecx,ebp
+	xor	esi,eax
+	shrd	edi,edi,7
+	add	ecx,edx
+	vpalignr	xmm5,xmm2,xmm1,8
+	vpxor	xmm3,xmm3,xmm7
+	add	ebx,DWORD PTR 48[esp]
+	xor	esi,edi
+	mov	ebp,ecx
+	shld	ecx,ecx,5
+	vpxor	xmm3,xmm3,xmm4
+	vmovdqa	XMMWORD PTR 80[esp],xmm7
+	add	ebx,esi
+	xor	ebp,edi
+	vmovdqa	xmm7,xmm6
+	vpaddd	xmm6,xmm6,xmm2
+	shrd	edx,edx,7
+	add	ebx,ecx
+	vpxor	xmm3,xmm3,xmm5
+	add	eax,DWORD PTR 52[esp]
+	xor	ebp,edx
+	mov	esi,ebx
+	shld	ebx,ebx,5
+	vpsrld	xmm5,xmm3,30
+	vmovdqa	XMMWORD PTR 32[esp],xmm6
+	add	eax,ebp
+	xor	esi,edx
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	vpslld	xmm3,xmm3,2
+	add	edi,DWORD PTR 56[esp]
+	xor	esi,ecx
+	mov	ebp,eax
+	shld	eax,eax,5
+	add	edi,esi
+	xor	ebp,ecx
+	shrd	ebx,ebx,7
+	add	edi,eax
+	vpor	xmm3,xmm3,xmm5
+	add	edx,DWORD PTR 60[esp]
+	xor	ebp,ebx
+	vmovdqa	xmm5,XMMWORD PTR 96[esp]
+	mov	esi,edi
+	shld	edi,edi,5
+	add	edx,ebp
+	xor	esi,ebx
+	shrd	eax,eax,7
+	add	edx,edi
+	vpalignr	xmm6,xmm3,xmm2,8
+	vpxor	xmm4,xmm4,xmm0
+	add	ecx,DWORD PTR [esp]
+	xor	esi,eax
+	mov	ebp,edx
+	shld	edx,edx,5
+	vpxor	xmm4,xmm4,xmm5
+	vmovdqa	XMMWORD PTR 96[esp],xmm0
+	add	ecx,esi
+	xor	ebp,eax
+	vmovdqa	xmm0,xmm7
+	vpaddd	xmm7,xmm7,xmm3
+	shrd	edi,edi,7
+	add	ecx,edx
+	vpxor	xmm4,xmm4,xmm6
+	add	ebx,DWORD PTR 4[esp]
+	xor	ebp,edi
+	mov	esi,ecx
+	shld	ecx,ecx,5
+	vpsrld	xmm6,xmm4,30
+	vmovdqa	XMMWORD PTR 48[esp],xmm7
+	add	ebx,ebp
+	xor	esi,edi
+	shrd	edx,edx,7
+	add	ebx,ecx
+	vpslld	xmm4,xmm4,2
+	add	eax,DWORD PTR 8[esp]
+	xor	esi,edx
+	mov	ebp,ebx
+	shld	ebx,ebx,5
+	add	eax,esi
+	xor	ebp,edx
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	vpor	xmm4,xmm4,xmm6
+	add	edi,DWORD PTR 12[esp]
+	xor	ebp,ecx
+	vmovdqa	xmm6,XMMWORD PTR 64[esp]
+	mov	esi,eax
+	shld	eax,eax,5
+	add	edi,ebp
+	xor	esi,ecx
+	shrd	ebx,ebx,7
+	add	edi,eax
+	vpalignr	xmm7,xmm4,xmm3,8
+	vpxor	xmm5,xmm5,xmm1
+	add	edx,DWORD PTR 16[esp]
+	xor	esi,ebx
+	mov	ebp,edi
+	shld	edi,edi,5
+	vpxor	xmm5,xmm5,xmm6
+	vmovdqa	XMMWORD PTR 64[esp],xmm1
+	add	edx,esi
+	xor	ebp,ebx
+	vmovdqa	xmm1,xmm0
+	vpaddd	xmm0,xmm0,xmm4
+	shrd	eax,eax,7
+	add	edx,edi
+	vpxor	xmm5,xmm5,xmm7
+	add	ecx,DWORD PTR 20[esp]
+	xor	ebp,eax
+	mov	esi,edx
+	shld	edx,edx,5
+	vpsrld	xmm7,xmm5,30
+	vmovdqa	XMMWORD PTR [esp],xmm0
+	add	ecx,ebp
+	xor	esi,eax
+	shrd	edi,edi,7
+	add	ecx,edx
+	vpslld	xmm5,xmm5,2
+	add	ebx,DWORD PTR 24[esp]
+	xor	esi,edi
+	mov	ebp,ecx
+	shld	ecx,ecx,5
+	add	ebx,esi
+	xor	ebp,edi
+	shrd	edx,edx,7
+	add	ebx,ecx
+	vpor	xmm5,xmm5,xmm7
+	add	eax,DWORD PTR 28[esp]
+	vmovdqa	xmm7,XMMWORD PTR 80[esp]
+	shrd	ecx,ecx,7
+	mov	esi,ebx
+	xor	ebp,edx
+	shld	ebx,ebx,5
+	add	eax,ebp
+	xor	esi,ecx
+	xor	ecx,edx
+	add	eax,ebx
+	vpalignr	xmm0,xmm5,xmm4,8
+	vpxor	xmm6,xmm6,xmm2
+	add	edi,DWORD PTR 32[esp]
+	and	esi,ecx
+	xor	ecx,edx
+	shrd	ebx,ebx,7
+	vpxor	xmm6,xmm6,xmm7
+	vmovdqa	XMMWORD PTR 80[esp],xmm2
+	mov	ebp,eax
+	xor	esi,ecx
+	vmovdqa	xmm2,xmm1
+	vpaddd	xmm1,xmm1,xmm5
+	shld	eax,eax,5
+	add	edi,esi
+	vpxor	xmm6,xmm6,xmm0
+	xor	ebp,ebx
+	xor	ebx,ecx
+	add	edi,eax
+	add	edx,DWORD PTR 36[esp]
+	vpsrld	xmm0,xmm6,30
+	vmovdqa	XMMWORD PTR 16[esp],xmm1
+	and	ebp,ebx
+	xor	ebx,ecx
+	shrd	eax,eax,7
+	mov	esi,edi
+	vpslld	xmm6,xmm6,2
+	xor	ebp,ebx
+	shld	edi,edi,5
+	add	edx,ebp
+	xor	esi,eax
+	xor	eax,ebx
+	add	edx,edi
+	add	ecx,DWORD PTR 40[esp]
+	and	esi,eax
+	vpor	xmm6,xmm6,xmm0
+	xor	eax,ebx
+	shrd	edi,edi,7
+	vmovdqa	xmm0,XMMWORD PTR 96[esp]
+	mov	ebp,edx
+	xor	esi,eax
+	shld	edx,edx,5
+	add	ecx,esi
+	xor	ebp,edi
+	xor	edi,eax
+	add	ecx,edx
+	add	ebx,DWORD PTR 44[esp]
+	and	ebp,edi
+	xor	edi,eax
+	shrd	edx,edx,7
+	mov	esi,ecx
+	xor	ebp,edi
+	shld	ecx,ecx,5
+	add	ebx,ebp
+	xor	esi,edx
+	xor	edx,edi
+	add	ebx,ecx
+	vpalignr	xmm1,xmm6,xmm5,8
+	vpxor	xmm7,xmm7,xmm3
+	add	eax,DWORD PTR 48[esp]
+	and	esi,edx
+	xor	edx,edi
+	shrd	ecx,ecx,7
+	vpxor	xmm7,xmm7,xmm0
+	vmovdqa	XMMWORD PTR 96[esp],xmm3
+	mov	ebp,ebx
+	xor	esi,edx
+	vmovdqa	xmm3,XMMWORD PTR 144[esp]
+	vpaddd	xmm2,xmm2,xmm6
+	shld	ebx,ebx,5
+	add	eax,esi
+	vpxor	xmm7,xmm7,xmm1
+	xor	ebp,ecx
+	xor	ecx,edx
+	add	eax,ebx
+	add	edi,DWORD PTR 52[esp]
+	vpsrld	xmm1,xmm7,30
+	vmovdqa	XMMWORD PTR 32[esp],xmm2
+	and	ebp,ecx
+	xor	ecx,edx
+	shrd	ebx,ebx,7
+	mov	esi,eax
+	vpslld	xmm7,xmm7,2
+	xor	ebp,ecx
+	shld	eax,eax,5
+	add	edi,ebp
+	xor	esi,ebx
+	xor	ebx,ecx
+	add	edi,eax
+	add	edx,DWORD PTR 56[esp]
+	and	esi,ebx
+	vpor	xmm7,xmm7,xmm1
+	xor	ebx,ecx
+	shrd	eax,eax,7
+	vmovdqa	xmm1,XMMWORD PTR 64[esp]
+	mov	ebp,edi
+	xor	esi,ebx
+	shld	edi,edi,5
+	add	edx,esi
+	xor	ebp,eax
+	xor	eax,ebx
+	add	edx,edi
+	add	ecx,DWORD PTR 60[esp]
+	and	ebp,eax
+	xor	eax,ebx
+	shrd	edi,edi,7
+	mov	esi,edx
+	xor	ebp,eax
+	shld	edx,edx,5
+	add	ecx,ebp
+	xor	esi,edi
+	xor	edi,eax
+	add	ecx,edx
+	vpalignr	xmm2,xmm7,xmm6,8
+	vpxor	xmm0,xmm0,xmm4
+	add	ebx,DWORD PTR [esp]
+	and	esi,edi
+	xor	edi,eax
+	shrd	edx,edx,7
+	vpxor	xmm0,xmm0,xmm1
+	vmovdqa	XMMWORD PTR 64[esp],xmm4
+	mov	ebp,ecx
+	xor	esi,edi
+	vmovdqa	xmm4,xmm3
+	vpaddd	xmm3,xmm3,xmm7
+	shld	ecx,ecx,5
+	add	ebx,esi
+	vpxor	xmm0,xmm0,xmm2
+	xor	ebp,edx
+	xor	edx,edi
+	add	ebx,ecx
+	add	eax,DWORD PTR 4[esp]
+	vpsrld	xmm2,xmm0,30
+	vmovdqa	XMMWORD PTR 48[esp],xmm3
+	and	ebp,edx
+	xor	edx,edi
+	shrd	ecx,ecx,7
+	mov	esi,ebx
+	vpslld	xmm0,xmm0,2
+	xor	ebp,edx
+	shld	ebx,ebx,5
+	add	eax,ebp
+	xor	esi,ecx
+	xor	ecx,edx
+	add	eax,ebx
+	add	edi,DWORD PTR 8[esp]
+	and	esi,ecx
+	vpor	xmm0,xmm0,xmm2
+	xor	ecx,edx
+	shrd	ebx,ebx,7
+	vmovdqa	xmm2,XMMWORD PTR 80[esp]
+	mov	ebp,eax
+	xor	esi,ecx
+	shld	eax,eax,5
+	add	edi,esi
+	xor	ebp,ebx
+	xor	ebx,ecx
+	add	edi,eax
+	add	edx,DWORD PTR 12[esp]
+	and	ebp,ebx
+	xor	ebx,ecx
+	shrd	eax,eax,7
+	mov	esi,edi
+	xor	ebp,ebx
+	shld	edi,edi,5
+	add	edx,ebp
+	xor	esi,eax
+	xor	eax,ebx
+	add	edx,edi
+	vpalignr	xmm3,xmm0,xmm7,8
+	vpxor	xmm1,xmm1,xmm5
+	add	ecx,DWORD PTR 16[esp]
+	and	esi,eax
+	xor	eax,ebx
+	shrd	edi,edi,7
+	vpxor	xmm1,xmm1,xmm2
+	vmovdqa	XMMWORD PTR 80[esp],xmm5
+	mov	ebp,edx
+	xor	esi,eax
+	vmovdqa	xmm5,xmm4
+	vpaddd	xmm4,xmm4,xmm0
+	shld	edx,edx,5
+	add	ecx,esi
+	vpxor	xmm1,xmm1,xmm3
+	xor	ebp,edi
+	xor	edi,eax
+	add	ecx,edx
+	add	ebx,DWORD PTR 20[esp]
+	vpsrld	xmm3,xmm1,30
+	vmovdqa	XMMWORD PTR [esp],xmm4
+	and	ebp,edi
+	xor	edi,eax
+	shrd	edx,edx,7
+	mov	esi,ecx
+	vpslld	xmm1,xmm1,2
+	xor	ebp,edi
+	shld	ecx,ecx,5
+	add	ebx,ebp
+	xor	esi,edx
+	xor	edx,edi
+	add	ebx,ecx
+	add	eax,DWORD PTR 24[esp]
+	and	esi,edx
+	vpor	xmm1,xmm1,xmm3
+	xor	edx,edi
+	shrd	ecx,ecx,7
+	vmovdqa	xmm3,XMMWORD PTR 96[esp]
+	mov	ebp,ebx
+	xor	esi,edx
+	shld	ebx,ebx,5
+	add	eax,esi
+	xor	ebp,ecx
+	xor	ecx,edx
+	add	eax,ebx
+	add	edi,DWORD PTR 28[esp]
+	and	ebp,ecx
+	xor	ecx,edx
+	shrd	ebx,ebx,7
+	mov	esi,eax
+	xor	ebp,ecx
+	shld	eax,eax,5
+	add	edi,ebp
+	xor	esi,ebx
+	xor	ebx,ecx
+	add	edi,eax
+	vpalignr	xmm4,xmm1,xmm0,8
+	vpxor	xmm2,xmm2,xmm6
+	add	edx,DWORD PTR 32[esp]
+	and	esi,ebx
+	xor	ebx,ecx
+	shrd	eax,eax,7
+	vpxor	xmm2,xmm2,xmm3
+	vmovdqa	XMMWORD PTR 96[esp],xmm6
+	mov	ebp,edi
+	xor	esi,ebx
+	vmovdqa	xmm6,xmm5
+	vpaddd	xmm5,xmm5,xmm1
+	shld	edi,edi,5
+	add	edx,esi
+	vpxor	xmm2,xmm2,xmm4
+	xor	ebp,eax
+	xor	eax,ebx
+	add	edx,edi
+	add	ecx,DWORD PTR 36[esp]
+	vpsrld	xmm4,xmm2,30
+	vmovdqa	XMMWORD PTR 16[esp],xmm5
+	and	ebp,eax
+	xor	eax,ebx
+	shrd	edi,edi,7
+	mov	esi,edx
+	vpslld	xmm2,xmm2,2
+	xor	ebp,eax
+	shld	edx,edx,5
+	add	ecx,ebp
+	xor	esi,edi
+	xor	edi,eax
+	add	ecx,edx
+	add	ebx,DWORD PTR 40[esp]
+	and	esi,edi
+	vpor	xmm2,xmm2,xmm4
+	xor	edi,eax
+	shrd	edx,edx,7
+	vmovdqa	xmm4,XMMWORD PTR 64[esp]
+	mov	ebp,ecx
+	xor	esi,edi
+	shld	ecx,ecx,5
+	add	ebx,esi
+	xor	ebp,edx
+	xor	edx,edi
+	add	ebx,ecx
+	add	eax,DWORD PTR 44[esp]
+	and	ebp,edx
+	xor	edx,edi
+	shrd	ecx,ecx,7
+	mov	esi,ebx
+	xor	ebp,edx
+	shld	ebx,ebx,5
+	add	eax,ebp
+	xor	esi,edx
+	add	eax,ebx
+	vpalignr	xmm5,xmm2,xmm1,8
+	vpxor	xmm3,xmm3,xmm7
+	add	edi,DWORD PTR 48[esp]
+	xor	esi,ecx
+	mov	ebp,eax
+	shld	eax,eax,5
+	vpxor	xmm3,xmm3,xmm4
+	vmovdqa	XMMWORD PTR 64[esp],xmm7
+	add	edi,esi
+	xor	ebp,ecx
+	vmovdqa	xmm7,xmm6
+	vpaddd	xmm6,xmm6,xmm2
+	shrd	ebx,ebx,7
+	add	edi,eax
+	vpxor	xmm3,xmm3,xmm5
+	add	edx,DWORD PTR 52[esp]
+	xor	ebp,ebx
+	mov	esi,edi
+	shld	edi,edi,5
+	vpsrld	xmm5,xmm3,30
+	vmovdqa	XMMWORD PTR 32[esp],xmm6
+	add	edx,ebp
+	xor	esi,ebx
+	shrd	eax,eax,7
+	add	edx,edi
+	vpslld	xmm3,xmm3,2
+	add	ecx,DWORD PTR 56[esp]
+	xor	esi,eax
+	mov	ebp,edx
+	shld	edx,edx,5
+	add	ecx,esi
+	xor	ebp,eax
+	shrd	edi,edi,7
+	add	ecx,edx
+	vpor	xmm3,xmm3,xmm5
+	add	ebx,DWORD PTR 60[esp]
+	xor	ebp,edi
+	mov	esi,ecx
+	shld	ecx,ecx,5
+	add	ebx,ebp
+	xor	esi,edi
+	shrd	edx,edx,7
+	add	ebx,ecx
+	add	eax,DWORD PTR [esp]
+	vpaddd	xmm7,xmm7,xmm3
+	xor	esi,edx
+	mov	ebp,ebx
+	shld	ebx,ebx,5
+	add	eax,esi
+	vmovdqa	XMMWORD PTR 48[esp],xmm7
+	xor	ebp,edx
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	add	edi,DWORD PTR 4[esp]
+	xor	ebp,ecx
+	mov	esi,eax
+	shld	eax,eax,5
+	add	edi,ebp
+	xor	esi,ecx
+	shrd	ebx,ebx,7
+	add	edi,eax
+	add	edx,DWORD PTR 8[esp]
+	xor	esi,ebx
+	mov	ebp,edi
+	shld	edi,edi,5
+	add	edx,esi
+	xor	ebp,ebx
+	shrd	eax,eax,7
+	add	edx,edi
+	add	ecx,DWORD PTR 12[esp]
+	xor	ebp,eax
+	mov	esi,edx
+	shld	edx,edx,5
+	add	ecx,ebp
+	xor	esi,eax
+	shrd	edi,edi,7
+	add	ecx,edx
+	mov	ebp,DWORD PTR 196[esp]
+	cmp	ebp,DWORD PTR 200[esp]
+	je	$L010done
+	vmovdqa	xmm7,XMMWORD PTR 160[esp]
+	vmovdqa	xmm6,XMMWORD PTR 176[esp]
+	vmovdqu	xmm0,XMMWORD PTR [ebp]
+	vmovdqu	xmm1,XMMWORD PTR 16[ebp]
+	vmovdqu	xmm2,XMMWORD PTR 32[ebp]
+	vmovdqu	xmm3,XMMWORD PTR 48[ebp]
+	add	ebp,64
+	vpshufb	xmm0,xmm0,xmm6
+	mov	DWORD PTR 196[esp],ebp
+	vmovdqa	XMMWORD PTR 96[esp],xmm7
+	add	ebx,DWORD PTR 16[esp]
+	xor	esi,edi
+	vpshufb	xmm1,xmm1,xmm6
+	mov	ebp,ecx
+	shld	ecx,ecx,5
+	vpaddd	xmm4,xmm0,xmm7
+	add	ebx,esi
+	xor	ebp,edi
+	shrd	edx,edx,7
+	add	ebx,ecx
+	vmovdqa	XMMWORD PTR [esp],xmm4
+	add	eax,DWORD PTR 20[esp]
+	xor	ebp,edx
+	mov	esi,ebx
+	shld	ebx,ebx,5
+	add	eax,ebp
+	xor	esi,edx
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	add	edi,DWORD PTR 24[esp]
+	xor	esi,ecx
+	mov	ebp,eax
+	shld	eax,eax,5
+	add	edi,esi
+	xor	ebp,ecx
+	shrd	ebx,ebx,7
+	add	edi,eax
+	add	edx,DWORD PTR 28[esp]
+	xor	ebp,ebx
+	mov	esi,edi
+	shld	edi,edi,5
+	add	edx,ebp
+	xor	esi,ebx
+	shrd	eax,eax,7
+	add	edx,edi
+	add	ecx,DWORD PTR 32[esp]
+	xor	esi,eax
+	vpshufb	xmm2,xmm2,xmm6
+	mov	ebp,edx
+	shld	edx,edx,5
+	vpaddd	xmm5,xmm1,xmm7
+	add	ecx,esi
+	xor	ebp,eax
+	shrd	edi,edi,7
+	add	ecx,edx
+	vmovdqa	XMMWORD PTR 16[esp],xmm5
+	add	ebx,DWORD PTR 36[esp]
+	xor	ebp,edi
+	mov	esi,ecx
+	shld	ecx,ecx,5
+	add	ebx,ebp
+	xor	esi,edi
+	shrd	edx,edx,7
+	add	ebx,ecx
+	add	eax,DWORD PTR 40[esp]
+	xor	esi,edx
+	mov	ebp,ebx
+	shld	ebx,ebx,5
+	add	eax,esi
+	xor	ebp,edx
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	add	edi,DWORD PTR 44[esp]
+	xor	ebp,ecx
+	mov	esi,eax
+	shld	eax,eax,5
+	add	edi,ebp
+	xor	esi,ecx
+	shrd	ebx,ebx,7
+	add	edi,eax
+	add	edx,DWORD PTR 48[esp]
+	xor	esi,ebx
+	vpshufb	xmm3,xmm3,xmm6
+	mov	ebp,edi
+	shld	edi,edi,5
+	vpaddd	xmm6,xmm2,xmm7
+	add	edx,esi
+	xor	ebp,ebx
+	shrd	eax,eax,7
+	add	edx,edi
+	vmovdqa	XMMWORD PTR 32[esp],xmm6
+	add	ecx,DWORD PTR 52[esp]
+	xor	ebp,eax
+	mov	esi,edx
+	shld	edx,edx,5
+	add	ecx,ebp
+	xor	esi,eax
+	shrd	edi,edi,7
+	add	ecx,edx
+	add	ebx,DWORD PTR 56[esp]
+	xor	esi,edi
+	mov	ebp,ecx
+	shld	ecx,ecx,5
+	add	ebx,esi
+	xor	ebp,edi
+	shrd	edx,edx,7
+	add	ebx,ecx
+	add	eax,DWORD PTR 60[esp]
+	xor	ebp,edx
+	mov	esi,ebx
+	shld	ebx,ebx,5
+	add	eax,ebp
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	mov	ebp,DWORD PTR 192[esp]
+	add	eax,DWORD PTR [ebp]
+	add	esi,DWORD PTR 4[ebp]
+	add	ecx,DWORD PTR 8[ebp]
+	mov	DWORD PTR [ebp],eax
+	add	edx,DWORD PTR 12[ebp]
+	mov	DWORD PTR 4[ebp],esi
+	add	edi,DWORD PTR 16[ebp]
+	mov	ebx,ecx
+	mov	DWORD PTR 8[ebp],ecx
+	xor	ebx,edx
+	mov	DWORD PTR 12[ebp],edx
+	mov	DWORD PTR 16[ebp],edi
+	mov	ebp,esi
+	and	esi,ebx
+	mov	ebx,ebp
+	jmp	$L009loop
+ALIGN	16
+$L010done:
+	add	ebx,DWORD PTR 16[esp]
+	xor	esi,edi
+	mov	ebp,ecx
+	shld	ecx,ecx,5
+	add	ebx,esi
+	xor	ebp,edi
+	shrd	edx,edx,7
+	add	ebx,ecx
+	add	eax,DWORD PTR 20[esp]
+	xor	ebp,edx
+	mov	esi,ebx
+	shld	ebx,ebx,5
+	add	eax,ebp
+	xor	esi,edx
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	add	edi,DWORD PTR 24[esp]
+	xor	esi,ecx
+	mov	ebp,eax
+	shld	eax,eax,5
+	add	edi,esi
+	xor	ebp,ecx
+	shrd	ebx,ebx,7
+	add	edi,eax
+	add	edx,DWORD PTR 28[esp]
+	xor	ebp,ebx
+	mov	esi,edi
+	shld	edi,edi,5
+	add	edx,ebp
+	xor	esi,ebx
+	shrd	eax,eax,7
+	add	edx,edi
+	add	ecx,DWORD PTR 32[esp]
+	xor	esi,eax
+	mov	ebp,edx
+	shld	edx,edx,5
+	add	ecx,esi
+	xor	ebp,eax
+	shrd	edi,edi,7
+	add	ecx,edx
+	add	ebx,DWORD PTR 36[esp]
+	xor	ebp,edi
+	mov	esi,ecx
+	shld	ecx,ecx,5
+	add	ebx,ebp
+	xor	esi,edi
+	shrd	edx,edx,7
+	add	ebx,ecx
+	add	eax,DWORD PTR 40[esp]
+	xor	esi,edx
+	mov	ebp,ebx
+	shld	ebx,ebx,5
+	add	eax,esi
+	xor	ebp,edx
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	add	edi,DWORD PTR 44[esp]
+	xor	ebp,ecx
+	mov	esi,eax
+	shld	eax,eax,5
+	add	edi,ebp
+	xor	esi,ecx
+	shrd	ebx,ebx,7
+	add	edi,eax
+	add	edx,DWORD PTR 48[esp]
+	xor	esi,ebx
+	mov	ebp,edi
+	shld	edi,edi,5
+	add	edx,esi
+	xor	ebp,ebx
+	shrd	eax,eax,7
+	add	edx,edi
+	add	ecx,DWORD PTR 52[esp]
+	xor	ebp,eax
+	mov	esi,edx
+	shld	edx,edx,5
+	add	ecx,ebp
+	xor	esi,eax
+	shrd	edi,edi,7
+	add	ecx,edx
+	add	ebx,DWORD PTR 56[esp]
+	xor	esi,edi
+	mov	ebp,ecx
+	shld	ecx,ecx,5
+	add	ebx,esi
+	xor	ebp,edi
+	shrd	edx,edx,7
+	add	ebx,ecx
+	add	eax,DWORD PTR 60[esp]
+	xor	ebp,edx
+	mov	esi,ebx
+	shld	ebx,ebx,5
+	add	eax,ebp
+	shrd	ecx,ecx,7
+	add	eax,ebx
+	vzeroall
+	mov	ebp,DWORD PTR 192[esp]
+	add	eax,DWORD PTR [ebp]
+	mov	esp,DWORD PTR 204[esp]
+	add	esi,DWORD PTR 4[ebp]
+	add	ecx,DWORD PTR 8[ebp]
+	mov	DWORD PTR [ebp],eax
+	add	edx,DWORD PTR 12[ebp]
+	mov	DWORD PTR 4[ebp],esi
+	add	edi,DWORD PTR 16[ebp]
+	mov	DWORD PTR 8[ebp],ecx
+	mov	DWORD PTR 12[ebp],edx
+	mov	DWORD PTR 16[ebp],edi
+	pop	edi
+	pop	esi
+	pop	ebx
+	pop	ebp
+	ret
+__sha1_block_data_order_avx ENDP
 ALIGN	64
 $LK_XX_XX::
 DD	1518500249,1518500249,1518500249,1518500249

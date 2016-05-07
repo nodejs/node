@@ -69,7 +69,6 @@
 #if defined(_MSC_VER)
 #include <direct.h>
 #include <io.h>
-#define strcasecmp _stricmp
 #define getpid GetCurrentProcessId
 #define umask _umask
 typedef int mode_t;
@@ -106,6 +105,7 @@ using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
+using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -127,8 +127,6 @@ using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
 using v8::SealHandleScope;
-using v8::StackFrame;
-using v8::StackTrace;
 using v8::String;
 using v8::TryCatch;
 using v8::Uint32;
@@ -701,6 +699,12 @@ const char *signo_string(int signo) {
 #ifdef SIGPWR
 # if SIGPWR != SIGLOST
   SIGNO_CASE(SIGPWR);
+# endif
+#endif
+
+#ifdef SIGINFO
+# if !defined(SIGPWR) || SIGINFO != SIGPWR
+  SIGNO_CASE(SIGINFO);
 # endif
 #endif
 
@@ -1376,27 +1380,27 @@ enum encoding ParseEncoding(const char* encoding,
       break;
   }
 
-  if (strcasecmp(encoding, "utf8") == 0) {
+  if (StringEqualNoCase(encoding, "utf8")) {
     return UTF8;
-  } else if (strcasecmp(encoding, "utf-8") == 0) {
+  } else if (StringEqualNoCase(encoding, "utf-8")) {
     return UTF8;
-  } else if (strcasecmp(encoding, "ascii") == 0) {
+  } else if (StringEqualNoCase(encoding, "ascii")) {
     return ASCII;
-  } else if (strcasecmp(encoding, "base64") == 0) {
+  } else if (StringEqualNoCase(encoding, "base64")) {
     return BASE64;
-  } else if (strcasecmp(encoding, "ucs2") == 0) {
+  } else if (StringEqualNoCase(encoding, "ucs2")) {
     return UCS2;
-  } else if (strcasecmp(encoding, "ucs-2") == 0) {
+  } else if (StringEqualNoCase(encoding, "ucs-2")) {
     return UCS2;
-  } else if (strcasecmp(encoding, "utf16le") == 0) {
+  } else if (StringEqualNoCase(encoding, "utf16le")) {
     return UCS2;
-  } else if (strcasecmp(encoding, "utf-16le") == 0) {
+  } else if (StringEqualNoCase(encoding, "utf-16le")) {
     return UCS2;
-  } else if (strcasecmp(encoding, "binary") == 0) {
+  } else if (StringEqualNoCase(encoding, "binary")) {
     return BINARY;
-  } else if (strcasecmp(encoding, "buffer") == 0) {
+  } else if (StringEqualNoCase(encoding, "buffer")) {
     return BUFFER;
-  } else if (strcasecmp(encoding, "hex") == 0) {
+  } else if (StringEqualNoCase(encoding, "hex")) {
     return HEX;
   } else {
     return default_encoding;
@@ -1719,7 +1723,7 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Local<String> owner_sym = env->owner_string();
 
   for (auto w : *env->handle_wrap_queue()) {
-    if (w->persistent().IsEmpty() || (w->flags_ & HandleWrap::kUnref))
+    if (w->persistent().IsEmpty() || !HandleWrap::HasRef(w))
       continue;
     Local<Object> object = w->object();
     Local<Value> owner = object->Get(owner_sym);
@@ -2214,6 +2218,38 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
   fields[0] = (t / NANOS_PER_SEC) >> 32;
   fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
   fields[2] = t % NANOS_PER_SEC;
+}
+
+// Microseconds in a second, as a float, used in CPUUsage() below
+#define MICROS_PER_SEC 1e6
+
+// CPUUsage use libuv's uv_getrusage() this-process resource usage accessor,
+// to access ru_utime (user CPU time used) and ru_stime (system CPU time used),
+// which are uv_timeval_t structs (long tv_sec, long tv_usec).
+// Returns those values as Float64 microseconds in the elements of the array
+// passed to the function.
+void CPUUsage(const FunctionCallbackInfo<Value>& args) {
+  uv_rusage_t rusage;
+
+  // Call libuv to get the values we'll return.
+  int err = uv_getrusage(&rusage);
+  if (err) {
+    // On error, return the strerror version of the error code.
+    Local<String> errmsg = OneByteString(args.GetIsolate(), uv_strerror(err));
+    args.GetReturnValue().Set(errmsg);
+    return;
+  }
+
+  // Get the double array pointer from the Float64Array argument.
+  CHECK(args[0]->IsFloat64Array());
+  Local<Float64Array> array = args[0].As<Float64Array>();
+  CHECK_EQ(array->Length(), 2);
+  Local<ArrayBuffer> ab = array->Buffer();
+  double* fields = static_cast<double*>(ab->GetContents().Data());
+
+  // Set the Float64Array elements to be user / system values in microseconds.
+  fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;
+  fields[1] = MICROS_PER_SEC * rusage.ru_stime.tv_sec + rusage.ru_stime.tv_usec;
 }
 
 extern "C" void node_module_register(void* m) {
@@ -2939,6 +2975,13 @@ void SetupProcessObject(Environment* env,
   READONLY_PROPERTY(versions,
                     "icu",
                     OneByteString(env->isolate(), U_ICU_VERSION));
+
+  if (icu_data_dir != nullptr) {
+    // Did the user attempt (via env var or parameter) to set an ICU path?
+    READONLY_PROPERTY(process,
+                      "icu_data_dir",
+                      OneByteString(env->isolate(), icu_data_dir));
+  }
 #endif
 
   const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
@@ -3136,6 +3179,11 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
+  // --debug-brk
+  if (debug_wait_connect) {
+    READONLY_PROPERTY(process, "_debugWaitConnect", True(env->isolate()));
+  }
+
   // --security-revert flags
 #define V(code, _, __)                                                        \
   do {                                                                        \
@@ -3208,6 +3256,8 @@ void SetupProcessObject(Environment* env,
 
   env->SetMethod(process, "hrtime", Hrtime);
 
+  env->SetMethod(process, "cpuUsage", CPUUsage);
+
   env->SetMethod(process, "dlopen", DLOpen);
 
   env->SetMethod(process, "uptime", Uptime);
@@ -3222,7 +3272,10 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
 
   // pre-set _events object for faster emit checks
-  process->Set(env->events_string(), Object::New(env->isolate()));
+  Local<Object> events_obj = Object::New(env->isolate());
+  maybe = events_obj->SetPrototype(env->context(), Null(env->isolate()));
+  CHECK(maybe.FromJust());
+  process->Set(env->events_string(), events_obj);
 }
 
 
@@ -3367,7 +3420,7 @@ static bool ParseDebugOpt(const char* arg) {
 
 static void PrintHelp() {
   // XXX: If you add an option here, please also add it to doc/node.1 and
-  // doc/api/cli.markdown
+  // doc/api/cli.md
   printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
          "       node debug script.js [arguments] \n"
          "\n"
@@ -4037,11 +4090,6 @@ void Init(int* argc,
 
   if (v8_argc > 1) {
     exit(9);
-  }
-
-  if (debug_wait_connect) {
-    const char expose_debug_as[] = "--expose_debug_as=v8debug";
-    V8::SetFlagsFromString(expose_debug_as, sizeof(expose_debug_as) - 1);
   }
 
   // Unconditionally force typed arrays to allocate outside the v8 heap. This

@@ -9,22 +9,32 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow leading or trailing decimal points in numeric literals",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
-        "Literal": function(node) {
+        schema: []
+    },
 
-            if (typeof node.value === "number") {
-                if (node.raw.indexOf(".") === 0) {
-                    context.report(node, "A leading decimal point can be confused with a dot.");
-                }
-                if (node.raw.indexOf(".") === node.raw.length - 1) {
-                    context.report(node, "A trailing decimal point can be confused with a dot.");
+    create: function(context) {
+
+        return {
+            Literal: function(node) {
+
+                if (typeof node.value === "number") {
+                    if (node.raw.indexOf(".") === 0) {
+                        context.report(node, "A leading decimal point can be confused with a dot.");
+                    }
+                    if (node.raw.indexOf(".") === node.raw.length - 1) {
+                        context.report(node, "A trailing decimal point can be confused with a dot.");
+                    }
                 }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

@@ -214,10 +214,6 @@
       'openssl/crypto/cms/cms_pwri.c',
       'openssl/crypto/cms/cms_sd.c',
       'openssl/crypto/cms/cms_smime.c',
-      'openssl/crypto/comp/c_rle.c',
-      'openssl/crypto/comp/c_zlib.c',
-      'openssl/crypto/comp/comp_err.c',
-      'openssl/crypto/comp/comp_lib.c',
       'openssl/crypto/conf/conf_api.c',
       'openssl/crypto/conf/conf_def.c',
       'openssl/crypto/conf/conf_err.c',
@@ -1248,9 +1244,16 @@
       'openssl/include',
     ],
     'openssl_default_defines_all': [
-      # No clue what these are for.
-      'PURIFY',
       '_REENTRANT',
+
+      # PURIFY makes OpenSSL zero out some buffers.  It also stops RAND_bytes()
+      # from using the existing contents of the destination buffer as a source
+      # of entropy, which according to some papers, is a possible attack vector
+      # for reducing the overall entropy.
+      'PURIFY',
+
+      # Compression is not used and considered insecure (CRIME.)
+      'OPENSSL_NO_COMP',
 
       # SSLv3 is susceptible to downgrade attacks (POODLE.)
       'OPENSSL_NO_SSL3',

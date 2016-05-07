@@ -41,5 +41,5 @@ unzips.forEach(function(uz, i) {
 });
 
 process.on('exit', function() {
-  assert.deepEqual(hadError, [true, true, true, true], 'expect 4 errors');
+  assert.deepStrictEqual(hadError, [true, true, true, true], 'expect 4 errors');
 });
