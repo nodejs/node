@@ -364,6 +364,15 @@ input.
 Optionally, `interface` specifies a `readline.Interface` instance for which
 autocompletion is disabled when copy-pasted input is detected.
 
+Note that the stream, if it is a TTY, needs to be in raw mode:
+```js
+readline.emitKeypressEvents(process.stdin);
+if (process.stdin.isTTY) {
+  // might not be a TTY if spawned from another node process
+  process.stdin.setRawMode(true);
+}
+```
+
 ## readline.moveCursor(stream, dx, dy)
 
 Move cursor relative to it's current position in a given TTY stream.
