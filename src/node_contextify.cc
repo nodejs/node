@@ -553,6 +553,7 @@ class ContextifyScript : public BaseObject {
     TryCatch try_catch(args.GetIsolate());
     uint64_t timeout = GetTimeoutArg(args, 0);
     bool display_errors = GetDisplayErrorsArg(args, 0);
+    bool break_on_sigint = GetBreakOnSigintArg(args, 0);
     if (try_catch.HasCaught()) {
       try_catch.ReThrow();
       return;
@@ -560,7 +561,7 @@ class ContextifyScript : public BaseObject {
 
     // Do the eval within this context
     Environment* env = Environment::GetCurrent(args);
-    EvalMachine(env, timeout, display_errors, args, try_catch);
+    EvalMachine(env, timeout, display_errors, break_on_sigint, args, try_catch);
   }
 
   // args: sandbox, [options]
@@ -569,6 +570,7 @@ class ContextifyScript : public BaseObject {
 
     int64_t timeout;
     bool display_errors;
+    bool break_on_sigint;
 
     // Assemble arguments
     if (!args[0]->IsObject()) {
@@ -581,6 +583,7 @@ class ContextifyScript : public BaseObject {
       TryCatch try_catch(env->isolate());
       timeout = GetTimeoutArg(args, 1);
       display_errors = GetDisplayErrorsArg(args, 1);
+      break_on_sigint = GetBreakOnSigintArg(args, 1);
       if (try_catch.HasCaught()) {
         try_catch.ReThrow();
         return;
@@ -605,6 +608,7 @@ class ContextifyScript : public BaseObject {
       if (EvalMachine(contextify_context->env(),
                       timeout,
                       display_errors,
+                      break_on_sigint,
                       args,
                       try_catch)) {
         contextify_context->CopyProperties();
@@ -651,6 +655,23 @@ class ContextifyScript : public BaseObject {
         env->context(),
         env->decorated_private_symbol(),
         True(env->isolate()));
+  }
+
+  static bool GetBreakOnSigintArg(const FunctionCallbackInfo<Value>& args,
+                                  const int i) {
+    if (args[i]->IsUndefined() || args[i]->IsString()) {
+      return false;
+    }
+    if (!args[i]->IsObject()) {
+      Environment::ThrowTypeError(args.GetIsolate(),
+                                  "options must be an object");
+      return false;
+    }
+
+    Local<String> key = FIXED_ONE_BYTE_STRING(args.GetIsolate(),
+                                              "breakOnSigint");
+    Local<Value> value = args[i].As<Object>()->Get(key);
+    return value->IsTrue();
   }
 
   static int64_t GetTimeoutArg(const FunctionCallbackInfo<Value>& args,
@@ -798,6 +819,7 @@ class ContextifyScript : public BaseObject {
   static bool EvalMachine(Environment* env,
                           const int64_t timeout,
                           const bool display_errors,
+                          const bool break_on_sigint,
                           const FunctionCallbackInfo<Value>& args,
                           TryCatch& try_catch) {
     if (!ContextifyScript::InstanceOf(env, args.Holder())) {
@@ -813,16 +835,30 @@ class ContextifyScript : public BaseObject {
     Local<Script> script = unbound_script->BindToCurrentContext();
 
     Local<Value> result;
-    if (timeout != -1) {
+    bool timed_out = false;
+    if (break_on_sigint && timeout != -1) {
+      Watchdog wd(env->isolate(), timeout);
+      SigintWatchdog swd(env->isolate());
+      result = script->Run();
+      timed_out = wd.HasTimedOut();
+    } else if (break_on_sigint) {
+      SigintWatchdog swd(env->isolate());
+      result = script->Run();
+    } else if (timeout != -1) {
       Watchdog wd(env->isolate(), timeout);
       result = script->Run();
+      timed_out = wd.HasTimedOut();
     } else {
       result = script->Run();
     }
 
     if (try_catch.HasCaught() && try_catch.HasTerminated()) {
       env->isolate()->CancelTerminateExecution();
-      env->ThrowError("Script execution timed out.");
+      if (timed_out) {
+        env->ThrowError("Script execution timed out.");
+      } else {
+        env->ThrowError("Script execution interrupted.");
+      }
       try_catch.ReThrow();
       return false;
     }

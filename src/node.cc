@@ -3317,7 +3317,7 @@ static void AtExit() {
 }
 
 
-static void SignalExit(int signo) {
+void SignalExit(int signo) {
   uv_tty_reset_mode();
 #ifdef __FreeBSD__
   // FreeBSD has a nasty bug, see RegisterSignalHandler for details
@@ -3819,9 +3819,9 @@ static void EnableDebugSignalHandler(int signo) {
 }
 
 
-static void RegisterSignalHandler(int signal,
-                                  void (*handler)(int signal),
-                                  bool reset_handler = false) {
+void RegisterSignalHandler(int signal,
+                           void (*handler)(int signal),
+                           bool reset_handler) {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = handler;

@@ -99,6 +99,13 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void SignalExit(int signo);
+#ifdef __POSIX__
+void RegisterSignalHandler(int signal,
+                           void (*handler)(int signal),
+                           bool reset_handler = false);
+#endif
+
 #ifdef _WIN32
 // emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
 // on overflow...
