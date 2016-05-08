@@ -526,6 +526,6 @@ Returns a reference to the `EventEmitter` so calls can be chained.
 [`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
-[`emitter.listenerCount()`]: #events_emitter_listenercount_event
+[`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
 [`domain`]: domain.html
 [stream]: stream.html
