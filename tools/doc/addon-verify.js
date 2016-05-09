@@ -82,6 +82,7 @@ ${files[name]}
       targets: [
         {
           target_name: 'addon',
+          defines: [ 'V8_DEPRECATION_WARNINGS=1' ],
           sources: files.map(function(file) {
             return file.name;
           })
