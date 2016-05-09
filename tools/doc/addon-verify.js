@@ -10,7 +10,7 @@ const verifyDir = path.resolve(rootDir, 'test', 'addons');
 
 const contents = fs.readFileSync(doc).toString();
 
-const tokens = marked.lexer(contents, {});
+const tokens = marked.lexer(contents);
 let files = null;
 let id = 0;
 
