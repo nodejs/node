@@ -400,14 +400,14 @@ The `connectListener` parameter will be added as a listener for the
 ### socket.connect(path[, connectListener])
 ### socket.connect(port[, host][, connectListener])
 
-As [`socket.connect(options\[, connectListener\])`][`socket.connect(options, connectListener)`],
+As [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`],
 with options either as either `{port: port, host: host}` or `{path: path}`.
 
 ### socket.connecting
 
-If `true` - [`socket.connect(options\[, connectListener\])`][] was called and
+If `true` - [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`] was called and
 haven't yet finished. Will be set to `false` before emitting `connect` event
-and/or calling [`socket.connect(options\[, connectListener\])`][]'s callback.
+and/or calling [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`]'s callback.
 
 ### socket.destroy()
 
