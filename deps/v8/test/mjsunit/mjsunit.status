@@ -821,4 +821,13 @@
   'whitespaces': [SKIP],
 }],  # variant == asm_wasm
 
+##############################################################################
+# This test allocates a 2G block of memory and if there are multiple
+# varients this leads kills by the OOM killer, crashes or messages
+# indicating the OS cannot allocate memory, exclude for Node.js runs
+# re-evalute when we move up to v8 5.1
+[ALWAYS, {
+'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
+}],  # ALWAYS
+
 ]
