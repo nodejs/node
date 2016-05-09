@@ -1,26 +1,24 @@
 ## Who to CC in issues
 
-* `lib/buffer`: @trevnorris
-* `lib/child_process`: @cjihrig, @bnoordhuis, @piscisaereus
-* `lib/cluster`: @cjihrig, @bnoordhuis, @piscisaereus
-* `lib/{crypto,tls,https}`: @indutny, @shigeki, @nodejs/crypto
-* `lib/domains`: @misterdjules
-* `lib/{_}http{*}`: @indutny, @bnoordhuis, @nodejs/http
-* `lib/net`: @indutny, @bnoordhuis, @piscisaereus, @chrisdickinson, @nodejs/streams
-* `lib/{_}stream{s|*}`: @nodejs/streams
-* `lib/repl`: @fishrock123
-* `lib/timers`: @fishrock123, @misterdjules
-* `lib/zlib`: @indutny, @bnoordhuis
-
-* `src/async-wrap.*`: @trevnorris
-* `src/node_crypto.*`: @indutny, @shigeki, @nodejs/crypto
-
-* `test/*`: @nodejs/testing, @trott
-
-* `tools/eslint`, `.eslintrc`: @silverwind, @trott
-
-* upgrading v8: @bnoordhuis / @targos / @ofrobots
-* upgrading npm: @thealphanerd, @fishrock123
+| subsystem | maintainers |
+| --- | --- |
+| `lib/buffer` | @trevnorris |
+| `lib/child_process` | @cjihrig, @bnoordhuis |
+| `lib/cluster` | @cjihrig, @bnoordhuis |
+| `lib/{crypto,tls,https}` | @nodejs/crypto |
+| `lib/domains` | @misterdjules |
+| `lib/{_}http{*}` | @indutny, @bnoordhuis, @mscdex, @nodejs/http |
+| `lib/net` | @indutny, @bnoordhuis, @nodejs/streams |
+| `lib/{_}stream{s|*}` | @nodejs/streams |
+| `lib/repl` | @fishrock123 |
+| `lib/timers` | @fishrock123, @misterdjules |
+| `lib/zlib` | @indutny, @bnoordhuis |
+| `src/async-wrap.*` | @trevnorris |
+| `src/node_crypto.*` | @nodejs/crypto |
+| `test/*` | @nodejs/testing |
+| `tools/eslint`, `.eslintrc` | @silverwind, @trott |
+| upgrading v8 | @bnoordhuis, @targos, @ofrobots |
+| upgrading npm | @thealphanerd, @fishrock123 |
 
 
 When things need extra attention, are controversial, or `semver-major`: @nodejs/ctc
@@ -51,6 +49,8 @@ Please use these when possible / appropriate
 * `discuss` - Things that need larger discussion
 * `feature request` - Any issue that requests a new feature (usually not PRs)
 * `good first contribution` - Issues suitable for newcomers to process
+
+--
 
 * `semver-{minor,major}`
   * be conservative – that is, if a change has the remote *chance* of breaking something, go for semver-major
@@ -94,7 +94,7 @@ to update from nodejs/node:
   * prefer to make the originating user update the code, since they have it fresh in mind
 * first, reattempt with `git am -3` (3-way merge)`
 * if `-3` still fails, and you need to get it merged:
-  * `git fetch origin pull/N/head:pr-N && git checkout pr-N && git rebase master`
+  * `git fetch upstream pull/N/head:pr-N && git checkout pr-N && git rebase master`
 
 
 ## best practices
