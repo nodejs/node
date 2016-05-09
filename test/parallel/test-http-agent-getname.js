@@ -30,3 +30,9 @@ assert.equal(
   }),
   '0.0.0.0:80:192.168.1.1'
 );
+
+for (const family of [0, null, undefined, 'bogus'])
+  assert.strictEqual(agent.getName({ family }), 'localhost::');
+
+for (const family of [4, 6])
+  assert.strictEqual(agent.getName({ family }), 'localhost:::' + family);
