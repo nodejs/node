@@ -33,7 +33,10 @@ const pkgPath = path.join(common.tmpDir, 'package.json');
 fs.writeFileSync(pkgPath, pkgContent);
 
 const proc = spawn(process.execPath, args, {
-  cwd: common.tmpDir
+  cwd: common.tmpDir,
+  env: {
+    PATH: path.dirname(process.execPath)
+  }
 });
 
 function handleExit(code, signalCode) {
