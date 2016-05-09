@@ -30,6 +30,7 @@ rules:
   # Best Practices
   # http://eslint.org/docs/rules/#best-practices
   no-fallthrough: 2
+  no-multi-spaces: 2
   no-octal: 2
   no-redeclare: 2
   no-self-assign: 2
