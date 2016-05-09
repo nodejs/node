@@ -6,7 +6,7 @@ function serverHandler(req, res) {
   res.connection.destroy();
 }
 
-const http  = require('http');
+const http = require('http');
 const weak = require('weak');
 const common = require('../common');
 const assert = require('assert');

@@ -183,7 +183,7 @@ assert.equal(-1, mixedByteStringUtf8.indexOf('\u0396'));
 // Long string that isn't a simple repeat of a shorter string.
 var longString = 'A';
 for (let i = 66; i < 76; i++) {  // from 'B' to 'K'
-  longString =  longString + String.fromCharCode(i) + longString;
+  longString = longString + String.fromCharCode(i) + longString;
 }
 
 var longBufferString = Buffer.from(longString);
