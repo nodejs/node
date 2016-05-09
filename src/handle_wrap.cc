@@ -34,7 +34,7 @@ void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void HandleWrap::IsRefed(const FunctionCallbackInfo<Value>& args) {
+void HandleWrap::HasRef(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap = Unwrap<HandleWrap>(args.Holder());
   args.GetReturnValue().Set(HasRef(wrap));
 }
