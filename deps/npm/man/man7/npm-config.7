@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "April 2016" "" ""
+.TH "NPM\-CONFIG" "7" "May 2016" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -319,7 +319,16 @@ Type: String
 
 .RE
 .P
-A client certificate to pass when accessing the registry\.
+A client certificate to pass when accessing the registry\.  Values should be in
+PEM format with newlines replaced by the string "\\n"\. For example:
+.P
+.RS 2
+.nf
+cert="\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END CERTIFICATE\-\-\-\-\-"
+.fi
+.RE
+.P
+It is \fInot\fR the path to a certificate file (and there is no "certfile" option)\.
 .SS color
 .RS 0
 .IP \(bu 2
@@ -656,7 +665,16 @@ Type: String
 
 .RE
 .P
-A client key to pass when accessing the registry\.
+A client key to pass when accessing the registry\.  Values should be in PEM
+format with newlines replaced by the string "\\n"\. For example:
+.P
+.RS 2
+.nf
+key="\-\-\-\-\-BEGIN PRIVATE KEY\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END PRIVATE KEY\-\-\-\-\-"
+.fi
+.RE
+.P
+It is \fInot\fR the path to a key file (and there is no "keyfile" option)\.
 .SS link
 .RS 0
 .IP \(bu 2
