@@ -9,18 +9,18 @@ function makeAssert(message) {
     strictEqual(actual, expected, message);
   };
 }
-const assert = makeAssert('isRefed() not working on tty_wrap');
+const assert = makeAssert('hasRef() not working on tty_wrap');
 
 if (process.argv[2] === 'child') {
   // Test tty_wrap in piped child to guarentee stdin being a TTY.
   const ReadStream = require('tty').ReadStream;
   const tty = new ReadStream(0);
-  assert(Object.getPrototypeOf(tty._handle).hasOwnProperty('isRefed'), true);
-  assert(tty._handle.isRefed(), true);
+  assert(Object.getPrototypeOf(tty._handle).hasOwnProperty('hasRef'), true);
+  assert(tty._handle.hasRef(), true);
   tty.unref();
-  assert(tty._handle.isRefed(), false);
+  assert(tty._handle.hasRef(), false);
   tty._handle.close(
-      common.mustCall(() => assert(tty._handle.isRefed(), false)));
+      common.mustCall(() => assert(tty._handle.hasRef(), false)));
   return;
 }
 
