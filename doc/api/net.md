@@ -153,9 +153,12 @@ This function is asynchronous.  When the server has been bound,
 will be added as a listener for the [`'listening'`][] event.
 
 On UNIX, the local domain is usually known as the UNIX domain. The path is a
-filesystem path name. It is subject to the same naming conventions and
-permissions checks as would be done on file creation, will be visible in the
-filesystem, and will *persist until unlinked*.
+filesystem path name. It gets truncated to `sizeof(sockaddr_un.sun_path)`
+bytes, decreased by 1. It varies on different operating system between 91 and
+107 bytes. The typical values are 107 on Linux and 103 on OS X. The path is
+subject to the same naming conventions and permissions checks as would be done
+on file creation, will be visible in the filesystem, and will *persist until
+unlinked*.
 
 On Windows, the local domain is implemented using a named pipe. The path *must*
 refer to an entry in `\\?\pipe\` or `\\.\pipe\`. Any characters are permitted,
