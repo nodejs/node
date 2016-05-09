@@ -56,5 +56,12 @@ if __name__ == '__main__':
 
   args.append('-Dcomponent=static_library')
   args.append('-Dlibrary=static_library')
+
+  # Don't compile with -B and -fuse-ld=, we don't bundle ld.gold.  Can't be
+  # set in common.gypi due to how deps/v8/build/toolchain.gypi uses them.
+  args.append('-Dlinux_use_bundled_binutils=0')
+  args.append('-Dlinux_use_bundled_gold=0')
+  args.append('-Dlinux_use_gold_flags=0')
+
   gyp_args = list(args)
   run_gyp(gyp_args)
