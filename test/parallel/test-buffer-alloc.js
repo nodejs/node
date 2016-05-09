@@ -1023,7 +1023,7 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 [ 'utf9',
   'utf-7',
   'Unicode-FTW',
-  'new gnu gun'  ].forEach(function(enc) {
+  'new gnu gun' ].forEach(function(enc) {
     assert.equal(Buffer.isEncoding(enc), false);
   });
 

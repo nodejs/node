@@ -27,7 +27,7 @@ test(
 test('ucs2', Buffer.from('ababc', 'ucs2'), 'ababc');
 
 // UTF-16LE
-test('ucs2', Buffer.from('3DD84DDC', 'hex'),  '\ud83d\udc4d'); // thumbs up
+test('ucs2', Buffer.from('3DD84DDC', 'hex'), '\ud83d\udc4d'); // thumbs up
 
 console.log(' crayon!');
 

@@ -41,7 +41,7 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
       cmd + ' and args \'' + args + '\'');
 
   function childOk(child) {
-    console.error('Child #' +  ++num_children_ok +
+    console.error('Child #' + ++num_children_ok +
         ' [pid:' + child.pid + '] OK.');
   }
 

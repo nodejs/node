@@ -9,7 +9,7 @@ if (!common.hasCrypto) {
 var tls = require('tls');
 
 var fs = require('fs');
-var key =  fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
+var key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
 var cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
 
 var nsuccess = 0;
