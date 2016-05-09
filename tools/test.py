@@ -269,7 +269,15 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
   def HasRun(self, output):
     self._done += 1
-    command = basename(output.command[-1])
+
+    # Print test name as (for example) "parallel/test-assert".  Tests that are
+    # scraped from the addons documentation are all named test.js, making it
+    # hard to decipher what test is running when only the filename is printed.
+    prefix = abspath(join(dirname(__file__), '../test')) + '/'
+    command = output.command[-1]
+    if command.endswith('.js'): command = command[:-3]
+    if command.startswith(prefix): command = command[len(prefix):]
+
     if output.UnexpectedOutput():
       status_line = 'not ok %i %s' % (self._done, command)
       if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
