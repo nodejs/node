@@ -12,6 +12,13 @@ test-tick-processor     : PASS,FLAKY
 [$system==linux]
 test-tick-processor           : PASS,FLAKY
 
+# Flaky until https://github.com/nodejs/build/issues/415 is resolved.
+# On some of the buildbots, AAAA queries for localhost don't resolve
+# to an address and neither do any of the alternatives from the
+# localIPv6Hosts list from test/common.js.
+test-https-connect-address-family : PASS,FLAKY
+test-tls-connect-address-family : PASS,FLAKY
+
 [$system==macos]
 
 [$system==solaris] # Also applies to SmartOS
