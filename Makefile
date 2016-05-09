@@ -128,9 +128,9 @@ test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 		--nodedir="$(shell pwd)"
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
-test/addons/.docbuildstamp: doc/api/addons.md
+test/addons/.docbuildstamp: tools/doc/addon-verify.js doc/api/addons.md
 	$(RM) -r test/addons/??_*/
-	$(NODE) tools/doc/addon-verify.js
+	$(NODE) $<
 	touch $@
 
 ADDONS_BINDING_GYPS := \
@@ -138,7 +138,7 @@ ADDONS_BINDING_GYPS := \
 		$(wildcard test/addons/*/binding.gyp))
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
-test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) | test/addons/.docbuildstamp
+test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) test/addons/.docbuildstamp
 	# Cannot use $(wildcard test/addons/*/) here, it's evaluated before
 	# embedded addons have been generated from the documentation.
 	for dirname in test/addons/*/; do \
