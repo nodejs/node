@@ -1010,14 +1010,17 @@ Buffer(Buffer(0), 0, 0);
   'ucs-2',
   'utf16le',
   'utf-16le' ].forEach(function(enc) {
-    assert.equal(Buffer.isEncoding(enc), true);
+    assert.equal(Buffer.isEncoding(enc), true, `${enc} should be an encoding`);
   });
 
 [ 'utf9',
   'utf-7',
+  'utf17le',
+  'utf-17le',
   'Unicode-FTW',
   'new gnu gun'  ].forEach(function(enc) {
-    assert.equal(Buffer.isEncoding(enc), false);
+    assert.equal(Buffer.isEncoding(enc), false,
+      `${enc} should not an encoding`);
   });
 
 
