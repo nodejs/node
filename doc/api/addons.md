@@ -549,6 +549,7 @@ prototype:
 
 namespace demo {
 
+using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -597,8 +598,11 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     // Invoked as plain function `MyObject(...)`, turn into construct call.
     const int argc = 1;
     Local<Value> argv[argc] = { args[0] };
+    Local<Context> context = isolate->GetCurrentContext();
     Local<Function> cons = Local<Function>::New(isolate, constructor);
-    args.GetReturnValue().Set(cons->NewInstance(argc, argv));
+    Local<Object> result =
+        cons->NewInstance(context, argc, argv).ToLocalChecked();
+    args.GetReturnValue().Set(result);
   }
 }
 
@@ -728,6 +732,7 @@ The implementation in `myobject.cc` is similar to the previous example:
 
 namespace demo {
 
+using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -773,7 +778,10 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     const int argc = 1;
     Local<Value> argv[argc] = { args[0] };
     Local<Function> cons = Local<Function>::New(isolate, constructor);
-    args.GetReturnValue().Set(cons->NewInstance(argc, argv));
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Object> instance =
+        cons->NewInstance(context, argc, argv).ToLocalChecked();
+    args.GetReturnValue().Set(instance);
   }
 }
 
@@ -783,7 +791,9 @@ void MyObject::NewInstance(const FunctionCallbackInfo<Value>& args) {
   const unsigned argc = 1;
   Local<Value> argv[argc] = { args[0] };
   Local<Function> cons = Local<Function>::New(isolate, constructor);
-  Local<Object> instance = cons->NewInstance(argc, argv);
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Object> instance =
+      cons->NewInstance(context, argc, argv).ToLocalChecked();
 
   args.GetReturnValue().Set(instance);
 }
@@ -928,6 +938,7 @@ The implementation of `myobject.cc` is similar to before:
 
 namespace demo {
 
+using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -968,8 +979,11 @@ void MyObject::New(const FunctionCallbackInfo<Value>& args) {
     // Invoked as plain function `MyObject(...)`, turn into construct call.
     const int argc = 1;
     Local<Value> argv[argc] = { args[0] };
+    Local<Context> context = isolate->GetCurrentContext();
     Local<Function> cons = Local<Function>::New(isolate, constructor);
-    args.GetReturnValue().Set(cons->NewInstance(argc, argv));
+    Local<Object> instance =
+        cons->NewInstance(context, argc, argv).ToLocalChecked();
+    args.GetReturnValue().Set(instance);
   }
 }
 
@@ -979,7 +993,9 @@ void MyObject::NewInstance(const FunctionCallbackInfo<Value>& args) {
   const unsigned argc = 1;
   Local<Value> argv[argc] = { args[0] };
   Local<Function> cons = Local<Function>::New(isolate, constructor);
-  Local<Object> instance = cons->NewInstance(argc, argv);
+  Local<Context> context = isolate->GetCurrentContext();
+  Local<Object> instance =
+      cons->NewInstance(context, argc, argv).ToLocalChecked();
 
   args.GetReturnValue().Set(instance);
 }
