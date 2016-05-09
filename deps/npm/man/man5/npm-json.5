@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "April 2016" "" ""
+.TH "PACKAGE\.JSON" "5" "May 2016" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -261,6 +261,8 @@ Conversely, some files are always ignored:
 \fBnpm\-debug\.log\fP
 .IP \(bu 2
 \fB\|\.npmrc\fP
+.IP \(bu 2
+\fBnode_modules\fP
 
 .RE
 .SH main
@@ -781,8 +783,8 @@ are capable of properly installing your program\.  For example:
 .fi
 .RE
 .P
-Note that, unless the user has set the \fBengine\-strict\fP config flag, this
-field is advisory only\.
+Unless the user has set the \fBengine\-strict\fP config flag, this
+field is advisory only will produce warnings when your package is installed as a dependency\.
 .SH engineStrict
 .P
 \fBNOTE: This feature is deprecated and will be removed in npm 3\.0\.0\.\fR
