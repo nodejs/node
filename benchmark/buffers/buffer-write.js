@@ -12,10 +12,10 @@ var bench = common.createBenchmark(main, {
   millions: [1]
 });
 
-const INT8   = 0x7f;
-const INT16  = 0x7fff;
-const INT32  = 0x7fffffff;
-const UINT8  = (INT8 * 2) + 1;
+const INT8 = 0x7f;
+const INT16 = 0x7fff;
+const INT32 = 0x7fffffff;
+const UINT8 = (INT8 * 2) + 1;
 const UINT16 = (INT16 * 2) + 1;
 const UINT32 = INT32;
 

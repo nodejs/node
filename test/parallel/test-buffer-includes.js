@@ -164,7 +164,7 @@ assert(!mixedByteStringUtf8.includes('\u0396'));
 // Long string that isn't a simple repeat of a shorter string.
 var longString = 'A';
 for (let i = 66; i < 76; i++) {  // from 'B' to 'K'
-  longString =  longString + String.fromCharCode(i) + longString;
+  longString = longString + String.fromCharCode(i) + longString;
 }
 
 const longBufferString = Buffer.from(longString);

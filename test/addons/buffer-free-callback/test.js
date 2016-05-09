@@ -22,13 +22,13 @@ check(64, 1, 0);
 check(97, 1, 0);
 
 // Buffers can be unaligned
-check(64,  8, 0);
+check(64, 8, 0);
 check(64, 16, 0);
-check(64,  8, 1);
+check(64, 8, 1);
 check(64, 16, 1);
-check(97,  8, 1);
+check(97, 8, 1);
 check(97, 16, 1);
-check(97,  8, 3);
+check(97, 8, 3);
 check(97, 16, 3);
 
 // Empty ArrayBuffer does not allocate data, worth checking

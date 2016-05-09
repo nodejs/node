@@ -258,7 +258,7 @@ test('end callback after .write() call', function(t) {
 test('end callback called after write callback', function(t) {
   var tw = new TestWriter();
   var writeCalledback = false;
-  tw.write(Buffer.from('hello world'),  function() {
+  tw.write(Buffer.from('hello world'), function() {
     writeCalledback = true;
   });
   tw.end(function() {

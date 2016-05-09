@@ -103,7 +103,7 @@ if (process.argv[2] === 'child') {
     if (options.useTryCatch)
       useTryCatchOpt = 'useTryCatch';
 
-    cmdToExec +=  process.argv[0] + ' ';
+    cmdToExec += process.argv[0] + ' ';
     cmdToExec += (cmdLineOption ? cmdLineOption : '') + ' ';
     cmdToExec += process.argv[1] + ' ';
     cmdToExec += [
