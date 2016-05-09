@@ -1,3 +1,122 @@
+### v2.15.4 (2016-04-21):
+
+Gosh, it's been a peaceful couple of weeks!
+
+Overall, the CLI team has been focused on the project to [get the test suite
+passing on Windows](https://github.com/npm/npm/pull/11444). Our efforts should
+be paying off soon -- there's only a couple of tests left!
+
+It's very unlikely those particular changes will make their way into our current
+`npm@2` LTS release, I think, but it will help `npm@3` a lot, as well as
+whatever version makes it into [`node@6`, which will eventually be the next
+Node.js LTS](https://github.com/nodejs/node/pull/6155).
+
+As far as this week goes, we've got a couple of dep updates and doc fixes.
+Always happy to see community contributions flying in. 💚
+
+#### DEP UPDATE MAGIC
+
+* [`b178c4a`](https://github.com/npm/npm/commit/b178c4ac9ce91c0a0794526a38b553c759132d18)
+  `spdx-license-ids@1.2.1`:
+  Minor project-related tweaks -- no license changes.
+  ([@shinnn](https://github.com/shinnn))
+* [`1adf179`](https://github.com/npm/npm/commit/1adf179948ab8cb97dfb2f46a61e9f37d944c42a)
+  `normalize-git-url@3.0.2`:
+  Fixes `file://` URLs on Windows. Turns out stuff like `file://C:\hello` is
+  actually fairly weird for a URL (it's not actually a valid URL, but we're just
+  gonna pretend.😉)
+  ([@zkat](https://github.com/zkat))
+* [`9cfd56c`](https://github.com/npm/npm/commit/9cfd56cdadc040c0b2fa7654cdb5e7d22dbef7cb)
+  `fs-vacuum@1.2.9`:
+  This one goes out to our fans at Big Blue: There was an AIX-specific issue
+  where `fs.rmDir` was failing with `EEXIST` instead of `ENOTEMPTY` with
+  non-empty directories.
+  ([@richardlau](https://github.com/richardlau))
+
+#### HOORAY DOC CONTRIBUTIONS
+
+No seriously, we love these. Keep 'em comin'!
+
+* [`2afe8bf`](https://github.com/npm/npm/commit/2afe8bf415a159baa181a8102f72c96e1d189bc9)
+  [#12415](https://github.com/npm/npm/pull/12415)
+  Clarify that the `--cert` and `--key` options are actual certs and keys, not
+  paths to files containing them.
+  ([@rvedotrc](https://github.com/rvedotrc))
+* [`3522560`](https://github.com/npm/npm/commit/3522560b0a4bb6c9717a34f9728f156fd9760cad)
+  [#12107](https://github.com/npm/npm/pull/12107)
+  Document `npm login` as an alias to `npm adduser`. People are still surprised
+  by this so often.
+  ([@gnerkus](https://github.com/gnerkus))
+
+### v2.15.3 (2016-03-31):
+
+Hiiiiiii!~👋
+
+We're really happy to be getting more and more community contributions! Keep it
+up! We really appreciate folks trying to help us, and we'll do our best to help
+point you in the right direction. Even things like documentation are a huge
+help. And remember -- you get socks for it, too!🎁
+
+This week is as quiet as usual, aside from fixing a regression to `npm
+deprecate` you might want to pay attention to! Other than that, just docs and
+deps, as any good LTS release train should be. 🙆
+
+#### FIXME
+
+* [`6e0b66e`](https://github.com/npm/npm/commit/6e0b66e282aa27d1b5371e2babaa859924121730)
+  [#11884](https://github.com/npm/npm/pull/11884)
+  Include `node_modules` in the list of files and directories that npm won't
+  include in packages ordinarily. (Modules listed in `bundledDependencies` and
+  things that those modules rely on, ARE included of course.)
+  ([@Jameskmonger](https://github.com/Jameskmonger))
+* [`9896290`](https://github.com/npm/npm/commit/98962909b160364030705575202ad133971033c1)
+  [#12079](https://github.com/npm/npm/pull/12079)
+  Back in `npm@2.13.1` we included [a patch that made it so `npm install pkg`
+  was basically `npm install pkg@latest` instead of
+  `pkg@*`](https://github.com/npm/npm/pull/9170) This is probably what most
+  users expected, but it also ended up [breaking `npm
+  deprecate`](https://github.com/npm/npm/pull/9170) when no version was provided
+  for a package. In that case, we were using `*` to mean "deprecate all
+  versions" and relying on the `pkg` -> `pkg@*` conversion. This patch fixes
+  `npm deprecate pkg` to work as it used to by special casing that particular
+  command's behavior.
+  ([@polm](https://github.com/polm))
+* [`6c1628f`](https://github.com/npm/npm/commit/6c1628f62b657db6c116be13849d00933a3388cd)
+  [#12146](https://github.com/npm/npm/pull/12146)
+  Adds `make doc-clean` to `prepublish` script, to clear out previously built
+  docs before publishing a new npm version.
+  ([@watilde](https://github.com/watilde))
+* [`6d3017e`](https://github.com/npm/npm/commit/6d3017e6eed8a771b395d10130ac1f498e2d3211)
+  [#12146](https://github.com/npm/npm/pull/12146)
+  Adds `doc-clean` phony target to `make publish`.
+  ([@watilde](https://github.com/watilde))
+
+#### DOCS
+
+* [`d43921c`](https://github.com/npm/npm/commit/d43921c546617cdb94bbee444d7d67ef55f38dc5)
+  [#12147](https://github.com/npm/npm/pull/12147)
+  Document that the current behavior of `engines` is just to warn if the node
+  platform is incompatible.
+  ([@reconbot](https://github.com/reconbot))
+* [`3cfe99e`](https://github.com/npm/npm/commit/3cfe99e3a757c5d8cbb1c2789410e9802563abac)
+  [#12093](https://github.com/npm/npm/pull/12093)
+  Update `bugs` url in `package.json` to use the `https` URL for Github.
+  ([@watilde](https://github.com/watilde))
+* [`ecf865f`](https://github.com/npm/npm/commit/ecf865f4eed1419c75442e0d52bc34ba1647de15)
+  [#12075](https://github.com/npm/npm/pull/12075)
+  Add the `--ignore-scripts` flag to the `npm install` docs.
+  ([@paulirish](https://github.com/paulirish))
+* [`f0e6db3`](https://github.com/npm/npm/commit/f0e6db32827d88680ef2320e60c0863754a4fbc5)
+  [#12063](https://github.com/npm/npm/pull/12063)
+  Various minor fixes to the html docs homepage.
+  ([@watilde](https://github.com/watilde))
+
+#### DEPS
+
+* [`e2660de`](https://github.com/npm/npm/commit/e2660de1c08ed68a1c6fc4ee75d10376595979be)
+  `npmlog@2.0.3`
+  ([@iarna](https://github.com/iarna))
+
 ### v2.15.2 (2016-03-24):
 
 It's always nice to see new contributors. 💚
@@ -44,9 +163,62 @@ we'll link to that in the (near?) future, when it's ready to roll out.
 
 ### v2.15.1 (2016-03-17):
 
-It's another one of those releases again! Docs and tests, it turns out, have a
-pretty easy time getting into LTS releases, and boring is exactly how LTS should
-be. 💁
+#### SECURITY ADVISORY: BEARER TOKEN DISCLOSURE
+
+This release includes [the fix for a
+vulnerability](https://github.com/npm/npm/commit/fea8cc92cee02c720b58f95f14d315507ccad401)
+that could cause the unintentional leakage of bearer tokens.
+
+Here are details on this vulnerability and how it affects you.
+
+##### DETAILS
+
+Since 2014, npm’s registry has used HTTP bearer tokens to authenticate requests
+from the npm’s command-line interface. A design flaw meant that the CLI was
+sending these bearer tokens with _every_ request made by logged-in users,
+regardless of the destination of their request. (The bearers only should have
+been included for requests made against a registry or registries used for the
+current install.)
+
+An attacker could exploit this flaw by setting up an HTTP server that could
+collect authentication information, then use this authentication information to
+impersonate the users whose tokens they collected. This impersonation would
+allow them to do anything the compromised users could do, including publishing
+new versions of packages.
+
+With the fixes we’ve released, the CLI will only send bearer tokens with
+requests made against a registry.
+
+##### THINK YOU'RE AT RISK? REGENERATE YOUR TOKENS
+
+If you believe that your bearer token may have been leaked, [invalidate your
+current npm bearer tokens](https://www.npmjs.com/settings/tokens) and rerun
+`npm login` to generate new tokens. Keep in mind that this may cause continuous
+integration builds in services like Travis to break, in which case you’ll need
+to update the tokens in your CI server’s configuration.
+
+##### WILL THIS BREAK MY CURRENT SETUP?
+
+Maybe.
+
+npm’s CLI team believes that the fix won’t break any existing registry setups.
+Due to the large number of registry software suites out in the wild, though,
+it’s possible our change will be breaking in some cases.
+
+If so, please [file an issue](https://github.com/npm/npm/issues/new) describing
+the software you’re using and how it broke. Our team will work with you to
+mitigate the breakage.
+
+##### CREDIT & THANKS
+
+Thanks to Mitar, Will White & the team at Mapbox, Max Motovilov, and James
+Taylor for reporting this vulnerability to npm.
+
+### BACK TO YOUR REGULARLY SCHEDULED PROGRAMMING
+
+Aside from that, it's another one of those releases again! Docs and tests, it
+turns out, have a pretty easy time getting into LTS releases, and boring is
+exactly how LTS should be. 💁
 
 #### DOCS
 
