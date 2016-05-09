@@ -123,6 +123,7 @@ test-valgrind: all
 
 test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+		--python="$(PYTHON)" \
 		--directory="$(shell pwd)/test/gc/node_modules/weak" \
 		--nodedir="$(shell pwd)"
 
@@ -142,6 +143,7 @@ test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) | test/addons/.docbuildstamp
 	# embedded addons have been generated from the documentation.
 	for dirname in test/addons/*/; do \
 		$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+			--python="$(PYTHON)" \
 			--directory="$$PWD/$$dirname" \
 			--nodedir="$$PWD"; \
 	done
