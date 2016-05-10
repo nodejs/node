@@ -21,6 +21,17 @@ assert.equal(path.basename('aaa/bbb', 'bbb'), 'bbb');
 assert.equal(path.basename('aaa/bbb//', 'bbb'), 'bbb');
 assert.equal(path.basename('aaa/bbb', 'bb'), 'b');
 assert.equal(path.basename('aaa/bbb', 'b'), 'bb');
+assert.equal(path.basename('/aaa/bbb', '/bbb'), 'bbb');
+assert.equal(path.basename('/aaa/bbb', 'a/bbb'), 'bbb');
+assert.equal(path.basename('/aaa/bbb', 'bbb'), 'bbb');
+assert.equal(path.basename('/aaa/bbb//', 'bbb'), 'bbb');
+assert.equal(path.basename('/aaa/bbb', 'bb'), 'b');
+assert.equal(path.basename('/aaa/bbb', 'b'), 'bb');
+assert.equal(path.basename('/aaa/bbb'), 'bbb');
+assert.equal(path.basename('/aaa/'), 'aaa');
+assert.equal(path.basename('/aaa/b'), 'b');
+assert.equal(path.basename('/a/b'), 'b');
+assert.equal(path.basename('//a'), 'a');
 
 // On Windows a backslash acts as a path separator.
 assert.equal(path.win32.basename('\\dir\\basename.ext'), 'basename.ext');
