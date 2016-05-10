@@ -449,13 +449,14 @@ added properties.
 ### Class: System Error
 
 #### error.code
-#### error.errno
 
 Returns a string representing the error code, which is always `E` followed by
 a sequence of capital letters, and may be referenced in `man 2 intro`.
 
-The properties `error.code` and `error.errno` are aliases of one another and
-return the same value.
+#### error.errno
+
+A platform-specific integer value associated with `error.code`.  Node.js uses
+[libuv error values][].
 
 #### error.syscall
 
@@ -531,6 +532,7 @@ found [here][online].
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[libuv error values]: http://docs.libuv.org/en/v1.x/errors.html
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
