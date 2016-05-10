@@ -17,6 +17,13 @@ policies and releases are managed under an
 If you need help using or installing Node.js, please use the
 [nodejs/help](https://github.com/nodejs/help) issue tracker.
 
+## Resources for Newcomers
+
+* [Website](https://nodejs.org/en/)
+* [Contributing to the project](./CONTRIBUTING.md)
+* IRC (general questions): [#node.js on chat.freenode.net](https://webchat.freenode.net?channels=node.js&uio=d4)
+* IRC (node core development): [#node-dev on chat.reenode.net](https://webchat.freenode.net?channels=node-dev&uio=d4)
+
 ## Release Types
 
 The Node.js project maintains multiple types of releases:
@@ -115,16 +122,6 @@ the binary verification command above.
 
 See [BUILDING.md](BUILDING.md) for instructions on how to build
 Node.js from source.
-
-
-## Resources for Newcomers
-
-* [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
-* [CONTRIBUTING.md](./CONTRIBUTING.md)
-* [GOVERNANCE.md](./GOVERNANCE.md)
-* IRC (general questions): [#node.js on Freenode.net](https://webchat.freenode.net?channels=node.js&uio=d4)
-* IRC (node core development): [#node-dev on Freenode.net](https://webchat.freenode.net?channels=node-dev&uio=d4)
-* [nodejs/node on Gitter](https://gitter.im/nodejs/node)
 
 ## Security
 
