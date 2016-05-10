@@ -24,6 +24,8 @@ args.forEach(function(arg) {
   }
 });
 
+nodeVersion = nodeVersion || process.version;
+
 if (!inputFile) {
   throw new Error('No input file specified');
 }
@@ -46,15 +48,11 @@ function next(er, input) {
       break;
 
     case 'html':
-      require('./html.js')({
-        input: input,
-        filename: inputFile,
-        template: template,
-        nodeVersion: nodeVersion,
-      }, function(er, html) {
-        if (er) throw er;
-        console.log(html);
-      });
+      require('./html.js')(input, inputFile, template, nodeVersion,
+        function(er, html) {
+          if (er) throw er;
+          console.log(html);
+        });
       break;
 
     default:
