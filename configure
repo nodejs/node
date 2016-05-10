@@ -432,6 +432,12 @@ parser.add_option('--no-v8-platform',
     help='do not initialize v8 platform during node.js startup. ' +
          '(This mode is not officially supported for regular applications)')
 
+parser.add_option('--no-bundled-v8',
+    action='store_true',
+    dest='no_bundled_v8',
+    help='do not use V8 includes from the bundled deps folder. ' +
+         '(This mode is not officially supported for regular applications)')
+
 (options, args) = parser.parse_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
@@ -824,6 +830,7 @@ def configure_node(o):
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
   o['variables']['node_shared'] = b(options.shared)
   o['variables']['node_no_v8_platform'] = b(options.no_v8_platform)
+  o['variables']['node_no_bundled_v8'] = b(options.no_bundled_v8)
 
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module

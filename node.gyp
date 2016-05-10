@@ -7,6 +7,7 @@
     'node_use_perfctr%': 'false',
     'node_no_browser_globals%': 'false',
     'node_no_v8_platform%': 'false',
+    'node_no_bundled_v8%': 'false',
     'node_shared%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
@@ -223,9 +224,6 @@
 
       'conditions': [
         [ 'node_shared=="false"', {
-          'dependencies': [
-            'deps/v8/tools/gyp/v8.gyp:v8',
-          ],
           'msvs_settings': {
             'VCManifestTool': {
               'EmbedManifest': 'true',
@@ -236,16 +234,15 @@
           'defines': [
             'NODE_SHARED_MODE',
           ],
-          'libraries': [
-            '-lv8',
-          ],
         }],
-        [ 'node_no_v8_platform=="false"', {
+        [ 'node_no_bundled_v8=="false"', {
           'include_dirs': [
             'deps/v8', # include/v8_platform.h
           ],
+
           'dependencies': [
-            'deps/v8/tools/gyp/v8.gyp:v8_libplatform',
+            'deps/v8/tools/gyp/v8.gyp:v8',
+            'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
           ],
         }, {
           'defines': [
@@ -515,7 +512,7 @@
           ],
         }],
         [ 'OS=="freebsd" or OS=="linux"', {
-          'ldflags': [ '-Wl,-z,noexecstack',
+          'ldflags': [ '-Wl,-z,noexecstack,--allow-multiple-definition',
                        '-Wl,--whole-archive <(V8_BASE)',
                        '-Wl,--no-whole-archive' ]
         }],
@@ -787,6 +784,12 @@
         [ 'node_no_v8_platform=="false"', {
           'dependencies': [
             'deps/v8/tools/gyp/v8.gyp:v8_libplatform',
+          ],
+        }],
+        [ 'node_no_bundled_v8=="false"', {
+          'dependencies': [
+            'deps/v8/tools/gyp/v8.gyp:v8',
+            'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
           ],
         }],
       ]

@@ -13,6 +13,7 @@
 
     'node_shared%': 'false',
     'node_no_v8_platform%': 'false',
+    'node_no_bundled_v8%': 'false',
 
     'node_tag%': '',
     'uv_library%': 'static_library',
@@ -292,6 +293,9 @@
               }],
             ],
             'ldflags!': [ '-rdynamic' ],
+          }],
+          [ 'node_shared=="true"', {
+            'cflags': [ '-fPIC' ],
           }],
         ],
       }],

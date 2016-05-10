@@ -186,7 +186,7 @@ static uv_async_t dispatch_debug_messages_async;
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
 
-static struct {
+static struct v8_plat {
 #ifdef NODE_NO_V8_PLATFORM
   void Initialize(int thread_pool_size) {}
   void PumpMessageLoop(Isolate* isolate) {}
@@ -217,7 +217,7 @@ static struct {
   }
 #endif  // HAVE_INSPECTOR
 
-  static v8::Platform* platform;
+  v8::Platform* platform;
 #endif  // !NODE_NO_V8_PLATFORM
 } v8_platform;
 

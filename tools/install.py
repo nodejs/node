@@ -108,8 +108,17 @@ def subdir_files(path, dest, action):
 def files(action):
   is_windows = sys.platform == 'win32'
 
-  exeext = '.exe' if is_windows else ''
-  action(['out/Release/node' + exeext], 'bin/node' + exeext)
+  if 'false' == variables.get('node_shared') and is_windows:
+    output_file += '.exe'
+  else:
+    if is_windows:
+      output_file += '.dll'
+    else:
+      # GYP will output to lib.target, this is hardcoded in its source,
+      # see the _InstallableTargetInstallPath function.
+      output_file = 'lib.target/lib' + output_file + '.so'
+
+  action(['out/Release/' + output_file], 'bin/' + output_file)
 
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')
