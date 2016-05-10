@@ -524,7 +524,8 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
                                             translation, frame_state_offset,
                                             OutputFrameStateCombine::Ignore());
   }
-  frame_state_offset += descriptor->outer_state()->GetTotalSize();
+  frame_state_offset +=
+      FrameStateDescriptor::GetTotalSize(descriptor->outer_state());
 
   Handle<SharedFunctionInfo> shared_info;
   if (!descriptor->shared_info().ToHandle(&shared_info)) {
@@ -562,8 +563,10 @@ int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
   frame_state_offset++;
 
   Translation translation(
-      &translations_, static_cast<int>(descriptor->GetFrameCount()),
-      static_cast<int>(descriptor->GetJSFrameCount()), zone());
+      &translations_,
+      static_cast<int>(FrameStateDescriptor::GetFrameCount(descriptor)),
+      static_cast<int>(FrameStateDescriptor::GetJSFrameCount(descriptor)),
+      zone());
   BuildTranslationForFrameStateDescriptor(descriptor, instr, &translation,
                                           frame_state_offset, state_combine);
 

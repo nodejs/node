@@ -697,9 +697,9 @@ size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
 }
 
 
-size_t FrameStateDescriptor::GetTotalSize() const {
+size_t FrameStateDescriptor::GetTotalSize(const FrameStateDescriptor* desc) {
   size_t total_size = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = desc; iter != NULL;
        iter = iter->outer_state_) {
     total_size += iter->GetSize();
   }
@@ -707,9 +707,9 @@ size_t FrameStateDescriptor::GetTotalSize() const {
 }
 
 
-size_t FrameStateDescriptor::GetFrameCount() const {
+size_t FrameStateDescriptor::GetFrameCount(const FrameStateDescriptor* desc) {
   size_t count = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = desc; iter != NULL;
        iter = iter->outer_state_) {
     ++count;
   }
@@ -717,9 +717,9 @@ size_t FrameStateDescriptor::GetFrameCount() const {
 }
 
 
-size_t FrameStateDescriptor::GetJSFrameCount() const {
+size_t FrameStateDescriptor::GetJSFrameCount(const FrameStateDescriptor* desc) {
   size_t count = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = desc; iter != NULL;
        iter = iter->outer_state_) {
     if (iter->type_ == FrameStateType::kJavaScriptFunction) {
       ++count;
