@@ -1,6 +1,4 @@
 'use strict';
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 var common = require('../common');
 var assert = require('assert');
@@ -108,7 +106,8 @@ function makeReq(path, port, error, host, ca) {
   var options = {
     port: port,
     path: path,
-    ca: ca
+    ca: ca,
+    rejectUnauthorized: false
   };
 
   if (!ca) {

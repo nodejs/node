@@ -1,6 +1,4 @@
 'use strict';
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 var common = require('../common');
 var assert = require('assert');
@@ -41,7 +39,8 @@ server.listen(common.PORT, function() {
     headers: {
       Connection: 'Upgrade',
       Upgrade: 'Websocket'
-    }
+    },
+    rejectUnauthorized: false
   }, function() {
     req.socket.destroy();
     server.close();
