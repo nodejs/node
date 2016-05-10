@@ -61,7 +61,14 @@ testData.forEach(function(item) {
 
   fs.readFile(item.file, 'utf8', common.mustCall(function(err, input) {
     assert.ifError(err);
-    html(input, 'foo', 'doc/template.html',
+    html(
+      {
+        input: input,
+        filename: 'foo',
+        template: 'doc/template.html',
+        nodeVersion: process.version,
+      },
+
       common.mustCall(function(err, output) {
         assert.ifError(err);
 
@@ -69,6 +76,7 @@ testData.forEach(function(item) {
         // Assert that the input stripped of all whitespace contains the
         // expected list
         assert.notEqual(actual.indexOf(expected), -1);
-      }));
+      })
+    );
   }));
 });
