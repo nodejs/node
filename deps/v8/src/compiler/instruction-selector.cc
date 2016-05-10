@@ -1007,7 +1007,8 @@ void InstructionSelector::VisitDeoptimize(Node* value) {
   OperandGenerator g(this);
 
   FrameStateDescriptor* desc = GetFrameStateDescriptor(value);
-  size_t arg_count = desc->GetTotalSize() + 1;  // Include deopt id.
+  size_t arg_count =
+      FrameStateDescriptor::GetTotalSize(desc) + 1;  // Include deopt id.
 
   InstructionOperandVector args(instruction_zone());
   args.reserve(arg_count);
