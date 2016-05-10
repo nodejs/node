@@ -869,6 +869,10 @@ class FrameStateDescriptor : public ZoneObject {
                        MaybeHandle<SharedFunctionInfo> shared_info,
                        FrameStateDescriptor* outer_state = nullptr);
 
+  static size_t GetTotalSize(const FrameStateDescriptor* desc);
+  static size_t GetFrameCount(const FrameStateDescriptor* desc);
+  static size_t GetJSFrameCount(const FrameStateDescriptor* desc);
+
   FrameStateType type() const { return type_; }
   BailoutId bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
@@ -883,9 +887,6 @@ class FrameStateDescriptor : public ZoneObject {
 
   size_t GetSize(OutputFrameStateCombine combine =
                      OutputFrameStateCombine::Ignore()) const;
-  size_t GetTotalSize() const;
-  size_t GetFrameCount() const;
-  size_t GetJSFrameCount() const;
 
   MachineType GetType(size_t index) const;
   void SetType(size_t index, MachineType type);
