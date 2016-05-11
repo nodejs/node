@@ -774,8 +774,7 @@ class TestRepository(TestSuite):
       tests = self.GetConfiguration(context).ListTests(current_path, path,
                                                        arch, mode)
       for t in tests: t.variant_flags = v
-      result += tests
-
+      result += tests * context.repeat
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
@@ -828,7 +827,8 @@ TIMEOUT_SCALEFACTOR = {
 class Context(object):
 
   def __init__(self, workspace, buildspace, verbose, vm, expect_fail,
-               timeout, processor, suppress_dialogs, store_unexpected_output):
+               timeout, processor, suppress_dialogs,
+               store_unexpected_output, repeat):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
@@ -838,6 +838,7 @@ class Context(object):
     self.processor = processor
     self.suppress_dialogs = suppress_dialogs
     self.store_unexpected_output = store_unexpected_output
+    self.repeat = repeat
 
   def GetVm(self, arch, mode):
     if arch == 'none':
@@ -1369,6 +1370,9 @@ def BuildOptions():
       default="")
   result.add_option('--temp-dir',
       help='Optional path to change directory used for tests', default=False)
+  result.add_option('--repeat',
+      help='Number of times to repeat given tests',
+      default=1, type="int")
   return result
 
 
@@ -1533,7 +1537,8 @@ def Main():
                     options.timeout,
                     processor,
                     options.suppress_dialogs,
-                    options.store_unexpected_output)
+                    options.store_unexpected_output,
+                    options.repeat)
   # First build the required targets
   if not options.no_build:
     reqs = [ ]
