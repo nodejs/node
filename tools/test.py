@@ -721,13 +721,14 @@ class TestRepository(TestSuite):
   def GetBuildRequirements(self, path, context):
     return self.GetConfiguration(context).GetBuildRequirements()
 
-  def AddTestsToList(self, result, current_path, path, context, arch, mode):
+  def AddTestsToList(self, result, current_path, path, context,
+                     arch, mode, repeat):
     for v in VARIANT_FLAGS:
       tests = self.GetConfiguration(context).ListTests(current_path, path,
                                                        arch, mode)
       for t in tests: t.variant_flags = v
-      result += tests
-
+      for rep in range(0, repeat):
+        result += tests
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
@@ -747,14 +748,16 @@ class LiteralTestSuite(TestSuite):
         result += test.GetBuildRequirements(rest, context)
     return result
 
-  def ListTests(self, current_path, path, context, arch, mode):
+  def ListTests(self, current_path, path, context,
+                arch, mode, repeat):
     (name, rest) = CarCdr(path)
     result = [ ]
     for test in self.tests:
       test_name = test.GetName()
       if not name or name.match(test_name):
         full_path = current_path + [test_name]
-        test.AddTestsToList(result, full_path, path, context, arch, mode)
+        test.AddTestsToList(result, full_path, path, context,
+                            arch, mode, repeat)
     result.sort(cmp=lambda a, b: cmp(a.GetName(), b.GetName()))
     return result
 
@@ -1324,6 +1327,9 @@ def BuildOptions():
       default="")
   result.add_option('--temp-dir',
       help='Optional path to change directory used for tests', default=False)
+  result.add_option('--repeat',
+      help='how many times to repeat each test',
+      default=1, type="int")
   return result
 
 
@@ -1534,7 +1540,7 @@ def Main():
           'system': utils.GuessOS(),
           'arch': vmArch,
         }
-        test_list = root.ListTests([], path, context, arch, mode)
+        test_list = root.ListTests([], path, context, arch, mode, options.repeat)
         unclassified_tests += test_list
         (cases, unused_rules, all_outcomes) = (
             config.ClassifyTests(test_list, env))
