@@ -15,7 +15,7 @@ function main(conf) {
   var server = require('../http_simple.js');
   setTimeout(function() {
     var path = '/' + conf.type + '/' + conf.length + '/' + conf.chunks;
-    var args = ['-d', '10s', '-t', 8, '-c', conf.c];
+    var args = ['-t', '10s', '-c', conf.c, '-k'];
 
     bench.http(path, args, function() {
       server.close();
