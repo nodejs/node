@@ -5,7 +5,7 @@ var spawnSync = require('child_process').spawnSync;
 var path = require('path');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 

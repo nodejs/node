@@ -16,7 +16,7 @@ const messages = [
 ];
 
 if (common.inFreeBSDJail) {
-  console.log('1..0 # Skipped: in a FreeBSD jail');
+  common.skip('in a FreeBSD jail');
   return;
 }
 

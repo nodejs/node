@@ -4,7 +4,7 @@ const http = require('http');
 const assert = require('assert');
 
 if (!common.hasMultiLocalhost()) {
-  console.log('1..0 # Skipped: platform-specific test.');
+  common.skip('platform-specific test.');
   return;
 }
 

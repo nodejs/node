@@ -5,7 +5,7 @@ const assert = require('assert');
 const dgram = require('dgram');
 
 if (!common.hasIPv6) {
-  console.log('1..0 # Skipped: no IPv6 support');
+  common.skip('no IPv6 support');
   return;
 }
 
