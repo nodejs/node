@@ -5,7 +5,7 @@ const child_process = require('child_process');
 const fs = require('fs');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: no RLIMIT_NOFILE on Windows');
+  common.skip('no RLIMIT_NOFILE on Windows');
   return;
 }
 

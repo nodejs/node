@@ -3,11 +3,11 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 if (common.hasFipsCrypto) {
-  console.log('1..0 # Skipped: BF-ECB is not FIPS 140-2 compatible');
+  common.skip('BF-ECB is not FIPS 140-2 compatible');
   return;
 }
 var crypto = require('crypto');

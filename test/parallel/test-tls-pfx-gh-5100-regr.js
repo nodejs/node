@@ -3,7 +3,7 @@
 const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: node compiled without crypto.');
+  common.skip('node compiled without crypto.');
   return;
 }
 

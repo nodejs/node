@@ -5,7 +5,7 @@ const spawn = require('child_process').spawn;
 const common = require('../common');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: Win32 doesn\'t have signals, just a kind of ' +
+  common.skip('Win32 doesn\'t have signals, just a kind of ' +
               'emulation, insufficient for this test to apply.');
   return;
 }

@@ -19,7 +19,7 @@ var assert = require('assert');
 var common = require('../common');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: Sending dgram sockets to child processes is ' +
+  common.skip('Sending dgram sockets to child processes is ' +
               'not supported');
   return;
 }

@@ -7,7 +7,7 @@ var http = require('http');
 if (common.hasCrypto) {
   var https = require('https');
 } else {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
 }
 
 var host = '*'.repeat(256);
@@ -36,7 +36,7 @@ function test(mod) {
 if (common.hasCrypto) {
   test(https);
 } else {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
 }
 
 test(http);

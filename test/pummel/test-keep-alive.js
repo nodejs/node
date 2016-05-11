@@ -8,7 +8,7 @@ var http = require('http');
 var url = require('url');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: no `wrk` on windows');
+  common.skip('no `wrk` on windows');
   return;
 }
 

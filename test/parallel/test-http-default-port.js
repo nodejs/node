@@ -18,7 +18,7 @@ let gotHttpResp = false;
 if (common.hasCrypto) {
   var https = require('https');
 } else {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
 }
 
 process.on('exit', function() {

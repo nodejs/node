@@ -1,10 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var os = require('os');
 
 if (os.type() != 'SunOS') {
-  console.log('1..0 # Skipped: no DTRACE support');
+  common.skip('no DTRACE support');
   return;
 }
 
@@ -80,4 +80,3 @@ dtrace.on('exit', function(code) {
 });
 
 setTimeout(doogle, 10);
-

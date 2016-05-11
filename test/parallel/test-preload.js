@@ -7,7 +7,7 @@ const childProcess = require('child_process');
 
 // Refs: https://github.com/nodejs/node/pull/2253
 if (common.isSunOS) {
-  console.log('1..0 # Skipped: unreliable on SunOS');
+  common.skip('unreliable on SunOS');
   return;
 }
 
