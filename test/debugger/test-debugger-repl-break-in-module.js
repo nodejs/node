@@ -7,7 +7,7 @@ repl.startDebugger('break-in-module/main.js');
 // -- SET BREAKPOINT --
 
 // Set breakpoint by file name + line number where the file is not loaded yet
-repl.addTest('sb("mod.js", 23)', [
+repl.addTest('sb("mod.js", 2)', [
   /Warning: script 'mod\.js' was not loaded yet\./,
   /1/, /2/, /3/, /4/, /5/, /6/
 ]);
@@ -20,8 +20,8 @@ repl.addTest('sb(")^$*+?}{|][(.js\\\\", 1)', [
 
 // continue - the breakpoint should be triggered
 repl.addTest('c', [
-  /break in .*[\\\/]mod\.js:23/,
-  /21/, /22/, /23/, /24/, /25/
+  /break in .*[\\\/]mod\.js:2/,
+  /1/, /2/, /3/, /4/
 ]);
 
 // -- RESTORE BREAKPOINT ON RESTART --
@@ -33,7 +33,7 @@ repl.addTest('restart', [].concat(
   ],
   repl.handshakeLines,
   [
-    /Restoring breakpoint mod.js:23/,
+    /Restoring breakpoint mod.js:2/,
     /Warning: script 'mod\.js' was not loaded yet\./,
     /Restoring breakpoint \).*:\d+/,
     /Warning: script '\)[^']*' was not loaded yet\./
@@ -42,14 +42,14 @@ repl.addTest('restart', [].concat(
 
 // continue - the breakpoint should be triggered
 repl.addTest('c', [
-  /break in .*[\\\/]mod\.js:23/,
-  /21/, /22/, /23/, /24/, /25/
+  /break in .*[\\\/]mod\.js:2/,
+  /1/, /2/, /3/, /4/
 ]);
 
 // -- CLEAR BREAKPOINT SET IN MODULE TO BE LOADED --
 
-repl.addTest('cb("mod.js", 23)', [
-  /18/, /./, /./, /./, /./, /./, /./, /./, /26/
+repl.addTest('cb("mod.js", 2)', [
+  /1/, /2/, /3/, /4/, /5/
 ]);
 
 repl.addTest('c', [
