@@ -13,6 +13,9 @@ additions or changes to any of the methods implemented and exposed by
 the module.
 
 ## assert(value[, message])
+<!-- YAML
+added: v0.5.9
+-->
 
 An alias of [`assert.ok()`][] .
 
@@ -30,6 +33,9 @@ assert(false, 'it\'s false');
 ```
 
 ## assert.deepEqual(actual, expected[, message])
+<!-- YAML
+added: v0.1.21
+-->
 
 Tests for deep equality between the `actual` and `expected` parameters.
 Primitive values are compared with the equal comparison operator ( `==` ).
@@ -88,6 +94,9 @@ property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
 ## assert.deepStrictEqual(actual, expected[, message])
+<!-- YAML
+added: v1.2.0
+-->
 
 Generally identical to `assert.deepEqual()` with two exceptions. First,
 primitive values are compared using the strict equality operator ( `===` ).
@@ -109,6 +118,9 @@ property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
 ## assert.doesNotThrow(block[, error][, message])
+<!-- YAML
+added: v0.1.21
+-->
 
 Asserts that the function `block` does not throw an error. See
 [`assert.throws()`][] for more details.
@@ -161,6 +173,9 @@ assert.doesNotThrow(
 ```
 
 ## assert.equal(actual, expected[, message])
+<!-- YAML
+added: v0.1.21
+-->
 
 Tests shallow, coercive equality between the `actual` and `expected` parameters
 using the equal comparison operator ( `==` ).
@@ -184,6 +199,9 @@ property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
 ## assert.fail(actual, expected, message, operator)
+<!-- YAML
+added: v0.1.21
+-->
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
 the values of `actual` and `expected` separated by the provided `operator`.
@@ -200,6 +218,9 @@ assert.fail(1, 2, 'whoops', '>');
 ```
 
 ## assert.ifError(value)
+<!-- YAML
+added: v0.1.97
+-->
 
 Throws `value` if `value` is truthy. This is useful when testing the `error`
 argument in callbacks.
@@ -214,6 +235,9 @@ assert.ifError(new Error()); // Throws Error
 ```
 
 ## assert.notDeepEqual(actual, expected[, message])
+<!-- YAML
+added: v0.1.21
+-->
 
 Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
 
@@ -255,6 +279,9 @@ property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
 ## assert.notDeepStrictEqual(actual, expected[, message])
+<!-- YAML
+added: v1.2.0
+-->
 
 Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 
@@ -273,6 +300,9 @@ with a `message` property set equal to the value of the `message` parameter. If
 the `message` parameter is undefined, a default error message is assigned.
 
 ## assert.notEqual(actual, expected[, message])
+<!-- YAML
+added: v0.1.21
+-->
 
 Tests shallow, coercive inequality with the not equal comparison operator
 ( `!=` ).
@@ -295,6 +325,9 @@ property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
 ## assert.notStrictEqual(actual, expected[, message])
+<!-- YAML
+added: v0.1.21
+-->
 
 Tests strict inequality as determined by the strict not equal operator
 ( `!==` ).
@@ -317,6 +350,9 @@ If the values are strictly equal, an `AssertionError` is thrown with a
 `message` parameter is undefined, a default error message is assigned.
 
 ## assert.ok(value[, message])
+<!-- YAML
+added: v0.1.21
+-->
 
 Tests if `value` is truthy. It is equivalent to
 `assert.equal(!!value, true, message)`.
@@ -339,6 +375,9 @@ assert.ok(false, 'it\'s false');
 ```
 
 ## assert.strictEqual(actual, expected[, message])
+<!-- YAML
+added: v0.1.21
+-->
 
 Tests strict equality as determined by the strict equality operator ( `===` ).
 
@@ -360,6 +399,9 @@ If the values are not strictly equal, an `AssertionError` is thrown with a
 `message` parameter is undefined, a default error message is assigned.
 
 ## assert.throws(block[, error][, message])
+<!-- YAML
+added: v0.1.21
+-->
 
 Expects the function `block` to throw an error.
 
