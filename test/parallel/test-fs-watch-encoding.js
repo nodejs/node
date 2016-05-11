@@ -6,7 +6,7 @@ const path = require('path');
 const assert = require('assert');
 
 if (common.isFreeBSD) {
-  console.log('1..0 # Skipped: Test currently not working on FreeBSD');
+  common.skip('Test currently not working on FreeBSD');
   return;
 }
 

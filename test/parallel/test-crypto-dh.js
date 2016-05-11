@@ -4,7 +4,7 @@ const assert = require('assert');
 const constants = require('constants');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 const crypto = require('crypto');

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 console.error('load test-module-loading-error.js');
@@ -13,7 +13,7 @@ var error_desc = {
 var dlerror_msg = error_desc[process.platform];
 
 if (!dlerror_msg) {
-  console.log('1..0 # Skipped: platform not supported.');
+  common.skip('platform not supported.');
   return;
 }
 

@@ -10,7 +10,7 @@ const net = require('net');
 const Protocol = require('_debugger').Protocol;
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: SCHED_RR not reliable on Windows');
+  common.skip('SCHED_RR not reliable on Windows');
   return;
 }
 
