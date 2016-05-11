@@ -58,11 +58,12 @@ if (cluster.isMaster) {
   }
 
   // Check for custom JSLint report formatter
+  var format;
   i = process.argv.indexOf('-f');
   if (i !== -1) {
     if (!process.argv[i + 1])
       throw new Error('Missing format name');
-    const format = process.argv[i + 1];
+    format = process.argv[i + 1];
     formatter = cli.getFormatter(format);
     if (!formatter)
       throw new Error('Invalid format name');
@@ -73,27 +74,6 @@ if (cluster.isMaster) {
   } else {
     // Use default formatter
     formatter = cli.getFormatter();
-  }
-
-  // Check if outputting JSLint report to a file instead of stdout
-  i = process.argv.indexOf('-o');
-  if (i !== -1) {
-    if (!process.argv[i + 1])
-      throw new Error('Missing output filename');
-    var outPath = process.argv[i + 1];
-    if (!path.isAbsolute(outPath))
-      outPath = path.join(cwd, outPath);
-    fd = fs.openSync(outPath, 'w');
-    outFn = function(str) {
-      fs.writeSync(fd, str, 'utf8');
-    };
-    process.on('exit', function() {
-      fs.closeSync(fd);
-    });
-  } else {
-    outFn = function(str) {
-      process.stdout.write(str);
-    };
   }
 
   // Process the rest of the arguments as paths to lint, ignoring any unknown
@@ -115,6 +95,44 @@ if (cluster.isMaster) {
   if (paths.length === 0)
     return;
   totalPaths = paths.length;
+
+  // Check if outputting JSLint report to a file instead of stdout
+  i = process.argv.indexOf('-o');
+  if (i !== -1) {
+    if (!process.argv[i + 1])
+      throw new Error('Missing output filename');
+    var outPath = process.argv[i + 1];
+    const results = [];
+    let count = 0;
+    if (!path.isAbsolute(outPath))
+      outPath = path.join(cwd, outPath);
+    fd = fs.openSync(outPath, 'w');
+    outFn = function(str) {
+      if (format === 'tap') {
+        str = str.replace(/\r/, '');
+        str = str.replace(/TAP version 13\n/, '');
+        str = str.split('\n').map((line) => {
+          if (line.search(/[0-9]+\.\.[0-9]+/) > -1) {
+            return '';
+          }
+          else if (line.search('ok') > -1) count++;
+          return line.replace(/ok [0-9]+/, 'ok');
+        }).join('\n').slice(1);
+      }
+      results.push(str.slice(0, str.length - 1));
+    };
+    process.on('exit', function() {
+      if (format === 'tap') {
+        fs.writeSync(fd, `TAP version 13\n1..${count}\n`, 'utf8');
+      }
+      fs.writeSync(fd, results.join(''), 'utf8');
+      fs.closeSync(fd);
+    });
+  } else {
+    outFn = function(str) {
+      process.stdout.write(str);
+    };
+  }
 
   if (showProgress) {
     // Start the progress display update timer when the first worker is ready
