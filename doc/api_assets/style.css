@@ -4,7 +4,6 @@ html {
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-variant-ligatures: none;
           font-variant-ligatures: none;
-  height: 100%;
 }
 
 body {
@@ -14,8 +13,6 @@ body {
   padding: 0;
   color: #333;
   background: #fff;
-  overflow: auto;
-  height: 100%;
 }
 
 pre, tt, code, .pre, span.type, a.type {
@@ -24,9 +21,7 @@ pre, tt, code, .pre, span.type, a.type {
 
 #content {
   font-size: 1.8em;
-  overflow: hidden;
   position: relative;
-  height: 100%;
 }
 
 a, a:link, a:active {
@@ -370,15 +365,12 @@ a code {
   margin-left: 234px;
   padding: 0 2em;
   -webkit-padding-start: 1.5em;
-  height: 100%;
-  position: relative;
-  overflow-y: scroll;
 }
 
 #column2.interior {
   width: 234px;
   background: #333;
-  position: absolute;
+  position: fixed;
   left: 0;
   top: 0;
   bottom: 0;
