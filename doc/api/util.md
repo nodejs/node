@@ -67,9 +67,9 @@ exports.puts = util.deprecate(() => {
 
 It returns a modified function which warns once by default.
 
-If `--no-deprecation` is set then this function is a NO-OP.  Configurable
-at run-time through the `process.noDeprecation` boolean (only effective
-when set before a module is loaded.)
+This function does nothing if either the `--no-deprecation` command
+line flag is used, or the `process.noDeprecation` property is set to
+`true` *prior* to the first deprecation warning.
 
 If `--trace-deprecation` is set, a warning and a stack trace are logged
 to the console the first time the deprecated API is used.  Configurable
