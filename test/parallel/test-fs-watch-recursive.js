@@ -22,7 +22,7 @@ common.refreshTmpDir();
 
 fs.mkdirSync(testsubdir, 0o700);
 
-const watcher = fs.watch(testDir, {recursive: true});
+const watcher = fs.watch(testDir, { recursive: true });
 
 var watcherClosed = false;
 watcher.on('change', function(event, filename) {

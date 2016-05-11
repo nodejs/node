@@ -18,7 +18,7 @@ check([{
           '\r\n'
   }],
   responses: [{
-    headers: {'Connection': 'keep-alive'},
+    headers: { 'Connection': 'keep-alive' },
     chunks: ['OK']
   }, {
     chunks: []
@@ -37,7 +37,7 @@ check([{
           '\r\n'
   }],
   responses: [{
-    headers: {'Connection': 'keep-alive'},
+    headers: { 'Connection': 'keep-alive' },
     chunks: ['OK']
   }, {
     chunks: []
@@ -55,8 +55,8 @@ check([{
           '\r\n'
   }],
   responses: [{
-    headers: {'Connection': 'keep-alive',
-              'Transfer-Encoding': 'chunked'},
+    headers: { 'Connection': 'keep-alive',
+              'Transfer-Encoding': 'chunked' },
     chunks: ['OK']
   }, {
     chunks: []
@@ -74,8 +74,8 @@ check([{
           '\r\n'
   }],
   responses: [{
-    headers: {'Connection': 'keep-alive',
-              'Content-Length': '2'},
+    headers: { 'Connection': 'keep-alive',
+              'Content-Length': '2' },
     chunks: ['OK']
   }, {
     chunks: []

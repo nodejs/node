@@ -4,7 +4,7 @@ var http = require('http');
 
 var server = http.createServer(function(req, res) {
   intentionally_not_defined(); // eslint-disable-line no-undef
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.write('Thank you, come again.');
   res.end();
 });

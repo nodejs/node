@@ -34,8 +34,8 @@ server.listen(tcpPort, 'localhost', function() {
   net.createConnection(tcpPort, cb);
   net.createConnection(tcpPort, 'localhost', cb);
   net.createConnection(tcpPort + '', 'localhost', cb);
-  net.createConnection({port: tcpPort + ''}).on('connect', cb);
-  net.createConnection({port: '0x' + tcpPort.toString(16)}, cb);
+  net.createConnection({ port: tcpPort + '' }).on('connect', cb);
+  net.createConnection({ port: '0x' + tcpPort.toString(16) }, cb);
 
   fail({
     port: true
@@ -98,8 +98,8 @@ server.listen(tcpPort, 'localhost', function() {
 server.on('close', function() {
   function nop() {}
 
-  net.createConnection({port: 0}).on('error', nop);
-  net.createConnection({port: undefined}).on('error', nop);
+  net.createConnection({ port: 0 }).on('error', nop);
+  net.createConnection({ port: undefined }).on('error', nop);
 });
 
 process.on('exit', function() {

@@ -75,12 +75,12 @@ if (cluster.isMaster) {
     cluster.fork();
     cluster.fork();
     if (!common.isWindows) {
-      cluster.fork({BOUND: 'y'});
-      cluster.fork({BOUND: 'y'});
+      cluster.fork({ BOUND: 'y' });
+      cluster.fork({ BOUND: 'y' });
     }
   });
 
-  target.bind({port: common.PORT, exclusive: true});
+  target.bind({ port: common.PORT, exclusive: true });
 
   return;
 }

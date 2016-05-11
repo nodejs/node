@@ -29,13 +29,13 @@ if (process.argv[2] === 'child') {
 
     server.on('connection', function(socket) {
       console.log('CHILD: got connection');
-      process.send({what: 'connection'});
+      process.send({ what: 'connection' });
       socket.destroy();
     });
 
     // start making connection from parent
     console.log('CHILD: server listening');
-    process.send({what: 'listening'});
+    process.send({ what: 'listening' });
   });
 
   process.on('message', function onClose(msg) {
@@ -43,7 +43,7 @@ if (process.argv[2] === 'child') {
     process.removeListener('message', onClose);
 
     serverScope.on('close', function() {
-      process.send({what: 'close'});
+      process.send({ what: 'close' });
     });
     serverScope.close();
   });
@@ -55,7 +55,7 @@ if (process.argv[2] === 'child') {
     console.log('CHILD: got socket');
   });
 
-  process.send({what: 'ready'});
+  process.send({ what: 'ready' });
 } else {
 
   var child = fork(process.argv[1], ['child']);
@@ -71,7 +71,7 @@ if (process.argv[2] === 'child') {
     var progress = new ProgressTracker(2, function() {
       server.on('close', function() {
         console.log('PARENT: server closed');
-        child.send({what: 'close'});
+        child.send({ what: 'close' });
       });
       server.close();
     });
@@ -89,7 +89,7 @@ if (process.argv[2] === 'child') {
     });
     server.on('listening', function() {
       console.log('PARENT: server listening');
-      child.send({what: 'server'}, server);
+      child.send({ what: 'server' }, server);
     });
     server.listen(common.PORT);
 
@@ -131,7 +131,7 @@ if (process.argv[2] === 'child') {
       socket.on('close', function() {
         console.log('CLIENT: socket closed');
       });
-      child.send({what: 'socket'}, socket);
+      child.send({ what: 'socket' }, socket);
     });
     server.on('close', function() {
       console.log('PARENT: server closed');

@@ -6,13 +6,13 @@ var http = require('http');
 var body = 'hello world\n';
 
 var server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Length': body.length});
+  res.writeHead(200, { 'Content-Length': body.length });
   res.write(body);
   res.end();
 });
 
-var agent = new http.Agent({maxSockets: 1});
-var headers = {'connection': 'keep-alive'};
+var agent = new http.Agent({ maxSockets: 1 });
+var headers = { 'connection': 'keep-alive' };
 var name = agent.getName({ port: common.PORT });
 
 server.listen(common.PORT, function() {

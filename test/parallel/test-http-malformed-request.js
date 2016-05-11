@@ -14,7 +14,7 @@ var nrequests_expected = 1;
 var server = http.createServer(function(req, res) {
   console.log('req: ' + JSON.stringify(url.parse(req.url)));
 
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.write('Hello World');
   res.end();
 

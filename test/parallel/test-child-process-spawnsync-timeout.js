@@ -17,7 +17,7 @@ switch (process.argv[2]) {
   default:
     var start = Date.now();
     var ret = spawnSync(process.execPath, [__filename, 'child'],
-                        {timeout: TIMER});
+                        { timeout: TIMER });
     assert.strictEqual(ret.error.errno, 'ETIMEDOUT');
     console.log(ret);
     var end = Date.now() - start;

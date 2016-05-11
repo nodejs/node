@@ -65,7 +65,7 @@ exec(SLEEP3_COMMAND, { timeout: 50 }, function(err, stdout, stderr) {
 
 
 var startSleep3 = new Date();
-var killMeTwice = exec(SLEEP3_COMMAND, {timeout: 1000}, killMeTwiceCallback);
+var killMeTwice = exec(SLEEP3_COMMAND, { timeout: 1000 }, killMeTwiceCallback);
 
 process.nextTick(function() {
   console.log('kill pid %d', killMeTwice.pid);
@@ -90,7 +90,7 @@ function killMeTwiceCallback(err, stdout, stderr) {
 }
 
 
-exec('python -c "print 200000*\'C\'"', {maxBuffer: 1000},
+exec('python -c "print 200000*\'C\'"', { maxBuffer: 1000 },
      function(err, stdout, stderr) {
        assert.ok(err);
        assert.ok(/maxBuffer/.test(err.message));

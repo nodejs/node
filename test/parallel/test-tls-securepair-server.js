@@ -24,7 +24,7 @@ function log(a) {
 var server = net.createServer(function(socket) {
   connections++;
   log('connection fd=' + socket.fd);
-  var sslcontext = tls.createSecureContext({key: key, cert: cert});
+  var sslcontext = tls.createSecureContext({ key: key, cert: cert });
   sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
   var pair = tls.createSecurePair(sslcontext, true);

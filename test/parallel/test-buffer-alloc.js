@@ -345,9 +345,9 @@ assert.equal(rangeBuffer.toString('ascii', 0, 1.99), 'a');
 assert.equal(rangeBuffer.toString('ascii', 0, true), 'a');
 
 // try toString() with a object as a encoding
-assert.equal(rangeBuffer.toString({toString: function() {
+assert.equal(rangeBuffer.toString({ toString: function() {
   return 'ascii';
-}}), 'abc');
+} }), 'abc');
 
 // testing for smart defaults and ability to pass string values as offset
 var writeTest = Buffer.from('abcdes');
@@ -512,10 +512,10 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
 }
 
 
-var arrayIsh = {0: 0, 1: 1, 2: 2, 3: 3, length: 4};
+var arrayIsh = { 0: 0, 1: 1, 2: 2, 3: 3, length: 4 };
 var g = Buffer.from(arrayIsh);
 assert.deepStrictEqual(g, Buffer.from([0, 1, 2, 3]));
-var strArrayIsh = {0: '0', 1: '1', 2: '2', 3: '3', length: 4};
+var strArrayIsh = { 0: '0', 1: '1', 2: '2', 3: '3', length: 4 };
 g = Buffer.from(strArrayIsh);
 assert.deepStrictEqual(g, Buffer.from([0, 1, 2, 3]));
 
@@ -984,8 +984,8 @@ Buffer.alloc(3.3).fill().toString();
 assert.equal(Buffer.allocUnsafe(-1).length, 0);
 assert.equal(Buffer.allocUnsafe(NaN).length, 0);
 assert.equal(Buffer.allocUnsafe(3.3).length, 3);
-assert.equal(Buffer.from({length: 3.3}).length, 3);
-assert.equal(Buffer.from({length: 'BAM'}).length, 0);
+assert.equal(Buffer.from({ length: 3.3 }).length, 3);
+assert.equal(Buffer.from({ length: 'BAM' }).length, 0);
 
 // Make sure that strings are not coerced to numbers.
 assert.equal(Buffer.from('99').length, 2);

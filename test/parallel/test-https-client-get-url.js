@@ -23,7 +23,7 @@ var options = {
 var server = https.createServer(options, function(req, res) {
   assert.equal('GET', req.method);
   assert.equal('/foo?bar', req.url);
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.write('hello\n');
   res.end();
   server.close();

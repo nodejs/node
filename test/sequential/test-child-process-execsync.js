@@ -14,7 +14,7 @@ var caught = false;
 
 try {
   var cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
-  var ret = execSync(cmd, {timeout: TIMER});
+  var ret = execSync(cmd, { timeout: TIMER });
 } catch (e) {
   caught = true;
   assert.strictEqual(e.errno, 'ETIMEDOUT');
@@ -67,10 +67,10 @@ assert.strictEqual(ret, msg + '\n',
 
   if (common.isWindows) {
     cwd = 'c:\\';
-    response = execSync('echo %cd%', {cwd: cwd});
+    response = execSync('echo %cd%', { cwd: cwd });
   } else {
     cwd = '/';
-    response = execSync('pwd', {cwd: cwd});
+    response = execSync('pwd', { cwd: cwd });
   }
 
   assert.strictEqual(response.toString().trim(), cwd);
@@ -79,6 +79,6 @@ assert.strictEqual(ret, msg + '\n',
 // Verify that stderr is not accessed when stdio = 'ignore' - GH #7966
 (function() {
   assert.throws(function() {
-    execSync('exit -1', {stdio: 'ignore'});
+    execSync('exit -1', { stdio: 'ignore' });
   }, /Command failed: exit -1/);
 })();

@@ -369,7 +369,7 @@ TEST(function test_lookup_null(done) {
 
 
 TEST(function test_lookup_ip_all(done) {
-  var req = dns.lookup('127.0.0.1', {all: true}, function(err, ips, family) {
+  var req = dns.lookup('127.0.0.1', { all: true }, function(err, ips, family) {
     if (err) throw err;
     assert.ok(Array.isArray(ips));
     assert.ok(ips.length > 0);
@@ -384,7 +384,7 @@ TEST(function test_lookup_ip_all(done) {
 
 
 TEST(function test_lookup_null_all(done) {
-  var req = dns.lookup(null, {all: true}, function(err, ips, family) {
+  var req = dns.lookup(null, { all: true }, function(err, ips, family) {
     if (err) throw err;
     assert.ok(Array.isArray(ips));
     assert.strictEqual(ips.length, 0);
@@ -397,7 +397,7 @@ TEST(function test_lookup_null_all(done) {
 
 
 TEST(function test_lookup_all_mixed(done) {
-  var req = dns.lookup('www.google.com', {all: true}, function(err, ips) {
+  var req = dns.lookup('www.google.com', { all: true }, function(err, ips) {
     if (err) throw err;
     assert.ok(Array.isArray(ips));
     assert.ok(ips.length > 0);

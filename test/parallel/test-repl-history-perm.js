@@ -43,7 +43,7 @@ const checkResults = common.mustCall(function(err, r) {
 });
 
 repl.createInternalRepl(
-  {NODE_REPL_HISTORY: replHistoryPath},
+  { NODE_REPL_HISTORY: replHistoryPath },
   {
     terminal: true,
     input: stream,

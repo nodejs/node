@@ -4,10 +4,10 @@ var assert = require('assert');
 var http = require('http');
 
 var body = 'hello world\n';
-var headers = {'connection': 'keep-alive'};
+var headers = { 'connection': 'keep-alive' };
 
 var server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Length': body.length, 'Connection': 'close'});
+  res.writeHead(200, { 'Content-Length': body.length, 'Connection': 'close' });
   res.write(body);
   res.end();
 });

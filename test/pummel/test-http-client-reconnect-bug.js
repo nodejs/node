@@ -27,7 +27,7 @@ server.on('listening', function() {
     eofCount++;
   });
 
-  var request = client.request('GET', '/', {'host': 'localhost'});
+  var request = client.request('GET', '/', { 'host': 'localhost' });
   request.end();
   request.on('response', function(response) {
     console.log('STATUS: ' + response.statusCode);

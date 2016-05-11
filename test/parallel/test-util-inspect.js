@@ -23,22 +23,22 @@ assert.equal(util.inspect([1, 2]), '[ 1, 2 ]');
 assert.equal(util.inspect([1, [2, 3]]), '[ 1, [ 2, 3 ] ]');
 
 assert.equal(util.inspect({}), '{}');
-assert.equal(util.inspect({a: 1}), '{ a: 1 }');
-assert.equal(util.inspect({a: function() {}}), '{ a: [Function] }');
-assert.equal(util.inspect({a: 1, b: 2}), '{ a: 1, b: 2 }');
-assert.equal(util.inspect({'a': {}}), '{ a: {} }');
-assert.equal(util.inspect({'a': {'b': 2}}), '{ a: { b: 2 } }');
-assert.equal(util.inspect({'a': {'b': { 'c': { 'd': 2 }}}}),
+assert.equal(util.inspect({ a: 1 }), '{ a: 1 }');
+assert.equal(util.inspect({ a: function() {} }), '{ a: [Function] }');
+assert.equal(util.inspect({ a: 1, b: 2 }), '{ a: 1, b: 2 }');
+assert.equal(util.inspect({ 'a': {} }), '{ a: {} }');
+assert.equal(util.inspect({ 'a': { 'b': 2 } }), '{ a: { b: 2 } }');
+assert.equal(util.inspect({ 'a': { 'b': { 'c': { 'd': 2 } } } }),
   '{ a: { b: { c: [Object] } } }');
-assert.equal(util.inspect({'a': {'b': { 'c': { 'd': 2 }}}}, false, null),
+assert.equal(util.inspect({ 'a': { 'b': { 'c': { 'd': 2 } } } }, false, null),
   '{ a: { b: { c: { d: 2 } } } }');
 assert.equal(util.inspect([1, 2, 3], true), '[ 1, 2, 3, [length]: 3 ]');
-assert.equal(util.inspect({'a': {'b': { 'c': 2}}}, false, 0),
+assert.equal(util.inspect({ 'a': { 'b': { 'c': 2 } } }, false, 0),
   '{ a: [Object] }');
-assert.equal(util.inspect({'a': {'b': { 'c': 2}}}, false, 1),
+assert.equal(util.inspect({ 'a': { 'b': { 'c': 2 } } }, false, 1),
   '{ a: { b: [Object] } }');
 assert.equal(util.inspect(Object.create({},
-  {visible: {value: 1, enumerable: true}, hidden: {value: 2}})),
+  { visible: { value: 1, enumerable: true }, hidden: { value: 2 } })),
   '{ visible: 1 }'
 );
 
@@ -162,7 +162,7 @@ for (const showHidden of [true, false]) {
 
 {
   const out = util.inspect(Object.create({},
-      {visible: {value: 1, enumerable: true}, hidden: {value: 2}}), true);
+      { visible: { value: 1, enumerable: true }, hidden: { value: 2 } }), true);
   if (out !== '{ [hidden]: 2, visible: 1 }' &&
       out !== '{ visible: 1, [hidden]: 2 }') {
     assert.ok(false);
@@ -172,8 +172,8 @@ for (const showHidden of [true, false]) {
 // Objects without prototype
 {
   const out = util.inspect(Object.create(null,
-      { name: {value: 'Tim', enumerable: true},
-        hidden: {value: 'secret'}}), true);
+      { name: { value: 'Tim', enumerable: true },
+        hidden: { value: 'secret' } }), true);
   if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
       out !== "{ name: 'Tim', [hidden]: 'secret' }") {
     assert(false);
@@ -182,20 +182,20 @@ for (const showHidden of [true, false]) {
 
 assert.equal(
   util.inspect(Object.create(null,
-    {name: {value: 'Tim', enumerable: true},
-      hidden: {value: 'secret'}})),
+    { name: { value: 'Tim', enumerable: true },
+      hidden: { value: 'secret' } })),
   '{ name: \'Tim\' }'
 );
 
 
 // Dynamic properties
-assert.equal(util.inspect({get readonly() {}}),
+assert.equal(util.inspect({ get readonly() {} }),
   '{ readonly: [Getter] }');
 
-assert.equal(util.inspect({get readwrite() {}, set readwrite(val) {}}),
+assert.equal(util.inspect({ get readwrite() {}, set readwrite(val) {} }),
   '{ readwrite: [Getter/Setter] }');
 
-assert.equal(util.inspect({set writeonly(val) {}}),
+assert.equal(util.inspect({ set writeonly(val) {} }),
   '{ writeonly: [Setter] }');
 
 var value = {};
@@ -445,7 +445,7 @@ function test_lines(input) {
   };
 
   var without_color = util.inspect(input);
-  var with_color = util.inspect(input, {colors: true});
+  var with_color = util.inspect(input, { colors: true });
   assert.equal(count_lines(without_color), count_lines(with_color));
 }
 
@@ -457,11 +457,11 @@ test_lines(function() {
   }
   return big_array;
 }());
-test_lines({foo: 'bar', baz: 35, b: {a: 35}});
+test_lines({ foo: 'bar', baz: 35, b: { a: 35 } });
 test_lines({
   foo: 'bar',
   baz: 35,
-  b: {a: 35},
+  b: { a: 35 },
   very_long_key: 'very_long_value',
   even_longer_key: ['with even longer value in array']
 });
@@ -659,13 +659,13 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
 
 {
   const x = Array(101);
-  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: 101})));
+  assert(!/1 more item/.test(util.inspect(x, { maxArrayLength: 101 })));
 }
 
 {
   const x = Array(101);
   assert(/^\[ ... 101 more items \]$/.test(
-      util.inspect(x, {maxArrayLength: 0})));
+      util.inspect(x, { maxArrayLength: 0 })));
 }
 
 {
@@ -675,31 +675,31 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
 
 {
   const x = new Uint8Array(101);
-  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: 101})));
+  assert(!/1 more item/.test(util.inspect(x, { maxArrayLength: 101 })));
 }
 
 {
   const x = new Uint8Array(101);
   assert(/\[ ... 101 more items \]$/.test(
-      util.inspect(x, {maxArrayLength: 0})));
+      util.inspect(x, { maxArrayLength: 0 })));
 }
 
 {
   const x = Array(101);
-  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: null})));
+  assert(!/1 more item/.test(util.inspect(x, { maxArrayLength: null })));
 }
 
 {
   const x = Array(101);
-  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: Infinity})));
+  assert(!/1 more item/.test(util.inspect(x, { maxArrayLength: Infinity })));
 }
 
 {
   const x = new Uint8Array(101);
-  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: null})));
+  assert(!/1 more item/.test(util.inspect(x, { maxArrayLength: null })));
 }
 
 {
   const x = new Uint8Array(101);
-  assert(!/1 more item/.test(util.inspect(x, {maxArrayLength: Infinity})));
+  assert(!/1 more item/.test(util.inspect(x, { maxArrayLength: Infinity })));
 }

@@ -4,8 +4,8 @@ var assert = require('assert');
 
 //messages
 var PREFIX = 'NODE_';
-var normal = {cmd: 'foo' + PREFIX};
-var internal = {cmd: PREFIX + 'bar'};
+var normal = { cmd: 'foo' + PREFIX };
+var internal = { cmd: PREFIX + 'bar' };
 
 if (process.argv[2] === 'child') {
   //send non-internal message containing PREFIX at a non prefix position

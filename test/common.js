@@ -141,7 +141,7 @@ Object.defineProperty(exports, 'localhostIPv4', {
 });
 
 // opensslCli defined lazily to reduce overhead of spawnSync
-Object.defineProperty(exports, 'opensslCli', {get: function() {
+Object.defineProperty(exports, 'opensslCli', { get: function() {
   if (opensslCli !== null) return opensslCli;
 
   if (process.config.variables.node_shared_openssl) {
@@ -428,7 +428,7 @@ exports.getServiceName = function getServiceName(port, protocol) {
 
   try {
     var servicesContent = fs.readFileSync(etcServicesFileName,
-      { encoding: 'utf8'});
+      { encoding: 'utf8' });
     var regexp = `^(\\w+)\\s+\\s${port}/${protocol}\\s`;
     var re = new RegExp(regexp, 'm');
 

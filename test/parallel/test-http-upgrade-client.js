@@ -50,7 +50,7 @@ srv.listen(common.PORT, '127.0.0.1', function() {
     }));
 
     console.log(res.headers);
-    var expectedHeaders = {'hello': 'world',
+    var expectedHeaders = { 'hello': 'world',
                             'connection': 'upgrade',
                             'upgrade': 'websocket' };
     assert.deepStrictEqual(expectedHeaders, res.headers);

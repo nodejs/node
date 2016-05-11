@@ -29,7 +29,7 @@ var server = http.createServer(function(req, res) {
   }
 
   req.on('end', function() {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('The path was ' + url.parse(req.url).pathname);
     res.end();
     responses_sent += 1;
@@ -39,7 +39,7 @@ var server = http.createServer(function(req, res) {
 
 server.listen(common.PORT, function() {
   var client = http.createClient(common.PORT);
-  var req = client.request('/hello', {'Accept': '*/*', 'Foo': 'bar'});
+  var req = client.request('/hello', { 'Accept': '*/*', 'Foo': 'bar' });
   setTimeout(function() {
     req.end();
   }, 100);

@@ -35,7 +35,7 @@ var server = net.createServer(function(c) {
     });
   }, 200);
 }).listen(common.PORT, function() {
-  var c = net.connect({port: common.PORT}, function() {
+  var c = net.connect({ port: common.PORT }, function() {
     c.write(bonkers);
   });
 });

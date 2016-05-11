@@ -6,7 +6,7 @@ var net = require('net');
 var serverGotEnd = false;
 var clientGotEnd = false;
 
-var server = net.createServer({allowHalfOpen: true}, function(socket) {
+var server = net.createServer({ allowHalfOpen: true }, function(socket) {
   socket.resume();
   socket.on('end', function() {
     serverGotEnd = true;

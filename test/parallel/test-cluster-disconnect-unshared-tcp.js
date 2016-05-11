@@ -9,7 +9,7 @@ if (cluster.isMaster) {
   var unbound = cluster.fork().on('online', bind);
 
   function bind() {
-    cluster.fork({BOUND: 'y'}).on('listening', disconnect);
+    cluster.fork({ BOUND: 'y' }).on('listening', disconnect);
   }
 
   function disconnect() {

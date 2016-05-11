@@ -12,11 +12,13 @@ function check(actual, expected) {
   });
 }
 
-check(qs.parse('foo=>bar&&bar=>baz', '&&', '=>'), {foo: 'bar', bar: 'baz'});
+check(qs.parse('foo=>bar&&bar=>baz', '&&', '=>'), { foo: 'bar', bar: 'baz' });
 
-check(qs.stringify({foo: 'bar', bar: 'baz'}, '&&', '=>'), 'foo=>bar&&bar=>baz');
+check(qs.stringify({ foo: 'bar', bar: 'baz' }, '&&', '=>'),
+      'foo=>bar&&bar=>baz');
 
-check(qs.parse('foo==>bar, bar==>baz', ', ', '==>'), {foo: 'bar', bar: 'baz'});
+check(qs.parse('foo==>bar, bar==>baz', ', ', '==>'),
+      { foo: 'bar', bar: 'baz' });
 
-check(qs.stringify({foo: 'bar', bar: 'baz'}, ', ', '==>'),
+check(qs.stringify({ foo: 'bar', bar: 'baz' }, ', ', '==>'),
       'foo==>bar, bar==>baz');

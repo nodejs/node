@@ -6,11 +6,11 @@ var http = require('http');
 var port = common.PORT;
 
 var server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('OK');
 });
 
-var agent = new http.Agent({maxSockets: 1});
+var agent = new http.Agent({ maxSockets: 1 });
 
 server.listen(port, function() {
 
@@ -24,7 +24,7 @@ server.listen(port, function() {
 
   function createRequest() {
     const req = http.request(
-      {port: port, path: '/', agent: agent},
+      { port: port, path: '/', agent: agent },
       function(res) {
         req.clearTimeout(callback);
 

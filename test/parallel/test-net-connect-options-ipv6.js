@@ -13,7 +13,7 @@ var hostIdx = 0;
 var host = hosts[hostIdx];
 var localhostTries = 10;
 
-const server = net.createServer({allowHalfOpen: true}, function(socket) {
+const server = net.createServer({ allowHalfOpen: true }, function(socket) {
   socket.resume();
   socket.on('end', common.mustCall(function() {}));
   socket.end();

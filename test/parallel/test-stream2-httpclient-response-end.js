@@ -6,10 +6,10 @@ var msg = 'Hello';
 var readable_event = false;
 var end_event = false;
 var server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end(msg);
 }).listen(common.PORT, function() {
-  http.get({port: common.PORT}, function(res) {
+  http.get({ port: common.PORT }, function(res) {
     var data = '';
     res.on('readable', function() {
       console.log('readable event');

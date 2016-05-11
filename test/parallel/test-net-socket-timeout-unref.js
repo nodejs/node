@@ -31,5 +31,5 @@ delays.forEach(function(T) {
     }
   }));
 
-  sockets.push({socket: socket, timeout: T * 1000});
+  sockets.push({ socket: socket, timeout: T * 1000 });
 });

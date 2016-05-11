@@ -13,7 +13,7 @@ assert.doesNotThrow(function() {
   fs.createReadStream(example, 'utf8');
 });
 assert.doesNotThrow(function() {
-  fs.createReadStream(example, {encoding: 'utf8'});
+  fs.createReadStream(example, { encoding: 'utf8' });
 });
 
 assert.throws(function() {

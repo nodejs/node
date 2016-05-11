@@ -4,7 +4,7 @@ require('../common');
 const assert = require('assert');
 const util = require('util');
 const processUtil = process.binding('util');
-const opts = {showProxy: true};
+const opts = { showProxy: true };
 
 const target = {};
 const handler = {

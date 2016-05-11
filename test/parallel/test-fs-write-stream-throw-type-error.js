@@ -15,7 +15,7 @@ assert.doesNotThrow(function() {
   fs.createWriteStream(example, 'utf8');
 });
 assert.doesNotThrow(function() {
-  fs.createWriteStream(example, {encoding: 'utf8'});
+  fs.createWriteStream(example, { encoding: 'utf8' });
 });
 
 assert.throws(function() {

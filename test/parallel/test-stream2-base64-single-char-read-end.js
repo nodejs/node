@@ -4,7 +4,7 @@ var R = require('_stream_readable');
 var W = require('_stream_writable');
 var assert = require('assert');
 
-var src = new R({encoding: 'base64'});
+var src = new R({ encoding: 'base64' });
 var dst = new W();
 var hasRead = false;
 var accum = [];
