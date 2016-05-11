@@ -29,14 +29,14 @@ assert.equal(util.inspect({a: function() {}}), '{ a: [Function] }');
 assert.equal(util.inspect({a: 1, b: 2}), '{ a: 1, b: 2 }');
 assert.equal(util.inspect({'a': {}}), '{ a: {} }');
 assert.equal(util.inspect({'a': {'b': 2}}), '{ a: { b: 2 } }');
-assert.equal(util.inspect({'a': {'b': { 'c': { 'd': 2 }}}}),
+assert.equal(util.inspect({'a': {'b': {'c': {'d': 2}}}}),
   '{ a: { b: { c: [Object] } } }');
-assert.equal(util.inspect({'a': {'b': { 'c': { 'd': 2 }}}}, false, null),
+assert.equal(util.inspect({'a': {'b': {'c': {'d': 2}}}}, false, null),
   '{ a: { b: { c: { d: 2 } } } }');
 assert.equal(util.inspect([1, 2, 3], true), '[ 1, 2, 3, [length]: 3 ]');
-assert.equal(util.inspect({'a': {'b': { 'c': 2}}}, false, 0),
+assert.equal(util.inspect({'a': {'b': {'c': 2}}}, false, 0),
   '{ a: [Object] }');
-assert.equal(util.inspect({'a': {'b': { 'c': 2}}}, false, 1),
+assert.equal(util.inspect({'a': {'b': {'c': 2}}}, false, 1),
   '{ a: { b: [Object] } }');
 assert.equal(util.inspect(Object.create({},
   {visible: {value: 1, enumerable: true}, hidden: {value: 2}})),
@@ -73,7 +73,7 @@ for (const showHidden of [true, false]) {
 // Now do the same checks but from a different context
 for (const showHidden of [true, false]) {
   const ab = vm.runInNewContext('new ArrayBuffer(4)');
-  const dv = vm.runInNewContext('new DataView(ab, 1, 2)', { ab: ab });
+  const dv = vm.runInNewContext('new DataView(ab, 1, 2)', {ab: ab});
   assert.equal(util.inspect(ab, showHidden), 'ArrayBuffer { byteLength: 4 }');
   assert.equal(util.inspect(new DataView(ab, 1, 2), showHidden),
                'DataView {\n' +
@@ -139,7 +139,7 @@ for (const showHidden of [true, false]) {
     const byteLength = length * constructor.BYTES_PER_ELEMENT;
     const array = vm.runInNewContext('new constructor(new ArrayBuffer(' +
                                      'byteLength), 0, length)',
-                                     { constructor: constructor,
+                                     {constructor: constructor,
                                        byteLength: byteLength,
                                        length: length
                                      });
@@ -173,7 +173,7 @@ for (const showHidden of [true, false]) {
 // Objects without prototype
 {
   const out = util.inspect(Object.create(null,
-      { name: {value: 'Tim', enumerable: true},
+      {name: {value: 'Tim', enumerable: true},
         hidden: {value: 'secret'}}), true);
   if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
       out !== "{ name: 'Tim', [hidden]: 'secret' }") {
@@ -319,9 +319,9 @@ assert.ok(ex.indexOf('[message]') != -1);
 function BadCustomError(msg) {
   Error.call(this);
   Object.defineProperty(this, 'message',
-                        { value: msg, enumerable: false });
+                        {value: msg, enumerable: false});
   Object.defineProperty(this, 'name',
-                        { value: 'BadCustomError', enumerable: false });
+                        {value: 'BadCustomError', enumerable: false});
 }
 util.inherits(BadCustomError, Error);
 assert.equal(util.inspect(new BadCustomError('foo')), '[BadCustomError: foo]');
@@ -358,7 +358,7 @@ assert.doesNotThrow(function() {
 
 // GH-2225
 {
-  const x = { inspect: util.inspect };
+  const x = {inspect: util.inspect};
   assert.ok(util.inspect(x).indexOf('inspect') != -1);
 }
 
@@ -409,31 +409,31 @@ assert.doesNotThrow(function() {
 
 // new API, accepts an "options" object
 {
-  let subject = { foo: 'bar', hello: 31, a: { b: { c: { d: 0 } } } };
-  Object.defineProperty(subject, 'hidden', { enumerable: false, value: null });
+  let subject = {foo: 'bar', hello: 31, a: {b: {c: {d: 0}}}};
+  Object.defineProperty(subject, 'hidden', {enumerable: false, value: null});
 
-  assert(util.inspect(subject, { showHidden: false }).indexOf('hidden') === -1);
-  assert(util.inspect(subject, { showHidden: true }).indexOf('hidden') !== -1);
-  assert(util.inspect(subject, { colors: false }).indexOf('\u001b[32m') === -1);
-  assert(util.inspect(subject, { colors: true }).indexOf('\u001b[32m') !== -1);
-  assert(util.inspect(subject, { depth: 2 }).indexOf('c: [Object]') !== -1);
-  assert(util.inspect(subject, { depth: 0 }).indexOf('a: [Object]') !== -1);
-  assert(util.inspect(subject, { depth: null }).indexOf('{ d: 0 }') !== -1);
+  assert(util.inspect(subject, {showHidden: false}).indexOf('hidden') === -1);
+  assert(util.inspect(subject, {showHidden: true}).indexOf('hidden') !== -1);
+  assert(util.inspect(subject, {colors: false}).indexOf('\u001b[32m') === -1);
+  assert(util.inspect(subject, {colors: true}).indexOf('\u001b[32m') !== -1);
+  assert(util.inspect(subject, {depth: 2}).indexOf('c: [Object]') !== -1);
+  assert(util.inspect(subject, {depth: 0}).indexOf('a: [Object]') !== -1);
+  assert(util.inspect(subject, {depth: null}).indexOf('{ d: 0 }') !== -1);
 
   // "customInspect" option can enable/disable calling inspect() on objects
-  subject = { inspect: function() { return 123; } };
+  subject = {inspect: function() { return 123; }};
 
   assert(util.inspect(subject,
-                      { customInspect: true }).indexOf('123') !== -1);
+                      {customInspect: true}).indexOf('123') !== -1);
   assert(util.inspect(subject,
-                      { customInspect: true }).indexOf('inspect') === -1);
+                      {customInspect: true}).indexOf('inspect') === -1);
   assert(util.inspect(subject,
-                      { customInspect: false }).indexOf('123') === -1);
+                      {customInspect: false}).indexOf('123') === -1);
   assert(util.inspect(subject,
-                      { customInspect: false }).indexOf('inspect') !== -1);
+                      {customInspect: false}).indexOf('inspect') !== -1);
 
   // custom inspect() functions should be able to return other Objects
-  subject.inspect = function() { return { foo: 'bar' }; };
+  subject.inspect = function() { return {foo: 'bar'}; };
 
   assert.equal(util.inspect(subject), '{ foo: \'bar\' }');
 
@@ -441,7 +441,7 @@ assert.doesNotThrow(function() {
     assert.strictEqual(opts.customInspectOptions, true);
   };
 
-  util.inspect(subject, { customInspectOptions: true });
+  util.inspect(subject, {customInspectOptions: true});
 }
 
 // util.inspect with "colors" option should produce as many lines as without it
@@ -500,9 +500,9 @@ if (typeof Symbol !== 'undefined') {
   assert.equal(util.inspect(Symbol(123)), 'Symbol(123)');
   assert.equal(util.inspect(Symbol('hi')), 'Symbol(hi)');
   assert.equal(util.inspect([Symbol()]), '[ Symbol() ]');
-  assert.equal(util.inspect({ foo: Symbol() }), '{ foo: Symbol() }');
+  assert.equal(util.inspect({foo: Symbol()}), '{ foo: Symbol() }');
 
-  const options = { showHidden: true };
+  const options = {showHidden: true};
   let subject = {};
 
   subject[Symbol('symbol')] = 42;
@@ -630,7 +630,7 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
 
 // Corner cases.
 {
-  const x = { constructor: 42 };
+  const x = {constructor: 42};
   assert.equal(util.inspect(x), '{ constructor: 42 }');
 }
 

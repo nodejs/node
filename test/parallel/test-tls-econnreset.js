@@ -49,7 +49,7 @@ var ca = [ cert, cacert ];
 var clientError = null;
 var connectError = null;
 
-var server = tls.createServer({ ca: ca, cert: cert, key: key }, function(conn) {
+var server = tls.createServer({ca: ca, cert: cert, key: key}, function(conn) {
   throw 'unreachable';
 }).on('tlsClientError', function(err, conn) {
   assert(!clientError && conn);

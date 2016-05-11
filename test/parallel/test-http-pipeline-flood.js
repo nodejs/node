@@ -57,7 +57,7 @@ function parent() {
   server.listen(common.PORT, function() {
     const spawn = require('child_process').spawn;
     const args = [__filename, 'child'];
-    const child = spawn(process.execPath, args, { stdio: 'inherit' });
+    const child = spawn(process.execPath, args, {stdio: 'inherit'});
     child.on('close', common.mustCall(function() {
       server.close();
     }));
@@ -75,7 +75,7 @@ function parent() {
 function child() {
   const net = require('net');
 
-  const conn = net.connect({ port: common.PORT });
+  const conn = net.connect({port: common.PORT});
 
   var req = 'GET / HTTP/1.1\r\nHost: localhost:' +
             common.PORT + '\r\nAccept: */*\r\n\r\n';

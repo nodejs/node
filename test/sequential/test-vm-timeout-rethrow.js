@@ -15,7 +15,7 @@ if (process.argv[2] === 'child') {
     }
   });
 
-  vm.runInContext(code, ctx, { timeout: 1 });
+  vm.runInContext(code, ctx, {timeout: 1});
 } else {
   var proc = spawn(process.execPath, process.argv.slice(1).concat('child'));
   var err = '';

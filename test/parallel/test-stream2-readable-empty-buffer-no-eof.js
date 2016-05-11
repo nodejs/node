@@ -70,7 +70,7 @@ function test1() {
 }
 
 function test2() {
-  var r = new Readable({ encoding: 'base64' });
+  var r = new Readable({encoding: 'base64'});
   var reads = 5;
   r._read = function(n) {
     if (!reads--)

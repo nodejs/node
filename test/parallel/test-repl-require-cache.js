@@ -8,6 +8,6 @@ const repl = require('repl');
 require.cache.something = 1;
 assert.equal(require.cache.something, 1);
 
-repl.start({ useGlobal: false }).close();
+repl.start({useGlobal: false}).close();
 
 assert.equal(require.cache.something, 1);

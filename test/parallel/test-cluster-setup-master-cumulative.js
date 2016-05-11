@@ -20,15 +20,15 @@ assert.deepStrictEqual(cluster.settings, {
 });
 console.log('ok sets defaults');
 
-cluster.setupMaster({ exec: 'overridden' });
+cluster.setupMaster({exec: 'overridden'});
 assert.strictEqual(cluster.settings.exec, 'overridden');
 console.log('ok overrids defaults');
 
-cluster.setupMaster({ args: ['foo', 'bar'] });
+cluster.setupMaster({args: ['foo', 'bar']});
 assert.strictEqual(cluster.settings.exec, 'overridden');
 assert.deepStrictEqual(cluster.settings.args, ['foo', 'bar']);
 
-cluster.setupMaster({ execArgv: ['baz', 'bang'] });
+cluster.setupMaster({execArgv: ['baz', 'bang']});
 assert.strictEqual(cluster.settings.exec, 'overridden');
 assert.deepStrictEqual(cluster.settings.args, ['foo', 'bar']);
 assert.deepStrictEqual(cluster.settings.execArgv, ['baz', 'bang']);

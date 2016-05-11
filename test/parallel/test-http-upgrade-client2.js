@@ -21,8 +21,8 @@ server.listen(common.PORT, function() {
 
   function upgradeRequest(fn) {
     console.log('req');
-    var header = { 'Connection': 'Upgrade', 'Upgrade': 'Test' };
-    var request = http.request({ port: common.PORT, headers: header });
+    var header = {'Connection': 'Upgrade', 'Upgrade': 'Test'};
+    var request = http.request({port: common.PORT, headers: header});
     var wasUpgrade = false;
 
     function onUpgrade(res, socket, head) {

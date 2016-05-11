@@ -51,7 +51,7 @@ web.listen(common.PORT, function() {
     port: common.PORT,
     method: 'GET',
     path: '/',
-    headers: { 'content-length': buffer.length }
+    headers: {'content-length': buffer.length}
   }, function(res) {
     console.log('Got response');
     res.setEncoding('utf8');

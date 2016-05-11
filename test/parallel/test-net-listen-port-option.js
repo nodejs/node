@@ -4,8 +4,8 @@ var assert = require('assert');
 var net = require('net');
 
 function close() { this.close(); }
-net.Server().listen({ port: undefined }, close);
-net.Server().listen({ port: '' + common.PORT }, close);
+net.Server().listen({port: undefined}, close);
+net.Server().listen({port: '' + common.PORT}, close);
 
 [ 'nan',
   -1,
@@ -17,12 +17,12 @@ net.Server().listen({ port: '' + common.PORT }, close);
   '-Infinity'
 ].forEach(function(port) {
   assert.throws(function() {
-    net.Server().listen({ port: port }, assert.fail);
+    net.Server().listen({port: port}, assert.fail);
   }, /"port" argument must be >= 0 and < 65536/i);
 });
 
 [null, true, false].forEach(function(port) {
   assert.throws(function() {
-    net.Server().listen({ port: port }, assert.fail);
+    net.Server().listen({port: port}, assert.fail);
   }, /invalid listen argument/i);
 });

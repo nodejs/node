@@ -73,7 +73,7 @@ var filename4 = join(common.tmpDir, 'append4.txt');
 fs.writeFileSync(filename4, currentFileData);
 
 var m = 0o600;
-fs.appendFile(filename4, n, { mode: m }, function(e) {
+fs.appendFile(filename4, n, {mode: m}, function(e) {
   if (e) throw e;
 
   ncallbacks++;

@@ -31,7 +31,7 @@ server.listen(common.PORT, function() {
   }
 
   // Normal request
-  http.get({ port: common.PORT, path: '/' }, function(res) {
+  http.get({port: common.PORT, path: '/'}, function(res) {
     assert.equal(res.statusCode, 200);
     res.resume();
     res.once('end', next);

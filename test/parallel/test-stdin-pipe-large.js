@@ -10,7 +10,7 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-const child = spawn(process.execPath, [__filename, 'child'], { stdio: 'pipe' });
+const child = spawn(process.execPath, [__filename, 'child'], {stdio: 'pipe'});
 
 const expectedBytes = 1024 * 1024;
 let readBytes = 0;

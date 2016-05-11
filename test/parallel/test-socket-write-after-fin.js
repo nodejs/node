@@ -7,7 +7,7 @@ var gotServerEnd = false;
 var clientData = '';
 var gotClientEnd = false;
 
-var server = net.createServer({ allowHalfOpen: true }, function(sock) {
+var server = net.createServer({allowHalfOpen: true}, function(sock) {
   sock.setEncoding('utf8');
   sock.on('data', function(c) {
     serverData += c;

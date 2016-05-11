@@ -54,7 +54,7 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
 
 
 var sleeperStart = new Date();
-exec(SLEEP3_COMMAND, { timeout: 50 }, function(err, stdout, stderr) {
+exec(SLEEP3_COMMAND, {timeout: 50}, function(err, stdout, stderr) {
   var diff = (new Date()) - sleeperStart;
   console.log('\'sleep 3\' with timeout 50 took %d ms', diff);
   assert.ok(diff < 500);

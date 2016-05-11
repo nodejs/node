@@ -11,7 +11,7 @@ assert.deepStrictEqual(qs.escape([5, 10]), '5%2C10');
 
 // using toString for objects
 assert.strictEqual(
-  qs.escape({test: 5, toString: () => 'test', valueOf: () => 10 }),
+  qs.escape({test: 5, toString: () => 'test', valueOf: () => 10}),
   'test'
 );
 

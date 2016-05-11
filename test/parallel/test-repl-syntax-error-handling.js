@@ -40,10 +40,10 @@ function parent() {
 function child() {
   var vm = require('vm');
   try {
-    vm.runInThisContext('haf!@##&$!@$*!@', { displayErrors: false });
+    vm.runInThisContext('haf!@##&$!@$*!@', {displayErrors: false});
   } catch (er) {
     var caught = true;
   }
   assert(caught);
-  vm.runInThisContext('console.log(10)', { displayErrors: false });
+  vm.runInThisContext('console.log(10)', {displayErrors: false});
 }

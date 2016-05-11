@@ -24,7 +24,7 @@ var code = 'foo = 1;' +
            'bar = 2;' +
            'if (typeof baz !== \'undefined\') throw new Error(\'test fail\');';
 global.foo = 2;
-global.obj = { foo: 0, baz: 3 };
+global.obj = {foo: 0, baz: 3};
 /* eslint-disable no-unused-vars */
 var baz = vm.runInThisContext(code);
 /* eslint-enable no-unused-vars */

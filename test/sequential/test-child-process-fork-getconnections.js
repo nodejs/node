@@ -10,7 +10,7 @@ if (process.argv[2] === 'child') {
 
   process.on('message', function(m, socket) {
     function sendClosed(id) {
-      process.send({ id: id, status: 'closed'});
+      process.send({id: id, status: 'closed'});
     }
 
     if (m.cmd === 'new') {
@@ -46,7 +46,7 @@ if (process.argv[2] === 'child') {
   let sent = 0;
 
   server.on('connection', function(socket) {
-    child.send({ cmd: 'new' }, socket);
+    child.send({cmd: 'new'}, socket);
     sockets.push(socket);
 
     if (sockets.length === count) {
@@ -81,7 +81,7 @@ if (process.argv[2] === 'child') {
       });
     });
     sent++;
-    child.send({ id: i, cmd: 'close' });
+    child.send({id: i, cmd: 'close'});
   }
 
   let closeEmitted = false;

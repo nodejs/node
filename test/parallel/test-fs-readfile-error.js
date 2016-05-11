@@ -16,7 +16,7 @@ var callbacks = 0;
 function test(env, cb) {
   var filename = path.join(common.fixturesDir, 'test-fs-readfile-error.js');
   var execPath = '"' + process.execPath + '" "' + filename + '"';
-  var options = { env: Object.assign(process.env, env) };
+  var options = {env: Object.assign(process.env, env)};
   exec(execPath, options, function(err, stdout, stderr) {
     assert(err);
     assert.equal(stdout, '');
@@ -25,13 +25,13 @@ function test(env, cb) {
   });
 }
 
-test({ NODE_DEBUG: '' }, function(data) {
+test({NODE_DEBUG: ''}, function(data) {
   assert(/EISDIR/.test(data));
   assert(!/test-fs-readfile-error/.test(data));
   callbacks++;
 });
 
-test({ NODE_DEBUG: 'fs' }, function(data) {
+test({NODE_DEBUG: 'fs'}, function(data) {
   assert(/EISDIR/.test(data));
   assert(/test-fs-readfile-error/.test(data));
   callbacks++;

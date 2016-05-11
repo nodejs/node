@@ -16,7 +16,7 @@ const args = [
   fixture
 ];
 
-const proc = spawn(process.execPath, args, { stdio: 'pipe' });
+const proc = spawn(process.execPath, args, {stdio: 'pipe'});
 proc.stdout.setEncoding('utf8');
 proc.stderr.setEncoding('utf8');
 

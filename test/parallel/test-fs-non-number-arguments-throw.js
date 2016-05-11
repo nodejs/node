@@ -11,18 +11,18 @@ fs.writeFileSync(tempFile, 'abc\ndef');
 
 // a sanity check when using numbers instead of strings
 const sanity = 'def';
-const saneEmitter = fs.createReadStream(tempFile, { start: 4, end: 6 });
+const saneEmitter = fs.createReadStream(tempFile, {start: 4, end: 6});
 
 assert.throws(function() {
-  fs.createReadStream(tempFile, { start: '4', end: 6 });
+  fs.createReadStream(tempFile, {start: '4', end: 6});
 }, "start as string didn't throw an error for createReadStream");
 
 assert.throws(function() {
-  fs.createReadStream(tempFile, { start: 4, end: '6' });
+  fs.createReadStream(tempFile, {start: 4, end: '6'});
 }, "end as string didn't throw an error");
 
 assert.throws(function() {
-  fs.createWriteStream(tempFile, { start: '4' });
+  fs.createWriteStream(tempFile, {start: '4'});
 }, "start as string didn't throw an error for createWriteStream");
 
 saneEmitter.on('data', function(data) {

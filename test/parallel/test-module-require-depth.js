@@ -8,6 +8,6 @@ const internalModule = require('internal/module');
 assert.strictEqual(internalModule.requireDepth, 0);
 const one = require(common.fixturesDir + '/module-require-depth/one');
 const two = require(common.fixturesDir + '/module-require-depth/two');
-assert.deepStrictEqual(one, { requireDepth: 1 });
-assert.deepStrictEqual(two, { requireDepth: 2 });
+assert.deepStrictEqual(one, {requireDepth: 1});
+assert.deepStrictEqual(two, {requireDepth: 2});
 assert.strictEqual(internalModule.requireDepth, 0);

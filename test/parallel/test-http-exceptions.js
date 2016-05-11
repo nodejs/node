@@ -11,7 +11,7 @@ var server = http.createServer(function(req, res) {
 
 server.listen(common.PORT, function() {
   for (var i = 0; i < 4; i += 1) {
-    http.get({ port: common.PORT, path: '/busy/' + i });
+    http.get({port: common.PORT, path: '/busy/' + i});
   }
 });
 

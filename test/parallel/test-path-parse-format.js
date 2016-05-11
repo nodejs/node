@@ -99,13 +99,13 @@ checkFormat(path.posix, unixSpecialCaseFormatTests);
 // Test removal of trailing path separators
 const trailingTests = [
   [ path.win32.parse,
-    [['.\\', { root: '', dir: '', base: '.', ext: '', name: '.' }],
-     ['\\\\', { root: '\\', dir: '\\', base: '', ext: '', name: '' }],
-     ['\\\\', { root: '\\', dir: '\\', base: '', ext: '', name: '' }],
+    [['.\\', {root: '', dir: '', base: '.', ext: '', name: '.'}],
+     ['\\\\', {root: '\\', dir: '\\', base: '', ext: '', name: ''}],
+     ['\\\\', {root: '\\', dir: '\\', base: '', ext: '', name: ''}],
      ['c:\\foo\\\\\\',
-      { root: 'c:\\', dir: 'c:\\', base: 'foo', ext: '', name: 'foo' }],
+      {root: 'c:\\', dir: 'c:\\', base: 'foo', ext: '', name: 'foo'}],
      ['D:\\foo\\\\\\bar.baz',
-      { root: 'D:\\',
+      {root: 'D:\\',
         dir: 'D:\\foo\\\\',
         base: 'bar.baz',
         ext: '.baz',
@@ -115,12 +115,12 @@ const trailingTests = [
     ]
   ],
   [ path.posix.parse,
-    [['./', { root: '', dir: '', base: '.', ext: '', name: '.' }],
-     ['//', { root: '/', dir: '/', base: '', ext: '', name: '' }],
-     ['///', { root: '/', dir: '/', base: '', ext: '', name: '' }],
-     ['/foo///', { root: '/', dir: '/', base: 'foo', ext: '', name: 'foo' }],
+    [['./', {root: '', dir: '', base: '.', ext: '', name: '.'}],
+     ['//', {root: '/', dir: '/', base: '', ext: '', name: ''}],
+     ['///', {root: '/', dir: '/', base: '', ext: '', name: ''}],
+     ['/foo///', {root: '/', dir: '/', base: 'foo', ext: '', name: 'foo'}],
      ['/foo///bar.baz',
-      { root: '/', dir: '/foo//', base: 'bar.baz', ext: '.baz', name: 'bar' }
+      {root: '/', dir: '/foo//', base: 'bar.baz', ext: '.baz', name: 'bar'}
      ]
     ]
   ]

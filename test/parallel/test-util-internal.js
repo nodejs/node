@@ -55,6 +55,6 @@ const args = [
   '-e',
   "require('internal/util').error('foo %d', 5)"
 ];
-const result = spawnSync(process.argv[0], args, { encoding: 'utf8' });
+const result = spawnSync(process.argv[0], args, {encoding: 'utf8'});
 assert.strictEqual(result.stderr.indexOf('%'), -1);
 assert(/foo 5/.test(result.stderr));

@@ -11,27 +11,27 @@ const inspect = require('util').inspect;
 const tests = [
   {
     env: {},
-    expected: { terminal: true, useColors: true }
+    expected: {terminal: true, useColors: true}
   },
   {
-    env: { NODE_DISABLE_COLORS: '1' },
-    expected: { terminal: true, useColors: false }
+    env: {NODE_DISABLE_COLORS: '1'},
+    expected: {terminal: true, useColors: false}
   },
   {
-    env: { NODE_NO_READLINE: '1' },
-    expected: { terminal: false, useColors: false }
+    env: {NODE_NO_READLINE: '1'},
+    expected: {terminal: false, useColors: false}
   },
   {
-    env: { TERM: 'dumb' },
-    expected: { terminal: true, useColors: false }
+    env: {TERM: 'dumb'},
+    expected: {terminal: true, useColors: false}
   },
   {
-    env: { NODE_NO_READLINE: '1', NODE_DISABLE_COLORS: '1' },
-    expected: { terminal: false, useColors: false }
+    env: {NODE_NO_READLINE: '1', NODE_DISABLE_COLORS: '1'},
+    expected: {terminal: false, useColors: false}
   },
   {
-    env: { NODE_NO_READLINE: '0' },
-    expected: { terminal: true, useColors: true }
+    env: {NODE_NO_READLINE: '0'},
+    expected: {terminal: true, useColors: true}
   }
 ];
 
@@ -40,8 +40,8 @@ function run(test) {
   const expected = test.expected;
   const opts = {
     terminal: true,
-    input: new stream.Readable({ read() {} }),
-    output: new stream.Writable({ write() {} })
+    input: new stream.Readable({read() {}}),
+    output: new stream.Writable({write() {}})
   };
 
   REPL.createInternalRepl(env, opts, function(err, repl) {

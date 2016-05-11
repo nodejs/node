@@ -36,7 +36,7 @@ function init(id, provider) {
 
 function noop() { }
 
-async_wrap.setupHooks({ init });
+async_wrap.setupHooks({init});
 
 async_wrap.enable();
 
@@ -96,7 +96,7 @@ function checkTLS() {
   };
   const server = tls.createServer(options, noop)
     .listen(common.PORT, function() {
-      tls.connect(common.PORT, { rejectUnauthorized: false }, function() {
+      tls.connect(common.PORT, {rejectUnauthorized: false}, function() {
         this.destroy();
         server.close();
       });

@@ -26,8 +26,8 @@ assert.throws(function() {
   var options = {key: keyPem, cert: certPem, ca: caPem};
   var credentials = crypto.createCredentials(options);
   var context = credentials.context;
-  var notcontext = { setOptions: context.setOptions, setKey: context.setKey };
-  crypto.createCredentials({ secureOptions: 1 }, notcontext);
+  var notcontext = {setOptions: context.setOptions, setKey: context.setKey};
+  crypto.createCredentials({secureOptions: 1}, notcontext);
 }, TypeError);
 
 // PFX tests

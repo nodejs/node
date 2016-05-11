@@ -10,7 +10,7 @@ var server = http.createServer(function(req, res) {
   console.log('Connect from: ' + req.connection.remoteAddress);
 
   req.on('end', function() {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.writeHead(200, {'Content-Type': 'text/plain'});
     res.end('You are from: ' + req.connection.remoteAddress);
   });
   req.resume();

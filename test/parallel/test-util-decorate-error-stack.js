@@ -48,7 +48,7 @@ const args = [
   '-e',
   `require('${badSyntaxPath}')`
 ];
-const result = spawnSync(process.argv[0], args, { encoding: 'utf8' });
+const result = spawnSync(process.argv[0], args, {encoding: 'utf8'});
 checkStack(result.stderr);
 
 // Verify that the stack is unchanged when there is no arrow message

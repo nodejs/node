@@ -9,10 +9,10 @@ const net = require('net');
 
 var server;
 var cert_dir = path.resolve(__dirname, '../fixtures');
-var options = { key: fs.readFileSync(cert_dir + '/test_key.pem'),
+var options = {key: fs.readFileSync(cert_dir + '/test_key.pem'),
                 cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
                 ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
-                ciphers: 'AES256-GCM-SHA384' };
+                ciphers: 'AES256-GCM-SHA384'};
 var content = 'hello world';
 var recv_bufs = [];
 var send_data = '';

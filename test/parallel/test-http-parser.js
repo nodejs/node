@@ -576,6 +576,6 @@ assert.throws(function() {
       CRLF);
 
   var parser = newParser(REQUEST);
-  var notparser = { execute: parser.execute };
+  var notparser = {execute: parser.execute};
   notparser.execute(request, 0, request.length);
 }, TypeError);

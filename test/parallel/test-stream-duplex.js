@@ -4,7 +4,7 @@ var assert = require('assert');
 
 var Duplex = require('stream').Transform;
 
-var stream = new Duplex({ objectMode: true });
+var stream = new Duplex({objectMode: true});
 
 assert(stream._readableState.objectMode);
 assert(stream._writableState.objectMode);
@@ -23,8 +23,8 @@ stream.on('data', function(obj) {
   read = obj;
 });
 
-stream.push({ val: 1 });
-stream.end({ val: 2 });
+stream.push({val: 1});
+stream.end({val: 2});
 
 process.on('exit', function() {
   assert(read.val === 1);

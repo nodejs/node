@@ -18,7 +18,7 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(common.PORT);
 
-var agent = http.Agent({ keepAlive: true });
+var agent = http.Agent({keepAlive: true});
 
 
 var clientSocket = null;

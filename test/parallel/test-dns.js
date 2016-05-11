@@ -100,7 +100,7 @@ assert.doesNotThrow(function() {
  * flags are either === 1 or even.
  */
 assert.throws(function() {
-  dns.lookup('www.google.com', { hints: (dns.V4MAPPED | dns.ADDRCONFIG) + 1 },
+  dns.lookup('www.google.com', {hints: (dns.V4MAPPED | dns.ADDRCONFIG) + 1},
     noop);
 });
 

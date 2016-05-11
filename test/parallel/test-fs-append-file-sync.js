@@ -50,10 +50,10 @@ assert.equal(buf.length + currentFileData.length, fileData3.length);
 
 // test that appendFile accepts numbers.
 var filename4 = join(common.tmpDir, 'append-sync4.txt');
-fs.writeFileSync(filename4, currentFileData, { mode: m });
+fs.writeFileSync(filename4, currentFileData, {mode: m});
 
 var m = 0o600;
-fs.appendFileSync(filename4, num, { mode: m });
+fs.appendFileSync(filename4, num, {mode: m});
 
 // windows permissions aren't unix
 if (!common.isWindows) {

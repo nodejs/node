@@ -30,27 +30,27 @@ var qsTestCases = [
   ['foo=1&bar=2', 'foo=1&bar=2', {'foo': '1', 'bar': '2'}],
   ['my+weird+field=q1%212%22%27w%245%267%2Fz8%29%3F',
    'my%20weird%20field=q1!2%22\'w%245%267%2Fz8)%3F',
-   {'my weird field': 'q1!2"\'w$5&7/z8)?' }],
+   {'my weird field': 'q1!2"\'w$5&7/z8)?'}],
   ['foo%3Dbaz=bar', 'foo%3Dbaz=bar', {'foo=baz': 'bar'}],
   ['foo=baz=bar', 'foo=baz%3Dbar', {'foo': 'baz=bar'}],
   ['str=foo&arr=1&arr=2&arr=3&somenull=&undef=',
    'str=foo&arr=1&arr=2&arr=3&somenull=&undef=',
-   { 'str': 'foo',
+   {'str': 'foo',
      'arr': ['1', '2', '3'],
      'somenull': '',
      'undef': ''}],
   [' foo = bar ', '%20foo%20=%20bar%20', {' foo ': ' bar '}],
   ['foo=%zx', 'foo=%25zx', {'foo': '%zx'}],
-  ['foo=%EF%BF%BD', 'foo=%EF%BF%BD', {'foo': '\ufffd' }],
+  ['foo=%EF%BF%BD', 'foo=%EF%BF%BD', {'foo': '\ufffd'}],
   // See: https://github.com/joyent/node/issues/1707
   ['hasOwnProperty=x&toString=foo&valueOf=bar&__defineGetter__=baz',
     'hasOwnProperty=x&toString=foo&valueOf=bar&__defineGetter__=baz',
-    { hasOwnProperty: 'x',
+    {hasOwnProperty: 'x',
       toString: 'foo',
       valueOf: 'bar',
-      __defineGetter__: 'baz' }],
+      __defineGetter__: 'baz'}],
   // See: https://github.com/joyent/node/issues/3058
-  ['foo&bar=baz', 'foo=&bar=baz', { foo: '', bar: 'baz' }],
+  ['foo&bar=baz', 'foo=&bar=baz', {foo: '', bar: 'baz'}],
   [null, '', {}],
   [undefined, '', {}]
 ];
@@ -137,14 +137,14 @@ qsNoMungeTestCases.forEach(function(testCase) {
 (function() {
   const f = qs.parse('a=b&q=x%3Dy%26y%3Dz');
   check(f, createWithNoPrototype([
-    { key: 'a', value: 'b'},
+    {key: 'a', value: 'b'},
     {key: 'q', value: 'x=y&y=z'}
   ]));
 
   f.q = qs.parse(f.q);
   const expectedInternal = createWithNoPrototype([
-    { key: 'x', value: 'y'},
-    {key: 'y', value: 'z' }
+    {key: 'x', value: 'y'},
+    {key: 'y', value: 'z'}
   ]);
   check(f.q, expectedInternal);
 })();
@@ -158,8 +158,8 @@ qsNoMungeTestCases.forEach(function(testCase) {
   ]));
   f.q = qs.parse(f.q, ';', ':');
   const expectedInternal = createWithNoPrototype([
-    { key: 'x', value: 'y'},
-    {key: 'y', value: 'z' }
+    {key: 'x', value: 'y'},
+    {key: 'y', value: 'z'}
   ]);
   check(f.q, expectedInternal);
 })();
@@ -181,16 +181,16 @@ qsWeirdObjects.forEach(function(testCase) {
 
 // invalid surrogate pair throws URIError
 assert.throws(function() {
-  qs.stringify({ foo: '\udc00' });
+  qs.stringify({foo: '\udc00'});
 }, URIError);
 
 // coerce numbers to string
-assert.strictEqual('foo=0', qs.stringify({ foo: 0 }));
-assert.strictEqual('foo=0', qs.stringify({ foo: -0 }));
-assert.strictEqual('foo=3', qs.stringify({ foo: 3 }));
-assert.strictEqual('foo=-72.42', qs.stringify({ foo: -72.42 }));
-assert.strictEqual('foo=', qs.stringify({ foo: NaN }));
-assert.strictEqual('foo=', qs.stringify({ foo: Infinity }));
+assert.strictEqual('foo=0', qs.stringify({foo: 0}));
+assert.strictEqual('foo=0', qs.stringify({foo: -0}));
+assert.strictEqual('foo=3', qs.stringify({foo: 3}));
+assert.strictEqual('foo=-72.42', qs.stringify({foo: -72.42}));
+assert.strictEqual('foo=', qs.stringify({foo: NaN}));
+assert.strictEqual('foo=', qs.stringify({foo: Infinity}));
 
 // nested
 {
@@ -225,7 +225,7 @@ check(qs.parse(), {});
 
 // Test limiting
 assert.equal(
-    Object.keys(qs.parse('a=1&b=1&c=1', null, null, { maxKeys: 1 })).length,
+    Object.keys(qs.parse('a=1&b=1&c=1', null, null, {maxKeys: 1})).length,
     1);
 
 // Test removing limit
@@ -237,7 +237,7 @@ function testUnlimitedKeys() {
   const url = qs.stringify(query);
 
   assert.equal(
-      Object.keys(qs.parse(url, null, null, { maxKeys: 0 })).length,
+      Object.keys(qs.parse(url, null, null, {maxKeys: 0})).length,
       2000);
 }
 testUnlimitedKeys();
@@ -272,17 +272,17 @@ assert.equal(0xe6, b[19]);
 function demoDecode(str) {
   return str + str;
 }
-check(qs.parse('a=a&b=b&c=c', null, null, { decodeURIComponent: demoDecode }),
-      { aa: 'aa', bb: 'bb', cc: 'cc' });
+check(qs.parse('a=a&b=b&c=c', null, null, {decodeURIComponent: demoDecode}),
+      {aa: 'aa', bb: 'bb', cc: 'cc'});
 
 
 // Test custom encode
 function demoEncode(str) {
   return str[0];
 }
-var obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
+var obj = {aa: 'aa', bb: 'bb', cc: 'cc'};
 assert.equal(
-  qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
+  qs.stringify(obj, null, null, {encodeURIComponent: demoEncode}),
   'a=a&b=b&c=c');
 
 // test overriding .unescape
@@ -294,4 +294,4 @@ check(qs.parse('foo=bor'), createWithNoPrototype([{key: 'f__', value: 'b_r'}]));
 qs.unescape = prevUnescape;
 
 // test separator and "equals" parsing order
-check(qs.parse('foo&bar', '&', '&'), { foo: '', bar: '' });
+check(qs.parse('foo&bar', '&', '&'), {foo: '', bar: ''});

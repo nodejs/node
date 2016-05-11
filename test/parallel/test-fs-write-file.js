@@ -51,7 +51,7 @@ fs.writeFile(filename2, buf, function(e) {
 var filename3 = join(common.tmpDir, 'test3.txt');
 
 var m = 0o600;
-fs.writeFile(filename3, n, { mode: m }, function(e) {
+fs.writeFile(filename3, n, {mode: m}, function(e) {
   if (e) throw e;
 
   // windows permissions aren't unix

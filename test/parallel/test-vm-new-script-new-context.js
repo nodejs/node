@@ -38,7 +38,7 @@ global.code = 'foo = 1;' +
               'bar = 2;' +
               'if (baz !== 3) throw new Error(\'test fail\');';
 global.foo = 2;
-global.obj = { foo: 0, baz: 3 };
+global.obj = {foo: 0, baz: 3};
 script = new Script(global.code);
 /* eslint-disable no-unused-vars */
 var baz = script.runInNewContext(global.obj);
@@ -50,13 +50,13 @@ assert.equal(2, global.foo);
 console.error('call a function by reference');
 script = new Script('f()');
 function changeFoo() { global.foo = 100; }
-script.runInNewContext({ f: changeFoo });
+script.runInNewContext({f: changeFoo});
 assert.equal(global.foo, 100);
 
 console.error('modify an object by reference');
 script = new Script('f.a = 2');
-var f = { a: 1 };
-script.runInNewContext({ f: f });
+var f = {a: 1};
+script.runInNewContext({f: f});
 assert.equal(f.a, 2);
 
 assert.throws(function() {

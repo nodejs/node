@@ -49,7 +49,7 @@ function generator(seeds) {
 
 server.listen(common.PORT, function() {
   var seeds = [ 3, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4 ];
-  var client = net.connect({ port: common.PORT });
+  var client = net.connect({port: common.PORT});
   var done = 0;
   server.on('requestDone', function() {
     if (++done == seeds.length) {

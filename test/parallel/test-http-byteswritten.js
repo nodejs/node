@@ -19,7 +19,7 @@ var httpServer = http.createServer(function(req, res) {
     assert(typeof req.connection.bytesWritten === 'number');
     assert(req.connection.bytesWritten > 0);
   });
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200, {'Content-Type': 'text/plain'});
 
   // Write 1.5mb to cause some requests to buffer
   // Also, mix up the encodings a bit.
@@ -37,5 +37,5 @@ var httpServer = http.createServer(function(req, res) {
 });
 
 httpServer.listen(common.PORT, function() {
-  http.get({ port: common.PORT });
+  http.get({port: common.PORT});
 });

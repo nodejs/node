@@ -15,7 +15,7 @@ var dataCount = 0, endCount = 0;
 server.listen(common.PORT, function() {
   var opts = {
     port: common.PORT,
-    headers: { connection: 'close' }
+    headers: {connection: 'close'}
   };
 
   http.get(opts, function(res) {

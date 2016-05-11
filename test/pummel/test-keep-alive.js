@@ -38,7 +38,7 @@ function runAb(opts, callback) {
     args.push('Connection: close');
   }
 
-  args.push(url.format({ hostname: '127.0.0.1',
+  args.push(url.format({hostname: '127.0.0.1',
                          port: common.PORT, protocol: 'http'}));
 
   //console.log(comm, args.join(' '));
@@ -76,11 +76,11 @@ function runAb(opts, callback) {
 }
 
 server.listen(common.PORT, function() {
-  runAb({ keepalive: true }, function(reqSec) {
+  runAb({keepalive: true}, function(reqSec) {
     keepAliveReqSec = reqSec;
     console.log('keep-alive:', keepAliveReqSec, 'req/sec');
 
-    runAb({ keepalive: false }, function(reqSec) {
+    runAb({keepalive: false}, function(reqSec) {
       normalReqSec = reqSec;
       console.log('normal:' + normalReqSec + ' req/sec');
       server.close();

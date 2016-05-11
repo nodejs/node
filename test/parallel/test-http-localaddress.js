@@ -13,18 +13,18 @@ var server = http.createServer(function(req, res) {
   assert.equal('127.0.0.2', req.connection.remoteAddress);
 
   req.on('end', function() {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.writeHead(200, {'Content-Type': 'text/plain'});
     res.end('You are from: ' + req.connection.remoteAddress);
   });
   req.resume();
 });
 
 server.listen(common.PORT, '127.0.0.1', function() {
-  var options = { host: 'localhost',
+  var options = {host: 'localhost',
     port: common.PORT,
     path: '/',
     method: 'GET',
-    localAddress: '127.0.0.2' };
+    localAddress: '127.0.0.2'};
 
   var req = http.request(options, function(res) {
     res.on('end', function() {

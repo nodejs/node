@@ -3,7 +3,7 @@ require('../common');
 var assert = require('assert');
 
 var vm = require('vm');
-var o = vm.createContext({ console: console });
+var o = vm.createContext({console: console});
 
 // This triggers the setter callback in node_contextify.cc
 var code = 'var a = function() {};\n';

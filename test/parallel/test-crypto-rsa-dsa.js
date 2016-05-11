@@ -152,7 +152,7 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 rsaSign = crypto.createSign('RSA-SHA1');
 rsaSign.update(rsaPubPem);
 assert.doesNotThrow(function() {
-  var signOptions = { key: rsaKeyPemEncrypted, passphrase: 'password' };
+  var signOptions = {key: rsaKeyPemEncrypted, passphrase: 'password'};
   rsaSignature = rsaSign.sign(signOptions, 'hex');
 });
 assert.equal(rsaSignature,
@@ -169,7 +169,7 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 rsaSign = crypto.createSign('RSA-SHA1');
 rsaSign.update(rsaPubPem);
 assert.throws(function() {
-  var signOptions = { key: rsaKeyPemEncrypted, passphrase: 'wrong' };
+  var signOptions = {key: rsaKeyPemEncrypted, passphrase: 'wrong'};
   rsaSign.sign(signOptions, 'hex');
 });
 
@@ -233,7 +233,7 @@ const input = 'I AM THE WALRUS';
   const sign = crypto.createSign('DSS1');
   sign.update(input);
   assert.throws(function() {
-    sign.sign({ key: dsaKeyPemEncrypted, passphrase: 'wrong' }, 'hex');
+    sign.sign({key: dsaKeyPemEncrypted, passphrase: 'wrong'}, 'hex');
   });
 }
 
@@ -245,7 +245,7 @@ const input = 'I AM THE WALRUS';
 
   let signature;
   assert.doesNotThrow(function() {
-    const signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
+    const signOptions = {key: dsaKeyPemEncrypted, passphrase: 'password'};
     signature = sign.sign(signOptions, 'hex');
   });
 

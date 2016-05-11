@@ -12,9 +12,9 @@ var fs = require('fs');
 
 var PORT = common.PORT;
 var dir = common.fixturesDir;
-var options = { key: fs.readFileSync(dir + '/test_key.pem'),
+var options = {key: fs.readFileSync(dir + '/test_key.pem'),
                 cert: fs.readFileSync(dir + '/test_cert.pem'),
-                ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
+                ca: [ fs.readFileSync(dir + '/test_ca.pem') ]};
 
 var writes = [
   'some server data',
@@ -28,7 +28,7 @@ var server = tls.createServer(options, function(c) {
     c.write(str);
   });
 }).listen(PORT, function() {
-  var c = tls.connect(PORT, { rejectUnauthorized: false }, function() {
+  var c = tls.connect(PORT, {rejectUnauthorized: false}, function() {
     c.write('some client data');
     c.on('readable', function() {
       var data = c.read();

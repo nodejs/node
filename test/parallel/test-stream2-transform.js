@@ -85,7 +85,7 @@ test('passthrough', function(t) {
 });
 
 test('object passthrough', function(t) {
-  var pt = new PassThrough({ objectMode: true });
+  var pt = new PassThrough({objectMode: true});
 
   pt.write(1);
   pt.write(true);
@@ -93,7 +93,7 @@ test('object passthrough', function(t) {
   pt.write(0);
   pt.write('foo');
   pt.write('');
-  pt.write({ a: 'b'});
+  pt.write({a: 'b'});
   pt.end();
 
   t.equal(pt.read(), 1);
@@ -102,7 +102,7 @@ test('object passthrough', function(t) {
   t.equal(pt.read(), 0);
   t.equal(pt.read(), 'foo');
   t.equal(pt.read(), '');
-  t.same(pt.read(), { a: 'b'});
+  t.same(pt.read(), {a: 'b'});
   t.end();
 });
 
@@ -128,7 +128,7 @@ test('simple transform', function(t) {
 });
 
 test('simple object transform', function(t) {
-  var pt = new Transform({ objectMode: true });
+  var pt = new Transform({objectMode: true});
   pt._transform = function(c, e, cb) {
     pt.push(JSON.stringify(c));
     cb();
@@ -140,7 +140,7 @@ test('simple object transform', function(t) {
   pt.write(0);
   pt.write('foo');
   pt.write('');
-  pt.write({ a: 'b'});
+  pt.write({a: 'b'});
   pt.end();
 
   t.equal(pt.read(), '1');
@@ -415,7 +415,7 @@ test('passthrough facaded', function(t) {
 
 test('object transform (json parse)', function(t) {
   console.error('json parse stream');
-  var jp = new Transform({ objectMode: true });
+  var jp = new Transform({objectMode: true});
   jp._transform = function(data, encoding, cb) {
     try {
       jp.push(JSON.parse(data));
@@ -428,10 +428,10 @@ test('object transform (json parse)', function(t) {
   // anything except null/undefined is fine.
   // those are "magic" in the stream API, because they signal EOF.
   var objects = [
-    { foo: 'bar' },
+    {foo: 'bar'},
     100,
     'string',
-    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
+    {nested: {things: [ {foo: 'bar'}, 100, 'string' ]}}
   ];
 
   var ended = false;
@@ -457,7 +457,7 @@ test('object transform (json parse)', function(t) {
 
 test('object transform (json stringify)', function(t) {
   console.error('json parse stream');
-  var js = new Transform({ objectMode: true });
+  var js = new Transform({objectMode: true});
   js._transform = function(data, encoding, cb) {
     try {
       js.push(JSON.stringify(data));
@@ -470,10 +470,10 @@ test('object transform (json stringify)', function(t) {
   // anything except null/undefined is fine.
   // those are "magic" in the stream API, because they signal EOF.
   var objects = [
-    { foo: 'bar' },
+    {foo: 'bar'},
     100,
     'string',
-    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
+    {nested: {things: [ {foo: 'bar'}, 100, 'string' ]}}
   ];
 
   var ended = false;

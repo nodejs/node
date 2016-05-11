@@ -18,7 +18,7 @@ if (common.opensslCli === false) {
 
 var cert = fs.readFileSync(common.fixturesDir + '/test_cert.pem');
 var key = fs.readFileSync(common.fixturesDir + '/test_key.pem');
-var server = tls.createServer({ cert: cert, key: key }, common.fail);
+var server = tls.createServer({cert: cert, key: key}, common.fail);
 var errors = [];
 var stderr = '';
 
@@ -36,7 +36,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
   if (common.isWindows)
     args.push('-no_rand_screen');
 
-  var client = spawn(common.opensslCli, args, { stdio: 'pipe' });
+  var client = spawn(common.opensslCli, args, {stdio: 'pipe'});
   client.stdout.pipe(process.stdout);
   client.stderr.pipe(process.stderr);
   client.stderr.setEncoding('utf8');

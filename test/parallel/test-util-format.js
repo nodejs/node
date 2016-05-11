@@ -60,9 +60,9 @@ assert.equal(util.format(err), err.stack);
 function CustomError(msg) {
   Error.call(this);
   Object.defineProperty(this, 'message',
-                        { value: msg, enumerable: false });
+                        {value: msg, enumerable: false});
   Object.defineProperty(this, 'name',
-                        { value: 'CustomError', enumerable: false });
+                        {value: 'CustomError', enumerable: false});
   Error.captureStackTrace(this, CustomError);
 }
 util.inherits(CustomError, Error);
@@ -72,9 +72,9 @@ assert.equal(util.format(customError), customError.stack);
 function BadCustomError(msg) {
   Error.call(this);
   Object.defineProperty(this, 'message',
-                        { value: msg, enumerable: false });
+                        {value: msg, enumerable: false});
   Object.defineProperty(this, 'name',
-                        { value: 'BadCustomError', enumerable: false });
+                        {value: 'BadCustomError', enumerable: false});
 }
 util.inherits(BadCustomError, Error);
 assert.equal(util.format(new BadCustomError('foo')), '[BadCustomError: foo]');

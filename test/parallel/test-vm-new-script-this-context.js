@@ -27,7 +27,7 @@ global.code = 'foo = 1;' +
               'bar = 2;' +
               'if (typeof baz !== "undefined") throw new Error("test fail");';
 global.foo = 2;
-global.obj = { foo: 0, baz: 3 };
+global.obj = {foo: 0, baz: 3};
 script = new Script(global.code);
 script.runInThisContext(script);
 assert.equal(0, global.obj.foo);

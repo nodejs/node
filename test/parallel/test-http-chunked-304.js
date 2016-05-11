@@ -18,7 +18,7 @@ test(204, function() {
 
 function test(statusCode, next) {
   var server = http.createServer(function(req, res) {
-    res.writeHead(statusCode, { 'Transfer-Encoding': 'chunked' });
+    res.writeHead(statusCode, {'Transfer-Encoding': 'chunked'});
     res.end();
     server.close();
   });

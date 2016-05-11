@@ -20,7 +20,7 @@ n.on('message', function(m) {
 assert.throws(function() { n.send(undefined); }, TypeError);
 assert.throws(function() { n.send(); }, TypeError);
 
-n.send({ hello: 'world' });
+n.send({hello: 'world'});
 
 var childExitCode = -1;
 n.on('exit', function(c) {

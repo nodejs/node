@@ -17,7 +17,7 @@ var gotResponse = false;
 var resBodySize = 0;
 
 server.listen(common.PORT, function() {
-  http.get({ port: common.PORT }, function(res) {
+  http.get({port: common.PORT}, function(res) {
     gotResponse = true;
 
     res.on('data', function(d) {

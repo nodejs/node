@@ -9,7 +9,7 @@ var testServer = new http.Server(function(req, res) {
 });
 
 testServer.listen(common.PORT, function() {
-  http.get({ port: common.PORT }, function(res) {
+  http.get({port: common.PORT}, function(res) {
     assert.equal(res.readable, true, 'res.readable initially true');
     res.on('end', function() {
       assert.equal(res.readable, false, 'res.readable set to false after end');

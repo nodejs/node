@@ -78,8 +78,8 @@ function run_test_2() {
 
   buffer = Buffer.from('123456');
 
-  options = { start: 10,
-              flags: 'r+' };
+  options = {start: 10,
+              flags: 'r+'};
   file = fs.createWriteStream(filepath, options);
   console.log('    (debug: start         ', file.start);
   console.log('    (debug: pos           ', file.pos);
@@ -120,8 +120,8 @@ function run_test_3() {
 
   const data = '\u2026\u2026';    // 3 bytes * 2 = 6 bytes in UTF-8
 
-  options = { start: 10,
-              flags: 'r+' };
+  options = {start: 10,
+              flags: 'r+'};
   file = fs.createWriteStream(filepath, options);
   console.log('    (debug: start         ', file.start);
   console.log('    (debug: pos           ', file.pos);
@@ -161,7 +161,7 @@ const run_test_4 = common.mustCall(function() {
   //  Error: start must be >= zero
   assert.throws(
       function() {
-        fs.createWriteStream(filepath, { start: -5, flags: 'r+' });
+        fs.createWriteStream(filepath, {start: -5, flags: 'r+'});
       },
       /"start" must be/
   );

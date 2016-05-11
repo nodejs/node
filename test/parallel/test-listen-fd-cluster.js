@@ -122,7 +122,7 @@ function worker() {
     console.error('request on worker');
     console.error('%s %s', req.method, req.url, req.headers);
     res.end('hello from worker\n');
-  }).listen({ fd: 3 }, function() {
+  }).listen({fd: 3}, function() {
     console.error('worker listening on fd=3');
     process.send('worker ready');
   });

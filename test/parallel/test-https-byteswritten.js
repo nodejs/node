@@ -23,7 +23,7 @@ var httpsServer = https.createServer(options, function(req, res) {
     httpsServer.close();
     console.log('ok');
   });
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end(body);
 });
 

@@ -5,8 +5,8 @@ const active = require('timers').active;
 
 // active() should create timers for these
 var legitTimers = [
-  { _idleTimeout: 0 },
-  { _idleTimeout: 1 }
+  {_idleTimeout: 0},
+  {_idleTimeout: 1}
 ];
 
 legitTimers.forEach(function(legit) {
@@ -22,8 +22,8 @@ legitTimers.forEach(function(legit) {
 
 // active() should not create a timer for these
 var bogusTimers = [
-  { _idleTimeout: -1 },
-  { _idleTimeout: undefined },
+  {_idleTimeout: -1},
+  {_idleTimeout: undefined},
 ];
 
 bogusTimers.forEach(function(bogus) {

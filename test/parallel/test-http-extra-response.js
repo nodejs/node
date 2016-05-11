@@ -45,7 +45,7 @@ var server = net.createServer(function(socket) {
 
 
 server.listen(common.PORT, function() {
-  http.get({ port: common.PORT }, function(res) {
+  http.get({port: common.PORT}, function(res) {
     var buffer = '';
     console.log('Got res code: ' + res.statusCode);
 

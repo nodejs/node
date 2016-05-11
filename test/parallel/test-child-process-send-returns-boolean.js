@@ -10,10 +10,10 @@ const emptyFile = path.join(common.fixturesDir, 'empty.js');
 
 const n = fork(emptyFile);
 
-const rv = n.send({ hello: 'world' });
+const rv = n.send({hello: 'world'});
 assert.strictEqual(rv, true);
 
-const spawnOptions = { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] };
+const spawnOptions = {stdio: ['pipe', 'pipe', 'pipe', 'ipc']};
 const s = spawn(process.execPath, [emptyFile], spawnOptions);
 var handle = null;
 s.on('exit', function() {

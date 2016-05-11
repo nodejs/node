@@ -24,7 +24,7 @@ process.stdout.write('done\n');
 var server = https.createServer(options, function(req, res) {
   reqCount++;
   console.log('got request');
-  res.writeHead(200, { 'content-type': 'text/plain' });
+  res.writeHead(200, {'content-type': 'text/plain'});
   res.end(body);
 });
 

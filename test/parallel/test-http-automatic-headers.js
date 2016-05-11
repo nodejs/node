@@ -12,7 +12,7 @@ var server = http.createServer(function(req, res) {
 server.listen(common.PORT);
 
 server.on('listening', function() {
-  var agent = new http.Agent({ port: common.PORT, maxSockets: 1 });
+  var agent = new http.Agent({port: common.PORT, maxSockets: 1});
   http.get({
     port: common.PORT,
     path: '/hello',

@@ -67,7 +67,7 @@ if (!haveIntl) {
   // number format
   assert.equal(new Intl.NumberFormat(['en']).format(12345.67890), '12,345.679');
 
-  var collOpts = { sensitivity: 'base', ignorePunctuation: true };
+  var collOpts = {sensitivity: 'base', ignorePunctuation: true};
   var coll = new Intl.Collator(['en'], collOpts);
 
   assert.equal(coll.compare('blackbird', 'black-bird'), 0,

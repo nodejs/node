@@ -25,7 +25,7 @@ var server = tls.Server(options, function(socket) {
   server.close();
 });
 server.listen(common.PIPE, function() {
-  var options = { rejectUnauthorized: false };
+  var options = {rejectUnauthorized: false};
   var client = tls.connect(common.PIPE, options, function() {
     ++clientConnected;
     client.end();

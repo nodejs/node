@@ -36,5 +36,5 @@ server.on('clientError', function(err, conn) {
 });
 
 server.listen(common.PORT, function() {
-  net.connect({ host: '127.0.0.1', port: common.PORT });
+  net.connect({host: '127.0.0.1', port: common.PORT});
 });

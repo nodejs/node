@@ -5,7 +5,7 @@ const cluster = require('cluster');
 
 if (cluster.isMaster) {
   function forkWorker(action) {
-    const worker = cluster.fork({ action });
+    const worker = cluster.fork({action});
     worker.on('disconnect', common.mustCall(() => {
       assert.strictEqual(worker.suicide, true);
     }));

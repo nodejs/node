@@ -5,7 +5,7 @@ var spawn = require('child_process').spawn;
 
 var debugPort = common.PORT;
 var args = ['--interactive', '--debug-port=' + debugPort];
-var childOptions = { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] };
+var childOptions = {stdio: ['pipe', 'pipe', 'pipe', 'ipc']};
 var child = spawn(process.execPath, args, childOptions);
 
 child.stdin.write("process.send({ msg: 'childready' });\n");

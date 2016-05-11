@@ -4,7 +4,7 @@ var http = require('http');
 var assert = require('assert');
 var common = require('../common');
 
-var objects = { foo: 'bar', baz: {}, num: 42, arr: [1, 2, 3] };
+var objects = {foo: 'bar', baz: {}, num: 42, arr: [1, 2, 3]};
 objects.baz.asdf = objects;
 
 var serverCaught = 0;
@@ -61,7 +61,7 @@ function next() {
       req.socket.destroy();
     });
 
-    var req = http.get({ host: 'localhost', port: common.PORT, path: p });
+    var req = http.get({host: 'localhost', port: common.PORT, path: p});
     dom.add(req);
     req.on('response', function(res) {
       responses++;

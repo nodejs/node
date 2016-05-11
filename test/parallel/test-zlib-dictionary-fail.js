@@ -17,7 +17,7 @@ var zlib = require('zlib');
 
 // Should raise an error, not trigger an assertion in src/node_zlib.cc
 (function() {
-  var stream = zlib.createInflate({ dictionary: Buffer.from('fail') });
+  var stream = zlib.createInflate({dictionary: Buffer.from('fail')});
 
   stream.on('error', common.mustCall(function(err) {
     assert(/Bad dictionary/.test(err.message));

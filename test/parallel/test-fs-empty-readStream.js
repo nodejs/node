@@ -9,7 +9,7 @@ var emptyFile = path.join(common.fixturesDir, 'empty.txt');
 fs.open(emptyFile, 'r', function(error, fd) {
   assert.ifError(error);
 
-  var read = fs.createReadStream(emptyFile, { 'fd': fd });
+  var read = fs.createReadStream(emptyFile, {'fd': fd});
 
   read.once('data', function() {
     throw new Error('data event should not emit');
@@ -21,7 +21,7 @@ fs.open(emptyFile, 'r', function(error, fd) {
 fs.open(emptyFile, 'r', function(error, fd) {
   assert.ifError(error);
 
-  var read = fs.createReadStream(emptyFile, { 'fd': fd });
+  var read = fs.createReadStream(emptyFile, {'fd': fd});
   read.pause();
 
   read.once('data', function() {

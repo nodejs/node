@@ -27,7 +27,7 @@ function nextTest() {
   }
   var test = tests[testIdx];
 
-  http.get({ port: common.PORT }, function(response) {
+  http.get({port: common.PORT}, function(response) {
     console.log('client: expected status: ' + test);
     console.log('client: statusCode: ' + response.statusCode);
     assert.equal(response.statusCode, test);

@@ -14,7 +14,7 @@ assert.throws(function() {
 }, /init callback is not assigned to a function/);
 
 // Should not throw
-async_wrap.setupHooks({ init: () => {} });
+async_wrap.setupHooks({init: () => {}});
 async_wrap.enable();
 
 assert.throws(function() {

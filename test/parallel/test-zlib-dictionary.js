@@ -30,8 +30,8 @@ const input = [
 
 function basicDictionaryTest() {
   let output = '';
-  const deflate = zlib.createDeflate({ dictionary: spdyDict });
-  const inflate = zlib.createInflate({ dictionary: spdyDict });
+  const deflate = zlib.createDeflate({dictionary: spdyDict});
+  const inflate = zlib.createInflate({dictionary: spdyDict});
 
   deflate.on('data', function(chunk) {
     inflate.write(chunk);
@@ -56,8 +56,8 @@ function basicDictionaryTest() {
 function deflateResetDictionaryTest() {
   let doneReset = false;
   let output = '';
-  const deflate = zlib.createDeflate({ dictionary: spdyDict });
-  const inflate = zlib.createInflate({ dictionary: spdyDict });
+  const deflate = zlib.createDeflate({dictionary: spdyDict});
+  const inflate = zlib.createInflate({dictionary: spdyDict});
 
   deflate.on('data', function(chunk) {
     if (doneReset)

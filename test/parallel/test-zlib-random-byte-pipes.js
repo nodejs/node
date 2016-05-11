@@ -129,7 +129,7 @@ HashStream.prototype.end = function(c) {
 };
 
 
-var inp = new RandomReadStream({ total: 1024, block: 256, jitter: 16 });
+var inp = new RandomReadStream({total: 1024, block: 256, jitter: 16});
 var out = new HashStream();
 var gzip = zlib.createGzip();
 var gunz = zlib.createGunzip();

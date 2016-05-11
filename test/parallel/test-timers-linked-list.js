@@ -9,11 +9,11 @@ const internalL = require('internal/linkedlist');
 
 assert.strictEqual(L, internalL);
 
-var list = { name: 'list' };
-var A = { name: 'A' };
-var B = { name: 'B' };
-var C = { name: 'C' };
-var D = { name: 'D' };
+var list = {name: 'list'};
+var A = {name: 'A'};
+var B = {name: 'B'};
+var C = {name: 'C'};
+var D = {name: 'D'};
 
 
 L.init(list);

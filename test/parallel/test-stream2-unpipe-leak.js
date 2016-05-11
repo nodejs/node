@@ -21,7 +21,7 @@ var dest = new TestWriter();
 // Set this high so that we'd trigger a nextTick warning
 // and/or RangeError if we do maybeReadMore wrong.
 function TestReader() {
-  stream.Readable.call(this, { highWaterMark: 0x10000 });
+  stream.Readable.call(this, {highWaterMark: 0x10000});
 }
 util.inherits(TestReader, stream.Readable);
 

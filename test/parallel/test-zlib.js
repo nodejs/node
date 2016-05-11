@@ -150,10 +150,10 @@ Object.keys(tests).forEach(function(file) {
               zlibPairs.forEach(function(pair) {
                 var Def = pair[0];
                 var Inf = pair[1];
-                var opts = { level: level,
+                var opts = {level: level,
                   windowBits: windowBits,
                   memLevel: memLevel,
-                  strategy: strategy };
+                  strategy: strategy};
 
                 total++;
 
