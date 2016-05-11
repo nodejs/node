@@ -2,23 +2,30 @@
 
 | subsystem | maintainers |
 | --- | --- |
-| `lib/buffer` | @trevnorris |
-| `lib/child_process` | @cjihrig, @bnoordhuis |
-| `lib/cluster` | @cjihrig, @bnoordhuis |
+| `lib/assert` | @nodejs/testing |
+| `lib/buffer` | @nodejs/buffer |
+| `lib/child_process` | @bnoordhuis, @cjihrig |
+| `lib/cluster` | @bnoordhuis, @cjihrig, @mcollina |
 | `lib/{crypto,tls,https}` | @nodejs/crypto |
 | `lib/domains` | @misterdjules |
-| `lib/{_}http{*}` | @indutny, @bnoordhuis, @mscdex, @nodejs/http |
-| `lib/net` | @indutny, @bnoordhuis, @nodejs/streams |
+| `lib/fs`, `src/{fs|file}` | @nodejs/fs |
+| `lib/{_}http{*}` | @nodejs/http |
+| `lib/net` | @bnoordhuis, @indutny, @nodejs/streams |
 | `lib/{_}stream{s|*}` | @nodejs/streams |
-| `lib/repl` | @fishrock123 |
+| `lib/repl` | @addaleax, @fishrock123 |
 | `lib/timers` | @fishrock123, @misterdjules |
-| `lib/zlib` | @indutny, @bnoordhuis |
+| `lib/util` | @bnoordhuis, @cjihrig, @evanlucas |
+| `lib/zlib` | @addaleax, @bnoordhuis, @indutny |
+| `bootstrap_node.js` | @fishrock123 |
 | `src/async-wrap.*` | @trevnorris |
 | `src/node_crypto.*` | @nodejs/crypto |
 | `test/*` | @nodejs/testing |
 | `tools/eslint`, `.eslintrc` | @silverwind, @trott |
-| upgrading v8 | @bnoordhuis, @targos, @ofrobots |
-| upgrading npm | @thealphanerd, @fishrock123 |
+| upgrading V8 | @nodejs/v8, @nodejs/post-mortem |
+| upgrading npm | @fishrock123, @thealphanerd |
+| upgrading c-ares | @jbergstroem |
+| upgrading http-parser | @jbergstroem, @nodejs/http |
+| upgrading libuv | @saghul |
 
 
 When things need extra attention, are controversial, or `semver-major`: @nodejs/ctc
