@@ -89,7 +89,9 @@ The general rule is to bump this version when there are _breaking ABI_ changes a
 
 **Note** that it is current TSC policy to bump major version when ABI changes. If you see a need to bump `NODE_MODULE_VERSION` then you should consult the TSC. Commits may need to be reverted or a major version bump may need to happen.
 
-### 3. Update `CHANGELOG.md`
+### 3. Update the Changelog
+
+#### Step 1: Collecting the formatted list of changes:
 
 Collect a formatted list of commits since the last release. Use [`changelog-maker`](https://github.com/rvagg/changelog-maker) to do this.
 
@@ -103,9 +105,20 @@ Note that changelog-maker counts commits since the last tag and if the last tag 
 $ changelog-maker --group --start-ref v2.3.1
 ```
 
-The `CHANGELOG.md` entry should take the following form:
+#### Step 2: Update the appropriate doc/changelogs/CHANGELOG_*.md file
+
+There is a separate `CHANGELOG_*.md` file for each major Node.js release line.
+These are located in the `doc/changelogs/` directory. Once the formatted list
+of changes is collected, it must be added to the top of the relevant changelog
+file in the release branch (e.g. a release for Node.js v4 would be added to the
+`/doc/changelogs/CHANGELOG_V4.md`).
+
+**Please do *not* add the changelog entries to the root `CHANGELOG.md` file.**
+
+The new entry should take the following form:
 
 ```
+<a id="x.y.x></a>"
 ## YYYY-MM-DD, Version x.y.z (Release Type), @releaser
 
 ### Notable changes
@@ -115,13 +128,6 @@ The `CHANGELOG.md` entry should take the following form:
 * Also be sure to look at any changes introduced by dependencies such as npm
 * ... and include any notable items from there
 
-### Known issues
-
-See https://github.com/nodejs/node/labels/confirmed-bug for complete and current list of known issues.
-
-* Include this section if there are any known problems with this release
-* Scan GitHub for unresolved problems that users may need to be aware of
-
 ### Commits
 
 * Include the full list of commits since the last release here. Do not include "Working on X.Y.Z+1" commits.
@@ -129,9 +135,21 @@ See https://github.com/nodejs/node/labels/confirmed-bug for complete and current
 
 The release type should be either Current, LTS, or Maintenance, depending on the type of release being produced.
 
+At the top of each `CHANGELOG_*.md` file, and in the root `CHANGELOG.md` file,
+there is a table indexing all releases in each major release line. A link to
+the new release needs to be added to each. Follow the existing examples and be
+sure to add the release to the *top* of the list.
+
+In the root `CHANGELOG.md` file, the most recent release for each release line
+is shown in **bold** in the index. When updating the index, please make sure
+to update the display accordingly by removing the bold styling from the previous
+release.
+
 ### 4. Create Release Commit
 
-The `CHANGELOG.md` and `src/node_version.h` changes should be the final commit that will be tagged for the release. When committing these to git, use the following message format:
+The `CHANGELOG.md`, `doc/changelogs/CHANGELOG_*.md`, and `src/node_version.h` 
+changes should be the final commit that will be tagged for the release. When 
+committing these to git, use the following message format:
 
 ```
 YYYY-MM-DD, Version x.y.z (Release Type)
