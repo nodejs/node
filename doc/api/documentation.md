@@ -21,7 +21,7 @@ documentation is generated using the `tools/doc/generate.js` program.
 The HTML template is located at `doc/template.html`.
 
 
-If you find a error in this documentation, please [submit an issue][]
+If you find an error in this documentation, please [submit an issue][]
 or see [the contributing guide][] for directions on how to submit a patch.
 
 ## Stability Index
