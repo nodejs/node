@@ -9,10 +9,10 @@ function b() {
   return ['hello', 'world'].join(' ');
 }
 a();
+debugger;
 a(1);
 b();
 b();
-
 
 
 setInterval(function() {
