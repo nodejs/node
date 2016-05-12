@@ -90,6 +90,9 @@ Error: EISDIR: illegal operation on a directory, read
 ```
 
 ## Buffer API
+<!-- YAML
+added: v6.0.0
+-->
 
 `fs` functions support passing and receiving paths as both strings
 and Buffers. The latter is intended to make it possible to work with
@@ -102,10 +105,16 @@ will always be encoded as UTF-8. On such file systems, passing
 non-UTF-8 encoded Buffers to `fs` functions will not work as expected.
 
 ## Class: fs.FSWatcher
+<!-- YAML
+added: v0.5.8
+-->
 
 Objects returned from `fs.watch()` are of this type.
 
 ### Event: 'change'
+<!-- YAML
+added: v0.5.8
+-->
 
 * `event` {String} The type of fs change
 * `filename` {String | Buffer} The filename that changed (if relevant/available)
@@ -127,31 +136,49 @@ fs.watch('./tmp', {encoding: 'buffer'}, (event, filename) => {
 ```
 
 ### Event: 'error'
+<!-- YAML
+added: v0.5.8
+-->
 
 * `error` {Error}
 
 Emitted when an error occurs.
 
 ### watcher.close()
+<!-- YAML
+added: v0.5.8
+-->
 
 Stop watching for changes on the given `fs.FSWatcher`.
 
 ## Class: fs.ReadStream
+<!-- YAML
+added: v0.1.93
+-->
 
 `ReadStream` is a [Readable Stream][].
 
 ### Event: 'open'
+<!-- YAML
+added: v0.1.93
+-->
 
 * `fd` {Integer} Integer file descriptor used by the ReadStream.
 
 Emitted when the ReadStream's file is opened.
 
 ### Event: 'close'
+<!-- YAML
+added: v0.1.93
+-->
 
 Emitted when the `ReadStream`'s underlying file descriptor has been closed
 using the `fs.close()` method.
 
 ### readStream.path
+<!-- YAML
+added: v0.1.93
+-->
 
 The path to the file the stream is reading from as specified in the first
 argument to `fs.createReadStream()`. If `path` is passed as a string, then
@@ -159,6 +186,9 @@ argument to `fs.createReadStream()`. If `path` is passed as a string, then
 `readStream.path` will be a `Buffer`.
 
 ## Class: fs.Stats
+<!-- YAML
+added: v0.1.21
+-->
 
 Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and their
 synchronous counterparts are of this type.
@@ -229,26 +259,41 @@ systems.  Note that as of v0.12, `ctime` is not "creation time", and
 on Unix systems, it never was.
 
 ## Class: fs.WriteStream
+<!-- YAML
+added: v0.1.93
+-->
 
 `WriteStream` is a [Writable Stream][].
 
 ### Event: 'open'
+<!-- YAML
+added: v0.1.93
+-->
 
 * `fd` {Integer} Integer file descriptor used by the WriteStream.
 
 Emitted when the WriteStream's file is opened.
 
 ### Event: 'close'
+<!-- YAML
+added: v0.1.93
+-->
 
 Emitted when the `WriteStream`'s underlying file descriptor has been closed
 using the `fs.close()` method.
 
 ### writeStream.bytesWritten
+<!-- YAML
+added: v0.4.7
+-->
 
 The number of bytes written so far. Does not include data that is still queued
 for writing.
 
 ### writeStream.path
+<!-- YAML
+added: v0.1.93
+-->
 
 The path to the file the stream is writing to as specified in the first
 argument to `fs.createWriteStream()`. If `path` is passed as a string, then
@@ -256,6 +301,9 @@ argument to `fs.createWriteStream()`. If `path` is passed as a string, then
 `writeStream.path` will be a `Buffer`.
 
 ## fs.access(path[, mode], callback)
+<!-- YAML
+added: v1.0.0
+-->
 
 * `path` {String | Buffer}
 * `mode` {Integer}
@@ -286,6 +334,9 @@ fs.access('/etc/passwd', fs.R_OK | fs.W_OK, (err) => {
 ```
 
 ## fs.accessSync(path[, mode])
+<!-- YAML
+added: v0.1.93
+-->
 
 * `path` {String | Buffer}
 * `mode` {Integer}
@@ -294,6 +345,9 @@ Synchronous version of [`fs.access()`][]. This throws if any accessibility check
 fail, and does nothing otherwise.
 
 ## fs.appendFile(file, data[, options], callback)
+<!-- YAML
+added: v0.6.7
+-->
 
 * `file` {String | Buffer | Number} filename or file descriptor
 * `data` {String | Buffer}
@@ -326,6 +380,9 @@ Any specified file descriptor has to have been opened for appending.
 _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.appendFileSync(file, data[, options])
+<!-- YAML
+added: v0.6.7
+-->
 
 * `file` {String | Buffer | Number} filename or file descriptor
 * `data` {String | Buffer}
@@ -337,6 +394,9 @@ _Note: Specified file descriptors will not be closed automatically._
 The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
 
 ## fs.chmod(path, mode, callback)
+<!-- YAML
+added: v0.1.30
+-->
 
 * `path` {String | Buffer}
 * `mode` {Integer}
@@ -346,6 +406,9 @@ Asynchronous chmod(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.chmodSync(path, mode)
+<!-- YAML
+added: v0.6.7
+-->
 
 * `path` {String | Buffer}
 * `mode` {Integer}
@@ -353,6 +416,9 @@ to the completion callback.
 Synchronous chmod(2). Returns `undefined`.
 
 ## fs.chown(path, uid, gid, callback)
+<!-- YAML
+added: v0.1.97
+-->
 
 * `path` {String | Buffer}
 * `uid` {Integer}
@@ -363,6 +429,9 @@ Asynchronous chown(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.chownSync(path, uid, gid)
+<!-- YAML
+added: v0.1.97
+-->
 
 * `path` {String | Buffer}
 * `uid` {Integer}
@@ -371,6 +440,9 @@ to the completion callback.
 Synchronous chown(2). Returns `undefined`.
 
 ## fs.close(fd, callback)
+<!-- YAML
+added: v0.0.2
+-->
 
 * `fd` {Integer}
 * `callback` {Function}
@@ -379,12 +451,18 @@ Asynchronous close(2).  No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.closeSync(fd)
+<!-- YAML
+added: v0.1.21
+-->
 
 * `fd` {Integer}
 
 Synchronous close(2). Returns `undefined`.
 
 ## fs.createReadStream(path[, options])
+<!-- YAML
+added: v0.1.31
+-->
 
 * `path` {String | Buffer}
 * `options` {String | Object}
@@ -441,6 +519,9 @@ fs.createReadStream('sample.txt', {start: 90, end: 99});
 If `options` is a string, then it specifies the encoding.
 
 ## fs.createWriteStream(path[, options])
+<!-- YAML
+added: v0.1.31
+-->
 
 * `path` {String | Buffer}
 * `options` {String | Object}
@@ -484,6 +565,10 @@ Like [`ReadStream`][], if `fd` is specified, `WriteStream` will ignore the
 If `options` is a string, then it specifies the encoding.
 
 ## fs.exists(path, callback)
+<!-- YAML
+added: v0.0.2
+deprecated: v1.0.0
+-->
 
     Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
 
@@ -506,6 +591,10 @@ call `fs.open()` directly and handle the error raised if the file is
 non-existent.
 
 ## fs.existsSync(path)
+<!-- YAML
+added: v0.1.21
+deprecated: v1.0.0
+-->
 
     Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][] instead.
 
@@ -515,6 +604,9 @@ Synchronous version of [`fs.exists()`][].
 Returns `true` if the file exists, `false` otherwise.
 
 ## fs.fchmod(fd, mode, callback)
+<!-- YAML
+added: v0.4.7
+-->
 
 * `fd` {Integer}
 * `mode` {Integer}
@@ -524,6 +616,9 @@ Asynchronous fchmod(2). No arguments other than a possible exception
 are given to the completion callback.
 
 ## fs.fchmodSync(fd, mode)
+<!-- YAML
+added: v0.4.7
+-->
 
 * `fd` {Integer}
 * `mode` {Integer}
@@ -531,6 +626,9 @@ are given to the completion callback.
 Synchronous fchmod(2). Returns `undefined`.
 
 ## fs.fchown(fd, uid, gid, callback)
+<!-- YAML
+added: v0.4.7
+-->
 
 * `fd` {Integer}
 * `uid` {Integer}
@@ -541,6 +639,9 @@ Asynchronous fchown(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.fchownSync(fd, uid, gid)
+<!-- YAML
+added: v0.4.7
+-->
 
 * `fd` {Integer}
 * `uid` {Integer}
@@ -549,6 +650,9 @@ to the completion callback.
 Synchronous fchown(2). Returns `undefined`.
 
 ## fs.fdatasync(fd, callback)
+<!-- YAML
+added: v0.1.96
+-->
 
 * `fd` {Integer}
 * `callback` {Function}
@@ -557,12 +661,18 @@ Asynchronous fdatasync(2). No arguments other than a possible exception are
 given to the completion callback.
 
 ## fs.fdatasyncSync(fd)
+<!-- YAML
+added: v0.1.96
+-->
 
 * `fd` {Integer}
 
 Synchronous fdatasync(2). Returns `undefined`.
 
 ## fs.fstat(fd, callback)
+<!-- YAML
+added: v0.1.95
+-->
 
 * `fd` {Integer}
 * `callback` {Function}
@@ -572,12 +682,18 @@ Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
 except that the file to be stat-ed is specified by the file descriptor `fd`.
 
 ## fs.fstatSync(fd)
+<!-- YAML
+added: v0.1.95
+-->
 
 * `fd` {Integer}
 
 Synchronous fstat(2). Returns an instance of `fs.Stats`.
 
 ## fs.fsync(fd, callback)
+<!-- YAML
+added: v0.1.96
+-->
 
 * `fd` {Integer}
 * `callback` {Function}
@@ -586,12 +702,18 @@ Asynchronous fsync(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.fsyncSync(fd)
+<!-- YAML
+added: v0.1.96
+-->
 
 * `fd` {Integer}
 
 Synchronous fsync(2). Returns `undefined`.
 
 ## fs.ftruncate(fd, len, callback)
+<!-- YAML
+added: v0.8.6
+-->
 
 * `fd` {Integer}
 * `len` {Integer}
@@ -601,6 +723,9 @@ Asynchronous ftruncate(2). No arguments other than a possible exception are
 given to the completion callback.
 
 ## fs.ftruncateSync(fd, len)
+<!-- YAML
+added: v0.8.6
+-->
 
 * `fd` {Integer}
 * `len` {Integer}
@@ -608,6 +733,9 @@ given to the completion callback.
 Synchronous ftruncate(2). Returns `undefined`.
 
 ## fs.futimes(fd, atime, mtime, callback)
+<!-- YAML
+added: v0.4.2
+-->
 
 * `fd` {Integer}
 * `atime` {Integer}
@@ -618,6 +746,9 @@ Change the file timestamps of a file referenced by the supplied file
 descriptor.
 
 ## fs.futimesSync(fd, atime, mtime)
+<!-- YAML
+added: v0.4.2
+-->
 
 * `fd` {Integer}
 * `atime` {Integer}
@@ -626,6 +757,9 @@ descriptor.
 Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
 ## fs.lchmod(path, mode, callback)
+<!-- YAML
+deprecated: v0.4.7
+-->
 
 * `path` {String | Buffer}
 * `mode` {Integer}
@@ -637,6 +771,9 @@ are given to the completion callback.
 Only available on Mac OS X.
 
 ## fs.lchmodSync(path, mode)
+<!-- YAML
+deprecated: v0.4.7
+-->
 
 * `path` {String | Buffer}
 * `mode` {Integer}
@@ -644,6 +781,9 @@ Only available on Mac OS X.
 Synchronous lchmod(2). Returns `undefined`.
 
 ## fs.lchown(path, uid, gid, callback)
+<!-- YAML
+deprecated: v0.4.7
+-->
 
 * `path` {String | Buffer}
 * `uid` {Integer}
@@ -654,6 +794,9 @@ Asynchronous lchown(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.lchownSync(path, uid, gid)
+<!-- YAML
+deprecated: v0.4.7
+-->
 
 * `path` {String | Buffer}
 * `uid` {Integer}
@@ -662,6 +805,9 @@ to the completion callback.
 Synchronous lchown(2). Returns `undefined`.
 
 ## fs.link(srcpath, dstpath, callback)
+<!-- YAML
+added: v0.1.31
+-->
 
 * `srcpath` {String | Buffer}
 * `dstpath` {String | Buffer}
@@ -671,6 +817,9 @@ Asynchronous link(2). No arguments other than a possible exception are given to
 the completion callback.
 
 ## fs.linkSync(srcpath, dstpath)
+<!-- YAML
+added: v0.1.31
+-->
 
 * `srcpath` {String | Buffer}
 * `dstpath` {String | Buffer}
@@ -678,6 +827,9 @@ the completion callback.
 Synchronous link(2). Returns `undefined`.
 
 ## fs.lstat(path, callback)
+<!-- YAML
+added: v0.1.30
+-->
 
 * `path` {String | Buffer}
 * `callback` {Function}
@@ -688,12 +840,18 @@ except that if `path` is a symbolic link, then the link itself is stat-ed,
 not the file that it refers to.
 
 ## fs.lstatSync(path)
+<!-- YAML
+added: v0.1.30
+-->
 
 * `path` {String | Buffer}
 
 Synchronous lstat(2). Returns an instance of `fs.Stats`.
 
 ## fs.mkdir(path[, mode], callback)
+<!-- YAML
+added: v0.1.8
+-->
 
 * `path` {String | Buffer}
 * `mode` {Integer}
@@ -703,6 +861,9 @@ Asynchronous mkdir(2). No arguments other than a possible exception are given
 to the completion callback. `mode` defaults to `0o777`.
 
 ## fs.mkdirSync(path[, mode])
+<!-- YAML
+added: v0.1.21
+-->
 
 * `path` {String | Buffer}
 * `mode` {Integer}
@@ -710,6 +871,9 @@ to the completion callback. `mode` defaults to `0o777`.
 Synchronous mkdir(2). Returns `undefined`.
 
 ## fs.mkdtemp(prefix, callback)
+<!-- YAML
+added: v5.10.0
+-->
 
 Creates a unique temporary directory.
 
@@ -729,11 +893,17 @@ fs.mkdtemp('/tmp/foo-', (err, folder) => {
 ```
 
 ## fs.mkdtempSync(template)
+<!-- YAML
+added: v5.10.0
+-->
 
 The synchronous version of [`fs.mkdtemp()`][]. Returns the created
 folder path.
 
 ## fs.open(path, flags[, mode], callback)
+<!-- YAML
+added: v0.0.2
+-->
 
 * `path` {String | Buffer}
 * `flags` {String | Number}
@@ -815,6 +985,9 @@ fs.open('<directory>', 'a+', (err, fd) => {
 ```
 
 ## fs.openSync(path, flags[, mode])
+<!-- YAML
+added: v0.1.21
+-->
 
 * `path` {String | Buffer}
 * `flags` {String | Number}
@@ -824,6 +997,9 @@ Synchronous version of [`fs.open()`][]. Returns an integer representing the file
 descriptor.
 
 ## fs.read(fd, buffer, offset, length, position, callback)
+<!-- YAML
+added: v0.0.2
+-->
 
 * `fd` {Integer}
 * `buffer` {String | Buffer}
@@ -846,6 +1022,9 @@ If `position` is `null`, data will be read from the current file position.
 The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
 ## fs.readdir(path[, options], callback)
+<!-- YAML
+added: v0.1.8
+-->
 
 * `path` {String | Buffer}
 * `options` {String | Object}
@@ -862,6 +1041,9 @@ the filenames passed to the callback. If the `encoding` is set to `'buffer'`,
 the filenames returned will be passed as `Buffer` objects.
 
 ## fs.readdirSync(path[, options])
+<!-- YAML
+added: v0.1.21
+-->
 
 * `path` {String | Buffer}
 * `options` {String | Object}
@@ -876,6 +1058,9 @@ the filenames passed to the callback. If the `encoding` is set to `'buffer'`,
 the filenames returned will be passed as `Buffer` objects.
 
 ## fs.readFile(file[, options], callback)
+<!-- YAML
+added: v0.1.29
+-->
 
 * `file` {String | Buffer | Integer} filename or file descriptor
 * `options` {Object | String}
@@ -908,6 +1093,9 @@ Any specified file descriptor has to support reading.
 _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.readFileSync(file[, options])
+<!-- YAML
+added: v0.1.8
+-->
 
 * `file` {String | Buffer | Integer} filename or file descriptor
 * `options` {Object | String}
@@ -920,6 +1108,9 @@ If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
 
 ## fs.readlink(path[, options], callback)
+<!-- YAML
+added: v0.1.31
+-->
 
 * `path` {String | Buffer}
 * `options` {String | Object}
@@ -935,6 +1126,9 @@ the link path passed to the callback. If the `encoding` is set to `'buffer'`,
 the link path returned will be passed as a `Buffer` object.
 
 ## fs.readlinkSync(path[, options])
+<!-- YAML
+added: v0.1.31
+-->
 
 * `path` {String | Buffer}
 * `options` {String | Object}
@@ -948,6 +1142,9 @@ the link path passed to the callback. If the `encoding` is set to `'buffer'`,
 the link path returned will be passed as a `Buffer` object.
 
 ## fs.readSync(fd, buffer, offset, length, position)
+<!-- YAML
+added: v0.1.21
+-->
 
 * `fd` {Integer}
 * `buffer` {String | Buffer}
@@ -958,6 +1155,9 @@ the link path returned will be passed as a `Buffer` object.
 Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 
 ## fs.realpath(path[, options], callback)
+<!-- YAML
+added: v0.1.31
+-->
 
 * `path` {String | Buffer}
 * `options` {String | Object}
@@ -973,6 +1173,9 @@ the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
 
 ## fs.realpathSync(path[, options])
+<!-- YAML
+added: v0.1.31
+-->
 
 * `path` {String | Buffer};
 * `options` {String | Object}
@@ -986,6 +1189,9 @@ the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
 
 ## fs.rename(oldPath, newPath, callback)
+<!-- YAML
+added: v0.0.2
+-->
 
 * `oldPath` {String | Buffer}
 * `newPath` {String | Buffer}
@@ -995,6 +1201,9 @@ Asynchronous rename(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.renameSync(oldPath, newPath)
+<!-- YAML
+added: v0.1.21
+-->
 
 * `oldPath` {String | Buffer}
 * `newPath` {String | Buffer}
@@ -1002,6 +1211,9 @@ to the completion callback.
 Synchronous rename(2). Returns `undefined`.
 
 ## fs.rmdir(path, callback)
+<!-- YAML
+added: v0.0.2
+-->
 
 * `path` {String | Buffer}
 * `callback` {Function}
@@ -1010,12 +1222,18 @@ Asynchronous rmdir(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.rmdirSync(path)
+<!-- YAML
+added: v0.1.21
+-->
 
 * `path` {String | Buffer}
 
 Synchronous rmdir(2). Returns `undefined`.
 
 ## fs.stat(path, callback)
+<!-- YAML
+added: v0.0.2
+-->
 
 * `path` {String | Buffer}
 * `callback` {Function}
@@ -1025,12 +1243,18 @@ Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
 information.
 
 ## fs.statSync(path)
+<!-- YAML
+added: v0.1.21
+-->
 
 * `path` {String | Buffer}
 
 Synchronous stat(2). Returns an instance of [`fs.Stats`][].
 
 ## fs.symlink(target, path[, type], callback)
+<!-- YAML
+added: v0.1.31
+-->
 
 * `target` {String | Buffer}
 * `path` {String | Buffer}
@@ -1053,6 +1277,9 @@ fs.symlink('./foo', './new-port');
 It creates a symbolic link named "new-port" that points to "foo".
 
 ## fs.symlinkSync(target, path[, type])
+<!-- YAML
+added: v0.1.31
+-->
 
 * `target` {String | Buffer}
 * `path` {String | Buffer}
@@ -1061,6 +1288,9 @@ It creates a symbolic link named "new-port" that points to "foo".
 Synchronous symlink(2). Returns `undefined`.
 
 ## fs.truncate(path, len, callback)
+<!-- YAML
+added: v0.8.6
+-->
 
 * `path` {String | Buffer}
 * `len` {Integer}
@@ -1071,6 +1301,9 @@ given to the completion callback. A file descriptor can also be passed as the
 first argument. In this case, `fs.ftruncate()` is called.
 
 ## fs.truncateSync(path, len)
+<!-- YAML
+added: v0.8.6
+-->
 
 * `path` {String | Buffer}
 * `len` {Integer}
@@ -1078,6 +1311,9 @@ first argument. In this case, `fs.ftruncate()` is called.
 Synchronous truncate(2). Returns `undefined`.
 
 ## fs.unlink(path, callback)
+<!-- YAML
+added: v0.0.2
+-->
 
 * `path` {String | Buffer}
 * `callback` {Function}
@@ -1086,12 +1322,18 @@ Asynchronous unlink(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ## fs.unlinkSync(path)
+<!-- YAML
+added: v0.1.21
+-->
 
 * `path` {String | Buffer}
 
 Synchronous unlink(2). Returns `undefined`.
 
 ## fs.unwatchFile(filename[, listener])
+<!-- YAML
+added: v0.1.31
+-->
 
 * `filename` {String | Buffer}
 * `listener` {Function}
@@ -1108,6 +1350,9 @@ _Note: [`fs.watch()`][] is more efficient than `fs.watchFile()` and `fs.unwatchF
 when possible._
 
 ## fs.utimes(path, atime, mtime, callback)
+<!-- YAML
+added: v0.4.2
+-->
 
 * `path` {String | Buffer}
 * `atime` {Integer}
@@ -1125,6 +1370,9 @@ follow the below rules:
   `Date.now()`.
 
 ## fs.utimesSync(path, atime, mtime)
+<!-- YAML
+added: v0.4.2
+-->
 
 * `path` {String | Buffer}
 * `atime` {Integer}
@@ -1133,6 +1381,9 @@ follow the below rules:
 Synchronous version of [`fs.utimes()`][]. Returns `undefined`.
 
 ## fs.watch(filename[, options][, listener])
+<!-- YAML
+added: v0.5.10
+-->
 
 * `filename` {String | Buffer}
 * `options` {String | Object}
@@ -1217,6 +1468,9 @@ fs.watch('somedir', (event, filename) => {
 ```
 
 ## fs.watchFile(filename[, options], listener)
+<!-- YAML
+added: v0.1.31
+-->
 
 * `filename` {String | Buffer}
 * `options` {Object}
@@ -1260,6 +1514,9 @@ _Note: [`fs.watch()`][] is more efficient than `fs.watchFile` and `fs.unwatchFil
 when possible._
 
 ## fs.write(fd, buffer, offset, length[, position], callback)
+<!-- YAML
+added: v0.0.2
+-->
 
 * `fd` {Integer}
 * `buffer` {String | Buffer}
@@ -1288,6 +1545,9 @@ The kernel ignores the position argument and always appends the data to
 the end of the file.
 
 ## fs.write(fd, data[, position[, encoding]], callback)
+<!-- YAML
+added: v0.11.5
+-->
 
 * `fd` {Integer}
 * `data` {String | Buffer}
@@ -1321,6 +1581,9 @@ The kernel ignores the position argument and always appends the data to
 the end of the file.
 
 ## fs.writeFile(file, data[, options], callback)
+<!-- YAML
+added: v0.1.29
+-->
 
 * `file` {String | Buffer | Integer} filename or file descriptor
 * `data` {String | Buffer}
@@ -1360,6 +1623,9 @@ without waiting for the callback. For this scenario,
 _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.writeFileSync(file, data[, options])
+<!-- YAML
+added: v0.1.29
+-->
 
 * `file` {String | Buffer | Integer} filename or file descriptor
 * `data` {String | Buffer}
@@ -1371,6 +1637,9 @@ _Note: Specified file descriptors will not be closed automatically._
 The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 
 ## fs.writeSync(fd, buffer, offset, length[, position])
+<!-- YAML
+added: v0.1.21
+-->
 
 * `fd` {Integer}
 * `buffer` {String | Buffer}
@@ -1379,6 +1648,9 @@ The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 * `position` {Integer}
 
 ## fs.writeSync(fd, data[, position[, encoding]])
+<!-- YAML
+added: v0.11.5
+-->
 
 * `fd` {Integer}
 * `data` {String | Buffer}
