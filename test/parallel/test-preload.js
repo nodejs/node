@@ -6,8 +6,8 @@ const path = require('path');
 const childProcess = require('child_process');
 
 // Refs: https://github.com/nodejs/node/pull/2253
-if (common.isSunOS) {
-  console.log('1..0 # Skipped: unreliable on SunOS');
+if (common.isSunOS || common.isAix) {
+  console.log('1..0 # Skipped: unreliable on SunOS & AIX');
   return;
 }
 
