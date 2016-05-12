@@ -19,14 +19,14 @@ process.chdir(common.tmpDir);
 // Unknown checked for to prevent flakiness, if pattern is not found,
 // then a large number of unknown ticks should be present
 runTest(/LazyCompile.*\[eval\]:1|.*%  UNKNOWN/,
-  `function f() {
-     for (var i = 0; i < 1000000; i++) {
-       i++;
-     }
-     setImmediate(function() { f(); });
-   };
-   setTimeout(function() { process.exit(0); }, 2000);
-   f();`);
+        `function f() {
+           for (var i = 0; i < 1000000; i++) {
+             i++;
+           }
+           setImmediate(function() { f(); });
+         };
+         setTimeout(function() { process.exit(0); }, 2000);
+         f();`);
 if (common.isWindows ||
     common.isSunOS ||
     common.isAix ||
@@ -36,12 +36,12 @@ if (common.isWindows ||
   return;
 }
 runTest(/RunInDebugContext/,
-  `function f() {
-     require(\'vm\').runInDebugContext(\'Debug\');
-     setImmediate(function() { f(); });
-   };
-   setTimeout(function() { process.exit(0); }, 2000);
-   f();`);
+        `function f() {
+           require(\'vm\').runInDebugContext(\'Debug\');
+           setImmediate(function() { f(); });
+         };
+         setTimeout(function() { process.exit(0); }, 2000);
+         f();`);
 
 function runTest(pattern, code) {
   cp.execFileSync(process.execPath, ['-prof', '-pe', code]);

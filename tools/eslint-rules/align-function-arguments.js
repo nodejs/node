@@ -33,7 +33,6 @@ function checkArgumentAlignment(context, node) {
     'CallExpression',
     'FunctionExpression',
     'ObjectExpression',
-    'TemplateLiteral'
   ];
 
   const args = node.arguments;

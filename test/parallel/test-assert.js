@@ -376,7 +376,7 @@ try {
 } catch (e) {
   threw = true;
   assert(e instanceof AnotherErrorType,
-    `expected AnotherErrorType, received ${e}`);
+         `expected AnotherErrorType, received ${e}`);
 }
 
 assert.ok(threw);
