@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 
 const html = require('../../tools/doc/html.js');
 
@@ -13,13 +14,13 @@ const html = require('../../tools/doc/html.js');
 // have an html parser.
 const testData = [
   {
-    'file': common.fixturesDir + '/sample_document.md',
-    'html': '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
+    file: path.join(common.fixturesDir, 'sample_document.md'),
+    html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
       '<li>Bluefish</li></ol>'
   },
   {
-    'file': common.fixturesDir + '/order_of_end_tags_5873.md',
-    'html': '<h3>ClassMethod: Buffer.from(array) <span> ' +
+    file: path.join(common.fixturesDir, 'order_of_end_tags_5873.md'),
+    html: '<h3>ClassMethod: Buffer.from(array) <span> ' +
       '<a class="mark" href="#foo_class_method_buffer_from_array" ' +
       'id="foo_class_method_buffer_from_array">#</a> </span> </h3><div' +
       'class="signature"><ul><li><code>array</code><a ' +
@@ -28,8 +29,8 @@ const testData = [
       '</ul></div>'
   },
   {
-    'file': common.fixturesDir + '/doc_with_yaml.md',
-    'html': '<h1>Sample Markdown with YAML info' +
+    file: path.join(common.fixturesDir, 'doc_with_yaml.md'),
+    html: '<h1>Sample Markdown with YAML info' +
       '<span><a class="mark" href="#foo_sample_markdown_with_yaml_info" ' +
       ' id="foo_sample_markdown_with_yaml_info">#</a></span></h1>' +
       '<h2>Foobar<span><a class="mark" href="#foo_foobar" ' +
