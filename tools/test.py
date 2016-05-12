@@ -779,7 +779,8 @@ TIMEOUT_SCALEFACTOR = {
 class Context(object):
 
   def __init__(self, workspace, buildspace, verbose, vm, args, expect_fail,
-               timeout, processor, suppress_dialogs, store_unexpected_output, repeat):
+               timeout, processor, suppress_dialogs,
+               store_unexpected_output, repeat):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
