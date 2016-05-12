@@ -726,8 +726,7 @@ class TestRepository(TestSuite):
       tests = self.GetConfiguration(context).ListTests(current_path, path,
                                                        arch, mode)
       for t in tests: t.variant_flags = v
-      for rep in range(0, context.repeat):
-        result += tests
+      result += tests * context.repeat
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
