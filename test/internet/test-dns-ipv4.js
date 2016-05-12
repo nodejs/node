@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');
@@ -173,24 +173,7 @@ TEST(function test_lookupservice_ip_ipv4(done) {
     if (err) throw err;
     assert.equal(typeof host, 'string');
     assert(host);
-
-    /*
-     * Retrieve the actual HTTP service name as setup on the host currently
-     * running the test by reading it from /etc/services. This is not ideal,
-     * as the service name lookup could use another mechanism (e.g nscd), but
-     * it's already better than hardcoding it.
-     */
-    var httpServiceName = common.getServiceName(80, 'tcp');
-    if (!httpServiceName) {
-      /*
-       * Couldn't find service name, reverting to the most sensible default
-       * for port 80.
-       */
-      httpServiceName = 'http';
-    }
-
-    assert.strictEqual(service, httpServiceName);
-
+    assert(['http', 'www', '80'].includes(service));
     done();
   });
 
