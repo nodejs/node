@@ -9,7 +9,7 @@ if (!common.hasCrypto) {
 var crypto = require('crypto');
 
 // Test HMAC
-var h1 = crypto.createHmac('sha1', 'Node')
+const h1 = crypto.createHmac('sha1', 'Node')
                .update('some data')
                .update('to hmac');
 assert.equal(h1.digest('hex'),
