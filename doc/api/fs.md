@@ -332,7 +332,7 @@ _Note: Specified file descriptors will not be closed automatically._
 
 ## fs.appendFileSync(file, data[, options])
 
-* `file` {String | Buffer}
+* `file` {String | Buffer | Number} filename or file descriptor
 * `data` {String | Buffer}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
