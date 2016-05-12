@@ -45,7 +45,7 @@ var notSocketClient = net.createConnection(emptyTxt, function() {
 
 notSocketClient.on('error', function(err) {
   assert(err.code === 'ENOTSOCK' || err.code === 'ECONNREFUSED',
-    `received ${err.code} instead of ENOTSOCK or ECONNREFUSED`);
+         `received ${err.code} instead of ENOTSOCK or ECONNREFUSED`);
   notSocketErrorFired = true;
 });
 
