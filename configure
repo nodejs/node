@@ -444,7 +444,7 @@ def pkg_config(pkg):
       stdout = subprocess.Popen(shlex.split(pkg_config) + [args, flag, pkg],
                                 stdout=subprocess.PIPE).communicate()[0].strip()
     except OSError as e:
-      if e.errno == errno.ENONET:
+      if e.errno == errno.ENOENT:
         # no pkg-config/pkgconf installed
         return (None, None, None)
       raise e
