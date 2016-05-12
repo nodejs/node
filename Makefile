@@ -114,7 +114,9 @@ v8:
 	tools/make-v8.sh v8
 	$(MAKE) -C deps/v8 $(V8_ARCH) $(V8_BUILD_OPTIONS)
 
-test: | build-addons cctest  # Both targets depend on 'all'.
+test: all
+	$(MAKE) build-addons
+	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		addon doctool message parallel sequential
 	$(MAKE) lint
