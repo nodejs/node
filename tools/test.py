@@ -721,13 +721,12 @@ class TestRepository(TestSuite):
   def GetBuildRequirements(self, path, context):
     return self.GetConfiguration(context).GetBuildRequirements()
 
-  def AddTestsToList(self, result, current_path, path, context,
-                     arch, mode, repeat):
+  def AddTestsToList(self, result, current_path, path, context, arch, mode):
     for v in VARIANT_FLAGS:
       tests = self.GetConfiguration(context).ListTests(current_path, path,
                                                        arch, mode)
       for t in tests: t.variant_flags = v
-      for rep in range(0, repeat):
+      for rep in range(0, context.repeat):
         result += tests
 
   def GetTestStatus(self, context, sections, defs):
@@ -748,16 +747,14 @@ class LiteralTestSuite(TestSuite):
         result += test.GetBuildRequirements(rest, context)
     return result
 
-  def ListTests(self, current_path, path, context,
-                arch, mode, repeat):
+  def ListTests(self, current_path, path, context, arch, mode):
     (name, rest) = CarCdr(path)
     result = [ ]
     for test in self.tests:
       test_name = test.GetName()
       if not name or name.match(test_name):
         full_path = current_path + [test_name]
-        test.AddTestsToList(result, full_path, path, context,
-                            arch, mode, repeat)
+        test.AddTestsToList(result, full_path, path, context, arch, mode)
     result.sort(cmp=lambda a, b: cmp(a.GetName(), b.GetName()))
     return result
 
@@ -783,7 +780,7 @@ TIMEOUT_SCALEFACTOR = {
 class Context(object):
 
   def __init__(self, workspace, buildspace, verbose, vm, args, expect_fail,
-               timeout, processor, suppress_dialogs, store_unexpected_output):
+               timeout, processor, suppress_dialogs, store_unexpected_output, repeat):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
@@ -794,6 +791,7 @@ class Context(object):
     self.processor = processor
     self.suppress_dialogs = suppress_dialogs
     self.store_unexpected_output = store_unexpected_output
+    self.repeat = repeat
 
   def GetVm(self, arch, mode):
     if arch == 'none':
@@ -1495,7 +1493,8 @@ def Main():
                     options.timeout,
                     processor,
                     options.suppress_dialogs,
-                    options.store_unexpected_output)
+                    options.store_unexpected_output,
+                    options.repeat)
   # First build the required targets
   if not options.no_build:
     reqs = [ ]
@@ -1540,7 +1539,7 @@ def Main():
           'system': utils.GuessOS(),
           'arch': vmArch,
         }
-        test_list = root.ListTests([], path, context, arch, mode, options.repeat)
+        test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list
         (cases, unused_rules, all_outcomes) = (
             config.ClassifyTests(test_list, env))
