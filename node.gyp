@@ -372,6 +372,9 @@
             # we need to use node's preferred "darwin" rather than gyp's preferred "mac"
             'NODE_PLATFORM="darwin"',
           ],
+          'xcode_settings': {
+            'DEBUG_INFORMATION_FORMAT': 'dwarf-with-dsym',
+          },
         }],
         [ 'OS=="freebsd"', {
           'libraries': [
