@@ -40,6 +40,19 @@ if (module === require.main) {
     tests = filteredTests;
   }
 
+  if (testFilter) {
+    var filteredTests = tests.filter(function(item){
+      if (item.lastIndexOf(testFilter) >= 0) {
+        return item;
+      }
+    });
+    if (filteredTests.length === 0) {
+      console.error(`${testFilter} is not found in \n ${tests.join('  \n')}`);
+      return;
+    }
+    tests = filteredTests;
+  }
+
   runBenchmarks();
 }
 
