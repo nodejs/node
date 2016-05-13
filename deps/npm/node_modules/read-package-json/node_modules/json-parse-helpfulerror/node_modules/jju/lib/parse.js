@@ -75,9 +75,22 @@ function formatError(input, msg, position, lineno, column, json5) {
 
 function parse(input, options) {
   // parse as a standard JSON mode
-  var json5 = !(options.mode === 'json' || options.legacy)
+  var json5 = false;
+  var cjson = false;
+
+  if (options.legacy || options.mode === 'json') {
+    // use json
+  } else if (options.mode === 'cjson') {
+    cjson = true;
+  } else if (options.mode === 'json5') {
+    json5 = true;
+  } else {
+    // use it by default
+    json5 = true;
+  }
+
   var isLineTerminator = json5 ? Uni.isLineTerminator : Uni.isLineTerminatorJSON
-  var isWhiteSpace = json5 ? Uni.isWhiteSpace : Uni.isWhiteSpaceJSON
+  var isWhiteSpace     = json5 ? Uni.isWhiteSpace     : Uni.isWhiteSpaceJSON
 
   var length = input.length
     , lineno = 0
@@ -257,7 +270,7 @@ function parse(input, options) {
         // nothing
 
       } else if (chr === '/'
-             && json5
+             && (json5 || cjson)
              && (input[position] === '/' || input[position] === '*')
       ) {
         position--

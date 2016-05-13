@@ -21,5 +21,6 @@ module.exports = {
 	FingerprintFormatError: errs.FingerprintFormatError,
 	InvalidAlgorithmError: errs.InvalidAlgorithmError,
 	KeyParseError: errs.KeyParseError,
-	SignatureParseError: errs.SignatureParseError
+	SignatureParseError: errs.SignatureParseError,
+	KeyEncryptedError: errs.KeyEncryptedError
 };
