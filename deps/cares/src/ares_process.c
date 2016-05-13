@@ -1298,9 +1298,11 @@ static void end_query (ares_channel channel, struct query *query, int status,
           }
     }
 
+  ares__free_query_pre(query);
+
   /* Invoke the callback */
   query->callback(query->arg, status, query->timeouts, abuf, alen);
-  ares__free_query(query);
+  ares__free_query_post(query);
 
   /* Simple cleanup policy: if no queries are remaining, close all network
    * sockets unless STAYOPEN is set.
@@ -1313,13 +1315,17 @@ static void end_query (ares_channel channel, struct query *query, int status,
     }
 }
 
-void ares__free_query(struct query *query)
+void ares__free_query_pre(struct query *query)
 {
   /* Remove the query from all the lists in which it is linked */
   ares__remove_from_list(&(query->queries_by_qid));
   ares__remove_from_list(&(query->queries_by_timeout));
   ares__remove_from_list(&(query->queries_to_server));
   ares__remove_from_list(&(query->all_queries));
+}
+
+void ares__free_query_post(struct query *query)
+{
   /* Zero out some important stuff, to help catch bugs */
   query->callback = NULL;
   query->arg = NULL;
@@ -1327,4 +1333,10 @@ void ares__free_query(struct query *query)
   free(query->tcpbuf);
   free(query->server_info);
   free(query);
+}
+
+void ares__free_query(struct query *query)
+{
+  ares__free_query_pre(query);
+  ares__free_query_post(query);
 }

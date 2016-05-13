@@ -41,10 +41,32 @@ void ares_destroy_options(struct ares_options *options)
 void ares_destroy(ares_channel channel)
 {
   int i;
+
+  ares__destroy_servers_state(channel);
+
+  if (channel->domains) {
+    for (i = 0; i < channel->ndomains; i++)
+      free(channel->domains[i]);
+    free(channel->domains);
+  }
+
+  if(channel->sortlist)
+    free(channel->sortlist);
+
+  if (channel->lookups)
+    free(channel->lookups);
+
+  free(channel);
+}
+
+void ares__destroy_servers_state(ares_channel channel)
+{
+  struct server_state *server;
+  int i;
   struct query *query;
   struct list_node* list_head;
   struct list_node* list_node;
-  
+
   if (!channel)
     return;
 
@@ -70,28 +92,6 @@ void ares_destroy(ares_channel channel)
       assert(ares__is_list_empty(&(channel->queries_by_timeout[i])));
     }
 #endif
-
-  ares__destroy_servers_state(channel);
-
-  if (channel->domains) {
-    for (i = 0; i < channel->ndomains; i++)
-      free(channel->domains[i]);
-    free(channel->domains);
-  }
-
-  if(channel->sortlist)
-    free(channel->sortlist);
-
-  if (channel->lookups)
-    free(channel->lookups);
-
-  free(channel);
-}
-
-void ares__destroy_servers_state(ares_channel channel)
-{
-  struct server_state *server;
-  int i;
 
   if (channel->servers)
     {
