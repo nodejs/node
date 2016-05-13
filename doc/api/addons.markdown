@@ -811,3 +811,60 @@ Test it with:
     var result = addon.add(obj1, obj2);
 
     console.log(result); // 30
+
+### AtExit hooks
+#### void AtExit(callback, args)
+
+* `callback`: `void (*)(void*)` - A pointer to the function to call at exit.
+* `args`: `void*` - A pointer to pass to the callback at exit.
+
+Registers exit hooks that run after the event loop has ended, but before the VM
+is killed.
+
+Callbacks are run in last-in, first-out order. AtExit takes two parameters:
+a pointer to a callback function to run at exit, and a pointer to untyped
+context data to be passed to that callback.
+
+The file `binding.cc` implements AtExit below:
+
+      #undef NDEBUG
+      #include <assert.h>
+      #include <stdlib.h>
+      #include <node.h>
+
+      static char cookie[] = "yum yum";
+      static int at_exit_cb1_called = 0;
+      static int at_exit_cb2_called = 0;
+
+      static void at_exit_cb1(void* arg) {
+        v8::Isolate* isolate = static_cast<v8::Isolate*>(arg);
+        v8::HandleScope scope(isolate);
+        assert(arg == 0);
+        v8::Local<v8::Object> obj = v8::Object::New(isolate);
+        assert(!obj.IsEmpty()); // assert VM is still alive
+        assert(obj->IsObject());
+        at_exit_cb1_called++;
+      }
+
+      static void at_exit_cb2(void* arg) {
+        assert(arg == static_cast<void*>(cookie));
+        at_exit_cb2_called++;
+      }
+
+      static void sanity_check(void) {
+        assert(at_exit_cb1_called == 1);
+        assert(at_exit_cb2_called == 2);
+      }
+
+      void init(Handle<Object> exports) {
+        AtExit(at_exit_cb1, exports->GetIsolate());
+        AtExit(at_exit_cb2, cookie);
+        AtExit(at_exit_cb2, cookie);
+        AtExit(sanity_check);
+      }
+
+      NODE_MODULE(binding, init);
+
+Test in JavaScript by running:
+
+      var binding = require('./build/Release/binding');
