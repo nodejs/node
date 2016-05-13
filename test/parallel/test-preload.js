@@ -79,7 +79,7 @@ var stdinStdout = '';
 stdinProc.stdout.on('data', function(d) {
   stdinStdout += d;
 });
-stdinProc.on('exit', function(code) {
+stdinProc.on('close', function(code) {
   assert.equal(code, 0);
   assert.equal(stdinStdout, 'A\nhello\n');
 });
@@ -95,7 +95,7 @@ var replStdout = '';
 replProc.stdout.on('data', function(d) {
   replStdout += d;
 });
-replProc.on('exit', function(code) {
+replProc.on('close', function(code) {
   assert.equal(code, 0);
   const output = [
     'A',
