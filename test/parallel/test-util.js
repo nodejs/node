@@ -50,6 +50,14 @@ assert.equal(true, util.isError(Object.create(Error.prototype)));
 
 // isObject
 assert.ok(util.isObject({}) === true);
+assert.ok(util.isObject(function() {}) === true);
+assert.ok(util.isObject([1, 2, 3]) === true);
+assert.ok(util.isObject(new String('string')) === true);
+assert.ok(util.isObject(null) === false);
+assert.ok(util.isObject(undefined) === false);
+assert.ok(util.isObject('string') === false);
+assert.ok(util.isObject(42) === false);
+assert.ok(util.isObject(true) === false);
 
 // isPrimitive
 assert.equal(false, util.isPrimitive({}));
