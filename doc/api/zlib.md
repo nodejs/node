@@ -2,18 +2,15 @@
 
     Stability: 2 - Stable
 
-You can access this module with:
+The `zlib` module provides compression functionality implemented using Gzip and
+Deflate/Inflate. It can be accessed using:
 
-    const zlib = require('zlib');
+```js
+const zlib = require('zlib');
+```
 
-This provides bindings to Gzip/Gunzip, Deflate/Inflate, and
-DeflateRaw/InflateRaw classes.  Each class takes the same options, and
-is a readable/writable Stream.
-
-## Examples
-
-Compressing or decompressing a file can be done by piping an
-fs.ReadStream into a zlib stream, then into an fs.WriteStream.
+Compressing or decompressing a stream (such as a file) can be accomplished by 
+piping the source stream data through a `zlib` stream into a destination stream:
 
 ```js
 const gzip = zlib.createGzip();
@@ -24,8 +21,7 @@ const out = fs.createWriteStream('input.txt.gz');
 inp.pipe(gzip).pipe(out);
 ```
 
-Compressing or decompressing data in one step can be done by using
-the convenience methods.
+It is also possible to compress or decompress data in a single step:
 
 ```js
 const input = '.................................';
@@ -47,25 +43,33 @@ zlib.unzip(buffer, (err, buffer) => {
 });
 ```
 
-To use this module in an HTTP client or server, use the [accept-encoding][]
-on requests, and the [content-encoding][] header on responses.
+## Compressing HTTP requests and responses
 
-**Note: these examples are drastically simplified to show
-the basic concept.**  Zlib encoding can be expensive, and the results
+The `zlib` module can be used to implement support for the `gzip` and `deflate`
+content-encoding mechanisms defined by 
+[HTTP](https://tools.ietf.org/html/rfc7230#section-4.2).
+
+The HTTP [`Accept-Encoding`][] header is used within an http request to identify
+the compression encodings accepted by the client. The [`Content-Encoding`][] 
+header is used to identify the compression encodings actually applied to a 
+message.
+
+**Note: the examples given below are drastically simplified to show
+the basic concept.**  Using `zlib` encoding can be expensive, and the results
 ought to be cached.  See [Memory Usage Tuning][] for more information
-on the speed/memory/compression tradeoffs involved in zlib usage.
+on the speed/memory/compression tradeoffs involved in `zlib` usage.
 
 ```js
 // client request example
 const zlib = require('zlib');
 const http = require('http');
 const fs = require('fs');
-const request = http.get({ host: 'izs.me',
+const request = http.get({ host: 'example.com',
                          path: '/',
                          port: 80,
-                         headers: { 'accept-encoding': 'gzip,deflate' } });
+                         headers: { 'Accept-Encoding': 'gzip,deflate' } });
 request.on('response', (response) => {
-  var output = fs.createWriteStream('izs.me_index.html');
+  var output = fs.createWriteStream('example.com_index.html');
 
   switch (response.headers['content-encoding']) {
     // or, just use zlib.createUnzip() to handle both cases
@@ -97,10 +101,10 @@ http.createServer((request, response) => {
   // Note: this is not a conformant accept-encoding parser.
   // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
   if (acceptEncoding.match(/\bdeflate\b/)) {
-    response.writeHead(200, { 'content-encoding': 'deflate' });
+    response.writeHead(200, { 'Content-Encoding': 'deflate' });
     raw.pipe(zlib.createDeflate()).pipe(response);
   } else if (acceptEncoding.match(/\bgzip\b/)) {
-    response.writeHead(200, { 'content-encoding': 'gzip' });
+    response.writeHead(200, { 'Content-Encoding': 'gzip' });
     raw.pipe(zlib.createGzip()).pipe(response);
   } else {
     response.writeHead(200, {});
@@ -109,7 +113,7 @@ http.createServer((request, response) => {
 }).listen(1337);
 ```
 
-By default, the zlib methods with throw an error when decompressing
+By default, the `zlib` methods with throw an error when decompressing
 truncated data. However, if it is known that the data is incomplete, or
 the desire is to inspect only the beginning of a compressed file, it is
 possible to suppress the default error handling by changing the flushing
@@ -146,17 +150,17 @@ The memory requirements for deflate are (in bytes):
 (1 << (windowBits+2)) +  (1 << (memLevel+9))
 ```
 
-that is: 128K for windowBits=15  +  128K for memLevel = 8
+That is: 128K for windowBits=15  +  128K for memLevel = 8
 (default values) plus a few kilobytes for small objects.
 
-For example, if you want to reduce
-the default memory requirements from 256K to 128K, set the options to:
+For example, to reduce the default memory requirements from 256K to 128K, the
+options shoud be set to:
 
 ```
 { windowBits: 14, memLevel: 7 }
 ```
 
-Of course this will generally degrade compression (there's no free lunch).
+This will, however, generally degrade compression.
 
 The memory requirements for inflate are (in bytes)
 
@@ -164,25 +168,25 @@ The memory requirements for inflate are (in bytes)
 1 << windowBits
 ```
 
-that is, 32K for windowBits=15 (default value) plus a few kilobytes
+That is, 32K for windowBits=15 (default value) plus a few kilobytes
 for small objects.
 
 This is in addition to a single internal output slab buffer of size
 `chunkSize`, which defaults to 16K.
 
-The speed of zlib compression is affected most dramatically by the
+The speed of `zlib` compression is affected most dramatically by the
 `level` setting.  A higher level will result in better compression, but
 will take longer to complete.  A lower level will result in less
 compression, but will be much faster.
 
-In general, greater memory usage options will mean that node.js has to make
-fewer calls to zlib, since it'll be able to process more data in a
-single `write` operation.  So, this is another factor that affects the
+In general, greater memory usage options will mean that Node.js has to make
+fewer calls to `zlib` because it will be able to process more data on
+each `write` operation.  So, this is another factor that affects the
 speed, at the cost of memory usage.
 
 ## Flushing
 
-Calling [`.flush()`][] on a compression stream will make zlib return as much
+Calling [`.flush()`][] on a compression stream will make `zlib` return as much
 output as currently possible. This may come at the cost of degraded compression
 quality, but can be useful when data needs to be available as soon as possible.
 
@@ -214,13 +218,11 @@ http.createServer((request, response) => {
 
 <!--type=misc-->
 
-All of the constants defined in zlib.h are also defined on
-`require('zlib')`.
-In the normal course of operations, you will not need to ever set any of
-these.  They are documented here so that their presence is not
-surprising.  This section is taken almost directly from the
-[zlib documentation][].  See <http://zlib.net/manual.html#Constants> for more
-details.
+All of the constants defined in `zlib.h` are also defined on `require('zlib')`.
+In the normal course of operations, it will not be necessary to use these 
+constants. They are documented so that their presence is not surprising. This 
+section is taken almost directly from the [zlib documentation][].  See
+<http://zlib.net/manual.html#Constants> for more details.
 
 Allowed flush values.
 
@@ -280,19 +282,19 @@ For initializing zalloc, zfree, opaque.
 
 <!--type=misc-->
 
-Each class takes an options object.  All options are optional.
+Each class takes an `options` object.  All options are optional.
 
 Note that some options are only relevant when compressing, and are
 ignored by the decompression classes.
 
-* flush (default: `zlib.Z_NO_FLUSH`)
-* finishFlush (default: `zlib.Z_FINISH`)
-* chunkSize (default: 16*1024)
-* windowBits
-* level (compression only)
-* memLevel (compression only)
-* strategy (compression only)
-* dictionary (deflate/inflate only, empty dictionary by default)
+* `flush` (default: `zlib.Z_NO_FLUSH`)
+* `finishFlush` (default: `zlib.Z_FINISH`)
+* `chunkSize` (default: 16*1024)
+* `windowBits`
+* `level` (compression only)
+* `memLevel` (compression only)
+* `strategy` (compression only)
+* `dictionary` (deflate/inflate only, empty dictionary by default)
 
 See the description of `deflateInit2` and `inflateInit2` at
 <http://zlib.net/manual.html#Advanced> for more information on these.
@@ -303,7 +305,7 @@ Compress data using deflate.
 
 ## Class: zlib.DeflateRaw
 
-Compress data using deflate, and do not append a zlib header.
+Compress data using deflate, and do not append a `zlib` header.
 
 ## Class: zlib.Gunzip
 
@@ -338,7 +340,7 @@ class of the compressor/decompressor classes.
 Flush pending data. Don't call this frivolously, premature flushes negatively
 impact the effectiveness of the compression algorithm.
 
-Calling this only flushes data from the internal zlib state, and does not
+Calling this only flushes data from the internal `zlib` state, and does not
 perform flushing of any kind on the streams level. Rather, it behaves like a
 normal call to `.write()`, i.e. it will be queued up behind other pending
 writes and will only produce output when data is being read from the stream.
@@ -385,9 +387,9 @@ Returns a new [Unzip][] object with an [options][].
 
 <!--type=misc-->
 
-All of these take a [Buffer][] or string as the first argument, an optional second
-argument to supply options to the zlib classes and will call the supplied
-callback with `callback(error, result)`.
+All of these take a [Buffer][] or string as the first argument, an optional 
+second argument to supply options to the `zlib` classes and will call the 
+supplied callback with `callback(error, result)`.
 
 Every method has a `*Sync` counterpart, which accept the same arguments, but
 without a callback.
@@ -427,8 +429,8 @@ Decompress a Buffer or string with InflateRaw.
 
 Decompress a Buffer or string with Unzip.
 
-[accept-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-[content-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
+[`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+[`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [Memory Usage Tuning]: #zlib_memory_usage_tuning
 [zlib documentation]: http://zlib.net/manual.html#Constants
 [options]: #zlib_class_options
