@@ -140,7 +140,7 @@ To run the tests:
 > vcbuild test
 ```
 
-### Android / Android based devices, aka. Firefox OS
+### Android / Android based devices, aka. Fire OS
 
 Be sure you have downloaded and extracted [Android NDK]
 (https://developer.android.com/tools/sdk/ndk/index.html)
