@@ -803,6 +803,22 @@ a diff reading, useful for benchmarks and measuring intervals:
     }, 1000);
 
 
+## process.hrtimefp()
+
+Returns a double of the milliseconds in high-resolution time. It's similar to
+doing:
+
+    var time = process.hrtime();
+    var timefp = t[0] * 1e3 + t[1] / 1e6;
+
+You may pass in the result of a previous call to get the diff reading:
+
+    var time = process.hrtimefp();
+
+    // Perform benchmark
+
+    time = process.hrtimefp(time);
+
 ## process.mainModule
 
 Alternate way to retrieve

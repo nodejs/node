@@ -1994,6 +1994,15 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(tuple);
 }
 
+void Hrtimefp(const FunctionCallbackInfo<Value>& args) {
+  uint64_t time = 0;
+
+  if (args.Length() > 0)
+    time = args[0]->IntegerValue();
+
+  args.GetReturnValue().Set((static_cast<double>(uv_hrtime()) / 1e6) - time);
+}
+
 extern "C" void node_module_register(void* m) {
   struct node_module* mp = reinterpret_cast<struct node_module*>(m);
 
@@ -2838,6 +2847,7 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_debugEnd", DebugEnd);
 
   env->SetMethod(process, "hrtime", Hrtime);
+  env->SetMethod(process, "hrtimefp", Hrtimefp);
 
   env->SetMethod(process, "dlopen", DLOpen);
 

@@ -23,3 +23,7 @@ function validateTuple(tuple) {
     assert(isFinite(v));
   });
 }
+
+var t = process.hrtimefp();
+
+assert.okay(typeof t, 'number');
