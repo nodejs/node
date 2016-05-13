@@ -54,6 +54,12 @@ using v8::Uint32;
 using v8::Value;
 
 
+union CopyDWord {
+  char as_bytes[sizeof(uint32_t)];
+  uint32_t as_dword;
+};
+
+
 bool HasInstance(Handle<Value> val) {
   return val->IsObject() && HasInstance(val.As<Object>());
 }
@@ -296,6 +302,71 @@ void HexSlice(const FunctionCallbackInfo<Value>& args) {
 
 void Base64Slice(const FunctionCallbackInfo<Value>& args) {
   StringSlice<BASE64>(args);
+}
+
+
+// bytesCopied = buffer.mask(mask, target, targetOffset, sourceStart, sourceEnd)
+void Mask(const FunctionCallbackInfo<Value> &args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CopyDWord mask;
+  mask.as_dword = args[0]->Uint32Value();
+
+  CHECK(args[1]->IsObject());
+  Local<Object> target = args[1].As<Object>();
+
+  if (!HasInstance(target))
+    return env->ThrowTypeError("second arg should be a Buffer");
+
+  ARGS_THIS(args.This())
+  size_t target_length = target->GetIndexedPropertiesExternalArrayDataLength();
+  char* target_data = static_cast<char*>(
+      target->GetIndexedPropertiesExternalArrayData());
+  size_t target_start;
+  size_t source_start;
+  size_t source_end;
+
+  CHECK_NOT_OOB(ParseArrayIndex(args[2], 0, &target_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[3], 0, &source_start));
+  CHECK_NOT_OOB(ParseArrayIndex(args[4], obj_length, &source_end));
+
+  // Copy 0 bytes; we're done
+  if (target_start >= target_length || source_start >= source_end)
+    return args.GetReturnValue().Set(0);
+
+  if (source_start > obj_length)
+    return env->ThrowRangeError("out of range index");
+
+  if (source_end - source_start > target_length - target_start)
+    source_end = source_start + target_length - target_start;
+  CHECK_LE(source_start, source_end);
+
+  uint32_t to_copy = MIN(MIN(source_end - source_start,
+                             target_length - target_start),
+                             obj_length - source_start);
+  size_t written = (to_copy / sizeof(uint32_t)) * sizeof(uint32_t);
+  obj_data += source_start;
+  target_data += target_start;
+
+  CopyDWord tmp;
+  for (size_t i = 0; i < written; i += sizeof(tmp.as_bytes)) {
+    memcpy(tmp.as_bytes, obj_data + i, sizeof(tmp.as_bytes));
+    tmp.as_dword ^= mask.as_dword;
+    memcpy(target_data + i, tmp.as_bytes, sizeof(tmp.as_bytes));
+  }
+  target_data += written;
+  obj_data += written;
+
+  switch (to_copy % 4) {
+    case 3:
+      target_data[2] = obj_data[2] ^ mask.as_bytes[2];
+    case 2:
+      target_data[1] = obj_data[1] ^ mask.as_bytes[1];
+    case 1:
+      target_data[0] = obj_data[0] ^ mask.as_bytes[0];
+    case 0: {}
+  }
+  return args.GetReturnValue().Set(to_copy);
 }
 
 
@@ -730,6 +801,7 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   env->SetMethod(proto, "utf8Write", Utf8Write);
 
   env->SetMethod(proto, "copy", Copy);
+  env->SetMethod(proto, "mask", Mask);
 
   // for backwards compatibility
   proto->ForceSet(env->offset_string(),

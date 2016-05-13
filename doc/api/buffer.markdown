@@ -810,6 +810,26 @@ buffer.
     var b = new Buffer(50);
     b.fill("h");
 
+### buf.mask(maskValue, targetBuffer[, targetStart][, sourceStart][, sourceEnd])
+
+* `maskValue` Number
+* `targetBuffer` Buffer
+* `targetStart` Number, optional
+* `sourceStart` Number, optional
+* `sourceEnd` Number, optional
+
+Takes the contents of `buf`, starting at `sourceStart` and ending at
+`sourceEnd`, and XOR's them with `maskValue`. The result is written to
+`targetBuffer`, starting at `targetOffset`. `sourceStart` and `targetStart`
+will default to `0` if not given; `sourceEnd` will default to `buf.length` if
+not given. The start, end, and offset parameters function the same as the
+corresponding parameters to
+[buf.copy](#buffer_buf_copy_targetbuffer_targetstart_sourcestart_sourceend).
+
+The target region of memory may overlap the source region of memory.
+
+Returns the number of bytes masked and written into `targetBuffer`.
+
 ### buffer.values()
 
 Creates iterator for buffer values (bytes). This function is called automatically
