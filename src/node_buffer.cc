@@ -593,13 +593,37 @@ int32_t IndexOf(const char* haystack,
                 const char* needle,
                 size_t n_length) {
   CHECK_GE(h_length, n_length);
-  // TODO(trevnorris): Implement Boyer-Moore string search algorithm.
-  for (size_t i = 0; i < h_length - n_length + 1; i++) {
-    if (haystack[i] == needle[0]) {
-      if (memcmp(haystack + i, needle, n_length) == 0)
-        return i;
-    }
+
+  const char* inc;
+  const void* ptr;
+
+  // Guard against zero length searches
+  if (h_length == 0 || n_length == 0 || n_length > h_length)
+    return -1;
+
+  // Single character case
+  if (n_length == 1) {
+    ptr = memchr(haystack, *needle, h_length);
+    if (ptr == nullptr)
+      return -1;
+    return static_cast<int32_t>(static_cast<const char*>(ptr) - haystack);
   }
+
+  // Do multicharacter string match
+  inc = haystack;
+  do {
+    ptr = memchr(inc, *needle, h_length - static_cast<int32_t>(inc - haystack));
+    if (ptr != nullptr) {
+      const void* ptr2 = memmem(inc,
+                                h_length - static_cast<int32_t>(inc - haystack),
+                                needle,
+                                n_length);
+      if (ptr2 != nullptr)
+        return static_cast<int32_t>(static_cast<const char*>(ptr2) - haystack);
+      inc = static_cast<const char*>(ptr);
+    }
+  } while (ptr != nullptr);
+
   return -1;
 }
 
