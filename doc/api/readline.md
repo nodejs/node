@@ -357,10 +357,12 @@ a `'resize'` event on the `output` if/when the columns ever change
 
 Move cursor to the specified position in a given TTY stream.
 
-## readline.emitKeypressEvents(stream)
+## readline.emitKeypressEvents(stream[, interface])
 
 Causes `stream` to begin emitting `'keypress'` events corresponding to its
 input.
+Optionally, `interface` specifies a `readline.Interface` instance for which
+autocompletion is disabled when copy-pasted input is detected.
 
 Note that the stream, if it is a TTY, needs to be in raw mode:
 ```js
