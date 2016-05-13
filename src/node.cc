@@ -1565,14 +1565,47 @@ static void Abort(const FunctionCallbackInfo<Value>& args) {
 static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (args.Length() != 1 || !args[0]->IsString()) {
-    return env->ThrowTypeError("Bad argument.");
-  }
+  if (args.Length() < 1)
+    return env->ThrowTypeError("path required");
+  if (!args[0]->IsString())
+    return env->ThrowTypeError("path must be a string");
+  if (!args[1]->IsUndefined() && !args[1]->IsFunction())
+    return env->ThrowTypeError("callback must be a function");
 
   node::Utf8Value path(args.GetIsolate(), args[0]);
-  int err = uv_chdir(*path);
-  if (err) {
-    return env->ThrowUVException(err, "uv_chdir");
+
+  if (args[1]->IsFunction()) {
+#ifdef _WIN32
+    // MAX_PATH is in characters, not bytes. Make sure we have enough
+    // headroom.
+    char init[MAX_PATH * 4];
+#else
+    char init[PATH_MAX];
+#endif
+
+    // Throw exception on setup and teardown, but not invocation of
+    // callback
+    size_t cwd_len = sizeof(init);
+    int err = uv_cwd(init, &cwd_len);
+    if (err) {
+      return env->ThrowUVException(err, "uv_cwd");
+    }
+
+    err = uv_chdir(*path);
+    /* we should pass the error into the callback invocation parameters */
+    Local<Function> callback_function = Local<Function>::Cast(args[1]);
+    callback_function->Call(env->context()->Global(), 0, NULL);
+
+    err = uv_chdir(init);
+    if (err) {
+      return env->ThrowUVException(err, "uv_chdir");
+    }
+
+  } else {
+    int err = uv_chdir(*path);
+    if (err) {
+      return env->ThrowUVException(err, "uv_chdir");
+    }
   }
 }
 

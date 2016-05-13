@@ -370,9 +370,11 @@ and process.argv:
 This causes io.js to emit an abort. This will cause io.js to exit and
 generate a core file.
 
-## process.chdir(directory)
+## process.chdir(path, callback)
 
 Changes the current working directory of the process or throws an exception if that fails.
+
+Example:
 
     console.log('Starting directory: ' + process.cwd());
     try {
@@ -383,6 +385,20 @@ Changes the current working directory of the process or throws an exception if t
       console.log('chdir: ' + err);
     }
 
+Or you may process asynchronously:
+
+    console.log('Starting directory: ' + process.cwd());
+    process.chdir('/tmp', function(err) {
+      if (err) throw err;
+      console.log('Working directory: ' + process.cwd());
+    });
+    console.log('Resulting directory: ' + process.cwd());
+
+which might result in output like:
+
+    Starting directory: /home/howard
+    Working directory: /tmp
+    Resulting directory: /home/howard
 
 
 ## process.cwd()
