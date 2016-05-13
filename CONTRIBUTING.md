@@ -89,7 +89,7 @@ $ git config --global user.email "j.random.user@example.com"
 Writing good commit logs is important.  A commit log should describe what
 changed and why.  Follow these guidelines when writing one:
 
-1. The first line should be 50 characters or less and contain a short
+1. The first line should be 67 characters or less and contain a short
    description of the change prefixed with the name of the changed
    subsystem (e.g. "net: add localAddress and localPort to Socket").
 2. Keep the second line blank.
