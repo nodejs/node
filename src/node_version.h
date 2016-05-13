@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_VERSION_H_
 #define SRC_NODE_VERSION_H_
 
+#define IS_IOJS 1
+
 #define NODE_MAJOR_VERSION 1
 #define NODE_MINOR_VERSION 8
 #define NODE_PATCH_VERSION 5
