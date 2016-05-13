@@ -18,13 +18,22 @@ console.log(decoder.write(euro));
 ```
 
 ## Class: StringDecoder
+<!-- YAML
+added: v0.1.99
+-->
 
 Accepts a single argument, `encoding` which defaults to `'utf8'`.
 
 ### decoder.end()
+<!-- YAML
+added: v0.9.3
+-->
 
 Returns any trailing bytes that were left in the buffer.
 
 ### decoder.write(buffer)
+<!-- YAML
+added: v0.1.99
+-->
 
 Returns a decoded string.
