@@ -347,7 +347,7 @@ will be removed at a later point. (Roman Reiss) [#1363](https://github.com/iojs/
 * **fs**: corruption can be caused by `fs.writeFileSync()` and append-mode `fs.writeFile()` and `fs.writeFileSync()` under certain circumstances, reported in [#1058](https://github.com/iojs/io.js/issues/1058), fixed in [#1063](https://github.com/iojs/io.js/pull/1063) (Olov Lassus).
 * **iojs**: an "internal modules" API has been introduced to allow core code to share JavaScript modules internally only without having to expose them as a public API, this feature is for core-only [#848](https://github.com/iojs/io.js/pull/848) (Vladimir Kurchatkin).
 * **timers**: two minor problems with timers have been fixed:
-  - `Timer#close()` is now properly idempotent [#1288](https://github.com/iojs/io.js/issues/1288) (Petka Antonov).
+  - `Timer.close()` is now properly idempotent [#1288](https://github.com/iojs/io.js/issues/1288) (Petka Antonov).
   - `setTimeout()` will only run the callback once now after an `unref()` during the callback [#1231](https://github.com/iojs/io.js/pull/1231) (Roman Reiss).
   - NOTE: there are still other unresolved concerns with the timers code, such as [#1152](https://github.com/iojs/io.js/pull/1152).
 * **Windows**: a "delay-load hook" has been added for compiled add-ons on Windows that should alleviate some of the problems that Windows users may be experiencing with add-ons in io.js [#1251](https://github.com/iojs/io.js/pull/1251) (Bert Belder).
