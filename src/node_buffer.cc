@@ -503,7 +503,7 @@ template <typename T, enum Endianness endianness>
 uint32_t WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   ARGS_THIS(args[0].As<Object>())
 
-  T val = args[1]->NumberValue();
+  T val = static_cast<T>(args[1]->NumberValue());
   uint32_t offset = args[2]->Uint32Value();
   CHECK_LE(offset + sizeof(T), obj_length);
 
