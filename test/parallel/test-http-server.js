@@ -46,6 +46,7 @@ var server = http.createServer(function(req, res) {
   }, 1);
 
 });
+assert(server instanceof http.Server);
 server.listen(common.PORT);
 
 server.httpAllowHalfOpen = true;
@@ -92,6 +93,10 @@ server.on('listening', function() {
     assert.equal(c.readyState, 'closed');
   });
 });
+
+assert(http.createServer() instanceof http.Server);
+assert(http.createServer({foo: 1}) instanceof http.Server);
+assert(http.createServer({tls: false}) instanceof http.Server);
 
 process.on('exit', function() {
   assert.equal(4, request_number);

@@ -57,9 +57,14 @@ A collection of all the standard HTTP response status codes, and the
 short description of each.  For example, `http.STATUS_CODES[404] === 'Not
 Found'`.
 
-## http.createServer([requestListener])
+## http.createServer([options][, requestListener])
 
 Returns a new instance of [http.Server](#http_class_http_server).
+
+Options (an optional argument) inherits from [tls.Server][], plus:
+
+- `tls`: Boolean, whether or not to return an [https.Server][] based on the
+options. Defaults to false.
 
 The `requestListener` is a function which is automatically
 added to the `'request'` event.
@@ -1076,6 +1081,8 @@ authentication details.
 [http.Server]: #http_class_http_server
 [http.request()]: #http_http_request_options_callback
 [http.request()]: #http_http_request_options_callback
+[https.Server]: https.html#https_class_https_server
+[tls.Server]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [net.Server.close()]: net.html#net_server_close_callback
 [net.Server.listen(path)]: net.html#net_server_listen_path_callback
 [net.Server.listen(port)]: net.html#net_server_listen_port_host_backlog_callback
