@@ -335,7 +335,7 @@ static WCHAR* path_search_walk_ext(const WCHAR *dir,
  *
  * UNC path support: we are dealing with UNC paths in both the path and the
  * filename. This is a deviation from what cmd.exe does (it does not let you
- * start a program by specifying an UNC path on the command line) but this is
+ * start a program by specifying a UNC path on the command line) but this is
  * really a pointless restriction.
  *
  */
