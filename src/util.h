@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <signal.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #ifdef __APPLE__
@@ -17,6 +18,8 @@
 #endif
 
 namespace node {
+
+void DumpBacktrace(FILE* fp);
 
 #ifdef __APPLE__
 template <typename T> using remove_reference = std::tr1::remove_reference<T>;
