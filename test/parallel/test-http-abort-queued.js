@@ -22,7 +22,7 @@ var server = http.createServer(function(req, res) {
 server.listen(common.PORT, function() {
   console.log('listen', server.address().port);
 
-  var agent = new http.Agent({maxSockets: 1});
+  var agent = new http.Agent({ maxSockets: 1 });
   assert.equal(Object.keys(agent.sockets).length, 0);
 
   var options = {

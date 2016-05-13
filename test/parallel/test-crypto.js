@@ -23,7 +23,7 @@ var tls = require('tls');
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
-  var options = {key: keyPem, cert: certPem, ca: caPem};
+  var options = { key: keyPem, cert: certPem, ca: caPem };
   var credentials = crypto.createCredentials(options);
   var context = credentials.context;
   var notcontext = { setOptions: context.setOptions, setKey: context.setKey };
@@ -32,25 +32,25 @@ assert.throws(function() {
 
 // PFX tests
 assert.doesNotThrow(function() {
-  tls.createSecureContext({pfx: certPfx, passphrase: 'sample'});
+  tls.createSecureContext({ pfx: certPfx, passphrase: 'sample' });
 });
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: certPfx});
+  tls.createSecureContext({ pfx: certPfx });
 }, 'mac verify failure');
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: certPfx, passphrase: 'test'});
+  tls.createSecureContext({ pfx: certPfx, passphrase: 'test' });
 }, 'mac verify failure');
 
 assert.throws(function() {
-  tls.createSecureContext({pfx: 'sample', passphrase: 'test'});
+  tls.createSecureContext({ pfx: 'sample', passphrase: 'test' });
 }, 'not enough data');
 
 
 // update() should only take buffers / strings
 assert.throws(function() {
-  crypto.createHash('sha1').update({foo: 'bar'});
+  crypto.createHash('sha1').update({ foo: 'bar' });
 }, /buffer/);
 
 

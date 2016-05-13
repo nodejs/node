@@ -75,7 +75,7 @@ if (cluster.isWorker) {
   var workers = [];
 
   // Spawn a cluster process
-  var master = fork(process.argv[1], ['cluster'], {silent: true});
+  var master = fork(process.argv[1], ['cluster'], { silent: true });
 
   // Handle messages from the cluster
   master.on('message', function(data) {

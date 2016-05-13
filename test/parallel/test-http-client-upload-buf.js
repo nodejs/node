@@ -18,7 +18,7 @@ var server = http.createServer(function(req, res) {
   req.on('end', function() {
     server_req_complete = true;
     console.log('request complete from server');
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('hello\n');
     res.end();
   });

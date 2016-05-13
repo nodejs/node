@@ -32,7 +32,7 @@ var s2 = new PassThrough();
 var s3 = new TestStream();
 s1.pipe(s3);
 // Don't let s2 auto close which may close s3
-s2.pipe(s3, {end: false});
+s2.pipe(s3, { end: false });
 
 // We must write a buffer larger than highWaterMark
 var big = Buffer.alloc(s1._writableState.highWaterMark + 1, 'x');

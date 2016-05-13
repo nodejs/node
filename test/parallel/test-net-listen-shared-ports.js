@@ -38,7 +38,7 @@ if (cluster.isMaster) {
     port: common.PORT,
     exclusive: false
   }, function() {
-    server2.listen({port: common.PORT + 1, exclusive: true}, function() {
+    server2.listen({ port: common.PORT + 1, exclusive: true }, function() {
       // the first worker should succeed
       process.send('success');
     });

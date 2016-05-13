@@ -14,15 +14,15 @@ global.process.stdout.write = function(string) {
 console._stderr = process.stdout;
 
 var tests = [
-  {input: 'foo', output: 'foo'},
-  {input: undefined, output: 'undefined'},
-  {input: null, output: 'null'},
-  {input: false, output: 'false'},
-  {input: 42, output: '42'},
-  {input: function() {}, output: '[Function]'},
-  {input: parseInt('not a number', 10), output: 'NaN'},
-  {input: {answer: 42}, output: '{ answer: 42 }'},
-  {input: [1, 2, 3], output: '[ 1, 2, 3 ]'}
+  { input: 'foo', output: 'foo' },
+  { input: undefined, output: 'undefined' },
+  { input: null, output: 'null' },
+  { input: false, output: 'false' },
+  { input: 42, output: '42' },
+  { input: function() {}, output: '[Function]' },
+  { input: parseInt('not a number', 10), output: 'NaN' },
+  { input: { answer: 42 }, output: '{ answer: 42 }' },
+  { input: [1, 2, 3], output: '[ 1, 2, 3 ]' }
 ];
 
 // test util.log()

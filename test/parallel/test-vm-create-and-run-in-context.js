@@ -11,7 +11,7 @@ var result = vm.runInContext('"passed";', context);
 assert.equal('passed', result);
 
 console.error('create a new pre-populated context');
-context = vm.createContext({'foo': 'bar', 'thing': 'lala'});
+context = vm.createContext({ 'foo': 'bar', 'thing': 'lala' });
 assert.equal('bar', context.foo);
 assert.equal('lala', context.thing);
 
@@ -22,7 +22,7 @@ assert.equal('lala', context.thing);
 
 // https://github.com/nodejs/node/issues/5768
 console.error('run in contextified sandbox without referencing the context');
-var sandbox = {x: 1};
+var sandbox = { x: 1 };
 vm.createContext(sandbox);
 global.gc();
 vm.runInContext('x = 2', sandbox);

@@ -12,7 +12,7 @@ var result = script.runInContext(context);
 assert.equal('passed', result);
 
 console.error('create a new pre-populated context');
-context = vm.createContext({'foo': 'bar', 'thing': 'lala'});
+context = vm.createContext({ 'foo': 'bar', 'thing': 'lala' });
 assert.equal('bar', context.foo);
 assert.equal('lala', context.thing);
 

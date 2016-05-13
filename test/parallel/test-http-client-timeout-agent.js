@@ -20,7 +20,7 @@ var server = http.createServer(function(req, res) {
   if (reqid % 2) {
     // do not reply the request
   } else {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write(reqid.toString());
     res.end();
   }

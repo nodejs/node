@@ -7,7 +7,7 @@ var http = require('http');
 var server = http.createServer(function(request, response) {
   console.log('responding to ' + request.url);
 
-  response.writeHead(200, {'Content-Type': 'text/plain'});
+  response.writeHead(200, { 'Content-Type': 'text/plain' });
   response.write('1\n');
   response.write('');
   response.write('2\n');

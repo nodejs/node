@@ -104,7 +104,7 @@ function addTest(input, output) {
       quit();
     }
   }
-  expected.push({input: input, lines: output, callback: next});
+  expected.push({ input: input, lines: output, callback: next });
 }
 
 var handshakeLines = [

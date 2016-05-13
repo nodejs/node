@@ -66,7 +66,7 @@ function fromArray(list) {
 function noop() {}
 
 test('can read objects from stream', function(t) {
-  var r = fromArray([{ one: '1'}, { two: '2' }]);
+  var r = fromArray([{ one: '1' }, { two: '2' }]);
 
   var v1 = r.read();
   var v2 = r.read();
@@ -80,7 +80,7 @@ test('can read objects from stream', function(t) {
 });
 
 test('can pipe objects into stream', function(t) {
-  var r = fromArray([{ one: '1'}, { two: '2' }]);
+  var r = fromArray([{ one: '1' }, { two: '2' }]);
 
   r.pipe(toArray(function(list) {
     assert.deepStrictEqual(list, [
@@ -93,7 +93,7 @@ test('can pipe objects into stream', function(t) {
 });
 
 test('read(n) is ignored', function(t) {
-  var r = fromArray([{ one: '1'}, { two: '2' }]);
+  var r = fromArray([{ one: '1' }, { two: '2' }]);
 
   var value = r.read(2);
 
@@ -104,7 +104,7 @@ test('read(n) is ignored', function(t) {
 
 test('can read objects from _read (sync)', function(t) {
   var r = new Readable({ objectMode: true });
-  var list = [{ one: '1'}, { two: '2' }];
+  var list = [{ one: '1' }, { two: '2' }];
   r._read = function(n) {
     var item = list.shift();
     r.push(item || null);
@@ -122,7 +122,7 @@ test('can read objects from _read (sync)', function(t) {
 
 test('can read objects from _read (async)', function(t) {
   var r = new Readable({ objectMode: true });
-  var list = [{ one: '1'}, { two: '2' }];
+  var list = [{ one: '1' }, { two: '2' }];
   r._read = function(n) {
     var item = list.shift();
     process.nextTick(function() {

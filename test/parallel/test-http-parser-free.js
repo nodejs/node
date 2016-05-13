@@ -14,7 +14,7 @@ server.listen(common.PORT, function() {
   var parser;
   for (var i = 0; i < N; ++i) {
     (function makeRequest(i) {
-      var req = http.get({port: common.PORT}, function(res) {
+      var req = http.get({ port: common.PORT }, function(res) {
         if (!parser) {
           parser = req.parser;
         } else {

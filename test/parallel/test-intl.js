@@ -40,9 +40,8 @@ if (!haveIntl) {
   var GMT = 'Etc/GMT';
 
   // Construct an English formatter. Should format to "Jan 70"
-  var dtf =
-      new Intl.DateTimeFormat(['en'],
-                              {timeZone: GMT, month: 'short', year: '2-digit'});
+  var dtf = new Intl.DateTimeFormat(['en'], { timeZone: GMT, month: 'short',
+                                              year: '2-digit' });
 
   // If list is specified and doesn't contain 'en' then return.
   if (process.config.variables.icu_locales && !haveLocale('en')) {
@@ -58,7 +57,7 @@ if (!haveIntl) {
   assert.equal(localeString, 'Jan 70');
 
   // Options to request GMT
-  var optsGMT = {timeZone: GMT};
+  var optsGMT = { timeZone: GMT };
 
   // Test format
   localeString = date0.toLocaleString(['en'], optsGMT);

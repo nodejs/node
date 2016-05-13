@@ -29,7 +29,7 @@ var server = net.createServer(function(socket) {
   ++requests;
 }).listen(common.PORT, function() {
   function makeRequest() {
-    var req = http.get({port: common.PORT}, function(res) {
+    var req = http.get({ port: common.PORT }, function(res) {
       assert.equal(req.shouldKeepAlive, SHOULD_KEEP_ALIVE[responses],
                    SERVER_RESPONSES[responses] + ' should ' +
                    (SHOULD_KEEP_ALIVE[responses] ? '' : 'not ') +

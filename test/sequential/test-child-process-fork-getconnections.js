@@ -10,7 +10,7 @@ if (process.argv[2] === 'child') {
 
   process.on('message', function(m, socket) {
     function sendClosed(id) {
-      process.send({ id: id, status: 'closed'});
+      process.send({ id: id, status: 'closed' });
     }
 
     if (m.cmd === 'new') {

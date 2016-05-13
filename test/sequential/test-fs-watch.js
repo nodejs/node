@@ -103,7 +103,7 @@ setImmediate(function() {
 
 // https://github.com/joyent/node/issues/2293 - non-persistent watcher should
 // not block the event loop
-fs.watch(__filename, {persistent: false}, function() {
+fs.watch(__filename, { persistent: false }, function() {
   assert(0);
 });
 
@@ -119,7 +119,7 @@ assert.throws(function() {
 oldhandle.close(); // clean up
 
 assert.throws(function() {
-  var w = fs.watchFile(__filename, {persistent: false}, function() {});
+  var w = fs.watchFile(__filename, { persistent: false }, function() {});
   oldhandle = w._handle;
   w._handle = { stop: w._handle.stop };
   w.stop();

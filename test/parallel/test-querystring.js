@@ -18,30 +18,30 @@ function createWithNoPrototype(properties) {
 var qsTestCases = [
   ['__proto__=1',
    '__proto__=1',
-   createWithNoPrototype([{key: '__proto__', value: '1'}])],
+   createWithNoPrototype([{ key: '__proto__', value: '1' }])],
   ['__defineGetter__=asdf',
    '__defineGetter__=asdf',
    JSON.parse('{"__defineGetter__":"asdf"}')],
   ['foo=918854443121279438895193',
    'foo=918854443121279438895193',
-   {'foo': '918854443121279438895193'}],
-  ['foo=bar', 'foo=bar', {'foo': 'bar'}],
-  ['foo=bar&foo=quux', 'foo=bar&foo=quux', {'foo': ['bar', 'quux']}],
-  ['foo=1&bar=2', 'foo=1&bar=2', {'foo': '1', 'bar': '2'}],
+   { 'foo': '918854443121279438895193' }],
+  ['foo=bar', 'foo=bar', { 'foo': 'bar' }],
+  ['foo=bar&foo=quux', 'foo=bar&foo=quux', { 'foo': ['bar', 'quux'] }],
+  ['foo=1&bar=2', 'foo=1&bar=2', { 'foo': '1', 'bar': '2' }],
   ['my+weird+field=q1%212%22%27w%245%267%2Fz8%29%3F',
    'my%20weird%20field=q1!2%22\'w%245%267%2Fz8)%3F',
-   {'my weird field': 'q1!2"\'w$5&7/z8)?' }],
-  ['foo%3Dbaz=bar', 'foo%3Dbaz=bar', {'foo=baz': 'bar'}],
-  ['foo=baz=bar', 'foo=baz%3Dbar', {'foo': 'baz=bar'}],
+   { 'my weird field': 'q1!2"\'w$5&7/z8)?' }],
+  ['foo%3Dbaz=bar', 'foo%3Dbaz=bar', { 'foo=baz': 'bar' }],
+  ['foo=baz=bar', 'foo=baz%3Dbar', { 'foo': 'baz=bar' }],
   ['str=foo&arr=1&arr=2&arr=3&somenull=&undef=',
    'str=foo&arr=1&arr=2&arr=3&somenull=&undef=',
    { 'str': 'foo',
      'arr': ['1', '2', '3'],
      'somenull': '',
-     'undef': ''}],
-  [' foo = bar ', '%20foo%20=%20bar%20', {' foo ': ' bar '}],
-  ['foo=%zx', 'foo=%25zx', {'foo': '%zx'}],
-  ['foo=%EF%BF%BD', 'foo=%EF%BF%BD', {'foo': '\ufffd' }],
+     'undef': '' }],
+  [' foo = bar ', '%20foo%20=%20bar%20', { ' foo ': ' bar ' }],
+  ['foo=%zx', 'foo=%25zx', { 'foo': '%zx' }],
+  ['foo=%EF%BF%BD', 'foo=%EF%BF%BD', { 'foo': '\ufffd' }],
   // See: https://github.com/joyent/node/issues/1707
   ['hasOwnProperty=x&toString=foo&valueOf=bar&__defineGetter__=baz',
     'hasOwnProperty=x&toString=foo&valueOf=bar&__defineGetter__=baz',
@@ -57,33 +57,35 @@ var qsTestCases = [
 
 // [ wonkyQS, canonicalQS, obj ]
 var qsColonTestCases = [
-  ['foo:bar', 'foo:bar', {'foo': 'bar'}],
-  ['foo:bar;foo:quux', 'foo:bar;foo:quux', {'foo': ['bar', 'quux']}],
+  ['foo:bar', 'foo:bar', { 'foo': 'bar' }],
+  ['foo:bar;foo:quux', 'foo:bar;foo:quux', { 'foo': ['bar', 'quux'] }],
   ['foo:1&bar:2;baz:quux',
    'foo:1%26bar%3A2;baz:quux',
-   {'foo': '1&bar:2', 'baz': 'quux'}],
-  ['foo%3Abaz:bar', 'foo%3Abaz:bar', {'foo:baz': 'bar'}],
-  ['foo:baz:bar', 'foo:baz%3Abar', {'foo': 'baz:bar'}]
+   { 'foo': '1&bar:2', 'baz': 'quux' }],
+  ['foo%3Abaz:bar', 'foo%3Abaz:bar', { 'foo:baz': 'bar' }],
+  ['foo:baz:bar', 'foo:baz%3Abar', { 'foo': 'baz:bar' }]
 ];
 
 // [wonkyObj, qs, canonicalObj]
 var extendedFunction = function() {};
-extendedFunction.prototype = {a: 'b'};
+extendedFunction.prototype = { a: 'b' };
 var qsWeirdObjects = [
-  [{regexp: /./g}, 'regexp=', {'regexp': ''}],
-  [{regexp: new RegExp('.', 'g')}, 'regexp=', {'regexp': ''}],
-  [{fn: function() {}}, 'fn=', {'fn': ''}],
-  [{fn: new Function('')}, 'fn=', {'fn': ''}],
-  [{math: Math}, 'math=', {'math': ''}],
-  [{e: extendedFunction}, 'e=', {'e': ''}],
-  [{d: new Date()}, 'd=', {'d': ''}],
-  [{d: Date}, 'd=', {'d': ''}],
-  [{f: new Boolean(false), t: new Boolean(true)}, 'f=&t=', {'f': '', 't': ''}],
-  [{f: false, t: true}, 'f=false&t=true', {'f': 'false', 't': 'true'}],
-  [{n: null}, 'n=', {'n': ''}],
-  [{nan: NaN}, 'nan=', {'nan': ''}],
-  [{inf: Infinity}, 'inf=', {'inf': ''}],
-  [{a: [], b: []}, '', {}]
+  [{ regexp: /./g }, 'regexp=', { 'regexp': '' }],
+  [{ regexp: new RegExp('.', 'g') }, 'regexp=', { 'regexp': '' }],
+  [{ fn: function() {} }, 'fn=', { 'fn': '' }],
+  [{ fn: new Function('') }, 'fn=', { 'fn': '' }],
+  [{ math: Math }, 'math=', { 'math': '' }],
+  [{ e: extendedFunction }, 'e=', { 'e': '' }],
+  [{ d: new Date() }, 'd=', { 'd': '' }],
+  [{ d: Date }, 'd=', { 'd': '' }],
+  [{ f: new Boolean(false), t: new Boolean(true) },
+   'f=&t=',
+   { 'f': '', 't': '' }],
+  [{ f: false, t: true }, 'f=false&t=true', { 'f': 'false', 't': 'true' }],
+  [{ n: null }, 'n=', { 'n': '' }],
+  [{ nan: NaN }, 'nan=', { 'nan': '' }],
+  [{ inf: Infinity }, 'inf=', { 'inf': '' }],
+  [{ a: [], b: [] }, '', {}]
 ];
 // }}}
 
@@ -92,13 +94,13 @@ var foreignObject = vm.runInNewContext('({"foo": ["bar", "baz"]})');
 
 var qsNoMungeTestCases = [
   ['', {}],
-  ['foo=bar&foo=baz', {'foo': ['bar', 'baz']}],
+  ['foo=bar&foo=baz', { 'foo': ['bar', 'baz'] }],
   ['foo=bar&foo=baz', foreignObject],
-  ['blah=burp', {'blah': 'burp'}],
-  ['gragh=1&gragh=3&goo=2', {'gragh': ['1', '3'], 'goo': '2'}],
+  ['blah=burp', { 'blah': 'burp' }],
+  ['gragh=1&gragh=3&goo=2', { 'gragh': ['1', '3'], 'goo': '2' }],
   ['frappucino=muffin&goat%5B%5D=scone&pond=moose',
-   {'frappucino': 'muffin', 'goat[]': 'scone', 'pond': 'moose'}],
-  ['trololol=yes&lololo=no', {'trololol': 'yes', 'lololo': 'no'}]
+   { 'frappucino': 'muffin', 'goat[]': 'scone', 'pond': 'moose' }],
+  ['trololol=yes&lololo=no', { 'trololol': 'yes', 'lololo': 'no' }]
 ];
 
 assert.strictEqual('918854443121279438895193',
@@ -137,14 +139,14 @@ qsNoMungeTestCases.forEach(function(testCase) {
 (function() {
   const f = qs.parse('a=b&q=x%3Dy%26y%3Dz');
   check(f, createWithNoPrototype([
-    { key: 'a', value: 'b'},
-    {key: 'q', value: 'x=y&y=z'}
+    { key: 'a', value: 'b' },
+    { key: 'q', value: 'x=y&y=z' }
   ]));
 
   f.q = qs.parse(f.q);
   const expectedInternal = createWithNoPrototype([
-    { key: 'x', value: 'y'},
-    {key: 'y', value: 'z' }
+    { key: 'x', value: 'y' },
+    { key: 'y', value: 'z' }
   ]);
   check(f.q, expectedInternal);
 })();
@@ -153,13 +155,13 @@ qsNoMungeTestCases.forEach(function(testCase) {
 (function() {
   const f = qs.parse('a:b;q:x%3Ay%3By%3Az', ';', ':');
   check(f, createWithNoPrototype([
-    {key: 'a', value: 'b'},
-    {key: 'q', value: 'x:y;y:z'}
+    { key: 'a', value: 'b' },
+    { key: 'q', value: 'x:y;y:z' }
   ]));
   f.q = qs.parse(f.q, ';', ':');
   const expectedInternal = createWithNoPrototype([
-    { key: 'x', value: 'y'},
-    {key: 'y', value: 'z' }
+    { key: 'x', value: 'y' },
+    { key: 'y', value: 'z' }
   ]);
   check(f.q, expectedInternal);
 })();
@@ -290,7 +292,8 @@ var prevUnescape = qs.unescape;
 qs.unescape = function(str) {
   return str.replace(/o/g, '_');
 };
-check(qs.parse('foo=bor'), createWithNoPrototype([{key: 'f__', value: 'b_r'}]));
+check(qs.parse('foo=bor'),
+      createWithNoPrototype([{ key: 'f__', value: 'b_r' }]));
 qs.unescape = prevUnescape;
 
 // test separator and "equals" parsing order

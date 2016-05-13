@@ -27,7 +27,7 @@ var syntaxArgs = [
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
     var _args = args.concat(file);
-    var c = spawnSync(node, _args, {encoding: 'utf8'});
+    var c = spawnSync(node, _args, { encoding: 'utf8' });
 
     // no output should be produced
     assert.equal(c.stdout, '', 'stdout produced');
@@ -48,7 +48,7 @@ var syntaxArgs = [
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
     var _args = args.concat(file);
-    var c = spawnSync(node, _args, {encoding: 'utf8'});
+    var c = spawnSync(node, _args, { encoding: 'utf8' });
 
     // no stdout should be produced
     assert.equal(c.stdout, '', 'stdout produced');
@@ -71,7 +71,7 @@ var syntaxArgs = [
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
     var _args = args.concat(file);
-    var c = spawnSync(node, _args, {encoding: 'utf8'});
+    var c = spawnSync(node, _args, { encoding: 'utf8' });
 
     // no stdout should be produced
     assert.equal(c.stdout, '', 'stdout produced');

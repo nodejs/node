@@ -14,7 +14,7 @@ var http = require('http');
 
   var server = http.createServer(function(req, res) {
     received_method = req.method;
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('hello ');
     res.write('world\n');
     res.end();

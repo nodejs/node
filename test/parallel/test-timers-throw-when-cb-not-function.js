@@ -10,7 +10,7 @@ function doSetTimeout(callback, after) {
 
 assert.throws(doSetTimeout('foo'),
   /"callback" argument must be a function/);
-assert.throws(doSetTimeout({foo: 'bar'}),
+assert.throws(doSetTimeout({ foo: 'bar' }),
   /"callback" argument must be a function/);
 assert.throws(doSetTimeout(),
   /"callback" argument must be a function/);
@@ -30,7 +30,7 @@ function doSetInterval(callback, after) {
 
 assert.throws(doSetInterval('foo'),
   /"callback" argument must be a function/);
-assert.throws(doSetInterval({foo: 'bar'}),
+assert.throws(doSetInterval({ foo: 'bar' }),
   /"callback" argument must be a function/);
 assert.throws(doSetInterval(),
   /"callback" argument must be a function/);
@@ -50,7 +50,7 @@ function doSetImmediate(callback, after) {
 
 assert.throws(doSetImmediate('foo'),
   /"callback" argument must be a function/);
-assert.throws(doSetImmediate({foo: 'bar'}),
+assert.throws(doSetImmediate({ foo: 'bar' }),
   /"callback" argument must be a function/);
 assert.throws(doSetImmediate(),
   /"callback" argument must be a function/);

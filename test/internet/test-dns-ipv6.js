@@ -158,7 +158,7 @@ TEST(function test_lookup_ip_ipv6(done) {
 TEST(function test_lookup_all_ipv6(done) {
   var req = dns.lookup(
     'www.google.com',
-    {all: true, family: 6},
+    { all: true, family: 6 },
     function(err, ips) {
       if (err) throw err;
       assert.ok(Array.isArray(ips));

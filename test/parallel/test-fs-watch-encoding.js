@@ -15,7 +15,7 @@ const a = path.join(common.tmpDir, fn);
 
 const watcher1 = fs.watch(
   common.tmpDir,
-  {encoding: 'hex'},
+  { encoding: 'hex' },
   (event, filename) => {
     if (filename)
       assert.equal(filename, 'e696b0e5bbbae69687e5a4b9e4bbb62e747874');
@@ -34,7 +34,7 @@ const watcher2 = fs.watch(
 
 const watcher3 = fs.watch(
   common.tmpDir,
-  {encoding: 'buffer'},
+  { encoding: 'buffer' },
   (event, filename) => {
     if (filename) {
       assert(filename instanceof Buffer);

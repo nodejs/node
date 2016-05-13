@@ -7,7 +7,7 @@ var assert = require('assert');
   var absolutePath = require.resolve(relativePath);
   var fakeModule = {};
 
-  require.cache[absolutePath] = {exports: fakeModule};
+  require.cache[absolutePath] = { exports: fakeModule };
 
   assert.strictEqual(require(relativePath), fakeModule);
 })();
@@ -17,7 +17,7 @@ var assert = require('assert');
   var relativePath = 'fs';
   var fakeModule = {};
 
-  require.cache[relativePath] = {exports: fakeModule};
+  require.cache[relativePath] = { exports: fakeModule };
 
   assert.strictEqual(require(relativePath), fakeModule);
 })();

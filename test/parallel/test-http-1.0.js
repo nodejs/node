@@ -43,7 +43,7 @@ function test(handler, request_generator, response_validator) {
     assert.equal('1.0', req.httpVersion);
     assert.equal(1, req.httpVersionMajor);
     assert.equal(0, req.httpVersionMinor);
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end(body);
   }
 
@@ -72,7 +72,7 @@ function test(handler, request_generator, response_validator) {
     assert.equal(1, req.httpVersionMajor);
     assert.equal(0, req.httpVersionMinor);
     res.sendDate = false;
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('Hello, '); res._send('');
     res.write('world!'); res._send('');
     res.end();
@@ -108,7 +108,7 @@ function test(handler, request_generator, response_validator) {
     assert.equal(1, req.httpVersionMajor);
     assert.equal(1, req.httpVersionMinor);
     res.sendDate = false;
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('Hello, '); res._send('');
     res.write('world!'); res._send('');
     res.end();

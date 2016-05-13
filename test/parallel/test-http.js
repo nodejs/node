@@ -29,7 +29,7 @@ var server = http.Server(function(req, res) {
   }
 
   req.on('end', function() {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('The path was ' + url.parse(req.url).pathname);
     res.end();
     responses_sent += 1;
@@ -45,7 +45,7 @@ server.on('listening', function() {
   http.get({
     port: common.PORT,
     path: '/hello',
-    headers: {'Accept': '*/*', 'Foo': 'bar'},
+    headers: { 'Accept': '*/*', 'Foo': 'bar' },
     agent: agent
   }, function(res) {
     assert.equal(200, res.statusCode);

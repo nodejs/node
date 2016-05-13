@@ -37,18 +37,18 @@ function testCwd(options, forCode, forData) {
 
 // Assume these exist, and 'pwd' gives us the right directory back
 if (common.isWindows) {
-  testCwd({cwd: process.env.windir}, 0, process.env.windir);
-  testCwd({cwd: 'c:\\'}, 0, 'c:\\');
+  testCwd({ cwd: process.env.windir }, 0, process.env.windir);
+  testCwd({ cwd: 'c:\\' }, 0, 'c:\\');
 } else {
-  testCwd({cwd: '/dev'}, 0, '/dev');
-  testCwd({cwd: '/'}, 0, '/');
+  testCwd({ cwd: '/dev' }, 0, '/dev');
+  testCwd({ cwd: '/' }, 0, '/');
 }
 
 // Assume does-not-exist doesn't exist, expect exitCode=-1 and errno=ENOENT
 (function() {
   var errors = 0;
 
-  testCwd({cwd: 'does-not-exist'}, -1).on('error', function(e) {
+  testCwd({ cwd: 'does-not-exist' }, -1).on('error', function(e) {
     assert.equal(e.code, 'ENOENT');
     errors++;
   });
@@ -61,9 +61,9 @@ if (common.isWindows) {
 // Spawn() shouldn't try to chdir() so this should just work
 testCwd(undefined, 0);
 testCwd({}, 0);
-testCwd({cwd: ''}, 0);
-testCwd({cwd: undefined}, 0);
-testCwd({cwd: null}, 0);
+testCwd({ cwd: '' }, 0);
+testCwd({ cwd: undefined }, 0);
+testCwd({ cwd: null }, 0);
 
 // Check whether all tests actually returned
 assert.notEqual(0, returns);

@@ -78,7 +78,7 @@ var server = https.Server(serverOptions, function(req, res) {
 
   req.on('end', function() {
     assert.equal(bytesExpected, uploadCount);
-    res.writeHead(200, {'content-type': 'text/plain'});
+    res.writeHead(200, { 'content-type': 'text/plain' });
     res.end('successful upload\n');
   });
 });

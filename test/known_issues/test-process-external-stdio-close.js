@@ -11,7 +11,7 @@ if (process.argv[2] === 'child') {
     process.disconnect();
   }));
 } else {
-  const child = cp.fork(__filename, ['child'], {silent: true});
+  const child = cp.fork(__filename, ['child'], { silent: true });
 
   child.on('close', common.mustCall((exitCode, signal) => {
     assert.strictEqual(exitCode, 0);

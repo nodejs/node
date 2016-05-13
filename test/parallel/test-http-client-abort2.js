@@ -7,7 +7,7 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(common.PORT, function() {
-  var req = http.get({port: common.PORT}, function(res) {
+  var req = http.get({ port: common.PORT }, function(res) {
     res.on('data', function(data) {
       req.abort();
       server.close();

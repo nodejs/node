@@ -93,7 +93,7 @@ test('object passthrough', function(t) {
   pt.write(0);
   pt.write('foo');
   pt.write('');
-  pt.write({ a: 'b'});
+  pt.write({ a: 'b' });
   pt.end();
 
   t.equal(pt.read(), 1);
@@ -102,7 +102,7 @@ test('object passthrough', function(t) {
   t.equal(pt.read(), 0);
   t.equal(pt.read(), 'foo');
   t.equal(pt.read(), '');
-  t.same(pt.read(), { a: 'b'});
+  t.same(pt.read(), { a: 'b' });
   t.end();
 });
 
@@ -140,7 +140,7 @@ test('simple object transform', function(t) {
   pt.write(0);
   pt.write('foo');
   pt.write('');
-  pt.write({ a: 'b'});
+  pt.write({ a: 'b' });
   pt.end();
 
   t.equal(pt.read(), '1');
@@ -267,7 +267,7 @@ test('assymetric transform (compress)', function(t) {
 test('complex transform', function(t) {
   var count = 0;
   var saved = null;
-  var pt = new Transform({highWaterMark: 3});
+  var pt = new Transform({ highWaterMark: 3 });
   pt._transform = function(c, e, cb) {
     if (count++ === 1)
       saved = c;

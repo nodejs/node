@@ -16,7 +16,7 @@ if (common.isWindows) {
   dir = '/dev';
 }
 
-exec(pwdcommand, {cwd: dir}, function(err, stdout, stderr) {
+exec(pwdcommand, { cwd: dir }, function(err, stdout, stderr) {
   if (err) {
     error_count++;
     console.log('error!: ' + err.code);

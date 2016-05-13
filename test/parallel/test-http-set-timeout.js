@@ -22,7 +22,7 @@ server.listen(common.PORT, function() {
     throw new Error('Timeout was not successful');
   }, common.platformTimeout(2000));
 
-  var x = http.get({port: common.PORT, path: '/'});
+  var x = http.get({ port: common.PORT, path: '/' });
   x.on('error', function() {
     clearTimeout(errorTimer);
     console.log('HTTP REQUEST COMPLETE (this is good)');

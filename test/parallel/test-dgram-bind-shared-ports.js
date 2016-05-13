@@ -48,7 +48,7 @@ if (cluster.isMaster) {
     port: common.PORT,
     exclusive: false
   }, function() {
-    socket2.bind({port: common.PORT + 1, exclusive: true}, function() {
+    socket2.bind({ port: common.PORT + 1, exclusive: true }, function() {
       // the first worker should succeed
       process.send('success');
     });

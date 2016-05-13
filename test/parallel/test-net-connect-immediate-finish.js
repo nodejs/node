@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const client = net.connect({host: '...', port: common.PORT});
+const client = net.connect({ host: '...', port: common.PORT });
 
 client.once('error', common.mustCall(function(err) {
   assert(err);

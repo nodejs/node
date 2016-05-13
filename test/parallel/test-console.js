@@ -39,28 +39,28 @@ global.process.stderr.write = function(string) {
 console.log('foo');
 console.log('foo', 'bar');
 console.log('%s %s', 'foo', 'bar', 'hop');
-console.log({slashes: '\\\\'});
+console.log({ slashes: '\\\\' });
 console.log(custom_inspect);
 
 // test console.info()
 console.info('foo');
 console.info('foo', 'bar');
 console.info('%s %s', 'foo', 'bar', 'hop');
-console.info({slashes: '\\\\'});
+console.info({ slashes: '\\\\' });
 console.info(custom_inspect);
 
 // test console.error()
 console.error('foo');
 console.error('foo', 'bar');
 console.error('%s %s', 'foo', 'bar', 'hop');
-console.error({slashes: '\\\\'});
+console.error({ slashes: '\\\\' });
 console.error(custom_inspect);
 
 // test console.warn()
 console.warn('foo');
 console.warn('foo', 'bar');
 console.warn('%s %s', 'foo', 'bar', 'hop');
-console.warn({slashes: '\\\\'});
+console.warn({ slashes: '\\\\' });
 console.warn(custom_inspect);
 
 // test console.dir()

@@ -1,5 +1,9 @@
 ## Test-specific linter rules
 
 rules:
+  # Stylistic Issues
+  # http://eslint.org/docs/rules/#stylistic-issues
+  object-curly-spacing: [2, "always"]
+
   ## common module is mandatory in tests
   required-modules: [2, "common"]

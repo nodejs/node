@@ -8,8 +8,8 @@ var http = require('http');
 var server = http.createServer(function(req, res) {
   var buffer = Buffer.alloc(0);
   // FIXME: WTF gjslint want this?
-  res.writeHead(200, {'Content-Type': 'text/html',
-                 'Content-Length': buffer.length});
+  res.writeHead(200, { 'Content-Type': 'text/html',
+                 'Content-Length': buffer.length });
   res.end(buffer);
 });
 

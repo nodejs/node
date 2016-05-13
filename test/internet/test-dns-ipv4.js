@@ -150,7 +150,7 @@ TEST(function test_lookup_localhost_ipv4(done) {
 TEST(function test_lookup_all_ipv4(done) {
   var req = dns.lookup(
     'www.google.com',
-    {all: true, family: 4},
+    { all: true, family: 4 },
     function(err, ips) {
       if (err) throw err;
       assert.ok(Array.isArray(ips));

@@ -8,7 +8,7 @@ var seen_req = false;
 var server = http.createServer(function(req, res) {
   assert.equal('GET', req.method);
   assert.equal('/foo?bar', req.url);
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.write('hello\n');
   res.end();
   server.close();

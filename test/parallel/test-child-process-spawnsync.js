@@ -25,10 +25,10 @@ assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
 
   if (common.isWindows) {
     cwd = 'c:\\';
-    response = spawnSync('cmd.exe', ['/c', 'cd'], {cwd: cwd});
+    response = spawnSync('cmd.exe', ['/c', 'cd'], { cwd: cwd });
   } else {
     cwd = '/';
-    response = spawnSync('pwd', [], {cwd: cwd});
+    response = spawnSync('pwd', [], { cwd: cwd });
   }
 
   assert.strictEqual(response.stdout.toString().trim(), cwd);

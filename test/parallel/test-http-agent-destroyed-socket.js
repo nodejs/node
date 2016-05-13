@@ -4,11 +4,11 @@ var assert = require('assert');
 var http = require('http');
 
 var server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('Hello World\n');
 }).listen(common.PORT);
 
-var agent = new http.Agent({maxSockets: 1});
+var agent = new http.Agent({ maxSockets: 1 });
 
 agent.on('free', function(socket, host, port) {
   console.log('freeing socket. destroyed? ', socket.destroyed);

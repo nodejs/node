@@ -21,7 +21,7 @@ const server1ConnHandler = function(socket) {
   server1Sock = socket;
 };
 
-const server1 = net.createServer({pauseOnConnect: true}, server1ConnHandler);
+const server1 = net.createServer({ pauseOnConnect: true }, server1ConnHandler);
 
 const server2ConnHandler = function(socket) {
   socket.on('data', function(data) {
@@ -35,15 +35,15 @@ const server2ConnHandler = function(socket) {
   });
 };
 
-const server2 = net.createServer({pauseOnConnect: false}, server2ConnHandler);
+const server2 = net.createServer({ pauseOnConnect: false }, server2ConnHandler);
 
 server1.listen(common.PORT, function() {
   const clientHandler = common.mustCall(function() {
     server2.listen(common.PORT + 1, function() {
-      net.createConnection({port: common.PORT + 1}).write(msg);
+      net.createConnection({ port: common.PORT + 1 }).write(msg);
     });
   });
-  net.createConnection({port: common.PORT}).write(msg, clientHandler);
+  net.createConnection({ port: common.PORT }).write(msg, clientHandler);
 });
 
 process.on('exit', function() {
