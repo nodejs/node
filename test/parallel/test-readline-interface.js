@@ -208,7 +208,9 @@ function isWarned(emitter) {
     assert.strictEqual(called, false);
     called = true;
   });
-  fi.emit('data', '\tfo\to\t');
+  for (var character of '\tfo\to\t') {
+    fi.emit('data', character);
+  }
   fi.emit('data', '\n');
   assert.ok(called);
   rli.close();
