@@ -60,7 +60,6 @@ int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
                                             AfterShutdown);
 
   int err = DoShutdown(req_wrap);
-  req_wrap->Dispatched();
   if (err)
     delete req_wrap;
   return err;
@@ -181,7 +180,6 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   if (bufs != bufs_)
     delete[] bufs;
 
-  req_wrap->Dispatched();
   req_wrap->object()->Set(env->async(), True(env->isolate()));
   req_wrap->object()->Set(env->bytes_string(),
                           Number::New(env->isolate(), bytes));
@@ -228,7 +226,6 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite);
 
   err = DoWrite(req_wrap, bufs, count, nullptr);
-  req_wrap->Dispatched();
   req_wrap_obj->Set(env->async(), True(env->isolate()));
 
   if (err)
@@ -347,7 +344,6 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
         reinterpret_cast<uv_stream_t*>(send_handle));
   }
 
-  req_wrap->Dispatched();
   req_wrap->object()->Set(env->async(), True(env->isolate()));
 
   if (err)

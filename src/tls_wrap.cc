@@ -109,11 +109,35 @@ bool TLSWrap::InvokeQueued(int status) {
   WriteItemList queue;
   pending_write_items_.MoveBack(&queue);
   while (WriteItem* wi = queue.PopFront()) {
-    wi->w_->Done(status);
+    if (wi->async_) {
+      wi->w_->Done(status);
+    } else {
+      CheckWriteItem* check = new CheckWriteItem(wi->w_, status);
+      int err = uv_check_init(env()->event_loop(), &check->check_);
+      check->check_.data = check;
+      if (err == 0)
+        err = uv_check_start(&check->check_, CheckWriteItem::CheckCb);
+
+      // No luck today, do it on next InvokeQueued
+      if (err) {
+        delete check;
+        pending_write_items_.PushBack(wi);
+        continue;
+      }
+    }
     delete wi;
   }
 
   return true;
+}
+
+
+void TLSWrap::CheckWriteItem::CheckCb(uv_check_t* check) {
+  CheckWriteItem* c = reinterpret_cast<CheckWriteItem*>(check->data);
+
+  c->w_->Done(c->status_);
+  uv_close(reinterpret_cast<uv_handle_t*>(check), nullptr);
+  delete c;
 }
 
 
@@ -309,7 +333,6 @@ void TLSWrap::EncOut() {
   for (size_t i = 0; i < count; i++)
     buf[i] = uv_buf_init(data[i], size[i]);
   int err = stream_->DoWrite(write_req, buf, count, nullptr);
-  write_req->Dispatched();
 
   // Ignore errors, this should be already handled in js
   if (err) {
@@ -564,7 +587,10 @@ int TLSWrap::DoWrite(WriteWrap* w,
   }
 
   // Queue callback to execute it on next tick
-  write_item_queue_.PushBack(new WriteItem(w));
+  WriteItem* item = new WriteItem(w);
+  WriteItem::SyncScope item_async(item);
+  write_item_queue_.PushBack(item);
+  w->Dispatched();
 
   // Write queued data
   if (empty) {

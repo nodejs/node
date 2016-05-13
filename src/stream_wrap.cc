@@ -279,7 +279,10 @@ void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
 
 
 int StreamWrap::DoShutdown(ShutdownWrap* req_wrap) {
-  return uv_shutdown(&req_wrap->req_, stream(), AfterShutdown);
+  int err;
+  err = uv_shutdown(&req_wrap->req_, stream(), AfterShutdown);
+  req_wrap->Dispatched();
+  return err;
 }
 
 
@@ -353,6 +356,7 @@ int StreamWrap::DoWrite(WriteWrap* w,
     }
   }
 
+  w->Dispatched();
   UpdateWriteQueueSize();
 
   return r;
