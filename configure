@@ -8,6 +8,7 @@ import subprocess
 import sys
 import shutil
 import string
+import textwrap
 
 # gcc and g++ as defaults matches what GYP's Makefile generator does,
 # except on OS X.
@@ -1029,7 +1030,7 @@ output = {
   'variables': variables,
   'target_defaults': output
 }
-pprint.pprint(output, indent=2)
+print textwrap.fill(str(output), 78)
 
 write('config.gypi', do_not_edit +
       pprint.pformat(output, indent=2) + '\n')
