@@ -9,26 +9,11 @@ if (!common.hasCrypto) {
 var crypto = require('crypto');
 
 // Test HMAC
-const h1 = crypto.createHmac('sha1', 'Node')
+var h1 = crypto.createHmac('sha1', 'Node')
                .update('some data')
-               .update('to hmac');
-assert.equal(h1.digest('hex'),
-             '19fd6e1ba73d9ed2224dd5094a71babe85d9a892',
-             'test HMAC');
-
-const h2 = crypto.createHmac('sha1', 'Node')
-               .update('some data')
-               .update('to hmac');
-assert.ok(h2.validate(
-  Buffer.from('19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'hex'),
-  'test HMAC valid'));
-
-const h3 = crypto.createHmac('sha1', 'Node')
-               .update('some data')
-               .update('to hmac');
-assert.ok(!h3.validate(
-  Buffer.from('6bdee6ee47fb42c53a4f44c3e4bb97591c0c3635', 'hex'),
-  'test HMAC not valid'));
+               .update('to hmac')
+               .digest('hex');
+assert.equal(h1, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
 
 // Test HMAC (Wikipedia Test Cases)
 var wikipedia = [
