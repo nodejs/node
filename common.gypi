@@ -181,7 +181,11 @@
       }],
       [ 'OS in "linux freebsd openbsd solaris android"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
-        'cflags_cc': [ '-fno-rtti', '-fno-exceptions' ],
+        'cflags_cc': [
+          '-fno-delete-null-pointer-checks',
+          '-fno-exceptions',
+          '-fno-rtti',
+        ],
         'ldflags': [ '-rdynamic' ],
         'target_conditions': [
           ['_type=="static_library"', {
