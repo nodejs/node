@@ -18,12 +18,12 @@ var Key = require('../key');
 var PrivateKey = require('../private-key');
 var pem = require('./pem');
 
-function read(buf) {
-	return (pem.read(buf, 'pkcs8'));
+function read(buf, options) {
+	return (pem.read(buf, options, 'pkcs8'));
 }
 
-function write(key) {
-	return (pem.write(key, 'pkcs8'));
+function write(key, options) {
+	return (pem.write(key, options, 'pkcs8'));
 }
 
 /* Helper to read in a single mpint */

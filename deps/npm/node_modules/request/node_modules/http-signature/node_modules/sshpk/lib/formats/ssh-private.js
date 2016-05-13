@@ -18,8 +18,8 @@ var pem = require('./pem');
 var rfc4253 = require('./rfc4253');
 var SSHBuffer = require('../ssh-buffer');
 
-function read(buf) {
-	return (pem.read(buf));
+function read(buf, options) {
+	return (pem.read(buf, options));
 }
 
 var MAGIC = 'openssh-key-v1';
@@ -76,7 +76,7 @@ function readSSHPrivate(type, buf) {
 	return (key);
 }
 
-function write(key) {
+function write(key, options) {
 	var pubKey;
 	if (PrivateKey.isPrivateKey(key))
 		pubKey = key.toPublic();

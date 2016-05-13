@@ -23,6 +23,7 @@ var Key = require('./key');
 
 var InvalidAlgorithmError = errs.InvalidAlgorithmError;
 var KeyParseError = errs.KeyParseError;
+var KeyEncryptedError = errs.KeyEncryptedError;
 
 var formats = {};
 formats['auto'] = require('./formats/auto');
@@ -44,13 +45,14 @@ util.inherits(PrivateKey, Key);
 
 PrivateKey.formats = formats;
 
-PrivateKey.prototype.toBuffer = function (format) {
+PrivateKey.prototype.toBuffer = function (format, options) {
 	if (format === undefined)
 		format = 'pkcs1';
 	assert.string(format, 'format');
 	assert.object(formats[format], 'formats[format]');
+	assert.optionalObject(options, 'options');
 
-	return (formats[format].write(this));
+	return (formats[format].write(this, options));
 };
 
 PrivateKey.prototype.hash = function (algo) {
@@ -146,10 +148,7 @@ PrivateKey.prototype.createSign = function (hashAlgo) {
 
 	var v, nm, err;
 	try {
-		nm = this.type.toUpperCase() + '-';
-		if (this.type === 'ecdsa')
-			nm = 'ecdsa-with-';
-		nm += hashAlgo.toUpperCase();
+		nm = hashAlgo.toUpperCase();
 		v = crypto.createSign(nm);
 	} catch (e) {
 		err = e;
@@ -175,25 +174,33 @@ PrivateKey.prototype.createSign = function (hashAlgo) {
 	return (v);
 };
 
-PrivateKey.parse = function (data, format, name) {
+PrivateKey.parse = function (data, format, options) {
 	if (typeof (data) !== 'string')
 		assert.buffer(data, 'data');
 	if (format === undefined)
 		format = 'auto';
 	assert.string(format, 'format');
-	if (name === undefined)
-		name = '(unnamed)';
+	if (typeof (options) === 'string')
+		options = { filename: options };
+	assert.optionalObject(options, 'options');
+	if (options === undefined)
+		options = {};
+	assert.optionalString(options.filename, 'options.filename');
+	if (options.filename === undefined)
+		options.filename = '(unnamed)';
 
 	assert.object(formats[format], 'formats[format]');
 
 	try {
-		var k = formats[format].read(data);
+		var k = formats[format].read(data, options);
 		assert.ok(k instanceof PrivateKey, 'key is not a private key');
 		if (!k.comment)
-			k.comment = name;
+			k.comment = options.filename;
 		return (k);
 	} catch (e) {
-		throw (new KeyParseError(name, format, e));
+		if (e.name === 'KeyEncryptedError')
+			throw (e);
+		throw (new KeyParseError(options.filename, format, e));
 	}
 };
 

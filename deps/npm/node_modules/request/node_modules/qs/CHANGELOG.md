@@ -1,3 +1,8 @@
+## [**6.1.0**](https://github.com/ljharb/qs/issues?milestone=34&state=closed)
+- [New] allowDots option for `stringify` (#151)
+- [Fix] "sort" option should work at a depth of 3 or more (#151)
+- [Fix] Restore `dist` directory; will be removed in v7 (#148)
+
 ## [**6.0.2**](https://github.com/ljharb/qs/issues?milestone=33&state=closed)
 - Revert ES6 requirement and restore support for node down to v0.8.
 

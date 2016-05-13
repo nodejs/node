@@ -50,9 +50,22 @@ function SignatureParseError(type, format, innerErr) {
 }
 util.inherits(SignatureParseError, Error);
 
+function KeyEncryptedError(name, format) {
+	if (Error.captureStackTrace)
+		Error.captureStackTrace(this, KeyEncryptedError);
+	this.name = 'KeyEncryptedError';
+	this.format = format;
+	this.keyName = name;
+	this.message = 'The ' + format + ' format key ' + name + ' is ' +
+	    'encrypted (password-protected), and no passphrase was ' +
+	    'provided in `options`';
+}
+util.inherits(KeyEncryptedError, Error);
+
 module.exports = {
 	FingerprintFormatError: FingerprintFormatError,
 	InvalidAlgorithmError: InvalidAlgorithmError,
 	KeyParseError: KeyParseError,
-	SignatureParseError: SignatureParseError
+	SignatureParseError: SignatureParseError,
+	KeyEncryptedError: KeyEncryptedError
 };

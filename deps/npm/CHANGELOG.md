@@ -1,3 +1,55 @@
+### v2.15.5 (2016-05-05):
+
+This is a minor LTS release, bringing dependencies up to date and updating
+our CI matrix to match what we support.
+
+Some of the dependency updates come out of our getting the development
+branch's tests passing on Windows and so bring in fixes for a few Windows
+related corner cases.
+
+#### CI UPDATES
+
+* [`bb6f0e5`](https://github.com/npm/npm/commit/bb6f0e5c95d4ad186768b1c962dd4c399f90ddb1)
+  [#12487](https://github.com/npm/npm/pull/12487)
+  Remove iojs from CI, add Node.js 6, prioritize 4 over 5.
+  ([@othiym23](https://github.com/othiym23))
+
+#### DEPENDENCY UPDATES
+
+* [`f2f8753`](https://github.com/npm/npm/commit/f2f8753c4aef2a604a4bdca2677711c940234b8f)
+  `which@1.2.8`:
+  Properly handle relative path executables.
+  ([@isaacs](https://github.com/isaacs))
+* [`e287ca9`](https://github.com/npm/npm/commit/e287ca99c37680d8e4cfacf4cfebe2da98884865)
+  `read-package-json@2.0.4`:
+  Fix Windows issue with ENOTDIR detection.
+  ([@zkat](https://github.com/zkat))
+* [`1a0ce6c`](https://github.com/npm/npm/commit/1a0ce6cff4c347bad035dc89bba2ceed9dacbf73)
+  `realize-package-specifier@3.0.3`:
+  Use npa with windows fix.
+  Fix relative path resolution when the local file might also be a tag.
+  ([@zkat](https://github.com/zkat))
+  ([@iarna](https://github.com/iarna))
+* [`a475c9a`](https://github.com/npm/npm/commit/a475c9a4e4b36d00080b11f379657ce68185adc6)
+  `lru-cache@4.0.1`:
+  Use Symbol if available.
+  ([@isaacs](https://github.com/isaacs))
+* [`7141e08`](https://github.com/npm/npm/commit/7141e08816c620b1889d7537c30dc5b254de4d1f)
+  `sorted-object@2.0.0`
+  ([@iamstarkov](https://github.com/iamstarkov))
+* [`27c6190`](https://github.com/npm/npm/commit/27c6190216cc8a5a280f0efbabb3444581968d40)
+  `request@2.72.0`
+  ([@simov](https://github.com/simov))
+* [`ab90daf`](https://github.com/npm/npm/commit/ab90daf70ba51b51f722fb4cd74ac5267621c4b4)
+  `readable-stream@2.1.2`
+  ([@calvinmetcalf](https://github.com/calvinmetcalf))
+* [`b1715f8`](https://github.com/npm/npm/commit/b1715f805426403273225bcfa91d1a52d7b56eb8)
+  `graceful-fs@4.1.4`
+  ([@isaacs](https://github.com/isaacs))
+* [`ca97de6`](https://github.com/npm/npm/commit/ca97de6c18059ef420235f4706898ad8758904e6)
+  `block-stream@0.0.9`
+  ([@isaacs](https://github.com/isaacs))
+
 ### v2.15.4 (2016-04-21):
 
 Gosh, it's been a peaceful couple of weeks!

@@ -24,12 +24,12 @@ function paramsHaveRequestBody(params) {
   )
 }
 
-function safeStringify (obj) {
+function safeStringify (obj, replacer) {
   var ret
   try {
-    ret = JSON.stringify(obj)
+    ret = JSON.stringify(obj, replacer)
   } catch (e) {
-    ret = jsonSafeStringify(obj)
+    ret = jsonSafeStringify(obj, replacer)
   }
   return ret
 }

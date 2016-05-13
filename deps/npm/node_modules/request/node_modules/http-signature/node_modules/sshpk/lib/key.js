@@ -77,11 +77,12 @@ function Key(opts) {
 
 Key.formats = formats;
 
-Key.prototype.toBuffer = function (format) {
+Key.prototype.toBuffer = function (format, options) {
 	if (format === undefined)
 		format = 'ssh';
 	assert.string(format, 'format');
 	assert.object(formats[format], 'formats[format]');
+	assert.optionalObject(options, 'options');
 
 	if (format === 'rfc4253') {
 		if (this._rfc4253Cache === undefined)
@@ -89,11 +90,11 @@ Key.prototype.toBuffer = function (format) {
 		return (this._rfc4253Cache);
 	}
 
-	return (formats[format].write(this));
+	return (formats[format].write(this, options));
 };
 
-Key.prototype.toString = function (format) {
-	return (this.toBuffer(format).toString());
+Key.prototype.toString = function (format, options) {
+	return (this.toBuffer(format, options).toString());
 };
 
 Key.prototype.hash = function (algo) {
@@ -107,9 +108,6 @@ Key.prototype.hash = function (algo) {
 
 	var hash = crypto.createHash(algo).
 	    update(this.toBuffer('rfc4253')).digest();
-	/* Workaround for node 0.8 */
-	if (typeof (hash) === 'string')
-		hash = new Buffer(hash, 'binary');
 	this._hashCache[algo] = hash;
 	return (hash);
 };
@@ -158,10 +156,7 @@ Key.prototype.createVerify = function (hashAlgo) {
 
 	var v, nm, err;
 	try {
-		nm = this.type.toUpperCase() + '-';
-		if (this.type === 'ecdsa')
-			nm = 'ecdsa-with-';
-		nm += hashAlgo.toUpperCase();
+		nm = hashAlgo.toUpperCase();
 		v = crypto.createVerify(nm);
 	} catch (e) {
 		err = e;
@@ -213,26 +208,34 @@ Key.prototype.createDiffieHellman = function () {
 };
 Key.prototype.createDH = Key.prototype.createDiffieHellman;
 
-Key.parse = function (data, format, name) {
+Key.parse = function (data, format, options) {
 	if (typeof (data) !== 'string')
 		assert.buffer(data, 'data');
 	if (format === undefined)
 		format = 'auto';
 	assert.string(format, 'format');
-	if (name === undefined)
-		name = '(unnamed)';
+	if (typeof (options) === 'string')
+		options = { filename: options };
+	assert.optionalObject(options, 'options');
+	if (options === undefined)
+		options = {};
+	assert.optionalString(options.filename, 'options.filename');
+	if (options.filename === undefined)
+		options.filename = '(unnamed)';
 
 	assert.object(formats[format], 'formats[format]');
 
 	try {
-		var k = formats[format].read(data);
+		var k = formats[format].read(data, options);
 		if (k instanceof PrivateKey)
 			k = k.toPublic();
 		if (!k.comment)
-			k.comment = name;
+			k.comment = options.filename;
 		return (k);
 	} catch (e) {
-		throw (new KeyParseError(name, format, e));
+		if (e.name === 'KeyEncryptedError')
+			throw (e);
+		throw (new KeyParseError(options.filename, format, e));
 	}
 };
 
