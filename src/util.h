@@ -38,10 +38,17 @@ template <typename T> using remove_reference = std::remove_reference<T>;
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
-#define ABORT() raise(SIGABRT)
+#define ABORT_NO_BACKTRACE() raise(SIGABRT)
 #else
-#define ABORT() abort()
+#define ABORT_NO_BACKTRACE() abort()
 #endif
+
+#define ABORT()                                                               \
+  do {                                                                        \
+    node::DumpBacktrace(stderr);                                              \
+    fflush(stderr);                                                           \
+    ABORT_NO_BACKTRACE();                                                     \
+  } while (0)
 
 #if defined(NDEBUG)
 # define ASSERT(expression)
