@@ -2141,7 +2141,8 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
 
 
 void Exit(const FunctionCallbackInfo<Value>& args) {
-  exit(args[0]->Int32Value());
+  // no-op
+  return;
 }
 
 
