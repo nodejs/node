@@ -51,9 +51,9 @@ export CC=$TOOLCHAIN/bin/$SUFFIX-gcc
 export CXX=$TOOLCHAIN/bin/$SUFFIX-g++
 export LINK=$TOOLCHAIN/bin/$SUFFIX-g++
 
-GYP_DEFINES="target_arch=$ARCH"
-GYP_DEFINES+=" v8_target_arch=$ARCH"
-GYP_DEFINES+=" android_target_arch=$ARCH"
+GYP_DEFINES="target_arch=$DEST_CPU"
+GYP_DEFINES+=" v8_target_arch=$DEST_CPU"
+GYP_DEFINES+=" android_target_arch=$DEST_CPU"
 GYP_DEFINES+=" host_os=linux OS=android"
 export GYP_DEFINES
 
