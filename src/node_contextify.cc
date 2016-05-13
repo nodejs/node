@@ -409,11 +409,15 @@ class ContextifyContext {
     Local<Object> proxy_global = PersistentToLocal(isolate,
                                                    ctx->proxy_global_);
 
-    bool in_sandbox = sandbox->GetRealNamedProperty(property).IsEmpty();
+    bool in_sandbox = !(sandbox->GetRealNamedProperty(property).IsEmpty());
     bool in_proxy_global =
-        proxy_global->GetRealNamedProperty(property).IsEmpty();
-    if (!in_sandbox || !in_proxy_global) {
-      args.GetReturnValue().Set(None);
+      !(proxy_global->GetRealNamedProperty(property).IsEmpty());
+    if (in_sandbox || in_proxy_global) {
+      v8::PropertyAttribute attr = None;
+      if (in_sandbox) {
+        attr = sandbox->GetPropertyAttributes(property);
+      }
+      args.GetReturnValue().Set(attr);
     }
   }
 
