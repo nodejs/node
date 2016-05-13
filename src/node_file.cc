@@ -597,6 +597,25 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc);
 }
 
+static void InternalModuleRealpath(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsString());
+  node::Utf8Value path(env->isolate(), args[0]);
+
+  uv_fs_t req;
+  int rc = uv_fs_realpath(env->event_loop(), &req, *path, nullptr);
+  if (rc == 0) {
+    const char* r = static_cast<const char*>(req.ptr);
+    Local<String> str = String::NewFromUtf8(env->isolate(),
+      r, v8::NewStringType::kNormal).ToLocalChecked();
+    args.GetReturnValue().Set(str);
+  } else {
+    args.GetReturnValue().Set(args[0]);
+  }
+  uv_fs_req_cleanup(&req);
+}
+
 static void Stat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1473,6 +1492,7 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "readdir", ReadDir);
   env->SetMethod(target, "internalModuleReadFile", InternalModuleReadFile);
   env->SetMethod(target, "internalModuleStat", InternalModuleStat);
+  env->SetMethod(target, "internalModuleRealpath", InternalModuleRealpath);
   env->SetMethod(target, "stat", Stat);
   env->SetMethod(target, "lstat", LStat);
   env->SetMethod(target, "fstat", FStat);
