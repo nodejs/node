@@ -1,0 +1,1 @@
+exports.internalRequire = require;
