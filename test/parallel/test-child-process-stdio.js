@@ -18,3 +18,8 @@ assert.equal(child.stderr, null);
 options = {stdio: 'ignore'};
 child = common.spawnSyncCat(options);
 assert.deepEqual(options, {stdio: 'ignore'});
+
+// This should never cause segmentation faults
+// cf. https://github.com/nodejs/node/issues/2721
+options = {stdio: [process.stdin, process.stdout, process.stderr]};
+child = common.spawnPwd(options);
