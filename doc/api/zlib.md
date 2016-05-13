@@ -10,7 +10,7 @@ const zlib = require('zlib');
 ```
 
 Compressing or decompressing a stream (such as a file) can be accomplished by 
-piping the source stream data through a zlib stream into a destination stream:
+piping the source stream data through a `zlib` stream into a destination stream:
 
 ```js
 const gzip = zlib.createGzip();
@@ -55,9 +55,9 @@ header is used to identify the compression encodings actually applied to a
 message.
 
 **Note: the examples given below are drastically simplified to show
-the basic concept.**  Zlib encoding can be expensive, and the results
+the basic concept.**  Using `zlib` encoding can be expensive, and the results
 ought to be cached.  See [Memory Usage Tuning][] for more information
-on the speed/memory/compression tradeoffs involved in zlib usage.
+on the speed/memory/compression tradeoffs involved in `zlib` usage.
 
 ```js
 // client request example
@@ -305,7 +305,7 @@ Compress data using deflate.
 
 ## Class: zlib.DeflateRaw
 
-Compress data using deflate, and do not append a zlib header.
+Compress data using deflate, and do not append a `zlib` header.
 
 ## Class: zlib.Gunzip
 
@@ -340,7 +340,7 @@ class of the compressor/decompressor classes.
 Flush pending data. Don't call this frivolously, premature flushes negatively
 impact the effectiveness of the compression algorithm.
 
-Calling this only flushes data from the internal zlib state, and does not
+Calling this only flushes data from the internal `zlib` state, and does not
 perform flushing of any kind on the streams level. Rather, it behaves like a
 normal call to `.write()`, i.e. it will be queued up behind other pending
 writes and will only produce output when data is being read from the stream.
