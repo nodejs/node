@@ -3089,7 +3089,9 @@ static void ParseArgs(int* argc,
                strcmp(arg, "-e") == 0 ||
                strcmp(arg, "--print") == 0 ||
                strcmp(arg, "-pe") == 0 ||
-               strcmp(arg, "-p") == 0) {
+               strcmp(arg, "-p") == 0 ||
+               strcmp(arg, "--interactive-eval") == 0 ||
+               strcmp(arg, "-ie") == 0) {
       bool is_eval = strchr(arg, 'e') != nullptr;
       bool is_print = strchr(arg, 'p') != nullptr;
       print_eval = print_eval || is_print;
@@ -3100,6 +3102,9 @@ static void ParseArgs(int* argc,
         if (eval_string == nullptr) {
           fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
           exit(9);
+        }
+        if (strcmp(arg, "--interactive-eval") == 0 || strcmp(arg, "-ie") == 0) {
+          force_repl = true;
         }
       } else if ((index + 1 < nargs) &&
                  argv[index + 1] != nullptr &&

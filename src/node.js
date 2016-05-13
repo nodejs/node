@@ -90,7 +90,27 @@
         });
       }
 
-      if (process._eval != null) {
+      if (process._eval != null && process._forceRepl) {
+        var Module = NativeModule.require('module');
+
+        // interactive-eval REPL
+        var opts = {
+          useGlobal: true,
+          ignoreUndefined: false,
+          evalString: process._eval
+        };
+        if (parseInt(process.env['NODE_NO_READLINE'], 10)) {
+          opts.terminal = false;
+        }
+        if (parseInt(process.env['NODE_DISABLE_COLORS'], 10)) {
+          opts.useColors = false;
+        }
+        var repl = Module.requireRepl().start(opts);
+        repl.on('exit', function() {
+          process.exit();
+        });
+
+      } else if (process._eval != null) {
         // User passed '-e' or '--eval' arguments to Node.
         evalScript('[eval]');
       } else if (process.argv[1]) {
