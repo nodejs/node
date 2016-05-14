@@ -5,25 +5,26 @@ const bench = common.createBenchmark(main, {
   dur: [5]
 });
 
-const spawn = require('child_process').spawn;
+const exec = require('child_process').exec;
 function main(conf) {
   bench.start();
 
   const dur = +conf.dur;
   const len = +conf.len;
 
-  const msg = '"' + Array(len).join('.') + '"';
-  const options = {'stdio': ['ignore', 'ipc', 'ignore']};
-  const child = spawn('yes', [msg], options);
+  const msg = `"${'.'.repeat(len)}"`;
+  msg.match(/./);
+  const options = {'stdio': ['ignore', 'pipe', 'ignore']};
+  // NOTE: Command below assumes bash shell.
+  const child = exec(`while\n  echo ${msg}\ndo :; done\n`, options);
 
   var bytes = 0;
-  child.on('message', function(msg) {
+  child.stdout.on('data', function(msg) {
     bytes += msg.length;
   });
 
   setTimeout(function() {
     child.kill();
-    const gbits = (bytes * 8) / (1024 * 1024 * 1024);
-    bench.end(gbits);
+    bench.end(bytes);
   }, dur * 1000);
 }
