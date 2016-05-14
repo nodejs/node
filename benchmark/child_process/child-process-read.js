@@ -2,7 +2,7 @@
 const common = require('../common.js');
 const os = require('os');
 
-var messagesLength = [64, 256, 1024, 4096];
+const messagesLength = [64, 256, 1024, 4096];
 // Windows does not support that long arguments
 if (os.platform() !== 'win32')
   messagesLength.push(32768);
@@ -20,7 +20,7 @@ function main(conf) {
   const len = +conf.len;
 
   const msg = '"' + Array(len).join('.') + '"';
-  const options = { 'stdio': ['ignore', 'pipe', 'ignore'] };
+  const options = {'stdio': ['ignore', 'ipc', 'ignore']};
   const child = spawn('yes', [msg], options);
 
   var bytes = 0;
