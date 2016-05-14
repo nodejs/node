@@ -221,8 +221,10 @@ a separate process.
 context. The primary use case is to get access to the V8 debug object:
 
 ```js
+const vm = require('vm');
 const Debug = vm.runInDebugContext('Debug');
-Debug.scripts().forEach((script) => { console.log(script.name); });
+console.log(Debug.findScript(process.emit).name);  // 'events.js'
+console.log(Debug.findScript(process.exit).name);  // 'internal/process.js'
 ```
 
 Note that the debug context and object are intrinsically tied to V8's debugger
