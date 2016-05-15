@@ -1,7 +1,12 @@
 'use strict';
 require('../common');
 var assert = require('assert');
+var inspect = require('util').inspect;
 var StringDecoder = require('string_decoder').StringDecoder;
+
+// Test default encoding
+var decoder = new StringDecoder();
+assert.strictEqual(decoder.encoding, 'utf8');
 
 process.stdout.write('scanning ');
 
@@ -27,9 +32,48 @@ test(
 test('ucs2', Buffer.from('ababc', 'ucs2'), 'ababc');
 
 // UTF-16LE
-test('ucs2', Buffer.from('3DD84DDC', 'hex'), '\ud83d\udc4d'); // thumbs up
+test('utf16le', Buffer.from('3DD84DDC', 'hex'), '\ud83d\udc4d'); // thumbs up
 
 console.log(' crayon!');
+
+// Additional UTF-8 tests
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('E1', 'hex')), '');
+assert.strictEqual(decoder.end(), '\ufffd');
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('E18B', 'hex')), '');
+assert.strictEqual(decoder.end(), '\ufffd\ufffd');
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('\ufffd')), '\ufffd');
+assert.strictEqual(decoder.end(), '');
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('\ufffd\ufffd\ufffd')),
+                   '\ufffd\ufffd\ufffd');
+assert.strictEqual(decoder.end(), '');
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('efbfbde2', 'hex')), '\ufffd');
+assert.strictEqual(decoder.end(), '\ufffd');
+
+
+// Additional UTF-16LE surrogate pair tests
+decoder = new StringDecoder('utf16le');
+assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('4D', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('DC', 'hex')), '\ud83d\udc4d');
+assert.strictEqual(decoder.end(), '');
+
+decoder = new StringDecoder('utf16le');
+assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
+assert.strictEqual(decoder.end(), '\ud83d');
+
+decoder = new StringDecoder('utf16le');
+assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('4D', 'hex')), '');
+assert.strictEqual(decoder.end(), '\ud83d');
 
 // test verifies that StringDecoder will correctly decode the given input
 // buffer with the given encoding to the expected output. It will attempt all
@@ -54,9 +98,9 @@ function test(encoding, input, expected, singleSequence) {
       var message =
         'Expected "' + unicodeEscape(expected) + '", ' +
         'but got "' + unicodeEscape(output) + '"\n' +
+        'input: ' + input.toString('hex').match(/.{2}/g) + '\n' +
         'Write sequence: ' + JSON.stringify(sequence) + '\n' +
-        'Decoder charBuffer: 0x' + decoder.charBuffer.toString('hex') + '\n' +
-        'Full Decoder State: ' + JSON.stringify(decoder, null, 2);
+        'Full Decoder State: ' + inspect(decoder);
       assert.fail(output, expected, message);
     }
   });
