@@ -749,6 +749,15 @@ for (let i = 0; i < 256; i++) {
   assert.equal(hexb2[i], hexb[i]);
 }
 
+// Test single hex character throws TypeError
+// - https://github.com/nodejs/node/issues/6770
+assert.throws(function() {
+  Buffer.from('A', 'hex');
+}, TypeError);
+
+// Test single base64 char encodes as 0
+assert.strictEqual(Buffer.from('A', 'base64').length, 0);
+
 {
   // test an invalid slice end.
   console.log('Try to slice off the end of the buffer');
