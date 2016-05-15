@@ -35,7 +35,7 @@ if (common.isWindows ||
   common.skip('C++ symbols are not mapped for this os.');
   return;
 }
-runTest(/RunInDebugContext/,
+runTest(/RunInDebugContext/i,
   `function f() {
      require(\'vm\').runInDebugContext(\'Debug\');
      setImmediate(function() { f(); });
