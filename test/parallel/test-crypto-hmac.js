@@ -18,7 +18,8 @@ assert.equal(h1, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
 // Test HMAC (Wikipedia Test Cases)
 var wikipedia = [
   {
-    key: 'key', data: 'The quick brown fox jumps over the lazy dog',
+    key: 'key',
+    data: 'The quick brown fox jumps over the lazy dog',
     hmac: {  // HMACs lifted from Wikipedia.
       md5: '80070713463e7749b90c2dc24911e275',
       sha1: 'de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9',
@@ -28,7 +29,8 @@ var wikipedia = [
     }
   },
   {
-    key: 'key', data: '',
+    key: 'key',
+    data: '',
     hmac: {  // Intermediate test to help debugging.
       md5: '63530468a04e386459855da0063b6596',
       sha1: 'f42bb0eeb018ebbd4597ae7213711ec60760843f',
@@ -38,7 +40,8 @@ var wikipedia = [
     }
   },
   {
-    key: '', data: 'The quick brown fox jumps over the lazy dog',
+    key: '',
+    data: 'The quick brown fox jumps over the lazy dog',
     hmac: {  // Intermediate test to help debugging.
       md5: 'ad262969c53bc16032f160081c4a07a0',
       sha1: '2ba7f707ad5f187c412de3106583c3111d668de8',
@@ -48,7 +51,8 @@ var wikipedia = [
     }
   },
   {
-    key: '', data: '',
+    key: '',
+    data: '',
     hmac: {  // HMACs lifted from Wikipedia.
       md5: '74e6f7298a9c2d168935f58c001bad88',
       sha1: 'fbdb1d1b18aa6c08324b7d64b71fb76370690e1d',

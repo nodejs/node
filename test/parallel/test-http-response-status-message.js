@@ -7,16 +7,31 @@ var net = require('net');
 var testsComplete = 0;
 
 var testCases = [
-  { path: '/200', statusMessage: 'OK',
-    response: 'HTTP/1.1 200 OK\r\n\r\n' },
-  { path: '/500', statusMessage: 'Internal Server Error',
-    response: 'HTTP/1.1 500 Internal Server Error\r\n\r\n' },
-  { path: '/302', statusMessage: 'Moved Temporarily',
-    response: 'HTTP/1.1 302 Moved Temporarily\r\n\r\n' },
-  { path: '/missing', statusMessage: '',
-    response: 'HTTP/1.1 200 \r\n\r\n' },
-  { path: '/missing-no-space', statusMessage: '',
-    response: 'HTTP/1.1 200\r\n\r\n' }
+  {
+    path: '/200',
+    statusMessage: 'OK',
+    response: 'HTTP/1.1 200 OK\r\n\r\n'
+  },
+  {
+    path: '/500',
+    statusMessage: 'Internal Server Error',
+    response: 'HTTP/1.1 500 Internal Server Error\r\n\r\n'
+  },
+  {
+    path: '/302',
+    statusMessage: 'Moved Temporarily',
+    response: 'HTTP/1.1 302 Moved Temporarily\r\n\r\n'
+  },
+  {
+    path: '/missing',
+    statusMessage: '',
+    response: 'HTTP/1.1 200 \r\n\r\n'
+  },
+  {
+    path: '/missing-no-space',
+    statusMessage: '',
+    response: 'HTTP/1.1 200\r\n\r\n'
+  }
 ];
 testCases.findByPath = function(path) {
   var matching = this.filter(function(testCase) {
