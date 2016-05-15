@@ -2,7 +2,8 @@ var castPath = require('./_castPath'),
     isIndex = require('./_isIndex'),
     isKey = require('./_isKey'),
     last = require('./last'),
-    parent = require('./_parent');
+    parent = require('./_parent'),
+    toKey = require('./_toKey');
 
 /** Used for built-in method references. */
 var arrayProto = Array.prototype;
@@ -25,7 +26,7 @@ function basePullAt(array, indexes) {
 
   while (length--) {
     var index = indexes[length];
-    if (lastIndex == length || index != previous) {
+    if (length == lastIndex || index !== previous) {
       var previous = index;
       if (isIndex(index)) {
         splice.call(array, index, 1);
@@ -35,11 +36,11 @@ function basePullAt(array, indexes) {
             object = parent(array, path);
 
         if (object != null) {
-          delete object[last(path)];
+          delete object[toKey(last(path))];
         }
       }
       else {
-        delete array[index];
+        delete array[toKey(index)];
       }
     }
   }

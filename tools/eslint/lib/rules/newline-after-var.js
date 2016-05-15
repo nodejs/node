@@ -35,7 +35,7 @@ module.exports = {
         var mode = context.options[0] === "never" ? "never" : "always";
 
         // Cache starting and ending line numbers of comments for faster lookup
-        var commentEndLine = context.getAllComments().reduce(function(result, token) {
+        var commentEndLine = sourceCode.getAllComments().reduce(function(result, token) {
             result[token.loc.start.line] = token.loc.end.line;
             return result;
         }, {});

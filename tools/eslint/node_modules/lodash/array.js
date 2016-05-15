@@ -12,6 +12,7 @@ module.exports = {
   'fill': require('./fill'),
   'findIndex': require('./findIndex'),
   'findLastIndex': require('./findLastIndex'),
+  'first': require('./first'),
   'flatten': require('./flatten'),
   'flattenDeep': require('./flattenDeep'),
   'flattenDepth': require('./flattenDepth'),

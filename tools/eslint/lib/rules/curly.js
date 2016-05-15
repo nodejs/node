@@ -58,6 +58,8 @@ module.exports = {
         var multiOrNest = (context.options[0] === "multi-or-nest");
         var consistent = (context.options[1] === "consistent");
 
+        var sourceCode = context.getSourceCode();
+
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
@@ -69,8 +71,8 @@ module.exports = {
          * @private
          */
         function isCollapsedOneLiner(node) {
-            var before = context.getTokenBefore(node),
-                last = context.getLastToken(node);
+            var before = sourceCode.getTokenBefore(node),
+                last = sourceCode.getLastToken(node);
 
             return before.loc.start.line === last.loc.end.line;
         }
@@ -82,8 +84,8 @@ module.exports = {
          * @private
          */
         function isOneLiner(node) {
-            var first = context.getFirstToken(node),
-                last = context.getLastToken(node);
+            var first = sourceCode.getFirstToken(node),
+                last = sourceCode.getLastToken(node);
 
             return first.loc.start.line === last.loc.end.line;
         }
@@ -94,7 +96,6 @@ module.exports = {
          * @returns {Token} The `else` keyword token.
          */
         function getElseKeyword(node) {
-            var sourceCode = context.getSourceCode();
             var token = sourceCode.getTokenAfter(node.consequent);
 
             while (token.type !== "Keyword" || token.value !== "else") {

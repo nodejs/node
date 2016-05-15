@@ -121,7 +121,7 @@ module.exports = {
                 return false;
             }
 
-            nextToken = context.getTokenAfter(lastToken);
+            nextToken = sourceCode.getTokenAfter(lastToken);
 
             if (!nextToken) {
                 return true;
@@ -141,7 +141,7 @@ module.exports = {
          * @returns {boolean} whether the node is in a one-liner block statement.
          */
         function isOneLinerBlock(node) {
-            var nextToken = context.getTokenAfter(node);
+            var nextToken = sourceCode.getTokenAfter(node);
 
             if (!nextToken || nextToken.value !== "}") {
                 return false;
@@ -159,7 +159,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForSemicolon(node) {
-            var lastToken = context.getLastToken(node);
+            var lastToken = sourceCode.getLastToken(node);
 
             if (never) {
                 if (isUnnecessarySemicolon(lastToken)) {

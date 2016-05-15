@@ -18,7 +18,7 @@ var nativeCeil = Math.ceil,
  * @param {Array} array The array to process.
  * @param {number} [size=1] The length of each chunk
  * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
- * @returns {Array} Returns the new array containing chunks.
+ * @returns {Array} Returns the new array of chunks.
  * @example
  *
  * _.chunk(['a', 'b', 'c', 'd'], 2);

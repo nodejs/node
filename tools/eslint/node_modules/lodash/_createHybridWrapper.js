@@ -3,7 +3,7 @@ var composeArgs = require('./_composeArgs'),
     countHolders = require('./_countHolders'),
     createCtorWrapper = require('./_createCtorWrapper'),
     createRecurryWrapper = require('./_createRecurryWrapper'),
-    getPlaceholder = require('./_getPlaceholder'),
+    getHolder = require('./_getHolder'),
     reorder = require('./_reorder'),
     replaceHolders = require('./_replaceHolders'),
     root = require('./_root');
@@ -46,14 +46,14 @@ function createHybridWrapper(func, bitmask, thisArg, partials, holders, partials
 
   function wrapper() {
     var length = arguments.length,
-        index = length,
-        args = Array(length);
+        args = Array(length),
+        index = length;
 
     while (index--) {
       args[index] = arguments[index];
     }
     if (isCurried) {
-      var placeholder = getPlaceholder(wrapper),
+      var placeholder = getHolder(wrapper),
           holdersCount = countHolders(args, placeholder);
     }
     if (partials) {

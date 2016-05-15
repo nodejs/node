@@ -25,6 +25,7 @@ module.exports = {
     },
 
     create: function(context) {
+        var sourceCode = context.getSourceCode();
 
         /**
          * Checks if an expression is a typeof expression
@@ -75,7 +76,7 @@ module.exports = {
          * @private
          */
         function getOperatorLocation(node) {
-            var opToken = context.getTokenAfter(node.left);
+            var opToken = sourceCode.getTokenAfter(node.left);
 
             return {line: opToken.loc.start.line, column: opToken.loc.start.column};
         }

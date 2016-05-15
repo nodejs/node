@@ -151,6 +151,8 @@ module.exports = {
         var exceptRange = (context.options[1] && context.options[1].exceptRange);
         var onlyEquality = (context.options[1] && context.options[1].onlyEquality);
 
+        var sourceCode = context.getSourceCode();
+
         /**
          * Determines whether node represents a range test.
          * A range test is a "between" test like `(0 <= x && x < 1)` or an "outside"
@@ -202,9 +204,9 @@ module.exports = {
             function isParenWrapped() {
                 var tokenBefore, tokenAfter;
 
-                return ((tokenBefore = context.getTokenBefore(node)) &&
+                return ((tokenBefore = sourceCode.getTokenBefore(node)) &&
                     tokenBefore.value === "(" &&
-                    (tokenAfter = context.getTokenAfter(node)) &&
+                    (tokenAfter = sourceCode.getTokenAfter(node)) &&
                     tokenAfter.value === ")");
             }
 

@@ -19,7 +19,7 @@ var MAX_ARRAY_LENGTH = 4294967295;
  * @returns {number} Returns the converted integer.
  * @example
  *
- * _.toLength(3);
+ * _.toLength(3.2);
  * // => 3
  *
  * _.toLength(Number.MIN_VALUE);
@@ -28,7 +28,7 @@ var MAX_ARRAY_LENGTH = 4294967295;
  * _.toLength(Infinity);
  * // => 4294967295
  *
- * _.toLength('3');
+ * _.toLength('3.2');
  * // => 3
  */
 function toLength(value) {

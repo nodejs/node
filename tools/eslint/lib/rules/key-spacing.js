@@ -196,6 +196,8 @@ module.exports = {
             multiLineOptions = initOptions({}, (options.multiLine || options)),
             singleLineOptions = initOptions({}, (options.singleLine || options));
 
+        var sourceCode = context.getSourceCode();
+
         /**
          * Determines if the given property is key-value property.
          * @param {ASTNode} property Property node to check.
@@ -220,7 +222,7 @@ module.exports = {
 
             while (node && (node.type !== "Punctuator" || node.value !== ":")) {
                 prevNode = node;
-                node = context.getTokenAfter(node);
+                node = sourceCode.getTokenAfter(node);
             }
 
             return prevNode;
@@ -235,7 +237,7 @@ module.exports = {
         function getNextColon(node) {
 
             while (node && (node.type !== "Punctuator" || node.value !== ":")) {
-                node = context.getTokenAfter(node);
+                node = sourceCode.getTokenAfter(node);
             }
 
             return node;
@@ -250,7 +252,7 @@ module.exports = {
             var key = property.key;
 
             if (property.computed) {
-                return context.getSource().slice(key.range[0], key.range[1]);
+                return sourceCode.getText().slice(key.range[0], key.range[1]);
             }
 
             return property.key.name || property.key.value;
@@ -269,7 +271,7 @@ module.exports = {
         function report(property, side, whitespace, expected, mode) {
             var diff = whitespace.length - expected,
                 key = property.key,
-                firstTokenAfterColon = context.getTokenAfter(getNextColon(key)),
+                firstTokenAfterColon = sourceCode.getTokenAfter(getNextColon(key)),
                 location = side === "key" ? key.loc.start : firstTokenAfterColon.loc.start;
 
             if ((
@@ -295,7 +297,7 @@ module.exports = {
         function getKeyWidth(property) {
             var startToken, endToken;
 
-            startToken = context.getFirstToken(property);
+            startToken = sourceCode.getFirstToken(property);
             endToken = getLastTokenBeforeColon(property.key);
 
             return endToken.range[1] - startToken.range[0];
@@ -307,7 +309,7 @@ module.exports = {
          * @returns {Object} Whitespace before and after the property's colon.
          */
         function getPropertyWhitespace(property) {
-            var whitespace = /(\s*):(\s*)/.exec(context.getSource().slice(
+            var whitespace = /(\s*):(\s*)/.exec(sourceCode.getText().slice(
                 property.key.range[1], property.value.range[0]
             ));
 

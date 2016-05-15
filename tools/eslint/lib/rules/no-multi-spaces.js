@@ -95,8 +95,9 @@ module.exports = {
         return {
             Program: function() {
 
-                var source = context.getSource(),
-                    allComments = context.getAllComments(),
+                var sourceCode = context.getSourceCode(),
+                    source = sourceCode.getText(),
+                    allComments = sourceCode.getAllComments(),
                     pattern = /[^\n\r\u2028\u2029\t ].? {2,}/g,  // note: repeating space
                     token,
                     previousToken,
@@ -121,12 +122,12 @@ module.exports = {
                     // do not flag anything inside of comments
                     if (!isIndexInComment(pattern.lastIndex, allComments)) {
 
-                        token = context.getTokenByRangeStart(pattern.lastIndex);
+                        token = sourceCode.getTokenByRangeStart(pattern.lastIndex);
                         if (token) {
-                            previousToken = context.getTokenBefore(token);
+                            previousToken = sourceCode.getTokenBefore(token);
 
                             if (hasExceptions) {
-                                parent = context.getNodeByRangeIndex(pattern.lastIndex - 1);
+                                parent = sourceCode.getNodeByRangeIndex(pattern.lastIndex - 1);
                             }
 
                             if (!parent || !exceptions[parent.type]) {

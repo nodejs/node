@@ -1,5 +1,3 @@
-var assocHas = require('./_assocHas');
-
 /**
  * Checks if a stack value for `key` exists.
  *
@@ -10,10 +8,7 @@ var assocHas = require('./_assocHas');
  * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
  */
 function stackHas(key) {
-  var data = this.__data__,
-      array = data.array;
-
-  return array ? assocHas(array, key) : data.map.has(key);
+  return this.__data__.has(key);
 }
 
 module.exports = stackHas;

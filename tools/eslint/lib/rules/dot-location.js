@@ -28,11 +28,12 @@ module.exports = {
 
     create: function(context) {
 
-        var config = context.options[0],
-            onObject;
+        var config = context.options[0];
 
         // default to onObject if no preference is passed
-        onObject = config === "object" || !config;
+        var onObject = config === "object" || !config;
+
+        var sourceCode = context.getSourceCode();
 
         /**
          * Reports if the dot between object and property is on the correct loccation.
@@ -42,7 +43,7 @@ module.exports = {
          * @returns {void}
          */
         function checkDotLocation(obj, prop, node) {
-            var dot = context.getTokenBefore(prop);
+            var dot = sourceCode.getTokenBefore(prop);
 
             if (dot.type === "Punctuator" && dot.value === ".") {
                 if (onObject) {

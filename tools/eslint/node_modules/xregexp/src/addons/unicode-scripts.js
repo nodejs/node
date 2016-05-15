@@ -1,20 +1,21 @@
 /*!
- * XRegExp Unicode Scripts 3.1.0
+ * XRegExp Unicode Scripts 3.1.1
  * <xregexp.com>
  * Steven Levithan (c) 2010-2016 MIT License
  * Unicode data by Mathias Bynens <mathiasbynens.be>
  */
 
-/**
- * Adds support for all Unicode scripts. E.g., `\p{Latin}`. Token names are case insensitive, and
- * any spaces, hyphens, and underscores are ignored.
- *
- * Uses Unicode 8.0.0.
- *
- * @requires XRegExp, Unicode Base
- */
 module.exports = function(XRegExp) {
     'use strict';
+
+    /**
+     * Adds support for all Unicode scripts. E.g., `\p{Latin}`. Token names are case insensitive,
+     * and any spaces, hyphens, and underscores are ignored.
+     *
+     * Uses Unicode 8.0.0.
+     *
+     * @requires XRegExp, Unicode Base
+     */
 
     if (!XRegExp.addUnicodeData) {
         throw new ReferenceError('Unicode Base must be loaded before Unicode Scripts');

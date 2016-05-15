@@ -179,6 +179,8 @@ module.exports = {
         var options = parseOptions(context.options[0]),
             operatorAllowed = false;
 
+        var sourceCode = context.getSourceCode();
+
         return {
             UnaryExpression: function(node) {
 
@@ -188,7 +190,7 @@ module.exports = {
                     context.report(
                         node,
                         "use `Boolean({{code}})` instead.", {
-                            code: context.getSource(node.argument.argument)
+                            code: sourceCode.getText(node.argument.argument)
                         });
                 }
 
@@ -198,7 +200,7 @@ module.exports = {
                     context.report(
                         node,
                         "use `{{code}} !== -1` instead.", {
-                            code: context.getSource(node.argument)
+                            code: sourceCode.getText(node.argument)
                         });
                 }
 
@@ -208,7 +210,7 @@ module.exports = {
                     context.report(
                         node,
                         "use `Number({{code}})` instead.", {
-                            code: context.getSource(node.argument)
+                            code: sourceCode.getText(node.argument)
                         });
                 }
             },
@@ -224,7 +226,7 @@ module.exports = {
                     context.report(
                         node,
                         "use `Number({{code}})` instead.", {
-                            code: context.getSource(nonNumericOperand)
+                            code: sourceCode.getText(nonNumericOperand)
                         });
                 }
 
@@ -234,7 +236,7 @@ module.exports = {
                     context.report(
                         node,
                         "use `String({{code}})` instead.", {
-                            code: context.getSource(getOtherOperand(node, ""))
+                            code: sourceCode.getText(getOtherOperand(node, ""))
                         });
                 }
             },
@@ -247,7 +249,7 @@ module.exports = {
                     context.report(
                         node,
                         "use `{{code}} = String({{code}})` instead.", {
-                            code: context.getSource(getOtherOperand(node, ""))
+                            code: sourceCode.getText(getOtherOperand(node, ""))
                         });
                 }
             }

@@ -24,6 +24,7 @@ module.exports = {
     },
 
     create: function(context) {
+        var sourceCode = context.getSourceCode();
 
         var smartTabs,
             ignoredLocs = [];
@@ -86,8 +87,8 @@ module.exports = {
                  */
                 var regex = /^(?=[\t ]*(\t | \t))/,
                     match,
-                    lines = context.getSourceLines(),
-                    comments = context.getAllComments();
+                    lines = sourceCode.lines,
+                    comments = sourceCode.getAllComments();
 
                 comments.forEach(function(comment) {
                     ignoredLocs.push(comment.loc);

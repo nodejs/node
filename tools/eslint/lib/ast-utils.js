@@ -57,7 +57,7 @@ function isModifyingReference(reference, index, references) {
 function isES5Constructor(node) {
     return (
         node.id &&
-        node.id.name[0] === node.id.name[0].toLocaleUpperCase()
+        node.id.name[0] !== node.id.name[0].toLocaleLowerCase()
     );
 }
 
@@ -176,14 +176,14 @@ function hasJSDocThisTag(node, sourceCode) {
 
 /**
  * Determines if a node is surrounded by parentheses.
- * @param {RuleContext} context The context object passed to the rule
+ * @param {SourceCode} sourceCode The ESLint source code object
  * @param {ASTNode} node The node to be checked.
  * @returns {boolean} True if the node is parenthesised.
  * @private
  */
-function isParenthesised(context, node) {
-    var previousToken = context.getTokenBefore(node),
-        nextToken = context.getTokenAfter(node);
+function isParenthesised(sourceCode, node) {
+    var previousToken = sourceCode.getTokenBefore(node),
+        nextToken = sourceCode.getTokenAfter(node);
 
     return Boolean(previousToken && nextToken) &&
         previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&

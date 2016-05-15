@@ -16,7 +16,7 @@ var MAX_SAFE_INTEGER = 9007199254740991;
  * @returns {number} Returns the converted integer.
  * @example
  *
- * _.toSafeInteger(3);
+ * _.toSafeInteger(3.2);
  * // => 3
  *
  * _.toSafeInteger(Number.MIN_VALUE);
@@ -25,7 +25,7 @@ var MAX_SAFE_INTEGER = 9007199254740991;
  * _.toSafeInteger(Infinity);
  * // => 9007199254740991
  *
- * _.toSafeInteger('3');
+ * _.toSafeInteger('3.2');
  * // => 3
  */
 function toSafeInteger(value) {

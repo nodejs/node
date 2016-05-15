@@ -74,9 +74,10 @@ function printResults(engine, results, format, outputFile) {
         output,
         filePath;
 
-    formatter = engine.getFormatter(format);
-    if (!formatter) {
-        log.error("Could not find formatter '%s'.", format);
+    try {
+        formatter = engine.getFormatter(format);
+    } catch (e) {
+        log.error(e.message);
         return false;
     }
 

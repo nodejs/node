@@ -21,11 +21,12 @@ module.exports = {
     },
 
     create: function(context) {
+        var sourceCode = context.getSourceCode();
 
         return {
 
             Literal: function(node) {
-                var token = context.getFirstToken(node),
+                var token = sourceCode.getFirstToken(node),
                     nodeType = token.type,
                     nodeValue = token.value,
                     multipleSpacesRegex = /( {2,})+?/,

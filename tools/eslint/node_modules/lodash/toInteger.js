@@ -1,8 +1,4 @@
-var toNumber = require('./toNumber');
-
-/** Used as references for various `Number` constants. */
-var INFINITY = 1 / 0,
-    MAX_INTEGER = 1.7976931348623157e+308;
+var toFinite = require('./toFinite');
 
 /**
  * Converts `value` to an integer.
@@ -18,7 +14,7 @@ var INFINITY = 1 / 0,
  * @returns {number} Returns the converted integer.
  * @example
  *
- * _.toInteger(3);
+ * _.toInteger(3.2);
  * // => 3
  *
  * _.toInteger(Number.MIN_VALUE);
@@ -27,20 +23,14 @@ var INFINITY = 1 / 0,
  * _.toInteger(Infinity);
  * // => 1.7976931348623157e+308
  *
- * _.toInteger('3');
+ * _.toInteger('3.2');
  * // => 3
  */
 function toInteger(value) {
-  if (!value) {
-    return value === 0 ? value : 0;
-  }
-  value = toNumber(value);
-  if (value === INFINITY || value === -INFINITY) {
-    var sign = (value < 0 ? -1 : 1);
-    return sign * MAX_INTEGER;
-  }
-  var remainder = value % 1;
-  return value === value ? (remainder ? value - remainder : value) : 0;
+  var result = toFinite(value),
+      remainder = result % 1;
+
+  return result === result ? (remainder ? result - remainder : result) : 0;
 }
 
 module.exports = toInteger;

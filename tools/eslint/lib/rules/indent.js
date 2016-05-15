@@ -90,6 +90,8 @@ module.exports = {
             }
         };
 
+        var sourceCode = context.getSourceCode();
+
         if (context.options.length) {
             if (context.options[0] === "tab") {
                 indentSize = 1;
@@ -213,8 +215,8 @@ module.exports = {
          * @returns {int} Indent
          */
         function getNodeIndent(node, byLastLine, excludeCommas) {
-            var token = byLastLine ? context.getLastToken(node) : context.getFirstToken(node);
-            var src = context.getSource(token, token.loc.start.column);
+            var token = byLastLine ? sourceCode.getLastToken(node) : sourceCode.getFirstToken(node);
+            var src = sourceCode.getText(token, token.loc.start.column);
             var regExp = excludeCommas ? indentPattern.excludeCommas : indentPattern.normal;
             var indent = regExp.exec(src);
 
@@ -228,7 +230,7 @@ module.exports = {
          * @returns {boolean} true if its the first in the its start line
          */
         function isNodeFirstInLine(node, byEndLocation) {
-            var firstToken = byEndLocation === true ? context.getLastToken(node, 1) : context.getTokenBefore(node),
+            var firstToken = byEndLocation === true ? sourceCode.getLastToken(node, 1) : sourceCode.getTokenBefore(node),
                 startLine = byEndLocation === true ? node.loc.end.line : node.loc.start.line,
                 endLine = firstToken ? firstToken.loc.end.line : -1;
 
@@ -263,7 +265,7 @@ module.exports = {
         function checkNodesIndent(nodes, indent, excludeCommas) {
             nodes.forEach(function(node) {
                 if (node.type === "IfStatement" && node.alternate) {
-                    var elseToken = context.getTokenBefore(node.alternate);
+                    var elseToken = sourceCode.getTokenBefore(node.alternate);
 
                     checkNodeIndent(elseToken, indent, excludeCommas);
                 }
@@ -278,7 +280,7 @@ module.exports = {
          * @returns {void}
          */
         function checkLastNodeLineIndent(node, lastLineIndent) {
-            var lastToken = context.getLastToken(node);
+            var lastToken = sourceCode.getLastToken(node);
             var endIndent = getNodeIndent(lastToken, true);
 
             if (endIndent !== lastLineIndent && isNodeFirstInLine(node, true)) {
@@ -431,7 +433,7 @@ module.exports = {
          * @returns {boolean} Whether or not the block starts and ends on the same line.
          */
         function isSingleLineNode(node) {
-            var lastToken = context.getLastToken(node),
+            var lastToken = sourceCode.getLastToken(node),
                 startLine = node.loc.start.line,
                 endLine = lastToken.loc.end.line;
 
@@ -641,11 +643,11 @@ module.exports = {
             checkNodesIndent(elements, elementsIndent, true);
 
             // Only check the last line if there is any token after the last item
-            if (context.getLastToken(node).loc.end.line <= lastElement.loc.end.line) {
+            if (sourceCode.getLastToken(node).loc.end.line <= lastElement.loc.end.line) {
                 return;
             }
 
-            var tokenBeforeLastElement = context.getTokenBefore(lastElement);
+            var tokenBeforeLastElement = sourceCode.getTokenBefore(lastElement);
 
             if (tokenBeforeLastElement.value === ",") {
 

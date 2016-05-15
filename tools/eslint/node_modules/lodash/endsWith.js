@@ -1,4 +1,5 @@
 var baseClamp = require('./_baseClamp'),
+    baseToString = require('./_baseToString'),
     toInteger = require('./toInteger'),
     toString = require('./toString');
 
@@ -27,7 +28,7 @@ var baseClamp = require('./_baseClamp'),
  */
 function endsWith(string, target, position) {
   string = toString(string);
-  target = typeof target == 'string' ? target : (target + '');
+  target = baseToString(target);
 
   var length = string.length;
   position = position === undefined

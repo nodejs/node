@@ -9,7 +9,10 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-var SENTINEL_NODE_TYPE = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression)$/;
+var SENTINEL_NODE_TYPE_RETURN_THROW = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression)$/;
+var SENTINEL_NODE_TYPE_BREAK = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|DoWhileStatement|WhileStatement|ForOfStatement|ForInStatement|ForStatement|SwitchStatement)$/;
+var SENTINEL_NODE_TYPE_CONTINUE = /^(?:Program|(?:Function|Class)(?:Declaration|Expression)|ArrowFunctionExpression|DoWhileStatement|WhileStatement|ForOfStatement|ForInStatement|ForStatement)$/;
+
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -39,11 +42,29 @@ module.exports = {
          * Climbs up the tree if the node is not a sentinel node
          *
          * @param {ASTNode} node - node to check.
+         * @param {String} label - label of the break or continue statement
          * @returns {Boolean} - return whether the node is a finally block or a sentinel node
          */
-        function isInFinallyBlock(node) {
-            while (node && !SENTINEL_NODE_TYPE.test(node.type)) {
+        function isInFinallyBlock(node, label) {
+            var labelInside = false;
+            var sentinelNodeType;
+
+            if (node.type === "BreakStatement" && !node.label) {
+                sentinelNodeType = SENTINEL_NODE_TYPE_BREAK;
+            } else if (node.type === "ContinueStatement") {
+                sentinelNodeType = SENTINEL_NODE_TYPE_CONTINUE;
+            } else {
+                sentinelNodeType = SENTINEL_NODE_TYPE_RETURN_THROW;
+            }
+
+            while (node && !sentinelNodeType.test(node.type)) {
+                if (node.parent.label && label && (node.parent.label.name === label.name)) {
+                    labelInside = true;
+                }
                 if (isFinallyBlock(node)) {
+                    if (label && labelInside) {
+                        return false;
+                    }
                     return true;
                 }
                 node = node.parent;
@@ -58,7 +79,7 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            if (isInFinallyBlock(node)) {
+            if (isInFinallyBlock(node, node.label)) {
                 context.report({
                     message: "Unsafe usage of " + node.type,
                     node: node,

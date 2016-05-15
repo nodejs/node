@@ -52,6 +52,8 @@ module.exports = {
             return option;
         }(context.options[0]));
 
+        var sourceCode = context.getSourceCode();
+
         /**
          * Checks the spacing between two tokens before or after the star token.
          * @param {string} side Either "before" or "after".
@@ -98,18 +100,18 @@ module.exports = {
             }
 
             if (node.parent.method || node.parent.type === "MethodDefinition") {
-                starToken = context.getTokenBefore(node, 1);
+                starToken = sourceCode.getTokenBefore(node, 1);
             } else {
-                starToken = context.getFirstToken(node, 1);
+                starToken = sourceCode.getFirstToken(node, 1);
             }
 
             // Only check before when preceded by `function` keyword
-            prevToken = context.getTokenBefore(starToken);
+            prevToken = sourceCode.getTokenBefore(starToken);
             if (prevToken.value === "function" || prevToken.value === "static") {
                 checkSpacing("before", prevToken, starToken);
             }
 
-            nextToken = context.getTokenAfter(starToken);
+            nextToken = sourceCode.getTokenAfter(starToken);
             checkSpacing("after", starToken, nextToken);
         }
 

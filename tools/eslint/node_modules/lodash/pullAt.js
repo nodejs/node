@@ -3,6 +3,7 @@ var arrayMap = require('./_arrayMap'),
     baseFlatten = require('./_baseFlatten'),
     basePullAt = require('./_basePullAt'),
     compareAscending = require('./_compareAscending'),
+    isIndex = require('./_isIndex'),
     rest = require('./rest');
 
 /**
@@ -30,10 +31,15 @@ var arrayMap = require('./_arrayMap'),
  * // => [10, 20]
  */
 var pullAt = rest(function(array, indexes) {
-  indexes = arrayMap(baseFlatten(indexes, 1), String);
+  indexes = baseFlatten(indexes, 1);
 
-  var result = baseAt(array, indexes);
-  basePullAt(array, indexes.sort(compareAscending));
+  var length = array ? array.length : 0,
+      result = baseAt(array, indexes);
+
+  basePullAt(array, arrayMap(indexes, function(index) {
+    return isIndex(index, length) ? +index : index;
+  }).sort(compareAscending));
+
   return result;
 });
 

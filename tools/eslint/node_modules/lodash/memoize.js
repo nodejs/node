@@ -22,7 +22,7 @@ var FUNC_ERROR_TEXT = 'Expected a function';
  * @category Function
  * @param {Function} func The function to have its output memoized.
  * @param {Function} [resolver] The function to resolve the cache key.
- * @returns {Function} Returns the new memoizing function.
+ * @returns {Function} Returns the new memoized function.
  * @example
  *
  * var object = { 'a': 1, 'b': 2 };

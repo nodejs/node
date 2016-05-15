@@ -1,28 +1,9 @@
 /*
-  Copyright (C) 2012-2014 Yusuke Suzuki <utatane.tea@gmail.com>
-  Copyright (C) 2014 Dan Tao <daniel.tao@gmail.com>
-  Copyright (C) 2013 Andrew Eisenberg <andrew@eisenberg.as>
-
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in the
-      documentation and/or other materials provided with the distribution.
-
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-  ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
-  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+ * @fileoverview Main Doctrine object
+ * @author Yusuke Suzuki <utatane.tea@gmail.com>
+ * @author Dan Tao <daniel.tao@gmail.com>
+ * @author Andrew Eisenberg <andrew@eisenberg.as>
+ */
 
 (function () {
     'use strict';
@@ -299,7 +280,9 @@
         }
 
         function parseName(last, allowBrackets, allowNestedParams) {
-            var name = '', useBrackets;
+            var name = '',
+                useBrackets,
+                insideString;
 
             skipWhiteSpace(last);
 
@@ -351,13 +334,36 @@
 
                     var ch;
                     var bracketDepth = 1;
+
                     // scan in the default value
                     while (index < last) {
                         ch = source.charCodeAt(index);
 
                         if (esutils.code.isWhiteSpace(ch)) {
-                            skipWhiteSpace(last);
-                            ch = source.charCodeAt(index);
+                            if (!insideString) {
+                                skipWhiteSpace(last);
+                                ch = source.charCodeAt(index);
+                            }
+                        }
+
+                        if (ch === 0x27 /* ''' */) {
+                            if (!insideString) {
+                                insideString = '\'';
+                            } else {
+                                if (insideString === '\'') {
+                                    insideString = '';
+                                }
+                            }
+                        }
+
+                        if (ch === 0x22 /* '"' */) {
+                            if (!insideString) {
+                                insideString = '"';
+                            } else {
+                                if (insideString === '"') {
+                                    insideString = '';
+                                }
+                            }
                         }
 
                         if (ch === 0x5B /* '[' */) {
@@ -373,7 +379,7 @@
 
                 skipWhiteSpace(last);
 
-                if (index >= last  || source.charCodeAt(index) !== 0x5D  /* ']' */) {
+                if (index >= last || source.charCodeAt(index) !== 0x5D  /* ']' */) {
                     // we never found a closing ']'
                     return null;
                 }
@@ -398,7 +404,7 @@
 
         function TagParser(options, title) {
             this._options = options;
-            this._title = title;
+            this._title = title.toLowerCase();
             this._tag = {
                 title: title,
                 description: null

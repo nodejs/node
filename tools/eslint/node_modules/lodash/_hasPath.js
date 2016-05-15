@@ -4,7 +4,8 @@ var castPath = require('./_castPath'),
     isIndex = require('./_isIndex'),
     isKey = require('./_isKey'),
     isLength = require('./isLength'),
-    isString = require('./isString');
+    isString = require('./isString'),
+    toKey = require('./_toKey');
 
 /**
  * Checks if `path` exists on `object`.
@@ -23,7 +24,7 @@ function hasPath(object, path, hasFunc) {
       length = path.length;
 
   while (++index < length) {
-    var key = path[index];
+    var key = toKey(path[index]);
     if (!(result = object != null && hasFunc(object, key))) {
       break;
     }

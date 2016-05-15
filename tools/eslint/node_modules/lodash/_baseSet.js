@@ -2,7 +2,8 @@ var assignValue = require('./_assignValue'),
     castPath = require('./_castPath'),
     isIndex = require('./_isIndex'),
     isKey = require('./_isKey'),
-    isObject = require('./isObject');
+    isObject = require('./isObject'),
+    toKey = require('./_toKey');
 
 /**
  * The base implementation of `_.set`.
@@ -23,7 +24,7 @@ function baseSet(object, path, value, customizer) {
       nested = object;
 
   while (nested != null && ++index < length) {
-    var key = path[index];
+    var key = toKey(path[index]);
     if (isObject(nested)) {
       var newValue = value;
       if (index != lastIndex) {

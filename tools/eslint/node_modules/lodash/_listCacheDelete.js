@@ -7,25 +7,28 @@ var arrayProto = Array.prototype;
 var splice = arrayProto.splice;
 
 /**
- * Removes `key` and its value from the associative array.
+ * Removes `key` and its value from the list cache.
  *
  * @private
- * @param {Array} array The array to modify.
+ * @name delete
+ * @memberOf ListCache
  * @param {string} key The key of the value to remove.
  * @returns {boolean} Returns `true` if the entry was removed, else `false`.
  */
-function assocDelete(array, key) {
-  var index = assocIndexOf(array, key);
+function listCacheDelete(key) {
+  var data = this.__data__,
+      index = assocIndexOf(data, key);
+
   if (index < 0) {
     return false;
   }
-  var lastIndex = array.length - 1;
+  var lastIndex = data.length - 1;
   if (index == lastIndex) {
-    array.pop();
+    data.pop();
   } else {
-    splice.call(array, index, 1);
+    splice.call(data, index, 1);
   }
   return true;
 }
 
-module.exports = assocDelete;
+module.exports = listCacheDelete;

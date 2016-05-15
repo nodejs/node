@@ -121,6 +121,8 @@ module.exports = {
         var options = context.options[0] || {};
         var allowed = options.allow || [];
 
+        var sourceCode = context.getSourceCode();
+
         /**
          * Reports a given function node if the node matches the following patterns.
          *
@@ -139,7 +141,7 @@ module.exports = {
             if (allowed.indexOf(kind) === -1 &&
                 node.body.type === "BlockStatement" &&
                 node.body.body.length === 0 &&
-                context.getComments(node.body).trailing.length === 0
+                sourceCode.getComments(node.body).trailing.length === 0
             ) {
                 context.report({
                     node: node,

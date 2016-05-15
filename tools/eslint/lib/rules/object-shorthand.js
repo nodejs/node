@@ -39,12 +39,34 @@ module.exports = {
                     type: "array",
                     items: [
                         {
+                            enum: ["always", "methods", "properties"]
+                        },
+                        {
+                            type: "object",
+                            properties: {
+                                avoidQuotes: {
+                                    type: "boolean"
+                                }
+                            },
+                            additionalProperties: false
+                        }
+                    ],
+                    minItems: 0,
+                    maxItems: 2
+                },
+                {
+                    type: "array",
+                    items: [
+                        {
                             enum: ["always", "methods"]
                         },
                         {
                             type: "object",
                             properties: {
                                 ignoreConstructors: {
+                                    type: "boolean"
+                                },
+                                avoidQuotes: {
                                     type: "boolean"
                                 }
                             },
@@ -66,6 +88,7 @@ module.exports = {
 
         var PARAMS = context.options[1] || {};
         var IGNORE_CONSTRUCTORS = PARAMS.ignoreConstructors;
+        var AVOID_QUOTES = PARAMS.avoidQuotes;
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -81,6 +104,15 @@ module.exports = {
             var firstChar = name.charAt(0);
 
             return firstChar === firstChar.toUpperCase();
+        }
+
+        /**
+          * Checks whether a node is a string literal.
+          * @param   {ASTNode} node - Any AST node.
+          * @returns {boolean} `true` if it is a string literal.
+          */
+        function isStringLiteral(node) {
+            return node.type === "Literal" && typeof node.value === "string";
         }
 
         //--------------------------------------------------------------------------
@@ -103,13 +135,18 @@ module.exports = {
                     context.report(node, "Expected longform " + type + " syntax.");
                 }
 
+                // {'xyz'() {}} should be written as {'xyz': function() {}}
+                if (AVOID_QUOTES && isStringLiteral(node.key) && isConciseProperty) {
+                    context.report(node, "Expected longform method syntax for string literal keys.");
+                }
+
                 // at this point if we're concise or if we're "never" we can leave
-                if (APPLY_NEVER || isConciseProperty) {
+                if (APPLY_NEVER || AVOID_QUOTES || isConciseProperty) {
                     return;
                 }
 
                 // only computed methods can fail the following checks
-                if (!APPLY_TO_METHODS && node.computed) {
+                if (node.computed && node.value.type !== "FunctionExpression") {
                     return;
                 }
 
@@ -136,6 +173,5 @@ module.exports = {
                 }
             }
         };
-
     }
 };

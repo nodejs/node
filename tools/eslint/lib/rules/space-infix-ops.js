@@ -41,6 +41,8 @@ module.exports = {
             "?", ":", ",", "**"
         ];
 
+        var sourceCode = context.getSourceCode();
+
         /**
          * Returns the first token which violates the rule
          * @param {ASTNode} left - The left node of the main node
@@ -50,7 +52,7 @@ module.exports = {
          */
         function getFirstNonSpacedToken(left, right) {
             var op,
-                tokens = context.getTokensBetween(left, right, 1);
+                tokens = sourceCode.getTokensBetween(left, right, 1);
 
             for (var i = 1, l = tokens.length - 1; i < l; ++i) {
                 op = tokens[i];
@@ -78,8 +80,8 @@ module.exports = {
                 loc: culpritToken.loc.start,
                 message: "Infix operators must be spaced.",
                 fix: function(fixer) {
-                    var previousToken = context.getTokenBefore(culpritToken);
-                    var afterToken = context.getTokenAfter(culpritToken);
+                    var previousToken = sourceCode.getTokenBefore(culpritToken);
+                    var afterToken = sourceCode.getTokenAfter(culpritToken);
                     var fixString = "";
 
                     if (culpritToken.range[0] - previousToken.range[1] === 0) {
@@ -107,7 +109,7 @@ module.exports = {
             var nonSpacedNode = getFirstNonSpacedToken(node.left, node.right);
 
             if (nonSpacedNode) {
-                if (!(int32Hint && context.getSource(node).substr(-2) === "|0")) {
+                if (!(int32Hint && sourceCode.getText(node).substr(-2) === "|0")) {
                     report(node, nonSpacedNode);
                 }
             }

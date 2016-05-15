@@ -15,7 +15,7 @@ var arrayFilter = require('./_arrayFilter'),
  * @category Array
  * @param {...Array} [arrays] The arrays to inspect.
  * @param {Function} [comparator] The comparator invoked per element.
- * @returns {Array} Returns the new array of values.
+ * @returns {Array} Returns the new array of filtered values.
  * @example
  *
  * var objects = [{ 'x': 1, 'y': 2 }, { 'x': 2, 'y': 1 }];

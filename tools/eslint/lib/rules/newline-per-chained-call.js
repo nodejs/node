@@ -36,6 +36,8 @@ module.exports = {
         var options = context.options[0] || {},
             ignoreChainWithDepth = options.ignoreChainWithDepth || 2;
 
+        var sourceCode = context.getSourceCode();
+
         return {
             "CallExpression:exit": function(node) {
                 if (!node.callee || node.callee.type !== "MemberExpression") {
@@ -55,7 +57,7 @@ module.exports = {
                     context.report(
                         callee.property,
                         callee.property.loc.start,
-                        "Expected line break after `" + context.getSource(callee.object).replace(/\r\n|\r|\n/g, "\\n") + "`."
+                        "Expected line break after `" + sourceCode.getText(callee.object).replace(/\r\n|\r|\n/g, "\\n") + "`."
                     );
                 }
             }
