@@ -77,6 +77,7 @@ StreamWrap::StreamWrap(Environment* env,
 void StreamWrap::AddMethods(Environment* env,
                             v8::Local<v8::FunctionTemplate> target,
                             int flags) {
+  env->SetProtoMethod(target, "flushSync", FlushSync);
   env->SetProtoMethod(target, "setBlocking", SetBlocking);
   StreamBase::AddMethods<StreamWrap>(env, target, flags);
 }
@@ -270,6 +271,22 @@ void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
 
   bool enable = args[0]->IsTrue();
   args.GetReturnValue().Set(uv_stream_set_blocking(wrap->stream(), enable));
+}
+
+
+void StreamWrap::FlushSync(const FunctionCallbackInfo<Value>& args) {
+  StreamWrap* wrap = Unwrap<StreamWrap>(args.Holder());
+
+  if (!wrap->IsAlive())
+    return args.GetReturnValue().Set(UV_EINVAL);
+
+#if defined(_WIN32)
+  int rc = 0;
+#else
+  int rc = uv_flush_sync(wrap->stream());
+#endif
+
+  args.GetReturnValue().Set(rc);
 }
 
 

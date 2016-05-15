@@ -72,6 +72,7 @@ class StreamWrap : public HandleWrap, public StreamBase {
                          int flags = StreamBase::kFlagNone);
 
  private:
+  static void FlushSync(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // Callbacks for libuv

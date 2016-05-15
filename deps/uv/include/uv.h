@@ -483,6 +483,8 @@ UV_EXTERN int uv_try_write(uv_stream_t* handle,
                            const uv_buf_t bufs[],
                            unsigned int nbufs);
 
+UV_EXTERN int uv_flush_sync(uv_stream_t* stream);
+
 /* uv_write_t is a subclass of uv_req_t. */
 struct uv_write_s {
   UV_REQ_FIELDS

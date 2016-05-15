@@ -1625,6 +1625,21 @@ void uv__stream_close(uv_stream_t* handle) {
 }
 
 
+/* Have stream block and then synchronously flush queued writes.
+ * This function works without an event loop.
+ * Intended to be used just prior to exit().
+ * Returns 0 on success, non-zero on failure.
+ */
+int uv_flush_sync(uv_stream_t* stream) {
+  int rc = uv_stream_set_blocking(stream, 1);
+  if (rc == 0) {
+    uv__write(stream);
+    rc = (int)stream->write_queue_size;
+  }
+  return rc;
+}
+
+
 int uv_stream_set_blocking(uv_stream_t* handle, int blocking) {
   /* Don't need to check the file descriptor, uv__nonblock()
    * will fail with EBADF if it's not valid.
