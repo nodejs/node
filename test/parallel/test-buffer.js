@@ -751,8 +751,8 @@ for (let i = 0; i < 256; i++) {
 
 //#6770 Test single hex character throws TypeError
 assert.throws(function() {
-  var b = Buffer.from('A', 'hex');
-}, TypeError)
+  Buffer.from('A', 'hex');
+}, TypeError);
 
 {
   // test an invalid slice end.
