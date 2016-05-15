@@ -4364,6 +4364,12 @@ static void StartNodeInstance(void* arg) {
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
     Local<Context> context = Context::New(isolate);
+    // note that Global() returns the proxy, which has a prototype
+    // that is the actual global
+    Local<Object> global_obj =
+        context->Global()->GetPrototype().As<Object>();
+    global_obj->SetPrototype(context, Null(isolate));
+
     Environment* env = CreateEnvironment(isolate, context, instance_data);
     array_buffer_allocator->set_env(env);
     Context::Scope context_scope(context);

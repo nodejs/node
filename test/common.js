@@ -269,7 +269,6 @@ var knownGlobals = [setTimeout,
                     clearInterval,
                     clearImmediate,
                     console,
-                    constructor, // Enumerable in V8 3.21.
                     Buffer,
                     process,
                     global];
