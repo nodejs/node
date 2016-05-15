@@ -749,6 +749,11 @@ for (let i = 0; i < 256; i++) {
   assert.equal(hexb2[i], hexb[i]);
 }
 
+//#6770 Test single hex character throws TypeError
+assert.throws(function() {
+  var b = Buffer.from('A', 'hex');
+}, TypeError)
+
 {
   // test an invalid slice end.
   console.log('Try to slice off the end of the buffer');
