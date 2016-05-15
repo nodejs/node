@@ -1,10 +1,10 @@
 'use strict';
 
 require('../common');
-var assert = require('assert');
-var https = require('https');
+const assert = require('assert');
+const https = require('https');
 
-var agent = new https.Agent();
+const agent = new https.Agent();
 
 // empty options
 assert.strictEqual(
@@ -13,9 +13,9 @@ assert.strictEqual(
 );
 
 // pass all options arguments
-var options = {
+const options = {
   host: '0.0.0.0',
-  port: 80,
+  port: 443,
   localAddress: '192.168.1.1',
   ca: 'ca',
   cert: 'cert',
@@ -28,5 +28,5 @@ var options = {
 
 assert.strictEqual(
   agent.getName(options),
-  '0.0.0.0:80:192.168.1.1:ca:cert:ciphers:key:pfx:false:localhost'
+  '0.0.0.0:443:192.168.1.1:ca:cert:ciphers:key:pfx:false:localhost'
 );
