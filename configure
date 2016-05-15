@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import errno
 import optparse
 import os
 import pprint
@@ -439,16 +441,14 @@ def pkg_config(pkg):
   retval = ()
   for flag in ['--libs-only-l', '--cflags-only-I', '--libs-only-L']:
     try:
-      val = subprocess.check_output([pkg_config, args, flag, pkg])
-      # check_output returns bytes
-      val = val.encode().strip().rstrip('\n')
-    except subprocess.CalledProcessError:
-      # most likely missing a .pc-file
-      val = None
-    except OSError:
-      # no pkg-config/pkgconf installed
-      return (None, None, None)
-    retval += (val,)
+      stdout = subprocess.Popen(shlex.split(pkg_config) + [args, flag, pkg],
+                                stdout=subprocess.PIPE).communicate()[0].strip()
+    except OSError as e:
+      if e.errno == errno.ENOENT:
+        # no pkg-config/pkgconf installed
+        return (None, None, None)
+      raise e
+    retval += (stdout,)
   return retval
 
 
