@@ -138,7 +138,10 @@ ADDONS_BINDING_GYPS := \
 		$(wildcard test/addons/*/binding.gyp))
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
-test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) test/addons/.docbuildstamp
+# Depends on node-gyp package.json so that build-addons is (re)executed when
+# node-gyp is updated as part of an npm update.
+test/addons/.buildstamp: deps/npm/node_modules/node-gyp/package.json \
+	$(ADDONS_BINDING_GYPS) test/addons/.docbuildstamp
 	# Cannot use $(wildcard test/addons/*/) here, it's evaluated before
 	# embedded addons have been generated from the documentation.
 	for dirname in test/addons/*/; do \
@@ -154,7 +157,7 @@ test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) test/addons/.docbuildstamp
 # if the subprocess touched anything so it pessimistically assumes that
 # .buildstamp and .docbuildstamp are out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
-# TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
+# TODO(bnoordhuis) Force rebuild after gyp update.
 build-addons: $(NODE_EXE) test/addons/.buildstamp
 
 test-gc: all test/gc/node_modules/weak/build/Release/weakref.node
