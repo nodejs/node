@@ -1,3 +1,92 @@
+2016.05.17, Version 1.9.1 (Stable), d989902ac658b4323a4f4020446e6f4dc449e25c
+
+Changes since version 1.9.0:
+
+* test: handle root home directories (cjihrig)
+
+* unix: implement uv__fs_futime for AIX 7.1 (Imran Iqbal)
+
+* test: skip early bind tests if no IPv6 is supported (Saúl Ibarra Corretgé)
+
+* win: fix var declaration to be C89 compliant (Michael Fero)
+
+* unix: use POLL{IN,OUT,etc} constants directly (Ben Noordhuis)
+
+* doc: add ability to live reload and regenerate HTML (Saúl Ibarra Corretgé)
+
+* Revert "win,build: remove unused build defines" (cjihrig)
+
+* linux: fix fd leaks in uv_cpu_info() error paths (Ben Noordhuis)
+
+* linux: don't abort on malformed /proc/stat (Ben Noordhuis)
+
+* linux: fix long lines in linux-core.c (Ben Noordhuis)
+
+* test: fix fs_event_watch_file_current_dir for AIX (Imran Iqbal)
+
+* unix,fs: code cleanup of uv_fs_event_start for AIX (Imran Iqbal)
+
+* unix: delay signal handling until after normal i/o (Ben Noordhuis)
+
+* android: pthread_sigmask() does not set errno (Oguz Bastemur)
+
+* win: work around sharepoint scandir bug (Ben Noordhuis)
+
+* unix: guard against clobbering errno in uv__free() (Ben Noordhuis)
+
+* unix: remove unneeded SAVE_ERRNO wrappers (Ben Noordhuis)
+
+* test: skip fs_event_close_in_callback on AIX (Imran Iqbal)
+
+* win: add maxrss, pagefaults to uv_getrusage() (Robert Jefe Lindstaedt)
+
+* test: set a big send buffer size for tcp_write_queue_order (Andrius Bentkus)
+
+* unix: error on realpath if PATH_MAX is undefined (Myles Borins)
+
+* unix: fix bug in barrier fallback implementation (Kári Tristan Helgason)
+
+* build: bump android ndk version (Kári Tristan Helgason)
+
+* build: always compile with -fvisibility=hidden (Ben Noordhuis)
+
+* test: fix -Wformat warnings in platform test (Ben Noordhuis)
+
+* win: clarify fsevents handling code (Saúl Ibarra Corretgé)
+
+* test: fix POLLHDRUP related failures for AIX (Imran Iqbal)
+
+* build, mingw: set LIBS in configure.ac (Tony Theodore)
+
+* win: improve uv__convert_utf16_to_utf8 (Saúl Ibarra Corretgé)
+
+* win: simplified UTF16 -> UTF8 conversions (Saúl Ibarra Corretgé)
+
+* win: remove unneeded condition (Saúl Ibarra Corretgé)
+
+* darwin: work around condition variable kernel bug (Ben Noordhuis)
+
+* darwin: make thread stack multiple of page size (Ben Noordhuis)
+
+* build,win: rename platform to msbuild_platform (João Reis)
+
+* gitignore: ignore VS temporary database files (João Reis)
+
+* test: skip emfile on AIX (Imran Iqbal)
+
+* unix: use system allocator for scandir() (cjihrig)
+
+* common: release uv_fs_scandir() array (cjihrig)
+
+* win: call uv__fs_scandir_cleanup() (cjihrig)
+
+* win,tty: fix read stop in line mode (João Reis)
+
+* win,tty: don't duplicate handle for line reads (João Reis)
+
+* win,tty: restore cursor after canceling line read (Alexis Campailla)
+
+
 2016.04.08, Version 1.9.0 (Stable), 229b3a4cc150aebd6561e6bd43076eafa7a03756
 
 Changes since version 1.8.0:

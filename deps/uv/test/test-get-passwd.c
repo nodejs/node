@@ -45,9 +45,15 @@ TEST_IMPL(get_passwd) {
   ASSERT(len > 0);
 
 #ifdef _WIN32
-  ASSERT(pwd.homedir[len - 1] != '\\');
+  if (len == 3 && pwd.homedir[1] == ':')
+    ASSERT(pwd.homedir[2] == '\\');
+  else
+    ASSERT(pwd.homedir[len - 1] != '\\');
 #else
-  ASSERT(pwd.homedir[len - 1] != '/');
+  if (len == 1)
+    ASSERT(pwd.homedir[0] == '/');
+  else
+    ASSERT(pwd.homedir[len - 1] != '/');
 #endif
 
 #ifdef _WIN32

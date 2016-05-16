@@ -44,13 +44,23 @@
 #endif /* __sun */
 
 #if defined(_AIX)
-#define reqevents events
-#define rtnevents revents
-#include <sys/poll.h>
+# define reqevents events
+# define rtnevents revents
+# include <sys/poll.h>
+#else
+# include <poll.h>
 #endif /* _AIX */
 
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
 # include <CoreServices/CoreServices.h>
+#endif
+
+#if defined(__ANDROID__)
+int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
+# ifdef pthread_sigmask
+# undef pthread_sigmask
+# endif
+# define pthread_sigmask(how, set, oldset) uv__pthread_sigmask(how, set, oldset)
 #endif
 
 #define ACCESS_ONCE(type, var)                                                \
@@ -89,43 +99,11 @@
 # define UV_UNUSED(declaration)     declaration
 #endif
 
-#if defined(__linux__)
-# define UV__POLLIN     UV__EPOLLIN
-# define UV__POLLOUT    UV__EPOLLOUT
-# define UV__POLLERR    UV__EPOLLERR
-# define UV__POLLHUP    UV__EPOLLHUP
-# define UV__POLLRDHUP  UV__EPOLLRDHUP
-#endif
-
-#if defined(__sun) || defined(_AIX)
-# define UV__POLLIN     POLLIN
-# define UV__POLLOUT    POLLOUT
-# define UV__POLLERR    POLLERR
-# define UV__POLLHUP    POLLHUP
-#endif
-
-#ifndef UV__POLLIN
-# define UV__POLLIN   1
-#endif
-
-#ifndef UV__POLLOUT
-# define UV__POLLOUT  2
-#endif
-
-#ifndef UV__POLLERR
-# define UV__POLLERR  4
-#endif
-
-#ifndef UV__POLLHUP
-# define UV__POLLHUP  8
-#endif
-
-#ifndef UV__POLLRDHUP
-# ifdef POLLRDHUP
-#  define UV__POLLRDHUP POLLRDHUP
-# else
-#  define UV__POLLRDHUP 0x200
-# endif
+/* Leans on the fact that, on Linux, POLLRDHUP == EPOLLRDHUP. */
+#ifdef POLLRDHUP
+# define UV__POLLRDHUP POLLRDHUP
+#else
+# define UV__POLLRDHUP 0x2000
 #endif
 
 #if !defined(O_CLOEXEC) && defined(__FreeBSD__)
