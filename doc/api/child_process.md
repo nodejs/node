@@ -806,6 +806,11 @@ console.log(`Spawned child pid: ${grep.pid}`);
 grep.stdin.end();
 ```
 
+### child.ref()
+
+Undoes the effect of [`child.unref()`][].
+This method is supported for the `child` returned by [`child_process.spawn()`][] only.
+
 ### child.send(message[, sendHandle[, options]][, callback])
 
 * `message` {Object}
@@ -1044,6 +1049,8 @@ allowing the parent to exit independently of the child, unless there is
 an established IPC channel between the child and parent.
 
 See also [`options.detached`][] for more details and examples.
+
+This method is supported for the `child` returned by [`child_process.spawn()`][] only.
 
 ## `maxBuffer` and Unicode
 
