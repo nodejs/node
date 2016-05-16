@@ -483,7 +483,8 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   union {                                                                     \
     struct {                                                                  \
       /* Used for readable TTY handles */                                     \
-      HANDLE read_line_handle;                                                \
+      /* TODO: remove me in v2.x. */                                          \
+      HANDLE unused_;                                                         \
       uv_buf_t read_line_buffer;                                              \
       HANDLE read_raw_wait;                                                   \
       /* Fields used for translating win keystrokes into vt100 characters */  \

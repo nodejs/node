@@ -43,6 +43,9 @@ TEST_DECLARE   (semaphore_1)
 TEST_DECLARE   (semaphore_2)
 TEST_DECLARE   (semaphore_3)
 TEST_DECLARE   (tty)
+#ifdef _WIN32
+TEST_DECLARE   (tty_raw)
+#endif
 TEST_DECLARE   (tty_file)
 TEST_DECLARE   (tty_pty)
 TEST_DECLARE   (stdio_over_pipes)
@@ -387,6 +390,9 @@ TASK_LIST_START
 #endif
   TEST_ENTRY  (pipe_set_non_blocking)
   TEST_ENTRY  (tty)
+#ifdef _WIN32
+  TEST_ENTRY  (tty_raw)
+#endif
   TEST_ENTRY  (tty_file)
   TEST_ENTRY  (tty_pty)
   TEST_ENTRY  (stdio_over_pipes)

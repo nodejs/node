@@ -29,7 +29,6 @@
 TEST_IMPL(homedir) {
   char homedir[PATHMAX];
   size_t len;
-  char last;
   int r;
 
   /* Test the normal case */
@@ -42,14 +41,17 @@ TEST_IMPL(homedir) {
   ASSERT(len > 0);
   ASSERT(homedir[len] == '\0');
 
-  if (len > 1) {
-    last = homedir[len - 1];
 #ifdef _WIN32
-    ASSERT(last != '\\');
+  if (len == 3 && homedir[1] == ':')
+    ASSERT(homedir[2] == '\\');
+  else
+    ASSERT(homedir[len - 1] != '\\');
 #else
-    ASSERT(last != '/');
+  if (len == 1)
+    ASSERT(homedir[0] == '/');
+  else
+    ASSERT(homedir[len - 1] != '/');
 #endif
-  }
 
   /* Test the case where the buffer is too small */
   len = SMALLPATH;

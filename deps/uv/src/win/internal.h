@@ -83,6 +83,7 @@ extern UV_THREAD_LOCAL int uv__crt_assert_enabled;
 #define UV_HANDLE_ZERO_READ                     0x00080000
 #define UV_HANDLE_EMULATE_IOCP                  0x00100000
 #define UV_HANDLE_BLOCKING_WRITES               0x00200000
+#define UV_HANDLE_CANCELLATION_PENDING          0x00400000
 
 /* Used by uv_tcp_t and uv_udp_t handles */
 #define UV_HANDLE_IPV6                          0x01000000
@@ -329,7 +330,7 @@ int uv_parent_pid();
 int uv_current_pid();
 __declspec(noreturn) void uv_fatal_error(const int errorno, const char* syscall);
 int uv__getpwuid_r(uv_passwd_t* pwd);
-int uv__convert_utf16_to_utf8(const WCHAR* utf16, char** utf8);
+int uv__convert_utf16_to_utf8(const WCHAR* utf16, int utf16len, char** utf8);
 
 
 /*
