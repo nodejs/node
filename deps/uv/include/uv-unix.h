@@ -38,9 +38,6 @@
 
 #include <semaphore.h>
 #include <pthread.h>
-#ifdef __ANDROID__
-#include "pthread-fixes.h"
-#endif
 #include <signal.h>
 
 #include "uv-threadpool.h"
@@ -58,6 +55,10 @@
       defined(__OpenBSD__)    || \
       defined(__NetBSD__)
 # include "uv-bsd.h"
+#endif
+
+#ifndef PTHREAD_BARRIER_SERIAL_THREAD
+# include "pthread-barrier.h"
 #endif
 
 #ifndef NI_MAXHOST
@@ -136,22 +137,8 @@ typedef pthread_rwlock_t uv_rwlock_t;
 typedef UV_PLATFORM_SEM_T uv_sem_t;
 typedef pthread_cond_t uv_cond_t;
 typedef pthread_key_t uv_key_t;
-
-#if defined(__APPLE__) && defined(__MACH__)
-
-typedef struct {
-  unsigned int n;
-  unsigned int count;
-  uv_mutex_t mutex;
-  uv_sem_t turnstile1;
-  uv_sem_t turnstile2;
-} uv_barrier_t;
-
-#else /* defined(__APPLE__) && defined(__MACH__) */
-
 typedef pthread_barrier_t uv_barrier_t;
 
-#endif /* defined(__APPLE__) && defined(__MACH__) */
 
 /* Platform-specific definitions for uv_spawn support. */
 typedef gid_t uv_gid_t;

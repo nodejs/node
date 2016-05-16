@@ -146,6 +146,75 @@ TEST_IMPL(tty) {
 }
 
 
+#ifdef _WIN32
+static void tty_raw_alloc(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
+  buf->base = malloc(size);
+  buf->len = size;
+}
+
+static void tty_raw_read(uv_stream_t* tty_in, ssize_t nread, const uv_buf_t* buf) {
+  if (nread > 0) {
+    ASSERT(nread  == 1);
+    ASSERT(buf->base[0] == ' ');
+    uv_close((uv_handle_t*) tty_in, NULL);
+  } else {
+    ASSERT(nread == 0);
+  }
+}
+
+TEST_IMPL(tty_raw) {
+  int r;
+  int ttyin_fd;
+  uv_tty_t tty_in;
+  uv_loop_t* loop = uv_default_loop();
+  HANDLE handle;
+  INPUT_RECORD record;
+  DWORD written;
+
+  /* Make sure we have an FD that refers to a tty */
+  handle = CreateFileA("conin$",
+                       GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL,
+                       NULL);
+  ASSERT(handle != INVALID_HANDLE_VALUE);
+  ttyin_fd = _open_osfhandle((intptr_t) handle, 0);
+  ASSERT(ttyin_fd >= 0);
+  ASSERT(UV_TTY == uv_guess_handle(ttyin_fd));
+
+  r = uv_tty_init(uv_default_loop(), &tty_in, ttyin_fd, 1);  /* Readable. */
+  ASSERT(r == 0);
+
+  r = uv_read_start((uv_stream_t*)&tty_in, tty_raw_alloc, tty_raw_read);
+  ASSERT(r == 0);
+
+  /* Give uv_tty_line_read_thread time to block on ReadConsoleW */
+  Sleep(100);
+
+  /* Turn on raw mode. */
+  r = uv_tty_set_mode(&tty_in, UV_TTY_MODE_RAW);
+  ASSERT(r == 0);
+
+  /* Write ' ' that should be read in raw mode */
+  record.EventType = KEY_EVENT;
+  record.Event.KeyEvent.bKeyDown = TRUE;
+  record.Event.KeyEvent.wRepeatCount = 1;
+  record.Event.KeyEvent.wVirtualKeyCode = VK_SPACE;
+  record.Event.KeyEvent.wVirtualScanCode = MapVirtualKeyW(VK_SPACE, MAPVK_VK_TO_VSC);
+  record.Event.KeyEvent.uChar.UnicodeChar = L' ';
+  record.Event.KeyEvent.dwControlKeyState = 0;
+  WriteConsoleInputW(handle, &record, 1, &written);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
+
+
 TEST_IMPL(tty_file) {
 #ifndef _WIN32
   uv_loop_t loop;
