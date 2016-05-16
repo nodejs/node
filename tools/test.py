@@ -1571,6 +1571,7 @@ def Main():
         vmArch = archEngineContext.stdout.rstrip()
         if archEngineContext.exit_code is not 0 or vmArch == "undefined":
           print "Can't determine the arch of: '%s'" % vm
+          print archEngineContext.stderr.rstrip()
           continue
         env = {
           'mode': mode,
