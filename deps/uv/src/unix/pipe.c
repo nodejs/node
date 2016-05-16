@@ -102,7 +102,7 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
 
   handle->connection_cb = cb;
   handle->io_watcher.cb = uv__server_io;
-  uv__io_start(handle->loop, &handle->io_watcher, UV__POLLIN);
+  uv__io_start(handle->loop, &handle->io_watcher, POLLIN);
   return 0;
 }
 
@@ -185,7 +185,7 @@ void uv_pipe_connect(uv_connect_t* req,
   }
 
   if (err == 0)
-    uv__io_start(handle->loop, &handle->io_watcher, UV__POLLIN | UV__POLLOUT);
+    uv__io_start(handle->loop, &handle->io_watcher, POLLIN | POLLOUT);
 
 out:
   handle->delayed_error = err;

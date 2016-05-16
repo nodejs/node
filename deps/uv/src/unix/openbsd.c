@@ -247,7 +247,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   which[1] = HW_CPUSPEED;
   size = sizeof(cpuspeed);
   if (sysctl(which, 2, &cpuspeed, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(*cpu_infos));
+    uv__free(*cpu_infos);
     return -errno;
   }
 
@@ -258,7 +258,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     which[2] = i;
     size = sizeof(info);
     if (sysctl(which, 3, &info, &size, NULL, 0)) {
-      SAVE_ERRNO(uv__free(*cpu_infos));
+      uv__free(*cpu_infos);
       return -errno;
     }
 

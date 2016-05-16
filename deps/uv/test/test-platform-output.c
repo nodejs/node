@@ -61,6 +61,8 @@ TEST_IMPL(platform_output) {
   ASSERT(rusage.ru_utime.tv_usec >= 0);
   ASSERT(rusage.ru_stime.tv_sec >= 0);
   ASSERT(rusage.ru_stime.tv_usec >= 0);
+  ASSERT(rusage.ru_majflt >= 0);
+  ASSERT(rusage.ru_maxrss >= 0);
   printf("uv_getrusage:\n");
   printf("  user: %llu sec %llu microsec\n",
          (unsigned long long) rusage.ru_utime.tv_sec,
@@ -68,6 +70,9 @@ TEST_IMPL(platform_output) {
   printf("  system: %llu sec %llu microsec\n",
          (unsigned long long) rusage.ru_stime.tv_sec,
          (unsigned long long) rusage.ru_stime.tv_usec);
+  printf("  page faults: %llu\n", (unsigned long long) rusage.ru_majflt);
+  printf("  maximum resident set size: %llu\n",
+         (unsigned long long) rusage.ru_maxrss);
 
   err = uv_cpu_info(&cpus, &count);
   ASSERT(err == 0);
