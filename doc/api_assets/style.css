@@ -467,3 +467,16 @@ th > *:last-child, td > *:last-child {
     font-size: 3.5em;
   }
 }
+
+@media print {
+  html {
+    height: auto;
+  }
+  #column2.interior {
+    display: none;
+  }
+  #column1.interior {
+    margin-left: auto;
+    overflow-y: auto;
+  }
+}
