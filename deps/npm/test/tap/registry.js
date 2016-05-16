@@ -31,6 +31,7 @@ var extend = Object.assign || require('util')._extend
 function runTests () {
   var env = extend({ TAP: 1 }, process.env)
   env.npm = npmExec
+  env.COVERALLS_REPO_TOKEN = ''
 
   var opts = {
     cwd: ca,
