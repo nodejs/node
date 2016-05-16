@@ -20,7 +20,9 @@ if (common.inFreeBSDJail) {
   return;
 }
 
-// take the first non-internal interface as the address for binding
+// Take the first non-internal interface as the address for binding.
+// Ideally, this should check for whether or not an interface is set up for
+// BROADCAST and favor internal/private interfaces.
 get_bindAddress: for (var name in networkInterfaces) {
   var interfaces = networkInterfaces[name];
   for (var i = 0; i < interfaces.length; i++) {
@@ -209,7 +211,7 @@ if (process.argv[2] === 'child') {
 
     receivedMessages.push(buf);
 
-    process.send({ message: buf.toString() });
+    process.send({message: buf.toString()});
 
     if (receivedMessages.length == messages.length) {
       process.nextTick(function() {
@@ -228,7 +230,7 @@ if (process.argv[2] === 'child') {
   });
 
   listenSocket.on('listening', function() {
-    process.send({ listening: true });
+    process.send({listening: true});
   });
 
   listenSocket.bind(common.PORT);
