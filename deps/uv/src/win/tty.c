@@ -57,10 +57,22 @@
 
 static void uv_tty_capture_initial_style(CONSOLE_SCREEN_BUFFER_INFO* info);
 static void uv_tty_update_virtual_window(CONSOLE_SCREEN_BUFFER_INFO* info);
+static int uv__cancel_read_console(uv_tty_t* handle);
 
 
 /* Null uv_buf_t */
 static const uv_buf_t uv_null_buf_ = { 0, NULL };
+
+enum uv__read_console_status_e {
+  NOT_STARTED,
+  IN_PROGRESS,
+  TRAP_REQUESTED,
+  COMPLETED
+};
+
+static volatile LONG uv__read_console_status = NOT_STARTED;
+static volatile LONG uv__restore_screen_state;
+static CONSOLE_SCREEN_BUFFER_INFO uv__saved_screen_state;
 
 
 /*
@@ -173,7 +185,8 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
   if (readable) {
     /* Initialize TTY input specific fields. */
     tty->flags |= UV_HANDLE_TTY_READABLE | UV_HANDLE_READABLE;
-    tty->tty.rd.read_line_handle = NULL;
+    /* TODO: remove me in v2.x. */
+    tty->tty.rd.unused_ = NULL;
     tty->tty.rd.read_line_buffer = uv_null_buf_;
     tty->tty.rd.read_raw_wait = NULL;
 
@@ -398,6 +411,8 @@ static DWORD CALLBACK uv_tty_line_read_thread(void* data) {
   DWORD bytes, read_bytes;
   WCHAR utf16[MAX_INPUT_BUFFER_LENGTH / 3];
   DWORD chars, read_chars;
+  LONG status;
+  COORD pos;
 
   assert(data);
 
@@ -419,7 +434,15 @@ static DWORD CALLBACK uv_tty_line_read_thread(void* data) {
   /* One utf-16 codeunit never takes more than 3 utf-8 codeunits to encode */
   chars = bytes / 3;
 
-  if (ReadConsoleW(handle->tty.rd.read_line_handle,
+  status = InterlockedExchange(&uv__read_console_status, IN_PROGRESS);
+  if (status == TRAP_REQUESTED) {
+    SET_REQ_SUCCESS(req);
+    req->u.io.overlapped.InternalHigh = 0;
+    POST_COMPLETION_FOR_REQ(loop, req);
+    return 0;
+  }
+
+  if (ReadConsoleW(handle->handle,
                    (void*) utf16,
                    chars,
                    &read_chars,
@@ -436,6 +459,33 @@ static DWORD CALLBACK uv_tty_line_read_thread(void* data) {
     req->u.io.overlapped.InternalHigh = read_bytes;
   } else {
     SET_REQ_ERROR(req, GetLastError());
+  }
+
+  InterlockedExchange(&uv__read_console_status, COMPLETED);
+
+  /* If we canceled the read by sending a VK_RETURN event, restore the screen
+     state to undo the visual effect of the VK_RETURN*/
+  if (InterlockedOr(&uv__restore_screen_state, 0)) {
+    HANDLE active_screen_buffer = CreateFileA("conout$",
+                                         GENERIC_READ | GENERIC_WRITE,
+                                         FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                         NULL,
+                                         OPEN_EXISTING,
+                                         FILE_ATTRIBUTE_NORMAL,
+                                         NULL);
+    if (active_screen_buffer != INVALID_HANDLE_VALUE) {
+      pos = uv__saved_screen_state.dwCursorPosition;
+
+      /* If the cursor was at the bottom line of the screen buffer, the
+         VK_RETURN would have caused the buffer contents to scroll up by
+         one line. The right position to reset the cursor to is therefore one
+         line higher */
+      if (pos.Y == uv__saved_screen_state.dwSize.Y - 1)
+        pos.Y--;
+
+      SetConsoleCursorPosition(active_screen_buffer, pos);
+      CloseHandle(active_screen_buffer);
+    }
   }
 
   POST_COMPLETION_FOR_REQ(loop, req);
@@ -463,25 +513,11 @@ static void uv_tty_queue_read_line(uv_loop_t* loop, uv_tty_t* handle) {
   }
   assert(handle->tty.rd.read_line_buffer.base != NULL);
 
-  /* Duplicate the console handle, so if we want to cancel the read, we can */
-  /* just close this handle duplicate. */
-  if (handle->tty.rd.read_line_handle == NULL) {
-    HANDLE this_process = GetCurrentProcess();
-    r = DuplicateHandle(this_process,
-                        handle->handle,
-                        this_process,
-                        &handle->tty.rd.read_line_handle,
-                        0,
-                        0,
-                        DUPLICATE_SAME_ACCESS);
-    if (!r) {
-      handle->tty.rd.read_line_handle = NULL;
-      SET_REQ_ERROR(req, GetLastError());
-      uv_insert_pending_req(loop, (uv_req_t*)req);
-      goto out;
-    }
-  }
-
+  /* Reset flags  No locking is required since there cannot be a line read
+     in progress. We are also relying on the memory barrier provided by
+     QueueUserWorkItem*/
+  uv__restore_screen_state = FALSE;
+  uv__read_console_status = NOT_STARTED;
   r = QueueUserWorkItem(uv_tty_line_read_thread,
                         (void*) req,
                         WT_EXECUTELONGFUNCTION);
@@ -490,7 +526,6 @@ static void uv_tty_queue_read_line(uv_loop_t* loop, uv_tty_t* handle) {
     uv_insert_pending_req(loop, (uv_req_t*)req);
   }
 
- out:
   handle->flags |= UV_HANDLE_READ_PENDING;
   handle->reqs_pending++;
 }
@@ -857,8 +892,7 @@ void uv_process_tty_read_line_req(uv_loop_t* loop, uv_tty_t* handle,
 
   if (!REQ_SUCCESS(req)) {
     /* Read was not successful */
-    if ((handle->flags & UV_HANDLE_READING) &&
-        handle->tty.rd.read_line_handle != NULL) {
+    if (handle->flags & UV_HANDLE_READING) {
       /* Real error */
       handle->flags &= ~UV_HANDLE_READING;
       DECREASE_ACTIVE_COUNT(loop, handle);
@@ -871,10 +905,15 @@ void uv_process_tty_read_line_req(uv_loop_t* loop, uv_tty_t* handle,
     }
 
   } else {
-    /* Read successful */
-    /* TODO: read unicode, convert to utf-8 */
-    DWORD bytes = req->u.io.overlapped.InternalHigh;
-    handle->read_cb((uv_stream_t*) handle, bytes, &buf);
+    if (!(handle->flags & UV_HANDLE_CANCELLATION_PENDING)) {
+      /* Read successful */
+      /* TODO: read unicode, convert to utf-8 */
+      DWORD bytes = req->u.io.overlapped.InternalHigh;
+      handle->read_cb((uv_stream_t*) handle, bytes, &buf);
+    } else {
+      handle->flags &= ~UV_HANDLE_CANCELLATION_PENDING;
+      handle->read_cb((uv_stream_t*) handle, 0, &buf);
+    }
   }
 
   /* Wait for more input events. */
@@ -937,30 +976,82 @@ int uv_tty_read_start(uv_tty_t* handle, uv_alloc_cb alloc_cb,
 
 
 int uv_tty_read_stop(uv_tty_t* handle) {
+  INPUT_RECORD record;
+  DWORD written, err;
+
   handle->flags &= ~UV_HANDLE_READING;
   DECREASE_ACTIVE_COUNT(handle->loop, handle);
 
-  /* Cancel raw read */
-  if ((handle->flags & UV_HANDLE_READ_PENDING) &&
-      (handle->flags & UV_HANDLE_TTY_RAW)) {
+  if (!(handle->flags & UV_HANDLE_READ_PENDING))
+    return 0;
+
+  if (handle->flags & UV_HANDLE_TTY_RAW) {
+    /* Cancel raw read */
     /* Write some bullshit event to force the console wait to return. */
-    INPUT_RECORD record;
-    DWORD written;
     memset(&record, 0, sizeof record);
     if (!WriteConsoleInputW(handle->handle, &record, 1, &written)) {
       return GetLastError();
     }
-  }
+  } else if (!(handle->flags & UV_HANDLE_CANCELLATION_PENDING)) {
+    /* Cancel line-buffered read if not already pending */
+    err = uv__cancel_read_console(handle);
+    if (err)
+      return err;
 
-  /* Cancel line-buffered read */
-  if (handle->tty.rd.read_line_handle != NULL) {
-    /* Closing this handle will cancel the ReadConsole operation */
-    CloseHandle(handle->tty.rd.read_line_handle);
-    handle->tty.rd.read_line_handle = NULL;
+    handle->flags |= UV_HANDLE_CANCELLATION_PENDING;
   }
-
 
   return 0;
+}
+
+static int uv__cancel_read_console(uv_tty_t* handle) {
+  HANDLE active_screen_buffer = INVALID_HANDLE_VALUE;
+  INPUT_RECORD record;
+  DWORD written;
+  DWORD err = 0;
+  LONG status;
+
+  assert(!(handle->flags & UV_HANDLE_CANCELLATION_PENDING));
+
+  status = InterlockedExchange(&uv__read_console_status, TRAP_REQUESTED);
+  if (status != IN_PROGRESS) {
+    /* Either we have managed to set a trap for the other thread before
+       ReadConsole is called, or ReadConsole has returned because the user
+       has pressed ENTER. In either case, there is nothing else to do. */
+    return 0;
+  }
+
+  /* Save screen state before sending the VK_RETURN event */
+  active_screen_buffer = CreateFileA("conout$",
+                                     GENERIC_READ | GENERIC_WRITE,
+                                     FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                     NULL,
+                                     OPEN_EXISTING,
+                                     FILE_ATTRIBUTE_NORMAL,
+                                     NULL);
+
+  if (active_screen_buffer != INVALID_HANDLE_VALUE &&
+      GetConsoleScreenBufferInfo(active_screen_buffer,
+                                 &uv__saved_screen_state)) {
+    InterlockedOr(&uv__restore_screen_state, 1);
+  }
+
+  /* Write enter key event to force the console wait to return. */
+  record.EventType = KEY_EVENT;
+  record.Event.KeyEvent.bKeyDown = TRUE;
+  record.Event.KeyEvent.wRepeatCount = 1;
+  record.Event.KeyEvent.wVirtualKeyCode = VK_RETURN;
+  record.Event.KeyEvent.wVirtualScanCode =
+    MapVirtualKeyW(VK_RETURN, MAPVK_VK_TO_VSC);
+  record.Event.KeyEvent.uChar.UnicodeChar = L'\r';
+  record.Event.KeyEvent.dwControlKeyState = 0;
+  if (!WriteConsoleInputW(handle->handle, &record, 1, &written))
+    err = GetLastError();
+
+  if (active_screen_buffer != INVALID_HANDLE_VALUE)
+    CloseHandle(active_screen_buffer);
+
+  return err;
 }
 
 
@@ -2045,11 +2136,6 @@ void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
 
   if (handle->flags & UV__HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
-    /* The console handle duplicate used for line reading should be destroyed */
-    /* by uv_tty_read_stop. */
-    assert(!(handle->flags & UV_HANDLE_TTY_READABLE) ||
-           handle->tty.rd.read_line_handle == NULL);
-
     /* The wait handle used for raw reading should be unregistered when the */
     /* wait callback runs. */
     assert(!(handle->flags & UV_HANDLE_TTY_READABLE) ||

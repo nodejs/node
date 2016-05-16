@@ -292,7 +292,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   size = sizeof(cpuspeed);
   if (sysctlbyname("hw.clockrate", &cpuspeed, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(*cpu_infos));
+    uv__free(*cpu_infos);
     return -errno;
   }
 
@@ -301,7 +301,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
    */
   size = sizeof(maxcpus);
   if (sysctlbyname(maxcpus_key, &maxcpus, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(*cpu_infos));
+    uv__free(*cpu_infos);
     return -errno;
   }
 
@@ -314,8 +314,8 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   }
 
   if (sysctlbyname(cptimes_key, cp_times, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(cp_times));
-    SAVE_ERRNO(uv__free(*cpu_infos));
+    uv__free(cp_times);
+    uv__free(*cpu_infos);
     return -errno;
   }
 

@@ -19,7 +19,7 @@ set nobuild=
 set run=
 set target_arch=ia32
 set vs_toolset=x86
-set platform=WIN32
+set msbuild_platform=WIN32
 set library=static_library
 
 :next-arg
@@ -31,9 +31,9 @@ if /i "%1"=="bench"        set run=run-benchmarks.exe&goto arg-ok
 if /i "%1"=="clean"        set target=Clean&goto arg-ok
 if /i "%1"=="noprojgen"    set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"      set nobuild=1&goto arg-ok
-if /i "%1"=="x86"          set target_arch=ia32&set platform=WIN32&set vs_toolset=x86&goto arg-ok
-if /i "%1"=="ia32"         set target_arch=ia32&set platform=WIN32&set vs_toolset=x86&goto arg-ok
-if /i "%1"=="x64"          set target_arch=x64&set platform=x64&set vs_toolset=x64&goto arg-ok
+if /i "%1"=="x86"          set target_arch=ia32&set msbuild_platform=WIN32&set vs_toolset=x86&goto arg-ok
+if /i "%1"=="ia32"         set target_arch=ia32&set msbuild_platform=WIN32&set vs_toolset=x86&goto arg-ok
+if /i "%1"=="x64"          set target_arch=x64&set msbuild_platform=x64&set vs_toolset=x64&goto arg-ok
 if /i "%1"=="shared"       set library=shared_library&goto arg-ok
 if /i "%1"=="static"       set library=static_library&goto arg-ok
 :arg-ok
@@ -132,7 +132,7 @@ goto run
 
 @rem Build the sln with msbuild.
 :msbuild-found
-msbuild uv.sln /t:%target% /p:Configuration=%config% /p:Platform="%platform%" /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+msbuild uv.sln /t:%target% /p:Configuration=%config% /p:Platform="%msbuild_platform%" /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 exit /b 1
 
 :run
