@@ -71,6 +71,9 @@ socket.on('message', (msg, rinfo) => {
 ```
 
 ### socket.addMembership(multicastAddress[, multicastInterface])
+<!-- YAML
+added: v0.6.9
+-->
 
 * `multicastAddress` {String}
 * `multicastInterface` {String}, Optional
@@ -174,6 +177,9 @@ Close the underlying socket and stop listening for data on it. If a callback is
 provided, it is added as a listener for the [`'close'`][] event.
 
 ### socket.dropMembership(multicastAddress[, multicastInterface])
+<!-- YAML
+added: v0.6.9
+-->
 
 * `multicastAddress` {String}
 * `multicastInterface` {String}, Optional
