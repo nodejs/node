@@ -1,6 +1,5 @@
 {
   'variables': {
-    'visibility%': 'hidden',         # V8's visibility setting
     'target_arch%': 'ia32',          # set v8's target architecture
     'host_arch%': 'ia32',            # set v8's host architecture
     'uv_library%': 'static_library', # allow override to 'shared_library' for DLL/.so builds
@@ -156,9 +155,6 @@
             'cflags': [ '-pthread' ],
             'ldflags': [ '-pthread' ],
           }],
-          [ 'visibility=="hidden"', {
-            'cflags': [ '-fvisibility=hidden' ],
-          }],
         ],
       }],
       ['OS=="mac"', {
@@ -170,9 +166,6 @@
           'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',        # -fno-exceptions
           'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
           'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
-          # GCC_INLINES_ARE_PRIVATE_EXTERN maps to -fvisibility-inlines-hidden
-          'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
-          'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',      # -fvisibility=hidden
           'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
           'PREBINDING': 'NO',                       # No -Wl,-prebind
           'USE_HEADERMAP': 'NO',

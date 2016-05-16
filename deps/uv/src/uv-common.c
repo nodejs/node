@@ -22,10 +22,11 @@
 #include "uv.h"
 #include "uv-common.h"
 
-#include <stdio.h>
 #include <assert.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stddef.h> /* NULL */
+#include <stdio.h>
 #include <stdlib.h> /* malloc */
 #include <string.h> /* memset */
 
@@ -75,7 +76,14 @@ void* uv__malloc(size_t size) {
 }
 
 void uv__free(void* ptr) {
+  int saved_errno;
+
+  /* Libuv expects that free() does not clobber errno.  The system allocator
+   * honors that assumption but custom allocators may not be so careful.
+   */
+  saved_errno = errno;
   uv__allocator.local_free(ptr);
+  errno = saved_errno;
 }
 
 void* uv__calloc(size_t count, size_t size) {
@@ -475,6 +483,16 @@ static unsigned int* uv__get_nbufs(uv_fs_t* req) {
 #endif
 }
 
+/* uv_fs_scandir() uses the system allocator to allocate memory on non-Windows
+ * systems. So, the memory should be released using free(). On Windows,
+ * uv__malloc() is used, so use uv__free() to free memory.
+*/
+#ifdef _WIN32
+# define uv__fs_scandir_free uv__free
+#else
+# define uv__fs_scandir_free free
+#endif
+
 void uv__fs_scandir_cleanup(uv_fs_t* req) {
   uv__dirent_t** dents;
 
@@ -484,7 +502,10 @@ void uv__fs_scandir_cleanup(uv_fs_t* req) {
   if (*nbufs > 0 && *nbufs != (unsigned int) req->result)
     (*nbufs)--;
   for (; *nbufs < (unsigned int) req->result; (*nbufs)++)
-    uv__free(dents[*nbufs]);
+    uv__fs_scandir_free(dents[*nbufs]);
+
+  uv__fs_scandir_free(req->ptr);
+  req->ptr = NULL;
 }
 
 
@@ -498,11 +519,11 @@ int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent) {
 
   /* Free previous entity */
   if (*nbufs > 0)
-    uv__free(dents[*nbufs - 1]);
+    uv__fs_scandir_free(dents[*nbufs - 1]);
 
   /* End was already reached */
   if (*nbufs == (unsigned int) req->result) {
-    uv__free(dents);
+    uv__fs_scandir_free(dents);
     req->ptr = NULL;
     return UV_EOF;
   }
