@@ -2,12 +2,11 @@
 
 The purpose of this guide is to show how to build Node.js using [Ninja][], as doing so can be significantly quicker than using `make`. Please see [Ninja's site][Ninja] for installation instructions (unix only).
 
-To build Node with ninja, there are 4 steps that must be taken:
+To build Node with ninja, there are 3 steps that must be taken:
 
-1. Configure the project's OS-based build rules via `./configure` as usual.
-2. Use `tools/gyp_node.py -f ninja` to produce Ninja-buildable `gyp` output.
-3. Run `ninja -C out/Release` to produce a compiled release binary.
-4. Lastly, make symlink to `./node` using `ln -fs out/Release/node node`.
+1. Configure the project's OS-based build rules via `./configure --ninja`.
+2. Run `ninja -C out/Release` to produce a compiled release binary.
+3. Lastly, make symlink to `./node` using `ln -fs out/Release/node node`.
 
 When running `ninja -C out/Release` you will see output similar to the following if the build has succeeded:
 ```
@@ -28,12 +27,12 @@ As such, if you wish to run the tests, it can be helpful to invoke the test runn
 
 ## Alias
 
-`alias nnode='./configure && tools/gyp_node.py -f ninja && ninja -C out/Release && ln -fs out/Release/node node'`
+`alias nnode='./configure --ninja && ninja -C out/Release && ln -fs out/Release/node node'`
 
 ## Producing a debug build
 
 The above alias can be modified slightly to produce a debug build, rather than a release build as shown below:
-`alias nnodedebug='./configure && tools/gyp_node.py -f ninja && ninja -C out/Debug && ln -fs out/Debug/node node_g'`
+`alias nnodedebug='./configure --ninja && ninja -C out/Debug && ln -fs out/Debug/node node_g'`
 
 
 [Ninja]: https://martine.github.io/ninja/
