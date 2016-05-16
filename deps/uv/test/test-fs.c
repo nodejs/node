@@ -2033,6 +2033,9 @@ TEST_IMPL(fs_stat_root) {
 
 
 TEST_IMPL(fs_futime) {
+#if defined(_AIX) && !defined(_AIX71)
+  RETURN_SKIP("futime is not implemented for AIX versions below 7.1");
+#else
   utime_check_t checkme;
   const char* path = "test_file";
   double atime;
@@ -2087,6 +2090,7 @@ TEST_IMPL(fs_futime) {
 
   MAKE_VALGRIND_HAPPY();
   return 0;
+#endif
 }
 
 

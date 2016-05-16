@@ -60,6 +60,11 @@ Build documentation as HTML:
 
     $ make html
 
+Build documentation as HTML and live reload it when it changes (this requires
+sphinx-autobuild to be installed and is only supported on Unix):
+
+    $ make livehtml
+
 Build documentation as man pages:
 
     $ make man

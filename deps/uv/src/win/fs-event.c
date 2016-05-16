@@ -66,11 +66,12 @@ static void uv_fs_event_queue_readdirchanges(uv_loop_t* loop,
 static void uv_relative_path(const WCHAR* filename,
                              const WCHAR* dir,
                              WCHAR** relpath) {
+  size_t relpathlen;
+  size_t filenamelen = wcslen(filename);
   size_t dirlen = wcslen(dir);
   if (dirlen > 0 && dir[dirlen - 1] == '\\')
     dirlen--;
-  size_t filenamelen = wcslen(filename);
-  size_t relpathlen = filenamelen - dirlen - 1;
+  relpathlen = filenamelen - dirlen - 1;
   *relpath = uv__malloc((relpathlen + 1) * sizeof(WCHAR));
   if (!*relpath)
     uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
@@ -348,7 +349,8 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
   FILE_NOTIFY_INFORMATION* file_info;
   int err, sizew, size;
   char* filename = NULL;
-  WCHAR* filenamew, *long_filenamew = NULL;
+  WCHAR* filenamew = NULL;
+  WCHAR* long_filenamew = NULL;
   DWORD offset = 0;
 
   assert(req->type == UV_FS_EVENT_REQ);
@@ -373,6 +375,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
       do {
         file_info = (FILE_NOTIFY_INFORMATION*)((char*)file_info + offset);
         assert(!filename);
+        assert(!filenamew);
         assert(!long_filenamew);
 
         /*
@@ -437,14 +440,17 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
                 uv__free(long_filenamew);
                 long_filenamew = filenamew;
                 sizew = -1;
+              } else {
+                /* We couldn't get the long filename, use the one reported. */
+                filenamew = file_info->FileName;
+                sizew = file_info->FileNameLength / sizeof(WCHAR);
               }
-            }
-            /*
-             * Removed or renamed events cannot be resolved to the long form.
-             * We therefore use the name given by ReadDirectoryChangesW.
-             * This may be the long form or the 8.3 short name in some cases.
-             */
-            if (!long_filenamew) {
+            } else {
+              /*
+               * Removed or renamed events cannot be resolved to the long form.
+               * We therefore use the name given by ReadDirectoryChangesW.
+               * This may be the long form or the 8.3 short name in some cases.
+               */
               filenamew = file_info->FileName;
               sizew = file_info->FileNameLength / sizeof(WCHAR);
             }
@@ -454,38 +460,8 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
             sizew = -1;
           }
 
-          if (filenamew) {
-            /* Convert the filename to utf8. */
-            size = WideCharToMultiByte(CP_UTF8,
-                                       0,
-                                       filenamew,
-                                       sizew,
-                                       NULL,
-                                       0,
-                                       NULL,
-                                       NULL);
-            if (size) {
-              filename = (char*)uv__malloc(size + 1);
-              if (!filename) {
-                uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
-              }
-
-              size = WideCharToMultiByte(CP_UTF8,
-                                         0,
-                                         filenamew,
-                                         sizew,
-                                         filename,
-                                         size,
-                                         NULL,
-                                         NULL);
-              if (size) {
-                filename[size] = '\0';
-              } else {
-                uv__free(filename);
-                filename = NULL;
-              }
-            }
-          }
+          /* Convert the filename to utf8. */
+          uv__convert_utf16_to_utf8(filenamew, sizew, &filename);
 
           switch (file_info->Action) {
             case FILE_ACTION_ADDED:
@@ -504,6 +480,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
           filename = NULL;
           uv__free(long_filenamew);
           long_filenamew = NULL;
+          filenamew = NULL;
         }
 
         offset = file_info->NextEntryOffset;
