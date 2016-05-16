@@ -1037,6 +1037,14 @@ then this will be `undefined`.
 `child.stdout` is an alias for `child.stdio[1]`. Both properties will refer
 to the same value.
 
+### child.unref()
+
+Removes the child from active handles of the parent's event loop,
+allowing the parent to exit independently of the child, unless there is
+an established IPC channel between the child and parent.
+
+See also [`options.detached`][] for more details and examples.
+
 ## `maxBuffer` and Unicode
 
 It is important to keep in mind that the `maxBuffer` option specifies the
