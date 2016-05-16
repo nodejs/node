@@ -1,22 +1,22 @@
 'use strict';
-var path = require('path');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var common = require('../common');
-var debug = require('_debugger');
+const path = require('path');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const common = require('../common');
+const debug = require('_debugger');
 
-addScenario('global.js', null, 2);
-addScenario('timeout.js', null, 2);
+var scenarios = [];
+
+addScenario('global.js', 2);
+addScenario('timeout.js', 2);
 
 run();
 
 /***************** IMPLEMENTATION *****************/
 
-var scenarios;
-function addScenario(scriptName, throwsInFile, throwsOnLine) {
-  if (!scenarios) scenarios = [];
+function addScenario(scriptName, throwsOnLine) {
   scenarios.push(
-    runScenario.bind(null, scriptName, throwsInFile, throwsOnLine, run)
+    runScenario.bind(null, scriptName, throwsOnLine, run)
   );
 }
 
@@ -25,10 +25,10 @@ function run() {
   if (next) next();
 }
 
-function runScenario(scriptName, throwsInFile, throwsOnLine, next) {
+function runScenario(scriptName, throwsOnLine, next) {
   console.log('**[ %s ]**', scriptName);
   var asserted = false;
-  var port = common.PORT + 1337;
+  var port = common.PORT;
 
   var testScript = path.join(
     common.fixturesDir,
@@ -44,7 +44,18 @@ function runScenario(scriptName, throwsInFile, throwsOnLine, next) {
 
   var exceptions = [];
 
-  setTimeout(setupClient.bind(null, runTest), 200);
+  var stderr = '';
+
+  function stderrListener(data) {
+    stderr += data;
+    if (stderr.includes('Debugger listening on port')) {
+      setTimeout(setupClient.bind(null, runTest), 200);
+      child.stderr.removeListener('data', stderrListener);
+    }
+  }
+
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', stderrListener);
 
   function setupClient(callback) {
     var client = new debug.Client();
@@ -88,11 +99,11 @@ function runScenario(scriptName, throwsInFile, throwsOnLine, next) {
   }
 
   function assertHasPaused(client) {
+    assert(exceptions.length, 'no exceptions thrown, race condition in test?');
     assert.equal(exceptions.length, 1, 'debugger did not pause on exception');
     assert.equal(exceptions[0].uncaught, true);
-    assert.equal(exceptions[0].script.name, throwsInFile || testScript);
-    if (throwsOnLine != null)
-      assert.equal(exceptions[0].sourceLine + 1, throwsOnLine);
+    assert.equal(exceptions[0].script.name, testScript);
+    assert.equal(exceptions[0].sourceLine + 1, throwsOnLine);
     asserted = true;
     client.reqContinue(assert.ifError);
   }
