@@ -102,31 +102,29 @@ if (cluster.isMaster) {
     if (!process.argv[i + 1])
       throw new Error('Missing output filename');
     var outPath = process.argv[i + 1];
-    const results = [];
-    let count = 0;
+    var count = 0;
+    var outPathBase = path.join(path.dirname(outPath),
+      path.basename(outPath, '.tap');
     if (!path.isAbsolute(outPath))
       outPath = path.join(cwd, outPath);
-    fd = fs.openSync(outPath, 'w');
+    if (format !== 'tap') {
+      fd = fs.openSync(outPath, 'w');
+    }
     outFn = function(str) {
       if (format === 'tap') {
-        str = str.replace(/\r/, '');
-        str = str.replace(/TAP version 13\n/, '');
-        str = str.split('\n').map((line) => {
-          if (line.search(/[0-9]+\.\.[0-9]+/) > -1) {
-            return '';
-          }
-          else if (line.search('ok') > -1) count++;
-          return line.replace(/ok [0-9]+/, 'ok');
-        }).join('\n').slice(1);
+        const outPathNumbered = `${outPathNumbered}-${count}.tap`;
+        fd = fs.openSync(outPathNumbered, 'w');
+        fs.writeSync(fd, str, 'utf8');
+        fs.closeSync(fd);
+        count++;
+        return;
       }
-      results.push(str.slice(0, str.length - 1));
+      fs.writeSync(fd, str, 'utf8');
     };
     process.on('exit', function() {
-      if (format === 'tap') {
-        fs.writeSync(fd, `TAP version 13\n1..${count}\n`, 'utf8');
+      if (format !== 'tap') {
+        fs.closeSync(fd);
       }
-      fs.writeSync(fd, results.join(''), 'utf8');
-      fs.closeSync(fd);
     });
   } else {
     outFn = function(str) {
