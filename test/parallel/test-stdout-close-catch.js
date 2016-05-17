@@ -9,7 +9,7 @@ var testScript = path.join(common.fixturesDir, 'catch-stdout-error.js');
 var cmd = JSON.stringify(process.execPath) + ' ' +
           JSON.stringify(testScript) + ' | ' +
           JSON.stringify(process.execPath) + ' ' +
-          '-pe "process.exit(1);"';
+          '-pe "process.stdin.on(\'data\' , () => process.exit(1))"';
 
 var child = child_process.exec(cmd);
 var output = '';
