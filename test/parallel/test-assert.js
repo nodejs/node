@@ -481,8 +481,8 @@ function testBlockTypeError(method, block) {
     method(block);
     threw = false;
   } catch (e) {
-    assert.equal(e.toString(),
-                 'TypeError: "block" argument must be a function');
+    assert.strictEqual(e.code, 'INVALIDARG');
+    assert.ok(e instanceof TypeError);
   }
 
   assert.ok(threw);

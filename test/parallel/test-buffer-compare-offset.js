@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const a = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]);
@@ -52,12 +52,12 @@ assert.equal(1, a.compare(b, Infinity, -Infinity));
 // zero length target because default for targetEnd <= targetSource
 assert.equal(1, a.compare(b, '0xff'));
 
-const oor = /out of range index/;
+const oor = {code: 'INDEXOUTOFRANGE'};
 
-assert.throws(() => a.compare(b, 0, 100, 0), oor);
-assert.throws(() => a.compare(b, 0, 1, 0, 100), oor);
-assert.throws(() => a.compare(b, -1), oor);
-assert.throws(() => a.compare(b, 0, '0xff'), oor);
-assert.throws(() => a.compare(b, 0, Infinity), oor);
-assert.throws(() => a.compare(b, -Infinity, Infinity), oor);
-assert.throws(() => a.compare(), /Argument must be a Buffer/);
+common.throws(() => a.compare(b, 0, 100, 0), oor);
+common.throws(() => a.compare(b, 0, 1, 0, 100), oor);
+common.throws(() => a.compare(b, -1), oor);
+common.throws(() => a.compare(b, 0, '0xff'), oor);
+common.throws(() => a.compare(b, 0, Infinity), oor);
+common.throws(() => a.compare(b, -Infinity, Infinity), oor);
+common.throws(() => a.compare(), {code: 'INVALIDARG'});

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
 const assert = require('assert');
 
@@ -55,9 +55,9 @@ var options = {
   input: 1234
 };
 
-assert.throws(function() {
+common.throws(function() {
   spawnSync('cat', [], options);
-}, /TypeError:.*should be Buffer or string not number/);
+}, {code: 'INVALIDOPT'});
 
 
 options = {

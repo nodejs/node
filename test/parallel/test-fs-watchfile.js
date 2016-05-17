@@ -14,9 +14,9 @@ assert.throws(function() {
   fs.watchFile('./another-file', {}, 'bad listener');
 }, /"watchFile\(\)" requires a listener function/);
 
-assert.throws(function() {
+common.throws(function() {
   fs.watchFile(new Object(), function() {});
-}, /Path must be a string/);
+}, {code: 'INVALIDARG'});
 
 const enoentFile = path.join(common.tmpDir, 'non-existent-file');
 const expectedStatObject = new fs.Stats(

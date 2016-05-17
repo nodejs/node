@@ -112,9 +112,9 @@ file6.on('end', function() {
   assert.equal(file6.data, 'yz\n');
 });
 
-assert.throws(function() {
+common.throws(function() {
   fs.createReadStream(rangeFile, Object.create({start: 10, end: 2}));
-}, /"start" option must be <= "end" option/);
+}, {code: 'INVALIDOPT'});
 
 var stream = fs.createReadStream(rangeFile, Object.create({ start: 0,
                                  end: 0 }));

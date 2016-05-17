@@ -162,10 +162,7 @@ function checkErrors(path) {
       path[errorCase.method].apply(path, errorCase.input);
     } catch (err) {
       assert.ok(err instanceof TypeError);
-      assert.ok(
-        errorCase.message.test(err.message),
-        'expected ' + errorCase.message + ' to match ' + err.message
-      );
+      assert.strictEqual(err.code, 'INVALIDARG');
       return;
     }
 

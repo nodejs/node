@@ -1,6 +1,6 @@
 // Flags: --expose_internals
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const readline = require('readline');
 const internalReadline = require('internal/readline');
@@ -238,19 +238,12 @@ function isWarned(emitter) {
 
   // constructor throws if completer is not a function or undefined
   fi = new FakeInput();
-  assert.throws(function() {
+  common.throws(function() {
     readline.createInterface({
       input: fi,
       completer: 'string is not valid'
     });
-  }, function(err) {
-    if (err instanceof TypeError) {
-      if (/Argument "completer" must be a function/.test(err)) {
-        return true;
-      }
-    }
-    return false;
-  });
+  }, {type: TypeError, code: 'INVALIDARG'});
 
   // sending a multi-byte utf8 char over multiple writes
   var buf = Buffer.from('☮', 'utf8');

@@ -1,6 +1,6 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 var zero = [];
 var one = [ Buffer.from('asdf') ];
@@ -28,10 +28,7 @@ assertWrongList(['hello', 'world']);
 assertWrongList(['hello', Buffer.from('world')]);
 
 function assertWrongList(value) {
-  assert.throws(function() {
+  common.throws(function() {
     Buffer.concat(value);
-  }, function(err) {
-    return err instanceof TypeError &&
-           err.message === '"list" argument must be an Array of Buffers';
-  });
+  }, {code: 'INVALIDARG', type: TypeError});
 }

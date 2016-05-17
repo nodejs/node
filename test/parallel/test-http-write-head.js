@@ -25,7 +25,9 @@ var s = http.createServer(function(req, res) {
     res.setHeader('foo', undefined);
   } catch (e) {
     assert.ok(e instanceof Error);
-    assert.equal(e.message, '"value" required in setHeader("foo", value)');
+    assert.strictEqual(e.code, 'REQUIREDARG');
+    assert.strictEqual(e.message,
+                       '"value" argument is required and cannot be undefined');
     threw = true;
   }
   assert.ok(threw, 'Undefined value should throw');

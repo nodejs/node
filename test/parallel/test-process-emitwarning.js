@@ -25,5 +25,5 @@ util.inherits(CustomWarning, Error);
 process.emitWarning(new CustomWarning());
 
 // TypeError is thrown on invalid output
-assert.throws(() => process.emitWarning(1), TypeError);
-assert.throws(() => process.emitWarning({}), TypeError);
+common.throws(() => process.emitWarning(1), {code: 'INVALIDARG'});
+common.throws(() => process.emitWarning({}), {code: 'INVALIDARG'});
