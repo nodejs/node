@@ -728,7 +728,7 @@ fs.mkdtemp('/tmp/foo-', (err, folder) => {
 });
 ```
 
-*Note*: the `fs.mkdtemp()` method will append the six randomly selected
+*Note*: The `fs.mkdtemp()` method will append the six randomly selected
 characters directly to the `prefix` string. For instance, given a directory
 `/tmp`, if the intention is to create a temporary directory *within* `/tmp`,
 the `prefix` *must* end with a trailing platform-specific path separator
@@ -736,10 +736,10 @@ the `prefix` *must* end with a trailing platform-specific path separator
 
 ```js
 // The parent directory for the new temporary directory
-const tmp_dir = '/tmp';
+const tmpDir = '/tmp';
 
 // This method is *INCORRECT*:
-fs.mkdtemp(tmp_dir, (err, folder) => {
+fs.mkdtemp(tmpDir, (err, folder) => {
   if (err) throw err;
   console.log(folder);
     // Will print something similar to `/tmp-abc123`.
@@ -750,7 +750,7 @@ fs.mkdtemp(tmp_dir, (err, folder) => {
 
 // This method is *CORRECT*:
 const path = require('path');
-fs.mkdtemp(tmp_dir + path.sep, (err, folder) => {
+fs.mkdtemp(tmpDir + path.sep, (err, folder) => {
   if (err) throw err;
   console.log(folder);
     // Will print something similar to `/tmp/abc123`.
