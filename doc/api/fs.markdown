@@ -823,9 +823,10 @@ to be notified of filesystem changes.
 * On Windows systems, this feature depends on `ReadDirectoryChangesW`.
 
 If the underlying functionality is not available for some reason, then
-`fs.watch` will not be able to function.  For example, watching files or
-directories on network file systems (NFS, SMB, etc.) often doesn't work
-reliably or at all.
+`fs.watch` will not be able to function. For example, watching files or
+directories can be unreliable, and in some cases impossible, on network file
+systems (NFS, SMB, etc), or host file systems when using virtualization software
+such as Vagrant, Docker, etc.
 
 You can still use `fs.watchFile`, which uses stat polling, but it is slower and
 less reliable.
