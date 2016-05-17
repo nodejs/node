@@ -10,7 +10,7 @@ const timer = setTimeout(function() {
   throw new Error('Timeout');
 }, common.platformTimeout(200));
 
-const messageSent = common.mustCall(function messageSent(err, bytes) {
+const onMessage = common.mustCall(function(err, bytes) {
   assert.equal(bytes, buf1.length + buf2.length);
   clearTimeout(timer);
 });
@@ -19,7 +19,9 @@ const buf1 = Buffer.alloc(256, 'x');
 const buf2 = Buffer.alloc(256, 'y');
 
 client.on('listening', function() {
-  client.send([buf1, buf2], common.PORT, common.localhostIPv4, messageSent);
+  const toSend = [buf1, buf2];
+  client.send(toSend, common.PORT, common.localhostIPv4, onMessage);
+  toSend.splice(0, 2);
 });
 
 client.on('message', common.mustCall(function onMessage(buf, info) {
