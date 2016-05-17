@@ -26,7 +26,8 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V6.md#6.1.0">6.1.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V6.md#6.2.0">6.2.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.1.0">6.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.0.0">6.0.0</a><br/>
   </td>
   <td valign="top">
@@ -144,7 +145,7 @@ release.
 
 ### Notes
 
-* Release streams marked with `LTS` are currently covered by the 
+* Release streams marked with `LTS` are currently covered by the
   [Node.js Long Term Support plan](https://github.com/nodejs/LTS).
 * Release versions displayed in **bold** text represent the most
   recent actively supported release.
