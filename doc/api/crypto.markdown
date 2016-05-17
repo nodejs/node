@@ -719,7 +719,7 @@ console.log(sign.sign(private_key, 'hex'));
   // Prints the calculated signature
 ```
 
-A [`sign`][] instance can also be created by just passing in the digest
+A `Sign` instance can also be created by just passing in the digest
 algorithm name, in which case OpenSSL will infer the full signature algorithm
 from the type of the PEM-formatted private key, including algorithms that
 do not have directly exposed name constants, e.g. 'ecdsa-with-SHA256'.
