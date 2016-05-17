@@ -735,7 +735,7 @@ fields:
   (Certificate Revocation List).
 * `ciphers`: A string describing the ciphers to use or exclude.
   Consult
-  <https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT>
+  <https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT>
   for details on the format.
 * `honorCipherOrder` : When choosing a cipher, use the server's preferences
   instead of the client preferences. For further details see `tls` module
@@ -998,7 +998,7 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 ```
 
 
-[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
+[OpenSSL cipher list format documentation]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Deprecation-of-TLS-Features-Algorithms-in-Chrome
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [BEAST attacks]: https://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
@@ -1013,7 +1013,7 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [`'secureConnection'`]: #tls_event_secureconnection
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
 [Stream]: stream.html#stream_stream
-[SSL_METHODS]: https://www.openssl.org/docs/ssl/ssl.html#DEALING_WITH_PROTOCOL_METHODS
+[SSL_METHODS]: https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [tls.Server]: #tls_class_tls_server
 [SSL_CTX_set_timeout]: https://www.openssl.org/docs/ssl/SSL_CTX_set_timeout.html
 [RFC 4492]: https://www.rfc-editor.org/rfc/rfc4492.txt
