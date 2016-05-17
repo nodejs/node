@@ -6,11 +6,8 @@ Version: usually output of `node -v`
 Platform: either `uname -a` output, or if Windows, version and 32 or 64-bit
 Subsystem: if known, please specify affected core module name
 
-It will be much easier for us to fix the issue if a test case that reproduces
-the problem is provided. Ideally this test case should not have any external
-dependencies. We understand that it is not always possible to reduce your code
-to a small test case, but we would appreciate to have as
-much data as possible.
+If possible, please provide code that demonstrates the problem, keeping it as
+simple and free of external dependencies as you are able.
 -->
 
 * **Version**:
