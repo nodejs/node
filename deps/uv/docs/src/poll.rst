@@ -31,6 +31,8 @@ closed immediately after a call to :c:func:`uv_poll_stop` or :c:func:`uv_close`.
     On windows only sockets can be polled with poll handles. On Unix any file
     descriptor that would be accepted by :man:`poll(2)` can be used.
 
+.. note::
+    On AIX, watching for disconnection is not supported.
 
 Data types
 ----------
@@ -100,6 +102,10 @@ API
     .. note::
         Calling :c:func:`uv_poll_start` on a handle that is already active is fine. Doing so
         will update the events mask that is being watched for.
+
+    .. note::
+        Though UV_DISCONNECT can be set, it is unsupported on AIX and as such will not be set
+        on the `events` field in the callback.
 
     .. versionchanged:: 1.9.0 Added the UV_DISCONNECT event.
 

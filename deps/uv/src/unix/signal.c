@@ -222,7 +222,7 @@ static int uv__signal_loop_once_init(uv_loop_t* loop) {
   uv__io_init(&loop->signal_io_watcher,
               uv__signal_event,
               loop->signal_pipefd[0]);
-  uv__io_start(loop, &loop->signal_io_watcher, UV__POLLIN);
+  uv__io_start(loop, &loop->signal_io_watcher, POLLIN);
 
   return 0;
 }

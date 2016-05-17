@@ -118,6 +118,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   uv__io_t* w;
   uint64_t base;
   uint64_t diff;
+  int have_signals;
   int nevents;
   int count;
   int nfds;
@@ -225,6 +226,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       goto update_timeout;
     }
 
+    have_signals = 0;
     nevents = 0;
 
     assert(loop->watchers != NULL);
@@ -255,12 +257,25 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         continue;
       }
 
-      w->cb(loop, w, pe->revents);
+      /* Run signal watchers last.  This also affects child process watchers
+       * because those are implemented in terms of signal watchers.
+       */
+      if (w == &loop->signal_io_watcher)
+        have_signals = 1;
+      else
+        w->cb(loop, w, pe->revents);
+
       nevents++;
     }
 
+    if (have_signals != 0)
+      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
+
+    if (have_signals != 0)
+      return;  /* Event loop should cycle now so don't poll again. */
 
     if (nevents != 0) {
       if (nfds == ARRAY_SIZE(events) && --count != 0) {
@@ -782,53 +797,30 @@ int uv_fs_event_start(uv_fs_event_t* handle,
                       const char* filename,
                       unsigned int flags) {
 #ifdef HAVE_SYS_AHAFS_EVPRODS_H
-  int  fd, rc, i = 0, res = 0;
+  int  fd, rc, str_offset = 0;
   char cwd[PATH_MAX];
   char absolute_path[PATH_MAX];
-  char fname[PATH_MAX];
-  char *p;
+  char readlink_cwd[PATH_MAX];
 
-  /* Clean all the buffers*/
-  for(i = 0; i < PATH_MAX; i++) {
-    cwd[i] = 0;
-    absolute_path[i] = 0;
-    fname[i] = 0;
-  }
-  i = 0;
 
   /* Figure out whether filename is absolute or not */
   if (filename[0] == '/') {
-    /* We have absolute pathname, create the relative pathname*/
-    sprintf(absolute_path, filename);
-    p = strrchr(filename, '/');
-    p++;
+    /* We have absolute pathname */
+    snprintf(absolute_path, sizeof(absolute_path), "%s", filename);
   } else {
-    if (filename[0] == '.' && filename[1] == '/') {
-      /* We have a relative pathname, compose the absolute pathname */
-      sprintf(fname, filename);
-      snprintf(cwd, PATH_MAX-1, "/proc/%lu/cwd", (unsigned long) getpid());
-      res = readlink(cwd, absolute_path, sizeof(absolute_path) - 1);
-      if (res < 0)
-        return res;
-      p = strrchr(absolute_path, '/');
-      p++;
-      p++;
-    } else {
-      /* We have a relative pathname, compose the absolute pathname */
-      sprintf(fname, filename);
-      snprintf(cwd, PATH_MAX-1, "/proc/%lu/cwd", (unsigned long) getpid());
-      res = readlink(cwd, absolute_path, sizeof(absolute_path) - 1);
-      if (res < 0)
-        return res;
-      p = strrchr(absolute_path, '/');
-      p++;
-    }
-    /* Copy to filename buffer */
-    while(filename[i] != NULL) {
-      *p = filename[i];
-      i++;
-      p++;
-    }
+    /* We have a relative pathname, compose the absolute pathname */
+    snprintf(cwd, sizeof(cwd), "/proc/%lu/cwd", (unsigned long) getpid());
+    rc = readlink(cwd, readlink_cwd, sizeof(readlink_cwd) - 1);
+    if (rc < 0)
+      return rc;
+    /* readlink does not null terminate our string */
+    readlink_cwd[rc] = '\0';
+
+    if (filename[0] == '.' && filename[1] == '/')
+      str_offset = 2;
+
+    snprintf(absolute_path, sizeof(absolute_path), "%s%s", readlink_cwd,
+             filename + str_offset);
   }
 
   if (uv__is_ahafs_mounted() < 0)  /* /aha checks failed */
@@ -845,7 +837,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   handle->path = uv__strdup(filename);
   handle->cb = cb;
 
-  uv__io_start(handle->loop, &handle->event_watcher, UV__POLLIN);
+  uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
 
   return 0;
 #else
@@ -1036,14 +1028,14 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
   }
 
   if (ioctl(sockfd, SIOCGSIZIFCONF, &size) == -1) {
-    SAVE_ERRNO(uv__close(sockfd));
+    uv__close(sockfd);
     return -errno;
   }
 
   ifc.ifc_req = (struct ifreq*)uv__malloc(size);
   ifc.ifc_len = size;
   if (ioctl(sockfd, SIOCGIFCONF, &ifc) == -1) {
-    SAVE_ERRNO(uv__close(sockfd));
+    uv__close(sockfd);
     return -errno;
   }
 
@@ -1062,7 +1054,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
 
     memcpy(flg.ifr_name, p->ifr_name, sizeof(flg.ifr_name));
     if (ioctl(sockfd, SIOCGIFFLAGS, &flg) == -1) {
-      SAVE_ERRNO(uv__close(sockfd));
+      uv__close(sockfd);
       return -errno;
     }
 
