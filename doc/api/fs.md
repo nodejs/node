@@ -728,6 +728,37 @@ fs.mkdtemp('/tmp/foo-', (err, folder) => {
 });
 ```
 
+*Note*: the `fs.mkdtemp()` method will append the six randomly selected
+characters directly to the `prefix` string. For instance, given a directory
+`/tmp`, if the intention is to create a temporary directory *within* `/tmp`,
+the `prefix` *must* end with a trailing platform-specific path separator
+(`require('path').sep`).
+
+```js
+// The parent directory for the new temporary directory
+const tmp_dir = '/tmp';
+
+// This method is *INCORRECT*:
+fs.mkdtemp(tmp_dir, (err, folder) => {
+  if (err) throw err;
+  console.log(folder);
+    // Will print something similar to `/tmp-abc123`.
+    // Note that a new temporary directory is created
+    // at the file system root rather than *within*
+    // the /tmp directory.
+});
+
+// This method is *CORRECT*:
+const path = require('path');
+fs.mkdtemp(tmp_dir + path.sep, (err, folder) => {
+  if (err) throw err;
+  console.log(folder);
+    // Will print something similar to `/tmp/abc123`.
+    // A new temporary directory is created within
+    // the /tmp directory.
+});
+```
+
 ## fs.mkdtempSync(template)
 
 The synchronous version of [`fs.mkdtemp()`][]. Returns the created
