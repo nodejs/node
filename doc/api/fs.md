@@ -923,7 +923,7 @@ fs.mkdtemp(tmpDir + path.sep, (err, folder) => {
 });
 ```
 
-## fs.mkdtempSync(template)
+## fs.mkdtempSync(prefix)
 <!-- YAML
 added: v5.10.0
 -->
@@ -1702,6 +1702,7 @@ Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 [`fs.FSWatcher`]: #fs_class_fs_fswatcher
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.lstat()`]: #fs_fs_lstat_path_callback
+[`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_callback
 [`fs.open()`]: #fs_fs_open_path_flags_mode_callback
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readFile`]: #fs_fs_readfile_file_options_callback
