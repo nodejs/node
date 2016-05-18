@@ -547,7 +547,9 @@ added: v0.7.2
 If `process.connected` is `false`, it is no longer possible to send messages.
 
 ## process.cpuUsage([previousValue])
-<!-- TODO add YAML block when cpuUsage is in a release -->
+<!-- YAML
+added: v6.1.0
+-->
 
 Returns the user and system CPU time usage of the current process, in an object
 with properties `user` and `system`, whose values are microsecond values
