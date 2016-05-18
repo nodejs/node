@@ -9,22 +9,70 @@ const assert = require('assert');
 
 common.globalCheck = false;
 
-runRepl(false, common.mustCall(function(err, output) {
-  assert.ifError(err);
-  assert.strictEqual(output, 'undefined');
+// Array of [useGlobal, expectedResult] pairs
+const globalTestCases = [
+  [false, 'undefined'],
+  [true, '\'tacos\''],
+  [undefined, 'undefined']
+];
 
-  runRepl(true, common.mustCall(function(err, output) {
+const globalTest = (useGlobal, cb, output) => (err, repl) => {
+  if (err)
+    return cb(err);
+
+  let str = '';
+  output.on('data', (data) => (str += data));
+  global.lunch = 'tacos';
+  repl.write('global.lunch;\n');
+  repl.close();
+  delete global.lunch;
+  cb(null, str.trim());
+};
+
+// Test how the global object behaves in each state for useGlobal
+for (const [option, expected] of globalTestCases) {
+  runRepl(option, globalTest, common.mustCall((err, output) => {
     assert.ifError(err);
-    assert.strictEqual(output, '\'tacos\'');
-
-    runRepl(undefined, common.mustCall(function(err, output) {
-      assert.ifError(err);
-      assert.strictEqual(output, 'undefined');
-    }));
+    assert.strictEqual(output, expected);
   }));
-}));
+}
 
-function runRepl(useGlobal, cb) {
+// Test how shadowing the process object via `let`
+// behaves in each useGlobal state. Note: we can't
+// actually test the state when useGlobal is true,
+// because the exception that's generated is caught
+// (see below), but errors are printed, and the test
+// suite is aware of it, causing a failure to be flagged.
+//
+const processTestCases = [false, undefined];
+const processTest = (useGlobal, cb) => (err, repl) => {
+  if (err)
+    return cb(err);
+  try {
+    // if useGlobal is false, then `let process` should work
+    repl.write('let process;\n');
+    assert.ok(!useGlobal);
+  } catch (e) {
+    // If useGlobal is true, then 'let process' will cause
+    // a TypeError to be thrown. Testing this is problematic
+    // however, because even though we end up in this catch
+    // clause, the test framework sees the exception and reports
+    // a failure.
+    assert.ok(useGlobal);
+    assert.equals(e.name, 'TypeError');
+  }
+  repl.close();
+  cb(null, 'OK');
+};
+
+for (const option of processTestCases) {
+  runRepl(option, processTest, common.mustCall((err, output) => {
+    assert.ifError(err);
+    assert.strictEqual(output, 'OK');
+  }));
+}
+
+function runRepl(useGlobal, testFunc, cb) {
   const inputStream = new stream.PassThrough();
   const outputStream = new stream.PassThrough();
 
@@ -36,21 +84,6 @@ function runRepl(useGlobal, cb) {
     terminal: false,
     prompt: ''
   };
-
-  let output = '';
-
-  outputStream.on('data', (data) => {
-    output += data;
-  });
-
-  repl.createInternalRepl(process.env, opts, function(err, repl) {
-    if (err)
-      return cb(err);
-
-    global.lunch = 'tacos';
-    repl.write('global.lunch;\n');
-    repl.close();
-    delete global.lunch;
-    cb(null, output.trim());
-  });
+  repl.createInternalRepl(
+    process.env, opts, testFunc(useGlobal, cb, opts.output));
 }
