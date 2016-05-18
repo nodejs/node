@@ -146,7 +146,8 @@ ADDONS_BINDING_GYPS := \
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
 # Depends on node-gyp package.json so that build-addons is (re)executed when
 # node-gyp is updated as part of an npm update.
-test/addons/.buildstamp: deps/npm/node_modules/node-gyp/package.json $(ADDONS_BINDING_GYPS) \
+test/addons/.buildstamp: deps/npm/node_modules/node-gyp/package.json \
+  $(ADDONS_BINDING_GYPS) \
 	deps/uv/include/*.h deps/v8/include/*.h \
 	src/node.h src/node_buffer.h src/node_object_wrap.h \
 	test/addons/.docbuildstamp
