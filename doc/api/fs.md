@@ -821,6 +821,7 @@ to be notified of filesystem changes.
 * On OS X, this uses `kqueue` for files and 'FSEvents' for directories.
 * On SunOS systems (including Solaris and SmartOS), this uses `event ports`.
 * On Windows systems, this feature depends on `ReadDirectoryChangesW`.
+* On Aix systems, this feature depends on `AHAFS`, which must be enabled.
 
 If the underlying functionality is not available for some reason, then
 `fs.watch` will not be able to function. For example, watching files or
