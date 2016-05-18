@@ -1,4 +1,12 @@
 
+1.0.1 / 2016-01-14
+==================
+
+  * add MIT LICENSE file
+  * update "array-index" to v1.0.0 with new API
+  * travis: test more node versions and fix v0.8
+  * travis: use quotes around node versions
+
 1.0.0 / 2014-11-11
 ==================
 

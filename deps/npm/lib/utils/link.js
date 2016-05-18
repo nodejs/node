@@ -25,6 +25,24 @@ function linkIfExists (from, to, gently, cb) {
   })
 }
 
+function resolveIfSymlink (maybeSymlinkPath, cb) {
+  fs.lstat(maybeSymlinkPath, function (err, stat) {
+    if (err) return cb.apply(this, arguments)
+    if (!stat.isSymbolicLink()) return cb(null, maybeSymlinkPath)
+    fs.readlink(maybeSymlinkPath, cb)
+  })
+}
+
+function ensureFromIsNotSource (from, to, cb) {
+  resolveIfSymlink(from, function (err, fromDestination) {
+    if (err) return cb.apply(this, arguments)
+    if (path.resolve(path.dirname(from), fromDestination) === path.resolve(to)) {
+      return cb(new Error('Link target resolves to the same directory as link source: ' + to))
+    }
+    cb.apply(this, arguments)
+  })
+}
+
 function link (from, to, gently, abs, cb) {
   if (typeof cb !== 'function') {
     cb = abs
@@ -48,6 +66,7 @@ function link (from, to, gently, abs, cb) {
 
   chain(
     [
+      [ensureFromIsNotSource, from, to],
       [fs, 'stat', from],
       [rm, to, gently],
       [mkdir, path.dirname(to)],

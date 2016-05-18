@@ -1,6 +1,84 @@
 Notes about the icu directory.
 ===
 
+How to upgrade ICU
+---
+
+- Make sure your node workspace is clean (clean `git status`) should be sufficient.
+- Configure Node with the specific [ICU version](http://icu-project.org/download) you want to upgrade to, for example:
+
+```
+./configure \
+    --with-intl=small-icu \
+    --with-icu-source=http://download.icu-project.org/files/icu4c/56.1/icu4c-56_1-src.zip
+make
+```
+
+(the equivalent `vcbuild.bat` commands should work also.)
+
+- (note- may need to make changes in `icu-generic.gyp` or `tools/icu/patches` for
+version specific stuff)
+
+- Verify the node build works
+
+```
+make test-ci
+```
+
+Also running
+```js
+ new Intl.DateTimeFormat('es',{month:'long'}).format(new Date(9E8));
+```
+
+…Should return `January` not `enero`.
+(TODO here: improve [testing](https://github.com/nodejs/Intl/issues/16))
+
+
+- Now, copy `deps/icu` over to `deps/icu-small`
+
+```
+python tools/icu/shrink-icu-src.py
+```
+
+- Now, do a clean rebuild of node to test:
+
+(TODO: fix this when these options become default)
+
+```
+./configure --with-intl=small-icu --with-icu-source=deps/icu-small
+make
+```
+
+- Test this newly default-generated Node.js
+```js
+process.versions.icu;
+new Intl.DateTimeFormat('es',{month:'long'}).format(new Date(9E8));
+```
+
+(should return your updated ICU version number, and also `January` again.)
+
+- You are ready to check in the updated `deps/small-icu`.
+This is a big commit, so make this a separate commit from other changes.
+
+- Now, fix the default URL for the `full-icu` build in `/configure`, in
+the `configure_intl()` function. It should match the ICU URL used in the
+first step.  When this is done, the following should build with full ICU.
+
+```
+# clean up
+rm -rf out deps/icu deps/icu4c*
+./configure --with-intl=full-icu --download=all
+make
+make test-ci
+```
+
+- commit the change to `configure`.
+
+-----
+
+Notes about these tools
+---
+
 The files in this directory were written for the node.js effort. It's
 the intent of their author (Steven R. Loomis / srl295) to merge them
 upstream into ICU, pending much discussion within the ICU-PMC.

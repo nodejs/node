@@ -65,6 +65,12 @@ assertThrows('"a".repeat(Number.POSITIVE_INFINITY)', RangeError);
 assertThrows('"a".repeat(Math.pow(2, 30))', RangeError);
 assertThrows('"a".repeat(Math.pow(2, 40))', RangeError);
 
+// Handling empty strings
+assertThrows('"".repeat(-1)', RangeError);
+assertThrows('"".repeat(Number.POSITIVE_INFINITY)', RangeError);
+assertEquals("", "".repeat(Math.pow(2, 30)));
+assertEquals("", "".repeat(Math.pow(2, 40)));
+
 var myobj = {
   toString: function() {
     return "abc";

@@ -21,8 +21,8 @@ assert.throws(function() {
   vm.runInDebugContext('(function(f) { f(f) })(function(f) { f(f) })');
 }, /RangeError/);
 
-assert.equal(typeof(vm.runInDebugContext('this')), 'object');
-assert.equal(typeof(vm.runInDebugContext('Debug')), 'object');
+assert.equal(typeof vm.runInDebugContext('this'), 'object');
+assert.equal(typeof vm.runInDebugContext('Debug'), 'object');
 
 assert.strictEqual(vm.runInDebugContext(), undefined);
 assert.strictEqual(vm.runInDebugContext(0), 0);
@@ -53,6 +53,24 @@ assert.strictEqual(vm.runInDebugContext(undefined), undefined);
   assert.equal(breaks, 1);
 })();
 
+// Can set listeners and breakpoints on a single line file
+(function() {
+  const Debug = vm.runInDebugContext('Debug');
+  const fn = require(common.fixturesDir + '/exports-function-with-param');
+  let called = false;
+
+  Debug.setListener(function(event, state, data) {
+    if (data.constructor.name === 'BreakEvent') {
+      called = true;
+    }
+  });
+
+  Debug.setBreakPoint(fn);
+  fn('foo');
+  assert.strictEqual(Debug.showBreakPoints(fn), '(arg) { [B0]return arg; }');
+  assert.strictEqual(called, true);
+})();
+
 // See https://github.com/nodejs/node/issues/1190, fatal errors should not
 // crash the process.
 var script = common.fixturesDir + '/vm-run-in-debug-context.js';
@@ -69,7 +87,7 @@ proc.once('exit', common.mustCall(function(exitCode, signalCode) {
   assert.equal(signalCode, null);
 }));
 
-var proc = spawn(process.execPath, [script, 'handle-fatal-exception']);
+proc = spawn(process.execPath, [script, 'handle-fatal-exception']);
 proc.stdout.on('data', common.fail);
 proc.stderr.on('data', common.fail);
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {

@@ -244,7 +244,16 @@ int SSL_clear(SSL *s)
     ssl_clear_hash_ctx(&s->write_hash);
 
     s->first_packet = 0;
-
+#ifndef OPENSSL_NO_TLSEXT
+    if (s->cert != NULL) {
+        if (s->cert->alpn_proposed) {
+            OPENSSL_free(s->cert->alpn_proposed);
+            s->cert->alpn_proposed = NULL;
+        }
+        s->cert->alpn_proposed_len = 0;
+        s->cert->alpn_sent = 0;
+    }
+#endif
 #if 1
     /*
      * Check to see if we were changed into a different method, if so, revert
@@ -1060,10 +1069,12 @@ int SSL_shutdown(SSL *s)
         return -1;
     }
 
-    if ((s != NULL) && !SSL_in_init(s))
-        return (s->method->ssl_shutdown(s));
-    else
-        return (1);
+    if (!SSL_in_init(s)) {
+        return s->method->ssl_shutdown(s);
+    } else {
+        SSLerr(SSL_F_SSL_SHUTDOWN, SSL_R_SHUTDOWN_WHILE_IN_INIT);
+        return -1;
+    }
 }
 
 int SSL_renegotiate(SSL *s)
@@ -2051,6 +2062,13 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth)
      * deployed might change this.
      */
     ret->options |= SSL_OP_LEGACY_SERVER_CONNECT;
+
+    /*
+     * Disable SSLv2 by default, callers that want to enable SSLv2 will have to
+     * explicitly clear this option via either of SSL_CTX_clear_options() or
+     * SSL_clear_options().
+     */
+    ret->options |= SSL_OP_NO_SSLv2;
 
     return (ret);
  err:
@@ -3165,6 +3183,12 @@ SSL_CTX *SSL_set_SSL_CTX(SSL *ssl, SSL_CTX *ctx)
             ssl->cert->ciphers_rawlen = ocert->ciphers_rawlen;
             ocert->ciphers_raw = NULL;
         }
+#ifndef OPENSSL_NO_TLSEXT
+        ssl->cert->alpn_proposed = ocert->alpn_proposed;
+        ssl->cert->alpn_proposed_len = ocert->alpn_proposed_len;
+        ocert->alpn_proposed = NULL;
+        ssl->cert->alpn_sent = ocert->alpn_sent;
+#endif
         ssl_cert_free(ocert);
     }
 

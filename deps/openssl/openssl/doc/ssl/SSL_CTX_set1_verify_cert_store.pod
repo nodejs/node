@@ -17,10 +17,10 @@ verification or chain store
  int SSL_CTX_set0_chain_cert_store(SSL_CTX *ctx, X509_STORE *st);
  int SSL_CTX_set1_chain_cert_store(SSL_CTX *ctx, X509_STORE *st);
 
- int SSL_set0_verify_cert_store(SSL_CTX *ctx, X509_STORE *st);
- int SSL_set1_verify_cert_store(SSL_CTX *ctx, X509_STORE *st);
- int SSL_set0_chain_cert_store(SSL_CTX *ctx, X509_STORE *st);
- int SSL_set1_chain_cert_store(SSL_CTX *ctx, X509_STORE *st);
+ int SSL_set0_verify_cert_store(SSL *ctx, X509_STORE *st);
+ int SSL_set1_verify_cert_store(SSL *ctx, X509_STORE *st);
+ int SSL_set0_chain_cert_store(SSL *ctx, X509_STORE *st);
+ int SSL_set1_chain_cert_store(SSL *ctx, X509_STORE *st);
 
 =head1 DESCRIPTION
 

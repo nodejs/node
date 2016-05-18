@@ -332,10 +332,6 @@ SemVer.prototype.format = function() {
   return this.version;
 };
 
-SemVer.prototype.inspect = function() {
-  return '<SemVer "' + this + '">';
-};
-
 SemVer.prototype.toString = function() {
   return this.version;
 };
@@ -692,10 +688,6 @@ Comparator.prototype.parse = function(comp) {
     this.semver = new SemVer(m[2], this.loose);
 };
 
-Comparator.prototype.inspect = function() {
-  return '<SemVer Comparator "' + this + '">';
-};
-
 Comparator.prototype.toString = function() {
   return this.value;
 };
@@ -738,10 +730,6 @@ function Range(range, loose) {
 
   this.format();
 }
-
-Range.prototype.inspect = function() {
-  return '<SemVer Range "' + this.range + '">';
-};
 
 Range.prototype.format = function() {
   this.range = this.set.map(function(comps) {

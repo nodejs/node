@@ -92,6 +92,20 @@ inline unsigned CountLeadingZeros64(uint64_t value) {
 }
 
 
+// ReverseBits(value) returns |value| in reverse bit order.
+template <typename T>
+T ReverseBits(T value) {
+  DCHECK((sizeof(value) == 1) || (sizeof(value) == 2) || (sizeof(value) == 4) ||
+         (sizeof(value) == 8));
+  T result = 0;
+  for (unsigned i = 0; i < (sizeof(value) * 8); i++) {
+    result = (result << 1) | (value & 1);
+    value >>= 1;
+  }
+  return result;
+}
+
+
 // CountTrailingZeros32(value) returns the number of zero bits preceding the
 // least significant 1 bit in |value| if |value| is non-zero, otherwise it
 // returns 32.
@@ -209,6 +223,26 @@ inline bool SignedSubOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
   *val = bit_cast<int32_t>(res);
   return ((res ^ lhs) & (res ^ ~rhs) & (1U << 31)) != 0;
 #endif
+}
+
+
+// SignedAddOverflow64(lhs,rhs,val) performs a signed summation of |lhs| and
+// |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed summation resulted in an overflow.
+inline bool SignedAddOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
+  uint64_t res = static_cast<uint64_t>(lhs) + static_cast<uint64_t>(rhs);
+  *val = bit_cast<int64_t>(res);
+  return ((res ^ lhs) & (res ^ rhs) & (1ULL << 63)) != 0;
+}
+
+
+// SignedSubOverflow64(lhs,rhs,val) performs a signed subtraction of |lhs| and
+// |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed subtraction resulted in an overflow.
+inline bool SignedSubOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
+  uint64_t res = static_cast<uint64_t>(lhs) - static_cast<uint64_t>(rhs);
+  *val = bit_cast<int64_t>(res);
+  return ((res ^ lhs) & (res ^ ~rhs) & (1ULL << 63)) != 0;
 }
 
 

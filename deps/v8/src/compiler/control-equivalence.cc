@@ -71,7 +71,7 @@ void ControlEquivalence::VisitPost(Node* node, Node* parent_node,
   BracketListDelete(blist, node, direction);
 
   // Propagate bracket list up the DFS tree [line:13].
-  if (parent_node != NULL) {
+  if (parent_node != nullptr) {
     BracketList& parent_blist = GetBracketList(parent_node);
     parent_blist.splice(parent_blist.end(), blist);
   }
@@ -91,7 +91,7 @@ void ControlEquivalence::VisitBackedge(Node* from, Node* to,
 
 void ControlEquivalence::RunUndirectedDFS(Node* exit) {
   ZoneStack<DFSStackEntry> stack(zone_);
-  DFSPush(stack, exit, NULL, kInputDirection);
+  DFSPush(stack, exit, nullptr, kInputDirection);
   VisitPre(exit);
 
   while (!stack.empty()) {  // Undirected depth-first backwards traversal.

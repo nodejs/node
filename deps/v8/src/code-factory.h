@@ -32,20 +32,20 @@ class Callable final BASE_EMBEDDED {
 class CodeFactory final {
  public:
   // Initial states for ICs.
-  static Callable LoadIC(Isolate* isolate, TypeofMode typeof_mode,
-                         LanguageMode language_mode);
+  static Callable LoadIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadICInOptimizedCode(Isolate* isolate,
                                         TypeofMode typeof_mode,
-                                        LanguageMode language_mode,
                                         InlineCacheState initialization_state);
-  static Callable KeyedLoadIC(Isolate* isolate, LanguageMode language_mode);
+  static Callable KeyedLoadIC(Isolate* isolate);
   static Callable KeyedLoadICInOptimizedCode(
-      Isolate* isolate, LanguageMode language_mode,
-      InlineCacheState initialization_state);
+      Isolate* isolate, InlineCacheState initialization_state);
   static Callable CallIC(Isolate* isolate, int argc,
-                         CallICState::CallType call_type);
-  static Callable CallICInOptimizedCode(Isolate* isolate, int argc,
-                                        CallICState::CallType call_type);
+                         ConvertReceiverMode mode = ConvertReceiverMode::kAny,
+                         TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  static Callable CallICInOptimizedCode(
+      Isolate* isolate, int argc,
+      ConvertReceiverMode mode = ConvertReceiverMode::kAny,
+      TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
   static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode,
                                          InlineCacheState initialization_state);
@@ -54,49 +54,62 @@ class CodeFactory final {
       Isolate* isolate, LanguageMode mode,
       InlineCacheState initialization_state);
 
-  static Callable CompareIC(Isolate* isolate, Token::Value op,
-                            Strength strength);
+  static Callable CompareIC(Isolate* isolate, Token::Value op);
+  static Callable CompareNilIC(Isolate* isolate, NilValue nil_value);
 
-  static Callable BinaryOpIC(Isolate* isolate, Token::Value op,
-                             Strength strength);
+  static Callable BinaryOpIC(Isolate* isolate, Token::Value op);
 
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
-  static Callable LoadGlobalViaContext(Isolate* isolate, int depth);
-  static Callable StoreGlobalViaContext(Isolate* isolate, int depth,
-                                        LanguageMode language_mode);
-
   static Callable InstanceOf(Isolate* isolate);
 
-  static Callable ToBoolean(
-      Isolate* isolate, ToBooleanStub::ResultMode mode,
-      ToBooleanStub::Types types = ToBooleanStub::Types());
+  static Callable ToBoolean(Isolate* isolate);
 
   static Callable ToNumber(Isolate* isolate);
   static Callable ToString(Isolate* isolate);
+  static Callable ToName(Isolate* isolate);
+  static Callable ToLength(Isolate* isolate);
   static Callable ToObject(Isolate* isolate);
+  static Callable NumberToString(Isolate* isolate);
+
+  static Callable RegExpConstructResult(Isolate* isolate);
+  static Callable RegExpExec(Isolate* isolate);
 
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);
   static Callable StringCompare(Isolate* isolate);
+  static Callable SubString(Isolate* isolate);
 
   static Callable Typeof(Isolate* isolate);
 
+  static Callable FastCloneRegExp(Isolate* isolate);
   static Callable FastCloneShallowArray(Isolate* isolate);
   static Callable FastCloneShallowObject(Isolate* isolate, int length);
 
+  static Callable FastNewContext(Isolate* isolate, int slot_count);
   static Callable FastNewClosure(Isolate* isolate, LanguageMode language_mode,
                                  FunctionKind kind);
-
-  static Callable ArgumentsAccess(Isolate* isolate, bool is_unmapped_arguments,
-                                  bool has_duplicate_parameters);
+  static Callable FastNewObject(Isolate* isolate);
+  static Callable FastNewRestParameter(Isolate* isolate);
+  static Callable FastNewSloppyArguments(Isolate* isolate);
+  static Callable FastNewStrictArguments(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
+  static Callable AllocateMutableHeapNumber(Isolate* isolate);
+  static Callable AllocateInNewSpace(Isolate* isolate);
 
-  static Callable CallFunction(Isolate* isolate, int argc,
-                               CallFunctionFlags flags);
+  static Callable ArgumentAdaptor(Isolate* isolate);
+  static Callable Call(Isolate* isolate,
+                       ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable CallFunction(
+      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable Construct(Isolate* isolate);
+  static Callable ConstructFunction(Isolate* isolate);
 
-  static Callable PushArgsAndCall(Isolate* isolate);
+  static Callable InterpreterPushArgsAndCall(Isolate* isolate,
+                                             TailCallMode tail_call_mode);
+  static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
+  static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
 };
 
 }  // namespace internal

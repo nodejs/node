@@ -21,7 +21,7 @@ handle permissions for packages.
 Teams must always be fully qualified with the organization/scope they belong to
 when operating on them, separated by a colon (`:`). That is, if you have a
 `developers` team on a `foo` organization, you must always refer to that team as
-`developers:foo` in these commands.
+`foo:developers` in these commands.
 
 * create / destroy:
   Create a new team, or destroy an existing one.

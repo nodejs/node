@@ -1,6 +1,8 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var r = process.memoryUsage();
-assert.equal(true, r['rss'] > 0);
+assert.ok(r.rss > 0);
+assert.ok(r.heapTotal > 0);
+assert.ok(r.heapUsed > 0);

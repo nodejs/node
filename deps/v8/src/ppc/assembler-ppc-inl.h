@@ -60,7 +60,7 @@ void RelocInfo::apply(intptr_t delta) {
     // mov sequence
     DCHECK(IsInternalReferenceEncoded(rmode_));
     Address target = Assembler::target_address_at(pc_, host_);
-    Assembler::set_target_address_at(pc_, host_, target + delta,
+    Assembler::set_target_address_at(isolate_, pc_, host_, target + delta,
                                      SKIP_ICACHE_FLUSH);
   }
 }
@@ -136,7 +136,8 @@ void RelocInfo::set_target_address(Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, host_, target, icache_flush_mode);
+  Assembler::set_target_address_at(isolate_, pc_, host_, target,
+                                   icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
       IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
@@ -196,12 +197,13 @@ void RelocInfo::set_target_object(Object* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(
-      pc_, host_, reinterpret_cast<Address>(target), icache_flush_mode);
+  Assembler::set_target_address_at(isolate_, pc_, host_,
+                                   reinterpret_cast<Address>(target),
+                                   icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
       target->IsHeapObject()) {
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), &Memory::Object_at(pc_), HeapObject::cast(target));
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target));
   }
 }
 
@@ -246,9 +248,8 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode write_barrier_mode,
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
-    // TODO(1550) We are passing NULL as a slot because cell can never be on
-    // evacuation candidate.
-    host()->GetHeap()->incremental_marking()->RecordWrite(host(), NULL, cell);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  cell);
   }
 }
 
@@ -286,7 +287,7 @@ Code* RelocInfo::code_age_stub() {
 void RelocInfo::set_code_age_stub(Code* stub,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  Assembler::set_target_address_at(pc_ + kCodeAgingTargetDelta, host_,
+  Assembler::set_target_address_at(isolate_, pc_ + kCodeAgingTargetDelta, host_,
                                    stub->instruction_start(),
                                    icache_flush_mode);
 }
@@ -300,7 +301,7 @@ Address RelocInfo::debug_call_address() {
 
 void RelocInfo::set_debug_call_address(Address target) {
   DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
-  Assembler::set_target_address_at(pc_, host_, target);
+  Assembler::set_target_address_at(isolate_, pc_, host_, target);
   if (host() != NULL) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -319,43 +320,11 @@ void RelocInfo::WipeOut() {
   } else if (IsInternalReferenceEncoded(rmode_)) {
     // mov sequence
     // Currently used only by deserializer, no need to flush.
-    Assembler::set_target_address_at(pc_, host_, NULL, SKIP_ICACHE_FLUSH);
+    Assembler::set_target_address_at(isolate_, pc_, host_, NULL,
+                                     SKIP_ICACHE_FLUSH);
   } else {
-    Assembler::set_target_address_at(pc_, host_, NULL);
+    Assembler::set_target_address_at(isolate_, pc_, host_, NULL);
   }
-}
-
-
-bool RelocInfo::IsPatchedReturnSequence() {
-  //
-  // The patched return sequence is defined by
-  // BreakLocation::SetDebugBreakAtReturn()
-  // FIXED_SEQUENCE
-
-  Instr instr0 = Assembler::instr_at(pc_);
-  Instr instr1 = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
-#if V8_TARGET_ARCH_PPC64
-  Instr instr3 = Assembler::instr_at(pc_ + (3 * Assembler::kInstrSize));
-  Instr instr4 = Assembler::instr_at(pc_ + (4 * Assembler::kInstrSize));
-  Instr binstr = Assembler::instr_at(pc_ + (7 * Assembler::kInstrSize));
-#else
-  Instr binstr = Assembler::instr_at(pc_ + 4 * Assembler::kInstrSize);
-#endif
-  bool patched_return =
-      ((instr0 & kOpcodeMask) == ADDIS && (instr1 & kOpcodeMask) == ORI &&
-#if V8_TARGET_ARCH_PPC64
-       (instr3 & kOpcodeMask) == ORIS && (instr4 & kOpcodeMask) == ORI &&
-#endif
-       (binstr == 0x7d821008));  // twge r2, r2
-
-  // printf("IsPatchedReturnSequence: %d\n", patched_return);
-  return patched_return;
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  Instr current_instr = Assembler::instr_at(pc_);
-  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
 }
 
 
@@ -637,16 +606,16 @@ Address Assembler::target_constant_pool_address_at(
 // has already deserialized the mov instructions etc.
 // There is a FIXED_SEQUENCE assumption here
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code* code, Address target) {
-  set_target_address_at(instruction_payload, code, target);
+    Isolate* isolate, Address instruction_payload, Code* code, Address target) {
+  set_target_address_at(isolate, instruction_payload, code, target);
 }
 
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
+    Isolate* isolate, Address pc, Address target, RelocInfo::Mode mode) {
   if (RelocInfo::IsInternalReferenceEncoded(mode)) {
     Code* code = NULL;
-    set_target_address_at(pc, code, target, SKIP_ICACHE_FLUSH);
+    set_target_address_at(isolate, pc, code, target, SKIP_ICACHE_FLUSH);
   } else {
     Memory::Address_at(pc) = target;
   }
@@ -654,8 +623,8 @@ void Assembler::deserialization_set_target_internal_reference_at(
 
 
 // This code assumes the FIXED_SEQUENCE of lis/ori
-void Assembler::set_target_address_at(Address pc, Address constant_pool,
-                                      Address target,
+void Assembler::set_target_address_at(Isolate* isolate, Address pc,
+                                      Address constant_pool, Address target,
                                       ICacheFlushMode icache_flush_mode) {
   if (FLAG_enable_embedded_constant_pool && constant_pool) {
     ConstantPoolEntry::Access access;
@@ -698,7 +667,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     *(p + 3) = instr4;
     *(p + 4) = instr5;
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICacheWithoutIsolate(p, 5 * kInstrSize);
+      Assembler::FlushICache(isolate, p, 5 * kInstrSize);
     }
 #else
     uint32_t* p = reinterpret_cast<uint32_t*>(pc);
@@ -713,14 +682,14 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     *p = instr1;
     *(p + 1) = instr2;
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICacheWithoutIsolate(p, 2 * kInstrSize);
+      Assembler::FlushICache(isolate, p, 2 * kInstrSize);
     }
 #endif
     return;
   }
   UNREACHABLE();
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_ASSEMBLER_PPC_INL_H_

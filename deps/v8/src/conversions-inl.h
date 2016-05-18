@@ -20,7 +20,6 @@
 #include "src/conversions.h"
 #include "src/double.h"
 #include "src/objects-inl.h"
-#include "src/scanner.h"
 #include "src/strtod.h"
 
 namespace v8 {
@@ -70,7 +69,7 @@ inline unsigned int FastD2UI(double x) {
 
 
 inline float DoubleToFloat32(double x) {
-  // TODO(yanggou): This static_cast is implementation-defined behaviour in C++,
+  // TODO(yangguo): This static_cast is implementation-defined behaviour in C++,
   // so we may need to do the conversion manually instead to match the spec.
   volatile float f = static_cast<float>(x);
   return f;
@@ -128,6 +127,10 @@ uint32_t NumberToUint32(Object* number) {
   return DoubleToUint32(number->Number());
 }
 
+int64_t NumberToInt64(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return static_cast<int64_t>(number->Number());
+}
 
 bool TryNumberToSize(Isolate* isolate, Object* number, size_t* result) {
   SealHandleScope shs(isolate);
@@ -295,7 +298,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
   return std::ldexp(static_cast<double>(negative ? -number : number), exponent);
 }
 
-
+// ES6 18.2.5 parseInt(string, radix)
 template <class Iterator, class EndMark>
 double InternalStringToInt(UnicodeCache* unicode_cache,
                            Iterator current,
@@ -758,6 +761,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
   return (sign == NEGATIVE) ? -converted : converted;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CONVERSIONS_INL_H_

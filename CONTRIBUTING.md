@@ -17,7 +17,7 @@ For general help using Node.js, please file an issue at the
 
 Discussion of non-technical topics including subjects like intellectual
 property, trademark and high level project questions should move to the
-[node-forward discussions repository](https://github.com/node-forward/discussions)
+[Technical Steering Committee (TSC)](https://github.com/nodejs/TSC/issues)
 instead.
 
 ## Code Contributions
@@ -49,7 +49,7 @@ and built upon.
 #### Respect the stability index
 
 The rules for the master branch are less strict; consult the
-[stability index](./doc/api/documentation.markdown#stability-index) for details.
+[stability index](./doc/api/documentation.md#stability-index) for details.
 
 In a nutshell, modules are at varying levels of API stability. Bug fixes are
 always welcome but API or behavioral changes to modules at stability level 3
@@ -65,9 +65,11 @@ projects. Do not send your patch to us, we cannot accept it.
 In case of doubt, open an issue in the
 [issue tracker](https://github.com/nodejs/node/issues/) or contact one of the
 [project Collaborators](https://github.com/nodejs/node/#current-project-team-members).
-([IRC](http://webchat.freenode.net/?channels=io.js) is often the best medium.) Especially do so if you plan to work on something big. Nothing is more
+Especially do so if you plan to work on something big. Nothing is more
 frustrating than seeing your hard work go to waste because your vision
-does not align with the project team.
+does not align with the project team. Node.js has two IRC channels,
+[#Node.js](http://webchat.freenode.net/?channels=node.js) for general help and questions, and
+[#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of node core specifically.
 
 
 ### Step 2: Branch
@@ -171,19 +173,29 @@ to address, apply your changes in a separate commit and push that to your
 feature branch. Post a comment in the pull request afterwards; GitHub does
 not send out notifications when you add commits.
 
-
-## Developer's Certificate of Origin 1.0
+<a id="developers-certificate-of-origin"></a>
+## Developer's Certificate of Origin 1.1
 
 By making a contribution to this project, I certify that:
 
 * (a) The contribution was created in whole or in part by me and I
-  have the right to submit it under the open source license indicated
-  in the file; or
+  have the right to submit it under the open source license
+  indicated in the file; or
+
 * (b) The contribution is based upon previous work that, to the best
-  of my knowledge, is covered under an appropriate open source license
-  and I have the right under that license to submit that work with
-  modifications, whether created in whole or in part by me, under the
-  same open source license (unless I am permitted to submit under a
-  different license), as indicated in the file; or
+  of my knowledge, is covered under an appropriate open source
+  license and I have the right under that license to submit that
+  work with modifications, whether created in whole or in part
+  by me, under the same open source license (unless I am
+  permitted to submit under a different license), as indicated
+  in the file; or
+
 * (c) The contribution was provided directly to me by some other
-  person who certified (a), (b) or (c) and I have not modified it.
+  person who certified (a), (b) or (c) and I have not modified
+  it.
+
+* (d) I understand and agree that this project and the contribution
+  are public and that a record of the contribution (including all
+  personal information I submit with it, including my sign-off) is
+  maintained indefinitely and may be redistributed consistent with
+  this project or the open source license(s) involved.

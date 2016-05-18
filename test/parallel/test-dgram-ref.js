@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var dgram = require('dgram');
 
 // should not hang, see #1282

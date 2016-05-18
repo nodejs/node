@@ -66,8 +66,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
 
 MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
-    Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
-    Handle<FixedArray>* outdated_contexts_out) {
+    Isolate* isolate, Handle<JSGlobalProxy> global_proxy) {
   if (!isolate->snapshot_available()) return Handle<Context>();
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
@@ -77,15 +76,11 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   SnapshotData snapshot_data(context_data);
   Deserializer deserializer(&snapshot_data);
 
-  MaybeHandle<Object> maybe_context = deserializer.DeserializePartial(
-      isolate, global_proxy, outdated_contexts_out);
+  MaybeHandle<Object> maybe_context =
+      deserializer.DeserializePartial(isolate, global_proxy);
   Handle<Object> result;
   if (!maybe_context.ToHandle(&result)) return MaybeHandle<Context>();
   CHECK(result->IsContext());
-  // If the snapshot does not contain a custom script, we need to update
-  // the global object for exactly two contexts: the builtins context and the
-  // script context that has the global "this" binding.
-  CHECK(EmbedsScript(isolate) || (*outdated_contexts_out)->length() == 2);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = context_data.length();

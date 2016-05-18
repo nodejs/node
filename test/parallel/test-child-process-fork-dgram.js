@@ -19,15 +19,13 @@ var assert = require('assert');
 var common = require('../common');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: Sending dgram sockets to child processes is ' +
+  common.skip('Sending dgram sockets to child processes is ' +
               'not supported');
   return;
 }
 
+var server;
 if (process.argv[2] === 'child') {
-  var childCollected = 0;
-  var server;
-
   process.on('message', function removeMe(msg, clusterServer) {
     if (msg === 'server') {
       server = clusterServer;
@@ -43,11 +41,11 @@ if (process.argv[2] === 'child') {
   });
 
 } else {
-  var server = dgram.createSocket('udp4');
+  server = dgram.createSocket('udp4');
   var client = dgram.createSocket('udp4');
   var child = fork(__filename, ['child']);
 
-  var msg = new Buffer('Some bytes');
+  var msg = Buffer.from('Some bytes');
 
   var childGotMessage = false;
   var parentGotMessage = false;
@@ -70,7 +68,13 @@ if (process.argv[2] === 'child') {
 
   var sendMessages = function() {
     var timer = setInterval(function() {
-      client.send(msg, 0, msg.length, common.PORT, '127.0.0.1', function(err) {
+      client.send(
+        msg,
+        0,
+        msg.length,
+        common.PORT,
+        '127.0.0.1',
+        function(err) {
           if (err) throw err;
         }
       );

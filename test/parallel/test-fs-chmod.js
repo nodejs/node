@@ -51,8 +51,8 @@ if (common.isWindows) {
   mode_sync = 0o644;
 }
 
-var file1 = path.join(common.fixturesDir, 'a.js'),
-    file2 = path.join(common.fixturesDir, 'a1.js');
+const file1 = path.join(common.fixturesDir, 'a.js');
+const file2 = path.join(common.fixturesDir, 'a1.js');
 
 fs.chmod(file1, mode_async.toString(8), function(err) {
   if (err) {

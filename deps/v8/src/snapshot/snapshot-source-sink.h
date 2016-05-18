@@ -57,9 +57,8 @@ class SnapshotByteSource final {
     return answer;
   }
 
-  bool GetBlob(const byte** data, int* number_of_bytes);
-
-  bool AtEOF();
+  // Returns length.
+  int GetBlob(const byte** data);
 
   int position() { return position_; }
 
@@ -101,7 +100,7 @@ class SnapshotByteSink {
   List<byte> data_;
 };
 
-}  // namespace v8::internal
+}  // namespace internal
 }  // namespace v8
 
 #endif  // V8_SNAPSHOT_SNAPSHOT_SOURCE_SINK_H_

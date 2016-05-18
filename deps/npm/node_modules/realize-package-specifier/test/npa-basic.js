@@ -19,8 +19,8 @@ test("npa-basic", function (t) {
       name: "@foo/bar",
       scope: "@foo",
       rawSpec: "",
-      spec: "*",
-      type: "range"
+      spec: "latest",
+      type: "tag"
     },
 
     "@foo/bar@": {
@@ -28,8 +28,8 @@ test("npa-basic", function (t) {
       name: "@foo/bar",
       scope: "@foo",
       rawSpec: "",
-      spec: "*",
-      type: "range"
+      spec: "latest",
+      type: "tag"
     },
 
     "@foo/bar@baz": {
@@ -134,8 +134,8 @@ test("npa-basic", function (t) {
 
     "foo": {
       name: "foo",
-      type: "range",
-      spec: "*",
+      type: "tag",
+      spec: "latest",
       raw: "foo"
     }
   }

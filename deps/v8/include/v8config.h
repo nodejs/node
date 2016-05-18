@@ -163,7 +163,6 @@
 //
 //  V8_HAS_CXX11_ALIGNAS        - alignas specifier supported
 //  V8_HAS_CXX11_ALIGNOF        - alignof(type) operator supported
-//  V8_HAS_CXX11_STATIC_ASSERT  - static_assert() supported
 //
 // Compiler-specific feature detection
 //
@@ -174,6 +173,7 @@
 //                                        supported
 //  V8_HAS_ATTRIBUTE_DEPRECATED         - __attribute__((deprecated)) supported
 //  V8_HAS_ATTRIBUTE_NOINLINE           - __attribute__((noinline)) supported
+//  V8_HAS_ATTRIBUTE_NORETURN           - __attribute__((noreturn)) supported
 //  V8_HAS_ATTRIBUTE_UNUSED             - __attribute__((unused)) supported
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
@@ -190,6 +190,7 @@
 //  V8_HAS_DECLSPEC_DEPRECATED          - __declspec(deprecated) supported
 //  V8_HAS_DECLSPEC_NOINLINE            - __declspec(noinline) supported
 //  V8_HAS_DECLSPEC_SELECTANY           - __declspec(selectany) supported
+//  V8_HAS_DECLSPEC_NORETURN            - __declspec(noreturn) supported
 //  V8_HAS___FORCEINLINE                - __forceinline supported
 //
 // Note that testing for compilers and/or features must be done using #if
@@ -212,6 +213,7 @@
 # define V8_HAS_ATTRIBUTE_ALWAYS_INLINE (__has_attribute(always_inline))
 # define V8_HAS_ATTRIBUTE_DEPRECATED (__has_attribute(deprecated))
 # define V8_HAS_ATTRIBUTE_NOINLINE (__has_attribute(noinline))
+# define V8_HAS_ATTRIBUTE_NORETURN (__has_attribute(noreturn))
 # define V8_HAS_ATTRIBUTE_UNUSED (__has_attribute(unused))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
@@ -227,7 +229,6 @@
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
 
 # define V8_HAS_CXX11_ALIGNAS (__has_feature(cxx_alignas))
-# define V8_HAS_CXX11_STATIC_ASSERT (__has_feature(cxx_static_assert))
 
 #elif defined(__GNUC__)
 
@@ -253,6 +254,7 @@
 # define V8_HAS_ATTRIBUTE_DEPRECATED (V8_GNUC_PREREQ(3, 4, 0))
 # define V8_HAS_ATTRIBUTE_DEPRECATED_MESSAGE (V8_GNUC_PREREQ(4, 5, 0))
 # define V8_HAS_ATTRIBUTE_NOINLINE (V8_GNUC_PREREQ(3, 4, 0))
+# define V8_HAS_ATTRIBUTE_NORETURN (V8_GNUC_PREREQ(2, 5, 0))
 # define V8_HAS_ATTRIBUTE_UNUSED (V8_GNUC_PREREQ(2, 95, 0))
 # define V8_HAS_ATTRIBUTE_VISIBILITY (V8_GNUC_PREREQ(4, 3, 0))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
@@ -273,7 +275,6 @@
 # if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 #  define V8_HAS_CXX11_ALIGNAS (V8_GNUC_PREREQ(4, 8, 0))
 #  define V8_HAS_CXX11_ALIGNOF (V8_GNUC_PREREQ(4, 8, 0))
-#  define V8_HAS_CXX11_STATIC_ASSERT (V8_GNUC_PREREQ(4, 3, 0))
 # endif
 #endif
 
@@ -285,6 +286,7 @@
 # define V8_HAS_DECLSPEC_DEPRECATED 1
 # define V8_HAS_DECLSPEC_NOINLINE 1
 # define V8_HAS_DECLSPEC_SELECTANY 1
+# define V8_HAS_DECLSPEC_NORETURN 1
 
 # define V8_HAS___FORCEINLINE 1
 
@@ -316,6 +318,18 @@
 # define V8_NOINLINE __declspec(noinline)
 #else
 # define V8_NOINLINE /* NOT SUPPORTED */
+#endif
+
+
+// A macro used to tell the compiler that a particular function never returns.
+// Use like:
+//   V8_NORETURN void MyAbort() { abort(); }
+#if V8_HAS_ATTRIBUTE_NORETURN
+# define V8_NORETURN __attribute__((noreturn))
+#elif HAS_DECLSPEC_NORETURN
+# define V8_NORETURN __declspec(noreturn)
+#else
+# define V8_NORETURN /* NOT SUPPORTED */
 #endif
 
 

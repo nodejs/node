@@ -1,143 +1,314 @@
 /**
  * @fileoverview Source code for spaced-comments rule
  * @author Gyandeep Singh
- * @copyright 2015 Gyandeep Singh. All rights reserved.
- * @copyright 2014 Greg Cochard. All rights reserved.
  */
 "use strict";
+
+var lodash = require("lodash");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Escapes the control characters of a given string.
+ * @param {string} s - A string to escape.
+ * @returns {string} An escaped string.
+ */
+function escape(s) {
+    var isOneChar = s.length === 1;
+
+    s = lodash.escapeRegExp(s);
+    return isOneChar ? s : "(?:" + s + ")";
+}
+
+/**
+ * Escapes the control characters of a given string.
+ * And adds a repeat flag.
+ * @param {string} s - A string to escape.
+ * @returns {string} An escaped string.
+ */
+function escapeAndRepeat(s) {
+    return escape(s) + "+";
+}
+
+/**
+ * Parses `markers` option.
+ * If markers don't include `"*"`, this adds `"*"` to allow JSDoc comments.
+ * @param {string[]} [markers] - A marker list.
+ * @returns {string[]} A marker list.
+ */
+function parseMarkersOption(markers) {
+    markers = markers ? markers.slice(0) : [];
+
+    // `*` is a marker for JSDoc comments.
+    if (markers.indexOf("*") === -1) {
+        markers.push("*");
+    }
+
+    return markers;
+}
+
+/**
+ * Creates RegExp object for `always` mode.
+ * Generated pattern is below:
+ *
+ * 1. First, a marker or nothing.
+ * 2. Next, a space or an exception pattern sequence.
+ *
+ * @param {string[]} markers - A marker list.
+ * @param {string[]} exceptions - A exception pattern list.
+ * @returns {RegExp} A RegExp object for `always` mode.
+ */
+function createAlwaysStylePattern(markers, exceptions) {
+    var pattern = "^";
+
+    /*
+     * A marker or nothing.
+     * ["*"]            ==> "\*?"
+     * ["*", "!"]       ==> "(?:\*|!)?"
+     * ["*", "/", "!<"] ==> "(?:\*|\/|(?:!<))?" ==> https://jex.im/regulex/#!embed=false&flags=&re=(%3F%3A%5C*%7C%5C%2F%7C(%3F%3A!%3C))%3F
+     */
+    if (markers.length === 1) {
+
+        // the marker.
+        pattern += escape(markers[0]);
+    } else {
+
+        // one of markers.
+        pattern += "(?:";
+        pattern += markers.map(escape).join("|");
+        pattern += ")";
+    }
+
+    pattern += "?"; // or nothing.
+
+    /*
+     * A space or an exception pattern sequence.
+     * []                 ==> "\s"
+     * ["-"]              ==> "(?:\s|\-+$)"
+     * ["-", "="]         ==> "(?:\s|(?:\-+|=+)$)"
+     * ["-", "=", "--=="] ==> "(?:\s|(?:\-+|=+|(?:\-\-==)+)$)" ==> https://jex.im/regulex/#!embed=false&flags=&re=(%3F%3A%5Cs%7C(%3F%3A%5C-%2B%7C%3D%2B%7C(%3F%3A%5C-%5C-%3D%3D)%2B)%24)
+     */
+    if (exceptions.length === 0) {
+
+        // a space.
+        pattern += "\\s";
+    } else {
+
+        // a space or...
+        pattern += "(?:\\s|";
+
+        if (exceptions.length === 1) {
+
+            // a sequence of the exception pattern.
+            pattern += escapeAndRepeat(exceptions[0]);
+        } else {
+
+            // a sequence of one of exception patterns.
+            pattern += "(?:";
+            pattern += exceptions.map(escapeAndRepeat).join("|");
+            pattern += ")";
+        }
+
+        pattern += "(?:$|[\n\r]))"; // the sequence continues until the end.
+    }
+
+    return new RegExp(pattern);
+}
+
+/**
+ * Creates RegExp object for `never` mode.
+ * Generated pattern is below:
+ *
+ * 1. First, a marker or nothing (captured).
+ * 2. Next, a space or a tab.
+ *
+ * @param {string[]} markers - A marker list.
+ * @returns {RegExp} A RegExp object for `never` mode.
+ */
+function createNeverStylePattern(markers) {
+    var pattern = "^(" + markers.map(escape).join("|") + ")?[ \t]+";
+
+    return new RegExp(pattern);
+}
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "enforce consistent spacing after the `//` or `/*` in a comment",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    // Unless the first option is never, require a space
-    var requireSpace = context.options[0] !== "never";
+        fixable: "whitespace",
 
-    // Default to match anything, so all will fail if there are no exceptions
-    var exceptionMatcher = new RegExp(" ");
-    var markerMatcher = new RegExp(" ");
-    var jsDocMatcher = new RegExp("((^(\\*)))[ \\n]");
+        schema: [
+            {
+                enum: ["always", "never"]
+            },
+            {
+                type: "object",
+                properties: {
+                    exceptions: {
+                        type: "array",
+                        items: {
+                            type: "string"
+                        }
+                    },
+                    markers: {
+                        type: "array",
+                        items: {
+                            type: "string"
+                        }
+                    },
+                    line: {
+                        type: "object",
+                        properties: {
+                            exceptions: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                }
+                            },
+                            markers: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                }
+                            }
+                        },
+                        additionalProperties: false
+                    },
+                    block: {
+                        type: "object",
+                        properties: {
+                            exceptions: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                }
+                            },
+                            markers: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                }
+                            }
+                        },
+                        additionalProperties: false
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
 
-    // Fetch the options dict
-    var hasOptions = context.options.length === 2;
-    var optionsDict = hasOptions ? context.options[1] : {};
+    create: function(context) {
 
-    // Grab the exceptions array and build a RegExp matcher for it
-    var hasExceptions = hasOptions && optionsDict.exceptions && optionsDict.exceptions.length;
-    var unescapedExceptions = hasExceptions ? optionsDict.exceptions : [];
-    var exceptions;
+        // Unless the first option is never, require a space
+        var requireSpace = context.options[0] !== "never";
 
-    // Now do the same for markers
-    var hasMarkers = hasOptions && optionsDict.markers && optionsDict.markers.length;
-    var unescapedMarkers = hasMarkers ? optionsDict.markers : [];
-    var markers;
+        /*
+         * Parse the second options.
+         * If markers don't include `"*"`, it's added automatically for JSDoc
+         * comments.
+         */
+        var config = context.options[1] || {};
+        var styleRules = ["block", "line"].reduce(function(rule, type) {
+            var markers = parseMarkersOption(config[type] && config[type].markers || config.markers);
+            var exceptions = config[type] && config[type].exceptions || config.exceptions || [];
 
-    function escaper(s) {
-        return s.replace(/([.*+?${}()|\^\[\]\/\\])/g, "\\$1");
-    }
+            // Create RegExp object for valid patterns.
+            rule[type] = {
+                regex: requireSpace ? createAlwaysStylePattern(markers, exceptions) : createNeverStylePattern(markers),
+                hasExceptions: exceptions.length > 0,
+                markers: new RegExp("^(" + markers.map(escape).join("|") + ")")
+            };
 
-    if (hasExceptions) {
-        exceptions = unescapedExceptions.map(escaper);
-        exceptionMatcher = new RegExp("(^(" + exceptions.join(")+$)|(^(") + ")+$)");
-    }
+            return rule;
+        }, {});
 
-    if (hasMarkers) {
-        markers = unescapedMarkers.map(escaper);
+        /**
+         * Reports a spacing error with an appropriate message.
+         * @param {ASTNode} node - A comment node to check.
+         * @param {string} message - An error message to report
+         * @param {Array} match - An array of match results for markers.
+         * @returns {void}
+         */
+        function report(node, message, match) {
+            var type = node.type.toLowerCase(),
+                commentIdentifier = type === "block" ? "/*" : "//";
 
-        // the markerMatcher includes any markers in the list, followed by space/tab
-        markerMatcher = new RegExp("((^(" + markers.join("))|(^(") + ")))[ \\t\\n]");
-    }
+            context.report({
+                node: node,
+                fix: function(fixer) {
+                    var start = node.range[0],
+                        end = start + 2;
 
-    /**
-     * Check to see if the block comment is jsDoc comment
-     * @param {ASTNode} node comment node
-     * @returns {boolean} True if its jsdoc comment
-     * @private
-     */
-    function isJsdoc(node) {
-        // make sure comment type is block and it start with /**\n
-        return node.type === "Block" && jsDocMatcher.test(node.value);
-    }
+                    if (requireSpace) {
+                        if (match) {
+                            end += match[0].length;
+                        }
+                        return fixer.insertTextAfterRange([start, end], " ");
+                    } else {
+                        end += match[0].length;
+                        return fixer.replaceTextRange([start, end], commentIdentifier + (match[1] ? match[1] : ""));
+                    }
+                },
+                message: message
+            });
+        }
 
+        /**
+         * Reports a given comment if it's invalid.
+         * @param {ASTNode} node - a comment node to check.
+         * @returns {void}
+         */
+        function checkCommentForSpace(node) {
+            var type = node.type.toLowerCase(),
+                rule = styleRules[type],
+                commentIdentifier = type === "block" ? "/*" : "//";
 
-    function checkCommentForSpace(node) {
-        var commentIdentifier = node.type === "Block" ? "/*" : "//";
-
-        if (requireSpace) {
-
-            // If length is zero, ignore it
+            // Ignores empty comments.
             if (node.value.length === 0) {
                 return;
             }
 
-            // if comment is jsdoc style then ignore it
-            if (isJsdoc(node)) {
-                return;
-            }
+            // Checks.
+            if (requireSpace) {
+                if (!rule.regex.test(node.value)) {
+                    var hasMarker = rule.markers.exec(node.value);
+                    var marker = hasMarker ? commentIdentifier + hasMarker[0] : commentIdentifier;
 
-            // Check for markers now, and short-circuit if found
-            if (hasMarkers && markerMatcher.test(node.value)) {
-                return;
-            }
-
-            // Space expected and not found
-            if (node.value.indexOf(" ") !== 0 && node.value.indexOf("\t") !== 0 && node.value.indexOf("\n") !== 0) {
-
-                /*
-                 * Do two tests; one for space starting the line,
-                 * and one for a comment comprised only of exceptions
-                 */
-                if (hasExceptions && !exceptionMatcher.test(node.value)) {
-                    context.report(node, "Expected exception block, space or tab after " + commentIdentifier + " in comment.");
-                } else if (!hasExceptions) {
-                    context.report(node, "Expected space or tab after " + commentIdentifier + " in comment.");
+                    if (rule.hasExceptions) {
+                        report(node, "Expected exception block, space or tab after '" + marker + "' in comment.", hasMarker);
+                    } else {
+                        report(node, "Expected space or tab after '" + marker + "' in comment.", hasMarker);
+                    }
                 }
-            }
+            } else {
+                var matched = rule.regex.exec(node.value);
 
-        } else {
-
-            if (node.value.indexOf(" ") === 0 || node.value.indexOf("\t") === 0) {
-                context.report(node, "Unexpected space or tab after " + commentIdentifier + " in comment.");
-            }
-            // there won't be a space or tab after commentIdentifier here, but check for the markers and whitespace
-            if (hasMarkers && markerMatcher.test(node.value)) {
-                var matches = node.value.match(markerMatcher), match = matches.length ? matches[0] : "";
-
-                context.report(node, "Unexpected space or tab after marker (" + match + ") in comment.");
+                if (matched) {
+                    if (!matched[1]) {
+                        report(node, "Unexpected space or tab after '" + commentIdentifier + "' in comment.", matched);
+                    } else {
+                        report(node, "Unexpected space or tab after marker (" + matched[1] + ") in comment.", matched);
+                    }
+                }
             }
         }
+
+        return {
+
+            LineComment: checkCommentForSpace,
+            BlockComment: checkCommentForSpace
+
+        };
     }
-
-    return {
-
-        "LineComment": checkCommentForSpace,
-        "BlockComment": checkCommentForSpace
-
-    };
 };
-
-module.exports.schema = [
-    {
-        "enum": ["always", "never"]
-    },
-    {
-        "type": "object",
-        "properties": {
-            "exceptions": {
-                "type": "array",
-                "items": {
-                    "type": "string"
-                }
-            },
-            "markers": {
-                "type": "array",
-                "items": {
-                    "type": "string"
-                }
-            }
-        },
-        "additionalProperties": false
-    }
-];

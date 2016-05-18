@@ -34,9 +34,11 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSStrictNotEqual:
       return 0;
 
-    // Calls
-    case IrOpcode::kJSCallFunction:
+    // We record the frame state immediately before and immediately after every
+    // construct/function call.
     case IrOpcode::kJSCallConstruct:
+    case IrOpcode::kJSCallFunction:
+      return 2;
 
     // Compare operations
     case IrOpcode::kJSEqual:
@@ -45,21 +47,24 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSInstanceOf:
 
     // Object operations
+    case IrOpcode::kJSCreate:
     case IrOpcode::kJSCreateArguments:
+    case IrOpcode::kJSCreateArray:
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateLiteralRegExp:
 
     // Context operations
-    case IrOpcode::kJSLoadDynamicContext:
     case IrOpcode::kJSCreateScriptContext:
-    case IrOpcode::kJSCreateWithContext:
 
     // Conversions
-    case IrOpcode::kJSToObject:
-    case IrOpcode::kJSToNumber:
     case IrOpcode::kJSToName:
+    case IrOpcode::kJSToNumber:
+    case IrOpcode::kJSToObject:
+    case IrOpcode::kJSToString:
 
     // Misc operations
+    case IrOpcode::kJSConvertReceiver:
     case IrOpcode::kJSForInNext:
     case IrOpcode::kJSForInPrepare:
     case IrOpcode::kJSStackCheck:
@@ -74,7 +79,6 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSLoadGlobal:
     case IrOpcode::kJSStoreGlobal:
-    case IrOpcode::kJSLoadDynamicGlobal:
       return 2;
 
     // Binary operators that can deopt in the middle the operation (e.g.,

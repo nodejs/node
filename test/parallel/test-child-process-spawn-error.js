@@ -1,6 +1,5 @@
 'use strict';
 var common = require('../common');
-var fs = require('fs');
 var spawn = require('child_process').spawn;
 var assert = require('assert');
 
@@ -16,7 +15,7 @@ enoentChild.on('error', function(err) {
   assert.equal(err.errno, 'ENOENT');
   assert.equal(err.syscall, 'spawn ' + enoentPath);
   assert.equal(err.path, enoentPath);
-  assert.deepEqual(err.spawnargs, spawnargs);
+  assert.deepStrictEqual(err.spawnargs, spawnargs);
   errors++;
 });
 

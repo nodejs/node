@@ -3,20 +3,12 @@
 # found in the LICENSE file.
 
 
-import hashlib
 import os
 import shutil
 import sys
-import tarfile
-import imp
 
 from testrunner.local import testsuite
-from testrunner.local import utils
 from testrunner.objects import testcase
-
-SIMDJS_ARCHIVE_REVISION = "c8ef63c728283debc25891123eb00482fee4b8cd"
-SIMDJS_ARCHIVE_MD5 = "4c3120d1f5b8027b4a38b931119c89bd"
-SIMDJS_URL = ("https://github.com/tc39/ecmascript_simd/archive/%s.tar.gz")
 
 SIMDJS_SUITE_PATH = ["data", "src"]
 
@@ -62,77 +54,19 @@ class SimdJsTestSuite(testsuite.TestSuite):
     return "FAILED!" in output.stdout
 
   def DownloadData(self):
-    revision = SIMDJS_ARCHIVE_REVISION
-    archive_url = SIMDJS_URL % revision
+    print "SimdJs download is deprecated. It's part of DEPS."
 
-    archive_prefix = "ecmascript_simd-"
-    archive_name = os.path.join(
-        self.root, "%s%s.tar.gz" % (archive_prefix, revision))
-    directory_name = os.path.join(self.root, "data")
+    # Clean up old directories and archive files.
     directory_old_name = os.path.join(self.root, "data.old")
-    versionfile = os.path.join(self.root, "CHECKED_OUT_VERSION")
+    if os.path.exists(directory_old_name):
+      shutil.rmtree(directory_old_name)
 
-    checked_out_version = None
-    checked_out_url = None
-    checked_out_revision = None
-    if os.path.exists(versionfile):
-      with open(versionfile) as f:
-        try:
-          (checked_out_version,
-           checked_out_url,
-           checked_out_revision) = f.read().splitlines()
-        except ValueError:
-          pass
-    if (checked_out_version != SIMDJS_ARCHIVE_MD5 or
-        checked_out_url != archive_url or
-        checked_out_revision != revision):
-      if os.path.exists(archive_name):
-        print "Clobbering %s because CHECK_OUT_VERSION is out of date" % (
-            archive_name)
-        os.remove(archive_name)
-
-    # Clobber if the test is in an outdated state, i.e. if there are any other
-    # archive files present.
     archive_files = [f for f in os.listdir(self.root)
-                     if f.startswith(archive_prefix)]
-    if (len(archive_files) > 1 or
-        os.path.basename(archive_name) not in archive_files):
+                     if f.startswith("ecmascript_simd-")]
+    if len(archive_files) > 0:
       print "Clobber outdated test archives ..."
       for f in archive_files:
-        print "Removing %s" % f
         os.remove(os.path.join(self.root, f))
-
-    if not os.path.exists(archive_name):
-      print "Downloading test data from %s ..." % archive_url
-      utils.URLRetrieve(archive_url, archive_name)
-      if os.path.exists(directory_name):
-        if os.path.exists(directory_old_name):
-          shutil.rmtree(directory_old_name)
-        os.rename(directory_name, directory_old_name)
-    if not os.path.exists(directory_name):
-      print "Extracting ecmascript_simd-%s.tar.gz ..." % revision
-      md5 = hashlib.md5()
-      with open(archive_name, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), ""):
-          md5.update(chunk)
-      print "MD5 hash is %s" % md5.hexdigest()
-      if md5.hexdigest() != SIMDJS_ARCHIVE_MD5:
-        os.remove(archive_name)
-        print "MD5 expected %s" % SIMDJS_ARCHIVE_MD5
-        raise Exception("MD5 hash mismatch of test data file")
-      archive = tarfile.open(archive_name, "r:gz")
-      if sys.platform in ("win32", "cygwin"):
-        # Magic incantation to allow longer path names on Windows.
-        archive.extractall(u"\\\\?\\%s" % self.root)
-      else:
-        archive.extractall(self.root)
-      os.rename(os.path.join(self.root, "ecmascript_simd-%s" % revision),
-                directory_name)
-
-      with open(versionfile, "w") as f:
-        f.write(SIMDJS_ARCHIVE_MD5 + '\n')
-        f.write(archive_url + '\n')
-        f.write(revision + '\n')
 
 
 def GetSuite(name, root):

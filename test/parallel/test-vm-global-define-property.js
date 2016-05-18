@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var vm = require('vm');
@@ -23,4 +23,4 @@ assert(res);
 assert.equal(typeof res, 'object');
 assert.equal(res, x);
 assert.equal(o.f, res);
-assert.deepEqual(Object.keys(o), ['console', 'x', 'g', 'f']);
+assert.deepStrictEqual(Object.keys(o), ['console', 'x', 'g', 'f']);

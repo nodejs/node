@@ -4,6 +4,7 @@
 
 #include "src/heap/slots-buffer.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/utils-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -1,6 +1,6 @@
 'use strict';
 // Can't test this when 'make test' doesn't assign a tty to the stdout.
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const shouldThrow = function() {

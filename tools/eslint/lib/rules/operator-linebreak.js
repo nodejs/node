@@ -1,114 +1,157 @@
 /**
  * @fileoverview Operator linebreak - enforces operator linebreak style of two types: after and before
  * @author Benoît Zugmeyer
- * @copyright 2015 Benoît Zugmeyer. All rights reserved.
  */
 
 "use strict";
+
+var lodash = require("lodash"),
+    astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "enforce consistent linebreak style for operators",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    var style = context.options[0] || "after";
+        schema: [
+            {
+                enum: ["after", "before", "none", null]
+            },
+            {
+                type: "object",
+                properties: {
+                    overrides: {
+                        type: "object",
+                        properties: {
+                            anyOf: {
+                                type: "string",
+                                enum: ["after", "before", "none", "ignore"]
+                            }
+                        }
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
 
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
+    create: function(context) {
 
-    /**
-     * Checks whether two tokens are on the same line.
-     * @param {ASTNode} left The leftmost token.
-     * @param {ASTNode} right The rightmost token.
-     * @returns {boolean} True if the tokens are on the same line, false if not.
-     * @private
-     */
-    function isSameLine(left, right) {
-        return left.loc.end.line === right.loc.start.line;
-    }
+        var usedDefaultGlobal = !context.options[0];
+        var globalStyle = context.options[0] || "after";
+        var options = context.options[1] || {};
+        var styleOverrides = options.overrides ? lodash.assign({}, options.overrides) : {};
 
-    /**
-     * Checks the operator placement
-     * @param {ASTNode} node The binary operator node to check
-     * @private
-     * @returns {void}
-     */
-    function validateBinaryExpression(node) {
-        var leftToken = context.getLastToken(node.left || node.id);
-        var operatorToken = context.getTokenAfter(leftToken);
-
-        // When the left part of a binary expression is a single expression wrapped in
-        // parentheses (ex: `(a) + b`), leftToken will be the last token of the expression
-        // and operatorToken will be the closing parenthesis.
-        // The leftToken should be the last closing parenthesis, and the operatorToken
-        // should be the token right after that.
-        while (operatorToken.value === ")") {
-            leftToken = operatorToken;
-            operatorToken = context.getTokenAfter(operatorToken);
+        if (usedDefaultGlobal && !styleOverrides["?"]) {
+            styleOverrides["?"] = "before";
         }
 
-        var rightToken = context.getTokenAfter(operatorToken);
-        var operator = operatorToken.value;
-
-        // if single line
-        if (isSameLine(leftToken, operatorToken) &&
-                isSameLine(operatorToken, rightToken)) {
-
-            return;
-
-        } else if (!isSameLine(leftToken, operatorToken) &&
-                !isSameLine(operatorToken, rightToken)) {
-
-            // lone operator
-            context.report(node, {
-                line: operatorToken.loc.end.line,
-                column: operatorToken.loc.end.column
-            }, "Bad line breaking before and after '" + operator + "'.");
-
-        } else if (style === "before" && isSameLine(leftToken, operatorToken)) {
-
-            context.report(node, {
-                line: operatorToken.loc.end.line,
-                column: operatorToken.loc.end.column
-            }, "'" + operator + "' should be placed at the beginning of the line.");
-
-        } else if (style === "after" && isSameLine(operatorToken, rightToken)) {
-
-            context.report(node, {
-                line: operatorToken.loc.end.line,
-                column: operatorToken.loc.end.column
-            }, "'" + operator + "' should be placed at the end of the line.");
-
-        } else if (style === "none") {
-
-            context.report(node, {
-                line: operatorToken.loc.end.line,
-                column: operatorToken.loc.end.column
-            }, "There should be no line break before or after '" + operator + "'");
-
+        if (usedDefaultGlobal && !styleOverrides[":"]) {
+            styleOverrides[":"] = "before";
         }
-    }
 
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
+        //--------------------------------------------------------------------------
+        // Helpers
+        //--------------------------------------------------------------------------
 
-    return {
-        "BinaryExpression": validateBinaryExpression,
-        "LogicalExpression": validateBinaryExpression,
-        "AssignmentExpression": validateBinaryExpression,
-        "VariableDeclarator": function (node) {
-            if (node.init) {
-                validateBinaryExpression(node);
+        /**
+         * Checks the operator placement
+         * @param {ASTNode} node The node to check
+         * @param {ASTNode} leftSide The node that comes before the operator in `node`
+         * @private
+         * @returns {void}
+         */
+        function validateNode(node, leftSide) {
+            var leftToken = context.getLastToken(leftSide);
+            var operatorToken = context.getTokenAfter(leftToken);
+
+            // When the left part of a binary expression is a single expression wrapped in
+            // parentheses (ex: `(a) + b`), leftToken will be the last token of the expression
+            // and operatorToken will be the closing parenthesis.
+            // The leftToken should be the last closing parenthesis, and the operatorToken
+            // should be the token right after that.
+            while (operatorToken.value === ")") {
+                leftToken = operatorToken;
+                operatorToken = context.getTokenAfter(operatorToken);
+            }
+
+            var rightToken = context.getTokenAfter(operatorToken);
+            var operator = operatorToken.value;
+            var operatorStyleOverride = styleOverrides[operator];
+            var style = operatorStyleOverride || globalStyle;
+
+            // if single line
+            if (astUtils.isTokenOnSameLine(leftToken, operatorToken) &&
+                    astUtils.isTokenOnSameLine(operatorToken, rightToken)) {
+
+                return;
+
+            } else if (operatorStyleOverride !== "ignore" && !astUtils.isTokenOnSameLine(leftToken, operatorToken) &&
+                    !astUtils.isTokenOnSameLine(operatorToken, rightToken)) {
+
+                // lone operator
+                context.report(node, {
+                    line: operatorToken.loc.end.line,
+                    column: operatorToken.loc.end.column
+                }, "Bad line breaking before and after '" + operator + "'.");
+
+            } else if (style === "before" && astUtils.isTokenOnSameLine(leftToken, operatorToken)) {
+
+                context.report(node, {
+                    line: operatorToken.loc.end.line,
+                    column: operatorToken.loc.end.column
+                }, "'" + operator + "' should be placed at the beginning of the line.");
+
+            } else if (style === "after" && astUtils.isTokenOnSameLine(operatorToken, rightToken)) {
+
+                context.report(node, {
+                    line: operatorToken.loc.end.line,
+                    column: operatorToken.loc.end.column
+                }, "'" + operator + "' should be placed at the end of the line.");
+
+            } else if (style === "none") {
+
+                context.report(node, {
+                    line: operatorToken.loc.end.line,
+                    column: operatorToken.loc.end.column
+                }, "There should be no line break before or after '" + operator + "'");
+
             }
         }
-    };
-};
 
-module.exports.schema = [
-    {
-        "enum": ["after", "before", "none"]
+        /**
+         * Validates a binary expression using `validateNode`
+         * @param {BinaryExpression|LogicalExpression|AssignmentExpression} node node to be validated
+         * @returns {void}
+         */
+        function validateBinaryExpression(node) {
+            validateNode(node, node.left);
+        }
+
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
+
+        return {
+            BinaryExpression: validateBinaryExpression,
+            LogicalExpression: validateBinaryExpression,
+            AssignmentExpression: validateBinaryExpression,
+            VariableDeclarator: function(node) {
+                if (node.init) {
+                    validateNode(node, node.id);
+                }
+            },
+            ConditionalExpression: function(node) {
+                validateNode(node, node.test);
+                validateNode(node, node.consequent);
+            }
+        };
     }
-];
+};

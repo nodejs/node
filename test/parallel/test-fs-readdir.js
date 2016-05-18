@@ -2,7 +2,6 @@
 
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 const readdirDir = common.tmpDir;
@@ -17,12 +16,12 @@ files.forEach(function(currentFile) {
 });
 
 // Check the readdir Sync version
-assert.deepEqual(files, fs.readdirSync(readdirDir).sort());
+assert.deepStrictEqual(files, fs.readdirSync(readdirDir).sort());
 
 // Check the readdir async version
 fs.readdir(readdirDir, common.mustCall(function(err, f) {
   assert.ifError(err);
-  assert.deepEqual(files, f.sort());
+  assert.deepStrictEqual(files, f.sort());
 }));
 
 // readdir() on file should throw ENOTDIR

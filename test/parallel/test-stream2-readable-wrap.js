@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var Readable = require('_stream_readable');
@@ -73,12 +73,12 @@ function runTest(highWaterMark, objectMode, produce) {
   function performAsserts() {
     assert(ended);
     assert(oldEnded);
-    assert.deepEqual(written, expected);
+    assert.deepStrictEqual(written, expected);
   }
 }
 
-runTest(100, false, function() { return new Buffer(100); });
-runTest(10, false, function() { return new Buffer('xxxxxxxxxx'); });
+runTest(100, false, function() { return Buffer.allocUnsafe(100); });
+runTest(10, false, function() { return Buffer.from('xxxxxxxxxx'); });
 runTest(1, true, function() { return { foo: 'bar' }; });
 
 var objectChunks = [ 5, 'a', false, 0, '', 'xyz', { x: 4 }, 7, [], 555 ];

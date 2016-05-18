@@ -24,7 +24,7 @@ icu_config.gypi
 
 # various stuff that VC++ produces/uses
 Debug/
-!deps/npm/node_modules/node-gyp/node_modules/path-array/node_modules/array-index/node_modules/debug
+!**/node_modules/debug/
 !deps/v8/src/debug/
 Release/
 !doc/blog/**
@@ -41,6 +41,8 @@ _UpgradeReport_Files/
 ipch/
 *.sdf
 *.opensdf
+*.VC.opendb
+.vs/
 
 /config.mk
 /config.gypi
@@ -50,8 +52,9 @@ ipch/
 /dist-osx
 /npm.wxs
 /tools/msvs/npm.wixobj
+/tools/msvs/genfiles/
 /tools/osx-pkg.pmdoc/index.xml
-/test/addons/doc-*/
+/test/addons/??_*/
 email.md
 deps/v8-*
 deps/icu

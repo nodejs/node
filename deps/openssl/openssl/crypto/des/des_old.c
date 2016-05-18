@@ -1,4 +1,4 @@
-/* crypto/des/des_old.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/des/des_old.c */
 
 /*-
  * WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING

@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var Readable = require('stream').Readable;
 var r = new Readable();
@@ -11,7 +11,7 @@ process.maxTickDepth = N + 2;
 
 var reads = 0;
 r._read = function(n) {
-  var chunk = reads++ === N ? null : new Buffer(1);
+  var chunk = reads++ === N ? null : Buffer.allocUnsafe(1);
   r.push(chunk);
 };
 

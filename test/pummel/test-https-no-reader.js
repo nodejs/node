@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var https = require('https');
@@ -17,9 +17,7 @@ var options = {
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-var buf = new Buffer(1024 * 1024);
-var sent = 0;
-var received = 0;
+var buf = Buffer.allocUnsafe(1024 * 1024);
 
 var server = https.createServer(options, function(req, res) {
   res.writeHead(200);
@@ -30,7 +28,6 @@ var server = https.createServer(options, function(req, res) {
 });
 
 server.listen(common.PORT, function() {
-  var resumed = false;
   var req = https.request({
     method: 'POST',
     port: common.PORT,

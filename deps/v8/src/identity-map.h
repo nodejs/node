@@ -5,6 +5,7 @@
 #ifndef V8_IDENTITY_MAP_H_
 #define V8_IDENTITY_MAP_H_
 
+#include "src/base/functional.h"
 #include "src/handles.h"
 
 namespace v8 {
@@ -17,11 +18,6 @@ class Zone;
 // Base class of identity maps contains shared code for all template
 // instantions.
 class IdentityMapBase {
- public:
-  // Enable or disable concurrent mode for this map. Concurrent mode implies
-  // taking the heap's relocation lock during most operations.
-  void SetConcurrent(bool concurrent) { concurrent_ = concurrent; }
-
  protected:
   // Allow Tester to access internals, including changing the address of objects
   // within the {keys_} array in order to simulate a moving GC.
@@ -32,7 +28,6 @@ class IdentityMapBase {
   IdentityMapBase(Heap* heap, Zone* zone)
       : heap_(heap),
         zone_(zone),
-        concurrent_(false),
         gc_counter_(-1),
         size_(0),
         mask_(0),
@@ -40,8 +35,9 @@ class IdentityMapBase {
         values_(nullptr) {}
   ~IdentityMapBase();
 
-  RawEntry GetEntry(Handle<Object> key);
-  RawEntry FindEntry(Handle<Object> key);
+  RawEntry GetEntry(Object* key);
+  RawEntry FindEntry(Object* key);
+  void Clear();
 
  private:
   // Internal implementation should not be called directly by subclasses.
@@ -49,13 +45,13 @@ class IdentityMapBase {
   int InsertIndex(Object* address);
   void Rehash();
   void Resize();
-  RawEntry Lookup(Handle<Object> key);
-  RawEntry Insert(Handle<Object> key);
+  RawEntry Lookup(Object* key);
+  RawEntry Insert(Object* key);
   int Hash(Object* address);
 
+  base::hash<uintptr_t> hasher_;
   Heap* heap_;
   Zone* zone_;
-  bool concurrent_;
   int gc_counter_;
   int size_;
   int mask_;
@@ -79,20 +75,24 @@ class IdentityMap : public IdentityMapBase {
   // as the identity, returning:
   //    found => a pointer to the storage location for the value
   //    not found => a pointer to a new storage location for the value
-  V* Get(Handle<Object> key) { return reinterpret_cast<V*>(GetEntry(key)); }
+  V* Get(Handle<Object> key) { return Get(*key); }
+  V* Get(Object* key) { return reinterpret_cast<V*>(GetEntry(key)); }
 
   // Searches this map for the given key using the object's address
   // as the identity, returning:
   //    found => a pointer to the storage location for the value
   //    not found => {nullptr}
-  V* Find(Handle<Object> key) { return reinterpret_cast<V*>(FindEntry(key)); }
+  V* Find(Handle<Object> key) { return Find(*key); }
+  V* Find(Object* key) { return reinterpret_cast<V*>(FindEntry(key)); }
 
   // Set the value for the given key.
-  void Set(Handle<Object> key, V value) {
-    *(reinterpret_cast<V*>(GetEntry(key))) = value;
-  }
+  void Set(Handle<Object> key, V v) { Set(*key, v); }
+  void Set(Object* key, V v) { *(reinterpret_cast<V*>(GetEntry(key))) = v; }
+
+  // Removes all elements from the map.
+  void Clear() { IdentityMapBase::Clear(); }
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IDENTITY_MAP_H_

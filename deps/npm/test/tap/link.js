@@ -3,6 +3,7 @@ var osenv = require('osenv')
 var path = require('path')
 var rimraf = require('rimraf')
 var test = require('tap').test
+var lstatSync = require('fs').lstatSync
 var writeFileSync = require('fs').writeFileSync
 
 var common = require('../common-tap.js')
@@ -10,6 +11,7 @@ var common = require('../common-tap.js')
 var link = path.join(__dirname, 'link')
 var linkScoped = path.join(__dirname, 'link-scoped')
 var linkInstall = path.join(__dirname, 'link-install')
+var linkInside = path.join(linkInstall, 'node_modules', 'inside')
 var linkRoot = path.join(__dirname, 'link-root')
 
 var config = 'prefix = ' + linkRoot
@@ -57,6 +59,18 @@ var installJSON = {
   license: 'ISC'
 }
 
+var insideInstallJSON = {
+  name: 'inside',
+  version: '1.0.0',
+  description: '',
+  main: 'index.js',
+  scripts: {
+    test: 'echo \"Error: no test specified\" && exit 1'
+  },
+  author: '',
+  license: 'ISC'
+}
+
 test('setup', function (t) {
   setup()
   common.npm(['ls', '-g', '--depth=0'], OPTS, function (err, c, out) {
@@ -76,6 +90,20 @@ test('create global link', function (t) {
       t.equal(c, 0)
       t.equal(stderr, '', 'got expected stderr')
       t.has(out, /foo@1.0.0/, 'creates global link ok')
+      t.end()
+    })
+  })
+})
+
+test('create global inside link', function (t) {
+  process.chdir(linkInside)
+  common.npm(['link'], OPTS, function (err, c, out) {
+    t.ifError(err, 'link has no error')
+    common.npm(['ls', '-g'], OPTS, function (err, c, out, stderr) {
+      t.ifError(err)
+      t.equal(c, 0)
+      t.equal(stderr, '', 'got expected stderr')
+      t.has(out, /inside@1.0.0/, 'creates global inside link ok')
       t.end()
     })
   })
@@ -105,6 +133,17 @@ test('link-install the package', function (t) {
       t.has(out, /foo@1.0.0/, 'link-install ok')
       t.end()
     })
+  })
+})
+
+test('link-inside-install fails', function (t) {
+  process.chdir(linkInstall)
+  t.notOk(lstatSync(linkInside).isSymbolicLink(), 'directory for linked package is not a symlink to begin with')
+  common.npm(['link', 'inside'], OPTS, function (err, code) {
+    t.ifError(err, 'npm removed the linked package without error')
+    t.notEqual(code, 0, 'link operation failed')
+    t.notOk(lstatSync(linkInside).isSymbolicLink(), 'directory for linked package has not turned into a symlink')
+    t.end()
   })
 })
 
@@ -141,6 +180,7 @@ function cleanup () {
   rimraf.sync(link)
   rimraf.sync(linkScoped)
   rimraf.sync(linkInstall)
+  rimraf.sync(linkInside)
 }
 
 function setup () {
@@ -160,6 +200,11 @@ function setup () {
   writeFileSync(
     path.join(linkInstall, 'package.json'),
     JSON.stringify(installJSON, null, 2)
+  )
+  mkdirp.sync(linkInside)
+  writeFileSync(
+    path.join(linkInside, 'package.json'),
+    JSON.stringify(insideInstallJSON, null, 2)
   )
   writeFileSync(configPath, config)
 }

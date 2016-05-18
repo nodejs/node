@@ -1,7 +1,7 @@
 'use strict';
 // Remove this test once we support sending strings.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var dgram = require('dgram');
 

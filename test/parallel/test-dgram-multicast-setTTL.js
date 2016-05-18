@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    dgram = require('dgram'),
-    thrown = false,
-    socket = dgram.createSocket('udp4');
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
+const socket = dgram.createSocket('udp4');
+let thrown = false;
 
 socket.bind(common.PORT);
 socket.on('listening', function() {

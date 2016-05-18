@@ -50,7 +50,6 @@ test('authed npm install with shrinkwrapped scoped package', function (t) {
     ],
     EXEC_OPTS,
     function (err, code, stdout, stderr) {
-      console.error(stderr)
       t.ifError(err, 'test runner executed without error')
       t.equal(code, 0, 'npm install exited OK')
       t.notOk(stderr, 'no output on stderr')

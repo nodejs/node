@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    http = require('http'),
-    domain = require('domain');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const domain = require('domain');
 
 var gotDomainError = false;
 var d;
@@ -34,7 +34,7 @@ function test() {
 
   var req = http.get({
     socketPath: common.PIPE,
-    headers: {'Content-Length':'1'},
+    headers: {'Content-Length': '1'},
     method: 'POST',
     path: '/'
   });

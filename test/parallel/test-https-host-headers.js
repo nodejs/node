@@ -3,17 +3,17 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var https = require('https');
 
-var fs = require('fs'),
-    options = {
-      key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-      cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
-    },
-    httpsServer = https.createServer(options, reqHandler);
+const fs = require('fs');
+const options = {
+  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+};
+const httpsServer = https.createServer(options, reqHandler);
 
 function reqHandler(req, res) {
   console.log('Got request: ' + req.headers.host + ' ' + req.url);

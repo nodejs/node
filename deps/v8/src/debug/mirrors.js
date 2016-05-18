@@ -8,22 +8,28 @@
 // ----------------------------------------------------------------------------
 // Imports
 
-var FunctionSourceString;
+var ErrorToString;
 var GlobalArray = global.Array;
 var IsNaN = global.isNaN;
 var JSONStringify = global.JSON.stringify;
+var MakeError;
+var MapEntries;
+var MapIteratorNext;
 var MathMin = global.Math.min;
 var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
 var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
+var SetIteratorNext;
+var SetValues;
 var SymbolToString;
-var ToBoolean;
-var ToString;
 
 utils.Import(function(from) {
-  FunctionSourceString = from.FunctionSourceString;
+  ErrorToString = from.ErrorToString;
+  MakeError = from.MakeError;
+  MapEntries = from.MapEntries;
+  MapIteratorNext = from.MapIteratorNext;
+  SetIteratorNext = from.SetIteratorNext;
+  SetValues = from.SetValues;
   SymbolToString = from.SymbolToString;
-  ToBoolean = from.ToBoolean;
-  ToString = from.ToString;
 });
 
 // ----------------------------------------------------------------------------
@@ -108,7 +114,7 @@ function ClearMirrorCache(value) {
 
 
 function ObjectIsPromise(value) {
-  return IS_SPEC_OBJECT(value) &&
+  return IS_RECEIVER(value) &&
          !IS_UNDEFINED(%DebugGetProperty(value, promiseStatusSymbol));
 }
 
@@ -230,11 +236,6 @@ function inherits(ctor, superCtor) {
 
 // Maximum length when sending strings through the JSON protocol.
 var kMaxProtocolStringLength = 80;
-
-// Different kind of properties.
-var PropertyKind = {};
-PropertyKind.Named   = 1;
-PropertyKind.Indexed = 2;
 
 
 // A copy of the PropertyType enum from property-details.h
@@ -536,7 +537,7 @@ Mirror.prototype.toText = function() {
  * @extends Mirror
  */
 function ValueMirror(type, value, transient) {
-  %_CallFunction(this, type, Mirror);
+  %_Call(Mirror, this, type);
   this.value_ = value;
   if (!transient) {
     this.allocateHandle_();
@@ -582,7 +583,7 @@ ValueMirror.prototype.value = function() {
  * @extends ValueMirror
  */
 function UndefinedMirror() {
-  %_CallFunction(this, MirrorType.UNDEFINED_TYPE, UNDEFINED, ValueMirror);
+  %_Call(ValueMirror, this, MirrorType.UNDEFINED_TYPE, UNDEFINED);
 }
 inherits(UndefinedMirror, ValueMirror);
 
@@ -598,7 +599,7 @@ UndefinedMirror.prototype.toText = function() {
  * @extends ValueMirror
  */
 function NullMirror() {
-  %_CallFunction(this, MirrorType.NULL_TYPE, null, ValueMirror);
+  %_Call(ValueMirror, this, MirrorType.NULL_TYPE, null);
 }
 inherits(NullMirror, ValueMirror);
 
@@ -615,7 +616,7 @@ NullMirror.prototype.toText = function() {
  * @extends ValueMirror
  */
 function BooleanMirror(value) {
-  %_CallFunction(this, MirrorType.BOOLEAN_TYPE, value, ValueMirror);
+  %_Call(ValueMirror, this, MirrorType.BOOLEAN_TYPE, value);
 }
 inherits(BooleanMirror, ValueMirror);
 
@@ -632,7 +633,7 @@ BooleanMirror.prototype.toText = function() {
  * @extends ValueMirror
  */
 function NumberMirror(value) {
-  %_CallFunction(this, MirrorType.NUMBER_TYPE, value, ValueMirror);
+  %_Call(ValueMirror, this, MirrorType.NUMBER_TYPE, value);
 }
 inherits(NumberMirror, ValueMirror);
 
@@ -649,7 +650,7 @@ NumberMirror.prototype.toText = function() {
  * @extends ValueMirror
  */
 function StringMirror(value) {
-  %_CallFunction(this, MirrorType.STRING_TYPE, value, ValueMirror);
+  %_Call(ValueMirror, this, MirrorType.STRING_TYPE, value);
 }
 inherits(StringMirror, ValueMirror);
 
@@ -678,7 +679,7 @@ StringMirror.prototype.toText = function() {
  * @extends Mirror
  */
 function SymbolMirror(value) {
-  %_CallFunction(this, MirrorType.SYMBOL_TYPE, value, ValueMirror);
+  %_Call(ValueMirror, this, MirrorType.SYMBOL_TYPE, value);
 }
 inherits(SymbolMirror, ValueMirror);
 
@@ -689,7 +690,7 @@ SymbolMirror.prototype.description = function() {
 
 
 SymbolMirror.prototype.toText = function() {
-  return %_CallFunction(this.value_, SymbolToString);
+  return %_Call(SymbolToString, this.value_);
 }
 
 
@@ -703,7 +704,7 @@ SymbolMirror.prototype.toText = function() {
  */
 function ObjectMirror(value, type, transient) {
   type = type || MirrorType.OBJECT_TYPE;
-  %_CallFunction(this, type, value, transient, ValueMirror);
+  %_Call(ValueMirror, this, type, value, transient);
 }
 inherits(ObjectMirror, ValueMirror);
 
@@ -742,19 +743,6 @@ ObjectMirror.prototype.hasIndexedInterceptor = function() {
 };
 
 
-// Get all own property names except for private symbols.
-function TryGetPropertyNames(object) {
-  try {
-    // TODO(yangguo): Should there be a special debugger implementation of
-    // %GetOwnPropertyNames that doesn't perform access checks?
-    return %GetOwnPropertyNames(object, PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL);
-  } catch (e) {
-    // Might have hit a failed access check.
-    return [];
-  }
-}
-
-
 /**
  * Return the property names for this object.
  * @param {number} kind Indicate whether named, indexed or both kinds of
@@ -763,66 +751,8 @@ function TryGetPropertyNames(object) {
        value
  * @return {Array} Property names for this object
  */
-ObjectMirror.prototype.propertyNames = function(kind, limit) {
-  // Find kind and limit and allocate array for the result
-  kind = kind || PropertyKind.Named | PropertyKind.Indexed;
-
-  var propertyNames;
-  var elementNames;
-  var total = 0;
-
-  // Find all the named properties.
-  if (kind & PropertyKind.Named) {
-    propertyNames = TryGetPropertyNames(this.value_);
-    total += propertyNames.length;
-
-    // Get names for named interceptor properties if any.
-    if (this.hasNamedInterceptor() && (kind & PropertyKind.Named)) {
-      var namedInterceptorNames =
-          %GetNamedInterceptorPropertyNames(this.value_);
-      if (namedInterceptorNames) {
-        propertyNames = propertyNames.concat(namedInterceptorNames);
-        total += namedInterceptorNames.length;
-      }
-    }
-  }
-
-  // Find all the indexed properties.
-  if (kind & PropertyKind.Indexed) {
-    // Get own element names.
-    elementNames = %GetOwnElementNames(this.value_);
-    total += elementNames.length;
-
-    // Get names for indexed interceptor properties.
-    if (this.hasIndexedInterceptor() && (kind & PropertyKind.Indexed)) {
-      var indexedInterceptorNames =
-          %GetIndexedInterceptorElementNames(this.value_);
-      if (indexedInterceptorNames) {
-        elementNames = elementNames.concat(indexedInterceptorNames);
-        total += indexedInterceptorNames.length;
-      }
-    }
-  }
-  limit = MathMin(limit || total, total);
-
-  var names = new GlobalArray(limit);
-  var index = 0;
-
-  // Copy names for named properties.
-  if (kind & PropertyKind.Named) {
-    for (var i = 0; index < limit && i < propertyNames.length; i++) {
-      names[index++] = propertyNames[i];
-    }
-  }
-
-  // Copy names for indexed properties.
-  if (kind & PropertyKind.Indexed) {
-    for (var i = 0; index < limit && i < elementNames.length; i++) {
-      names[index++] = elementNames[i];
-    }
-  }
-
-  return names;
+ObjectMirror.prototype.propertyNames = function() {
+  return %GetOwnPropertyKeys(this.value_, PROPERTY_FILTER_NONE);
 };
 
 
@@ -834,8 +764,8 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
        specified value
  * @return {Array} Property mirrors for this object
  */
-ObjectMirror.prototype.properties = function(kind, limit) {
-  var names = this.propertyNames(kind, limit);
+ObjectMirror.prototype.properties = function() {
+  var names = this.propertyNames();
   var properties = new GlobalArray(names.length);
   for (var i = 0; i < names.length; i++) {
     properties[i] = this.property(names[i]);
@@ -879,10 +809,10 @@ ObjectMirror.prototype.lookupProperty = function(value) {
   // Look for property value in properties.
   for (var i = 0; i < properties.length; i++) {
 
-    // Skip properties which are defined through assessors.
+    // Skip properties which are defined through accessors.
     var property = properties[i];
     if (property.propertyType() != PropertyType.AccessorConstant) {
-      if (%_ObjectEquals(property.value_, value.value_)) {
+      if (property.value_ === value.value_) {
         return property;
       }
     }
@@ -953,7 +883,7 @@ ObjectMirror.GetInternalProperties = function(value) {
  * @extends ObjectMirror
  */
 function FunctionMirror(value) {
-  %_CallFunction(this, value, MirrorType.FUNCTION_TYPE, ObjectMirror);
+  %_Call(ObjectMirror, this, value, MirrorType.FUNCTION_TYPE);
   this.resolved_ = true;
 }
 inherits(FunctionMirror, ObjectMirror);
@@ -979,6 +909,16 @@ FunctionMirror.prototype.name = function() {
 
 
 /**
+ * Returns the displayName if it is set, otherwise name, otherwise inferred
+ * name.
+ * @return {string} Name of the function
+ */
+FunctionMirror.prototype.debugName = function() {
+  return %FunctionGetDebugName(this.value_);
+}
+
+
+/**
  * Returns the inferred name of the function.
  * @return {string} Name of the function
  */
@@ -996,7 +936,7 @@ FunctionMirror.prototype.source = function() {
   // Return source if function is resolved. Otherwise just fall through to
   // return undefined.
   if (this.resolved()) {
-    return FunctionSourceString(this.value_);
+    return %FunctionToString(this.value_);
   }
 };
 
@@ -1107,7 +1047,7 @@ FunctionMirror.prototype.toText = function() {
 function UnresolvedFunctionMirror(value) {
   // Construct this using the ValueMirror as an unresolved function is not a
   // real object but just a string.
-  %_CallFunction(this, MirrorType.FUNCTION_TYPE, value, ValueMirror);
+  %_Call(ValueMirror, this, MirrorType.FUNCTION_TYPE, value);
   this.propertyCount_ = 0;
   this.elementCount_ = 0;
   this.resolved_ = false;
@@ -1157,7 +1097,7 @@ UnresolvedFunctionMirror.prototype.propertyNames = function(kind, limit) {
  * @extends ObjectMirror
  */
 function ArrayMirror(value) {
-  %_CallFunction(this, value, ObjectMirror);
+  %_Call(ObjectMirror, this, value);
 }
 inherits(ArrayMirror, ObjectMirror);
 
@@ -1174,7 +1114,7 @@ ArrayMirror.prototype.indexedPropertiesFromRange = function(opt_from_index,
   if (from_index > to_index) return new GlobalArray();
   var values = new GlobalArray(to_index - from_index + 1);
   for (var i = from_index; i <= to_index; i++) {
-    var details = %DebugGetPropertyDetails(this.value_, ToString(i));
+    var details = %DebugGetPropertyDetails(this.value_, TO_STRING(i));
     var value;
     if (details) {
       value = new PropertyMirror(this, i, details);
@@ -1194,7 +1134,7 @@ ArrayMirror.prototype.indexedPropertiesFromRange = function(opt_from_index,
  * @extends ObjectMirror
  */
 function DateMirror(value) {
-  %_CallFunction(this, value, ObjectMirror);
+  %_Call(ObjectMirror, this, value);
 }
 inherits(DateMirror, ObjectMirror);
 
@@ -1212,7 +1152,7 @@ DateMirror.prototype.toText = function() {
  * @extends ObjectMirror
  */
 function RegExpMirror(value) {
-  %_CallFunction(this, value, MirrorType.REGEXP_TYPE, ObjectMirror);
+  %_Call(ObjectMirror, this, value, MirrorType.REGEXP_TYPE);
 }
 inherits(RegExpMirror, ObjectMirror);
 
@@ -1284,7 +1224,7 @@ RegExpMirror.prototype.toText = function() {
  * @extends ObjectMirror
  */
 function ErrorMirror(value) {
-  %_CallFunction(this, value, MirrorType.ERROR_TYPE, ObjectMirror);
+  %_Call(ObjectMirror, this, value, MirrorType.ERROR_TYPE);
 }
 inherits(ErrorMirror, ObjectMirror);
 
@@ -1302,7 +1242,7 @@ ErrorMirror.prototype.toText = function() {
   // Use the same text representation as in messages.js.
   var text;
   try {
-    text = %_CallFunction(this.value_, builtins.$errorToString);
+    text = %_Call(ErrorToString, this.value_);
   } catch (e) {
     text = '#<Error>';
   }
@@ -1317,7 +1257,7 @@ ErrorMirror.prototype.toText = function() {
  * @extends ObjectMirror
  */
 function PromiseMirror(value) {
-  %_CallFunction(this, value, MirrorType.PROMISE_TYPE, ObjectMirror);
+  %_Call(ObjectMirror, this, value, MirrorType.PROMISE_TYPE);
 }
 inherits(PromiseMirror, ObjectMirror);
 
@@ -1346,7 +1286,7 @@ PromiseMirror.prototype.promiseValue = function() {
 
 
 function MapMirror(value) {
-  %_CallFunction(this, value, MirrorType.MAP_TYPE, ObjectMirror);
+  %_Call(ObjectMirror, this, value, MirrorType.MAP_TYPE);
 }
 inherits(MapMirror, ObjectMirror);
 
@@ -1372,7 +1312,7 @@ MapMirror.prototype.entries = function(opt_limit) {
     return result;
   }
 
-  var iter = %_CallFunction(this.value_, builtins.$mapEntries);
+  var iter = %_Call(MapEntries, this.value_);
   var next;
   while ((!opt_limit || result.length < opt_limit) &&
          !(next = iter.next()).done) {
@@ -1386,7 +1326,7 @@ MapMirror.prototype.entries = function(opt_limit) {
 
 
 function SetMirror(value) {
-  %_CallFunction(this, value, MirrorType.SET_TYPE, ObjectMirror);
+  %_Call(ObjectMirror, this, value, MirrorType.SET_TYPE);
 }
 inherits(SetMirror, ObjectMirror);
 
@@ -1395,7 +1335,7 @@ function IteratorGetValues_(iter, next_function, opt_limit) {
   var result = [];
   var next;
   while ((!opt_limit || result.length < opt_limit) &&
-         !(next = %_CallFunction(iter, next_function)).done) {
+         !(next = %_Call(next_function, iter)).done) {
     result.push(next.value);
   }
   return result;
@@ -1414,13 +1354,13 @@ SetMirror.prototype.values = function(opt_limit) {
     return %GetWeakSetValues(this.value_, opt_limit || 0);
   }
 
-  var iter = %_CallFunction(this.value_, builtins.$setValues);
-  return IteratorGetValues_(iter, builtins.$setIteratorNext, opt_limit);
+  var iter = %_Call(SetValues, this.value_);
+  return IteratorGetValues_(iter, SetIteratorNext, opt_limit);
 };
 
 
 function IteratorMirror(value) {
-  %_CallFunction(this, value, MirrorType.ITERATOR_TYPE, ObjectMirror);
+  %_Call(ObjectMirror, this, value, MirrorType.ITERATOR_TYPE);
 }
 inherits(IteratorMirror, ObjectMirror);
 
@@ -1435,11 +1375,11 @@ inherits(IteratorMirror, ObjectMirror);
 IteratorMirror.prototype.preview = function(opt_limit) {
   if (IS_MAP_ITERATOR(this.value_)) {
     return IteratorGetValues_(%MapIteratorClone(this.value_),
-                              builtins.$mapIteratorNext,
+                              MapIteratorNext,
                               opt_limit);
   } else if (IS_SET_ITERATOR(this.value_)) {
     return IteratorGetValues_(%SetIteratorClone(this.value_),
-                              builtins.$setIteratorNext,
+                              SetIteratorNext,
                               opt_limit);
   }
 };
@@ -1452,7 +1392,7 @@ IteratorMirror.prototype.preview = function(opt_limit) {
  * @extends Mirror
  */
 function GeneratorMirror(value) {
-  %_CallFunction(this, value, MirrorType.GENERATOR_TYPE, ObjectMirror);
+  %_Call(ObjectMirror, this, value, MirrorType.GENERATOR_TYPE);
 }
 inherits(GeneratorMirror, ObjectMirror);
 
@@ -1519,7 +1459,7 @@ GeneratorMirror.prototype.receiver = function() {
  * @extends Mirror
  */
 function PropertyMirror(mirror, name, details) {
-  %_CallFunction(this, MirrorType.PROPERTY_TYPE, Mirror);
+  %_Call(Mirror, this, MirrorType.PROPERTY_TYPE);
   this.mirror_ = mirror;
   this.name_ = name;
   this.value_ = details[0];
@@ -1662,7 +1602,7 @@ PropertyMirror.prototype.isNative = function() {
  * @extends Mirror
  */
 function InternalPropertyMirror(name, value) {
-  %_CallFunction(this, MirrorType.INTERNAL_PROPERTY_TYPE, Mirror);
+  %_Call(Mirror, this, MirrorType.INTERNAL_PROPERTY_TYPE);
   this.name_ = name;
   this.value_ = value;
 }
@@ -1875,7 +1815,7 @@ FrameDetails.prototype.stepInPositionsImpl = function() {
  * @extends Mirror
  */
 function FrameMirror(break_id, index) {
-  %_CallFunction(this, MirrorType.FRAME_TYPE, Mirror);
+  %_Call(Mirror, this, MirrorType.FRAME_TYPE);
   this.break_id_ = break_id;
   this.index_ = index;
   this.details_ = new FrameDetails(break_id, index);
@@ -2074,7 +2014,7 @@ FrameMirror.prototype.evaluate = function(source, disable_break,
                                    this.details_.frameId(),
                                    this.details_.inlinedFrameIndex(),
                                    source,
-                                   ToBoolean(disable_break),
+                                   TO_BOOLEAN(disable_break),
                                    opt_context_object));
 };
 
@@ -2233,8 +2173,10 @@ FrameMirror.prototype.toText = function(opt_locals) {
 };
 
 
+// This indexes correspond definitions in debug-scopes.h.
 var kScopeDetailsTypeIndex = 0;
 var kScopeDetailsObjectIndex = 1;
+var kScopeDetailsNameIndex = 2;
 
 function ScopeDetails(frame, fun, index, opt_details) {
   if (frame) {
@@ -2271,6 +2213,14 @@ ScopeDetails.prototype.object = function() {
 };
 
 
+ScopeDetails.prototype.name = function() {
+  if (!IS_UNDEFINED(this.break_id_)) {
+    %CheckExecutionState(this.break_id_);
+  }
+  return this.details_[kScopeDetailsNameIndex];
+};
+
+
 ScopeDetails.prototype.setVariableValueImpl = function(name, new_value) {
   var raw_res;
   if (!IS_UNDEFINED(this.break_id_)) {
@@ -2296,7 +2246,7 @@ ScopeDetails.prototype.setVariableValueImpl = function(name, new_value) {
  * @extends Mirror
  */
 function ScopeMirror(frame, fun, index, opt_details) {
-  %_CallFunction(this, MirrorType.SCOPE_TYPE, Mirror);
+  %_Call(Mirror, this, MirrorType.SCOPE_TYPE);
   if (frame) {
     this.frame_index_ = frame.index_;
   } else {
@@ -2351,7 +2301,7 @@ ScopeMirror.prototype.setVariableValue = function(name, new_value) {
  * @extends Mirror
  */
 function ScriptMirror(script) {
-  %_CallFunction(this, MirrorType.SCRIPT_TYPE, Mirror);
+  %_Call(Mirror, this, MirrorType.SCRIPT_TYPE);
   this.script_ = script;
   this.context_ = new ContextMirror(script.context_data);
   this.allocateHandle_();
@@ -2472,7 +2422,7 @@ ScriptMirror.prototype.toText = function() {
  * @extends Mirror
  */
 function ContextMirror(data) {
-  %_CallFunction(this, MirrorType.CONTEXT_TYPE, Mirror);
+  %_Call(Mirror, this, MirrorType.CONTEXT_TYPE);
   this.data_ = data;
   this.allocateHandle_();
 }
@@ -2855,24 +2805,15 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
   }
 
   // Add actual properties - named properties followed by indexed properties.
-  var propertyNames = mirror.propertyNames(PropertyKind.Named);
-  var propertyIndexes = mirror.propertyNames(PropertyKind.Indexed);
-  var p = new GlobalArray(propertyNames.length + propertyIndexes.length);
-  for (var i = 0; i < propertyNames.length; i++) {
-    var propertyMirror = mirror.property(propertyNames[i]);
-    p[i] = this.serializeProperty_(propertyMirror);
+  var properties = mirror.propertyNames();
+  for (var i = 0; i < properties.length; i++) {
+    var propertyMirror = mirror.property(properties[i]);
+    properties[i] = this.serializeProperty_(propertyMirror);
     if (details) {
       this.add_(propertyMirror.value());
     }
   }
-  for (var i = 0; i < propertyIndexes.length; i++) {
-    var propertyMirror = mirror.property(propertyIndexes[i]);
-    p[propertyNames.length + i] = this.serializeProperty_(propertyMirror);
-    if (details) {
-      this.add_(propertyMirror.value());
-    }
-  }
-  content.properties = p;
+  content.properties = properties;
 
   var internalProperties = mirror.internalProperties();
   if (internalProperties.length > 0) {
@@ -3070,7 +3011,6 @@ utils.InstallFunctions(global, DONT_ENUM, [
 
 utils.InstallConstants(global, [
   "ScopeType", ScopeType,
-  "PropertyKind", PropertyKind,
   "PropertyType", PropertyType,
   "PropertyAttribute", PropertyAttribute,
   "Mirror", Mirror,

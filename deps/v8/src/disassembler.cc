@@ -32,7 +32,9 @@ class V8NameConverter: public disasm::NameConverter {
 
 
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
-  const char* name = code_->GetIsolate()->builtins()->Lookup(pc);
+  const char* name =
+      code_ == NULL ? NULL : code_->GetIsolate()->builtins()->Lookup(pc);
+
   if (name != NULL) {
     SNPrintF(v8_buffer_, "%s  (%p)", name, pc);
     return v8_buffer_.start();
@@ -153,7 +155,8 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     // Print all the reloc info for this instruction which are not comments.
     for (int i = 0; i < pcs.length(); i++) {
       // Put together the reloc info
-      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], converter.code());
+      RelocInfo relocinfo(isolate, pcs[i], rmodes[i], datas[i],
+                          converter.code());
 
       // Indent the printing of the reloc info.
       if (i == 0) {
@@ -189,9 +192,6 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
         out.AddFormatted("    ;; external reference (%s)", reference_name);
       } else if (RelocInfo::IsCodeTarget(rmode)) {
         out.AddFormatted("    ;; code:");
-        if (rmode == RelocInfo::CONSTRUCT_CALL) {
-          out.AddFormatted(" constructor,");
-        }
         Code* code = Code::GetCodeFromTargetAddress(relocinfo.target_address());
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {

@@ -9,18 +9,29 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow `new` operators with the `String`, `Number`, and `Boolean` objects",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "NewExpression": function(node) {
-            var wrapperObjects = ["String", "Number", "Boolean", "Math", "JSON"];
-            if (wrapperObjects.indexOf(node.callee.name) > -1) {
-                context.report(node, "Do not use {{fn}} as a constructor.", { fn: node.callee.name });
+    create: function(context) {
+
+        return {
+
+            NewExpression: function(node) {
+                var wrapperObjects = ["String", "Number", "Boolean", "Math", "JSON"];
+
+                if (wrapperObjects.indexOf(node.callee.name) > -1) {
+                    context.report(node, "Do not use {{fn}} as a constructor.", { fn: node.callee.name });
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

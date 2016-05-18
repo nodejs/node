@@ -33,9 +33,11 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   // A "greedy loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
-  virtual void CheckNotAtStart(Label* on_not_at_start);
-  virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
+  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
+  virtual void CheckNotBackReference(int start_reg, bool read_backward,
+                                     Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
+                                               bool read_backward, bool unicode,
                                                Label* on_no_match);
   virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(uint32_t c,
@@ -94,7 +96,6 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   void print_regexp_frame_constants();
 
  private:
-#if defined(MIPS_ABI_N64)
   // Offsets from frame_pointer() of function parameters and stored registers.
   static const int kFramePointer = 0;
 
@@ -103,7 +104,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   static const int kStoredRegisters = kFramePointer;
   // Return address (stored from link register, read into pc on return).
 
-// TODO(plind): This 9 - is 8 s-regs (s0..s7) plus fp.
+  // TODO(plind): This 9 - is 8 s-regs (s0..s7) plus fp.
 
   static const int kReturnAddress = kStoredRegisters + 9 * kPointerSize;
   static const int kSecondaryReturnAddress = kReturnAddress + kPointerSize;
@@ -125,46 +126,9 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
   static const int kSuccessfulCaptures = kInputString - kPointerSize;
-  static const int kInputStartMinusOne = kSuccessfulCaptures - kPointerSize;
+  static const int kStringStartMinusOne = kSuccessfulCaptures - kPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kInputStartMinusOne - kPointerSize;
-
-#elif defined(MIPS_ABI_O32)
-  // Offsets from frame_pointer() of function parameters and stored registers.
-  static const int kFramePointer = 0;
-
-  // Above the frame pointer - Stored registers and stack passed parameters.
-  // Registers s0 to s7, fp, and ra.
-  static const int kStoredRegisters = kFramePointer;
-  // Return address (stored from link register, read into pc on return).
-  static const int kReturnAddress = kStoredRegisters + 9 * kPointerSize;
-  static const int kSecondaryReturnAddress = kReturnAddress + kPointerSize;
-  // Stack frame header.
-  static const int kStackFrameHeader = kReturnAddress + kPointerSize;
-  // Stack parameters placed by caller.
-  static const int kRegisterOutput =
-      kStackFrameHeader + 4 * kPointerSize + kPointerSize;
-  static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
-  static const int kStackHighEnd = kNumOutputRegisters + kPointerSize;
-  static const int kDirectCall = kStackHighEnd + kPointerSize;
-  static const int kIsolate = kDirectCall + kPointerSize;
-
-  // Below the frame pointer.
-  // Register parameters stored by setup code.
-  static const int kInputEnd = kFramePointer - kPointerSize;
-  static const int kInputStart = kInputEnd - kPointerSize;
-  static const int kStartIndex = kInputStart - kPointerSize;
-  static const int kInputString = kStartIndex - kPointerSize;
-  // When adding local variables remember to push space for them in
-  // the frame in GetCode.
-  static const int kSuccessfulCaptures = kInputString - kPointerSize;
-  static const int kInputStartMinusOne = kSuccessfulCaptures - kPointerSize;
-  // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kInputStartMinusOne - kPointerSize;
-
-#else
-# error "undefined MIPS ABI"
-#endif
+  static const int kRegisterZero = kStringStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
@@ -262,6 +226,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
 #endif  // V8_INTERPRETED_REGEXP
 
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_MIPS_REGEXP_MACRO_ASSEMBLER_MIPS_H_

@@ -50,19 +50,6 @@ LiveRange* Split(LiveRange* range, RegisterAllocationData* data,
 }
 
 
-// TODO(mtrofin): explain why splitting in gap START is always OK.
-LifetimePosition GetSplitPositionForInstruction(const LiveRange* range,
-                                                int instruction_index) {
-  LifetimePosition ret = LifetimePosition::Invalid();
-
-  ret = LifetimePosition::GapFromInstructionIndex(instruction_index);
-  if (range->Start() >= ret || ret >= range->End()) {
-    return LifetimePosition::Invalid();
-  }
-  return ret;
-}
-
-
 }  // namespace
 
 
@@ -249,7 +236,8 @@ void GreedyAllocator::TryAllocateGroup(LiveRangeGroup* group) {
   float eviction_weight = group_weight;
   int eviction_reg = -1;
   int free_reg = -1;
-  for (int reg = 0; reg < num_registers(); ++reg) {
+  for (int i = 0; i < num_allocatable_registers(); ++i) {
+    int reg = allocatable_register_code(i);
     float weight = GetMaximumConflictingWeight(reg, group, group_weight);
     if (weight == LiveRange::kInvalidWeight) {
       free_reg = reg;
@@ -313,19 +301,20 @@ void GreedyAllocator::TryAllocateLiveRange(LiveRange* range) {
     // Seek either the first free register, or, from the set of registers
     // where the maximum conflict is lower than the candidate's weight, the one
     // with the smallest such weight.
-    for (int i = 0; i < num_registers(); i++) {
+    for (int i = 0; i < num_allocatable_registers(); i++) {
+      int reg = allocatable_register_code(i);
       // Skip unnecessarily re-visiting the hinted register, if any.
-      if (i == hinted_reg) continue;
+      if (reg == hinted_reg) continue;
       float max_conflict_weight =
-          GetMaximumConflictingWeight(i, range, competing_weight);
+          GetMaximumConflictingWeight(reg, range, competing_weight);
       if (max_conflict_weight == LiveRange::kInvalidWeight) {
-        free_reg = i;
+        free_reg = reg;
         break;
       }
       if (max_conflict_weight < range->weight() &&
           max_conflict_weight < smallest_weight) {
         smallest_weight = max_conflict_weight;
-        evictable_reg = i;
+        evictable_reg = reg;
       }
     }
   }
@@ -372,43 +361,6 @@ void GreedyAllocator::EvictAndRescheduleConflicts(unsigned reg_id,
 }
 
 
-void GreedyAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
-  size_t initial_range_count = data()->live_ranges().size();
-  for (size_t i = 0; i < initial_range_count; ++i) {
-    TopLevelLiveRange* range = data()->live_ranges()[i];
-    if (!CanProcessRange(range)) continue;
-    if (!range->HasSpillOperand()) continue;
-
-    LifetimePosition start = range->Start();
-    TRACE("Live range %d:%d is defined by a spill operand.\n",
-          range->TopLevel()->vreg(), range->relative_id());
-    auto next_pos = start;
-    if (next_pos.IsGapPosition()) {
-      next_pos = next_pos.NextStart();
-    }
-    auto pos = range->NextUsePositionRegisterIsBeneficial(next_pos);
-    // If the range already has a spill operand and it doesn't need a
-    // register immediately, split it and spill the first part of the range.
-    if (pos == nullptr) {
-      Spill(range);
-    } else if (pos->pos() > range->Start().NextStart()) {
-      // Do not spill live range eagerly if use position that can benefit from
-      // the register is too close to the start of live range.
-      auto split_pos = GetSplitPositionForInstruction(
-          range, pos->pos().ToInstructionIndex());
-      // There is no place to split, so we can't split and spill.
-      if (!split_pos.IsValid()) continue;
-
-      split_pos =
-          FindOptimalSplitPos(range->Start().NextFullStart(), split_pos);
-
-      Split(range, data(), split_pos);
-      Spill(range);
-    }
-  }
-}
-
-
 void GreedyAllocator::AllocateRegisters() {
   CHECK(scheduler().empty());
   CHECK(allocations_.empty());
@@ -416,7 +368,7 @@ void GreedyAllocator::AllocateRegisters() {
   TRACE("Begin allocating function %s with the Greedy Allocator\n",
         data()->debug_name());
 
-  SplitAndSpillRangesDefinedByMemoryOperand();
+  SplitAndSpillRangesDefinedByMemoryOperand(true);
   GroupLiveRanges();
   ScheduleAllocationCandidates();
   PreallocateFixedRanges();

@@ -3,12 +3,12 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.opensslCli) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  common.skip('node compiled without OpenSSL CLI.');
   return;
 }
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
@@ -29,7 +29,7 @@ function loadPEM(n) {
 var server = tls.Server({
   secureProtocol: 'TLSv1_2_server_method',
   key: loadPEM('agent2-key'),
-  cert:loadPEM('agent2-cert')
+  cert: loadPEM('agent2-cert')
 }, null).listen(common.PORT, function() {
   var args = ['s_client', '-quiet', '-tls1_1',
               '-connect', '127.0.0.1:' + common.PORT];

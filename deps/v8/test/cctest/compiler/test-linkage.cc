@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/code-stubs.h"
 #include "src/compiler.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/zone.h"
 
 #include "src/compiler/common-operator.h"
@@ -19,8 +17,9 @@
 #include "src/compiler/schedule.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 static Operator dummy_operator(IrOpcode::kParameter, Operator::kNoWrite,
                                "dummy", 0, 0, 0, 0, 0, 0);
@@ -56,8 +55,9 @@ TEST(TestLinkageJSFunctionIncoming) {
 
   for (int i = 0; i < 3; i++) {
     HandleAndZoneScope handles;
-    Handle<JSFunction> function = v8::Utils::OpenHandle(
-        *v8::Handle<v8::Function>::Cast(CompileRun(sources[i])));
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+            *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
     ParseInfo parse_info(handles.main_zone(), function);
     CompilationInfo info(&parse_info);
     CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
@@ -68,20 +68,6 @@ TEST(TestLinkageJSFunctionIncoming) {
     CHECK_EQ(Operator::kNoProperties, descriptor->properties());
     CHECK_EQ(true, descriptor->IsJSFunctionCall());
   }
-}
-
-
-TEST(TestLinkageCodeStubIncoming) {
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  Zone zone;
-  ToNumberStub stub(isolate);
-  CompilationInfo info(&stub, isolate, &zone);
-  CallDescriptor* descriptor = Linkage::ComputeIncoming(&zone, &info);
-  CHECK(descriptor);
-  CHECK_EQ(0, static_cast<int>(descriptor->StackParameterCount()));
-  CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
-  CHECK_EQ(Operator::kNoProperties, descriptor->properties());
-  CHECK_EQ(false, descriptor->IsJSFunctionCall());
 }
 
 
@@ -109,5 +95,23 @@ TEST(TestLinkageRuntimeCall) {
 
 
 TEST(TestLinkageStubCall) {
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  Zone zone;
+  ToNumberStub stub(isolate);
+  CompilationInfo info("test", isolate, &zone, Code::ComputeFlags(Code::STUB));
+  CallInterfaceDescriptor interface_descriptor =
+      stub.GetCallInterfaceDescriptor();
+  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+      isolate, &zone, interface_descriptor, stub.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties);
+  CHECK(descriptor);
+  CHECK_EQ(0, static_cast<int>(descriptor->StackParameterCount()));
+  CHECK_EQ(1, static_cast<int>(descriptor->ReturnCount()));
+  CHECK_EQ(Operator::kNoProperties, descriptor->properties());
+  CHECK_EQ(false, descriptor->IsJSFunctionCall());
   // TODO(titzer): test linkage creation for outgoing stub calls.
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

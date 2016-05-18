@@ -5,6 +5,7 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
@@ -44,14 +45,15 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     } else {
       pointer = code->instruction_start();
     }
-    CodePatcher patcher(pointer, 1);
+    CodePatcher patcher(isolate, pointer, 1);
     patcher.masm()->bkpt(0);
 
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(code->deoptimization_data());
     int osr_offset = data->OsrPcOffset()->value();
     if (osr_offset > 0) {
-      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
+                              1);
       osr_patcher.masm()->bkpt(0);
     }
   }
@@ -74,7 +76,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
     DCHECK(call_size_in_bytes <= patch_size());
-    CodePatcher patcher(call_address, call_size_in_words);
+    CodePatcher patcher(isolate, call_address, call_size_in_words);
     patcher.masm()->Call(deopt_entry, kRelocInfo_NONEPTR);
     DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
@@ -82,31 +84,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
-  }
-}
-
-
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-  // We ensure the values are Smis to avoid confusing the garbage
-  // collector in the event that any values are retreived and stored
-  // elsewhere.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, reinterpret_cast<intptr_t>(Smi::FromInt(i)));
-  }
-  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(
-        i, reinterpret_cast<intptr_t>(Memory::Address_at(tos + i)));
   }
 }
 
@@ -123,14 +100,13 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
 
 
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; ++i) {
+  for (int i = 0; i < DoubleRegister::kNumRegisters; ++i) {
     double double_value = input_->GetDoubleRegister(i);
     output_frame->SetDoubleRegister(i, double_value);
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
   // There is no dynamic alignment padding on PPC in the input frame.
   return false;
 }
@@ -150,15 +126,17 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
   RegList saved_regs = restored_regs | sp.bit();
 
-  const int kDoubleRegsSize =
-      kDoubleSize * DoubleRegister::kMaxNumAllocatableRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
 
-  // Save all FPU registers before messing with them.
+  // Save all double registers before messing with them.
   __ subi(sp, sp, Operand(kDoubleRegsSize));
-  for (int i = 0; i < DoubleRegister::kMaxNumAllocatableRegisters; ++i) {
-    DoubleRegister fpu_reg = DoubleRegister::FromAllocationIndex(i);
-    int offset = i * kDoubleSize;
-    __ stfd(fpu_reg, MemOperand(sp, offset));
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    const DoubleRegister dreg = DoubleRegister::from_code(code);
+    int offset = code * kDoubleSize;
+    __ stfd(dreg, MemOperand(sp, offset));
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -215,11 +193,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
-  // Copy VFP registers to
-  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
-    int dst_offset = i * kDoubleSize + double_regs_offset;
-    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+  // Copy double registers to
+  // double_registers_[DoubleRegister::kNumRegisters]
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    int dst_offset = code * kDoubleSize + double_regs_offset;
+    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
     __ lfd(d0, MemOperand(sp, src_offset));
     __ stfd(d0, MemOperand(r4, dst_offset));
   }
@@ -291,9 +270,10 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ blt(&outer_push_loop);
 
   __ LoadP(r4, MemOperand(r3, Deoptimizer::input_offset()));
-  for (int i = 0; i < DoubleRegister::kMaxNumAllocatableRegisters; ++i) {
-    const DoubleRegister dreg = DoubleRegister::FromAllocationIndex(i);
-    int src_offset = i * kDoubleSize + double_regs_offset;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    const DoubleRegister dreg = DoubleRegister::from_code(code);
+    int src_offset = code * kDoubleSize + double_regs_offset;
     __ lfd(dreg, MemOperand(r4, src_offset));
   }
 

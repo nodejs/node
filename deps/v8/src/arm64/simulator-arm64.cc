@@ -15,6 +15,7 @@
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -462,13 +463,11 @@ void Simulator::RunFrom(Instruction* start) {
 // offset from the svc instruction so the simulator knows what to call.
 class Redirection {
  public:
-  Redirection(void* external_function, ExternalReference::Type type)
-      : external_function_(external_function),
-        type_(type),
-        next_(NULL) {
+  Redirection(Isolate* isolate, void* external_function,
+              ExternalReference::Type type)
+      : external_function_(external_function), type_(type), next_(NULL) {
     redirect_call_.SetInstructionBits(
         HLT | Assembler::ImmException(kImmExceptionIsRedirectedCall));
-    Isolate* isolate = Isolate::Current();
     next_ = isolate->simulator_redirection();
     // TODO(all): Simulator flush I cache
     isolate->set_simulator_redirection(this);
@@ -483,9 +482,8 @@ class Redirection {
 
   ExternalReference::Type type() { return type_; }
 
-  static Redirection* Get(void* external_function,
+  static Redirection* Get(Isolate* isolate, void* external_function,
                           ExternalReference::Type type) {
-    Isolate* isolate = Isolate::Current();
     Redirection* current = isolate->simulator_redirection();
     for (; current != NULL; current = current->next_) {
       if (current->external_function_ == external_function) {
@@ -493,7 +491,7 @@ class Redirection {
         return current;
       }
     }
-    return new Redirection(external_function, type);
+    return new Redirection(isolate, external_function, type);
   }
 
   static Redirection* FromHltInstruction(Instruction* redirect_call) {
@@ -536,12 +534,6 @@ void Simulator::TearDown(HashMap* i_cache, Redirection* first) {
 // uses the ObjectPair structure.
 // The simulator assumes all runtime calls return two 64-bits values. If they
 // don't, register x1 is clobbered. This is fine because x1 is caller-saved.
-struct ObjectPair {
-  int64_t res0;
-  int64_t res1;
-};
-
-
 typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0,
                                            int64_t arg1,
                                            int64_t arg2,
@@ -550,6 +542,11 @@ typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0,
                                            int64_t arg5,
                                            int64_t arg6,
                                            int64_t arg7);
+
+typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int64_t arg0, int64_t arg1,
+                                                   int64_t arg2, int64_t arg3,
+                                                   int64_t arg4, int64_t arg5,
+                                                   int64_t arg6, int64_t arg7);
 
 typedef int64_t (*SimulatorRuntimeCompareCall)(double arg1, double arg2);
 typedef double (*SimulatorRuntimeFPFPCall)(double arg1, double arg2);
@@ -592,8 +589,10 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       UNREACHABLE();
       break;
 
-    case ExternalReference::BUILTIN_CALL: {
-      // Object* f(v8::internal::Arguments).
+    case ExternalReference::BUILTIN_CALL:
+    case ExternalReference::BUILTIN_CALL_PAIR: {
+      // Object* f(v8::internal::Arguments) or
+      // ObjectPair f(v8::internal::Arguments).
       TraceSim("Type: BUILTIN_CALL\n");
       SimulatorRuntimeCall target =
         reinterpret_cast<SimulatorRuntimeCall>(external);
@@ -610,13 +609,41 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
                xreg(4), xreg(5), xreg(6), xreg(7));
       ObjectPair result = target(xreg(0), xreg(1), xreg(2), xreg(3),
                                  xreg(4), xreg(5), xreg(6), xreg(7));
-      TraceSim("Returned: {0x%" PRIx64 ", 0x%" PRIx64 "}\n",
-               result.res0, result.res1);
+      TraceSim("Returned: {%p, %p}\n", result.x, result.y);
 #ifdef DEBUG
       CorruptAllCallerSavedCPURegisters();
 #endif
-      set_xreg(0, result.res0);
-      set_xreg(1, result.res1);
+      set_xreg(0, reinterpret_cast<int64_t>(result.x));
+      set_xreg(1, reinterpret_cast<int64_t>(result.y));
+      break;
+    }
+
+    case ExternalReference::BUILTIN_CALL_TRIPLE: {
+      // ObjectTriple f(v8::internal::Arguments).
+      TraceSim("Type: BUILTIN_CALL TRIPLE\n");
+      SimulatorRuntimeTripleCall target =
+          reinterpret_cast<SimulatorRuntimeTripleCall>(external);
+
+      // We don't know how many arguments are being passed, but we can
+      // pass 8 without touching the stack. They will be ignored by the
+      // host function if they aren't used.
+      TraceSim(
+          "Arguments: "
+          "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64 ", "
+          "0x%016" PRIx64 ", 0x%016" PRIx64,
+          xreg(0), xreg(1), xreg(2), xreg(3), xreg(4), xreg(5), xreg(6),
+          xreg(7));
+      // Return location passed in x8.
+      ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(xreg(8));
+      ObjectTriple result = target(xreg(0), xreg(1), xreg(2), xreg(3), xreg(4),
+                                   xreg(5), xreg(6), xreg(7));
+      TraceSim("Returned: {%p, %p, %p}\n", result.x, result.y, result.z);
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      *sim_result = result;
       break;
     }
 
@@ -748,9 +775,10 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
 }
 
 
-void* Simulator::RedirectExternalReference(void* external_function,
+void* Simulator::RedirectExternalReference(Isolate* isolate,
+                                           void* external_function,
                                            ExternalReference::Type type) {
-  Redirection* redirection = Redirection::Get(external_function, type);
+  Redirection* redirection = Redirection::Get(isolate, external_function, type);
   return redirection->address_of_redirect_call();
 }
 
@@ -1968,10 +1996,10 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
 
   switch (instr->Mask(DataProcessing1SourceMask)) {
     case RBIT_w:
-      set_wreg(dst, ReverseBits(wreg(src)));
+      set_wreg(dst, base::bits::ReverseBits(wreg(src)));
       break;
     case RBIT_x:
-      set_xreg(dst, ReverseBits(xreg(src)));
+      set_xreg(dst, base::bits::ReverseBits(xreg(src)));
       break;
     case REV16_w:
       set_wreg(dst, ReverseBytes(wreg(src), 1));
@@ -2761,7 +2789,7 @@ double Simulator::FPRoundInt(double value, FPRounding round_mode) {
       // If the error is greater than 0.5, or is equal to 0.5 and the integer
       // result is odd, round up.
       } else if ((error > 0.5) ||
-          ((error == 0.5) && (fmod(int_result, 2) != 0))) {
+                 ((error == 0.5) && (modulo(int_result, 2) != 0))) {
         int_result++;
       }
       break;
@@ -3107,7 +3135,8 @@ T Simulator::FPSqrt(T op) {
   } else if (op < 0.0) {
     return FPDefaultNaN<T>();
   } else {
-    return fast_sqrt(op);
+    lazily_initialize_fast_sqrt(isolate_);
+    return fast_sqrt(op, isolate_);
   }
 }
 
@@ -3510,8 +3539,9 @@ void Simulator::Debug() {
                  reinterpret_cast<uint64_t>(cur), *cur, *cur);
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           int64_t value = *cur;
-          Heap* current_heap = v8::internal::Isolate::Current()->heap();
-          if (((value & 1) == 0) || current_heap->Contains(obj)) {
+          Heap* current_heap = isolate_->heap();
+          if (((value & 1) == 0) ||
+              current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & kSmiTagMask) == 0) {
               STATIC_ASSERT(kSmiValueSize == 32);

@@ -4,8 +4,7 @@ const assert = require('assert');
 const http = require('http');
 const net = require('net');
 
-const big = new Buffer(16 * 1024);
-big.fill('A');
+const big = Buffer.alloc(16 * 1024, 'A');
 
 const COUNT = 1e4;
 

@@ -316,7 +316,7 @@ static void sc_usage(void)
                " -connect host:port - who to connect to (default is %s:%s)\n",
                SSL_HOST_NAME, PORT_STR);
     BIO_printf(bio_err,
-               " -verify_host host - check peer certificate matches \"host\"\n");
+               " -verify_hostname host - check peer certificate matches \"host\"\n");
     BIO_printf(bio_err,
                " -verify_email email - check peer certificate matches \"email\"\n");
     BIO_printf(bio_err,
@@ -398,8 +398,6 @@ static void sc_usage(void)
                " -no_tls1_2/-no_tls1_1/-no_tls1/-no_ssl3/-no_ssl2 - turn off that protocol\n");
     BIO_printf(bio_err,
                " -bugs         - Switch on all SSL implementation bug workarounds\n");
-    BIO_printf(bio_err,
-               " -serverpref   - Use server's cipher preferences (only SSLv2)\n");
     BIO_printf(bio_err,
                " -cipher       - preferred cipher to use, use the 'openssl ciphers'\n");
     BIO_printf(bio_err,

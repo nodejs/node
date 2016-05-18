@@ -6,6 +6,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/state-values-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -59,6 +60,22 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 }
 
 
+void InstructionOperand::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstructionOperand wrapper;
+  wrapper.register_configuration_ = config;
+  wrapper.op_ = *this;
+  os << wrapper << std::endl;
+}
+
+
+void InstructionOperand::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
+}
+
+
 std::ostream& operator<<(std::ostream& os,
                          const PrintableInstructionOperand& printable) {
   const InstructionOperand& op = printable.op_;
@@ -74,11 +91,15 @@ std::ostream& operator<<(std::ostream& os,
         case UnallocatedOperand::NONE:
           return os;
         case UnallocatedOperand::FIXED_REGISTER:
-          return os << "(=" << conf->general_register_name(
-                                   unalloc->fixed_register_index()) << ")";
+          return os << "(="
+                    << conf->GetGeneralRegisterName(
+                           unalloc->fixed_register_index())
+                    << ")";
         case UnallocatedOperand::FIXED_DOUBLE_REGISTER:
-          return os << "(=" << conf->double_register_name(
-                                   unalloc->fixed_register_index()) << ")";
+          return os << "(="
+                    << conf->GetDoubleRegisterName(
+                           unalloc->fixed_register_index())
+                    << ")";
         case UnallocatedOperand::MUST_HAVE_REGISTER:
           return os << "(R)";
         case UnallocatedOperand::MUST_HAVE_SLOT:
@@ -101,44 +122,53 @@ std::ostream& operator<<(std::ostream& os,
           return os << "[immediate:" << imm.indexed_value() << "]";
       }
     }
+    case InstructionOperand::EXPLICIT:
     case InstructionOperand::ALLOCATED: {
-      auto allocated = AllocatedOperand::cast(op);
-      switch (allocated.allocated_kind()) {
-        case AllocatedOperand::STACK_SLOT:
-          os << "[stack:" << StackSlotOperand::cast(op).index();
-          break;
-        case AllocatedOperand::DOUBLE_STACK_SLOT:
-          os << "[double_stack:" << DoubleStackSlotOperand::cast(op).index();
-          break;
-        case AllocatedOperand::REGISTER:
-          os << "["
-             << conf->general_register_name(RegisterOperand::cast(op).index())
-             << "|R";
-          break;
-        case AllocatedOperand::DOUBLE_REGISTER:
-          os << "["
-             << conf->double_register_name(
-                    DoubleRegisterOperand::cast(op).index()) << "|R";
-          break;
+      auto allocated = LocationOperand::cast(op);
+      if (op.IsStackSlot()) {
+        os << "[stack:" << LocationOperand::cast(op).index();
+      } else if (op.IsDoubleStackSlot()) {
+        os << "[double_stack:" << LocationOperand::cast(op).index();
+      } else if (op.IsRegister()) {
+        os << "[" << LocationOperand::cast(op).GetRegister().ToString() << "|R";
+      } else {
+        DCHECK(op.IsDoubleRegister());
+        os << "[" << LocationOperand::cast(op).GetDoubleRegister().ToString()
+           << "|R";
       }
-      switch (allocated.machine_type()) {
-        case kRepWord32:
+      if (allocated.IsExplicit()) {
+        os << "|E";
+      }
+      switch (allocated.representation()) {
+        case MachineRepresentation::kNone:
+          os << "|-";
+          break;
+        case MachineRepresentation::kBit:
+          os << "|b";
+          break;
+        case MachineRepresentation::kWord8:
+          os << "|w8";
+          break;
+        case MachineRepresentation::kWord16:
+          os << "|w16";
+          break;
+        case MachineRepresentation::kWord32:
           os << "|w32";
           break;
-        case kRepWord64:
+        case MachineRepresentation::kWord64:
           os << "|w64";
           break;
-        case kRepFloat32:
+        case MachineRepresentation::kFloat32:
           os << "|f32";
           break;
-        case kRepFloat64:
+        case MachineRepresentation::kFloat64:
           os << "|f64";
           break;
-        case kRepTagged:
-          os << "|t";
+        case MachineRepresentation::kSimd128:
+          os << "|s128";
           break;
-        default:
-          os << "|?";
+        case MachineRepresentation::kTagged:
+          os << "|t";
           break;
       }
       return os << "]";
@@ -148,6 +178,24 @@ std::ostream& operator<<(std::ostream& os,
   }
   UNREACHABLE();
   return os;
+}
+
+
+void MoveOperands::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstructionOperand wrapper;
+  wrapper.register_configuration_ = config;
+  wrapper.op_ = destination();
+  os << wrapper << " = ";
+  wrapper.op_ = source();
+  os << wrapper << std::endl;
+}
+
+
+void MoveOperands::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
 }
 
 
@@ -178,11 +226,11 @@ MoveOperands* ParallelMove::PrepareInsertAfter(MoveOperands* move) const {
   MoveOperands* to_eliminate = nullptr;
   for (auto curr : *this) {
     if (curr->IsEliminated()) continue;
-    if (curr->destination().EqualsModuloType(move->source())) {
+    if (curr->destination().EqualsCanonicalized(move->source())) {
       DCHECK(!replacement);
       replacement = curr;
       if (to_eliminate != nullptr) break;
-    } else if (curr->destination().EqualsModuloType(move->destination())) {
+    } else if (curr->destination().EqualsCanonicalized(move->destination())) {
       DCHECK(!to_eliminate);
       to_eliminate = curr;
       if (replacement != nullptr) break;
@@ -194,11 +242,21 @@ MoveOperands* ParallelMove::PrepareInsertAfter(MoveOperands* move) const {
 }
 
 
+ExplicitOperand::ExplicitOperand(LocationKind kind, MachineRepresentation rep,
+                                 int index)
+    : LocationOperand(EXPLICIT, kind, rep, index) {
+  DCHECK_IMPLIES(kind == REGISTER && !IsFloatingPoint(rep),
+                 Register::from_code(index).IsAllocatable());
+  DCHECK_IMPLIES(kind == REGISTER && IsFloatingPoint(rep),
+                 DoubleRegister::from_code(index).IsAllocatable());
+}
+
+
 Instruction::Instruction(InstructionCode opcode)
     : opcode_(opcode),
       bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
                  TempCountField::encode(0) | IsCallField::encode(false)),
-      reference_map_(NULL) {
+      reference_map_(nullptr) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
 }
@@ -213,7 +271,7 @@ Instruction::Instruction(InstructionCode opcode, size_t output_count,
                  InputCountField::encode(input_count) |
                  TempCountField::encode(temp_count) |
                  IsCallField::encode(false)),
-      reference_map_(NULL) {
+      reference_map_(nullptr) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
   size_t offset = 0;
@@ -243,6 +301,22 @@ bool Instruction::AreMovesRedundant() const {
 }
 
 
+void Instruction::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstruction wrapper;
+  wrapper.instr_ = this;
+  wrapper.register_configuration_ = config;
+  os << wrapper << std::endl;
+}
+
+
+void Instruction::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
+}
+
+
 std::ostream& operator<<(std::ostream& os,
                          const PrintableParallelMove& printable) {
   const ParallelMove& pm = *printable.parallel_move_;
@@ -260,7 +334,7 @@ std::ostream& operator<<(std::ostream& os,
 
 void ReferenceMap::RecordReference(const AllocatedOperand& op) {
   // Do not record arguments as pointers.
-  if (op.IsStackSlot() && StackSlotOperand::cast(op).index() < 0) return;
+  if (op.IsStackSlot() && LocationOperand::cast(op).index() < 0) return;
   DCHECK(!op.IsDoubleRegister() && !op.IsDoubleStackSlot());
   reference_operands_.push_back(op);
 }
@@ -269,8 +343,9 @@ void ReferenceMap::RecordReference(const AllocatedOperand& op) {
 std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm) {
   os << "{";
   bool first = true;
-  PrintableInstructionOperand poi = {RegisterConfiguration::ArchDefault(),
-                                     InstructionOperand()};
+  PrintableInstructionOperand poi = {
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
+      InstructionOperand()};
   for (auto& op : pm.reference_operands_) {
     if (!first) {
       os << ";";
@@ -387,7 +462,7 @@ std::ostream& operator<<(std::ostream& os,
   for (int i = Instruction::FIRST_GAP_POSITION;
        i <= Instruction::LAST_GAP_POSITION; i++) {
     os << "(";
-    if (instr.parallel_moves()[i] != NULL) {
+    if (instr.parallel_moves()[i] != nullptr) {
       PrintableParallelMove ppm = {printable.register_configuration_,
                                    instr.parallel_moves()[i]};
       os << ppm;
@@ -496,7 +571,7 @@ size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {
 
 
 static RpoNumber GetRpo(const BasicBlock* block) {
-  if (block == NULL) return RpoNumber::Invalid();
+  if (block == nullptr) return RpoNumber::Invalid();
   return RpoNumber::FromInt(block->rpo_number());
 }
 
@@ -531,7 +606,7 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     Zone* zone, const Schedule* schedule) {
   InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
   new (blocks) InstructionBlocks(
-      static_cast<int>(schedule->rpo_order()->size()), NULL, zone);
+      static_cast<int>(schedule->rpo_order()->size()), nullptr, zone);
   size_t rpo_number = 0;
   for (BasicBlockVector::const_iterator it = schedule->rpo_order()->begin();
        it != schedule->rpo_order()->end(); ++it, ++rpo_number) {
@@ -543,6 +618,20 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   return blocks;
 }
 
+void InstructionSequence::Validate() {
+  // Validate blocks are in edge-split form: no block with multiple successors
+  // has an edge to a block (== a successor) with more than one predecessors.
+  for (const InstructionBlock* block : instruction_blocks()) {
+    if (block->SuccessorCount() > 1) {
+      for (const RpoNumber& successor_id : block->successors()) {
+        const InstructionBlock* successor = InstructionBlockAt(successor_id);
+        // Expect precisely one predecessor: "block".
+        CHECK(successor->PredecessorCount() == 1 &&
+              successor->predecessors()[0] == block->rpo_number());
+      }
+    }
+  }
+}
 
 void InstructionSequence::ComputeAssemblyOrder(InstructionBlocks* blocks) {
   int ao = 0;
@@ -576,6 +665,10 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       representations_(zone()),
       deoptimization_entries_(zone()) {
   block_starts_.reserve(instruction_blocks_->size());
+
+#if DEBUG
+  Validate();
+#endif
 }
 
 
@@ -617,7 +710,7 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
   int index = static_cast<int>(instructions_.size());
   instructions_.push_back(instr);
   if (instr->NeedsReferenceMap()) {
-    DCHECK(instr->reference_map() == NULL);
+    DCHECK(instr->reference_map() == nullptr);
     ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
     reference_map->set_instruction_position(index);
     instr->set_reference_map(reference_map);
@@ -644,28 +737,29 @@ InstructionBlock* InstructionSequence::GetInstructionBlock(
 }
 
 
-static MachineType FilterRepresentation(MachineType rep) {
-  DCHECK_EQ(rep, RepresentationOf(rep));
+static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
   switch (rep) {
-    case kRepBit:
-    case kRepWord8:
-    case kRepWord16:
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kWord8:
+    case MachineRepresentation::kWord16:
       return InstructionSequence::DefaultRepresentation();
-    case kRepWord32:
-    case kRepWord64:
-    case kRepFloat32:
-    case kRepFloat64:
-    case kRepTagged:
+    case MachineRepresentation::kWord32:
+    case MachineRepresentation::kWord64:
+    case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kFloat64:
+    case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kTagged:
       return rep;
-    default:
+    case MachineRepresentation::kNone:
       break;
   }
   UNREACHABLE();
-  return kMachNone;
+  return MachineRepresentation::kNone;
 }
 
 
-MachineType InstructionSequence::GetRepresentation(int virtual_register) const {
+MachineRepresentation InstructionSequence::GetRepresentation(
+    int virtual_register) const {
   DCHECK_LE(0, virtual_register);
   DCHECK_LT(virtual_register, VirtualRegisterCount());
   if (virtual_register >= static_cast<int>(representations_.size())) {
@@ -675,17 +769,17 @@ MachineType InstructionSequence::GetRepresentation(int virtual_register) const {
 }
 
 
-void InstructionSequence::MarkAsRepresentation(MachineType machine_type,
+void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
                                                int virtual_register) {
   DCHECK_LE(0, virtual_register);
   DCHECK_LT(virtual_register, VirtualRegisterCount());
   if (virtual_register >= static_cast<int>(representations_.size())) {
     representations_.resize(VirtualRegisterCount(), DefaultRepresentation());
   }
-  machine_type = FilterRepresentation(machine_type);
-  DCHECK_IMPLIES(representations_[virtual_register] != machine_type,
+  rep = FilterRepresentation(rep);
+  DCHECK_IMPLIES(representations_[virtual_register] != rep,
                  representations_[virtual_register] == DefaultRepresentation());
-  representations_[virtual_register] = machine_type;
+  representations_[virtual_register] = rep;
 }
 
 
@@ -732,6 +826,78 @@ void InstructionSequence::SetSourcePosition(const Instruction* instr,
 }
 
 
+void InstructionSequence::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstructionSequence wrapper;
+  wrapper.register_configuration_ = config;
+  wrapper.sequence_ = this;
+  os << wrapper << std::endl;
+}
+
+
+void InstructionSequence::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
+}
+
+void InstructionSequence::PrintBlock(const RegisterConfiguration* config,
+                                     int block_id) const {
+  OFStream os(stdout);
+  RpoNumber rpo = RpoNumber::FromInt(block_id);
+  const InstructionBlock* block = InstructionBlockAt(rpo);
+  CHECK(block->rpo_number() == rpo);
+
+  os << "B" << block->rpo_number();
+  os << ": AO#" << block->ao_number();
+  if (block->IsDeferred()) os << " (deferred)";
+  if (!block->needs_frame()) os << " (no frame)";
+  if (block->must_construct_frame()) os << " (construct frame)";
+  if (block->must_deconstruct_frame()) os << " (deconstruct frame)";
+  if (block->IsLoopHeader()) {
+    os << " loop blocks: [" << block->rpo_number() << ", " << block->loop_end()
+       << ")";
+  }
+  os << "  instructions: [" << block->code_start() << ", " << block->code_end()
+     << ")\n  predecessors:";
+
+  for (auto pred : block->predecessors()) {
+    os << " B" << pred.ToInt();
+  }
+  os << "\n";
+
+  for (auto phi : block->phis()) {
+    PrintableInstructionOperand printable_op = {config, phi->output()};
+    os << "     phi: " << printable_op << " =";
+    for (auto input : phi->operands()) {
+      os << " v" << input;
+    }
+    os << "\n";
+  }
+
+  ScopedVector<char> buf(32);
+  PrintableInstruction printable_instr;
+  printable_instr.register_configuration_ = config;
+  for (int j = block->first_instruction_index();
+       j <= block->last_instruction_index(); j++) {
+    // TODO(svenpanne) Add some basic formatting to our streams.
+    SNPrintF(buf, "%5d", j);
+    printable_instr.instr_ = InstructionAt(j);
+    os << "   " << buf.start() << ": " << printable_instr << "\n";
+  }
+
+  for (auto succ : block->successors()) {
+    os << " B" << succ.ToInt();
+  }
+  os << "\n";
+}
+
+void InstructionSequence::PrintBlock(int block_id) const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  PrintBlock(config, block_id);
+}
+
 FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BailoutId bailout_id,
     OutputFrameStateCombine state_combine, size_t parameters_count,
@@ -744,11 +910,9 @@ FrameStateDescriptor::FrameStateDescriptor(
       parameters_count_(parameters_count),
       locals_count_(locals_count),
       stack_count_(stack_count),
-      types_(zone),
+      values_(zone),
       shared_info_(shared_info),
-      outer_state_(outer_state) {
-  types_.resize(GetSize(), kMachNone);
-}
+      outer_state_(outer_state) {}
 
 
 size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
@@ -767,7 +931,7 @@ size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
 
 size_t FrameStateDescriptor::GetTotalSize() const {
   size_t total_size = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = this; iter != nullptr;
        iter = iter->outer_state_) {
     total_size += iter->GetSize();
   }
@@ -777,7 +941,7 @@ size_t FrameStateDescriptor::GetTotalSize() const {
 
 size_t FrameStateDescriptor::GetFrameCount() const {
   size_t count = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = this; iter != nullptr;
        iter = iter->outer_state_) {
     ++count;
   }
@@ -787,24 +951,13 @@ size_t FrameStateDescriptor::GetFrameCount() const {
 
 size_t FrameStateDescriptor::GetJSFrameCount() const {
   size_t count = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = this; iter != nullptr;
        iter = iter->outer_state_) {
-    if (iter->type_ == FrameStateType::kJavaScriptFunction) {
+    if (FrameStateFunctionInfo::IsJSFunctionType(iter->type_)) {
       ++count;
     }
   }
   return count;
-}
-
-
-MachineType FrameStateDescriptor::GetType(size_t index) const {
-  return types_[index];
-}
-
-
-void FrameStateDescriptor::SetType(size_t index, MachineType type) {
-  DCHECK(index < GetSize());
-  types_[index] = type;
 }
 
 
@@ -826,53 +979,7 @@ std::ostream& operator<<(std::ostream& os,
     os << "CST#" << i << ": v" << it->first << " = " << it->second << "\n";
   }
   for (int i = 0; i < code.InstructionBlockCount(); i++) {
-    RpoNumber rpo = RpoNumber::FromInt(i);
-    const InstructionBlock* block = code.InstructionBlockAt(rpo);
-    CHECK(block->rpo_number() == rpo);
-
-    os << "B" << block->rpo_number();
-    os << ": AO#" << block->ao_number();
-    if (block->IsDeferred()) os << " (deferred)";
-    if (!block->needs_frame()) os << " (no frame)";
-    if (block->must_construct_frame()) os << " (construct frame)";
-    if (block->must_deconstruct_frame()) os << " (deconstruct frame)";
-    if (block->IsLoopHeader()) {
-      os << " loop blocks: [" << block->rpo_number() << ", "
-         << block->loop_end() << ")";
-    }
-    os << "  instructions: [" << block->code_start() << ", "
-       << block->code_end() << ")\n  predecessors:";
-
-    for (auto pred : block->predecessors()) {
-      os << " B" << pred.ToInt();
-    }
-    os << "\n";
-
-    for (auto phi : block->phis()) {
-      PrintableInstructionOperand printable_op = {
-          printable.register_configuration_, phi->output()};
-      os << "     phi: " << printable_op << " =";
-      for (auto input : phi->operands()) {
-        os << " v" << input;
-      }
-      os << "\n";
-    }
-
-    ScopedVector<char> buf(32);
-    PrintableInstruction printable_instr;
-    printable_instr.register_configuration_ = printable.register_configuration_;
-    for (int j = block->first_instruction_index();
-         j <= block->last_instruction_index(); j++) {
-      // TODO(svenpanne) Add some basic formatting to our streams.
-      SNPrintF(buf, "%5d", j);
-      printable_instr.instr_ = code.InstructionAt(j);
-      os << "   " << buf.start() << ": " << printable_instr << "\n";
-    }
-
-    for (auto succ : block->successors()) {
-      os << " B" << succ.ToInt();
-    }
-    os << "\n";
+    printable.sequence_->PrintBlock(printable.register_configuration_, i);
   }
   return os;
 }

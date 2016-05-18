@@ -185,12 +185,11 @@ asyncTest('When re-throwing new errors in a promise catch, only the' +
 asyncTest('Test params of unhandledRejection for a synchronously-rejected' +
           'promise', function(done) {
   var e = new Error();
-  var e2 = new Error();
   onUnhandledSucceed(done, function(reason, promise) {
     assert.strictEqual(e, reason);
     assert.strictEqual(promise, promise);
   });
-  var promise = Promise.reject(e);
+  Promise.reject(e);
 });
 
 asyncTest('When re-throwing new errors in a promise catch, only the ' +
@@ -235,23 +234,27 @@ asyncTest('When re-throwing new errors in a promise catch, only the re-thrown' +
   var promise2;
 });
 
-asyncTest('unhandledRejection should not be triggered if a promise catch is' +
-          ' attached synchronously upon the promise\'s creation',
-          function(done) {
-  var e = new Error();
-  onUnhandledFail(done);
-  Promise.reject(e).then(common.fail, function() {});
-});
+asyncTest(
+  'unhandledRejection should not be triggered if a promise catch is' +
+  ' attached synchronously upon the promise\'s creation',
+  function(done) {
+    var e = new Error();
+    onUnhandledFail(done);
+    Promise.reject(e).then(common.fail, function() {});
+  }
+);
 
-asyncTest('unhandledRejection should not be triggered if a promise catch is' +
-          ' attached synchronously upon the promise\'s creation',
-          function(done) {
-  var e = new Error();
-  onUnhandledFail(done);
-  new Promise(function(_, reject) {
-    reject(e);
-  }).then(common.fail, function() {});
-});
+asyncTest(
+  'unhandledRejection should not be triggered if a promise catch is' +
+  ' attached synchronously upon the promise\'s creation',
+  function(done) {
+    var e = new Error();
+    onUnhandledFail(done);
+    new Promise(function(_, reject) {
+      reject(e);
+    }).then(common.fail, function() {});
+  }
+);
 
 asyncTest('Attaching a promise catch in a process.nextTick is soon enough to' +
           ' prevent unhandledRejection', function(done) {
@@ -361,43 +364,47 @@ asyncTest('A rejected promise derived from throwing in a fulfillment handler' +
   });
 });
 
-asyncTest('A rejected promise derived from returning a synchronously-rejected' +
-          ' promise in a fulfillment handler does trigger unhandledRejection',
-          function(done) {
-  var e = new Error();
-  var _promise;
-  onUnhandledSucceed(done, function(reason, promise) {
-    assert.strictEqual(e, reason);
-    assert.strictEqual(_promise, promise);
-  });
-  _promise = Promise.resolve().then(function() {
-    return Promise.reject(e);
-  });
-});
+asyncTest(
+  'A rejected promise derived from returning a synchronously-rejected' +
+  ' promise in a fulfillment handler does trigger unhandledRejection',
+  function(done) {
+    var e = new Error();
+    var _promise;
+    onUnhandledSucceed(done, function(reason, promise) {
+      assert.strictEqual(e, reason);
+      assert.strictEqual(_promise, promise);
+    });
+    _promise = Promise.resolve().then(function() {
+      return Promise.reject(e);
+    });
+  }
+);
 
 // Combinations with Promise.all
 asyncTest('Catching the Promise.all() of a collection that includes a' +
           'rejected promise prevents unhandledRejection', function(done) {
   var e = new Error();
   onUnhandledFail(done);
-  Promise.all([Promise.reject(e)]).then(common.fail, function() {});
+  Promise.all([Promise.reject(e)]).then(common.fail, function() {});
 });
 
-asyncTest('Catching the Promise.all() of a collection that includes a ' +
-          'nextTick-async rejected promise prevents unhandledRejection',
-          function(done) {
-  var e = new Error();
-  onUnhandledFail(done);
-  var p = new Promise(function(_, reject) {
-    process.nextTick(function() {
-      reject(e);
+asyncTest(
+  'Catching the Promise.all() of a collection that includes a ' +
+  'nextTick-async rejected promise prevents unhandledRejection',
+  function(done) {
+    var e = new Error();
+    onUnhandledFail(done);
+    var p = new Promise(function(_, reject) {
+      process.nextTick(function() {
+        reject(e);
+      });
     });
-  });
-  p = Promise.all([p]);
-  process.nextTick(function() {
-    p.then(common.fail, function() {});
-  });
-});
+    p = Promise.all([p]);
+    process.nextTick(function() {
+      p.then(common.fail, function() {});
+    });
+  }
+);
 
 asyncTest('Failing to catch the Promise.all() of a collection that includes' +
           ' a rejected promise triggers unhandledRejection for the returned' +
@@ -448,7 +455,7 @@ asyncTest('Waiting for some combination of process.nextTick + promise' +
     Promise.resolve().then(function() {
       process.nextTick(function() {
         Promise.resolve().then(function() {
-          a.catch(function() {});
+          a.catch(function() {});
         });
       });
     });
@@ -467,7 +474,7 @@ asyncTest('Waiting for some combination of process.nextTick + promise' +
       Promise.resolve().then(function() {
         process.nextTick(function() {
           Promise.resolve().then(function() {
-            a.catch(function() {});
+            a.catch(function() {});
           });
         });
       });
@@ -487,7 +494,7 @@ asyncTest('Waiting for some combination of process.nextTick + promise ' +
       Promise.resolve().then(function() {
         process.nextTick(function() {
           Promise.resolve().then(function() {
-            a.catch(function() {});
+            a.catch(function() {});
           });
         });
       });
@@ -507,33 +514,35 @@ asyncTest('Waiting for some combination of promise microtasks + ' +
     process.nextTick(function() {
       Promise.resolve().then(function() {
         process.nextTick(function() {
-          a.catch(function() {});
+          a.catch(function() {});
         });
       });
     });
   });
 });
 
-asyncTest('Waiting for some combination of promise microtasks +' +
-          ' process.nextTick to attach a catch handler is still soon enough' +
-          ' to prevent unhandledRejection: inside setImmediate',
-          function(done) {
-  var e = new Error();
-  onUnhandledFail(done);
+asyncTest(
+  'Waiting for some combination of promise microtasks +' +
+  ' process.nextTick to attach a catch handler is still soon enough' +
+  ' to prevent unhandledRejection: inside setImmediate',
+  function(done) {
+    var e = new Error();
+    onUnhandledFail(done);
 
-  setImmediate(function() {
-    var a = Promise.reject(e);
-    Promise.resolve().then(function() {
-      process.nextTick(function() {
-        Promise.resolve().then(function() {
-          process.nextTick(function() {
-            a.catch(function() {});
+    setImmediate(function() {
+      var a = Promise.reject(e);
+      Promise.resolve().then(function() {
+        process.nextTick(function() {
+          Promise.resolve().then(function() {
+            process.nextTick(function() {
+              a.catch(function() {});
+            });
           });
         });
       });
     });
-  });
-});
+  }
+);
 
 asyncTest('Waiting for some combination of promise microtasks +' +
           ' process.nextTick to attach a catch handler is still soon enough' +
@@ -547,7 +556,7 @@ asyncTest('Waiting for some combination of promise microtasks +' +
       process.nextTick(function() {
         Promise.resolve().then(function() {
           process.nextTick(function() {
-            a.catch(function() {});
+            a.catch(function() {});
           });
         });
       });
@@ -613,28 +622,30 @@ asyncTest('setImmediate + promise microtasks is too late to attach a catch' +
   });
 });
 
-asyncTest('Promise unhandledRejection handler does not interfere with domain' +
-          ' error handlers being given exceptions thrown from nextTick.',
-          function(done) {
-  var d = domain.create();
-  var domainReceivedError;
-  d.on('error', function(e) {
-    domainReceivedError = e;
-  });
-  d.run(function() {
-    var e = new Error('error');
-    var domainError = new Error('domain error');
-    onUnhandledSucceed(done, function(reason, promise) {
-      assert.strictEqual(reason, e);
-      assert.strictEqual(domainReceivedError, domainError);
-      d.dispose();
+asyncTest(
+  'Promise unhandledRejection handler does not interfere with domain' +
+  ' error handlers being given exceptions thrown from nextTick.',
+  function(done) {
+    var d = domain.create();
+    var domainReceivedError;
+    d.on('error', function(e) {
+      domainReceivedError = e;
     });
-    var a = Promise.reject(e);
-    process.nextTick(function() {
-      throw domainError;
+    d.run(function() {
+      var e = new Error('error');
+      var domainError = new Error('domain error');
+      onUnhandledSucceed(done, function(reason, promise) {
+        assert.strictEqual(reason, e);
+        assert.strictEqual(domainReceivedError, domainError);
+        d.dispose();
+      });
+      Promise.reject(e);
+      process.nextTick(function() {
+        throw domainError;
+      });
     });
-  });
-});
+  }
+);
 
 asyncTest('nextTick is immediately scheduled when called inside an event' +
           ' handler', function(done) {
@@ -647,7 +658,7 @@ asyncTest('nextTick is immediately scheduled when called inside an event' +
     });
     setTimeout(function() {
       order.push(2);
-      assert.deepEqual([1, 2], order);
+      assert.deepStrictEqual([1, 2], order);
       done();
     }, 1);
   });

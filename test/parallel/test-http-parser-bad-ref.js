@@ -4,7 +4,7 @@
 
 // Flags: --expose_gc
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var HTTPParser = process.binding('http_parser').HTTPParser;
 
@@ -17,8 +17,8 @@ var headersComplete = 0;
 var messagesComplete = 0;
 
 function flushPool() {
-  new Buffer(Buffer.poolSize - 1);
-  gc();
+  Buffer.allocUnsafe(Buffer.poolSize - 1);
+  global.gc();
 }
 
 function demoBug(part1, part2) {
@@ -49,7 +49,7 @@ function demoBug(part1, part2) {
   // We use a function to eliminate references to the Buffer b
   // We want b to be GCed. The parser will hold a bad reference to it.
   (function() {
-    var b = Buffer(part1);
+    var b = Buffer.from(part1);
     flushPool();
 
     console.log('parse the first part of the message');
@@ -59,7 +59,7 @@ function demoBug(part1, part2) {
   flushPool();
 
   (function() {
-    var b = Buffer(part2);
+    var b = Buffer.from(part2);
 
     console.log('parse the second part of the message');
     parser.execute(b, 0, b.length);
@@ -75,10 +75,12 @@ demoBug('POST /1', '/22 HTTP/1.1\r\n' +
         'Content-Length: 4\r\n\r\n' +
         'pong');
 
+/* eslint-disable align-function-arguments */
 demoBug('POST /1/22 HTTP/1.1\r\n' +
         'Content-Type: tex', 't/plain\r\n' +
         'Content-Length: 4\r\n\r\n' +
         'pong');
+/* eslint-enable align-function-arguments */
 
 process.on('exit', function() {
   assert.equal(2, headersComplete);

@@ -387,6 +387,8 @@ int EC_KEY_set_public_key_affine_coordinates(EC_KEY *key, BIGNUM *x,
 
     tx = BN_CTX_get(ctx);
     ty = BN_CTX_get(ctx);
+    if (ty == NULL)
+        goto err;
 
 #ifndef OPENSSL_NO_EC2M
     tmp_nid = EC_METHOD_get_field_type(EC_GROUP_method_of(key->group));

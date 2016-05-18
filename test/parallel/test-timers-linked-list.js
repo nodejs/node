@@ -2,9 +2,9 @@
 
 // Flags: --expose-internals
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
-const L = require('_linklist');
+const L = require('_linklist'); // eslint-disable-line no-restricted-modules
 const internalL = require('internal/linkedlist');
 
 assert.strictEqual(L, internalL);

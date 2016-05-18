@@ -9,65 +9,146 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow dangling underscores in identifiers",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    //-------------------------------------------------------------------------
-    // Helpers
-    //-------------------------------------------------------------------------
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    allow: {
+                        type: "array",
+                        items: {
+                            type: "string"
+                        }
+                    },
+                    allowAfterThis: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
 
-    function hasTrailingUnderscore(identifier) {
-        var len = identifier.length;
+    create: function(context) {
 
-        return identifier !== "_" && (identifier[0] === "_" || identifier[len - 1] === "_");
-    }
+        var options = context.options[0] || {};
+        var ALLOWED_VARIABLES = options.allow ? options.allow : [];
+        var allowAfterThis = typeof options.allowAfterThis !== "undefined" ? options.allowAfterThis : false;
 
-    function isSpecialCaseIdentifierForMemberExpression(identifier) {
-        return identifier === "__proto__";
-    }
+        //-------------------------------------------------------------------------
+        // Helpers
+        //-------------------------------------------------------------------------
 
-    function isSpecialCaseIdentifierInVariableExpression(identifier) {
-        // Checks for the underscore library usage here
-        return identifier === "_";
-    }
+        /**
+         * Check if identifier is present inside the allowed option
+         * @param {string} identifier name of the node
+         * @returns {boolean} true if its is present
+         * @private
+         */
+        function isAllowed(identifier) {
+            return ALLOWED_VARIABLES.some(function(ident) {
+                return ident === identifier;
+            });
+        }
 
-    function checkForTrailingUnderscoreInFunctionDeclaration(node) {
-        if (node.id) {
-            var identifier = node.id.name;
+        /**
+         * Check if identifier has a underscore at the end
+         * @param {ASTNode} identifier node to evaluate
+         * @returns {boolean} true if its is present
+         * @private
+         */
+        function hasTrailingUnderscore(identifier) {
+            var len = identifier.length;
 
-            if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier)) {
-                context.report(node, "Unexpected dangling \"_\" in \"" + identifier + "\".");
+            return identifier !== "_" && (identifier[0] === "_" || identifier[len - 1] === "_");
+        }
+
+        /**
+         * Check if identifier is a special case member expression
+         * @param {ASTNode} identifier node to evaluate
+         * @returns {boolean} true if its is a special case
+         * @private
+         */
+        function isSpecialCaseIdentifierForMemberExpression(identifier) {
+            return identifier === "__proto__";
+        }
+
+        /**
+         * Check if identifier is a special case variable expression
+         * @param {ASTNode} identifier node to evaluate
+         * @returns {boolean} true if its is a special case
+         * @private
+         */
+        function isSpecialCaseIdentifierInVariableExpression(identifier) {
+
+            // Checks for the underscore library usage here
+            return identifier === "_";
+        }
+
+        /**
+         * Check if function has a underscore at the end
+         * @param {ASTNode} node node to evaluate
+         * @returns {void}
+         * @private
+         */
+        function checkForTrailingUnderscoreInFunctionDeclaration(node) {
+            if (node.id) {
+                var identifier = node.id.name;
+
+                if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) && !isAllowed(identifier)) {
+                    context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
+                }
             }
         }
-    }
 
-    function checkForTrailingUnderscoreInVariableExpression(node) {
-        var identifier = node.id.name;
+        /**
+         * Check if variable expression has a underscore at the end
+         * @param {ASTNode} node node to evaluate
+         * @returns {void}
+         * @private
+         */
+        function checkForTrailingUnderscoreInVariableExpression(node) {
+            var identifier = node.id.name;
 
-        if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
-            !isSpecialCaseIdentifierInVariableExpression(identifier)) {
-            context.report(node, "Unexpected dangling \"_\" in \"" + identifier + "\".");
+            if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
+                !isSpecialCaseIdentifierInVariableExpression(identifier) && !isAllowed(identifier)) {
+                context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
+            }
         }
-    }
 
-    function checkForTrailingUnderscoreInMemberExpression(node) {
-        var identifier = node.property.name;
+        /**
+         * Check if member expression has a underscore at the end
+         * @param {ASTNode} node node to evaluate
+         * @returns {void}
+         * @private
+         */
+        function checkForTrailingUnderscoreInMemberExpression(node) {
+            var identifier = node.property.name,
+                isMemberOfThis = node.object.type === "ThisExpression";
 
-        if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
-            !isSpecialCaseIdentifierForMemberExpression(identifier)) {
-            context.report(node, "Unexpected dangling \"_\" in \"" + identifier + "\".");
+            if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
+                !(isMemberOfThis && allowAfterThis) &&
+                !isSpecialCaseIdentifierForMemberExpression(identifier) && !isAllowed(identifier)) {
+                context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
+            }
         }
+
+        //--------------------------------------------------------------------------
+        // Public API
+        //--------------------------------------------------------------------------
+
+        return {
+            FunctionDeclaration: checkForTrailingUnderscoreInFunctionDeclaration,
+            VariableDeclarator: checkForTrailingUnderscoreInVariableExpression,
+            MemberExpression: checkForTrailingUnderscoreInMemberExpression
+        };
+
     }
-
-    //--------------------------------------------------------------------------
-    // Public API
-    //--------------------------------------------------------------------------
-
-    return {
-        "FunctionDeclaration": checkForTrailingUnderscoreInFunctionDeclaration,
-        "VariableDeclarator": checkForTrailingUnderscoreInVariableExpression,
-        "MemberExpression": checkForTrailingUnderscoreInMemberExpression
-    };
-
 };
-
-module.exports.schema = [];

@@ -17,19 +17,22 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class SimplifiedOperatorBuilder;
 class Typer;
 
 // Implements a facade on a Graph, enhancing the graph with JS-specific
-// notions, including a builder for for JS* operators, canonicalized global
+// notions, including various builders for operators, canonicalized global
 // constants, and various helper methods.
 class JSGraph : public ZoneObject {
  public:
   JSGraph(Isolate* isolate, Graph* graph, CommonOperatorBuilder* common,
-          JSOperatorBuilder* javascript, MachineOperatorBuilder* machine)
+          JSOperatorBuilder* javascript, SimplifiedOperatorBuilder* simplified,
+          MachineOperatorBuilder* machine)
       : isolate_(isolate),
         graph_(graph),
         common_(common),
         javascript_(javascript),
+        simplified_(simplified),
         machine_(machine),
         cache_(zone()) {
     for (int i = 0; i < kNumCachedNodes; i++) cached_nodes_[i] = nullptr;
@@ -37,6 +40,7 @@ class JSGraph : public ZoneObject {
 
   // Canonicalized global constants.
   Node* CEntryStubConstant(int result_size);
+  Node* EmptyFixedArrayConstant();
   Node* UndefinedConstant();
   Node* TheHoleConstant();
   Node* TrueConstant();
@@ -117,8 +121,9 @@ class JSGraph : public ZoneObject {
   // Create a control node that serves as dependency for dead nodes.
   Node* Dead();
 
-  JSOperatorBuilder* javascript() const { return javascript_; }
   CommonOperatorBuilder* common() const { return common_; }
+  JSOperatorBuilder* javascript() const { return javascript_; }
+  SimplifiedOperatorBuilder* simplified() const { return simplified_; }
   MachineOperatorBuilder* machine() const { return machine_; }
   Graph* graph() const { return graph_; }
   Zone* zone() const { return graph()->zone(); }
@@ -130,6 +135,7 @@ class JSGraph : public ZoneObject {
  private:
   enum CachedNode {
     kCEntryStubConstant,
+    kEmptyFixedArrayConstant,
     kUndefinedConstant,
     kTheHoleConstant,
     kTrueConstant,
@@ -147,11 +153,11 @@ class JSGraph : public ZoneObject {
   Graph* graph_;
   CommonOperatorBuilder* common_;
   JSOperatorBuilder* javascript_;
+  SimplifiedOperatorBuilder* simplified_;
   MachineOperatorBuilder* machine_;
   CommonNodeCache cache_;
   Node* cached_nodes_[kNumCachedNodes];
 
-  Node* ImmovableHeapConstant(Handle<HeapObject> value);
   Node* NumberConstant(double value);
 
   DISALLOW_COPY_AND_ASSIGN(JSGraph);

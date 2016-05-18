@@ -48,7 +48,8 @@ using i::Vector;
 
 
 TEST(ProfileNodeFindOrAddChild) {
-  ProfileTree tree;
+  CcTest::InitializeVM();
+  ProfileTree tree(CcTest::i_isolate());
   ProfileNode* node = tree.root();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
   ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
@@ -72,8 +73,9 @@ TEST(ProfileNodeFindOrAddChild) {
 
 
 TEST(ProfileNodeFindOrAddChildForSameFunction) {
+  CcTest::InitializeVM();
   const char* aaa = "aaa";
-  ProfileTree tree;
+  ProfileTree tree(CcTest::i_isolate());
   ProfileNode* node = tree.root();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, aaa);
   ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
@@ -119,10 +121,11 @@ class ProfileTreeTestHelper {
 
 
 TEST(ProfileTreeAddPathFromEnd) {
+  CcTest::InitializeVM();
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry entry2(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry entry3(i::Logger::FUNCTION_TAG, "ccc");
-  ProfileTree tree;
+  ProfileTree tree(CcTest::i_isolate());
   ProfileTreeTestHelper helper(&tree);
   CHECK(!helper.Walk(&entry1));
   CHECK(!helper.Walk(&entry2));
@@ -178,7 +181,8 @@ TEST(ProfileTreeAddPathFromEnd) {
 
 
 TEST(ProfileTreeCalculateTotalTicks) {
-  ProfileTree empty_tree;
+  CcTest::InitializeVM();
+  ProfileTree empty_tree(CcTest::i_isolate());
   CHECK_EQ(0u, empty_tree.root()->self_ticks());
   empty_tree.root()->IncrementSelfTicks();
   CHECK_EQ(1u, empty_tree.root()->self_ticks());
@@ -188,7 +192,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   Vector<CodeEntry*> e1_path_vec(
       e1_path, sizeof(e1_path) / sizeof(e1_path[0]));
 
-  ProfileTree single_child_tree;
+  ProfileTree single_child_tree(CcTest::i_isolate());
   single_child_tree.AddPathFromEnd(e1_path_vec);
   single_child_tree.root()->IncrementSelfTicks();
   CHECK_EQ(1u, single_child_tree.root()->self_ticks());
@@ -203,7 +207,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   Vector<CodeEntry*> e2_e1_path_vec(e2_e1_path,
                                     sizeof(e2_e1_path) / sizeof(e2_e1_path[0]));
 
-  ProfileTree flat_tree;
+  ProfileTree flat_tree(CcTest::i_isolate());
   ProfileTreeTestHelper flat_helper(&flat_tree);
   flat_tree.AddPathFromEnd(e1_path_vec);
   flat_tree.AddPathFromEnd(e1_path_vec);
@@ -230,7 +234,7 @@ TEST(ProfileTreeCalculateTotalTicks) {
   Vector<CodeEntry*> e3_path_vec(
       e3_path, sizeof(e3_path) / sizeof(e3_path[0]));
 
-  ProfileTree wide_tree;
+  ProfileTree wide_tree(CcTest::i_isolate());
   ProfileTreeTestHelper wide_helper(&wide_tree);
   wide_tree.AddPathFromEnd(e1_path_vec);
   wide_tree.AddPathFromEnd(e1_path_vec);
@@ -424,11 +428,13 @@ TEST(SampleIds) {
   // (root)#1 -> aaa #2 -> bbb #4 -> ccc #5 - sample2
   //                    -> ccc #6 -> aaa #7 - sample3
   TickSample sample1;
+  sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample1.pc = ToAddress(0x1600);
   sample1.stack[0] = ToAddress(0x1510);
   sample1.frames_count = 1;
   generator.RecordTickSample(sample1);
   TickSample sample2;
+  sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample2.pc = ToAddress(0x1925);
   sample2.stack[0] = ToAddress(0x1780);
   sample2.stack[1] = ToAddress(0x10000);  // non-existent.
@@ -436,6 +442,7 @@ TEST(SampleIds) {
   sample2.frames_count = 3;
   generator.RecordTickSample(sample2);
   TickSample sample3;
+  sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
   sample3.pc = ToAddress(0x1510);
   sample3.stack[0] = ToAddress(0x1910);
   sample3.stack[1] = ToAddress(0x1610);
@@ -493,6 +500,7 @@ static const ProfileNode* PickChild(const ProfileNode* parent,
 TEST(RecordStackTraceAtStartProfiling) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
+  i::FLAG_turbo_inlining = false;
   i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
@@ -568,6 +576,7 @@ static const v8::CpuProfileNode* PickChild(const v8::CpuProfileNode* parent,
 TEST(ProfileNodeScriptId) {
   // This test does not pass with inlining enabled since inlined functions
   // don't appear in the stack trace.
+  i::FLAG_turbo_inlining = false;
   i::FLAG_use_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
@@ -577,15 +586,16 @@ TEST(ProfileNodeScriptId) {
   v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
   i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
   CHECK_EQ(0, iprofiler->GetProfilesCount());
-  v8::Handle<v8::Script> script_a = v8::Script::Compile(v8::String::NewFromUtf8(
-      env->GetIsolate(), "function a() { startProfiling(); }\n"));
-  script_a->Run();
-  v8::Handle<v8::Script> script_b =
-      v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
-                                                  "function b() { a(); }\n"
-                                                  "b();\n"
-                                                  "stopProfiling();\n"));
-  script_b->Run();
+  v8::Local<v8::Script> script_a =
+      v8_compile(v8_str("function a() { startProfiling(); }\n"));
+  script_a->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
+      .ToLocalChecked();
+  v8::Local<v8::Script> script_b =
+      v8_compile(v8_str("function b() { a(); }\n"
+                        "b();\n"
+                        "stopProfiling();\n"));
+  script_b->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
+      .ToLocalChecked();
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
@@ -632,9 +642,13 @@ static const char* line_number_test_source_profile_time_functions =
 int GetFunctionLineNumber(LocalContext* env, const char* name) {
   CpuProfiler* profiler = CcTest::i_isolate()->cpu_profiler();
   CodeMap* code_map = profiler->generator()->code_map();
-  i::Handle<i::JSFunction> func = v8::Utils::OpenHandle(
-      *v8::Local<v8::Function>::Cast(
-          (*(*env))->Global()->Get(v8_str(name))));
+  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          (*(*env))
+              ->Global()
+              ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                    v8_str(name))
+              .ToLocalChecked())));
   CodeEntry* func_entry = code_map->FindEntry(func->code()->address());
   if (!func_entry)
     FATAL(name);
@@ -679,20 +693,19 @@ TEST(BailoutReason) {
   v8::CpuProfiler* profiler = env->GetIsolate()->GetCpuProfiler();
   i::CpuProfiler* iprofiler = reinterpret_cast<i::CpuProfiler*>(profiler);
   CHECK_EQ(0, iprofiler->GetProfilesCount());
-  v8::Handle<v8::Script> script =
-      v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
-                                                  "function Debugger() {\n"
-                                                  "  debugger;\n"
-                                                  "  startProfiling();\n"
-                                                  "}\n"
-                                                  "function TryFinally() {\n"
-                                                  "  try {\n"
-                                                  "    Debugger();\n"
-                                                  "  } finally { };\n"
-                                                  "}\n"
-                                                  "TryFinally();\n"
-                                                  "stopProfiling();"));
-  script->Run();
+  v8::Local<v8::Script> script =
+      v8_compile(v8_str("function Debugger() {\n"
+                        "  debugger;\n"
+                        "  startProfiling();\n"
+                        "}\n"
+                        "function TryFinally() {\n"
+                        "  try {\n"
+                        "    Debugger();\n"
+                        "  } finally { };\n"
+                        "}\n"
+                        "TryFinally();\n"
+                        "stopProfiling();"));
+  script->Run(v8::Isolate::GetCurrent()->GetCurrentContext()).ToLocalChecked();
   CHECK_EQ(1, iprofiler->GetProfilesCount());
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   CHECK(profile);

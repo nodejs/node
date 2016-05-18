@@ -38,25 +38,21 @@ SSL v2 and for SSL v3/TLS v1.
 
 Like B<-v>, but include cipher suite codes in output (hex format).
 
-=item B<-ssl3>
+=item B<-ssl3>, B<-tls1>
 
-only include SSL v3 ciphers.
+This lists ciphers compatible with any of SSLv3, TLSv1, TLSv1.1 or TLSv1.2.
 
 =item B<-ssl2>
 
-only include SSL v2 ciphers.
-
-=item B<-tls1>
-
-only include TLS v1 ciphers.
+Only include SSLv2 ciphers.
 
 =item B<-h>, B<-?>
 
-print a brief usage message.
+Print a brief usage message.
 
 =item B<cipherlist>
 
-a cipher list to convert to a cipher preference list. If it is not included
+A cipher list to convert to a cipher preference list. If it is not included
 then the default cipher list will be used. The format is described below.
 
 =back
@@ -109,9 +105,10 @@ The following is a list of all permitted cipher strings and their meanings.
 
 =item B<DEFAULT>
 
-the default cipher list. This is determined at compile time and
-is normally B<ALL:!EXPORT:!aNULL:!eNULL:!SSLv2>. This must be the firstcipher string
-specified.
+The default cipher list.
+This is determined at compile time and is normally
+B<ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2>.
+When used, this must be the first cipherstring specified.
 
 =item B<COMPLEMENTOFDEFAULT>
 
@@ -139,34 +136,46 @@ than 128 bits, and some cipher suites with 128-bit keys.
 
 =item B<LOW>
 
-"low" encryption cipher suites, currently those using 64 or 56 bit encryption algorithms
-but excluding export cipher suites.
+Low strength encryption cipher suites, currently those using 64 or 56 bit
+encryption algorithms but excluding export cipher suites.
+As of OpenSSL 1.0.2g, these are disabled in default builds.
 
 =item B<EXP>, B<EXPORT>
 
-export encryption algorithms. Including 40 and 56 bits algorithms.
+Export strength encryption algorithms. Including 40 and 56 bits algorithms.
+As of OpenSSL 1.0.2g, these are disabled in default builds.
 
 =item B<EXPORT40>
 
-40 bit export encryption algorithms
+40-bit export encryption algorithms
+As of OpenSSL 1.0.2g, these are disabled in default builds.
 
 =item B<EXPORT56>
 
-56 bit export encryption algorithms. In OpenSSL 0.9.8c and later the set of
+56-bit export encryption algorithms. In OpenSSL 0.9.8c and later the set of
 56 bit export ciphers is empty unless OpenSSL has been explicitly configured
 with support for experimental ciphers.
+As of OpenSSL 1.0.2g, these are disabled in default builds.
 
 =item B<eNULL>, B<NULL>
 
-the "NULL" ciphers that is those offering no encryption. Because these offer no
-encryption at all and are a security risk they are disabled unless explicitly
-included.
+The "NULL" ciphers that is those offering no encryption. Because these offer no
+encryption at all and are a security risk they are not enabled via either the
+B<DEFAULT> or B<ALL> cipher strings.
+Be careful when building cipherlists out of lower-level primitives such as
+B<kRSA> or B<aECDSA> as these do overlap with the B<eNULL> ciphers.
+When in doubt, include B<!eNULL> in your cipherlist.
 
 =item B<aNULL>
 
-the cipher suites offering no authentication. This is currently the anonymous
+The cipher suites offering no authentication. This is currently the anonymous
 DH algorithms and anonymous ECDH algorithms. These cipher suites are vulnerable
 to a "man in the middle" attack and so their use is normally discouraged.
+These are excluded from the B<DEFAULT> ciphers, but included in the B<ALL>
+ciphers.
+Be careful when building cipherlists out of lower-level primitives such as
+B<kDHE> or B<AES> as these do overlap with the B<aNULL> ciphers.
+When in doubt, include B<!aNULL> in your cipherlist.
 
 =item B<kRSA>, B<RSA>
 
@@ -582,11 +591,11 @@ Note: these ciphers can also be used in SSL v3.
 =head2 Deprecated SSL v2.0 cipher suites.
 
  SSL_CK_RC4_128_WITH_MD5                 RC4-MD5
- SSL_CK_RC4_128_EXPORT40_WITH_MD5        EXP-RC4-MD5
- SSL_CK_RC2_128_CBC_WITH_MD5             RC2-MD5
- SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5    EXP-RC2-MD5
+ SSL_CK_RC4_128_EXPORT40_WITH_MD5        Not implemented.
+ SSL_CK_RC2_128_CBC_WITH_MD5             RC2-CBC-MD5
+ SSL_CK_RC2_128_CBC_EXPORT40_WITH_MD5    Not implemented.
  SSL_CK_IDEA_128_CBC_WITH_MD5            IDEA-CBC-MD5
- SSL_CK_DES_64_CBC_WITH_MD5              DES-CBC-MD5
+ SSL_CK_DES_64_CBC_WITH_MD5              Not implemented.
  SSL_CK_DES_192_EDE3_CBC_WITH_MD5        DES-CBC3-MD5
 
 =head1 NOTES

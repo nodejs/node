@@ -1,6 +1,5 @@
 'use strict';
 var assert = require('assert');
-var cp = require('child_process');
 var fs = require('fs');
 var path = require('path');
 var common = require('../common');
@@ -33,7 +32,7 @@ else {
     env: envCopy
   });
   child.on('message', common.mustCall(function(recv) {
-    assert.deepEqual(msg, recv);
+    assert.deepStrictEqual(msg, recv);
   }));
   child.on('exit', common.mustCall(function(code) {
     fs.unlinkSync(copyPath);

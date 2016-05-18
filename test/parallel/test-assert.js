@@ -1,5 +1,6 @@
+/* eslint no-deepEqual: 0 */
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var a = require('assert');
 
@@ -10,7 +11,7 @@ function makeBlock(f) {
   };
 }
 
-assert.ok(common.indirectInstanceOf(a.AssertionError.prototype, Error),
+assert.ok(a.AssertionError.prototype instanceof Error,
           'a.AssertionError instanceof Error');
 
 assert.throws(makeBlock(a, false), a.AssertionError, 'ok(false)');
@@ -27,39 +28,46 @@ assert.doesNotThrow(makeBlock(a.ok, true),
 
 assert.doesNotThrow(makeBlock(a.ok, 'test'), 'ok(\'test\')');
 
-assert.throws(makeBlock(a.equal, true, false), a.AssertionError, 'equal');
+assert.throws(makeBlock(a.equal, true, false),
+                a.AssertionError, 'equal(true, false)');
 
-assert.doesNotThrow(makeBlock(a.equal, null, null), 'equal');
+assert.doesNotThrow(makeBlock(a.equal, null, null),
+                    'equal(null, null)');
 
-assert.doesNotThrow(makeBlock(a.equal, undefined, undefined), 'equal');
+assert.doesNotThrow(makeBlock(a.equal, undefined, undefined),
+                    'equal(undefined, undefined)');
 
-assert.doesNotThrow(makeBlock(a.equal, null, undefined), 'equal');
+assert.doesNotThrow(makeBlock(a.equal, null, undefined),
+                    'equal(null, undefined)');
 
-assert.doesNotThrow(makeBlock(a.equal, true, true), 'equal');
+assert.doesNotThrow(makeBlock(a.equal, true, true), 'equal(true, true)');
 
-assert.doesNotThrow(makeBlock(a.equal, 2, '2'), 'equal');
+assert.doesNotThrow(makeBlock(a.equal, 2, '2'), 'equal(2, \'2\')');
 
-assert.doesNotThrow(makeBlock(a.notEqual, true, false), 'notEqual');
+assert.doesNotThrow(makeBlock(a.notEqual, true, false),
+                    'notEqual(true, false)');
 
 assert.throws(makeBlock(a.notEqual, true, true),
-              a.AssertionError, 'notEqual');
+              a.AssertionError, 'notEqual(true, true)');
 
 assert.throws(makeBlock(a.strictEqual, 2, '2'),
-              a.AssertionError, 'strictEqual');
+              a.AssertionError, 'strictEqual(2, \'2\')');
 
 assert.throws(makeBlock(a.strictEqual, null, undefined),
-              a.AssertionError, 'strictEqual');
+              a.AssertionError, 'strictEqual(null, undefined)');
 
-assert.doesNotThrow(makeBlock(a.notStrictEqual, 2, '2'), 'notStrictEqual');
+assert.doesNotThrow(makeBlock(a.notStrictEqual, 2, '2'),
+                    'notStrictEqual(2, \'2\')');
 
 // deepEquals joy!
 // 7.2
 assert.doesNotThrow(makeBlock(a.deepEqual, new Date(2000, 3, 14),
-                    new Date(2000, 3, 14)), 'deepEqual date');
+                    new Date(2000, 3, 14)),
+                    'deepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))');
 
 assert.throws(makeBlock(a.deepEqual, new Date(), new Date(2000, 3, 14)),
               a.AssertionError,
-              'deepEqual date');
+              'deepEqual(new Date(), new Date(2000, 3, 14))');
 
 // 7.3
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/, /a/));
@@ -73,17 +81,19 @@ assert.throws(makeBlock(a.deepEqual, /a/i, /a/));
 assert.throws(makeBlock(a.deepEqual, /a/m, /a/));
 assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im));
 
-var re1 = /a/;
-re1.lastIndex = 3;
-assert.throws(makeBlock(a.deepEqual, re1, /a/));
+{
+  const re1 = /a/;
+  re1.lastIndex = 3;
+  assert.throws(makeBlock(a.deepEqual, re1, /a/));
+}
 
 
 // 7.4
-assert.doesNotThrow(makeBlock(a.deepEqual, 4, '4'), 'deepEqual == check');
-assert.doesNotThrow(makeBlock(a.deepEqual, true, 1), 'deepEqual == check');
+assert.doesNotThrow(makeBlock(a.deepEqual, 4, '4'), 'deepEqual(4, \'4\')');
+assert.doesNotThrow(makeBlock(a.deepEqual, true, 1), 'deepEqual(true, 1)');
 assert.throws(makeBlock(a.deepEqual, 4, '5'),
               a.AssertionError,
-              'deepEqual == check');
+              'deepEqual( 4, \'5\')');
 
 // 7.5
 // having the same number of owned properties && the same set of keys
@@ -154,11 +164,13 @@ assert.doesNotThrow(makeBlock(a.deepEqual, new Boolean(true), {}),
 
 //deepStrictEqual
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, new Date(2000, 3, 14),
-                    new Date(2000, 3, 14)), 'deepStrictEqual date');
+                    new Date(2000, 3, 14)),
+                    'deepStrictEqual(new Date(2000, 3, 14),\
+                    new Date(2000, 3, 14))');
 
 assert.throws(makeBlock(a.deepStrictEqual, new Date(), new Date(2000, 3, 14)),
               a.AssertionError,
-              'deepStrictEqual date');
+              'deepStrictEqual(new Date(), new Date(2000, 3, 14))');
 
 // 7.3 - strict
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/, /a/));
@@ -172,23 +184,24 @@ assert.throws(makeBlock(a.deepStrictEqual, /a/i, /a/));
 assert.throws(makeBlock(a.deepStrictEqual, /a/m, /a/));
 assert.throws(makeBlock(a.deepStrictEqual, /a/igm, /a/im));
 
-var re1 = /a/;
-re1.lastIndex = 3;
-assert.throws(makeBlock(a.deepStrictEqual, re1, /a/));
-
+{
+  const re1 = /a/;
+  re1.lastIndex = 3;
+  assert.throws(makeBlock(a.deepStrictEqual, re1, /a/));
+}
 
 // 7.4 - strict
 assert.throws(makeBlock(a.deepStrictEqual, 4, '4'),
               a.AssertionError,
-              'deepStrictEqual === check');
+              'deepStrictEqual(4, \'4\')');
 
 assert.throws(makeBlock(a.deepStrictEqual, true, 1),
               a.AssertionError,
-              'deepStrictEqual === check');
+              'deepStrictEqual(true, 1)');
 
 assert.throws(makeBlock(a.deepStrictEqual, 4, '5'),
               a.AssertionError,
-              'deepStrictEqual === check');
+              'deepStrictEqual(4, \'5\')');
 
 // 7.5 - strict
 // having the same number of owned properties && the same set of keys
@@ -271,8 +284,6 @@ assert.throws(makeBlock(a.deepStrictEqual, new Boolean(true), {}),
 function thrower(errorConstructor) {
   throw new errorConstructor('test');
 }
-var aethrow = makeBlock(thrower, a.AssertionError);
-aethrow = makeBlock(thrower, a.AssertionError);
 
 // the basic calls work
 assert.throws(makeBlock(thrower, a.AssertionError),
@@ -320,6 +331,11 @@ assert.throws(function() {assert.ifError(new Error('test error'));});
 assert.doesNotThrow(function() {assert.ifError(null);});
 assert.doesNotThrow(function() {assert.ifError();});
 
+assert.throws(() => {
+  assert.doesNotThrow(makeBlock(thrower, Error), 'user message');
+}, /Got unwanted exception. user message/,
+   'a.doesNotThrow ignores user message');
+
 // make sure that validating using constructor really works
 threw = false;
 try {
@@ -360,30 +376,38 @@ try {
 } catch (e) {
   threw = true;
   assert(e instanceof AnotherErrorType,
-    `expected AnotherErrorType, received ${e}`);
+         `expected AnotherErrorType, received ${e}`);
 }
 
 assert.ok(threw);
 
-// GH-207. Make sure deepEqual doesn't loop forever on circular refs
-var b = {};
-b.b = b;
+// https://github.com/nodejs/node/issues/6416
+// Make sure circular refs don't throw.
+{
+  const b = {};
+  b.b = b;
 
-var c = {};
-c.b = c;
+  const c = {};
+  c.b = c;
 
-var gotError = false;
-try {
-  assert.deepEqual(b, c);
-} catch (e) {
-  gotError = true;
+  a.doesNotThrow(makeBlock(a.deepEqual, b, c));
+  a.doesNotThrow(makeBlock(a.deepStrictEqual, b, c));
+
+  const d = {};
+  d.a = 1;
+  d.b = d;
+
+  const e = {};
+  e.a = 1;
+  e.b = e.a;
+
+  a.throws(makeBlock(a.deepEqual, d, e), /AssertionError/);
+  a.throws(makeBlock(a.deepStrictEqual, d, e), /AssertionError/);
 }
-
 // GH-7178. Ensure reflexivity of deepEqual with `arguments` objects.
 var args = (function() { return arguments; })();
 a.throws(makeBlock(a.deepEqual, [], args));
 a.throws(makeBlock(a.deepEqual, args, []));
-assert.ok(gotError);
 
 
 var circular = {y: 1};
@@ -446,7 +470,7 @@ try {
 } catch (e) {
   assert.equal(e.toString().split('\n')[0], 'AssertionError: oh no');
   assert.equal(e.generatedMessage, false,
-              'Message incorrectly marked as generated');
+               'Message incorrectly marked as generated');
 }
 
 // Verify that throws() and doesNotThrow() throw on non-function block
@@ -484,7 +508,7 @@ testBlockTypeError(assert.throws, undefined);
 testBlockTypeError(assert.doesNotThrow, undefined);
 
 // https://github.com/nodejs/node/issues/3275
-assert.throws(() => { throw 'error'; }, err => err === 'error');
-assert.throws(() => { throw new Error(); }, err => err instanceof Error);
+assert.throws(() => { throw 'error'; }, (err) => err === 'error');
+assert.throws(() => { throw new Error(); }, (err) => err instanceof Error);
 
 console.log('All OK');

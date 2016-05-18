@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var Transform = require('stream').Transform;
@@ -21,7 +21,7 @@ var t = new Transform({
   flush: _flush
 });
 
-t.end(new Buffer('blerg'));
+t.end(Buffer.from('blerg'));
 t.resume();
 
 process.on('exit', function() {

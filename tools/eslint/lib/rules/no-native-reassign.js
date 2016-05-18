@@ -9,54 +9,75 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-
-    var NATIVE_OBJECTS = ["Array", "Boolean", "Date", "decodeURI",
-                        "decodeURIComponent", "encodeURI", "encodeURIComponent",
-                        "Error", "eval", "EvalError", "Function", "isFinite",
-                        "isNaN", "JSON", "Math", "Number", "Object", "parseInt",
-                        "parseFloat", "RangeError", "ReferenceError", "RegExp",
-                        "String", "SyntaxError", "TypeError", "URIError",
-                        "Map", "NaN", "Set", "WeakMap", "Infinity", "undefined"];
-    var config = context.options[0] || {};
-    var exceptions = config.exceptions || [];
-    var modifiedNativeObjects = NATIVE_OBJECTS;
-
-    if (exceptions.length) {
-        modifiedNativeObjects = NATIVE_OBJECTS.filter(function(builtIn) {
-            return exceptions.indexOf(builtIn) === -1;
-        });
-    }
-
-    return {
-
-        "AssignmentExpression": function(node) {
-            if (modifiedNativeObjects.indexOf(node.left.name) >= 0) {
-                context.report(node, node.left.name + " is a read-only native object.");
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow reassigning native objects",
+            category: "Best Practices",
+            recommended: false
         },
 
-        "VariableDeclarator": function(node) {
-            if (modifiedNativeObjects.indexOf(node.id.name) >= 0) {
-                context.report(node, "Redefinition of '{{nativeObject}}'.", { nativeObject: node.id.name });
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    exceptions: {
+                        type: "array",
+                        items: {type: "string"},
+                        uniqueItems: true
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
+
+    create: function(context) {
+        var config = context.options[0];
+        var exceptions = (config && config.exceptions) || [];
+
+        /**
+         * Reports write references.
+         * @param {Reference} reference - A reference to check.
+         * @param {int} index - The index of the reference in the references.
+         * @param {Reference[]} references - The array that the reference belongs to.
+         * @returns {void}
+         */
+        function checkReference(reference, index, references) {
+            var identifier = reference.identifier;
+
+            if (reference.init === false &&
+                reference.isWrite() &&
+
+                // Destructuring assignments can have multiple default value,
+                // so possibly there are multiple writeable references for the same identifier.
+                (index === 0 || references[index - 1].identifier !== identifier)
+            ) {
+                context.report({
+                    node: identifier,
+                    message: "{{name}} is a read-only native object.",
+                    data: identifier
+                });
             }
         }
-    };
 
-};
-
-module.exports.schema = [
-    {
-        "type": "object",
-        "properties": {
-            "exceptions": {
-                "type": "array",
-                "items": {
-                    "type": "string"
-                },
-                "uniqueItems": true
+        /**
+         * Reports write references if a given variable is readonly builtin.
+         * @param {Variable} variable - A variable to check.
+         * @returns {void}
+         */
+        function checkVariable(variable) {
+            if (variable.writeable === false && exceptions.indexOf(variable.name) === -1) {
+                variable.references.forEach(checkReference);
             }
-        },
-        "additionalProperties": false
+        }
+
+        return {
+            Program: function() {
+                var globalScope = context.getScope();
+
+                globalScope.variables.forEach(checkVariable);
+            }
+        };
     }
-];
+};

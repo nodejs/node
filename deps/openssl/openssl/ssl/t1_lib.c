@@ -1539,6 +1539,7 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *buf,
         s2n(s->alpn_client_proto_list_len, ret);
         memcpy(ret, s->alpn_client_proto_list, s->alpn_client_proto_list_len);
         ret += s->alpn_client_proto_list_len;
+        s->cert->alpn_sent = 1;
     }
 # ifndef OPENSSL_NO_SRTP
     if (SSL_IS_DTLS(s) && SSL_get_srtp_profiles(s)) {
@@ -1906,7 +1907,7 @@ static void ssl_check_for_safari(SSL *s, const unsigned char *data,
 # endif                         /* !OPENSSL_NO_EC */
 
 /*
- * tls1_alpn_handle_client_hello is called to process the ALPN extension in a
+ * tls1_alpn_handle_client_hello is called to save the ALPN extension in a
  * ClientHello.  data: the contents of the extension, not including the type
  * and length.  data_len: the number of bytes in |data| al: a pointer to the
  * alert value to send in the event of a non-zero return.  returns: 0 on
@@ -1917,12 +1918,6 @@ static int tls1_alpn_handle_client_hello(SSL *s, const unsigned char *data,
 {
     unsigned i;
     unsigned proto_len;
-    const unsigned char *selected;
-    unsigned char selected_len;
-    int r;
-
-    if (s->ctx->alpn_select_cb == NULL)
-        return 0;
 
     if (data_len < 2)
         goto parse_error;
@@ -1953,24 +1948,57 @@ static int tls1_alpn_handle_client_hello(SSL *s, const unsigned char *data,
         i += proto_len;
     }
 
-    r = s->ctx->alpn_select_cb(s, &selected, &selected_len, data, data_len,
-                               s->ctx->alpn_select_cb_arg);
-    if (r == SSL_TLSEXT_ERR_OK) {
-        if (s->s3->alpn_selected)
-            OPENSSL_free(s->s3->alpn_selected);
-        s->s3->alpn_selected = OPENSSL_malloc(selected_len);
-        if (!s->s3->alpn_selected) {
-            *al = SSL_AD_INTERNAL_ERROR;
-            return -1;
-        }
-        memcpy(s->s3->alpn_selected, selected, selected_len);
-        s->s3->alpn_selected_len = selected_len;
+    if (s->cert->alpn_proposed != NULL)
+        OPENSSL_free(s->cert->alpn_proposed);
+    s->cert->alpn_proposed = OPENSSL_malloc(data_len);
+    if (s->cert->alpn_proposed == NULL) {
+        *al = SSL_AD_INTERNAL_ERROR;
+        return -1;
     }
+    memcpy(s->cert->alpn_proposed, data, data_len);
+    s->cert->alpn_proposed_len = data_len;
     return 0;
 
  parse_error:
     *al = SSL_AD_DECODE_ERROR;
     return -1;
+}
+
+/*
+ * Process the ALPN extension in a ClientHello.
+ * ret: a pointer to the TLSEXT return value: SSL_TLSEXT_ERR_*
+ * al: a pointer to the alert value to send in the event of a failure.
+ * returns 1 on success, 0 on failure: al/ret set only on failure
+ */
+static int tls1_alpn_handle_client_hello_late(SSL *s, int *ret, int *al)
+{
+    const unsigned char *selected = NULL;
+    unsigned char selected_len = 0;
+
+    if (s->ctx->alpn_select_cb != NULL && s->cert->alpn_proposed != NULL) {
+        int r = s->ctx->alpn_select_cb(s, &selected, &selected_len,
+                                       s->cert->alpn_proposed,
+                                       s->cert->alpn_proposed_len,
+                                       s->ctx->alpn_select_cb_arg);
+
+        if (r == SSL_TLSEXT_ERR_OK) {
+            OPENSSL_free(s->s3->alpn_selected);
+            s->s3->alpn_selected = OPENSSL_malloc(selected_len);
+            if (s->s3->alpn_selected == NULL) {
+                *al = SSL_AD_INTERNAL_ERROR;
+                *ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+                return 0;
+            }
+            memcpy(s->s3->alpn_selected, selected, selected_len);
+            s->s3->alpn_selected_len = selected_len;
+# ifndef OPENSSL_NO_NEXTPROTONEG
+            /* ALPN takes precedence over NPN. */
+            s->s3->next_proto_neg_seen = 0;
+# endif
+        }
+    }
+
+    return 1;
 }
 
 static int ssl_scan_clienthello_tlsext(SSL *s, unsigned char **p,
@@ -1992,6 +2020,12 @@ static int ssl_scan_clienthello_tlsext(SSL *s, unsigned char **p,
         OPENSSL_free(s->s3->alpn_selected);
         s->s3->alpn_selected = NULL;
     }
+    s->s3->alpn_selected_len = 0;
+    if (s->cert->alpn_proposed) {
+        OPENSSL_free(s->cert->alpn_proposed);
+        s->cert->alpn_proposed = NULL;
+    }
+    s->cert->alpn_proposed_len = 0;
 # ifndef OPENSSL_NO_HEARTBEATS
     s->tlsext_heartbeat &= ~(SSL_TLSEXT_HB_ENABLED |
                              SSL_TLSEXT_HB_DONT_SEND_REQUESTS);
@@ -2359,8 +2393,7 @@ static int ssl_scan_clienthello_tlsext(SSL *s, unsigned char **p,
 # endif
 # ifndef OPENSSL_NO_NEXTPROTONEG
         else if (type == TLSEXT_TYPE_next_proto_neg &&
-                 s->s3->tmp.finish_md_len == 0 &&
-                 s->s3->alpn_selected == NULL) {
+                 s->s3->tmp.finish_md_len == 0) {
             /*-
              * We shouldn't accept this extension on a
              * renegotiation.
@@ -2383,13 +2416,9 @@ static int ssl_scan_clienthello_tlsext(SSL *s, unsigned char **p,
 # endif
 
         else if (type == TLSEXT_TYPE_application_layer_protocol_negotiation &&
-                 s->ctx->alpn_select_cb && s->s3->tmp.finish_md_len == 0) {
+                 s->s3->tmp.finish_md_len == 0) {
             if (tls1_alpn_handle_client_hello(s, data, size, al) != 0)
                 return 0;
-# ifndef OPENSSL_NO_NEXTPROTONEG
-            /* ALPN takes precedence over NPN. */
-            s->s3->next_proto_neg_seen = 0;
-# endif
         }
 
         /* session ticket processed earlier */
@@ -2698,7 +2727,7 @@ static int ssl_scan_serverhello_tlsext(SSL *s, unsigned char **p,
             unsigned len;
 
             /* We must have requested it. */
-            if (s->alpn_client_proto_list == NULL) {
+            if (!s->cert->alpn_sent) {
                 *al = TLS1_AD_UNSUPPORTED_EXTENSION;
                 return 0;
             }
@@ -2863,6 +2892,7 @@ int ssl_prepare_clienthello_tlsext(SSL *s)
     }
 # endif
 
+    s->cert->alpn_sent = 0;
     return 1;
 }
 
@@ -3066,6 +3096,10 @@ int ssl_check_clienthello_tlsext_late(SSL *s)
     } else
         s->tlsext_status_expected = 0;
 
+    if (!tls1_alpn_handle_client_hello_late(s, &ret, &al)) {
+        goto err;
+    }
+
  err:
     switch (ret) {
     case SSL_TLSEXT_ERR_ALERT_FATAL:
@@ -3157,22 +3191,20 @@ int ssl_check_serverhello_tlsext(SSL *s)
     }
 # endif
 
+    OPENSSL_free(s->tlsext_ocsp_resp);
+    s->tlsext_ocsp_resp = NULL;
+    s->tlsext_ocsp_resplen = -1;
     /*
      * If we've requested certificate status and we wont get one tell the
      * callback
      */
     if ((s->tlsext_status_type != -1) && !(s->tlsext_status_expected)
-        && s->ctx && s->ctx->tlsext_status_cb) {
+        && !(s->hit) && s->ctx && s->ctx->tlsext_status_cb) {
         int r;
         /*
-         * Set resp to NULL, resplen to -1 so callback knows there is no
-         * response.
+         * Call callback with resp == NULL and resplen == -1 so callback
+         * knows there is no response
          */
-        if (s->tlsext_ocsp_resp) {
-            OPENSSL_free(s->tlsext_ocsp_resp);
-            s->tlsext_ocsp_resp = NULL;
-        }
-        s->tlsext_ocsp_resplen = -1;
         r = s->ctx->tlsext_status_cb(s, s->ctx->tlsext_status_arg);
         if (r == 0) {
             al = SSL_AD_BAD_CERTIFICATE_STATUS_RESPONSE;
@@ -3417,8 +3449,10 @@ static int tls_decrypt_ticket(SSL *s, const unsigned char *etick,
     p = etick + 16 + EVP_CIPHER_CTX_iv_length(&ctx);
     eticklen -= 16 + EVP_CIPHER_CTX_iv_length(&ctx);
     sdec = OPENSSL_malloc(eticklen);
-    if (!sdec || EVP_DecryptUpdate(&ctx, sdec, &slen, p, eticklen) <= 0) {
+    if (sdec == NULL
+            || EVP_DecryptUpdate(&ctx, sdec, &slen, p, eticklen) <= 0) {
         EVP_CIPHER_CTX_cleanup(&ctx);
+        OPENSSL_free(sdec);
         return -1;
     }
     if (EVP_DecryptFinal(&ctx, sdec + slen, &mlen) <= 0) {
@@ -3583,7 +3617,7 @@ static int tls12_get_pkey_idx(unsigned char sig_alg)
 static void tls1_lookup_sigalg(int *phash_nid, int *psign_nid,
                                int *psignhash_nid, const unsigned char *data)
 {
-    int sign_nid = 0, hash_nid = 0;
+    int sign_nid = NID_undef, hash_nid = NID_undef;
     if (!phash_nid && !psign_nid && !psignhash_nid)
         return;
     if (phash_nid || psignhash_nid) {
@@ -3599,9 +3633,9 @@ static void tls1_lookup_sigalg(int *phash_nid, int *psign_nid,
             *psign_nid = sign_nid;
     }
     if (psignhash_nid) {
-        if (sign_nid && hash_nid)
-            OBJ_find_sigid_by_algs(psignhash_nid, hash_nid, sign_nid);
-        else
+        if (sign_nid == NID_undef || hash_nid == NID_undef
+                || OBJ_find_sigid_by_algs(psignhash_nid, hash_nid,
+                                          sign_nid) <= 0)
             *psignhash_nid = NID_undef;
     }
 }
@@ -3858,6 +3892,8 @@ int tls1_process_heartbeat(SSL *s)
          * plus 2 bytes payload length, plus payload, plus padding
          */
         buffer = OPENSSL_malloc(1 + 2 + payload + padding);
+        if (buffer == NULL)
+            return -1;
         bp = buffer;
 
         /* Enter response type, length and copy payload */

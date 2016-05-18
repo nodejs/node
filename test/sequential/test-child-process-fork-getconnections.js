@@ -11,7 +11,7 @@ if (process.argv[2] === 'child') {
   process.on('message', function(m, socket) {
     function sendClosed(id) {
       process.send({ id: id, status: 'closed'});
-    };
+    }
 
     if (m.cmd === 'new') {
       assert(socket);
@@ -56,9 +56,9 @@ if (process.argv[2] === 'child') {
 
   let disconnected = 0;
   server.on('listening', function() {
-    let j = count, client;
+    let j = count;
     while (j--) {
-      client = net.connect(common.PORT, '127.0.0.1');
+      const client = net.connect(common.PORT, '127.0.0.1');
       client.on('close', function() {
         disconnected += 1;
       });
@@ -82,7 +82,7 @@ if (process.argv[2] === 'child') {
     });
     sent++;
     child.send({ id: i, cmd: 'close' });
-  };
+  }
 
   let closeEmitted = false;
   server.on('close', function() {

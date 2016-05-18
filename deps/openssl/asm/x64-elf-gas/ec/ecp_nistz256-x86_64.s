@@ -332,7 +332,7 @@ ecp_nistz256_neg:
 .type	ecp_nistz256_to_mont,@function
 .align	32
 ecp_nistz256_to_mont:
-	movl	$524544,%ecx
+	movl	$0x80100,%ecx
 	andl	OPENSSL_ia32cap_P+8(%rip),%ecx
 	leaq	.LRR(%rip),%rdx
 	jmp	.Lmul_mont
@@ -348,7 +348,7 @@ ecp_nistz256_to_mont:
 .type	ecp_nistz256_mul_mont,@function
 .align	32
 ecp_nistz256_mul_mont:
-	movl	$524544,%ecx
+	movl	$0x80100,%ecx
 	andl	OPENSSL_ia32cap_P+8(%rip),%ecx
 .Lmul_mont:
 	pushq	%rbp
@@ -357,7 +357,7 @@ ecp_nistz256_mul_mont:
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
-	cmpl	$524544,%ecx
+	cmpl	$0x80100,%ecx
 	je	.Lmul_montx
 	movq	%rdx,%rbx
 	movq	0(%rdx),%rax
@@ -617,7 +617,7 @@ __ecp_nistz256_mul_montq:
 .type	ecp_nistz256_sqr_mont,@function
 .align	32
 ecp_nistz256_sqr_mont:
-	movl	$524544,%ecx
+	movl	$0x80100,%ecx
 	andl	OPENSSL_ia32cap_P+8(%rip),%ecx
 	pushq	%rbp
 	pushq	%rbx
@@ -625,7 +625,7 @@ ecp_nistz256_sqr_mont:
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
-	cmpl	$524544,%ecx
+	cmpl	$0x80100,%ecx
 	je	.Lsqr_montx
 	movq	0(%rsi),%rax
 	movq	8(%rsi),%r14
@@ -1581,9 +1581,9 @@ __ecp_nistz256_mul_by_2q:
 .type	ecp_nistz256_point_double,@function
 .align	32
 ecp_nistz256_point_double:
-	movl	$524544,%ecx
+	movl	$0x80100,%ecx
 	andl	OPENSSL_ia32cap_P+8(%rip),%ecx
-	cmpl	$524544,%ecx
+	cmpl	$0x80100,%ecx
 	je	.Lpoint_doublex
 	pushq	%rbp
 	pushq	%rbx
@@ -1593,6 +1593,7 @@ ecp_nistz256_point_double:
 	pushq	%r15
 	subq	$160+8,%rsp
 
+.Lpoint_double_shortcutq:
 	movdqu	0(%rsi),%xmm0
 	movq	%rsi,%rbx
 	movdqu	16(%rsi),%xmm1
@@ -1786,9 +1787,9 @@ ecp_nistz256_point_double:
 .type	ecp_nistz256_point_add,@function
 .align	32
 ecp_nistz256_point_add:
-	movl	$524544,%ecx
+	movl	$0x80100,%ecx
 	andl	OPENSSL_ia32cap_P+8(%rip),%ecx
-	cmpl	$524544,%ecx
+	cmpl	$0x80100,%ecx
 	je	.Lpoint_addx
 	pushq	%rbp
 	pushq	%rbx
@@ -1817,7 +1818,7 @@ ecp_nistz256_point_add:
 	por	%xmm1,%xmm3
 
 	movdqu	0(%rsi),%xmm0
-	pshufd	$177,%xmm3,%xmm5
+	pshufd	$0xb1,%xmm3,%xmm5
 	movdqu	16(%rsi),%xmm1
 	movdqu	32(%rsi),%xmm2
 	por	%xmm3,%xmm5
@@ -1827,7 +1828,7 @@ ecp_nistz256_point_add:
 	movq	64+16(%rsi),%r15
 	movq	64+24(%rsi),%r8
 	movdqa	%xmm0,480(%rsp)
-	pshufd	$30,%xmm5,%xmm4
+	pshufd	$0x1e,%xmm5,%xmm4
 	movdqa	%xmm1,480+16(%rsp)
 	por	%xmm0,%xmm1
 .byte	102,72,15,110,199
@@ -1847,10 +1848,10 @@ ecp_nistz256_point_add:
 	call	__ecp_nistz256_sqr_montq
 
 	pcmpeqd	%xmm4,%xmm5
-	pshufd	$177,%xmm3,%xmm4
+	pshufd	$0xb1,%xmm3,%xmm4
 	por	%xmm3,%xmm4
 	pshufd	$0,%xmm5,%xmm5
-	pshufd	$30,%xmm4,%xmm3
+	pshufd	$0x1e,%xmm4,%xmm3
 	por	%xmm3,%xmm4
 	pxor	%xmm3,%xmm3
 	pcmpeqd	%xmm3,%xmm4
@@ -1859,6 +1860,7 @@ ecp_nistz256_point_add:
 	movq	64+8(%rbx),%r14
 	movq	64+16(%rbx),%r15
 	movq	64+24(%rbx),%r8
+.byte	102,72,15,110,203
 
 	leaq	64-0(%rbx),%rsi
 	leaq	32(%rsp),%rdi
@@ -1950,7 +1952,7 @@ ecp_nistz256_point_add:
 	testq	%r8,%r8
 	jnz	.Ladd_proceedq
 	testq	%r9,%r9
-	jz	.Ladd_proceedq
+	jz	.Ladd_doubleq
 
 .byte	102,72,15,126,199
 	pxor	%xmm0,%xmm0
@@ -1961,6 +1963,13 @@ ecp_nistz256_point_add:
 	movdqu	%xmm0,64(%rdi)
 	movdqu	%xmm0,80(%rdi)
 	jmp	.Ladd_doneq
+
+.align	32
+.Ladd_doubleq:
+.byte	102,72,15,126,206
+.byte	102,72,15,126,199
+	addq	$416,%rsp
+	jmp	.Lpoint_double_shortcutq
 
 .align	32
 .Ladd_proceedq:
@@ -2179,9 +2188,9 @@ ecp_nistz256_point_add:
 .type	ecp_nistz256_point_add_affine,@function
 .align	32
 ecp_nistz256_point_add_affine:
-	movl	$524544,%ecx
+	movl	$0x80100,%ecx
 	andl	OPENSSL_ia32cap_P+8(%rip),%ecx
-	cmpl	$524544,%ecx
+	cmpl	$0x80100,%ecx
 	je	.Lpoint_add_affinex
 	pushq	%rbp
 	pushq	%rbx
@@ -2213,13 +2222,13 @@ ecp_nistz256_point_add_affine:
 	por	%xmm1,%xmm3
 
 	movdqu	0(%rbx),%xmm0
-	pshufd	$177,%xmm3,%xmm5
+	pshufd	$0xb1,%xmm3,%xmm5
 	movdqu	16(%rbx),%xmm1
 	movdqu	32(%rbx),%xmm2
 	por	%xmm3,%xmm5
 	movdqu	48(%rbx),%xmm3
 	movdqa	%xmm0,416(%rsp)
-	pshufd	$30,%xmm5,%xmm4
+	pshufd	$0x1e,%xmm5,%xmm4
 	movdqa	%xmm1,416+16(%rsp)
 	por	%xmm0,%xmm1
 .byte	102,72,15,110,199
@@ -2235,13 +2244,13 @@ ecp_nistz256_point_add_affine:
 	call	__ecp_nistz256_sqr_montq
 
 	pcmpeqd	%xmm4,%xmm5
-	pshufd	$177,%xmm3,%xmm4
+	pshufd	$0xb1,%xmm3,%xmm4
 	movq	0(%rbx),%rax
 
 	movq	%r12,%r9
 	por	%xmm3,%xmm4
 	pshufd	$0,%xmm5,%xmm5
-	pshufd	$30,%xmm4,%xmm3
+	pshufd	$0x1e,%xmm4,%xmm3
 	movq	%r13,%r10
 	por	%xmm3,%xmm4
 	pxor	%xmm3,%xmm3
@@ -2621,6 +2630,7 @@ ecp_nistz256_point_doublex:
 	pushq	%r15
 	subq	$160+8,%rsp
 
+.Lpoint_double_shortcutx:
 	movdqu	0(%rsi),%xmm0
 	movq	%rsi,%rbx
 	movdqu	16(%rsi),%xmm1
@@ -2841,7 +2851,7 @@ ecp_nistz256_point_addx:
 	por	%xmm1,%xmm3
 
 	movdqu	0(%rsi),%xmm0
-	pshufd	$177,%xmm3,%xmm5
+	pshufd	$0xb1,%xmm3,%xmm5
 	movdqu	16(%rsi),%xmm1
 	movdqu	32(%rsi),%xmm2
 	por	%xmm3,%xmm5
@@ -2851,7 +2861,7 @@ ecp_nistz256_point_addx:
 	movq	64+16(%rsi),%r15
 	movq	64+24(%rsi),%r8
 	movdqa	%xmm0,480(%rsp)
-	pshufd	$30,%xmm5,%xmm4
+	pshufd	$0x1e,%xmm5,%xmm4
 	movdqa	%xmm1,480+16(%rsp)
 	por	%xmm0,%xmm1
 .byte	102,72,15,110,199
@@ -2871,10 +2881,10 @@ ecp_nistz256_point_addx:
 	call	__ecp_nistz256_sqr_montx
 
 	pcmpeqd	%xmm4,%xmm5
-	pshufd	$177,%xmm3,%xmm4
+	pshufd	$0xb1,%xmm3,%xmm4
 	por	%xmm3,%xmm4
 	pshufd	$0,%xmm5,%xmm5
-	pshufd	$30,%xmm4,%xmm3
+	pshufd	$0x1e,%xmm4,%xmm3
 	por	%xmm3,%xmm4
 	pxor	%xmm3,%xmm3
 	pcmpeqd	%xmm3,%xmm4
@@ -2883,6 +2893,7 @@ ecp_nistz256_point_addx:
 	movq	64+8(%rbx),%r14
 	movq	64+16(%rbx),%r15
 	movq	64+24(%rbx),%r8
+.byte	102,72,15,110,203
 
 	leaq	64-128(%rbx),%rsi
 	leaq	32(%rsp),%rdi
@@ -2974,7 +2985,7 @@ ecp_nistz256_point_addx:
 	testq	%r8,%r8
 	jnz	.Ladd_proceedx
 	testq	%r9,%r9
-	jz	.Ladd_proceedx
+	jz	.Ladd_doublex
 
 .byte	102,72,15,126,199
 	pxor	%xmm0,%xmm0
@@ -2985,6 +2996,13 @@ ecp_nistz256_point_addx:
 	movdqu	%xmm0,64(%rdi)
 	movdqu	%xmm0,80(%rdi)
 	jmp	.Ladd_donex
+
+.align	32
+.Ladd_doublex:
+.byte	102,72,15,126,206
+.byte	102,72,15,126,199
+	addq	$416,%rsp
+	jmp	.Lpoint_double_shortcutx
 
 .align	32
 .Ladd_proceedx:
@@ -3233,13 +3251,13 @@ ecp_nistz256_point_add_affinex:
 	por	%xmm1,%xmm3
 
 	movdqu	0(%rbx),%xmm0
-	pshufd	$177,%xmm3,%xmm5
+	pshufd	$0xb1,%xmm3,%xmm5
 	movdqu	16(%rbx),%xmm1
 	movdqu	32(%rbx),%xmm2
 	por	%xmm3,%xmm5
 	movdqu	48(%rbx),%xmm3
 	movdqa	%xmm0,416(%rsp)
-	pshufd	$30,%xmm5,%xmm4
+	pshufd	$0x1e,%xmm5,%xmm4
 	movdqa	%xmm1,416+16(%rsp)
 	por	%xmm0,%xmm1
 .byte	102,72,15,110,199
@@ -3255,13 +3273,13 @@ ecp_nistz256_point_add_affinex:
 	call	__ecp_nistz256_sqr_montx
 
 	pcmpeqd	%xmm4,%xmm5
-	pshufd	$177,%xmm3,%xmm4
+	pshufd	$0xb1,%xmm3,%xmm4
 	movq	0(%rbx),%rdx
 
 	movq	%r12,%r9
 	por	%xmm3,%xmm4
 	pshufd	$0,%xmm5,%xmm5
-	pshufd	$30,%xmm4,%xmm3
+	pshufd	$0x1e,%xmm4,%xmm3
 	movq	%r13,%r10
 	por	%xmm3,%xmm4
 	pxor	%xmm3,%xmm3

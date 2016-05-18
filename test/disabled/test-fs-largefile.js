@@ -10,9 +10,9 @@ var path = require('path'),
 
 fs.truncateSync(fd, offset);
 assert.equal(fs.statSync(filepath).size, offset);
-var writeBuf = new Buffer(message);
+var writeBuf = Buffer.from(message);
 fs.writeSync(fd, writeBuf, 0, writeBuf.length, offset);
-var readBuf = new Buffer(writeBuf.length);
+var readBuf = Buffer.allocUnsafe(writeBuf.length);
 fs.readSync(fd, readBuf, 0, readBuf.length, offset);
 assert.equal(readBuf.toString(), message);
 fs.readSync(fd, readBuf, 0, 1, 0);
@@ -32,4 +32,3 @@ fs.close(fd);
 process.on('exit', function() {
   fs.unlinkSync(filepath);
 });
-

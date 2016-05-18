@@ -12,6 +12,9 @@ namespace internal {
 
 // Forward declarations.
 class ExternalReference;
+class HeapObject;
+template <typename>
+class Handle;
 
 
 namespace compiler {
@@ -47,6 +50,8 @@ class CommonNodeCache final {
     return number_constants_.Find(zone(), bit_cast<int64_t>(value));
   }
 
+  Node** FindHeapConstant(Handle<HeapObject> value);
+
   // Return all nodes from the cache.
   void GetCachedNodes(ZoneVector<Node*>* nodes);
 
@@ -59,7 +64,8 @@ class CommonNodeCache final {
   Int64NodeCache float64_constants_;
   IntPtrNodeCache external_constants_;
   Int64NodeCache number_constants_;
-  Zone* zone_;
+  IntPtrNodeCache heap_constants_;
+  Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(CommonNodeCache);
 };

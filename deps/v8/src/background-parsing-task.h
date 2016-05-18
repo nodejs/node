@@ -9,7 +9,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/base/smart-pointers.h"
 #include "src/compiler.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {
@@ -54,7 +54,7 @@ class BackgroundParsingTask : public ScriptCompiler::ScriptStreamingTask {
   StreamedSource* source_;  // Not owned.
   int stack_size_;
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BACKGROUND_PARSING_TASK_H_

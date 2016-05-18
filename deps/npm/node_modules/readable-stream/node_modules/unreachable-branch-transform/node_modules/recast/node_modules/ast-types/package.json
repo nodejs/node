@@ -1,0 +1,100 @@
+{
+  "_args": [
+    [
+      "ast-types@0.8.16",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/unreachable-branch-transform/node_modules/recast"
+    ]
+  ],
+  "_from": "ast-types@0.8.16",
+  "_id": "ast-types@0.8.16",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/unreachable-branch-transform/recast/ast-types",
+  "_nodeVersion": "4.2.4",
+  "_npmOperationalInternal": {
+    "host": "packages-13-west.internal.npmjs.com",
+    "tmp": "tmp/ast-types-0.8.16.tgz_1457564958738_0.010630627628415823"
+  },
+  "_npmUser": {
+    "email": "bn@cs.stanford.edu",
+    "name": "benjamn"
+  },
+  "_npmVersion": "3.3.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "ast-types",
+    "raw": "ast-types@0.8.16",
+    "rawSpec": "0.8.16",
+    "scope": null,
+    "spec": "0.8.16",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/readable-stream/unreachable-branch-transform/recast"
+  ],
+  "_resolved": "https://registry.npmjs.org/ast-types/-/ast-types-0.8.16.tgz",
+  "_shasum": "09adddc1d0bd64873d94fcd3edd3366a4873e746",
+  "_shrinkwrap": null,
+  "_spec": "ast-types@0.8.16",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/unreachable-branch-transform/node_modules/recast",
+  "author": {
+    "email": "bn@cs.stanford.edu",
+    "name": "Ben Newman"
+  },
+  "bugs": {
+    "url": "https://github.com/benjamn/ast-types/issues"
+  },
+  "dependencies": {},
+  "description": "Esprima-compatible implementation of the Mozilla JS Parser API",
+  "devDependencies": {
+    "babel-core": "^5.6.15",
+    "esprima": "~1.2.2",
+    "esprima-fb": "~14001.1.0-dev-harmony-fb",
+    "mocha": "~2.2.5"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "09adddc1d0bd64873d94fcd3edd3366a4873e746",
+    "tarball": "https://registry.npmjs.org/ast-types/-/ast-types-0.8.16.tgz"
+  },
+  "engines": {
+    "node": ">= 0.8"
+  },
+  "gitHead": "6cfb8bc71670f56943976bbb4173783ed6ed33db",
+  "homepage": "http://github.com/benjamn/ast-types",
+  "keywords": [
+    "ast",
+    "abstract syntax tree",
+    "hierarchy",
+    "mozilla",
+    "spidermonkey",
+    "parser api",
+    "esprima",
+    "types",
+    "type system",
+    "type checking",
+    "dynamic types",
+    "parsing",
+    "transformation",
+    "syntax"
+  ],
+  "license": "MIT",
+  "main": "main.js",
+  "maintainers": [
+    {
+      "email": "bn@cs.stanford.edu",
+      "name": "benjamn"
+    }
+  ],
+  "name": "ast-types",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/benjamn/ast-types.git"
+  },
+  "scripts": {
+    "test": "mocha --reporter spec --full-trace test/run.js"
+  },
+  "version": "0.8.16"
+}

@@ -7,10 +7,7 @@ var exec = require('child_process').exec;
 
 var bodyLength = 12345;
 
-var body = '';
-for (var i = 0; i < bodyLength; i++) {
-  body += 'c';
-}
+var body = 'c'.repeat(bodyLength);
 
 var server = http.createServer(function(req, res) {
   res.writeHead(200, {
@@ -27,7 +24,7 @@ function runAb(opts, callback) {
   exec(command, function(err, stdout, stderr) {
     if (err) {
       if (/ab|apr/mi.test(stderr)) {
-        console.log('1..0 # Skipped: problem spawning `ab`.\n' + stderr);
+        common.skip('problem spawning `ab`.\n' + stderr);
         process.reallyExit(0);
       }
       process.exit();
@@ -37,10 +34,10 @@ function runAb(opts, callback) {
     var m = /Document Length:\s*(\d+) bytes/mi.exec(stdout);
     var documentLength = parseInt(m[1]);
 
-    var m = /Complete requests:\s*(\d+)/mi.exec(stdout);
+    m = /Complete requests:\s*(\d+)/mi.exec(stdout);
     var completeRequests = parseInt(m[1]);
 
-    var m = /HTML transferred:\s*(\d+) bytes/mi.exec(stdout);
+    m = /HTML transferred:\s*(\d+) bytes/mi.exec(stdout);
     var htmlTransfered = parseInt(m[1]);
 
     assert.equal(bodyLength, documentLength);

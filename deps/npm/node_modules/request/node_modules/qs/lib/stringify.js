@@ -1,23 +1,17 @@
-// Load modules
+'use strict';
 
 var Utils = require('./utils');
-
-
-// Declare internals
 
 var internals = {
     delimiter: '&',
     arrayPrefixGenerators: {
-        brackets: function (prefix, key) {
-
+        brackets: function (prefix) {
             return prefix + '[]';
         },
         indices: function (prefix, key) {
-
             return prefix + '[' + key + ']';
         },
-        repeat: function (prefix, key) {
-
+        repeat: function (prefix) {
             return prefix;
         }
     },
@@ -26,19 +20,15 @@ var internals = {
     encode: true
 };
 
-
-internals.stringify = function (obj, prefix, generateArrayPrefix, strictNullHandling, skipNulls, encode, filter, sort) {
-
+internals.stringify = function (object, prefix, generateArrayPrefix, strictNullHandling, skipNulls, encode, filter, sort, allowDots) {
+    var obj = object;
     if (typeof filter === 'function') {
         obj = filter(prefix, obj);
-    }
-    else if (Utils.isBuffer(obj)) {
-        obj = obj.toString();
-    }
-    else if (obj instanceof Date) {
+    } else if (Utils.isBuffer(obj)) {
+        obj = String(obj);
+    } else if (obj instanceof Date) {
         obj = obj.toISOString();
-    }
-    else if (obj === null) {
+    } else if (obj === null) {
         if (strictNullHandling) {
             return encode ? Utils.encode(prefix) : prefix;
         }
@@ -46,10 +36,7 @@ internals.stringify = function (obj, prefix, generateArrayPrefix, strictNullHand
         obj = '';
     }
 
-    if (typeof obj === 'string' ||
-        typeof obj === 'number' ||
-        typeof obj === 'boolean') {
-
+    if (typeof obj === 'string' || typeof obj === 'number' || typeof obj === 'boolean') {
         if (encode) {
             return [Utils.encode(prefix) + '=' + Utils.encode(obj)];
         }
@@ -70,61 +57,53 @@ internals.stringify = function (obj, prefix, generateArrayPrefix, strictNullHand
         objKeys = sort ? keys.sort(sort) : keys;
     }
 
-    for (var i = 0, il = objKeys.length; i < il; ++i) {
+    for (var i = 0; i < objKeys.length; ++i) {
         var key = objKeys[i];
 
-        if (skipNulls &&
-            obj[key] === null) {
-
+        if (skipNulls && obj[key] === null) {
             continue;
         }
 
         if (Array.isArray(obj)) {
-            values = values.concat(internals.stringify(obj[key], generateArrayPrefix(prefix, key), generateArrayPrefix, strictNullHandling, skipNulls, encode, filter));
-        }
-        else {
-            values = values.concat(internals.stringify(obj[key], prefix + '[' + key + ']', generateArrayPrefix, strictNullHandling, skipNulls, encode, filter));
+            values = values.concat(internals.stringify(obj[key], generateArrayPrefix(prefix, key), generateArrayPrefix, strictNullHandling, skipNulls, encode, filter, sort, allowDots));
+        } else {
+            values = values.concat(internals.stringify(obj[key], prefix + (allowDots ? '.' + key : '[' + key + ']'), generateArrayPrefix, strictNullHandling, skipNulls, encode, filter, sort, allowDots));
         }
     }
 
     return values;
 };
 
-
-module.exports = function (obj, options) {
-
-    options = options || {};
+module.exports = function (object, opts) {
+    var obj = object;
+    var options = opts || {};
     var delimiter = typeof options.delimiter === 'undefined' ? internals.delimiter : options.delimiter;
     var strictNullHandling = typeof options.strictNullHandling === 'boolean' ? options.strictNullHandling : internals.strictNullHandling;
     var skipNulls = typeof options.skipNulls === 'boolean' ? options.skipNulls : internals.skipNulls;
     var encode = typeof options.encode === 'boolean' ? options.encode : internals.encode;
     var sort = typeof options.sort === 'function' ? options.sort : null;
+    var allowDots = typeof options.allowDots === 'undefined' ? false : options.allowDots;
     var objKeys;
     var filter;
     if (typeof options.filter === 'function') {
         filter = options.filter;
         obj = filter('', obj);
-    }
-    else if (Array.isArray(options.filter)) {
+    } else if (Array.isArray(options.filter)) {
         objKeys = filter = options.filter;
     }
 
     var keys = [];
 
-    if (typeof obj !== 'object' ||
-        obj === null) {
-
+    if (typeof obj !== 'object' || obj === null) {
         return '';
     }
 
     var arrayFormat;
     if (options.arrayFormat in internals.arrayPrefixGenerators) {
         arrayFormat = options.arrayFormat;
-    }
-    else if ('indices' in options) {
+    } else if ('indices' in options) {
         arrayFormat = options.indices ? 'indices' : 'repeat';
-    }
-    else {
+    } else {
         arrayFormat = 'indices';
     }
 
@@ -138,16 +117,14 @@ module.exports = function (obj, options) {
         objKeys.sort(sort);
     }
 
-    for (var i = 0, il = objKeys.length; i < il; ++i) {
+    for (var i = 0; i < objKeys.length; ++i) {
         var key = objKeys[i];
 
-        if (skipNulls &&
-            obj[key] === null) {
-
+        if (skipNulls && obj[key] === null) {
             continue;
         }
 
-        keys = keys.concat(internals.stringify(obj[key], key, generateArrayPrefix, strictNullHandling, skipNulls, encode, filter, sort));
+        keys = keys.concat(internals.stringify(obj[key], key, generateArrayPrefix, strictNullHandling, skipNulls, encode, filter, sort, allowDots));
     }
 
     return keys.join(delimiter);

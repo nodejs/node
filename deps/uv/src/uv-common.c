@@ -22,10 +22,11 @@
 #include "uv.h"
 #include "uv-common.h"
 
-#include <stdio.h>
 #include <assert.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stddef.h> /* NULL */
+#include <stdio.h>
 #include <stdlib.h> /* malloc */
 #include <string.h> /* memset */
 
@@ -75,7 +76,14 @@ void* uv__malloc(size_t size) {
 }
 
 void uv__free(void* ptr) {
+  int saved_errno;
+
+  /* Libuv expects that free() does not clobber errno.  The system allocator
+   * honors that assumption but custom allocators may not be so careful.
+   */
+  saved_errno = errno;
   uv__allocator.local_free(ptr);
+  errno = saved_errno;
 }
 
 void* uv__calloc(size_t count, size_t size) {
@@ -141,11 +149,7 @@ static const char* uv__unknown_err_code(int err) {
   char buf[32];
   char* copy;
 
-#ifndef _WIN32
   snprintf(buf, sizeof(buf), "Unknown system error %d", err);
-#else
-  _snprintf(buf, sizeof(buf), "Unknown system error %d", err);
-#endif
   copy = uv__strdup(buf);
 
   return copy != NULL ? copy : "Unknown system error";
@@ -341,19 +345,25 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
 
 
 void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
+  QUEUE queue;
   QUEUE* q;
   uv_handle_t* h;
 
-  QUEUE_FOREACH(q, &loop->handle_queue) {
+  QUEUE_MOVE(&loop->handle_queue, &queue);
+  while (!QUEUE_EMPTY(&queue)) {
+    q = QUEUE_HEAD(&queue);
     h = QUEUE_DATA(q, uv_handle_t, handle_queue);
+
+    QUEUE_REMOVE(q);
+    QUEUE_INSERT_TAIL(&loop->handle_queue, q);
+
     if (h->flags & UV__HANDLE_INTERNAL) continue;
     walk_cb(h, arg);
   }
 }
 
 
-#ifndef NDEBUG
-static void uv__print_handles(uv_loop_t* loop, int only_active) {
+static void uv__print_handles(uv_loop_t* loop, int only_active, FILE* stream) {
   const char* type;
   QUEUE* q;
   uv_handle_t* h;
@@ -374,7 +384,7 @@ static void uv__print_handles(uv_loop_t* loop, int only_active) {
       default: type = "<unknown>";
     }
 
-    fprintf(stderr,
+    fprintf(stream,
             "[%c%c%c] %-8s %p\n",
             "R-"[!(h->flags & UV__HANDLE_REF)],
             "A-"[!(h->flags & UV__HANDLE_ACTIVE)],
@@ -385,15 +395,14 @@ static void uv__print_handles(uv_loop_t* loop, int only_active) {
 }
 
 
-void uv_print_all_handles(uv_loop_t* loop) {
-  uv__print_handles(loop, 0);
+void uv_print_all_handles(uv_loop_t* loop, FILE* stream) {
+  uv__print_handles(loop, 0, stream);
 }
 
 
-void uv_print_active_handles(uv_loop_t* loop) {
-  uv__print_handles(loop, 1);
+void uv_print_active_handles(uv_loop_t* loop, FILE* stream) {
+  uv__print_handles(loop, 1, stream);
 }
-#endif
 
 
 void uv_ref(uv_handle_t* handle) {
@@ -450,13 +459,14 @@ int uv_fs_event_getpath(uv_fs_event_t* handle, char* buffer, size_t* size) {
   }
 
   required_len = strlen(handle->path);
-  if (required_len > *size) {
-    *size = required_len;
+  if (required_len >= *size) {
+    *size = required_len + 1;
     return UV_ENOBUFS;
   }
 
   memcpy(buffer, handle->path, required_len);
   *size = required_len;
+  buffer[required_len] = '\0';
 
   return 0;
 }
@@ -473,6 +483,16 @@ static unsigned int* uv__get_nbufs(uv_fs_t* req) {
 #endif
 }
 
+/* uv_fs_scandir() uses the system allocator to allocate memory on non-Windows
+ * systems. So, the memory should be released using free(). On Windows,
+ * uv__malloc() is used, so use uv__free() to free memory.
+*/
+#ifdef _WIN32
+# define uv__fs_scandir_free uv__free
+#else
+# define uv__fs_scandir_free free
+#endif
+
 void uv__fs_scandir_cleanup(uv_fs_t* req) {
   uv__dirent_t** dents;
 
@@ -482,7 +502,10 @@ void uv__fs_scandir_cleanup(uv_fs_t* req) {
   if (*nbufs > 0 && *nbufs != (unsigned int) req->result)
     (*nbufs)--;
   for (; *nbufs < (unsigned int) req->result; (*nbufs)++)
-    uv__free(dents[*nbufs]);
+    uv__fs_scandir_free(dents[*nbufs]);
+
+  uv__fs_scandir_free(req->ptr);
+  req->ptr = NULL;
 }
 
 
@@ -496,11 +519,11 @@ int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent) {
 
   /* Free previous entity */
   if (*nbufs > 0)
-    uv__free(dents[*nbufs - 1]);
+    uv__fs_scandir_free(dents[*nbufs - 1]);
 
   /* End was already reached */
   if (*nbufs == (unsigned int) req->result) {
-    uv__free(dents);
+    uv__fs_scandir_free(dents);
     req->ptr = NULL;
     return UV_EOF;
   }

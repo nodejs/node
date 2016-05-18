@@ -133,7 +133,8 @@ Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 Atomic64 Release_Load(volatile const Atomic64* ptr);
 #endif  // V8_HOST_ARCH_64_BIT
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 // Include our platform specific implementation.
 #if defined(THREAD_SANITIZER)
@@ -156,6 +157,8 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #include "src/base/atomicops_internals_mips_gcc.h"
 #elif defined(__GNUC__) && V8_HOST_ARCH_MIPS64
 #include "src/base/atomicops_internals_mips64_gcc.h"
+#elif defined(__GNUC__) && V8_HOST_ARCH_S390
+#include "src/base/atomicops_internals_s390_gcc.h"
 #else
 #error "Atomic operations are not supported on your platform"
 #endif

@@ -42,11 +42,11 @@ var step_in_count = 2;
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      if (state == 0) {
+      if (state < step_in_count) {
         // Step into f().
-        exec_state.prepareStep(Debug.StepAction.StepIn, step_in_count);
-        state = 2;
-      } else if (state == 2) {
+        exec_state.prepareStep(Debug.StepAction.StepIn);
+        state++;
+      } else {
         assertEquals(expected_source_line_text,
                      event_data.sourceLineText());
         assertEquals(expected_function_name, event_data.func().name());

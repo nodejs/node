@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path'),
-    Buffer = require('buffer').Buffer,
-    fs = require('fs'),
-    filename = path.join(common.tmpDir, 'write.txt'),
-    expected = new Buffer('hello'),
-    openCalled = 0,
-    writeCalled = 0;
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const Buffer = require('buffer').Buffer;
+const fs = require('fs');
+const filename = path.join(common.tmpDir, 'write.txt');
+const expected = Buffer.from('hello');
+let openCalled = 0;
+let writeCalled = 0;
 
 
 common.refreshTmpDir();
@@ -24,7 +24,7 @@ fs.open(filename, 'w', 0o644, function(err, fd) {
     fs.closeSync(fd);
 
     var found = fs.readFileSync(filename, 'utf8');
-    assert.deepEqual(expected.toString(), found);
+    assert.deepStrictEqual(expected.toString(), found);
     fs.unlinkSync(filename);
   });
 });
@@ -33,4 +33,3 @@ process.on('exit', function() {
   assert.equal(1, openCalled);
   assert.equal(1, writeCalled);
 });
-

@@ -14,23 +14,25 @@ assert.throws(function() {
   vm.runInThisContext('throw new Error(\'test\');');
 }, /test/);
 
-hello = 5;
+global.hello = 5;
 vm.runInThisContext('hello = 2');
-assert.equal(2, hello);
+assert.equal(2, global.hello);
 
 
 console.error('pass values');
-code = 'foo = 1;' +
-       'bar = 2;' +
-       'if (typeof baz !== \'undefined\') throw new Error(\'test fail\');';
-foo = 2;
-obj = { foo: 0, baz: 3 };
+var code = 'foo = 1;' +
+           'bar = 2;' +
+           'if (typeof baz !== \'undefined\') throw new Error(\'test fail\');';
+global.foo = 2;
+global.obj = { foo: 0, baz: 3 };
+/* eslint-disable no-unused-vars */
 var baz = vm.runInThisContext(code);
-assert.equal(0, obj.foo);
-assert.equal(2, bar);
-assert.equal(1, foo);
+/* eslint-enable no-unused-vars */
+assert.equal(0, global.obj.foo);
+assert.equal(2, global.bar);
+assert.equal(1, global.foo);
 
 console.error('call a function');
-f = function() { foo = 100; };
+global.f = function() { global.foo = 100; };
 vm.runInThisContext('f()');
-assert.equal(100, foo);
+assert.equal(100, global.foo);

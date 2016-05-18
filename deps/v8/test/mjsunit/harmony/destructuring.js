@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-destructuring --harmony-arrow-functions
-// Flags: --harmony-default-parameters --harmony-rest-parameters
+// Flags: --harmony-destructuring-bind
+// Flags: --harmony-default-parameters
 
 (function TestObjectLiteralPattern() {
   var { x : x, y : y, get, set } = { x : 1, y : 2, get: 3, set: 4 };
@@ -260,6 +260,63 @@
   var { x = f(42) } = {};
   assertSame(42, x);
   assertEquals(1, callCount);
+}());
+
+
+(function TestAssignmentExprInInitializers() {
+  {
+    let x, y;
+    {
+      let { x = y = 1 } = {};
+      assertSame(x, 1);
+      assertSame(y, 1);
+    }
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+
+  {
+    let x, y;
+    {
+      let { x: x = y = 1 } = {};
+      assertSame(1, x);
+      assertSame(1, y);
+    }
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+
+  {
+    let x, y;
+    {
+      let [ x = y = 1 ] = [];
+      assertSame(1, x);
+      assertSame(1, y);
+    }
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+
+  {
+    let x, y;
+    (function({ x = y = 1 }) {}({}));
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+
+  {
+    let x, y;
+    (function({ x: x = y = 1 }) {}({}));
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
+
+  {
+    let x, y;
+    (function([ x = y = 1 ]) {}([]));
+    assertSame(undefined, x);
+    assertSame(1, y);
+  }
 }());
 
 
@@ -957,11 +1014,86 @@
   assertEquals(1, ok1(1));
   function ok2(x) { 'use strict'; { let x = 2; return x; } };
   assertEquals(2, ok2(1));
+}());
 
-  assertThrows("function f({x}) { var x; }; f({});", SyntaxError);
-  assertThrows("function f({x}) { { var x; } }; f({});", SyntaxError);
+
+(function TestShadowingOfParameters() {
+  function f1({x}) { var x = 2; return x }
+  assertEquals(2, f1({x: 1}));
+  function f2({x}) { { var x = 2; } return x; }
+  assertEquals(2, f2({x: 1}));
+  function f3({x}) { var y = x; var x = 2; return y; }
+  assertEquals(1, f3({x: 1}));
+  function f4({x}) { { var y = x; var x = 2; } return y; }
+  assertEquals(1, f4({x: 1}));
+  function f5({x}, g = () => x) { var x = 2; return g(); }
+  assertEquals(1, f5({x: 1}));
+  function f6({x}, g = () => x) { { var x = 2; } return g(); }
+  assertEquals(1, f6({x: 1}));
+  function f7({x}) { var g = () => x; var x = 2; return g(); }
+  assertEquals(2, f7({x: 1}));
+  function f8({x}) { { var g = () => x; var x = 2; } return g(); }
+  assertEquals(2, f8({x: 1}));
+  function f9({x}, g = () => eval("x")) { var x = 2; return g(); }
+  assertEquals(1, f9({x: 1}));
+
+  function f10({x}, y) { var y; return y }
+  assertEquals(2, f10({x: 6}, 2));
+  function f11({x}, y) { var z = y; var y = 2; return z; }
+  assertEquals(1, f11({x: 6}, 1));
+  function f12(y, g = () => y) { var y = 2; return g(); }
+  assertEquals(1, f12(1));
+  function f13({x}, y, [z], v) { var x, y, z; return x*y*z*v }
+  assertEquals(210, f13({x: 2}, 3, [5], 7));
+
+  function f20({x}) { function x() { return 2 }; return x(); }
+  assertEquals(2, f20({x: 1}));
+  // Function hoisting is blocked by the conflicting x declaration
+  function f21({x}) { { function x() { return 2 } } return x(); }
+  assertThrows(() => f21({x: 1}), TypeError);
+
+  var g1 = ({x}) => { var x = 2; return x };
+  assertEquals(2, g1({x: 1}));
+  var g2 = ({x}) => { { var x = 2; } return x; };
+  assertEquals(2, g2({x: 1}));
+  var g3 = ({x}) => { var y = x; var x = 2; return y; };
+  assertEquals(1, g3({x: 1}));
+  var g4 = ({x}) => { { var y = x; var x = 2; } return y; };
+  assertEquals(1, g4({x: 1}));
+  var g5 = ({x}, g = () => x) => { var x = 2; return g(); };
+  assertEquals(1, g5({x: 1}));
+  var g6 = ({x}, g = () => x) => { { var x = 2; } return g(); };
+  assertEquals(1, g6({x: 1}));
+  var g7 = ({x}) => { var g = () => x; var x = 2; return g(); };
+  assertEquals(2, g7({x: 1}));
+  var g8 = ({x}) => { { var g = () => x; var x = 2; } return g(); };
+  assertEquals(2, g8({x: 1}));
+  var g9 = ({x}, g = () => eval("x")) => { var x = 2; return g(); };
+  assertEquals(1, g9({x: 1}));
+
+  var g10 = ({x}, y) => { var y; return y };
+  assertEquals(2, g10({x: 6}, 2));
+  var g11 = ({x}, y) => { var z = y; var y = 2; return z; };
+  assertEquals(1, g11({x: 6}, 1));
+  var g12 = (y, g = () => y) => { var y = 2; return g(); };
+  assertEquals(1, g12(1));
+  var g13 = ({x}, y, [z], v) => { var x, y, z; return x*y*z*v };
+  assertEquals(210, g13({x: 2}, 3, [5], 7));
+
+  var g20 = ({x}) => { function x() { return 2 }; return x(); }
+  assertEquals(2, g20({x: 1}));
+  var g21 = ({x}) => { { function x() { return 2 } } return x(); }
+  assertThrows(() => g21({x: 1}), TypeError);
+
   assertThrows("'use strict'; function f(x) { let x = 0; }; f({});", SyntaxError);
   assertThrows("'use strict'; function f({x}) { let x = 0; }; f({});", SyntaxError);
+  assertThrows("'use strict'; function f(x) { const x = 0; }; f({});", SyntaxError);
+  assertThrows("'use strict'; function f({x}) { const x = 0; }; f({});", SyntaxError);
+
+  assertThrows("'use strict'; let g = (x) => { let x = 0; }; f({});", SyntaxError);
+  assertThrows("'use strict'; let g = ({x}) => { let x = 0; }; f({});", SyntaxError);
+  assertThrows("'use strict'; let g = (x) => { const x = 0; }; f({});", SyntaxError);
+  assertThrows("'use strict'; let g = ({x}) => { const x = 0; }; f({});", SyntaxError);
 }());
 
 
@@ -986,8 +1118,8 @@
 
 
 (function TestForInOfTDZ() {
-  assertThrows("'use strict'; let x = {}; for (let [x, y] of {x});", ReferenceError);
-  assertThrows("'use strict'; let x = {}; for (let [y, x] of {x});", ReferenceError);
+  assertThrows("'use strict'; let x = {}; for (let [x, y] of [x]);", ReferenceError);
+  assertThrows("'use strict'; let x = {}; for (let [y, x] of [x]);", ReferenceError);
   assertThrows("'use strict'; let x = {}; for (let [x, y] in {x});", ReferenceError);
   assertThrows("'use strict'; let x = {}; for (let [y, x] in {x});", ReferenceError);
 }());
@@ -1022,4 +1154,38 @@
   assertThrows(function(){ eval("(a, {}) => {'use strict';}") }, SyntaxError);
   assertThrows(
     function(){ eval("(class{foo(a, {}) {'use strict';}});") }, SyntaxError);
+})();
+
+
+(function TestLegacyConstDestructuringInForLoop() {
+  var result;
+  for (const {foo} of [{foo: 1}]) { result = foo; }
+  assertEquals(1, result);
+})();
+
+
+(function TestCatch() {
+  "use strict";
+
+  // For testing proper scoping.
+  var foo = "hello", bar = "world", baz = 42;
+
+  try {
+    throw {foo: 1, bar: 2};
+  } catch ({foo, bar, baz = 3}) {
+    assertEquals(1, foo);
+    assertEquals(2, bar);
+    assertEquals(3, baz);
+  }
+
+  try {
+    throw [1, 2, 3];
+  } catch ([foo, ...bar]) {
+    assertEquals(1, foo);
+    assertEquals([2, 3], bar);
+  }
+
+  assertEquals("hello", foo);
+  assertEquals("world", bar);
+  assertEquals(42, baz);
 })();

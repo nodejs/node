@@ -2,18 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <stdlib.h>
 
 #include "src/v8.h"
 
-#include "src/ast.h"
-#include "src/ast-expression-visitor.h"
-#include "src/parser.h"
-#include "src/rewriter.h"
-#include "src/scopes.h"
+#include "src/ast/ast.h"
+#include "src/ast/ast-expression-visitor.h"
+#include "src/ast/scopes.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 #include "src/typing-reset.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"
@@ -28,8 +25,8 @@ namespace {
 
 class TypeSetter : public AstExpressionVisitor {
  public:
-  TypeSetter(Isolate* isolate, Zone* zone, FunctionLiteral* root)
-      : AstExpressionVisitor(isolate, zone, root) {}
+  TypeSetter(Isolate* isolate, FunctionLiteral* root)
+      : AstExpressionVisitor(isolate, root) {}
 
  protected:
   void VisitExpression(Expression* expression) {
@@ -222,7 +219,8 @@ void CheckAllSame(ZoneVector<ExpressionTypeEntry>& types,
   }
   CHECK_TYPES_END
 }
-}
+
+}  // namespace
 
 
 TEST(ResetTypingInfo) {
@@ -273,7 +271,6 @@ TEST(ResetTypingInfo) {
 
   i::ParseInfo info(handles.main_zone(), script);
   i::Parser parser(&info);
-  parser.set_allow_harmony_arrow_functions(true);
   parser.set_allow_harmony_sloppy(true);
   info.set_global();
   info.set_lazy(false);
@@ -286,16 +283,16 @@ TEST(ResetTypingInfo) {
 
   // Core of the test.
   ZoneVector<ExpressionTypeEntry> types(handles.main_zone());
-  ExpressionTypeCollector(isolate, handles.main_zone(), root, &types).Run();
+  ExpressionTypeCollector(isolate, root, &types).Run();
   CheckAllSame(types, Bounds::Unbounded());
 
-  TypeSetter(isolate, handles.main_zone(), root).Run();
+  TypeSetter(isolate, root).Run();
 
-  ExpressionTypeCollector(isolate, handles.main_zone(), root, &types).Run();
+  ExpressionTypeCollector(isolate, root, &types).Run();
   CheckAllSame(types, INT32_TYPE);
 
-  TypingReseter(isolate, handles.main_zone(), root).Run();
+  TypingReseter(isolate, root).Run();
 
-  ExpressionTypeCollector(isolate, handles.main_zone(), root, &types).Run();
+  ExpressionTypeCollector(isolate, root, &types).Run();
   CheckAllSame(types, Bounds::Unbounded());
 }

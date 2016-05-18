@@ -222,7 +222,7 @@ static int uv__signal_loop_once_init(uv_loop_t* loop) {
   uv__io_init(&loop->signal_io_watcher,
               uv__signal_event,
               loop->signal_pipefd[0]);
-  uv__io_start(loop, &loop->signal_io_watcher, UV__POLLIN);
+  uv__io_start(loop, &loop->signal_io_watcher, POLLIN);
 
   return 0;
 }
@@ -234,6 +234,8 @@ void uv__signal_loop_cleanup(uv_loop_t* loop) {
   /* Stop all the signal watchers that are still attached to this loop. This
    * ensures that the (shared) signal tree doesn't contain any invalid entries
    * entries, and that signal handlers are removed when appropriate.
+   * It's safe to use QUEUE_FOREACH here because the handles and the handle
+   * queue are not modified by uv__signal_stop().
    */
   QUEUE_FOREACH(q, &loop->handle_queue) {
     uv_handle_t* handle = QUEUE_DATA(q, uv_handle_t, handle_queue);

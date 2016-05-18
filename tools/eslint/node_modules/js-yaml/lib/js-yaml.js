@@ -27,7 +27,7 @@ module.exports.dump                = dumper.dump;
 module.exports.safeDump            = dumper.safeDump;
 module.exports.YAMLException       = require('./js-yaml/exception');
 
-// Deprecared schema names from JS-YAML 2.0.x
+// Deprecated schema names from JS-YAML 2.0.x
 module.exports.MINIMAL_SCHEMA = require('./js-yaml/schema/failsafe');
 module.exports.SAFE_SCHEMA    = require('./js-yaml/schema/default_safe');
 module.exports.DEFAULT_SCHEMA = require('./js-yaml/schema/default_full');

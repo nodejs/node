@@ -5,6 +5,37 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.2g and OpenSSL 1.0.2h [3 May 2016]
+
+      o Prevent padding oracle in AES-NI CBC MAC check (CVE-2016-2107)
+      o Fix EVP_EncodeUpdate overflow (CVE-2016-2105)
+      o Fix EVP_EncryptUpdate overflow (CVE-2016-2106)
+      o Prevent ASN.1 BIO excessive memory allocation (CVE-2016-2109)
+      o EBCDIC overread (CVE-2016-2176)
+      o Modify behavior of ALPN to invoke callback after SNI/servername
+        callback, such that updates to the SSL_CTX affect ALPN.
+      o Remove LOW from the DEFAULT cipher list.  This removes singles DES from
+        the default.
+      o Only remove the SSLv2 methods with the no-ssl2-method option.
+
+  Major changes between OpenSSL 1.0.2f and OpenSSL 1.0.2g [1 Mar 2016]
+
+      o Disable weak ciphers in SSLv3 and up in default builds of OpenSSL.
+      o Disable SSLv2 default build, default negotiation and weak ciphers
+        (CVE-2016-0800)
+      o Fix a double-free in DSA code (CVE-2016-0705)
+      o Disable SRP fake user seed to address a server memory leak
+        (CVE-2016-0798)
+      o Fix BN_hex2bn/BN_dec2bn NULL pointer deref/heap corruption
+        (CVE-2016-0797)
+      o Fix memory issues in BIO_*printf functions (CVE-2016-0799)
+      o Fix side channel attack on modular exponentiation (CVE-2016-0702)
+
+  Major changes between OpenSSL 1.0.2e and OpenSSL 1.0.2f [28 Jan 2016]
+
+      o DH small subgroups (CVE-2016-0701)
+      o SSLv2 doesn't block disabled ciphers (CVE-2015-3197)
+
   Major changes between OpenSSL 1.0.2d and OpenSSL 1.0.2e [3 Dec 2015]
 
       o BN_mod_exp may produce incorrect results on x86_64 (CVE-2015-3193)

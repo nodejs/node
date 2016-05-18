@@ -1,4 +1,4 @@
-/* crypto/seed/seed_ecb.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/seed/seed_ecb.c */
 /* ====================================================================
  * Copyright (c) 2007 The OpenSSL Project.  All rights reserved.
  *

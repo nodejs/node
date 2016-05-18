@@ -234,6 +234,10 @@ inline OptimizedFrame::OptimizedFrame(StackFrameIteratorBase* iterator)
 }
 
 
+inline InterpretedFrame::InterpretedFrame(StackFrameIteratorBase* iterator)
+    : JavaScriptFrame(iterator) {}
+
+
 inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
     StackFrameIteratorBase* iterator) : JavaScriptFrame(iterator) {
 }
@@ -286,6 +290,7 @@ inline StackFrame* SafeStackFrameIterator::frame() const {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_FRAMES_INL_H_

@@ -20,9 +20,9 @@ function getStdin(cb) {
 }
 
 if (process.argv.indexOf('-h') !== -1 || process.argv.indexOf('--help') !== -1) {
-	console.log('strip-json-comments <input file> > <output file>');
+	console.log('strip-json-comments input-file > output-file');
 	console.log('or');
-	console.log('cat <input file> | strip-json-comments > <output file>');
+	console.log('strip-json-comments < input-file > output-file');
 	return;
 }
 

@@ -84,7 +84,8 @@ else if (cluster.isMaster) {
   worker.on('message', function(message) {
     check('master', message === 'message from worker');
   });
-  cluster.on('message', function(message) {
+  cluster.on('message', function(worker_, message) {
+    assert.strictEqual(worker_, worker);
     check('global', message === 'message from worker');
   });
 

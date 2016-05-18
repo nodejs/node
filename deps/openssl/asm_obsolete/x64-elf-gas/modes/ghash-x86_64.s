@@ -20,14 +20,14 @@ gcm_gmult_4bit:
 	movq	$14,%rcx
 	movq	8(%rsi,%rax,1),%r8
 	movq	(%rsi,%rax,1),%r9
-	andb	$240,%bl
+	andb	$0xf0,%bl
 	movq	%r8,%rdx
 	jmp	.Loop1
 
 .align	16
 .Loop1:
 	shrq	$4,%r8
-	andq	$15,%rdx
+	andq	$0xf,%rdx
 	movq	%r9,%r10
 	movb	(%rdi,%rcx,1),%al
 	shrq	$4,%r9
@@ -43,13 +43,13 @@ gcm_gmult_4bit:
 	js	.Lbreak1
 
 	shrq	$4,%r8
-	andq	$15,%rdx
+	andq	$0xf,%rdx
 	movq	%r9,%r10
 	shrq	$4,%r9
 	xorq	8(%rsi,%rax,1),%r8
 	shlq	$60,%r10
 	xorq	(%rsi,%rax,1),%r9
-	andb	$240,%bl
+	andb	$0xf0,%bl
 	xorq	(%r11,%rdx,8),%r9
 	movq	%r8,%rdx
 	xorq	%r10,%r8
@@ -58,19 +58,19 @@ gcm_gmult_4bit:
 .align	16
 .Lbreak1:
 	shrq	$4,%r8
-	andq	$15,%rdx
+	andq	$0xf,%rdx
 	movq	%r9,%r10
 	shrq	$4,%r9
 	xorq	8(%rsi,%rax,1),%r8
 	shlq	$60,%r10
 	xorq	(%rsi,%rax,1),%r9
-	andb	$240,%bl
+	andb	$0xf0,%bl
 	xorq	(%r11,%rdx,8),%r9
 	movq	%r8,%rdx
 	xorq	%r10,%r8
 
 	shrq	$4,%r8
-	andq	$15,%rdx
+	andq	$0xf,%rdx
 	movq	%r9,%r10
 	shrq	$4,%r9
 	xorq	8(%rsi,%rbx,1),%r8
@@ -874,20 +874,20 @@ gcm_ghash_clmul:
 	movdqu	32(%rsi),%xmm7
 .byte	102,65,15,56,0,194
 
-	subq	$16,%rcx
+	subq	$0x10,%rcx
 	jz	.Lodd_tail
 
 	movdqu	16(%rsi),%xmm6
 	movl	OPENSSL_ia32cap_P+4(%rip),%eax
-	cmpq	$48,%rcx
+	cmpq	$0x30,%rcx
 	jb	.Lskip4x
 
 	andl	$71303168,%eax
 	cmpl	$4194304,%eax
 	je	.Lskip4x
 
-	subq	$48,%rcx
-	movq	$11547335547999543296,%rax
+	subq	$0x30,%rcx
+	movq	$0xA040608020C0E000,%rax
 	movdqu	48(%rsi),%xmm14
 	movdqu	64(%rsi),%xmm15
 
@@ -934,7 +934,7 @@ gcm_ghash_clmul:
 	xorps	%xmm13,%xmm5
 
 	leaq	64(%rdx),%rdx
-	subq	$64,%rcx
+	subq	$0x40,%rcx
 	jc	.Ltail4x
 
 	jmp	.Lmod4_loop
@@ -1017,7 +1017,7 @@ gcm_ghash_clmul:
 	xorps	%xmm13,%xmm5
 
 	leaq	64(%rdx),%rdx
-	subq	$64,%rcx
+	subq	$0x40,%rcx
 	jnc	.Lmod4_loop
 
 .Ltail4x:
@@ -1061,10 +1061,10 @@ gcm_ghash_clmul:
 	pxor	%xmm4,%xmm0
 	psrlq	$1,%xmm0
 	pxor	%xmm1,%xmm0
-	addq	$64,%rcx
+	addq	$0x40,%rcx
 	jz	.Ldone
 	movdqu	32(%rsi),%xmm7
-	subq	$16,%rcx
+	subq	$0x10,%rcx
 	jz	.Lodd_tail
 .Lskip4x:
 
@@ -1087,7 +1087,7 @@ gcm_ghash_clmul:
 
 	leaq	32(%rdx),%rdx
 	nop
-	subq	$32,%rcx
+	subq	$0x20,%rcx
 	jbe	.Leven_tail
 	nop
 	jmp	.Lmod_loop
@@ -1150,7 +1150,7 @@ gcm_ghash_clmul:
 .byte	102,15,58,68,231,0
 	pxor	%xmm1,%xmm0
 
-	subq	$32,%rcx
+	subq	$0x20,%rcx
 	ja	.Lmod_loop
 
 .Leven_tail:

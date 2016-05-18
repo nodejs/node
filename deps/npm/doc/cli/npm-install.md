@@ -13,7 +13,7 @@ npm-install(1) -- Install a package
     npm install <folder>
 
     alias: npm i
-    common options: [-S|--save|-D|--save-dev|-O|--save-optional] [-E|--save-exact] [--dry-run]
+    common options: [-S|--save|-D|--save-dev|-O|--save-optional] [-E|--save-exact] [-B|--save-bundle] [--dry-run]
 
 ## DESCRIPTION
 
@@ -23,11 +23,11 @@ by that. See npm-shrinkwrap(1).
 
 A `package` is:
 
-* a) a folder containing a program described by a package.json file
+* a) a folder containing a program described by a `package.json(5)` file
 * b) a gzipped tarball containing (a)
 * c) a url that resolves to (b)
 * d) a `<name>@<version>` that is published on the registry (see `npm-registry(7)`) with (c)
-* e) a `<name>@<tag>` that points to (d)
+* e) a `<name>@<tag>` (see `npm-dist-tag(1)`) that points to (d)
 * f) a `<name>` that has a "latest" tag satisfying (e)
 * g) a `<git remote url>` that resolves to (a)
 
@@ -45,7 +45,9 @@ after packing it up into a tarball (b).
     it installs the current package context (ie, the current working
     directory) as a global package.
 
-    By default, `npm install` will install all modules listed as dependencies.
+    By default, `npm install` will install all modules listed as dependencies
+    in `package.json(5)`.
+
     With the `--production` flag (or when the `NODE_ENV` environment variable
     is set to `production`), npm will not install modules listed in
     `devDependencies`.
@@ -76,7 +78,7 @@ after packing it up into a tarball (b).
 * `npm install [<@scope>/]<name> [-S|--save|-D|--save-dev|-O|--save-optional]`:
 
     Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
-    `npm-config(7)`.)
+    `npm-config(7)`. The config's default value is `latest`.)
 
     In most cases, this will install the latest version
     of the module published on npm.
@@ -95,11 +97,13 @@ after packing it up into a tarball (b).
     * `-O, --save-optional`: Package will appear in your `optionalDependencies`.
 
     When using any of the above options to save dependencies to your
-    package.json, there is an additional, optional flag:
+    package.json, there are two additional, optional flags:
 
     * `-E, --save-exact`: Saved dependencies will be configured with an
       exact version rather than using npm's default semver range
       operator.
+
+    * `-B, --save-bundle`: Saved dependencies will also be added to your `bundleDependencies` list.
 
     Further, if you have an `npm-shrinkwrap.json` then it will be updated as
     well.
@@ -120,6 +124,7 @@ after packing it up into a tarball (b).
           npm install node-tap --save-dev
           npm install dtrace-provider --save-optional
           npm install readable-stream --save --save-exact
+          npm install ansi-regex --save --save-bundle
 
 
     **Note**: If there is a file or folder named `<name>` in the current
@@ -167,9 +172,12 @@ after packing it up into a tarball (b).
 
           <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit-ish>]
 
-    `<protocol>` is one of `git`, `git+ssh`, `git+http`, or
-    `git+https`.  If no `<commit-ish>` is specified, then `master` is
-    used.
+    `<protocol>` is one of `git`, `git+ssh`, `git+http`, `git+https`,
+    or `git+file`.
+    If no `<commit-ish>` is specified, then `master` is used.
+
+    If the repository makes use of submodules, those submodules will
+    be cloned as well.
 
     The following git environment variables are recognized by npm and will be added
     to the environment when running git:
@@ -256,6 +264,19 @@ local copy exists on disk.
 
 The `-g` or `--global` argument will cause npm to install the package globally
 rather than locally.  See `npm-folders(5)`.
+
+The `--global-style` argument will cause npm to install the package into
+your local `node_modules` folder with the same layout it uses with the
+global `node_modules` folder. Only your direct dependencies will show in
+`node_modules` and everything they depend on will be flattened in their
+`node_modules` folders. This obviously will eliminate some deduping.
+
+The `--ignore-scripts` argument will cause npm to not execute any
+scripts defined in the package.json. See `npm-scripts(7)`.
+
+The `--legacy-bundling` argument will cause npm to install the package such
+that versions of npm prior to 1.4, such as the one included with node 0.8,
+can install the package. This eliminates all automatic deduping.
 
 The `--link` argument will cause npm to link global installs into the
 local space in some cases.
@@ -353,5 +374,6 @@ affects a real use-case, it will be investigated.
 * npmrc(5)
 * npm-registry(7)
 * npm-tag(1)
-* npm-rm(1)
+* npm-uninstall(1)
 * npm-shrinkwrap(1)
+* package.json(5)

@@ -4,7 +4,7 @@
 
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {
@@ -13,16 +13,16 @@ namespace compiler {
 typedef class AstLoopAssignmentAnalyzer ALAA;  // for code shortitude.
 
 ALAA::AstLoopAssignmentAnalyzer(Zone* zone, CompilationInfo* info)
-    : info_(info), loop_stack_(zone) {
-  InitializeAstVisitor(info->isolate(), zone);
+    : info_(info), zone_(zone), loop_stack_(zone) {
+  InitializeAstVisitor(info->isolate());
 }
 
 
 LoopAssignmentAnalysis* ALAA::Analyze() {
-  LoopAssignmentAnalysis* a = new (zone()) LoopAssignmentAnalysis(zone());
+  LoopAssignmentAnalysis* a = new (zone_) LoopAssignmentAnalysis(zone_);
   result_ = a;
   VisitStatements(info()->literal()->body());
-  result_ = NULL;
+  result_ = nullptr;
   return a;
 }
 
@@ -30,7 +30,7 @@ LoopAssignmentAnalysis* ALAA::Analyze() {
 void ALAA::Enter(IterationStatement* loop) {
   int num_variables = 1 + info()->scope()->num_parameters() +
                       info()->scope()->num_stack_slots();
-  BitVector* bits = new (zone()) BitVector(num_variables, zone());
+  BitVector* bits = new (zone_) BitVector(num_variables, zone_);
   if (info()->is_osr() && info()->osr_ast_id() == loop->OsrEntryId())
     bits->AddAll();
   loop_stack_.push_back(bits);
@@ -77,6 +77,12 @@ void ALAA::VisitSuperCallReference(SuperCallReference* leaf) {}
 void ALAA::VisitBlock(Block* stmt) { VisitStatements(stmt->statements()); }
 
 
+void ALAA::VisitDoExpression(DoExpression* expr) {
+  Visit(expr->block());
+  Visit(expr->result());
+}
+
+
 void ALAA::VisitExpressionStatement(ExpressionStatement* stmt) {
   Visit(stmt->expression());
 }
@@ -120,6 +126,7 @@ void ALAA::VisitClassLiteral(ClassLiteral* e) {
   VisitIfNotNull(e->constructor());
   ZoneList<ObjectLiteralProperty*>* properties = e->properties();
   for (int i = 0; i < properties->length(); i++) {
+    Visit(properties->at(i)->key());
     Visit(properties->at(i)->value());
   }
 }
@@ -135,6 +142,7 @@ void ALAA::VisitConditional(Conditional* e) {
 void ALAA::VisitObjectLiteral(ObjectLiteral* e) {
   ZoneList<ObjectLiteralProperty*>* properties = e->properties();
   for (int i = 0; i < properties->length(); i++) {
+    Visit(properties->at(i)->key());
     Visit(properties->at(i)->value());
   }
 }
@@ -190,7 +198,7 @@ void ALAA::VisitCompareOperation(CompareOperation* e) {
 }
 
 
-void ALAA::VisitSpread(Spread* e) { Visit(e->expression()); }
+void ALAA::VisitSpread(Spread* e) { UNREACHABLE(); }
 
 
 void ALAA::VisitEmptyParentheses(EmptyParentheses* e) { UNREACHABLE(); }
@@ -255,8 +263,9 @@ void ALAA::VisitForInStatement(ForInStatement* loop) {
 
 
 void ALAA::VisitForOfStatement(ForOfStatement* loop) {
+  Visit(loop->assign_iterator());
   Enter(loop);
-  Visit(loop->each());
+  Visit(loop->assign_each());
   Visit(loop->subject());
   Visit(loop->body());
   Exit(loop);
@@ -275,6 +284,11 @@ void ALAA::VisitCountOperation(CountOperation* e) {
   Expression* l = e->expression();
   Visit(l);
   if (l->IsVariableProxy()) AnalyzeAssignment(l->AsVariableProxy()->var());
+}
+
+
+void ALAA::VisitRewritableExpression(RewritableExpression* expr) {
+  Visit(expr->expression());
 }
 
 

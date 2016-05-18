@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
@@ -11,7 +11,6 @@ var tls = require('tls');
 var fs = require('fs');
 var util = require('util');
 var join = require('path').join;
-var spawn = require('child_process').spawn;
 
 var options = {
   key: fs.readFileSync(join(common.fixturesDir, 'agent.key')),
@@ -29,8 +28,10 @@ server.listen(common.PORT, function() {
   }, function() {
     var peerCert = socket.getPeerCertificate();
     console.error(util.inspect(peerCert));
-    assert.deepEqual(peerCert.subject.OU,
-                     ['Information Technology', 'Engineering', 'Marketing']);
+    assert.deepStrictEqual(
+      peerCert.subject.OU,
+      ['Information Technology', 'Engineering', 'Marketing']
+    );
     verified = true;
     server.close();
   });

@@ -1762,9 +1762,9 @@ _shaext_shortcut:
 	movdqu	16(%rdi),%xmm2
 	movdqa	512-128(%rcx),%xmm7
 
-	pshufd	$27,%xmm1,%xmm0
-	pshufd	$177,%xmm1,%xmm1
-	pshufd	$27,%xmm2,%xmm2
+	pshufd	$0x1b,%xmm1,%xmm0
+	pshufd	$0xb1,%xmm1,%xmm1
+	pshufd	$0x1b,%xmm2,%xmm2
 	movdqa	%xmm7,%xmm8
 .byte	102,15,58,15,202,8
 	punpcklqdq	%xmm0,%xmm2
@@ -1783,7 +1783,7 @@ _shaext_shortcut:
 .byte	102,15,56,0,231
 	movdqa	%xmm2,%xmm10
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	nop
 	movdqa	%xmm1,%xmm9
 .byte	15,56,203,202
@@ -1792,7 +1792,7 @@ _shaext_shortcut:
 	paddd	%xmm4,%xmm0
 .byte	102,15,56,0,239
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	leaq	64(%rsi),%rsi
 .byte	15,56,204,220
 .byte	15,56,203,202
@@ -1801,7 +1801,7 @@ _shaext_shortcut:
 	paddd	%xmm5,%xmm0
 .byte	102,15,56,0,247
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm6,%xmm7
 .byte	102,15,58,15,253,4
 	nop
@@ -1813,7 +1813,7 @@ _shaext_shortcut:
 	paddd	%xmm6,%xmm0
 .byte	15,56,205,222
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm3,%xmm7
 .byte	102,15,58,15,254,4
 	nop
@@ -1824,7 +1824,7 @@ _shaext_shortcut:
 	paddd	%xmm3,%xmm0
 .byte	15,56,205,227
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm4,%xmm7
 .byte	102,15,58,15,251,4
 	nop
@@ -1835,7 +1835,7 @@ _shaext_shortcut:
 	paddd	%xmm4,%xmm0
 .byte	15,56,205,236
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm5,%xmm7
 .byte	102,15,58,15,252,4
 	nop
@@ -1846,7 +1846,7 @@ _shaext_shortcut:
 	paddd	%xmm5,%xmm0
 .byte	15,56,205,245
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm6,%xmm7
 .byte	102,15,58,15,253,4
 	nop
@@ -1857,7 +1857,7 @@ _shaext_shortcut:
 	paddd	%xmm6,%xmm0
 .byte	15,56,205,222
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm3,%xmm7
 .byte	102,15,58,15,254,4
 	nop
@@ -1868,7 +1868,7 @@ _shaext_shortcut:
 	paddd	%xmm3,%xmm0
 .byte	15,56,205,227
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm4,%xmm7
 .byte	102,15,58,15,251,4
 	nop
@@ -1879,7 +1879,7 @@ _shaext_shortcut:
 	paddd	%xmm4,%xmm0
 .byte	15,56,205,236
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm5,%xmm7
 .byte	102,15,58,15,252,4
 	nop
@@ -1890,7 +1890,7 @@ _shaext_shortcut:
 	paddd	%xmm5,%xmm0
 .byte	15,56,205,245
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm6,%xmm7
 .byte	102,15,58,15,253,4
 	nop
@@ -1901,7 +1901,7 @@ _shaext_shortcut:
 	paddd	%xmm6,%xmm0
 .byte	15,56,205,222
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm3,%xmm7
 .byte	102,15,58,15,254,4
 	nop
@@ -1912,7 +1912,7 @@ _shaext_shortcut:
 	paddd	%xmm3,%xmm0
 .byte	15,56,205,227
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm4,%xmm7
 .byte	102,15,58,15,251,4
 	nop
@@ -1923,7 +1923,7 @@ _shaext_shortcut:
 	paddd	%xmm4,%xmm0
 .byte	15,56,205,236
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm5,%xmm7
 .byte	102,15,58,15,252,4
 .byte	15,56,203,202
@@ -1932,7 +1932,7 @@ _shaext_shortcut:
 	movdqa	448-128(%rcx),%xmm0
 	paddd	%xmm5,%xmm0
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 .byte	15,56,205,245
 	movdqa	%xmm8,%xmm7
 .byte	15,56,203,202
@@ -1941,7 +1941,7 @@ _shaext_shortcut:
 	paddd	%xmm6,%xmm0
 	nop
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	decq	%rdx
 	nop
 .byte	15,56,203,202
@@ -1950,9 +1950,9 @@ _shaext_shortcut:
 	paddd	%xmm9,%xmm1
 	jnz	.Loop_shaext
 
-	pshufd	$177,%xmm2,%xmm2
-	pshufd	$27,%xmm1,%xmm7
-	pshufd	$177,%xmm1,%xmm1
+	pshufd	$0xb1,%xmm2,%xmm2
+	pshufd	$0x1b,%xmm1,%xmm7
+	pshufd	$0xb1,%xmm1,%xmm1
 	punpckhqdq	%xmm2,%xmm1
 .byte	102,15,58,15,215,8
 

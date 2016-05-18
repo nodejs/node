@@ -30,7 +30,6 @@
 Debug = debug.Debug
 
 var exception = null;
-var step_out_count = 1;
 
 // Simple debug event handler which counts the number of breaks hit and steps.
 var break_point_hit_count = 0;
@@ -40,7 +39,7 @@ function listener(event, exec_state, event_data, data) {
       break_point_hit_count++;
       // Continue stepping until returned to bottom frame.
       if (exec_state.frameCount() > 1) {
-        exec_state.prepareStep(Debug.StepAction.StepOut, step_out_count);
+        exec_state.prepareStep(Debug.StepAction.StepOut);
       }
 
     }
@@ -80,27 +79,23 @@ function fact(x) {
 
 BeginTest('Test 1');
 shouldBreak = function(x) { return x == 3; };
-step_out_count = 1;
 fact(3);
 EndTest(2);
 
 BeginTest('Test 2');
 shouldBreak = function(x) { return x == 2; };
-step_out_count = 1;
 fact(3);
 EndTest(3);
 
 BeginTest('Test 3');
 shouldBreak = function(x) { return x == 1; };
-step_out_count = 2;
 fact(3);
-EndTest(2);
+EndTest(4);
 
 BeginTest('Test 4');
 shouldBreak = function(x) { return x == 1 || x == 3; };
-step_out_count = 2;
 fact(3);
-EndTest(3);
+EndTest(5);
 
 // Get rid of the debug event listener.
 Debug.setListener(null);

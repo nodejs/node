@@ -161,7 +161,7 @@ char** uv_setup_args(int argc, char** argv) {
 
 
 int uv_set_process_title(const char* title) {
-  if (process_title) uv__free(process_title);
+  uv__free(process_title);
   process_title = uv__strdup(title);
   setproctitle(title);
   return 0;
@@ -247,7 +247,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   which[1] = HW_CPUSPEED;
   size = sizeof(cpuspeed);
   if (sysctl(which, 2, &cpuspeed, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(*cpu_infos));
+    uv__free(*cpu_infos);
     return -errno;
   }
 
@@ -258,7 +258,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     which[2] = i;
     size = sizeof(info);
     if (sysctl(which, 3, &info, &size, NULL, 0)) {
-      SAVE_ERRNO(uv__free(*cpu_infos));
+      uv__free(*cpu_infos);
       return -errno;
     }
 
@@ -313,8 +313,10 @@ int uv_interface_addresses(uv_interface_address_t** addresses,
 
   *addresses = uv__malloc(*count * sizeof(**addresses));
 
-  if (!(*addresses))
+  if (!(*addresses)) {
+    freeifaddrs(addrs);
     return -ENOMEM;
+  }
 
   address = *addresses;
 

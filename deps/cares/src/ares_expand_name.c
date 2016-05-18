@@ -74,7 +74,7 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
   if (nlen.sig < 0)
     return ARES_EBADNAME;
 
-  *s = malloc(nlen.uns + 1);
+  *s = ares_malloc(nlen.uns + 1);
   if (!*s)
     return ARES_ENOMEM;
   q = *s;
@@ -129,7 +129,7 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
   if (q > *s)
     *(q - 1) = 0;
   else
-    *q = 0; /* zero terminate */
+    *q = 0; /* zero terminate; LCOV_EXCL_LINE: empty names exit above */
 
   return ARES_SUCCESS;
 }
@@ -140,7 +140,7 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
 static int name_length(const unsigned char *encoded, const unsigned char *abuf,
                        int alen)
 {
-  int n = 0, offset, indir = 0;
+  int n = 0, offset, indir = 0, top;
 
   /* Allow the caller to pass us abuf + alen and have us check for it. */
   if (encoded >= abuf + alen)
@@ -148,7 +148,8 @@ static int name_length(const unsigned char *encoded, const unsigned char *abuf,
 
   while (*encoded)
     {
-      if ((*encoded & INDIR_MASK) == INDIR_MASK)
+      top = (*encoded & INDIR_MASK);
+      if (top == INDIR_MASK)
         {
           /* Check the offset and go there. */
           if (encoded + 1 >= abuf + alen)
@@ -164,7 +165,7 @@ static int name_length(const unsigned char *encoded, const unsigned char *abuf,
           if (++indir > alen)
             return -1;
         }
-      else
+      else if (top == 0x00)
         {
           offset = *encoded;
           if (encoded + offset + 1 >= abuf + alen)
@@ -176,6 +177,13 @@ static int name_length(const unsigned char *encoded, const unsigned char *abuf,
               encoded++;
             }
           n++;
+        }
+      else
+        {
+          /* RFC 1035 4.1.4 says other options (01, 10) for top 2
+           * bits are reserved.
+           */
+          return -1;
         }
     }
 

@@ -2,14 +2,13 @@
 var NUM_WORKERS = 4;
 var PACKETS_PER_WORKER = 10;
 
-var assert = require('assert');
 var cluster = require('cluster');
 var common = require('../common');
 var dgram = require('dgram');
 
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: dgram clustering is currently not supported ' +
+  common.skip('dgram clustering is currently not supported ' +
               'on windows.');
   return;
 }
@@ -21,7 +20,6 @@ else
 
 
 function master() {
-  var i;
   var received = 0;
 
   // Start listening on a socket.
@@ -53,7 +51,7 @@ function master() {
 function worker() {
   // Create udp socket and send packets to master.
   var socket = dgram.createSocket('udp4');
-  var buf = new Buffer('hello world');
+  var buf = Buffer.from('hello world');
 
   // This test is intended to exercise the cluster binding of udp sockets, but
   // since sockets aren't clustered when implicitly bound by at first call of

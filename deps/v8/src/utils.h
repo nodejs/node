@@ -26,6 +26,16 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // General helper functions
 
+// Returns the value (0 .. 15) of a hexadecimal character c.
+// If c is not a legal hexadecimal character, returns a value < 0.
+inline int HexValue(uc32 c) {
+  c -= '0';
+  if (static_cast<unsigned>(c) <= 9) return c;
+  c = (c | 0x20) - ('a' - '0');  // detect 0x11..0x16 and 0x31..0x36.
+  if (static_cast<unsigned>(c) <= 5) return c + 10;
+  return -1;
+}
+
 
 inline int BoolToInt(bool b) { return b ? 1 : 0; }
 
@@ -366,9 +376,8 @@ inline uint32_t ComputePointerHash(void* ptr) {
 // ----------------------------------------------------------------------------
 // Generated memcpy/memmove
 
-// Initializes the codegen support that depends on CPU features. This is
-// called after CPU initialization.
-void init_memcopy_functions();
+// Initializes the codegen support that depends on CPU features.
+void init_memcopy_functions(Isolate* isolate);
 
 #if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
 // Limit below which the extra overhead of the MemCopy function is likely
@@ -1042,24 +1051,31 @@ class TypeFeedbackId {
   int id_;
 };
 
+inline bool operator<(TypeFeedbackId lhs, TypeFeedbackId rhs) {
+  return lhs.ToInt() < rhs.ToInt();
+}
+inline bool operator>(TypeFeedbackId lhs, TypeFeedbackId rhs) {
+  return lhs.ToInt() > rhs.ToInt();
+}
 
-template <int dummy_parameter>
-class VectorSlot {
+
+class FeedbackVectorSlot {
  public:
-  explicit VectorSlot(int id) : id_(id) {}
+  FeedbackVectorSlot() : id_(kInvalidSlot) {}
+  explicit FeedbackVectorSlot(int id) : id_(id) {}
 
   int ToInt() const { return id_; }
 
-  static VectorSlot Invalid() { return VectorSlot(kInvalidSlot); }
+  static FeedbackVectorSlot Invalid() { return FeedbackVectorSlot(); }
   bool IsInvalid() const { return id_ == kInvalidSlot; }
 
-  VectorSlot next() const {
-    DCHECK_NE(kInvalidSlot, id_);
-    return VectorSlot(id_ + 1);
+  bool operator==(FeedbackVectorSlot that) const {
+    return this->id_ == that.id_;
   }
+  bool operator!=(FeedbackVectorSlot that) const { return !(*this == that); }
 
-  bool operator==(VectorSlot that) const { return this->id_ == that.id_; }
-  bool operator!=(VectorSlot that) const { return !(*this == that); }
+  friend size_t hash_value(FeedbackVectorSlot slot) { return slot.ToInt(); }
+  friend std::ostream& operator<<(std::ostream& os, FeedbackVectorSlot);
 
  private:
   static const int kInvalidSlot = -1;
@@ -1068,23 +1084,14 @@ class VectorSlot {
 };
 
 
-template <int dummy_parameter>
-size_t hash_value(VectorSlot<dummy_parameter> slot) {
-  return slot.ToInt();
-}
-
-
-typedef VectorSlot<0> FeedbackVectorSlot;
-typedef VectorSlot<1> FeedbackVectorICSlot;
-
-
 class BailoutId {
  public:
   explicit BailoutId(int id) : id_(id) { }
   int ToInt() const { return id_; }
 
   static BailoutId None() { return BailoutId(kNoneId); }
-  static BailoutId Prologue() { return BailoutId(kPrologueId); }
+  static BailoutId ScriptContext() { return BailoutId(kScriptContextId); }
+  static BailoutId FunctionContext() { return BailoutId(kFunctionContextId); }
   static BailoutId FunctionEntry() { return BailoutId(kFunctionEntryId); }
   static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
   static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
@@ -1100,23 +1107,37 @@ class BailoutId {
   static const int kNoneId = -1;
 
   // Using 0 could disguise errors.
-  static const int kPrologueId = 1;
-  static const int kFunctionEntryId = 2;
+  static const int kScriptContextId = 1;
+  static const int kFunctionContextId = 2;
+  static const int kFunctionEntryId = 3;
 
   // This AST id identifies the point after the declarations have been visited.
   // We need it to capture the environment effects of declarations that emit
   // code (function declarations).
-  static const int kDeclarationsId = 3;
+  static const int kDeclarationsId = 4;
 
   // Every FunctionState starts with this id.
-  static const int kFirstUsableId = 4;
+  static const int kFirstUsableId = 5;
 
   // Every compiled stub starts with this id.
-  static const int kStubEntryId = 5;
+  static const int kStubEntryId = 6;
 
   int id_;
 };
 
+class TokenDispenserForFinally {
+ public:
+  int GetBreakContinueToken() { return next_token_++; }
+  static const int kFallThroughToken = 0;
+  static const int kThrowToken = 1;
+  static const int kReturnToken = 2;
+
+  static const int kFirstBreakContinueToken = 3;
+  static const int kInvalidToken = -1;
+
+ private:
+  int next_token_ = kFirstBreakContinueToken;
+};
 
 // ----------------------------------------------------------------------------
 // I/O support.
@@ -1707,39 +1728,47 @@ inline uintptr_t GetCurrentStackPosition() {
   return limit;
 }
 
-static inline double ReadDoubleValue(const void* p) {
-#ifndef V8_TARGET_ARCH_MIPS
-  return *reinterpret_cast<const double*>(p);
+template <typename V>
+static inline V ReadUnalignedValue(const void* p) {
+#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64)
+  return *reinterpret_cast<const V*>(p);
+#else
+  V r;
+  memmove(&r, p, sizeof(V));
+  return r;
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+}
+
+template <typename V>
+static inline void WriteUnalignedValue(void* p, V value) {
+#if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64)
+  *(reinterpret_cast<V*>(p)) = value;
 #else   // V8_TARGET_ARCH_MIPS
-  // Prevent compiler from using load-double (mips ldc1) on (possibly)
-  // non-64-bit aligned address.
-  union conversion {
-    double d;
-    uint32_t u[2];
-  } c;
-  const uint32_t* ptr = reinterpret_cast<const uint32_t*>(p);
-  c.u[0] = *ptr;
-  c.u[1] = *(ptr + 1);
-  return c.d;
-#endif  // V8_TARGET_ARCH_MIPS
+  memmove(p, &value, sizeof(V));
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+}
+
+static inline double ReadDoubleValue(const void* p) {
+  return ReadUnalignedValue<double>(p);
 }
 
 
 static inline void WriteDoubleValue(void* p, double value) {
-#ifndef V8_TARGET_ARCH_MIPS
-  *(reinterpret_cast<double*>(p)) = value;
-#else   // V8_TARGET_ARCH_MIPS
-  // Prevent compiler from using load-double (mips sdc1) on (possibly)
-  // non-64-bit aligned address.
-  union conversion {
-    double d;
-    uint32_t u[2];
-  } c;
-  c.d = value;
-  uint32_t* ptr = reinterpret_cast<uint32_t*>(p);
-  *ptr = c.u[0];
-  *(ptr + 1) = c.u[1];
-#endif  // V8_TARGET_ARCH_MIPS
+  WriteUnalignedValue(p, value);
+}
+
+
+static inline uint16_t ReadUnalignedUInt16(const void* p) {
+  return ReadUnalignedValue<uint16_t>(p);
+}
+
+
+static inline void WriteUnalignedUInt16(void* p, uint16_t value) {
+  WriteUnalignedValue(p, value);
+}
+
+static inline void WriteUnalignedUInt32(void* p, uint32_t value) {
+  WriteUnalignedValue(p, value);
 }
 
 }  // namespace internal

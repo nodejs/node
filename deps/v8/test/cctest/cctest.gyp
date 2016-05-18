@@ -52,6 +52,7 @@
         'compiler/test-basic-block-profiler.cc',
         'compiler/test-branch-combine.cc',
         'compiler/test-changes-lowering.cc',
+        'compiler/test-code-stub-assembler.cc',
         'compiler/test-gap-resolver.cc',
         'compiler/test-graph-visualizer.cc',
         'compiler/test-instruction.cc',
@@ -63,6 +64,7 @@
         'compiler/test-loop-assignment-analysis.cc',
         'compiler/test-loop-analysis.cc',
         'compiler/test-machine-operator-reducer.cc',
+        'compiler/test-multiple-return.cc',
         'compiler/test-node.cc',
         'compiler/test-operator.cc',
         'compiler/test-osr.cc',
@@ -79,7 +81,6 @@
         'compiler/test-run-jsops.cc',
         'compiler/test-run-machops.cc',
         'compiler/test-run-native-calls.cc',
-        'compiler/test-run-properties.cc',
         'compiler/test-run-stackcheck.cc',
         'compiler/test-run-stubs.cc',
         'compiler/test-run-variables.cc',
@@ -89,18 +90,28 @@
         'expression-type-collector.h',
         'interpreter/test-bytecode-generator.cc',
         'interpreter/test-interpreter.cc',
+        'interpreter/bytecode-expectations-printer.cc',
+        'interpreter/bytecode-expectations-printer.h',
         'gay-fixed.cc',
         'gay-precision.cc',
         'gay-shortest.cc',
-        'heap-tester.h',
+        'heap/heap-tester.h',
+        'heap/test-alloc.cc',
+        'heap/test-compaction.cc',
+        'heap/test-heap.cc',
+        'heap/test-incremental-marking.cc',
+        'heap/test-lab.cc',
+        'heap/test-mark-compact.cc',
+        'heap/test-spaces.cc',
+        'heap/utils-inl.h',
         'print-extension.cc',
         'profiler-extension.cc',
         'test-accessors.cc',
-        'test-alloc.cc',
         'test-api.cc',
         'test-api.h',
         'test-api-accessors.cc',
         'test-api-interceptors.cc',
+        'test-api-fast-accessor-builder.cc',
         'test-array-list.cc',
         'test-ast.cc',
         'test-ast-expression-visitor.cc',
@@ -122,8 +133,10 @@
         'test-diy-fp.cc',
         'test-double.cc',
         'test-dtoa.cc',
+        'test-elements-kind.cc',
         'test-fast-dtoa.cc',
         'test-feedback-vector.cc',
+        'test-field-type-tracking.cc',
         'test-fixed-dtoa.cc',
         'test-flags.cc',
         'test-func-name-inference.cc',
@@ -132,24 +145,22 @@
         'test-global-object.cc',
         'test-hashing.cc',
         'test-hashmap.cc',
-        'test-heap.cc',
         'test-heap-profiler.cc',
         'test-hydrogen-types.cc',
         'test-identity-map.cc',
-        'test-incremental-marking.cc',
+        'test-inobject-slack-tracking.cc',
         'test-list.cc',
         'test-liveedit.cc',
         'test-lockers.cc',
         'test-log.cc',
         'test-microtask-delivery.cc',
-        'test-mark-compact.cc',
         'test-mementos.cc',
-        'test-migrations.cc',
         'test-object-observe.cc',
         'test-parsing.cc',
         'test-platform.cc',
         'test-profile-generator.cc',
         'test-random-number-generator.cc',
+        'test-receiver-check-hidden-prototype.cc',
         'test-regexp.cc',
         'test-reloc-info.cc',
         'test-representation.cc',
@@ -157,12 +168,12 @@
         'test-serialize.cc',
         'test-simd.cc',
         'test-slots-buffer.cc',
-        'test-spaces.cc',
         'test-strings.cc',
         'test-symbols.cc',
         'test-strtod.cc',
         'test-thread-termination.cc',
         'test-threads.cc',
+        'test-trace-event.cc',
         'test-transitions.cc',
         'test-typedarrays.cc',
         'test-types.cc',
@@ -176,6 +187,11 @@
         'test-weakmaps.cc',
         'test-weaksets.cc',
         'trace-extension.cc',
+        'wasm/test-run-wasm.cc',
+        'wasm/test-run-wasm-js.cc',
+        'wasm/test-run-wasm-module.cc',
+        'wasm/test-signatures.h',
+        'wasm/wasm-run-utils.h',
       ],
       'conditions': [
         ['v8_target_arch=="ia32"', {
@@ -277,6 +293,11 @@
             },
           },
         }],
+        ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
+          # disable fmadd/fmsub so that expected results match generated code in
+          # RunFloat64MulAndFloat64Add1 and friends.
+          'cflags': ['-ffp-contract=off'],
+        }],
         ['OS=="aix"', {
           'ldflags': [ '-Wl,-bbigtoc' ],
         }],
@@ -286,11 +307,6 @@
           'dependencies': ['../../tools/gyp/v8.gyp:v8_maybe_snapshot'],
         }, {
           'dependencies': ['../../tools/gyp/v8.gyp:v8'],
-        }],
-        ['v8_wasm!=0', {
-          'dependencies': [
-            '../../third_party/wasm/test/cctest/wasm/wasm.gyp:wasm_cctest'
-          ],
         }],
       ],
     },
@@ -329,5 +345,60 @@
         }
       ],
     },
+    {
+      'target_name': 'generate-bytecode-expectations',
+      'type': 'executable',
+      'dependencies': [
+        '../../tools/gyp/v8.gyp:v8_libplatform',
+      ],
+      'conditions': [
+        ['component=="shared_library"', {
+          # Same as cctest, we need to depend on the underlying static target.
+          'dependencies': ['../../tools/gyp/v8.gyp:v8_maybe_snapshot'],
+        }, {
+          'dependencies': ['../../tools/gyp/v8.gyp:v8'],
+        }],
+      ],
+      'include_dirs+': [
+        '../..',
+      ],
+      'sources': [
+        'interpreter/bytecode-expectations-printer.cc',
+        'interpreter/bytecode-expectations-printer.h',
+        'interpreter/generate-bytecode-expectations.cc',
+      ],
+    },
+  ],
+  'conditions': [
+    ['test_isolation_mode != "noop"', {
+      'targets': [
+        {
+          'target_name': 'cctest_exe_run',
+          'type': 'none',
+          'dependencies': [
+            'cctest',
+          ],
+          'includes': [
+            '../../build/isolate.gypi',
+          ],
+          'sources': [
+            'cctest_exe.isolate',
+          ],
+        },
+        {
+          'target_name': 'cctest_run',
+          'type': 'none',
+          'dependencies': [
+            'cctest_exe_run',
+          ],
+          'includes': [
+            '../../build/isolate.gypi',
+          ],
+          'sources': [
+            'cctest.isolate',
+          ],
+        },
+      ],
+    }],
   ],
 }

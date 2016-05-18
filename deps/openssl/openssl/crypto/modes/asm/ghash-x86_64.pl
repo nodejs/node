@@ -92,7 +92,7 @@ die "can't locate x86_64-xlate.pl";
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
 		=~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-	$avx = ($1>=2.19) + ($1>=2.22);
+	$avx = ($1>=2.20) + ($1>=2.22);
 }
 
 if (!$avx && $win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
@@ -105,7 +105,7 @@ if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	$avx = ($1>=10) + ($1>=11);
 }
 
-if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|based on LLVM) ([3-9]\.[0-9]+)/) {
+if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9]\.[0-9]+)/) {
 	$avx = ($2>=3.0) + ($2>3.0);
 }
 

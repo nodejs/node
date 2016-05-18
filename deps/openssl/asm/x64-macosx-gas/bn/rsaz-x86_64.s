@@ -19,9 +19,9 @@ L$sqr_body:
 	movq	(%rsi),%rdx
 	movq	8(%rsi),%rax
 	movq	%rcx,128(%rsp)
-	movl	$524544,%r11d
+	movl	$0x80100,%r11d
 	andl	_OPENSSL_ia32cap_P+8(%rip),%r11d
-	cmpl	$524544,%r11d
+	cmpl	$0x80100,%r11d
 	je	L$oop_sqrx
 	jmp	L$oop_sqr
 
@@ -684,9 +684,9 @@ L$mul_body:
 .byte	102,72,15,110,199
 .byte	102,72,15,110,201
 	movq	%r8,128(%rsp)
-	movl	$524544,%r11d
+	movl	$0x80100,%r11d
 	andl	_OPENSSL_ia32cap_P+8(%rip),%r11d
-	cmpl	$524544,%r11d
+	cmpl	$0x80100,%r11d
 	je	L$mulx
 	movq	(%rdx),%rbx
 	movq	%rdx,%rbp
@@ -762,52 +762,98 @@ _rsaz_512_mul_gather4:
 	pushq	%r14
 	pushq	%r15
 
-	movl	%r9d,%r9d
-	subq	$128+24,%rsp
+	subq	$152,%rsp
 L$mul_gather4_body:
-	movl	$524544,%r11d
-	andl	_OPENSSL_ia32cap_P+8(%rip),%r11d
-	cmpl	$524544,%r11d
-	je	L$mulx_gather
-	movl	64(%rdx,%r9,4),%eax
-.byte	102,72,15,110,199
-	movl	(%rdx,%r9,4),%ebx
-.byte	102,72,15,110,201
-	movq	%r8,128(%rsp)
+	movd	%r9d,%xmm8
+	movdqa	L$inc+16(%rip),%xmm1
+	movdqa	L$inc(%rip),%xmm0
 
-	shlq	$32,%rax
-	orq	%rax,%rbx
+	pshufd	$0,%xmm8,%xmm8
+	movdqa	%xmm1,%xmm7
+	movdqa	%xmm1,%xmm2
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm8,%xmm0
+	movdqa	%xmm7,%xmm3
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm8,%xmm1
+	movdqa	%xmm7,%xmm4
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm8,%xmm2
+	movdqa	%xmm7,%xmm5
+	paddd	%xmm3,%xmm4
+	pcmpeqd	%xmm8,%xmm3
+	movdqa	%xmm7,%xmm6
+	paddd	%xmm4,%xmm5
+	pcmpeqd	%xmm8,%xmm4
+	paddd	%xmm5,%xmm6
+	pcmpeqd	%xmm8,%xmm5
+	paddd	%xmm6,%xmm7
+	pcmpeqd	%xmm8,%xmm6
+	pcmpeqd	%xmm8,%xmm7
+
+	movdqa	0(%rdx),%xmm8
+	movdqa	16(%rdx),%xmm9
+	movdqa	32(%rdx),%xmm10
+	movdqa	48(%rdx),%xmm11
+	pand	%xmm0,%xmm8
+	movdqa	64(%rdx),%xmm12
+	pand	%xmm1,%xmm9
+	movdqa	80(%rdx),%xmm13
+	pand	%xmm2,%xmm10
+	movdqa	96(%rdx),%xmm14
+	pand	%xmm3,%xmm11
+	movdqa	112(%rdx),%xmm15
+	leaq	128(%rdx),%rbp
+	pand	%xmm4,%xmm12
+	pand	%xmm5,%xmm13
+	pand	%xmm6,%xmm14
+	pand	%xmm7,%xmm15
+	por	%xmm10,%xmm8
+	por	%xmm11,%xmm9
+	por	%xmm12,%xmm8
+	por	%xmm13,%xmm9
+	por	%xmm14,%xmm8
+	por	%xmm15,%xmm9
+
+	por	%xmm9,%xmm8
+	pshufd	$0x4e,%xmm8,%xmm9
+	por	%xmm9,%xmm8
+	movl	$0x80100,%r11d
+	andl	_OPENSSL_ia32cap_P+8(%rip),%r11d
+	cmpl	$0x80100,%r11d
+	je	L$mulx_gather
+.byte	102,76,15,126,195
+
+	movq	%r8,128(%rsp)
+	movq	%rdi,128+8(%rsp)
+	movq	%rcx,128+16(%rsp)
+
 	movq	(%rsi),%rax
 	movq	8(%rsi),%rcx
-	leaq	128(%rdx,%r9,4),%rbp
 	mulq	%rbx
 	movq	%rax,(%rsp)
 	movq	%rcx,%rax
 	movq	%rdx,%r8
 
 	mulq	%rbx
-	movd	(%rbp),%xmm4
 	addq	%rax,%r8
 	movq	16(%rsi),%rax
 	movq	%rdx,%r9
 	adcq	$0,%r9
 
 	mulq	%rbx
-	movd	64(%rbp),%xmm5
 	addq	%rax,%r9
 	movq	24(%rsi),%rax
 	movq	%rdx,%r10
 	adcq	$0,%r10
 
 	mulq	%rbx
-	pslldq	$4,%xmm5
 	addq	%rax,%r10
 	movq	32(%rsi),%rax
 	movq	%rdx,%r11
 	adcq	$0,%r11
 
 	mulq	%rbx
-	por	%xmm5,%xmm4
 	addq	%rax,%r11
 	movq	40(%rsi),%rax
 	movq	%rdx,%r12
@@ -820,14 +866,12 @@ L$mul_gather4_body:
 	adcq	$0,%r13
 
 	mulq	%rbx
-	leaq	128(%rbp),%rbp
 	addq	%rax,%r13
 	movq	56(%rsi),%rax
 	movq	%rdx,%r14
 	adcq	$0,%r14
 
 	mulq	%rbx
-.byte	102,72,15,126,227
 	addq	%rax,%r14
 	movq	(%rsi),%rax
 	movq	%rdx,%r15
@@ -839,6 +883,35 @@ L$mul_gather4_body:
 
 .p2align	5
 L$oop_mul_gather:
+	movdqa	0(%rbp),%xmm8
+	movdqa	16(%rbp),%xmm9
+	movdqa	32(%rbp),%xmm10
+	movdqa	48(%rbp),%xmm11
+	pand	%xmm0,%xmm8
+	movdqa	64(%rbp),%xmm12
+	pand	%xmm1,%xmm9
+	movdqa	80(%rbp),%xmm13
+	pand	%xmm2,%xmm10
+	movdqa	96(%rbp),%xmm14
+	pand	%xmm3,%xmm11
+	movdqa	112(%rbp),%xmm15
+	leaq	128(%rbp),%rbp
+	pand	%xmm4,%xmm12
+	pand	%xmm5,%xmm13
+	pand	%xmm6,%xmm14
+	pand	%xmm7,%xmm15
+	por	%xmm10,%xmm8
+	por	%xmm11,%xmm9
+	por	%xmm12,%xmm8
+	por	%xmm13,%xmm9
+	por	%xmm14,%xmm8
+	por	%xmm15,%xmm9
+
+	por	%xmm9,%xmm8
+	pshufd	$0x4e,%xmm8,%xmm9
+	por	%xmm9,%xmm8
+.byte	102,76,15,126,195
+
 	mulq	%rbx
 	addq	%rax,%r8
 	movq	8(%rsi),%rax
@@ -847,7 +920,6 @@ L$oop_mul_gather:
 	adcq	$0,%r8
 
 	mulq	%rbx
-	movd	(%rbp),%xmm4
 	addq	%rax,%r9
 	movq	16(%rsi),%rax
 	adcq	$0,%rdx
@@ -856,7 +928,6 @@ L$oop_mul_gather:
 	adcq	$0,%r9
 
 	mulq	%rbx
-	movd	64(%rbp),%xmm5
 	addq	%rax,%r10
 	movq	24(%rsi),%rax
 	adcq	$0,%rdx
@@ -865,7 +936,6 @@ L$oop_mul_gather:
 	adcq	$0,%r10
 
 	mulq	%rbx
-	pslldq	$4,%xmm5
 	addq	%rax,%r11
 	movq	32(%rsi),%rax
 	adcq	$0,%rdx
@@ -874,7 +944,6 @@ L$oop_mul_gather:
 	adcq	$0,%r11
 
 	mulq	%rbx
-	por	%xmm5,%xmm4
 	addq	%rax,%r12
 	movq	40(%rsi),%rax
 	adcq	$0,%rdx
@@ -899,7 +968,6 @@ L$oop_mul_gather:
 	adcq	$0,%r14
 
 	mulq	%rbx
-.byte	102,72,15,126,227
 	addq	%rax,%r15
 	movq	(%rsi),%rax
 	adcq	$0,%rdx
@@ -907,7 +975,6 @@ L$oop_mul_gather:
 	movq	%rdx,%r15
 	adcq	$0,%r15
 
-	leaq	128(%rbp),%rbp
 	leaq	8(%rdi),%rdi
 
 	decl	%ecx
@@ -922,8 +989,8 @@ L$oop_mul_gather:
 	movq	%r14,48(%rdi)
 	movq	%r15,56(%rdi)
 
-.byte	102,72,15,126,199
-.byte	102,72,15,126,205
+	movq	128+8(%rsp),%rdi
+	movq	128+16(%rsp),%rbp
 
 	movq	(%rsp),%r8
 	movq	8(%rsp),%r9
@@ -939,45 +1006,37 @@ L$oop_mul_gather:
 
 .p2align	5
 L$mulx_gather:
-	movl	64(%rdx,%r9,4),%eax
-.byte	102,72,15,110,199
-	leaq	128(%rdx,%r9,4),%rbp
-	movl	(%rdx,%r9,4),%edx
-.byte	102,72,15,110,201
-	movq	%r8,128(%rsp)
+.byte	102,76,15,126,194
 
-	shlq	$32,%rax
-	orq	%rax,%rdx
+	movq	%r8,128(%rsp)
+	movq	%rdi,128+8(%rsp)
+	movq	%rcx,128+16(%rsp)
+
 	mulxq	(%rsi),%rbx,%r8
 	movq	%rbx,(%rsp)
 	xorl	%edi,%edi
 
 	mulxq	8(%rsi),%rax,%r9
-	movd	(%rbp),%xmm4
 
 	mulxq	16(%rsi),%rbx,%r10
-	movd	64(%rbp),%xmm5
 	adcxq	%rax,%r8
 
 	mulxq	24(%rsi),%rax,%r11
-	pslldq	$4,%xmm5
 	adcxq	%rbx,%r9
 
 	mulxq	32(%rsi),%rbx,%r12
-	por	%xmm5,%xmm4
 	adcxq	%rax,%r10
 
 	mulxq	40(%rsi),%rax,%r13
 	adcxq	%rbx,%r11
 
 	mulxq	48(%rsi),%rbx,%r14
-	leaq	128(%rbp),%rbp
 	adcxq	%rax,%r12
 
 	mulxq	56(%rsi),%rax,%r15
-.byte	102,72,15,126,226
 	adcxq	%rbx,%r13
 	adcxq	%rax,%r14
+.byte	0x67
 	movq	%r8,%rbx
 	adcxq	%rdi,%r15
 
@@ -986,24 +1045,48 @@ L$mulx_gather:
 
 .p2align	5
 L$oop_mulx_gather:
-	mulxq	(%rsi),%rax,%r8
+	movdqa	0(%rbp),%xmm8
+	movdqa	16(%rbp),%xmm9
+	movdqa	32(%rbp),%xmm10
+	movdqa	48(%rbp),%xmm11
+	pand	%xmm0,%xmm8
+	movdqa	64(%rbp),%xmm12
+	pand	%xmm1,%xmm9
+	movdqa	80(%rbp),%xmm13
+	pand	%xmm2,%xmm10
+	movdqa	96(%rbp),%xmm14
+	pand	%xmm3,%xmm11
+	movdqa	112(%rbp),%xmm15
+	leaq	128(%rbp),%rbp
+	pand	%xmm4,%xmm12
+	pand	%xmm5,%xmm13
+	pand	%xmm6,%xmm14
+	pand	%xmm7,%xmm15
+	por	%xmm10,%xmm8
+	por	%xmm11,%xmm9
+	por	%xmm12,%xmm8
+	por	%xmm13,%xmm9
+	por	%xmm14,%xmm8
+	por	%xmm15,%xmm9
+
+	por	%xmm9,%xmm8
+	pshufd	$0x4e,%xmm8,%xmm9
+	por	%xmm9,%xmm8
+.byte	102,76,15,126,194
+
+.byte	0xc4,0x62,0xfb,0xf6,0x86,0x00,0x00,0x00,0x00
 	adcxq	%rax,%rbx
 	adoxq	%r9,%r8
 
 	mulxq	8(%rsi),%rax,%r9
-.byte	0x66,0x0f,0x6e,0xa5,0x00,0x00,0x00,0x00
 	adcxq	%rax,%r8
 	adoxq	%r10,%r9
 
 	mulxq	16(%rsi),%rax,%r10
-	movd	64(%rbp),%xmm5
-	leaq	128(%rbp),%rbp
 	adcxq	%rax,%r9
 	adoxq	%r11,%r10
 
 .byte	0xc4,0x62,0xfb,0xf6,0x9e,0x18,0x00,0x00,0x00
-	pslldq	$4,%xmm5
-	por	%xmm5,%xmm4
 	adcxq	%rax,%r10
 	adoxq	%r12,%r11
 
@@ -1017,10 +1100,10 @@ L$oop_mulx_gather:
 
 .byte	0xc4,0x62,0xfb,0xf6,0xb6,0x30,0x00,0x00,0x00
 	adcxq	%rax,%r13
+.byte	0x67
 	adoxq	%r15,%r14
 
 	mulxq	56(%rsi),%rax,%r15
-.byte	102,72,15,126,226
 	movq	%rbx,64(%rsp,%rcx,8)
 	adcxq	%rax,%r14
 	adoxq	%rdi,%r15
@@ -1039,10 +1122,10 @@ L$oop_mulx_gather:
 	movq	%r14,64+48(%rsp)
 	movq	%r15,64+56(%rsp)
 
-.byte	102,72,15,126,199
-.byte	102,72,15,126,205
-
 	movq	128(%rsp),%rdx
+	movq	128+8(%rsp),%rdi
+	movq	128+16(%rsp),%rbp
+
 	movq	(%rsp),%r8
 	movq	8(%rsp),%r9
 	movq	16(%rsp),%r10
@@ -1092,16 +1175,16 @@ _rsaz_512_mul_scatter4:
 	movl	%r9d,%r9d
 	subq	$128+24,%rsp
 L$mul_scatter4_body:
-	leaq	(%r8,%r9,4),%r8
+	leaq	(%r8,%r9,8),%r8
 .byte	102,72,15,110,199
 .byte	102,72,15,110,202
 .byte	102,73,15,110,208
 	movq	%rcx,128(%rsp)
 
 	movq	%rdi,%rbp
-	movl	$524544,%r11d
+	movl	$0x80100,%r11d
 	andl	_OPENSSL_ia32cap_P+8(%rip),%r11d
-	cmpl	$524544,%r11d
+	cmpl	$0x80100,%r11d
 	je	L$mulx_scatter
 	movq	(%rdi),%rbx
 	call	__rsaz_512_mul
@@ -1155,30 +1238,14 @@ L$mul_scatter_tail:
 
 	call	__rsaz_512_subtract
 
-	movl	%r8d,0(%rsi)
-	shrq	$32,%r8
-	movl	%r9d,128(%rsi)
-	shrq	$32,%r9
-	movl	%r10d,256(%rsi)
-	shrq	$32,%r10
-	movl	%r11d,384(%rsi)
-	shrq	$32,%r11
-	movl	%r12d,512(%rsi)
-	shrq	$32,%r12
-	movl	%r13d,640(%rsi)
-	shrq	$32,%r13
-	movl	%r14d,768(%rsi)
-	shrq	$32,%r14
-	movl	%r15d,896(%rsi)
-	shrq	$32,%r15
-	movl	%r8d,64(%rsi)
-	movl	%r9d,192(%rsi)
-	movl	%r10d,320(%rsi)
-	movl	%r11d,448(%rsi)
-	movl	%r12d,576(%rsi)
-	movl	%r13d,704(%rsi)
-	movl	%r14d,832(%rsi)
-	movl	%r15d,960(%rsi)
+	movq	%r8,0(%rsi)
+	movq	%r9,128(%rsi)
+	movq	%r10,256(%rsi)
+	movq	%r11,384(%rsi)
+	movq	%r12,512(%rsi)
+	movq	%r13,640(%rsi)
+	movq	%r14,768(%rsi)
+	movq	%r15,896(%rsi)
 
 	leaq	128+24+48(%rsp),%rax
 	movq	-48(%rax),%r15
@@ -1225,8 +1292,8 @@ L$mul_by_one_body:
 	movdqa	%xmm0,64(%rsp)
 	movdqa	%xmm0,80(%rsp)
 	movdqa	%xmm0,96(%rsp)
-	andl	$524544,%eax
-	cmpl	$524544,%eax
+	andl	$0x80100,%eax
+	cmpl	$0x80100,%eax
 	je	L$by_one_callx
 	call	__rsaz_512_reduce
 	jmp	L$by_one_tail
@@ -1717,16 +1784,14 @@ L$oop_mulx:
 
 .p2align	4
 _rsaz_512_scatter4:
-	leaq	(%rdi,%rdx,4),%rdi
+	leaq	(%rdi,%rdx,8),%rdi
 	movl	$8,%r9d
 	jmp	L$oop_scatter
 .p2align	4
 L$oop_scatter:
 	movq	(%rsi),%rax
 	leaq	8(%rsi),%rsi
-	movl	%eax,(%rdi)
-	shrq	$32,%rax
-	movl	%eax,64(%rdi)
+	movq	%rax,(%rdi)
 	leaq	128(%rdi),%rdi
 	decl	%r9d
 	jnz	L$oop_scatter
@@ -1737,18 +1802,72 @@ L$oop_scatter:
 
 .p2align	4
 _rsaz_512_gather4:
-	leaq	(%rsi,%rdx,4),%rsi
+	movd	%edx,%xmm8
+	movdqa	L$inc+16(%rip),%xmm1
+	movdqa	L$inc(%rip),%xmm0
+
+	pshufd	$0,%xmm8,%xmm8
+	movdqa	%xmm1,%xmm7
+	movdqa	%xmm1,%xmm2
+	paddd	%xmm0,%xmm1
+	pcmpeqd	%xmm8,%xmm0
+	movdqa	%xmm7,%xmm3
+	paddd	%xmm1,%xmm2
+	pcmpeqd	%xmm8,%xmm1
+	movdqa	%xmm7,%xmm4
+	paddd	%xmm2,%xmm3
+	pcmpeqd	%xmm8,%xmm2
+	movdqa	%xmm7,%xmm5
+	paddd	%xmm3,%xmm4
+	pcmpeqd	%xmm8,%xmm3
+	movdqa	%xmm7,%xmm6
+	paddd	%xmm4,%xmm5
+	pcmpeqd	%xmm8,%xmm4
+	paddd	%xmm5,%xmm6
+	pcmpeqd	%xmm8,%xmm5
+	paddd	%xmm6,%xmm7
+	pcmpeqd	%xmm8,%xmm6
+	pcmpeqd	%xmm8,%xmm7
 	movl	$8,%r9d
 	jmp	L$oop_gather
 .p2align	4
 L$oop_gather:
-	movl	(%rsi),%eax
-	movl	64(%rsi),%r8d
+	movdqa	0(%rsi),%xmm8
+	movdqa	16(%rsi),%xmm9
+	movdqa	32(%rsi),%xmm10
+	movdqa	48(%rsi),%xmm11
+	pand	%xmm0,%xmm8
+	movdqa	64(%rsi),%xmm12
+	pand	%xmm1,%xmm9
+	movdqa	80(%rsi),%xmm13
+	pand	%xmm2,%xmm10
+	movdqa	96(%rsi),%xmm14
+	pand	%xmm3,%xmm11
+	movdqa	112(%rsi),%xmm15
 	leaq	128(%rsi),%rsi
-	shlq	$32,%r8
-	orq	%r8,%rax
-	movq	%rax,(%rdi)
+	pand	%xmm4,%xmm12
+	pand	%xmm5,%xmm13
+	pand	%xmm6,%xmm14
+	pand	%xmm7,%xmm15
+	por	%xmm10,%xmm8
+	por	%xmm11,%xmm9
+	por	%xmm12,%xmm8
+	por	%xmm13,%xmm9
+	por	%xmm14,%xmm8
+	por	%xmm15,%xmm9
+
+	por	%xmm9,%xmm8
+	pshufd	$0x4e,%xmm8,%xmm9
+	por	%xmm9,%xmm8
+	movq	%xmm8,(%rdi)
 	leaq	8(%rdi),%rdi
 	decl	%r9d
 	jnz	L$oop_gather
 	.byte	0xf3,0xc3
+L$SEH_end_rsaz_512_gather4:
+
+
+.p2align	6
+L$inc:
+.long	0,0, 1,1
+.long	2,2, 2,2

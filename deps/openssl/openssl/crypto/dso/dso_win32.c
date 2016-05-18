@@ -1,4 +1,4 @@
-/* dso_win32.c -*- mode:C; c-file-style: "eay" -*- */
+/* dso_win32.c */
 /*
  * Written by Geoff Thorpe (geoff@geoffthorpe.net) for the OpenSSL project
  * 2000.

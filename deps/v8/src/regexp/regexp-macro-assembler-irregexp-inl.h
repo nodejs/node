@@ -5,13 +5,13 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 
-#include "src/ast.h"
+#ifdef V8_INTERPRETED_REGEXP
+
+#include "src/ast/ast.h"
 #include "src/regexp/bytecodes-irregexp.h"
 
 namespace v8 {
 namespace internal {
-
-#ifdef V8_INTERPRETED_REGEXP
 
 void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,
                                         uint32_t twenty_four_bits) {
@@ -54,8 +54,9 @@ void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
   pc_ += 4;
 }
 
-#endif  // V8_INTERPRETED_REGEXP
+}  // namespace internal
+}  // namespace v8
 
-} }  // namespace v8::internal
+#endif  // V8_INTERPRETED_REGEXP
 
 #endif  // V8_REGEXP_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_

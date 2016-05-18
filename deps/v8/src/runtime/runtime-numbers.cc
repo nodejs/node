@@ -8,6 +8,7 @@
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
+#include "src/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -113,11 +114,13 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
 }
 
 
+// ES6 18.2.5 parseInt(string, radix) slow path
 RUNTIME_FUNCTION(Runtime_StringParseInt) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_NUMBER_CHECKED(int, radix, Int32, args[1]);
+  // Step 8.a. is already handled in the JS function.
   RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
 
   subject = String::Flatten(subject);
@@ -127,7 +130,6 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
     DisallowHeapAllocation no_gc;
     String::FlatContent flat = subject->GetFlatContent();
 
-    // ECMA-262 section 15.1.2.3, empty string is NaN
     if (flat.IsOneByte()) {
       value =
           StringToInt(isolate->unicode_cache(), flat.ToOneByteVector(), radix);
@@ -140,6 +142,7 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
 }
 
 
+// ES6 18.2.4 parseFloat(string)
 RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   HandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -171,12 +174,13 @@ RUNTIME_FUNCTION(Runtime_NumberToStringSkipCache) {
 }
 
 
+// TODO(bmeurer): Kill this runtime entry. Uses in date.js are wrong anyway.
 RUNTIME_FUNCTION(Runtime_NumberToIntegerMapMinusZero) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(number, 0);
-  double double_value = DoubleToInteger(number);
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, input, Object::ToNumber(input));
+  double double_value = DoubleToInteger(input->Number());
   // Map both -0 and +0 to +0.
   if (double_value == 0) double_value = 0;
 
@@ -313,6 +317,21 @@ RUNTIME_FUNCTION(Runtime_GetRootNaN) {
   DCHECK(args.length() == 0);
   return isolate->heap()->nan_value();
 }
+
+
+RUNTIME_FUNCTION(Runtime_GetHoleNaNUpper) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  return *isolate->factory()->NewNumberFromUint(kHoleNanUpper32);
+}
+
+
+RUNTIME_FUNCTION(Runtime_GetHoleNaNLower) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  return *isolate->factory()->NewNumberFromUint(kHoleNanLower32);
+}
+
 
 }  // namespace internal
 }  // namespace v8

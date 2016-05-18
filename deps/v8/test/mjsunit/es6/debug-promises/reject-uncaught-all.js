@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax
+// Flags: --expose-debug-as debug --allow-natives-syntax --promise-extra
 
 // Test debug events when we listen to all exceptions and
 // there is a catch handler for the to-be-rejected Promise.

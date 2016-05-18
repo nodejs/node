@@ -76,14 +76,10 @@ class OutputFrameStateCombine {
 
 // The type of stack frame that a FrameState node represents.
 enum class FrameStateType {
-  kJavaScriptFunction,  // Represents an unoptimized JavaScriptFrame.
-  kArgumentsAdaptor     // Represents an ArgumentsAdaptorFrame.
-};
-
-
-enum ContextCallingMode {
-  CALL_MAINTAINS_NATIVE_CONTEXT,
-  CALL_CHANGES_NATIVE_CONTEXT
+  kJavaScriptFunction,   // Represents an unoptimized JavaScriptFrame.
+  kInterpretedFunction,  // Represents an InterpretedFrame.
+  kArgumentsAdaptor,     // Represents an ArgumentsAdaptorFrame.
+  kConstructStub         // Represents a ConstructStubFrame.
 };
 
 
@@ -91,20 +87,20 @@ class FrameStateFunctionInfo {
  public:
   FrameStateFunctionInfo(FrameStateType type, int parameter_count,
                          int local_count,
-                         Handle<SharedFunctionInfo> shared_info,
-                         ContextCallingMode context_calling_mode)
+                         Handle<SharedFunctionInfo> shared_info)
       : type_(type),
         parameter_count_(parameter_count),
         local_count_(local_count),
-        shared_info_(shared_info),
-        context_calling_mode_(context_calling_mode) {}
+        shared_info_(shared_info) {}
 
   int local_count() const { return local_count_; }
   int parameter_count() const { return parameter_count_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   FrameStateType type() const { return type_; }
-  ContextCallingMode context_calling_mode() const {
-    return context_calling_mode_;
+
+  static bool IsJSFunctionType(FrameStateType type) {
+    return type == FrameStateType::kJavaScriptFunction ||
+           type == FrameStateType::kInterpretedFunction;
   }
 
  private:
@@ -112,7 +108,6 @@ class FrameStateFunctionInfo {
   int const parameter_count_;
   int const local_count_;
   Handle<SharedFunctionInfo> const shared_info_;
-  ContextCallingMode context_calling_mode_;
 };
 
 

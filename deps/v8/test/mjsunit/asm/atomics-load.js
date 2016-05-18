@@ -4,14 +4,14 @@
 
 // Flags: --harmony-sharedarraybuffer
 
-function Module(stdlib, foreign, heap) {
+function Module(stdlib, foreign, heap, offset) {
   "use asm";
-  var MEM8 = new stdlib.Int8Array(heap);
-  var MEM16 = new stdlib.Int16Array(heap);
-  var MEM32 = new stdlib.Int32Array(heap);
-  var MEMU8 = new stdlib.Uint8Array(heap);
-  var MEMU16 = new stdlib.Uint16Array(heap);
-  var MEMU32 = new stdlib.Uint32Array(heap);
+  var MEM8 = new stdlib.Int8Array(heap, offset);
+  var MEM16 = new stdlib.Int16Array(heap, offset);
+  var MEM32 = new stdlib.Int32Array(heap, offset);
+  var MEMU8 = new stdlib.Uint8Array(heap, offset);
+  var MEMU16 = new stdlib.Uint16Array(heap, offset);
+  var MEMU32 = new stdlib.Uint32Array(heap, offset);
   var load = stdlib.Atomics.load;
   var fround = stdlib.Math.fround;
 
@@ -55,9 +55,6 @@ function Module(stdlib, foreign, heap) {
   };
 }
 
-var sab = new SharedArrayBuffer(16);
-var m = Module(this, {}, sab);
-
 function clearArray() {
   var ui8 = new Uint8Array(sab);
   for (var i = 0; i < sab.byteLength; ++i) {
@@ -65,10 +62,10 @@ function clearArray() {
   }
 }
 
-function testElementType(taConstr, f, oobValue) {
+function testElementType(taConstr, f, oobValue, offset) {
   clearArray();
 
-  var ta = new taConstr(sab);
+  var ta = new taConstr(sab, offset);
   var name = Object.prototype.toString.call(ta);
   ta[0] = 10;
   assertEquals(10, f(0), name);
@@ -78,9 +75,21 @@ function testElementType(taConstr, f, oobValue) {
   assertEquals(oobValue, f(ta.length), name);
 }
 
-testElementType(Int8Array, m.loadi8, 0);
-testElementType(Int16Array, m.loadi16, 0);
-testElementType(Int32Array, m.loadi32, 0);
-testElementType(Uint8Array, m.loadu8, 0);
-testElementType(Uint16Array, m.loadu16, 0);
-testElementType(Uint32Array, m.loadu32, 0);
+function testElement(m, offset) {
+  testElementType(Int8Array, m.loadi8, 0, offset);
+  testElementType(Int16Array, m.loadi16, 0, offset);
+  testElementType(Int32Array, m.loadi32, 0, offset);
+  testElementType(Uint8Array, m.loadu8, 0, offset);
+  testElementType(Uint16Array, m.loadu16, 0, offset);
+  testElementType(Uint32Array, m.loadu32, 0, offset);
+}
+
+var offset = 0;
+var sab = new SharedArrayBuffer(16);
+var m1 = Module(this, {}, sab, offset);
+testElement(m1, offset);
+
+offset = 32;
+sab = new SharedArrayBuffer(64);
+var m2 = Module(this, {}, sab, offset);
+testElement(m2, offset);

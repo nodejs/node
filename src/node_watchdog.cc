@@ -4,9 +4,6 @@
 
 namespace node {
 
-using v8::V8;
-
-
 Watchdog::Watchdog(v8::Isolate* isolate, uint64_t ms) : isolate_(isolate),
                                                         destroyed_(false) {
   int rc;
@@ -83,7 +80,7 @@ void Watchdog::Async(uv_async_t* async) {
 void Watchdog::Timer(uv_timer_t* timer) {
   Watchdog* w = ContainerOf(&Watchdog::timer_, timer);
   uv_stop(w->loop_);
-  V8::TerminateExecution(w->isolate());
+  w->isolate()->TerminateExecution();
 }
 
 

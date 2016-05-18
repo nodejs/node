@@ -1,26 +1,28 @@
 'use strict';
-var common = require('../common'),
-    assert = require('assert'),
-    dgram = require('dgram'),
-    util = require('util'),
-    networkInterfaces = require('os').networkInterfaces(),
-    Buffer = require('buffer').Buffer,
-    fork = require('child_process').fork,
-    LOCAL_BROADCAST_HOST = '255.255.255.255',
-    TIMEOUT = common.platformTimeout(5000),
-    messages = [
-      new Buffer('First message to send'),
-      new Buffer('Second message to send'),
-      new Buffer('Third message to send'),
-      new Buffer('Fourth message to send')
-    ];
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
+const util = require('util');
+const networkInterfaces = require('os').networkInterfaces();
+const Buffer = require('buffer').Buffer;
+const fork = require('child_process').fork;
+const LOCAL_BROADCAST_HOST = '255.255.255.255';
+const TIMEOUT = common.platformTimeout(5000);
+const messages = [
+  Buffer.from('First message to send'),
+  Buffer.from('Second message to send'),
+  Buffer.from('Third message to send'),
+  Buffer.from('Fourth message to send')
+];
 
 if (common.inFreeBSDJail) {
-  console.log('1..0 # Skipped: in a FreeBSD jail');
+  common.skip('in a FreeBSD jail');
   return;
 }
 
-// take the first non-internal interface as the address for binding
+// Take the first non-internal interface as the address for binding.
+// Ideally, this should check for whether or not an interface is set up for
+// BROADCAST and favor internal/private interfaces.
 get_bindAddress: for (var name in networkInterfaces) {
   var interfaces = networkInterfaces[name];
   for (var i = 0; i < interfaces.length; i++) {
@@ -34,13 +36,13 @@ get_bindAddress: for (var name in networkInterfaces) {
 assert.ok(bindAddress);
 
 if (process.argv[2] !== 'child') {
-  var workers = {},
-      listeners = 3,
-      listening = 0,
-      dead = 0,
-      i = 0,
-      done = 0,
-      timer = null;
+  const workers = {};
+  const listeners = 3;
+  let listening = 0;
+  let dead = 0;
+  let i = 0;
+  let done = 0;
+  let timer = null;
 
   //exit the test if it doesn't succeed within TIMEOUT
   timer = setTimeout(function() {
@@ -166,15 +168,21 @@ if (process.argv[2] !== 'child') {
       return;
     }
 
-    sendSocket.send(buf, 0, buf.length,
-                    common.PORT, LOCAL_BROADCAST_HOST, function(err) {
-          if (err) throw err;
-          console.error('[PARENT] sent %s to %s:%s',
-                        util.inspect(buf.toString()),
-                        LOCAL_BROADCAST_HOST, common.PORT);
+    sendSocket.send(
+      buf,
+      0,
+      buf.length,
+      common.PORT,
+      LOCAL_BROADCAST_HOST,
+      function(err) {
+        if (err) throw err;
+        console.error('[PARENT] sent %s to %s:%s',
+                      util.inspect(buf.toString()),
+                      LOCAL_BROADCAST_HOST, common.PORT);
 
-          process.nextTick(sendSocket.sendNext);
-        });
+        process.nextTick(sendSocket.sendNext);
+      }
+    );
   };
 
   function killChildren(children) {
@@ -203,7 +211,7 @@ if (process.argv[2] === 'child') {
 
     receivedMessages.push(buf);
 
-    process.send({ message: buf.toString() });
+    process.send({message: buf.toString()});
 
     if (receivedMessages.length == messages.length) {
       process.nextTick(function() {
@@ -222,7 +230,7 @@ if (process.argv[2] === 'child') {
   });
 
   listenSocket.on('listening', function() {
-    process.send({ listening: true });
+    process.send({listening: true});
   });
 
   listenSocket.bind(common.PORT);

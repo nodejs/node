@@ -4,14 +4,14 @@ const common = require('../common');
 const assert = require('assert');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: SIGUSR1 and SIGHUP signals are not supported');
+  common.skip('SIGUSR1 and SIGHUP signals are not supported');
   return;
 }
 
 console.log('process.pid: ' + process.pid);
 
-var first = 0,
-    second = 0;
+let first = 0;
+let second = 0;
 
 var sighup = false;
 

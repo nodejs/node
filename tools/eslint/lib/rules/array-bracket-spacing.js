@@ -1,180 +1,215 @@
 /**
  * @fileoverview Disallows or enforces spaces inside of array brackets.
  * @author Jamund Ferguson
- * @copyright 2015 Jamund Ferguson. All rights reserved.
- * @copyright 2014 Brandyn Bennett. All rights reserved.
- * @copyright 2014 Michael Ficarra. No rights reserved.
- * @copyright 2014 Vignesh Anand. All rights reserved.
  */
 "use strict";
+
+var astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var spaced = context.options[0] === "always";
-
-    /**
-     * Determines whether an option is set, relative to the spacing option.
-     * If spaced is "always", then check whether option is set to false.
-     * If spaced is "never", then check whether option is set to true.
-     * @param {Object} option - The option to exclude.
-     * @returns {boolean} Whether or not the property is excluded.
-     */
-    function isOptionSet(option) {
-        return context.options[1] != null ? context.options[1][option] === !spaced : false;
-    }
-
-    var options = {
-        spaced: spaced,
-        singleElementException: isOptionSet("singleValue"),
-        objectsInArraysException: isOptionSet("objectsInArrays"),
-        arraysInArraysException: isOptionSet("arraysInArrays")
-    };
-
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
-
-    /**
-     * Determines whether two adjacent tokens are have whitespace between them.
-     * @param {Object} left - The left token object.
-     * @param {Object} right - The right token object.
-     * @returns {boolean} Whether or not there is space between the tokens.
-     */
-    function isSpaced(left, right) {
-        return left.range[1] < right.range[0];
-    }
-
-    /**
-     * Determines whether two adjacent tokens are on the same line.
-     * @param {Object} left - The left token object.
-     * @param {Object} right - The right token object.
-     * @returns {boolean} Whether or not the tokens are on the same line.
-     */
-    function isSameLine(left, right) {
-        return left.loc.start.line === right.loc.start.line;
-    }
-
-    /**
-    * Reports that there shouldn't be a space after the first token
-    * @param {ASTNode} node - The node to report in the event of an error.
-    * @param {Token} token - The token to use for the report.
-    * @returns {void}
-    */
-    function reportNoBeginningSpace(node, token) {
-        context.report(node, token.loc.start,
-            "There should be no space after '" + token.value + "'");
-    }
-
-    /**
-    * Reports that there shouldn't be a space before the last token
-    * @param {ASTNode} node - The node to report in the event of an error.
-    * @param {Token} token - The token to use for the report.
-    * @returns {void}
-    */
-    function reportNoEndingSpace(node, token) {
-        context.report(node, token.loc.start,
-            "There should be no space before '" + token.value + "'");
-    }
-
-    /**
-    * Reports that there should be a space after the first token
-    * @param {ASTNode} node - The node to report in the event of an error.
-    * @param {Token} token - The token to use for the report.
-    * @returns {void}
-    */
-    function reportRequiredBeginningSpace(node, token) {
-        context.report(node, token.loc.start,
-            "A space is required after '" + token.value + "'");
-    }
-
-    /**
-    * Reports that there should be a space before the last token
-    * @param {ASTNode} node - The node to report in the event of an error.
-    * @param {Token} token - The token to use for the report.
-    * @returns {void}
-    */
-    function reportRequiredEndingSpace(node, token) {
-        context.report(node, token.loc.start,
-                    "A space is required before '" + token.value + "'");
-    }
-
-    /**
-     * Validates the spacing around array brackets
-     * @param {ASTNode} node - The node we're checking for spacing
-     * @returns {void}
-     */
-    function validateArraySpacing(node) {
-        if (node.elements.length === 0) {
-            return;
-        }
-
-        var first = context.getFirstToken(node),
-            second = context.getFirstToken(node, 1),
-            penultimate = context.getLastToken(node, 1),
-            last = context.getLastToken(node);
-
-        var openingBracketMustBeSpaced =
-            options.objectsInArraysException && second.value === "{" ||
-            options.arraysInArraysException && second.value === "[" ||
-            options.singleElementException && node.elements.length === 1
-                ? !options.spaced : options.spaced;
-
-        var closingBracketMustBeSpaced =
-            options.objectsInArraysException && penultimate.value === "}" ||
-            options.arraysInArraysException && penultimate.value === "]" ||
-            options.singleElementException && node.elements.length === 1
-                ? !options.spaced : options.spaced;
-
-        if (isSameLine(first, second)) {
-            if (openingBracketMustBeSpaced && !isSpaced(first, second)) {
-                reportRequiredBeginningSpace(node, first);
-            }
-            if (!openingBracketMustBeSpaced && isSpaced(first, second)) {
-                reportNoBeginningSpace(node, first);
-            }
-        }
-
-        if (isSameLine(penultimate, last)) {
-            if (closingBracketMustBeSpaced && !isSpaced(penultimate, last)) {
-                reportRequiredEndingSpace(node, last);
-            }
-            if (!closingBracketMustBeSpaced && isSpaced(penultimate, last)) {
-                reportNoEndingSpace(node, last);
-            }
-        }
-    }
-
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
-
-    return {
-        ArrayPattern: validateArraySpacing,
-        ArrayExpression: validateArraySpacing
-    };
-
-};
-
-module.exports.schema = [
-    {
-        "enum": ["always", "never"]
-    },
-    {
-        "type": "object",
-        "properties": {
-            "singleValue": {
-                "type": "boolean"
-            },
-            "objectsInArrays": {
-                "type": "boolean"
-            },
-            "arraysInArrays": {
-                "type": "boolean"
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "Enforce spacing inside array brackets",
+            category: "Stylistic Issues",
+            recommended: false
         },
-        "additionalProperties": false
+        fixable: "whitespace",
+        schema: [
+            {
+                enum: ["always", "never"]
+            },
+            {
+                type: "object",
+                properties: {
+                    singleValue: {
+                        type: "boolean"
+                    },
+                    objectsInArrays: {
+                        type: "boolean"
+                    },
+                    arraysInArrays: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
+    create: function(context) {
+        var spaced = context.options[0] === "always",
+            sourceCode = context.getSourceCode();
+
+        /**
+         * Determines whether an option is set, relative to the spacing option.
+         * If spaced is "always", then check whether option is set to false.
+         * If spaced is "never", then check whether option is set to true.
+         * @param {Object} option - The option to exclude.
+         * @returns {boolean} Whether or not the property is excluded.
+         */
+        function isOptionSet(option) {
+            return context.options[1] ? context.options[1][option] === !spaced : false;
+        }
+
+        var options = {
+            spaced: spaced,
+            singleElementException: isOptionSet("singleValue"),
+            objectsInArraysException: isOptionSet("objectsInArrays"),
+            arraysInArraysException: isOptionSet("arraysInArrays")
+        };
+
+        //--------------------------------------------------------------------------
+        // Helpers
+        //--------------------------------------------------------------------------
+
+        /**
+        * Reports that there shouldn't be a space after the first token
+        * @param {ASTNode} node - The node to report in the event of an error.
+        * @param {Token} token - The token to use for the report.
+        * @returns {void}
+        */
+        function reportNoBeginningSpace(node, token) {
+            context.report({
+                node: node,
+                loc: token.loc.start,
+                message: "There should be no space after '" + token.value + "'",
+                fix: function(fixer) {
+                    var nextToken = context.getSourceCode().getTokenAfter(token);
+
+                    return fixer.removeRange([token.range[1], nextToken.range[0]]);
+                }
+            });
+        }
+
+        /**
+        * Reports that there shouldn't be a space before the last token
+        * @param {ASTNode} node - The node to report in the event of an error.
+        * @param {Token} token - The token to use for the report.
+        * @returns {void}
+        */
+        function reportNoEndingSpace(node, token) {
+            context.report({
+                node: node,
+                loc: token.loc.start,
+                message: "There should be no space before '" + token.value + "'",
+                fix: function(fixer) {
+                    var previousToken = context.getSourceCode().getTokenBefore(token);
+
+                    return fixer.removeRange([previousToken.range[1], token.range[0]]);
+                }
+            });
+        }
+
+        /**
+        * Reports that there should be a space after the first token
+        * @param {ASTNode} node - The node to report in the event of an error.
+        * @param {Token} token - The token to use for the report.
+        * @returns {void}
+        */
+        function reportRequiredBeginningSpace(node, token) {
+            context.report({
+                node: node,
+                loc: token.loc.start,
+                message: "A space is required after '" + token.value + "'",
+                fix: function(fixer) {
+                    return fixer.insertTextAfter(token, " ");
+                }
+            });
+        }
+
+        /**
+        * Reports that there should be a space before the last token
+        * @param {ASTNode} node - The node to report in the event of an error.
+        * @param {Token} token - The token to use for the report.
+        * @returns {void}
+        */
+        function reportRequiredEndingSpace(node, token) {
+            context.report({
+                node: node,
+                loc: token.loc.start,
+                message: "A space is required before '" + token.value + "'",
+                fix: function(fixer) {
+                    return fixer.insertTextBefore(token, " ");
+                }
+            });
+        }
+
+        /**
+        * Determines if a node is an object type
+        * @param {ASTNode} node - The node to check.
+        * @returns {boolean} Whether or not the node is an object type.
+        */
+        function isObjectType(node) {
+            return node && (node.type === "ObjectExpression" || node.type === "ObjectPattern");
+        }
+
+        /**
+        * Determines if a node is an array type
+        * @param {ASTNode} node - The node to check.
+        * @returns {boolean} Whether or not the node is an array type.
+        */
+        function isArrayType(node) {
+            return node && (node.type === "ArrayExpression" || node.type === "ArrayPattern");
+        }
+
+        /**
+         * Validates the spacing around array brackets
+         * @param {ASTNode} node - The node we're checking for spacing
+         * @returns {void}
+         */
+        function validateArraySpacing(node) {
+            if (options.spaced && node.elements.length === 0) {
+                return;
+            }
+
+            var first = context.getFirstToken(node),
+                second = context.getFirstToken(node, 1),
+                penultimate = context.getLastToken(node, 1),
+                last = context.getLastToken(node),
+                firstElement = node.elements[0],
+                lastElement = node.elements[node.elements.length - 1];
+
+            var openingBracketMustBeSpaced =
+                options.objectsInArraysException && isObjectType(firstElement) ||
+                options.arraysInArraysException && isArrayType(firstElement) ||
+                options.singleElementException && node.elements.length === 1
+                    ? !options.spaced : options.spaced;
+
+            var closingBracketMustBeSpaced =
+                options.objectsInArraysException && isObjectType(lastElement) ||
+                options.arraysInArraysException && isArrayType(lastElement) ||
+                options.singleElementException && node.elements.length === 1
+                    ? !options.spaced : options.spaced;
+
+            if (astUtils.isTokenOnSameLine(first, second)) {
+                if (openingBracketMustBeSpaced && !sourceCode.isSpaceBetweenTokens(first, second)) {
+                    reportRequiredBeginningSpace(node, first);
+                }
+                if (!openingBracketMustBeSpaced && sourceCode.isSpaceBetweenTokens(first, second)) {
+                    reportNoBeginningSpace(node, first);
+                }
+            }
+
+            if (first !== penultimate && astUtils.isTokenOnSameLine(penultimate, last)) {
+                if (closingBracketMustBeSpaced && !sourceCode.isSpaceBetweenTokens(penultimate, last)) {
+                    reportRequiredEndingSpace(node, last);
+                }
+                if (!closingBracketMustBeSpaced && sourceCode.isSpaceBetweenTokens(penultimate, last)) {
+                    reportNoEndingSpace(node, last);
+                }
+            }
+        }
+
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
+
+        return {
+            ArrayPattern: validateArraySpacing,
+            ArrayExpression: validateArraySpacing
+        };
     }
-];
+};

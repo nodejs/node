@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const stream = require('stream');
 
 const reader = new stream.Readable();
@@ -10,7 +9,7 @@ const writer2 = new stream.Writable();
 // 560000 is chosen here because it is larger than the (default) highWaterMark
 // and will cause `.write()` to return false
 // See: https://github.com/nodejs/node/issues/2323
-const buffer = new Buffer(560000);
+const buffer = Buffer.allocUnsafe(560000);
 
 reader._read = function(n) {};
 

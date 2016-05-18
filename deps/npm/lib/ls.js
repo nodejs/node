@@ -19,9 +19,12 @@ var npm = require('./npm.js')
 var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
 var packageId = require('./utils/package-id.js')
+var usage = require('./utils/usage')
 
-ls.usage = 'npm ls [[<@scope>/]<pkg> ...]' +
-    '\n\naliases: list, la, ll'
+ls.usage = usage(
+  'ls',
+  'npm ls [[<@scope>/]<pkg> ...]'
+)
 
 ls.completion = require('./utils/completion/installed-deep.js')
 
@@ -42,6 +45,10 @@ function andRecalculateMetadata (next) {
   }
 }
 
+function inList (list, value) {
+  return list.indexOf(value) !== -1
+}
+
 var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
   if (typeof cb !== 'function') {
     cb = silent
@@ -56,8 +63,7 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
       var p = npa(a)
       var name = p.name
       var ver = semver.validRange(p.rawSpec) || ''
-
-      return [ name, ver ]
+      return [ name, ver, a ]
     })
   }
 
@@ -79,7 +85,7 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
     // the raw data can be circular
     out = JSON.stringify(d, function (k, o) {
       if (typeof o === 'object') {
-        if (seen.indexOf(o) !== -1) return '[Circular]'
+        if (inList(seen, o)) return '[Circular]'
         seen.push(o)
       }
       return o
@@ -117,13 +123,18 @@ function filterByEnv (data) {
   var dev = npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('only'))
   var production = npm.config.get('production') || /^prod(uction)?$/.test(npm.config.get('only'))
   var dependencies = {}
-  var devDependencies = data.devDependencies || []
+  var devKeys = Object.keys(data.devDependencies || [])
+  var prodKeys = Object.keys(data._dependencies || [])
   Object.keys(data.dependencies).forEach(function (name) {
-    var keys = Object.keys(devDependencies)
-    if (production && !dev && keys.indexOf(name) !== -1) return
-    if (dev && !production && keys.indexOf(name) === -1) return
-    if (!dev && keys.indexOf(name) !== -1 && data.dependencies[name].missing) return
-    dependencies[name] = data.dependencies[name]
+    if (!dev && inList(devKeys, name) && data.dependencies[name].missing) {
+      return
+    }
+
+    if ((dev && inList(devKeys, name)) ||            // only --dev
+        (production && inList(prodKeys, name)) ||    // only --production
+        (!dev && !production)) {                            // no --production|--dev|--only=xxx
+      dependencies[name] = data.dependencies[name]
+    }
   })
   data.dependencies = dependencies
 }
@@ -139,13 +150,14 @@ function isCruft (data) {
   return data.extraneous && data.error && data.error.code === 'ENOTDIR'
 }
 
-function getLite (data, noname) {
+function getLite (data, noname, depth) {
   var lite = {}
 
   if (isCruft(data)) return lite
 
   var maxDepth = npm.config.get('depth')
 
+  if (typeof depth === 'undefined') depth = 0
   if (!noname && data.name) lite.name = data.name
   if (data.version) lite.version = data.version
   if (data.extraneous) {
@@ -213,6 +225,9 @@ function getLite (data, noname) {
           lite.problems.push(pdm)
         })
         return [d, { required: dep, peerMissing: true }]
+      } else if (npm.config.get('json')) {
+        if (depth === maxDepth) delete dep.dependencies
+        return [d, getLite(dep, true, depth + 1)]
       }
       return [d, getLite(dep, true)]
     }).reduce(function (deps, d) {
@@ -246,7 +261,7 @@ function bfsify (root) {
     Object.keys(deps).forEach(function (d) {
       var dep = deps[d]
       if (dep.missing) return
-      if (seen.indexOf(dep) !== -1) {
+      if (inList(seen, dep)) {
         if (npm.config.get('parseable') || !npm.config.get('long')) {
           delete deps[d]
           return
@@ -267,15 +282,20 @@ function filterFound (root, args) {
   if (!args.length) return root
   var deps = root.dependencies
   if (deps) {
-    Object.keys(deps).forEach(function (d) {
-      var dep = filterFound(deps[d], args)
+    Object.keys(deps).forEach(function (depName) {
+      var dep = filterFound(deps[depName], args)
       if (dep.peerMissing) return
 
       // see if this one itself matches
       var found = false
-      for (var i = 0; !found && i < args.length; i++) {
-        if (d === args[i][0]) {
-          found = semver.satisfies(dep.version, args[i][1], true)
+      for (var ii = 0; !found && ii < args.length; ii++) {
+        var argName = args[ii][0]
+        var argVersion = args[ii][1]
+        var argRaw = args[ii][2]
+        if (depName === argName) {
+          found = semver.satisfies(dep.version, argVersion, true)
+        } else if (dep.path === argRaw) {
+          found = true
         }
       }
       // included explicitly
@@ -283,7 +303,7 @@ function filterFound (root, args) {
       // included because a child was included
       if (dep._found && !root._found) root._found = 1
       // not included
-      if (!dep._found) delete deps[d]
+      if (!dep._found) delete deps[depName]
     })
   }
   if (!root._found) root._found = false
@@ -417,7 +437,7 @@ function getExtras (data) {
 
 function makeParseable (data, long, dir, depth, parent, d) {
   depth = depth || 0
-
+  if (depth > npm.config.get('depth')) return [ makeParseable_(data, long, dir, depth, parent, d) ]
   return [ makeParseable_(data, long, dir, depth, parent, d) ]
   .concat(Object.keys(data.dependencies || {})
     .sort(alphasort).map(function (d) {

@@ -3,23 +3,13 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
 var net = require('net');
 
-var fs = require('fs');
-
 var success = false;
-
-function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
-}
-
-function loadPEM(n) {
-  return fs.readFileSync(filenamePEM(n));
-}
 
 var server = net.Server(function(raw) {
   var pair = tls.createSecurePair(null, true, false, false);

@@ -27,7 +27,6 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::PropertyAttribute;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
@@ -57,8 +56,8 @@ Local<Object> TCPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   CHECK_EQ(constructor.IsEmpty(), false);
   Local<Value> ptr = External::New(env->isolate(), parent);
-  Local<Object> instance = constructor->NewInstance(1, &ptr);
-  CHECK_EQ(instance.IsEmpty(), false);
+  Local<Object> instance =
+      constructor->NewInstance(env->context(), 1, &ptr).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
 
@@ -88,6 +87,7 @@ void TCPWrap::Initialize(Local<Object> target,
 
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
+  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
 
   StreamWrap::AddMethods(env, t, StreamBase::kFlagHasWritev);
 
@@ -269,7 +269,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
     argv[1] = client_obj;
   }
 
-  tcp_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
+  tcp_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
 
 
@@ -295,7 +295,7 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
     v8::True(env->isolate())
   };
 
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }

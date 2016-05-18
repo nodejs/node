@@ -73,14 +73,34 @@ static const char rnd_seed[] =
     "string to make the random number generator think it has entropy";
 
 /*
+ * Test that r == 0 in test_exp_mod_zero(). Returns one on success,
+ * returns zero and prints debug output otherwise.
+ */
+static int a_is_zero_mod_one(const char *method, const BIGNUM *r,
+                             const BIGNUM *a) {
+    if (!BN_is_zero(r)) {
+        fprintf(stderr, "%s failed:\n", method);
+        fprintf(stderr, "a ** 0 mod 1 = r (should be 0)\n");
+        fprintf(stderr, "a = ");
+        BN_print_fp(stderr, a);
+        fprintf(stderr, "\nr = ");
+        BN_print_fp(stderr, r);
+        fprintf(stderr, "\n");
+        return 0;
+    }
+    return 1;
+}
+
+/*
  * test_exp_mod_zero tests that x**0 mod 1 == 0. It returns zero on success.
  */
 static int test_exp_mod_zero()
 {
     BIGNUM a, p, m;
     BIGNUM r;
+    BN_ULONG one_word = 1;
     BN_CTX *ctx = BN_CTX_new();
-    int ret = 1;
+    int ret = 1, failed = 0;
 
     BN_init(&m);
     BN_one(&m);
@@ -92,21 +112,65 @@ static int test_exp_mod_zero()
     BN_zero(&p);
 
     BN_init(&r);
-    BN_mod_exp(&r, &a, &p, &m, ctx);
-    BN_CTX_free(ctx);
 
-    if (BN_is_zero(&r))
-        ret = 0;
-    else {
-        printf("1**0 mod 1 = ");
-        BN_print_fp(stdout, &r);
-        printf(", should be 0\n");
+    if (!BN_rand(&a, 1024, 0, 0))
+        goto err;
+
+    if (!BN_mod_exp(&r, &a, &p, &m, ctx))
+        goto err;
+
+    if (!a_is_zero_mod_one("BN_mod_exp", &r, &a))
+        failed = 1;
+
+    if (!BN_mod_exp_recp(&r, &a, &p, &m, ctx))
+        goto err;
+
+    if (!a_is_zero_mod_one("BN_mod_exp_recp", &r, &a))
+        failed = 1;
+
+    if (!BN_mod_exp_simple(&r, &a, &p, &m, ctx))
+        goto err;
+
+    if (!a_is_zero_mod_one("BN_mod_exp_simple", &r, &a))
+        failed = 1;
+
+    if (!BN_mod_exp_mont(&r, &a, &p, &m, ctx, NULL))
+        goto err;
+
+    if (!a_is_zero_mod_one("BN_mod_exp_mont", &r, &a))
+        failed = 1;
+
+    if (!BN_mod_exp_mont_consttime(&r, &a, &p, &m, ctx, NULL)) {
+        goto err;
     }
 
+    if (!a_is_zero_mod_one("BN_mod_exp_mont_consttime", &r, &a))
+        failed = 1;
+
+    /*
+     * A different codepath exists for single word multiplication
+     * in non-constant-time only.
+     */
+    if (!BN_mod_exp_mont_word(&r, one_word, &p, &m, ctx, NULL))
+        goto err;
+
+    if (!BN_is_zero(&r)) {
+        fprintf(stderr, "BN_mod_exp_mont_word failed:\n");
+        fprintf(stderr, "1 ** 0 mod 1 = r (should be 0)\n");
+        fprintf(stderr, "r = ");
+        BN_print_fp(stderr, &r);
+        fprintf(stderr, "\n");
+        return 0;
+    }
+
+    ret = failed;
+
+ err:
     BN_free(&r);
     BN_free(&a);
     BN_free(&p);
     BN_free(&m);
+    BN_CTX_free(ctx);
 
     return ret;
 }

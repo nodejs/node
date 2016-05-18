@@ -35,14 +35,14 @@ var counterBefore = counter;
 
 // Now load the module a bunch of times with equivalent paths.
 // stat should not be called.
-for (var i = 0; i < 100; i++) {
+for (let i = 0; i < 100; i++) {
   require(common.fixturesDir + '/a');
   require('../fixtures/a.js');
   require('./../fixtures/a.js');
 }
 
 // Do the same with a built-in module
-for (var i = 0; i < 100; i++) {
+for (let i = 0; i < 100; i++) {
   require('http');
 }
 

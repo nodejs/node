@@ -6,87 +6,20 @@
 #define V8_COMPILER_H_
 
 #include "src/allocation.h"
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/bailout-reason.h"
 #include "src/compilation-dependencies.h"
 #include "src/signature.h"
+#include "src/source-position.h"
 #include "src/zone.h"
 
 namespace v8 {
 namespace internal {
 
-class AstValueFactory;
-class HydrogenCodeStub;
+// Forward declarations.
 class JavaScriptFrame;
 class ParseInfo;
 class ScriptData;
-
-struct OffsetRange {
-  OffsetRange(int from, int to) : from(from), to(to) {}
-  int from;
-  int to;
-};
-
-
-// This class encapsulates encoding and decoding of sources positions from
-// which hydrogen values originated.
-// When FLAG_track_hydrogen_positions is set this object encodes the
-// identifier of the inlining and absolute offset from the start of the
-// inlined function.
-// When the flag is not set we simply track absolute offset from the
-// script start.
-class SourcePosition {
- public:
-  static SourcePosition Unknown() {
-    return SourcePosition::FromRaw(kNoPosition);
-  }
-
-  bool IsUnknown() const { return value_ == kNoPosition; }
-
-  uint32_t position() const { return PositionField::decode(value_); }
-  void set_position(uint32_t position) {
-    if (FLAG_hydrogen_track_positions) {
-      value_ = static_cast<uint32_t>(PositionField::update(value_, position));
-    } else {
-      value_ = position;
-    }
-  }
-
-  uint32_t inlining_id() const { return InliningIdField::decode(value_); }
-  void set_inlining_id(uint32_t inlining_id) {
-    if (FLAG_hydrogen_track_positions) {
-      value_ =
-          static_cast<uint32_t>(InliningIdField::update(value_, inlining_id));
-    }
-  }
-
-  uint32_t raw() const { return value_; }
-
- private:
-  static const uint32_t kNoPosition =
-      static_cast<uint32_t>(RelocInfo::kNoPosition);
-  typedef BitField<uint32_t, 0, 9> InliningIdField;
-
-  // Offset from the start of the inlined function.
-  typedef BitField<uint32_t, 9, 23> PositionField;
-
-  friend class HPositionInfo;
-  friend class Deoptimizer;
-
-  static SourcePosition FromRaw(uint32_t raw_position) {
-    SourcePosition position;
-    position.value_ = raw_position;
-    return position;
-  }
-
-  // If FLAG_hydrogen_track_positions is set contains bitfields InliningIdField
-  // and PositionField.
-  // Otherwise contains absolute offset from the script start.
-  uint32_t value_;
-};
-
-
-std::ostream& operator<<(std::ostream& os, const SourcePosition& p);
 
 
 struct InlinedFunctionInfo {
@@ -123,19 +56,20 @@ class CompilationInfo {
     kSerializing = 1 << 7,
     kFunctionContextSpecializing = 1 << 8,
     kFrameSpecializing = 1 << 9,
-    kInliningEnabled = 1 << 10,
-    kTypingEnabled = 1 << 11,
-    kDisableFutureOptimization = 1 << 12,
-    kSplittingEnabled = 1 << 13,
-    kTypeFeedbackEnabled = 1 << 14,
-    kDeoptimizationEnabled = 1 << 15,
-    kSourcePositionsEnabled = 1 << 16,
-    kFirstCompile = 1 << 17,
+    kNativeContextSpecializing = 1 << 10,
+    kInliningEnabled = 1 << 11,
+    kTypingEnabled = 1 << 12,
+    kDisableFutureOptimization = 1 << 13,
+    kSplittingEnabled = 1 << 14,
+    kDeoptimizationEnabled = 1 << 16,
+    kSourcePositionsEnabled = 1 << 17,
+    kFirstCompile = 1 << 18,
+    kBailoutOnUninitialized = 1 << 19,
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
-  CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone);
-  CompilationInfo(const char* debug_name, Isolate* isolate, Zone* zone);
+  CompilationInfo(const char* debug_name, Isolate* isolate, Zone* zone,
+                  Code::Flags code_flags = Code::ComputeFlags(Code::STUB));
   virtual ~CompilationInfo();
 
   ParseInfo* parse_info() const { return parse_info_; }
@@ -165,7 +99,7 @@ class CompilationInfo {
   Zone* zone() { return zone_; }
   bool is_osr() const { return !osr_ast_id_.IsNone(); }
   Handle<Code> code() const { return code_; }
-  CodeStub* code_stub() const { return code_stub_; }
+  Code::Flags code_flags() const { return code_flags_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
   Handle<Code> unoptimized_code() const { return unoptimized_code_; }
   int opt_count() const { return opt_count_; }
@@ -178,6 +112,9 @@ class CompilationInfo {
     DCHECK(IsStub());
     parameter_count_ = parameter_count;
   }
+
+  bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
+  Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
   bool is_tracking_positions() const { return track_positions_; }
 
@@ -233,10 +170,12 @@ class CompilationInfo {
 
   bool is_frame_specializing() const { return GetFlag(kFrameSpecializing); }
 
-  void MarkAsTypeFeedbackEnabled() { SetFlag(kTypeFeedbackEnabled); }
+  void MarkAsNativeContextSpecializing() {
+    SetFlag(kNativeContextSpecializing);
+  }
 
-  bool is_type_feedback_enabled() const {
-    return GetFlag(kTypeFeedbackEnabled);
+  bool is_native_context_specializing() const {
+    return GetFlag(kNativeContextSpecializing);
   }
 
   void MarkAsDeoptimizationEnabled() { SetFlag(kDeoptimizationEnabled); }
@@ -269,9 +208,18 @@ class CompilationInfo {
 
   bool is_first_compile() const { return GetFlag(kFirstCompile); }
 
-  bool IsCodePreAgingActive() const {
+  void MarkAsBailoutOnUninitialized() { SetFlag(kBailoutOnUninitialized); }
+
+  bool is_bailout_on_uninitialized() const {
+    return GetFlag(kBailoutOnUninitialized);
+  }
+
+  bool GeneratePreagedPrologue() const {
+    // Generate a pre-aged prologue if we are optimizing for size, which
+    // will make code flushing more aggressive. Only apply to Code::FUNCTION,
+    // since StaticMarkingVisitor::IsFlushable only flushes proper functions.
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
-           !is_debug();
+           !is_debug() && output_code_kind() == Code::FUNCTION;
   }
 
   void EnsureFeedbackVector();
@@ -280,38 +228,44 @@ class CompilationInfo {
   }
   void SetCode(Handle<Code> code) { code_ = code; }
 
+  void SetBytecodeArray(Handle<BytecodeArray> bytecode_array) {
+    bytecode_array_ = bytecode_array;
+  }
+
   bool ShouldTrapOnDeopt() const {
     return (FLAG_trap_on_deopt && IsOptimizing()) ||
         (FLAG_trap_on_stub_deopt && IsStub());
   }
 
-  bool has_global_object() const {
-    return !closure().is_null() &&
-        (closure()->context()->global_object() != NULL);
+  bool has_native_context() const {
+    return !closure().is_null() && (closure()->native_context() != nullptr);
   }
 
-  GlobalObject* global_object() const {
-    return has_global_object() ? closure()->context()->global_object() : NULL;
+  Context* native_context() const {
+    return has_native_context() ? closure()->native_context() : nullptr;
+  }
+
+  bool has_global_object() const { return has_native_context(); }
+
+  JSGlobalObject* global_object() const {
+    return has_global_object() ? native_context()->global_object() : nullptr;
   }
 
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
   bool IsStub() const { return mode_ == STUB; }
-  void SetOptimizing(BailoutId osr_ast_id, Handle<Code> unoptimized) {
+  void SetOptimizing() {
     DCHECK(has_shared_info());
     SetMode(OPTIMIZE);
+    optimization_id_ = isolate()->NextOptimizationId();
+    code_flags_ =
+        Code::KindField::update(code_flags_, Code::OPTIMIZED_FUNCTION);
+  }
+  void SetOptimizingForOsr(BailoutId osr_ast_id, Handle<Code> unoptimized) {
+    SetOptimizing();
     osr_ast_id_ = osr_ast_id;
     unoptimized_code_ = unoptimized;
-    optimization_id_ = isolate()->NextOptimizationId();
-    set_output_code_kind(Code::OPTIMIZED_FUNCTION);
   }
-
-  void SetFunctionType(Type::FunctionType* function_type) {
-    function_type_ = function_type;
-  }
-  Type::FunctionType* function_type() const { return function_type_; }
-
-  void SetStub(CodeStub* code_stub);
 
   // Deoptimization support.
   bool HasDeoptimizationSupport() const {
@@ -323,7 +277,7 @@ class CompilationInfo {
   }
   bool ShouldEnsureSpaceForLazyDeopt() { return !IsStub(); }
 
-  bool MustReplaceUndefinedReceiverWithGlobalProxy();
+  bool ExpectsJSReceiverAsReceiver();
 
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();
@@ -361,19 +315,6 @@ class CompilationInfo {
     prologue_offset_ = prologue_offset;
   }
 
-  // Adds offset range [from, to) where fp register does not point
-  // to the current frame base. Used in CPU profiler to detect stack
-  // samples where top frame is not set up.
-  inline void AddNoFrameRange(int from, int to) {
-    if (no_frame_ranges_) no_frame_ranges_->Add(OffsetRange(from, to));
-  }
-
-  List<OffsetRange>* ReleaseNoFrameRanges() {
-    List<OffsetRange>* result = no_frame_ranges_;
-    no_frame_ranges_ = NULL;
-    return result;
-  }
-
   int start_position_for(uint32_t inlining_id) {
     return inlined_function_infos_.at(inlining_id).start_position;
   }
@@ -407,19 +348,34 @@ class CompilationInfo {
 
   bool has_simple_parameters();
 
-  typedef std::vector<Handle<SharedFunctionInfo>> InlinedFunctionList;
+  struct InlinedFunctionHolder {
+    Handle<SharedFunctionInfo> shared_info;
+
+    // Root that holds the unoptimized code of the inlined function alive
+    // (and out of reach of code flushing) until we finish compilation.
+    // Do not remove.
+    Handle<Code> inlined_code_object_root;
+
+    explicit InlinedFunctionHolder(
+        Handle<SharedFunctionInfo> inlined_shared_info)
+        : shared_info(inlined_shared_info),
+          inlined_code_object_root(inlined_shared_info->code()) {}
+  };
+
+  typedef std::vector<InlinedFunctionHolder> InlinedFunctionList;
   InlinedFunctionList const& inlined_functions() const {
     return inlined_functions_;
   }
+
   void AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function) {
-    inlined_functions_.push_back(inlined_function);
+    inlined_functions_.push_back(InlinedFunctionHolder(inlined_function));
   }
 
   base::SmartArrayPointer<char> GetDebugName() const;
 
-  Code::Kind output_code_kind() const { return output_code_kind_; }
-
-  void set_output_code_kind(Code::Kind kind) { output_code_kind_ = kind; }
+  Code::Kind output_code_kind() const {
+    return Code::ExtractKindFromFlags(code_flags_);
+  }
 
  protected:
   ParseInfo* parse_info_;
@@ -440,8 +396,8 @@ class CompilationInfo {
     STUB
   };
 
-  CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
-                  const char* debug_name, Mode mode, Isolate* isolate,
+  CompilationInfo(ParseInfo* parse_info, const char* debug_name,
+                  Code::Flags code_flags, Mode mode, Isolate* isolate,
                   Zone* zone);
 
   Isolate* isolate_;
@@ -460,10 +416,8 @@ class CompilationInfo {
 
   unsigned flags_;
 
-  Code::Kind output_code_kind_;
+  Code::Flags code_flags_;
 
-  // For compiled stubs, the stub object
-  CodeStub* code_stub_;
   // The compiled code.
   Handle<Code> code_;
 
@@ -478,6 +432,11 @@ class CompilationInfo {
   // data.  Keep track which code we patched.
   Handle<Code> unoptimized_code_;
 
+  // Holds the bytecode array generated by the interpreter.
+  // TODO(rmcilroy/mstarzinger): Temporary work-around until compiler.cc is
+  // refactored to avoid us needing to carry the BytcodeArray around.
+  Handle<BytecodeArray> bytecode_array_;
+
   // The zone from which the compilation pipeline working on this
   // CompilationInfo allocates.
   Zone* zone_;
@@ -491,7 +450,6 @@ class CompilationInfo {
 
   int prologue_offset_;
 
-  List<OffsetRange>* no_frame_ranges_;
   std::vector<InlinedFunctionInfo> inlined_function_infos_;
   bool track_positions_;
 
@@ -510,8 +468,6 @@ class CompilationInfo {
 
   // The current OSR frame for specialization or {nullptr}.
   JavaScriptFrame* osr_frame_ = nullptr;
-
-  Type::FunctionType* function_type_;
 
   const char* debug_name_;
 
@@ -637,8 +593,6 @@ class Compiler : public AllStatic {
       Handle<JSFunction> function);
   MUST_USE_RESULT static MaybeHandle<Code> GetLazyCode(
       Handle<JSFunction> function);
-  MUST_USE_RESULT static MaybeHandle<Code> GetStubCode(
-      Handle<JSFunction> function, CodeStub* stub);
 
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
   static bool CompileDebugCode(Handle<JSFunction> function);
@@ -677,19 +631,24 @@ class Compiler : public AllStatic {
   static Handle<SharedFunctionInfo> GetSharedFunctionInfo(
       FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer);
 
+  // Create a shared function info object for a native function literal.
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForNative(
+      v8::Extension* extension, Handle<String> name);
+
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 
   // Generate and return optimized code or start a concurrent optimization job.
   // In the latter case, return the InOptimizationQueue builtin.  On failure,
   // return the empty handle.
   MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCode(
-      Handle<JSFunction> function, Handle<Code> current_code,
-      ConcurrencyMode mode, BailoutId osr_ast_id = BailoutId::None(),
+      Handle<JSFunction> function, ConcurrencyMode mode,
+      BailoutId osr_ast_id = BailoutId::None(),
       JavaScriptFrame* osr_frame = nullptr);
 
   // Generate and return code from previously queued optimization job.
   // On failure, return the empty handle.
-  static Handle<Code> GetConcurrentlyOptimizedCode(OptimizedCompileJob* job);
+  MUST_USE_RESULT static MaybeHandle<Code> GetConcurrentlyOptimizedCode(
+      OptimizedCompileJob* job);
 };
 
 
@@ -716,6 +675,7 @@ class CompilationPhase BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(CompilationPhase);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_H_

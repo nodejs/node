@@ -496,6 +496,10 @@ TEST(DisasmX64) {
   {
     if (CpuFeatures::IsSupported(AVX)) {
       CpuFeatureScope scope(&assm, AVX);
+      __ vmovss(xmm6, xmm14, xmm2);
+      __ vmovss(xmm9, Operand(rbx, rcx, times_4, 10000));
+      __ vmovss(Operand(rbx, rcx, times_4, 10000), xmm0);
+
       __ vaddss(xmm0, xmm1, xmm2);
       __ vaddss(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vmulss(xmm0, xmm1, xmm2);
@@ -508,8 +512,21 @@ TEST(DisasmX64) {
       __ vminss(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
       __ vmaxss(xmm8, xmm1, xmm2);
       __ vmaxss(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
+      __ vmovss(xmm9, Operand(r11, rcx, times_8, -10000));
+      __ vmovss(Operand(rbx, r9, times_4, 10000), xmm1);
       __ vucomiss(xmm9, xmm1);
       __ vucomiss(xmm8, Operand(rbx, rdx, times_2, 10981));
+
+      __ vmovd(xmm5, rdi);
+      __ vmovd(xmm9, Operand(rbx, rcx, times_4, 10000));
+      __ vmovd(r9, xmm6);
+      __ vmovq(xmm5, rdi);
+      __ vmovq(xmm9, Operand(rbx, rcx, times_4, 10000));
+      __ vmovq(r9, xmm6);
+
+      __ vmovsd(xmm6, xmm14, xmm2);
+      __ vmovsd(xmm9, Operand(rbx, rcx, times_4, 10000));
+      __ vmovsd(Operand(rbx, rcx, times_4, 10000), xmm0);
 
       __ vaddsd(xmm0, xmm1, xmm2);
       __ vaddsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
@@ -523,8 +540,28 @@ TEST(DisasmX64) {
       __ vminsd(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
       __ vmaxsd(xmm8, xmm1, xmm2);
       __ vmaxsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
+      __ vroundsd(xmm8, xmm3, xmm0, kRoundDown);
+      __ vsqrtsd(xmm8, xmm1, xmm2);
+      __ vsqrtsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
       __ vucomisd(xmm9, xmm1);
       __ vucomisd(xmm8, Operand(rbx, rdx, times_2, 10981));
+
+      __ vcvtss2sd(xmm4, xmm9, xmm11);
+      __ vcvtsd2ss(xmm9, xmm3, xmm2);
+      __ vcvtss2sd(xmm4, xmm9, Operand(rbx, rcx, times_1, 10000));
+      __ vcvtsd2ss(xmm9, xmm3, Operand(rbx, rcx, times_1, 10000));
+      __ vcvtlsi2sd(xmm5, xmm9, rcx);
+      __ vcvtlsi2sd(xmm9, xmm3, Operand(rbx, r9, times_4, 10000));
+      __ vcvtqsi2sd(xmm5, xmm9, r11);
+      __ vcvttsd2si(r9, xmm6);
+      __ vcvttsd2si(rax, Operand(rbx, r9, times_4, 10000));
+      __ vcvttsd2siq(rdi, xmm9);
+      __ vcvttsd2siq(r8, Operand(r9, rbx, times_4, 10000));
+      __ vcvtsd2si(rdi, xmm9);
+
+      __ vmovaps(xmm10, xmm11);
+      __ vmovapd(xmm7, xmm0);
+      __ vmovmskpd(r9, xmm4);
 
       __ vandps(xmm0, xmm9, xmm2);
       __ vandps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
@@ -533,8 +570,15 @@ TEST(DisasmX64) {
 
       __ vandpd(xmm0, xmm9, xmm2);
       __ vandpd(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vorpd(xmm0, xmm1, xmm9);
+      __ vorpd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vxorpd(xmm0, xmm1, xmm9);
       __ vxorpd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+
+      __ vpcmpeqd(xmm0, xmm15, xmm5);
+      __ vpcmpeqd(xmm15, xmm0, Operand(rbx, rcx, times_4, 10000));
+      __ vpsllq(xmm0, xmm15, 21);
+      __ vpsrlq(xmm15, xmm0, 21);
     }
   }
 

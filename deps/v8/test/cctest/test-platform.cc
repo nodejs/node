@@ -40,7 +40,7 @@ void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 TEST(StackAlignment) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global_template =
+  v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
   global_template->Set(v8_str("get_stack_pointer"),
                        v8::FunctionTemplate::New(isolate, GetStackPointer));
@@ -52,12 +52,15 @@ TEST(StackAlignment) {
       "}");
 
   v8::Local<v8::Object> global_object = env->Global();
-  v8::Local<v8::Function> foo =
-      v8::Local<v8::Function>::Cast(global_object->Get(v8_str("foo")));
+  v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
+      global_object->Get(isolate->GetCurrentContext(), v8_str("foo"))
+          .ToLocalChecked());
 
-  v8::Local<v8::Value> result = foo->Call(global_object, 0, NULL);
-  CHECK_EQ(0u,
-           result->Uint32Value() % v8::base::OS::ActivationFrameAlignment());
+  v8::Local<v8::Value> result =
+      foo->Call(isolate->GetCurrentContext(), global_object, 0, NULL)
+          .ToLocalChecked();
+  CHECK_EQ(0u, result->Uint32Value(isolate->GetCurrentContext()).FromJust() %
+                   v8::base::OS::ActivationFrameAlignment());
 }
 
 #endif  // V8_CC_GNU

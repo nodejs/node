@@ -91,17 +91,16 @@ class SamplingTestHelper {
 
   explicit SamplingTestHelper(const std::string& test_function)
       : sample_is_taken_(false), isolate_(CcTest::isolate()) {
-    DCHECK(!instance_);
+    CHECK(!instance_);
     instance_ = this;
     v8::HandleScope scope(isolate_);
-    v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
-    global->Set(v8::String::NewFromUtf8(isolate_, "CollectSample"),
+    v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
+    global->Set(v8_str("CollectSample"),
                 v8::FunctionTemplate::New(isolate_, CollectSample));
     LocalContext env(isolate_, NULL, global);
     isolate_->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
                                      JitCodeEventHandler);
-    v8::Script::Compile(
-        v8::String::NewFromUtf8(isolate_, test_function.c_str()))->Run();
+    CompileRun(v8_str(test_function.c_str()));
   }
 
   ~SamplingTestHelper() {
@@ -224,16 +223,17 @@ TEST(StackDepthDoesNotExceedMaxValue) {
 //                              ^      ^       ^
 // sample.stack indices         2      1       0
 TEST(StackFramesConsistent) {
-  // Note: The arguments.callee stuff is there so that the
-  //       functions are not optimized away.
+  i::FLAG_allow_natives_syntax = true;
   const char* test_script =
       "function test_sampler_api_inner() {"
       "  CollectSample();"
-      "  return arguments.callee.toString();"
+      "  return 0;"
       "}"
       "function test_sampler_api_outer() {"
-      "  return test_sampler_api_inner() + arguments.callee.toString();"
+      "  return test_sampler_api_inner();"
       "}"
+      "%NeverOptimizeFunction(test_sampler_api_inner);"
+      "%NeverOptimizeFunction(test_sampler_api_outer);"
       "test_sampler_api_outer();";
 
   SamplingTestHelper helper(test_script);

@@ -30,7 +30,7 @@ bool ContextMeasure::IsShared(HeapObject* object) {
   if (object->IsSharedFunctionInfo()) return true;
   if (object->IsScopeInfo()) return true;
   if (object->IsCode() && !Code::cast(object)->is_optimized_code()) return true;
-  if (object->IsExecutableAccessorInfo()) return true;
+  if (object->IsAccessorInfo()) return true;
   if (object->IsWeakCell()) return true;
   return false;
 }
@@ -74,5 +74,5 @@ void ContextMeasure::VisitPointers(Object** start, Object** end) {
     MeasureObject(HeapObject::cast(*current));
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

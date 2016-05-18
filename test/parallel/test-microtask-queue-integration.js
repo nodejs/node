@@ -1,17 +1,10 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var implementations = [
   function(fn) {
     Promise.resolve().then(fn);
-  },
-  function(fn) {
-    var obj = {};
-
-    Object.observe(obj, fn);
-
-    obj.a = 1;
   }
 ];
 

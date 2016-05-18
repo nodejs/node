@@ -1,4 +1,4 @@
-/* crypto/store/str_mem.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/store/str_mem.c */
 /*
  * Written by Richard Levitte (richard@levitte.org) for the OpenSSL project
  * 2003.

@@ -11,7 +11,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var https = require('https');
@@ -53,7 +53,7 @@ var bodyBuffer = '';
 
 server.listen(common.PORT, function() {
   console.log('1) Making Request');
-  var req = https.get({
+  https.get({
     port: common.PORT,
     rejectUnauthorized: false
   }, function(res) {

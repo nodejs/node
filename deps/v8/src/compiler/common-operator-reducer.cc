@@ -67,6 +67,8 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
       return ReduceReturn(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
+    case IrOpcode::kGuard:
+      return ReduceGuard(node);
     default:
       break;
   }
@@ -202,6 +204,8 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
         if_false->opcode() == IrOpcode::kIfFalse &&
         if_true->InputAt(0) == if_false->InputAt(0)) {
       Node* const branch = if_true->InputAt(0);
+      // Check that the branch is not dead already.
+      if (branch->opcode() != IrOpcode::kBranch) return NoChange();
       Node* const cond = branch->InputAt(0);
       if (cond->opcode() == IrOpcode::kFloat32LessThan) {
         Float32BinopMatcher mcond(cond);
@@ -354,6 +358,16 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
     default:
       break;
   }
+  return NoChange();
+}
+
+
+Reduction CommonOperatorReducer::ReduceGuard(Node* node) {
+  DCHECK_EQ(IrOpcode::kGuard, node->opcode());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetTypeOrAny(input);
+  Type* const guard_type = OpParameter<Type*>(node);
+  if (input_type->Is(guard_type)) return Replace(input);
   return NoChange();
 }
 

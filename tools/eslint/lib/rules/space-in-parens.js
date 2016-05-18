@@ -1,281 +1,281 @@
 /**
  * @fileoverview Disallows or enforces spaces inside of parentheses.
  * @author Jonathan Rajavuori
- * @copyright 2014 David Clark. All rights reserved.
- * @copyright 2014 Jonathan Rajavuori. All rights reserved.
  */
 "use strict";
+
+var astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "enforce consistent spacing inside parentheses",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    var MISSING_SPACE_MESSAGE = "There must be a space inside this paren.",
-        REJECTED_SPACE_MESSAGE = "There should be no spaces inside this paren.",
-        exceptionsArray = (context.options.length === 2) ? context.options[1].exceptions : [],
-        options = {},
-        rejectedSpaceRegExp,
-        missingSpaceRegExp,
-        spaceChecks;
+        fixable: "whitespace",
 
-    if (exceptionsArray && exceptionsArray.length) {
-        options.braceException = exceptionsArray.indexOf("{}") !== -1 || false;
-        options.bracketException = exceptionsArray.indexOf("[]") !== -1 || false;
-        options.parenException = exceptionsArray.indexOf("()") !== -1 || false;
-        options.empty = exceptionsArray.indexOf("empty") !== -1 || false;
-    }
-
-    /**
-     * Used with the `never` option to produce, given the exception options,
-     * two regular expressions to check for missing and rejected spaces.
-     * @param {Object} opts The exception options
-     * @returns {Object} `missingSpace` and `rejectedSpace` regular expressions
-     * @private
-     */
-    function getNeverChecks(opts) {
-        var missingSpaceOpeners = [],
-            missingSpaceClosers = [],
-            rejectedSpaceOpeners = ["\\s"],
-            rejectedSpaceClosers = ["\\s"],
-            missingSpaceCheck,
-            rejectedSpaceCheck;
-
-        // Populate openers and closers
-        if (opts.braceException) {
-            missingSpaceOpeners.push("\\{");
-            missingSpaceClosers.push("\\}");
-            rejectedSpaceOpeners.push("\\{");
-            rejectedSpaceClosers.push("\\}");
-        }
-        if (opts.bracketException) {
-            missingSpaceOpeners.push("\\[");
-            missingSpaceClosers.push("\\]");
-            rejectedSpaceOpeners.push("\\[");
-            rejectedSpaceClosers.push("\\]");
-        }
-        if (opts.parenException) {
-            missingSpaceOpeners.push("\\(");
-            missingSpaceClosers.push("\\)");
-            rejectedSpaceOpeners.push("\\(");
-            rejectedSpaceClosers.push("\\)");
-        }
-        if (opts.empty) {
-            missingSpaceOpeners.push("\\)");
-            missingSpaceClosers.push("\\(");
-            rejectedSpaceOpeners.push("\\)");
-            rejectedSpaceClosers.push("\\(");
-        }
-
-        if (missingSpaceOpeners.length) {
-            missingSpaceCheck = "\\((" + missingSpaceOpeners.join("|") + ")";
-            if (missingSpaceClosers.length) {
-                missingSpaceCheck += "|";
-            }
-        }
-        if (missingSpaceClosers.length) {
-            missingSpaceCheck += "(" + missingSpaceClosers.join("|") + ")\\)";
-        }
-
-        // compose the rejected regexp
-        rejectedSpaceCheck = "\\( +[^" + rejectedSpaceOpeners.join("") + "]";
-        rejectedSpaceCheck += "|[^" + rejectedSpaceClosers.join("") + "] +\\)";
-
-        return {
-            // e.g. \((\{)|(\})\) --- where {} is an exception
-            missingSpace: missingSpaceCheck || ".^",
-            // e.g. \( +[^ \n\r\{]|[^ \n\r\}] +\) --- where {} is an exception
-            rejectedSpace: rejectedSpaceCheck
-        };
-    }
-
-    /**
-     * Used with the `always` option to produce, given the exception options,
-     * two regular expressions to check for missing and rejected spaces.
-     * @param {Object} opts The exception options
-     * @returns {Object} `missingSpace` and `rejectedSpace` regular expressions
-     * @private
-     */
-    function getAlwaysChecks(opts) {
-        var missingSpaceOpeners = ["\\s", "\\)"],
-            missingSpaceClosers = ["\\s", "\\("],
-            rejectedSpaceOpeners = [],
-            rejectedSpaceClosers = [],
-            missingSpaceCheck,
-            rejectedSpaceCheck;
-
-        // Populate openers and closers
-        if (opts.braceException) {
-            missingSpaceOpeners.push("\\{");
-            missingSpaceClosers.push("\\}");
-            rejectedSpaceOpeners.push(" \\{");
-            rejectedSpaceClosers.push("\\} ");
-        }
-        if (opts.bracketException) {
-            missingSpaceOpeners.push("\\[");
-            missingSpaceClosers.push("\\]");
-            rejectedSpaceOpeners.push(" \\[");
-            rejectedSpaceClosers.push("\\] ");
-        }
-        if (opts.parenException) {
-            missingSpaceOpeners.push("\\(");
-            missingSpaceClosers.push("\\)");
-            rejectedSpaceOpeners.push(" \\(");
-            rejectedSpaceClosers.push("\\) ");
-        }
-        if (opts.empty) {
-            rejectedSpaceOpeners.push(" \\)");
-            rejectedSpaceClosers.push("\\( ");
-        }
-
-        // compose the allowed regexp
-        missingSpaceCheck = "\\([^" + missingSpaceOpeners.join("") + "]";
-        missingSpaceCheck += "|[^" + missingSpaceClosers.join("") + "]\\)";
-
-        // compose the rejected regexp
-        if (rejectedSpaceOpeners.length) {
-            rejectedSpaceCheck = "\\((" + rejectedSpaceOpeners.join("|") + ")";
-            if (rejectedSpaceClosers.length) {
-                rejectedSpaceCheck += "|";
-            }
-        }
-        if (rejectedSpaceClosers.length) {
-            rejectedSpaceCheck += "(" + rejectedSpaceClosers.join("|") + ")\\)";
-        }
-
-        return {
-            // e.g. \([^ \)\r\n\{]|[^ \(\r\n\}]\) --- where {} is an exception
-            missingSpace: missingSpaceCheck,
-            // e.g. \(( \{})|(\} )\) --- where {} is an excpetion
-            rejectedSpace: rejectedSpaceCheck || ".^"
-        };
-    }
-
-    spaceChecks = (context.options[0] === "always") ? getAlwaysChecks(options) : getNeverChecks(options);
-    missingSpaceRegExp = new RegExp(spaceChecks.missingSpace, "mg");
-    rejectedSpaceRegExp = new RegExp(spaceChecks.rejectedSpace, "mg");
-
-
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
-
-    var skipRanges = [];
-
-    /**
-     * Adds the range of a node to the set to be skipped when checking parens
-     * @param {ASTNode} node The node to skip
-     * @returns {void}
-     * @private
-     */
-    function addSkipRange(node) {
-        skipRanges.push(node.range);
-    }
-
-    /**
-     * Sorts the skipRanges array. Must be called before shouldSkip
-     * @returns {void}
-     * @private
-     */
-    function sortSkipRanges() {
-        skipRanges.sort(function (a, b) {
-            return a[0] - b[0];
-        });
-    }
-
-    /**
-     * Checks if a certain position in the source should be skipped
-     * @param {Number} pos The 0-based index in the source
-     * @returns {boolean} whether the position should be skipped
-     * @private
-     */
-    function shouldSkip(pos) {
-        var i, len, range;
-        for (i = 0, len = skipRanges.length; i < len; i += 1) {
-            range = skipRanges[i];
-            if (pos < range[0]) {
-                break;
-            } else if (pos < range[1]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
-
-    return {
-
-        "Program:exit": function checkParenSpaces(node) {
-
-            var nextMatch,
-                nextLine,
-                column,
-                line = 1,
-                source = context.getSource(),
-                pos = 0;
-
-            function checkMatch(match, message) {
-                if (source.charAt(match.index) !== "(") {
-                    // Matched a closing paren pattern
-                    match.index += 1;
-                }
-
-                if (!shouldSkip(match.index)) {
-                    while ((nextLine = source.indexOf("\n", pos)) !== -1 && nextLine < match.index) {
-                        pos = nextLine + 1;
-                        line += 1;
+        schema: [
+            {
+                enum: ["always", "never"]
+            },
+            {
+                type: "object",
+                properties: {
+                    exceptions: {
+                        type: "array",
+                        items: {
+                            enum: ["{}", "[]", "()", "empty"]
+                        },
+                        uniqueItems: true
                     }
-                    column = match.index - pos;
-
-                    context.report(node, { line: line, column: column }, message);
-                }
-            }
-
-            sortSkipRanges();
-
-            while ((nextMatch = rejectedSpaceRegExp.exec(source)) !== null) {
-                checkMatch(nextMatch, REJECTED_SPACE_MESSAGE);
-            }
-
-            while ((nextMatch = missingSpaceRegExp.exec(source)) !== null) {
-                checkMatch(nextMatch, MISSING_SPACE_MESSAGE);
-            }
-
-        },
-
-
-        // These nodes can contain parentheses that this rule doesn't care about
-
-        LineComment: addSkipRange,
-
-        BlockComment: addSkipRange,
-
-        Literal: addSkipRange
-
-    };
-
-};
-
-module.exports.schema = [
-    {
-        "enum": ["always", "never"]
-    },
-    {
-        "type": "object",
-        "properties": {
-            "exceptions": {
-                "type": "array",
-                "items": {
-                    "enum": ["{}", "[]", "()", "empty"]
                 },
-                "uniqueItems": true
+                additionalProperties: false
             }
-        },
-        "additionalProperties": false
+        ]
+    },
+
+    create: function(context) {
+
+        var MISSING_SPACE_MESSAGE = "There must be a space inside this paren.",
+            REJECTED_SPACE_MESSAGE = "There should be no spaces inside this paren.",
+            ALWAYS = context.options[0] === "always",
+
+            exceptionsArrayOptions = (context.options.length === 2) ? context.options[1].exceptions : [],
+            options = {},
+            exceptions;
+
+        if (exceptionsArrayOptions.length) {
+            options.braceException = exceptionsArrayOptions.indexOf("{}") !== -1;
+            options.bracketException = exceptionsArrayOptions.indexOf("[]") !== -1;
+            options.parenException = exceptionsArrayOptions.indexOf("()") !== -1;
+            options.empty = exceptionsArrayOptions.indexOf("empty") !== -1;
+        }
+
+        /**
+         * Produces an object with the opener and closer exception values
+         * @param {Object} opts The exception options
+         * @returns {Object} `openers` and `closers` exception values
+         * @private
+         */
+        function getExceptions() {
+            var openers = [],
+                closers = [];
+
+            if (options.braceException) {
+                openers.push("{");
+                closers.push("}");
+            }
+
+            if (options.bracketException) {
+                openers.push("[");
+                closers.push("]");
+            }
+
+            if (options.parenException) {
+                openers.push("(");
+                closers.push(")");
+            }
+
+            if (options.empty) {
+                openers.push(")");
+                closers.push("(");
+            }
+
+            return {
+                openers: openers,
+                closers: closers
+            };
+        }
+
+        //--------------------------------------------------------------------------
+        // Helpers
+        //--------------------------------------------------------------------------
+        var sourceCode = context.getSourceCode();
+
+        /**
+         * Determines if a token is one of the exceptions for the opener paren
+         * @param {Object} token The token to check
+         * @returns {boolean} True if the token is one of the exceptions for the opener paren
+         */
+        function isOpenerException(token) {
+            return token.type === "Punctuator" && exceptions.openers.indexOf(token.value) >= 0;
+        }
+
+        /**
+         * Determines if a token is one of the exceptions for the closer paren
+         * @param {Object} token The token to check
+         * @returns {boolean} True if the token is one of the exceptions for the closer paren
+         */
+        function isCloserException(token) {
+            return token.type === "Punctuator" && exceptions.closers.indexOf(token.value) >= 0;
+        }
+
+        /**
+         * Determines if an opener paren should have a missing space after it
+         * @param {Object} left The paren token
+         * @param {Object} right The token after it
+         * @returns {boolean} True if the paren should have a space
+         */
+        function shouldOpenerHaveSpace(left, right) {
+            if (sourceCode.isSpaceBetweenTokens(left, right)) {
+                return false;
+            }
+
+            if (ALWAYS) {
+                if (right.type === "Punctuator" && right.value === ")") {
+                    return false;
+                }
+                return !isOpenerException(right);
+            } else {
+                return isOpenerException(right);
+            }
+        }
+
+        /**
+         * Determines if an closer paren should have a missing space after it
+         * @param {Object} left The token before the paren
+         * @param {Object} right The paren token
+         * @returns {boolean} True if the paren should have a space
+         */
+        function shouldCloserHaveSpace(left, right) {
+            if (left.type === "Punctuator" && left.value === "(") {
+                return false;
+            }
+
+            if (sourceCode.isSpaceBetweenTokens(left, right)) {
+                return false;
+            }
+
+            if (ALWAYS) {
+                return !isCloserException(left);
+            } else {
+                return isCloserException(left);
+            }
+        }
+
+        /**
+         * Determines if an opener paren should not have an existing space after it
+         * @param {Object} left The paren token
+         * @param {Object} right The token after it
+         * @returns {boolean} True if the paren should reject the space
+         */
+        function shouldOpenerRejectSpace(left, right) {
+            if (right.type === "Line") {
+                return false;
+            }
+
+            if (!astUtils.isTokenOnSameLine(left, right)) {
+                return false;
+            }
+
+            if (!sourceCode.isSpaceBetweenTokens(left, right)) {
+                return false;
+            }
+
+            if (ALWAYS) {
+                return isOpenerException(right);
+            } else {
+                return !isOpenerException(right);
+            }
+        }
+
+        /**
+         * Determines if an closer paren should not have an existing space after it
+         * @param {Object} left The token before the paren
+         * @param {Object} right The paren token
+         * @returns {boolean} True if the paren should reject the space
+         */
+        function shouldCloserRejectSpace(left, right) {
+            if (left.type === "Punctuator" && left.value === "(") {
+                return false;
+            }
+
+            if (!astUtils.isTokenOnSameLine(left, right)) {
+                return false;
+            }
+
+            if (!sourceCode.isSpaceBetweenTokens(left, right)) {
+                return false;
+            }
+
+            if (ALWAYS) {
+                return isCloserException(left);
+            } else {
+                return !isCloserException(left);
+            }
+        }
+
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
+
+        return {
+            Program: function checkParenSpaces(node) {
+                var tokens, prevToken, nextToken;
+
+                exceptions = getExceptions();
+                tokens = sourceCode.tokensAndComments;
+
+                tokens.forEach(function(token, i) {
+                    prevToken = tokens[i - 1];
+                    nextToken = tokens[i + 1];
+
+                    if (token.type !== "Punctuator") {
+                        return;
+                    }
+
+                    if (token.value !== "(" && token.value !== ")") {
+                        return;
+                    }
+
+                    if (token.value === "(" && shouldOpenerHaveSpace(token, nextToken)) {
+                        context.report({
+                            node: node,
+                            loc: token.loc.start,
+                            message: MISSING_SPACE_MESSAGE,
+                            fix: function(fixer) {
+                                return fixer.insertTextAfter(token, " ");
+                            }
+                        });
+                    } else if (token.value === "(" && shouldOpenerRejectSpace(token, nextToken)) {
+                        context.report({
+                            node: node,
+                            loc: token.loc.start,
+                            message: REJECTED_SPACE_MESSAGE,
+                            fix: function(fixer) {
+                                return fixer.removeRange([token.range[1], nextToken.range[0]]);
+                            }
+                        });
+                    } else if (token.value === ")" && shouldCloserHaveSpace(prevToken, token)) {
+
+                        // context.report(node, token.loc.start, MISSING_SPACE_MESSAGE);
+                        context.report({
+                            node: node,
+                            loc: token.loc.start,
+                            message: MISSING_SPACE_MESSAGE,
+                            fix: function(fixer) {
+                                return fixer.insertTextBefore(token, " ");
+                            }
+                        });
+                    } else if (token.value === ")" && shouldCloserRejectSpace(prevToken, token)) {
+                        context.report({
+                            node: node,
+                            loc: token.loc.start,
+                            message: REJECTED_SPACE_MESSAGE,
+                            fix: function(fixer) {
+                                return fixer.removeRange([prevToken.range[1], token.range[0]]);
+                            }
+                        });
+                    }
+                });
+            }
+        };
+
     }
-];
+};

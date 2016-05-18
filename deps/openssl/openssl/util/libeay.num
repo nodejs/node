@@ -1065,8 +1065,8 @@ d2i_ASN1_BMPSTRING                      1092	EXIST::FUNCTION:
 i2d_ASN1_BMPSTRING                      1093	EXIST::FUNCTION:
 BIO_f_ber                               1094	NOEXIST::FUNCTION:
 BN_init                                 1095	EXIST::FUNCTION:
-COMP_CTX_new                            1096	EXIST::FUNCTION:
-COMP_CTX_free                           1097	EXIST::FUNCTION:
+COMP_CTX_new                            1096	EXIST::FUNCTION:COMP
+COMP_CTX_free                           1097	EXIST::FUNCTION:COMP
 COMP_CTX_compress_block                 1098	NOEXIST::FUNCTION:
 COMP_CTX_expand_block                   1099	NOEXIST::FUNCTION:
 X509_STORE_CTX_get_ex_new_index         1100	EXIST::FUNCTION:
@@ -1113,10 +1113,10 @@ PKCS7_digest_from_attributes            1140	EXIST::FUNCTION:
 PKCS7_get_attribute                     1141	EXIST::FUNCTION:
 PKCS7_get_issuer_and_serial             1142	EXIST::FUNCTION:
 PKCS7_get_signed_attribute              1143	EXIST::FUNCTION:
-COMP_compress_block                     1144	EXIST::FUNCTION:
-COMP_expand_block                       1145	EXIST::FUNCTION:
-COMP_rle                                1146	EXIST::FUNCTION:
-COMP_zlib                               1147	EXIST::FUNCTION:
+COMP_compress_block                     1144	EXIST::FUNCTION:COMP
+COMP_expand_block                       1145	EXIST::FUNCTION:COMP
+COMP_rle                                1146	EXIST::FUNCTION:COMP
+COMP_zlib                               1147	EXIST::FUNCTION:COMP
 ms_time_diff                            1148	NOEXIST::FUNCTION:
 ms_time_new                             1149	NOEXIST::FUNCTION:
 ms_time_free                            1150	NOEXIST::FUNCTION:
@@ -1807,6 +1807,8 @@ ASN1_UTCTIME_get                        2350	NOEXIST::FUNCTION:
 X509_REQ_digest                         2362	EXIST::FUNCTION:EVP
 X509_CRL_digest                         2391	EXIST::FUNCTION:EVP
 ASN1_STRING_clear_free                  2392	EXIST::FUNCTION:
+SRP_VBASE_get1_by_user                  2393	EXIST::FUNCTION:SRP
+SRP_user_pwd_free                       2394	EXIST::FUNCTION:SRP
 d2i_ASN1_SET_OF_PKCS7                   2397	NOEXIST::FUNCTION:
 X509_ALGOR_cmp                          2398	EXIST::FUNCTION:
 EVP_CIPHER_CTX_set_key_length           2399	EXIST::FUNCTION:
@@ -1943,7 +1945,7 @@ ENGINE_get_ctrl_function                2521	EXIST::FUNCTION:ENGINE
 ENGINE_set_ctrl_function                2522	EXIST::FUNCTION:ENGINE
 BN_pseudo_rand_range                    2523	EXIST::FUNCTION:
 X509_STORE_CTX_set_verify_cb            2524	EXIST::FUNCTION:
-ERR_load_COMP_strings                   2525	EXIST::FUNCTION:
+ERR_load_COMP_strings                   2525	EXIST::FUNCTION:COMP
 PKCS12_item_decrypt_d2i                 2526	EXIST::FUNCTION:
 ASN1_UTF8STRING_it                      2527	EXIST:!EXPORT_VAR_AS_FUNCTION:VARIABLE:
 ASN1_UTF8STRING_it                      2527	EXIST:EXPORT_VAR_AS_FUNCTION:FUNCTION:
@@ -3543,8 +3545,8 @@ X509at_get0_data_by_OBJ                 3931	EXIST::FUNCTION:
 ASN1_TYPE_set1                          3932	EXIST::FUNCTION:
 ASN1_STRING_set0                        3933	EXIST::FUNCTION:
 i2d_X509_ALGORS                         3934	EXIST::FUNCTION:
-BIO_f_zlib                              3935	EXIST:ZLIB:FUNCTION:
-COMP_zlib_cleanup                       3936	EXIST::FUNCTION:
+BIO_f_zlib                              3935	EXIST:ZLIB:FUNCTION:COMP
+COMP_zlib_cleanup                       3936	EXIST::FUNCTION:COMP
 d2i_X509_ALGORS                         3937	EXIST::FUNCTION:
 CMS_ReceiptRequest_free                 3938	EXIST::FUNCTION:CMS
 PEM_write_CMS                           3939	EXIST:!WIN16:FUNCTION:CMS

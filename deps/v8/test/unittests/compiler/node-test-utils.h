@@ -6,7 +6,7 @@
 #define V8_UNITTESTS_COMPILER_NODE_TEST_UTILS_H_
 
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/machine-type.h"
+#include "src/machine-type.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace v8 {
@@ -17,10 +17,8 @@ class ExternalReference;
 template <typename T>
 class Handle;
 class HeapObject;
-template <class>
-class TypeImpl;
-struct ZoneTypeConfig;
-typedef TypeImpl<ZoneTypeConfig> Type;
+class Type;
+enum TypeofMode : int;
 
 namespace compiler {
 
@@ -63,12 +61,16 @@ Matcher<Node*> IsSwitch(const Matcher<Node*>& value_matcher,
 Matcher<Node*> IsIfValue(const Matcher<int32_t>& value_matcher,
                          const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfDefault(const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsValueEffect(const Matcher<Node*>& value_matcher);
-Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
-                        const Matcher<Node*>& effect_matcher);
+Matcher<Node*> IsBeginRegion(const Matcher<Node*>& effect_matcher);
+Matcher<Node*> IsFinishRegion(const Matcher<Node*>& value_matcher,
+                              const Matcher<Node*>& effect_matcher);
 Matcher<Node*> IsReturn(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& effect_matcher,
                         const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsReturn2(const Matcher<Node*>& value_matcher,
+                         const Matcher<Node*>& value2_matcher,
+                         const Matcher<Node*>& effect_matcher,
+                         const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsTerminate(const Matcher<Node*>& effect_matcher,
                            const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsExternalConstant(
@@ -79,15 +81,15 @@ Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher);
 Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher);
 Matcher<Node*> IsNumberConstant(const Matcher<double>& value_matcher);
-Matcher<Node*> IsSelect(const Matcher<MachineType>& type_matcher,
+Matcher<Node*> IsSelect(const Matcher<MachineRepresentation>& type_matcher,
                         const Matcher<Node*>& value0_matcher,
                         const Matcher<Node*>& value1_matcher,
                         const Matcher<Node*>& value2_matcher);
-Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
+Matcher<Node*> IsPhi(const Matcher<MachineRepresentation>& type_matcher,
                      const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,
                      const Matcher<Node*>& merge_matcher);
-Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
+Matcher<Node*> IsPhi(const Matcher<MachineRepresentation>& type_matcher,
                      const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,
                      const Matcher<Node*>& value2_matcher,
@@ -99,6 +101,10 @@ Matcher<Node*> IsEffectSet(const Matcher<Node*>& effect0_matcher,
                            const Matcher<Node*>& effect1_matcher);
 Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
                             const Matcher<Node*>& base_matcher);
+Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
+                      const Matcher<Node*>& value0_matcher,
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsCall(const Matcher<const CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value0_matcher,
                       const Matcher<Node*>& value1_matcher,
@@ -241,6 +247,7 @@ Matcher<Node*> IsStoreElement(const Matcher<ElementAccess>& access_matcher,
                               const Matcher<Node*>& value_matcher,
                               const Matcher<Node*>& effect_matcher,
                               const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsObjectIsReceiver(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsObjectIsSmi(const Matcher<Node*>& value_matcher);
 
 Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
@@ -256,6 +263,8 @@ Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
                        const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsWord32And(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsWord32Or(const Matcher<Node*>& lhs_matcher,
+                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord32Sar(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord32Shl(const Matcher<Node*>& lhs_matcher,
@@ -269,6 +278,8 @@ Matcher<Node*> IsWord32Equal(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsWord32Clz(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsWord64And(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsWord64Or(const Matcher<Node*>& lhs_matcher,
+                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord64Shl(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord64Sar(const Matcher<Node*>& lhs_matcher,

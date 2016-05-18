@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/cctest.h"
-
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/typer.h"
+#include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 template <typename T>
 const Operator* NewConstantOperator(CommonOperatorBuilder* common,
@@ -56,12 +56,12 @@ class ReducerTester : public HandleAndZoneScope {
       : isolate(main_isolate()),
         binop(NULL),
         unop(NULL),
-        machine(main_zone(), kMachPtr, flags),
+        machine(main_zone(), MachineType::PointerRepresentation(), flags),
         common(main_zone()),
         graph(main_zone()),
         javascript(main_zone()),
         typer(isolate, &graph),
-        jsgraph(isolate, &graph, &common, &javascript, &machine),
+        jsgraph(isolate, &graph, &common, &javascript, nullptr, &machine),
         maxuint32(Constant<int32_t>(kMaxUInt32)) {
     Node* s = graph.NewNode(common.Start(num_parameters));
     graph.SetStart(s);
@@ -359,7 +359,7 @@ TEST(ReduceWord32Sar) {
 
 
 static void CheckJsShift(ReducerTester* R) {
-  DCHECK(R->machine.Word32ShiftIsSafe());
+  CHECK(R->machine.Word32ShiftIsSafe());
 
   Node* x = R->Parameter(0);
   Node* y = R->Parameter(1);
@@ -703,8 +703,8 @@ TEST(ReduceLoadStore) {
 
   Node* base = R.Constant<int32_t>(11);
   Node* index = R.Constant<int32_t>(4);
-  Node* load = R.graph.NewNode(R.machine.Load(kMachInt32), base, index,
-                               R.graph.start(), R.graph.start());
+  Node* load = R.graph.NewNode(R.machine.Load(MachineType::Int32()), base,
+                               index, R.graph.start(), R.graph.start());
 
   {
     MachineOperatorReducer reducer(&R.jsgraph);
@@ -713,9 +713,10 @@ TEST(ReduceLoadStore) {
   }
 
   {
-    Node* store = R.graph.NewNode(
-        R.machine.Store(StoreRepresentation(kMachInt32, kNoWriteBarrier)), base,
-        index, load, load, R.graph.start());
+    Node* store =
+        R.graph.NewNode(R.machine.Store(StoreRepresentation(
+                            MachineRepresentation::kWord32, kNoWriteBarrier)),
+                        base, index, load, load, R.graph.start());
     MachineOperatorReducer reducer(&R.jsgraph);
     Reduction reduction = reducer.Reduce(store);
     CHECK(!reduction.Changed());  // stores should not be reduced.
@@ -748,3 +749,7 @@ TEST(ReduceLoadStore) {
 // TODO(titzer): test MachineOperatorReducer for Float64Mul
 // TODO(titzer): test MachineOperatorReducer for Float64Div
 // TODO(titzer): test MachineOperatorReducer for Float64Mod
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

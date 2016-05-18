@@ -1,24 +1,15 @@
 'use strict';
 
-// Flags: --harmony-proxies
-
 var common = require('../common');
 var assert = require('assert');
-var util = require('util');
 var repl = require('repl');
-var referenceErrors = 0;
-var expectedReferenceErrors = 0;
 
-function getDoNotCallFunction() {
-  expectedReferenceErrors += 1;
-  return function() {
-    assert(false);
-  };
+function getNoResultsFunction() {
+  return common.mustCall((err, data) => {
+    assert.ifError(err);
+    assert.deepStrictEqual(data[0], []);
+  });
 }
-
-process.on('exit', function() {
-  assert.strictEqual(referenceErrors, expectedReferenceErrors);
-});
 
 var works = [['inner.one'], 'inner.o'];
 const putIn = new common.ArrayStream();
@@ -26,13 +17,7 @@ var testMe = repl.start('', putIn);
 
 // Some errors are passed to the domain, but do not callback
 testMe._domain.on('error', function(err) {
-  // Errors come from another context, so instanceof doesn't work
-  var str = err.toString();
-
-  if (/^ReferenceError:/.test(str))
-    referenceErrors++;
-  else
-    assert(false);
+  assert.ifError(err);
 });
 
 // Tab Complete will not break in an object literal
@@ -41,16 +26,16 @@ putIn.run([
   'var inner = {',
   'one:1'
 ]);
-testMe.complete('inner.o', getDoNotCallFunction());
+testMe.complete('inner.o', getNoResultsFunction());
 
 testMe.complete('console.lo', common.mustCall(function(error, data) {
-  assert.deepEqual(data, [['console.log'], 'console.lo']);
+  assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
 
 // Tab Complete will return globaly scoped variables
 putIn.run(['};']);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 }));
 
 putIn.run(['.clear']);
@@ -61,7 +46,7 @@ putIn.run([
   '?',
   '{one: 1} : '
 ]);
-testMe.complete('inner.o', getDoNotCallFunction());
+testMe.complete('inner.o', getNoResultsFunction());
 
 putIn.run(['.clear']);
 
@@ -71,13 +56,13 @@ putIn.run([
   'var inner = {one:1};'
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 }));
 
 // When you close the function scope tab complete will not return the
 // locally scoped variable
 putIn.run(['};']);
-testMe.complete('inner.o', getDoNotCallFunction());
+testMe.complete('inner.o', getNoResultsFunction());
 
 putIn.run(['.clear']);
 
@@ -89,7 +74,7 @@ putIn.run([
   '};'
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 }));
 
 putIn.run(['.clear']);
@@ -103,7 +88,7 @@ putIn.run([
   '};'
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 }));
 
 putIn.run(['.clear']);
@@ -118,7 +103,7 @@ putIn.run([
   '};'
 ]);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 }));
 
 putIn.run(['.clear']);
@@ -132,7 +117,7 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', getDoNotCallFunction());
+testMe.complete('inner.o', getNoResultsFunction());
 
 putIn.run(['.clear']);
 
@@ -145,7 +130,7 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', getDoNotCallFunction());
+testMe.complete('inner.o', getNoResultsFunction());
 
 putIn.run(['.clear']);
 
@@ -159,7 +144,7 @@ putIn.run([
   ' one:1',
   '};'
 ]);
-testMe.complete('inner.o', getDoNotCallFunction());
+testMe.complete('inner.o', getNoResultsFunction());
 
 putIn.run(['.clear']);
 
@@ -168,7 +153,7 @@ putIn.run([
   'var str = "test";'
 ]);
 testMe.complete('str.len', common.mustCall(function(error, data) {
-  assert.deepEqual(data, [['str.length'], 'str.len']);
+  assert.deepStrictEqual(data, [['str.length'], 'str.len']);
 }));
 
 putIn.run(['.clear']);
@@ -179,14 +164,14 @@ var spaceTimeout = setTimeout(function() {
 }, 1000);
 
 testMe.complete(' ', common.mustCall(function(error, data) {
-  assert.deepEqual(data, [[], undefined]);
+  assert.deepStrictEqual(data, [[], undefined]);
   clearTimeout(spaceTimeout);
 }));
 
 // tab completion should pick up the global "toString" object, and
 // any other properties up the "global" object's prototype chain
 testMe.complete('toSt', common.mustCall(function(error, data) {
-  assert.deepEqual(data, [['toString'], 'toSt']);
+  assert.deepStrictEqual(data, [['toString'], 'toSt']);
 }));
 
 // Tab complete provides built in libs for require()
@@ -218,7 +203,7 @@ putIn.run([
   'var custom = "test";'
 ]);
 testMe.complete('cus', common.mustCall(function(error, data) {
-  assert.deepEqual(data, [['custom'], 'cus']);
+  assert.deepStrictEqual(data, [['custom'], 'cus']);
 }));
 
 // Make sure tab completion doesn't crash REPL with half-baked proxy objects.
@@ -226,85 +211,52 @@ testMe.complete('cus', common.mustCall(function(error, data) {
 putIn.run(['.clear']);
 
 putIn.run([
-  'var proxy = Proxy.create({});'
+  'var proxy = new Proxy({}, {ownKeys: () => { throw new Error(); }});'
 ]);
 
 testMe.complete('proxy.', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
-  assert.deepEqual(data, [[], 'proxy.']);
 }));
 
 // Make sure tab completion does not include integer members of an Array
-var array_elements = [ [
-  'ary.__defineGetter__',
-  'ary.__defineSetter__',
-  'ary.__lookupGetter__',
-  'ary.__lookupSetter__',
-  'ary.__proto__',
-  'ary.constructor',
-  'ary.hasOwnProperty',
-  'ary.isPrototypeOf',
-  'ary.propertyIsEnumerable',
-  'ary.toLocaleString',
-  'ary.toString',
-  'ary.valueOf',
-  '',
-  'ary.concat',
-  'ary.copyWithin',
-  'ary.entries',
-  'ary.every',
-  'ary.fill',
-  'ary.filter',
-  'ary.find',
-  'ary.findIndex',
-  'ary.forEach',
-  'ary.includes',
-  'ary.indexOf',
-  'ary.join',
-  'ary.keys',
-  'ary.lastIndexOf',
-  'ary.length',
-  'ary.map',
-  'ary.pop',
-  'ary.push',
-  'ary.reduce',
-  'ary.reduceRight',
-  'ary.reverse',
-  'ary.shift',
-  'ary.slice',
-  'ary.some',
-  'ary.sort',
-  'ary.splice',
-  'ary.unshift' ],
-  'ary.'];
-
 putIn.run(['.clear']);
 
 putIn.run(['var ary = [1,2,3];']);
 testMe.complete('ary.', common.mustCall(function(error, data) {
-  assert.deepEqual(data, array_elements);
+  assert.strictEqual(data[0].indexOf('ary.0'), -1);
+  assert.strictEqual(data[0].indexOf('ary.1'), -1);
+  assert.strictEqual(data[0].indexOf('ary.2'), -1);
 }));
 
 // Make sure tab completion does not include integer keys in an object
-var obj_elements = [ [
-  'obj.__defineGetter__',
-  'obj.__defineSetter__',
-  'obj.__lookupGetter__',
-  'obj.__lookupSetter__',
-  'obj.__proto__',
-  'obj.constructor',
-  'obj.hasOwnProperty',
-  'obj.isPrototypeOf',
-  'obj.propertyIsEnumerable',
-  'obj.toLocaleString',
-  'obj.toString',
-  'obj.valueOf',
-  '',
-  'obj.a' ],
-  'obj.' ];
 putIn.run(['.clear']);
 putIn.run(['var obj = {1:"a","1a":"b",a:"b"};']);
 
 testMe.complete('obj.', common.mustCall(function(error, data) {
-  assert.deepEqual(data, obj_elements);
+  assert.strictEqual(data[0].indexOf('obj.1'), -1);
+  assert.strictEqual(data[0].indexOf('obj.1a'), -1);
+  assert.notStrictEqual(data[0].indexOf('obj.a'), -1);
+}));
+
+// Don't try to complete results of non-simple expressions
+putIn.run(['.clear']);
+putIn.run(['function a() {}']);
+
+testMe.complete('a().b.', getNoResultsFunction());
+
+// Works when prefixed with spaces
+putIn.run(['.clear']);
+putIn.run(['var obj = {1:"a","1a":"b",a:"b"};']);
+
+testMe.complete(' obj.', common.mustCall((error, data) => {
+  assert.strictEqual(data[0].indexOf('obj.1'), -1);
+  assert.strictEqual(data[0].indexOf('obj.1a'), -1);
+  assert.notStrictEqual(data[0].indexOf('obj.a'), -1);
+}));
+
+// Works inside assignments
+putIn.run(['.clear']);
+
+testMe.complete('var log = console.lo', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));

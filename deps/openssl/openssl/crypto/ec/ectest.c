@@ -1591,7 +1591,7 @@ struct nistp_test_params {
     int degree;
     /*
      * Qx, Qy and D are taken from
-     * http://csrcdocut.gov/groups/ST/toolkit/documents/Examples/ECDSA_Prime.pdf
+     * http://csrc.nist.gov/groups/ST/toolkit/documents/Examples/ECDSA_Prime.pdf
      * Otherwise, values are standard curve parameters from FIPS 180-3
      */
     const char *p, *a, *b, *Qx, *Qy, *Gx, *Gy, *order, *d;
@@ -1758,8 +1758,17 @@ static void nistp_single_test(const struct nistp_test_params *test)
     if (0 != EC_POINT_cmp(NISTP, Q, Q_CHECK, ctx))
         ABORT;
 
+    /*
+     * We have not performed precomputation so have_precompute mult should be
+     * false
+     */
+    if (EC_GROUP_have_precompute_mult(NISTP))
+        ABORT;
+
     /* now repeat all tests with precomputation */
     if (!EC_GROUP_precompute_mult(NISTP, ctx))
+        ABORT;
+    if (!EC_GROUP_have_precompute_mult(NISTP))
         ABORT;
 
     /* fixed point multiplication */

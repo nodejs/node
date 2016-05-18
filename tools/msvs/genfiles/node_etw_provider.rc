@@ -1,3 +1,0 @@
-LANGUAGE 0x9,0x1
-1 11 "MSG00001.bin"
-1 WEVT_TEMPLATE "node_etw_providerTEMP.BIN"

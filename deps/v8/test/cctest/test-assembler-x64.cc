@@ -591,6 +591,7 @@ TEST(AssemblerMultiByteNop) {
 
 void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
   byte buffer[1024];
 
   CHECK(args[0]->IsArray());
@@ -605,9 +606,15 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   // Store input vector on the stack.
   for (unsigned i = 0; i < ELEMENT_COUNT; i++) {
-    __ movl(rax, Immediate(vec->Get(i)->Int32Value()));
+    __ movl(rax, Immediate(vec->Get(context, i)
+                               .ToLocalChecked()
+                               ->Int32Value(context)
+                               .FromJust()));
     __ shlq(rax, Immediate(0x20));
-    __ orq(rax, Immediate(vec->Get(++i)->Int32Value()));
+    __ orq(rax, Immediate(vec->Get(context, ++i)
+                              .ToLocalChecked()
+                              ->Int32Value(context)
+                              .FromJust()));
     __ pushq(rax);
   }
 
@@ -641,7 +648,7 @@ TEST(StackAlignmentForSSE2) {
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
-  v8::Handle<v8::ObjectTemplate> global_template =
+  v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
   global_template->Set(v8_str("do_sse2"),
                        v8::FunctionTemplate::New(isolate, DoSSE2));
@@ -653,20 +660,21 @@ TEST(StackAlignmentForSSE2) {
       "}");
 
   v8::Local<v8::Object> global_object = env->Global();
-  v8::Local<v8::Function> foo =
-      v8::Local<v8::Function>::Cast(global_object->Get(v8_str("foo")));
+  v8::Local<v8::Function> foo = v8::Local<v8::Function>::Cast(
+      global_object->Get(env.local(), v8_str("foo")).ToLocalChecked());
 
   int32_t vec[ELEMENT_COUNT] = { -1, 1, 1, 1 };
   v8::Local<v8::Array> v8_vec = v8::Array::New(isolate, ELEMENT_COUNT);
   for (unsigned i = 0; i < ELEMENT_COUNT; i++) {
-    v8_vec->Set(i, v8_num(vec[i]));
+    v8_vec->Set(env.local(), i, v8_num(vec[i])).FromJust();
   }
 
   v8::Local<v8::Value> args[] = { v8_vec };
-  v8::Local<v8::Value> result = foo->Call(global_object, 1, args);
+  v8::Local<v8::Value> result =
+      foo->Call(env.local(), global_object, 1, args).ToLocalChecked();
 
   // The mask should be 0b1000.
-  CHECK_EQ(8, result->Int32Value());
+  CHECK_EQ(8, result->Int32Value(env.local()).FromJust());
 }
 
 #undef ELEMENT_COUNT
@@ -710,7 +718,8 @@ TEST(AssemblerX64SSE) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
     __ shufps(xmm1, xmm1, 0x0);  // brocast second argument
@@ -747,7 +756,8 @@ TEST(AssemblerX64FMA_sd) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, FMA3);
     Label exit;
@@ -972,7 +982,8 @@ TEST(AssemblerX64FMA_ss) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, FMA3);
     Label exit;
@@ -1278,8 +1289,19 @@ TEST(AssemblerX64AVX_ss) {
     CpuFeatureScope avx_scope(&assm, AVX);
     Label exit;
     // arguments in xmm0, xmm1 and xmm2
-    __ movl(rax, Immediate(0));
+    __ subq(rsp, Immediate(kDoubleSize * 2));  // For memory operand
 
+    __ movl(rdx, Immediate(0xc2f64000));  // -123.125
+    __ vmovd(xmm4, rdx);
+    __ vmovss(Operand(rsp, 0), xmm4);
+    __ vmovss(xmm5, Operand(rsp, 0));
+    __ vmovaps(xmm6, xmm5);
+    __ vmovd(rcx, xmm6);
+    __ cmpl(rcx, rdx);
+    __ movl(rax, Immediate(9));
+    __ j(not_equal, &exit);
+
+    __ movl(rax, Immediate(0));
     __ vmaxss(xmm3, xmm0, xmm1);
     __ vucomiss(xmm3, xmm1);
     __ j(parity_even, &exit);
@@ -1320,6 +1342,7 @@ TEST(AssemblerX64AVX_ss) {
 
     // result in eax
     __ bind(&exit);
+    __ addq(rsp, Immediate(kDoubleSize * 2));
     __ ret(0);
   }
 
@@ -1351,9 +1374,174 @@ TEST(AssemblerX64AVX_sd) {
     CpuFeatureScope avx_scope(&assm, AVX);
     Label exit;
     // arguments in xmm0, xmm1 and xmm2
+    __ subq(rsp, Immediate(kDoubleSize * 2));  // For memory operand
     __ movl(rax, Immediate(0));
 
-    __ vmaxsd(xmm3, xmm0, xmm1);
+    __ vmaxsd(xmm4, xmm0, xmm1);
+    __ vmovsd(Operand(rsp, kDoubleSize), xmm4);
+    __ vmovsd(xmm5, Operand(rsp, kDoubleSize));
+    __ vmovsd(xmm6, xmm6, xmm5);
+    __ vmovapd(xmm3, xmm6);
+
+    // Test vcvtss2sd & vcvtsd2ss
+    __ movl(rax, Immediate(9));
+    __ movq(rdx, V8_INT64_C(0x426D1A0000000000));
+    __ movq(Operand(rsp, 0), rdx);
+    __ vcvtsd2ss(xmm6, xmm6, Operand(rsp, 0));
+    __ vcvtss2sd(xmm7, xmm6, xmm6);
+    __ vcvtsd2ss(xmm8, xmm7, xmm7);
+    __ vmovss(Operand(rsp, 0), xmm8);
+    __ vcvtss2sd(xmm9, xmm8, Operand(rsp, 0));
+    __ vmovq(rcx, xmm9);
+    __ cmpq(rcx, rdx);
+    __ j(not_equal, &exit);
+
+    // Test vcvttsd2si
+    __ movl(rax, Immediate(10));
+    __ movl(rdx, Immediate(123));
+    __ vcvtlsi2sd(xmm6, xmm6, rdx);
+    __ vcvttsd2si(rcx, xmm6);
+    __ cmpl(rcx, rdx);
+    __ j(not_equal, &exit);
+    __ xorl(rcx, rcx);
+    __ vmovsd(Operand(rsp, 0), xmm6);
+    __ vcvttsd2si(rcx, Operand(rsp, 0));
+    __ cmpl(rcx, rdx);
+    __ j(not_equal, &exit);
+
+    // Test vcvttsd2siq
+    __ movl(rax, Immediate(11));
+    __ movq(rdx, V8_INT64_C(0x426D1A94A2000000));  // 1.0e12
+    __ vmovq(xmm6, rdx);
+    __ vcvttsd2siq(rcx, xmm6);
+    __ movq(rdx, V8_INT64_C(1000000000000));
+    __ cmpq(rcx, rdx);
+    __ j(not_equal, &exit);
+    __ xorq(rcx, rcx);
+    __ vmovsd(Operand(rsp, 0), xmm6);
+    __ vcvttsd2siq(rcx, Operand(rsp, 0));
+    __ cmpq(rcx, rdx);
+    __ j(not_equal, &exit);
+
+    // Test vmovmskpd
+    __ movl(rax, Immediate(12));
+    __ movq(rdx, V8_INT64_C(0x426D1A94A2000000));  // 1.0e12
+    __ vmovq(xmm6, rdx);
+    __ movq(rdx, V8_INT64_C(0xC26D1A94A2000000));  // -1.0e12
+    __ vmovq(xmm7, rdx);
+    __ shufps(xmm6, xmm7, 0x44);
+    __ vmovmskpd(rdx, xmm6);
+    __ cmpl(rdx, Immediate(2));
+    __ j(not_equal, &exit);
+
+    // Test vpcmpeqd
+    __ movq(rdx, V8_UINT64_C(0x0123456789abcdef));
+    __ movq(rcx, V8_UINT64_C(0x0123456788888888));
+    __ vmovq(xmm6, rdx);
+    __ vmovq(xmm7, rcx);
+    __ vpcmpeqd(xmm8, xmm6, xmm7);
+    __ vmovq(rdx, xmm8);
+    __ movq(rcx, V8_UINT64_C(0xffffffff00000000));
+    __ cmpq(rcx, rdx);
+    __ movl(rax, Immediate(13));
+    __ j(not_equal, &exit);
+
+    // Test vpsllq, vpsrlq
+    __ movl(rax, Immediate(13));
+    __ movq(rdx, V8_UINT64_C(0x0123456789abcdef));
+    __ vmovq(xmm6, rdx);
+    __ vpsrlq(xmm7, xmm6, 4);
+    __ vmovq(rdx, xmm7);
+    __ movq(rcx, V8_UINT64_C(0x00123456789abcde));
+    __ cmpq(rdx, rcx);
+    __ j(not_equal, &exit);
+    __ vpsllq(xmm7, xmm6, 12);
+    __ vmovq(rdx, xmm7);
+    __ movq(rcx, V8_UINT64_C(0x3456789abcdef000));
+    __ cmpq(rdx, rcx);
+    __ j(not_equal, &exit);
+
+    // Test vandpd, vorpd, vxorpd
+    __ movl(rax, Immediate(14));
+    __ movl(rdx, Immediate(0x00ff00ff));
+    __ movl(rcx, Immediate(0x0f0f0f0f));
+    __ vmovd(xmm4, rdx);
+    __ vmovd(xmm5, rcx);
+    __ vandpd(xmm6, xmm4, xmm5);
+    __ vmovd(rdx, xmm6);
+    __ cmpl(rdx, Immediate(0x000f000f));
+    __ j(not_equal, &exit);
+    __ vorpd(xmm6, xmm4, xmm5);
+    __ vmovd(rdx, xmm6);
+    __ cmpl(rdx, Immediate(0x0fff0fff));
+    __ j(not_equal, &exit);
+    __ vxorpd(xmm6, xmm4, xmm5);
+    __ vmovd(rdx, xmm6);
+    __ cmpl(rdx, Immediate(0x0ff00ff0));
+    __ j(not_equal, &exit);
+
+    // Test vsqrtsd
+    __ movl(rax, Immediate(15));
+    __ movq(rdx, V8_UINT64_C(0x4004000000000000));  // 2.5
+    __ vmovq(xmm4, rdx);
+    __ vmulsd(xmm5, xmm4, xmm4);
+    __ vmovsd(Operand(rsp, 0), xmm5);
+    __ vsqrtsd(xmm6, xmm5, xmm5);
+    __ vmovq(rcx, xmm6);
+    __ cmpq(rcx, rdx);
+    __ j(not_equal, &exit);
+    __ vsqrtsd(xmm7, xmm7, Operand(rsp, 0));
+    __ vmovq(rcx, xmm7);
+    __ cmpq(rcx, rdx);
+    __ j(not_equal, &exit);
+
+    // Test vroundsd
+    __ movl(rax, Immediate(16));
+    __ movq(rdx, V8_UINT64_C(0x4002000000000000));  // 2.25
+    __ vmovq(xmm4, rdx);
+    __ vroundsd(xmm5, xmm4, xmm4, kRoundUp);
+    __ movq(rcx, V8_UINT64_C(0x4008000000000000));  // 3.0
+    __ vmovq(xmm6, rcx);
+    __ vucomisd(xmm5, xmm6);
+    __ j(not_equal, &exit);
+
+    // Test vcvtlsi2sd
+    __ movl(rax, Immediate(17));
+    __ movl(rdx, Immediate(6));
+    __ movq(rcx, V8_UINT64_C(0x4018000000000000));  // 6.0
+    __ vmovq(xmm5, rcx);
+    __ vcvtlsi2sd(xmm6, xmm6, rdx);
+    __ vucomisd(xmm5, xmm6);
+    __ j(not_equal, &exit);
+    __ movl(Operand(rsp, 0), rdx);
+    __ vcvtlsi2sd(xmm7, xmm7, Operand(rsp, 0));
+    __ vucomisd(xmm5, xmm6);
+    __ j(not_equal, &exit);
+
+    // Test vcvtqsi2sd
+    __ movl(rax, Immediate(18));
+    __ movq(rdx, V8_UINT64_C(0x2000000000000000));  // 2 << 0x3c
+    __ movq(rcx, V8_UINT64_C(0x43c0000000000000));
+    __ vmovq(xmm5, rcx);
+    __ vcvtqsi2sd(xmm6, xmm6, rdx);
+    __ vucomisd(xmm5, xmm6);
+    __ j(not_equal, &exit);
+
+    // Test vcvtsd2si
+    __ movl(rax, Immediate(19));
+    __ movq(rdx, V8_UINT64_C(0x4018000000000000));  // 6.0
+    __ vmovq(xmm5, rdx);
+    __ vcvtsd2si(rcx, xmm5);
+    __ cmpl(rcx, Immediate(6));
+    __ j(not_equal, &exit);
+
+    __ movq(rdx, V8_INT64_C(0x3ff0000000000000));  // 1.0
+    __ vmovq(xmm7, rdx);
+    __ vmulsd(xmm1, xmm1, xmm7);
+    __ movq(Operand(rsp, 0), rdx);
+    __ vmovq(xmm6, Operand(rsp, 0));
+    __ vmulsd(xmm1, xmm1, xmm6);
+
     __ vucomisd(xmm3, xmm1);
     __ j(parity_even, &exit);
     __ j(not_equal, &exit);
@@ -1393,6 +1581,7 @@ TEST(AssemblerX64AVX_sd) {
 
     // result in eax
     __ bind(&exit);
+    __ addq(rsp, Immediate(kDoubleSize * 2));
     __ ret(0);
   }
 
@@ -1419,7 +1608,8 @@ TEST(AssemblerX64BMI1) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, BMI1);
     Label exit;
@@ -1608,7 +1798,8 @@ TEST(AssemblerX64LZCNT) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, LZCNT);
     Label exit;
@@ -1667,7 +1858,8 @@ TEST(AssemblerX64POPCNT) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, POPCNT);
     Label exit;
@@ -1726,7 +1918,8 @@ TEST(AssemblerX64BMI2) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[2048];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, BMI2);
     Label exit;
@@ -1986,7 +2179,8 @@ TEST(AssemblerX64JumpTables1) {
   CcTest::InitializeVM();
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0);
+  MacroAssembler assm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -2033,7 +2227,8 @@ TEST(AssemblerX64JumpTables2) {
   CcTest::InitializeVM();
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0);
+  MacroAssembler assm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
 
   const int kNumCases = 512;
   int values[kNumCases];

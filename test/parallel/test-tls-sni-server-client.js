@@ -1,16 +1,16 @@
 'use strict';
 if (!process.features.tls_sni) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
+  common.skip('node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
   return;
 }
 
-var common = require('../common'),
-    assert = require('assert'),
-    fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
@@ -73,8 +73,8 @@ var clientsOptions = [{
   rejectUnauthorized: false
 }];
 
-var serverResults = [],
-    clientResults = [];
+const serverResults = [];
+const clientResults = [];
 
 var server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.servername);
@@ -103,15 +103,15 @@ function startTest() {
       // Continue
       start();
     });
-  };
+  }
 
   start();
 }
 
 process.on('exit', function() {
-  assert.deepEqual(serverResults, [
+  assert.deepStrictEqual(serverResults, [
     'a.example.com', 'b.test.com', 'a.b.test.com', 'c.wrong.com',
     'chain.example.com'
   ]);
-  assert.deepEqual(clientResults, [true, true, false, false, true]);
+  assert.deepStrictEqual(clientResults, [true, true, false, false, true]);
 });

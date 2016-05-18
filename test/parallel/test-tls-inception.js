@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
@@ -12,10 +12,9 @@ var fs = require('fs');
 var path = require('path');
 var net = require('net');
 
-var options, a, b, portA, portB;
-var gotHello = false;
+var options, a, b;
 
-var body = new Buffer(4000).fill('A');
+var body = Buffer.alloc(400000, 'A');
 
 options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
@@ -33,7 +32,7 @@ a = tls.createServer(options, function(socket) {
   dest.pipe(socket);
   socket.pipe(dest);
 
-  dest.on('close', function() {
+  dest.on('end', function() {
     socket.destroy();
   });
 });
@@ -41,10 +40,6 @@ a = tls.createServer(options, function(socket) {
 // the "target" server
 b = tls.createServer(options, function(socket) {
   socket.end(body);
-});
-
-process.on('exit', function() {
-  assert(gotHello);
 });
 
 a.listen(common.PORT, function() {
@@ -62,15 +57,14 @@ a.listen(common.PORT, function() {
     });
     ssl.setEncoding('utf8');
     var buf = '';
-    ssl.once('data', function(data) {
+    ssl.on('data', function(data) {
       buf += data;
-      gotHello = true;
     });
-    ssl.on('end', function() {
+    ssl.on('end', common.mustCall(function() {
       assert.equal(buf, body);
       ssl.end();
       a.close();
       b.close();
-    });
+    }));
   });
 });

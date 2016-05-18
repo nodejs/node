@@ -7,7 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/char-predicates.h"
-#include "src/scanner.h"
+#include "src/parsing/scanner.h"
 
 namespace v8 {
 namespace internal {
@@ -364,6 +364,7 @@ class DateParser : public AllStatic {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DATEPARSER_H_

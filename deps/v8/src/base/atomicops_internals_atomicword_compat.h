@@ -92,7 +92,8 @@ inline AtomicWord Release_Load(volatile const AtomicWord* ptr) {
       reinterpret_cast<volatile const Atomic32*>(ptr));
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // !defined(V8_HOST_ARCH_64_BIT)
 

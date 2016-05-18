@@ -12,6 +12,17 @@
 namespace v8 {
 namespace internal {
 
+inline std::vector<Page*>& MarkCompactCollector::sweeping_list(Space* space) {
+  if (space == heap()->old_space()) {
+    return sweeping_list_old_space_;
+  } else if (space == heap()->code_space()) {
+    return sweeping_list_code_space_;
+  }
+  DCHECK_EQ(space, heap()->map_space());
+  return sweeping_list_map_space_;
+}
+
+
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
   DCHECK(Marking::IsBlack(Marking::MarkBitFrom(obj)));
   if (marking_deque_.Push(obj)) {
@@ -83,7 +94,7 @@ void MarkCompactCollector::ForceRecordSlot(HeapObject* object, Object** slot,
 
 
 void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
-  if (GetNextCandidate(shared_info) == NULL) {
+  if (GetNextCandidate(shared_info) == nullptr) {
     SetNextCandidate(shared_info, shared_function_info_candidates_head_);
     shared_function_info_candidates_head_ = shared_info;
   }
@@ -92,17 +103,9 @@ void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
 
 void CodeFlusher::AddCandidate(JSFunction* function) {
   DCHECK(function->code() == function->shared()->code());
-  if (GetNextCandidate(function)->IsUndefined()) {
+  if (function->next_function_link()->IsUndefined()) {
     SetNextCandidate(function, jsfunction_candidates_head_);
     jsfunction_candidates_head_ = function;
-  }
-}
-
-
-void CodeFlusher::AddOptimizedCodeMap(SharedFunctionInfo* code_map_holder) {
-  if (GetNextCodeMap(code_map_holder)->IsUndefined()) {
-    SetNextCodeMap(code_map_holder, optimized_code_map_holder_head_);
-    optimized_code_map_holder_head_ = code_map_holder;
   }
 }
 
@@ -149,23 +152,52 @@ void CodeFlusher::ClearNextCandidate(SharedFunctionInfo* candidate) {
 }
 
 
-SharedFunctionInfo* CodeFlusher::GetNextCodeMap(SharedFunctionInfo* holder) {
-  FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
-  Object* next_map = code_map->get(SharedFunctionInfo::kNextMapIndex);
-  return reinterpret_cast<SharedFunctionInfo*>(next_map);
-}
+template <LiveObjectIterationMode T>
+HeapObject* LiveObjectIterator<T>::Next() {
+  while (!it_.Done()) {
+    HeapObject* object = nullptr;
+    while (current_cell_ != 0) {
+      uint32_t trailing_zeros = base::bits::CountTrailingZeros32(current_cell_);
+      Address addr = cell_base_ + trailing_zeros * kPointerSize;
 
+      // Clear the first bit of the found object..
+      current_cell_ &= ~(1u << trailing_zeros);
 
-void CodeFlusher::SetNextCodeMap(SharedFunctionInfo* holder,
-                                 SharedFunctionInfo* next_holder) {
-  FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
-  code_map->set(SharedFunctionInfo::kNextMapIndex, next_holder);
-}
+      uint32_t second_bit_index = 0;
+      if (trailing_zeros < Bitmap::kBitIndexMask) {
+        second_bit_index = 1u << (trailing_zeros + 1);
+      } else {
+        second_bit_index = 0x1;
+        // The overlapping case; there has to exist a cell after the current
+        // cell.
+        DCHECK(!it_.Done());
+        it_.Advance();
+        cell_base_ = it_.CurrentCellBase();
+        current_cell_ = *it_.CurrentCell();
+      }
+      if (T == kBlackObjects && (current_cell_ & second_bit_index)) {
+        object = HeapObject::FromAddress(addr);
+      } else if (T == kGreyObjects && !(current_cell_ & second_bit_index)) {
+        object = HeapObject::FromAddress(addr);
+      } else if (T == kAllLiveObjects) {
+        object = HeapObject::FromAddress(addr);
+      }
+      // Clear the second bit of the found object.
+      current_cell_ &= ~second_bit_index;
 
-
-void CodeFlusher::ClearNextCodeMap(SharedFunctionInfo* holder) {
-  FixedArray* code_map = FixedArray::cast(holder->optimized_code_map());
-  code_map->set_undefined(SharedFunctionInfo::kNextMapIndex);
+      // We found a live object.
+      if (object != nullptr) break;
+    }
+    if (current_cell_ == 0) {
+      if (!it_.Done()) {
+        it_.Advance();
+        cell_base_ = it_.CurrentCellBase();
+        current_cell_ = *it_.CurrentCell();
+      }
+    }
+    if (object != nullptr) return object;
+  }
+  return nullptr;
 }
 
 }  // namespace internal

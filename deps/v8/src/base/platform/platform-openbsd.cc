@@ -286,4 +286,5 @@ bool VirtualMemory::HasLazyCommits() {
   return false;
 }
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8

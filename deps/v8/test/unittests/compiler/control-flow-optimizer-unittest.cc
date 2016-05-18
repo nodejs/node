@@ -105,8 +105,8 @@ TEST_F(ControlFlowOptimizerTest, CloneBranch) {
   Node* control1 = graph()->NewNode(common()->IfTrue(), branch0);
   Node* control2 = graph()->NewNode(common()->IfFalse(), branch0);
   Node* merge0 = graph()->NewNode(common()->Merge(2), control1, control2);
-  Node* phi0 =
-      graph()->NewNode(common()->Phi(kRepBit, 2), cond1, cond2, merge0);
+  Node* phi0 = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2),
+                                cond1, cond2, merge0);
   Node* branch = graph()->NewNode(common()->Branch(), phi0, merge0);
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);

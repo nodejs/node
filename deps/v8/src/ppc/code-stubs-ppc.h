@@ -127,8 +127,8 @@ class RecordWriteStub : public PlatformCodeStub {
   }
 
   static void Patch(Code* stub, Mode mode) {
-    MacroAssembler masm(NULL, stub->instruction_start(),
-                        stub->instruction_size());
+    MacroAssembler masm(stub->GetIsolate(), stub->instruction_start(),
+                        stub->instruction_size(), CodeObjectRequired::kNo);
     switch (mode) {
       case STORE_BUFFER_ONLY:
         DCHECK(GetMode(stub) == INCREMENTAL ||
@@ -322,7 +322,7 @@ class NameDictionaryLookupStub : public PlatformCodeStub {
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PPC_CODE_STUBS_PPC_H_

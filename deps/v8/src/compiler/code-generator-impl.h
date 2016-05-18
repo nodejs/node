@@ -43,6 +43,10 @@ class InstructionOperandConverter {
     return ToConstant(instr_->InputAt(index)).ToInt32();
   }
 
+  int64_t InputInt64(size_t index) {
+    return ToConstant(instr_->InputAt(index)).ToInt64();
+  }
+
   int8_t InputInt8(size_t index) {
     return static_cast<int8_t>(InputInt32(index));
   }
@@ -96,12 +100,11 @@ class InstructionOperandConverter {
   }
 
   Register ToRegister(InstructionOperand* op) {
-    return Register::FromAllocationIndex(RegisterOperand::cast(op)->index());
+    return LocationOperand::cast(op)->GetRegister();
   }
 
   DoubleRegister ToDoubleRegister(InstructionOperand* op) {
-    return DoubleRegister::FromAllocationIndex(
-        DoubleRegisterOperand::cast(op)->index());
+    return LocationOperand::cast(op)->GetDoubleRegister();
   }
 
   Constant ToConstant(InstructionOperand* op) {
@@ -125,6 +128,9 @@ class InstructionOperandConverter {
   }
 
   Frame* frame() const { return gen_->frame(); }
+  FrameAccessState* frame_access_state() const {
+    return gen_->frame_access_state();
+  }
   Isolate* isolate() const { return gen_->isolate(); }
   Linkage* linkage() const { return gen_->linkage(); }
 
@@ -144,12 +150,15 @@ class OutOfLineCode : public ZoneObject {
 
   Label* entry() { return &entry_; }
   Label* exit() { return &exit_; }
+  Frame* frame() const { return frame_; }
+  Isolate* isolate() const { return masm()->isolate(); }
   MacroAssembler* masm() const { return masm_; }
   OutOfLineCode* next() const { return next_; }
 
  private:
   Label entry_;
   Label exit_;
+  Frame* const frame_;
   MacroAssembler* const masm_;
   OutOfLineCode* const next_;
 };

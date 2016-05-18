@@ -78,11 +78,17 @@ void uv__async_close(uv_async_t* handle) {
 static void uv__async_event(uv_loop_t* loop,
                             struct uv__async* w,
                             unsigned int nevents) {
+  QUEUE queue;
   QUEUE* q;
   uv_async_t* h;
 
-  QUEUE_FOREACH(q, &loop->async_handles) {
+  QUEUE_MOVE(&loop->async_handles, &queue);
+  while (!QUEUE_EMPTY(&queue)) {
+    q = QUEUE_HEAD(&queue);
     h = QUEUE_DATA(q, uv_async_t, queue);
+
+    QUEUE_REMOVE(q);
+    QUEUE_INSERT_TAIL(&loop->async_handles, q);
 
     if (cmpxchgi(&h->pending, 1, 0) == 0)
       continue;
@@ -217,7 +223,7 @@ int uv__async_start(uv_loop_t* loop, struct uv__async* wa, uv__async_cb cb) {
     return err;
 
   uv__io_init(&wa->io_watcher, uv__async_io, pipefd[0]);
-  uv__io_start(loop, &wa->io_watcher, UV__POLLIN);
+  uv__io_start(loop, &wa->io_watcher, POLLIN);
   wa->wfd = pipefd[1];
   wa->cb = cb;
 
@@ -235,7 +241,7 @@ void uv__async_stop(uv_loop_t* loop, struct uv__async* wa) {
     wa->wfd = -1;
   }
 
-  uv__io_stop(loop, &wa->io_watcher, UV__POLLIN);
+  uv__io_stop(loop, &wa->io_watcher, POLLIN);
   uv__close(wa->io_watcher.fd);
   wa->io_watcher.fd = -1;
 }

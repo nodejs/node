@@ -35,7 +35,8 @@ class NodeCache final {
 
   // Search for node associated with {key} and return a pointer to a memory
   // location in this cache that stores an entry for the key. If the location
-  // returned by this method contains a non-NULL node, the caller can use that
+  // returned by this method contains a non-nullptr node, the caller can use
+  // that
   // node. Otherwise it is the responsibility of the caller to fill the entry
   // with a new node.
   // Note that a previous cache entry may be overwritten if the cache becomes

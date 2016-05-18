@@ -4,4 +4,4 @@ var assert = require('assert');
 
 common.globalCheck = false;
 global.gc = 42;  // Not a valid global unless --expose_gc is set.
-assert.deepEqual(common.leakedGlobals(), ['gc']);
+assert.deepStrictEqual(common.leakedGlobals(), ['gc']);

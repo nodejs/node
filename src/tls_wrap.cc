@@ -15,8 +15,8 @@
 
 namespace node {
 
-using crypto::SSLWrap;
 using crypto::SecureContext;
+using crypto::SSLWrap;
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -24,23 +24,21 @@ using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::Integer;
 using v8::Local;
-using v8::Null;
 using v8::Object;
 using v8::String;
 using v8::Value;
-
 
 TLSWrap::TLSWrap(Environment* env,
                  Kind kind,
                  StreamBase* stream,
                  SecureContext* sc)
-    : SSLWrap<TLSWrap>(env, sc, kind),
-      StreamBase(env),
-      AsyncWrap(env,
-                env->tls_wrap_constructor_function()->NewInstance(),
+    : AsyncWrap(env,
+                env->tls_wrap_constructor_function()
+                    ->NewInstance(env->context()).ToLocalChecked(),
                 AsyncWrap::PROVIDER_TLSWRAP),
+      SSLWrap<TLSWrap>(env, sc, kind),
+      StreamBase(env),
       sc_(sc),
       stream_(stream),
       enc_in_(nullptr),
@@ -93,7 +91,7 @@ void TLSWrap::MakePending() {
 }
 
 
-bool TLSWrap::InvokeQueued(int status) {
+bool TLSWrap::InvokeQueued(int status, const char* error_str) {
   if (pending_write_items_.IsEmpty())
     return false;
 
@@ -101,7 +99,7 @@ bool TLSWrap::InvokeQueued(int status) {
   WriteItemList queue;
   pending_write_items_.MoveBack(&queue);
   while (WriteItem* wi = queue.PopFront()) {
-    wi->w_->Done(status);
+    wi->w_->Done(status, error_str);
     delete wi;
   }
 
@@ -284,19 +282,20 @@ void TLSWrap::EncOut() {
   }
 
   char* data[kSimultaneousBufferCount];
-  size_t size[ARRAY_SIZE(data)];
-  size_t count = ARRAY_SIZE(data);
+  size_t size[arraysize(data)];
+  size_t count = arraysize(data);
   write_size_ = NodeBIO::FromBIO(enc_out_)->PeekMultiple(data, size, &count);
   CHECK(write_size_ != 0 && count != 0);
 
   Local<Object> req_wrap_obj =
-      env()->write_wrap_constructor_function()->NewInstance();
+      env()->write_wrap_constructor_function()
+          ->NewInstance(env()->context()).ToLocalChecked();
   WriteWrap* write_req = WriteWrap::New(env(),
                                         req_wrap_obj,
                                         this,
                                         EncOutCb);
 
-  uv_buf_t buf[ARRAY_SIZE(data)];
+  uv_buf_t buf[arraysize(data)];
   for (size_t i = 0; i < count; i++)
     buf[i] = uv_buf_init(data[i], size[i]);
   int err = stream_->DoWrite(write_req, buf, count, nullptr);
@@ -401,6 +400,8 @@ void TLSWrap::ClearOut() {
   if (ssl_ == nullptr)
     return;
 
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   char out[kClearOutChunkSize];
   int read;
   for (;;) {
@@ -462,6 +463,8 @@ bool TLSWrap::ClearIn() {
   if (ssl_ == nullptr)
     return false;
 
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   int written = 0;
   while (clear_in_->Length() > 0) {
     size_t avail = 0;
@@ -481,11 +484,12 @@ bool TLSWrap::ClearIn() {
 
   // Error or partial write
   int err;
-  Local<Value> arg = GetSSLError(written, &err, &error_);
+  const char* error_str = nullptr;
+  Local<Value> arg = GetSSLError(written, &err, &error_str);
   if (!arg.IsEmpty()) {
     MakePending();
-    if (!InvokeQueued(UV_EPROTO))
-      ClearError();
+    InvokeQueued(UV_EPROTO, error_str);
+    delete[] error_str;
     clear_in_->Reset();
   }
 
@@ -586,8 +590,17 @@ int TLSWrap::DoWrite(WriteWrap* w,
     return 0;
   }
 
-  if (ssl_ == nullptr)
+  if (ssl_ == nullptr) {
+    ClearError();
+
+    static char msg[] = "Write after DestroySSL";
+    char* tmp = new char[sizeof(msg)];
+    memcpy(tmp, msg, sizeof(msg));
+    error_ = tmp;
     return UV_EPROTO;
+  }
+
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
 
   int written = 0;
   for (i = 0; i < count; i++) {
@@ -704,8 +717,11 @@ void TLSWrap::DoRead(ssize_t nread,
 
 
 int TLSWrap::DoShutdown(ShutdownWrap* req_wrap) {
+  crypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
   if (ssl_ != nullptr && SSL_shutdown(ssl_) == 0)
     SSL_shutdown(ssl_);
+
   shutdown_ = true;
   EncOut();
   return stream_->DoShutdown(req_wrap);
@@ -767,7 +783,7 @@ void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
   wrap->MakePending();
 
   // And destroy
-  wrap->InvokeQueued(UV_ECANCELED);
+  wrap->InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
 
   // Destroy the SSL structure and friends
   wrap->SSLWrap<TLSWrap>::DestroySSL();

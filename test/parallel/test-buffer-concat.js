@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var zero = [];
-var one  = [ new Buffer('asdf') ];
+var one = [ Buffer.from('asdf') ];
 var long = [];
-for (var i = 0; i < 10; i++) long.push(new Buffer('asdf'));
+for (var i = 0; i < 10; i++) long.push(Buffer.from('asdf'));
 
 var flatZero = Buffer.concat(zero);
 var flatOne = Buffer.concat(one);
@@ -20,8 +20,18 @@ assert(flatOne !== one[0]);
 assert(flatLong.toString() === (new Array(10 + 1).join('asdf')));
 assert(flatLongLen.toString() === (new Array(10 + 1).join('asdf')));
 
-assert.throws(function() {
-  Buffer.concat([42]);
-}, TypeError);
+assertWrongList();
+assertWrongList(null);
+assertWrongList(Buffer.from('hello'));
+assertWrongList([42]);
+assertWrongList(['hello', 'world']);
+assertWrongList(['hello', Buffer.from('world')]);
 
-console.log('ok');
+function assertWrongList(value) {
+  assert.throws(function() {
+    Buffer.concat(value);
+  }, function(err) {
+    return err instanceof TypeError &&
+           err.message === '"list" argument must be an Array of Buffers';
+  });
+}

@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var https = require('https');
@@ -37,7 +37,7 @@ server.listen(common.PORT, function() {
     console.error('paused');
     send();
     function send() {
-      if (req.write(new Buffer(bufSize))) {
+      if (req.write(Buffer.allocUnsafe(bufSize))) {
         sent += bufSize;
         assert.ok(sent < 100 * 1024 * 1024); // max 100MB
         return process.nextTick(send);

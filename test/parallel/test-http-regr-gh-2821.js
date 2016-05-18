@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const http = require('http');
 
 const server = http.createServer(function(req, res) {
@@ -17,8 +16,7 @@ server.listen(common.PORT, function() {
     port: common.PORT
   });
 
-  const payload = new Buffer(16390);
-  payload.fill('Й');
+  const payload = Buffer.alloc(16390, 'Й');
   req.write(payload);
   req.end();
 });

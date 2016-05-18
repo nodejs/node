@@ -6,47 +6,63 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow `catch` clause parameters from shadowing variables in the outer scope",
+            category: "Variables",
+            recommended: false
+        },
 
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
+        schema: []
+    },
 
-    function paramIsShadowing(scope, name) {
-        var found = scope.variables.some(function(variable) {
-            return variable.name === name;
-        });
+    create: function(context) {
 
-        if (found) {
-            return true;
+        //--------------------------------------------------------------------------
+        // Helpers
+        //--------------------------------------------------------------------------
+
+        /**
+         * Check if the parameters are been shadowed
+         * @param {object} scope current scope
+         * @param {string} name parameter name
+         * @returns {boolean} True is its been shadowed
+         */
+        function paramIsShadowing(scope, name) {
+            return astUtils.getVariableByName(scope, name) !== null;
         }
 
-        if (scope.upper) {
-            return paramIsShadowing(scope.upper, name);
-        }
+        //--------------------------------------------------------------------------
+        // Public API
+        //--------------------------------------------------------------------------
 
-        return false;
-    }
+        return {
 
-    //--------------------------------------------------------------------------
-    // Public API
-    //--------------------------------------------------------------------------
+            CatchClause: function(node) {
+                var scope = context.getScope();
 
-    return {
+                // When blockBindings is enabled, CatchClause creates its own scope
+                // so start from one upper scope to exclude the current node
+                if (scope.block === node) {
+                    scope = scope.upper;
+                }
 
-        "CatchClause": function(node) {
-            var scope = context.getScope();
-
-            if (paramIsShadowing(scope, node.param.name)) {
-                context.report(node, "Value of '{{name}}' may be overwritten in IE 8 and earlier.",
-                        { name: node.param.name });
+                if (paramIsShadowing(scope, node.param.name)) {
+                    context.report(node, "Value of '{{name}}' may be overwritten in IE 8 and earlier.",
+                            { name: node.param.name });
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

@@ -19,16 +19,17 @@ class ZonePool final {
  public:
   class Scope final {
    public:
-    explicit Scope(ZonePool* zone_pool) : zone_pool_(zone_pool), zone_(NULL) {}
+    explicit Scope(ZonePool* zone_pool)
+        : zone_pool_(zone_pool), zone_(nullptr) {}
     ~Scope() { Destroy(); }
 
     Zone* zone() {
-      if (zone_ == NULL) zone_ = zone_pool_->NewEmptyZone();
+      if (zone_ == nullptr) zone_ = zone_pool_->NewEmptyZone();
       return zone_;
     }
     void Destroy() {
-      if (zone_ != NULL) zone_pool_->ReturnZone(zone_);
-      zone_ = NULL;
+      if (zone_ != nullptr) zone_pool_->ReturnZone(zone_);
+      zone_ = nullptr;
     }
 
    private:

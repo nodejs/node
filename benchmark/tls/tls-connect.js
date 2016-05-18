@@ -1,7 +1,7 @@
-var assert = require('assert'),
-    fs = require('fs'),
-    path = require('path'),
-    tls = require('tls');
+'use strict';
+var fs = require('fs'),
+  path = require('path'),
+  tls = require('tls');
 
 var common = require('../common.js');
 var bench = common.createBenchmark(main, {
@@ -21,10 +21,10 @@ function main(conf) {
   concurrency = +conf.concurrency;
 
   var cert_dir = path.resolve(__dirname, '../../test/fixtures'),
-      options = { key: fs.readFileSync(cert_dir + '/test_key.pem'),
-                  cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
-                  ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
-                  ciphers: 'AES256-GCM-SHA384' };
+    options = { key: fs.readFileSync(cert_dir + '/test_key.pem'),
+                cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
+                ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
+                ciphers: 'AES256-GCM-SHA384' };
 
   server = tls.createServer(options, onConnection);
   server.listen(common.PORT, onListening);

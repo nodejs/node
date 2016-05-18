@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(SimpleCall) {
   FunctionTester T("(function(foo,a) { return foo(a); })");
@@ -22,37 +21,36 @@ TEST(SimpleCall) {
 
 TEST(SimpleCall2) {
   FunctionTester T("(function(foo,a) { return foo(a); })");
-  Handle<JSFunction> foo = T.NewFunction("(function(a) { return a; })");
-  T.Compile(foo);
+  FunctionTester U("(function(a) { return a; })");
 
-  T.CheckCall(T.Val(3), foo, T.Val(3));
-  T.CheckCall(T.Val(3.1), foo, T.Val(3.1));
-  T.CheckCall(foo, foo, foo);
-  T.CheckCall(T.Val("Abba"), foo, T.Val("Abba"));
+  T.CheckCall(T.Val(3), U.function, T.Val(3));
+  T.CheckCall(T.Val(3.1), U.function, T.Val(3.1));
+  T.CheckCall(U.function, U.function, U.function);
+  T.CheckCall(T.Val("Abba"), U.function, T.Val("Abba"));
 }
 
 
 TEST(ConstCall) {
   FunctionTester T("(function(foo,a) { return foo(a,3); })");
-  Handle<JSFunction> foo = T.NewFunction("(function(a,b) { return a + b; })");
-  T.Compile(foo);
+  FunctionTester U("(function(a,b) { return a + b; })");
 
-  T.CheckCall(T.Val(6), foo, T.Val(3));
-  T.CheckCall(T.Val(6.1), foo, T.Val(3.1));
-  T.CheckCall(T.Val("function (a,b) { return a + b; }3"), foo, foo);
-  T.CheckCall(T.Val("Abba3"), foo, T.Val("Abba"));
+  T.CheckCall(T.Val(6), U.function, T.Val(3));
+  T.CheckCall(T.Val(6.1), U.function, T.Val(3.1));
+  T.CheckCall(T.Val("function (a,b) { return a + b; }3"), U.function,
+              U.function);
+  T.CheckCall(T.Val("Abba3"), U.function, T.Val("Abba"));
 }
 
 
 TEST(ConstCall2) {
   FunctionTester T("(function(foo,a) { return foo(a,\"3\"); })");
-  Handle<JSFunction> foo = T.NewFunction("(function(a,b) { return a + b; })");
-  T.Compile(foo);
+  FunctionTester U("(function(a,b) { return a + b; })");
 
-  T.CheckCall(T.Val("33"), foo, T.Val(3));
-  T.CheckCall(T.Val("3.13"), foo, T.Val(3.1));
-  T.CheckCall(T.Val("function (a,b) { return a + b; }3"), foo, foo);
-  T.CheckCall(T.Val("Abba3"), foo, T.Val("Abba"));
+  T.CheckCall(T.Val("33"), U.function, T.Val(3));
+  T.CheckCall(T.Val("3.13"), U.function, T.Val(3.1));
+  T.CheckCall(T.Val("function (a,b) { return a + b; }3"), U.function,
+              U.function);
+  T.CheckCall(T.Val("Abba3"), U.function, T.Val("Abba"));
 }
 
 
@@ -131,7 +129,6 @@ TEST(ConstructorCall) {
 }
 
 
-// TODO(titzer): factor these out into test-runtime-calls.cc
 TEST(RuntimeCallCPP2) {
   FLAG_allow_natives_syntax = true;
   FunctionTester T("(function(a,b) { return %NumberImul(a, b); })");
@@ -141,19 +138,9 @@ TEST(RuntimeCallCPP2) {
 }
 
 
-TEST(RuntimeCallJS) {
-  FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %to_number_fun(a); })");
-
-  T.CheckCall(T.Val(23), T.Val(23), T.undefined());
-  T.CheckCall(T.Val(4.2), T.Val(4.2), T.undefined());
-  T.CheckCall(T.Val(1), T.true_value(), T.undefined());
-}
-
-
 TEST(RuntimeCallInline) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %_IsSpecObject(a); })");
+  FunctionTester T("(function(a) { return %_IsJSReceiver(a); })");
 
   T.CheckCall(T.false_value(), T.Val(23), T.undefined());
   T.CheckCall(T.false_value(), T.Val(4.2), T.undefined());
@@ -225,7 +212,9 @@ TEST(ContextLoadedFromActivation) {
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
   jsfun->set_shared(T.function->shared());
-  context->Global()->Set(v8_str("foo"), v8::Utils::ToLocal(jsfun));
+  CHECK(context->Global()
+            ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
+            .FromJust());
   CompileRun("var x = 24;");
   ExpectInt32("foo();", 24);
 }
@@ -247,7 +236,13 @@ TEST(BuiltinLoadedFromActivation) {
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
   jsfun->set_shared(T.function->shared());
-  context->Global()->Set(v8_str("foo"), v8::Utils::ToLocal(jsfun));
+  CHECK(context->Global()
+            ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
+            .FromJust());
   CompileRun("var x = 24;");
   ExpectObject("foo()", context->Global());
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

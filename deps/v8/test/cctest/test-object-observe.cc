@@ -32,8 +32,14 @@
 using namespace v8;
 namespace i = v8::internal;
 
+inline int32_t ToInt32(v8::Local<v8::Value> value) {
+  return value->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext())
+      .FromJust();
+}
+
 
 TEST(PerIsolateState) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context1(CcTest::isolate());
 
@@ -46,47 +52,58 @@ TEST(PerIsolateState) {
       "var observer = function(records) { count = records.length; calls++ };"
       "var obj = {};"
       "Object.observe(obj, observer);");
-  Handle<Value> observer = CompileRun("observer");
-  Handle<Value> obj = CompileRun("obj");
-  Handle<Value> notify_fun1 = CompileRun(
-      "(function() { obj.foo = 'bar'; })");
-  Handle<Value> notify_fun2;
+  Local<Value> observer = CompileRun("observer");
+  Local<Value> obj = CompileRun("obj");
+  Local<Value> notify_fun1 = CompileRun("(function() { obj.foo = 'bar'; })");
+  Local<Value> notify_fun2;
   {
     LocalContext context2(CcTest::isolate());
     context2->SetSecurityToken(foo);
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            obj);
+    context2->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+              obj)
+        .FromJust();
     notify_fun2 = CompileRun(
         "(function() { obj.foo = 'baz'; })");
   }
-  Handle<Value> notify_fun3;
+  Local<Value> notify_fun3;
   {
     LocalContext context3(CcTest::isolate());
     context3->SetSecurityToken(foo);
-    context3->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            obj);
-    notify_fun3 = CompileRun(
-        "(function() { obj.foo = 'bat'; })");
+    context3->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+              obj)
+        .FromJust();
+    notify_fun3 = CompileRun("(function() { obj.foo = 'bat'; })");
   }
   {
     LocalContext context4(CcTest::isolate());
     context4->SetSecurityToken(foo);
-    context4->Global()->Set(
-        String::NewFromUtf8(CcTest::isolate(), "observer"), observer);
-    context4->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "fun1"),
-                            notify_fun1);
-    context4->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "fun2"),
-                            notify_fun2);
-    context4->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "fun3"),
-                            notify_fun3);
+    context4->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(),
+              v8_str("observer"), observer)
+        .FromJust();
+    context4->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("fun1"),
+              notify_fun1)
+        .FromJust();
+    context4->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("fun2"),
+              notify_fun2)
+        .FromJust();
+    context4->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("fun3"),
+              notify_fun3)
+        .FromJust();
     CompileRun("fun1(); fun2(); fun3(); Object.deliverChangeRecords(observer)");
   }
-  CHECK_EQ(1, CompileRun("calls")->Int32Value());
-  CHECK_EQ(3, CompileRun("count")->Int32Value());
+  CHECK_EQ(1, ToInt32(CompileRun("calls")));
+  CHECK_EQ(3, ToInt32(CompileRun("count")));
 }
 
 
 TEST(EndOfMicrotaskDelivery) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -95,11 +112,12 @@ TEST(EndOfMicrotaskDelivery) {
       "var observer = function(records) { count = records.length };"
       "Object.observe(obj, observer);"
       "obj.foo = 'bar';");
-  CHECK_EQ(1, CompileRun("count")->Int32Value());
+  CHECK_EQ(1, ToInt32(CompileRun("count")));
 }
 
 
 TEST(DeliveryOrdering) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -113,24 +131,25 @@ TEST(DeliveryOrdering) {
       "Object.observe(obj1, observer2);"
       "Object.observe(obj1, observer3);"
       "obj1.foo = 'bar';");
-  CHECK_EQ(3, CompileRun("ordering.length")->Int32Value());
-  CHECK_EQ(1, CompileRun("ordering[0]")->Int32Value());
-  CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());
-  CHECK_EQ(3, CompileRun("ordering[2]")->Int32Value());
+  CHECK_EQ(3, ToInt32(CompileRun("ordering.length")));
+  CHECK_EQ(1, ToInt32(CompileRun("ordering[0]")));
+  CHECK_EQ(2, ToInt32(CompileRun("ordering[1]")));
+  CHECK_EQ(3, ToInt32(CompileRun("ordering[2]")));
   CompileRun(
       "ordering = [];"
       "Object.observe(obj2, observer3);"
       "Object.observe(obj2, observer2);"
       "Object.observe(obj2, observer1);"
       "obj2.foo = 'baz'");
-  CHECK_EQ(3, CompileRun("ordering.length")->Int32Value());
-  CHECK_EQ(1, CompileRun("ordering[0]")->Int32Value());
-  CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());
-  CHECK_EQ(3, CompileRun("ordering[2]")->Int32Value());
+  CHECK_EQ(3, ToInt32(CompileRun("ordering.length")));
+  CHECK_EQ(1, ToInt32(CompileRun("ordering[0]")));
+  CHECK_EQ(2, ToInt32(CompileRun("ordering[1]")));
+  CHECK_EQ(3, ToInt32(CompileRun("ordering[2]")));
 }
 
 
 TEST(DeliveryCallbackThrows) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -149,16 +168,17 @@ TEST(DeliveryCallbackThrows) {
       "Object.observe(obj, observer2);"
       "Object.observe(obj, observer_throws.bind());"
       "obj.foo = 'bar';");
-  CHECK_EQ(5, CompileRun("ordering.length")->Int32Value());
-  CHECK_EQ(0, CompileRun("ordering[0]")->Int32Value());
-  CHECK_EQ(1, CompileRun("ordering[1]")->Int32Value());
-  CHECK_EQ(0, CompileRun("ordering[2]")->Int32Value());
-  CHECK_EQ(2, CompileRun("ordering[3]")->Int32Value());
-  CHECK_EQ(0, CompileRun("ordering[4]")->Int32Value());
+  CHECK_EQ(5, ToInt32(CompileRun("ordering.length")));
+  CHECK_EQ(0, ToInt32(CompileRun("ordering[0]")));
+  CHECK_EQ(1, ToInt32(CompileRun("ordering[1]")));
+  CHECK_EQ(0, ToInt32(CompileRun("ordering[2]")));
+  CHECK_EQ(2, ToInt32(CompileRun("ordering[3]")));
+  CHECK_EQ(0, ToInt32(CompileRun("ordering[4]")));
 }
 
 
 TEST(DeliveryChangesMutationInCallback) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -177,13 +197,14 @@ TEST(DeliveryChangesMutationInCallback) {
       "Object.observe(obj, observer1);"
       "Object.observe(obj, observer2);"
       "obj.foo = 'bar';");
-  CHECK_EQ(2, CompileRun("ordering.length")->Int32Value());
-  CHECK_EQ(101, CompileRun("ordering[0]")->Int32Value());
-  CHECK_EQ(201, CompileRun("ordering[1]")->Int32Value());
+  CHECK_EQ(2, ToInt32(CompileRun("ordering.length")));
+  CHECK_EQ(101, ToInt32(CompileRun("ordering[0]")));
+  CHECK_EQ(201, ToInt32(CompileRun("ordering[1]")));
 }
 
 
 TEST(DeliveryOrderingReentrant) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -203,18 +224,19 @@ TEST(DeliveryOrderingReentrant) {
       "Object.observe(obj, observer2);"
       "Object.observe(obj, observer3);"
       "obj.foo = 'bar';");
-  CHECK_EQ(5, CompileRun("ordering.length")->Int32Value());
-  CHECK_EQ(1, CompileRun("ordering[0]")->Int32Value());
-  CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());
-  CHECK_EQ(3, CompileRun("ordering[2]")->Int32Value());
+  CHECK_EQ(5, ToInt32(CompileRun("ordering.length")));
+  CHECK_EQ(1, ToInt32(CompileRun("ordering[0]")));
+  CHECK_EQ(2, ToInt32(CompileRun("ordering[1]")));
+  CHECK_EQ(3, ToInt32(CompileRun("ordering[2]")));
   // Note that we re-deliver to observers 1 and 2, while observer3
   // already received the second record during the first round.
-  CHECK_EQ(1, CompileRun("ordering[3]")->Int32Value());
-  CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());
+  CHECK_EQ(1, ToInt32(CompileRun("ordering[3]")));
+  CHECK_EQ(2, ToInt32(CompileRun("ordering[1]")));
 }
 
 
 TEST(DeliveryOrderingDeliverChangeRecords) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -226,33 +248,38 @@ TEST(DeliveryOrderingDeliverChangeRecords) {
       "Object.observe(obj, observer2);"
       "obj.a = 1;"
       "Object.deliverChangeRecords(observer2);");
-  CHECK_EQ(4, CompileRun("ordering.length")->Int32Value());
+  CHECK_EQ(4, ToInt32(CompileRun("ordering.length")));
   // First, observer2 is called due to deliverChangeRecords
-  CHECK_EQ(2, CompileRun("ordering[0]")->Int32Value());
+  CHECK_EQ(2, ToInt32(CompileRun("ordering[0]")));
   // Then, observer1 is called when the stack unwinds
-  CHECK_EQ(1, CompileRun("ordering[1]")->Int32Value());
+  CHECK_EQ(1, ToInt32(CompileRun("ordering[1]")));
   // observer1's mutation causes both 1 and 2 to be reactivated,
   // with 1 having priority.
-  CHECK_EQ(1, CompileRun("ordering[2]")->Int32Value());
-  CHECK_EQ(2, CompileRun("ordering[3]")->Int32Value());
+  CHECK_EQ(1, ToInt32(CompileRun("ordering[2]")));
+  CHECK_EQ(2, ToInt32(CompileRun("ordering[3]")));
 }
 
 
 TEST(ObjectHashTableGrowth) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   // Initializing this context sets up initial hash tables.
   LocalContext context(CcTest::isolate());
-  Handle<Value> obj = CompileRun("obj = {};");
-  Handle<Value> observer = CompileRun(
+  Local<Value> obj = CompileRun("obj = {};");
+  Local<Value> observer = CompileRun(
       "var ran = false;"
       "(function() { ran = true })");
   {
     // As does initializing this context.
     LocalContext context2(CcTest::isolate());
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            obj);
-    context2->Global()->Set(
-        String::NewFromUtf8(CcTest::isolate(), "observer"), observer);
+    context2->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+              obj)
+        .FromJust();
+    context2->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(),
+              v8_str("observer"), observer)
+        .FromJust();
     CompileRun(
         "var objArr = [];"
         // 100 objects should be enough to make the hash table grow
@@ -265,40 +292,61 @@ TEST(ObjectHashTableGrowth) {
   }
   // obj is now marked "is_observed", but our map has moved.
   CompileRun("obj.foo = 'bar'");
-  CHECK(CompileRun("ran")->BooleanValue());
+  CHECK(CompileRun("ran")
+            ->BooleanValue(v8::Isolate::GetCurrent()->GetCurrentContext())
+            .FromJust());
 }
 
 
 struct RecordExpectation {
-  Handle<Value> object;
+  Local<Value> object;
   const char* type;
   const char* name;
-  Handle<Value> old_value;
+  Local<Value> old_value;
 };
 
 
 // TODO(adamk): Use this helper elsewhere in this file.
-static void ExpectRecords(v8::Isolate* isolate,
-                          Handle<Value> records,
-                          const RecordExpectation expectations[],
-                          int num) {
+static void ExpectRecords(v8::Isolate* isolate, Local<Value> records,
+                          const RecordExpectation expectations[], int num) {
   CHECK(records->IsArray());
-  Handle<Array> recordArray = records.As<Array>();
+  Local<Array> recordArray = records.As<Array>();
   CHECK_EQ(num, static_cast<int>(recordArray->Length()));
   for (int i = 0; i < num; ++i) {
-    Handle<Value> record = recordArray->Get(i);
+    Local<Value> record =
+        recordArray->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), i)
+            .ToLocalChecked();
     CHECK(record->IsObject());
-    Handle<Object> recordObj = record.As<Object>();
-    CHECK(expectations[i].object->StrictEquals(
-        recordObj->Get(String::NewFromUtf8(isolate, "object"))));
-    CHECK(String::NewFromUtf8(isolate, expectations[i].type)->Equals(
-        recordObj->Get(String::NewFromUtf8(isolate, "type"))));
+    Local<Object> recordObj = record.As<Object>();
+    Local<Value> value =
+        recordObj->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                       v8_str("object"))
+            .ToLocalChecked();
+    CHECK(expectations[i].object->StrictEquals(value));
+    value = recordObj->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                           v8_str("type"))
+                .ToLocalChecked();
+    CHECK(v8_str(expectations[i].type)
+              ->Equals(v8::Isolate::GetCurrent()->GetCurrentContext(), value)
+              .FromJust());
     if (strcmp("splice", expectations[i].type) != 0) {
-      CHECK(String::NewFromUtf8(isolate, expectations[i].name)->Equals(
-          recordObj->Get(String::NewFromUtf8(isolate, "name"))));
+      Local<Value> name =
+          recordObj->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                         v8_str("name"))
+              .ToLocalChecked();
+      CHECK(v8_str(expectations[i].name)
+                ->Equals(v8::Isolate::GetCurrent()->GetCurrentContext(), name)
+                .FromJust());
       if (!expectations[i].old_value.IsEmpty()) {
-        CHECK(expectations[i].old_value->Equals(
-            recordObj->Get(String::NewFromUtf8(isolate, "oldValue"))));
+        Local<Value> old_value =
+            recordObj->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                           v8_str("oldValue"))
+                .ToLocalChecked();
+        CHECK(expectations[i]
+                  .old_value->Equals(
+                                v8::Isolate::GetCurrent()->GetCurrentContext(),
+                                old_value)
+                  .FromJust());
       }
     }
   }
@@ -309,65 +357,89 @@ static void ExpectRecords(v8::Isolate* isolate,
                 arraysize(expectations))
 
 TEST(APITestBasicMutation) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* v8_isolate = CcTest::isolate();
   HandleScope scope(v8_isolate);
   LocalContext context(v8_isolate);
-  Handle<Object> obj = Handle<Object>::Cast(CompileRun(
-      "var records = [];"
-      "var obj = {};"
-      "function observer(r) { [].push.apply(records, r); };"
-      "Object.observe(obj, observer);"
-      "obj"));
-  obj->Set(String::NewFromUtf8(v8_isolate, "foo"),
-           Number::New(v8_isolate, 7));
-  obj->Set(1, Number::New(v8_isolate, 2));
-  // ForceSet should work just as well as Set
-  obj->ForceSet(String::NewFromUtf8(v8_isolate, "foo"),
-                Number::New(v8_isolate, 3));
-  obj->ForceSet(Number::New(v8_isolate, 1), Number::New(v8_isolate, 4));
+  Local<Object> obj = Local<Object>::Cast(
+      CompileRun("var records = [];"
+                 "var obj = {};"
+                 "function observer(r) { [].push.apply(records, r); };"
+                 "Object.observe(obj, observer);"
+                 "obj"));
+  obj->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("foo"),
+           Number::New(v8_isolate, 7))
+      .FromJust();
+  obj->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), 1,
+           Number::New(v8_isolate, 2))
+      .FromJust();
+  // CreateDataProperty should work just as well as Set
+  obj->CreateDataProperty(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                          v8_str("foo"), Number::New(v8_isolate, 3))
+      .FromJust();
+  obj->CreateDataProperty(v8::Isolate::GetCurrent()->GetCurrentContext(), 1,
+                          Number::New(v8_isolate, 4))
+      .FromJust();
   // Setting an indexed element via the property setting method
-  obj->Set(Number::New(v8_isolate, 1), Number::New(v8_isolate, 5));
+  obj->Set(v8::Isolate::GetCurrent()->GetCurrentContext(),
+           Number::New(v8_isolate, 1), Number::New(v8_isolate, 5))
+      .FromJust();
   // Setting with a non-String, non-uint32 key
-  obj->Set(Number::New(v8_isolate, 1.1), Number::New(v8_isolate, 6));
-  obj->Delete(String::NewFromUtf8(v8_isolate, "foo"));
-  obj->Delete(1);
-  obj->Delete(Number::New(v8_isolate, 1.1));
+  obj->Set(v8::Isolate::GetCurrent()->GetCurrentContext(),
+           Number::New(v8_isolate, 1.1), Number::New(v8_isolate, 6))
+      .FromJust();
+  obj->Delete(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("foo"))
+      .FromJust();
+  obj->Delete(v8::Isolate::GetCurrent()->GetCurrentContext(), 1).FromJust();
+  obj->Delete(v8::Isolate::GetCurrent()->GetCurrentContext(),
+              Number::New(v8_isolate, 1.1))
+      .FromJust();
 
   // Force delivery
   // TODO(adamk): Should the above set methods trigger delivery themselves?
   CompileRun("void 0");
-  CHECK_EQ(9, CompileRun("records.length")->Int32Value());
+  CHECK_EQ(9, ToInt32(CompileRun("records.length")));
   const RecordExpectation expected_records[] = {
-    { obj, "add", "foo", Handle<Value>() },
-    { obj, "add", "1", Handle<Value>() },
-    // Note: use 7 not 1 below, as the latter triggers a nifty VS10 compiler bug
-    // where instead of 1.0, a garbage value would be passed into Number::New.
-    { obj, "update", "foo", Number::New(v8_isolate, 7) },
-    { obj, "update", "1", Number::New(v8_isolate, 2) },
-    { obj, "update", "1", Number::New(v8_isolate, 4) },
-    { obj, "add", "1.1", Handle<Value>() },
-    { obj, "delete", "foo", Number::New(v8_isolate, 3) },
-    { obj, "delete", "1", Number::New(v8_isolate, 5) },
-    { obj, "delete", "1.1", Number::New(v8_isolate, 6) }
-  };
+      {obj, "add", "foo", Local<Value>()},
+      {obj, "add", "1", Local<Value>()},
+      // Note: use 7 not 1 below, as the latter triggers a nifty VS10 compiler
+      // bug
+      // where instead of 1.0, a garbage value would be passed into Number::New.
+      {obj, "update", "foo", Number::New(v8_isolate, 7)},
+      {obj, "update", "1", Number::New(v8_isolate, 2)},
+      {obj, "update", "1", Number::New(v8_isolate, 4)},
+      {obj, "add", "1.1", Local<Value>()},
+      {obj, "delete", "foo", Number::New(v8_isolate, 3)},
+      {obj, "delete", "1", Number::New(v8_isolate, 5)},
+      {obj, "delete", "1.1", Number::New(v8_isolate, 6)}};
   EXPECT_RECORDS(CompileRun("records"), expected_records);
 }
 
 
 TEST(HiddenPrototypeObservation) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* v8_isolate = CcTest::isolate();
   HandleScope scope(v8_isolate);
   LocalContext context(v8_isolate);
-  Handle<FunctionTemplate> tmpl = FunctionTemplate::New(v8_isolate);
+  Local<FunctionTemplate> tmpl = FunctionTemplate::New(v8_isolate);
   tmpl->SetHiddenPrototype(true);
-  tmpl->InstanceTemplate()->Set(
-      String::NewFromUtf8(v8_isolate, "foo"), Number::New(v8_isolate, 75));
-  Handle<Object> proto = tmpl->GetFunction()->NewInstance();
-  Handle<Object> obj = Object::New(v8_isolate);
-  obj->SetPrototype(proto);
-  context->Global()->Set(String::NewFromUtf8(v8_isolate, "obj"), obj);
-  context->Global()->Set(String::NewFromUtf8(v8_isolate, "proto"),
-                         proto);
+  tmpl->InstanceTemplate()->Set(v8_str("foo"), Number::New(v8_isolate, 75));
+  Local<Function> function =
+      tmpl->GetFunction(v8::Isolate::GetCurrent()->GetCurrentContext())
+          .ToLocalChecked();
+  Local<Object> proto =
+      function->NewInstance(v8::Isolate::GetCurrent()->GetCurrentContext())
+          .ToLocalChecked();
+  Local<Object> obj = Object::New(v8_isolate);
+  obj->SetPrototype(v8::Isolate::GetCurrent()->GetCurrentContext(), proto)
+      .FromJust();
+  context->Global()
+      ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"), obj)
+      .FromJust();
+  context->Global()
+      ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("proto"),
+            proto)
+      .FromJust();
   CompileRun(
       "var records;"
       "function observer(r) { records = r; };"
@@ -378,23 +450,25 @@ TEST(HiddenPrototypeObservation) {
     { obj, "update", "foo", Number::New(v8_isolate, 75) }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records);
-  obj->SetPrototype(Null(v8_isolate));
+  obj->SetPrototype(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                    Null(v8_isolate))
+      .FromJust();
   CompileRun("obj.foo = 43");
   const RecordExpectation expected_records2[] = {
-    { obj, "add", "foo", Handle<Value>() }
-  };
+      {obj, "add", "foo", Local<Value>()}};
   EXPECT_RECORDS(CompileRun("records"), expected_records2);
-  obj->SetPrototype(proto);
+  obj->SetPrototype(v8::Isolate::GetCurrent()->GetCurrentContext(), proto)
+      .FromJust();
   CompileRun(
       "Object.observe(proto, observer);"
       "proto.bar = 1;"
       "Object.unobserve(obj, observer);"
       "obj.foo = 44;");
   const RecordExpectation expected_records3[] = {
-    { proto, "add", "bar", Handle<Value>() }
-    // TODO(adamk): The below record should be emitted since proto is observed
-    // and has been modified. Not clear if this happens in practice.
-    // { proto, "update", "foo", Number::New(43) }
+      {proto, "add", "bar", Local<Value>()}
+      // TODO(adamk): The below record should be emitted since proto is observed
+      // and has been modified. Not clear if this happens in practice.
+      // { proto, "update", "foo", Number::New(43) }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records3);
 }
@@ -406,6 +480,7 @@ static int NumberOfElements(i::Handle<i::JSWeakMap> map) {
 
 
 TEST(ObservationWeakMap) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun(
@@ -436,27 +511,31 @@ TEST(ObservationWeakMap) {
 }
 
 
-static int TestObserveSecurity(Handle<Context> observer_context,
-                               Handle<Context> object_context,
-                               Handle<Context> mutation_context) {
+static int TestObserveSecurity(Local<Context> observer_context,
+                               Local<Context> object_context,
+                               Local<Context> mutation_context) {
   Context::Scope observer_scope(observer_context);
   CompileRun("var records = null;"
              "var observer = function(r) { records = r };");
-  Handle<Value> observer = CompileRun("observer");
+  Local<Value> observer = CompileRun("observer");
   {
     Context::Scope object_scope(object_context);
-    object_context->Global()->Set(
-        String::NewFromUtf8(CcTest::isolate(), "observer"), observer);
+    object_context->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(),
+              v8_str("observer"), observer)
+        .FromJust();
     CompileRun("var obj = {};"
                "obj.length = 0;"
                "Object.observe(obj, observer,"
                    "['add', 'update', 'delete','reconfigure','splice']"
                ");");
-    Handle<Value> obj = CompileRun("obj");
+    Local<Value> obj = CompileRun("obj");
     {
       Context::Scope mutation_scope(mutation_context);
-      mutation_context->Global()->Set(
-          String::NewFromUtf8(CcTest::isolate(), "obj"), obj);
+      mutation_context->Global()
+          ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+                obj)
+          .FromJust();
       CompileRun("obj.foo = 'bar';"
                  "obj.foo = 'baz';"
                  "delete obj.foo;"
@@ -467,11 +546,12 @@ static int TestObserveSecurity(Handle<Context> observer_context,
                  "Array.prototype.shift.call(obj);");
     }
   }
-  return CompileRun("records ? records.length : 0")->Int32Value();
+  return ToInt32(CompileRun("records ? records.length : 0"));
 }
 
 
 TEST(ObserverSecurityAAA) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA = Context::New(isolate);
@@ -480,6 +560,7 @@ TEST(ObserverSecurityAAA) {
 
 
 TEST(ObserverSecurityA1A2A3) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
@@ -497,6 +578,7 @@ TEST(ObserverSecurityA1A2A3) {
 
 
 TEST(ObserverSecurityAAB) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA = Context::New(isolate);
@@ -506,6 +588,7 @@ TEST(ObserverSecurityAAB) {
 
 
 TEST(ObserverSecurityA1A2B) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
@@ -522,6 +605,7 @@ TEST(ObserverSecurityA1A2B) {
 
 
 TEST(ObserverSecurityABA) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA = Context::New(isolate);
@@ -531,6 +615,7 @@ TEST(ObserverSecurityABA) {
 
 
 TEST(ObserverSecurityA1BA2) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA1 = Context::New(isolate);
@@ -546,6 +631,7 @@ TEST(ObserverSecurityA1BA2) {
 
 
 TEST(ObserverSecurityBAA) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA = Context::New(isolate);
@@ -555,6 +641,7 @@ TEST(ObserverSecurityBAA) {
 
 
 TEST(ObserverSecurityBA1A2) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA1 = Context::New(isolate);
@@ -570,6 +657,7 @@ TEST(ObserverSecurityBA1A2) {
 
 
 TEST(ObserverSecurityNotify) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<Context> contextA = Context::New(isolate);
@@ -580,11 +668,14 @@ TEST(ObserverSecurityNotify) {
              "var recordsA = null;"
              "var observerA = function(r) { recordsA = r };"
              "Object.observe(obj, observerA);");
-  Handle<Value> obj = CompileRun("obj");
+  Local<Value> obj = CompileRun("obj");
 
   {
     Context::Scope scopeB(contextB);
-    contextB->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"), obj);
+    contextB->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+              obj)
+        .FromJust();
     CompileRun("var recordsB = null;"
                "var observerB = function(r) { recordsB = r };"
                "Object.observe(obj, observerB);");
@@ -592,76 +683,90 @@ TEST(ObserverSecurityNotify) {
 
   CompileRun("var notifier = Object.getNotifier(obj);"
              "notifier.notify({ type: 'update' });");
-  CHECK_EQ(1, CompileRun("recordsA ? recordsA.length : 0")->Int32Value());
+  CHECK_EQ(1, ToInt32(CompileRun("recordsA ? recordsA.length : 0")));
 
   {
     Context::Scope scopeB(contextB);
-    CHECK_EQ(0, CompileRun("recordsB ? recordsB.length : 0")->Int32Value());
+    CHECK_EQ(0, ToInt32(CompileRun("recordsB ? recordsB.length : 0")));
   }
 }
 
 
 TEST(HiddenPropertiesLeakage) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun("var obj = {};"
              "var records = null;"
              "var observer = function(r) { records = r };"
              "Object.observe(obj, observer);");
-  Handle<Value> obj =
-      context->Global()->Get(String::NewFromUtf8(CcTest::isolate(), "obj"));
-  Handle<Object>::Cast(obj)
-      ->SetHiddenValue(String::NewFromUtf8(CcTest::isolate(), "foo"),
-                       Null(CcTest::isolate()));
+  Local<Value> obj =
+      context->Global()
+          ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"))
+          .ToLocalChecked();
+  Local<Object>::Cast(obj)
+      ->SetPrivate(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                   v8::Private::New(CcTest::isolate(), v8_str("foo")),
+                   Null(CcTest::isolate()))
+      .FromJust();
   CompileRun("");  // trigger delivery
   CHECK(CompileRun("records")->IsNull());
 }
 
 
 TEST(GetNotifierFromOtherContext) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
   LocalContext context(CcTest::isolate());
   CompileRun("var obj = {};");
-  Handle<Value> instance = CompileRun("obj");
+  Local<Value> instance = CompileRun("obj");
   {
     LocalContext context2(CcTest::isolate());
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            instance);
+    context2->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+              instance)
+        .FromJust();
     CHECK(CompileRun("Object.getNotifier(obj)")->IsNull());
   }
 }
 
 
 TEST(GetNotifierFromOtherOrigin) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
-  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
-  Handle<Value> bar = String::NewFromUtf8(CcTest::isolate(), "bar");
+  Local<Value> foo = v8_str("foo");
+  Local<Value> bar = v8_str("bar");
   LocalContext context(CcTest::isolate());
   context->SetSecurityToken(foo);
   CompileRun("var obj = {};");
-  Handle<Value> instance = CompileRun("obj");
+  Local<Value> instance = CompileRun("obj");
   {
     LocalContext context2(CcTest::isolate());
     context2->SetSecurityToken(bar);
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            instance);
+    context2->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+              instance)
+        .FromJust();
     CHECK(CompileRun("Object.getNotifier(obj)")->IsNull());
   }
 }
 
 
 TEST(GetNotifierFromSameOrigin) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
-  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  Local<Value> foo = v8_str("foo");
   LocalContext context(CcTest::isolate());
   context->SetSecurityToken(foo);
   CompileRun("var obj = {};");
-  Handle<Value> instance = CompileRun("obj");
+  Local<Value> instance = CompileRun("obj");
   {
     LocalContext context2(CcTest::isolate());
     context2->SetSecurityToken(foo);
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            instance);
+    context2->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+              instance)
+        .FromJust();
     CHECK(CompileRun("Object.getNotifier(obj)")->IsObject());
   }
 }
@@ -671,8 +776,15 @@ static int GetGlobalObjectsCount() {
   int count = 0;
   i::HeapIterator it(CcTest::heap());
   for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
-    if (object->IsJSGlobalObject()) count++;
-  return count;
+    if (object->IsJSGlobalObject()) {
+      i::JSGlobalObject* g = i::JSGlobalObject::cast(object);
+      // Skip dummy global object.
+      if (i::GlobalDictionary::cast(g->properties())->NumberOfElements() != 0) {
+        count++;
+      }
+    }
+  // Subtract one to compensate for the code stub context that is always present
+  return count - 1;
 }
 
 
@@ -693,65 +805,76 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
 
 
 TEST(DontLeakContextOnObserve) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
-  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  Local<Value> foo = v8_str("foo");
   LocalContext context(CcTest::isolate());
   context->SetSecurityToken(foo);
   CompileRun("var obj = {};");
-  Handle<Value> object = CompileRun("obj");
+  Local<Value> object = CompileRun("obj");
   {
     HandleScope scope(CcTest::isolate());
     LocalContext context2(CcTest::isolate());
     context2->SetSecurityToken(foo);
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            object);
+    context2->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+              object)
+        .FromJust();
     CompileRun("function observer() {};"
                "Object.observe(obj, observer, ['foo', 'bar', 'baz']);"
                "Object.unobserve(obj, observer);");
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(2);
+  CheckSurvivingGlobalObjectsCount(0);
 }
 
 
 TEST(DontLeakContextOnGetNotifier) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
-  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  Local<Value> foo = v8_str("foo");
   LocalContext context(CcTest::isolate());
   context->SetSecurityToken(foo);
   CompileRun("var obj = {};");
-  Handle<Value> object = CompileRun("obj");
+  Local<Value> object = CompileRun("obj");
   {
     HandleScope scope(CcTest::isolate());
     LocalContext context2(CcTest::isolate());
     context2->SetSecurityToken(foo);
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            object);
+    context2->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+              object)
+        .FromJust();
     CompileRun("Object.getNotifier(obj);");
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(2);
+  CheckSurvivingGlobalObjectsCount(0);
 }
 
 
 TEST(DontLeakContextOnNotifierPerformChange) {
+  i::FLAG_harmony_object_observe = true;
   HandleScope scope(CcTest::isolate());
-  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  Local<Value> foo = v8_str("foo");
   LocalContext context(CcTest::isolate());
   context->SetSecurityToken(foo);
   CompileRun("var obj = {};");
-  Handle<Value> object = CompileRun("obj");
-  Handle<Value> notifier = CompileRun("Object.getNotifier(obj)");
+  Local<Value> object = CompileRun("obj");
+  Local<Value> notifier = CompileRun("Object.getNotifier(obj)");
   {
     HandleScope scope(CcTest::isolate());
     LocalContext context2(CcTest::isolate());
     context2->SetSecurityToken(foo);
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
-                            object);
-    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "notifier"),
-                            notifier);
+    context2->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+              object)
+        .FromJust();
+    context2->Global()
+        ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(),
+              v8_str("notifier"), notifier)
+        .FromJust();
     CompileRun("var obj2 = {};"
                "var notifier2 = Object.getNotifier(obj2);"
                "notifier2.performChange.call("
@@ -759,26 +882,30 @@ TEST(DontLeakContextOnNotifierPerformChange) {
   }
 
   CcTest::isolate()->ContextDisposedNotification();
-  CheckSurvivingGlobalObjectsCount(2);
+  CheckSurvivingGlobalObjectsCount(0);
 }
 
 
 static void ObserverCallback(const FunctionCallbackInfo<Value>& args) {
-  *static_cast<int*>(Handle<External>::Cast(args.Data())->Value()) =
-      Handle<Array>::Cast(args[0])->Length();
+  *static_cast<int*>(Local<External>::Cast(args.Data())->Value()) =
+      Local<Array>::Cast(args[0])->Length();
 }
 
 
 TEST(ObjectObserveCallsCppFunction) {
+  i::FLAG_harmony_object_observe = true;
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   LocalContext context(isolate);
   int numRecordsSent = 0;
-  Handle<Function> observer =
-      Function::New(CcTest::isolate(), ObserverCallback,
-                    External::New(isolate, &numRecordsSent));
-  context->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "observer"),
-                         observer);
+  Local<Function> observer =
+      Function::New(CcTest::isolate()->GetCurrentContext(), ObserverCallback,
+                    External::New(isolate, &numRecordsSent))
+          .ToLocalChecked();
+  context->Global()
+      ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("observer"),
+            observer)
+      .FromJust();
   CompileRun(
       "var obj = {};"
       "Object.observe(obj, observer);"
@@ -789,14 +916,20 @@ TEST(ObjectObserveCallsCppFunction) {
 
 
 TEST(ObjectObserveCallsFunctionTemplateInstance) {
+  i::FLAG_harmony_object_observe = true;
   Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   LocalContext context(isolate);
   int numRecordsSent = 0;
-  Handle<FunctionTemplate> tmpl = FunctionTemplate::New(
+  Local<FunctionTemplate> tmpl = FunctionTemplate::New(
       isolate, ObserverCallback, External::New(isolate, &numRecordsSent));
-  context->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "observer"),
-                         tmpl->GetFunction());
+  Local<Function> function =
+      tmpl->GetFunction(v8::Isolate::GetCurrent()->GetCurrentContext())
+          .ToLocalChecked();
+  context->Global()
+      ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("observer"),
+            function)
+      .FromJust();
   CompileRun(
       "var obj = {};"
       "Object.observe(obj, observer);"
@@ -806,26 +939,31 @@ TEST(ObjectObserveCallsFunctionTemplateInstance) {
 }
 
 
-static void AccessorGetter(Local<String> property,
+static void AccessorGetter(Local<Name> property,
                            const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(Integer::New(info.GetIsolate(), 42));
 }
 
 
-static void AccessorSetter(Local<String> property, Local<Value> value,
+static void AccessorSetter(Local<Name> property, Local<Value> value,
                            const PropertyCallbackInfo<void>& info) {
   info.GetReturnValue().SetUndefined();
 }
 
 
 TEST(APIAccessorsShouldNotNotify) {
+  i::FLAG_harmony_object_observe = true;
   Isolate* isolate = CcTest::isolate();
   HandleScope handle_scope(isolate);
   LocalContext context(isolate);
-  Handle<Object> object = Object::New(isolate);
-  object->SetAccessor(String::NewFromUtf8(isolate, "accessor"), &AccessorGetter,
-                      &AccessorSetter);
-  context->Global()->Set(String::NewFromUtf8(isolate, "obj"), object);
+  Local<Object> object = Object::New(isolate);
+  object->SetAccessor(v8::Isolate::GetCurrent()->GetCurrentContext(),
+                      v8_str("accessor"), &AccessorGetter, &AccessorSetter)
+      .FromJust();
+  context->Global()
+      ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+            object)
+      .FromJust();
   CompileRun(
       "var records = null;"
       "Object.observe(obj, function(r) { records = r });"
@@ -848,6 +986,7 @@ void MockUseCounterCallback(v8::Isolate* isolate,
 
 
 TEST(UseCountObjectObserve) {
+  i::FLAG_harmony_object_observe = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
@@ -875,6 +1014,7 @@ TEST(UseCountObjectObserve) {
 
 
 TEST(UseCountObjectGetNotifier) {
+  i::FLAG_harmony_object_observe = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
@@ -886,23 +1026,29 @@ TEST(UseCountObjectGetNotifier) {
   CHECK_EQ(1, use_counts[v8::Isolate::kObjectObserve]);
 }
 
-
-static bool NamedAccessCheckAlwaysAllow(Local<v8::Object> global,
-                                        Local<v8::Value> name,
-                                        v8::AccessType type,
-                                        Local<Value> data) {
+static bool NamedAccessCheckAlwaysAllow(Local<v8::Context> accessing_context,
+                                        Local<v8::Object> accessed_object,
+                                        Local<v8::Value> data) {
   return true;
 }
 
 
 TEST(DisallowObserveAccessCheckedObject) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   v8::Local<v8::ObjectTemplate> object_template =
       v8::ObjectTemplate::New(isolate);
-  object_template->SetAccessCheckCallbacks(NamedAccessCheckAlwaysAllow, NULL);
-  env->Global()->Set(v8_str("obj"), object_template->NewInstance());
+  object_template->SetAccessCheckCallback(NamedAccessCheckAlwaysAllow);
+  Local<Object> new_instance =
+      object_template->NewInstance(
+                         v8::Isolate::GetCurrent()->GetCurrentContext())
+          .ToLocalChecked();
+  env->Global()
+      ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+            new_instance)
+      .FromJust();
   v8::TryCatch try_catch(isolate);
   CompileRun("Object.observe(obj, function(){})");
   CHECK(try_catch.HasCaught());
@@ -910,13 +1056,21 @@ TEST(DisallowObserveAccessCheckedObject) {
 
 
 TEST(DisallowGetNotifierAccessCheckedObject) {
+  i::FLAG_harmony_object_observe = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
   v8::Local<v8::ObjectTemplate> object_template =
       v8::ObjectTemplate::New(isolate);
-  object_template->SetAccessCheckCallbacks(NamedAccessCheckAlwaysAllow, NULL);
-  env->Global()->Set(v8_str("obj"), object_template->NewInstance());
+  object_template->SetAccessCheckCallback(NamedAccessCheckAlwaysAllow);
+  Local<Object> new_instance =
+      object_template->NewInstance(
+                         v8::Isolate::GetCurrent()->GetCurrentContext())
+          .ToLocalChecked();
+  env->Global()
+      ->Set(v8::Isolate::GetCurrent()->GetCurrentContext(), v8_str("obj"),
+            new_instance)
+      .FromJust();
   v8::TryCatch try_catch(isolate);
   CompileRun("Object.getNotifier(obj)");
   CHECK(try_catch.HasCaught());

@@ -47,7 +47,8 @@ struct AtomicOps_x86CPUFeatureStruct AtomicOps_Internalx86CPUFeatures = {
 #endif
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 namespace {
 

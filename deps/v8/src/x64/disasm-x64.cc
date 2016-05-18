@@ -351,6 +351,11 @@ class DisassemblerX64 {
 
   bool rex_w() { return (rex_ & 0x08) != 0; }
 
+  bool vex_w() {
+    DCHECK(vex_byte0_ == VEX3_PREFIX || vex_byte0_ == VEX2_PREFIX);
+    return vex_byte0_ == VEX3_PREFIX ? (vex_byte2_ & 0x80) != 0 : false;
+  }
+
   bool vex_128() {
     DCHECK(vex_byte0_ == VEX3_PREFIX || vex_byte0_ == VEX2_PREFIX);
     byte checked = vex_byte0_ == VEX3_PREFIX ? vex_byte2_ : vex_byte1_;
@@ -947,10 +952,54 @@ int DisassemblerX64::AVXInstruction(byte* data) {
       default:
         UnimplementedInstruction();
     }
+  } else if (vex_66() && vex_0f3a()) {
+    int mod, regop, rm, vvvv = vex_vreg();
+    get_modrm(*current, &mod, &regop, &rm);
+    switch (opcode) {
+      case 0x0a:
+        AppendToBuffer("vroundss %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", *current++);
+        break;
+      case 0x0b:
+        AppendToBuffer("vroundsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", *current++);
+        break;
+      default:
+        UnimplementedInstruction();
+    }
   } else if (vex_f3() && vex_0f()) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x10:
+        AppendToBuffer("vmovss %s,", NameOfXMMRegister(regop));
+        if (mod == 3) {
+          AppendToBuffer("%s,", NameOfXMMRegister(vvvv));
+        }
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x11:
+        AppendToBuffer("vmovss ");
+        current += PrintRightXMMOperand(current);
+        if (mod == 3) {
+          AppendToBuffer(",%s", NameOfXMMRegister(vvvv));
+        }
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+        break;
+      case 0x2a:
+        AppendToBuffer("%s %s,%s,", vex_w() ? "vcvtqsi2ss" : "vcvtlsi2ss",
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightOperand(current);
+        break;
+      case 0x2c:
+        AppendToBuffer("vcvttss2si%s %s,", vex_w() ? "q" : "",
+                       NameOfCPURegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x58:
         AppendToBuffer("vaddss %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -958,6 +1007,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         break;
       case 0x59:
         AppendToBuffer("vmulss %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5a:
+        AppendToBuffer("vcvtss2sd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
@@ -988,6 +1042,41 @@ int DisassemblerX64::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x10:
+        AppendToBuffer("vmovsd %s,", NameOfXMMRegister(regop));
+        if (mod == 3) {
+          AppendToBuffer("%s,", NameOfXMMRegister(vvvv));
+        }
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x11:
+        AppendToBuffer("vmovsd ");
+        current += PrintRightXMMOperand(current);
+        if (mod == 3) {
+          AppendToBuffer(",%s", NameOfXMMRegister(vvvv));
+        }
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+        break;
+      case 0x2a:
+        AppendToBuffer("%s %s,%s,", vex_w() ? "vcvtqsi2sd" : "vcvtlsi2sd",
+                       NameOfXMMRegister(regop), NameOfXMMRegister(vvvv));
+        current += PrintRightOperand(current);
+        break;
+      case 0x2c:
+        AppendToBuffer("vcvttsd2si%s %s,", vex_w() ? "q" : "",
+                       NameOfCPURegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x2d:
+        AppendToBuffer("vcvtsd2si%s %s,", vex_w() ? "q" : "",
+                       NameOfCPURegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x51:
+        AppendToBuffer("vsqrtsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x58:
         AppendToBuffer("vaddsd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -995,6 +1084,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         break;
       case 0x59:
         AppendToBuffer("vmulsd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x5a:
+        AppendToBuffer("vcvtsd2ss %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
@@ -1133,6 +1227,15 @@ int DisassemblerX64::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x28:
+        AppendToBuffer("vmovaps %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x29:
+        AppendToBuffer("vmovaps ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+        break;
       case 0x2e:
         AppendToBuffer("vucomiss %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
@@ -1154,8 +1257,21 @@ int DisassemblerX64::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x28:
+        AppendToBuffer("vmovapd %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x29:
+        AppendToBuffer("vmovapd ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+        break;
       case 0x2e:
         AppendToBuffer("vucomisd %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x50:
+        AppendToBuffer("vmovmskpd %s,", NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
         break;
       case 0x54:
@@ -1163,10 +1279,36 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x56:
+        AppendToBuffer("vorpd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x57:
         AppendToBuffer("vxorpd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
+        break;
+      case 0x6e:
+        AppendToBuffer("vmov%c %s,", vex_w() ? 'q' : 'd',
+                       NameOfXMMRegister(regop));
+        current += PrintRightOperand(current);
+        break;
+      case 0x73:
+        AppendToBuffer("%s %s,", regop == 6 ? "vpsllq" : "vpsrlq",
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%u", *current++);
+        break;
+      case 0x76:
+        AppendToBuffer("vpcmpeqd %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
+      case 0x7e:
+        AppendToBuffer("vmov%c ", vex_w() ? 'q' : 'd');
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
         break;
       default:
         UnimplementedInstruction();
@@ -1380,12 +1522,18 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += PrintRightOperand(current);
         AppendToBuffer(",%s,%d", NameOfXMMRegister(regop), (*current) & 3);
         current += 1;
+      } else if (third_byte == 0x0a) {
+        get_modrm(*current, &mod, &regop, &rm);
+        AppendToBuffer("roundss %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", (*current) & 3);
+        current += 1;
       } else if (third_byte == 0x0b) {
         get_modrm(*current, &mod, &regop, &rm);
          // roundsd xmm, xmm/m64, imm8
         AppendToBuffer("roundsd %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
-        AppendToBuffer(",%d", (*current) & 3);
+        AppendToBuffer(",0x%x", (*current) & 3);
         current += 1;
       } else if (third_byte == 0x16) {
         get_modrm(*current, &mod, &rm, &regop);
@@ -1726,7 +1874,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     } else {
       AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
     }
-  } else if (opcode == 0xBD) {
+  } else if (opcode == 0xB8 || opcode == 0xBC || opcode == 0xBD) {
+    // POPCNT, CTZ, CLZ.
     AppendToBuffer("%s%c ", mnemonic, operand_size_code());
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
@@ -1780,6 +1929,8 @@ const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
       return "movzxb";
     case 0xB7:
       return "movzxw";
+    case 0xBC:
+      return "bsf";
     case 0xBD:
       return "bsr";
     case 0xBE:

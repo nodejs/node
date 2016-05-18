@@ -2,7 +2,7 @@
 const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 
@@ -66,7 +66,7 @@ function runTest(clientsOptions, serverOptions, cb) {
         cb(results);
       }
     });
-  };
+  }
 
 }
 
@@ -99,8 +99,8 @@ function Test1() {
                   client: {ALPN: 'b', NPN: undefined}});
     // nothing is selected by ALPN
     checkResults(results[2],
-                 {server: {ALPN: false, NPN: false},
-                  client: {ALPN: false, NPN: undefined}});
+                 {server: {ALPN: false, NPN: 'first-priority-unsupported'},
+                  client: {ALPN: false, NPN: false}});
     // execute next test
     Test2();
   });
@@ -132,8 +132,8 @@ function Test2() {
                   client: {ALPN: 'b', NPN: undefined}});
     // nothing is selected by ALPN
     checkResults(results[2],
-                 {server: {ALPN: false, NPN: false},
-                  client: {ALPN: false, NPN: undefined}});
+                 {server: {ALPN: false, NPN: 'http/1.1'},
+                  client: {ALPN: false, NPN: false}});
     // execute next test
     Test3();
   });
@@ -224,8 +224,9 @@ function Test5() {
     checkResults(results[1], {server: {ALPN: 'b', NPN: false},
                               client: {ALPN: 'b', NPN: undefined}});
     // nothing is selected by ALPN
-    checkResults(results[2], {server: {ALPN: false, NPN: false},
-                              client: {ALPN: false, NPN: undefined}});
+    checkResults(results[2], {server: {ALPN: false,
+                                       NPN: 'first-priority-unsupported'},
+                              client: {ALPN: false, NPN: false}});
     // execute next test
     Test6();
   });
@@ -253,8 +254,8 @@ function Test6() {
     checkResults(results[1], {server: {ALPN: 'b', NPN: false},
                               client: {ALPN: 'b', NPN: undefined}});
     // nothing is selected by ALPN
-    checkResults(results[2], {server: {ALPN: false, NPN: false},
-                              client: {ALPN: false, NPN: undefined}});
+    checkResults(results[2], {server: {ALPN: false, NPN: 'http/1.1'},
+                              client: {ALPN: false, NPN: false}});
     // execute next test
     Test7();
   });
@@ -283,7 +284,7 @@ function Test7() {
                               client: {ALPN: false, NPN: false}});
     // nothing is selected by ALPN
     checkResults(results[2],
-                 {server: {ALPN: false, NPN:  'first-priority-unsupported'},
+                 {server: {ALPN: false, NPN: 'first-priority-unsupported'},
                   client: {ALPN: false, NPN: false}});
     // execute next test
     Test8();
@@ -307,7 +308,7 @@ function Test8() {
                               client: {ALPN: false, NPN: false}});
     // nothing is selected by ALPN
     checkResults(results[2],
-                 {server: {ALPN: false, NPN:  'http/1.1'},
+                 {server: {ALPN: false, NPN: 'http/1.1'},
                   client: {ALPN: false, NPN: false}});
     // execute next test
     Test9();

@@ -173,11 +173,19 @@ class Code(object):
           break
         count += cnt
       total_count += count
-      count = 100.0 * count / self.self_ticks
-      if count >= 0.01:
-        print "%15.2f %x: %s" % (count, lines[i][0], lines[i][1])
+      percent = 100.0 * count / self.self_ticks
+      offset = lines[i][0]
+      if percent >= 0.01:
+        # 5 spaces for tick count
+        # 1 space following
+        # 1 for '|'
+        # 1 space following
+        # 6 for the percentage number, incl. the '.'
+        # 1 for the '%' sign
+        # => 15
+        print "%5d | %6.2f%% %x(%d): %s" % (count, percent, offset, offset, lines[i][1])
       else:
-        print "%s %x: %s" % (" " * 15, lines[i][0], lines[i][1])
+        print "%s %x(%d): %s" % (" " * 15, offset, offset, lines[i][1])
     print
     assert total_count == self.self_ticks, \
         "Lost ticks (%d != %d) in %s" % (total_count, self.self_ticks, self)
@@ -568,7 +576,7 @@ PERF_EVENT_HEADER_DESC = Descriptor([
 ])
 
 
-# Reference: kernel/events/core.c
+# Reference: kernel/tools/perf/util/event.h
 PERF_MMAP_EVENT_BODY_DESC = Descriptor([
   ("pid", "u32"),
   ("tid", "u32"),
@@ -577,6 +585,20 @@ PERF_MMAP_EVENT_BODY_DESC = Descriptor([
   ("pgoff", "u64")
 ])
 
+# Reference: kernel/tools/perf/util/event.h
+PERF_MMAP2_EVENT_BODY_DESC = Descriptor([
+  ("pid", "u32"),
+  ("tid", "u32"),
+  ("addr", "u64"),
+  ("len", "u64"),
+  ("pgoff", "u64"),
+  ("maj", "u32"),
+  ("min", "u32"),
+  ("ino", "u64"),
+  ("ino_generation", "u64"),
+  ("prot", "u32"),
+  ("flags","u32")
+])
 
 # perf_event_attr.sample_type bits control the set of
 # perf_sample_event fields.
@@ -616,6 +638,7 @@ PERF_SAMPLE_EVENT_IP_FORMAT = "u64"
 
 
 PERF_RECORD_MMAP = 1
+PERF_RECORD_MMAP2 = 10
 PERF_RECORD_SAMPLE = 9
 
 
@@ -658,6 +681,15 @@ class TraceReader(object):
   def ReadMmap(self, header, offset):
     mmap_info = PERF_MMAP_EVENT_BODY_DESC.Read(self.trace,
                                                offset + self.header_size)
+    # Read null-terminated filename.
+    filename = self.trace[offset + self.header_size + ctypes.sizeof(mmap_info):
+                          offset + header.size]
+    mmap_info.filename = HOST_ROOT + filename[:filename.find(chr(0))]
+    return mmap_info
+
+  def ReadMmap2(self, header, offset):
+    mmap_info = PERF_MMAP2_EVENT_BODY_DESC.Read(self.trace,
+                                                offset + self.header_size)
     # Read null-terminated filename.
     filename = self.trace[offset + self.header_size + ctypes.sizeof(mmap_info):
                           offset + header.size]
@@ -968,6 +1000,14 @@ if __name__ == "__main__":
     if header.type == PERF_RECORD_MMAP:
       start = time.time()
       mmap_info = trace_reader.ReadMmap(header, offset)
+      if mmap_info.filename == HOST_ROOT + V8_GC_FAKE_MMAP:
+        log_reader.ReadUpToGC()
+      else:
+        library_repo.Load(mmap_info, code_map, options)
+      mmap_time += time.time() - start
+    elif header.type == PERF_RECORD_MMAP2:
+      start = time.time()
+      mmap_info = trace_reader.ReadMmap2(header, offset)
       if mmap_info.filename == HOST_ROOT + V8_GC_FAKE_MMAP:
         log_reader.ReadUpToGC()
       else:

@@ -48,25 +48,8 @@ even if he gets hold of the normal (certified) key, as this key was
 only used for signing.
 
 In order to perform a DH key exchange the server must use a DH group
-(DH parameters) and generate a DH key.
-The server will always generate a new DH key during the negotiation
-if either the DH parameters are supplied via callback or the
-SSL_OP_SINGLE_DH_USE option of SSL_CTX_set_options(3) is set (or both).
-It will  immediately create a DH key if DH parameters are supplied via
-SSL_CTX_set_tmp_dh() and SSL_OP_SINGLE_DH_USE is not set.
-In this case,
-it may happen that a key is generated on initialization without later
-being needed, while on the other hand the computer time during the
-negotiation is being saved.
-
-If "strong" primes were used to generate the DH parameters, it is not strictly
-necessary to generate a new key for each handshake but it does improve forward
-secrecy. If it is not assured that "strong" primes were used,
-SSL_OP_SINGLE_DH_USE must be used in order to prevent small subgroup
-attacks. Always using SSL_OP_SINGLE_DH_USE has an impact on the
-computer time needed during negotiation, but it is not very large, so
-application authors/users should consider always enabling this option.
-The option is required to implement perfect forward secrecy (PFS).
+(DH parameters) and generate a DH key. The server will always generate
+a new DH key during the negotiation.
 
 As generating DH parameters is extremely time consuming, an application
 should not generate the parameters on the fly but supply the parameters.
@@ -93,10 +76,9 @@ can supply the DH parameters via a callback function.
 Previous versions of the callback used B<is_export> and B<keylength>
 parameters to control parameter generation for export and non-export
 cipher suites. Modern servers that do not support export ciphersuites
-are advised to either use SSL_CTX_set_tmp_dh() in combination with
-SSL_OP_SINGLE_DH_USE, or alternatively, use the callback but ignore
-B<keylength> and B<is_export> and simply supply at least 2048-bit
-parameters in the callback.
+are advised to either use SSL_CTX_set_tmp_dh() or alternatively, use
+the callback but ignore B<keylength> and B<is_export> and simply
+supply at least 2048-bit parameters in the callback.
 
 =head1 EXAMPLES
 
@@ -128,7 +110,6 @@ partly left out.)
  if (SSL_CTX_set_tmp_dh(ctx, dh_2048) != 1) {
    /* Error. */
  }
- SSL_CTX_set_options(ctx, SSL_OP_SINGLE_DH_USE);
  ...
 
 =head1 RETURN VALUES

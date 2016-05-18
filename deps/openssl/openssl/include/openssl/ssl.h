@@ -338,7 +338,7 @@ extern "C" {
  * The following cipher list is used by default. It also is substituted when
  * an application-defined cipher list string starts with 'DEFAULT'.
  */
-# define SSL_DEFAULT_CIPHER_LIST "ALL:!EXPORT:!aNULL:!eNULL:!SSLv2"
+# define SSL_DEFAULT_CIPHER_LIST "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
 /*
  * As of OpenSSL 1.0.0, ssl_create_cipher_list() in ssl/ssl_ciph.c always
  * starts with a reasonable order, and all we have to do for DEFAULT is
@@ -625,7 +625,7 @@ struct ssl_session_st {
 # define SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION        0x00040000L
 /* If set, always create a new key when using tmp_ecdh parameters */
 # define SSL_OP_SINGLE_ECDH_USE                          0x00080000L
-/* If set, always create a new key when using tmp_dh parameters */
+/* Does nothing: retained for compatibility */
 # define SSL_OP_SINGLE_DH_USE                            0x00100000L
 /* Does nothing: retained for compatibiity */
 # define SSL_OP_EPHEMERAL_RSA                            0x0
@@ -2092,7 +2092,7 @@ DECLARE_PEM_rw(SSL_SESSION, SSL_SESSION)
 # define SSL_CTX_set1_sigalgs_list(ctx, s) \
         SSL_CTX_ctrl(ctx,SSL_CTRL_SET_SIGALGS_LIST,0,(char *)s)
 # define SSL_set1_sigalgs(ctx, slist, slistlen) \
-        SSL_ctrl(ctx,SSL_CTRL_SET_SIGALGS,clistlen,(int *)slist)
+        SSL_ctrl(ctx,SSL_CTRL_SET_SIGALGS,slistlen,(int *)slist)
 # define SSL_set1_sigalgs_list(ctx, s) \
         SSL_ctrl(ctx,SSL_CTRL_SET_SIGALGS_LIST,0,(char *)s)
 # define SSL_CTX_set1_client_sigalgs(ctx, slist, slistlen) \
@@ -2345,7 +2345,7 @@ const char *SSL_get_version(const SSL *s);
 /* This sets the 'default' SSL version that SSL_new() will create */
 int SSL_CTX_set_ssl_version(SSL_CTX *ctx, const SSL_METHOD *meth);
 
-# ifndef OPENSSL_NO_SSL2
+# ifndef OPENSSL_NO_SSL2_METHOD
 const SSL_METHOD *SSLv2_method(void); /* SSLv2 */
 const SSL_METHOD *SSLv2_server_method(void); /* SSLv2 */
 const SSL_METHOD *SSLv2_client_method(void); /* SSLv2 */
@@ -3056,6 +3056,7 @@ void ERR_load_SSL_strings(void);
 # define SSL_R_SERVERHELLO_TLSEXT                         275
 # define SSL_R_SESSION_ID_CONTEXT_UNINITIALIZED           277
 # define SSL_R_SHORT_READ                                 219
+# define SSL_R_SHUTDOWN_WHILE_IN_INIT                     407
 # define SSL_R_SIGNATURE_ALGORITHMS_ERROR                 360
 # define SSL_R_SIGNATURE_FOR_NON_SIGNING_CERTIFICATE      220
 # define SSL_R_SRP_A_CALC                                 361

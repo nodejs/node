@@ -65,7 +65,7 @@ TickSample* ProfilerEventsProcessor::StartTickSample() {
   void* address = ticks_buffer_.StartEnqueue();
   if (address == NULL) return NULL;
   TickSampleEventRecord* evt =
-      new(address) TickSampleEventRecord(last_code_event_id_);
+      new (address) TickSampleEventRecord(last_code_event_id_.Value());
   return &evt->sample;
 }
 
@@ -74,6 +74,7 @@ void ProfilerEventsProcessor::FinishTickSample() {
   ticks_buffer_.FinishEnqueue();
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROFILER_CPU_PROFILER_INL_H_

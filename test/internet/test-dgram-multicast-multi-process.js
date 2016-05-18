@@ -6,10 +6,10 @@ const fork = require('child_process').fork;
 const LOCAL_BROADCAST_HOST = '224.0.0.114';
 const TIMEOUT = common.platformTimeout(5000);
 const messages = [
-  new Buffer('First message to send'),
-  new Buffer('Second message to send'),
-  new Buffer('Third message to send'),
-  new Buffer('Fourth message to send')
+  Buffer.from('First message to send'),
+  Buffer.from('Second message to send'),
+  Buffer.from('Third message to send'),
+  Buffer.from('Fourth message to send')
 ];
 const workers = {};
 const listeners = 3;
@@ -17,7 +17,7 @@ const listeners = 3;
 
 // Skip test in FreeBSD jails.
 if (common.inFreeBSDJail) {
-  console.log('1..0 # Skipped: In a FreeBSD jail');
+  common.skip('In a FreeBSD jail');
   return;
 }
 
@@ -91,7 +91,7 @@ function launchChildProcess(index) {
                         worker.pid, count);
 
           assert.strictEqual(count, messages.length,
-                       'A worker received an invalid multicast message');
+                             'A worker received an invalid multicast message');
         });
 
         clearTimeout(timer);
@@ -132,10 +132,6 @@ if (process.argv[2] !== 'child') {
   }
 
   var sendSocket = dgram.createSocket('udp4');
-  // FIXME: a libuv limitation makes it necessary to bind()
-  // before calling any of the set*() functions. The bind()
-  // call is what creates the actual socket.
-  sendSocket.bind();
 
   // The socket is actually created async now.
   sendSocket.on('listening', function() {
@@ -157,14 +153,20 @@ if (process.argv[2] !== 'child') {
       return;
     }
 
-    sendSocket.send(buf, 0, buf.length,
-                    common.PORT, LOCAL_BROADCAST_HOST, function(err) {
-          if (err) throw err;
-          console.error('[PARENT] sent "%s" to %s:%s',
-                        buf.toString(),
-                        LOCAL_BROADCAST_HOST, common.PORT);
-          process.nextTick(sendSocket.sendNext);
-        });
+    sendSocket.send(
+      buf,
+      0,
+      buf.length,
+      common.PORT,
+      LOCAL_BROADCAST_HOST,
+      function(err) {
+        if (err) throw err;
+        console.error('[PARENT] sent "%s" to %s:%s',
+                      buf.toString(),
+                      LOCAL_BROADCAST_HOST, common.PORT);
+        process.nextTick(sendSocket.sendNext);
+      }
+    );
   };
 }
 

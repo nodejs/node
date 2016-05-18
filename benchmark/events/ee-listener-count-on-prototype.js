@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var EventEmitter = require('events').EventEmitter;
 
@@ -13,7 +14,7 @@ function main(conf) {
 
   bench.start();
   for (var i = 0; i < n; i += 1) {
-    var r = ee.listenerCount('dummy');
+    ee.listenerCount('dummy');
   }
   bench.end(n);
 }

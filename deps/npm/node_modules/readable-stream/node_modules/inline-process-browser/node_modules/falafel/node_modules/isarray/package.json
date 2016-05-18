@@ -1,0 +1,78 @@
+{
+  "_args": [
+    [
+      "isarray@0.0.1",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser/node_modules/falafel"
+    ]
+  ],
+  "_from": "isarray@0.0.1",
+  "_id": "isarray@0.0.1",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/inline-process-browser/falafel/isarray",
+  "_npmUser": {
+    "email": "julian@juliangruber.com",
+    "name": "juliangruber"
+  },
+  "_npmVersion": "1.2.18",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "isarray",
+    "raw": "isarray@0.0.1",
+    "rawSpec": "0.0.1",
+    "scope": null,
+    "spec": "0.0.1",
+    "type": "version"
+  },
+  "_requiredBy": [
+    "/readable-stream/inline-process-browser/falafel"
+  ],
+  "_resolved": "https://registry.npmjs.org/isarray/-/isarray-0.0.1.tgz",
+  "_shasum": "8a18acfca9a8f4177e09abfc6038939b05d1eedf",
+  "_shrinkwrap": null,
+  "_spec": "isarray@0.0.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser/node_modules/falafel",
+  "author": {
+    "email": "mail@juliangruber.com",
+    "name": "Julian Gruber",
+    "url": "http://juliangruber.com"
+  },
+  "bugs": {
+    "url": "https://github.com/juliangruber/isarray/issues"
+  },
+  "dependencies": {},
+  "description": "Array#isArray for older browsers",
+  "devDependencies": {
+    "tap": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "8a18acfca9a8f4177e09abfc6038939b05d1eedf",
+    "tarball": "http://registry.npmjs.org/isarray/-/isarray-0.0.1.tgz"
+  },
+  "homepage": "https://github.com/juliangruber/isarray",
+  "keywords": [
+    "browser",
+    "isarray",
+    "array"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "email": "julian@juliangruber.com",
+      "name": "juliangruber"
+    }
+  ],
+  "name": "isarray",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/juliangruber/isarray.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "0.0.1"
+}

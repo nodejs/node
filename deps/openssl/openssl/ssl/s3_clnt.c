@@ -2199,6 +2199,7 @@ int ssl3_get_certificate_request(SSL *s)
             SSLerr(SSL_F_SSL3_GET_CERTIFICATE_REQUEST, ERR_R_MALLOC_FAILURE);
             goto err;
         }
+        xn = NULL;
 
         p += l;
         nc += l + 2;
@@ -2222,6 +2223,7 @@ int ssl3_get_certificate_request(SSL *s)
  err:
     s->state = SSL_ST_ERR;
  done:
+    X509_NAME_free(xn);
     if (ca_sk != NULL)
         sk_X509_NAME_pop_free(ca_sk, X509_NAME_free);
     return (ret);
@@ -2350,37 +2352,44 @@ int ssl3_get_cert_status(SSL *s)
     n = s->method->ssl_get_message(s,
                                    SSL3_ST_CR_CERT_STATUS_A,
                                    SSL3_ST_CR_CERT_STATUS_B,
-                                   SSL3_MT_CERTIFICATE_STATUS, 16384, &ok);
+                                   -1, 16384, &ok);
 
     if (!ok)
         return ((int)n);
-    if (n < 4) {
-        /* need at least status type + length */
-        al = SSL_AD_DECODE_ERROR;
-        SSLerr(SSL_F_SSL3_GET_CERT_STATUS, SSL_R_LENGTH_MISMATCH);
-        goto f_err;
+
+    if (s->s3->tmp.message_type != SSL3_MT_CERTIFICATE_STATUS) {
+        /*
+         * The CertificateStatus message is optional even if
+         * tlsext_status_expected is set
+         */
+        s->s3->tmp.reuse_message = 1;
+    } else {
+        if (n < 4) {
+            /* need at least status type + length */
+            al = SSL_AD_DECODE_ERROR;
+            SSLerr(SSL_F_SSL3_GET_CERT_STATUS, SSL_R_LENGTH_MISMATCH);
+            goto f_err;
+        }
+        p = (unsigned char *)s->init_msg;
+        if (*p++ != TLSEXT_STATUSTYPE_ocsp) {
+            al = SSL_AD_DECODE_ERROR;
+            SSLerr(SSL_F_SSL3_GET_CERT_STATUS, SSL_R_UNSUPPORTED_STATUS_TYPE);
+            goto f_err;
+        }
+        n2l3(p, resplen);
+        if (resplen + 4 != n) {
+            al = SSL_AD_DECODE_ERROR;
+            SSLerr(SSL_F_SSL3_GET_CERT_STATUS, SSL_R_LENGTH_MISMATCH);
+            goto f_err;
+        }
+        s->tlsext_ocsp_resp = BUF_memdup(p, resplen);
+        if (s->tlsext_ocsp_resp == NULL) {
+            al = SSL_AD_INTERNAL_ERROR;
+            SSLerr(SSL_F_SSL3_GET_CERT_STATUS, ERR_R_MALLOC_FAILURE);
+            goto f_err;
+        }
+        s->tlsext_ocsp_resplen = resplen;
     }
-    p = (unsigned char *)s->init_msg;
-    if (*p++ != TLSEXT_STATUSTYPE_ocsp) {
-        al = SSL_AD_DECODE_ERROR;
-        SSLerr(SSL_F_SSL3_GET_CERT_STATUS, SSL_R_UNSUPPORTED_STATUS_TYPE);
-        goto f_err;
-    }
-    n2l3(p, resplen);
-    if (resplen + 4 != n) {
-        al = SSL_AD_DECODE_ERROR;
-        SSLerr(SSL_F_SSL3_GET_CERT_STATUS, SSL_R_LENGTH_MISMATCH);
-        goto f_err;
-    }
-    if (s->tlsext_ocsp_resp)
-        OPENSSL_free(s->tlsext_ocsp_resp);
-    s->tlsext_ocsp_resp = BUF_memdup(p, resplen);
-    if (!s->tlsext_ocsp_resp) {
-        al = SSL_AD_INTERNAL_ERROR;
-        SSLerr(SSL_F_SSL3_GET_CERT_STATUS, ERR_R_MALLOC_FAILURE);
-        goto f_err;
-    }
-    s->tlsext_ocsp_resplen = resplen;
     if (s->ctx->tlsext_status_cb) {
         int ret;
         ret = s->ctx->tlsext_status_cb(s, s->ctx->tlsext_status_arg);
@@ -3603,7 +3612,7 @@ int ssl3_check_cert_and_algorithm(SSL *s)
             DH_free(dh_srvr);
         }
 
-        if ((!SSL_C_IS_EXPORT(s->s3->tmp.new_cipher) && dh_size < 768)
+        if ((!SSL_C_IS_EXPORT(s->s3->tmp.new_cipher) && dh_size < 1024)
             || (SSL_C_IS_EXPORT(s->s3->tmp.new_cipher) && dh_size < 512)) {
             SSLerr(SSL_F_SSL3_CHECK_CERT_AND_ALGORITHM, SSL_R_DH_KEY_TOO_SMALL);
             goto f_err;

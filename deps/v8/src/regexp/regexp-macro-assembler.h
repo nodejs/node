@@ -5,10 +5,18 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
-#include "src/ast.h"
+#include "src/assembler.h"
+#include "src/regexp/regexp-ast.h"
 
 namespace v8 {
 namespace internal {
+
+static const uc32 kLeadSurrogateStart = 0xd800;
+static const uc32 kLeadSurrogateEnd = 0xdbff;
+static const uc32 kTrailSurrogateStart = 0xdc00;
+static const uc32 kTrailSurrogateEnd = 0xdfff;
+static const uc32 kNonBmpStart = 0x10000;
+static const uc32 kNonBmpEnd = 0x10ffff;
 
 struct DisjunctDecisionRow {
   RegExpCharacterClass cc;
@@ -71,9 +79,11 @@ class RegExpMacroAssembler {
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position) = 0;
-  virtual void CheckNotAtStart(Label* on_not_at_start) = 0;
-  virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
+  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start) = 0;
+  virtual void CheckNotBackReference(int start_reg, bool read_backward,
+                                     Label* on_no_match) = 0;
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
+                                               bool read_backward, bool unicode,
                                                Label* on_no_match) = 0;
   // Check the current character for a match with a literal character.  If we
   // fail to match then goto the on_failure label.  End of input always
@@ -102,17 +112,12 @@ class RegExpMacroAssembler {
 
   // Checks whether the given offset from the current position is before
   // the end of the string.  May overwrite the current character.
-  virtual void CheckPosition(int cp_offset, Label* on_outside_input) {
-    LoadCurrentCharacter(cp_offset, on_outside_input, true);
-  }
+  virtual void CheckPosition(int cp_offset, Label* on_outside_input) = 0;
   // Check whether a standard/default character class matches the current
   // character. Returns false if the type of special character class does
   // not have custom support.
   // May clobber the current loaded character.
-  virtual bool CheckSpecialCharacterClass(uc16 type,
-                                          Label* on_no_match) {
-    return false;
-  }
+  virtual bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match) = 0;
   virtual void Fail() = 0;
   virtual Handle<HeapObject> GetCode(Handle<String> source) = 0;
   virtual void GoTo(Label* label) = 0;
@@ -148,25 +153,40 @@ class RegExpMacroAssembler {
   virtual void ClearRegisters(int reg_from, int reg_to) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
 
+  // Compares two-byte strings case insensitively.
+  // Called from generated RegExp code.
+  static int CaseInsensitiveCompareUC16(Address byte_offset1,
+                                        Address byte_offset2,
+                                        size_t byte_length, Isolate* isolate);
+
+  // Check that we are not in the middle of a surrogate pair.
+  void CheckNotInSurrogatePair(int cp_offset, Label* on_failure);
+
   // Controls the generation of large inlined constants in the code.
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
   bool slow_safe() { return slow_safe_compiler_; }
 
-  enum GlobalMode { NOT_GLOBAL, GLOBAL, GLOBAL_NO_ZERO_LENGTH_CHECK };
+  enum GlobalMode {
+    NOT_GLOBAL,
+    GLOBAL_NO_ZERO_LENGTH_CHECK,
+    GLOBAL,
+    GLOBAL_UNICODE
+  };
   // Set whether the regular expression has the global flag.  Exiting due to
   // a failure in a global regexp may still mean success overall.
   inline void set_global_mode(GlobalMode mode) { global_mode_ = mode; }
   inline bool global() { return global_mode_ != NOT_GLOBAL; }
   inline bool global_with_zero_length_check() {
-    return global_mode_ == GLOBAL;
+    return global_mode_ == GLOBAL || global_mode_ == GLOBAL_UNICODE;
   }
+  inline bool global_unicode() { return global_mode_ == GLOBAL_UNICODE; }
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
  private:
   bool slow_safe_compiler_;
-  bool global_mode_;
+  GlobalMode global_mode_;
   Isolate* isolate_;
   Zone* zone_;
 };
@@ -200,13 +220,6 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                       int offsets_vector_length,
                       int previous_index,
                       Isolate* isolate);
-
-  // Compares two-byte strings case insensitively.
-  // Called from generated RegExp code.
-  static int CaseInsensitiveCompareUC16(Address byte_offset1,
-                                        Address byte_offset2,
-                                        size_t byte_length,
-                                        Isolate* isolate);
 
   // Called from RegExp if the backtrack stack limit is hit.
   // Tries to expand the stack. Returns the new stack-pointer if
@@ -245,6 +258,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
 
 #endif  // V8_INTERPRETED_REGEXP
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_

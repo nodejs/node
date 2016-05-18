@@ -210,6 +210,7 @@ class LockGuard final {
   DISALLOW_COPY_AND_ASSIGN(LockGuard);
 };
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_PLATFORM_MUTEX_H_

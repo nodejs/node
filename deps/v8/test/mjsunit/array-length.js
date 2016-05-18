@@ -115,7 +115,7 @@ assertEquals(20, a.length);
 
 var o = { length: -23 };
 Array.prototype.pop.apply(o);
-assertEquals(4294967272, o.length);
+assertEquals(0, o.length);
 
 // Check case of compiled stubs.
 var a = [];

@@ -1,16 +1,16 @@
 'use strict';
 if (!process.features.tls_sni) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
+  common.skip('node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
   return;
 }
 
-var common = require('../common'),
-    assert = require('assert'),
-    fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
@@ -99,18 +99,18 @@ var clientsOptions = [{
   rejectUnauthorized: false
 }];
 
-var serverResults = [],
-    clientResults = [],
-    serverErrors = [],
-    clientErrors = [],
-    serverError,
-    clientError;
+const serverResults = [];
+const clientResults = [];
+const serverErrors = [];
+const clientErrors = [];
+let serverError;
+let clientError;
 
 var server = tls.createServer(serverOptions, function(c) {
   serverResults.push({ sni: c.servername, authorized: c.authorized });
 });
 
-server.on('clientError', function(err) {
+server.on('tlsClientError', function(err) {
   serverResults.push(null);
   serverError = err.message;
 });
@@ -146,7 +146,7 @@ function startTest() {
       else
         connectClient(i + 1, callback);
     }
-  };
+  }
 
   connectClient(0, function() {
     server.close();
@@ -154,16 +154,18 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.deepEqual(serverResults, [
+  assert.deepStrictEqual(serverResults, [
     { sni: 'a.example.com', authorized: false },
     { sni: 'a.example.com', authorized: true },
     { sni: 'b.example.com', authorized: false },
     { sni: 'c.wrong.com', authorized: false },
     null
   ]);
-  assert.deepEqual(clientResults, [true, true, true, false, false]);
-  assert.deepEqual(clientErrors, [null, null, null, null, 'socket hang up']);
-  assert.deepEqual(serverErrors, [
+  assert.deepStrictEqual(clientResults, [true, true, true, false, false]);
+  assert.deepStrictEqual(clientErrors, [
+    null, null, null, null, 'socket hang up'
+  ]);
+  assert.deepStrictEqual(serverErrors, [
     null, null, null, null, 'Invalid SNI context'
   ]);
 });

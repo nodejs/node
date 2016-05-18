@@ -21,9 +21,9 @@ namespace crypto {
   class SecureContext;
 }
 
-class TLSWrap : public crypto::SSLWrap<TLSWrap>,
-                public StreamBase,
-                public AsyncWrap {
+class TLSWrap : public AsyncWrap,
+                public crypto::SSLWrap<TLSWrap>,
+                public StreamBase {
  public:
   ~TLSWrap() override;
 
@@ -89,7 +89,7 @@ class TLSWrap : public crypto::SSLWrap<TLSWrap>,
   bool ClearIn();
   void ClearOut();
   void MakePending();
-  bool InvokeQueued(int status);
+  bool InvokeQueued(int status, const char* error_str = nullptr);
 
   inline void Cycle() {
     // Prevent recursion

@@ -16,7 +16,7 @@ assert.strictEqual(0, written);
 fs.writeSync(fd, foo);
 
 var bar = 'bár';
-written = fs.writeSync(fd, new Buffer(bar), 0, Buffer.byteLength(bar));
+written = fs.writeSync(fd, Buffer.from(bar), 0, Buffer.byteLength(bar));
 assert.ok(written > 3);
 fs.closeSync(fd);
 

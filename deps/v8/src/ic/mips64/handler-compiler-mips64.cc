@@ -4,8 +4,10 @@
 
 #if V8_TARGET_ARCH_MIPS64
 
-#include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
+
+#include "src/field-type.h"
+#include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
 #include "src/isolate-inl.h"
 
@@ -40,7 +42,8 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
       ParameterCount actual(0);
       ParameterCount expected(expected_arguments);
       __ LoadAccessor(a1, holder, accessor_index, ACCESSOR_GETTER);
-      __ InvokeFunction(a1, expected, actual, CALL_FUNCTION, NullCallWrapper());
+      __ InvokeFunction(a1, expected, actual, CALL_FUNCTION,
+                        CheckDebugStepCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -81,7 +84,8 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
       ParameterCount actual(1);
       ParameterCount expected(expected_arguments);
       __ LoadAccessor(a1, holder, accessor_index, ACCESSOR_SETTER);
-      __ InvokeFunction(a1, expected, actual, CALL_FUNCTION, NullCallWrapper());
+      __ InvokeFunction(a1, expected, actual, CALL_FUNCTION,
+                        CheckDebugStepCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -141,7 +145,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
   // Check that receiver is a JSObject.
   __ lbu(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ Branch(miss_label, lt, scratch0, Operand(FIRST_SPEC_OBJECT_TYPE));
+  __ Branch(miss_label, lt, scratch0, Operand(FIRST_JS_RECEIVER_TYPE));
 
   // Load properties array.
   Register properties = scratch0;
@@ -165,11 +169,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
 void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     MacroAssembler* masm, int index, Register result, Label* miss) {
-  // Check we're still in the same context.
-  const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
-  __ ld(result, MemOperand(cp, offset));
-  __ ld(result, FieldMemOperand(result, GlobalObject::kNativeContextOffset));
-  __ ld(result, MemOperand(result, Context::SlotOffset(index)));
+  __ LoadNativeContextSlot(index, result);
   // Load its initial map. The global functions all have initial maps.
   __ ld(result,
         FieldMemOperand(result, JSFunction::kPrototypeOrInitialMapOffset));
@@ -217,8 +217,10 @@ static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
 static void CompileCallLoadPropertyWithInterceptor(
     MacroAssembler* masm, Register receiver, Register holder, Register name,
     Handle<JSObject> holder_obj, Runtime::FunctionId id) {
+  DCHECK(NamedLoadHandlerCompiler::kInterceptorArgsLength ==
+         Runtime::FunctionForId(id)->nargs);
   PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
-  __ CallRuntime(id, NamedLoadHandlerCompiler::kInterceptorArgsLength);
+  __ CallRuntime(id);
 }
 
 
@@ -279,10 +281,24 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     call_data_undefined = true;
     __ LoadRoot(data, Heap::kUndefinedValueRootIndex);
   } else {
-    __ ld(data, FieldMemOperand(callee, JSFunction::kSharedFunctionInfoOffset));
-    __ ld(data, FieldMemOperand(data, SharedFunctionInfo::kFunctionDataOffset));
-    __ ld(data, FieldMemOperand(data, FunctionTemplateInfo::kCallCodeOffset));
+    if (optimization.is_constant_call()) {
+      __ ld(data,
+            FieldMemOperand(callee, JSFunction::kSharedFunctionInfoOffset));
+      __ ld(data,
+            FieldMemOperand(data, SharedFunctionInfo::kFunctionDataOffset));
+      __ ld(data, FieldMemOperand(data, FunctionTemplateInfo::kCallCodeOffset));
+    } else {
+      __ ld(data,
+            FieldMemOperand(callee, FunctionTemplateInfo::kCallCodeOffset));
+    }
     __ ld(data, FieldMemOperand(data, CallHandlerInfo::kDataOffset));
+  }
+
+  if (api_call_info->fast_handler()->IsCode()) {
+    // Just tail call into the fast handler if present.
+    __ Jump(handle(Code::cast(api_call_info->fast_handler())),
+            RelocInfo::CODE_TARGET);
+    return;
   }
   // Put api_function_address in place.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
@@ -292,21 +308,17 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ li(api_function_address, Operand(ref));
 
   // Jump to stub.
-  CallApiAccessorStub stub(isolate, is_store, call_data_undefined);
+  CallApiAccessorStub stub(isolate, is_store, call_data_undefined,
+                           !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }
 
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {
-  if (FLAG_vector_stores) {
-    __ Push(StoreDescriptor::ReceiverRegister(),
-            StoreDescriptor::NameRegister(), StoreDescriptor::ValueRegister(),
-            VectorStoreICDescriptor::SlotRegister(),
-            VectorStoreICDescriptor::VectorRegister());
-  } else {
-    __ Push(StoreDescriptor::ReceiverRegister(),
-            StoreDescriptor::NameRegister(), StoreDescriptor::ValueRegister());
-  }
+  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
+          StoreDescriptor::ValueRegister(),
+          VectorStoreICDescriptor::SlotRegister(),
+          VectorStoreICDescriptor::VectorRegister());
 }
 
 
@@ -315,7 +327,7 @@ void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
-  __ TailCallRuntime(Runtime::kStoreIC_Slow, FLAG_vector_stores ? 5 : 3, 1);
+  __ TailCallRuntime(Runtime::kStoreIC_Slow);
 }
 
 
@@ -324,8 +336,7 @@ void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, FLAG_vector_stores ? 5 : 3,
-                     1);
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
 }
 
 
@@ -347,8 +358,8 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
 }
 
 
-void NamedStoreHandlerCompiler::GeneratePushMap(Register map_reg,
-                                                Register scratch) {
+void NamedStoreHandlerCompiler::RearrangeVectorAndSlot(
+    Register current_map, Register destination_map) {
   DCHECK(false);  // Not implemented.
 }
 
@@ -382,8 +393,7 @@ void NamedStoreHandlerCompiler::GenerateConstantCheck(Register map_reg,
   __ Branch(miss_label, ne, value_reg, Operand(scratch));
 }
 
-
-void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(HeapType* field_type,
+void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(FieldType* field_type,
                                                         Register value_reg,
                                                         Label* miss_label) {
   Register map_reg = scratch1();
@@ -391,21 +401,11 @@ void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(HeapType* field_type,
   DCHECK(!value_reg.is(map_reg));
   DCHECK(!value_reg.is(scratch));
   __ JumpIfSmi(value_reg, miss_label);
-  HeapType::Iterator<Map> it = field_type->Classes();
-  if (!it.Done()) {
+  if (field_type->IsClass()) {
     __ ld(map_reg, FieldMemOperand(value_reg, HeapObject::kMapOffset));
-    Label do_store;
-    while (true) {
-      // Compare map directly within the Branch() functions.
-      __ GetWeakValue(scratch, Map::WeakCellForMap(it.Current()));
-      it.Advance();
-      if (it.Done()) {
-        __ Branch(miss_label, ne, map_reg, Operand(scratch));
-        break;
-      }
-      __ Branch(&do_store, eq, map_reg, Operand(scratch));
-    }
-    __ bind(&do_store);
+    // Compare map directly within the Branch() functions.
+    __ GetWeakValue(scratch, Map::WeakCellForMap(field_type->AsClass()));
+    __ Branch(miss_label, ne, map_reg, Operand(scratch));
   }
 }
 
@@ -583,42 +583,51 @@ void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
 
 
 void NamedLoadHandlerCompiler::GenerateLoadCallback(
-    Register reg, Handle<ExecutableAccessorInfo> callback) {
-  // Build AccessorInfo::args_ list on the stack and push property name below
-  // the exit frame to make GC aware of them and store pointers to them.
-  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 0);
-  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 1);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 2);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 3);
-  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 4);
-  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
-  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
-  DCHECK(!scratch2().is(reg));
-  DCHECK(!scratch3().is(reg));
-  DCHECK(!scratch4().is(reg));
-  __ push(receiver());
+    Register reg, Handle<AccessorInfo> callback) {
+  DCHECK(!AreAliased(scratch2(), scratch3(), scratch4(), receiver()));
+  DCHECK(!AreAliased(scratch2(), scratch3(), scratch4(), reg));
+
+  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
+  // name below the exit frame to make GC aware of them.
+  STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 5);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 6);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 7);
+
+  // Here and below +1 is for name() pushed after the args_ array.
+  typedef PropertyCallbackArguments PCA;
+  __ Dsubu(sp, sp, (PCA::kArgsLength + 1) * kPointerSize);
+  __ sd(receiver(), MemOperand(sp, (PCA::kThisIndex + 1) * kPointerSize));
   Handle<Object> data(callback->data(), isolate());
   if (data->IsUndefined() || data->IsSmi()) {
-    __ li(scratch3(), data);
+    __ li(scratch2(), data);
   } else {
     Handle<WeakCell> cell =
         isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
     // The callback is alive if this instruction is executed,
     // so the weak cell is not cleared and points to data.
-    __ GetWeakValue(scratch3(), cell);
+    __ GetWeakValue(scratch2(), cell);
   }
-  __ Dsubu(sp, sp, 6 * kPointerSize);
-  __ sd(scratch3(), MemOperand(sp, 5 * kPointerSize));
-  __ LoadRoot(scratch3(), Heap::kUndefinedValueRootIndex);
-  __ sd(scratch3(), MemOperand(sp, 4 * kPointerSize));
-  __ sd(scratch3(), MemOperand(sp, 3 * kPointerSize));
-  __ li(scratch4(), Operand(ExternalReference::isolate_address(isolate())));
-  __ sd(scratch4(), MemOperand(sp, 2 * kPointerSize));
-  __ sd(reg, MemOperand(sp, 1 * kPointerSize));
-  __ sd(name(), MemOperand(sp, 0 * kPointerSize));
-  __ Daddu(scratch2(), sp, 1 * kPointerSize);
+  __ sd(scratch2(), MemOperand(sp, (PCA::kDataIndex + 1) * kPointerSize));
+  __ LoadRoot(scratch2(), Heap::kUndefinedValueRootIndex);
+  __ sd(scratch2(),
+        MemOperand(sp, (PCA::kReturnValueOffset + 1) * kPointerSize));
+  __ sd(scratch2(), MemOperand(sp, (PCA::kReturnValueDefaultValueIndex + 1) *
+                                       kPointerSize));
+  __ li(scratch2(), Operand(ExternalReference::isolate_address(isolate())));
+  __ sd(scratch2(), MemOperand(sp, (PCA::kIsolateIndex + 1) * kPointerSize));
+  __ sd(reg, MemOperand(sp, (PCA::kHolderIndex + 1) * kPointerSize));
+  // should_throw_on_error -> false
+  DCHECK(Smi::FromInt(0) == nullptr);
+  __ sd(zero_reg,
+        MemOperand(sp, (PCA::kShouldThrowOnErrorIndex + 1) * kPointerSize));
 
-  __ mov(a2, scratch2());  // Saved in case scratch2 == a1.
+  __ sd(name(), MemOperand(sp, 0 * kPointerSize));
+
   // Abi for CallApiGetter.
   Register getter_address_reg = ApiGetterDescriptor::function_address();
 
@@ -699,14 +708,13 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
   PushInterceptorArguments(masm(), receiver(), holder_reg, this->name(),
                            holder());
 
-  __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor,
-                     NamedLoadHandlerCompiler::kInterceptorArgsLength, 1);
+  __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor);
 }
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback,
+    LanguageMode language_mode) {
   Register holder_reg = Frontend(name);
 
   __ Push(receiver(), holder_reg);  // Receiver.
@@ -721,9 +729,10 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   __ push(at);
   __ li(at, Operand(name));
   __ Push(at, value());
+  __ Push(Smi::FromInt(language_mode));
 
   // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStoreCallbackProperty, 5, 1);
+  __ TailCallRuntime(Runtime::kStoreCallbackProperty);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -735,7 +744,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
   __ Push(receiver(), this->name(), value());
 
   // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor, 3, 1);
+  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -769,7 +778,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   }
 
   Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->named_load_global_stub(), 1, a1, a3);
+  __ IncrementCounter(counters->ic_named_load_global_stub(), 1, a1, a3);
   if (IC::ICUseVector(kind())) {
     DiscardVectorAndSlot();
   }

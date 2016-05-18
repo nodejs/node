@@ -9,7 +9,7 @@ var dgram = require('dgram');
 
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: dgram clustering is currently not supported ' +
+  common.skip('dgram clustering is currently not supported ' +
               'on windows.');
   return;
 }
@@ -33,7 +33,7 @@ function master() {
       return;
 
     // Start sending messages.
-    var buf = new Buffer('hello world');
+    var buf = Buffer.from('hello world');
     var socket = dgram.createSocket('udp4');
     var sent = 0;
     doSend();

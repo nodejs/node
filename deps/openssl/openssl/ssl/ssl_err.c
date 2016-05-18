@@ -647,6 +647,7 @@ static ERR_STRING_DATA SSL_str_reasons[] = {
     {ERR_REASON(SSL_R_SESSION_ID_CONTEXT_UNINITIALIZED),
      "session id context uninitialized"},
     {ERR_REASON(SSL_R_SHORT_READ), "short read"},
+    {ERR_REASON(SSL_R_SHUTDOWN_WHILE_IN_INIT), "shutdown while in init"},
     {ERR_REASON(SSL_R_SIGNATURE_ALGORITHMS_ERROR),
      "signature algorithms error"},
     {ERR_REASON(SSL_R_SIGNATURE_FOR_NON_SIGNING_CERTIFICATE),

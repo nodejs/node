@@ -26,7 +26,6 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::PropertyAttribute;
 using v8::String;
 using v8::Undefined;
 using v8::Value;
@@ -63,8 +62,8 @@ Local<Object> PipeWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   Local<Function> constructor = env->pipe_constructor_template()->GetFunction();
   CHECK_EQ(false, constructor.IsEmpty());
   Local<Value> ptr = External::New(env->isolate(), parent);
-  Local<Object> instance = constructor->NewInstance(1, &ptr);
-  CHECK_EQ(false, instance.IsEmpty());
+  Local<Object> instance =
+      constructor->NewInstance(env->context(), 1, &ptr).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
 
@@ -81,6 +80,7 @@ void PipeWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
+  env->SetProtoMethod(t, "hasRef", HandleWrap::HasRef);
 
   StreamWrap::AddMethods(env, t);
 
@@ -183,7 +183,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   };
 
   if (status != 0) {
-    pipe_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
+    pipe_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
     return;
   }
 
@@ -198,7 +198,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
 
   // Successful accept. Call the onconnection callback in JavaScript land.
   argv[1] = client_obj;
-  pipe_wrap->MakeCallback(env->onconnection_string(), ARRAY_SIZE(argv), argv);
+  pipe_wrap->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
 
 // TODO(bnoordhuis) Maybe share this with TCPWrap?
@@ -233,7 +233,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
     Boolean::New(env->isolate(), writable)
   };
 
-  req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
+  req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }

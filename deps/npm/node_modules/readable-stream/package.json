@@ -1,0 +1,129 @@
+{
+  "_args": [
+    [
+      "readable-stream@latest",
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "readable-stream@latest",
+  "_id": "readable-stream@2.1.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream",
+  "_nodeVersion": "5.10.1",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/readable-stream-2.1.0.tgz_1460568003255_0.9190005895216018"
+  },
+  "_npmUser": {
+    "email": "calvin.metcalf@gmail.com",
+    "name": "cwmma"
+  },
+  "_npmVersion": "3.8.3",
+  "_phantomChildren": {
+    "inherits": "2.0.1"
+  },
+  "_requested": {
+    "name": "readable-stream",
+    "raw": "readable-stream@latest",
+    "rawSpec": "latest",
+    "scope": null,
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "/",
+    "/fs-write-stream-atomic",
+    "/npmlog/are-we-there-yet",
+    "/sha",
+    "/tap",
+    "/tap/tap-parser"
+  ],
+  "_resolved": "https://registry.npmjs.org/readable-stream/-/readable-stream-2.1.0.tgz",
+  "_shasum": "36f42ea0424eb29a985e4a81d31be2f96e1f2f80",
+  "_shrinkwrap": null,
+  "_spec": "readable-stream@latest",
+  "_where": "/Users/rebecca/code/npm",
+  "browser": {
+    "util": false
+  },
+  "browserify": {
+    "transform": [
+      "inline-process-browser",
+      "unreachable-branch-transform"
+    ]
+  },
+  "bugs": {
+    "url": "https://github.com/nodejs/readable-stream/issues"
+  },
+  "dependencies": {
+    "core-util-is": "~1.0.0",
+    "inherits": "~2.0.1",
+    "inline-process-browser": "~2.0.1",
+    "isarray": "~1.0.0",
+    "process-nextick-args": "~1.0.6",
+    "string_decoder": "~0.10.x",
+    "unreachable-branch-transform": "~0.5.0",
+    "util-deprecate": "~1.0.1"
+  },
+  "description": "Streams3, a user-land copy of the stream library from Node.js",
+  "devDependencies": {
+    "nyc": "^6.4.0",
+    "tap": "~0.7.1",
+    "tape": "~4.5.1",
+    "zuul": "~3.9.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "36f42ea0424eb29a985e4a81d31be2f96e1f2f80",
+    "tarball": "https://registry.npmjs.org/readable-stream/-/readable-stream-2.1.0.tgz"
+  },
+  "gitHead": "4c2d8e2639ffd516b12544ce0c117cc0345daa3f",
+  "homepage": "https://github.com/nodejs/readable-stream#readme",
+  "keywords": [
+    "readable",
+    "stream",
+    "pipe"
+  ],
+  "license": "MIT",
+  "main": "readable.js",
+  "maintainers": [
+    {
+      "email": "isaacs@npmjs.com",
+      "name": "isaacs"
+    },
+    {
+      "email": "nathan@tootallnate.net",
+      "name": "tootallnate"
+    },
+    {
+      "email": "rod@vagg.org",
+      "name": "rvagg"
+    },
+    {
+      "email": "calvin.metcalf@gmail.com",
+      "name": "cwmma"
+    }
+  ],
+  "name": "readable-stream",
+  "nyc": {
+    "include": [
+      "lib/**.js"
+    ]
+  },
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/nodejs/readable-stream.git"
+  },
+  "scripts": {
+    "browser": "npm run write-zuul && zuul -- test/browser.js",
+    "cover": "nyc npm test",
+    "local": "zuul --local -- test/browser.js",
+    "report": "nyc report --reporter=lcov",
+    "test": "tap test/parallel/*.js test/ours/*.js",
+    "write-zuul": "printf \"ui: tape\nbrowsers:\n  - name: $BROWSER_NAME\n    version: $BROWSER_VERSION\n\">.zuul.yml"
+  },
+  "version": "2.1.0"
+}

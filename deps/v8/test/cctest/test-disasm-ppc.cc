@@ -64,7 +64,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // in the rest of the macros.
 #define SET_UP()                                            \
   CcTest::InitializeVM();                                   \
-  Isolate* isolate = Isolate::Current();                    \
+  Isolate* isolate = CcTest::i_isolate();                   \
   HandleScope scope(isolate);                               \
   byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024)); \
   Assembler assm(isolate, buffer, 4 * 1024);                \
@@ -99,7 +99,7 @@ TEST(DisasmPPC) {
 
   COMPARE(addc(r9, r7, r9), "7d274814       addc    r9, r7, r9");
   COMPARE(addic(r3, r5, Operand(20)), "30650014       addic   r3, r5, 20");
-  COMPARE(addi(r0, ip, Operand(63)), "380c003f       addi    r0, r12, 63");
+  COMPARE(addi(r0, ip, Operand(63)), "380c003f       addi    r0, ip, 63");
   COMPARE(add(r5, r7, r0), "7ca70214       add     r5, r7, r0");
   COMPARE(addze(r0, r0, LeaveOE, SetRC), "7c000195       addze.   r0, r0");
   COMPARE(andi(r0, r3, Operand(4)), "70600004       andi.   r0, r3, 4");
@@ -130,8 +130,8 @@ TEST(DisasmPPC) {
   COMPARE(lfd(d0, MemOperand(sp, 128)), "c8010080       lfd     d0, 128(sp)");
   COMPARE(li(r0, Operand(16)), "38000010       li      r0, 16");
   COMPARE(lis(r8, Operand(22560)), "3d005820       lis     r8, 22560");
-  COMPARE(lwz(ip, MemOperand(r19, 44)), "8193002c       lwz     r12, 44(r19)");
-  COMPARE(lwzx(r0, MemOperand(r5, ip)), "7c05602e       lwzx    r0, r5, r12");
+  COMPARE(lwz(ip, MemOperand(r19, 44)), "8193002c       lwz     ip, 44(r19)");
+  COMPARE(lwzx(r0, MemOperand(r5, ip)), "7c05602e       lwzx    r0, r5, ip");
   COMPARE(mflr(r0), "7c0802a6       mflr    r0");
   COMPARE(mr(r15, r4), "7c8f2378       mr      r15, r4");
   COMPARE(mtctr(r0), "7c0903a6       mtctr   r0");

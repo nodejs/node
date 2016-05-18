@@ -4,6 +4,10 @@
 
 # include <openssl/crypto.h>
 
+# ifdef OPENSSL_NO_COMP
+#  error COMP is disabled.
+# endif
+
 #ifdef  __cplusplus
 extern "C" {
 #endif

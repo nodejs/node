@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
@@ -16,8 +16,7 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem')
 };
 
-var bonkers = new Buffer(1024 * 1024);
-bonkers.fill(42);
+var bonkers = Buffer.alloc(1024 * 1024, 42);
 
 var server = tls.createServer(options, function(c) {
 

@@ -15,18 +15,22 @@
 module.exports = install
 module.exports.Installer = Installer
 
-install.usage = '\nnpm install (with no args, in package dir)' +
-                '\nnpm install [<@scope>/]<pkg>' +
-                '\nnpm install [<@scope>/]<pkg>@<tag>' +
-                '\nnpm install [<@scope>/]<pkg>@<version>' +
-                '\nnpm install [<@scope>/]<pkg>@<version range>' +
-                '\nnpm install <folder>' +
-                '\nnpm install <tarball file>' +
-                '\nnpm install <tarball url>' +
-                '\nnpm install <git:// url>' +
-                '\nnpm install <github username>/<github project>' +
-                '\n\nalias: npm i' +
-                '\ncommon options: [--save|--save-dev|--save-optional] [--save-exact]'
+var usage = require('./utils/usage')
+
+install.usage = usage(
+  'install',
+  '\nnpm install (with no args, in package dir)' +
+  '\nnpm install [<@scope>/]<pkg>' +
+  '\nnpm install [<@scope>/]<pkg>@<tag>' +
+  '\nnpm install [<@scope>/]<pkg>@<version>' +
+  '\nnpm install [<@scope>/]<pkg>@<version range>' +
+  '\nnpm install <folder>' +
+  '\nnpm install <tarball file>' +
+  '\nnpm install <tarball url>' +
+  '\nnpm install <git:// url>' +
+  '\nnpm install <github username>/<github project>',
+  '[--save|--save-dev|--save-optional] [--save-exact]'
+)
 
 install.completion = function (opts, cb) {
   validate('OF', arguments)
@@ -134,6 +138,7 @@ var doParallelActions = require('./install/actions.js').doParallel
 var doOneAction = require('./install/actions.js').doOne
 var packageId = require('./utils/package-id.js')
 var moduleName = require('./utils/module-name.js')
+var errorMessage = require('./utils/error-message.js')
 
 function unlockCB (lockPath, name, cb) {
   validate('SSF', arguments)
@@ -282,12 +287,19 @@ Installer.prototype.run = function (cb) {
         self.idealTree.warnings.forEach(function (warning) {
           if (warning.code === 'EPACKAGEJSON' && self.global) return
           if (warning.code === 'ENOTDIR') return
-          log.warn(warning.code, warning.message)
+          errorMessage(warning).summary.forEach(function (logline) {
+            log.warn.apply(log, logline)
+          })
         })
       }
       if (installEr && postInstallEr) {
-        log.warn('error', postInstallEr.message)
-        log.verbose('error', postInstallEr.stack)
+        var msg = errorMessage(postInstallEr)
+        msg.summary.forEach(function (logline) {
+          log.warn.apply(log, logline)
+        })
+        msg.detail.forEach(function (logline) {
+          log.verbose.apply(log, logline)
+        })
       }
       cb(installEr || postInstallEr, self.getInstalledModules(), self.idealTree)
     })
@@ -462,12 +474,6 @@ Installer.prototype.executeActions = function (cb) {
     [doParallelActions, 'extract', staging, todo, cg.newGroup('extract', 10)],
     [doParallelActions, 'preinstall', staging, todo, trackLifecycle.newGroup('preinstall')],
     [doReverseSerialActions, 'remove', staging, todo, cg.newGroup('remove')],
-    // FIXME: We do this here to commit the removes prior to trying to move
-    // anything into place. Once we can rollback removes we should find
-    // a better solution for this.
-    // This is to protect against cruft in the node_modules folder (like dot files)
-    // that stop it from being removed.
-    [this, this.commit, staging, this.todo],
     [doSerialActions, 'move', staging, todo, cg.newGroup('move')],
     [doSerialActions, 'finalize', staging, todo, cg.newGroup('finalize')],
     [doSerialActions, 'build', staging, todo, trackLifecycle.newGroup('build')],
@@ -576,6 +582,9 @@ Installer.prototype.readLocalPackageData = function (cb) {
     readPackageTree(self.where, iferr(cb, function (currentTree) {
       self.currentTree = currentTree
       self.currentTree.warnings = []
+      if (currentTree.error && currentTree.error.code === 'EJSONPARSE') {
+        return cb(currentTree.error)
+      }
       if (!self.noPackageJsonOk && !currentTree.package) {
         log.error('install', "Couldn't read dependencies")
         var er = new Error("ENOENT, open '" + path.join(self.where, 'package.json') + "'")
@@ -665,12 +674,23 @@ Installer.prototype.printInstalled = function (cb) {
     return !child.failed && (mutation === 'add' || mutation === 'update')
   }).map(function (action) {
     var child = action[1]
-    return packageId(child)
+    return child.path
   })
   log.showProgress()
   if (!addedOrMoved.length) return cb()
   recalculateMetadata(this.idealTree, log, iferr(cb, function (tree) {
     log.clearProgress()
+    // These options control both how installs happen AND how `ls` shows output.
+    // Something like `npm install --production` only installs production deps.
+    // By contrast `npm install --production foo` installs `foo` and the
+    // `production` option is ignored. But when it comes time for `ls` to show
+    // its output, it excludes the thing we just installed because that flag.
+    // The summary output we get should be unfiltered, showing everything
+    // installed, so we clear these options before calling `ls`.
+    npm.config.set('production', false)
+    npm.config.set('dev', false)
+    npm.config.set('only', '')
+    npm.config.set('also', '')
     ls.fromTree(self.where, tree, addedOrMoved, false, function () {
       log.showProgress()
       cb()

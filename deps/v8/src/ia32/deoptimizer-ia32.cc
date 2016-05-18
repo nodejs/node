@@ -8,6 +8,7 @@
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ia32/frames-ia32.h"
+#include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
@@ -74,7 +75,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
         new_reloc->GetDataStartAddress() + padding, 0);
     intptr_t comment_string
         = reinterpret_cast<intptr_t>(RelocInfo::kFillerCommentString);
-    RelocInfo rinfo(0, RelocInfo::COMMENT, comment_string, NULL);
+    RelocInfo rinfo(isolate, 0, RelocInfo::COMMENT, comment_string, NULL);
     for (int i = 0; i < additional_comments; ++i) {
 #ifdef DEBUG
       byte* pos_before = reloc_info_writer.pos();
@@ -100,14 +101,15 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     } else {
       pointer = code->instruction_start();
     }
-    CodePatcher patcher(pointer, 1);
+    CodePatcher patcher(isolate, pointer, 1);
     patcher.masm()->int3();
 
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(code->deoptimization_data());
     int osr_offset = data->OsrPcOffset()->value();
     if (osr_offset > 0) {
-      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
+                              1);
       osr_patcher.masm()->int3();
     }
   }
@@ -136,14 +138,13 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     // Patch lazy deoptimization entry.
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
-    CodePatcher patcher(call_address, patch_size());
+    CodePatcher patcher(isolate, call_address, patch_size());
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
     patcher.masm()->call(deopt_entry, RelocInfo::NONE32);
     // We use RUNTIME_ENTRY for deoptimization bailouts.
-    RelocInfo rinfo(call_address + 1,  // 1 after the call opcode.
+    RelocInfo rinfo(isolate, call_address + 1,  // 1 after the call opcode.
                     RelocInfo::RUNTIME_ENTRY,
-                    reinterpret_cast<intptr_t>(deopt_entry),
-                    NULL);
+                    reinterpret_cast<intptr_t>(deopt_entry), NULL);
     reloc_info_writer.Write(&rinfo);
     DCHECK_GE(reloc_info_writer.pos(),
               reloc_info->address() + ByteArray::kHeaderSize);
@@ -156,38 +157,14 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   }
 
   // Move the relocation info to the beginning of the byte array.
-  int new_reloc_size = reloc_end_address - reloc_info_writer.pos();
-  MemMove(code->relocation_start(), reloc_info_writer.pos(), new_reloc_size);
+  const int new_reloc_length = reloc_end_address - reloc_info_writer.pos();
+  MemMove(code->relocation_start(), reloc_info_writer.pos(), new_reloc_length);
 
-  // The relocation info is in place, update the size.
-  reloc_info->set_length(new_reloc_size);
-
-  // Handle the junk part after the new relocation info. We will create
-  // a non-live object in the extra space at the end of the former reloc info.
-  Address junk_address = reloc_info->address() + reloc_info->Size();
-  DCHECK(junk_address <= reloc_end_address);
-  isolate->heap()->CreateFillerObjectAt(junk_address,
-                                        reloc_end_address - junk_address);
-}
-
-
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers ebp and esp are set to the correct values though.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, i * 4);
-  }
-  input_->SetRegister(esp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(ebp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < XMMRegister::kMaxNumAllocatableRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
+  // Right trim the relocation info to free up remaining space.
+  const int delta = reloc_info->length() - new_reloc_length;
+  if (delta > 0) {
+    isolate->heap()->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(
+        reloc_info, delta);
   }
 }
 
@@ -203,16 +180,14 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
 
 
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  for (int i = 0; i < XMMRegister::kMaxNumAllocatableRegisters; ++i) {
+  for (int i = 0; i < XMMRegister::kMaxNumRegisters; ++i) {
     double double_value = input_->GetDoubleRegister(i);
     output_frame->SetDoubleRegister(i, double_value);
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  int parameter_count =
-      function->shared()->internal_formal_parameter_count() + 1;
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
+  int parameter_count = shared->internal_formal_parameter_count() + 1;
   unsigned input_frame_size = input_->GetFrameSize();
   unsigned alignment_state_offset =
       input_frame_size - parameter_count * kPointerSize -
@@ -233,12 +208,14 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
 
-  const int kDoubleRegsSize = kDoubleSize *
-                              XMMRegister::kMaxNumAllocatableRegisters;
+  const int kDoubleRegsSize = kDoubleSize * XMMRegister::kMaxNumRegisters;
   __ sub(esp, Immediate(kDoubleRegsSize));
-  for (int i = 0; i < XMMRegister::kMaxNumAllocatableRegisters; ++i) {
-    XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
-    int offset = i * kDoubleSize;
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    XMMRegister xmm_reg = XMMRegister::from_code(code);
+    int offset = code * kDoubleSize;
     __ movsd(Operand(esp, offset), xmm_reg);
   }
 
@@ -288,9 +265,10 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   int double_regs_offset = FrameDescription::double_registers_offset();
   // Fill in the double input registers.
-  for (int i = 0; i < XMMRegister::kMaxNumAllocatableRegisters; ++i) {
-    int dst_offset = i * kDoubleSize + double_regs_offset;
-    int src_offset = i * kDoubleSize;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    int dst_offset = code * kDoubleSize + double_regs_offset;
+    int src_offset = code * kDoubleSize;
     __ movsd(xmm0, Operand(esp, src_offset));
     __ movsd(Operand(ebx, dst_offset), xmm0);
   }
@@ -371,9 +349,10 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ j(below, &outer_push_loop);
 
   // In case of a failed STUB, we have to restore the XMM registers.
-  for (int i = 0; i < XMMRegister::kMaxNumAllocatableRegisters; ++i) {
-    XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
-    int src_offset = i * kDoubleSize + double_regs_offset;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    XMMRegister xmm_reg = XMMRegister::from_code(code);
+    int src_offset = code * kDoubleSize + double_regs_offset;
     __ movsd(xmm_reg, Operand(ebx, src_offset));
   }
 

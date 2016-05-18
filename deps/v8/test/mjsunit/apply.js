@@ -114,7 +114,7 @@ function al() {
   return arguments.length + arguments[arguments.length - 1];
 }
 
-for (var j = 1; j < 0x40000000; j <<= 1) {
+for (var j = 1; j < 0x400000; j <<= 1) {
   try {
     var a = %NormalizeElements([]);
     a.length = j;
@@ -122,7 +122,7 @@ for (var j = 1; j < 0x40000000; j <<= 1) {
     assertEquals(42 + j, al.apply(345, a));
   } catch (e) {
     assertTrue(e.toString().indexOf("Maximum call stack size exceeded") != -1);
-    for (; j < 0x40000000; j <<= 1) {
+    for (; j < 0x400000; j <<= 1) {
       var caught = false;
       try {
         a = %NormalizeElements([]);

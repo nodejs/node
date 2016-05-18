@@ -325,16 +325,16 @@ PASS Invalid: "function f() { throw }"
 var and const statements
 PASS Valid:   "var a, b = null"
 PASS Valid:   "function f() { var a, b = null }"
-PASS Valid:   "const a = 5, b, c"
-PASS Valid:   "function f() { const a = 5, b, c }"
+FAIL Valid:   "const a = 5, b, c" should NOT throw
+FAIL Valid:   "function f() { const a = 5, b, c }" should NOT throw
 PASS Invalid: "var"
 PASS Invalid: "function f() { var }"
 PASS Invalid: "var = 7"
 PASS Invalid: "function f() { var = 7 }"
 PASS Invalid: "var c (6)"
 PASS Invalid: "function f() { var c (6) }"
-PASS Valid:   "if (a) var a,b; else const b, c"
-PASS Valid:   "function f() { if (a) var a,b; else const b, c }"
+FAIL Valid:   "if (a) var a,b; else const b, c" should NOT throw
+FAIL Valid:   "function f() { if (a) var a,b; else const b, c }" should NOT throw
 PASS Invalid: "var 5 = 6"
 PASS Invalid: "function f() { var 5 = 6 }"
 PASS Valid:   "while (0) var a, b, c=6, d, e, f=5*6, g=f*h, h"
@@ -343,8 +343,8 @@ PASS Invalid: "var a = if (b) { c }"
 PASS Invalid: "function f() { var a = if (b) { c } }"
 PASS Invalid: "var a = var b"
 PASS Invalid: "function f() { var a = var b }"
-PASS Valid:   "const a = b += c, a, a, a = (b - f())"
-PASS Valid:   "function f() { const a = b += c, a, a, a = (b - f()) }"
+FAIL Valid:   "const a = b += c, a, a, a = (b - f())" should NOT throw
+FAIL Valid:   "function f() { const a = b += c, a, a, a = (b - f()) }" should NOT throw
 PASS Invalid: "var a %= b | 5"
 PASS Invalid: "function f() { var a %= b | 5 }"
 PASS Invalid: "var (a) = 5"
@@ -357,8 +357,8 @@ PASS Invalid: "var var = 3"
 PASS Invalid: "function f() { var var = 3 }"
 PASS Valid:   "var varr = 3 in 1"
 PASS Valid:   "function f() { var varr = 3 in 1 }"
-PASS Valid:   "const a, a, a = void 7 - typeof 8, a = 8"
-PASS Valid:   "function f() { const a, a, a = void 7 - typeof 8, a = 8 }"
+FAIL Valid:   "const a, a, a = void 7 - typeof 8, a = 8" should NOT throw
+FAIL Valid:   "function f() { const a, a, a = void 7 - typeof 8, a = 8 }" should NOT throw
 PASS Valid:   "const x_x = 6 /= 7 ? e : f"
 PASS Valid:   "function f() { const x_x = 6 /= 7 ? e : f }"
 PASS Invalid: "var a = ?"
@@ -412,8 +412,8 @@ PASS Valid:   "for (var a = b, c, d ; ; 1 in a()) break"
 PASS Valid:   "function f() { for (var a = b, c, d ; ; 1 in a()) break }"
 PASS Invalid: "for ( ; var a ; ) break"
 PASS Invalid: "function f() { for ( ; var a ; ) break }"
-FAIL Invalid: "for (const a; ; ) break" should throw undefined
-FAIL Invalid: "function f() { for (const a; ; ) break }" should throw undefined
+PASS Invalid: "for (const a; ; ) break"
+PASS Invalid: "function f() { for (const a; ; ) break }"
 PASS Invalid: "for ( %a ; ; ) { }"
 PASS Invalid: "function f() { for ( %a ; ; ) { } }"
 PASS Valid:   "for (a in b) break"

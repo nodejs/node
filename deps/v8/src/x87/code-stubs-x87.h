@@ -271,24 +271,12 @@ class RecordWriteStub: public PlatformCodeStub {
     // registers are eax, ecx and edx.  The three scratch registers (incl. ecx)
     // will be restored by other means so we don't bother pushing them here.
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
-      if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->push(eax);
-      if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->push(edx);
-      if (mode == kSaveFPRegs) {
-        // Save FPU state in m108byte.
-        masm->sub(esp, Immediate(108));
-        masm->fnsave(Operand(esp, 0));
-      }
+      masm->PushCallerSaved(mode, ecx, scratch0_, scratch1_);
     }
 
     inline void RestoreCallerSaveRegisters(MacroAssembler* masm,
                                            SaveFPRegsMode mode) {
-      if (mode == kSaveFPRegs) {
-        // Restore FPU state in m108byte.
-        masm->frstor(Operand(esp, 0));
-        masm->add(esp, Immediate(108));
-      }
-      if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->pop(edx);
-      if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->pop(eax);
+      masm->PopCallerSaved(mode, ecx, scratch0_, scratch1_);
     }
 
     inline Register object() { return object_; }
@@ -309,13 +297,15 @@ class RecordWriteStub: public PlatformCodeStub {
     Register GetRegThatIsNotEcxOr(Register r1,
                                   Register r2,
                                   Register r3) {
-      for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
-        Register candidate = Register::FromAllocationIndex(i);
-        if (candidate.is(ecx)) continue;
-        if (candidate.is(r1)) continue;
-        if (candidate.is(r2)) continue;
-        if (candidate.is(r3)) continue;
-        return candidate;
+      for (int i = 0; i < Register::kNumRegisters; i++) {
+        Register candidate = Register::from_code(i);
+        if (candidate.IsAllocatable()) {
+          if (candidate.is(ecx)) continue;
+          if (candidate.is(r1)) continue;
+          if (candidate.is(r2)) continue;
+          if (candidate.is(r3)) continue;
+          return candidate;
+        }
       }
       UNREACHABLE();
       return no_reg;
@@ -374,6 +364,7 @@ class RecordWriteStub: public PlatformCodeStub {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_CODE_STUBS_X87_H_

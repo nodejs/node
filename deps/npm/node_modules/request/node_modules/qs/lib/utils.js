@@ -1,21 +1,18 @@
-// Load modules
+'use strict';
 
+var hexTable = (function () {
+    var array = new Array(256);
+    for (var i = 0; i < 256; ++i) {
+        array[i] = '%' + ((i < 16 ? '0' : '') + i.toString(16)).toUpperCase();
+    }
 
-// Declare internals
-
-var internals = {};
-internals.hexTable = new Array(256);
-for (var h = 0; h < 256; ++h) {
-    internals.hexTable[h] = '%' + ((h < 16 ? '0' : '') + h.toString(16)).toUpperCase();
-}
-
+    return array;
+}());
 
 exports.arrayToObject = function (source, options) {
-
     var obj = options.plainObjects ? Object.create(null) : {};
-    for (var i = 0, il = source.length; i < il; ++i) {
+    for (var i = 0; i < source.length; ++i) {
         if (typeof source[i] !== 'undefined') {
-
             obj[i] = source[i];
         }
     }
@@ -23,9 +20,7 @@ exports.arrayToObject = function (source, options) {
     return obj;
 };
 
-
 exports.merge = function (target, source, options) {
-
     if (!source) {
         return target;
     }
@@ -33,47 +28,37 @@ exports.merge = function (target, source, options) {
     if (typeof source !== 'object') {
         if (Array.isArray(target)) {
             target.push(source);
-        }
-        else if (typeof target === 'object') {
+        } else if (typeof target === 'object') {
             target[source] = true;
-        }
-        else {
-            target = [target, source];
+        } else {
+            return [target, source];
         }
 
         return target;
     }
 
     if (typeof target !== 'object') {
-        target = [target].concat(source);
-        return target;
+        return [target].concat(source);
     }
 
-    if (Array.isArray(target) &&
-        !Array.isArray(source)) {
-
-        target = exports.arrayToObject(target, options);
+    var mergeTarget = target;
+    if (Array.isArray(target) && !Array.isArray(source)) {
+        mergeTarget = exports.arrayToObject(target, options);
     }
 
-    var keys = Object.keys(source);
-    for (var k = 0, kl = keys.length; k < kl; ++k) {
-        var key = keys[k];
+	return Object.keys(source).reduce(function (acc, key) {
         var value = source[key];
 
-        if (!Object.prototype.hasOwnProperty.call(target, key)) {
-            target[key] = value;
+        if (Object.prototype.hasOwnProperty.call(acc, key)) {
+            acc[key] = exports.merge(acc[key], value, options);
+        } else {
+            acc[key] = value;
         }
-        else {
-            target[key] = exports.merge(target[key], value, options);
-        }
-    }
-
-    return target;
+		return acc;
+    }, mergeTarget);
 };
 
-
 exports.decode = function (str) {
-
     try {
         return decodeURIComponent(str.replace(/\+/g, ' '));
     } catch (e) {
@@ -82,65 +67,60 @@ exports.decode = function (str) {
 };
 
 exports.encode = function (str) {
-
     // This code was originally written by Brian White (mscdex) for the io.js core querystring library.
     // It has been adapted here for stricter adherence to RFC 3986
     if (str.length === 0) {
         return str;
     }
 
-    if (typeof str !== 'string') {
-        str = '' + str;
-    }
+    var string = typeof str === 'string' ? str : String(str);
 
     var out = '';
-    for (var i = 0, il = str.length; i < il; ++i) {
-        var c = str.charCodeAt(i);
+    for (var i = 0; i < string.length; ++i) {
+        var c = string.charCodeAt(i);
 
-        if (c === 0x2D || // -
+        if (
+            c === 0x2D || // -
             c === 0x2E || // .
             c === 0x5F || // _
             c === 0x7E || // ~
             (c >= 0x30 && c <= 0x39) || // 0-9
             (c >= 0x41 && c <= 0x5A) || // a-z
-            (c >= 0x61 && c <= 0x7A)) { // A-Z
-
-            out += str[i];
+            (c >= 0x61 && c <= 0x7A) // A-Z
+        ) {
+            out += string.charAt(i);
             continue;
         }
 
         if (c < 0x80) {
-            out += internals.hexTable[c];
+            out = out + hexTable[c];
             continue;
         }
 
         if (c < 0x800) {
-            out += internals.hexTable[0xC0 | (c >> 6)] + internals.hexTable[0x80 | (c & 0x3F)];
+            out = out + (hexTable[0xC0 | (c >> 6)] + hexTable[0x80 | (c & 0x3F)]);
             continue;
         }
 
         if (c < 0xD800 || c >= 0xE000) {
-            out += internals.hexTable[0xE0 | (c >> 12)] + internals.hexTable[0x80 | ((c >> 6) & 0x3F)] + internals.hexTable[0x80 | (c & 0x3F)];
+            out = out + (hexTable[0xE0 | (c >> 12)] + hexTable[0x80 | ((c >> 6) & 0x3F)] + hexTable[0x80 | (c & 0x3F)]);
             continue;
         }
 
-        ++i;
-        c = 0x10000 + (((c & 0x3FF) << 10) | (str.charCodeAt(i) & 0x3FF));
-        out += internals.hexTable[0xF0 | (c >> 18)] + internals.hexTable[0x80 | ((c >> 12) & 0x3F)] + internals.hexTable[0x80 | ((c >> 6) & 0x3F)] + internals.hexTable[0x80 | (c & 0x3F)];
+        i += 1;
+        c = 0x10000 + (((c & 0x3FF) << 10) | (string.charCodeAt(i) & 0x3FF));
+        out += (hexTable[0xF0 | (c >> 18)] + hexTable[0x80 | ((c >> 12) & 0x3F)] + hexTable[0x80 | ((c >> 6) & 0x3F)] + hexTable[0x80 | (c & 0x3F)]);
     }
 
     return out;
 };
 
-exports.compact = function (obj, refs) {
-
-    if (typeof obj !== 'object' ||
-        obj === null) {
-
+exports.compact = function (obj, references) {
+    if (typeof obj !== 'object' || obj === null) {
         return obj;
     }
 
-    refs = refs || [];
+    var refs = references || [];
     var lookup = refs.indexOf(obj);
     if (lookup !== -1) {
         return refs[lookup];
@@ -151,7 +131,7 @@ exports.compact = function (obj, refs) {
     if (Array.isArray(obj)) {
         var compacted = [];
 
-        for (var i = 0, il = obj.length; i < il; ++i) {
+        for (var i = 0; i < obj.length; ++i) {
             if (typeof obj[i] !== 'undefined') {
                 compacted.push(obj[i]);
             }
@@ -161,30 +141,22 @@ exports.compact = function (obj, refs) {
     }
 
     var keys = Object.keys(obj);
-    for (i = 0, il = keys.length; i < il; ++i) {
-        var key = keys[i];
+    for (var j = 0; j < keys.length; ++j) {
+        var key = keys[j];
         obj[key] = exports.compact(obj[key], refs);
     }
 
     return obj;
 };
 
-
 exports.isRegExp = function (obj) {
-
     return Object.prototype.toString.call(obj) === '[object RegExp]';
 };
 
-
 exports.isBuffer = function (obj) {
-
-    if (obj === null ||
-        typeof obj === 'undefined') {
-
+    if (obj === null || typeof obj === 'undefined') {
         return false;
     }
 
-    return !!(obj.constructor &&
-              obj.constructor.isBuffer &&
-              obj.constructor.isBuffer(obj));
+    return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));
 };

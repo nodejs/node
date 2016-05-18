@@ -65,5 +65,13 @@ function thenCheckTop (idealTree, next) {
     er.code = 'EPACKAGEJSON'
     idealTree.warnings.push(er)
   }
+
+  var nodeVersion = npm.config.get('node-version')
+  if (/-/.test(nodeVersion)) {
+    // if this is a prerelease node…
+    var warnObj = new Error('You are using a pre-release version of node and things may not work as expected')
+    warnObj.code = 'ENODEPRE'
+    idealTree.warnings.push(warnObj)
+  }
   next()
 }

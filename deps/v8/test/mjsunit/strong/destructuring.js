@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-destructuring
-// Flags: --harmony-arrow-functions --strong-mode --allow-natives-syntax
+// Flags: --harmony-destructuring-bind
+// Flags: --strong-mode --allow-natives-syntax
 
 (function() {
   var f = (function() {

@@ -2,8 +2,8 @@
  * @fileoverview Rule to flag when using javascript: urls
  * @author Ilya Volodin
  */
-/*jshint scripturl: true */
-/*eslint no-script-url: 0*/
+/* jshint scripturl: true */
+/* eslint no-script-url: 0 */
 
 "use strict";
 
@@ -11,24 +11,34 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow `javascript",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "Literal": function(node) {
+    create: function(context) {
 
-            var value;
+        return {
 
-            if (node.value && typeof node.value === "string") {
-                value = node.value.toLowerCase();
+            Literal: function(node) {
 
-                if (value.indexOf("javascript:") === 0) {
-                    context.report(node, "Script URL is a form of eval.");
+                var value;
+
+                if (node.value && typeof node.value === "string") {
+                    value = node.value.toLowerCase();
+
+                    if (value.indexOf("javascript:") === 0) {
+                        context.report(node, "Script URL is a form of eval.");
+                    }
                 }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

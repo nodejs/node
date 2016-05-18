@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(mythria): Remove this after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <stdlib.h>
 
 #include "src/v8.h"
@@ -120,4 +117,5 @@ TEST(Unscopables) {
                   ->Int32Value(current_context)
                   .FromJust());
 }
-}
+
+}  // namespace

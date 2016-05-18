@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/ast/scopes.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
-#include "src/parser.h"
-#include "src/rewriter.h"
-#include "src/scopes.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 namespace {
 const int kBufferSize = 1024;
@@ -59,7 +60,7 @@ struct TestHelper : public HandleAndZoneScope {
     }
   }
 };
-}
+}  // namespace
 
 
 TEST(SimpleLoop1) {
@@ -293,3 +294,7 @@ TEST(NestedLoops3c) {
   f.CheckLoopAssignedCount(5, "z");
   f.CheckLoopAssignedCount(0, "w");
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

@@ -35,6 +35,7 @@
 #include "src/global-handles.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
+#include "test/cctest/heap/utils-inl.h"
 
 using namespace v8::internal;
 
@@ -171,12 +172,6 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
   Factory* factory = isolate->factory();
 
   Handle<JSObject> key = factory->NewJSArray(0);
-  v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
-
-  // Force allocation of hash table backing store for hidden properties.
-  key_obj->SetHiddenValue(v8_str("key 1"), v8_str("val 1"));
-  key_obj->SetHiddenValue(v8_str("key 2"), v8_str("val 2"));
-  key_obj->SetHiddenValue(v8_str("key 3"), v8_str("val 3"));
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
@@ -208,12 +203,6 @@ static void TestHashMapCausesGC(Handle<HashMap> table) {
   Factory* factory = isolate->factory();
 
   Handle<JSObject> key = factory->NewJSArray(0);
-  v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
-
-  // Force allocation of hash table backing store for hidden properties.
-  key_obj->SetHiddenValue(v8_str("key 1"), v8_str("val 1"));
-  key_obj->SetHiddenValue(v8_str("key 2"), v8_str("val 2"));
-  key_obj->SetHiddenValue(v8_str("key 3"), v8_str("val 3"));
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
@@ -239,4 +228,18 @@ TEST(ObjectHashTableCausesGC) {
 }
 #endif
 
+TEST(SetRequiresCopyOnCapacityChange) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<NameDictionary> dict = NameDictionary::New(isolate, 0, TENURED);
+  dict->SetRequiresCopyOnCapacityChange();
+  Handle<Name> key = isolate->factory()->InternalizeString(
+      v8::Utils::OpenHandle(*v8_str("key")));
+  Handle<Object> value = handle(Smi::FromInt(0), isolate);
+  Handle<NameDictionary> new_dict =
+      NameDictionary::Add(dict, key, value, PropertyDetails::Empty());
+  CHECK_NE(*dict, *new_dict);
 }
+
+}  // namespace

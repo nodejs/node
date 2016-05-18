@@ -36,12 +36,12 @@ http.createServer(function(req, res) {
 
   var expectTrailers = { 'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO' };
 
-  assert.deepEqual(req.rawHeaders, expectRawHeaders);
-  assert.deepEqual(req.headers, expectHeaders);
+  assert.deepStrictEqual(req.rawHeaders, expectRawHeaders);
+  assert.deepStrictEqual(req.headers, expectHeaders);
 
   req.on('end', function() {
-    assert.deepEqual(req.rawTrailers, expectRawTrailers);
-    assert.deepEqual(req.trailers, expectTrailers);
+    assert.deepStrictEqual(req.rawTrailers, expectRawTrailers);
+    assert.deepStrictEqual(req.trailers, expectTrailers);
   });
 
   req.resume();
@@ -54,14 +54,6 @@ http.createServer(function(req, res) {
   ]);
   res.end('x f o o');
 }).listen(common.PORT, function() {
-  var expectRawHeaders = [
-    'Date',
-    'Tue, 06 Aug 2013 01:31:54 GMT',
-    'Connection',
-    'close',
-    'Transfer-Encoding',
-    'chunked'
-  ];
   var req = http.request({ port: common.PORT, path: '/' });
   req.addTrailers([
     ['x-bAr', 'yOyOyOy'],
@@ -91,8 +83,8 @@ http.createServer(function(req, res) {
     };
     res.rawHeaders[3] = null;
     res.headers.date = null;
-    assert.deepEqual(res.rawHeaders, expectRawHeaders);
-    assert.deepEqual(res.headers, expectHeaders);
+    assert.deepStrictEqual(res.rawHeaders, expectRawHeaders);
+    assert.deepStrictEqual(res.headers, expectHeaders);
     res.on('end', function() {
       var expectRawTrailers = [
         'x-fOo',
@@ -106,8 +98,8 @@ http.createServer(function(req, res) {
       ];
       var expectTrailers = { 'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO' };
 
-      assert.deepEqual(res.rawTrailers, expectRawTrailers);
-      assert.deepEqual(res.trailers, expectTrailers);
+      assert.deepStrictEqual(res.rawTrailers, expectRawTrailers);
+      assert.deepStrictEqual(res.trailers, expectTrailers);
       console.log('ok');
     });
     res.resume();

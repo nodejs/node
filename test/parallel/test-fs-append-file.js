@@ -54,7 +54,7 @@ fs.appendFile(filename2, s, function(e) {
 var filename3 = join(common.tmpDir, 'append3.txt');
 fs.writeFileSync(filename3, currentFileData);
 
-var buf = new Buffer(s, 'utf8');
+var buf = Buffer.from(s, 'utf8');
 
 fs.appendFile(filename3, buf, function(e) {
   if (e) throw e;

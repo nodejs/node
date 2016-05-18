@@ -41,7 +41,8 @@ class TaskQueue {
   DISALLOW_COPY_AND_ASSIGN(TaskQueue);
 };
 
-} }  // namespace v8::platform
+}  // namespace platform
+}  // namespace v8
 
 
 #endif  // V8_LIBPLATFORM_TASK_QUEUE_H_

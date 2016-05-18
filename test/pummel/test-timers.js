@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var WINDOW = 200; // why is does this need to be so big?
@@ -30,7 +30,7 @@ clearTimeout(id);
 
 setInterval(function() {
   interval_count += 1;
-  var endtime = new Date( );
+  var endtime = new Date();
 
   var diff = endtime - starttime;
   assert.ok(diff > 0);
@@ -91,12 +91,12 @@ function t() {
   expectedTimeouts--;
 }
 
-var w = setTimeout(t, 200);
-var x = setTimeout(t, 200);
+setTimeout(t, 200);
+setTimeout(t, 200);
 var y = setTimeout(t, 200);
 
 clearTimeout(y);
-var z = setTimeout(t, 200);
+setTimeout(t, 200);
 clearTimeout(y);
 
 

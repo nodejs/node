@@ -10,7 +10,7 @@ var error_count = 0;
 
 function f() {
   return 0;  // Break
-}
+}            // Break
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
@@ -18,7 +18,7 @@ function listener(event, exec_state, event_data, data) {
     if (exec_state.frame(0).sourceLineText().indexOf("Break") <0) {
       error_count++;
     }
-    exec_state.prepareStep(Debug.StepAction.StepIn, 2);
+    exec_state.prepareStep(Debug.StepAction.StepIn);
     f();  // We should not break in this call of f().
   } catch (e) {
     print(e + e.stack);
@@ -29,7 +29,7 @@ function listener(event, exec_state, event_data, data) {
 Debug.setListener(listener);
 
 debugger;  // Break
-f();
+f();       // Break
 
 Debug.setListener(null);  // Break
 

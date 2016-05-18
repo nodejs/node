@@ -236,11 +236,16 @@ explicitly used, and that only GET requests use the cache.
 * Default: `null`
 * Type: String
 
-A client certificate to pass when accessing the registry.
+A client certificate to pass when accessing the registry.  Values should be in
+PEM format with newlines replaced by the string "\n". For example:
+
+    cert="-----BEGIN CERTIFICATE-----\nXXXX\nXXXX\n-----END CERTIFICATE-----"
+
+It is _not_ the path to a certificate file (and there is no "certfile" option).
 
 ### color
 
-* Default: true on Posix, false on Windows
+* Default: true
 * Type: Boolean or `"always"`
 
 If false, never shows colors.  If `"always"` then always shows colors.
@@ -385,6 +390,18 @@ Operates in "global" mode, so that packages are installed into the
 
 The config file to read for global config options.
 
+### global-style
+
+* Default: false
+* Type: Boolean
+
+Causes npm to install the package into your local `node_modules` folder with
+the same layout it uses with the global `node_modules` folder.  Only your
+direct dependencies will show in `node_modules` and everything they depend
+on will be flattened in their `node_modules` folders.  This obviously will
+eliminate some deduping. If used with `legacy-bundling`, `legacy-bundling` will be
+preferred.
+
 ### group
 
 * Default: GID of the current process
@@ -489,7 +506,22 @@ change.  Only the output from `npm ls --json` is currently valid.
 * Default: `null`
 * Type: String
 
-A client key to pass when accessing the registry.
+A client key to pass when accessing the registry.  Values should be in PEM
+format with newlines replaced by the string "\n". For example:
+
+    key="-----BEGIN PRIVATE KEY-----\nXXXX\nXXXX\n-----END PRIVATE KEY-----"
+
+It is _not_ the path to a key file (and there is no "keyfile" option).
+
+### legacy-bundling
+
+* Default: false
+* Type: Boolean
+
+Causes npm to install the package such that versions of npm prior to 1.4,
+such as the one included with node 0.8, can install the package.  This
+eliminates all automatic deduping. If used with `global-style` this option
+will be preferred.
 
 ### link
 
@@ -548,6 +580,14 @@ colored output if it is a TTY.
 * Type: Boolean
 
 Show extended information in `npm ls` and `npm search`.
+
+### maxsockets
+
+* Default: 50
+* Type: Number
+
+The maximum number of connections to use per origin (protocol/host/port
+combination). Passed to the `http` `Agent` used to make the request.
 
 ### message
 
@@ -863,7 +903,7 @@ on success, but left behind on failure for forensic purposes.
 
 ### unicode
 
-* Default: true on windows and mac/unix systems with a unicode locale
+* Default: false on windows, true on mac/unix systems with a unicode locale
 * Type: Boolean
 
 When set to true, npm uses unicode characters in the tree output.  When

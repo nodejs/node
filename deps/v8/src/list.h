@@ -207,15 +207,13 @@ size_t GetMemoryUsedByList(const List<T, P>& list) {
 
 
 class Map;
-template<class> class TypeImpl;
-struct HeapTypeConfig;
-typedef TypeImpl<HeapTypeConfig> HeapType;
+class FieldType;
 class Code;
 template<typename T> class Handle;
 typedef List<Map*> MapList;
 typedef List<Code*> CodeList;
 typedef List<Handle<Map> > MapHandleList;
-typedef List<Handle<HeapType> > TypeHandleList;
+typedef List<Handle<FieldType> > TypeHandleList;
 typedef List<Handle<Code> > CodeHandleList;
 
 // Perform binary search for an element in an already sorted
@@ -229,7 +227,8 @@ template <typename T>
 int SortedListBSearch(const List<T>& list, T elem);
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 #endif  // V8_LIST_H_

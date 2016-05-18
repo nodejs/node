@@ -3,7 +3,7 @@ var assert = require('assert');
 var common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
@@ -19,7 +19,7 @@ function test1() {
   };
 
   try {
-    var s = tls.connect(common.PORT);
+    tls.connect(common.PORT);
   } catch (e) {
     assert(e instanceof Done);
   }

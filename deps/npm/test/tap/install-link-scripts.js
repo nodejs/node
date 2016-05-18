@@ -122,7 +122,8 @@ function setup () {
     path.join(dep, 'package.json'),
     JSON.stringify(dependency, null, 2)
   )
-  fs.writeFileSync(path.join(dep, 'bin', 'foo'), foo, { mode: '0755' })
+  fs.writeFileSync(path.join(dep, 'bin', 'foo'), foo)
+  fs.chmod(path.join(dep, 'bin', 'foo'), '0755')
 }
 
 function cleanup () {

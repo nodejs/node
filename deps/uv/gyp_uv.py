@@ -27,6 +27,7 @@ except ImportError:
 def host_arch():
   machine = platform.machine()
   if machine == 'i386': return 'ia32'
+  if machine == 'AMD64': return 'x64'
   if machine == 'x86_64': return 'x64'
   if machine.startswith('arm'): return 'arm'
   if machine.startswith('mips'): return 'mips'
@@ -36,7 +37,7 @@ def host_arch():
 def run_gyp(args):
   rc = gyp.main(args)
   if rc != 0:
-    print 'Error running GYP'
+    print('Error running GYP')
     sys.exit(rc)
 
 
@@ -83,14 +84,11 @@ if __name__ == '__main__':
   if not any(a.startswith('-Duv_library=') for a in args):
     args.append('-Duv_library=static_library')
 
-  if not any(a.startswith('-Dcomponent=') for a in args):
-    args.append('-Dcomponent=static_library')
-
   # Some platforms (OpenBSD for example) don't have multiprocessing.synchronize
   # so gyp must be run with --no-parallel
   if not gyp_parallel_support:
     args.append('--no-parallel')
 
   gyp_args = list(args)
-  print gyp_args
+  print(gyp_args)
   run_gyp(gyp_args)

@@ -270,9 +270,9 @@ L$sqr_entry_1024:
 	vpsrlq	$29,%ymm1,%ymm11
 	vpand	%ymm15,%ymm1,%ymm1
 
-	vpermq	$147,%ymm14,%ymm14
+	vpermq	$0x93,%ymm14,%ymm14
 	vpxor	%ymm9,%ymm9,%ymm9
-	vpermq	$147,%ymm11,%ymm11
+	vpermq	$0x93,%ymm11,%ymm11
 
 	vpblendd	$3,%ymm9,%ymm14,%ymm10
 	vpblendd	$3,%ymm14,%ymm11,%ymm14
@@ -297,7 +297,7 @@ L$sqr_entry_1024:
 
 	movq	%rax,%r9
 	imull	%ecx,%eax
-	andl	$536870911,%eax
+	andl	$0x1fffffff,%eax
 	vmovd	%eax,%xmm12
 
 	movq	%rax,%rdx
@@ -317,7 +317,7 @@ L$sqr_entry_1024:
 
 	movq	%r10,%rax
 	imull	%ecx,%eax
-	andl	$536870911,%eax
+	andl	$0x1fffffff,%eax
 
 	movl	$9,%r14d
 	jmp	L$OOP_REDUCE_1024
@@ -353,7 +353,7 @@ L$OOP_REDUCE_1024:
 	imull	%ecx,%eax
 	vpaddq	%ymm14,%ymm5,%ymm5
 	vpmuludq	192-128(%r13),%ymm12,%ymm11
-	andl	$536870911,%eax
+	andl	$0x1fffffff,%eax
 	vpaddq	%ymm11,%ymm6,%ymm6
 	vpmuludq	224-128(%r13),%ymm12,%ymm10
 	vpaddq	%ymm10,%ymm7,%ymm7
@@ -389,7 +389,7 @@ L$OOP_REDUCE_1024:
 	vpaddq	%ymm11,%ymm4,%ymm4
 	vpmuludq	%ymm13,%ymm10,%ymm10
 .byte	0xc4,0x41,0x7e,0x6f,0x9d,0x58,0x00,0x00,0x00
-	andl	$536870911,%eax
+	andl	$0x1fffffff,%eax
 	vpaddq	%ymm10,%ymm5,%ymm5
 	vpmuludq	%ymm13,%ymm14,%ymm14
 	vmovdqu	256-8-128(%r13),%ymm10
@@ -442,7 +442,7 @@ L$OOP_REDUCE_1024:
 	imull	%ecx,%eax
 	vpaddq	%ymm11,%ymm8,%ymm8
 	vpmuludq	%ymm12,%ymm10,%ymm10
-	andl	$536870911,%eax
+	andl	$0x1fffffff,%eax
 	vmovd	%eax,%xmm12
 	vmovdqu	96-24-128(%r13),%ymm11
 .byte	0x67
@@ -483,7 +483,7 @@ L$OOP_REDUCE_1024:
 	vpmuludq	%ymm0,%ymm10,%ymm10
 	vpaddq	%ymm11,%ymm6,%ymm5
 	vmovdqu	288-24-128(%r13),%ymm11
-	andl	$536870911,%eax
+	andl	$0x1fffffff,%eax
 	vpaddq	%ymm10,%ymm7,%ymm6
 	vpmuludq	%ymm0,%ymm14,%ymm14
 	addq	24(%rsp),%rdx
@@ -514,15 +514,15 @@ L$OOP_REDUCE_1024:
 	vpsrlq	$29,%ymm1,%ymm11
 	vpand	%ymm15,%ymm1,%ymm1
 	vpsrlq	$29,%ymm2,%ymm12
-	vpermq	$147,%ymm14,%ymm14
+	vpermq	$0x93,%ymm14,%ymm14
 	vpand	%ymm15,%ymm2,%ymm2
 	vpsrlq	$29,%ymm3,%ymm13
-	vpermq	$147,%ymm11,%ymm11
+	vpermq	$0x93,%ymm11,%ymm11
 	vpand	%ymm15,%ymm3,%ymm3
-	vpermq	$147,%ymm12,%ymm12
+	vpermq	$0x93,%ymm12,%ymm12
 
 	vpblendd	$3,%ymm9,%ymm14,%ymm10
-	vpermq	$147,%ymm13,%ymm13
+	vpermq	$0x93,%ymm13,%ymm13
 	vpblendd	$3,%ymm14,%ymm11,%ymm14
 	vpaddq	%ymm10,%ymm0,%ymm0
 	vpblendd	$3,%ymm11,%ymm12,%ymm11
@@ -538,15 +538,15 @@ L$OOP_REDUCE_1024:
 	vpsrlq	$29,%ymm1,%ymm11
 	vpand	%ymm15,%ymm1,%ymm1
 	vpsrlq	$29,%ymm2,%ymm12
-	vpermq	$147,%ymm14,%ymm14
+	vpermq	$0x93,%ymm14,%ymm14
 	vpand	%ymm15,%ymm2,%ymm2
 	vpsrlq	$29,%ymm3,%ymm13
-	vpermq	$147,%ymm11,%ymm11
+	vpermq	$0x93,%ymm11,%ymm11
 	vpand	%ymm15,%ymm3,%ymm3
-	vpermq	$147,%ymm12,%ymm12
+	vpermq	$0x93,%ymm12,%ymm12
 
 	vpblendd	$3,%ymm9,%ymm14,%ymm10
-	vpermq	$147,%ymm13,%ymm13
+	vpermq	$0x93,%ymm13,%ymm13
 	vpblendd	$3,%ymm14,%ymm11,%ymm14
 	vpaddq	%ymm10,%ymm0,%ymm0
 	vpblendd	$3,%ymm11,%ymm12,%ymm11
@@ -565,18 +565,18 @@ L$OOP_REDUCE_1024:
 	vpsrlq	$29,%ymm5,%ymm11
 	vpand	%ymm15,%ymm5,%ymm5
 	vpsrlq	$29,%ymm6,%ymm12
-	vpermq	$147,%ymm14,%ymm14
+	vpermq	$0x93,%ymm14,%ymm14
 	vpand	%ymm15,%ymm6,%ymm6
 	vpsrlq	$29,%ymm7,%ymm13
-	vpermq	$147,%ymm11,%ymm11
+	vpermq	$0x93,%ymm11,%ymm11
 	vpand	%ymm15,%ymm7,%ymm7
 	vpsrlq	$29,%ymm8,%ymm0
-	vpermq	$147,%ymm12,%ymm12
+	vpermq	$0x93,%ymm12,%ymm12
 	vpand	%ymm15,%ymm8,%ymm8
-	vpermq	$147,%ymm13,%ymm13
+	vpermq	$0x93,%ymm13,%ymm13
 
 	vpblendd	$3,%ymm9,%ymm14,%ymm10
-	vpermq	$147,%ymm0,%ymm0
+	vpermq	$0x93,%ymm0,%ymm0
 	vpblendd	$3,%ymm14,%ymm11,%ymm14
 	vpaddq	%ymm10,%ymm4,%ymm4
 	vpblendd	$3,%ymm11,%ymm12,%ymm11
@@ -592,18 +592,18 @@ L$OOP_REDUCE_1024:
 	vpsrlq	$29,%ymm5,%ymm11
 	vpand	%ymm15,%ymm5,%ymm5
 	vpsrlq	$29,%ymm6,%ymm12
-	vpermq	$147,%ymm14,%ymm14
+	vpermq	$0x93,%ymm14,%ymm14
 	vpand	%ymm15,%ymm6,%ymm6
 	vpsrlq	$29,%ymm7,%ymm13
-	vpermq	$147,%ymm11,%ymm11
+	vpermq	$0x93,%ymm11,%ymm11
 	vpand	%ymm15,%ymm7,%ymm7
 	vpsrlq	$29,%ymm8,%ymm0
-	vpermq	$147,%ymm12,%ymm12
+	vpermq	$0x93,%ymm12,%ymm12
 	vpand	%ymm15,%ymm8,%ymm8
-	vpermq	$147,%ymm13,%ymm13
+	vpermq	$0x93,%ymm13,%ymm13
 
 	vpblendd	$3,%ymm9,%ymm14,%ymm10
-	vpermq	$147,%ymm0,%ymm0
+	vpermq	$0x93,%ymm0,%ymm0
 	vpblendd	$3,%ymm14,%ymm11,%ymm14
 	vpaddq	%ymm10,%ymm4,%ymm4
 	vpblendd	$3,%ymm11,%ymm12,%ymm11
@@ -740,7 +740,7 @@ L$oop_mul_1024:
 
 	movq	%rax,%r9
 	imull	%r8d,%eax
-	andl	$536870911,%eax
+	andl	$0x1fffffff,%eax
 
 	movq	%rbx,%r11
 	imulq	16-128(%rsi),%r11
@@ -765,7 +765,7 @@ L$oop_mul_1024:
 	vpmuludq	192-128(%rsi),%ymm10,%ymm13
 	vpaddq	%ymm13,%ymm6,%ymm6
 	vpmuludq	224-128(%rsi),%ymm10,%ymm0
-	vpermq	$147,%ymm9,%ymm9
+	vpermq	$0x93,%ymm9,%ymm9
 	vpaddq	%ymm0,%ymm7,%ymm7
 	vpmuludq	256-128(%rsi),%ymm10,%ymm12
 	vpbroadcastq	8(%r13),%ymm10
@@ -816,7 +816,7 @@ L$oop_mul_1024:
 
 	movq	%r10,%rax
 	imull	%r8d,%eax
-	andl	$536870911,%eax
+	andl	$0x1fffffff,%eax
 
 	imulq	16-128(%rsi),%rbx
 	addq	%rbx,%r12
@@ -896,7 +896,7 @@ L$oop_mul_1024:
 	vmovdqu	-16+64-128(%rsi),%ymm12
 	movq	%rax,%r11
 	imull	%r8d,%eax
-	andl	$536870911,%eax
+	andl	$0x1fffffff,%eax
 
 	imulq	8-128(%rsi),%rbx
 	addq	%rbx,%r12
@@ -973,7 +973,7 @@ L$oop_mul_1024:
 
 	movq	%r12,%rax
 	imull	%r8d,%eax
-	andl	$536870911,%eax
+	andl	$0x1fffffff,%eax
 
 	vpmuludq	%ymm10,%ymm0,%ymm0
 	vmovd	%eax,%xmm11
@@ -1052,16 +1052,16 @@ L$oop_mul_1024:
 	vpsrlq	$29,%ymm1,%ymm13
 	vpand	%ymm15,%ymm1,%ymm1
 	vpsrlq	$29,%ymm2,%ymm10
-	vpermq	$147,%ymm12,%ymm12
+	vpermq	$0x93,%ymm12,%ymm12
 	vpand	%ymm15,%ymm2,%ymm2
 	vpsrlq	$29,%ymm3,%ymm11
-	vpermq	$147,%ymm13,%ymm13
+	vpermq	$0x93,%ymm13,%ymm13
 	vpand	%ymm15,%ymm3,%ymm3
 
 	vpblendd	$3,%ymm14,%ymm12,%ymm9
-	vpermq	$147,%ymm10,%ymm10
+	vpermq	$0x93,%ymm10,%ymm10
 	vpblendd	$3,%ymm12,%ymm13,%ymm12
-	vpermq	$147,%ymm11,%ymm11
+	vpermq	$0x93,%ymm11,%ymm11
 	vpaddq	%ymm9,%ymm0,%ymm0
 	vpblendd	$3,%ymm13,%ymm10,%ymm13
 	vpaddq	%ymm12,%ymm1,%ymm1
@@ -1076,15 +1076,15 @@ L$oop_mul_1024:
 	vpsrlq	$29,%ymm1,%ymm13
 	vpand	%ymm15,%ymm1,%ymm1
 	vpsrlq	$29,%ymm2,%ymm10
-	vpermq	$147,%ymm12,%ymm12
+	vpermq	$0x93,%ymm12,%ymm12
 	vpand	%ymm15,%ymm2,%ymm2
 	vpsrlq	$29,%ymm3,%ymm11
-	vpermq	$147,%ymm13,%ymm13
+	vpermq	$0x93,%ymm13,%ymm13
 	vpand	%ymm15,%ymm3,%ymm3
-	vpermq	$147,%ymm10,%ymm10
+	vpermq	$0x93,%ymm10,%ymm10
 
 	vpblendd	$3,%ymm14,%ymm12,%ymm9
-	vpermq	$147,%ymm11,%ymm11
+	vpermq	$0x93,%ymm11,%ymm11
 	vpblendd	$3,%ymm12,%ymm13,%ymm12
 	vpaddq	%ymm9,%ymm0,%ymm0
 	vpblendd	$3,%ymm13,%ymm10,%ymm13
@@ -1104,18 +1104,18 @@ L$oop_mul_1024:
 	vpsrlq	$29,%ymm5,%ymm13
 	vpand	%ymm15,%ymm5,%ymm5
 	vpsrlq	$29,%ymm6,%ymm10
-	vpermq	$147,%ymm12,%ymm12
+	vpermq	$0x93,%ymm12,%ymm12
 	vpand	%ymm15,%ymm6,%ymm6
 	vpsrlq	$29,%ymm7,%ymm11
-	vpermq	$147,%ymm13,%ymm13
+	vpermq	$0x93,%ymm13,%ymm13
 	vpand	%ymm15,%ymm7,%ymm7
 	vpsrlq	$29,%ymm8,%ymm0
-	vpermq	$147,%ymm10,%ymm10
+	vpermq	$0x93,%ymm10,%ymm10
 	vpand	%ymm15,%ymm8,%ymm8
-	vpermq	$147,%ymm11,%ymm11
+	vpermq	$0x93,%ymm11,%ymm11
 
 	vpblendd	$3,%ymm14,%ymm12,%ymm9
-	vpermq	$147,%ymm0,%ymm0
+	vpermq	$0x93,%ymm0,%ymm0
 	vpblendd	$3,%ymm12,%ymm13,%ymm12
 	vpaddq	%ymm9,%ymm4,%ymm4
 	vpblendd	$3,%ymm13,%ymm10,%ymm13
@@ -1131,18 +1131,18 @@ L$oop_mul_1024:
 	vpsrlq	$29,%ymm5,%ymm13
 	vpand	%ymm15,%ymm5,%ymm5
 	vpsrlq	$29,%ymm6,%ymm10
-	vpermq	$147,%ymm12,%ymm12
+	vpermq	$0x93,%ymm12,%ymm12
 	vpand	%ymm15,%ymm6,%ymm6
 	vpsrlq	$29,%ymm7,%ymm11
-	vpermq	$147,%ymm13,%ymm13
+	vpermq	$0x93,%ymm13,%ymm13
 	vpand	%ymm15,%ymm7,%ymm7
 	vpsrlq	$29,%ymm8,%ymm0
-	vpermq	$147,%ymm10,%ymm10
+	vpermq	$0x93,%ymm10,%ymm10
 	vpand	%ymm15,%ymm8,%ymm8
-	vpermq	$147,%ymm11,%ymm11
+	vpermq	$0x93,%ymm11,%ymm11
 
 	vpblendd	$3,%ymm14,%ymm12,%ymm9
-	vpermq	$147,%ymm0,%ymm0
+	vpermq	$0x93,%ymm0,%ymm0
 	vpblendd	$3,%ymm12,%ymm13,%ymm12
 	vpaddq	%ymm9,%ymm4,%ymm4
 	vpblendd	$3,%ymm13,%ymm10,%ymm13
@@ -1374,7 +1374,7 @@ _rsaz_1024_red2norm_avx2:
 _rsaz_1024_norm2red_avx2:
 	subq	$-128,%rdi
 	movq	(%rsi),%r8
-	movl	$536870911,%eax
+	movl	$0x1fffffff,%eax
 	movq	8(%rsi),%r9
 	movq	%r8,%r11
 	shrq	$0,%r11
@@ -1554,54 +1554,116 @@ L$oop_scatter_1024:
 
 .p2align	5
 _rsaz_1024_gather5_avx2:
-	leaq	L$gather_table(%rip),%r11
-	movl	%edx,%eax
-	andl	$3,%edx
-	shrl	$2,%eax
-	shll	$4,%edx
+	vzeroupper
+	movq	%rsp,%r11
+	leaq	-256(%rsp),%rsp
+	andq	$-32,%rsp
+	leaq	L$inc(%rip),%r10
+	leaq	-128(%rsp),%rax
 
-	vmovdqu	-32(%r11),%ymm7
-	vpbroadcastb	8(%r11,%rax,1),%xmm8
-	vpbroadcastb	7(%r11,%rax,1),%xmm9
-	vpbroadcastb	6(%r11,%rax,1),%xmm10
-	vpbroadcastb	5(%r11,%rax,1),%xmm11
-	vpbroadcastb	4(%r11,%rax,1),%xmm12
-	vpbroadcastb	3(%r11,%rax,1),%xmm13
-	vpbroadcastb	2(%r11,%rax,1),%xmm14
-	vpbroadcastb	1(%r11,%rax,1),%xmm15
+	vmovd	%edx,%xmm4
+	vmovdqa	(%r10),%ymm0
+	vmovdqa	32(%r10),%ymm1
+	vmovdqa	64(%r10),%ymm5
+	vpbroadcastd	%xmm4,%ymm4
 
-	leaq	64(%rsi,%rdx,1),%rsi
-	movq	$64,%r11
-	movl	$9,%eax
-	jmp	L$oop_gather_1024
+	vpaddd	%ymm5,%ymm0,%ymm2
+	vpcmpeqd	%ymm4,%ymm0,%ymm0
+	vpaddd	%ymm5,%ymm1,%ymm3
+	vpcmpeqd	%ymm4,%ymm1,%ymm1
+	vmovdqa	%ymm0,0+128(%rax)
+	vpaddd	%ymm5,%ymm2,%ymm0
+	vpcmpeqd	%ymm4,%ymm2,%ymm2
+	vmovdqa	%ymm1,32+128(%rax)
+	vpaddd	%ymm5,%ymm3,%ymm1
+	vpcmpeqd	%ymm4,%ymm3,%ymm3
+	vmovdqa	%ymm2,64+128(%rax)
+	vpaddd	%ymm5,%ymm0,%ymm2
+	vpcmpeqd	%ymm4,%ymm0,%ymm0
+	vmovdqa	%ymm3,96+128(%rax)
+	vpaddd	%ymm5,%ymm1,%ymm3
+	vpcmpeqd	%ymm4,%ymm1,%ymm1
+	vmovdqa	%ymm0,128+128(%rax)
+	vpaddd	%ymm5,%ymm2,%ymm8
+	vpcmpeqd	%ymm4,%ymm2,%ymm2
+	vmovdqa	%ymm1,160+128(%rax)
+	vpaddd	%ymm5,%ymm3,%ymm9
+	vpcmpeqd	%ymm4,%ymm3,%ymm3
+	vmovdqa	%ymm2,192+128(%rax)
+	vpaddd	%ymm5,%ymm8,%ymm10
+	vpcmpeqd	%ymm4,%ymm8,%ymm8
+	vmovdqa	%ymm3,224+128(%rax)
+	vpaddd	%ymm5,%ymm9,%ymm11
+	vpcmpeqd	%ymm4,%ymm9,%ymm9
+	vpaddd	%ymm5,%ymm10,%ymm12
+	vpcmpeqd	%ymm4,%ymm10,%ymm10
+	vpaddd	%ymm5,%ymm11,%ymm13
+	vpcmpeqd	%ymm4,%ymm11,%ymm11
+	vpaddd	%ymm5,%ymm12,%ymm14
+	vpcmpeqd	%ymm4,%ymm12,%ymm12
+	vpaddd	%ymm5,%ymm13,%ymm15
+	vpcmpeqd	%ymm4,%ymm13,%ymm13
+	vpcmpeqd	%ymm4,%ymm14,%ymm14
+	vpcmpeqd	%ymm4,%ymm15,%ymm15
 
-.p2align	5
+	vmovdqa	-32(%r10),%ymm7
+	leaq	128(%rsi),%rsi
+	movl	$9,%edx
+
 L$oop_gather_1024:
-	vpand	-64(%rsi),%xmm8,%xmm0
-	vpand	(%rsi),%xmm9,%xmm1
-	vpand	64(%rsi),%xmm10,%xmm2
-	vpand	(%rsi,%r11,2),%xmm11,%xmm3
-	vpor	%xmm0,%xmm1,%xmm1
-	vpand	64(%rsi,%r11,2),%xmm12,%xmm4
-	vpor	%xmm2,%xmm3,%xmm3
-	vpand	(%rsi,%r11,4),%xmm13,%xmm5
-	vpor	%xmm1,%xmm3,%xmm3
-	vpand	64(%rsi,%r11,4),%xmm14,%xmm6
+	vmovdqa	0-128(%rsi),%ymm0
+	vmovdqa	32-128(%rsi),%ymm1
+	vmovdqa	64-128(%rsi),%ymm2
+	vmovdqa	96-128(%rsi),%ymm3
+	vpand	0+128(%rax),%ymm0,%ymm0
+	vpand	32+128(%rax),%ymm1,%ymm1
+	vpand	64+128(%rax),%ymm2,%ymm2
+	vpor	%ymm0,%ymm1,%ymm4
+	vpand	96+128(%rax),%ymm3,%ymm3
+	vmovdqa	128-128(%rsi),%ymm0
+	vmovdqa	160-128(%rsi),%ymm1
+	vpor	%ymm2,%ymm3,%ymm5
+	vmovdqa	192-128(%rsi),%ymm2
+	vmovdqa	224-128(%rsi),%ymm3
+	vpand	128+128(%rax),%ymm0,%ymm0
+	vpand	160+128(%rax),%ymm1,%ymm1
+	vpand	192+128(%rax),%ymm2,%ymm2
+	vpor	%ymm0,%ymm4,%ymm4
+	vpand	224+128(%rax),%ymm3,%ymm3
+	vpand	256-128(%rsi),%ymm8,%ymm0
+	vpor	%ymm1,%ymm5,%ymm5
+	vpand	288-128(%rsi),%ymm9,%ymm1
+	vpor	%ymm2,%ymm4,%ymm4
+	vpand	320-128(%rsi),%ymm10,%ymm2
+	vpor	%ymm3,%ymm5,%ymm5
+	vpand	352-128(%rsi),%ymm11,%ymm3
+	vpor	%ymm0,%ymm4,%ymm4
+	vpand	384-128(%rsi),%ymm12,%ymm0
+	vpor	%ymm1,%ymm5,%ymm5
+	vpand	416-128(%rsi),%ymm13,%ymm1
+	vpor	%ymm2,%ymm4,%ymm4
+	vpand	448-128(%rsi),%ymm14,%ymm2
+	vpor	%ymm3,%ymm5,%ymm5
+	vpand	480-128(%rsi),%ymm15,%ymm3
+	leaq	512(%rsi),%rsi
+	vpor	%ymm0,%ymm4,%ymm4
+	vpor	%ymm1,%ymm5,%ymm5
+	vpor	%ymm2,%ymm4,%ymm4
+	vpor	%ymm3,%ymm5,%ymm5
+
+	vpor	%ymm5,%ymm4,%ymm4
+	vextracti128	$1,%ymm4,%xmm5
 	vpor	%xmm4,%xmm5,%xmm5
-	vpand	-128(%rsi,%r11,8),%xmm15,%xmm2
-	leaq	(%rsi,%r11,8),%rsi
-	vpor	%xmm3,%xmm5,%xmm5
-	vpor	%xmm2,%xmm6,%xmm6
-	vpor	%xmm5,%xmm6,%xmm6
-	vpermd	%ymm6,%ymm7,%ymm6
-	vmovdqu	%ymm6,(%rdi)
+	vpermd	%ymm5,%ymm7,%ymm5
+	vmovdqu	%ymm5,(%rdi)
 	leaq	32(%rdi),%rdi
-	decl	%eax
+	decl	%edx
 	jnz	L$oop_gather_1024
 
 	vpxor	%ymm0,%ymm0,%ymm0
 	vmovdqu	%ymm0,(%rdi)
 	vzeroupper
+	leaq	(%r11),%rsp
 	.byte	0xf3,0xc3
 
 
@@ -1627,6 +1689,8 @@ L$scatter_permd:
 .long	0,2,4,6,7,7,7,7
 L$gather_permd:
 .long	0,7,1,7,2,7,3,7
-L$gather_table:
-.byte	0,0,0,0,0,0,0,0, 0xff,0,0,0,0,0,0,0
+L$inc:
+.long	0,0,0,0, 1,1,1,1
+.long	2,2,2,2, 3,3,3,3
+.long	4,4,4,4, 4,4,4,4
 .p2align	6

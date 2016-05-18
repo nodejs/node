@@ -32,11 +32,14 @@ class LiveRangeUnitTest : public TestWithZone {
 
   TopLevelLiveRange* Splinter(TopLevelLiveRange* top, int start, int end,
                               int new_id = 0) {
-    TopLevelLiveRange* ret =
-        new (zone()) TopLevelLiveRange(new_id, MachineType::kRepTagged);
+    if (top->splinter() == nullptr) {
+      TopLevelLiveRange* ret = new (zone())
+          TopLevelLiveRange(new_id, MachineRepresentation::kTagged);
+      top->SetSplinter(ret);
+    }
     top->Splinter(LifetimePosition::FromInt(start),
-                  LifetimePosition::FromInt(end), ret, zone());
-    return ret;
+                  LifetimePosition::FromInt(end), zone());
+    return top->splinter();
   }
 
   // Ranges first and second match structurally.
@@ -71,7 +74,7 @@ class LiveRangeUnitTest : public TestWithZone {
 TEST_F(LiveRangeUnitTest, InvalidConstruction) {
   // Build a range manually, because the builder guards against empty cases.
   TopLevelLiveRange* range =
-      new (zone()) TopLevelLiveRange(1, MachineType::kRepTagged);
+      new (zone()) TopLevelLiveRange(1, MachineRepresentation::kTagged);
   V8_ASSERT_DEBUG_DEATH(
       range->AddUseInterval(LifetimePosition::FromInt(0),
                             LifetimePosition::FromInt(0), zone()),
@@ -377,6 +380,25 @@ TEST_F(LiveRangeUnitTest, SplinterMultipleIntervalsRight) {
 }
 
 
+TEST_F(LiveRangeUnitTest, SplinterMergeMultipleTimes) {
+  TopLevelLiveRange* range =
+      TestRangeBuilder(zone()).Add(0, 3).Add(5, 10).Add(12, 16).Build();
+  Splinter(range, 4, 6);
+  Splinter(range, 8, 14);
+  TopLevelLiveRange* splinter = range->splinter();
+  EXPECT_EQ(nullptr, range->next());
+  EXPECT_EQ(nullptr, splinter->next());
+  EXPECT_EQ(range, splinter->splintered_from());
+
+  TopLevelLiveRange* expected_source =
+      TestRangeBuilder(zone()).Add(0, 3).Add(6, 8).Add(14, 16).Build();
+  TopLevelLiveRange* expected_splinter =
+      TestRangeBuilder(zone()).Add(5, 6).Add(8, 10).Add(12, 14).Build();
+  EXPECT_TRUE(RangesMatch(expected_source, range));
+  EXPECT_TRUE(RangesMatch(expected_splinter, splinter));
+}
+
+
 TEST_F(LiveRangeUnitTest, MergeMultipleIntervalsRight) {
   TopLevelLiveRange* original =
       TestRangeBuilder(zone()).Add(0, 3).Add(5, 8).Build();
@@ -415,9 +437,10 @@ TEST_F(LiveRangeUnitTest, IDGeneration) {
   EXPECT_EQ(0, vreg->relative_id());
 
   TopLevelLiveRange* splinter =
-      new (zone()) TopLevelLiveRange(101, MachineType::kRepTagged);
+      new (zone()) TopLevelLiveRange(101, MachineRepresentation::kTagged);
+  vreg->SetSplinter(splinter);
   vreg->Splinter(LifetimePosition::FromInt(4), LifetimePosition::FromInt(12),
-                 splinter, zone());
+                 zone());
 
   EXPECT_EQ(101, splinter->vreg());
   EXPECT_EQ(1, splinter->relative_id());

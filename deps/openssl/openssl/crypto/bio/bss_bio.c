@@ -1,4 +1,4 @@
-/* crypto/bio/bss_bio.c  -*- Mode: C; c-file-style: "eay" -*- */
+/* crypto/bio/bss_bio.c  */
 /* ====================================================================
  * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
  *

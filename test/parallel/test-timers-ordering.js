@@ -1,15 +1,12 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var Timer = process.binding('timer_wrap').Timer;
-
-var i;
 
 var N = 30;
 
 var last_i = 0;
 var last_ts = 0;
-var start = Timer.now();
 
 var f = function(i) {
   if (i <= N) {
@@ -22,7 +19,7 @@ var f = function(i) {
     var now = Timer.now();
     console.log(i, now);
     assert(now >= last_ts + 1,
-        'current ts ' + now + ' < prev ts ' + last_ts + ' + 1');
+           'current ts ' + now + ' < prev ts ' + last_ts + ' + 1');
     last_ts = now;
 
     // schedule next iteration

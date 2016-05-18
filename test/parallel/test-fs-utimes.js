@@ -18,7 +18,7 @@ function stat_resource(resource) {
 }
 
 function check_mtime(resource, mtime) {
-  var mtime = fs._toUnixTimestamp(mtime);
+  mtime = fs._toUnixTimestamp(mtime);
   var stats = stat_resource(resource);
   var real_mtime = fs._toUnixTimestamp(stats.mtime);
   // check up to single-second precision
@@ -48,7 +48,7 @@ function expect_ok(syscall, resource, err, atime, mtime) {
 // would be even better though (node doesn't have such functionality yet)
 function runTest(atime, mtime, callback) {
 
-  var fd, err;
+  var fd;
   //
   // test synchronized code paths, these functions throw on failure
   //

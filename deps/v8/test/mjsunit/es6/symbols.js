@@ -167,8 +167,8 @@ function TestEquality() {
     assertTrue(symbols[i] == symbols[i])
     assertFalse(symbols[i] === Object(symbols[i]))
     assertFalse(Object(symbols[i]) === symbols[i])
-    assertFalse(symbols[i] == Object(symbols[i]))
-    assertFalse(Object(symbols[i]) == symbols[i])
+    assertTrue(symbols[i] == Object(symbols[i]))
+    assertTrue(Object(symbols[i]) == symbols[i])
     assertTrue(symbols[i] === symbols[i].valueOf())
     assertTrue(symbols[i].valueOf() === symbols[i])
     assertTrue(symbols[i] == symbols[i].valueOf())
@@ -441,8 +441,9 @@ TestGetOwnPropertySymbolsWithProto()
 
 function TestWellKnown() {
   var symbols = [
+    "hasInstance",
     // TODO(rossberg): reactivate once implemented.
-    // "hasInstance", "isConcatSpreadable", "isRegExp",
+    // "isConcatSpreadable", "isRegExp",
     "iterator", /* "toStringTag", */ "unscopables"
   ]
 
@@ -526,3 +527,39 @@ function TestComparison() {
   }
 }
 TestComparison();
+
+
+// Make sure that throws occur in the context of the Symbol function.
+function TestContext() {
+  var r = Realm.create();
+  var rSymbol = Realm.eval(r, "Symbol");
+  var rError = Realm.eval(r, "TypeError");
+
+  function verifier(symbol, error) {
+    try {
+      new symbol();
+    } catch(e) {
+      return e.__proto__ === error.__proto__;
+    }
+    assertTrue(false);  // should never get here.
+  }
+
+  assertTrue(verifier(Symbol, TypeError()));
+  assertTrue(verifier(rSymbol, rError()));
+  assertFalse(verifier(Symbol, rError()));
+  assertFalse(verifier(rSymbol, TypeError()));
+}
+TestContext();
+
+
+function TestStringify(expected, input) {
+  assertEquals(expected, JSON.stringify(input));
+  assertEquals(expected, JSON.stringify(input, null, 0));
+}
+
+TestStringify(undefined, Symbol("a"));
+TestStringify('[{}]', [Object(Symbol())]);
+var symbol_wrapper = Object(Symbol("a"))
+TestStringify('{}', symbol_wrapper);
+symbol_wrapper.a = 1;
+TestStringify('{"a":1}', symbol_wrapper);

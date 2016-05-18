@@ -51,29 +51,42 @@ from testrunner.network import network_execution
 from testrunner.objects import context
 
 
+# Base dir of the v8 checkout to be used as cwd.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 ARCH_GUESS = utils.DefaultArch()
 
 # Map of test name synonyms to lists of test suites. Should be ordered by
 # expected runtimes (suites with slow test cases first). These groups are
 # invoked in seperate steps on the bots.
 TEST_MAP = {
+  # This needs to stay in sync with test/bot_default.isolate.
   "bot_default": [
     "mjsunit",
     "cctest",
     "webkit",
+    "fuzzer",
     "message",
     "preparser",
     "intl",
     "unittests",
   ],
+  # This needs to stay in sync with test/default.isolate.
   "default": [
     "mjsunit",
     "cctest",
+    "fuzzer",
     "message",
     "preparser",
     "intl",
     "unittests",
   ],
+  # This needs to stay in sync with test/ignition.isolate.
+  "ignition": [
+    "mjsunit",
+    "cctest",
+  ],
+  # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
     "mjsunit",
     "cctest",
@@ -87,10 +100,11 @@ TEST_MAP = {
 
 TIMEOUT_DEFAULT = 60
 
-VARIANTS = ["default", "stress", "turbofan", "nocrankshaft"]
+VARIANTS = ["default", "stress", "turbofan"]
 
 EXHAUSTIVE_VARIANTS = VARIANTS + [
-  # TODO(machenbach): Add always opt turbo variant.
+  "nocrankshaft",
+  "turbofan_opt",
 ]
 
 DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
@@ -194,6 +208,9 @@ def BuildOptions():
   result.add_option("--asan",
                     help="Regard test expectations for ASAN",
                     default=False, action="store_true")
+  result.add_option("--cfi-vptr",
+                    help="Run tests with UBSAN cfi_vptr option.",
+                    default=False, action="store_true")
   result.add_option("--buildbot",
                     help="Adapt to path structure used on buildbots",
                     default=False, action="store_true")
@@ -217,6 +234,9 @@ def BuildOptions():
   result.add_option("--gc-stress",
                     help="Switch on GC stress mode",
                     default=False, action="store_true")
+  result.add_option("--gcov-coverage",
+                    help="Uses executables instrumented for gcov coverage",
+                    default=False, action="store_true")
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
                     default="")
@@ -228,6 +248,8 @@ def BuildOptions():
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
+  result.add_option("--ignition", help="Skip tests which don't run in ignition",
+                    default=False, action="store_true")
   result.add_option("--isolates", help="Whether to test isolates",
                     default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
@@ -304,6 +326,9 @@ def BuildOptions():
   result.add_option("--stress-only",
                     help="Only run tests with --always-opt --stress-opt",
                     default=False, action="store_true")
+  result.add_option("--swarming",
+                    help="Indicates running test driver on swarming.",
+                    default=False, action="store_true")
   result.add_option("--time", help="Print timing information after running",
                     default=False, action="store_true")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
@@ -347,6 +372,41 @@ def BuildbotToV8Mode(config):
   """
   mode = config[:-4] if config.endswith('_x64') else config
   return mode.lower()
+
+def SetupEnvironment(options):
+  """Setup additional environment variables."""
+  symbolizer = 'external_symbolizer_path=%s' % (
+      os.path.join(
+          BASE_DIR, 'third_party', 'llvm-build', 'Release+Asserts', 'bin',
+          'llvm-symbolizer',
+      )
+  )
+
+  if options.asan:
+    os.environ['ASAN_OPTIONS'] = symbolizer
+
+  if options.cfi_vptr:
+    os.environ['UBSAN_OPTIONS'] = ":".join([
+      'print_stacktrace=1',
+      'print_summary=1',
+      'symbolize=1',
+      symbolizer,
+    ])
+
+  if options.msan:
+    os.environ['MSAN_OPTIONS'] = symbolizer
+
+  if options.tsan:
+    suppressions_file = os.path.join(
+        BASE_DIR, 'tools', 'sanitizers', 'tsan_suppressions.txt')
+    os.environ['TSAN_OPTIONS'] = " ".join([
+      symbolizer,
+      'suppressions=%s' % suppressions_file,
+      'exit_code=0',
+      'report_thread_leaks=0',
+      'history_size=7',
+      'report_destroy_locked=0',
+    ])
 
 def ProcessOptions(options):
   global ALL_VARIANTS
@@ -412,11 +472,6 @@ def ProcessOptions(options):
 
   if options.tsan:
     VARIANTS = ["default"]
-    suppressions_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                     'sanitizers', 'tsan_suppressions.txt')
-    tsan_options = '%s suppressions=%s' % (
-        os.environ.get('TSAN_OPTIONS', ''), suppressions_file)
-    os.environ['TSAN_OPTIONS'] = tsan_options
 
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
@@ -476,11 +531,32 @@ def ProcessOptions(options):
   if not CheckTestMode("pass|fail test", options.pass_fail_tests):
     return False
   if options.no_i18n:
+    TEST_MAP["bot_default"].remove("intl")
     TEST_MAP["default"].remove("intl")
   return True
 
 
-def ShardTests(tests, shard_count, shard_run):
+def ShardTests(tests, options):
+  # Read gtest shard configuration from environment (e.g. set by swarming).
+  # If none is present, use values passed on the command line.
+  shard_count = int(os.environ.get('GTEST_TOTAL_SHARDS', options.shard_count))
+  shard_run = os.environ.get('GTEST_SHARD_INDEX')
+  if shard_run is not None:
+    # The v8 shard_run starts at 1, while GTEST_SHARD_INDEX starts at 0.
+    shard_run = int(shard_run) + 1
+  else:
+    shard_run = options.shard_run
+
+  if options.shard_count > 1:
+    # Log if a value was passed on the cmd line and it differs from the
+    # environment variables.
+    if options.shard_count != shard_count:
+      print("shard_count from cmd line differs from environment variable "
+            "GTEST_TOTAL_SHARDS")
+    if options.shard_run > 1 and options.shard_run != shard_run:
+      print("shard_run from cmd line differs from environment variable "
+            "GTEST_SHARD_INDEX")
+
   if shard_count < 2:
     return tests
   if shard_run < 1 or shard_run > shard_count:
@@ -497,20 +573,23 @@ def ShardTests(tests, shard_count, shard_run):
 
 
 def Main():
+  # Use the v8 root as cwd as some test cases use "load" with relative paths.
+  os.chdir(BASE_DIR)
+
   parser = BuildOptions()
   (options, args) = parser.parse_args()
   if not ProcessOptions(options):
     parser.print_help()
     return 1
+  SetupEnvironment(options)
 
   exit_code = 0
-  workspace = os.path.abspath(join(os.path.dirname(sys.argv[0]), ".."))
   if not options.no_presubmit:
     print ">>> running presubmit tests"
     exit_code = subprocess.call(
-        [sys.executable, join(workspace, "tools", "presubmit.py")])
+        [sys.executable, join(BASE_DIR, "tools", "presubmit.py")])
 
-  suite_paths = utils.GetSuitePaths(join(workspace, "test"))
+  suite_paths = utils.GetSuitePaths(join(BASE_DIR, "test"))
 
   # Use default tests if no test configuration was provided at the cmd line.
   if len(args) == 0:
@@ -520,7 +599,7 @@ def Main():
   # suites as otherwise filters would break.
   def ExpandTestGroups(name):
     if name in TEST_MAP:
-      return [suite for suite in TEST_MAP[arg]]
+      return [suite for suite in TEST_MAP[name]]
     else:
       return [name]
   args = reduce(lambda x, y: x + y,
@@ -535,8 +614,9 @@ def Main():
   suites = []
   for root in suite_paths:
     suite = testsuite.TestSuite.LoadTestSuite(
-        os.path.join(workspace, "test", root))
+        os.path.join(BASE_DIR, "test", root))
     if suite:
+      suite.SetupWorkingDirectory()
       suites.append(suite)
 
   if options.download_data or options.download_data_only:
@@ -548,14 +628,14 @@ def Main():
 
   for (arch, mode) in options.arch_and_mode:
     try:
-      code = Execute(arch, mode, args, options, suites, workspace)
+      code = Execute(arch, mode, args, options, suites)
     except KeyboardInterrupt:
       return 2
     exit_code = exit_code or code
   return exit_code
 
 
-def Execute(arch, mode, args, options, suites, workspace):
+def Execute(arch, mode, args, options, suites):
   print(">>> Running tests for %s.%s" % (arch, mode))
 
   shell_dir = options.shell_dir
@@ -563,15 +643,14 @@ def Execute(arch, mode, args, options, suites, workspace):
     if options.buildbot:
       # TODO(machenbach): Get rid of different output folder location on
       # buildbot. Currently this is capitalized Release and Debug.
-      shell_dir = os.path.join(workspace, options.outdir, mode)
+      shell_dir = os.path.join(BASE_DIR, options.outdir, mode)
       mode = BuildbotToV8Mode(mode)
     else:
       shell_dir = os.path.join(
-          workspace,
+          BASE_DIR,
           options.outdir,
           "%s.%s" % (arch, MODES[mode]["output_folder"]),
       )
-  shell_dir = os.path.relpath(shell_dir)
   if not os.path.exists(shell_dir):
       raise Exception('Could not find shell_dir: "%s"' % shell_dir)
 
@@ -608,7 +687,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         options.rerun_failures_count,
                         options.rerun_failures_max,
                         options.predictable,
-                        options.no_harness)
+                        options.no_harness,
+                        use_perf_data=not options.swarming)
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
@@ -621,6 +701,8 @@ def Execute(arch, mode, args, options, suites, workspace):
     "asan": options.asan,
     "deopt_fuzzer": False,
     "gc_stress": options.gc_stress,
+    "gcov_coverage": options.gcov_coverage,
+    "ignition": options.ignition,
     "isolates": options.isolates,
     "mode": MODES[mode]["status_mode"],
     "no_i18n": options.no_i18n,
@@ -672,7 +754,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     else:
       s.tests = variant_tests
 
-    s.tests = ShardTests(s.tests, options.shard_count, options.shard_run)
+    s.tests = ShardTests(s.tests, options)
     num_tests += len(s.tests)
 
   if options.cat:
@@ -715,7 +797,7 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   if run_networked:
     runner = network_execution.NetworkedRunner(suites, progress_indicator,
-                                               ctx, peers, workspace)
+                                               ctx, peers, BASE_DIR)
   else:
     runner = execution.Runner(suites, progress_indicator, ctx)
 
@@ -727,6 +809,11 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   if num_tests == 0:
     print("Warning: no tests were run!")
+
+  if exit_code == 1 and options.json_test_results:
+    print("Force exit code 0 after failures. Json test results file generated "
+          "with failure information.")
+    exit_code = 0
 
   return exit_code
 

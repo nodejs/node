@@ -2,18 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
+
 uint32_t flags = CompilationInfo::kInliningEnabled;
 
 
-TEST(CallFunction) {
-  FunctionTester T("(function(a,b) { return %_CallFunction(a, 1, 2, 3, b); })",
-                   flags);
+TEST(Call) {
+  FunctionTester T("(function(a,b) { return %_Call(b, a, 1, 2, 3); })", flags);
   CompileRun("function f(a,b,c) { return a + b + c + this.d; }");
 
   T.CheckCall(T.Val(129), T.NewObject("({d:123})"), T.NewObject("f"));
@@ -32,17 +31,6 @@ TEST(ClassOf) {
   T.CheckCall(T.null(), T.null());
   T.CheckCall(T.null(), T.Val("x"));
   T.CheckCall(T.null(), T.Val(1));
-}
-
-
-TEST(HeapObjectGetMap) {
-  FunctionTester T("(function(a) { return %_HeapObjectGetMap(a); })", flags);
-
-  Factory* factory = T.main_isolate()->factory();
-  T.CheckCall(factory->null_map(), T.null());
-  T.CheckCall(factory->undefined_map(), T.undefined());
-  T.CheckCall(factory->heap_number_map(), T.Val(3.1415));
-  T.CheckCall(factory->symbol_map(), factory->NewSymbol());
 }
 
 
@@ -116,18 +104,6 @@ TEST(IsFunction) {
 }
 
 
-TEST(IsMinusZero) {
-  FunctionTester T("(function(a) { return %_IsMinusZero(a); })", flags);
-
-  T.CheckFalse(T.Val(1));
-  T.CheckFalse(T.Val(1.1));
-  T.CheckTrue(T.Val(-0.0));
-  T.CheckFalse(T.Val(-2));
-  T.CheckFalse(T.Val(-2.3));
-  T.CheckFalse(T.undefined());
-}
-
-
 TEST(IsRegExp) {
   FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
 
@@ -160,32 +136,6 @@ TEST(IsSmi) {
 }
 
 
-TEST(MapGetInstanceType) {
-  FunctionTester T(
-      "(function(a) { return %_MapGetInstanceType(%_HeapObjectGetMap(a)); })",
-      flags);
-
-  Factory* factory = T.main_isolate()->factory();
-  T.CheckCall(T.Val(ODDBALL_TYPE), T.null());
-  T.CheckCall(T.Val(ODDBALL_TYPE), T.undefined());
-  T.CheckCall(T.Val(HEAP_NUMBER_TYPE), T.Val(3.1415));
-  T.CheckCall(T.Val(SYMBOL_TYPE), factory->NewSymbol());
-}
-
-
-TEST(ObjectEquals) {
-  FunctionTester T("(function(a,b) { return %_ObjectEquals(a,b); })", flags);
-  CompileRun("var o = {}");
-
-  T.CheckTrue(T.NewObject("(o)"), T.NewObject("(o)"));
-  T.CheckTrue(T.Val("internal"), T.Val("internal"));
-  T.CheckTrue(T.true_value(), T.true_value());
-  T.CheckFalse(T.true_value(), T.false_value());
-  T.CheckFalse(T.NewObject("({})"), T.NewObject("({})"));
-  T.CheckFalse(T.Val("a"), T.Val("b"));
-}
-
-
 TEST(OneByteSeqStringGetChar) {
   FunctionTester T("(function(a,b) { return %_OneByteSeqStringGetChar(a,b); })",
                    flags);
@@ -214,15 +164,6 @@ TEST(OneByteSeqStringSetChar) {
   CHECK_EQ('b', string->SeqOneByteStringGet(0));
   CHECK_EQ('X', string->SeqOneByteStringGet(1));
   CHECK_EQ('r', string->SeqOneByteStringGet(2));
-}
-
-
-TEST(SetValueOf) {
-  FunctionTester T("(function(a,b) { return %_SetValueOf(a,b); })", flags);
-
-  T.CheckCall(T.Val("a"), T.NewObject("(new String)"), T.Val("a"));
-  T.CheckCall(T.Val(123), T.NewObject("(new Number)"), T.Val(123));
-  T.CheckCall(T.Val("x"), T.undefined(), T.Val("x"));
 }
 
 
@@ -320,3 +261,7 @@ TEST(ValueOf) {
   T.CheckCall(T.Val(123), T.Val(123));
   T.CheckCall(T.Val(456), T.NewObject("(new Number(456))"));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

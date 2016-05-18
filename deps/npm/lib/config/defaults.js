@@ -145,6 +145,7 @@ Object.defineProperty(exports, 'defaults', {get: function () {
 
     global: false,
     globalconfig: path.resolve(globalPrefix, 'etc', 'npmrc'),
+    'global-style': false,
     group: process.platform === 'win32' ? 0
             : process.env.SUDO_GID || (process.getgid && process.getgid()),
     heading: 'npm',
@@ -158,11 +159,13 @@ Object.defineProperty(exports, 'defaults', {get: function () {
     'init-license': 'ISC',
     json: false,
     key: null,
+    'legacy-bundling': false,
     link: false,
     'local-address': undefined,
     loglevel: 'warn',
     logstream: process.stderr,
     long: false,
+    maxsockets: 50,
     message: '%s',
     'node-version': process.version,
     npat: false,
@@ -251,6 +254,7 @@ exports.types = {
   'git-tag-version': Boolean,
   global: Boolean,
   globalconfig: path,
+  'global-style': Boolean,
   group: [Number, String],
   'https-proxy': [null, url],
   'user-agent': String,
@@ -265,6 +269,7 @@ exports.types = {
   'init-version': semver,
   json: Boolean,
   key: [null, String],
+  'legacy-bundling': Boolean,
   link: Boolean,
   // local-address must be listed as an IP for a local network interface
   // must be IPv4 due to node bug
@@ -272,6 +277,7 @@ exports.types = {
   loglevel: ['silent', 'error', 'warn', 'http', 'info', 'verbose', 'silly'],
   logstream: Stream,
   long: Boolean,
+  maxsockets: Number,
   message: String,
   'node-version': [null, semver],
   npat: Boolean,

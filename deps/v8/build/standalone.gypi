@@ -42,8 +42,7 @@
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
     'v8_deprecation_warnings': 1,
-    # TODO(jochen): Turn this on.
-    'v8_imminent_deprecation_warnings%': 0,
+    'v8_imminent_deprecation_warnings': 1,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.5',
     'release_extra_cflags%': '',
@@ -68,11 +67,15 @@
         'host_arch%': '<(host_arch)',
         'target_arch%': '<(host_arch)',
         'base_dir%': '<!(cd <(DEPTH) && python -c "import os; print os.getcwd()")',
+
+        # Instrument for code coverage with gcov.
+        'coverage%': 0,
       },
       'base_dir%': '<(base_dir)',
       'host_arch%': '<(host_arch)',
       'target_arch%': '<(target_arch)',
       'v8_target_arch%': '<(target_arch)',
+      'coverage%': '<(coverage)',
       'asan%': 0,
       'lsan%': 0,
       'msan%': 0,
@@ -97,11 +100,19 @@
 
       'cfi_blacklist%': '<(base_dir)/tools/cfi/blacklist.txt',
 
+      # Set to 1 to enable fast builds.
+      # TODO(machenbach): Only configured for windows.
+      'fastbuild%': 0,
+
       # goma settings.
       # 1 to use goma.
       # If no gomadir is set, it uses the default gomadir.
       'use_goma%': 0,
       'gomadir%': '',
+
+      # Check if valgrind directories are present.
+      'has_valgrind%': '<!pymod_do_main(has_valgrind)',
+
       'conditions': [
         # Set default gomadir.
         ['OS=="win"', {
@@ -109,10 +120,11 @@
         }, {
           'gomadir': '<!(/bin/echo -n ${HOME}/goma)',
         }],
-        ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le"', {
-          'host_clang%': '1',
+        ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le" and host_arch!="s390" and host_arch!="s390x" and \
+          coverage==0', {
+          'host_clang%': 1,
         }, {
-          'host_clang%': '0',
+          'host_clang%': 0,
         }],
         # linux_use_bundled_gold: whether to use the gold linker binary checked
         # into third_party/binutils.  Force this off via GYP_DEFINES when you
@@ -127,7 +139,7 @@
 
         # TODO(machenbach): Remove the conditions as more configurations are
         # supported.
-        ['OS=="linux"', {
+        ['OS=="linux" or OS=="win"', {
           'test_isolation_mode%': 'check',
         }, {
           'test_isolation_mode%': 'noop',
@@ -155,6 +167,9 @@
     'cfi_diag%': '<(cfi_diag)',
     'cfi_blacklist%': '<(cfi_blacklist)',
     'test_isolation_mode%': '<(test_isolation_mode)',
+    'fastbuild%': '<(fastbuild)',
+    'coverage%': '<(coverage)',
+    'has_valgrind%': '<(has_valgrind)',
 
     # Add a simple extras solely for the purpose of the cctests
     'v8_extra_library_files': ['../test/cctest/test-extra.js'],
@@ -184,6 +199,9 @@
     # their own default value.
     'v8_use_external_startup_data%': 1,
 
+    # Use a separate ignition snapshot file in standalone builds.
+    'v8_separate_ignition_snapshot': 1,
+
     # Relative path to icu.gyp from this file.
     'icu_gyp_path': '../third_party/icu/icu.gyp',
 
@@ -206,12 +224,8 @@
       ['OS=="win" and use_goma==1', {
         # goma doesn't support pch yet.
         'chromium_win_pch': 0,
-        # goma doesn't support PDB yet, so win_z7=1 or fastbuild=1.
-        'conditions': [
-          ['win_z7==0 and fastbuild==0', {
-            'fastbuild': 1,
-          }],
-        ],
+        # goma doesn't support PDB yet.
+        'fastbuild%': 1,
       }],
       ['((v8_target_arch=="ia32" or v8_target_arch=="x64" or v8_target_arch=="x87") and \
         (OS=="linux" or OS=="mac")) or (v8_target_arch=="ppc64" and OS=="linux")', {
@@ -220,7 +234,7 @@
         'v8_enable_gdbjit%': 0,
       }],
       ['(OS=="linux" or OS=="mac") and (target_arch=="ia32" or target_arch=="x64") and \
-        (v8_target_arch!="x87" and v8_target_arch!="x32")', {
+        (v8_target_arch!="x87" and v8_target_arch!="x32") and coverage==0', {
         'clang%': 1,
       }, {
         'clang%': 0,
@@ -306,9 +320,8 @@
           ['android_ndk_root==""', {
             'variables': {
               'android_sysroot': '<(android_toolchain)/sysroot/',
-              'android_stlport': '<(android_toolchain)/sources/cxx-stl/stlport/',
+              'android_stl': '<(android_toolchain)/sources/cxx-stl/',
             },
-            'android_include': '<(android_sysroot)/usr/include',
             'conditions': [
               ['target_arch=="x64"', {
                 'android_lib': '<(android_sysroot)/usr/lib64',
@@ -316,14 +329,16 @@
                 'android_lib': '<(android_sysroot)/usr/lib',
               }],
             ],
-            'android_stlport_include': '<(android_stlport)/stlport',
-            'android_stlport_libs': '<(android_stlport)/libs',
+            'android_libcpp_include': '<(android_stl)/llvm-libc++/libcxx/include',
+            'android_libcpp_abi_include': '<(android_stl)/llvm-libc++abi/libcxxabi/include',
+            'android_libcpp_libs': '<(android_stl)/llvm-libc++/libs',
+            'android_support_include': '<(android_toolchain)/sources/android/support/include',
+            'android_sysroot': '<(android_sysroot)',
           }, {
             'variables': {
               'android_sysroot': '<(android_ndk_root)/platforms/android-<(android_target_platform)/arch-<(android_target_arch)',
-              'android_stlport': '<(android_ndk_root)/sources/cxx-stl/stlport/',
+              'android_stl': '<(android_ndk_root)/sources/cxx-stl/',
             },
-            'android_include': '<(android_sysroot)/usr/include',
             'conditions': [
               ['target_arch=="x64"', {
                 'android_lib': '<(android_sysroot)/usr/lib64',
@@ -331,11 +346,14 @@
                 'android_lib': '<(android_sysroot)/usr/lib',
               }],
             ],
-            'android_stlport_include': '<(android_stlport)/stlport',
-            'android_stlport_libs': '<(android_stlport)/libs',
+            'android_libcpp_include': '<(android_stl)/llvm-libc++/libcxx/include',
+            'android_libcpp_abi_include': '<(android_stl)/llvm-libc++abi/libcxxabi/include',
+            'android_libcpp_libs': '<(android_stl)/llvm-libc++/libs',
+            'android_support_include': '<(android_ndk_root)/sources/android/support/include',
+            'android_sysroot': '<(android_sysroot)',
           }],
         ],
-        'android_stlport_library': 'stlport_static',
+        'android_libcpp_library': 'c++_static',
       }],  # OS=="android"
       ['host_clang==1', {
         'host_cc': '<(clang_dir)/bin/clang',
@@ -360,6 +378,9 @@
     # fpxx - compatibility mode, it chooses fp32 or fp64 depending on runtime
     #        detection
     'mips_fpu_mode%': 'fp32',
+
+    # Indicates if gcmole tools are downloaded by a hook.
+    'gcmole%': 0,
   },
   'target_defaults': {
     'variables': {
@@ -405,13 +426,16 @@
       ],
     },
     'conditions':[
-      ['(clang==1 or host_clang==1) and OS!="win"', {
+      ['clang==0', {
+        'cflags+': ['-Wno-sign-compare',],
+      }],
+      ['clang==1 or host_clang==1', {
         # This is here so that all files get recompiled after a clang roll and
         # when turning clang on or off.
         # (defines are passed via the command line, and build systems rebuild
         # things when their commandline changes). Nothing should ever read this
         # define.
-        'defines': ['CR_CLANG_REVISION=<!(<(DEPTH)/tools/clang/scripts/update.sh --print-revision)'],
+        'defines': ['CR_CLANG_REVISION=<!(python <(DEPTH)/tools/clang/scripts/update.py --print-revision)'],
         'conditions': [
           ['host_clang==1', {
             'target_conditions': [
@@ -433,6 +457,23 @@
           }],
         ],
       }],
+      ['fastbuild!=0', {
+        'conditions': [
+          ['OS=="win" and fastbuild==1', {
+            'msvs_settings': {
+              'VCLinkerTool': {
+                # This tells the linker to generate .pdbs, so that
+                # we can get meaningful stack traces.
+                'GenerateDebugInformation': 'true',
+              },
+              'VCCLCompilerTool': {
+                # No debug info to be generated by compiler.
+                'DebugInformationFormat': '0',
+              },
+            },
+          }],
+        ],
+      }],  # fastbuild!=0
     ],
     'target_conditions': [
       ['v8_code == 0', {
@@ -492,8 +533,8 @@
       'target_defaults': {
         'conditions': [
           # Common options for AddressSanitizer, LeakSanitizer,
-          # ThreadSanitizer and MemorySanitizer.
-          ['asan==1 or lsan==1 or tsan==1 or msan==1', {
+          # ThreadSanitizer, MemorySanitizer and CFI builds.
+          ['asan==1 or lsan==1 or tsan==1 or msan==1 or cfi_vptr==1', {
             'target_conditions': [
               ['_toolset=="target"', {
                 'cflags': [
@@ -557,9 +598,11 @@
                 'cflags': [
                   '-fsanitize=memory',
                   '-fsanitize-memory-track-origins=<(msan_track_origins)',
+                  '-fPIC',
                 ],
                 'ldflags': [
                   '-fsanitize=memory',
+                  '-pie',
                 ],
                 'defines': [
                   'MEMORY_SANITIZER',
@@ -657,6 +700,7 @@
           '-pedantic',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
           '-Wno-missing-field-initializers',
+          '-Wno-gnu-zero-variadic-macro-arguments',
         ],
         'cflags_cc': [
           '-Wnon-virtual-dtor',
@@ -666,6 +710,16 @@
         ],
         'ldflags': [ '-pthread', ],
         'conditions': [
+          # Don't warn about TRACE_EVENT_* macros with zero arguments passed to
+          # ##__VA_ARGS__. C99 strict mode prohibits having zero variadic macro
+          # arguments in gcc.
+          [ 'clang==0', {
+            'cflags!' : [
+              '-pedantic' ,
+              # Don't warn about unrecognized command line option.
+              '-Wno-gnu-zero-variadic-macro-arguments',
+            ],
+          }],
           [ 'clang==1 and (v8_target_arch=="x64" or v8_target_arch=="arm64" \
             or v8_target_arch=="mips64el")', {
             'cflags': [ '-Wshorten-64-to-32' ],
@@ -678,6 +732,10 @@
           }],
           [ 'component=="shared_library"', {
             'cflags': [ '-fPIC', ],
+          }],
+          [ 'coverage==1', {
+            'cflags': [ '-fprofile-arcs', '-ftest-coverage'],
+            'ldflags': [ '-fprofile-arcs'],
           }],
         ],
       },
@@ -692,6 +750,7 @@
           '-Wno-unused-parameter',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
           '-Wno-missing-field-initializers',
+          '-Wno-gnu-zero-variadic-macro-arguments',
         ],
         'cflags_cc': [
           '-Wnon-virtual-dtor',
@@ -799,7 +858,6 @@
           4309, # Truncation of constant value
           4311, # Pointer truncation from 'type' to 'type'
           4312, # Conversion from 'type1' to 'type2' of greater size
-          4481, # Nonstandard extension used: override specifier 'keyword'
           4505, # Unreferenced local function has been removed
           4510, # Default constructor could not be generated
           4512, # Assignment operator could not be generated
@@ -916,6 +974,7 @@
             '-Wno-unused-parameter',
             # Don't warn about the "struct foo f = {0};" initialization pattern.
             '-Wno-missing-field-initializers',
+            '-Wno-gnu-zero-variadic-macro-arguments',
           ],
         },
         'conditions': [
@@ -959,11 +1018,7 @@
         },  # configurations
         'cflags': [ '-Wno-abi', '-Wall', '-W', '-Wno-unused-parameter'],
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions',
-                       # Note: Using -std=c++0x will define __STRICT_ANSI__, which
-                       # in turn will leave out some template stuff for 'long
-                       # long'.  What we want is -std=c++11, but this is not
-                       # supported by GCC 4.6 or Xcode 4.2
-                       '-std=gnu++0x' ],
+                       '-std=gnu++11' ],
         'target_conditions': [
           ['_toolset=="target"', {
             'cflags!': [
@@ -976,19 +1031,16 @@
               '-fno-short-enums',
               '-finline-limit=64',
               '-Wa,--noexecstack',
-              # Note: This include is in cflags to ensure that it comes after
-              # all of the includes.
-              '-I<(android_include)',
-              '-I<(android_stlport_include)',
+              '--sysroot=<(android_sysroot)',
             ],
             'cflags_cc': [
-              '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
+              '-isystem<(android_libcpp_include)',
+              '-isystem<(android_libcpp_abi_include)',
+              '-isystem<(android_support_include)',
             ],
             'defines': [
               'ANDROID',
               #'__GNU_SOURCE=1',  # Necessary for clone()
-              'USE_STLPORT=1',
-              '_STLP_USE_PTR_SPECIALIZATIONS=1',
               'HAVE_OFF64_T',
               'HAVE_SYS_UIO_H',
               'ANDROID_BINSIZE_HACK', # Enable temporary hacks to reduce binsize.
@@ -997,10 +1049,9 @@
               '-pthread',  # Not supported by Android toolchain.
             ],
             'ldflags': [
-              '-nostdlib',
               '-Wl,--no-undefined',
-              '-Wl,-rpath-link=<(android_lib)',
-              '-L<(android_lib)',
+              '--sysroot=<(android_sysroot)',
+              '-nostdlib',
             ],
             'libraries!': [
                 '-lrt',  # librt is built into Bionic.
@@ -1011,12 +1062,12 @@
                 '-lpthread', '-lnss3', '-lnssutil3', '-lsmime3', '-lplds4', '-lplc4', '-lnspr4',
               ],
               'libraries': [
-                '-l<(android_stlport_library)',
+                '-l<(android_libcpp_library)',
+                '-latomic',
                 # Manually link the libgcc.a that the cross compiler uses.
                 '<!(<(android_toolchain)/*-gcc -print-libgcc-file-name)',
                 '-lc',
                 '-ldl',
-                '-lstdc++',
                 '-lm',
             ],
             'conditions': [
@@ -1033,22 +1084,22 @@
                   '-mfpu=vfp3',
                 ],
                 'ldflags': [
-                  '-L<(android_stlport_libs)/armeabi-v7a',
+                  '-L<(android_libcpp_libs)/armeabi-v7a',
                 ],
               }],
               ['target_arch=="arm" and arm_version < 7', {
                 'ldflags': [
-                  '-L<(android_stlport_libs)/armeabi',
+                  '-L<(android_libcpp_libs)/armeabi',
                 ],
               }],
               ['target_arch=="x64"', {
                 'ldflags': [
-                  '-L<(android_stlport_libs)/x86_64',
+                  '-L<(android_libcpp_libs)/x86_64',
                 ],
               }],
               ['target_arch=="arm64"', {
                 'ldflags': [
-                  '-L<(android_stlport_libs)/arm64-v8a',
+                  '-L<(android_libcpp_libs)/arm64-v8a',
                 ],
               }],
               ['target_arch=="ia32" or target_arch=="x87"', {
@@ -1060,7 +1111,7 @@
                   '-fno-stack-protector',
                 ],
                 'ldflags': [
-                  '-L<(android_stlport_libs)/x86',
+                  '-L<(android_libcpp_libs)/x86',
                 ],
               }],
               ['target_arch=="mipsel"', {
@@ -1073,7 +1124,7 @@
                   '-fno-stack-protector',
                 ],
                 'ldflags': [
-                  '-L<(android_stlport_libs)/mips',
+                  '-L<(android_libcpp_libs)/mips',
                 ],
               }],
               ['(target_arch=="arm" or target_arch=="arm64" or target_arch=="x64" or target_arch=="ia32") and component!="shared_library"', {
@@ -1197,6 +1248,16 @@
         ['CC', '<(clang_dir)/bin/clang-cl'],
       ],
     }],
+    ['OS=="linux" and target_arch=="arm" and host_arch!="arm" and clang==0 and "<(GENERATOR)"=="ninja"', {
+      # Set default ARM cross tools on linux.  These can be overridden
+      # using CC,CXX,CC.host and CXX.host environment variables.
+      'make_global_settings': [
+        ['CC', '<!(which arm-linux-gnueabihf-gcc)'],
+        ['CXX', '<!(which arm-linux-gnueabihf-g++)'],
+        ['CC.host', '<(host_cc)'],
+        ['CXX.host', '<(host_cxx)'],
+      ],
+    }],
     # TODO(yyanagisawa): supports GENERATOR==make
     #  make generator doesn't support CC_wrapper without CC
     #  in make_global_settings yet.
@@ -1275,7 +1336,7 @@
           ['_toolset=="target"', {
             'cflags': [
               '-fno-sanitize-trap=cfi',
-              '-fsanitize-recover=cfi',
+              '-fno-sanitize-recover=cfi',
             ],
             'cflags_cc!': [
               '-fno-rtti',
@@ -1285,7 +1346,7 @@
             ],
             'ldflags': [
               '-fno-sanitize-trap=cfi',
-              '-fsanitize-recover=cfi',
+              '-fno-sanitize-recover=cfi',
             ],
           }],
         ],

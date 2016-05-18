@@ -1,6 +1,5 @@
 'use strict';
-var constants = require('constants');
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var fs = require('fs');
 

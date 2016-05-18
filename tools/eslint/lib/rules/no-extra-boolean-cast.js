@@ -9,63 +9,82 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow unnecessary boolean casts",
+            category: "Possible Errors",
+            recommended: true
+        },
 
-    return {
-        "UnaryExpression": function (node) {
-            var ancestors = context.getAncestors(),
-                parent = ancestors.pop(),
-                grandparent = ancestors.pop();
+        schema: []
+    },
 
-            // Exit early if it's guaranteed not to match
-            if (node.operator !== "!" ||
-                    parent.type !== "UnaryExpression" ||
-                    parent.operator !== "!") {
-                return;
-            }
+    create: function(context) {
 
-            // if (<bool>) ...
-            if (grandparent.type === "IfStatement") {
-                context.report(node, "Redundant double negation in an if statement condition.");
+        // Node types which have a test which will coerce values to booleans.
+        var BOOLEAN_NODE_TYPES = [
+            "IfStatement",
+            "DoWhileStatement",
+            "WhileStatement",
+            "ConditionalExpression",
+            "ForStatement"
+        ];
 
-            // do ... while (<bool>)
-            } else if (grandparent.type === "DoWhileStatement") {
-                context.report(node, "Redundant double negation in a do while loop condition.");
+        /**
+         * Check if a node is in a context where its value would be coerced to a boolean at runtime.
+         *
+         * @param {Object} node The node
+         * @param {Object} parent Its parent
+         * @returns {Boolean} If it is in a boolean context
+         */
+        function isInBooleanContext(node, parent) {
+            return (
+                (BOOLEAN_NODE_TYPES.indexOf(parent.type) !== -1 &&
+                    node === parent.test) ||
 
-            // while (<bool>) ...
-            } else if (grandparent.type === "WhileStatement") {
-                context.report(node, "Redundant double negation in a while loop condition.");
-
-            // <bool> ? ... : ...
-            } else if ((grandparent.type === "ConditionalExpression" &&
-                    parent === grandparent.test)) {
-                context.report(node, "Redundant double negation in a ternary condition.");
-
-            // for (...; <bool>; ...) ...
-            } else if ((grandparent.type === "ForStatement" &&
-                    parent === grandparent.test)) {
-                context.report(node, "Redundant double negation in a for loop condition.");
-
-            // !<bool>
-            } else if ((grandparent.type === "UnaryExpression" &&
-                    grandparent.operator === "!")) {
-                context.report(node, "Redundant multiple negation.");
-
-            // Boolean(<bool>)
-            } else if ((grandparent.type === "CallExpression" &&
-                    grandparent.callee.type === "Identifier" &&
-                    grandparent.callee.name === "Boolean")) {
-                context.report(node, "Redundant double negation in call to Boolean().");
-
-            // new Boolean(<bool>)
-            } else if ((grandparent.type === "NewExpression" &&
-                    grandparent.callee.type === "Identifier" &&
-                    grandparent.callee.name === "Boolean")) {
-                context.report(node, "Redundant double negation in Boolean constructor call.");
-            }
+                // !<bool>
+                (parent.type === "UnaryExpression" &&
+                    parent.operator === "!")
+            );
         }
-    };
 
+
+        return {
+            UnaryExpression: function(node) {
+                var ancestors = context.getAncestors(),
+                    parent = ancestors.pop(),
+                    grandparent = ancestors.pop();
+
+                // Exit early if it's guaranteed not to match
+                if (node.operator !== "!" ||
+                        parent.type !== "UnaryExpression" ||
+                        parent.operator !== "!") {
+                    return;
+                }
+
+                if (isInBooleanContext(parent, grandparent) ||
+
+                    // Boolean(<bool>) and new Boolean(<bool>)
+                    ((grandparent.type === "CallExpression" || grandparent.type === "NewExpression") &&
+                        grandparent.callee.type === "Identifier" &&
+                        grandparent.callee.name === "Boolean")
+                ) {
+                    context.report(node, "Redundant double negation.");
+                }
+            },
+            CallExpression: function(node) {
+                var parent = node.parent;
+
+                if (node.callee.type !== "Identifier" || node.callee.name !== "Boolean") {
+                    return;
+                }
+
+                if (isInBooleanContext(node, parent)) {
+                    context.report(node, "Redundant Boolean call.");
+                }
+            }
+        };
+
+    }
 };
-
-module.exports.schema = [];

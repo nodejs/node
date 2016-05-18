@@ -238,14 +238,14 @@ Object.keys(styles).forEach(function (style) {
     , r = reset[style]
 
   Cursor.prototype[style] = function () {
-    if (this[name]) return
+    if (this[name]) return this
     this.enabled && this.write(prefix + c + suffix)
     this[name] = true
     return this
   }
 
   Cursor.prototype['reset' + name] = function () {
-    if (!this[name]) return
+    if (!this[name]) return this
     this.enabled && this.write(prefix + r + suffix)
     this[name] = false
     return this

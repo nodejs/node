@@ -7,7 +7,7 @@
 #define V8_MIPS_CODEGEN_MIPS_H_
 
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -46,6 +46,7 @@ class MathExpGenerator : public AllStatic {
   DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_MIPS_CODEGEN_MIPS_H_

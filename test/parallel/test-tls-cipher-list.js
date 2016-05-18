@@ -2,19 +2,19 @@
 const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 
 const assert = require('assert');
 const spawn = require('child_process').spawn;
-const defaultCoreList = require('constants').defaultCoreCipherList;
+const defaultCoreList = require('crypto').constants.defaultCoreCipherList;
 
 function doCheck(arg, check) {
   var out = '';
-  var arg = arg.concat([
+  arg = arg.concat([
     '-pe',
-    'require("constants").defaultCipherList'
+    'require("crypto").constants.defaultCipherList'
   ]);
   spawn(process.execPath, arg, {}).
     on('error', common.fail).

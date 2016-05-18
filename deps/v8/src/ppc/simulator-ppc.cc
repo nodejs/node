@@ -15,6 +15,7 @@
 #include "src/ppc/constants-ppc.h"
 #include "src/ppc/frames-ppc.h"
 #include "src/ppc/simulator-ppc.h"
+#include "src/runtime/runtime-utils.h"
 
 #if defined(USE_SIMULATOR)
 
@@ -164,7 +165,7 @@ bool PPCDebugger::GetValue(const char* desc, intptr_t* value) {
 
 
 bool PPCDebugger::GetFPDoubleValue(const char* desc, double* value) {
-  int regnum = FPRegisters::Number(desc);
+  int regnum = DoubleRegisters::Number(desc);
   if (regnum != kNoRegister) {
     *value = sim_->get_double_from_d_register(regnum);
     return true;
@@ -313,7 +314,8 @@ void PPCDebugger::Debug() {
           if (strcmp(arg1, "all") == 0) {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
-              PrintF("    %3s: %08" V8PRIxPTR, Registers::Name(i), value);
+              PrintF("    %3s: %08" V8PRIxPTR,
+                     Register::from_code(i).ToString(), value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -332,7 +334,7 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
               PrintF("     %3s: %08" V8PRIxPTR " %11" V8PRIdPTR,
-                     Registers::Name(i), value, value);
+                     Register::from_code(i).ToString(), value, value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -351,7 +353,8 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < DoubleRegister::kNumRegisters; i++) {
               dvalue = GetFPDoubleRegisterValue(i);
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
-              PrintF("%3s: %f 0x%08x %08x\n", FPRegisters::Name(i), dvalue,
+              PrintF("%3s: %f 0x%08x %08x\n",
+                     DoubleRegister::from_code(i).ToString(), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
                      static_cast<uint32_t>(as_words & 0xffffffff));
             }
@@ -443,8 +446,9 @@ void PPCDebugger::Debug() {
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           intptr_t value = *cur;
-          Heap* current_heap = v8::internal::Isolate::Current()->heap();
-          if (((value & 1) == 0) || current_heap->Contains(obj)) {
+          Heap* current_heap = sim_->isolate_->heap();
+          if (((value & 1) == 0) ||
+              current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & 1) == 0) {
               PrintF("smi %d", PlatformSmiTagging::SmiToInt(obj));
@@ -842,29 +846,37 @@ Simulator::~Simulator() { free(stack_); }
 // offset from the svc instruction so the simulator knows what to call.
 class Redirection {
  public:
-  Redirection(void* external_function, ExternalReference::Type type)
+  Redirection(Isolate* isolate, void* external_function,
+              ExternalReference::Type type)
       : external_function_(external_function),
         swi_instruction_(rtCallRedirInstr | kCallRtRedirected),
         type_(type),
         next_(NULL) {
-    Isolate* isolate = Isolate::Current();
     next_ = isolate->simulator_redirection();
     Simulator::current(isolate)->FlushICache(
         isolate->simulator_i_cache(),
         reinterpret_cast<void*>(&swi_instruction_), Instruction::kInstrSize);
     isolate->set_simulator_redirection(this);
+    if (ABI_USES_FUNCTION_DESCRIPTORS) {
+      function_descriptor_[0] = reinterpret_cast<intptr_t>(&swi_instruction_);
+      function_descriptor_[1] = 0;
+      function_descriptor_[2] = 0;
+    }
   }
 
-  void* address_of_swi_instruction() {
-    return reinterpret_cast<void*>(&swi_instruction_);
+  void* address() {
+    if (ABI_USES_FUNCTION_DESCRIPTORS) {
+      return reinterpret_cast<void*>(function_descriptor_);
+    } else {
+      return reinterpret_cast<void*>(&swi_instruction_);
+    }
   }
 
   void* external_function() { return external_function_; }
   ExternalReference::Type type() { return type_; }
 
-  static Redirection* Get(void* external_function,
+  static Redirection* Get(Isolate* isolate, void* external_function,
                           ExternalReference::Type type) {
-    Isolate* isolate = Isolate::Current();
     Redirection* current = isolate->simulator_redirection();
     for (; current != NULL; current = current->next_) {
       if (current->external_function_ == external_function) {
@@ -872,7 +884,7 @@ class Redirection {
         return current;
       }
     }
-    return new Redirection(external_function, type);
+    return new Redirection(isolate, external_function, type);
   }
 
   static Redirection* FromSwiInstruction(Instruction* swi_instruction) {
@@ -882,9 +894,16 @@ class Redirection {
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
+  static Redirection* FromAddress(void* address) {
+    int delta = ABI_USES_FUNCTION_DESCRIPTORS
+                    ? offsetof(Redirection, function_descriptor_)
+                    : offsetof(Redirection, swi_instruction_);
+    char* addr_of_redirection = reinterpret_cast<char*>(address) - delta;
+    return reinterpret_cast<Redirection*>(addr_of_redirection);
+  }
+
   static void* ReverseRedirection(intptr_t reg) {
-    Redirection* redirection = FromSwiInstruction(
-        reinterpret_cast<Instruction*>(reinterpret_cast<void*>(reg)));
+    Redirection* redirection = FromAddress(reinterpret_cast<void*>(reg));
     return redirection->external_function();
   }
 
@@ -901,6 +920,7 @@ class Redirection {
   uint32_t swi_instruction_;
   ExternalReference::Type type_;
   Redirection* next_;
+  intptr_t function_descriptor_[3];
 };
 
 
@@ -917,10 +937,11 @@ void Simulator::TearDown(HashMap* i_cache, Redirection* first) {
 }
 
 
-void* Simulator::RedirectExternalReference(void* external_function,
+void* Simulator::RedirectExternalReference(Isolate* isolate,
+                                           void* external_function,
                                            ExternalReference::Type type) {
-  Redirection* redirection = Redirection::Get(external_function, type);
-  return redirection->address_of_swi_instruction();
+  Redirection* redirection = Redirection::Get(isolate, external_function, type);
+  return redirection->address();
 }
 
 
@@ -1169,20 +1190,11 @@ bool Simulator::OverflowFrom(int32_t alu_out, int32_t left, int32_t right,
 
 
 #if V8_TARGET_ARCH_PPC64
-struct ObjectPair {
-  intptr_t x;
-  intptr_t y;
-};
-
-
 static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
-  *x = pair->x;
-  *y = pair->y;
+  *x = reinterpret_cast<intptr_t>(pair->x);
+  *y = reinterpret_cast<intptr_t>(pair->y);
 }
 #else
-typedef uint64_t ObjectPair;
-
-
 static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
 #if V8_TARGET_BIG_ENDIAN
   *x = static_cast<int32_t>(*pair >> 32);
@@ -1194,16 +1206,17 @@ static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
 }
 #endif
 
-// Calls into the V8 runtime are based on this very simple interface.
-// Note: To be able to return two values from some calls the code in
-// runtime.cc uses the ObjectPair which is essentially two pointer
-// values stuffed into a structure. With the code below we assume that
-// all runtime calls return this pair. If they don't, the r4 result
-// register contains a bogus value, which is fine because it is
-// caller-saved.
-typedef ObjectPair (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
-                                           intptr_t arg2, intptr_t arg3,
-                                           intptr_t arg4, intptr_t arg5);
+// Calls into the V8 runtime.
+typedef intptr_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
+                                         intptr_t arg2, intptr_t arg3,
+                                         intptr_t arg4, intptr_t arg5);
+typedef ObjectPair (*SimulatorRuntimePairCall)(intptr_t arg0, intptr_t arg1,
+                                               intptr_t arg2, intptr_t arg3,
+                                               intptr_t arg4, intptr_t arg5);
+typedef ObjectTriple (*SimulatorRuntimeTripleCall)(intptr_t arg0, intptr_t arg1,
+                                                   intptr_t arg2, intptr_t arg3,
+                                                   intptr_t arg4,
+                                                   intptr_t arg5);
 
 // These prototypes handle the four types of FP calls.
 typedef int (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
@@ -1235,13 +1248,15 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       Redirection* redirection = Redirection::FromSwiInstruction(instr);
       const int kArgCount = 6;
       int arg0_regnum = 3;
-#if !ABI_RETURNS_OBJECT_PAIRS_IN_REGS
       intptr_t result_buffer = 0;
-      if (redirection->type() == ExternalReference::BUILTIN_OBJECTPAIR_CALL) {
+      bool uses_result_buffer =
+          redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE ||
+          (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR &&
+           !ABI_RETURNS_OBJECT_PAIRS_IN_REGS);
+      if (uses_result_buffer) {
         result_buffer = get_register(r3);
         arg0_regnum++;
       }
-#endif
       intptr_t arg[kArgCount];
       for (int i = 0; i < kArgCount; i++) {
         arg[i] = get_register(arg0_regnum + i);
@@ -1387,9 +1402,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-#if !ABI_PASSES_HANDLES_IN_REGS
-        arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
-#endif
+        if (!ABI_PASSES_HANDLES_IN_REGS) {
+          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+        }
         target(arg[0], arg[1]);
       } else if (redirection->type() ==
                  ExternalReference::PROFILING_GETTER_CALL) {
@@ -1406,9 +1421,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-#if !ABI_PASSES_HANDLES_IN_REGS
-        arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
-#endif
+        if (!ABI_PASSES_HANDLES_IN_REGS) {
+          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+        }
         target(arg[0], arg[1], Redirection::ReverseRedirection(arg[2]));
       } else {
         // builtin call.
@@ -1428,19 +1443,53 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
-        SimulatorRuntimeCall target =
-            reinterpret_cast<SimulatorRuntimeCall>(external);
-        ObjectPair result =
-            target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
-        intptr_t x;
-        intptr_t y;
-        decodeObjectPair(&result, &x, &y);
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Returned {%08" V8PRIxPTR ", %08" V8PRIxPTR "}\n", x, y);
+        if (redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE) {
+          SimulatorRuntimeTripleCall target =
+              reinterpret_cast<SimulatorRuntimeTripleCall>(external);
+          ObjectTriple result =
+              target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+          if (::v8::internal::FLAG_trace_sim) {
+            PrintF("Returned {%08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
+                   "}\n",
+                   reinterpret_cast<intptr_t>(result.x),
+                   reinterpret_cast<intptr_t>(result.y),
+                   reinterpret_cast<intptr_t>(result.z));
+          }
+          memcpy(reinterpret_cast<void*>(result_buffer), &result,
+                 sizeof(ObjectTriple));
+          set_register(r3, result_buffer);
+        } else {
+          if (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR) {
+            SimulatorRuntimePairCall target =
+                reinterpret_cast<SimulatorRuntimePairCall>(external);
+            ObjectPair result =
+                target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+            intptr_t x;
+            intptr_t y;
+            decodeObjectPair(&result, &x, &y);
+            if (::v8::internal::FLAG_trace_sim) {
+              PrintF("Returned {%08" V8PRIxPTR ", %08" V8PRIxPTR "}\n", x, y);
+            }
+            if (ABI_RETURNS_OBJECT_PAIRS_IN_REGS) {
+              set_register(r3, x);
+              set_register(r4, y);
+            } else {
+              memcpy(reinterpret_cast<void*>(result_buffer), &result,
+                     sizeof(ObjectPair));
+              set_register(r3, result_buffer);
+            }
+          } else {
+            DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
+            SimulatorRuntimeCall target =
+                reinterpret_cast<SimulatorRuntimeCall>(external);
+            intptr_t result =
+                target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+            if (::v8::internal::FLAG_trace_sim) {
+              PrintF("Returned %08" V8PRIxPTR "\n", result);
+            }
+            set_register(r3, result);
+          }
         }
-        set_register(r3, x);
-        set_register(r4, y);
       }
       set_pc(saved_lr);
       break;
@@ -1847,6 +1896,36 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
         }
         break;
     }
+    case POPCNTW: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uintptr_t rs_val = get_register(rs);
+      uintptr_t count = 0;
+      int n = 0;
+      uintptr_t bit = 0x80000000;
+      for (; n < 32; n++) {
+        if (bit & rs_val) count++;
+        bit >>= 1;
+      }
+      set_register(ra, count);
+      break;
+    }
+#if V8_TARGET_ARCH_PPC64
+    case POPCNTD: {
+      int rs = instr->RSValue();
+      int ra = instr->RAValue();
+      uintptr_t rs_val = get_register(rs);
+      uintptr_t count = 0;
+      int n = 0;
+      uintptr_t bit = 0x8000000000000000UL;
+      for (; n < 64; n++) {
+        if (bit & rs_val) count++;
+        bit >>= 1;
+      }
+      set_register(ra, count);
+      break;
+    }
+#endif
     case SYNC: {
       // todo - simulate sync
       break;
@@ -2663,6 +2742,32 @@ void Simulator::ExecuteExt2(Instruction* instr) {
 }
 
 
+void Simulator::ExecuteExt3(Instruction* instr) {
+  int opcode = instr->Bits(10, 1) << 1;
+  switch (opcode) {
+    case FCFID: {
+      // fcfids
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      int64_t frb_val = get_d_register(frb);
+      double frt_val = static_cast<float>(frb_val);
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+    case FCFIDU: {
+      // fcfidus
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      uint64_t frb_val = get_d_register(frb);
+      double frt_val = static_cast<float>(frb_val);
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+  }
+  UNIMPLEMENTED();  // Not used by V8.
+}
+
+
 void Simulator::ExecuteExt4(Instruction* instr) {
   switch (instr->Bits(5, 1) << 1) {
     case FDIV: {
@@ -2696,10 +2801,11 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       return;
     }
     case FSQRT: {
+      lazily_initialize_fast_sqrt(isolate_);
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = fast_sqrt(frb_val);
+      double frt_val = fast_sqrt(frb_val, isolate_);
       set_d_register_from_double(frt, frt_val);
       return;
     }
@@ -2836,64 +2942,107 @@ void Simulator::ExecuteExt4(Instruction* instr) {
     case FCFID: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
-      double t_val = get_double_from_d_register(frb);
-      int64_t* frb_val_p = reinterpret_cast<int64_t*>(&t_val);
-      double frt_val = static_cast<double>(*frb_val_p);
+      int64_t frb_val = get_d_register(frb);
+      double frt_val = static_cast<double>(frb_val);
       set_d_register_from_double(frt, frt_val);
       return;
     }
-    case FCTID: {
+    case FCFIDU: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
-      double frb_val = get_double_from_d_register(frb);
-      int64_t frt_val;
-      int64_t one = 1;  // work-around gcc
-      int64_t kMinLongLong = (one << 63);
-      int64_t kMaxLongLong = kMinLongLong - 1;
-
-      if (frb_val > kMaxLongLong) {
-        frt_val = kMaxLongLong;
-      } else if (frb_val < kMinLongLong) {
-        frt_val = kMinLongLong;
-      } else {
-        switch (fp_condition_reg_ & kFPRoundingModeMask) {
-          case kRoundToZero:
-            frt_val = (int64_t)frb_val;
-            break;
-          case kRoundToPlusInf:
-            frt_val = (int64_t)std::ceil(frb_val);
-            break;
-          case kRoundToMinusInf:
-            frt_val = (int64_t)std::floor(frb_val);
-            break;
-          default:
-            frt_val = (int64_t)frb_val;
-            UNIMPLEMENTED();  // Not used by V8.
-            break;
-        }
-      }
-      double* p = reinterpret_cast<double*>(&frt_val);
-      set_d_register_from_double(frt, *p);
+      uint64_t frb_val = get_d_register(frb);
+      double frt_val = static_cast<double>(frb_val);
+      set_d_register_from_double(frt, frt_val);
       return;
     }
+    case FCTID:
     case FCTIDZ: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
+      int mode = (opcode == FCTIDZ) ? kRoundToZero
+                                    : (fp_condition_reg_ & kFPRoundingModeMask);
       int64_t frt_val;
       int64_t one = 1;  // work-around gcc
-      int64_t kMinLongLong = (one << 63);
-      int64_t kMaxLongLong = kMinLongLong - 1;
+      int64_t kMinVal = (one << 63);
+      int64_t kMaxVal = kMinVal - 1;
+      bool invalid_convert = false;
 
-      if (frb_val > kMaxLongLong) {
-        frt_val = kMaxLongLong;
-      } else if (frb_val < kMinLongLong) {
-        frt_val = kMinLongLong;
+      if (std::isnan(frb_val)) {
+        frt_val = kMinVal;
+        invalid_convert = true;
       } else {
-        frt_val = (int64_t)frb_val;
+        switch (mode) {
+          case kRoundToZero:
+            frb_val = std::trunc(frb_val);
+            break;
+          case kRoundToPlusInf:
+            frb_val = std::ceil(frb_val);
+            break;
+          case kRoundToMinusInf:
+            frb_val = std::floor(frb_val);
+            break;
+          default:
+            UNIMPLEMENTED();  // Not used by V8.
+            break;
+        }
+        if (frb_val < static_cast<double>(kMinVal)) {
+          frt_val = kMinVal;
+          invalid_convert = true;
+        } else if (frb_val >= static_cast<double>(kMaxVal)) {
+          frt_val = kMaxVal;
+          invalid_convert = true;
+        } else {
+          frt_val = (int64_t)frb_val;
+        }
       }
-      double* p = reinterpret_cast<double*>(&frt_val);
-      set_d_register_from_double(frt, *p);
+      set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
+      return;
+    }
+    case FCTIDU:
+    case FCTIDUZ: {
+      int frt = instr->RTValue();
+      int frb = instr->RBValue();
+      double frb_val = get_double_from_d_register(frb);
+      int mode = (opcode == FCTIDUZ)
+                     ? kRoundToZero
+                     : (fp_condition_reg_ & kFPRoundingModeMask);
+      uint64_t frt_val;
+      uint64_t kMinVal = 0;
+      uint64_t kMaxVal = kMinVal - 1;
+      bool invalid_convert = false;
+
+      if (std::isnan(frb_val)) {
+        frt_val = kMinVal;
+        invalid_convert = true;
+      } else {
+        switch (mode) {
+          case kRoundToZero:
+            frb_val = std::trunc(frb_val);
+            break;
+          case kRoundToPlusInf:
+            frb_val = std::ceil(frb_val);
+            break;
+          case kRoundToMinusInf:
+            frb_val = std::floor(frb_val);
+            break;
+          default:
+            UNIMPLEMENTED();  // Not used by V8.
+            break;
+        }
+        if (frb_val < static_cast<double>(kMinVal)) {
+          frt_val = kMinVal;
+          invalid_convert = true;
+        } else if (frb_val >= static_cast<double>(kMaxVal)) {
+          frt_val = kMaxVal;
+          invalid_convert = true;
+        } else {
+          frt_val = (uint64_t)frb_val;
+        }
+      }
+      set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
       return;
     }
     case FCTIW:
@@ -2901,44 +3050,47 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
+      int mode = (opcode == FCTIWZ) ? kRoundToZero
+                                    : (fp_condition_reg_ & kFPRoundingModeMask);
       int64_t frt_val;
-      if (frb_val > kMaxInt) {
-        frt_val = kMaxInt;
-      } else if (frb_val < kMinInt) {
-        frt_val = kMinInt;
+      int64_t kMinVal = kMinInt;
+      int64_t kMaxVal = kMaxInt;
+
+      if (std::isnan(frb_val)) {
+        frt_val = kMinVal;
       } else {
-        if (opcode == FCTIWZ) {
-          frt_val = (int64_t)frb_val;
-        } else {
-          switch (fp_condition_reg_ & kFPRoundingModeMask) {
-            case kRoundToZero:
-              frt_val = (int64_t)frb_val;
-              break;
-            case kRoundToPlusInf:
-              frt_val = (int64_t)std::ceil(frb_val);
-              break;
-            case kRoundToMinusInf:
-              frt_val = (int64_t)std::floor(frb_val);
-              break;
-            case kRoundToNearest:
-              frt_val = (int64_t)lround(frb_val);
-
-              // Round to even if exactly halfway.  (lround rounds up)
-              if (std::fabs(static_cast<double>(frt_val) - frb_val) == 0.5 &&
-                  (frt_val % 2)) {
-                frt_val += ((frt_val > 0) ? -1 : 1);
-              }
-
-              break;
-            default:
-              DCHECK(false);
-              frt_val = (int64_t)frb_val;
-              break;
+        switch (mode) {
+          case kRoundToZero:
+            frb_val = std::trunc(frb_val);
+            break;
+          case kRoundToPlusInf:
+            frb_val = std::ceil(frb_val);
+            break;
+          case kRoundToMinusInf:
+            frb_val = std::floor(frb_val);
+            break;
+          case kRoundToNearest: {
+            double orig = frb_val;
+            frb_val = lround(frb_val);
+            // Round to even if exactly halfway.  (lround rounds up)
+            if (std::fabs(frb_val - orig) == 0.5 && ((int64_t)frb_val % 2)) {
+              frb_val += ((frb_val > 0) ? -1.0 : 1.0);
+            }
+            break;
           }
+          default:
+            UNIMPLEMENTED();  // Not used by V8.
+            break;
+        }
+        if (frb_val < kMinVal) {
+          frt_val = kMinVal;
+        } else if (frb_val > kMaxVal) {
+          frt_val = kMaxVal;
+        } else {
+          frt_val = (int64_t)frb_val;
         }
       }
-      double* p = reinterpret_cast<double*>(&frt_val);
-      set_d_register_from_double(frt, *p);
+      set_d_register(frt, frt_val);
       return;
     }
     case FNEG: {
@@ -2989,6 +3141,43 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       int frt = instr->RTValue();
       int64_t lval = static_cast<int64_t>(fp_condition_reg_);
       set_d_register(frt, lval);
+      return;
+    }
+    case MCRFS: {
+      int bf = instr->Bits(25, 23);
+      int bfa = instr->Bits(20, 18);
+      int cr_shift = (7 - bf) * CRWIDTH;
+      int fp_shift = (7 - bfa) * CRWIDTH;
+      int field_val = (fp_condition_reg_ >> fp_shift) & 0xf;
+      condition_reg_ &= ~(0x0f << cr_shift);
+      condition_reg_ |= (field_val << cr_shift);
+      // Clear copied exception bits
+      switch (bfa) {
+        case 5:
+          ClearFPSCR(VXSOFT);
+          ClearFPSCR(VXSQRT);
+          ClearFPSCR(VXCVI);
+          break;
+        default:
+          UNIMPLEMENTED();
+          break;
+      }
+      return;
+    }
+    case MTFSB0: {
+      int bt = instr->Bits(25, 21);
+      ClearFPSCR(bt);
+      if (instr->Bit(0)) {  // RC bit set
+        UNIMPLEMENTED();
+      }
+      return;
+    }
+    case MTFSB1: {
+      int bt = instr->Bits(25, 21);
+      SetFPSCR(bt);
+      if (instr->Bit(0)) {  // RC bit set
+        UNIMPLEMENTED();
+      }
       return;
     }
     case FABS: {
@@ -3578,8 +3767,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 
-    case EXT3:
-      UNIMPLEMENTED();
+    case EXT3: {
+      ExecuteExt3(instr);
+      break;
+    }
     case EXT4: {
       ExecuteExt4(instr);
       break;
@@ -3708,14 +3899,19 @@ void Simulator::CallInternal(byte* entry) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
-// Prepare to execute the code at entry
-#if ABI_USES_FUNCTION_DESCRIPTORS
-  // entry is the function descriptor
-  set_pc(*(reinterpret_cast<intptr_t*>(entry)));
-#else
-  // entry is the instruction address
-  set_pc(reinterpret_cast<intptr_t>(entry));
-#endif
+  // Prepare to execute the code at entry
+  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+    // entry is the function descriptor
+    set_pc(*(reinterpret_cast<intptr_t*>(entry)));
+  } else {
+    // entry is the instruction address
+    set_pc(reinterpret_cast<intptr_t>(entry));
+  }
+
+  if (ABI_CALL_VIA_IP) {
+    // Put target address in ip (for JS prologue).
+    set_register(r12, get_pc());
+  }
 
   // Put down marker for end of simulation. The simulator will stop simulation
   // when the PC reaches this value. By saving the "end simulation" value into
@@ -3772,8 +3968,12 @@ void Simulator::CallInternal(byte* entry) {
   Execute();
 
   // Check that the non-volatile registers have been preserved.
-  CHECK_EQ(callee_saved_value, get_register(r2));
-  CHECK_EQ(callee_saved_value, get_register(r13));
+  if (ABI_TOC_REGISTER != 2) {
+    CHECK_EQ(callee_saved_value, get_register(r2));
+  }
+  if (ABI_TOC_REGISTER != 13) {
+    CHECK_EQ(callee_saved_value, get_register(r13));
+  }
   CHECK_EQ(callee_saved_value, get_register(r14));
   CHECK_EQ(callee_saved_value, get_register(r15));
   CHECK_EQ(callee_saved_value, get_register(r16));

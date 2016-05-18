@@ -31,7 +31,8 @@ void RelocInfo::set_target_address(Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, host_, target, icache_flush_mode);
+  Assembler::set_target_address_at(isolate_, pc_, host_, target,
+                                   icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
       IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
@@ -41,7 +42,7 @@ void RelocInfo::set_target_address(Address target,
 }
 
 
-inline unsigned CPURegister::code() const {
+inline int CPURegister::code() const {
   DCHECK(IsValid());
   return reg_code;
 }
@@ -54,12 +55,12 @@ inline CPURegister::RegisterType CPURegister::type() const {
 
 
 inline RegList CPURegister::Bit() const {
-  DCHECK(reg_code < (sizeof(RegList) * kBitsPerByte));
+  DCHECK(static_cast<size_t>(reg_code) < (sizeof(RegList) * kBitsPerByte));
   return IsValid() ? 1UL << reg_code : 0;
 }
 
 
-inline unsigned CPURegister::SizeInBits() const {
+inline int CPURegister::SizeInBits() const {
   DCHECK(IsValid());
   return reg_size;
 }
@@ -648,24 +649,24 @@ Address Assembler::return_address_from_call_start(Address pc) {
 
 
 void Assembler::deserialization_set_special_target_at(
-    Address constant_pool_entry, Code* code, Address target) {
+    Isolate* isolate, Address constant_pool_entry, Code* code, Address target) {
   Memory::Address_at(constant_pool_entry) = target;
 }
 
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
+    Isolate* isolate, Address pc, Address target, RelocInfo::Mode mode) {
   Memory::Address_at(pc) = target;
 }
 
 
-void Assembler::set_target_address_at(Address pc, Address constant_pool,
-                                      Address target,
+void Assembler::set_target_address_at(Isolate* isolate, Address pc,
+                                      Address constant_pool, Address target,
                                       ICacheFlushMode icache_flush_mode) {
   Memory::Address_at(target_pointer_address_at(pc)) = target;
   // Intuitively, we would think it is necessary to always flush the
   // instruction cache after patching a target address in the code as follows:
-  //   Assembler::FlushICacheWithoutIsolate(pc, sizeof(target));
+  //   Assembler::FlushICache(isolate(), pc, sizeof(target));
   // However, on ARM, an instruction is actually patched in the case of
   // embedded constants of the form:
   // ldr   ip, [pc, #...]
@@ -674,12 +675,11 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
 }
 
 
-void Assembler::set_target_address_at(Address pc,
-                                      Code* code,
+void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
   Address constant_pool = code ? code->constant_pool() : NULL;
-  set_target_address_at(pc, constant_pool, target, icache_flush_mode);
+  set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
 }
 
 
@@ -725,14 +725,14 @@ void RelocInfo::set_target_object(Object* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(pc_, host_,
+  Assembler::set_target_address_at(isolate_, pc_, host_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), &Memory::Object_at(pc_), HeapObject::cast(target));
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target));
   }
 }
 
@@ -832,7 +832,7 @@ Address RelocInfo::debug_call_address() {
 void RelocInfo::set_debug_call_address(Address target) {
   DCHECK(IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence());
   STATIC_ASSERT(Assembler::kPatchDebugBreakSlotAddressOffset == 0);
-  Assembler::set_target_address_at(pc_, host_, target);
+  Assembler::set_target_address_at(isolate_, pc_, host_, target);
   if (host() != NULL) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -848,26 +848,8 @@ void RelocInfo::WipeOut() {
   if (IsInternalReference(rmode_)) {
     Memory::Address_at(pc_) = NULL;
   } else {
-    Assembler::set_target_address_at(pc_, host_, NULL);
+    Assembler::set_target_address_at(isolate_, pc_, host_, NULL);
   }
-}
-
-
-bool RelocInfo::IsPatchedReturnSequence() {
-  // The sequence must be:
-  //   ldr ip0, [pc, #offset]
-  //   blr ip0
-  // See arm64/debug-arm64.cc DebugCodegen::PatchDebugBreakSlot
-  Instruction* i1 = reinterpret_cast<Instruction*>(pc_);
-  Instruction* i2 = i1->following();
-  return i1->IsLdrLiteralX() && (i1->Rt() == kIp0Code) &&
-         i2->IsBranchAndLinkToRegister() && (i2->Rn() == kIp0Code);
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  Instruction* current_instr = reinterpret_cast<Instruction*>(pc_);
-  return !current_instr->IsNop(Assembler::DEBUG_BREAK_NOP);
 }
 
 
@@ -1259,6 +1241,7 @@ void Assembler::ClearRecordedAstId() {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_ASSEMBLER_ARM64_INL_H_

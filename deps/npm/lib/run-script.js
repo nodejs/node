@@ -6,9 +6,12 @@ var path = require('path')
 var readJson = require('read-package-json')
 var log = require('npmlog')
 var chain = require('slide').chain
+var usage = require('./utils/usage')
 
-runScript.usage = 'npm run-script <command> [-- <args>...]' +
-                  '\n\nalias: npm run'
+runScript.usage = usage(
+  'run-script',
+  'npm run-script <command> [-- <args>...]'
+)
 
 runScript.completion = function (opts, cb) {
   // see if there's already a package specified.

@@ -13,7 +13,7 @@ var cachedPackageRoot = require('./cached-package-root.js')
 var chownr = require('chownr')
 var inflight = require('inflight')
 var once = require('once')
-var writeStream = require('fs-write-stream-atomic')
+var writeStreamAtomic = require('fs-write-stream-atomic')
 var tempFilename = require('../utils/temp-filename.js')
 var rimraf = require('rimraf')
 var packageId = require('../utils/package-id.js')
@@ -162,7 +162,7 @@ function addTmpTarball_ (tgz, data, shasum, cb) {
 
       if (er) return cb(er)
       var read = fs.createReadStream(tgz)
-      var write = writeStream(target, { mode: npm.modes.file })
+      var write = writeStreamAtomic(target, { mode: npm.modes.file })
       var fin = cs.uid && cs.gid ? chown : done
       read.on('error', cb).pipe(write).on('error', cb).on('close', fin)
     })

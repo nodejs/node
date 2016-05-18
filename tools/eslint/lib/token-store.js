@@ -1,8 +1,6 @@
 /**
  * @fileoverview Object to handle access and retrieval of tokens.
  * @author Brandon Mills
- * @copyright 2014 Nicholas C. Zakas. All rights reserved.
- * @copyright 2014 Brandon Mills. All rights reserved.
  */
 "use strict";
 
@@ -76,6 +74,7 @@ module.exports = function(tokens) {
      */
     api.getTokensBefore = function(node, beforeCount) {
         var first = starts[node.range[0]];
+
         return get(first - (beforeCount || 0), first);
     };
 
@@ -100,6 +99,7 @@ module.exports = function(tokens) {
      */
     api.getTokensAfter = function(node, afterCount) {
         var start = lastTokenIndex(node) + 1;
+
         return get(start, start + (afterCount || 0));
     };
 
@@ -136,6 +136,7 @@ module.exports = function(tokens) {
      */
     api.getFirstTokens = function(node, count) {
         var first = starts[node.range[0]];
+
         return get(
             first,
             Math.min(lastTokenIndex(node) + 1, first + (count || 0))
@@ -160,6 +161,7 @@ module.exports = function(tokens) {
      */
     api.getLastTokens = function(node, count) {
         var last = lastTokenIndex(node) + 1;
+
         return get(Math.max(starts[node.range[0]], last - (count || 0)), last);
     };
 

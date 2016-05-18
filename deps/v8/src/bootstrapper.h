@@ -61,7 +61,7 @@ class SourceCodeCache final BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
-enum ContextType { FULL_CONTEXT, THIN_CONTEXT, DEBUG_CONTEXT };
+enum GlobalContextType { FULL_CONTEXT, THIN_CONTEXT, DEBUG_CONTEXT };
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
@@ -80,9 +80,7 @@ class Bootstrapper final {
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions,
-      ContextType context_type = FULL_CONTEXT);
-
-  bool CreateCodeStubContext(Isolate* isolate);
+      GlobalContextType context_type = FULL_CONTEXT);
 
   // Detach the environment from its outer global object.
   void DetachGlobal(Handle<Context> env);
@@ -110,14 +108,12 @@ class Bootstrapper final {
   SourceCodeCache* extensions_cache() { return &extensions_cache_; }
 
   static bool CompileNative(Isolate* isolate, Vector<const char> name,
-                            Handle<JSObject> receiver, Handle<String> source,
-                            int argc, Handle<Object> argv[]);
+                            Handle<String> source, int argc,
+                            Handle<Object> argv[], NativesFlag natives_flag);
   static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
   static bool CompileExtraBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalExtraBuiltin(Isolate* isolate, int index);
-  static bool CompileCodeStubBuiltin(Isolate* isolate, int index);
-  static bool InstallCodeStubNatives(Isolate* isolate);
 
   static void ExportFromRuntime(Isolate* isolate, Handle<JSObject> container);
   static void ExportExperimentalFromRuntime(Isolate* isolate,
@@ -176,6 +172,7 @@ class NativesExternalStringResource final
   size_t length_;
 };
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_BOOTSTRAPPER_H_

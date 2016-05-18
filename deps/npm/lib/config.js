@@ -1,13 +1,4 @@
-
 module.exports = config
-
-config.usage = 'npm config set <key> <value>' +
-               '\nnpm config get [<key>]' +
-               '\nnpm config delete <key>' +
-               '\nnpm config list' +
-               '\nnpm config edit' +
-               '\nnpm set <key> <value>' +
-               '\nnpm get [<key>]'
 
 var log = require('npmlog')
 var npm = require('./npm.js')
@@ -19,7 +10,18 @@ var ini = require('ini')
 var editor = require('editor')
 var os = require('os')
 var umask = require('./utils/umask')
+var usage = require('./utils/usage')
 
+config.usage = usage(
+  'config',
+  'npm config set <key> <value>' +
+  '\nnpm config get [<key>]' +
+  '\nnpm config delete <key>' +
+  '\nnpm config list' +
+  '\nnpm config edit' +
+  '\nnpm set <key> <value>' +
+  '\nnpm get [<key>]'
+)
 config.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
   if (argv[1] !== 'config') argv.unshift('config')
@@ -191,6 +193,25 @@ function list (cb) {
         msg += '; ' + k + ' = ' +
           JSON.stringify(env[k]) + ' (overridden)\n'
       } else msg += k + ' = ' + JSON.stringify(env[k]) + '\n'
+    })
+    msg += '\n'
+  }
+
+  // project config file
+  var project = npm.config.sources.project
+  var pconf = project.data
+  var ppath = project.path
+  var pconfKeys = getKeys(pconf)
+  if (pconfKeys.length) {
+    msg += '; project config ' + ppath + '\n'
+    pconfKeys.forEach(function (k) {
+      var val = (k.charAt(0) === '_')
+              ? '---sekretz---'
+              : JSON.stringify(pconf[k])
+      if (pconf[k] !== npm.config.get(k)) {
+        if (!long) return
+        msg += '; ' + k + ' = ' + val + ' (overridden)\n'
+      } else msg += k + ' = ' + val + '\n'
     })
     msg += '\n'
   }

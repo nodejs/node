@@ -1,0 +1,192 @@
+{
+  "_args": [
+    [
+      "acorn@^1.0.3",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser/node_modules/falafel"
+    ]
+  ],
+  "_from": "acorn@>=1.0.3 <2.0.0",
+  "_id": "acorn@1.2.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/inline-process-browser/falafel/acorn",
+  "_npmUser": {
+    "email": "marijnh@gmail.com",
+    "name": "marijn"
+  },
+  "_npmVersion": "1.4.21",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "acorn",
+    "raw": "acorn@^1.0.3",
+    "rawSpec": "^1.0.3",
+    "scope": null,
+    "spec": ">=1.0.3 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream/inline-process-browser/falafel"
+  ],
+  "_resolved": "https://registry.npmjs.org/acorn/-/acorn-1.2.2.tgz",
+  "_shasum": "c8ce27de0acc76d896d2b1fad3df588d9e82f014",
+  "_shrinkwrap": null,
+  "_spec": "acorn@^1.0.3",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/inline-process-browser/node_modules/falafel",
+  "bin": {
+    "acorn": "./bin/acorn"
+  },
+  "bugs": {
+    "url": "https://github.com/marijnh/acorn/issues"
+  },
+  "contributors": [
+    {
+      "name": "List of Acorn contributors. Updated before every release."
+    },
+    {
+      "name": "Adrian Rakovsky"
+    },
+    {
+      "name": "Alistair Braidwood"
+    },
+    {
+      "name": "Andres Suarez"
+    },
+    {
+      "name": "Aparajita Fishman"
+    },
+    {
+      "name": "Arian Stolwijk"
+    },
+    {
+      "name": "Artem Govorov"
+    },
+    {
+      "name": "Brandon Mills"
+    },
+    {
+      "name": "Charles Hughes"
+    },
+    {
+      "name": "Conrad Irwin"
+    },
+    {
+      "name": "David Bonnet"
+    },
+    {
+      "name": "Forbes Lindesay"
+    },
+    {
+      "name": "Gilad Peleg"
+    },
+    {
+      "name": "impinball"
+    },
+    {
+      "name": "Ingvar Stepanyan"
+    },
+    {
+      "name": "Jiaxing Wang"
+    },
+    {
+      "name": "Johannes Herr"
+    },
+    {
+      "name": "Jürg Lehni"
+    },
+    {
+      "name": "keeyipchan"
+    },
+    {
+      "name": "krator"
+    },
+    {
+      "name": "Marijn Haverbeke"
+    },
+    {
+      "name": "Martin Carlberg"
+    },
+    {
+      "name": "Mathias Bynens"
+    },
+    {
+      "name": "Mathieu 'p01' Henri"
+    },
+    {
+      "name": "Max Schaefer"
+    },
+    {
+      "name": "Max Zerzouri"
+    },
+    {
+      "name": "Mihai Bazon"
+    },
+    {
+      "name": "Mike Rennie"
+    },
+    {
+      "name": "Nick Fitzgerald"
+    },
+    {
+      "name": "Oskar Schöldström"
+    },
+    {
+      "name": "Paul Harper"
+    },
+    {
+      "name": "Peter Rust"
+    },
+    {
+      "name": "PlNG"
+    },
+    {
+      "name": "r-e-d"
+    },
+    {
+      "name": "Rich Harris"
+    },
+    {
+      "name": "Sebastian McKenzie"
+    },
+    {
+      "name": "zsjforcn"
+    }
+  ],
+  "dependencies": {},
+  "description": "ECMAScript parser",
+  "devDependencies": {
+    "babelify": "^5.0.4",
+    "browserify": "^9.0.3",
+    "browserify-derequire": "^0.9.4",
+    "unicode-7.0.0": "~0.1.5"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "c8ce27de0acc76d896d2b1fad3df588d9e82f014",
+    "tarball": "http://registry.npmjs.org/acorn/-/acorn-1.2.2.tgz"
+  },
+  "engines": {
+    "node": ">=0.4.0"
+  },
+  "gitHead": "0857d8bb9c3c05e6c8fac9e83fddaefc4f43816f",
+  "homepage": "https://github.com/marijnh/acorn",
+  "license": "MIT",
+  "main": "dist/acorn.js",
+  "maintainers": [
+    {
+      "email": "marijnh@gmail.com",
+      "name": "marijn"
+    }
+  ],
+  "name": "acorn",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marijnh/acorn.git"
+  },
+  "scripts": {
+    "prepublish": "bin/prepublish.sh",
+    "test": "node test/run.js"
+  },
+  "version": "1.2.2"
+}

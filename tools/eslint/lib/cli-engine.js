@@ -1,7 +1,6 @@
 /**
  * @fileoverview Main CLI object.
  * @author Nicholas C. Zakas
- * @copyright 2014 Nicholas C. Zakas. All rights reserved.
  */
 
 "use strict";
@@ -19,16 +18,25 @@
 var fs = require("fs"),
     path = require("path"),
 
-    assign = require("object-assign"),
+    lodash = require("lodash"),
     debug = require("debug"),
+    isAbsolute = require("path-is-absolute"),
 
     rules = require("./rules"),
     eslint = require("./eslint"),
-    traverse = require("./util/traverse"),
+    defaultOptions = require("../conf/cli-options"),
     IgnoredPaths = require("./ignored-paths"),
     Config = require("./config"),
-    util = require("./util"),
-    validator = require("./config-validator");
+    Plugins = require("./config/plugins"),
+    fileEntryCache = require("file-entry-cache"),
+    globUtil = require("./util/glob-util"),
+    SourceCodeFixer = require("./util/source-code-fixer"),
+    validator = require("./config/config-validator"),
+    stringify = require("json-stable-stringify"),
+    hash = require("./util/hash"),
+
+    pkg = require("../package.json");
+
 
 //------------------------------------------------------------------------------
 // Typedefs
@@ -38,8 +46,7 @@ var fs = require("fs"),
  * The options to configure a CLI engine with.
  * @typedef {Object} CLIEngineOptions
  * @property {string} configFile The configuration file to use.
- * @property {boolean} reset True disables all default rules and environments.
- * @property {boolean|object} baseConfig Base config object. False disables all default rules and environments.
+ * @property {boolean|object} baseConfig Base config object. True enables recommend rules and environments.
  * @property {boolean} ignore False disables use of .eslintignore.
  * @property {string[]} rulePaths An array of directories to load custom rules from.
  * @property {boolean} useEslintrc False disables looking for .eslintrc
@@ -64,58 +71,10 @@ var fs = require("fs"),
  */
 
 //------------------------------------------------------------------------------
-// Private
-//------------------------------------------------------------------------------
-
-
-var defaultOptions = {
-        configFile: null,
-        reset: false,
-        baseConfig: require(path.resolve(__dirname, "..", "conf", "eslint.json")),
-        rulePaths: [],
-        useEslintrc: true,
-        envs: [],
-        globals: [],
-        rules: {},
-        extensions: [".js"],
-        ignore: true,
-        ignorePath: null
-    },
-    loadedPlugins = Object.create(null);
-
-//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
 debug = debug("eslint:cli-engine");
-
-/**
- * Load the given plugins if they are not loaded already.
- * @param {string[]} pluginNames An array of plugin names which should be loaded.
- * @returns {void}
- */
-function loadPlugins(pluginNames) {
-    if (pluginNames) {
-        pluginNames.forEach(function (pluginName) {
-            var pluginNamespace = util.getNamespace(pluginName),
-                pluginNameWithoutNamespace = util.removeNameSpace(pluginName),
-                pluginNameWithoutPrefix = util.removePluginPrefix(pluginNameWithoutNamespace),
-                plugin;
-
-            if (!loadedPlugins[pluginNameWithoutPrefix]) {
-                debug("Load plugin " + pluginNameWithoutPrefix);
-
-                plugin = require(pluginNamespace + util.PLUGIN_NAME_PREFIX + pluginNameWithoutPrefix);
-                // if this plugin has rules, import them
-                if (plugin.rules) {
-                    rules.import(plugin.rules, pluginNameWithoutPrefix);
-                }
-
-                loadedPlugins[pluginNameWithoutPrefix] = plugin;
-            }
-        });
-    }
-}
 
 /**
  * It will calculate the error and warning count for collection of messages per file
@@ -155,14 +114,89 @@ function calculateStatsPerRun(results) {
 }
 
 /**
+ * Performs multiple autofix passes over the text until as many fixes as possible
+ * have been applied.
+ * @param {string} text The source text to apply fixes to.
+ * @param {Object} config The ESLint config object to use.
+ * @param {Object} options The ESLint options object to use.
+ * @param {string} options.filename The filename from which the text was read.
+ * @param {boolean} options.allowInlineConfig Flag indicating if inline comments
+ *      should be allowed.
+ * @returns {Object} The result of the fix operation as returned from the
+ *      SourceCodeFixer.
+ * @private
+ */
+function multipassFix(text, config, options) {
+
+    var messages = [],
+        fixedResult,
+        fixed = false,
+        passNumber = 0,
+        lastMessageCount,
+        MAX_PASSES = 10;
+
+    /**
+     * This loop continues until one of the following is true:
+     *
+     * 1. No more fixes have been applied.
+     * 2. There are no more linting errors reported.
+     * 3. The number of linting errors is no different between two passes.
+     * 4. Ten passes have been made.
+     *
+     * That means anytime a fix is successfully applied, there will be another pass.
+     * Essentially, guaranteeing a minimum of two passes.
+     */
+    do {
+        passNumber++;
+        lastMessageCount = messages.length;
+
+        debug("Linting code for " + options.filename + " (pass " + passNumber + ")");
+        messages = eslint.verify(text, config, options);
+
+        debug("Generating fixed text for " + options.filename + " (pass " + passNumber + ")");
+        fixedResult = SourceCodeFixer.applyFixes(eslint.getSourceCode(), messages);
+
+        // keep track if any fixes were ever applied - important for return value
+        fixed = fixed || fixedResult.fixed;
+
+        // update to use the fixed output instead of the original text
+        text = fixedResult.output;
+
+    } while (
+        fixedResult.fixed && fixedResult.messages.length > 0 &&
+        fixedResult.messages.length !== lastMessageCount &&
+        passNumber < MAX_PASSES
+    );
+
+
+    /*
+     * If the last result had fixes, we need to lint again to me sure we have
+     * the most up-to-date information.
+     */
+    if (fixedResult.fixed) {
+        fixedResult.messages = eslint.verify(text, config, options);
+    }
+
+
+    // ensure the last result properly reflects if fixes were done
+    fixedResult.fixed = fixed;
+    fixedResult.output = text;
+
+    return fixedResult;
+
+}
+
+/**
  * Processes an source code using ESLint.
  * @param {string} text The source code to check.
  * @param {Object} configHelper The configuration options for ESLint.
  * @param {string} filename An optional string representing the texts filename.
+ * @param {boolean} fix Indicates if fixes should be processed.
+ * @param {boolean} allowInlineConfig Allow/ignore comments that change config.
  * @returns {Result} The results for linting on this text.
  * @private
  */
-function processText(text, configHelper, filename) {
+function processText(text, configHelper, filename, fix, allowInlineConfig) {
 
     // clear all existing settings for a new file
     eslint.reset();
@@ -171,17 +205,25 @@ function processText(text, configHelper, filename) {
         config,
         messages,
         stats,
-        fileExtension = path.extname(filename),
-        processor;
+        fileExtension,
+        processor,
+        loadedPlugins,
+        fixedResult;
 
     if (filename) {
         filePath = path.resolve(filename);
+        fileExtension = path.extname(filename);
     }
 
     filename = filename || "<text>";
     debug("Linting " + filename);
     config = configHelper.getConfig(filePath);
-    loadPlugins(config.plugins);
+
+    if (config.plugins) {
+        Plugins.loadAll(config.plugins);
+    }
+
+    loadedPlugins = Plugins.getAll();
 
     for (var plugin in loadedPlugins) {
         if (loadedPlugins[plugin].processors && Object.keys(loadedPlugins[plugin].processors).indexOf(fileExtension) >= 0) {
@@ -191,24 +233,51 @@ function processText(text, configHelper, filename) {
     }
 
     if (processor) {
+        debug("Using processor");
         var parsedBlocks = processor.preprocess(text, filename);
         var unprocessedMessages = [];
+
         parsedBlocks.forEach(function(block) {
-            unprocessedMessages.push(eslint.verify(block, config, filename));
+            unprocessedMessages.push(eslint.verify(block, config, {
+                filename: filename,
+                allowInlineConfig: allowInlineConfig
+            }));
         });
+
+        // TODO(nzakas): Figure out how fixes might work for processors
+
         messages = processor.postprocess(unprocessedMessages, filename);
+
     } else {
-        messages = eslint.verify(text, config, filename);
+
+        if (fix) {
+            fixedResult = multipassFix(text, config, {
+                filename: filename,
+                allowInlineConfig: allowInlineConfig
+            });
+            messages = fixedResult.messages;
+        } else {
+            messages = eslint.verify(text, config, {
+                filename: filename,
+                allowInlineConfig: allowInlineConfig
+            });
+        }
     }
 
     stats = calculateStatsPerFile(messages);
 
-    return {
+    var result = {
         filePath: filename,
         messages: messages,
         errorCount: stats.errorCount,
         warningCount: stats.warningCount
     };
+
+    if (fixedResult && fixedResult.fixed) {
+        result.output = fixedResult.output;
+    }
+
+    return result;
 }
 
 /**
@@ -216,14 +285,17 @@ function processText(text, configHelper, filename) {
  * exist, so no need to check that here.
  * @param {string} filename The filename of the file being checked.
  * @param {Object} configHelper The configuration options for ESLint.
+ * @param {Object} options The CLIEngine options object.
  * @returns {Result} The results for linting on this file.
  * @private
  */
-function processFile(filename, configHelper) {
+function processFile(filename, configHelper, options) {
 
-    var text = fs.readFileSync(path.resolve(filename), "utf8");
+    var text = fs.readFileSync(path.resolve(filename), "utf8"),
+        result = processText(text, configHelper, filename, options.fix, options.allowInlineConfig);
 
-    return processText(text, configHelper, filename);
+    return result;
+
 }
 
 /**
@@ -234,17 +306,102 @@ function processFile(filename, configHelper) {
  */
 function createIgnoreResult(filePath) {
     return {
-        filePath: filePath,
+        filePath: path.resolve(filePath),
         messages: [
             {
                 fatal: false,
                 severity: 1,
-                message: "File ignored because of your .eslintignore file. Use --no-ignore to override."
+                message: "File ignored because of a matching ignore pattern. Use --no-ignore to override."
             }
         ],
         errorCount: 0,
         warningCount: 1
     };
+}
+
+
+/**
+ * Checks if the given message is an error message.
+ * @param {object} message The message to check.
+ * @returns {boolean} Whether or not the message is an error message.
+ * @private
+ */
+function isErrorMessage(message) {
+    return message.severity === 2;
+}
+
+
+/**
+ * return the cacheFile to be used by eslint, based on whether the provided parameter is
+ * a directory or looks like a directory (ends in `path.sep`), in which case the file
+ * name will be the `cacheFile/.cache_hashOfCWD`
+ *
+ * if cacheFile points to a file or looks like a file then in will just use that file
+ *
+ * @param {string} cacheFile The name of file to be used to store the cache
+ * @param {string} cwd Current working directory
+ * @returns {string} the resolved path to the cache file
+ */
+function getCacheFile(cacheFile, cwd) {
+
+    /*
+     * make sure the path separators are normalized for the environment/os
+     * keeping the trailing path separator if present
+     */
+    cacheFile = path.normalize(cacheFile);
+
+    var resolvedCacheFile = path.resolve(cwd, cacheFile);
+    var looksLikeADirectory = cacheFile[cacheFile.length - 1 ] === path.sep;
+
+    /**
+     * return the name for the cache file in case the provided parameter is a directory
+     * @returns {string} the resolved path to the cacheFile
+     */
+    function getCacheFileForDirectory() {
+        return path.join(resolvedCacheFile, ".cache_" + hash(cwd));
+    }
+
+    var fileStats;
+
+    try {
+        fileStats = fs.lstatSync(resolvedCacheFile);
+    } catch (ex) {
+        fileStats = null;
+    }
+
+
+    /*
+     * in case the file exists we need to verify if the provided path
+     * is a directory or a file. If it is a directory we want to create a file
+     * inside that directory
+     */
+    if (fileStats) {
+
+        /*
+         * is a directory or is a file, but the original file the user provided
+         * looks like a directory but `path.resolve` removed the `last path.sep`
+         * so we need to still treat this like a directory
+         */
+        if (fileStats.isDirectory() || looksLikeADirectory) {
+            return getCacheFileForDirectory();
+        }
+
+        // is file so just use that file
+        return resolvedCacheFile;
+    }
+
+    /*
+     * here we known the file or directory doesn't exist,
+     * so we will try to infer if its a directory if it looks like a directory
+     * for the current operating system.
+     */
+
+    // if the last character passed is a path separator we assume is a directory
+    if (looksLikeADirectory) {
+        return getCacheFileForDirectory();
+    }
+
+    return resolvedCacheFile;
 }
 
 //------------------------------------------------------------------------------
@@ -258,17 +415,40 @@ function createIgnoreResult(filePath) {
  */
 function CLIEngine(options) {
 
+    options = lodash.assign(
+        Object.create(null),
+        defaultOptions,
+        {cwd: process.cwd()},
+        options
+    );
+
     /**
      * Stored options for this instance
      * @type {Object}
      */
-    this.options = assign(Object.create(defaultOptions), options || {});
+    this.options = options;
+
+    var cacheFile = getCacheFile(this.options.cacheLocation || this.options.cacheFile, this.options.cwd);
+
+    /**
+     * Cache used to avoid operating on files that haven't changed since the
+     * last successful execution (e.g., file passed linting with no errors and
+     * no warnings).
+     * @type {Object}
+     */
+    this._fileCache = fileEntryCache.create(cacheFile);
+
+    if (!this.options.cache) {
+        this._fileCache.destroy();
+    }
 
     // load in additional rules
     if (this.options.rulePaths) {
+        var cwd = this.options.cwd;
+
         this.options.rulePaths.forEach(function(rulesdir) {
             debug("Loading rules from " + rulesdir);
-            rules.load(rulesdir);
+            rules.load(rulesdir, cwd);
         });
     }
 
@@ -276,6 +456,81 @@ function CLIEngine(options) {
         validator.validateRuleOptions(name, this.options.rules[name], "CLI");
     }.bind(this));
 }
+
+/**
+ * Returns the formatter representing the given format or null if no formatter
+ * with the given name can be found.
+ * @param {string} [format] The name of the format to load or the path to a
+ *      custom formatter.
+ * @returns {Function} The formatter function or null if not found.
+ */
+CLIEngine.getFormatter = function(format) {
+
+    var formatterPath;
+
+    // default is stylish
+    format = format || "stylish";
+
+    // only strings are valid formatters
+    if (typeof format === "string") {
+
+        // replace \ with / for Windows compatibility
+        format = format.replace(/\\/g, "/");
+
+        // if there's a slash, then it's a file
+        if (format.indexOf("/") > -1) {
+            var cwd = this.options ? this.options.cwd : process.cwd();
+
+            formatterPath = path.resolve(cwd, format);
+        } else {
+            formatterPath = "./formatters/" + format;
+        }
+
+        try {
+            return require(formatterPath);
+        } catch (ex) {
+            return null;
+        }
+
+    } else {
+        return null;
+    }
+};
+
+/**
+ * Returns results that only contains errors.
+ * @param {LintResult[]} results The results to filter.
+ * @returns {LintResult[]} The filtered results.
+ */
+CLIEngine.getErrorResults = function(results) {
+    var filtered = [];
+
+    results.forEach(function(result) {
+        var filteredMessages = result.messages.filter(isErrorMessage);
+
+        if (filteredMessages.length > 0) {
+            filtered.push({
+                filePath: result.filePath,
+                messages: filteredMessages
+            });
+        }
+    });
+
+    return filtered;
+};
+
+/**
+ * Outputs fixes from the given results to files.
+ * @param {Object} report The report object created by CLIEngine.
+ * @returns {void}
+ */
+CLIEngine.outputFixes = function(report) {
+    report.results.filter(function(result) {
+        return result.hasOwnProperty("output");
+    }).forEach(function(result) {
+        fs.writeFileSync(result.filePath, result.output);
+    });
+};
 
 CLIEngine.prototype = {
 
@@ -288,50 +543,169 @@ CLIEngine.prototype = {
      * @returns {void}
      */
     addPlugin: function(name, pluginobject) {
-        var pluginNameWithoutPrefix = util.removePluginPrefix(util.removeNameSpace(name));
-        if (pluginobject.rules) {
-            rules.import(pluginobject.rules, pluginNameWithoutPrefix);
-        }
-        loadedPlugins[pluginNameWithoutPrefix] = pluginobject;
+        Plugins.define(name, pluginobject);
+    },
+
+    /**
+     * Resolves the patterns passed into executeOnFiles() into glob-based patterns
+     * for easier handling.
+     * @param {string[]} patterns The file patterns passed on the command line.
+     * @returns {string[]} The equivalent glob patterns.
+     */
+    resolveFileGlobPatterns: function(patterns) {
+        return globUtil.resolveFileGlobPatterns(patterns, this.options);
     },
 
     /**
      * Executes the current configuration on an array of file and directory names.
-     * @param {string[]} files An array of file and directory names.
+     * @param {string[]} patterns An array of file and directory names.
      * @returns {Object} The results for all files that were linted.
      */
-    executeOnFiles: function(files) {
-
+    executeOnFiles: function(patterns) {
         var results = [],
-            processed = [],
+            processed = {},
             options = this.options,
+            fileCache = this._fileCache,
             configHelper = new Config(options),
-            ignoredPaths = IgnoredPaths.load(options),
-            exclude = ignoredPaths.contains.bind(ignoredPaths),
-            stats;
+            fileList,
+            stats,
+            startTime,
+            prevConfig; // the previous configuration used
 
-        traverse({
-            files: files,
-            extensions: options.extensions,
-            exclude: options.ignore ? exclude : false
-        }, function(filename) {
+        /**
+         * Calculates the hash of the config file used to validate a given file
+         * @param  {string} filename The path of the file to retrieve a config object for to calculate the hash
+         * @returns {string}         the hash of the config
+         */
+        function hashOfConfigFor(filename) {
+            var config = configHelper.getConfig(filename);
+
+            if (!prevConfig) {
+                prevConfig = {};
+            }
+
+            // reuse the previously hashed config if the config hasn't changed
+            if (prevConfig.config !== config) {
+
+                /*
+                 * config changed so we need to calculate the hash of the config
+                 * and the hash of the plugins being used
+                 */
+                prevConfig.config = config;
+
+                var eslintVersion = pkg.version;
+
+                prevConfig.hash = hash(eslintVersion + "_" + stringify(config));
+            }
+
+            return prevConfig.hash;
+        }
+
+        /**
+         * Executes the linter on a file defined by the `filename`. Skips
+         * unsupported file extensions and any files that are already linted.
+         * @param {string} filename The resolved filename of the file to be linted
+         * @param {boolean} warnIgnored always warn when a file is ignored
+         * @returns {void}
+         */
+        function executeOnFile(filename, warnIgnored) {
+            var hashOfConfig;
+
+            if (warnIgnored) {
+                results.push(createIgnoreResult(filename));
+                return;
+            }
+
+            if (options.cache) {
+
+                /*
+                 * get the descriptor for this file
+                 * with the metadata and the flag that determines if
+                 * the file has changed
+                 */
+                var descriptor = fileCache.getFileDescriptor(filename);
+                var meta = descriptor.meta || {};
+
+                hashOfConfig = hashOfConfigFor(filename);
+
+                var changed = descriptor.changed || meta.hashOfConfig !== hashOfConfig;
+
+                if (!changed) {
+                    debug("Skipping file since hasn't changed: " + filename);
+
+                    /*
+                     * Adding the filename to the processed hashmap
+                     * so the reporting is not affected (showing a warning about .eslintignore being used
+                     * when it is not really used)
+                     */
+                    processed[filename] = true;
+
+                    /*
+                     * Add the the cached results (always will be 0 error and
+                     * 0 warnings). We should not cache results for files that
+                     * failed, in order to guarantee that next execution will
+                     * process those files as well.
+                     */
+                    results.push(descriptor.meta.results);
+
+                    // move to the next file
+                    return;
+                }
+            }
 
             debug("Processing " + filename);
 
-            processed.push(filename);
-            results.push(processFile(filename, configHelper));
-        });
+            processed[filename] = true;
 
-        // only warn for files explicitly passed on the command line
-        if (options.ignore) {
-            files.forEach(function(file) {
-                if (fs.statSync(path.resolve(file)).isFile() && processed.indexOf(file) === -1) {
-                    results.push(createIgnoreResult(file));
+            var res = processFile(filename, configHelper, options);
+
+            if (options.cache) {
+
+                /*
+                 * if a file contains errors or warnings we don't want to
+                 * store the file in the cache so we can guarantee that
+                 * next execution will also operate on this file
+                 */
+                if (res.errorCount > 0 || res.warningCount > 0) {
+                    debug("File has problems, skipping it: " + filename);
+
+                    // remove the entry from the cache
+                    fileCache.removeEntry(filename);
+                } else {
+
+                    /*
+                     * since the file passed we store the result here
+                     * TODO: check this as we might not need to store the
+                     * successful runs as it will always should be 0 errors and
+                     * 0 warnings.
+                     */
+                    descriptor.meta.hashOfConfig = hashOfConfig;
+                    descriptor.meta.results = res;
                 }
-            });
+            }
+
+            results.push(res);
         }
 
+        startTime = Date.now();
+
+
+
+        patterns = this.resolveFileGlobPatterns(patterns);
+        fileList = globUtil.listFilesToProcess(patterns, options);
+        fileList.forEach(function(fileInfo) {
+            executeOnFile(fileInfo.filename, fileInfo.ignored);
+        });
+
         stats = calculateStatsPerRun(results);
+
+        if (options.cache) {
+
+            // persist the cache to disk
+            fileCache.reconcile();
+        }
+
+        debug("Linting complete in: " + (Date.now() - startTime) + "ms");
 
         return {
             results: results,
@@ -352,13 +726,17 @@ CLIEngine.prototype = {
             stats,
             options = this.options,
             configHelper = new Config(options),
-            ignoredPaths = IgnoredPaths.load(options),
-            exclude = ignoredPaths.contains.bind(ignoredPaths);
+            ignoredPaths = new IgnoredPaths(options);
 
-        if (filename && options.ignore && exclude(filename)) {
+        // resolve filename based on options.cwd (for reporting, ignoredPaths also resolves)
+        if (filename && !isAbsolute(filename)) {
+            filename = path.resolve(options.cwd, filename);
+        }
+        if (filename && (options.ignore !== false) && ignoredPaths.contains(filename)) {
+
             results.push(createIgnoreResult(filename));
         } else {
-            results.push(processText(text, configHelper, filename));
+            results.push(processText(text, configHelper, filename, options.fix, options.allowInlineConfig));
         }
 
         stats = calculateStatsPerRun(results);
@@ -379,6 +757,7 @@ CLIEngine.prototype = {
      */
     getConfigForFile: function(filePath) {
         var configHelper = new Config(this.options);
+
         return configHelper.getConfig(filePath);
     },
 
@@ -387,54 +766,19 @@ CLIEngine.prototype = {
      * @param {string} filePath The path of the file to check.
      * @returns {boolean} Whether or not the given path is ignored.
      */
-    isPathIgnored: function (filePath) {
+    isPathIgnored: function(filePath) {
         var ignoredPaths;
+        var resolvedPath = path.resolve(this.options.cwd, filePath);
 
         if (this.options.ignore) {
-            ignoredPaths = IgnoredPaths.load(this.options);
-            return ignoredPaths.contains(filePath);
+            ignoredPaths = new IgnoredPaths(this.options);
+            return ignoredPaths.contains(resolvedPath);
         }
 
         return false;
     },
 
-    /**
-     * Returns the formatter representing the given format or null if no formatter
-     * with the given name can be found.
-     * @param {string} [format] The name of the format to load or the path to a
-     *      custom formatter.
-     * @returns {Function} The formatter function or null if not found.
-     */
-    getFormatter: function(format) {
-
-        var formatterPath;
-
-        // default is stylish
-        format = format || "stylish";
-
-        // only strings are valid formatters
-        if (typeof format === "string") {
-
-            // replace \ with / for Windows compatibility
-            format = format.replace(/\\/g, "/");
-
-            // if there's a slash, then it's a file
-            if (format.indexOf("/") > -1) {
-                formatterPath = path.resolve(process.cwd(), format);
-            } else {
-                formatterPath = "./formatters/" + format;
-            }
-
-            try {
-                return require(formatterPath);
-            } catch (ex) {
-                return null;
-            }
-
-        } else {
-            return null;
-        }
-    }
+    getFormatter: CLIEngine.getFormatter
 
 };
 

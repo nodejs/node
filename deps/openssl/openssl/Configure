@@ -58,6 +58,10 @@ my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [experimenta
 #		library and will be loaded in run-time by the OpenSSL library.
 # sctp          include SCTP support
 # 386           generate 80386 code
+# enable-weak-ssl-ciphers
+#		Enable EXPORT and LOW SSLv3 ciphers that are disabled by
+#		default.  Note, weak SSLv2 ciphers are unconditionally
+#		disabled.
 # no-sse2	disables IA-32 SSE2 code, above option implies no-sse2
 # no-<cipher>   build without specified algorithm (rsa, idea, rc5, ...)
 # -<xxx> +<xxx> compiler options are passed through 
@@ -123,6 +127,9 @@ my $clang_disabled_warnings = "-Wno-unused-parameter -Wno-missing-field-initiali
 # -Wunreachable-code -Wunused-parameter -Wlanguage-extension-token
 # -Wextended-offsetof
 my $clang_devteam_warn = "-Wno-unused-parameter -Wno-missing-field-initializers -Wno-language-extension-token -Wno-extended-offsetof -Qunused-arguments";
+
+# Warn that "make depend" should be run?
+my $warn_make_depend = 0;
 
 my $strict_warnings = 0;
 
@@ -778,11 +785,13 @@ my %disabled = ( # "what"         => "comment" [or special keyword "experimental
 		 "md2"            => "default",
 		 "rc5"            => "default",
 		 "rfc3779"	  => "default",
-		 "sctp"       => "default",
+		 "sctp"           => "default",
 		 "shared"         => "default",
 		 "ssl-trace"	  => "default",
+		 "ssl2"           => "default",
 		 "store"	  => "experimental",
 		 "unit-test"	  => "default",
+		 "weak-ssl-ciphers" => "default",
 		 "zlib"           => "default",
 		 "zlib-dynamic"   => "default"
 	       );
@@ -1513,7 +1522,7 @@ if ($target =~ /\-icc$/)	# Intel C compiler
 # linker only when --prefix is not /usr.
 if ($target =~ /^BSD\-/)
 	{
-	$shared_ldflag.=" -Wl,-rpath,\$(LIBRPATH)" if ($prefix !~ m|^/usr[/]*$|);
+	$shared_ldflag.=" -Wl,-rpath,\$\$(LIBRPATH)" if ($prefix !~ m|^/usr[/]*$|);
 	}
 
 if ($sys_id ne "")
@@ -2028,14 +2037,8 @@ EOF
 	    &dofile("apps/CA.pl",'/usr/local/bin/perl','^#!/', '#!%s');
 	}
 	if ($depflags ne $default_depflags && !$make_depend) {
-		print <<EOF;
-
-Since you've disabled or enabled at least one algorithm, you need to do
-the following before building:
-
-	make depend
-EOF
-	}
+            $warn_make_depend++;
+        }
 }
 
 # create the ms/version32.rc file if needed
@@ -2114,12 +2117,18 @@ EOF
 
 print <<\EOF if ($no_shared_warn);
 
-You gave the option 'shared'.  Normally, that would give you shared libraries.
-Unfortunately, the OpenSSL configuration doesn't include shared library support
-for this platform yet, so it will pretend you gave the option 'no-shared'.  If
-you can inform the developpers (openssl-dev\@openssl.org) how to support shared
-libraries on this platform, they will at least look at it and try their best
-(but please first make sure you have tried with a current version of OpenSSL).
+You gave the option 'shared', which is not supported on this platform, so
+we will pretend you gave the option 'no-shared'.  If you know how to implement
+shared libraries, please let us know (but please first make sure you have
+tried with a current version of OpenSSL).
+EOF
+
+print <<EOF if ($warn_make_depend);
+
+*** Because of configuration changes, you MUST do the following before
+*** building:
+
+	make depend
 EOF
 
 exit(0);

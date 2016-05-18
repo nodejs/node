@@ -9,17 +9,27 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow negating the left operand in `in` expressions",
+            category: "Possible Errors",
+            recommended: true
+        },
 
-    return {
+        schema: []
+    },
 
-        "BinaryExpression": function(node) {
-            if (node.operator === "in" && node.left.type === "UnaryExpression" && node.left.operator === "!") {
-                context.report(node, "The `in` expression's left operand is negated");
+    create: function(context) {
+
+        return {
+
+            BinaryExpression: function(node) {
+                if (node.operator === "in" && node.left.type === "UnaryExpression" && node.left.operator === "!") {
+                    context.report(node, "The 'in' expression's left operand is negated");
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

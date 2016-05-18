@@ -38,7 +38,7 @@ var hasOwnProperty = Object.prototype.hasOwnProperty
 var escapable = /[\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/
 
 function _stringify(object, options, recursiveLvl, currentKey) {
-  var opt_json = options.mode === 'json'
+  var json5 = (options.mode === 'json5' || !options.mode)
   /*
    * Opinionated decision warning:
    *
@@ -114,18 +114,18 @@ function _stringify(object, options, recursiveLvl, currentKey) {
       var chr = key.charCodeAt(i)
 
       if (chr < 0x10) {
-        if (chr === 0 && !opt_json) {
+        if (chr === 0 && json5) {
           result += '\\0'
-        } else if (chr >= 8 && chr <= 13 && (!opt_json || chr !== 11)) {
+        } else if (chr >= 8 && chr <= 13 && (json5 || chr !== 11)) {
           result += special_chars[chr]
-        } else if (!opt_json) {
+        } else if (json5) {
           result += '\\x0' + chr.toString(16)
         } else {
           result += '\\u000' + chr.toString(16)
         }
 
       } else if (chr < 0x20) {
-        if (!opt_json) {
+        if (json5) {
           result += '\\x' + chr.toString(16)
         } else {
           result += '\\u00' + chr.toString(16)
@@ -149,7 +149,7 @@ function _stringify(object, options, recursiveLvl, currentKey) {
 
       } else if (options.ascii || Uni.isLineTerminator(key[i]) || escapable.exec(key[i])) {
         if (chr < 0x100) {
-          if (!opt_json) {
+          if (json5) {
             result += '\\x' + chr.toString(16)
           } else {
             result += '\\u00' + chr.toString(16)
@@ -256,7 +256,7 @@ function _stringify(object, options, recursiveLvl, currentKey) {
           // information needlessly?
           return '-0'
         }
-        if (options.mode === 'json' && !Number.isFinite(object)) {
+        if (!json5 && !Number.isFinite(object)) {
           // json don't support infinity (= sucks)
           return 'null'
         }
@@ -343,9 +343,9 @@ module.exports.stringify = function stringifyJSON(object, options, _space) {
   if (options.indent == null) options.indent = '\t'
   if (options.quote == null) options.quote = "'"
   if (options.ascii == null) options.ascii = false
-  if (options.mode == null) options.mode = 'simple'
+  if (options.mode == null) options.mode = 'json5'
 
-  if (options.mode === 'json') {
+  if (options.mode === 'json' || options.mode === 'cjson') {
     // json only supports double quotes (= sucks)
     options.quote = '"'
 

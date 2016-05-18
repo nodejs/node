@@ -26,14 +26,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// Flags: --expose-natives-as natives
+// Flags: --expose-natives-as natives --allow-natives-syntax
 // Test the SameValue and SameValueZero internal methods.
 
 var obj1 = {x: 10, y: 11, z: "test"};
 var obj2 = {x: 10, y: 11, z: "test"};
 
-var sameValue = natives.$sameValue;
-var sameValueZero = natives.$sameValueZero;
+var sameValue = Object.is;
+var sameValueZero = function(x, y) { return %SameValueZero(x, y); }
 
 // Calls SameValue and SameValueZero and checks that their results match.
 function sameValueBoth(a, b) {

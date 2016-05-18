@@ -25,7 +25,7 @@ function compileList(schema, name, result) {
   });
 
   return result.filter(function (type, index) {
-    return -1 === exclude.indexOf(index);
+    return exclude.indexOf(index) === -1;
   });
 }
 
@@ -51,7 +51,7 @@ function Schema(definition) {
   this.explicit = definition.explicit || [];
 
   this.implicit.forEach(function (type) {
-    if (type.loadKind && 'scalar' !== type.loadKind) {
+    if (type.loadKind && type.loadKind !== 'scalar') {
       throw new YAMLException('There is a non-scalar type in the implicit list of a schema. Implicit resolving of such types is not supported.');
     }
   });
@@ -69,18 +69,18 @@ Schema.create = function createSchema() {
   var schemas, types;
 
   switch (arguments.length) {
-  case 1:
-    schemas = Schema.DEFAULT;
-    types = arguments[0];
-    break;
+    case 1:
+      schemas = Schema.DEFAULT;
+      types = arguments[0];
+      break;
 
-  case 2:
-    schemas = arguments[0];
-    types = arguments[1];
-    break;
+    case 2:
+      schemas = arguments[0];
+      types = arguments[1];
+      break;
 
-  default:
-    throw new YAMLException('Wrong number of arguments for Schema.create function');
+    default:
+      throw new YAMLException('Wrong number of arguments for Schema.create function');
   }
 
   schemas = common.toArray(schemas);

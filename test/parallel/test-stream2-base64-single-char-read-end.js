@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var R = require('_stream_readable');
 var W = require('_stream_writable');
 var assert = require('assert');
@@ -14,10 +14,10 @@ src._read = function(n) {
   if (!hasRead) {
     hasRead = true;
     process.nextTick(function() {
-      src.push(new Buffer('1'));
+      src.push(Buffer.from('1'));
       src.push(null);
     });
-  };
+  }
 };
 
 dst._write = function(chunk, enc, cb) {

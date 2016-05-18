@@ -47,6 +47,11 @@ class Reducer {
   // Try to reduce a node if possible.
   virtual Reduction Reduce(Node* node) = 0;
 
+  // Invoked by the {GraphReducer} when all nodes are done.  Can be used to
+  // do additional reductions at the end, which in turn can cause a new round
+  // of reductions.
+  virtual void Finalize();
+
   // Helper functions for subclasses to produce reductions for a node.
   static Reduction NoChange() { return Reduction(); }
   static Reduction Replace(Node* node) { return Reduction(node); }
@@ -68,7 +73,8 @@ class AdvancedReducer : public Reducer {
     // Revisit the {node} again later.
     virtual void Revisit(Node* node) = 0;
     // Replace value uses of {node} with {value} and effect uses of {node} with
-    // {effect}. If {effect == NULL}, then use the effect input to {node}. All
+    // {effect}. If {effect == nullptr}, then use the effect input to {node}.
+    // All
     // control uses will be relaxed assuming {node} cannot throw.
     virtual void ReplaceWithValue(Node* node, Node* value, Node* effect,
                                   Node* control) = 0;
@@ -144,7 +150,7 @@ class GraphReducer : public AdvancedReducer::Editor {
   void Replace(Node* node, Node* replacement) final;
 
   // Replace value uses of {node} with {value} and effect uses of {node} with
-  // {effect}. If {effect == NULL}, then use the effect input to {node}. All
+  // {effect}. If {effect == nullptr}, then use the effect input to {node}. All
   // control uses will be relaxed assuming {node} cannot throw.
   void ReplaceWithValue(Node* node, Node* value, Node* effect,
                         Node* control) final;

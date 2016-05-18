@@ -3,13 +3,12 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var https = require('https');
 
 var fs = require('fs');
-var path = require('path');
 
 var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
 var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
@@ -17,7 +16,7 @@ var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
 var PORT = common.PORT;
 
 // number of bytes discovered empirically to trigger the bug
-var data = new Buffer(1024 * 32 + 1);
+var data = Buffer.allocUnsafe(1024 * 32 + 1);
 
 httpsTest();
 

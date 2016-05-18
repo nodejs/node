@@ -6,7 +6,6 @@ const fs = require('fs');
 const path = require('path');
 const Buffer = require('buffer').Buffer;
 const kStringMaxLength = process.binding('buffer').kStringMaxLength;
-const kMaxLength = process.binding('buffer').kMaxLength;
 
 var fd;
 
@@ -18,7 +17,7 @@ const stream = fs.createWriteStream(file, {
 });
 
 const size = kStringMaxLength / 200;
-const a = new Buffer(size).fill('a');
+const a = Buffer.alloc(size, 'a');
 
 for (var i = 0; i < 201; i++) {
   stream.write(a);

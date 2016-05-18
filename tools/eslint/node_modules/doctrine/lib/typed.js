@@ -1000,7 +1000,7 @@
             return expr;
         }
 
-        elements = [ expr ];
+        elements = [expr];
         consume(Token.PIPE);
         while (true) {
             elements.push(parseTypeExpression());

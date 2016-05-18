@@ -1,32 +1,42 @@
 /**
  * @fileoverview Defines environment settings and globals.
  * @author Elan Shanker
- * @copyright 2014 Elan Shanker. All rights reserved.
  */
 "use strict";
 
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
 var globals = require("globals");
 
+//------------------------------------------------------------------------------
+// Public Interface
+//------------------------------------------------------------------------------
+
 module.exports = {
-    builtin: globals.builtin,
+    builtin: globals.es5,
     browser: {
         globals: globals.browser
     },
     node: {
         globals: globals.node,
-        ecmaFeatures: {
-            globalReturn: true
-        },
-        rules: {
-            "no-catch-shadow": 0,
-            "no-console": 0,
-            "no-mixed-requires": 2,
-            "no-new-require": 2,
-            "no-path-concat": 2,
-            "no-process-exit": 2,
-            "global-strict": [0, "always"],
-            "handle-callback-err": [2, "err"]
+        parserOptions: {
+            ecmaFeatures: {
+                globalReturn: true
+            }
         }
+    },
+    commonjs: {
+        globals: globals.commonjs,
+        parserOptions: {
+            ecmaFeatures: {
+                globalReturn: true
+            }
+        }
+    },
+    "shared-node-browser": {
+        globals: globals["shared-node-browser"]
     },
     worker: {
         globals: globals.worker
@@ -40,11 +50,17 @@ module.exports = {
     jasmine: {
         globals: globals.jasmine
     },
+    jest: {
+        globals: globals.jest
+    },
     phantomjs: {
-        globals: globals.phantom
+        globals: globals.phantomjs
     },
     jquery: {
         globals: globals.jquery
+    },
+    qunit: {
+        globals: globals.qunit
     },
     prototypejs: {
         globals: globals.prototypejs
@@ -58,30 +74,34 @@ module.exports = {
     mongo: {
         globals: globals.mongo
     },
+    protractor: {
+        globals: globals.protractor
+    },
     applescript: {
         globals: globals.applescript
     },
+    nashorn: {
+        globals: globals.nashorn
+    },
+    serviceworker: {
+        globals: globals.serviceworker
+    },
+    atomtest: {
+        globals: globals.atomtest
+    },
+    embertest: {
+        globals: globals.embertest
+    },
+    webextensions: {
+        globals: globals.webextensions
+    },
     es6: {
-        ecmaFeatures: {
-            arrowFunctions: true,
-            blockBindings: true,
-            regexUFlag: true,
-            regexYFlag: true,
-            templateStrings: true,
-            binaryLiterals: true,
-            octalLiterals: true,
-            unicodeCodePointEscapes: true,
-            superInFunctions: true,
-            defaultParams: true,
-            restParams: true,
-            forOf: true,
-            objectLiteralComputedProperties: true,
-            objectLiteralShorthandMethods: true,
-            objectLiteralShorthandProperties: true,
-            objectLiteralDuplicateProperties: true,
-            generators: true,
-            destructuring: true,
-            classes: true
+        globals: globals.es6,
+        parserOptions: {
+            ecmaVersion: 6
         }
+    },
+    greasemonkey: {
+        globals: globals.greasemonkey
     }
 };

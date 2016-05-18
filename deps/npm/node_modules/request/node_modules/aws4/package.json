@@ -1,0 +1,134 @@
+{
+  "_args": [
+    [
+      "aws4@^1.2.1",
+      "/Users/rebecca/code/npm/node_modules/request"
+    ]
+  ],
+  "_from": "aws4@>=1.2.1 <2.0.0",
+  "_id": "aws4@1.3.2",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/aws4",
+  "_nodeVersion": "4.3.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/aws4-1.3.2.tgz_1456871543899_0.13955276948399842"
+  },
+  "_npmUser": {
+    "email": "michael.hart.au@gmail.com",
+    "name": "hichaelmart"
+  },
+  "_npmVersion": "2.14.21",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "aws4",
+    "raw": "aws4@^1.2.1",
+    "rawSpec": "^1.2.1",
+    "scope": null,
+    "spec": ">=1.2.1 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request"
+  ],
+  "_resolved": "https://registry.npmjs.org/aws4/-/aws4-1.3.2.tgz",
+  "_shasum": "d39e0bee412ced0e8ed94a23e314f313a95b9fd1",
+  "_shrinkwrap": null,
+  "_spec": "aws4@^1.2.1",
+  "_where": "/Users/rebecca/code/npm/node_modules/request",
+  "author": {
+    "email": "michael.hart.au@gmail.com",
+    "name": "Michael Hart",
+    "url": "http://github.com/mhart"
+  },
+  "bugs": {
+    "url": "https://github.com/mhart/aws4/issues"
+  },
+  "dependencies": {
+    "lru-cache": "^4.0.0"
+  },
+  "description": "Signs and prepares requests using AWS Signature Version 4",
+  "devDependencies": {
+    "mocha": "^2.4.5",
+    "should": "^8.2.2"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "d39e0bee412ced0e8ed94a23e314f313a95b9fd1",
+    "tarball": "http://registry.npmjs.org/aws4/-/aws4-1.3.2.tgz"
+  },
+  "gitHead": "e899db3aacbf2a034398f7dd483345dc793e8d72",
+  "homepage": "https://github.com/mhart/aws4#readme",
+  "keywords": [
+    "amazon",
+    "aws",
+    "signature",
+    "s3",
+    "ec2",
+    "autoscaling",
+    "cloudformation",
+    "elasticloadbalancing",
+    "elb",
+    "elasticbeanstalk",
+    "cloudsearch",
+    "dynamodb",
+    "kinesis",
+    "lambda",
+    "glacier",
+    "sqs",
+    "sns",
+    "iam",
+    "sts",
+    "ses",
+    "swf",
+    "storagegateway",
+    "datapipeline",
+    "directconnect",
+    "redshift",
+    "opsworks",
+    "rds",
+    "monitoring",
+    "cloudtrail",
+    "cloudfront",
+    "codedeploy",
+    "elasticache",
+    "elasticmapreduce",
+    "elastictranscoder",
+    "emr",
+    "cloudwatch",
+    "mobileanalytics",
+    "cognitoidentity",
+    "cognitosync",
+    "cognito",
+    "containerservice",
+    "ecs",
+    "appstream",
+    "keymanagementservice",
+    "kms",
+    "config",
+    "cloudhsm",
+    "route53",
+    "route53domains",
+    "logs"
+  ],
+  "license": "MIT",
+  "main": "aws4.js",
+  "maintainers": [
+    {
+      "email": "michael.hart.au@gmail.com",
+      "name": "hichaelmart"
+    }
+  ],
+  "name": "aws4",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mhart/aws4.git"
+  },
+  "scripts": {
+    "test": "mocha ./test/fast.js ./test/slow.js -b -t 100s -R list"
+  },
+  "version": "1.3.2"
+}

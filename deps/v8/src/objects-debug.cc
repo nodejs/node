@@ -7,6 +7,7 @@
 #include "src/bootstrapper.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
+#include "src/field-type.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
@@ -76,6 +77,9 @@ void HeapObject::HeapObjectVerify() {
     case BYTECODE_ARRAY_TYPE:
       BytecodeArray::cast(this)->BytecodeArrayVerify();
       break;
+    case TRANSITION_ARRAY_TYPE:
+      TransitionArray::cast(this)->TransitionArrayVerify();
+      break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpaceVerify();
       break;
@@ -96,6 +100,7 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case JS_PROMISE_TYPE:
       JSObject::cast(this)->JSObjectVerify();
       break;
     case JS_GENERATOR_OBJECT_TYPE:
@@ -110,6 +115,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_DATE_TYPE:
       JSDate::cast(this)->JSDateVerify();
       break;
+    case JS_BOUND_FUNCTION_TYPE:
+      JSBoundFunction::cast(this)->JSBoundFunctionVerify();
+      break;
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionVerify();
       break;
@@ -118,9 +126,6 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_GLOBAL_OBJECT_TYPE:
       JSGlobalObject::cast(this)->JSGlobalObjectVerify();
-      break;
-    case JS_BUILTINS_OBJECT_TYPE:
-      JSBuiltinsObject::cast(this)->JSBuiltinsObjectVerify();
       break;
     case CELL_TYPE:
       Cell::cast(this)->CellVerify();
@@ -146,9 +151,6 @@ void HeapObject::HeapObjectVerify() {
     case JS_MAP_ITERATOR_TYPE:
       JSMapIterator::cast(this)->JSMapIteratorVerify();
       break;
-    case JS_ITERATOR_RESULT_TYPE:
-      JSIteratorResult::cast(this)->JSIteratorResultVerify();
-      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapVerify();
       break;
@@ -162,9 +164,6 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyVerify();
-      break;
-    case JS_FUNCTION_PROXY_TYPE:
-      JSFunctionProxy::cast(this)->JSFunctionProxyVerify();
       break;
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignVerify();
@@ -209,7 +208,7 @@ void HeapObject::VerifyHeapPointer(Object* p) {
 void Symbol::SymbolVerify() {
   CHECK(IsSymbol());
   CHECK(HasHashCode());
-  CHECK_GT(Hash(), 0u);
+  CHECK(GetHeap()->hidden_properties_symbol() == this || Hash() > 0u);
   CHECK(name()->IsUndefined() || name()->IsString());
 }
 
@@ -297,13 +296,17 @@ void JSObject::JSObjectVerify() {
         if (value->IsUninitialized()) continue;
         if (r.IsSmi()) DCHECK(value->IsSmi());
         if (r.IsHeapObject()) DCHECK(value->IsHeapObject());
-        HeapType* field_type = descriptors->GetFieldType(i);
-        bool type_is_none = field_type->Is(HeapType::None());
-        bool type_is_any = HeapType::Any()->Is(field_type);
+        FieldType* field_type = descriptors->GetFieldType(i);
+        bool type_is_none = field_type->IsNone();
+        bool type_is_any = field_type->IsAny();
         if (r.IsNone()) {
           CHECK(type_is_none);
         } else if (!type_is_any && !(type_is_none && r.IsHeapObject())) {
-          CHECK(!field_type->NowStable() || field_type->NowContains(value));
+          // If allocation folding is off then GC could happen during inner
+          // object literal creation and we will end up having and undefined
+          // value that does not match the field type.
+          CHECK(!field_type->NowStable() || field_type->NowContains(value) ||
+                (!FLAG_use_allocation_folding && value->IsUndefined()));
         }
       }
     }
@@ -313,7 +316,8 @@ void JSObject::JSObjectVerify() {
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine()) {
     CHECK_EQ((map()->has_fast_smi_or_object_elements() ||
-              (elements() == GetHeap()->empty_fixed_array())),
+              (elements() == GetHeap()->empty_fixed_array()) ||
+              HasFastStringWrapperElements()),
              (elements()->map() == GetHeap()->fixed_array_map() ||
               elements()->map() == GetHeap()->fixed_cow_array_map()));
     CHECK(map()->has_fast_object_elements() == HasFastObjectElements());
@@ -328,6 +332,8 @@ void Map::MapVerify() {
   CHECK(instance_size() == kVariableSizeSentinel ||
          (kPointerSize <= instance_size() &&
           instance_size() < heap->Capacity()));
+  CHECK(GetBackPointer()->IsUndefined() ||
+        !Map::cast(GetBackPointer())->is_stable());
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
   SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
@@ -353,8 +359,7 @@ void Map::VerifyOmittedMapChecks() {
   if (!is_stable() ||
       is_deprecated() ||
       is_dictionary_map()) {
-    CHECK_EQ(0, dependent_code()->number_of_entries(
-        DependentCode::kPrototypeCheckGroup));
+    CHECK(dependent_code()->IsEmpty(DependentCode::kPrototypeCheckGroup));
   }
 }
 
@@ -407,6 +412,17 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
             (value & V8_UINT64_C(0x0007FFFFFFFFFFFF)) == V8_UINT64_C(0));
     }
   }
+}
+
+
+void TransitionArray::TransitionArrayVerify() {
+  for (int i = 0; i < length(); i++) {
+    Object* e = get(i);
+    VerifyPointer(e);
+  }
+  CHECK_LE(LengthFor(number_of_transitions()), length());
+  CHECK(next_link()->IsUndefined() || next_link()->IsSmi() ||
+        next_link()->IsTransitionArray());
 }
 
 
@@ -530,6 +546,18 @@ void SlicedString::SlicedStringVerify() {
 }
 
 
+void JSBoundFunction::JSBoundFunctionVerify() {
+  CHECK(IsJSBoundFunction());
+  JSObjectVerify();
+  VerifyObjectField(kBoundThisOffset);
+  VerifyObjectField(kBoundTargetFunctionOffset);
+  VerifyObjectField(kBoundArgumentsOffset);
+  CHECK(bound_target_function()->IsCallable());
+  CHECK(IsCallable());
+  CHECK_EQ(IsConstructor(), bound_target_function()->IsConstructor());
+}
+
+
 void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
   VerifyObjectField(kPrototypeOrInitialMapOffset);
@@ -570,23 +598,12 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
 
 void JSGlobalObject::JSGlobalObjectVerify() {
   CHECK(IsJSGlobalObject());
-  JSObjectVerify();
-  for (int i = GlobalObject::kBuiltinsOffset;
-       i < JSGlobalObject::kSize;
-       i += kPointerSize) {
-    VerifyObjectField(i);
+  // Do not check the dummy global object for the builtins.
+  if (GlobalDictionary::cast(properties())->NumberOfElements() == 0 &&
+      elements()->length() == 0) {
+    return;
   }
-}
-
-
-void JSBuiltinsObject::JSBuiltinsObjectVerify() {
-  CHECK(IsJSBuiltinsObject());
   JSObjectVerify();
-  for (int i = GlobalObject::kBuiltinsOffset;
-       i < JSBuiltinsObject::kSize;
-       i += kPointerSize) {
-    VerifyObjectField(i);
-  }
 }
 
 
@@ -745,14 +762,6 @@ void JSMapIterator::JSMapIteratorVerify() {
 }
 
 
-void JSIteratorResult::JSIteratorResultVerify() {
-  CHECK(IsJSIteratorResult());
-  JSObjectVerify();
-  VerifyPointer(done());
-  VerifyPointer(value());
-}
-
-
 void JSWeakMap::JSWeakMapVerify() {
   CHECK(IsJSWeakMap());
   JSObjectVerify();
@@ -815,17 +824,14 @@ void JSRegExp::JSRegExpVerify() {
 
 void JSProxy::JSProxyVerify() {
   CHECK(IsJSProxy());
+  VerifyPointer(target());
   VerifyPointer(handler());
+  CHECK_EQ(target()->IsCallable(), map()->is_callable());
+  CHECK_EQ(target()->IsConstructor(), map()->is_constructor());
   CHECK(hash()->IsSmi() || hash()->IsUndefined());
-}
-
-
-void JSFunctionProxy::JSFunctionProxyVerify() {
-  CHECK(IsJSFunctionProxy());
-  JSProxyVerify();
-  VerifyPointer(call_trap());
-  VerifyPointer(construct_trap());
-  CHECK(map()->is_callable());
+  CHECK(map()->prototype()->IsNull());
+  // There should be no properties on a Proxy.
+  CHECK_EQ(0, map()->NumberOfOwnDescriptors());
 }
 
 
@@ -891,13 +897,6 @@ void PrototypeInfo::PrototypeInfoVerify() {
     CHECK(prototype_users()->IsSmi());
   }
   CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
-  VerifyPointer(constructor_name());
-}
-
-
-void AccessorInfo::AccessorInfoVerify() {
-  VerifyPointer(name());
-  VerifyPointer(expected_receiver_type());
 }
 
 
@@ -909,9 +908,10 @@ void SloppyBlockWithEvalContextExtension::
 }
 
 
-void ExecutableAccessorInfo::ExecutableAccessorInfoVerify() {
-  CHECK(IsExecutableAccessorInfo());
-  AccessorInfoVerify();
+void AccessorInfo::AccessorInfoVerify() {
+  CHECK(IsAccessorInfo());
+  VerifyPointer(name());
+  VerifyPointer(expected_receiver_type());
   VerifyPointer(getter());
   VerifyPointer(setter());
   VerifyPointer(data());
@@ -929,6 +929,7 @@ void AccessCheckInfo::AccessCheckInfoVerify() {
   CHECK(IsAccessCheckInfo());
   VerifyPointer(named_callback());
   VerifyPointer(indexed_callback());
+  VerifyPointer(callback());
   VerifyPointer(data());
 }
 
@@ -982,12 +983,6 @@ void ObjectTemplateInfo::ObjectTemplateInfoVerify() {
 }
 
 
-void TypeSwitchInfo::TypeSwitchInfoVerify() {
-  CHECK(IsTypeSwitchInfo());
-  VerifyPointer(types());
-}
-
-
 void AllocationSite::AllocationSiteVerify() {
   CHECK(IsAllocationSite());
 }
@@ -1027,7 +1022,7 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
 void DebugInfo::DebugInfoVerify() {
   CHECK(IsDebugInfo());
   VerifyPointer(shared());
-  VerifyPointer(code());
+  VerifyPointer(abstract_code());
   VerifyPointer(break_points());
 }
 
@@ -1047,7 +1042,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_objects_with_fast_properties_++;
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->unused_property_fields();
-  } else if (IsGlobalObject()) {
+  } else if (IsJSGlobalObject()) {
     GlobalDictionary* dict = global_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
     info->number_of_slow_unused_properties_ +=
@@ -1065,7 +1060,8 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
-    case FAST_ELEMENTS: {
+    case FAST_ELEMENTS:
+    case FAST_STRING_WRAPPER_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;
       FixedArray* e = FixedArray::cast(elements());
@@ -1089,7 +1085,8 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       info->number_of_fast_used_elements_ += e->length();
       break;
     }
-    case DICTIONARY_ELEMENTS: {
+    case DICTIONARY_ELEMENTS:
+    case SLOW_STRING_WRAPPER_ELEMENTS: {
       SeededNumberDictionary* dict = element_dictionary();
       info->number_of_slow_used_elements_ += dict->NumberOfElements();
       info->number_of_slow_unused_elements_ +=
@@ -1098,6 +1095,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+    case NO_ELEMENTS:
       break;
   }
 }

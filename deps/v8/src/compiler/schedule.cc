@@ -34,7 +34,7 @@ bool BasicBlock::LoopContains(BasicBlock* block) const {
   // RPO numbers must be initialized.
   DCHECK(rpo_number_ >= 0);
   DCHECK(block->rpo_number_ >= 0);
-  if (loop_end_ == NULL) return false;  // This is not a loop.
+  if (loop_end_ == nullptr) return false;  // This is not a loop.
   return block->rpo_number_ >= rpo_number_ &&
          block->rpo_number_ < loop_end_->rpo_number_;
 }
@@ -140,13 +140,13 @@ BasicBlock* Schedule::block(Node* node) const {
   if (node->id() < static_cast<NodeId>(nodeid_to_block_.size())) {
     return nodeid_to_block_[node->id()];
   }
-  return NULL;
+  return nullptr;
 }
 
 
 bool Schedule::IsScheduled(Node* node) {
   if (node->id() >= nodeid_to_block_.size()) return false;
-  return nodeid_to_block_[node->id()] != NULL;
+  return nodeid_to_block_[node->id()] != nullptr;
 }
 
 
@@ -158,7 +158,7 @@ BasicBlock* Schedule::GetBlockById(BasicBlock::Id block_id) {
 
 bool Schedule::SameBasicBlock(Node* a, Node* b) const {
   BasicBlock* block = this->block(a);
-  return block != NULL && block == this->block(b);
+  return block != nullptr && block == this->block(b);
 }
 
 
@@ -176,7 +176,7 @@ void Schedule::PlanNode(BasicBlock* block, Node* node) {
     os << "Planning #" << node->id() << ":" << node->op()->mnemonic()
        << " for future add to B" << block->id() << "\n";
   }
-  DCHECK(this->block(node) == NULL);
+  DCHECK(this->block(node) == nullptr);
   SetBlockForNode(block, node);
 }
 
@@ -187,7 +187,7 @@ void Schedule::AddNode(BasicBlock* block, Node* node) {
     os << "Adding #" << node->id() << ":" << node->op()->mnemonic() << " to B"
        << block->id() << "\n";
   }
-  DCHECK(this->block(node) == NULL || this->block(node) == block);
+  DCHECK(this->block(node) == nullptr || this->block(node) == block);
   block->AddNode(node);
   SetBlockForNode(block, node);
 }
@@ -354,7 +354,7 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
     BasicBlock::Control control = block->control();
     if (control != BasicBlock::kNone) {
       os << "  ";
-      if (block->control_input() != NULL) {
+      if (block->control_input() != nullptr) {
         os << *block->control_input();
       } else {
         os << "Goto";

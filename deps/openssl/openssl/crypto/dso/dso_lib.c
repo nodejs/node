@@ -1,4 +1,4 @@
-/* dso_lib.c -*- mode:C; c-file-style: "eay" -*- */
+/* dso_lib.c */
 /*
  * Written by Geoff Thorpe (geoff@geoffthorpe.net) for the OpenSSL project
  * 2000.
@@ -122,6 +122,7 @@ DSO *DSO_new_method(DSO_METHOD *meth)
         ret->meth = meth;
     ret->references = 1;
     if ((ret->meth->init != NULL) && !ret->meth->init(ret)) {
+        sk_void_free(ret->meth_data);
         OPENSSL_free(ret);
         ret = NULL;
     }

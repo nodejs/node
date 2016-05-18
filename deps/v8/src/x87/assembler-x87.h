@@ -40,11 +40,47 @@
 #include <deque>
 
 #include "src/assembler.h"
-#include "src/compiler.h"
 #include "src/isolate.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+#define GENERAL_REGISTERS(V) \
+  V(eax)                     \
+  V(ecx)                     \
+  V(edx)                     \
+  V(ebx)                     \
+  V(esp)                     \
+  V(ebp)                     \
+  V(esi)                     \
+  V(edi)
+
+#define ALLOCATABLE_GENERAL_REGISTERS(V) \
+  V(eax)                                 \
+  V(ecx)                                 \
+  V(edx)                                 \
+  V(ebx)                                 \
+  V(esi)                                 \
+  V(edi)
+
+#define DOUBLE_REGISTERS(V) \
+  V(stX_0)                  \
+  V(stX_1)                  \
+  V(stX_2)                  \
+  V(stX_3)                  \
+  V(stX_4)                  \
+  V(stX_5)                  \
+  V(stX_6)                  \
+  V(stX_7)
+
+#define ALLOCATABLE_DOUBLE_REGISTERS(V) \
+  V(stX_0)                              \
+  V(stX_1)                              \
+  V(stX_2)                              \
+  V(stX_3)                              \
+  V(stX_4)                              \
+  V(stX_5)
 
 // CPU Registers.
 //
@@ -68,145 +104,90 @@ namespace internal {
 // and best performance in optimized code.
 //
 struct Register {
-  static const int kMaxNumAllocatableRegisters = 6;
-  static int NumAllocatableRegisters() {
-    return kMaxNumAllocatableRegisters;
-  }
-  static const int kNumRegisters = 8;
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    GENERAL_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = -1
+  };
 
-  static inline const char* AllocationIndexToString(int index);
-
-  static inline int ToAllocationIndex(Register reg);
-
-  static inline Register FromAllocationIndex(int index);
+  static const int kNumRegisters = Code::kAfterLast;
 
   static Register from_code(int code) {
     DCHECK(code >= 0);
     DCHECK(code < kNumRegisters);
-    Register r = { code };
+    Register r = {code};
     return r;
   }
-  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
-  bool is(Register reg) const { return code_ == reg.code_; }
-  // eax, ebx, ecx and edx are byte registers, the rest are not.
-  bool is_byte_register() const { return code_ <= 3; }
+  const char* ToString();
+  bool IsAllocatable() const;
+  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
+  bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
     DCHECK(is_valid());
-    return code_;
+    return reg_code;
   }
   int bit() const {
     DCHECK(is_valid());
-    return 1 << code_;
+    return 1 << reg_code;
   }
+
+  bool is_byte_register() const { return reg_code <= 3; }
 
   // Unfortunately we can't make this private in a struct.
-  int code_;
+  int reg_code;
 };
 
-const int kRegister_eax_Code = 0;
-const int kRegister_ecx_Code = 1;
-const int kRegister_edx_Code = 2;
-const int kRegister_ebx_Code = 3;
-const int kRegister_esp_Code = 4;
-const int kRegister_ebp_Code = 5;
-const int kRegister_esi_Code = 6;
-const int kRegister_edi_Code = 7;
-const int kRegister_no_reg_Code = -1;
 
-const Register eax = { kRegister_eax_Code };
-const Register ecx = { kRegister_ecx_Code };
-const Register edx = { kRegister_edx_Code };
-const Register ebx = { kRegister_ebx_Code };
-const Register esp = { kRegister_esp_Code };
-const Register ebp = { kRegister_ebp_Code };
-const Register esi = { kRegister_esi_Code };
-const Register edi = { kRegister_edi_Code };
-const Register no_reg = { kRegister_no_reg_Code };
+#define DECLARE_REGISTER(R) const Register R = {Register::kCode_##R};
+GENERAL_REGISTERS(DECLARE_REGISTER)
+#undef DECLARE_REGISTER
+const Register no_reg = {Register::kCode_no_reg};
 
 
-inline const char* Register::AllocationIndexToString(int index) {
-  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-  // This is the mapping of allocation indices to registers.
-  const char* const kNames[] = { "eax", "ecx", "edx", "ebx", "esi", "edi" };
-  return kNames[index];
-}
+struct DoubleRegister {
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    DOUBLE_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = -1
+  };
 
-
-inline int Register::ToAllocationIndex(Register reg) {
-  DCHECK(reg.is_valid() && !reg.is(esp) && !reg.is(ebp));
-  return (reg.code() >= 6) ? reg.code() - 2 : reg.code();
-}
-
-
-inline Register Register::FromAllocationIndex(int index)  {
-  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-  return (index >= 4) ? from_code(index + 2) : from_code(index);
-}
-
-
-struct X87Register {
+  static const int kMaxNumRegisters = Code::kAfterLast;
   static const int kMaxNumAllocatableRegisters = 6;
-  static const int kMaxNumRegisters = 8;
-  static int NumAllocatableRegisters() {
-    return kMaxNumAllocatableRegisters;
-  }
 
-
-  // TODO(turbofan): Proper support for float32.
-  static int NumAllocatableAliasedRegisters() {
-    return NumAllocatableRegisters();
-  }
-
-
-  static int ToAllocationIndex(X87Register reg) {
-    return reg.code_;
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-    const char* const names[] = {
-      "stX_0", "stX_1", "stX_2", "stX_3", "stX_4",
-      "stX_5", "stX_6", "stX_7"
-    };
-    return names[index];
-  }
-
-  static X87Register FromAllocationIndex(int index) {
-    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-    X87Register result;
-    result.code_ = index;
+  static DoubleRegister from_code(int code) {
+    DoubleRegister result = {code};
     return result;
   }
 
-  bool is_valid() const {
-    return 0 <= code_ && code_ < kMaxNumRegisters;
-  }
+  bool IsAllocatable() const;
+  bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
 
   int code() const {
     DCHECK(is_valid());
-    return code_;
+    return reg_code;
   }
 
-  bool is(X87Register reg) const {
-    return code_ == reg.code_;
-  }
+  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
 
-  int code_;
+  const char* ToString();
+
+  int reg_code;
 };
 
+#define DECLARE_REGISTER(R) \
+  const DoubleRegister R = {DoubleRegister::kCode_##R};
+DOUBLE_REGISTERS(DECLARE_REGISTER)
+#undef DECLARE_REGISTER
+const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
 
-typedef X87Register DoubleRegister;
+typedef DoubleRegister X87Register;
 
-
-const X87Register stX_0 = { 0 };
-const X87Register stX_1 = { 1 };
-const X87Register stX_2 = { 2 };
-const X87Register stX_3 = { 3 };
-const X87Register stX_4 = { 4 };
-const X87Register stX_5 = { 5 };
-const X87Register stX_6 = { 6 };
-const X87Register stX_7 = { 7 };
-
+// TODO(x87) Define SIMD registers.
+typedef DoubleRegister Simd128Register;
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -505,19 +486,17 @@ class Assembler : public AssemblerBase {
   // Read/Modify the code target in the branch/call instruction at pc.
   inline static Address target_address_at(Address pc, Address constant_pool);
   inline static void set_target_address_at(
-      Address pc, Address constant_pool, Address target,
+      Isolate* isolate, Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   static inline Address target_address_at(Address pc, Code* code) {
     Address constant_pool = code ? code->constant_pool() : NULL;
     return target_address_at(pc, constant_pool);
   }
-  static inline void set_target_address_at(Address pc,
-                                           Code* code,
-                                           Address target,
-                                           ICacheFlushMode icache_flush_mode =
-                                               FLUSH_ICACHE_IF_NEEDED) {
+  static inline void set_target_address_at(
+      Isolate* isolate, Address pc, Code* code, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
     Address constant_pool = code ? code->constant_pool() : NULL;
-    set_target_address_at(pc, constant_pool, target);
+    set_target_address_at(isolate, pc, constant_pool, target);
   }
 
   // Return the code target address at a call site from the return address
@@ -527,13 +506,14 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination (which is in the instruction on x86).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code* code, Address target) {
-    set_target_address_at(instruction_payload, code, target);
+      Isolate* isolate, Address instruction_payload, Code* code,
+      Address target) {
+    set_target_address_at(isolate, instruction_payload, code, target);
   }
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Isolate* isolate, Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   static const int kSpecialTargetSize = kPointerSize;
@@ -691,6 +671,7 @@ class Assembler : public AssemblerBase {
   void cmp(Register reg0, Register reg1) { cmp(reg0, Operand(reg1)); }
   void cmp(Register reg, const Operand& op);
   void cmp(Register reg, const Immediate& imm) { cmp(Operand(reg), imm); }
+  void cmp(const Operand& op, Register reg);
   void cmp(const Operand& op, const Immediate& imm);
   void cmp(const Operand& op, Handle<Object> handle);
 
@@ -793,6 +774,8 @@ class Assembler : public AssemblerBase {
   void bts(const Operand& dst, Register src);
   void bsr(Register dst, Register src) { bsr(dst, Operand(src)); }
   void bsr(Register dst, const Operand& src);
+  void bsf(Register dst, Register src) { bsf(dst, Operand(src)); }
+  void bsf(Register dst, const Operand& src);
 
   // Miscellaneous
   void hlt();
@@ -948,7 +931,7 @@ class Assembler : public AssemblerBase {
   void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
+  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
@@ -956,7 +939,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const SourcePosition position);
+  void RecordDeoptReason(const int reason, int raw_position);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
@@ -1097,6 +1080,7 @@ class EnsureSpace BASE_EMBEDDED {
 #endif
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_X87_ASSEMBLER_X87_H_

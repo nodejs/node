@@ -347,7 +347,7 @@ int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
     bl = ctx->cipher->block_size;
     OPENSSL_assert(bl <= (int)sizeof(ctx->buf));
     if (i != 0) {
-        if (i + inl < bl) {
+        if (bl - i > inl) {
             memcpy(&(ctx->buf[i]), in, inl);
             ctx->buf_len += inl;
             *outl = 0;

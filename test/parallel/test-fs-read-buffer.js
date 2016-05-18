@@ -1,25 +1,25 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path'),
-    Buffer = require('buffer').Buffer,
-    fs = require('fs'),
-    filepath = path.join(common.fixturesDir, 'x.txt'),
-    fd = fs.openSync(filepath, 'r'),
-    expected = 'xyz\n',
-    bufferAsync = new Buffer(expected.length),
-    bufferSync = new Buffer(expected.length),
-    readCalled = 0;
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const Buffer = require('buffer').Buffer;
+const fs = require('fs');
+const filepath = path.join(common.fixturesDir, 'x.txt');
+const fd = fs.openSync(filepath, 'r');
+const expected = 'xyz\n';
+const bufferAsync = Buffer.allocUnsafe(expected.length);
+const bufferSync = Buffer.allocUnsafe(expected.length);
+let readCalled = 0;
 
 fs.read(fd, bufferAsync, 0, expected.length, 0, function(err, bytesRead) {
   readCalled++;
 
   assert.equal(bytesRead, expected.length);
-  assert.deepEqual(bufferAsync, new Buffer(expected));
+  assert.deepStrictEqual(bufferAsync, Buffer.from(expected));
 });
 
 var r = fs.readSync(fd, bufferSync, 0, expected.length, 0);
-assert.deepEqual(bufferSync, new Buffer(expected));
+assert.deepStrictEqual(bufferSync, Buffer.from(expected));
 assert.equal(r, expected.length);
 
 process.on('exit', function() {

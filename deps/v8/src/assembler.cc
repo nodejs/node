@@ -34,6 +34,7 @@
 
 #include "src/assembler.h"
 
+#include <math.h>
 #include <cmath>
 #include "src/api.h"
 #include "src/base/cpu.h"
@@ -46,17 +47,20 @@
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/disassembler.h"
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/interpreter/interpreter.h"
+#include "src/ostreams.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
+#include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serialize.h"
-#include "src/token.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/assembler-ia32-inl.h"  // NOLINT
@@ -105,6 +109,39 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
+// Common register code.
+
+const char* Register::ToString() {
+  // This is the mapping of allocation indices to registers.
+  DCHECK(reg_code >= 0 && reg_code < kNumRegisters);
+  return RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+      ->GetGeneralRegisterName(reg_code);
+}
+
+
+bool Register::IsAllocatable() const {
+  return ((1 << reg_code) &
+          RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+              ->allocatable_general_codes_mask()) != 0;
+}
+
+
+const char* DoubleRegister::ToString() {
+  // This is the mapping of allocation indices to registers.
+  DCHECK(reg_code >= 0 && reg_code < kMaxNumRegisters);
+  return RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+      ->GetDoubleRegisterName(reg_code);
+}
+
+
+bool DoubleRegister::IsAllocatable() const {
+  return ((1 << reg_code) &
+          RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
+              ->allocatable_double_codes_mask()) != 0;
+}
+
+
+// -----------------------------------------------------------------------------
 // Common double constants.
 
 struct DoubleConstant BASE_EMBEDDED {
@@ -137,7 +174,8 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
       // We may use the assembler without an isolate.
       serializer_enabled_(isolate && isolate->serializer_enabled()),
       constant_pool_available_(false) {
-  if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
+  DCHECK_NOT_NULL(isolate);
+  if (FLAG_mask_constants_with_cookie) {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
   own_buffer_ = buffer == NULL;
@@ -168,16 +206,9 @@ void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
 }
 
 
-void AssemblerBase::FlushICacheWithoutIsolate(void* start, size_t size) {
-  // Ideally we would just call Isolate::Current() here. However, this flushes
-  // out issues because we usually only need the isolate when in the simulator.
-  Isolate* isolate;
-#if defined(USE_SIMULATOR)
-  isolate = Isolate::Current();
-#else
-  isolate = nullptr;
-#endif  // USE_SIMULATOR
-  FlushICache(isolate, start, size);
+void AssemblerBase::Print() {
+  OFStream os(stdout);
+  v8::internal::Disassembler::Decode(isolate(), &os, buffer_, pc_, nullptr);
 }
 
 
@@ -235,8 +266,8 @@ CpuFeatureScope::~CpuFeatureScope() {
 
 bool CpuFeatures::initialized_ = false;
 unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::cache_line_size_ = 0;
-
+unsigned CpuFeatures::icache_line_size_ = 0;
+unsigned CpuFeatures::dcache_line_size_ = 0;
 
 // -----------------------------------------------------------------------------
 // Implementation of Label
@@ -478,8 +509,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     if (RelocInfo::IsComment(rmode)) {
       WriteData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
-               RelocInfo::IsVeneerPool(rmode) ||
-               RelocInfo::IsDebugBreakSlotAtCall(rmode)) {
+               RelocInfo::IsVeneerPool(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
@@ -670,8 +700,7 @@ void RelocIterator::next() {
             Advance(kIntSize);
           }
         } else if (RelocInfo::IsConstPool(rmode) ||
-                   RelocInfo::IsVeneerPool(rmode) ||
-                   RelocInfo::IsDebugBreakSlotAtCall(rmode)) {
+                   RelocInfo::IsVeneerPool(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;
@@ -696,7 +725,8 @@ void RelocIterator::next() {
 }
 
 
-RelocIterator::RelocIterator(Code* code, int mode_mask) {
+RelocIterator::RelocIterator(Code* code, int mode_mask)
+    : rinfo_(code->map()->GetIsolate()) {
   rinfo_.host_ = code;
   rinfo_.pc_ = code->instruction_start();
   rinfo_.data_ = 0;
@@ -721,7 +751,8 @@ RelocIterator::RelocIterator(Code* code, int mode_mask) {
 }
 
 
-RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
+RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
+    : rinfo_(desc.origin->isolate()) {
   rinfo_.pc_ = desc.buffer;
   rinfo_.data_ = 0;
   // Relocation info is read backwards.
@@ -740,6 +771,9 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 
+bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
+  return DebugCodegen::DebugBreakSlotIsPatched(pc_);
+}
 
 #ifdef DEBUG
 bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
@@ -765,8 +799,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "no reloc 64";
     case EMBEDDED_OBJECT:
       return "embedded object";
-    case CONSTRUCT_CALL:
-      return "code target (js construct call)";
     case DEBUGGER_STATEMENT:
       return "debugger statement";
     case CODE_TARGET:
@@ -801,8 +833,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "debug break slot at return";
     case DEBUG_BREAK_SLOT_AT_CALL:
       return "debug break slot at call";
-    case DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL:
-      return "debug break slot at construct call";
     case CODE_AGE_SEQUENCE:
       return "code age sequence";
     case GENERATOR_CONTINUATION:
@@ -867,7 +897,6 @@ void RelocInfo::Verify(Isolate* isolate) {
       Object::VerifyPointer(target_cell());
       break;
     case DEBUGGER_STATEMENT:
-    case CONSTRUCT_CALL:
     case CODE_TARGET_WITH_ID:
     case CODE_TARGET: {
       // convert inline target address to code object
@@ -900,7 +929,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEBUG_BREAK_SLOT_AT_POSITION:
     case DEBUG_BREAK_SLOT_AT_RETURN:
     case DEBUG_BREAK_SLOT_AT_CALL:
-    case DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL:
     case GENERATOR_CONTINUATION:
     case NONE32:
     case NONE64:
@@ -917,13 +945,21 @@ void RelocInfo::Verify(Isolate* isolate) {
 #endif  // VERIFY_HEAP
 
 
-int RelocInfo::DebugBreakCallArgumentsCount(intptr_t data) {
-  return static_cast<int>(data);
+// Implementation of ExternalReference
+
+static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
+  switch (result_size) {
+    case 1:
+      return ExternalReference::BUILTIN_CALL;
+    case 2:
+      return ExternalReference::BUILTIN_CALL_PAIR;
+    case 3:
+      return ExternalReference::BUILTIN_CALL_TRIPLE;
+  }
+  UNREACHABLE();
+  return ExternalReference::BUILTIN_CALL;
 }
 
-
-// -----------------------------------------------------------------------------
-// Implementation of ExternalReference
 
 void ExternalReference::SetUp() {
   double_constants.min_int = kMinInt;
@@ -1007,18 +1043,23 @@ ExternalReference::ExternalReference(Builtins::Name name, Isolate* isolate)
 
 
 ExternalReference::ExternalReference(Runtime::FunctionId id, Isolate* isolate)
-    : address_(Redirect(isolate, Runtime::FunctionForId(id)->entry)) {}
+    : ExternalReference(Runtime::FunctionForId(id), isolate) {}
 
 
 ExternalReference::ExternalReference(const Runtime::Function* f,
                                      Isolate* isolate)
-    : address_(Redirect(isolate, f->entry)) {}
+    : address_(Redirect(isolate, f->entry,
+                        BuiltinCallTypeForResultSize(f->result_size))) {}
 
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
 }
 
+ExternalReference ExternalReference::interpreter_dispatch_table_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->interpreter()->dispatch_table_address());
+}
 
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
@@ -1039,9 +1080,16 @@ ExternalReference ExternalReference::
       FUNCTION_ADDR(IncrementalMarking::RecordWriteFromCode)));
 }
 
+ExternalReference
+ExternalReference::incremental_marking_record_write_code_entry_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate,
+      FUNCTION_ADDR(IncrementalMarking::RecordWriteOfCodeEntryFromCode)));
+}
 
-ExternalReference ExternalReference::
-    store_buffer_overflow_function(Isolate* isolate) {
+ExternalReference ExternalReference::store_buffer_overflow_function(
+    Isolate* isolate) {
   return ExternalReference(Redirect(
       isolate,
       FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow)));
@@ -1099,6 +1147,67 @@ ExternalReference ExternalReference::compute_output_frames_function(
       Redirect(isolate, FUNCTION_ADDR(Deoptimizer::ComputeOutputFrames)));
 }
 
+static void f32_trunc_wrapper(float* param) { *param = truncf(*param); }
+
+ExternalReference ExternalReference::f32_trunc_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_trunc_wrapper)));
+}
+
+static void f32_floor_wrapper(float* param) { *param = floorf(*param); }
+
+ExternalReference ExternalReference::f32_floor_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_floor_wrapper)));
+}
+
+static void f32_ceil_wrapper(float* param) { *param = ceilf(*param); }
+
+ExternalReference ExternalReference::f32_ceil_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f32_ceil_wrapper)));
+}
+
+static void f32_nearest_int_wrapper(float* param) {
+  *param = nearbyintf(*param);
+}
+
+ExternalReference ExternalReference::f32_nearest_int_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(f32_nearest_int_wrapper)));
+}
+
+static void f64_trunc_wrapper(double* param) { *param = trunc(*param); }
+
+ExternalReference ExternalReference::f64_trunc_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_trunc_wrapper)));
+}
+
+static void f64_floor_wrapper(double* param) { *param = floor(*param); }
+
+ExternalReference ExternalReference::f64_floor_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_floor_wrapper)));
+}
+
+static void f64_ceil_wrapper(double* param) { *param = ceil(*param); }
+
+ExternalReference ExternalReference::f64_ceil_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_ceil_wrapper)));
+}
+
+static void f64_nearest_int_wrapper(double* param) {
+  *param = nearbyint(*param);
+}
+
+ExternalReference ExternalReference::f64_nearest_int_wrapper_function(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(f64_nearest_int_wrapper)));
+}
 
 ExternalReference ExternalReference::log_enter_external_function(
     Isolate* isolate) {
@@ -1161,12 +1270,6 @@ ExternalReference ExternalReference::new_space_start(Isolate* isolate) {
 
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
   return ExternalReference(isolate->heap()->store_buffer_top_address());
-}
-
-
-ExternalReference ExternalReference::new_space_mask(Isolate* isolate) {
-  return ExternalReference(reinterpret_cast<Address>(
-      isolate->heap()->NewSpaceMask()));
 }
 
 
@@ -1399,31 +1502,38 @@ ExternalReference ExternalReference::debug_after_break_target_address(
 }
 
 
-ExternalReference
-    ExternalReference::debug_restarter_frame_function_pointer_address(
-        Isolate* isolate) {
-  return ExternalReference(
-      isolate->debug()->restarter_frame_function_pointer_address());
-}
-
-
-ExternalReference ExternalReference::vector_store_virtual_register(
+ExternalReference ExternalReference::virtual_handler_register(
     Isolate* isolate) {
-  return ExternalReference(isolate->vector_store_virtual_register_address());
+  return ExternalReference(isolate->virtual_handler_register_address());
 }
 
 
-double power_helper(double x, double y) {
+ExternalReference ExternalReference::virtual_slot_register(Isolate* isolate) {
+  return ExternalReference(isolate->virtual_slot_register_address());
+}
+
+
+ExternalReference ExternalReference::runtime_function_table_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      const_cast<Runtime::Function*>(Runtime::RuntimeFunctionTable(isolate)));
+}
+
+
+double power_helper(Isolate* isolate, double x, double y) {
   int y_int = static_cast<int>(y);
   if (y == y_int) {
     return power_double_int(x, y_int);  // Returns 1 if exponent is 0.
   }
   if (y == 0.5) {
+    lazily_initialize_fast_sqrt(isolate);
     return (std::isinf(x)) ? V8_INFINITY
-                           : fast_sqrt(x + 0.0);  // Convert -0 to +0.
+                           : fast_sqrt(x + 0.0, isolate);  // Convert -0 to +0.
   }
   if (y == -0.5) {
-    return (std::isinf(x)) ? 0 : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
+    lazily_initialize_fast_sqrt(isolate);
+    return (std::isinf(x)) ? 0 : 1.0 / fast_sqrt(x + 0.0,
+                                                 isolate);  // Convert -0 to +0.
   }
   return power_double_double(x, y);
 }
@@ -1496,23 +1606,6 @@ ExternalReference ExternalReference::power_double_int_function(
 }
 
 
-bool EvalComparison(Token::Value op, double op1, double op2) {
-  DCHECK(Token::IsCompareOp(op));
-  switch (op) {
-    case Token::EQ:
-    case Token::EQ_STRICT: return (op1 == op2);
-    case Token::NE: return (op1 != op2);
-    case Token::LT: return (op1 < op2);
-    case Token::GT: return (op1 > op2);
-    case Token::LTE: return (op1 <= op2);
-    case Token::GTE: return (op1 >= op2);
-    default:
-      UNREACHABLE();
-      return false;
-  }
-}
-
-
 ExternalReference ExternalReference::mod_two_doubles_operation(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
@@ -1521,9 +1614,9 @@ ExternalReference ExternalReference::mod_two_doubles_operation(
 }
 
 
-ExternalReference ExternalReference::debug_step_in_fp_address(
+ExternalReference ExternalReference::debug_step_in_enabled_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->debug()->step_in_fp_addr());
+  return ExternalReference(isolate->debug()->step_in_enabled_address());
 }
 
 
@@ -1812,11 +1905,9 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 // Platform specific but identical code for all the platforms.
 
 
-void Assembler::RecordDeoptReason(const int reason,
-                                  const SourcePosition position) {
+void Assembler::RecordDeoptReason(const int reason, int raw_position) {
   if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
     EnsureSpace ensure_space(this);
-    int raw_position = position.IsUnknown() ? 0 : position.raw();
     RecordRelocInfo(RelocInfo::POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
   }
@@ -1837,11 +1928,10 @@ void Assembler::RecordGeneratorContinuation() {
 }
 
 
-void Assembler::RecordDebugBreakSlot(RelocInfo::Mode mode, int call_argc) {
+void Assembler::RecordDebugBreakSlot(RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
   DCHECK(RelocInfo::IsDebugBreakSlot(mode));
-  intptr_t data = static_cast<intptr_t>(call_argc);
-  RecordRelocInfo(mode, data);
+  RecordRelocInfo(mode);
 }
 
 

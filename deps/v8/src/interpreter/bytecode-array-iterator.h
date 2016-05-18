@@ -20,19 +20,28 @@ class BytecodeArrayIterator {
   void Advance();
   bool done() const;
   Bytecode current_bytecode() const;
+  int current_bytecode_size() const;
+  void set_current_offset(int offset) { bytecode_offset_ = offset; }
   int current_offset() const { return bytecode_offset_; }
   const Handle<BytecodeArray>& bytecode_array() const {
     return bytecode_array_;
   }
 
-  int8_t GetSmi8Operand(int operand_index) const;
+  int8_t GetImmediateOperand(int operand_index) const;
   int GetIndexOperand(int operand_index) const;
+  int GetRegisterCountOperand(int operand_index) const;
   Register GetRegisterOperand(int operand_index) const;
+  int GetRegisterOperandRange(int operand_index) const;
   Handle<Object> GetConstantForIndexOperand(int operand_index) const;
 
   // Get the raw byte for the given operand. Note: you should prefer using the
   // typed versions above which cast the return to an appropriate type.
-  uint8_t GetRawOperand(int operand_index, OperandType operand_type) const;
+  uint32_t GetRawOperand(int operand_index, OperandType operand_type) const;
+
+  // Returns the absolute offset of the branch target at the current
+  // bytecode. It is an error to call this method if the bytecode is
+  // not for a jump or conditional jump.
+  int GetJumpTargetOffset() const;
 
  private:
   Handle<BytecodeArray> bytecode_array_;

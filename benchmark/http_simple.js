@@ -1,13 +1,13 @@
-var path = require('path'),
-    exec = require('child_process').exec,
-    http = require('http');
+'use strict';
+
+var http = require('http');
 
 var port = parseInt(process.env.PORT || 8000);
 
-var fixed = makeString(20 * 1024, 'C'),
-    storedBytes = {},
-    storedBuffer = {},
-    storedUnicode = {};
+var fixed = 'C'.repeat(20 * 1024),
+  storedBytes = {},
+  storedBuffer = {},
+  storedUnicode = {};
 
 var useDomains = process.env.NODE_USE_DOMAINS;
 
@@ -22,7 +22,7 @@ if (useDomains) {
   gdom.enter();
 }
 
-var server = module.exports = http.createServer(function (req, res) {
+var server = module.exports = http.createServer(function(req, res) {
   if (useDomains) {
     var dom = domain.create();
     dom.add(req);
@@ -36,33 +36,34 @@ var server = module.exports = http.createServer(function (req, res) {
   var n_chunks = parseInt(commands[3], 10);
   var status = 200;
 
+  var n, i;
   if (command == 'bytes') {
-    var n = ~~arg;
+    n = ~~arg;
     if (n <= 0)
-      throw new Error('bytes called with n <= 0')
+      throw new Error('bytes called with n <= 0');
     if (storedBytes[n] === undefined) {
-      storedBytes[n] = makeString(n, 'C');
+      storedBytes[n] = 'C'.repeat(n);
     }
     body = storedBytes[n];
 
   } else if (command == 'buffer') {
-    var n = ~~arg;
+    n = ~~arg;
     if (n <= 0)
       throw new Error('buffer called with n <= 0');
     if (storedBuffer[n] === undefined) {
-      storedBuffer[n] = new Buffer(n);
-      for (var i = 0; i < n; i++) {
+      storedBuffer[n] = Buffer.allocUnsafe(n);
+      for (i = 0; i < n; i++) {
         storedBuffer[n][i] = 'C'.charCodeAt(0);
       }
     }
     body = storedBuffer[n];
 
   } else if (command == 'unicode') {
-    var n = ~~arg;
+    n = ~~arg;
     if (n <= 0)
       throw new Error('unicode called with n <= 0');
     if (storedUnicode[n] === undefined) {
-      storedUnicode[n] = makeString(n, '\u263A');
+      storedUnicode[n] = '\u263A'.repeat(n);
     }
     body = storedUnicode[n];
 
@@ -93,7 +94,7 @@ var server = module.exports = http.createServer(function (req, res) {
     var len = body.length;
     var step = Math.floor(len / n_chunks) || 1;
 
-    for (var i = 0, n = (n_chunks - 1); i < n; ++i) {
+    for (i = 0, n = (n_chunks - 1); i < n; ++i) {
       res.write(body.slice(i * step, i * step + step));
     }
     res.end(body.slice((n_chunks - 1) * step));
@@ -106,15 +107,7 @@ var server = module.exports = http.createServer(function (req, res) {
   }
 });
 
-function makeString(size, c) {
-  var s = '';
-  while (s.length < size) {
-    s += c;
-  }
-  return s;
-}
-
-server.listen(port, function () {
+server.listen(port, function() {
   if (module === require.main)
-    console.error('Listening at http://127.0.0.1:'+port+'/');
+    console.error('Listening at http://127.0.0.1:' + port + '/');
 });

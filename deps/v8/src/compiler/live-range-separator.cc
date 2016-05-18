@@ -18,40 +18,6 @@ namespace compiler {
 
 namespace {
 
-// Starting from a deferred block, find the last consecutive deferred block.
-RpoNumber GetLastDeferredBlock(const InstructionBlock *block,
-                               const InstructionSequence *code) {
-  DCHECK(block->IsDeferred());
-  RpoNumber first = block->rpo_number();
-
-  RpoNumber last = first;
-  for (int i = first.ToInt(); i < code->InstructionBlockCount(); ++i) {
-    RpoNumber at_i = RpoNumber::FromInt(i);
-    const InstructionBlock *block_at_i = code->InstructionBlockAt(at_i);
-    if (!block_at_i->IsDeferred()) break;
-    last = at_i;
-  }
-
-  return last;
-}
-
-
-// Delimits consecutive deferred block sequences.
-void AssociateDeferredBlockSequences(InstructionSequence *code) {
-  for (int blk_id = 0; blk_id < code->InstructionBlockCount(); ++blk_id) {
-    InstructionBlock *block =
-        code->InstructionBlockAt(RpoNumber::FromInt(blk_id));
-    if (!block->IsDeferred()) continue;
-    RpoNumber last = GetLastDeferredBlock(block, code);
-    block->set_last_deferred(last);
-    // We know last is still deferred, and that last + 1, is not (or is an
-    // invalid index). So skip over last + 1 and continue from last + 2. This
-    // way, we visit each block exactly once, and the total complexity of this
-    // function is O(n), n being jthe number of blocks.
-    blk_id = last.ToInt() + 1;
-  }
-}
-
 
 void CreateSplinter(TopLevelLiveRange *range, RegisterAllocationData *data,
                     LifetimePosition first_cut, LifetimePosition last_cut) {
@@ -78,80 +44,106 @@ void CreateSplinter(TopLevelLiveRange *range, RegisterAllocationData *data,
     if (range->MayRequireSpillRange()) {
       data->CreateSpillRangeForLiveRange(range);
     }
-    TopLevelLiveRange *result = data->NextLiveRange(range->machine_type());
-    DCHECK_NULL(data->live_ranges()[result->vreg()]);
-    data->live_ranges()[result->vreg()] = result;
-
+    if (range->splinter() == nullptr) {
+      TopLevelLiveRange *splinter =
+          data->NextLiveRange(range->representation());
+      DCHECK_NULL(data->live_ranges()[splinter->vreg()]);
+      data->live_ranges()[splinter->vreg()] = splinter;
+      range->SetSplinter(splinter);
+    }
     Zone *zone = data->allocation_zone();
-    range->Splinter(start, end, result, zone);
+    TRACE("creating splinter for range %d between %d and %d\n", range->vreg(),
+          start.ToInstructionIndex(), end.ToInstructionIndex());
+    range->Splinter(start, end, zone);
   }
 }
 
 
-// Splinter all ranges live inside successive deferred blocks.
-// No control flow analysis is performed. After the register allocation, we will
-// merge the splinters back into the original ranges, and then rely on the
-// range connector to properly connect them.
-void SplinterRangesInDeferredBlocks(RegisterAllocationData *data) {
-  InstructionSequence *code = data->code();
-  int code_block_count = code->InstructionBlockCount();
-  Zone *zone = data->allocation_zone();
-  ZoneVector<BitVector *> &in_sets = data->live_in_sets();
+void SplinterLiveRange(TopLevelLiveRange *range, RegisterAllocationData *data) {
+  const InstructionSequence *code = data->code();
+  UseInterval *interval = range->first_interval();
 
-  for (int i = 0; i < code_block_count; ++i) {
-    InstructionBlock *block = code->InstructionBlockAt(RpoNumber::FromInt(i));
-    if (!block->IsDeferred()) continue;
+  LifetimePosition first_cut = LifetimePosition::Invalid();
+  LifetimePosition last_cut = LifetimePosition::Invalid();
 
-    RpoNumber last_deferred = block->last_deferred();
-    // last_deferred + 1 is not deferred, so no point in visiting it.
-    i = last_deferred.ToInt() + 1;
-
-    LifetimePosition first_cut = LifetimePosition::GapFromInstructionIndex(
-        block->first_instruction_index());
-
-    LifetimePosition last_cut = LifetimePosition::GapFromInstructionIndex(
-        static_cast<int>(code->instructions().size()));
-
-    const BitVector *in_set = in_sets[block->rpo_number().ToInt()];
-    BitVector ranges_to_splinter(*in_set, zone);
-    InstructionBlock *last = code->InstructionBlockAt(last_deferred);
-    for (int deferred_id = block->rpo_number().ToInt();
-         deferred_id <= last->rpo_number().ToInt(); ++deferred_id) {
-      const BitVector *ins = in_sets[deferred_id];
-      ranges_to_splinter.Union(*ins);
-      const BitVector *outs = LiveRangeBuilder::ComputeLiveOut(
-          code->InstructionBlockAt(RpoNumber::FromInt(deferred_id)), data);
-      ranges_to_splinter.Union(*outs);
+  while (interval != nullptr) {
+    UseInterval *next_interval = interval->next();
+    const InstructionBlock *first_block =
+        code->GetInstructionBlock(interval->FirstGapIndex());
+    const InstructionBlock *last_block =
+        code->GetInstructionBlock(interval->LastGapIndex());
+    int first_block_nr = first_block->rpo_number().ToInt();
+    int last_block_nr = last_block->rpo_number().ToInt();
+    for (int block_id = first_block_nr; block_id <= last_block_nr; ++block_id) {
+      const InstructionBlock *current_block =
+          code->InstructionBlockAt(RpoNumber::FromInt(block_id));
+      if (current_block->IsDeferred()) {
+        if (!first_cut.IsValid()) {
+          first_cut = LifetimePosition::GapFromInstructionIndex(
+              current_block->first_instruction_index());
+        }
+        last_cut = LifetimePosition::GapFromInstructionIndex(
+            current_block->last_instruction_index());
+      } else {
+        if (first_cut.IsValid()) {
+          CreateSplinter(range, data, first_cut, last_cut);
+          first_cut = LifetimePosition::Invalid();
+          last_cut = LifetimePosition::Invalid();
+        }
+      }
     }
-
-    int last_index = last->last_instruction_index();
-    if (code->InstructionAt(last_index)->opcode() ==
-        ArchOpcode::kArchDeoptimize) {
-      ++last_index;
-    }
-    last_cut = LifetimePosition::GapFromInstructionIndex(last_index);
-
-    BitVector::Iterator iterator(&ranges_to_splinter);
-
-    while (!iterator.Done()) {
-      int range_id = iterator.Current();
-      iterator.Advance();
-
-      TopLevelLiveRange *range = data->live_ranges()[range_id];
-      CreateSplinter(range, data, first_cut, last_cut);
-    }
+    interval = next_interval;
+  }
+  // When the range ends in deferred blocks, first_cut will be valid here.
+  // Splinter from there to the last instruction that was in a deferred block.
+  if (first_cut.IsValid()) {
+    CreateSplinter(range, data, first_cut, last_cut);
   }
 }
 }  // namespace
 
 
 void LiveRangeSeparator::Splinter() {
-  AssociateDeferredBlockSequences(data()->code());
-  SplinterRangesInDeferredBlocks(data());
+  size_t virt_reg_count = data()->live_ranges().size();
+  for (size_t vreg = 0; vreg < virt_reg_count; ++vreg) {
+    TopLevelLiveRange *range = data()->live_ranges()[vreg];
+    if (range == nullptr || range->IsEmpty() || range->IsSplinter()) {
+      continue;
+    }
+    int first_instr = range->first_interval()->FirstGapIndex();
+    if (!data()->code()->GetInstructionBlock(first_instr)->IsDeferred()) {
+      SplinterLiveRange(range, data());
+    }
+  }
+}
+
+
+void LiveRangeMerger::MarkRangesSpilledInDeferredBlocks() {
+  const InstructionSequence *code = data()->code();
+  for (TopLevelLiveRange *top : data()->live_ranges()) {
+    if (top == nullptr || top->IsEmpty() || top->splinter() == nullptr ||
+        top->HasSpillOperand() || !top->splinter()->HasSpillRange()) {
+      continue;
+    }
+
+    LiveRange *child = top;
+    for (; child != nullptr; child = child->next()) {
+      if (child->spilled() ||
+          child->NextSlotPosition(child->Start()) != nullptr) {
+        break;
+      }
+    }
+    if (child == nullptr) {
+      top->TreatAsSpilledInDeferredBlock(data()->allocation_zone(),
+                                         code->InstructionBlockCount());
+    }
+  }
 }
 
 
 void LiveRangeMerger::Merge() {
+  MarkRangesSpilledInDeferredBlocks();
+
   int live_range_count = static_cast<int>(data()->live_ranges().size());
   for (int i = 0; i < live_range_count; ++i) {
     TopLevelLiveRange *range = data()->live_ranges()[i];

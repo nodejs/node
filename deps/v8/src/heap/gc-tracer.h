@@ -98,28 +98,37 @@ class GCTracer {
    public:
     enum ScopeId {
       EXTERNAL,
+      MC_CLEAR,
+      MC_CLEAR_CODE_FLUSH,
+      MC_CLEAR_DEPENDENT_CODE,
+      MC_CLEAR_GLOBAL_HANDLES,
+      MC_CLEAR_MAPS,
+      MC_CLEAR_SLOTS_BUFFER,
+      MC_CLEAR_STORE_BUFFER,
+      MC_CLEAR_STRING_TABLE,
+      MC_CLEAR_WEAK_CELLS,
+      MC_CLEAR_WEAK_COLLECTIONS,
+      MC_CLEAR_WEAK_LISTS,
+      MC_EVACUATE,
+      MC_EVACUATE_CANDIDATES,
+      MC_EVACUATE_CLEAN_UP,
+      MC_EVACUATE_NEW_SPACE,
+      MC_EVACUATE_UPDATE_POINTERS,
+      MC_EVACUATE_UPDATE_POINTERS_BETWEEN_EVACUATED,
+      MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED,
+      MC_EVACUATE_UPDATE_POINTERS_TO_NEW,
+      MC_EVACUATE_UPDATE_POINTERS_WEAK,
+      MC_FINISH,
+      MC_INCREMENTAL_FINALIZE,
       MC_MARK,
+      MC_MARK_FINISH_INCREMENTAL,
+      MC_MARK_PREPARE_CODE_FLUSH,
+      MC_MARK_ROOTS,
+      MC_MARK_WEAK_CLOSURE,
       MC_SWEEP,
-      MC_SWEEP_NEWSPACE,
-      MC_SWEEP_OLDSPACE,
       MC_SWEEP_CODE,
-      MC_SWEEP_CELL,
       MC_SWEEP_MAP,
-      MC_EVACUATE_PAGES,
-      MC_UPDATE_NEW_TO_NEW_POINTERS,
-      MC_UPDATE_ROOT_TO_NEW_POINTERS,
-      MC_UPDATE_OLD_TO_NEW_POINTERS,
-      MC_UPDATE_POINTERS_TO_EVACUATED,
-      MC_UPDATE_POINTERS_BETWEEN_EVACUATED,
-      MC_UPDATE_MISC_POINTERS,
-      MC_INCREMENTAL_WEAKCLOSURE,
-      MC_WEAKCLOSURE,
-      MC_WEAKCOLLECTION_PROCESS,
-      MC_WEAKCOLLECTION_CLEAR,
-      MC_WEAKCOLLECTION_ABORT,
-      MC_WEAKCELL,
-      MC_NONLIVEREFERENCES,
-      MC_FLUSH_CODE,
+      MC_SWEEP_OLD,
       SCAVENGER_CODE_FLUSH_CANDIDATES,
       SCAVENGER_OBJECT_GROUPS,
       SCAVENGER_OLD_TO_NEW_POINTERS,
@@ -130,15 +139,8 @@ class GCTracer {
       NUMBER_OF_SCOPES
     };
 
-    Scope(GCTracer* tracer, ScopeId scope) : tracer_(tracer), scope_(scope) {
-      start_time_ = base::OS::TimeCurrentMillis();
-    }
-
-    ~Scope() {
-      DCHECK(scope_ < NUMBER_OF_SCOPES);  // scope_ is unsigned.
-      tracer_->current_.scopes[scope_] +=
-          base::OS::TimeCurrentMillis() - start_time_;
-    }
+    Scope(GCTracer* tracer, ScopeId scope);
+    ~Scope();
 
    private:
     GCTracer* tracer_;
@@ -163,6 +165,18 @@ class GCTracer {
     // Memory allocated in the new space during the end of the last sample
     // to the beginning of the next sample
     size_t allocation_in_bytes_;
+  };
+
+
+  class CompactionEvent {
+   public:
+    CompactionEvent() : duration(0), live_bytes_compacted(0) {}
+
+    CompactionEvent(double duration, intptr_t live_bytes_compacted)
+        : duration(duration), live_bytes_compacted(live_bytes_compacted) {}
+
+    double duration;
+    intptr_t live_bytes_compacted;
   };
 
 
@@ -217,6 +231,9 @@ class GCTracer {
 
     // Timestamp set in the destructor.
     double end_time;
+
+    // Memory reduction flag set.
+    bool reduce_memory;
 
     // Size of objects in heap set in constructor.
     intptr_t start_object_size;
@@ -299,6 +316,8 @@ class GCTracer {
   typedef RingBuffer<ContextDisposalEvent, kRingBufferMaxSize>
       ContextDisposalEventBuffer;
 
+  typedef RingBuffer<CompactionEvent, kRingBufferMaxSize> CompactionEventBuffer;
+
   typedef RingBuffer<SurvivalEvent, kRingBufferMaxSize> SurvivalEventBuffer;
 
   static const int kThroughputTimeFrameMs = 5000;
@@ -321,10 +340,14 @@ class GCTracer {
 
   void AddContextDisposalTime(double time);
 
+  void AddCompactionEvent(double duration, intptr_t live_bytes_compacted);
+
   void AddSurvivalRatio(double survival_ratio);
 
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
+
+  void AddIncrementalMarkingFinalizationStep(double duration);
 
   // Log time spent in marking.
   void AddMarkingTime(double duration) {
@@ -390,6 +413,10 @@ class GCTracer {
   // Returns 0 if no events have been recorded.
   intptr_t ScavengeSpeedInBytesPerMillisecond(
       ScavengeSpeedMode mode = kForAllObjects) const;
+
+  // Compute the average compaction speed in bytes/millisecond.
+  // Returns 0 if not enough events have been recorded.
+  intptr_t CompactionSpeedInBytesPerMillisecond() const;
 
   // Compute the average mark-sweep speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
@@ -472,6 +499,9 @@ class GCTracer {
     cumulative_incremental_marking_duration_ = 0;
     cumulative_pure_incremental_marking_duration_ = 0;
     longest_incremental_marking_step_ = 0;
+    cumulative_incremental_marking_finalization_steps_ = 0;
+    cumulative_incremental_marking_finalization_duration_ = 0;
+    longest_incremental_marking_finalization_step_ = 0;
     cumulative_marking_duration_ = 0;
     cumulative_sweeping_duration_ = 0;
   }
@@ -505,6 +535,9 @@ class GCTracer {
   // RingBuffer for context disposal events.
   ContextDisposalEventBuffer context_disposal_events_;
 
+  // RingBuffer for compaction events.
+  CompactionEventBuffer compaction_events_;
+
   // RingBuffer for survival events.
   SurvivalEventBuffer survival_events_;
 
@@ -524,6 +557,17 @@ class GCTracer {
 
   // Longest incremental marking step since start of marking.
   double longest_incremental_marking_step_;
+
+  // Cumulative number of incremental marking finalization steps since creation
+  // of tracer.
+  int cumulative_incremental_marking_finalization_steps_;
+
+  // Cumulative duration of incremental marking finalization steps since
+  // creation of tracer.
+  double cumulative_incremental_marking_finalization_duration_;
+
+  // Longest incremental marking finalization step since start of marking.
+  double longest_incremental_marking_finalization_step_;
 
   // Total marking time.
   // This timer is precise when run with --print-cumulative-gc-stat
@@ -555,7 +599,7 @@ class GCTracer {
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_GC_TRACER_H_

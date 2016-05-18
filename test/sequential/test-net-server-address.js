@@ -20,7 +20,7 @@ server_ipv4.listen(common.PORT, common.localhostIPv4, function() {
 });
 
 if (!common.hasIPv6) {
-  console.log('1..0 # Skipped: ipv6 part of test, no IPv6 support');
+  common.skip('ipv6 part of test, no IPv6 support');
   return;
 }
 
@@ -86,19 +86,4 @@ server3.listen(0, function() {
   assert.strictEqual(address.address, anycast_ipv6);
   assert.strictEqual(address.family, family_ipv6);
   server3.close();
-});
-
-// Test without hostname, but with port -1
-var server4 = net.createServer();
-
-server4.on('error', function(e) {
-  console.log('Error on ip socket: ' + e.toString());
-});
-
-// Specify -1 as port number
-server4.listen(-1, function() {
-  var address = server4.address();
-  assert.strictEqual(address.address, anycast_ipv6);
-  assert.strictEqual(address.family, family_ipv6);
-  server4.close();
 });

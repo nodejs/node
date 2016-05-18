@@ -9,8 +9,8 @@ const msgOut = 'this is stdout';
 const msgErr = 'this is stderr';
 
 // this is actually not os.EOL?
-const msgOutBuf = new Buffer(msgOut + '\n');
-const msgErrBuf = new Buffer(msgErr + '\n');
+const msgOutBuf = Buffer.from(msgOut + '\n');
+const msgErrBuf = Buffer.from(msgErr + '\n');
 
 const args = [
   '-e',
@@ -23,12 +23,12 @@ var ret;
 function checkSpawnSyncRet(ret) {
   assert.strictEqual(ret.status, 0);
   assert.strictEqual(ret.error, undefined);
-};
+}
 
 function verifyBufOutput(ret) {
   checkSpawnSyncRet(ret);
-  assert.deepEqual(ret.stdout, msgOutBuf);
-  assert.deepEqual(ret.stderr, msgErrBuf);
+  assert.deepStrictEqual(ret.stdout, msgOutBuf);
+  assert.deepStrictEqual(ret.stderr, msgErrBuf);
 }
 
 if (process.argv.indexOf('spawnchild') !== -1) {
@@ -71,14 +71,14 @@ assert.strictEqual(ret.stdout.toString('utf8'), options.input);
 assert.strictEqual(ret.stderr.toString('utf8'), '');
 
 options = {
-  input: new Buffer('hello world')
+  input: Buffer.from('hello world')
 };
 
 ret = spawnSync('cat', [], options);
 
 checkSpawnSyncRet(ret);
-assert.deepEqual(ret.stdout, options.input);
-assert.deepEqual(ret.stderr, new Buffer(''));
+assert.deepStrictEqual(ret.stdout, options.input);
+assert.deepStrictEqual(ret.stderr, Buffer.from(''));
 
 verifyBufOutput(spawnSync(process.execPath, args));
 

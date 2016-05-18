@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 // this test verifies that passing a huge number to read(size)
@@ -22,7 +22,7 @@ stream._read = function(size) {
   if (size === 0)
     stream.push(null);
   else
-    stream.push(new Buffer(size));
+    stream.push(Buffer.allocUnsafe(size));
 };
 
 var depth = 0;

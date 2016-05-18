@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_JS_OPERATOR_H_
 #define V8_COMPILER_JS_OPERATOR_H_
 
+#include "src/compiler/type-hints.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -16,24 +17,24 @@ class Operator;
 struct JSOperatorGlobalCache;
 
 
-// Defines a pair of {TypeFeedbackVector} and {TypeFeedbackVectorICSlot}, which
+// Defines a pair of {TypeFeedbackVector} and {TypeFeedbackVectorSlot}, which
 // is used to access the type feedback for a certain {Node}.
 class VectorSlotPair {
  public:
   VectorSlotPair();
-  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot)
+  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : vector_(vector), slot_(slot) {}
 
-  bool IsValid() const { return !vector_.is_null(); }
+  bool IsValid() const { return !vector_.is_null() && !slot_.IsInvalid(); }
 
   Handle<TypeFeedbackVector> vector() const { return vector_; }
-  FeedbackVectorICSlot slot() const { return slot_; }
+  FeedbackVectorSlot slot() const { return slot_; }
 
   int index() const;
 
  private:
   const Handle<TypeFeedbackVector> vector_;
-  const FeedbackVectorICSlot slot_;
+  const FeedbackVectorSlot slot_;
 };
 
 bool operator==(VectorSlotPair const&, VectorSlotPair const&);
@@ -41,25 +42,58 @@ bool operator!=(VectorSlotPair const&, VectorSlotPair const&);
 
 size_t hash_value(VectorSlotPair const&);
 
-enum TailCallMode { NO_TAIL_CALLS, ALLOW_TAIL_CALLS };
+
+// The ConvertReceiverMode is used as parameter by JSConvertReceiver operators.
+ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
+
+
+// The ToBooleanHints are used as parameter by JSToBoolean operators.
+ToBooleanHints ToBooleanHintsOf(Operator const* op);
+
+
+// Defines the arity and the feedback for a JavaScript constructor call. This is
+// used as a parameter by JSCallConstruct operators.
+class CallConstructParameters final {
+ public:
+  CallConstructParameters(size_t arity, VectorSlotPair const& feedback)
+      : arity_(arity), feedback_(feedback) {}
+
+  size_t arity() const { return arity_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
+
+ private:
+  size_t const arity_;
+  VectorSlotPair const feedback_;
+};
+
+bool operator==(CallConstructParameters const&, CallConstructParameters const&);
+bool operator!=(CallConstructParameters const&, CallConstructParameters const&);
+
+size_t hash_value(CallConstructParameters const&);
+
+std::ostream& operator<<(std::ostream&, CallConstructParameters const&);
+
+CallConstructParameters const& CallConstructParametersOf(Operator const*);
+
 
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCallFunction operators.
 class CallFunctionParameters final {
  public:
-  CallFunctionParameters(size_t arity, CallFunctionFlags flags,
-                         LanguageMode language_mode,
-                         VectorSlotPair const& feedback,
-                         TailCallMode tail_call_mode)
-      : bit_field_(ArityField::encode(arity) | FlagsField::encode(flags) |
-                   LanguageModeField::encode(language_mode)),
-        feedback_(feedback),
-        tail_call_mode_(tail_call_mode) {}
+  CallFunctionParameters(size_t arity, VectorSlotPair const& feedback,
+                         TailCallMode tail_call_mode,
+                         ConvertReceiverMode convert_mode)
+      : bit_field_(ArityField::encode(arity) |
+                   ConvertReceiverModeField::encode(convert_mode) |
+                   TailCallModeField::encode(tail_call_mode)),
+        feedback_(feedback) {}
 
   size_t arity() const { return ArityField::decode(bit_field_); }
-  CallFunctionFlags flags() const { return FlagsField::decode(bit_field_); }
-  LanguageMode language_mode() const {
-    return LanguageModeField::decode(bit_field_);
+  ConvertReceiverMode convert_mode() const {
+    return ConvertReceiverModeField::decode(bit_field_);
+  }
+  TailCallMode tail_call_mode() const {
+    return TailCallModeField::decode(bit_field_);
   }
   VectorSlotPair const& feedback() const { return feedback_; }
 
@@ -71,20 +105,17 @@ class CallFunctionParameters final {
     return !(*this == that);
   }
 
-  bool AllowTailCalls() const { return tail_call_mode_ == ALLOW_TAIL_CALLS; }
-
  private:
   friend size_t hash_value(CallFunctionParameters const& p) {
     return base::hash_combine(p.bit_field_, p.feedback_);
   }
 
-  typedef BitField<size_t, 0, 28> ArityField;
-  typedef BitField<CallFunctionFlags, 28, 2> FlagsField;
-  typedef BitField<LanguageMode, 30, 2> LanguageModeField;
+  typedef BitField<size_t, 0, 29> ArityField;
+  typedef BitField<ConvertReceiverMode, 29, 2> ConvertReceiverModeField;
+  typedef BitField<TailCallMode, 31, 1> TailCallModeField;
 
   const uint32_t bit_field_;
   const VectorSlotPair feedback_;
-  bool tail_call_mode_;
 };
 
 size_t hash_value(CallFunctionParameters const&);
@@ -148,113 +179,32 @@ std::ostream& operator<<(std::ostream&, ContextAccess const&);
 ContextAccess const& ContextAccessOf(Operator const*);
 
 
-// Defines the name for a dynamic variable lookup. The {check_bitset} allows to
-// inline checks whether the lookup yields in a global variable. This is used as
-// a parameter by JSLoadDynamicGlobal and JSStoreDynamicGlobal operators.
-class DynamicGlobalAccess final {
+// Defines the property of an object for a named access. This is
+// used as a parameter by the JSLoadNamed and JSStoreNamed operators.
+class NamedAccess final {
  public:
-  DynamicGlobalAccess(const Handle<String>& name, uint32_t check_bitset,
-                      const VectorSlotPair& feedback, TypeofMode typeof_mode);
-
-  const Handle<String>& name() const { return name_; }
-  uint32_t check_bitset() const { return check_bitset_; }
-  const VectorSlotPair& feedback() const { return feedback_; }
-  TypeofMode typeof_mode() const { return typeof_mode_; }
-
-  // Indicates that an inline check is disabled.
-  bool RequiresFullCheck() const {
-    return check_bitset() == kFullCheckRequired;
-  }
-
-  // Limit of context chain length to which inline check is possible.
-  static const int kMaxCheckDepth = 30;
-
-  // Sentinel for {check_bitset} disabling inline checks.
-  static const uint32_t kFullCheckRequired = -1;
-
- private:
-  const Handle<String> name_;
-  const uint32_t check_bitset_;
-  const VectorSlotPair feedback_;
-  const TypeofMode typeof_mode_;
-};
-
-size_t hash_value(DynamicGlobalAccess const&);
-
-bool operator==(DynamicGlobalAccess const&, DynamicGlobalAccess const&);
-bool operator!=(DynamicGlobalAccess const&, DynamicGlobalAccess const&);
-
-std::ostream& operator<<(std::ostream&, DynamicGlobalAccess const&);
-
-DynamicGlobalAccess const& DynamicGlobalAccessOf(Operator const*);
-
-
-// Defines the name for a dynamic variable lookup. The {check_bitset} allows to
-// inline checks whether the lookup yields in a context variable. This is used
-// as a parameter by JSLoadDynamicContext and JSStoreDynamicContext operators.
-class DynamicContextAccess final {
- public:
-  DynamicContextAccess(const Handle<String>& name, uint32_t check_bitset,
-                       const ContextAccess& context_access);
-
-  const Handle<String>& name() const { return name_; }
-  uint32_t check_bitset() const { return check_bitset_; }
-  const ContextAccess& context_access() const { return context_access_; }
-
-  // Indicates that an inline check is disabled.
-  bool RequiresFullCheck() const {
-    return check_bitset() == kFullCheckRequired;
-  }
-
-  // Limit of context chain length to which inline check is possible.
-  static const int kMaxCheckDepth = 30;
-
-  // Sentinel for {check_bitset} disabling inline checks.
-  static const uint32_t kFullCheckRequired = -1;
-
- private:
-  const Handle<String> name_;
-  const uint32_t check_bitset_;
-  const ContextAccess context_access_;
-};
-
-size_t hash_value(DynamicContextAccess const&);
-
-bool operator==(DynamicContextAccess const&, DynamicContextAccess const&);
-bool operator!=(DynamicContextAccess const&, DynamicContextAccess const&);
-
-std::ostream& operator<<(std::ostream&, DynamicContextAccess const&);
-
-DynamicContextAccess const& DynamicContextAccessOf(Operator const*);
-
-
-// Defines the property being loaded from an object by a named load. This is
-// used as a parameter by JSLoadNamed operators.
-class LoadNamedParameters final {
- public:
-  LoadNamedParameters(const Handle<Name>& name, const VectorSlotPair& feedback,
-                      LanguageMode language_mode)
+  NamedAccess(LanguageMode language_mode, Handle<Name> name,
+              VectorSlotPair const& feedback)
       : name_(name), feedback_(feedback), language_mode_(language_mode) {}
 
-  const Handle<Name>& name() const { return name_; }
+  Handle<Name> name() const { return name_; }
   LanguageMode language_mode() const { return language_mode_; }
-
-  const VectorSlotPair& feedback() const { return feedback_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
 
  private:
-  const Handle<Name> name_;
-  const VectorSlotPair feedback_;
-  const LanguageMode language_mode_;
+  Handle<Name> const name_;
+  VectorSlotPair const feedback_;
+  LanguageMode const language_mode_;
 };
 
-bool operator==(LoadNamedParameters const&, LoadNamedParameters const&);
-bool operator!=(LoadNamedParameters const&, LoadNamedParameters const&);
+bool operator==(NamedAccess const&, NamedAccess const&);
+bool operator!=(NamedAccess const&, NamedAccess const&);
 
-size_t hash_value(LoadNamedParameters const&);
+size_t hash_value(NamedAccess const&);
 
-std::ostream& operator<<(std::ostream&, LoadNamedParameters const&);
+std::ostream& operator<<(std::ostream&, NamedAccess const&);
 
-const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
+const NamedAccess& NamedAccessOf(const Operator* op);
 
 
 // Defines the property being loaded from an object by a named load. This is
@@ -262,24 +212,18 @@ const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
 class LoadGlobalParameters final {
  public:
   LoadGlobalParameters(const Handle<Name>& name, const VectorSlotPair& feedback,
-                       TypeofMode typeof_mode, int slot_index)
-      : name_(name),
-        feedback_(feedback),
-        typeof_mode_(typeof_mode),
-        slot_index_(slot_index) {}
+                       TypeofMode typeof_mode)
+      : name_(name), feedback_(feedback), typeof_mode_(typeof_mode) {}
 
   const Handle<Name>& name() const { return name_; }
   TypeofMode typeof_mode() const { return typeof_mode_; }
 
   const VectorSlotPair& feedback() const { return feedback_; }
 
-  int slot_index() const { return slot_index_; }
-
  private:
   const Handle<Name> name_;
   const VectorSlotPair feedback_;
   const TypeofMode typeof_mode_;
-  const int slot_index_;
 };
 
 bool operator==(LoadGlobalParameters const&, LoadGlobalParameters const&);
@@ -298,67 +242,7 @@ class StoreGlobalParameters final {
  public:
   StoreGlobalParameters(LanguageMode language_mode,
                         const VectorSlotPair& feedback,
-                        const Handle<Name>& name, int slot_index)
-      : language_mode_(language_mode),
-        name_(name),
-        feedback_(feedback),
-        slot_index_(slot_index) {}
-
-  LanguageMode language_mode() const { return language_mode_; }
-  const VectorSlotPair& feedback() const { return feedback_; }
-  const Handle<Name>& name() const { return name_; }
-  int slot_index() const { return slot_index_; }
-
- private:
-  const LanguageMode language_mode_;
-  const Handle<Name> name_;
-  const VectorSlotPair feedback_;
-  int slot_index_;
-};
-
-bool operator==(StoreGlobalParameters const&, StoreGlobalParameters const&);
-bool operator!=(StoreGlobalParameters const&, StoreGlobalParameters const&);
-
-size_t hash_value(StoreGlobalParameters const&);
-
-std::ostream& operator<<(std::ostream&, StoreGlobalParameters const&);
-
-const StoreGlobalParameters& StoreGlobalParametersOf(const Operator* op);
-
-
-// Defines the property being loaded from an object. This is
-// used as a parameter by JSLoadProperty operators.
-class LoadPropertyParameters final {
- public:
-  explicit LoadPropertyParameters(const VectorSlotPair& feedback,
-                                  LanguageMode language_mode)
-      : feedback_(feedback), language_mode_(language_mode) {}
-
-  const VectorSlotPair& feedback() const { return feedback_; }
-
-  LanguageMode language_mode() const { return language_mode_; }
-
- private:
-  const VectorSlotPair feedback_;
-  const LanguageMode language_mode_;
-};
-
-bool operator==(LoadPropertyParameters const&, LoadPropertyParameters const&);
-bool operator!=(LoadPropertyParameters const&, LoadPropertyParameters const&);
-
-size_t hash_value(LoadPropertyParameters const&);
-
-std::ostream& operator<<(std::ostream&, LoadPropertyParameters const&);
-
-const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op);
-
-
-// Defines the property being stored to an object by a named store. This is
-// used as a parameter by JSStoreNamed operator.
-class StoreNamedParameters final {
- public:
-  StoreNamedParameters(LanguageMode language_mode,
-                       const VectorSlotPair& feedback, const Handle<Name>& name)
+                        const Handle<Name>& name)
       : language_mode_(language_mode), name_(name), feedback_(feedback) {}
 
   LanguageMode language_mode() const { return language_mode_; }
@@ -371,69 +255,68 @@ class StoreNamedParameters final {
   const VectorSlotPair feedback_;
 };
 
-bool operator==(StoreNamedParameters const&, StoreNamedParameters const&);
-bool operator!=(StoreNamedParameters const&, StoreNamedParameters const&);
+bool operator==(StoreGlobalParameters const&, StoreGlobalParameters const&);
+bool operator!=(StoreGlobalParameters const&, StoreGlobalParameters const&);
 
-size_t hash_value(StoreNamedParameters const&);
+size_t hash_value(StoreGlobalParameters const&);
 
-std::ostream& operator<<(std::ostream&, StoreNamedParameters const&);
+std::ostream& operator<<(std::ostream&, StoreGlobalParameters const&);
 
-const StoreNamedParameters& StoreNamedParametersOf(const Operator* op);
+const StoreGlobalParameters& StoreGlobalParametersOf(const Operator* op);
 
 
-// Defines the property being stored to an object. This is used as a parameter
-// by JSStoreProperty operators.
-class StorePropertyParameters final {
+// Defines the property of an object for a keyed access. This is used
+// as a parameter by the JSLoadProperty and JSStoreProperty operators.
+class PropertyAccess final {
  public:
-  StorePropertyParameters(LanguageMode language_mode,
-                          const VectorSlotPair& feedback)
-      : language_mode_(language_mode), feedback_(feedback) {}
+  PropertyAccess(LanguageMode language_mode, VectorSlotPair const& feedback)
+      : feedback_(feedback), language_mode_(language_mode) {}
 
   LanguageMode language_mode() const { return language_mode_; }
-  const VectorSlotPair& feedback() const { return feedback_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
 
  private:
-  const LanguageMode language_mode_;
-  const VectorSlotPair feedback_;
+  VectorSlotPair const feedback_;
+  LanguageMode const language_mode_;
 };
 
-bool operator==(StorePropertyParameters const&, StorePropertyParameters const&);
-bool operator!=(StorePropertyParameters const&, StorePropertyParameters const&);
+bool operator==(PropertyAccess const&, PropertyAccess const&);
+bool operator!=(PropertyAccess const&, PropertyAccess const&);
 
-size_t hash_value(StorePropertyParameters const&);
+size_t hash_value(PropertyAccess const&);
 
-std::ostream& operator<<(std::ostream&, StorePropertyParameters const&);
+std::ostream& operator<<(std::ostream&, PropertyAccess const&);
 
-const StorePropertyParameters& StorePropertyParametersOf(const Operator* op);
+PropertyAccess const& PropertyAccessOf(const Operator* op);
 
 
-// Defines specifics about arguments object or rest parameter creation. This is
-// used as a parameter by JSCreateArguments operators.
-class CreateArgumentsParameters final {
+// CreateArgumentsType is used as parameter to JSCreateArguments nodes.
+CreateArgumentsType const& CreateArgumentsTypeOf(const Operator* op);
+
+
+// Defines shared information for the array that should be created. This is
+// used as parameter by JSCreateArray operators.
+class CreateArrayParameters final {
  public:
-  enum Type { kMappedArguments, kUnmappedArguments, kRestArray };
-  CreateArgumentsParameters(Type type, int start_index)
-      : type_(type), start_index_(start_index) {}
+  explicit CreateArrayParameters(size_t arity, Handle<AllocationSite> site)
+      : arity_(arity), site_(site) {}
 
-  Type type() const { return type_; }
-  int start_index() const { return start_index_; }
+  size_t arity() const { return arity_; }
+  Handle<AllocationSite> site() const { return site_; }
 
  private:
-  const Type type_;
-  const int start_index_;
+  size_t const arity_;
+  Handle<AllocationSite> const site_;
 };
 
-bool operator==(CreateArgumentsParameters const&,
-                CreateArgumentsParameters const&);
-bool operator!=(CreateArgumentsParameters const&,
-                CreateArgumentsParameters const&);
+bool operator==(CreateArrayParameters const&, CreateArrayParameters const&);
+bool operator!=(CreateArrayParameters const&, CreateArrayParameters const&);
 
-size_t hash_value(CreateArgumentsParameters const&);
+size_t hash_value(CreateArrayParameters const&);
 
-std::ostream& operator<<(std::ostream&, CreateArgumentsParameters const&);
+std::ostream& operator<<(std::ostream&, CreateArrayParameters const&);
 
-const CreateArgumentsParameters& CreateArgumentsParametersOf(
-    const Operator* op);
+const CreateArrayParameters& CreateArrayParametersOf(const Operator* op);
 
 
 // Defines shared information for the closure that should be created. This is
@@ -462,6 +345,34 @@ std::ostream& operator<<(std::ostream&, CreateClosureParameters const&);
 const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
 
 
+// Defines shared information for the literal that should be created. This is
+// used as parameter by JSCreateLiteralArray, JSCreateLiteralObject and
+// JSCreateLiteralRegExp operators.
+class CreateLiteralParameters final {
+ public:
+  CreateLiteralParameters(Handle<HeapObject> constant, int flags, int index)
+      : constant_(constant), flags_(flags), index_(index) {}
+
+  Handle<HeapObject> constant() const { return constant_; }
+  int flags() const { return flags_; }
+  int index() const { return index_; }
+
+ private:
+  Handle<HeapObject> const constant_;
+  int const flags_;
+  int const index_;
+};
+
+bool operator==(CreateLiteralParameters const&, CreateLiteralParameters const&);
+bool operator!=(CreateLiteralParameters const&, CreateLiteralParameters const&);
+
+size_t hash_value(CreateLiteralParameters const&);
+
+std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
+
+const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
+
+
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.
@@ -473,24 +384,23 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* NotEqual();
   const Operator* StrictEqual();
   const Operator* StrictNotEqual();
-  const Operator* LessThan(LanguageMode language_mode);
-  const Operator* GreaterThan(LanguageMode language_mode);
-  const Operator* LessThanOrEqual(LanguageMode language_mode);
-  const Operator* GreaterThanOrEqual(LanguageMode language_mode);
-  const Operator* BitwiseOr(LanguageMode language_mode);
-  const Operator* BitwiseXor(LanguageMode language_mode);
-  const Operator* BitwiseAnd(LanguageMode language_mode);
-  const Operator* ShiftLeft(LanguageMode language_mode);
-  const Operator* ShiftRight(LanguageMode language_mode);
-  const Operator* ShiftRightLogical(LanguageMode language_mode);
-  const Operator* Add(LanguageMode language_mode);
-  const Operator* Subtract(LanguageMode language_mode);
-  const Operator* Multiply(LanguageMode language_mode);
-  const Operator* Divide(LanguageMode language_mode);
-  const Operator* Modulus(LanguageMode language_mode);
+  const Operator* LessThan();
+  const Operator* GreaterThan();
+  const Operator* LessThanOrEqual();
+  const Operator* GreaterThanOrEqual();
+  const Operator* BitwiseOr(BinaryOperationHints hints);
+  const Operator* BitwiseXor(BinaryOperationHints hints);
+  const Operator* BitwiseAnd(BinaryOperationHints hints);
+  const Operator* ShiftLeft(BinaryOperationHints hints);
+  const Operator* ShiftRight(BinaryOperationHints hints);
+  const Operator* ShiftRightLogical(BinaryOperationHints hints);
+  const Operator* Add(BinaryOperationHints hints);
+  const Operator* Subtract(BinaryOperationHints hints);
+  const Operator* Multiply(BinaryOperationHints hints);
+  const Operator* Divide(BinaryOperationHints hints);
+  const Operator* Modulus(BinaryOperationHints hints);
 
-  const Operator* UnaryNot();
-  const Operator* ToBoolean();
+  const Operator* ToBoolean(ToBooleanHints hints);
   const Operator* ToNumber();
   const Operator* ToString();
   const Operator* ToName();
@@ -498,32 +408,36 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* Yield();
 
   const Operator* Create();
-  const Operator* CreateArguments(CreateArgumentsParameters::Type type,
-                                  int start_index);
+  const Operator* CreateArguments(CreateArgumentsType type);
+  const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 PretenureFlag pretenure);
-  const Operator* CreateLiteralArray(int literal_flags);
-  const Operator* CreateLiteralObject(int literal_flags);
+  const Operator* CreateIterResultObject();
+  const Operator* CreateLiteralArray(Handle<FixedArray> constant_elements,
+                                     int literal_flags, int literal_index);
+  const Operator* CreateLiteralObject(Handle<FixedArray> constant_properties,
+                                      int literal_flags, int literal_index);
+  const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
+                                      int literal_flags, int literal_index);
 
   const Operator* CallFunction(
-      size_t arity, CallFunctionFlags flags, LanguageMode language_mode,
-      VectorSlotPair const& feedback = VectorSlotPair(),
-      TailCallMode tail_call_mode = NO_TAIL_CALLS);
+      size_t arity, VectorSlotPair const& feedback = VectorSlotPair(),
+      ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
+      TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
+  const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
+  const Operator* CallConstruct(size_t arity, VectorSlotPair const& feedback);
 
-  const Operator* CallConstruct(int arguments);
+  const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
 
-  const Operator* LoadProperty(const VectorSlotPair& feedback,
-                               LanguageMode language_mode);
-  const Operator* LoadNamed(const Handle<Name>& name,
-                            const VectorSlotPair& feedback,
-                            LanguageMode language_mode);
+  const Operator* LoadProperty(VectorSlotPair const& feedback);
+  const Operator* LoadNamed(Handle<Name> name, VectorSlotPair const& feedback);
 
   const Operator* StoreProperty(LanguageMode language_mode,
-                                const VectorSlotPair& feedback);
-  const Operator* StoreNamed(LanguageMode language_mode,
-                             const Handle<Name>& name,
-                             const VectorSlotPair& feedback);
+                                VectorSlotPair const& feedback);
+  const Operator* StoreNamed(LanguageMode language_mode, Handle<Name> name,
+                             VectorSlotPair const& feedback);
 
   const Operator* DeleteProperty(LanguageMode language_mode);
 
@@ -531,23 +445,13 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadGlobal(const Handle<Name>& name,
                              const VectorSlotPair& feedback,
-                             TypeofMode typeof_mode = NOT_INSIDE_TYPEOF,
-                             int slot_index = -1);
+                             TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   const Operator* StoreGlobal(LanguageMode language_mode,
                               const Handle<Name>& name,
-                              const VectorSlotPair& feedback,
-                              int slot_index = -1);
+                              const VectorSlotPair& feedback);
 
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);
-
-  const Operator* LoadDynamicGlobal(const Handle<String>& name,
-                                    uint32_t check_bitset,
-                                    const VectorSlotPair& feedback,
-                                    TypeofMode typeof_mode);
-  const Operator* LoadDynamicContext(const Handle<String>& name,
-                                     uint32_t check_bitset, size_t depth,
-                                     size_t index);
 
   const Operator* TypeOf();
   const Operator* InstanceOf();
@@ -557,9 +461,12 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* ForInPrepare();
   const Operator* ForInStep();
 
+  const Operator* LoadMessage();
+  const Operator* StoreMessage();
+
   const Operator* StackCheck();
 
-  const Operator* CreateFunctionContext();
+  const Operator* CreateFunctionContext(int slot_count);
   const Operator* CreateCatchContext(const Handle<String>& name);
   const Operator* CreateWithContext();
   const Operator* CreateBlockContext(const Handle<ScopeInfo>& scpope_info);

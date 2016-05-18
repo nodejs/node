@@ -34,9 +34,11 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // A "greedy loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
-  virtual void CheckNotAtStart(Label* on_not_at_start);
-  virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
+  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
+  virtual void CheckNotBackReference(int start_reg, bool read_backward,
+                                     Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
+                                               bool read_backward, bool unicode,
                                                Label* on_no_match);
   virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(uint32_t c,
@@ -171,10 +173,10 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kSuccessfulCaptures = kLastCalleeSaveRegister - kPointerSize;
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kInputStartMinusOne = kSuccessfulCaptures - kPointerSize;
+  static const int kStringStartMinusOne = kSuccessfulCaptures - kPointerSize;
 
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kInputStartMinusOne - kPointerSize;
+  static const int kRegisterZero = kStringStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
@@ -276,6 +278,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
 
 #endif  // V8_INTERPRETED_REGEXP
 
-}}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_REGEXP_X64_REGEXP_MACRO_ASSEMBLER_X64_H_

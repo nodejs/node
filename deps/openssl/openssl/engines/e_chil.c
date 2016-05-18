@@ -1,4 +1,4 @@
-/* crypto/engine/e_chil.c -*- mode: C; c-file-style: "eay" -*- */
+/* crypto/engine/e_chil.c */
 /*
  * Written by Richard Levitte (richard@levitte.org), Geoff Thorpe
  * (geoff@geoffthorpe.net) and Dr Stephen N Henson (steve@openssl.org) for

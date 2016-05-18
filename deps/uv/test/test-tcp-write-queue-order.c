@@ -107,6 +107,7 @@ static void start_server(void) {
 TEST_IMPL(tcp_write_queue_order) {
   uv_connect_t connect_req;
   struct sockaddr_in addr;
+  int buffer_size = 16 * 1024;
 
   start_server();
 
@@ -117,6 +118,7 @@ TEST_IMPL(tcp_write_queue_order) {
                              &client,
                              (struct sockaddr*) &addr,
                              connect_cb));
+  ASSERT(0 == uv_send_buffer_size((uv_handle_t*) &client, &buffer_size));
 
   ASSERT(0 == uv_timer_init(uv_default_loop(), &timer));
   ASSERT(0 == uv_timer_start(&timer, timer_cb, 100, 0));

@@ -85,7 +85,7 @@ static void eof_timer_close_cb(uv_handle_t* handle);
 
 
 static void uv_unique_pipe_name(char* ptr, char* name, size_t size) {
-  _snprintf(name, size, "\\\\?\\pipe\\uv\\%p-%u", ptr, GetCurrentProcessId());
+  snprintf(name, size, "\\\\?\\pipe\\uv\\%p-%u", ptr, GetCurrentProcessId());
 }
 
 
@@ -513,13 +513,18 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   }
 
   /* Convert name to UTF16. */
-  nameSize = uv_utf8_to_utf16(name, NULL, 0) * sizeof(WCHAR);
+  nameSize = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0) * sizeof(WCHAR);
   handle->name = (WCHAR*)uv__malloc(nameSize);
   if (!handle->name) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
 
-  if (!uv_utf8_to_utf16(name, handle->name, nameSize / sizeof(WCHAR))) {
+  if (!MultiByteToWideChar(CP_UTF8,
+                           0,
+                           name,
+                           -1,
+                           handle->name,
+                           nameSize / sizeof(WCHAR))) {
     err = GetLastError();
     goto error;
   }
@@ -627,13 +632,18 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
   req->cb = cb;
 
   /* Convert name to UTF16. */
-  nameSize = uv_utf8_to_utf16(name, NULL, 0) * sizeof(WCHAR);
+  nameSize = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0) * sizeof(WCHAR);
   handle->name = (WCHAR*)uv__malloc(nameSize);
   if (!handle->name) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
   }
 
-  if (!uv_utf8_to_utf16(name, handle->name, nameSize / sizeof(WCHAR))) {
+  if (!MultiByteToWideChar(CP_UTF8,
+                           0,
+                           name,
+                           -1,
+                           handle->name,
+                           nameSize / sizeof(WCHAR))) {
     err = GetLastError();
     goto error;
   }
@@ -1246,6 +1256,10 @@ static int uv_pipe_write_impl(uv_loop_t* loop,
     if (send_handle) {
       tcp_send_handle = (uv_tcp_t*)send_handle;
 
+      if (handle->pipe.conn.ipc_pid == 0) {
+          handle->pipe.conn.ipc_pid = uv_current_pid();
+      }
+
       err = uv_tcp_duplicate_socket(tcp_send_handle, handle->pipe.conn.ipc_pid,
           &ipc_frame.socket_info_ex.socket_info);
       if (err) {
@@ -1629,7 +1643,7 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
 
       if (ReadFile(handle->handle,
                    buf.base,
-                   buf.len,
+                   min(buf.len, avail),
                    &bytes,
                    NULL)) {
         /* Successful read */
@@ -2034,9 +2048,9 @@ static int uv__pipe_getname(const uv_pipe_t* handle, char* buffer, size_t* size)
     *size = 0;
     err = uv_translate_sys_error(GetLastError());
     goto error;
-  } else if (pipe_prefix_len + addrlen > *size) {
+  } else if (pipe_prefix_len + addrlen >= *size) {
     /* "\\\\.\\pipe" + name */
-    *size = pipe_prefix_len + addrlen;
+    *size = pipe_prefix_len + addrlen + 1;
     err = UV_ENOBUFS;
     goto error;
   }
@@ -2058,6 +2072,7 @@ static int uv__pipe_getname(const uv_pipe_t* handle, char* buffer, size_t* size)
 
   addrlen += pipe_prefix_len;
   *size = addrlen;
+  buffer[addrlen] = '\0';
 
   err = 0;
   goto cleanup;

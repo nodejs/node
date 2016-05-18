@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
-
 #include "src/compiler/code-generator.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
@@ -15,10 +12,11 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
-#include "src/lithium.h"
+#include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 typedef v8::internal::compiler::Instruction TestInstr;
 typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
@@ -45,7 +43,7 @@ class InstructionTester : public HandleAndZoneScope {
     if (schedule.rpo_order()->size() == 0) {
       // Compute the RPO order.
       Scheduler::ComputeSpecialRPO(main_zone(), &schedule);
-      DCHECK(schedule.rpo_order()->size() > 0);
+      CHECK_NE(0u, schedule.rpo_order()->size());
     }
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);
@@ -322,3 +320,7 @@ TEST(InstructionOperands) {
     }
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

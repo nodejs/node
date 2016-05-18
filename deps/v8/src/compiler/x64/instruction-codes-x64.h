@@ -46,7 +46,12 @@ namespace compiler {
   V(X64Sar32)                      \
   V(X64Ror)                        \
   V(X64Ror32)                      \
+  V(X64Lzcnt)                      \
   V(X64Lzcnt32)                    \
+  V(X64Tzcnt)                      \
+  V(X64Tzcnt32)                    \
+  V(X64Popcnt)                     \
+  V(X64Popcnt32)                   \
   V(SSEFloat32Cmp)                 \
   V(SSEFloat32Add)                 \
   V(SSEFloat32Sub)                 \
@@ -58,6 +63,9 @@ namespace compiler {
   V(SSEFloat32Max)                 \
   V(SSEFloat32Min)                 \
   V(SSEFloat32ToFloat64)           \
+  V(SSEFloat32ToInt32)             \
+  V(SSEFloat32ToUint32)            \
+  V(SSEFloat32Round)               \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \
@@ -73,8 +81,18 @@ namespace compiler {
   V(SSEFloat64ToFloat32)           \
   V(SSEFloat64ToInt32)             \
   V(SSEFloat64ToUint32)            \
+  V(SSEFloat32ToInt64)             \
+  V(SSEFloat64ToInt64)             \
+  V(SSEFloat32ToUint64)            \
+  V(SSEFloat64ToUint64)            \
   V(SSEInt32ToFloat64)             \
+  V(SSEInt32ToFloat32)             \
+  V(SSEInt64ToFloat32)             \
+  V(SSEInt64ToFloat64)             \
+  V(SSEUint64ToFloat32)            \
+  V(SSEUint64ToFloat64)            \
   V(SSEUint32ToFloat64)            \
+  V(SSEUint32ToFloat32)            \
   V(SSEFloat64ExtractLowWord32)    \
   V(SSEFloat64ExtractHighWord32)   \
   V(SSEFloat64InsertLowWord32)     \
@@ -119,7 +137,6 @@ namespace compiler {
   V(X64Inc32)                      \
   V(X64Push)                       \
   V(X64Poke)                       \
-  V(X64StoreWriteBarrier)          \
   V(X64StackCheck)
 
 

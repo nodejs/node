@@ -1,6 +1,5 @@
 'use strict';
 require('../common');
-var EventEmitter = require('events').EventEmitter;
 var PassThrough = require('stream').PassThrough;
 var assert = require('assert');
 var inherits = require('util').inherits;
@@ -16,7 +15,7 @@ inherits(FakeInput, PassThrough);
 
 var fi = new FakeInput();
 var fo = new FakeInput();
-var rli = new Interface({ input: fi, output: fo, terminal: true });
+new Interface({ input: fi, output: fo, terminal: true });
 
 var keys = [];
 fi.on('keypress', function(s, k) {
@@ -49,7 +48,7 @@ function addTest(sequences, expectedKeys) {
 addTest('io.JS', [
   { name: 'i', sequence: 'i' },
   { name: 'o', sequence: 'o' },
-  undefined, // emitted as `emit('keypress', '.', undefined)`
+  { name: undefined, sequence: '.' },
   { name: 'j', sequence: 'J', shift: true },
   { name: 's', sequence: 'S', shift: true },
 ]);

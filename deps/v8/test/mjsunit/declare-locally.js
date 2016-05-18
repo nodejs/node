@@ -33,7 +33,7 @@
 // This exercises the code in runtime.cc in
 // DeclareGlobal...Locally().
 
-// Flags: --es52-globals
+// Flags: --legacy-const
 
 this.__proto__.foo = 42;
 this.__proto__.bar = 87;

@@ -4,8 +4,9 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(ArgumentsMapped) {
   FunctionTester T("(function(a) { return arguments; })");
@@ -34,7 +35,6 @@ TEST(ArgumentsUnmapped) {
 
 
 TEST(ArgumentsRest) {
-  FLAG_harmony_rest_parameters = true;
   FunctionTester T("(function(a, ...args) { return args; })");
 
   Handle<Object> arguments;
@@ -45,3 +45,7 @@ TEST(ArgumentsRest) {
   Handle<Object> length = JSObject::GetProperty(arguments, l).ToHandleChecked();
   CHECK_EQ(3, length->Number());
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

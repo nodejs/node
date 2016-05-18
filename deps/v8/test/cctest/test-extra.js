@@ -12,6 +12,15 @@
     return binding.runtime(3);
   };
 
+  binding.testFunctionToString = function() {
+    function foo() { return 1; }
+    return foo.toString();
+  };
+
+  binding.testStackTrace = function(f) {
+    return f();
+  }
+
   // Exercise all of the extras utils:
   // - v8.createPrivateSymbol
   // - v8.simpleBind, v8.uncurryThis
@@ -28,6 +37,18 @@
   const Promise = global.Promise;
   const Promise_resolve = v8.simpleBind(Promise.resolve, Promise);
 
+  const arrayToTest = new v8.InternalPackedArray();
+  arrayToTest.push(1);
+  arrayToTest.push(2);
+  arrayToTest.pop();
+  arrayToTest.unshift("a", "b", "c");
+  arrayToTest.shift();
+  arrayToTest.splice(0, 1);
+  const slicedArray = arrayToTest.slice();
+  const arraysOK = arrayToTest.length === 2 && arrayToTest[0] === "c" &&
+      arrayToTest[1] === 1 && slicedArray.length === 2 &&
+      slicedArray[0] === "c" && slicedArray[1] === 1;
+
   binding.testExtraCanUseUtils = function() {
     const fulfilledPromise = v8.createPromise();
     v8.resolvePromise(
@@ -35,9 +56,9 @@
       hasOwn({ test: 'test' }, 'test') ? 1 : -1
     );
 
-    const fulfilledPromise2 = Promise_resolve(call(function (arg1) {
-      return (this.prop === arg1 && arg1 === 'value') ? 2 : -1;
-    }, { prop: 'value' }, 'value'));
+    const fulfilledPromise2 = Promise_resolve(call(function (arg1, arg2) {
+      return (this.prop === arg1 && arg1 === 'value' && arg2) ? 2 : -1;
+    }, { prop: 'value' }, 'value', arraysOK));
 
     const rejectedPromise = v8.createPromise();
     v8.rejectPromise(rejectedPromise, apply(function (arg1, arg2) {

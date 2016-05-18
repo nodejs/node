@@ -22,7 +22,7 @@ namespace v8 {
 namespace internal {
 
 // When running without a simulator we call the entry directly.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
+#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
   (entry(p0, p1, p2, p3, p4))
 
 typedef int (*ppc_regexp_matcher)(String*, int, const byte*, const byte*, int*,
@@ -33,8 +33,9 @@ typedef int (*ppc_regexp_matcher)(String*, int, const byte*, const byte*, int*,
 // should act as a function matching the type ppc_regexp_matcher.
 // The ninth argument is a dummy that reserves the space used for
 // the return address added by the ExitFrame in native calls.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-  (FUNCTION_CAST<ppc_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,   \
+#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
+                                   p7, p8)                                     \
+  (FUNCTION_CAST<ppc_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,    \
                                             NULL, p8))
 
 // The stack limit beyond which we will throw stack overflow errors in
@@ -48,14 +49,18 @@ class SimulatorStack : public v8::internal::AllStatic {
     return c_limit;
   }
 
-  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
+  static inline uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
+                                            uintptr_t try_catch_address) {
+    USE(isolate);
     return try_catch_address;
   }
 
-  static inline void UnregisterCTryCatch() {}
+  static inline void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
+    USE(isolate);
+  }
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #else  // !defined(USE_SIMULATOR)
 // Running with a simulator.
@@ -311,11 +316,15 @@ class Simulator {
   bool ExecuteExt2_9bit_part2(Instruction* instr);
   void ExecuteExt2_5bit(Instruction* instr);
   void ExecuteExt2(Instruction* instr);
+  void ExecuteExt3(Instruction* instr);
   void ExecuteExt4(Instruction* instr);
 #if V8_TARGET_ARCH_PPC64
   void ExecuteExt5(Instruction* instr);
 #endif
   void ExecuteGeneric(Instruction* instr);
+
+  void SetFPSCR(int bit) { fp_condition_reg_ |= (1 << (31 - bit)); }
+  void ClearFPSCR(int bit) { fp_condition_reg_ &= ~(1 << (31 - bit)); }
 
   // Executes one instruction.
   void ExecuteInstruction(Instruction* instr);
@@ -328,7 +337,8 @@ class Simulator {
 
   // Runtime call support.
   static void* RedirectExternalReference(
-      void* external_function, v8::internal::ExternalReference::Type type);
+      Isolate* isolate, void* external_function,
+      v8::internal::ExternalReference::Type type);
 
   // Handle arguments and return value for runtime FP functions.
   void GetFpArgs(double* x, double* y, intptr_t* z);
@@ -390,16 +400,17 @@ class Simulator {
 
 // When running with the simulator transition into simulated execution at this
 // point.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4)                    \
-  reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->Call( \
-      FUNCTION_ADDR(entry), 5, (intptr_t)p0, (intptr_t)p1, (intptr_t)p2,  \
+#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4)          \
+  reinterpret_cast<Object*>(Simulator::current(isolate)->Call(           \
+      FUNCTION_ADDR(entry), 5, (intptr_t)p0, (intptr_t)p1, (intptr_t)p2, \
       (intptr_t)p3, (intptr_t)p4))
 
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-  Simulator::current(Isolate::Current())                                      \
-      ->Call(entry, 10, (intptr_t)p0, (intptr_t)p1, (intptr_t)p2,             \
-             (intptr_t)p3, (intptr_t)p4, (intptr_t)p5, (intptr_t)p6,          \
-             (intptr_t)p7, (intptr_t)NULL, (intptr_t)p8)
+#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
+                                   p7, p8)                                     \
+  Simulator::current(isolate)->Call(entry, 10, (intptr_t)p0, (intptr_t)p1,     \
+                                    (intptr_t)p2, (intptr_t)p3, (intptr_t)p4,  \
+                                    (intptr_t)p5, (intptr_t)p6, (intptr_t)p7,  \
+                                    (intptr_t)NULL, (intptr_t)p8)
 
 
 // The simulator has its own stack. Thus it has a different stack limit from
@@ -413,17 +424,18 @@ class SimulatorStack : public v8::internal::AllStatic {
     return Simulator::current(isolate)->StackLimit(c_limit);
   }
 
-  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    Simulator* sim = Simulator::current(Isolate::Current());
+  static inline uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
+                                            uintptr_t try_catch_address) {
+    Simulator* sim = Simulator::current(isolate);
     return sim->PushAddress(try_catch_address);
   }
 
-  static inline void UnregisterCTryCatch() {
-    Simulator::current(Isolate::Current())->PopAddress();
+  static inline void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
+    Simulator::current(isolate)->PopAddress();
   }
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // !defined(USE_SIMULATOR)
 #endif  // V8_PPC_SIMULATOR_PPC_H_

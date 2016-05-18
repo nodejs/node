@@ -6,21 +6,20 @@
 
 #include "src/typing-reset.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/codegen.h"
-#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
 
 
-TypingReseter::TypingReseter(Isolate* isolate, Zone* zone,
-                             FunctionLiteral* root)
-    : AstExpressionVisitor(isolate, zone, root) {}
+TypingReseter::TypingReseter(Isolate* isolate, FunctionLiteral* root)
+    : AstExpressionVisitor(isolate, root) {}
 
 
 void TypingReseter::VisitExpression(Expression* expression) {
   expression->set_bounds(Bounds::Unbounded());
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

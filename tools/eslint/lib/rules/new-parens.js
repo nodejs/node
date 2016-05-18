@@ -9,21 +9,32 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "require parentheses when invoking a constructor with no arguments",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "NewExpression": function(node) {
-            var tokens = context.getTokens(node);
-            var prenticesTokens = tokens.filter(function(token) {
-                return token.value === "(" || token.value === ")";
-            });
-            if (prenticesTokens.length < 2) {
-                context.report(node, "Missing '()' invoking a constructor");
+    create: function(context) {
+
+        return {
+
+            NewExpression: function(node) {
+                var tokens = context.getTokens(node);
+                var prenticesTokens = tokens.filter(function(token) {
+                    return token.value === "(" || token.value === ")";
+                });
+
+                if (prenticesTokens.length < 2) {
+                    context.report(node, "Missing '()' invoking a constructor");
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

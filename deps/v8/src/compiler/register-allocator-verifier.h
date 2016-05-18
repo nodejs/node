@@ -35,12 +35,15 @@ class RegisterAllocatorVerifier final : public ZoneObject {
     kFixedSlot,
     kNone,
     kNoneDouble,
-    kSameAsFirst
+    kExplicit,
+    kSameAsFirst,
+    kRegisterAndSlot
   };
 
   struct OperandConstraint {
     ConstraintType type_;
     int value_;  // subkind index when relevant
+    int spilled_slot_;
     int virtual_register_;
   };
 

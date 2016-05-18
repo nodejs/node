@@ -1,19 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert'),
-    dns = require('dns'),
-    net = require('net'),
-    isIP = net.isIP,
-    isIPv6 = net.isIPv6;
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const dns = require('dns');
+const net = require('net');
+const isIPv6 = net.isIPv6;
 
-var expected = 0,
-    completed = 0,
-    running = false,
-    queue = [];
+let expected = 0;
+let completed = 0;
+let running = false;
+const queue = [];
 
 if (!common.hasIPv6) {
-  console.log('1..0 # Skipped: this test, no IPv6 support');
+  common.skip('this test, no IPv6 support');
   return;
 }
 
@@ -158,20 +156,23 @@ TEST(function test_lookup_ip_ipv6(done) {
 });
 
 TEST(function test_lookup_all_ipv6(done) {
-  var req = dns.lookup('www.google.com', {all: true, family: 6},
-                       function(err, ips) {
-    if (err) throw err;
-    assert.ok(Array.isArray(ips));
-    assert.ok(ips.length > 0);
+  var req = dns.lookup(
+    'www.google.com',
+    {all: true, family: 6},
+    function(err, ips) {
+      if (err) throw err;
+      assert.ok(Array.isArray(ips));
+      assert.ok(ips.length > 0);
 
-    ips.forEach(function(ip) {
-      assert.ok(isIPv6(ip.address),
-                'Invalid IPv6: ' + ip.address.toString());
-      assert.strictEqual(ip.family, 6);
-    });
+      ips.forEach(function(ip) {
+        assert.ok(isIPv6(ip.address),
+                  'Invalid IPv6: ' + ip.address.toString());
+        assert.strictEqual(ip.family, 6);
+      });
 
-    done();
-  });
+      done();
+    }
+  );
 
   checkWrap(req);
 });
@@ -181,24 +182,7 @@ TEST(function test_lookupservice_ip_ipv6(done) {
     if (err) throw err;
     assert.equal(typeof host, 'string');
     assert(host);
-
-    /*
-     * Retrieve the actual HTTP service name as setup on the host currently
-     * running the test by reading it from /etc/services. This is not ideal,
-     * as the service name lookup could use another mechanism (e.g nscd), but
-     * it's already better than hardcoding it.
-     */
-    var httpServiceName = common.getServiceName(80, 'tcp');
-    if (!httpServiceName) {
-      /*
-       * Couldn't find service name, reverting to the most sensible default
-       * for port 80.
-       */
-      httpServiceName = 'http';
-    }
-
-    assert.strictEqual(service, httpServiceName);
-
+    assert(['http', 'www', '80'].includes(service));
     done();
   });
 

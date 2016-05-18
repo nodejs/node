@@ -10,7 +10,7 @@ var fs = require('graceful-fs')
 var chain = require('slide').chain
 var path = require('path')
 var cwd = process.cwd()
-var writeStream = require('fs-write-stream-atomic')
+var writeStreamAtomic = require('fs-write-stream-atomic')
 var cachedPackageRoot = require('./cache/cached-package-root.js')
 
 pack.usage = 'npm pack [[<@scope>/]<pkg>...]'
@@ -55,7 +55,7 @@ function pack_ (pkg, cb) {
 
     var cached = path.join(cachedPackageRoot(data), 'package.tgz')
     var from = fs.createReadStream(cached)
-    var to = writeStream(fname)
+    var to = writeStreamAtomic(fname)
     var errState = null
 
     from.on('error', cb_)

@@ -1,4 +1,4 @@
-.TH "NPM\-RUN\-SCRIPT" "1" "November 2015" "" ""
+.TH "NPM\-RUN\-SCRIPT" "1" "May 2016" "" ""
 .SH "NAME"
 \fBnpm-run-script\fR \- Run arbitrary package scripts
 .SH SYNOPSIS
@@ -50,6 +50,13 @@ you should write:
 .RE
 .P
 instead of \fB"scripts": {"test": "node_modules/\.bin/tap test/\\*\.js"}\fP to run your tests\.
+.P
+\fBnpm run\fP sets the \fBNODE\fP environment variable to the \fBnode\fP executable with
+which \fBnpm\fP is executed, and adds the directory within which it resides to the
+\fBPATH\fP, too\.
+.P
+If you try to run a script without having a \fBnode_modules\fP directory and it fails,
+you will be given a warning to run \fBnpm install\fP, just in case you've forgotten\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

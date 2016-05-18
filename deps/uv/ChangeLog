@@ -1,3 +1,330 @@
+2016.05.17, Version 1.9.1 (Stable), d989902ac658b4323a4f4020446e6f4dc449e25c
+
+Changes since version 1.9.0:
+
+* test: handle root home directories (cjihrig)
+
+* unix: implement uv__fs_futime for AIX 7.1 (Imran Iqbal)
+
+* test: skip early bind tests if no IPv6 is supported (Saúl Ibarra Corretgé)
+
+* win: fix var declaration to be C89 compliant (Michael Fero)
+
+* unix: use POLL{IN,OUT,etc} constants directly (Ben Noordhuis)
+
+* doc: add ability to live reload and regenerate HTML (Saúl Ibarra Corretgé)
+
+* Revert "win,build: remove unused build defines" (cjihrig)
+
+* linux: fix fd leaks in uv_cpu_info() error paths (Ben Noordhuis)
+
+* linux: don't abort on malformed /proc/stat (Ben Noordhuis)
+
+* linux: fix long lines in linux-core.c (Ben Noordhuis)
+
+* test: fix fs_event_watch_file_current_dir for AIX (Imran Iqbal)
+
+* unix,fs: code cleanup of uv_fs_event_start for AIX (Imran Iqbal)
+
+* unix: delay signal handling until after normal i/o (Ben Noordhuis)
+
+* android: pthread_sigmask() does not set errno (Oguz Bastemur)
+
+* win: work around sharepoint scandir bug (Ben Noordhuis)
+
+* unix: guard against clobbering errno in uv__free() (Ben Noordhuis)
+
+* unix: remove unneeded SAVE_ERRNO wrappers (Ben Noordhuis)
+
+* test: skip fs_event_close_in_callback on AIX (Imran Iqbal)
+
+* win: add maxrss, pagefaults to uv_getrusage() (Robert Jefe Lindstaedt)
+
+* test: set a big send buffer size for tcp_write_queue_order (Andrius Bentkus)
+
+* unix: error on realpath if PATH_MAX is undefined (Myles Borins)
+
+* unix: fix bug in barrier fallback implementation (Kári Tristan Helgason)
+
+* build: bump android ndk version (Kári Tristan Helgason)
+
+* build: always compile with -fvisibility=hidden (Ben Noordhuis)
+
+* test: fix -Wformat warnings in platform test (Ben Noordhuis)
+
+* win: clarify fsevents handling code (Saúl Ibarra Corretgé)
+
+* test: fix POLLHDRUP related failures for AIX (Imran Iqbal)
+
+* build, mingw: set LIBS in configure.ac (Tony Theodore)
+
+* win: improve uv__convert_utf16_to_utf8 (Saúl Ibarra Corretgé)
+
+* win: simplified UTF16 -> UTF8 conversions (Saúl Ibarra Corretgé)
+
+* win: remove unneeded condition (Saúl Ibarra Corretgé)
+
+* darwin: work around condition variable kernel bug (Ben Noordhuis)
+
+* darwin: make thread stack multiple of page size (Ben Noordhuis)
+
+* build,win: rename platform to msbuild_platform (João Reis)
+
+* gitignore: ignore VS temporary database files (João Reis)
+
+* test: skip emfile on AIX (Imran Iqbal)
+
+* unix: use system allocator for scandir() (cjihrig)
+
+* common: release uv_fs_scandir() array (cjihrig)
+
+* win: call uv__fs_scandir_cleanup() (cjihrig)
+
+* win,tty: fix read stop in line mode (João Reis)
+
+* win,tty: don't duplicate handle for line reads (João Reis)
+
+* win,tty: restore cursor after canceling line read (Alexis Campailla)
+
+
+2016.04.08, Version 1.9.0 (Stable), 229b3a4cc150aebd6561e6bd43076eafa7a03756
+
+Changes since version 1.8.0:
+
+* win: wait for full timeout duration (João Reis)
+
+* unix: fix support for uClibc-ng (Martin Bark)
+
+* doc: indicate where new test files need to be added (Dave)
+
+* test,unix: fix logic error in test runner (Ben Noordhuis)
+
+* fs: don't nullify req->bufs on EINTR (Dave)
+
+* osx: set the default thread stack size to RLIMIT_STACK (Saúl Ibarra Corretgé)
+
+* build: invoke libtoolize with --copy (Ben Noordhuis)
+
+* test: fixup eintr_handling (Saúl Ibarra Corretgé)
+
+* osx: avoid compilation warning with Clang (Saúl Ibarra Corretgé)
+
+* test,win: fix compilation with shared lib (Alexis Murzeau)
+
+* test: fix race condition in pipe-close-stdout (Imran Iqbal)
+
+* unix,win: add uv_os_tmpdir() (cjihrig)
+
+* ios: fix undefined PTHREAD_STACK_MIN (Didiet)
+
+* test: fix threadpool_multiple_event_loops for AIX (Imran Iqbal)
+
+* unix: report errors for unpollable fds (Ben Noordhuis)
+
+* win: fix watching root files (Nicholas Vavilov)
+
+* build,win: print the Visual Studio version in use (Saúl Ibarra Corretgé)
+
+* build,win: remove unneeded condition from GYP file (Saúl Ibarra Corretgé)
+
+* test,win: fix compilation warning (Saúl Ibarra Corretgé)
+
+* test: use uv_loop_close and assert its result (Nan Xiang)
+
+* build: map 'AMD64' host arch to 'x64' (Ben Noordhuis)
+
+* osx: protected use of potentially undefined macro (Samuel Lorétan)
+
+* linux: fix compilation with musl (Saúl Ibarra Corretgé)
+
+* doc: describe how to make release builds on Unix (Saúl Ibarra Corretgé)
+
+* doc: add missing link in README (Saúl Ibarra Corretgé)
+
+* build: python 2.x/3.x consistent print usage (Rasmus Christian Pedersen)
+
+* test: assume no IPv6 if interfaces cannot be listed (Nan Xiang)
+
+* darwin: replace F_FULLFSYNC with fdatasync syscall (Saúl Ibarra Corretgé)
+
+* doc: add missing write callback to example (Nándor István Krácser)
+
+* build: compile with -D_THREAD_SAFE on AIX (Imran Iqbal)
+
+* test: fix threadpool_multiple_event_loops on PPC (Imran Iqbal)
+
+* test: reduce timeout in tcp_close_while_connecting (Imran Iqbal)
+
+* unix, win: consistently null-terminate buffers (Saúl Ibarra Corretgé)
+
+* unix, win: count null byte on UV_ENOBUFS (Saúl Ibarra Corretgé)
+
+* test: fix deadlocks in uv_cond_wait (Katsutoshi Horie)
+
+* linux: fix cpu count (Lukasz Jagiello)
+
+* unix: fix uv__handle_type for AIX (Imran Iqbal)
+
+* linux: call fclose(), fix fdopen() memory leak (Ben Noordhuis)
+
+* win: remove unneeded condition (Saúl Ibarra Corretgé)
+
+* unix: fix compile error in Android using bionic (Robert Chiras)
+
+* linux: add braces to multi-statement if (Kári Tristan Helgason)
+
+* doc: add @cjihrig as a maintainer (Saúl Ibarra Corretgé)
+
+* unix: add fork-safe open file function (Kári Tristan Helgason)
+
+* linux: replace calls to fopen with uv__open_file (Kári Tristan Helgason)
+
+* linux: remove redundant call to rewind() (Krishnaraj Bhat)
+
+* win: remove duplicated code when processing fsevents (Saúl Ibarra Corretgé)
+
+* test: fix poll_bad_fdtype for AIX (Imran Iqbal)
+
+* linux: fix error checking in uv__open_file (Saúl Ibarra Corretgé)
+
+* poll: add UV_DISCONNECT event (Santiago Gimeno)
+
+* fs: realpath: fix string size before converting (Yuval Brik)
+
+* win: use native APIs for UTF conversions (cjihrig)
+
+* doc: clarify uv_loop_close() (Ben Noordhuis)
+
+* unix: retry ioctl(TIOCGWINSZ) on EINTR (Ben Noordhuis)
+
+* win,build: remove unused build defines (Saúl Ibarra Corretgé)
+
+* win: fix buffer overflow in fs events (Joran Dirk Greef)
+
+* win: fix uv_relative_path and remove dead branch (Joran Dirk Greef)
+
+* unix: use open(2) with O_CLOEXEC on OS X (Kári Tristan Helgason)
+
+* test: add missing copyright header (cjihrig)
+
+* aix: fix 'POLLRDHUP undeclared' build error (Ben Noordhuis)
+
+* unix,win: add uv_get_passwd() (cjihrig)
+
+* process: fix uv_spawn edge-case (Santiago Gimeno)
+
+* test: use %ld for printing uid/gid (Ben Noordhuis)
+
+* aix: fix ahafs implementation (Imran Iqbal)
+
+* aix: do not store absolute path to ahafs (Imran Iqbal)
+
+* process: close process pipes safely (Santiago Gimeno)
+
+* unix: open ttyname instead of /dev/tty (Enno Boland)
+
+* unix: remove outdated comment (Kári Tristan Helgason)
+
+
+2015.12.15, Version 1.8.0 (Stable), 5467299450ecf61635657557b6e01aaaf6c3fdf4
+
+Changes since version 1.7.5:
+
+* unix: fix memory leak in uv_interface_addresses (Jianghua Yang)
+
+* unix: make uv_guess_handle work properly for AIX (Gireesh Punathil)
+
+* fs: undo uv__req_init when uv__malloc failed (Jianghua Yang)
+
+* build: remove unused 'component' GYP option (Saúl Ibarra Corretgé)
+
+* include: remove duplicate extern declaration (Jianghua Yang)
+
+* win: use the MSVC provided snprintf where possible (Jason Williams)
+
+* win, test: fix compilation warning (Saúl Ibarra Corretgé)
+
+* win: fix compilation with VS < 2012 (Ryan Johnston)
+
+* stream: support empty uv_try_write on unix (Fedor Indutny)
+
+* unix: fix request handle leak in uv__udp_send (Jianghua Yang)
+
+* src: replace QUEUE_SPLIT with QUEUE_MOVE (Ben Noordhuis)
+
+* unix: use QUEUE_MOVE when iterating over lists (Ben Noordhuis)
+
+* unix: squelch harmless valgrind warning (Ben Noordhuis)
+
+* test: don't abort on setrlimit() failure (Ben Noordhuis)
+
+* unix: only undo fs req registration in async mode (Ben Noordhuis)
+
+* unix: fix uv__getiovmax return value (HungMingWu)
+
+* unix: make work with Solaris Studio. (Adam Stylinski)
+
+* test: fix fs_event_watch_file_currentdir flakiness (Santiago Gimeno)
+
+* unix: skip prohibited syscalls on tvOS and watchOS (Nathan Corvino)
+
+* test: use FQDN in getaddrinfo_fail test (Wink Saville)
+
+* docs: clarify documentation of uv_tcp_init_ex (Andrius Bentkus)
+
+* win: fix comment (Miodrag Milanovic)
+
+* doc: fix typo in README (Angel Leon)
+
+* darwin: abort() if (un)locking fs mutex fails (Ben Noordhuis)
+
+* pipe: enable inprocess uv_write2 on Windows (Louis DeJardin)
+
+* win: properly return UV_EBADF when _close() fails (Nicholas Vavilov)
+
+* test: skip process_title for AIX (Imran Iqbal)
+
+* misc: expose handle print APIs (Petka Antonov)
+
+* include: add stdio.h to uv.h (Saúl Ibarra Corretgé)
+
+* misc: remove unnecessary null pointer checks (Ian Kronquist)
+
+* test,freebsd: skip udp_dual_stack if not supported (Santiago Gimeno)
+
+* linux: don't retry dup2/dup3 on EINTR (Ben Noordhuis)
+
+* unix: don't retry dup2/dup3 on EINTR (Ben Noordhuis)
+
+* test: fix -Wtautological-pointer-compare warnings (Saúl Ibarra Corretgé)
+
+* win: map ERROR_BAD_PATHNAME to UV_ENOENT (Tony Kelman)
+
+* test: fix test/test-tty.c for AIX (Imran Iqbal)
+
+* android: support api level less than 21 (kkdaemon)
+
+* fsevents: fix race on simultaneous init+close (Fedor Indutny)
+
+* linux,fs: fix p{read,write}v with a 64bit offset (Saúl Ibarra Corretgé)
+
+* fs: add uv_fs_realpath() (Yuval Brik)
+
+* win: fix path for removed and renamed fs events (Joran Dirk Greef)
+
+* win: do not read more from stream than available (Jeremy Whitlock)
+
+* test: test that uv_close() doesn't corrupt QUEUE (Andrey Mazo)
+
+* unix: fix uv_fs_event_stop() from fs_event_cb (Andrey Mazo)
+
+* test: fix self-deadlocks in thread_rwlock_trylock (Ben Noordhuis)
+
+* src: remove non ascii character (sztomi)
+
+* test: fix test udp_multicast_join6 for AIX (Imran Iqbal)
+
+
 2015.09.23, Version 1.7.5 (Stable), a8c1136de2cabf25b143021488cbaab05834daa8
 
 Changes since version 1.7.4:

@@ -32,51 +32,13 @@
 # library.
 
 import os
-from os.path import dirname
 import re
 import sys
 import string
 
-sys.path.append(dirname(__file__) + "/../deps/v8/tools");
-import jsmin
-
 
 def ToCArray(filename, lines):
-  result = []
-  row = 1
-  col = 0
-  for chr in lines:
-    col += 1
-    if chr == "\n" or chr == "\r":
-      row += 1
-      col = 0
-
-    value = ord(chr)
-
-    if value >= 128:
-      print 'non-ascii value ' + filename + ':' + str(row) + ':' + str(col)
-      sys.exit(1);
-
-    result.append(str(value))
-  result.append("0")
-  return ", ".join(result)
-
-
-def CompressScript(lines, do_jsmin):
-  # If we're not expecting this code to be user visible, we can run it through
-  # a more aggressive minifier.
-  if do_jsmin:
-    minifier = JavaScriptMinifier()
-    return minifier.JSMinify(lines)
-
-  # Remove stuff from the source that we don't want to appear when
-  # people print the source code using Function.prototype.toString().
-  # Note that we could easily compress the scripts mode but don't
-  # since we want it to remain readable.
-  #lines = re.sub('//.*\n', '\n', lines) # end-of-line comments
-  #lines = re.sub(re.compile(r'/\*.*?\*/', re.DOTALL), '', lines) # comments.
-  #lines = re.sub('\s+\n+', '\n', lines) # trailing whitespace
-  return lines
+  return ','.join(str(ord(c)) for c in lines)
 
 
 def ReadFile(filename):
@@ -220,17 +182,11 @@ namespace node {
 
 struct _native {
   const char* name;
-  const char* source;
+  const unsigned char* source;
   size_t source_len;
 };
 
-static const struct _native natives[] = {
-
-%(native_lines)s\
-
-  { NULL, NULL, 0 } /* sentinel */
-
-};
+static const struct _native natives[] = { %(native_lines)s };
 
 }
 #endif
@@ -238,11 +194,11 @@ static const struct _native natives[] = {
 
 
 NATIVE_DECLARATION = """\
-  { "%(id)s", %(escaped_id)s_native, sizeof(%(escaped_id)s_native)-1 },
+  { "%(id)s", %(escaped_id)s_native, sizeof(%(escaped_id)s_native) },
 """
 
 SOURCE_DECLARATION = """\
-  const char %(escaped_id)s_native[] = { %(data)s };
+  const unsigned char %(escaped_id)s_native[] = { %(data)s };
 """
 
 
@@ -287,11 +243,9 @@ def JS2C(source, target):
   for s in modules:
     delay = str(s).endswith('-delay.js')
     lines = ReadFile(str(s))
-    do_jsmin = lines.find('// jsminify this file, js2c: jsmin') != -1
 
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
-    lines = CompressScript(lines, do_jsmin)
     data = ToCArray(s, lines)
 
     # On Windows, "./foo.bar" in the .gyp file is passed as "foo.bar"

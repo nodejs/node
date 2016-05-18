@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(Throw) {
   FunctionTester T("(function(a,b) { if (a) { throw b; } else { return b; }})");
@@ -26,18 +25,19 @@ TEST(ThrowMessagePosition) {
       "  throw 4;               \n"
       "})                       ";
   FunctionTester T(src);
-  v8::Handle<v8::Message> message;
+  v8::Local<v8::Message> message;
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
 
   message = T.CheckThrowsReturnMessage(T.Val(1), T.undefined());
-  CHECK_EQ(2, message->GetLineNumber());
+  CHECK_EQ(2, message->GetLineNumber(context).FromMaybe(-1));
   CHECK_EQ(40, message->GetStartPosition());
 
   message = T.CheckThrowsReturnMessage(T.Val(2), T.undefined());
-  CHECK_EQ(3, message->GetLineNumber());
+  CHECK_EQ(3, message->GetLineNumber(context).FromMaybe(-1));
   CHECK_EQ(67, message->GetStartPosition());
 
   message = T.CheckThrowsReturnMessage(T.Val(3), T.undefined());
-  CHECK_EQ(4, message->GetLineNumber());
+  CHECK_EQ(4, message->GetLineNumber(context).FromMaybe(-1));
   CHECK_EQ(95, message->GetStartPosition());
 }
 
@@ -48,18 +48,19 @@ TEST(ThrowMessageDirectly) {
       "  if (a) { throw b; } else { throw new Error(b); }"
       "})";
   FunctionTester T(src);
-  v8::Handle<v8::Message> message;
+  v8::Local<v8::Message> message;
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  v8::Maybe<bool> t = v8::Just(true);
 
   message = T.CheckThrowsReturnMessage(T.false_value(), T.Val("Wat?"));
-  CHECK(message->Get()->Equals(v8_str("Uncaught Error: Wat?")));
+  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Error: Wat?")));
 
   message = T.CheckThrowsReturnMessage(T.true_value(), T.Val("Kaboom!"));
-  CHECK(message->Get()->Equals(v8_str("Uncaught Kaboom!")));
+  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Kaboom!")));
 }
 
 
 TEST(ThrowMessageIndirectly) {
-  i::FLAG_turbo_try_finally = true;
   static const char* src =
       "(function(a, b) {"
       "  try {"
@@ -69,13 +70,15 @@ TEST(ThrowMessageIndirectly) {
       "  }"
       "})";
   FunctionTester T(src);
-  v8::Handle<v8::Message> message;
+  v8::Local<v8::Message> message;
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  v8::Maybe<bool> t = v8::Just(true);
 
   message = T.CheckThrowsReturnMessage(T.false_value(), T.Val("Wat?"));
-  CHECK(message->Get()->Equals(v8_str("Uncaught Error: Wat?")));
+  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Error: Wat?")));
 
   message = T.CheckThrowsReturnMessage(T.true_value(), T.Val("Kaboom!"));
-  CHECK(message->Get()->Equals(v8_str("Uncaught Kaboom!")));
+  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Kaboom!")));
 }
 
 
@@ -166,7 +169,6 @@ TEST(CatchCall) {
 
 
 TEST(Finally) {
-  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -184,7 +186,6 @@ TEST(Finally) {
 
 
 TEST(FinallyBreak) {
-  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -240,7 +241,6 @@ TEST(DeoptCatch) {
 
 
 TEST(DeoptFinallyReturn) {
-  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -257,7 +257,6 @@ TEST(DeoptFinallyReturn) {
 
 
 TEST(DeoptFinallyReThrow) {
-  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -268,7 +267,9 @@ TEST(DeoptFinallyReThrow) {
       "})";
   FunctionTester T(src);
 
-#if 0  // TODO(mstarzinger): Enable once we can.
   T.CheckThrows(T.NewObject("new Error"), T.Val(1));
-#endif
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

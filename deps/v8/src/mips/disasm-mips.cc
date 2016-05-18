@@ -66,6 +66,7 @@ class Decoder {
   // Printing of common values.
   void PrintRegister(int reg);
   void PrintFPURegister(int freg);
+  void PrintFPUStatusRegister(int freg);
   void PrintRs(Instruction* instr);
   void PrintRt(Instruction* instr);
   void PrintRd(Instruction* instr);
@@ -73,6 +74,7 @@ class Decoder {
   void PrintFt(Instruction* instr);
   void PrintFd(Instruction* instr);
   void PrintSa(Instruction* instr);
+  void PrintLsaSa(Instruction* instr);
   void PrintSd(Instruction* instr);
   void PrintSs1(Instruction* instr);
   void PrintSs2(Instruction* instr);
@@ -182,6 +184,17 @@ void Decoder::PrintFPURegister(int freg) {
 }
 
 
+void Decoder::PrintFPUStatusRegister(int freg) {
+  switch (freg) {
+    case kFCSRRegister:
+      Print("FCSR");
+      break;
+    default:
+      Print(converter_.NameOfXMMRegister(freg));
+  }
+}
+
+
 void Decoder::PrintFs(Instruction* instr) {
   int freg = instr->RsValue();
   PrintFPURegister(freg);
@@ -203,6 +216,13 @@ void Decoder::PrintFd(Instruction* instr) {
 // Print the integer value of the sa field.
 void Decoder::PrintSa(Instruction* instr) {
   int sa = instr->SaValue();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sa);
+}
+
+
+// Print the integer value of the sa field of a lsa instruction.
+void Decoder::PrintLsaSa(Instruction* instr) {
+  int sa = instr->LsaSaValue() + 1;
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", sa);
 }
 
@@ -476,22 +496,42 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 // complexity of FormatOption.
 int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
   DCHECK(format[0] == 'f');
-  if (format[1] == 's') {  // 'fs: fs register.
-    int reg = instr->FsValue();
-    PrintFPURegister(reg);
-    return 2;
-  } else if (format[1] == 't') {  // 'ft: ft register.
-    int reg = instr->FtValue();
-    PrintFPURegister(reg);
-    return 2;
-  } else if (format[1] == 'd') {  // 'fd: fd register.
-    int reg = instr->FdValue();
-    PrintFPURegister(reg);
-    return 2;
-  } else if (format[1] == 'r') {  // 'fr: fr register.
-    int reg = instr->FrValue();
-    PrintFPURegister(reg);
-    return 2;
+  if ((CTC1 == instr->RsFieldRaw()) || (CFC1 == instr->RsFieldRaw())) {
+    if (format[1] == 's') {  // 'fs: fs register.
+      int reg = instr->FsValue();
+      PrintFPUStatusRegister(reg);
+      return 2;
+    } else if (format[1] == 't') {  // 'ft: ft register.
+      int reg = instr->FtValue();
+      PrintFPUStatusRegister(reg);
+      return 2;
+    } else if (format[1] == 'd') {  // 'fd: fd register.
+      int reg = instr->FdValue();
+      PrintFPUStatusRegister(reg);
+      return 2;
+    } else if (format[1] == 'r') {  // 'fr: fr register.
+      int reg = instr->FrValue();
+      PrintFPUStatusRegister(reg);
+      return 2;
+    }
+  } else {
+    if (format[1] == 's') {  // 'fs: fs register.
+      int reg = instr->FsValue();
+      PrintFPURegister(reg);
+      return 2;
+    } else if (format[1] == 't') {  // 'ft: ft register.
+      int reg = instr->FtValue();
+      PrintFPURegister(reg);
+      return 2;
+    } else if (format[1] == 'd') {  // 'fd: fd register.
+      int reg = instr->FdValue();
+      PrintFPURegister(reg);
+      return 2;
+    } else if (format[1] == 'r') {  // 'fr: fr register.
+      int reg = instr->FrValue();
+      PrintFPURegister(reg);
+      return 2;
+    }
   }
   UNREACHABLE();
   return -1;
@@ -651,11 +691,17 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 's': {   // 'sa.
       switch (format[1]) {
-        case 'a': {
-          DCHECK(STRING_STARTS_WITH(format, "sa"));
-          PrintSa(instr);
-          return 2;
-        }
+        case 'a':
+          if (format[2] == '2') {
+            DCHECK(STRING_STARTS_WITH(format, "sa2"));  // 'sa2
+            PrintLsaSa(instr);
+            return 3;
+          } else {
+            DCHECK(STRING_STARTS_WITH(format, "sa"));
+            PrintSa(instr);
+            return 2;
+          }
+          break;
         case 'd': {
           DCHECK(STRING_STARTS_WITH(format, "sd"));
           PrintSd(instr);
@@ -1026,6 +1072,9 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
     case SRAV:
       Format(instr, "srav    'rd, 'rt, 'rs");
       break;
+    case LSA:
+      Format(instr, "lsa     'rd, 'rt, 'rs, 'sa2");
+      break;
     case MFHI:
       if (instr->Bits(25, 16) == 0) {
         Format(instr, "mfhi    'rd");
@@ -1377,12 +1426,12 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         Format(instr, "blez    'rs, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RtValue() != instr->RsValue()) &&
                  (instr->RsValue() != 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bgeuc    'rs, 'rt, 'imm16u -> 'imm16p4s2");
+        Format(instr, "bgeuc   'rs, 'rt, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RtValue() == instr->RsValue()) &&
                  (instr->RtValue() != 0)) {
-        Format(instr, "bgezalc  'rs, 'imm16u -> 'imm16p4s2");
+        Format(instr, "bgezalc 'rs, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RsValue() == 0) && (instr->RtValue() != 0)) {
-        Format(instr, "blezalc  'rt, 'imm16u -> 'imm16p4s2");
+        Format(instr, "blezalc 'rt, 'imm16u -> 'imm16p4s2");
       } else {
         UNREACHABLE();
       }
@@ -1419,7 +1468,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         Format(instr, "bltzc    'rt, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RtValue() != instr->RsValue()) &&
                  (instr->RsValue() != 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bltc     'rs, 'rt, 'imm16u -> 'imm16p4s2");
+        Format(instr, "bltc    'rs, 'rt, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RsValue() == 0) && (instr->RtValue() != 0)) {
         Format(instr, "bgtzc    'rt, 'imm16u -> 'imm16p4s2");
       } else {
@@ -1435,9 +1484,9 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
       break;
     case POP76:
       if (instr->RsValue() == JIALC) {
-        Format(instr, "jialc   'rt, 'imm16x");
+        Format(instr, "jialc   'rt, 'imm16s");
       } else {
-        Format(instr, "bnezc   'rs, 'imm21x -> 'imm21p4s2");
+        Format(instr, "bnezc   'rs, 'imm21s -> 'imm21p4s2");
       }
       break;
     // ------------- Arithmetic instructions.
@@ -1445,25 +1494,35 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
       if (!IsMipsArchVariant(kMips32r6)) {
         Format(instr, "addi    'rt, 'rs, 'imm16s");
       } else {
-        // Check if BOVC or BEQC instruction.
-        if (instr->RsValue() >= instr->RtValue()) {
+        int rs_reg = instr->RsValue();
+        int rt_reg = instr->RtValue();
+        // Check if BOVC, BEQZALC or BEQC instruction.
+        if (rs_reg >= rt_reg) {
           Format(instr, "bovc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
-        } else if (instr->RsValue() < instr->RtValue()) {
-          Format(instr, "beqc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
         } else {
-          UNREACHABLE();
+          DCHECK(rt_reg > 0);
+          if (rs_reg == 0) {
+            Format(instr, "beqzalc 'rt, 'imm16s -> 'imm16p4s2");
+          } else {
+            Format(instr, "beqc    'rs, 'rt, 'imm16s -> 'imm16p4s2");
+          }
         }
       }
       break;
     case DADDI:
       if (IsMipsArchVariant(kMips32r6)) {
-        // Check if BNVC or BNEC instruction.
-        if (instr->RsValue() >= instr->RtValue()) {
+        int rs_reg = instr->RsValue();
+        int rt_reg = instr->RtValue();
+        // Check if BNVC, BNEZALC or BNEC instruction.
+        if (rs_reg >= rt_reg) {
           Format(instr, "bnvc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
-        } else if (instr->RsValue() < instr->RtValue()) {
-          Format(instr, "bnec  'rs, 'rt, 'imm16s -> 'imm16p4s2");
         } else {
-          UNREACHABLE();
+          DCHECK(rt_reg > 0);
+          if (rs_reg == 0) {
+            Format(instr, "bnezalc 'rt, 'imm16s -> 'imm16p4s2");
+          } else {
+            Format(instr, "bnec  'rs, 'rt, 'imm16s -> 'imm16p4s2");
+          }
         }
       }
       break;
@@ -1490,7 +1549,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         Format(instr, "lui     'rt, 'imm16x");
       } else {
         if (instr->RsValue() != 0) {
-          Format(instr, "aui     'rt, 'imm16x");
+          Format(instr, "aui     'rt, 'rs, 'imm16x");
         } else {
           Format(instr, "lui     'rt, 'imm16x");
         }

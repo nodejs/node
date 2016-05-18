@@ -59,7 +59,7 @@ class RegisterDump {
     if (code == kSPRegInternalCode) {
       return wspreg();
     }
-    DCHECK(RegAliasesMatch(code));
+    CHECK(RegAliasesMatch(code));
     return dump_.w_[code];
   }
 
@@ -67,13 +67,13 @@ class RegisterDump {
     if (code == kSPRegInternalCode) {
       return spreg();
     }
-    DCHECK(RegAliasesMatch(code));
+    CHECK(RegAliasesMatch(code));
     return dump_.x_[code];
   }
 
   // FPRegister accessors.
   inline uint32_t sreg_bits(unsigned code) const {
-    DCHECK(FPRegAliasesMatch(code));
+    CHECK(FPRegAliasesMatch(code));
     return dump_.s_[code];
   }
 
@@ -82,7 +82,7 @@ class RegisterDump {
   }
 
   inline uint64_t dreg_bits(unsigned code) const {
-    DCHECK(FPRegAliasesMatch(code));
+    CHECK(FPRegAliasesMatch(code));
     return dump_.d_[code];
   }
 
@@ -92,19 +92,19 @@ class RegisterDump {
 
   // Stack pointer accessors.
   inline int64_t spreg() const {
-    DCHECK(SPRegAliasesMatch());
+    CHECK(SPRegAliasesMatch());
     return dump_.sp_;
   }
 
   inline int32_t wspreg() const {
-    DCHECK(SPRegAliasesMatch());
+    CHECK(SPRegAliasesMatch());
     return static_cast<int32_t>(dump_.wsp_);
   }
 
   // Flags accessors.
   inline uint32_t flags_nzcv() const {
-    DCHECK(IsComplete());
-    DCHECK((dump_.flags_ & ~Flags_mask) == 0);
+    CHECK(IsComplete());
+    CHECK((dump_.flags_ & ~Flags_mask) == 0);
     return dump_.flags_ & Flags_mask;
   }
 
@@ -120,21 +120,21 @@ class RegisterDump {
   // w<code>. A failure of this test most likely represents a failure in the
   // ::Dump method, or a failure in the simulator.
   bool RegAliasesMatch(unsigned code) const {
-    DCHECK(IsComplete());
-    DCHECK(code < kNumberOfRegisters);
+    CHECK(IsComplete());
+    CHECK(code < kNumberOfRegisters);
     return ((dump_.x_[code] & kWRegMask) == dump_.w_[code]);
   }
 
   // As RegAliasesMatch, but for the stack pointer.
   bool SPRegAliasesMatch() const {
-    DCHECK(IsComplete());
+    CHECK(IsComplete());
     return ((dump_.sp_ & kWRegMask) == dump_.wsp_);
   }
 
   // As RegAliasesMatch, but for floating-point registers.
   bool FPRegAliasesMatch(unsigned code) const {
-    DCHECK(IsComplete());
-    DCHECK(code < kNumberOfFPRegisters);
+    CHECK(IsComplete());
+    CHECK(code < kNumberOfFPRegisters);
     return (dump_.d_[code] & kSRegMask) == dump_.s_[code];
   }
 

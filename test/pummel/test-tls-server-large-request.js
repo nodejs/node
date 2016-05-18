@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
@@ -14,7 +14,7 @@ var util = require('util');
 
 var clientConnected = 0;
 var serverConnected = 0;
-var request = new Buffer(new Array(1024 * 256).join('ABCD')); // 1mb
+var request = Buffer.from(new Array(1024 * 256).join('ABCD')); // 1mb
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
@@ -24,7 +24,7 @@ var options = {
 function Mediator() {
   stream.Writable.call(this);
   this.buf = '';
-};
+}
 util.inherits(Mediator, stream.Writable);
 
 Mediator.prototype._write = function write(data, enc, cb) {

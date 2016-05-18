@@ -25,9 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/api.h"
 #include "src/v8.h"
-
 #include "test/cctest/cctest.h"
+
+using ::v8::Array;
+using ::v8::Context;
+using ::v8::Local;
+using ::v8::Value;
 
 // This test fails if properties on the prototype of the global object appear
 // as declared globals.
@@ -37,13 +42,66 @@ TEST(StrictUndeclaredGlobalVariable) {
   LocalContext context;
   v8::TryCatch try_catch(CcTest::isolate());
   v8::Local<v8::Script> script = v8_compile("\"use strict\"; x = 42;");
-  v8::Handle<v8::Object> proto = v8::Object::New(CcTest::isolate());
-  v8::Handle<v8::Object> global =
+  v8::Local<v8::Object> proto = v8::Object::New(CcTest::isolate());
+  v8::Local<v8::Object> global =
       context->Global()->GetPrototype().As<v8::Object>();
-  proto->Set(var_name, v8_num(100));
-  global->SetPrototype(proto);
-  script->Run();
+  proto->Set(context.local(), var_name, v8_num(100)).FromJust();
+  global->SetPrototype(context.local(), proto).FromJust();
+  CHECK(script->Run(context.local()).IsEmpty());
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value exception(try_catch.Exception());
   CHECK_EQ(0, strcmp("ReferenceError: x is not defined", *exception));
+}
+
+
+TEST(KeysGlobalObject_Regress2764) {
+  LocalContext env1;
+  v8::HandleScope scope(env1->GetIsolate());
+
+  // Create second environment.
+  v8::Local<Context> env2 = Context::New(env1->GetIsolate());
+
+  Local<Value> token = v8_str("foo");
+
+  // Set same security token for env1 and env2.
+  env1->SetSecurityToken(token);
+  env2->SetSecurityToken(token);
+
+  // Create a reference to env2 global from env1 global.
+  env1->Global()
+      ->Set(env1.local(), v8_str("global2"), env2->Global())
+      .FromJust();
+  // Set some global variables in global2
+  env2->Global()->Set(env2, v8_str("a"), v8_str("a")).FromJust();
+  env2->Global()->Set(env2, v8_str("42"), v8_str("42")).FromJust();
+
+  // List all entries from global2.
+  Local<Array> result;
+  result = Local<Array>::Cast(CompileRun("Object.keys(global2)"));
+  CHECK_EQ(2u, result->Length());
+  CHECK(
+      v8_str("42")
+          ->Equals(env1.local(), result->Get(env1.local(), 0).ToLocalChecked())
+          .FromJust());
+  CHECK(
+      v8_str("a")
+          ->Equals(env1.local(), result->Get(env1.local(), 1).ToLocalChecked())
+          .FromJust());
+
+  result =
+      Local<Array>::Cast(CompileRun("Object.getOwnPropertyNames(global2)"));
+  CHECK_LT(2u, result->Length());
+  // Check that all elements are in the property names
+  ExpectTrue("-1 < Object.getOwnPropertyNames(global2).indexOf('42')");
+  ExpectTrue("-1 < Object.getOwnPropertyNames(global2).indexOf('a')");
+
+  // Hold on to global from env2 and detach global from env2.
+  env2->DetachGlobal();
+
+  // List again all entries from the detached global2.
+  result = Local<Array>::Cast(CompileRun("Object.keys(global2)"));
+  CHECK_EQ(0u, result->Length());
+  result =
+      Local<Array>::Cast(CompileRun("Object.getOwnPropertyNames(global2)"));
+  CHECK_EQ(0u, result->Length());
 }

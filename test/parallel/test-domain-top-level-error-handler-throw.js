@@ -7,7 +7,7 @@
  * top-level error handler, not the one from the previous error.
  */
 
-const common = require('../common');
+require('../common');
 
 const domainErrHandlerExMessage = 'exception from domain error handler';
 const internalExMessage = 'You should NOT see me';
@@ -29,17 +29,19 @@ if (process.argv[2] === 'child') {
   var fork = require('child_process').fork;
   var assert = require('assert');
 
-  var child = fork(process.argv[1], ['child'], {silent:true});
+  var child = fork(process.argv[1], ['child'], {silent: true});
   var stderrOutput = '';
   if (child) {
     child.stderr.on('data', function onStderrData(data) {
       stderrOutput += data.toString();
     });
 
-    child.on('exit', function onChildExited(exitCode, signal) {
+    child.on('close', function onChildClosed() {
       assert(stderrOutput.indexOf(domainErrHandlerExMessage) !== -1);
       assert(stderrOutput.indexOf(internalExMessage) === -1);
+    });
 
+    child.on('exit', function onChildExited(exitCode, signal) {
       var expectedExitCode = 7;
       var expectedSignal = null;
 

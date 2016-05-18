@@ -138,7 +138,7 @@ class BasicBlock final : public ZoneObject {
   void set_rpo_number(int32_t rpo_number);
 
   // Loop membership helpers.
-  inline bool IsLoopHeader() const { return loop_end_ != NULL; }
+  inline bool IsLoopHeader() const { return loop_end_ != nullptr; }
   bool LoopContains(BasicBlock* block) const;
 
   // Computes the immediate common dominator of {b1} and {b2}. The worst time
@@ -153,8 +153,8 @@ class BasicBlock final : public ZoneObject {
   BasicBlock* dominator_;    // Immediate dominator of the block.
   BasicBlock* rpo_next_;     // Link to next block in special RPO order.
   BasicBlock* loop_header_;  // Pointer to dominating loop header basic block,
-                             // NULL if none. For loop headers, this points to
-                             // enclosing loop header.
+  // nullptr if none. For loop headers, this points to
+  // enclosing loop header.
   BasicBlock* loop_end_;     // end of the loop, if this block is a loop header.
   int32_t loop_depth_;       // loop nesting, 0 is top-level
 

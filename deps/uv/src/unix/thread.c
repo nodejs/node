@@ -27,10 +27,13 @@
 #include <errno.h>
 
 #include <sys/time.h>
+#include <sys/resource.h>  /* getrlimit() */
+#include <unistd.h>  /* getpagesize() */
+
+#include <limits.h>
 
 #undef NANOSEC
 #define NANOSEC ((uint64_t) 1e9)
-
 
 struct thread_ctx {
   void (*entry)(void* arg);
@@ -55,6 +58,11 @@ static void* uv__thread_start(void *arg)
 int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   struct thread_ctx* ctx;
   int err;
+  pthread_attr_t* attr;
+#if defined(__APPLE__)
+  pthread_attr_t attr_storage;
+  struct rlimit lim;
+#endif
 
   ctx = uv__malloc(sizeof(*ctx));
   if (ctx == NULL)
@@ -63,7 +71,33 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   ctx->entry = entry;
   ctx->arg = arg;
 
-  err = pthread_create(tid, NULL, uv__thread_start, ctx);
+  /* On OSX threads other than the main thread are created with a reduced stack
+   * size by default, adjust it to RLIMIT_STACK.
+   */
+#if defined(__APPLE__)
+  if (getrlimit(RLIMIT_STACK, &lim))
+    abort();
+
+  attr = &attr_storage;
+  if (pthread_attr_init(attr))
+    abort();
+
+  if (lim.rlim_cur != RLIM_INFINITY) {
+    /* pthread_attr_setstacksize() expects page-aligned values. */
+    lim.rlim_cur -= lim.rlim_cur % (rlim_t) getpagesize();
+
+    if (lim.rlim_cur >= PTHREAD_STACK_MIN)
+      if (pthread_attr_setstacksize(attr, lim.rlim_cur))
+        abort();
+  }
+#else
+  attr = NULL;
+#endif
+
+  err = pthread_create(tid, attr, uv__thread_start, ctx);
+
+  if (attr != NULL)
+    pthread_attr_destroy(attr);
 
   if (err)
     uv__free(ctx);
@@ -362,6 +396,35 @@ error2:
 #endif /* defined(__APPLE__) && defined(__MACH__) */
 
 void uv_cond_destroy(uv_cond_t* cond) {
+#if defined(__APPLE__) && defined(__MACH__)
+  /* It has been reported that destroying condition variables that have been
+   * signalled but not waited on can sometimes result in application crashes.
+   * See https://codereview.chromium.org/1323293005.
+   */
+  pthread_mutex_t mutex;
+  struct timespec ts;
+  int err;
+
+  if (pthread_mutex_init(&mutex, NULL))
+    abort();
+
+  if (pthread_mutex_lock(&mutex))
+    abort();
+
+  ts.tv_sec = 0;
+  ts.tv_nsec = 1;
+
+  err = pthread_cond_timedwait_relative_np(cond, &mutex, &ts);
+  if (err != 0 && err != ETIMEDOUT)
+    abort();
+
+  if (pthread_mutex_unlock(&mutex))
+    abort();
+
+  if (pthread_mutex_destroy(&mutex))
+    abort();
+#endif /* defined(__APPLE__) && defined(__MACH__) */
+
   if (pthread_cond_destroy(cond))
     abort();
 }
@@ -417,72 +480,6 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
 }
 
 
-#if defined(__APPLE__) && defined(__MACH__)
-
-int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
-  int err;
-
-  barrier->n = count;
-  barrier->count = 0;
-
-  err = uv_mutex_init(&barrier->mutex);
-  if (err)
-    return -err;
-
-  err = uv_sem_init(&barrier->turnstile1, 0);
-  if (err)
-    goto error2;
-
-  err = uv_sem_init(&barrier->turnstile2, 1);
-  if (err)
-    goto error;
-
-  return 0;
-
-error:
-  uv_sem_destroy(&barrier->turnstile1);
-error2:
-  uv_mutex_destroy(&barrier->mutex);
-  return -err;
-
-}
-
-
-void uv_barrier_destroy(uv_barrier_t* barrier) {
-  uv_sem_destroy(&barrier->turnstile2);
-  uv_sem_destroy(&barrier->turnstile1);
-  uv_mutex_destroy(&barrier->mutex);
-}
-
-
-int uv_barrier_wait(uv_barrier_t* barrier) {
-  int serial_thread;
-
-  uv_mutex_lock(&barrier->mutex);
-  if (++barrier->count == barrier->n) {
-    uv_sem_wait(&barrier->turnstile2);
-    uv_sem_post(&barrier->turnstile1);
-  }
-  uv_mutex_unlock(&barrier->mutex);
-
-  uv_sem_wait(&barrier->turnstile1);
-  uv_sem_post(&barrier->turnstile1);
-
-  uv_mutex_lock(&barrier->mutex);
-  serial_thread = (--barrier->count == 0);
-  if (serial_thread) {
-    uv_sem_wait(&barrier->turnstile1);
-    uv_sem_post(&barrier->turnstile2);
-  }
-  uv_mutex_unlock(&barrier->mutex);
-
-  uv_sem_wait(&barrier->turnstile2);
-  uv_sem_post(&barrier->turnstile2);
-  return serial_thread;
-}
-
-#else /* !(defined(__APPLE__) && defined(__MACH__)) */
-
 int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
   return -pthread_barrier_init(barrier, NULL, count);
 }
@@ -501,7 +498,6 @@ int uv_barrier_wait(uv_barrier_t* barrier) {
   return r == PTHREAD_BARRIER_SERIAL_THREAD;
 }
 
-#endif /* defined(__APPLE__) && defined(__MACH__) */
 
 int uv_key_create(uv_key_t* key) {
   return -pthread_key_create(key, NULL);

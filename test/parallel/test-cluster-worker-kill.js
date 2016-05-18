@@ -3,7 +3,7 @@
 // verifies that, when a child process is killed (we use SIGKILL)
 // - the parent receives the proper events in the proper order, no duplicates
 // - the exitCode and signalCode are correct in the 'exit' event
-// - the worker.suicide flag, and worker.state are correct
+// - the worker.exitedAfterDisconnect flag, and worker.state are correct
 // - the worker process actually goes away
 
 var common = require('../common');
@@ -29,7 +29,8 @@ if (cluster.isWorker) {
       worker_emitDisconnect: [1, "the worker did not emit 'disconnect'"],
       worker_emitExit: [1, "the worker did not emit 'exit'"],
       worker_state: ['disconnected', 'the worker state is incorrect'],
-      worker_suicideMode: [false, 'the worker.suicide flag is incorrect'],
+      worker_exitedAfter: [false,
+                           'the .exitedAfterDisconnect flag is incorrect'],
       worker_died: [true, 'the worker is still running'],
       worker_exitCode: [null, 'the worker exited w/ incorrect exitCode'],
       worker_signalCode: [KILL_SIGNAL,
@@ -60,14 +61,12 @@ if (cluster.isWorker) {
     results.cluster_exitCode = worker.process.exitCode;
     results.cluster_signalCode = worker.process.signalCode;
     results.cluster_emitExit += 1;
-    assert.ok(results.cluster_emitDisconnect,
-        "cluster: 'exit' event before 'disconnect' event");
   });
 
   // Check worker events and properties
   worker.on('disconnect', function() {
     results.worker_emitDisconnect += 1;
-    results.worker_suicideMode = worker.suicide;
+    results.worker_exitedAfter = worker.exitedAfterDisconnect;
     results.worker_state = worker.state;
   });
 
@@ -77,37 +76,22 @@ if (cluster.isWorker) {
     results.worker_signalCode = signalCode;
     results.worker_emitExit += 1;
     results.worker_died = !alive(worker.process.pid);
-    assert.ok(results.worker_emitDisconnect,
-        "worker: 'exit' event before 'disconnect' event");
-
-    process.nextTick(function() { finish_test(); });
   });
 
-  var finish_test = function() {
-    try {
-      checkResults(expected_results, results);
-    } catch (exc) {
-      console.error('FAIL: ' + exc.message);
-      if (exc.name != 'AssertionError') {
-        console.trace(exc);
-      }
-
-      process.exit(1);
-      return;
-    }
-    process.exit(0);
-  };
+  process.on('exit', function() {
+    checkResults(expected_results, results);
+  });
 }
 
 // some helper functions ...
 
 function checkResults(expected_results, results) {
   for (var k in expected_results) {
-    var actual = results[k],
-        expected = expected_results[k];
+    const actual = results[k];
+    const expected = expected_results[k];
 
     var msg = (expected[1] || '') +
-        (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
+              (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
     if (expected && expected.length) {
       assert.equal(actual, expected[0], msg);
     } else {

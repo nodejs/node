@@ -28,9 +28,9 @@ parser = optparse.OptionParser()
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
             'android', 'aix')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'ppc', 'ppc64', 'x32',
-              'x64', 'x86')
+              'x64', 'x86', 's390', 's390x')
 valid_arm_float_abi = ('soft', 'softfp', 'hard')
-valid_arm_fpu = ('vfp', 'vfpv2', 'vfpv3', 'vfpv3-d16', 'neon')
+valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
@@ -95,9 +95,9 @@ parser.add_option("--partly-static",
 parser.add_option("--enable-vtune-profiling",
     action="store_true",
     dest="enable_vtune_profiling",
-    help="Enable profiling support for Intel Vtune profiler to profile"
+    help="Enable profiling support for Intel VTune profiler to profile"
          "JavaScript code executed in nodejs. This feature is only available "
-         "for ia32, x32 or x64 platform.")
+         "for x32, x86 and x64 architectures.")
 
 
 parser.add_option("--link-module",
@@ -202,14 +202,33 @@ shared_optgroup.add_option('--shared-zlib-libpath',
     dest='shared_zlib_libpath',
     help='a directory to search for the shared zlib DLL')
 
+shared_optgroup.add_option('--shared-cares',
+    action='store_true',
+    dest='shared_libcares',
+    help='link to a shared cares DLL instead of static linking')
+
+shared_optgroup.add_option('--shared-cares-includes',
+    action='store',
+    dest='shared_libcares_includes',
+    help='directory containing cares header files')
+
+shared_optgroup.add_option('--shared-cares-libname',
+    action='store',
+    dest='shared_libcares_libname',
+    default='cares',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_option('--shared-cares-libpath',
+    action='store',
+    dest='shared_libcares_libpath',
+    help='a directory to search for the shared cares DLL')
+
 parser.add_option_group(shared_optgroup)
 
-# TODO document when we've decided on what the tracing API and its options will
-# look like
 parser.add_option('--systemtap-includes',
     action='store',
     dest='systemtap_includes',
-    help=optparse.SUPPRESS_HELP)
+    help='directory containing systemtap header files')
 
 parser.add_option('--tag',
     action='store',
@@ -284,20 +303,28 @@ parser.add_option('--with-etw',
 intl_optgroup.add_option('--with-intl',
     action='store',
     dest='with_intl',
-    default='none',
+    default='small-icu',
     choices=valid_intl_modes,
     help='Intl mode (valid choices: {0}) [default: %default]'.format(
         ', '.join(valid_intl_modes)))
+
+intl_optgroup.add_option('--without-intl',
+    action='store_const',
+    dest='with_intl',
+    const='none',
+    help='Disable Intl, same as --with-intl=none')
 
 intl_optgroup.add_option('--with-icu-path',
     action='store',
     dest='with_icu_path',
     help='Path to icu.gyp (ICU i18n, Chromium version only.)')
 
+icu_default_locales='root,en'
+
 intl_optgroup.add_option('--with-icu-locales',
     action='store',
     dest='with_icu_locales',
-    default='root,en',
+    default=icu_default_locales,
     help='Comma-separated list of locales for "small-icu". "root" is assumed. '
         '[default: %default]')
 
@@ -375,6 +402,12 @@ parser.add_option('--enable-static',
     dest='enable_static',
     help='build as static library')
 
+parser.add_option('--no-browser-globals',
+    action='store_true',
+    dest='no_browser_globals',
+    help='do not export browser globals like setTimeout, console, etc. ' +
+         '(This mode is not officially supported for regular applications)')
+
 (options, args) = parser.parse_args()
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
@@ -443,7 +476,7 @@ def try_check_compiler(cc, lang):
 # Commands and regular expressions to obtain its version number are taken from
 # https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha512-x86_64.pl#L112-L129
 #
-def get_llvm_version(cc):
+def get_version_helper(cc, regexp):
   try:
     proc = subprocess.Popen(shlex.split(cc) + ['-v'], stdin=subprocess.PIPE,
                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -456,14 +489,20 @@ def get_llvm_version(cc):
         '''
     sys.exit()
 
-  match = re.search(r"(^clang version|based on LLVM) ([3-9]\.[0-9]+)",
-                    proc.communicate()[1])
+  match = re.search(regexp, proc.communicate()[1])
 
   if match:
     return match.group(2)
   else:
     return 0
 
+def get_llvm_version(cc):
+  return get_version_helper(
+      cc, r"(^clang version|based on LLVM) ([3-9]\.[0-9]+)")
+
+def get_xcode_version(cc):
+  return get_version_helper(
+      cc, r"(^Apple LLVM version) ([5-9]\.[0-9]+)")
 
 def get_gas_version(cc):
   try:
@@ -518,6 +557,8 @@ def check_compiler(o):
 
   if is_clang:
     o['variables']['llvm_version'] = get_llvm_version(CC)
+    if sys.platform == 'darwin':
+      o['variables']['xcode_version'] = get_xcode_version(CC)
   else:
     o['variables']['gas_version'] = get_gas_version(CC)
 
@@ -595,6 +636,8 @@ def host_arch_cc():
     '__PPC64__'   : 'ppc64',
     '__PPC__'     : 'ppc',
     '__x86_64__'  : 'x64',
+    '__s390__'    : 's390',
+    '__s390x__'   : 's390x',
   }
 
   rtn = 'ia32' # default
@@ -602,7 +645,8 @@ def host_arch_cc():
   for i in matchup:
     if i in k and k[i] != '0':
       rtn = matchup[i]
-      break
+      if rtn != 's390':
+        break
 
   return rtn
 
@@ -631,7 +675,7 @@ def configure_arm(o):
   else:
     arm_float_abi = 'default'
 
-  arm_fpu = 'vfpv2'
+  arm_fpu = 'vfp'
 
   if is_arch_armv7():
     arm_fpu = 'vfpv3'
@@ -692,8 +736,8 @@ def configure_node(o):
     o['variables']['node_enable_v8_vtunejit'] = b(options.enable_vtune_profiling)
   elif options.enable_vtune_profiling:
     raise Exception(
-       'vtune profiler for JavaScript is only supported on x86, x32 or x64 '
-       'platform.')
+       'The VTune profiler for JavaScript is only supported on x32, x86 and x64 '
+       'architectures.')
   else:
     o['variables']['node_enable_v8_vtunejit'] = 'false'
 
@@ -755,6 +799,8 @@ def configure_node(o):
 
   if options.enable_static:
     o['variables']['node_target_type'] = 'static_library'
+
+  o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
 
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module
@@ -832,21 +878,6 @@ def configure_static(o):
         o['libraries'] += ['-static-libasan']
 
 
-def configure_winsdk(o):
-  if flavor != 'win':
-    return
-
-  winsdk_dir = os.environ.get('WindowsSdkDir')
-
-  if winsdk_dir and os.path.isfile(winsdk_dir + '\\bin\\ctrpp.exe'):
-    print('Found ctrpp in WinSDK--will build generated files '
-          'into tools/msvs/genfiles.')
-    o['variables']['node_has_winsdk'] = 'true'
-    return
-
-  print('ctrpp not found in WinSDK path--using pre-gen files '
-        'from tools/msvs/genfiles.')
-
 def write(filename, data):
   filename = os.path.join(root_dir, filename)
   print 'creating ', filename
@@ -857,7 +888,7 @@ do_not_edit = '# Do not edit. Generated by the configure script.\n'
 
 def glob_to_var(dir_base, dir_sub, patch_dir):
   list = []
-  dir_all = os.path.join(dir_base, dir_sub)
+  dir_all = '%s/%s' % (dir_base, dir_sub)
   files = os.walk(dir_all)
   for ent in files:
     (path, dirs, files) = ent
@@ -877,8 +908,8 @@ def glob_to_var(dir_base, dir_sub, patch_dir):
 def configure_intl(o):
   icus = [
     {
-      'url': 'https://ssl.icu-project.org/files/icu4c/56.1/icu4c-56_1-src.zip',
-      'md5': '61d71888f14bf00cc3e8a6f2c087d367',
+      'url': 'https://ssl.icu-project.org/files/icu4c/57.1/icu4c-57_1-src.zip',
+      'md5': 'f797503ecaebf1d38920013dc7893066',
     },
   ]
   def icu_download(path):
@@ -945,6 +976,7 @@ def configure_intl(o):
     locs = set(options.with_icu_locales.split(','))
     locs.add('root')  # must have root
     o['variables']['icu_locales'] = string.join(locs,',')
+    # We will check a bit later if we can use the canned deps/icu-small
   elif with_intl == 'full-icu':
     # full ICU
     o['variables']['v8_enable_i18n_support'] = 1
@@ -971,15 +1003,42 @@ def configure_intl(o):
   # this is just the 'deps' dir. Used for unpacking.
   icu_parent_path = os.path.join(root_dir, 'deps')
 
-  # The full path to the ICU source directory.
-  icu_full_path = os.path.join(icu_parent_path, 'icu')
+  # The full path to the ICU source directory. Should not include './'.
+  icu_full_path = 'deps/icu'
 
   # icu-tmp is used to download and unpack the ICU tarball.
   icu_tmp_path = os.path.join(icu_parent_path, 'icu-tmp')
 
+  # canned ICU. see tools/icu/README.md to update.
+  canned_icu_dir = 'deps/icu-small'
+
+  # We can use 'deps/icu-small' - pre-canned ICU *iff*
+  # - with_intl == small-icu (the default!)
+  # - with_icu_locales == 'root,en' (the default!)
+  # - deps/icu-small exists!
+  # - with_icu_source is unset (i.e. no other ICU was specified)
+  # (Note that this is the *DEFAULT CASE*.)
+  #
+  # This is *roughly* equivalent to
+  # $ configure --with-intl=small-icu --with-icu-source=deps/icu-small
+  # .. Except that we avoid copying icu-small over to deps/icu.
+  # In this default case, deps/icu is ignored, although make clean will
+  # still harmlessly remove deps/icu.
+
+  # are we using default locales?
+  using_default_locales = ( options.with_icu_locales == icu_default_locales )
+
+  # make sure the canned ICU really exists
+  canned_icu_available = os.path.isdir(canned_icu_dir)
+
+  if (o['variables']['icu_small'] == b(True)) and using_default_locales and (not with_icu_source) and canned_icu_available:
+    # OK- we can use the canned ICU.
+    icu_config['variables']['icu_small_canned'] = 1
+    icu_full_path = canned_icu_dir
+
   # --with-icu-source processing
-  # first, check that they didn't pass --with-icu-source=deps/icu
-  if with_icu_source and os.path.abspath(icu_full_path) == os.path.abspath(with_icu_source):
+  # now, check that they didn't pass --with-icu-source=deps/icu
+  elif with_icu_source and os.path.abspath(icu_full_path) == os.path.abspath(with_icu_source):
     print 'Ignoring redundant --with-icu-source=%s' % (with_icu_source)
     with_icu_source = None
   # if with_icu_source is still set, try to use it.
@@ -1020,7 +1079,7 @@ def configure_intl(o):
 
   # ICU mode. (icu-generic.gyp)
   o['variables']['icu_gyp_path'] = 'tools/icu/icu-generic.gyp'
-  # ICU source dir relative to root
+  # ICU source dir relative to tools/icu (for .gyp file)
   o['variables']['icu_path'] = icu_full_path
   if not os.path.isdir(icu_full_path):
     print '* ECMA-402 (Intl) support didn\'t find ICU in %s..' % (icu_full_path)
@@ -1050,7 +1109,7 @@ def configure_intl(o):
   if not icu_ver_major:
     print ' Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h
     sys.exit(1)
-  icu_endianness = sys.byteorder[0];  # TODO(srl295): EBCDIC should be 'e'
+  icu_endianness = sys.byteorder[0];
   o['variables']['icu_ver_major'] = icu_ver_major
   o['variables']['icu_endianness'] = icu_endianness
   icu_data_file_l = 'icudt%s%s.dat' % (icu_ver_major, 'l')
@@ -1060,14 +1119,14 @@ def configure_intl(o):
                                'source/data/in',
                                icu_data_file_l)
   # relative to dep..
-  icu_data_in = os.path.join('../../deps/icu/source/data/in', icu_data_file_l)
+  icu_data_in = os.path.join('..','..', icu_full_path, 'source/data/in', icu_data_file_l)
   if not os.path.isfile(icu_data_path) and icu_endianness != 'l':
     # use host endianness
     icu_data_path = os.path.join(icu_full_path,
                                  'source/data/in',
                                  icu_data_file)
     # relative to dep..
-    icu_data_in = os.path.join('icu/source/data/in',
+    icu_data_in = os.path.join('..', icu_full_path, 'source/data/in',
                                icu_data_file)
   # this is the input '.dat' file to use .. icudt*.dat
   # may be little-endian if from a icu-project.org tarball
@@ -1094,7 +1153,7 @@ def configure_intl(o):
   # with a list of the src files to use
   for i in icu_src:
     var  = 'icu_src_%s' % i
-    path = '../../deps/icu/source/%s' % icu_src[i]
+    path = '../../%s/source/%s' % (icu_full_path, icu_src[i])
     icu_config['variables'][var] = glob_to_var('tools/icu', path, 'patches/%s/source/%s' % (icu_ver_major, icu_src[i]) )
   # write updated icu_config.gypi with a bunch of paths
   write(icu_config_name, do_not_edit +
@@ -1102,7 +1161,7 @@ def configure_intl(o):
   return  # end of configure_intl
 
 output = {
-  'variables': { 'python': sys.executable },
+  'variables': {},
   'include_dirs': [],
   'libraries': [],
   'defines': [],
@@ -1123,9 +1182,12 @@ configure_node(output)
 configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
+configure_library('libcares', output)
+# stay backwards compatible with shared cares builds
+output['variables']['node_shared_cares'] = \
+    output['variables'].pop('node_shared_libcares')
 configure_v8(output)
 configure_openssl(output)
-configure_winsdk(output)
 configure_intl(output)
 configure_static(output)
 

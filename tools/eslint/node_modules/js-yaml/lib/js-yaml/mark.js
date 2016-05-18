@@ -16,9 +16,7 @@ function Mark(name, buffer, position, line, column) {
 Mark.prototype.getSnippet = function getSnippet(indent, maxLength) {
   var head, start, tail, end, snippet;
 
-  if (!this.buffer) {
-    return null;
-  }
+  if (!this.buffer) return null;
 
   indent = indent || 4;
   maxLength = maxLength || 75;
@@ -26,7 +24,7 @@ Mark.prototype.getSnippet = function getSnippet(indent, maxLength) {
   head = '';
   start = this.position;
 
-  while (start > 0 && -1 === '\x00\r\n\x85\u2028\u2029'.indexOf(this.buffer.charAt(start - 1))) {
+  while (start > 0 && '\x00\r\n\x85\u2028\u2029'.indexOf(this.buffer.charAt(start - 1)) === -1) {
     start -= 1;
     if (this.position - start > (maxLength / 2 - 1)) {
       head = ' ... ';
@@ -38,7 +36,7 @@ Mark.prototype.getSnippet = function getSnippet(indent, maxLength) {
   tail = '';
   end = this.position;
 
-  while (end < this.buffer.length && -1 === '\x00\r\n\x85\u2028\u2029'.indexOf(this.buffer.charAt(end))) {
+  while (end < this.buffer.length && '\x00\r\n\x85\u2028\u2029'.indexOf(this.buffer.charAt(end)) === -1) {
     end += 1;
     if (end - this.position > (maxLength / 2 - 1)) {
       tail = ' ... ';

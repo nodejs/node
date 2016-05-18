@@ -412,7 +412,7 @@ $L$dec_no_key_aliasing::
 
 	vzeroupper
 	movaps	xmm6,XMMWORD PTR[((-216))+rax]
-	movaps	xmm7,XMMWORD PTR[((-216))+rax]
+	movaps	xmm7,XMMWORD PTR[((-200))+rax]
 	movaps	xmm8,XMMWORD PTR[((-184))+rax]
 	movaps	xmm9,XMMWORD PTR[((-168))+rax]
 	movaps	xmm10,XMMWORD PTR[((-152))+rax]

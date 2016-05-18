@@ -4,6 +4,7 @@
 
 #include "src/runtime/runtime.h"
 
+#include "src/assembler.h"
 #include "src/contexts.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap.h"
@@ -25,6 +26,12 @@ FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
                             Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_PAIR(P)
 #undef P
+
+#define T(name, number_of_args, result_size)                         \
+  ObjectTriple Runtime_##name(int args_length, Object** args_object, \
+                              Isolate* isolate);
+FOR_EACH_INTRINSIC_RETURN_TRIPLE(T)
+#undef T
 
 
 #define F(name, number_of_args, result_size)                                  \
@@ -94,9 +101,35 @@ const Runtime::Function* Runtime::FunctionForId(Runtime::FunctionId id) {
 }
 
 
+const Runtime::Function* Runtime::RuntimeFunctionTable(Isolate* isolate) {
+  if (isolate->external_reference_redirector()) {
+    // When running with the simulator we need to provide a table which has
+    // redirected runtime entry addresses.
+    if (!isolate->runtime_state()->redirected_intrinsic_functions()) {
+      size_t function_count = arraysize(kIntrinsicFunctions);
+      Function* redirected_functions = new Function[function_count];
+      memcpy(redirected_functions, kIntrinsicFunctions,
+             sizeof(kIntrinsicFunctions));
+      for (size_t i = 0; i < function_count; i++) {
+        ExternalReference redirected_entry(static_cast<Runtime::FunctionId>(i),
+                                           isolate);
+        redirected_functions[i].entry = redirected_entry.address();
+      }
+      isolate->runtime_state()->set_redirected_intrinsic_functions(
+          redirected_functions);
+    }
+
+    return isolate->runtime_state()->redirected_intrinsic_functions();
+  } else {
+    return kIntrinsicFunctions;
+  }
+}
+
+
 std::ostream& operator<<(std::ostream& os, Runtime::FunctionId id) {
   return os << Runtime::FunctionForId(id)->name;
 }
+
 
 }  // namespace internal
 }  // namespace v8

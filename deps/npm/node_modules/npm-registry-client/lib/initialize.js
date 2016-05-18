@@ -4,9 +4,6 @@ var HttpsAgent = require('https').Agent
 
 var pkg = require('../package.json')
 
-var httpAgent
-var httpsAgent
-
 module.exports = initialize
 
 function initialize (uri, method, accept, headers) {
@@ -24,7 +21,7 @@ function initialize (uri, method, accept, headers) {
     cert: this.config.ssl.certificate,
     key: this.config.ssl.key,
     ca: this.config.ssl.ca,
-    agent: getAgent(uri.protocol, this.config)
+    agent: getAgent.call(this, uri.protocol)
   }
 
   // allow explicit disabling of proxy in environment via CLI
@@ -55,28 +52,30 @@ function initialize (uri, method, accept, headers) {
   return opts
 }
 
-function getAgent (protocol, config) {
+function getAgent (protocol) {
   if (protocol === 'https:') {
-    if (!httpsAgent) {
-      httpsAgent = new HttpsAgent({
+    if (!this.httpsAgent) {
+      this.httpsAgent = new HttpsAgent({
         keepAlive: true,
-        localAddress: config.proxy.localAddress,
-        rejectUnauthorized: config.ssl.strict,
-        ca: config.ssl.ca,
-        cert: config.ssl.certificate,
-        key: config.ssl.key
+        maxSockets: this.config.maxSockets,
+        localAddress: this.config.proxy.localAddress,
+        rejectUnauthorized: this.config.ssl.strict,
+        ca: this.config.ssl.ca,
+        cert: this.config.ssl.certificate,
+        key: this.config.ssl.key
       })
     }
 
-    return httpsAgent
+    return this.httpsAgent
   } else {
-    if (!httpAgent) {
-      httpAgent = new HttpAgent({
+    if (!this.httpAgent) {
+      this.httpAgent = new HttpAgent({
         keepAlive: true,
-        localAddress: config.proxy.localAddress
+        maxSockets: this.config.maxSockets,
+        localAddress: this.config.proxy.localAddress
       })
     }
 
-    return httpAgent
+    return this.httpAgent
   }
 }

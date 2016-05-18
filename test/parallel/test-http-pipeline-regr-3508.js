@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const http = require('http');
 const net = require('net');
 
@@ -8,8 +7,7 @@ var once = false;
 var first = null;
 var second = null;
 
-const chunk = new Buffer(1024);
-chunk.fill('X');
+const chunk = Buffer.alloc(1024, 'X');
 
 var size = 0;
 

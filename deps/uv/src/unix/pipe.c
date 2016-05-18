@@ -102,7 +102,7 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
 
   handle->connection_cb = cb;
   handle->io_watcher.cb = uv__server_io;
-  uv__io_start(handle->loop, &handle->io_watcher, UV__POLLIN);
+  uv__io_start(handle->loop, &handle->io_watcher, POLLIN);
   return 0;
 }
 
@@ -185,7 +185,7 @@ void uv_pipe_connect(uv_connect_t* req,
   }
 
   if (err == 0)
-    uv__io_start(handle->loop, &handle->io_watcher, UV__POLLIN | UV__POLLOUT);
+    uv__io_start(handle->loop, &handle->io_watcher, POLLIN | POLLOUT);
 
 out:
   handle->delayed_error = err;
@@ -200,9 +200,6 @@ out:
   if (err)
     uv__io_feed(handle->loop, &handle->io_watcher);
 
-  /* Mimic the Windows pipe implementation, always
-   * return 0 and let the callback handle errors.
-   */
 }
 
 
@@ -234,13 +231,17 @@ static int uv__pipe_getsockpeername(const uv_pipe_t* handle,
     addrlen = strlen(sa.sun_path);
 
 
-  if (addrlen > *size) {
-    *size = addrlen;
+  if (addrlen >= *size) {
+    *size = addrlen + 1;
     return UV_ENOBUFS;
   }
 
   memcpy(buffer, sa.sun_path, addrlen);
   *size = addrlen;
+
+  /* only null-terminate if it's not an abstract socket */
+  if (buffer[0] != '\0')
+    buffer[addrlen] = '\0';
 
   return 0;
 }

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/assembler.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
@@ -12,8 +10,9 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 class JSCacheTesterHelper {
  protected:
@@ -39,7 +38,7 @@ class JSConstantCacheTester : public HandleAndZoneScope,
   JSConstantCacheTester()
       : JSCacheTesterHelper(main_isolate(), main_zone()),
         JSGraph(main_isolate(), &main_graph_, &main_common_, &main_javascript_,
-                &main_machine_) {
+                nullptr, &main_machine_) {
     main_graph_.SetStart(main_graph_.NewNode(common()->Start(0)));
     main_graph_.SetEnd(
         main_graph_.NewNode(common()->End(1), main_graph_.start()));
@@ -473,3 +472,7 @@ TEST(JSGraph_GetCachedNodes_together) {
     CHECK(Contains(&nodes, constants[i]));
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

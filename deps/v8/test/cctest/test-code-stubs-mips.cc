@@ -34,6 +34,7 @@
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips/constants-mips.h"
+#include "src/register-configuration.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
@@ -52,7 +53,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
       Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   HandleScope handles(isolate);
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      v8::internal::CodeObjectRequired::kYes);
   DoubleToIStub stub(isolate, source_reg, destination_reg, 0, true,
                      inline_fastpath);
 
@@ -79,11 +81,13 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 2;
-  for (; reg_num < Register::NumAllocatableRegisters(); ++reg_num) {
+  for (; reg_num < Register::kNumRegisters; ++reg_num) {
     Register reg = Register::from_code(reg_num);
-    if (!reg.is(destination_reg)) {
-      __ push(reg);
-      source_reg_offset += kPointerSize;
+    if (reg.IsAllocatable()) {
+      if (!reg.is(destination_reg)) {
+        __ push(reg);
+        source_reg_offset += kPointerSize;
+      }
     }
   }
 
@@ -108,10 +112,12 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 2; --reg_num) {
     Register reg = Register::from_code(reg_num);
-    if (!reg.is(destination_reg)) {
-      __ lw(at, MemOperand(sp, 0));
-      __ Assert(eq, kRegisterWasClobbered, reg, Operand(at));
-      __ Addu(sp, sp, Operand(kPointerSize));
+    if (reg.IsAllocatable()) {
+      if (!reg.is(destination_reg)) {
+        __ lw(at, MemOperand(sp, 0));
+        __ Assert(eq, kRegisterWasClobbered, reg, Operand(at));
+        __ Addu(sp, sp, Operand(kPointerSize));
+      }
     }
   }
 
@@ -135,7 +141,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   return (reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer)));
 }
@@ -151,8 +157,9 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
                                     double from) {
 #ifdef USE_SIMULATOR
-  Simulator::current(Isolate::Current())->CallFP(FUNCTION_ADDR(func), from, 0.);
-  return Simulator::current(Isolate::Current())->get_register(v0.code());
+  Simulator::current(CcTest::i_isolate())
+      ->CallFP(FUNCTION_ADDR(func), from, 0.);
+  return Simulator::current(CcTest::i_isolate())->get_register(v0.code());
 #else
   return (*func)(from);
 #endif

@@ -5,6 +5,7 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
@@ -39,14 +40,15 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     } else {
       pointer = code->instruction_start();
     }
-    CodePatcher patcher(pointer, 1);
+    CodePatcher patcher(isolate, pointer, 1);
     patcher.masm()->bkpt(0);
 
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(code->deoptimization_data());
     int osr_offset = data->OsrPcOffset()->value();
     if (osr_offset > 0) {
-      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
+                              1);
       osr_patcher.masm()->bkpt(0);
     }
   }
@@ -71,7 +73,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
     DCHECK(call_size_in_bytes <= patch_size());
-    CodePatcher patcher(call_address, call_size_in_words);
+    CodePatcher patcher(isolate, call_address, call_size_in_words);
     patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
     DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
@@ -79,27 +81,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
-  }
-}
-
-
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, i * 4);
-  }
-  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
   }
 }
 
@@ -122,8 +103,7 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
   // There is no dynamic alignment padding on ARM in the input frame.
   return false;
 }
@@ -142,8 +122,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Everything but pc, lr and ip which will be saved but not restored.
   RegList restored_regs = kJSCallerSaved | kCalleeSaved | ip.bit();
 
-  const int kDoubleRegsSize =
-      kDoubleSize * DwVfpRegister::kMaxNumAllocatableRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DwVfpRegister::kMaxNumRegisters;
 
   // Save all allocatable VFP registers before messing with them.
   DCHECK(kDoubleRegZero.code() == 14);
@@ -152,11 +131,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Check CPU flags for number of registers, setting the Z condition flag.
   __ CheckFor32DRegs(ip);
 
-  // Push registers d0-d13, and possibly d16-d31, on the stack.
+  // Push registers d0-d15, and possibly d16-d31, on the stack.
   // If d16-d31 are not pushed, decrease the stack pointer instead.
   __ vstm(db_w, sp, d16, d31, ne);
   __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
-  __ vstm(db_w, sp, d0, d13);
+  __ vstm(db_w, sp, d0, d15);
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
   // TODO(1588) Note that using pc with stm is deprecated, so we should perhaps
@@ -211,9 +190,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Copy VFP registers to
   // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
   int double_regs_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < DwVfpRegister::kMaxNumAllocatableRegisters; ++i) {
-    int dst_offset = i * kDoubleSize + double_regs_offset;
-    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    int dst_offset = code * kDoubleSize + double_regs_offset;
+    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
     __ vldr(d0, sp, src_offset);
     __ vstr(d0, r1, dst_offset);
   }
@@ -284,14 +266,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ CheckFor32DRegs(ip);
 
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
-  int src_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-    if (i == kDoubleRegZero.code()) continue;
-    if (i == kScratchDoubleReg.code()) continue;
-
-    const DwVfpRegister reg = DwVfpRegister::from_code(i);
-    __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
-    src_offset += kDoubleSize;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    DwVfpRegister reg = DwVfpRegister::from_code(code);
+    int src_offset = code * kDoubleSize + double_regs_offset;
+    __ vldr(reg, r1, src_offset);
   }
 
   // Push state, pc, and continuation from the last output frame.

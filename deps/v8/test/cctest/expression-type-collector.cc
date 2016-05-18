@@ -6,9 +6,9 @@
 
 #include "test/cctest/expression-type-collector.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/codegen.h"
-#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -24,13 +24,14 @@ struct {
     AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 };
-}
+
+}  // namespace
 
 
 ExpressionTypeCollector::ExpressionTypeCollector(
-    Isolate* isolate, Zone* zone, FunctionLiteral* root,
+    Isolate* isolate, FunctionLiteral* root,
     ZoneVector<ExpressionTypeEntry>* dst)
-    : AstExpressionVisitor(isolate, zone, root), result_(dst) {}
+    : AstExpressionVisitor(isolate, root), result_(dst) {}
 
 
 void ExpressionTypeCollector::Run() {
@@ -57,5 +58,6 @@ void ExpressionTypeCollector::VisitExpression(Expression* expression) {
   }
   result_->push_back(e);
 }
-}
-}
+
+}  // namespace internal
+}  // namespace v8

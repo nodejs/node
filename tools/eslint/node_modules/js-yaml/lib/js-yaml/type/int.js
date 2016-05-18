@@ -18,16 +18,14 @@ function isDecCode(c) {
 }
 
 function resolveYamlInteger(data) {
-  if (null === data) {
-    return false;
-  }
+  if (data === null) return false;
 
   var max = data.length,
       index = 0,
       hasDigits = false,
       ch;
 
-  if (!max) { return false; }
+  if (!max) return false;
 
   ch = data[index];
 
@@ -38,7 +36,7 @@ function resolveYamlInteger(data) {
 
   if (ch === '0') {
     // 0
-    if (index + 1 === max) { return true; }
+    if (index + 1 === max) return true;
     ch = data[++index];
 
     // base 2, base 8, base 16
@@ -49,10 +47,8 @@ function resolveYamlInteger(data) {
 
       for (; index < max; index++) {
         ch = data[index];
-        if (ch === '_') { continue; }
-        if (ch !== '0' && ch !== '1') {
-          return false;
-        }
+        if (ch === '_') continue;
+        if (ch !== '0' && ch !== '1') return false;
         hasDigits = true;
       }
       return hasDigits;
@@ -65,10 +61,8 @@ function resolveYamlInteger(data) {
 
       for (; index < max; index++) {
         ch = data[index];
-        if (ch === '_') { continue; }
-        if (!isHexCode(data.charCodeAt(index))) {
-          return false;
-        }
+        if (ch === '_') continue;
+        if (!isHexCode(data.charCodeAt(index))) return false;
         hasDigits = true;
       }
       return hasDigits;
@@ -77,10 +71,8 @@ function resolveYamlInteger(data) {
     // base 8
     for (; index < max; index++) {
       ch = data[index];
-      if (ch === '_') { continue; }
-      if (!isOctCode(data.charCodeAt(index))) {
-        return false;
-      }
+      if (ch === '_') continue;
+      if (!isOctCode(data.charCodeAt(index))) return false;
       hasDigits = true;
     }
     return hasDigits;
@@ -90,18 +82,18 @@ function resolveYamlInteger(data) {
 
   for (; index < max; index++) {
     ch = data[index];
-    if (ch === '_') { continue; }
-    if (ch === ':') { break; }
+    if (ch === '_') continue;
+    if (ch === ':') break;
     if (!isDecCode(data.charCodeAt(index))) {
       return false;
     }
     hasDigits = true;
   }
 
-  if (!hasDigits) { return false; }
+  if (!hasDigits) return false;
 
   // if !base60 - done;
-  if (ch !== ':') { return true; }
+  if (ch !== ':') return true;
 
   // base60 almost not used, no needs to optimize
   return /^(:[0-5]?[0-9])+$/.test(data.slice(index));
@@ -117,24 +109,17 @@ function constructYamlInteger(data) {
   ch = value[0];
 
   if (ch === '-' || ch === '+') {
-    if (ch === '-') { sign = -1; }
+    if (ch === '-') sign = -1;
     value = value.slice(1);
     ch = value[0];
   }
 
-  if ('0' === value) {
-    return 0;
-  }
+  if (value === '0') return 0;
 
   if (ch === '0') {
-    if (value[1] === 'b') {
-      return sign * parseInt(value.slice(2), 2);
-    }
-    if (value[1] === 'x') {
-      return sign * parseInt(value, 16);
-    }
+    if (value[1] === 'b') return sign * parseInt(value.slice(2), 2);
+    if (value[1] === 'x') return sign * parseInt(value, 16);
     return sign * parseInt(value, 8);
-
   }
 
   if (value.indexOf(':') !== -1) {
@@ -158,8 +143,8 @@ function constructYamlInteger(data) {
 }
 
 function isInteger(object) {
-  return ('[object Number]' === Object.prototype.toString.call(object)) &&
-         (0 === object % 1 && !common.isNegativeZero(object));
+  return (Object.prototype.toString.call(object)) === '[object Number]' &&
+         (object % 1 === 0 && !common.isNegativeZero(object));
 }
 
 module.exports = new Type('tag:yaml.org,2002:int', {

@@ -1,0 +1,73 @@
+{
+  "_args": [
+    [
+      "esmangle-evaluator@^1.0.0",
+      "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/unreachable-branch-transform"
+    ]
+  ],
+  "_from": "esmangle-evaluator@>=1.0.0 <2.0.0",
+  "_id": "esmangle-evaluator@1.0.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/readable-stream/unreachable-branch-transform/esmangle-evaluator",
+  "_npmUser": {
+    "email": "zertosh@gmail.com",
+    "name": "zertosh"
+  },
+  "_npmVersion": "1.4.28",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "esmangle-evaluator",
+    "raw": "esmangle-evaluator@^1.0.0",
+    "rawSpec": "^1.0.0",
+    "scope": null,
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/readable-stream/unreachable-branch-transform"
+  ],
+  "_resolved": "https://registry.npmjs.org/esmangle-evaluator/-/esmangle-evaluator-1.0.0.tgz",
+  "_shasum": "96f8de581ddfd7aa907ef2348d8b52621fe51ec8",
+  "_shrinkwrap": null,
+  "_spec": "esmangle-evaluator@^1.0.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/readable-stream/node_modules/unreachable-branch-transform",
+  "author": {
+    "email": "zertosh@gmail.com",
+    "name": "Andres Suarez"
+  },
+  "bugs": {
+    "url": "https://github.com/zertosh/esmangle-evaluator/issues"
+  },
+  "dependencies": {},
+  "description": "esmangle-evaluator",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "96f8de581ddfd7aa907ef2348d8b52621fe51ec8",
+    "tarball": "https://registry.npmjs.org/esmangle-evaluator/-/esmangle-evaluator-1.0.0.tgz"
+  },
+  "gitHead": "4165b0099a4e5285fc16b560a9f45ceaa2957920",
+  "homepage": "https://github.com/zertosh/esmangle-evaluator",
+  "keywords": [
+    "ast",
+    "esmangle"
+  ],
+  "licence": "MIT",
+  "main": "evaluator.js",
+  "maintainers": [
+    {
+      "email": "zertosh@gmail.com",
+      "name": "zertosh"
+    }
+  ],
+  "name": "esmangle-evaluator",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/zertosh/esmangle-evaluator.git"
+  },
+  "scripts": {},
+  "version": "1.0.0"
+}

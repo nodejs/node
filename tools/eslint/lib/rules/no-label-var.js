@@ -6,59 +6,62 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+var astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow labels that share a name with a variable",
+            category: "Variables",
+            recommended: false
+        },
 
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
+        schema: []
+    },
 
-    function findIdentifier(scope, identifier) {
-        var found = false;
+    create: function(context) {
 
-        scope.variables.forEach(function(variable) {
-            if (variable.name === identifier) {
-                found = true;
-            }
-        });
+        //--------------------------------------------------------------------------
+        // Helpers
+        //--------------------------------------------------------------------------
 
-        scope.references.forEach(function(reference) {
-            if (reference.identifier.name === identifier) {
-                found = true;
-            }
-        });
-
-        // If we have not found the identifier in this scope, check the parent
-        // scope.
-        if (scope.upper && !found) {
-            return findIdentifier(scope.upper, identifier);
+        /**
+         * Check if the identifier is present inside current scope
+         * @param {object} scope current scope
+         * @param {string} name To evaluate
+         * @returns {boolean} True if its present
+         * @private
+         */
+        function findIdentifier(scope, name) {
+            return astUtils.getVariableByName(scope, name) !== null;
         }
 
-        return found;
+        //--------------------------------------------------------------------------
+        // Public API
+        //--------------------------------------------------------------------------
+
+        return {
+
+            LabeledStatement: function(node) {
+
+                // Fetch the innermost scope.
+                var scope = context.getScope();
+
+                // Recursively find the identifier walking up the scope, starting
+                // with the innermost scope.
+                if (findIdentifier(scope, node.label.name)) {
+                    context.report(node, "Found identifier with same name as label.");
+                }
+            }
+
+        };
+
     }
-
-    //--------------------------------------------------------------------------
-    // Public API
-    //--------------------------------------------------------------------------
-
-    return {
-
-        "LabeledStatement": function(node) {
-
-            // Fetch the innermost scope.
-            var scope = context.getScope();
-
-            // Recursively find the identifier walking up the scope, starting
-            // with the innermost scope.
-            if (findIdentifier(scope, node.label.name)) {
-                context.report(node, "Found identifier with same name as label.");
-            }
-        }
-
-    };
-
 };
-
-module.exports.schema = [];

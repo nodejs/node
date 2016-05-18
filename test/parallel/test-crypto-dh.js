@@ -1,13 +1,13 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const constants = require('constants');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 const crypto = require('crypto');
+const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
@@ -46,10 +46,10 @@ var privkey1 = dh1.getPrivateKey();
 dh3.setPublicKey(key1);
 dh3.setPrivateKey(privkey1);
 
-assert.deepEqual(dh1.getPrime(), dh3.getPrime());
-assert.deepEqual(dh1.getGenerator(), dh3.getGenerator());
-assert.deepEqual(dh1.getPublicKey(), dh3.getPublicKey());
-assert.deepEqual(dh1.getPrivateKey(), dh3.getPrivateKey());
+assert.deepStrictEqual(dh1.getPrime(), dh3.getPrime());
+assert.deepStrictEqual(dh1.getGenerator(), dh3.getGenerator());
+assert.deepStrictEqual(dh1.getPublicKey(), dh3.getPublicKey());
+assert.deepStrictEqual(dh1.getPrivateKey(), dh3.getPrivateKey());
 assert.equal(dh3.verifyError, 0);
 
 var secret3 = dh3.computeSecret(key2, 'hex', 'base64');
@@ -79,14 +79,14 @@ bob.generateKeys();
 var aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
 var bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
 assert.equal(aSecret, bSecret);
-assert.equal(alice.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
-assert.equal(bob.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(alice.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.equal(bob.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 /* Ensure specific generator (buffer) works as expected.
  * The values below (modp2/modp2buf) are for a 1024 bits long prime from
  * RFC 2412 E.2, see https://tools.ietf.org/html/rfc2412. */
 var modp2 = crypto.createDiffieHellmanGroup('modp2');
-var modp2buf = new Buffer([
+var modp2buf = Buffer.from([
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc9, 0x0f,
   0xda, 0xa2, 0x21, 0x68, 0xc2, 0x34, 0xc4, 0xc6, 0x62, 0x8b,
   0x80, 0xdc, 0x1c, 0xd1, 0x29, 0x02, 0x4e, 0x08, 0x8a, 0x67,
@@ -101,14 +101,14 @@ var modp2buf = new Buffer([
   0x1f, 0xe6, 0x49, 0x28, 0x66, 0x51, 0xec, 0xe6, 0x53, 0x81,
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 ]);
-var exmodp2 = crypto.createDiffieHellman(modp2buf, new Buffer([2]));
+var exmodp2 = crypto.createDiffieHellman(modp2buf, Buffer.from([2]));
 modp2.generateKeys();
 exmodp2.generateKeys();
 var modp2Secret = modp2.computeSecret(exmodp2.getPublicKey()).toString('hex');
 var exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey()).toString('hex');
 assert.equal(modp2Secret, exmodp2Secret);
-assert.equal(modp2.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
-assert.equal(exmodp2.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(modp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.equal(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (string with encoding) works as expected.
@@ -118,7 +118,7 @@ modp2Secret = modp2.computeSecret(exmodp2_2.getPublicKey()).toString('hex');
 var exmodp2_2Secret = exmodp2_2.computeSecret(modp2.getPublicKey())
                                .toString('hex');
 assert.equal(modp2Secret, exmodp2_2Secret);
-assert.equal(exmodp2_2.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(exmodp2_2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (string without encoding) works as expected.
@@ -128,7 +128,7 @@ modp2Secret = modp2.computeSecret(exmodp2_3.getPublicKey()).toString('hex');
 var exmodp2_3Secret = exmodp2_3.computeSecret(modp2.getPublicKey())
                                .toString('hex');
 assert.equal(modp2Secret, exmodp2_3Secret);
-assert.equal(exmodp2_3.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(exmodp2_3.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (numeric) works as expected.
@@ -138,7 +138,7 @@ modp2Secret = modp2.computeSecret(exmodp2_4.getPublicKey()).toString('hex');
 var exmodp2_4Secret = exmodp2_4.computeSecret(modp2.getPublicKey())
                                .toString('hex');
 assert.equal(modp2Secret, exmodp2_4Secret);
-assert.equal(exmodp2_4.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(exmodp2_4.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 var p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
@@ -146,7 +146,7 @@ var p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
         '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
         'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
 var bad_dh = crypto.createDiffieHellman(p, 'hex');
-assert.equal(bad_dh.verifyError, constants.DH_NOT_SUITABLE_GENERATOR);
+assert.equal(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Test ECDH
@@ -158,6 +158,11 @@ secret1 = ecdh1.computeSecret(key2, 'hex', 'base64');
 secret2 = ecdh2.computeSecret(key1, 'binary', 'buffer');
 
 assert.equal(secret1, secret2.toString('base64'));
+
+// Oakley curves do not clean up ERR stack, it was causing unexpected failure
+// when accessing other OpenSSL APIs afterwards.
+crypto.createECDH('Oakley-EC2N-3');
+crypto.createHash('sha256');
 
 // Point formats
 assert.equal(ecdh1.getPublicKey('buffer', 'uncompressed')[0], 4);

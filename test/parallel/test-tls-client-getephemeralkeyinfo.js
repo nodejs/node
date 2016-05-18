@@ -3,13 +3,13 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   process.exit();
 }
 var tls = require('tls');
 
 var fs = require('fs');
-var key =  fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
+var key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
 var cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
 
 var ntests = 0;

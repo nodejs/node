@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common');
 var assert = require('assert');
-var os = require('os');
 
 var execSync = require('child_process').execSync;
 var execFileSync = require('child_process').execFileSync;
@@ -13,8 +12,7 @@ var start = Date.now();
 var err;
 var caught = false;
 
-try
-{
+try {
   var cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
   var ret = execSync(cmd, {timeout: TIMER});
 } catch (e) {
@@ -34,16 +32,16 @@ assert.throws(function() {
 }, /Command failed: iamabadcommand/);
 
 var msg = 'foobar';
-var msgBuf = new Buffer(msg + '\n');
+var msgBuf = Buffer.from(msg + '\n');
 
 // console.log ends every line with just '\n', even on Windows.
 
 cmd = `"${process.execPath}" -e "console.log(\'${msg}\');"`;
 
-var ret = execSync(cmd);
+ret = execSync(cmd);
 
 assert.strictEqual(ret.length, msgBuf.length);
-assert.deepEqual(ret, msgBuf, 'execSync result buffer should match');
+assert.deepStrictEqual(ret, msgBuf, 'execSync result buffer should match');
 
 ret = execSync(cmd, { encoding: 'utf8' });
 
@@ -55,7 +53,7 @@ var args = [
 ];
 ret = execFileSync(process.execPath, args);
 
-assert.deepEqual(ret, msgBuf);
+assert.deepStrictEqual(ret, msgBuf);
 
 ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
 

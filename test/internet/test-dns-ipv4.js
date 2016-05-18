@@ -1,16 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert'),
-    dns = require('dns'),
-    net = require('net'),
-    isIP = net.isIP,
-    isIPv4 = net.isIPv4;
-var util = require('util');
+require('../common');
+const assert = require('assert');
+const dns = require('dns');
+const net = require('net');
+const isIPv4 = net.isIPv4;
 
-var expected = 0,
-    completed = 0,
-    running = false,
-    queue = [];
+let expected = 0;
+let completed = 0;
+let running = false;
+const queue = [];
 
 function TEST(f) {
   function next() {
@@ -150,19 +148,22 @@ TEST(function test_lookup_localhost_ipv4(done) {
 });
 
 TEST(function test_lookup_all_ipv4(done) {
-  var req = dns.lookup('www.google.com', {all: true, family: 4},
-                       function(err, ips) {
-    if (err) throw err;
-    assert.ok(Array.isArray(ips));
-    assert.ok(ips.length > 0);
+  var req = dns.lookup(
+    'www.google.com',
+    {all: true, family: 4},
+    function(err, ips) {
+      if (err) throw err;
+      assert.ok(Array.isArray(ips));
+      assert.ok(ips.length > 0);
 
-    ips.forEach(function(ip) {
-      assert.ok(isIPv4(ip.address));
-      assert.strictEqual(ip.family, 4);
-    });
+      ips.forEach(function(ip) {
+        assert.ok(isIPv4(ip.address));
+        assert.strictEqual(ip.family, 4);
+      });
 
-    done();
-  });
+      done();
+    }
+  );
 
   checkWrap(req);
 });
@@ -172,24 +173,7 @@ TEST(function test_lookupservice_ip_ipv4(done) {
     if (err) throw err;
     assert.equal(typeof host, 'string');
     assert(host);
-
-    /*
-     * Retrieve the actual HTTP service name as setup on the host currently
-     * running the test by reading it from /etc/services. This is not ideal,
-     * as the service name lookup could use another mechanism (e.g nscd), but
-     * it's already better than hardcoding it.
-     */
-    var httpServiceName = common.getServiceName(80, 'tcp');
-    if (!httpServiceName) {
-      /*
-       * Couldn't find service name, reverting to the most sensible default
-       * for port 80.
-       */
-      httpServiceName = 'http';
-    }
-
-    assert.strictEqual(service, httpServiceName);
-
+    assert(['http', 'www', '80'].includes(service));
     done();
   });
 

@@ -11,6 +11,7 @@ var s = new net.Stream();
 
 s.server = new net.Server();
 s.server.connections = 10;
+s._server = s.server;
 
 assert.equal(10, s.server.connections);
 s.destroy();
@@ -20,8 +21,7 @@ assert.equal(9, s.server.connections);
 
 var SIZE = 2E6;
 var N = 10;
-var buf = new Buffer(SIZE);
-buf.fill(0x61); // 'a'
+var buf = Buffer.alloc(SIZE, 'a');
 
 var server = net.createServer(function(socket) {
   socket.setNoDelay();
@@ -38,14 +38,14 @@ var server = net.createServer(function(socket) {
   socket.end();
 
 }).listen(common.PORT, function() {
-    var conn = net.connect(common.PORT);
-    conn.on('data', function(buf) {
-      conn.pause();
-      setTimeout(function() {
-        conn.destroy();
-      }, 20);
-    });
+  var conn = net.connect(common.PORT);
+  conn.on('data', function(buf) {
+    conn.pause();
+    setTimeout(function() {
+      conn.destroy();
+    }, 20);
   });
+});
 
 process.on('exit', function() {
   assert.equal(server.connections, 0);

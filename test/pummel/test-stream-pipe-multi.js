@@ -2,7 +2,7 @@
 // Test that having a bunch of streams piping in parallel
 // doesn't break anything.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var Stream = require('stream').Stream;
 var rr = [];
@@ -10,7 +10,7 @@ var ww = [];
 var cnt = 100;
 var chunks = 1000;
 var chunkSize = 250;
-var data = new Buffer(chunkSize);
+var data = Buffer.allocUnsafe(chunkSize);
 var wclosed = 0;
 var rclosed = 0;
 
@@ -49,11 +49,11 @@ process.on('exit', function() {
   assert.equal(cnt, rclosed, 'readable streams closed');
 });
 
-for (var i = 0; i < chunkSize; i++) {
-  chunkSize[i] = i % 256;
+for (let i = 0; i < chunkSize; i++) {
+  data[i] = i;
 }
 
-for (var i = 0; i < cnt; i++) {
+for (let i = 0; i < cnt; i++) {
   var r = new FakeStream();
   r.on('close', function() {
     console.error(this.ID, 'read close');

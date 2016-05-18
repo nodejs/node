@@ -40,7 +40,7 @@ class PropertyAccessCompiler BASE_EMBEDDED {
         kind_(kind),
         cache_holder_(cache_holder),
         isolate_(isolate),
-        masm_(isolate, NULL, 256) {
+        masm_(isolate, NULL, 256, CodeObjectRequired::kYes) {
     // TODO(yangguo): remove this once we can serialize IC stubs.
     masm_.enable_serializer();
   }
@@ -81,7 +81,7 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   // Ensure that MacroAssembler has a reasonable size.
   STATIC_ASSERT(sizeof(MacroAssembler) < 128 * kPointerSize);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_IC_ACCESS_COMPILER_H_

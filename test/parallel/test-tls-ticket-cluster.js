@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
@@ -42,7 +42,6 @@ if (cluster.isMaster) {
 
   function fork() {
     var worker = cluster.fork();
-    var workerReqCount = 0;
     worker.on('message', function(msg) {
       console.error('[master] got %j', msg);
       if (msg === 'reused') {

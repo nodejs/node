@@ -30,7 +30,7 @@ namespace compiler {
 // meaningful to the operator itself.
 class Operator : public ZoneObject {
  public:
-  typedef uint8_t Opcode;
+  typedef uint16_t Opcode;
 
   // Properties inform the operator-independent optimizer about legal
   // transformations for nodes that have this operator.
@@ -136,10 +136,19 @@ DEFINE_OPERATORS_FOR_FLAGS(Operator::Properties)
 std::ostream& operator<<(std::ostream& os, const Operator& op);
 
 
+// Default equality function for below Operator1<*> class.
+template <typename T>
+struct OpEqualTo : public std::equal_to<T> {};
+
+
+// Default hashing function for below Operator1<*> class.
+template <typename T>
+struct OpHash : public base::hash<T> {};
+
+
 // A templatized implementation of Operator that has one static parameter of
-// type {T}.
-template <typename T, typename Pred = std::equal_to<T>,
-          typename Hash = base::hash<T>>
+// type {T} with the proper default equality and hashing functions.
+template <typename T, typename Pred = OpEqualTo<T>, typename Hash = OpHash<T>>
 class Operator1 : public Operator {
  public:
   Operator1(Opcode opcode, Properties properties, const char* mnemonic,
@@ -183,46 +192,38 @@ class Operator1 : public Operator {
 // Helper to extract parameters from Operator1<*> operator.
 template <typename T>
 inline T const& OpParameter(const Operator* op) {
-  return reinterpret_cast<const Operator1<T>*>(op)->parameter();
+  return reinterpret_cast<const Operator1<T, OpEqualTo<T>, OpHash<T>>*>(op)
+      ->parameter();
 }
+
 
 // NOTE: We have to be careful to use the right equal/hash functions below, for
 // float/double we always use the ones operating on the bit level, for Handle<>
 // we always use the ones operating on the location level.
 template <>
-inline float const& OpParameter(const Operator* op) {
-  return reinterpret_cast<const Operator1<float, base::bit_equal_to<float>,
-                                          base::bit_hash<float>>*>(op)
-      ->parameter();
-}
+struct OpEqualTo<float> : public base::bit_equal_to<float> {};
+template <>
+struct OpHash<float> : public base::bit_hash<float> {};
 
 template <>
-inline double const& OpParameter(const Operator* op) {
-  return reinterpret_cast<const Operator1<double, base::bit_equal_to<double>,
-                                          base::bit_hash<double>>*>(op)
-      ->parameter();
-}
+struct OpEqualTo<double> : public base::bit_equal_to<double> {};
+template <>
+struct OpHash<double> : public base::bit_hash<double> {};
 
 template <>
-inline Handle<HeapObject> const& OpParameter(const Operator* op) {
-  return reinterpret_cast<
-             const Operator1<Handle<HeapObject>, Handle<HeapObject>::equal_to,
-                             Handle<HeapObject>::hash>*>(op)->parameter();
-}
+struct OpEqualTo<Handle<HeapObject>> : public Handle<HeapObject>::equal_to {};
+template <>
+struct OpHash<Handle<HeapObject>> : public Handle<HeapObject>::hash {};
 
 template <>
-inline Handle<String> const& OpParameter(const Operator* op) {
-  return reinterpret_cast<const Operator1<
-      Handle<String>, Handle<String>::equal_to, Handle<String>::hash>*>(op)
-      ->parameter();
-}
+struct OpEqualTo<Handle<String>> : public Handle<String>::equal_to {};
+template <>
+struct OpHash<Handle<String>> : public Handle<String>::hash {};
 
 template <>
-inline Handle<ScopeInfo> const& OpParameter(const Operator* op) {
-  return reinterpret_cast<
-             const Operator1<Handle<ScopeInfo>, Handle<ScopeInfo>::equal_to,
-                             Handle<ScopeInfo>::hash>*>(op)->parameter();
-}
+struct OpEqualTo<Handle<ScopeInfo>> : public Handle<ScopeInfo>::equal_to {};
+template <>
+struct OpHash<Handle<ScopeInfo>> : public Handle<ScopeInfo>::hash {};
 
 }  // namespace compiler
 }  // namespace internal

@@ -9,6 +9,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction.h"
+#include "src/compiler/instruction-scheduler.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/zone-containers.h"
@@ -25,8 +26,20 @@ class Linkage;
 class OperandGenerator;
 struct SwitchInfo;
 
-typedef ZoneVector<InstructionOperand> InstructionOperandVector;
+// This struct connects nodes of parameters which are going to be pushed on the
+// call stack with their parameter index in the call descriptor of the callee.
+class PushParameter {
+ public:
+  PushParameter() : node_(nullptr), type_(MachineType::None()) {}
+  PushParameter(Node* node, MachineType type) : node_(node), type_(type) {}
 
+  Node* node() const { return node_; }
+  MachineType type() const { return type_; }
+
+ private:
+  Node* node_;
+  MachineType type_;
+};
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
 class InstructionSelector final {
@@ -39,47 +52,51 @@ class InstructionSelector final {
   InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
-      SourcePositionTable* source_positions,
+      SourcePositionTable* source_positions, Frame* frame,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures());
 
   // Visit code for the entire graph with the included schedule.
   void SelectInstructions();
 
+  void StartBlock(RpoNumber rpo);
+  void EndBlock(RpoNumber rpo);
+  void AddInstruction(Instruction* instr);
+
   // ===========================================================================
   // ============= Architecture-independent code emission methods. =============
   // ===========================================================================
 
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, InstructionOperand d,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, InstructionOperand d,
                     InstructionOperand e, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, InstructionOperand d,
                     InstructionOperand e, InstructionOperand f,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, size_t output_count,
                     InstructionOperand* outputs, size_t input_count,
                     InstructionOperand* inputs, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(Instruction* instr);
 
   // ===========================================================================
@@ -132,6 +149,9 @@ class InstructionSelector final {
   // Checks if {node} is currently live.
   bool IsLive(Node* node) const { return !IsDefined(node) && IsUsed(node); }
 
+  // Gets the effect level of {node}.
+  int GetEffectLevel(Node* node) const;
+
   int GetVirtualRegister(const Node* node);
   const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
 
@@ -151,18 +171,39 @@ class InstructionSelector final {
   // will need to generate code for it.
   void MarkAsUsed(Node* node);
 
+  // Sets the effect level of {node}.
+  void SetEffectLevel(Node* node, int effect_level);
+
   // Inform the register allocation of the representation of the value produced
   // by {node}.
-  void MarkAsRepresentation(MachineType rep, Node* node);
-  void MarkAsWord32(Node* node) { MarkAsRepresentation(kRepWord32, node); }
-  void MarkAsWord64(Node* node) { MarkAsRepresentation(kRepWord64, node); }
-  void MarkAsFloat32(Node* node) { MarkAsRepresentation(kRepFloat32, node); }
-  void MarkAsFloat64(Node* node) { MarkAsRepresentation(kRepFloat64, node); }
-  void MarkAsReference(Node* node) { MarkAsRepresentation(kRepTagged, node); }
+  void MarkAsRepresentation(MachineRepresentation rep, Node* node);
+  void MarkAsWord32(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kWord32, node);
+  }
+  void MarkAsWord64(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kWord64, node);
+  }
+  void MarkAsFloat32(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kFloat32, node);
+  }
+  void MarkAsFloat64(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kFloat64, node);
+  }
+  void MarkAsReference(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kTagged, node);
+  }
 
   // Inform the register allocation of the representation of the unallocated
   // operand {op}.
-  void MarkAsRepresentation(MachineType rep, const InstructionOperand& op);
+  void MarkAsRepresentation(MachineRepresentation rep,
+                            const InstructionOperand& op);
+
+  enum CallBufferFlag {
+    kCallCodeImmediate = 1u << 0,
+    kCallAddressImmediate = 1u << 1,
+    kCallTail = 1u << 2
+  };
+  typedef base::Flags<CallBufferFlag> CallBufferFlags;
 
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding
@@ -170,17 +211,10 @@ class InstructionSelector final {
   // {call_code_immediate} to generate immediate operands to calls of code.
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
-                            bool call_code_immediate,
-                            bool call_address_immediate);
+                            CallBufferFlags flags, int stack_param_delta = 0);
+  bool IsTailCallAddressImmediate();
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
-
-  enum class FrameStateInputKind { kAny, kStackSlot };
-  void AddFrameStateInputs(Node* state, InstructionOperandVector* inputs,
-                           FrameStateDescriptor* descriptor,
-                           FrameStateInputKind kind);
-  static InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
-                                            FrameStateInputKind kind);
 
   // ===========================================================================
   // ============= Architecture-specific graph covering methods. ===============
@@ -200,7 +234,8 @@ class InstructionSelector final {
   MACHINE_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
-  void VisitFinish(Node* node);
+  void VisitFinishRegion(Node* node);
+  void VisitGuard(Node* node);
   void VisitParameter(Node* node);
   void VisitIfException(Node* node);
   void VisitOsrValue(Node* node);
@@ -212,9 +247,12 @@ class InstructionSelector final {
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
-  void VisitDeoptimize(Node* value);
-  void VisitReturn(Node* value);
+  void VisitDeoptimize(DeoptimizeKind kind, Node* value);
+  void VisitReturn(Node* ret);
   void VisitThrow(Node* value);
+
+  void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
+                            const CallDescriptor* descriptor, Node* node);
 
   // ===========================================================================
 
@@ -237,7 +275,10 @@ class InstructionSelector final {
   ZoneVector<Instruction*> instructions_;
   BoolVector defined_;
   BoolVector used_;
+  IntVector effect_level_;
   IntVector virtual_registers_;
+  InstructionScheduler* scheduler_;
+  Frame* frame_;
 };
 
 }  // namespace compiler

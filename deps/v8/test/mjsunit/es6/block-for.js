@@ -24,6 +24,7 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 "use strict";
 
 function props(x) {
@@ -189,10 +190,18 @@ assertEquals(undefined, eval("for (let i = 0; i < 10; i++) { continue; i; }"));
 assertEquals(0, eval("for (let i = 0; true;) { i; break; }"));
 assertEquals(0, eval("for (const i = 0; true;) { i; break; }"));
 assertEquals(9, eval("for (let i = 0; i < 10; i++) { i; continue; }"));
-assertEquals(3, eval("for (let i = 0; true; i++) { i; if (i >= 3) break; }"));
-assertEquals(2, eval("for (let i = 0; true; i++) { if (i >= 3) break; i; }"));
-assertEquals(
-  2, eval("for (let i = 0; i < 10; i++) { if (i >= 3) continue; i; }"));
+assertEquals(undefined,
+  eval("for (let i = 0; true; i++) { i; if (i >= 3) break; }"));
+assertEquals(3,
+  eval("for (let i = 0; true; i++) { i; if (i >= 3) { i; break; } }"));
+assertEquals(undefined,
+  eval("for (let i = 0; true; i++) { if (i >= 3) break; i; }"));
+assertEquals(3,
+  eval("for (let i = 0; true; i++) { if (i >= 3) { i; break; }; i; }"));
+assertEquals(undefined,
+  eval("for (let i = 0; i < 10; i++) { if (i >= 3) continue; i; }"));
+assertEquals(9,
+  eval("for (let i = 0; i < 10; i++) { if (i >= 3) {i; continue; }; i; }"));
 assertEquals(undefined, eval("foo: for (let i = 0; true;) { break foo; }"));
 assertEquals(undefined, eval("foo: for (const i = 0; true;) { break foo; }"));
 assertEquals(3, eval("foo: for (let i = 3; true;) { i; break foo; }"));

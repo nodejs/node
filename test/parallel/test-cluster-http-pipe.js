@@ -6,7 +6,7 @@ const cluster = require('cluster');
 const http = require('http');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: It is not possible to send pipe handles over ' +
+  common.skip('It is not possible to send pipe handles over ' +
               'the IPC pipe on Windows');
   return;
 }
@@ -34,7 +34,6 @@ http.createServer(function(req, res) {
   res.writeHead(200);
   res.end('OK');
 }).listen(common.PIPE, function() {
-  var self = this;
   http.get({ socketPath: common.PIPE, path: '/' }, function(res) {
     res.resume();
     res.on('end', function(err) {

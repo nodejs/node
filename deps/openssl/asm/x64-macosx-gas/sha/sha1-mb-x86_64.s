@@ -2859,8 +2859,8 @@ L$oop_shaext:
 .byte	69,15,58,204,193,3
 .byte	69,15,56,200,214
 
-	pshufd	$0,%xmm6,%xmm11
-	pshufd	$85,%xmm6,%xmm12
+	pshufd	$0x00,%xmm6,%xmm11
+	pshufd	$0x55,%xmm6,%xmm12
 	movdqa	%xmm6,%xmm7
 	pcmpgtd	%xmm4,%xmm11
 	pcmpgtd	%xmm4,%xmm12

@@ -102,37 +102,6 @@ bool RelocInfo::IsInConstantPool() {
 }
 
 
-// Patch the code at the current PC with a call to the target address.
-// Additional guard int3 instructions can be added if required.
-void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
-  // Call instruction takes up 5 bytes and int3 takes up one byte.
-  static const int kCallCodeSize = 5;
-  int code_size = kCallCodeSize + guard_bytes;
-
-  // Create a code patcher.
-  CodePatcher patcher(pc_, code_size);
-
-// Add a label for checking the size of the code used for returning.
-#ifdef DEBUG
-  Label check_codesize;
-  patcher.masm()->bind(&check_codesize);
-#endif
-
-  // Patch the code.
-  patcher.masm()->call(target, RelocInfo::NONE32);
-
-  // Check that the size of the code generated is as expected.
-  DCHECK_EQ(kCallCodeSize,
-            patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
-
-  // Add the requested number of int3 instructions after the call.
-  DCHECK_GE(guard_bytes, 0);
-  for (int i = 0; i < guard_bytes; i++) {
-    patcher.masm()->int3();
-  }
-}
-
-
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
@@ -253,6 +222,7 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
   desc->origin = this;
+  desc->constant_pool_size = 0;
 }
 
 
@@ -704,6 +674,11 @@ void Assembler::cmp(Register reg, const Operand& op) {
   emit_operand(reg, op);
 }
 
+void Assembler::cmp(const Operand& op, Register reg) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x39);
+  emit_operand(reg, op);
+}
 
 void Assembler::cmp(const Operand& op, const Immediate& imm) {
   EnsureSpace ensure_space(this);
@@ -1174,6 +1149,14 @@ void Assembler::bsr(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0xBD);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::bsf(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xBC);
   emit_operand(dst, src);
 }
 
@@ -1967,6 +1950,7 @@ void Assembler::GrowBuffer() {
 
   // Set up new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);
+  desc.origin = this;
   desc.instr_size = pc_offset();
   desc.reloc_size = (buffer_ + buffer_size_) - (reloc_info_writer.pos());
 
@@ -2102,7 +2086,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       !serializer_enabled() && !emit_debug_code()) {
       return;
   }
-  RelocInfo rinfo(pc_, rmode, data, NULL);
+  RelocInfo rinfo(isolate(), pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
 }
 

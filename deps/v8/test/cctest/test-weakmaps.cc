@@ -25,15 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(mythria): Remove this after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <utility>
 
 #include "src/v8.h"
 
 #include "src/global-handles.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/utils-inl.h"
 
 using namespace v8::internal;
 
@@ -59,7 +57,7 @@ static void WeakPointerCallback(
   std::pair<v8::Persistent<v8::Value>*, int>* p =
       reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
           data.GetParameter());
-  DCHECK_EQ(1234, p->second);
+  CHECK_EQ(1234, p->second);
   NumberOfWeakCalls++;
   p->first->Reset();
 }
@@ -188,15 +186,14 @@ TEST(Regress2060a) {
 
   // Start second old-space page so that values land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
-  int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
-  factory->NewFixedArray(dummy_array_size / kPointerSize, TENURED);
+  SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with values on an evacuation candidate.
   {
     HandleScope scope(isolate);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
-      CHECK(!heap->InNewSpace(object->address()));
+      CHECK(!heap->InNewSpace(*object));
       CHECK(!first_page->Contains(object->address()));
       int32_t hash = Object::GetOrCreateHash(isolate, key)->value();
       JSWeakCollection::Set(weakmap, key, object, hash);
@@ -228,14 +225,13 @@ TEST(Regress2060b) {
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
-  int dummy_array_size = Page::kMaxRegularHeapObjectSize - 92 * KB;
-  factory->NewFixedArray(dummy_array_size / kPointerSize, TENURED);
+  SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with keys on an evacuation candidate.
   Handle<JSObject> keys[32];
   for (int i = 0; i < 32; i++) {
     keys[i] = factory->NewJSObject(function, TENURED);
-    CHECK(!heap->InNewSpace(keys[i]->address()));
+    CHECK(!heap->InNewSpace(*keys[i]));
     CHECK(!first_page->Contains(keys[i]->address()));
   }
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap(isolate);

@@ -13,32 +13,6 @@
 namespace v8 {
 namespace internal {
 
-
-RUNTIME_FUNCTION(Runtime_ArrayBufferInitialize) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, holder, 0);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byteLength, 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(is_shared, 2);
-  if (!holder->byte_length()->IsUndefined()) {
-    // ArrayBuffer is already initialized; probably a fuzz test.
-    return *holder;
-  }
-  size_t allocated_length = 0;
-  if (!TryNumberToSize(isolate, *byteLength, &allocated_length)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
-  }
-  if (!JSArrayBuffer::SetupAllocatingData(
-          holder, isolate, allocated_length, true,
-          is_shared ? SharedFlag::kShared : SharedFlag::kNotShared)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
-  }
-  return *holder;
-}
-
-
 RUNTIME_FUNCTION(Runtime_ArrayBufferGetByteLength) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -49,14 +23,16 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferGetByteLength) {
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferSliceImpl) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, source, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, target, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(first, 2);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(new_length, 3);
   RUNTIME_ASSERT(!source.is_identical_to(target));
-  size_t start = 0;
+  size_t start = 0, target_length = 0;
   RUNTIME_ASSERT(TryNumberToSize(isolate, *first, &start));
-  size_t target_length = NumberToSize(isolate, target->byte_length());
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *new_length, &target_length));
+  RUNTIME_ASSERT(NumberToSize(isolate, target->byte_length()) >= target_length);
 
   if (target_length == 0) return isolate->heap()->undefined_value();
 
@@ -67,14 +43,6 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSliceImpl) {
   uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
   CopyBytes(target_data, source_data + start, target_length);
   return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_ArrayBufferIsView) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, object, 0);
-  return isolate->heap()->ToBoolean(object->IsJSArrayBufferView());
 }
 
 
@@ -164,8 +132,8 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
 
   // All checks are done, now we can modify objects.
 
-  DCHECK(holder->GetInternalFieldCount() ==
-         v8::ArrayBufferView::kInternalFieldCount);
+  DCHECK_EQ(v8::ArrayBufferView::kInternalFieldCount,
+            holder->GetInternalFieldCount());
   for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
     holder->SetInternalField(i, Smi::FromInt(0));
   }
@@ -238,8 +206,8 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   }
   size_t byte_length = length * element_size;
 
-  DCHECK(holder->GetInternalFieldCount() ==
-         v8::ArrayBufferView::kInternalFieldCount);
+  DCHECK_EQ(v8::ArrayBufferView::kInternalFieldCount,
+            holder->GetInternalFieldCount());
   for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
     holder->SetInternalField(i, Smi::FromInt(0));
   }
@@ -433,39 +401,16 @@ RUNTIME_FUNCTION(Runtime_IsSharedIntegerTypedArray) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_DataViewInitialize) {
+RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(JSDataView, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_offset, 2);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_length, 3);
-
-  DCHECK(holder->GetInternalFieldCount() ==
-         v8::ArrayBufferView::kInternalFieldCount);
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    holder->SetInternalField(i, Smi::FromInt(0));
+  DCHECK(args.length() == 1);
+  if (!args[0]->IsJSTypedArray()) {
+    return isolate->heap()->false_value();
   }
-  size_t buffer_length = 0;
-  size_t offset = 0;
-  size_t length = 0;
-  RUNTIME_ASSERT(
-      TryNumberToSize(isolate, buffer->byte_length(), &buffer_length));
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_offset, &offset));
-  RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_length, &length));
 
-  // TODO(jkummerow): When we have a "safe numerics" helper class, use it here.
-  // Entire range [offset, offset + length] must be in bounds.
-  RUNTIME_ASSERT(offset <= buffer_length);
-  RUNTIME_ASSERT(offset + length <= buffer_length);
-  // No overflow.
-  RUNTIME_ASSERT(offset + length >= offset);
-
-  holder->set_buffer(*buffer);
-  holder->set_byte_offset(*byte_offset);
-  holder->set_byte_length(*byte_length);
-
-  return isolate->heap()->undefined_value();
+  Handle<JSTypedArray> obj(JSTypedArray::cast(args[0]));
+  return isolate->heap()->ToBoolean(obj->GetBuffer()->is_shared() &&
+                                    obj->type() == kExternalInt32Array);
 }
 
 

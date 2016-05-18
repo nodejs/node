@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var R = require('_stream_readable');
 var assert = require('assert');
 
@@ -8,8 +8,7 @@ var EE = require('events').EventEmitter;
 
 function TestReader(n) {
   R.apply(this);
-  this._buffer = new Buffer(n || 100);
-  this._buffer.fill('x');
+  this._buffer = Buffer.alloc(n || 100, 'x');
   this._pos = 0;
   this._bufs = 10;
 }
@@ -157,7 +156,6 @@ test('pipe', function(t) {
                  'xxxxx' ];
 
   var w = new TestWriter();
-  var flush = true;
 
   w.on('end', function(received) {
     t.same(received, expect);
@@ -384,7 +382,7 @@ test('read(0) for ended streams', function(t) {
   var ended = false;
   r._read = function(n) {};
 
-  r.push(new Buffer('foo'));
+  r.push(Buffer.from('foo'));
   r.push(null);
 
   var v = r.read(0);
@@ -436,10 +434,9 @@ test('adding readable triggers data flow', function(t) {
     if (readCalled++ === 2)
       r.push(null);
     else
-      r.push(new Buffer('asdf'));
+      r.push(Buffer.from('asdf'));
   };
 
-  var called = false;
   r.on('readable', function() {
     onReadable = true;
     r.read();

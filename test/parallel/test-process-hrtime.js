@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 // the default behavior, return an Array "tuple" of numbers
@@ -24,3 +24,6 @@ function validateTuple(tuple) {
     assert(isFinite(v));
   });
 }
+
+const diff = process.hrtime([0, 1e9 - 1]);
+assert(diff[1] >= 0);  // https://github.com/nodejs/node/issues/4751

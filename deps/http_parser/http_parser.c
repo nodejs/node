@@ -123,7 +123,7 @@ do {                                                                 \
     FOR##_mark = NULL;                                               \
   }                                                                  \
 } while (0)
-  
+
 /* Run the data callback FOR and consume the current byte */
 #define CALLBACK_DATA(FOR)                                           \
     CALLBACK_DATA_(FOR, p - FOR##_mark, p - data + 1)
@@ -435,6 +435,12 @@ enum http_host_state
   (IS_ALPHANUM(c) || (c) == '.' || (c) == '-' || (c) == '_')
 #endif
 
+/**
+ * Verify that a char is a valid visible (printable) US-ASCII
+ * character or %x80-FF
+ **/
+#define IS_HEADER_CHAR(ch)                                                     \
+  (ch == CR || ch == LF || ch == 9 || ((unsigned char)ch > 31 && ch != 127))
 
 #define start_state (parser->type == HTTP_REQUEST ? s_start_req : s_start_res)
 
@@ -639,6 +645,7 @@ size_t http_parser_execute (http_parser *parser,
   const char *body_mark = 0;
   const char *status_mark = 0;
   enum state p_state = (enum state) parser->state;
+  const unsigned int lenient = parser->lenient_http_headers;
 
   /* We're in an error state. Don't bother doing anything. */
   if (HTTP_PARSER_ERRNO(parser) != HPE_OK) {
@@ -1000,89 +1007,40 @@ reexecute:
           UPDATE_STATE(s_req_spaces_before_url);
         } else if (ch == matcher[parser->index]) {
           ; /* nada */
-        } else if (parser->method == HTTP_CONNECT) {
-          if (parser->index == 1 && ch == 'H') {
-            parser->method = HTTP_CHECKOUT;
-          } else if (parser->index == 2  && ch == 'P') {
-            parser->method = HTTP_COPY;
-          } else {
-            SET_ERRNO(HPE_INVALID_METHOD);
-            goto error;
-          }
-        } else if (parser->method == HTTP_MKCOL) {
-          if (parser->index == 1 && ch == 'O') {
-            parser->method = HTTP_MOVE;
-          } else if (parser->index == 1 && ch == 'E') {
-            parser->method = HTTP_MERGE;
-          } else if (parser->index == 1 && ch == '-') {
-            parser->method = HTTP_MSEARCH;
-          } else if (parser->index == 2 && ch == 'A') {
-            parser->method = HTTP_MKACTIVITY;
-          } else if (parser->index == 3 && ch == 'A') {
-            parser->method = HTTP_MKCALENDAR;
-          } else {
-            SET_ERRNO(HPE_INVALID_METHOD);
-            goto error;
-          }
-        } else if (parser->method == HTTP_SUBSCRIBE) {
-          if (parser->index == 1 && ch == 'E') {
-            parser->method = HTTP_SEARCH;
-          } else {
-            SET_ERRNO(HPE_INVALID_METHOD);
-            goto error;
-          }
-        } else if (parser->method == HTTP_REPORT) {
-            if (parser->index == 2 && ch == 'B') {
-              parser->method = HTTP_REBIND;
-            } else {
+        } else if (IS_ALPHA(ch)) {
+
+          switch (parser->method << 16 | parser->index << 8 | ch) {
+#define XX(meth, pos, ch, new_meth) \
+            case (HTTP_##meth << 16 | pos << 8 | ch): \
+              parser->method = HTTP_##new_meth; break;
+
+            XX(POST,      1, 'U', PUT)
+            XX(POST,      1, 'A', PATCH)
+            XX(CONNECT,   1, 'H', CHECKOUT)
+            XX(CONNECT,   2, 'P', COPY)
+            XX(MKCOL,     1, 'O', MOVE)
+            XX(MKCOL,     1, 'E', MERGE)
+            XX(MKCOL,     2, 'A', MKACTIVITY)
+            XX(MKCOL,     3, 'A', MKCALENDAR)
+            XX(SUBSCRIBE, 1, 'E', SEARCH)
+            XX(REPORT,    2, 'B', REBIND)
+            XX(POST,      1, 'R', PROPFIND)
+            XX(PROPFIND,  4, 'P', PROPPATCH)
+            XX(PUT,       2, 'R', PURGE)
+            XX(LOCK,      1, 'I', LINK)
+            XX(UNLOCK,    2, 'S', UNSUBSCRIBE)
+            XX(UNLOCK,    2, 'B', UNBIND)
+            XX(UNLOCK,    3, 'I', UNLINK)
+#undef XX
+
+            default:
               SET_ERRNO(HPE_INVALID_METHOD);
               goto error;
-            }
-        } else if (parser->index == 1) {
-          if (parser->method == HTTP_POST) {
-            if (ch == 'R') {
-              parser->method = HTTP_PROPFIND; /* or HTTP_PROPPATCH */
-            } else if (ch == 'U') {
-              parser->method = HTTP_PUT; /* or HTTP_PURGE */
-            } else if (ch == 'A') {
-              parser->method = HTTP_PATCH;
-            } else {
-              SET_ERRNO(HPE_INVALID_METHOD);
-              goto error;
-            }
-          } else if (parser->method == HTTP_LOCK) {
-            if (ch == 'I') {
-              parser->method = HTTP_LINK;
-            } else {
-              SET_ERRNO(HPE_INVALID_METHOD);
-              goto error;
-            }
           }
-        } else if (parser->index == 2) {
-          if (parser->method == HTTP_PUT) {
-            if (ch == 'R') {
-              parser->method = HTTP_PURGE;
-            } else {
-              SET_ERRNO(HPE_INVALID_METHOD);
-              goto error;
-            }
-          } else if (parser->method == HTTP_UNLOCK) {
-            if (ch == 'S') {
-              parser->method = HTTP_UNSUBSCRIBE;
-            } else if(ch == 'B') {
-              parser->method = HTTP_UNBIND;
-            } else {
-              SET_ERRNO(HPE_INVALID_METHOD);
-              goto error;
-            }
-          } else {
-            SET_ERRNO(HPE_INVALID_METHOD);
-            goto error;
-          }
-        } else if (parser->index == 4 && parser->method == HTTP_PROPFIND && ch == 'P') {
-          parser->method = HTTP_PROPPATCH;
-        } else if (parser->index == 3 && parser->method == HTTP_UNLOCK && ch == 'I') {
-          parser->method = HTTP_UNLINK;
+        } else if (ch == '-' &&
+                   parser->index == 1 &&
+                   parser->method == HTTP_MKCOL) {
+          parser->method = HTTP_MSEARCH;
         } else {
           SET_ERRNO(HPE_INVALID_METHOD);
           goto error;
@@ -1408,7 +1366,12 @@ reexecute:
                   || c != CONTENT_LENGTH[parser->index]) {
                 parser->header_state = h_general;
               } else if (parser->index == sizeof(CONTENT_LENGTH)-2) {
+                if (parser->flags & F_CONTENTLENGTH) {
+                  SET_ERRNO(HPE_UNEXPECTED_CONTENT_LENGTH);
+                  goto error;
+                }
                 parser->header_state = h_content_length;
+                parser->flags |= F_CONTENTLENGTH;
               }
               break;
 
@@ -1558,6 +1521,11 @@ reexecute:
             parser->header_state = h_state;
             CALLBACK_DATA_NOADVANCE(header_value);
             REEXECUTE();
+          }
+
+          if (!lenient && !IS_HEADER_CHAR(ch)) {
+            SET_ERRNO(HPE_INVALID_HEADER_TOKEN);
+            goto error;
           }
 
           c = LOWER(ch);
@@ -1727,7 +1695,10 @@ reexecute:
 
       case s_header_almost_done:
       {
-        STRICT_CHECK(ch != LF);
+        if (UNLIKELY(ch != LF)) {
+          SET_ERRNO(HPE_LF_EXPECTED);
+          goto error;
+        }
 
         UPDATE_STATE(s_header_value_lws);
         break;
@@ -1811,6 +1782,14 @@ reexecute:
           REEXECUTE();
         }
 
+        /* Cannot use chunked encoding and a content-length header together
+           per the HTTP specification. */
+        if ((parser->flags & F_CHUNKED) &&
+            (parser->flags & F_CONTENTLENGTH)) {
+          SET_ERRNO(HPE_UNEXPECTED_CONTENT_LENGTH);
+          goto error;
+        }
+
         UPDATE_STATE(s_headers_done);
 
         /* Set this here so that on_headers_complete() callbacks can see it */
@@ -1832,6 +1811,9 @@ reexecute:
           switch (settings->on_headers_complete(parser)) {
             case 0:
               break;
+
+            case 2:
+              parser->upgrade = 1;
 
             case 1:
               parser->flags |= F_SKIPBODY;

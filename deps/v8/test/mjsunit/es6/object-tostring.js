@@ -1,8 +1,8 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-tostring
+// Flags: --harmony-tostring --harmony-proxies
 
 var global = this;
 
@@ -41,7 +41,7 @@ function testToStringTag(className) {
   Object.defineProperty(obj, Symbol.toStringTag, {
     get: function() { throw className; }
   });
-  assertThrows(function() {
+  assertThrowsEquals(function() {
     Object.prototype.toString.call(obj);
   }, className);
 
@@ -137,3 +137,25 @@ function testObjectToStringOwnNonStringValue() {
   assertEquals("[object Object]", ({}).toString.call(obj));
 }
 testObjectToStringOwnNonStringValue();
+
+
+// Proxies
+
+function assertTag(tag, obj) {
+  assertEquals("[object " + tag + "]", Object.prototype.toString.call(obj));
+}
+
+assertTag("Object", new Proxy({}, {}));
+assertTag("Array", new Proxy([], {}));
+assertTag("Function", new Proxy(() => 42, {}));
+assertTag("Foo", new Proxy(() => 42, {get() {return "Foo"}}));
+assertTag("Function", new Proxy(() => 42, {get() {return 666}}));
+
+revocable = Proxy.revocable([], {});
+revocable.revoke();
+assertThrows(() => Object.prototype.toString.call(revocable.proxy), TypeError);
+
+handler = {};
+revocable = Proxy.revocable([], handler);
+handler.get = () => revocable.revoke();
+assertThrows(() => Object.prototype.toString.call(revocable.proxy), TypeError);

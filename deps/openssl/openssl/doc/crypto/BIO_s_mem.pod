@@ -16,7 +16,7 @@ BIO_get_mem_ptr, BIO_new_mem_buf - memory BIO
  BIO_set_mem_buf(BIO *b,BUF_MEM *bm,int c)
  BIO_get_mem_ptr(BIO *b,BUF_MEM **pp)
 
- BIO *BIO_new_mem_buf(void *buf, int len);
+ BIO *BIO_new_mem_buf(const void *buf, int len);
 
 =head1 DESCRIPTION
 
@@ -61,7 +61,7 @@ BIO_get_mem_ptr() places the underlying BUF_MEM structure in B<pp>. It is
 a macro.
 
 BIO_new_mem_buf() creates a memory BIO using B<len> bytes of data at B<buf>,
-if B<len> is -1 then the B<buf> is assumed to be null terminated and its
+if B<len> is -1 then the B<buf> is assumed to be nul terminated and its
 length is determined by B<strlen>. The BIO is set to a read only state and
 as a result cannot be written to. This is useful when some data needs to be
 made available from a static area of memory in the form of a BIO. The

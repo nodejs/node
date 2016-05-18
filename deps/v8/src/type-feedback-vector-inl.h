@@ -10,6 +10,36 @@
 namespace v8 {
 namespace internal {
 
+
+template <typename Derived>
+FeedbackVectorSlot FeedbackVectorSpecBase<Derived>::AddSlot(
+    FeedbackVectorSlotKind kind) {
+  Derived* derived = static_cast<Derived*>(this);
+
+  int slot = derived->slots();
+  int entries_per_slot = TypeFeedbackMetadata::GetSlotSize(kind);
+  derived->append(kind);
+  for (int i = 1; i < entries_per_slot; i++) {
+    derived->append(FeedbackVectorSlotKind::INVALID);
+  }
+  return FeedbackVectorSlot(slot);
+}
+
+
+// static
+TypeFeedbackMetadata* TypeFeedbackMetadata::cast(Object* obj) {
+  DCHECK(obj->IsTypeFeedbackVector());
+  return reinterpret_cast<TypeFeedbackMetadata*>(obj);
+}
+
+
+int TypeFeedbackMetadata::slot_count() const {
+  if (length() == 0) return 0;
+  DCHECK(length() > kReservedIndexCount);
+  return Smi::cast(get(kSlotsCountIndex))->value();
+}
+
+
 // static
 TypeFeedbackVector* TypeFeedbackVector::cast(Object* obj) {
   DCHECK(obj->IsTypeFeedbackVector());
@@ -17,86 +47,51 @@ TypeFeedbackVector* TypeFeedbackVector::cast(Object* obj) {
 }
 
 
-int TypeFeedbackVector::first_ic_slot_index() const {
-  DCHECK(length() >= kReservedIndexCount);
-  return Smi::cast(get(kFirstICSlotIndex))->value();
+int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
+  DCHECK_NE(FeedbackVectorSlotKind::INVALID, kind);
+  DCHECK_NE(FeedbackVectorSlotKind::KINDS_NUMBER, kind);
+  return kind == FeedbackVectorSlotKind::GENERAL ? 1 : 2;
 }
 
 
-int TypeFeedbackVector::ic_with_type_info_count() {
-  return length() > 0 ? Smi::cast(get(kWithTypesIndex))->value() : 0;
+bool TypeFeedbackVector::is_empty() const {
+  if (length() == 0) return true;
+  DCHECK(length() > kReservedIndexCount);
+  return false;
 }
 
 
-void TypeFeedbackVector::change_ic_with_type_info_count(int delta) {
-  if (delta == 0) return;
-  int value = ic_with_type_info_count() + delta;
-  // Could go negative because of the debugger.
-  if (value >= 0) {
-    set(kWithTypesIndex, Smi::FromInt(value));
-  }
-}
-
-
-int TypeFeedbackVector::ic_generic_count() {
-  return length() > 0 ? Smi::cast(get(kGenericCountIndex))->value() : 0;
-}
-
-
-void TypeFeedbackVector::change_ic_generic_count(int delta) {
-  if (delta == 0) return;
-  int value = ic_generic_count() + delta;
-  if (value >= 0) {
-    set(kGenericCountIndex, Smi::FromInt(value));
-  }
-}
-
-
-int TypeFeedbackVector::Slots() const {
+int TypeFeedbackVector::slot_count() const {
   if (length() == 0) return 0;
-  return Max(
-      0, first_ic_slot_index() - ic_metadata_length() - kReservedIndexCount);
+  DCHECK(length() > kReservedIndexCount);
+  return length() - kReservedIndexCount;
 }
 
 
-int TypeFeedbackVector::ICSlots() const {
-  if (length() == 0) return 0;
-  return (length() - first_ic_slot_index()) / elements_per_ic_slot();
+TypeFeedbackMetadata* TypeFeedbackVector::metadata() const {
+  return is_empty() ? TypeFeedbackMetadata::cast(GetHeap()->empty_fixed_array())
+                    : TypeFeedbackMetadata::cast(get(kMetadataIndex));
 }
 
 
-int TypeFeedbackVector::ic_metadata_length() const {
-  return VectorICComputer::word_count(ICSlots());
+FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
+    FeedbackVectorSlot slot) const {
+  DCHECK(!is_empty());
+  return metadata()->GetKind(slot);
 }
 
 
-// Conversion from a slot or ic slot to an integer index to the underlying
-// array.
 int TypeFeedbackVector::GetIndex(FeedbackVectorSlot slot) const {
-  DCHECK(slot.ToInt() < first_ic_slot_index());
-  return kReservedIndexCount + ic_metadata_length() + slot.ToInt();
-}
-
-
-int TypeFeedbackVector::GetIndex(FeedbackVectorICSlot slot) const {
-  int first_ic_slot = first_ic_slot_index();
-  DCHECK(slot.ToInt() < ICSlots());
-  return first_ic_slot + slot.ToInt() * elements_per_ic_slot();
+  DCHECK(slot.ToInt() < slot_count());
+  return kReservedIndexCount + slot.ToInt();
 }
 
 
 // Conversion from an integer index to either a slot or an ic slot. The caller
 // should know what kind she expects.
 FeedbackVectorSlot TypeFeedbackVector::ToSlot(int index) const {
-  DCHECK(index >= kReservedIndexCount && index < first_ic_slot_index());
-  return FeedbackVectorSlot(index - ic_metadata_length() - kReservedIndexCount);
-}
-
-
-FeedbackVectorICSlot TypeFeedbackVector::ToICSlot(int index) const {
-  DCHECK(index >= first_ic_slot_index() && index < length());
-  int ic_slot = (index - first_ic_slot_index()) / elements_per_ic_slot();
-  return FeedbackVectorICSlot(ic_slot);
+  DCHECK(index >= kReservedIndexCount && index < length());
+  return FeedbackVectorSlot(index - kReservedIndexCount);
 }
 
 
@@ -111,14 +106,31 @@ void TypeFeedbackVector::Set(FeedbackVectorSlot slot, Object* value,
 }
 
 
-Object* TypeFeedbackVector::Get(FeedbackVectorICSlot slot) const {
-  return get(GetIndex(slot));
-}
+void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic) {
+  Object* uninitialized_sentinel =
+      TypeFeedbackVector::RawUninitializedSentinel(GetIsolate());
+  Object* megamorphic_sentinel =
+      *TypeFeedbackVector::MegamorphicSentinel(GetIsolate());
+  int with = 0;
+  int gen = 0;
+  TypeFeedbackMetadataIterator iter(metadata());
+  while (iter.HasNext()) {
+    FeedbackVectorSlot slot = iter.Next();
+    FeedbackVectorSlotKind kind = iter.kind();
 
+    Object* obj = Get(slot);
+    if (obj != uninitialized_sentinel &&
+        kind != FeedbackVectorSlotKind::GENERAL) {
+      if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
+        with++;
+      } else if (obj == megamorphic_sentinel) {
+        gen++;
+      }
+    }
+  }
 
-void TypeFeedbackVector::Set(FeedbackVectorICSlot slot, Object* value,
-                             WriteBarrierMode mode) {
-  set(GetIndex(slot), value, mode);
+  *with_type_info = with;
+  *generic = gen;
 }
 
 
@@ -137,8 +149,8 @@ Handle<Object> TypeFeedbackVector::PremonomorphicSentinel(Isolate* isolate) {
 }
 
 
-Object* TypeFeedbackVector::RawUninitializedSentinel(Heap* heap) {
-  return heap->uninitialized_symbol();
+Object* TypeFeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
+  return isolate->heap()->uninitialized_symbol();
 }
 
 
@@ -146,7 +158,10 @@ Object* FeedbackNexus::GetFeedback() const { return vector()->Get(slot()); }
 
 
 Object* FeedbackNexus::GetFeedbackExtra() const {
-  DCHECK(TypeFeedbackVector::elements_per_ic_slot() > 1);
+#ifdef DEBUG
+  FeedbackVectorSlotKind kind = vector()->GetKind(slot());
+  DCHECK_LT(1, TypeFeedbackMetadata::GetSlotSize(kind));
+#endif
   int extra_index = vector()->GetIndex(slot()) + 1;
   return vector()->get(extra_index);
 }
@@ -159,14 +174,17 @@ void FeedbackNexus::SetFeedback(Object* feedback, WriteBarrierMode mode) {
 
 void FeedbackNexus::SetFeedbackExtra(Object* feedback_extra,
                                      WriteBarrierMode mode) {
-  DCHECK(TypeFeedbackVector::elements_per_ic_slot() > 1);
+#ifdef DEBUG
+  FeedbackVectorSlotKind kind = vector()->GetKind(slot());
+  DCHECK_LT(1, TypeFeedbackMetadata::GetSlotSize(kind));
+#endif
   int index = vector()->GetIndex(slot()) + 1;
   vector()->set(index, feedback_extra, mode);
 }
 
 
 Isolate* FeedbackNexus::GetIsolate() const { return vector()->GetIsolate(); }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TYPE_FEEDBACK_VECTOR_INL_H_

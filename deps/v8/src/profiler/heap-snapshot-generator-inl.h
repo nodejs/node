@@ -16,6 +16,11 @@ HeapEntry* HeapGraphEdge::from() const {
 }
 
 
+Isolate* HeapGraphEdge::isolate() const {
+  return snapshot()->profiler()->isolate();
+}
+
+
 HeapSnapshot* HeapGraphEdge::snapshot() const {
   return to_entry_->snapshot();
 }
@@ -43,6 +48,9 @@ HeapGraphEdge** HeapEntry::children_arr() {
 }
 
 
-} }  // namespace v8::internal
+Isolate* HeapEntry::isolate() const { return snapshot_->profiler()->isolate(); }
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PROFILER_HEAP_SNAPSHOT_GENERATOR_INL_H_

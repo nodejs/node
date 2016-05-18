@@ -11,26 +11,31 @@ body {
   font-size: 62.5%;
   margin: 0;
   padding: 0;
-  color: #3a3a3a;
-  background: #fcfefa;
+  color: #333;
+  background: #fff;
+}
+
+pre, tt, code, .pre, span.type, a.type {
+  font-family: Monaco, Consolas, "Lucida Console", monospace;
 }
 
 #content {
   font-size: 1.8em;
+  position: relative;
 }
 
-a {
-  color: #FE5210;
+a, a:link, a:active {
+  color: #43853d;
   text-decoration: none;
+  border-radius: 2px;
+  padding: .1em .2em;
+  margin: -.1em;
 }
 
-a:visited {
-  color: #FE7110;
-}
-
-a:hover,
-a:focus {
-  color: #FFA158;
+a:hover, a:focus {
+  color: #fff;
+  background-color: #43853d;
+  outline: none;
 }
 
 strong {
@@ -41,51 +46,45 @@ code a:hover {
   background: none;
 }
 
+em code {
+  font-style: normal;
+}
+
 #changelog #gtoc {
   display: none;
 }
 
 #gtoc {
-  font-size: 0.8em;
+  font-size: .8em;
 }
 
-#gtoc p {
+.line {
+  width: calc(100% - 1em);
+  display: block;
+  padding-bottom: 1px;
 }
 
-#gtoc a {
-}
-
-#gtoc a:hover {
-}
-
-.api_stability_0,
-.api_stability_1,
-.api_stability_2,
-.api_stability_3,
-.api_stability_4,
-.api_stability_5 {
+.api_stability {
   color: white !important;
-  margin: 0em 0 1.0em 0;
+  margin: 0 0 1em 0;
   font-family: "Lato", "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
   font-weight: 700;
 }
 
-.api_stability_0 *,
-.api_stability_1 *,
-.api_stability_2 *,
-.api_stability_3 *,
-.api_stability_4 *,
-.api_stability_5 * {
+.api_stability * {
   color: white !important;
 }
 
-.api_stability_0 a,
-.api_stability_1 a,
-.api_stability_2 a,
-.api_stability_3 a,
-.api_stability_4 a,
-.api_stability_5 a {
+.api_stability a {
   text-decoration: underline;
+}
+
+.api_stability a:hover, .api_stability a:active, .api_stability a:focus {
+  background: rgba(255, 255, 255, .4);
+}
+
+.api_stability a code {
+  background: none;
 }
 
 .api_stability_0 {
@@ -102,6 +101,19 @@ code a:hover {
 
 .api_stability_3 {
   background-color: #0084B6;
+}
+
+.api_metadata {
+  font-size: .75em;
+  margin-bottom: 1em;
+}
+
+.api_metadata span {
+  margin-right: 1em;
+}
+
+.api_metadata span:last-child {
+  margin-right: 0px;
 }
 
 ul.plain {
@@ -121,7 +133,7 @@ p {
 
 #apicontent > *:last-child {
   margin-bottom: 0;
-  padding-bottom: 2.0em;
+  padding-bottom: 2em;
 }
 
 table {
@@ -133,21 +145,16 @@ th, td {
   border: 1px solid #aaa;
 }
 
-table p {
-}
-
 th {
   text-align:left;
 }
 
 ol, ul, dl {
-  margin: 0 0 0.6em 0;
+  margin: 0 0 .6em 0;
   padding: 0;
 }
 
-ol ul, ol ol, ol dl,
-ul ul, ul ol, ul dl,
-dl ul, dl ol, dl dl {
+ol ul, ol ol, ol dl, ul ul, ul ol, ul dl, dl ul, dl ol, dl dl {
   margin-bottom: 0;
 }
 
@@ -170,20 +177,25 @@ dd + dt.pre {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  color: #301004;
   text-rendering: optimizeLegibility;
   font-weight: 700;
   position: relative;
-  margin-bottom: 0.5em;
+  margin-bottom: .5em;
 }
 
 header h1 {
-  line-height: 2.0em;
+  line-height: 2em;
   margin: 0;
 }
 
 #apicontent {
-  padding-top: 1.0em;
+  padding-top: 1em;
+}
+
+#apicontent .line {
+  width: calc(50% - 1em);
+  margin: 1em 1em .95em;
+  background-color: #ccc;
 }
 
 #toc + h1 {
@@ -193,20 +205,20 @@ header h1 {
 
 h2 {
   font-size: 1.5em;
-  margin: 1.0em 0 0.5em;
+  margin: 1em 0 .5em;
 }
 
 h2 + h2 {
-  margin: 0 0 0.5em;
+  margin: 0 0 .5em;
 }
 
 h3 {
-  font-size: 1.0em;
-  margin: 1.5em 0 0.5em;
+  font-size: 1em;
+  margin: 1.5em 0 .5em;
 }
 
 h3 + h3 {
-  margin: 0 0 0.5em;
+  margin: 0 0 .5em;
 }
 
 h2, h3, h4 {
@@ -226,7 +238,7 @@ h1 span:hover, h2 span:hover, h3 span:hover, h4 span:hover {
 }
 
 h1 span a, h2 span a, h3 span a, h4 span a {
-  font-size: 0.8em;
+  font-size: .8em;
   color: #000;
   text-decoration: none;
   font-weight: bold;
@@ -244,26 +256,24 @@ h6 {
 
 pre, tt, code {
   line-height: 1.5em;
-  font-family: Monaco, Consolas, "Lucida Console", monospace;
   margin: 0; padding: 0;
 }
 
 .pre {
-  font-family: Monaco, Consolas, "Lucida Console", monospace;
   line-height: 1.5em;
   font-size: 1.2em;
 }
 
 pre {
-  padding: 1.0em 1.5em;
+  padding: 1em;
   vertical-align: top;
-  background: #f2f5f0;
-  margin: 0.166666em -4.0em 1.0em 0em;
+  background: #f2f2f2;
+  margin: 1em;
   overflow-x: auto;
 }
 
 pre > code {
-  font-size: 0.8em;
+  font-size: .8em;
 }
 
 pre + h3 {
@@ -276,11 +286,11 @@ code.pre {
 
 #intro {
   margin-top: 1.25em;
-  margin-left: 1.0em;
+  margin-left: 1em;
 }
 
 #intro a {
-  color: #333;
+  color: #ddd;
   font-size: 1.25em;
   font-weight: bold;
 }
@@ -289,113 +299,109 @@ hr {
   background: none;
   border: medium none;
   border-bottom: 1px solid #7a7a7a;
-  margin: 0em 0em 1em 0;
-}
-
-#toc {
+  margin: 0 0 1em 0;
 }
 
 #toc h2 {
-  color: #C73E09;
   margin-top: 0;
-  font-size: 1.0em;
+  font-size: 1em;
   line-height: 0;
   margin: 1.5em 0;
 }
 
 #toc ul {
-  font-size: 0.8125em;
+  font-size: .8125em;
 }
 
-#toc ul ul { font-size: 1.0em; }
+#toc ul ul {
+  font-size: 1em;
+}
 
 #toc ul a {
   text-decoration:none;
 }
 
 #toc ul li {
-  margin-bottom: 0.6666em;
+  margin-bottom: .666em;
   list-style: square outside;
 }
 
 #toc li > ul {
-  margin-top: 0.6666em;
-}
-
-#toc ul a:hover,
-#toc ul a:focus {
+  margin-top: .666em;
 }
 
 #apicontent li {
-  margin-bottom: 0.5em;
+  margin-bottom: .5em;
 }
 
 #apicontent li:last-child {
   margin-bottom: 0;
 }
 
-p tt,
-p code,
-li code {
-  font-size: 0.9em;
+p tt, p code, li code {
+  font-size: .9em;
   color: #040404;
-  background-color: #f2f5f0;
-  padding: 0.2em 0.4em;
+  background-color: #f2f2f2;
+  border-radius: 2px;
+  padding: .1em .3em;
 }
 
 a code {
   color: inherit;
+  background: inherit;
+  padding: 0;
 }
 
-span.type {
-  color: #222;
-}
-
-#content {
-  margin: 0 auto;
-  overflow: visible;
-  clear: both;
-  display: block;
+.type {
+  font-size: .9em;
+  line-height: 1.5em;
 }
 
 #column1.interior {
-  width: 702px;
-  border-left: 234px solid #f2f5f0;
-  padding-left: 2.0em;
+  margin-left: 234px;
+  padding: 0 2em;
+  -webkit-padding-start: 1.5em;
 }
 
 #column2.interior {
   width: 234px;
+  background: #333;
   position: fixed;
-  height: 100%;
-  overflow-y: scroll;
-}
-
-#column2.interior:after {
-  content: '';
-  position: fixed;
-  bottom: 0;
   left: 0;
-  width: 234px;
-  height: 5em;
-  background: linear-gradient(rgba(242,245,240, 0), rgba(242,245,240, 1));
-  pointer-events: none;
+  top: 0;
+  bottom: 0;
+  overflow-x: hidden;
+  overflow-y: scroll;
 }
 
 #column2 ul {
   list-style: none;
-  margin-left: 0em;
-  margin-top: 1.25em;
-  background: #f2f5f0;
-  margin-bottom: 0;
-  padding-bottom: 4em;
+  margin: .9em 0 .5em;
+  background: #333;
+}
+
+#column2 > :first-child {
+  margin: 1.25em 1em;
+}
+
+#column2 > ul:nth-child(2) {
+  margin: 1.25em 0 .5em;
+}
+
+#column2 > ul:last-child {
+  margin: .9em 0 1.25em;
 }
 
 #column2 ul li {
   padding-left: 1.4em;
-  margin-bottom: 0.5em;
-  padding-bottom: 0.5em;
-  font-size: 0.8em;
+  margin-bottom: .5em;
+  padding-bottom: .5em;
+  font-size: .8em;
+}
+
+#column2 .line {
+  margin: 0 .5em;
+  background-color: #707070;
 }
 
 #column2 ul li:last-child {
@@ -403,41 +409,43 @@ span.type {
 }
 
 #column2 ul li a {
-  color: #7a7a7a;
+  color: #ccc;
+  border-radius: 0;
 }
 
-#column2 ul li a.active {
-  color: #533;
-  border-bottom: 1px solid #533;
+#column2 ul li a.active, #column2 ul li a.active:hover,
+#column2 ul li a.active:focus {
+  color: #43853d;
+  border-radius: 0;
+  border-bottom: 1px solid #43853d;
+  background: none;
 }
 
-#footer {
-  padding: 0;
-  min-height: 24px;
-  background: #333;
-  color: white;
+#intro a:hover, #intro a:focus,
+#column2 ul li a:hover, #column2 ul li a:focus {
+  color: #fff;
+  background: none;
 }
 
-span > .mark,
-span > .mark:visited {
-  font-size: 18px;
+span > .mark, span > .mark:visited {
+  font-size: 1em;
   color: #707070;
   position: absolute;
   top: 0px;
   right: 0px;
 }
 
-span > .mark:hover {
-  color: #FE7110;
+span > .mark:hover, span > .mark:focus, span > .mark:active {
+  color: #43853d;
+  background: none;
 }
 
 th, td {
-  padding: 0.75em 1.0em 0.75em 1.0em;
+  padding: .75em 1em .75em 1em;
   vertical-align: top;
 }
 
-th > *:last-child,
-td > *:last-child {
+th > *:last-child, td > *:last-child {
   margin-bottom: 0;
 }
 
@@ -452,16 +460,15 @@ td > *:last-child {
 
 @media only screen and (max-width: 1024px) {
   #content {
-    font-size: 2.1em;
+    font-size: 2.5em;
+    overflow: visible;
   }
   #column1.interior {
-    border-left: 0;
-    padding-left: 0.5em;
-    padding-right: 0.5em;
+    margin-left: 0;
+    padding-left: .5em;
+    padding-right: .5em;
     width: auto;
-  }
-  pre {
-    margin-right: 0;
+    overflow-y: visible;
   }
   #column2 {
     display: none;
@@ -470,18 +477,6 @@ td > *:last-child {
 
 @media only screen and (max-width: 1024px) and (orientation: portrait) {
   #content {
-    font-size: 2.4em;
-  }
-  #column1.interior {
-    border-left: 0;
-    padding-left: 0.5em;
-    padding-right: 0.5em;
-    width: auto;
-  }
-  pre {
-    margin-right: 0;
-  }
-  #column2 {
-    display: none;
+    font-size: 3.5em;
   }
 }

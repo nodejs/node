@@ -28,7 +28,7 @@ On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE
 
 PASS RegExp('/').source is "\\/"
 PASS RegExp('').source is "(?:)"
-PASS RegExp.prototype.source is "(?:)"
+FAIL RegExp.prototype.source should be (?:) (of type string). Was undefined (of type undefined).
 PASS RegExp('/').toString() is "/\\//"
 PASS RegExp('').toString() is "/(?:)/"
 PASS RegExp.prototype.toString() is "/(?:)/"
@@ -37,8 +37,8 @@ PASS testForwardSlash("^/$", "/"); is true
 PASS testForwardSlash("^\/$", "/"); is true
 PASS testForwardSlash("^\\/$", "\/"); is true
 PASS testForwardSlash("^\\\/$", "\/"); is true
-FAIL testForwardSlash("^\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Unexpected end of input
-FAIL testForwardSlash("^\\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Unexpected end of input
+FAIL testForwardSlash("^\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Invalid regular expression flags
+FAIL testForwardSlash("^\\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Invalid regular expression flags
 PASS testForwardSlash("x/x/x", "x\/x\/x"); is true
 PASS testForwardSlash("x\/x/x", "x\/x\/x"); is true
 PASS testForwardSlash("x/x\/x", "x\/x\/x"); is true
@@ -57,4 +57,5 @@ PASS var o = new RegExp(); o.toString() === '/'+o.source+'/' && eval(o.toString(
 PASS successfullyParsed is true
 
 TEST COMPLETE
+
 

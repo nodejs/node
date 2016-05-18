@@ -55,7 +55,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
-  cache_line_size_ = 128;
+  icache_line_size_ = 128;
 
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
@@ -84,6 +84,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (!(cpu.part() == base::CPU::PPC_G5 || cpu.part() == base::CPU::PPC_G4)) {
     // Assume support
     supported_ |= (1u << FPU);
+  }
+  if (cpu.icache_line_size() != base::CPU::UNKNOWN_CACHE_LINE_SIZE) {
+    icache_line_size_ = cpu.icache_line_size();
   }
 #elif V8_OS_AIX
   // Assume support FP support and default cache line size
@@ -125,16 +128,6 @@ Register ToRegister(int num) {
                                  r16, r17, r18, r19, r20, r21, r22, r23,
                                  r24, r25, r26, r27, r28, r29, r30, fp};
   return kRegisters[num];
-}
-
-
-const char* DoubleRegister::AllocationIndexToString(int index) {
-  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
-  const char* const names[] = {
-      "d1",  "d2",  "d3",  "d4",  "d5",  "d6",  "d7",  "d8",  "d9",  "d10",
-      "d11", "d12", "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22",
-      "d23", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"};
-  return names[index];
 }
 
 
@@ -286,14 +279,14 @@ bool Assembler::IsBranch(Instr instr) { return ((instr & kOpcodeMask) == BCX); }
 
 Register Assembler::GetRA(Instr instr) {
   Register reg;
-  reg.code_ = Instruction::RAValue(instr);
+  reg.reg_code = Instruction::RAValue(instr);
   return reg;
 }
 
 
 Register Assembler::GetRB(Instr instr) {
   Register reg;
-  reg.code_ = Instruction::RBValue(instr);
+  reg.reg_code = Instruction::RBValue(instr);
   return reg;
 }
 
@@ -463,7 +456,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       // pointer in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
       int32_t offset = target_pos + (Code::kHeaderSize - kHeapObjectTag);
-      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos), 2,
+      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos), 2,
                           CodePatcher::DONT_FLUSH);
       patcher.masm()->bitwise_mov32(dst, offset);
       break;
@@ -474,7 +467,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       Register dst = Register::from_code((operands >> 21) & 0x1f);
       Register base = Register::from_code((operands >> 16) & 0x1f);
       int32_t offset = target_pos + SIGN_EXT_IMM16(operands & kImm16Mask);
-      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos), 2,
+      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos), 2,
                           CodePatcher::DONT_FLUSH);
       patcher.masm()->bitwise_add32(dst, base, offset);
       break;
@@ -482,7 +475,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     case kUnboundMovLabelAddrOpcode: {
       // Load the address of the label in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
-      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
                           kMovInstructionsNoConstantPool,
                           CodePatcher::DONT_FLUSH);
       // Keep internal references relative until EmitRelocations.
@@ -490,7 +483,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       break;
     }
     case kUnboundJumpTableEntryOpcode: {
-      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
                           kPointerSize / kInstrSize, CodePatcher::DONT_FLUSH);
       // Keep internal references relative until EmitRelocations.
       patcher.masm()->dp(target_pos);
@@ -744,6 +737,11 @@ void Assembler::xor_(Register dst, Register src1, Register src2, RCBit rc) {
 
 void Assembler::cntlzw_(Register ra, Register rs, RCBit rc) {
   x_form(EXT2 | CNTLZWX, ra, rs, r0, rc);
+}
+
+
+void Assembler::popcntw(Register ra, Register rs) {
+  emit(EXT2 | POPCNTW | rs.code() * B21 | ra.code() * B16);
 }
 
 
@@ -1481,6 +1479,11 @@ void Assembler::cntlzd_(Register ra, Register rs, RCBit rc) {
 }
 
 
+void Assembler::popcntd(Register ra, Register rs) {
+  emit(EXT2 | POPCNTD | rs.code() * B21 | ra.code() * B16);
+}
+
+
 void Assembler::mulld(Register dst, Register src1, Register src2, OEBit o,
                       RCBit r) {
   xo_form(EXT2 | MULLD, dst, src1, src2, o, r);
@@ -1504,14 +1507,14 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 // Code address skips the function descriptor "header".
 // TOC and static chain are ignored and set to 0.
 void Assembler::function_descriptor() {
-#if ABI_USES_FUNCTION_DESCRIPTORS
-  Label instructions;
-  DCHECK(pc_offset() == 0);
-  emit_label_addr(&instructions);
-  dp(0);
-  dp(0);
-  bind(&instructions);
-#endif
+  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+    Label instructions;
+    DCHECK(pc_offset() == 0);
+    emit_label_addr(&instructions);
+    dp(0);
+    dp(0);
+    bind(&instructions);
+  }
 }
 
 
@@ -1844,7 +1847,10 @@ void Assembler::mtxer(Register src) {
 }
 
 
-void Assembler::mcrfs(int bf, int bfa) {
+void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
+  DCHECK(static_cast<int>(bit) < 32);
+  int bf = cr.code();
+  int bfa = bit / CRWIDTH;
   emit(EXT4 | MCRFS | bf * B23 | bfa * B18);
 }
 
@@ -2163,6 +2169,24 @@ void Assembler::fcfid(const DoubleRegister frt, const DoubleRegister frb,
 }
 
 
+void Assembler::fcfidu(const DoubleRegister frt, const DoubleRegister frb,
+                       RCBit rc) {
+  emit(EXT4 | FCFIDU | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+
+void Assembler::fcfidus(const DoubleRegister frt, const DoubleRegister frb,
+                        RCBit rc) {
+  emit(EXT3 | FCFIDU | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+
+void Assembler::fcfids(const DoubleRegister frt, const DoubleRegister frb,
+                       RCBit rc) {
+  emit(EXT3 | FCFID | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+
 void Assembler::fctid(const DoubleRegister frt, const DoubleRegister frb,
                       RCBit rc) {
   emit(EXT4 | FCTID | frt.code() * B21 | frb.code() * B11 | rc);
@@ -2172,6 +2196,18 @@ void Assembler::fctid(const DoubleRegister frt, const DoubleRegister frb,
 void Assembler::fctidz(const DoubleRegister frt, const DoubleRegister frb,
                        RCBit rc) {
   emit(EXT4 | FCTIDZ | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+
+void Assembler::fctidu(const DoubleRegister frt, const DoubleRegister frb,
+                       RCBit rc) {
+  emit(EXT4 | FCTIDU | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+
+void Assembler::fctiduz(const DoubleRegister frt, const DoubleRegister frb,
+                        RCBit rc) {
+  emit(EXT4 | FCTIDUZ | frt.code() * B21 | frb.code() * B11 | rc);
 }
 
 
@@ -2186,6 +2222,20 @@ void Assembler::fsel(const DoubleRegister frt, const DoubleRegister fra,
 void Assembler::fneg(const DoubleRegister frt, const DoubleRegister frb,
                      RCBit rc) {
   emit(EXT4 | FNEG | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+
+void Assembler::mtfsb0(FPSCRBit bit, RCBit rc) {
+  DCHECK(static_cast<int>(bit) < 32);
+  int bt = bit;
+  emit(EXT4 | MTFSB0 | bt * B21 | rc);
+}
+
+
+void Assembler::mtfsb1(FPSCRBit bit, RCBit rc) {
+  DCHECK(static_cast<int>(bit) < 32);
+  int bt = bit;
+  emit(EXT4 | MTFSB1 | bt * B21 | rc);
 }
 
 
@@ -2293,6 +2343,7 @@ void Assembler::GrowBuffer(int needed) {
 
   // Set up new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);
+  desc.origin = this;
 
   desc.instr_size = pc_offset();
   desc.reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
@@ -2371,7 +2422,7 @@ void Assembler::EmitRelocations() {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = buffer_ + it->position();
     Code* code = NULL;
-    RelocInfo rinfo(pc, rmode, it->data(), code);
+    RelocInfo rinfo(isolate(), pc, rmode, it->data(), code);
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
@@ -2381,7 +2432,8 @@ void Assembler::EmitRelocations() {
     } else if (RelocInfo::IsInternalReferenceEncoded(rmode)) {
       // mov sequence
       intptr_t pos = reinterpret_cast<intptr_t>(target_address_at(pc, code));
-      set_target_address_at(pc, code, buffer_ + pos, SKIP_ICACHE_FLUSH);
+      set_target_address_at(isolate(), pc, code, buffer_ + pos,
+                            SKIP_ICACHE_FLUSH);
     }
 
     reloc_info_writer.Write(&rinfo);

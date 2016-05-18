@@ -9,20 +9,31 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow calling global object properties as functions",
+            category: "Possible Errors",
+            recommended: true
+        },
 
-    return {
-        "CallExpression": function(node) {
+        schema: []
+    },
 
-            if (node.callee.type === "Identifier") {
-                var name = node.callee.name;
-                if (name === "Math" || name === "JSON") {
-                    context.report(node, "'{{name}}' is not a function.", { name: name });
+    create: function(context) {
+
+        return {
+            CallExpression: function(node) {
+
+                if (node.callee.type === "Identifier") {
+                    var name = node.callee.name;
+
+                    if (name === "Math" || name === "JSON") {
+                        context.report(node, "'{{name}}' is not a function.", { name: name });
+                    }
                 }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

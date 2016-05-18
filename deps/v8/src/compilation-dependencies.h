@@ -31,6 +31,11 @@ class CompilationDependencies {
   void AssumeFieldType(Handle<Map> map) {
     Insert(DependentCode::kFieldTypeGroup, map);
   }
+  void AssumeMapStable(Handle<Map> map);
+  void AssumePrototypeMapsStable(
+      Handle<Map> map,
+      MaybeHandle<JSReceiver> prototype = MaybeHandle<JSReceiver>());
+  void AssumeMapNotDeprecated(Handle<Map> map);
   void AssumePropertyCell(Handle<PropertyCell> cell) {
     Insert(DependentCode::kPropertyCellChangedGroup, cell);
   }
@@ -61,7 +66,7 @@ class CompilationDependencies {
   DependentCode* Get(Handle<Object> object);
   void Set(Handle<Object> object, Handle<DependentCode> dep);
 };
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_DEPENDENCIES_H_

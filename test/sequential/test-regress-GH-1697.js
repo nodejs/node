@@ -1,8 +1,7 @@
 'use strict';
-var common = require('../common');
-var net = require('net'),
-    cp = require('child_process'),
-    util = require('util');
+const common = require('../common');
+const net = require('net');
+const cp = require('child_process');
 
 if (process.argv[2] === 'server') {
   // Server
@@ -31,8 +30,8 @@ if (process.argv[2] === 'server') {
   serverProcess.stdout.once('data', function() {
     var client = net.createConnection(common.PORT, '127.0.0.1');
     client.on('connect', function() {
-      var alot = new Buffer(1024),
-          alittle = new Buffer(1);
+      const alot = Buffer.allocUnsafe(1024);
+      const alittle = Buffer.allocUnsafe(1);
 
       for (var i = 0; i < 100; i++) {
         client.write(alot);

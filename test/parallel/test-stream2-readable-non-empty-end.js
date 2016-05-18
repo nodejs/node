@@ -1,12 +1,12 @@
 'use strict';
+require('../common');
 var assert = require('assert');
-var common = require('../common');
 var Readable = require('_stream_readable');
 
 var len = 0;
 var chunks = new Array(10);
 for (var i = 1; i <= 10; i++) {
-  chunks[i - 1] = new Buffer(i);
+  chunks[i - 1] = Buffer.allocUnsafe(i);
   len += i;
 }
 

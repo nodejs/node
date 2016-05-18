@@ -194,6 +194,9 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
     int num, j, retry;
     int (*cb) (int xok, X509_STORE_CTX *xctx);
     STACK_OF(X509) *sktmp = NULL;
+    int trust = X509_TRUST_UNTRUSTED;
+    int err;
+
     if (ctx->cert == NULL) {
         X509err(X509_F_X509_VERIFY_CERT, X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
         return -1;
@@ -216,7 +219,8 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
     if (((ctx->chain = sk_X509_new_null()) == NULL) ||
         (!sk_X509_push(ctx->chain, ctx->cert))) {
         X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
-        goto end;
+        ok = -1;
+        goto err;
     }
     CRYPTO_add(&ctx->cert->references, 1, CRYPTO_LOCK_X509);
     ctx->last_untrusted = 1;
@@ -225,7 +229,8 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
     if (ctx->untrusted != NULL
         && (sktmp = sk_X509_dup(ctx->untrusted)) == NULL) {
         X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
-        goto end;
+        ok = -1;
+        goto err;
     }
 
     num = sk_X509_num(ctx->chain);
@@ -249,7 +254,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
         if (ctx->param->flags & X509_V_FLAG_TRUSTED_FIRST) {
             ok = ctx->get_issuer(&xtmp, ctx, x);
             if (ok < 0)
-                goto end;
+                goto err;
             /*
              * If successful for now free up cert so it will be picked up
              * again later.
@@ -266,7 +271,8 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
             if (xtmp != NULL) {
                 if (!sk_X509_push(ctx->chain, xtmp)) {
                     X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
-                    goto end;
+                    ok = -1;
+                    goto err;
                 }
                 CRYPTO_add(&xtmp->references, 1, CRYPTO_LOCK_X509);
                 (void)sk_X509_delete_ptr(sktmp, xtmp);
@@ -314,7 +320,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
                     bad_chain = 1;
                     ok = cb(0, ctx);
                     if (!ok)
-                        goto end;
+                        goto err;
                 } else {
                     /*
                      * We have a match: replace certificate with store
@@ -347,25 +353,26 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
             ok = ctx->get_issuer(&xtmp, ctx, x);
 
             if (ok < 0)
-                goto end;
+                goto err;
             if (ok == 0)
                 break;
             x = xtmp;
             if (!sk_X509_push(ctx->chain, x)) {
                 X509_free(xtmp);
                 X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
-                ok = 0;
-                goto end;
+                ok = -1;
+                goto err;
             }
             num++;
         }
 
         /* we now have our chain, lets check it... */
-        i = check_trust(ctx);
+        if ((trust = check_trust(ctx)) == X509_TRUST_REJECTED) {
+            /* Callback already issued */
+            ok = 0;
+            goto err;
+        }
 
-        /* If explicitly rejected error */
-        if (i == X509_TRUST_REJECTED)
-            goto end;
         /*
          * If it's not explicitly trusted then check if there is an alternative
          * chain that could be used. We only do this if we haven't already
@@ -373,14 +380,14 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
          * chain checking
          */
         retry = 0;
-        if (i != X509_TRUST_TRUSTED
+        if (trust != X509_TRUST_TRUSTED
             && !(ctx->param->flags & X509_V_FLAG_TRUSTED_FIRST)
             && !(ctx->param->flags & X509_V_FLAG_NO_ALT_CHAINS)) {
             while (j-- > 1) {
                 xtmp2 = sk_X509_value(ctx->chain, j - 1);
                 ok = ctx->get_issuer(&xtmp, ctx, xtmp2);
                 if (ok < 0)
-                    goto end;
+                    goto err;
                 /* Check if we found an alternate chain */
                 if (ok > 0) {
                     /*
@@ -410,7 +417,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
      * self signed certificate in which case we've indicated an error already
      * and set bad_chain == 1
      */
-    if (i != X509_TRUST_TRUSTED && !bad_chain) {
+    if (trust != X509_TRUST_TRUSTED && !bad_chain) {
         if ((chain_ss == NULL) || !ctx->check_issued(ctx, x, chain_ss)) {
             if (ctx->last_untrusted >= num)
                 ctx->error = X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
@@ -431,26 +438,26 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
         bad_chain = 1;
         ok = cb(0, ctx);
         if (!ok)
-            goto end;
+            goto err;
     }
 
     /* We have the chain complete: now we need to check its purpose */
     ok = check_chain_extensions(ctx);
 
     if (!ok)
-        goto end;
+        goto err;
 
     /* Check name constraints */
 
     ok = check_name_constraints(ctx);
 
     if (!ok)
-        goto end;
+        goto err;
 
     ok = check_id(ctx);
 
     if (!ok)
-        goto end;
+        goto err;
 
     /* We may as well copy down any DSA parameters that are required */
     X509_get_pubkey_parameters(NULL, ctx->chain);
@@ -462,16 +469,16 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 
     ok = ctx->check_revocation(ctx);
     if (!ok)
-        goto end;
+        goto err;
 
-    i = X509_chain_check_suiteb(&ctx->error_depth, NULL, ctx->chain,
-                                ctx->param->flags);
-    if (i != X509_V_OK) {
-        ctx->error = i;
+    err = X509_chain_check_suiteb(&ctx->error_depth, NULL, ctx->chain,
+                                  ctx->param->flags);
+    if (err != X509_V_OK) {
+        ctx->error = err;
         ctx->current_cert = sk_X509_value(ctx->chain, ctx->error_depth);
         ok = cb(0, ctx);
         if (!ok)
-            goto end;
+            goto err;
     }
 
     /* At this point, we have a chain and need to verify it */
@@ -480,25 +487,28 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
     else
         ok = internal_verify(ctx);
     if (!ok)
-        goto end;
+        goto err;
 
 #ifndef OPENSSL_NO_RFC3779
     /* RFC 3779 path validation, now that CRL check has been done */
     ok = v3_asid_validate_path(ctx);
     if (!ok)
-        goto end;
+        goto err;
     ok = v3_addr_validate_path(ctx);
     if (!ok)
-        goto end;
+        goto err;
 #endif
 
     /* If we get this far evaluate policies */
     if (!bad_chain && (ctx->param->flags & X509_V_FLAG_POLICY_CHECK))
         ok = ctx->check_policy(ctx);
     if (!ok)
-        goto end;
+        goto err;
     if (0) {
- end:
+ err:
+        /* Ensure we return an error */
+        if (ok > 0)
+            ok = 0;
         X509_get_pubkey_parameters(NULL, ctx->chain);
     }
     if (sktmp != NULL)
@@ -2283,9 +2293,10 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
     ctx->current_reasons = 0;
     ctx->tree = NULL;
     ctx->parent = NULL;
+    /* Zero ex_data to make sure we're cleanup-safe */
+    memset(&ctx->ex_data, 0, sizeof(ctx->ex_data));
 
     ctx->param = X509_VERIFY_PARAM_new();
-
     if (!ctx->param) {
         X509err(X509_F_X509_STORE_CTX_INIT, ERR_R_MALLOC_FAILURE);
         return 0;
@@ -2294,7 +2305,6 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
     /*
      * Inherit callbacks and flags from X509_STORE if not set use defaults.
      */
-
     if (store)
         ret = X509_VERIFY_PARAM_inherit(ctx->param, store->param);
     else
@@ -2302,6 +2312,7 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
 
     if (store) {
         ctx->verify_cb = store->verify_cb;
+        /* Seems to always be 0 in OpenSSL, else must be idempotent */
         ctx->cleanup = store->cleanup;
     } else
         ctx->cleanup = 0;
@@ -2312,7 +2323,7 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
 
     if (ret == 0) {
         X509err(X509_F_X509_STORE_CTX_INIT, ERR_R_MALLOC_FAILURE);
-        return 0;
+        goto err;
     }
 
     if (store && store->check_issued)
@@ -2367,19 +2378,18 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
 
     ctx->check_policy = check_policy;
 
+    if (CRYPTO_new_ex_data(CRYPTO_EX_INDEX_X509_STORE_CTX, ctx,
+                           &ctx->ex_data))
+        return 1;
+    X509err(X509_F_X509_STORE_CTX_INIT, ERR_R_MALLOC_FAILURE);
+
+ err:
     /*
-     * This memset() can't make any sense anyway, so it's removed. As
-     * X509_STORE_CTX_cleanup does a proper "free" on the ex_data, we put a
-     * corresponding "new" here and remove this bogus initialisation.
+     * On error clean up allocated storage, if the store context was not
+     * allocated with X509_STORE_CTX_new() this is our last chance to do so.
      */
-    /* memset(&(ctx->ex_data),0,sizeof(CRYPTO_EX_DATA)); */
-    if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_X509_STORE_CTX, ctx,
-                            &(ctx->ex_data))) {
-        OPENSSL_free(ctx);
-        X509err(X509_F_X509_STORE_CTX_INIT, ERR_R_MALLOC_FAILURE);
-        return 0;
-    }
-    return 1;
+    X509_STORE_CTX_cleanup(ctx);
+    return 0;
 }
 
 /*
@@ -2395,8 +2405,17 @@ void X509_STORE_CTX_trusted_stack(X509_STORE_CTX *ctx, STACK_OF(X509) *sk)
 
 void X509_STORE_CTX_cleanup(X509_STORE_CTX *ctx)
 {
-    if (ctx->cleanup)
+    /*
+     * We need to be idempotent because, unfortunately, free() also calls
+     * cleanup(), so the natural call sequence new(), init(), cleanup(), free()
+     * calls cleanup() for the same object twice!  Thus we must zero the
+     * pointers below after they're freed!
+     */
+    /* Seems to always be 0 in OpenSSL, do this at most once. */
+    if (ctx->cleanup != NULL) {
         ctx->cleanup(ctx);
+        ctx->cleanup = NULL;
+    }
     if (ctx->param != NULL) {
         if (ctx->parent == NULL)
             X509_VERIFY_PARAM_free(ctx->param);

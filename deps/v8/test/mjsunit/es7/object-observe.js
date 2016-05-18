@@ -350,10 +350,10 @@ Object.freeze(obj);
 
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
+  { object: obj, type: 'preventExtensions' },
   { object: obj, type: 'reconfigure', name: 'a' },
   { object: obj, type: 'reconfigure', name: 'b' },
   { object: obj, type: 'reconfigure', name: 'c' },
-  { object: obj, type: 'preventExtensions' },
 ]);
 
 reset();
@@ -387,9 +387,9 @@ Object.seal(obj);
 
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
+  { object: obj, type: 'preventExtensions' },
   { object: obj, type: 'reconfigure', name: 'a' },
   { object: obj, type: 'reconfigure', name: 'b' },
-  { object: obj, type: 'preventExtensions' },
 ]);
 
 reset();

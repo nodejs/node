@@ -3,13 +3,13 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   process.exit();
 }
 var tls = require('tls');
 
 var fs = require('fs');
-var key =  fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
+var key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
 var cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
 
 var nsuccess = 0;
@@ -78,12 +78,12 @@ testDHE1024();
 assert.throws(() => test(512, true, assert.fail),
               /DH parameter is less than 1024 bits/);
 
-[0, -1, -Infinity, NaN].forEach(minDHSize => {
+[0, -1, -Infinity, NaN].forEach((minDHSize) => {
   assert.throws(() => tls.connect({ minDHSize }),
                 /minDHSize is not a positive number/);
 });
 
-[true, false, null, undefined, {}, [], '', '1'].forEach(minDHSize => {
+[true, false, null, undefined, {}, [], '', '1'].forEach((minDHSize) => {
   assert.throws(() => tls.connect({ minDHSize }), /minDHSize is not a number/);
 });
 

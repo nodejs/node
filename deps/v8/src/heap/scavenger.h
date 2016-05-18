@@ -48,8 +48,8 @@ class ScavengeVisitor : public ObjectVisitor {
  public:
   explicit ScavengeVisitor(Heap* heap) : heap_(heap) {}
 
-  void VisitPointer(Object** p);
-  void VisitPointers(Object** start, Object** end);
+  void VisitPointer(Object** p) override;
+  void VisitPointers(Object** start, Object** end) override;
 
  private:
   inline void ScavengePointer(Object** p);
@@ -63,7 +63,7 @@ class ScavengeVisitor : public ObjectVisitor {
 class StaticScavengeVisitor
     : public StaticNewSpaceVisitor<StaticScavengeVisitor> {
  public:
-  static inline void VisitPointer(Heap* heap, Object** p);
+  static inline void VisitPointer(Heap* heap, HeapObject* object, Object** p);
 };
 
 }  // namespace internal

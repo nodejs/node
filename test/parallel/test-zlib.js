@@ -42,7 +42,7 @@ var testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
 
 if (process.env.FAST) {
   zlibPairs = [[zlib.Gzip, zlib.Unzip]];
-  var testFiles = ['person.jpg'];
+  testFiles = ['person.jpg'];
 }
 
 var tests = {};
@@ -73,7 +73,7 @@ BufferStream.prototype.write = function(c) {
 BufferStream.prototype.end = function(c) {
   if (c) this.write(c);
   // flatten
-  var buf = new Buffer(this.length);
+  var buf = Buffer.allocUnsafe(this.length);
   var i = 0;
   this.chunks.forEach(function(c) {
     c.copy(buf, i);
@@ -125,11 +125,10 @@ SlowStream.prototype.resume = function() {
 
 SlowStream.prototype.end = function(chunk) {
   // walk over the chunk in blocks.
-  var self = this;
-  self.chunk = chunk;
-  self.length = chunk.length;
-  self.resume();
-  return self.ended;
+  this.chunk = chunk;
+  this.length = chunk.length;
+  this.resume();
+  return this.ended;
 };
 
 
@@ -166,9 +165,9 @@ Object.keys(tests).forEach(function(file) {
                 // verify that the same exact buffer comes out the other end.
                 buf.on('data', function(c) {
                   var msg = file + ' ' +
-                      chunkSize + ' ' +
-                      JSON.stringify(opts) + ' ' +
-                      Def.name + ' -> ' + Inf.name;
+                            chunkSize + ' ' +
+                            JSON.stringify(opts) + ' ' +
+                            Def.name + ' -> ' + Inf.name;
                   var ok = true;
                   var testNum = ++done;
                   for (var i = 0; i < Math.max(c.length, test.length); i++) {

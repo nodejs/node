@@ -9,11 +9,11 @@
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/factory.h"
+#include "src/field-type.h"
 #include "src/messages.h"
-#include "src/scanner.h"
-#include "src/token.h"
+#include "src/parsing/scanner.h"
+#include "src/parsing/token.h"
 #include "src/transitions.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {
@@ -128,7 +128,9 @@ class JsonParser BASE_EMBEDDED {
   }
 
   Handle<String> ParseJsonInternalizedString() {
-    return ScanJsonString<true>();
+    Handle<String> result = ScanJsonString<true>();
+    if (result.is_null()) return result;
+    return factory()->InternalizeString(result);
   }
 
   template <bool is_internalized>
@@ -217,11 +219,12 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
     // Parse failed. Current character is the unexpected token.
     Factory* factory = this->factory();
     MessageTemplate::Template message;
-    Handle<String> argument;
+    Handle<Object> arg1 = Handle<Smi>(Smi::FromInt(position_), isolate());
+    Handle<Object> arg2;
 
     switch (c0_) {
       case kEndOfString:
-        message = MessageTemplate::kUnexpectedEOS;
+        message = MessageTemplate::kJsonParseUnexpectedEOS;
         break;
       case '-':
       case '0':
@@ -234,14 +237,15 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
       case '7':
       case '8':
       case '9':
-        message = MessageTemplate::kUnexpectedTokenNumber;
+        message = MessageTemplate::kJsonParseUnexpectedTokenNumber;
         break;
       case '"':
-        message = MessageTemplate::kUnexpectedTokenString;
+        message = MessageTemplate::kJsonParseUnexpectedTokenString;
         break;
       default:
-        message = MessageTemplate::kUnexpectedToken;
-        argument = factory->LookupSingleCharacterStringFromCode(c0_);
+        message = MessageTemplate::kJsonParseUnexpectedToken;
+        arg2 = arg1;
+        arg1 = factory->LookupSingleCharacterStringFromCode(c0_);
         break;
     }
 
@@ -250,7 +254,7 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
     // separated source file.
     isolate()->debug()->OnCompileError(script);
     MessageLocation location(script, position_, position_ + 1);
-    Handle<Object> error = factory->NewSyntaxError(message, argument);
+    Handle<Object> error = factory->NewSyntaxError(message, arg1, arg2);
     return isolate()->template Throw<Object>(error, &location);
   }
   return result;
@@ -416,7 +420,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
               !target->instance_descriptors()
                    ->GetFieldType(descriptor)
                    ->NowContains(value)) {
-            Handle<HeapType> value_type(
+            Handle<FieldType> value_type(
                 value->OptimalType(isolate(), expected_representation));
             Map::GeneralizeFieldType(target, descriptor,
                                      expected_representation, value_type);
@@ -761,17 +765,8 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
                                                              position_);
       }
       if (c0 < 0x20) return Handle<String>::null();
-      if (static_cast<uint32_t>(c0) >
-          unibrow::Utf16::kMaxNonSurrogateCharCode) {
-        running_hash =
-            StringHasher::AddCharacterCore(running_hash,
-                                           unibrow::Utf16::LeadSurrogate(c0));
-        running_hash =
-            StringHasher::AddCharacterCore(running_hash,
-                                           unibrow::Utf16::TrailSurrogate(c0));
-      } else {
-        running_hash = StringHasher::AddCharacterCore(running_hash, c0);
-      }
+      running_hash = StringHasher::AddCharacterCore(running_hash,
+                                                    static_cast<uint16_t>(c0));
       position++;
       if (position >= source_length_) return Handle<String>::null();
       c0 = seq_source_->SeqOneByteStringGet(position);
@@ -845,6 +840,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
   return result;
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_JSON_PARSER_H_

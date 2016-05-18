@@ -1,4 +1,5 @@
 module.exports = exports = configure
+module.exports.test = { findPython: findPython }
 
 /**
  * Module dependencies.
@@ -19,6 +20,7 @@ var fs = require('graceful-fs')
   , spawn = cp.spawn
   , execFile = cp.execFile
   , win = process.platform == 'win32'
+  , findNodeDirectory = require('./find-node-directory')
 
 exports.usage = 'Generates ' + (win ? 'MSVC project files' : 'a Makefile') + ' for the current module'
 
@@ -31,97 +33,14 @@ function configure (gyp, argv, callback) {
     , nodeDir
     , release = processRelease(argv, gyp, process.version, process.release)
 
-  checkPython()
-
-  // Check if Python is in the $PATH
-  function checkPython () {
-    log.verbose('check python', 'checking for Python executable "%s" in the PATH', python)
-    which(python, function (err, execPath) {
-      if (err) {
-        log.verbose('`which` failed', python, err)
-        if (python === 'python2') {
-          python = 'python'
-          return checkPython()
-        }
-        if (win) {
-          guessPython()
-        } else {
-          failNoPython()
-        }
-      } else {
-        log.verbose('`which` succeeded', python, execPath)
-        checkPythonVersion()
-      }
-    })
-  }
-
-  // Called on Windows when "python" isn't available in the current $PATH.
-  // We're gonna check if "%SystemDrive%\python27\python.exe" exists.
-  function guessPython () {
-    log.verbose('could not find "' + python + '". guessing location')
-    var rootDir = process.env.SystemDrive || 'C:\\'
-    if (rootDir[rootDir.length - 1] !== '\\') {
-      rootDir += '\\'
+  findPython(python, function (err, found) {
+    if (err) {
+      callback(err)
+    } else {
+      python = found
+      getNodeDir()
     }
-    var pythonPath = path.resolve(rootDir, 'Python27', 'python.exe')
-    log.verbose('ensuring that file exists:', pythonPath)
-    fs.stat(pythonPath, function (err, stat) {
-      if (err) {
-        if (err.code == 'ENOENT') {
-          failNoPython()
-        } else {
-          callback(err)
-        }
-        return
-      }
-      python = pythonPath
-      checkPythonVersion()
-    })
-  }
-
-  function checkPythonVersion () {
-    var env = extend({}, process.env)
-    env.TERM = 'dumb'
-
-    execFile(python, ['-c', 'import platform; print(platform.python_version());'], { env: env }, function (err, stdout) {
-      if (err) {
-        return callback(err)
-      }
-      log.verbose('check python version', '`%s -c "import platform; print(platform.python_version());"` returned: %j', python, stdout)
-      var version = stdout.trim()
-      if (~version.indexOf('+')) {
-        log.silly('stripping "+" sign(s) from version')
-        version = version.replace(/\+/g, '')
-      }
-      if (~version.indexOf('rc')) {
-        log.silly('stripping "rc" identifier from version')
-        version = version.replace(/rc(.*)$/ig, '')
-      }
-      var range = semver.Range('>=2.5.0 <3.0.0')
-      var valid = false
-      try {
-        valid = range.test(version)
-      } catch (e) {
-        log.silly('range.test() error', e)
-      }
-      if (valid) {
-        getNodeDir()
-      } else {
-        failPythonVersion(version)
-      }
-    })
-  }
-
-  function failNoPython () {
-    callback(new Error('Can\'t find Python executable "' + python +
-          '", you can set the PYTHON env variable.'))
-  }
-
-  function failPythonVersion (badVersion) {
-    callback(new Error('Python executable "' + python +
-          '" is v' + badVersion + ', which is not supported by gyp.\n' +
-          'You can pass the --python switch to point to Python >= v2.5.0 & < 3.0.0.'))
-  }
+  })
 
   function getNodeDir () {
 
@@ -299,6 +218,34 @@ function configure (gyp, argv, callback) {
       argv.push('-I', config)
     })
 
+    // for AIX we need to set up the path to the exp file
+    // which contains the symbols needed for linking.
+    // The file will either be in one of the following
+    // depending on whether it is an installed or
+    // development environment:
+    //  - the include/node directory
+    //  - the out/Release directory
+    //  - the out/Debug directory
+    //  - the root directory
+    var node_exp_file = ''
+    if (process.platform === 'aix') {
+      var node_root_dir = findNodeDirectory()
+      var candidates = ['include/node/node.exp',
+                        'out/Release/node.exp',
+                        'out/Debug/node.exp',
+                        'node.exp']
+      for (var next = 0; next < candidates.length; next++) {
+         node_exp_file = path.resolve(node_root_dir, candidates[next])
+         try {
+           fs.accessSync(node_exp_file, fs.R_OK)
+           // exp file found, stop looking
+           break
+         } catch (exception) {
+           // this candidate was not found or not readable, do nothing
+         }
+      }
+    }
+
     // this logic ported from the old `gyp_addon` python file
     var gyp_script = path.resolve(__dirname, '..', 'gyp', 'gyp_main.py')
     var addon_gypi = path.resolve(__dirname, '..', 'addon.gypi')
@@ -319,6 +266,9 @@ function configure (gyp, argv, callback) {
       argv.push('-Dlibrary=shared_library')
       argv.push('-Dvisibility=default')
       argv.push('-Dnode_root_dir=' + nodeDir)
+      if (process.platform === 'aix') {
+        argv.push('-Dnode_exp_file=' + node_exp_file)
+      }
       argv.push('-Dnode_gyp_dir=' + nodeGypDir)
       argv.push('-Dnode_lib_file=' + release.name + '.lib')
       argv.push('-Dmodule_root_dir=' + process.cwd())
@@ -359,4 +309,102 @@ function configure (gyp, argv, callback) {
     }
   }
 
+}
+
+function findPython (python, callback) {
+  checkPython()
+
+  // Check if Python is in the $PATH
+  function checkPython () {
+    log.verbose('check python', 'checking for Python executable "%s" in the PATH', python)
+    which(python, function (err, execPath) {
+      if (err) {
+        log.verbose('`which` failed', python, err)
+        if (python === 'python2') {
+          python = 'python'
+          return checkPython()
+        }
+        if (win) {
+          guessPython()
+        } else {
+          failNoPython()
+        }
+      } else {
+        log.verbose('`which` succeeded', python, execPath)
+        // Found the `python` exceutable, and from now on we use it explicitly.
+        // This solves #667 and #750 (`execFile` won't run batch files
+        // (*.cmd, and *.bat))
+        python = execPath
+        checkPythonVersion()
+      }
+    })
+  }
+
+  // Called on Windows when "python" isn't available in the current $PATH.
+  // We're gonna check if "%SystemDrive%\python27\python.exe" exists.
+  function guessPython () {
+    log.verbose('could not find "' + python + '". guessing location')
+    var rootDir = process.env.SystemDrive || 'C:\\'
+    if (rootDir[rootDir.length - 1] !== '\\') {
+      rootDir += '\\'
+    }
+    var pythonPath = path.resolve(rootDir, 'Python27', 'python.exe')
+    log.verbose('ensuring that file exists:', pythonPath)
+    fs.stat(pythonPath, function (err, stat) {
+      if (err) {
+        if (err.code == 'ENOENT') {
+          failNoPython()
+        } else {
+          callback(err)
+        }
+        return
+      }
+      python = pythonPath
+      checkPythonVersion()
+    })
+  }
+
+  function checkPythonVersion () {
+    var env = extend({}, process.env)
+    env.TERM = 'dumb'
+
+    execFile(python, ['-c', 'import platform; print(platform.python_version());'], { env: env }, function (err, stdout) {
+      if (err) {
+        return callback(err)
+      }
+      log.verbose('check python version', '`%s -c "import platform; print(platform.python_version());"` returned: %j', python, stdout)
+      var version = stdout.trim()
+      if (~version.indexOf('+')) {
+        log.silly('stripping "+" sign(s) from version')
+        version = version.replace(/\+/g, '')
+      }
+      if (~version.indexOf('rc')) {
+        log.silly('stripping "rc" identifier from version')
+        version = version.replace(/rc(.*)$/ig, '')
+      }
+      var range = semver.Range('>=2.5.0 <3.0.0')
+      var valid = false
+      try {
+        valid = range.test(version)
+      } catch (e) {
+        log.silly('range.test() error', e)
+      }
+      if (valid) {
+        callback(null, python)
+      } else {
+        failPythonVersion(version)
+      }
+    })
+  }
+
+  function failNoPython () {
+    callback(new Error('Can\'t find Python executable "' + python +
+          '", you can set the PYTHON env variable.'))
+  }
+
+  function failPythonVersion (badVersion) {
+    callback(new Error('Python executable "' + python +
+          '" is v' + badVersion + ', which is not supported by gyp.\n' +
+          'You can pass the --python switch to point to Python >= v2.5.0 & < 3.0.0.'))
+  }
 }

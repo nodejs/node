@@ -1,13 +1,18 @@
-/* eslint-disable strict, required-modules */
+'use strict';
+
+const common = require('../common');
+
 try {
   var crypto = require('crypto');
 } catch (e) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL.');
+  common.skip('node compiled without OpenSSL.');
   return;
 }
 
-// the missing var keyword is intentional
-domain = require('domain');
+// Pollution of global is intentional as part of test.
+common.globalCheck = false;
+// See https://github.com/nodejs/node/commit/d1eff9ab
+global.domain = require('domain');
 
 // should not throw a 'TypeError: undefined is not a function' exception
 crypto.randomBytes(8);

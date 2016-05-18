@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var fs = require('fs');
 var path = require('path');
@@ -21,4 +21,4 @@ config = JSON.parse(config, function(key, value) {
   return value;
 });
 
-assert.deepEqual(config, process.config);
+assert.deepStrictEqual(config, process.config);

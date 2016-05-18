@@ -2,24 +2,32 @@
  * @fileoverview Main ESLint object.
  * @author Nicholas C. Zakas
  */
+
 "use strict";
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-var estraverse = require("estraverse-fb"),
+var lodash = require("lodash"),
+    Traverser = require("./util/traverser"),
     escope = require("escope"),
-    environments = require("../conf/environments"),
-    assign = require("object-assign"),
+    Environments = require("./config/environments"),
+    blankScriptAST = require("../conf/blank-script.json"),
     rules = require("./rules"),
-    util = require("./util"),
     RuleContext = require("./rule-context"),
     timing = require("./timing"),
-    createTokenStore = require("./token-store.js"),
+    SourceCode = require("./util/source-code"),
+    NodeEventGenerator = require("./util/node-event-generator"),
+    CommentEventGenerator = require("./util/comment-event-generator"),
     EventEmitter = require("events").EventEmitter,
-    escapeRegExp = require("escape-string-regexp"),
-    validator = require("./config-validator");
+    ConfigOps = require("./config/config-ops"),
+    validator = require("./config/config-validator"),
+    replacements = require("../conf/replacements.json"),
+    assert = require("assert"),
+    CodePathAnalyzer = require("./code-path-analysis/code-path-analyzer");
+
+var DEFAULT_PARSER = require("../conf/eslint.json").parser;
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -29,26 +37,34 @@ var estraverse = require("estraverse-fb"),
  * Parses a list of "name:boolean_value" or/and "name" options divided by comma or
  * whitespace.
  * @param {string} string The string to parse.
+ * @param {Comment} comment The comment node which has the string.
  * @returns {Object} Result map object of names and boolean values
  */
-function parseBooleanConfig(string) {
+function parseBooleanConfig(string, comment) {
     var items = {};
+
     // Collapse whitespace around : to make parsing easier
     string = string.replace(/\s*:\s*/g, ":");
+
     // Collapse whitespace around ,
     string = string.replace(/\s*,\s*/g, ",");
+
     string.split(/\s|,+/).forEach(function(name) {
         if (!name) {
             return;
         }
         var pos = name.indexOf(":"),
             value;
+
         if (pos !== -1) {
             value = name.substring(pos + 1, name.length);
             name = name.substring(0, pos);
         }
 
-        items[name] = (value === "true");
+        items[name] = {
+            value: (value === "true"),
+            comment: comment
+        };
 
     });
     return items;
@@ -63,17 +79,20 @@ function parseBooleanConfig(string) {
  */
 function parseJsonConfig(string, location, messages) {
     var items = {};
+
     string = string.replace(/([a-zA-Z0-9\-\/]+):/g, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/, "$1,");
     try {
         items = JSON.parse("{" + string + "}");
-    } catch(ex) {
+    } catch (ex) {
 
         messages.push({
+            ruleId: null,
             fatal: true,
             severity: 2,
+            source: null,
             message: "Failed to parse JSON from '" + string + "': " + ex.message,
             line: location.start.line,
-            column: location.start.column
+            column: location.start.column + 1
         });
 
     }
@@ -88,8 +107,10 @@ function parseJsonConfig(string, location, messages) {
  */
 function parseListConfig(string) {
     var items = {};
+
     // Collapse whitespace around ,
     string = string.replace(/\s*,\s*/g, ",");
+
     string.split(/,+/).forEach(function(name) {
         name = name.trim();
         if (!name) {
@@ -98,25 +119,6 @@ function parseListConfig(string) {
         items[name] = true;
     });
     return items;
-}
-
-/**
- * @param {Scope} scope The scope object to check.
- * @param {string} name The name of the variable to look up.
- * @returns {Variable} The variable object if found or null if not.
- */
-function getVariable(scope, name) {
-    var variable = null;
-    scope.variables.some(function(v) {
-        if (v.name === name) {
-            variable = v;
-            return true;
-        } else {
-            return false;
-        }
-
-    });
-    return variable;
 }
 
 /**
@@ -130,41 +132,83 @@ function getVariable(scope, name) {
  */
 function addDeclaredGlobals(program, globalScope, config) {
     var declaredGlobals = {},
+        exportedGlobals = {},
         explicitGlobals = {},
-        builtin = environments.builtin;
+        builtin = Environments.get("builtin");
 
-    assign(declaredGlobals, builtin);
+    lodash.assign(declaredGlobals, builtin);
 
-    Object.keys(config.env).forEach(function (name) {
+    Object.keys(config.env).forEach(function(name) {
         if (config.env[name]) {
-            var environmentGlobals = environments[name] && environments[name].globals;
+            var env = Environments.get(name),
+                environmentGlobals = env && env.globals;
+
             if (environmentGlobals) {
-                assign(declaredGlobals, environmentGlobals);
+                lodash.assign(declaredGlobals, environmentGlobals);
             }
         }
     });
 
-    assign(declaredGlobals, config.globals);
-    assign(explicitGlobals, config.astGlobals);
+    lodash.assign(exportedGlobals, config.exported);
+    lodash.assign(declaredGlobals, config.globals);
+    lodash.assign(explicitGlobals, config.astGlobals);
 
     Object.keys(declaredGlobals).forEach(function(name) {
-        var variable = getVariable(globalScope, name);
+        var variable = globalScope.set.get(name);
+
         if (!variable) {
             variable = new escope.Variable(name, globalScope);
             variable.eslintExplicitGlobal = false;
             globalScope.variables.push(variable);
+            globalScope.set.set(name, variable);
         }
         variable.writeable = declaredGlobals[name];
     });
 
     Object.keys(explicitGlobals).forEach(function(name) {
-        var variable = getVariable(globalScope, name);
+        var variable = globalScope.set.get(name);
+
         if (!variable) {
             variable = new escope.Variable(name, globalScope);
             variable.eslintExplicitGlobal = true;
+            variable.eslintExplicitGlobalComment = explicitGlobals[name].comment;
             globalScope.variables.push(variable);
+            globalScope.set.set(name, variable);
         }
-        variable.writeable = explicitGlobals[name];
+        variable.writeable = explicitGlobals[name].value;
+    });
+
+    // mark all exported variables as such
+    Object.keys(exportedGlobals).forEach(function(name) {
+        var variable = globalScope.set.get(name);
+
+        if (variable) {
+            variable.eslintUsed = true;
+        }
+    });
+
+    /*
+     * "through" contains all references which definitions cannot be found.
+     * Since we augment the global scope using configuration, we need to update
+     * references and remove the ones that were added by configuration.
+     */
+    globalScope.through = globalScope.through.filter(function(reference) {
+        var name = reference.identifier.name;
+        var variable = globalScope.set.get(name);
+
+        if (variable) {
+
+            /*
+             * Links the variable and the reference.
+             * And this reference is removed from `Scope#through`.
+             */
+            reference.resolved = variable;
+            variable.references.push(reference);
+
+            return false;
+        }
+
+        return true;
     });
 }
 
@@ -209,15 +253,17 @@ function enableReporting(reportingConfig, start, rulesToEnable) {
     if (rulesToEnable.length) {
         rulesToEnable.forEach(function(rule) {
             for (i = reportingConfig.length - 1; i >= 0; i--) {
-                if (!reportingConfig[i].end && reportingConfig[i].rule === rule ) {
+                if (!reportingConfig[i].end && reportingConfig[i].rule === rule) {
                     reportingConfig[i].end = start;
                     break;
                 }
             }
         });
     } else {
+
         // find all previous disabled locations if they was started as list of rules
         var prevStart;
+
         for (i = reportingConfig.length - 1; i >= 0; i--) {
             if (prevStart && prevStart !== reportingConfig[i].start) {
                 break;
@@ -240,11 +286,12 @@ function enableReporting(reportingConfig, start, rulesToEnable) {
  * @param {Object} config The existing configuration data.
  * @param {Object[]} reportingConfig The existing reporting configuration data.
  * @param {Object[]} messages The messages queue.
- * @returns {void}
+ * @returns {object} Modified config object
  */
 function modifyConfigsFromComments(filename, ast, config, reportingConfig, messages) {
 
     var commentConfig = {
+        exported: {},
         astGlobals: {},
         rules: {},
         env: {}
@@ -254,20 +301,24 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
     ast.comments.forEach(function(comment) {
 
         var value = comment.value.trim();
-        var match = /^(eslint-\w+|eslint-\w+-\w+|eslint|globals?)(\s|$)/.exec(value);
+        var match = /^(eslint(-\w+){0,3}|exported|globals?)(\s|$)/.exec(value);
 
         if (match) {
             value = value.substring(match.index + match[1].length);
 
             if (comment.type === "Block") {
                 switch (match[1]) {
+                    case "exported":
+                        lodash.assign(commentConfig.exported, parseBooleanConfig(value, comment));
+                        break;
+
                     case "globals":
                     case "global":
-                        assign(commentConfig.astGlobals, parseBooleanConfig(value));
+                        lodash.assign(commentConfig.astGlobals, parseBooleanConfig(value, comment));
                         break;
 
                     case "eslint-env":
-                        assign(commentConfig.env, parseListConfig(value));
+                        lodash.assign(commentConfig.env, parseListConfig(value));
                         break;
 
                     case "eslint-disable":
@@ -280,8 +331,10 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
 
                     case "eslint":
                         var items = parseJsonConfig(value, comment.loc, messages);
+
                         Object.keys(items).forEach(function(name) {
                             var ruleValue = items[name];
+
                             validator.validateRuleOptions(name, ruleValue, filename + " line " + comment.loc.start.line);
                             commentRules[name] = ruleValue;
                         });
@@ -289,25 +342,29 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
 
                     // no default
                 }
-            } else {
-                // comment.type === "Line"
+            } else {        // comment.type === "Line"
                 if (match[1] === "eslint-disable-line") {
-                    disableReporting(reportingConfig, { "line": comment.loc.start.line, "column": 0 }, Object.keys(parseListConfig(value)));
+                    disableReporting(reportingConfig, { line: comment.loc.start.line, column: 0 }, Object.keys(parseListConfig(value)));
                     enableReporting(reportingConfig, comment.loc.end, Object.keys(parseListConfig(value)));
+                } else if (match[1] === "eslint-disable-next-line") {
+                    disableReporting(reportingConfig, comment.loc.start, Object.keys(parseListConfig(value)));
+                    enableReporting(reportingConfig, { line: comment.loc.start.line + 2 }, Object.keys(parseListConfig(value)));
                 }
             }
         }
     });
 
     // apply environment configs
-    Object.keys(commentConfig.env).forEach(function (name) {
-        if (environments[name]) {
-            util.mergeConfigs(commentConfig, environments[name]);
+    Object.keys(commentConfig.env).forEach(function(name) {
+        var env = Environments.get(name);
+
+        if (env) {
+            commentConfig = ConfigOps.merge(commentConfig, env);
         }
     });
-    assign(commentConfig.rules, commentRules);
+    lodash.assign(commentConfig.rules, commentRules);
 
-    util.mergeConfigs(config, commentConfig);
+    return ConfigOps.merge(config, commentConfig);
 }
 
 /**
@@ -322,6 +379,7 @@ function isDisabledByReportingConfig(reportingConfig, ruleId, location) {
     for (var i = 0, c = reportingConfig.length; i < c; i++) {
 
         var ignore = reportingConfig[i];
+
         if ((!ignore.rule || ignore.rule === ruleId) &&
             (location.line > ignore.start.line || (location.line === ignore.start.line && location.column >= ignore.start.column)) &&
             (!ignore.end || (location.line < ignore.end.line || (location.line === ignore.end.line && location.column <= ignore.end.column)))) {
@@ -343,12 +401,13 @@ function prepareConfig(config) {
     delete config.global;
 
     var copiedRules = {},
-        ecmaFeatures = {},
+        parserOptions = {},
         preparedConfig;
 
     if (typeof config.rules === "object") {
         Object.keys(config.rules).forEach(function(k) {
             var rule = config.rules[k];
+
             if (rule === null) {
                 throw new Error("Invalid config for rule '" + k + "'\.");
             }
@@ -360,30 +419,121 @@ function prepareConfig(config) {
         });
     }
 
-    // merge in environment ecmaFeatures
+    // merge in environment parserOptions
     if (typeof config.env === "object") {
-        Object.keys(config.env).forEach(function(env) {
-            if (config.env[env] && environments[env].ecmaFeatures) {
-                assign(ecmaFeatures, environments[env].ecmaFeatures);
+        Object.keys(config.env).forEach(function(envName) {
+            var env = Environments.get(envName);
+
+            if (config.env[envName] && env && env.parserOptions) {
+                parserOptions = ConfigOps.merge(parserOptions, env.parserOptions);
             }
         });
     }
 
     preparedConfig = {
         rules: copiedRules,
-        parser: config.parser || "espree",
-        globals: util.mergeConfigs({}, config.globals),
-        env: util.mergeConfigs({}, config.env || {}),
-        settings: util.mergeConfigs({}, config.settings || {}),
-        ecmaFeatures: util.mergeConfigs(ecmaFeatures, config.ecmaFeatures || {})
+        parser: config.parser || DEFAULT_PARSER,
+        globals: ConfigOps.merge({}, config.globals),
+        env: ConfigOps.merge({}, config.env || {}),
+        settings: ConfigOps.merge({}, config.settings || {}),
+        parserOptions: ConfigOps.merge(parserOptions, config.parserOptions || {})
     };
 
-    // can't have global return inside of modules
-    if (preparedConfig.ecmaFeatures.modules) {
-        preparedConfig.ecmaFeatures.globalReturn = false;
+    if (preparedConfig.parserOptions.sourceType === "module") {
+        if (!preparedConfig.parserOptions.ecmaFeatures) {
+            preparedConfig.parserOptions.ecmaFeatures = {};
+        }
+
+        // can't have global return inside of modules
+        preparedConfig.parserOptions.ecmaFeatures.globalReturn = false;
+
+        // also need at least ES6 for modules
+        if (!preparedConfig.parserOptions.ecmaVersion || preparedConfig.parserOptions.ecmaVersion < 6) {
+            preparedConfig.parserOptions.ecmaVersion = 6;
+        }
     }
 
     return preparedConfig;
+}
+
+/**
+ * Provide a stub rule with a given message
+ * @param  {string} message The message to be displayed for the rule
+ * @returns {Function}      Stub rule function
+ */
+function createStubRule(message) {
+
+    /**
+     * Creates a fake rule object
+     * @param {object} context context object for each rule
+     * @returns {object} collection of node to listen on
+     */
+    function createRuleModule(context) {
+        return {
+            Program: function(node) {
+                context.report(node, message);
+            }
+        };
+    }
+
+    if (message) {
+        return createRuleModule;
+    } else {
+        throw new Error("No message passed to stub rule");
+    }
+}
+
+/**
+ * Provide a rule replacement message
+ * @param  {string} ruleId Name of the rule
+ * @returns {string}       Message detailing rule replacement
+ */
+function getRuleReplacementMessage(ruleId) {
+    if (ruleId in replacements.rules) {
+        var newRules = replacements.rules[ruleId];
+
+        return "Rule \'" + ruleId + "\' was removed and replaced by: " + newRules.join(", ");
+    }
+
+    return null;
+}
+
+var eslintEnvPattern = /\/\*\s*eslint-env\s(.+?)\*\//g;
+
+/**
+ * Checks whether or not there is a comment which has "eslint-env *" in a given text.
+ * @param {string} text - A source code text to check.
+ * @returns {object|null} A result of parseListConfig() with "eslint-env *" comment.
+ */
+function findEslintEnv(text) {
+    var match, retv;
+
+    eslintEnvPattern.lastIndex = 0;
+
+    while ((match = eslintEnvPattern.exec(text))) {
+        retv = lodash.assign(retv || {}, parseListConfig(match[1]));
+    }
+
+    return retv;
+}
+
+/**
+ * Strips Unicode BOM from a given text.
+ *
+ * @param {string} text - A text to strip.
+ * @returns {string} The stripped text.
+ */
+function stripUnicodeBOM(text) {
+
+    /*
+     * Check Unicode BOM.
+     * In JavaScript, string data is stored as UTF-16, so BOM is 0xFEFF.
+     * http://www.ecma-international.org/ecma-262/6.0/#sec-unicode-format-control-characters
+     */
+    if (text.charCodeAt(0) === 0xFEFF) {
+        return text.slice(1);
+    }
+    return text;
 }
 
 //------------------------------------------------------------------------------
@@ -398,19 +548,14 @@ module.exports = (function() {
 
     var api = Object.create(new EventEmitter()),
         messages = [],
-        currentText = null,
-        currentTextLines = [],
         currentConfig = null,
-        currentTokens = null,
         currentScopes = null,
         scopeMap = null,
         scopeManager = null,
         currentFilename = null,
-        controller = null,
+        traverser = null,
         reportingConfig = [],
-        commentLocsEnter = [],
-        commentLocsExit = [],
-        currentAST = null;
+        sourceCode = null;
 
     /**
      * Parses text into an AST. Moved out here because the try-catch prevents
@@ -423,20 +568,35 @@ module.exports = (function() {
      */
     function parse(text, config) {
 
-        var parser;
+        var parser,
+            parserOptions = {
+                loc: true,
+                range: true,
+                raw: true,
+                tokens: true,
+                comment: true,
+                attachComment: true
+            };
 
         try {
             parser = require(config.parser);
         } catch (ex) {
             messages.push({
+                ruleId: null,
                 fatal: true,
                 severity: 2,
+                source: null,
                 message: ex.message,
                 line: 0,
                 column: 0
             });
 
             return null;
+        }
+
+        // merge in any additional parser options
+        if (config.parserOptions) {
+            parserOptions = lodash.assign({}, config.parserOptions, parserOptions);
         }
 
         /*
@@ -446,25 +606,19 @@ module.exports = (function() {
          * problem that ESLint identified just like any other.
          */
         try {
-            return parser.parse(text, {
-                loc: true,
-                range: true,
-                raw: true,
-                tokens: true,
-                comment: true,
-                attachComment: true,
-                ecmaFeatures: config.ecmaFeatures
-            });
+            return parser.parse(text, parserOptions);
         } catch (ex) {
 
             // If the message includes a leading line number, strip it:
             var message = ex.message.replace(/^line \d+:/i, "").trim();
+            var source = (ex.lineNumber) ? SourceCode.splitLines(text)[ex.lineNumber - 1] : null;
 
             messages.push({
+                ruleId: null,
                 fatal: true,
                 severity: 2,
-
-                message: message,
+                source: source,
+                message: "Parsing error: " + message,
 
                 line: ex.lineNumber,
                 column: ex.column
@@ -472,46 +626,6 @@ module.exports = (function() {
 
             return null;
         }
-    }
-
-    /**
-     * Check collection of comments to prevent double event for comment as
-     * leading and trailing, then emit event if passing
-     * @param {ASTNode[]} comments Collection of comment nodes
-     * @param {Object[]} locs List of locations of previous comment nodes
-     * @param {string} eventName Event name postfix
-     * @returns {void}
-     */
-    function emitComments(comments, locs, eventName) {
-
-        if (comments.length) {
-            comments.forEach(function(node) {
-                if (locs.indexOf(node.loc) >= 0) {
-                    locs.splice(locs.indexOf(node.loc), 1);
-                } else {
-                    locs.push(node.loc);
-                    api.emit(node.type + eventName, node);
-                }
-            });
-        }
-    }
-
-    /**
-     * Shortcut to check and emit enter of comment nodes
-     * @param {ASTNode[]} comments Collection of comment nodes
-     * @returns {void}
-     */
-    function emitCommentsEnter(comments) {
-        emitComments(comments, commentLocsEnter, "Comment");
-    }
-
-    /**
-     * Shortcut to check and emit exit of comment nodes
-     * @param {ASTNode[]} comments Collection of comment nodes
-     * @returns {void}
-     */
-    function emitCommentsExit(comments) {
-        emitComments(comments, commentLocsExit, "Comment:exit");
     }
 
     /**
@@ -553,118 +667,176 @@ module.exports = (function() {
     api.reset = function() {
         this.removeAllListeners();
         messages = [];
-        currentAST = null;
         currentConfig = null;
-        currentText = null;
-        currentTextLines = [];
-        currentTokens = null;
         currentScopes = null;
         scopeMap = null;
         scopeManager = null;
-        controller = null;
+        traverser = null;
         reportingConfig = [];
-        commentLocsEnter = [];
-        commentLocsExit = [];
+        sourceCode = null;
     };
 
     /**
+     * Configuration object for the `verify` API. A JS representation of the eslintrc files.
+     * @typedef {Object} ESLintConfig
+     * @property {Object} rules The rule configuration to verify against.
+     * @property {string} [parser] Parser to use when generatig the AST.
+     * @property {Object} [parserOptions] Options for the parsed used.
+     * @property {Object} [settings] Global settings passed to each rule.
+     * @property {Object} [env] The environment to verify in.
+     * @property {Object} [globals] Available globalsto the code.
+     */
+
+    /**
      * Verifies the text against the rules specified by the second argument.
-     * @param {string} text The JavaScript text to verify.
-     * @param {Object} config An object whose keys specify the rules to use.
-     * @param {string=} filename The optional filename of the file being checked.
-     *      If this is not set, the filename will default to '<input>' in the rule context.
-     * @param {boolean=} saveState Indicates if the state from the last run should be saved.
+     * @param {string|SourceCode} textOrSourceCode The text to parse or a SourceCode object.
+     * @param {ESLintConfig} config An ESLintConfig instance to configure everything.
+     * @param {(string|Object)} [filenameOrOptions] The optional filename of the file being checked.
+     *      If this is not set, the filename will default to '<input>' in the rule context. If
+     *      an object, then it has "filename", "saveState", and "allowInlineConfig" properties.
+     * @param {boolean} [saveState] Indicates if the state from the last run should be saved.
      *      Mostly useful for testing purposes.
+     * @param {boolean} [filenameOrOptions.allowInlineConfig] Allow/disallow inline comments' ability to change config once it is set. Defaults to true if not supplied.
+     *      Useful if you want to validate JS without comments overriding rules.
      * @returns {Object[]} The results as an array of messages or null if no messages.
      */
-    api.verify = function(text, config, filename, saveState) {
+    api.verify = function(textOrSourceCode, config, filenameOrOptions, saveState) {
 
         var ast,
             shebang,
             ecmaFeatures,
-            ecmaVersion;
+            ecmaVersion,
+            allowInlineConfig,
+            text = (typeof textOrSourceCode === "string") ? textOrSourceCode : null;
 
-        // set the current parsed filename
-        currentFilename = filename;
+        // evaluate arguments
+        if (typeof filenameOrOptions === "object") {
+            currentFilename = filenameOrOptions.filename;
+            allowInlineConfig = filenameOrOptions.allowInlineConfig;
+            saveState = filenameOrOptions.saveState;
+        } else {
+            currentFilename = filenameOrOptions;
+        }
 
         if (!saveState) {
             this.reset();
         }
 
-        // there's no input, just exit here
-        if (text.trim().length === 0) {
-            currentText = text;
-            return messages;
+        // search and apply "eslint-env *".
+        var envInFile = findEslintEnv(text || textOrSourceCode.text);
+
+        if (envInFile) {
+            if (!config || !config.env) {
+                config = lodash.assign({}, config || {}, {env: envInFile});
+            } else {
+                config = lodash.assign({}, config);
+                config.env = lodash.assign({}, config.env, envInFile);
+            }
         }
 
         // process initial config to make it safe to extend
         config = prepareConfig(config || {});
 
-        ast = parse(text.replace(/^#!([^\r\n]+)/, function(match, captured) {
-            shebang = captured;
-            return "//" + captured;
-        }), config);
+        // only do this for text
+        if (text !== null) {
+
+            // there's no input, just exit here
+            if (text.trim().length === 0) {
+                sourceCode = new SourceCode(text, blankScriptAST);
+                return messages;
+            }
+
+            ast = parse(
+                stripUnicodeBOM(text).replace(/^#!([^\r\n]+)/, function(match, captured) {
+                    shebang = captured;
+                    return "//" + captured;
+                }),
+                config
+            );
+
+            if (ast) {
+                sourceCode = new SourceCode(text, ast);
+            }
+
+        } else {
+            sourceCode = textOrSourceCode;
+            ast = sourceCode.ast;
+        }
 
         // if espree failed to parse the file, there's no sense in setting up rules
         if (ast) {
 
-            currentAST = ast;
-
             // parse global comments and modify config
-            modifyConfigsFromComments(filename, ast, config, reportingConfig, messages);
+            if (allowInlineConfig !== false) {
+                config = modifyConfigsFromComments(currentFilename, ast, config, reportingConfig, messages);
+            }
+
+            // ensure that severities are normalized in the config
+            ConfigOps.normalize(config);
 
             // enable appropriate rules
             Object.keys(config.rules).filter(function(key) {
                 return getRuleSeverity(config.rules[key]) > 0;
             }).forEach(function(key) {
-
-                var ruleCreator = rules.get(key),
-                    severity = getRuleSeverity(config.rules[key]),
-                    options = getRuleOptions(config.rules[key]),
+                var ruleCreator,
+                    severity,
+                    options,
                     rule;
 
-                if (ruleCreator) {
-                    try {
-                        rule = ruleCreator(new RuleContext(
-                            key, api, severity, options,
-                            config.settings, config.ecmaFeatures
-                        ));
+                ruleCreator = rules.get(key);
 
-                        // add all the node types as listeners
-                        Object.keys(rule).forEach(function(nodeType) {
-                            api.on(nodeType, timing.enabled
-                                ? timing.time(key, rule[nodeType])
-                                : rule[nodeType]
-                            );
-                        });
-                    } catch(ex) {
-                        ex.message = "Error while loading rule '" + key + "': " + ex.message;
-                        throw ex;
+                if (!ruleCreator) {
+                    var replacementMsg = getRuleReplacementMessage(key);
+
+                    if (replacementMsg) {
+                        ruleCreator = createStubRule(replacementMsg);
+                    } else {
+                        ruleCreator = createStubRule("Definition for rule '" + key + "' was not found");
                     }
+                    rules.define(key, ruleCreator);
+                }
 
-                } else {
-                    throw new Error("Definition for rule '" + key + "' was not found.");
+                severity = getRuleSeverity(config.rules[key]);
+                options = getRuleOptions(config.rules[key]);
+
+                try {
+                    var ruleContext = new RuleContext(
+                        key, api, severity, options,
+                        config.settings, config.parserOptions, config.parser, ruleCreator.meta);
+
+                    rule = ruleCreator.create ? ruleCreator.create(ruleContext) :
+                        ruleCreator(ruleContext);
+
+                    // add all the node types as listeners
+                    Object.keys(rule).forEach(function(nodeType) {
+                        api.on(nodeType, timing.enabled
+                            ? timing.time(key, rule[nodeType])
+                            : rule[nodeType]
+                        );
+                    });
+                } catch (ex) {
+                    ex.message = "Error while loading rule '" + key + "': " + ex.message;
+                    throw ex;
                 }
             });
 
             // save config so rules can access as necessary
             currentConfig = config;
-            currentText = text;
-            controller = new estraverse.Controller();
+            traverser = new Traverser();
 
-            ecmaFeatures = currentConfig.ecmaFeatures;
-            ecmaVersion = (ecmaFeatures.blockBindings || ecmaFeatures.classes ||
-                    ecmaFeatures.modules || ecmaFeatures.defaultParams ||
-                    ecmaFeatures.destructuring) ? 6 : 5;
+            ecmaFeatures = currentConfig.parserOptions.ecmaFeatures || {};
+            ecmaVersion = currentConfig.parserOptions.ecmaVersion || 5;
 
-
-            // gather data that may be needed by the rules
+            // gather scope data that may be needed by the rules
             scopeManager = escope.analyze(ast, {
                 ignoreEval: true,
                 nodejsScope: ecmaFeatures.globalReturn,
+                impliedStrict: ecmaFeatures.impliedStrict,
                 ecmaVersion: ecmaVersion,
-                sourceType: ecmaFeatures.modules ? "module" : "script"
+                sourceType: currentConfig.parserOptions.sourceType || "script",
+                fallback: Traverser.getKeys
             });
+
             currentScopes = scopeManager.scopes;
 
             /*
@@ -672,29 +844,17 @@ module.exports = (function() {
              * lookup in getScope.
              */
             scopeMap = [];
-            currentScopes.forEach(function (scope, index) {
+
+            currentScopes.forEach(function(scope, index) {
                 var range = scope.block.range[0];
 
-                // Sometimes two scopes are returned for a given node. This is
-                // handled later in a known way, so just don't overwrite here.
+                /*
+                 * Sometimes two scopes are returned for a given node. This is
+                 * handled later in a known way, so just don't overwrite here.
+                 */
                 if (!scopeMap[range]) {
                     scopeMap[range] = index;
                 }
-            });
-
-            /*
-             * Split text here into array of lines so
-             * it's not being done repeatedly
-             * by individual rules.
-             */
-            currentTextLines = currentText.split(/\r\n|\r|\n|\u2028|\u2029/g);
-
-            // Freezing so array isn't accidentally changed by a rule.
-            Object.freeze(currentTextLines);
-
-            currentTokens = createTokenStore(ast.tokens);
-            Object.keys(currentTokens).forEach(function(method) {
-                api[method] = currentTokens[method];
             });
 
             // augment global scope with declared global variables
@@ -709,31 +869,26 @@ module.exports = (function() {
                 }
             }
 
+            var eventGenerator = new NodeEventGenerator(api);
+
+            eventGenerator = new CodePathAnalyzer(eventGenerator);
+            eventGenerator = new CommentEventGenerator(eventGenerator, sourceCode);
+
             /*
-             * Each node has a type property. Whenever a particular type of node is found,
-             * an event is fired. This allows any listeners to automatically be informed
-             * that this type of node has been found and react accordingly.
+             * Each node has a type property. Whenever a particular type of
+             * node is found, an event is fired. This allows any listeners to
+             * automatically be informed that this type of node has been found
+             * and react accordingly.
              */
-            controller.traverse(ast, {
+            traverser.traverse(ast, {
                 enter: function(node, parent) {
-
-                    var comments = api.getComments(node);
-
-                    emitCommentsEnter(comments.leading);
                     node.parent = parent;
-                    api.emit(node.type, node);
-                    emitCommentsEnter(comments.trailing);
+                    eventGenerator.enterNode(node);
                 },
                 leave: function(node) {
-
-                    var comments = api.getComments(node);
-
-                    emitCommentsExit(comments.trailing);
-                    api.emit(node.type + ":exit", node);
-                    emitCommentsExit(comments.leading);
+                    eventGenerator.leaveNode(node);
                 }
             });
-
         }
 
         // sort by line and column
@@ -761,200 +916,108 @@ module.exports = (function() {
      * @param {string} message The actual message.
      * @param {Object} opts Optional template data which produces a formatted message
      *     with symbols being replaced by this object's values.
+     * @param {Object} fix A fix command description.
+     * @param {Object} meta Metadata of the rule
      * @returns {void}
      */
-    api.report = function(ruleId, severity, node, location, message, opts) {
+    api.report = function(ruleId, severity, node, location, message, opts, fix, meta) {
+        if (node) {
+            assert.strictEqual(typeof node, "object", "Node must be an object");
+        }
 
         if (typeof location === "string") {
+            assert.ok(node, "Node must be provided when reporting error if location is not provided");
+
+            meta = fix;
+            fix = opts;
             opts = message;
             message = location;
             location = node.loc.start;
         }
 
-        Object.keys(opts || {}).forEach(function (key) {
-            var rx = new RegExp(escapeRegExp("{{" + key + "}}"), "g");
-            message = message.replace(rx, opts[key]);
-        });
+        // else, assume location was provided, so node may be omitted
 
         if (isDisabledByReportingConfig(reportingConfig, ruleId, location)) {
             return;
         }
 
-        messages.push({
+        if (opts) {
+            message = message.replace(/\{\{\s*(.+?)\s*\}\}/g, function(fullMatch, term) {
+                if (term in opts) {
+                    return opts[term];
+                }
+
+                // Preserve old behavior: If parameter name not provided, don't replace it.
+                return fullMatch;
+            });
+        }
+
+        var problem = {
             ruleId: ruleId,
             severity: severity,
             message: message,
             line: location.line,
-            column: location.column,
-            nodeType: node.type,
-            source: currentTextLines[location.line - 1] || ""
-        });
-    };
-
-    /**
-     * Gets the source code for the given node.
-     * @param {ASTNode=} node The AST node to get the text for.
-     * @param {int=} beforeCount The number of characters before the node to retrieve.
-     * @param {int=} afterCount The number of characters after the node to retrieve.
-     * @returns {string} The text representing the AST node.
-     */
-    api.getSource = function(node, beforeCount, afterCount) {
-        if (node) {
-            return (currentText !== null) ? currentText.slice(Math.max(node.range[0] - (beforeCount || 0), 0),
-                node.range[1] + (afterCount || 0)) : null;
-        } else {
-            return currentText;
-        }
-
-    };
-
-    /**
-     * Gets the entire source text split into an array of lines.
-     * @returns {Array} The source text as an array of lines.
-     */
-    api.getSourceLines = function() {
-        return currentTextLines;
-    };
-
-    /**
-     * Retrieves an array containing all comments in the source code.
-     * @returns {ASTNode[]} An array of comment nodes.
-     */
-    api.getAllComments = function() {
-        return currentAST.comments;
-    };
-
-    /**
-     * Gets all comments for the given node.
-     * @param {ASTNode} node The AST node to get the comments for.
-     * @returns {Object} The list of comments indexed by their position.
-     */
-    api.getComments = function(node) {
-
-        var leadingComments = node.leadingComments || [],
-            trailingComments = node.trailingComments || [];
-
-        /*
-         * espree adds a "comments" array on Program nodes rather than
-         * leadingComments/trailingComments. Comments are only left in the
-         * Program node comments array if there is no executable code.
-         */
-        if (node.type === "Program") {
-            if (node.body.length === 0) {
-                leadingComments = node.comments;
-            }
-        }
-
-        return {
-            leading: leadingComments,
-            trailing: trailingComments
+            column: location.column + 1,   // switch to 1-base instead of 0-base
+            nodeType: node && node.type,
+            source: sourceCode.lines[location.line - 1] || ""
         };
+
+        // ensure there's range and text properties as well as metadata switch, otherwise it's not a valid fix
+        if (fix && Array.isArray(fix.range) && (typeof fix.text === "string") && (!meta || meta.fixable)) {
+            problem.fix = fix;
+        }
+
+        messages.push(problem);
     };
 
     /**
-     * Retrieves the JSDoc comment for a given node.
-     * @param {ASTNode} node The AST node to get the comment for.
-     * @returns {ASTNode} The BlockComment node containing the JSDoc for the
-     *      given node or null if not found.
+     * Gets the SourceCode object representing the parsed source.
+     * @returns {SourceCode} The SourceCode object.
      */
-    api.getJSDocComment = function(node) {
-
-        var parent = node.parent,
-            line = node.loc.start.line;
-
-        /**
-         * Finds a JSDoc comment node in an array of comment nodes.
-         * @param {ASTNode[]} comments The array of comment nodes to search.
-         * @returns {ASTNode} The node if found, null if not.
-         * @private
-         */
-        function findJSDocComment(comments) {
-
-            if (comments) {
-                for (var i = comments.length - 1; i >= 0; i--) {
-                    if (comments[i].type === "Block" && comments[i].value.charAt(0) === "*") {
-
-                        if (line - comments[i].loc.end.line <= 1) {
-                            return comments[i];
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        /**
-         * Check to see if its a ES6 export declaration
-         * @param {ASTNode} astNode - any node
-         * @returns {boolean} whether the given node represents a export declaration
-         */
-        function looksLikeExport(astNode) {
-            return astNode.type === "ExportDefaultDeclaration" || astNode.type === "ExportNamedDeclaration" ||
-                astNode.type === "ExportAllDeclaration" || astNode.type === "ExportSpecifier";
-        }
-
-        switch (node.type) {
-            case "FunctionDeclaration":
-                if (looksLikeExport(parent)) {
-                    return findJSDocComment(parent.leadingComments);
-                } else {
-                    return findJSDocComment(node.leadingComments);
-                }
-                break;
-
-            case "ArrowFunctionExpression":
-            case "FunctionExpression":
-
-                if (parent.type !== "CallExpression" || parent.callee !== node) {
-                    while (parent && !parent.leadingComments && !/Function/.test(parent.type)) {
-                        parent = parent.parent;
-                    }
-
-                    return parent && (parent.type !== "FunctionDeclaration") ? findJSDocComment(parent.leadingComments) : null;
-                }
-
-                // falls through
-
-            default:
-                return null;
-        }
+    api.getSourceCode = function() {
+        return sourceCode;
     };
+
+    // methods that exist on SourceCode object
+    var externalMethods = {
+        getSource: "getText",
+        getSourceLines: "getLines",
+        getAllComments: "getAllComments",
+        getNodeByRangeIndex: "getNodeByRangeIndex",
+        getComments: "getComments",
+        getJSDocComment: "getJSDocComment",
+        getFirstToken: "getFirstToken",
+        getFirstTokens: "getFirstTokens",
+        getLastToken: "getLastToken",
+        getLastTokens: "getLastTokens",
+        getTokenAfter: "getTokenAfter",
+        getTokenBefore: "getTokenBefore",
+        getTokenByRangeStart: "getTokenByRangeStart",
+        getTokens: "getTokens",
+        getTokensAfter: "getTokensAfter",
+        getTokensBefore: "getTokensBefore",
+        getTokensBetween: "getTokensBetween"
+    };
+
+    // copy over methods
+    Object.keys(externalMethods).forEach(function(methodName) {
+        var exMethodName = externalMethods[methodName];
+
+        // All functions expected to have less arguments than 5.
+        api[methodName] = function(a, b, c, d, e) {
+            if (sourceCode) {
+                return sourceCode[exMethodName](a, b, c, d, e);
+            }
+            return null;
+        };
+    });
 
     /**
      * Gets nodes that are ancestors of current node.
      * @returns {ASTNode[]} Array of objects representing ancestors.
      */
     api.getAncestors = function() {
-        return controller.parents();
-    };
-
-    /**
-     * Gets the deepest node containing a range index.
-     * @param {int} index Range index of the desired node.
-     * @returns {ASTNode} [description]
-     */
-    api.getNodeByRangeIndex = function(index) {
-        var result = null;
-
-        estraverse.traverse(controller.root, {
-            enter: function (node) {
-                if (node.range[0] <= index && index < node.range[1]) {
-                    result = node;
-                } else {
-                    this.skip();
-                }
-            },
-            leave: function (node) {
-                if (node === result) {
-                    this.break();
-                }
-            }
-        });
-
-        return result;
+        return traverser.parents();
     };
 
     /**
@@ -962,23 +1025,30 @@ module.exports = (function() {
      * @returns {Object} An object representing the current node's scope.
      */
     api.getScope = function() {
-        var parents = controller.parents(),
+        var parents = traverser.parents(),
             scope = currentScopes[0];
 
         // Don't do this for Program nodes - they have no parents
         if (parents.length) {
 
-            // if current node is function declaration, add it to the list
-            var current = controller.current();
-            if (["FunctionDeclaration", "FunctionExpression",
-                    "ArrowFunctionExpression", "SwitchStatement"].indexOf(current.type) >= 0) {
-                parents.push(current);
+            // if current node introduces a scope, add it to the list
+            var current = traverser.current();
+
+            if (currentConfig.parserOptions.ecmaVersion >= 6) {
+                if (["BlockStatement", "SwitchStatement", "CatchClause", "FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].indexOf(current.type) >= 0) {
+                    parents.push(current);
+                }
+            } else {
+                if (["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"].indexOf(current.type) >= 0) {
+                    parents.push(current);
+                }
             }
 
             // Ascend the current node's parents
             for (var i = parents.length - 1; i >= 0; --i) {
 
-                scope = scopeManager.acquire(parents[i]);
+                // Get the innermost scope
+                scope = scopeManager.acquire(parents[i], true);
                 if (scope) {
                     if (scope.type === "function-expression-name") {
                         return scope.childScopes[0];
@@ -1002,7 +1072,8 @@ module.exports = (function() {
      */
     api.markVariableAsUsed = function(name) {
         var scope = this.getScope(),
-            specialScope = currentConfig.ecmaFeatures.globalReturn || currentConfig.ecmaFeatures.modules,
+            hasGlobalReturn = currentConfig.parserOptions.ecmaFeatures && currentConfig.parserOptions.ecmaFeatures.globalReturn,
+            specialScope = hasGlobalReturn || currentConfig.parserOptions.sourceType === "module",
             variables,
             i,
             len;
@@ -1020,7 +1091,7 @@ module.exports = (function() {
                     return true;
                 }
             }
-        } while ( (scope = scope.upper) );
+        } while ((scope = scope.upper));
 
         return false;
     };
@@ -1065,6 +1136,29 @@ module.exports = (function() {
      */
     api.defaults = function() {
         return require("../conf/eslint.json");
+    };
+
+    /**
+     * Gets variables that are declared by a specified node.
+     *
+     * The variables are its `defs[].node` or `defs[].parent` is same as the specified node.
+     * Specifically, below:
+     *
+     * - `VariableDeclaration` - variables of its all declarators.
+     * - `VariableDeclarator` - variables.
+     * - `FunctionDeclaration`/`FunctionExpression` - its function name and parameters.
+     * - `ArrowFunctionExpression` - its parameters.
+     * - `ClassDeclaration`/`ClassExpression` - its class name.
+     * - `CatchClause` - variables of its exception.
+     * - `ImportDeclaration` - variables of  its all specifiers.
+     * - `ImportSpecifier`/`ImportDefaultSpecifier`/`ImportNamespaceSpecifier` - a variable.
+     * - others - always an empty array.
+     *
+     * @param {ASTNode} node A node to get.
+     * @returns {escope.Variable[]} Variables that are declared by the node.
+     */
+    api.getDeclaredVariables = function(node) {
+        return (scopeManager && scopeManager.getDeclaredVariables(node)) || [];
     };
 
     return api;

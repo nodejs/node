@@ -39,6 +39,21 @@
 namespace node {
 namespace crypto {
 
+// Forcibly clear OpenSSL's error stack on return. This stops stale errors
+// from popping up later in the lifecycle of crypto operations where they
+// would cause spurious failures. It's a rather blunt method, though.
+// ERR_clear_error() isn't necessarily cheap either.
+struct ClearErrorOnReturn {
+  ~ClearErrorOnReturn() { ERR_clear_error(); }
+};
+
+// Pop errors from OpenSSL's error stack that were added
+// between when this was constructed and destructed.
+struct MarkPopErrorOnReturn {
+  MarkPopErrorOnReturn() { ERR_set_mark(); }
+  ~MarkPopErrorOnReturn() { ERR_pop_to_mark(); }
+};
+
 enum CheckResult {
   CHECK_CERT_REVOKED = 0,
   CHECK_OK = 1
@@ -233,6 +248,7 @@ class SSLWrap {
   static void RequestOCSP(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetEphemeralKeyInfo(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetProtocol(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef SSL_set_max_send_fragment
   static void SetMaxSendFragment(
@@ -522,6 +538,7 @@ class Hash : public BaseObject {
   EVP_MD_CTX mdctx_; /* coverity[member_decl] */
   const EVP_MD* md_; /* coverity[member_decl] */
   bool initialised_;
+  bool finalized_;
 };
 
 class SignBase : public BaseObject {
@@ -714,29 +731,6 @@ class ECDH : public BaseObject {
 
   EC_KEY* key_;
   const EC_GROUP* group_;
-};
-
-class Certificate : public AsyncWrap {
- public:
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
-
-  v8::Local<v8::Value> CertificateInit(const char* sign_type);
-  bool VerifySpkac(const char* data, unsigned int len);
-  const char* ExportPublicKey(const char* data, int len);
-  const char* ExportChallenge(const char* data, int len);
-
-  size_t self_size() const override { return sizeof(*this); }
-
- protected:
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void VerifySpkac(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ExportPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void ExportChallenge(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  Certificate(Environment* env, v8::Local<v8::Object> wrap)
-      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO) {
-    MakeWeak<Certificate>(this);
-  }
 };
 
 bool EntropySource(unsigned char* buffer, size_t length);

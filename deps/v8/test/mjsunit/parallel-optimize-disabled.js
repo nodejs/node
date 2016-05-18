@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --nodead-code-elimination --concurrent-recompilation
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --legacy-const
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");

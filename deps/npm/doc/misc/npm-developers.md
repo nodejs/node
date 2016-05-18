@@ -104,7 +104,7 @@ create an empty `.npmignore` file to override it. Like `git`, `npm` looks
 for `.npmignore` and `.gitignore` files in all subdirectories of your
 package, not only the root directory.
 
-`.npmignore` files follow the [same pattern rules](http://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#Ignoring-Files)
+`.npmignore` files follow the [same pattern rules](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#Ignoring-Files)
 as `.gitignore` files:
 
 * Blank lines or lines starting with `#` are ignored.
@@ -191,7 +191,7 @@ This is documented better in npm-adduser(1).
 
 ## Publish your package
 
-This part's easy.  IN the root of your folder, do this:
+This part's easy.  In the root of your folder, do this:
 
     npm publish
 
@@ -211,7 +211,6 @@ Tell the world how easy it is to install your program!
 
 ## SEE ALSO
 
-* npm-faq(7)
 * npm(1)
 * npm-init(1)
 * package.json(5)

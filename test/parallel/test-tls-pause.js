@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
@@ -39,7 +39,7 @@ server.listen(common.PORT, function() {
     send();
     function send() {
       console.error('sending');
-      var ret = client.write(new Buffer(bufSize));
+      var ret = client.write(Buffer.allocUnsafe(bufSize));
       console.error('write => %j', ret);
       if (false !== ret) {
         console.error('write again');

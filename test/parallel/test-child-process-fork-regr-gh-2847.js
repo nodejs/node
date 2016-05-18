@@ -5,10 +5,6 @@ const assert = require('assert');
 
 const cluster = require('cluster');
 const net = require('net');
-const util = require('util');
-
-var connectcount = 0;
-var sendcount = 0;
 
 if (!cluster.isMaster) {
   // Exit on first received handle to leave the queue non-empty in master
@@ -19,6 +15,13 @@ if (!cluster.isMaster) {
 }
 
 var server = net.createServer(function(s) {
+  if (common.isWindows) {
+    s.on('error', function(err) {
+      // Prevent possible ECONNRESET errors from popping up
+      if (err.code !== 'ECONNRESET')
+        throw err;
+    });
+  }
   setTimeout(function() {
     s.destroy();
   }, 100);
@@ -28,21 +31,15 @@ var server = net.createServer(function(s) {
   function send(callback) {
     var s = net.connect(common.PORT, function() {
       worker.send({}, s, callback);
-      connectcount++;
     });
 
-    // Errors can happen if the connections
-    // are still happening while the server has been closed.
-    // This can happen depending on how the messages are
-    // bundled into packets. If they all make it into the first
-    // one then no errors will occur, otherwise the server
-    // may have been closed by the time the later ones make
-    // it to the server side.
-    // We ignore any errors that occur after some connections
-    // get through
+    // Errors can happen if this connection
+    // is still happening while the server has been closed.
     s.on('error', function(err) {
-      if (connectcount < 3)
-        console.log(err);
+      if ((err.code !== 'ECONNRESET') &&
+          ((err.code !== 'ECONNREFUSED'))) {
+        throw err;
+      }
     });
   }
 
@@ -52,11 +49,14 @@ var server = net.createServer(function(s) {
     server.close();
   }));
 
-  // Queue up several handles, to make `process.disconnect()` wait
-  for (var i = 0; i < 100; i++)
-    send(function(err) {
-      if (err && sendcount < 3)
-        console.log(err);
-      sendcount++;
-    });
+  send();
+  send(function(err) {
+    // Ignore errors when sending the second handle because the worker
+    // may already have exited.
+    if (err) {
+      if (err.code !== 'ECONNREFUSED') {
+        throw err;
+      }
+    }
+  });
 });

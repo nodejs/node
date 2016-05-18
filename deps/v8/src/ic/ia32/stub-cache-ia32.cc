@@ -24,7 +24,7 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   ExternalReference value_offset(isolate->stub_cache()->value_reference(table));
   ExternalReference map_offset(isolate->stub_cache()->map_reference(table));
   ExternalReference virtual_register =
-      ExternalReference::vector_store_virtual_register(masm->isolate());
+      ExternalReference::virtual_handler_register(masm->isolate());
 
   Label miss;
   bool is_vector_store =

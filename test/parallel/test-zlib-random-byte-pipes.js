@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var crypto = require('crypto');
@@ -78,7 +78,7 @@ RandomReadStream.prototype._process = function() {
     block += Math.ceil(Math.random() * jitter - (jitter / 2));
   }
   block = Math.min(block, this._remaining);
-  var buf = new Buffer(block);
+  var buf = Buffer.allocUnsafe(block);
   for (var i = 0; i < block; i++) {
     buf[i] = Math.random() * 256;
   }

@@ -4,9 +4,12 @@ module.exports = exports = search
 var npm = require('./npm.js')
 var columnify = require('columnify')
 var updateIndex = require('./cache/update-index.js')
+var usage = require('./utils/usage')
 
-search.usage = 'npm search [--long] [search terms ...]' +
-               '\n\naliases: s, se'
+search.usage = usage(
+  'search',
+  'npm search [--long] [search terms ...]'
+)
 
 search.completion = function (opts, cb) {
   var compl = {}
@@ -48,6 +51,10 @@ function search (args, silent, staleness, cb) {
   var opts = searchopts.concat(args).map(function (s) {
     return s.toLowerCase()
   }).filter(function (s) { return s })
+
+  if (opts.length === 0) {
+    return cb(new Error('search must be called with arguments'))
+  }
 
   if (typeof searchexclude === 'string') {
     searchexclude = searchexclude.split(/\s+/)

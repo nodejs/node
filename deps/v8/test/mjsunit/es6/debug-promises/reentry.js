@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --promise-extra
 
 // Test reentry of special try catch for Promises.
 

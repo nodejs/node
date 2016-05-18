@@ -2,31 +2,28 @@
 var common = require('../common');
 
 if (!process.features.tls_ocsp) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
+  common.skip('node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
   return;
 }
 if (!common.opensslCli) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  common.skip('node compiled without OpenSSL CLI.');
   return;
 }
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
 
 var assert = require('assert');
-var constants = require('constants');
 var fs = require('fs');
 var join = require('path').join;
 
-test({ response: false }, function() {
-  test({ response: 'hello world' }, function() {
-    test({ ocsp: false });
-  });
-});
+const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
+
+var pfx = fs.readFileSync(join(common.fixturesDir, 'keys', 'agent1-pfx.pem'));
 
 function test(testOptions, cb) {
 
@@ -45,7 +42,13 @@ function test(testOptions, cb) {
   var clientSecure = 0;
   var ocspCount = 0;
   var ocspResponse;
-  var session;
+
+  if (testOptions.pfx) {
+    delete options.key;
+    delete options.cert;
+    options.pfx = testOptions.pfx;
+    options.passphrase = testOptions.passphrase;
+  }
 
   var server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {
@@ -66,7 +69,7 @@ function test(testOptions, cb) {
     // Just to check that async really works there
     setTimeout(function() {
       callback(null,
-               testOptions.response ? new Buffer(testOptions.response) : null);
+               testOptions.response ? Buffer.from(testOptions.response) : null);
     }, 100);
   });
   server.listen(common.PORT, function() {
@@ -74,7 +77,7 @@ function test(testOptions, cb) {
       port: common.PORT,
       requestOCSP: testOptions.ocsp !== false,
       secureOptions: testOptions.ocsp === false ?
-          constants.SSL_OP_NO_TICKET : 0,
+          SSL_OP_NO_TICKET : 0,
       rejectUnauthorized: false
     }, function() {
       clientSecure++;
@@ -106,3 +109,23 @@ function test(testOptions, cb) {
     assert.equal(ocspCount, 1);
   });
 }
+
+var tests = [
+  { response: false },
+  { response: 'hello world' },
+  { ocsp: false }
+];
+
+if (!common.hasFipsCrypto) {
+  tests.push({ pfx: pfx, passphrase: 'sample', response: 'hello pfx' });
+}
+
+function runTests(i) {
+  if (i === tests.length) return;
+
+  test(tests[i], common.mustCall(function() {
+    runTests(i + 1);
+  }));
+}
+
+runTests(0);

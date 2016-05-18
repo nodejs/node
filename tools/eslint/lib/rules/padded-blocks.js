@@ -1,7 +1,6 @@
 /**
  * @fileoverview A rule to ensure blank lines within blocks.
  * @author Mathias Schreck <https://github.com/lo1tuma>
- * @copyright 2014 Mathias Schreck. All rights reserved.
  */
 
 "use strict";
@@ -10,89 +9,219 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function (context) {
-    var requirePadding = context.options[0] !== "never";
+module.exports = {
+    meta: {
+        docs: {
+            description: "require or disallow padding within blocks",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    var ALWAYS_MESSAGE = "Block must be padded by blank lines.",
-        NEVER_MESSAGE = "Block must not be padded by blank lines.";
+        schema: [
+            {
+                oneOf: [
+                    {
+                        enum: ["always", "never"]
+                    },
+                    {
+                        type: "object",
+                        properties: {
+                            blocks: {
+                                enum: ["always", "never"]
+                            },
+                            switches: {
+                                enum: ["always", "never"]
+                            },
+                            classes: {
+                                enum: ["always", "never"]
+                            }
+                        },
+                        additionalProperties: false,
+                        minProperties: 1
+                    }
+                ]
+            }
+        ]
+    },
 
-    /**
-     * Checks if the given non empty block node has a blank line before its first child node.
-     * @param {ASTNode} node The AST node of a BlockStatement.
-     * @returns {boolean} Whether or not the block starts with a blank line.
-     */
-    function isBlockTopPadded(node) {
-        var blockStart = node.loc.start.line,
-            first = node.body[0],
-            firstLine = first.loc.start.line,
-            expectedFirstLine = blockStart + 2,
-            leadingComments = context.getComments(first).leading;
+    create: function(context) {
+        var options = {};
+        var config = context.options[0] || "always";
 
-        if (leadingComments.length > 0) {
-            firstLine = leadingComments[0].loc.start.line;
+        if (typeof config === "string") {
+            options.blocks = config === "always";
+        } else {
+            if (config.hasOwnProperty("blocks")) {
+                options.blocks = config.blocks === "always";
+            }
+            if (config.hasOwnProperty("switches")) {
+                options.switches = config.switches === "always";
+            }
+            if (config.hasOwnProperty("classes")) {
+                options.classes = config.classes === "always";
+            }
         }
 
-        return expectedFirstLine <= firstLine;
-    }
+        var ALWAYS_MESSAGE = "Block must be padded by blank lines.",
+            NEVER_MESSAGE = "Block must not be padded by blank lines.";
 
-    /**
-     * Checks if the given non empty block node has a blank line after its last child node.
-     * @param {ASTNode} node The AST node of a BlockStatement.
-     * @returns {boolean} Whether or not the block ends with a blank line.
-     */
-    function isBlockBottomPadded(node) {
-        var blockEnd = node.loc.end.line,
-            last = node.body[node.body.length - 1],
-            lastLine = context.getLastToken(last).loc.end.line,
-            expectedLastLine = blockEnd - 2,
-            trailingComments = context.getComments(last).trailing;
+        var sourceCode = context.getSourceCode();
 
-        if (trailingComments.length > 0) {
-            lastLine = trailingComments[trailingComments.length - 1].loc.end.line;
+        /**
+         * Gets the open brace token from a given node.
+         * @param {ASTNode} node - A BlockStatement or SwitchStatement node from which to get the open brace.
+         * @returns {Token} The token of the open brace.
+         */
+        function getOpenBrace(node) {
+            if (node.type === "SwitchStatement") {
+                return sourceCode.getTokenBefore(node.cases[0]);
+            }
+            return sourceCode.getFirstToken(node);
         }
 
-        return lastLine <= expectedLastLine;
-    }
+        /**
+         * Checks if the given parameter is a comment node
+         * @param {ASTNode|Token} node An AST node or token
+         * @returns {boolean} True if node is a comment
+         */
+        function isComment(node) {
+            return node.type === "Line" || node.type === "Block";
+        }
 
-    /**
-     * Checks the given BlockStatement node to be padded if the block is not empty.
-     * @param {ASTNode} node The AST node of a BlockStatement.
-     * @returns {void} undefined.
-     */
-    function checkPadding(node) {
-        if (node.body.length > 0) {
+        /**
+         * Checks if the given token has a blank line after it.
+         * @param {Token} token The token to check.
+         * @returns {boolean} Whether or not the token is followed by a blank line.
+         */
+        function isTokenTopPadded(token) {
+            var tokenStartLine = token.loc.start.line,
+                expectedFirstLine = tokenStartLine + 2,
+                first,
+                firstLine;
 
-            var blockHasTopPadding = isBlockTopPadded(node),
-                blockHasBottomPadding = isBlockBottomPadded(node);
+            first = token;
+            do {
+                first = sourceCode.getTokenOrCommentAfter(first);
+            } while (isComment(first) && first.loc.start.line === tokenStartLine);
 
-            if (requirePadding) {
+            firstLine = first.loc.start.line;
+            return expectedFirstLine <= firstLine;
+        }
+
+        /**
+         * Checks if the given token is preceeded by a blank line.
+         * @param {Token} token The token to check
+         * @returns {boolean} Whether or not the token is preceeded by a blank line
+         */
+        function isTokenBottomPadded(token) {
+            var blockEnd = token.loc.end.line,
+                expectedLastLine = blockEnd - 2,
+                last,
+                lastLine;
+
+            last = token;
+            do {
+                last = sourceCode.getTokenOrCommentBefore(last);
+            } while (isComment(last) && last.loc.end.line === blockEnd);
+
+            lastLine = last.loc.end.line;
+            return lastLine <= expectedLastLine;
+        }
+
+        /**
+         * Checks if a node should be padded, according to the rule config.
+         * @param {ASTNode} node The AST node to check.
+         * @returns {boolean} True if the node should be padded, false otherwise.
+         */
+        function requirePaddingFor(node) {
+            switch (node.type) {
+                case "BlockStatement":
+                    return options.blocks;
+                case "SwitchStatement":
+                    return options.switches;
+                case "ClassBody":
+                    return options.classes;
+
+                /* istanbul ignore next */
+                default:
+                    throw new Error("unreachable");
+            }
+        }
+
+        /**
+         * Checks the given BlockStatement node to be padded if the block is not empty.
+         * @param {ASTNode} node The AST node of a BlockStatement.
+         * @returns {void} undefined.
+         */
+        function checkPadding(node) {
+            var openBrace = getOpenBrace(node),
+                closeBrace = sourceCode.getLastToken(node),
+                blockHasTopPadding = isTokenTopPadded(openBrace),
+                blockHasBottomPadding = isTokenBottomPadded(closeBrace);
+
+            if (requirePaddingFor(node)) {
                 if (!blockHasTopPadding) {
-                    context.report(node, ALWAYS_MESSAGE);
+                    context.report({
+                        node: node,
+                        loc: { line: openBrace.loc.start.line, column: openBrace.loc.start.column },
+                        message: ALWAYS_MESSAGE
+                    });
                 }
-
                 if (!blockHasBottomPadding) {
-                    context.report(node, node.loc.end, ALWAYS_MESSAGE);
+                    context.report({
+                        node: node,
+                        loc: {line: closeBrace.loc.end.line, column: closeBrace.loc.end.column - 1 },
+                        message: ALWAYS_MESSAGE
+                    });
                 }
             } else {
                 if (blockHasTopPadding) {
-                    context.report(node, NEVER_MESSAGE);
+                    context.report({
+                        node: node,
+                        loc: { line: openBrace.loc.start.line, column: openBrace.loc.start.column },
+                        message: NEVER_MESSAGE
+                    });
                 }
 
                 if (blockHasBottomPadding) {
-                    context.report(node, node.loc.end, NEVER_MESSAGE);
+                    context.report({
+                        node: node,
+                        loc: {line: closeBrace.loc.end.line, column: closeBrace.loc.end.column - 1 },
+                        message: NEVER_MESSAGE
+                    });
                 }
             }
         }
+
+        var rule = {};
+
+        if (options.hasOwnProperty("switches")) {
+            rule.SwitchStatement = function(node) {
+                if (node.cases.length === 0) {
+                    return;
+                }
+                checkPadding(node);
+            };
+        }
+
+        if (options.hasOwnProperty("blocks")) {
+            rule.BlockStatement = function(node) {
+                if (node.body.length === 0) {
+                    return;
+                }
+                checkPadding(node);
+            };
+        }
+
+        if (options.hasOwnProperty("classes")) {
+            rule.ClassBody = function(node) {
+                if (node.body.length === 0) {
+                    return;
+                }
+                checkPadding(node);
+            };
+        }
+
+        return rule;
     }
-
-    return {
-        "BlockStatement": checkPadding
-    };
-
 };
-
-module.exports.schema = [
-    {
-        "enum": ["always", "never"]
-    }
-];

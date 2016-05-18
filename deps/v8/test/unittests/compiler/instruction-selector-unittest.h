@@ -37,17 +37,19 @@ class InstructionSelectorTest : public TestWithContext,
   class StreamBuilder final : public RawMachineAssembler {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
-        : RawMachineAssembler(
-              test->isolate(), new (test->zone()) Graph(test->zone()),
-              MakeCallDescriptor(test->zone(), return_type), kMachPtr,
-              MachineOperatorBuilder::kAllOptionalOps),
+        : RawMachineAssembler(test->isolate(),
+                              new (test->zone()) Graph(test->zone()),
+                              MakeCallDescriptor(test->zone(), return_type),
+                              MachineType::PointerRepresentation(),
+                              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type)
         : RawMachineAssembler(
               test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type),
-              kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
+              MachineType::PointerRepresentation(),
+              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)
@@ -55,7 +57,8 @@ class InstructionSelectorTest : public TestWithContext,
               test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type,
                                  parameter1_type),
-              kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
+              MachineType::PointerRepresentation(),
+              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type,
@@ -64,7 +67,8 @@ class InstructionSelectorTest : public TestWithContext,
               test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type,
                                  parameter1_type, parameter2_type),
-              kMachPtr, MachineOperatorBuilder::kAllOptionalOps),
+              MachineType::PointerRepresentation(),
+              MachineOperatorBuilder::kAllOptionalOps),
           test_(test) {}
 
     Stream Build(CpuFeature feature) {
@@ -88,7 +92,7 @@ class InstructionSelectorTest : public TestWithContext,
     CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type) {
       MachineSignature::Builder builder(zone, 1, 0);
       builder.AddReturn(return_type);
-      return Linkage::GetSimplifiedCDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Build());
     }
 
     CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
@@ -96,7 +100,7 @@ class InstructionSelectorTest : public TestWithContext,
       MachineSignature::Builder builder(zone, 1, 1);
       builder.AddReturn(return_type);
       builder.AddParam(parameter0_type);
-      return Linkage::GetSimplifiedCDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Build());
     }
 
     CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
@@ -106,7 +110,7 @@ class InstructionSelectorTest : public TestWithContext,
       builder.AddReturn(return_type);
       builder.AddParam(parameter0_type);
       builder.AddParam(parameter1_type);
-      return Linkage::GetSimplifiedCDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Build());
     }
 
     CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
@@ -118,11 +122,48 @@ class InstructionSelectorTest : public TestWithContext,
       builder.AddParam(parameter0_type);
       builder.AddParam(parameter1_type);
       builder.AddParam(parameter2_type);
-      return Linkage::GetSimplifiedCDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Build());
     }
 
    private:
     InstructionSelectorTest* test_;
+
+    // Create a simple call descriptor for testing.
+    CallDescriptor* MakeSimpleCallDescriptor(Zone* zone,
+                                             MachineSignature* msig) {
+      LocationSignature::Builder locations(zone, msig->return_count(),
+                                           msig->parameter_count());
+
+      // Add return location(s).
+      const int return_count = static_cast<int>(msig->return_count());
+      for (int i = 0; i < return_count; i++) {
+        locations.AddReturn(LinkageLocation::ForCallerFrameSlot(-1 - i));
+      }
+
+      // Just put all parameters on the stack.
+      const int parameter_count = static_cast<int>(msig->parameter_count());
+      for (int i = 0; i < parameter_count; i++) {
+        locations.AddParam(LinkageLocation::ForCallerFrameSlot(-1 - i));
+      }
+
+      const RegList kCalleeSaveRegisters = 0;
+      const RegList kCalleeSaveFPRegisters = 0;
+
+      MachineType target_type = MachineType::Pointer();
+      LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
+      return new (zone) CallDescriptor(  // --
+          CallDescriptor::kCallAddress,  // kind
+          target_type,                   // target MachineType
+          target_loc,                    // target location
+          msig,                          // machine_sig
+          locations.Build(),             // location_sig
+          0,                             // stack_parameter_count
+          Operator::kNoProperties,       // properties
+          kCalleeSaveRegisters,          // callee-saved registers
+          kCalleeSaveFPRegisters,        // callee-saved fp regs
+          CallDescriptor::kNoFlags,      // flags
+          "iselect-test-call");
+    }
   };
 
   class Stream final {

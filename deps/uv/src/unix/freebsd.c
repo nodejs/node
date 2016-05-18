@@ -176,7 +176,7 @@ char** uv_setup_args(int argc, char** argv) {
 int uv_set_process_title(const char* title) {
   int oid[4];
 
-  if (process_title) uv__free(process_title);
+  uv__free(process_title);
   process_title = uv__strdup(title);
 
   oid[0] = CTL_KERN;
@@ -292,7 +292,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   size = sizeof(cpuspeed);
   if (sysctlbyname("hw.clockrate", &cpuspeed, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(*cpu_infos));
+    uv__free(*cpu_infos);
     return -errno;
   }
 
@@ -301,7 +301,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
    */
   size = sizeof(maxcpus);
   if (sysctlbyname(maxcpus_key, &maxcpus, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(*cpu_infos));
+    uv__free(*cpu_infos);
     return -errno;
   }
 
@@ -314,8 +314,8 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   }
 
   if (sysctlbyname(cptimes_key, cp_times, &size, NULL, 0)) {
-    SAVE_ERRNO(uv__free(cp_times));
-    SAVE_ERRNO(uv__free(*cpu_infos));
+    uv__free(cp_times);
+    uv__free(*cpu_infos);
     return -errno;
   }
 
@@ -373,8 +373,10 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   }
 
   *addresses = uv__malloc(*count * sizeof(**addresses));
-  if (!(*addresses))
+  if (!(*addresses)) {
+    freeifaddrs(addrs);
     return -ENOMEM;
+  }
 
   address = *addresses;
 

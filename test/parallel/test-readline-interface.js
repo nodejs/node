@@ -1,9 +1,11 @@
+// Flags: --expose_internals
 'use strict';
 require('../common');
-var assert = require('assert');
-var readline = require('readline');
-var EventEmitter = require('events').EventEmitter;
-var inherits = require('util').inherits;
+const assert = require('assert');
+const readline = require('readline');
+const internalReadline = require('internal/readline');
+const EventEmitter = require('events').EventEmitter;
+const inherits = require('util').inherits;
 
 function FakeInput() {
   EventEmitter.call(this);
@@ -26,6 +28,25 @@ function isWarned(emitter) {
   var fi;
   var rli;
   var called;
+
+  // disable history
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal,
+                              historySize: 0 });
+  assert.strictEqual(rli.historySize, 0);
+
+  fi.emit('data', 'asdf\n');
+  assert.deepStrictEqual(rli.history, terminal ? [] : undefined);
+  rli.close();
+
+  // default history size 30
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
+  assert.strictEqual(rli.historySize, 30);
+
+  fi.emit('data', 'asdf\n');
+  assert.deepStrictEqual(rli.history, terminal ? ['asdf'] : undefined);
+  rli.close();
 
   // sending a full line
   fi = new FakeInput();
@@ -208,7 +229,9 @@ function isWarned(emitter) {
     assert.strictEqual(called, false);
     called = true;
   });
-  fi.emit('data', '\tfo\to\t');
+  for (var character of '\tfo\to\t') {
+    fi.emit('data', character);
+  }
   fi.emit('data', '\n');
   assert.ok(called);
   rli.close();
@@ -230,7 +253,7 @@ function isWarned(emitter) {
   });
 
   // sending a multi-byte utf8 char over multiple writes
-  var buf = Buffer('☮', 'utf8');
+  var buf = Buffer.from('☮', 'utf8');
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
   callCount = 0;
@@ -239,7 +262,7 @@ function isWarned(emitter) {
     assert.equal(line, buf.toString('utf8'));
   });
   [].forEach.call(buf, function(i) {
-    fi.emit('data', Buffer([i]));
+    fi.emit('data', Buffer.from([i]));
   });
   assert.equal(callCount, 0);
   fi.emit('data', '\n');
@@ -259,7 +282,7 @@ function isWarned(emitter) {
   });
   try {
     fi.emit('data', 'fooX');
-  } catch(e) { }
+  } catch (e) { }
   fi.emit('data', 'bar');
   assert.equal(keys.join(''), 'fooXbar');
   rli.close();
@@ -296,46 +319,40 @@ function isWarned(emitter) {
     rli.question(expectedLines.join('\n'), function() {
       rli.close();
     });
-    var cursorPos = rli._getCursorPos();
+    cursorPos = rli._getCursorPos();
     assert.equal(cursorPos.rows, expectedLines.length - 1);
     assert.equal(cursorPos.cols, expectedLines.slice(-1)[0].length);
     rli.close();
   }
 
   // wide characters should be treated as two columns.
-  assert.equal(readline.isFullWidthCodePoint('a'.charCodeAt(0)), false);
-  assert.equal(readline.isFullWidthCodePoint('あ'.charCodeAt(0)), true);
-  assert.equal(readline.isFullWidthCodePoint('谢'.charCodeAt(0)), true);
-  assert.equal(readline.isFullWidthCodePoint('고'.charCodeAt(0)), true);
-  assert.equal(readline.isFullWidthCodePoint(0x1f251), true); // surrogate
-  assert.equal(readline.codePointAt('ABC', 0), 0x41);
-  assert.equal(readline.codePointAt('あいう', 1), 0x3044);
-  assert.equal(readline.codePointAt('\ud800\udc00', 0),  // surrogate
-      0x10000);
-  assert.equal(readline.codePointAt('\ud800\udc00A', 2), // surrogate
-      0x41);
-  assert.equal(readline.getStringWidth('abcde'), 5);
-  assert.equal(readline.getStringWidth('古池や'), 6);
-  assert.equal(readline.getStringWidth('ノード.js'), 9);
-  assert.equal(readline.getStringWidth('你好'), 4);
-  assert.equal(readline.getStringWidth('안녕하세요'), 10);
-  assert.equal(readline.getStringWidth('A\ud83c\ude00BC'), 5); // surrogate
+  assert.equal(internalReadline.isFullWidthCodePoint('a'.charCodeAt(0)), false);
+  assert.equal(internalReadline.isFullWidthCodePoint('あ'.charCodeAt(0)), true);
+  assert.equal(internalReadline.isFullWidthCodePoint('谢'.charCodeAt(0)), true);
+  assert.equal(internalReadline.isFullWidthCodePoint('고'.charCodeAt(0)), true);
+  assert.equal(internalReadline.isFullWidthCodePoint(0x1f251), true);
+  assert.equal(internalReadline.getStringWidth('abcde'), 5);
+  assert.equal(internalReadline.getStringWidth('古池や'), 6);
+  assert.equal(internalReadline.getStringWidth('ノード.js'), 9);
+  assert.equal(internalReadline.getStringWidth('你好'), 4);
+  assert.equal(internalReadline.getStringWidth('안녕하세요'), 10);
+  assert.equal(internalReadline.getStringWidth('A\ud83c\ude00BC'), 5);
 
   // check if vt control chars are stripped
-  assert.equal(readline
+  assert.equal(internalReadline
                .stripVTControlCharacters('\u001b[31m> \u001b[39m'), '> ');
-  assert.equal(readline
+  assert.equal(internalReadline
                .stripVTControlCharacters('\u001b[31m> \u001b[39m> '), '> > ');
-  assert.equal(readline
+  assert.equal(internalReadline
                .stripVTControlCharacters('\u001b[31m\u001b[39m'), '');
-  assert.equal(readline
+  assert.equal(internalReadline
                .stripVTControlCharacters('> '), '> ');
-  assert.equal(readline.getStringWidth('\u001b[31m> \u001b[39m'), 2);
-  assert.equal(readline.getStringWidth('\u001b[31m> \u001b[39m> '), 4);
-  assert.equal(readline.getStringWidth('\u001b[31m\u001b[39m'), 0);
-  assert.equal(readline.getStringWidth('> '), 2);
+  assert.equal(internalReadline.getStringWidth('\u001b[31m> \u001b[39m'), 2);
+  assert.equal(internalReadline.getStringWidth('\u001b[31m> \u001b[39m> '), 4);
+  assert.equal(internalReadline.getStringWidth('\u001b[31m\u001b[39m'), 0);
+  assert.equal(internalReadline.getStringWidth('> '), 2);
 
-  assert.deepEqual(fi.listeners(terminal ? 'keypress' : 'data'), []);
+  assert.deepStrictEqual(fi.listeners(terminal ? 'keypress' : 'data'), []);
 
   // check EventEmitter memory leak
   for (var i = 0; i < 12; i++) {

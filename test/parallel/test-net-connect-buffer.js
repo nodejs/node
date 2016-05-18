@@ -40,7 +40,7 @@ tcp.listen(common.PORT, function() {
     connectHappened = true;
   });
 
-  console.log('_connecting = ' + socket._connecting);
+  console.log('connecting = ' + socket.connecting);
 
   assert.equal('opening', socket.readyState);
 
@@ -77,13 +77,13 @@ tcp.listen(common.PORT, function() {
     dataWritten = true;
     assert.ok(connectHappened);
     console.error('socket.bytesWritten', socket.bytesWritten);
-    //assert.equal(socket.bytesWritten, Buffer(a + b).length);
+    //assert.equal(socket.bytesWritten, Buffer.from(a + b).length);
     console.error('data written');
   });
   console.error('socket.bytesWritten', socket.bytesWritten);
   console.error('write returned', r);
 
-  assert.equal(socket.bytesWritten, Buffer(a).length);
+  assert.equal(socket.bytesWritten, Buffer.from(a).length);
 
   assert.equal(false, r);
   socket.end(b);

@@ -1,11 +1,11 @@
-# Node.js Working Groups
+# Node.js Core Working Groups
 
-Node.js Working Groups are autonomous projects created by the
-[Technical Steering Committee (TSC)](https://github.com/nodejs/node/blob/master/GOVERNANCE.md#technical-committee).
+Node.js Core Working Groups are autonomous projects created by the
+[Core Technical Committee (CTC)](https://github.com/nodejs/node/blob/master/GOVERNANCE.md#core-technical-committee).
 
-Working Groups can be formed at any time but must be ratified by the TSC.
+Working Groups can be formed at any time but must be ratified by the CTC.
 Once formed the work defined in the Working Group charter is the
-responsibility of the WG rather than the TSC.
+responsibility of the WG rather than the CTC.
 
 It is important that Working Groups are not formed pre-maturely. Working
 Groups are not formed to *begin* a set of tasks but instead are formed
@@ -14,7 +14,7 @@ think it would benefit from being done as an autonomous project.
 
 If the work defined in a Working Group charter is completed the Working
 Group should be dissolved and the responsibility for governance absorbed
-back in to the TSC.
+back in to the CTC.
 
 ## Current Working Groups
 
@@ -31,13 +31,15 @@ back in to the TSC.
 * [Post-mortem](#post-mortem)
 * [Intl](#intl)
 * [HTTP](#http)
+* [Documentation](#documentation)
+* [Testing](#testing)
 
 #### Process:
 
 * [Starting a Working Group](#starting-a-wg)
 * [Bootstrap Governance](#bootstrap-governance)
 
-### [Website](https://github.com/nodejs/website)
+### [Website](https://github.com/nodejs/nodejs.org)
 
 The website working group's purpose is to build and maintain a public
 website for the `Node.js` project.
@@ -228,9 +230,9 @@ Their responsibilities are:
 * Maintaining the [addon-examples](https://github.com/nodejs/node-addon-examples)
   GitHub repository, including code, issues and documentation.
 * Maintaining the C++ Addon API within the Node.js project, in subordination to
-  the Node.js TSC.
+  the Node.js CTC.
 * Maintaining the Addon documentation within the Node.js project, in
-  subordination to the Node.js TSC.
+  subordination to the Node.js CTC.
 * Maintaining the _nan_ package in npm, releasing new versions as appropriate.
 * Messaging about the future of the Node.js and NAN interface to give the
   community advance notice of changes.
@@ -269,6 +271,39 @@ Its responsibilities are:
   to be generated when needed
 + Defining and adding common structures to the dumps generated
   in order to support tools that want to introspect those dumps
+
+### [Documentation](https://github.com/nodejs/docs)
+
+The Documentation working group exists to support the improvement of Node.js
+documentation, both in the core API documentation, and elsewhere, such as the
+Node.js website. Its intent is to work closely with Evangelism, Website, and
+Intl working groups to make excellent documentation available and accessible
+to all.
+
+Its responsibilities are:
+
+* Defining and maintaining documentation style and content standards.
+* Producing documentation in a format acceptable for the Website WG to consume.
+* Ensuring that Node's documentation addresses a wide variety of audiences.
+* Creating and operating a process for documentation review that produces
+  quality documentation and avoids impeding the progress of Core work.
+
+### [Testing](https://github.com/nodejs/testing)
+
+The Node.js Testing Working Group's purpose is to extend and improve testing of
+the Node.js source code.
+
+It's responsibilities are:
+
+* Coordinating an overall strategy for improving testing.
+* Documenting guidelines around tests.
+* Working with the Build Working Group to improve continuous integration.
+* Improving tooling for testing.
+
+## Joining a WG
+
+To find out how to join a working group, consult the GOVERNANCE.md in
+the working group's repository, or simply open an issue there.
 
 ## Starting a WG
 
@@ -452,40 +487,13 @@ By making a contribution to this project, I certify that:
 * (c) The contribution was provided directly to me by some other
   person who certified (a), (b) or (c) and I have not modified it.
 
+### Moderation Policy
+
+The [Node.js Moderation Policy] applies to this WG.
 
 ### Code of Conduct
 
-This Code of Conduct is adapted from [Rust's wonderful
-CoC](https://github.com/rust-lang/rust/wiki/Note-development-policy#conduct).
+The [Node.js Code of Conduct][] applies to this WG.
 
-* We are committed to providing a friendly, safe and welcoming
-  environment for all, regardless of gender, sexual orientation,
-  disability, ethnicity, religion, or similar personal characteristic.
-* Please avoid using overtly sexual nicknames or other nicknames that
-  might detract from a friendly, safe and welcoming environment for
-  all.
-* Please be kind and courteous. There's no need to be mean or rude.
-* Respect that people have differences of opinion and that every
-  design or implementation choice carries a trade-off and numerous
-  costs. There is seldom a right answer.
-* Please keep unstructured critique to a minimum. If you have solid
-  ideas you want to experiment with, make a fork and see how it works.
-* We will exclude you from interaction if you insult, demean or harass
-  anyone.  That is not welcome behaviour. We interpret the term
-  "harassment" as including the definition in the [Citizen Code of
-  Conduct](http://citizencodeofconduct.org/); if you have any lack of
-  clarity about what might be included in that concept, please read
-  their definition. In particular, we don't tolerate behavior that
-  excludes people in socially marginalized groups.
-* Private harassment is also unacceptable. No matter who you are, if
-  you feel you have been or are being harassed or made uncomfortable
-  by a community member, please contact one of the channel ops or any
-  of the TC members immediately with a capture (log, photo, email) of
-  the harassment if possible.  Whether you're a regular contributor or
-  a newcomer, we care about making this community a safe place for you
-  and we've got your back.
-* Likewise any spamming, trolling, flaming, baiting or other
-  attention-stealing behaviour is not welcome.
-* Avoid the use of personal pronouns in code comments or
-  documentation. There is no need to address persons when explaining
-  code (e.g. "When the developer")
+[Node.js Code of Conduct]: https://github.com/nodejs/node/blob/master/CODE_OF_CONDUCT.md
+[Node.js Moderation Policy]: https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md

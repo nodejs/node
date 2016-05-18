@@ -5,6 +5,7 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {
@@ -37,14 +38,15 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     } else {
       pointer = code->instruction_start();
     }
-    CodePatcher patcher(pointer, 1);
+    CodePatcher patcher(isolate, pointer, 1);
     patcher.masm()->break_(0xCC);
 
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(code->deoptimization_data());
     int osr_offset = data->OsrPcOffset()->value();
     if (osr_offset > 0) {
-      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
+                              1);
       osr_patcher.masm()->break_(0xCC);
     }
   }
@@ -65,7 +67,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
     DCHECK(call_size_in_bytes <= patch_size());
-    CodePatcher patcher(call_address, call_size_in_words);
+    CodePatcher patcher(isolate, call_address, call_size_in_words);
     patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
     DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
@@ -74,27 +76,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
-  }
-}
-
-
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, i * 4);
-  }
-  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint64_at(tos + i));
   }
 }
 
@@ -117,8 +98,7 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
   // There is no dynamic alignment padding on MIPS in the input frame.
   return false;
 }
@@ -139,14 +119,16 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
   RegList saved_regs = restored_regs | sp.bit() | ra.bit();
 
-  const int kDoubleRegsSize =
-      kDoubleSize * FPURegister::kMaxNumAllocatableRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kMaxNumRegisters;
 
   // Save all FPU registers before messing with them.
   __ Dsubu(sp, sp, Operand(kDoubleRegsSize));
-  for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
-    FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
-    int offset = i * kDoubleSize;
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
+    int offset = code * kDoubleSize;
     __ sdc1(fpu_reg, MemOperand(sp, offset));
   }
 
@@ -184,15 +166,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ ld(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   // a2: bailout id already loaded.
   // a3: code address or 0 already loaded.
-  if (kMipsAbi == kN64) {
-    // a4: already has fp-to-sp delta.
-    __ li(a5, Operand(ExternalReference::isolate_address(isolate())));
-  } else {  // O32 abi.
-    // Pass four arguments in a0 to a3 and fifth & sixth arguments on stack.
-    __ sd(a4, CFunctionArgumentOperand(5));  // Fp-to-sp delta.
-    __ li(a5, Operand(ExternalReference::isolate_address(isolate())));
-    __ sd(a5, CFunctionArgumentOperand(6));  // Isolate.
-  }
+  // a4: already has fp-to-sp delta.
+  __ li(a5, Operand(ExternalReference::isolate_address(isolate())));
+
   // Call Deoptimizer::New().
   {
     AllowExternalCallThatCantCauseGC scope(masm());
@@ -221,9 +197,10 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   int double_regs_offset = FrameDescription::double_registers_offset();
   // Copy FPU registers to
   // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-  for (int i = 0; i < FPURegister::NumAllocatableRegisters(); ++i) {
-    int dst_offset = i * kDoubleSize + double_regs_offset;
-    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    int dst_offset = code * kDoubleSize + double_regs_offset;
+    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
     __ ldc1(f0, MemOperand(sp, src_offset));
     __ sdc1(f0, MemOperand(a1, dst_offset));
   }
@@ -268,8 +245,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // a1 = one past the last FrameDescription**.
   __ lw(a1, MemOperand(a0, Deoptimizer::output_count_offset()));
   __ ld(a4, MemOperand(a0, Deoptimizer::output_offset()));  // a4 is output_.
-  __ dsll(a1, a1, kPointerSizeLog2);  // Count to offset.
-  __ daddu(a1, a4, a1);  // a1 = one past the last FrameDescription**.
+  __ Dlsa(a1, a4, a1, kPointerSizeLog2);
   __ BranchShort(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: a2 = current FrameDescription*, a3 = loop index.
@@ -289,9 +265,10 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ BranchShort(&outer_push_loop, lt, a4, Operand(a1));
 
   __ ld(a1, MemOperand(a0, Deoptimizer::input_offset()));
-  for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
-    const FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
-    int src_offset = i * kDoubleSize + double_regs_offset;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
+    int src_offset = code * kDoubleSize + double_regs_offset;
     __ ldc1(fpu_reg, MemOperand(a1, src_offset));
   }
 

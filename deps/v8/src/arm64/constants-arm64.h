@@ -9,11 +9,11 @@
 #include "src/globals.h"
 
 // Assert that this is an LP64 system.
-STATIC_ASSERT(sizeof(int) == sizeof(int32_t));     // NOLINT(runtime/sizeof)
+STATIC_ASSERT(sizeof(int) == sizeof(int32_t));
 STATIC_ASSERT(sizeof(long) == sizeof(int64_t));    // NOLINT(runtime/int)
-STATIC_ASSERT(sizeof(void *) == sizeof(int64_t));  // NOLINT(runtime/sizeof)
-STATIC_ASSERT(sizeof(1) == sizeof(int32_t));       // NOLINT(runtime/sizeof)
-STATIC_ASSERT(sizeof(1L) == sizeof(int64_t));      // NOLINT(runtime/sizeof)
+STATIC_ASSERT(sizeof(void *) == sizeof(int64_t));
+STATIC_ASSERT(sizeof(1) == sizeof(int32_t));
+STATIC_ASSERT(sizeof(1L) == sizeof(int64_t));
 
 
 // Get the standard printf format macros for C99 stdint types.
@@ -32,8 +32,8 @@ const unsigned kInstructionSizeLog2 = 2;
 const unsigned kLoadLiteralScaleLog2 = 2;
 const unsigned kMaxLoadLiteralRange = 1 * MB;
 
-const unsigned kNumberOfRegisters = 32;
-const unsigned kNumberOfFPRegisters = 32;
+const int kNumberOfRegisters = 32;
+const int kNumberOfFPRegisters = 32;
 // Callee saved registers are x19-x30(lr).
 const int kNumberOfCalleeSavedRegisters = 11;
 const int kFirstCalleeSavedRegisterIndex = 19;
@@ -42,23 +42,22 @@ const int kNumberOfCalleeSavedFPRegisters = 8;
 const int kFirstCalleeSavedFPRegisterIndex = 8;
 // Callee saved registers with no specific purpose in JS are x19-x25.
 const unsigned kJSCalleeSavedRegList = 0x03f80000;
-// TODO(all): k<Y>RegSize should probably be k<Y>RegSizeInBits.
-const unsigned kWRegSizeInBits = 32;
-const unsigned kWRegSizeInBitsLog2 = 5;
-const unsigned kWRegSize = kWRegSizeInBits >> 3;
-const unsigned kWRegSizeLog2 = kWRegSizeInBitsLog2 - 3;
-const unsigned kXRegSizeInBits = 64;
-const unsigned kXRegSizeInBitsLog2 = 6;
-const unsigned kXRegSize = kXRegSizeInBits >> 3;
-const unsigned kXRegSizeLog2 = kXRegSizeInBitsLog2 - 3;
-const unsigned kSRegSizeInBits = 32;
-const unsigned kSRegSizeInBitsLog2 = 5;
-const unsigned kSRegSize = kSRegSizeInBits >> 3;
-const unsigned kSRegSizeLog2 = kSRegSizeInBitsLog2 - 3;
-const unsigned kDRegSizeInBits = 64;
-const unsigned kDRegSizeInBitsLog2 = 6;
-const unsigned kDRegSize = kDRegSizeInBits >> 3;
-const unsigned kDRegSizeLog2 = kDRegSizeInBitsLog2 - 3;
+const int kWRegSizeInBits = 32;
+const int kWRegSizeInBitsLog2 = 5;
+const int kWRegSize = kWRegSizeInBits >> 3;
+const int kWRegSizeLog2 = kWRegSizeInBitsLog2 - 3;
+const int kXRegSizeInBits = 64;
+const int kXRegSizeInBitsLog2 = 6;
+const int kXRegSize = kXRegSizeInBits >> 3;
+const int kXRegSizeLog2 = kXRegSizeInBitsLog2 - 3;
+const int kSRegSizeInBits = 32;
+const int kSRegSizeInBitsLog2 = 5;
+const int kSRegSize = kSRegSizeInBits >> 3;
+const int kSRegSizeLog2 = kSRegSizeInBitsLog2 - 3;
+const int kDRegSizeInBits = 64;
+const int kDRegSizeInBitsLog2 = 6;
+const int kDRegSize = kDRegSizeInBits >> 3;
+const int kDRegSizeLog2 = kDRegSizeInBitsLog2 - 3;
 const int64_t kWRegMask = 0x00000000ffffffffL;
 const int64_t kXRegMask = 0xffffffffffffffffL;
 const int64_t kSRegMask = 0x00000000ffffffffL;
@@ -86,13 +85,13 @@ const int64_t kXMaxInt = 0x7fffffffffffffffL;
 const int64_t kXMinInt = 0x8000000000000000L;
 const int32_t kWMaxInt = 0x7fffffff;
 const int32_t kWMinInt = 0x80000000;
-const unsigned kIp0Code = 16;
-const unsigned kIp1Code = 17;
-const unsigned kFramePointerRegCode = 29;
-const unsigned kLinkRegCode = 30;
-const unsigned kZeroRegCode = 31;
-const unsigned kJSSPCode = 28;
-const unsigned kSPRegInternalCode = 63;
+const int kIp0Code = 16;
+const int kIp1Code = 17;
+const int kFramePointerRegCode = 29;
+const int kLinkRegCode = 30;
+const int kZeroRegCode = 31;
+const int kJSSPCode = 28;
+const int kSPRegInternalCode = 63;
 const unsigned kRegCodeMask = 0x1f;
 const unsigned kShiftAmountWRegMask = 0x1f;
 const unsigned kShiftAmountXRegMask = 0x3f;
@@ -117,12 +116,6 @@ const unsigned kDoubleExponentBits = 11;
 const unsigned kDoubleExponentBias = 1023;
 const unsigned kFloatMantissaBits = 23;
 const unsigned kFloatExponentBits = 8;
-
-#define REGISTER_CODE_LIST(R)                                                  \
-R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \
-R(8)  R(9)  R(10) R(11) R(12) R(13) R(14) R(15)                                \
-R(16) R(17) R(18) R(19) R(20) R(21) R(22) R(23)                                \
-R(24) R(25) R(26) R(27) R(28) R(29) R(30) R(31)
 
 #define INSTRUCTION_FIELDS_LIST(V_)                                            \
 /* Register fields */                                                          \
@@ -1237,6 +1230,7 @@ enum UnallocatedOp {
   UnallocatedFMask = 0x00000000
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_CONSTANTS_ARM64_H_

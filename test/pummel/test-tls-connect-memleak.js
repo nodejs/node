@@ -5,14 +5,14 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');
 
 var fs = require('fs');
 
-assert(typeof gc === 'function', 'Run this test with --expose-gc');
+assert(typeof global.gc === 'function', 'Run this test with --expose-gc');
 
 tls.createServer({
   cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem'),
@@ -27,13 +27,13 @@ tls.createServer({
   tls.connect(common.PORT, '127.0.0.1', options, function() {
     assert(junk.length != 0);  // keep reference alive
     setTimeout(done, 10);
-    gc();
+    global.gc();
   });
 })();
 
 function done() {
   var before = process.memoryUsage().rss;
-  gc();
+  global.gc();
   var after = process.memoryUsage().rss;
   var reclaimed = (before - after) / 1024;
   console.log('%d kB reclaimed', reclaimed);

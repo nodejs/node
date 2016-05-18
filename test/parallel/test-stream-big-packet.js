@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var util = require('util');
 var stream = require('stream');
@@ -8,7 +8,7 @@ var passed = false;
 
 function PassThrough() {
   stream.Transform.call(this);
-};
+}
 util.inherits(PassThrough, stream.Transform);
 PassThrough.prototype._transform = function(chunk, encoding, done) {
   this.push(chunk);
@@ -17,7 +17,7 @@ PassThrough.prototype._transform = function(chunk, encoding, done) {
 
 function TestStream() {
   stream.Transform.call(this);
-};
+}
 util.inherits(TestStream, stream.Transform);
 TestStream.prototype._transform = function(chunk, encoding, done) {
   if (!passed) {
@@ -35,8 +35,7 @@ s1.pipe(s3);
 s2.pipe(s3, {end: false});
 
 // We must write a buffer larger than highWaterMark
-var big = new Buffer(s1._writableState.highWaterMark + 1);
-big.fill('x');
+var big = Buffer.alloc(s1._writableState.highWaterMark + 1, 'x');
 
 // Since big is larger than highWaterMark, it will be buffered internally.
 assert(!s1.write(big));

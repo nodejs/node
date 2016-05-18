@@ -5,7 +5,7 @@ var assert = require('assert');
 var fs = require('fs');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var https = require('https');
@@ -16,12 +16,9 @@ var options = {
 };
 
 var reqCount = 0;
-var body = '';
 
 process.stdout.write('build body...');
-for (var i = 0; i < 1024 * 1024; i++) {
-  body += 'hello world\n';
-}
+var body = 'hello world\n'.repeat(1024 * 1024);
 process.stdout.write('done\n');
 
 var server = https.createServer(options, function(req, res) {

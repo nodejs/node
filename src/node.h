@@ -96,7 +96,7 @@ NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
                                              const char* path,
                                              const char* dest);
 
-NODE_DEPRECATED("Use UVException(isolate, ...)",
+NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
                 inline v8::Local<v8::Value> ErrnoException(
       int errorno,
       const char* syscall = NULL,
@@ -179,6 +179,10 @@ typedef intptr_t ssize_t;
 namespace node {
 
 NODE_EXTERN extern bool no_deprecation;
+#if HAVE_OPENSSL && NODE_FIPS_MODE
+NODE_EXTERN extern bool enable_fips_crypto;
+NODE_EXTERN extern bool force_fips_crypto;
+#endif
 
 NODE_EXTERN int Start(int argc, char *argv[]);
 NODE_EXTERN void Init(int* argc,
@@ -221,19 +225,35 @@ NODE_EXTERN void RunAtExit(Environment* env);
 #define NODE_DEFINE_CONSTANT(target, constant)                                \
   do {                                                                        \
     v8::Isolate* isolate = target->GetIsolate();                              \
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();            \
     v8::Local<v8::String> constant_name =                                     \
         v8::String::NewFromUtf8(isolate, #constant);                          \
     v8::Local<v8::Number> constant_value =                                    \
         v8::Number::New(isolate, static_cast<double>(constant));              \
     v8::PropertyAttribute constant_attributes =                               \
         static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);    \
-    (target)->ForceSet(constant_name, constant_value, constant_attributes);   \
+    (target)->DefineOwnProperty(context,                                      \
+                                constant_name,                                \
+                                constant_value,                               \
+                                constant_attributes).FromJust();              \
   }                                                                           \
   while (0)
 
 // Used to be a macro, hence the uppercase name.
-template <typename TypeName>
-inline void NODE_SET_METHOD(const TypeName& recv,
+inline void NODE_SET_METHOD(v8::Local<v8::Template> recv,
+                            const char* name,
+                            v8::FunctionCallback callback) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate,
+                                                                callback);
+  v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name);
+  t->SetClassName(fn_name);
+  recv->Set(fn_name, t);
+}
+
+// Used to be a macro, hence the uppercase name.
+inline void NODE_SET_METHOD(v8::Local<v8::Object> recv,
                             const char* name,
                             v8::FunctionCallback callback) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -257,10 +277,9 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Local<v8::FunctionTemplate> recv,
   v8::Local<v8::Signature> s = v8::Signature::New(isolate, recv);
   v8::Local<v8::FunctionTemplate> t =
       v8::FunctionTemplate::New(isolate, callback, v8::Local<v8::Value>(), s);
-  v8::Local<v8::Function> fn = t->GetFunction();
-  recv->PrototypeTemplate()->Set(v8::String::NewFromUtf8(isolate, name), fn);
   v8::Local<v8::String> fn_name = v8::String::NewFromUtf8(isolate, name);
-  fn->SetName(fn_name);
+  t->SetClassName(fn_name);
+  recv->PrototypeTemplate()->Set(v8::String::NewFromUtf8(isolate, name), t);
 }
 #define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
 

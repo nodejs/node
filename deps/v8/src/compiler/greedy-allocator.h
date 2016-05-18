@@ -128,17 +128,9 @@ class GreedyAllocator final : public RegisterAllocator {
   // Evict and reschedule conflicts of a given range, at a given register.
   void EvictAndRescheduleConflicts(unsigned reg_id, const LiveRange* range);
 
-  // Find the optimal split for ranges defined by a memory operand, e.g.
-  // constants or function parameters passed on the stack.
-  void SplitAndSpillRangesDefinedByMemoryOperand();
-
   void TryAllocateCandidate(const AllocationCandidate& candidate);
   void TryAllocateLiveRange(LiveRange* range);
   void TryAllocateGroup(LiveRangeGroup* group);
-
-  bool CanProcessRange(LiveRange* range) const {
-    return range != nullptr && !range->IsEmpty() && range->kind() == mode();
-  }
 
   // Calculate the weight of a candidate for allocation.
   void EnsureValidRangeWeight(LiveRange* range);

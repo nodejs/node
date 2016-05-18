@@ -24,6 +24,24 @@ If you put more stuff in it, then items will fall out.
 If you try to put an oversized thing in it, then it'll fall out right
 away.
 
+## Keys should always be Strings or Numbers
+
+Note: this module will print warnings to `console.error` if you use a
+key that is not a String or Number.  Because items are stored in an
+object, which coerces keys to a string, it won't go well for you if
+you try to use a key that is not a unique string, it'll cause surprise
+collisions.  For example:
+
+```JavaScript
+// Bad Example!  Dont' do this!
+var cache = LRU()
+var a = {}
+var b = {}
+cache.set(a, 'this is a')
+cache.set(b, 'this is b')
+console.log(cache.get(a)) // prints: 'this is b'
+```
+
 ## Options
 
 * `max` The maximum size of the cache, checked by applying the length

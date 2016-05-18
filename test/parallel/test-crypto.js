@@ -4,7 +4,7 @@ var assert = require('assert');
 var util = require('util');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var crypto = require('crypto');
@@ -32,19 +32,19 @@ assert.throws(function() {
 
 // PFX tests
 assert.doesNotThrow(function() {
-  tls.createSecureContext({pfx:certPfx, passphrase:'sample'});
+  tls.createSecureContext({pfx: certPfx, passphrase: 'sample'});
 });
 
 assert.throws(function() {
-  tls.createSecureContext({pfx:certPfx});
+  tls.createSecureContext({pfx: certPfx});
 }, 'mac verify failure');
 
 assert.throws(function() {
-  tls.createSecureContext({pfx:certPfx, passphrase:'test'});
+  tls.createSecureContext({pfx: certPfx, passphrase: 'test'});
 }, 'mac verify failure');
 
 assert.throws(function() {
-  tls.createSecureContext({pfx:'sample', passphrase:'test'});
+  tls.createSecureContext({pfx: 'sample', passphrase: 'test'});
 }, 'not enough data');
 
 
@@ -57,7 +57,7 @@ assert.throws(function() {
 function assertSorted(list) {
   // Array#sort() modifies the list in place so make a copy.
   var sorted = util._extend([], list).sort();
-  assert.deepEqual(list, sorted);
+  assert.deepStrictEqual(list, sorted);
 }
 
 // Assume that we have at least AES-128-CBC.
@@ -67,7 +67,6 @@ assert.equal(-1, crypto.getCiphers().indexOf('AES-128-CBC'));
 assertSorted(crypto.getCiphers());
 
 // Assume that we have at least AES256-SHA.
-var tls = require('tls');
 assert.notEqual(0, tls.getCiphers().length);
 assert.notEqual(-1, tls.getCiphers().indexOf('aes256-sha'));
 assert.equal(-1, tls.getCiphers().indexOf('AES256-SHA'));

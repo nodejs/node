@@ -4,18 +4,19 @@ const assert = require('assert');
 const cluster = require('cluster');
 
 if (cluster.isMaster) {
-  const worker = cluster.fork();
-  let disconnected = false;
+  function forkWorker(action) {
+    const worker = cluster.fork({ action });
+    worker.on('disconnect', common.mustCall(() => {
+      assert.strictEqual(worker.suicide, true);
+    }));
 
-  worker.on('disconnect', common.mustCall(function() {
-    assert.strictEqual(worker.suicide, true);
-    disconnected = true;
-  }));
+    worker.on('exit', common.mustCall(() => {
+      assert.strictEqual(worker.suicide, true);
+    }));
+  }
 
-  worker.on('exit', common.mustCall(function() {
-    assert.strictEqual(worker.suicide, true);
-    assert.strictEqual(disconnected, true);
-  }));
+  forkWorker('disconnect');
+  forkWorker('kill');
 } else {
-  cluster.worker.disconnect();
+  cluster.worker[process.env.action]();
 }

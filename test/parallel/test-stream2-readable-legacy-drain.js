@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var Stream = require('stream');
@@ -9,7 +9,7 @@ var r = new Readable();
 var N = 256;
 var reads = 0;
 r._read = function(n) {
-  return r.push(++reads === N ? null : new Buffer(1));
+  return r.push(++reads === N ? null : Buffer.allocUnsafe(1));
 };
 
 var rended = false;

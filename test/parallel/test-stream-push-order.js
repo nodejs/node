@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var Readable = require('stream').Readable;
 var assert = require('assert');
 
@@ -21,12 +21,12 @@ s._read = function(n) {
   }
 };
 
-var v = s.read(0);
+s.read(0);
 
 // ACTUALLY [1, 3, 5, 6, 4, 2]
 
 process.on('exit', function() {
-  assert.deepEqual(s._readableState.buffer,
-                   ['1', '2', '3', '4', '5', '6']);
+  assert.deepStrictEqual(s._readableState.buffer,
+                         ['1', '2', '3', '4', '5', '6']);
   console.log('ok');
 });

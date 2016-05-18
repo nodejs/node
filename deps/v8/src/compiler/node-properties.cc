@@ -4,9 +4,12 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-operator.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/verifier.h"
+#include "src/handles-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -121,11 +124,30 @@ bool NodeProperties::IsControlEdge(Edge edge) {
 
 // static
 bool NodeProperties::IsExceptionalCall(Node* node) {
+  if (node->op()->HasProperty(Operator::kNoThrow)) return false;
   for (Edge const edge : node->use_edges()) {
     if (!NodeProperties::IsControlEdge(edge)) continue;
     if (edge.from()->opcode() == IrOpcode::kIfException) return true;
   }
   return false;
+}
+
+
+// static
+void NodeProperties::ReplaceValueInput(Node* node, Node* value, int index) {
+  DCHECK(index < node->op()->ValueInputCount());
+  node->ReplaceInput(FirstValueIndex(node) + index, value);
+}
+
+
+// static
+void NodeProperties::ReplaceValueInputs(Node* node, Node* value) {
+  int value_input_count = node->op()->ValueInputCount();
+  DCHECK_LE(1, value_input_count);
+  node->ReplaceInput(0, value);
+  while (--value_input_count > 0) {
+    node->RemoveInput(value_input_count);
+  }
 }
 
 
@@ -157,8 +179,24 @@ void NodeProperties::ReplaceFrameStateInput(Node* node, int index,
 
 
 // static
+void NodeProperties::RemoveFrameStateInput(Node* node, int index) {
+  DCHECK_LT(index, OperatorProperties::GetFrameStateInputCount(node->op()));
+  node->RemoveInput(FirstFrameStateIndex(node) + index);
+}
+
+
+// static
 void NodeProperties::RemoveNonValueInputs(Node* node) {
   node->TrimInputCount(node->op()->ValueInputCount());
+}
+
+
+// static
+void NodeProperties::RemoveValueInputs(Node* node) {
+  int value_input_count = node->op()->ValueInputCount();
+  while (--value_input_count >= 0) {
+    node->RemoveInput(value_input_count);
+  }
 }
 
 
@@ -265,6 +303,106 @@ void NodeProperties::CollectControlProjections(Node* node, Node** projections,
     DCHECK_NOT_NULL(projections[index]);
   }
 #endif
+}
+
+
+// static
+MaybeHandle<Context> NodeProperties::GetSpecializationContext(
+    Node* node, MaybeHandle<Context> context) {
+  switch (node->opcode()) {
+    case IrOpcode::kHeapConstant:
+      return Handle<Context>::cast(OpParameter<Handle<HeapObject>>(node));
+    case IrOpcode::kParameter: {
+      Node* const start = NodeProperties::GetValueInput(node, 0);
+      DCHECK_EQ(IrOpcode::kStart, start->opcode());
+      int const index = ParameterIndexOf(node->op());
+      // The context is always the last parameter to a JavaScript function, and
+      // {Parameter} indices start at -1, so value outputs of {Start} look like
+      // this: closure, receiver, param0, ..., paramN, context.
+      if (index == start->op()->ValueOutputCount() - 2) {
+        return context;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return MaybeHandle<Context>();
+}
+
+
+// static
+MaybeHandle<Context> NodeProperties::GetSpecializationNativeContext(
+    Node* node, MaybeHandle<Context> native_context) {
+  while (true) {
+    switch (node->opcode()) {
+      case IrOpcode::kJSLoadContext: {
+        ContextAccess const& access = ContextAccessOf(node->op());
+        if (access.index() != Context::NATIVE_CONTEXT_INDEX) {
+          return MaybeHandle<Context>();
+        }
+        // Skip over the intermediate contexts, we're only interested in the
+        // very last context in the context chain anyway.
+        node = NodeProperties::GetContextInput(node);
+        break;
+      }
+      case IrOpcode::kJSCreateBlockContext:
+      case IrOpcode::kJSCreateCatchContext:
+      case IrOpcode::kJSCreateFunctionContext:
+      case IrOpcode::kJSCreateModuleContext:
+      case IrOpcode::kJSCreateScriptContext:
+      case IrOpcode::kJSCreateWithContext: {
+        // Skip over the intermediate contexts, we're only interested in the
+        // very last context in the context chain anyway.
+        node = NodeProperties::GetContextInput(node);
+        break;
+      }
+      case IrOpcode::kHeapConstant: {
+        // Extract the native context from the actual {context}.
+        Handle<Context> context =
+            Handle<Context>::cast(OpParameter<Handle<HeapObject>>(node));
+        return handle(context->native_context());
+      }
+      case IrOpcode::kOsrValue: {
+        int const index = OpParameter<int>(node);
+        if (index == Linkage::kOsrContextSpillSlotIndex) {
+          return native_context;
+        }
+        return MaybeHandle<Context>();
+      }
+      case IrOpcode::kParameter: {
+        Node* const start = NodeProperties::GetValueInput(node, 0);
+        DCHECK_EQ(IrOpcode::kStart, start->opcode());
+        int const index = ParameterIndexOf(node->op());
+        // The context is always the last parameter to a JavaScript function,
+        // and {Parameter} indices start at -1, so value outputs of {Start}
+        // look like this: closure, receiver, param0, ..., paramN, context.
+        if (index == start->op()->ValueOutputCount() - 2) {
+          return native_context;
+        }
+        return MaybeHandle<Context>();
+      }
+      default:
+        return MaybeHandle<Context>();
+    }
+  }
+}
+
+
+// static
+MaybeHandle<JSGlobalObject> NodeProperties::GetSpecializationGlobalObject(
+    Node* node, MaybeHandle<Context> native_context) {
+  Handle<Context> context;
+  if (GetSpecializationNativeContext(node, native_context).ToHandle(&context)) {
+    return handle(context->global_object());
+  }
+  return MaybeHandle<JSGlobalObject>();
+}
+
+
+// static
+Type* NodeProperties::GetTypeOrAny(Node* node) {
+  return IsTyped(node) ? node->type() : Type::Any();
 }
 
 

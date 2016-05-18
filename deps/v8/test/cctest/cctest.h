@@ -341,6 +341,13 @@ static inline v8::Local<v8::String> v8_str(const char* x) {
 }
 
 
+static inline v8::Local<v8::String> v8_str(v8::Isolate* isolate,
+                                           const char* x) {
+  return v8::String::NewFromUtf8(isolate, x, v8::NewStringType::kNormal)
+      .ToLocalChecked();
+}
+
+
 static inline v8::Local<v8::Symbol> v8_symbol(const char* name) {
   return v8::Symbol::New(v8::Isolate::GetCurrent(), v8_str(name));
 }
@@ -358,6 +365,12 @@ static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
 
 static inline v8::Local<v8::Script> v8_compile(const char* x) {
   return v8_compile(v8_str(x));
+}
+
+
+static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  return script->Run(context).ToLocalChecked()->Int32Value(context).FromJust();
 }
 
 
@@ -389,6 +402,18 @@ static inline v8::MaybeLocal<v8::Value> CompileRun(
   return v8::Script::Compile(context, v8_str(source))
       .ToLocalChecked()
       ->Run(context);
+}
+
+
+static inline v8::Local<v8::Value> CompileRunChecked(v8::Isolate* isolate,
+                                                     const char* source) {
+  v8::Local<v8::String> source_string =
+      v8::String::NewFromUtf8(isolate, source, v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(context, source_string).ToLocalChecked();
+  return script->Run(context).ToLocalChecked();
 }
 
 
@@ -525,85 +550,16 @@ static inline void ExpectUndefined(const char* code) {
 }
 
 
-static inline void DisableInlineAllocationSteps(v8::internal::NewSpace* space) {
-  space->LowerInlineAllocationLimit(0);
+static inline void ExpectNull(const char* code) {
+  v8::Local<v8::Value> result = CompileRun(code);
+  CHECK(result->IsNull());
 }
 
 
-// Helper function that simulates a full new-space in the heap.
-static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
-  DisableInlineAllocationSteps(space);
-  v8::internal::AllocationResult allocation = space->AllocateRawUnaligned(
-      v8::internal::Page::kMaxRegularHeapObjectSize);
-  if (allocation.IsRetry()) return false;
-  v8::internal::HeapObject* free_space = NULL;
-  CHECK(allocation.To(&free_space));
-  space->heap()->CreateFillerObjectAt(
-      free_space->address(), v8::internal::Page::kMaxRegularHeapObjectSize);
-  return true;
-}
-
-
-// Helper function that simulates a fill new-space in the heap.
-static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
-                                        int extra_bytes) {
-  DisableInlineAllocationSteps(space);
-  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
-                                         *space->allocation_top_address());
-  CHECK(space_remaining >= extra_bytes);
-  int new_linear_size = space_remaining - extra_bytes;
-  if (new_linear_size == 0) return;
-  v8::internal::AllocationResult allocation =
-      space->AllocateRawUnaligned(new_linear_size);
-  v8::internal::HeapObject* free_space = NULL;
-  CHECK(allocation.To(&free_space));
-  space->heap()->CreateFillerObjectAt(free_space->address(), new_linear_size);
-}
-
-
-static inline void FillCurrentPage(v8::internal::NewSpace* space) {
-  AllocateAllButNBytes(space, 0);
-}
-
-
-static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
-  FillCurrentPage(space);
-  while (FillUpOnePage(space)) {
-  }
-}
-
-
-// Helper function that simulates a full old-space in the heap.
-static inline void SimulateFullSpace(v8::internal::PagedSpace* space) {
-  space->EmptyAllocationInfo();
-  space->ResetFreeList();
-  space->ClearStats();
-}
-
-
-// Helper function that simulates many incremental marking steps until
-// marking is completed.
-static inline void SimulateIncrementalMarking(i::Heap* heap,
-                                              bool force_completion = true) {
-  i::MarkCompactCollector* collector = heap->mark_compact_collector();
-  i::IncrementalMarking* marking = heap->incremental_marking();
-  if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
-  }
-  CHECK(marking->IsMarking() || marking->IsStopped());
-  if (marking->IsStopped()) {
-    heap->StartIncrementalMarking();
-  }
-  CHECK(marking->IsMarking());
-  if (!force_completion) return;
-
-  while (!marking->IsComplete()) {
-    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-    if (marking->IsReadyToOverApproximateWeakClosure()) {
-      marking->MarkObjectGroups();
-    }
-  }
-  CHECK(marking->IsComplete());
+static inline void CheckDoubleEquals(double expected, double actual) {
+  const double kEpsilon = 1e-10;
+  CHECK_LE(expected, actual + kEpsilon);
+  CHECK_GE(expected, actual - kEpsilon);
 }
 
 
@@ -611,12 +567,14 @@ static void DummyDebugEventListener(
     const v8::Debug::EventDetails& event_details) {}
 
 
-static inline void EnableDebugger() {
-  v8::Debug::SetDebugEventListener(&DummyDebugEventListener);
+static inline void EnableDebugger(v8::Isolate* isolate) {
+  v8::Debug::SetDebugEventListener(isolate, &DummyDebugEventListener);
 }
 
 
-static inline void DisableDebugger() { v8::Debug::SetDebugEventListener(NULL); }
+static inline void DisableDebugger(v8::Isolate* isolate) {
+  v8::Debug::SetDebugEventListener(isolate, nullptr);
+}
 
 
 static inline void EmptyMessageQueues(v8::Isolate* isolate) {

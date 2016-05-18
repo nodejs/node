@@ -39,10 +39,8 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-# The revision hash needs to be 7 characters?
-TEST_262_ARCHIVE_REVISION = "6137f75"  # This is the 2015-08-25 revision.
-TEST_262_ARCHIVE_MD5 = "c1eaf890d46e73d6c7e05ab21f76e668"
-TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
+ARCHIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data.tar")
+
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 
 TEST_262_SUITE_PATH = ["data", "test"]
@@ -189,48 +187,24 @@ class Test262TestSuite(testsuite.TestSuite):
     return not outcome in (testcase.outcomes or [statusfile.PASS])
 
   def DownloadData(self):
-    revision = TEST_262_ARCHIVE_REVISION
-    archive_url = TEST_262_URL % revision
-    archive_name = os.path.join(self.root, "tc39-test262-%s.tar.gz" % revision)
-    directory_name = os.path.join(self.root, "data")
-    directory_old_name = os.path.join(self.root, "data.old")
+    print "Test262 download is deprecated. It's part of DEPS."
 
-    # Clobber if the test is in an outdated state, i.e. if there are any other
-    # archive files present.
+    # Clean up old directories and archive files.
+    directory_old_name = os.path.join(self.root, "data.old")
+    if os.path.exists(directory_old_name):
+      shutil.rmtree(directory_old_name)
+
     archive_files = [f for f in os.listdir(self.root)
                      if f.startswith("tc39-test262-")]
-    if (len(archive_files) > 1 or
-        os.path.basename(archive_name) not in archive_files):
+    if len(archive_files) > 0:
       print "Clobber outdated test archives ..."
       for f in archive_files:
         os.remove(os.path.join(self.root, f))
 
-    if not os.path.exists(archive_name):
-      print "Downloading test data from %s ..." % archive_url
-      utils.URLRetrieve(archive_url, archive_name)
-      if os.path.exists(directory_name):
-        if os.path.exists(directory_old_name):
-          shutil.rmtree(directory_old_name)
-        os.rename(directory_name, directory_old_name)
-    if not os.path.exists(directory_name):
-      print "Extracting test262-%s.tar.gz ..." % revision
-      md5 = hashlib.md5()
-      with open(archive_name, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), ""):
-          md5.update(chunk)
-      print "MD5 hash is %s" % md5.hexdigest()
-      if md5.hexdigest() != TEST_262_ARCHIVE_MD5:
-        os.remove(archive_name)
-        print "MD5 expected %s" % TEST_262_ARCHIVE_MD5
-        raise Exception("MD5 hash mismatch of test data file")
-      archive = tarfile.open(archive_name, "r:gz")
-      if sys.platform in ("win32", "cygwin"):
-        # Magic incantation to allow longer path names on Windows.
-        archive.extractall(u"\\\\?\\%s" % self.root)
-      else:
-        archive.extractall(self.root)
-      os.rename(os.path.join(self.root, "tc39-test262-%s" % revision),
-                directory_name)
+    print "Extracting archive..."
+    tar = tarfile.open(ARCHIVE)
+    tar.extractall(path=os.path.dirname(ARCHIVE))
+    tar.close()
 
 
 def GetSuite(name, root):

@@ -48,12 +48,13 @@ MemoryReducer::Event MarkCompactEventNoGarbageLeft(double time_ms) {
 }
 
 
-MemoryReducer::Event TimerEvent(double time_ms, bool low_allocation_rate,
+MemoryReducer::Event TimerEvent(double time_ms,
+                                bool should_start_incremental_gc,
                                 bool can_start_incremental_gc) {
   MemoryReducer::Event event;
   event.type = MemoryReducer::kTimer;
   event.time_ms = time_ms;
-  event.low_allocation_rate = low_allocation_rate;
+  event.should_start_incremental_gc = should_start_incremental_gc;
   event.can_start_incremental_gc = can_start_incremental_gc;
   return event;
 }
@@ -73,21 +74,10 @@ MemoryReducer::Event TimerEventPendingGC(double time_ms) {
   return TimerEvent(time_ms, true, false);
 }
 
-
-MemoryReducer::Event ContextDisposedEvent(double time_ms) {
+MemoryReducer::Event PossibleGarbageEvent(double time_ms) {
   MemoryReducer::Event event;
-  event.type = MemoryReducer::kContextDisposed;
+  event.type = MemoryReducer::kPossibleGarbage;
   event.time_ms = time_ms;
-  return event;
-}
-
-
-MemoryReducer::Event BackgroundIdleNotificationEvent(
-    double time_ms, bool can_start_incremental_gc = true) {
-  MemoryReducer::Event event;
-  event.type = MemoryReducer::kBackgroundIdleNotification;
-  event.time_ms = time_ms;
-  event.can_start_incremental_gc = can_start_incremental_gc;
   return event;
 }
 
@@ -102,9 +92,6 @@ TEST(MemoryReducer, FromDoneToDone) {
   EXPECT_EQ(MemoryReducer::kDone, state1.action);
 
   state1 = MemoryReducer::Step(state0, TimerEventPendingGC(0));
-  EXPECT_EQ(MemoryReducer::kDone, state1.action);
-
-  state1 = MemoryReducer::Step(state0, BackgroundIdleNotificationEvent(0));
   EXPECT_EQ(MemoryReducer::kDone, state1.action);
 }
 
@@ -126,7 +113,7 @@ TEST(MemoryReducer, FromDoneToWait) {
   EXPECT_EQ(0, state1.started_gcs);
   EXPECT_EQ(2, state1.last_gc_time_ms);
 
-  state1 = MemoryReducer::Step(state0, ContextDisposedEvent(0));
+  state1 = MemoryReducer::Step(state0, PossibleGarbageEvent(0));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
   EXPECT_EQ(0, state1.started_gcs);
@@ -139,7 +126,7 @@ TEST(MemoryReducer, FromWaitToWait) {
 
   MemoryReducer::State state0(WaitState(2, 1000.0)), state1(DoneState());
 
-  state1 = MemoryReducer::Step(state0, ContextDisposedEvent(2000));
+  state1 = MemoryReducer::Step(state0, PossibleGarbageEvent(2000));
   EXPECT_EQ(MemoryReducer::kWait, state1.action);
   EXPECT_EQ(state0.next_gc_start_ms, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
@@ -172,17 +159,6 @@ TEST(MemoryReducer, FromWaitToWait) {
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
   EXPECT_EQ(2000, state1.last_gc_time_ms);
 
-  state1 = MemoryReducer::Step(state0, BackgroundIdleNotificationEvent(2000));
-  EXPECT_EQ(MemoryReducer::kWait, state1.action);
-  EXPECT_EQ(2000 + MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
-  EXPECT_EQ(state0.started_gcs + 1, state1.started_gcs);
-
-  state1 =
-      MemoryReducer::Step(state0, BackgroundIdleNotificationEvent(2000, false));
-  EXPECT_EQ(MemoryReducer::kWait, state1.action);
-  EXPECT_EQ(state0.next_gc_start_ms, state1.next_gc_start_ms);
-  EXPECT_EQ(state0.started_gcs, state1.started_gcs);
-
   state0.last_gc_time_ms = 0;
   state1 = MemoryReducer::Step(
       state0,
@@ -199,12 +175,6 @@ TEST(MemoryReducer, FromWaitToWait) {
   EXPECT_EQ(2000 + MemoryReducer::kLongDelayMs, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
   EXPECT_EQ(state0.last_gc_time_ms, state1.last_gc_time_ms);
-
-  state0.started_gcs = MemoryReducer::kMaxNumberOfGCs;
-  state1 = MemoryReducer::Step(state0, BackgroundIdleNotificationEvent(2000));
-  EXPECT_EQ(MemoryReducer::kWait, state1.action);
-  EXPECT_EQ(state0.next_gc_start_ms, state1.next_gc_start_ms);
-  EXPECT_EQ(state0.started_gcs, state1.started_gcs);
 }
 
 
@@ -279,7 +249,7 @@ TEST(MemoryReducer, FromRunToRun) {
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);
   EXPECT_EQ(state0.last_gc_time_ms, state1.last_gc_time_ms);
 
-  state1 = MemoryReducer::Step(state0, ContextDisposedEvent(2000));
+  state1 = MemoryReducer::Step(state0, PossibleGarbageEvent(2000));
   EXPECT_EQ(MemoryReducer::kRun, state1.action);
   EXPECT_EQ(state0.next_gc_start_ms, state1.next_gc_start_ms);
   EXPECT_EQ(state0.started_gcs, state1.started_gcs);

@@ -157,8 +157,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            int length) {
   return v8::String::NewFromOneByte(isolate,
                                     reinterpret_cast<const uint8_t*>(data),
-                                    v8::String::kNormalString,
-                                    length);
+                                    v8::NewStringType::kNormal,
+                                    length).ToLocalChecked();
 }
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
@@ -166,8 +166,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            int length) {
   return v8::String::NewFromOneByte(isolate,
                                     reinterpret_cast<const uint8_t*>(data),
-                                    v8::String::kNormalString,
-                                    length);
+                                    v8::NewStringType::kNormal,
+                                    length).ToLocalChecked();
 }
 
 inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
@@ -175,8 +175,8 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            int length) {
   return v8::String::NewFromOneByte(isolate,
                                     reinterpret_cast<const uint8_t*>(data),
-                                    v8::String::kNormalString,
-                                    length);
+                                    v8::NewStringType::kNormal,
+                                    length).ToLocalChecked();
 }
 
 template <typename TypeName>
@@ -199,18 +199,23 @@ TypeName* Unwrap(v8::Local<v8::Object> object) {
 }
 
 void SwapBytes(uint16_t* dst, const uint16_t* src, size_t buflen) {
-  for (size_t i = 0; i < buflen; i++) {
-    // __builtin_bswap16 generates more efficient code with
-    // g++ 4.8 on PowerPC and other big-endian archs
-#ifdef __GNUC__
-    dst[i] = __builtin_bswap16(src[i]);
-#else
+  for (size_t i = 0; i < buflen; i += 1)
     dst[i] = (src[i] << 8) | (src[i] >> 8);
-#endif
-  }
 }
 
+char ToLower(char c) {
+  return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+}
 
+bool StringEqualNoCase(const char* a, const char* b) {
+  do {
+    if (*a == '\0')
+      return *b == '\0';
+    if (*b == '\0')
+      return *a == '\0';
+  } while (ToLower(*a++) == ToLower(*b++));
+  return false;
+}
 
 }  // namespace node
 

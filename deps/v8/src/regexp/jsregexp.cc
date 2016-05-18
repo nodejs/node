@@ -4,7 +4,7 @@
 
 #include "src/regexp/jsregexp.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
@@ -13,17 +13,22 @@
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/ostreams.h"
-#include "src/parser.h"
 #include "src/regexp/interpreter-irregexp.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
+#include "src/regexp/regexp-parser.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
 #include "src/splay-tree-inl.h"
 #include "src/string-search.h"
 #include "src/unicode-decoder.h"
+
+#ifdef V8_I18N_SUPPORT
+#include "unicode/uset.h"
+#include "unicode/utypes.h"
+#endif  // V8_I18N_SUPPORT
 
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
@@ -51,16 +56,6 @@
 namespace v8 {
 namespace internal {
 
-MaybeHandle<Object> RegExpImpl::CreateRegExpLiteral(
-    Handle<JSFunction> constructor,
-    Handle<String> pattern,
-    Handle<String> flags) {
-  // Call the construct code with 2 arguments.
-  Handle<Object> argv[] = { pattern, flags };
-  return Execution::New(constructor, arraysize(argv), argv);
-}
-
-
 MUST_USE_RESULT
 static inline MaybeHandle<Object> ThrowRegExpException(
     Handle<JSRegExp> re, Handle<String> pattern, Handle<String> error_text) {
@@ -82,7 +77,7 @@ ContainedInLattice AddRange(ContainedInLattice containment,
                             int ranges_length,
                             Interval new_range) {
   DCHECK((ranges_length & 1) == 1);
-  DCHECK(ranges[ranges_length - 1] == String::kMaxUtf16CodeUnit + 1);
+  DCHECK(ranges[ranges_length - 1] == String::kMaxCodePoint + 1);
   if (containment == kLatticeUnknown) return containment;
   bool inside = false;
   int last = 0;
@@ -155,8 +150,7 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
   FlatStringReader reader(isolate, pattern);
-  if (!RegExpParser::ParseRegExp(re->GetIsolate(), &zone, &reader,
-                                 flags.is_multiline(), flags.is_unicode(),
+  if (!RegExpParser::ParseRegExp(re->GetIsolate(), &zone, &reader, flags,
                                  &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
     return ThrowRegExpException(re, pattern, parse_result.error);
@@ -164,17 +158,13 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
 
   bool has_been_compiled = false;
 
-  if (parse_result.simple &&
-      !flags.is_ignore_case() &&
-      !flags.is_sticky() &&
-      !HasFewDifferentCharacters(pattern)) {
+  if (parse_result.simple && !(flags & JSRegExp::kIgnoreCase) &&
+      !(flags & JSRegExp::kSticky) && !HasFewDifferentCharacters(pattern)) {
     // Parse-tree is a single atom that is equal to the pattern.
     AtomCompile(re, pattern, flags, pattern);
     has_been_compiled = true;
-  } else if (parse_result.tree->IsAtom() &&
-      !flags.is_ignore_case() &&
-      !flags.is_sticky() &&
-      parse_result.capture_count == 0) {
+  } else if (parse_result.tree->IsAtom() && !(flags & JSRegExp::kIgnoreCase) &&
+             !(flags & JSRegExp::kSticky) && parse_result.capture_count == 0) {
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
     Handle<String> atom_string;
@@ -385,17 +375,16 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   pattern = String::Flatten(pattern);
   RegExpCompileData compile_data;
   FlatStringReader reader(isolate, pattern);
-  if (!RegExpParser::ParseRegExp(isolate, &zone, &reader, flags.is_multiline(),
-                                 flags.is_unicode(), &compile_data)) {
+  if (!RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
+                                 &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
     USE(ThrowRegExpException(re, pattern, compile_data.error));
     return false;
   }
-  RegExpEngine::CompilationResult result = RegExpEngine::Compile(
-      isolate, &zone, &compile_data, flags.is_ignore_case(), flags.is_global(),
-      flags.is_multiline(), flags.is_sticky(), pattern, sample_subject,
-      is_one_byte);
+  RegExpEngine::CompilationResult result =
+      RegExpEngine::Compile(isolate, &zone, &compile_data, flags, pattern,
+                            sample_subject, is_one_byte);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
     Handle<String> error_message = isolate->factory()->NewStringFromUtf8(
@@ -649,7 +638,6 @@ Handle<JSArray> RegExpImpl::SetLastMatchInfo(Handle<JSArray> last_match_info,
 
 RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
                                      Handle<String> subject,
-                                     bool is_global,
                                      Isolate* isolate)
   : register_array_(NULL),
     register_array_size_(0),
@@ -674,7 +662,8 @@ RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
     }
   }
 
-  if (is_global && !interpreted) {
+  DCHECK_NE(0, regexp->GetFlags() & JSRegExp::kGlobal);
+  if (!interpreted) {
     register_array_size_ =
         Max(registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize);
     max_matches_ = register_array_size_ / registers_per_match_;
@@ -703,6 +692,16 @@ RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
   last_match[1] = 0;
 }
 
+int RegExpImpl::GlobalCache::AdvanceZeroLength(int last_index) {
+  if ((regexp_->GetFlags() & JSRegExp::kUnicode) != 0 &&
+      last_index + 1 < subject_->length() &&
+      unibrow::Utf16::IsLeadSurrogate(subject_->Get(last_index)) &&
+      unibrow::Utf16::IsTrailSurrogate(subject_->Get(last_index + 1))) {
+    // Advance over the surrogate pair.
+    return last_index + 2;
+  }
+  return last_index + 1;
+}
 
 // -------------------------------------------------------------------
 // Implementation of the Irregexp regular expression engine.
@@ -958,7 +957,7 @@ class FrequencyCollator {
 class RegExpCompiler {
  public:
   RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
-                 bool ignore_case, bool is_one_byte);
+                 JSRegExp::Flags flags, bool is_one_byte);
 
   int AllocateRegister() {
     if (next_register_ >= RegExpMacroAssembler::kMaxRegister) {
@@ -966,6 +965,22 @@ class RegExpCompiler {
       return next_register_;
     }
     return next_register_++;
+  }
+
+  // Lookarounds to match lone surrogates for unicode character class matches
+  // are never nested. We can therefore reuse registers.
+  int UnicodeLookaroundStackRegister() {
+    if (unicode_lookaround_stack_register_ == kNoRegister) {
+      unicode_lookaround_stack_register_ = AllocateRegister();
+    }
+    return unicode_lookaround_stack_register_;
+  }
+
+  int UnicodeLookaroundPositionRegister() {
+    if (unicode_lookaround_position_register_ == kNoRegister) {
+      unicode_lookaround_position_register_ = AllocateRegister();
+    }
+    return unicode_lookaround_position_register_;
   }
 
   RegExpEngine::CompilationResult Assemble(RegExpMacroAssembler* assembler,
@@ -994,7 +1009,8 @@ class RegExpCompiler {
 
   void SetRegExpTooBig() { reg_exp_too_big_ = true; }
 
-  inline bool ignore_case() { return ignore_case_; }
+  inline bool ignore_case() { return (flags_ & JSRegExp::kIgnoreCase) != 0; }
+  inline bool unicode() { return (flags_ & JSRegExp::kUnicode) != 0; }
   inline bool one_byte() { return one_byte_; }
   inline bool optimize() { return optimize_; }
   inline void set_optimize(bool value) { optimize_ = value; }
@@ -1002,6 +1018,8 @@ class RegExpCompiler {
   inline void set_limiting_recursion(bool value) {
     limiting_recursion_ = value;
   }
+  bool read_backward() { return read_backward_; }
+  void set_read_backward(bool value) { read_backward_ = value; }
   FrequencyCollator* frequency_collator() { return &frequency_collator_; }
 
   int current_expansion_factor() { return current_expansion_factor_; }
@@ -1017,14 +1035,17 @@ class RegExpCompiler {
  private:
   EndNode* accept_;
   int next_register_;
+  int unicode_lookaround_stack_register_;
+  int unicode_lookaround_position_register_;
   List<RegExpNode*>* work_list_;
   int recursion_depth_;
   RegExpMacroAssembler* macro_assembler_;
-  bool ignore_case_;
+  JSRegExp::Flags flags_;
   bool one_byte_;
   bool reg_exp_too_big_;
   bool limiting_recursion_;
   bool optimize_;
+  bool read_backward_;
   int current_expansion_factor_;
   FrequencyCollator frequency_collator_;
   Isolate* isolate_;
@@ -1051,15 +1072,18 @@ static RegExpEngine::CompilationResult IrregexpRegExpTooBig(Isolate* isolate) {
 // Attempts to compile the regexp using an Irregexp code generator.  Returns
 // a fixed array or a null handle depending on whether it succeeded.
 RegExpCompiler::RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
-                               bool ignore_case, bool one_byte)
+                               JSRegExp::Flags flags, bool one_byte)
     : next_register_(2 * (capture_count + 1)),
+      unicode_lookaround_stack_register_(kNoRegister),
+      unicode_lookaround_position_register_(kNoRegister),
       work_list_(NULL),
       recursion_depth_(0),
-      ignore_case_(ignore_case),
+      flags_(flags),
       one_byte_(one_byte),
       reg_exp_too_big_(false),
       limiting_recursion_(false),
       optimize_(FLAG_regexp_optimization),
+      read_backward_(false),
       current_expansion_factor_(1),
       frequency_collator_(),
       isolate_(isolate),
@@ -1224,7 +1248,8 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
     int value = 0;
     bool absolute = false;
     bool clear = false;
-    int store_position = -1;
+    static const int kNoStore = kMinInt;
+    int store_position = kNoStore;
     // This is a little tricky because we are scanning the actions in reverse
     // historical order (newest first).
     for (DeferredAction* action = actions_;
@@ -1245,7 +1270,7 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
             // we can set undo_action to IGNORE if we know there is no value to
             // restore.
             undo_action = RESTORE;
-            DCHECK_EQ(store_position, -1);
+            DCHECK_EQ(store_position, kNoStore);
             DCHECK(!clear);
             break;
           }
@@ -1253,14 +1278,14 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
             if (!absolute) {
               value++;
             }
-            DCHECK_EQ(store_position, -1);
+            DCHECK_EQ(store_position, kNoStore);
             DCHECK(!clear);
             undo_action = RESTORE;
             break;
           case ActionNode::STORE_POSITION: {
             Trace::DeferredCapture* pc =
                 static_cast<Trace::DeferredCapture*>(action);
-            if (!clear && store_position == -1) {
+            if (!clear && store_position == kNoStore) {
               store_position = pc->cp_offset();
             }
 
@@ -1284,7 +1309,7 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
             // Since we're scanning in reverse order, if we've already
             // set the position we have to ignore historically earlier
             // clearing operations.
-            if (store_position == -1) {
+            if (store_position == kNoStore) {
               clear = true;
             }
             undo_action = RESTORE;
@@ -1315,7 +1340,7 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
     }
     // Perform the chronologically last action (or accumulated increment)
     // for the register.
-    if (store_position != -1) {
+    if (store_position != kNoStore) {
       assembler->WriteCurrentPositionToRegister(reg, store_position);
     } else if (clear) {
       assembler->ClearRegisters(reg, reg);
@@ -1949,15 +1974,13 @@ static void SplitSearchSpace(ZoneList<int>* ranges,
 // know that the character is in the range of min_char to max_char inclusive.
 // Either label can be NULL indicating backtracking.  Either label can also be
 // equal to the fall_through label.
-static void GenerateBranches(RegExpMacroAssembler* masm,
-                             ZoneList<int>* ranges,
-                             int start_index,
-                             int end_index,
-                             uc16 min_char,
-                             uc16 max_char,
-                             Label* fall_through,
-                             Label* even_label,
-                             Label* odd_label) {
+static void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<int>* ranges,
+                             int start_index, int end_index, uc32 min_char,
+                             uc32 max_char, Label* fall_through,
+                             Label* even_label, Label* odd_label) {
+  DCHECK_LE(min_char, String::kMaxUtf16CodeUnit);
+  DCHECK_LE(max_char, String::kMaxUtf16CodeUnit);
+
   int first = ranges->at(start_index);
   int last = ranges->at(end_index) - 1;
 
@@ -2106,9 +2129,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
                           Label* on_failure, int cp_offset, bool check_offset,
                           bool preloaded, Zone* zone) {
   ZoneList<CharacterRange>* ranges = cc->ranges(zone);
-  if (!CharacterRange::IsCanonical(ranges)) {
-    CharacterRange::Canonicalize(ranges);
-  }
+  CharacterRange::Canonicalize(ranges);
 
   int max_char;
   if (one_byte) {
@@ -2150,23 +2171,14 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     }
     return;
   }
-  if (last_valid_range == 0 &&
-      !cc->is_negated() &&
-      ranges->at(0).IsEverything(max_char)) {
-    // This is a common case hit by non-anchored expressions.
-    if (check_offset) {
-      macro_assembler->CheckPosition(cp_offset, on_failure);
-    }
-    return;
-  }
 
   if (!preloaded) {
     macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check_offset);
   }
 
   if (cc->is_standard(zone) &&
-        macro_assembler->CheckSpecialCharacterClass(cc->standard_type(),
-                                                    on_failure)) {
+      macro_assembler->CheckSpecialCharacterClass(cc->standard_type(),
+                                                  on_failure)) {
       return;
   }
 
@@ -2313,6 +2325,7 @@ void AssertionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
 int BackReferenceNode::EatsAtLeast(int still_to_find,
                                    int budget,
                                    bool not_at_start) {
+  if (read_backward()) return 0;
   if (budget <= 0) return 0;
   return on_success()->EatsAtLeast(still_to_find,
                                    budget - 1,
@@ -2323,6 +2336,7 @@ int BackReferenceNode::EatsAtLeast(int still_to_find,
 int TextNode::EatsAtLeast(int still_to_find,
                           int budget,
                           bool not_at_start) {
+  if (read_backward()) return 0;
   int answer = Length();
   if (answer >= still_to_find) return answer;
   if (budget <= 0) return answer;
@@ -2333,9 +2347,8 @@ int TextNode::EatsAtLeast(int still_to_find,
 }
 
 
-int NegativeLookaheadChoiceNode::EatsAtLeast(int still_to_find,
-                                             int budget,
-                                             bool not_at_start) {
+int NegativeLookaroundChoiceNode::EatsAtLeast(int still_to_find, int budget,
+                                              bool not_at_start) {
   if (budget <= 0) return 0;
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
@@ -2344,10 +2357,8 @@ int NegativeLookaheadChoiceNode::EatsAtLeast(int still_to_find,
 }
 
 
-void NegativeLookaheadChoiceNode::GetQuickCheckDetails(
-    QuickCheckDetails* details,
-    RegExpCompiler* compiler,
-    int filled_in,
+void NegativeLookaroundChoiceNode::GetQuickCheckDetails(
+    QuickCheckDetails* details, RegExpCompiler* compiler, int filled_in,
     bool not_at_start) {
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
@@ -2479,12 +2490,14 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
   } else {
     // For 2-character preloads in one-byte mode or 1-character preloads in
     // two-byte mode we also use a 16 bit load with zero extend.
+    static const uint32_t kTwoByteMask = 0xffff;
+    static const uint32_t kFourByteMask = 0xffffffff;
     if (details->characters() == 2 && compiler->one_byte()) {
-      if ((mask & 0xffff) == 0xffff) need_mask = false;
+      if ((mask & kTwoByteMask) == kTwoByteMask) need_mask = false;
     } else if (details->characters() == 1 && !compiler->one_byte()) {
-      if ((mask & 0xffff) == 0xffff) need_mask = false;
+      if ((mask & kTwoByteMask) == kTwoByteMask) need_mask = false;
     } else {
-      if (mask == 0xffffffff) need_mask = false;
+      if (mask == kFourByteMask) need_mask = false;
     }
   }
 
@@ -2517,6 +2530,9 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start) {
+  // Do not collect any quick check details if the text node reads backward,
+  // since it reads in the opposite direction than we use for quick checks.
+  if (read_backward()) return;
   Isolate* isolate = compiler->macro_assembler()->isolate();
   DCHECK(characters_filled_in < details->characters());
   int characters = details->characters();
@@ -2526,8 +2542,8 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
   } else {
     char_mask = String::kMaxUtf16CodeUnit;
   }
-  for (int k = 0; k < elms_->length(); k++) {
-    TextElement elm = elms_->at(k);
+  for (int k = 0; k < elements()->length(); k++) {
+    TextElement elm = elements()->at(k);
     if (elm.text_type() == TextElement::ATOM) {
       Vector<const uc16> quarks = elm.atom()->data();
       for (int i = 0; i < characters && i < quarks.length(); i++) {
@@ -2678,11 +2694,13 @@ void QuickCheckDetails::Clear() {
 
 
 void QuickCheckDetails::Advance(int by, bool one_byte) {
-  DCHECK(by >= 0);
-  if (by >= characters_) {
+  if (by >= characters_ || by < 0) {
+    DCHECK_IMPLIES(by < 0, characters_ == 0);
     Clear();
     return;
   }
+  DCHECK_LE(characters_ - by, 4);
+  DCHECK_LE(characters_, 4);
   for (int i = 0; i < characters_ - by; i++) {
     positions_[i] = positions_[by + i];
   }
@@ -2780,9 +2798,9 @@ RegExpNode* TextNode::FilterOneByte(int depth, bool ignore_case) {
   if (depth < 0) return this;
   DCHECK(!info()->visited);
   VisitMarker marker(info());
-  int element_count = elms_->length();
+  int element_count = elements()->length();
   for (int i = 0; i < element_count; i++) {
-    TextElement elm = elms_->at(i);
+    TextElement elm = elements()->at(i);
     if (elm.text_type() == TextElement::ATOM) {
       Vector<const uc16> quarks = elm.atom()->data();
       for (int j = 0; j < quarks.length(); j++) {
@@ -2802,9 +2820,7 @@ RegExpNode* TextNode::FilterOneByte(int depth, bool ignore_case) {
       DCHECK(elm.text_type() == TextElement::CHAR_CLASS);
       RegExpCharacterClass* cc = elm.char_class();
       ZoneList<CharacterRange>* ranges = cc->ranges(zone());
-      if (!CharacterRange::IsCanonical(ranges)) {
-        CharacterRange::Canonicalize(ranges);
-      }
+      CharacterRange::Canonicalize(ranges);
       // Now they are in order so we only need to look at the first.
       int range_count = ranges->length();
       if (cc->is_negated()) {
@@ -2898,8 +2914,8 @@ RegExpNode* ChoiceNode::FilterOneByte(int depth, bool ignore_case) {
 }
 
 
-RegExpNode* NegativeLookaheadChoiceNode::FilterOneByte(int depth,
-                                                       bool ignore_case) {
+RegExpNode* NegativeLookaroundChoiceNode::FilterOneByte(int depth,
+                                                        bool ignore_case) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   if (info()->visited) return this;
@@ -3146,9 +3162,9 @@ void AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
         return;
       }
       if (trace->at_start() == Trace::UNKNOWN) {
-        assembler->CheckNotAtStart(trace->backtrack());
+        assembler->CheckNotAtStart(trace->cp_offset(), trace->backtrack());
         Trace at_start_trace = *trace;
-        at_start_trace.set_at_start(true);
+        at_start_trace.set_at_start(Trace::TRUE_VALUE);
         on_success()->Emit(compiler, &at_start_trace);
         return;
       }
@@ -3221,10 +3237,11 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
   bool one_byte = compiler->one_byte();
   Label* backtrack = trace->backtrack();
   QuickCheckDetails* quick_check = trace->quick_check_performed();
-  int element_count = elms_->length();
+  int element_count = elements()->length();
+  int backward_offset = read_backward() ? -Length() : 0;
   for (int i = preloaded ? 0 : element_count - 1; i >= 0; i--) {
-    TextElement elm = elms_->at(i);
-    int cp_offset = trace->cp_offset() + elm.cp_offset();
+    TextElement elm = elements()->at(i);
+    int cp_offset = trace->cp_offset() + elm.cp_offset() + backward_offset;
     if (elm.text_type() == TextElement::ATOM) {
       Vector<const uc16> quarks = elm.atom()->data();
       for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
@@ -3252,13 +3269,10 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
             break;
         }
         if (emit_function != NULL) {
-          bool bound_checked = emit_function(isolate,
-                                             compiler,
-                                             quarks[j],
-                                             backtrack,
-                                             cp_offset + j,
-                                             *checked_up_to < cp_offset + j,
-                                             preloaded);
+          bool bounds_check = *checked_up_to < cp_offset + j || read_backward();
+          bool bound_checked =
+              emit_function(isolate, compiler, quarks[j], backtrack,
+                            cp_offset + j, bounds_check, preloaded);
           if (bound_checked) UpdateBoundsCheck(cp_offset + j, checked_up_to);
         }
       }
@@ -3268,8 +3282,9 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
         if (first_element_checked && i == 0) continue;
         if (DeterminedAlready(quick_check, elm.cp_offset())) continue;
         RegExpCharacterClass* cc = elm.char_class();
+        bool bounds_check = *checked_up_to < cp_offset || read_backward();
         EmitCharClass(assembler, cc, one_byte, backtrack, cp_offset,
-                      *checked_up_to < cp_offset, preloaded, zone());
+                      bounds_check, preloaded, zone());
         UpdateBoundsCheck(cp_offset, checked_up_to);
       }
     }
@@ -3278,7 +3293,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
 
 
 int TextNode::Length() {
-  TextElement elm = elms_->last();
+  TextElement elm = elements()->last();
   DCHECK(elm.cp_offset() >= 0);
   return elm.cp_offset() + elm.length();
 }
@@ -3291,6 +3306,36 @@ bool TextNode::SkipPass(int int_pass, bool ignore_case) {
   } else {
     return pass == NON_LETTER_CHARACTER_MATCH || pass == CASE_CHARACTER_MATCH;
   }
+}
+
+
+TextNode* TextNode::CreateForCharacterRanges(Zone* zone,
+                                             ZoneList<CharacterRange>* ranges,
+                                             bool read_backward,
+                                             RegExpNode* on_success) {
+  DCHECK_NOT_NULL(ranges);
+  ZoneList<TextElement>* elms = new (zone) ZoneList<TextElement>(1, zone);
+  elms->Add(
+      TextElement::CharClass(new (zone) RegExpCharacterClass(ranges, false)),
+      zone);
+  return new (zone) TextNode(elms, read_backward, on_success);
+}
+
+
+TextNode* TextNode::CreateForSurrogatePair(Zone* zone, CharacterRange lead,
+                                           CharacterRange trail,
+                                           bool read_backward,
+                                           RegExpNode* on_success) {
+  ZoneList<CharacterRange>* lead_ranges = CharacterRange::List(zone, lead);
+  ZoneList<CharacterRange>* trail_ranges = CharacterRange::List(zone, trail);
+  ZoneList<TextElement>* elms = new (zone) ZoneList<TextElement>(2, zone);
+  elms->Add(TextElement::CharClass(
+                new (zone) RegExpCharacterClass(lead_ranges, false)),
+            zone);
+  elms->Add(TextElement::CharClass(
+                new (zone) RegExpCharacterClass(trail_ranges, false)),
+            zone);
+  return new (zone) TextNode(elms, read_backward, on_success);
 }
 
 
@@ -3347,8 +3392,11 @@ void TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   }
 
   Trace successor_trace(*trace);
-  successor_trace.set_at_start(false);
-  successor_trace.AdvanceCurrentPositionInTrace(Length(), compiler);
+  // If we advance backward, we may end up at the start.
+  successor_trace.AdvanceCurrentPositionInTrace(
+      read_backward() ? -Length() : Length(), compiler);
+  successor_trace.set_at_start(read_backward() ? Trace::UNKNOWN
+                                               : Trace::FALSE_VALUE);
   RecursionCheck rc(compiler);
   on_success()->Emit(compiler, &successor_trace);
 }
@@ -3360,7 +3408,6 @@ void Trace::InvalidateCurrentCharacter() {
 
 
 void Trace::AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler) {
-  DCHECK(by > 0);
   // We don't have an instruction for shifting the current character register
   // down or for using a shifted value for anything so lets just forget that
   // we preloaded any characters into it.
@@ -3379,40 +3426,33 @@ void Trace::AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler) {
 
 
 void TextNode::MakeCaseIndependent(Isolate* isolate, bool is_one_byte) {
-  int element_count = elms_->length();
+  int element_count = elements()->length();
   for (int i = 0; i < element_count; i++) {
-    TextElement elm = elms_->at(i);
+    TextElement elm = elements()->at(i);
     if (elm.text_type() == TextElement::CHAR_CLASS) {
       RegExpCharacterClass* cc = elm.char_class();
       // None of the standard character classes is different in the case
       // independent case and it slows us down if we don't know that.
       if (cc->is_standard(zone())) continue;
       ZoneList<CharacterRange>* ranges = cc->ranges(zone());
-      int range_count = ranges->length();
-      for (int j = 0; j < range_count; j++) {
-        ranges->at(j).AddCaseEquivalents(isolate, zone(), ranges, is_one_byte);
-      }
+      CharacterRange::AddCaseEquivalents(isolate, zone(), ranges, is_one_byte);
     }
   }
 }
 
 
-int TextNode::GreedyLoopTextLength() {
-  TextElement elm = elms_->at(elms_->length() - 1);
-  return elm.cp_offset() + elm.length();
-}
+int TextNode::GreedyLoopTextLength() { return Length(); }
 
 
 RegExpNode* TextNode::GetSuccessorOfOmnivorousTextNode(
     RegExpCompiler* compiler) {
-  if (elms_->length() != 1) return NULL;
-  TextElement elm = elms_->at(0);
+  if (read_backward()) return NULL;
+  if (elements()->length() != 1) return NULL;
+  TextElement elm = elements()->at(0);
   if (elm.text_type() != TextElement::CHAR_CLASS) return NULL;
   RegExpCharacterClass* node = elm.char_class();
   ZoneList<CharacterRange>* ranges = node->ranges(zone());
-  if (!CharacterRange::IsCanonical(ranges)) {
-    CharacterRange::Canonicalize(ranges);
-  }
+  CharacterRange::Canonicalize(ranges);
   if (node->is_negated()) {
     return ranges->length() == 0 ? on_success() : NULL;
   }
@@ -3450,7 +3490,7 @@ int ChoiceNode::GreedyLoopTextLengthForAlternative(
     SeqRegExpNode* seq_node = static_cast<SeqRegExpNode*>(node);
     node = seq_node->on_success();
   }
-  return length;
+  return read_backward() ? -length : length;
 }
 
 
@@ -3559,26 +3599,28 @@ class AlternativeGenerationList {
 };
 
 
+static const uc32 kRangeEndMarker = 0x110000;
+
 // The '2' variant is has inclusive from and exclusive to.
 // This covers \s as defined in ECMA-262 5.1, 15.10.2.12,
 // which include WhiteSpace (7.2) or LineTerminator (7.3) values.
-static const int kSpaceRanges[] = { '\t', '\r' + 1, ' ', ' ' + 1,
-    0x00A0, 0x00A1, 0x1680, 0x1681, 0x180E, 0x180F, 0x2000, 0x200B,
-    0x2028, 0x202A, 0x202F, 0x2030, 0x205F, 0x2060, 0x3000, 0x3001,
-    0xFEFF, 0xFF00, 0x10000 };
+static const int kSpaceRanges[] = {
+    '\t',   '\r' + 1, ' ',    ' ' + 1, 0x00A0, 0x00A1, 0x1680,         0x1681,
+    0x180E, 0x180F,   0x2000, 0x200B,  0x2028, 0x202A, 0x202F,         0x2030,
+    0x205F, 0x2060,   0x3000, 0x3001,  0xFEFF, 0xFF00, kRangeEndMarker};
 static const int kSpaceRangeCount = arraysize(kSpaceRanges);
 
 static const int kWordRanges[] = {
-    '0', '9' + 1, 'A', 'Z' + 1, '_', '_' + 1, 'a', 'z' + 1, 0x10000 };
+    '0', '9' + 1, 'A', 'Z' + 1, '_', '_' + 1, 'a', 'z' + 1, kRangeEndMarker};
 static const int kWordRangeCount = arraysize(kWordRanges);
-static const int kDigitRanges[] = { '0', '9' + 1, 0x10000 };
+static const int kDigitRanges[] = {'0', '9' + 1, kRangeEndMarker};
 static const int kDigitRangeCount = arraysize(kDigitRanges);
-static const int kSurrogateRanges[] = { 0xd800, 0xe000, 0x10000 };
+static const int kSurrogateRanges[] = {
+    kLeadSurrogateStart, kLeadSurrogateStart + 1, kRangeEndMarker};
 static const int kSurrogateRangeCount = arraysize(kSurrogateRanges);
-static const int kLineTerminatorRanges[] = { 0x000A, 0x000B, 0x000D, 0x000E,
-    0x2028, 0x202A, 0x10000 };
+static const int kLineTerminatorRanges[] = {
+    0x000A, 0x000B, 0x000D, 0x000E, 0x2028, 0x202A, kRangeEndMarker};
 static const int kLineTerminatorRangeCount = arraysize(kLineTerminatorRanges);
-
 
 void BoyerMoorePositionInfo::Set(int character) {
   SetInterval(Interval(character, character));
@@ -3881,7 +3923,7 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
 
 GreedyLoopState::GreedyLoopState(bool not_at_start) {
   counter_backtrack_trace_.set_backtrack(&label_);
-  if (not_at_start) counter_backtrack_trace_.set_at_start(false);
+  if (not_at_start) counter_backtrack_trace_.set_at_start(Trace::FALSE_VALUE);
 }
 
 
@@ -3920,6 +3962,11 @@ void ChoiceNode::SetUpPreLoad(RegExpCompiler* compiler,
 
 void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   int choice_count = alternatives_->length();
+
+  if (choice_count == 1 && alternatives_->at(0).guards() == NULL) {
+    alternatives_->at(0).node()->Emit(compiler, trace);
+    return;
+  }
 
   AssertGuardsMentionRegisters(trace);
 
@@ -4008,7 +4055,7 @@ Trace* ChoiceNode::EmitGreedyLoop(RegExpCompiler* compiler,
   macro_assembler->PushCurrentPosition();
   Label greedy_match_failed;
   Trace greedy_match_trace;
-  if (not_at_start()) greedy_match_trace.set_at_start(false);
+  if (not_at_start()) greedy_match_trace.set_at_start(Trace::FALSE_VALUE);
   greedy_match_trace.set_backtrack(&greedy_match_failed);
   Label loop_label;
   macro_assembler->Bind(&loop_label);
@@ -4354,10 +4401,18 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   DCHECK_EQ(start_reg_ + 1, end_reg_);
   if (compiler->ignore_case()) {
-    assembler->CheckNotBackReferenceIgnoreCase(start_reg_,
-                                               trace->backtrack());
+    assembler->CheckNotBackReferenceIgnoreCase(
+        start_reg_, read_backward(), compiler->unicode(), trace->backtrack());
   } else {
-    assembler->CheckNotBackReference(start_reg_, trace->backtrack());
+    assembler->CheckNotBackReference(start_reg_, read_backward(),
+                                     trace->backtrack());
+  }
+  // We are going to advance backward, so we may end up at the start.
+  if (read_backward()) trace->set_at_start(Trace::UNKNOWN);
+
+  // Check that the back reference does not end inside a surrogate pair.
+  if (compiler->unicode() && !compiler->one_byte()) {
+    assembler->CheckNotInSurrogatePair(trace->cp_offset(), trace->backtrack());
   }
   on_success()->Emit(compiler, trace);
 }
@@ -4719,21 +4774,23 @@ RegExpNode* RegExpAtom::ToNode(RegExpCompiler* compiler,
   ZoneList<TextElement>* elms =
       new(compiler->zone()) ZoneList<TextElement>(1, compiler->zone());
   elms->Add(TextElement::Atom(this), compiler->zone());
-  return new(compiler->zone()) TextNode(elms, on_success);
+  return new (compiler->zone())
+      TextNode(elms, compiler->read_backward(), on_success);
 }
 
 
 RegExpNode* RegExpText::ToNode(RegExpCompiler* compiler,
                                RegExpNode* on_success) {
-  return new(compiler->zone()) TextNode(elements(), on_success);
+  return new (compiler->zone())
+      TextNode(elements(), compiler->read_backward(), on_success);
 }
 
 
 static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
                                  const int* special_class,
                                  int length) {
-  length--;  // Remove final 0x10000.
-  DCHECK(special_class[length] == 0x10000);
+  length--;  // Remove final marker.
+  DCHECK(special_class[length] == kRangeEndMarker);
   DCHECK(ranges->length() != 0);
   DCHECK(length != 0);
   DCHECK(special_class[0] != 0);
@@ -4753,7 +4810,7 @@ static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
       return false;
     }
   }
-  if (range.to() != 0xffff) {
+  if (range.to() != String::kMaxCodePoint) {
     return false;
   }
   return true;
@@ -4763,8 +4820,8 @@ static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
 static bool CompareRanges(ZoneList<CharacterRange>* ranges,
                           const int* special_class,
                           int length) {
-  length--;  // Remove final 0x10000.
-  DCHECK(special_class[length] == 0x10000);
+  length--;  // Remove final marker.
+  DCHECK(special_class[length] == kRangeEndMarker);
   if (ranges->length() * 2 != length) {
     return false;
   }
@@ -4820,9 +4877,303 @@ bool RegExpCharacterClass::is_standard(Zone* zone) {
 }
 
 
+UnicodeRangeSplitter::UnicodeRangeSplitter(Zone* zone,
+                                           ZoneList<CharacterRange>* base)
+    : zone_(zone),
+      table_(zone),
+      bmp_(nullptr),
+      lead_surrogates_(nullptr),
+      trail_surrogates_(nullptr),
+      non_bmp_(nullptr) {
+  // The unicode range splitter categorizes given character ranges into:
+  // - Code points from the BMP representable by one code unit.
+  // - Code points outside the BMP that need to be split into surrogate pairs.
+  // - Lone lead surrogates.
+  // - Lone trail surrogates.
+  // Lone surrogates are valid code points, even though no actual characters.
+  // They require special matching to make sure we do not split surrogate pairs.
+  // We use the dispatch table to accomplish this. The base range is split up
+  // by the table by the overlay ranges, and the Call callback is used to
+  // filter and collect ranges for each category.
+  for (int i = 0; i < base->length(); i++) {
+    table_.AddRange(base->at(i), kBase, zone_);
+  }
+  // Add overlay ranges.
+  table_.AddRange(CharacterRange::Range(0, kLeadSurrogateStart - 1),
+                  kBmpCodePoints, zone_);
+  table_.AddRange(CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd),
+                  kLeadSurrogates, zone_);
+  table_.AddRange(
+      CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd),
+      kTrailSurrogates, zone_);
+  table_.AddRange(
+      CharacterRange::Range(kTrailSurrogateEnd + 1, kNonBmpStart - 1),
+      kBmpCodePoints, zone_);
+  table_.AddRange(CharacterRange::Range(kNonBmpStart, kNonBmpEnd),
+                  kNonBmpCodePoints, zone_);
+  table_.ForEach(this);
+}
+
+
+void UnicodeRangeSplitter::Call(uc32 from, DispatchTable::Entry entry) {
+  OutSet* outset = entry.out_set();
+  if (!outset->Get(kBase)) return;
+  ZoneList<CharacterRange>** target = NULL;
+  if (outset->Get(kBmpCodePoints)) {
+    target = &bmp_;
+  } else if (outset->Get(kLeadSurrogates)) {
+    target = &lead_surrogates_;
+  } else if (outset->Get(kTrailSurrogates)) {
+    target = &trail_surrogates_;
+  } else {
+    DCHECK(outset->Get(kNonBmpCodePoints));
+    target = &non_bmp_;
+  }
+  if (*target == NULL) *target = new (zone_) ZoneList<CharacterRange>(2, zone_);
+  (*target)->Add(CharacterRange::Range(entry.from(), entry.to()), zone_);
+}
+
+
+void AddBmpCharacters(RegExpCompiler* compiler, ChoiceNode* result,
+                      RegExpNode* on_success, UnicodeRangeSplitter* splitter) {
+  ZoneList<CharacterRange>* bmp = splitter->bmp();
+  if (bmp == nullptr) return;
+  result->AddAlternative(GuardedAlternative(TextNode::CreateForCharacterRanges(
+      compiler->zone(), bmp, compiler->read_backward(), on_success)));
+}
+
+
+void AddNonBmpSurrogatePairs(RegExpCompiler* compiler, ChoiceNode* result,
+                             RegExpNode* on_success,
+                             UnicodeRangeSplitter* splitter) {
+  ZoneList<CharacterRange>* non_bmp = splitter->non_bmp();
+  if (non_bmp == nullptr) return;
+  DCHECK(compiler->unicode());
+  DCHECK(!compiler->one_byte());
+  Zone* zone = compiler->zone();
+  CharacterRange::Canonicalize(non_bmp);
+  for (int i = 0; i < non_bmp->length(); i++) {
+    // Match surrogate pair.
+    // E.g. [\u10005-\u11005] becomes
+    //      \ud800[\udc05-\udfff]|
+    //      [\ud801-\ud803][\udc00-\udfff]|
+    //      \ud804[\udc00-\udc05]
+    uc32 from = non_bmp->at(i).from();
+    uc32 to = non_bmp->at(i).to();
+    uc16 from_l = unibrow::Utf16::LeadSurrogate(from);
+    uc16 from_t = unibrow::Utf16::TrailSurrogate(from);
+    uc16 to_l = unibrow::Utf16::LeadSurrogate(to);
+    uc16 to_t = unibrow::Utf16::TrailSurrogate(to);
+    if (from_l == to_l) {
+      // The lead surrogate is the same.
+      result->AddAlternative(
+          GuardedAlternative(TextNode::CreateForSurrogatePair(
+              zone, CharacterRange::Singleton(from_l),
+              CharacterRange::Range(from_t, to_t), compiler->read_backward(),
+              on_success)));
+    } else {
+      if (from_t != kTrailSurrogateStart) {
+        // Add [from_l][from_t-\udfff]
+        result->AddAlternative(
+            GuardedAlternative(TextNode::CreateForSurrogatePair(
+                zone, CharacterRange::Singleton(from_l),
+                CharacterRange::Range(from_t, kTrailSurrogateEnd),
+                compiler->read_backward(), on_success)));
+        from_l++;
+      }
+      if (to_t != kTrailSurrogateEnd) {
+        // Add [to_l][\udc00-to_t]
+        result->AddAlternative(
+            GuardedAlternative(TextNode::CreateForSurrogatePair(
+                zone, CharacterRange::Singleton(to_l),
+                CharacterRange::Range(kTrailSurrogateStart, to_t),
+                compiler->read_backward(), on_success)));
+        to_l--;
+      }
+      if (from_l <= to_l) {
+        // Add [from_l-to_l][\udc00-\udfff]
+        result->AddAlternative(
+            GuardedAlternative(TextNode::CreateForSurrogatePair(
+                zone, CharacterRange::Range(from_l, to_l),
+                CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd),
+                compiler->read_backward(), on_success)));
+      }
+    }
+  }
+}
+
+
+RegExpNode* NegativeLookaroundAgainstReadDirectionAndMatch(
+    RegExpCompiler* compiler, ZoneList<CharacterRange>* lookbehind,
+    ZoneList<CharacterRange>* match, RegExpNode* on_success,
+    bool read_backward) {
+  Zone* zone = compiler->zone();
+  RegExpNode* match_node = TextNode::CreateForCharacterRanges(
+      zone, match, read_backward, on_success);
+  int stack_register = compiler->UnicodeLookaroundStackRegister();
+  int position_register = compiler->UnicodeLookaroundPositionRegister();
+  RegExpLookaround::Builder lookaround(false, match_node, stack_register,
+                                       position_register);
+  RegExpNode* negative_match = TextNode::CreateForCharacterRanges(
+      zone, lookbehind, !read_backward, lookaround.on_match_success());
+  return lookaround.ForMatch(negative_match);
+}
+
+
+RegExpNode* MatchAndNegativeLookaroundInReadDirection(
+    RegExpCompiler* compiler, ZoneList<CharacterRange>* match,
+    ZoneList<CharacterRange>* lookahead, RegExpNode* on_success,
+    bool read_backward) {
+  Zone* zone = compiler->zone();
+  int stack_register = compiler->UnicodeLookaroundStackRegister();
+  int position_register = compiler->UnicodeLookaroundPositionRegister();
+  RegExpLookaround::Builder lookaround(false, on_success, stack_register,
+                                       position_register);
+  RegExpNode* negative_match = TextNode::CreateForCharacterRanges(
+      zone, lookahead, read_backward, lookaround.on_match_success());
+  return TextNode::CreateForCharacterRanges(
+      zone, match, read_backward, lookaround.ForMatch(negative_match));
+}
+
+
+void AddLoneLeadSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
+                           RegExpNode* on_success,
+                           UnicodeRangeSplitter* splitter) {
+  ZoneList<CharacterRange>* lead_surrogates = splitter->lead_surrogates();
+  if (lead_surrogates == nullptr) return;
+  Zone* zone = compiler->zone();
+  // E.g. \ud801 becomes \ud801(?![\udc00-\udfff]).
+  ZoneList<CharacterRange>* trail_surrogates = CharacterRange::List(
+      zone, CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd));
+
+  RegExpNode* match;
+  if (compiler->read_backward()) {
+    // Reading backward. Assert that reading forward, there is no trail
+    // surrogate, and then backward match the lead surrogate.
+    match = NegativeLookaroundAgainstReadDirectionAndMatch(
+        compiler, trail_surrogates, lead_surrogates, on_success, true);
+  } else {
+    // Reading forward. Forward match the lead surrogate and assert that
+    // no trail surrogate follows.
+    match = MatchAndNegativeLookaroundInReadDirection(
+        compiler, lead_surrogates, trail_surrogates, on_success, false);
+  }
+  result->AddAlternative(GuardedAlternative(match));
+}
+
+
+void AddLoneTrailSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
+                            RegExpNode* on_success,
+                            UnicodeRangeSplitter* splitter) {
+  ZoneList<CharacterRange>* trail_surrogates = splitter->trail_surrogates();
+  if (trail_surrogates == nullptr) return;
+  Zone* zone = compiler->zone();
+  // E.g. \udc01 becomes (?<![\ud800-\udbff])\udc01
+  ZoneList<CharacterRange>* lead_surrogates = CharacterRange::List(
+      zone, CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd));
+
+  RegExpNode* match;
+  if (compiler->read_backward()) {
+    // Reading backward. Backward match the trail surrogate and assert that no
+    // lead surrogate precedes it.
+    match = MatchAndNegativeLookaroundInReadDirection(
+        compiler, trail_surrogates, lead_surrogates, on_success, true);
+  } else {
+    // Reading forward. Assert that reading backward, there is no lead
+    // surrogate, and then forward match the trail surrogate.
+    match = NegativeLookaroundAgainstReadDirectionAndMatch(
+        compiler, lead_surrogates, trail_surrogates, on_success, false);
+  }
+  result->AddAlternative(GuardedAlternative(match));
+}
+
+RegExpNode* UnanchoredAdvance(RegExpCompiler* compiler,
+                              RegExpNode* on_success) {
+  // This implements ES2015 21.2.5.2.3, AdvanceStringIndex.
+  DCHECK(!compiler->read_backward());
+  Zone* zone = compiler->zone();
+  // Advance any character. If the character happens to be a lead surrogate and
+  // we advanced into the middle of a surrogate pair, it will work out, as
+  // nothing will match from there. We will have to advance again, consuming
+  // the associated trail surrogate.
+  ZoneList<CharacterRange>* range = CharacterRange::List(
+      zone, CharacterRange::Range(0, String::kMaxUtf16CodeUnit));
+  return TextNode::CreateForCharacterRanges(zone, range, false, on_success);
+}
+
+
+void AddUnicodeCaseEquivalents(RegExpCompiler* compiler,
+                               ZoneList<CharacterRange>* ranges) {
+#ifdef V8_I18N_SUPPORT
+  // Use ICU to compute the case fold closure over the ranges.
+  DCHECK(compiler->unicode());
+  DCHECK(compiler->ignore_case());
+  USet* set = uset_openEmpty();
+  for (int i = 0; i < ranges->length(); i++) {
+    uset_addRange(set, ranges->at(i).from(), ranges->at(i).to());
+  }
+  ranges->Clear();
+  uset_closeOver(set, USET_CASE_INSENSITIVE);
+  // Full case mapping map single characters to multiple characters.
+  // Those are represented as strings in the set. Remove them so that
+  // we end up with only simple and common case mappings.
+  uset_removeAllStrings(set);
+  int item_count = uset_getItemCount(set);
+  int item_result = 0;
+  UErrorCode ec = U_ZERO_ERROR;
+  Zone* zone = compiler->zone();
+  for (int i = 0; i < item_count; i++) {
+    uc32 start = 0;
+    uc32 end = 0;
+    item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
+    ranges->Add(CharacterRange::Range(start, end), zone);
+  }
+  // No errors and everything we collected have been ranges.
+  DCHECK_EQ(U_ZERO_ERROR, ec);
+  DCHECK_EQ(0, item_result);
+  uset_close(set);
+#else
+  // Fallback if ICU is not included.
+  CharacterRange::AddCaseEquivalents(compiler->isolate(), compiler->zone(),
+                                     ranges, compiler->one_byte());
+#endif  // V8_I18N_SUPPORT
+  CharacterRange::Canonicalize(ranges);
+}
+
+
 RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
                                          RegExpNode* on_success) {
-  return new(compiler->zone()) TextNode(this, on_success);
+  set_.Canonicalize();
+  Zone* zone = compiler->zone();
+  ZoneList<CharacterRange>* ranges = this->ranges(zone);
+  if (compiler->unicode() && compiler->ignore_case()) {
+    AddUnicodeCaseEquivalents(compiler, ranges);
+  }
+  if (compiler->unicode() && !compiler->one_byte()) {
+    if (is_negated()) {
+      ZoneList<CharacterRange>* negated =
+          new (zone) ZoneList<CharacterRange>(2, zone);
+      CharacterRange::Negate(ranges, negated, zone);
+      ranges = negated;
+    }
+    if (ranges->length() == 0) {
+      // No matches possible.
+      return new (zone) EndNode(EndNode::BACKTRACK, zone);
+    }
+    if (standard_type() == '*') {
+      return UnanchoredAdvance(compiler, on_success);
+    } else {
+      ChoiceNode* result = new (zone) ChoiceNode(2, zone);
+      UnicodeRangeSplitter splitter(zone, ranges);
+      AddBmpCharacters(compiler, result, on_success, &splitter);
+      AddNonBmpSurrogatePairs(compiler, result, on_success, &splitter);
+      AddLoneLeadSurrogates(compiler, result, on_success, &splitter);
+      AddLoneTrailSurrogates(compiler, result, on_success, &splitter);
+      return result;
+    }
+  } else {
+    return new (zone) TextNode(this, compiler->read_backward(), on_success);
+  }
 }
 
 
@@ -5204,7 +5555,9 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
                 GuardedAlternative(body->ToNode(compiler, answer)));
           }
           answer = alternation;
-          if (not_at_start) alternation->set_not_at_start();
+          if (not_at_start && !compiler->read_backward()) {
+            alternation->set_not_at_start();
+          }
         }
         return answer;
       }
@@ -5216,9 +5569,9 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   int reg_ctr = needs_counter
       ? compiler->AllocateRegister()
       : RegExpCompiler::kNoRegister;
-  LoopChoiceNode* center = new(zone) LoopChoiceNode(body->min_match() == 0,
-                                                    zone);
-  if (not_at_start) center->set_not_at_start();
+  LoopChoiceNode* center = new (zone)
+      LoopChoiceNode(body->min_match() == 0, compiler->read_backward(), zone);
+  if (not_at_start && !compiler->read_backward()) center->set_not_at_start();
   RegExpNode* loop_return = needs_counter
       ? static_cast<RegExpNode*>(ActionNode::IncrementRegister(reg_ctr, center))
       : static_cast<RegExpNode*>(center);
@@ -5294,14 +5647,13 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
       ZoneList<CharacterRange>* newline_ranges =
           new(zone) ZoneList<CharacterRange>(3, zone);
       CharacterRange::AddClassEscape('n', newline_ranges, zone);
-      RegExpCharacterClass* newline_atom = new(zone) RegExpCharacterClass('n');
-      TextNode* newline_matcher = new(zone) TextNode(
-         newline_atom,
-         ActionNode::PositiveSubmatchSuccess(stack_pointer_register,
-                                             position_register,
-                                             0,  // No captures inside.
-                                             -1,  // Ignored if no captures.
-                                             on_success));
+      RegExpCharacterClass* newline_atom = new (zone) RegExpCharacterClass('n');
+      TextNode* newline_matcher = new (zone) TextNode(
+          newline_atom, false, ActionNode::PositiveSubmatchSuccess(
+                                   stack_pointer_register, position_register,
+                                   0,   // No captures inside.
+                                   -1,  // Ignored if no captures.
+                                   on_success));
       // Create an end-of-input matcher.
       RegExpNode* end_of_line = ActionNode::BeginSubmatch(
           stack_pointer_register,
@@ -5323,10 +5675,10 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
 
 RegExpNode* RegExpBackReference::ToNode(RegExpCompiler* compiler,
                                         RegExpNode* on_success) {
-  return new(compiler->zone())
+  return new (compiler->zone())
       BackReferenceNode(RegExpCapture::StartRegister(index()),
                         RegExpCapture::EndRegister(index()),
-                        on_success);
+                        compiler->read_backward(), on_success);
 }
 
 
@@ -5336,8 +5688,49 @@ RegExpNode* RegExpEmpty::ToNode(RegExpCompiler* compiler,
 }
 
 
-RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
-                                    RegExpNode* on_success) {
+RegExpLookaround::Builder::Builder(bool is_positive, RegExpNode* on_success,
+                                   int stack_pointer_register,
+                                   int position_register,
+                                   int capture_register_count,
+                                   int capture_register_start)
+    : is_positive_(is_positive),
+      on_success_(on_success),
+      stack_pointer_register_(stack_pointer_register),
+      position_register_(position_register) {
+  if (is_positive_) {
+    on_match_success_ = ActionNode::PositiveSubmatchSuccess(
+        stack_pointer_register, position_register, capture_register_count,
+        capture_register_start, on_success_);
+  } else {
+    Zone* zone = on_success_->zone();
+    on_match_success_ = new (zone) NegativeSubmatchSuccess(
+        stack_pointer_register, position_register, capture_register_count,
+        capture_register_start, zone);
+  }
+}
+
+
+RegExpNode* RegExpLookaround::Builder::ForMatch(RegExpNode* match) {
+  if (is_positive_) {
+    return ActionNode::BeginSubmatch(stack_pointer_register_,
+                                     position_register_, match);
+  } else {
+    Zone* zone = on_success_->zone();
+    // We use a ChoiceNode to represent the negative lookaround. The first
+    // alternative is the negative match. On success, the end node backtracks.
+    // On failure, the second alternative is tried and leads to success.
+    // NegativeLookaheadChoiceNode is a special ChoiceNode that ignores the
+    // first exit when calculating quick checks.
+    ChoiceNode* choice_node = new (zone) NegativeLookaroundChoiceNode(
+        GuardedAlternative(match), GuardedAlternative(on_success_), zone);
+    return ActionNode::BeginSubmatch(stack_pointer_register_,
+                                     position_register_, choice_node);
+  }
+}
+
+
+RegExpNode* RegExpLookaround::ToNode(RegExpCompiler* compiler,
+                                     RegExpNode* on_success) {
   int stack_pointer_register = compiler->AllocateRegister();
   int position_register = compiler->AllocateRegister();
 
@@ -5347,48 +5740,15 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
   int register_start =
     register_of_first_capture + capture_from_ * registers_per_capture;
 
-  RegExpNode* success;
-  if (is_positive()) {
-    RegExpNode* node = ActionNode::BeginSubmatch(
-        stack_pointer_register,
-        position_register,
-        body()->ToNode(
-            compiler,
-            ActionNode::PositiveSubmatchSuccess(stack_pointer_register,
-                                                position_register,
-                                                register_count,
-                                                register_start,
-                                                on_success)));
-    return node;
-  } else {
-    // We use a ChoiceNode for a negative lookahead because it has most of
-    // the characteristics we need.  It has the body of the lookahead as its
-    // first alternative and the expression after the lookahead of the second
-    // alternative.  If the first alternative succeeds then the
-    // NegativeSubmatchSuccess will unwind the stack including everything the
-    // choice node set up and backtrack.  If the first alternative fails then
-    // the second alternative is tried, which is exactly the desired result
-    // for a negative lookahead.  The NegativeLookaheadChoiceNode is a special
-    // ChoiceNode that knows to ignore the first exit when calculating quick
-    // checks.
-    Zone* zone = compiler->zone();
-
-    GuardedAlternative body_alt(
-        body()->ToNode(
-            compiler,
-            success = new(zone) NegativeSubmatchSuccess(stack_pointer_register,
-                                                        position_register,
-                                                        register_count,
-                                                        register_start,
-                                                        zone)));
-    ChoiceNode* choice_node =
-        new(zone) NegativeLookaheadChoiceNode(body_alt,
-                                              GuardedAlternative(on_success),
-                                              zone);
-    return ActionNode::BeginSubmatch(stack_pointer_register,
-                                     position_register,
-                                     choice_node);
-  }
+  RegExpNode* result;
+  bool was_reading_backward = compiler->read_backward();
+  compiler->set_read_backward(type() == LOOKBEHIND);
+  Builder builder(is_positive(), on_success, stack_pointer_register,
+                  position_register, register_count, register_start);
+  RegExpNode* match = body_->ToNode(compiler, builder.on_match_success());
+  result = builder.ForMatch(match);
+  compiler->set_read_backward(was_reading_backward);
+  return result;
 }
 
 
@@ -5402,8 +5762,10 @@ RegExpNode* RegExpCapture::ToNode(RegExpTree* body,
                                   int index,
                                   RegExpCompiler* compiler,
                                   RegExpNode* on_success) {
+  DCHECK_NOT_NULL(body);
   int start_reg = RegExpCapture::StartRegister(index);
   int end_reg = RegExpCapture::EndRegister(index);
+  if (compiler->read_backward()) std::swap(start_reg, end_reg);
   RegExpNode* store_end = ActionNode::StorePosition(end_reg, true, on_success);
   RegExpNode* body_node = body->ToNode(compiler, store_end);
   return ActionNode::StorePosition(start_reg, true, body_node);
@@ -5414,8 +5776,14 @@ RegExpNode* RegExpAlternative::ToNode(RegExpCompiler* compiler,
                                       RegExpNode* on_success) {
   ZoneList<RegExpTree*>* children = nodes();
   RegExpNode* current = on_success;
-  for (int i = children->length() - 1; i >= 0; i--) {
-    current = children->at(i)->ToNode(compiler, current);
+  if (compiler->read_backward()) {
+    for (int i = 0; i < children->length(); i++) {
+      current = children->at(i)->ToNode(compiler, current);
+    }
+  } else {
+    for (int i = children->length() - 1; i >= 0; i--) {
+      current = children->at(i)->ToNode(compiler, current);
+    }
   }
   return current;
 }
@@ -5426,10 +5794,10 @@ static void AddClass(const int* elmv,
                      ZoneList<CharacterRange>* ranges,
                      Zone* zone) {
   elmc--;
-  DCHECK(elmv[elmc] == 0x10000);
+  DCHECK(elmv[elmc] == kRangeEndMarker);
   for (int i = 0; i < elmc; i += 2) {
     DCHECK(elmv[i] < elmv[i + 1]);
-    ranges->Add(CharacterRange(elmv[i], elmv[i + 1] - 1), zone);
+    ranges->Add(CharacterRange::Range(elmv[i], elmv[i + 1] - 1), zone);
   }
 }
 
@@ -5439,17 +5807,17 @@ static void AddClassNegated(const int *elmv,
                             ZoneList<CharacterRange>* ranges,
                             Zone* zone) {
   elmc--;
-  DCHECK(elmv[elmc] == 0x10000);
+  DCHECK(elmv[elmc] == kRangeEndMarker);
   DCHECK(elmv[0] != 0x0000);
-  DCHECK(elmv[elmc-1] != String::kMaxUtf16CodeUnit);
+  DCHECK(elmv[elmc - 1] != String::kMaxCodePoint);
   uc16 last = 0x0000;
   for (int i = 0; i < elmc; i += 2) {
     DCHECK(last <= elmv[i] - 1);
     DCHECK(elmv[i] < elmv[i + 1]);
-    ranges->Add(CharacterRange(last, elmv[i] - 1), zone);
+    ranges->Add(CharacterRange::Range(last, elmv[i] - 1), zone);
     last = elmv[i + 1];
   }
-  ranges->Add(CharacterRange(last, String::kMaxUtf16CodeUnit), zone);
+  ranges->Add(CharacterRange::Range(last, String::kMaxCodePoint), zone);
 }
 
 
@@ -5506,115 +5874,73 @@ Vector<const int> CharacterRange::GetWordBounds() {
 }
 
 
-class CharacterRangeSplitter {
- public:
-  CharacterRangeSplitter(ZoneList<CharacterRange>** included,
-                         ZoneList<CharacterRange>** excluded,
-                         Zone* zone)
-      : included_(included),
-        excluded_(excluded),
-        zone_(zone) { }
-  void Call(uc16 from, DispatchTable::Entry entry);
-
-  static const int kInBase = 0;
-  static const int kInOverlay = 1;
-
- private:
-  ZoneList<CharacterRange>** included_;
-  ZoneList<CharacterRange>** excluded_;
-  Zone* zone_;
-};
-
-
-void CharacterRangeSplitter::Call(uc16 from, DispatchTable::Entry entry) {
-  if (!entry.out_set()->Get(kInBase)) return;
-  ZoneList<CharacterRange>** target = entry.out_set()->Get(kInOverlay)
-    ? included_
-    : excluded_;
-  if (*target == NULL) *target = new(zone_) ZoneList<CharacterRange>(2, zone_);
-  (*target)->Add(CharacterRange(entry.from(), entry.to()), zone_);
-}
-
-
-void CharacterRange::Split(ZoneList<CharacterRange>* base,
-                           Vector<const int> overlay,
-                           ZoneList<CharacterRange>** included,
-                           ZoneList<CharacterRange>** excluded,
-                           Zone* zone) {
-  DCHECK_NULL(*included);
-  DCHECK_NULL(*excluded);
-  DispatchTable table(zone);
-  for (int i = 0; i < base->length(); i++)
-    table.AddRange(base->at(i), CharacterRangeSplitter::kInBase, zone);
-  for (int i = 0; i < overlay.length(); i += 2) {
-    table.AddRange(CharacterRange(overlay[i], overlay[i + 1] - 1),
-                   CharacterRangeSplitter::kInOverlay, zone);
-  }
-  CharacterRangeSplitter callback(included, excluded, zone);
-  table.ForEach(&callback);
-}
-
-
 void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                         ZoneList<CharacterRange>* ranges,
                                         bool is_one_byte) {
-  uc16 bottom = from();
-  uc16 top = to();
-  if (is_one_byte && !RangeContainsLatin1Equivalents(*this)) {
-    if (bottom > String::kMaxOneByteCharCode) return;
-    if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
-  }
-  unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  if (top == bottom) {
-    // If this is a singleton we just expand the one character.
-    int length = isolate->jsregexp_uncanonicalize()->get(bottom, '\0', chars);
-    for (int i = 0; i < length; i++) {
-      uc32 chr = chars[i];
-      if (chr != bottom) {
-        ranges->Add(CharacterRange::Singleton(chars[i]), zone);
-      }
+  int range_count = ranges->length();
+  for (int i = 0; i < range_count; i++) {
+    CharacterRange range = ranges->at(i);
+    uc32 bottom = range.from();
+    if (bottom > String::kMaxUtf16CodeUnit) return;
+    uc32 top = Min(range.to(), String::kMaxUtf16CodeUnit);
+    // Nothing to be done for surrogates.
+    if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) return;
+    if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
+      if (bottom > String::kMaxOneByteCharCode) return;
+      if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
     }
-  } else {
-    // If this is a range we expand the characters block by block,
-    // expanding contiguous subranges (blocks) one at a time.
-    // The approach is as follows.  For a given start character we
-    // look up the remainder of the block that contains it (represented
-    // by the end point), for instance we find 'z' if the character
-    // is 'c'.  A block is characterized by the property
-    // that all characters uncanonicalize in the same way, except that
-    // each entry in the result is incremented by the distance from the first
-    // element.  So a-z is a block because 'a' uncanonicalizes to ['a', 'A'] and
-    // the k'th letter uncanonicalizes to ['a' + k, 'A' + k].
-    // Once we've found the end point we look up its uncanonicalization
-    // and produce a range for each element.  For instance for [c-f]
-    // we look up ['z', 'Z'] and produce [c-f] and [C-F].  We then only
-    // add a range if it is not already contained in the input, so [c-f]
-    // will be skipped but [C-F] will be added.  If this range is not
-    // completely contained in a block we do this for all the blocks
-    // covered by the range (handling characters that is not in a block
-    // as a "singleton block").
-    unibrow::uchar range[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-    int pos = bottom;
-    while (pos <= top) {
-      int length = isolate->jsregexp_canonrange()->get(pos, '\0', range);
-      uc16 block_end;
-      if (length == 0) {
-        block_end = pos;
-      } else {
-        DCHECK_EQ(1, length);
-        block_end = range[0];
-      }
-      int end = (block_end > top) ? top : block_end;
-      length = isolate->jsregexp_uncanonicalize()->get(block_end, '\0', range);
+    unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+    if (top == bottom) {
+      // If this is a singleton we just expand the one character.
+      int length = isolate->jsregexp_uncanonicalize()->get(bottom, '\0', chars);
       for (int i = 0; i < length; i++) {
-        uc32 c = range[i];
-        uc16 range_from = c - (block_end - pos);
-        uc16 range_to = c - (block_end - end);
-        if (!(bottom <= range_from && range_to <= top)) {
-          ranges->Add(CharacterRange(range_from, range_to), zone);
+        uc32 chr = chars[i];
+        if (chr != bottom) {
+          ranges->Add(CharacterRange::Singleton(chars[i]), zone);
         }
       }
-      pos = end + 1;
+    } else {
+      // If this is a range we expand the characters block by block, expanding
+      // contiguous subranges (blocks) one at a time.  The approach is as
+      // follows.  For a given start character we look up the remainder of the
+      // block that contains it (represented by the end point), for instance we
+      // find 'z' if the character is 'c'.  A block is characterized by the
+      // property that all characters uncanonicalize in the same way, except
+      // that each entry in the result is incremented by the distance from the
+      // first element.  So a-z is a block because 'a' uncanonicalizes to ['a',
+      // 'A'] and the k'th letter uncanonicalizes to ['a' + k, 'A' + k].  Once
+      // we've found the end point we look up its uncanonicalization and
+      // produce a range for each element.  For instance for [c-f] we look up
+      // ['z', 'Z'] and produce [c-f] and [C-F].  We then only add a range if
+      // it is not already contained in the input, so [c-f] will be skipped but
+      // [C-F] will be added.  If this range is not completely contained in a
+      // block we do this for all the blocks covered by the range (handling
+      // characters that is not in a block as a "singleton block").
+      unibrow::uchar equivalents[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+      int pos = bottom;
+      while (pos <= top) {
+        int length =
+            isolate->jsregexp_canonrange()->get(pos, '\0', equivalents);
+        uc32 block_end;
+        if (length == 0) {
+          block_end = pos;
+        } else {
+          DCHECK_EQ(1, length);
+          block_end = equivalents[0];
+        }
+        int end = (block_end > top) ? top : block_end;
+        length = isolate->jsregexp_uncanonicalize()->get(block_end, '\0',
+                                                         equivalents);
+        for (int i = 0; i < length; i++) {
+          uc32 c = equivalents[i];
+          uc32 range_from = c - (block_end - pos);
+          uc32 range_to = c - (block_end - end);
+          if (!(bottom <= range_from && range_to <= top)) {
+            ranges->Add(CharacterRange::Range(range_from, range_to), zone);
+          }
+        }
+        pos = end + 1;
+      }
     }
   }
 }
@@ -5670,8 +5996,8 @@ static int InsertRangeInCanonicalList(ZoneList<CharacterRange>* list,
   // list[0..count] for the result. Returns the number of resulting
   // canonicalized ranges. Inserting a range may collapse existing ranges into
   // fewer ranges, so the return value can be anything in the range 1..count+1.
-  uc16 from = insert.from();
-  uc16 to = insert.to();
+  uc32 from = insert.from();
+  uc32 to = insert.to();
   int start_pos = 0;
   int end_pos = count;
   for (int i = count - 1; i >= 0; i--) {
@@ -5704,7 +6030,7 @@ static int InsertRangeInCanonicalList(ZoneList<CharacterRange>* list,
     CharacterRange to_replace = list->at(start_pos);
     int new_from = Min(to_replace.from(), from);
     int new_to = Max(to_replace.to(), to);
-    list->at(start_pos) = CharacterRange(new_from, new_to);
+    list->at(start_pos) = CharacterRange::Range(new_from, new_to);
     return count;
   }
   // Replace a number of existing ranges from start_pos to end_pos - 1.
@@ -5715,7 +6041,7 @@ static int InsertRangeInCanonicalList(ZoneList<CharacterRange>* list,
   if (end_pos < count) {
     MoveRanges(list, end_pos, start_pos + 1, count - end_pos);
   }
-  list->at(start_pos) = CharacterRange(new_from, new_to);
+  list->at(start_pos) = CharacterRange::Range(new_from, new_to);
   return count - (end_pos - start_pos) + 1;
 }
 
@@ -5771,20 +6097,20 @@ void CharacterRange::Negate(ZoneList<CharacterRange>* ranges,
   DCHECK(CharacterRange::IsCanonical(ranges));
   DCHECK_EQ(0, negated_ranges->length());
   int range_count = ranges->length();
-  uc16 from = 0;
+  uc32 from = 0;
   int i = 0;
   if (range_count > 0 && ranges->at(0).from() == 0) {
-    from = ranges->at(0).to();
+    from = ranges->at(0).to() + 1;
     i = 1;
   }
   while (i < range_count) {
     CharacterRange range = ranges->at(i);
-    negated_ranges->Add(CharacterRange(from + 1, range.from() - 1), zone);
-    from = range.to();
+    negated_ranges->Add(CharacterRange::Range(from, range.from() - 1), zone);
+    from = range.to() + 1;
     i++;
   }
-  if (from < String::kMaxUtf16CodeUnit) {
-    negated_ranges->Add(CharacterRange(from + 1, String::kMaxUtf16CodeUnit),
+  if (from < String::kMaxCodePoint) {
+    negated_ranges->Add(CharacterRange::Range(from, String::kMaxCodePoint),
                         zone);
   }
 }
@@ -5836,7 +6162,7 @@ bool OutSet::Get(unsigned value) const {
 }
 
 
-const uc16 DispatchTable::Config::kNoKey = unibrow::Utf8::kBadChar;
+const uc32 DispatchTable::Config::kNoKey = unibrow::Utf8::kBadChar;
 
 
 void DispatchTable::AddRange(CharacterRange full_range, int value,
@@ -5864,8 +6190,9 @@ void DispatchTable::AddRange(CharacterRange full_range, int value,
     if (entry->from() < current.from() && entry->to() >= current.from()) {
       // Snap the overlapping range in half around the start point of
       // the range we're adding.
-      CharacterRange left(entry->from(), current.from() - 1);
-      CharacterRange right(current.from(), entry->to());
+      CharacterRange left =
+          CharacterRange::Range(entry->from(), current.from() - 1);
+      CharacterRange right = CharacterRange::Range(current.from(), entry->to());
       // The left part of the overlapping range doesn't overlap.
       // Truncate the whole entry to be just the left part.
       entry->set_to(left.to());
@@ -5917,10 +6244,6 @@ void DispatchTable::AddRange(CharacterRange full_range, int value,
       // we're adding so we can just update it and move the start point
       // of the range we're adding just past it.
       entry->AddValue(value, zone);
-      // Bail out if the last interval ended at 0xFFFF since otherwise
-      // adding 1 will wrap around to 0.
-      if (entry->to() == String::kMaxUtf16CodeUnit)
-        break;
       DCHECK(entry->to() + 1 > current.from());
       current.set_from(entry->to() + 1);
     } else {
@@ -5938,7 +6261,7 @@ void DispatchTable::AddRange(CharacterRange full_range, int value,
 }
 
 
-OutSet* DispatchTable::Get(uc16 value) {
+OutSet* DispatchTable::Get(uc32 value) {
   ZoneSplayTree<Config>::Locator loc;
   if (!tree()->FindGreatestLessThan(value, &loc))
     return empty();
@@ -5988,7 +6311,7 @@ void TextNode::CalculateOffsets() {
 
 
 void Analysis::VisitText(TextNode* that) {
-  if (ignore_case_) {
+  if (ignore_case()) {
     that->MakeCaseIndependent(isolate(), is_one_byte_);
   }
   EnsureAnalyzed(that->on_success());
@@ -6171,8 +6494,7 @@ class AddDispatchRange {
 
 
 void AddDispatchRange::Call(uc32 from, DispatchTable::Entry entry) {
-  CharacterRange range(from, entry.to());
-  constructor_->AddRange(range);
+  constructor_->AddRange(CharacterRange::Range(from, entry.to()));
 }
 
 
@@ -6210,16 +6532,16 @@ void DispatchTableConstructor::AddInverse(ZoneList<CharacterRange>* ranges) {
   for (int i = 0; i < ranges->length(); i++) {
     CharacterRange range = ranges->at(i);
     if (last < range.from())
-      AddRange(CharacterRange(last, range.from() - 1));
+      AddRange(CharacterRange::Range(last, range.from() - 1));
     if (range.to() >= last) {
-      if (range.to() == String::kMaxUtf16CodeUnit) {
+      if (range.to() == String::kMaxCodePoint) {
         return;
       } else {
         last = range.to() + 1;
       }
     }
   }
-  AddRange(CharacterRange(last, String::kMaxUtf16CodeUnit));
+  AddRange(CharacterRange::Range(last, String::kMaxCodePoint));
 }
 
 
@@ -6228,7 +6550,7 @@ void DispatchTableConstructor::VisitText(TextNode* that) {
   switch (elm.text_type()) {
     case TextElement::ATOM: {
       uc16 c = elm.atom()->data()[0];
-      AddRange(CharacterRange(c, c));
+      AddRange(CharacterRange::Range(c, c));
       break;
     }
     case TextElement::CHAR_CLASS: {
@@ -6255,14 +6577,48 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 }
 
 
+RegExpNode* OptionallyStepBackToLeadSurrogate(RegExpCompiler* compiler,
+                                              RegExpNode* on_success) {
+  // If the regexp matching starts within a surrogate pair, step back
+  // to the lead surrogate and start matching from there.
+  DCHECK(!compiler->read_backward());
+  Zone* zone = compiler->zone();
+  ZoneList<CharacterRange>* lead_surrogates = CharacterRange::List(
+      zone, CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd));
+  ZoneList<CharacterRange>* trail_surrogates = CharacterRange::List(
+      zone, CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd));
+
+  ChoiceNode* optional_step_back = new (zone) ChoiceNode(2, zone);
+
+  int stack_register = compiler->UnicodeLookaroundStackRegister();
+  int position_register = compiler->UnicodeLookaroundPositionRegister();
+  RegExpNode* step_back = TextNode::CreateForCharacterRanges(
+      zone, lead_surrogates, true, on_success);
+  RegExpLookaround::Builder builder(true, step_back, stack_register,
+                                    position_register);
+  RegExpNode* match_trail = TextNode::CreateForCharacterRanges(
+      zone, trail_surrogates, false, builder.on_match_success());
+
+  optional_step_back->AddAlternative(
+      GuardedAlternative(builder.ForMatch(match_trail)));
+  optional_step_back->AddAlternative(GuardedAlternative(on_success));
+
+  return optional_step_back;
+}
+
+
 RegExpEngine::CompilationResult RegExpEngine::Compile(
-    Isolate* isolate, Zone* zone, RegExpCompileData* data, bool ignore_case,
-    bool is_global, bool is_multiline, bool is_sticky, Handle<String> pattern,
+    Isolate* isolate, Zone* zone, RegExpCompileData* data,
+    JSRegExp::Flags flags, Handle<String> pattern,
     Handle<String> sample_subject, bool is_one_byte) {
   if ((data->capture_count + 1) * 2 - 1 > RegExpMacroAssembler::kMaxRegister) {
     return IrregexpRegExpTooBig(isolate);
   }
-  RegExpCompiler compiler(isolate, zone, data->capture_count, ignore_case,
+  bool ignore_case = flags & JSRegExp::kIgnoreCase;
+  bool is_sticky = flags & JSRegExp::kSticky;
+  bool is_global = flags & JSRegExp::kGlobal;
+  bool is_unicode = flags & JSRegExp::kUnicode;
+  RegExpCompiler compiler(isolate, zone, data->capture_count, flags,
                           is_one_byte);
 
   if (compiler.optimize()) compiler.set_optimize(!TooMuchRegExpCode(pattern));
@@ -6291,22 +6647,17 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   if (!is_start_anchored && !is_sticky) {
     // Add a .*? at the beginning, outside the body capture, unless
     // this expression is anchored at the beginning or sticky.
-    RegExpNode* loop_node =
-        RegExpQuantifier::ToNode(0,
-                                 RegExpTree::kInfinity,
-                                 false,
-                                 new(zone) RegExpCharacterClass('*'),
-                                 &compiler,
-                                 captured_body,
-                                 data->contains_anchor);
+    RegExpNode* loop_node = RegExpQuantifier::ToNode(
+        0, RegExpTree::kInfinity, false, new (zone) RegExpCharacterClass('*'),
+        &compiler, captured_body, data->contains_anchor);
 
     if (data->contains_anchor) {
       // Unroll loop once, to take care of the case that might start
       // at the start of input.
       ChoiceNode* first_step_node = new(zone) ChoiceNode(2, zone);
       first_step_node->AddAlternative(GuardedAlternative(captured_body));
-      first_step_node->AddAlternative(GuardedAlternative(
-          new(zone) TextNode(new(zone) RegExpCharacterClass('*'), loop_node)));
+      first_step_node->AddAlternative(GuardedAlternative(new (zone) TextNode(
+          new (zone) RegExpCharacterClass('*'), false, loop_node)));
       node = first_step_node;
     } else {
       node = loop_node;
@@ -6319,11 +6670,13 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
     if (node != NULL) {
       node = node->FilterOneByte(RegExpCompiler::kMaxRecursion, ignore_case);
     }
+  } else if (compiler.unicode() && (is_global || is_sticky)) {
+    node = OptionallyStepBackToLeadSurrogate(&compiler, node);
   }
 
   if (node == NULL) node = new(zone) EndNode(EndNode::BACKTRACK, zone);
   data->node = node;
-  Analysis analysis(isolate, ignore_case, is_one_byte);
+  Analysis analysis(isolate, flags, is_one_byte);
   analysis.EnsureAnalyzed(node);
   if (analysis.has_failed()) {
     const char* error_message = analysis.error_message();
@@ -6384,10 +6737,13 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   }
 
   if (is_global) {
-    macro_assembler.set_global_mode(
-        (data->tree->min_match() > 0)
-            ? RegExpMacroAssembler::GLOBAL_NO_ZERO_LENGTH_CHECK
-            : RegExpMacroAssembler::GLOBAL);
+    RegExpMacroAssembler::GlobalMode mode = RegExpMacroAssembler::GLOBAL;
+    if (data->tree->min_match() > 0) {
+      mode = RegExpMacroAssembler::GLOBAL_NO_ZERO_LENGTH_CHECK;
+    } else if (is_unicode) {
+      mode = RegExpMacroAssembler::GLOBAL_UNICODE;
+    }
+    macro_assembler.set_global_mode(mode);
   }
 
   return compiler.Assemble(&macro_assembler,
@@ -6410,7 +6766,9 @@ bool RegExpEngine::TooMuchRegExpCode(Handle<String> pattern) {
 
 
 Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
-                                   Object* key_pattern, ResultsCacheType type) {
+                                   Object* key_pattern,
+                                   FixedArray** last_match_cache,
+                                   ResultsCacheType type) {
   FixedArray* cache;
   if (!key_string->IsInternalizedString()) return Smi::FromInt(0);
   if (type == STRING_SPLIT_SUBSTRINGS) {
@@ -6426,23 +6784,25 @@ Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
   uint32_t hash = key_string->Hash();
   uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
                     ~(kArrayEntriesPerCacheEntry - 1));
-  if (cache->get(index + kStringOffset) == key_string &&
-      cache->get(index + kPatternOffset) == key_pattern) {
-    return cache->get(index + kArrayOffset);
+  if (cache->get(index + kStringOffset) != key_string ||
+      cache->get(index + kPatternOffset) != key_pattern) {
+    index =
+        ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
+    if (cache->get(index + kStringOffset) != key_string ||
+        cache->get(index + kPatternOffset) != key_pattern) {
+      return Smi::FromInt(0);
+    }
   }
-  index =
-      ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
-  if (cache->get(index + kStringOffset) == key_string &&
-      cache->get(index + kPatternOffset) == key_pattern) {
-    return cache->get(index + kArrayOffset);
-  }
-  return Smi::FromInt(0);
+
+  *last_match_cache = FixedArray::cast(cache->get(index + kLastMatchOffset));
+  return cache->get(index + kArrayOffset);
 }
 
 
 void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
                                Handle<Object> key_pattern,
                                Handle<FixedArray> value_array,
+                               Handle<FixedArray> last_match_cache,
                                ResultsCacheType type) {
   Factory* factory = isolate->factory();
   Handle<FixedArray> cache;
@@ -6464,6 +6824,7 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
     cache->set(index + kStringOffset, *key_string);
     cache->set(index + kPatternOffset, *key_pattern);
     cache->set(index + kArrayOffset, *value_array);
+    cache->set(index + kLastMatchOffset, *last_match_cache);
   } else {
     uint32_t index2 =
         ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
@@ -6471,13 +6832,16 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
       cache->set(index2 + kStringOffset, *key_string);
       cache->set(index2 + kPatternOffset, *key_pattern);
       cache->set(index2 + kArrayOffset, *value_array);
+      cache->set(index2 + kLastMatchOffset, *last_match_cache);
     } else {
       cache->set(index2 + kStringOffset, Smi::FromInt(0));
       cache->set(index2 + kPatternOffset, Smi::FromInt(0));
       cache->set(index2 + kArrayOffset, Smi::FromInt(0));
+      cache->set(index2 + kLastMatchOffset, Smi::FromInt(0));
       cache->set(index + kStringOffset, *key_string);
       cache->set(index + kPatternOffset, *key_pattern);
       cache->set(index + kArrayOffset, *value_array);
+      cache->set(index + kLastMatchOffset, *last_match_cache);
     }
   }
   // If the array is a reasonably short list of substrings, convert it into a

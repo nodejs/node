@@ -2,10 +2,10 @@
 var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
-var constants = require('constants');
+var constants = require('crypto').constants;
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var crypto = require('crypto');
@@ -29,7 +29,7 @@ var dsaKeyPemEncrypted = fs.readFileSync(
 // Test RSA encryption/decryption
 (function() {
   var input = 'I AM THE WALRUS';
-  var bufferToEncrypt = new Buffer(input);
+  var bufferToEncrypt = Buffer.from(input);
 
   var encryptedBuffer = crypto.publicEncrypt(rsaPubPem, bufferToEncrypt);
 
@@ -55,12 +55,12 @@ var dsaKeyPemEncrypted = fs.readFileSync(
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: new Buffer('password')
+    passphrase: Buffer.from('password')
   }, bufferToEncrypt);
 
   decryptedBufferWithPassword = crypto.publicDecrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: new Buffer('password')
+    passphrase: Buffer.from('password')
   }, encryptedBuffer);
   assert.equal(input, decryptedBufferWithPassword.toString());
 
@@ -95,22 +95,22 @@ var dsaKeyPemEncrypted = fs.readFileSync(
 
   encryptedBuffer = crypto.privateEncrypt({
     key: rsaKeyPemEncrypted,
-    passphrase: new Buffer('password')
+    passphrase: Buffer.from('password')
   }, bufferToEncrypt);
 
   assert.throws(function() {
     crypto.publicDecrypt({
       key: rsaKeyPemEncrypted,
-      passphrase: [].concat.apply([], new Buffer('password'))
+      passphrase: [].concat.apply([], Buffer.from('password'))
     }, encryptedBuffer);
   });
 })();
 
 function test_rsa(padding) {
-  var input = new Buffer(padding === 'RSA_NO_PADDING' ? 1024 / 8 : 32);
+  var input = Buffer.allocUnsafe(padding === 'RSA_NO_PADDING' ? 1024 / 8 : 32);
   for (var i = 0; i < input.length; i++)
     input[i] = (i * 7 + 11) & 0xff;
-  var bufferToEncrypt = new Buffer(input);
+  var bufferToEncrypt = Buffer.from(input);
 
   padding = constants[padding];
 
@@ -227,28 +227,30 @@ assert.throws(function() {
 //
 // Test DSA signing and verification with encrypted key
 //
-(function() {
-  var input = 'I AM THE WALRUS';
+const input = 'I AM THE WALRUS';
 
-  var sign = crypto.createSign('DSS1');
+{
+  const sign = crypto.createSign('DSS1');
   sign.update(input);
   assert.throws(function() {
     sign.sign({ key: dsaKeyPemEncrypted, passphrase: 'wrong' }, 'hex');
   });
+}
 
+{
   // DSA signatures vary across runs so there is no static string to verify
   // against
-  var sign = crypto.createSign('DSS1');
+  const sign = crypto.createSign('DSS1');
   sign.update(input);
 
-  var signature;
+  let signature;
   assert.doesNotThrow(function() {
-    var signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
+    const signOptions = { key: dsaKeyPemEncrypted, passphrase: 'password' };
     signature = sign.sign(signOptions, 'hex');
   });
 
-  var verify = crypto.createVerify('DSS1');
+  const verify = crypto.createVerify('DSS1');
   verify.update(input);
 
   assert.strictEqual(verify.verify(dsaPubPem, signature, 'hex'), true);
-})();
+}

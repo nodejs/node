@@ -1,7 +1,6 @@
 /**
  * @fileoverview Rule to flag duplicate arguments
  * @author Jamund Ferguson
- * @copyright 2015 Jamund Ferguson. All rights reserved.
  */
 
 "use strict";
@@ -10,80 +9,65 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow duplicate arguments in `function` definitions",
+            category: "Possible Errors",
+            recommended: true
+        },
 
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
+        schema: []
+    },
 
-    /**
-     * Determines if a given node has duplicate parameters.
-     * @param {ASTNode} node The node to check.
-     * @returns {void}
-     * @private
-     */
-    function checkParams(node) {
-        var params = {},
-            dups = {};
+    create: function(context) {
 
+        //--------------------------------------------------------------------------
+        // Helpers
+        //--------------------------------------------------------------------------
 
         /**
-         * Marks a given param as either seen or duplicated.
-         * @param {string} name The name of the param to mark.
+         * Checks whether or not a given definition is a parameter's.
+         * @param {escope.DefEntry} def - A definition to check.
+         * @returns {boolean} `true` if the definition is a parameter's.
+         */
+        function isParameter(def) {
+            return def.type === "Parameter";
+        }
+
+        /**
+         * Determines if a given node has duplicate parameters.
+         * @param {ASTNode} node The node to check.
          * @returns {void}
          * @private
          */
-        function markParam(name) {
-            if (params.hasOwnProperty(name)) {
-                dups[name] = 1;
-            } else {
-                params[name] = 1;
+        function checkParams(node) {
+            var variables = context.getDeclaredVariables(node);
+
+            for (var i = 0; i < variables.length; ++i) {
+                var variable = variables[i];
+
+                // Checks and reports duplications.
+                var defs = variable.defs.filter(isParameter);
+
+                if (defs.length >= 2) {
+                    context.report({
+                        node: node,
+                        message: "Duplicate param '{{name}}'.",
+                        data: {name: variable.name}
+                    });
+                }
             }
         }
 
-        // loop through and find each duplicate param
-        node.params.forEach(function(param) {
+        //--------------------------------------------------------------------------
+        // Public API
+        //--------------------------------------------------------------------------
 
-            switch (param.type) {
-                case "Identifier":
-                    markParam(param.name);
-                    break;
+        return {
+            FunctionDeclaration: checkParams,
+            FunctionExpression: checkParams
+        };
 
-                case "ObjectPattern":
-                    param.properties.forEach(function(property) {
-                        markParam(property.key.name);
-                    });
-                    break;
-
-                case "ArrayPattern":
-                    param.elements.forEach(function(element) {
-
-                        // Arrays can be sparse (unwanted arguments)
-                        if (element !== null) {
-                            markParam(element.name);
-                        }
-                    });
-                    break;
-
-                // no default
-            }
-        });
-
-        // log an error for each duplicate (not 2 for each)
-        Object.keys(dups).forEach(function(currentParam) {
-            context.report(node, "Duplicate param '{{key}}'.", { key: currentParam });
-        });
     }
-
-    //--------------------------------------------------------------------------
-    // Public API
-    //--------------------------------------------------------------------------
-
-    return {
-        "FunctionDeclaration": checkParams,
-        "FunctionExpression": checkParams
-    };
-
 };
-
-module.exports.schema = [];

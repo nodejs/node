@@ -1,12 +1,11 @@
 'use strict';
 var assert = require('assert');
 var net = require('net');
-var util = require('util');
 var common = require('../common');
 var revivals = 0;
 var deaths = 0;
 
-process.on('beforeExit', function() { deaths++; } );
+process.on('beforeExit', function() { deaths++; });
 
 process.once('beforeExit', tryImmediate);
 

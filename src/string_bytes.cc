@@ -19,11 +19,10 @@ using v8::EscapableHandleScope;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Value;
-using v8::MaybeLocal;
-
 
 template <typename ResourceType, typename TypeName>
 class ExternString: public ResourceType {
@@ -77,7 +76,7 @@ class ExternString: public ResourceType {
       ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
                                                                      data,
                                                                      length);
-      MaybeLocal<String> str = String::NewExternal(isolate, h_str);
+      MaybeLocal<String> str = NewExternal(isolate, h_str);
       isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
 
       if (str.IsEmpty()) {
@@ -93,6 +92,9 @@ class ExternString: public ResourceType {
   private:
     ExternString(Isolate* isolate, const TypeName* data, size_t length)
       : isolate_(isolate), data_(data), length_(length) { }
+    static MaybeLocal<String> NewExternal(Isolate* isolate,
+                                          ExternString* h_str);
+
     Isolate* isolate_;
     const TypeName* data_;
     size_t length_;
@@ -103,6 +105,20 @@ typedef ExternString<String::ExternalOneByteStringResource,
                      char> ExternOneByteString;
 typedef ExternString<String::ExternalStringResource,
                      uint16_t> ExternTwoByteString;
+
+
+template <>
+MaybeLocal<String> ExternOneByteString::NewExternal(
+    Isolate* isolate, ExternOneByteString* h_str) {
+  return String::NewExternalOneByte(isolate, h_str);
+}
+
+
+template <>
+MaybeLocal<String> ExternTwoByteString::NewExternal(
+    Isolate* isolate, ExternTwoByteString* h_str) {
+  return String::NewExternalTwoByte(isolate, h_str);
+}
 
 
 //// Base 64 ////
@@ -368,7 +384,6 @@ size_t StringBytes::Write(Isolate* isolate,
   switch (encoding) {
     case ASCII:
     case BINARY:
-    case BUFFER:
       if (is_extern && str->IsOneByte()) {
         memcpy(buf, data, nbytes);
       } else {
@@ -379,6 +394,7 @@ size_t StringBytes::Write(Isolate* isolate,
         *chars_written = nbytes;
       break;
 
+    case BUFFER:
     case UTF8:
       nbytes = str->WriteUtf8(buf, buflen, chars_written, flags);
       break;
@@ -480,11 +496,11 @@ size_t StringBytes::StorageSize(Isolate* isolate,
 
   switch (encoding) {
     case BINARY:
-    case BUFFER:
     case ASCII:
       data_size = str->Length();
       break;
 
+    case BUFFER:
     case UTF8:
       // A single UCS2 codepoint never takes up more than 3 utf8 bytes.
       // It is an exercise for the caller to decide when a string is
@@ -532,11 +548,11 @@ size_t StringBytes::Size(Isolate* isolate,
 
   switch (encoding) {
     case BINARY:
-    case BUFFER:
     case ASCII:
       data_size = str->Length();
       break;
 
+    case BUFFER:
     case UTF8:
       data_size = str->Utf8Length();
       break;
@@ -876,6 +892,36 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
   }
 
   return val;
+}
+
+Local<Value> StringBytes::Encode(Isolate* isolate,
+                                 const char* buf,
+                                 enum encoding encoding) {
+  const size_t len = strlen(buf);
+  Local<Value> ret;
+  if (encoding == UCS2) {
+    // In Node, UCS2 means utf16le. The data must be in little-endian
+    // order and must be aligned on 2-bytes. This returns an empty
+    // value if it's not aligned and ensures the appropriate byte order
+    // on big endian architectures.
+    const bool be = IsBigEndian();
+    if (len % 2 != 0)
+      return ret;
+    std::vector<uint16_t> vec(len / 2);
+    for (size_t i = 0, k = 0; i < len; i += 2, k += 1) {
+      const uint8_t hi = static_cast<uint8_t>(buf[i + 0]);
+      const uint8_t lo = static_cast<uint8_t>(buf[i + 1]);
+      vec[k] = be ?
+          static_cast<uint16_t>(hi) << 8 | lo
+          : static_cast<uint16_t>(lo) << 8 | hi;
+    }
+    ret = vec.empty() ?
+        static_cast< Local<Value> >(String::Empty(isolate))
+        : StringBytes::Encode(isolate, &vec[0], vec.size());
+  } else {
+    ret = StringBytes::Encode(isolate, buf, len, encoding);
+  }
+  return ret;
 }
 
 }  // namespace node

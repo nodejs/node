@@ -10,6 +10,7 @@
 #include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -92,6 +93,9 @@ class Handle final : public HandleBase {
   V8_INLINE explicit Handle(T* object) : Handle(object, object->GetIsolate()) {}
   V8_INLINE Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
 
+  // Allocate a new handle for the object, do not canonicalize.
+  V8_INLINE static Handle<T> New(T* object, Isolate* isolate);
+
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
   template <typename S>
@@ -166,8 +170,6 @@ V8_INLINE Handle<T> handle(T* object) {
 // A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
 // into a Handle requires checking that it does not point to NULL.  This
 // ensures NULL checks before use.
-//
-// Do not use MaybeHandle as argument type.
 //
 // Also note that Handles do not provide default equality comparison or hashing
 // operators on purpose. Such operators would be misleading, because intended
@@ -254,9 +256,11 @@ class HandleScope {
   // Counts the number of allocated handles.
   static int NumberOfHandles(Isolate* isolate);
 
+  // Create a new handle or lookup a canonical handle.
+  V8_INLINE static Object** GetHandle(Isolate* isolate, Object* value);
+
   // Creates a new handle with the given value.
-  template <typename T>
-  static inline T** CreateHandle(Isolate* isolate, T* value);
+  V8_INLINE static Object** CreateHandle(Isolate* isolate, Object* value);
 
   // Deallocates any extensions used by the current scope.
   static void DeleteExtensions(Isolate* isolate);
@@ -305,8 +309,41 @@ class HandleScope {
 
   friend class v8::HandleScope;
   friend class DeferredHandles;
+  friend class DeferredHandleScope;
   friend class HandleScopeImplementer;
   friend class Isolate;
+};
+
+
+// Forward declarations for CanonicalHandleScope.
+template <typename V>
+class IdentityMap;
+class RootIndexMap;
+
+
+// A CanonicalHandleScope does not open a new HandleScope. It changes the
+// existing HandleScope so that Handles created within are canonicalized.
+// This does not apply to nested inner HandleScopes unless a nested
+// CanonicalHandleScope is introduced. Handles are only canonicalized within
+// the same CanonicalHandleScope, but not across nested ones.
+class CanonicalHandleScope final {
+ public:
+  explicit CanonicalHandleScope(Isolate* isolate);
+  ~CanonicalHandleScope();
+
+ private:
+  Object** Lookup(Object* object);
+
+  Isolate* isolate_;
+  Zone zone_;
+  RootIndexMap* root_index_map_;
+  IdentityMap<Object**>* identity_map_;
+  // Ordinary nested handle scopes within the current one are not canonical.
+  int canonical_level_;
+  // We may have nested canonical scopes. Handles are canonical within each one.
+  CanonicalHandleScope* prev_canonical_scope_;
+
+  friend class HandleScope;
 };
 
 
@@ -345,8 +382,8 @@ class SealHandleScope final {
   inline ~SealHandleScope();
  private:
   Isolate* isolate_;
-  Object** limit_;
-  int level_;
+  Object** prev_limit_;
+  int prev_sealed_level_;
 #endif
 };
 
@@ -355,10 +392,13 @@ struct HandleScopeData final {
   Object** next;
   Object** limit;
   int level;
+  int sealed_level;
+  CanonicalHandleScope* canonical_scope;
 
   void Initialize() {
     next = limit = NULL;
-    level = 0;
+    sealed_level = level = 0;
+    canonical_scope = NULL;
   }
 };
 

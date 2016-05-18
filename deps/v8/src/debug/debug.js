@@ -15,22 +15,20 @@ var IsNaN = global.isNaN;
 var JSONParse = global.JSON.parse;
 var JSONStringify = global.JSON.stringify;
 var LookupMirror = global.LookupMirror;
+var MakeError;
+var MakeTypeError;
 var MakeMirror = global.MakeMirror;
 var MakeMirrorSerializer = global.MakeMirrorSerializer;
 var MathMin = global.Math.min;
 var Mirror = global.Mirror;
 var MirrorType;
 var ParseInt = global.parseInt;
-var ToBoolean;
-var ToNumber;
-var ToString;
 var ValueMirror = global.ValueMirror;
 
 utils.Import(function(from) {
+  MakeError = from.MakeError;
+  MakeTypeError = from.MakeTypeError;
   MirrorType = from.MirrorType;
-  ToBoolean = from.ToBoolean;
-  ToNumber = from.ToNumber;
-  ToString = from.ToString;
 });
 
 //----------------------------------------------------------------------------
@@ -64,9 +62,7 @@ Debug.ExceptionBreak = { Caught : 0,
 Debug.StepAction = { StepOut: 0,
                      StepNext: 1,
                      StepIn: 2,
-                     StepMin: 3,
-                     StepInMin: 4,
-                     StepFrame: 5 };
+                     StepFrame: 3 };
 
 // The different types of scripts matching enum ScriptType in objects.h.
 Debug.ScriptType = { Native: 0,
@@ -106,7 +102,7 @@ var debugger_flags = {
     getValue: function() { return this.value; },
     setValue: function(value) {
       this.value = !!value;
-      %SetDisableBreak(!this.value);
+      %SetBreakPointsActive(this.value);
     }
   },
   breakOnCaughtException: {
@@ -151,10 +147,8 @@ function BreakPoint(source_position, opt_script_break_point) {
   } else {
     this.number_ = next_break_point_number++;
   }
-  this.hit_count_ = 0;
   this.active_ = true;
   this.condition_ = null;
-  this.ignoreCount_ = 0;
 }
 
 
@@ -173,11 +167,6 @@ BreakPoint.prototype.source_position = function() {
 };
 
 
-BreakPoint.prototype.hit_count = function() {
-  return this.hit_count_;
-};
-
-
 BreakPoint.prototype.active = function() {
   if (this.script_break_point()) {
     return this.script_break_point().active();
@@ -191,11 +180,6 @@ BreakPoint.prototype.condition = function() {
     return this.script_break_point().condition();
   }
   return this.condition_;
-};
-
-
-BreakPoint.prototype.ignoreCount = function() {
-  return this.ignoreCount_;
 };
 
 
@@ -219,11 +203,6 @@ BreakPoint.prototype.setCondition = function(condition) {
 };
 
 
-BreakPoint.prototype.setIgnoreCount = function(ignoreCount) {
-  this.ignoreCount_ = ignoreCount;
-};
-
-
 BreakPoint.prototype.isTriggered = function(exec_state) {
   // Break point not active - not triggered.
   if (!this.active()) return false;
@@ -234,25 +213,13 @@ BreakPoint.prototype.isTriggered = function(exec_state) {
     try {
       var mirror = exec_state.frame(0).evaluate(this.condition());
       // If no sensible mirror or non true value break point not triggered.
-      if (!(mirror instanceof ValueMirror) || !ToBoolean(mirror.value_)) {
+      if (!(mirror instanceof ValueMirror) || !mirror.value_) {
         return false;
       }
     } catch (e) {
       // Exception evaluating condition counts as not triggered.
       return false;
     }
-  }
-
-  // Update the hit count.
-  this.hit_count_++;
-  if (this.script_break_point_) {
-    this.script_break_point_.hit_count_++;
-  }
-
-  // If the break point has an ignore count it is not triggered.
-  if (this.ignoreCount_ > 0) {
-    this.ignoreCount_--;
-    return false;
   }
 
   // Break point triggered.
@@ -287,10 +254,8 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
   this.groupId_ = opt_groupId;
   this.position_alignment_ = IS_UNDEFINED(opt_position_alignment)
       ? Debug.BreakPositionAlignment.Statement : opt_position_alignment;
-  this.hit_count_ = 0;
   this.active_ = true;
   this.condition_ = null;
-  this.ignoreCount_ = 0;
   this.break_points_ = [];
 }
 
@@ -303,10 +268,8 @@ ScriptBreakPoint.prototype.cloneForOtherScript = function (other_script) {
   copy.number_ = next_break_point_number++;
   script_break_points.push(copy);
 
-  copy.hit_count_ = this.hit_count_;
   copy.active_ = this.active_;
   copy.condition_ = this.condition_;
-  copy.ignoreCount_ = this.ignoreCount_;
   return copy;
 };
 
@@ -366,11 +329,6 @@ ScriptBreakPoint.prototype.update_positions = function(line, column) {
 };
 
 
-ScriptBreakPoint.prototype.hit_count = function() {
-  return this.hit_count_;
-};
-
-
 ScriptBreakPoint.prototype.active = function() {
   return this.active_;
 };
@@ -378,11 +336,6 @@ ScriptBreakPoint.prototype.active = function() {
 
 ScriptBreakPoint.prototype.condition = function() {
   return this.condition_;
-};
-
-
-ScriptBreakPoint.prototype.ignoreCount = function() {
-  return this.ignoreCount_;
 };
 
 
@@ -398,16 +351,6 @@ ScriptBreakPoint.prototype.disable = function() {
 
 ScriptBreakPoint.prototype.setCondition = function(condition) {
   this.condition_ = condition;
-};
-
-
-ScriptBreakPoint.prototype.setIgnoreCount = function(ignoreCount) {
-  this.ignoreCount_ = ignoreCount;
-
-  // Set ignore count on all break points created from this script break point.
-  for (var i = 0; i < this.break_points_.length; i++) {
-    this.break_points_[i].setIgnoreCount(ignoreCount);
-  }
 };
 
 
@@ -465,7 +408,6 @@ ScriptBreakPoint.prototype.set = function (script) {
 
   // Create a break point object and set the break point.
   var break_point = MakeBreakPoint(position, this);
-  break_point.setIgnoreCount(this.ignoreCount());
   var actual_position = %SetScriptBreakPoint(script, position,
                                              this.position_alignment_,
                                              break_point);
@@ -730,13 +672,6 @@ Debug.changeBreakPointCondition = function(break_point_number, condition) {
 };
 
 
-Debug.changeBreakPointIgnoreCount = function(break_point_number, ignoreCount) {
-  if (ignoreCount < 0) throw MakeError(kDebugger, 'Invalid argument');
-  var break_point = this.findBreakPoint(break_point_number, false);
-  break_point.setIgnoreCount(ignoreCount);
-};
-
-
 Debug.clearBreakPoint = function(break_point_number) {
   var break_point = this.findBreakPoint(break_point_number, true);
   if (break_point) {
@@ -861,14 +796,6 @@ Debug.changeScriptBreakPointCondition = function(
 };
 
 
-Debug.changeScriptBreakPointIgnoreCount = function(
-    break_point_number, ignoreCount) {
-  if (ignoreCount < 0) throw MakeError(kDebugger, 'Invalid argument');
-  var script_break_point = this.findScriptBreakPoint(break_point_number, false);
-  script_break_point.setIgnoreCount(ignoreCount);
-};
-
-
 Debug.scriptBreakPoints = function() {
   return script_break_points;
 };
@@ -947,23 +874,20 @@ function ExecutionState(break_id) {
   this.selected_frame = 0;
 }
 
-ExecutionState.prototype.prepareStep = function(opt_action, opt_count,
-    opt_callframe) {
-  var action = Debug.StepAction.StepIn;
-  if (!IS_UNDEFINED(opt_action)) action = ToNumber(opt_action);
-  var count = opt_count ? ToNumber(opt_count) : 1;
-  var callFrameId = 0;
-  if (!IS_UNDEFINED(opt_callframe)) {
-    callFrameId = opt_callframe.details_.frameId();
+ExecutionState.prototype.prepareStep = function(action) {
+  if (action === Debug.StepAction.StepIn ||
+      action === Debug.StepAction.StepOut ||
+      action === Debug.StepAction.StepNext ||
+      action === Debug.StepAction.StepFrame) {
+    return %PrepareStep(this.break_id, action);
   }
-
-  return %PrepareStep(this.break_id, action, count, callFrameId);
+  throw MakeTypeError(kDebuggerType);
 };
 
 ExecutionState.prototype.evaluateGlobal = function(source, disable_break,
     opt_additional_context) {
   return MakeMirror(%DebugEvaluateGlobal(this.break_id, source,
-                                         ToBoolean(disable_break),
+                                         TO_BOOLEAN(disable_break),
                                          opt_additional_context));
 };
 
@@ -985,7 +909,7 @@ ExecutionState.prototype.frame = function(opt_index) {
 };
 
 ExecutionState.prototype.setSelectedFrame = function(index) {
-  var i = ToNumber(index);
+  var i = TO_NUMBER(index);
   if (i < 0 || i >= this.frameCount()) {
     throw MakeTypeError(kDebuggerFrame);
   }
@@ -1421,7 +1345,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
       var key = request.command.toLowerCase();
       var handler = DebugCommandProcessor.prototype.dispatch_[key];
       if (IS_FUNCTION(handler)) {
-        %_CallFunction(this, request, response, handler);
+        %_Call(handler, this, request, response);
       } else {
         throw MakeError(kDebugger,
                         'Unknown command "' + request.command + '" in request');
@@ -1432,7 +1356,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
         response = this.createResponse();
       }
       response.success = false;
-      response.message = ToString(e);
+      response.message = TO_STRING(e);
     }
 
     // Return the response as a JSON encoded string.
@@ -1449,7 +1373,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
               '"request_seq":' + request.seq + ',' +
               '"type":"response",' +
               '"success":false,' +
-              '"message":"Internal error: ' + ToString(e) + '"}';
+              '"message":"Internal error: ' + TO_STRING(e) + '"}';
     }
   } catch (e) {
     // Failed in one of the catch blocks above - most generic error.
@@ -1461,28 +1385,15 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
 DebugCommandProcessor.prototype.continueRequest_ = function(request, response) {
   // Check for arguments for continue.
   if (request.arguments) {
-    var count = 1;
     var action = Debug.StepAction.StepIn;
 
     // Pull out arguments.
     var stepaction = request.arguments.stepaction;
-    var stepcount = request.arguments.stepcount;
-
-    // Get the stepcount argument if any.
-    if (stepcount) {
-      count = ToNumber(stepcount);
-      if (count < 0) {
-        throw MakeError(kDebugger,
-                        'Invalid stepcount argument "' + stepcount + '".');
-      }
-    }
 
     // Get the stepaction argument.
     if (stepaction) {
       if (stepaction == 'in') {
         action = Debug.StepAction.StepIn;
-      } else if (stepaction == 'min') {
-        action = Debug.StepAction.StepMin;
       } else if (stepaction == 'next') {
         action = Debug.StepAction.StepNext;
       } else if (stepaction == 'out') {
@@ -1494,7 +1405,7 @@ DebugCommandProcessor.prototype.continueRequest_ = function(request, response) {
     }
 
     // Set up the VM for stepping.
-    this.exec_state_.prepareStep(action, count);
+    this.exec_state_.prepareStep(action);
   }
 
   // VM should be running after executing this request.
@@ -1523,7 +1434,6 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
   var enabled = IS_UNDEFINED(request.arguments.enabled) ?
       true : request.arguments.enabled;
   var condition = request.arguments.condition;
-  var ignoreCount = request.arguments.ignoreCount;
   var groupId = request.arguments.groupId;
 
   // Check for legal arguments.
@@ -1545,7 +1455,7 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
       // Find the function through a global evaluate.
       f = this.exec_state_.evaluateGlobal(target).value();
     } catch (e) {
-      response.failed('Error: "' + ToString(e) +
+      response.failed('Error: "' + TO_STRING(e) +
                       '" evaluating "' + target + '"');
       return;
     }
@@ -1589,9 +1499,6 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
 
   // Set additional break point properties.
   var break_point = Debug.findBreakPoint(break_point_number);
-  if (ignoreCount) {
-    Debug.changeBreakPointIgnoreCount(break_point_number, ignoreCount);
-  }
   if (!enabled) {
     Debug.disableBreakPoint(break_point_number);
   }
@@ -1634,10 +1541,9 @@ DebugCommandProcessor.prototype.changeBreakPointRequest_ = function(
   }
 
   // Pull out arguments.
-  var break_point = ToNumber(request.arguments.breakpoint);
+  var break_point = TO_NUMBER(request.arguments.breakpoint);
   var enabled = request.arguments.enabled;
   var condition = request.arguments.condition;
-  var ignoreCount = request.arguments.ignoreCount;
 
   // Check for legal arguments.
   if (!break_point) {
@@ -1657,11 +1563,6 @@ DebugCommandProcessor.prototype.changeBreakPointRequest_ = function(
   // Change condition if supplied
   if (!IS_UNDEFINED(condition)) {
     Debug.changeBreakPointCondition(break_point, condition);
-  }
-
-  // Change ignore count if supplied
-  if (!IS_UNDEFINED(ignoreCount)) {
-    Debug.changeBreakPointIgnoreCount(break_point, ignoreCount);
   }
 };
 
@@ -1710,7 +1611,7 @@ DebugCommandProcessor.prototype.clearBreakPointRequest_ = function(
   }
 
   // Pull out arguments.
-  var break_point = ToNumber(request.arguments.breakpoint);
+  var break_point = TO_NUMBER(request.arguments.breakpoint);
 
   // Check for legal arguments.
   if (!break_point) {
@@ -1737,10 +1638,8 @@ DebugCommandProcessor.prototype.listBreakpointsRequest_ = function(
       line: break_point.line(),
       column: break_point.column(),
       groupId: break_point.groupId(),
-      hit_count: break_point.hit_count(),
       active: break_point.active(),
       condition: break_point.condition(),
-      ignoreCount: break_point.ignoreCount(),
       actual_locations: break_point.actual_locations()
     };
 
@@ -1968,7 +1867,7 @@ DebugCommandProcessor.prototype.scopeRequest_ = function(request, response) {
   // With no scope argument just return top scope.
   var scope_index = 0;
   if (request.arguments && !IS_UNDEFINED(request.arguments.number)) {
-    scope_index = ToNumber(request.arguments.number);
+    scope_index = TO_NUMBER(request.arguments.number);
     if (scope_index < 0 || scope_holder.scopeCount() <= scope_index) {
       return response.failed('Invalid scope number');
     }
@@ -1992,11 +1891,11 @@ DebugCommandProcessor.resolveValue_ = function(value_description) {
     return value_mirror.value();
   } else if ("stringDescription" in value_description) {
     if (value_description.type == MirrorType.BOOLEAN_TYPE) {
-      return ToBoolean(value_description.stringDescription);
+      return TO_BOOLEAN(value_description.stringDescription);
     } else if (value_description.type == MirrorType.NUMBER_TYPE) {
-      return ToNumber(value_description.stringDescription);
+      return TO_NUMBER(value_description.stringDescription);
     } if (value_description.type == MirrorType.STRING_TYPE) {
-      return ToString(value_description.stringDescription);
+      return TO_STRING(value_description.stringDescription);
     } else {
       throw MakeError(kDebugger, "Unknown type");
     }
@@ -2032,7 +1931,7 @@ DebugCommandProcessor.prototype.setVariableValueRequest_ =
   if (IS_UNDEFINED(scope_description.number)) {
     response.failed('Missing scope number');
   }
-  var scope_index = ToNumber(scope_description.number);
+  var scope_index = TO_NUMBER(scope_description.number);
 
   var scope = scope_holder.scope(scope_index);
 
@@ -2064,7 +1963,7 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   // The expression argument could be an integer so we convert it to a
   // string.
   try {
-    expression = ToString(expression);
+    expression = TO_STRING(expression);
   } catch(e) {
     return response.failed('Failed to convert expression argument to string');
   }
@@ -2094,7 +1993,7 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   if (global) {
     // Evaluate in the native context.
     response.body = this.exec_state_.evaluateGlobal(
-        expression, ToBoolean(disable_break), additional_context_object);
+        expression, TO_BOOLEAN(disable_break), additional_context_object);
     return;
   }
 
@@ -2110,18 +2009,18 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
 
   // Check whether a frame was specified.
   if (!IS_UNDEFINED(frame)) {
-    var frame_number = ToNumber(frame);
+    var frame_number = TO_NUMBER(frame);
     if (frame_number < 0 || frame_number >= this.exec_state_.frameCount()) {
       return response.failed('Invalid frame "' + frame + '"');
     }
     // Evaluate in the specified frame.
     response.body = this.exec_state_.frame(frame_number).evaluate(
-        expression, ToBoolean(disable_break), additional_context_object);
+        expression, TO_BOOLEAN(disable_break), additional_context_object);
     return;
   } else {
     // Evaluate in the selected frame.
     response.body = this.exec_state_.frame().evaluate(
-        expression, ToBoolean(disable_break), additional_context_object);
+        expression, TO_BOOLEAN(disable_break), additional_context_object);
     return;
   }
 };
@@ -2142,7 +2041,7 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
 
   // Set 'includeSource' option for script lookup.
   if (!IS_UNDEFINED(request.arguments.includeSource)) {
-    var includeSource = ToBoolean(request.arguments.includeSource);
+    var includeSource = TO_BOOLEAN(request.arguments.includeSource);
     response.setOption('includeSource', includeSource);
   }
 
@@ -2210,7 +2109,7 @@ DebugCommandProcessor.prototype.sourceRequest_ = function(request, response) {
     to_line = request.arguments.toLine;
 
     if (!IS_UNDEFINED(request.arguments.frame)) {
-      var frame_number = ToNumber(request.arguments.frame);
+      var frame_number = TO_NUMBER(request.arguments.frame);
       if (frame_number < 0 || frame_number >= this.exec_state_.frameCount()) {
         return response.failed('Invalid frame "' + frame + '"');
       }
@@ -2246,7 +2145,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
   if (request.arguments) {
     // Pull out arguments.
     if (!IS_UNDEFINED(request.arguments.types)) {
-      types = ToNumber(request.arguments.types);
+      types = TO_NUMBER(request.arguments.types);
       if (IsNaN(types) || types < 0) {
         return response.failed('Invalid types "' +
                                request.arguments.types + '"');
@@ -2254,7 +2153,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
     }
 
     if (!IS_UNDEFINED(request.arguments.includeSource)) {
-      includeSource = ToBoolean(request.arguments.includeSource);
+      includeSource = TO_BOOLEAN(request.arguments.includeSource);
       response.setOption('includeSource', includeSource);
     }
 
@@ -2269,7 +2168,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
     var filterStr = null;
     var filterNum = null;
     if (!IS_UNDEFINED(request.arguments.filter)) {
-      var num = ToNumber(request.arguments.filter);
+      var num = TO_NUMBER(request.arguments.filter);
       if (!IsNaN(num)) {
         filterNum = num;
       }
@@ -2405,7 +2304,7 @@ DebugCommandProcessor.prototype.restartFrameRequest_ = function(
   var frame_mirror;
   // Check whether a frame was specified.
   if (!IS_UNDEFINED(frame)) {
-    var frame_number = ToNumber(frame);
+    var frame_number = TO_NUMBER(frame);
     if (frame_number < 0 || frame_number >= this.exec_state_.frameCount()) {
       return response.failed('Invalid frame "' + frame + '"');
     }
@@ -2416,7 +2315,7 @@ DebugCommandProcessor.prototype.restartFrameRequest_ = function(
     frame_mirror = this.exec_state_.frame();
   }
 
-  var result_description = Debug.LiveEdit.RestartFrame(frame_mirror);
+  var result_description = frame_mirror.restart();
   response.body = {result: result_description};
 };
 
@@ -2607,6 +2506,9 @@ function ValueToProtocolValue_(value, mirror_serializer) {
 utils.InstallConstants(global, [
   "Debug", Debug,
   "DebugCommandProcessor", DebugCommandProcessor,
+  "BreakEvent", BreakEvent,
+  "CompileEvent", CompileEvent,
+  "BreakPoint", BreakPoint,
 ]);
 
 // Functions needed by the debugger runtime.

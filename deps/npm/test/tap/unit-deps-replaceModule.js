@@ -7,7 +7,7 @@ test('setup', function (t) {
 })
 
 test('replaceModule', function (t) {
-  var replaceModule = require('../../lib/install/deps').test.replaceModule
+  var replaceModule = require('../../lib/install/deps')._replaceModule
   var mods = []
   for (var ii = 0; ii < 10; ++ii) {
     mods.push({package: {name: ii}})
@@ -31,7 +31,7 @@ test('replaceModule', function (t) {
 })
 
 test('replaceModuleName', function (t) {
-  var replaceModuleName = require('../../lib/install/deps').test.replaceModuleName
+  var replaceModuleName = require('../../lib/install/deps')._replaceModuleName
   var mods = []
   for (var ii = 0; ii < 10; ++ii) {
     mods.push('pkg' + ii)

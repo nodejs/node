@@ -12,8 +12,9 @@
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 class ContextSpecializationTester : public HandleAndZoneScope {
  public:
@@ -23,7 +24,8 @@ class ContextSpecializationTester : public HandleAndZoneScope {
         javascript_(main_zone()),
         machine_(main_zone()),
         simplified_(main_zone()),
-        jsgraph_(main_isolate(), graph(), common(), &javascript_, &machine_),
+        jsgraph_(main_isolate(), graph(), common(), &javascript_, &simplified_,
+                 &machine_),
         reducer_(main_zone(), graph()),
         spec_(&reducer_, jsgraph(), MaybeHandle<Context>()) {}
 
@@ -60,7 +62,7 @@ TEST(ReduceJSLoadContext) {
   subcontext2->set_previous(*subcontext1);
   subcontext1->set_previous(*native);
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::GLOBAL_OBJECT_INDEX;
+  const int slot = Context::NATIVE_CONTEXT_INDEX;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);
@@ -131,7 +133,7 @@ TEST(ReduceJSStoreContext) {
   subcontext2->set_previous(*subcontext1);
   subcontext1->set_previous(*native);
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::GLOBAL_OBJECT_INDEX;
+  const int slot = Context::NATIVE_CONTEXT_INDEX;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);
@@ -199,7 +201,7 @@ TEST(SpecializeToContext) {
   // Make a context and initialize it a bit for this test.
   Handle<Context> native = t.factory()->NewNativeContext();
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::GLOBAL_OBJECT_INDEX;
+  const int slot = Context::NATIVE_CONTEXT_INDEX;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);
@@ -223,7 +225,7 @@ TEST(SpecializeToContext) {
         t.graph()->NewNode(t.simplified()->ChangeTaggedToInt32(), other_load);
 
     Node* add = t.graph()->NewNode(
-        t.javascript()->Add(LanguageMode::SLOPPY), value_use, other_use,
+        t.javascript()->Add(BinaryOperationHints::Any()), value_use, other_use,
         param_context, t.jsgraph()->EmptyFrameState(),
         t.jsgraph()->EmptyFrameState(), other_load, start);
 
@@ -314,3 +316,7 @@ TEST(SpecializeJSFunction_ToConstant_uninit) {
     CHECK(T.Call(T.Val(-2.1), T.Val(0.0)).ToHandleChecked()->IsNaN());
   }
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

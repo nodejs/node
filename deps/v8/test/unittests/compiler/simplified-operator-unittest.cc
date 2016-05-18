@@ -6,7 +6,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/types-inl.h"
+#include "src/types.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -48,6 +48,12 @@ const PureOperator kPureOperators[] = {
     PURE(NumberMultiply, Operator::kCommutative, 2),
     PURE(NumberDivide, Operator::kNoProperties, 2),
     PURE(NumberModulus, Operator::kNoProperties, 2),
+    PURE(NumberBitwiseOr, Operator::kCommutative, 2),
+    PURE(NumberBitwiseXor, Operator::kCommutative, 2),
+    PURE(NumberBitwiseAnd, Operator::kCommutative, 2),
+    PURE(NumberShiftLeft, Operator::kNoProperties, 2),
+    PURE(NumberShiftRight, Operator::kNoProperties, 2),
+    PURE(NumberShiftRightLogical, Operator::kNoProperties, 2),
     PURE(NumberToInt32, Operator::kNoProperties, 1),
     PURE(NumberToUint32, Operator::kNoProperties, 1),
     PURE(PlainPrimitiveToNumber, Operator::kNoProperties, 1),
@@ -59,6 +65,8 @@ const PureOperator kPureOperators[] = {
     PURE(ChangeFloat64ToTagged, Operator::kNoProperties, 1),
     PURE(ChangeBoolToBit, Operator::kNoProperties, 1),
     PURE(ChangeBitToBool, Operator::kNoProperties, 1),
+    PURE(ObjectIsNumber, Operator::kNoProperties, 1),
+    PURE(ObjectIsReceiver, Operator::kNoProperties, 1),
     PURE(ObjectIsSmi, Operator::kNoProperties, 1)
 #undef PURE
 };
@@ -194,37 +202,40 @@ INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest,
 namespace {
 
 const ElementAccess kElementAccesses[] = {
-    {kTaggedBase, FixedArray::kHeaderSize, Type::Any(), kMachAnyTagged},
-    {kUntaggedBase, 0, Type::Any(), kMachInt8},
-    {kUntaggedBase, 0, Type::Any(), kMachInt16},
-    {kUntaggedBase, 0, Type::Any(), kMachInt32},
-    {kUntaggedBase, 0, Type::Any(), kMachUint8},
-    {kUntaggedBase, 0, Type::Any(), kMachUint16},
-    {kUntaggedBase, 0, Type::Any(), kMachUint32},
-    {kUntaggedBase, 0, Type::Signed32(), kMachInt8},
-    {kUntaggedBase, 0, Type::Unsigned32(), kMachUint8},
-    {kUntaggedBase, 0, Type::Signed32(), kMachInt16},
-    {kUntaggedBase, 0, Type::Unsigned32(), kMachUint16},
-    {kUntaggedBase, 0, Type::Signed32(), kMachInt32},
-    {kUntaggedBase, 0, Type::Unsigned32(), kMachUint32},
-    {kUntaggedBase, 0, Type::Number(), kRepFloat32},
-    {kUntaggedBase, 0, Type::Number(), kRepFloat64},
+    {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
+     MachineType::AnyTagged()},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Int8()},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Int16()},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Int32()},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Uint8()},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Uint16()},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Uint32()},
+    {kUntaggedBase, 0, Type::Signed32(), MachineType::Int8()},
+    {kUntaggedBase, 0, Type::Unsigned32(), MachineType::Uint8()},
+    {kUntaggedBase, 0, Type::Signed32(), MachineType::Int16()},
+    {kUntaggedBase, 0, Type::Unsigned32(), MachineType::Uint16()},
+    {kUntaggedBase, 0, Type::Signed32(), MachineType::Int32()},
+    {kUntaggedBase, 0, Type::Unsigned32(), MachineType::Uint32()},
+    {kUntaggedBase, 0, Type::Number(),
+     MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone)},
+    {kUntaggedBase, 0, Type::Number(),
+     MachineType(MachineRepresentation::kFloat64, MachineSemantic::kNone)},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
-     kMachInt8},
+     MachineType::Int8()},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
-     kMachUint8},
+     MachineType::Uint8()},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
-     kMachInt16},
+     MachineType::Int16()},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
-     kMachUint16},
+     MachineType::Uint16()},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
-     kMachInt32},
+     MachineType::Int32()},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
-     kMachUint32},
+     MachineType::Uint32()},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Number(),
-     kRepFloat32},
+     MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone)},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Number(),
-     kRepFloat64}};
+     MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone)}};
 
 }  // namespace
 

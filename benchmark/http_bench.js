@@ -1,3 +1,4 @@
+'use strict';
 var spawn = require('child_process').spawn;
 var cluster = require('cluster');
 var http = require('http');
@@ -20,10 +21,10 @@ for (var i = 2; i < process.argv.length; ++i) {
 }
 
 switch (options.mode) {
-case 'master': startMaster(); break;
-case 'server': startServer(); break;
-case 'client': startClient(); break;
-default: throw new Error('Bad mode: ' + options.mode);
+  case 'master': startMaster(); break;
+  case 'server': startServer(); break;
+  case 'client': startClient(); break;
+  default: throw new Error('Bad mode: ' + options.mode);
 }
 
 process.title = 'http_bench[' + options.mode + ']';
@@ -47,7 +48,7 @@ function startMaster() {
 
   var forkCount = 0;
 
-  cluster.on('online', function () {
+  cluster.on('online', function() {
     forkCount = forkCount + 1;
     if (forkCount === ~~options.servers) {
       var args = [

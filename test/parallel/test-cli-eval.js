@@ -5,11 +5,11 @@ if (module.parent) {
   process.exit(42);
 }
 
-var common = require('../common'),
-    assert = require('assert'),
-    child = require('child_process'),
-    path = require('path'),
-    nodejs = '"' + process.execPath + '"';
+const common = require('../common');
+const assert = require('assert');
+const child = require('child_process');
+const path = require('path');
+const nodejs = '"' + process.execPath + '"';
 
 
 // replace \ by / because windows uses backslashes in paths, but they're still
@@ -51,6 +51,13 @@ child.exec(nodejs + ' --eval "console.error(42)"',
 child.exec(nodejs + ' --eval "require(\'' + filename + '\')"',
     function(status, stdout, stderr) {
       assert.equal(status.code, 42);
+    });
+
+// Check that builtin modules are pre-defined.
+child.exec(nodejs + ' --print "os.platform()"',
+    function(status, stdout, stderr) {
+      assert.strictEqual(stderr, '');
+      assert.strictEqual(stdout.trim(), require('os').platform());
     });
 
 // module path resolve bug, regression test

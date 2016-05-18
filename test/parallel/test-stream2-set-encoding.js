@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var R = require('_stream_readable');
 var util = require('util');
@@ -66,8 +66,7 @@ TestReader.prototype._read = function(n) {
     }
 
     this.pos += n;
-    var ret = new Buffer(n);
-    ret.fill('a');
+    var ret = Buffer.alloc(n, 'a');
 
     console.log('this.push(ret)', ret);
 

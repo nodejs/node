@@ -16,22 +16,8 @@ void ICUtility::Clear(Isolate* isolate, Address address,
 }
 
 
-CallICState::CallICState(ExtraICState extra_ic_state)
-    : argc_(ArgcBits::decode(extra_ic_state)),
-      call_type_(CallTypeBits::decode(extra_ic_state)) {}
-
-
-ExtraICState CallICState::GetExtraICState() const {
-  ExtraICState extra_ic_state =
-      ArgcBits::encode(argc_) | CallTypeBits::encode(call_type_);
-  return extra_ic_state;
-}
-
-
 std::ostream& operator<<(std::ostream& os, const CallICState& s) {
-  return os << "(args(" << s.arg_count() << "), "
-            << (s.call_type() == CallICState::METHOD ? "METHOD" : "FUNCTION")
-            << ", ";
+  return os << "(args(" << s.argc() << "), " << s.convert_mode() << ", ";
 }
 
 
@@ -51,7 +37,6 @@ BinaryOpICState::BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state)
       isolate_(isolate) {
   op_ =
       static_cast<Token::Value>(FIRST_TOKEN + OpField::decode(extra_ic_state));
-  strong_ = StrengthField::decode(extra_ic_state);
   left_kind_ = LeftKindField::decode(extra_ic_state);
   right_kind_ = fixed_right_arg_.IsJust()
                     ? (Smi::IsValid(fixed_right_arg_.FromJust()) ? SMI : INT32)
@@ -65,7 +50,7 @@ BinaryOpICState::BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state)
 ExtraICState BinaryOpICState::GetExtraICState() const {
   ExtraICState extra_ic_state =
       OpField::encode(op_ - FIRST_TOKEN) | LeftKindField::encode(left_kind_) |
-      ResultKindField::encode(result_kind_) | StrengthField::encode(strong_) |
+      ResultKindField::encode(result_kind_) |
       HasFixedRightArgField::encode(fixed_right_arg_.IsJust());
   if (fixed_right_arg_.IsJust()) {
     extra_ic_state = FixedRightArgValueField::update(
@@ -86,7 +71,7 @@ void BinaryOpICState::GenerateAheadOfTime(
 // Generated list of commonly used stubs
 #define GENERATE(op, left_kind, right_kind, result_kind) \
   do {                                                   \
-    BinaryOpICState state(isolate, op, Strength::WEAK);  \
+    BinaryOpICState state(isolate, op);                  \
     state.left_kind_ = left_kind;                        \
     state.fixed_right_arg_ = Nothing<int>();             \
     state.right_kind_ = right_kind;                      \
@@ -188,7 +173,7 @@ void BinaryOpICState::GenerateAheadOfTime(
 #undef GENERATE
 #define GENERATE(op, left_kind, fixed_right_arg_value, result_kind) \
   do {                                                              \
-    BinaryOpICState state(isolate, op, Strength::WEAK);             \
+    BinaryOpICState state(isolate, op);                             \
     state.left_kind_ = left_kind;                                   \
     state.fixed_right_arg_ = Just(fixed_right_arg_value);           \
     state.right_kind_ = SMI;                                        \
@@ -205,24 +190,23 @@ void BinaryOpICState::GenerateAheadOfTime(
 }
 
 
-Type* BinaryOpICState::GetResultType(Zone* zone) const {
+Type* BinaryOpICState::GetResultType() const {
   Kind result_kind = result_kind_;
   if (HasSideEffects()) {
     result_kind = NONE;
   } else if (result_kind == GENERIC && op_ == Token::ADD) {
-    return Type::Union(Type::Number(zone), Type::String(zone), zone);
+    return Type::NumberOrString();
   } else if (result_kind == NUMBER && op_ == Token::SHR) {
-    return Type::Unsigned32(zone);
+    return Type::Unsigned32();
   }
   DCHECK_NE(GENERIC, result_kind);
-  return KindToType(result_kind, zone);
+  return KindToType(result_kind);
 }
 
 
 std::ostream& operator<<(std::ostream& os, const BinaryOpICState& s) {
   os << "(" << Token::Name(s.op_);
   if (s.CouldCreateAllocationMementos()) os << "_CreateAllocationMementos";
-  if (is_strong(s.strength())) os << "_Strong";
   os << ":" << BinaryOpICState::KindToString(s.left_kind_) << "*";
   if (s.fixed_right_arg_.IsJust()) {
     os << s.fixed_right_arg_.FromJust();
@@ -334,20 +318,20 @@ const char* BinaryOpICState::KindToString(Kind kind) {
 
 
 // static
-Type* BinaryOpICState::KindToType(Kind kind, Zone* zone) {
+Type* BinaryOpICState::KindToType(Kind kind) {
   switch (kind) {
     case NONE:
-      return Type::None(zone);
+      return Type::None();
     case SMI:
-      return Type::SignedSmall(zone);
+      return Type::SignedSmall();
     case INT32:
-      return Type::Signed32(zone);
+      return Type::Signed32();
     case NUMBER:
-      return Type::Number(zone);
+      return Type::Number();
     case STRING:
-      return Type::String(zone);
+      return Type::String();
     case GENERIC:
-      return Type::Any(zone);
+      return Type::Any();
   }
   UNREACHABLE();
   return NULL;
@@ -370,10 +354,10 @@ const char* CompareICState::GetStateName(State state) {
       return "STRING";
     case UNIQUE_NAME:
       return "UNIQUE_NAME";
-    case OBJECT:
-      return "OBJECT";
-    case KNOWN_OBJECT:
-      return "KNOWN_OBJECT";
+    case RECEIVER:
+      return "RECEIVER";
+    case KNOWN_RECEIVER:
+      return "KNOWN_RECEIVER";
     case GENERIC:
       return "GENERIC";
   }
@@ -385,25 +369,25 @@ const char* CompareICState::GetStateName(State state) {
 Type* CompareICState::StateToType(Zone* zone, State state, Handle<Map> map) {
   switch (state) {
     case UNINITIALIZED:
-      return Type::None(zone);
+      return Type::None();
     case BOOLEAN:
-      return Type::Boolean(zone);
+      return Type::Boolean();
     case SMI:
-      return Type::SignedSmall(zone);
+      return Type::SignedSmall();
     case NUMBER:
-      return Type::Number(zone);
+      return Type::Number();
     case STRING:
-      return Type::String(zone);
+      return Type::String();
     case INTERNALIZED_STRING:
-      return Type::InternalizedString(zone);
+      return Type::InternalizedString();
     case UNIQUE_NAME:
-      return Type::UniqueName(zone);
-    case OBJECT:
-      return Type::Receiver(zone);
-    case KNOWN_OBJECT:
-      return map.is_null() ? Type::Receiver(zone) : Type::Class(map, zone);
+      return Type::UniqueName();
+    case RECEIVER:
+      return Type::Receiver();
+    case KNOWN_RECEIVER:
+      return map.is_null() ? Type::Receiver() : Type::Class(map, zone);
     case GENERIC:
-      return Type::Any(zone);
+      return Type::Any();
   }
   UNREACHABLE();
   return NULL;
@@ -420,7 +404,7 @@ CompareICState::State CompareICState::NewInputState(State old_state,
       if (value->IsInternalizedString()) return INTERNALIZED_STRING;
       if (value->IsString()) return STRING;
       if (value->IsSymbol()) return UNIQUE_NAME;
-      if (value->IsJSObject()) return OBJECT;
+      if (value->IsJSReceiver()) return RECEIVER;
       break;
     case BOOLEAN:
       if (value->IsBoolean()) return BOOLEAN;
@@ -443,12 +427,12 @@ CompareICState::State CompareICState::NewInputState(State old_state,
     case UNIQUE_NAME:
       if (value->IsUniqueName()) return UNIQUE_NAME;
       break;
-    case OBJECT:
-      if (value->IsJSObject()) return OBJECT;
+    case RECEIVER:
+      if (value->IsJSReceiver()) return RECEIVER;
       break;
     case GENERIC:
       break;
-    case KNOWN_OBJECT:
+    case KNOWN_RECEIVER:
       UNREACHABLE();
       break;
   }
@@ -479,12 +463,12 @@ CompareICState::State CompareICState::TargetState(
         return Token::IsEqualityOp(op) ? INTERNALIZED_STRING : STRING;
       }
       if (x->IsString() && y->IsString()) return STRING;
-      if (x->IsJSObject() && y->IsJSObject()) {
-        if (Handle<JSObject>::cast(x)->map() ==
-            Handle<JSObject>::cast(y)->map()) {
-          return KNOWN_OBJECT;
+      if (x->IsJSReceiver() && y->IsJSReceiver()) {
+        if (Handle<JSReceiver>::cast(x)->map() ==
+            Handle<JSReceiver>::cast(y)->map()) {
+          return KNOWN_RECEIVER;
         } else {
-          return Token::IsEqualityOp(op) ? OBJECT : GENERIC;
+          return Token::IsEqualityOp(op) ? RECEIVER : GENERIC;
         }
       }
       if (!Token::IsEqualityOp(op)) return GENERIC;
@@ -504,15 +488,15 @@ CompareICState::State CompareICState::TargetState(
       if (old_left == SMI && x->IsHeapNumber()) return NUMBER;
       if (old_right == SMI && y->IsHeapNumber()) return NUMBER;
       return GENERIC;
-    case KNOWN_OBJECT:
-      if (x->IsJSObject() && y->IsJSObject()) {
-        return Token::IsEqualityOp(op) ? OBJECT : GENERIC;
+    case KNOWN_RECEIVER:
+      if (x->IsJSReceiver() && y->IsJSReceiver()) {
+        return Token::IsEqualityOp(op) ? RECEIVER : GENERIC;
       }
       return GENERIC;
     case BOOLEAN:
     case STRING:
     case UNIQUE_NAME:
-    case OBJECT:
+    case RECEIVER:
     case GENERIC:
       return GENERIC;
   }

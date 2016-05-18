@@ -36,7 +36,6 @@ class JSGenericLowering final : public Reducer {
 #undef DECLARE_LOWER
 
   // Helpers to replace existing nodes with a generic call.
-  void ReplaceWithCompareIC(Node* node, Token::Value token, Strength strength);
   void ReplaceWithStubCall(Node* node, Callable c, CallDescriptor::Flags flags);
   void ReplaceWithRuntimeCall(Node* node, Runtime::FunctionId f, int args = -1);
 

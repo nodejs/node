@@ -7,7 +7,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var crypto = require('crypto');
@@ -19,12 +19,12 @@ var ucs2_control = 'a\u0000';
 
 // grow the strings to proper length
 while (ucs2_control.length <= EXTERN_APEX) {
-  ucs2_control += ucs2_control;
+  ucs2_control = ucs2_control.repeat(2);
 }
 
 
 // check resultant buffer and output string
-var b = new Buffer(ucs2_control + ucs2_control, 'ucs2');
+var b = Buffer.from(ucs2_control + ucs2_control, 'ucs2');
 
 //
 // Test updating from birant data

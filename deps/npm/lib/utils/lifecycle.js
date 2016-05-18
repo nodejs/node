@@ -1,6 +1,7 @@
 exports = module.exports = lifecycle
 exports.cmd = cmd
 exports.makeEnv = makeEnv
+exports._incorrectWorkingDirectory = _incorrectWorkingDirectory
 
 var log = require('npmlog')
 var spawn = require('./spawn')
@@ -12,6 +13,7 @@ var Stream = require('stream').Stream
 var PATH = 'PATH'
 var uidNumber = require('uid-number')
 var umask = require('./umask')
+var usage = require('./usage')
 
 // windows calls it's path 'Path' usually, but this is not guaranteed.
 if (process.platform === 'win32') {
@@ -45,15 +47,19 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
   if (!pkg) return cb(new Error('Invalid package data'))
 
   log.info('lifecycle', logid(pkg, stage), pkg._id)
-  if (!pkg.scripts || npm.config.get('ignore-scripts')) pkg.scripts = {}
+  if (!pkg.scripts) pkg.scripts = {}
+
+  if (npm.config.get('ignore-scripts')) {
+    log.info('lifecycle', logid(pkg, stage), 'ignored because ignore-scripts is set to true', pkg._id)
+    pkg.scripts = {}
+  }
 
   validWd(wd || path.resolve(npm.dir, pkg.name), function (er, wd) {
     if (er) return cb(er)
 
     unsafe = unsafe || npm.config.get('unsafe-perm')
 
-    if ((wd.indexOf(npm.dir) !== 0 ||
-          wd.indexOf(pkg.name) !== wd.length - pkg.name.length) &&
+    if ((wd.indexOf(npm.dir) !== 0 || _incorrectWorkingDirectory(wd, pkg)) &&
         !unsafe && pkg.scripts[stage]) {
       log.warn('lifecycle', logid(pkg, stage), 'cannot run in wd',
         '%s %s (wd=%s)', pkg._id, pkg.scripts[stage], wd
@@ -75,6 +81,10 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
   })
 }
 
+function _incorrectWorkingDirectory (wd, pkg) {
+  return wd.lastIndexOf(pkg.name) !== wd.length - pkg.name.length
+}
+
 function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   var pathArr = []
   var p = wd.split('node_modules')
@@ -89,6 +99,9 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   // we also unshift the bundled node-gyp-bin folder so that
   // the bundled one will be used for installing things.
   pathArr.unshift(path.join(__dirname, '..', '..', 'bin', 'node-gyp-bin'))
+
+  // prefer current node interpreter in child scripts
+  pathArr.push(path.dirname(process.execPath))
 
   if (env[PATH]) pathArr.push(env[PATH])
   env[PATH] = pathArr.join(process.platform === 'win32' ? ';' : ':')
@@ -233,6 +246,7 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
     }
     procError(er)
   })
+  process.once('SIGTERM', procKill)
 
   function procError (er) {
     if (progressEnabled) log.enableProgress()
@@ -243,12 +257,21 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
       if (er.code !== 'EPERM') {
         er.code = 'ELIFECYCLE'
       }
+      fs.stat(npm.dir, function (statError, d) {
+        if (statError && statError.code === 'ENOENT' && npm.dir.split(path.sep).slice(-1)[0] === 'node_modules') {
+          log.warn('', 'Local package.json exists, but node_modules missing, did you mean to install?')
+        }
+      })
       er.pkgid = pkg._id
       er.stage = stage
       er.script = cmd
       er.pkgname = pkg.name
     }
+    process.removeListener('SIGTERM', procKill)
     return cb(er)
+  }
+  function procKill () {
+    proc.kill()
   }
 }
 
@@ -369,7 +392,7 @@ function cmd (stage) {
   function CMD (args, cb) {
     npm.commands['run-script']([stage].concat(args), cb)
   }
-  CMD.usage = 'npm ' + stage + ' [-- <args>]'
+  CMD.usage = usage(stage, 'npm ' + stage + ' [-- <args>]')
   var installedShallow = require('./completion/installed-shallow.js')
   CMD.completion = function (opts, cb) {
     installedShallow(opts, function (d) {

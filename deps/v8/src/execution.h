@@ -13,9 +13,6 @@
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
-class JSRegExp;
-
 class Execution final : public AllStatic {
  public:
   // Call a function, the caller supplies a receiver and an array
@@ -47,26 +44,10 @@ class Execution final : public AllStatic {
   // that occurred (if caught exception is true).
   // In the exception case, exception_out holds the caught exceptions, unless
   // it is a termination exception.
-  static MaybeHandle<Object> TryCall(Handle<JSFunction> func,
+  static MaybeHandle<Object> TryCall(Isolate* isolate, Handle<Object> callable,
                                      Handle<Object> receiver, int argc,
                                      Handle<Object> argv[],
                                      MaybeHandle<Object>* exception_out = NULL);
-
-  // ECMA-262 9.8
-  MUST_USE_RESULT static MaybeHandle<Object> ToDetailString(
-      Isolate* isolate, Handle<Object> obj);
-
-  // ECMA-262 9.9
-  MUST_USE_RESULT static MaybeHandle<Object> ToObject(
-      Isolate* isolate, Handle<Object> obj);
-
-  // Create a new date object from 'time'.
-  MUST_USE_RESULT static MaybeHandle<Object> NewDate(
-      Isolate* isolate, double time);
-
-  // Create a new regular expression object from 'pattern' and 'flags'.
-  MUST_USE_RESULT static MaybeHandle<JSRegExp> NewJSRegExp(
-      Handle<String> pattern, Handle<String> flags);
 
   static Handle<String> GetStackTraceLine(Handle<Object> recv,
                                           Handle<JSFunction> fun,
@@ -247,6 +228,7 @@ class StackGuard final {
   DISALLOW_COPY_AND_ASSIGN(StackGuard);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_EXECUTION_H_

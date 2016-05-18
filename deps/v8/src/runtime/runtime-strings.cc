@@ -341,7 +341,7 @@ RUNTIME_FUNCTION(Runtime_StringMatch) {
 
   RUNTIME_ASSERT(regexp_info->HasFastObjectElements());
 
-  RegExpImpl::GlobalCache global_cache(regexp, subject, true, isolate);
+  RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
   if (global_cache.HasException()) return isolate->heap()->exception();
 
   int capture_count = regexp->CaptureCount();
@@ -402,18 +402,6 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
   }
 
   return Smi::FromInt(subject->Get(i));
-}
-
-
-RUNTIME_FUNCTION(Runtime_CharFromCode) {
-  HandleScope handlescope(isolate);
-  DCHECK(args.length() == 1);
-  if (args[0]->IsNumber()) {
-    CONVERT_NUMBER_CHECKED(uint32_t, code, Uint32, args[0]);
-    code &= 0xffff;
-    return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
-  }
-  return isolate->heap()->empty_string();
 }
 
 
@@ -1185,8 +1173,14 @@ RUNTIME_FUNCTION(Runtime_FlattenString) {
 
 
 RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
-  SealHandleScope shs(isolate);
-  return __RT_impl_Runtime_CharFromCode(args, isolate);
+  HandleScope handlescope(isolate);
+  DCHECK_EQ(1, args.length());
+  if (args[0]->IsNumber()) {
+    CONVERT_NUMBER_CHECKED(uint32_t, code, Uint32, args[0]);
+    code &= 0xffff;
+    return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
+  }
+  return isolate->heap()->empty_string();
 }
 
 
@@ -1198,7 +1192,7 @@ RUNTIME_FUNCTION(Runtime_StringCharAt) {
   if (std::isinf(args.number_at(1))) return isolate->heap()->empty_string();
   Object* code = __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
   if (code->IsNaN()) return isolate->heap()->empty_string();
-  return __RT_impl_Runtime_CharFromCode(Arguments(1, &code), isolate);
+  return __RT_impl_Runtime_StringCharFromCode(Arguments(1, &code), isolate);
 }
 
 
@@ -1251,12 +1245,5 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   return __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
 }
 
-
-RUNTIME_FUNCTION(Runtime_StringGetLength) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-  return Smi::FromInt(s->length());
-}
 }  // namespace internal
 }  // namespace v8

@@ -1,6 +1,5 @@
 'use strict';
 var assert = require('assert');
-var util = require('util');
 var join = require('path').join;
 var fs = require('fs');
 var common = require('../common');
@@ -33,7 +32,7 @@ assert.equal(fs.readFileSync(saveFileName, 'utf8'), testFile.join('\n') + '\n');
 // make sure that the REPL data is "correct"
 // so when I load it back I know I'm good
 testMe.complete('inner.o', function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 });
 
 // clear the REPL
@@ -44,7 +43,7 @@ putIn.run(['.load ' + saveFileName]);
 
 // make sure that the REPL data is "correct"
 testMe.complete('inner.o', function(error, data) {
-  assert.deepEqual(data, works);
+  assert.deepStrictEqual(data, works);
 });
 
 // clear the REPL
@@ -57,6 +56,14 @@ putIn.write = function(data) {
   // make sure I get a failed to load message and not some crazy error
   assert.equal(data, 'Failed to load:' + loadFile + '\n');
   // eat me to avoid work
+  putIn.write = function() {};
+};
+putIn.run(['.load ' + loadFile]);
+
+// throw error on loading directory
+loadFile = common.tmpDir;
+putIn.write = function(data) {
+  assert.equal(data, 'Failed to load:' + loadFile + ' is not a valid file\n');
   putIn.write = function() {};
 };
 putIn.run(['.load ' + loadFile]);

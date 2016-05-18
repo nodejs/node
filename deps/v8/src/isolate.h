@@ -481,14 +481,9 @@ class Isolate {
     return isolate;
   }
 
-  INLINE(static Isolate* UncheckedCurrent()) {
-    DCHECK(base::NoBarrier_Load(&isolate_key_created_) == 1);
-    return reinterpret_cast<Isolate*>(
-        base::Thread::GetThreadLocal(isolate_key_));
-  }
-
-  // Like UncheckedCurrent, but skips the check that |isolate_key_| was
-  // initialized. Callers have to ensure that themselves.
+  // Like Current, but skips the check that |isolate_key_| was initialized.
+  // Callers have to ensure that themselves.
+  // DO NOT USE. The only remaining callsite will be deleted soon.
   INLINE(static Isolate* UnsafeCurrent()) {
     return reinterpret_cast<Isolate*>(
         base::Thread::GetThreadLocal(isolate_key_));
@@ -522,6 +517,10 @@ class Isolate {
   // Find the PerThread for given (isolate, thread) combination
   // If one does not yet exist, return null.
   PerIsolateThreadData* FindPerThreadDataForThread(ThreadId thread_id);
+
+  // Discard the PerThread for this particular (isolate, thread) combination
+  // If one does not yet exist, no-op.
+  void DiscardPerThreadDataForThisThread();
 
   // Returns the key used to store the pointer to the current isolate.
   // Used internally for V8 threads that do not execute JavaScript but still
@@ -617,7 +616,7 @@ class Isolate {
 
   // Returns the global object of the current context. It could be
   // a builtin object, or a JS global object.
-  inline Handle<GlobalObject> global_object();
+  inline Handle<JSGlobalObject> global_object();
 
   // Returns the global proxy object of the current context.
   JSObject* global_proxy() {
@@ -679,13 +678,10 @@ class Isolate {
   Handle<JSArray> GetDetailedFromSimpleStackTrace(
       Handle<JSObject> error_object);
 
-  // Returns if the top context may access the given global object. If
+  // Returns if the given context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
   // set.
-
-  bool MayAccess(Handle<JSObject> receiver);
-  bool IsInternallyUsedPropertyName(Handle<Object> name);
-  bool IsInternallyUsedPropertyName(Object* name);
+  bool MayAccess(Handle<Context> accessing_context, Handle<JSObject> receiver);
 
   void SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback);
   void ReportFailedAccessCheck(Handle<JSObject> receiver);
@@ -822,6 +818,10 @@ class Isolate {
   StubCache* stub_cache() { return stub_cache_; }
   CodeAgingHelper* code_aging_helper() { return code_aging_helper_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
+  bool deoptimizer_lazy_throw() const { return deoptimizer_lazy_throw_; }
+  void set_deoptimizer_lazy_throw(bool value) {
+    deoptimizer_lazy_throw_ = value;
+  }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
   MaterializedObjectStore* materialized_object_store() {
     return materialized_object_store_;
@@ -893,7 +893,7 @@ class Isolate {
 
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
       interp_canonicalize_mapping() {
-    return &interp_canonicalize_mapping_;
+    return &regexp_macro_assembler_canonicalize_;
   }
 
   Debug* debug() { return debug_; }
@@ -939,7 +939,7 @@ class Isolate {
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   double time_millis_since_init() {
-    return base::OS::TimeCurrentMillis() - time_millis_at_init_;
+    return heap_.MonotonicallyIncreasingTimeInMs() - time_millis_at_init_;
   }
 
   DateCache* date_cache() {
@@ -953,10 +953,6 @@ class Isolate {
     date_cache_ = date_cache;
   }
 
-  ErrorToStringHelper* error_tostring_helper() {
-    return &error_tostring_helper_;
-  }
-
   Map* get_initial_js_array_map(ElementsKind kind,
                                 Strength strength = Strength::WEAK);
 
@@ -964,6 +960,7 @@ class Isolate {
   static const int kArrayProtectorInvalid = 0;
 
   bool IsFastArrayConstructorPrototypeChainIntact();
+  bool IsArraySpeciesLookupChainIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
@@ -979,6 +976,7 @@ class Isolate {
   void UpdateArrayProtectorOnNormalizeElements(Handle<JSObject> object) {
     UpdateArrayProtectorOnSetElement(object);
   }
+  void InvalidateArraySpeciesProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);
@@ -1027,9 +1025,11 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
-  void* vector_store_virtual_register_address() {
-    return &vector_store_virtual_register_;
+  void* virtual_handler_register_address() {
+    return &virtual_handler_register_;
   }
+
+  void* virtual_slot_register_address() { return &virtual_slot_register_; }
 
   base::RandomNumberGenerator* random_number_generator();
 
@@ -1044,12 +1044,22 @@ class Isolate {
     return id;
   }
 
+  void IncrementJsCallsFromApiCounter() { ++js_calls_from_api_counter_; }
+
+  unsigned int js_calls_from_api_counter() {
+    return js_calls_from_api_counter_;
+  }
+
   // Get (and lazily initialize) the registry for per-isolate symbols.
   Handle<JSObject> GetSymbolRegistry();
 
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
   void FireCallCompletedCallback();
+
+  void AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
+  void RemoveBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
+  void FireBeforeCallEnteredCallback();
 
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
   void ReportPromiseReject(Handle<JSObject> promise, Handle<Object> value,
@@ -1085,8 +1095,9 @@ class Isolate {
 
   FutexWaitListNode* futex_wait_list_node() { return &futex_wait_list_node_; }
 
-  void RegisterCancelableTask(Cancelable* task);
-  void RemoveCancelableTask(Cancelable* task);
+  CancelableTaskManager* cancelable_task_manager() {
+    return cancelable_task_manager_;
+  }
 
   interpreter::Interpreter* interpreter() const { return interpreter_; }
 
@@ -1198,10 +1209,6 @@ class Isolate {
   // the frame.
   void RemoveMaterializedObjectsOnUnwind(StackFrame* frame);
 
-  // Traverse prototype chain to find out whether the object is derived from
-  // the Error object.
-  bool IsErrorObject(Handle<Object> obj);
-
   base::Atomic32 id_;
   EntryStackItem* entry_stack_;
   int stack_trace_nesting_level_;
@@ -1219,6 +1226,7 @@ class Isolate {
   StubCache* stub_cache_;
   CodeAgingHelper* code_aging_helper_;
   DeoptimizerData* deoptimizer_data_;
+  bool deoptimizer_lazy_throw_;
   MaterializedObjectStore* materialized_object_store_;
   ThreadLocalTop thread_local_top_;
   bool capture_stack_trace_for_uncaught_exceptions_;
@@ -1246,8 +1254,6 @@ class Isolate {
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
   DateCache* date_cache_;
-  ErrorToStringHelper error_tostring_helper_;
-  unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
 
@@ -1306,13 +1312,20 @@ class Isolate {
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;
 
-  Address vector_store_virtual_register_;
+  Address virtual_handler_register_;
+  Address virtual_slot_register_;
 
   int next_optimization_id_;
+
+  // Counts javascript calls from the API. Wraps around on overflow.
+  unsigned int js_calls_from_api_counter_;
 
 #if TRACE_MAPS
   int next_unique_sfi_id_;
 #endif
+
+  // List of callbacks before a Call starts execution.
+  List<BeforeCallEnteredCallback> before_call_entered_callbacks_;
 
   // List of callbacks when a Call completes.
   List<CallCompletedCallback> call_completed_callbacks_;
@@ -1326,7 +1339,7 @@ class Isolate {
 
   FutexWaitListNode futex_wait_list_node_;
 
-  std::set<Cancelable*> cancelable_tasks_;
+  CancelableTaskManager* cancelable_task_manager_;
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
       abort_on_uncaught_exception_callback_;
@@ -1556,6 +1569,7 @@ class CodeTracer final : public Malloced {
   int scope_depth_;
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ISOLATE_H_

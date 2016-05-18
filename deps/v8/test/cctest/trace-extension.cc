@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(mythria): Remove this after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "test/cctest/trace-extension.h"
 
 #include "src/profiler/sampler.h"
@@ -111,7 +108,7 @@ void TraceExtension::DoTrace(Address fp) {
   regs.sp =
       reinterpret_cast<Address>(trace_env.sample) - 10240;
   trace_env.sample->Init(CcTest::i_isolate(), regs,
-                         TickSample::kSkipCEntryFrame);
+                         TickSample::kSkipCEntryFrame, true);
 }
 
 

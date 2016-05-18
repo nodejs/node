@@ -2,6 +2,283 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.2g and 1.0.2h [3 May 2016]
+
+  *) Prevent padding oracle in AES-NI CBC MAC check
+
+     A MITM attacker can use a padding oracle attack to decrypt traffic
+     when the connection uses an AES CBC cipher and the server support
+     AES-NI.
+
+     This issue was introduced as part of the fix for Lucky 13 padding
+     attack (CVE-2013-0169). The padding check was rewritten to be in
+     constant time by making sure that always the same bytes are read and
+     compared against either the MAC or padding bytes. But it no longer
+     checked that there was enough data to have both the MAC and padding
+     bytes.
+
+     This issue was reported by Juraj Somorovsky using TLS-Attacker.
+     (CVE-2016-2107)
+     [Kurt Roeckx]
+
+  *) Fix EVP_EncodeUpdate overflow
+
+     An overflow can occur in the EVP_EncodeUpdate() function which is used for
+     Base64 encoding of binary data. If an attacker is able to supply very large
+     amounts of input data then a length check can overflow resulting in a heap
+     corruption.
+
+     Internally to OpenSSL the EVP_EncodeUpdate() function is primarly used by
+     the PEM_write_bio* family of functions. These are mainly used within the
+     OpenSSL command line applications, so any application which processes data
+     from an untrusted source and outputs it as a PEM file should be considered
+     vulnerable to this issue. User applications that call these APIs directly
+     with large amounts of untrusted data may also be vulnerable.
+
+     This issue was reported by Guido Vranken.
+     (CVE-2016-2105)
+     [Matt Caswell]
+
+  *) Fix EVP_EncryptUpdate overflow
+
+     An overflow can occur in the EVP_EncryptUpdate() function. If an attacker
+     is able to supply very large amounts of input data after a previous call to
+     EVP_EncryptUpdate() with a partial block then a length check can overflow
+     resulting in a heap corruption. Following an analysis of all OpenSSL
+     internal usage of the EVP_EncryptUpdate() function all usage is one of two
+     forms. The first form is where the EVP_EncryptUpdate() call is known to be
+     the first called function after an EVP_EncryptInit(), and therefore that
+     specific call must be safe. The second form is where the length passed to
+     EVP_EncryptUpdate() can be seen from the code to be some small value and
+     therefore there is no possibility of an overflow. Since all instances are
+     one of these two forms, it is believed that there can be no overflows in
+     internal code due to this problem. It should be noted that
+     EVP_DecryptUpdate() can call EVP_EncryptUpdate() in certain code paths.
+     Also EVP_CipherUpdate() is a synonym for EVP_EncryptUpdate(). All instances
+     of these calls have also been analysed too and it is believed there are no
+     instances in internal usage where an overflow could occur.
+
+     This issue was reported by Guido Vranken.
+     (CVE-2016-2106)
+     [Matt Caswell]
+
+  *) Prevent ASN.1 BIO excessive memory allocation
+
+     When ASN.1 data is read from a BIO using functions such as d2i_CMS_bio()
+     a short invalid encoding can casuse allocation of large amounts of memory
+     potentially consuming excessive resources or exhausting memory.
+
+     Any application parsing untrusted data through d2i BIO functions is
+     affected. The memory based functions such as d2i_X509() are *not* affected.
+     Since the memory based functions are used by the TLS library, TLS
+     applications are not affected.
+
+     This issue was reported by Brian Carpenter.
+     (CVE-2016-2109)
+     [Stephen Henson]
+
+  *) EBCDIC overread
+
+     ASN1 Strings that are over 1024 bytes can cause an overread in applications
+     using the X509_NAME_oneline() function on EBCDIC systems. This could result
+     in arbitrary stack data being returned in the buffer.
+
+     This issue was reported by Guido Vranken.
+     (CVE-2016-2176)
+     [Matt Caswell]
+
+  *) Modify behavior of ALPN to invoke callback after SNI/servername
+     callback, such that updates to the SSL_CTX affect ALPN.
+     [Todd Short]
+
+  *) Remove LOW from the DEFAULT cipher list.  This removes singles DES from the
+     default.
+     [Kurt Roeckx]
+
+  *) Only remove the SSLv2 methods with the no-ssl2-method option. When the
+     methods are enabled and ssl2 is disabled the methods return NULL.
+     [Kurt Roeckx]
+
+ Changes between 1.0.2f and 1.0.2g [1 Mar 2016]
+
+  * Disable weak ciphers in SSLv3 and up in default builds of OpenSSL.
+    Builds that are not configured with "enable-weak-ssl-ciphers" will not
+    provide any "EXPORT" or "LOW" strength ciphers.
+    [Viktor Dukhovni]
+
+  * Disable SSLv2 default build, default negotiation and weak ciphers.  SSLv2
+    is by default disabled at build-time.  Builds that are not configured with
+    "enable-ssl2" will not support SSLv2.  Even if "enable-ssl2" is used,
+    users who want to negotiate SSLv2 via the version-flexible SSLv23_method()
+    will need to explicitly call either of:
+
+        SSL_CTX_clear_options(ctx, SSL_OP_NO_SSLv2);
+    or
+        SSL_clear_options(ssl, SSL_OP_NO_SSLv2);
+
+    as appropriate.  Even if either of those is used, or the application
+    explicitly uses the version-specific SSLv2_method() or its client and
+    server variants, SSLv2 ciphers vulnerable to exhaustive search key
+    recovery have been removed.  Specifically, the SSLv2 40-bit EXPORT
+    ciphers, and SSLv2 56-bit DES are no longer available.
+    (CVE-2016-0800)
+    [Viktor Dukhovni]
+
+  *) Fix a double-free in DSA code
+
+     A double free bug was discovered when OpenSSL parses malformed DSA private
+     keys and could lead to a DoS attack or memory corruption for applications
+     that receive DSA private keys from untrusted sources.  This scenario is
+     considered rare.
+
+     This issue was reported to OpenSSL by Adam Langley(Google/BoringSSL) using
+     libFuzzer.
+     (CVE-2016-0705)
+     [Stephen Henson]
+
+  *) Disable SRP fake user seed to address a server memory leak.
+
+     Add a new method SRP_VBASE_get1_by_user that handles the seed properly.
+
+     SRP_VBASE_get_by_user had inconsistent memory management behaviour.
+     In order to fix an unavoidable memory leak, SRP_VBASE_get_by_user
+     was changed to ignore the "fake user" SRP seed, even if the seed
+     is configured.
+
+     Users should use SRP_VBASE_get1_by_user instead. Note that in
+     SRP_VBASE_get1_by_user, caller must free the returned value. Note
+     also that even though configuring the SRP seed attempts to hide
+     invalid usernames by continuing the handshake with fake
+     credentials, this behaviour is not constant time and no strong
+     guarantees are made that the handshake is indistinguishable from
+     that of a valid user.
+     (CVE-2016-0798)
+     [Emilia Käsper]
+
+  *) Fix BN_hex2bn/BN_dec2bn NULL pointer deref/heap corruption
+
+     In the BN_hex2bn function the number of hex digits is calculated using an
+     int value |i|. Later |bn_expand| is called with a value of |i * 4|. For
+     large values of |i| this can result in |bn_expand| not allocating any
+     memory because |i * 4| is negative. This can leave the internal BIGNUM data
+     field as NULL leading to a subsequent NULL ptr deref. For very large values
+     of |i|, the calculation |i * 4| could be a positive value smaller than |i|.
+     In this case memory is allocated to the internal BIGNUM data field, but it
+     is insufficiently sized leading to heap corruption. A similar issue exists
+     in BN_dec2bn. This could have security consequences if BN_hex2bn/BN_dec2bn
+     is ever called by user applications with very large untrusted hex/dec data.
+     This is anticipated to be a rare occurrence.
+
+     All OpenSSL internal usage of these functions use data that is not expected
+     to be untrusted, e.g. config file data or application command line
+     arguments. If user developed applications generate config file data based
+     on untrusted data then it is possible that this could also lead to security
+     consequences. This is also anticipated to be rare.
+
+     This issue was reported to OpenSSL by Guido Vranken.
+     (CVE-2016-0797)
+     [Matt Caswell]
+
+  *) Fix memory issues in BIO_*printf functions
+
+     The internal |fmtstr| function used in processing a "%s" format string in
+     the BIO_*printf functions could overflow while calculating the length of a
+     string and cause an OOB read when printing very long strings.
+
+     Additionally the internal |doapr_outch| function can attempt to write to an
+     OOB memory location (at an offset from the NULL pointer) in the event of a
+     memory allocation failure. In 1.0.2 and below this could be caused where
+     the size of a buffer to be allocated is greater than INT_MAX. E.g. this
+     could be in processing a very long "%s" format string. Memory leaks can
+     also occur.
+
+     The first issue may mask the second issue dependent on compiler behaviour.
+     These problems could enable attacks where large amounts of untrusted data
+     is passed to the BIO_*printf functions. If applications use these functions
+     in this way then they could be vulnerable. OpenSSL itself uses these
+     functions when printing out human-readable dumps of ASN.1 data. Therefore
+     applications that print this data could be vulnerable if the data is from
+     untrusted sources. OpenSSL command line applications could also be
+     vulnerable where they print out ASN.1 data, or if untrusted data is passed
+     as command line arguments.
+
+     Libssl is not considered directly vulnerable. Additionally certificates etc
+     received via remote connections via libssl are also unlikely to be able to
+     trigger these issues because of message size limits enforced within libssl.
+
+     This issue was reported to OpenSSL Guido Vranken.
+     (CVE-2016-0799)
+     [Matt Caswell]
+
+  *) Side channel attack on modular exponentiation
+
+     A side-channel attack was found which makes use of cache-bank conflicts on
+     the Intel Sandy-Bridge microarchitecture which could lead to the recovery
+     of RSA keys.  The ability to exploit this issue is limited as it relies on
+     an attacker who has control of code in a thread running on the same
+     hyper-threaded core as the victim thread which is performing decryptions.
+
+     This issue was reported to OpenSSL by Yuval Yarom, The University of
+     Adelaide and NICTA, Daniel Genkin, Technion and Tel Aviv University, and
+     Nadia Heninger, University of Pennsylvania with more information at
+     http://cachebleed.info.
+     (CVE-2016-0702)
+     [Andy Polyakov]
+
+  *) Change the req app to generate a 2048-bit RSA/DSA key by default,
+     if no keysize is specified with default_bits. This fixes an
+     omission in an earlier change that changed all RSA/DSA key generation
+     apps to use 2048 bits by default.
+     [Emilia Käsper]
+
+ Changes between 1.0.2e and 1.0.2f [28 Jan 2016]
+
+  *) DH small subgroups
+
+     Historically OpenSSL only ever generated DH parameters based on "safe"
+     primes. More recently (in version 1.0.2) support was provided for
+     generating X9.42 style parameter files such as those required for RFC 5114
+     support. The primes used in such files may not be "safe". Where an
+     application is using DH configured with parameters based on primes that are
+     not "safe" then an attacker could use this fact to find a peer's private
+     DH exponent. This attack requires that the attacker complete multiple
+     handshakes in which the peer uses the same private DH exponent. For example
+     this could be used to discover a TLS server's private DH exponent if it's
+     reusing the private DH exponent or it's using a static DH ciphersuite.
+
+     OpenSSL provides the option SSL_OP_SINGLE_DH_USE for ephemeral DH (DHE) in
+     TLS. It is not on by default. If the option is not set then the server
+     reuses the same private DH exponent for the life of the server process and
+     would be vulnerable to this attack. It is believed that many popular
+     applications do set this option and would therefore not be at risk.
+
+     The fix for this issue adds an additional check where a "q" parameter is
+     available (as is the case in X9.42 based parameters). This detects the
+     only known attack, and is the only possible defense for static DH
+     ciphersuites. This could have some performance impact.
+
+     Additionally the SSL_OP_SINGLE_DH_USE option has been switched on by
+     default and cannot be disabled. This could have some performance impact.
+
+     This issue was reported to OpenSSL by Antonio Sanso (Adobe).
+     (CVE-2016-0701)
+     [Matt Caswell]
+
+  *) SSLv2 doesn't block disabled ciphers
+
+     A malicious client can negotiate SSLv2 ciphers that have been disabled on
+     the server and complete SSLv2 handshakes even if all SSLv2 ciphers have
+     been disabled, provided that the SSLv2 protocol was not also disabled via
+     SSL_OP_NO_SSLv2.
+
+     This issue was reported to OpenSSL on 26th December 2015 by Nimrod Aviram
+     and Sebastian Schinzel.
+     (CVE-2015-3197)
+     [Viktor Dukhovni]
+
+  *) Reject DH handshakes with parameters shorter than 1024 bits.
+     [Kurt Roeckx]
+
  Changes between 1.0.2d and 1.0.2e [3 Dec 2015]
 
   *) BN_mod_exp may produce incorrect results on x86_64
@@ -57,7 +334,7 @@
      [Emilia Käsper]
 
   *) In DSA_generate_parameters_ex, if the provided seed is too short,
-     return an error
+     use a random seed, as already documented.
      [Rich Salz and Ismo Puustinen <ismo.puustinen@intel.com>]
 
  Changes between 1.0.2c and 1.0.2d [9 Jul 2015]

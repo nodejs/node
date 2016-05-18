@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "test/cctest/compiler/function-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace compiler {
 
 TEST(BinopAdd) {
   FunctionTester T("(function(a,b) { return a + b; })");
@@ -396,6 +395,7 @@ TEST(GlobalLoad) {
 
 
 TEST(GlobalStoreSloppy) {
+  FLAG_legacy_const = true;
   FunctionTester T("(function(a,b) { g = a + b; return g; })");
 
   T.CheckCall(T.Val(33), T.Val(22), T.Val(11));
@@ -539,3 +539,7 @@ TEST(ClassLiteral) {
   T.CheckCall(T.Val(65), T.Val(23), T.Val(42));
   T.CheckCall(T.Val("ab"), T.Val("a"), T.Val("b"));
 }
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

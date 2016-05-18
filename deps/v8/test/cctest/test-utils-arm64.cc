@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(mythria): Remove this after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/v8.h"
 
 #include "src/arm64/utils-arm64.h"
@@ -98,7 +95,7 @@ bool EqualFP64(double expected, const RegisterDump*, double result) {
 
 
 bool Equal32(uint32_t expected, const RegisterDump* core, const Register& reg) {
-  DCHECK(reg.Is32Bits());
+  CHECK(reg.Is32Bits());
   // Retrieve the corresponding X register so we can check that the upper part
   // was properly cleared.
   int64_t result_x = core->xreg(reg.code());
@@ -115,7 +112,7 @@ bool Equal32(uint32_t expected, const RegisterDump* core, const Register& reg) {
 bool Equal64(uint64_t expected,
              const RegisterDump* core,
              const Register& reg) {
-  DCHECK(reg.Is64Bits());
+  CHECK(reg.Is64Bits());
   uint64_t result = core->xreg(reg.code());
   return Equal64(expected, core, result);
 }
@@ -124,7 +121,7 @@ bool Equal64(uint64_t expected,
 bool EqualFP32(float expected,
                const RegisterDump* core,
                const FPRegister& fpreg) {
-  DCHECK(fpreg.Is32Bits());
+  CHECK(fpreg.Is32Bits());
   // Retrieve the corresponding D register so we can check that the upper part
   // was properly cleared.
   uint64_t result_64 = core->dreg_bits(fpreg.code());
@@ -141,7 +138,7 @@ bool EqualFP32(float expected,
 bool EqualFP64(double expected,
                const RegisterDump* core,
                const FPRegister& fpreg) {
-  DCHECK(fpreg.Is64Bits());
+  CHECK(fpreg.Is64Bits());
   return EqualFP64(expected, core, core->dreg(fpreg.code()));
 }
 
@@ -149,7 +146,7 @@ bool EqualFP64(double expected,
 bool Equal64(const Register& reg0,
              const RegisterDump* core,
              const Register& reg1) {
-  DCHECK(reg0.Is64Bits() && reg1.Is64Bits());
+  CHECK(reg0.Is64Bits() && reg1.Is64Bits());
   int64_t expected = core->xreg(reg0.code());
   int64_t result = core->xreg(reg1.code());
   return Equal64(expected, core, result);
@@ -177,8 +174,8 @@ static char FlagV(uint32_t flags) {
 
 
 bool EqualNzcv(uint32_t expected, uint32_t result) {
-  DCHECK((expected & ~NZCVFlag) == 0);
-  DCHECK((result & ~NZCVFlag) == 0);
+  CHECK((expected & ~NZCVFlag) == 0);
+  CHECK((result & ~NZCVFlag) == 0);
   if (result != expected) {
     printf("Expected: %c%c%c%c\t Found: %c%c%c%c\n",
         FlagN(expected), FlagZ(expected), FlagC(expected), FlagV(expected),
@@ -234,7 +231,7 @@ RegList PopulateRegisterArray(Register* w, Register* x, Register* r,
     }
   }
   // Check that we got enough registers.
-  DCHECK(CountSetBits(list, kNumberOfRegisters) == reg_count);
+  CHECK(CountSetBits(list, kNumberOfRegisters) == reg_count);
 
   return list;
 }
@@ -261,7 +258,7 @@ RegList PopulateFPRegisterArray(FPRegister* s, FPRegister* d, FPRegister* v,
     }
   }
   // Check that we got enough registers.
-  DCHECK(CountSetBits(list, kNumberOfFPRegisters) == reg_count);
+  CHECK(CountSetBits(list, kNumberOfFPRegisters) == reg_count);
 
   return list;
 }
@@ -273,7 +270,7 @@ void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
     if (reg_list & (1UL << i)) {
       Register xn = Register::Create(i, kXRegSizeInBits);
       // We should never write into csp here.
-      DCHECK(!xn.Is(csp));
+      CHECK(!xn.Is(csp));
       if (!xn.IsZero()) {
         if (!first.IsValid()) {
           // This is the first register we've hit, so construct the literal.
@@ -323,7 +320,7 @@ void Clobber(MacroAssembler* masm, CPURegList reg_list) {
 
 
 void RegisterDump::Dump(MacroAssembler* masm) {
-  DCHECK(__ StackPointer().Is(csp));
+  CHECK(__ StackPointer().Is(csp));
 
   // Ensure that we don't unintentionally clobber any registers.
   RegList old_tmp_list = masm->TmpList()->list();
@@ -399,7 +396,7 @@ void RegisterDump::Dump(MacroAssembler* masm) {
   // easily restore them.
   Register dump2_base = x10;
   Register dump2 = x11;
-  DCHECK(!AreAliased(dump_base, dump, tmp, dump2_base, dump2));
+  CHECK(!AreAliased(dump_base, dump, tmp, dump2_base, dump2));
 
   // Don't lose the dump_ address.
   __ Mov(dump2_base, dump_base);

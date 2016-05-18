@@ -115,7 +115,11 @@ static void fs_event_cb_dir(uv_fs_event_t* handle, const char* filename,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_RENAME);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strcmp(filename, "file1") == 0);
+  #else
   ASSERT(filename == NULL || strcmp(filename, "file1") == 0);
+  #endif
   ASSERT(0 == uv_fs_event_stop(handle));
   uv_close((uv_handle_t*)handle, close_cb);
 }
@@ -178,8 +182,12 @@ static void fs_event_cb_dir_multi_file(uv_fs_event_t* handle,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE || UV_RENAME);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strncmp(filename, file_prefix, sizeof(file_prefix) - 1) == 0);
+  #else
   ASSERT(filename == NULL ||
          strncmp(filename, file_prefix, sizeof(file_prefix) - 1) == 0);
+  #endif
 
   if (fs_event_created + fs_event_removed == fs_event_file_count) {
     /* Once we've processed all create events, delete all files */
@@ -250,8 +258,16 @@ static void fs_event_cb_dir_multi_file_in_subdir(uv_fs_event_t* handle,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE || UV_RENAME);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strncmp(filename,
+                 file_prefix_in_subdir,
+                 sizeof(file_prefix_in_subdir) - 1) == 0);
+  #else
   ASSERT(filename == NULL ||
-         strncmp(filename, file_prefix_in_subdir, sizeof(file_prefix_in_subdir) - 1) == 0);
+         strncmp(filename,
+                 file_prefix_in_subdir,
+                 sizeof(file_prefix_in_subdir) - 1) == 0);
+  #endif
 
   if (fs_event_created + fs_event_removed == fs_event_file_count) {
     /* Once we've processed all create events, delete all files */
@@ -270,7 +286,11 @@ static void fs_event_cb_file(uv_fs_event_t* handle, const char* filename,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strcmp(filename, "file2") == 0);
+  #else
   ASSERT(filename == NULL || strcmp(filename, "file2") == 0);
+  #endif
   ASSERT(0 == uv_fs_event_stop(handle));
   uv_close((uv_handle_t*)handle, close_cb);
 }
@@ -293,7 +313,11 @@ static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE);
+  #if defined(__APPLE__) || defined(_WIN32) || defined(__linux__)
+  ASSERT(strcmp(filename, "watch_file") == 0);
+  #else
   ASSERT(filename == NULL || strcmp(filename, "watch_file") == 0);
+  #endif
 
   /* Regression test for SunOS: touch should generate just one event. */
   {
@@ -487,7 +511,7 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   r = uv_timer_init(loop, &timer);
   ASSERT(r == 0);
 
-  r = uv_timer_start(&timer, timer_cb_touch, 1, 0);
+  r = uv_timer_start(&timer, timer_cb_touch, 100, 0);
   ASSERT(r == 0);
 
   ASSERT(timer_cb_touch_called == 0);
@@ -506,6 +530,33 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+#ifdef _WIN32
+TEST_IMPL(fs_event_watch_file_root_dir) {
+  uv_loop_t* loop;
+  int r;
+
+  const char* sys_drive = getenv("SystemDrive");
+  char path[] = "\\\\?\\X:\\bootsect.bak";
+
+  ASSERT(sys_drive != NULL);
+  strncpy(path + sizeof("\\\\?\\") - 1, sys_drive, 1);
+
+  loop = uv_default_loop();
+
+  r = uv_fs_event_init(loop, &fs_event);
+  ASSERT(r == 0);
+  r = uv_fs_event_start(&fs_event, fail_cb, path, 0);
+  if (r == UV_ENOENT)
+    RETURN_SKIP("bootsect.bak doesn't exist in system root.\n");
+  ASSERT(r == 0);
+
+  uv_close((uv_handle_t*) &fs_event, NULL);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#endif
 
 TEST_IMPL(fs_event_no_callback_after_close) {
   uv_loop_t* loop = uv_default_loop();
@@ -647,18 +698,19 @@ TEST_IMPL(fs_event_close_with_pending_event) {
   return 0;
 }
 
-#if defined(HAVE_KQUEUE)
+#if defined(HAVE_KQUEUE) || defined(_AIX)
 
 /* kqueue doesn't register fs events if you don't have an active watcher.
  * The file descriptor needs to be part of the kqueue set of interest and
  * that's not the case until we actually enter the event loop.
+ * This is also observed on AIX with ahafs.
  */
 TEST_IMPL(fs_event_close_in_callback) {
-  fprintf(stderr, "Skipping test, doesn't work with kqueue.\n");
+  fprintf(stderr, "Skipping test, doesn't work with kqueue and AIX.\n");
   return 0;
 }
 
-#else /* !HAVE_KQUEUE */
+#else /* !HAVE_KQUEUE || !_AIX */
 
 static void fs_event_cb_close(uv_fs_event_t* handle, const char* filename,
     int events, int status) {
@@ -715,7 +767,7 @@ TEST_IMPL(fs_event_close_in_callback) {
   return 0;
 }
 
-#endif /* HAVE_KQUEUE */
+#endif /* HAVE_KQUEUE || _AIX */
 
 TEST_IMPL(fs_event_start_and_close) {
   uv_loop_t* loop;
@@ -768,6 +820,7 @@ TEST_IMPL(fs_event_getpath) {
   r = uv_fs_event_getpath(&fs_event, buf, &len);
   ASSERT(r == 0);
   ASSERT(buf[len - 1] != 0);
+  ASSERT(buf[len] == '\0');
   ASSERT(memcmp(buf, "watch_dir", len) == 0);
   r = uv_fs_event_stop(&fs_event);
   ASSERT(r == 0);

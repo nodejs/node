@@ -36,10 +36,10 @@ typedef SimpleStringResource<char, v8::String::ExternalOneByteStringResource>
 typedef SimpleStringResource<uc16, v8::String::ExternalStringResource>
     SimpleTwoByteStringResource;
 
-
 const char* const ExternalizeStringExtension::kSource =
     "native function externalizeString();"
-    "native function isOneByteString();";
+    "native function isOneByteString();"
+    "function x() { return 1; }";
 
 v8::Local<v8::FunctionTemplate>
 ExternalizeStringExtension::GetNativeFunctionTemplate(

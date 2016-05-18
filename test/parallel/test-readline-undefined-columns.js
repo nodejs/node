@@ -11,7 +11,7 @@ const readline = require('readline');
 const iStream = new PassThrough();
 const oStream = new PassThrough();
 
-const rli = readline.createInterface({
+readline.createInterface({
   terminal: true,
   input: iStream,
   output: oStream,
@@ -28,8 +28,8 @@ oStream.on('data', function(data) {
 
 oStream.on('end', function() {
   const expect = 'process.stdout\r\n' +
-    'process.stdin\r\n' +
-    'process.stderr';
+                 'process.stdin\r\n' +
+                 'process.stderr';
   assert(new RegExp(expect).test(output));
 });
 

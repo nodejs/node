@@ -1,11 +1,10 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 var assert = require('assert');
 var os = require('os');
-var util = require('util');
 
 if (os.type() != 'SunOS') {
-  console.log('1..0 # Skipped: no DTRACE support');
+  common.skip('no DTRACE support');
   return;
 }
 
@@ -13,10 +12,9 @@ if (os.type() != 'SunOS') {
  * Some functions to create a recognizable stack.
  */
 var frames = [ 'stalloogle', 'bagnoogle', 'doogle' ];
-var expected;
 
 var stalloogle = function(str) {
-  expected = str;
+  global.expected = str;
   os.loadavg();
 };
 
@@ -34,8 +32,6 @@ var doogle = function() {
 };
 
 var spawn = require('child_process').spawn;
-var prefix = '/var/tmp/node';
-var corefile = prefix + '.' + process.pid;
 
 /*
  * We're going to use DTrace to stop us, gcore us, and set us running again
@@ -84,4 +80,3 @@ dtrace.on('exit', function(code) {
 });
 
 setTimeout(doogle, 10);
-

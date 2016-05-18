@@ -1,9 +1,8 @@
 'use strict';
-var assert = require('assert');
 var common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var tls = require('tls');

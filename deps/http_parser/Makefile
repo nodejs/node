@@ -22,14 +22,14 @@ PLATFORM ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
 HELPER ?=
 BINEXT ?=
 ifeq (darwin,$(PLATFORM))
-SONAME ?= libhttp_parser.2.6.0.dylib
+SONAME ?= libhttp_parser.2.7.0.dylib
 SOEXT ?= dylib
 else ifeq (wine,$(PLATFORM))
 CC = winegcc
 BINEXT = .exe.so
 HELPER = wine
 else
-SONAME ?= libhttp_parser.so.2.6.0
+SONAME ?= libhttp_parser.so.2.7.0
 SOEXT ?= so
 endif
 

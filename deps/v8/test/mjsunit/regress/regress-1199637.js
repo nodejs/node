@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --es52-globals
+// Flags: --allow-natives-syntax --legacy-const
 
 // Make sure that we can introduce global variables (using
 // both var and const) that shadow even READ_ONLY variables

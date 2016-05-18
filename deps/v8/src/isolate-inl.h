@@ -72,8 +72,8 @@ bool Isolate::is_catchable_by_javascript(Object* exception) {
 }
 
 
-Handle<GlobalObject> Isolate::global_object() {
-  return Handle<GlobalObject>(context()->global_object());
+Handle<JSGlobalObject> Isolate::global_object() {
+  return Handle<JSGlobalObject>(context()->global_object(), this);
 }
 
 

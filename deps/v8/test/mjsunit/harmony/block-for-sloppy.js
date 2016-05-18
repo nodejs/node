@@ -190,10 +190,12 @@ assertEquals(undefined, eval("for (let i = 0; i < 10; i++) { continue; i; }"));
 assertEquals(0, eval("for (let i = 0; true;) { i; break; }"));
 assertEquals(0, eval("for (const i = 0; true;) { i; break; }"));
 assertEquals(9, eval("for (let i = 0; i < 10; i++) { i; continue; }"));
-assertEquals(3, eval("for (let i = 0; true; i++) { i; if (i >= 3) break; }"));
-assertEquals(2, eval("for (let i = 0; true; i++) { if (i >= 3) break; i; }"));
 assertEquals(
-  2, eval("for (let i = 0; i < 10; i++) { if (i >= 3) continue; i; }"));
+  undefined, eval("for (let i = 0; true; i++) { i; if (i >= 3) break; }"));
+assertEquals(
+  undefined, eval("for (let i = 0; true; i++) { if (i >= 3) break; i; }"));
+assertEquals(
+  undefined, eval("for (let i = 0; i < 10; i++) { if (i >= 3) continue; i; }"));
 assertEquals(undefined, eval("foo: for (let i = 0; true;) { break foo; }"));
 assertEquals(undefined, eval("foo: for (const i = 0; true;) { break foo; }"));
 assertEquals(3, eval("foo: for (let i = 3; true;) { i; break foo; }"));

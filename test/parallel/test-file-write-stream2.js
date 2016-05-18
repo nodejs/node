@@ -4,7 +4,6 @@ var assert = require('assert');
 
 var path = require('path');
 var fs = require('fs');
-var util = require('util');
 
 
 var filepath = path.join(common.tmpDir, 'write.txt');
@@ -25,8 +24,8 @@ process.on('exit', function() {
     console.log('    expected: %j', cb_expected);
     console.log('    occurred: %j', cb_occurred);
     assert.strictEqual(cb_occurred, cb_expected,
-        'events missing or out of order: "' +
-        cb_occurred + '" !== "' + cb_expected + '"');
+                       'events missing or out of order: "' +
+                       cb_occurred + '" !== "' + cb_expected + '"');
   } else {
     console.log('ok');
   }

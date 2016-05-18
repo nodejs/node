@@ -270,7 +270,7 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertEquals("[object " + constr.name + "]",
       Object.prototype.toString.call(a));
   var desc = Object.getOwnPropertyDescriptor(
-      constr.prototype, Symbol.toStringTag);
+      constr.prototype.__proto__, Symbol.toStringTag);
   assertTrue(desc.configurable);
   assertFalse(desc.enumerable);
   assertFalse(!!desc.writable);
@@ -418,17 +418,13 @@ var typedArrayConstructors = [
 function TestPropertyTypeChecks(constructor) {
   function CheckProperty(name) {
     assertThrows(function() { 'use strict'; new constructor(10)[name] = 0; })
-    var d = Object.getOwnPropertyDescriptor(constructor.prototype, name);
+    var d = Object.getOwnPropertyDescriptor(constructor.prototype.__proto__, name);
     var o = {};
     assertThrows(function() {d.get.call(o);}, TypeError);
     for (var i = 0; i < typedArrayConstructors.length; i++) {
       var ctor = typedArrayConstructors[i];
       var a = new ctor(10);
-      if (ctor === constructor) {
-        d.get.call(a); // shouldn't throw
-      } else {
-        assertThrows(function() {d.get.call(a);}, TypeError);
-      }
+      d.get.call(a); // shouldn't throw
     }
   }
 
@@ -533,6 +529,8 @@ function TestTypedArraySet() {
 
   assertThrows(function() { a.set(0); }, TypeError);
   assertThrows(function() { a.set(0, 1); }, TypeError);
+
+  assertEquals(1, a.set.length);
 }
 
 TestTypedArraySet();
@@ -563,10 +561,9 @@ function TestTypedArraysWithIllegalIndices() {
   assertEquals(255, a[s2]);
   assertEquals(0, a[-0]);
 
-  /* Chromium bug: 424619
-   * a[-Infinity] = 50;
-   * assertEquals(undefined, a[-Infinity]);
-   */
+  a[-Infinity] = 50;
+  assertEquals(undefined, a[-Infinity]);
+
   a[1.5] = 10;
   assertEquals(undefined, a[1.5]);
   var nan = Math.sqrt(-1);
@@ -677,7 +674,6 @@ function TestDataViewConstructor() {
 
   // error cases
   assertThrows(function() { new DataView(ab, -1); }, RangeError);
-  assertThrows(function() { new DataView(ab, 1, -1); }, RangeError);
   assertThrows(function() { new DataView(); }, TypeError);
   assertThrows(function() { new DataView([]); }, TypeError);
   assertThrows(function() { new DataView(ab, 257); }, RangeError);
@@ -698,6 +694,19 @@ function TestDataViewPropertyTypeChecks() {
   CheckProperty("buffer");
   CheckProperty("byteOffset");
   CheckProperty("byteLength");
+
+  function CheckGetSetLength(name) {
+    assertEquals(1, DataView.prototype["get" + name].length);
+    assertEquals(2, DataView.prototype["set" + name].length);
+  }
+  CheckGetSetLength("Int8");
+  CheckGetSetLength("Uint8");
+  CheckGetSetLength("Int16");
+  CheckGetSetLength("Uint16");
+  CheckGetSetLength("Int32");
+  CheckGetSetLength("Uint32");
+  CheckGetSetLength("Float32");
+  CheckGetSetLength("Float64");
 }
 
 

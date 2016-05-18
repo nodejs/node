@@ -32,6 +32,7 @@ StrongLoop, Inc. <*@strongloop.com>
 Aaron Bieber <deftly@gmail.com>
 Abdulla Kamar <abdulla.kamar@gmail.com>
 Akinori MUSHA <knu@FreeBSD.org>
+Alex Kodat <akodat@rocketsoftware.com>
 Alexander Botero-Lowry <alexbl@FreeBSD.org>
 Alexander Karpinsky <homm86@gmail.com>
 Alexandre Vassalotti <avassalotti@gmail.com>
@@ -39,7 +40,9 @@ Alexis Campailla <alexis@janeasystems.com>
 Andreas Anyuru <andreas.anyuru@gmail.com>
 Andrew Paprocki <andrew@ishiboo.com>
 Andrei Kashcha <anvaka@gmail.com>
+Bangfu Tao <bangfu.tao@samsung.com>
 Ben Noordhuis <info@bnoordhuis.nl>
+Benjamin Tan <demoneaux@gmail.com>
 Bert Belder <bertbelder@gmail.com>
 Burcu Dogan <burcujdogan@gmail.com>
 Caitlin Potter <caitpotter88@gmail.com>
@@ -51,9 +54,11 @@ Daniel James <dnljms@gmail.com>
 Douglas Crosher <dtc-v8@scieneer.com>
 Dusan Milosavljevic <dusan.m.milosavljevic@gmail.com>
 Erich Ocean <erich.ocean@me.com>
+Evan Lucas <evan.lucas@help.com>
 Fedor Indutny <fedor@indutny.com>
 Felix Geisendörfer <haimuiba@gmail.com>
 Filipe David Manana <fdmanana@gmail.com>
+Franziska Hinkelmann <franziska.hinkelmann@gmail.com>
 Geoffrey Garside <ggarside@gmail.com>
 Han Choongwoo <cwhan.tunz@gmail.com>
 Hirofumi Mako <mkhrfm@gmail.com>
@@ -81,6 +86,7 @@ Michael Lutz <michi@icosahedron.de>
 Michael Smith <mike@w3.org>
 Mike Gilbert <floppymaster@gmail.com>
 Mike Pennisi <mike@mikepennisi.com>
+Milton Chiang <milton.chiang@mediatek.com>
 Nicolas Antonius Ernst Leopold Maria Kaiser <nikai@nikai.net>
 Paolo Giarrusso <p.giarrusso@gmail.com>
 Patrick Gansterer <paroga@paroga.com>
@@ -100,7 +106,9 @@ Stefan Penner <stefan.penner@gmail.com>
 Tobias Burnus <burnus@net-b.de>
 Victor Costan <costan@gmail.com>
 Vlad Burlik <vladbph@gmail.com>
+Vladimir Krivosheev <develar@gmail.com>
 Vladimir Shutoff <vovan@shutoff.ru>
 Yu Yin <xwafish@gmail.com>
+Zac Hansen <xaxxon@gmail.com>
 Zhongping Wang <kewpie.w.zp@gmail.com>
 柳荣一 <admin@web-tinker.com>

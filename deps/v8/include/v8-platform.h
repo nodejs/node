@@ -5,6 +5,9 @@
 #ifndef V8_V8_PLATFORM_H_
 #define V8_V8_PLATFORM_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 namespace v8 {
 
 class Isolate;
@@ -52,6 +55,15 @@ class Platform {
   };
 
   virtual ~Platform() {}
+
+  /**
+   * Gets the number of threads that are used to execute background tasks. Is
+   * used to estimate the number of tasks a work package should be split into.
+   * A return value of 0 means that there are no background threads available.
+   * Note that a value of 0 won't prohibit V8 from posting tasks using
+   * |CallOnBackgroundThread|.
+   */
+  virtual size_t NumberOfAvailableBackgroundThreads() { return 0; }
 
   /**
    * Schedules a task to be invoked on a background thread. |expected_runtime|
@@ -107,6 +119,51 @@ class Platform {
    * the epoch.
    **/
   virtual double MonotonicallyIncreasingTime() = 0;
+
+  /**
+   * Called by TRACE_EVENT* macros, don't call this directly.
+   * The name parameter is a category group for example:
+   * TRACE_EVENT0("v8,parse", "V8.Parse")
+   * The pointer returned points to a value with zero or more of the bits
+   * defined in CategoryGroupEnabledFlags.
+   **/
+  virtual const uint8_t* GetCategoryGroupEnabled(const char* name) {
+    static uint8_t no = 0;
+    return &no;
+  }
+
+  /**
+   * Gets the category group name of the given category_enabled_flag pointer.
+   * Usually used while serliazing TRACE_EVENTs.
+   **/
+  virtual const char* GetCategoryGroupName(
+      const uint8_t* category_enabled_flag) {
+    static const char dummy[] = "dummy";
+    return dummy;
+  }
+
+  /**
+   * Adds a trace event to the platform tracing system. This function call is
+   * usually the result of a TRACE_* macro from trace_event_common.h when
+   * tracing and the category of the particular trace are enabled. It is not
+   * advisable to call this function on its own; it is really only meant to be
+   * used by the trace macros. The returned handle can be used by
+   * UpdateTraceEventDuration to update the duration of COMPLETE events.
+   */
+  virtual uint64_t AddTraceEvent(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      uint64_t id, uint64_t bind_id, int32_t num_args, const char** arg_names,
+      const uint8_t* arg_types, const uint64_t* arg_values,
+      unsigned int flags) {
+    return 0;
+  }
+
+  /**
+   * Sets the duration field of a COMPLETE trace event. It must be called with
+   * the handle returned from AddTraceEvent().
+   **/
+  virtual void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
+                                        const char* name, uint64_t handle) {}
 };
 
 }  // namespace v8
