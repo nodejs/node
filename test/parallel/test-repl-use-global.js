@@ -48,19 +48,9 @@ const processTestCases = [false, undefined];
 const processTest = (useGlobal, cb) => (err, repl) => {
   if (err)
     return cb(err);
-  try {
-    // if useGlobal is false, then `let process` should work
-    repl.write('let process;\n');
-    assert.ok(!useGlobal);
-  } catch (e) {
-    // If useGlobal is true, then 'let process' will cause
-    // a TypeError to be thrown. Testing this is problematic
-    // however, because even though we end up in this catch
-    // clause, the test framework sees the exception and reports
-    // a failure.
-    assert.ok(useGlobal);
-    assert.equals(e.name, 'TypeError');
-  }
+  // if useGlobal is false, then `let process` should work
+  repl.write('let process;\n');
+  assert.ok(!useGlobal);
   repl.close();
   cb(null, 'OK');
 };
