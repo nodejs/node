@@ -914,7 +914,7 @@ const tmpDir = '/tmp';
 fs.mkdtemp(tmpDir, (err, folder) => {
   if (err) throw err;
   console.log(folder);
-    // Will print something similar to `/tmp-abc123`.
+    // Will print something similar to `/tmpabc123`.
     // Note that a new temporary directory is created
     // at the file system root rather than *within*
     // the /tmp directory.
