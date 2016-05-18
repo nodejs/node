@@ -103,7 +103,7 @@ function nextTest() {
         break;
 
       case 'writeHead':
-        assert.equal(response.headers['x-foo'], 'bar');
+        assert.equal(response.headers['x-foo'], 'keyboard cat');
         assert.equal(response.headers['x-bar'], 'baz');
         assert.equal(200, response.statusCode);
         test = 'end';
