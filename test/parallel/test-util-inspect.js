@@ -205,9 +205,14 @@ assert.equal(util.inspect(value), '{ a: [Circular] }');
 
 // Array with dynamic properties
 value = [1, 2, 3];
-value.__defineGetter__('growingLength', function() {
-  this.push(true); return this.length;
-});
+Object.defineProperty(
+  value,
+  'growingLength',
+  {
+    enumerable: true,
+    get: () => { this.push(true); return this.length; }
+  }
+);
 assert.equal(util.inspect(value), '[ 1, 2, 3, growingLength: [Getter] ]');
 
 // Function with properties
