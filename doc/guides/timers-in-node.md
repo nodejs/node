@@ -25,13 +25,13 @@ function myFunc () {
 setTimeout(myFunc, 1500);
 ```
 
-The above function ```myFunc()``` will execute after approximately 1500 milliseconds (or 1.5 seconds) due to the call of ```setTimeout()```.
+The above function `myFunc()` will execute after approximately 1500 milliseconds (or 1.5 seconds) due to the call of `setTimeout()`.
 
 The timeout interval that is set cannot be relied upon to execute after that *exact* number of milliseconds. This is because executing code that blocks or holds onto the event loop will push the execution of your timeout back. You *can* guarantee that your timeout will not execute *sooner* than the declared timeout.
 
 ### "Right after this" Execution ~ *setImmediate()*
 
-```setImmediate()``` allows you to execute code at the beginning of the next event loop cycle. This code will execute *before* any timers or IO operations. I like to think of this code execution as happening "right after this", meaning any code following the ```setImmediate()``` function call will execute before the ```setImmediate()``` function argument. Here's an example:
+`setImmediate()` allows you to execute code at the beginning of the next event loop cycle. This code will execute *before* any timers or IO operations. I like to think of this code execution as happening "right after this", meaning any code following the `setImmediate()` function call will execute before the `setImmediate()` function argument. Here's an example:
 
 ```javascript
 let order = 'before immediate\n';
@@ -45,7 +45,7 @@ order += 'after immediate\n';
 console.log(order);
 ```
 
-The above function passed to ```setImmediate()``` will execute after all runnable code has executed, and the console output will be:
+The above function passed to `setImmediate()` will execute after all runnable code has executed, and the console output will be:
 
 ```shell
 before immediate
@@ -53,11 +53,11 @@ after immediate
 executing immediate
 ```
 
-Note: ```process.nextTick()``` is very similar to ```setImmediate()```. The two major differences are that ```process.nextTick()``` will run *before* any immediates that are set. The second is that ```process.nextTick()``` is non-clearable, meaning once you've scheduled code to execute with ```process.nextTick()``` you cannot stop that code, unlike with ```setImmediate()```.
+Note: `process.nextTick()` is very similar to `setImmediate()`. The two major differences are that `process.nextTick()` will run *before* any immediates that are set. The second is that `process.nextTick()` is non-clearable, meaning once you've scheduled code to execute with `process.nextTick()` you cannot stop that code, unlike with `setImmediate()`.
 
 ### "Deja vu" Execution ~ *setInterval()*
 
-If there is a block of code that you want to execute multiple times, you can use ```setInterval()``` to execute that code. ```setInterval()``` takes a function argument that will run and infinite number of times with a given millisecond delay. Just like ```setTimeout()```, the delay cannot be guaranteed because of operations that may hold on to the event loop, and therefore should be treated as an approximate delay. See the below example:
+If there is a block of code that you want to execute multiple times, you can use `setInterval()` to execute that code. `setInterval()` takes a function argument that will run and infinite number of times with a given millisecond delay. Just like `setTimeout()`, the delay cannot be guaranteed because of operations that may hold on to the event loop, and therefore should be treated as an approximate delay. See the below example:
 
 ```javascript
 function intervalFunc () {
@@ -66,11 +66,11 @@ function intervalFunc () {
 
 setInterval(intervalFunc, 1500);
 ```
-In the above example, ```intervalFunc()``` will execute every 1500 milliseconds, or 1.5 seconds, until it is stopped (see below).
+In the above example, `intervalFunc()` will execute every 1500 milliseconds, or 1.5 seconds, until it is stopped (see below).
 
 ## Master of the Timerverse
 
-What would a Code Time Machine be without the ability to turn it off? ```setTimeout```, ```setImmediate```, and ```setInterval``` return a timer object that can be used to reference the set timeout, immediate, or interval object. By passing said objective into the respective ```clear``` function, execution of that object will be halted completely. The respective functions are ```clearTimeout```, ```clearImmediate```, and ```clearInterval```. See the example below for an example of each:
+What would a Code Time Machine be without the ability to turn it off? `setTimeout()`, `setImmediate()`, and `setInterval()` return a timer object that can be used to reference the set timeout, immediate, or interval object. By passing said objective into the respective `clear` function, execution of that object will be halted completely. The respective functions are `clearTimeout()`, `clearImmediate()`, and `clearInterval()`. See the example below for an example of each:
 
 ```javascript
 let timeoutObj = setTimeout(() => {
@@ -92,9 +92,9 @@ clearInterval(intervalObj);
 
 ## Last Train to Nowhere
 
-The node Timer API provides two functions intended to augment timer behavior with ```unref()``` and ```ref()```. If you have a timer object scheduled using a ```set``` function, you can call ```unref()``` on that object. This will change the behavior slightly, and not call the timer object *if it is the last code to execute*. Instead, it will let the program exit cleanly.
+The node Timer API provides two functions intended to augment timer behavior with `unref()` and `ref()`. If you have a timer object scheduled using a `set` function, you can call `unref()` on that object. This will change the behavior slightly, and not call the timer object *if it is the last code to execute*. Instead, it will let the program exit cleanly.
 
-In similar fashion, a timer object that has had ```unref()``` called on it can remove that behavior by calling ```ref()``` on that same timer object, which will then ensure its execution. See below for examples of both:
+In similar fashion, a timer object that has had `unref()` called on it can remove that behavior by calling `ref()` on that same timer object, which will then ensure its execution. See below for examples of both:
 
 ```javascript
 let timerObj = setTimeout(() => {
