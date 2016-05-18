@@ -91,7 +91,7 @@ int StreamWrap::GetFD() {
   int fd = -1;
 #if !defined(_WIN32)
   if (stream() != nullptr)
-    fd = stream()->io_watcher.fd;
+    uv_fileno(reinterpret_cast<uv_handle_t*>(stream()), &fd);
 #endif
   return fd;
 }
