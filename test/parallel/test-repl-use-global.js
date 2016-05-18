@@ -45,27 +45,31 @@ for (const [option, expected] of globalTestCases) {
 // suite is aware of it, causing a failure to be flagged.
 //
 const processTestCases = [false, undefined];
-const processTest = (useGlobal, cb) => (err, repl) => {
+const processTest = (useGlobal, cb, output) => (err, repl) => {
   if (err)
     return cb(err);
+
+  let str = '';
+  output.on('data', (data) => (str += data));
+
   // if useGlobal is false, then `let process` should work
   repl.write('let process;\n');
+  repl.write('21 * 2;\n');
   assert.ok(!useGlobal);
   repl.close();
-  cb(null, 'OK');
+  cb(null, str.trim());
 };
 
 for (const option of processTestCases) {
   runRepl(option, processTest, common.mustCall((err, output) => {
     assert.ifError(err);
-    assert.strictEqual(output, 'OK');
+    assert.strictEqual(output, 'undefined\n42');
   }));
 }
 
 function runRepl(useGlobal, testFunc, cb) {
   const inputStream = new stream.PassThrough();
   const outputStream = new stream.PassThrough();
-
   const opts = {
     input: inputStream,
     output: outputStream,
@@ -74,6 +78,9 @@ function runRepl(useGlobal, testFunc, cb) {
     terminal: false,
     prompt: ''
   };
+
   repl.createInternalRepl(
-    process.env, opts, testFunc(useGlobal, cb, opts.output));
+      process.env,
+      opts,
+      testFunc(useGlobal, cb, opts.output));
 }
