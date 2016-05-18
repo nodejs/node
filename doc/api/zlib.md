@@ -186,6 +186,9 @@ http.createServer((request, response) => {
 ```
 
 ## Constants
+<!-- YAML
+added: v0.5.8
+-->
 
 <!--type=misc-->
 
@@ -252,6 +255,9 @@ For initializing zalloc, zfree, opaque.
 * `zlib.Z_NULL`
 
 ## Class Options
+<!-- YAML
+added: v0.11.1
+-->
 
 <!--type=misc-->
 
@@ -272,40 +278,67 @@ See the description of `deflateInit2` and `inflateInit2` at
 <http://zlib.net/manual.html#Advanced> for more information on these.
 
 ## Class: zlib.Deflate
+<!-- YAML
+added: v0.5.8
+-->
 
 Compress data using deflate.
 
 ## Class: zlib.DeflateRaw
+<!-- YAML
+added: v0.5.8
+-->
 
 Compress data using deflate, and do not append a zlib header.
 
 ## Class: zlib.Gunzip
+<!-- YAML
+added: v0.5.8
+-->
 
 Decompress a gzip stream.
 
 ## Class: zlib.Gzip
+<!-- YAML
+added: v0.5.8
+-->
 
 Compress data using gzip.
 
 ## Class: zlib.Inflate
+<!-- YAML
+added: v0.5.8
+-->
 
 Decompress a deflate stream.
 
 ## Class: zlib.InflateRaw
+<!-- YAML
+added: v0.5.8
+-->
 
 Decompress a raw deflate stream.
 
 ## Class: zlib.Unzip
+<!-- YAML
+added: v0.5.8
+-->
 
 Decompress either a Gzip- or Deflate-compressed stream by auto-detecting
 the header.
 
 ## Class: zlib.Zlib
+<!-- YAML
+added: v0.5.8
+-->
 
 Not exported by the `zlib` module. It is documented here because it is the base
 class of the compressor/decompressor classes.
 
 ### zlib.flush([kind], callback)
+<!-- YAML
+added: v0.5.8
+-->
 
 `kind` defaults to `zlib.Z_FULL_FLUSH`.
 
@@ -318,40 +351,67 @@ normal call to `.write()`, i.e. it will be queued up behind other pending
 writes and will only produce output when data is being read from the stream.
 
 ### zlib.params(level, strategy, callback)
+<!-- YAML
+added: v0.11.4
+-->
 
 Dynamically update the compression level and compression strategy.
 Only applicable to deflate algorithm.
 
 ### zlib.reset()
+<!-- YAML
+added: v0.7.0
+-->
 
 Reset the compressor/decompressor to factory defaults. Only applicable to
 the inflate and deflate algorithms.
 
 ## zlib.createDeflate([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [Deflate][] object with an [options][].
 
 ## zlib.createDeflateRaw([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [DeflateRaw][] object with an [options][].
 
 ## zlib.createGunzip([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [Gunzip][] object with an [options][].
 
 ## zlib.createGzip([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [Gzip][] object with an [options][].
 
 ## zlib.createInflate([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [Inflate][] object with an [options][].
 
 ## zlib.createInflateRaw([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [InflateRaw][] object with an [options][].
 
 ## zlib.createUnzip([options])
+<!-- YAML
+added: v0.5.8
+-->
 
 Returns a new [Unzip][] object with an [options][].
 
@@ -367,37 +427,79 @@ Every method has a `*Sync` counterpart, which accept the same arguments, but
 without a callback.
 
 ### zlib.deflate(buf[, options], callback)
+<!-- YAML
+added: v0.6.0
+-->
 ### zlib.deflateSync(buf[, options])
+<!-- YAML
+added: v0.11.12
+-->
 
 Compress a Buffer or string with Deflate.
 
 ### zlib.deflateRaw(buf[, options], callback)
+<!-- YAML
+added: v0.6.0
+-->
 ### zlib.deflateRawSync(buf[, options])
+<!-- YAML
+added: v0.11.12
+-->
 
 Compress a Buffer or string with DeflateRaw.
 
 ### zlib.gunzip(buf[, options], callback)
+<!-- YAML
+added: v0.6.0
+-->
 ### zlib.gunzipSync(buf[, options])
+<!-- YAML
+added: v0.11.12
+-->
 
 Decompress a Buffer or string with Gunzip.
 
 ### zlib.gzip(buf[, options], callback)
+<!-- YAML
+added: v0.6.0
+-->
 ### zlib.gzipSync(buf[, options])
+<!-- YAML
+added: v0.11.12
+-->
 
 Compress a Buffer or string with Gzip.
 
 ### zlib.inflate(buf[, options], callback)
+<!-- YAML
+added: v0.6.0
+-->
 ### zlib.inflateSync(buf[, options])
+<!-- YAML
+added: v0.11.12
+-->
 
 Decompress a Buffer or string with Inflate.
 
 ### zlib.inflateRaw(buf[, options], callback)
+<!-- YAML
+added: v0.6.0
+-->
 ### zlib.inflateRawSync(buf[, options])
+<!-- YAML
+added: v0.11.12
+-->
 
 Decompress a Buffer or string with InflateRaw.
 
 ### zlib.unzip(buf[, options], callback)
+<!-- YAML
+added: v0.6.0
+-->
 ### zlib.unzipSync(buf[, options])
+<!-- YAML
+added: v0.11.12
+-->
 
 Decompress a Buffer or string with Unzip.
 
