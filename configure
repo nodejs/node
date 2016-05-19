@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import errno
 import optparse
 import os
 import pprint
@@ -400,19 +402,16 @@ def b(value):
 
 def pkg_config(pkg):
   pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
-  args = '--silence-errors'
   retval = ()
   for flag in ['--libs-only-l', '--cflags-only-I', '--libs-only-L']:
     try:
-      val = subprocess.check_output([pkg_config, args, flag, pkg])
-      # check_output returns bytes
-      val = val.encode().strip().rstrip('\n')
-    except subprocess.CalledProcessError:
-      # most likely missing a .pc-file
-      val = None
-    except OSError:
-      # no pkg-config/pkgconf installed
-      return (None, None, None)
+      proc = subprocess.Popen(
+          shlex.split(pkg_config) + ['--silence-errors', flag, pkg],
+          stdout=subprocess.PIPE)
+      val = proc.communicate()[0].strip()
+    except OSError, e:
+      if e.errno != errno.ENOENT: raise e  # Unexpected error.
+      return (None, None, None)  # No pkg-config/pkgconf installed.
     retval += (val,)
   return retval
 
