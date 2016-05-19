@@ -34,6 +34,15 @@ Each type of heading has a description block.
 
     A description of the function.
 
+    ### module.someNewFunction(x)
+    <!-- YAML
+    added: REPLACEME
+    -->
+
+    * `x` {String} the description of the string
+
+    This feature is not in a release yet.
+
     ### Event: 'blerg'
     <!-- YAML
     added: v0.10.0
