@@ -15,21 +15,15 @@ const timer = setTimeout(function() {
   throw new Error('Timeout');
 }, common.platformTimeout(200));
 
-const onMessage = common.mustCall(function(err, bytes) {
-  assert.equal(bytes, 0);
-  clearTimeout(timer);
-  client.close();
-});
-
-client.on('listening', function() {
-  const toSend = [];
-  client.send(toSend, common.PORT, common.localhostIPv4, onMessage);
-});
-
-client.on('message', function(buf, info) {
+client.on('message', common.mustCall(function onMessage(buf, info) {
   const expected = Buffer.alloc(0);
   assert.ok(buf.equals(expected), 'message was received correctly');
+  clearTimeout(timer);
   client.close();
+}));
+
+client.on('listening', function() {
+  client.send([], common.PORT, common.localhostIPv4);
 });
 
 client.bind(common.PORT);
