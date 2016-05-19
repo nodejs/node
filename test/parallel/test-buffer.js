@@ -756,7 +756,7 @@ assert.throws(function() {
 }, TypeError);
 
 // Test single base64 char encodes as 0
-assert.equal(Buffer.from('A', 'base64'), 0);
+assert.strictEqual(Buffer.from('A', 'base64').length, 0);
 
 {
   // test an invalid slice end.
