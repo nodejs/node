@@ -237,7 +237,7 @@ terminals.
 
 <!-- type=misc -->
 
-Objects also define their own `inspect(depth, opts)` function that
+Objects may also define their own `inspect(depth, opts)` function that
 `util.inspect()` will invoke and use the result of when inspecting the object:
 
 ```js
