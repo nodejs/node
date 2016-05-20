@@ -205,7 +205,11 @@ class ContextifyContext {
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
 
-    CHECK(!ctx.IsEmpty());
+    if (ctx.IsEmpty()) {
+      env->ThrowError("Could not instantiate context");
+      return Local<Context>();
+    }
+
     ctx->SetSecurityToken(env->context()->GetSecurityToken());
 
     // We need to tie the lifetime of the sandbox object with the lifetime of
@@ -632,9 +636,11 @@ class ContextifyScript : public BaseObject {
             env->arrow_message_private_symbol());
 
     Local<Value> arrow;
-    if (!(maybe_value.ToLocal(&arrow) &&
-          arrow->IsString() &&
-          stack->IsString())) {
+    if (!(maybe_value.ToLocal(&arrow) && arrow->IsString())) {
+      return;
+    }
+
+    if (stack.IsEmpty() || !stack->IsString()) {
       return;
     }
 
