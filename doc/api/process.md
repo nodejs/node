@@ -833,7 +833,8 @@ if (someConditionNotMet()) {
 ```
 
 The reason this is problematic is because writes to `process.stdout` in Node.js
-are *non-blocking* and may occur over multiple ticks of the Node.js event loop.
+are usually *non-blocking* and may occur over multiple ticks of the Node.js
+event loop.
 Calling `process.exit()`, however, forces the process to exit *before* those
 additional writes to `stdout` can be performed.
 
@@ -1367,6 +1368,10 @@ event and that writes can block when output is redirected to a file (although
 disks are fast and operating systems normally employ write-back caching so it
 should be a very rare occurrence indeed.)
 
+Additionally, `process.stderr` and `process.stdout` are blocking when outputting
+to TTYs (terminals) on OS X as a workaround for the OS's very small, 1kb
+buffer size. This is to prevent interleaving between `stdout` and `stderr`.
+
 ## process.stdin
 
 A `Readable Stream` for stdin (on fd `0`).
@@ -1416,6 +1421,10 @@ that they cannot be closed ([`end()`][] will throw), they never emit the [`'fini
 event and that writes can block when output is redirected to a file (although
 disks are fast and operating systems normally employ write-back caching so it
 should be a very rare occurrence indeed.)
+
+Additionally, `process.stderr` and `process.stdout` are blocking when outputting
+to TTYs (terminals) on OS X as a workaround for the OS's very small, 1kb
+buffer size. This is to prevent interleaving between `stdout` and `stderr`.
 
 To check if Node.js is being run in a TTY context, read the `isTTY` property
 on `process.stderr`, `process.stdout`, or `process.stdin`:
