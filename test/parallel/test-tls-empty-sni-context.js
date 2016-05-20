@@ -23,7 +23,7 @@ const options = {
 };
 
 const server = tls.createServer(options, (c) => {
-  assert.fail(null, null, 'Should not be called');
+  common.fail('Should not be called');
 }).on('tlsClientError', common.mustCall((err, c) => {
   assert(/SSL_use_certificate:passed a null parameter/i.test(err.message));
   server.close();
@@ -33,7 +33,7 @@ const server = tls.createServer(options, (c) => {
     rejectUnauthorized: false,
     servername: 'any.name'
   }, () => {
-    assert.fail(null, null, 'Should not be called');
+    common.fail('Should not be called');
   });
 
   c.on('error', common.mustCall((err) => {
