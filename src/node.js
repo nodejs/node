@@ -877,6 +877,7 @@
     this.id = id;
     this.exports = {};
     this.loaded = false;
+    this.loading = true;
   }
 
   NativeModule._source = process.binding('natives');
@@ -888,7 +889,7 @@
     }
 
     var cached = NativeModule.getCached(id);
-    if (cached) {
+    if (cached && (cached.loaded || cached.loading)) {
       return cached.exports;
     }
 
@@ -952,13 +953,18 @@
     var source = NativeModule.getSource(this.id);
     source = NativeModule.wrap(source);
 
-    var fn = runInThisContext(source, {
-      filename: this.filename,
-      lineOffset: 0
-    });
-    fn(this.exports, NativeModule.require, this, this.filename);
+    this.loading = true;
+    try {
+      var fn = runInThisContext(source, {
+        filename: this.filename,
+        lineOffset: 0
+      });
+      fn(this.exports, NativeModule.require, this, this.filename);
 
-    this.loaded = true;
+      this.loaded = true;
+    } finally {
+      this.loading = false;
+    }
   };
 
   NativeModule.prototype.cache = function() {
