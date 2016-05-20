@@ -19,7 +19,7 @@ const util = require('util');
 The `util.debuglog()` method is used to create a function that conditionally
 writes debug messages to `stderr` based on the existence of the `NODE_DEBUG`
 environment variable.  If the `section` name appears within the value of that
-environment variable, then the returned function operate similar to 
+environment variable, then the returned function operate similar to
 `console.error()`.  If not, then the returned function is a no-op.
 
 For example:
@@ -73,7 +73,8 @@ or the `process.traceDeprecation` property is set to `true`, a warning and a
 stack trace are printed to `stderr` the first time the deprecated function is
 called.
 
-If the `--throw-deprecation` command line flag is set, or the `process.throwDeprecation` property is set to `true`, then an exception will be
+If the `--throw-deprecation` command line flag is set, or the
+`process.throwDeprecation` property is set to `true`, then an exception will be
 thrown when the deprecated function is called.
 
 The `--throw-deprecation` command line flag and `process.throwDeprecation`
@@ -88,7 +89,7 @@ The `util.format()` method returns a formatted string using the first argument
 as a `printf`-like format.
 
 The first argument is a string containing zero or more *placeholder* tokens.
-Each placeholder token is replaced with the converted value from the 
+Each placeholder token is replaced with the converted value from the
 corresponding argument. Supported placeholders are:
 
 * `%s` - String.
@@ -101,7 +102,7 @@ If the placeholder does not have a corresponding argument, the placeholder is
 not replaced.
 
 ```js
-util.format('%s:%s', 'foo'); 
+util.format('%s:%s', 'foo');
   // Returns 'foo:%s'
 ```
 
@@ -165,7 +166,7 @@ stream.write('It works!'); // Received data: "It works!"
 
 ## util.inspect(object[, options])
 
-* `object` {any} Any JavsScript primitive or Object.
+* `object` {any} Any JavaScript primitive or Object.
 * `options` {Object}
   * `showHidden` {boolean} If `true`, the `object`'s non-enumerable and
     symbol properties will be included in the formatted result. Defaults to
@@ -182,14 +183,14 @@ stream.write('It works!'); // Received data: "It works!"
   * `showProxy` {boolean} If `true`, then objects and functions that are
     `Proxy` objects will be introspected to show their `target` and `hander`
     objects. Defaults to `false`.
-  * `maxArrayLength` {number} Specifies the maximum number of array and 
+  * `maxArrayLength` {number} Specifies the maximum number of array and
     `TypedArray` elements to include when formatting. Defaults to `100`. Set to
     `null` to show all array elements. Set to `0` or negative to show no array
     elements.
 
 The `util.inspect()` method returns a string representation of `object` that is
 primarily useful for debugging. Additional `options` may be passed that alter
-certain aspects of the formatted string
+certain aspects of the formatted string.
 
 The following example inspects all properties of the `util` object:
 
@@ -226,7 +227,7 @@ The default styles and associated colors are:
  * `name` - (no styling)
 
 The predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
-`green`, `magenta`, `red` and `yellow`. There are also `bold`, `italic`, 
+`green`, `magenta`, `red` and `yellow`. There are also `bold`, `italic`,
 `underline` and `inverse` codes.
 
 Color styling uses ANSI control codes that may not be supported on all
@@ -236,7 +237,7 @@ terminals.
 
 <!-- type=misc -->
 
-Objects also define their own `inspect(depth, opts)` function that 
+Objects also define their own `inspect(depth, opts)` function that
 `util.inspect()` will invoke and use the result of when inspecting the object:
 
 ```js
@@ -251,8 +252,8 @@ util.inspect(obj);
   // "{nate}"
 ```
 
-Custom `inspect(depth, opts)` function typically return a string but may
-return a value of any type that will be formatted accordingly by 
+Custom `inspect(depth, opts)` functions typically return a string but may
+return a value of any type that will be formatted accordingly by
 `util.inspect()`.
 
 ```js
