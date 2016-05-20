@@ -1,5 +1,5 @@
-#ifndef SRC_NODE_MACROS_H_
-#define SRC_NODE_MACROS_H_
+#ifndef SRC_NODE_PREDEFS_H_
+#define SRC_NODE_PREDEFS_H_
 
 #include <signal.h>
 
