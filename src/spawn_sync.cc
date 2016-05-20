@@ -2,6 +2,7 @@
 #include "env-inl.h"
 #include "string_bytes.h"
 #include "util.h"
+#include "node_predefs.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -654,7 +655,7 @@ Local<Object> SyncProcessRunner::BuildResultObject() {
 
   if (term_signal_ > 0)
     js_result->Set(env()->signal_string(),
-        String::NewFromUtf8(env()->isolate(), signo_string(term_signal_)));
+        String::NewFromUtf8(env()->isolate(), node_predefs::signo_string(term_signal_)));
   else
     js_result->Set(env()->signal_string(), Null(env()->isolate()));
 
