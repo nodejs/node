@@ -1521,8 +1521,8 @@ void AppendExceptionLine(Environment* env,
   // sourceline to 78 characters, and we end up not providing very much
   // useful debugging info to the user if we remove 62 characters.
 
-  int start = message->GetStartColumn(env->context()).FromJust();
-  int end = message->GetEndColumn(env->context()).FromJust();
+  int start = message->GetStartColumn(env->context()).FromMaybe(0);
+  int end = message->GetEndColumn(env->context()).FromMaybe(0);
 
   char arrow[1024];
   int max_off = sizeof(arrow) - 2;
