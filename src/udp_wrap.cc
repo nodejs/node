@@ -136,12 +136,14 @@ void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
 
 
 void UDPWrap::GetFD(Local<String>, const PropertyCallbackInfo<Value>& args) {
+  int fd = -1;
 #if !defined(_WIN32)
   HandleScope scope(args.GetIsolate());
   UDPWrap* wrap = Unwrap<UDPWrap>(args.Holder());
-  int fd = (wrap == nullptr) ? -1 : wrap->handle_.io_watcher.fd;
-  args.GetReturnValue().Set(fd);
+  if (wrap != nullptr)
+    uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
 #endif
+  args.GetReturnValue().Set(fd);
 }
 
 
