@@ -272,11 +272,15 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 out/doc/%: doc/%
 	cp -r $< $@
 
+# check if ./node is actually set, else use user pre-installed binary
+gen-json = tools/doc/generate.js --format=json $< > $@
 out/doc/api/%.json: doc/api/%.md
-	$(NODE) tools/doc/generate.js --format=json $< > $@
+	[ -x $(NODE) ] && $(NODE) $(gen-json) || node $(gen-json)
 
+# check if ./node is actually set, else use user pre-installed binary
+gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html --template=doc/template.html $< > $@
 out/doc/api/%.html: doc/api/%.md
-	$(NODE) tools/doc/generate.js --node-version=$(FULLVERSION) --format=html --template=doc/template.html $< > $@
+	[ -x $(NODE) ] && $(NODE) $(gen-html) || node $(gen-html)
 
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html
