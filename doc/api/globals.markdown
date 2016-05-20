@@ -5,6 +5,10 @@
 These objects are available in all modules. Some of these objects aren't
 actually in the global scope but in the module scope - this will be noted.
 
+The objects listed here are specific to Node.js. There are a number of
+[built-in objects][] that are part of the JavaScript language itself, which are
+also globally accessible.
+
 ## Class: Buffer
 
 <!-- type=global -->
@@ -209,3 +213,4 @@ but rather than loading the module, just return the resolved filename.
 [`setImmediate`]: timers.html#timers_setimmediate_callback_arg
 [`setInterval`]: timers.html#timers_setinterval_callback_delay_arg
 [`setTimeout`]: timers.html#timers_settimeout_callback_delay_arg
+[built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
