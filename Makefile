@@ -111,7 +111,7 @@ v8:
 	$(MAKE) -C deps/v8 $(V8_ARCH) $(V8_BUILD_OPTIONS)
 
 test: | cctest  # Depends on 'all'.
-	$(PYTHON) tools/test.py --mode=release doctool message parallel sequential -J
+	$(PYTHON) tools/test.py --mode=release doctool message pseudo-tty parallel sequential -J
 	$(MAKE) jslint
 	$(MAKE) cpplint
 
@@ -167,7 +167,7 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 CI_NATIVE_SUITES := addons
-CI_JS_SUITES := doctool message parallel sequential
+CI_JS_SUITES := doctool message parallel pseudo-tty sequential
 
 # Build and test addons without building anything else
 test-ci-native: | test/addons/.buildstamp
