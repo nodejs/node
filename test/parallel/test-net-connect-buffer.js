@@ -31,7 +31,7 @@ var tcp = net.Server(function(s) {
 });
 
 tcp.listen(common.PORT, function() {
-  var socket = net.Stream({ highWaterMark: 0 });
+  var socket = net.Stream({highWaterMark: 0});
 
   console.log('Connecting to socket ');
 

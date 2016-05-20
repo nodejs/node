@@ -16,7 +16,7 @@ var responseClose = false;
 server.listen(common.PORT, function() {
   http.get({
     port: common.PORT,
-    headers: { connection: 'keep-alive' }
+    headers: {connection: 'keep-alive'}
 
   }, function(res) {
     server.close();

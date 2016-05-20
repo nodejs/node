@@ -34,7 +34,7 @@ http.createServer(function(req, res) {
     'OyOyOyO'
   ];
 
-  var expectTrailers = { 'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO' };
+  var expectTrailers = {'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO'};
 
   assert.deepStrictEqual(req.rawHeaders, expectRawHeaders);
   assert.deepStrictEqual(req.headers, expectHeaders);
@@ -54,7 +54,7 @@ http.createServer(function(req, res) {
   ]);
   res.end('x f o o');
 }).listen(common.PORT, function() {
-  var req = http.request({ port: common.PORT, path: '/' });
+  var req = http.request({port: common.PORT, path: '/'});
   req.addTrailers([
     ['x-bAr', 'yOyOyOy'],
     ['x-baR', 'OyOyOyO'],
@@ -96,7 +96,7 @@ http.createServer(function(req, res) {
         'X-foO',
         'OxOxOxO'
       ];
-      var expectTrailers = { 'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO' };
+      var expectTrailers = {'x-foo': 'xOxOxOx, OxOxOxO, xOxOxOx, OxOxOxO'};
 
       assert.deepStrictEqual(res.rawTrailers, expectRawTrailers);
       assert.deepStrictEqual(res.trailers, expectTrailers);

@@ -951,7 +951,7 @@ var parseTestsWithQueryString = {
     hostname: null,
     hash: null,
     search: '?query=value',
-    query: createWithNoPrototype([{ key: 'query', value: 'value' }]),
+    query: createWithNoPrototype([{key: 'query', value: 'value'}]),
     pathname: '/example',
     path: '/example?query=value',
     href: '/example?query=value'

@@ -26,7 +26,7 @@ var s = http.createServer(function(req, res) {
 s.listen(common.PORT, runTest);
 
 function runTest() {
-  http.get({ port: common.PORT }, function(response) {
+  http.get({port: common.PORT}, function(response) {
     response.on('end', function() {
       s.close();
     });

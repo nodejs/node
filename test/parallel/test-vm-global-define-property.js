@@ -15,7 +15,7 @@ var code =
     'f;\n';
 
 var x = {};
-var o = vm.createContext({ console: console, x: x });
+var o = vm.createContext({console: console, x: x});
 
 var res = vm.runInContext(code, o, 'test');
 

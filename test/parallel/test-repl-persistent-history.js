@@ -28,7 +28,7 @@ class ActionStream extends stream.Stream {
       if (next.done) {
         // Close the repl. Note that it must have a clean prompt to do so.
         setImmediate(function() {
-          self.emit('keypress', '', { ctrl: true, name: 'd' });
+          self.emit('keypress', '', {ctrl: true, name: 'd'});
         });
         return;
       }
@@ -50,9 +50,9 @@ ActionStream.prototype.readable = true;
 
 
 // Mock keys
-const UP = { name: 'up' };
-const ENTER = { name: 'enter' };
-const CLEAR = { ctrl: true, name: 'u' };
+const UP = {name: 'up'};
+const ENTER = {name: 'enter'};
+const CLEAR = {ctrl: true, name: 'u'};
 // Common message bits
 const prompt = '> ';
 const replDisabled = '\nPersistent history support disabled. Set the ' +
@@ -81,51 +81,51 @@ const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
 
 const tests = [
   {
-    env: { NODE_REPL_HISTORY: '' },
+    env: {NODE_REPL_HISTORY: ''},
     test: [UP],
     expected: [prompt, replDisabled, prompt]
   },
   {
-    env: { NODE_REPL_HISTORY: ' ' },
+    env: {NODE_REPL_HISTORY: ' '},
     test: [UP],
     expected: [prompt, replDisabled, prompt]
   },
   {
-    env: { NODE_REPL_HISTORY: '',
-           NODE_REPL_HISTORY_FILE: enoentHistoryPath },
+    env: {NODE_REPL_HISTORY: '',
+           NODE_REPL_HISTORY_FILE: enoentHistoryPath},
     test: [UP],
     expected: [prompt, replDisabled, prompt]
   },
   {
-    env: { NODE_REPL_HISTORY: '',
-           NODE_REPL_HISTORY_FILE: oldHistoryPath },
+    env: {NODE_REPL_HISTORY: '',
+           NODE_REPL_HISTORY_FILE: oldHistoryPath},
     test: [UP],
     expected: [prompt, replDisabled, prompt]
   },
   {
-    env: { NODE_REPL_HISTORY_FILE: emptyHistoryPath },
+    env: {NODE_REPL_HISTORY_FILE: emptyHistoryPath},
     test: [UP],
     expected: [prompt, convertMsg, prompt]
   },
   {
-    env: { NODE_REPL_HISTORY_FILE: defaultHistoryPath },
+    env: {NODE_REPL_HISTORY_FILE: defaultHistoryPath},
     test: [UP],
     expected: [prompt, sameHistoryFilePaths, prompt]
   },
   {
-    env: { NODE_REPL_HISTORY: historyPath },
+    env: {NODE_REPL_HISTORY: historyPath},
     test: [UP, CLEAR],
     expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
   },
   {
-    env: { NODE_REPL_HISTORY: historyPath,
-           NODE_REPL_HISTORY_FILE: oldHistoryPath },
+    env: {NODE_REPL_HISTORY: historyPath,
+           NODE_REPL_HISTORY_FILE: oldHistoryPath},
     test: [UP, CLEAR],
     expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
   },
   {
-    env: { NODE_REPL_HISTORY: historyPath,
-           NODE_REPL_HISTORY_FILE: '' },
+    env: {NODE_REPL_HISTORY: historyPath,
+           NODE_REPL_HISTORY_FILE: ''},
     test: [UP, CLEAR],
     expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
   },
@@ -135,7 +135,7 @@ const tests = [
     expected: [prompt]
   },
   {
-    env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
+    env: {NODE_REPL_HISTORY_FILE: oldHistoryPath},
     test: [UP, CLEAR, '\'42\'', ENTER],
     expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt, '\'',
                '4', '2', '\'', '\'42\'\n', prompt, prompt],
@@ -158,20 +158,20 @@ const tests = [
                prompt]
   },
   {
-    env: { NODE_REPL_HISTORY: historyPath,
-           NODE_REPL_HISTORY_SIZE: 1 },
+    env: {NODE_REPL_HISTORY: historyPath,
+           NODE_REPL_HISTORY_SIZE: 1},
     test: [UP, UP, CLEAR],
     expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
   },
   {
-    env: { NODE_REPL_HISTORY_FILE: oldHistoryPath,
-           NODE_REPL_HISTORY_SIZE: 1 },
+    env: {NODE_REPL_HISTORY_FILE: oldHistoryPath,
+           NODE_REPL_HISTORY_SIZE: 1},
     test: [UP, UP, UP, CLEAR],
     expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt]
   },
   {
-    env: { NODE_REPL_HISTORY: historyPathFail,
-           NODE_REPL_HISTORY_SIZE: 1 },
+    env: {NODE_REPL_HISTORY: historyPathFail,
+           NODE_REPL_HISTORY_SIZE: 1},
     test: [UP],
     expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
   },

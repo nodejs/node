@@ -16,8 +16,8 @@ var connectCount = 0;
 
 
 server.listen(common.PORT, function() {
-  var agent = new http.Agent({ maxSockets: 1 });
-  var name = agent.getName({ port: common.PORT });
+  var agent = new http.Agent({maxSockets: 1});
+  var name = agent.getName({port: common.PORT});
   var request = http.request({
     method: 'GET',
     path: '/',

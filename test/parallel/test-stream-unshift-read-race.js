@@ -11,7 +11,7 @@ var assert = require('assert');
 
 var stream = require('stream');
 var hwm = 10;
-var r = stream.Readable({ highWaterMark: hwm });
+var r = stream.Readable({highWaterMark: hwm});
 var chunks = 10;
 
 var data = Buffer.allocUnsafe(chunks * hwm + Math.ceil(hwm / 2));

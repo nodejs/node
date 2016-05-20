@@ -28,7 +28,7 @@ var srv = net.createServer(function onConnection(conn) {
   serverSocket = conn;
   ready();
 }).listen(common.PORT, function() {
-  var client = net.connect({ port: common.PORT });
+  var client = net.connect({port: common.PORT});
 
   client.on('connect', function() {
     clientSocket = client;

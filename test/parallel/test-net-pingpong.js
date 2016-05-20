@@ -12,7 +12,7 @@ function pingPongTest(port, host) {
   var sentPongs = 0;
   var sent_final_ping = false;
 
-  var server = net.createServer({ allowHalfOpen: true }, function(socket) {
+  var server = net.createServer({allowHalfOpen: true}, function(socket) {
     console.log('connection: ' + socket.remoteAddress);
     assert.equal(server, socket.server);
     assert.equal(1, server.connections);

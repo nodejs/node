@@ -31,8 +31,8 @@ function isWarned(emitter) {
 
   // disable history
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal,
-                              historySize: 0 });
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal,
+                              historySize: 0});
   assert.strictEqual(rli.historySize, 0);
 
   fi.emit('data', 'asdf\n');
@@ -41,7 +41,7 @@ function isWarned(emitter) {
 
   // default history size 30
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
   assert.strictEqual(rli.historySize, 30);
 
   fi.emit('data', 'asdf\n');
@@ -50,7 +50,7 @@ function isWarned(emitter) {
 
   // sending a full line
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
   called = false;
   rli.on('line', function(line) {
     called = true;
@@ -61,7 +61,7 @@ function isWarned(emitter) {
 
   // sending a blank line
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
   called = false;
   rli.on('line', function(line) {
     called = true;
@@ -83,7 +83,7 @@ function isWarned(emitter) {
 
   // sending a single character with no newline and then a newline
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
   called = false;
   rli.on('line', function(line) {
     called = true;
@@ -97,7 +97,7 @@ function isWarned(emitter) {
 
   // sending multiple newlines at once
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
   var expectedLines = ['foo', 'bar', 'baz'];
   var callCount = 0;
   rli.on('line', function(line) {
@@ -110,7 +110,7 @@ function isWarned(emitter) {
 
   // sending multiple newlines at once that does not end with a new line
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
   expectedLines = ['foo', 'bar', 'baz', 'bat'];
   callCount = 0;
   rli.on('line', function(line) {
@@ -124,7 +124,7 @@ function isWarned(emitter) {
   // sending multiple newlines at once that does not end with a new(empty)
   // line and a `end` event
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
   expectedLines = ['foo', 'bar', 'baz', ''];
   callCount = 0;
   rli.on('line', function(line) {
@@ -144,7 +144,7 @@ function isWarned(emitter) {
 
   // \r\n should emit one line event, not two
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
   expectedLines = ['foo', 'bar', 'baz', 'bat'];
   callCount = 0;
   rli.on('line', function(line) {
@@ -157,7 +157,7 @@ function isWarned(emitter) {
 
   // \r\n should emit one line event when split across multiple writes.
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
   expectedLines = ['foo', 'bar', 'baz', 'bat'];
   callCount = 0;
   rli.on('line', function(line) {
@@ -173,7 +173,7 @@ function isWarned(emitter) {
 
   // \r should behave like \n when alone
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: true });
+  rli = new readline.Interface({input: fi, output: fi, terminal: true});
   expectedLines = ['foo', 'bar', 'baz', 'bat'];
   callCount = 0;
   rli.on('line', function(line) {
@@ -186,7 +186,7 @@ function isWarned(emitter) {
 
   // \r at start of input should output blank line
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: true });
+  rli = new readline.Interface({input: fi, output: fi, terminal: true});
   expectedLines = ['', 'foo' ];
   callCount = 0;
   rli.on('line', function(line) {
@@ -200,7 +200,7 @@ function isWarned(emitter) {
   // \t when there is no completer function should behave like an ordinary
   //   character
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: true });
+  rli = new readline.Interface({input: fi, output: fi, terminal: true});
   called = false;
   rli.on('line', function(line) {
     assert.equal(line, '\t');
@@ -255,7 +255,7 @@ function isWarned(emitter) {
   // sending a multi-byte utf8 char over multiple writes
   var buf = Buffer.from('☮', 'utf8');
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
   callCount = 0;
   rli.on('line', function(line) {
     callCount++;
@@ -272,7 +272,7 @@ function isWarned(emitter) {
   // Regression test for repl freeze, #1968:
   // check that nothing fails if 'keypress' event throws.
   fi = new FakeInput();
-  rli = new readline.Interface({ input: fi, output: fi, terminal: true });
+  rli = new readline.Interface({input: fi, output: fi, terminal: true});
   var keys = [];
   fi.on('keypress', function(key) {
     keys.push(key);
@@ -289,7 +289,7 @@ function isWarned(emitter) {
 
   // calling readline without `new`
   fi = new FakeInput();
-  rli = readline.Interface({ input: fi, output: fi, terminal: terminal });
+  rli = readline.Interface({input: fi, output: fi, terminal: terminal});
   called = false;
   rli.on('line', function(line) {
     called = true;
@@ -302,7 +302,7 @@ function isWarned(emitter) {
   if (terminal) {
     // question
     fi = new FakeInput();
-    rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+    rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
     expectedLines = ['foo'];
     rli.question(expectedLines[0], function() {
       rli.close();
@@ -314,7 +314,7 @@ function isWarned(emitter) {
 
     // sending a multi-line question
     fi = new FakeInput();
-    rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+    rli = new readline.Interface({input: fi, output: fi, terminal: terminal});
     expectedLines = ['foo', 'bar'];
     rli.question(expectedLines.join('\n'), function() {
       rli.close();
@@ -367,7 +367,7 @@ function isWarned(emitter) {
 
   //can create a new readline Interface with a null output arugument
   fi = new FakeInput();
-  rli = new readline.Interface({input: fi, output: null, terminal: terminal });
+  rli = new readline.Interface({input: fi, output: null, terminal: terminal});
 
   called = false;
   rli.on('line', function(line) {

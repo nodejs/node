@@ -3,7 +3,7 @@ require('../common');
 var assert = require('assert');
 var vm = require('vm');
 
-var sandbox = { setTimeout: setTimeout };
+var sandbox = {setTimeout: setTimeout};
 
 var ctx = vm.createContext(sandbox);
 

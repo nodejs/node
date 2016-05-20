@@ -12,7 +12,7 @@ function pingPongTest(port, host, on_complete) {
   var count = 0;
   var client_ended = false;
 
-  var server = net.createServer({ allowHalfOpen: true }, function(socket) {
+  var server = net.createServer({allowHalfOpen: true}, function(socket) {
     socket.setEncoding('utf8');
 
     socket.on('data', function(data) {

@@ -45,19 +45,19 @@ test('buffers', function(t) {
                Buffer.from('kuel') ];
 
   // read more than the first element.
-  var ret = fromList(6, { buffer: list, length: 16 });
+  var ret = fromList(6, {buffer: list, length: 16});
   t.equal(ret.toString(), 'foogba');
 
   // read exactly the first element.
-  ret = fromList(2, { buffer: list, length: 10 });
+  ret = fromList(2, {buffer: list, length: 10});
   t.equal(ret.toString(), 'rk');
 
   // read less than the first element.
-  ret = fromList(2, { buffer: list, length: 8 });
+  ret = fromList(2, {buffer: list, length: 8});
   t.equal(ret.toString(), 'ba');
 
   // read more than we have.
-  ret = fromList(100, { buffer: list, length: 6 });
+  ret = fromList(100, {buffer: list, length: 6});
   t.equal(ret.toString(), 'zykuel');
 
   // all consumed.
@@ -73,19 +73,19 @@ test('strings', function(t) {
                'kuel' ];
 
   // read more than the first element.
-  var ret = fromList(6, { buffer: list, length: 16, decoder: true });
+  var ret = fromList(6, {buffer: list, length: 16, decoder: true});
   t.equal(ret, 'foogba');
 
   // read exactly the first element.
-  ret = fromList(2, { buffer: list, length: 10, decoder: true });
+  ret = fromList(2, {buffer: list, length: 10, decoder: true});
   t.equal(ret, 'rk');
 
   // read less than the first element.
-  ret = fromList(2, { buffer: list, length: 8, decoder: true });
+  ret = fromList(2, {buffer: list, length: 8, decoder: true});
   t.equal(ret, 'ba');
 
   // read more than we have.
-  ret = fromList(100, { buffer: list, length: 6, decoder: true });
+  ret = fromList(100, {buffer: list, length: 6, decoder: true});
   t.equal(ret, 'zykuel');
 
   // all consumed.

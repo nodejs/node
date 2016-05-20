@@ -12,7 +12,7 @@ var Readable = require('stream').Readable;
 // throw an error if we trigger a nextTick warning.
 process.throwDeprecation = true;
 
-var stream = new Readable({ highWaterMark: 2 });
+var stream = new Readable({highWaterMark: 2});
 var reads = 0;
 var total = 5000;
 stream._read = function(size) {

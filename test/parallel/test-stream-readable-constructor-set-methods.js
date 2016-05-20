@@ -10,7 +10,7 @@ function _read(n) {
   this.push(null);
 }
 
-var r = new Readable({ read: _read });
+var r = new Readable({read: _read});
 r.resume();
 
 process.on('exit', function() {

@@ -15,7 +15,7 @@ process.on('exit', function() {
   assert.equal(seenEvent, 1);
 });
 
-fs.watchFile(filename, { interval: 50 }, function(curr, prev) {
+fs.watchFile(filename, {interval: 50}, function(curr, prev) {
   assert.equal(prev.nlink, 1);
   assert.equal(curr.nlink, 0);
   fs.unwatchFile(filename);

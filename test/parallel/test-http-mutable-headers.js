@@ -53,7 +53,7 @@ var s = http.createServer(function(req, res) {
     case 'writeHead':
       res.statusCode = 404;
       res.setHeader('x-foo', 'keyboard cat');
-      res.writeHead(200, { 'x-foo': 'bar', 'x-bar': 'baz' });
+      res.writeHead(200, {'x-foo': 'bar', 'x-bar': 'baz'});
       break;
   }
 
@@ -71,7 +71,7 @@ function nextTest() {
 
   var bufferedResponse = '';
 
-  http.get({ port: common.PORT }, function(response) {
+  http.get({port: common.PORT}, function(response) {
     console.log('TEST: ' + test);
     console.log('STATUS: ' + response.statusCode);
     console.log('HEADERS: ');

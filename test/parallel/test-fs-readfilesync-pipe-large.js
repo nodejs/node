@@ -26,7 +26,7 @@ var exec = require('child_process').exec;
 var f = JSON.stringify(__filename);
 var node = JSON.stringify(process.execPath);
 var cmd = 'cat ' + filename + ' | ' + node + ' ' + f + ' child';
-exec(cmd, { maxBuffer: 1000000 }, function(err, stdout, stderr) {
+exec(cmd, {maxBuffer: 1000000}, function(err, stdout, stderr) {
   if (err) console.error(err);
   assert(!err, 'it exits normally');
   assert(stdout === dataExpected, 'it reads the file and outputs it');

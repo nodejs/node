@@ -16,7 +16,7 @@ server.listen(common.PORT, function() {
   for (var i = 0; i < N; i++) {
     setTimeout(function() {
       for (var j = 0; j < M; j++) {
-        http.get({ port: common.PORT, path: '/' }, function(res) {
+        http.get({port: common.PORT, path: '/'}, function(res) {
           console.log('%d %d', responses, res.statusCode);
           if (++responses == N * M) {
             console.error('Received all responses, closing server');

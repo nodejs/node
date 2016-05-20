@@ -11,7 +11,7 @@ var chunkSize = 99;
 var expectTotalData = totalChunks * chunkSize;
 var expectEndingData = expectTotalData;
 
-var r = new Readable({ highWaterMark: 1000 });
+var r = new Readable({highWaterMark: 1000});
 var chunks = totalChunks;
 r._read = function(n) {
   if (!(chunks % 2))

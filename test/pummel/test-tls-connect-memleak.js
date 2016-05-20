@@ -23,7 +23,7 @@ tls.createServer({
   // 2**26 == 64M entries
   for (var i = 0, junk = [0]; i < 26; ++i) junk = junk.concat(junk);
 
-  var options = { rejectUnauthorized: false };
+  var options = {rejectUnauthorized: false};
   tls.connect(common.PORT, '127.0.0.1', options, function() {
     assert(junk.length != 0);  // keep reference alive
     setTimeout(done, 10);

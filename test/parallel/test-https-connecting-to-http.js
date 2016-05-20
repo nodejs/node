@@ -20,13 +20,13 @@ var body = 'hello world\n';
 var server = http.createServer(function(req, res) {
   reqCount++;
   console.log('got request');
-  res.writeHead(200, { 'content-type': 'text/plain' });
+  res.writeHead(200, {'content-type': 'text/plain'});
   res.end(body);
 });
 
 
 server.listen(common.PORT, function() {
-  var req = https.get({ port: common.PORT }, function(res) {
+  var req = https.get({port: common.PORT}, function(res) {
     resCount++;
   });
 

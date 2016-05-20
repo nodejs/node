@@ -12,20 +12,20 @@ var tls = require('tls');
 
 var tests = [
   // Basic CN handling
-  { host: 'a.com', cert: { subject: { CN: 'a.com' } } },
-  { host: 'a.com', cert: { subject: { CN: 'A.COM' } } },
+  {host: 'a.com', cert: {subject: {CN: 'a.com'}}},
+  {host: 'a.com', cert: {subject: {CN: 'A.COM'}}},
   {
     host: 'a.com',
-    cert: { subject: { CN: 'b.com' } },
+    cert: {subject: {CN: 'b.com'}},
     error: 'Host: a.com. is not cert\'s CN: b.com'
   },
-  { host: 'a.com', cert: { subject: { CN: 'a.com.' } } },
+  {host: 'a.com', cert: {subject: {CN: 'a.com.'}}},
 
   // Wildcards in CN
-  { host: 'b.a.com', cert: { subject: { CN: '*.a.com' } } },
-  { host: 'b.a.com', cert: {
+  {host: 'b.a.com', cert: {subject: {CN: '*.a.com'}}},
+  {host: 'b.a.com', cert: {
     subjectaltname: 'DNS:omg.com',
-    subject: { CN: '*.a.com' } },
+    subject: {CN: '*.a.com'}},
     error: 'Host: b.a.com. is not in the cert\'s altnames: ' +
            'DNS:omg.com'
   },
@@ -40,7 +40,7 @@ var tests = [
   // Multiple CN fields
   {
     host: 'foo.com', cert: {
-      subject: { CN: ['foo.com', 'bar.com'] } // CN=foo.com; CN=bar.com;
+      subject: {CN: ['foo.com', 'bar.com']} // CN=foo.com; CN=bar.com;
     }
   },
 
@@ -48,7 +48,7 @@ var tests = [
   {
     host: 'a.com', cert: {
       subjectaltname: 'DNS:*',
-      subject: { CN: 'b.com' }
+      subject: {CN: 'b.com'}
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
            'DNS:*'
@@ -56,7 +56,7 @@ var tests = [
   {
     host: 'a.com', cert: {
       subjectaltname: 'DNS:*.com',
-      subject: { CN: 'b.com' }
+      subject: {CN: 'b.com'}
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
            'DNS:*.com'
@@ -64,13 +64,13 @@ var tests = [
   {
     host: 'a.co.uk', cert: {
       subjectaltname: 'DNS:*.co.uk',
-      subject: { CN: 'b.com' }
+      subject: {CN: 'b.com'}
     }
   },
   {
     host: 'a.com', cert: {
       subjectaltname: 'DNS:*.a.com',
-      subject: { CN: 'a.com' }
+      subject: {CN: 'a.com'}
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
            'DNS:*.a.com'
@@ -78,7 +78,7 @@ var tests = [
   {
     host: 'a.com', cert: {
       subjectaltname: 'DNS:*.a.com',
-      subject: { CN: 'b.com' }
+      subject: {CN: 'b.com'}
     },
     error: 'Host: a.com. is not in the cert\'s altnames: ' +
            'DNS:*.a.com'
@@ -86,13 +86,13 @@ var tests = [
   {
     host: 'a.com', cert: {
       subjectaltname: 'DNS:a.com',
-      subject: { CN: 'b.com' }
+      subject: {CN: 'b.com'}
     }
   },
   {
     host: 'a.com', cert: {
       subjectaltname: 'DNS:A.COM',
-      subject: { CN: 'b.com' }
+      subject: {CN: 'b.com'}
     }
   },
 
@@ -194,7 +194,7 @@ var tests = [
   {
     host: 'localhost', cert: {
       subjectaltname: 'DNS:a.com',
-      subject: { CN: 'localhost' }
+      subject: {CN: 'localhost'}
     },
     error: 'Host: localhost. is not in the cert\'s altnames: ' +
            'DNS:a.com'

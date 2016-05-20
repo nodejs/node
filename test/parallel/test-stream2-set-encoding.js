@@ -210,7 +210,7 @@ test('setEncoding base64', function(t) {
 });
 
 test('encoding: utf8', function(t) {
-  var tr = new TestReader(100, { encoding: 'utf8' });
+  var tr = new TestReader(100, {encoding: 'utf8'});
   var out = [];
   var expect =
     [ 'aaaaaaaaaa',
@@ -238,7 +238,7 @@ test('encoding: utf8', function(t) {
 
 
 test('encoding: hex', function(t) {
-  var tr = new TestReader(100, { encoding: 'hex' });
+  var tr = new TestReader(100, {encoding: 'hex'});
   var out = [];
   var expect =
     [ '6161616161',
@@ -275,7 +275,7 @@ test('encoding: hex', function(t) {
 });
 
 test('encoding: hex with read(13)', function(t) {
-  var tr = new TestReader(100, { encoding: 'hex' });
+  var tr = new TestReader(100, {encoding: 'hex'});
   var out = [];
   var expect =
     [ '6161616161616',
@@ -308,7 +308,7 @@ test('encoding: hex with read(13)', function(t) {
 });
 
 test('encoding: base64', function(t) {
-  var tr = new TestReader(100, { encoding: 'base64' });
+  var tr = new TestReader(100, {encoding: 'base64'});
   var out = [];
   var expect =
     [ 'YWFhYWFhYW',

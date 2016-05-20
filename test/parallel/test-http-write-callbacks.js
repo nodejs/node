@@ -54,7 +54,7 @@ server.listen(common.PORT, function() {
   var req = http.request({
     port: common.PORT,
     method: 'PUT',
-    headers: { 'expect': '100-continue' }
+    headers: {'expect': '100-continue'}
   });
   req.on('continue', function() {
     // ok, good to go.

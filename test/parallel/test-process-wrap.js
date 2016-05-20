@@ -36,23 +36,23 @@ p.spawn({
   file: process.execPath,
   args: [process.execPath, '-v'],
   stdio: [
-    { type: 'ignore' },
-    { type: 'pipe', handle: pipe },
-    { type: 'ignore' }
+    {type: 'ignore'},
+    {type: 'pipe', handle: pipe},
+    {type: 'ignore'}
   ]
 });
 
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
-  var notp = { spawn: p.spawn };
+  var notp = {spawn: p.spawn};
   notp.spawn({
     file: process.execPath,
     args: [process.execPath, '-v'],
     stdio: [
-      { type: 'ignore' },
-      { type: 'pipe', handle: pipe },
-      { type: 'ignore' }
+      {type: 'ignore'},
+      {type: 'pipe', handle: pipe},
+      {type: 'ignore'}
     ]
   });
 }, TypeError);

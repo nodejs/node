@@ -2,4 +2,4 @@
 require('../common');
 
 // custom error throwing
-throw ({ name: 'MyCustomError', message: 'This is a custom message' });
+throw ({name: 'MyCustomError', message: 'This is a custom message'});

@@ -54,7 +54,7 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(common.PORT, function() {
-  var req = http.request({ port: common.PORT, method: 'POST' });
+  var req = http.request({port: common.PORT, method: 'POST'});
   var actual = '';
   req.on('response', function(res) {
     res.setEncoding('utf8');

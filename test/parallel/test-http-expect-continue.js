@@ -36,7 +36,7 @@ server.on('listening', function() {
     port: common.PORT,
     method: 'POST',
     path: '/world',
-    headers: { 'Expect': '100-continue' }
+    headers: {'Expect': '100-continue'}
   });
   console.error('Client sending request...');
   outstanding_reqs++;

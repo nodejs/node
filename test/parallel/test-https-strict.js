@@ -40,9 +40,9 @@ var ca2 = read('ca2-cert.pem');
 // different agents to use different CA lists.
 // this api is beyond bad.
 var agent0 = new https.Agent();
-var agent1 = new https.Agent({ ca: [ca1] });
-var agent2 = new https.Agent({ ca: [ca2] });
-var agent3 = new https.Agent({ ca: [ca1, ca2] });
+var agent1 = new https.Agent({ca: [ca1]});
+var agent2 = new https.Agent({ca: [ca2]});
+var agent3 = new https.Agent({ca: [ca1, ca2]});
 
 var options1 = {
   key: key1,
@@ -127,7 +127,7 @@ function makeReq(path, port, error, host, ca) {
   }
 
   if (host) {
-    options.headers = { host: host };
+    options.headers = {host: host};
   }
   var req = https.get(options);
   expectResponseCount++;

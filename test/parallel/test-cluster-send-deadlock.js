@@ -25,8 +25,8 @@ if (cluster.isMaster) {
 } else {
   process.on('message', function(msg, handle) {
     if (msg === 'listen') {
-      var client1 = net.connect({ host: 'localhost', port: common.PORT });
-      var client2 = net.connect({ host: 'localhost', port: common.PORT });
+      var client1 = net.connect({host: 'localhost', port: common.PORT});
+      var client2 = net.connect({host: 'localhost', port: common.PORT});
       var waiting = 2;
       client1.on('close', onclose);
       client2.on('close', onclose);

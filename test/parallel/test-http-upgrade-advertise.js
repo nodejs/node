@@ -5,10 +5,10 @@ const assert = require('assert');
 const http = require('http');
 
 const tests = [
-  { headers: {}, expected: 'regular' },
-  { headers: { upgrade: 'h2c' }, expected: 'regular' },
-  { headers: { connection: 'upgrade' }, expected: 'regular' },
-  { headers: { connection: 'upgrade', upgrade: 'h2c' }, expected: 'upgrade' }
+  {headers: {}, expected: 'regular'},
+  {headers: {upgrade: 'h2c'}, expected: 'regular'},
+  {headers: {connection: 'upgrade'}, expected: 'regular'},
+  {headers: {connection: 'upgrade', upgrade: 'h2c'}, expected: 'upgrade'}
 ];
 
 function fire() {

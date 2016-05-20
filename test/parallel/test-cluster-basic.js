@@ -113,10 +113,10 @@ else if (cluster.isMaster) {
 
         case 'listening':
           assert.equal(arguments.length, 1);
-          var expect = { address: '127.0.0.1',
+          var expect = {address: '127.0.0.1',
                          port: common.PORT,
                          addressType: 4,
-                         fd: undefined };
+                         fd: undefined};
           assert.deepStrictEqual(arguments[0], expect);
           break;
 

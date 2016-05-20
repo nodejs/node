@@ -21,7 +21,7 @@ var data = Buffer.allocUnsafe(1024 * 32 + 1);
 httpsTest();
 
 function httpsTest() {
-  var sopt = { key: key, cert: cert };
+  var sopt = {key: key, cert: cert};
 
   var server = https.createServer(sopt, function(req, res) {
     res.setHeader('content-length', data.length);
@@ -30,7 +30,7 @@ function httpsTest() {
   });
 
   server.listen(PORT, function() {
-    var opts = { port: PORT, rejectUnauthorized: false };
+    var opts = {port: PORT, rejectUnauthorized: false};
     https.get(opts).on('response', function(res) {
       test(res);
     });

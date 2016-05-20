@@ -18,7 +18,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(common.PORT, common.mustCall(() => {
   for (let i = 0; i < 10; i++) {
-    const options = { port: common.PORT };
+    const options = {port: common.PORT};
     const req = http.request(options, (res) => {
       res.resume();
       res.on('end', common.mustCall(() => {

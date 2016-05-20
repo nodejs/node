@@ -76,7 +76,7 @@ server.on('listening', function() {
 
 // now, see if the client sees the trailers.
 server.on('listening', function() {
-  http.get({ port: common.PORT, path: '/hello', headers: {} }, function(res) {
+  http.get({port: common.PORT, path: '/hello', headers: {}}, function(res) {
     res.on('end', function() {
       //console.log(res.trailers);
       assert.ok('x-foo' in res.trailers, 'Client doesn\'t see trailers.');

@@ -39,7 +39,7 @@ process.on('exit', function assertTests() {
 // Make changes to cluster settings
 execs.forEach(function(v, i) {
   setTimeout(function() {
-    cluster.setupMaster({ exec: v });
+    cluster.setupMaster({exec: v});
   }, i * 100);
 });
 

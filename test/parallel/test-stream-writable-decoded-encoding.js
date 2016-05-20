@@ -23,7 +23,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
     assert.equal(type, 'object');
     assert.equal(enc, 'buffer');
     console.log('ok - decoded string is decoded');
-  }, { decodeStrings: true });
+  }, {decodeStrings: true});
   m.write('some-text', 'utf8');
   m.end();
 })();
@@ -34,7 +34,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
     assert.equal(type, 'string');
     assert.equal(enc, 'utf8');
     console.log('ok - un-decoded string is not decoded');
-  }, { decodeStrings: false });
+  }, {decodeStrings: false});
   m.write('some-text', 'utf8');
   m.end();
 })();

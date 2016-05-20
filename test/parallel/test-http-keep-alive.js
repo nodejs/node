@@ -13,7 +13,7 @@ var server = http.createServer(function(req, res) {
 
 var agent = new http.Agent({maxSockets: 1});
 var headers = {'connection': 'keep-alive'};
-var name = agent.getName({ port: common.PORT });
+var name = agent.getName({port: common.PORT});
 
 server.listen(common.PORT, function() {
   http.get({

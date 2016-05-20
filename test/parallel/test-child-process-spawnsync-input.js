@@ -34,7 +34,7 @@ function verifyBufOutput(ret) {
 if (process.argv.indexOf('spawnchild') !== -1) {
   switch (process.argv[3]) {
     case '1':
-      ret = spawnSync(process.execPath, args, { stdio: 'inherit' });
+      ret = spawnSync(process.execPath, args, {stdio: 'inherit'});
       checkSpawnSyncRet(ret);
       break;
     case '2':
@@ -82,7 +82,7 @@ assert.deepStrictEqual(ret.stderr, Buffer.from(''));
 
 verifyBufOutput(spawnSync(process.execPath, args));
 
-ret = spawnSync(process.execPath, args, { encoding: 'utf8' });
+ret = spawnSync(process.execPath, args, {encoding: 'utf8'});
 
 checkSpawnSyncRet(ret);
 assert.strictEqual(ret.stdout, msgOut + '\n');

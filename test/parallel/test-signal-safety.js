@@ -7,6 +7,6 @@ var Signal = process.binding('signal_wrap').Signal;
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
   var s = new Signal();
-  var nots = { start: s.start };
+  var nots = {start: s.start};
   nots.start(9);
 }, TypeError);

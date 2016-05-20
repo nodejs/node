@@ -7,7 +7,7 @@ var fs = require('fs');
 var fn = path.join(common.fixturesDir, 'elipses.txt');
 var rangeFile = path.join(common.fixturesDir, 'x.txt');
 
-var callbacks = { open: 0, end: 0, close: 0 };
+var callbacks = {open: 0, end: 0, close: 0};
 
 var paused = false;
 
@@ -116,8 +116,8 @@ assert.throws(function() {
   fs.createReadStream(rangeFile, Object.create({start: 10, end: 2}));
 }, /"start" option must be <= "end" option/);
 
-var stream = fs.createReadStream(rangeFile, Object.create({ start: 0,
-                                 end: 0 }));
+var stream = fs.createReadStream(rangeFile, Object.create({start: 0,
+                                 end: 0}));
 assert.equal(stream.start, 0);
 assert.equal(stream.end, 0);
 stream.data = '';
@@ -135,7 +135,7 @@ var pauseRes = fs.createReadStream(rangeFile);
 pauseRes.pause();
 pauseRes.resume();
 
-var file7 = fs.createReadStream(rangeFile, Object.create({autoClose: false }));
+var file7 = fs.createReadStream(rangeFile, Object.create({autoClose: false}));
 assert.equal(file7.autoClose, false);
 file7.on('data', function() {});
 file7.on('end', function() {
@@ -148,7 +148,7 @@ file7.on('end', function() {
 
 function file7Next() {
   // This will tell us if the fd is usable again or not.
-  file7 = fs.createReadStream(null, Object.create({fd: file7.fd, start: 0 }));
+  file7 = fs.createReadStream(null, Object.create({fd: file7.fd, start: 0}));
   file7.data = '';
   file7.on('data', function(data) {
     file7.data += data;
@@ -160,7 +160,7 @@ function file7Next() {
 
 // Just to make sure autoClose won't close the stream because of error.
 var file8 = fs.createReadStream(null, Object.create({fd: 13337,
-                                autoClose: false }));
+                                autoClose: false}));
 file8.on('data', function() {});
 file8.on('error', common.mustCall(function() {}));
 

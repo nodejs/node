@@ -2,4 +2,4 @@
 require('../common');
 
 // custom error throwing
-throw ({ foo: 'bar' });
+throw ({foo: 'bar'});

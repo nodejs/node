@@ -43,7 +43,7 @@ ret = execSync(cmd);
 assert.strictEqual(ret.length, msgBuf.length);
 assert.deepStrictEqual(ret, msgBuf, 'execSync result buffer should match');
 
-ret = execSync(cmd, { encoding: 'utf8' });
+ret = execSync(cmd, {encoding: 'utf8'});
 
 assert.strictEqual(ret, msg + '\n', 'execSync encoding result should match');
 
@@ -55,7 +55,7 @@ ret = execFileSync(process.execPath, args);
 
 assert.deepStrictEqual(ret, msgBuf);
 
-ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
+ret = execFileSync(process.execPath, args, {encoding: 'utf8'});
 
 assert.strictEqual(ret, msg + '\n',
                    'execFileSync encoding result should match');

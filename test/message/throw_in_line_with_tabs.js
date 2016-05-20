@@ -6,7 +6,7 @@ console.error('before');
 
 (function() {
 	// these lines should contain tab!
-	throw ({ foo: 'bar' });
+	throw ({foo: 'bar'});
 })();
 
 console.error('after');

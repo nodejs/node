@@ -19,7 +19,7 @@ var body1 = '';
 var body2 = '';
 
 server.on('listening', function() {
-  var req1 = http.request({ port: common.PORT, path: '/1' });
+  var req1 = http.request({port: common.PORT, path: '/1'});
   req1.end();
   req1.on('response', function(res1) {
     res1.setEncoding('utf8');
@@ -29,7 +29,7 @@ server.on('listening', function() {
     });
 
     res1.on('end', function() {
-      var req2 = http.request({ port: common.PORT, path: '/2' });
+      var req2 = http.request({port: common.PORT, path: '/2'});
       req2.end();
       req2.on('response', function(res2) {
         res2.setEncoding('utf8');

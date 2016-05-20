@@ -22,7 +22,7 @@ function post(id, threw) {
     uncaughtExceptionCount++;
 }
 
-async_wrap.setupHooks({ init, post });
+async_wrap.setupHooks({init, post});
 async_wrap.enable();
 
 // Timers still aren't supported, so use crypto API.

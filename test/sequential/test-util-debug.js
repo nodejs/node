@@ -27,7 +27,7 @@ function test(environ, shouldWrite) {
 
   var spawn = require('child_process').spawn;
   var child = spawn(process.execPath, [__filename, 'child'], {
-    env: Object.assign(process.env, { NODE_DEBUG: environ })
+    env: Object.assign(process.env, {NODE_DEBUG: environ})
   });
 
   expectErr = expectErr.split('%PID%').join(child.pid);
@@ -61,7 +61,7 @@ function test(environ, shouldWrite) {
 function child() {
   var util = require('util');
   var debug = util.debuglog('tud');
-  debug('this', { is: 'a' }, /debugging/);
-  debug('number=%d string=%s obj=%j', 1234, 'asdf', { foo: 'bar' });
+  debug('this', {is: 'a'}, /debugging/);
+  debug('number=%d string=%s obj=%j', 1234, 'asdf', {foo: 'bar'});
   console.log('ok');
 }

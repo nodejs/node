@@ -16,7 +16,7 @@ assert.deepStrictEqual(sandbox, {
 assert.strictEqual(result, 'function');
 
 // Test 2: vm.runInContext
-var sandbox2 = { foo: 'bar' };
+var sandbox2 = {foo: 'bar'};
 var context = vm.createContext(sandbox2);
 result = vm.runInContext(
   'baz = foo; this.typeofProcess = typeof process; typeof Object;',

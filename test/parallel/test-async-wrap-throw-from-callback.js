@@ -29,7 +29,7 @@ function destroy() {
 }
 
 if (typeof process.argv[2] === 'string') {
-  async_wrap.setupHooks({ init, pre, post, destroy });
+  async_wrap.setupHooks({init, pre, post, destroy});
   async_wrap.enable();
 
   process.on('uncaughtException', () => assert.ok(0, 'UNREACHABLE'));

@@ -42,7 +42,7 @@ var server = https.createServer(options, function(req, res) {
   modulus = cert.modulus;
   exponent = cert.exponent;
 
-  res.writeHead(200, { 'content-type': 'text/plain' });
+  res.writeHead(200, {'content-type': 'text/plain'});
   res.end(body);
 });
 

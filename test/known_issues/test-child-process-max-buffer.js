@@ -10,7 +10,7 @@ if (process.argv[2] === 'child') {
 } else {
   const cmd = `${process.execPath} ${__filename} child`;
 
-  cp.exec(cmd, { maxBuffer: 10 }, common.mustCall((err, stdout, stderr) => {
+  cp.exec(cmd, {maxBuffer: 10}, common.mustCall((err, stdout, stderr) => {
     assert.strictEqual(err.message, 'stdout maxBuffer exceeded');
   }));
 }

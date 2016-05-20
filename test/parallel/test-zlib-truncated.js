@@ -16,10 +16,10 @@ const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing eli'
                     'ed ac sem sit amet arcu malesuada fermentum. Nunc sed. ';
 
 [
-  { comp: 'gzip', decomp: 'gunzip', decompSync: 'gunzipSync' },
-  { comp: 'gzip', decomp: 'unzip', decompSync: 'unzipSync' },
-  { comp: 'deflate', decomp: 'inflate', decompSync: 'inflateSync' },
-  { comp: 'deflateRaw', decomp: 'inflateRaw', decompSync: 'inflateRawSync' }
+  {comp: 'gzip', decomp: 'gunzip', decompSync: 'gunzipSync'},
+  {comp: 'gzip', decomp: 'unzip', decompSync: 'unzipSync'},
+  {comp: 'deflate', decomp: 'inflate', decompSync: 'inflateSync'},
+  {comp: 'deflateRaw', decomp: 'inflateRaw', decompSync: 'inflateRawSync'}
 ].forEach(function(methods) {
   zlib[methods.comp](inputString, function(err, compressed) {
     assert(!err);
@@ -47,7 +47,7 @@ const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing eli'
       assert(/unexpected end of file/.test(err.message));
     });
 
-    const syncFlushOpt = { finishFlush: zlib.Z_SYNC_FLUSH };
+    const syncFlushOpt = {finishFlush: zlib.Z_SYNC_FLUSH};
 
     // sync truncated input test, finishFlush = Z_SYNC_FLUSH
     assert.doesNotThrow(function() {

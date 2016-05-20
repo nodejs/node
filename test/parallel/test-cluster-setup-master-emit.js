@@ -14,7 +14,7 @@ function emitAndCatch(next) {
     assertsRun += 1;
     setImmediate(next);
   });
-  cluster.setupMaster({ exec: 'new-exec' });
+  cluster.setupMaster({exec: 'new-exec'});
 }
 
 function emitAndCatch2(next) {

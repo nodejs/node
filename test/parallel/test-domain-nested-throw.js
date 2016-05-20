@@ -20,7 +20,7 @@ switch (process.argv[2]) {
 function parent() {
   var node = process.execPath;
   var spawn = require('child_process').spawn;
-  var opt = { stdio: 'inherit' };
+  var opt = {stdio: 'inherit'};
   var child = spawn(node, [__filename, 'true'], opt);
   child.on('exit', function(c) {
     assert(!c);

@@ -18,7 +18,7 @@ s.listen(common.PORT, nextTest);
 function nextTest() {
   const options = {
     port: common.PORT,
-    headers: { 'Expect': 'meoww' }
+    headers: {'Expect': 'meoww'}
   };
 
   if (testIdx === tests.length) {

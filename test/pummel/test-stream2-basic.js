@@ -302,7 +302,7 @@ test('multipipe', function(t) {
 test('back pressure respected', function(t) {
   function noop() {}
 
-  var r = new R({ objectMode: true });
+  var r = new R({objectMode: true});
   r._read = noop;
   var counter = 0;
   r.push(['one']);
@@ -426,7 +426,7 @@ test('sync _read ending', function(t) {
 });
 
 test('adding readable triggers data flow', function(t) {
-  var r = new R({ highWaterMark: 5 });
+  var r = new R({highWaterMark: 5});
   var onReadable = false;
   var readCalled = 0;
 

@@ -53,7 +53,7 @@ out.write = function(d) {
 };
 
 called = false;
-c.dir({ foo: 1 });
+c.dir({foo: 1});
 assert(called);
 
 // ensure that the console functions are bound to the console instance

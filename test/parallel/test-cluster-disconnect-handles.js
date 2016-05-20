@@ -29,7 +29,7 @@ if (cluster.isMaster) {
   // debugger flags and renumbers any port numbers it sees starting
   // from the default port 5858.  Add a '.' that circumvents the
   // scanner but is ignored by atoi(3).  Heinous hack.
-  cluster.setupMaster({ execArgv: [`--debug=${common.PORT}.`] });
+  cluster.setupMaster({execArgv: [`--debug=${common.PORT}.`]});
   const worker = cluster.fork();
   worker.on('message', common.mustCall((message) => {
     assert.strictEqual(Array.isArray(message), true);
@@ -37,7 +37,7 @@ if (cluster.isMaster) {
     let continueRecv = false;
     const address = message[1];
     const host = address.address;
-    const debugClient = net.connect({ host, port: common.PORT });
+    const debugClient = net.connect({host, port: common.PORT});
     const protocol = new Protocol();
     debugClient.setEncoding('utf8');
     debugClient.on('data', (data) => protocol.execute(data));
@@ -50,11 +50,11 @@ if (cluster.isMaster) {
           if (res.body.command === 'continue') {
             continueRecv = true;
           } else if (res.body.event === 'break' && continueRecv) {
-            const req = protocol.serialize({ command: 'continue' });
+            const req = protocol.serialize({command: 'continue'});
             debugClient.write(req);
           }
         };
-        const conn = net.connect({ host, port: address.port });
+        const conn = net.connect({host, port: address.port});
         conn.once('connect', common.mustCall(() => {
           conn.destroy();
           assert.notDeepStrictEqual(handles, {});
@@ -62,7 +62,7 @@ if (cluster.isMaster) {
           assert.deepStrictEqual(handles, {});
           // Always send the continue, as the break event might have already
           // been received.
-          const req = protocol.serialize({ command: 'continue' });
+          const req = protocol.serialize({command: 'continue'});
           debugClient.write(req);
         }));
       });

@@ -8,19 +8,19 @@ const server = http.createServer(common.mustCall(function(req, res) {
   res.end();
 }, 4)).listen(common.PORT, '127.0.0.1', function() {
   let fn = common.mustCall(createConnection);
-  http.get({ createConnection: fn }, function(res) {
+  http.get({createConnection: fn}, function(res) {
     res.resume();
     fn = common.mustCall(createConnectionAsync);
-    http.get({ createConnection: fn }, function(res) {
+    http.get({createConnection: fn}, function(res) {
       res.resume();
       fn = common.mustCall(createConnectionBoth1);
-      http.get({ createConnection: fn }, function(res) {
+      http.get({createConnection: fn}, function(res) {
         res.resume();
         fn = common.mustCall(createConnectionBoth2);
-        http.get({ createConnection: fn }, function(res) {
+        http.get({createConnection: fn}, function(res) {
           res.resume();
           fn = common.mustCall(createConnectionError);
-          http.get({ createConnection: fn }, function(res) {
+          http.get({createConnection: fn}, function(res) {
             assert.fail(null, null, 'Unexpected response callback');
           }).on('error', common.mustCall(function(err) {
             assert.equal(err.message, 'Could not create socket');

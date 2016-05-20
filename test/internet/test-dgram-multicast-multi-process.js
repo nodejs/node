@@ -186,7 +186,7 @@ if (process.argv[2] === 'child') {
 
       receivedMessages.push(buf);
 
-      process.send({ message: buf.toString() });
+      process.send({message: buf.toString()});
 
       if (receivedMessages.length == messages.length) {
         // .dropMembership() not strictly needed but here as a sanity check.
@@ -205,7 +205,7 @@ if (process.argv[2] === 'child') {
         process.exit();
       }, common.platformTimeout(1000));
     });
-    process.send({ listening: true });
+    process.send({listening: true});
   });
 
   listenSocket.bind(common.PORT);

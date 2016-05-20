@@ -28,7 +28,7 @@ const testSucceeded = function() {
 const body = 'hello world\n';
 
 const serverCallback = common.mustCall(function(req, res) {
-  res.writeHead(200, { 'content-type': 'text/plain' });
+  res.writeHead(200, {'content-type': 'text/plain'});
   res.end(body);
 });
 

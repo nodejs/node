@@ -30,14 +30,14 @@ var s = http.createServer(function(req, res) {
   }
   assert.ok(threw, 'Undefined value should throw');
 
-  res.writeHead(200, { Test: '2' });
+  res.writeHead(200, {Test: '2'});
   res.end();
 });
 
 s.listen(common.PORT, runTest);
 
 function runTest() {
-  http.get({ port: common.PORT }, function(response) {
+  http.get({port: common.PORT}, function(response) {
     response.on('end', function() {
       assert.equal(response.headers['test'], '2');
       assert(response.rawHeaders.indexOf('Test') !== -1);

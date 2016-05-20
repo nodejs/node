@@ -52,12 +52,12 @@ console.error('test RegExp as argument to assert.throws');
 script = vm.createScript('var assert = require(\'assert\'); assert.throws(' +
                          'function() { throw "hello world"; }, /hello/);',
                          'some.js');
-script.runInNewContext({ require: require });
+script.runInNewContext({require: require});
 
 // Issue GH-7529
 script = vm.createScript('delete b');
 var ctx = {};
-Object.defineProperty(ctx, 'b', { configurable: false });
+Object.defineProperty(ctx, 'b', {configurable: false});
 ctx = vm.createContext(ctx);
 assert.equal(script.runInContext(ctx), false);
 

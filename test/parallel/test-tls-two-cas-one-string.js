@@ -14,17 +14,17 @@ const key =
     fs.readFileSync(`${common.fixturesDir}/keys/agent3-key.pem`, 'utf8');
 
 function test(ca, next) {
-  const server = tls.createServer({ ca, cert, key }, function(conn) {
+  const server = tls.createServer({ca, cert, key}, function(conn) {
     this.close();
     conn.end();
   });
 
-  server.addContext('agent3', { ca, cert, key });
+  server.addContext('agent3', {ca, cert, key});
 
   const host = common.localhostIPv4;
   const port = common.PORT;
   server.listen(port, host, function() {
-    tls.connect({ servername: 'agent3', host, port, ca });
+    tls.connect({servername: 'agent3', host, port, ca});
   });
 
   server.once('close', next);

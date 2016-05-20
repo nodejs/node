@@ -20,7 +20,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
 (function defaultCondingIsUtf8() {
   var m = new MyWritable(function(isBuffer, type, enc) {
     assert.equal(enc, 'utf8');
-  }, { decodeStrings: false });
+  }, {decodeStrings: false});
   m.write('foo');
   m.end();
 }());
@@ -28,7 +28,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
 (function changeDefaultEncodingToAscii() {
   var m = new MyWritable(function(isBuffer, type, enc) {
     assert.equal(enc, 'ascii');
-  }, { decodeStrings: false });
+  }, {decodeStrings: false});
   m.setDefaultEncoding('ascii');
   m.write('bar');
   m.end();
@@ -36,7 +36,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
 
 assert.throws(function changeDefaultEncodingToInvalidValue() {
   var m = new MyWritable(function(isBuffer, type, enc) {
-  }, { decodeStrings: false });
+  }, {decodeStrings: false});
   m.setDefaultEncoding({});
   m.write('bar');
   m.end();
@@ -45,7 +45,7 @@ assert.throws(function changeDefaultEncodingToInvalidValue() {
 (function checkVairableCaseEncoding() {
   var m = new MyWritable(function(isBuffer, type, enc) {
     assert.equal(enc, 'ascii');
-  }, { decodeStrings: false });
+  }, {decodeStrings: false});
   m.setDefaultEncoding('AsCii');
   m.write('bar');
   m.end();

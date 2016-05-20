@@ -52,7 +52,7 @@ var server = http.createServer(function(req, res) {
 }).listen(common.PORT);
 
 var c = domain.create();
-var req = http.get({ host: 'localhost', port: common.PORT });
+var req = http.get({host: 'localhost', port: common.PORT});
 
 // add the request to the C domain
 c.add(req);

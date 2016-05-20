@@ -7,7 +7,7 @@ var fs = require('fs');
 
 const file = fs.readFileSync(path.resolve(common.fixturesDir, 'person.jpg'));
 const chunkSize = 16;
-const opts = { level: 0 };
+const opts = {level: 0};
 const deflater = zlib.createDeflate(opts);
 
 const chunk = file.slice(0, chunkSize);

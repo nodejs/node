@@ -73,7 +73,7 @@ function parent() {
       detached: true
     });
 
-    console.log('%j\n', { pid: child.pid });
+    console.log('%j\n', {pid: child.pid});
 
     // Now close the parent, so that the child is the only thing
     // referencing that handle.  Note that connections will still
@@ -90,7 +90,7 @@ function child() {
     console.error('request on child');
     console.error('%s %s', req.method, req.url, req.headers);
     res.end('hello from child\n');
-  }).listen({ fd: 3 }, function() {
+  }).listen({fd: 3}, function() {
     console.error('child listening on fd=3');
   });
 }

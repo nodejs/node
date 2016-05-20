@@ -111,13 +111,13 @@ function test(testOptions, cb) {
 }
 
 var tests = [
-  { response: false },
-  { response: 'hello world' },
-  { ocsp: false }
+  {response: false},
+  {response: 'hello world'},
+  {ocsp: false}
 ];
 
 if (!common.hasFipsCrypto) {
-  tests.push({ pfx: pfx, passphrase: 'sample', response: 'hello pfx' });
+  tests.push({pfx: pfx, passphrase: 'sample', response: 'hello pfx'});
 }
 
 function runTests(i) {

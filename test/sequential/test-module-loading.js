@@ -246,7 +246,7 @@ assert.deepStrictEqual(children, {
 // require() must take string, and must be truthy
 assert.throws(function() {
   console.error('require non-string');
-  require({ foo: 'bar' });
+  require({foo: 'bar'});
 }, /path must be a string/);
 
 assert.throws(function() {

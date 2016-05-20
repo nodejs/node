@@ -19,7 +19,7 @@ const server = net.createServer(function(s) {
 });
 
 server.listen(common.PORT, function() {
-  const req = https.request({ port: common.PORT });
+  const req = https.request({port: common.PORT});
   req.end();
 
   req.once('error', common.mustCall(function(err) {

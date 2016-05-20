@@ -12,7 +12,7 @@ assert(typeof sandbox.Proxy === 'function');
 assert(sandbox.Proxy !== Proxy);
 
 // Unless we copy the Proxy object explicitly, of course.
-sandbox = { Proxy: Proxy };
+sandbox = {Proxy: Proxy};
 vm.runInNewContext('this.Proxy = Proxy', sandbox);
 assert(typeof sandbox.Proxy === 'function');
 assert(sandbox.Proxy === Proxy);

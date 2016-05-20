@@ -107,7 +107,7 @@ let serverError;
 let clientError;
 
 var server = tls.createServer(serverOptions, function(c) {
-  serverResults.push({ sni: c.servername, authorized: c.authorized });
+  serverResults.push({sni: c.servername, authorized: c.authorized});
 });
 
 server.on('tlsClientError', function(err) {
@@ -155,10 +155,10 @@ function startTest() {
 
 process.on('exit', function() {
   assert.deepStrictEqual(serverResults, [
-    { sni: 'a.example.com', authorized: false },
-    { sni: 'a.example.com', authorized: true },
-    { sni: 'b.example.com', authorized: false },
-    { sni: 'c.wrong.com', authorized: false },
+    {sni: 'a.example.com', authorized: false},
+    {sni: 'a.example.com', authorized: true},
+    {sni: 'b.example.com', authorized: false},
+    {sni: 'c.wrong.com', authorized: false},
     null
   ]);
   assert.deepStrictEqual(clientResults, [true, true, true, false, false]);

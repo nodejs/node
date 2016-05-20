@@ -21,7 +21,7 @@ http.createServer(function(q, s) {
   s.end();
   this.close();
 }).listen(common.PORT, function() {
-  http.request({ port: common.PORT }).on('response', function(res) {
+  http.request({port: common.PORT}).on('response', function(res) {
     res.setEncoding('ascii');
     res.on('data', function(c) {
       data += c;

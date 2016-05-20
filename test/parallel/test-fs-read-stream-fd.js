@@ -14,7 +14,7 @@ common.refreshTmpDir();
 fs.writeFileSync(file, input);
 fd = fs.openSync(file, 'r');
 
-stream = fs.createReadStream(null, { fd: fd, encoding: 'utf8' });
+stream = fs.createReadStream(null, {fd: fd, encoding: 'utf8'});
 stream.on('data', function(data) {
   output += data;
 });

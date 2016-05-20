@@ -12,7 +12,7 @@ assert.equal(true, util.isArray(new Array(5)));
 assert.equal(true, util.isArray(new Array('with', 'some', 'entries')));
 assert.equal(true, util.isArray(context('Array')()));
 assert.equal(false, util.isArray({}));
-assert.equal(false, util.isArray({ push: function() {} }));
+assert.equal(false, util.isArray({push: function() {}}));
 assert.equal(false, util.isArray(/regexp/));
 assert.equal(false, util.isArray(new Error()));
 assert.equal(false, util.isArray(Object.create(Array.prototype)));
@@ -45,7 +45,7 @@ assert.equal(true, util.isError(new (context('Error'))));
 assert.equal(true, util.isError(new (context('TypeError'))));
 assert.equal(true, util.isError(new (context('SyntaxError'))));
 assert.equal(false, util.isError({}));
-assert.equal(false, util.isError({ name: 'Error', message: '' }));
+assert.equal(false, util.isError({name: 'Error', message: ''}));
 assert.equal(false, util.isError([]));
 assert.equal(true, util.isError(Object.create(Error.prototype)));
 

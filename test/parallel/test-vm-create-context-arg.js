@@ -8,7 +8,7 @@ assert.throws(function() {
 }, TypeError);
 
 assert.doesNotThrow(function() {
-  vm.createContext({ a: 1 });
+  vm.createContext({a: 1});
   vm.createContext([0, 1, 2, 3]);
 });
 

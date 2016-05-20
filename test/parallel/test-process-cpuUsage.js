@@ -36,12 +36,12 @@ for (let i = 0; i < 10; i++) {
 // Ensure that an invalid shape for the previous value argument throws an error.
 assert.throws(function() { process.cpuUsage(1); });
 assert.throws(function() { process.cpuUsage({}); });
-assert.throws(function() { process.cpuUsage({ user: 'a' }); });
-assert.throws(function() { process.cpuUsage({ system: 'b' }); });
-assert.throws(function() { process.cpuUsage({ user: null, system: 'c' }); });
-assert.throws(function() { process.cpuUsage({ user: 'd', system: null }); });
-assert.throws(function() { process.cpuUsage({ user: -1, system: 2 }); });
-assert.throws(function() { process.cpuUsage({ user: 3, system: -2 }); });
+assert.throws(function() { process.cpuUsage({user: 'a'}); });
+assert.throws(function() { process.cpuUsage({system: 'b'}); });
+assert.throws(function() { process.cpuUsage({user: null, system: 'c'}); });
+assert.throws(function() { process.cpuUsage({user: 'd', system: null}); });
+assert.throws(function() { process.cpuUsage({user: -1, system: 2}); });
+assert.throws(function() { process.cpuUsage({user: 3, system: -2}); });
 assert.throws(function() { process.cpuUsage({
   user: Number.POSITIVE_INFINITY,
   system: 4

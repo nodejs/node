@@ -41,9 +41,9 @@ server.listen(common.PORT, common.localhostIPv4, function() {
     }
   }
 
-  const client1 = net.connect({ port: common.PORT });
+  const client1 = net.connect({port: common.PORT});
   client1.on('end', addEndedClient);
 
-  const client2 = net.connect({ port: common.PORT });
+  const client2 = net.connect({port: common.PORT});
   client2.on('end', addEndedClient);
 });

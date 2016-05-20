@@ -32,7 +32,7 @@ server.listen(common.PORT, function() {
 
   for (var i = 0; i < N; i++) {
     console.log('Making client ' + i);
-    var options = { port: common.PORT, path: '/?id=' + i };
+    var options = {port: common.PORT, path: '/?id=' + i};
     var req = http.get(options, function(res) {
       console.log('Client response code ' + res.statusCode);
 

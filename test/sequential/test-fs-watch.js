@@ -113,7 +113,7 @@ var oldhandle;
 assert.throws(function() {
   var w = fs.watch(__filename, function(event, filename) { });
   oldhandle = w._handle;
-  w._handle = { close: w._handle.close };
+  w._handle = {close: w._handle.close};
   w.close();
 }, TypeError);
 oldhandle.close(); // clean up
@@ -121,7 +121,7 @@ oldhandle.close(); // clean up
 assert.throws(function() {
   var w = fs.watchFile(__filename, {persistent: false}, function() {});
   oldhandle = w._handle;
-  w._handle = { stop: w._handle.stop };
+  w._handle = {stop: w._handle.stop};
   w.stop();
 }, TypeError);
 oldhandle.stop(); // clean up

@@ -31,7 +31,7 @@ test(function serverTimeout(cb) {
     // just do nothing, we should get a timeout event.
   });
   server.listen(common.mustCall(function() {
-    http.get({ port: server.address().port }).on('error', function() {});
+    http.get({port: server.address().port}).on('error', function() {});
   }));
   var s = server.setTimeout(50, function(socket) {
     caughtTimeout = true;
@@ -59,7 +59,7 @@ test(function serverRequestTimeout(cb) {
   });
   server.listen(common.mustCall(function() {
     var port = server.address().port;
-    var req = http.request({ port: port, method: 'POST' });
+    var req = http.request({port: port, method: 'POST'});
     req.on('error', function() {});
     req.write('Hello');
     // req is in progress
@@ -83,7 +83,7 @@ test(function serverResponseTimeout(cb) {
   });
   server.listen(common.mustCall(function() {
     var port = server.address().port;
-    http.get({ port: port }).on('error', function() {});
+    http.get({port: port}).on('error', function() {});
   }));
 });
 
@@ -111,7 +111,7 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
   });
   server.listen(common.mustCall(function() {
     var port = server.address().port;
-    http.get({ port: port }).on('error', function() {});
+    http.get({port: port}).on('error', function() {});
   }));
 });
 
@@ -134,7 +134,7 @@ test(function serverResponseTimeoutWithPipeline(cb) {
   });
   server.listen(common.mustCall(function() {
     var port = server.address().port;
-    var c = net.connect({ port: port, allowHalfOpen: true }, function() {
+    var c = net.connect({port: port, allowHalfOpen: true}, function() {
       c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
       c.write('GET /2 HTTP/1.1\r\nHost: localhost\r\n\r\n');
       c.write('GET /3 HTTP/1.1\r\nHost: localhost\r\n\r\n');
@@ -169,7 +169,7 @@ test(function idleTimeout(cb) {
   assert.ok(s instanceof http.Server);
   server.listen(common.mustCall(function() {
     var port = server.address().port;
-    var c = net.connect({ port: port, allowHalfOpen: true }, function() {
+    var c = net.connect({port: port, allowHalfOpen: true}, function() {
       c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
       // Keep-Alive
     });

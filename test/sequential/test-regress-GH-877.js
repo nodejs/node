@@ -15,7 +15,7 @@ var server = http.createServer(function(req, res) {
   res.end('Hello World\n');
 });
 
-var addrString = agent.getName({ host: '127.0.0.1', port: common.PORT });
+var addrString = agent.getName({host: '127.0.0.1', port: common.PORT});
 
 server.listen(common.PORT, '127.0.0.1', function() {
   for (var i = 0; i < N; i++) {

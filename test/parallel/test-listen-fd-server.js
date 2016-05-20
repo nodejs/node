@@ -61,7 +61,7 @@ function child() {
     console.error('request on child');
     console.error('%s %s', req.method, req.url, req.headers);
     res.end('hello from child\n');
-  }).listen({ fd: 3 }, function() {
+  }).listen({fd: 3}, function() {
     console.error('child listening on fd=3');
     process.send('listening');
   });
@@ -79,7 +79,7 @@ function test(cb) {
       stdio: [ 0, 1, 2, server._handle, 'ipc' ]
     });
 
-    console.log('%j\n', { pid: child.pid });
+    console.log('%j\n', {pid: child.pid});
 
     // Now close the parent, so that the child is the only thing
     // referencing that handle.  Note that connections will still

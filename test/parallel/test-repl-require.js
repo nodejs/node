@@ -16,7 +16,7 @@ const server = net.createServer((conn) => {
 
 const host = common.localhostIPv4;
 const port = common.PORT;
-const options = { host, port };
+const options = {host, port};
 
 var answer = '';
 server.listen(options, function() {

@@ -22,7 +22,7 @@ var body = 'hello world\n';
 
 var server_http = http.createServer(function(req, res) {
   console.log('got HTTP request');
-  res.writeHead(200, { 'content-type': 'text/plain' });
+  res.writeHead(200, {'content-type': 'text/plain'});
   res.end(body);
 });
 
@@ -47,7 +47,7 @@ server_http.listen(common.PORT, function() {
 
 var server_https = https.createServer(options, function(req, res) {
   console.log('got HTTPS request');
-  res.writeHead(200, { 'content-type': 'text/plain' });
+  res.writeHead(200, {'content-type': 'text/plain'});
   res.end(body);
 });
 

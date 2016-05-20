@@ -13,9 +13,9 @@ var cmd = JSON.stringify(process.execPath) + ' ' +
 
 var child = child_process.exec(cmd);
 var output = '';
-var outputExpect = { 'code': 'EPIPE',
+var outputExpect = {'code': 'EPIPE',
                      'errno': 'EPIPE',
-                     'syscall': 'write' };
+                     'syscall': 'write'};
 
 child.stderr.on('data', function(c) {
   output += c;

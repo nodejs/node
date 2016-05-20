@@ -25,7 +25,7 @@ if (cluster.isMaster) {
   });
 
   server.listen(common.PORT, function() {
-    var client = net.connect({ host: 'localhost', port: common.PORT });
+    var client = net.connect({host: 'localhost', port: common.PORT});
     client.on('close', function() { cluster.worker.disconnect(); });
     setTimeout(function() { client.end(); }, 50);
   }).on('error', function(e) {
