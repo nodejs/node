@@ -12,7 +12,8 @@ function main(conf) {
   const dur = +conf.dur;
   const len = +conf.len;
 
-  const msg = '"' + Array(len).join('.') + '"';
+  const msg = `"${'.'.repeat(len)}"`;
+  msg.match(/./);
   const options = {'stdio': ['ignore', 'pipe', 'ignore']};
   // NOTE: Command below assumes bash shell.
   const child = exec(`while\n  echo ${msg}\ndo :; done\n`, options);
