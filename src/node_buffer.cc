@@ -427,33 +427,6 @@ void CreateFromString(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void CreateFromArrayBuffer(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  if (!args[0]->IsArrayBuffer())
-    return env->ThrowTypeError("argument is not an ArrayBuffer");
-  Local<ArrayBuffer> ab = args[0].As<ArrayBuffer>();
-
-  size_t ab_length = ab->ByteLength();
-  size_t offset;
-  size_t max_length;
-
-  CHECK_NOT_OOB(ParseArrayIndex(args[1], 0, &offset));
-  CHECK_NOT_OOB(ParseArrayIndex(args[2], ab_length - offset, &max_length));
-
-  if (offset >= ab_length)
-    return env->ThrowRangeError("'offset' is out of bounds");
-  if (max_length > ab_length - offset)
-    return env->ThrowRangeError("'length' is out of bounds");
-
-  Local<Uint8Array> ui = Uint8Array::New(ab, offset, max_length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (!mb.FromMaybe(false))
-    return env->ThrowError("Unable to set Object prototype");
-  args.GetReturnValue().Set(ui);
-}
-
-
 template <encoding encoding>
 void StringSlice(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1246,7 +1219,6 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "setupBufferJS", SetupBufferJS);
   env->SetMethod(target, "createFromString", CreateFromString);
-  env->SetMethod(target, "createFromArrayBuffer", CreateFromArrayBuffer);
 
   env->SetMethod(target, "byteLengthUtf8", ByteLengthUtf8);
   env->SetMethod(target, "compare", Compare);
