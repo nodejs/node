@@ -269,7 +269,8 @@ pre, tt, code {
 pre {
   padding: 1em;
   vertical-align: top;
-  background: #f2f2f2;
+  background: #2c322f;
+  color: #F3F3F3;
   margin: 1em;
   overflow-x: auto;
 }

@@ -7,7 +7,6 @@
 
 code[class*="language-"],
 pre[class*="language-"] {
-	color: black;
 	background: none;
 	text-shadow: 0 1px white;
 	text-align: left;
@@ -87,7 +86,7 @@ pre[class*="language-"] {
 .token.constant,
 .token.symbol,
 .token.deleted {
-	color: #905;
+	color: #C5659A;
 }
 
 .token.selector,
@@ -96,7 +95,7 @@ pre[class*="language-"] {
 .token.char,
 .token.builtin,
 .token.inserted {
-	color: #690;
+	color: #6A9614;
 }
 
 .token.operator,
@@ -104,17 +103,17 @@ pre[class*="language-"] {
 .token.url,
 .language-css .token.string,
 .style .token.string {
-
+	color: #c678dd;
 }
 
 .token.atrule,
 .token.attr-value,
 .token.keyword {
-	color: #07a;
+	color: #0084b6;
 }
 
 .token.function {
-	color: #DD4A68;
+	color: #E34551;
 }
 
 .token.regex,
