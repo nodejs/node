@@ -116,6 +116,14 @@ pre[class*="language-"] {
 	color: #E34551;
 }
 
+.token.interpolation-punctuation.punctuation {
+	color: #E34551;
+}
+
+.token.interpolation {
+	color: #6A9614;
+}
+
 .token.regex,
 .token.important,
 .token.variable {
