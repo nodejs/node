@@ -166,6 +166,7 @@ information about the governance of the Node.js project, see
 
 * [addaleax](https://github.com/addaleax) - **Anna Henningsen** &lt;anna@addaleax.net&gt;
 * [AndreasMadsen](https://github.com/AndreasMadsen) - **Andreas Madsen** &lt;amwebdk@gmail.com&gt;
+* [bengl](https://github.com/bengl) - **Bryan English** &lt;bryan@bryanenglish.com&gt;
 * [benjamingr](https://github.com/benjamingr) - **Benjamin Gruenbaum** &lt;benjamingr@gmail.com&gt;
 * [brendanashworth](https://github.com/brendanashworth) - **Brendan Ashworth** &lt;brendan.ashworth@me.com&gt;
 * [calvinmetcalf](https://github.com/calvinmetcalf) - **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
