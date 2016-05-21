@@ -15,7 +15,10 @@ renderer.heading = function(text, level) {
   return '<h' + level + '>' + text + '</h' + level + '>\n';
 };
 marked.setOptions({
-  renderer: renderer
+  renderer: renderer,
+  highlight: function (code) {
+    return require('./node_modules/prism/prism.min.js').highlight(code, Prism.languages.javascript);
+  }
 });
 
 // TODO(chrisdickinson): never stop vomitting / fix this.
