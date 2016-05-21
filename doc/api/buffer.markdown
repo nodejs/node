@@ -18,7 +18,7 @@ The size of the `Buffer` is established when it is created and cannot be
 resized.
 
 The `Buffer` class is a global within Node.js, making it unlikely that one
-would need to ever use `require('buffer')`.
+would need to ever use `require('buffer').Buffer`.
 
 ```js
 const buf1 = new Buffer(10);
