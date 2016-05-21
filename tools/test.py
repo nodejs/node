@@ -273,10 +273,11 @@ class TapProgressIndicator(SimpleProgressIndicator):
     # Print test name as (for example) "parallel/test-assert".  Tests that are
     # scraped from the addons documentation are all named test.js, making it
     # hard to decipher what test is running when only the filename is printed.
-    prefix = abspath(join(dirname(__file__), '../test')) + '/'
+    prefix = abspath(join(dirname(__file__), '../test')) + os.sep
     command = output.command[-1]
     if command.endswith('.js'): command = command[:-3]
     if command.startswith(prefix): command = command[len(prefix):]
+    command = command.replace('\\', '/')
 
     if output.UnexpectedOutput():
       status_line = 'not ok %i %s' % (self._done, command)
