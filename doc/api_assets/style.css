@@ -16,7 +16,9 @@ body {
 }
 
 pre, tt, code, .pre, span.type, a.type {
-  font-family: Monaco, Consolas, "Lucida Console", monospace;
+  font-size: 1.2em;
+  line-height: 1.3em;
+  font-family: "Fira Mono", "Lucida Console", Monaco, Consolas, monospace;
 }
 
 #content {
