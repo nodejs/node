@@ -257,13 +257,13 @@ h6 {
 }
 
 pre, tt, code {
-  line-height: 1.5em;
+  line-height: 1.3em;
   margin: 0; padding: 0;
 }
 
 .pre {
-  line-height: 1.5em;
-  font-size: 1.2em;
+  line-height: 1.3em;
+  font-size: 1em;
 }
 
 pre {
