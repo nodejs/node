@@ -16,9 +16,27 @@ namespace node {
 inline AsyncWrap::AsyncWrap(Environment* env,
                             v8::Local<v8::Object> object,
                             ProviderType provider,
-                            AsyncWrap* parent)
-    : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1),
+                            AsyncWrap* parent,
+                            bool manageLifecycleEvents)
+    : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 2),
       uid_(env->get_async_wrap_uid()) {
+  if (manageLifecycleEvents) {
+    bits_ |= 2; // managed_lifecycle() is now true
+    InitAsyncWrap(env, object, provider, parent);
+  }
+}
+
+
+inline AsyncWrap::~AsyncWrap() {
+  if (managed_lifecycle()) {
+    DestroyAsyncWrap();
+  }
+}
+
+inline void AsyncWrap::InitAsyncWrap(Environment* env,
+                                    v8::Local<v8::Object> object,
+                                    ProviderType provider,
+                                    AsyncWrap* parent) {
   CHECK_NE(provider, PROVIDER_NONE);
   CHECK_GE(object->InternalFieldCount(), 1);
 
@@ -65,7 +83,7 @@ inline AsyncWrap::AsyncWrap(Environment* env,
 }
 
 
-inline AsyncWrap::~AsyncWrap() {
+inline void AsyncWrap::DestroyAsyncWrap() {
   if (!ran_init_callback())
     return;
 
@@ -84,13 +102,18 @@ inline AsyncWrap::~AsyncWrap() {
 }
 
 
+inline bool AsyncWrap::managed_lifecycle() const {
+  return static_cast<bool>(bits_ & 2);
+}
+
+
 inline bool AsyncWrap::ran_init_callback() const {
   return static_cast<bool>(bits_ & 1);
 }
 
 
 inline AsyncWrap::ProviderType AsyncWrap::provider_type() const {
-  return static_cast<ProviderType>(bits_ >> 1);
+  return static_cast<ProviderType>(bits_ >> 2);
 }
 
 

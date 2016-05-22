@@ -144,7 +144,7 @@ struct StringPtr {
 class Parser : public AsyncWrap {
  public:
   Parser(Environment* env, Local<Object> wrap, enum http_parser_type type)
-      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTPPARSER),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_HTTPPARSER, nullptr, false),
         current_buffer_len_(0),
         current_buffer_data_(nullptr) {
     Wrap(object(), this);
@@ -451,6 +451,7 @@ class Parser : public AsyncWrap {
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
     parser->Init(type);
+    parser->InitAsyncWrap(env, args.This(), AsyncWrap::PROVIDER_HTTPPARSER);
   }
 
 
@@ -482,6 +483,7 @@ class Parser : public AsyncWrap {
 
   static void Unconsume(const FunctionCallbackInfo<Value>& args) {
     Parser* parser = Unwrap<Parser>(args.Holder());
+    parser->DestroyAsyncWrap();
 
     // Already unconsumed
     if (parser->prev_alloc_cb_.is_empty())

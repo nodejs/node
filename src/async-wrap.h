@@ -50,13 +50,20 @@ class AsyncWrap : public BaseObject {
   inline AsyncWrap(Environment* env,
                    v8::Local<v8::Object> object,
                    ProviderType provider,
-                   AsyncWrap* parent = nullptr);
+                   AsyncWrap* parent = nullptr,
+                   bool manageLifecycleEvents = true);
 
   inline virtual ~AsyncWrap();
 
   inline ProviderType provider_type() const;
 
   inline int64_t get_uid() const;
+
+  inline void InitAsyncWrap(Environment* env,
+                            v8::Local<v8::Object> object,
+                            ProviderType provider,
+                            AsyncWrap* parent = nullptr);
+  inline void DestroyAsyncWrap();
 
   // Only call these within a valid HandleScope.
   v8::Local<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
@@ -73,6 +80,7 @@ class AsyncWrap : public BaseObject {
 
  private:
   inline AsyncWrap();
+  inline bool managed_lifecycle() const;
   inline bool ran_init_callback() const;
 
   // When the async hooks init JS function is called from the constructor it is
