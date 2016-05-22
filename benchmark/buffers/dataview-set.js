@@ -40,18 +40,20 @@ function main(conf) {
 }
 
 function benchInt(dv, fn, len, le) {
-  var m = mod[fn];
+  const m = mod[fn];
+  const method = dv[fn];
   bench.start();
   for (var i = 0; i < len; i++) {
-    dv[fn](0, i % m, le);
+    method.call(dv, 0, i % m, le);
   }
   bench.end(len / 1e6);
 }
 
 function benchFloat(dv, fn, len, le) {
+  const method = dv[fn];
   bench.start();
   for (var i = 0; i < len; i++) {
-    dv[fn](0, i * 0.1, le);
+    method.call(dv, 0, i * 0.1, le);
   }
   bench.end(len / 1e6);
 }
