@@ -2863,8 +2863,9 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   __ B(lt, &null);
 
   // Return 'Function' for JSFunction objects.
-  __ Cmp(x11, JS_FUNCTION_TYPE);
-  __ B(eq, &function);
+  __ Cmp(x11, FIRST_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
+  __ B(hs, &function);
 
   // Check if the constructor in the map is a JS function.
   Register instance_type = x14;
