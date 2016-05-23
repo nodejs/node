@@ -4536,13 +4536,17 @@ class InitializerRewriter : public AstExpressionVisitor {
         scope_(scope) {}
 
  private:
-  void VisitExpression(Expression* expr) {
+  void VisitExpression(Expression* expr) override {
     RewritableExpression* to_rewrite = expr->AsRewritableExpression();
     if (to_rewrite == nullptr || to_rewrite->is_rewritten()) return;
 
     Parser::PatternRewriter::RewriteDestructuringAssignment(parser_, to_rewrite,
                                                             scope_);
   }
+
+  // Code in function literals does not need to be eagerly rewritten, it will be
+  // rewritten when scheduled.
+  void VisitFunctionLiteral(FunctionLiteral* expr) override {}
 
  private:
   Parser* parser_;

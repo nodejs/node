@@ -2225,11 +2225,12 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
   __ JumpIfSmi(input, false_label);
 
   Register map = scratch2;
-  __ CompareObjectType(input, map, scratch1, JS_FUNCTION_TYPE);
+  __ CompareObjectType(input, map, scratch1, FIRST_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
   if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
-    __ B(eq, true_label);
+    __ B(hs, true_label);
   } else {
-    __ B(eq, false_label);
+    __ B(hs, false_label);
   }
 
   // Check if the constructor in the map is a function.

@@ -2498,11 +2498,12 @@ void LCodeGen::EmitClassOfTest(Label* is_true, Label* is_false,
 
   __ JumpIfSmi(input, is_false);
 
-  __ CompareObjectType(input, temp, temp2, JS_FUNCTION_TYPE);
+  __ CompareObjectType(input, temp, temp2, FIRST_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
   if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
-    __ beq(is_true);
+    __ bge(is_true);
   } else {
-    __ beq(is_false);
+    __ bge(is_false);
   }
 
   // Check if the constructor in the map is a function.
