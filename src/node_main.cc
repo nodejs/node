@@ -3,7 +3,7 @@
 #ifdef _WIN32
 int wmain(int argc, wchar_t *wargv[]) {
   // Convert argv to to UTF8
-  char** argv = new char*[argc];
+  char** argv = new char*[argc + 1];
   for (int i = 0; i < argc; i++) {
     // Compute the size of the required buffer
     DWORD size = WideCharToMultiByte(CP_UTF8,
@@ -35,6 +35,7 @@ int wmain(int argc, wchar_t *wargv[]) {
       exit(1);
     }
   }
+  argv[argc] = nullptr;
   // Now that conversion is done, we can finally start.
   return node::Start(argc, argv);
 }
