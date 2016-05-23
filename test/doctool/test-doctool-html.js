@@ -5,6 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+const processIncludes = require('../../tools/doc/preprocess.js');
 const html = require('../../tools/doc/html.js');
 
 // Test data is a list of objects with two properties.
@@ -53,30 +54,43 @@ const testData = [
       '<p>Describe <code>Something</code> in more detail here. ' +
       '</p>'
   },
+  {
+    file: path.join(common.fixturesDir, 'doc_with_includes.md'),
+    html: '<!-- [start-include:doc_inc_1.md] -->' +
+    '<p>Look <a href="doc_inc_2.html#doc_inc_2_foobar">here</a>!</p>' +
+    '<!-- [end-include:doc_inc_1.md] -->' +
+    '<!-- [start-include:doc_inc_2.md] -->' +
+    '<h1>foobar<span><a class="mark" href="#doc_inc_2_foobar" ' +
+    'id="doc_inc_2_foobar">#</a></span></h1>' +
+    '<p>I exist and am being linked to.</p>' +
+    '<!-- [end-include:doc_inc_2.md] -->'
+  },
 ];
 
 testData.forEach(function(item) {
   // Normalize expected data by stripping whitespace
   const expected = item.html.replace(/\s/g, '');
 
-  fs.readFile(item.file, 'utf8', common.mustCall(function(err, input) {
+  fs.readFile(item.file, 'utf8', common.mustCall((err, input) => {
     assert.ifError(err);
-    html(
-      {
-        input: input,
-        filename: 'foo',
-        template: 'doc/template.html',
-        nodeVersion: process.version,
-      },
+    processIncludes(item.file, input, common.mustCall((err, preprocessed) => {
+      assert.ifError(err);
 
-      common.mustCall(function(err, output) {
-        assert.ifError(err);
+      html(
+        {
+          input: preprocessed,
+          filename: 'foo',
+          template: 'doc/template.html',
+          nodeVersion: process.version,
+        },
+        common.mustCall((err, output) => {
+          assert.ifError(err);
 
-        const actual = output.replace(/\s/g, '');
-        // Assert that the input stripped of all whitespace contains the
-        // expected list
-        assert.notEqual(actual.indexOf(expected), -1);
-      })
-    );
+          const actual = output.replace(/\s/g, '');
+          // Assert that the input stripped of all whitespace contains the
+          // expected list
+          assert.notEqual(actual.indexOf(expected), -1);
+        }));
+    }));
   }));
 });
