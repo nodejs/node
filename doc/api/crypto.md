@@ -1724,7 +1724,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`hmac.update()`]: #crypto_hmac_update_data_input_encoding
 [`sign.sign()`]: #crypto_sign_sign_private_key_output_format
 [`sign.update()`]: #crypto_sign_update_data_input_encoding
-[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_details
+[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`verify.update()`]: #crypto_verifier_update_data_input_encoding
 [`verify.verify()`]: #crypto_verifier_verify_object_signature_signature_format
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
