@@ -10,7 +10,7 @@ characters. It can be accessed using:
 const StringDecoder = require('string_decoder').StringDecoder;
 ```
 
-The following example shows the basic use of the `StringDecoder` class. 
+The following example shows the basic use of the `StringDecoder` class.
 
 ```js
 const StringDecoder = require('string_decoder').StringDecoder;
@@ -25,11 +25,11 @@ console.log(decoder.write(euro));
 
 When a `Buffer` instance is written to the `StringDecoder` instance, an
 internal buffer is used to ensure that the decoded string does not contain
-any partial multibyte-characters. These are held in the buffer until the
+any incomplete multibyte characters. These are held in the buffer until the
 next call to `stringDecoder.write()` or until `stringDecoder.end()` is called.
 
-For following example, for instance, writes the three bytes for the European
-euro symbol over three separate operations:
+In the following example, the three UTF-8 encoded bytes of the European euro
+symbol are written over three separate operations:
 
 ```js
 const StringDecoder = require('string_decoder').StringDecoder;
@@ -55,8 +55,8 @@ Creates a new `StringDecoder` instance.
 added: v0.9.3
 -->
 
-Returns any trailing bytes that were left in the buffer as a string. Bytes that
-represent partial UTF-8 and UTF-16 characters will be replaced with
+Returns any remaining input stored in the internal buffer as a string. Bytes
+representing incomplete UTF-8 and UTF-16 characters will be replaced with
 substitution characters appropriate for the character encoding.
 
 ### stringDecoder.write(buffer)
@@ -66,6 +66,7 @@ added: v0.1.99
 
 * `buffer` {Buffer} A `Buffer` instance.
 
-Returns a decoded string, ensuring that any partial multibyte characters at the
-end of the `Buffer` omitted from the returned string and stored in an internal
-buffer for the next call to `stringDecoder.write()` or `stringDecoder.end()`.
+Returns a decoded string, ensuring that any incomplete multibyte characters at
+the end of the `Buffer` are omitted from the returned string and stored in an
+internal buffer for the next call to `stringDecoder.write()` or
+`stringDecoder.end()`.
