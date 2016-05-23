@@ -3558,11 +3558,11 @@ static void ParseArgs(int* argc,
       // --eval, -e and -pe always require an argument.
       if (is_eval == true) {
         args_consumed += 1;
-        eval_string = argv[index + 1];
-        if (eval_string == nullptr) {
+        if ((index + 1) >= nargs) {
           fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
           exit(9);
         }
+        eval_string = argv[index + 1];
       } else if ((index + 1 < nargs) &&
                  argv[index + 1] != nullptr &&
                  argv[index + 1][0] != '-') {
@@ -3575,11 +3575,11 @@ static void ParseArgs(int* argc,
       }
     } else if (strcmp(arg, "--require") == 0 ||
                strcmp(arg, "-r") == 0) {
-      const char* module = argv[index + 1];
-      if (module == nullptr) {
+      if ((index + 1) >= nargs) {
         fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
         exit(9);
       }
+      const char* module = argv[index + 1];
       args_consumed += 1;
       local_preload_modules[preload_module_count++] = module;
     } else if (strcmp(arg, "--check") == 0 || strcmp(arg, "-c") == 0) {
