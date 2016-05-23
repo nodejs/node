@@ -2944,9 +2944,10 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   __ CmpObjectType(rax, FIRST_JS_RECEIVER_TYPE, rax);
   __ j(below, &null, Label::kNear);
 
-  // Return 'Function' for JSFunction objects.
-  __ CmpInstanceType(rax, JS_FUNCTION_TYPE);
-  __ j(equal, &function, Label::kNear);
+  // Return 'Function' for JSFunction and JSBoundFunction objects.
+  __ CmpInstanceType(rax, FIRST_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
+  __ j(above_equal, &function, Label::kNear);
 
   // Check if the constructor in the map is a JS function.
   __ GetMapConstructor(rax, rax, rbx);
