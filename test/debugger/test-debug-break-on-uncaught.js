@@ -47,13 +47,14 @@ function runScenario(scriptName, throwsOnLine, next) {
   var stderr = '';
 
   function stderrListener(data) {
-    stderr += data.toString();
+    stderr += data;
     if (stderr.includes('Debugger listening on port')) {
       setTimeout(setupClient.bind(null, runTest), 200);
       child.stderr.removeListener('data', stderrListener);
     }
   }
 
+  child.stderr.setEncoding('utf8');
   child.stderr.on('data', stderrListener);
 
   function setupClient(callback) {
