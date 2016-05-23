@@ -33,3 +33,17 @@ assert.deepEqual(ret_err.spawnargs, ['bar']);
 
   assert.strictEqual(response.stdout.toString().trim(), cwd);
 })();
+
+{
+  // Test the encoding option
+  const noEncoding = common.spawnSyncPwd();
+  const bufferEncoding = common.spawnSyncPwd({encoding: 'buffer'});
+  const utf8Encoding = common.spawnSyncPwd({encoding: 'utf8'});
+
+  assert.deepStrictEqual(noEncoding.output, bufferEncoding.output);
+  assert.deepStrictEqual([
+    null,
+    noEncoding.stdout.toString(),
+    noEncoding.stderr.toString()
+  ], utf8Encoding.output);
+}
