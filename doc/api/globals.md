@@ -208,7 +208,7 @@ but rather than loading the module, just return the resolved filename.
 [native addons]: addons.html
 [timers]: timers.html
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediateobject
-[`clearInterval`]: timers.html#timers_clearinterval_intervalobject
+[`clearInterval`]: timers.html#timers_clearinterval_immediateobject
 [`clearTimeout`]: timers.html#timers_cleartimeout_timeoutobject
 [`setImmediate`]: timers.html#timers_setimmediate_callback_arg
 [`setInterval`]: timers.html#timers_setinterval_callback_delay_arg
