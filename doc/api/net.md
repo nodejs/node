@@ -731,7 +731,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`connect()`]: #net_socket_connect_options_connectlistener
 [`destroy()`]: #net_socket_destroy
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
-[`dns.lookup()` hints]: #dns_supported_getaddrinfo_flags
+[`dns.lookup()` hints]: dns.html#dns_supported_getaddrinfo_flags
 [`end()`]: #net_socket_end_data_encoding
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`net.Socket`]: #net_class_net_socket
