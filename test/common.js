@@ -237,6 +237,17 @@ exports.spawnPwd = function(options) {
   }
 };
 
+
+exports.spawnSyncPwd = function(options) {
+  const spawnSync = require('child_process').spawnSync;
+
+  if (exports.isWindows) {
+    return spawnSync('cmd.exe', ['/c', 'cd'], options);
+  } else {
+    return spawnSync('pwd', [], options);
+  }
+};
+
 exports.platformTimeout = function(ms) {
   if (process.config.target_defaults.default_configuration === 'Debug')
     ms = 2 * ms;
