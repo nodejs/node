@@ -175,6 +175,7 @@ information about the governance of the Node.js project, see
 * [domenic](https://github.com/domenic) - **Domenic Denicola** &lt;d@domenic.me&gt;
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) - **Robert Jefe Lindstaedt** &lt;robert.lindstaedt@gmail.com&gt;
 * [estliberitas](https://github.com/estliberitas) - **Alexander Makarenko** &lt;estliberitas@gmail.com&gt;
+* [firedfox](https://github.com/firedfox) - **Daniel Wang** &lt;wangyang0123@gmail.com&gt;
 * [geek](https://github.com/geek) - **Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [iarna](https://github.com/iarna) - **Rebecca Turner** &lt;me@re-becca.org&gt;
 * [isaacs](https://github.com/isaacs) - **Isaac Z. Schlueter** &lt;i@izs.me&gt;
