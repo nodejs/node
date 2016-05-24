@@ -2,8 +2,8 @@
 
 <!--type=misc-->
 
-Node.js comes with a wide variety of CLI options. These options expose built-in
-debugging, multiple ways to execute scripts, and other helpful runtime options.
+Node.js comes with a variety of CLI options. These options expose built-in
+debugging, multiple ways to execute scripts, and other helpful runtime features.
 
 To view this documentation as a manual page in your terminal, run `man node`.
 
@@ -25,19 +25,19 @@ _For more info about `node debug`, please see the [debugger][] documentation._
 
 ### `-v`, `--version`
 
-Print node's version.
+Print version number.
 
 
 ### `-h`, `--help`
 
-Print node command line options.
-The output of this option is less detailed than this document.
+Print options.
+The output is less detailed than this document.
 
 
 ### `-e`, `--eval "script"`
 
-Evaluate the following argument as JavaScript. The modules which are
-predefined in the REPL can also be used in `script`.
+Evaluate the argument as JavaScript. The modules which are predefined in the
+REPL can also be used in `script`.
 
 
 ### `-p`, `--print "script"`
@@ -59,8 +59,8 @@ Opens the REPL even if stdin does not appear to be a terminal.
 
 Preload the specified module at startup.
 
-Follows `require()`'s module resolution
-rules. `module` may be either a path to a file, or a node module name.
+Follows `require()`'s module resolution rules. `module` may be either a path to
+a file, or a module name.
 
 
 ### `--no-deprecation`
@@ -87,19 +87,19 @@ Print stack traces for process warnings (including deprecations).
 
 ### `--trace-sync-io`
 
-Prints a stack trace whenever synchronous I/O is detected after the first turn
-of the event loop.
+Print a stack trace whenever synchronous I/O is detected after the first turn of
+the event loop.
 
 
 ### `--zero-fill-buffers`
 
-Automatically zero-fills all newly allocated [Buffer][] and [SlowBuffer][]
+Automatically zero-fill all newly allocated [Buffer][] and [SlowBuffer][]
 instances.
 
 
 ### `--preserve-symlinks`
 
-Instructs the module loader to preserve symbolic links when resolving and
+Instruct the module loader to preserve symbolic links when resolving and
 caching modules.
 
 By default, when Node.js loads a module from a path that is symbolically linked
@@ -191,7 +191,7 @@ _Note: on Windows, this is a `';'`-separated list instead._
 
 ### `NODE_DISABLE_COLORS=1`
 
-When set to `1` colors will not be used in the REPL.
+When set to `1`, colors will not be used in the REPL.
 
 
 ### `NODE_ICU_DATA=file`
