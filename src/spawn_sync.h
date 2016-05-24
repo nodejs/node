@@ -1,6 +1,8 @@
 #ifndef SRC_SPAWN_SYNC_H_
 #define SRC_SPAWN_SYNC_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 #include "node_buffer.h"
 
@@ -221,5 +223,7 @@ class SyncProcessRunner {
   Environment* env_;
 };
 }
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_SPAWN_SYNC_H_

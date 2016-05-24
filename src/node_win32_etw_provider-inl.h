@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_WIN32_ETW_PROVIDER_INL_H_
 #define SRC_NODE_WIN32_ETW_PROVIDER_INL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node_win32_etw_provider.h"
 #include "node_etw_provider.h"
 
@@ -264,5 +266,7 @@ bool NODE_NET_STREAM_END_ENABLED() { return events_enabled > 0; }
 bool NODE_V8SYMBOL_ENABLED() { return events_enabled > 0; }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WIN32_ETW_PROVIDER_INL_H_

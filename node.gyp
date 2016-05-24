@@ -706,6 +706,7 @@
         'GTEST_DONT_DEFINE_ASSERT_LE=1',
         'GTEST_DONT_DEFINE_ASSERT_LT=1',
         'GTEST_DONT_DEFINE_ASSERT_NE=1',
+        'NODE_WANT_INTERNALS=1',
       ],
       'sources': [
         'test/cctest/util.cc',

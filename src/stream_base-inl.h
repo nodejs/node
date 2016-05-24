@@ -1,6 +1,8 @@
 #ifndef SRC_STREAM_BASE_INL_H_
 #define SRC_STREAM_BASE_INL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "stream_base.h"
 
 #include "node.h"
@@ -161,5 +163,7 @@ char* WriteWrap::Extra(size_t offset) {
 }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STREAM_BASE_INL_H_
