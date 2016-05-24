@@ -11,7 +11,6 @@ const child = require('child_process');
 const path = require('path');
 const nodejs = '"' + process.execPath + '"';
 
-
 // replace \ by / because windows uses backslashes in paths, but they're still
 // interpreted as the escape character when put between quotes.
 var filename = __filename.replace(/\\/g, '/');
@@ -66,8 +65,14 @@ child.exec(nodejs + ' --eval "require(\'./test/parallel/test-cli-eval.js\')"',
       assert.equal(status.code, 42);
     });
 
+// Missing argument should not crash
+child.exec(nodejs + ' -e', function (status, stdout, stderr) {
+  assert.notStrictEqual(status, null);
+  assert.equal(status.code, 9);
+});
+
 // empty program should do nothing
-child.exec(nodejs + ' -e ""', function(status, stdout, stderr) {
+child.exec(nodejs + ' -e ""', function (status, stdout, stderr) {
   assert.equal(stdout, '');
   assert.equal(stderr, '');
 });
