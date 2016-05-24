@@ -14,17 +14,14 @@ This release is specifically related to a Buffer overflow vulnerability discover
 
 ### Notable Changes
 
-* **buffer**:
-  * Buffer no longer errors if you call lastIndexOf with a search term longer than the buffer (Anna Henningsen) [#6511](https://github.com/nodejs/node/pull/6511)
-
-* **contextify**:
-  * Context objects are now properly garbage collected, this solves a problem some individuals were experiencing with extreme memory growth (Ali Ijaz Sheikh) [#6871](https://github.com/nodejs/node/pull/6871)
-
-* **deps**:
-  * update npm to 2.15.5 (Rebecca Turner) [#6663](https://github.com/nodejs/node/pull/6663)
-
-* **http**:
-  * Invalid status codes can no longer be sent. Limited to 3 digit numbers between 100 - 999 (Brian White) [#6291](https://github.com/nodejs/node/pull/6291)
+- **buffer**:
+  - Buffer.indexOf now returns correct values for all UTF-16 input (Anna Henningsen) [#6511](https://github.com/nodejs/node/pull/6511)
+- **contextify**:
+  - Context objects are now properly garbage collected, this solves a problem some individuals were experiencing with extreme memory growth (Ali Ijaz Sheikh) [#6871](https://github.com/nodejs/node/pull/6871)
+- **deps**:
+  - update npm to 2.15.5 (Rebecca Turner) [#6663](https://github.com/nodejs/node/pull/6663)
+- **http**:
+  - Invalid status codes can no longer be sent. Limited to 3 digit numbers between 100 - 999 (Brian White) [#6291](https://github.com/nodejs/node/pull/6291)
 
 ### Commits
 
