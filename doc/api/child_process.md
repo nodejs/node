@@ -195,7 +195,7 @@ replace the existing process and uses a shell to execute the command.*
   * `encoding` {String} (Default: `'utf8'`)
   * `timeout` {Number} (Default: `0`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
-    stdout or stderr - if exceeded child process is killed (Default: `200\*1024`)
+    stdout or stderr - if exceeded child process is killed (Default: `200*1024`)
   * `killSignal` {String} (Default: `'SIGTERM'`)
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
