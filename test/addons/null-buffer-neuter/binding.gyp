@@ -2,7 +2,10 @@
   'targets': [
     {
       'target_name': 'binding',
-      'defines': [ 'V8_DEPRECATION_WARNINGS=1' ],
+      'defines': [
+        'NODE_WANT_INTERNALS=1',
+        'V8_DEPRECATION_WARNINGS=1',
+      ],
       'sources': [ 'binding.cc' ]
     }
   ]

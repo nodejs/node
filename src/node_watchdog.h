@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_WATCHDOG_H_
 #define SRC_NODE_WATCHDOG_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "v8.h"
 #include "uv.h"
 
@@ -31,5 +33,7 @@ class Watchdog {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WATCHDOG_H_

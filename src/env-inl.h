@@ -1,6 +1,8 @@
 #ifndef SRC_ENV_INL_H_
 #define SRC_ENV_INL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "env.h"
 #include "node.h"
 #include "util.h"
@@ -575,5 +577,7 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
 #undef PER_ISOLATE_STRING_PROPERTIES
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ENV_INL_H_

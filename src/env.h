@@ -1,6 +1,8 @@
 #ifndef SRC_ENV_H_
 #define SRC_ENV_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "ares.h"
 #include "debug-agent.h"
 #include "handle_wrap.h"
@@ -646,5 +648,7 @@ class Environment {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_ENV_H_
