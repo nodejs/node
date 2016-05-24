@@ -1,6 +1,8 @@
 #ifndef SRC_UTIL_INL_H_
 #define SRC_UTIL_INL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "util.h"
 
 namespace node {
@@ -218,5 +220,7 @@ bool StringEqualNoCase(const char* a, const char* b) {
 }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UTIL_INL_H_

@@ -1,3 +1,4 @@
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 /* GlobalSign Root CA */
 "-----BEGIN CERTIFICATE-----\n"
@@ -3881,3 +3882,5 @@
 "1T2wdKyUpOgOPQB0TKGXa/kNUTyh2Tv0Daupn75OcsqF1NnstTJFGG+rrQIwfcf3aWMvoeGY\n"
 "7xMQ0Xk/0f7qO3/eVvSQsRUR2LIiFdAvwyYua/GRspBl9JrmkO5K\n"
 "-----END CERTIFICATE-----\n",
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

@@ -1,6 +1,8 @@
 #ifndef SRC_BASE_OBJECT_INL_H_
 #define SRC_BASE_OBJECT_INL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "base-object.h"
 #include "env.h"
 #include "env-inl.h"
@@ -67,5 +69,7 @@ inline void BaseObject::ClearWeak() {
 }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_BASE_OBJECT_INL_H_
