@@ -50,12 +50,12 @@ added: v0.1.99
 
 Creates a new `StringDecoder` instance.
 
-### stringDecoder.end(buffer)
+### stringDecoder.end([buffer])
 <!-- YAML
 added: v0.9.3
 -->
 
-* `buffer` {Buffer} A `Buffer` instance.
+* `buffer` {Buffer} A `Buffer` containing the bytes to decode.
 
 Returns any remaining input stored in the internal buffer as a string. Bytes
 representing incomplete UTF-8 and UTF-16 characters will be replaced with
@@ -69,7 +69,7 @@ is performed before returning the remaining input.
 added: v0.1.99
 -->
 
-* `buffer` {Buffer} A `Buffer` instance.
+* `buffer` {Buffer} A `Buffer` containing the bytes to decode.
 
 Returns a decoded string, ensuring that any incomplete multibyte characters at
 the end of the `Buffer` are omitted from the returned string and stored in an
