@@ -66,13 +66,13 @@ child.exec(nodejs + ' --eval "require(\'./test/parallel/test-cli-eval.js\')"',
     });
 
 // Missing argument should not crash
-child.exec(nodejs + ' -e', function (status, stdout, stderr) {
+child.exec(nodejs + ' -e', function(status, stdout, stderr) {
   assert.notStrictEqual(status, null);
   assert.equal(status.code, 9);
 });
 
 // empty program should do nothing
-child.exec(nodejs + ' -e ""', function (status, stdout, stderr) {
+child.exec(nodejs + ' -e ""', function(status, stdout, stderr) {
   assert.equal(stdout, '');
   assert.equal(stderr, '');
 });
