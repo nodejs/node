@@ -11,6 +11,7 @@ const child = require('child_process');
 const path = require('path');
 const nodejs = '"' + process.execPath + '"';
 
+
 // replace \ by / because windows uses backslashes in paths, but they're still
 // interpreted as the escape character when put between quotes.
 var filename = __filename.replace(/\\/g, '/');
