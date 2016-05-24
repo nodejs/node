@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_INTERNALS_H_
 #define SRC_NODE_INTERNALS_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 #include "util.h"
 #include "util-inl.h"
@@ -312,5 +314,7 @@ v8::MaybeLocal<v8::Object> New(Environment* env, char* data, size_t length);
 }  // namespace Buffer
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_INTERNALS_H_

@@ -1,6 +1,8 @@
 #ifndef SRC_UTIL_H_
 #define SRC_UTIL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "v8.h"
 
 #include <assert.h>
@@ -303,5 +305,7 @@ class BufferValue : public MaybeStackBuffer<char> {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UTIL_H_
