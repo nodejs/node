@@ -348,8 +348,12 @@ p tt, p code, li code {
 
 a code {
   color: inherit;
-  background: inherit;
-  padding: 0;
+  background:#f2f2f2;
+  padding: .1em .3em;
+}
+
+a:hover code {
+  background: #43853d;
 }
 
 .type {
