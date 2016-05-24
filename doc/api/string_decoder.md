@@ -37,7 +37,7 @@ const decoder = new StringDecoder('utf8');
 
 decoder.write(Buffer.from([0xE2]));
 decoder.write(Buffer.from([0x82]));
-console.log(decoder.write(Buffer.from([0xAC])));
+console.log(decoder.end(Buffer.from([0xAC])));
 ```
 
 ## Class: new StringDecoder([encoding])
@@ -50,14 +50,19 @@ added: v0.1.99
 
 Creates a new `StringDecoder` instance.
 
-### stringDecoder.end()
+### stringDecoder.end(buffer)
 <!-- YAML
 added: v0.9.3
 -->
 
+* `buffer` {Buffer} A `Buffer` instance.
+
 Returns any remaining input stored in the internal buffer as a string. Bytes
 representing incomplete UTF-8 and UTF-16 characters will be replaced with
 substitution characters appropriate for the character encoding.
+
+If the `buffer` argument is provided, one final call to `stringDecoder.write()`
+is performed before returning the remaining input.
 
 ### stringDecoder.write(buffer)
 <!-- YAML
