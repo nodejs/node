@@ -11,6 +11,7 @@ const linkManPages = require('./lib/linkManPages')
 const parseText = require('./lib/parseText')
 const toHTML = require('./lib/toHTML')
 const loadGtoc = require('./lib/loadGtoc')
+const toID = require('./lib/toID')
 
 module.exports = toHTML;
 
@@ -24,12 +25,6 @@ marked.setOptions({
 });
 
 
-function toID(filename) {
-  return filename
-    .replace('.html', '')
-    .replace(/[^\w\-]/g, '-')
-    .replace(/-+/g, '-');
-}
 
 function render(lexed, filename, template, nodeVersion, cb) {
   if (typeof nodeVersion === 'function') {
