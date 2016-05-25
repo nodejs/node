@@ -1,5 +1,6 @@
-const linkManPages = require('./linkManPages')
-const linkJsTypeDocs = require('./linkJsTypeDocs')
+'use strict';
+const linkManPages = require('./linkManPages');
+const linkJsTypeDocs = require('./linkJsTypeDocs');
 // handle general body-text replacements
 // for example, link man page references to the actual page
 module.exports = function parseText(lexed) {
@@ -9,4 +10,4 @@ module.exports = function parseText(lexed) {
       tok.text = linkJsTypeDocs(tok.text);
     }
   });
-}
+};

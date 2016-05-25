@@ -1,3 +1,4 @@
+'use strict';
 // Syscalls which appear in the docs, but which only exist in BSD / OSX
 var BSD_ONLY_SYSCALLS = new Set(['lchmod']);
 
@@ -16,4 +17,4 @@ module.exports = function linkManPages(text) {
              '/' + name + '.' + number + '.html">' + displayAs + '</a>';
     }
   });
-}
+};

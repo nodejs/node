@@ -1,5 +1,5 @@
-const marked = require('marked')
-const toID = require('./toID.js');
+'use strict';
+const marked = require('marked');
 const getId = require('./getId.js');
 
 module.exports = function buildToc(lexed, filename, cb) {
@@ -23,4 +23,4 @@ module.exports = function buildToc(lexed, filename, cb) {
 
   toc = marked.parse(toc.join('\n'));
   cb(null, toc);
-}
+};

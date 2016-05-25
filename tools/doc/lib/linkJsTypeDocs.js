@@ -1,3 +1,4 @@
+'use strict';
 const typeParser = require('../type-parser.js');
 
 module.exports = function linkJsTypeDocs(text) {
@@ -18,4 +19,4 @@ module.exports = function linkJsTypeDocs(text) {
 
   //XXX maybe put more stuff here?
   return parts.join('`');
-}
+};

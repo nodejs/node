@@ -1,3 +1,4 @@
+'use strict';
 const common = require('../common.js');
 
 module.exports = function parseYAML(text) {
@@ -14,4 +15,4 @@ module.exports = function parseYAML(text) {
 
   html.push('</div>');
   return html.join('\n');
-}
+};

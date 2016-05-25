@@ -1,7 +1,8 @@
-const fs = require('fs')
-const loadGtoc = require('./loadGtoc').loadGtoc
-const render = require('./render')
-const marked = require('marked')
+'use strict';
+const fs = require('fs');
+const loadGtoc = require('./loadGtoc').loadGtoc;
+const render = require('./render');
+const marked = require('marked');
 
 // customized heading without id attribute
 var renderer = new marked.Renderer();
@@ -46,4 +47,4 @@ module.exports = function toHTML(input, filename, template, nodeVersion, cb) {
       render(lexed, filename, template, nodeVersion, cb);
     });
   }
-}
+};

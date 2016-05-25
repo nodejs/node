@@ -1,4 +1,4 @@
-
+'use strict';
 // section is just the first heading
 module.exports = function getSection(lexed) {
   for (var i = 0, l = lexed.length; i < l; i++) {
@@ -6,4 +6,4 @@ module.exports = function getSection(lexed) {
     if (tok.type === 'heading') return tok.text;
   }
   return '';
-}
+};

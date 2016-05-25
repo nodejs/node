@@ -1,3 +1,4 @@
+'use strict';
 var idCounters = {};
 module.exports = function getId(text) {
   text = text.toLowerCase();
@@ -10,4 +11,4 @@ module.exports = function getId(text) {
     idCounters[text] = 0;
   }
   return text;
-}
+};

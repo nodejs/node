@@ -1,6 +1,7 @@
-const path = require('path')
-const fs = require('fs')
-const marked = require('marked')
+'use strict';
+const path = require('path');
+const fs = require('fs');
+const marked = require('marked');
 const preprocess = require('../preprocess.js');
 const toID = require('./toID.js');
 // TODO(chrisdickinson): never stop vomitting / fix this.
@@ -30,4 +31,4 @@ exports.loadGtoc = (cb) => {
       return cb(null, data);
     });
   });
-}
+};

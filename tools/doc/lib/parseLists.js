@@ -1,3 +1,4 @@
+'use strict';
 const common = require('../common.js');
 const parseAPIHeader = require('./parseAPIHeader.js');
 const parseYAML = require('./parseYAML.js');
@@ -59,4 +60,4 @@ module.exports = function parseLists(input) {
   });
 
   return output;
-}
+};

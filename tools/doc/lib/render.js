@@ -1,9 +1,10 @@
-const path = require('path')
-const marked = require('marked')
-const getSection = require('./getSection')
-const parseText = require('./parseText')
-const parseLists = require('./parseLists')
-const buildToc = require('./buildToc')
+'use strict';
+const path = require('path');
+const marked = require('marked');
+const getSection = require('./getSection');
+const parseText = require('./parseText');
+const parseLists = require('./parseLists');
+const buildToc = require('./buildToc');
 const toID = require('./toID.js');
 
 module.exports = function render(lexed, filename, template, nodeVersion, cb) {
@@ -36,7 +37,7 @@ module.exports = function render(lexed, filename, template, nodeVersion, cb) {
     template = template.replace(/__TOC__/g, toc);
     template = template.replace(
       /__GTOC__/g,
-      global.gtocData.replace('class="nav-' + id, 'class="nav-' + id + ' active')
+      global.gtocData.replace(`class="nav-${id}`, `class="nav-${id} active`)
     );
 
     // content has to be the last thing we do with
@@ -46,4 +47,4 @@ module.exports = function render(lexed, filename, template, nodeVersion, cb) {
 
     cb(null, template);
   });
-}
+};

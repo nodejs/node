@@ -5,6 +5,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+common.globalCheck = false;
+
 const html = require('../../tools/doc/html.js').toHTML;
 
 // Test data is a list of objects with two properties.
