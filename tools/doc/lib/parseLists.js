@@ -1,4 +1,6 @@
-
+const common = require('../common.js');
+const parseAPIHeader = require('./parseAPIHeader.js');
+const parseYAML = require('./parseYAML.js');
 // just update the list item text in-place.
 // lists that come right after a heading are what we're after.
 module.exports = function parseLists(input) {

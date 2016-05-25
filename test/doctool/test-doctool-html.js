@@ -5,7 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const html = require('../../tools/doc/html.js');
+const html = require('../../tools/doc/html.js').toHTML;
 
 // Test data is a list of objects with two properties.
 // The file property is the file path.

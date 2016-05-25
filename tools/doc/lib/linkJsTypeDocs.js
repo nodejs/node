@@ -1,3 +1,5 @@
+const typeParser = require('../type-parser.js');
+
 module.exports = function linkJsTypeDocs(text) {
   var parts = text.split('`');
   var i;

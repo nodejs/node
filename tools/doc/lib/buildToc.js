@@ -1,3 +1,6 @@
+const marked = require('marked')
+const toID = require('./toID.js');
+const getId = require('./getId.js');
 
 module.exports = function buildToc(lexed, filename, cb) {
   var toc = [];

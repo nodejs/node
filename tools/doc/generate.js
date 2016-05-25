@@ -48,7 +48,7 @@ function next(er, input) {
       break;
 
     case 'html':
-      require('./html.js')(input, inputFile, template, nodeVersion,
+      require('./html.js').toHTML(input, inputFile, template, nodeVersion,
         function(er, html) {
           if (er) throw er;
           console.log(html);

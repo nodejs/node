@@ -1,3 +1,18 @@
+const fs = require('fs')
+const loadGtoc = require('./loadGtoc').loadGtoc
+const render = require('./render')
+const marked = require('marked')
+
+// customized heading without id attribute
+var renderer = new marked.Renderer();
+renderer.heading = function(text, level) {
+  return '<h' + level + '>' + text + '</h' + level + '>\n';
+};
+marked.setOptions({
+  renderer: renderer
+});
+
+
 module.exports = function toHTML(input, filename, template, nodeVersion, cb) {
   if (typeof nodeVersion === 'function') {
     cb = nodeVersion;
@@ -5,23 +20,23 @@ module.exports = function toHTML(input, filename, template, nodeVersion, cb) {
   }
   nodeVersion = nodeVersion || process.version;
 
-  if (gtocData) {
+  if (global.gtocData) {
     return onGtocLoaded();
   }
 
-  if (gtocLoading === null) {
-    gtocLoading = [onGtocLoaded];
+  if (global.gtocLoading === null) {
+    global.gtocLoading = [onGtocLoaded];
     return loadGtoc(function(err, data) {
       if (err) throw err;
-      gtocData = data;
-      gtocLoading.forEach(function(xs) {
+      global.gtocData = data;
+      global.gtocLoading.forEach(function(xs) {
         xs();
       });
     });
   }
 
-  if (gtocLoading) {
-    return gtocLoading.push(onGtocLoaded);
+  if (global.gtocLoading) {
+    return global.gtocLoading.push(onGtocLoaded);
   }
 
   function onGtocLoaded() {

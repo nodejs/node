@@ -1,3 +1,5 @@
+const common = require('../common.js');
+
 module.exports = function parseYAML(text) {
   const meta = common.extractAndParseYAML(text);
   const html = ['<div class="api_metadata">'];
