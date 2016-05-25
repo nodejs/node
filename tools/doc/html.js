@@ -16,6 +16,7 @@ const render = require('./lib/render')
 const parseLists = require('./lib/parseLists')
 const parseYAML = require('./lib/parseYAML')
 const linkJsTypeDocs = require('./lib/linkJsTypeDocs')
+const parseAPIHeader = require('./lib/parseAPIHeader')
 
 module.exports = toHTML;
 
@@ -28,15 +29,6 @@ marked.setOptions({
   renderer: renderer
 });
 
-
-
-function parseAPIHeader(text) {
-  text = text.replace(
-    /(.*:)\s(\d)([\s\S]*)/,
-    '<pre class="api_stability api_stability_$2">$1 $2$3</pre>'
-  );
-  return text;
-}
 
 // section is just the first heading
 function getSection(lexed) {
