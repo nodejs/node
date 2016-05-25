@@ -17,6 +17,7 @@ const parseLists = require('./lib/parseLists')
 const parseYAML = require('./lib/parseYAML')
 const linkJsTypeDocs = require('./lib/linkJsTypeDocs')
 const parseAPIHeader = require('./lib/parseAPIHeader')
+const getSection = require('./lib/getSection')
 
 module.exports = toHTML;
 
@@ -30,14 +31,6 @@ marked.setOptions({
 });
 
 
-// section is just the first heading
-function getSection(lexed) {
-  for (var i = 0, l = lexed.length; i < l; i++) {
-    var tok = lexed[i];
-    if (tok.type === 'heading') return tok.text;
-  }
-  return '';
-}
 
 
 function buildToc(lexed, filename, cb) {
