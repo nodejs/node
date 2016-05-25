@@ -7,6 +7,8 @@ const path = require('path');
 const preprocess = require('./preprocess.js');
 const typeParser = require('./type-parser.js');
 
+const linkManPages = require('./lib/linkManPages')
+
 module.exports = toHTML;
 
 // customized heading without id attribute
@@ -216,25 +218,6 @@ function parseYAML(text) {
   return html.join('\n');
 }
 
-// Syscalls which appear in the docs, but which only exist in BSD / OSX
-var BSD_ONLY_SYSCALLS = new Set(['lchmod']);
-
-// Handle references to man pages, eg "open(2)" or "lchmod(2)"
-// Returns modified text, with such refs replace with HTML links, for example
-// '<a href="http://man7.org/linux/man-pages/man2/open.2.html">open(2)</a>'
-function linkManPages(text) {
-  return text.replace(/ ([a-z]+)\((\d)\)/gm, function(match, name, number) {
-    // name consists of lowercase letters, number is a single digit
-    var displayAs = name + '(' + number + ')';
-    if (BSD_ONLY_SYSCALLS.has(name)) {
-      return ' <a href="https://www.freebsd.org/cgi/man.cgi?query=' + name +
-             '&sektion=' + number + '">' + displayAs + '</a>';
-    } else {
-      return ' <a href="http://man7.org/linux/man-pages/man' + number +
-             '/' + name + '.' + number + '.html">' + displayAs + '</a>';
-    }
-  });
-}
 
 function linkJsTypeDocs(text) {
   var parts = text.split('`');
