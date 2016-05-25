@@ -8,6 +8,7 @@ const preprocess = require('./preprocess.js');
 const typeParser = require('./type-parser.js');
 
 const linkManPages = require('./lib/linkManPages')
+const parseText = require('./lib/parseText')
 
 module.exports = toHTML;
 
@@ -131,16 +132,6 @@ function render(lexed, filename, template, nodeVersion, cb) {
   });
 }
 
-// handle general body-text replacements
-// for example, link man page references to the actual page
-function parseText(lexed) {
-  lexed.forEach(function(tok) {
-    if (tok.text && tok.type !== 'code') {
-      tok.text = linkManPages(tok.text);
-      tok.text = linkJsTypeDocs(tok.text);
-    }
-  });
-}
 
 // just update the list item text in-place.
 // lists that come right after a heading are what we're after.
