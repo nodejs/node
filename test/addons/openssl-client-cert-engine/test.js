@@ -1,5 +1,5 @@
 'use strict';
-require('../../common');
+const common = require('../../common');
 const assert = require('assert');
 const https = require('https');
 const fs = require('fs');
@@ -14,7 +14,7 @@ var agentKey = fs.readFileSync('test/fixtures/keys/agent1-key.pem');
 var agentCert = fs.readFileSync('test/fixtures/keys/agent1-cert.pem');
 var agentCa = fs.readFileSync('test/fixtures/keys/ca1-cert.pem');
 
-var port = 18020;
+var port = common.PORT;
 
 const serverOptions = {
   key: agentKey,
@@ -27,21 +27,11 @@ const serverOptions = {
 var server = https.createServer(serverOptions, (req, res) => {
   res.writeHead(200);
   res.end('hello world');
-}).listen(port);
-
-function testFailed(message) {
-  server.close();
-  assert(false, message);
-}
-
-function testPassed() {
-  console.log('Test passed!');
-  server.close();
-}
+}).listen(port, common.localhostIPv4);
 
 var clientOptions = {
   method: 'GET',
-  host: '127.0.0.1',
+  host: common.localhostIPv4,
   port: port,
   path: '/test',
   clientCertEngine: engine,   // engine will provide key+cert
@@ -56,17 +46,11 @@ var req = https.request(clientOptions, (response) => {
     body += chunk;
   });
 
-  response.on('end', () => {
-    if (body == 'hello world') {
-      testPassed();
-    } else {
-      testFailed('unexpected body: <' + body + '>');
-    }
-  });
-});
-
-req.on('error', (e) => {
-  testFailed('request error: ' + e.message);
+  response.on('end', common.mustCall(function() {
+    assert.strictEqual(body, 'hello world');
+    console.log('Test passed!');
+    server.close();
+  }));
 });
 
 req.end();

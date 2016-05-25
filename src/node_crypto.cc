@@ -210,15 +210,17 @@ static int CryptoPemCallback(char *buf, int size, int rwflag, void *u) {
 }
 
 // Loads OpenSSL engine by engine id and returns it. The loaded engine
-// gets a reference so remember the corresponding call to ENGINE_free
-// In case of error the appropriate js exception is schduled
+// gets a reference so remember the corresponding call to ENGINE_free.
+// In case of error the appropriate js exception is scheduled
 // and nullptr is returned.
 #ifndef OPENSSL_NO_ENGINE
-static ENGINE* LoadEngineById(Environment* env, const char *engine_id) {
+static ENGINE* LoadEngineById(Environment* env, const char* engine_id) {
   ENGINE* engine = ENGINE_by_id(engine_id);
 
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
   if (engine == nullptr) {
-    // Engine not found, try loading dynamically
+    // Engine not found, try loading dynamically.
     engine = ENGINE_by_id("dynamic");
     if (engine != nullptr) {
       if (!ENGINE_ctrl_cmd_string(engine, "SO_PATH", engine_id, 0) ||
@@ -239,8 +241,6 @@ static ENGINE* LoadEngineById(Environment* env, const char *engine_id) {
                "Engine \"%s\" was not found", engine_id);
     }
     env->ThrowError(errmsg);
-    // Forcibly clear OpenSSL's error stack
-    ERR_clear_error();
   }
 
   return engine;
@@ -328,7 +328,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "loadPKCS12", SecureContext::LoadPKCS12);
 #ifndef OPENSSL_NO_ENGINE
   env->SetProtoMethod(t, "setClientCertEngine",
-    SecureContext::SetClientCertEngine);
+                      SecureContext::SetClientCertEngine);
 #endif  // !OPENSSL_NO_ENGINE
   env->SetProtoMethod(t, "getTicketKeys", SecureContext::GetTicketKeys);
   env->SetProtoMethod(t, "setTicketKeys", SecureContext::SetTicketKeys);
@@ -1067,38 +1067,39 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
 
 #ifndef OPENSSL_NO_ENGINE
 void SecureContext::SetClientCertEngine(
-  const FunctionCallbackInfo<Value>& args) {
+    const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK(args.Length() == 1 && args[0]->IsString());
+  CHECK_EQ(args.Length(), 1);
+  CHECK_EQ(args[0]->IsString(), true);
 
   SecureContext* sc = Unwrap<SecureContext>(args.This());
 
-  ClearErrorOnReturn clear_error_on_return;
+  MarkPopErrorOnReturn mark_pop_error_on_return;
 
-  // If an engine was previously set, free it.
-  // This is because SSL_CTX_set_client_cert_engine does not itself
-  // 'support' multiple calls by cleaning up before overwriting the
-  // client_cert_engine internal context variable
+  // SSL_CTX_set_client_cert_engine does not itself 'support' multiple
+  // calls by cleaning up before overwriting the client_cert_engine
+  // internal context variable.
+  // Instead of trying to fix up this problem we in turn also do not
+  // support multiple calls to SetClientCertEngine. As this may surprise
+  // a developer we throw him an exception.
   if (sc->ctx_->client_cert_engine != NULL) {
-    ENGINE* e = sc->ctx_->client_cert_engine;
-    sc->ctx_->client_cert_engine = nullptr;
-    ENGINE_finish(e);
+    return env->ThrowError(
+        "Multiple calls to SetClientCertEngine is not allowed");
   }
 
-  // Load engine
+  // Load engine.
   const node::Utf8Value engine_id(env->isolate(), args[0]);
   ENGINE* engine = LoadEngineById(env, *engine_id);
 
   if (engine == nullptr) {
-    // Load failed... appropriate js exception has been scheduled
+    // Load failed... appropriate js exception has been scheduled.
     return;
   }
 
   int r = SSL_CTX_set_client_cert_engine(sc->ctx_, engine);
-  // Free reference (SSL_CTX_set_client_cert_engine took it via ENGINE_init)
+  // Free reference (SSL_CTX_set_client_cert_engine took it via ENGINE_init).
   ENGINE_free(engine);
   if (r == 0) {
-    ERR_clear_error();
     return ThrowCryptoError(env, ERR_get_error());
   }
 }

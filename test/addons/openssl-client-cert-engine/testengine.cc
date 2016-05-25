@@ -40,9 +40,9 @@ static int EngineDestroy(ENGINE* engine) {
   return 1;
 }
 
-static std::string loadFile(const char *filename) {
+static std::string loadFile(const char* filename) {
   std::string ret;
-  FILE *fp = fopen(filename, "r");
+  FILE* fp = fopen(filename, "r");
   if (fp == NULL) {
     printf("Could not open file '%s'\n", filename);
     return ret;
@@ -80,8 +80,7 @@ static int EngineLoadSSLClientCert(ENGINE* engine,
       return 0;
     }
 
-    BIO* bio = BIO_new_mem_buf(reinterpret_cast<const void*>(cert.data()),
-                               static_cast<int>(cert.size()));
+    BIO* bio = BIO_new_mem_buf(cert.data(), cert.size());
     *ppcert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
      BIO_vfree(bio);
      if (*ppcert == NULL) {
@@ -92,12 +91,11 @@ static int EngineLoadSSLClientCert(ENGINE* engine,
 
   if (ppkey) {
     std::string key = loadFile(AGENT_KEY);
-    if (key.size() == 0) {
+    if (key.empty()) {
       return 0;
     }
 
-    BIO* bio = BIO_new_mem_buf(reinterpret_cast<const void*>(key.data()),
-                               static_cast<int>(key.size()));
+    BIO* bio = BIO_new_mem_buf(key.data(), key.size());
     *ppkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
     BIO_vfree(bio);
     if (*ppkey == NULL) {
