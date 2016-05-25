@@ -10,6 +10,7 @@ testStrictMode();
 testResetContext();
 testResetContextGlobal();
 testMagicMode();
+testNoUnderscoreOption();
 
 function testSloppyMode() {
   const r = initRepl(repl.REPL_MODE_SLOPPY);
@@ -110,6 +111,27 @@ function testMagicMode() {
   ]);
 }
 
+function testNoUnderscoreOption() {
+  const r = initRepl(repl.REPL_MODE_MAGIC, true);
+
+  r.write(`_ = 10;     // explicitly set to 10
+          _;           // 10 from user input
+          .clear       // Clearing context...
+          _;           // remains 10
+          x = 20;      // behavior *does not* revert to last eval
+          _;           // expect 10
+          `);
+
+  assertOutput(r.output, [
+    '10',
+    '10',
+    'Clearing context...',
+    '10',
+    '20',
+    '10'
+  ]);
+}
+
 function testResetContext() {
   const r = initRepl(repl.REPL_MODE_SLOPPY);
 
@@ -133,7 +155,7 @@ function testResetContext() {
 }
 
 function testResetContextGlobal() {
-  const r = initRepl(repl.REPL_MODE_STRICT, true);
+  const r = initRepl(repl.REPL_MODE_STRICT, false, true);
 
   r.write(`_ = 10;     // explicitly set to 10
           _;           // 10 from user input
@@ -153,7 +175,7 @@ function testResetContextGlobal() {
   delete global.require;
 }
 
-function initRepl(mode, useGlobal) {
+function initRepl(mode, useGlobal = false, noUnderscore = false) {
   const inputStream = new stream.PassThrough();
   const outputStream = new stream.PassThrough();
   outputStream.accum = '';
@@ -169,7 +191,8 @@ function initRepl(mode, useGlobal) {
     terminal: false,
     prompt: '',
     replMode: mode,
-    useGlobal: useGlobal
+    useGlobal: useGlobal,
+    noUnderscore
   });
 }
 
