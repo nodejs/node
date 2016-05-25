@@ -13,6 +13,7 @@ const toHTML = require('./lib/toHTML')
 const loadGtoc = require('./lib/loadGtoc')
 const toID = require('./lib/toID')
 const render = require('./lib/render')
+const parseLists = require('./lib/parseLists')
 
 module.exports = toHTML;
 
@@ -25,66 +26,6 @@ marked.setOptions({
   renderer: renderer
 });
 
-
-// just update the list item text in-place.
-// lists that come right after a heading are what we're after.
-function parseLists(input) {
-  var state = null;
-  var depth = 0;
-  var output = [];
-  output.links = input.links;
-  input.forEach(function(tok) {
-    if (tok.type === 'code' && tok.text.match(/Stability:.*/g)) {
-      tok.text = parseAPIHeader(tok.text);
-      output.push({ type: 'html', text: tok.text });
-      return;
-    }
-    if (state === null ||
-      (state === 'AFTERHEADING' && tok.type === 'heading')) {
-      if (tok.type === 'heading') {
-        state = 'AFTERHEADING';
-      }
-      output.push(tok);
-      return;
-    }
-    if (state === 'AFTERHEADING') {
-      if (tok.type === 'list_start') {
-        state = 'LIST';
-        if (depth === 0) {
-          output.push({ type: 'html', text: '<div class="signature">' });
-        }
-        depth++;
-        output.push(tok);
-        return;
-      }
-      if (tok.type === 'html' && common.isYAMLBlock(tok.text)) {
-        tok.text = parseYAML(tok.text);
-      }
-      state = null;
-      output.push(tok);
-      return;
-    }
-    if (state === 'LIST') {
-      if (tok.type === 'list_start') {
-        depth++;
-        output.push(tok);
-        return;
-      }
-      if (tok.type === 'list_end') {
-        depth--;
-        output.push(tok);
-        if (depth === 0) {
-          state = null;
-          output.push({ type: 'html', text: '</div>' });
-        }
-        return;
-      }
-    }
-    output.push(tok);
-  });
-
-  return output;
-}
 
 function parseYAML(text) {
   const meta = common.extractAndParseYAML(text);
