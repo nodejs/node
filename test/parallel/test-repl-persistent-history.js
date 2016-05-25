@@ -115,19 +115,19 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY: historyPath },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, prompt + '\'Stay Fresh~\'', prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, prompt + '\'Stay Fresh~\'', prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_FILE: '' },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, prompt + '\'Stay Fresh~\'', prompt]
   },
   {
     env: {},
@@ -154,14 +154,13 @@ const tests = [
   { // Requires the above testcase
     env: {},
     test: [UP, UP, ENTER],
-    expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
-               prompt]
+    expected: [prompt, prompt + '\'42\'', '\'42\'\n', prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP, UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, prompt + '\'Stay Fresh~\'', prompt]
   },
   {
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath,
