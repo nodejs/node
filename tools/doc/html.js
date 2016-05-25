@@ -10,6 +10,7 @@ const typeParser = require('./type-parser.js');
 const linkManPages = require('./lib/linkManPages')
 const parseText = require('./lib/parseText')
 const toHTML = require('./lib/toHTML')
+const loadGtoc = require('./lib/loadGtoc')
 
 module.exports = toHTML;
 
@@ -22,33 +23,6 @@ marked.setOptions({
   renderer: renderer
 });
 
-// TODO(chrisdickinson): never stop vomitting / fix this.
-var gtocPath = path.resolve(path.join(
-  __dirname,
-  '..',
-  '..',
-  'doc',
-  'api',
-  '_toc.md'
-));
-var gtocLoading = null;
-var gtocData = null;
-
-
-function loadGtoc(cb) {
-  fs.readFile(gtocPath, 'utf8', function(err, data) {
-    if (err) return cb(err);
-
-    preprocess(gtocPath, data, function(err, data) {
-      if (err) return cb(err);
-
-      data = marked(data).replace(/<a href="(.*?)"/gm, function(a, m) {
-        return '<a class="nav-' + toID(m) + '" href="' + m + '"';
-      });
-      return cb(null, data);
-    });
-  });
-}
 
 function toID(filename) {
   return filename
