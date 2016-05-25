@@ -2,6 +2,8 @@
 
 const processIncludes = require('./preprocess.js');
 const fs = require('fs');
+const path = require('path');
+const toHTML = require('./html.js').toHTML;
 
 // parse the args.
 // Don't use nopt or whatever for this.  It's simple enough.
@@ -48,11 +50,15 @@ function next(er, input) {
       break;
 
     case 'html':
-      require('./html.js')(input, inputFile, template, nodeVersion,
-        function(er, html) {
-          if (er) throw er;
-          console.log(html);
+      toHTML(input, inputFile, template, nodeVersion, (er, html) => {
+        if (er) throw er;
+        const filename = `./out/doc/api/${path.basename(inputFile, 'md')}html`;
+        fs.writeFile(filename, html, (err) => {
+          if (err)
+            console.log(err);
+          console.log('generated:', filename);
         });
+      });
       break;
 
     default:
