@@ -135,11 +135,11 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   return kPreParseSuccess;
 }
 
-
 PreParserExpression PreParserTraits::ParseClassLiteral(
-    PreParserIdentifier name, Scanner::Location class_name_location,
-    bool name_is_strict_reserved, int pos, bool* ok) {
-  return pre_parser_->ParseClassLiteral(name, class_name_location,
+    Type::ExpressionClassifier* classifier, PreParserIdentifier name,
+    Scanner::Location class_name_location, bool name_is_strict_reserved,
+    int pos, bool* ok) {
+  return pre_parser_->ParseClassLiteral(classifier, name, class_name_location,
                                         name_is_strict_reserved, pos, ok);
 }
 
@@ -413,8 +413,8 @@ PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
   bool is_strict_reserved = false;
   Identifier name =
       ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
-  ParseClassLiteral(name, scanner()->location(), is_strict_reserved, pos,
-                    CHECK_OK);
+  ParseClassLiteral(nullptr, name, scanner()->location(), is_strict_reserved,
+                    pos, CHECK_OK);
   return Statement::Default();
 }
 
@@ -1061,10 +1061,10 @@ void PreParser::ParseLazyFunctionLiteralBody(bool* ok,
                     scope_->uses_super_property(), scope_->calls_eval());
 }
 
-
 PreParserExpression PreParser::ParseClassLiteral(
-    PreParserIdentifier name, Scanner::Location class_name_location,
-    bool name_is_strict_reserved, int pos, bool* ok) {
+    ExpressionClassifier* classifier, PreParserIdentifier name,
+    Scanner::Location class_name_location, bool name_is_strict_reserved,
+    int pos, bool* ok) {
   // All parts of a ClassDeclaration and ClassExpression are strict code.
   if (name_is_strict_reserved) {
     ReportMessageAt(class_name_location,
@@ -1088,9 +1088,13 @@ PreParserExpression PreParser::ParseClassLiteral(
 
   bool has_extends = Check(Token::EXTENDS);
   if (has_extends) {
-    ExpressionClassifier classifier(this);
-    ParseLeftHandSideExpression(&classifier, CHECK_OK);
-    ValidateExpression(&classifier, CHECK_OK);
+    ExpressionClassifier extends_classifier(this);
+    ParseLeftHandSideExpression(&extends_classifier, CHECK_OK);
+    ValidateExpression(&extends_classifier, CHECK_OK);
+    if (classifier != nullptr) {
+      classifier->Accumulate(&extends_classifier,
+                             ExpressionClassifier::ExpressionProductions);
+    }
   }
 
   ClassLiteralChecker checker(this);
@@ -1104,11 +1108,15 @@ PreParserExpression PreParser::ParseClassLiteral(
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     Identifier name;
-    ExpressionClassifier classifier(this);
+    ExpressionClassifier property_classifier(this);
     ParsePropertyDefinition(&checker, in_class, has_extends, is_static,
                             &is_computed_name, &has_seen_constructor,
-                            &classifier, &name, CHECK_OK);
-    ValidateExpression(&classifier, CHECK_OK);
+                            &property_classifier, &name, CHECK_OK);
+    ValidateExpression(&property_classifier, CHECK_OK);
+    if (classifier != nullptr) {
+      classifier->Accumulate(&property_classifier,
+                             ExpressionClassifier::ExpressionProductions);
+    }
   }
 
   Expect(Token::RBRACE, CHECK_OK);

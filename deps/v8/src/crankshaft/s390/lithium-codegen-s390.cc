@@ -2485,11 +2485,12 @@ void LCodeGen::EmitClassOfTest(Label* is_true, Label* is_false,
 
   __ JumpIfSmi(input, is_false);
 
-  __ CompareObjectType(input, temp, temp2, JS_FUNCTION_TYPE);
+  __ CompareObjectType(input, temp, temp2, FIRST_FUNCTION_TYPE);
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
   if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
-    __ beq(is_true);
+    __ bge(is_true);
   } else {
-    __ beq(is_false);
+    __ bge(is_false);
   }
 
   // Check if the constructor in the map is a function.
@@ -5202,14 +5203,11 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
   DoubleRegister value_reg = ToDoubleRegister(instr->value());
   Register result_reg = ToRegister(instr->result());
-  // TODO(joransiu): Use non-memory version.
-  __ stdy(value_reg, MemOperand(sp, -kDoubleSize));
+  __ lgdr(result_reg, value_reg);
   if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
-    __ LoadlW(result_reg,
-              MemOperand(sp, -kDoubleSize + Register::kExponentOffset));
+    __ srlg(result_reg, result_reg, Operand(32));
   } else {
-    __ LoadlW(result_reg,
-              MemOperand(sp, -kDoubleSize + Register::kMantissaOffset));
+    __ llgfr(result_reg, result_reg);
   }
 }
 
@@ -5217,7 +5215,6 @@ void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
   Register hi_reg = ToRegister(instr->hi());
   Register lo_reg = ToRegister(instr->lo());
   DoubleRegister result_reg = ToDoubleRegister(instr->result());
-  // TODO(joransiu): Construct with ldgr
   Register scratch = scratch0();
 
   // Combine hi_reg:lo_reg into a single 64-bit register.

@@ -3151,7 +3151,7 @@ void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {
 
 
 LanguageMode BytecodeGenerator::language_mode() const {
-  return info()->language_mode();
+  return execution_context()->scope()->language_mode();
 }
 
 

@@ -185,6 +185,7 @@
   V(NumberShiftLeft)               \
   V(NumberShiftRight)              \
   V(NumberShiftRightLogical)       \
+  V(NumberImul)                    \
   V(NumberClz32)                   \
   V(NumberCeil)                    \
   V(NumberFloor)                   \

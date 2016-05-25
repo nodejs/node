@@ -474,6 +474,7 @@ class CallSite {
   T(InvalidHexEscapeSequence, "Invalid hexadecimal escape sequence")           \
   T(InvalidUnicodeEscapeSequence, "Invalid Unicode escape sequence")           \
   T(UndefinedUnicodeCodePoint, "Undefined Unicode code-point")                 \
+  T(YieldInParameter, "Yield expression not allowed in formal parameter")      \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \

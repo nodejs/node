@@ -2547,25 +2547,6 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
   return cell_reports_intact;
 }
 
-bool Isolate::IsArraySpeciesLookupChainIntact() {
-  if (!FLAG_harmony_species) return true;
-  // Note: It would be nice to have debug checks to make sure that the
-  // species protector is accurate, but this would be hard to do for most of
-  // what the protector stands for:
-  // - You'd need to traverse the heap to check that no Array instance has
-  //   a constructor property or a modified __proto__
-  // - To check that Array[Symbol.species] == Array, JS code has to execute,
-  //   but JS cannot be invoked in callstack overflow situations
-  // All that could be checked reliably is that
-  // Array.prototype.constructor == Array. Given that limitation, no check is
-  // done here. In place, there are mjsunit tests harmony/array-species* which
-  // ensure that behavior is correct in various invalid protector cases.
-
-  PropertyCell* species_cell = heap()->species_protector();
-  return species_cell->value()->IsSmi() &&
-         Smi::cast(species_cell->value())->value() == kArrayProtectorValid;
-}
-
 void Isolate::InvalidateArraySpeciesProtector() {
   if (!FLAG_harmony_species) return;
   DCHECK(factory()->species_protector()->value()->IsSmi());

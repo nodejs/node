@@ -383,6 +383,8 @@
   'asm/sqlite3/*': [SKIP],
   # TODO(mips-team): Fix Wasm for big-endian.
   'wasm/*': [SKIP],
+  'regress/regress-599717': [SKIP],
+  'regress/regress-599719': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################

@@ -2127,7 +2127,11 @@ void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
 
 
 std::ostream& HEnterInlined::PrintDataTo(std::ostream& os) const {  // NOLINT
-  return os << function()->debug_name()->ToCString().get();
+  os << function()->debug_name()->ToCString().get();
+  if (syntactic_tail_call_mode() == TailCallMode::kAllow) {
+    os << ", JSTailCall";
+  }
+  return os;
 }
 
 

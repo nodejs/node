@@ -3024,6 +3024,8 @@ class LargeObjectSpace : public Space {
   // Checks whether the space is empty.
   bool IsEmpty() { return first_page_ == NULL; }
 
+  void AdjustLiveBytes(int by) { objects_size_ += by; }
+
   LargePage* first_page() { return first_page_; }
 
 #ifdef VERIFY_HEAP

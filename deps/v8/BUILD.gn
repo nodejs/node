@@ -21,6 +21,12 @@ declare_args() {
   # Enable the snapshot feature, for fast context creation.
   # http://v8project.blogspot.com/2015/09/custom-startup-snapshots.html
   v8_use_snapshot = true
+
+  # Similar to vfp but on MIPS.
+  v8_can_use_fpu_instructions = true
+
+  # Similar to the ARM hard float ABI but on MIPS.
+  v8_use_mips_abi_hardfloat = true
 }
 
 # TODO(jochen): These will need to be user-settable to support standalone V8
@@ -142,48 +148,93 @@ config("toolchain") {
   defines = []
   cflags = []
 
-  # TODO(jochen): Add support for arm subarchs, mips, mipsel, mips64el.
-
   if (v8_target_arch == "arm") {
     defines += [ "V8_TARGET_ARCH_ARM" ]
-    if (current_cpu == "arm") {
-      if (arm_version == 7) {
-        defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
-      }
-      if (arm_fpu == "vfpv3-d16") {
-        defines += [ "CAN_USE_VFP3_INSTRUCTIONS" ]
-      } else if (arm_fpu == "vfpv3") {
-        defines += [
-          "CAN_USE_VFP3_INSTRUCTIONS",
-          "CAN_USE_VFP32DREGS",
-        ]
-      } else if (arm_fpu == "neon") {
-        defines += [
-          "CAN_USE_VFP3_INSTRUCTIONS",
-          "CAN_USE_VFP32DREGS",
-          "CAN_USE_NEON",
-        ]
-      }
-    } else {
-      # These defines ares used for the ARM simulator.
+    if (arm_version == 7) {
+      defines += [ "CAN_USE_ARMV7_INSTRUCTIONS" ]
+    }
+    if (arm_fpu == "vfpv3-d16") {
+      defines += [ "CAN_USE_VFP3_INSTRUCTIONS" ]
+    } else if (arm_fpu == "vfpv3") {
       defines += [
-        "CAN_USE_ARMV7_INSTRUCTIONS",
         "CAN_USE_VFP3_INSTRUCTIONS",
         "CAN_USE_VFP32DREGS",
-        "USE_EABI_HARDFLOAT=0",
+      ]
+    } else if (arm_fpu == "neon") {
+      defines += [
+        "CAN_USE_VFP3_INSTRUCTIONS",
+        "CAN_USE_VFP32DREGS",
+        "CAN_USE_NEON",
       ]
     }
-
     # TODO(jochen): Add support for arm_test_noprobe.
+
+    if (current_cpu != "arm") {
+      # These defines ares used for the ARM simulator.
+      if (arm_float_abi == "hard") {
+        defines += [ "USE_EABI_HARDFLOAT=1" ]
+      } else if (arm_float_abi == "softfp") {
+        defines += [ "USE_EABI_HARDFLOAT=0" ]
+      }
+    }
   }
   if (v8_target_arch == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
   }
+  # TODO(jochen): Add support for mips.
   if (v8_target_arch == "mipsel") {
     defines += [ "V8_TARGET_ARCH_MIPS" ]
+    if (v8_can_use_fpu_instructions) {
+      defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
+    }
+    if (v8_use_mips_abi_hardfloat) {
+      defines += [
+        "__mips_hard_float=1",
+        "CAN_USE_FPU_INSTRUCTIONS",
+      ]
+    } else {
+      defines += [ "__mips_soft_float=1" ]
+    }
+    if (mips_arch_variant == "r6") {
+      defines += [
+        "_MIPS_ARCH_MIPS32R6",
+        "FPU_MODE_FP64",
+      ]
+    } else if (mips_arch_variant == "r2") {
+      defines += [ "_MIPS_ARCH_MIPS32R2" ]
+      if (mips_fpu_mode == "fp64") {
+        defines += [ "FPU_MODE_FP64" ]
+      } else if (mips_fpu_mode == "fpxx") {
+        defines += [ "FPU_MODE_FPXX" ]
+      } else if (mips_fpu_mode == "fp32") {
+        defines += [ "FPU_MODE_FP32" ]
+      }
+    } else if (mips_arch_variant == "r1") {
+      defines += [ "FPU_MODE_FP32" ]
+    }
+    # TODO(jochen): Add support for mips_arch_variant rx and loongson.
   }
+  # TODO(jochen): Add support for mips64.
   if (v8_target_arch == "mips64el") {
     defines += [ "V8_TARGET_ARCH_MIPS64" ]
+    if (v8_can_use_fpu_instructions) {
+      defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
+    }
+    # TODO(jochen): Add support for big endian host byteorder.
+    defines += [ "V8_TARGET_ARCH_MIPS64_LE" ]
+    if (v8_use_mips_abi_hardfloat) {
+      defines += [
+        "__mips_hard_float=1",
+        "CAN_USE_FPU_INSTRUCTIONS",
+      ]
+    } else {
+      defines += [ "__mips_soft_float=1" ]
+    }
+    if (mips_arch_variant == "r6") {
+      defines += [ "_MIPS_ARCH_MIPS64R6" ]
+    } else if (mips_arch_variant == "r2") {
+      defines += [ "_MIPS_ARCH_MIPS64R2" ]
+    }
   }
   if (v8_target_arch == "s390") {
     defines += [ "V8_TARGET_ARCH_S390" ]

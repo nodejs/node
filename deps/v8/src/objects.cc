@@ -115,6 +115,17 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
   return result;
 }
 
+// ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
+// static
+MaybeHandle<JSReceiver> Object::ConvertReceiver(Isolate* isolate,
+                                                Handle<Object> object) {
+  if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
+  if (*object == isolate->heap()->null_value() ||
+      *object == isolate->heap()->undefined_value()) {
+    return handle(isolate->global_proxy(), isolate);
+  }
+  return Object::ToObject(isolate, object);
+}
 
 // static
 MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
@@ -719,9 +730,14 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
         UNREACHABLE();
-      case LookupIterator::JSPROXY:
-        return JSProxy::GetProperty(it->isolate(), it->GetHolder<JSProxy>(),
-                                    it->GetName(), it->GetReceiver());
+      case LookupIterator::JSPROXY: {
+        bool was_found;
+        MaybeHandle<Object> result =
+            JSProxy::GetProperty(it->isolate(), it->GetHolder<JSProxy>(),
+                                 it->GetName(), it->GetReceiver(), &was_found);
+        if (!was_found) it->NotFound();
+        return result;
+      }
       case LookupIterator::INTERCEPTOR: {
         bool done;
         Handle<Object> result;
@@ -761,7 +777,9 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
 MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
                                          Handle<JSProxy> proxy,
                                          Handle<Name> name,
-                                         Handle<Object> receiver) {
+                                         Handle<Object> receiver,
+                                         bool* was_found) {
+  *was_found = true;
   if (receiver->IsJSGlobalObject()) {
     THROW_NEW_ERROR(
         isolate,
@@ -794,7 +812,9 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
     // 7.a Return target.[[Get]](P, Receiver).
     LookupIterator it =
         LookupIterator::PropertyOrElement(isolate, receiver, name, target);
-    return Object::GetProperty(&it);
+    MaybeHandle<Object> result = Object::GetProperty(&it);
+    *was_found = it.IsFound();
+    return result;
   }
   // 8. Let trapResult be ? Call(trap, handler, «target, P, Receiver»).
   Handle<Object> trap_result;
@@ -1060,6 +1080,12 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
         v8::ToCData<v8::AccessorNameGetterCallback>(info->getter());
     if (call_fun == nullptr) return isolate->factory()->undefined_value();
 
+    if (info->is_sloppy() && !receiver->IsJSReceiver()) {
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                                 Object::ConvertReceiver(isolate, receiver),
+                                 Object);
+    }
+
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    Object::DONT_THROW);
     Handle<Object> result = args.Call(call_fun, name);
@@ -1129,6 +1155,12 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
     // marked as special_data_property. They cannot both be writable and not
     // have a setter.
     if (call_fun == nullptr) return Just(true);
+
+    if (info->is_sloppy() && !receiver->IsJSReceiver()) {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, receiver, Object::ConvertReceiver(isolate, receiver),
+          Nothing<bool>());
+    }
 
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    should_throw);
@@ -1529,7 +1561,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
     return default_species;
   }
   if (original_array->IsJSArray() &&
-      Handle<JSReceiver>::cast(original_array)->map()->new_target_is_base() &&
+      Handle<JSArray>::cast(original_array)->HasArrayPrototype(isolate) &&
       isolate->IsArraySpeciesLookupChainIntact()) {
     return default_species;
   }
@@ -4084,8 +4116,14 @@ Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
   bool result;
-  PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder, should_throw);
+  Handle<Object> receiver = it->GetReceiver();
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
+                                     Object::ConvertReceiver(isolate, receiver),
+                                     Nothing<bool>());
+  }
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *holder, should_throw);
 
   if (it->IsElement()) {
     uint32_t index = it->index();
@@ -5416,9 +5454,14 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
       !interceptor->can_intercept_symbols()) {
     return Just(ABSENT);
   }
-  PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder,
-                                 Object::DONT_THROW);
+  Handle<Object> receiver = it->GetReceiver();
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
+                                     Object::ConvertReceiver(isolate, receiver),
+                                     Nothing<PropertyAttributes>());
+  }
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *holder, Object::DONT_THROW);
   if (!interceptor->query()->IsUndefined()) {
     Handle<Object> result;
     if (it->IsElement()) {
@@ -6018,9 +6061,15 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
   if (interceptor->deleter()->IsUndefined()) return Nothing<bool>();
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
+  Handle<Object> receiver = it->GetReceiver();
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
+                                     Object::ConvertReceiver(isolate, receiver),
+                                     Nothing<bool>());
+  }
 
-  PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder, should_throw);
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *holder, should_throw);
   Handle<Object> result;
   if (it->IsElement()) {
     uint32_t index = it->index();
@@ -13247,6 +13296,18 @@ Handle<String> JSBoundFunction::ToString(Handle<JSBoundFunction> function) {
   return isolate->factory()->NewStringFromAsciiChecked(kNativeCodeSource);
 }
 
+// static
+MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
+                                             Handle<JSBoundFunction> function) {
+  Handle<String> prefix = isolate->factory()->bound__string();
+  if (!function->bound_target_function()->IsJSFunction()) return prefix;
+  Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
+                            isolate);
+  Handle<Object> target_name = JSFunction::GetName(target);
+  if (!target_name->IsString()) return prefix;
+  Factory* factory = isolate->factory();
+  return factory->NewConsString(prefix, Handle<String>::cast(target_name));
+}
 
 // static
 Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
@@ -13648,7 +13709,9 @@ void JSFunction::CalculateInstanceSizeForDerivedClass(
   for (PrototypeIterator iter(isolate, this,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
-    JSFunction* func = iter.GetCurrent<JSFunction>();
+    JSReceiver* current = iter.GetCurrent<JSReceiver>();
+    if (!current->IsJSFunction()) break;
+    JSFunction* func = JSFunction::cast(current);
     SharedFunctionInfo* shared = func->shared();
     expected_nof_properties += shared->expected_nof_properties();
     if (!IsSubclassConstructor(shared->kind())) {
@@ -15611,16 +15674,6 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
                                    ShouldThrow should_throw) {
   Isolate* isolate = object->GetIsolate();
 
-  // Setting the prototype of an Array instance invalidates the species
-  // protector
-  // because it could change the constructor property of the instance, which
-  // could change the @@species constructor.
-  if (object->IsJSArray() && isolate->IsArraySpeciesLookupChainIntact()) {
-    isolate->CountUsage(
-        v8::Isolate::UseCounterFeature::kArrayInstanceProtoModified);
-    isolate->InvalidateArraySpeciesProtector();
-  }
-
   const bool observed = from_javascript && object->map()->is_observed();
   Handle<Object> old_value;
   if (observed) {
@@ -16293,9 +16346,13 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
   Handle<Object> result;
-  PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder,
-                                 Object::DONT_THROW);
+  Handle<Object> receiver = it->GetReceiver();
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, receiver, Object::ConvertReceiver(isolate, receiver), Object);
+  }
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *holder, Object::DONT_THROW);
 
   if (it->IsElement()) {
     uint32_t index = it->index();
@@ -17264,6 +17321,16 @@ void HashTable<Derived, Shape, Key>::Rehash(Key key) {
       }
     }
   }
+  // Wipe deleted entries.
+  Heap* heap = GetHeap();
+  Object* the_hole = heap->the_hole_value();
+  Object* undefined = heap->undefined_value();
+  for (uint32_t current = 0; current < capacity; current++) {
+    if (get(EntryToIndex(current)) == the_hole) {
+      set(EntryToIndex(current), undefined);
+    }
+  }
+  SetNumberOfDeletedElements(0);
 }
 
 
@@ -18621,6 +18688,12 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   if (entry != kNotFound) {
     table->set(EntryToIndex(entry) + 1, *value);
     return table;
+  }
+
+  // Rehash if more than 25% of the entries are deleted entries.
+  // TODO(jochen): Consider to shrink the fixed array in place.
+  if ((table->NumberOfDeletedElements() << 1) > table->NumberOfElements()) {
+    table->Rehash(isolate->factory()->undefined_value());
   }
 
   // Check whether the hash table should be extended.

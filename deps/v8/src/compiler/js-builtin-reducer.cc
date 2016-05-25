@@ -117,13 +117,15 @@ Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
   return NoChange();
 }
 
-
-// ES6 draft 08-24-14, section 20.2.2.19.
+// ES6 section 20.2.2.19 Math.imul ( x, y )
 Reduction JSBuiltinReducer::ReduceMathImul(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchTwo(Type::Integral32(), Type::Integral32())) {
-    // Math.imul(a:int32, b:int32) -> Int32Mul(a, b)
-    Node* value = graph()->NewNode(machine()->Int32Mul(), r.left(), r.right());
+  if (r.InputsMatchTwo(Type::Number(), Type::Number())) {
+    // Math.imul(a:number, b:number) -> NumberImul(NumberToUint32(a),
+    //                                             NumberToUint32(b))
+    Node* a = graph()->NewNode(simplified()->NumberToUint32(), r.left());
+    Node* b = graph()->NewNode(simplified()->NumberToUint32(), r.right());
+    Node* value = graph()->NewNode(simplified()->NumberImul(), a, b);
     return Replace(value);
   }
   return NoChange();

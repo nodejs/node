@@ -1131,6 +1131,10 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<JSReceiver> ToObject(
       Isolate* isolate, Handle<Object> object, Handle<Context> context);
 
+  // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
+  MUST_USE_RESULT static MaybeHandle<JSReceiver> ConvertReceiver(
+      Isolate* isolate, Handle<Object> object);
+
   // ES6 section 7.1.14 ToPropertyKey
   MUST_USE_RESULT static inline MaybeHandle<Name> ToName(Isolate* isolate,
                                                          Handle<Object> input);
@@ -7470,6 +7474,9 @@ class JSBoundFunction : public JSObject {
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static Handle<String> ToString(Handle<JSBoundFunction> function);
 
+  static MaybeHandle<String> GetName(Isolate* isolate,
+                                     Handle<JSBoundFunction> function);
+
   // Layout description.
   static const int kBoundTargetFunctionOffset = JSObject::kHeaderSize;
   static const int kBoundThisOffset = kBoundTargetFunctionOffset + kPointerSize;
@@ -9817,7 +9824,7 @@ class JSProxy: public JSReceiver {
   // ES6 9.5.8
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,
-      Handle<Object> receiver);
+      Handle<Object> receiver, bool* was_found);
 
   // ES6 9.5.9
   MUST_USE_RESULT static Maybe<bool> SetProperty(Handle<JSProxy> proxy,
@@ -10319,6 +10326,12 @@ class JSArray: public JSObject {
                                                     PropertyDescriptor* desc,
                                                     ShouldThrow should_throw);
 
+  // Checks whether the Array has the current realm's Array.prototype as its
+  // prototype. This function is best-effort and only gives a conservative
+  // approximation, erring on the side of false, in particular with respect
+  // to Proxies and objects with a hidden prototype.
+  inline bool HasArrayPrototype(Isolate* isolate);
+
   DECLARE_CAST(JSArray)
 
   // Dispatched behavior.
@@ -10399,6 +10412,9 @@ class AccessorInfo: public Struct {
   inline bool is_special_data_property();
   inline void set_is_special_data_property(bool value);
 
+  inline bool is_sloppy();
+  inline void set_is_sloppy(bool value);
+
   inline PropertyAttributes property_attributes();
   inline void set_property_attributes(PropertyAttributes attributes);
 
@@ -10435,7 +10451,8 @@ class AccessorInfo: public Struct {
   static const int kAllCanReadBit = 0;
   static const int kAllCanWriteBit = 1;
   static const int kSpecialDataProperty = 2;
-  class AttributesField : public BitField<PropertyAttributes, 3, 3> {};
+  static const int kIsSloppy = 3;
+  class AttributesField : public BitField<PropertyAttributes, 4, 3> {};
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
 };

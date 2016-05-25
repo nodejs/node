@@ -973,7 +973,7 @@ class Isolate {
   static const int kArrayProtectorInvalid = 0;
 
   bool IsFastArrayConstructorPrototypeChainIntact();
-  bool IsArraySpeciesLookupChainIntact();
+  inline bool IsArraySpeciesLookupChainIntact();
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or

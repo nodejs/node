@@ -4260,10 +4260,9 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // zLinux ABI requires caller's frame to have sufficient space for callee
   // preserved regsiter save area.
   __ LoadImmP(r0, Operand::Zero());
-  __ StoreP(r0, MemOperand(sp, -kCalleeRegisterSaveAreaSize -
-                                   kNumRequiredStackFrameSlots * kPointerSize));
   __ lay(sp, MemOperand(sp, -kCalleeRegisterSaveAreaSize -
                                 kNumRequiredStackFrameSlots * kPointerSize));
+  __ StoreP(r0, MemOperand(sp));
 #if defined(USE_SIMULATOR)
   // Under the simulator we need to indirect the entry hook through a
   // trampoline function at a known address.

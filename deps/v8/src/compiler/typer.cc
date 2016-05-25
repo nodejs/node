@@ -1757,6 +1757,8 @@ Type* Typer::Visitor::TypeNumberShiftRightLogical(Node* node) {
   return Type::Unsigned32();
 }
 
+Type* Typer::Visitor::TypeNumberImul(Node* node) { return Type::Signed32(); }
+
 Type* Typer::Visitor::TypeNumberClz32(Node* node) {
   return typer_->cache_.kZeroToThirtyTwo;
 }

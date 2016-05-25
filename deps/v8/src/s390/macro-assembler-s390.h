@@ -333,7 +333,9 @@ class MacroAssembler : public Assembler {
   void Load(Register dst, const MemOperand& opnd);
   void Load(Register dst, const Operand& opnd);
   void LoadW(Register dst, const MemOperand& opnd, Register scratch = no_reg);
+  void LoadW(Register dst, Register src);
   void LoadlW(Register dst, const MemOperand& opnd, Register scratch = no_reg);
+  void LoadlW(Register dst, Register src);
   void LoadB(Register dst, const MemOperand& opnd);
   void LoadlB(Register dst, const MemOperand& opnd);
 
