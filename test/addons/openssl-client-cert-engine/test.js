@@ -39,18 +39,18 @@ var clientOptions = {
   headers: {}
 };
 
-var req = https.request(clientOptions, (response) => {
+var req = https.request(clientOptions, common.mustCall(function(response) {
   var body = '';
   response.setEncoding('utf8');
-  response.on('data', (chunk) => {
+  response.on('data', common.mustCall(function(chunk) {
     body += chunk;
-  });
+  }));
 
   response.on('end', common.mustCall(function() {
     assert.strictEqual(body, 'hello world');
     console.log('Test passed!');
     server.close();
   }));
-});
+}));
 
 req.end();
