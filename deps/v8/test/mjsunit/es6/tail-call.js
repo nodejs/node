@@ -20,6 +20,8 @@ function CheckStackTrace(expected) {
     assertEquals(expected[i].name, stack[i + 1].getFunctionName());
   }
 }
+%NeverOptimizeFunction(CheckStackTrace);
+
 
 function f(expected_call_stack, a, b) {
   CheckStackTrace(expected_call_stack);
@@ -214,6 +216,88 @@ function f_153(expected_call_stack, a) {
     assertEquals(19, g3());
     assertEquals(12, g4());
   }
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Tail calling from getter.
+(function() {
+  function g(v) {
+    CheckStackTrace([g, test]);
+    %DeoptimizeFunction(test);
+    return 153;
+  }
+  %NeverOptimizeFunction(g);
+
+  function f(v) {
+    return g();
+  }
+  %SetForceInlineFlag(f);
+
+  function test() {
+    var o = {};
+    o.__defineGetter__('p', f);
+    assertEquals(153, o.p);
+  }
+
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Tail calling from setter.
+(function() {
+  function g() {
+    CheckStackTrace([g, test]);
+    %DeoptimizeFunction(test);
+    return 153;
+  }
+  %NeverOptimizeFunction(g);
+
+  var context = 10;
+  function f(v) {
+    return g(context);
+  }
+  %SetForceInlineFlag(f);
+
+  function test() {
+    var o = {};
+    o.__defineSetter__('q', f);
+    assertEquals(1, o.q = 1);
+  }
+
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Tail calling from constructor.
+(function() {
+  function g(context) {
+    CheckStackTrace([g, test]);
+    %DeoptimizeFunction(test);
+    return {x: 153};
+  }
+  %NeverOptimizeFunction(g);
+
+  function A() {
+    this.x = 42;
+    return g();
+  }
+
+  function test() {
+    var o = new A();
+    %DebugPrint(o);
+    assertEquals(153, o.x);
+  }
+
   test();
   test();
   %OptimizeFunctionOnNextCall(test);

@@ -32,6 +32,7 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_all_can_read(false);
   info->set_all_can_write(false);
   info->set_is_special_data_property(true);
+  info->set_is_sloppy(false);
   name = factory->InternalizeName(name);
   info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);

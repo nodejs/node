@@ -1508,3 +1508,25 @@ TEST(FormatMessage) {
       "'arg0' returned for property 'arg1' of object 'arg2' is not a function");
   CHECK(String::Equals(result, expected));
 }
+
+TEST(Regress609831) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  {
+    HandleScope scope(isolate);
+    v8::Local<v8::Value> result = CompileRun(
+        "String.fromCharCode(32, 32, 32, 32, 32, "
+        "32, 32, 32, 32, 32, 32, 32, 32, 32, 32, "
+        "32, 32, 32, 32, 32, 32, 32, 32, 32, 32)");
+    CHECK(v8::Utils::OpenHandle(*result)->IsSeqOneByteString());
+  }
+  {
+    HandleScope scope(isolate);
+    v8::Local<v8::Value> result = CompileRun(
+        "String.fromCharCode(432, 432, 432, 432, 432, "
+        "432, 432, 432, 432, 432, 432, 432, 432, 432, "
+        "432, 432, 432, 432, 432, 432, 432, 432, 432)");
+    CHECK(v8::Utils::OpenHandle(*result)->IsSeqTwoByteString());
+  }
+}

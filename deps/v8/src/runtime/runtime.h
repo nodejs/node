@@ -922,7 +922,8 @@ namespace internal {
   F(HasFixedInt32Elements, 1, 1)              \
   F(HasFixedFloat32Elements, 1, 1)            \
   F(HasFixedFloat64Elements, 1, 1)            \
-  F(HasFixedUint8ClampedElements, 1, 1)
+  F(HasFixedUint8ClampedElements, 1, 1)       \
+  F(SpeciesProtector, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \

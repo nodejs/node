@@ -1929,7 +1929,7 @@ void MacroAssembler::AllocateTwoByteString(Register result, Register length,
   // observing object alignment.
   DCHECK((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
 
-  ShiftLeft(scratch1, length, Operand(1));  // Length in bytes, not chars.
+  ShiftLeftP(scratch1, length, Operand(1));  // Length in bytes, not chars.
   AddP(scratch1, Operand(kObjectAlignmentMask + SeqTwoByteString::kHeaderSize));
 
   AndP(scratch1, Operand(~kObjectAlignmentMask));
@@ -4889,6 +4889,15 @@ void MacroAssembler::StoreMultipleW(Register src1, Register src2,
 }
 
 // Load 32-bits and sign extend if necessary.
+void MacroAssembler::LoadW(Register dst, Register src) {
+#if V8_TARGET_ARCH_S390X
+  lgfr(dst, src);
+#else
+  if (!dst.is(src)) lr(dst, src);
+#endif
+}
+
+// Load 32-bits and sign extend if necessary.
 void MacroAssembler::LoadW(Register dst, const MemOperand& mem,
                            Register scratch) {
   int offset = mem.offset();
@@ -4912,6 +4921,15 @@ void MacroAssembler::LoadW(Register dst, const MemOperand& mem,
     }
 #endif
   }
+}
+
+// Load 32-bits and zero extend if necessary.
+void MacroAssembler::LoadlW(Register dst, Register src) {
+#if V8_TARGET_ARCH_S390X
+  llgfr(dst, src);
+#else
+  if (!dst.is(src)) lr(dst, src);
+#endif
 }
 
 // Variable length depending on whether offset fits into immediate field

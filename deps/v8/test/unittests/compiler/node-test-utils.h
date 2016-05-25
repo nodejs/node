@@ -211,6 +211,8 @@ Matcher<Node*> IsNumberShiftRight(const Matcher<Node*>& lhs_matcher,
                                   const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberShiftRightLogical(const Matcher<Node*>& lhs_matcher,
                                          const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberImul(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsAllocate(const Matcher<Node*>& size_matcher,
                           const Matcher<Node*>& effect_matcher,
                           const Matcher<Node*>& control_matcher);

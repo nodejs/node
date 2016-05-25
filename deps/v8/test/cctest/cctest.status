@@ -263,6 +263,8 @@
   'test-run-wasm-64/Run_Wasm_I64*': [SKIP],
   'test-run-wasm-64/Run_Wasm_LoadStoreI64_sx': [SKIP],
   'test-run-wasm-64/Run_TestI64WasmRunner': [SKIP],
+  'test-run-wasm-64/Run_WasmCall_Int64Sub': [SKIP],
+  'test-run-wasm-64/Run_Wasm_MemI64_Sum': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################

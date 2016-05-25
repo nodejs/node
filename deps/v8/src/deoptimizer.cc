@@ -966,7 +966,6 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   // For the bottommost output frame the context can be gotten from the input
   // frame. For all subsequent output frames it can be gotten from the function
   // so long as we don't inline functions that need local contexts.
-  Register context_reg = JavaScriptFrame::context_register();
   output_offset -= kPointerSize;
 
   TranslatedFrame::iterator context_pos = value_iterator;
@@ -991,7 +990,10 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   }
   value = reinterpret_cast<intptr_t>(context);
   output_frame->SetContext(value);
-  if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
+  if (is_topmost) {
+    Register context_reg = JavaScriptFrame::context_register();
+    output_frame->SetRegister(context_reg.code(), value);
+  }
   WriteValueToOutput(context, context_input_index, frame_index, output_offset,
                      "context    ");
   if (context == isolate_->heap()->arguments_marker()) {
@@ -1491,12 +1493,27 @@ void Deoptimizer::DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
 void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                               int frame_index) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
+  bool is_topmost = (output_count_ - 1 == frame_index);
+  // The construct frame could become topmost only if we inlined a constructor
+  // call which does a tail call (otherwise the tail callee's frame would be
+  // the topmost one). So it could only be the LAZY case.
+  CHECK(!is_topmost || bailout_type_ == LAZY);
   int input_index = 0;
 
   Builtins* builtins = isolate_->builtins();
   Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
+
+  // If the construct frame appears to be topmost we should ensure that the
+  // value of result register is preserved during continuation execution.
+  // We do this here by "pushing" the result of the constructor function to the
+  // top of the reconstructed stack and then using the
+  // FullCodeGenerator::TOS_REG machinery.
+  if (is_topmost) {
+    height_in_bytes += kPointerSize;
+  }
+
   // Skip function.
   value_iterator++;
   input_index++;
@@ -1513,8 +1530,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
       new (output_frame_size) FrameDescription(output_frame_size);
   output_frame->SetFrameType(StackFrame::CONSTRUCT);
 
-  // Construct stub can not be topmost or bottommost.
-  DCHECK(frame_index > 0 && frame_index < output_count_ - 1);
+  // Construct stub can not be topmost.
+  DCHECK(frame_index > 0 && frame_index < output_count_);
   DCHECK(output_[frame_index] == NULL);
   output_[frame_index] = output_frame;
 
@@ -1549,6 +1566,10 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
+  if (is_topmost) {
+    Register fp_reg = JavaScriptFrame::fp_register();
+    output_frame->SetRegister(fp_reg.code(), fp_value);
+  }
   DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
 
   if (FLAG_enable_embedded_constant_pool) {
@@ -1571,6 +1592,10 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   output_offset -= kPointerSize;
   value = output_[frame_index - 1]->GetContext();
   output_frame->SetFrameSlot(output_offset, value);
+  if (is_topmost) {
+    Register context_reg = JavaScriptFrame::context_register();
+    output_frame->SetRegister(context_reg.code(), value);
+  }
   DebugPrintOutputSlot(value, frame_index, output_offset, "context\n");
 
   // The allocation site.
@@ -1596,6 +1621,18 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   DebugPrintOutputSlot(value, frame_index, output_offset,
                        "allocated receiver\n");
 
+  if (is_topmost) {
+    // Ensure the result is restored back when we return to the stub.
+    output_offset -= kPointerSize;
+    Register result_reg = FullCodeGenerator::result_register();
+    value = input_->GetRegister(result_reg.code());
+    output_frame->SetFrameSlot(output_offset, value);
+    DebugPrintOutputSlot(value, frame_index, output_offset,
+                         "constructor result\n");
+
+    output_frame->SetState(Smi::FromInt(FullCodeGenerator::TOS_REG));
+  }
+
   CHECK_EQ(0u, output_offset);
 
   intptr_t pc = reinterpret_cast<intptr_t>(
@@ -1606,6 +1643,20 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     intptr_t constant_pool_value =
         reinterpret_cast<intptr_t>(construct_stub->constant_pool());
     output_frame->SetConstantPool(constant_pool_value);
+    if (is_topmost) {
+      Register constant_pool_reg =
+          JavaScriptFrame::constant_pool_pointer_register();
+      output_frame->SetRegister(constant_pool_reg.code(), fp_value);
+    }
+  }
+
+  // Set the continuation for the topmost frame.
+  if (is_topmost) {
+    Builtins* builtins = isolate_->builtins();
+    DCHECK_EQ(LAZY, bailout_type_);
+    Code* continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
+    output_frame->SetContinuation(
+        reinterpret_cast<intptr_t>(continuation->entry()));
   }
 }
 
@@ -1613,6 +1664,11 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
                                              int frame_index,
                                              bool is_setter_stub_frame) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
+  bool is_topmost = (output_count_ - 1 == frame_index);
+  // The accessor frame could become topmost only if we inlined an accessor
+  // call which does a tail call (otherwise the tail callee's frame would be
+  // the topmost one). So it could only be the LAZY case.
+  CHECK(!is_topmost || bailout_type_ == LAZY);
   int input_index = 0;
 
   // Skip accessor.
@@ -1623,6 +1679,19 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   // frame. This means that we have to use a height of 0.
   unsigned height = 0;
   unsigned height_in_bytes = height * kPointerSize;
+
+  // If the accessor frame appears to be topmost we should ensure that the
+  // value of result register is preserved during continuation execution.
+  // We do this here by "pushing" the result of the accessor function to the
+  // top of the reconstructed stack and then using the
+  // FullCodeGenerator::TOS_REG machinery.
+  // We don't need to restore the result in case of a setter call because we
+  // have to return the stored value but not the result of the setter function.
+  bool should_preserve_result = is_topmost && !is_setter_stub_frame;
+  if (should_preserve_result) {
+    height_in_bytes += kPointerSize;
+  }
+
   const char* kind = is_setter_stub_frame ? "setter" : "getter";
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
@@ -1645,8 +1714,8 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
       new (output_frame_size) FrameDescription(output_frame_size);
   output_frame->SetFrameType(StackFrame::INTERNAL);
 
-  // A frame for an accessor stub can not be the topmost or bottommost one.
-  CHECK(frame_index > 0 && frame_index < output_count_ - 1);
+  // A frame for an accessor stub can not be bottommost.
+  CHECK(frame_index > 0 && frame_index < output_count_);
   CHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
 
@@ -1669,6 +1738,10 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
+  if (is_topmost) {
+    Register fp_reg = JavaScriptFrame::fp_register();
+    output_frame->SetRegister(fp_reg.code(), fp_value);
+  }
   DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
 
   if (FLAG_enable_embedded_constant_pool) {
@@ -1703,6 +1776,10 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   output_offset -= kPointerSize;
   value = output_[frame_index - 1]->GetContext();
   output_frame->SetFrameSlot(output_offset, value);
+  if (is_topmost) {
+    Register context_reg = JavaScriptFrame::context_register();
+    output_frame->SetRegister(context_reg.code(), value);
+  }
   DebugPrintOutputSlot(value, frame_index, output_offset, "context\n");
 
   // Skip receiver.
@@ -1717,6 +1794,20 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
                                  output_offset);
   }
 
+  if (should_preserve_result) {
+    // Ensure the result is restored back when we return to the stub.
+    output_offset -= kPointerSize;
+    Register result_reg = FullCodeGenerator::result_register();
+    value = input_->GetRegister(result_reg.code());
+    output_frame->SetFrameSlot(output_offset, value);
+    DebugPrintOutputSlot(value, frame_index, output_offset,
+                         "accessor result\n");
+
+    output_frame->SetState(Smi::FromInt(FullCodeGenerator::TOS_REG));
+  } else {
+    output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
+  }
+
   CHECK_EQ(0u, output_offset);
 
   Smi* offset = is_setter_stub_frame ?
@@ -1729,6 +1820,20 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
     intptr_t constant_pool_value =
         reinterpret_cast<intptr_t>(accessor_stub->constant_pool());
     output_frame->SetConstantPool(constant_pool_value);
+    if (is_topmost) {
+      Register constant_pool_reg =
+          JavaScriptFrame::constant_pool_pointer_register();
+      output_frame->SetRegister(constant_pool_reg.code(), fp_value);
+    }
+  }
+
+  // Set the continuation for the topmost frame.
+  if (is_topmost) {
+    Builtins* builtins = isolate_->builtins();
+    DCHECK_EQ(LAZY, bailout_type_);
+    Code* continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
+    output_frame->SetContinuation(
+        reinterpret_cast<intptr_t>(continuation->entry()));
   }
 }
 

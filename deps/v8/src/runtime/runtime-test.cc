@@ -503,5 +503,14 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastProperties)
 TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
 
 #undef FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
+
+
+RUNTIME_FUNCTION(Runtime_SpeciesProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(isolate->IsArraySpeciesLookupChainIntact());
+}
+
+
 }  // namespace internal
 }  // namespace v8

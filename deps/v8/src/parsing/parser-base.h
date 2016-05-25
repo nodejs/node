@@ -710,15 +710,6 @@ class ParserBase : public Traits {
     classifier->RecordArrowFormalParametersError(location, message, arg);
   }
 
-  void FormalParameterInitializerUnexpectedToken(
-      ExpressionClassifier* classifier) {
-    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
-    const char* arg;
-    Scanner::Location location = scanner()->peek_location();
-    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
-    classifier->RecordFormalParameterInitializerError(location, message, arg);
-  }
-
   // Recursive descent functions:
 
   // Parses an identifier that is valid for the current scope, in particular it
@@ -838,8 +829,12 @@ class ParserBase : public Traits {
   void CheckPossibleEvalCall(ExpressionT expression, Scope* scope) {
     if (Traits::IsIdentifier(expression) &&
         Traits::IsEval(Traits::AsIdentifier(expression))) {
-      scope->DeclarationScope()->RecordEvalCall();
       scope->RecordEvalCall();
+      if (is_sloppy(scope->language_mode())) {
+        // For sloppy scopes we also have to record the call at function level,
+        // in case it includes declarations that will be hoisted.
+        scope->DeclarationScope()->RecordEvalCall();
+      }
     }
   }
 
@@ -1343,7 +1338,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
                                                    CHECK_OK);
         class_name_location = scanner()->location();
       }
-      return this->ParseClassLiteral(name, class_name_location,
+      return this->ParseClassLiteral(classifier, name, class_name_location,
                                      is_strict_reserved_name,
                                      class_token_position, ok);
     }
@@ -1917,6 +1912,13 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
                                    Token::String(Token::ARROW));
     ValidateArrowFormalParameters(&arrow_formals_classifier, expression,
                                   parenthesized_formals, CHECK_OK);
+    // This reads strangely, but is correct: it checks whether any
+    // sub-expression of the parameter list failed to be a valid formal
+    // parameter initializer. Since YieldExpressions are banned anywhere
+    // in an arrow parameter list, this is correct.
+    // TODO(adamk): Rename "FormalParameterInitializerError" to refer to
+    // "YieldExpression", which is its only use.
+    ValidateFormalParameterInitializer(&arrow_formals_classifier, ok);
     Scanner::Location loc(lhs_beg_pos, scanner()->location().end_pos);
     Scope* scope =
         this->NewScope(scope_, FUNCTION_SCOPE, FunctionKind::kArrowFunction);
@@ -2052,7 +2054,8 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
   int pos = peek_position();
   classifier->RecordPatternError(scanner()->peek_location(),
                                  MessageTemplate::kInvalidDestructuringTarget);
-  FormalParameterInitializerUnexpectedToken(classifier);
+  classifier->RecordFormalParameterInitializerError(
+      scanner()->peek_location(), MessageTemplate::kYieldInParameter);
   Expect(Token::YIELD, CHECK_OK);
   ExpressionT generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());

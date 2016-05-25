@@ -1066,9 +1066,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   if (result_size() > 2) {
     DCHECK_EQ(3, result_size());
     // Read result values stored on stack.
-    __ ldr(r2, MemOperand(r0, 2 * kPointerSize));
-    __ ldr(r1, MemOperand(r0, 1 * kPointerSize));
-    __ ldr(r0, MemOperand(r0, 0 * kPointerSize));
+    __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
+    __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
+    __ ldr(r0, MemOperand(sp, 0 * kPointerSize));
   }
   // Result returned in r0, r1:r0 or r2:r1:r0 - do not destroy these registers!
 

@@ -6604,5 +6604,18 @@ HEAP_TEST(Regress589413) {
   heap->CollectGarbage(OLD_SPACE);
 }
 
+TEST(Regress609761) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = heap->isolate();
+
+  intptr_t size_before = heap->SizeOfObjects();
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000);
+  array->Shrink(1);
+  intptr_t size_after = heap->SizeOfObjects();
+  CHECK_EQ(size_after, size_before + array->Size());
+}
+
 }  // namespace internal
 }  // namespace v8

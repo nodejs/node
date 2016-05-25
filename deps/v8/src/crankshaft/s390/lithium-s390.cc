@@ -810,42 +810,7 @@ void LChunkBuilder::AddInstruction(LInstruction* instr,
   }
   chunk_->AddInstruction(instr, current_block_);
 
-  if (instr->IsCall()) {
-    HEnvironment* hydrogen_env = current_block_->last_environment();
-    HValue* hydrogen_value_for_lazy_bailout = hydrogen_val;
-    DCHECK_NOT_NULL(hydrogen_env);
-    if (instr->IsSyntacticTailCall()) {
-      // If it was a syntactic tail call we need to drop the current frame and
-      // all the frames on top of it that are either an arguments adaptor frame
-      // or a tail caller frame.
-      hydrogen_env = hydrogen_env->outer();
-      while (hydrogen_env != nullptr &&
-             (hydrogen_env->frame_type() == ARGUMENTS_ADAPTOR ||
-              hydrogen_env->frame_type() == TAIL_CALLER_FUNCTION)) {
-        hydrogen_env = hydrogen_env->outer();
-      }
-      if (hydrogen_env != nullptr) {
-        // Push return value on top of outer environment.
-        hydrogen_env = hydrogen_env->Copy();
-        hydrogen_env->Push(hydrogen_val);
-      } else {
-        // Although we don't need this lazy bailout for normal execution
-        // (because when we tail call from the outermost function we should pop
-        // its frame) we still need it when debugger is on.
-        hydrogen_env = current_block_->last_environment();
-      }
-    } else {
-      if (hydrogen_val->HasObservableSideEffects()) {
-        HSimulate* sim = HSimulate::cast(hydrogen_val->next());
-        sim->ReplayEnvironment(hydrogen_env);
-        hydrogen_value_for_lazy_bailout = sim;
-      }
-    }
-    LInstruction* bailout = LChunkBuilderBase::AssignEnvironment(
-        new (zone()) LLazyBailout(), hydrogen_env);
-    bailout->set_hydrogen_value(hydrogen_value_for_lazy_bailout);
-    chunk_->AddInstruction(bailout, current_block_);
-  }
+  CreateLazyBailoutForCall(current_block_, instr, hydrogen_val);
 }
 
 LInstruction* LChunkBuilder::DoPrologue(HPrologue* instr) {

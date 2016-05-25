@@ -364,7 +364,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
   if (BRC == opcode || BRCT == opcode || BRCTG == opcode) {
     int16_t imm16 = target_pos - pos;
     instr &= (~0xffff);
-    CHECK(is_int16(imm16));
+    DCHECK(is_int16(imm16));
     instr_at_put<FourByteInstr>(pos, instr | (imm16 >> 1));
     return;
   } else if (BRCL == opcode || LARL == opcode || BRASL == opcode) {
@@ -374,7 +374,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     instr_at_put<SixByteInstr>(pos, instr | (imm32 >> 1));
     return;
   } else if (LLILF == opcode) {
-    CHECK(target_pos == kEndOfChain || target_pos >= 0);
+    DCHECK(target_pos == kEndOfChain || target_pos >= 0);
     // Emitted label constant, not part of a branch.
     // Make label relative to Code* of generated Code object.
     int32_t imm32 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
@@ -2538,6 +2538,7 @@ void Assembler::mvghi(const MemOperand& opnd1, const Operand& i2) {
 
 // Store Register (64)
 void Assembler::stg(Register src, const MemOperand& dst) {
+  DCHECK(!(dst.rb().code() == 15 && dst.offset() < 0));
   rxy_form(STG, src, dst.rx(), dst.rb(), dst.offset());
 }
 
@@ -2735,6 +2736,7 @@ void Assembler::std(DoubleRegister r1, const MemOperand& opnd) {
 
 // Store Double (64)
 void Assembler::stdy(DoubleRegister r1, const MemOperand& opnd) {
+  DCHECK(!(opnd.rb().code() == 15 && opnd.offset() < 0));
   rxy_form(STDY, r1, opnd.rx(), opnd.rb(), opnd.offset());
 }
 
@@ -2745,6 +2747,7 @@ void Assembler::ste(DoubleRegister r1, const MemOperand& opnd) {
 
 // Store Float (32)
 void Assembler::stey(DoubleRegister r1, const MemOperand& opnd) {
+  DCHECK(!(opnd.rb().code() == 15 && opnd.offset() < 0));
   rxy_form(STEY, r1, opnd.rx(), opnd.rb(), opnd.offset());
 }
 

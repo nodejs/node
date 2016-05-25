@@ -173,6 +173,7 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(NumberShiftLeft, Operator::kNoProperties, 2)         \
   V(NumberShiftRight, Operator::kNoProperties, 2)        \
   V(NumberShiftRightLogical, Operator::kNoProperties, 2) \
+  V(NumberImul, Operator::kNoProperties, 2)              \
   V(NumberClz32, Operator::kNoProperties, 1)             \
   V(NumberCeil, Operator::kNoProperties, 1)              \
   V(NumberFloor, Operator::kNoProperties, 1)             \

@@ -745,6 +745,11 @@ class LChunkBuilderBase BASE_EMBEDDED {
   // Will not be moved to a register even if one is freely available.
   virtual MUST_USE_RESULT LOperand* UseAny(HValue* value) = 0;
 
+  // Constructs proper environment for a lazy bailout point after call, creates
+  // LLazyBailout instruction and adds it to current block.
+  void CreateLazyBailoutForCall(HBasicBlock* current_block, LInstruction* instr,
+                                HInstruction* hydrogen_val);
+
   // Assigns given environment to an instruction.  An instruction which can
   // deoptimize must have an environment.
   LInstruction* AssignEnvironment(LInstruction* instr,

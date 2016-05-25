@@ -149,8 +149,8 @@ TEST_F(JSBuiltinReducerTest, MathImul) {
   Node* control = graph()->start();
   Node* context = UndefinedConstant();
   Node* frame_state = graph()->start();
-  TRACED_FOREACH(Type*, t0, kIntegral32Types) {
-    TRACED_FOREACH(Type*, t1, kIntegral32Types) {
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    TRACED_FOREACH(Type*, t1, kNumberTypes) {
       Node* p0 = Parameter(t0, 0);
       Node* p1 = Parameter(t1, 1);
       Node* call = graph()->NewNode(javascript()->CallFunction(4), function,
@@ -159,7 +159,8 @@ TEST_F(JSBuiltinReducerTest, MathImul) {
       Reduction r = Reduce(call);
 
       ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(), IsInt32Mul(p0, p1));
+      EXPECT_THAT(r.replacement(),
+                  IsNumberImul(IsNumberToUint32(p0), IsNumberToUint32(p1)));
     }
   }
 }

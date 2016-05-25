@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-sloppy --harmony-function-name --allow-natives-syntax
+// Flags: --harmony-do-expressions
 
 (function TestBasics() {
   var C = class C {}
@@ -993,4 +994,56 @@ function testClassRestrictedProperties(C) {
   testClassRestrictedProperties(class extends Class { });
   testClassRestrictedProperties(
       class extends Class { constructor() { super(); } });
+})();
+
+
+(function testReturnFromClassLiteral() {
+
+  function usingDoExpressionInBody() {
+    let x = 42;
+    let dummy = function() {x};
+    try {
+      class C {
+        dummy() {C}
+        [do {return}]() {}
+      };
+    } finally {
+      return x;
+    }
+  }
+  assertEquals(42, usingDoExpressionInBody());
+
+  function usingDoExpressionInExtends() {
+    let x = 42;
+    let dummy = function() {x};
+    try {
+      class C extends (do {return}) { dummy() {C} };
+    } finally {
+      return x;
+    }
+  }
+  assertEquals(42, usingDoExpressionInExtends());
+
+  function usingYieldInBody() {
+    function* foo() {
+      class C {
+        [yield]() {}
+      }
+    }
+    var g = foo();
+    g.next();
+    return g.return(42).value;
+  }
+  assertEquals(42, usingYieldInBody());
+
+  function usingYieldInExtends() {
+    function* foo() {
+      class C extends (yield) {};
+    }
+    var g = foo();
+    g.next();
+    return g.return(42).value;
+  }
+  assertEquals(42, usingYieldInExtends());
+
 })();

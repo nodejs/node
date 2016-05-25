@@ -467,6 +467,8 @@ const Operator* RepresentationChanger::Uint32OperatorFor(
       return machine()->Uint32LessThanOrEqual();
     case IrOpcode::kNumberClz32:
       return machine()->Word32Clz();
+    case IrOpcode::kNumberImul:
+      return machine()->Int32Mul();
     default:
       UNREACHABLE();
       return nullptr;

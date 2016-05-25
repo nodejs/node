@@ -16,11 +16,20 @@ namespace v8 {
 namespace internal {
 
 RUNTIME_FUNCTION(Runtime_FunctionGetName) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   DCHECK(args.length() == 1);
 
-  CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  return f->shared()->name();
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
+  if (function->IsJSBoundFunction()) {
+  Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, JSBoundFunction::GetName(
+                             isolate, Handle<JSBoundFunction>::cast(function)));
+    return *result;
+  } else {
+    RUNTIME_ASSERT(function->IsJSFunction());
+    return Handle<JSFunction>::cast(function)->shared()->name();
+  }
 }
 
 
