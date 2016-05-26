@@ -109,7 +109,7 @@ Ensure everyone is added to https://github.com/orgs/nodejs/teams/collaborators
     * To get to the form to start a job, click on `Build with Parameters`. (If you don't see it, that probably means you are not logged in!) Click it now!
     * To start CI testing from this screen, you need to fill in two elements on the form:
       * The `CERTIFY_SAFE` box should be checked. By checking it, you are indicating that you have reviewed the code you are about to test and you are confident that it does not contain any malicious code. (We don't want people hijacking our CI hosts to attack other hosts on the internet, for example!)
-      * The `PR_ID` box should be filled in with the number identifying the pull request containing the code you wish to test.. For example, if the URL for the pull request is https://github.com/nodejs/node/issues/7006, then put `7006` in the `PR_ID`.
+      * The `PR_ID` box should be filled in with the number identifying the pull request containing the code you wish to test. For example, if the URL for the pull request is https://github.com/nodejs/node/issues/7006, then put `7006` in the `PR_ID`.
       * The remaining elements on the form are typically unchanged.
       * There is a checkbox for `POST_STATUS_TO_PR`. At the time of this writing, that checkbox does not do anything, but that is likely to change soon. Until that functionality is working, you will want to go back to the PR you are testing and paste `CI: <URL-of-the-CI-test-run>` into a comment on the pull request.
 
