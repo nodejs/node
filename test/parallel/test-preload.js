@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const child_process = require('child_process');
@@ -15,7 +15,7 @@ var preloadOption = function(preloads) {
 };
 
 var fixture = function(name) {
-  return path.join(__dirname, '../fixtures/' + name);
+  return path.join(common.fixturesDir, name);
 };
 
 var fixtureA = fixture('printA.js');
@@ -82,7 +82,7 @@ child_process.exec(nodeBinary + ' '
   });
 
 // https://github.com/nodejs/node/issues/1691
-process.chdir(path.join(__dirname, '../fixtures/'));
+process.chdir(common.fixturesDir);
 child_process.exec(nodeBinary + ' '
   + '--expose_debug_as=v8debug '
   + '--require ' + fixture('cluster-preload.js') + ' '

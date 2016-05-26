@@ -1,7 +1,8 @@
 'use strict';
 // Flags: --expose_internals
 
-require('../common');
+const common = require('../common');
+const path = require('path');
 const assert = require('assert');
 const internalUtil = require('internal/util');
 
@@ -24,7 +25,7 @@ assert.deepEqual(internalUtil.getHiddenValue({}, 'foo'), undefined);
 let arrowMessage;
 
 try {
-  require('../fixtures/syntax/bad_syntax');
+  require(path.join(common.fixturesDir, 'syntax', 'bad_syntax'));
 } catch (err) {
   arrowMessage = internalUtil.getHiddenValue(err, 'arrowMessage');
 }
