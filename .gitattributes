@@ -1,2 +1,13 @@
+* text=auto
+
 test/fixtures/* -text
-vcbuild.bat text eol=crlf
+
+# Exceptions for dependencies committed with CRLF line endings
+# Should be removed when the files are updated
+deps/npm/node_modules/node-gyp/gyp/gyp.bat -text
+deps/npm/node_modules/node-gyp/gyp/samples/samples.bat -text
+deps/uv/docs/make.bat -text
+deps/v8/test/message/regress/regress-73.js -text
+deps/zlib/contrib/minizip/ChangeLogUnzip -text
+tools/gyp/gyp.bat -text
+tools/gyp/samples/samples.bat -text
