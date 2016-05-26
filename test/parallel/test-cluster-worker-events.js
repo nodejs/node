@@ -14,7 +14,8 @@ if (cluster.isMaster) {
     process.exit(0);
   });
 
-  worker.send('SOME MESSAGE');
+  const result = worker.send('SOME MESSAGE');
+  assert.strictEqual(result, true);
 
   return;
 }
