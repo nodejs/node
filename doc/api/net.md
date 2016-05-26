@@ -182,8 +182,8 @@ Begin accepting connections on the specified `port` and `hostname`. If the
 port value of zero will assign a random port.
 
 Backlog is the maximum length of the queue of pending connections.
-The actual length will be determined by your OS through sysctl settings such as
-`tcp_max_syn_backlog` and `somaxconn` on linux. The default value of this
+The actual length will be determined by the OS through sysctl settings such as
+`tcp_max_syn_backlog` and `somaxconn` on Linux. The default value of this
 parameter is 511 (not 512).
 
 This function is asynchronous.  When the server has been bound,
@@ -192,7 +192,7 @@ will be added as a listener for the [`'listening'`][] event.
 
 One issue some users run into is getting `EADDRINUSE` errors. This means that
 another server is already running on the requested port. One way of handling this
-would be to wait a second and then try again. This can be done with
+would be to wait a second and then try again:
 
 ```js
 server.on('error', (e) => {
@@ -206,7 +206,7 @@ server.on('error', (e) => {
 });
 ```
 
-(Note: All sockets in Node.js set `SO_REUSEADDR` already)
+(Note: All sockets in Node.js are set `SO_REUSEADDR`.)
 
 ### server.maxConnections
 
