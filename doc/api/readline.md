@@ -26,16 +26,25 @@ rl.question('What do you think of Node.js? ', (answer) => {
 ```
 
 ## Class: Interface
+<!-- YAML
+added: v0.1.104
+-->
 
 The class that represents a readline interface with an input and output
 stream.
 
 ### rl.close()
+<!-- YAML
+added: v0.1.98
+-->
 
 Closes the `Interface` instance, relinquishing control on the `input` and
 `output` streams. The `'close'` event will also be emitted.
 
 ### rl.pause()
+<!-- YAML
+added: v0.3.4
+-->
 
 Pauses the readline `input` stream, allowing it to be resumed later if needed.
 
@@ -43,6 +52,9 @@ Note that this doesn't immediately pause the stream of events. Several events ma
 be emitted after calling `pause`, including `line`.
 
 ### rl.prompt([preserveCursor])
+<!-- YAML
+added: v0.1.98
+-->
 
 Readies readline for input from the user, putting the current `setPrompt`
 options on a new line, giving the user a new spot to write. Set `preserveCursor`
@@ -55,6 +67,9 @@ If `output` is set to `null` or `undefined` when calling `createInterface`, the
 prompt is not written.
 
 ### rl.question(query, callback)
+<!-- YAML
+added: v0.3.3
+-->
 
 Prepends the prompt with `query` and invokes `callback` with the user's
 response. Displays the query to the user, and then invokes `callback`
@@ -75,15 +90,24 @@ rl.question('What is your favorite food?', (answer) => {
 ```
 
 ### rl.resume()
+<!-- YAML
+added: v0.3.4
+-->
 
 Resumes the readline `input` stream.
 
 ### rl.setPrompt(prompt)
+<!-- YAML
+added: v0.1.98
+-->
 
 Sets the prompt, for example when you run `node` on the command line, you see
 `> `, which is Node.js's prompt.
 
 ### rl.write(data[, key])
+<!-- YAML
+added: v0.1.98
+-->
 
 Writes `data` to `output` stream, unless `output` is set to `null` or
 `undefined` when calling `createInterface`. `key` is an object literal to
@@ -102,6 +126,9 @@ rl.write(null, {ctrl: true, name: 'u'});
 ## Events
 
 ### Event: 'close'
+<!-- YAML
+added: v0.1.98
+-->
 
 `function () {}`
 
@@ -115,6 +142,9 @@ This event is also called if there is no `SIGINT` event listener present when
 the `input` stream receives a `^C`, respectively known as `SIGINT`.
 
 ### Event: 'line'
+<!-- YAML
+added: v0.1.98
+-->
 
 `function (line) {}`
 
@@ -131,6 +161,9 @@ rl.on('line', (cmd) => {
 ```
 
 ### Event: 'pause'
+<!-- YAML
+added: v0.7.5
+-->
 
 `function () {}`
 
@@ -148,6 +181,9 @@ rl.on('pause', () => {
 ```
 
 ### Event: 'resume'
+<!-- YAML
+added: v0.7.5
+-->
 
 `function () {}`
 
@@ -162,6 +198,9 @@ rl.on('resume', () => {
 ```
 
 ### Event: 'SIGCONT'
+<!-- YAML
+added: v0.7.5
+-->
 
 `function () {}`
 
@@ -182,6 +221,9 @@ rl.on('SIGCONT', () => {
 ```
 
 ### Event: 'SIGINT'
+<!-- YAML
+added: v0.3.0
+-->
 
 `function () {}`
 
@@ -200,6 +242,9 @@ rl.on('SIGINT', () => {
 ```
 
 ### Event: 'SIGTSTP'
+<!-- YAML
+added: v0.7.5
+-->
 
 `function () {}`
 
@@ -272,6 +317,9 @@ rl.on('line', (line) => {
 ```
 
 ## readline.clearLine(stream, dir)
+<!-- YAML
+added: v0.7.7
+-->
 
 Clears current line of given TTY stream in a specified direction.
 `dir` should have one of following values:
@@ -281,10 +329,16 @@ Clears current line of given TTY stream in a specified direction.
 * `0` - the entire line
 
 ## readline.clearScreenDown(stream)
+<!-- YAML
+added: v0.7.7
+-->
 
 Clears the screen from the current position of the cursor down.
 
 ## readline.createInterface(options)
+<!-- YAML
+added: v0.1.98
+-->
 
 Creates a readline `Interface` instance. Accepts an `options` Object that takes
 the following values:
@@ -351,10 +405,16 @@ a `'resize'` event on the `output` if/when the columns ever change
 ([`process.stdout`][] does this automatically when it is a TTY).
 
 ## readline.cursorTo(stream, x, y)
+<!-- YAML
+added: v0.7.7
+-->
 
 Move cursor to the specified position in a given TTY stream.
 
 ## readline.emitKeypressEvents(stream[, interface])
+<!-- YAML
+added: v0.7.7
+-->
 
 Causes `stream` to begin emitting `'keypress'` events corresponding to its
 input.
@@ -362,6 +422,9 @@ Optionally, `interface` specifies a `readline.Interface` instance for which
 autocompletion is disabled when copy-pasted input is detected.
 
 ## readline.moveCursor(stream, dx, dy)
+<!-- YAML
+added: v0.7.7
+-->
 
 Move cursor relative to it's current position in a given TTY stream.
 
