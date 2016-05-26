@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-const PORT_MIN = common.PORT;
+const PORT_MIN = common.PORT + 1;  // The fixture uses common.PORT.
 const PORT_MAX = PORT_MIN + 2;
 
 const args = [
