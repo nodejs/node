@@ -9,6 +9,9 @@ The file system is not consulted to check whether paths are valid.
 Use `require('path')` to use this module.  The following methods are provided:
 
 ## path.basename(p[, ext])
+<!-- YAML
+added: v0.1.25
+-->
 
 Return the last portion of a path.  Similar to the Unix `basename` command.
 
@@ -23,6 +26,9 @@ path.basename('/foo/bar/baz/asdf/quux.html', '.html')
 ```
 
 ## path.delimiter
+<!-- YAML
+added: v0.9.3
+-->
 
 The platform-specific path delimiter, `;` or `':'`.
 
@@ -47,6 +53,9 @@ process.env.PATH.split(path.delimiter)
 ```
 
 ## path.dirname(p)
+<!-- YAML
+added: v0.1.16
+-->
 
 Return the directory name of a path.  Similar to the Unix `dirname` command.
 
@@ -58,6 +67,9 @@ path.dirname('/foo/bar/baz/asdf/quux')
 ```
 
 ## path.extname(p)
+<!-- YAML
+added: v0.1.25
+-->
 
 Return the extension of the path, from the last '.' to end of string
 in the last portion of the path.  If there is no '.' in the last portion
@@ -82,6 +94,9 @@ path.extname('.index')
 ```
 
 ## path.format(pathObject)
+<!-- YAML
+added: v0.11.15
+-->
 
 Returns a path string from an object, the opposite of [`path.parse`][].
 
@@ -106,6 +121,9 @@ path.format({
 ```
 
 ## path.isAbsolute(path)
+<!-- YAML
+added: v0.11.2
+-->
 
 Determines whether `path` is an absolute path. An absolute path will always
 resolve to the same location, regardless of the working directory.
@@ -133,6 +151,9 @@ path.isAbsolute('.')         // false
         returned.
 
 ## path.join([path1][, path2][, ...])
+<!-- YAML
+added: v0.1.16
+-->
 
 Join all arguments together and normalize the resulting path.
 
@@ -156,6 +177,9 @@ TypeError: Arguments to path.join must be strings
         current working directory.
 
 ## path.normalize(p)
+<!-- YAML
+added: v0.1.23
+-->
 
 Normalize a string path, taking care of `'..'` and `'.'` parts.
 
@@ -174,6 +198,9 @@ path.normalize('/foo/bar//baz/asdf/quux/..')
         will be returned, which represents the current working directory.
 
 ## path.parse(pathString)
+<!-- YAML
+added: v0.11.15
+-->
 
 Returns an object from a path string.
 
@@ -206,11 +233,17 @@ path.parse('C:\\path\\dir\\index.html')
 ```
 
 ## path.posix
+<!-- YAML
+added: v0.11.15
+-->
 
 Provide access to aforementioned `path` methods but always interact in a posix
 compatible way.
 
 ## path.relative(from, to)
+<!-- YAML
+added: v0.5.0
+-->
 
 Solve the relative path from `from` to `to`.
 
@@ -237,6 +270,9 @@ path.relative('/data/orandea/test/aaa', '/data/orandea/impl/bbb')
         both the paths are the same then a zero-length string will be returned.
 
 ## path.resolve([from ...], to)
+<!-- YAML
+added: v0.3.4
+-->
 
 Resolves `to` to an absolute path.
 
@@ -283,6 +319,9 @@ path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
         working directory will be used instead of them.
 
 ## path.sep
+<!-- YAML
+added: v0.7.9
+-->
 
 The platform-specific file separator. `'\\'` or `'/'`.
 
@@ -301,6 +340,9 @@ An example on Windows:
 ```
 
 ## path.win32
+<!-- YAML
+added: v0.11.15
+-->
 
 Provide access to aforementioned `path` methods but always interact in a win32
 compatible way.
