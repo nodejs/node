@@ -1,10 +1,11 @@
 'use strict';
-require('../common');
+var common = require('../common');
+var path = require('path');
 var assert = require('assert');
 
 var a;
 setTimeout(function() {
-  a = require('../fixtures/a');
+  a = require(path.join(common.fixturesDir, 'a'));
 }, 50);
 
 process.on('exit', function() {
