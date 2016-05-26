@@ -110,7 +110,7 @@ util.format('%s:%s', 'foo');
 If there are more arguments passed to the `util.format()` method than the
 number of placeholders, the extra arguments are coerced into strings (for
 objects and symbols, `util.inspect()` is used) then concatenated to the
-returned string, delimited by a space.
+returned string, each delimited by a space.
 
 ```js
 util.format('%s:%s', 'foo', 'bar', 'baz'); // 'foo:bar baz'
@@ -610,7 +610,7 @@ Returns `true` if the given `object` is `undefined`. Otherwise, returns `false`.
 ```js
 const util = require('util');
 
-const foo;
+const foo = undefined;
 util.isUndefined(5);
   // false
 util.isUndefined(foo);
@@ -629,7 +629,7 @@ The `util.log()` method prints the given `string` to `stdout` with an included
 timestamp.
 
 ```js
-const util = require('util')
+const util = require('util');
 
 util.log('Timestamped message.');
 ```
