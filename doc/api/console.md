@@ -101,6 +101,9 @@ new Console(process.stdout, process.stderr);
 ```
 
 ### console.assert(value[, message][, ...])
+<!-- YAML
+added: v0.1.101
+-->
 
 A simple assertion test that verifies whether `value` is truthy. If it is not,
 an `AssertionError` is thrown. If provided, the error `message` is formatted
@@ -154,6 +157,9 @@ console.log('this will also print');
 ```
 
 ### console.dir(obj[, options])
+<!-- YAML
+added: v0.1.101
+-->
 
 Uses [`util.inspect()`][] on `obj` and prints the resulting string to `stdout`.
 This function bypasses any custom `inspect()` function defined on `obj`. An
@@ -172,6 +178,9 @@ Defaults to `false`. Colors are customizable; see
 [customizing `util.inspect()` colors][].
 
 ### console.error([data][, ...])
+<!-- YAML
+added: v0.1.100
+-->
 
 Prints to `stderr` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
@@ -191,10 +200,16 @@ If formatting elements (e.g. `%d`) are not found in the first string then
 values are concatenated. See [`util.format()`][] for more information.
 
 ### console.info([data][, ...])
+<!-- YAML
+added: v0.1.100
+-->
 
 The `console.info()` function is an alias for [`console.log()`][].
 
 ### console.log([data][, ...])
+<!-- YAML
+added: v0.1.100
+-->
 
 Prints to `stdout` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
@@ -214,6 +229,9 @@ If formatting elements (e.g. `%d`) are not found in the first string then
 values are concatenated. See [`util.format()`][] for more information.
 
 ### console.time(label)
+<!-- YAML
+added: v0.1.104
+-->
 
 Used to calculate the duration of a specific operation. To start a timer, call
 the `console.time()` method, giving it a unique `label` as the only parameter. To stop the
@@ -222,6 +240,9 @@ timer, and to get the elapsed time in milliseconds, just call the
 timer's unique `label` as the parameter.
 
 ### console.timeEnd(label)
+<!-- YAML
+added: v0.1.104
+-->
 
 Stops a timer that was previously started by calling [`console.time()`][] and
 prints the result to stdout:
@@ -236,6 +257,9 @@ console.timeEnd('100-elements');
 ```
 
 ### console.trace(message[, ...])
+<!-- YAML
+added: v0.1.104
+-->
 
 Prints to `stderr` the string `'Trace :'`, followed by the [`util.format()`][]
 formatted message and stack trace to the current position in the code.
@@ -257,6 +281,9 @@ console.trace('Show me');
 ```
 
 ### console.warn([data][, ...])
+<!-- YAML
+added: v0.1.100
+-->
 
 The `console.warn()` function is an alias for [`console.error()`][].
 
