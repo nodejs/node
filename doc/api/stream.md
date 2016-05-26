@@ -927,7 +927,7 @@ becomes available. There is no need, for example to "wait" until
 Note: **This method should be called by Readable implementors, NOT
 by consumers of Readable streams.**
 
-If a value other than null is passed, The `push()` method adds a chunk of data
+If a value other than null is passed, the `push()` method adds a chunk of data
 into the queue for subsequent stream processors to consume. If `null` is
 passed, it signals the end of the stream (EOF), after which no more data
 can be written.
