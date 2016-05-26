@@ -37,10 +37,10 @@ Emitted when the server has been bound after calling `server.listen`.
 
 ### server.address()
 
-Returns the bound address, the address family name and port of the server
+Returns the bound address, the address family name, and port of the server
 as reported by the operating system.
-Useful to find which port was assigned when giving getting an OS-assigned address.
-Returns an object with three properties, e.g.
+Useful to find which port was assigned when getting an OS-assigned address.
+Returns an object with `port`, `family`, and `address` properties:
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
 Example:
