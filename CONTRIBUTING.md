@@ -140,8 +140,9 @@ $ git rebase upstream/master
 ### Step 5: Test
 
 Bug fixes and features **should come with tests**. Add your tests in the
-test/parallel/ directory. Look at other tests to see how they should be
-structured (license boilerplate, common includes, etc.).
+`test/parallel/` directory. For guidance on how to write a test for the Node.js
+project, see this [guide](./doc/guides/writing_tests.md). Looking at other tests
+to see how they should be structured can also help.
 
 ```text
 $ ./configure && make -j8 test
