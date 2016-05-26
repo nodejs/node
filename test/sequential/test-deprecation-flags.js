@@ -1,12 +1,12 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const execFile = require('child_process').execFile;
-const depmod = require.resolve('../fixtures/deprecated.js');
+const depmod = require.resolve(common.fixturesDir + '/deprecated.js');
 const node = process.execPath;
 
 const depUserland =
-    require.resolve('../fixtures/deprecated-userland-function.js');
+    require.resolve(common.fixturesDir + '/deprecated-userland-function.js');
 
 const normal = [depmod];
 const noDep = ['--no-deprecation', depmod];
