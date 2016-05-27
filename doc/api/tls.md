@@ -299,7 +299,9 @@ server.on('resumeSession', (id, cb) => {
 ```
 
 ### Event: 'secureConnection'
-
+<!--YAML
+added: v0.11.13
+-->
 The `'secureConnection'` event is emitted after the handshaking process for a
 new connection has successfully completed. The listener callback is passed a
 single argument when called:
