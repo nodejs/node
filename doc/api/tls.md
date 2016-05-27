@@ -325,7 +325,9 @@ The `tlsSocket.servername` property is a string containing the server name
 requested via SNI.
 
 ### server.addContext(hostname, context)
-
+<!--
+added: v0.11.13
+-->
 * `hostname` {string} A SNI hostname or wildcard (e.g. `'*'`)
 * `context` {Object} An object containing any of the possible properties
   from the [`tls.createSecureContext()`][] `options` arguments (e.g. `key`,
