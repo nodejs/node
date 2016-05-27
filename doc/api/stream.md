@@ -924,8 +924,8 @@ becomes available. There is no need, for example to "wait" until
   Buffer encoding, such as `'utf8'` or `'ascii'`
 * return {Boolean} Whether or not more pushes should be performed
 
-**Note:** This method should be called by Readable implementors, _not_
-by consumers of Readable streams.
+**Note:** This method should be called by `Readable` implementors, _not_
+by consumers of `Readable` streams.
 
 If a value other than null is passed, The `push()` method adds a chunk of data
 into the queue for subsequent stream processors to consume. If `null` is
