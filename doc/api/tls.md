@@ -343,7 +343,7 @@ server as reported by the operating system.  See [`net.Server.address()`][] for
 more information.
 
 ### server.close([callback])
-
+w
 * `callback` {Function} An optional listener callback that will be registered to
   listen for the server instance's `'close'` event.
 
@@ -446,7 +446,9 @@ Typically, the `response` is a digitally signed object from the server's CA that
 contains information about server's certificate revocation status.
 
 ### Event: 'secureConnect'
-
+<!--YAML
+added: v0.11.13
+-->
 The `'secureConnect'` event is emitted after the handshaking process for a new
 connection has successfully completed. The listener callback will be called
 regardless of whether or not the server's certificate has been authorized. It
