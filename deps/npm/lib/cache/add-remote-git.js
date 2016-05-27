@@ -443,7 +443,7 @@ function getResolved (uri, treeish) {
   // Checks for known protocols:
   // http:, https:, ssh:, and git:, with optional git+ prefix.
   if (!parsed.protocol ||
-      !parsed.protocol.match(/^(((git\+)?(https?|ssh))|git|file):$/)) {
+      !parsed.protocol.match(/^(((git\+)?(https?|ssh|file))|git|file):$/)) {
     uri = 'git+ssh://' + uri
   }
 

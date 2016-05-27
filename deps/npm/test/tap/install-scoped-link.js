@@ -8,6 +8,8 @@ var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
+var escapeExecPath = require('../../lib/utils/escape-exec-path')
+
 var common = require('../common-tap.js')
 
 var pkg = path.join(__dirname, 'install-scoped-link')
@@ -16,7 +18,7 @@ var modules = path.join(work, 'node_modules')
 
 var EXEC_OPTS = { cwd: work }
 
-var world = 'console.log("hello blrbld")\n'
+var world = '#!/usr/bin/env node\nconsole.log("hello blrbld")\n'
 
 var json = {
   name: '@scoped/package',
@@ -61,7 +63,7 @@ test('installing package with links', function (t) {
       var hello = path.join(modules, '.bin', 'hello')
       t.ok(existsSync(hello), 'binary link exists')
 
-      exec('node ' + hello, function (err, stdout, stderr) {
+      exec(escapeExecPath(hello), function (err, stdout, stderr) {
         t.ifError(err, 'command ran fine')
         t.notOk(stderr, 'got no error output back')
         t.equal(stdout, 'hello blrbld\n', 'output was as expected')

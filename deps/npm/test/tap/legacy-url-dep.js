@@ -37,8 +37,6 @@ test('url-dep', function (t) {
   common.npm(['install', fixturepath], {cwd: basepath}, installCheckAndTest)
   function installCheckAndTest (err, code, stdout, stderr) {
     if (err) throw err
-    console.error(stderr)
-    console.log(stdout)
     t.is(code, 0, 'install went ok')
     t.done()
   }

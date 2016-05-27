@@ -1,4 +1,3 @@
-
 module.exports = completion
 
 completion.usage = 'source <(npm completion)'
@@ -14,6 +13,7 @@ var configNames = Object.keys(configTypes)
 var shorthandNames = Object.keys(shorthands)
 var allConfs = configNames.concat(shorthandNames)
 var once = require('once')
+var isWindowsShell = require('./utils/is-windows-shell.js')
 
 completion.completion = function (opts, cb) {
   if (opts.w > 3) return cb()
@@ -45,7 +45,7 @@ completion.completion = function (opts, cb) {
 }
 
 function completion (args, cb) {
-  if (process.platform === 'win32' && !(/^MINGW(32|64)$/.test(process.env.MSYSTEM))) {
+  if (isWindowsShell) {
     var e = new Error('npm completion supported only in MINGW / Git bash on Windows')
     e.code = 'ENOTSUP'
     e.errno = require('constants').ENOTSUP
