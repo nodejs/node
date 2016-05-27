@@ -361,14 +361,16 @@ This function operates asynchronously. The `'close'` event will be emitted
 when the the server is finally closed.
 
 ### server.connections
-<!--
+<!--YAML
 added: v0.11.3
 -->
 
 Returns the current number of concurrent connections on the server.
 
 ### server.getTicketKeys()
-
+<!--YAML
+added: v2.5.0
+-->
 Returns a `Buffer` instance holding the keys currently used for
 encryption/decryption of the [TLS Session Tickets][]
 
