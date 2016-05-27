@@ -185,6 +185,9 @@ of an application. The `--tls-cipher-list` switch should by used only if
 absolutely necessary.
 
 ## Class: tls.Server
+<!--
+added: v0.11.3
+-->
 
 The `tls.Server` class is a subclass of `net.Server` that accepts encrypted
 connections using TLS or SSL.
@@ -337,6 +340,9 @@ The `server.addContext()` method adds a secure context that will be used if
 the client request's SNS hostname matches the supplied `hostname` (or wildcard).
 
 ### server.address()
+<!--
+added: v0.11.3
+-->
 
 Returns the bound address, the address family name, and port of the
 server as reported by the operating system.  See [`net.Server.address()`][] for
