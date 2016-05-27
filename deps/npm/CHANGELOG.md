@@ -1,3 +1,289 @@
+### v3.9.3 (2016-05-19):
+
+This week continues our `big-bug` squashing adventure! Things are churning along
+nicely, and we've gotten a lot of fantastic contributions from the community.
+Please keep it up!
+
+A quick note on last week's release: We had a small `npm shrinkwrap`-related
+crasher in `npm@3.9.1`, so once this release goes out, `v3.9.2` is going to be
+`npm@latest`. Please update if you ended up in with that previous version!
+
+Remember we have a weekly team meeting, and you can [suggest agenda items in the
+GitHub issue](https://github.com/npm/npm/issues/12761). Keep an eye out for the
+`#npmweekly` tag on Twitter, too, and join the conversation! We'll do our best
+to address questions y'all send us. ✌
+
+#### FIXES
+
+* [`42d71be`](https://github.com/npm/npm/commit/42d71be2cec674dd9e860ad414f53184f667620d)
+  [#12685](https://github.com/npm/npm/pull/12685)
+  When using `npm ls <pkg>` without a semver specifier, `npm ls` would skip
+  any packages in your tree that matched by name, but had a prerelease version
+  in their `package.json`. This patch fixes it so `npm ls` does a simple name
+  match unless you use the `npm ls <pkg>@<version>` format.
+  ([@zkat](https://github.com/zkat))
+* [`c698ae6`](https://github.com/npm/npm/commit/c698ae666afc92fbc0fcba3c082cfa9b34a4420d)
+  [#12685](https://github.com/npm/npm/pull/12685)
+  Added some tests for more basic `npm ls` functionality.
+  ([@zkat](https://github.com/zkat))
+
+### NOTABLE DEPENDENCY UPDATES
+
+* [`3a6fe23`](https://github.com/npm/npm/commit/3a6fe2373c45e80a1f28aaf176d552f6f97cf131)
+  [npm/fstream-npm#17](https://github.com/npm/fstream-npm/pull/17)
+  `fstream-npm@1.1.0`:
+  `fstream-npm` always includes NOTICE files now.
+  ([@kemitchell](https://github.com/kemitchell))
+* [`df04e05`](https://github.com/npm/npm/commit/df04e05af1f257a1903372e1baf334c0969fbdbd)
+  [#10013](https://github.com/npm/npm/issues/10013)
+  `read-package-tree@5.1.4`:
+  Fixes an issue where `npm install` would fail if your `node_modules` was
+  symlinked.
+  ([@iarna](https://github.com/iarna))
+* [`584676f`](https://github.com/npm/npm/commit/584676f85eaebcb9d6c4d70d2ad320be8a8d6a74)
+  [npm/init-package-json#62](https://github.com/npm/init-package-json/pull/62)
+  `init-package-json@1.9.4`:
+  Stop using `package` for a variable, which defeats some bundlers and linters.
+  ([@adius](https://github.com/adius))
+* [`935a7e3`](https://github.com/npm/npm/commit/935a7e359535e13924934811b77924cbad82619a)
+  `readable-stream@2.1.3`:
+  Node 6 build and buffer-related updates.
+  ([@calvinmetcalf](https://github.com/calvinmetcalf))
+
+#### OTHER DEPENDENCY UPDATES
+
+* [`4c4609e`](https://github.com/npm/npm/commit/4c4609ea49e77303f9d72af6757620e6b3a9a6a9)
+  `inflight@1.0.5`
+  ([@zkat](https://github.com/zkat))
+* [`7a3030d`](https://github.com/npm/npm/commit/7a3030d3d44ea2136425f72950ba22e6efd441d9)
+  `hosted-git-info@2.1.5`
+  ([@zkat](https://github.com/zkat))
+* [`5ed4b58`](https://github.com/npm/npm/commit/5ed4b58409eeb134bca1c96252682fd7600d9906)
+  `which@1.2.9`
+  ([@isaacs](https://github.com/isaacs))
+
+### v3.9.2 (2016-05-17)
+
+This is a quick patch release.  The previous release, 3.9.1, introduced a
+bug where npm would crash given a combination of specific package tree on
+disk and a shrinkwrap.
+
+* [`cde367f`](https://github.com/npm/npm/commit/cde367fbb6eebc5db68a44b12a5c7bea158d70db)
+  [#12724](https://github.com/npm/npm/issues/12724)
+  Fix crasher when inflating shrinkwraps with packages on disk that were
+  installed by older npm versions.
+  ([@iarna](https://github.com/iarna))
+
+### v3.9.1 (2016-05-12)
+
+HI all!  We have bug fixes to a couple of the hairy corners of `npm`, in the
+form of shrinkwraps and bundled dependencies. Plus some documentation improvements
+and our lodash deps bot a bump.
+
+This is our first week really focused on getting the
+[big bugs](https://github.com/npm/npm/issues?q=is%3Aopen+is%3Aissue+label:big-bug)
+list down.  Our work from this week will be landing next week, and I can't
+wait to tell you about that! (It's about symlinks!)
+
+#### SHRINKWRAP FIX
+
+* [`b894413`](https://github.com/npm/npm/commit/b8944139a935680c4a267468bb2d3c3082b5609f)
+  [#12372](https://github.com/npm/npm/issues/12372)
+  Changing a nested dependency in an `npm-shrinkwrap.json` and then running `npm install`
+  would not get up the updated package. This corrects that.
+  ([@misterbyrne](https://github.com/misterbyrne))
+
+#### BUNDLED DEPENDENCIES FIX
+
+* [`d0c6d19`](https://github.com/npm/npm/commit/d0c6d194471be8ce3e7b41b744b24f63dd1a3f6f)
+  [#12476](https://github.com/npm/npm/pull/12476)
+  Protects against a crasher when a bundled dep is missing a package.json.
+  ([@dflupu](https://github.com/dflupu))
+
+#### DOCS IMPROVEMENTS
+
+* [`6699aa5`](https://github.com/npm/npm/commit/6699aa53c0a729cfc921ac1d8107c320e5a5ac95)
+  [#12585](https://github.com/npm/npm/pull/12585)
+  Document that engineStrict is quite gone. Not "deprecated" so much as "extirpated".
+  ([@othiym23](https://github.com/othiym23))
+* [`7a41a84`](https://github.com/npm/npm/commit/7a41a84b655be3204d2e80848278a510e42c80e7)
+  [#12636](https://github.com/npm/npm/pull/12636)
+  Improve `npm-scripts` documentation regarding when `node-gyp` is used.
+  ([@reconbot](https://github.com/reconbot))
+* [`4c4b4ba`](https://github.com/npm/npm/commit/4c4b4badf09b9b50cdca85314429a0111bb35cb1)
+  [#12586](https://github.com/npm/npm/pull/12586)
+  Correct `package.json` documentation as to when `node-gyp rebuild` called.
+  This now matches https://docs.npmjs.com/misc/scripts#default-values
+  ([@reconbot](https://github.com/reconbot))
+
+#### DEPENDENCY UPDATES
+
+* [`cfa797f`](https://github.com/npm/npm/commit/cfa797fedd34696d45b61e3ae0398407afece880)
+  `lodash._baseuniq@4.6.0`
+  ([@jdalton](https://github.com/jdalton))
+* [`ab6f180`](https://github.com/npm/npm/commit/ab6f1801971b513f9294b4b8902034ab402af02d)
+  `lodash.keys@4.0.7`
+  ([@jdalton](https://github.com/jdalton))
+* [`4b8d8b6`](https://github.com/npm/npm/commit/4b8d8b63e760a8aa03e8bffa974495dfafbfcb06)
+  `lodash.union@4.4.0`
+  ([@jdalton](https://github.com/jdalton))
+* [`46099d3`](https://github.com/npm/npm/commit/46099d34542760098e5d13c7468a405a724ca407)
+  `lodash.uniq@4.3.0`
+  ([@jdalton](https://github.com/jdalton))
+* [`fff89c6`](https://github.com/npm/npm/commit/fff89c6826c86e9e789adcc9c398385539306042)
+  `lodash.without@4.2.0`
+  ([@jdalton](https://github.com/jdalton))
+
+### v3.9.0 (2016-05-05)
+
+Wow!  This is a big release week!  We've completed the fixes that let the
+test suite pass on Windows, plus more general bug fixes we found while
+fixing things on Windows.  Plus a warning to help folks work around a common
+footgun.  PLUS an improvement to how npm works with long cache timeouts.
+
+#### INFINITE CACHE A LITTLE BETTER
+
+* [`111ae3e`](https://github.com/npm/npm/commit/111ae3ec366ece7ebcf5988f5bc2a7cd70737dfe)
+  [#8581](https://github.com/npm/npm/issues/8581)
+  When a package is fetched from the cache which cannot satisfy the version
+  requirements, an attempt to fetch it from the network is made.  This is
+  helpful for folks using high values for `--cache-min` who are willing to
+  accept possibly not-the-most-recent modules in return for less network
+  traffic.
+  ([@Zirak](https://github.com/Zirak))
+
+#### WARNING: FOOTGUN
+
+* [`60b9a05`](https://github.com/npm/npm/commit/60b9a051aa46b8892fe63b3681839a6fd6642bfd)
+  [#12475](https://github.com/npm/npm/pull/12475)
+  Options can only start with ASCII dashes.  Ordinarily this isn't a problem
+  but many web documentation tools "helpfully" convert `--` into an emdash
+  (–), or `-` into an endash (–).  If you copy and paste from this documentation
+  your commands won't work the way you expect. This adds a warning that tries
+  to be a little more descriptive about why your command is failing.
+  ([@iarna](https://github.com/iarna))
+
+#### WINDOWS CI
+
+We have [Windows CI](https://ci.appveyor.com/project/npm/npm) setup now! We still have to
+tweak it a little bit around paths to the git binaries, but it's otherwise ready!
+
+* [`bb5d6cb`](https://github.com/npm/npm/commit/bb5d6cbf46b2609243d3b384caadd196e665a797)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Add AppVeyor to CI matrix.
+  ([@othiym23](https://github.com/othiym23))
+
+#### COVERAGE DATA
+
+Not only do our tests produce coverage reports after they run now, we also
+automatically [update Coveralls](https://coveralls.io/github/npm/npm) with
+results from [Travis CI](travis-ci.org/npm/npm) runs.
+
+* [`044cbab`](https://github.com/npm/npm/commit/044cbab0d49adeeb0d9310c64fee6c9759cc7428)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Enable coverage reporting for every test run.
+  ([@othiym23](https://github.com/othiym23))
+
+#### EVERYONE BUGS
+
+* [`37c6a51`](https://github.com/npm/npm/commit/37c6a51c71b0feec8f639b3199a8a9172e58deec)
+  [#12150](https://github.com/npm/npm/pull/12150)
+  Ensure that 'npm cache ls' outputs real filenames.  Previously it would
+  sometimes double up the package name in the path it printed.
+  ([@isaacs](https://github.com/isaacs))
+* [`d3ce0b2`](https://github.com/npm/npm/commit/d3ce0b253eb519375071aee29db4ee129dbcdf5c)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Fix unbuilding bins for scoped modules.
+  ([@iarna](https://github.com/iarna))
+* [`e928a30`](https://github.com/npm/npm/commit/e928a30947477a09245f54e9381f46b97bee32d5)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Make handling of local modules (eg `npm install /path/to/my/module`) more
+  consistent when saved to a `package.json`. There were bugs previously where
+  it wouldn't consistently resolve relative paths in the same way.
+  ([@iarna](https://github.com/iarna))
+* [`b820ed4`](https://github.com/npm/npm/commit/b820ed4fc04e21577fa66f7c9482b5ab002e7985)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Under certain circumstances the paths produced for linking, either
+  relative or absolute, would end up basing off the wrong virtual cwd.
+  This resulted in failures for `npm link` in this situations.
+  ([@iarna](https://github.com/iarna))
+
+#### WINDOWS BUGS
+
+* [`7380425`](https://github.com/npm/npm/commit/7380425d810fb8bfc69405a9cbbdec19978a7bee)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Scoped module names were not being correctly inferred from the path on Windows.
+  ([@zkat](https://github.com/zkat))
+* [`91fc24f`](https://github.com/npm/npm/commit/91fc24f2763c2e0591093099ffc866c735f27fde)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Explore with a command to run didn't work properly in Windows– it would pop open a new
+  cmd window and leave it there.
+  ([@iarna](https://github.com/iarna))
+
+#### WINDOWS REFACTORING
+
+* [`f07e643`](https://github.com/npm/npm/commit/f07e6430d4ca02f811138f6140a8bad927607a1f)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Move exec path escaping out to its own function.  This turns out to be
+  tricky to get right because how you escape commands to run on Windows via
+  cmd is different then how you escape them at other times.  Specifically,
+  you HAVE to quote each directory segment that has a quote in it, that is:
+  `C:\"Program Files"\MyApp\MyApp.exe` By contrast, if that were an argument
+  to a command being run, you CAN'T DO quote it that way, instead you have
+  to wrap the entire path in quotes, like so: `"C:\Program
+  Files\MyApp\MyApp.exe"`.
+  ([@iarna](https://github.com/iarna))
+* [`2e01d29`](https://github.com/npm/npm/commit/2e01d299f8244134b1aa040cab1b59c72c9df4da)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Create a single function for detecting if we're running on Windows (and
+  using a Windows shell like cmd) and use this instead of doing it one-off
+  all over the place.
+  ([@iarna](https://github.com/iarna))
+
+#### FIX WINDOWS TESTS
+
+As I said before, our tests are passing on Windows! 🎉
+
+* [`ef0dd74`](https://github.com/npm/npm/commit/ef0dd74583be25c72343ed07d1127e4d0cc02df9)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  The fruits of many weeks of labor, fix our tests to pass on Windows.
+  ([@zkat](https://github.com/zkat))
+  ([@iarna](https://github.com/iarna))
+
+#### DEPENDENCY UPDATES
+
+* [`8fccda8`](https://github.com/npm/npm/commit/8fccda8587209659c469ab55c608b0e2d7533530)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  `normalize-git-url@3.0.2`:
+  Fix file URLs on Windows.
+  ([@zkat](https://github.com/zkat))
+* [`f53a154`](https://github.com/npm/npm/commit/f53a154df8e0696623e6a71f33e0a7c11a7555aa)
+  `readable-stream@2.1.2`:
+  When readable-stream is disabled, reuse result of `require('stream')`
+  instead of calling it every time.
+  ([@calvinmetcalf](https://github.com/calvinmetcalf))
+* [`02841cf`](https://github.com/npm/npm/commit/02841cfb81d6ba86f691ab43d9bbdac29aec27e7)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  `realize-package-specifier@3.0.2`:
+  Resolve local package paths relative to package root, not cwd.
+  ([@zkat](https://github.com/zkat))
+  ([@iarna](https://github.com/iarna))
+* [`247c1c5`](https://github.com/npm/npm/commit/247c1c5ae08c882c9232ca605731039168bae6ed)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  `npm-package-arg@4.1.1`:
+  Fix Windows file URIs with leading slashes.
+  ([@zkat](https://github.com/zkat))
+* [`365c72b`](https://github.com/npm/npm/commit/365c72bc3ecd9e45f9649725dd635d5625219d8c)
+  `which@1.2.8`
+  ([@isaacs](https://github.com/isaacs))
+* [`e568caa`](https://github.com/npm/npm/commit/e568caabb8390a924ce1cfa51fc914ee6c1637a2)
+  `graceful-fs@4.1.4`
+  ([@isaacs](https://github.com/isaacs))
+* [`304b974`](https://github.com/npm/npm/commit/304b97434959a58f84383bcccc0357c51a4eb39a)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  `standard@6.0.8`
+  ([@feross](https://github.com/feross))
+
 ### v3.8.9 (2016-04-28)
 
 Our biggest news this week is that we got the
@@ -2412,7 +2698,7 @@ in line with `npm@2`.
 
 * [`95ee92c`](https://github.com/npm/npm/commit/95ee92c)
   [#9433](https://github.com/npm/npm/issues/9433)
-  Give better error messages for invalid urls in the dependecy
+  Give better error messages for invalid URLs in the dependecy
   list.
   ([@jamietre](https://github.com/jamietre))
 

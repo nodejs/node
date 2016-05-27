@@ -59,7 +59,7 @@ function rmStuff (pkg, folder, cb) {
   // if it's global, and folder is in {prefix}/node_modules,
   // then bins are in {prefix}/bin
   // otherwise, then bins are in folder/../.bin
-  var parent = path.dirname(folder)
+  var parent = pkg.name[0] === '@' ? path.dirname(path.dirname(folder)) : path.dirname(folder)
   var gnm = npm.dir
   var top = gnm === parent
 
