@@ -14,10 +14,16 @@ JavaScript code can be compiled and run immediately or compiled, saved, and run
 later.
 
 ## Class: Script
+<!-- YAML
+added: v0.3.1
+-->
 
 A class for holding precompiled scripts, and running them in specific sandboxes.
 
 ### new vm.Script(code, options)
+<!-- YAML
+added: v0.3.1
+-->
 
 Creating a new `Script` compiles `code` but does not run it. Instead, the
 created `vm.Script` object represents this compiled code. This script can be run
@@ -40,6 +46,9 @@ The options when creating a script are:
   execution. If execution is terminated, an [`Error`][] will be thrown.
 
 ### script.runInContext(contextifiedSandbox[, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 Similar to [`vm.runInContext()`][] but a method of a precompiled `Script`
 object. `script.runInContext()` runs `script`'s compiled code in
@@ -78,6 +87,9 @@ Note that running untrusted code is a tricky business requiring great care.
 requires a separate process.
 
 ### script.runInNewContext([sandbox][, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 Similar to [`vm.runInNewContext()`][] but a method of a precompiled `Script`
 object. `script.runInNewContext()` contextifies `sandbox` if passed or creates a
@@ -114,6 +126,9 @@ Note that running untrusted code is a tricky business requiring great care.
 requires a separate process.
 
 ### script.runInThisContext([options])
+<!-- YAML
+added: v0.3.1
+-->
 
 Similar to [`vm.runInThisContext()`]() but a method of a precompiled `Script`
 object. `script.runInThisContext()` runs `script`'s compiled code and returns
@@ -155,6 +170,9 @@ The options for running a script are:
   execution. If execution is terminated, an [`Error`][] will be thrown.
 
 ## vm.createContext([sandbox])
+<!-- YAML
+added: v0.3.1
+-->
 
 If given a `sandbox` object, will "contextify" that sandbox so that it can be
 used in calls to [`vm.runInContext()`][] or [`script.runInContext()`][]. Inside
@@ -172,6 +190,9 @@ single sandbox representing a window's global object, then run all `<script>`
 tags together inside that sandbox.
 
 ## vm.isContext(sandbox)
+<!-- YAML
+added: v0.11.7
+-->
 
 Returns whether or not a sandbox object has been contextified by calling
 [`vm.createContext()`][] on it.
@@ -207,6 +228,9 @@ Note that running untrusted code is a tricky business requiring great care.
 a separate process.
 
 ## vm.runInDebugContext(code)
+<!-- YAML
+added: v0.11.14
+-->
 
 `vm.runInDebugContext()` compiles and executes `code` inside the V8 debug
 context. The primary use case is to get access to the V8 debug object:
@@ -224,6 +248,9 @@ implementation and may change (or even get removed) without prior warning.
 The debug object can also be exposed with the `--expose_debug_as=` switch.
 
 ## vm.runInNewContext(code[, sandbox][, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 `vm.runInNewContext()` compiles `code`, contextifies `sandbox` if passed or
 creates a new contextified sandbox if it's omitted, and then runs the code with
@@ -254,6 +281,9 @@ Note that running untrusted code is a tricky business requiring great care.
 a separate process.
 
 ## vm.runInThisContext(code[, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 `vm.runInThisContext()` compiles `code`, runs it and returns the result. Running
 code does not have access to local scope, but does have access to the current
