@@ -384,7 +384,7 @@ previous keys.
 
 
 ## Class: tls.TLSSocket
-<!--
+<!--YAML
 added: v0.11.4
 -->
 The `tls.TLSSocket` is a subclass of [`net.Socket`][] that performs transparent
@@ -397,7 +397,9 @@ Instances of `tls.TLSSocket` implement the duplex [Stream][] interface.
 connection is open.
 
 ### new tls.TLSSocket(socket[, options])
-
+<!--YAML
+added: v0.11.4
+-->
 * `socket` {net.Socket} An instance of [`net.Socket`][]
 * `options` {Object}
   * `secureContext`: An optional TLS context object from
@@ -418,7 +420,9 @@ connection is open.
 Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
 ### Event: 'OCSPResponse'
-
+<!--YAML
+added: v0.11.13
+-->
 The `'OCSPResponse'` event is emitted if the `requestOCSP` option was set
 when the `tls.TLSSocket` was created and an OCSP response has been received.
 The listener callback is passed a single argument when called:
