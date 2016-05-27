@@ -1031,7 +1031,9 @@ console.log(tls.getCiphers()); // ['AES128-SHA', 'AES256-SHA', ...]
 ## Deprecated APIs
 
 ### Class: CryptoStream
-
+<!-- YAML
+added: v0.3.2
+-->
     Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 The `tls.CryptoStream` class represents a stream of encrypted data. This class
