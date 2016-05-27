@@ -208,19 +208,6 @@ RUNTIME_FUNCTION(Runtime_NumberToSmi) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberImul) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  // We rely on implementation-defined behavior below, but at least not on
-  // undefined behavior.
-  CONVERT_NUMBER_CHECKED(uint32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(uint32_t, y, Int32, args[1]);
-  int32_t product = static_cast<int32_t>(x * y);
-  return *isolate->factory()->NewNumberFromInt(product);
-}
-
-
 // Compare two Smis as if they were converted to strings and then
 // compared lexicographically.
 RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {

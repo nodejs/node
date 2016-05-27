@@ -5,7 +5,8 @@
 #ifndef V8_SNAPSHOT_SNAPSHOT_H_
 #define V8_SNAPSHOT_SNAPSHOT_H_
 
-#include "src/snapshot/serialize.h"
+#include "src/snapshot/partial-serializer.h"
+#include "src/snapshot/startup-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -87,6 +88,41 @@ class Snapshot : public AllStatic {
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
 void SetSnapshotFromFile(StartupData* snapshot_blob);
 #endif
+
+// Wrapper around reservation sizes and the serialization payload.
+class SnapshotData : public SerializedData {
+ public:
+  // Used when producing.
+  explicit SnapshotData(const Serializer& ser);
+
+  // Used when consuming.
+  explicit SnapshotData(const Vector<const byte> snapshot)
+      : SerializedData(const_cast<byte*>(snapshot.begin()), snapshot.length()) {
+    CHECK(IsSane());
+  }
+
+  Vector<const Reservation> Reservations() const;
+  Vector<const byte> Payload() const;
+
+  Vector<const byte> RawData() const {
+    return Vector<const byte>(data_, size_);
+  }
+
+ private:
+  bool IsSane();
+
+  // The data header consists of uint32_t-sized entries:
+  // [0] magic number and external reference count
+  // [1] version hash
+  // [2] number of reservation size entries
+  // [3] payload length
+  // ... reservations
+  // ... serialized payload
+  static const int kCheckSumOffset = kMagicNumberOffset + kInt32Size;
+  static const int kNumReservationsOffset = kCheckSumOffset + kInt32Size;
+  static const int kPayloadLengthOffset = kNumReservationsOffset + kInt32Size;
+  static const int kHeaderSize = kPayloadLengthOffset + kInt32Size;
+};
 
 }  // namespace internal
 }  // namespace v8

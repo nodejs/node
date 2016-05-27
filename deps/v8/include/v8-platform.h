@@ -152,9 +152,9 @@ class Platform {
    */
   virtual uint64_t AddTraceEvent(
       char phase, const uint8_t* category_enabled_flag, const char* name,
-      uint64_t id, uint64_t bind_id, int32_t num_args, const char** arg_names,
-      const uint8_t* arg_types, const uint64_t* arg_values,
-      unsigned int flags) {
+      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values, unsigned int flags) {
     return 0;
   }
 

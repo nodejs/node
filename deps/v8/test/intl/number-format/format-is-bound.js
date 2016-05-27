@@ -37,3 +37,6 @@ numberArray.forEach(nf.format);
 
 // Formatting a number should work in a direct call.
 nf.format(12345);
+
+// Reading the format doesn't add any additional property keys
+assertEquals(1, Object.getOwnPropertyNames(nf).length);

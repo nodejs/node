@@ -105,12 +105,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
-  // There is no dynamic alignment padding on x64 in the input frame.
-  return false;
-}
-
-
 #define __ masm()->
 
 void Deoptimizer::TableEntryGenerator::Generate() {
@@ -162,7 +156,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6);
+  __ movp(rax, Immediate(0));
+  Label context_check;
+  __ movp(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(rdi, &context_check);
   __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ movp(arg_reg_1, rax);
   __ Set(arg_reg_2, type());
   // Args 3 and 4 are already in the right registers.
@@ -232,7 +231,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ popq(rax);
 
-  // Replace the current frame with the output frames.
+  __ movp(rsp, Operand(rax, Deoptimizer::caller_frame_top_offset()));
+
+  // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
   // Outer loop state: rax = current FrameDescription**, rdx = one past the

@@ -30,6 +30,9 @@
 #elif V8_TARGET_ARCH_X87
 #include "src/crankshaft/x87/lithium-x87.h"  // NOLINT
 #include "src/crankshaft/x87/lithium-codegen-x87.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/crankshaft/s390/lithium-s390.h"          // NOLINT
+#include "src/crankshaft/s390/lithium-codegen-s390.h"  // NOLINT
 #else
 #error "Unknown architecture."
 #endif
@@ -247,7 +250,9 @@ void LPointerMap::PrintTo(StringStream* stream) {
 }
 
 LChunk::LChunk(CompilationInfo* info, HGraph* graph)
-    : base_frame_slots_(StandardFrameConstants::kFixedFrameSize / kPointerSize),
+    : base_frame_slots_(info->IsStub()
+                            ? TypedFrameConstants::kFixedSlotCount
+                            : StandardFrameConstants::kFixedSlotCount),
       current_frame_slots_(base_frame_slots_),
       info_(info),
       graph_(graph),
@@ -332,7 +337,6 @@ void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
     instr->pointer_map()->set_lithium_position(index);
   }
 }
-
 
 LConstantOperand* LChunk::DefineConstantOperand(HConstant* constant) {
   return LConstantOperand::Create(constant->id(), zone());
@@ -461,7 +465,8 @@ Handle<Code> LChunk::Codegen() {
     void* jit_handler_data =
         assembler.positions_recorder()->DetachJITHandlerData();
     LOG_CODE_EVENT(info()->isolate(),
-                   CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
+                   CodeEndLinePosInfoRecordEvent(AbstractCode::cast(*code),
+                                                 jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
     DCHECK(!(info()->isolate()->serializer_enabled() &&
@@ -502,18 +507,94 @@ void LChunkBuilderBase::Retry(BailoutReason reason) {
   status_ = ABORTED;
 }
 
+void LChunkBuilderBase::CreateLazyBailoutForCall(HBasicBlock* current_block,
+                                                 LInstruction* instr,
+                                                 HInstruction* hydrogen_val) {
+  if (!instr->IsCall()) return;
+
+  HEnvironment* hydrogen_env = current_block->last_environment();
+  HValue* hydrogen_value_for_lazy_bailout = hydrogen_val;
+  DCHECK_NOT_NULL(hydrogen_env);
+  if (instr->IsSyntacticTailCall()) {
+    // If it was a syntactic tail call we need to drop the current frame and
+    // all the frames on top of it that are either an arguments adaptor frame
+    // or a tail caller frame.
+    hydrogen_env = hydrogen_env->outer();
+    while (hydrogen_env != nullptr &&
+           (hydrogen_env->frame_type() == ARGUMENTS_ADAPTOR ||
+            hydrogen_env->frame_type() == TAIL_CALLER_FUNCTION)) {
+      hydrogen_env = hydrogen_env->outer();
+    }
+    if (hydrogen_env != nullptr) {
+      if (hydrogen_env->frame_type() == JS_FUNCTION) {
+        // In case an outer frame is a function frame we have to replay
+        // environment manually because
+        // 1) it does not contain a result of inlined function yet,
+        // 2) we can't find the proper simulate that corresponds to the point
+        //    after inlined call to do a ReplayEnvironment() on.
+        // So we push return value on top of outer environment.
+        // As for JS_GETTER/JS_SETTER/JS_CONSTRUCT nothing has to be done here,
+        // the deoptimizer ensures that the result of the callee is correctly
+        // propagated to result register during deoptimization.
+        hydrogen_env = hydrogen_env->Copy();
+        hydrogen_env->Push(hydrogen_val);
+      }
+    } else {
+      // Although we don't need this lazy bailout for normal execution
+      // (because when we tail call from the outermost function we should pop
+      // its frame) we still need it when debugger is on.
+      hydrogen_env = current_block->last_environment();
+    }
+  } else {
+    if (hydrogen_val->HasObservableSideEffects()) {
+      HSimulate* sim = HSimulate::cast(hydrogen_val->next());
+      sim->ReplayEnvironment(hydrogen_env);
+      hydrogen_value_for_lazy_bailout = sim;
+    }
+  }
+  LInstruction* bailout = LChunkBuilderBase::AssignEnvironment(
+      new (zone()) LLazyBailout(), hydrogen_env);
+  bailout->set_hydrogen_value(hydrogen_value_for_lazy_bailout);
+  chunk_->AddInstruction(bailout, current_block);
+}
+
+LInstruction* LChunkBuilderBase::AssignEnvironment(LInstruction* instr,
+                                                   HEnvironment* hydrogen_env) {
+  int argument_index_accumulator = 0;
+  ZoneList<HValue*> objects_to_materialize(0, zone());
+  DCHECK_NE(TAIL_CALLER_FUNCTION, hydrogen_env->frame_type());
+  instr->set_environment(CreateEnvironment(
+      hydrogen_env, &argument_index_accumulator, &objects_to_materialize));
+  return instr;
+}
 
 LEnvironment* LChunkBuilderBase::CreateEnvironment(
     HEnvironment* hydrogen_env, int* argument_index_accumulator,
     ZoneList<HValue*>* objects_to_materialize) {
   if (hydrogen_env == NULL) return NULL;
 
+  BailoutId ast_id = hydrogen_env->ast_id();
+  DCHECK(!ast_id.IsNone() ||
+         (hydrogen_env->frame_type() != JS_FUNCTION &&
+          hydrogen_env->frame_type() != TAIL_CALLER_FUNCTION));
+
+  if (hydrogen_env->frame_type() == TAIL_CALLER_FUNCTION) {
+    // Skip potential outer arguments adaptor frame.
+    HEnvironment* outer_hydrogen_env = hydrogen_env->outer();
+    if (outer_hydrogen_env != nullptr &&
+        outer_hydrogen_env->frame_type() == ARGUMENTS_ADAPTOR) {
+      outer_hydrogen_env = outer_hydrogen_env->outer();
+    }
+    LEnvironment* outer = CreateEnvironment(
+        outer_hydrogen_env, argument_index_accumulator, objects_to_materialize);
+    return new (zone())
+        LEnvironment(hydrogen_env->closure(), hydrogen_env->frame_type(),
+                     ast_id, 0, 0, 0, outer, hydrogen_env->entry(), zone());
+  }
+
   LEnvironment* outer =
       CreateEnvironment(hydrogen_env->outer(), argument_index_accumulator,
                         objects_to_materialize);
-  BailoutId ast_id = hydrogen_env->ast_id();
-  DCHECK(!ast_id.IsNone() ||
-         hydrogen_env->frame_type() != JS_FUNCTION);
 
   int omitted_count = (hydrogen_env->frame_type() == JS_FUNCTION)
                           ? 0

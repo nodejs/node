@@ -125,6 +125,82 @@ Maybe<bool> Runtime::DeleteObjectProperty(Isolate* isolate,
   return JSReceiver::DeleteProperty(&it, language_mode);
 }
 
+// ES6 19.1.3.2
+RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
+  HandleScope scope(isolate);
+  Handle<Object> property = args.at<Object>(1);
+
+  Handle<Name> key;
+  uint32_t index;
+  bool key_is_array_index = property->ToArrayIndex(&index);
+
+  if (!key_is_array_index) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
+                                       Object::ToName(isolate, property));
+    key_is_array_index = key->AsArrayIndex(&index);
+  }
+
+  Handle<Object> object = args.at<Object>(0);
+
+  if (object->IsJSObject()) {
+    Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
+    // Fast case: either the key is a real named property or it is not
+    // an array index and there are no interceptors or hidden
+    // prototypes.
+    // TODO(jkummerow): Make JSReceiver::HasOwnProperty fast enough to
+    // handle all cases directly (without this custom fast path).
+    {
+      LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
+      LookupIterator it =
+          key_is_array_index ? LookupIterator(isolate, js_obj, index, js_obj, c)
+                             : LookupIterator(js_obj, key, js_obj, c);
+      Maybe<bool> maybe = JSReceiver::HasProperty(&it);
+      if (maybe.IsNothing()) return isolate->heap()->exception();
+      DCHECK(!isolate->has_pending_exception());
+      if (maybe.FromJust()) return isolate->heap()->true_value();
+    }
+
+    Map* map = js_obj->map();
+    if (!map->has_hidden_prototype() &&
+        (key_is_array_index ? !map->has_indexed_interceptor()
+                            : !map->has_named_interceptor())) {
+      return isolate->heap()->false_value();
+    }
+
+    // Slow case.
+    LookupIterator::Configuration c = LookupIterator::HIDDEN;
+    LookupIterator it = key_is_array_index
+                            ? LookupIterator(isolate, js_obj, index, js_obj, c)
+                            : LookupIterator(js_obj, key, js_obj, c);
+
+    Maybe<bool> maybe = JSReceiver::HasProperty(&it);
+    if (maybe.IsNothing()) return isolate->heap()->exception();
+    DCHECK(!isolate->has_pending_exception());
+    return isolate->heap()->ToBoolean(maybe.FromJust());
+
+  } else if (object->IsJSProxy()) {
+    if (key.is_null()) {
+      DCHECK(key_is_array_index);
+      key = isolate->factory()->Uint32ToString(index);
+    }
+
+    Maybe<bool> result =
+        JSReceiver::HasOwnProperty(Handle<JSProxy>::cast(object), key);
+    if (!result.IsJust()) return isolate->heap()->exception();
+    return isolate->heap()->ToBoolean(result.FromJust());
+
+  } else if (object->IsString()) {
+    return isolate->heap()->ToBoolean(
+        key_is_array_index
+            ? index < static_cast<uint32_t>(String::cast(*object)->length())
+            : key->Equals(isolate->heap()->length_string()));
+  } else if (object->IsNull() || object->IsUndefined()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
+  }
+
+  return isolate->heap()->false_value();
+}
 
 MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
@@ -205,7 +281,7 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
   Factory* factory = isolate->factory();
 
   // Get attributes.
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, obj, name,
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, obj, name, obj,
                                                         LookupIterator::HIDDEN);
   Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
 
@@ -293,7 +369,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalViaContext) {
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
   Handle<JSGlobalObject> global_object(script_context->global_object(),
                                        isolate);
-  LookupIterator it(global_object, name, LookupIterator::HIDDEN);
+  LookupIterator it(global_object, name, global_object, LookupIterator::HIDDEN);
 
   // Switch to fast mode only if there is a data property and it's not on
   // a hidden prototype.
@@ -328,7 +404,7 @@ Object* StoreGlobalViaContext(Isolate* isolate, int slot, Handle<Object> value,
   Handle<Name> name(scope_info->ContextSlotName(slot), isolate);
   Handle<JSGlobalObject> global_object(script_context->global_object(),
                                        isolate);
-  LookupIterator it(global_object, name, LookupIterator::HIDDEN);
+  LookupIterator it(global_object, name, global_object, LookupIterator::HIDDEN);
 
   // Switch to fast mode only if there is a data property and it's not on
   // a hidden prototype.
@@ -413,7 +489,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
 #ifdef DEBUG
   uint32_t index = 0;
   DCHECK(!name->ToArrayIndex(&index));
-  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
   RUNTIME_ASSERT(!it.IsFound());
@@ -441,7 +517,7 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
   CHECK(key->ToArrayIndex(&index));
 
 #ifdef DEBUG
-  LookupIterator it(isolate, object, index,
+  LookupIterator it(isolate, object, index, object,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
@@ -529,85 +605,6 @@ RUNTIME_FUNCTION(Runtime_DeleteProperty_Strict) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   return DeleteProperty(isolate, object, key, STRICT);
-}
-
-
-static Object* HasOwnPropertyImplementation(Isolate* isolate,
-                                            Handle<JSObject> object,
-                                            Handle<Name> key) {
-  Maybe<bool> maybe = JSReceiver::HasOwnProperty(object, key);
-  if (!maybe.IsJust()) return isolate->heap()->exception();
-  if (maybe.FromJust()) return isolate->heap()->true_value();
-  // Handle hidden prototypes.  If there's a hidden prototype above this thing
-  // then we have to check it for properties, because they are supposed to
-  // look like they are on this object.
-  if (object->map()->has_hidden_prototype()) {
-    PrototypeIterator iter(isolate, object);
-    DCHECK(!iter.IsAtEnd());
-
-    // TODO(verwaest): The recursion is not necessary for keys that are array
-    // indices. Removing this.
-    // Casting to JSObject is fine because JSProxies are never used as
-    // hidden prototypes.
-    return HasOwnPropertyImplementation(
-        isolate, PrototypeIterator::GetCurrent<JSObject>(iter), key);
-  }
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  return isolate->heap()->false_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_HasOwnProperty) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0)
-  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
-
-  uint32_t index;
-  const bool key_is_array_index = key->AsArrayIndex(&index);
-
-  // Only JS objects can have properties.
-  if (object->IsJSObject()) {
-    Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
-    // Fast case: either the key is a real named property or it is not
-    // an array index and there are no interceptors or hidden
-    // prototypes.
-    // TODO(jkummerow): Make JSReceiver::HasOwnProperty fast enough to
-    // handle all cases directly (without this custom fast path).
-    Maybe<bool> maybe = Nothing<bool>();
-    if (key_is_array_index) {
-      LookupIterator it(js_obj->GetIsolate(), js_obj, index,
-                        LookupIterator::HIDDEN);
-      maybe = JSReceiver::HasProperty(&it);
-    } else {
-      maybe = JSObject::HasRealNamedProperty(js_obj, key);
-    }
-    if (!maybe.IsJust()) return isolate->heap()->exception();
-    DCHECK(!isolate->has_pending_exception());
-    if (maybe.FromJust()) {
-      return isolate->heap()->true_value();
-    }
-    Map* map = js_obj->map();
-    if (!key_is_array_index && !map->has_named_interceptor() &&
-        !map->has_hidden_prototype()) {
-      return isolate->heap()->false_value();
-    }
-    // Slow case.
-    return HasOwnPropertyImplementation(isolate, Handle<JSObject>(js_obj),
-                                        Handle<Name>(key));
-  } else if (object->IsString() && key_is_array_index) {
-    // Well, there is one exception:  Handle [] on strings.
-    Handle<String> string = Handle<String>::cast(object);
-    if (index < static_cast<uint32_t>(string->length())) {
-      return isolate->heap()->true_value();
-    }
-  } else if (object->IsJSProxy()) {
-    Maybe<bool> result =
-        JSReceiver::HasOwnProperty(Handle<JSProxy>::cast(object), key);
-    if (!result.IsJust()) return isolate->heap()->exception();
-    return isolate->heap()->ToBoolean(result.FromJust());
-  }
-  return isolate->heap()->false_value();
 }
 
 
@@ -840,8 +837,8 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
 
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name,
-                                                        LookupIterator::OWN);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, name, object, LookupIterator::OWN);
   if (it.state() == LookupIterator::ACCESS_CHECK && !it.HasAccess()) {
     return isolate->heap()->undefined_value();
   }
@@ -869,8 +866,8 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
                         isolate->factory()->empty_string());
   }
 
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name,
-                                                        LookupIterator::OWN);
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, name, object, LookupIterator::OWN);
   // Cannot fail since this should only be called when
   // creating an object literal.
   CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs,
@@ -912,15 +909,6 @@ RUNTIME_FUNCTION(Runtime_IsJSReceiver) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSReceiver());
-}
-
-
-RUNTIME_FUNCTION(Runtime_IsStrong) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSReceiver() &&
-                                    JSReceiver::cast(obj)->map()->is_strong());
 }
 
 
@@ -1118,6 +1106,9 @@ RUNTIME_FUNCTION(Runtime_Compare) {
 
 
 RUNTIME_FUNCTION(Runtime_InstanceOf) {
+  // TODO(4447): Remove this function when ES6 instanceof ships for good.
+  DCHECK(!FLAG_harmony_instanceof);
+
   // ECMA-262, section 11.8.6, page 54.
   HandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
@@ -1146,7 +1137,50 @@ RUNTIME_FUNCTION(Runtime_InstanceOf) {
   Handle<Object> prototype;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, prototype,
-      Object::GetProperty(callable, isolate->factory()->prototype_string()));
+      JSReceiver::GetProperty(Handle<JSReceiver>::cast(callable),
+                              isolate->factory()->prototype_string()));
+  if (!prototype->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kInstanceofNonobjectProto, prototype));
+  }
+  // Return whether or not {prototype} is in the prototype chain of {object}.
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+  Maybe<bool> result =
+      JSReceiver::HasInPrototypeChain(isolate, receiver, prototype);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
+  // ES6 section 19.2.3.6 Function.prototype[@@hasInstance](V)
+  HandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, callable, 1);
+  // {callable} must have a [[Call]] internal method.
+  if (!callable->IsCallable()) {
+    return isolate->heap()->false_value();
+  }
+  // If {object} is not a receiver, return false.
+  if (!object->IsJSReceiver()) {
+    return isolate->heap()->false_value();
+  }
+  // Check if {callable} is bound, if so, get [[BoundTargetFunction]] from it
+  // and use that instead of {callable}.
+  while (callable->IsJSBoundFunction()) {
+    callable =
+        handle(Handle<JSBoundFunction>::cast(callable)->bound_target_function(),
+               isolate);
+  }
+  DCHECK(callable->IsCallable());
+  // Get the "prototype" of {callable}; raise an error if it's not a receiver.
+  Handle<Object> prototype;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, prototype,
+      JSReceiver::GetProperty(Handle<JSReceiver>::cast(callable),
+                              isolate->factory()->prototype_string()));
   if (!prototype->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,

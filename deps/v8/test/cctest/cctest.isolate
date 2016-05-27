@@ -6,6 +6,7 @@
     'files': [
       './cctest.status',
       './testcfg.py',
+      './interpreter/bytecode_expectations/',
     ],
   },
   'includes': [

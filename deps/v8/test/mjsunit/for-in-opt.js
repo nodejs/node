@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-proxies --allow-natives-syntax --expose-debug-as debug
+// Flags: --allow-natives-syntax --expose-debug-as debug
 
 "use strict";
 
@@ -23,9 +23,9 @@ assertEquals(["0","1","2"], f("bla"));
 
 // Test the lazy deopt points.
 var keys = ["a", "b", "c", "d"];
-var has_keys = [];
-var deopt_has = false;
+var property_descriptor_keys = [];
 var deopt_enum = false;
+var deopt_property_descriptor = false;
 
 var handler = {
   ownKeys() {
@@ -35,16 +35,14 @@ var handler = {
     }
     return keys;
   },
-  getOwnPropertyDescriptor() { return { enumerable: true, configurable: true }},
-
-  has(target, k) {
-    if (deopt_has) {
+  getOwnPropertyDescriptor(target, k) {
+    if (deopt_property_descriptor) {
       %DeoptimizeFunction(f2);
-      deopt_has = false;
+      deopt_property_descriptor = false;
     }
-    has_keys.push(k);
-    return true;
-  }
+    property_descriptor_keys.push(k);
+    return { enumerable: true, configurable: true }
+  },
 };
 
 
@@ -61,8 +59,8 @@ function f2(o) {
 
 function check_f2() {
   assertEquals(keys, f2(o));
-  assertEquals(keys, has_keys);
-  has_keys.length = 0;
+  assertEquals(keys, property_descriptor_keys);
+  property_descriptor_keys.length = 0;
 }
 
 check_f2();
@@ -75,8 +73,9 @@ check_f2();
 
 // Test lazy deopt after FILTER_KEY
 %OptimizeFunctionOnNextCall(f2);
-deopt_has = true;
+deopt_property_descriptor = true;
 check_f2();
+
 
 function f3(o) {
   for (var i in o) {
@@ -91,14 +90,6 @@ f3(undefined);
 f3(null);
 
 // Reliable repro for an issue previously flushed out by GC stress.
-var handler2 = {
-  getPropertyDescriptor(target, k) {
-    has_keys.push(k);
-    return {value: 10, configurable: true, writable: false, enumerable: true};
-  }
-}
-var proxy2 = new Proxy({}, handler2);
-var o2 = {__proto__: proxy2};
 var p = {x: "x"}
 
 function f4(o, p) {
@@ -112,8 +103,8 @@ function f4(o, p) {
 
 function check_f4() {
   assertEquals(keys, f4(o, p));
-  assertEquals(keys, has_keys);
-  has_keys.length = 0;
+  assertEquals(keys, property_descriptor_keys);
+  property_descriptor_keys.length = 0;
 }
 
 check_f4();
@@ -138,12 +129,10 @@ function listener(event, exec_state, event_data, data) {
 
 var handler3 = {
   ownKeys() { return ["a", "b"] },
-  getOwnPropertyDescriptor() { return { enumerable: true, configurable: true }},
-
-  has(target, k) {
+  getOwnPropertyDescriptor(target, k) {
     if (k == "a") count++;
-    if (x) %ScheduleBreak();
-    return true;
+    if (x) %ScheduleBreak()
+    return { enumerable: true, configurable: true }
   }
 };
 

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sloppy --allow-natives-syntax
+// Flags: --harmony-sloppy --harmony-function-name --allow-natives-syntax
+// Flags: --harmony-do-expressions
 
 (function TestBasics() {
   var C = class C {}
@@ -22,13 +23,11 @@
   class D2 { constructor() {} }
   assertEquals('D2', D2.name);
 
-  // TODO(arv): The logic for the name of anonymous functions in ES6 requires
-  // the below to be 'E';
   var E = class {}
-  assertEquals('', E.name);  // Should be 'E'.
+  assertEquals('E', E.name);  // Should be 'E'.
 
   var F = class { constructor() {} };
-  assertEquals('', F.name);  // Should be 'F'.
+  assertEquals('F', F.name);  // Should be 'F'.
 })();
 
 
@@ -995,4 +994,56 @@ function testClassRestrictedProperties(C) {
   testClassRestrictedProperties(class extends Class { });
   testClassRestrictedProperties(
       class extends Class { constructor() { super(); } });
+})();
+
+
+(function testReturnFromClassLiteral() {
+
+  function usingDoExpressionInBody() {
+    let x = 42;
+    let dummy = function() {x};
+    try {
+      class C {
+        dummy() {C}
+        [do {return}]() {}
+      };
+    } finally {
+      return x;
+    }
+  }
+  assertEquals(42, usingDoExpressionInBody());
+
+  function usingDoExpressionInExtends() {
+    let x = 42;
+    let dummy = function() {x};
+    try {
+      class C extends (do {return}) { dummy() {C} };
+    } finally {
+      return x;
+    }
+  }
+  assertEquals(42, usingDoExpressionInExtends());
+
+  function usingYieldInBody() {
+    function* foo() {
+      class C {
+        [yield]() {}
+      }
+    }
+    var g = foo();
+    g.next();
+    return g.return(42).value;
+  }
+  assertEquals(42, usingYieldInBody());
+
+  function usingYieldInExtends() {
+    function* foo() {
+      class C extends (yield) {};
+    }
+    var g = foo();
+    g.next();
+    return g.return(42).value;
+  }
+  assertEquals(42, usingYieldInExtends());
+
 })();

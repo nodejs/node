@@ -201,7 +201,7 @@ class CpuProfiler : public CodeEventListener {
               ProfileGenerator* test_generator,
               ProfilerEventsProcessor* test_processor);
 
-  virtual ~CpuProfiler();
+  ~CpuProfiler() override;
 
   void set_sampling_interval(base::TimeDelta value);
   void CollectSample();
@@ -220,29 +220,28 @@ class CpuProfiler : public CodeEventListener {
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.
-  virtual void CallbackEvent(Name* name, Address entry_point);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code, const char* comment);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code, Name* name);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
-                               SharedFunctionInfo* shared,
-                               CompilationInfo* info, Name* script_name);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
-                               SharedFunctionInfo* shared,
-                               CompilationInfo* info, Name* script_name,
-                               int line, int column);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code, int args_count);
-  virtual void CodeMovingGCEvent() {}
-  virtual void CodeMoveEvent(Address from, Address to);
-  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared);
-  virtual void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
-  virtual void CodeDeleteEvent(Address from);
-  virtual void GetterCallbackEvent(Name* name, Address entry_point);
-  virtual void RegExpCodeCreateEvent(Code* code, String* source);
-  virtual void SetterCallbackEvent(Name* name, Address entry_point);
-  virtual void SharedFunctionInfoMoveEvent(Address from, Address to) {}
+  void CallbackEvent(Name* name, Address entry_point) override;
+  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+                       const char* comment) override;
+  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+                       Name* name) override;
+  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, CompilationInfo* info,
+                       Name* script_name) override;
+  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, CompilationInfo* info,
+                       Name* script_name, int line, int column) override;
+  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+                       int args_count) override;
+  void CodeMovingGCEvent() override {}
+  void CodeMoveEvent(AbstractCode* from, Address to) override;
+  void CodeDisableOptEvent(AbstractCode* code,
+                           SharedFunctionInfo* shared) override;
+  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
+  void GetterCallbackEvent(Name* name, Address entry_point) override;
+  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
+  void SetterCallbackEvent(Name* name, Address entry_point) override;
+  void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
 
   INLINE(bool is_profiling() const) { return is_profiling_; }
   bool* is_profiling_address() {
@@ -259,6 +258,8 @@ class CpuProfiler : public CodeEventListener {
   void StopProcessor();
   void ResetProfiles();
   void LogBuiltins();
+  void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
+  Name* InferScriptName(Name* name, SharedFunctionInfo* info);
 
   Isolate* isolate_;
   base::TimeDelta sampling_interval_;

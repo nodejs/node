@@ -171,16 +171,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       Node* check =
           graph()->NewNode(simplified()->ReferenceEqual(Type::Tagged()), value,
                            jsgraph()->Constant(property_cell_value));
-      Node* branch =
-          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize =
-          graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                           frame_state, effect, if_false);
-      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-      Revisit(graph()->end());
-      control = graph()->NewNode(common()->IfTrue(), branch);
+      control = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                 frame_state, effect, control);
       break;
     }
     case PropertyCellType::kConstantType: {
@@ -191,16 +183,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       Type* property_cell_value_type = Type::TaggedSigned();
       if (property_cell_value->IsHeapObject()) {
         // Deoptimize if the {value} is a Smi.
-        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                        check, control);
-        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-        Node* deoptimize =
-            graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                             frame_state, effect, if_true);
-        // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-        NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-        Revisit(graph()->end());
-        control = graph()->NewNode(common()->IfFalse(), branch);
+        control = graph()->NewNode(common()->DeoptimizeIf(), check, frame_state,
+                                   effect, control);
 
         // Load the {value} map check against the {property_cell} map.
         Node* value_map = effect =
@@ -213,16 +197,8 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
             jsgraph()->HeapConstant(property_cell_value_map));
         property_cell_value_type = Type::TaggedPointer();
       }
-      Node* branch =
-          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize =
-          graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                           frame_state, effect, if_false);
-      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-      Revisit(graph()->end());
-      control = graph()->NewNode(common()->IfTrue(), branch);
+      control = graph()->NewNode(common()->DeoptimizeUnless(), check,
+                                 frame_state, effect, control);
       effect = graph()->NewNode(
           simplified()->StoreField(
               AccessBuilder::ForPropertyCellValue(property_cell_value_type)),

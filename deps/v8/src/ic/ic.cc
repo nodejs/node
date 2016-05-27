@@ -6,8 +6,10 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "src/api-arguments.h"
 #include "src/arguments.h"
 #include "src/base/bits.h"
+#include "src/code-factory.h"
 #include "src/codegen.h"
 #include "src/conversions.h"
 #include "src/execution.h"
@@ -465,8 +467,6 @@ void IC::Clear(Isolate* isolate, Address address, Address constant_pool) {
       return;
     case Code::COMPARE_IC:
       return CompareIC::Clear(isolate, address, target, constant_pool);
-    case Code::COMPARE_NIL_IC:
-      return CompareNilIC::Clear(address, target, constant_pool);
     case Code::CALL_IC:  // CallICs are vector-based and cleared differently.
     case Code::BINARY_OP_IC:
     case Code::TO_BOOLEAN_IC:
@@ -836,11 +836,12 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
   ElementsKind target_elements_kind = target_map->elements_kind();
   bool more_general_transition = IsMoreGeneralElementsKindTransition(
       source_map->elements_kind(), target_elements_kind);
-  Map* transitioned_map =
-      more_general_transition
-          ? source_map->LookupElementsTransitionMap(target_elements_kind)
-          : NULL;
-
+  Map* transitioned_map = nullptr;
+  if (more_general_transition) {
+    MapHandleList map_list;
+    map_list.Add(handle(target_map));
+    transitioned_map = source_map->FindElementsKindTransitionedMap(&map_list);
+  }
   return transitioned_map == target_map;
 }
 
@@ -1106,9 +1107,8 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
 
   // TODO(mvstanton): we'd only like to cache code on the map when it's custom
   // code compiled for this map, otherwise it's already cached in the global
-  // code
-  // cache. We are also guarding against installing code with flags that don't
-  // match the desired CacheHolderFlag computed above, which would lead to
+  // code cache. We are also guarding against installing code with flags that
+  // don't match the desired CacheHolderFlag computed above, which would lead to
   // invalid lookups later.
   if (code->type() != Code::NORMAL &&
       Code::ExtractCacheHolderFromFlags(code->flags()) == flag) {
@@ -1208,6 +1208,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
             break;
           }
           if (!holder->HasFastProperties()) break;
+          if (info->is_sloppy() && !receiver->IsJSReceiver()) break;
           NamedLoadHandlerCompiler compiler(isolate(), map, holder,
                                             cache_holder);
           return compiler.CompileLoadCallback(lookup->name(), info);
@@ -1297,9 +1298,9 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
 Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
   Handle<Code> null_handle;
   Handle<Map> receiver_map(receiver->map(), isolate());
+  DCHECK(receiver_map->instance_type() != JS_VALUE_TYPE);  // Checked by caller.
   MapHandleList target_receiver_maps;
   TargetMaps(&target_receiver_maps);
-
 
   if (target_receiver_maps.length() == 0) {
     Handle<Code> handler =
@@ -1307,6 +1308,14 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
             receiver_map, extra_ic_state());
     ConfigureVectorState(Handle<Name>::null(), receiver_map, handler);
     return null_handle;
+  }
+
+  for (int i = 0; i < target_receiver_maps.length(); i++) {
+    if (!target_receiver_maps.at(i).is_null() &&
+        target_receiver_maps.at(i)->instance_type() == JS_VALUE_TYPE) {
+      TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "JSValue");
+      return megamorphic_stub();
+    }
   }
 
   // The first time a receiver is seen that is a transitioned version of the
@@ -1422,7 +1431,8 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
         Handle<JSObject> holder = it->GetHolder<JSObject>();
         InterceptorInfo* info = holder->GetNamedInterceptor();
         if (it->HolderIsReceiverOrHiddenPrototype()) {
-          if (!info->setter()->IsUndefined()) return true;
+          return !info->non_masking() && receiver.is_identical_to(holder) &&
+                 !info->setter()->IsUndefined();
         } else if (!info->getter()->IsUndefined() ||
                    !info->query()->IsUndefined()) {
           return false;
@@ -1722,8 +1732,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
 
     case LookupIterator::INTERCEPTOR: {
       DCHECK(!holder->GetNamedInterceptor()->setter()->IsUndefined());
-      NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-      return compiler.CompileStoreInterceptor(lookup->name());
+      return CodeFactory::StoreInterceptor(isolate()).code();
     }
 
     case LookupIterator::ACCESSOR: {
@@ -1749,6 +1758,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           TRACE_GENERIC_IC(isolate(), "StoreIC", "incompatible receiver type");
           break;
         }
+        if (info->is_sloppy() && !receiver->IsJSReceiver()) break;
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
         return compiler.CompileStoreCallback(receiver, lookup->name(), info,
                                              language_mode());
@@ -2722,57 +2732,6 @@ RUNTIME_FUNCTION(Runtime_CompareIC_Miss) {
 }
 
 
-void CompareNilIC::Clear(Address address, Code* target, Address constant_pool) {
-  if (IsCleared(target)) return;
-  ExtraICState state = target->extra_ic_state();
-
-  CompareNilICStub stub(target->GetIsolate(), state,
-                        HydrogenCodeStub::UNINITIALIZED);
-  stub.ClearState();
-
-  Code* code = NULL;
-  CHECK(stub.FindCodeInCache(&code));
-
-  SetTargetAtAddress(address, code, constant_pool);
-}
-
-
-Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
-  ExtraICState extra_ic_state = target()->extra_ic_state();
-
-  CompareNilICStub stub(isolate(), extra_ic_state);
-
-  // Extract the current supported types from the patched IC and calculate what
-  // types must be supported as a result of the miss.
-  bool already_monomorphic = stub.IsMonomorphic();
-
-  stub.UpdateStatus(object);
-
-  // Find or create the specialized stub to support the new set of types.
-  Handle<Code> code;
-  if (stub.IsMonomorphic()) {
-    Handle<Map> monomorphic_map(already_monomorphic && FirstTargetMap() != NULL
-                                    ? FirstTargetMap()
-                                    : HeapObject::cast(*object)->map());
-    code = PropertyICCompiler::ComputeCompareNil(monomorphic_map, &stub);
-  } else {
-    code = stub.GetCode();
-  }
-  set_target(*code);
-  return isolate()->factory()->ToBoolean(object->IsUndetectableObject());
-}
-
-
-RUNTIME_FUNCTION(Runtime_CompareNilIC_Miss) {
-  TimerEventScope<TimerEventIcMiss> timer(isolate);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
-  HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
-  CompareNilIC ic(isolate);
-  return *ic.CompareNil(object);
-}
-
-
 RUNTIME_FUNCTION(Runtime_Unreachable) {
   UNREACHABLE();
   CHECK(false);
@@ -2781,7 +2740,7 @@ RUNTIME_FUNCTION(Runtime_Unreachable) {
 
 
 Handle<Object> ToBooleanIC::ToBoolean(Handle<Object> object) {
-  ToBooleanStub stub(isolate(), target()->extra_ic_state());
+  ToBooleanICStub stub(isolate(), target()->extra_ic_state());
   bool to_boolean_value = stub.UpdateStatus(object);
   Handle<Code> code = stub.GetCode();
   set_target(*code);
@@ -2821,12 +2780,11 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
       FUNCTION_CAST<v8::AccessorNameSetterCallback>(setter_address);
   DCHECK(fun != NULL);
 
-  LOG(isolate, ApiNamedPropertyAccess("store", *receiver, *name));
   Object::ShouldThrow should_throw =
       is_sloppy(language_mode) ? Object::DONT_THROW : Object::THROW_ON_ERROR;
   PropertyCallbackArguments custom_args(isolate, callback->data(), *receiver,
                                         *holder, should_throw);
-  custom_args.Call(fun, v8::Utils::ToLocal(name), v8::Utils::ToLocal(value));
+  custom_args.Call(fun, name, value);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
 }
@@ -2843,17 +2801,29 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptorOnly) {
   DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
-  Handle<JSObject> receiver =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
+  Handle<Object> receiver =
+      args.at<Object>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   HandleScope scope(isolate);
-  LookupIterator it(receiver, name, holder, LookupIterator::OWN);
-  bool done;
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::GetPropertyWithInterceptor(&it, &done));
-  if (done) return *result;
+
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, receiver, Object::ConvertReceiver(isolate, receiver));
+  }
+
+  InterceptorInfo* interceptor = holder->GetNamedInterceptor();
+  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                      *holder, Object::DONT_THROW);
+
+  v8::GenericNamedPropertyGetterCallback getter =
+      v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
+          interceptor->getter());
+  Handle<Object> result = arguments.Call(getter, name);
+
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+
+  if (!result.is_null()) return *result;
   return isolate->heap()->no_interceptor_result_sentinel();
 }
 
@@ -2867,21 +2837,42 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
-  Handle<JSObject> receiver =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
+  Handle<Object> receiver =
+      args.at<Object>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
 
-  Handle<Object> result;
+  if (!receiver->IsJSReceiver()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, receiver, Object::ConvertReceiver(isolate, receiver));
+  }
+
+  InterceptorInfo* interceptor = holder->GetNamedInterceptor();
+  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                      *holder, Object::DONT_THROW);
+
+  v8::GenericNamedPropertyGetterCallback getter =
+      v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
+          interceptor->getter());
+  Handle<Object> result = arguments.Call(getter, name);
+
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+
+  if (!result.is_null()) return *result;
+
   LookupIterator it(receiver, name, holder);
-  // TODO(conradw): Investigate strong mode semantics for this.
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::GetProperty(&it));
+  // Skip any lookup work until we hit the (possibly non-masking) interceptor.
+  while (it.state() != LookupIterator::INTERCEPTOR ||
+         !it.GetHolder<JSObject>().is_identical_to(holder)) {
+    DCHECK(it.state() != LookupIterator::ACCESS_CHECK || it.HasAccess());
+    it.Next();
+  }
+  // Skip past the interceptor.
+  it.Next();
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
 
   if (it.IsFound()) return *result;
 
-  // Return the undefined result if the reference error should not be thrown.
-  // Note that both keyed and non-keyed loads may end up here.
   LoadICNexus nexus(isolate);
   LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   if (!ic.ShouldThrowReferenceError(it.GetReceiver())) {
@@ -2902,26 +2893,34 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<Name> name = args.at<Name>(1);
   Handle<Object> value = args.at<Object>(2);
-#ifdef DEBUG
-  PrototypeIterator iter(isolate, receiver,
-                         PrototypeIterator::START_AT_RECEIVER,
-                         PrototypeIterator::END_AT_NON_HIDDEN);
-  bool found = false;
-  for (; !iter.IsAtEnd(); iter.Advance()) {
-    Handle<Object> current = PrototypeIterator::GetCurrent(iter);
-    if (current->IsJSObject() &&
-        Handle<JSObject>::cast(current)->HasNamedInterceptor()) {
-      found = true;
-      break;
-    }
+
+  DCHECK(receiver->HasNamedInterceptor());
+  InterceptorInfo* interceptor = receiver->GetNamedInterceptor();
+  DCHECK(!interceptor->non_masking());
+  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                      *receiver, Object::DONT_THROW);
+
+  v8::GenericNamedPropertySetterCallback setter =
+      v8::ToCData<v8::GenericNamedPropertySetterCallback>(
+          interceptor->setter());
+  Handle<Object> result = arguments.Call(setter, name, value);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  if (!result.is_null()) return *value;
+
+  LookupIterator it(receiver, name, receiver);
+  // Skip past any access check on the receiver.
+  if (it.state() == LookupIterator::ACCESS_CHECK) {
+    DCHECK(it.HasAccess());
+    it.Next();
   }
-  DCHECK(found);
-#endif
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::SetProperty(receiver, name, value, ic.language_mode()));
-  return *result;
+  // Skip past the interceptor on the receiver.
+  DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
+  it.Next();
+
+  MAYBE_RETURN(Object::SetProperty(&it, value, ic.language_mode(),
+                                   JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED),
+               isolate->heap()->exception());
+  return *value;
 }
 
 
@@ -2931,9 +2930,25 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   DCHECK(args.smi_at(1) >= 0);
   uint32_t index = args.smi_at(1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::GetElement(isolate, receiver, index));
+
+  InterceptorInfo* interceptor = receiver->GetIndexedInterceptor();
+  PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
+                                      *receiver, Object::DONT_THROW);
+
+  v8::IndexedPropertyGetterCallback getter =
+      v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
+  Handle<Object> result = arguments.Call(getter, index);
+
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+
+  if (result.is_null()) {
+    LookupIterator it(isolate, receiver, index, receiver);
+    DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
+    it.Next();
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                       Object::GetProperty(&it));
+  }
+
   return *result;
 }
 

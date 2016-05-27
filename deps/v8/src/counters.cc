@@ -273,7 +273,9 @@ void RuntimeCallCounter::Reset() {
 }
 
 void RuntimeCallStats::Enter(RuntimeCallCounter* counter) {
-  Enter(new RuntimeCallTimer(counter, current_timer_));
+  RuntimeCallTimer* timer = new RuntimeCallTimer();
+  timer->Initialize(counter, current_timer_);
+  Enter(timer);
 }
 
 void RuntimeCallStats::Enter(RuntimeCallTimer* timer_) {
@@ -303,31 +305,34 @@ void RuntimeCallStats::Print(std::ostream& os) {
 #undef PRINT_COUNTER
 
   entries.Add(&this->ExternalCallback);
+  entries.Add(&this->GC);
   entries.Add(&this->UnexpectedStubMiss);
 
   entries.Print(os);
 }
 
 void RuntimeCallStats::Reset() {
+  if (!FLAG_runtime_call_stats) return;
 #define RESET_COUNTER(name, nargs, ressize) this->Runtime_##name.Reset();
   FOR_EACH_INTRINSIC(RESET_COUNTER)
 #undef RESET_COUNTER
 #define RESET_COUNTER(name, type) this->Builtin_##name.Reset();
   BUILTIN_LIST_C(RESET_COUNTER)
 #undef RESET_COUNTER
+  this->ExternalCallback.Reset();
+  this->GC.Reset();
+  this->UnexpectedStubMiss.Reset();
 }
 
-RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
-                                             RuntimeCallCounter* counter)
-    : isolate_(isolate),
-      timer_(counter,
-             isolate->counters()->runtime_call_stats()->current_timer()) {
-  if (!FLAG_runtime_call_stats) return;
-  isolate->counters()->runtime_call_stats()->Enter(&timer_);
+void RuntimeCallTimerScope::Enter(Isolate* isolate,
+                                  RuntimeCallCounter* counter) {
+  isolate_ = isolate;
+  RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
+  timer_.Initialize(counter, stats->current_timer());
+  stats->Enter(&timer_);
 }
 
-RuntimeCallTimerScope::~RuntimeCallTimerScope() {
-  if (!FLAG_runtime_call_stats) return;
+void RuntimeCallTimerScope::Leave() {
   isolate_->counters()->runtime_call_stats()->Leave(&timer_);
 }
 

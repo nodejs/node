@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --legacy-const
-
 // Make sure that eval can introduce a local variable called __proto__.
 // See http://code.google.com/p/v8/issues/detail?id=186
 
@@ -49,15 +47,6 @@ function testLocal() {
   assertEquals(o, eval("__proto__"));
 }
 
-function testConstLocal() {
-  // Add const property called __proto__ to the extension object.
-  eval("const __proto__ = o");
-  // Check that the extension object's prototype did not change.
-  eval("var x = 27");
-  assertFalse(setterCalled, "prototype of extension object changed");
-  assertEquals(o, eval("__proto__"));
-}
-
 function testGlobal() {
   // Assign to the global __proto__ property.
   eval("__proto__ = o");
@@ -69,5 +58,4 @@ function testGlobal() {
 }
 
 runTest(testLocal);
-runTest(testConstLocal);
 runTest(testGlobal);

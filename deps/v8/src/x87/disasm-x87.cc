@@ -29,29 +29,18 @@ struct ByteMnemonic {
 };
 
 static const ByteMnemonic two_operands_instr[] = {
-    {0x01, "add", OPER_REG_OP_ORDER},
-    {0x03, "add", REG_OPER_OP_ORDER},
-    {0x09, "or", OPER_REG_OP_ORDER},
-    {0x0B, "or", REG_OPER_OP_ORDER},
-    {0x1B, "sbb", REG_OPER_OP_ORDER},
-    {0x21, "and", OPER_REG_OP_ORDER},
-    {0x23, "and", REG_OPER_OP_ORDER},
-    {0x29, "sub", OPER_REG_OP_ORDER},
-    {0x2A, "subb", REG_OPER_OP_ORDER},
-    {0x2B, "sub", REG_OPER_OP_ORDER},
-    {0x31, "xor", OPER_REG_OP_ORDER},
-    {0x33, "xor", REG_OPER_OP_ORDER},
-    {0x38, "cmpb", OPER_REG_OP_ORDER},
-    {0x39, "cmp", OPER_REG_OP_ORDER},
-    {0x3A, "cmpb", REG_OPER_OP_ORDER},
-    {0x3B, "cmp", REG_OPER_OP_ORDER},
-    {0x84, "test_b", REG_OPER_OP_ORDER},
-    {0x85, "test", REG_OPER_OP_ORDER},
-    {0x87, "xchg", REG_OPER_OP_ORDER},
-    {0x8A, "mov_b", REG_OPER_OP_ORDER},
-    {0x8B, "mov", REG_OPER_OP_ORDER},
-    {0x8D, "lea", REG_OPER_OP_ORDER},
-    {-1, "", UNSET_OP_ORDER}};
+    {0x01, "add", OPER_REG_OP_ORDER},   {0x03, "add", REG_OPER_OP_ORDER},
+    {0x09, "or", OPER_REG_OP_ORDER},    {0x0B, "or", REG_OPER_OP_ORDER},
+    {0x13, "adc", REG_OPER_OP_ORDER},   {0x1B, "sbb", REG_OPER_OP_ORDER},
+    {0x21, "and", OPER_REG_OP_ORDER},   {0x23, "and", REG_OPER_OP_ORDER},
+    {0x29, "sub", OPER_REG_OP_ORDER},   {0x2A, "subb", REG_OPER_OP_ORDER},
+    {0x2B, "sub", REG_OPER_OP_ORDER},   {0x31, "xor", OPER_REG_OP_ORDER},
+    {0x33, "xor", REG_OPER_OP_ORDER},   {0x38, "cmpb", OPER_REG_OP_ORDER},
+    {0x39, "cmp", OPER_REG_OP_ORDER},   {0x3A, "cmpb", REG_OPER_OP_ORDER},
+    {0x3B, "cmp", REG_OPER_OP_ORDER},   {0x84, "test_b", REG_OPER_OP_ORDER},
+    {0x85, "test", REG_OPER_OP_ORDER},  {0x87, "xchg", REG_OPER_OP_ORDER},
+    {0x8A, "mov_b", REG_OPER_OP_ORDER}, {0x8B, "mov", REG_OPER_OP_ORDER},
+    {0x8D, "lea", REG_OPER_OP_ORDER},   {-1, "", UNSET_OP_ORDER}};
 
 static const ByteMnemonic zero_operands_instr[] = {
   {0xC3, "ret", UNSET_OP_ORDER},
@@ -906,18 +895,34 @@ static const char* F0Mnem(byte f0byte) {
   switch (f0byte) {
     case 0x0B:
       return "ud2";
-    case 0x18: return "prefetch";
-    case 0xA2: return "cpuid";
-    case 0xBE: return "movsx_b";
-    case 0xBF: return "movsx_w";
-    case 0xB6: return "movzx_b";
-    case 0xB7: return "movzx_w";
-    case 0xAF: return "imul";
-    case 0xA5: return "shld";
-    case 0xAD: return "shrd";
-    case 0xAC: return "shrd";  // 3-operand version.
-    case 0xAB: return "bts";
-    case 0xBD: return "bsr";
+    case 0x18:
+      return "prefetch";
+    case 0xA2:
+      return "cpuid";
+    case 0xBE:
+      return "movsx_b";
+    case 0xBF:
+      return "movsx_w";
+    case 0xB6:
+      return "movzx_b";
+    case 0xB7:
+      return "movzx_w";
+    case 0xAF:
+      return "imul";
+    case 0xA4:
+      return "shld";
+    case 0xA5:
+      return "shld";
+    case 0xAD:
+      return "shrd";
+    case 0xAC:
+      return "shrd";  // 3-operand version.
+    case 0xAB:
+      return "bts";
+    case 0xBC:
+      return "bsf";
+    case 0xBD:
+      return "bsr";
     default: return NULL;
   }
 }
@@ -1134,8 +1139,18 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
             data += SetCC(data);
           } else if ((f0byte & 0xF0) == 0x40) {
             data += CMov(data);
+          } else if (f0byte == 0xA4 || f0byte == 0xAC) {
+            // shld, shrd
+            data += 2;
+            AppendToBuffer("%s ", f0mnem);
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            int8_t imm8 = static_cast<int8_t>(data[1]);
+            data += 2;
+            AppendToBuffer("%s,%s,%d", NameOfCPURegister(rm),
+                           NameOfCPURegister(regop), static_cast<int>(imm8));
           } else if (f0byte == 0xAB || f0byte == 0xA5 || f0byte == 0xAD) {
-            // shrd, shld, bts
+            // shrd_cl, shld_cl, bts
             data += 2;
             AppendToBuffer("%s ", f0mnem);
             int mod, regop, rm;
@@ -1262,6 +1277,13 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
         } else if (*data == 0xC7) {
           data++;
           AppendToBuffer("%s ", "mov_w");
+          data += PrintRightOperand(data);
+          int imm = *reinterpret_cast<int16_t*>(data);
+          AppendToBuffer(",0x%x", imm);
+          data += 2;
+        } else if (*data == 0xF7) {
+          data++;
+          AppendToBuffer("%s ", "test_w");
           data += PrintRightOperand(data);
           int imm = *reinterpret_cast<int16_t*>(data);
           AppendToBuffer(",0x%x", imm);

@@ -192,12 +192,12 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   MapTransitionList transitions(maps.length());
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(map).ToHandle(&map)) {
-      Handle<Map> transition_target =
-          Map::FindTransitionedMap(map, &possible_transition_targets);
-      if (transition_target.is_null()) {
+      Map* transition_target =
+          map->FindElementsKindTransitionedMap(&possible_transition_targets);
+      if (transition_target == nullptr) {
         receiver_maps.Add(map);
       } else {
-        transitions.push_back(std::make_pair(map, transition_target));
+        transitions.push_back(std::make_pair(map, handle(transition_target)));
       }
     }
   }

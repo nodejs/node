@@ -45,6 +45,25 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
   return LookupIterator(receiver, name, configuration);
 }
 
+template <bool is_element>
+void LookupIterator::Start() {
+  DisallowHeapAllocation no_gc;
+
+  has_property_ = false;
+  state_ = NOT_FOUND;
+  holder_ = initial_holder_;
+
+  JSReceiver* holder = *holder_;
+  Map* map = holder->map();
+
+  state_ = LookupInHolder<is_element>(map, holder);
+  if (IsFound()) return;
+
+  NextInternal<is_element>(map, holder);
+}
+
+template void LookupIterator::Start<true>();
+template void LookupIterator::Start<false>();
 
 void LookupIterator::Next() {
   DCHECK_NE(JSPROXY, state_);
@@ -55,38 +74,47 @@ void LookupIterator::Next() {
   JSReceiver* holder = *holder_;
   Map* map = holder->map();
 
-  // Perform lookup on current holder.
-  state_ = LookupInHolder(map, holder);
-  if (IsFound()) return;
+  if (map->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
+    state_ = IsElement() ? LookupInSpecialHolder<true>(map, holder)
+                         : LookupInSpecialHolder<false>(map, holder);
+    if (IsFound()) return;
+  }
 
-  // Continue lookup if lookup on current holder failed.
+  IsElement() ? NextInternal<true>(map, holder)
+              : NextInternal<false>(map, holder);
+}
+
+template <bool is_element>
+void LookupIterator::NextInternal(Map* map, JSReceiver* holder) {
   do {
     JSReceiver* maybe_holder = NextHolder(map);
     if (maybe_holder == nullptr) {
       if (interceptor_state_ == InterceptorState::kSkipNonMasking) {
-        RestartLookupForNonMaskingInterceptors();
+        RestartLookupForNonMaskingInterceptors<is_element>();
         return;
       }
-      break;
+      state_ = NOT_FOUND;
+      if (holder != *holder_) holder_ = handle(holder, isolate_);
+      return;
     }
     holder = maybe_holder;
     map = holder->map();
-    state_ = LookupInHolder(map, holder);
+    state_ = LookupInHolder<is_element>(map, holder);
   } while (!IsFound());
 
-  if (holder != *holder_) holder_ = handle(holder, isolate_);
+  holder_ = handle(holder, isolate_);
 }
 
-
+template <bool is_element>
 void LookupIterator::RestartInternal(InterceptorState interceptor_state) {
-  state_ = NOT_FOUND;
   interceptor_state_ = interceptor_state;
   property_details_ = PropertyDetails::Empty();
-  holder_ = initial_holder_;
   number_ = DescriptorArray::kNotFound;
-  Next();
+  Start<is_element>();
 }
 
+template void LookupIterator::RestartInternal<true>(InterceptorState);
+template void LookupIterator::RestartInternal<false>(InterceptorState);
 
 // static
 Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
@@ -116,29 +144,17 @@ Handle<Map> LookupIterator::GetReceiverMap() const {
   return handle(Handle<HeapObject>::cast(receiver_)->map(), isolate_);
 }
 
-
-Handle<JSObject> LookupIterator::GetStoreTarget() const {
-  if (receiver_->IsJSGlobalProxy()) {
-    Object* prototype = JSGlobalProxy::cast(*receiver_)->map()->prototype();
-    if (!prototype->IsNull()) {
-      return handle(JSGlobalObject::cast(prototype), isolate_);
-    }
-  }
-  return Handle<JSObject>::cast(receiver_);
-}
-
-
 bool LookupIterator::HasAccess() const {
   DCHECK_EQ(ACCESS_CHECK, state_);
   return isolate_->MayAccess(handle(isolate_->context()),
                              GetHolder<JSObject>());
 }
 
-
+template <bool is_element>
 void LookupIterator::ReloadPropertyInformation() {
   state_ = BEFORE_PROPERTY;
   interceptor_state_ = InterceptorState::kUninitialized;
-  state_ = LookupInHolder(holder_->map(), *holder_);
+  state_ = LookupInHolder<is_element>(holder_->map(), *holder_);
   DCHECK(IsFound() || !holder_->HasFastProperties());
 }
 
@@ -156,14 +172,11 @@ bool LookupIterator::HolderIsInContextIndex(uint32_t index) const {
   return false;
 }
 
-void LookupIterator::UpdateProtector() {
-  if (!FLAG_harmony_species) return;
-
-  if (IsElement()) return;
+void LookupIterator::InternalUpdateProtector() {
   if (isolate_->bootstrapper()->IsActive()) return;
   if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
 
-  if (*name_ == *isolate_->factory()->constructor_string()) {
+  if (*name_ == heap()->constructor_string()) {
     // Setting the constructor property could change an instance's @@species
     if (holder_->IsJSArray()) {
       isolate_->CountUsage(
@@ -178,7 +191,7 @@ void LookupIterator::UpdateProtector() {
         isolate_->InvalidateArraySpeciesProtector();
       }
     }
-  } else if (*name_ == *isolate_->factory()->species_symbol()) {
+  } else if (*name_ == heap()->species_symbol()) {
     // Setting the Symbol.species property of any Array constructor invalidates
     // the species protector
     if (HolderIsInContextIndex(Context::ARRAY_FUNCTION_INDEX)) {
@@ -228,7 +241,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   }
 
   JSObject::MigrateToMap(holder, new_map);
-  ReloadPropertyInformation();
+  ReloadPropertyInformation<false>();
 }
 
 
@@ -243,19 +256,23 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     Handle<FixedArrayBase> elements(holder->elements());
     holder->GetElementsAccessor()->Reconfigure(holder, elements, number_, value,
                                                attributes);
-  } else if (!holder->HasFastProperties()) {
-    PropertyDetails details(attributes, v8::internal::DATA, 0,
-                            PropertyCellType::kMutable);
-    JSObject::SetNormalizedProperty(holder, name(), value, details);
+    ReloadPropertyInformation<true>();
   } else {
-    Handle<Map> old_map(holder->map(), isolate_);
-    Handle<Map> new_map = Map::ReconfigureExistingProperty(
-        old_map, descriptor_number(), i::kData, attributes);
-    new_map = Map::PrepareForDataProperty(new_map, descriptor_number(), value);
-    JSObject::MigrateToMap(holder, new_map);
+    if (!holder->HasFastProperties()) {
+      PropertyDetails details(attributes, v8::internal::DATA, 0,
+                              PropertyCellType::kMutable);
+      JSObject::SetNormalizedProperty(holder, name(), value, details);
+    } else {
+      Handle<Map> old_map(holder->map(), isolate_);
+      Handle<Map> new_map = Map::ReconfigureExistingProperty(
+          old_map, descriptor_number(), i::kData, attributes);
+      new_map =
+          Map::PrepareForDataProperty(new_map, descriptor_number(), value);
+      JSObject::MigrateToMap(holder, new_map);
+    }
+    ReloadPropertyInformation<false>();
   }
 
-  ReloadPropertyInformation();
   WriteDataValue(value);
 
 #if VERIFY_HEAP
@@ -323,7 +340,7 @@ void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
     property_details_ = transition->GetLastDescriptorDetails();
     state_ = DATA;
   } else {
-    ReloadPropertyInformation();
+    ReloadPropertyInformation<false>();
   }
 }
 
@@ -342,7 +359,7 @@ void LookupIterator::Delete() {
     if (holder->HasFastProperties()) {
       JSObject::NormalizeProperties(Handle<JSObject>::cast(holder), mode, 0,
                                     "DeletingProperty");
-      ReloadPropertyInformation();
+      ReloadPropertyInformation<false>();
     }
     // TODO(verwaest): Get rid of the name_ argument.
     JSReceiver::DeleteNormalizedProperty(holder, name_, number_);
@@ -364,14 +381,31 @@ void LookupIterator::TransitionToAccessorProperty(
   Handle<JSObject> receiver = GetStoreTarget();
 
   if (!IsElement() && !receiver->map()->is_dictionary_map()) {
-    holder_ = receiver;
     Handle<Map> old_map(receiver->map(), isolate_);
+
+    if (!holder_.is_identical_to(receiver)) {
+      holder_ = receiver;
+      state_ = NOT_FOUND;
+    } else if (state_ == INTERCEPTOR) {
+      LookupInRegularHolder<false>(*old_map, *holder_);
+    }
+    int descriptor =
+        IsFound() ? static_cast<int>(number_) : DescriptorArray::kNotFound;
+
     Handle<Map> new_map = Map::TransitionToAccessorProperty(
-        old_map, name_, component, accessor, attributes);
+        old_map, name_, descriptor, component, accessor, attributes);
+    bool simple_transition = new_map->GetBackPointer() == receiver->map();
     JSObject::MigrateToMap(receiver, new_map);
 
-    ReloadPropertyInformation();
+    if (simple_transition) {
+      int number = new_map->LastAdded();
+      number_ = static_cast<uint32_t>(number);
+      property_details_ = new_map->GetLastDescriptorDetails();
+      state_ = ACCESSOR;
+      return;
+    }
 
+    ReloadPropertyInformation<false>();
     if (!new_map->is_dictionary_map()) return;
   }
 
@@ -430,6 +464,8 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
     } else {
       receiver->set_elements(*dictionary);
     }
+
+    ReloadPropertyInformation<true>();
   } else {
     PropertyNormalizationMode mode = receiver->map()->is_prototype_map()
                                          ? KEEP_INOBJECT_PROPERTIES
@@ -440,9 +476,9 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
 
     JSObject::SetNormalizedProperty(receiver, name_, pair, details);
     JSObject::ReoptimizeIfPrototype(receiver);
-  }
 
-  ReloadPropertyInformation();
+    ReloadPropertyInformation<false>();
+  }
 }
 
 
@@ -451,13 +487,13 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   DisallowHeapAllocation no_gc;
+  if (*receiver_ == *holder_) return true;
   if (!receiver_->IsJSReceiver()) return false;
   JSReceiver* current = JSReceiver::cast(*receiver_);
   JSReceiver* object = *holder_;
-  if (current == object) return true;
   if (!current->map()->has_hidden_prototype()) return false;
   // JSProxy do not occur as hidden prototypes.
-  if (current->IsJSProxy()) return false;
+  if (object->IsJSProxy()) return false;
   PrototypeIterator iter(isolate(), current,
                          PrototypeIterator::START_AT_PROTOTYPE,
                          PrototypeIterator::END_AT_NON_HIDDEN);
@@ -581,15 +617,9 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
   }
 }
 
-
-bool LookupIterator::HasInterceptor(Map* map) const {
-  if (IsElement()) return map->has_indexed_interceptor();
-  return map->has_named_interceptor();
-}
-
-
+template <bool is_element>
 bool LookupIterator::SkipInterceptor(JSObject* holder) {
-  auto info = GetInterceptor(holder);
+  auto info = GetInterceptor<is_element>(holder);
   // TODO(dcarney): check for symbol/can_intercept_symbols here as well.
   if (info->non_masking()) {
     switch (interceptor_state_) {
@@ -605,10 +635,9 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
   return interceptor_state_ == InterceptorState::kProcessNonMasking;
 }
 
-
 JSReceiver* LookupIterator::NextHolder(Map* map) {
   DisallowHeapAllocation no_gc;
-  if (!map->prototype()->IsJSReceiver()) return NULL;
+  if (map->prototype() == heap()->null_value()) return NULL;
 
   DCHECK(!map->IsJSGlobalProxyMap() || map->has_hidden_prototype());
 
@@ -635,45 +664,37 @@ LookupIterator::State LookupIterator::NotFound(JSReceiver* const holder) const {
              : NOT_FOUND;
 }
 
-LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
-                                                     JSReceiver* const holder) {
+namespace {
+
+template <bool is_element>
+bool HasInterceptor(Map* map) {
+  return is_element ? map->has_indexed_interceptor()
+                    : map->has_named_interceptor();
+}
+
+}  // namespace
+
+template <bool is_element>
+LookupIterator::State LookupIterator::LookupInSpecialHolder(
+    Map* const map, JSReceiver* const holder) {
   STATIC_ASSERT(INTERCEPTOR == BEFORE_PROPERTY);
-  DisallowHeapAllocation no_gc;
-  if (interceptor_state_ == InterceptorState::kProcessNonMasking) {
-    return LookupNonMaskingInterceptorInHolder(map, holder);
-  }
   switch (state_) {
     case NOT_FOUND:
       if (map->IsJSProxyMap()) {
-        if (IsElement() || !name_->IsPrivate()) return JSPROXY;
+        if (is_element || !name_->IsPrivate()) return JSPROXY;
       }
       if (map->is_access_check_needed()) {
-        if (IsElement() || !name_->IsPrivate()) return ACCESS_CHECK;
+        if (is_element || !name_->IsPrivate()) return ACCESS_CHECK;
       }
     // Fall through.
     case ACCESS_CHECK:
-      if (check_interceptor() && HasInterceptor(map) &&
-          !SkipInterceptor(JSObject::cast(holder))) {
-        if (IsElement() || !name_->IsPrivate()) return INTERCEPTOR;
+      if (check_interceptor() && HasInterceptor<is_element>(map) &&
+          !SkipInterceptor<is_element>(JSObject::cast(holder))) {
+        if (is_element || !name_->IsPrivate()) return INTERCEPTOR;
       }
     // Fall through.
     case INTERCEPTOR:
-      if (IsElement()) {
-        JSObject* js_object = JSObject::cast(holder);
-        ElementsAccessor* accessor = js_object->GetElementsAccessor();
-        FixedArrayBase* backing_store = js_object->elements();
-        number_ = accessor->GetEntryForIndex(js_object, backing_store, index_);
-        if (number_ == kMaxUInt32) {
-          return holder->IsJSTypedArray() ? INTEGER_INDEXED_EXOTIC : NOT_FOUND;
-        }
-        property_details_ = accessor->GetDetails(js_object, number_);
-      } else if (!map->is_dictionary_map()) {
-        DescriptorArray* descriptors = map->instance_descriptors();
-        int number = descriptors->SearchWithCache(isolate_, *name_, map);
-        if (number == DescriptorArray::kNotFound) return NotFound(holder);
-        number_ = static_cast<uint32_t>(number);
-        property_details_ = descriptors->GetDetails(number_);
-      } else if (map->IsJSGlobalObjectMap()) {
+      if (!is_element && map->IsJSGlobalObjectMap()) {
         GlobalDictionary* dict = JSObject::cast(holder)->global_dictionary();
         int number = dict->FindEntry(name_);
         if (number == GlobalDictionary::kNotFound) return NOT_FOUND;
@@ -682,20 +703,15 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         PropertyCell* cell = PropertyCell::cast(dict->ValueAt(number_));
         if (cell->value()->IsTheHole()) return NOT_FOUND;
         property_details_ = cell->property_details();
-      } else {
-        NameDictionary* dict = holder->property_dictionary();
-        int number = dict->FindEntry(name_);
-        if (number == NameDictionary::kNotFound) return NotFound(holder);
-        number_ = static_cast<uint32_t>(number);
-        property_details_ = dict->DetailsAt(number_);
+        has_property_ = true;
+        switch (property_details_.kind()) {
+          case v8::internal::kData:
+            return DATA;
+          case v8::internal::kAccessor:
+            return ACCESSOR;
+        }
       }
-      has_property_ = true;
-      switch (property_details_.kind()) {
-        case v8::internal::kData:
-          return DATA;
-        case v8::internal::kAccessor:
-          return ACCESSOR;
-      }
+      return LookupInRegularHolder<is_element>(map, holder);
     case ACCESSOR:
     case DATA:
       return NOT_FOUND;
@@ -705,22 +721,47 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
       UNREACHABLE();
   }
   UNREACHABLE();
-  return state_;
+  return NOT_FOUND;
 }
 
-
-LookupIterator::State LookupIterator::LookupNonMaskingInterceptorInHolder(
+template <bool is_element>
+LookupIterator::State LookupIterator::LookupInRegularHolder(
     Map* const map, JSReceiver* const holder) {
-  switch (state_) {
-    case NOT_FOUND:
-      if (check_interceptor() && HasInterceptor(map) &&
-          !SkipInterceptor(JSObject::cast(holder))) {
-        return INTERCEPTOR;
-      }
-    // Fall through.
-    default:
-      return NOT_FOUND;
+  DisallowHeapAllocation no_gc;
+  if (interceptor_state_ == InterceptorState::kProcessNonMasking) {
+    return NOT_FOUND;
   }
+
+  if (is_element) {
+    JSObject* js_object = JSObject::cast(holder);
+    ElementsAccessor* accessor = js_object->GetElementsAccessor();
+    FixedArrayBase* backing_store = js_object->elements();
+    number_ = accessor->GetEntryForIndex(js_object, backing_store, index_);
+    if (number_ == kMaxUInt32) {
+      return holder->IsJSTypedArray() ? INTEGER_INDEXED_EXOTIC : NOT_FOUND;
+    }
+    property_details_ = accessor->GetDetails(js_object, number_);
+  } else if (!map->is_dictionary_map()) {
+    DescriptorArray* descriptors = map->instance_descriptors();
+    int number = descriptors->SearchWithCache(isolate_, *name_, map);
+    if (number == DescriptorArray::kNotFound) return NotFound(holder);
+    number_ = static_cast<uint32_t>(number);
+    property_details_ = descriptors->GetDetails(number_);
+  } else {
+    NameDictionary* dict = holder->property_dictionary();
+    int number = dict->FindEntry(name_);
+    if (number == NameDictionary::kNotFound) return NotFound(holder);
+    number_ = static_cast<uint32_t>(number);
+    property_details_ = dict->DetailsAt(number_);
+  }
+  has_property_ = true;
+  switch (property_details_.kind()) {
+    case v8::internal::kData:
+      return DATA;
+    case v8::internal::kAccessor:
+      return ACCESSOR;
+  }
+
   UNREACHABLE();
   return state_;
 }

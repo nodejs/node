@@ -183,7 +183,7 @@ TEST(ValidateMinimum) {
             CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
-        // p = (p + 8)|0) {\n"
+        // p = (p + 8)|0) {
         CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
           CHECK_VAR(p, Bounds(cache.kAsmInt));
           CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
@@ -354,59 +354,54 @@ TEST(MissingReturnExports) {
            Validate(zone, test_function, &types));
 }
 
+#define HARNESS_STDLIB()                \
+  "var Infinity = stdlib.Infinity; "    \
+  "var NaN = stdlib.NaN; "              \
+  "var acos = stdlib.Math.acos; "       \
+  "var asin = stdlib.Math.asin; "       \
+  "var atan = stdlib.Math.atan; "       \
+  "var cos = stdlib.Math.cos; "         \
+  "var sin = stdlib.Math.sin; "         \
+  "var tan = stdlib.Math.tan; "         \
+  "var exp = stdlib.Math.exp; "         \
+  "var log = stdlib.Math.log; "         \
+  "var ceil = stdlib.Math.ceil; "       \
+  "var floor = stdlib.Math.floor; "     \
+  "var sqrt = stdlib.Math.sqrt; "       \
+  "var min = stdlib.Math.min; "         \
+  "var max = stdlib.Math.max; "         \
+  "var atan2 = stdlib.Math.atan2; "     \
+  "var pow = stdlib.Math.pow; "         \
+  "var abs = stdlib.Math.abs; "         \
+  "var imul = stdlib.Math.imul; "       \
+  "var fround = stdlib.Math.fround; "   \
+  "var E = stdlib.Math.E; "             \
+  "var LN10 = stdlib.Math.LN10; "       \
+  "var LN2 = stdlib.Math.LN2; "         \
+  "var LOG2E = stdlib.Math.LOG2E; "     \
+  "var LOG10E = stdlib.Math.LOG10E; "   \
+  "var PI = stdlib.Math.PI; "           \
+  "var SQRT1_2 = stdlib.Math.SQRT1_2; " \
+  "var SQRT2 = stdlib.Math.SQRT2; "
 
-#define HARNESS_STDLIB()                 \
-  "var Infinity = stdlib.Infinity;\n"    \
-  "var NaN = stdlib.NaN;\n"              \
-  "var acos = stdlib.Math.acos;\n"       \
-  "var asin = stdlib.Math.asin;\n"       \
-  "var atan = stdlib.Math.atan;\n"       \
-  "var cos = stdlib.Math.cos;\n"         \
-  "var sin = stdlib.Math.sin;\n"         \
-  "var tan = stdlib.Math.tan;\n"         \
-  "var exp = stdlib.Math.exp;\n"         \
-  "var log = stdlib.Math.log;\n"         \
-  "var ceil = stdlib.Math.ceil;\n"       \
-  "var floor = stdlib.Math.floor;\n"     \
-  "var sqrt = stdlib.Math.sqrt;\n"       \
-  "var min = stdlib.Math.min;\n"         \
-  "var max = stdlib.Math.max;\n"         \
-  "var atan2 = stdlib.Math.atan2;\n"     \
-  "var pow = stdlib.Math.pow;\n"         \
-  "var abs = stdlib.Math.abs;\n"         \
-  "var imul = stdlib.Math.imul;\n"       \
-  "var fround = stdlib.Math.fround;\n"   \
-  "var E = stdlib.Math.E;\n"             \
-  "var LN10 = stdlib.Math.LN10;\n"       \
-  "var LN2 = stdlib.Math.LN2;\n"         \
-  "var LOG2E = stdlib.Math.LOG2E;\n"     \
-  "var LOG10E = stdlib.Math.LOG10E;\n"   \
-  "var PI = stdlib.Math.PI;\n"           \
-  "var SQRT1_2 = stdlib.Math.SQRT1_2;\n" \
-  "var SQRT2 = stdlib.Math.SQRT2;\n"
+#define HARNESS_HEAP()                          \
+  "var u8 = new stdlib.Uint8Array(buffer); "    \
+  "var i8 = new stdlib.Int8Array(buffer); "     \
+  "var u16 = new stdlib.Uint16Array(buffer); "  \
+  "var i16 = new stdlib.Int16Array(buffer); "   \
+  "var u32 = new stdlib.Uint32Array(buffer); "  \
+  "var i32 = new stdlib.Int32Array(buffer); "   \
+  "var f32 = new stdlib.Float32Array(buffer); " \
+  "var f64 = new stdlib.Float64Array(buffer); "
 
-
-#define HARNESS_HEAP()                           \
-  "var u8 = new stdlib.Uint8Array(buffer);\n"    \
-  "var i8 = new stdlib.Int8Array(buffer);\n"     \
-  "var u16 = new stdlib.Uint16Array(buffer);\n"  \
-  "var i16 = new stdlib.Int16Array(buffer);\n"   \
-  "var u32 = new stdlib.Uint32Array(buffer);\n"  \
-  "var i32 = new stdlib.Int32Array(buffer);\n"   \
-  "var f32 = new stdlib.Float32Array(buffer);\n" \
-  "var f64 = new stdlib.Float64Array(buffer);\n"
-
-
-#define HARNESS_PREAMBLE()                           \
-  const char test_function[] =                       \
-      "function Module(stdlib, foreign, buffer) {\n" \
-      "\"use asm\";\n" HARNESS_STDLIB() HARNESS_HEAP()
-
+#define HARNESS_PREAMBLE()                          \
+  const char test_function[] =                      \
+      "function Module(stdlib, foreign, buffer) { " \
+      "\"use asm\"; " HARNESS_STDLIB() HARNESS_HEAP()
 
 #define HARNESS_POSTAMBLE() \
-  "return { foo: foo };\n"  \
-  "}\n";
-
+  "return { foo: foo }; "   \
+  "} ";
 
 #define CHECK_VAR_MATH_SHORTCUT(name, type)       \
   CHECK_EXPR(Assignment, type) {                  \
@@ -1088,7 +1083,7 @@ TEST(UnsignedFromFloat64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1.0; return (x>>>0)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: left bitwise operand expected to be an integer\n");
+      "asm: line 1: left bitwise operand expected to be an integer\n");
 }
 
 
@@ -1096,7 +1091,7 @@ TEST(AndFloat64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1.0; return (x&0)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: left bitwise operand expected to be an integer\n");
+      "asm: line 1: left bitwise operand expected to be an integer\n");
 }
 
 
@@ -1104,7 +1099,7 @@ TEST(TypeMismatchAddInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1.0; var y = 0; return (x + y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: ill-typed arithmetic operation\n");
+      "asm: line 1: ill-typed arithmetic operation\n");
 }
 
 
@@ -1112,7 +1107,7 @@ TEST(TypeMismatchSubInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1.0; var y = 0; return (x - y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: ill-typed arithmetic operation\n");
+      "asm: line 1: ill-typed arithmetic operation\n");
 }
 
 
@@ -1120,7 +1115,7 @@ TEST(TypeMismatchDivInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1.0; var y = 0; return (x / y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: ill-typed arithmetic operation\n");
+      "asm: line 1: ill-typed arithmetic operation\n");
 }
 
 
@@ -1128,7 +1123,7 @@ TEST(TypeMismatchModInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1.0; var y = 0; return (x % y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: ill-typed arithmetic operation\n");
+      "asm: line 1: ill-typed arithmetic operation\n");
 }
 
 
@@ -1136,7 +1131,7 @@ TEST(ModFloat32) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = fround(1.0); return (x % x)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: ill-typed arithmetic operation\n");
+      "asm: line 1: ill-typed arithmetic operation\n");
 }
 
 
@@ -1144,7 +1139,7 @@ TEST(TernaryMismatchInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 0.0; return (1 ? x : y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: then and else expressions in ? must have the same type\n");
+      "asm: line 1: then and else expressions in ? must have the same type\n");
 }
 
 
@@ -1152,15 +1147,15 @@ TEST(TernaryMismatchIntish) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 0; return (1 ? x + x : y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: invalid type in ? then expression\n");
+      "asm: line 1: invalid type in ? then expression\n");
 }
 
 
 TEST(TernaryMismatchInt32Float32) {
   CHECK_FUNC_ERROR(
-      "function bar() { var x = 1; var y = 2; return (x?fround(y):x)|0; }\n"
+      "function bar() { var x = 1; var y = 2.0; return (x?fround(y):x)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: then and else expressions in ? must have the same type\n");
+      "asm: line 1: then and else expressions in ? must have the same type\n");
 }
 
 
@@ -1168,13 +1163,26 @@ TEST(TernaryBadCondition) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2.0; return (y?x:1)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: condition must be of type int\n");
+      "asm: line 1: condition must be of type int\n");
 }
 
+TEST(BadIntishMultiply) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; return ((x + x) * 4) | 0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 1: intish not allowed in multiply\n");
+}
 
-TEST(FroundFloat32) {
-  CHECK_FUNC_TYPES_BEGIN(
+TEST(IntToFloat32) {
+  CHECK_FUNC_ERROR(
       "function bar() { var x = 1; return fround(x); }\n"
+      "function foo() { bar(); }",
+      "asm: line 1: illegal function argument type\n");
+}
+
+TEST(Int32ToFloat32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; return fround(x|0); }\n"
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_F_TYPE) {
       CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
@@ -1183,7 +1191,10 @@ TEST(FroundFloat32) {
       }
       CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
         CHECK_VAR(fround, FUNC_N2F_TYPE);
-        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
       }
     }
     CHECK_SKIP();
@@ -1191,6 +1202,77 @@ TEST(FroundFloat32) {
   CHECK_FUNC_TYPES_END
 }
 
+TEST(Uint32ToFloat32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; return fround(x>>>0); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_F_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(fround, FUNC_N2F_TYPE);
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+TEST(Float64ToFloat32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1.0; return fround(x); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_F_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+      }
+      CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(fround, FUNC_N2F_TYPE);
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+TEST(Int32ToFloat32ToInt32) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; return ~~fround(x|0) | 0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+              CHECK_VAR(fround, FUNC_N2F_TYPE);
+              CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+                CHECK_VAR(x, Bounds(cache.kAsmInt));
+                CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+              }
+            }
+            CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
 
 TEST(Addition4) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -1229,7 +1311,7 @@ TEST(Multiplication2) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2; return (x*y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: direct integer multiply forbidden\n");
+      "asm: line 1: multiply must be by an integer literal\n");
 }
 
 
@@ -1237,7 +1319,7 @@ TEST(Division4) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2; return (x/y/x/y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: too many consecutive multiplicative ops\n");
+      "asm: line 1: too many consecutive multiplicative ops\n");
 }
 
 
@@ -1245,7 +1327,7 @@ TEST(CompareToStringLeft) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; return ('hi' > x)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: bad type on left side of comparison\n");
+      "asm: line 1: bad type on left side of comparison\n");
 }
 
 
@@ -1253,7 +1335,7 @@ TEST(CompareToStringRight) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; return (x < 'hi')|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: bad type on right side of comparison\n");
+      "asm: line 1: bad type on right side of comparison\n");
 }
 
 
@@ -1261,7 +1343,7 @@ TEST(CompareMismatchInt32Float64) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2.0; return (x < y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: left and right side of comparison must match\n");
+      "asm: line 1: left and right side of comparison must match\n");
 }
 
 
@@ -1269,15 +1351,15 @@ TEST(CompareMismatchInt32Uint32) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2; return ((x|0) < (y>>>0))|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: left and right side of comparison must match\n");
+      "asm: line 1: left and right side of comparison must match\n");
 }
 
 
 TEST(CompareMismatchInt32Float32) {
   CHECK_FUNC_ERROR(
-      "function bar() { var x = 1; var y = 2; return (x < fround(y))|0; }\n"
+      "function bar() { var x = 1; var y = 2.0; return (x < fround(y))|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: left and right side of comparison must match\n");
+      "asm: line 1: left and right side of comparison must match\n");
 }
 
 
@@ -1618,7 +1700,7 @@ TEST(BadFunctionTable) {
       "function bar(x, y) { x = x | 0; y = y | 0;\n"
       "   return table1[x & 1](y)|0; }\n"
       "function foo() { bar(1, 2); }",
-      "asm: line 40: array component expected to be a function\n");
+      "asm: line 2: array component expected to be a function\n");
 }
 
 
@@ -1626,7 +1708,7 @@ TEST(MissingParameterTypes) {
   CHECK_FUNC_ERROR(
       "function bar(x) { var y = 1; }\n"
       "function foo() { bar(2); }",
-      "asm: line 39: missing parameter type annotations\n");
+      "asm: line 1: missing parameter type annotations\n");
 }
 
 
@@ -1634,7 +1716,7 @@ TEST(InvalidTypeAnnotationBinaryOpDiv) {
   CHECK_FUNC_ERROR(
       "function bar(x) { x = x / 4; }\n"
       "function foo() { bar(2); }",
-      "asm: line 39: invalid type annotation on binary op\n");
+      "asm: line 1: invalid type annotation on binary op\n");
 }
 
 
@@ -1642,7 +1724,7 @@ TEST(InvalidTypeAnnotationBinaryOpMul) {
   CHECK_FUNC_ERROR(
       "function bar(x) { x = x * 4.0; }\n"
       "function foo() { bar(2); }",
-      "asm: line 39: invalid type annotation on binary op\n");
+      "asm: line 1: invalid type annotation on binary op\n");
 }
 
 
@@ -1650,7 +1732,7 @@ TEST(InvalidArgumentCount) {
   CHECK_FUNC_ERROR(
       "function bar(x) { return fround(4, 5); }\n"
       "function foo() { bar(); }",
-      "asm: line 39: invalid argument count calling function\n");
+      "asm: line 1: invalid argument count calling function\n");
 }
 
 
@@ -1658,7 +1740,7 @@ TEST(InvalidTypeAnnotationArity) {
   CHECK_FUNC_ERROR(
       "function bar(x) { x = max(x); }\n"
       "function foo() { bar(3); }",
-      "asm: line 39: only fround allowed on expression annotations\n");
+      "asm: line 1: only fround allowed on expression annotations\n");
 }
 
 
@@ -1666,7 +1748,7 @@ TEST(InvalidTypeAnnotationOnlyFround) {
   CHECK_FUNC_ERROR(
       "function bar(x) { x = sin(x); }\n"
       "function foo() { bar(3); }",
-      "asm: line 39: only fround allowed on expression annotations\n");
+      "asm: line 1: only fround allowed on expression annotations\n");
 }
 
 
@@ -1674,7 +1756,7 @@ TEST(InvalidTypeAnnotation) {
   CHECK_FUNC_ERROR(
       "function bar(x) { x = (x+x)(x); }\n"
       "function foo() { bar(3); }",
-      "asm: line 39: invalid type annotation\n");
+      "asm: line 1: invalid type annotation\n");
 }
 
 
@@ -1682,7 +1764,7 @@ TEST(WithStatement) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 0; with (x) { x = x + 1; } }\n"
       "function foo() { bar(); }",
-      "asm: line 39: bad with statement\n");
+      "asm: line 1: bad with statement\n");
 }
 
 
@@ -1690,7 +1772,7 @@ TEST(NestedFunction) {
   CHECK_FUNC_ERROR(
       "function bar() { function x() { return 1; } }\n"
       "function foo() { bar(); }",
-      "asm: line 39: function declared inside another\n");
+      "asm: line 1: function declared inside another\n");
 }
 
 
@@ -1698,7 +1780,7 @@ TEST(UnboundVariable) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = y; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: unbound variable\n");
+      "asm: line 1: unbound variable\n");
 }
 
 
@@ -1706,7 +1788,7 @@ TEST(EqStrict) {
   CHECK_FUNC_ERROR(
       "function bar() { return (0 === 0)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: illegal comparison operator\n");
+      "asm: line 1: illegal comparison operator\n");
 }
 
 
@@ -1714,15 +1796,19 @@ TEST(NeStrict) {
   CHECK_FUNC_ERROR(
       "function bar() { return (0 !== 0)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: illegal comparison operator\n");
+      "asm: line 1: illegal comparison operator\n");
 }
 
 
 TEST(InstanceOf) {
+  const char* errorMsg = FLAG_harmony_instanceof
+                             ? "asm: line 0: do-expression encountered\n"
+                             : "asm: line 1: illegal comparison operator\n";
+
   CHECK_FUNC_ERROR(
       "function bar() { return (0 instanceof 0)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: illegal comparison operator\n");
+      errorMsg);
 }
 
 
@@ -1730,7 +1816,7 @@ TEST(InOperator) {
   CHECK_FUNC_ERROR(
       "function bar() { return (0 in 0)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: illegal comparison operator\n");
+      "asm: line 1: illegal comparison operator\n");
 }
 
 
@@ -1738,7 +1824,7 @@ TEST(LogicalAndOperator) {
   CHECK_FUNC_ERROR(
       "function bar() { return (0 && 0)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: illegal logical operator\n");
+      "asm: line 1: illegal logical operator\n");
 }
 
 
@@ -1746,15 +1832,21 @@ TEST(LogicalOrOperator) {
   CHECK_FUNC_ERROR(
       "function bar() { return (0 || 0)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: illegal logical operator\n");
+      "asm: line 1: illegal logical operator\n");
 }
 
+TEST(BitOrDouble) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1.0; return x | 0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 1: intish required\n");
+}
 
 TEST(BadLiteral) {
   CHECK_FUNC_ERROR(
       "function bar() { return true | 0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: illegal literal\n");
+      "asm: line 1: illegal literal\n");
 }
 
 
@@ -1762,7 +1854,7 @@ TEST(MismatchedReturnTypeLiteral) {
   CHECK_FUNC_ERROR(
       "function bar() { if(1) { return 1; } return 1.0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: return type does not match function signature\n");
+      "asm: line 1: return type does not match function signature\n");
 }
 
 
@@ -1771,7 +1863,7 @@ TEST(MismatchedReturnTypeExpression) {
       "function bar() {\n"
       "  var x = 1; var y = 1.0; if(1) { return x; } return +y; }\n"
       "function foo() { bar(); }",
-      "asm: line 40: return type does not match function signature\n");
+      "asm: line 2: return type does not match function signature\n");
 }
 
 
@@ -1779,7 +1871,7 @@ TEST(AssignToFloatishToF64) {
   CHECK_FUNC_ERROR(
       "function bar() { var v = fround(1.0); f64[0] = v + fround(1.0); }\n"
       "function foo() { bar(); }",
-      "asm: line 39: floatish assignment to double array\n");
+      "asm: line 1: floatish assignment to double array\n");
 }
 
 
@@ -1848,7 +1940,7 @@ TEST(BadExports) {
   HandleAndZoneScope handles;
   Zone* zone = handles.main_zone();
   ZoneVector<ExpressionTypeEntry> types(zone);
-  CHECK_EQ("asm: line 40: non-function in function table\n",
+  CHECK_EQ("asm: line 2: non-function in function table\n",
            Validate(zone, test_function, &types));
 }
 
@@ -1857,14 +1949,14 @@ TEST(NestedHeapAssignment) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 0; i16[x = 1] = 2; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: expected >> in heap access\n");
+      "asm: line 1: expected >> in heap access\n");
 }
 
 TEST(BadOperatorHeapAssignment) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 0; i16[x & 1] = 2; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: expected >> in heap access\n");
+      "asm: line 1: expected >> in heap access\n");
 }
 
 
@@ -1872,7 +1964,7 @@ TEST(BadArrayAssignment) {
   CHECK_FUNC_ERROR(
       "function bar() { i8[0] = 0.0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: illegal type in assignment\n");
+      "asm: line 1: illegal type in assignment\n");
 }
 
 
@@ -1881,7 +1973,7 @@ TEST(BadStandardFunctionCallOutside) {
       "var s0 = sin(0);\n"
       "function bar() { }\n"
       "function foo() { bar(); }",
-      "asm: line 39: illegal variable reference in module body\n");
+      "asm: line 1: illegal variable reference in module body\n");
 }
 
 
@@ -1890,9 +1982,23 @@ TEST(BadFunctionCallOutside) {
       "function bar() { return 0.0; }\n"
       "var s0 = bar(0);\n"
       "function foo() { bar(); }",
-      "asm: line 40: illegal variable reference in module body\n");
+      "asm: line 2: illegal variable reference in module body\n");
 }
 
+TEST(UnaryPlusOnIntForbidden) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; return +x; }\n"
+      "function foo() { bar(); }",
+      "asm: line 1: "
+      "unary + only allowed on signed, unsigned, float?, or double?\n");
+}
+
+TEST(MultiplyNon1ConvertForbidden) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 0.0; return x * 2.0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 1: invalid type annotation on binary op\n");
+}
 
 TEST(NestedVariableAssignment) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -2026,6 +2132,30 @@ TEST(CeilFloat) {
   CHECK_FUNC_TYPES_END
 }
 
+TEST(FloatReturnAsDouble) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = fround(3.1); return +fround(x); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_D_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(x, Bounds(cache.kAsmFloat));
+        CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(fround, FUNC_N2F_TYPE);
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+        }
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+        CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(fround, FUNC_N2F_TYPE);
+          CHECK_VAR(x, Bounds(cache.kAsmFloat));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
 
 TEST(TypeConsistency) {
   v8::V8::Initialize();
@@ -2125,7 +2255,7 @@ TEST(BadSwitchRange) {
   CHECK_FUNC_ERROR(
       "function bar() { switch (1) { case -1: case 0x7fffffff: } }\n"
       "function foo() { bar(); }",
-      "asm: line 39: case range too large\n");
+      "asm: line 1: case range too large\n");
 }
 
 
@@ -2133,7 +2263,7 @@ TEST(DuplicateSwitchCase) {
   CHECK_FUNC_ERROR(
       "function bar() { switch (1) { case 0: case 0: } }\n"
       "function foo() { bar(); }",
-      "asm: line 39: duplicate case value\n");
+      "asm: line 1: duplicate case value\n");
 }
 
 
@@ -2141,7 +2271,7 @@ TEST(BadSwitchOrder) {
   CHECK_FUNC_ERROR(
       "function bar() { switch (1) { default: case 0: } }\n"
       "function foo() { bar(); }",
-      "asm: line 39: default case out of order\n");
+      "asm: line 1: default case out of order\n");
 }
 
 TEST(BadForeignCall) {
@@ -2341,4 +2471,44 @@ TEST(Imports) {
     }
   }
   CHECK_TYPES_END
+}
+
+TEST(StoreFloatFromDouble) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { f32[0] = 0.0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_EXPR(Property, Bounds::Unbounded()) {
+          CHECK_VAR(f32, Bounds(cache.kFloat32Array));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+TEST(NegateDouble) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 0.0; x = -x; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+          CHECK_VAR(x, Bounds(cache.kAsmDouble));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
 }

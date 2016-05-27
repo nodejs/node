@@ -773,6 +773,9 @@ class Instruction final {
     DCHECK(output_count == 0 || outputs != nullptr);
     DCHECK(input_count == 0 || inputs != nullptr);
     DCHECK(temp_count == 0 || temps != nullptr);
+    // TODO(jarin/mstarzinger): Handle this gracefully. See crbug.com/582702.
+    CHECK(InputCountField::is_valid(input_count));
+
     size_t total_extra_ops = output_count + input_count + temp_count;
     if (total_extra_ops != 0) total_extra_ops--;
     int size = static_cast<int>(
@@ -810,6 +813,23 @@ class Instruction final {
   bool IsNop() const {
     return arch_opcode() == kArchNop && InputCount() == 0 &&
            OutputCount() == 0 && TempCount() == 0;
+  }
+
+  bool IsDeoptimizeCall() const {
+    return arch_opcode() == ArchOpcode::kArchDeoptimize ||
+           FlagsModeField::decode(opcode()) == kFlags_deoptimize;
+  }
+
+  bool IsJump() const { return arch_opcode() == ArchOpcode::kArchJmp; }
+  bool IsRet() const { return arch_opcode() == ArchOpcode::kArchRet; }
+  bool IsTailCall() const {
+    return arch_opcode() == ArchOpcode::kArchTailCallCodeObject ||
+           arch_opcode() == ArchOpcode::kArchTailCallCodeObjectFromJSFunction ||
+           arch_opcode() == ArchOpcode::kArchTailCallJSFunction ||
+           arch_opcode() == ArchOpcode::kArchTailCallJSFunctionFromJSFunction;
+  }
+  bool IsThrow() const {
+    return arch_opcode() == ArchOpcode::kArchThrowTerminator;
   }
 
   enum GapPosition {
@@ -1354,7 +1374,9 @@ class InstructionSequence final : public ZoneObject {
   void PrintBlock(const RegisterConfiguration* config, int block_id) const;
   void PrintBlock(int block_id) const;
 
-  void Validate();
+  void ValidateEdgeSplitForm();
+  void ValidateDeferredBlockExitPaths();
+  void ValidateSSA();
 
  private:
   friend std::ostream& operator<<(std::ostream& os,

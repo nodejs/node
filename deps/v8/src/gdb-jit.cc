@@ -656,6 +656,12 @@ class ELF BASE_EMBEDDED {
 #elif V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN && V8_OS_LINUX
     const uint8_t ident[16] = {0x7f, 'E', 'L', 'F', 2, 2, 1, 0,
                                0,    0,   0,   0,   0, 0, 0, 0};
+#elif V8_TARGET_ARCH_S390X
+    const uint8_t ident[16] = {0x7f, 'E', 'L', 'F', 2, 2, 1, 3,
+                               0,    0,   0,   0,   0, 0, 0, 0};
+#elif V8_TARGET_ARCH_S390
+    const uint8_t ident[16] = {0x7f, 'E', 'L', 'F', 1, 2, 1, 3,
+                               0,    0,   0,   0,   0, 0, 0, 0};
 #else
 #error Unsupported target architecture.
 #endif
@@ -680,6 +686,11 @@ class ELF BASE_EMBEDDED {
     // id=B81AEC1A37F5DAF185257C3E004E8845&linkid=1n0000&c_t=
     // c9xw7v5dzsj7gt1ifgf4cjbcnskqptmr
     header->machine = 21;
+#elif V8_TARGET_ARCH_S390
+    // Processor identification value is 22 (EM_S390) as defined in the ABI:
+    // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_s390.html#AEN1691
+    // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html#AEN1599
+    header->machine = 22;
 #else
 #error Unsupported target architecture.
 #endif
@@ -772,7 +783,8 @@ class ELFSymbol BASE_EMBEDDED {
     return static_cast<Binding>(info >> 4);
   }
 #if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X87 || \
-     (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT))
+     (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT) ||                   \
+     (V8_TARGET_ARCH_S390 && V8_TARGET_ARCH_32_BIT))
   struct SerializedLayout {
     SerializedLayout(uint32_t name,
                      uintptr_t value,
@@ -796,7 +808,7 @@ class ELFSymbol BASE_EMBEDDED {
     uint16_t section;
   };
 #elif(V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT) || \
-    (V8_TARGET_ARCH_PPC64 && V8_OS_LINUX)
+    (V8_TARGET_ARCH_PPC64 && V8_OS_LINUX) || V8_TARGET_ARCH_S390X
   struct SerializedLayout {
     SerializedLayout(uint32_t name,
                      uintptr_t value,
@@ -1145,6 +1157,8 @@ class DebugInfoSection : public DebugSection {
       UNIMPLEMENTED();
 #elif V8_TARGET_ARCH_PPC64 && V8_OS_LINUX
       w->Write<uint8_t>(DW_OP_reg31);  // The frame pointer is here on PPC64.
+#elif V8_TARGET_ARCH_S390
+      w->Write<uint8_t>(DW_OP_reg11);  // The frame pointer's here on S390.
 #else
 #error Unsupported target architecture.
 #endif
@@ -1927,7 +1941,7 @@ static void UnregisterCodeEntry(JITCodeEntry* entry) {
 
 static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
 #ifdef __MACH_O
-  Zone zone;
+  Zone zone(isolate->allocator());
   MachO mach_o(&zone);
   Writer w(&mach_o);
 
@@ -1939,7 +1953,7 @@ static JITCodeEntry* CreateELFObject(CodeDescription* desc, Isolate* isolate) {
 
   mach_o.Write(&w, desc->CodeStart(), desc->CodeSize());
 #else
-  Zone zone;
+  Zone zone(isolate->allocator());
   ELF elf(&zone);
   Writer w(&elf);
 

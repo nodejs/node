@@ -35,7 +35,8 @@
 using namespace v8::internal;
 
 TEST(BitVector) {
-  Zone zone;
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   {
     BitVector v(15, &zone);
     v.Add(1);

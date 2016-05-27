@@ -10,7 +10,7 @@
 #ifndef V8_INCLUDE_V8_EXPERIMENTAL_H_
 #define V8_INCLUDE_V8_EXPERIMENTAL_H_
 
-#include "include/v8.h"
+#include "v8.h"  // NOLINT(build/include)
 
 namespace v8 {
 namespace experimental {

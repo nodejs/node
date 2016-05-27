@@ -57,10 +57,8 @@ Typer::Typer(Isolate* isolate, Graph* graph, Flags flags,
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
   falsish_ = Type::Union(
       Type::Undetectable(),
-      Type::Union(
-          Type::Union(Type::Union(singleton_false_, cache_.kZeroish, zone),
-                      Type::NullOrUndefined(), zone),
-          singleton_the_hole_, zone),
+      Type::Union(Type::Union(singleton_false_, cache_.kZeroish, zone),
+                  singleton_the_hole_, zone),
       zone);
   truish_ = Type::Union(
       singleton_true_,
@@ -116,6 +114,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(IfDefault)
       DECLARE_CASE(Merge)
       DECLARE_CASE(Deoptimize)
+      DECLARE_CASE(DeoptimizeIf)
+      DECLARE_CASE(DeoptimizeUnless)
       DECLARE_CASE(Return)
       DECLARE_CASE(TailCall)
       DECLARE_CASE(Terminate)
@@ -160,6 +160,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(IfDefault)
       DECLARE_CASE(Merge)
       DECLARE_CASE(Deoptimize)
+      DECLARE_CASE(DeoptimizeIf)
+      DECLARE_CASE(DeoptimizeUnless)
       DECLARE_CASE(Return)
       DECLARE_CASE(TailCall)
       DECLARE_CASE(Terminate)
@@ -238,12 +240,17 @@ class Typer::Visitor : public Reducer {
   static Type* ToNumber(Type*, Typer*);
   static Type* ToObject(Type*, Typer*);
   static Type* ToString(Type*, Typer*);
+  static Type* NumberCeil(Type*, Typer*);
+  static Type* NumberFloor(Type*, Typer*);
+  static Type* NumberRound(Type*, Typer*);
+  static Type* NumberTrunc(Type*, Typer*);
   static Type* NumberToInt32(Type*, Typer*);
   static Type* NumberToUint32(Type*, Typer*);
 
   static Type* ObjectIsNumber(Type*, Typer*);
   static Type* ObjectIsReceiver(Type*, Typer*);
   static Type* ObjectIsSmi(Type*, Typer*);
+  static Type* ObjectIsUndetectable(Type*, Typer*);
 
   static Type* JSAddRanger(RangeType*, RangeType*, Typer*);
   static Type* JSSubtractRanger(RangeType*, RangeType*, Typer*);
@@ -414,6 +421,11 @@ Type* Typer::Visitor::ToInteger(Type* type, Typer* t) {
   // ES6 section 7.1.4 ToInteger ( argument )
   type = ToNumber(type, t);
   if (type->Is(t->cache_.kIntegerOrMinusZero)) return type;
+  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) {
+    return Type::Union(
+        Type::Intersect(type, t->cache_.kIntegerOrMinusZero, t->zone()),
+        t->cache_.kSingletonZero, t->zone());
+  }
   return t->cache_.kIntegerOrMinusZero;
 }
 
@@ -469,7 +481,9 @@ Type* Typer::Visitor::ToObject(Type* type, Typer* t) {
   // ES6 section 7.1.13 ToObject ( argument )
   if (type->Is(Type::Receiver())) return type;
   if (type->Is(Type::Primitive())) return Type::OtherObject();
-  if (!type->Maybe(Type::Undetectable())) return Type::DetectableReceiver();
+  if (!type->Maybe(Type::OtherUndetectable())) {
+    return Type::DetectableReceiver();
+  }
   return Type::Receiver();
 }
 
@@ -482,6 +496,37 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
   return Type::String();
 }
 
+// static
+Type* Typer::Visitor::NumberCeil(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Number()));
+  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) return type;
+  // TODO(bmeurer): We could infer a more precise type here.
+  return t->cache_.kIntegerOrMinusZeroOrNaN;
+}
+
+// static
+Type* Typer::Visitor::NumberFloor(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Number()));
+  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) return type;
+  // TODO(bmeurer): We could infer a more precise type here.
+  return t->cache_.kIntegerOrMinusZeroOrNaN;
+}
+
+// static
+Type* Typer::Visitor::NumberRound(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Number()));
+  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) return type;
+  // TODO(bmeurer): We could infer a more precise type here.
+  return t->cache_.kIntegerOrMinusZeroOrNaN;
+}
+
+// static
+Type* Typer::Visitor::NumberTrunc(Type* type, Typer* t) {
+  DCHECK(type->Is(Type::Number()));
+  if (type->Is(t->cache_.kIntegerOrMinusZeroOrNaN)) return type;
+  // TODO(bmeurer): We could infer a more precise type here.
+  return t->cache_.kIntegerOrMinusZeroOrNaN;
+}
 
 Type* Typer::Visitor::NumberToInt32(Type* type, Typer* t) {
   // TODO(neis): DCHECK(type->Is(Type::Number()));
@@ -529,6 +574,13 @@ Type* Typer::Visitor::ObjectIsReceiver(Type* type, Typer* t) {
 Type* Typer::Visitor::ObjectIsSmi(Type* type, Typer* t) {
   if (type->Is(Type::TaggedSigned())) return t->singleton_true_;
   if (type->Is(Type::TaggedPointer())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+
+Type* Typer::Visitor::ObjectIsUndetectable(Type* type, Typer* t) {
+  if (type->Is(Type::Undetectable())) return t->singleton_true_;
+  if (!type->Maybe(Type::Undetectable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
@@ -1171,7 +1223,7 @@ Type* Typer::Visitor::JSTypeOfTyper(Type* type, Typer* t) {
     return Type::Constant(f->string_string(), t->zone());
   } else if (type->Is(Type::Symbol())) {
     return Type::Constant(f->symbol_string(), t->zone());
-  } else if (type->Is(Type::Union(Type::Undefined(), Type::Undetectable(),
+  } else if (type->Is(Type::Union(Type::Undefined(), Type::OtherUndetectable(),
                                   t->zone()))) {
     return Type::Constant(f->undefined_string(), t->zone());
   } else if (type->Is(Type::Null())) {
@@ -1198,26 +1250,29 @@ Type* Typer::Visitor::TypeJSToBoolean(Node* node) {
   return TypeUnaryOp(node, ToBoolean);
 }
 
-
-Type* Typer::Visitor::TypeJSToNumber(Node* node) {
-  return TypeUnaryOp(node, ToNumber);
+Type* Typer::Visitor::TypeJSToInteger(Node* node) {
+  return TypeUnaryOp(node, ToInteger);
 }
 
-
-Type* Typer::Visitor::TypeJSToString(Node* node) {
-  return TypeUnaryOp(node, ToString);
+Type* Typer::Visitor::TypeJSToLength(Node* node) {
+  return TypeUnaryOp(node, ToLength);
 }
-
 
 Type* Typer::Visitor::TypeJSToName(Node* node) {
   return TypeUnaryOp(node, ToName);
 }
 
+Type* Typer::Visitor::TypeJSToNumber(Node* node) {
+  return TypeUnaryOp(node, ToNumber);
+}
 
 Type* Typer::Visitor::TypeJSToObject(Node* node) {
   return TypeUnaryOp(node, ToObject);
 }
 
+Type* Typer::Visitor::TypeJSToString(Node* node) {
+  return TypeUnaryOp(node, ToString);
+}
 
 // JS object operators.
 
@@ -1502,8 +1557,9 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kMathRandom:
           return Type::OrderedNumber();
         case kMathFloor:
-        case kMathRound:
         case kMathCeil:
+        case kMathRound:
+        case kMathTrunc:
           return t->cache_.kIntegerOrMinusZeroOrNaN;
         // Unary math functions.
         case kMathAbs:
@@ -1573,15 +1629,8 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineDoubleHi:
       return Type::Signed32();
     case Runtime::kInlineConstructDouble:
-    case Runtime::kInlineMathFloor:
-    case Runtime::kInlineMathSqrt:
-    case Runtime::kInlineMathAcos:
-    case Runtime::kInlineMathAsin:
-    case Runtime::kInlineMathAtan:
     case Runtime::kInlineMathAtan2:
       return Type::Number();
-    case Runtime::kInlineMathClz32:
-      return Type::Range(0, 32, zone());
     case Runtime::kInlineCreateIterResultObject:
     case Runtime::kInlineRegExpConstructResult:
       return Type::OtherObject();
@@ -1708,6 +1757,27 @@ Type* Typer::Visitor::TypeNumberShiftRightLogical(Node* node) {
   return Type::Unsigned32();
 }
 
+Type* Typer::Visitor::TypeNumberImul(Node* node) { return Type::Signed32(); }
+
+Type* Typer::Visitor::TypeNumberClz32(Node* node) {
+  return typer_->cache_.kZeroToThirtyTwo;
+}
+
+Type* Typer::Visitor::TypeNumberCeil(Node* node) {
+  return TypeUnaryOp(node, NumberCeil);
+}
+
+Type* Typer::Visitor::TypeNumberFloor(Node* node) {
+  return TypeUnaryOp(node, NumberFloor);
+}
+
+Type* Typer::Visitor::TypeNumberRound(Node* node) {
+  return TypeUnaryOp(node, NumberRound);
+}
+
+Type* Typer::Visitor::TypeNumberTrunc(Node* node) {
+  return TypeUnaryOp(node, NumberTrunc);
+}
 
 Type* Typer::Visitor::TypeNumberToInt32(Node* node) {
   return TypeUnaryOp(node, NumberToInt32);
@@ -1750,6 +1820,9 @@ Type* Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeStringToNumber(Node* node) {
+  return TypeUnaryOp(node, ToNumber);
+}
 
 namespace {
 
@@ -1922,6 +1995,11 @@ Type* Typer::Visitor::TypeObjectIsReceiver(Node* node) {
 
 Type* Typer::Visitor::TypeObjectIsSmi(Node* node) {
   return TypeUnaryOp(node, ObjectIsSmi);
+}
+
+
+Type* Typer::Visitor::TypeObjectIsUndetectable(Node* node) {
+  return TypeUnaryOp(node, ObjectIsUndetectable);
 }
 
 
@@ -2132,6 +2210,10 @@ Type* Typer::Visitor::TypeChangeFloat64ToUint32(Node* node) {
                          zone());
 }
 
+Type* Typer::Visitor::TypeTruncateFloat64ToUint32(Node* node) {
+  return Type::Intersect(Type::Unsigned32(), Type::UntaggedIntegral32(),
+                         zone());
+}
 
 Type* Typer::Visitor::TypeTruncateFloat32ToInt32(Node* node) {
   return Type::Intersect(Type::Signed32(), Type::UntaggedIntegral32(), zone());
@@ -2427,6 +2509,17 @@ Type* Typer::Visitor::TypeCheckedStore(Node* node) {
   return nullptr;
 }
 
+Type* Typer::Visitor::TypeInt32PairAdd(Node* node) { return Type::Internal(); }
+
+Type* Typer::Visitor::TypeInt32PairSub(Node* node) { return Type::Internal(); }
+
+Type* Typer::Visitor::TypeInt32PairMul(Node* node) { return Type::Internal(); }
+
+Type* Typer::Visitor::TypeWord32PairShl(Node* node) { return Type::Internal(); }
+
+Type* Typer::Visitor::TypeWord32PairShr(Node* node) { return Type::Internal(); }
+
+Type* Typer::Visitor::TypeWord32PairSar(Node* node) { return Type::Internal(); }
 
 // Heap constants.
 

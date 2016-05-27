@@ -162,3 +162,11 @@ assertThrows("String.prototype.includes.apply({ 'toString': function() { " +
   "throw RangeError(); } }, [/./])", RangeError);
 assertThrows("String.prototype.includes.apply({ 'toString': function() { " +
   "return 'abc'; } }, [/./])", TypeError);
+
+// includes does its brand checks with Symbol.match
+var re = /./;
+assertThrows(function() {
+  "".includes(re);
+}, TypeError);
+re[Symbol.match] = false;
+assertEquals(false, "".includes(re));

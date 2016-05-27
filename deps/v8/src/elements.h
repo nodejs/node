@@ -8,7 +8,7 @@
 #include "src/elements-kind.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
-#include "src/key-accumulator.h"
+#include "src/keys.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -51,11 +51,6 @@ class ElementsAccessor {
                          PropertyFilter filter = ALL_PROPERTIES) {
     return HasElement(holder, index, handle(holder->elements()), filter);
   }
-
-  // Returns true if the backing store is compact in the given range
-  virtual bool IsPacked(Handle<JSObject> holder,
-                        Handle<FixedArrayBase> backing_store, uint32_t start,
-                        uint32_t end) = 0;
 
   virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) = 0;
 
@@ -100,6 +95,24 @@ class ElementsAccessor {
                           filter, offset);
   }
 
+  virtual Maybe<bool> CollectValuesOrEntries(
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
+      PropertyFilter filter = ALL_PROPERTIES) = 0;
+
+  //
+  virtual Handle<FixedArray> PrependElementIndices(
+      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
+      Handle<FixedArray> keys, GetKeysConversion convert,
+      PropertyFilter filter = ALL_PROPERTIES) = 0;
+
+  inline Handle<FixedArray> PrependElementIndices(
+      Handle<JSObject> object, Handle<FixedArray> keys,
+      GetKeysConversion convert, PropertyFilter filter = ALL_PROPERTIES) {
+    return PrependElementIndices(object, handle(object->elements()), keys,
+                                 convert, filter);
+  }
+
   virtual void AddElementsToKeyAccumulator(Handle<JSObject> receiver,
                                            KeyAccumulator* accumulator,
                                            AddKeyConversion convert) = 0;
@@ -124,28 +137,27 @@ class ElementsAccessor {
   static Handle<JSArray> Concat(Isolate* isolate, Arguments* args,
                                 uint32_t concat_size);
 
-  virtual uint32_t Push(Handle<JSArray> receiver,
-                        Handle<FixedArrayBase> backing_store, Arguments* args,
+  virtual uint32_t Push(Handle<JSArray> receiver, Arguments* args,
                         uint32_t push_size) = 0;
 
   virtual uint32_t Unshift(Handle<JSArray> receiver,
-                           Handle<FixedArrayBase> backing_store,
                            Arguments* args, uint32_t unshift_size) = 0;
 
   virtual Handle<JSArray> Slice(Handle<JSObject> receiver,
-                                Handle<FixedArrayBase> backing_store,
                                 uint32_t start, uint32_t end) = 0;
 
   virtual Handle<JSArray> Splice(Handle<JSArray> receiver,
-                                 Handle<FixedArrayBase> backing_store,
                                  uint32_t start, uint32_t delete_count,
                                  Arguments* args, uint32_t add_count) = 0;
 
-  virtual Handle<Object> Pop(Handle<JSArray> receiver,
-                             Handle<FixedArrayBase> backing_store) = 0;
+  virtual Handle<Object> Pop(Handle<JSArray> receiver) = 0;
 
-  virtual Handle<Object> Shift(Handle<JSArray> receiver,
-                               Handle<FixedArrayBase> backing_store) = 0;
+  virtual Handle<Object> Shift(Handle<JSArray> receiver) = 0;
+
+  virtual Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) = 0;
+
+  virtual uint32_t GetCapacity(JSObject* holder,
+                               FixedArrayBase* backing_store) = 0;
 
  protected:
   friend class LookupIterator;
@@ -172,8 +184,6 @@ class ElementsAccessor {
                             uint32_t destination_start, int copy_size) = 0;
 
  private:
-  virtual uint32_t GetCapacity(JSObject* holder,
-                               FixedArrayBase* backing_store) = 0;
   static ElementsAccessor** elements_accessors_;
   const char* name_;
 

@@ -95,17 +95,6 @@ int TemporaryRegisterAllocator::PrepareForConsecutiveTemporaryRegisters(
       start = run_end;
       run_length = 0;
     }
-    Register reg_start(*start);
-    Register reg_expected(expected);
-    if (RegisterTranslator::DistanceToTranslationWindow(reg_start) > 0 &&
-        RegisterTranslator::DistanceToTranslationWindow(reg_expected) <= 0) {
-      // Run straddles the lower edge of the translation window. Registers
-      // after the start of this boundary are displaced by the register
-      // translator to provide a hole for translation. Runs either side
-      // of the boundary are fine.
-      start = run_end;
-      run_length = 0;
-    }
     if (++run_length == count) {
       return *start;
     }
@@ -121,16 +110,6 @@ int TemporaryRegisterAllocator::PrepareForConsecutiveTemporaryRegisters(
   // Pad temporaries if extended run would cross translation boundary.
   Register reg_first(*start);
   Register reg_last(*start + static_cast<int>(count) - 1);
-  DCHECK_GT(RegisterTranslator::DistanceToTranslationWindow(reg_first),
-            RegisterTranslator::DistanceToTranslationWindow(reg_last));
-  while (RegisterTranslator::DistanceToTranslationWindow(reg_first) > 0 &&
-         RegisterTranslator::DistanceToTranslationWindow(reg_last) <= 0) {
-    auto pos_insert_pair =
-        free_temporaries_.insert(AllocateTemporaryRegister());
-    reg_first = Register(*pos_insert_pair.first);
-    reg_last = Register(reg_first.index() + static_cast<int>(count) - 1);
-    run_length = 0;
-  }
 
   // Ensure enough registers for run.
   while (run_length++ < count) {
@@ -139,10 +118,6 @@ int TemporaryRegisterAllocator::PrepareForConsecutiveTemporaryRegisters(
 
   int run_start =
       last_temporary_register().index() - static_cast<int>(count) + 1;
-  DCHECK(RegisterTranslator::DistanceToTranslationWindow(Register(run_start)) <=
-             0 ||
-         RegisterTranslator::DistanceToTranslationWindow(
-             Register(run_start + static_cast<int>(count) - 1)) > 0);
   return run_start;
 }
 

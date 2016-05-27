@@ -19,11 +19,12 @@ void FrameElider::Run() {
 
 
 void FrameElider::MarkBlocks() {
-  for (auto block : instruction_blocks()) {
+  for (InstructionBlock* block : instruction_blocks()) {
     if (block->needs_frame()) continue;
-    for (auto i = block->code_start(); i < block->code_end(); ++i) {
-      if (InstructionAt(i)->IsCall() ||
-          InstructionAt(i)->opcode() == ArchOpcode::kArchDeoptimize) {
+    for (int i = block->code_start(); i < block->code_end(); ++i) {
+      const Instruction* instr = InstructionAt(i);
+      if (instr->IsCall() || instr->IsDeoptimizeCall() ||
+          instr->arch_opcode() == ArchOpcode::kArchStackPointer) {
         block->mark_needs_frame();
         break;
       }
@@ -33,13 +34,13 @@ void FrameElider::MarkBlocks() {
 
 
 void FrameElider::PropagateMarks() {
-  while (PropagateInOrder() && PropagateReversed()) {
+  while (PropagateInOrder() || PropagateReversed()) {
   }
 }
 
 
 void FrameElider::MarkDeConstruction() {
-  for (auto block : instruction_blocks()) {
+  for (InstructionBlock* block : instruction_blocks()) {
     if (block->needs_frame()) {
       // Special case: The start block needs a frame.
       if (block->predecessors().empty()) {
@@ -47,15 +48,25 @@ void FrameElider::MarkDeConstruction() {
       }
       // Find "frame -> no frame" transitions, inserting frame
       // deconstructions.
-      for (auto succ : block->successors()) {
+      for (RpoNumber& succ : block->successors()) {
         if (!InstructionBlockAt(succ)->needs_frame()) {
           DCHECK_EQ(1U, block->SuccessorCount());
+          const Instruction* last =
+              InstructionAt(block->last_instruction_index());
+          if (last->IsThrow() || last->IsTailCall() ||
+              last->IsDeoptimizeCall()) {
+            // We need to keep the frame if we exit the block through any
+            // of these.
+            continue;
+          }
+          // The only cases when we need to deconstruct are ret and jump.
+          DCHECK(last->IsRet() || last->IsJump());
           block->mark_must_deconstruct_frame();
         }
       }
     } else {
       // Find "no frame -> frame" transitions, inserting frame constructions.
-      for (auto succ : block->successors()) {
+      for (RpoNumber& succ : block->successors()) {
         if (InstructionBlockAt(succ)->needs_frame()) {
           DCHECK_NE(1U, block->SuccessorCount());
           InstructionBlockAt(succ)->mark_must_construct_frame();
@@ -68,7 +79,7 @@ void FrameElider::MarkDeConstruction() {
 
 bool FrameElider::PropagateInOrder() {
   bool changed = false;
-  for (auto block : instruction_blocks()) {
+  for (InstructionBlock* block : instruction_blocks()) {
     changed |= PropagateIntoBlock(block);
   }
   return changed;
@@ -77,7 +88,7 @@ bool FrameElider::PropagateInOrder() {
 
 bool FrameElider::PropagateReversed() {
   bool changed = false;
-  for (auto block : base::Reversed(instruction_blocks())) {
+  for (InstructionBlock* block : base::Reversed(instruction_blocks())) {
     changed |= PropagateIntoBlock(block);
   }
   return changed;
@@ -94,7 +105,7 @@ bool FrameElider::PropagateIntoBlock(InstructionBlock* block) {
 
   // Propagate towards the end ("downwards") if there is a predecessor needing
   // a frame, but don't "bleed" from deferred code to non-deferred code.
-  for (auto pred : block->predecessors()) {
+  for (RpoNumber& pred : block->predecessors()) {
     if (InstructionBlockAt(pred)->needs_frame() &&
         (!InstructionBlockAt(pred)->IsDeferred() || block->IsDeferred())) {
       block->mark_needs_frame();
@@ -104,7 +115,7 @@ bool FrameElider::PropagateIntoBlock(InstructionBlock* block) {
 
   // Propagate towards start ("upwards") if there are successors and all of
   // them need a frame.
-  for (auto succ : block->successors()) {
+  for (RpoNumber& succ : block->successors()) {
     if (!InstructionBlockAt(succ)->needs_frame()) return false;
   }
   block->mark_needs_frame();

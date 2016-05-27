@@ -18,6 +18,12 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   CHECK((*o)->IsTheHole() || (*o)->IsUndefined());
   // Verify reset
   bool is_runtime = (*o)->IsTheHole();
+  if (is_runtime) {
+    CHECK(rv.Get()->IsUndefined());
+  } else {
+    i::Handle<i::Object> v = v8::Utils::OpenHandle(*rv.Get());
+    CHECK_EQ(*v, *o);
+  }
   rv.Set(true);
   CHECK(!(*o)->IsTheHole() && !(*o)->IsUndefined());
   rv.Set(v8::Local<v8::Object>());

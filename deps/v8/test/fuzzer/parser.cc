@@ -33,7 +33,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   v8::internal::Handle<v8::internal::Script> script =
       factory->NewScript(source.ToHandleChecked());
-  v8::internal::Zone zone;
+  v8::internal::Zone zone(i_isolate->allocator());
   v8::internal::ParseInfo info(&zone, script);
   info.set_global();
   v8::internal::Parser parser(&info);

@@ -12,30 +12,33 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class LoadEliminationTest : public GraphTest {
+class LoadEliminationTest : public TypedGraphTest {
  public:
-  LoadEliminationTest() : GraphTest(3), simplified_(zone()) {}
+  LoadEliminationTest()
+      : TypedGraphTest(3), common_(zone()), simplified_(zone()) {}
   ~LoadEliminationTest() override {}
 
  protected:
   Reduction Reduce(Node* node) {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    LoadElimination reducer(&graph_reducer);
+    LoadElimination reducer(&graph_reducer, graph(), common());
     return reducer.Reduce(node);
   }
 
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  CommonOperatorBuilder* common() { return &common_; }
 
  private:
+  CommonOperatorBuilder common_;
   SimplifiedOperatorBuilder simplified_;
 };
 
 
 TEST_F(LoadEliminationTest, LoadFieldWithStoreField) {
-  Node* object1 = Parameter(0);
-  Node* object2 = Parameter(1);
-  Node* value = Parameter(2);
+  Node* object1 = Parameter(Type::Any(), 0);
+  Node* object2 = Parameter(Type::Any(), 1);
+  Node* value = Parameter(Type::Any(), 2);
   Node* effect = graph()->start();
   Node* control = graph()->start();
 

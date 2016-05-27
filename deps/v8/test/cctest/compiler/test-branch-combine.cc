@@ -457,6 +457,27 @@ TEST(BranchCombineFloat64Compares) {
   }
 }
 
+TEST(BranchCombineEffectLevel) {
+  // Test that the load doesn't get folded into the branch, as there's a store
+  // between them. See http://crbug.com/611976.
+  int32_t input = 0;
+
+  RawMachineAssemblerTester<int32_t> m;
+  Node* a = m.LoadFromPointer(&input, MachineType::Int32());
+  Node* compare = m.Word32And(a, m.Int32Constant(1));
+  Node* equal = m.Word32Equal(compare, m.Int32Constant(0));
+  m.StoreToPointer(&input, MachineRepresentation::kWord32, m.Int32Constant(1));
+
+  RawMachineLabel blocka, blockb;
+  m.Branch(equal, &blocka, &blockb);
+  m.Bind(&blocka);
+  m.Return(m.Int32Constant(42));
+  m.Bind(&blockb);
+  m.Return(m.Int32Constant(0));
+
+  CHECK_EQ(42, m.Call());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

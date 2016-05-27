@@ -63,6 +63,7 @@ namespace internal {
   T(ASSIGN_MUL, "*=", 2)                                             \
   T(ASSIGN_DIV, "/=", 2)                                             \
   T(ASSIGN_MOD, "%=", 2)                                             \
+  T(ASSIGN_EXP, "**=", 2)                                            \
                                                                      \
   /* Binary operators sorted by precedence. */                       \
   /* IsBinaryOp() relies on this block of enum values */             \
@@ -82,6 +83,7 @@ namespace internal {
   T(MUL, "*", 13)                                                    \
   T(DIV, "/", 13)                                                    \
   T(MOD, "%", 13)                                                    \
+  T(EXP, "**", 14)                                                   \
                                                                      \
   /* Compare operators sorted by precedence. */                      \
   /* IsCompareOp() relies on this block of enum values */            \
@@ -214,12 +216,10 @@ class Token {
   }
 
   static bool IsAssignmentOp(Value tok) {
-    return INIT <= tok && tok <= ASSIGN_MOD;
+    return INIT <= tok && tok <= ASSIGN_EXP;
   }
 
-  static bool IsBinaryOp(Value op) {
-    return COMMA <= op && op <= MOD;
-  }
+  static bool IsBinaryOp(Value op) { return COMMA <= op && op <= EXP; }
 
   static bool IsTruncatingBinaryOp(Value op) {
     return BIT_OR <= op && op <= ROR;

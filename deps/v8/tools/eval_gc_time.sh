@@ -7,38 +7,73 @@
 # Convenience Script used to rank GC NVP output.
 
 print_usage_and_die() {
-  echo "Usage: $0 new-gen-rank|old-gen-rank max|avg logfile"
+  echo "Usage: $0 [OPTIONS]"
+  echo ""
+  echo "OPTIONS"
+  echo  "  -r|--rank new-gen-rank|old-gen-rank    GC mode to profile"
+  echo  "                                         (default: old-gen-rank)"
+  echo  "  -s|--sort avg|max                      sorting mode (default: max)"
+  echo  "  -t|--top-level                         include top-level categories"
+  echo  "  -c|--csv                               provide csv output"
+  echo  "  -f|--file FILE                         profile input in a file"
+  echo  "                                         (default: stdin)"
   exit 1
 }
 
-if [ $# -ne 3 ]; then
+OP=old-gen-rank
+RANK_MODE=max
+TOP_LEVEL=no
+CSV=""
+LOGFILE=/dev/stdin
+
+while [[ $# -ge 1 ]]
+do
+  key="$1"
+  case $key in
+    -r|--rank)
+      case $2 in
+        new-gen-rank|old-gen-rank)
+          OP="$2"
+          ;;
+        *)
+          print_usage_and_die
+      esac
+      shift
+      ;;
+    -s|--sort)
+      case $2 in
+        max|avg)
+          RANK_MODE=$2
+          ;;
+        *)
+          print_usage_and_die
+      esac
+      shift
+      ;;
+    -t|--top-level)
+      TOP_LEVEL=yes
+      ;;
+    -c|--csv)
+      CSV=" --csv "
+      ;;
+    -f|--file)
+      LOGFILE=$2
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+  shift
+done
+
+if [[ $# -ne 0 ]]; then
+  echo "Unknown option(s): $@"
+  echo ""
   print_usage_and_die
 fi
 
-case $1 in
-  new-gen-rank|old-gen-rank)
-    OP=$1
-    ;;
-  *)
-    print_usage_and_die
-esac
-
-case $2 in 
-  max|avg)
-    RANK_MODE=$2
-    ;;
-  *)
-    print_usage_and_die
-esac
-
-LOGFILE=$3
-
-GENERAL_INTERESTING_KEYS="\
-  pause \
-"
-
 INTERESTING_NEW_GEN_KEYS="\
-  ${GENERAL_INTERESTING_KEYS} \
   scavenge \
   weak \
   roots \
@@ -49,9 +84,6 @@ INTERESTING_NEW_GEN_KEYS="\
 "
 
 INTERESTING_OLD_GEN_KEYS="\
-  ${GENERAL_INTERESTING_KEYS} \
-  external \
-  clear \
   clear.code_flush \
   clear.dependent_code \
   clear.global_handles \
@@ -62,27 +94,47 @@ INTERESTING_OLD_GEN_KEYS="\
   clear.weak_cells \
   clear.weak_collections \
   clear.weak_lists \
-  finish \
-  evacuate \
   evacuate.candidates \
   evacuate.clean_up \
-  evacuate.new_space \
+  evacuate.copy \
   evacuate.update_pointers \
   evacuate.update_pointers.between_evacuated \
   evacuate.update_pointers.to_evacuated \
   evacuate.update_pointers.to_new \
   evacuate.update_pointers.weak \
-  mark \
+  external.mc_prologue \
+  external.mc_epilogue \
+  external.mc_incremental_prologue \
+  external.mc_incremental_epilogue \
+  external.weak_global_handles \
   mark.finish_incremental \
   mark.prepare_code_flush \
   mark.roots \
   mark.weak_closure \
-  sweep \
+  mark.weak_closure.ephemeral \
+  mark.weak_closure.weak_handles \
+  mark.weak_closure.weak_roots \
+  mark.weak_closure.harmony \
   sweep.code \
   sweep.map \
   sweep.old \
-  incremental_finalize \
 "
+
+if [[ "$TOP_LEVEL" = "yes" ]]; then
+  INTERESTING_OLD_GEN_KEYS="\
+    ${INTERESTING_OLD_GEN_KEYS} \
+    clear \
+    evacuate \
+    finish \
+    incremental_finalize \
+    mark \
+    pause
+    sweep \
+  "
+  INTERESTING_NEW_GEN_KEYS="\
+    ${INTERESTING_NEW_GEN_KEYS} \
+  "
+fi
 
 BASE_DIR=$(dirname $0)
 
@@ -92,16 +144,17 @@ case $OP in
       | $BASE_DIR/eval_gc_nvp.py \
       --no-histogram \
       --rank $RANK_MODE \
+      $CSV \
       ${INTERESTING_NEW_GEN_KEYS}
     ;;
   old-gen-rank)
-    cat $LOGFILE | grep "gc=ms" | grep "reduce_memory=0" | grep -v "steps=0" \
+    cat $LOGFILE | grep "gc=ms" \
       | $BASE_DIR/eval_gc_nvp.py \
       --no-histogram \
       --rank $RANK_MODE \
+      $CSV \
       ${INTERESTING_OLD_GEN_KEYS}
     ;;
   *)
     ;;
 esac
-

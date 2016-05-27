@@ -55,13 +55,13 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   void CheckFloat64Constant(Node* n, double expected) {
     Float64Matcher m(n);
     CHECK(m.HasValue());
-    CheckDoubleEq(expected, m.Value());
+    CHECK_DOUBLE_EQ(expected, m.Value());
   }
 
   void CheckFloat32Constant(Node* n, float expected) {
     CHECK_EQ(IrOpcode::kFloat32Constant, n->opcode());
     float fval = OpParameter<float>(n->op());
-    CheckDoubleEq(expected, fval);
+    CHECK_FLOAT_EQ(expected, fval);
   }
 
   void CheckHeapConstant(Node* n, HeapObject* expected) {
@@ -74,7 +74,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     NumberMatcher m(n);
     CHECK_EQ(IrOpcode::kNumberConstant, n->opcode());
     CHECK(m.HasValue());
-    CheckDoubleEq(expected, m.Value());
+    CHECK_DOUBLE_EQ(expected, m.Value());
   }
 
   Node* Parameter(int index = 0) {
