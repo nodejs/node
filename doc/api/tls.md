@@ -132,14 +132,8 @@ threshold is exceeded. The limits are configurable:
 
 * `tls.CLIENT_RENEG_LIMIT` {number} Specifies the number of renegotiation
   requests. Defaults to `3`.
-  <!--YAML
-  added: v0.7.5
-  -->
 * `tls.CLIENT_RENEG_WINDOW` {number} Specifies the time renegotiation window
   in seconds. Defaults to `600` (10 minutes).
-  <!--YAML
-  added: v0.6.11
-  -->
 *Note*: The default renegotiation limits should not be modified without a full
 understanding of the implications and risks.
 
@@ -390,7 +384,9 @@ previous keys.
 
 
 ## Class: tls.TLSSocket
-
+<!--
+added: v0.11.4
+-->
 The `tls.TLSSocket` is a subclass of [`net.Socket`][] that performs transparent
 encryption of written data and all required TLS negotiation.
 
