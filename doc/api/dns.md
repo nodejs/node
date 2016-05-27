@@ -54,11 +54,17 @@ There are subtle consequences in choosing one over the other, please consult
 the [Implementation considerations section][] for more information.
 
 ## dns.getServers()
+<!-- YAML
+added: v0.11.3
+-->
 
 Returns an array of IP address strings that are being used for name
 resolution.
 
 ## dns.lookup(hostname[, options], callback)
+<!-- YAML
+added: v0.1.90
+-->
 
 Resolves a hostname (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. `options` can be an object or integer. If `options` is
@@ -122,6 +128,9 @@ found, then return IPv4 mapped IPv6 addresses. Note that it is not supported
 on some operating systems (e.g FreeBSD 10.1).
 
 ## dns.lookupService(address, port, callback)
+<!-- YAML
+added: v0.11.14
+-->
 
 Resolves the given `address` and `port` into a hostname and service using
 the operating system's underlying `getnameinfo` implementation.
@@ -140,6 +149,9 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
 ```
 
 ## dns.resolve(hostname[, rrtype], callback)
+<!-- YAML
+added: v0.1.27
+-->
 
 Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an
 array of the record types specified by `rrtype`.
@@ -168,6 +180,9 @@ On error, `err` is an [`Error`][] object, where `err.code` is
 one of the error codes listed [here](#dns_error_codes).
 
 ## dns.resolve4(hostname, callback)
+<!-- YAML
+added: v0.1.16
+-->
 
 Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
@@ -175,12 +190,18 @@ will contain an array of IPv4 addresses (e.g.
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
 ## dns.resolve6(hostname, callback)
+<!-- YAML
+added: v0.1.16
+-->
 
 Uses the DNS protocol to resolve a IPv6 addresses (`AAAA` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
 will contain an array of IPv6 addresses.
 
 ## dns.resolveCname(hostname, callback)
+<!-- YAML
+added: v0.3.2
+-->
 
 Uses the DNS protocol to resolve `CNAME` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
@@ -188,6 +209,9 @@ will contain an array of canonical name records available for the `hostname`
 (e.g. `['bar.example.com']`).
 
 ## dns.resolveMx(hostname, callback)
+<!-- YAML
+added: v0.1.27
+-->
 
 Uses the DNS protocol to resolve mail exchange records (`MX` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
@@ -195,6 +219,9 @@ contain an array of objects containing both a `priority` and `exchange`
 property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 
 ## dns.resolveNaptr(hostname, callback)
+<!-- YAML
+added: v0.9.12
+-->
 
 Uses the DNS protocol to resolve regular expression based records (`NAPTR`
 records) for the `hostname`. The `callback` function has arguments
@@ -222,6 +249,9 @@ For example:
 ```
 
 ## dns.resolveNs(hostname, callback)
+<!-- YAML
+added: v0.1.90
+-->
 
 Uses the DNS protocol to resolve name server records (`NS` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
@@ -229,6 +259,9 @@ contain an array of name server records available for `hostname`
 (e.g., `['ns1.example.com', 'ns2.example.com']`).
 
 ## dns.resolveSoa(hostname, callback)
+<!-- YAML
+added: v0.11.10
+-->
 
 Uses the DNS protocol to resolve a start of authority record (`SOA` record) for
 the `hostname`. The `addresses` argument passed to the `callback` function will
@@ -255,6 +288,9 @@ be an object with the following properties:
 ```
 
 ## dns.resolveSrv(hostname, callback)
+<!-- YAML
+added: v0.1.27
+-->
 
 Uses the DNS protocol to resolve service records (`SRV` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
@@ -275,6 +311,9 @@ be an array of objects with the following properties:
 ```
 
 ## dns.resolveTxt(hostname, callback)
+<!-- YAML
+added: v0.1.27
+-->
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function is
@@ -284,6 +323,9 @@ one record. Depending on the use case, these could be either joined together or
 treated separately.
 
 ## dns.reverse(ip, callback)
+<!-- YAML
+added: v0.1.16
+-->
 
 Performs a reverse DNS query that resolves an IPv4 or IPv6 address to an
 array of hostnames.
@@ -295,6 +337,9 @@ On error, `err` is an [`Error`][] object, where `err.code` is
 one of the [DNS error codes][].
 
 ## dns.setServers(servers)
+<!-- YAML
+added: v0.11.3
+-->
 
 Sets the IP addresses of the servers to be used when resolving. The `servers`
 argument is an array of IPv4 or IPv6 addresses.
