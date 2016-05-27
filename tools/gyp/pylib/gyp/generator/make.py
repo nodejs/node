@@ -31,6 +31,17 @@ import gyp.xcode_emulation
 from gyp.common import GetEnvironFallback
 from gyp.common import GypError
 
+# hashlib is supplied as of Python 2.5 as the replacement interface for sha
+# and other secure hashes.  In 2.6, sha is deprecated.  Import hashlib if
+# available, avoiding a deprecation warning under 2.6.  Import sha otherwise,
+# preserving 2.4 compatibility.
+try:
+  import hashlib
+  _new_sha1 = hashlib.sha1
+except ImportError:
+  import sha
+  _new_sha1 = sha.new
+
 generator_default_variables = {
   'EXECUTABLE_PREFIX': '',
   'EXECUTABLE_SUFFIX': '',
@@ -1743,7 +1754,10 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       #   actual command.
       # - The intermediate recipe will 'touch' the intermediate file.
       # - The multi-output rule will have an do-nothing recipe.
-      intermediate = "%s.intermediate" % (command if command else self.target)
+
+      # Hash the target name to avoid generating overlong filenames.
+      cmddigest = _new_sha1(command if command else self.target).hexdigest()
+      intermediate = "%s.intermediate" % (cmddigest)
       self.WriteLn('%s: %s' % (' '.join(outputs), intermediate))
       self.WriteLn('\t%s' % '@:');
       self.WriteLn('%s: %s' % ('.INTERMEDIATE', intermediate))
