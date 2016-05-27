@@ -355,6 +355,9 @@ This function operates asynchronously. The `'close'` event will be emitted
 when the the server is finally closed.
 
 ### server.connections
+<!--
+added: v0.11.3
+-->
 
 Returns the current number of concurrent connections on the server.
 
