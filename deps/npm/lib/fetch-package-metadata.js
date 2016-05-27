@@ -150,6 +150,16 @@ function fetchNamedPackageData (dep, next) {
         }
       }
 
+      // We didn't manage to find a compatible version
+      // If this package was requested from cache, force hitting the network
+      if (pkg._cached) {
+        log.silly('fetchNamedPackageData', 'No valid target from cache, forcing network')
+        return npm.registry.get(url, {
+          auth: auth,
+          skipCache: true
+        }, pulseTillDone('fetchMetadata', iferr(next, pickVersionFromRegistryDocument)))
+      }
+
       // And failing that, we error out
       var targets = versions.length
                   ? 'Valid install targets:\n' + versions.join(', ') + '\n'

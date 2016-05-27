@@ -31,30 +31,32 @@ var moduleName = require('../utils/module-name.js')
 // The export functions in this module mutate a dependency tree, adding
 // items to them.
 
-function isDep (tree, child) {
-  if (child.fromShrinkwrap) return true
+function isDep (tree, child, cb) {
   var name = moduleName(child)
-  var requested = isProdDep(tree, name)
-  var matches
-  if (requested) matches = doesChildVersionMatch(child, requested, tree)
-  if (matches) return matches
-  requested = isDevDep(tree, name)
-  if (!requested) return
-  return doesChildVersionMatch(child, requested, tree)
+  var prodVer = isProdDep(tree, name)
+  var devVer = isDevDep(tree, name)
+
+  childDependencySpecifier(tree, name, prodVer, function (er, prodSpec) {
+    if (er) return cb(child.fromShrinkwrap)
+    var matches
+    if (prodSpec) matches = doesChildVersionMatch(child, prodSpec, tree)
+    if (matches) return cb(true, prodSpec)
+    if (devVer === prodVer) return cb(child.fromShrinkwrap)
+    childDependencySpecifier(tree, name, devVer, function (er, devSpec) {
+      if (er) return cb(child.fromShrinkwrap)
+      cb(doesChildVersionMatch(child, devSpec, tree) || child.fromShrinkwrap, null, devSpec)
+    })
+  })
 }
 
-function isDevDep (tree, name) {
+function isDevDep (tree, name, cb) {
   var devDeps = tree.package.devDependencies || {}
-  var reqVer = devDeps[name]
-  if (reqVer == null) return
-  return npa(name + '@' + reqVer)
+  return devDeps[name]
 }
 
-function isProdDep (tree, name) {
+function isProdDep (tree, name, cb) {
   var deps = tree.package.dependencies || {}
-  var reqVer = deps[name]
-  if (reqVer == null) return false
-  return npa(name + '@' + reqVer)
+  return deps[name]
 }
 
 var registryTypes = { range: true, version: true }
@@ -80,6 +82,21 @@ exports.recalculateMetadata = function (tree, log, next) {
   recalculateMetadata(tree, log, {}, next)
 }
 
+function childDependencySpecifier (tree, name, spec, cb) {
+  if (!tree.resolved) tree.resolved = {}
+  if (!tree.resolved[name]) tree.resolved[name] = {}
+  if (tree.resolved[name][spec]) {
+    return process.nextTick(function () {
+      cb(null, tree.resolved[name][spec])
+    })
+  }
+  realizePackageSpecifier(name + '@' + spec, packageRelativePath(tree), function (er, req) {
+    if (er) return cb(er)
+    tree.resolved[name][spec] = req
+    cb(null, req)
+  })
+}
+
 function recalculateMetadata (tree, log, seen, next) {
   validate('OOOF', arguments)
   if (seen[tree.path]) return next()
@@ -87,7 +104,8 @@ function recalculateMetadata (tree, log, seen, next) {
   if (tree.parent == null) resetMetadata(tree)
   function markDeps (spec, done) {
     validate('SF', arguments)
-    realizePackageSpecifier(spec, packageRelativePath(tree), function (er, req) {
+    var matched = spec.match(/^(@?[^@]+)@(.*)$/)
+    childDependencySpecifier(tree, matched[1], matched[2], function (er, req) {
       if (er || !req.name) return done()
       var child = findRequirement(tree, req.name, req)
       if (child) {
@@ -106,11 +124,26 @@ function recalculateMetadata (tree, log, seen, next) {
   function specs (deps) {
     return Object.keys(deps).map(function (depname) { return depname + '@' + deps[depname] })
   }
+
+  // Ensure dependencies and dev dependencies are marked as required
   var tomark = specs(tree.package.dependencies)
   if (!tree.parent && (npm.config.get('dev') || !npm.config.get('production'))) {
     tomark = union(tomark, specs(tree.package.devDependencies))
   }
+  // Ensure any children ONLY from a shrinkwrap are also included
+  var childrenOnlyInShrinkwrap = tree.children.filter(function (child) {
+    return child.fromShrinkwrap &&
+      !tree.package.dependencies[child.package.name] &&
+      !tree.package.devDependencies[child.package.name]
+  })
+  var tomarkOnlyInShrinkwrap = childrenOnlyInShrinkwrap.map(function (child) {
+    return child.package._spec
+  })
+  tomark = union(tomark, tomarkOnlyInShrinkwrap)
+
+  // Don't bother trying to recalc children of failed deps
   tree.children = tree.children.filter(function (child) { return !child.failed })
+
   chain([
     [asyncMap, tomark, markDeps],
     [asyncMap, tree.children, function (child, done) { recalculateMetadata(child, log, seen, done) }]
@@ -122,13 +155,15 @@ function recalculateMetadata (tree, log, seen, next) {
   })
 }
 
-function addRequiredDep (tree, child) {
-  if (!isDep(tree, child)) return false
-  var name = isProdDep(tree, moduleName(child)) ? flatNameFromTree(tree) : '#DEV:' + flatNameFromTree(tree)
-  replaceModuleName(child.package, '_requiredBy', name)
-  replaceModule(child, 'requiredBy', tree)
-  replaceModule(tree, 'requires', child)
-  return true
+function addRequiredDep (tree, child, cb) {
+  isDep(tree, child, function (childIsDep, childIsProdDep, childIsDevDep) {
+    if (!childIsDep) return cb(false)
+    var name = childIsProdDep ? flatNameFromTree(tree) : '#DEV:' + flatNameFromTree(tree)
+    replaceModuleName(child.package, '_requiredBy', name)
+    replaceModule(child, 'requiredBy', tree)
+    replaceModule(tree, 'requires', child)
+    cb(true)
+  })
 }
 
 exports._removeObsoleteDep = removeObsoleteDep
@@ -207,10 +242,12 @@ exports.loadRequestedDeps = function (args, tree, saveToDependencies, log, next)
       // For things the user asked to install, that aren't a dependency (or
       // won't be when we're done), flag it as "depending" on the user
       // themselves, so we don't remove it as a dep that no longer exists
-      if (!addRequiredDep(tree, child)) {
-        replaceModuleName(child.package, '_requiredBy', '#USER')
-      }
-      depLoaded(null, child, tracker)
+      addRequiredDep(tree, child, function (childIsDep) {
+        if (!childIsDep) {
+          replaceModuleName(child.package, '_requiredBy', '#USER')
+        }
+        depLoaded(null, child, tracker)
+      })
     }))
   }, andForEachChild(loadDeps, andFinishTracker(log, next)))
 }
@@ -382,8 +419,7 @@ exports.loadExtraneous.andResolveDeps = function (tree, log, next) {
 function addDependency (name, versionSpec, tree, log, done) {
   validate('SSOOF', arguments)
   var next = andAddParentToErrors(tree, done)
-  var spec = name + '@' + versionSpec
-  realizePackageSpecifier(spec, packageRelativePath(tree), iferr(done, function (req) {
+  childDependencySpecifier(tree, name, versionSpec, iferr(done, function (req) {
     var child = findRequirement(tree, name, req)
     if (child) {
       resolveWithExistingModule(child, tree, log, iferr(next, function (child, log) {
@@ -401,11 +437,10 @@ function addDependency (name, versionSpec, tree, log, done) {
 
 function resolveWithExistingModule (child, tree, log, next) {
   validate('OOOF', arguments)
-  addRequiredDep(tree, child)
-
-  if (tree.parent && child.parent !== tree) updatePhantomChildren(tree.parent, child)
-
-  next(null, child, log)
+  addRequiredDep(tree, child, function () {
+    if (tree.parent && child.parent !== tree) updatePhantomChildren(tree.parent, child)
+    next(null, child, log)
+  })
 }
 
 var updatePhantomChildren = exports.updatePhantomChildren = function (current, child) {
@@ -482,22 +517,23 @@ function resolveWithNewModule (pkg, tree, log, next) {
 
       var replaced = replaceModule(parent, 'children', child)
       if (replaced) removeObsoleteDep(replaced)
-      addRequiredDep(tree, child)
-      pkg._location = flatNameFromTree(child)
+      addRequiredDep(tree, child, function () {
+        pkg._location = flatNameFromTree(child)
 
-      if (tree.parent && parent !== tree) updatePhantomChildren(tree.parent, child)
+        if (tree.parent && parent !== tree) updatePhantomChildren(tree.parent, child)
 
-      if (pkg._bundled) {
-        inflateBundled(child, child.children)
-      }
+        if (pkg._bundled) {
+          inflateBundled(child, child.children)
+        }
 
-      if (pkg._shrinkwrap && pkg._shrinkwrap.dependencies) {
-        return inflateShrinkwrap(child, pkg._shrinkwrap.dependencies, function (er) {
-          next(er, child, log)
-        })
-      }
+        if (pkg._shrinkwrap && pkg._shrinkwrap.dependencies) {
+          return inflateShrinkwrap(child, pkg._shrinkwrap.dependencies, function (er) {
+            next(er, child, log)
+          })
+        }
 
-      next(null, child, log)
+        next(null, child, log)
+      })
     }))
   }))
 }

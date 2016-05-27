@@ -293,8 +293,10 @@ function makeEnv (data, prefix, env) {
   prefix = prefix || 'npm_package_'
   if (!env) {
     env = {}
-    for (var i in process.env) if (!i.match(/^npm_/)) {
-      env[i] = process.env[i]
+    for (var i in process.env) {
+      if (!i.match(/^npm_/)) {
+        env[i] = process.env[i]
+      }
     }
 
     // npat asks for tap output
@@ -311,31 +313,33 @@ function makeEnv (data, prefix, env) {
     )
   }
 
-  for (i in data) if (i.charAt(0) !== '_') {
-    var envKey = (prefix + i).replace(/[^a-zA-Z0-9_]/g, '_')
-    if (i === 'readme') {
-      continue
-    }
-    if (data[i] && typeof data[i] === 'object') {
-      try {
-        // quick and dirty detection for cyclical structures
-        JSON.stringify(data[i])
-        makeEnv(data[i], envKey + '_', env)
-      } catch (ex) {
-        // usually these are package objects.
-        // just get the path and basic details.
-        var d = data[i]
-        makeEnv(
-          { name: d.name, version: d.version, path: d.path },
-          envKey + '_',
-          env
-        )
+  for (i in data) {
+    if (i.charAt(0) !== '_') {
+      var envKey = (prefix + i).replace(/[^a-zA-Z0-9_]/g, '_')
+      if (i === 'readme') {
+        continue
       }
-    } else {
-      env[envKey] = String(data[i])
-      env[envKey] = env[envKey].indexOf('\n') !== -1
-                      ? JSON.stringify(env[envKey])
-                      : env[envKey]
+      if (data[i] && typeof data[i] === 'object') {
+        try {
+          // quick and dirty detection for cyclical structures
+          JSON.stringify(data[i])
+          makeEnv(data[i], envKey + '_', env)
+        } catch (ex) {
+          // usually these are package objects.
+          // just get the path and basic details.
+          var d = data[i]
+          makeEnv(
+            { name: d.name, version: d.version, path: d.path },
+            envKey + '_',
+            env
+          )
+        }
+      } else {
+        env[envKey] = String(data[i])
+        env[envKey] = env[envKey].indexOf('\n') !== -1
+                        ? JSON.stringify(env[envKey])
+                        : env[envKey]
+      }
     }
   }
 

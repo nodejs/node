@@ -1,3 +1,153 @@
+### v3.9.0 (2016-05-05)
+
+Wow!  This is a big release week!  We've completed the fixes that let the
+test suite pass on Windows, plus more general bug fixes we found while
+fixing things on Windows.  Plus a warning to help folks work around a common
+footgun.  PLUS an improvement to how npm works with long cache timeouts.
+
+#### INFINITE CACHE A LITTLE BETTER
+
+* [`111ae3e`](https://github.com/npm/npm/commit/111ae3ec366ece7ebcf5988f5bc2a7cd70737dfe)
+  [#8581](https://github.com/npm/npm/issues/8581)
+  When a package is fetched from the cache which cannot satisfy the version
+  requirements, an attempt to fetch it from the network is made.  This is
+  helpful for folks using high values for `--cache-min` who are willing to
+  accept possibly not-the-most-recent modules in return for less network
+  traffic.
+  ([@Zirak](https://github.com/Zirak))
+
+#### WARNING: FOOTGUN
+
+* [`60b9a05`](https://github.com/npm/npm/commit/60b9a051aa46b8892fe63b3681839a6fd6642bfd)
+  [#12475](https://github.com/npm/npm/pull/12475)
+  Options can only start with ASCII dashes.  Ordinarily this isn't a problem
+  but many web documentation tools "helpfully" convert `--` into an emdash
+  (–), or `-` into an endash (–).  If you copy and paste from this documentation
+  your commands won't work the way you expect. This adds a warning that tries
+  to be a little more descriptive about why your command is failing.
+  ([@iarna](https://github.com/iarna))
+
+#### WINDOWS CI
+
+We have [Windows CI](https://ci.appveyor.com/project/npm/npm) setup now! We still have to
+tweak it a little bit around paths to the git binaries, but it's otherwise ready!
+
+* [`bb5d6cb`](https://github.com/npm/npm/commit/bb5d6cbf46b2609243d3b384caadd196e665a797)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Add AppVeyor to CI matrix.
+  ([@othiym23](https://github.com/othiym23))
+
+#### COVERAGE DATA
+
+Not only do our tests produce coverage reports after they run now, we also
+automatically [update Coveralls](https://coveralls.io/github/npm/npm) with
+results from [Travis CI](travis-ci.org/npm/npm) runs.
+
+* [`044cbab`](https://github.com/npm/npm/commit/044cbab0d49adeeb0d9310c64fee6c9759cc7428)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Enable coverage reporting for every test run.
+  ([@othiym23](https://github.com/othiym23))
+
+#### EVERYONE BUGS
+
+* [`37c6a51`](https://github.com/npm/npm/commit/37c6a51c71b0feec8f639b3199a8a9172e58deec)
+  [#12150](https://github.com/npm/npm/pull/12150)
+  Ensure that 'npm cache ls' outputs real filenames.  Previously it would
+  sometimes double up the package name in the path it printed.
+  ([@isaacs](https://github.com/isaacs))
+* [`d3ce0b2`](https://github.com/npm/npm/commit/d3ce0b253eb519375071aee29db4ee129dbcdf5c)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Fix unbuilding bins for scoped modules.
+  ([@iarna](https://github.com/iarna))
+* [`e928a30`](https://github.com/npm/npm/commit/e928a30947477a09245f54e9381f46b97bee32d5)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Make handling of local modules (eg `npm install /path/to/my/module`) more
+  consistent when saved to a `package.json`. There were bugs previously where
+  it wouldn't consistently resolve relative paths in the same way.
+  ([@iarna](https://github.com/iarna))
+* [`b820ed4`](https://github.com/npm/npm/commit/b820ed4fc04e21577fa66f7c9482b5ab002e7985)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Under certain circumstances the paths produced for linking, either
+  relative or absolute, would end up basing off the wrong virtual cwd.
+  This resulted in failures for `npm link` in this situations.
+  ([@iarna](https://github.com/iarna))
+
+#### WINDOWS BUGS
+
+* [`7380425`](https://github.com/npm/npm/commit/7380425d810fb8bfc69405a9cbbdec19978a7bee)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Scoped module names were not being correctly inferred from the path on Windows.
+  ([@zkat](https://github.com/zkat))
+* [`91fc24f`](https://github.com/npm/npm/commit/91fc24f2763c2e0591093099ffc866c735f27fde)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Explore with a command to run didn't work properly in Windows– it would pop open a new
+  cmd window and leave it there.
+  ([@iarna](https://github.com/iarna))
+
+#### WINDOWS REFACTORING
+
+* [`f07e643`](https://github.com/npm/npm/commit/f07e6430d4ca02f811138f6140a8bad927607a1f)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Move exec path escaping out to its own function.  This turns out to be
+  tricky to get right because how you escape commands to run on Windows via
+  cmd is different then how you escape them at other times.  Specifically,
+  you HAVE to quote each directory segment that has a quote in it, that is:
+  `C:\"Program Files"\MyApp\MyApp.exe` By contrast, if that were an argument
+  to a command being run, you CAN'T DO quote it that way, instead you have
+  to wrap the entire path in quotes, like so: `"C:\Program
+  Files\MyApp\MyApp.exe"`.
+  ([@iarna](https://github.com/iarna))
+* [`2e01d29`](https://github.com/npm/npm/commit/2e01d299f8244134b1aa040cab1b59c72c9df4da)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  Create a single function for detecting if we're running on Windows (and
+  using a Windows shell like cmd) and use this instead of doing it one-off
+  all over the place.
+  ([@iarna](https://github.com/iarna))
+
+#### FIX WINDOWS TESTS
+
+As I said before, our tests are passing on Windows! 🎉
+
+* [`ef0dd74`](https://github.com/npm/npm/commit/ef0dd74583be25c72343ed07d1127e4d0cc02df9)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  The fruits of many weeks of labor, fix our tests to pass on Windows.
+  ([@zkat](https://github.com/zkat))
+  ([@iarna](https://github.com/iarna))
+
+#### DEPENDENCY UPDATES
+
+* [`8fccda8`](https://github.com/npm/npm/commit/8fccda8587209659c469ab55c608b0e2d7533530)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  `normalize-git-url@3.0.2`:
+  Fix file URLs on Windows.
+  ([@zkat](https://github.com/zkat))
+* [`f53a154`](https://github.com/npm/npm/commit/f53a154df8e0696623e6a71f33e0a7c11a7555aa)
+  `readable-stream@2.1.2`:
+  When readable-stream is disabled, reuse result of `require('stream')`
+  instead of calling it every time.
+  ([@calvinmetcalf](https://github.com/calvinmetcalf))
+* [`02841cf`](https://github.com/npm/npm/commit/02841cfb81d6ba86f691ab43d9bbdac29aec27e7)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  `realize-package-specifier@3.0.2`:
+  Resolve local package paths relative to package root, not cwd.
+  ([@zkat](https://github.com/zkat))
+  ([@iarna](https://github.com/iarna))
+* [`247c1c5`](https://github.com/npm/npm/commit/247c1c5ae08c882c9232ca605731039168bae6ed)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  `npm-package-arg@4.1.1`:
+  Fix Windows file URIs with leading slashes.
+  ([@zkat](https://github.com/zkat))
+* [`365c72b`](https://github.com/npm/npm/commit/365c72bc3ecd9e45f9649725dd635d5625219d8c)
+  `which@1.2.8`
+  ([@isaacs](https://github.com/isaacs))
+* [`e568caa`](https://github.com/npm/npm/commit/e568caabb8390a924ce1cfa51fc914ee6c1637a2)
+  `graceful-fs@4.1.4`
+  ([@isaacs](https://github.com/isaacs))
+* [`304b974`](https://github.com/npm/npm/commit/304b97434959a58f84383bcccc0357c51a4eb39a)
+  [#11444](https://github.com/npm/npm/pull/11444)
+  `standard@6.0.8`
+  ([@feross](https://github.com/feross))
+
 ### v3.8.9 (2016-04-28)
 
 Our biggest news this week is that we got the
@@ -2412,7 +2562,7 @@ in line with `npm@2`.
 
 * [`95ee92c`](https://github.com/npm/npm/commit/95ee92c)
   [#9433](https://github.com/npm/npm/issues/9433)
-  Give better error messages for invalid urls in the dependecy
+  Give better error messages for invalid URLs in the dependecy
   list.
   ([@jamietre](https://github.com/jamietre))
 
