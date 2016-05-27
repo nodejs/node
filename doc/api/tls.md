@@ -375,6 +375,9 @@ Returns a `Buffer` instance holding the keys currently used for
 encryption/decryption of the [TLS Session Tickets][]
 
 ### server.listen(port[, hostname][, callback])
+<!--YAML
+added: v0.11.3
+-->
 
 * `port` {number} The TCP/IP port on which to begin listening for connections.
   A value of `0` (zero) will assign a random port.
@@ -394,6 +397,9 @@ called when the server has started listening.
 See `net.Server` for more information.
 
 ### server.setTicketKeys(keys)
+<!--YAML
+added: v2.5.0
+-->
 
 * `keys` {Buffer} The keys used for encryption/decryption of the
   [TLS Session Tickets][].
