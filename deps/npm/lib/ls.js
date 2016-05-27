@@ -62,7 +62,11 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
     args = args.map(function (a) {
       var p = npa(a)
       var name = p.name
-      var ver = semver.validRange(p.rawSpec) || ''
+      // When version spec is missing, we'll skip using it when filtering.
+      // Otherwise, `semver.validRange` would return '*', which won't
+      // match prerelease versions.
+      var ver = (p.rawSpec &&
+                 (semver.validRange(p.rawSpec) || ''))
       return [ name, ver, a ]
     })
   }
@@ -292,8 +296,11 @@ function filterFound (root, args) {
         var argName = args[ii][0]
         var argVersion = args[ii][1]
         var argRaw = args[ii][2]
-        if (depName === argName) {
+        if (depName === argName && argVersion) {
           found = semver.satisfies(dep.version, argVersion, true)
+        } else if (depName === argName) {
+          // If version is missing from arg, just do a name match.
+          found = true
         } else if (dep.path === argRaw) {
           found = true
         }

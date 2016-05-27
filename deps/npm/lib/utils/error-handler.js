@@ -78,9 +78,11 @@ function exit (code, noLog) {
       }
     })
     rollbacks.length = 0
+  } else if (code && !noLog) {
+    writeLogFile(reallyExit)
+  } else {
+    rm('npm-debug.log', reallyExit)
   }
-  else if (code && !noLog) writeLogFile(reallyExit)
-  else rm('npm-debug.log', reallyExit)
 
   function reallyExit (er) {
     if (er && !code) code = typeof er.errno === 'number' ? er.errno : 1

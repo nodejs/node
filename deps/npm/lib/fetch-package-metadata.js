@@ -63,23 +63,26 @@ module.exports = function fetchPackageMetadata (spec, where, tracker, done) {
     fetchOtherPackageData(spec, dep, where, addRequestedAndFinish)
   }
   function addRequestedAndFinish (er, pkg) {
-    if (pkg) {
-      pkg._requested = dep
-      pkg._spec = spec
-      pkg._where = where
-      if (!pkg._args) pkg._args = []
-      pkg._args.push([pkg._spec, pkg._where])
-      // non-npm registries can and will return unnormalized data, plus
-      // even the npm registry may have package data normalized with older
-      // normalization rules. This ensures we get package data in a consistent,
-      // stable format.
-      try {
-        normalizePackageData(pkg)
-      } catch (ex) {
-        // don't care
-      }
-    }
+    if (pkg) annotateMetadata(pkg, dep, spec, where)
     logAndFinish(er, pkg)
+  }
+}
+
+var annotateMetadata = module.exports.annotateMetadata = function (pkg, requested, spec, where) {
+  validate('OOSS', arguments)
+  pkg._requested = requested
+  pkg._spec = spec
+  pkg._where = where
+  if (!pkg._args) pkg._args = []
+  pkg._args.push([requested, where])
+  // non-npm registries can and will return unnormalized data, plus
+  // even the npm registry may have package data normalized with older
+  // normalization rules. This ensures we get package data in a consistent,
+  // stable format.
+  try {
+    normalizePackageData(pkg)
+  } catch (ex) {
+    // don't care
   }
 }
 
@@ -148,6 +151,16 @@ function fetchNamedPackageData (dep, next) {
         if (dep.spec === '*') {
           return returnAndAddMetadata(pkg.versions[latestVersion])
         }
+      }
+
+      // We didn't manage to find a compatible version
+      // If this package was requested from cache, force hitting the network
+      if (pkg._cached) {
+        log.silly('fetchNamedPackageData', 'No valid target from cache, forcing network')
+        return npm.registry.get(url, {
+          auth: auth,
+          skipCache: true
+        }, pulseTillDone('fetchMetadata', iferr(next, pickVersionFromRegistryDocument)))
       }
 
       // And failing that, we error out
