@@ -191,6 +191,9 @@ values are concatenated. See [`util.format()`][] for more information.
 The `console.info()` function is an alias for [`console.log()`][].
 
 ### console.log([data][, ...])
+<!--
+added: v0.3.3
+-->
 
 Prints to `stdout` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
