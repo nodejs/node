@@ -190,6 +190,9 @@ The `tls.Server` class is a subclass of `net.Server` that accepts encrypted
 connections using TLS or SSL.
 
 ### Event: 'tlsClientError'
+<!--YAML
+added: v6.0.0
+-->
 
 The `'tlsClientError'` event is emitted when an error occurs before a secure
 connection is established. The listener callback is passed two arguments when
@@ -200,7 +203,9 @@ called:
   error originated.
 
 ### Event: 'newSession'
-
+<!--
+added: v0.11.12
+-->
 The `'newSession'` event is emitted upon creation of a new TLS session. This may
 be used to store sessions in external storage. The listener callback is passed
 three arguments when called:
@@ -214,7 +219,9 @@ three arguments when called:
 established after the addition of the event listener.
 
 ### Event: 'OCSPRequest'
-
+<!--YAML
+added: v0.11.13
+-->
 The `'OCSPRequest'` event is emitted when the client sends a certificate status
 request. The listener callback is passed three arguments when called:
 
