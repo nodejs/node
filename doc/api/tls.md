@@ -479,6 +479,9 @@ the `tlsSocket.alpnProtocol` or `tlsSocket.npnProtocol` properties can be
 checked to determine the negotiated protocol.
 
 ### tlsSocket.address()
+<!--YAML
+added: v0.11.4
+-->
 
 Returns the bound address, the address family name, and port of the
 underlying socket as reported by the operating system. Returns an
@@ -486,6 +489,9 @@ object with three properties, e.g.,
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
 ### tlsSocket.authorized
+<!--YAML
+added: v0.11.4
+-->
 
 Returns `true` if the peer certificate was signed by one of the CAs specified
 when creating the `tls.TLSSocket` instance, otherwise `false`.
