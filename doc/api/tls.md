@@ -343,7 +343,9 @@ server as reported by the operating system.  See [`net.Server.address()`][] for
 more information.
 
 ### server.close([callback])
-w
+<!--YAML
+added: v2.3.2
+-->
 * `callback` {Function} An optional listener callback that will be registered to
   listen for the server instance's `'close'` event.
 
