@@ -1,9 +1,6 @@
-if (process.platform === 'win32') {
-  console.error('skipping test, because windows and shebangs')
-  process.exit(0)
-}
-
 var common = require('../common-tap.js')
+common.pendIfWindows('not working because Windows and shebangs')
+
 var mr = require('npm-registry-mock')
 
 var test = require('tap').test

@@ -2,7 +2,6 @@ var common = require('../common-tap')
 var path = require('path')
 var test = require('tap').test
 var rimraf = require('rimraf')
-var npm = require('../../')
 var mr = require('npm-registry-mock')
 var pkg = path.resolve(__dirname, 'outdated-depth-deep')
 var cache = path.resolve(pkg, 'cache')
@@ -41,38 +40,50 @@ test('setup', function (t) {
 })
 
 test('outdated depth deep (9999)', function (t) {
-  var underscoreOutdated = ['underscore', '1.3.1', '1.3.1', '1.5.1', '1.3.1']
-  var childPkg = path.resolve(pkg, 'node_modules', 'npm-test-peer-deps')
+  var conf = [
+    '--registry', common.registry,
+    '--cache', cache
+  ]
 
-  var expected = [ [childPkg].concat(underscoreOutdated).concat([null]),
-                   [pkg].concat(underscoreOutdated).concat([null]) ]
+  var server
+  mr({ port: common.port }, thenTopLevelInstall)
 
-  process.chdir(pkg)
+  function thenTopLevelInstall (err, s) {
+    if (err) throw err
+    server = s
+    common.npm(conf.concat(['install', '.']), {cwd: pkg}, thenDeepInstall)
+  }
 
-  mr({ port: common.port }, function (er, s) {
-    npm.load({
-      cache: cache,
-      loglevel: 'silent',
-      registry: common.registry,
-      depth: 9999
-    },
-    function () {
-      npm.install('.', function (er) {
-        if (er) throw new Error(er)
-        var nodepath = process.env.npm_node_execpath || process.env.NODE || process.execPath
-        var clibin = path.resolve(__dirname, '../../bin/npm-cli.js')
-        npm.explore('npm-test-peer-deps', nodepath, clibin, 'install', 'underscore', function (er) {
-          if (er) throw new Error(er)
-          npm.outdated(function (err, d) {
-            if (err) throw new Error(err)
-            t.deepEqual(d, expected)
-            s.close()
-            t.end()
-          })
-        })
-      })
-    })
-  })
+  function thenDeepInstall (err, code, stdout, stderr) {
+    if (err) throw err
+    t.is(code, 0, 'install completed successfully')
+    t.is('', stderr, 'no error output')
+    var depPath = path.join(pkg, 'node_modules', 'npm-test-peer-deps')
+    common.npm(conf.concat(['install', 'underscore']), {cwd: depPath}, thenRunOutdated)
+  }
+
+  function thenRunOutdated (err, code, stdout, stderr) {
+    if (err) throw err
+    t.is(code, 0, 'deep install completed successfully')
+    t.is('', stderr, 'no error output')
+    common.npm(conf.concat(['outdated', '--depth', 9999]), {cwd: pkg}, thenValidateOutput)
+  }
+
+  function thenValidateOutput (err, code, stdout, stderr) {
+    if (err) throw err
+    t.is(code, 0, 'outdated completed successfully')
+    t.is('', stderr, 'no error output')
+    t.match(
+      stdout,
+      /underscore.*1\.3\.1.*1\.3\.1.*1\.5\.1.*whatever\n/g,
+      'child package listed')
+    t.match(
+      stdout,
+      /underscore.*1\.3\.1.*1\.3\.1.*1\.5\.1.*whatever > npm-test-peer-deps/g,
+      'child package listed')
+    server.close()
+    t.end()
+  }
 })
 
 test('cleanup', function (t) {

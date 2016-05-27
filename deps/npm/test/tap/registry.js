@@ -31,6 +31,8 @@ var extend = Object.assign || require('util')._extend
 function runTests () {
   var env = extend({ TAP: 1 }, process.env)
   env.npm = npmExec
+  // TODO: fix tap and / or nyc to handle nested invocations properly
+  env.COVERALLS_REPO_TOKEN = ''
 
   var opts = {
     cwd: ca,
@@ -49,7 +51,7 @@ function runTests () {
         env: env,
         stdio: 'inherit'
       }
-      common.npm(['test', '--', '-Rtap'], opts, function (err, code) {
+      common.npm(['test', '--', '-Rtap', '--no-coverage'], opts, function (err, code) {
         if (err) { throw err }
         if (code) {
           return test('need test to work', function (t) {

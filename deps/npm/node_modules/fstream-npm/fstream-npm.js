@@ -99,6 +99,9 @@ Packer.prototype.applyIgnores = function (entry, partial, entryObj) {
     // license files should never be ignored.
     if (entry.match(/^(license|licence)(\.[^\.]*)?$/i)) return true
 
+    // copyright notice files should never be ignored.
+    if (entry.match(/^(notice)(\.[^\.]*)?$/i)) return true
+
     // changelogs should never be ignored.
     if (entry.match(/^(changes|changelog|history)(\.[^\.]*)?$/i)) return true
   }
