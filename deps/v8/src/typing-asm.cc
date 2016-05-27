@@ -1553,8 +1553,6 @@ AsmTyper::VariableInfo* AsmTyper::GetVariableInfo(Variable* variable,
     if (!entry && in_function_) {
       entry =
           global_variable_type_.Lookup(variable, ComputePointerHash(variable));
-      if (entry && entry->value) {
-      }
     }
   }
   if (!entry) return NULL;
