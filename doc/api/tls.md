@@ -156,7 +156,9 @@ Ephemeral methods may have some performance drawbacks, because key generation
 is expensive.
 
 ## Class: CryptoStream
-
+<!-- YAML
+added: v0.3.2
+-->
     Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 This is an encrypted stream.
