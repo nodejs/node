@@ -57,5 +57,5 @@ function setup () {
     path.join(cycle, 'package.json'),
     JSON.stringify(cycleJSON, null, 2)
   )
-  fs.symlinkSync(cycle, path.join(cycle, 'node_modules', 'cycle'))
+  fs.symlinkSync(cycle, path.join(cycle, 'node_modules', 'cycle'), 'junction')
 }

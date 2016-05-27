@@ -32,14 +32,10 @@ function chainableExec () {
   return [execGit].concat(args)
 }
 
-function whichGit (cb) {
-  return which(git, cb)
-}
-
 function whichAndExec (args, options, cb) {
   assert.equal(typeof cb, 'function', 'no callback provided')
   // check for git
-  whichGit(function (err) {
+  which(git, function (err) {
     if (err) {
       err.code = 'ENOGIT'
       return cb(err)
