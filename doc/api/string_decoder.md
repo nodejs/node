@@ -28,8 +28,8 @@ internal buffer is used to ensure that the decoded string does not contain
 any incomplete multibyte characters. These are held in the buffer until the
 next call to `stringDecoder.write()` or until `stringDecoder.end()` is called.
 
-In the following example, the three UTF-8 encoded bytes of the European euro
-symbol are written over three separate operations:
+In the following example, the three UTF-8 encoded bytes of the European Euro
+symbol (`€`) are written over three separate operations:
 
 ```js
 const StringDecoder = require('string_decoder').StringDecoder;
