@@ -91,7 +91,7 @@ print("log:\n"+ JSON.stringify(log));
 // based on other values.
 var expected = [
   // Entry
-  "a2","b2",
+  "a2",
   // Empty for-in-var: get enumerable
   "c16",
   // Empty for-in: get enumerable
@@ -108,12 +108,12 @@ var expected = [
   "i12","i10","i11","I4","i11","I4","i11","I4","i11",
   // For-of-let: [Symbol.iterator](), next(), body, next(), ...
   "j16","j14","j15","J4","j15","J4","j15","J4","j15",
-  // For-var: var decl, condition, body, next, condition, body, ...
-  "k7","k20","K4","k26","k20","K4","k26","k20","K4","k26","k20",
+  // For-var: init, condition, body, next, condition, body, ...
+  "k15","k20","K4","k26","k20","K4","k26","k20","K4","k26","k20",
   // For: init, condition, body, next, condition, body, ...
   "l7","l16","L4","l22","l16","L4","l22","l16","L4","l22","l16",
   // For-let: init, condition, body, next, condition, body, ...
-  "m7","m20","M4","m26","m20","M4","m26","m20","M4","m26","m20",
+  "m15","m20","M4","m26","m20","M4","m26","m20","M4","m26","m20",
   // Exit.
   "y0","z0",
 ]

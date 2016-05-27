@@ -453,6 +453,54 @@ TEST(Type3) {
 }
 
 
+TEST(msr_mrs_disasm) {
+  SET_UP();
+
+  SRegisterFieldMask CPSR_all = CPSR_f | CPSR_s | CPSR_x | CPSR_c;
+  SRegisterFieldMask SPSR_all = SPSR_f | SPSR_s | SPSR_x | SPSR_c;
+
+  COMPARE(msr(CPSR_f, Operand(r0)),       "e128f000       msr CPSR_f, r0");
+  COMPARE(msr(CPSR_s, Operand(r1)),       "e124f001       msr CPSR_s, r1");
+  COMPARE(msr(CPSR_x, Operand(r2)),       "e122f002       msr CPSR_x, r2");
+  COMPARE(msr(CPSR_c, Operand(r3)),       "e121f003       msr CPSR_c, r3");
+  COMPARE(msr(CPSR_all, Operand(ip)),     "e12ff00c       msr CPSR_fsxc, ip");
+  COMPARE(msr(SPSR_f, Operand(r0)),       "e168f000       msr SPSR_f, r0");
+  COMPARE(msr(SPSR_s, Operand(r1)),       "e164f001       msr SPSR_s, r1");
+  COMPARE(msr(SPSR_x, Operand(r2)),       "e162f002       msr SPSR_x, r2");
+  COMPARE(msr(SPSR_c, Operand(r3)),       "e161f003       msr SPSR_c, r3");
+  COMPARE(msr(SPSR_all, Operand(ip)),     "e16ff00c       msr SPSR_fsxc, ip");
+  COMPARE(msr(CPSR_f, Operand(r0), eq),   "0128f000       msreq CPSR_f, r0");
+  COMPARE(msr(CPSR_s, Operand(r1), ne),   "1124f001       msrne CPSR_s, r1");
+  COMPARE(msr(CPSR_x, Operand(r2), cs),   "2122f002       msrcs CPSR_x, r2");
+  COMPARE(msr(CPSR_c, Operand(r3), cc),   "3121f003       msrcc CPSR_c, r3");
+  COMPARE(msr(CPSR_all, Operand(ip), mi), "412ff00c       msrmi CPSR_fsxc, ip");
+  COMPARE(msr(SPSR_f, Operand(r0), pl),   "5168f000       msrpl SPSR_f, r0");
+  COMPARE(msr(SPSR_s, Operand(r1), vs),   "6164f001       msrvs SPSR_s, r1");
+  COMPARE(msr(SPSR_x, Operand(r2), vc),   "7162f002       msrvc SPSR_x, r2");
+  COMPARE(msr(SPSR_c, Operand(r3), hi),   "8161f003       msrhi SPSR_c, r3");
+  COMPARE(msr(SPSR_all, Operand(ip), ls), "916ff00c       msrls SPSR_fsxc, ip");
+
+  // Other combinations of mask bits.
+  COMPARE(msr(CPSR_s | CPSR_x, Operand(r4)),
+          "e126f004       msr CPSR_sx, r4");
+  COMPARE(msr(SPSR_s | SPSR_x | SPSR_c, Operand(r5)),
+          "e167f005       msr SPSR_sxc, r5");
+  COMPARE(msr(SPSR_s | SPSR_c, Operand(r6)),
+          "e165f006       msr SPSR_sc, r6");
+  COMPARE(msr(SPSR_f | SPSR_c, Operand(r7)),
+          "e169f007       msr SPSR_fc, r7");
+  // MSR with no mask is UNPREDICTABLE, and checked by the assembler, but check
+  // that the disassembler does something sensible.
+  COMPARE(dd(0xe120f008), "e120f008       msr CPSR_(none), r8");
+
+  COMPARE(mrs(r0, CPSR),     "e10f0000       mrs r0, CPSR");
+  COMPARE(mrs(r1, SPSR),     "e14f1000       mrs r1, SPSR");
+  COMPARE(mrs(r2, CPSR, ge), "a10f2000       mrsge r2, CPSR");
+  COMPARE(mrs(r3, SPSR, lt), "b14f3000       mrslt r3, SPSR");
+
+  VERIFY_RUN();
+}
+
 
 TEST(Vfp) {
   SET_UP();
@@ -565,6 +613,11 @@ TEST(Vfp) {
             "eeb70b00       vmov.f64 d0, #1");
     COMPARE(vmov(d2, -13.0),
             "eeba2b0a       vmov.f64 d2, #-13");
+
+    COMPARE(vmov(s1, -1.0),
+            "eeff0a00       vmov.f32 s1, #-1");
+    COMPARE(vmov(s3, 13.0),
+            "eef21a0a       vmov.f32 s3, #13");
 
     COMPARE(vmov(d0, VmovIndexLo, r0),
             "ee000b10       vmov.32 d0[0], r0");

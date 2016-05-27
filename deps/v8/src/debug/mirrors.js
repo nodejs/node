@@ -1037,6 +1037,15 @@ FunctionMirror.prototype.toText = function() {
 };
 
 
+FunctionMirror.prototype.context = function() {
+  if (this.resolved()) {
+    if (!this._context)
+      this._context = new ContextMirror(%FunctionGetContextData(this.value_));
+    return this._context;
+  }
+};
+
+
 /**
  * Mirror object for unresolved functions.
  * @param {string} value The name for the unresolved function reflected by this
@@ -1434,14 +1443,6 @@ GeneratorMirror.prototype.func = function() {
 };
 
 
-GeneratorMirror.prototype.context = function() {
-  if (!this.context_) {
-    this.context_ = new ContextMirror(%GeneratorGetContext(this.value_));
-  }
-  return this.context_;
-};
-
-
 GeneratorMirror.prototype.receiver = function() {
   if (!this.receiver_) {
     this.receiver_ = MakeMirror(%GeneratorGetReceiver(this.value_));
@@ -1801,11 +1802,6 @@ FrameDetails.prototype.scopeCount = function() {
 };
 
 
-FrameDetails.prototype.stepInPositionsImpl = function() {
-  return %GetStepInPositions(this.break_id_, this.frameId());
-};
-
-
 /**
  * Mirror object for stack frames.
  * @param {number} break_id The break id in the VM for which this frame is
@@ -1985,29 +1981,6 @@ FrameMirror.prototype.allScopes = function(opt_ignore_nested_scopes) {
 };
 
 
-FrameMirror.prototype.stepInPositions = function() {
-  var script = this.func().script();
-  var funcOffset = this.func().sourcePosition_();
-
-  var stepInRaw = this.details_.stepInPositionsImpl();
-  var result = [];
-  if (stepInRaw) {
-    for (var i = 0; i < stepInRaw.length; i++) {
-      var posStruct = {};
-      var offset = script.locationFromPosition(funcOffset + stepInRaw[i],
-                                               true);
-      serializeLocationFields(offset, posStruct);
-      var item = {
-        position: posStruct
-      };
-      result.push(item);
-    }
-  }
-
-  return result;
-};
-
-
 FrameMirror.prototype.evaluate = function(source, disable_break,
                                           opt_context_object) {
   return MakeMirror(%DebugEvaluate(this.break_id_,
@@ -2177,6 +2150,9 @@ FrameMirror.prototype.toText = function(opt_locals) {
 var kScopeDetailsTypeIndex = 0;
 var kScopeDetailsObjectIndex = 1;
 var kScopeDetailsNameIndex = 2;
+var kScopeDetailsStartPositionIndex = 3;
+var kScopeDetailsEndPositionIndex = 4;
+var kScopeDetailsFunctionIndex = 5;
 
 function ScopeDetails(frame, fun, index, opt_details) {
   if (frame) {
@@ -2219,6 +2195,29 @@ ScopeDetails.prototype.name = function() {
   }
   return this.details_[kScopeDetailsNameIndex];
 };
+
+
+ScopeDetails.prototype.startPosition = function() {
+  if (!IS_UNDEFINED(this.break_id_)) {
+    %CheckExecutionState(this.break_id_);
+  }
+  return this.details_[kScopeDetailsStartPositionIndex];
+}
+
+
+ScopeDetails.prototype.endPosition = function() {
+  if (!IS_UNDEFINED(this.break_id_)) {
+    %CheckExecutionState(this.break_id_);
+  }
+  return this.details_[kScopeDetailsEndPositionIndex];
+}
+
+ScopeDetails.prototype.func = function() {
+  if (!IS_UNDEFINED(this.break_id_)) {
+    %CheckExecutionState(this.break_id_);
+  }
+  return this.details_[kScopeDetailsFunctionIndex];
+}
 
 
 ScopeDetails.prototype.setVariableValueImpl = function(name, new_value) {

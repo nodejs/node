@@ -62,7 +62,7 @@ void Rewriter::VisitClassLiteral(ClassLiteral* class_literal) {
 void Rewriter::VisitVariableProxy(VariableProxy* proxy) {
   if (proxy->is_resolved()) {
     Variable* var = proxy->var();
-    DCHECK_EQ(var->mode(), TEMPORARY);
+    if (var->mode() != TEMPORARY) return;
     if (old_scope_->RemoveTemporary(var)) {
       var->set_scope(new_scope_);
       new_scope_->AddTemporary(var);

@@ -66,20 +66,20 @@ We have a convenience script that handles all of the above for you:
 
 Examples:
   # Print flat profile with annotated disassembly for the 10 top
-  # symbols. Use default log names and include the snapshot log.
-  $ %prog --snapshot --disasm-top=10
+  # symbols. Use default log names.
+  $ %prog --disasm-top=10
 
   # Print flat profile with annotated disassembly for all used symbols.
   # Use default log names and include kernel symbols into analysis.
   $ %prog --disasm-all --kernel
 
   # Print flat profile. Use custom log names.
-  $ %prog --log=foo.log --snapshot-log=snap-foo.log --trace=foo.data --snapshot
+  $ %prog --log=foo.log --trace=foo.data
 """
 
 
 JS_ORIGIN = "js"
-JS_SNAPSHOT_ORIGIN = "js-snapshot"
+
 
 class Code(object):
   """Code object."""
@@ -199,7 +199,7 @@ class Code(object):
       self.origin)
 
   def _GetDisasmLines(self, arch, options):
-    if self.origin == JS_ORIGIN or self.origin == JS_SNAPSHOT_ORIGIN:
+    if self.origin == JS_ORIGIN:
       inplace = False
       filename = options.log + ".ll"
     else:
@@ -328,30 +328,6 @@ class CodeInfo(object):
     self.header_size = header_size
 
 
-class SnapshotLogReader(object):
-  """V8 snapshot log reader."""
-
-  _SNAPSHOT_CODE_NAME_RE = re.compile(
-    r"snapshot-code-name,(\d+),\"(.*)\"")
-
-  def __init__(self, log_name):
-    self.log_name = log_name
-
-  def ReadNameMap(self):
-    log = open(self.log_name, "r")
-    try:
-      snapshot_pos_to_name = {}
-      for line in log:
-        match = SnapshotLogReader._SNAPSHOT_CODE_NAME_RE.match(line)
-        if match:
-          pos = int(match.group(1))
-          name = match.group(2)
-          snapshot_pos_to_name[pos] = name
-    finally:
-      log.close()
-    return snapshot_pos_to_name
-
-
 class LogReader(object):
   """V8 low-level (binary) log reader."""
 
@@ -365,17 +341,13 @@ class LogReader(object):
 
   _CODE_CREATE_TAG = "C"
   _CODE_MOVE_TAG = "M"
-  _CODE_DELETE_TAG = "D"
-  _SNAPSHOT_POSITION_TAG = "P"
   _CODE_MOVING_GC_TAG = "G"
 
-  def __init__(self, log_name, code_map, snapshot_pos_to_name):
+  def __init__(self, log_name, code_map):
     self.log_file = open(log_name, "r")
     self.log = mmap.mmap(self.log_file.fileno(), 0, mmap.MAP_PRIVATE)
     self.log_pos = 0
     self.code_map = code_map
-    self.snapshot_pos_to_name = snapshot_pos_to_name
-    self.address_to_snapshot_name = {}
 
     self.arch = self.log[:self.log.find("\0")]
     self.log_pos += len(self.arch) + 1
@@ -395,17 +367,12 @@ class LogReader(object):
     self.code_delete_struct = LogReader._DefineStruct([
         ("address", pointer_type)])
 
-    self.snapshot_position_struct = LogReader._DefineStruct([
-        ("address", pointer_type),
-        ("position", ctypes.c_int32)])
-
   def ReadUpToGC(self):
     while self.log_pos < self.log.size():
       tag = self.log[self.log_pos]
       self.log_pos += 1
 
       if tag == LogReader._CODE_MOVING_GC_TAG:
-        self.address_to_snapshot_name.clear()
         return
 
       if tag == LogReader._CODE_CREATE_TAG:
@@ -413,12 +380,8 @@ class LogReader(object):
         self.log_pos += ctypes.sizeof(event)
         start_address = event.code_address
         end_address = start_address + event.code_size
-        if start_address in self.address_to_snapshot_name:
-          name = self.address_to_snapshot_name[start_address]
-          origin = JS_SNAPSHOT_ORIGIN
-        else:
-          name = self.log[self.log_pos:self.log_pos + event.name_size]
-          origin = JS_ORIGIN
+        name = self.log[self.log_pos:self.log_pos + event.name_size]
+        origin = JS_ORIGIN
         self.log_pos += event.name_size
         origin_offset = self.log_pos
         self.log_pos += event.code_size
@@ -457,30 +420,6 @@ class LogReader(object):
         code.start_address = new_start_address
         code.end_address = new_start_address + size
         self.code_map.Add(code)
-        continue
-
-      if tag == LogReader._CODE_DELETE_TAG:
-        event = self.code_delete_struct.from_buffer(self.log, self.log_pos)
-        self.log_pos += ctypes.sizeof(event)
-        old_start_address = event.address
-        code = self.code_map.Find(old_start_address)
-        if not code:
-          print >>sys.stderr, "Warning: Not found %x" % old_start_address
-          continue
-        assert code.start_address == old_start_address, \
-            "Inexact delete address %x for %s" % (old_start_address, code)
-        self.code_map.Remove(code)
-        continue
-
-      if tag == LogReader._SNAPSHOT_POSITION_TAG:
-        event = self.snapshot_position_struct.from_buffer(self.log,
-                                                          self.log_pos)
-        self.log_pos += ctypes.sizeof(event)
-        start_address = event.address
-        snapshot_pos = event.position
-        if snapshot_pos in self.snapshot_pos_to_name:
-          self.address_to_snapshot_name[start_address] = \
-              self.snapshot_pos_to_name[snapshot_pos]
         continue
 
       assert False, "Unknown tag %s" % tag
@@ -898,16 +837,9 @@ def PrintDot(code_map, options):
 
 if __name__ == "__main__":
   parser = optparse.OptionParser(USAGE)
-  parser.add_option("--snapshot-log",
-                    default="obj/release/snapshot.log",
-                    help="V8 snapshot log file name [default: %default]")
   parser.add_option("--log",
                     default="v8.log",
                     help="V8 log file name [default: %default]")
-  parser.add_option("--snapshot",
-                    default=False,
-                    action="store_true",
-                    help="process V8 snapshot log [default: %default]")
   parser.add_option("--trace",
                     default="perf.data",
                     help="perf trace file name [default: %default]")
@@ -945,12 +877,7 @@ if __name__ == "__main__":
   options, args = parser.parse_args()
 
   if not options.quiet:
-    if options.snapshot:
-      print "V8 logs: %s, %s, %s.ll" % (options.snapshot_log,
-                                        options.log,
-                                        options.log)
-    else:
-      print "V8 log: %s, %s.ll (no snapshot)" % (options.log, options.log)
+    print "V8 log: %s, %s.ll" % (options.log, options.log)
     print "Perf trace file: %s" % options.trace
 
   V8_GC_FAKE_MMAP = options.gc_fake_mmap
@@ -972,17 +899,10 @@ if __name__ == "__main__":
   mmap_time = 0
   sample_time = 0
 
-  # Process the snapshot log to fill the snapshot name map.
-  snapshot_name_map = {}
-  if options.snapshot:
-    snapshot_log_reader = SnapshotLogReader(log_name=options.snapshot_log)
-    snapshot_name_map = snapshot_log_reader.ReadNameMap()
-
   # Initialize the log reader.
   code_map = CodeMap()
   log_reader = LogReader(log_name=options.log + ".ll",
-                         code_map=code_map,
-                         snapshot_pos_to_name=snapshot_name_map)
+                         code_map=code_map)
   if not options.quiet:
     print "Generated code architecture: %s" % log_reader.arch
     print

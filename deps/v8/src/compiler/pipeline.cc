@@ -267,23 +267,26 @@ class PipelineData {
     register_allocation_data_ = nullptr;
   }
 
-  void InitializeInstructionSequence() {
+  void InitializeInstructionSequence(const CallDescriptor* descriptor) {
     DCHECK(sequence_ == nullptr);
     InstructionBlocks* instruction_blocks =
         InstructionSequence::InstructionBlocksFor(instruction_zone(),
                                                   schedule());
     sequence_ = new (instruction_zone()) InstructionSequence(
         info()->isolate(), instruction_zone(), instruction_blocks);
+    if (descriptor && descriptor->RequiresFrameAsIncoming()) {
+      sequence_->instruction_blocks()[0]->mark_needs_frame();
+    } else {
+      DCHECK_EQ(0, descriptor->CalleeSavedFPRegisters());
+      DCHECK_EQ(0, descriptor->CalleeSavedRegisters());
+    }
   }
 
   void InitializeFrameData(CallDescriptor* descriptor) {
     DCHECK(frame_ == nullptr);
     int fixed_frame_size = 0;
     if (descriptor != nullptr) {
-      fixed_frame_size = (descriptor->IsCFunctionCall())
-                             ? StandardFrameConstants::kFixedSlotCountAboveFp +
-                                   StandardFrameConstants::kCPSlotCount
-                             : StandardFrameConstants::kFixedSlotCount;
+      fixed_frame_size = CalculateFixedFrameSize(descriptor);
     }
     frame_ = new (instruction_zone()) Frame(fixed_frame_size, descriptor);
   }
@@ -337,6 +340,16 @@ class PipelineData {
   ZonePool::Scope register_allocation_zone_scope_;
   Zone* register_allocation_zone_;
   RegisterAllocationData* register_allocation_data_;
+
+  int CalculateFixedFrameSize(CallDescriptor* descriptor) {
+    if (descriptor->IsJSFunctionCall()) {
+      return StandardFrameConstants::kFixedSlotCount;
+    }
+    return descriptor->IsCFunctionCall()
+               ? (CommonFrameConstants::kFixedSlotCountAboveFp +
+                  CommonFrameConstants::kCPSlotCount)
+               : TypedFrameConstants::kFixedSlotCount;
+  }
 
   DISALLOW_COPY_AND_ASSIGN(PipelineData);
 };
@@ -539,7 +552,7 @@ struct InliningPhase {
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
-    JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
+    JSCallReducer call_reducer(data->jsgraph(),
                                data->info()->is_deoptimization_enabled()
                                    ? JSCallReducer::kDeoptimizationEnabled
                                    : JSCallReducer::kNoFlags,
@@ -615,7 +628,8 @@ struct TypedLoweringPhase {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
-    LoadElimination load_elimination(&graph_reducer);
+    LoadElimination load_elimination(&graph_reducer, data->graph(),
+                                     data->common());
     JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
     MaybeHandle<LiteralsArray> literals_array =
         data->info()->is_native_context_specializing()
@@ -639,6 +653,7 @@ struct TypedLoweringPhase {
         data->info()->is_deoptimization_enabled()
             ? JSIntrinsicLowering::kDeoptimizationEnabled
             : JSIntrinsicLowering::kDeoptimizationDisabled);
+    SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
@@ -649,6 +664,7 @@ struct TypedLoweringPhase {
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
     AddReducer(data, &graph_reducer, &load_elimination);
+    AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
     graph_reducer.ReduceGraph();
   }
@@ -1079,7 +1095,7 @@ void Pipeline::RunPrintAndVerify(const char* phase, bool untyped) {
 
 
 Handle<Code> Pipeline::GenerateCode() {
-  ZonePool zone_pool;
+  ZonePool zone_pool(isolate()->allocator());
   base::SmartPointer<PipelineStatistics> pipeline_statistics;
 
   if (FLAG_turbo_stats) {
@@ -1240,7 +1256,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   CompilationInfo info(debug_name, isolate, graph->zone(), flags);
 
   // Construct a pipeline for scheduling and code generation.
-  ZonePool zone_pool;
+  ZonePool zone_pool(isolate->allocator());
   PipelineData data(&zone_pool, &info, graph, schedule);
   base::SmartPointer<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats) {
@@ -1281,7 +1297,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
                                               Graph* graph,
                                               Schedule* schedule) {
   // Construct a pipeline for scheduling and code generation.
-  ZonePool zone_pool;
+  ZonePool zone_pool(info->isolate()->allocator());
   PipelineData data(&zone_pool, info, graph, schedule);
   base::SmartPointer<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats) {
@@ -1304,7 +1320,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool run_verifier) {
   CompilationInfo info("testing", sequence->isolate(), sequence->zone());
-  ZonePool zone_pool;
+  ZonePool zone_pool(sequence->isolate()->allocator());
   PipelineData data(&zone_pool, &info, sequence);
   Pipeline pipeline(&info);
   pipeline.data_ = &data;
@@ -1329,7 +1345,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
                                                        data->schedule());
   }
 
-  data->InitializeInstructionSequence();
+  data->InitializeInstructionSequence(call_descriptor);
 
   data->InitializeFrameData(call_descriptor);
   // Select and schedule instructions covering the scheduled graph.
@@ -1358,6 +1374,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   AllocateRegisters(
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
       call_descriptor, run_verifier);
+  Run<FrameElisionPhase>();
   if (data->compilation_failed()) {
     info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
     return Handle<Code>();
@@ -1366,11 +1383,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   BeginPhaseKind("code generation");
   // TODO(mtrofin): move this off to the register allocator.
   bool generate_frame_at_start =
-      !FLAG_turbo_frame_elision || !data_->info()->IsStub() ||
-      !data_->frame()->needs_frame() ||
-      data_->sequence()->instruction_blocks().front()->needs_frame() ||
-      linkage.GetIncomingDescriptor()->CalleeSavedFPRegisters() != 0 ||
-      linkage.GetIncomingDescriptor()->CalleeSavedRegisters() != 0;
+      data_->sequence()->instruction_blocks().front()->must_construct_frame();
   // Optimimize jumps.
   if (FLAG_turbo_jt) {
     Run<JumpThreadingPhase>(generate_frame_at_start);
@@ -1430,7 +1443,7 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   base::SmartPointer<Zone> verifier_zone;
   RegisterAllocatorVerifier* verifier = nullptr;
   if (run_verifier) {
-    verifier_zone.Reset(new Zone());
+    verifier_zone.Reset(new Zone(isolate()->allocator()));
     verifier = new (verifier_zone.get()) RegisterAllocatorVerifier(
         verifier_zone.get(), config, data->sequence());
   }
@@ -1438,6 +1451,8 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   base::SmartArrayPointer<char> debug_name;
 #ifdef DEBUG
   debug_name = info()->GetDebugName();
+  data_->sequence()->ValidateEdgeSplitForm();
+  data_->sequence()->ValidateDeferredBlockExitPaths();
 #endif
 
   data->InitializeRegisterAllocationData(config, descriptor, debug_name.get());
@@ -1477,12 +1492,6 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     Run<MergeSplintersPhase>();
   }
 
-  // We plan to enable frame elision only for stubs and bytecode handlers.
-  if (FLAG_turbo_frame_elision && info()->IsStub()) {
-    Run<LocateSpillSlotsPhase>();
-    Run<FrameElisionPhase>();
-  }
-
   Run<AssignSpillSlotsPhase>();
 
   Run<CommitAssignmentPhase>();
@@ -1492,6 +1501,8 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   if (FLAG_turbo_move_optimization) {
     Run<OptimizeMovesPhase>();
   }
+
+  Run<LocateSpillSlotsPhase>();
 
   if (FLAG_trace_turbo_graph) {
     OFStream os(stdout);

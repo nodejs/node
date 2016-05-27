@@ -48,7 +48,8 @@ assertNull(exception);
 
 assertEquals([
   "a0",
-  "b0",
+  "b44",
+  "b13",
   "d2b13",
   "e0b13",
   "b25",

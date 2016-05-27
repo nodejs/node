@@ -704,6 +704,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ cmp(edi, Immediate(masm->isolate()->factory()->empty_fixed_array()));
   __ j(equal, &only_change_map);
 
+  __ push(esi);
   __ push(eax);
   __ push(edx);
   __ push(ebx);
@@ -753,10 +754,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ pop(ebx);
   __ pop(edx);
   __ pop(eax);
+  __ pop(esi);
   __ jmp(fail);
 
   // Box doubles into heap numbers.
@@ -818,7 +819,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Restore registers.
   __ pop(eax);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ pop(esi);
 
   __ bind(&success);
 }
@@ -886,11 +887,11 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   }
   // Rule out short external strings.
   STATIC_ASSERT(kShortExternalStringTag != 0);
-  __ test_b(result, kShortExternalStringMask);
+  __ test_b(result, Immediate(kShortExternalStringMask));
   __ j(not_zero, call_runtime);
   // Check encoding.
   STATIC_ASSERT(kTwoByteStringTag == 0);
-  __ test_b(result, kStringEncodingMask);
+  __ test_b(result, Immediate(kStringEncodingMask));
   __ mov(result, FieldOperand(string, ExternalString::kResourceDataOffset));
   __ j(not_equal, &one_byte_external, Label::kNear);
   // Two-byte string.

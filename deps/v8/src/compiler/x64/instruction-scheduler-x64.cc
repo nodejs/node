@@ -20,8 +20,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64And32:
     case kX64Cmp:
     case kX64Cmp32:
+    case kX64Cmp16:
+    case kX64Cmp8:
     case kX64Test:
     case kX64Test32:
+    case kX64Test16:
+    case kX64Test8:
     case kX64Or:
     case kX64Or32:
     case kX64Xor:

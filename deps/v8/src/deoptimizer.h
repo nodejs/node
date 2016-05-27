@@ -116,6 +116,7 @@ class TranslatedFrame {
     kInterpretedFunction,
     kGetter,
     kSetter,
+    kTailCallerFunction,
     kArgumentsAdaptor,
     kConstructStub,
     kCompiledStub,
@@ -186,6 +187,7 @@ class TranslatedFrame {
                                        SharedFunctionInfo* shared_info);
   static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
                                                int height);
+  static TranslatedFrame TailCallerFrame(SharedFunctionInfo* shared_info);
   static TranslatedFrame ConstructStubFrame(SharedFunctionInfo* shared_info,
                                             int height);
   static TranslatedFrame CompiledStubFrame(int height, Isolate* isolate) {
@@ -315,7 +317,6 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   virtual void LeaveContext(Context* context) = 0;
 };
 
-
 #define DEOPT_MESSAGES_LIST(V)                                                 \
   V(kAccessCheck, "Access check needed")                                       \
   V(kNoReason, "no reason")                                                    \
@@ -333,6 +334,7 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kInstanceMigrationFailed, "instance migration failed")                     \
   V(kInsufficientTypeFeedbackForCallWithArguments,                             \
     "Insufficient type feedback for call with arguments")                      \
+  V(kFastArrayPushFailed, "Falling off the fast path for FastArrayPush")       \
   V(kInsufficientTypeFeedbackForCombinedTypeOfBinaryOperation,                 \
     "Insufficient type feedback for combined type of binary operation")        \
   V(kInsufficientTypeFeedbackForGenericNamedAccess,                            \
@@ -396,18 +398,9 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kUndefinedOrNullInForIn, "null or undefined in for-in")                    \
   V(kUndefinedOrNullInToObject, "null or undefined in ToObject")
 
-
 class Deoptimizer : public Malloced {
  public:
-  enum BailoutType {
-    EAGER,
-    LAZY,
-    SOFT,
-    // This last bailout type is not really a bailout, but used by the
-    // debugger to deoptimize stack frames to allow inspection.
-    DEBUGGER,
-    kBailoutTypesWithCodeEntry = SOFT + 1
-  };
+  enum BailoutType { EAGER, LAZY, SOFT, kLastBailoutType = SOFT };
 
 #define DEOPT_MESSAGES_CONSTANTS(C, T) C,
   enum DeoptReason {
@@ -537,8 +530,8 @@ class Deoptimizer : public Malloced {
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
 
-  static int has_alignment_padding_offset() {
-    return OFFSET_OF(Deoptimizer, has_alignment_padding_);
+  static int caller_frame_top_offset() {
+    return OFFSET_OF(Deoptimizer, caller_frame_top_);
   }
 
   static int GetDeoptimizedCodeCount(Isolate* isolate);
@@ -594,12 +587,20 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
-  void DoComputeJSFrame(int frame_index, bool goto_catch_handler);
-  void DoComputeInterpretedFrame(int frame_index, bool goto_catch_handler);
-  void DoComputeArgumentsAdaptorFrame(int frame_index);
-  void DoComputeConstructStubFrame(int frame_index);
-  void DoComputeAccessorStubFrame(int frame_index, bool is_setter_stub_frame);
-  void DoComputeCompiledStubFrame(int frame_index);
+  void DoComputeJSFrame(TranslatedFrame* translated_frame, int frame_index,
+                        bool goto_catch_handler);
+  void DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
+                                 int frame_index, bool goto_catch_handler);
+  void DoComputeArgumentsAdaptorFrame(TranslatedFrame* translated_frame,
+                                      int frame_index);
+  void DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
+                                int frame_index);
+  void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
+                                   int frame_index);
+  void DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
+                                  int frame_index, bool is_setter_stub_frame);
+  void DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
+                                  int frame_index);
 
   void WriteTranslatedValueToOutput(
       TranslatedFrame::iterator* iterator, int* input_index, int frame_index,
@@ -612,6 +613,7 @@ class Deoptimizer : public Malloced {
                             unsigned output_offset,
                             const char* debug_hint_string);
 
+  unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;
   static unsigned ComputeJavascriptFixedSize(SharedFunctionInfo* shared);
   static unsigned ComputeInterpretedFixedSize(SharedFunctionInfo* shared);
@@ -651,10 +653,6 @@ class Deoptimizer : public Malloced {
   // from the input frame's double registers.
   void CopyDoubleRegisters(FrameDescription* output_frame);
 
-  // Determines whether the input frame contains alignment padding by looking
-  // at the dynamic alignment state slot inside the frame.
-  bool HasAlignmentPadding(SharedFunctionInfo* shared);
-
   Isolate* isolate_;
   JSFunction* function_;
   Code* compiled_code_;
@@ -662,7 +660,6 @@ class Deoptimizer : public Malloced {
   BailoutType bailout_type_;
   Address from_;
   int fp_to_sp_delta_;
-  int has_alignment_padding_;
   bool deoptimizing_throw_;
   int catch_handler_data_;
   int catch_handler_pc_offset_;
@@ -676,8 +673,15 @@ class Deoptimizer : public Malloced {
   // Array of output frame descriptions.
   FrameDescription** output_;
 
+  // Caller frame details computed from input frame.
+  intptr_t caller_frame_top_;
+  intptr_t caller_fp_;
+  intptr_t caller_pc_;
+  intptr_t caller_constant_pool_;
+  intptr_t input_frame_context_;
+
   // Key for lookup of previously materialized objects
-  Address stack_fp_;
+  intptr_t stack_fp_;
 
   TranslatedState translated_state_;
   struct ValueToMaterialize {
@@ -891,8 +895,8 @@ class DeoptimizerData {
 
  private:
   MemoryAllocator* allocator_;
-  int deopt_entry_code_entries_[Deoptimizer::kBailoutTypesWithCodeEntry];
-  MemoryChunk* deopt_entry_code_[Deoptimizer::kBailoutTypesWithCodeEntry];
+  int deopt_entry_code_entries_[Deoptimizer::kLastBailoutType + 1];
+  MemoryChunk* deopt_entry_code_[Deoptimizer::kLastBailoutType + 1];
 
   Deoptimizer* current_;
 
@@ -944,6 +948,7 @@ class TranslationIterator BASE_EMBEDDED {
   V(GETTER_STUB_FRAME)             \
   V(SETTER_STUB_FRAME)             \
   V(ARGUMENTS_ADAPTOR_FRAME)       \
+  V(TAIL_CALLER_FRAME)             \
   V(COMPILED_STUB_FRAME)           \
   V(DUPLICATED_OBJECT)             \
   V(ARGUMENTS_OBJECT)              \
@@ -987,6 +992,7 @@ class Translation BASE_EMBEDDED {
                              unsigned height);
   void BeginCompiledStubFrame(int height);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
+  void BeginTailCallerFrame(int literal_id);
   void BeginConstructStubFrame(int literal_id, unsigned height);
   void BeginGetterStubFrame(int literal_id);
   void BeginSetterStubFrame(int literal_id);

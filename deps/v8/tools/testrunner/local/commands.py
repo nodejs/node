@@ -107,14 +107,16 @@ def RunProcess(verbose, timeout, args, **rest):
   timer.start()
   stdout, stderr = process.communicate()
   timer.cancel()
-  return process.returncode, timeout_result[0], stdout, stderr
+
+  return output.Output(
+      process.returncode,
+      timeout_result[0],
+      stdout,
+      stderr,
+      process.pid,
+  )
 
 
 def Execute(args, verbose=False, timeout=None):
   args = [ c for c in args if c != "" ]
-  exit_code, timed_out, stdout, stderr = RunProcess(
-    verbose,
-    timeout,
-    args=args,
-  )
-  return output.Output(exit_code, timed_out, stdout, stderr)
+  return RunProcess(verbose, timeout, args=args)

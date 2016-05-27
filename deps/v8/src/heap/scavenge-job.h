@@ -47,12 +47,12 @@ class ScavengeJob {
   void NotifyIdleTask() { idle_task_pending_ = false; }
   bool IdleTaskRescheduled() { return idle_task_rescheduled_; }
 
-  static bool ReachedIdleAllocationLimit(size_t scavenge_speed_in_bytes_per_ms,
+  static bool ReachedIdleAllocationLimit(double scavenge_speed_in_bytes_per_ms,
                                          size_t new_space_size,
                                          size_t new_space_capacity);
 
   static bool EnoughIdleTimeForScavenge(double idle_time_ms,
-                                        size_t scavenge_speed_in_bytes_per_ms,
+                                        double scavenge_speed_in_bytes_per_ms,
                                         size_t new_space_size);
 
   // If we haven't recorded any scavenger events yet, we use a conservative

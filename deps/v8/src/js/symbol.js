@@ -84,9 +84,7 @@ utils.InstallConstants(GlobalSymbol, [
   // "search", searchSymbol,
   // "split, splitSymbol,
   "toPrimitive", toPrimitiveSymbol,
-  // TODO(dslomov, caitp): Currently defined in harmony-tostring.js ---
-  // Move here when shipping
-  // "toStringTag", toStringTagSymbol,
+  "toStringTag", toStringTagSymbol,
   "unscopables", unscopablesSymbol,
 ]);
 

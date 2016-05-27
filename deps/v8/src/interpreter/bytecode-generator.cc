@@ -72,6 +72,7 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
 
   Scope* scope() const { return scope_; }
   Register reg() const { return register_; }
+  bool ShouldPopContext() { return should_pop_context_; }
 
  private:
   const BytecodeArrayBuilder* builder() const { return generator_->builder(); }
@@ -212,9 +213,9 @@ class BytecodeGenerator::ControlScopeForTopLevel final
  protected:
   bool Execute(Command command, Statement* statement) override {
     switch (command) {
-      case CMD_BREAK:
+      case CMD_BREAK:  // We should never see break/continue in top-level.
       case CMD_CONTINUE:
-        break;
+        UNREACHABLE();
       case CMD_RETURN:
         generator()->builder()->Return();
         return true;
@@ -362,15 +363,20 @@ class BytecodeGenerator::ControlScopeForTryFinally final
 void BytecodeGenerator::ControlScope::PerformCommand(Command command,
                                                      Statement* statement) {
   ControlScope* current = this;
-  ContextScope* context = this->context();
+  ContextScope* context = generator()->execution_context();
+  // Pop context to the expected depth but do not pop the outermost context.
+  if (context != current->context() && context->ShouldPopContext()) {
+    generator()->builder()->PopContext(current->context()->reg());
+  }
   do {
-    if (current->Execute(command, statement)) { return; }
+    if (current->Execute(command, statement)) {
+      return;
+    }
     current = current->outer();
     if (current->context() != context) {
       // Pop context to the expected depth.
       // TODO(rmcilroy): Only emit a single context pop.
       generator()->builder()->PopContext(current->context()->reg());
-      context = current->context();
     }
   } while (current != nullptr);
   UNREACHABLE();
@@ -450,7 +456,7 @@ class BytecodeGenerator::ExpressionResultScope {
 
   virtual ~ExpressionResultScope() {
     generator_->set_execution_result(outer_);
-    DCHECK(result_identified());
+    DCHECK(result_identified() || generator_->HasStackOverflow());
   }
 
   bool IsEffect() const { return kind_ == Expression::kEffect; }
@@ -462,6 +468,7 @@ class BytecodeGenerator::ExpressionResultScope {
  protected:
   ExpressionResultScope* outer() const { return outer_; }
   BytecodeArrayBuilder* builder() const { return generator_->builder(); }
+  BytecodeGenerator* generator() const { return generator_; }
   const RegisterAllocationScope* allocator() const { return &allocator_; }
 
   void set_result_identified() {
@@ -536,7 +543,12 @@ class BytecodeGenerator::RegisterResultScope final
     set_result_identified();
   }
 
-  Register ResultRegister() const { return result_register_; }
+  Register ResultRegister() {
+    if (generator()->HasStackOverflow() && !result_identified()) {
+      SetResultInAccumulator();
+    }
+    return result_register_;
+  }
 
  private:
   Register result_register_;
@@ -565,7 +577,8 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   // Initialize bytecode array builder.
   set_builder(new (zone()) BytecodeArrayBuilder(
       isolate(), zone(), info->num_parameters_including_this(),
-      scope()->MaxNestedContextChainLength(), scope()->num_stack_slots()));
+      scope()->MaxNestedContextChainLength(), scope()->num_stack_slots(),
+      info->literal()));
 
   // Initialize the incoming context.
   ContextScope incoming_context(this, scope(), false);
@@ -584,7 +597,7 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
     MakeBytecodeBody();
   }
 
-  builder()->EnsureReturn(info->literal());
+  builder()->EnsureReturn();
   set_scope(nullptr);
   set_info(nullptr);
   return builder()->ToBytecodeArray();
@@ -609,12 +622,6 @@ void BytecodeGenerator::MakeBytecodeBody() {
   // TODO(rmcilroy): Emit tracing call if requested to do so.
   if (FLAG_trace) {
     UNIMPLEMENTED();
-  }
-
-  // Visit illegal re-declaration and bail out if it exists.
-  if (scope()->HasIllegalRedeclaration()) {
-    VisitForEffect(scope()->GetIllegalRedeclaration());
-    return;
   }
 
   // Visit declarations within the function scope.
@@ -826,6 +833,7 @@ void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 
 void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   BytecodeLabel else_label, end_label;
   if (stmt->condition()->ToBooleanIsTrue()) {
     // Generate then block unconditionally as always true.
@@ -861,23 +869,26 @@ void BytecodeGenerator::VisitSloppyBlockFunctionStatement(
 
 
 void BytecodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   execution_control()->Continue(stmt->target());
 }
 
 
 void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   execution_control()->Break(stmt->target());
 }
 
 
 void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
-  VisitForAccumulatorValue(stmt->expression());
   builder()->SetStatementPosition(stmt);
+  VisitForAccumulatorValue(stmt->expression());
   execution_control()->ReturnAccumulator();
 }
 
 
 void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
   builder()->CastAccumulatorToJSObject();
   VisitNewLocalWithContext();
@@ -892,6 +903,8 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   SwitchBuilder switch_builder(builder(), clauses->length());
   ControlScopeForBreakable scope(this, stmt, &switch_builder);
   int default_index = -1;
+
+  builder()->SetStatementPosition(stmt);
 
   // Keep the switch value in a register until a case matches.
   Register tag = VisitForRegisterValue(stmt->tag());
@@ -959,6 +972,7 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   } else {
     VisitIterationBody(stmt, &loop_builder);
     loop_builder.Condition();
+    builder()->SetExpressionAsStatementPosition(stmt->cond());
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.JumpToHeaderIfTrue();
   }
@@ -975,6 +989,7 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   loop_builder.LoopHeader();
   loop_builder.Condition();
   if (!stmt->cond()->ToBooleanIsTrue()) {
+    builder()->SetExpressionAsStatementPosition(stmt->cond());
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.BreakIfFalse();
   }
@@ -998,12 +1013,14 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   loop_builder.LoopHeader();
   loop_builder.Condition();
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
+    builder()->SetExpressionAsStatementPosition(stmt->cond());
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.BreakIfFalse();
   }
   VisitIterationBody(stmt, &loop_builder);
   if (stmt->next() != nullptr) {
     loop_builder.Next();
+    builder()->SetStatementPosition(stmt->next());
     Visit(stmt->next());
   }
   loop_builder.JumpToHeader();
@@ -1087,28 +1104,28 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr,
 
 void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   if (stmt->subject()->IsNullLiteral() ||
-      stmt->subject()->IsUndefinedLiteral(isolate())) {
+      stmt->subject()->IsUndefinedLiteral()) {
     // ForIn generates lots of code, skip if it wouldn't produce any effects.
     return;
   }
 
   LoopBuilder loop_builder(builder());
-  BytecodeLabel subject_null_label, subject_undefined_label, not_object_label;
+  BytecodeLabel subject_null_label, subject_undefined_label;
 
   // Prepare the state for executing ForIn.
+  builder()->SetExpressionAsStatementPosition(stmt->subject());
   VisitForAccumulatorValue(stmt->subject());
   builder()->JumpIfUndefined(&subject_undefined_label);
   builder()->JumpIfNull(&subject_null_label);
   Register receiver = register_allocator()->NewRegister();
   builder()->CastAccumulatorToJSObject();
-  builder()->JumpIfNull(&not_object_label);
   builder()->StoreAccumulatorInRegister(receiver);
 
   register_allocator()->PrepareForConsecutiveAllocations(3);
   Register cache_type = register_allocator()->NextConsecutiveRegister();
   Register cache_array = register_allocator()->NextConsecutiveRegister();
   Register cache_length = register_allocator()->NextConsecutiveRegister();
-  // Used as kRegTriple8 and kRegPair8 in ForInPrepare and ForInNext.
+  // Used as kRegTriple and kRegPair in ForInPrepare and ForInNext.
   USE(cache_array);
   builder()->ForInPrepare(cache_type);
 
@@ -1119,11 +1136,13 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // The loop
   loop_builder.LoopHeader();
+  builder()->SetExpressionAsStatementPosition(stmt->each());
   loop_builder.Condition();
   builder()->ForInDone(index, cache_length);
   loop_builder.BreakIfTrue();
   DCHECK(Register::AreContiguous(cache_type, cache_array));
-  builder()->ForInNext(receiver, index, cache_type);
+  FeedbackVectorSlot slot = stmt->ForInFeedbackSlot();
+  builder()->ForInNext(receiver, index, cache_type, feedback_index(slot));
   loop_builder.ContinueIfUndefined();
   VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
   VisitIterationBody(stmt, &loop_builder);
@@ -1132,7 +1151,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   builder()->StoreAccumulatorInRegister(index);
   loop_builder.JumpToHeader();
   loop_builder.EndLoop();
-  builder()->Bind(&not_object_label);
   builder()->Bind(&subject_null_label);
   builder()->Bind(&subject_undefined_label);
 }
@@ -1146,6 +1164,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 
   loop_builder.LoopHeader();
   loop_builder.Next();
+  builder()->SetExpressionAsStatementPosition(stmt->next_result());
   VisitForEffect(stmt->next_result());
   VisitForAccumulatorValue(stmt->result_done());
   loop_builder.BreakIfTrue();
@@ -1180,8 +1199,10 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   VisitNewLocalCatchContext(stmt->variable());
   builder()->StoreAccumulatorInRegister(context);
 
-  // Clear message object as we enter the catch block.
-  builder()->CallRuntime(Runtime::kInterpreterClearPendingMessage, no_reg, 0);
+  // If requested, clear message object as we enter the catch block.
+  if (stmt->clear_pending_message()) {
+    builder()->CallRuntime(Runtime::kInterpreterClearPendingMessage, no_reg, 0);
+  }
 
   // Load the catch context into the accumulator.
   builder()->LoadAccumulatorWithRegister(context);
@@ -1267,7 +1288,9 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   // Find or build a shared function info.
   Handle<SharedFunctionInfo> shared_info =
       Compiler::GetSharedFunctionInfo(expr, info()->script(), info());
-  CHECK(!shared_info.is_null());  // TODO(rmcilroy): Set stack overflow?
+  if (shared_info.is_null()) {
+    return SetStackOverflow();
+  }
   builder()->CreateClosure(shared_info,
                            expr->pretenure() ? TENURED : NOT_TENURED);
   execution_result()->SetResultInAccumulator();
@@ -1679,11 +1702,6 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
 
-  // Transform literals that contain functions to fast properties.
-  if (expr->has_function()) {
-    builder()->CallRuntime(Runtime::kToFastProperties, literal, 1);
-  }
-
   execution_result()->SetResultInRegister(literal);
 }
 
@@ -1729,6 +1747,7 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
 
 void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
+  builder()->SetExpressionPosition(proxy);
   VisitVariableLoad(proxy->var(), proxy->VariableFeedbackSlot());
 }
 
@@ -2173,6 +2192,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
   }
 
   // Store the value.
+  builder()->SetExpressionPosition(expr);
   FeedbackVectorSlot slot = expr->AssignmentSlot();
   switch (assign_type) {
     case VARIABLE: {
@@ -2210,6 +2230,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) { UNIMPLEMENTED(); }
 
 void BytecodeGenerator::VisitThrow(Throw* expr) {
   VisitForAccumulatorValue(expr->exception());
+  builder()->SetExpressionPosition(expr);
   builder()->Throw();
   // Throw statments are modeled as expression instead of statments. These are
   // converted from assignment statements in Rewriter::ReWrite pass. An
@@ -2222,6 +2243,7 @@ void BytecodeGenerator::VisitThrow(Throw* expr) {
 void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
   LhsKind property_kind = Property::GetAssignType(expr);
   FeedbackVectorSlot slot = expr->PropertyFeedbackSlot();
+  builder()->SetExpressionPosition(expr);
   switch (property_kind) {
     case VARIABLE:
       UNREACHABLE();
@@ -2718,9 +2740,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Convert old value into a number.
-  if (!is_strong(language_mode())) {
-    builder()->CastAccumulatorToNumber();
-  }
+  builder()->CastAccumulatorToNumber();
 
   // Save result for postfix expressions.
   if (is_postfix) {
@@ -2732,6 +2752,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   builder()->CountOperation(expr->binary_op());
 
   // Store the value.
+  builder()->SetExpressionPosition(expr);
   FeedbackVectorSlot feedback_slot = expr->CountSlot();
   switch (assign_type) {
     case VARIABLE: {
@@ -2791,6 +2812,7 @@ void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Register lhs = VisitForRegisterValue(expr->left());
   VisitForAccumulatorValue(expr->right());
+  builder()->SetExpressionPosition(expr);
   builder()->CompareOperation(expr->op(), lhs);
   execution_result()->SetResultInAccumulator();
 }
@@ -3129,12 +3151,12 @@ void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {
 
 
 LanguageMode BytecodeGenerator::language_mode() const {
-  return info()->language_mode();
+  return execution_context()->scope()->language_mode();
 }
 
 
 int BytecodeGenerator::feedback_index(FeedbackVectorSlot slot) const {
-  return info()->feedback_vector()->GetIndex(slot);
+  return info()->shared_info()->feedback_vector()->GetIndex(slot);
 }
 
 }  // namespace interpreter

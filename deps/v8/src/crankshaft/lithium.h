@@ -9,6 +9,7 @@
 
 #include "src/allocation.h"
 #include "src/bailout-reason.h"
+#include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/hydrogen.h"
 #include "src/safepoint-table.h"
 #include "src/zone-allocator.h"
@@ -743,6 +744,16 @@ class LChunkBuilderBase BASE_EMBEDDED {
   // An input operand in register, stack slot or a constant operand.
   // Will not be moved to a register even if one is freely available.
   virtual MUST_USE_RESULT LOperand* UseAny(HValue* value) = 0;
+
+  // Constructs proper environment for a lazy bailout point after call, creates
+  // LLazyBailout instruction and adds it to current block.
+  void CreateLazyBailoutForCall(HBasicBlock* current_block, LInstruction* instr,
+                                HInstruction* hydrogen_val);
+
+  // Assigns given environment to an instruction.  An instruction which can
+  // deoptimize must have an environment.
+  LInstruction* AssignEnvironment(LInstruction* instr,
+                                  HEnvironment* hydrogen_env);
 
   LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
                                   int* argument_index_accumulator,

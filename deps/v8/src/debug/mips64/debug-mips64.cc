@@ -79,9 +79,15 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     __ li(at, Operand(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
     __ push(at);
 
-    if (mode == SAVE_RESULT_REGISTER) __ push(v0);
-
-    __ PrepareCEntryArgs(0);  // No arguments.
+    // Push arguments for DebugBreak call.
+    if (mode == SAVE_RESULT_REGISTER) {
+      // Break on return.
+      __ push(v0);
+    } else {
+      // Non-return breaks.
+      __ Push(masm->isolate()->factory()->the_hole_value());
+    }
+    __ PrepareCEntryArgs(1);
     __ PrepareCEntryFunction(ExternalReference(
         Runtime::FunctionForId(Runtime::kDebugBreak), masm->isolate()));
 
@@ -91,11 +97,13 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; i++) {
         Register reg = {JSCallerSavedCode(i)};
-        __ li(reg, kDebugZapValue);
+        // Do not clobber v0 if mode is SAVE_RESULT_REGISTER. It will
+        // contain return value of the function returned by DebugBreak.
+        if (!(reg.is(v0) && (mode == SAVE_RESULT_REGISTER))) {
+          __ li(reg, kDebugZapValue);
+        }
       }
     }
-
-    if (mode == SAVE_RESULT_REGISTER) __ pop(v0);
 
     // Don't bother removing padding bytes pushed on the stack
     // as the frame is going to be restored right away.
@@ -116,9 +124,10 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // We do not know our frame height, but set sp based on fp.
-  __ Dsubu(sp, fp, Operand(kPointerSize));
+  __ ld(a1, MemOperand(fp, FrameDropperFrameConstants::kFunctionOffset));
 
-  __ Pop(ra, fp, a1);  // Return address, Frame, Function.
+  // Pop return address and frame.
+  __ LeaveFrame(StackFrame::INTERNAL);
 
   ParameterCount dummy(0);
   __ FloodFunctionIfStepping(a1, no_reg, dummy, dummy);

@@ -103,12 +103,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
-  // There is no dynamic alignment padding on ARM in the input frame.
-  return false;
-}
-
-
 #define __ masm()->
 
 // This code tries to be close to ia32 code so that any changes can be
@@ -162,7 +156,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Allocate a new deoptimizer object.
   // Pass four arguments in r0 to r3 and fifth argument on stack.
   __ PrepareCallCFunction(6, r5);
+  __ mov(r0, Operand(0));
+  Label context_check;
+  __ ldr(r1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(r1, &context_check);
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ mov(r1, Operand(type()));  // bailout type,
   // r2: bailout id already loaded.
   // r3: code address or 0 already loaded.
@@ -234,6 +233,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
         ExternalReference::compute_output_frames_function(isolate()), 1);
   }
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
+
+  __ ldr(sp, MemOperand(r0, Deoptimizer::caller_frame_top_offset()));
 
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,

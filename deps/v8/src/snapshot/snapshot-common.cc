@@ -9,6 +9,9 @@
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/snapshot/deserializer.h"
+#include "src/snapshot/snapshot-source-sink.h"
+#include "src/version.h"
 
 namespace v8 {
 namespace internal {
@@ -228,5 +231,52 @@ Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data) {
   int context_length = data->raw_size - context_offset;
   return Vector<const byte>(context_data, context_length);
 }
+
+SnapshotData::SnapshotData(const Serializer& ser) {
+  DisallowHeapAllocation no_gc;
+  List<Reservation> reservations;
+  ser.EncodeReservations(&reservations);
+  const List<byte>& payload = ser.sink()->data();
+
+  // Calculate sizes.
+  int reservation_size = reservations.length() * kInt32Size;
+  int size = kHeaderSize + reservation_size + payload.length();
+
+  // Allocate backing store and create result data.
+  AllocateData(size);
+
+  // Set header values.
+  SetMagicNumber(ser.isolate());
+  SetHeaderValue(kCheckSumOffset, Version::Hash());
+  SetHeaderValue(kNumReservationsOffset, reservations.length());
+  SetHeaderValue(kPayloadLengthOffset, payload.length());
+
+  // Copy reservation chunk sizes.
+  CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
+            reservation_size);
+
+  // Copy serialized data.
+  CopyBytes(data_ + kHeaderSize + reservation_size, payload.begin(),
+            static_cast<size_t>(payload.length()));
+}
+
+bool SnapshotData::IsSane() {
+  return GetHeaderValue(kCheckSumOffset) == Version::Hash();
+}
+
+Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {
+  return Vector<const Reservation>(
+      reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
+      GetHeaderValue(kNumReservationsOffset));
+}
+
+Vector<const byte> SnapshotData::Payload() const {
+  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
+  const byte* payload = data_ + kHeaderSize + reservations_size;
+  int length = GetHeaderValue(kPayloadLengthOffset);
+  DCHECK_EQ(data_ + size_, payload + length);
+  return Vector<const byte>(payload, length);
+}
+
 }  // namespace internal
 }  // namespace v8

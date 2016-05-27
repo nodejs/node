@@ -81,7 +81,8 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
                                               Handle<Name> name) {
   Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
-  PROFILE(isolate(), CodeCreateEvent(Logger::HANDLER_TAG, *code, *name));
+  PROFILE(isolate(), CodeCreateEvent(Logger::HANDLER_TAG,
+                                     AbstractCode::cast(*code), *name));
 #ifdef DEBUG
   code->VerifyEmbeddedObjects();
 #endif
@@ -581,7 +582,9 @@ void ElementHandlerCompiler::CompileElementHandlers(
           (is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
            *receiver_map == isolate()->get_initial_js_array_map(elements_kind));
 
-      if (receiver_map->has_indexed_interceptor()) {
+      if (receiver_map->has_indexed_interceptor() &&
+          !receiver_map->GetIndexedInterceptor()->getter()->IsUndefined() &&
+          !receiver_map->GetIndexedInterceptor()->non_masking()) {
         cached_stub = LoadIndexedInterceptorStub(isolate()).GetCode();
       } else if (IsSloppyArgumentsElements(elements_kind)) {
         cached_stub = KeyedLoadSloppyArgumentsStub(isolate()).GetCode();

@@ -563,7 +563,7 @@ TEST(RunBinopTester) {
     Float64BinopTester bt(&m);
     bt.AddReturn(bt.param0);
 
-    FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(*i, bt.call(*i, 9.0)); }
+    FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(*i, bt.call(*i, 9.0)); }
   }
 
   {
@@ -571,7 +571,7 @@ TEST(RunBinopTester) {
     Float64BinopTester bt(&m);
     bt.AddReturn(bt.param1);
 
-    FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(*i, bt.call(-11.25, *i)); }
+    FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(*i, bt.call(-11.25, *i)); }
   }
 }
 
@@ -587,7 +587,7 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
   {
     BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
     m.Return(m.Parameter(0));
-    FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(*i, m.Call(*i)); }
+    FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(*i, m.Call(*i)); }
   }
   {
     BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
@@ -647,7 +647,7 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
     m.Return(m.Int32Constant(0));
     FOR_FLOAT64_INPUTS(i) {
       m.Call(*i);
-      CheckDoubleEq(*i, result);
+      CHECK_DOUBLE_EQ(*i, result);
     }
   }
   {

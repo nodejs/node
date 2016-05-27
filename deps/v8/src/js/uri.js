@@ -15,7 +15,6 @@
 // Imports
 
 var GlobalObject = global.Object;
-var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
 var MakeURIError;
 
@@ -76,7 +75,7 @@ function URIEncodeSingle(cc, result, index) {
   var x = (cc >> 12) & 0xF;
   var y = (cc >> 6) & 63;
   var z = cc & 63;
-  var octets = new GlobalArray(3);
+  var octets = new InternalArray(3);
   if (cc <= 0x007F) {
     octets[0] = cc;
   } else if (cc <= 0x07FF) {
@@ -96,7 +95,7 @@ function URIEncodePair(cc1 , cc2, result, index) {
   var x = cc1 & 3;
   var y = (cc2 >> 6) & 0xF;
   var z = cc2 & 63;
-  var octets = new GlobalArray(4);
+  var octets = new InternalArray(4);
   octets[0] = (u >> 2) + 240;
   octets[1] = (((u & 3) << 4) | w) + 128;
   octets[2] = ((x << 4) | y) + 128;
@@ -248,7 +247,7 @@ function Decode(uri, reserved) {
         var n = 0;
         while (((cc << ++n) & 0x80) != 0) { }
         if (n == 1 || n > 4) throw MakeURIError();
-        var octets = new GlobalArray(n);
+        var octets = new InternalArray(n);
         octets[0] = cc;
         if (k + 3 * (n - 1) >= uriLength) throw MakeURIError();
         for (var i = 1; i < n; i++) {

@@ -3888,3 +3888,28 @@ THREADED_TEST(NonMaskingInterceptorGlobalEvalRegression) {
       "eval('obj.x');",
       9);
 }
+
+static void CheckReceiver(Local<Name> name,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(info.This()->IsObject());
+}
+
+TEST(Regress609134Interceptor) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto fun_templ = v8::FunctionTemplate::New(isolate);
+  fun_templ->InstanceTemplate()->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(CheckReceiver));
+
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("Fun"),
+                  fun_templ->GetFunction(env.local()).ToLocalChecked())
+            .FromJust());
+
+  CompileRun(
+      "var f = new Fun();"
+      "Number.prototype.__proto__ = f;"
+      "var a = 42;"
+      "for (var i = 0; i<3; i++) { a.foo; }");
+}

@@ -905,7 +905,8 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
   masm_->GetCode(&code_desc);
   Handle<Code> code = isolate()->factory()->NewCode(
       code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
-  LOG(masm_->isolate(), RegExpCodeCreateEvent(*code, *source));
+  LOG(masm_->isolate(),
+      RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
 }
 

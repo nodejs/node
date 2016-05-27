@@ -317,11 +317,12 @@ TEST(MemoryAllocator) {
   {
     int total_pages = 0;
     OldSpace faked_space(heap, OLD_SPACE, NOT_EXECUTABLE);
-    Page* first_page = memory_allocator->AllocatePage(
-        faked_space.AreaSize(), &faked_space, NOT_EXECUTABLE);
+    Page* first_page = memory_allocator->AllocatePage<Page>(
+        faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
+        NOT_EXECUTABLE);
 
     first_page->InsertAfter(faked_space.anchor()->prev_page());
-    CHECK(Page::IsValid(first_page));
+    CHECK(first_page->is_valid());
     CHECK(first_page->next_page() == faked_space.anchor());
     total_pages++;
 
@@ -330,9 +331,10 @@ TEST(MemoryAllocator) {
     }
 
     // Again, we should get n or n - 1 pages.
-    Page* other = memory_allocator->AllocatePage(faked_space.AreaSize(),
-                                                 &faked_space, NOT_EXECUTABLE);
-    CHECK(Page::IsValid(other));
+    Page* other = memory_allocator->AllocatePage<Page>(
+        faked_space.AreaSize(), static_cast<PagedSpace*>(&faked_space),
+        NOT_EXECUTABLE);
+    CHECK(other->is_valid());
     total_pages++;
     other->InsertAfter(first_page);
     int page_count = 0;
@@ -343,7 +345,7 @@ TEST(MemoryAllocator) {
     CHECK(total_pages == page_count);
 
     Page* second_page = first_page->next_page();
-    CHECK(Page::IsValid(second_page));
+    CHECK(second_page->is_valid());
 
     // OldSpace's destructor will tear down the space and free up all pages.
   }
@@ -362,8 +364,8 @@ TEST(NewSpace) {
 
   NewSpace new_space(heap);
 
-  CHECK(new_space.SetUp(CcTest::heap()->ReservedSemiSpaceSize(),
-                        CcTest::heap()->ReservedSemiSpaceSize()));
+  CHECK(new_space.SetUp(CcTest::heap()->InitialSemiSpaceSize(),
+                        CcTest::heap()->InitialSemiSpaceSize()));
   CHECK(new_space.HasBeenSetUp());
 
   while (new_space.Available() >= Page::kMaxRegularHeapObjectSize) {
@@ -519,7 +521,8 @@ static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
   CHECK(!allocation.IsRetry());
   HeapObject* filler = NULL;
   CHECK(allocation.To(&filler));
-  space->heap()->CreateFillerObjectAt(filler->address(), size);
+  space->heap()->CreateFillerObjectAt(filler->address(), size,
+                                      ClearRecordedSlots::kNo);
   return filler;
 }
 
@@ -528,7 +531,8 @@ static HeapObject* AllocateUnaligned(PagedSpace* space, int size) {
   CHECK(!allocation.IsRetry());
   HeapObject* filler = NULL;
   CHECK(allocation.To(&filler));
-  space->heap()->CreateFillerObjectAt(filler->address(), size);
+  space->heap()->CreateFillerObjectAt(filler->address(), size,
+                                      ClearRecordedSlots::kNo);
   return filler;
 }
 

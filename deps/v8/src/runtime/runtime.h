@@ -35,7 +35,6 @@ namespace internal {
   F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 0, 1)     \
   F(TransitionElementsKind, 2, 1)    \
-  F(PushIfAbsent, 2, 1)              \
   F(RemoveArrayHoles, 2, 1)          \
   F(MoveArrayContents, 2, 1)         \
   F(EstimateNumberOfElements, 1, 1)  \
@@ -43,6 +42,7 @@ namespace internal {
   F(ArrayConstructor, -1, 1)         \
   F(NewArray, -1 /* >= 3 */, 1)      \
   F(InternalArrayConstructor, -1, 1) \
+  F(ArrayPush, -1, 1)                \
   F(NormalizeElements, 1, 1)         \
   F(GrowArrayElements, 2, 1)         \
   F(HasComplexElements, 1, 1)        \
@@ -52,7 +52,6 @@ namespace internal {
   F(FixedArrayGet, 2, 1)             \
   F(FixedArraySet, 3, 1)             \
   F(ArraySpeciesConstructor, 1, 1)
-
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F) \
   F(AtomicsCompareExchange, 4, 1)     \
@@ -138,10 +137,10 @@ namespace internal {
   F(DateCurrentTime, 0, 1)         \
   F(ThrowNotDateError, 0, 1)
 
-
 #define FOR_EACH_INTRINSIC_DEBUG(F)            \
   F(HandleDebuggerStatement, 0, 1)             \
-  F(DebugBreak, 0, 1)                          \
+  F(DebugBreak, 1, 1)                          \
+  F(DebugBreakOnBytecode, 1, 1)                \
   F(SetDebugEventListener, 2, 1)               \
   F(ScheduleBreak, 0, 1)                       \
   F(DebugGetInternalProperties, 1, 1)          \
@@ -156,7 +155,6 @@ namespace internal {
   F(GetFrameCount, 1, 1)                       \
   F(GetFrameDetails, 2, 1)                     \
   F(GetScopeCount, 2, 1)                       \
-  F(GetStepInPositions, 2, 1)                  \
   F(GetScopeDetails, 4, 1)                     \
   F(GetAllScopesDetails, 4, 1)                 \
   F(GetFunctionScopeCount, 1, 1)               \
@@ -192,11 +190,9 @@ namespace internal {
   F(DebugPrepareStepInIfStepping, 1, 1)        \
   F(DebugPushPromise, 2, 1)                    \
   F(DebugPopPromise, 0, 1)                     \
-  F(DebugPromiseEvent, 1, 1)                   \
   F(DebugAsyncTaskEvent, 1, 1)                 \
   F(DebugIsActive, 0, 1)                       \
   F(DebugBreakInOptimizedCode, 0, 1)
-
 
 #define FOR_EACH_INTRINSIC_FORIN(F) \
   F(ForInDone, 2, 1)                \
@@ -206,9 +202,6 @@ namespace internal {
   F(ForInStep, 1, 1)
 
 #define FOR_EACH_INTRINSIC_INTERPRETER(F) \
-  F(InterpreterToBoolean, 1, 1)           \
-  F(InterpreterLogicalNot, 1, 1)          \
-  F(InterpreterTypeOf, 1, 1)              \
   F(InterpreterNewClosure, 2, 1)          \
   F(InterpreterTraceBytecodeEntry, 3, 1)  \
   F(InterpreterTraceBytecodeExit, 3, 1)   \
@@ -223,18 +216,16 @@ namespace internal {
   F(FunctionGetSourceCode, 1, 1)           \
   F(FunctionGetScriptSourcePosition, 1, 1) \
   F(FunctionGetPositionForOffset, 2, 1)    \
+  F(FunctionGetContextData, 1, 1)          \
   F(FunctionSetInstanceClassName, 2, 1)    \
   F(FunctionSetLength, 2, 1)               \
   F(FunctionSetPrototype, 2, 1)            \
   F(FunctionIsAPIFunction, 1, 1)           \
   F(SetCode, 2, 1)                         \
   F(SetNativeFlag, 1, 1)                   \
-  F(ThrowStrongModeTooFewArguments, 0, 1)  \
   F(IsConstructor, 1, 1)                   \
   F(SetForceInlineFlag, 1, 1)              \
   F(Call, -1 /* >= 2 */, 1)                \
-  F(TailCall, -1 /* >= 2 */, 1)            \
-  F(Apply, 5, 1)                           \
   F(ConvertReceiver, 1, 1)                 \
   F(IsFunction, 1, 1)                      \
   F(FunctionToString, 1, 1)
@@ -245,7 +236,6 @@ namespace internal {
   F(ResumeJSGeneratorObject, 3, 1)      \
   F(GeneratorClose, 1, 1)               \
   F(GeneratorGetFunction, 1, 1)         \
-  F(GeneratorGetContext, 1, 1)          \
   F(GeneratorGetReceiver, 1, 1)         \
   F(GeneratorGetInput, 1, 1)            \
   F(GeneratorGetContinuation, 1, 1)     \
@@ -284,7 +274,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_I18N(F)
 #endif
 
-
 #define FOR_EACH_INTRINSIC_INTERNAL(F)              \
   F(CheckIsBootstrapping, 0, 1)                     \
   F(ExportFromRuntime, 1, 1)                        \
@@ -302,7 +291,6 @@ namespace internal {
   F(ThrowIllegalInvocation, 0, 1)                   \
   F(ThrowIteratorResultNotAnObject, 1, 1)           \
   F(ThrowStackOverflow, 0, 1)                       \
-  F(ThrowStrongModeImplicitConversion, 0, 1)        \
   F(PromiseRejectEvent, 3, 1)                       \
   F(PromiseRevokeReject, 1, 1)                      \
   F(StackGuard, 0, 1)                               \
@@ -324,14 +312,13 @@ namespace internal {
   F(CallSiteIsEvalRT, 1, 1)                         \
   F(CallSiteIsConstructorRT, 1, 1)                  \
   F(IS_VAR, 1, 1)                                   \
-  F(IncrementStatsCounter, 1, 1)                    \
   F(ThrowConstructedNonConstructable, 1, 1)         \
   F(ThrowDerivedConstructorReturnedNonObject, 0, 1) \
   F(ThrowCalledNonCallable, 1, 1)                   \
   F(CreateListFromArrayLike, 1, 1)                  \
   F(IncrementUseCounter, 1, 1)                      \
+  F(GetOrdinaryHasInstance, 0, 1)                   \
   F(GetAndResetRuntimeCallStats, 0, 1)
-
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
   F(QuoteJSONString, 1, 1)         \
@@ -361,9 +348,6 @@ namespace internal {
 
 
 #define FOR_EACH_INTRINSIC_MATHS(F) \
-  F(MathAcos, 1, 1)                 \
-  F(MathAsin, 1, 1)                 \
-  F(MathAtan, 1, 1)                 \
   F(MathLogRT, 1, 1)                \
   F(DoubleHi, 1, 1)                 \
   F(DoubleLo, 1, 1)                 \
@@ -371,13 +355,8 @@ namespace internal {
   F(RemPiO2, 2, 1)                  \
   F(MathAtan2, 2, 1)                \
   F(MathExpRT, 1, 1)                \
-  F(MathClz32, 1, 1)                \
-  F(MathFloor, 1, 1)                \
   F(MathPow, 2, 1)                  \
   F(MathPowRT, 2, 1)                \
-  F(RoundNumber, 1, 1)              \
-  F(MathSqrt, 1, 1)                 \
-  F(MathFround, 1, 1)               \
   F(GenerateRandomNumbers, 1, 1)
 
 
@@ -394,7 +373,6 @@ namespace internal {
   F(NumberToStringSkipCache, 1, 1)     \
   F(NumberToIntegerMapMinusZero, 1, 1) \
   F(NumberToSmi, 1, 1)                 \
-  F(NumberImul, 2, 1)                  \
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \
   F(IsSmi, 1, 1)                       \
@@ -404,6 +382,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_OBJECT(F)                 \
   F(GetPrototype, 1, 1)                              \
+  F(ObjectHasOwnProperty, 2, 1)                      \
   F(InternalSetPrototype, 2, 1)                      \
   F(SetPrototype, 2, 1)                              \
   F(GetOwnProperty_Legacy, 2, 1)                     \
@@ -419,7 +398,6 @@ namespace internal {
   F(AppendElement, 2, 1)                             \
   F(DeleteProperty_Sloppy, 2, 1)                     \
   F(DeleteProperty_Strict, 2, 1)                     \
-  F(HasOwnProperty, 2, 1)                            \
   F(HasProperty, 2, 1)                               \
   F(PropertyIsEnumerable, 2, 1)                      \
   F(GetOwnPropertyKeys, 2, 1)                        \
@@ -440,7 +418,6 @@ namespace internal {
   F(HasFastPackedElements, 1, 1)                     \
   F(ValueOf, 1, 1)                                   \
   F(IsJSReceiver, 1, 1)                              \
-  F(IsStrong, 1, 1)                                  \
   F(ClassOf, 1, 1)                                   \
   F(DefineGetterPropertyUnchecked, 4, 1)             \
   F(DefineSetterPropertyUnchecked, 4, 1)             \
@@ -457,6 +434,7 @@ namespace internal {
   F(SameValueZero, 2, 1)                             \
   F(Compare, 3, 1)                                   \
   F(InstanceOf, 2, 1)                                \
+  F(OrdinaryHasInstance, 2, 1)                       \
   F(HasInPrototypeChain, 2, 1)                       \
   F(CreateIterResultObject, 2, 1)                    \
   F(IsAccessCheckNeeded, 1, 1)                       \
@@ -854,7 +832,6 @@ namespace internal {
   F(Bool8x16Equal, 2, 1)               \
   F(Bool8x16NotEqual, 2, 1)
 
-
 #define FOR_EACH_INTRINSIC_STRINGS(F)     \
   F(StringReplaceOneCharWithString, 3, 1) \
   F(StringIndexOf, 3, 1)                  \
@@ -875,7 +852,12 @@ namespace internal {
   F(StringTrim, 3, 1)                     \
   F(TruncateString, 2, 1)                 \
   F(NewString, 2, 1)                      \
-  F(StringEquals, 2, 1)                   \
+  F(StringLessThan, 2, 1)                 \
+  F(StringLessThanOrEqual, 2, 1)          \
+  F(StringGreaterThan, 2, 1)              \
+  F(StringGreaterThanOrEqual, 2, 1)       \
+  F(StringEqual, 2, 1)                    \
+  F(StringNotEqual, 2, 1)                 \
   F(FlattenString, 1, 1)                  \
   F(StringCharFromCode, 1, 1)             \
   F(StringCharAt, 2, 1)                   \
@@ -884,7 +866,6 @@ namespace internal {
   F(TwoByteSeqStringGetChar, 2, 1)        \
   F(TwoByteSeqStringSetChar, 3, 1)        \
   F(StringCharCodeAt, 2, 1)
-
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F) \
   F(CreateSymbol, 1, 1)              \
@@ -941,7 +922,8 @@ namespace internal {
   F(HasFixedInt32Elements, 1, 1)              \
   F(HasFixedFloat32Elements, 1, 1)            \
   F(HasFixedFloat64Elements, 1, 1)            \
-  F(HasFixedUint8ClampedElements, 1, 1)
+  F(HasFixedUint8ClampedElements, 1, 1)       \
+  F(SpeciesProtector, 0, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \
@@ -995,7 +977,6 @@ namespace internal {
   F(BinaryOpIC_MissWithAllocationSite, 3, 1) \
   F(CallIC_Miss, 3, 1)                       \
   F(CompareIC_Miss, 3, 1)                    \
-  F(CompareNilIC_Miss, 1, 1)                 \
   F(ElementsTransitionAndStoreIC_Miss, 5, 1) \
   F(KeyedLoadIC_Miss, 4, 1)                  \
   F(KeyedLoadIC_MissFromStubFailure, 4, 1)   \
@@ -1151,7 +1132,7 @@ class Runtime : public AllStatic {
   // Used in runtime.cc and hydrogen's VisitArrayLiteral.
   MUST_USE_RESULT static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
       Isolate* isolate, Handle<LiteralsArray> literals,
-      Handle<FixedArray> elements, bool is_strong);
+      Handle<FixedArray> elements);
 
   static MaybeHandle<JSArray> GetInternalProperties(Isolate* isolate,
                                                     Handle<Object>);

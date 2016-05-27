@@ -37,6 +37,7 @@ class JsonParser BASE_EMBEDDED {
         source_length_(source->length()),
         isolate_(source->map()->GetHeap()->isolate()),
         factory_(isolate_->factory()),
+        zone_(isolate_->allocator()),
         object_constructor_(isolate_->native_context()->object_function(),
                             isolate_),
         position_(-1) {
@@ -536,7 +537,7 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonArray() {
     fast_elements->set(i, *elements[i]);
   }
   Handle<Object> json_array = factory()->NewJSArrayWithElements(
-      fast_elements, FAST_ELEMENTS, Strength::WEAK, pretenure_);
+      fast_elements, FAST_ELEMENTS, pretenure_);
   return scope.CloseAndEscape(json_array);
 }
 

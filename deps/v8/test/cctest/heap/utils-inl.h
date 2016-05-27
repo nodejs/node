@@ -49,7 +49,7 @@ static inline std::vector<Handle<FixedArray>> CreatePadding(
       if (length <= 0) {
         // Not enough room to create another fixed array. Let's create a filler.
         heap->CreateFillerObjectAt(*heap->old_space()->allocation_top_address(),
-                                   free_memory);
+                                   free_memory, ClearRecordedSlots::kNo);
         break;
       }
     }

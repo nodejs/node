@@ -62,7 +62,7 @@ function clearArray() {
   }
 }
 
-function testElementType(taConstr, f, oobValue, offset) {
+function testElementType(taConstr, f, offset) {
   clearArray();
 
   var ta = new taConstr(sab, offset);
@@ -71,17 +71,17 @@ function testElementType(taConstr, f, oobValue, offset) {
   assertEquals(10, f(0), name);
   assertEquals(0, f(1), name);
   // out of bounds
-  assertEquals(oobValue, f(-1), name);
-  assertEquals(oobValue, f(ta.length), name);
+  assertThrows(function() { f(-1); });
+  assertThrows(function() { f(ta.length); });
 }
 
 function testElement(m, offset) {
-  testElementType(Int8Array, m.loadi8, 0, offset);
-  testElementType(Int16Array, m.loadi16, 0, offset);
-  testElementType(Int32Array, m.loadi32, 0, offset);
-  testElementType(Uint8Array, m.loadu8, 0, offset);
-  testElementType(Uint16Array, m.loadu16, 0, offset);
-  testElementType(Uint32Array, m.loadu32, 0, offset);
+  testElementType(Int8Array, m.loadi8, offset);
+  testElementType(Int16Array, m.loadi16, offset);
+  testElementType(Int32Array, m.loadi32, offset);
+  testElementType(Uint8Array, m.loadu8, offset);
+  testElementType(Uint16Array, m.loadu16, offset);
+  testElementType(Uint32Array, m.loadu32, offset);
 }
 
 var offset = 0;

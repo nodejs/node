@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --nodead-code-elimination --concurrent-recompilation
-// Flags: --allow-natives-syntax --legacy-const
+// Flags: --allow-natives-syntax
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
@@ -35,7 +35,8 @@ if (!%IsConcurrentRecompilationSupported()) {
 
 function g() {  // g() cannot be optimized.
   const x = 1;
-  x++;
+  // TODO(adamk): Is this test still testing anything?
+  // x++;
 }
 
 function f(x) {

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --no-concurrent-osr
+// Flags: --allow-natives-syntax
 
 // Test for-in support in Crankshaft.  For simplicity this tests assumes certain
 // fixed iteration order for properties and will have to be adjusted if V8

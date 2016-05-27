@@ -18,8 +18,12 @@ namespace compiler {
   V(X64And32)                      \
   V(X64Cmp)                        \
   V(X64Cmp32)                      \
+  V(X64Cmp16)                      \
+  V(X64Cmp8)                       \
   V(X64Test)                       \
   V(X64Test32)                     \
+  V(X64Test16)                     \
+  V(X64Test8)                      \
   V(X64Or)                         \
   V(X64Or32)                       \
   V(X64Xor)                        \
@@ -138,7 +142,6 @@ namespace compiler {
   V(X64Push)                       \
   V(X64Poke)                       \
   V(X64StackCheck)
-
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

@@ -106,7 +106,8 @@ class TestCode : public HandleAndZoneScope {
 
 
 void VerifyForwarding(TestCode& code, int count, int* expected) {
-  Zone local_zone;
+  base::AccountingAllocator allocator;
+  Zone local_zone(&allocator);
   ZoneVector<RpoNumber> result(&local_zone);
   JumpThreading::ComputeForwarding(&local_zone, result, &code.sequence_, true);
 

@@ -34,7 +34,7 @@ var global = 3;
 function f(a) {
   // This will trigger a deopt since global was previously a SMI, with the
   // accumulator holding an unboxed double which needs materialized.
-  global = %_MathSqrt(a);
+  global = %math_sqrt(a);
 }
 %OptimizeFunctionOnNextCall(f);
 f(0.25);

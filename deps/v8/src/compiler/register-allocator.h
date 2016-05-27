@@ -919,7 +919,12 @@ class LiveRangeBuilder final : public ZoneObject {
     return data()->live_in_sets();
   }
 
+  // Verification.
   void Verify() const;
+  bool IntervalStartsAtBlockBoundary(const UseInterval* interval) const;
+  bool IntervalPredecessorsCoveredByRange(const UseInterval* interval,
+                                          const TopLevelLiveRange* range) const;
+  bool NextIntervalStartsInDifferentBlocks(const UseInterval* interval) const;
 
   // Liveness analysis support.
   void AddInitialIntervals(const InstructionBlock* block, BitVector* live_out);

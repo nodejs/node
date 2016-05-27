@@ -6,72 +6,90 @@
 #define V8_INTERPRETER_SOURCE_POSITION_TABLE_H_
 
 #include "src/assert-scope.h"
+#include "src/checks.h"
 #include "src/handles.h"
-#include "src/zone.h"
+#include "src/log.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
 class BytecodeArray;
-class FixedArray;
+class ByteArray;
 class Isolate;
+class Zone;
 
 namespace interpreter {
 
-class SourcePositionTableBuilder {
+struct PositionTableEntry {
+  PositionTableEntry()
+      : bytecode_offset(0), source_position(0), is_statement(false) {}
+  PositionTableEntry(int bytecode, int source, bool statement)
+      : bytecode_offset(bytecode),
+        source_position(source),
+        is_statement(statement) {}
+
+  int bytecode_offset;
+  int source_position;
+  bool is_statement;
+};
+
+class SourcePositionTableBuilder : public PositionsRecorder {
  public:
-  explicit SourcePositionTableBuilder(Isolate* isolate, Zone* zone)
-      : isolate_(isolate), entries_(zone) {}
+  SourcePositionTableBuilder(Isolate* isolate, Zone* zone)
+      : isolate_(isolate),
+        bytes_(zone),
+#ifdef ENABLE_SLOW_DCHECKS
+        raw_entries_(zone),
+#endif
+        candidate_(kUninitializedCandidateOffset, 0, false) {
+  }
 
   void AddStatementPosition(size_t bytecode_offset, int source_position);
   void AddExpressionPosition(size_t bytecode_offset, int source_position);
-  void RevertPosition(size_t bytecode_offset);
-  Handle<FixedArray> ToFixedArray();
+  Handle<ByteArray> ToSourcePositionTable();
 
  private:
-  struct Entry {
-    int bytecode_offset;
-    uint32_t source_position_and_type;
-  };
+  static const int kUninitializedCandidateOffset = -1;
 
-  bool CodeOffsetHasPosition(int bytecode_offset) {
-    // Return whether bytecode offset already has a position assigned.
-    return entries_.size() > 0 &&
-           entries_.back().bytecode_offset == bytecode_offset;
-  }
+  void AddEntry(const PositionTableEntry& entry);
+  void CommitEntry();
 
   Isolate* isolate_;
-  ZoneVector<Entry> entries_;
+  ZoneVector<byte> bytes_;
+#ifdef ENABLE_SLOW_DCHECKS
+  ZoneVector<PositionTableEntry> raw_entries_;
+#endif
+  PositionTableEntry candidate_;  // Next entry to be written, if initialized.
+  PositionTableEntry previous_;   // Previously written entry, to compute delta.
 };
 
 class SourcePositionTableIterator {
  public:
-  explicit SourcePositionTableIterator(BytecodeArray* bytecode_array);
+  explicit SourcePositionTableIterator(ByteArray* byte_array);
 
   void Advance();
 
   int bytecode_offset() const {
     DCHECK(!done());
-    return bytecode_offset_;
+    return current_.bytecode_offset;
   }
   int source_position() const {
     DCHECK(!done());
-    return source_position_;
+    return current_.source_position;
   }
   bool is_statement() const {
     DCHECK(!done());
-    return is_statement_;
+    return current_.is_statement;
   }
-  bool done() const { return index_ > length_; }
+  bool done() const { return index_ == kDone; }
 
  private:
-  FixedArray* table_;
+  static const int kDone = -1;
+
+  ByteArray* table_;
   int index_;
-  int length_;
-  bool is_statement_;
-  int bytecode_offset_;
-  int source_position_;
+  PositionTableEntry current_;
   DisallowHeapAllocation no_gc;
 };
 

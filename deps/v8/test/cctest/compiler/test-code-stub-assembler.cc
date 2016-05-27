@@ -13,10 +13,17 @@ namespace compiler {
 
 class CodeStubAssemblerTester : public CodeStubAssembler {
  public:
+  // Test generating code for a stub.
   CodeStubAssemblerTester(Isolate* isolate,
                           const CallInterfaceDescriptor& descriptor)
       : CodeStubAssembler(isolate, isolate->runtime_zone(), descriptor,
                           Code::ComputeFlags(Code::STUB), "test"),
+        scope_(isolate) {}
+
+  // Test generating code for a JS function (e.g. builtins).
+  CodeStubAssemblerTester(Isolate* isolate, int parameter_count)
+      : CodeStubAssembler(isolate, isolate->runtime_zone(), parameter_count,
+                          Code::ComputeFlags(Code::FUNCTION), "test"),
         scope_(isolate) {}
 
  private:
@@ -68,12 +75,12 @@ TEST(SimpleCallRuntime1Arg) {
   VoidDescriptor descriptor(isolate);
   CodeStubAssemblerTester m(isolate, descriptor);
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* b = m.SmiTag(m.Int32Constant(256));
-  m.Return(m.CallRuntime(Runtime::kMathSqrt, context, b));
+  Node* b = m.SmiTag(m.Int32Constant(0));
+  m.Return(m.CallRuntime(Runtime::kNumberToSmi, context, b));
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(16, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 
@@ -82,12 +89,12 @@ TEST(SimpleTailCallRuntime1Arg) {
   VoidDescriptor descriptor(isolate);
   CodeStubAssemblerTester m(isolate, descriptor);
   Node* context = m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* b = m.SmiTag(m.Int32Constant(256));
-  m.TailCallRuntime(Runtime::kMathSqrt, context, b);
+  Node* b = m.SmiTag(m.Int32Constant(0));
+  m.TailCallRuntime(Runtime::kNumberToSmi, context, b);
   Handle<Code> code = m.GenerateCode();
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(16, Handle<Smi>::cast(result.ToHandleChecked())->value());
+  CHECK_EQ(0, Handle<Smi>::cast(result.ToHandleChecked())->value());
 }
 
 
@@ -245,6 +252,113 @@ TEST(FixedArrayAccessSmiIndex) {
   FunctionTester ft(descriptor, code);
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(733, Handle<Smi>::cast(result.ToHandleChecked())->value());
+}
+
+TEST(LoadHeapNumberValue) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(1234);
+  m.Return(m.SmiTag(
+      m.ChangeFloat64ToUint32(m.LoadHeapNumberValue(m.HeapConstant(number)))));
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
+  MaybeHandle<Object> result = ft.Call();
+  CHECK_EQ(1234, Handle<Smi>::cast(result.ToHandleChecked())->value());
+}
+
+TEST(LoadInstanceType) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  Handle<HeapObject> undefined = isolate->factory()->undefined_value();
+  m.Return(m.SmiTag(m.LoadInstanceType(m.HeapConstant(undefined))));
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
+  MaybeHandle<Object> result = ft.Call();
+  CHECK_EQ(InstanceType::ODDBALL_TYPE,
+           Handle<Smi>::cast(result.ToHandleChecked())->value());
+}
+
+namespace {
+
+class TestBitField : public BitField<unsigned, 3, 3> {};
+
+}  // namespace
+
+TEST(BitFieldDecode) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  m.Return(m.SmiTag(m.BitFieldDecode<TestBitField>(m.Int32Constant(0x2f))));
+  Handle<Code> code = m.GenerateCode();
+  FunctionTester ft(descriptor, code);
+  MaybeHandle<Object> result = ft.Call();
+  // value  = 00101111
+  // mask   = 00111000
+  // result = 101
+  CHECK_EQ(5, Handle<Smi>::cast(result.ToHandleChecked())->value());
+}
+
+namespace {
+
+Handle<JSFunction> CreateFunctionFromCode(int parameter_count_with_receiver,
+                                          Handle<Code> code) {
+  Isolate* isolate = code->GetIsolate();
+  Handle<String> name = isolate->factory()->InternalizeUtf8String("test");
+  Handle<JSFunction> function =
+      isolate->factory()->NewFunctionWithoutPrototype(name, code);
+  function->shared()->set_internal_formal_parameter_count(
+      parameter_count_with_receiver - 1);  // Implicit undefined receiver.
+  return function;
+}
+
+}  // namespace
+
+TEST(JSFunction) {
+  const int kNumParams = 3;  // Receiver, left, right.
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeStubAssemblerTester m(isolate, kNumParams);
+  m.Return(m.SmiTag(m.Int32Add(m.SmiToWord32(m.Parameter(1)),
+                               m.SmiToWord32(m.Parameter(2)))));
+  Handle<Code> code = m.GenerateCode();
+  Handle<JSFunction> function = CreateFunctionFromCode(kNumParams, code);
+  Handle<Object> args[] = {Handle<Smi>(Smi::FromInt(23), isolate),
+                           Handle<Smi>(Smi::FromInt(34), isolate)};
+  MaybeHandle<Object> result =
+      Execution::Call(isolate, function, isolate->factory()->undefined_value(),
+                      arraysize(args), args);
+  CHECK_EQ(57, Handle<Smi>::cast(result.ToHandleChecked())->value());
+}
+
+TEST(SplitEdgeBranchMerge) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  CodeStubAssembler::Label l1(&m), merge(&m);
+  m.Branch(m.Int32Constant(1), &l1, &merge);
+  m.Bind(&l1);
+  m.Goto(&merge);
+  m.Bind(&merge);
+  USE(m.GenerateCode());
+}
+
+TEST(SplitEdgeSwitchMerge) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  VoidDescriptor descriptor(isolate);
+  CodeStubAssemblerTester m(isolate, descriptor);
+  CodeStubAssembler::Label l1(&m), l2(&m), l3(&m), default_label(&m);
+  CodeStubAssembler::Label* labels[] = {&l1, &l2};
+  int32_t values[] = {1, 2};
+  m.Branch(m.Int32Constant(1), &l3, &l1);
+  m.Bind(&l3);
+  m.Switch(m.Int32Constant(2), &default_label, values, labels, 2);
+  m.Bind(&l1);
+  m.Goto(&l2);
+  m.Bind(&l2);
+  m.Goto(&default_label);
+  m.Bind(&default_label);
+  USE(m.GenerateCode());
 }
 
 }  // namespace compiler

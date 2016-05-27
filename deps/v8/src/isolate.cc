@@ -22,6 +22,7 @@
 #include "src/crankshaft/hydrogen.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
@@ -34,7 +35,7 @@
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime-profiler.h"
 #include "src/simulator.h"
-#include "src/snapshot/serialize.h"
+#include "src/snapshot/deserializer.h"
 #include "src/v8.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
@@ -338,8 +339,23 @@ static bool IsVisibleInStackTrace(JSFunction* fun,
   return true;
 }
 
+static Handle<FixedArray> MaybeGrow(Isolate* isolate,
+                                    Handle<FixedArray> elements,
+                                    int cur_position, int new_size) {
+  if (new_size > elements->length()) {
+    int new_capacity = JSObject::NewElementsCapacity(elements->length());
+    Handle<FixedArray> new_elements =
+        isolate->factory()->NewFixedArrayWithHoles(new_capacity);
+    for (int i = 0; i < cur_position; i++) {
+      new_elements->set(i, elements->get(i));
+    }
+    elements = new_elements;
+  }
+  DCHECK(new_size <= elements->length());
+  return elements;
+}
 
-Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
+Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                                 Handle<Object> caller) {
   // Get stack trace limit.
   Handle<JSObject> error = error_function();
@@ -364,51 +380,72 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
   int frames_seen = 0;
   int sloppy_frames = 0;
   bool encountered_strict_function = false;
-  for (JavaScriptFrameIterator iter(this);
-       !iter.done() && frames_seen < limit;
+  for (StackFrameIterator iter(this); !iter.done() && frames_seen < limit;
        iter.Advance()) {
-    JavaScriptFrame* frame = iter.frame();
-    // Set initial size to the maximum inlining level + 1 for the outermost
-    // function.
-    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-    frame->Summarize(&frames);
-    for (int i = frames.length() - 1; i >= 0; i--) {
-      Handle<JSFunction> fun = frames[i].function();
-      Handle<Object> recv = frames[i].receiver();
-      // Filter out internal frames that we do not want to show.
-      if (!IsVisibleInStackTrace(*fun, *caller, *recv, &seen_caller)) continue;
-      // Filter out frames from other security contexts.
-      if (!this->context()->HasSameSecurityTokenAs(fun->context())) continue;
-      if (cursor + 4 > elements->length()) {
-        int new_capacity = JSObject::NewElementsCapacity(elements->length());
-        Handle<FixedArray> new_elements =
-            factory()->NewFixedArrayWithHoles(new_capacity);
-        for (int i = 0; i < cursor; i++) {
-          new_elements->set(i, elements->get(i));
-        }
-        elements = new_elements;
-      }
-      DCHECK(cursor + 4 <= elements->length());
+    StackFrame* frame = iter.frame();
 
-      Handle<AbstractCode> abstract_code = frames[i].abstract_code();
+    switch (frame->type()) {
+      case StackFrame::JAVA_SCRIPT:
+      case StackFrame::OPTIMIZED:
+      case StackFrame::INTERPRETED: {
+        JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
+        // Set initial size to the maximum inlining level + 1 for the outermost
+        // function.
+        List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+        js_frame->Summarize(&frames);
+        for (int i = frames.length() - 1; i >= 0; i--) {
+          Handle<JSFunction> fun = frames[i].function();
+          Handle<Object> recv = frames[i].receiver();
+          // Filter out internal frames that we do not want to show.
+          if (!IsVisibleInStackTrace(*fun, *caller, *recv, &seen_caller)) {
+            continue;
+          }
+          // Filter out frames from other security contexts.
+          if (!this->context()->HasSameSecurityTokenAs(fun->context())) {
+            continue;
+          }
+          elements = MaybeGrow(this, elements, cursor, cursor + 4);
 
-      Handle<Smi> offset(Smi::FromInt(frames[i].code_offset()), this);
-      // The stack trace API should not expose receivers and function
-      // objects on frames deeper than the top-most one with a strict
-      // mode function.  The number of sloppy frames is stored as
-      // first element in the result array.
-      if (!encountered_strict_function) {
-        if (is_strict(fun->shared()->language_mode())) {
-          encountered_strict_function = true;
-        } else {
-          sloppy_frames++;
+          Handle<AbstractCode> abstract_code = frames[i].abstract_code();
+
+          Handle<Smi> offset(Smi::FromInt(frames[i].code_offset()), this);
+          // The stack trace API should not expose receivers and function
+          // objects on frames deeper than the top-most one with a strict mode
+          // function. The number of sloppy frames is stored as first element in
+          // the result array.
+          if (!encountered_strict_function) {
+            if (is_strict(fun->shared()->language_mode())) {
+              encountered_strict_function = true;
+            } else {
+              sloppy_frames++;
+            }
+          }
+          elements->set(cursor++, *recv);
+          elements->set(cursor++, *fun);
+          elements->set(cursor++, *abstract_code);
+          elements->set(cursor++, *offset);
+          frames_seen++;
         }
-      }
-      elements->set(cursor++, *recv);
-      elements->set(cursor++, *fun);
-      elements->set(cursor++, *abstract_code);
-      elements->set(cursor++, *offset);
-      frames_seen++;
+      } break;
+
+      case StackFrame::WASM: {
+        WasmFrame* wasm_frame = WasmFrame::cast(frame);
+        Code* code = wasm_frame->unchecked_code();
+        Handle<AbstractCode> abstract_code =
+            Handle<AbstractCode>(AbstractCode::cast(code));
+        Handle<JSFunction> fun = factory()->NewFunction(
+            factory()->NewStringFromAsciiChecked("<WASM>"));
+        elements = MaybeGrow(this, elements, cursor, cursor + 4);
+        // TODO(jfb) Pass module object.
+        elements->set(cursor++, *factory()->undefined_value());
+        elements->set(cursor++, *fun);
+        elements->set(cursor++, *abstract_code);
+        elements->set(cursor++, Internals::IntToSmi(0));
+        frames_seen++;
+      } break;
+
+      default:
+        break;
     }
   }
   elements->set(0, Smi::FromInt(sloppy_frames));
@@ -419,9 +456,8 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
   return result;
 }
 
-
-MaybeHandle<JSObject> Isolate::CaptureAndSetDetailedStackTrace(
-    Handle<JSObject> error_object) {
+MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
+    Handle<JSReceiver> error_object) {
   if (capture_stack_trace_for_uncaught_exceptions_) {
     // Capture stack trace for a detailed exception message.
     Handle<Name> key = factory()->detailed_stack_trace_symbol();
@@ -429,21 +465,20 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetDetailedStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
     RETURN_ON_EXCEPTION(
-        this, JSObject::SetProperty(error_object, key, stack_trace, STRICT),
-        JSObject);
+        this, JSReceiver::SetProperty(error_object, key, stack_trace, STRICT),
+        JSReceiver);
   }
   return error_object;
 }
 
-
-MaybeHandle<JSObject> Isolate::CaptureAndSetSimpleStackTrace(
-    Handle<JSObject> error_object, Handle<Object> caller) {
+MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
+    Handle<JSReceiver> error_object, Handle<Object> caller) {
   // Capture stack trace for simple stack trace string formatting.
   Handle<Name> key = factory()->stack_trace_symbol();
   Handle<Object> stack_trace = CaptureSimpleStackTrace(error_object, caller);
   RETURN_ON_EXCEPTION(
-      this, JSObject::SetProperty(error_object, key, stack_trace, STRICT),
-      JSObject);
+      this, JSReceiver::SetProperty(error_object, key, stack_trace, STRICT),
+      JSReceiver);
   return error_object;
 }
 
@@ -868,7 +903,7 @@ Object* Isolate::StackOverflow() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && FLAG_stress_compaction) {
-    heap()->CollectAllAvailableGarbage("trigger compaction");
+    heap()->CollectAllGarbage(Heap::kNoGCFlags, "trigger compaction");
   }
 #endif  // VERIFY_HEAP
 
@@ -1780,6 +1815,8 @@ Isolate::Isolate(bool enable_serializer)
       descriptor_lookup_cache_(NULL),
       handle_scope_implementer_(NULL),
       unicode_cache_(NULL),
+      runtime_zone_(&allocator_),
+      interface_descriptor_zone_(&allocator_),
       inner_pointer_to_code_cache_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
@@ -1794,6 +1831,7 @@ Isolate::Isolate(bool enable_serializer)
       serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
+      is_tail_call_elimination_enabled_(true),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
       function_entry_hook_(NULL),
@@ -2165,7 +2203,7 @@ bool Isolate::Init(Deserializer* des) {
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390
   Simulator::Initialize(this);
 #endif
 #endif
@@ -2196,7 +2234,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   if (create_heap_objects) {
-    // Terminate the cache array with the sentinel so we can iterate.
+    // Terminate the partial snapshot cache so we can iterate.
     partial_snapshot_cache_.Add(heap_.undefined_value());
   }
 
@@ -2268,9 +2306,8 @@ bool Isolate::Init(Deserializer* des) {
     // the snapshot.
     HandleScope scope(this);
     Deoptimizer::EnsureCodeForDeoptimizationEntry(
-        this,
-        Deoptimizer::LAZY,
-        kDeoptTableSerializeEntryCount - 1);
+        this, Deoptimizer::LAZY,
+        ExternalReferenceTable::kDeoptTableSerializeEntryCount - 1);
   }
 
   if (!serializer_enabled()) {
@@ -2431,12 +2468,11 @@ CodeTracer* Isolate::GetCodeTracer() {
   return code_tracer();
 }
 
-
-Map* Isolate::get_initial_js_array_map(ElementsKind kind, Strength strength) {
+Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
   if (IsFastElementsKind(kind)) {
     DisallowHeapAllocation no_gc;
-    Object* const initial_js_array_map = context()->native_context()->get(
-        Context::ArrayMapIndex(kind, strength));
+    Object* const initial_js_array_map =
+        context()->native_context()->get(Context::ArrayMapIndex(kind));
     if (!initial_js_array_map->IsUndefined()) {
       return Map::cast(initial_js_array_map);
     }
@@ -2509,25 +2545,6 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
 #endif
 
   return cell_reports_intact;
-}
-
-bool Isolate::IsArraySpeciesLookupChainIntact() {
-  if (!FLAG_harmony_species) return true;
-  // Note: It would be nice to have debug checks to make sure that the
-  // species protector is accurate, but this would be hard to do for most of
-  // what the protector stands for:
-  // - You'd need to traverse the heap to check that no Array instance has
-  //   a constructor property or a modified __proto__
-  // - To check that Array[Symbol.species] == Array, JS code has to execute,
-  //   but JS cannot be invoked in callstack overflow situations
-  // All that could be checked reliably is that
-  // Array.prototype.constructor == Array. Given that limitation, no check is
-  // done here. In place, there are mjsunit tests harmony/array-species* which
-  // ensure that behavior is correct in various invalid protector cases.
-
-  PropertyCell* species_cell = heap()->species_protector();
-  return species_cell->value()->IsSmi() &&
-         Smi::cast(species_cell->value())->value() == kArrayProtectorValid;
 }
 
 void Isolate::InvalidateArraySpeciesProtector() {
@@ -2682,7 +2699,11 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 void Isolate::FireCallCompletedCallback() {
   bool has_call_completed_callbacks = !call_completed_callbacks_.is_empty();
-  bool run_microtasks = autorun_microtasks() && pending_microtask_count();
+  bool run_microtasks =
+      pending_microtask_count() &&
+      !handle_scope_implementer()->HasMicrotasksSuppressions() &&
+      handle_scope_implementer()->microtasks_policy() ==
+          v8::MicrotasksPolicy::kAuto;
   if (!has_call_completed_callbacks && !run_microtasks) return;
 
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
@@ -2737,7 +2758,12 @@ void Isolate::RunMicrotasks() {
   // Increase call depth to prevent recursive callbacks.
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
       reinterpret_cast<v8::Isolate*>(this));
+  RunMicrotasksInternal();
+  FireMicrotasksCompletedCallback();
+}
 
+
+void Isolate::RunMicrotasksInternal() {
   while (pending_microtask_count() > 0) {
     HandleScope scope(this);
     int num_tasks = pending_microtask_count();
@@ -2746,8 +2772,8 @@ void Isolate::RunMicrotasks() {
     set_pending_microtask_count(0);
     heap()->set_microtask_queue(heap()->empty_fixed_array());
 
-    for (int i = 0; i < num_tasks; i++) {
-      HandleScope scope(this);
+    Isolate* isolate = this;
+    FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < num_tasks, i++, {
       Handle<Object> microtask(queue->get(i), this);
       if (microtask->IsJSFunction()) {
         Handle<JSFunction> microtask_function =
@@ -2774,7 +2800,33 @@ void Isolate::RunMicrotasks() {
         void* data = v8::ToCData<void*>(callback_info->data());
         callback(data);
       }
+    });
+  }
+}
+
+
+void Isolate::AddMicrotasksCompletedCallback(
+    MicrotasksCompletedCallback callback) {
+  for (int i = 0; i < microtasks_completed_callbacks_.length(); i++) {
+    if (callback == microtasks_completed_callbacks_.at(i)) return;
+  }
+  microtasks_completed_callbacks_.Add(callback);
+}
+
+
+void Isolate::RemoveMicrotasksCompletedCallback(
+    MicrotasksCompletedCallback callback) {
+  for (int i = 0; i < microtasks_completed_callbacks_.length(); i++) {
+    if (callback == microtasks_completed_callbacks_.at(i)) {
+      microtasks_completed_callbacks_.Remove(i);
     }
+  }
+}
+
+
+void Isolate::FireMicrotasksCompletedCallback() {
+  for (int i = 0; i < microtasks_completed_callbacks_.length(); i++) {
+    microtasks_completed_callbacks_.at(i)(reinterpret_cast<v8::Isolate*>(this));
   }
 }
 
@@ -2817,6 +2869,14 @@ std::string Isolate::GetTurboCfgFileName() {
   }
 }
 
+void Isolate::SetTailCallEliminationEnabled(bool enabled) {
+  if (is_tail_call_elimination_enabled_ == enabled) return;
+  is_tail_call_elimination_enabled_ = enabled;
+  // TODO(ishell): Introduce DependencyGroup::kTailCallChangedGroup to
+  // deoptimize only those functions that are affected by the change of this
+  // flag.
+  internal::Deoptimizer::DeoptimizeAll(this);
+}
 
 // Heap::detached_contexts tracks detached contexts as pairs
 // (number of GC since the context was detached, the context).

@@ -25,6 +25,8 @@
 #include "src/crankshaft/mips/lithium-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/crankshaft/mips64/lithium-mips64.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/crankshaft/s390/lithium-s390.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
 #include "src/crankshaft/x87/lithium-x87.h"  // NOLINT
 #else
@@ -773,8 +775,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kArgumentsLength:
     case HValue::kArgumentsObject:
     case HValue::kBlockEntry:
-    case HValue::kBoundsCheckBaseIndexInformation:
-    case HValue::kCallFunction:
     case HValue::kCallNewArray:
     case HValue::kCapturedObject:
     case HValue::kClassOfTestAndBranch:
@@ -815,7 +815,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kReturn:
     case HValue::kSeqStringGetChar:
     case HValue::kStoreCodeEntry:
-    case HValue::kStoreFrameContext:
     case HValue::kStoreKeyed:
     case HValue::kStoreNamedField:
     case HValue::kStoreNamedGeneric:
@@ -832,7 +831,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kBitwise:
     case HValue::kBoundsCheck:
     case HValue::kBranch:
-    case HValue::kCallJSFunction:
     case HValue::kCallRuntime:
     case HValue::kCallWithDescriptor:
     case HValue::kChange:
@@ -873,7 +871,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kStringAdd:
     case HValue::kStringCompareAndBranch:
     case HValue::kSub:
-    case HValue::kToFastProperties:
     case HValue::kTransitionElementsKind:
     case HValue::kTrapAllocationMemento:
     case HValue::kTypeof:
@@ -907,96 +904,23 @@ std::ostream& HUnaryCall::PrintDataTo(std::ostream& os) const {  // NOLINT
 }
 
 
-std::ostream& HCallJSFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
-  return os << NameOf(function()) << " #" << argument_count();
-}
-
-
-HCallJSFunction* HCallJSFunction::New(Isolate* isolate, Zone* zone,
-                                      HValue* context, HValue* function,
-                                      int argument_count) {
-  bool has_stack_check = false;
-  if (function->IsConstant()) {
-    HConstant* fun_const = HConstant::cast(function);
-    Handle<JSFunction> jsfun =
-        Handle<JSFunction>::cast(fun_const->handle(isolate));
-    has_stack_check = !jsfun.is_null() &&
-        (jsfun->code()->kind() == Code::FUNCTION ||
-         jsfun->code()->kind() == Code::OPTIMIZED_FUNCTION);
-  }
-
-  return new (zone) HCallJSFunction(function, argument_count, has_stack_check);
-}
-
-
 std::ostream& HBinaryCall::PrintDataTo(std::ostream& os) const {  // NOLINT
   return os << NameOf(first()) << " " << NameOf(second()) << " #"
             << argument_count();
 }
 
+std::ostream& HInvokeFunction::PrintTo(std::ostream& os) const {  // NOLINT
+  if (tail_call_mode() == TailCallMode::kAllow) os << "Tail";
+  return HBinaryCall::PrintTo(os);
+}
 
-std::ostream& HCallFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << NameOf(context()) << " " << NameOf(function());
-  if (HasVectorAndSlot()) {
-    os << " (type-feedback-vector icslot " << slot().ToInt() << ")";
+std::ostream& HInvokeFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
+  HBinaryCall::PrintDataTo(os);
+  if (syntactic_tail_call_mode() == TailCallMode::kAllow) {
+    os << ", JSTailCall";
   }
-  os << " (convert mode" << convert_mode() << ")";
   return os;
 }
-
-
-void HBoundsCheck::ApplyIndexChange() {
-  if (skip_check()) return;
-
-  DecompositionResult decomposition;
-  bool index_is_decomposable = index()->TryDecompose(&decomposition);
-  if (index_is_decomposable) {
-    DCHECK(decomposition.base() == base());
-    if (decomposition.offset() == offset() &&
-        decomposition.scale() == scale()) return;
-  } else {
-    return;
-  }
-
-  ReplaceAllUsesWith(index());
-
-  HValue* current_index = decomposition.base();
-  int actual_offset = decomposition.offset() + offset();
-  int actual_scale = decomposition.scale() + scale();
-
-  HGraph* graph = block()->graph();
-  Isolate* isolate = graph->isolate();
-  Zone* zone = graph->zone();
-  HValue* context = graph->GetInvalidContext();
-  if (actual_offset != 0) {
-    HConstant* add_offset =
-        HConstant::New(isolate, zone, context, actual_offset);
-    add_offset->InsertBefore(this);
-    HInstruction* add =
-        HAdd::New(isolate, zone, context, current_index, add_offset);
-    add->InsertBefore(this);
-    add->AssumeRepresentation(index()->representation());
-    add->ClearFlag(kCanOverflow);
-    current_index = add;
-  }
-
-  if (actual_scale != 0) {
-    HConstant* sar_scale = HConstant::New(isolate, zone, context, actual_scale);
-    sar_scale->InsertBefore(this);
-    HInstruction* sar =
-        HSar::New(isolate, zone, context, current_index, sar_scale);
-    sar->InsertBefore(this);
-    sar->AssumeRepresentation(index()->representation());
-    current_index = sar;
-  }
-
-  SetOperandAt(0, current_index);
-
-  base_ = NULL;
-  offset_ = 0;
-  scale_ = 0;
-}
-
 
 std::ostream& HBoundsCheck::PrintDataTo(std::ostream& os) const {  // NOLINT
   os << NameOf(index()) << " " << NameOf(length());
@@ -1053,20 +977,16 @@ Range* HBoundsCheck::InferRange(Zone* zone) {
 }
 
 
-std::ostream& HBoundsCheckBaseIndexInformation::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  // TODO(svenpanne) This 2nd base_index() looks wrong...
-  return os << "base: " << NameOf(base_index())
-            << ", check: " << NameOf(base_index());
-}
-
-
 std::ostream& HCallWithDescriptor::PrintDataTo(
     std::ostream& os) const {  // NOLINT
   for (int i = 0; i < OperandCount(); i++) {
     os << NameOf(OperandAt(i)) << " ";
   }
-  return os << "#" << argument_count();
+  os << "#" << argument_count();
+  if (syntactic_tail_call_mode() == TailCallMode::kAllow) {
+    os << ", JSTailCall";
+  }
+  return os;
 }
 
 
@@ -1129,23 +1049,23 @@ std::ostream& HReturn::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 Representation HBranch::observed_input_representation(int index) {
-  if (expected_input_types_.Contains(ToBooleanStub::NULL_TYPE) ||
-      expected_input_types_.Contains(ToBooleanStub::SPEC_OBJECT) ||
-      expected_input_types_.Contains(ToBooleanStub::STRING) ||
-      expected_input_types_.Contains(ToBooleanStub::SYMBOL) ||
-      expected_input_types_.Contains(ToBooleanStub::SIMD_VALUE)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::NULL_TYPE) ||
+      expected_input_types_.Contains(ToBooleanICStub::SPEC_OBJECT) ||
+      expected_input_types_.Contains(ToBooleanICStub::STRING) ||
+      expected_input_types_.Contains(ToBooleanICStub::SYMBOL) ||
+      expected_input_types_.Contains(ToBooleanICStub::SIMD_VALUE)) {
     return Representation::Tagged();
   }
-  if (expected_input_types_.Contains(ToBooleanStub::UNDEFINED)) {
-    if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::UNDEFINED)) {
+    if (expected_input_types_.Contains(ToBooleanICStub::HEAP_NUMBER)) {
       return Representation::Double();
     }
     return Representation::Tagged();
   }
-  if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::HEAP_NUMBER)) {
     return Representation::Double();
   }
-  if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::SMI)) {
     return Representation::Smi();
   }
   return Representation::None();
@@ -1563,7 +1483,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
           val, representation(), false, false));
     }
   }
-  if (op() == kMathFloor && value()->IsDiv() && value()->HasOneUse()) {
+  if (op() == kMathFloor && representation().IsSmiOrInteger32() &&
+      value()->IsDiv() && value()->HasOneUse()) {
     HDiv* hdiv = HDiv::cast(value());
 
     HValue* left = hdiv->left();
@@ -1980,452 +1901,6 @@ Range* HMod::InferRange(Zone* zone) {
 }
 
 
-InductionVariableData* InductionVariableData::ExaminePhi(HPhi* phi) {
-  if (phi->block()->loop_information() == NULL) return NULL;
-  if (phi->OperandCount() != 2) return NULL;
-  int32_t candidate_increment;
-
-  candidate_increment = ComputeIncrement(phi, phi->OperandAt(0));
-  if (candidate_increment != 0) {
-    return new(phi->block()->graph()->zone())
-        InductionVariableData(phi, phi->OperandAt(1), candidate_increment);
-  }
-
-  candidate_increment = ComputeIncrement(phi, phi->OperandAt(1));
-  if (candidate_increment != 0) {
-    return new(phi->block()->graph()->zone())
-        InductionVariableData(phi, phi->OperandAt(0), candidate_increment);
-  }
-
-  return NULL;
-}
-
-
-/*
- * This function tries to match the following patterns (and all the relevant
- * variants related to |, & and + being commutative):
- * base | constant_or_mask
- * base & constant_and_mask
- * (base + constant_offset) & constant_and_mask
- * (base - constant_offset) & constant_and_mask
- */
-void InductionVariableData::DecomposeBitwise(
-    HValue* value,
-    BitwiseDecompositionResult* result) {
-  HValue* base = IgnoreOsrValue(value);
-  result->base = value;
-
-  if (!base->representation().IsInteger32()) return;
-
-  if (base->IsBitwise()) {
-    bool allow_offset = false;
-    int32_t mask = 0;
-
-    HBitwise* bitwise = HBitwise::cast(base);
-    if (bitwise->right()->IsInteger32Constant()) {
-      mask = bitwise->right()->GetInteger32Constant();
-      base = bitwise->left();
-    } else if (bitwise->left()->IsInteger32Constant()) {
-      mask = bitwise->left()->GetInteger32Constant();
-      base = bitwise->right();
-    } else {
-      return;
-    }
-    if (bitwise->op() == Token::BIT_AND) {
-      result->and_mask = mask;
-      allow_offset = true;
-    } else if (bitwise->op() == Token::BIT_OR) {
-      result->or_mask = mask;
-    } else {
-      return;
-    }
-
-    result->context = bitwise->context();
-
-    if (allow_offset) {
-      if (base->IsAdd()) {
-        HAdd* add = HAdd::cast(base);
-        if (add->right()->IsInteger32Constant()) {
-          base = add->left();
-        } else if (add->left()->IsInteger32Constant()) {
-          base = add->right();
-        }
-      } else if (base->IsSub()) {
-        HSub* sub = HSub::cast(base);
-        if (sub->right()->IsInteger32Constant()) {
-          base = sub->left();
-        }
-      }
-    }
-
-    result->base = base;
-  }
-}
-
-
-void InductionVariableData::AddCheck(HBoundsCheck* check,
-                                     int32_t upper_limit) {
-  DCHECK(limit_validity() != NULL);
-  if (limit_validity() != check->block() &&
-      !limit_validity()->Dominates(check->block())) return;
-  if (!phi()->block()->current_loop()->IsNestedInThisLoop(
-      check->block()->current_loop())) return;
-
-  ChecksRelatedToLength* length_checks = checks();
-  while (length_checks != NULL) {
-    if (length_checks->length() == check->length()) break;
-    length_checks = length_checks->next();
-  }
-  if (length_checks == NULL) {
-    length_checks = new(check->block()->zone())
-        ChecksRelatedToLength(check->length(), checks());
-    checks_ = length_checks;
-  }
-
-  length_checks->AddCheck(check, upper_limit);
-}
-
-
-void InductionVariableData::ChecksRelatedToLength::CloseCurrentBlock() {
-  if (checks() != NULL) {
-    InductionVariableCheck* c = checks();
-    HBasicBlock* current_block = c->check()->block();
-    while (c != NULL && c->check()->block() == current_block) {
-      c->set_upper_limit(current_upper_limit_);
-      c = c->next();
-    }
-  }
-}
-
-
-void InductionVariableData::ChecksRelatedToLength::UseNewIndexInCurrentBlock(
-    Token::Value token,
-    int32_t mask,
-    HValue* index_base,
-    HValue* context) {
-  DCHECK(first_check_in_block() != NULL);
-  HValue* previous_index = first_check_in_block()->index();
-  DCHECK(context != NULL);
-
-  Zone* zone = index_base->block()->graph()->zone();
-  Isolate* isolate = index_base->block()->graph()->isolate();
-  set_added_constant(HConstant::New(isolate, zone, context, mask));
-  if (added_index() != NULL) {
-    added_constant()->InsertBefore(added_index());
-  } else {
-    added_constant()->InsertBefore(first_check_in_block());
-  }
-
-  if (added_index() == NULL) {
-    first_check_in_block()->ReplaceAllUsesWith(first_check_in_block()->index());
-    HInstruction* new_index = HBitwise::New(isolate, zone, context, token,
-                                            index_base, added_constant());
-    DCHECK(new_index->IsBitwise());
-    new_index->ClearAllSideEffects();
-    new_index->AssumeRepresentation(Representation::Integer32());
-    set_added_index(HBitwise::cast(new_index));
-    added_index()->InsertBefore(first_check_in_block());
-  }
-  DCHECK(added_index()->op() == token);
-
-  added_index()->SetOperandAt(1, index_base);
-  added_index()->SetOperandAt(2, added_constant());
-  first_check_in_block()->SetOperandAt(0, added_index());
-  if (previous_index->HasNoUses()) {
-    previous_index->DeleteAndReplaceWith(NULL);
-  }
-}
-
-void InductionVariableData::ChecksRelatedToLength::AddCheck(
-    HBoundsCheck* check,
-    int32_t upper_limit) {
-  BitwiseDecompositionResult decomposition;
-  InductionVariableData::DecomposeBitwise(check->index(), &decomposition);
-
-  if (first_check_in_block() == NULL ||
-      first_check_in_block()->block() != check->block()) {
-    CloseCurrentBlock();
-
-    first_check_in_block_ = check;
-    set_added_index(NULL);
-    set_added_constant(NULL);
-    current_and_mask_in_block_ = decomposition.and_mask;
-    current_or_mask_in_block_ = decomposition.or_mask;
-    current_upper_limit_ = upper_limit;
-
-    InductionVariableCheck* new_check = new(check->block()->graph()->zone())
-        InductionVariableCheck(check, checks_, upper_limit);
-    checks_ = new_check;
-    return;
-  }
-
-  if (upper_limit > current_upper_limit()) {
-    current_upper_limit_ = upper_limit;
-  }
-
-  if (decomposition.and_mask != 0 &&
-      current_or_mask_in_block() == 0) {
-    if (current_and_mask_in_block() == 0 ||
-        decomposition.and_mask > current_and_mask_in_block()) {
-      UseNewIndexInCurrentBlock(Token::BIT_AND,
-                                decomposition.and_mask,
-                                decomposition.base,
-                                decomposition.context);
-      current_and_mask_in_block_ = decomposition.and_mask;
-    }
-    check->set_skip_check();
-  }
-  if (current_and_mask_in_block() == 0) {
-    if (decomposition.or_mask > current_or_mask_in_block()) {
-      UseNewIndexInCurrentBlock(Token::BIT_OR,
-                                decomposition.or_mask,
-                                decomposition.base,
-                                decomposition.context);
-      current_or_mask_in_block_ = decomposition.or_mask;
-    }
-    check->set_skip_check();
-  }
-
-  if (!check->skip_check()) {
-    InductionVariableCheck* new_check = new(check->block()->graph()->zone())
-        InductionVariableCheck(check, checks_, upper_limit);
-    checks_ = new_check;
-  }
-}
-
-
-/*
- * This method detects if phi is an induction variable, with phi_operand as
- * its "incremented" value (the other operand would be the "base" value).
- *
- * It cheks is phi_operand has the form "phi + constant".
- * If yes, the constant is the increment that the induction variable gets at
- * every loop iteration.
- * Otherwise it returns 0.
- */
-int32_t InductionVariableData::ComputeIncrement(HPhi* phi,
-                                                HValue* phi_operand) {
-  if (!phi_operand->representation().IsSmiOrInteger32()) return 0;
-
-  if (phi_operand->IsAdd()) {
-    HAdd* operation = HAdd::cast(phi_operand);
-    if (operation->left() == phi &&
-        operation->right()->IsInteger32Constant()) {
-      return operation->right()->GetInteger32Constant();
-    } else if (operation->right() == phi &&
-               operation->left()->IsInteger32Constant()) {
-      return operation->left()->GetInteger32Constant();
-    }
-  } else if (phi_operand->IsSub()) {
-    HSub* operation = HSub::cast(phi_operand);
-    if (operation->left() == phi &&
-        operation->right()->IsInteger32Constant()) {
-      int constant = operation->right()->GetInteger32Constant();
-      if (constant == kMinInt) return 0;
-      return -constant;
-    }
-  }
-
-  return 0;
-}
-
-
-/*
- * Swaps the information in "update" with the one contained in "this".
- * The swapping is important because this method is used while doing a
- * dominator tree traversal, and "update" will retain the old data that
- * will be restored while backtracking.
- */
-void InductionVariableData::UpdateAdditionalLimit(
-    InductionVariableLimitUpdate* update) {
-  DCHECK(update->updated_variable == this);
-  if (update->limit_is_upper) {
-    swap(&additional_upper_limit_, &update->limit);
-    swap(&additional_upper_limit_is_included_, &update->limit_is_included);
-  } else {
-    swap(&additional_lower_limit_, &update->limit);
-    swap(&additional_lower_limit_is_included_, &update->limit_is_included);
-  }
-}
-
-
-int32_t InductionVariableData::ComputeUpperLimit(int32_t and_mask,
-                                                 int32_t or_mask) {
-  // Should be Smi::kMaxValue but it must fit 32 bits; lower is safe anyway.
-  const int32_t MAX_LIMIT = 1 << 30;
-
-  int32_t result = MAX_LIMIT;
-
-  if (limit() != NULL &&
-      limit()->IsInteger32Constant()) {
-    int32_t limit_value = limit()->GetInteger32Constant();
-    if (!limit_included()) {
-      limit_value--;
-    }
-    if (limit_value < result) result = limit_value;
-  }
-
-  if (additional_upper_limit() != NULL &&
-      additional_upper_limit()->IsInteger32Constant()) {
-    int32_t limit_value = additional_upper_limit()->GetInteger32Constant();
-    if (!additional_upper_limit_is_included()) {
-      limit_value--;
-    }
-    if (limit_value < result) result = limit_value;
-  }
-
-  if (and_mask > 0 && and_mask < MAX_LIMIT) {
-    if (and_mask < result) result = and_mask;
-    return result;
-  }
-
-  // Add the effect of the or_mask.
-  result |= or_mask;
-
-  return result >= MAX_LIMIT ? kNoLimit : result;
-}
-
-
-HValue* InductionVariableData::IgnoreOsrValue(HValue* v) {
-  if (!v->IsPhi()) return v;
-  HPhi* phi = HPhi::cast(v);
-  if (phi->OperandCount() != 2) return v;
-  if (phi->OperandAt(0)->block()->is_osr_entry()) {
-    return phi->OperandAt(1);
-  } else if (phi->OperandAt(1)->block()->is_osr_entry()) {
-    return phi->OperandAt(0);
-  } else {
-    return v;
-  }
-}
-
-
-InductionVariableData* InductionVariableData::GetInductionVariableData(
-    HValue* v) {
-  v = IgnoreOsrValue(v);
-  if (v->IsPhi()) {
-    return HPhi::cast(v)->induction_variable_data();
-  }
-  return NULL;
-}
-
-
-/*
- * Check if a conditional branch to "current_branch" with token "token" is
- * the branch that keeps the induction loop running (and, conversely, will
- * terminate it if the "other_branch" is taken).
- *
- * Three conditions must be met:
- * - "current_branch" must be in the induction loop.
- * - "other_branch" must be out of the induction loop.
- * - "token" and the induction increment must be "compatible": the token should
- *   be a condition that keeps the execution inside the loop until the limit is
- *   reached.
- */
-bool InductionVariableData::CheckIfBranchIsLoopGuard(
-    Token::Value token,
-    HBasicBlock* current_branch,
-    HBasicBlock* other_branch) {
-  if (!phi()->block()->current_loop()->IsNestedInThisLoop(
-      current_branch->current_loop())) {
-    return false;
-  }
-
-  if (phi()->block()->current_loop()->IsNestedInThisLoop(
-      other_branch->current_loop())) {
-    return false;
-  }
-
-  if (increment() > 0 && (token == Token::LT || token == Token::LTE)) {
-    return true;
-  }
-  if (increment() < 0 && (token == Token::GT || token == Token::GTE)) {
-    return true;
-  }
-  if (Token::IsInequalityOp(token) && (increment() == 1 || increment() == -1)) {
-    return true;
-  }
-
-  return false;
-}
-
-
-void InductionVariableData::ComputeLimitFromPredecessorBlock(
-    HBasicBlock* block,
-    LimitFromPredecessorBlock* result) {
-  if (block->predecessors()->length() != 1) return;
-  HBasicBlock* predecessor = block->predecessors()->at(0);
-  HInstruction* end = predecessor->last();
-
-  if (!end->IsCompareNumericAndBranch()) return;
-  HCompareNumericAndBranch* branch = HCompareNumericAndBranch::cast(end);
-
-  Token::Value token = branch->token();
-  if (!Token::IsArithmeticCompareOp(token)) return;
-
-  HBasicBlock* other_target;
-  if (block == branch->SuccessorAt(0)) {
-    other_target = branch->SuccessorAt(1);
-  } else {
-    other_target = branch->SuccessorAt(0);
-    token = Token::NegateCompareOp(token);
-    DCHECK(block == branch->SuccessorAt(1));
-  }
-
-  InductionVariableData* data;
-
-  data = GetInductionVariableData(branch->left());
-  HValue* limit = branch->right();
-  if (data == NULL) {
-    data = GetInductionVariableData(branch->right());
-    token = Token::ReverseCompareOp(token);
-    limit = branch->left();
-  }
-
-  if (data != NULL) {
-    result->variable = data;
-    result->token = token;
-    result->limit = limit;
-    result->other_target = other_target;
-  }
-}
-
-
-/*
- * Compute the limit that is imposed on an induction variable when entering
- * "block" (if any).
- * If the limit is the "proper" induction limit (the one that makes the loop
- * terminate when the induction variable reaches it) it is stored directly in
- * the induction variable data.
- * Otherwise the limit is written in "additional_limit" and the method
- * returns true.
- */
-bool InductionVariableData::ComputeInductionVariableLimit(
-    HBasicBlock* block,
-    InductionVariableLimitUpdate* additional_limit) {
-  LimitFromPredecessorBlock limit;
-  ComputeLimitFromPredecessorBlock(block, &limit);
-  if (!limit.LimitIsValid()) return false;
-
-  if (limit.variable->CheckIfBranchIsLoopGuard(limit.token,
-                                               block,
-                                               limit.other_target)) {
-    limit.variable->limit_ = limit.limit;
-    limit.variable->limit_included_ = limit.LimitIsIncluded();
-    limit.variable->limit_validity_ = block;
-    limit.variable->induction_exit_block_ = block->predecessors()->at(0);
-    limit.variable->induction_exit_target_ = limit.other_target;
-    return false;
-  } else {
-    additional_limit->updated_variable = limit.variable;
-    additional_limit->limit = limit.limit;
-    additional_limit->limit_is_upper = limit.LimitIsUpper();
-    additional_limit->limit_is_included = limit.LimitIsIncluded();
-    return true;
-  }
-}
-
-
 Range* HMathMinMax::InferRange(Zone* zone) {
   if (representation().IsSmiOrInteger32()) {
     Range* a = left()->range();
@@ -2652,7 +2127,11 @@ void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
 
 
 std::ostream& HEnterInlined::PrintDataTo(std::ostream& os) const {  // NOLINT
-  return os << function()->debug_name()->ToCString().get();
+  os << function()->debug_name()->ToCString().get();
+  if (syntactic_tail_call_mode() == TailCallMode::kAllow) {
+    os << ", JSTailCall";
+  }
+  return os;
 }
 
 
@@ -3272,6 +2751,17 @@ bool HIsUndetectableAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
         ? FirstSuccessor() : SecondSuccessor();
     return true;
   }
+  if (value()->type().IsNull() || value()->type().IsUndefined()) {
+    *block = FirstSuccessor();
+    return true;
+  }
+  if (value()->type().IsBoolean() ||
+      value()->type().IsSmi() ||
+      value()->type().IsString() ||
+      value()->type().IsJSReceiver()) {
+    *block = SecondSuccessor();
+    return true;
+  }
   *block = NULL;
   return false;
 }
@@ -3767,12 +3257,12 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     }
   }
 
-  bool keep_new_space_iterable = FLAG_log_gc || FLAG_heap_stats;
+  bool keep_heap_iterable = FLAG_log_gc || FLAG_heap_stats;
 #ifdef VERIFY_HEAP
-  keep_new_space_iterable = keep_new_space_iterable || FLAG_verify_heap;
+  keep_heap_iterable = keep_heap_iterable || FLAG_verify_heap;
 #endif
 
-  if (keep_new_space_iterable && dominator_allocate->IsNewSpaceAllocation()) {
+  if (keep_heap_iterable) {
     dominator_allocate->MakePrefillWithFiller();
   } else {
     // TODO(hpayer): This is a short-term hack to make allocation mementos

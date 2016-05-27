@@ -359,14 +359,17 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             Advance(2);
             if (unicode()) {
               if (FLAG_harmony_regexp_property) {
-                ZoneList<CharacterRange>* ranges = ParsePropertyClass();
-                if (ranges == nullptr) {
+                ZoneList<CharacterRange>* ranges =
+                    new (zone()) ZoneList<CharacterRange>(2, zone());
+                if (!ParsePropertyClass(ranges)) {
                   return ReportError(CStrVector("Invalid property name"));
                 }
                 RegExpCharacterClass* cc =
                     new (zone()) RegExpCharacterClass(ranges, p == 'P');
                 builder->AddCharacterClass(cc);
               } else {
+                // With /u, no identity escapes except for syntax characters
+                // are allowed. Otherwise, all identity escapes are allowed.
                 return ReportError(CStrVector("Invalid escape"));
               }
             } else {
@@ -841,54 +844,95 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
   return result;
 }
 
-ZoneList<CharacterRange>* RegExpParser::ParsePropertyClass() {
 #ifdef V8_I18N_SUPPORT
-  char property_name[3];
-  memset(property_name, 0, sizeof(property_name));
-  if (current() == '{') {
-    Advance();
-    if (current() < 'A' || current() > 'Z') return nullptr;
-    property_name[0] = static_cast<char>(current());
-    Advance();
-    if (current() >= 'a' && current() <= 'z') {
-      property_name[1] = static_cast<char>(current());
-      Advance();
-    }
-    if (current() != '}') return nullptr;
-  } else if (current() >= 'A' && current() <= 'Z') {
-    property_name[0] = static_cast<char>(current());
-  } else {
-    return nullptr;
+bool IsExactPropertyValueAlias(const char* property_name, UProperty property,
+                               int32_t property_value) {
+  const char* short_name =
+      u_getPropertyValueName(property, property_value, U_SHORT_PROPERTY_NAME);
+  if (short_name != NULL && strcmp(property_name, short_name) == 0) return true;
+  for (int i = 0;; i++) {
+    const char* long_name = u_getPropertyValueName(
+        property, property_value,
+        static_cast<UPropertyNameChoice>(U_LONG_PROPERTY_NAME + i));
+    if (long_name == NULL) break;
+    if (strcmp(property_name, long_name) == 0) return true;
   }
-  Advance();
+  return false;
+}
 
-  int32_t category =
-      u_getPropertyValueEnum(UCHAR_GENERAL_CATEGORY_MASK, property_name);
-  if (category == UCHAR_INVALID_CODE) return nullptr;
+bool LookupPropertyClass(UProperty property, const char* property_name,
+                         ZoneList<CharacterRange>* result, Zone* zone) {
+  int32_t property_value = u_getPropertyValueEnum(property, property_name);
+  if (property_value == UCHAR_INVALID_CODE) return false;
+
+  // We require the property name to match exactly to one of the property value
+  // aliases. However, u_getPropertyValueEnum uses loose matching.
+  if (!IsExactPropertyValueAlias(property_name, property, property_value)) {
+    return false;
+  }
 
   USet* set = uset_openEmpty();
   UErrorCode ec = U_ZERO_ERROR;
-  uset_applyIntPropertyValue(set, UCHAR_GENERAL_CATEGORY_MASK, category, &ec);
-  ZoneList<CharacterRange>* ranges = nullptr;
-  if (ec == U_ZERO_ERROR && !uset_isEmpty(set)) {
+  uset_applyIntPropertyValue(set, property, property_value, &ec);
+  bool success = ec == U_ZERO_ERROR && !uset_isEmpty(set);
+
+  if (success) {
     uset_removeAllStrings(set);
     int item_count = uset_getItemCount(set);
-    ranges = new (zone()) ZoneList<CharacterRange>(item_count, zone());
     int item_result = 0;
     for (int i = 0; i < item_count; i++) {
       uc32 start = 0;
       uc32 end = 0;
       item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
-      ranges->Add(CharacterRange::Range(start, end), zone());
+      result->Add(CharacterRange::Range(start, end), zone);
     }
     DCHECK_EQ(U_ZERO_ERROR, ec);
     DCHECK_EQ(0, item_result);
   }
   uset_close(set);
-  return ranges;
-#else   // V8_I18N_SUPPORT
-  return nullptr;
+  return success;
+}
 #endif  // V8_I18N_SUPPORT
+
+bool RegExpParser::ParsePropertyClass(ZoneList<CharacterRange>* result) {
+#ifdef V8_I18N_SUPPORT
+  List<char> property_name_list;
+  if (current() == '{') {
+    for (Advance(); current() != '}'; Advance()) {
+      if (!has_next()) return false;
+      property_name_list.Add(static_cast<char>(current()));
+    }
+  } else if (current() != kEndMarker) {
+    property_name_list.Add(static_cast<char>(current()));
+  } else {
+    return false;
+  }
+  Advance();
+  property_name_list.Add(0);  // null-terminate string.
+
+  const char* property_name = property_name_list.ToConstVector().start();
+
+#define PROPERTY_NAME_LOOKUP(PROPERTY)                                  \
+  do {                                                                  \
+    if (LookupPropertyClass(PROPERTY, property_name, result, zone())) { \
+      return true;                                                      \
+    }                                                                   \
+  } while (false)
+
+  // General_Category (gc) found in PropertyValueAliases.txt
+  PROPERTY_NAME_LOOKUP(UCHAR_GENERAL_CATEGORY_MASK);
+  // Script (sc) found in Scripts.txt
+  PROPERTY_NAME_LOOKUP(UCHAR_SCRIPT);
+  // To disambiguate from script names, block names have an "In"-prefix.
+  if (property_name_list.length() > 3 && property_name[0] == 'I' &&
+      property_name[1] == 'n') {
+    // Block (blk) found in Blocks.txt
+    property_name += 2;
+    PROPERTY_NAME_LOOKUP(UCHAR_BLOCK);
+  }
+#undef PROPERTY_NAME_LOOKUP
+#endif  // V8_I18N_SUPPORT
+  return false;
 }
 
 bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
@@ -1068,6 +1112,34 @@ static inline void AddRangeOrEscape(ZoneList<CharacterRange>* ranges,
   }
 }
 
+bool RegExpParser::ParseClassProperty(ZoneList<CharacterRange>* ranges) {
+  if (!FLAG_harmony_regexp_property) return false;
+  if (!unicode()) return false;
+  if (current() != '\\') return false;
+  uc32 next = Next();
+  bool parse_success = false;
+  if (next == 'p') {
+    Advance(2);
+    parse_success = ParsePropertyClass(ranges);
+  } else if (next == 'P') {
+    Advance(2);
+    ZoneList<CharacterRange>* property_class =
+        new (zone()) ZoneList<CharacterRange>(2, zone());
+    parse_success = ParsePropertyClass(property_class);
+    if (parse_success) {
+      ZoneList<CharacterRange>* negated =
+          new (zone()) ZoneList<CharacterRange>(2, zone());
+      CharacterRange::Negate(property_class, negated, zone());
+      const Vector<CharacterRange> negated_vector = negated->ToVector();
+      ranges->AddAll(negated_vector, zone());
+    }
+  } else {
+    return false;
+  }
+  if (!parse_success)
+    ReportError(CStrVector("Invalid property name in character class"));
+  return parse_success;
+}
 
 RegExpTree* RegExpParser::ParseCharacterClass() {
   static const char* kUnterminated = "Unterminated character class";
@@ -1084,6 +1156,8 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
   ZoneList<CharacterRange>* ranges =
       new (zone()) ZoneList<CharacterRange>(2, zone());
   while (has_more() && current() != ']') {
+    bool parsed_property = ParseClassProperty(ranges CHECK_FAILED);
+    if (parsed_property) continue;
     uc16 char_class = kNoCharClass;
     CharacterRange first = ParseClassAtom(&char_class CHECK_FAILED);
     if (current() == '-') {
@@ -1356,14 +1430,10 @@ void RegExpBuilder::FlushTerms() {
 
 bool RegExpBuilder::NeedsDesugaringForUnicode(RegExpCharacterClass* cc) {
   if (!unicode()) return false;
-  switch (cc->standard_type()) {
-    case 's':        // white space
-    case 'w':        // ASCII word character
-    case 'd':        // ASCII digit
-      return false;  // These characters do not need desugaring.
-    default:
-      break;
-  }
+  // TODO(yangguo): we could be smarter than this. Case-insensitivity does not
+  // necessarily mean that we need to desugar. It's probably nicer to have a
+  // separate pass to figure out unicode desugarings.
+  if (ignore_case()) return true;
   ZoneList<CharacterRange>* ranges = cc->ranges(zone());
   CharacterRange::Canonicalize(ranges);
   for (int i = ranges->length() - 1; i >= 0; i--) {

@@ -928,10 +928,8 @@ TEST(LowerBooleanToNumber_tagged_tagged) {
   CHECK(c == cnv->InputAt(0) || c == cnv->InputAt(1));
 }
 
-
 static Type* test_types[] = {Type::Signed32(), Type::Unsigned32(),
-                             Type::Number(), Type::Any()};
-
+                             Type::Number()};
 
 TEST(LowerNumberCmp_to_int32) {
   TestingGraph t(Type::Signed32(), Type::Signed32());
@@ -956,18 +954,13 @@ TEST(LowerNumberCmp_to_uint32) {
 
 
 TEST(LowerNumberCmp_to_float64) {
-  static Type* types[] = {Type::Number(), Type::Any()};
+  TestingGraph t(Type::Number(), Type::Number());
 
-  for (size_t i = 0; i < arraysize(types); i++) {
-    TestingGraph t(types[i], types[i]);
-
-    t.CheckLoweringBinop(IrOpcode::kFloat64Equal,
-                         t.simplified()->NumberEqual());
-    t.CheckLoweringBinop(IrOpcode::kFloat64LessThan,
-                         t.simplified()->NumberLessThan());
-    t.CheckLoweringBinop(IrOpcode::kFloat64LessThanOrEqual,
-                         t.simplified()->NumberLessThanOrEqual());
-  }
+  t.CheckLoweringBinop(IrOpcode::kFloat64Equal, t.simplified()->NumberEqual());
+  t.CheckLoweringBinop(IrOpcode::kFloat64LessThan,
+                       t.simplified()->NumberLessThan());
+  t.CheckLoweringBinop(IrOpcode::kFloat64LessThanOrEqual,
+                       t.simplified()->NumberLessThanOrEqual());
 }
 
 
@@ -1140,25 +1133,8 @@ TEST(LowerReferenceEqual_to_wordeq) {
   t.CheckLoweringBinop(opcode, t.simplified()->ReferenceEqual(Type::Any()));
 }
 
-
-TEST(LowerStringOps_to_call_and_compare) {
-    // These tests need linkage for the calls.
-    TestingGraph t(Type::String(), Type::String());
-    IrOpcode::Value compare_eq =
-        static_cast<IrOpcode::Value>(t.machine()->WordEqual()->opcode());
-    IrOpcode::Value compare_lt =
-        static_cast<IrOpcode::Value>(t.machine()->IntLessThan()->opcode());
-    IrOpcode::Value compare_le = static_cast<IrOpcode::Value>(
-        t.machine()->IntLessThanOrEqual()->opcode());
-    t.CheckLoweringStringBinop(compare_eq, t.simplified()->StringEqual());
-    t.CheckLoweringStringBinop(compare_lt, t.simplified()->StringLessThan());
-    t.CheckLoweringStringBinop(compare_le,
-                               t.simplified()->StringLessThanOrEqual());
-  }
-
-
-  void CheckChangeInsertion(IrOpcode::Value expected, MachineType from,
-                            MachineType to, Type* type = Type::Any()) {
+void CheckChangeInsertion(IrOpcode::Value expected, MachineType from,
+                          MachineType to, Type* type = Type::Any()) {
   TestingGraph t(Type::Any());
   Node* in = t.ExampleWithOutput(from);
   NodeProperties::SetType(in, type);
@@ -1168,7 +1144,6 @@ TEST(LowerStringOps_to_call_and_compare) {
   CHECK_EQ(expected, use->InputAt(0)->opcode());
   CHECK_EQ(in, use->InputAt(0)->InputAt(0));
 }
-
 
 TEST(InsertBasicChanges) {
   CheckChangeInsertion(IrOpcode::kChangeFloat64ToInt32, MachineType::Float64(),
@@ -1187,27 +1162,29 @@ TEST(InsertBasicChanges) {
   CheckChangeInsertion(IrOpcode::kChangeFloat64ToTagged, MachineType::Float64(),
                        MachineType::AnyTagged());
   CheckChangeInsertion(IrOpcode::kChangeTaggedToFloat64,
-                       MachineType::AnyTagged(), MachineType::Float64());
+                       MachineType::AnyTagged(), MachineType::Float64(),
+                       Type::Number());
 
   CheckChangeInsertion(IrOpcode::kChangeInt32ToFloat64, MachineType::Int32(),
-                       MachineType::Float64());
+                       MachineType::Float64(), Type::Signed32());
   CheckChangeInsertion(IrOpcode::kChangeInt32ToTagged, MachineType::Int32(),
-                       MachineType::AnyTagged());
+                       MachineType::AnyTagged(), Type::Signed32());
 
   CheckChangeInsertion(IrOpcode::kChangeUint32ToFloat64, MachineType::Uint32(),
-                       MachineType::Float64());
+                       MachineType::Float64(), Type::Unsigned32());
   CheckChangeInsertion(IrOpcode::kChangeUint32ToTagged, MachineType::Uint32(),
-                       MachineType::AnyTagged());
+                       MachineType::AnyTagged(), Type::Unsigned32());
 }
-
 
 static void CheckChangesAroundBinop(TestingGraph* t, const Operator* op,
                                     IrOpcode::Value input_change,
-                                    IrOpcode::Value output_change) {
+                                    IrOpcode::Value output_change,
+                                    Type* type = Type::Any()) {
   Node* binop =
       op->ControlInputCount() == 0
           ? t->graph()->NewNode(op, t->p0, t->p1)
           : t->graph()->NewNode(op, t->p0, t->p1, t->graph()->start());
+  NodeProperties::SetType(binop, type);
   t->Return(binop);
   t->Lower();
   CHECK_EQ(input_change, binop->InputAt(0)->opcode());
@@ -1230,7 +1207,9 @@ TEST(InsertChangesAroundInt32Binops) {
 
   for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToInt32,
-                            IrOpcode::kChangeInt32ToTagged);
+                            IrOpcode::kChangeInt32ToTagged, Type::Signed32());
+    CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToInt32,
+                            IrOpcode::kChangeInt32ToTagged, Type::Signed32());
   }
 }
 

@@ -537,6 +537,7 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
     for (PrototypeIterator iter(isolate, JSObject::cast(receiver),
                                 PrototypeIterator::START_AT_RECEIVER);
          !iter.IsAtEnd(); iter.Advance()) {
+      if (iter.GetCurrent()->IsJSProxy()) break;
       Object* key = iter.GetCurrent<JSObject>()->SlowReverseLookup(fun);
       if (!key->IsUndefined()) {
         if (!name->IsString() ||

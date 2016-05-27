@@ -215,25 +215,27 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
     bind(&ok);
   }
   // Load store buffer top.
-  LoadRoot(scratch, Heap::kStoreBufferTopRootIndex);
+  ExternalReference store_buffer =
+      ExternalReference::store_buffer_top(isolate());
+  movp(scratch, ExternalOperand(store_buffer));
   // Store pointer to buffer.
   movp(Operand(scratch, 0), addr);
   // Increment buffer top.
   addp(scratch, Immediate(kPointerSize));
   // Write back new top of buffer.
-  StoreRoot(scratch, Heap::kStoreBufferTopRootIndex);
+  movp(ExternalOperand(store_buffer), scratch);
   // Call stub on end of buffer.
   Label done;
   // Check for end of buffer.
-  testp(scratch, Immediate(StoreBuffer::kStoreBufferOverflowBit));
+  testp(scratch, Immediate(StoreBuffer::kStoreBufferMask));
   if (and_then == kReturnAtEnd) {
     Label buffer_overflowed;
-    j(not_equal, &buffer_overflowed, Label::kNear);
+    j(equal, &buffer_overflowed, Label::kNear);
     ret(0);
     bind(&buffer_overflowed);
   } else {
     DCHECK(and_then == kFallThroughAtEnd);
-    j(equal, &done, Label::kNear);
+    j(not_equal, &done, Label::kNear);
   }
   StoreBufferOverflowStub store_buffer_overflow(isolate(), save_fp);
   CallStub(&store_buffer_overflow);
@@ -1114,6 +1116,14 @@ void MacroAssembler::Set(Register dst, int64_t x) {
   }
 }
 
+void MacroAssembler::Set(Register dst, int64_t x, RelocInfo::Mode rmode) {
+  if (rmode == RelocInfo::WASM_MEMORY_REFERENCE) {
+    DCHECK(x != 0);
+    movq(dst, x, rmode);
+  } else {
+    DCHECK(RelocInfo::IsNone(rmode));
+  }
+}
 
 void MacroAssembler::Set(const Operand& dst, intptr_t x) {
   if (kPointerSize == kInt64Size) {
@@ -3867,6 +3877,15 @@ void MacroAssembler::AssertNumber(Register object) {
   }
 }
 
+void MacroAssembler::AssertNotNumber(Register object) {
+  if (emit_debug_code()) {
+    Condition is_smi = CheckSmi(object);
+    Check(NegateCondition(is_smi), kOperandIsANumber);
+    Cmp(FieldOperand(object, HeapObject::kMapOffset),
+        isolate()->factory()->heap_number_map());
+    Check(not_equal, kOperandIsANumber);
+  }
+}
 
 void MacroAssembler::AssertNotSmi(Register object) {
   if (emit_debug_code()) {
@@ -4094,6 +4113,77 @@ void MacroAssembler::DebugBreak() {
   Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
+void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
+                                        Register caller_args_count_reg,
+                                        Register scratch0, Register scratch1,
+                                        ReturnAddressState ra_state) {
+#if DEBUG
+  if (callee_args_count.is_reg()) {
+    DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
+                       scratch1));
+  } else {
+    DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
+  }
+#endif
+
+  // Calculate the destination address where we will put the return address
+  // after we drop current frame.
+  Register new_sp_reg = scratch0;
+  if (callee_args_count.is_reg()) {
+    subp(caller_args_count_reg, callee_args_count.reg());
+    leap(new_sp_reg, Operand(rbp, caller_args_count_reg, times_pointer_size,
+                             StandardFrameConstants::kCallerPCOffset));
+  } else {
+    leap(new_sp_reg, Operand(rbp, caller_args_count_reg, times_pointer_size,
+                             StandardFrameConstants::kCallerPCOffset -
+                                 callee_args_count.immediate() * kPointerSize));
+  }
+
+  if (FLAG_debug_code) {
+    cmpp(rsp, new_sp_reg);
+    Check(below, kStackAccessBelowStackPointer);
+  }
+
+  // Copy return address from caller's frame to current frame's return address
+  // to avoid its trashing and let the following loop copy it to the right
+  // place.
+  Register tmp_reg = scratch1;
+  if (ra_state == ReturnAddressState::kOnStack) {
+    movp(tmp_reg, Operand(rbp, StandardFrameConstants::kCallerPCOffset));
+    movp(Operand(rsp, 0), tmp_reg);
+  } else {
+    DCHECK(ReturnAddressState::kNotOnStack == ra_state);
+    Push(Operand(rbp, StandardFrameConstants::kCallerPCOffset));
+  }
+
+  // Restore caller's frame pointer now as it could be overwritten by
+  // the copying loop.
+  movp(rbp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+
+  // +2 here is to copy both receiver and return address.
+  Register count_reg = caller_args_count_reg;
+  if (callee_args_count.is_reg()) {
+    leap(count_reg, Operand(callee_args_count.reg(), 2));
+  } else {
+    movp(count_reg, Immediate(callee_args_count.immediate() + 2));
+    // TODO(ishell): Unroll copying loop for small immediate values.
+  }
+
+  // Now copy callee arguments to the caller frame going backwards to avoid
+  // callee arguments corruption (source and destination areas could overlap).
+  Label loop, entry;
+  jmp(&entry, Label::kNear);
+  bind(&loop);
+  decp(count_reg);
+  movp(tmp_reg, Operand(rsp, count_reg, times_pointer_size, 0));
+  movp(Operand(new_sp_reg, count_reg, times_pointer_size, 0), tmp_reg);
+  bind(&entry);
+  cmpp(count_reg, Immediate(0));
+  j(not_equal, &loop, Label::kNear);
+
+  // Leave current frame.
+  movp(rsp, new_sp_reg);
+}
 
 void MacroAssembler::InvokeFunction(Register function,
                                     Register new_target,
@@ -4285,14 +4375,11 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
   bind(&skip_flooding);
 }
 
-
-void MacroAssembler::StubPrologue() {
-    pushq(rbp);  // Caller's frame pointer.
-    movp(rbp, rsp);
-    Push(rsi);  // Callee's context.
-    Push(Smi::FromInt(StackFrame::STUB));
+void MacroAssembler::StubPrologue(StackFrame::Type type) {
+  pushq(rbp);  // Caller's frame pointer.
+  movp(rbp, rsp);
+  Push(Smi::FromInt(type));
 }
-
 
 void MacroAssembler::Prologue(bool code_pre_aging) {
   PredictableCodeSizeScope predictible_code_size_scope(this,
@@ -4328,10 +4415,11 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   pushq(rbp);
   movp(rbp, rsp);
-  Push(rsi);  // Context.
   Push(Smi::FromInt(type));
-  Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
-  Push(kScratchRegister);
+  if (type == StackFrame::INTERNAL) {
+    Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
+    Push(kScratchRegister);
+  }
   if (emit_debug_code()) {
     Move(kScratchRegister,
          isolate()->factory()->undefined_value(),
@@ -4345,7 +4433,8 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   if (emit_debug_code()) {
     Move(kScratchRegister, Smi::FromInt(type));
-    cmpp(Operand(rbp, StandardFrameConstants::kMarkerOffset), kScratchRegister);
+    cmpp(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
+         kScratchRegister);
     Check(equal, kStackFrameTypesMustMatch);
   }
   movp(rsp, rbp);
@@ -4356,15 +4445,16 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   // Set up the frame structure on the stack.
   // All constants are relative to the frame pointer of the exit frame.
-  DCHECK(ExitFrameConstants::kCallerSPDisplacement ==
-         kFPOnStackSize + kPCOnStackSize);
-  DCHECK(ExitFrameConstants::kCallerPCOffset == kFPOnStackSize);
-  DCHECK(ExitFrameConstants::kCallerFPOffset == 0 * kPointerSize);
+  DCHECK_EQ(kFPOnStackSize + kPCOnStackSize,
+            ExitFrameConstants::kCallerSPDisplacement);
+  DCHECK_EQ(kFPOnStackSize, ExitFrameConstants::kCallerPCOffset);
+  DCHECK_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
   pushq(rbp);
   movp(rbp, rsp);
 
   // Reserve room for entry stack pointer and push the code object.
-  DCHECK(ExitFrameConstants::kSPOffset == -1 * kPointerSize);
+  Push(Smi::FromInt(StackFrame::EXIT));
+  DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
   Push(Immediate(0));  // Saved entry sp, patched before call.
   Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
   Push(kScratchRegister);  // Accessed from EditFrame::code_slot.
@@ -4391,7 +4481,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
     int space = XMMRegister::kMaxNumRegisters * kDoubleSize +
                 arg_stack_space * kRegisterSize;
     subp(rsp, Immediate(space));
-    int offset = -2 * kPointerSize;
+    int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
     const RegisterConfiguration* config =
         RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
     for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
@@ -4438,7 +4528,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
   // Registers:
   // r15 : argv
   if (save_doubles) {
-    int offset = -2 * kPointerSize;
+    int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
     const RegisterConfiguration* config =
         RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
     for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
@@ -4501,8 +4591,22 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 
   DCHECK(!holder_reg.is(scratch));
   DCHECK(!scratch.is(kScratchRegister));
-  // Load current lexical context from the stack frame.
-  movp(scratch, Operand(rbp, StandardFrameConstants::kContextOffset));
+  // Load current lexical context from the active StandardFrame, which
+  // may require crawling past STUB frames.
+  Label load_context;
+  Label has_context;
+  movp(scratch, rbp);
+  bind(&load_context);
+  DCHECK(SmiValuesAre32Bits());
+  // This is "JumpIfNotSmi" but without loading the value into a register.
+  cmpl(MemOperand(scratch, CommonFrameConstants::kContextOrFrameTypeOffset),
+       Immediate(0));
+  j(not_equal, &has_context);
+  movp(scratch, MemOperand(scratch, CommonFrameConstants::kCallerFPOffset));
+  jmp(&load_context);
+  bind(&has_context);
+  movp(scratch,
+       MemOperand(scratch, CommonFrameConstants::kContextOrFrameTypeOffset));
 
   // When generating debug code, make sure the lexical context is set.
   if (emit_debug_code()) {
@@ -5513,19 +5617,39 @@ void MacroAssembler::TestJSArrayForAllocationMemento(
     Register receiver_reg,
     Register scratch_reg,
     Label* no_memento_found) {
-  ExternalReference new_space_start =
-      ExternalReference::new_space_start(isolate());
+  Label map_check;
+  Label top_check;
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
+  const int kMementoMapOffset = JSArray::kSize - kHeapObjectTag;
+  const int kMementoEndOffset = kMementoMapOffset + AllocationMemento::kSize;
 
-  leap(scratch_reg, Operand(receiver_reg,
-      JSArray::kSize + AllocationMemento::kSize - kHeapObjectTag));
-  Move(kScratchRegister, new_space_start);
-  cmpp(scratch_reg, kScratchRegister);
-  j(less, no_memento_found);
+  // Bail out if the object is not in new space.
+  JumpIfNotInNewSpace(receiver_reg, scratch_reg, no_memento_found);
+  // If the object is in new space, we need to check whether it is on the same
+  // page as the current top.
+  leap(scratch_reg, Operand(receiver_reg, kMementoEndOffset));
+  xorp(scratch_reg, ExternalOperand(new_space_allocation_top));
+  testp(scratch_reg, Immediate(~Page::kPageAlignmentMask));
+  j(zero, &top_check);
+  // The object is on a different page than allocation top. Bail out if the
+  // object sits on the page boundary as no memento can follow and we cannot
+  // touch the memory following it.
+  leap(scratch_reg, Operand(receiver_reg, kMementoEndOffset));
+  xorp(scratch_reg, receiver_reg);
+  testp(scratch_reg, Immediate(~Page::kPageAlignmentMask));
+  j(not_zero, no_memento_found);
+  // Continue with the actual map check.
+  jmp(&map_check);
+  // If top is on the same page as the current object, we need to check whether
+  // we are below top.
+  bind(&top_check);
+  leap(scratch_reg, Operand(receiver_reg, kMementoEndOffset));
   cmpp(scratch_reg, ExternalOperand(new_space_allocation_top));
   j(greater, no_memento_found);
-  CompareRoot(MemOperand(scratch_reg, -AllocationMemento::kSize),
+  // Memento map check.
+  bind(&map_check);
+  CompareRoot(MemOperand(receiver_reg, kMementoMapOffset),
               Heap::kAllocationMementoMapRootIndex);
 }
 

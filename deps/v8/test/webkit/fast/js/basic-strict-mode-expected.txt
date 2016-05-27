@@ -206,14 +206,14 @@ PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescri
 PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'caller'); return descriptor.get === descriptor.set; })() is true
 PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'arguments'); return descriptor.get === descriptor.set; })() is true
 PASS 'use strict'; (function f() { for(var i in this); })(); true; is true
-PASS 'use strict'̻ threw exception SyntaxError: Unexpected token ILLEGAL.
-PASS (function(){'use strict'̻}) threw exception SyntaxError: Unexpected token ILLEGAL.
-PASS 'use strict'5.f threw exception SyntaxError: Unexpected token ILLEGAL.
-PASS (function(){'use strict'5.f}) threw exception SyntaxError: Unexpected token ILLEGAL.
-PASS 'use strict';̻ threw exception SyntaxError: Unexpected token ILLEGAL.
-PASS (function(){'use strict';̻}) threw exception SyntaxError: Unexpected token ILLEGAL.
-PASS 'use strict';5.f threw exception SyntaxError: Unexpected token ILLEGAL.
-PASS (function(){'use strict';5.f}) threw exception SyntaxError: Unexpected token ILLEGAL.
+PASS 'use strict'̻ threw exception SyntaxError: Invalid or unexpected token.
+PASS (function(){'use strict'̻}) threw exception SyntaxError: Invalid or unexpected token.
+PASS 'use strict'5.f threw exception SyntaxError: Invalid or unexpected token.
+PASS (function(){'use strict'5.f}) threw exception SyntaxError: Invalid or unexpected token.
+PASS 'use strict';̻ threw exception SyntaxError: Invalid or unexpected token.
+PASS (function(){'use strict';̻}) threw exception SyntaxError: Invalid or unexpected token.
+PASS 'use strict';5.f threw exception SyntaxError: Invalid or unexpected token.
+PASS (function(){'use strict';5.f}) threw exception SyntaxError: Invalid or unexpected token.
 PASS 'use strict';1-(eval=1); threw exception SyntaxError: Unexpected eval or arguments in strict mode.
 PASS (function(){'use strict';1-(eval=1);}) threw exception SyntaxError: Unexpected eval or arguments in strict mode.
 PASS 'use strict';arguments=1; threw exception SyntaxError: Unexpected eval or arguments in strict mode.

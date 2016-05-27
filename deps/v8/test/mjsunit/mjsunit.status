@@ -43,9 +43,6 @@
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
 
-  # Issue 4698: not fully supported by Turbofan yet
-  'es6/tail-call': [PASS, NO_VARIANTS],
-
   # Issue 3389: deopt_every_n_garbage_collections is unsafe
   'regress/regress-2653': [SKIP],
 
@@ -83,17 +80,6 @@
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
   'regress/regress-2612': [PASS, NO_VARIANTS],
 
-  # Modules are busted
-  'harmony/module-linking': [SKIP],
-  'harmony/module-recompile': [SKIP],
-  'harmony/module-resolution': [SKIP],
-  'harmony/regress/regress-343928': [SKIP],
-
-  # Proxy tests rely on non ES6 version of Proxies
-  # TODO(neis,cbruni): figure out which Proxy tests can be reused
-  'harmony/proxies-example-membrane': [SKIP],
-  'strong/load-proxy': [SKIP],
-
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug-step-turbofan': [PASS, FAIL],
@@ -120,20 +106,6 @@
   'debug-multiple-breakpoints': [PASS, NO_VARIANTS],  # with custom snapshot and gc-stress.
   'debug-listbreakpoints': [PASS, NO_VARIANTS],  # arm64 nosnap with turbofan
   'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
-
-  # Issue 3956: Strong mode is deprecating. The expectations inside the
-  # following tests should be updated once deprecation is complete.
-  'strong/destructuring': [SKIP],
-  'strong/implicit-conversions': [SKIP],
-  'strong/implicit-conversions-count': [SKIP],
-  'strong/implicit-conversions-inlining': [SKIP],
-  'strong/load-builtins': [SKIP],
-  'strong/load-element': [SKIP],
-  'strong/load-element-mutate-backing-store': [SKIP],
-  'strong/load-property': [SKIP],
-  'strong/load-property-mutate-backing-store': [SKIP],
-  'strong/load-super': [SKIP],
-  'strong/literals': [SKIP], # Rest arguments do not respect strongness in Turbofan.
 
   # Issue 4035: unexpected frame->context() in debugger
   'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
@@ -176,6 +148,10 @@
 
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
+
+  # TODO(turbofan): The escape analysis needs some investigation.
+  'compiler/escape-analysis-deopt-5': [PASS, NO_VARIANTS],
+  'compiler/escape-analysis-9': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -277,16 +253,9 @@
   'asm/poppler/*': [PASS, SLOW, FAST_VARIANTS],
   'asm/sqlite3/*': [PASS, SLOW, FAST_VARIANTS],
 
-  # BUG(v8:3838).
-  'regress/regress-3116': [PASS, ['isolates', FLAKY]],
-
   # BUG(v8:4458). TODO(mvstanton): reenable the test once --vector-stores is
   # prermanently enabled.
   'call-counts': [SKIP],
-
-  # BUG(chromium:508074). Remove this once the issue is fixed.
-  'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
-  'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
 
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
@@ -296,16 +265,30 @@
   'readonly': [PASS, SLOW],
   'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
   'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
+  'es6/tail-call-megatest*': [PASS, FAST_VARIANTS],
 
-  # TODO(titzer): correct WASM adapter frame alignment on arm64
-  'wasm/*': [PASS, ['arch == arm64', SKIP]],
-  'wasm/asm-wasm': [PASS, ['arch == arm or arch == arm64', SKIP]],
+  # TODO(titzer): ASM->WASM tests on these platforms
+  'wasm/asm-wasm': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
+  # TODO(branelson): Figure out why ignition + asm-wasm-stdlib fails.
+  'wasm/asm-wasm-stdlib': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el] or ignition == True', SKIP]],
+  'wasm/asm-wasm-literals': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el] or ignition == True', SKIP]],
+  'wasm/asm-wasm-copy': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
+  'wasm/asm-wasm-deopt': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
+
+  # TODO(branelson): Figure out why ignition + asm->wasm fails embenchen.
+  'wasm/embenchen/*': [PASS, ['arch == arm64', SKIP], ['ignition == True', SKIP]],
+
+  # TODO(bradnelson) Fix and re-enable.
+  'wasm/embenchen/box2d': [SKIP],   # hang
+  'wasm/embenchen/lua_binarytrees': [SKIP],  # fails decode
+  #'wasm/embenchen/zlib': [SKIP],  # fails gc-stress
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
   'harmony/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
+  'regress/regress-5036': [PASS, ['no_i18n == True', FAIL]],
   # desugaring regexp property class relies on ICU.
-  'harmony/unicode-regexp-property-class': [PASS, ['no_i18n == True', FAIL]],
+  'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -371,9 +354,6 @@
   # BUG(v8:4237)
   'regress/regress-3976': [SKIP],
 
-  # BUG(v8:4359)
-  'strong/load-proxy': [SKIP],
-
   # Slow tests.
   'array-constructor': [PASS, SLOW],
   'json': [PASS, SLOW],
@@ -385,6 +365,9 @@
 
   # BUG(v8:4754).
   'debug-referenced-by': [PASS, NO_VARIANTS],
+
+  # BUG(v8:4779): Crashes flakily with stress mode on arm64.
+  'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -401,6 +384,8 @@
   'asm/sqlite3/*': [SKIP],
   # TODO(mips-team): Fix Wasm for big-endian.
   'wasm/*': [SKIP],
+  'regress/regress-599717': [SKIP],
+  'regress/regress-599719': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
@@ -484,7 +469,6 @@
   'packed-elements': [SKIP],
   'regexp-global': [SKIP],
   'compiler/alloc-numbers': [SKIP],
-  'harmony/symbols': [SKIP],
   'math-floor-of-div': [PASS, TIMEOUT],
   'math-floor-of-div-nosudiv': [PASS, TIMEOUT],
   'unicodelctest': [PASS, TIMEOUT],
@@ -688,7 +672,6 @@
   'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
-  'harmony/generators-debug-liveedit': [SKIP],
 
   # NaCl builds have problems with this test since Pepper_28.
   # V8 Issue 2786
@@ -725,8 +708,17 @@
 
   # Crashes.
   'harmony/private': [SKIP],
-  'harmony/symbols': [SKIP],
 }],  # 'arch == nacl_ia32 or arch == nacl_x64'
+
+##############################################################################
+['arch == s390 or arch == s390x', {
+
+  # Stack manipulations in LiveEdit is not implemented for this arch.
+  'debug-liveedit-check-stack': [SKIP],
+  'debug-liveedit-stack-padding': [SKIP],
+  'debug-liveedit-restart-frame': [SKIP],
+  'debug-liveedit-double-call': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
 ['deopt_fuzzer == True', {
@@ -746,6 +738,9 @@
 
   # Deopt every n garbage collections collides with deopt every n times.
   'regress/regress-2653': [SKIP],
+
+  # Too slow.
+  'es6/tail-call-megatest*': [SKIP],
 }],  # 'deopt_fuzzer == True'
 
 ##############################################################################
@@ -763,179 +758,163 @@
   'regress/regress-1132': [SKIP],
 }],  # 'arch == ppc and simulator_run == True'
 
+##############################################################################
 ['ignition == True', {
-  # Skip strong mode tests since strong mode is unsupported on ignition.
-  'strong/*': [SKIP],
-
-  # TODO(yangguo,4690): Requires debugger support.
-  'es6/debug*': [SKIP],
-  'harmony/debug*': [SKIP],
-  'regress/debug*': [SKIP],
-  'regress/regress-debug*': [SKIP],
-
   # TODO(yangguo,4690): assertion failures in debugger tests.
   'debug-allscopes-on-debugger': [FAIL],
+  'es6/debug-stepnext-for': [FAIL],
+  'es6/debug-promises/stepin-constructor': [FAIL],
+  'es6/debug-stepin-proxies': [FAIL],
+  'regress/regress-crbug-119800': [FAIL],
+  'regress/regress-opt-after-debug-deopt': [FAIL],
+
+  # TODO(yangguo,4690): flaky failures on the bots.
+  'debug-stepin-builtin-callback-opt': [SKIP],
+
+   # TODO(rmcilroy,4765): assertion failures in LiveEdit tests.
   'debug-liveedit-restart-frame': [FAIL],
-  'debug-return-value': [FAIL],
   'debug-liveedit-literals': [FAIL],
   'debug-liveedit-3': [FAIL],
   'debug-liveedit-1': [FAIL],
-  'debug-step-into-json': [FAIL],
+  'debug-liveedit-2': [FAIL],
   'debug-liveedit-patch-positions-replace': [FAIL],
-  'debug-step-into-valueof': [FAIL],
   'debug-liveedit-patch-positions': [FAIL],
   'debug-liveedit-stepin': [FAIL],
-  'debug-step-4': [FAIL],
   'debug-liveedit-newsource': [FAIL],
   'debug-liveedit-stack-padding': [FAIL],
-  'debug-stepframe': [FAIL],
-  'debug-negative-break-points': [FAIL],
-  'debug-stepin-accessor': [FAIL],
-  'debug-step-stub-callfunction': [FAIL],
   'debug-liveedit-breakpoints': [FAIL],
-  'debug-stepin-accessor-ic': [FAIL],
-  'debug-stepin-builtin': [FAIL],
-  'debug-stepin-foreach': [FAIL],
-  'debug-stepnext-do-while': [FAIL],
-  'debug-stepin-builtin-callback-opt': [FAIL],
-  'debug-stepin-function-call': [FAIL],
-
-  # TODO(yangguo,4690): Check failure in debug.cc BreakLocation::SetBreakPoint
-  # DCHECK(IsDebugBreak() || IsDebuggerStatement());
-  'regress/regress-1523': [FAIL],
-  'regress/regress-102153': [FAIL],
-  'regress/regress-2825': [FAIL],
-  'regress/regress-crbug-119800': [FAIL],
-  'regress/regress-crbug-467180': [FAIL],
-  'regress/regress-opt-after-debug-deopt': [FAIL],
-
-  # TODO(rmcilroy,4681): Requires support for generators.
-  'messages': [FAIL],
-  'es6/array-from': [FAIL],
-  'regress-3225': [FAIL],
-  'es6/classes-subclass-builtins': [FAIL],
-  'es6/computed-property-names-classes': [FAIL],
-  'es6/computed-property-names-object-literals-methods': [FAIL],
-  'es6/function-length-configurable': [FAIL],
-  'es6/generators-poisoned-properties': [FAIL],
-  'es6/generators-runtime': [FAIL],
-  'es6/generators-objects': [FAIL],
-  'es6/generators-parsing': [FAIL],
-  'es6/generators-iteration': [FAIL],
-  'es6/generators-states': [FAIL],
-  'es6/iteration-semantics': [FAIL],
-  'es6/iterator-prototype': [FAIL],
-  'es6/generators-mirror': [FAIL],
-  'es6/object-literals-method': [FAIL],
-  'es6/object-literals-super': [FAIL],
-  'es6/generators-relocation': [FAIL],
-  'es6/spread-array': [FAIL],
+  'es6/debug-liveedit-new-target-1': [FAIL],
+  'es6/debug-liveedit-new-target-2': [FAIL],
+  'es6/debug-liveedit-new-target-3': [FAIL],
   'es6/generators-debug-liveedit': [FAIL],
-  'es6/spread-call': [FAIL],
-  'es6/typedarray-from': [FAIL],
-  'es6/typedarray': [FAIL],
-  'es6/regress/regress-2681': [FAIL],
-  'es6/regress/regress-2691': [FAIL],
-  'es6/regress/regress-3280': [FAIL],
-  'harmony/destructuring-assignment': [FAIL],
-  'harmony/function-sent': [FAIL],
-  'harmony/reflect-enumerate-delete': [FAIL],
-  'harmony/reflect-enumerate-special-cases': [FAIL],
-  'harmony/proxies-enumerate': [FAIL],
-  'harmony/reflect-enumerate-opt': [FAIL],
-  'harmony/reflect-enumerate': [FAIL],
-  'harmony/destructuring': [FAIL],
-  'harmony/regress/regress-4482': [FAIL],
-  'harmony/generators': [FAIL],
-  'harmony/iterator-close': [FAIL],
-  'harmony/reflect-construct': [FAIL],
-  'es6/promises': [FAIL],
 
-  # TODO(rmcilroy,4680): Check failed in
-  # BytecodeGenerator::VisitFunctionLiteral - !shared_info.is_null().
-  'regress/regress-crbug-429159': [FAIL],
-
-  # TODO(rmcilroy,4680): Pass on debug, fail on release.
-  'compiler/regress-stacktrace-methods': [PASS, ['mode == release', FAIL]],
-
-  # TODO(rmcilroy,4680): Test assert failures.
+  # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
   'array-literal-feedback': [FAIL],
-  'undetectable-compare': [FAIL],
-  'debug-liveedit-2': [FAIL],
-  'es6/string-search': [FAIL],
-  'es6/mirror-collections': [FAIL],
-  'es6/regress/regress-468661': [FAIL],
-  'harmony/string-replace': [FAIL],
-  'harmony/string-match': [FAIL],
-  'harmony/string-split': [FAIL],
-  'regress/regress-2618': [FAIL],
   'regress/regress-4121': [FAIL],
-  'regress/regress-4266': [FAIL],
-  'harmony/simd': [FAIL],
-  'regress/regress-crbug-109362': [FAIL],
-  'regress/regress-crbug-568477-2': [FAIL],
-  'regress/regress-crbug-568477-3': [FAIL],
-  'regress/regress-crbug-568477-1': [FAIL],
-  'regress/regress-2318': [FAIL],
 
-  # TODO(rmcilroy, 4680): new ES6 instanceof support
-  'harmony/instanceof-es6': [SKIP],
-
-  # TODO(rmcilroy,4680): Test timeouts.
+  # TODO(mythria, 4764): lack of osr support.
+  'regress/regress-2618': [FAIL],
+  # TODO(mythria, 4764): lack of osr support. The tests waits in a loop
+  # till it is optimized. So test timeouts.
   'array-literal-transitions': [SKIP],
-  'regress/regress-crbug-517592': [SKIP],
-  'regress/regress-crbug-568477-4': [SKIP],
-  'regress/regress-crbug-409614': [SKIP],
-  'regress/regress-crbug-42414': [SKIP],
-  'regress/regress-1853': [SKIP],
-  'regress/regress-crbug-424142': [SKIP],
+
+  # TODO(mythria, 4680): Relate to GC and ignition holding references to
+  # objects.
+  'es6/mirror-collections': [FAIL],
+
+  # TODO(mythria, 4680): Fails with context_register_count_ > 0 (0 vs. 0) when
+  # trying to get a context register in BytecodeGenerator.
+  'harmony/regress/regress-4658': [FAIL, ['mode == release and dcheck_always_on == False', PASS],],
+
+  # TODO(rmcilroy, 4680): Script throws RangeError as expected, but does so during
+  # eager compile of the whole script instead of during lazy compile of the function
+  # f(), so we can't catch the exception in the try/catch. Skip because on some
+  # platforms the stack limit is different and the exception doesn't fire.
+  'regress/regress-crbug-589472': [SKIP],
+
+  # Debugger test cases that pass with ignition, but not full-codegen.
+  # These differences between full-codegen and ignition are deliberate.
+  'ignition/elided-instruction-no-ignition': [FAIL],
+
+  'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
+  'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],
 }],  # ignition == True
 
+['ignition == True and system == windows', {
+  # TODO(rmcilroy,4680): Crash on windows nosnap shared.
+  'regress/regress-crbug-352058': [PASS, ['no_snap == True', SKIP]],
+
+  # TODO(513471): Attempting to optimize generator hits unreachable path.
+  'regress/regress-crbug-513471': [PASS, ['no_snap == True', SKIP]],
+
+  # TODO(rmcilroy,4680): Fails on win32 debug.
+  'div-mod': [PASS, ['arch == ia32', SKIP]],
+}],  # ignition == True and system == windows
+
 ['ignition == True and arch == arm64', {
-  # TODO(rmcilroy,4680): Fails on Arm64 due to expecting to take less than 3
-  # seconds.
-  'regress/regress-165637': [FAIL],
+  # TODO(rmcilroy,4680): Arm64 specific timeouts.
+  'asm/construct-double': [SKIP],
+  'compiler/osr-one': [SKIP],
+  'compiler/osr-two': [SKIP],
+  'wasm/asm-wasm-i32': [SKIP],
+  'wasm/asm-wasm-u32': [SKIP],
 }],  # ignition == True and arch == arm64
 
-['ignition == True and (arch == arm or arch == arm64)', {
-  # TODO(rmcilroy,4680): Arm / Arm64 specific timeouts.
-  'asm/construct-double': [SKIP],
-  'compiler/osr-nested': [SKIP],
+['ignition == True and arch == arm', {
+  # TODO(rmcilroy,4680): Arm specific timeouts.
   'compiler/osr-one': [SKIP],
   'compiler/osr-two': [SKIP],
   'regress/regress-1257': [SKIP],
-  'regress/regress-165637': [SKIP],
-  'regress/regress-2185': [SKIP],
-  'regress/regress-91008': [SKIP],
-  'unicodelctest': [SKIP],
-  'unicodelctest-no-optimization': [SKIP],
-}],  # ignition == True and (arch == arm or arch == arm64)
+}],  # ignition == True and arch == arm
+
+['ignition == True and msan', {
+  # TODO(mythria,4680): All of these tests have large loops and hence slow
+  # and timeout.
+  'compiler/osr-big': [SKIP],
+  'compiler/osr-nested': [SKIP],
+  'regress/regress-298269': [SKIP],
+  'regress/regress-crbug-319860': [SKIP],
+  'regress/regress-deep-proto': [SKIP],
+  'try': [SKIP],
+  # Too slow for interpreter and msan.
+  'es6/tail-call-megatest*': [SKIP],
+}],  # ignition == True and msan
+
+['ignition == True and gc_stress == True', {
+  # TODO(oth,4680): failures from the bots.
+  'es6/debug-step-destructuring-bind': [SKIP],
+  'es6/debug-stepin-collections-foreach': [SKIP],
+  'ignition/elided-instruction': [SKIP],
+  'regress/regress-269': [SKIP],
+}],  # ignition == True and gc_stress == True
+
+['ignition == False', {
+  # Debugger test cases that pass with full-codegen, but not ignition.
+  # These differences between full-codegen and ignition are deliberate.
+  'ignition/elided-instruction': [FAIL],
+}],  # ignition == False
+
+['ignition == True and system == windows and no_snap', {
+  # TODO(rmcilroy): Fail with nosnap and shared libraries.
+  'es6/array-from': [FAIL],
+  'es6/classes-subclass-builtins': [FAIL],
+  'es6/computed-property-names-classes': [FAIL],
+  'es6/computed-property-names-object-literals-methods': [FAIL],
+  'es6/debug-stepin-generators': [FAIL],
+  'es6/destructuring': [FAIL],
+  'es6/destructuring-assignment': [FAIL],
+  'es6/generators-iteration': [FAIL],
+  'es6/generators-mirror': [FAIL],
+  'es6/generators-parsing': [FAIL],
+  'es6/generators-poisoned-properties': [FAIL],
+  'es6/generators-relocation': [FAIL],
+  'es6/generators-states': [FAIL],
+  'es6/iteration-semantics': [FAIL],
+  'es6/object-literals-method': [FAIL],
+  'es6/object-literals-super': [FAIL],
+  'es6/promises': [FAIL],
+  'es6/regress/regress-2681': [FAIL],
+  'es6/regress/regress-2691': [FAIL],
+  'es6/regress/regress-3280': [FAIL],
+  'es6/spread-array': [FAIL],
+  'es6/spread-call': [FAIL],
+  'es6/typedarray': [FAIL],
+  'es6/typedarray-from': [FAIL],
+  'harmony/function-sent': [FAIL],
+  'harmony/generators': [FAIL],
+  'harmony/iterator-close': [FAIL],
+  'harmony/regress/regress-4482': [FAIL],
+  'messages': [FAIL],
+  'regress-3225': [FAIL],
+}],  # ignition == True and system == windows and no_snap
 
 ##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.
   'array-functions-prototype-misc': [SKIP],
-  'strong/implicit-conversions': [SKIP],
-  'strong/load-element-mutate-backing-store': [SKIP],
 
   # Stack overflow.
   'big-array-literal': [SKIP],
 }],  # 'gcov_coverage'
-
-##############################################################################
-# exclude test issues for which fixes for PPC did not make it into 5.0
-# These should be removed when we upgrade Node.js to use v8 5.1
-['arch == ppc64', {
-  'wasm/asm-wasm' : [SKIP],
-}],  # 'arch == ppc64''
-
-##############################################################################
-# This test allocates a 2G block of memory and if there are multiple
-# varients this leads kills by the OOM killer, crashes or messages
-# indicating the OS cannot allocate memory, exclude for Node.js runs
-# re-evalute when we move up to v8 5.1
-[ALWAYS, {
-'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
-}],  # ALWAYS
 
 ]

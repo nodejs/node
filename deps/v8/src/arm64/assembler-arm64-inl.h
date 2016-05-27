@@ -41,6 +41,18 @@ void RelocInfo::set_target_address(Address target,
   }
 }
 
+void RelocInfo::update_wasm_memory_reference(
+    Address old_base, Address new_base, size_t old_size, size_t new_size,
+    ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  DCHECK(old_base <= wasm_memory_reference() &&
+         wasm_memory_reference() < old_base + old_size);
+  Address updated_reference = new_base + (wasm_memory_reference() - old_base);
+  DCHECK(new_base <= updated_reference &&
+         updated_reference < new_base + new_size);
+  Assembler::set_target_address_at(isolate_, pc_, host_, updated_reference,
+                                   icache_flush_mode);
+}
 
 inline int CPURegister::code() const {
   DCHECK(IsValid());
@@ -693,6 +705,10 @@ Address RelocInfo::target_address() {
   return Assembler::target_address_at(pc_, host_);
 }
 
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
 
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)

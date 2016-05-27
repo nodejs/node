@@ -94,8 +94,7 @@ Semaphore::~Semaphore() {
 
 void Semaphore::Signal() {
   int result = sem_post(&native_handle_);
-  DCHECK_EQ(0, result);
-  USE(result);
+  CHECK_EQ(0, result);
 }
 
 

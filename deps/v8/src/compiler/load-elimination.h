@@ -11,15 +11,25 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class CommonOperatorBuilder;
+class Graph;
+
 class LoadElimination final : public AdvancedReducer {
  public:
-  explicit LoadElimination(Editor* editor) : AdvancedReducer(editor) {}
+  explicit LoadElimination(Editor* editor, Graph* graph,
+                           CommonOperatorBuilder* common)
+      : AdvancedReducer(editor), graph_(graph), common_(common) {}
   ~LoadElimination() final;
 
   Reduction Reduce(Node* node) final;
 
  private:
+  CommonOperatorBuilder* common() const { return common_; }
+  Graph* graph() { return graph_; }
+
   Reduction ReduceLoadField(Node* node);
+  Graph* graph_;
+  CommonOperatorBuilder* common_;
 };
 
 }  // namespace compiler

@@ -40,7 +40,8 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       bookmark_c0_(kNoBookmark),
       octal_pos_(Location::invalid()),
-      found_html_comment_(false) {
+      found_html_comment_(false),
+      allow_harmony_exponentiation_operator_(false) {
   bookmark_current_.literal_chars = &bookmark_current_literal_;
   bookmark_current_.raw_literal_chars = &bookmark_current_raw_literal_;
   bookmark_next_.literal_chars = &bookmark_next_literal_;
@@ -60,15 +61,19 @@ void Scanner::Initialize(Utf16CharacterStream* source) {
   Scan();
 }
 
-
-template <bool capture_raw>
+template <bool capture_raw, bool unicode>
 uc32 Scanner::ScanHexNumber(int expected_length) {
   DCHECK(expected_length <= 4);  // prevent overflow
 
+  int begin = source_pos() - 2;
   uc32 x = 0;
   for (int i = 0; i < expected_length; i++) {
     int d = HexValue(c0_);
     if (d < 0) {
+      ReportScannerError(Location(begin, begin + expected_length + 2),
+                         unicode
+                             ? MessageTemplate::kInvalidUnicodeEscapeSequence
+                             : MessageTemplate::kInvalidHexEscapeSequence);
       return -1;
     }
     x = x * 16 + d;
@@ -78,20 +83,23 @@ uc32 Scanner::ScanHexNumber(int expected_length) {
   return x;
 }
 
-
 template <bool capture_raw>
-uc32 Scanner::ScanUnlimitedLengthHexNumber(int max_value) {
+uc32 Scanner::ScanUnlimitedLengthHexNumber(int max_value, int beg_pos) {
   uc32 x = 0;
   int d = HexValue(c0_);
-  if (d < 0) {
-    return -1;
-  }
+  if (d < 0) return -1;
+
   while (d >= 0) {
     x = x * 16 + d;
-    if (x > max_value) return -1;
+    if (x > max_value) {
+      ReportScannerError(Location(beg_pos, source_pos() + 1),
+                         MessageTemplate::kUndefinedUnicodeCodePoint);
+      return -1;
+    }
     Advance<capture_raw>();
     d = HexValue(c0_);
   }
+
   return x;
 }
 
@@ -565,7 +573,14 @@ void Scanner::Scan() {
 
       case '*':
         // * *=
-        token = Select('=', Token::ASSIGN_MUL, Token::MUL);
+        Advance();
+        if (c0_ == '*' && allow_harmony_exponentiation_operator()) {
+          token = Select('=', Token::ASSIGN_EXP, Token::EXP);
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_MUL);
+        } else {
+          token = Token::MUL;
+        }
         break;
 
       case '%':
@@ -847,7 +862,9 @@ Token::Value Scanner::ScanString() {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
-      if (c0_ < 0 || !ScanEscape<false, false>()) return Token::ILLEGAL;
+      if (c0_ < 0 || !ScanEscape<false, false>()) {
+        return Token::ILLEGAL;
+      }
     } else {
       AddLiteralChar(c);
     }
@@ -879,7 +896,6 @@ Token::Value Scanner::ScanTemplateSpan() {
   StartRawLiteral();
   const bool capture_raw = true;
   const bool in_template_literal = true;
-
   while (true) {
     uc32 c = c0_;
     Advance<capture_raw>();
@@ -1099,18 +1115,19 @@ uc32 Scanner::ScanUnicodeEscape() {
   // Accept both \uxxxx and \u{xxxxxx}. In the latter case, the number of
   // hex digits between { } is arbitrary. \ and u have already been read.
   if (c0_ == '{') {
+    int begin = source_pos() - 2;
     Advance<capture_raw>();
-    uc32 cp = ScanUnlimitedLengthHexNumber<capture_raw>(0x10ffff);
-    if (cp < 0) {
-      return -1;
-    }
-    if (c0_ != '}') {
+    uc32 cp = ScanUnlimitedLengthHexNumber<capture_raw>(0x10ffff, begin);
+    if (cp < 0 || c0_ != '}') {
+      ReportScannerError(source_pos(),
+                         MessageTemplate::kInvalidUnicodeEscapeSequence);
       return -1;
     }
     Advance<capture_raw>();
     return cp;
   }
-  return ScanHexNumber<capture_raw>(4);
+  const bool unicode = true;
+  return ScanHexNumber<capture_raw, unicode>(4);
 }
 
 
@@ -1420,7 +1437,6 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
         flag = RegExp::kUnicode;
         break;
       case 'y':
-        if (!FLAG_harmony_regexps) return Nothing<RegExp::Flags>();
         flag = RegExp::kSticky;
         break;
       default:
