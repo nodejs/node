@@ -15,11 +15,17 @@ JavaScript code can be compiled and run immediately or compiled, saved, and run
 later.
 
 ## Class: vm.Script
+<!-- YAML
+added: v0.3.1
+-->
 
 Instances of the `vm.Script` class contain precompiled scripts that can be
 executed in specific sandboxes (or "contexts").
 
 ### new vm.Script(code, options)
+<!-- YAML
+added: v0.3.1
+-->
 
 * `code` {string} The JavaScript code to compile.
 * `options`
@@ -52,6 +58,9 @@ that the `code` is not bound to any global object; rather, it is bound before
 each run, just for that run.
 
 ### script.runInContext(contextifiedSandbox[, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `contextifiedSandbox` {Object} A [contextified][] object as returned by the
   `vm.createContext()` method.
@@ -99,6 +108,9 @@ console.log(util.inspect(sandbox));
 ```
 
 ### script.runInNewContext([sandbox][, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `sandbox` {Object} An object that will be [contextified][]. If `undefined`, a
   new object will be created.
@@ -141,6 +153,9 @@ console.log(util.inspect(sandboxes));
 ```
 
 ### script.runInThisContext([options])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `options` {Object}
   * `filename` {string} Specifies the filename used in stack traces produced
@@ -180,6 +195,9 @@ console.log(globalVar);
 ```
 
 ## vm.createContext([sandbox])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `sandbox` {Object}
 
@@ -201,6 +219,9 @@ window's global object, then run all `<script>` tags together within the context
 of that sandbox.
 
 ## vm.isContext(sandbox)
+<!-- YAML
+added: v0.11.7
+-->
 
 * `sandbox` {Object}
 
@@ -250,6 +271,9 @@ console.log(util.inspect(sandbox));
 ```
 
 ## vm.runInDebugContext(code)
+<!-- YAML
+added: v0.11.14
+-->
 
 * `code` {string} The JavaScript code to compile and run.
 
@@ -270,6 +294,9 @@ The `Debug` object can also be made available using the V8-specific
 `--expose_debug_as=` [command line option][cli.md].
 
 ## vm.runInNewContext(code[, sandbox][, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `code` {string} The JavaScript code to compile and run.
 * `sandbox` {Object} An object that will be [contextified][]. If `undefined`, a
@@ -312,6 +339,9 @@ console.log(util.inspect(sandbox));
 ```
 
 ## vm.runInThisContext(code[, options])
+<!-- YAML
+added: v0.3.1
+-->
 
 * `code` {string} The JavaScript code to compile and run.
 * `options`
