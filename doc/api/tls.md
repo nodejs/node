@@ -1025,7 +1025,7 @@ openssl s_client -connect 127.0.0.1:8000
 
 ## tls.getCiphers()
 <!--YAML
-v0.10.2
+added: v0.10.2
 -->
 
 Returns an array with the names of the supported SSL ciphers.
