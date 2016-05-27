@@ -265,7 +265,9 @@ established after the addition of the event listener.
 *Note*: An npm module like [asn1.js] may be used to parse the certificates.
 
 ### Event: 'resumeSession'
-
+<!--YAML
+added: v0.11.13
+-->
 The `'resumeSession'` event is emitted when the client requests to resume a
 previous TLS session. The listener callback is passed two arguments when
 called:
