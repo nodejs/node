@@ -34,6 +34,9 @@ Emitted when a new connection is made. `socket` is an instance of
 `net.Socket`.
 
 ### Event: 'error'
+<!-- YAML
+added: v0.5.0
+-->
 
 * {Error}
 
