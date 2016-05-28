@@ -492,22 +492,27 @@ object with three properties, e.g.,
 <!--YAML
 added: v0.11.4
 -->
-
 Returns `true` if the peer certificate was signed by one of the CAs specified
 when creating the `tls.TLSSocket` instance, otherwise `false`.
 
 ### tlsSocket.authorizationError
-
+<!--YAML
+added: v0.11.4
+-->
 Returns the reason why the peer's certificate was not been verified. This
 property is set only when `tlsSocket.authorized === false`.
 
 ### tlsSocket.encrypted
-
+<!--YAML
+added: v0.11.4
+-->
 Always returns `true`. This may be used to distinguish TLS sockets from regular
 `net.Socket` instances.
 
 ### tlsSocket.getCipher()
-
+<!--YAML
+added: v0.11.4
+-->
 Returns an object representing the cipher name and the SSL/TLS protocol version
 that first defined the cipher.
 
@@ -518,7 +523,9 @@ https://www.openssl.org/docs/manmaster/ssl/SSL_CIPHER_get_name.html for more
 information.
 
 ### tlsSocket.getEphemeralKeyInfo()
-
+<!--YAML
+added: v5.0.0-rc.1
+-->
 Returns an object representing the type, name, and size of parameter of
 an ephemeral key exchange in [Perfect Forward Secrecy][] on a client
 connection. It returns an empty object when the key exchange is not
@@ -529,7 +536,9 @@ if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
 For Example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`
 
 ### tlsSocket.getPeerCertificate([ detailed ])
-
+<!--YAML
+added: v0.11.4
+-->
 * `detailed` {boolean} Specify `true` to request that the full certificate
   chain with the `issuer` property be returned; `false` to return only the
   top certificate without the `issuer` property.
@@ -567,7 +576,9 @@ If the peer does not provide a certificate, `null` or an empty object will be
 returned.
 
 ### tlsSocket.getProtocol()
-
+<!--YAML
+added: v6.0.0
+-->
 Returns a string containing the negotiated SSL/TLS protocol version of the
 current connection. The value `'unknown'` will be returned for connected
 sockets that have not completed the handshaking process. The value `null` will
@@ -585,41 +596,57 @@ See https://www.openssl.org/docs/manmaster/ssl/SSL_get_version.html for more
 information.
 
 ### tlsSocket.getSession()
-
+<!--YAML
+added: v0.11.4
+-->
 Returns the ASN.1 encoded TLS session or `undefined` if no session was
 negotiated. Can be used to speed up handshake establishment when reconnecting
 to the server.
 
 ### tlsSocket.getTLSTicket()
-
+<!--YAML
+added: v0.11.4
+-->
 Returns the TLS session ticket or `undefined` if no session was negotiated.
 
 *Note*: This only works with client TLS sockets. Useful only for debugging, for
 session reuse provide `session` option to [`tls.connect()`][].
 
 ### tlsSocket.localAddress
-
+<!--YAML
+added: v0.11.4
+-->
 Returns the string representation of the local IP address.
 
 ### tlsSocket.localPort
-
+<!--YAML
+added: v0.11.4
+-->
 Returns the numeric representation of the local port.
 
 ### tlsSocket.remoteAddress
-
+<!--YAML
+added: v0.11.4
+-->
 Returns the string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
 
 ### tlsSocket.remoteFamily
-
+<!--YAML
+added: v0.11.4
+-->
 Returns the string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 
 ### tlsSocket.remotePort
-
+<!--YAML
+added: v0.11.4
+-->
 Returns the numeric representation of the remote port. For example, `443`.
 
 ### tlsSocket.renegotiate(options, callback)
-
+<!--YAML
+added: v0.11.8
+-->
 * `options` {Object}
   * `rejectUnauthorized` {boolean}
   * `requestCert`
@@ -637,7 +664,9 @@ secure connection has been established.
 after `handshakeTimeout` timeout.
 
 ### tlsSocket.setMaxSendFragment(size)
-
+<!--YAML
+added: v0.11.11
+-->
 * `size` {number} The maximum TLS fragment size. Defaults to `16384`. The
   maximum value is `16384`.
 
@@ -653,7 +682,9 @@ decrease overall server throughput.
 
 
 ## tls.connect(options[, callback])
-
+<!--YAML
+added: v0.11.3
+-->
 * `options` {Object}
   * `host` {string} Host the client should connect to.
   * `port` {number} Port the client should connect to.
@@ -722,7 +753,9 @@ The `callback` function, if specified, will be added as a listener for the
 `tls.connect()` returns a [`tls.TLSSocket`][] object.
 
 ## tls.connect(port[, host][, options][, callback])
-
+<!--YAML
+added: v0.11.3
+-->
 * `port` {number}
 * `host` {string}
 * `options` {Object}
@@ -850,7 +883,9 @@ socket.on('end', () => {
 
 
 ## tls.createSecureContext(options)
-
+<!--YAML
+added: v0.11.13
+-->
 * `options` {Object}
   * `pfx` {string|Buffer} A string or `Buffer` holding the PFX or PKCS12 encoded
     private key, certificate, and CA certificates.
@@ -883,7 +918,9 @@ publicly trusted list of CAs as given in
 
 
 ## tls.createServer(options[, secureConnectionListener])
-
+<!--YAML
+added: v0.11.3
+-->
 * `options` {Object}
   * `pfx` {string|Buffer} A string or `Buffer` containing the private key,
     certificate and CA certs of the server in PFX or PKCS12 format. (Mutually
