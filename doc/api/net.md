@@ -17,7 +17,7 @@ This class is used to create a TCP or local server.
 
 ### Event: 'close'
 <!-- YAML
-added: v6.0.0
+added: v0.9.12
 -->
 
 Emitted when the server closes. Note that if connections exist, this
@@ -25,7 +25,7 @@ event is not emitted until all connections are ended.
 
 ### Event: 'connection'
 <!-- YAML
-added: v6.0.0
+added: v1.3.0
 -->
 
 * {net.Socket} The connection object
