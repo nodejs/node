@@ -7,7 +7,7 @@ functions for creating both servers and clients (called streams). You can includ
 this module with `require('net');`.
 
 ## Class: net.Server
-<!--
+<!-- YAML
 added: v0.7.5
 -->
 
