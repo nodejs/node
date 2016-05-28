@@ -195,9 +195,7 @@ function parseOpts(options) {
     if (!match || !match[1] || !options[match[1]]) {
       return null;
     } else {
-      conf[match[1]] = (match[2].length && isFinite(match[2])
-                        ? +match[2]
-                        : match[2]);
+      conf[match[1]] = match[2];
       num--;
     }
   }
