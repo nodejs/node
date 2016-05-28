@@ -5,11 +5,17 @@ const assert = require('assert');
 const path = require('path');
 const spawn = require('child_process').spawn;
 
+// FIXME(bnoordhuis) On UNIX platforms, the debugger doesn't reliably kill
+// the inferior when killed by a signal.  Work around that by spawning
+// the debugger in its own process group and killing the process group
+// instead of just the debugger process.
+const detached = !common.isWindows;
+
 const children = [];
 for (let i = 0; i < 4; i += 1) {
   const port = common.PORT + i;
   const args = [`--debug-port=${port}`, '--interactive', 'debug', __filename];
-  const child = spawn(process.execPath, args, { stdio: 'pipe' });
+  const child = spawn(process.execPath, args, { detached, stdio: 'pipe' });
   child.test = { port: port, stdout: '' };
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(s) { child.test.stdout += s; update(); });
@@ -28,7 +34,18 @@ function update() {
 
   if (ready === children.length)
     for (const child of children)
-      child.kill();
+      kill(child);
+}
+
+function kill(child) {
+  if (!detached)
+    return child.kill();
+
+  try {
+    process.kill(-child.pid);  // Kill process group.
+  } catch (e) {
+    assert.strictEqual(e.code, 'ESRCH');  // Already gone.
+  }
 }
 
 process.on('exit', function() {
