@@ -107,6 +107,9 @@ This becomes `null` when sending a socket to a child with
 connections use asynchronous `server.getConnections` instead.
 
 ### server.getConnections(callback)
+<!-- YAML
+added: v0.9.7
+-->
 
 Asynchronously get the number of concurrent connections on the server. Works
 when sockets were sent to forks.
