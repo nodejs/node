@@ -44,6 +44,9 @@ Emitted when an error occurs.  The [`'close'`][] event will be called directly
 following this event.  See example in discussion of `server.listen`.
 
 ### Event: 'listening'
+<!-- YAML
+added: v1.8.1
+-->
 
 Emitted when the server has been bound after calling `server.listen`.
 
