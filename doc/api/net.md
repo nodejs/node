@@ -143,6 +143,9 @@ The parameter `backlog` behaves the same as in
 [`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
 
 ### server.listen(options[, callback])
+<!-- YAML
+added: v0.9.1
+-->
 
 * `options` {Object} - Required. Supports the following properties:
   * `port` {Number} - Optional.
@@ -172,6 +175,9 @@ server.listen({
 ```
 
 ### server.listen(path[, backlog][, callback])
+<!-- YAML
+added: v0.9.1
+-->
 
 * `path` {String}
 * `backlog` {Number}
@@ -206,6 +212,9 @@ The parameter `backlog` behaves the same as in
 [`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
 
 ### server.listen(port[, hostname][, backlog][, callback])
+<!-- YAML
+added: v0.9.1
+-->
 
 Begin accepting connections on the specified `port` and `hostname`. If the
 `hostname` is omitted, the server will accept connections on any IPv6 address
