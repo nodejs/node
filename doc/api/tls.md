@@ -1136,6 +1136,7 @@ implementation of the TLS protocol.
 
 ### Class: SecurePair
 <!-- YAML
+added: v0.3.2
 deprecated: v0.11.3
 -->
     Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
