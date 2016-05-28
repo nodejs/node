@@ -7,6 +7,9 @@ functions for creating both servers and clients (called streams). You can includ
 this module with `require('net');`.
 
 ## Class: net.Server
+<!--
+added: v0.7.5
+-->
 
 This class is used to create a TCP or local server.
 
