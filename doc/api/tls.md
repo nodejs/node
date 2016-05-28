@@ -524,7 +524,7 @@ information.
 
 ### tlsSocket.getEphemeralKeyInfo()
 <!--YAML
-added: v5.0.0-rc.1
+added: v5.0.0
 -->
 Returns an object representing the type, name, and size of parameter of
 an ephemeral key exchange in [Perfect Forward Secrecy][] on a client
