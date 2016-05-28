@@ -51,6 +51,9 @@ added: v1.8.1
 Emitted when the server has been bound after calling `server.listen`.
 
 ### server.address()
+<!-- YAML
+added: v0.5.2
+-->
 
 Returns the bound address, the address family name and port of the server
 as reported by the operating system.
