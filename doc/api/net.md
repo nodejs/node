@@ -249,6 +249,9 @@ server.on('error', (e) => {
 (Note: All sockets in Node.js set `SO_REUSEADDR` already)
 
 ### server.listening
+<!-- YAML
+added: v6.0.0
+-->
 
 A Boolean indicating whether or not the server is listening for
 connections.
