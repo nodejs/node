@@ -93,6 +93,10 @@ that event, it will be called with an Error as its only argument if the server
 was not open when it was closed.
 
 ### server.connections
+<!-- YAML
+added: v0.7.9
+deprecated:
+-->
 
     Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
 
