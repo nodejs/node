@@ -81,6 +81,9 @@ server.listen(() => {
 Don't call `server.address()` until the `'listening'` event has been emitted.
 
 ### server.close([callback])
+<!-- YAML
+added: v0.7.5
+-->
 
 Stops the server from accepting new connections and keeps existing
 connections. This function is asynchronous, the server is finally
