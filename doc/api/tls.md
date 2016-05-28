@@ -1117,7 +1117,8 @@ console.log(tls.getCiphers()); // ['AES128-SHA', 'AES256-SHA', ...]
 
 ### Class: CryptoStream
 <!-- YAML
-added: v0.3.2
+added: v0.3.4
+deprecated: v0.11.3
 -->
     Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
@@ -1125,19 +1126,27 @@ The `tls.CryptoStream` class represents a stream of encrypted data. This class
 has been deprecated and should no longer be used.
 
 #### cryptoStream.bytesWritten
-
+<!-- YAML
+added: v0.3.4
+deprecated: v0.11.3
+-->
 The `cryptoStream.bytesWritten` property returns the total number of bytes
 written to the underlying socket *including* the bytes required for the
 implementation of the TLS protocol.
 
 ### Class: SecurePair
-
+<!-- YAML
+deprecated: v0.11.3
+-->
     Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 Returned by `tls.createSecurePair()`.
 
 #### Event: 'secure'
-
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+-->
 The `'secure'` event is emitted by the `SecurePair` object once a secure
 connection has been established.
 
@@ -1146,7 +1155,10 @@ event, `pair.cleartext.authorized` should be inspected to confirm whether the
 certificate used is properly authorized.
 
 ## tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])
-
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+-->
     Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
 
 * `context` {Object} A secure context object as returned by
