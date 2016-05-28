@@ -117,6 +117,9 @@ when sockets were sent to forks.
 Callback should take two arguments `err` and `count`.
 
 ### server.listen(handle[, backlog][, callback])
+<!-- YAML
+added: v0.9.1
+-->
 
 * `handle` {Object}
 * `backlog` {Number}
