@@ -16,11 +16,17 @@ This class is used to create a TCP or local server.
 `net.Server` is an [`EventEmitter`][] with the following events:
 
 ### Event: 'close'
+<!-- YAML
+added: v6.0.0
+-->
 
 Emitted when the server closes. Note that if connections exist, this
 event is not emitted until all connections are ended.
 
 ### Event: 'connection'
+<!-- YAML
+added: v6.0.0
+-->
 
 * {net.Socket} The connection object
 
