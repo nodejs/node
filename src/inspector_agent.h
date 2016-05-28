@@ -2,7 +2,7 @@
 #define SRC_INSPECTOR_AGENT_H_
 
 #if !HAVE_INSPECTOR
-#   error("This header can only be used when inspector is enabled")
+#error("This header can only be used when inspector is enabled")
 #endif
 
 #include "inspector_socket.h"

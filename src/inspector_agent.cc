@@ -32,7 +32,7 @@ const char DEVTOOLS_PATH[] = "/node";
 
 void PrintDebuggerReadyMessage(int port) {
   fprintf(stderr, "Debugger listening on port %d. "
-    "To start debugging, open following URL in Chrome:\n"
+    "To start debugging, open the following URL in Chrome:\n"
     "    chrome-devtools://devtools/remote/serve_file/"
     "@521e5b7e2b7cc66b4006a8a54cb9c4e57494a5ef/inspector.html?"
     "experiments=true&v8only=true&ws=localhost:%d/node\n", port, port);

@@ -73,7 +73,8 @@ static bool connected_cb(inspector_socket_t *socket,
 static void on_new_connection(uv_stream_t *server, int status) {
   GTEST_ASSERT_EQ(0, status);
   connected = true;
-  inspector_accept(server, (inspector_socket_t *)server->data, connected_cb);
+  inspector_accept(server, reinterpret_cast<inspector_socket_t*>(server->data),
+                   connected_cb);
 }
 
 void write_done(uv_write_t *req, int status) { req->data = nullptr; }
@@ -242,7 +243,8 @@ static void expect_on_server(const char *data, size_t len) {
   }
   expects->actual_end -= expects->actual_offset;
   if (!expects->actual_end) {
-    memmove(expects->actual_data, expects->actual_data + expects->actual_offset,
+    memmove(expects->actual_data,
+            expects->actual_data + expects->actual_offset,
             expects->actual_end);
   }
   expects->actual_offset = 0;
@@ -250,7 +252,8 @@ static void expect_on_server(const char *data, size_t len) {
 
 static void inspector_record_error_code(uv_stream_t *stream, ssize_t nread,
                                         const uv_buf_t *buf) {
-  inspector_socket_t *inspector = (inspector_socket_t *)stream->data;
+  inspector_socket_t *inspector =
+      reinterpret_cast<inspector_socket_t*>(stream->data);
   // Increment instead of assign is to ensure the function is only called once
   *((int *)inspector->data) += nread;
 }
@@ -284,15 +287,16 @@ void handle_closed(uv_handle_t *handle) { waiting_to_close = false; }
 
 static void really_close(uv_tcp_t *socket) {
   waiting_to_close = true;
-  if (!uv_is_closing((uv_handle_t *)socket)) {
-    uv_close((uv_handle_t *)socket, handle_closed);
+  if (!uv_is_closing(reinterpret_cast<uv_handle_t*>(socket))) {
+    uv_close(reinterpret_cast<uv_handle_t*>(socket), handle_closed);
     SPIN_WHILE(waiting_to_close);
   }
 }
 
 // Called when the test leaves inspector socket in active state
 static void manual_inspector_socket_cleanup() {
-  EXPECT_EQ(0, uv_is_active((uv_handle_t *)&inspector.client));
+  EXPECT_EQ(0, uv_is_active(
+                   reinterpret_cast<uv_handle_t*>(&inspector.client)));
   free(inspector.ws_state);
   free(inspector.http_parsing_state);
   free(inspector.buffer);
@@ -332,7 +336,7 @@ protected:
     uv_tcp_nodelay(&client_socket, 1); // The buffering messes up the test
     SPIN_WHILE(!connect.data || !connected);
     really_close(&server);
-    uv_unref((uv_handle_t *)&server);
+    uv_unref(reinterpret_cast<uv_handle_t*>(&server));
   }
 
   virtual void TearDown() {
@@ -354,6 +358,7 @@ protected:
       free(expects);
       inspector.data = nullptr;
     }
+    uv_loop_close(&loop);
   }
 };
 
@@ -382,7 +387,8 @@ TEST_F(InspectorSocketTest, ReadsAndWritesInspectorMessage) {
   const char SERVER_CLOSE_FRAME[] = {'\x88', '\x00'};
   do_write(CLIENT_CLOSE_FRAME, sizeof(CLIENT_CLOSE_FRAME));
   expect_on_client(SERVER_CLOSE_FRAME, sizeof(SERVER_CLOSE_FRAME));
-  GTEST_ASSERT_EQ(0, uv_is_active((uv_handle_t *)&client_socket));
+  GTEST_ASSERT_EQ(0, uv_is_active(
+                         reinterpret_cast<uv_handle_t*>(&client_socket)));
 }
 
 TEST_F(InspectorSocketTest, BufferEdgeCases) {
@@ -464,7 +470,7 @@ TEST_F(InspectorSocketTest, AcceptsRequestInSeveralWrites) {
   SPIN_WHILE(!inspector_ready);
   expect_handshake();
   inspector_read_stop(&inspector);
-  GTEST_ASSERT_EQ(uv_is_active((uv_handle_t *)&client_socket), 0);
+  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
   manual_inspector_socket_cleanup();
 }
 
@@ -477,8 +483,8 @@ TEST_F(InspectorSocketTest, ExtraTextBeforeRequest) {
   do_write((char *)HANDSHAKE_REQ, sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
-  EXPECT_EQ(uv_is_active((uv_handle_t *)&client_socket), 0);
-  EXPECT_EQ(uv_is_active((uv_handle_t *)&socket), 0);
+  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
+  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
 }
 
 TEST_F(InspectorSocketTest, ExtraLettersBeforeRequest) {
@@ -489,8 +495,8 @@ TEST_F(InspectorSocketTest, ExtraLettersBeforeRequest) {
   do_write((char *)HANDSHAKE_REQ, sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
-  EXPECT_EQ(uv_is_active((uv_handle_t *)&client_socket), 0);
-  EXPECT_EQ(uv_is_active((uv_handle_t *)&socket), 0);
+  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
+  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
 }
 
 TEST_F(InspectorSocketTest, RequestWithoutKey) {
@@ -504,8 +510,8 @@ TEST_F(InspectorSocketTest, RequestWithoutKey) {
   do_write((char *)BROKEN_REQUEST, sizeof(BROKEN_REQUEST) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
-  EXPECT_EQ(uv_is_active((uv_handle_t *)&client_socket), 0);
-  EXPECT_EQ(uv_is_active((uv_handle_t *)&socket), 0);
+  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
+  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
 }
 
 TEST_F(InspectorSocketTest, KillsConnectionOnProtocolViolation) {
@@ -518,7 +524,7 @@ TEST_F(InspectorSocketTest, KillsConnectionOnProtocolViolation) {
   const char SERVER_FRAME[] = "I'm not a good WS frame. Nope!";
   do_write(SERVER_FRAME, sizeof(SERVER_FRAME));
   expect_server_read_error();
-  GTEST_ASSERT_EQ(uv_is_active((uv_handle_t *)&client_socket), 0);
+  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
 }
 
 TEST_F(InspectorSocketTest, CanStopReadingFromInspector) {
@@ -537,7 +543,8 @@ TEST_F(InspectorSocketTest, CanStopReadingFromInspector) {
 
   inspector_read_stop(&inspector);
   do_write(SERVER_FRAME, sizeof(SERVER_FRAME));
-  GTEST_ASSERT_EQ(uv_is_active((uv_handle_t *)&client_socket), 0);
+  GTEST_ASSERT_EQ(uv_is_active(
+                      reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
   manual_inspector_socket_cleanup();
 }
 
@@ -736,7 +743,8 @@ TEST_F(InspectorSocketTest, WriteBeforeHandshake) {
   expect_on_client(EXPECTED, sizeof(EXPECTED) - 1);
   bool flag = false;
   client_socket.data = &flag;
-  uv_close((uv_handle_t *)&client_socket, WriteBeforeHandshake_close_cb);
+  uv_close(reinterpret_cast<uv_handle_t*>(&client_socket),
+           WriteBeforeHandshake_close_cb);
   SPIN_WHILE(!flag);
 }
 
@@ -748,7 +756,8 @@ static void CleanupSocketAfterEOF_close_cb(inspector_socket_t *inspector,
 static void CleanupSocketAfterEOF_read_cb(uv_stream_t *stream, ssize_t nread,
                                           const uv_buf_t *buf) {
   EXPECT_EQ(UV_EOF, nread);
-  inspector_socket_t *insp = (inspector_socket_t *)stream->data;
+  inspector_socket_t *insp =
+      reinterpret_cast<inspector_socket_t*>(stream->data);
   inspector_close(insp, CleanupSocketAfterEOF_close_cb);
 }
 
@@ -763,7 +772,7 @@ TEST_F(InspectorSocketTest, CleanupSocketAfterEOF) {
     uv_run(&loop, UV_RUN_NOWAIT);
   }
 
-  uv_close((uv_handle_t *)&client_socket, nullptr);
+  uv_close(reinterpret_cast<uv_handle_t*>(&client_socket), nullptr);
   bool flag = false;
   inspector.data = &flag;
   SPIN_WHILE(!flag);
@@ -774,7 +783,7 @@ TEST_F(InspectorSocketTest, EOFBeforeHandshake) {
   const char MESSAGE[] = "We'll send EOF afterwards";
   inspector_write(&inspector, MESSAGE, sizeof(MESSAGE) - 1);
   expect_on_client(MESSAGE, sizeof(MESSAGE) - 1);
-  uv_close((uv_handle_t *)&client_socket, nullptr);
+  uv_close(reinterpret_cast<uv_handle_t*>(&client_socket), nullptr);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
 }
 
@@ -842,7 +851,8 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   const char SERVER_CLOSE_FRAME[] = {'\x88', '\x00'};
   do_write(CLIENT_CLOSE_FRAME, sizeof(CLIENT_CLOSE_FRAME));
   expect_on_client(SERVER_CLOSE_FRAME, sizeof(SERVER_CLOSE_FRAME));
-  GTEST_ASSERT_EQ(0, uv_is_active((uv_handle_t *)&client_socket));
+  GTEST_ASSERT_EQ(0, uv_is_active(
+                         reinterpret_cast<uv_handle_t*>(&client_socket)));
   free(outgoing);
   free(expected);
   free(message);

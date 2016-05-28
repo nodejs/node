@@ -191,7 +191,7 @@ instances for debugging and profiling.
 
 V8 Inspector can be enabled by passing the `--inspect` flag when starting a
 Node.js application. It is also possible to supply a custom port with that flag,
-e.g. `--inspect=9222` will expect DevTools connection on the port 9222.
+e.g. `--inspect=9222` will accept DevTools connections on port 9222.
 
 To break on the first line of the application code, provide the `--debug-brk`
 flag in addition to `--inspect`.
