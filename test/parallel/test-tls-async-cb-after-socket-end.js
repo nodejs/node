@@ -1,15 +1,14 @@
 'use strict';
 
-var common = require('../common');
-
-var path = require('path');
-var fs = require('fs');
-const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
-
+const common = require('../common');
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
+
+const path = require('path');
+const fs = require('fs');
+const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 var tls = require('tls');
 
