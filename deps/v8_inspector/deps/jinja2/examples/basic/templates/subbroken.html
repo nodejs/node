@@ -1,0 +1,3 @@
+{% macro may_break(item) -%}
+  [{{ item / 0 }}]
+{%- endmacro %}
