@@ -24,13 +24,13 @@ var ciphers = [];
 
 var server = tls.createServer(options, function(conn) {
   conn.end('ok');
-}).listen(common.PORT, function() {
-  var ecdsa = tls.connect(common.PORT, {
+}).listen(0, function() {
+  var ecdsa = tls.connect(this.address().port, {
     ciphers: 'ECDHE-ECDSA-AES256-GCM-SHA384',
     rejectUnauthorized: false
   }, function() {
     ciphers.push(ecdsa.getCipher());
-    var rsa = tls.connect(common.PORT, {
+    var rsa = tls.connect(server.address().port, {
       ciphers: 'ECDHE-RSA-AES256-GCM-SHA384',
       rejectUnauthorized: false
     }, function() {

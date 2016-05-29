@@ -3,7 +3,6 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
-var PORT = common.PORT;
 var spawn = require('child_process').spawn;
 
 if (common.isWindows) {
@@ -38,7 +37,7 @@ function test() {
     // now make sure that we can request to the child, then kill it.
     http.get({
       server: 'localhost',
-      port: PORT,
+      port: child.port,
       path: '/',
     }).on('response', function(res) {
       var s = '';
@@ -60,21 +59,21 @@ function test() {
   }
 }
 
-// Listen on PORT, and then pass the handle to the detached child.
+// Listen on port, and then pass the handle to the detached child.
 // Then output the child's pid, and immediately exit.
 function parent() {
   var server = net.createServer(function(conn) {
     conn.end('HTTP/1.1 403 Forbidden\r\n\r\nI got problems.\r\n');
     throw new Error('Should not see connections on parent');
-  }).listen(PORT, function() {
-    console.error('server listening on %d', PORT);
+  }).listen(0, function() {
+    console.error('server listening on %d', this.address().port);
 
     var child = spawn(process.execPath, [__filename, 'child'], {
       stdio: [ 0, 1, 2, server._handle ],
       detached: true
     });
 
-    console.log('%j\n', { pid: child.pid });
+    console.log('%j\n', { pid: child.pid, port: this.address().port });
 
     // Now close the parent, so that the child is the only thing
     // referencing that handle.  Note that connections will still

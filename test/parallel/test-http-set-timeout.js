@@ -15,14 +15,14 @@ var server = http.createServer(function(req, res) {
   });
 });
 
-server.listen(common.PORT, function() {
-  console.log('Server running at http://127.0.0.1:' + common.PORT + '/');
+server.listen(0, function() {
+  console.log(`Server running at http://127.0.0.1:${this.address().port}/`);
 
   var errorTimer = setTimeout(function() {
     throw new Error('Timeout was not successful');
   }, common.platformTimeout(2000));
 
-  var x = http.get({port: common.PORT, path: '/'});
+  var x = http.get({port: this.address().port, path: '/'});
   x.on('error', function() {
     clearTimeout(errorTimer);
     console.log('HTTP REQUEST COMPLETE (this is good)');

@@ -12,10 +12,10 @@ const ciphers = 'AECDH-NULL-SHA';
 https.createServer({ ciphers }, function(req, res) {
   this.close();
   res.end();
-}).listen(common.PORT, '::1', function() {
+}).listen(0, '::1', function() {
   const options = {
     host: 'localhost',
-    port: common.PORT,
+    port: this.address().port,
     family: 6,
     ciphers: ciphers,
     rejectUnauthorized: false,

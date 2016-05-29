@@ -65,13 +65,9 @@ var server3 = server(options3);
 
 var listenWait = 0;
 
-var port = common.PORT;
-var port1 = port++;
-var port2 = port++;
-var port3 = port++;
-server1.listen(port1, listening());
-server2.listen(port2, listening());
-server3.listen(port3, listening());
+server1.listen(0, listening());
+server2.listen(0, listening());
+server3.listen(0, listening());
 
 var responseErrors = {};
 var expectResponseCount = 0;
@@ -131,9 +127,9 @@ function makeReq(path, port, error, host, ca) {
   }
   var req = https.get(options);
   expectResponseCount++;
-  var server = port === port1 ? server1
-      : port === port2 ? server2
-      : port === port3 ? server3
+  var server = port === server1.address().port ? server1
+      : port === server2.address().port ? server2
+      : port === server3.address().port ? server3
       : null;
 
   if (!server) throw new Error('invalid port: ' + port);
@@ -155,6 +151,9 @@ function makeReq(path, port, error, host, ca) {
 
 function allListening() {
   // ok, ready to start the tests!
+  const port1 = server1.address().port;
+  const port2 = server2.address().port;
+  const port3 = server3.address().port;
 
   // server1: host 'agent1', signed by ca1
   makeReq('/inv1', port1, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');

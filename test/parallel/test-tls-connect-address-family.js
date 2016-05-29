@@ -11,10 +11,10 @@ if (!common.hasIPv6) {
 const ciphers = 'AECDH-NULL-SHA';
 tls.createServer({ ciphers }, function() {
   this.close();
-}).listen(common.PORT, '::1', function() {
+}).listen(0, '::1', function() {
   const options = {
     host: 'localhost',
-    port: common.PORT,
+    port: this.address().port,
     family: 6,
     ciphers: ciphers,
     rejectUnauthorized: false,
