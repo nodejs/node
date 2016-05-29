@@ -1,8 +1,14 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
+
+function assertValidPort(port) {
+  assert.strictEqual(typeof port, 'number');
+  assert.ok(isFinite(port));
+  assert.ok(port > 0);
+}
 
 // With only a callback, server should get a port assigned by the OS
 
@@ -22,7 +28,7 @@ var address1;
 var connectionKey1;
 var server1 = net.createServer(function(socket) { });
 
-server1.listen(common.PORT);
+server1.listen(0);
 
 setTimeout(function() {
   address1 = server1.address();
@@ -37,7 +43,7 @@ setTimeout(function() {
 var address2;
 var server2 = net.createServer(function(socket) { });
 
-server2.listen(common.PORT + 1, function() {
+server2.listen(0, function() {
   address2 = server2.address();
   console.log('address2 %j', address2);
   server2.close();
@@ -49,7 +55,7 @@ server2.listen(common.PORT + 1, function() {
 var address3;
 var server3 = net.createServer(function(socket) { });
 
-server3.listen(common.PORT + 2, '0.0.0.0', 127, function() {
+server3.listen(0, '0.0.0.0', 127, function() {
   address3 = server3.address();
   console.log('address3 %j', address3);
   server3.close();
@@ -61,7 +67,7 @@ server3.listen(common.PORT + 2, '0.0.0.0', 127, function() {
 var address4;
 var server4 = net.createServer(function(socket) { });
 
-server4.listen(common.PORT + 3, 127, function() {
+server4.listen(0, 127, function() {
   address4 = server4.address();
   console.log('address4 %j', address4);
   server4.close();
@@ -70,17 +76,16 @@ server4.listen(common.PORT + 3, 127, function() {
 
 process.on('exit', function() {
   assert.ok(address0.port > 100);
-  assert.equal(common.PORT, address1.port);
 
+  assertValidPort(address1.port);
   var expectedConnectionKey1;
-
   if (address1.family === 'IPv6')
     expectedConnectionKey1 = '6::::' + address1.port;
   else
     expectedConnectionKey1 = '4:0.0.0.0:' + address1.port;
-
   assert.equal(connectionKey1, expectedConnectionKey1);
-  assert.equal(common.PORT + 1, address2.port);
-  assert.equal(common.PORT + 2, address3.port);
-  assert.equal(common.PORT + 3, address4.port);
+
+  assertValidPort(address2.port);
+  assertValidPort(address3.port);
+  assertValidPort(address4.port);
 });

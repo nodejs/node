@@ -75,8 +75,9 @@ if (cluster.isMaster) {
     cluster.fork();
     cluster.fork();
     if (!common.isWindows) {
-      cluster.fork({BOUND: 'y'});
-      cluster.fork({BOUND: 'y'});
+      cluster.fork({BOUND: '0'}).once('message', function(msg) {
+        cluster.fork({BOUND: msg});
+      });
     }
   });
 
@@ -87,8 +88,11 @@ if (cluster.isMaster) {
 
 var source = dgram.createSocket('udp4');
 
-if (process.env.BOUND === 'y') {
-  source.bind(0);
+if (process.env.BOUND) {
+  source.bind(+process.env.BOUND, function() {
+    if (process.env.BOUND === '0')
+      process.send(this.address().port);
+  });
 } else {
   // cluster doesn't know about exclusive sockets, so it won't close them. This
   // is expected, its the same situation for timers, outgoing tcp connections,
