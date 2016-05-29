@@ -55,7 +55,7 @@ Ensure everyone is added to https://github.com/orgs/nodejs/teams/collaborators
 
 
   * Labels:
-    * There is a bot that applies subsystem labels (for example, `doc`, `test`, `assert`, or `buffer`) so that we know what parts of the code base the pull request modifies. It is not perfect, of course. Feel free to apply relevant labels and remove irrelevant labels from pull requests and issues.
+    * There is [a bot](https://github.com/nodejs-github-bot/github-bot) that applies subsystem labels (for example, `doc`, `test`, `assert`, or `buffer`) so that we know what parts of the code base the pull request modifies. It is not perfect, of course. Feel free to apply relevant labels and remove irrelevant labels from pull requests and issues.
     * [**See "Labels"**](./onboarding-extras.md#labels)
     * Use the `ctc-agenda` if a topic is controversial or isn't coming to a conclusion after an extended time.
     * `semver-{minor,major}`:
