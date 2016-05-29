@@ -23,9 +23,9 @@ var echoServer = net.createServer(function(connection) {
     connection.end();
   });
 });
-echoServer.listen(common.PORT);
+echoServer.listen(0);
 
 echoServer.on('listening', function() {
-  clientConnection = net.createConnection(common.PORT);
+  clientConnection = net.createConnection(this.address().port);
   clientConnection.setTimeout(0);
 });

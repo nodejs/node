@@ -19,7 +19,7 @@ var server = net.createServer(function(connection) {
   waits.push(function() { connection.end(); });
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   makeConnection(0);
 });
 
@@ -29,7 +29,7 @@ console.error('server.maxConnections = %d', server.maxConnections);
 
 
 function makeConnection(index) {
-  var c = net.createConnection(common.PORT);
+  var c = net.createConnection(server.address().port);
   var gotData = false;
 
   c.on('connect', function() {
@@ -78,7 +78,7 @@ function makeConnection(index) {
     // Retry if SmartOS and ECONNREFUSED. See
     // https://github.com/nodejs/node/issues/2663.
     if (common.isSunOS && (e.code === 'ECONNREFUSED')) {
-      c.connect(common.PORT);
+      c.connect(server.address().port);
     }
     console.error('error %d: %s', index, e);
   });

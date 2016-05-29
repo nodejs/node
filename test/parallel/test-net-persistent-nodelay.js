@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 var TCPWrap = process.binding('tcp_wrap').TCP;
@@ -7,7 +7,7 @@ var TCPWrap = process.binding('tcp_wrap').TCP;
 var echoServer = net.createServer(function(connection) {
   connection.end();
 });
-echoServer.listen(common.PORT);
+echoServer.listen(0);
 
 var callCount = 0;
 
@@ -26,7 +26,7 @@ echoServer.on('listening', function() {
 
   var s = sock1.setNoDelay();
   assert.ok(s instanceof net.Socket);
-  sock1.connect(common.PORT);
+  sock1.connect(this.address().port);
   sock1.on('end', function() {
     assert.equal(callCount, 1);
     echoServer.close();

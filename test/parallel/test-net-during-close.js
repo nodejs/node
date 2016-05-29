@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 var accessedProperties = false;
@@ -8,8 +8,8 @@ var server = net.createServer(function(socket) {
   socket.end();
 });
 
-server.listen(common.PORT, function() {
-  var client = net.createConnection(common.PORT);
+server.listen(0, function() {
+  var client = net.createConnection(this.address().port);
   server.close();
   // server connection event has not yet fired
   // client is still attempting to connect

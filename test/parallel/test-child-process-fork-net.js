@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert');
 require('../common');
+const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
 

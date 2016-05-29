@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var N = 100;
@@ -9,12 +9,12 @@ var server = http.createServer(function(req, res) {
   res.end('Hello');
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   http.globalAgent.maxSockets = 1;
   var parser;
   for (var i = 0; i < N; ++i) {
     (function makeRequest(i) {
-      var req = http.get({port: common.PORT}, function(res) {
+      var req = http.get({port: server.address().port}, function(res) {
         if (!parser) {
           parser = req.parser;
         } else {

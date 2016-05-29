@@ -11,12 +11,12 @@ var server = http.createServer(function(req, res) {
   res.addTrailers({'x-foo': 'bar'});
   res.end('stuff' + '\n');
 });
-server.listen(common.PORT);
+server.listen(0);
 
 
 // first, we test an HTTP/1.0 request.
 server.on('listening', function() {
-  var c = net.createConnection(common.PORT);
+  var c = net.createConnection(this.address().port);
   var res_buffer = '';
 
   c.setEncoding('utf8');
@@ -44,7 +44,7 @@ server.on('listening', function() {
 
 // now, we test an HTTP/1.1 request.
 server.on('listening', function() {
-  var c = net.createConnection(common.PORT);
+  var c = net.createConnection(this.address().port);
   var res_buffer = '';
   var tid;
 
@@ -76,7 +76,11 @@ server.on('listening', function() {
 
 // now, see if the client sees the trailers.
 server.on('listening', function() {
-  http.get({ port: common.PORT, path: '/hello', headers: {} }, function(res) {
+  http.get({
+    port: this.address().port,
+    path: '/hello',
+    headers: {}
+  }, function(res) {
     res.on('end', function() {
       //console.log(res.trailers);
       assert.ok('x-foo' in res.trailers, 'Client doesn\'t see trailers.');

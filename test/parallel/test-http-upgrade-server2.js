@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
@@ -23,8 +23,8 @@ process.on('uncaughtException', function(e) {
 });
 
 
-server.listen(common.PORT, function() {
-  var c = net.createConnection(common.PORT);
+server.listen(0, function() {
+  var c = net.createConnection(this.address().port);
 
   c.on('connect', function() {
     c.write('GET /blah HTTP/1.1\r\n' +

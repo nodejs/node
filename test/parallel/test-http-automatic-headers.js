@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -9,12 +9,12 @@ var server = http.createServer(function(req, res) {
   res.setHeader('X-Content-Length', 'baz');
   res.end();
 });
-server.listen(common.PORT);
+server.listen(0);
 
 server.on('listening', function() {
-  var agent = new http.Agent({ port: common.PORT, maxSockets: 1 });
+  var agent = new http.Agent({ port: this.address().port, maxSockets: 1 });
   http.get({
-    port: common.PORT,
+    port: this.address().port,
     path: '/hello',
     agent: agent
   }, function(res) {

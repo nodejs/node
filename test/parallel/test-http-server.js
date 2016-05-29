@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 var http = require('http');
@@ -43,12 +43,12 @@ var server = http.createServer(function(req, res) {
   }, 1);
 
 });
-server.listen(common.PORT);
+server.listen(0);
 
 server.httpAllowHalfOpen = true;
 
 server.on('listening', function() {
-  var c = net.createConnection(common.PORT);
+  var c = net.createConnection(this.address().port);
 
   c.setEncoding('utf8');
 

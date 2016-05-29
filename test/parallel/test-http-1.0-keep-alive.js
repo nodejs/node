@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var http = require('http');
 var net = require('net');
 
@@ -84,14 +84,17 @@ check([{
 
 function check(tests) {
   var test = tests[0];
-  if (test) http.createServer(server).listen(common.PORT, '127.0.0.1', client);
+  var server;
+  if (test) {
+    server = http.createServer(serverHandler).listen(0, '127.0.0.1', client);
+  }
   var current = 0;
 
   function next() {
     check(tests.slice(1));
   }
 
-  function server(req, res) {
+  function serverHandler(req, res) {
     if (current + 1 === test.responses.length) this.close();
     var ctx = test.responses[current];
     console.error('<  SERVER SENDING RESPONSE', ctx);
@@ -102,7 +105,8 @@ function check(tests) {
 
   function client() {
     if (current === test.requests.length) return next();
-    var conn = net.createConnection(common.PORT, '127.0.0.1', connected);
+    const port = server.address().port;
+    var conn = net.createConnection(port, '127.0.0.1', connected);
 
     function connected() {
       var ctx = test.requests[current];
