@@ -1,6 +1,11 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 const util = require('util');
 const TLSWrap = process.binding('tls_wrap').TLSWrap;
 
