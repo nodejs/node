@@ -24,13 +24,13 @@ var server = tls.createServer(options, function(socket) {
     console.error(data.toString());
     assert.equal(data, 'ok');
   });
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   unauthorized();
 });
 
 function unauthorized() {
   var socket = tls.connect({
-    port: common.PORT,
+    port: server.address().port,
     servername: 'localhost',
     rejectUnauthorized: false
   }, function() {
@@ -45,7 +45,7 @@ function unauthorized() {
 }
 
 function rejectUnauthorized() {
-  var socket = tls.connect(common.PORT, {
+  var socket = tls.connect(server.address().port, {
     servername: 'localhost'
   }, function() {
     assert(false);
@@ -58,7 +58,7 @@ function rejectUnauthorized() {
 }
 
 function authorized() {
-  var socket = tls.connect(common.PORT, {
+  var socket = tls.connect(server.address().port, {
     ca: [fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))],
     servername: 'localhost'
   }, function() {

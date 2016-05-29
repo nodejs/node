@@ -34,13 +34,13 @@ var server = http.Server(function(req, res) {
 });
 
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   for (var i = 0; i < total; i++) {
     (function() {
       var x = i;
 
       var opts = {
-        port: common.PORT,
+        port: server.address().port,
         headers: { connection: 'close' }
       };
 

@@ -42,18 +42,19 @@ test(function serverTimeout(cb) {
   var server = https.createServer(serverOptions, function(req, res) {
     // just do nothing, we should get a timeout event.
   });
-  server.listen(common.PORT);
-  var s = server.setTimeout(50, function(socket) {
-    caughtTimeout = true;
-    socket.destroy();
-    server.close();
-    cb();
+  server.listen(0, function() {
+    var s = server.setTimeout(50, function(socket) {
+      caughtTimeout = true;
+      socket.destroy();
+      server.close();
+      cb();
+    });
+    assert.ok(s instanceof https.Server);
+    https.get({
+      port: this.address().port,
+      rejectUnauthorized: false
+    }).on('error', function() {});
   });
-  assert.ok(s instanceof https.Server);
-  https.get({
-    port: common.PORT,
-    rejectUnauthorized: false
-  }).on('error', function() {});
 });
 
 test(function serverRequestTimeout(cb) {
@@ -70,15 +71,16 @@ test(function serverRequestTimeout(cb) {
       cb();
     });
   });
-  server.listen(common.PORT);
-  var req = https.request({
-    port: common.PORT,
-    method: 'POST',
-    rejectUnauthorized: false
+  server.listen(0, function() {
+    var req = https.request({
+      port: this.address().port,
+      method: 'POST',
+      rejectUnauthorized: false
+    });
+    req.on('error', function() {});
+    req.write('Hello');
+    // req is in progress
   });
-  req.on('error', function() {});
-  req.write('Hello');
-  // req is in progress
 });
 
 test(function serverResponseTimeout(cb) {
@@ -95,11 +97,12 @@ test(function serverResponseTimeout(cb) {
       cb();
     });
   });
-  server.listen(common.PORT);
-  https.get({
-    port: common.PORT,
-    rejectUnauthorized: false
-  }).on('error', function() {});
+  server.listen(0, function() {
+    https.get({
+      port: this.address().port,
+      rejectUnauthorized: false
+    }).on('error', function() {});
+  });
 });
 
 test(function serverRequestNotTimeoutAfterEnd(cb) {
@@ -123,11 +126,12 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
     server.close();
     cb();
   });
-  server.listen(common.PORT);
-  https.get({
-    port: common.PORT,
-    rejectUnauthorized: false
-  }).on('error', function() {});
+  server.listen(0, function() {
+    https.get({
+      port: this.address().port,
+      rejectUnauthorized: false
+    }).on('error', function() {});
+  });
 });
 
 test(function serverResponseTimeoutWithPipeline(cb) {
@@ -146,16 +150,17 @@ test(function serverResponseTimeoutWithPipeline(cb) {
     server.close();
     cb();
   });
-  server.listen(common.PORT);
-  var options = {
-    port: common.PORT,
-    allowHalfOpen: true,
-    rejectUnauthorized: false
-  };
-  var c = tls.connect(options, function() {
-    c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
-    c.write('GET /2 HTTP/1.1\r\nHost: localhost\r\n\r\n');
-    c.write('GET /3 HTTP/1.1\r\nHost: localhost\r\n\r\n');
+  server.listen(0, function() {
+    var options = {
+      port: this.address().port,
+      allowHalfOpen: true,
+      rejectUnauthorized: false
+    };
+    var c = tls.connect(options, function() {
+      c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
+      c.write('GET /2 HTTP/1.1\r\nHost: localhost\r\n\r\n');
+      c.write('GET /3 HTTP/1.1\r\nHost: localhost\r\n\r\n');
+    });
   });
 });
 
@@ -183,14 +188,15 @@ test(function idleTimeout(cb) {
     server.close();
     cb();
   });
-  server.listen(common.PORT);
-  var options = {
-    port: common.PORT,
-    allowHalfOpen: true,
-    rejectUnauthorized: false
-  };
-  tls.connect(options, function() {
-    this.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
-    // Keep-Alive
+  server.listen(0, function() {
+    var options = {
+      port: this.address().port,
+      allowHalfOpen: true,
+      rejectUnauthorized: false
+    };
+    tls.connect(options, function() {
+      this.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
+      // Keep-Alive
+    });
   });
 });

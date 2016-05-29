@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
@@ -27,9 +27,9 @@ http.globalAgent.maxSockets = 5;
 var server = net.createServer(function(socket) {
   socket.write(SERVER_RESPONSES[requests]);
   ++requests;
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   function makeRequest() {
-    var req = http.get({port: common.PORT}, function(res) {
+    var req = http.get({port: server.address().port}, function(res) {
       assert.equal(req.shouldKeepAlive, SHOULD_KEEP_ALIVE[responses],
                    SERVER_RESPONSES[responses] + ' should ' +
                    (SHOULD_KEEP_ALIVE[responses] ? '' : 'not ') +

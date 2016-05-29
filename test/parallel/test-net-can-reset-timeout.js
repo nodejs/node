@@ -1,6 +1,6 @@
 'use strict';
+require('../common');
 var net = require('net');
-var common = require('../common');
 var assert = require('assert');
 
 var timeoutCount = 0;
@@ -25,8 +25,8 @@ var server = net.createServer(function(stream) {
   });
 });
 
-server.listen(common.PORT, function() {
-  var c = net.createConnection(common.PORT);
+server.listen(0, function() {
+  var c = net.createConnection(this.address().port);
 
   c.on('data', function() {
     c.end();

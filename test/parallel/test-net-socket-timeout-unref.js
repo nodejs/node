@@ -9,7 +9,7 @@ const server = net.createServer(function(c) {
   c.write('hello');
   c.unref();
 });
-server.listen(common.PORT);
+server.listen(0);
 server.unref();
 
 var connections = 0;
@@ -17,7 +17,7 @@ const sockets = [];
 const delays = [8, 5, 3, 6, 2, 4];
 
 delays.forEach(function(T) {
-  const socket = net.createConnection(common.PORT, 'localhost');
+  const socket = net.createConnection(server.address().port, 'localhost');
   socket.on('connect', common.mustCall(function() {
     if (++connections === delays.length) {
       sockets.forEach(function(s) {

@@ -18,8 +18,8 @@ var server = tls.createServer({
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 }, function(c) {
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, function() {
+}).listen(0, function() {
+  var c = tls.connect(this.address().port, function() {
     assert(false, 'should not be called');
   });
 

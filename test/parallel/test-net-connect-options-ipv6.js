@@ -19,12 +19,12 @@ const server = net.createServer({allowHalfOpen: true}, function(socket) {
   socket.end();
 });
 
-server.listen(common.PORT, '::1', tryConnect);
+server.listen(0, '::1', tryConnect);
 
 function tryConnect() {
   const client = net.connect({
     host: host,
-    port: common.PORT,
+    port: server.address().port,
     family: 6,
     allowHalfOpen: true
   }, function() {

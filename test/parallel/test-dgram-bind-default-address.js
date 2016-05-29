@@ -9,8 +9,10 @@ if (common.inFreeBSDJail) {
   return;
 }
 
-dgram.createSocket('udp4').bind(common.PORT + 0, common.mustCall(function() {
-  assert.equal(this.address().port, common.PORT + 0);
+dgram.createSocket('udp4').bind(0, common.mustCall(function() {
+  assert.strictEqual(typeof this.address().port, 'number');
+  assert.ok(isFinite(this.address().port));
+  assert.ok(this.address().port > 0);
   assert.equal(this.address().address, '0.0.0.0');
   this.close();
 }));
@@ -20,8 +22,10 @@ if (!common.hasIPv6) {
   return;
 }
 
-dgram.createSocket('udp6').bind(common.PORT + 1, common.mustCall(function() {
-  assert.equal(this.address().port, common.PORT + 1);
+dgram.createSocket('udp6').bind(0, common.mustCall(function() {
+  assert.strictEqual(typeof this.address().port, 'number');
+  assert.ok(isFinite(this.address().port));
+  assert.ok(this.address().port > 0);
   var address = this.address().address;
   if (address === '::ffff:0.0.0.0')
     address = '::';

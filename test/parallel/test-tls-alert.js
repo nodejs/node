@@ -30,9 +30,9 @@ var server = tls.Server({
   secureProtocol: 'TLSv1_2_server_method',
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert')
-}, null).listen(common.PORT, function() {
+}, null).listen(0, function() {
   var args = ['s_client', '-quiet', '-tls1_1',
-              '-connect', '127.0.0.1:' + common.PORT];
+              '-connect', `127.0.0.1:${this.address().port}`];
 
   // for the performance and stability issue in s_client on Windows
   if (common.isWindows)

@@ -25,8 +25,8 @@ var server = http.createServer(function(req, res) {
 });
 
 
-server.listen(common.PORT, function() {
-  var req = https.get({ port: common.PORT }, function(res) {
+server.listen(0, function() {
+  var req = https.get({ port: this.address().port }, function(res) {
     resCount++;
   });
 

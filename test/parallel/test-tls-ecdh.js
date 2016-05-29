@@ -32,9 +32,9 @@ var server = tls.createServer(options, function(conn) {
   nconns++;
 });
 
-server.listen(common.PORT, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', function() {
   var cmd = '"' + common.opensslCli + '" s_client -cipher ' + options.ciphers +
-            ' -connect 127.0.0.1:' + common.PORT;
+            ` -connect 127.0.0.1:${this.address().port}`;
 
   // for the performance and stability issue in s_client on Windows
   if (common.isWindows)

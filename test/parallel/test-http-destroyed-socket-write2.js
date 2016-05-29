@@ -12,9 +12,9 @@ var server = http.createServer(function(req, res) {
   });
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'POST'
   });

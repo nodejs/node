@@ -22,7 +22,7 @@ var server = tls.createServer({ cert: cert, key: key }, common.fail);
 var errors = [];
 var stderr = '';
 
-server.listen(common.PORT, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', function() {
   var address = this.address().address + ':' + this.address().port;
   var args = ['s_client',
               '-no_ssl2',

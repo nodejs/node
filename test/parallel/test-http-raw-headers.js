@@ -1,14 +1,13 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var http = require('http');
 
 http.createServer(function(req, res) {
-  this.close();
   var expectRawHeaders = [
     'Host',
-    'localhost:' + common.PORT,
+    `localhost:${this.address().port}`,
     'transfer-ENCODING',
     'CHUNKED',
     'x-BaR',
@@ -17,12 +16,11 @@ http.createServer(function(req, res) {
     'close'
   ];
   var expectHeaders = {
-    host: 'localhost:' + common.PORT,
+    host: `localhost:${this.address().port}`,
     'transfer-encoding': 'CHUNKED',
     'x-bar': 'yoyoyo',
     connection: 'close'
   };
-
   var expectRawTrailers = [
     'x-bAr',
     'yOyOyOy',
@@ -33,8 +31,9 @@ http.createServer(function(req, res) {
     'X-baR',
     'OyOyOyO'
   ];
-
   var expectTrailers = { 'x-bar': 'yOyOyOy, OyOyOyO, yOyOyOy, OyOyOyO' };
+
+  this.close();
 
   assert.deepStrictEqual(req.rawHeaders, expectRawHeaders);
   assert.deepStrictEqual(req.headers, expectHeaders);
@@ -53,8 +52,8 @@ http.createServer(function(req, res) {
     ['X-foO', 'OxOxOxO']
   ]);
   res.end('x f o o');
-}).listen(common.PORT, function() {
-  var req = http.request({ port: common.PORT, path: '/' });
+}).listen(0, function() {
+  var req = http.request({ port: this.address().port, path: '/' });
   req.addTrailers([
     ['x-bAr', 'yOyOyOy'],
     ['x-baR', 'OyOyOyO'],

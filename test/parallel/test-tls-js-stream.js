@@ -24,8 +24,8 @@ var server = tls.createServer({
   console.log('new client');
   connected.server++;
   c.end('ohai');
-}).listen(common.PORT, function() {
-  var raw = net.connect(common.PORT);
+}).listen(0, function() {
+  var raw = net.connect(this.address().port);
 
   var pending = false;
   raw.on('readable', function() {

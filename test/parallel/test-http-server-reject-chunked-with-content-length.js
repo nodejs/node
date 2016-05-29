@@ -17,8 +17,8 @@ server.on('clientError', common.mustCall((err) => {
   assert.equal(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
   server.close();
 }));
-server.listen(common.PORT, () => {
-  const client = net.connect({port: common.PORT}, () => {
+server.listen(0, () => {
+  const client = net.connect({port: server.address().port}, () => {
     client.write(reqstr);
     client.end();
   });

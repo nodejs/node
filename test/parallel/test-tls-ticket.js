@@ -57,7 +57,7 @@ var servers = naturalServers.concat(naturalServers).concat(naturalServers);
 // Create one TCP server and balance sockets to multiple TLS server instances
 var shared = net.createServer(function(c) {
   servers.shift().emit('connection', c);
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   start(function() {
     shared.close();
   });
@@ -68,7 +68,7 @@ function start(callback) {
   var left = servers.length;
 
   function connect() {
-    var s = tls.connect(common.PORT, {
+    var s = tls.connect(shared.address().port, {
       session: sess,
       rejectUnauthorized: false
     }, function() {

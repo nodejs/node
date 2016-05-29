@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var http = require('http');
@@ -12,13 +12,13 @@ var server = http.createServer(function(req, res) {
   res.writeHead(200); // broken: defaults to TE chunked
   res.end();
 });
-server.listen(common.PORT);
+server.listen(0);
 
 var responseComplete = false;
 
 server.on('listening', function() {
   var req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'HEAD',
     path: '/'
   }, function(res) {

@@ -31,9 +31,9 @@ var server = tls.Server(options, function(socket) {
   }
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var client1 = tls.connect({
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   }, function() {
     ++clientConnected;
@@ -41,7 +41,7 @@ server.listen(common.PORT, function() {
   });
 
   var client2 = tls.connect({
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   });
   client2.on('secureConnect', function() {

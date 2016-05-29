@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const net = require('net');
 const async_wrap = process.binding('async_wrap');
@@ -40,8 +40,8 @@ const server = net.createServer(function(c) {
     c.end();
     this.close();
   });
-}).listen(common.PORT, function() {
-  net.connect(common.PORT, noop);
+}).listen(0, function() {
+  net.connect(this.address().port, noop);
 });
 
 

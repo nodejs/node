@@ -27,10 +27,10 @@ var server = https.createServer(options, function(req, res) {
   req.resume();
 });
 
-server.listen(common.PORT, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', function() {
   https.request({
     host: 'localhost',
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'GET',
     localAddress: invalidLocalAddress
