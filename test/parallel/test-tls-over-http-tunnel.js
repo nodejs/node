@@ -12,7 +12,6 @@ var fs = require('fs');
 var net = require('net');
 var http = require('http');
 
-var proxyPort = common.PORT + 1;
 var gotRequest = false;
 
 var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
@@ -40,9 +39,9 @@ var proxy = net.createServer(function(clientSocket) {
   clientSocket.on('data', function(chunk) {
     if (!serverSocket) {
       // Verify the CONNECT request
-      assert.equal('CONNECT localhost:' + common.PORT + ' HTTP/1.1\r\n' +
+      assert.equal(`CONNECT localhost:${server.address().port} HTTP/1.1\r\n` +
                    'Proxy-Connections: keep-alive\r\n' +
-                   'Host: localhost:' + proxyPort + '\r\n' +
+                   `Host: localhost:${proxy.address().port}\r\n` +
                    'Connection: close\r\n\r\n',
                    chunk);
 
@@ -50,13 +49,13 @@ var proxy = net.createServer(function(clientSocket) {
       console.log('PROXY: creating a tunnel');
 
       // create the tunnel
-      serverSocket = net.connect(common.PORT, function() {
+      serverSocket = net.connect(server.address().port, function() {
         console.log('PROXY: replying to client CONNECT request');
 
         // Send the response
         clientSocket.write('HTTP/1.1 200 OK\r\nProxy-Connections: keep' +
                            '-alive\r\nConnections: keep-alive\r\nVia: ' +
-                           'localhost:' + proxyPort + '\r\n\r\n');
+                           `localhost:${proxy.address().port}\r\n\r\n`);
       });
 
       serverSocket.on('data', function(chunk) {
@@ -76,15 +75,15 @@ var proxy = net.createServer(function(clientSocket) {
   });
 });
 
-server.listen(common.PORT);
+server.listen(0);
 
-proxy.listen(proxyPort, function() {
+proxy.listen(0, function() {
   console.log('CLIENT: Making CONNECT request');
 
   var req = http.request({
-    port: proxyPort,
+    port: this.address().port,
     method: 'CONNECT',
-    path: 'localhost:' + common.PORT,
+    path: `localhost:${server.address().port}`,
     headers: {
       'Proxy-Connections': 'keep-alive'
     }

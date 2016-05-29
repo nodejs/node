@@ -27,8 +27,8 @@ var server = tls.createServer({
   assert(c.setMaxSendFragment(maxChunk));
 
   c.end(buf);
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+}).listen(0, function() {
+  var c = tls.connect(this.address().port, {
     rejectUnauthorized: false
   }, function() {
     c.on('data', function(chunk) {

@@ -23,10 +23,10 @@ var server = tls.createServer(options, function(cleartext) {
   assert.ok(s instanceof tls.TLSSocket);
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   tls.connect({
     host: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   });
 });

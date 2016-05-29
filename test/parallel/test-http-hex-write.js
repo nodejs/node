@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var http = require('http');
@@ -20,8 +20,8 @@ http.createServer(function(q, s) {
   s.write('utf8\n');
   s.end();
   this.close();
-}).listen(common.PORT, function() {
-  http.request({ port: common.PORT }).on('response', function(res) {
+}).listen(0, function() {
+  http.request({ port: this.address().port }).on('response', function(res) {
     res.setEncoding('ascii');
     res.on('data', function(c) {
       data += c;

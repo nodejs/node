@@ -1,9 +1,8 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var tcpPort = common.PORT;
 var bytesRead = 0;
 var bytesWritten = 0;
 var count = 0;
@@ -20,9 +19,9 @@ var tcp = net.Server(function(s) {
   });
 });
 
-tcp.listen(common.PORT, function doTest() {
+tcp.listen(0, function doTest() {
   console.error('listening');
-  var socket = net.createConnection(tcpPort);
+  var socket = net.createConnection(this.address().port);
 
   socket.on('connect', function() {
     count++;
@@ -45,7 +44,7 @@ tcp.listen(common.PORT, function doTest() {
     console.log('Bytes written: ' + bytesWritten);
     if (count < 2) {
       console.error('RECONNECTING');
-      socket.connect(tcpPort);
+      socket.connect(tcp.address().port);
     } else {
       tcp.close();
     }

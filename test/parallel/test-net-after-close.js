@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 var closed = false;
@@ -9,8 +9,8 @@ var server = net.createServer(function(s) {
   s.end();
 });
 
-server.listen(common.PORT, function() {
-  var c = net.createConnection(common.PORT);
+server.listen(0, function() {
+  var c = net.createConnection(this.address().port);
   c.on('close', function() {
     console.error('connection closed');
     assert.strictEqual(c._handle, null);
