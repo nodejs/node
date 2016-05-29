@@ -4,7 +4,7 @@ var common = require('../common');
 var assert = require('assert');
 var debug = require('_debugger');
 
-var debugPort = common.PORT + 1337;
+var debugPort = common.PORT;
 debug.port = debugPort;
 var spawn = require('child_process').spawn;
 
