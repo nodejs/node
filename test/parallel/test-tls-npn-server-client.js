@@ -1,11 +1,11 @@
 'use strict';
+const common = require('../common');
 if (!process.features.tls_npn) {
   common.skip('node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
   return;
 }
 
-const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
