@@ -3,7 +3,11 @@ const cp = require('child_process');
 const common = require('../common');
 const assert = require('assert');
 
-const p = cp.spawn('echo');
+// Windows' `echo` command is a built-in shell command and not an external
+// executable like on *nix
+const opts = { shell: common.isWindows };
+
+const p = cp.spawn('echo', [], opts);
 
 p.on('close', common.mustCall(function(code, signal) {
   assert.strictEqual(code, 0);
@@ -15,7 +19,7 @@ p.stdout.read();
 
 function spawnWithReadable() {
   const buffer = [];
-  const p = cp.spawn('echo', ['123']);
+  const p = cp.spawn('echo', ['123'], opts);
   p.on('close', common.mustCall(function(code, signal) {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
