@@ -3703,8 +3703,7 @@ static void StartDebug(Environment* env, bool wait) {
   CHECK(!debugger_running);
 #if HAVE_INSPECTOR
   if (use_inspector) {
-    env->inspector_agent()->Start(default_platform,
-        debug_port, wait);
+    env->inspector_agent()->Start(default_platform, debug_port, wait);
     debugger_running = true;
   } else {
 #endif
