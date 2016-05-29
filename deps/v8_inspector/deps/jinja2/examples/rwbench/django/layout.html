@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <title>{% block page_title %}{% endblock %} | RealWorld Benchmark</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+<body>
+  <div class="contents">
+    <div class="header">
+      <h1>RealWorld Benchmark</h1>
+      <blockquote><p>
+        A less stupid benchmark for Mako and Jinja2 to get an impression how
+        code changes affect runtime performance.
+      </p></blockquote>
+    </div>
+    <ul class="navigation">
+    {% for href, caption in page_navigation %}
+      <li><a href="{{ href }}">{{ caption }}</a></li>
+    {% endfor %}
+    </ul>
+    <div class="body">
+      {% block body %}{% endblock %}
+    </div>
+    <div class="footer">
+      &copy; Copyright 2008 by I don't know who.
+    </div>
+  </div>
+</body>
+</html>

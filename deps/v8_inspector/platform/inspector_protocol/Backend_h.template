@@ -1,0 +1,78 @@
+// This file is generated
+
+// Copyright (c) 2016 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef {{class_name}}_h
+#define {{class_name}}_h
+
+#include "platform/inspector_protocol/TypeBuilder.h"
+
+namespace blink {
+namespace protocol {
+
+class FrontendChannel;
+class BackendImplWeakPtr;
+
+class PLATFORM_EXPORT Backend {
+public:
+    class PLATFORM_EXPORT CallbackBase {
+    public:
+        virtual ~CallbackBase() { }
+        virtual void sendFailure(const ErrorString&) = 0;
+    };
+{% for domain in api.domains %}
+
+    class PLATFORM_EXPORT {{domain.domain}} {
+    public:
+  {% for command in domain.commands %}
+    {% if "redirect" in command %}{% continue %}{% endif %}
+    {% if ("handlers" in command) and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
+    {% if "async" in command %}
+        class PLATFORM_EXPORT {{command.name | to_title_case}}Callback : public CallbackBase {
+        public:
+            virtual void sendSuccess(
+            {%- for parameter in command.returns -%}
+              {%- if "optional" in parameter -%}
+                const Maybe<{{resolve_type(parameter).raw_type}}>& {{parameter.name}}
+              {%- else -%}
+                {{resolve_type(parameter).pass_type}} {{parameter.name}}
+              {%- endif -%}
+              {%- if not loop.last -%}, {% endif -%}
+            {%- endfor -%}
+            ) = 0;
+        };
+    {% endif %}
+        virtual void {{command.name}}(ErrorString*
+    {%- for parameter in command.parameters -%}
+        {%- if "optional" in parameter -%}
+            , const Maybe<{{resolve_type(parameter).raw_type}}>& in_{{parameter.name}}
+        {%- else -%}
+            , {{resolve_type(parameter).pass_type}} in_{{parameter.name}}
+        {%- endif -%}
+    {%- endfor -%}
+    {%- if "async" in command -%}
+            , std::unique_ptr<{{command.name | to_title_case}}Callback> callback
+    {%- else -%}
+      {%- for parameter in command.returns -%}
+        {%- if "optional" in parameter -%}
+            , Maybe<{{resolve_type(parameter).raw_type}}>* out_{{parameter.name}}
+        {%- else -%}
+            , {{resolve_type(parameter).type}}* out_{{parameter.name}}
+        {%- endif -%}
+      {%- endfor -%}
+    {%- endif -%}
+        ) = 0;
+  {% endfor %}
+
+    protected:
+        virtual ~{{domain.domain}}() { }
+    };
+{% endfor %}
+};
+
+} // namespace protocol
+} // namespace blink
+
+#endif // !defined({{class_name}}_h)
