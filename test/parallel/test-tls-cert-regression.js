@@ -37,7 +37,7 @@ function test(cert, key, cb) {
   var server = tls.createServer({
     cert: cert,
     key: key
-  }).listen(common.PORT, function() {
+  }).listen(0, function() {
     server.close(cb);
   });
 }

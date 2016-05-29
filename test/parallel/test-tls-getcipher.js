@@ -28,10 +28,10 @@ var server = tls.createServer(options, function(cleartextStream) {
   nconns++;
 });
 
-server.listen(common.PORT, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', function() {
   var client = tls.connect({
     host: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     ciphers: cipher_list.join(':'),
     rejectUnauthorized: false
   }, function() {

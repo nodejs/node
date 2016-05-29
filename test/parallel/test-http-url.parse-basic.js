@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var url = require('url');
 
-var testURL = url.parse('http://localhost:' + common.PORT);
+var testURL;
 
 // make sure the basics work
 function check(request) {
@@ -25,7 +25,9 @@ var server = http.createServer(function(request, response) {
   server.close();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  testURL = url.parse(`http://localhost:${this.address().port}`);
+
   // make the request
   var clientRequest = http.request(testURL);
   // since there is a little magic with the agent

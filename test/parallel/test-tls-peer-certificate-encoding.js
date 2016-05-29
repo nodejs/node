@@ -22,9 +22,9 @@ var verified = false;
 var server = tls.createServer(options, function(cleartext) {
   cleartext.end('World');
 });
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var socket = tls.connect({
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   }, function() {
     var peerCert = socket.getPeerCertificate();

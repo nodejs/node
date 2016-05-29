@@ -76,12 +76,12 @@ net.createServer(function(c) {
 net.createServer(function(c) {
   c.end();
   this.close(checkTLS);
-}).listen(common.PORT, function() {
-  net.connect(common.PORT, noop);
+}).listen(0, function() {
+  net.connect(this.address().port, noop);
 });
 
-dgram.createSocket('udp4').bind(common.PORT, function() {
-  this.send(Buffer.allocUnsafe(2), 0, 2, common.PORT, '::', () => {
+dgram.createSocket('udp4').bind(0, function() {
+  this.send(Buffer.allocUnsafe(2), 0, 2, this.address().port, '::', () => {
     this.close();
   });
 });
@@ -95,8 +95,9 @@ function checkTLS() {
     cert: fs.readFileSync(common.fixturesDir + '/keys/ec-cert.pem')
   };
   const server = tls.createServer(options, noop)
-    .listen(common.PORT, function() {
-      tls.connect(common.PORT, { rejectUnauthorized: false }, function() {
+    .listen(0, function() {
+      const connectOpts = { rejectUnauthorized: false };
+      tls.connect(this.address().port, connectOpts, function() {
         this.destroy();
         server.close();
       });

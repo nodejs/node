@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var http = require('http');
@@ -24,8 +24,8 @@ process.on('exit', function() {
 });
 
 
-server.listen(common.PORT, function() {
-  http.get({ port: common.PORT }, function(res) {
+server.listen(0, function() {
+  http.get({ port: this.address().port }, function(res) {
     assert.equal(200, res.statusCode);
     res.setEncoding('ascii');
     res.on('data', function(chunk) {

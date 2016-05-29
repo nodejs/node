@@ -22,9 +22,8 @@ function test(ca, next) {
   server.addContext('agent3', { ca, cert, key });
 
   const host = common.localhostIPv4;
-  const port = common.PORT;
-  server.listen(port, host, function() {
-    tls.connect({ servername: 'agent3', host, port, ca });
+  server.listen(0, host, function() {
+    tls.connect({ servername: 'agent3', host, port: this.address().port, ca });
   });
 
   server.once('close', next);

@@ -38,10 +38,10 @@ if (process.argv[2] === 'child') {
 
   // when the server is ready tell parent
   server.on('listening', function() {
-    process.send('ready');
+    process.send({ msg: 'ready', port: server.address().port });
   });
 
-  server.listen(common.PORT);
+  server.listen(0);
 
 } else {
   // testcase
@@ -65,11 +65,11 @@ if (process.argv[2] === 'child') {
   });
 
   // when child is listening
-  child.on('message', function(msg) {
-    if (msg === 'ready') {
+  child.on('message', function(obj) {
+    if (obj && obj.msg === 'ready') {
 
       // connect to child using TCP to know if disconnect was emitted
-      var socket = net.connect(common.PORT);
+      var socket = net.connect(obj.port);
 
       socket.on('data', function(data) {
         data = data.toString();

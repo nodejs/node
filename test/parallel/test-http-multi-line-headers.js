@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var http = require('http');
@@ -24,8 +24,8 @@ var server = net.createServer(function(conn) {
   server.close();
 });
 
-server.listen(common.PORT, function() {
-  http.get({host: '127.0.0.1', port: common.PORT}, function(res) {
+server.listen(0, function() {
+  http.get({host: '127.0.0.1', port: this.address().port}, function(res) {
     assert.equal(res.headers['content-type'],
                  'text/plain; x-unix-mode=0600; name="hello.txt"');
     gotResponse = true;

@@ -23,7 +23,7 @@ var options = {
 var server = tls.createServer(options, function(socket) {
   serverConnected++;
   socket.end('Hello');
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   var waiting = 2;
   function establish(socket) {
     var client = tls.connect({
@@ -48,11 +48,11 @@ var server = tls.createServer(options, function(socket) {
   }
 
   // Immediate death socket
-  var immediateDeath = net.connect(common.PORT);
+  var immediateDeath = net.connect(this.address().port);
   establish(immediateDeath).destroy();
 
   // Outliving
-  var outlivingTCP = net.connect(common.PORT);
+  var outlivingTCP = net.connect(this.address().port);
   outlivingTCP.on('connect', function() {
     outlivingTLS.destroy();
     next();
@@ -61,12 +61,12 @@ var server = tls.createServer(options, function(socket) {
 
   function next() {
     // Already connected socket
-    var connected = net.connect(common.PORT, function() {
+    var connected = net.connect(server.address().port, function() {
       establish(connected);
     });
 
     // Connecting socket
-    var connecting = net.connect(common.PORT);
+    var connecting = net.connect(server.address().port);
     establish(connecting);
 
   }

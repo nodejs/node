@@ -15,11 +15,12 @@ const server = net.createServer((conn) => {
 });
 
 const host = common.localhostIPv4;
-const port = common.PORT;
+const port = 0;
 const options = { host, port };
 
 var answer = '';
 server.listen(options, function() {
+  options.port = this.address().port;
   const conn = net.connect(options);
   conn.setEncoding('utf8');
   conn.on('data', (data) => answer += data);

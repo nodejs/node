@@ -109,8 +109,8 @@ const tests = [
       const server = net.createServer(function(conn) {
         conn.pipe(conn);
       });
-      server.listen(common.PORT, common.localhostIPv4, function() {
-        const conn = net.connect(common.PORT, common.localhostIPv4);
+      server.listen(0, common.localhostIPv4, function() {
+        const conn = net.connect(this.address().port, common.localhostIPv4);
         conn.once('data', function() {
           throw new Error('ok');
         });

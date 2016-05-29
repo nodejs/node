@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var util = require('util');
@@ -16,20 +16,19 @@ function createTestServer() {
 }
 
 function testServer() {
-  var server = this;
-  http.Server.call(server, function() {});
+  http.Server.call(this, function() {});
 
-  server.on('connection', function() {
+  this.on('connection', function() {
     requests_recv++;
   });
 
-  server.on('request', function(req, res) {
+  this.on('request', function(req, res) {
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.write('okay');
     res.end();
   });
 
-  server.on('upgrade', function(req, socket, upgradeHead) {
+  this.on('upgrade', function(req, socket, upgradeHead) {
     socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                  'Upgrade: WebSocket\r\n' +
                  'Connection: Upgrade\r\n' +
@@ -60,8 +59,8 @@ function writeReq(socket, data, encoding) {
 /*-----------------------------------------------
   connection: Upgrade with listener
 -----------------------------------------------*/
-function test_upgrade_with_listener(_server) {
-  var conn = net.createConnection(common.PORT);
+function test_upgrade_with_listener() {
+  var conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
   var state = 0;
 
@@ -92,7 +91,7 @@ function test_upgrade_with_listener(_server) {
   conn.on('end', function() {
     assert.equal(2, state);
     conn.end();
-    _server.removeAllListeners('upgrade');
+    server.removeAllListeners('upgrade');
     test_upgrade_no_listener();
   });
 }
@@ -103,7 +102,7 @@ function test_upgrade_with_listener(_server) {
 var test_upgrade_no_listener_ended = false;
 
 function test_upgrade_no_listener() {
-  var conn = net.createConnection(common.PORT);
+  var conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
 
   conn.on('connect', function() {
@@ -128,7 +127,7 @@ function test_upgrade_no_listener() {
   connection: normal
 -----------------------------------------------*/
 function test_standard_http() {
-  var conn = net.createConnection(common.PORT);
+  var conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
 
   conn.on('connect', function() {
@@ -149,9 +148,9 @@ function test_standard_http() {
 
 var server = createTestServer();
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   // All tests get chained after this:
-  test_upgrade_with_listener(server);
+  test_upgrade_with_listener();
 });
 
 

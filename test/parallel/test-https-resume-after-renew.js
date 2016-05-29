@@ -30,7 +30,7 @@ server._sharedCreds.context.onticketkeycallback = function(name, iv, enc) {
   return [ 1, hmac, aes, newName, newIV ];
 };
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var addr = this.address();
 
   function doReq(callback) {

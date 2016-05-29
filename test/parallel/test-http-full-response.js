@@ -20,7 +20,7 @@ var server = http.createServer(function(req, res) {
 var runs = 0;
 
 function runAb(opts, callback) {
-  var command = 'ab ' + opts + ' http://127.0.0.1:' + common.PORT + '/';
+  var command = `ab ${opts} http://127.0.0.1:${server.address().port}/`;
   exec(command, function(err, stdout, stderr) {
     if (err) {
       if (/ab|apr/mi.test(stderr)) {
@@ -49,7 +49,7 @@ function runAb(opts, callback) {
   });
 }
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   runAb('-c 1 -n 10', function() {
     console.log('-c 1 -n 10 okay');
 

@@ -38,30 +38,28 @@ var serverOptions = {
   NPNProtocols: ['a', 'b', 'c']
 };
 
-var serverPort = common.PORT;
-
 var clientsOptions = [{
-  port: serverPort,
+  port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   NPNProtocols: ['a', 'b', 'c'],
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   NPNProtocols: ['c', 'b', 'e'],
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
   crl: serverOptions.crl,
@@ -75,10 +73,11 @@ const clientsResults = [];
 var server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.npnProtocol);
 });
-server.listen(serverPort, startTest);
+server.listen(0, startTest);
 
 function startTest() {
   function connectClient(options, callback) {
+    options.port = server.address().port;
     var client = tls.connect(options, function() {
       clientsResults.push(client.npnProtocol);
       client.destroy();

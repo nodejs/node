@@ -17,9 +17,6 @@ var httpsOptions = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var testURL = url.parse('https://localhost:' + common.PORT);
-testURL.rejectUnauthorized = false;
-
 function check(request) {
   // assert that I'm https
   assert.ok(request.socket._secureEstablished);
@@ -33,7 +30,10 @@ var server = https.createServer(httpsOptions, function(request, response) {
   server.close();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  var testURL = url.parse(`https://localhost:${this.address().port}`);
+  testURL.rejectUnauthorized = false;
+
   // make the request
   var clientRequest = https.request(testURL);
   // since there is a little magic with the agent

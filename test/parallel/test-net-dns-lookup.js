@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 var ok = false;
@@ -9,8 +9,8 @@ var server = net.createServer(function(client) {
   server.close();
 });
 
-server.listen(common.PORT, '127.0.0.1', function() {
-  net.connect(common.PORT, 'localhost')
+server.listen(0, '127.0.0.1', function() {
+  net.connect(this.address().port, 'localhost')
     .on('lookup', function(err, ip, type, host) {
       assert.equal(err, null);
       assert.equal(ip, '127.0.0.1');

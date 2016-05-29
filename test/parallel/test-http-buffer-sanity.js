@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -44,11 +44,11 @@ var web = http.Server(function(req, res) {
 
 var gotThanks = false;
 
-web.listen(common.PORT, function() {
+web.listen(0, function() {
   console.log('Making request');
 
   var req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'GET',
     path: '/',
     headers: { 'content-length': buffer.length }

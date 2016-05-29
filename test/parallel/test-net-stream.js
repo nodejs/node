@@ -1,7 +1,6 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
-
 var net = require('net');
 
 var s = new net.Stream();
@@ -37,8 +36,8 @@ var server = net.createServer(function(socket) {
   }
   socket.end();
 
-}).listen(common.PORT, function() {
-  var conn = net.connect(common.PORT);
+}).listen(0, function() {
+  var conn = net.connect(this.address().port);
   conn.on('data', function(buf) {
     conn.pause();
     setTimeout(function() {

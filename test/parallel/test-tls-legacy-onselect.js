@@ -20,9 +20,9 @@ var server = net.Server(function(raw) {
     success = true;
   });
   require('_tls_legacy').pipe(pair, raw);
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   tls.connect({
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false,
     servername: 'server'
   }, function() {

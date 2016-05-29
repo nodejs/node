@@ -1,6 +1,6 @@
 'use strict';
+require('../common');
 var assert = require('assert');
-var common = require('../common');
 var net = require('net');
 
 var server = net.createServer(assert.fail);
@@ -10,7 +10,7 @@ server.on('close', function() {
   ++closeEvents;
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   assert(false);
 });
 

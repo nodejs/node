@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
 var server = net.createServer(function(socket) {
 });
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   assert(false);
 });
 server.on('error', function(error) {

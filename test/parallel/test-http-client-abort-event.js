@@ -1,14 +1,14 @@
 'use strict';
+require('../common');
 var assert = require('assert');
 var http = require('http');
-var common = require('../common');
 var server = http.createServer(function(req, res) {
   res.end();
 });
 var count = 0;
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var req = http.request({
-    port: common.PORT
+    port: this.address().port
   }, function() {
     assert(false, 'should not receive data');
   });

@@ -26,9 +26,9 @@ var server = tls.Server({
 });
 
 var connectCount = 0;
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var c = tls.connect({
-    port: common.PORT,
+    port: this.address().port,
     key: key,
     passphrase: 'passphrase',
     cert: cert,
@@ -43,7 +43,7 @@ server.listen(common.PORT, function() {
 
 assert.throws(function() {
   tls.connect({
-    port: common.PORT,
+    port: server.address().port,
     key: key,
     passphrase: 'invalid',
     cert: cert,

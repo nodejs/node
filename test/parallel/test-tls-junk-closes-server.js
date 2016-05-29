@@ -20,8 +20,8 @@ var server = tls.createServer(options, function(s) {
   s.pipe(s);
 });
 
-server.listen(common.PORT, function() {
-  var c = net.createConnection(common.PORT);
+server.listen(0, function() {
+  var c = net.createConnection(this.address().port);
 
   c.on('connect', function() {
     c.write('blah\nblah\nblah\n');

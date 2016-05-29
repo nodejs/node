@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var url = require('url');
@@ -14,8 +14,8 @@ process.on('exit', function() {
 var server = http.createServer(function(req, res) {
   res.end();
   request++;
-}).listen(common.PORT, '127.0.0.1', function() {
-  var opts = url.parse('http://127.0.0.1:' + common.PORT + '/');
+}).listen(0, '127.0.0.1', function() {
+  var opts = url.parse(`http://127.0.0.1:${this.address().port}/`);
 
   // remove the `protocol` field… the `http` module should fall back
   // to "http:", as defined by the global, default `http.Agent` instance.

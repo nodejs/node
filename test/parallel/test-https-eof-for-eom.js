@@ -51,10 +51,10 @@ var gotHeaders = false;
 var gotEnd = false;
 var bodyBuffer = '';
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   console.log('1) Making Request');
   https.get({
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   }, function(res) {
     server.close();

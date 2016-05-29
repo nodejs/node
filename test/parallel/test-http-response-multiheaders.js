@@ -46,7 +46,7 @@ const server = http.createServer(function(req, res) {
   res.end('ok');
 });
 
-server.listen(common.PORT, common.mustCall(function() {
+server.listen(0, common.mustCall(function() {
   var count = 0;
   for (let n = 1; n <= 2 ; n++) {
     // this runs twice, the first time, the server will use
@@ -56,7 +56,7 @@ server.listen(common.PORT, common.mustCall(function() {
     // value should be reported for the header fields listed
     // in the norepeat array.
     http.get(
-      {port: common.PORT, headers: {'x-num': n}},
+      {port: this.address().port, headers: {'x-num': n}},
       common.mustCall(function(res) {
         if (++count === 2) server.close();
         for (const name of norepeat) {

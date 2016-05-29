@@ -21,7 +21,7 @@ const server = tls.createServer({
   key: key
 }, function(c) {
   c.end();
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   const secureContext = tls.createSecureContext({
     ca: ca
   });
@@ -29,7 +29,7 @@ const server = tls.createServer({
   const socket = tls.connect({
     secureContext: secureContext,
     servername: 'agent1',
-    port: common.PORT
+    port: this.address().port
   }, common.mustCall(function() {
     server.close();
     socket.end();

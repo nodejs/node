@@ -9,7 +9,7 @@ const big = Buffer.alloc(1024 * 1024);
 const server = net.createServer((socket) => {
   socket.end(big);
   server.close();
-}).listen(common.PORT, () => {
+}).listen(0, () => {
   let prev = 0;
 
   function checkRaise(value) {
@@ -17,7 +17,7 @@ const server = net.createServer((socket) => {
     prev = value;
   }
 
-  const socket = net.connect(common.PORT, () => {
+  const socket = net.connect(server.address().port, () => {
     socket.on('data', (chunk) => {
       checkRaise(socket.bytesRead);
     });

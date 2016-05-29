@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var http = require('http');
@@ -17,11 +17,11 @@ net.createServer(function(c) {
     c.end('bad http - should trigger parse error\r\n');
     this.close();
   }
-}).listen(common.PORT, '127.0.0.1', function() {
+}).listen(0, '127.0.0.1', function() {
   for (var i = 0; i < 2; i++) {
     http.request({
       host: '127.0.0.1',
-      port: common.PORT,
+      port: this.address().port,
       method: 'GET',
       path: '/'
     }).on('error', function(e) {

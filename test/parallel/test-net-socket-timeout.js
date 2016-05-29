@@ -31,8 +31,8 @@ for (let i = 0; i < validDelays.length; i++) {
 var timedout = false;
 
 var server = net.Server();
-server.listen(common.PORT, function() {
-  var socket = net.createConnection(common.PORT);
+server.listen(0, function() {
+  var socket = net.createConnection(this.address().port);
   socket.setTimeout(100, function() {
     timedout = true;
     socket.destroy();

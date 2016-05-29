@@ -44,30 +44,28 @@ var SNIContexts = {
   }
 };
 
-var serverPort = common.PORT;
-
 var clientsOptions = [{
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca2-cert')],
   servername: 'b.test.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca2-cert')],
   servername: 'a.b.test.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'c.wrong.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'chain.example.com',
   rejectUnauthorized: false
@@ -84,7 +82,7 @@ server.addContext('a.example.com', SNIContexts['a.example.com']);
 server.addContext('*.test.com', SNIContexts['asterisk.test.com']);
 server.addContext('chain.example.com', SNIContexts['chain.example.com']);
 
-server.listen(serverPort, startTest);
+server.listen(0, startTest);
 
 function startTest() {
   var i = 0;
@@ -94,6 +92,7 @@ function startTest() {
       return server.close();
 
     var options = clientsOptions[i++];
+    options.port = server.address().port;
     var client = tls.connect(options, function() {
       clientResults.push(
         client.authorizationError &&

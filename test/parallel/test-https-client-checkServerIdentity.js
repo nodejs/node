@@ -23,13 +23,13 @@ var server = https.createServer(options, function(req, res) {
   res.writeHead(200);
   res.end();
   req.resume();
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   authorized();
 });
 
 function authorized() {
   var req = https.request({
-    port: common.PORT,
+    port: server.address().port,
     rejectUnauthorized: true,
     ca: [fs.readFileSync(path.join(common.fixturesDir, 'keys/ca2-cert.pem'))]
   }, function(res) {
@@ -43,7 +43,7 @@ function authorized() {
 
 function override() {
   var options = {
-    port: common.PORT,
+    port: server.address().port,
     rejectUnauthorized: true,
     ca: [fs.readFileSync(path.join(common.fixturesDir, 'keys/ca2-cert.pem'))],
     checkServerIdentity: function(host, cert) {

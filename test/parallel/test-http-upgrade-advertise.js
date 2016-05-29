@@ -24,7 +24,7 @@ function fire() {
   });
 
   const req = http.request({
-    port: common.PORT,
+    port: server.address().port,
     path: '/',
     headers: test.headers
   }, function onResponse(res) {
@@ -51,4 +51,4 @@ const server = http.createServer(function(req, res) {
              'Connection: upgrade\r\n' +
              'Upgrade: h2c\r\n\r\n' +
              'ohai');
-}).listen(common.PORT, fire);
+}).listen(0, fire);

@@ -19,8 +19,8 @@ server.on('clientError', common.mustCall((err) => {
   assert.equal(err.code, 'HPE_LF_EXPECTED');
   server.close();
 }));
-server.listen(common.PORT, () => {
-  const client = net.connect({port: common.PORT}, () => {
+server.listen(0, () => {
+  const client = net.connect({port: server.address().port}, () => {
     client.on('data', (chunk) => {
       assert.fail(null, null, 'this should not be called');
     });

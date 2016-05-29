@@ -18,13 +18,13 @@ var server = http.createServer(function(req, res) {
     res.writeHead(200);
     res.end();
   });
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   http.globalAgent.maxSockets = 1;
 
   for (var i = 0; i < 2; ++i) {
     (function(i) {
       var req = http.request({
-        port: common.PORT,
+        port: server.address().port,
         method: 'POST',
         headers: {
           'Content-Length': 5

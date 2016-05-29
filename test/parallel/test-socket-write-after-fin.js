@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 var serverData = '';
@@ -18,27 +18,27 @@ var server = net.createServer({ allowHalfOpen: true }, function(sock) {
     server.close();
   });
 });
-server.listen(common.PORT);
+server.listen(0, function() {
+  var sock = net.connect(this.address().port);
+  sock.setEncoding('utf8');
+  sock.on('data', function(c) {
+    clientData += c;
+  });
 
-var sock = net.connect(common.PORT);
-sock.setEncoding('utf8');
-sock.on('data', function(c) {
-  clientData += c;
+  sock.on('end', function() {
+    gotClientEnd = true;
+  });
+
+  process.on('exit', function() {
+    assert.equal(serverData, clientData);
+    assert.equal(serverData, 'hello1hello2hello3\nTHUNDERMUSCLE!');
+    assert(gotClientEnd);
+    assert(gotServerEnd);
+    console.log('ok');
+  });
+
+  sock.write('hello1');
+  sock.write('hello2');
+  sock.write('hello3\n');
+  sock.end('THUNDERMUSCLE!');
 });
-
-sock.on('end', function() {
-  gotClientEnd = true;
-});
-
-process.on('exit', function() {
-  assert.equal(serverData, clientData);
-  assert.equal(serverData, 'hello1hello2hello3\nTHUNDERMUSCLE!');
-  assert(gotClientEnd);
-  assert(gotServerEnd);
-  console.log('ok');
-});
-
-sock.write('hello1');
-sock.write('hello2');
-sock.write('hello3\n');
-sock.end('THUNDERMUSCLE!');

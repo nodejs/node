@@ -9,17 +9,19 @@ let received = 0;
 let sent = 0;
 const limit = 10;
 let async = false;
+let port;
 
 function onsend() {
   if (sent++ < limit) {
-    client.send(
-      chunk, 0, chunk.length, common.PORT, common.localhostIPv4, onsend);
+    client.send(chunk, 0, chunk.length, port, common.localhostIPv4, onsend);
   } else {
     assert.strictEqual(async, true, 'Send should be asynchronous.');
   }
 }
 
 client.on('listening', function() {
+  port = this.address().port;
+
   setImmediate(function() {
     async = true;
   });
@@ -38,4 +40,4 @@ client.on('close', common.mustCall(function() {
   assert.equal(received, limit);
 }));
 
-client.bind(common.PORT);
+client.bind(0);

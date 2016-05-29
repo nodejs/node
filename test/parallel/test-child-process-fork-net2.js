@@ -99,7 +99,7 @@ if (process.argv[2] === 'child') {
 
     var j = count, client;
     while (j--) {
-      client = net.connect(common.PORT, '127.0.0.1');
+      client = net.connect(this.address().port, '127.0.0.1');
       client.on('error', function() {
         // This can happen if we kill the child too early.
         // The client should still get a close event afterwards.
@@ -125,7 +125,7 @@ if (process.argv[2] === 'child') {
     child3.kill();
   }));
 
-  server.listen(common.PORT, '127.0.0.1');
+  server.listen(0, '127.0.0.1');
 
   var closeServer = function() {
     server.close();
