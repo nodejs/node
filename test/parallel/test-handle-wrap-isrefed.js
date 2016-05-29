@@ -72,7 +72,7 @@ function makeAssert(message) {
 {
   const assert = makeAssert('hasRef() not working on tcp_wrap');
   const net = require('net');
-  const server = net.createServer(() => {}).listen(common.PORT);
+  const server = net.createServer(() => {}).listen(0);
   assert(Object.getPrototypeOf(server._handle).hasOwnProperty('hasRef'), true);
   assert(server._handle.hasRef(), true);
   assert(server._unref, false);

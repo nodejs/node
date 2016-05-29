@@ -22,12 +22,12 @@ var server = https.createServer(options, function(req, res) {
   res.end('hello world\n');
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   console.error('listening');
   https.get({
     agent: false,
     path: '/',
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   }, function(res) {
     console.error(res.statusCode, res.headers);

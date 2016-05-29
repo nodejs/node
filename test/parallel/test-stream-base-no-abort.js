@@ -46,8 +46,9 @@ const checkTLS = common.mustCall(function checkTLS() {
     cert: fs.readFileSync(common.fixturesDir + '/keys/ec-cert.pem')
   };
   const server = tls.createServer(options, () => {})
-    .listen(common.PORT, function() {
-      tls.connect(common.PORT, { rejectUnauthorized: false }, function() {
+    .listen(0, function() {
+      const connectOpts = { rejectUnauthorized: false };
+      tls.connect(this.address().port, connectOpts, function() {
         this.destroy();
         server.close();
       });
@@ -55,7 +56,7 @@ const checkTLS = common.mustCall(function checkTLS() {
 });
 
 const checkTCP = common.mustCall(function checkTCP() {
-  net.createServer(() => {}).listen(common.PORT, function() {
+  net.createServer(() => {}).listen(0, function() {
     this.close(checkTLS);
   });
 });

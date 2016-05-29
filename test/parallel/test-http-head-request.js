@@ -1,15 +1,11 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
-
 var body = 'hello world\n';
-var id = 0;
 
 function test(headers) {
-  var port = common.PORT + id++;
-
   var server = http.createServer(function(req, res) {
     console.error('req: %s headers: %j', req.method, headers);
     res.writeHead(200, headers);
@@ -19,9 +15,9 @@ function test(headers) {
 
   var gotEnd = false;
 
-  server.listen(port, function() {
+  server.listen(0, function() {
     var request = http.request({
-      port: port,
+      port: this.address().port,
       method: 'HEAD',
       path: '/'
     }, function(response) {

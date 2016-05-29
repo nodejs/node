@@ -34,9 +34,9 @@ server.on('resumeSession', function(id, cb) {
   next();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var clientOpts = {
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false,
     session: false
   };

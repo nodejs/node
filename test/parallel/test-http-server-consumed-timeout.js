@@ -19,9 +19,9 @@ const server = http.createServer((req, res) => {
   }));
 });
 
-server.listen(common.PORT, common.mustCall(() => {
+server.listen(0, common.mustCall(() => {
   const req = http.request({
-    port: common.PORT,
+    port: server.address().port,
     method: 'POST'
   }, (res) => {
     const interval = setInterval(() => {

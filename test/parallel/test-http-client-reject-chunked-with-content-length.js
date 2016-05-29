@@ -13,11 +13,11 @@ const server = net.createServer((socket) => {
   socket.write(reqstr);
 });
 
-server.listen(common.PORT, () => {
+server.listen(0, () => {
   // The callback should not be called because the server is sending
   // both a Content-Length header and a Transfer-Encoding: chunked
   // header, which is a violation of the HTTP spec.
-  const req = http.get({port: common.PORT}, (res) => {
+  const req = http.get({port: server.address().port}, (res) => {
     assert.fail(null, null, 'callback should not be called');
   });
   req.on('error', common.mustCall((err) => {

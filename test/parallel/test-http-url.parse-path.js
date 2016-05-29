@@ -1,10 +1,8 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var url = require('url');
-
-var testURL = url.parse('http://localhost:' + common.PORT + '/asdf');
 
 function check(request) {
   // a path should come over
@@ -19,7 +17,9 @@ var server = http.createServer(function(request, response) {
   server.close();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  var testURL = url.parse(`http://localhost:${this.address().port}/asdf`);
+
   // make the request
   http.request(testURL).end();
 });

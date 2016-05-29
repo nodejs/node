@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var net = require('net');
 var closed = false;
 
 var s = net.createServer();
-s.listen(common.PORT);
+s.listen(0);
 s.unref();
 
 setTimeout(function() {

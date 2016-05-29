@@ -37,13 +37,13 @@ const server2ConnHandler = function(socket) {
 
 const server2 = net.createServer({pauseOnConnect: false}, server2ConnHandler);
 
-server1.listen(common.PORT, function() {
+server1.listen(0, function() {
   const clientHandler = common.mustCall(function() {
-    server2.listen(common.PORT + 1, function() {
-      net.createConnection({port: common.PORT + 1}).write(msg);
+    server2.listen(0, function() {
+      net.createConnection({port: this.address().port}).write(msg);
     });
   });
-  net.createConnection({port: common.PORT}).write(msg, clientHandler);
+  net.createConnection({port: this.address().port}).write(msg, clientHandler);
 });
 
 process.on('exit', function() {

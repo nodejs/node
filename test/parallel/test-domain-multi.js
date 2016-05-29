@@ -1,7 +1,7 @@
 'use strict';
 // Tests of multiple domains happening at once.
 
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var domain = require('domain');
 
@@ -49,24 +49,24 @@ var server = http.createServer(function(req, res) {
     throw new Error('this kills domain B, not A');
   }));
 
-}).listen(common.PORT);
+}).listen(0, function() {
+  var c = domain.create();
+  var req = http.get({ host: 'localhost', port: this.address().port });
 
-var c = domain.create();
-var req = http.get({ host: 'localhost', port: common.PORT });
+  // add the request to the C domain
+  c.add(req);
 
-// add the request to the C domain
-c.add(req);
+  req.on('response', function(res) {
+    console.error('got response');
+    // add the response object to the C domain
+    c.add(res);
+    res.pipe(process.stdout);
+  });
 
-req.on('response', function(res) {
-  console.error('got response');
-  // add the response object to the C domain
-  c.add(res);
-  res.pipe(process.stdout);
-});
-
-c.on('error', function(er) {
-  caughtC = true;
-  console.error('Error on c', er.message);
+  c.on('error', function(er) {
+    caughtC = true;
+    console.error('Error on c', er.message);
+  });
 });
 
 process.on('exit', function() {

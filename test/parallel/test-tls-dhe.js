@@ -40,8 +40,8 @@ function test(keylen, expectedCipher, cb) {
     if (cb) cb();
   });
 
-  server.listen(common.PORT, '127.0.0.1', function() {
-    var args = ['s_client', '-connect', '127.0.0.1:' + common.PORT,
+  server.listen(0, '127.0.0.1', function() {
+    var args = ['s_client', '-connect', `127.0.0.1:${this.address().port}`,
                 '-cipher', ciphers];
 
     // for the performance and stability issue in s_client on Windows

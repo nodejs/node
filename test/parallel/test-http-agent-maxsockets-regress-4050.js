@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -19,13 +19,13 @@ const server = http.createServer(function(req, res) {
 function get(path, callback) {
   return http.get({
     host: 'localhost',
-    port: common.PORT,
+    port: server.address().port,
     agent: agent,
     path: path
   }, callback);
 }
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var finished = 0;
   const num_requests = 6;
   for (var i = 0; i < num_requests; i++) {

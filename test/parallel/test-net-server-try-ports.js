@@ -1,7 +1,7 @@
 'use strict';
 // This tests binds to one port, then attempts to start a server on that
 // port. It should be EADDRINUSE but be able to then bind to another port.
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
@@ -30,7 +30,7 @@ server2.on('error', function(e) {
     server2eaddrinuse = true;
   }
 
-  server2.listen(common.PORT + 1, function() {
+  server2.listen(0, function() {
     console.error('server2 listening');
     server2listening = true;
 
@@ -40,11 +40,11 @@ server2.on('error', function(e) {
 });
 
 
-server1.listen(common.PORT, function() {
+server1.listen(0, function() {
   console.error('server1 listening');
   server1listening = true;
   // This should make server2 emit EADDRINUSE
-  server2.listen(common.PORT);
+  server2.listen(this.address().port);
 });
 
 

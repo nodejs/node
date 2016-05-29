@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
-var name = http.globalAgent.getName({ port: common.PORT });
+var name;
 var max = 3;
 var count = 0;
 
@@ -18,7 +18,8 @@ var server = http.Server(function(req, res) {
     res.end('Hello, World!');
   }
 });
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  name = http.globalAgent.getName({ port: this.address().port });
   for (var i = 0; i < max; ++i) {
     request(i);
   }
@@ -26,7 +27,7 @@ server.listen(common.PORT, function() {
 
 function request(i) {
   var req = http.get({
-    port: common.PORT,
+    port: server.address().port,
     path: '/' + i
   }, function(res) {
     var socket = req.socket;

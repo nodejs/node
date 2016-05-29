@@ -25,12 +25,12 @@ var server = tls.createServer({
     c.end();
     server.close();
   }, 20);
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   var conn = tls.connect({
     cert: cert,
     key: key,
     rejectUnauthorized: false,
-    port: common.PORT
+    port: this.address().port
   }, function() {
     setTimeout(function() {
       conn.destroy();

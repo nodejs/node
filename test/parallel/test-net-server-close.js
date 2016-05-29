@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
@@ -32,7 +32,7 @@ server.on('close', function() {
   events.push('server');
 });
 
-server.listen(common.PORT, function() {
-  net.createConnection(common.PORT);
-  net.createConnection(common.PORT);
+server.listen(0, function() {
+  net.createConnection(this.address().port);
+  net.createConnection(this.address().port);
 });

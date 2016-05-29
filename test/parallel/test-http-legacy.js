@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var url = require('url');
@@ -37,8 +37,8 @@ var server = http.createServer(function(req, res) {
   req.resume();
 });
 
-server.listen(common.PORT, function() {
-  var client = http.createClient(common.PORT);
+server.listen(0, function() {
+  var client = http.createClient(this.address().port);
   var req = client.request('/hello', {'Accept': '*/*', 'Foo': 'bar'});
   setTimeout(function() {
     req.end();

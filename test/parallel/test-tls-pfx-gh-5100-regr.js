@@ -23,9 +23,9 @@ const server = tls.createServer({
 }, common.mustCall(function(c) {
   assert(c.authorizationError === null, 'authorizationError must be null');
   c.end();
-})).listen(common.PORT, function() {
+})).listen(0, function() {
   var client = tls.connect({
-    port: common.PORT,
+    port: this.address().port,
     pfx: pfx,
     passphrase: 'sample',
     rejectUnauthorized: false

@@ -54,10 +54,10 @@ var server = tls.createServer({ ca: ca, cert: cert, key: key }, function(conn) {
 }).on('tlsClientError', function(err, conn) {
   assert(!clientError && conn);
   clientError = err;
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   var options = {
     ciphers: 'AES128-GCM-SHA256',
-    port: common.PORT,
+    port: this.address().port,
     ca: ca
   };
   tls.connect(options).on('error', function(err) {

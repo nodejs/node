@@ -1,31 +1,27 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var Agent = http.Agent;
-
-var agent = new Agent({
-  keepAlive: true,
-});
-
-var requestParams = {
-  host: 'localhost',
-  port: common.PORT,
-  agent: agent,
-  path: '/'
-};
-
-var socketKey = agent.getName(requestParams);
-
-function get(callback) {
-  return http.get(requestParams, callback);
-}
 
 var server = http.createServer(function(req, res) {
   res.end('hello world');
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  var agent = new Agent({
+    keepAlive: true,
+  });
+
+  var requestParams = {
+    host: 'localhost',
+    port: this.address().port,
+    agent: agent,
+    path: '/'
+  };
+
+  var socketKey = agent.getName(requestParams);
+
   get(function(res) {
     assert.equal(res.statusCode, 200);
     res.resume();
@@ -43,13 +39,17 @@ server.listen(common.PORT, function() {
       });
     });
   });
+
+  function get(callback) {
+    return http.get(requestParams, callback);
+  }
+
+  function done() {
+    assert.equal(Object.keys(agent.freeSockets).length, 0,
+                 'expect the freeSockets pool to be empty');
+
+    agent.destroy();
+    server.close();
+    process.exit(0);
+  }
 });
-
-function done() {
-  assert.equal(Object.keys(agent.freeSockets).length, 0,
-               'expect the freeSockets pool to be empty');
-
-  agent.destroy();
-  server.close();
-  process.exit(0);
-}
