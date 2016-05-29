@@ -4,13 +4,30 @@ var assert = require('assert');
 
 var domain = require('domain');
 
-var dispose;
+function dispose(d) {
+  if (d._disposed) return;
+
+  // if we're the active domain, then get out now.
+  d.exit();
+
+  // remove from parent domain, if there is one.
+  if (d.domain) d.domain.remove(d);
+
+  // kill the references so that they can be properly gc'ed.
+  d.members.length = 0;
+
+  // mark this domain as 'no longer relevant'
+  // so that it can't be entered or activated.
+  d._disposed = true;
+}
+
+var doDispose;
 switch (process.argv[2]) {
   case 'true':
-    dispose = true;
+    doDispose = true;
     break;
   case 'false':
-    dispose = false;
+    doDispose = false;
     break;
   default:
     parent();
@@ -56,7 +73,7 @@ function inner(throw1, throw2) {
       console.error('got domain 1 twice');
       process.exit(1);
     }
-    if (dispose) domain1.dispose();
+    if (doDispose) dispose(domain1);
     gotDomain1Error = true;
     throw2();
   });
@@ -87,7 +104,7 @@ process.on('exit', function() {
   assert(gotDomain2Error);
   assert(threw1);
   assert(threw2);
-  console.log('ok', dispose);
+  console.log('ok', doDispose);
 });
 
 outer();

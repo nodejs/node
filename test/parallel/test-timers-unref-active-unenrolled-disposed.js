@@ -7,6 +7,23 @@ const timers = require('timers');
 const assert = require('assert');
 const domain = require('domain');
 
+function dispose(d) {
+  if (d._disposed) return;
+
+  // if we're the active domain, then get out now.
+  d.exit();
+
+  // remove from parent domain, if there is one.
+  if (d.domain) d.domain.remove(d);
+
+  // kill the references so that they can be properly gc'ed.
+  d.members.length = 0;
+
+  // mark this domain as 'no longer relevant'
+  // so that it can't be entered or activated.
+  d._disposed = true;
+}
+
 // Crazy stuff to keep the process open,
 // then close it when we are actually done.
 const TEST_DURATION = common.platformTimeout(1000);
@@ -18,7 +35,7 @@ const endTest = makeTimer(2);
 
 const someTimer = makeTimer(1);
 someTimer.domain = domain.create();
-someTimer.domain.dispose();
+dispose(someTimer.domain);
 someTimer._onTimeout = function() {
   throw new Error('someTimer was not supposed to fire!');
 };

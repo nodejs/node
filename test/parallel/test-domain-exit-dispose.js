@@ -4,6 +4,23 @@ var assert = require('assert');
 var domain = require('domain');
 var disposalFailed = false;
 
+function dispose(d) {
+  if (d._disposed) return;
+
+  // if we're the active domain, then get out now.
+  d.exit();
+
+  // remove from parent domain, if there is one.
+  if (d.domain) d.domain.remove(d);
+
+  // kill the references so that they can be properly gc'ed.
+  d.members.length = 0;
+
+  // mark this domain as 'no longer relevant'
+  // so that it can't be entered or activated.
+  d._disposed = true;
+}
+
 // no matter what happens, we should increment a 10 times.
 var a = 0;
 log();
@@ -34,7 +51,7 @@ function err() {
 
   function handle(e) {
     // this should clean up everything properly.
-    d.dispose();
+    dispose(d);
     console.error(e);
     console.error('in handler', process.domain, process.domain === d);
   }

@@ -24,10 +24,10 @@ var tls = require('tls');
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
   var options = {key: keyPem, cert: certPem, ca: caPem};
-  var credentials = crypto.createCredentials(options);
+  var credentials = tls.createSecureContext(options);
   var context = credentials.context;
   var notcontext = { setOptions: context.setOptions, setKey: context.setKey };
-  crypto.createCredentials({ secureOptions: 1 }, notcontext);
+  tls.createSecureContext({ secureOptions: 1 }, notcontext);
 }, TypeError);
 
 // PFX tests

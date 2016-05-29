@@ -15,7 +15,7 @@ function pingPongTest(port, host) {
   var server = net.createServer({ allowHalfOpen: true }, function(socket) {
     console.log('connection: ' + socket.remoteAddress);
     assert.equal(server, socket.server);
-    assert.equal(1, server.connections);
+    assert.equal(1, server._connections);
 
     socket.setNoDelay();
     socket.timeout = 0;

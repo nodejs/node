@@ -27,7 +27,7 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(server.connections, 0);
+  assert.equal(server._connections, 0);
 });
 
 function handle(socket) {

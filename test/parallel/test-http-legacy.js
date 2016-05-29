@@ -3,6 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var url = require('url');
+var Agent = http.Agent;
 
 var responses_sent = 0;
 var responses_recvd = 0;
@@ -38,8 +39,19 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(common.PORT, function() {
-  var client = http.createClient(common.PORT);
-  var req = client.request('/hello', {'Accept': '*/*', 'Foo': 'bar'});
+  var agent = new Agent({
+    host: 'localhost',
+    port: common.PORT,
+    maxSockets: 1
+  });
+  var req = http.request({
+    host: 'localhost',
+    port: common.PORT,
+    method: 'GET',
+    path: '/hello',
+    agent: agent,
+    headers: {'Accept': '*/*', 'Foo': 'bar'}
+  });
   setTimeout(function() {
     req.end();
   }, 100);
@@ -52,7 +64,13 @@ server.listen(common.PORT, function() {
   });
 
   setTimeout(function() {
-    var req = client.request('POST', '/world');
+    var req = http.request({
+      host: 'localhost',
+      port: common.PORT,
+      method: 'POST',
+      path: '/world',
+      agent: agent
+    });
     req.end();
     req.on('response', function(res) {
       assert.equal(200, res.statusCode);
