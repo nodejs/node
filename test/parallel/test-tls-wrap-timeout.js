@@ -26,8 +26,8 @@ var server = tls.createServer(options, function(c) {
   }, 150);
 });
 
-server.listen(common.PORT, function() {
-  var socket = net.connect(common.PORT, function() {
+server.listen(0, function() {
+  var socket = net.connect(this.address().port, function() {
     var s = socket.setTimeout(common.platformTimeout(240), function() {
       throw new Error('timeout');
     });

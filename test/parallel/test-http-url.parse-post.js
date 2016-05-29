@@ -1,11 +1,10 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var url = require('url');
 
-var testURL = url.parse('http://localhost:' + common.PORT + '/asdf?qwer=zxcv');
-testURL.method = 'POST';
+var testURL;
 
 function check(request) {
   //url.parse should not mess with the method
@@ -25,7 +24,10 @@ var server = http.createServer(function(request, response) {
   server.close();
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  testURL = url.parse(`http://localhost:${this.address().port}/asdf?qwer=zxcv`);
+  testURL.method = 'POST';
+
   // make the request
   http.request(testURL).end();
 });

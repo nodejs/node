@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
@@ -24,10 +24,10 @@ function test(httpVersion, callback) {
     conn.end(reply);
   });
 
-  server.listen(common.PORT, '127.0.0.1', function() {
+  server.listen(0, '127.0.0.1', function() {
     var options = {
       host: '127.0.0.1',
-      port: common.PORT
+      port: this.address().port
     };
 
     var req = http.get(options, function(res) {

@@ -17,10 +17,10 @@ var options = {
 // a server that never replies
 var server = https.createServer(options, function() {
   console.log('Got request.  Doing nothing.');
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   var req = https.request({
     host: 'localhost',
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'GET',
     rejectUnauthorized: false

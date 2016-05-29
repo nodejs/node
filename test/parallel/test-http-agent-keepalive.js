@@ -4,6 +4,8 @@ const assert = require('assert');
 const http = require('http');
 const Agent = require('_http_agent').Agent;
 
+let name;
+
 const agent = new Agent({
   keepAlive: true,
   keepAliveMsecs: 1000,
@@ -28,13 +30,11 @@ const server = http.createServer(function(req, res) {
 function get(path, callback) {
   return http.get({
     host: 'localhost',
-    port: common.PORT,
+    port: server.address().port,
     agent: agent,
     path: path
   }, callback);
 }
-
-const name = 'localhost:' + common.PORT + ':';
 
 function checkDataAndSockets(body) {
   assert.equal(body.toString(), 'hello world');
@@ -106,7 +106,8 @@ function done() {
   process.exit(0);
 }
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
+  name = `localhost:${server.address().port}:`;
   // request first, and keep alive
   get('/first', function(res) {
     assert.equal(res.statusCode, 200);

@@ -49,7 +49,7 @@ function pingPongTest(port, host) {
     });
 
     socket.on('close', function() {
-      console.log('server socket.endd');
+      console.log('server socket.end');
       assert.equal(false, socket.writable);
       assert.equal(false, socket.readable);
       socket.server.close();
@@ -58,7 +58,9 @@ function pingPongTest(port, host) {
 
 
   server.listen(port, host, function() {
-    console.log('server listening on ' + port + ' ' + host);
+    if (this.address().port)
+      port = this.address().port;
+    console.log(`server listening on ${port} ${host}`);
 
     var client = net.createConnection(port, host);
 
@@ -108,10 +110,10 @@ function pingPongTest(port, host) {
 /* All are run at once, so run on different ports */
 common.refreshTmpDir();
 pingPongTest(common.PIPE);
-pingPongTest(common.PORT);
-pingPongTest(common.PORT + 1, 'localhost');
+pingPongTest(0);
+pingPongTest(0, 'localhost');
 if (common.hasIPv6)
-  pingPongTest(common.PORT + 2, '::1');
+  pingPongTest(0, '::1');
 
 process.on('exit', function() {
   if (common.hasIPv6)

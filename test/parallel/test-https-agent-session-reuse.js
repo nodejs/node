@@ -32,7 +32,7 @@ var server = https.createServer(options, function(req, res) {
 
   serverRequests++;
   res.end('ok');
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   var queue = [
     {
       name: 'first',
@@ -41,7 +41,7 @@ var server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: common.PORT
+      port: this.address().port
     },
     {
       name: 'first-reuse',
@@ -50,7 +50,7 @@ var server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: common.PORT
+      port: this.address().port
     },
     {
       name: 'cipher-change',
@@ -62,7 +62,7 @@ var server = https.createServer(options, function(req, res) {
       // Choose different cipher to use different cache entry
       ciphers: 'AES256-SHA',
       ca: ca,
-      port: common.PORT
+      port: this.address().port
     },
     // Change the ticket key to ensure session is updated in cache
     {
@@ -72,7 +72,7 @@ var server = https.createServer(options, function(req, res) {
       path: '/drop-key',
       servername: 'agent1',
       ca: ca,
-      port: common.PORT
+      port: this.address().port
     },
 
     // Ticket will be updated starting from this
@@ -83,7 +83,7 @@ var server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: common.PORT
+      port: this.address().port
     },
     {
       name: 'after-drop-reuse',
@@ -92,7 +92,7 @@ var server = https.createServer(options, function(req, res) {
       path: '/',
       servername: 'agent1',
       ca: ca,
-      port: common.PORT
+      port: this.address().port
     }
   ];
 

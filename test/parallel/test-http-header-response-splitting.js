@@ -65,9 +65,10 @@ var server = http.createServer(function(req, res) {
   }
 });
 
-server.listen(common.PORT, common.mustCall(function() {
+server.listen(0, common.mustCall(function() {
+  const port = this.address().port;
   for (var i = 0; i < testCount; i++) {
-    http.get({ port: common.PORT, path: '/' }, common.mustCall(function(res) {
+    http.get({ port: port, path: '/' }, common.mustCall(function(res) {
       assert.strictEqual(res.headers.a, 'foo invalid: bar');
       assert.strictEqual(res.headers.b, 'foo invalid: bar');
       assert.strictEqual(res.headers.foo, undefined);

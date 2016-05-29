@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -32,7 +32,7 @@ var server = http.createServer(function(req, res) {
 });
 server.maxHeadersCount = max;
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var maxAndExpected = [ // for client
     [20, 20],
     [1200, 1200],
@@ -44,7 +44,7 @@ server.listen(common.PORT, function() {
     var max = maxAndExpected[responses][0];
     var expected = maxAndExpected[responses][1];
     var req = http.request({
-      port: common.PORT,
+      port: server.address().port,
       headers: headers
     }, function(res) {
       assert.equal(Object.keys(res.headers).length, expected);

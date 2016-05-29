@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 
 var TCP = process.binding('tcp_wrap').TCP;
@@ -7,8 +7,11 @@ var WriteWrap = process.binding('stream_wrap').WriteWrap;
 
 var server = new TCP();
 
-var r = server.bind('0.0.0.0', common.PORT);
+var r = server.bind('0.0.0.0', 0);
 assert.equal(0, r);
+var port = {};
+server.getsockname(port);
+port = port.port;
 
 server.listen(128);
 
@@ -80,7 +83,7 @@ server.onconnection = function(err, client) {
 
 var net = require('net');
 
-var c = net.createConnection(common.PORT);
+var c = net.createConnection(port);
 c.on('connect', function() {
   c.end('hello world');
 });

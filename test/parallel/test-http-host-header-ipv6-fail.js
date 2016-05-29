@@ -14,12 +14,11 @@ const assert = require('assert');
 const http = require('http');
 
 const hostname = '::1';
-const port = common.PORT;
 
 function httpreq() {
   var req = http.request({
     host: hostname,
-    port: port,
+    port: server.address().port,
     path: '/',
     method: 'GET'
   });
@@ -37,4 +36,4 @@ const server = http.createServer(common.mustCall(function(req, res) {
   server.close(true);
 }));
 
-server.listen(port, hostname, () => httpreq());
+server.listen(0, hostname, () => httpreq());

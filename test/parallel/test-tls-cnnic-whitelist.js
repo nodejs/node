@@ -31,7 +31,7 @@ var testCases = [
       cert: loadPEM('agent7-cert')
     },
     clientOpts: {
-      port: common.PORT,
+      port: undefined,
       rejectUnauthorized: true,
       ca: [loadPEM('fake-cnnic-root-cert')]
     },
@@ -50,7 +50,7 @@ var testCases = [
       cert: loadPEM('agent6-cert')
     },
     clientOpts: {
-      port: common.PORT,
+      port: undefined,
       rejectUnauthorized: true
     },
     errorCode: 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'
@@ -64,7 +64,8 @@ function runTest(tindex) {
 
   var server = tls.createServer(tcase.serverOpts, function(s) {
     s.resume();
-  }).listen(common.PORT, function() {
+  }).listen(0, function() {
+    tcase.clientOpts = this.address().port;
     var client = tls.connect(tcase.clientOpts);
     client.on('error', function(e) {
       assert.strictEqual(e.code, tcase.errorCode);

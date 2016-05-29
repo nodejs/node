@@ -27,10 +27,10 @@ var srv = net.createServer(function(c) {
 
 var gotUpgrade = false;
 
-srv.listen(common.PORT, '127.0.0.1', function() {
+srv.listen(0, '127.0.0.1', function() {
 
   var req = http.get({
-    port: common.PORT,
+    port: this.address().port,
     headers: {
       connection: 'upgrade',
       upgrade: 'websocket'

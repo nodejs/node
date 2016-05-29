@@ -1,5 +1,5 @@
 /* eslint-disable strict */
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
@@ -22,14 +22,14 @@ var echoServer = net.Server(function(connection) {
     connection.end();
   });
 });
-echoServer.listen(common.PORT);
+echoServer.listen(0);
 
 var recv = '';
 
 echoServer.on('listening', function() {
   var j = 0;
   var c = net.createConnection({
-    port: common.PORT
+    port: this.address().port
   });
 
   c.setEncoding('binary');

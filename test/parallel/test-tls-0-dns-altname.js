@@ -20,8 +20,8 @@ var server = tls.createServer({
     c.destroy();
     server.close();
   });
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+}).listen(0, function() {
+  var c = tls.connect(this.address().port, {
     rejectUnauthorized: false
   }, function() {
     requests++;

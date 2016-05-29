@@ -25,11 +25,11 @@ var server = https.createServer(options, function(req, res) {
   req.pipe(res);
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var resumed = false;
   var req = https.request({
     method: 'POST',
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   }, function(res) {
     var timer;

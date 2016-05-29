@@ -26,14 +26,14 @@ const server = http.createServer((req, res) => {
 
 var count = 0;
 
-server.listen(common.PORT, common.mustCall(() => {
+server.listen(0, common.mustCall(() => {
   for (let n = 1; n <= MAX_COUNT ; n++) {
     // This runs twice, the first time, the server will use
     // setHeader, the second time it uses writeHead. In either
     // case, the error handler must be called because the client
     // is not allowed to accept multiple content-length headers.
     http.get(
-      {port: common.PORT, headers: {'x-num': n}},
+      {port: server.address().port, headers: {'x-num': n}},
       (res) => {
         assert(false, 'client allowed multiple content-length headers.');
       }

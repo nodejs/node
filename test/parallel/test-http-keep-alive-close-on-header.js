@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -15,14 +15,14 @@ var server = http.createServer(function(req, res) {
 var connectCount = 0;
 
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var agent = new http.Agent({ maxSockets: 1 });
-  var name = agent.getName({ port: common.PORT });
+  var name = agent.getName({ port: this.address().port });
   var request = http.request({
     method: 'GET',
     path: '/',
     headers: headers,
-    port: common.PORT,
+    port: this.address().port,
     agent: agent
   }, function(res) {
     assert.equal(1, agent.sockets[name].length);
@@ -39,7 +39,7 @@ server.listen(common.PORT, function() {
     method: 'GET',
     path: '/',
     headers: headers,
-    port: common.PORT,
+    port: this.address().port,
     agent: agent
   }, function(res) {
     assert.equal(1, agent.sockets[name].length);
@@ -55,7 +55,7 @@ server.listen(common.PORT, function() {
     method: 'GET',
     path: '/',
     headers: headers,
-    port: common.PORT,
+    port: this.address().port,
     agent: agent
   }, function(response) {
     response.on('end', function() {
