@@ -1465,3 +1465,14 @@ assert.equal(Buffer.prototype.parent, undefined);
 assert.equal(Buffer.prototype.offset, undefined);
 assert.equal(SlowBuffer.prototype.parent, undefined);
 assert.equal(SlowBuffer.prototype.offset, undefined);
+
+{
+  // Test that large negative Buffer length inputs don't affect the pool offset.
+  assert.deepStrictEqual(Buffer(-Buffer.poolSize), Buffer.from(''));
+  assert.deepStrictEqual(Buffer(-100), Buffer.from(''));
+  assert.deepStrictEqual(Buffer.allocUnsafe(-Buffer.poolSize), Buffer.from(''));
+  assert.deepStrictEqual(Buffer.allocUnsafe(-100), Buffer.from(''));
+
+  // Check pool offset after that by trying to write string into the pool.
+  assert.doesNotThrow(() => Buffer.from('abc'));
+}
