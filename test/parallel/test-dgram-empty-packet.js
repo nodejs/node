@@ -6,7 +6,7 @@ var callbacks = 0;
 var client;
 var timer;
 
-if (process.platform === 'darwin') {
+if (common.isOSX) {
   common.skip('because of 17894467 Apple bug');
   return;
 }

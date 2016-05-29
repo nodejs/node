@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 
-if (process.platform === 'darwin') {
+if (common.isOSX) {
   common.skip('because of 17894467 Apple bug');
   return;
 }

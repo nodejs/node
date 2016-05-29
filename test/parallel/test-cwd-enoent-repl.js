@@ -5,7 +5,7 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 
 // Fails with EINVAL on SmartOS, EBUSY on Windows, EBUSY on AIX.
-if (process.platform === 'sunos' || common.isWindows || common.isAix) {
+if (common.isSunOS || common.isWindows || common.isAix) {
   common.skip('cannot rmdir current working directory');
   return;
 }
