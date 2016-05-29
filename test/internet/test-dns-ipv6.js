@@ -123,7 +123,7 @@ TEST(function test_lookup_ipv6_hint(done) {
   }, function(err, ip, family) {
     if (err) {
       // FreeBSD does not support V4MAPPED
-      if (process.platform === 'freebsd') {
+      if (common.isFreeBSD) {
         assert(err instanceof Error);
         assert.strictEqual(err.code, 'EAI_BADFLAGS');
         assert.strictEqual(err.hostname, 'www.google.com');

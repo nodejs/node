@@ -1,9 +1,10 @@
 'use strict';
 // Original test written by Jakub Lekstan <kuebzky@gmail.com>
+const common = require('../common');
 
 require('../common');
 // FIXME add sunos support
-if ('linux freebsd darwin'.indexOf(process.platform) === -1) {
+if (!(common.isFreeBSD || common.isOSX || common.isLinux)) {
   console.log(`1..0 # Skipped: Unsupported platform [${process.platform}]`);
   return;
 }
@@ -26,7 +27,7 @@ exec('ps -p ' + process.pid + ' -o args=', function(error, stdout, stderr) {
   assert.equal(stderr, '');
 
   // freebsd always add ' (procname)' to the process title
-  if (process.platform === 'freebsd')
+  if (common.isFreeBSD)
     title += ` (${path.basename(process.execPath)})`;
 
   // omitting trailing whitespace and \n

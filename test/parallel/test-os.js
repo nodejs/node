@@ -71,7 +71,7 @@ var arch = os.arch();
 console.log('arch = ', arch);
 assert.ok(arch.length > 0);
 
-if (process.platform != 'sunos') {
+if (!common.isSunOS) {
   // not implemeneted yet
   assert.ok(os.loadavg().length > 0);
   assert.ok(os.freemem() > 0);

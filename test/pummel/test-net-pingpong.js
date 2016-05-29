@@ -94,9 +94,8 @@ pingPongTest(common.PORT, 'localhost');
 pingPongTest(common.PORT + 1, null);
 
 // This IPv6 isn't working on Solaris
-var solaris = /sunos/i.test(process.platform);
-if (!solaris) pingPongTest(common.PORT + 2, '::1');
+if (!common.isSunOS) pingPongTest(common.PORT + 2, '::1');
 
 process.on('exit', function() {
-  assert.equal(solaris ? 2 : 3, tests_run);
+  assert.equal(common.isSunOS ? 2 : 3, tests_run);
 });

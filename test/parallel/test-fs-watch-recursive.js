@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-if (!(process.platform === 'darwin' || common.isWindows)) {
+if (!(common.isOSX || common.isWindows)) {
   common.skip('recursive option is darwin/windows specific');
   return;
 }

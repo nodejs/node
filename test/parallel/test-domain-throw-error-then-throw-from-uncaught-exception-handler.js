@@ -82,7 +82,7 @@ function runTestWithAbortOnUncaughtException() {
 function createTestCmdLine(options) {
   var testCmd = '';
 
-  if (process.platform !== 'win32') {
+  if (!common.isWindows) {
     // Do not create core files, as it can take a lot of disk space on
     // continuous testing and developers' machines
     testCmd += 'ulimit -c 0 && ';
