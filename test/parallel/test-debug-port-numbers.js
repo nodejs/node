@@ -44,7 +44,9 @@ function kill(child) {
   try {
     process.kill(-child.pid);  // Kill process group.
   } catch (e) {
-    assert.strictEqual(e.code, 'ESRCH');  // Already gone.
+    // Generally ESRCH is returned when the process group is already gone. On
+    // some platforms such as OS X it may be EPERM though.
+    assert.ok((e.code === 'EPERM') || (e.code === 'ESRCH'));
   }
 }
 
