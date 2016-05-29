@@ -5,8 +5,8 @@ var path = require('path');
 var fs = require('fs');
 
 var expectFilePath = common.isWindows ||
-                     process.platform === 'linux' ||
-                     process.platform === 'darwin';
+                     common.isLinux ||
+                     common.isOSX;
 
 var watchSeenOne = 0;
 var watchSeenTwo = 0;

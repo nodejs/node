@@ -3,7 +3,7 @@ const common = require('../common');
 var assert = require('assert');
 var exec = require('child_process').exec;
 
-if (process.platform === 'darwin') {
+if (common.isOSX) {
   common.skip('Output of `id -G` is unreliable on Darwin.');
   return;
 }

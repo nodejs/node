@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const assert = require('assert');
 
-if (process.platform !== 'linux') {
+if (!common.isLinux) {
   common.skip('Test is linux specific.');
   return;
 }
