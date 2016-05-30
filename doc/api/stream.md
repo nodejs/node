@@ -991,22 +991,22 @@ function parseHeader(stream, callback) {
   stream.on('error', callback);
   stream.on('readable', onReadable);
   const decoder = new StringDecoder('utf8');
-  var header = '';
+  let header = '';
   function onReadable() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = stream.read())) {
-      var str = decoder.write(chunk);
-      if (str.match(/\n\n/)) {
+      const str = decoder.write(chunk);
+      const match = str.match(/\n\n/);
+      if (match) {
         // found the header boundary
-        var split = str.split(/\n\n/);
+        const split = str.split(/\n\n/);
         header += split.shift();
-        const remaining = split.join('\n\n');
-        const buf = Buffer.from(remaining, 'utf8');
+        const remaining = chunk.slice(match.index + '\n\n'.length)
         stream.removeListener('error', callback);
         // set the readable listener before unshifting
         stream.removeListener('readable', onReadable);
-        if (buf.length)
-          stream.unshift(buf);
+        if (remaining.length)
+          stream.unshift(remaining);
         // now the body of the message can be read from the stream.
         callback(null, header, stream);
       } else {
@@ -2051,3 +2051,4 @@ readable buffer so there is nothing for a user to consume.
 [Writable]: #stream_class_stream_writable
 [zlib]: zlib.html
 [`Symbol.hasInstance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/hasInstance
+
