@@ -1,9 +1,7 @@
 <!--
-Thank you for your pull request. Please review below requirements and walk
-through the checklist. You can 'tick' a box by using the letter "x": [x].
+Thank you for your pull request. Please review below requirements.
 
-Run the test suite with: `make -j4 test` on UNIX or `vcbuild test nosign` on
-Windows.
+Run tests with `make -j4 test` on UNIX or `vcbuild test nosign` on Windows.
 
 If this aims to fix a regression or you’re adding a feature, make sure you also
 write a test. If possible, include a benchmark that quantifies your changes.
@@ -13,7 +11,7 @@ https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 -->
 
 ##### Checklist
-<!-- remove lines that do not apply to you -->
+<!-- Remove items that do not apply. For completed items, change [ ] to [x]. -->
 
 - [ ] tests and code linting passes
 - [ ] a test and/or benchmark is included
