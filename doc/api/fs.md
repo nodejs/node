@@ -1462,12 +1462,12 @@ The recursive option is only supported on OS X and Windows.
 This feature depends on the underlying operating system providing a way
 to be notified of filesystem changes.
 
-* On Linux systems, this uses `inotify`.
-* On BSD systems, this uses `kqueue`.
-* On OS X, this uses `kqueue` for files and 'FSEvents' for directories.
-* On SunOS systems (including Solaris and SmartOS), this uses `event ports`.
-* On Windows systems, this feature depends on `ReadDirectoryChangesW`.
-* On Aix systems, this feature depends on `AHAFS`, which must be enabled.
+* On Linux systems, this uses [`inotify`]
+* On BSD systems, this uses [`kqueue`]
+* On OS X, this uses [`kqueue`] for files and [`FSEvents`] for directories.
+* On SunOS systems (including Solaris and SmartOS), this uses [`event ports`].
+* On Windows systems, this feature depends on [`ReadDirectoryChangesW`].
+* On Aix systems, this feature depends on [`AHAFS`], which must be enabled.
 
 If the underlying functionality is not available for some reason, then
 `fs.watch` will not be able to function. For example, watching files or
@@ -1953,3 +1953,9 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [Writable Stream]: stream.html#stream_class_stream_writable
 [inode]: http://www.linux.org/threads/intro-to-inodes.4130
 [FS Constants]: #fs_fs_constants
+[`inotify`]: http://man7.org/linux/man-pages/man7/inotify.7.html
+[`kqueue`]: https://www.freebsd.org/cgi/man.cgi?kqueue
+[`FSEvents`]: https://developer.apple.com/library/mac/documentation/Darwin/Conceptual/FSEvents_ProgGuide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40005289-CH1-SW1
+[`event ports`]: http://illumos.org/man/port_create
+[`ReadDirectoryChangesW`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365465%28v=vs.85%29.aspx
+[`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
