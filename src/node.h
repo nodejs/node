@@ -375,8 +375,6 @@ NODE_DEPRECATED("Use WinapiErrnoException(isolate, ...)",
 })
 #endif
 
-const char *signo_string(int errorno);
-
 
 typedef void (*addon_register_func)(
     v8::Local<v8::Object> exports,

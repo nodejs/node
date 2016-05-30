@@ -4,6 +4,7 @@
 #include "node_wrap.h"
 #include "util.h"
 #include "util-inl.h"
+#include "node_predefs.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -255,7 +256,7 @@ class ProcessWrap : public HandleWrap {
 
     Local<Value> argv[] = {
       Number::New(env->isolate(), static_cast<double>(exit_status)),
-      OneByteString(env->isolate(), signo_string(term_signal))
+      OneByteString(env->isolate(), node_predefs::signo_string(term_signal))
     };
 
     wrap->MakeCallback(env->onexit_string(), arraysize(argv), argv);
