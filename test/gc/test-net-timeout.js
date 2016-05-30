@@ -36,7 +36,7 @@ function getall() {
     return;
 
   (function() {
-    var req = net.connect(server.address().port, '127.0.0.1');
+    var req = net.connect(server.address().port, server.address().address);
     req.resume();
     req.setTimeout(10, function() {
       //console.log('timeout (expected)')
