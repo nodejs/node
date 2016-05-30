@@ -236,7 +236,7 @@ added: v0.1.104
 Starts a timer that can be used to compute the duration of an operation. Timers
 are identified by a unique `label`. Use the same `label` when you call
 [`console.timeEnd()`][] to stop the timer and output the elapsed time in
-milliseconds to stdout. Timer durations are accurate to the sub-millisecond.
+milliseconds to `stdout`. Timer durations are accurate to the sub-millisecond.
 
 ### console.timeEnd(label)
 <!-- YAML
@@ -244,7 +244,7 @@ added: v0.1.104
 -->
 
 Stops a timer that was previously started by calling [`console.time()`][] and
-prints the result to stdout:
+prints the result to `stdout`:
 
 ```js
 console.time('100-elements');
