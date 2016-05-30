@@ -1,0 +1,53 @@
+// This file is generated
+
+// Copyright (c) 2016 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "platform/inspector_protocol/{{class_name}}.h"
+
+#include "platform/inspector_protocol/String16.h"
+
+namespace blink {
+namespace protocol {
+
+Frontend::Frontend(FrontendChannel* frontendChannel)
+    : m_frontendChannel(frontendChannel)
+{% for domain in api.domains %}
+    , m_{{domain.domain | lower}}(frontendChannel)
+{% endfor %}
+{
+}
+
+{% for domain in api.domains %}
+  {% for event in domain.events %}
+    {% if "handlers" in event and not ("renderer" in event["handlers"]) %}{% continue %}{% endif %}
+void Frontend::{{domain.domain}}::{{event.name}}(
+    {%- for parameter in event.parameters %}
+      {% if "optional" in parameter -%}
+        const Maybe<{{resolve_type(parameter).raw_type}}>&
+      {%- else -%}
+        {{resolve_type(parameter).pass_type}}
+      {%- endif %} {{parameter.name}}{%- if not loop.last -%}, {% endif -%}
+    {% endfor -%})
+{
+    std::unique_ptr<protocol::DictionaryValue> jsonMessage = DictionaryValue::create();
+    jsonMessage->setString("method", "{{domain.domain}}.{{event.name}}");
+    std::unique_ptr<protocol::DictionaryValue> paramsObject = DictionaryValue::create();
+    {% for parameter in event.parameters %}
+      {% if "optional" in parameter %}
+    if ({{parameter.name}}.isJust())
+        paramsObject->setValue("{{parameter.name}}", toValue({{parameter.name}}.fromJust()));
+      {% else %}
+    paramsObject->setValue("{{parameter.name}}", toValue({{resolve_type(parameter).to_raw_type % parameter.name}}));
+      {% endif %}
+    {% endfor %}
+    jsonMessage->setObject("params", std::move(paramsObject));
+    if (m_frontendChannel)
+        m_frontendChannel->sendProtocolNotification(std::move(jsonMessage));
+}
+  {% endfor %}
+{% endfor %}
+
+} // namespace protocol
+} // namespace blink
