@@ -25,7 +25,7 @@ event is not emitted until all connections are ended.
 
 ### Event: 'connection'
 <!-- YAML
-added: v1.3.0
+added: v0.5.0
 -->
 
 * {net.Socket} The connection object
