@@ -65,7 +65,7 @@ class SignalWrap : public HandleWrap {
     SignalWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
     int signum = args[0]->Int32Value();
-#if defined(__POSIX__) && defined(HAVE_INSPECTOR)
+#if defined(__POSIX__) && HAVE_INSPECTOR
     if (signum == SIGPROF) {
       Environment* env = Environment::GetCurrent(args);
       if (env->inspector_agent()->IsStarted()) {
