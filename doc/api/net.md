@@ -144,7 +144,7 @@ The parameter `backlog` behaves the same as in
 
 ### server.listen(options[, callback])
 <!-- YAML
-added: v0.9.1
+added: v0.3.2
 -->
 
 * `options` {Object} - Required. Supports the following properties:
@@ -176,7 +176,7 @@ server.listen({
 
 ### server.listen(path[, backlog][, callback])
 <!-- YAML
-added: v0.9.1
+added: v0.3.2
 -->
 
 * `path` {String}
@@ -213,7 +213,7 @@ The parameter `backlog` behaves the same as in
 
 ### server.listen(port[, hostname][, backlog][, callback])
 <!-- YAML
-added: v0.9.1
+added: v0.3.2
 -->
 
 Begin accepting connections on the specified `port` and `hostname`. If the
@@ -257,6 +257,9 @@ A Boolean indicating whether or not the server is listening for
 connections.
 
 ### server.maxConnections
+<!-- YAML
+added: v0.2.0
+-->
 
 Set this property to reject connections when the server's connection count gets
 high.
