@@ -79,9 +79,9 @@ bool InitializeICUDirectory(const char* icu_data_path) {
   }
 }
 
-static int32_t ToUnicode(MaybeStackBuffer<char>* buf,
-                         const char* input,
-                         size_t length) {
+int32_t ToUnicode(MaybeStackBuffer<char>* buf,
+                  const char* input,
+                  size_t length) {
   UErrorCode status = U_ZERO_ERROR;
   uint32_t options = UIDNA_DEFAULT;
   options |= UIDNA_NONTRANSITIONAL_TO_UNICODE;
@@ -113,9 +113,9 @@ static int32_t ToUnicode(MaybeStackBuffer<char>* buf,
   return len;
 }
 
-static int32_t ToASCII(MaybeStackBuffer<char>* buf,
-                       const char* input,
-                       size_t length) {
+int32_t ToASCII(MaybeStackBuffer<char>* buf,
+                const char* input,
+                size_t length) {
   UErrorCode status = U_ZERO_ERROR;
   uint32_t options = UIDNA_DEFAULT;
   options |= UIDNA_NONTRANSITIONAL_TO_ASCII;
