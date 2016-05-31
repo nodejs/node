@@ -61,4 +61,5 @@ function done() {
   // don't always match.  Generally, serverConn will be
   // the smaller number, but take the min just to be sure.
   bench.end(Math.min(serverConn, clientConn));
+  process.exit(0);
 }

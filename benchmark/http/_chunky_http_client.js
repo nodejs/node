@@ -81,6 +81,7 @@ function main(conf) {
         count += 1;
         if (count === num) {
           bench.end(count);
+          process.exit(0);
         } else {
           WriteHTTPHeaders(socket, 1, min + size);
         }
