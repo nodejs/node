@@ -2149,7 +2149,8 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
 
 
 void Exit(const FunctionCallbackInfo<Value>& args) {
-  exit(args[0]->Int32Value());
+  // no-op
+  return;
 }
 
 
@@ -3231,7 +3232,7 @@ void SetupProcessObject(Environment* env,
                  StopProfilerIdleNotifier);
   env->SetMethod(process, "_getActiveRequests", GetActiveRequests);
   env->SetMethod(process, "_getActiveHandles", GetActiveHandles);
-  env->SetMethod(process, "reallyExit", Exit);
+  env->SetMethod(process, "_exit", Exit);
   env->SetMethod(process, "abort", Abort);
   env->SetMethod(process, "chdir", Chdir);
   env->SetMethod(process, "cwd", Cwd);

@@ -4,6 +4,7 @@
 #include "env-inl.h"
 #include "string_bytes.h"
 
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 
@@ -39,6 +40,9 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+static void Exit(const FunctionCallbackInfo<Value>& args) {
+  exit(args[0]->Int32Value());
+}
 
 static void GetHostname(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -362,6 +366,7 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
+  env->SetMethod(target, "_exit", Exit);
   env->SetMethod(target, "getHostname", GetHostname);
   env->SetMethod(target, "getLoadAvg", GetLoadAvg);
   env->SetMethod(target, "getUptime", GetUptime);
