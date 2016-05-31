@@ -190,28 +190,22 @@ NODE_EXTERN void Init(int* argc,
                       int* exec_argc,
                       const char*** exec_argv);
 
+class IsolateData;
 class Environment;
 
-NODE_EXTERN Environment* CreateEnvironment(v8::Isolate* isolate,
-                                           struct uv_loop_s* loop,
+NODE_EXTERN IsolateData* CreateIsolateData(v8::Isolate* isolate,
+                                           struct uv_loop_s* loop);
+NODE_EXTERN void FreeIsolateData(IsolateData* isolate_data);
+
+NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
                                            v8::Local<v8::Context> context,
                                            int argc,
                                            const char* const* argv,
                                            int exec_argc,
                                            const char* const* exec_argv);
+
 NODE_EXTERN void LoadEnvironment(Environment* env);
 NODE_EXTERN void FreeEnvironment(Environment* env);
-
-// NOTE: Calling this is the same as calling
-// CreateEnvironment() + LoadEnvironment() from above.
-// `uv_default_loop()` will be passed as `loop`.
-NODE_EXTERN Environment* CreateEnvironment(v8::Isolate* isolate,
-                                           v8::Local<v8::Context> context,
-                                           int argc,
-                                           const char* const* argv,
-                                           int exec_argc,
-                                           const char* const* exec_argv);
-
 
 NODE_EXTERN void EmitBeforeExit(Environment* env);
 NODE_EXTERN int EmitExit(Environment* env);

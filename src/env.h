@@ -304,14 +304,13 @@ RB_HEAD(ares_task_list, ares_task_t);
 
 class IsolateData {
  public:
-  static inline IsolateData* GetOrCreate(v8::Isolate* isolate, uv_loop_t* loop);
-  inline void Put();
+  inline IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop);
   inline uv_loop_t* event_loop() const;
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
 #define V(TypeName, PropertyName, StringValue)                                \
-  inline v8::Local<TypeName> PropertyName() const;
+  inline v8::Local<TypeName> PropertyName(v8::Isolate* isolate) const;
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_STRING_PROPERTIES(VS)
 #undef V
@@ -319,15 +318,6 @@ class IsolateData {
 #undef VP
 
  private:
-  static const int kIsolateSlot = NODE_ISOLATE_SLOT;
-
-  inline static IsolateData* Get(v8::Isolate* isolate);
-  inline explicit IsolateData(v8::Isolate* isolate, uv_loop_t* loop);
-  inline v8::Isolate* isolate() const;
-
-  uv_loop_t* const event_loop_;
-  v8::Isolate* const isolate_;
-
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
 #define V(TypeName, PropertyName, StringValue)                                \
@@ -338,7 +328,8 @@ class IsolateData {
 #undef VS
 #undef VP
 
-  unsigned int ref_count_;
+  v8::Isolate* const isolate_;
+  uv_loop_t* const event_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
@@ -474,8 +465,8 @@ class Environment {
       const v8::PropertyCallbackInfo<T>& info);
 
   // See CreateEnvironment() in src/node.cc.
-  static inline Environment* New(v8::Local<v8::Context> context,
-                                 uv_loop_t* loop);
+  static inline Environment* New(IsolateData* isolate_data,
+                                 v8::Local<v8::Context> context);
   inline void CleanupHandles();
   inline void Dispose();
 
@@ -609,7 +600,7 @@ class Environment {
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
  private:
-  inline Environment(v8::Local<v8::Context> context, uv_loop_t* loop);
+  inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
   inline ~Environment();
   inline IsolateData* isolate_data() const;
 

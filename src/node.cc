@@ -4264,42 +4264,6 @@ int EmitExit(Environment* env) {
 }
 
 
-// Just a convenience method
-Environment* CreateEnvironment(Isolate* isolate,
-                               Local<Context> context,
-                               int argc,
-                               const char* const* argv,
-                               int exec_argc,
-                               const char* const* exec_argv) {
-  Environment* env;
-  Context::Scope context_scope(context);
-
-  env = CreateEnvironment(isolate,
-                          uv_default_loop(),
-                          context,
-                          argc,
-                          argv,
-                          exec_argc,
-                          exec_argv);
-
-  LoadEnvironment(env);
-
-  return env;
-}
-
-static Environment* CreateEnvironment(Isolate* isolate,
-                                      Local<Context> context,
-                                      NodeInstanceData* instance_data) {
-  return CreateEnvironment(isolate,
-                           instance_data->event_loop(),
-                           context,
-                           instance_data->argc(),
-                           instance_data->argv(),
-                           instance_data->exec_argc(),
-                           instance_data->exec_argv());
-}
-
-
 static void HandleCloseCb(uv_handle_t* handle) {
   Environment* env = reinterpret_cast<Environment*>(handle->data);
   env->FinishHandleCleanup(handle);
@@ -4314,17 +4278,27 @@ static void HandleCleanup(Environment* env,
 }
 
 
-Environment* CreateEnvironment(Isolate* isolate,
-                               uv_loop_t* loop,
+IsolateData* CreateIsolateData(Isolate* isolate, uv_loop_t* loop) {
+  return new IsolateData(isolate, loop);
+}
+
+
+void FreeIsolateData(IsolateData* isolate_data) {
+  delete isolate_data;
+}
+
+
+Environment* CreateEnvironment(IsolateData* isolate_data,
                                Local<Context> context,
                                int argc,
                                const char* const* argv,
                                int exec_argc,
                                const char* const* exec_argv) {
+  Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
   Context::Scope context_scope(context);
-  Environment* env = Environment::New(context, loop);
+  Environment* env = Environment::New(isolate_data, context);
 
   isolate->SetAutorunMicrotasks(false);
 
@@ -4412,9 +4386,22 @@ static void StartNodeInstance(void* arg) {
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
     Local<Context> context = Context::New(isolate);
-    Environment* env = CreateEnvironment(isolate, context, instance_data);
-    array_buffer_allocator->set_env(env);
     Context::Scope context_scope(context);
+
+    // FIXME(bnoordhuis) Work around V8 bug: v8::Private::ForApi() dereferences
+    // a nullptr when a context hasn't been entered first.  The symbol registry
+    // is a lazily created JS object but object instantiation does not work
+    // without a context.
+    IsolateData isolate_data(isolate, instance_data->event_loop());
+
+    Environment* env = CreateEnvironment(&isolate_data,
+                                         context,
+                                         instance_data->argc(),
+                                         instance_data->argv(),
+                                         instance_data->exec_argc(),
+                                         instance_data->exec_argv());
+
+    array_buffer_allocator->set_env(env);
 
     isolate->SetAbortOnUncaughtExceptionCallback(
         ShouldAbortOnUncaughtException);
