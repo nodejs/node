@@ -15,13 +15,12 @@
 
 namespace node {
 
-inline Environment::IsolateData* Environment::IsolateData::Get(
-    v8::Isolate* isolate) {
+inline IsolateData* IsolateData::Get(v8::Isolate* isolate) {
   return static_cast<IsolateData*>(isolate->GetData(kIsolateSlot));
 }
 
-inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
-    v8::Isolate* isolate, uv_loop_t* loop) {
+inline IsolateData* IsolateData::GetOrCreate(v8::Isolate* isolate,
+                                             uv_loop_t* loop) {
   IsolateData* isolate_data = Get(isolate);
   if (isolate_data == nullptr) {
     isolate_data = new IsolateData(isolate, loop);
@@ -31,7 +30,7 @@ inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
   return isolate_data;
 }
 
-inline void Environment::IsolateData::Put() {
+inline void IsolateData::Put() {
   if (--ref_count_ == 0) {
     isolate()->SetData(kIsolateSlot, nullptr);
     delete this;
@@ -47,8 +46,7 @@ inline void Environment::IsolateData::Put() {
 //
 // One byte because our strings are ASCII and we can safely skip V8's UTF-8
 // decoding step.  It's a one-time cost, but why pay it when you don't have to?
-inline Environment::IsolateData::IsolateData(v8::Isolate* isolate,
-                                             uv_loop_t* loop)
+inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* loop)
     : event_loop_(loop),
       isolate_(isolate),
 #define V(PropertyName, StringValue)                                          \
@@ -75,11 +73,11 @@ inline Environment::IsolateData::IsolateData(v8::Isolate* isolate,
 #undef V
     ref_count_(0) {}
 
-inline uv_loop_t* Environment::IsolateData::event_loop() const {
+inline uv_loop_t* IsolateData::event_loop() const {
   return event_loop_;
 }
 
-inline v8::Isolate* Environment::IsolateData::isolate() const {
+inline v8::Isolate* IsolateData::isolate() const {
   return isolate_;
 }
 
@@ -432,7 +430,7 @@ inline ares_task_list* Environment::cares_task_list() {
   return &cares_task_list_;
 }
 
-inline Environment::IsolateData* Environment::isolate_data() const {
+inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }
 
@@ -543,7 +541,7 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
 #define V(TypeName, PropertyName, StringValue)                                \
   inline                                                                      \
-  v8::Local<TypeName> Environment::IsolateData::PropertyName() const {        \
+  v8::Local<TypeName> IsolateData::PropertyName() const {                     \
     /* Strings are immutable so casting away const-ness here is okay. */      \
     return const_cast<IsolateData*>(this)->PropertyName ## _.Get(isolate());  \
   }
