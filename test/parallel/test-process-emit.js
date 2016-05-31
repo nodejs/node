@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const spawn = require('child_process').spawn
 const sym = Symbol();
 
 process.on('normal', common.mustCall((data) => {
@@ -20,3 +21,7 @@ process.emit(sym, 'symbolData');
 process.emit('SIGPIPE', 'signalData');
 
 assert.strictEqual(isNaN(process._eventsCount), false);
+
+process.on('spawn', common.mustCall((pid) => {
+  assert.strictEqual(isNaN(pid), false);
+}))

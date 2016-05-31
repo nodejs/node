@@ -110,6 +110,13 @@ log, either periodically (probably best for long-running programs, allowing
 you to clear the map, which in the case of a very buggy program could grow
 indefinitely) or upon process exit (more convenient for scripts).
 
+## Event: 'spawn'
+
+Emitted whenever a process calls the internal `child_process.spawn()` and assign
+the child a `pid`. This is useful for bookkeeping - especially for subsequent
+calls to `process.kill()`, in case no reference to `child` was held and hence
+`child.kill()` is not an option.
+
 ## Event: 'uncaughtException'
 <!-- YAML
 added: v0.1.18
