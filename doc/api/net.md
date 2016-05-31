@@ -8,7 +8,7 @@ this module with `require('net');`.
 
 ## Class: net.Server
 <!-- YAML
-added: v0.7.5
+added: v0.1.90
 -->
 
 This class is used to create a TCP or local server.
