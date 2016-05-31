@@ -20,9 +20,10 @@ if (!dlerror_msg) {
 try {
   require('../fixtures/module-loading-error.node');
 } catch (e) {
-  assert.strictEqual(dlerror_msg.some((errMsgCase) => {
-    return e.toString().indexOf(errMsgCase) !== -1;
-  }), true);
+  assert.strictEqual(
+    dlerror_msg.some((errMsgCase) => e.toString().includes(errMsgCase)),
+    true
+  );
 }
 
 try {
