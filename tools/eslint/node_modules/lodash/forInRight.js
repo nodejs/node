@@ -13,6 +13,7 @@ var baseForRight = require('./_baseForRight'),
  * @param {Object} object The object to iterate over.
  * @param {Function} [iteratee=_.identity] The function invoked per iteration.
  * @returns {Object} Returns `object`.
+ * @see _.forIn
  * @example
  *
  * function Foo() {
@@ -30,7 +31,7 @@ var baseForRight = require('./_baseForRight'),
 function forInRight(object, iteratee) {
   return object == null
     ? object
-    : baseForRight(object, baseIteratee(iteratee), keysIn);
+    : baseForRight(object, baseIteratee(iteratee, 3), keysIn);
 }
 
 module.exports = forInRight;

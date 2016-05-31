@@ -67,6 +67,8 @@ module.exports = {
     },
 
     create: function(context) {
+        var sourceCode = context.getSourceCode();
+
         return {
             BinaryExpression: function(node) {
 
@@ -85,10 +87,10 @@ module.exports = {
                 ) {
 
                     // move warning location to operator
-                    var operatorToken = context.getTokenAfter(left);
+                    var operatorToken = sourceCode.getTokenAfter(left);
 
                     while (operatorToken.value !== "+") {
-                        operatorToken = context.getTokenAfter(operatorToken);
+                        operatorToken = sourceCode.getTokenAfter(operatorToken);
                     }
 
                     context.report(

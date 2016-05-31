@@ -11,7 +11,7 @@ var baseAt = require('./_baseAt'),
  * @category Object
  * @param {Object} object The object to iterate over.
  * @param {...(string|string[])} [paths] The property paths of elements to pick.
- * @returns {Array} Returns the new array of picked elements.
+ * @returns {Array} Returns the picked values.
  * @example
  *
  * var object = { 'a': [{ 'b': { 'c': 3 } }, 4] };

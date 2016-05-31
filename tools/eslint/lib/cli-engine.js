@@ -68,6 +68,8 @@ var fs = require("fs"),
  * @typedef {Object} LintResult
  * @property {string} filePath The path to the file that was linted.
  * @property {LintMessage[]} messages All of the messages for the result.
+ * @property {number} errorCount Number or errors for the result.
+ * @property {number} warningCount Number or warnings for the result.
  */
 
 //------------------------------------------------------------------------------
@@ -132,23 +134,19 @@ function multipassFix(text, config, options) {
         fixedResult,
         fixed = false,
         passNumber = 0,
-        lastMessageCount,
         MAX_PASSES = 10;
 
     /**
      * This loop continues until one of the following is true:
      *
      * 1. No more fixes have been applied.
-     * 2. There are no more linting errors reported.
-     * 3. The number of linting errors is no different between two passes.
-     * 4. Ten passes have been made.
+     * 2. Ten passes have been made.
      *
      * That means anytime a fix is successfully applied, there will be another pass.
      * Essentially, guaranteeing a minimum of two passes.
      */
     do {
         passNumber++;
-        lastMessageCount = messages.length;
 
         debug("Linting code for " + options.filename + " (pass " + passNumber + ")");
         messages = eslint.verify(text, config, options);
@@ -163,8 +161,7 @@ function multipassFix(text, config, options) {
         text = fixedResult.output;
 
     } while (
-        fixedResult.fixed && fixedResult.messages.length > 0 &&
-        fixedResult.messages.length !== lastMessageCount &&
+        fixedResult.fixed &&
         passNumber < MAX_PASSES
     );
 
@@ -300,18 +297,34 @@ function processFile(filename, configHelper, options) {
 
 /**
  * Returns result with warning by ignore settings
- * @param {string} filePath File path of checked code
- * @returns {Result} Result with single warning
+ * @param {string} filePath - File path of checked code
+ * @param {string} baseDir  - Absolute path of base directory
+ * @returns {Result}           Result with single warning
  * @private
  */
-function createIgnoreResult(filePath) {
+function createIgnoreResult(filePath, baseDir) {
+    var message;
+    var isHidden = /^\./.test(path.basename(filePath));
+    var isInNodeModules = baseDir && /^node_modules/.test(path.relative(baseDir, filePath));
+    var isInBowerComponents = baseDir && /^bower_components/.test(path.relative(baseDir, filePath));
+
+    if (isHidden) {
+        message = "File ignored by default.  Use a negated ignore pattern (like \"--ignore-pattern \'!<relative/path/to/filename>\'\") to override.";
+    } else if (isInNodeModules) {
+        message = "File ignored by default. Use \"--ignore-pattern \'!node_modules/*\'\" to override.";
+    } else if (isInBowerComponents) {
+        message = "File ignored by default. Use \"--ignore-pattern \'!bower_components/*\'\" to override.";
+    } else {
+        message = "File ignored because of a matching ignore pattern. Use \"--no-ignore\" to override.";
+    }
+
     return {
         filePath: path.resolve(filePath),
         messages: [
             {
                 fatal: false,
                 severity: 1,
-                message: "File ignored because of a matching ignore pattern. Use --no-ignore to override."
+                message: message
             }
         ],
         errorCount: 0,
@@ -489,7 +502,8 @@ CLIEngine.getFormatter = function(format) {
         try {
             return require(formatterPath);
         } catch (ex) {
-            return null;
+            ex.message = "There was a problem loading formatter: " + formatterPath + "\nError: " + ex.message;
+            throw ex;
         }
 
     } else {
@@ -511,7 +525,9 @@ CLIEngine.getErrorResults = function(results) {
         if (filteredMessages.length > 0) {
             filtered.push({
                 filePath: result.filePath,
-                messages: filteredMessages
+                messages: filteredMessages,
+                errorCount: filteredMessages.length,
+                warningCount: 0
             });
         }
     });
@@ -612,7 +628,7 @@ CLIEngine.prototype = {
             var hashOfConfig;
 
             if (warnIgnored) {
-                results.push(createIgnoreResult(filename));
+                results.push(createIgnoreResult(filename, options.cwd));
                 return;
             }
 
@@ -732,9 +748,9 @@ CLIEngine.prototype = {
         if (filename && !isAbsolute(filename)) {
             filename = path.resolve(options.cwd, filename);
         }
-        if (filename && (options.ignore !== false) && ignoredPaths.contains(filename)) {
+        if (filename && ignoredPaths.contains(filename)) {
 
-            results.push(createIgnoreResult(filename));
+            results.push(createIgnoreResult(filename, options.cwd));
         } else {
             results.push(processText(text, configHelper, filename, options.fix, options.allowInlineConfig));
         }
@@ -770,12 +786,8 @@ CLIEngine.prototype = {
         var ignoredPaths;
         var resolvedPath = path.resolve(this.options.cwd, filePath);
 
-        if (this.options.ignore) {
-            ignoredPaths = new IgnoredPaths(this.options);
-            return ignoredPaths.contains(resolvedPath);
-        }
-
-        return false;
+        ignoredPaths = new IgnoredPaths(this.options);
+        return ignoredPaths.contains(resolvedPath);
     },
 
     getFormatter: CLIEngine.getFormatter

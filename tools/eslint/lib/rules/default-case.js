@@ -35,6 +35,8 @@ module.exports = {
             new RegExp(options.commentPattern) :
             DEFAULT_COMMENT_PATTERN;
 
+        var sourceCode = context.getSourceCode();
+
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
@@ -76,7 +78,7 @@ module.exports = {
 
                     var lastCase = last(node.cases);
 
-                    comments = context.getComments(lastCase).trailing;
+                    comments = sourceCode.getComments(lastCase).trailing;
 
                     if (comments.length) {
                         comment = last(comments);

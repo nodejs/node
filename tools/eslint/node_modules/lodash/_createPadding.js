@@ -1,4 +1,5 @@
 var baseRepeat = require('./_baseRepeat'),
+    baseToString = require('./_baseToString'),
     castSlice = require('./_castSlice'),
     reHasComplexSymbol = require('./_reHasComplexSymbol'),
     stringSize = require('./_stringSize'),
@@ -17,7 +18,7 @@ var nativeCeil = Math.ceil;
  * @returns {string} Returns the padding for `string`.
  */
 function createPadding(length, chars) {
-  chars = chars === undefined ? ' ' : (chars + '');
+  chars = chars === undefined ? ' ' : baseToString(chars);
 
   var charsLength = chars.length;
   if (charsLength < 2) {

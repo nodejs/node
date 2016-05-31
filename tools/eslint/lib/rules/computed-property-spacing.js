@@ -119,10 +119,10 @@ module.exports = {
 
                 var property = node[propertyName];
 
-                var before = context.getTokenBefore(property),
-                    first = context.getFirstToken(property),
-                    last = context.getLastToken(property),
-                    after = context.getTokenAfter(property);
+                var before = sourceCode.getTokenBefore(property),
+                    first = sourceCode.getFirstToken(property),
+                    last = sourceCode.getLastToken(property),
+                    after = sourceCode.getTokenAfter(property);
 
                 if (astUtils.isTokenOnSameLine(before, first)) {
                     if (propertyNameMustBeSpaced) {

@@ -124,10 +124,12 @@ function listFilesToProcess(globPatterns, options) {
         var ignored = false;
         var isSilentlyIgnored;
 
+        if (ignoredPaths.contains(filename, "default")) {
+            ignored = (options.ignore !== false) && shouldWarnIgnored;
+            isSilentlyIgnored = !shouldWarnIgnored;
+        }
+
         if (options.ignore !== false) {
-            if (ignoredPaths.contains(filename, "default")) {
-                isSilentlyIgnored = true;
-            }
             if (ignoredPaths.contains(filename, "custom")) {
                 if (shouldWarnIgnored) {
                     ignored = true;
@@ -135,10 +137,12 @@ function listFilesToProcess(globPatterns, options) {
                     isSilentlyIgnored = true;
                 }
             }
-            if (isSilentlyIgnored && !ignored) {
-                return;
-            }
         }
+
+        if (isSilentlyIgnored && !ignored) {
+            return;
+        }
+
         if (added[filename]) {
             return;
         }

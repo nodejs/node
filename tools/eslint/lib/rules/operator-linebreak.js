@@ -57,6 +57,8 @@ module.exports = {
             styleOverrides[":"] = "before";
         }
 
+        var sourceCode = context.getSourceCode();
+
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
@@ -69,8 +71,8 @@ module.exports = {
          * @returns {void}
          */
         function validateNode(node, leftSide) {
-            var leftToken = context.getLastToken(leftSide);
-            var operatorToken = context.getTokenAfter(leftToken);
+            var leftToken = sourceCode.getLastToken(leftSide);
+            var operatorToken = sourceCode.getTokenAfter(leftToken);
 
             // When the left part of a binary expression is a single expression wrapped in
             // parentheses (ex: `(a) + b`), leftToken will be the last token of the expression
@@ -79,10 +81,10 @@ module.exports = {
             // should be the token right after that.
             while (operatorToken.value === ")") {
                 leftToken = operatorToken;
-                operatorToken = context.getTokenAfter(operatorToken);
+                operatorToken = sourceCode.getTokenAfter(operatorToken);
             }
 
-            var rightToken = context.getTokenAfter(operatorToken);
+            var rightToken = sourceCode.getTokenAfter(operatorToken);
             var operator = operatorToken.value;
             var operatorStyleOverride = styleOverrides[operator];
             var style = operatorStyleOverride || globalStyle;

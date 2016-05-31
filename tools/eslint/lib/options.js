@@ -57,7 +57,6 @@ module.exports = optionator({
         {
             option: "parser",
             type: "String",
-            default: "espree",
             description: "Specify the parser to be used"
         },
         {

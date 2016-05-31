@@ -44,6 +44,7 @@ module.exports = {
 
     create: function(context) {
         var config = context.options[0] || {};
+        var sourceCode = context.getSourceCode();
 
         /**
          * Reports if an arrow function contains an ambiguous conditional.
@@ -53,7 +54,7 @@ module.exports = {
         function checkArrowFunc(node) {
             var body = node.body;
 
-            if (isConditional(body) && !(config.allowParens && astUtils.isParenthesised(context, body))) {
+            if (isConditional(body) && !(config.allowParens && astUtils.isParenthesised(sourceCode, body))) {
                 context.report(node, "Arrow function used ambiguously with a conditional expression.");
             }
         }

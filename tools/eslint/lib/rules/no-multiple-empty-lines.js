@@ -56,6 +56,8 @@ module.exports = {
             maxBOF = context.options[0].maxBOF;
         }
 
+        var sourceCode = context.getSourceCode();
+
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
@@ -73,7 +75,7 @@ module.exports = {
             },
 
             "Program:exit": function checkBlankLines(node) {
-                var lines = context.getSourceLines(),
+                var lines = sourceCode.lines,
                     currentLocation = -1,
                     lastLocation,
                     blankCounter = 0,
@@ -120,6 +122,8 @@ module.exports = {
 
                 // Aggregate and count blank lines
                 if (firstNonBlankLine > maxBOF) {
+                    currentLocation = firstNonBlankLine - 1;
+
                     context.report(node, 0,
                             "Too many blank lines at the beginning of file. Max of " + maxBOF + " allowed.");
                 }

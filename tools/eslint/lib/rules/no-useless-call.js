@@ -32,12 +32,12 @@ function isCallOrNonVariadicApply(node) {
  * Checks whether or not the tokens of two given nodes are same.
  * @param {ASTNode} left - A node 1 to compare.
  * @param {ASTNode} right - A node 2 to compare.
- * @param {RuleContext} context - The ESLint rule context object.
+ * @param {SourceCode} sourceCode - The ESLint source code object.
  * @returns {boolean} the source code for the given node.
  */
-function equalTokens(left, right, context) {
-    var tokensL = context.getTokens(left);
-    var tokensR = context.getTokens(right);
+function equalTokens(left, right, sourceCode) {
+    var tokensL = sourceCode.getTokens(left);
+    var tokensR = sourceCode.getTokens(right);
 
     if (tokensL.length !== tokensR.length) {
         return false;
@@ -57,14 +57,14 @@ function equalTokens(left, right, context) {
  * Checks whether or not `thisArg` is not changed by `.call()`/`.apply()`.
  * @param {ASTNode|null} expectedThis - The node that is the owner of the applied function.
  * @param {ASTNode} thisArg - The node that is given to the first argument of the `.call()`/`.apply()`.
- * @param {RuleContext} context - The ESLint rule context object.
+ * @param {SourceCode} sourceCode - The ESLint source code object.
  * @returns {boolean} Whether or not `thisArg` is not changed by `.call()`/`.apply()`.
  */
-function isValidThisArg(expectedThis, thisArg, context) {
+function isValidThisArg(expectedThis, thisArg, sourceCode) {
     if (!expectedThis) {
         return astUtils.isNullOrUndefined(thisArg);
     }
-    return equalTokens(expectedThis, thisArg, context);
+    return equalTokens(expectedThis, thisArg, sourceCode);
 }
 
 //------------------------------------------------------------------------------
@@ -83,6 +83,8 @@ module.exports = {
     },
 
     create: function(context) {
+        var sourceCode = context.getSourceCode();
+
         return {
             CallExpression: function(node) {
                 if (!isCallOrNonVariadicApply(node)) {
@@ -93,7 +95,7 @@ module.exports = {
                 var expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
                 var thisArg = node.arguments[0];
 
-                if (isValidThisArg(expectedThis, thisArg, context)) {
+                if (isValidThisArg(expectedThis, thisArg, sourceCode)) {
                     context.report(
                         node,
                         "unnecessary '.{{name}}()'.",

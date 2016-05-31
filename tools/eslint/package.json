@@ -1,19 +1,19 @@
 {
   "_args": [
     [
-      "eslint@latest",
-      "/Users/trott/io.js/tools"
+      "eslint",
+      "/Users/trott/io.js/tools/eslint"
     ]
   ],
   "_from": "eslint@latest",
-  "_id": "eslint@2.9.0",
+  "_id": "eslint@2.10.2",
   "_inCache": true,
   "_installable": true,
   "_location": "/eslint",
   "_nodeVersion": "4.4.2",
   "_npmOperationalInternal": {
     "host": "packages-12-west.internal.npmjs.com",
-    "tmp": "tmp/eslint-2.9.0.tgz_1461949357357_0.922593503491953"
+    "tmp": "tmp/eslint-2.10.2.tgz_1463429777099_0.8907014767173678"
   },
   "_npmUser": {
     "email": "nicholas@nczconsulting.com",
@@ -23,8 +23,8 @@
   "_phantomChildren": {},
   "_requested": {
     "name": "eslint",
-    "raw": "eslint@latest",
-    "rawSpec": "latest",
+    "raw": "eslint",
+    "rawSpec": "",
     "scope": null,
     "spec": "latest",
     "type": "tag"
@@ -32,11 +32,11 @@
   "_requiredBy": [
     "#USER"
   ],
-  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-2.9.0.tgz",
-  "_shasum": "5b3fdb7497bb042e2747e3d1fe95f404dca39a60",
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-2.10.2.tgz",
+  "_shasum": "b2309482fef043d3203365a321285e6cce01c3d7",
   "_shrinkwrap": null,
-  "_spec": "eslint@latest",
-  "_where": "/Users/trott/io.js/tools",
+  "_spec": "eslint",
+  "_where": "/Users/trott/io.js/tools/eslint",
   "author": {
     "email": "nicholas+npm@nczconsulting.com",
     "name": "Nicholas C. Zakas"
@@ -97,15 +97,18 @@
     "gh-got": "^2.2.0",
     "istanbul": "^0.4.0",
     "jsdoc": "^3.3.0-beta1",
+    "karma": "^0.13.22",
+    "karma-mocha": "^1.0.1",
+    "karma-mocha-reporter": "^2.0.3",
+    "karma-phantomjs-launcher": "^1.0.0",
     "leche": "^2.1.1",
     "linefix": "^0.1.1",
     "load-perf": "^0.2.0",
     "markdownlint": "^0.1.0",
     "mocha": "^2.4.5",
-    "mocha-phantomjs": "4.0.1",
     "npm-license": "^0.3.2",
-    "phantomjs-polyfill": "0.0.1",
-    "proxyquire": "^1.0.0",
+    "phantomjs-prebuilt": "^2.1.7",
+    "proxyquire": ">=1.0.0 <1.7.5",
     "semver": "^5.0.3",
     "shelljs-nodecli": "~0.1.0",
     "sinon": "^1.17.2",
@@ -114,8 +117,8 @@
   },
   "directories": {},
   "dist": {
-    "shasum": "5b3fdb7497bb042e2747e3d1fe95f404dca39a60",
-    "tarball": "https://registry.npmjs.org/eslint/-/eslint-2.9.0.tgz"
+    "shasum": "b2309482fef043d3203365a321285e6cce01c3d7",
+    "tarball": "https://registry.npmjs.org/eslint/-/eslint-2.10.2.tgz"
   },
   "engines": {
     "node": ">=0.10"
@@ -128,7 +131,7 @@
     "lib",
     "messages"
   ],
-  "gitHead": "d8887638a9eaeeda6ea09f7d625d1bc57ea7f436",
+  "gitHead": "6f2edba7019f8f185f59e0cbffbb0fed94f6a319",
   "homepage": "http://eslint.org",
   "keywords": [
     "ast",
@@ -170,5 +173,5 @@
     "release": "node Makefile.js release",
     "test": "node Makefile.js test"
   },
-  "version": "2.9.0"
+  "version": "2.10.2"
 }

@@ -35,6 +35,8 @@ module.exports = {
         var options = context.options[0] || {},
             allowEmptyCatch = options.allowEmptyCatch || false;
 
+        var sourceCode = context.getSourceCode();
+
         return {
             BlockStatement: function(node) {
 
@@ -53,7 +55,7 @@ module.exports = {
                 }
 
                 // any other block is only allowed to be empty, if it contains a comment
-                if (context.getComments(node).trailing.length > 0) {
+                if (sourceCode.getComments(node).trailing.length > 0) {
                     return;
                 }
 

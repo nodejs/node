@@ -5,9 +5,9 @@
  * @param {Function} func The function to inspect.
  * @returns {*} Returns the placeholder value.
  */
-function getPlaceholder(func) {
+function getHolder(func) {
   var object = func;
   return object.placeholder;
 }
 
-module.exports = getPlaceholder;
+module.exports = getHolder;

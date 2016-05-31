@@ -68,24 +68,51 @@ const unixSpecialCaseFormatTests = [
 ];
 
 const errors = [
-  {method: 'parse', input: [null],
-   message: /Path must be a string. Received null/},
-  {method: 'parse', input: [{}],
-   message: /Path must be a string. Received {}/},
-  {method: 'parse', input: [true],
-   message: /Path must be a string. Received true/},
-  {method: 'parse', input: [1],
-   message: /Path must be a string. Received 1/},
-  {method: 'parse', input: [],
-   message: /Path must be a string. Received undefined/},
-  {method: 'format', input: [null],
-   message: /Parameter "pathObject" must be an object, not/},
-  {method: 'format', input: [''],
-   message: /Parameter "pathObject" must be an object, not string/},
-  {method: 'format', input: [true],
-   message: /Parameter "pathObject" must be an object, not boolean/},
-  {method: 'format', input: [1],
-   message: /Parameter "pathObject" must be an object, not number/},
+  {
+    method: 'parse',
+    input: [null],
+    message: /Path must be a string. Received null/
+  },
+  {
+    method: 'parse',
+    input: [{}],
+    message: /Path must be a string. Received {}/
+  },
+  {
+    method: 'parse',
+    input: [true],
+    message: /Path must be a string. Received true/
+  },
+  {
+    method: 'parse',
+    input: [1],
+    message: /Path must be a string. Received 1/
+  },
+  {
+    method: 'parse',
+    input: [],
+    message: /Path must be a string. Received undefined/
+  },
+  {
+    method: 'format',
+    input: [null],
+    message: /Parameter "pathObject" must be an object, not/
+  },
+  {
+    method: 'format',
+    input: [''],
+    message: /Parameter "pathObject" must be an object, not string/
+  },
+  {
+    method: 'format',
+    input: [true],
+    message: /Parameter "pathObject" must be an object, not boolean/
+  },
+  {
+    method: 'format',
+    input: [1],
+    message: /Parameter "pathObject" must be an object, not number/
+  },
 ];
 
 checkParseFormat(path.win32, winPaths);
@@ -99,29 +126,36 @@ checkFormat(path.posix, unixSpecialCaseFormatTests);
 // Test removal of trailing path separators
 const trailingTests = [
   [ path.win32.parse,
-    [['.\\', { root: '', dir: '', base: '.', ext: '', name: '.' }],
-     ['\\\\', { root: '\\', dir: '\\', base: '', ext: '', name: '' }],
-     ['\\\\', { root: '\\', dir: '\\', base: '', ext: '', name: '' }],
-     ['c:\\foo\\\\\\',
-      { root: 'c:\\', dir: 'c:\\', base: 'foo', ext: '', name: 'foo' }],
-     ['D:\\foo\\\\\\bar.baz',
-      { root: 'D:\\',
-        dir: 'D:\\foo\\\\',
-        base: 'bar.baz',
-        ext: '.baz',
-        name: 'bar'
-      }
-     ]
+    [
+      ['.\\', {root: '', dir: '', base: '.', ext: '', name: '.'}],
+      ['\\\\', {root: '\\', dir: '\\', base: '', ext: '', name: ''}],
+      ['\\\\', {root: '\\', dir: '\\', base: '', ext: '', name: ''}],
+      [
+        'c:\\foo\\\\\\',
+        {root: 'c:\\', dir: 'c:\\', base: 'foo', ext: '', name: 'foo'}
+      ],
+      [
+        'D:\\foo\\\\\\bar.baz',
+        {
+          root: 'D:\\',
+          dir: 'D:\\foo\\\\',
+          base: 'bar.baz',
+          ext: '.baz',
+          name: 'bar'
+        }
+      ]
     ]
   ],
   [ path.posix.parse,
-    [['./', { root: '', dir: '', base: '.', ext: '', name: '.' }],
-     ['//', { root: '/', dir: '/', base: '', ext: '', name: '' }],
-     ['///', { root: '/', dir: '/', base: '', ext: '', name: '' }],
-     ['/foo///', { root: '/', dir: '/', base: 'foo', ext: '', name: 'foo' }],
-     ['/foo///bar.baz',
-      { root: '/', dir: '/foo//', base: 'bar.baz', ext: '.baz', name: 'bar' }
-     ]
+    [
+      ['./', {root: '', dir: '', base: '.', ext: '', name: '.'}],
+      ['//', {root: '/', dir: '/', base: '', ext: '', name: ''}],
+      ['///', {root: '/', dir: '/', base: '', ext: '', name: ''}],
+      ['/foo///', {root: '/', dir: '/', base: 'foo', ext: '', name: 'foo'}],
+      [
+        '/foo///bar.baz',
+        {root: '/', dir: '/foo//', base: 'bar.baz', ext: '.baz', name: 'bar'}
+      ]
     ]
   ]
 ];

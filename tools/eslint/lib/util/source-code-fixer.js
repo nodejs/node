@@ -85,11 +85,7 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
 
         // sort in reverse order of occurrence
         fixes.sort(function(a, b) {
-            if (a.fix.range[1] <= b.fix.range[0]) {
-                return 1;
-            } else {
-                return -1;
-            }
+            return b.fix.range[1] - a.fix.range[1] || b.fix.range[0] - a.fix.range[0];
         });
 
         // split into array of characters for easier manipulation

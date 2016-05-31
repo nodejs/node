@@ -28,6 +28,8 @@ module.exports = {
 
         var style = context.options[0] || "outside";
 
+        var sourceCode = context.getSourceCode();
+
         /**
          * Check if the node is wrapped in ()
          * @param {ASTNode} node node to evaluate
@@ -35,8 +37,8 @@ module.exports = {
          * @private
          */
         function wrapped(node) {
-            var previousToken = context.getTokenBefore(node),
-                nextToken = context.getTokenAfter(node);
+            var previousToken = sourceCode.getTokenBefore(node),
+                nextToken = sourceCode.getTokenAfter(node);
 
             return previousToken && previousToken.value === "(" &&
                 nextToken && nextToken.value === ")";

@@ -81,7 +81,7 @@ module.exports = {
          * @returns {void} undefined.
          */
         function checkPrecedingSpace(node) {
-            var precedingToken = context.getTokenBefore(node),
+            var precedingToken = sourceCode.getTokenBefore(node),
                 hasSpace,
                 parent,
                 requireSpace;
@@ -133,9 +133,9 @@ module.exports = {
 
             if (cases.length > 0) {
                 firstCase = cases[0];
-                openingBrace = context.getTokenBefore(firstCase);
+                openingBrace = sourceCode.getTokenBefore(firstCase);
             } else {
-                openingBrace = context.getLastToken(node, 1);
+                openingBrace = sourceCode.getLastToken(node, 1);
             }
 
             checkPrecedingSpace(openingBrace);

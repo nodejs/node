@@ -67,6 +67,10 @@ module.exports = {
             for (var i = 0, l = nodes.length; i < l; ++i) {
                 var currentStatement = nodes[i];
 
+                if (currentStatement.type === "EmptyStatement") {
+                    continue;
+                }
+
                 if (currentStatement.loc.start.line === lastStatementLine) {
                     ++numberOfStatementsOnThisLine;
                 } else {
@@ -99,6 +103,18 @@ module.exports = {
             enforceMaxStatementsPerLine(node.consequent);
         }
 
+        /**
+         * Check each line in both sides of an if statement
+         * @param {ASTNode} node node to evaluate
+         * @returns {void}
+         * @private
+         */
+        function checkLinesInNonBlockElse(node) {
+            if (node.alternate && node.alternate.type !== "BlockStatement") {
+                enforceMaxStatementsPerLine([node.alternate]);
+            }
+        }
+
         //--------------------------------------------------------------------------
         // Public API
         //--------------------------------------------------------------------------
@@ -106,7 +122,8 @@ module.exports = {
         return {
             Program: checkLinesInBody,
             BlockStatement: checkLinesInBody,
-            SwitchCase: checkLinesInConsequent
+            SwitchCase: checkLinesInConsequent,
+            IfStatement: checkLinesInNonBlockElse
         };
 
     }

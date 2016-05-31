@@ -21,18 +21,19 @@ module.exports = {
     },
 
     create: function(context) {
+        var sourceCode = context.getSourceCode();
 
         return {
 
             Literal: function(node) {
-                var token = context.getFirstToken(node),
+                var token = sourceCode.getFirstToken(node),
                     nodeType = token.type,
                     source,
                     grandparent,
                     ancestors;
 
                 if (nodeType === "RegularExpression") {
-                    source = context.getTokenBefore(node);
+                    source = sourceCode.getTokenBefore(node);
                     ancestors = context.getAncestors();
                     grandparent = ancestors[ancestors.length - 1];
 

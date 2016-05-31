@@ -14,7 +14,7 @@ var ARY_FLAG = 128;
  * @param {Function} func The function to cap arguments for.
  * @param {number} [n=func.length] The arity cap.
  * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
- * @returns {Function} Returns the new function.
+ * @returns {Function} Returns the new capped function.
  * @example
  *
  * _.map(['6', '8', '10'], _.ary(parseInt, 1));

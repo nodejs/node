@@ -340,14 +340,14 @@ module.exports = {
 
                 if (node.params) {
                     node.params.forEach(function(param, i) {
-                        var name = param.name;
-
                         if (param.type === "AssignmentPattern") {
-                            name = param.left.name;
+                            param = param.left;
                         }
 
+                        var name = param.name;
+
                         // TODO(nzakas): Figure out logical things to do with destructured, default, rest params
-                        if (param.type === "Identifier" || param.type === "AssignmentPattern") {
+                        if (param.type === "Identifier") {
                             if (jsdocParams[i] && (name !== jsdocParams[i])) {
                                 context.report(jsdocNode, "Expected JSDoc for '{{name}}' but found '{{jsdocName}}'.", {
                                     name: name,

@@ -15,18 +15,21 @@ var RuleFixer = require("./util/rule-fixer");
 //------------------------------------------------------------------------------
 
 var PASSTHROUGHS = [
-    "getAllComments",
     "getAncestors",
-    "getComments",
     "getDeclaredVariables",
     "getFilename",
+    "getScope",
+    "markVariableAsUsed",
+
+    // DEPRECATED
+    "getAllComments",
+    "getComments",
     "getFirstToken",
     "getFirstTokens",
     "getJSDocComment",
     "getLastToken",
     "getLastTokens",
     "getNodeByRangeIndex",
-    "getScope",
     "getSource",
     "getSourceLines",
     "getTokenAfter",
@@ -35,8 +38,7 @@ var PASSTHROUGHS = [
     "getTokens",
     "getTokensAfter",
     "getTokensBefore",
-    "getTokensBetween",
-    "markVariableAsUsed"
+    "getTokensBetween"
 ];
 
 //------------------------------------------------------------------------------

@@ -22,12 +22,17 @@ var tests = [
   { host: 'a.com', cert: { subject: { CN: 'a.com.' } } },
 
   // Wildcards in CN
-  { host: 'b.a.com', cert: { subject: { CN: '*.a.com' } } },
-  { host: 'b.a.com', cert: {
-    subjectaltname: 'DNS:omg.com',
-    subject: { CN: '*.a.com' } },
-    error: 'Host: b.a.com. is not in the cert\'s altnames: ' +
-           'DNS:omg.com'
+  {
+    host: 'b.a.com',
+    cert: {subject: {CN: '*.a.com'}}
+  },
+  {
+    host: 'b.a.com',
+    cert: {
+      subjectaltname: 'DNS:omg.com',
+      subject: {CN: '*.a.com'}
+    },
+    error: 'Host: b.a.com. is not in the cert\'s altnames: DNS:omg.com'
   },
 
   // Empty Cert
@@ -39,58 +44,62 @@ var tests = [
 
   // Multiple CN fields
   {
-    host: 'foo.com', cert: {
+    host: 'foo.com',
+    cert: {
       subject: { CN: ['foo.com', 'bar.com'] } // CN=foo.com; CN=bar.com;
     }
   },
 
   // DNS names and CN
   {
-    host: 'a.com', cert: {
+    host: 'a.com',
+    cert: {
       subjectaltname: 'DNS:*',
       subject: { CN: 'b.com' }
     },
-    error: 'Host: a.com. is not in the cert\'s altnames: ' +
-           'DNS:*'
+    error: 'Host: a.com. is not in the cert\'s altnames: DNS:*'
   },
   {
-    host: 'a.com', cert: {
+    host: 'a.com',
+    cert: {
       subjectaltname: 'DNS:*.com',
       subject: { CN: 'b.com' }
     },
-    error: 'Host: a.com. is not in the cert\'s altnames: ' +
-           'DNS:*.com'
+    error: 'Host: a.com. is not in the cert\'s altnames: DNS:*.com'
   },
   {
-    host: 'a.co.uk', cert: {
+    host: 'a.co.uk',
+    cert: {
       subjectaltname: 'DNS:*.co.uk',
       subject: { CN: 'b.com' }
     }
   },
   {
-    host: 'a.com', cert: {
+    host: 'a.com',
+    cert: {
       subjectaltname: 'DNS:*.a.com',
       subject: { CN: 'a.com' }
     },
-    error: 'Host: a.com. is not in the cert\'s altnames: ' +
-           'DNS:*.a.com'
+    error: 'Host: a.com. is not in the cert\'s altnames: DNS:*.a.com'
   },
   {
-    host: 'a.com', cert: {
+    host: 'a.com',
+    cert: {
       subjectaltname: 'DNS:*.a.com',
       subject: { CN: 'b.com' }
     },
-    error: 'Host: a.com. is not in the cert\'s altnames: ' +
-           'DNS:*.a.com'
+    error: 'Host: a.com. is not in the cert\'s altnames: DNS:*.a.com'
   },
   {
-    host: 'a.com', cert: {
+    host: 'a.com',
+    cert: {
       subjectaltname: 'DNS:a.com',
       subject: { CN: 'b.com' }
     }
   },
   {
-    host: 'a.com', cert: {
+    host: 'a.com',
+    cert: {
       subjectaltname: 'DNS:A.COM',
       subject: { CN: 'b.com' }
     }
@@ -98,63 +107,69 @@ var tests = [
 
   // DNS names
   {
-    host: 'a.com', cert: {
+    host: 'a.com',
+    cert: {
       subjectaltname: 'DNS:*.a.com',
       subject: {}
     },
-    error: 'Host: a.com. is not in the cert\'s altnames: ' +
-           'DNS:*.a.com'
+    error: 'Host: a.com. is not in the cert\'s altnames: DNS:*.a.com'
   },
   {
-    host: 'b.a.com', cert: {
+    host: 'b.a.com',
+    cert: {
       subjectaltname: 'DNS:*.a.com',
       subject: {}
     }
   },
   {
-    host: 'c.b.a.com', cert: {
+    host: 'c.b.a.com',
+    cert: {
       subjectaltname: 'DNS:*.a.com',
       subject: {}
     },
-    error: 'Host: c.b.a.com. is not in the cert\'s altnames: ' +
-           'DNS:*.a.com'
+    error: 'Host: c.b.a.com. is not in the cert\'s altnames: DNS:*.a.com'
   },
   {
-    host: 'b.a.com', cert: {
+    host: 'b.a.com',
+    cert: {
       subjectaltname: 'DNS:*b.a.com',
       subject: {}
     }
   },
   {
-    host: 'a-cb.a.com', cert: {
+    host: 'a-cb.a.com',
+    cert: {
       subjectaltname: 'DNS:*b.a.com',
       subject: {}
     }
   },
   {
-    host: 'a.b.a.com', cert: {
+    host: 'a.b.a.com',
+    cert: {
       subjectaltname: 'DNS:*b.a.com',
       subject: {}
     },
-    error: 'Host: a.b.a.com. is not in the cert\'s altnames: ' +
-           'DNS:*b.a.com'
+    error: 'Host: a.b.a.com. is not in the cert\'s altnames: DNS:*b.a.com'
   },
   // Mutliple DNS names
   {
-    host: 'a.b.a.com', cert: {
+    host: 'a.b.a.com',
+    cert: {
       subjectaltname: 'DNS:*b.a.com, DNS:a.b.a.com',
       subject: {}
     }
   },
   // URI names
   {
-    host: 'a.b.a.com', cert: {
+    host: 'a.b.a.com',
+    cert: {
       subjectaltname: 'URI:http://a.b.a.com/',
       subject: {}
     }
   },
   {
-    host: 'a.b.a.com', cert: {
+    host: 'a.b.a.com',
+    cert: {
       subjectaltname: 'URI:http://*.b.a.com/',
       subject: {}
     },
@@ -163,7 +178,8 @@ var tests = [
   },
   // IP addresses
   {
-    host: 'a.b.a.com', cert: {
+    host: 'a.b.a.com',
+    cert: {
       subjectaltname: 'IP Address:127.0.0.1',
       subject: {}
     },
@@ -171,33 +187,35 @@ var tests = [
            'IP Address:127.0.0.1'
   },
   {
-    host: '127.0.0.1', cert: {
+    host: '127.0.0.1',
+    cert: {
       subjectaltname: 'IP Address:127.0.0.1',
       subject: {}
     }
   },
   {
-    host: '127.0.0.2', cert: {
+    host: '127.0.0.2',
+    cert: {
       subjectaltname: 'IP Address:127.0.0.1',
       subject: {}
     },
-    error: 'IP: 127.0.0.2 is not in the cert\'s list: ' +
-           '127.0.0.1'
+    error: 'IP: 127.0.0.2 is not in the cert\'s list: 127.0.0.1'
   },
   {
-    host: '127.0.0.1', cert: {
+    host: '127.0.0.1',
+    cert: {
       subjectaltname: 'DNS:a.com',
       subject: {}
     },
     error: 'IP: 127.0.0.1 is not in the cert\'s list: '
   },
   {
-    host: 'localhost', cert: {
+    host: 'localhost',
+    cert: {
       subjectaltname: 'DNS:a.com',
       subject: { CN: 'localhost' }
     },
-    error: 'Host: localhost. is not in the cert\'s altnames: ' +
-           'DNS:a.com'
+    error: 'Host: localhost. is not in the cert\'s altnames: DNS:a.com'
   },
 ];
 

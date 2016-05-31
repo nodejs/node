@@ -127,6 +127,8 @@ module.exports = {
 
         var listeners = {};
 
+        var sourceCode = context.getSourceCode();
+
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
@@ -186,7 +188,7 @@ module.exports = {
          * @returns {Boolean} Returns true if the callee may be capitalized
          */
         function isCapAllowed(allowedMap, node, calleeName) {
-            if (allowedMap[calleeName] || allowedMap[context.getSource(node.callee)]) {
+            if (allowedMap[calleeName] || allowedMap[sourceCode.getText(node.callee)]) {
                 return true;
             }
 

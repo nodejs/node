@@ -1,13 +1,13 @@
 # object-assign [![Build Status](https://travis-ci.org/sindresorhus/object-assign.svg?branch=master)](https://travis-ci.org/sindresorhus/object-assign)
 
-> ES6 [`Object.assign()`](http://www.2ality.com/2014/01/object-assign.html) ponyfill
+> ES2015 [`Object.assign()`](http://www.2ality.com/2014/01/object-assign.html) ponyfill
 
 > Ponyfill: A polyfill that doesn't overwrite the native method
 
 
 ## Install
 
-```sh
+```
 $ npm install --save object-assign
 ```
 
@@ -15,7 +15,7 @@ $ npm install --save object-assign
 ## Usage
 
 ```js
-var objectAssign = require('object-assign');
+const objectAssign = require('object-assign');
 
 objectAssign({foo: 0}, {bar: 1});
 //=> {foo: 0, bar: 1}
@@ -43,9 +43,14 @@ Assigns enumerable own properties of `source` objects to the `target` object and
 
 ## Resources
 
-- [ES6 spec - Object.assign](https://people.mozilla.org/~jorendorff/es6-draft.html#sec-object.assign)
+- [ES2015 spec - Object.assign](https://people.mozilla.org/~jorendorff/es6-draft.html#sec-object.assign)
+
+
+## Related
+
+- [deep-assign](https://github.com/sindresorhus/deep-assign) - Recursive `Object.assign()`
 
 
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)

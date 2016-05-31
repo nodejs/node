@@ -231,7 +231,7 @@ Config.prototype.getConfig = function(filePath) {
     }
 
     // Step 2: Create a copy of the baseConfig
-    config = ConfigOps.merge({parser: this.parser, parserOptions: this.parserOptions}, this.baseConfig);
+    config = ConfigOps.merge({}, this.baseConfig);
 
     // Step 3: Merge in the user-specified configuration from .eslintrc and package.json
     config = ConfigOps.merge(config, userConfig);
@@ -255,6 +255,20 @@ Config.prototype.getConfig = function(filePath) {
 
     // Step 7: Merge in command line globals
     config = ConfigOps.merge(config, { globals: this.globals });
+
+    // Only override parser if it is passed explicitly through the command line or if it's not
+    // defined yet (because the final object will at least have the parser key)
+    if (this.parser || !config.parser) {
+        config = ConfigOps.merge(config, {
+            parser: this.parser
+        });
+    }
+
+    if (this.parserOptions) {
+        config = ConfigOps.merge(config, {
+            parserOptions: this.parserOptions
+        });
+    }
 
     // Step 8: Merge in command line plugins
     if (this.options.plugins) {

@@ -11,7 +11,7 @@ var nativeCeil = Math.ceil,
  * @param {number} end The end of the range.
  * @param {number} step The value to increment or decrement by.
  * @param {boolean} [fromRight] Specify iterating from right to left.
- * @returns {Array} Returns the new array of numbers.
+ * @returns {Array} Returns the range of numbers.
  */
 function baseRange(start, end, step, fromRight) {
   var index = -1,

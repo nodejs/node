@@ -962,8 +962,14 @@ module.exports = (function() {
             source: sourceCode.lines[location.line - 1] || ""
         };
 
-        // ensure there's range and text properties as well as metadata switch, otherwise it's not a valid fix
-        if (fix && Array.isArray(fix.range) && (typeof fix.text === "string") && (!meta || meta.fixable)) {
+        // ensure there's range and text properties, otherwise it's not a valid fix
+        if (fix && Array.isArray(fix.range) && (typeof fix.text === "string")) {
+
+            // If rule uses fix, has metadata, but has no metadata.fixable, we should throw
+            if (meta && !meta.fixable) {
+                throw new Error("Fixable rules should export a `meta.fixable` property.");
+            }
+
             problem.fix = fix;
         }
 
