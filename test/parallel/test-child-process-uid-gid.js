@@ -1,11 +1,7 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
-const fs = require('fs');
-
-const uid = 0;
-const gid = 0;
 
 assert.throws(() => {
   spawn('echo', ['fhqwhgads'], {uid: 0});
