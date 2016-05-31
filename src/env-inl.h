@@ -29,7 +29,7 @@ inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop)
 #define V(PropertyName, StringValue)                                          \
     PropertyName ## _(                                                        \
         isolate,                                                              \
-        v8::Private::ForApi(                                                  \
+        v8::Private::New(                                                     \
             isolate,                                                          \
             v8::String::NewFromOneByte(                                       \
                 isolate,                                                      \
@@ -544,10 +544,6 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
   }
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
-
-#undef ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES
-#undef PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES
-#undef PER_ISOLATE_STRING_PROPERTIES
 
 }  // namespace node
 
