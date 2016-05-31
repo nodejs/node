@@ -981,7 +981,6 @@ assert.equal(0, Buffer.from('hello').slice(0, 0).length);
 Buffer.allocUnsafe(3.3).fill().toString();
   // throws bad argument error in commit 43cb4ec
 Buffer.alloc(3.3).fill().toString();
-assert.equal(Buffer.allocUnsafe(-1).length, 0);
 assert.equal(Buffer.allocUnsafe(NaN).length, 0);
 assert.equal(Buffer.allocUnsafe(3.3).length, 3);
 assert.equal(Buffer.from({length: 3.3}).length, 3);
@@ -1479,3 +1478,21 @@ assert.equal(ubuf.buffer.byteLength, 10);
 assert.doesNotThrow(() => {
   Buffer.from(new ArrayBuffer());
 });
+
+assert.throws(() => Buffer.alloc(-Buffer.poolSize),
+              '"size" argument must not be negative');
+assert.throws(() => Buffer.alloc(-100),
+              '"size" argument must not be negative');
+assert.throws(() => Buffer.allocUnsafe(-Buffer.poolSize),
+              '"size" argument must not be negative');
+assert.throws(() => Buffer.allocUnsafe(-100),
+              '"size" argument must not be negative');
+assert.throws(() => Buffer.allocUnsafeSlow(-Buffer.poolSize),
+              '"size" argument must not be negative');
+assert.throws(() => Buffer.allocUnsafeSlow(-100),
+              '"size" argument must not be negative');
+
+assert.throws(() => Buffer.alloc({ valueOf: () => 1 }),
+              /"size" argument must be a number/);
+assert.throws(() => Buffer.alloc({ valueOf: () => -1 }),
+              /"size" argument must be a number/);
