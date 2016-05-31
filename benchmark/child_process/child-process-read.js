@@ -2,13 +2,13 @@
 const common = require('../common.js');
 const os = require('os');
 
-var messagesLenght = [64, 256, 1024, 4096];
+var messagesLength = [64, 256, 1024, 4096];
 // Windows does not support that long arguments
 if (os.platform() !== 'win32')
-  messagesLenght.push(32768);
+  messagesLength.push(32768);
 
 const bench = common.createBenchmark(main, {
-  len: messagesLenght,
+  len: messagesLength,
   dur: [5]
 });
 
