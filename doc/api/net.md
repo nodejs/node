@@ -17,7 +17,7 @@ This class is used to create a TCP or local server.
 
 ### Event: 'close'
 <!-- YAML
-added: v0.9.12
+added: v0.5.0
 -->
 
 Emitted when the server closes. Note that if connections exist, this
