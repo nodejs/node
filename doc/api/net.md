@@ -52,7 +52,7 @@ Emitted when the server has been bound after calling `server.listen`.
 
 ### server.address()
 <!-- YAML
-added: v0.5.2
+added: v0.3.4
 -->
 
 Returns the bound address, the address family name and port of the server
