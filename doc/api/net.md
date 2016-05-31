@@ -82,7 +82,7 @@ Don't call `server.address()` until the `'listening'` event has been emitted.
 
 ### server.close([callback])
 <!-- YAML
-added: v0.7.5
+added: v0.3.2
 -->
 
 Stops the server from accepting new connections and keeps existing
