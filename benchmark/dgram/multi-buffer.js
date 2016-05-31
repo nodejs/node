@@ -58,6 +58,7 @@ function server() {
       var bytes = (type === 'send' ? sent : received) * len;
       var gbits = (bytes * 8) / (1024 * 1024 * 1024);
       bench.end(gbits);
+      process.exit(0);
     }, dur * 1000);
   });
 

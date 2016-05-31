@@ -67,6 +67,7 @@ function server() {
       var bytes = sent * len;
       var gbits = (bytes * 8) / (1024 * 1024 * 1024);
       bench.end(gbits);
+      process.exit(0);
     }, dur * 1000);
   });
 

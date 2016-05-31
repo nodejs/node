@@ -135,6 +135,7 @@ function client() {
     setTimeout(function() {
       // report in Gb/sec
       bench.end((bytes * 8) / (1024 * 1024 * 1024));
+      process.exit(0);
     }, dur * 1000);
   };
 }

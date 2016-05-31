@@ -26,6 +26,7 @@ function main(conf) {
   setTimeout(function() {
     bench.end(reads);
     try { fs.unlinkSync(filename); } catch (e) {}
+    process.exit(0);
   }, +conf.dur * 1000);
 
   function read() {

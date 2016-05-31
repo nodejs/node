@@ -116,6 +116,7 @@ function client() {
       // multiply by 2 since we're sending it first one way
       // then then back again.
       bench.end(2 * (bytes * 8) / (1024 * 1024 * 1024));
+      process.exit(0);
     }, dur * 1000);
 
     while (clientHandle.writeQueueSize === 0)
