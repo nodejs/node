@@ -323,7 +323,8 @@ function BadCustomError(msg) {
   Object.defineProperty(this, 'name',
                         { value: 'BadCustomError', enumerable: false });
 }
-util.inherits(BadCustomError, Error);
+BadCustomError.prototype =
+    Object.create(Error.prototype, { constructor: { value: BadCustomError } });
 assert.equal(util.inspect(new BadCustomError('foo')), '[BadCustomError: foo]');
 
 // GH-1941

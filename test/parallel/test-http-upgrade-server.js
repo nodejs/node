@@ -2,7 +2,6 @@
 var common = require('../common');
 var assert = require('assert');
 
-var util = require('util');
 var net = require('net');
 var http = require('http');
 
@@ -11,44 +10,39 @@ var requests_recv = 0;
 var requests_sent = 0;
 var request_upgradeHead = null;
 
-function createTestServer() {
-  return new testServer();
-}
+class TestServer extends http.Server {
+  constructor() {
+    super();
 
-function testServer() {
-  var server = this;
-  http.Server.call(server, function() {});
-
-  server.on('connection', function() {
-    requests_recv++;
-  });
-
-  server.on('request', function(req, res) {
-    res.writeHead(200, {'Content-Type': 'text/plain'});
-    res.write('okay');
-    res.end();
-  });
-
-  server.on('upgrade', function(req, socket, upgradeHead) {
-    socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
-                 'Upgrade: WebSocket\r\n' +
-                 'Connection: Upgrade\r\n' +
-                 '\r\n\r\n');
-
-    request_upgradeHead = upgradeHead;
-
-    socket.on('data', function(d) {
-      var data = d.toString('utf8');
-      if (data == 'kill') {
-        socket.end();
-      } else {
-        socket.write(data, 'utf8');
-      }
+    this.on('connection', function() {
+      requests_recv++;
     });
-  });
-}
 
-util.inherits(testServer, http.Server);
+    this.on('request', function(req, res) {
+      res.writeHead(200, {'Content-Type': 'text/plain'});
+      res.write('okay');
+      res.end();
+    });
+
+    this.on('upgrade', function(req, socket, upgradeHead) {
+      socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
+                   'Upgrade: WebSocket\r\n' +
+                   'Connection: Upgrade\r\n' +
+                   '\r\n\r\n');
+
+      request_upgradeHead = upgradeHead;
+
+      socket.on('data', function(d) {
+        var data = d.toString('utf8');
+        if (data == 'kill') {
+          socket.end();
+        } else {
+          socket.write(data, 'utf8');
+        }
+      });
+    });
+  }
+}
 
 
 function writeReq(socket, data, encoding) {
@@ -147,7 +141,7 @@ function test_standard_http() {
 }
 
 
-var server = createTestServer();
+var server = new TestServer();
 
 server.listen(common.PORT, function() {
   // All tests get chained after this:

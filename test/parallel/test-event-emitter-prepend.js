@@ -20,21 +20,22 @@ myEE.emit('foo');
 
 // Test fallback if prependListener is undefined.
 const stream = require('stream');
-const util = require('util');
 
 delete EventEmitter.prototype.prependListener;
 
-function Writable() {
-  this.writable = true;
-  stream.Stream.call(this);
+class Writable extends stream.Stream {
+  constructor() {
+    super();
+    this.writable = true;
+  }
 }
-util.inherits(Writable, stream.Stream);
 
-function Readable() {
-  this.readable = true;
-  stream.Stream.call(this);
+class Readable extends stream.Stream {
+  constructor() {
+    super();
+    this.readable = true;
+  }
 }
-util.inherits(Readable, stream.Stream);
 
 const w = new Writable();
 const r = new Readable();

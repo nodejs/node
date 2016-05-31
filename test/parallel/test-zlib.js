@@ -50,86 +50,87 @@ testFiles.forEach(function(file) {
   tests[file] = fs.readFileSync(path.resolve(common.fixturesDir, file));
 });
 
-var util = require('util');
 var stream = require('stream');
 
 
 // stream that saves everything
-function BufferStream() {
-  this.chunks = [];
-  this.length = 0;
-  this.writable = true;
-  this.readable = true;
-}
-
-util.inherits(BufferStream, stream.Stream);
-
-BufferStream.prototype.write = function(c) {
-  this.chunks.push(c);
-  this.length += c.length;
-  return true;
-};
-
-BufferStream.prototype.end = function(c) {
-  if (c) this.write(c);
-  // flatten
-  var buf = Buffer.allocUnsafe(this.length);
-  var i = 0;
-  this.chunks.forEach(function(c) {
-    c.copy(buf, i);
-    i += c.length;
-  });
-  this.emit('data', buf);
-  this.emit('end');
-  return true;
-};
-
-
-function SlowStream(trickle) {
-  this.trickle = trickle;
-  this.offset = 0;
-  this.readable = this.writable = true;
-}
-
-util.inherits(SlowStream, stream.Stream);
-
-SlowStream.prototype.write = function() {
-  throw new Error('not implemented, just call ss.end(chunk)');
-};
-
-SlowStream.prototype.pause = function() {
-  this.paused = true;
-  this.emit('pause');
-};
-
-SlowStream.prototype.resume = function() {
-  var self = this;
-  if (self.ended) return;
-  self.emit('resume');
-  if (!self.chunk) return;
-  self.paused = false;
-  emit();
-  function emit() {
-    if (self.paused) return;
-    if (self.offset >= self.length) {
-      self.ended = true;
-      return self.emit('end');
-    }
-    var end = Math.min(self.offset + self.trickle, self.length);
-    var c = self.chunk.slice(self.offset, end);
-    self.offset += c.length;
-    self.emit('data', c);
-    process.nextTick(emit);
+class BufferStream extends stream.Stream {
+  constructor() {
+    super();
+    this.chunks = [];
+    this.length = 0;
+    this.writable = true;
+    this.readable = true;
   }
-};
 
-SlowStream.prototype.end = function(chunk) {
-  // walk over the chunk in blocks.
-  this.chunk = chunk;
-  this.length = chunk.length;
-  this.resume();
-  return this.ended;
-};
+  write(c) {
+    this.chunks.push(c);
+    this.length += c.length;
+    return true;
+  }
+
+  end(c) {
+    if (c) this.write(c);
+    // flatten
+    var buf = Buffer.allocUnsafe(this.length);
+    var i = 0;
+    this.chunks.forEach(function(c) {
+      c.copy(buf, i);
+      i += c.length;
+    });
+    this.emit('data', buf);
+    this.emit('end');
+    return true;
+  }
+}
+
+
+class SlowStream extends stream.Stream {
+  constructor(trickle) {
+    super();
+    this.trickle = trickle;
+    this.offset = 0;
+    this.readable = this.writable = true;
+  }
+
+  write() {
+    throw new Error('not implemented, just call ss.end(chunk)');
+  }
+
+  pause() {
+    this.paused = true;
+    this.emit('pause');
+  }
+
+  resume() {
+    var self = this;
+    if (self.ended) return;
+    self.emit('resume');
+    if (!self.chunk) return;
+    self.paused = false;
+    emit();
+    function emit() {
+      if (self.paused) return;
+      if (self.offset >= self.length) {
+        self.ended = true;
+        return self.emit('end');
+      }
+      var end = Math.min(self.offset + self.trickle, self.length);
+      var c = self.chunk.slice(self.offset, end);
+      self.offset += c.length;
+      self.emit('data', c);
+      process.nextTick(emit);
+    }
+  }
+
+  end(chunk) {
+    // walk over the chunk in blocks.
+    this.chunk = chunk;
+    this.length = chunk.length;
+    this.resume();
+    return this.ended;
+  }
+}
 
 
 // for each of the files, make sure that compressing and

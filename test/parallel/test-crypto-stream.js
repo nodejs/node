@@ -2,7 +2,6 @@
 var common = require('../common');
 var assert = require('assert');
 var stream = require('stream');
-var util = require('util');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -11,20 +10,20 @@ if (!common.hasCrypto) {
 var crypto = require('crypto');
 
 // Small stream to buffer converter
-function Stream2buffer(callback) {
-  stream.Writable.call(this);
+class Stream2buffer extends stream.Writable {
+  constructor(callback) {
+    super();
+    this._buffers = [];
+    this.once('finish', function() {
+      callback(null, Buffer.concat(this._buffers));
+    });
+  }
 
-  this._buffers = [];
-  this.once('finish', function() {
-    callback(null, Buffer.concat(this._buffers));
-  });
+  _write(data, encoding, done) {
+    this._buffers.push(data);
+    return done(null);
+  }
 }
-util.inherits(Stream2buffer, stream.Writable);
-
-Stream2buffer.prototype._write = function(data, encodeing, done) {
-  this._buffers.push(data);
-  return done(null);
-};
 
 if (!common.hasFipsCrypto) {
   // Create an md5 hash of "Hallo world"

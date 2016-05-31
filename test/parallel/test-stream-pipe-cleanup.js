@@ -5,33 +5,36 @@
 require('../common');
 var stream = require('stream');
 var assert = require('assert');
-var util = require('util');
 
-function Writable() {
-  this.writable = true;
-  this.endCalls = 0;
-  stream.Stream.call(this);
+class Writable extends stream.Stream {
+  constructor() {
+    super();
+    this.writable = true;
+    this.endCalls = 0;
+  }
+
+  end() {
+    this.endCalls++;
+  }
+
+  destroy() {
+    this.endCalls++;
+  }
 }
-util.inherits(Writable, stream.Stream);
-Writable.prototype.end = function() {
-  this.endCalls++;
-};
 
-Writable.prototype.destroy = function() {
-  this.endCalls++;
-};
-
-function Readable() {
-  this.readable = true;
-  stream.Stream.call(this);
+class Readable extends stream.Stream {
+  constructor() {
+    super();
+    this.readable = true;
+  }
 }
-util.inherits(Readable, stream.Stream);
 
-function Duplex() {
-  this.readable = true;
-  Writable.call(this);
+class Duplex extends Writable {
+  constructor() {
+    super();
+    this.readable = true;
+  }
 }
-util.inherits(Duplex, Writable);
 
 var i = 0;
 var limit = 100;

@@ -2,7 +2,6 @@
 require('../common');
 var assert = require('assert');
 var R = require('_stream_readable');
-var util = require('util');
 
 // tiny node-tap lookalike.
 var tests = [];
@@ -40,39 +39,37 @@ process.nextTick(run);
 
 /////
 
-util.inherits(TestReader, R);
+class TestReader extends R {
+  constructor(n, opts) {
+    super(opts);
+    this.pos = 0;
+    this.len = n || 100;
+  }
 
-function TestReader(n, opts) {
-  R.call(this, opts);
+  _read(n) {
+    setTimeout(() => {
+      if (this.pos >= this.len) {
+        // double push(null) to test eos handling
+        this.push(null);
+        return this.push(null);
+      }
 
-  this.pos = 0;
-  this.len = n || 100;
+      n = Math.min(n, this.len - this.pos);
+      if (n <= 0) {
+        // double push(null) to test eos handling
+        this.push(null);
+        return this.push(null);
+      }
+
+      this.pos += n;
+      var ret = Buffer.alloc(n, 'a');
+
+      console.log('this.push(ret)', ret);
+
+      return this.push(ret);
+    }, 1);
+  }
 }
-
-TestReader.prototype._read = function(n) {
-  setTimeout(function() {
-
-    if (this.pos >= this.len) {
-      // double push(null) to test eos handling
-      this.push(null);
-      return this.push(null);
-    }
-
-    n = Math.min(n, this.len - this.pos);
-    if (n <= 0) {
-      // double push(null) to test eos handling
-      this.push(null);
-      return this.push(null);
-    }
-
-    this.pos += n;
-    var ret = Buffer.alloc(n, 'a');
-
-    console.log('this.push(ret)', ret);
-
-    return this.push(ret);
-  }.bind(this), 1);
-};
 
 test('setEncoding utf8', function(t) {
   var tr = new TestReader(100);

@@ -2,20 +2,20 @@
 require('../common');
 var stream = require('stream');
 var assert = require('assert');
-var util = require('util');
 
-function Writable() {
-  this.writable = true;
-  stream.Stream.call(this);
+class Writable extends stream.Stream {
+  constructor() {
+    super();
+    this.writable = true;
+  }
 }
-util.inherits(Writable, stream.Stream);
 
-function Readable() {
-  this.readable = true;
-  stream.Stream.call(this);
+class Readable extends stream.Stream {
+  constructor() {
+    super();
+    this.readable = true;
+  }
 }
-util.inherits(Readable, stream.Stream);
-
 var passed = false;
 
 var w = new Writable();

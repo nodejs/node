@@ -4,35 +4,32 @@ var assert = require('assert');
 
 var Readable = require('_stream_readable');
 var Writable = require('_stream_writable');
-var util = require('util');
 
-util.inherits(TestReadable, Readable);
-function TestReadable(opt) {
-  if (!(this instanceof TestReadable))
-    return new TestReadable(opt);
-  Readable.call(this, opt);
-  this._ended = false;
+class TestReadable extends Readable {
+  constructor(opt) {
+    super(opt);
+    this._ended = false;
+  }
+
+  _read(n) {
+    if (this._ended)
+      this.emit('error', new Error('_read called twice'));
+    this._ended = true;
+    this.push(null);
+  }
 }
 
-TestReadable.prototype._read = function(n) {
-  if (this._ended)
-    this.emit('error', new Error('_read called twice'));
-  this._ended = true;
-  this.push(null);
-};
+class TestWritable extends Writable {
+  constructor(opt) {
+    super(opt);
+    this._written = [];
+  }
 
-util.inherits(TestWritable, Writable);
-function TestWritable(opt) {
-  if (!(this instanceof TestWritable))
-    return new TestWritable(opt);
-  Writable.call(this, opt);
-  this._written = [];
+  _write(chunk, encoding, cb) {
+    this._written.push(chunk);
+    cb();
+  }
 }
-
-TestWritable.prototype._write = function(chunk, encoding, cb) {
-  this._written.push(chunk);
-  cb();
-};
 
 // this one should not emit 'end' until we read() from it later.
 var ender = new TestReadable();

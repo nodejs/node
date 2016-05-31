@@ -2,15 +2,14 @@
 require('../common');
 var assert = require('assert');
 var EventEmitter = require('events').EventEmitter;
-var util = require('util');
 
-util.inherits(MyEE, EventEmitter);
-
-function MyEE(cb) {
-  this.once(1, cb);
-  this.emit(1);
-  this.removeAllListeners();
-  EventEmitter.call(this);
+class MyEE extends EventEmitter {
+  constructor(cb) {
+    super();
+    this.once(1, cb);
+    this.emit(1);
+    this.removeAllListeners();
+  }
 }
 
 var called = false;
@@ -19,9 +18,11 @@ var myee = new MyEE(function() {
 });
 
 
-util.inherits(ErrorEE, EventEmitter);
-function ErrorEE() {
-  this.emit('error', new Error('blerg'));
+class ErrorEE extends EventEmitter {
+  constructor() {
+    super();
+    this.emit('error', new Error('blerg'));
+  }
 }
 
 assert.throws(function() {
