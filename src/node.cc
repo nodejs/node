@@ -3443,11 +3443,15 @@ static bool ParseDebugOpt(const char* arg) {
       PrintHelp();
       exit(12);
     }
+#if HAVE_INSPECTOR
     if (use_inspector) {
       inspector_port = port_int;
     } else {
+#endif
       debug_port = port_int;
+#if HAVE_INSPECTOR
     }
+#endif
   }
 
   return true;
