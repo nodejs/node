@@ -54,6 +54,10 @@ ipch/
 /tools/msvs/npm.wixobj
 /tools/msvs/genfiles/
 /tools/osx-pkg.pmdoc/index.xml
+/tools/osx-pkg/resources/welcome.rtf
+/tools/osx-pkg/resources/LICENSE
+/tools/osx-pkg/resources/**/welcome.rtf
+*node*.pkg
 /test/addons/??_*/
 email.md
 deps/v8-*

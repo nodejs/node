@@ -469,14 +469,31 @@ $(PKG): release-only
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install V=$(V) DESTDIR=$(PKGDIR)
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
-	cat tools/osx-pkg.pmdoc/index.xml.tmpl \
-		| sed -E "s/\\{nodeversion\\}/$(FULLVERSION)/g" \
-		| sed -E "s/\\{npmversion\\}/$(NPMVERSION)/g" \
-		> tools/osx-pkg.pmdoc/index.xml
-	$(PACKAGEMAKER) \
-		--id "org.nodejs.pkg" \
-		--doc tools/osx-pkg.pmdoc \
-		--out $(PKG)
+	FULLVERSION="$(FULLVERSION)" NPMVERSION="$(NPMVERSION)" tools/osx-pkg/copy_langs.sh
+
+	cp LICENSE tools/osx-pkg/resources/LICENSE
+
+	pkgbuild \
+		--root $(PKGDIR) \
+		--identifier org.nodejs.node.pkg \
+		--version 1 \
+		--install-location / \
+		org.nodejs.node.pkg
+
+	pkgbuild \
+		--root deps/npm \
+		--identifier org.nodejs.npm.pkg \
+		--version 1 \
+		--install-location / \
+		--scripts tools/osx-pkg/scripts \
+		org.nodejs.npm.pkg
+
+	productbuild \
+		--distribution tools/osx-pkg/node.xml \
+		--resources tools/osx-pkg/resources \
+		--package-path tools/osx-pkg \
+		$(PKG)
+
 	SIGN="$(PRODUCTSIGN_CERT)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
 pkg: $(PKG)
