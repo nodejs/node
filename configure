@@ -24,6 +24,10 @@ from gyp.common import GetFlavor
 sys.path.insert(0, os.path.join(root_dir, 'tools', 'configure.d'))
 import nodedownload
 
+# imports in tools/
+sys.path.insert(0, os.path.join(root_dir, 'tools', ))
+import getmoduleversion
+
 # parse our options
 parser = optparse.OptionParser()
 
@@ -831,6 +835,9 @@ def configure_node(o):
   o['variables']['node_shared'] = b(options.shared)
   o['variables']['node_no_v8_platform'] = b(options.no_v8_platform)
   o['variables']['node_no_bundled_v8'] = b(options.no_bundled_v8)
+  
+  if flavor == 'linux' and options.shared:
+    o['variables']['node_module_ver'] = getmoduleversion.get_version()
 
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module

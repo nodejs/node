@@ -9,6 +9,7 @@
     'node_no_v8_platform%': 'false',
     'node_no_bundled_v8%': 'false',
     'node_shared%': 'false',
+    'node_module_ver%': '',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_cares%': 'false',
@@ -233,6 +234,11 @@
         }, {
           'defines': [
             'NODE_SHARED_MODE',
+          ],
+          'conditions': [
+            [ 'node_module_ver!=""', {
+              'product_extension': 'so.<(node_module_ver)',
+            }]
           ],
         }],
         [ 'node_no_bundled_v8=="false"', {

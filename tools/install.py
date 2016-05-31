@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import sys
+from getmoduleversion import get_version
 
 # set at init time
 node_prefix = '/usr/local' # PREFIX variable from Makefile
@@ -107,6 +108,8 @@ def subdir_files(path, dest, action):
 
 def files(action):
   is_windows = sys.platform == 'win32'
+  output_file = 'node'
+  output_prefix = 'out/Release/'
 
   if 'false' == variables.get('node_shared') and is_windows:
     output_file += '.exe'
@@ -116,9 +119,10 @@ def files(action):
     else:
       # GYP will output to lib.target, this is hardcoded in its source,
       # see the _InstallableTargetInstallPath function.
-      output_file = 'lib.target/lib' + output_file + '.so'
+      output_prefix += 'lib.target/'
+      output_file = 'lib' + output_file + '.so.' + get_version()
 
-  action(['out/Release/' + output_file], 'bin/' + output_file)
+  action([output_prefix + output_file], 'bin/' + output_file)
 
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')
