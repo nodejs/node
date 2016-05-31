@@ -4423,12 +4423,13 @@ static void StartNodeInstance(void* arg) {
     if (instance_data->use_debug_agent())
       StartDebug(env, debug_wait_connect);
 
+    env->set_trace_sync_io(trace_sync_io);
+
     {
       Environment::AsyncCallbackScope callback_scope(env);
       LoadEnvironment(env);
     }
 
-    env->set_trace_sync_io(trace_sync_io);
 
     // Enable debugger
     if (instance_data->use_debug_agent())
