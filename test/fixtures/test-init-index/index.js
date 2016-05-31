@@ -1,4 +1,4 @@
 (function() {
-  require('util').print('Loaded successfully!');
+  process.stdout.write('Loaded successfully!');
 })();
 

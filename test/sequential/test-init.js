@@ -2,10 +2,9 @@
 (function() {
   const assert = require('assert');
   const child = require('child_process');
-  const util = require('util');
   const common = require('../common');
   if (process.env['TEST_INIT']) {
-    util.print('Loaded successfully!');
+    process.stdout.write('Loaded successfully!');
   } else {
     // change CWD as we do this test so its not dependant on current CWD
     // being in the test folder

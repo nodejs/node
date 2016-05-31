@@ -10,14 +10,14 @@ var s = new net.Stream();
 // server connection count once
 
 s.server = new net.Server();
-s.server.connections = 10;
+s.server._connections = 10;
 s._server = s.server;
 
-assert.equal(10, s.server.connections);
+assert.equal(10, s.server._connections);
 s.destroy();
-assert.equal(9, s.server.connections);
+assert.equal(9, s.server._connections);
 s.destroy();
-assert.equal(9, s.server.connections);
+assert.equal(9, s.server._connections);
 
 var SIZE = 2E6;
 var N = 10;
@@ -48,5 +48,5 @@ var server = net.createServer(function(socket) {
 });
 
 process.on('exit', function() {
-  assert.equal(server.connections, 0);
+  assert.equal(server._connections, 0);
 });

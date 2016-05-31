@@ -3,6 +3,23 @@ var common = require('../common');
 var assert = require('assert');
 var domain = require('domain');
 
+function dispose(d) {
+  if (d._disposed) return;
+
+  // if we're the active domain, then get out now.
+  d.exit();
+
+  // remove from parent domain, if there is one.
+  if (d.domain) d.domain.remove(d);
+
+  // kill the references so that they can be properly gc'ed.
+  d.members.length = 0;
+
+  // mark this domain as 'no longer relevant'
+  // so that it can't be entered or activated.
+  d._disposed = true;
+}
+
 var asyncTest = (function() {
   var asyncTestsEnabled = false;
   var asyncTestLastCheck;
@@ -637,7 +654,7 @@ asyncTest(
       onUnhandledSucceed(done, function(reason, promise) {
         assert.strictEqual(reason, e);
         assert.strictEqual(domainReceivedError, domainError);
-        d.dispose();
+        dispose(d);
       });
       Promise.reject(e);
       process.nextTick(function() {

@@ -10,6 +10,23 @@ var assert = require('assert');
 var domain = require('domain');
 var disposalFailed = false;
 
+function dispose(d) {
+  if (d._disposed) return;
+
+  // if we're the active domain, then get out now.
+  d.exit();
+
+  // remove from parent domain, if there is one.
+  if (d.domain) d.domain.remove(d);
+
+  // kill the references so that they can be properly gc'ed.
+  d.members.length = 0;
+
+  // mark this domain as 'no longer relevant'
+  // so that it can't be entered or activated.
+  d._disposed = true;
+}
+
 // Repeatedly schedule a timer with a delay different than the timers attached
 // to a domain that will eventually be disposed to make sure that they are
 // called, regardless of what happens with those timers attached to domains
@@ -35,7 +52,7 @@ setTimeout(function firstTimer() {
     // Dispose the domain on purpose, so that we can test that nestedTimer
     // is not called since it's associated to this domain and a timer whose
     // domain is diposed should not run.
-    d.dispose();
+    dispose(d);
     console.error(err);
     console.error('in domain error handler',
                   process.domain, process.domain === d);
