@@ -47,7 +47,7 @@ bool AcceptsConnection(inspector_socket_t* socket, const char* path) {
 }
 
 void DisposeInspector(inspector_socket_t* socket, int status) {
-  free(socket);
+  delete socket;
 }
 
 void DisconnectAndDisposeIO(inspector_socket_t* socket) {
@@ -404,14 +404,12 @@ void AgentImpl::ThreadCbIO(void* agent) {
 // static
 void AgentImpl::OnSocketConnectionIO(uv_stream_t* server, int status) {
   if (status == 0) {
-    inspector_socket_t* socket =
-        static_cast<inspector_socket_t*>(malloc(sizeof(*socket)));
-    ASSERT_NE(nullptr, socket);
+    inspector_socket_t* socket = new inspector_socket_t();
     memset(socket, 0, sizeof(*socket));
     socket->data = server->data;
     if (inspector_accept(server, socket,
                          AgentImpl::OnInspectorHandshakeIO) != 0) {
-      free(socket);
+      delete socket;
     }
   }
 }
@@ -430,6 +428,7 @@ bool AgentImpl::OnInspectorHandshakeIO(inspector_socket_t* socket,
     agent->OnInspectorConnectionIO(socket);
     return true;
   case kInspectorHandshakeFailed:
+    delete socket;
     return false;
   default:
     UNREACHABLE();
@@ -461,12 +460,7 @@ void AgentImpl::OnRemoteDataIO(uv_stream_t* stream,
     agent->parent_env_->isolate()
         ->RequestInterrupt(InterruptCallback, agent);
     uv_async_send(&agent->data_written_);
-  } else if (read < 0) {
-    if (agent->client_socket_ == socket) {
-      agent->client_socket_ = nullptr;
-    }
-    DisconnectAndDisposeIO(socket);
-  } else {
+  } else if (read <= 0) {
     // EOF
     if (agent->client_socket_ == socket) {
       agent->client_socket_ = nullptr;
@@ -474,6 +468,7 @@ void AgentImpl::OnRemoteDataIO(uv_stream_t* stream,
           new SetConnectedTask(agent, false));
       uv_async_send(&agent->data_written_);
     }
+    DisconnectAndDisposeIO(socket);
   }
   uv_cond_broadcast(&agent->pause_cond_);
 }
@@ -537,6 +532,7 @@ void AgentImpl::WorkerRunIO() {
 
 void AgentImpl::OnInspectorConnectionIO(inspector_socket_t* socket) {
   if (client_socket_) {
+    DisconnectAndDisposeIO(socket);
     return;
   }
   client_socket_ = socket;

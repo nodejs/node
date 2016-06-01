@@ -88,8 +88,6 @@ static void close_connection(inspector_socket_t* inspector) {
   if (!uv_is_closing(socket)) {
     uv_read_stop(reinterpret_cast<uv_stream_t*>(socket));
     uv_close(socket, dispose_inspector);
-  } else if (inspector->ws_state->close_cb) {
-    inspector->ws_state->close_cb(inspector, 0);
   }
 }
 
@@ -276,9 +274,6 @@ static void invoke_read_callback(inspector_socket_t* inspector,
 }
 
 static void shutdown_complete(inspector_socket_t* inspector) {
-  if (inspector->ws_state->close_cb) {
-    inspector->ws_state->close_cb(inspector, 0);
-  }
   close_connection(inspector);
 }
 
