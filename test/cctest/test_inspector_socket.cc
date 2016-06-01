@@ -84,7 +84,7 @@ static void do_write(const char* data, int len) {
   bool done = false;
   req.data = &done;
   uv_buf_t buf[1];
-  buf[0].base = const_cast<char *>(data);
+  buf[0].base = const_cast<char*>(data);
   buf[0].len = len;
   uv_write(&req, reinterpret_cast<uv_stream_t *>(&client_socket), buf, 1,
            write_done);
@@ -92,7 +92,7 @@ static void do_write(const char* data, int len) {
 }
 
 static void buffer_alloc_cb(uv_handle_t* stream, size_t len, uv_buf_t* buf) {
-  buf->base = static_cast<char *>(malloc(len));
+  buf->base = static_cast<char*>(malloc(len));
   buf->len = len;
 }
 
@@ -369,7 +369,7 @@ protected:
 TEST_F(InspectorSocketTest, ReadsAndWritesInspectorMessage) {
   ASSERT_TRUE(connected);
   ASSERT_FALSE(inspector_ready);
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(!inspector_ready);
   expect_handshake();
 
@@ -397,7 +397,7 @@ TEST_F(InspectorSocketTest, ReadsAndWritesInspectorMessage) {
 
 TEST_F(InspectorSocketTest, BufferEdgeCases) {
 
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   expect_handshake();
 
   const char MULTIPLE_REQUESTS[] = {
@@ -466,11 +466,11 @@ TEST_F(InspectorSocketTest, AcceptsRequestInSeveralWrites) {
   const int write1 = 95;
   const int write2 = 5;
   const int write3 = sizeof(HANDSHAKE_REQ) - write1 - write2 - 1;
-  do_write(const_cast<char *>(HANDSHAKE_REQ), write1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), write1);
   ASSERT_FALSE(inspector_ready);
-  do_write(const_cast<char *>(HANDSHAKE_REQ) + write1, write2);
+  do_write(const_cast<char*>(HANDSHAKE_REQ) + write1, write2);
   ASSERT_FALSE(inspector_ready);
-  do_write(const_cast<char *>(HANDSHAKE_REQ) + write1 + write2, write3);
+  do_write(const_cast<char*>(HANDSHAKE_REQ) + write1 + write2, write3);
   SPIN_WHILE(!inspector_ready);
   expect_handshake();
   inspector_read_stop(&inspector);
@@ -481,10 +481,10 @@ TEST_F(InspectorSocketTest, AcceptsRequestInSeveralWrites) {
 TEST_F(InspectorSocketTest, ExtraTextBeforeRequest) {
   last_event = kInspectorHandshakeUpgraded;
   char UNCOOL_BRO[] = "Uncool, bro: Text before the first req\r\n";
-  do_write(const_cast<char *>(UNCOOL_BRO), sizeof(UNCOOL_BRO) - 1);
+  do_write(const_cast<char*>(UNCOOL_BRO), sizeof(UNCOOL_BRO) - 1);
 
   ASSERT_FALSE(inspector_ready);
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
   EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
@@ -493,10 +493,10 @@ TEST_F(InspectorSocketTest, ExtraTextBeforeRequest) {
 
 TEST_F(InspectorSocketTest, ExtraLettersBeforeRequest) {
   char UNCOOL_BRO[] = "Uncool!!";
-  do_write(const_cast<char *>(UNCOOL_BRO), sizeof(UNCOOL_BRO) - 1);
+  do_write(const_cast<char*>(UNCOOL_BRO), sizeof(UNCOOL_BRO) - 1);
 
   ASSERT_FALSE(inspector_ready);
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
   EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
@@ -511,7 +511,7 @@ TEST_F(InspectorSocketTest, RequestWithoutKey) {
                                 "Sec-WebSocket-Version: 13\r\n\r\n";
   ;
 
-  do_write(const_cast<char *>(BROKEN_REQUEST), sizeof(BROKEN_REQUEST) - 1);
+  do_write(const_cast<char*>(BROKEN_REQUEST), sizeof(BROKEN_REQUEST) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
   EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
@@ -521,7 +521,7 @@ TEST_F(InspectorSocketTest, RequestWithoutKey) {
 TEST_F(InspectorSocketTest, KillsConnectionOnProtocolViolation) {
   ASSERT_TRUE(connected);
   ASSERT_FALSE(inspector_ready);
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(!inspector_ready);
   ASSERT_TRUE(inspector_ready);
   expect_handshake();
@@ -534,7 +534,7 @@ TEST_F(InspectorSocketTest, KillsConnectionOnProtocolViolation) {
 TEST_F(InspectorSocketTest, CanStopReadingFromInspector) {
   ASSERT_TRUE(connected);
   ASSERT_FALSE(inspector_ready);
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   expect_handshake();
   ASSERT_TRUE(inspector_ready);
 
@@ -552,15 +552,15 @@ TEST_F(InspectorSocketTest, CanStopReadingFromInspector) {
   manual_inspector_socket_cleanup();
 }
 
-static bool inspector_closed;
+static int inspector_closed = 0;
 
 void inspector_closed_cb(inspector_socket_t *inspector, int code) {
-  inspector_closed = true;
+  inspector_closed++;
 }
 
 TEST_F(InspectorSocketTest, CloseDoesNotNotifyReadCallback) {
-  inspector_closed = false;
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  inspector_closed = 0;
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   expect_handshake();
 
   int error_code = 0;
@@ -570,27 +570,29 @@ TEST_F(InspectorSocketTest, CloseDoesNotNotifyReadCallback) {
   inspector_close(&inspector, inspector_closed_cb);
   char CLOSE_FRAME[] = {'\x88', '\x00'};
   expect_on_client(CLOSE_FRAME, sizeof(CLOSE_FRAME));
-  ASSERT_FALSE(inspector_closed);
+  EXPECT_EQ(0, inspector_closed);
   const char CLIENT_CLOSE_FRAME[] = {'\x88', '\x80', '\x2D',
                                      '\x0E', '\x1E', '\xFA'};
   do_write(CLIENT_CLOSE_FRAME, sizeof(CLIENT_CLOSE_FRAME));
   EXPECT_NE(UV_EOF, error_code);
-  SPIN_WHILE(!inspector_closed);
+  SPIN_WHILE(inspector_closed == 0);
+  EXPECT_EQ(1, inspector_closed);
   inspector.data = nullptr;
 }
 
 TEST_F(InspectorSocketTest, CloseWorksWithoutReadEnabled) {
-  inspector_closed = false;
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  inspector_closed = 0;
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   expect_handshake();
   inspector_close(&inspector, inspector_closed_cb);
   char CLOSE_FRAME[] = {'\x88', '\x00'};
   expect_on_client(CLOSE_FRAME, sizeof(CLOSE_FRAME));
-  ASSERT_FALSE(inspector_closed);
+  EXPECT_EQ(0, inspector_closed);
   const char CLIENT_CLOSE_FRAME[] = {'\x88', '\x80', '\x2D',
                                      '\x0E', '\x1E', '\xFA'};
   do_write(CLIENT_CLOSE_FRAME, sizeof(CLIENT_CLOSE_FRAME));
-  SPIN_WHILE(!inspector_closed);
+  SPIN_WHILE(inspector_closed == 0);
+  EXPECT_EQ(1, inspector_closed);
 }
 
 // Make sure buffering works
@@ -690,7 +692,7 @@ HandshakeCanBeCanceled_handshake(enum inspector_handshake_event state,
 TEST_F(InspectorSocketTest, HandshakeCanBeCanceled) {
   handshake_delegate = HandshakeCanBeCanceled_handshake;
 
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
 
   expect_handshake_failure();
   EXPECT_EQ(2, handshake_events);
@@ -727,7 +729,7 @@ TEST_F(InspectorSocketTest, GetThenHandshake) {
 
   expect_on_client(TEST_SUCCESS, sizeof(TEST_SUCCESS) - 1);
 
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   expect_handshake();
   EXPECT_EQ(3, handshake_events);
   manual_inspector_socket_cleanup();
@@ -766,7 +768,7 @@ static void CleanupSocketAfterEOF_read_cb(uv_stream_t* stream, ssize_t nread,
 }
 
 TEST_F(InspectorSocketTest, CleanupSocketAfterEOF) {
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   expect_handshake();
 
   inspector_read_start(&inspector, buffer_alloc_cb,
@@ -810,7 +812,7 @@ static void mask_message(const char* message,
 TEST_F(InspectorSocketTest, Send1Mb) {
   ASSERT_TRUE(connected);
   ASSERT_FALSE(inspector_ready);
-  do_write(const_cast<char *>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(!inspector_ready);
   expect_handshake();
 
@@ -861,4 +863,24 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   free(outgoing);
   free(expected);
   free(message);
+}
+
+static ssize_t err;
+
+void ErrorCleansUpTheSocket_cb(uv_stream_t* stream, ssize_t read,
+                               const uv_buf_t* buf) {
+  err = read;
+}
+
+TEST_F(InspectorSocketTest, ErrorCleansUpTheSocket) {
+  inspector_closed = 0;
+  do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
+  expect_handshake();
+  const char NOT_A_GOOD_FRAME[] = {'H', 'e', 'l', 'l', 'o'};
+  err = 42;
+  inspector_read_start(&inspector, buffer_alloc_cb,
+                       ErrorCleansUpTheSocket_cb);
+  do_write(NOT_A_GOOD_FRAME, sizeof(NOT_A_GOOD_FRAME));
+  SPIN_WHILE(err > 0);
+  EXPECT_EQ(UV_EPROTO, err);
 }
