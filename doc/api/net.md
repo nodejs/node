@@ -35,7 +35,7 @@ Emitted when a new connection is made. `socket` is an instance of
 
 ### Event: 'error'
 <!-- YAML
-added: v0.5.0
+added: v0.1.90
 -->
 
 * {Error}
