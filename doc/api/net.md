@@ -45,7 +45,7 @@ following this event.  See example in discussion of `server.listen`.
 
 ### Event: 'listening'
 <!-- YAML
-added: v0.5.0
+added: v0.1.90
 -->
 
 Emitted when the server has been bound after calling `server.listen`.
