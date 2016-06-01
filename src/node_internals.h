@@ -145,6 +145,12 @@ NO_RETURN void FatalError(const char* location, const char* message);
 
 v8::Local<v8::Value> BuildStatsObject(Environment* env, const uv_stat_t* s);
 
+void SetupProcessObject(Environment* env,
+                        int argc,
+                        const char* const* argv,
+                        int exec_argc,
+                        const char* const* exec_argv);
+
 enum Endianness {
   kLittleEndian,  // _Not_ LITTLE_ENDIAN, clashes with endian.h.
   kBigEndian
