@@ -367,7 +367,7 @@ See also: the return values of `socket.write()`
 
 ### Event: 'end'
 <!-- YAML
-added: v0.3.1
+added: v0.1.90
 -->
 
 Emitted when the other end of the socket sends a FIN packet.
