@@ -144,7 +144,7 @@ The parameter `backlog` behaves the same as in
 
 ### server.listen(options[, callback])
 <!-- YAML
-added: v0.3.2
+added: v0.11.14
 -->
 
 * `options` {Object} - Required. Supports the following properties:
