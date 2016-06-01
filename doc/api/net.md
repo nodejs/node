@@ -95,7 +95,7 @@ was not open when it was closed.
 ### server.connections
 <!-- YAML
 added: v0.2.0
-deprecated:
+deprecated: v0.9.7
 -->
 
     Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
