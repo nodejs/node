@@ -675,7 +675,7 @@ written out - this may not be immediately.
 
 ## net.connect(options[, connectListener])
 <!-- YAML
-added: v0.1.90
+added: v0.7.0
 -->
 
 A factory function, which returns a new [`net.Socket`][] and automatically
