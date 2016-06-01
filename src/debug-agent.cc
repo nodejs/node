@@ -172,15 +172,9 @@ void Agent::WorkerRun() {
     Local<Context> context = Context::New(isolate);
 
     Context::Scope context_scope(context);
-
-    // FIXME(bnoordhuis) Work around V8 bug: v8::Private::ForApi() dereferences
-    // a nullptr when a context hasn't been entered first.  The symbol registry
-    // is a lazily created JS object but object instantiation does not work
-    // without a context.
-    IsolateData isolate_data(isolate, &child_loop_);
-
     Environment* env = CreateEnvironment(
-        &isolate_data,
+        isolate,
+        &child_loop_,
         context,
         arraysize(argv),
         argv,
