@@ -40,14 +40,14 @@ inline AsyncWrap::AsyncWrap(Environment* env,
   v8::HandleScope scope(env->isolate());
 
   v8::Local<v8::Value> argv[] = {
-    v8::Integer::New(env->isolate(), get_uid()),
+    v8::Number::New(env->isolate(), get_uid()),
     v8::Int32::New(env->isolate(), provider),
     Null(env->isolate()),
     Null(env->isolate())
   };
 
   if (parent != nullptr) {
-    argv[2] = v8::Integer::New(env->isolate(), parent->get_uid());
+    argv[2] = v8::Number::New(env->isolate(), parent->get_uid());
     argv[3] = parent->object();
   }
 
@@ -72,7 +72,7 @@ inline AsyncWrap::~AsyncWrap() {
   v8::Local<v8::Function> fn = env()->async_hooks_destroy_function();
   if (!fn.IsEmpty()) {
     v8::HandleScope scope(env()->isolate());
-    v8::Local<v8::Value> uid = v8::Integer::New(env()->isolate(), get_uid());
+    v8::Local<v8::Value> uid = v8::Number::New(env()->isolate(), get_uid());
     v8::TryCatch try_catch(env()->isolate());
     v8::MaybeLocal<v8::Value> ret =
         fn->Call(env()->context(), v8::Null(env()->isolate()), 1, &uid);
