@@ -403,7 +403,7 @@ Not applicable to UNIX sockets.
 
 ### Event: 'timeout'
 <!-- YAML
-added: v0.5.0
+added: v0.1.90
 -->
 
 Emitted if the socket times out from inactivity. This is only to notify that
@@ -413,7 +413,7 @@ See also: [`socket.setTimeout()`][]
 
 ### socket.address()
 <!-- YAML
-added: v0.5.2
+added: v0.1.90
 -->
 
 Returns the bound address, the address family name and port of the
@@ -423,7 +423,7 @@ three properties, e.g.
 
 ### socket.bufferSize
 <!-- YAML
-added: v0.5.0
+added: v0.3.8
 -->
 
 `net.Socket` has the property that `socket.write()` always works. This is to
@@ -444,14 +444,14 @@ Users who experience large or growing `bufferSize` should attempt to
 
 ### socket.bytesRead
 <!-- YAML
-added: v0.1.98
+added: v0.5.3
 -->
 
 The amount of received bytes.
 
 ### socket.bytesWritten
 <!-- YAML
-added: v0.3.2
+added: v0.5.3
 -->
 
 The amount of bytes sent.
@@ -505,7 +505,7 @@ with options either as either `{port: port, host: host}` or `{path: path}`.
 
 ### socket.connecting
 <!-- YAML
-added: v0.1.91
+added: v6.1.0
 -->
 
 If `true` - [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`] was called and
