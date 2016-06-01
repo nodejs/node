@@ -87,7 +87,7 @@
       npm.command = c
       if (commandCache[a]) return commandCache[a]
 
-      var cmd = require(__dirname + '/' + a + '.js')
+      var cmd = require(path.join(__dirname, a + '.js'))
 
       commandCache[a] = function () {
         var args = Array.prototype.slice.call(arguments, 0)
@@ -95,6 +95,14 @@
           args.push(defaultCb)
         }
         if (args.length === 1) args.unshift([])
+
+        // Options are prefixed by a hyphen-minus (-, \u2d).
+        // Other dash-type chars look similar but are invalid.
+        Array(args[0]).forEach(function (arg) {
+          if (/^[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/.test(arg)) {
+            log.error('arg', 'Argument starts with non-ascii dash, this is probably invalid:', arg)
+          }
+        })
 
         npm.registry.version = npm.version
         if (!npm.registry.refer) {

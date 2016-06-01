@@ -749,6 +749,15 @@ for (let i = 0; i < 256; i++) {
   assert.equal(hexb2[i], hexb[i]);
 }
 
+// Test single hex character throws TypeError
+// - https://github.com/nodejs/node/issues/6770
+assert.throws(function() {
+  Buffer.from('A', 'hex');
+}, TypeError);
+
+// Test single base64 char encodes as 0
+assert.strictEqual(Buffer.from('A', 'base64').length, 0);
+
 {
   // test an invalid slice end.
   console.log('Try to slice off the end of the buffer');
@@ -1456,3 +1465,14 @@ assert.equal(Buffer.prototype.parent, undefined);
 assert.equal(Buffer.prototype.offset, undefined);
 assert.equal(SlowBuffer.prototype.parent, undefined);
 assert.equal(SlowBuffer.prototype.offset, undefined);
+
+{
+  // Test that large negative Buffer length inputs don't affect the pool offset.
+  assert.deepStrictEqual(Buffer(-Buffer.poolSize), Buffer.from(''));
+  assert.deepStrictEqual(Buffer(-100), Buffer.from(''));
+  assert.deepStrictEqual(Buffer.allocUnsafe(-Buffer.poolSize), Buffer.from(''));
+  assert.deepStrictEqual(Buffer.allocUnsafe(-100), Buffer.from(''));
+
+  // Check pool offset after that by trying to write string into the pool.
+  assert.doesNotThrow(() => Buffer.from('abc'));
+}

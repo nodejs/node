@@ -109,7 +109,8 @@ class ZCtx : public AsyncWrap {
 
 
   static void Close(const FunctionCallbackInfo<Value>& args) {
-    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
+    ZCtx* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     ctx->Close();
   }
 
@@ -119,7 +120,8 @@ class ZCtx : public AsyncWrap {
   static void Write(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(args.Length(), 7);
 
-    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
+    ZCtx* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     CHECK(ctx->init_done_ && "write before init");
     CHECK(ctx->mode_ != NONE && "already finalized");
 
@@ -431,7 +433,8 @@ class ZCtx : public AsyncWrap {
     CHECK((args.Length() == 4 || args.Length() == 5) &&
            "init(windowBits, level, memLevel, strategy, [dictionary])");
 
-    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
+    ZCtx* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
 
     int windowBits = args[0]->Uint32Value();
     CHECK((windowBits >= 8 && windowBits <= 15) && "invalid windowBits");
@@ -467,12 +470,14 @@ class ZCtx : public AsyncWrap {
 
   static void Params(const FunctionCallbackInfo<Value>& args) {
     CHECK(args.Length() == 2 && "params(level, strategy)");
-    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
+    ZCtx* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     Params(ctx, args[0]->Int32Value(), args[1]->Int32Value());
   }
 
   static void Reset(const FunctionCallbackInfo<Value> &args) {
-    ZCtx* ctx = Unwrap<ZCtx>(args.Holder());
+    ZCtx* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Holder());
     Reset(ctx);
     SetDictionary(ctx);
   }

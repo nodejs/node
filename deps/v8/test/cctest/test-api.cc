@@ -12898,6 +12898,19 @@ THREADED_TEST(VariousGetPropertiesAndThrowingCallbacks) {
   CHECK(try_catch.HasCaught());
   try_catch.Reset();
   CHECK(result.IsEmpty());
+
+  Local<Object> target = CompileRun("({})").As<Object>();
+  Local<Object> handler = CompileRun("({})").As<Object>();
+  Local<v8::Proxy> proxy =
+      v8::Proxy::New(context.local(), target, handler).ToLocalChecked();
+
+  result = target->GetRealNamedProperty(context.local(), v8_str("f"));
+  CHECK(!try_catch.HasCaught());
+  CHECK(result.IsEmpty());
+
+  result = proxy->GetRealNamedProperty(context.local(), v8_str("f"));
+  CHECK(!try_catch.HasCaught());
+  CHECK(result.IsEmpty());
 }
 
 

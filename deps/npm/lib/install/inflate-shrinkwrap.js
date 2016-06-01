@@ -3,7 +3,9 @@ var url = require('url')
 var asyncMap = require('slide').asyncMap
 var validate = require('aproba')
 var iferr = require('iferr')
+var realizePackageSpecifier = require('realize-package-specifier')
 var fetchPackageMetadata = require('../fetch-package-metadata.js')
+var annotateMetadata = require('../fetch-package-metadata.js').annotateMetadata
 var addShrinkwrap = require('../fetch-package-metadata.js').addShrinkwrap
 var addBundled = require('../fetch-package-metadata.js').addBundled
 var inflateBundled = require('./inflate-bundled.js')
@@ -32,7 +34,11 @@ var inflateShrinkwrap = module.exports = function (tree, swdeps, finishInflating
                   child.package.version === sw.version)) {
       if (!child.fromShrinkwrap) child.fromShrinkwrap = spec
       tree.children.push(child)
-      return next()
+
+      return realizePackageSpecifier(spec, tree.path, iferr(next, function (requested) {
+        annotateMetadata(child.package, requested, spec, tree.path)
+        return inflateShrinkwrap(child, sw.dependencies || {}, next)
+      }))
     }
     fetchPackageMetadata(spec, tree.path, iferr(next, function (pkg) {
       pkg._from = sw.from || spec

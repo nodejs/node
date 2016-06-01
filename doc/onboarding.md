@@ -54,15 +54,13 @@ Ensure everyone is added to https://github.com/orgs/nodejs/teams/collaborators
     * Still need to follow the Code of Conduct.
 
 
-  * labels:
-    * generally sort issues by a concept of "subsystem" so that we know what part(s) of the codebase it touches, though there are also other useful labels.
-     * [**See "Labels"**](./onboarding-extras.md#labels)
-    * `ctc-agenda` if a topic is controversial or isn't coming to a conclusion after an extended time.
+  * Labels:
+    * There is [a bot](https://github.com/nodejs-github-bot/github-bot) that applies subsystem labels (for example, `doc`, `test`, `assert`, or `buffer`) so that we know what parts of the code base the pull request modifies. It is not perfect, of course. Feel free to apply relevant labels and remove irrelevant labels from pull requests and issues.
+    * [**See "Labels"**](./onboarding-extras.md#labels)
+    * Use the `ctc-agenda` if a topic is controversial or isn't coming to a conclusion after an extended time.
     * `semver-{minor,major}`:
-      * be conservative – that is, if a change has the remote *chance* of breaking something, go for `semver-major`
-      * when adding a semver label, add a comment explaining why you're adding it
-        * it's cached locally in your brain at that moment!
-
+      * If a change has the remote *chance* of breaking something, use `semver-major`
+      * When adding a semver label, add a comment explaining why you're adding it. Do it right away so you don't forget!
 
   * Notifying humans
     * [**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
@@ -103,14 +101,17 @@ Ensure everyone is added to https://github.com/orgs/nodejs/teams/collaborators
     * also, things that cannot be done outside of core, or only with significant pain (example: async-wrap)
 
 
-  * CI testing:
-    * lives here: https://ci.nodejs.org/
-      * not automatically run - some of the platforms we test do not have full sandboxing support so we need to ensure what we run on it isn't potentially malicious
-    * make sure to log in – we use github authentication so it should be seamless
-    * go to "node-test-pull-request" and "Build with parameters"
-    * fill in the pull request number without the `#`, and check the verification that you have reviewed the code for potential malice
-      * The other options shouldn't need to be adjusted in most cases.
-    * link to the CI run in the PR by commenting "CI: <ci run link>"
+  * Continuous Integration (CI) Testing:
+    * https://ci.nodejs.org/
+    * It is not automatically run. You need to start it manually.
+    * Log in on CI is integrated with GitHub. Try to log in now!
+    * You will be using `node-test-pull-request` most of the time. Go there now!
+    * To get to the form to start a job, click on `Build with Parameters`. (If you don't see it, that probably means you are not logged in!) Click it now!
+    * To start CI testing from this screen, you need to fill in two elements on the form:
+      * The `CERTIFY_SAFE` box should be checked. By checking it, you are indicating that you have reviewed the code you are about to test and you are confident that it does not contain any malicious code. (We don't want people hijacking our CI hosts to attack other hosts on the internet, for example!)
+      * The `PR_ID` box should be filled in with the number identifying the pull request containing the code you wish to test. For example, if the URL for the pull request is https://github.com/nodejs/node/issues/7006, then put `7006` in the `PR_ID`.
+      * The remaining elements on the form are typically unchanged.
+      * There is a checkbox for `POST_STATUS_TO_PR`. At the time of this writing, that checkbox does not do anything, but that is likely to change soon. Until that functionality is working, you will want to go back to the PR you are testing and paste `CI: <URL-of-the-CI-test-run>` into a comment on the pull request.
 
 
 ### process for getting code in:

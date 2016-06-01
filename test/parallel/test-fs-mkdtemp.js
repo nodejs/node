@@ -25,3 +25,5 @@ fs.mkdtemp(
       assert(common.fileExists(folder));
     })
 );
+
+assert.doesNotThrow(() => fs.mkdtemp(path.join(common.tmpDir, 'bar-')));

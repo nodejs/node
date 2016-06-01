@@ -2473,10 +2473,11 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   __ JumpIfSmi(input, is_false);
 
   __ GetObjectType(input, temp, temp2);
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
   if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
-    __ Branch(is_true, eq, temp2, Operand(JS_FUNCTION_TYPE));
+    __ Branch(is_true, hs, temp2, Operand(FIRST_FUNCTION_TYPE));
   } else {
-    __ Branch(is_false, eq, temp2, Operand(JS_FUNCTION_TYPE));
+    __ Branch(is_false, hs, temp2, Operand(FIRST_FUNCTION_TYPE));
   }
 
   // Now we are in the FIRST-LAST_NONCALLABLE_SPEC_OBJECT_TYPE range.

@@ -53,6 +53,7 @@ test('#6311: npm ll --depth=0 duplicates listing', function (t) {
     [
       '--loglevel', 'silent',
       '--registry', common.registry,
+      '--unicode=true',
       'install', dep
     ],
     EXEC_OPTS,
@@ -72,6 +73,7 @@ test('#6311: npm ll --depth=0 duplicates listing', function (t) {
         [
           '--loglevel', 'silent',
           'ls', '--long',
+          '--unicode=true',
           '--depth', '0'
         ],
         EXEC_OPTS,

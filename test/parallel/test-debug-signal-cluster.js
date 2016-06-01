@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
 
-var port = common.PORT + 42;
+var port = common.PORT + 1;  // The fixture uses common.PORT.
 var args = ['--debug-port=' + port,
             common.fixturesDir + '/clustered-server/app.js'];
 var options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };

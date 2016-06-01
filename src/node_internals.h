@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_INTERNALS_H_
 #define SRC_NODE_INTERNALS_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 #include "util.h"
 #include "util-inl.h"
@@ -85,6 +87,8 @@ v8::Local<v8::Object> AddressToJS(
 template <typename T, int (*F)(const typename T::HandleType*, sockaddr*, int*)>
 void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   T* const wrap = Unwrap<T>(args.Holder());
+  if (wrap == nullptr)
+    return args.GetReturnValue().Set(UV_EBADF);
   CHECK(args[0]->IsObject());
   sockaddr_storage storage;
   int addrlen = sizeof(storage);
@@ -310,5 +314,7 @@ v8::MaybeLocal<v8::Object> New(Environment* env, char* data, size_t length);
 }  // namespace Buffer
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_INTERNALS_H_

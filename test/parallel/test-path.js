@@ -15,6 +15,23 @@ assert.equal(path.basename('/basename.ext'), 'basename.ext');
 assert.equal(path.basename('basename.ext'), 'basename.ext');
 assert.equal(path.basename('basename.ext/'), 'basename.ext');
 assert.equal(path.basename('basename.ext//'), 'basename.ext');
+assert.equal(path.basename('aaa/bbb', '/bbb'), 'bbb');
+assert.equal(path.basename('aaa/bbb', 'a/bbb'), 'bbb');
+assert.equal(path.basename('aaa/bbb', 'bbb'), 'bbb');
+assert.equal(path.basename('aaa/bbb//', 'bbb'), 'bbb');
+assert.equal(path.basename('aaa/bbb', 'bb'), 'b');
+assert.equal(path.basename('aaa/bbb', 'b'), 'bb');
+assert.equal(path.basename('/aaa/bbb', '/bbb'), 'bbb');
+assert.equal(path.basename('/aaa/bbb', 'a/bbb'), 'bbb');
+assert.equal(path.basename('/aaa/bbb', 'bbb'), 'bbb');
+assert.equal(path.basename('/aaa/bbb//', 'bbb'), 'bbb');
+assert.equal(path.basename('/aaa/bbb', 'bb'), 'b');
+assert.equal(path.basename('/aaa/bbb', 'b'), 'bb');
+assert.equal(path.basename('/aaa/bbb'), 'bbb');
+assert.equal(path.basename('/aaa/'), 'aaa');
+assert.equal(path.basename('/aaa/b'), 'b');
+assert.equal(path.basename('/a/b'), 'b');
+assert.equal(path.basename('//a'), 'a');
 
 // On Windows a backslash acts as a path separator.
 assert.equal(path.win32.basename('\\dir\\basename.ext'), 'basename.ext');
@@ -23,11 +40,12 @@ assert.equal(path.win32.basename('basename.ext'), 'basename.ext');
 assert.equal(path.win32.basename('basename.ext\\'), 'basename.ext');
 assert.equal(path.win32.basename('basename.ext\\\\'), 'basename.ext');
 assert.equal(path.win32.basename('foo'), 'foo');
-assert.throws(path.win32.basename.bind(null, null), TypeError);
-assert.throws(path.win32.basename.bind(null, true), TypeError);
-assert.throws(path.win32.basename.bind(null, 1), TypeError);
-assert.throws(path.win32.basename.bind(null), TypeError);
-assert.throws(path.win32.basename.bind(null, {}), TypeError);
+assert.equal(path.win32.basename('aaa\\bbb', '\\bbb'), 'bbb');
+assert.equal(path.win32.basename('aaa\\bbb', 'a\\bbb'), 'bbb');
+assert.equal(path.win32.basename('aaa\\bbb', 'bbb'), 'bbb');
+assert.equal(path.win32.basename('aaa\\bbb\\\\\\\\', 'bbb'), 'bbb');
+assert.equal(path.win32.basename('aaa\\bbb', 'bb'), 'b');
+assert.equal(path.win32.basename('aaa\\bbb', 'b'), 'bb');
 
 // On unix a backslash is just treated as any other character.
 assert.equal(path.posix.basename('\\dir\\basename.ext'), '\\dir\\basename.ext');
@@ -36,11 +54,6 @@ assert.equal(path.posix.basename('basename.ext'), 'basename.ext');
 assert.equal(path.posix.basename('basename.ext\\'), 'basename.ext\\');
 assert.equal(path.posix.basename('basename.ext\\\\'), 'basename.ext\\\\');
 assert.equal(path.posix.basename('foo'), 'foo');
-assert.throws(path.posix.basename.bind(null, null), TypeError);
-assert.throws(path.posix.basename.bind(null, true), TypeError);
-assert.throws(path.posix.basename.bind(null, 1), TypeError);
-assert.throws(path.posix.basename.bind(null), TypeError);
-assert.throws(path.posix.basename.bind(null, {}), TypeError);
 
 // POSIX filenames may include control characters
 // c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
@@ -60,11 +73,6 @@ assert.equal(path.posix.dirname(''), '.');
 assert.equal(path.posix.dirname('/'), '/');
 assert.equal(path.posix.dirname('////'), '/');
 assert.equal(path.posix.dirname('foo'), '.');
-assert.throws(path.posix.dirname.bind(null, null), TypeError);
-assert.throws(path.posix.dirname.bind(null, true), TypeError);
-assert.throws(path.posix.dirname.bind(null, 1), TypeError);
-assert.throws(path.posix.dirname.bind(null), TypeError);
-assert.throws(path.posix.dirname.bind(null, {}), TypeError);
 
 assert.equal(path.win32.dirname('c:\\'), 'c:\\');
 assert.equal(path.win32.dirname('c:\\foo'), 'c:\\');
@@ -100,11 +108,6 @@ assert.equal(path.win32.dirname(''), '.');
 assert.equal(path.win32.dirname('/'), '/');
 assert.equal(path.win32.dirname('////'), '/');
 assert.equal(path.win32.dirname('foo'), '.');
-assert.throws(path.win32.dirname.bind(null, null), TypeError);
-assert.throws(path.win32.dirname.bind(null, true), TypeError);
-assert.throws(path.win32.dirname.bind(null, 1), TypeError);
-assert.throws(path.win32.dirname.bind(null), TypeError);
-assert.throws(path.win32.dirname.bind(null, {}), TypeError);
 
 
 // path.extname tests
@@ -183,11 +186,6 @@ assert.equal(path.win32.extname('file\\'), '');
 assert.equal(path.win32.extname('file\\\\'), '');
 assert.equal(path.win32.extname('file.\\'), '.');
 assert.equal(path.win32.extname('file.\\\\'), '.');
-assert.throws(path.win32.extname.bind(null, null), TypeError);
-assert.throws(path.win32.extname.bind(null, true), TypeError);
-assert.throws(path.win32.extname.bind(null, 1), TypeError);
-assert.throws(path.win32.extname.bind(null), TypeError);
-assert.throws(path.win32.extname.bind(null, {}), TypeError);
 
 // On *nix, backslash is a valid name component like any other character.
 assert.equal(path.posix.extname('.\\'), '');
@@ -198,11 +196,6 @@ assert.equal(path.posix.extname('file\\'), '');
 assert.equal(path.posix.extname('file\\\\'), '');
 assert.equal(path.posix.extname('file.\\'), '.\\');
 assert.equal(path.posix.extname('file.\\\\'), '.\\\\');
-assert.throws(path.posix.extname.bind(null, null), TypeError);
-assert.throws(path.posix.extname.bind(null, true), TypeError);
-assert.throws(path.posix.extname.bind(null, 1), TypeError);
-assert.throws(path.posix.extname.bind(null), TypeError);
-assert.throws(path.posix.extname.bind(null, {}), TypeError);
 
 
 // path.join tests

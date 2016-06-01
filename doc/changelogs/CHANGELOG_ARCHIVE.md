@@ -927,7 +927,7 @@ https://github.com/nodejs/node/commit/c1a1ab067721ea17ef7b05ec5c68b01321017f05
 * http: Don't try to destroy nonexistent sockets (isaacs)
 * handle_wrap: fix NULL pointer dereference (Ben Noordhuis)
 
-<a id="0.8.22"></a>
+<a id="0.8.23"></a>
 ## 2013.04.09, Version 0.8.23 (maintenance)
 
 https://github.com/nodejs/node/commit/c67f8d0500fe15637a623eb759d2ad7eb9fb3b0b
@@ -1539,7 +1539,7 @@ https://github.com/nodejs/node/commit/99059aad8d654acda4abcfaa68df182b50f2ec90
 * http: fix case where http-parser is freed twice (koichik)
 * Windows: disable RTTI and exceptions (Bert Belder)
 
-<a id="0.7.12"></a>
+<a id="0.7.2"></a>
 ## 2012.02.01, Version 0.7.2 (unstable)
 
 https://github.com/nodejs/node/commit/ec79acb3a6166e30f0bf271fbbfda1fb575b3321

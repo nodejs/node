@@ -37,10 +37,10 @@ Emitted when the server has been bound after calling `server.listen`.
 
 ### server.address()
 
-Returns the bound address, the address family name and port of the server
+Returns the bound address, the address family name, and port of the server
 as reported by the operating system.
-Useful to find which port was assigned when giving getting an OS-assigned address.
-Returns an object with three properties, e.g.
+Useful to find which port was assigned when getting an OS-assigned address.
+Returns an object with `port`, `family`, and `address` properties:
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
 Example:
@@ -182,8 +182,8 @@ Begin accepting connections on the specified `port` and `hostname`. If the
 port value of zero will assign a random port.
 
 Backlog is the maximum length of the queue of pending connections.
-The actual length will be determined by your OS through sysctl settings such as
-`tcp_max_syn_backlog` and `somaxconn` on linux. The default value of this
+The actual length will be determined by the OS through sysctl settings such as
+`tcp_max_syn_backlog` and `somaxconn` on Linux. The default value of this
 parameter is 511 (not 512).
 
 This function is asynchronous.  When the server has been bound,
@@ -192,7 +192,7 @@ will be added as a listener for the [`'listening'`][] event.
 
 One issue some users run into is getting `EADDRINUSE` errors. This means that
 another server is already running on the requested port. One way of handling this
-would be to wait a second and then try again. This can be done with
+would be to wait a second and then try again:
 
 ```js
 server.on('error', (e) => {
@@ -206,7 +206,7 @@ server.on('error', (e) => {
 });
 ```
 
-(Note: All sockets in Node.js set `SO_REUSEADDR` already)
+(Note: All sockets in Node.js are set `SO_REUSEADDR`.)
 
 ### server.listening
 
@@ -731,7 +731,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`connect()`]: #net_socket_connect_options_connectlistener
 [`destroy()`]: #net_socket_destroy
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
-[`dns.lookup()` hints]: #dns_supported_getaddrinfo_flags
+[`dns.lookup()` hints]: dns.html#dns_supported_getaddrinfo_flags
 [`end()`]: #net_socket_end_data_encoding
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`net.Socket`]: #net_class_net_socket

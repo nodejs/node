@@ -118,7 +118,7 @@ test: all
 	$(MAKE) build-addons
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
-		addon doctool known_issues message parallel sequential
+		addon doctool known_issues message pseudo-tty parallel sequential
 	$(MAKE) lint
 
 test-parallel: all
@@ -144,7 +144,10 @@ ADDONS_BINDING_GYPS := \
 		$(wildcard test/addons/*/binding.gyp))
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
-test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) \
+# Depends on node-gyp package.json so that build-addons is (re)executed when
+# node-gyp is updated as part of an npm update.
+test/addons/.buildstamp: deps/npm/node_modules/node-gyp/package.json \
+	$(ADDONS_BINDING_GYPS) \
 	deps/uv/include/*.h deps/v8/include/*.h \
 	src/node.h src/node_buffer.h src/node_object_wrap.h \
 	test/addons/.docbuildstamp
@@ -163,7 +166,7 @@ test/addons/.buildstamp: $(ADDONS_BINDING_GYPS) \
 # if the subprocess touched anything so it pessimistically assumes that
 # .buildstamp and .docbuildstamp are out of date and need a rebuild.
 # Just goes to show that recursive make really is harmful...
-# TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
+# TODO(bnoordhuis) Force rebuild after gyp update.
 build-addons: $(NODE_EXE) test/addons/.buildstamp
 
 test-gc: all test/gc/node_modules/weak/build/Release/weakref.node
@@ -180,7 +183,8 @@ test-all-valgrind: test-build
 test-ci: | build-addons
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) addons doctool known_issues message parallel sequential
+		$(TEST_CI_ARGS) addons doctool known_issues message pseudo-tty parallel \
+		sequential
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
@@ -275,11 +279,15 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 out/doc/%: doc/%
 	cp -r $< $@
 
+# check if ./node is actually set, else use user pre-installed binary
+gen-json = tools/doc/generate.js --format=json $< > $@
 out/doc/api/%.json: doc/api/%.md
-	$(NODE) tools/doc/generate.js --format=json $< > $@
+	[ -x $(NODE) ] && $(NODE) $(gen-json) || node $(gen-json)
 
+# check if ./node is actually set, else use user pre-installed binary
+gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html --template=doc/template.html $< > $@
 out/doc/api/%.html: doc/api/%.md
-	$(NODE) tools/doc/generate.js --node-version=$(FULLVERSION) --format=html --template=doc/template.html $< > $@
+	[ -x $(NODE) ] && $(NODE) $(gen-html) || node $(gen-html)
 
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html

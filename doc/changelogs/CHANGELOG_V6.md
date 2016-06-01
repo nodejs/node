@@ -25,6 +25,69 @@
 [Node.js Long Term Support plan](https://github.com/nodejs/LTS) starting in
 October 2016.
 
+<a id="6.2.1"></a>
+## 2016-05-23, Version 6.2.1 (Current), @Fishrock123
+
+### Notable changes
+
+* [[`feb037b476`](https://github.com/nodejs/node/commit/feb037b476)] - **buffer**: fix single digit hex string handling (Justin Sprigg) [#6775](https://github.com/nodejs/node/pull/6775)
+* [[`6f78965140`](https://github.com/nodejs/node/commit/6f78965140)] - **path**: fix basename() regressions (Brian White) [#6590](https://github.com/nodejs/node/pull/6590)
+* [[`5fbcbdb07a`](https://github.com/nodejs/node/commit/5fbcbdb07a)] - **fs**: mkdtemp shouldn't crash if no callback passed (Sakthipriyan Vairamani) [#6828](https://github.com/nodejs/node/pull/6828)
+* [[`ee32678be0`](https://github.com/nodejs/node/commit/ee32678be0)] - **src**: fix without-intl build (Anna Henningsen) [#6820](https://github.com/nodejs/node/pull/6820)
+
+### Commits
+
+* [[`feb037b476`](https://github.com/nodejs/node/commit/feb037b476)] - **buffer**: fix single digit hex string handling (Justin Sprigg) [#6775](https://github.com/nodejs/node/pull/6775)
+* [[`0025934257`](https://github.com/nodejs/node/commit/0025934257)] - **build**: update build-addons when node-gyp changes (Lance Ball) [#6787](https://github.com/nodejs/node/pull/6787)
+* [[`5faf60b533`](https://github.com/nodejs/node/commit/5faf60b533)] - **build**: unbreak configure with python 2.6 (Ben Noordhuis) [#6874](https://github.com/nodejs/node/pull/6874)
+* [[`fd0bec4f3c`](https://github.com/nodejs/node/commit/fd0bec4f3c)] - **dgram,test**: add addMembership/dropMembership tests (Rich Trott) [#6753](https://github.com/nodejs/node/pull/6753)
+* [[`0c0b9a016a`](https://github.com/nodejs/node/commit/0c0b9a016a)] - **doc**: general improvements to util.md (James M Snell) [#6897](https://github.com/nodejs/node/pull/6897)
+* [[`136c098a23`](https://github.com/nodejs/node/commit/136c098a23)] - **doc**: add `added:` information for zlib (Anna Henningsen) [#6840](https://github.com/nodejs/node/pull/6840)
+* [[`068ee090c7`](https://github.com/nodejs/node/commit/068ee090c7)] - **doc**: make the api doc print-friendly (Marian) [#6748](https://github.com/nodejs/node/pull/6748)
+* [[`ac26db8735`](https://github.com/nodejs/node/commit/ac26db8735)] - **doc**: add bengl to collaborators (Bryan English) [#6921](https://github.com/nodejs/node/pull/6921)
+* [[`46ad7ad362`](https://github.com/nodejs/node/commit/46ad7ad362)] - **doc**: Update DCO to v1.1 (William Kapke) [#6353](https://github.com/nodejs/node/pull/6353)
+* [[`b899705c2e`](https://github.com/nodejs/node/commit/b899705c2e)] - **doc**: general improvements to v8.md copy (James M Snell) [#6829](https://github.com/nodejs/node/pull/6829)
+* [[`7e84204537`](https://github.com/nodejs/node/commit/7e84204537)] - **doc**: fix typo in Error.captureStackTrace (Mohsen) [#6811](https://github.com/nodejs/node/pull/6811)
+* [[`96d8eb1931`](https://github.com/nodejs/node/commit/96d8eb1931)] - **doc**: make param names consistent & fix doc link (Sakthipriyan Vairamani) [#6832](https://github.com/nodejs/node/pull/6832)
+* [[`0534a5dad7`](https://github.com/nodejs/node/commit/0534a5dad7)] - **doc**: add `added:` info for `process.cpuUsage` (Anna Henningsen) [#6863](https://github.com/nodejs/node/pull/6863)
+* [[`adebbc32ac`](https://github.com/nodejs/node/commit/adebbc32ac)] - **doc**: fix mkdtemp example by removing hyphen (Sakthipriyan Vairamani) [#6834](https://github.com/nodejs/node/pull/6834)
+* [[`debbe4ab25`](https://github.com/nodejs/node/commit/debbe4ab25)] - **doc**: reduce GitHub template verbosity (Rich Trott) [#6801](https://github.com/nodejs/node/pull/6801)
+* [[`717c4f2d58`](https://github.com/nodejs/node/commit/717c4f2d58)] - **doc**: improve vm.md copy (James M Snell) [#6827](https://github.com/nodejs/node/pull/6827)
+* [[`cb5ef10e95`](https://github.com/nodejs/node/commit/cb5ef10e95)] - **doc**: Add resolveNaptr and naptr rrtype docs (Doug Wade) [#6586](https://github.com/nodejs/node/pull/6586)
+* [[`ee9226e2ec`](https://github.com/nodejs/node/commit/ee9226e2ec)] - **doc**: fix name to match git log (Robert Jefe Lindstaedt) [#6880](https://github.com/nodejs/node/pull/6880)
+* [[`6d71cbc6f2`](https://github.com/nodejs/node/commit/6d71cbc6f2)] - **doc**: add note for fs.watch virtualized env (Robert Jefe Lindstaedt) [#6809](https://github.com/nodejs/node/pull/6809)
+* [[`ebf6c11b25`](https://github.com/nodejs/node/commit/ebf6c11b25)] - **doc**: add `added:` information for punycode (Daniel Wang) [#6805](https://github.com/nodejs/node/pull/6805)
+* [[`737933e62c`](https://github.com/nodejs/node/commit/737933e62c)] - **doc**: add `added:` info for `dgram.*Membership()` (Rich Trott) [#6753](https://github.com/nodejs/node/pull/6753)
+* [[`3d7ce17148`](https://github.com/nodejs/node/commit/3d7ce17148)] - **doc**: clarify fs.mkdtemp prefix argument (James M Snell) [#6800](https://github.com/nodejs/node/pull/6800)
+* [[`69fcbd8bfc`](https://github.com/nodejs/node/commit/69fcbd8bfc)] - **doc**: add `added:` information for fs (Anna Henningsen) [#6717](https://github.com/nodejs/node/pull/6717)
+* [[`68c2d142da`](https://github.com/nodejs/node/commit/68c2d142da)] - **doc**: remove link to Sign in crypto.md (Kirill Fomichev) [#6812](https://github.com/nodejs/node/pull/6812)
+* [[`1d26d694ae`](https://github.com/nodejs/node/commit/1d26d694ae)] - **doc**: add `added:` in for `tty` (Rich Trott) [#6783](https://github.com/nodejs/node/pull/6783)
+* [[`d1abf7455d`](https://github.com/nodejs/node/commit/d1abf7455d)] - **doc**: update openssl.org hash links (silverwind) [#6817](https://github.com/nodejs/node/pull/6817)
+* [[`c7fa21f943`](https://github.com/nodejs/node/commit/c7fa21f943)] - **fs**: move `mkdtemp*` functions near static functions (Sakthipriyan Vairamani) [#6828](https://github.com/nodejs/node/pull/6828)
+* [[`5fbcbdb07a`](https://github.com/nodejs/node/commit/5fbcbdb07a)] - **fs**: mkdtemp shouldn't crash if no callback passed (Sakthipriyan Vairamani) [#6828](https://github.com/nodejs/node/pull/6828)
+* [[`a3b3a47dfa`](https://github.com/nodejs/node/commit/a3b3a47dfa)] - **http**: use `localAddress` instead of `path` (Dirceu Pereira Tiegs) [#5190](https://github.com/nodejs/node/pull/5190)
+* [[`efdc1d305f`](https://github.com/nodejs/node/commit/efdc1d305f)] - **installer**: don't install node_internals.h (Ben Noordhuis) [#6913](https://github.com/nodejs/node/pull/6913)
+* [[`6f78965140`](https://github.com/nodejs/node/commit/6f78965140)] - **path**: fix basename() regressions (Brian White) [#6590](https://github.com/nodejs/node/pull/6590)
+* [[`4602a9a2ed`](https://github.com/nodejs/node/commit/4602a9a2ed)] - **process**: internal/process/stdio.js cleanup / modernization (James M Snell) [#6766](https://github.com/nodejs/node/pull/6766)
+* [[`ee32678be0`](https://github.com/nodejs/node/commit/ee32678be0)] - **src**: fix without-intl build (Anna Henningsen) [#6820](https://github.com/nodejs/node/pull/6820)
+* [[`cd86ec6674`](https://github.com/nodejs/node/commit/cd86ec6674)] - **test**: fix component printing on windows (Ben Noordhuis) [#6915](https://github.com/nodejs/node/pull/6915)
+* [[`0899ccd99b`](https://github.com/nodejs/node/commit/0899ccd99b)] - **test**: refactor to eliminate `__defineGetter__` (Rich Trott) [#6774](https://github.com/nodejs/node/pull/6774)
+* [[`add62c6502`](https://github.com/nodejs/node/commit/add62c6502)] - **test**: refactor test-tls-reuse-host-from-socket (Rich Trott) [#6756](https://github.com/nodejs/node/pull/6756)
+* [[`8abd7a61ea`](https://github.com/nodejs/node/commit/8abd7a61ea)] - **test**: fix test-debug-port-cluster flakiness (Rich Trott) [#6769](https://github.com/nodejs/node/pull/6769)
+* [[`2ee4ed48c6`](https://github.com/nodejs/node/commit/2ee4ed48c6)] - **test**: add logging for test-debug-port-cluster (Rich Trott) [#6769](https://github.com/nodejs/node/pull/6769)
+* [[`e0116e323a`](https://github.com/nodejs/node/commit/e0116e323a)] - **test**: fix flaky test-stdout-close-catch (Santiago Gimeno) [#6808](https://github.com/nodejs/node/pull/6808)
+* [[`419dc2fc5d`](https://github.com/nodejs/node/commit/419dc2fc5d)] - **test**: add more path.basename() tests (Brian White) [#6590](https://github.com/nodejs/node/pull/6590)
+* [[`3d0c95cae8`](https://github.com/nodejs/node/commit/3d0c95cae8)] - **test**: remove duplicate path tests (Brian White) [#6590](https://github.com/nodejs/node/pull/6590)
+* [[`8fca962e6a`](https://github.com/nodejs/node/commit/8fca962e6a)] - **test**: robust handling of env for npm-test-install (Myles Borins) [#6797](https://github.com/nodejs/node/pull/6797)
+* [[`d4f3ba18af`](https://github.com/nodejs/node/commit/d4f3ba18af)] - **test**: cluster-setup-master online workers check (Devon Rifkin) [#6535](https://github.com/nodejs/node/pull/6535)
+* [[`b732f2bba0`](https://github.com/nodejs/node/commit/b732f2bba0)] - **test**: added tests for https-agent-getname (suryagh) [#6762](https://github.com/nodejs/node/pull/6762)
+* [[`2280b63a22`](https://github.com/nodejs/node/commit/2280b63a22)] - **test**: add --repeat option to tools/test.py (Michael Dawson) [#6700](https://github.com/nodejs/node/pull/6700)
+* [[`eeb0b9e67a`](https://github.com/nodejs/node/commit/eeb0b9e67a)] - **tools**: disallow deprecated define getter/setter (Rich Trott) [#6774](https://github.com/nodejs/node/pull/6774)
+* [[`f17e737876`](https://github.com/nodejs/node/commit/f17e737876)] - **tools**: print stderr on bad test.py `vmArch` check (Jeremiah Senkpiel) [#6786](https://github.com/nodejs/node/pull/6786)
+* [[`e4f0f041cf`](https://github.com/nodejs/node/commit/e4f0f041cf)] - **unix,stream**: fix getting the correct fd for a handle (Saúl Ibarra Corretgé) [#6753](https://github.com/nodejs/node/pull/6753)
+* [[`3e4dd1a4bd`](https://github.com/nodejs/node/commit/3e4dd1a4bd)] - **util**: pretty-print SIMD types (Ben Noordhuis) [#6917](https://github.com/nodejs/node/pull/6917)
+* [[`46003f0204`](https://github.com/nodejs/node/commit/46003f0204)] - **zlib**: remove `_closed` in source (Anna Henningsen) [#6574](https://github.com/nodejs/node/pull/6574)
+
 <a id="6.2.0"></a>
 ## 2016-05-17, Version 6.2.0 (Current), @evanlucas
 
@@ -44,7 +107,7 @@ October 2016.
 - **src,module**: add --preserve-symlinks command line flag (James M Snell) [#6537](https://github.com/nodejs/node/pull/6537)
 - **util**: adhere to `noDeprecation` set at runtime (Anna Henningsen) [#6683](https://github.com/nodejs/node/pull/6683)
 
-As of this release the 6.X line now includes 64-bit binaries for Linux on Power Systems 
+As of this release the 6.X line now includes 64-bit binaries for Linux on Power Systems
 running in big endian mode in addition to the existing 64-bit binaries for running in little endian mode.
 
 ### Commits

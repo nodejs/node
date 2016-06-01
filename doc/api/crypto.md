@@ -734,7 +734,7 @@ console.log(sign.sign(private_key, 'hex'));
   // Prints the calculated signature
 ```
 
-A [`sign`][] instance can also be created by just passing in the digest
+A `Sign` instance can also be created by just passing in the digest
 algorithm name, in which case OpenSSL will infer the full signature algorithm
 from the type of the PEM-formatted private key, including algorithms that
 do not have directly exposed name constants, e.g. 'ecdsa-with-SHA256'.
@@ -1408,7 +1408,7 @@ See the reference for other recommendations and details.
 [`hmac.update()`]: #crypto_hmac_update_data_input_encoding
 [`sign.sign()`]: #crypto_sign_sign_private_key_output_format
 [`sign.update()`]: #crypto_sign_update_data_input_encoding
-[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_details
+[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`verify.update()`]: #crypto_verifier_update_data_input_encoding
 [`verify.verify()`]: #crypto_verifier_verify_object_signature_signature_format
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
@@ -1416,7 +1416,7 @@ See the reference for other recommendations and details.
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
-[OpenSSL cipher list format]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
+[OpenSSL cipher list format]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/apps/spkac.html
 [publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt

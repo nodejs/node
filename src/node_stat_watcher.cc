@@ -84,7 +84,8 @@ void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
 void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 3);
 
-  StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
+  StatWatcher* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   node::Utf8Value path(args.GetIsolate(), args[0]);
   const bool persistent = args[1]->BooleanValue();
   const uint32_t interval = args[2]->Uint32Value();
@@ -97,7 +98,8 @@ void StatWatcher::Start(const FunctionCallbackInfo<Value>& args) {
 
 
 void StatWatcher::Stop(const FunctionCallbackInfo<Value>& args) {
-  StatWatcher* wrap = Unwrap<StatWatcher>(args.Holder());
+  StatWatcher* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   Environment* env = wrap->env();
   Context::Scope context_scope(env->context());
   wrap->MakeCallback(env->onstop_string(), 0, nullptr);
