@@ -4385,9 +4385,15 @@ static void StartNodeInstance(void* arg) {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
-    IsolateData isolate_data(isolate, instance_data->event_loop());
     Local<Context> context = Context::New(isolate);
     Context::Scope context_scope(context);
+
+    // FIXME(bnoordhuis) Work around V8 bug: v8::Private::ForApi() dereferences
+    // a nullptr when a context hasn't been entered first.  The symbol registry
+    // is a lazily created JS object but object instantiation does not work
+    // without a context.
+    IsolateData isolate_data(isolate, instance_data->event_loop());
+
     Environment* env = CreateEnvironment(&isolate_data,
                                          context,
                                          instance_data->argc(),
