@@ -302,47 +302,6 @@ struct ares_task_t {
 
 RB_HEAD(ares_task_list, ares_task_t);
 
-class IsolateData {
- public:
-  static inline IsolateData* GetOrCreate(v8::Isolate* isolate, uv_loop_t* loop);
-  inline void Put();
-  inline uv_loop_t* event_loop() const;
-
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
-#define V(TypeName, PropertyName, StringValue)                                \
-  inline v8::Local<TypeName> PropertyName() const;
-  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
-  PER_ISOLATE_STRING_PROPERTIES(VS)
-#undef V
-#undef VS
-#undef VP
-
- private:
-  static const int kIsolateSlot = NODE_ISOLATE_SLOT;
-
-  inline static IsolateData* Get(v8::Isolate* isolate);
-  inline explicit IsolateData(v8::Isolate* isolate, uv_loop_t* loop);
-  inline v8::Isolate* isolate() const;
-
-  uv_loop_t* const event_loop_;
-  v8::Isolate* const isolate_;
-
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
-#define V(TypeName, PropertyName, StringValue)                                \
-  v8::Eternal<TypeName> PropertyName ## _;
-  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
-  PER_ISOLATE_STRING_PROPERTIES(VS)
-#undef V
-#undef VS
-#undef VP
-
-  unsigned int ref_count_;
-
-  DISALLOW_COPY_AND_ASSIGN(IsolateData);
-};
-
 class Environment {
  public:
   class AsyncHooks {
@@ -609,6 +568,9 @@ class Environment {
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
  private:
+  static const int kIsolateSlot = NODE_ISOLATE_SLOT;
+
+  class IsolateData;
   inline Environment(v8::Local<v8::Context> context, uv_loop_t* loop);
   inline ~Environment();
   inline IsolateData* isolate_data() const;
@@ -652,6 +614,47 @@ class Environment {
   v8::Persistent<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
+
+  // Per-thread, reference-counted singleton.
+  class IsolateData {
+   public:
+    static inline IsolateData* GetOrCreate(v8::Isolate* isolate,
+                                           uv_loop_t* loop);
+    inline void Put();
+    inline uv_loop_t* event_loop() const;
+
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
+#define V(TypeName, PropertyName, StringValue)                                \
+    inline v8::Local<TypeName> PropertyName() const;
+    PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+    PER_ISOLATE_STRING_PROPERTIES(VS)
+#undef V
+#undef VS
+#undef VP
+
+   private:
+    inline static IsolateData* Get(v8::Isolate* isolate);
+    inline explicit IsolateData(v8::Isolate* isolate, uv_loop_t* loop);
+    inline v8::Isolate* isolate() const;
+
+    uv_loop_t* const event_loop_;
+    v8::Isolate* const isolate_;
+
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
+#define V(TypeName, PropertyName, StringValue)                                \
+    v8::Eternal<TypeName> PropertyName ## _;
+    PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+    PER_ISOLATE_STRING_PROPERTIES(VS)
+#undef V
+#undef VS
+#undef VP
+
+    unsigned int ref_count_;
+
+    DISALLOW_COPY_AND_ASSIGN(IsolateData);
+  };
 
   DISALLOW_COPY_AND_ASSIGN(Environment);
 };
