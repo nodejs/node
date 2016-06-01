@@ -358,7 +358,7 @@ emits a `'data'` event.
 
 ### Event: 'drain'
 <!-- YAML
-added: v0.3.2
+added: v0.1.90
 -->
 
 Emitted when the write buffer becomes empty. Can be used to throttle uploads.
