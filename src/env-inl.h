@@ -134,13 +134,6 @@ inline void Environment::TickInfo::set_index(uint32_t value) {
   fields_[kIndex] = value;
 }
 
-inline Environment* Environment::New(IsolateData* isolate_data,
-                                     v8::Local<v8::Context> context) {
-  Environment* env = new Environment(isolate_data, context);
-  env->AssignToContext(context);
-  return env;
-}
-
 inline void Environment::AssignToContext(v8::Local<v8::Context> context) {
   context->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex, this);
 }
@@ -184,6 +177,7 @@ inline Environment::Environment(IsolateData* isolate_data,
 #if HAVE_INSPECTOR
       inspector_agent_(this),
 #endif
+      handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
@@ -200,11 +194,20 @@ inline Environment::Environment(IsolateData* isolate_data,
   set_generic_internal_field_template(obj);
 
   RB_INIT(&cares_task_list_);
-  handle_cleanup_waiting_ = 0;
+  AssignToContext(context);
 }
 
 inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
+
+  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront()) {
+    handle_cleanup_waiting_++;
+    hc->cb_(this, hc->handle_, hc->arg_);
+    delete hc;
+  }
+
+  while (handle_cleanup_waiting_ != 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
                                              nullptr);
@@ -215,21 +218,6 @@ inline Environment::~Environment() {
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
   delete[] http_parser_buffer_;
-}
-
-inline void Environment::CleanupHandles() {
-  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront()) {
-    handle_cleanup_waiting_++;
-    hc->cb_(this, hc->handle_, hc->arg_);
-    delete hc;
-  }
-
-  while (handle_cleanup_waiting_ != 0)
-    uv_run(event_loop(), UV_RUN_ONCE);
-}
-
-inline void Environment::Dispose() {
-  delete this;
 }
 
 inline v8::Isolate* Environment::isolate() const {

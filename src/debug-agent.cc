@@ -174,31 +174,24 @@ void Agent::WorkerRun() {
     Local<Context> context = Context::New(isolate);
 
     Context::Scope context_scope(context);
-    Environment* env = CreateEnvironment(
-        &isolate_data,
-        context,
-        arraysize(argv),
-        argv,
-        arraysize(argv),
-        argv);
+    Environment env(&isolate_data, context);
 
-    child_env_ = env;
+    const bool start_profiler_idle_notifier = false;
+    env.Start(arraysize(argv), argv,
+              arraysize(argv), argv,
+              start_profiler_idle_notifier);
+
+    child_env_ = &env;
 
     // Expose API
-    InitAdaptor(env);
-    LoadEnvironment(env);
+    InitAdaptor(&env);
+    LoadEnvironment(&env);
 
-    CHECK_EQ(&child_loop_, env->event_loop());
+    CHECK_EQ(&child_loop_, env.event_loop());
     uv_run(&child_loop_, UV_RUN_DEFAULT);
 
     // Clean-up peristent
     api_.Reset();
-
-    // Clean-up all running handles
-    env->CleanupHandles();
-
-    env->Dispose();
-    env = nullptr;
   }
   isolate->Dispose();
 }

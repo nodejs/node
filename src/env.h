@@ -446,17 +446,14 @@ class Environment {
   static inline Environment* GetCurrent(
       const v8::PropertyCallbackInfo<T>& info);
 
-  // See CreateEnvironment() in src/node.cc.
-  static inline Environment* New(IsolateData* isolate_data,
-                                 v8::Local<v8::Context> context);
+  inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
+  inline ~Environment();
+
   void Start(int argc,
              const char* const* argv,
              int exec_argc,
              const char* const* exec_argv,
              bool start_profiler_idle_notifier);
-  inline void CleanupHandles();
-  inline void Dispose();
-
   void AssignToContext(v8::Local<v8::Context> context);
 
   void StartProfilerIdleNotifier();
@@ -472,7 +469,7 @@ class Environment {
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
 
-  // Register clean-up cb to be called on env->Dispose()
+  // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
                                     HandleCleanupCb cb,
                                     void *arg);
@@ -584,9 +581,6 @@ class Environment {
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
  private:
-  inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
-  inline ~Environment();
-
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
   uv_check_t immediate_check_handle_;
