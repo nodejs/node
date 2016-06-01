@@ -101,7 +101,6 @@ using v8::Exception;
 using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::HeapStatistics;
 using v8::Integer;
@@ -2864,39 +2863,15 @@ static void NeedImmediateCallbackSetter(
 }
 
 
-void SetIdle(uv_prepare_t* handle) {
-  Environment* env = Environment::from_idle_prepare_handle(handle);
-  env->isolate()->GetCpuProfiler()->SetIdle(true);
-}
-
-
-void ClearIdle(uv_check_t* handle) {
-  Environment* env = Environment::from_idle_check_handle(handle);
-  env->isolate()->GetCpuProfiler()->SetIdle(false);
-}
-
-
-void StartProfilerIdleNotifier(Environment* env) {
-  uv_prepare_start(env->idle_prepare_handle(), SetIdle);
-  uv_check_start(env->idle_check_handle(), ClearIdle);
-}
-
-
-void StopProfilerIdleNotifier(Environment* env) {
-  uv_prepare_stop(env->idle_prepare_handle());
-  uv_check_stop(env->idle_check_handle());
-}
-
-
 void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  StartProfilerIdleNotifier(env);
+  env->StartProfilerIdleNotifier();
 }
 
 
 void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  StopProfilerIdleNotifier(env);
+  env->StopProfilerIdleNotifier();
 }
 
 
@@ -4262,20 +4237,6 @@ int EmitExit(Environment* env) {
 }
 
 
-static void HandleCloseCb(uv_handle_t* handle) {
-  Environment* env = reinterpret_cast<Environment*>(handle->data);
-  env->FinishHandleCleanup(handle);
-}
-
-
-static void HandleCleanup(Environment* env,
-                          uv_handle_t* handle,
-                          void* arg) {
-  handle->data = env;
-  uv_close(handle, HandleCloseCb);
-}
-
-
 IsolateData* CreateIsolateData(Isolate* isolate, uv_loop_t* loop) {
   return new IsolateData(isolate, loop);
 }
@@ -4294,64 +4255,9 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
                                const char* const* exec_argv) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
-
   Context::Scope context_scope(context);
   Environment* env = Environment::New(isolate_data, context);
-
-  isolate->SetAutorunMicrotasks(false);
-
-  uv_check_init(env->event_loop(), env->immediate_check_handle());
-  uv_unref(
-      reinterpret_cast<uv_handle_t*>(env->immediate_check_handle()));
-
-  uv_idle_init(env->event_loop(), env->immediate_idle_handle());
-
-  // Inform V8's CPU profiler when we're idle.  The profiler is sampling-based
-  // but not all samples are created equal; mark the wall clock time spent in
-  // epoll_wait() and friends so profiling tools can filter it out.  The samples
-  // still end up in v8.log but with state=IDLE rather than state=EXTERNAL.
-  // TODO(bnoordhuis) Depends on a libuv implementation detail that we should
-  // probably fortify in the API contract, namely that the last started prepare
-  // or check watcher runs first.  It's not 100% foolproof; if an add-on starts
-  // a prepare or check watcher after us, any samples attributed to its callback
-  // will be recorded with state=IDLE.
-  uv_prepare_init(env->event_loop(), env->idle_prepare_handle());
-  uv_check_init(env->event_loop(), env->idle_check_handle());
-  uv_unref(reinterpret_cast<uv_handle_t*>(env->idle_prepare_handle()));
-  uv_unref(reinterpret_cast<uv_handle_t*>(env->idle_check_handle()));
-
-  // Register handle cleanups
-  env->RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(env->immediate_check_handle()),
-      HandleCleanup,
-      nullptr);
-  env->RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(env->immediate_idle_handle()),
-      HandleCleanup,
-      nullptr);
-  env->RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(env->idle_prepare_handle()),
-      HandleCleanup,
-      nullptr);
-  env->RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(env->idle_check_handle()),
-      HandleCleanup,
-      nullptr);
-
-  if (v8_is_profiling) {
-    StartProfilerIdleNotifier(env);
-  }
-
-  Local<FunctionTemplate> process_template = FunctionTemplate::New(isolate);
-  process_template->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "process"));
-
-  Local<Object> process_object =
-      process_template->GetFunction()->NewInstance(context).ToLocalChecked();
-  env->set_process_object(process_object);
-
-  SetupProcessObject(env, argc, argv, exec_argc, exec_argv);
-  LoadAsyncWrapperInfo(env);
-
+  env->Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
   return env;
 }
 

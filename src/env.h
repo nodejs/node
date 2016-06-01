@@ -449,10 +449,18 @@ class Environment {
   // See CreateEnvironment() in src/node.cc.
   static inline Environment* New(IsolateData* isolate_data,
                                  v8::Local<v8::Context> context);
+  void Start(int argc,
+             const char* const* argv,
+             int exec_argc,
+             const char* const* exec_argv,
+             bool start_profiler_idle_notifier);
   inline void CleanupHandles();
   inline void Dispose();
 
   void AssignToContext(v8::Local<v8::Context> context);
+
+  void StartProfilerIdleNotifier();
+  void StopProfilerIdleNotifier();
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
@@ -463,12 +471,6 @@ class Environment {
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
-
-  static inline Environment* from_idle_prepare_handle(uv_prepare_t* handle);
-  inline uv_prepare_t* idle_prepare_handle();
-
-  static inline Environment* from_idle_check_handle(uv_check_t* handle);
-  inline uv_check_t* idle_check_handle();
 
   // Register clean-up cb to be called on env->Dispose()
   inline void RegisterHandleCleanup(uv_handle_t* handle,
