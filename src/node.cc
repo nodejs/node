@@ -971,9 +971,11 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
 
 void* ArrayBufferAllocator::Allocate(size_t size) {
-  if (zero_fill_field_ || zero_fill_all_buffers)
+  if (env_ == nullptr ||
+      !env_->array_buffer_allocator_info()->no_zero_fill() ||
+      zero_fill_all_buffers)
     return calloc(size, 1);
-  zero_fill_field_ = 1;
+  env_->array_buffer_allocator_info()->reset_fill_flag();
   return malloc(size);
 }
 
@@ -4361,8 +4363,8 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
 static void StartNodeInstance(void* arg) {
   NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
   Isolate::CreateParams params;
-  ArrayBufferAllocator array_buffer_allocator;
-  params.array_buffer_allocator = &array_buffer_allocator;
+  ArrayBufferAllocator* array_buffer_allocator = new ArrayBufferAllocator();
+  params.array_buffer_allocator = array_buffer_allocator;
 #ifdef NODE_ENABLE_VTUNE_PROFILING
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
@@ -4383,8 +4385,7 @@ static void StartNodeInstance(void* arg) {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
-    IsolateData isolate_data(isolate, instance_data->event_loop(),
-                             array_buffer_allocator.zero_fill_field());
+    IsolateData isolate_data(isolate, instance_data->event_loop());
     Local<Context> context = Context::New(isolate);
     Context::Scope context_scope(context);
     Environment* env = CreateEnvironment(&isolate_data,
@@ -4393,6 +4394,8 @@ static void StartNodeInstance(void* arg) {
                                          instance_data->argv(),
                                          instance_data->exec_argc(),
                                          instance_data->exec_argv());
+
+    array_buffer_allocator->set_env(env);
 
     isolate->SetAbortOnUncaughtExceptionCallback(
         ShouldAbortOnUncaughtException);
@@ -4461,6 +4464,7 @@ static void StartNodeInstance(void* arg) {
     __lsan_do_leak_check();
 #endif
 
+    array_buffer_allocator->set_env(nullptr);
     env->Dispose();
     env = nullptr;
   }
@@ -4473,6 +4477,7 @@ static void StartNodeInstance(void* arg) {
   CHECK_NE(isolate, nullptr);
   isolate->Dispose();
   isolate = nullptr;
+  delete array_buffer_allocator;
 }
 
 int Start(int argc, char** argv) {

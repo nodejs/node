@@ -24,8 +24,7 @@ namespace node {
 //
 // One byte because our strings are ASCII and we can safely skip V8's UTF-8
 // decoding step.  It's a one-time cost, but why pay it when you don't have to?
-inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
-                                uint32_t* zero_fill_field)
+inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop)
     :
 #define V(PropertyName, StringValue)                                          \
     PropertyName ## _(                                                        \
@@ -49,15 +48,10 @@ inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
             sizeof(StringValue) - 1).ToLocalChecked()),
     PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
-    isolate_(isolate), event_loop_(event_loop),
-    zero_fill_field_(zero_fill_field) {}
+    isolate_(isolate), event_loop_(event_loop) {}
 
 inline uv_loop_t* IsolateData::event_loop() const {
   return event_loop_;
-}
-
-inline uint32_t* IsolateData::zero_fill_field() const {
-  return zero_fill_field_;
 }
 
 inline Environment::AsyncHooks::AsyncHooks() {
@@ -132,6 +126,27 @@ inline uint32_t Environment::TickInfo::length() const {
 
 inline void Environment::TickInfo::set_index(uint32_t value) {
   fields_[kIndex] = value;
+}
+
+inline Environment::ArrayBufferAllocatorInfo::ArrayBufferAllocatorInfo() {
+  for (int i = 0; i < kFieldsCount; ++i)
+    fields_[i] = 0;
+}
+
+inline uint32_t* Environment::ArrayBufferAllocatorInfo::fields() {
+  return fields_;
+}
+
+inline int Environment::ArrayBufferAllocatorInfo::fields_count() const {
+  return kFieldsCount;
+}
+
+inline bool Environment::ArrayBufferAllocatorInfo::no_zero_fill() const {
+  return fields_[kNoZeroFill] != 0;
+}
+
+inline void Environment::ArrayBufferAllocatorInfo::reset_fill_flag() {
+  fields_[kNoZeroFill] = 0;
 }
 
 inline Environment* Environment::New(IsolateData* isolate_data,
@@ -301,6 +316,11 @@ inline Environment::DomainFlag* Environment::domain_flag() {
 
 inline Environment::TickInfo* Environment::tick_info() {
   return &tick_info_;
+}
+
+inline Environment::ArrayBufferAllocatorInfo*
+    Environment::array_buffer_allocator_info() {
+  return &array_buffer_allocator_info_;
 }
 
 inline uint64_t Environment::timer_base() const {

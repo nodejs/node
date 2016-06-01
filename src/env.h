@@ -304,10 +304,8 @@ RB_HEAD(ares_task_list, ares_task_t);
 
 class IsolateData {
  public:
-  inline IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
-                     uint32_t* zero_fill_field = nullptr);
+  inline IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop);
   inline uv_loop_t* event_loop() const;
-  inline uint32_t* zero_fill_field() const;
 
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
@@ -332,7 +330,6 @@ class IsolateData {
 
   v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
-  uint32_t* const zero_fill_field_;
 
   DISALLOW_COPY_AND_ASSIGN(IsolateData);
 };
@@ -417,6 +414,27 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
 
+  class ArrayBufferAllocatorInfo {
+   public:
+    inline uint32_t* fields();
+    inline int fields_count() const;
+    inline bool no_zero_fill() const;
+    inline void reset_fill_flag();
+
+   private:
+    friend class Environment;  // So we can call the constructor.
+    inline ArrayBufferAllocatorInfo();
+
+    enum Fields {
+      kNoZeroFill,
+      kFieldsCount
+    };
+
+    uint32_t fields_[kFieldsCount];
+
+    DISALLOW_COPY_AND_ASSIGN(ArrayBufferAllocatorInfo);
+  };
+
   typedef void (*HandleCleanupCb)(Environment* env,
                                   uv_handle_t* handle,
                                   void* arg);
@@ -479,6 +497,7 @@ class Environment {
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
+  inline ArrayBufferAllocatorInfo* array_buffer_allocator_info();
   inline uint64_t timer_base() const;
 
   static inline Environment* from_cares_timer_handle(uv_timer_t* handle);
@@ -486,7 +505,6 @@ class Environment {
   inline ares_channel cares_channel();
   inline ares_channel* cares_channel_ptr();
   inline ares_task_list* cares_task_list();
-  inline IsolateData* isolate_data() const;
 
   inline bool using_domains() const;
   inline void set_using_domains(bool value);
@@ -584,6 +602,7 @@ class Environment {
  private:
   inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
   inline ~Environment();
+  inline IsolateData* isolate_data() const;
 
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
@@ -594,6 +613,7 @@ class Environment {
   AsyncHooks async_hooks_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
+  ArrayBufferAllocatorInfo array_buffer_allocator_info_;
   const uint64_t timer_base_;
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;

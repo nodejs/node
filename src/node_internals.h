@@ -204,14 +204,16 @@ void ThrowUVException(v8::Isolate* isolate,
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
+  ArrayBufferAllocator() : env_(nullptr) { }
+
+  inline void set_env(Environment* env) { env_ = env; }
 
   virtual void* Allocate(size_t size);  // Defined in src/node.cc
   virtual void* AllocateUninitialized(size_t size) { return malloc(size); }
   virtual void Free(void* data, size_t) { free(data); }
 
  private:
-  uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
+  Environment* env_;
 };
 
 // Clear any domain and/or uncaughtException handlers to force the error's

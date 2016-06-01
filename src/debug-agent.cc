@@ -169,8 +169,7 @@ void Agent::WorkerRun() {
     Isolate::Scope isolate_scope(isolate);
 
     HandleScope handle_scope(isolate);
-    IsolateData isolate_data(isolate, &child_loop_,
-                             array_buffer_allocator.zero_fill_field());
+    IsolateData isolate_data(isolate, &child_loop_);
     Local<Context> context = Context::New(isolate);
 
     Context::Scope context_scope(context);
