@@ -107,6 +107,20 @@ added: v0.11.14
 
 Throw errors for deprecations.
 
+### `--debug=<port>`
+<!-- YAML
+added: v6.2.0
+-->
+
+listen for debugger commands on user specified port. If port is not specified e.g `--debug` then use 5858 as default.
+
+### `--debug-brk=<port>`
+<!-- YAML
+added: v6.2.0
+-->
+
+same as --debug but break on first line waiting for a client to connect.
+
 ### `--no-warnings`
 <!-- YAML
 added: v6.0.0
