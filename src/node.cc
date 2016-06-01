@@ -971,9 +971,11 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
 
 void* ArrayBufferAllocator::Allocate(size_t size) {
-  if (zero_fill_field_ || zero_fill_all_buffers)
+  if (env_ == nullptr ||
+      !env_->array_buffer_allocator_info()->no_zero_fill() ||
+      zero_fill_all_buffers)
     return calloc(size, 1);
-  zero_fill_field_ = 1;
+  env_->array_buffer_allocator_info()->reset_fill_flag();
   return malloc(size);
 }
 
@@ -4262,6 +4264,42 @@ int EmitExit(Environment* env) {
 }
 
 
+// Just a convenience method
+Environment* CreateEnvironment(Isolate* isolate,
+                               Local<Context> context,
+                               int argc,
+                               const char* const* argv,
+                               int exec_argc,
+                               const char* const* exec_argv) {
+  Environment* env;
+  Context::Scope context_scope(context);
+
+  env = CreateEnvironment(isolate,
+                          uv_default_loop(),
+                          context,
+                          argc,
+                          argv,
+                          exec_argc,
+                          exec_argv);
+
+  LoadEnvironment(env);
+
+  return env;
+}
+
+static Environment* CreateEnvironment(Isolate* isolate,
+                                      Local<Context> context,
+                                      NodeInstanceData* instance_data) {
+  return CreateEnvironment(isolate,
+                           instance_data->event_loop(),
+                           context,
+                           instance_data->argc(),
+                           instance_data->argv(),
+                           instance_data->exec_argc(),
+                           instance_data->exec_argv());
+}
+
+
 static void HandleCloseCb(uv_handle_t* handle) {
   Environment* env = reinterpret_cast<Environment*>(handle->data);
   env->FinishHandleCleanup(handle);
@@ -4276,27 +4314,17 @@ static void HandleCleanup(Environment* env,
 }
 
 
-IsolateData* CreateIsolateData(Isolate* isolate, uv_loop_t* loop) {
-  return new IsolateData(isolate, loop);
-}
-
-
-void FreeIsolateData(IsolateData* isolate_data) {
-  delete isolate_data;
-}
-
-
-Environment* CreateEnvironment(IsolateData* isolate_data,
+Environment* CreateEnvironment(Isolate* isolate,
+                               uv_loop_t* loop,
                                Local<Context> context,
                                int argc,
                                const char* const* argv,
                                int exec_argc,
                                const char* const* exec_argv) {
-  Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
   Context::Scope context_scope(context);
-  Environment* env = Environment::New(isolate_data, context);
+  Environment* env = Environment::New(context, loop);
 
   isolate->SetAutorunMicrotasks(false);
 
@@ -4361,8 +4389,8 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
 static void StartNodeInstance(void* arg) {
   NodeInstanceData* instance_data = static_cast<NodeInstanceData*>(arg);
   Isolate::CreateParams params;
-  ArrayBufferAllocator array_buffer_allocator;
-  params.array_buffer_allocator = &array_buffer_allocator;
+  ArrayBufferAllocator* array_buffer_allocator = new ArrayBufferAllocator();
+  params.array_buffer_allocator = array_buffer_allocator;
 #ifdef NODE_ENABLE_VTUNE_PROFILING
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
@@ -4383,16 +4411,10 @@ static void StartNodeInstance(void* arg) {
     Locker locker(isolate);
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
-    IsolateData isolate_data(isolate, instance_data->event_loop(),
-                             array_buffer_allocator.zero_fill_field());
     Local<Context> context = Context::New(isolate);
+    Environment* env = CreateEnvironment(isolate, context, instance_data);
+    array_buffer_allocator->set_env(env);
     Context::Scope context_scope(context);
-    Environment* env = CreateEnvironment(&isolate_data,
-                                         context,
-                                         instance_data->argc(),
-                                         instance_data->argv(),
-                                         instance_data->exec_argc(),
-                                         instance_data->exec_argv());
 
     isolate->SetAbortOnUncaughtExceptionCallback(
         ShouldAbortOnUncaughtException);
@@ -4461,6 +4483,7 @@ static void StartNodeInstance(void* arg) {
     __lsan_do_leak_check();
 #endif
 
+    array_buffer_allocator->set_env(nullptr);
     env->Dispose();
     env = nullptr;
   }
@@ -4473,6 +4496,7 @@ static void StartNodeInstance(void* arg) {
   CHECK_NE(isolate, nullptr);
   isolate->Dispose();
   isolate = nullptr;
+  delete array_buffer_allocator;
 }
 
 int Start(int argc, char** argv) {

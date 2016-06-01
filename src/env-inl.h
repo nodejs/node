@@ -15,6 +15,29 @@
 
 namespace node {
 
+inline Environment::IsolateData* Environment::IsolateData::Get(
+    v8::Isolate* isolate) {
+  return static_cast<IsolateData*>(isolate->GetData(kIsolateSlot));
+}
+
+inline Environment::IsolateData* Environment::IsolateData::GetOrCreate(
+    v8::Isolate* isolate, uv_loop_t* loop) {
+  IsolateData* isolate_data = Get(isolate);
+  if (isolate_data == nullptr) {
+    isolate_data = new IsolateData(isolate, loop);
+    isolate->SetData(kIsolateSlot, isolate_data);
+  }
+  isolate_data->ref_count_ += 1;
+  return isolate_data;
+}
+
+inline void Environment::IsolateData::Put() {
+  if (--ref_count_ == 0) {
+    isolate()->SetData(kIsolateSlot, nullptr);
+    delete this;
+  }
+}
+
 // Create string properties as internalized one byte strings.
 //
 // Internalized because it makes property lookups a little faster and because
@@ -24,13 +47,14 @@ namespace node {
 //
 // One byte because our strings are ASCII and we can safely skip V8's UTF-8
 // decoding step.  It's a one-time cost, but why pay it when you don't have to?
-inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
-                                uint32_t* zero_fill_field)
-    :
+inline Environment::IsolateData::IsolateData(v8::Isolate* isolate,
+                                             uv_loop_t* loop)
+    : event_loop_(loop),
+      isolate_(isolate),
 #define V(PropertyName, StringValue)                                          \
     PropertyName ## _(                                                        \
         isolate,                                                              \
-        v8::Private::New(                                                     \
+        v8::Private::ForApi(                                                  \
             isolate,                                                          \
             v8::String::NewFromOneByte(                                       \
                 isolate,                                                      \
@@ -49,15 +73,14 @@ inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
             sizeof(StringValue) - 1).ToLocalChecked()),
     PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
-    isolate_(isolate), event_loop_(event_loop),
-    zero_fill_field_(zero_fill_field) {}
+    ref_count_(0) {}
 
-inline uv_loop_t* IsolateData::event_loop() const {
+inline uv_loop_t* Environment::IsolateData::event_loop() const {
   return event_loop_;
 }
 
-inline uint32_t* IsolateData::zero_fill_field() const {
-  return zero_fill_field_;
+inline v8::Isolate* Environment::IsolateData::isolate() const {
+  return isolate_;
 }
 
 inline Environment::AsyncHooks::AsyncHooks() {
@@ -134,9 +157,30 @@ inline void Environment::TickInfo::set_index(uint32_t value) {
   fields_[kIndex] = value;
 }
 
-inline Environment* Environment::New(IsolateData* isolate_data,
-                                     v8::Local<v8::Context> context) {
-  Environment* env = new Environment(isolate_data, context);
+inline Environment::ArrayBufferAllocatorInfo::ArrayBufferAllocatorInfo() {
+  for (int i = 0; i < kFieldsCount; ++i)
+    fields_[i] = 0;
+}
+
+inline uint32_t* Environment::ArrayBufferAllocatorInfo::fields() {
+  return fields_;
+}
+
+inline int Environment::ArrayBufferAllocatorInfo::fields_count() const {
+  return kFieldsCount;
+}
+
+inline bool Environment::ArrayBufferAllocatorInfo::no_zero_fill() const {
+  return fields_[kNoZeroFill] != 0;
+}
+
+inline void Environment::ArrayBufferAllocatorInfo::reset_fill_flag() {
+  fields_[kNoZeroFill] = 0;
+}
+
+inline Environment* Environment::New(v8::Local<v8::Context> context,
+                                     uv_loop_t* loop) {
+  Environment* env = new Environment(context, loop);
   env->AssignToContext(context);
   return env;
 }
@@ -170,11 +214,11 @@ inline Environment* Environment::GetCurrent(
   return static_cast<Environment*>(data.As<v8::External>()->Value());
 }
 
-inline Environment::Environment(IsolateData* isolate_data,
-                                v8::Local<v8::Context> context)
+inline Environment::Environment(v8::Local<v8::Context> context,
+                                uv_loop_t* loop)
     : isolate_(context->GetIsolate()),
-      isolate_data_(isolate_data),
-      timer_base_(uv_now(isolate_data->event_loop())),
+      isolate_data_(IsolateData::GetOrCreate(context->GetIsolate(), loop)),
+      timer_base_(uv_now(loop)),
       using_domains_(false),
       printed_error_(false),
       trace_sync_io_(false),
@@ -211,6 +255,7 @@ inline Environment::~Environment() {
 #define V(PropertyName, TypeName) PropertyName ## _.Reset();
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
+  isolate_data()->Put();
 
   delete[] heap_statistics_buffer_;
   delete[] heap_space_statistics_buffer_;
@@ -303,6 +348,11 @@ inline Environment::TickInfo* Environment::tick_info() {
   return &tick_info_;
 }
 
+inline Environment::ArrayBufferAllocatorInfo*
+    Environment::array_buffer_allocator_info() {
+  return &array_buffer_allocator_info_;
+}
+
 inline uint64_t Environment::timer_base() const {
   return timer_base_;
 }
@@ -382,7 +432,7 @@ inline ares_task_list* Environment::cares_task_list() {
   return &cares_task_list_;
 }
 
-inline IsolateData* Environment::isolate_data() const {
+inline Environment::IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }
 
@@ -493,9 +543,9 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
 #define V(TypeName, PropertyName, StringValue)                                \
   inline                                                                      \
-  v8::Local<TypeName> IsolateData::PropertyName(v8::Isolate* isolate) const { \
+  v8::Local<TypeName> Environment::IsolateData::PropertyName() const {        \
     /* Strings are immutable so casting away const-ness here is okay. */      \
-    return const_cast<IsolateData*>(this)->PropertyName ## _.Get(isolate);    \
+    return const_cast<IsolateData*>(this)->PropertyName ## _.Get(isolate());  \
   }
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_STRING_PROPERTIES(VS)
@@ -507,7 +557,7 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
 #define V(TypeName, PropertyName, StringValue)                                \
   inline v8::Local<TypeName> Environment::PropertyName() const {              \
-    return isolate_data()->PropertyName(isolate());                           \
+    return isolate_data()->PropertyName();                                    \
   }
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_STRING_PROPERTIES(VS)
@@ -524,6 +574,10 @@ inline v8::Local<v8::Object> Environment::NewInternalFieldObject() {
   }
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
+
+#undef ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES
+#undef PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES
+#undef PER_ISOLATE_STRING_PROPERTIES
 
 }  // namespace node
 

@@ -1224,14 +1224,18 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   env->SetMethod(proto, "copy", Copy);
 
-  if (auto zero_fill_field = env->isolate_data()->zero_fill_field()) {
-    CHECK(args[1]->IsObject());
-    auto binding_object = args[1].As<Object>();
-    auto array_buffer = ArrayBuffer::New(env->isolate(), zero_fill_field, 1);
-    auto name = FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill");
-    auto value = Uint32Array::New(array_buffer, 0, 1);
-    CHECK(binding_object->Set(env->context(), name, value).FromJust());
-  }
+  CHECK(args[1]->IsObject());
+  Local<Object> bObj = args[1].As<Object>();
+
+  uint32_t* const fields = env->array_buffer_allocator_info()->fields();
+  uint32_t const fields_count =
+      env->array_buffer_allocator_info()->fields_count();
+
+  Local<ArrayBuffer> array_buffer =
+      ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
+
+  bObj->Set(String::NewFromUtf8(env->isolate(), "flags"),
+            Uint32Array::New(array_buffer, 0, fields_count));
 }
 
 

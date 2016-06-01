@@ -302,41 +302,6 @@ struct ares_task_t {
 
 RB_HEAD(ares_task_list, ares_task_t);
 
-class IsolateData {
- public:
-  inline IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
-                     uint32_t* zero_fill_field = nullptr);
-  inline uv_loop_t* event_loop() const;
-  inline uint32_t* zero_fill_field() const;
-
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
-#define V(TypeName, PropertyName, StringValue)                                \
-  inline v8::Local<TypeName> PropertyName(v8::Isolate* isolate) const;
-  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
-  PER_ISOLATE_STRING_PROPERTIES(VS)
-#undef V
-#undef VS
-#undef VP
-
- private:
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
-#define V(TypeName, PropertyName, StringValue)                                \
-  v8::Eternal<TypeName> PropertyName ## _;
-  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
-  PER_ISOLATE_STRING_PROPERTIES(VS)
-#undef V
-#undef VS
-#undef VP
-
-  v8::Isolate* const isolate_;
-  uv_loop_t* const event_loop_;
-  uint32_t* const zero_fill_field_;
-
-  DISALLOW_COPY_AND_ASSIGN(IsolateData);
-};
-
 class Environment {
  public:
   class AsyncHooks {
@@ -417,6 +382,27 @@ class Environment {
     DISALLOW_COPY_AND_ASSIGN(TickInfo);
   };
 
+  class ArrayBufferAllocatorInfo {
+   public:
+    inline uint32_t* fields();
+    inline int fields_count() const;
+    inline bool no_zero_fill() const;
+    inline void reset_fill_flag();
+
+   private:
+    friend class Environment;  // So we can call the constructor.
+    inline ArrayBufferAllocatorInfo();
+
+    enum Fields {
+      kNoZeroFill,
+      kFieldsCount
+    };
+
+    uint32_t fields_[kFieldsCount];
+
+    DISALLOW_COPY_AND_ASSIGN(ArrayBufferAllocatorInfo);
+  };
+
   typedef void (*HandleCleanupCb)(Environment* env,
                                   uv_handle_t* handle,
                                   void* arg);
@@ -447,8 +433,8 @@ class Environment {
       const v8::PropertyCallbackInfo<T>& info);
 
   // See CreateEnvironment() in src/node.cc.
-  static inline Environment* New(IsolateData* isolate_data,
-                                 v8::Local<v8::Context> context);
+  static inline Environment* New(v8::Local<v8::Context> context,
+                                 uv_loop_t* loop);
   inline void CleanupHandles();
   inline void Dispose();
 
@@ -479,6 +465,7 @@ class Environment {
   inline AsyncHooks* async_hooks();
   inline DomainFlag* domain_flag();
   inline TickInfo* tick_info();
+  inline ArrayBufferAllocatorInfo* array_buffer_allocator_info();
   inline uint64_t timer_base() const;
 
   static inline Environment* from_cares_timer_handle(uv_timer_t* handle);
@@ -486,7 +473,6 @@ class Environment {
   inline ares_channel cares_channel();
   inline ares_channel* cares_channel_ptr();
   inline ares_task_list* cares_task_list();
-  inline IsolateData* isolate_data() const;
 
   inline bool using_domains() const;
   inline void set_using_domains(bool value);
@@ -582,8 +568,12 @@ class Environment {
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
  private:
-  inline Environment(IsolateData* isolate_data, v8::Local<v8::Context> context);
+  static const int kIsolateSlot = NODE_ISOLATE_SLOT;
+
+  class IsolateData;
+  inline Environment(v8::Local<v8::Context> context, uv_loop_t* loop);
   inline ~Environment();
+  inline IsolateData* isolate_data() const;
 
   v8::Isolate* const isolate_;
   IsolateData* const isolate_data_;
@@ -594,6 +584,7 @@ class Environment {
   AsyncHooks async_hooks_;
   DomainFlag domain_flag_;
   TickInfo tick_info_;
+  ArrayBufferAllocatorInfo array_buffer_allocator_info_;
   const uint64_t timer_base_;
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;
@@ -623,6 +614,47 @@ class Environment {
   v8::Persistent<TypeName> PropertyName ## _;
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
+
+  // Per-thread, reference-counted singleton.
+  class IsolateData {
+   public:
+    static inline IsolateData* GetOrCreate(v8::Isolate* isolate,
+                                           uv_loop_t* loop);
+    inline void Put();
+    inline uv_loop_t* event_loop() const;
+
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
+#define V(TypeName, PropertyName, StringValue)                                \
+    inline v8::Local<TypeName> PropertyName() const;
+    PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+    PER_ISOLATE_STRING_PROPERTIES(VS)
+#undef V
+#undef VS
+#undef VP
+
+   private:
+    inline static IsolateData* Get(v8::Isolate* isolate);
+    inline explicit IsolateData(v8::Isolate* isolate, uv_loop_t* loop);
+    inline v8::Isolate* isolate() const;
+
+    uv_loop_t* const event_loop_;
+    v8::Isolate* const isolate_;
+
+#define VP(PropertyName, StringValue) V(v8::Private, PropertyName, StringValue)
+#define VS(PropertyName, StringValue) V(v8::String, PropertyName, StringValue)
+#define V(TypeName, PropertyName, StringValue)                                \
+    v8::Eternal<TypeName> PropertyName ## _;
+    PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
+    PER_ISOLATE_STRING_PROPERTIES(VS)
+#undef V
+#undef VS
+#undef VP
+
+    unsigned int ref_count_;
+
+    DISALLOW_COPY_AND_ASSIGN(IsolateData);
+  };
 
   DISALLOW_COPY_AND_ASSIGN(Environment);
 };
