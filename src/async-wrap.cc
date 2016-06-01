@@ -18,6 +18,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::Number;
 using v8::Object;
 using v8::RetainedObjectInfo;
 using v8::TryCatch;
@@ -116,6 +117,161 @@ static void DisableHooksJS(const FunctionCallbackInfo<Value>& args) {
   env->async_hooks()->set_enable_callbacks(0);
 }
 
+static void GetCurrentAsyncIdArrayFromJS(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(env->async_hooks()->get_current_async_id_array());
+}
+
+static void GetNextAsyncIdArrayFromJS(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(env->async_hooks()->get_next_async_id_array());
+}
+
+static void GetAsyncHookFieldsFromJS(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(env->async_hooks()->get_fields_array());
+}
+
+static bool FireAsyncInitCallbacksInternal(
+  Environment* env,
+  int64_t uid,
+  v8::Local<v8::Object> object,
+  int64_t parentUid,
+  v8::Local<v8::Object> parentObject,
+  AsyncWrap::ProviderType provider,
+  AsyncWrap* parent)
+{
+  v8::Local<v8::Function> init_fn = env->async_hooks_init_function();
+  bool didRun = false;
+
+  // No init callback exists, no reason to go on.
+  if (!init_fn.IsEmpty()) {
+
+    // If async wrap callbacks are disabled and no parent was passed that has
+    // run the init callback then return.
+    if (!env->async_wrap_callbacks_enabled() &&
+      (parent == nullptr || !parent->ran_init_callback())) {
+      return false;
+    }
+
+    v8::HandleScope scope(env->isolate());
+
+    v8::Local<v8::Value> argv[] = {
+        v8::Integer::New(env->isolate(), uid),
+        v8::Int32::New(env->isolate(), provider),
+        Null(env->isolate()),
+        Null(env->isolate())
+    };
+
+    if (!parentObject.IsEmpty() && !parentObject->IsUndefined()) {
+      argv[2] = v8::Integer::New(env->isolate(), parentUid);
+      argv[3] = parentObject;
+    }
+
+    v8::TryCatch try_catch(env->isolate());
+
+    v8::MaybeLocal<v8::Value> ret =
+      init_fn->Call(env->context(), object, arraysize(argv), argv);
+    didRun = true;
+
+    if (ret.IsEmpty()) {
+      ClearFatalExceptionHandlers(env);
+      FatalException(env->isolate(), try_catch);
+    }
+  }
+
+  return didRun;
+}
+
+bool AsyncWrap::FireAsyncInitCallbacks(
+  Environment* env,
+  int64_t uid,
+  v8::Local<v8::Object> object,
+  AsyncWrap::ProviderType provider,
+  AsyncWrap* parent)
+{
+  v8::Local<v8::Function> init_fn = env->async_hooks_init_function();
+  if (!init_fn.IsEmpty()) {
+
+    int64_t parentUid = 0;
+    v8::Local<v8::Object> parentObject = v8::Local<v8::Object>();
+
+    if (parent != nullptr) {
+      parentUid = parent->get_uid();
+      parentObject = parent->object();
+    }
+
+    return FireAsyncInitCallbacksInternal(
+      env,
+      uid,
+      object,
+      parentUid,
+      parentObject,
+      provider,
+      parent);
+  }
+  return false;
+}
+
+void AsyncWrap::FireAsyncPreCallbacks(
+  Environment* env,
+  bool ranInitCallbacks,
+  v8::Local<v8::Number> uid,
+  v8::Local<v8::Object> obj)
+{
+  env->async_hooks()->set_current_async_wrap_uid(uid->IntegerValue());
+
+  if (ranInitCallbacks) {
+    Local<Function> pre_fn = env->async_hooks_pre_function();
+    if (!pre_fn.IsEmpty()) {
+      TryCatch try_catch(env->isolate());
+      v8::Local<v8::Value> argv[] = { uid };
+      MaybeLocal<Value> result = pre_fn->Call(env->context(), obj, 1, argv);
+      if (result.IsEmpty()) {
+        ClearFatalExceptionHandlers(env);
+        FatalException(env->isolate(), try_catch);
+      }
+    }
+  }
+}
+
+void AsyncWrap::FireAsyncPostCallbacks(Environment* env, bool ranInitCallback, v8::Local<v8::Number> uid, v8::Local<v8::Object> obj, v8::Local<v8::Boolean> didUserCodeThrow) {
+
+  if (ranInitCallback) {
+    Local<Function> post_fn = env->async_hooks_post_function();
+    if (!post_fn.IsEmpty()) {
+      Local<Value> vals[] = { uid, didUserCodeThrow };
+      TryCatch try_catch(env->isolate());
+      MaybeLocal<Value> ar =
+        post_fn->Call(env->context(), obj, arraysize(vals), vals);
+      if (ar.IsEmpty()) {
+        ClearFatalExceptionHandlers(env);
+        FatalException(env->isolate(), try_catch);
+      }
+    }
+  }
+
+  env->async_hooks()->set_current_async_wrap_uid(0);
+}
+
+void AsyncWrap::FireAsyncDestroyCallbacks(Environment* env, bool ranInitCallbacks, v8::Local<v8::Number> uid) {
+
+  if (ranInitCallbacks) {
+    v8::Local<v8::Function> fn = env->async_hooks_destroy_function();
+    if (!fn.IsEmpty()) {
+      v8::HandleScope scope(env->isolate());
+      v8::TryCatch try_catch(env->isolate());
+      Local<Value> argv[] = { uid };
+      v8::MaybeLocal<v8::Value> ret =
+        fn->Call(env->context(), v8::Null(env->isolate()), arraysize(argv), argv);
+      if (ret.IsEmpty()) {
+        ClearFatalExceptionHandlers(env);
+        FatalException(env->isolate(), try_catch);
+      }
+    }
+  }
+
+}
 
 static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -128,17 +284,17 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   Local<Object> fn_obj = args[0].As<Object>();
 
   Local<Value> init_v = fn_obj->Get(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "init")).ToLocalChecked();
+    env->context(),
+    FIXED_ONE_BYTE_STRING(env->isolate(), "init")).ToLocalChecked();
   Local<Value> pre_v = fn_obj->Get(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "pre")).ToLocalChecked();
+    env->context(),
+    FIXED_ONE_BYTE_STRING(env->isolate(), "pre")).ToLocalChecked();
   Local<Value> post_v = fn_obj->Get(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "post")).ToLocalChecked();
+    env->context(),
+    FIXED_ONE_BYTE_STRING(env->isolate(), "post")).ToLocalChecked();
   Local<Value> destroy_v = fn_obj->Get(
-      env->context(),
-      FIXED_ONE_BYTE_STRING(env->isolate(), "destroy")).ToLocalChecked();
+    env->context(),
+    FIXED_ONE_BYTE_STRING(env->isolate(), "destroy")).ToLocalChecked();
 
   if (!init_v->IsFunction())
     return env->ThrowTypeError("init callback must be a function");
@@ -151,12 +307,18 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
     env->set_async_hooks_post_function(post_v.As<Function>());
   if (destroy_v->IsFunction())
     env->set_async_hooks_destroy_function(destroy_v.As<Function>());
+
+  env->async_hooks_callbacks_objects()->Set(0, fn_obj);
 }
 
+static void GetAsyncCallbacksFromJS(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  args.GetReturnValue().Set(env->async_hooks_callbacks_objects());
+}
 
 static void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context) {
+                       Local<Value> unused,
+                       Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
@@ -164,6 +326,10 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "setupHooks", SetupHooks);
   env->SetMethod(target, "disable", DisableHooksJS);
   env->SetMethod(target, "enable", EnableHooksJS);
+  env->SetMethod(target, "getCurrentAsyncIdArray", GetCurrentAsyncIdArrayFromJS);
+  env->SetMethod(target, "getNextAsyncIdArray", GetNextAsyncIdArrayFromJS);
+  env->SetMethod(target, "getAsyncHookFields", GetAsyncHookFieldsFromJS);
+  env->SetMethod(target, "getAsyncCallbacks", GetAsyncCallbacksFromJS);
 
   Local<Object> async_providers = Object::New(isolate);
 #define V(PROVIDER)                                                           \
@@ -177,6 +343,7 @@ static void Initialize(Local<Object> target,
   env->set_async_hooks_pre_function(Local<Function>());
   env->set_async_hooks_post_function(Local<Function>());
   env->set_async_hooks_destroy_function(Local<Function>());
+  env->set_async_hooks_callbacks_objects(v8::Array::New(env->isolate(), 0));
 }
 
 
@@ -197,7 +364,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
   Local<Function> post_fn = env()->async_hooks_post_function();
-  Local<Value> uid = Integer::New(env()->isolate(), get_uid());
+  Local<Number> uid = Integer::New(env()->isolate(), get_uid());
   Local<Object> context = object();
   Local<Object> domain;
   bool has_domain = false;
@@ -224,31 +391,13 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     }
   }
 
-  if (ran_init_callback() && !pre_fn.IsEmpty()) {
-    TryCatch try_catch(env()->isolate());
-    MaybeLocal<Value> ar = pre_fn->Call(env()->context(), context, 1, &uid);
-    if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env());
-      FatalException(env()->isolate(), try_catch);
-      return Local<Value>();
-    }
-  }
+  AsyncWrap::FireAsyncPreCallbacks(env(), ran_init_callback(), uid, context);
 
   Local<Value> ret = cb->Call(context, argc, argv);
 
-  if (ran_init_callback() && !post_fn.IsEmpty()) {
-    Local<Value> did_throw = Boolean::New(env()->isolate(), ret.IsEmpty());
-    Local<Value> vals[] = { uid, did_throw };
-    TryCatch try_catch(env()->isolate());
-    MaybeLocal<Value> ar =
-        post_fn->Call(env()->context(), context, arraysize(vals), vals);
-    if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env());
-      FatalException(env()->isolate(), try_catch);
-      return Local<Value>();
-    }
-  }
-
+  Local<Boolean> did_throw = Boolean::New(env()->isolate(), ret.IsEmpty());
+  AsyncWrap::FireAsyncPostCallbacks(env(), ran_init_callback(), uid, context, did_throw);
+  
   if (ret.IsEmpty()) {
     return ret;
   }
