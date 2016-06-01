@@ -235,7 +235,7 @@ static ENGINE* LoadEngineById(Environment* env, const char* engine_id) {
     char errmsg[1024];
     int err = ERR_get_error();
     if (err != 0) {
-        ERR_error_string_n(err, errmsg, sizeof(errmsg));
+      ERR_error_string_n(err, errmsg, sizeof(errmsg));
     } else {
       snprintf(errmsg, sizeof(errmsg),
                "Engine \"%s\" was not found", engine_id);
@@ -5909,9 +5909,8 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 
   int r = ENGINE_set_default(engine, flags);
   ENGINE_free(engine);
-  if (r == 0) {
+  if (r == 0)
     return ThrowCryptoError(env, ERR_get_error());
-  }
 }
 #endif  // !OPENSSL_NO_ENGINE
 
