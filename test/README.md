@@ -34,14 +34,6 @@ Tests for [debugger](https://nodejs.org/api/debugger.html) functionality.
 |:----------:|
 | No         |
 
-### disabled
-
-Tests that have been disabled from running for various reasons.
-
-| Runs on CI |
-|:----------:|
-| No         |
-
 ### fixtures
 
 Test fixtures used in various tests throughout the test suite.
