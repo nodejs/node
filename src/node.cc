@@ -3363,12 +3363,6 @@ void LoadEnvironment(Environment* env) {
 }
 
 
-void FreeEnvironment(Environment* env) {
-  CHECK_NE(env, nullptr);
-  env->Dispose();
-}
-
-
 static void PrintHelp();
 
 static bool ParseDebugOpt(const char* arg) {
@@ -4256,9 +4250,14 @@ Environment* CreateEnvironment(IsolateData* isolate_data,
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
-  Environment* env = Environment::New(isolate_data, context);
+  auto env = new Environment(isolate_data, context);
   env->Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
   return env;
+}
+
+
+void FreeEnvironment(Environment* env) {
+  delete env;
 }
 
 
@@ -4293,60 +4292,60 @@ static void StartNodeInstance(void* arg) {
                              array_buffer_allocator.zero_fill_field());
     Local<Context> context = Context::New(isolate);
     Context::Scope context_scope(context);
-    Environment* env = CreateEnvironment(&isolate_data,
-                                         context,
-                                         instance_data->argc(),
-                                         instance_data->argv(),
-                                         instance_data->exec_argc(),
-                                         instance_data->exec_argv());
+    Environment env(&isolate_data, context);
+    env.Start(instance_data->argc(),
+              instance_data->argv(),
+              instance_data->exec_argc(),
+              instance_data->exec_argv(),
+              v8_is_profiling);
 
     isolate->SetAbortOnUncaughtExceptionCallback(
         ShouldAbortOnUncaughtException);
 
     // Start debug agent when argv has --debug
     if (instance_data->use_debug_agent())
-      StartDebug(env, debug_wait_connect);
+      StartDebug(&env, debug_wait_connect);
 
     {
-      Environment::AsyncCallbackScope callback_scope(env);
-      LoadEnvironment(env);
+      Environment::AsyncCallbackScope callback_scope(&env);
+      LoadEnvironment(&env);
     }
 
-    env->set_trace_sync_io(trace_sync_io);
+    env.set_trace_sync_io(trace_sync_io);
 
     // Enable debugger
     if (instance_data->use_debug_agent())
-      EnableDebug(env);
+      EnableDebug(&env);
 
     {
       SealHandleScope seal(isolate);
       bool more;
       do {
         v8::platform::PumpMessageLoop(default_platform, isolate);
-        more = uv_run(env->event_loop(), UV_RUN_ONCE);
+        more = uv_run(env.event_loop(), UV_RUN_ONCE);
 
         if (more == false) {
           v8::platform::PumpMessageLoop(default_platform, isolate);
-          EmitBeforeExit(env);
+          EmitBeforeExit(&env);
 
           // Emit `beforeExit` if the loop became alive either after emitting
           // event, or after running some callbacks.
-          more = uv_loop_alive(env->event_loop());
-          if (uv_run(env->event_loop(), UV_RUN_NOWAIT) != 0)
+          more = uv_loop_alive(env.event_loop());
+          if (uv_run(env.event_loop(), UV_RUN_NOWAIT) != 0)
             more = true;
         }
       } while (more == true);
     }
 
-    env->set_trace_sync_io(false);
+    env.set_trace_sync_io(false);
 
-    int exit_code = EmitExit(env);
+    int exit_code = EmitExit(&env);
     if (instance_data->is_main())
       instance_data->set_exit_code(exit_code);
-    RunAtExit(env);
+    RunAtExit(&env);
 
 #if HAVE_INSPECTOR
-    if (env->inspector_agent()->connected()) {
+    if (env.inspector_agent()->connected()) {
       // Restore signal dispositions, the app is done and is no longer
       // capable of handling signals.
 #ifdef __POSIX__
@@ -4359,16 +4358,13 @@ static void StartNodeInstance(void* arg) {
         CHECK_EQ(0, sigaction(nr, &act, nullptr));
       }
 #endif
-      env->inspector_agent()->WaitForDisconnect();
+      env.inspector_agent()->WaitForDisconnect();
     }
 #endif
 
 #if defined(LEAK_SANITIZER)
     __lsan_do_leak_check();
 #endif
-
-    env->Dispose();
-    env = nullptr;
   }
 
   uv_mutex_lock(&node_isolate_mutex);
