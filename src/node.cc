@@ -973,8 +973,8 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 void* ArrayBufferAllocator::Allocate(size_t size) {
   if (zero_fill_field_ || zero_fill_all_buffers)
     return calloc(size, 1);
-  zero_fill_field_ = 1;
-  return malloc(size);
+  else
+    return malloc(size);
 }
 
 static bool DomainHasErrorHandler(const Environment* env,
