@@ -18,6 +18,7 @@
 #include "src/conversions-inl.h"
 #include "src/factory.h"
 #include "src/field-index-inl.h"
+#include "src/field-type.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -2724,6 +2725,25 @@ FixedArrayBase* Map::GetInitialElements() {
   return NULL;
 }
 
+// static
+Handle<Map> Map::ReconfigureProperty(Handle<Map> map, int modify_index,
+                                     PropertyKind new_kind,
+                                     PropertyAttributes new_attributes,
+                                     Representation new_representation,
+                                     Handle<FieldType> new_field_type,
+                                     StoreMode store_mode) {
+  return Reconfigure(map, map->elements_kind(), modify_index, new_kind,
+                     new_attributes, new_representation, new_field_type,
+                     store_mode);
+}
+
+// static
+Handle<Map> Map::ReconfigureElementsKind(Handle<Map> map,
+                                         ElementsKind new_elements_kind) {
+  return Reconfigure(map, new_elements_kind, -1, kData, NONE,
+                     Representation::None(), FieldType::None(map->GetIsolate()),
+                     ALLOW_IN_DESCRIPTOR);
+}
 
 Object** DescriptorArray::GetKeySlot(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());

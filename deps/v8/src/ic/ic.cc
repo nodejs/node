@@ -836,11 +836,12 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
   ElementsKind target_elements_kind = target_map->elements_kind();
   bool more_general_transition = IsMoreGeneralElementsKindTransition(
       source_map->elements_kind(), target_elements_kind);
-  Map* transitioned_map =
-      more_general_transition
-          ? source_map->LookupElementsTransitionMap(target_elements_kind)
-          : NULL;
-
+  Map* transitioned_map = nullptr;
+  if (more_general_transition) {
+    MapHandleList map_list;
+    map_list.Add(handle(target_map));
+    transitioned_map = source_map->FindElementsKindTransitionedMap(&map_list);
+  }
   return transitioned_map == target_map;
 }
 
