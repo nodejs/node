@@ -18,26 +18,26 @@ according to a user-defined evaluation function, then output the result. Input
 and output may be from `stdin` and `stdout`, respectively, or may be connected
 to any Node.js [stream][].
 
-Instances of `repl.REPLServer` support persistent history of prior inputs,
-automatic completion of inputs, simplistic Emacs-style line editing, multi-line
-inputs, ANSI-styled output, saving and restoring current REPL session state,
-error recovery, and customizable evaluation functions.
+Instances of `repl.REPLServer` support automatic completion of inputs,
+simplistic Emacs-style line editing, multi-line inputs, ANSI-styled output,
+saving and restoring current REPL session state, error recovery, and
+customizable evaluation functions.
 
 ### Commands and Special Keys
 
 The following special commands are supported by all REPL instances:
 
 * `.break` - When in the process of inputting a multi-line expression, entering
-  the `.break` command (or pressing the `<Ctrl>-C` key combination) will abort
+  the `.break` command (or pressing the `<ctrl>-C` key combination) will abort
   further input or processing of that expression.
 * `.clear` - Resets the REPL `context` to an empty object and clears any
   multi-line expression currently being input.
 * `.exit` - Close the I/O stream, causing the REPL to exit.
 * `.help` - Show this list of special commands.
 * `.save` - Save the current REPL session to a file:
-  `>.save ./file/to/save.js`
+  `> .save ./file/to/save.js`
 * `.load` - Load a file into the current REPL session.
-  `>.load ./file/to/load.js`
+  `> .load ./file/to/load.js`
 
 The following key combinations in the REPL have these special effects:
 
@@ -60,11 +60,11 @@ evaluation function when the `repl.REPLServer` instance is created.
 
 The default evaluator supports direct evaluation of JavaScript expressions:
 
-```
+```js
 > 1 + 1
 2
 > var m = 2
-1
+undefined
 > m + 1
 3
 ```
@@ -88,7 +88,7 @@ repl.start('> ').context.m = msg;
 
 Properties in the `context` object appear as local within the REPL:
 
-```
+```js
 $ node repl_test.js
 > m
 'message'
@@ -117,7 +117,7 @@ REPL environment when used. For instance, unless otherwise declared as a
 global or scoped variable, the input `fs` will be evaluated on-demand as
 `global.fs = require('fs')`.
 
-```
+```js
 > fs.createReadStream('./some/file');
 ```
 
@@ -126,7 +126,7 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 The default evaluator will, by default, assign the result of the most recently
 evaluated expression to the special variable `_` (underscore).
 
-```
+```js
 > [ 'a', 'b', 'c' ]
 [ 'a', 'b', 'c' ]
 > _.length
@@ -215,16 +215,16 @@ function myWriter(output) {
 
 ## Class: REPLServer
 
-The `repl.REPLServer` class inherits from the [`readline.Interface`][]  class.
+The `repl.REPLServer` class inherits from the [`readline.Interface`][] class.
 Instances of `repl.REPLServer` are created using the `repl.start()` method and
 *should not* be created directly using the JavaScript `new` keyword.
 
 ### Event: 'exit'
 
-The `'exit'` event is emitted the REPL is exited either by receiving the `.exit`
-command as input, the user pressing `<Ctrl>-C` twice to signal `SIGINT`, or by
-presing `<Ctrl>-D` to signal `'end'` on the input stream. The listener callback
-is invoked without any arguments.
+The `'exit'` event is emitted when the REPL is exited either by receiving the
+`.exit` command as input, the user pressing `<ctrl>-C` twice to signal `SIGINT`,
+or by pressing `<ctrl>-D` to signal `'end'` on the input stream. The listener
+callback is invoked without any arguments.
 
 ```js
 replServer.on('exit', () => {
@@ -260,7 +260,7 @@ r.on('reset', initializeContext);
 When this code is executed, the global `'m'` variable can be modified but then
 reset to its initial value using the `.clear` command:
 
-```
+```js
 $ ./node example.js
 >m
 'test'
@@ -327,7 +327,7 @@ The `replServer.displayPrompt()` method readies the REPL instance for input
 from the user, printing the configured `prompt` to a new line in the `output`
 and resuming the `input` to accept new input.
 
-When multi-line input is being entered, an ellipsis is printed rather the the
+When multi-line input is being entered, an ellipsis is printed rather than the
 'prompt'.
 
 When `preserveCusor` is `true`, the cursor placement will not be reset to `0`.
@@ -381,9 +381,8 @@ Node.js itself uses the `repl` module to provide its own interactive interface
 for executing JavaScript. This can used by executing the Node.js binary without
 passing any arguments (or by passing the `-i` argument):
 
-```
+```js
 $ node
-Type '.help' for options.
 > a = [1, 2, 3];
 [ 1, 2, 3 ]
 > a.forEach((v) => {
@@ -436,7 +435,7 @@ terminal settings which will allow you to use with `rlwrap`.
 
 For example, you could add this to your bashrc file:
 
-```
+```text
 alias node="env NODE_NO_READLINE=1 rlwrap node"
 ```
 
