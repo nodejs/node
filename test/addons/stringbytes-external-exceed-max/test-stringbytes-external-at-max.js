@@ -8,10 +8,9 @@ const assert = require('assert');
 // v8::String::kMaxLength defined in v8.h
 const kStringMaxLength = process.binding('buffer').kStringMaxLength;
 
-const skipMessage =
-  '1..0 # Skipped: intensive toString tests due to memory confinements';
+const skipMessage = 'intensive toString tests due to memory confinements';
 if (!common.enoughTestMem) {
-  console.log(skipMessage);
+  common.skip(skipMessage);
   return;
 }
 
@@ -20,13 +19,13 @@ try {
 } catch (e) {
   // If the exception is not due to memory confinement then rethrow it.
   if (e.message !== 'Invalid array buffer length') throw (e);
-  console.log(skipMessage);
+  common.skip(skipMessage);
   return;
 }
 
 // Ensure we have enough memory available for future allocations to succeed.
 if (!binding.ensureAllocation(2 * kStringMaxLength)) {
-  console.log(skipMessage);
+  common.skip(skipMessage);
   return;
 }
 

@@ -5,7 +5,7 @@ var dgram = require('dgram');
 
 // skip test in FreeBSD jails since 0.0.0.0 will resolve to default interface
 if (common.inFreeBSDJail) {
-  console.log('1..0 # Skipped: In a FreeBSD jail');
+  common.skip('In a FreeBSD jail');
   return;
 }
 
@@ -16,7 +16,7 @@ dgram.createSocket('udp4').bind(common.PORT + 0, common.mustCall(function() {
 }));
 
 if (!common.hasIPv6) {
-  console.log('1..0 # Skipped: udp6 part of test, because no IPv6 support');
+  common.skip('udp6 part of test, because no IPv6 support');
   return;
 }
 

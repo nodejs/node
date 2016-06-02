@@ -9,7 +9,7 @@ const net = require('net');
 const cluster = require('cluster');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: This test does not apply to Windows.');
+  common.skip('This test does not apply to Windows.');
   return;
 }
 
