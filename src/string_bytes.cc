@@ -282,6 +282,7 @@ size_t StringBytes::Write(Isolate* isolate,
 
   switch (encoding) {
     case ASCII:
+    case LATIN1:
     case BINARY:
       if (is_extern && str->IsOneByte()) {
         memcpy(buf, data, nbytes);
@@ -387,15 +388,17 @@ size_t StringBytes::StorageSize(Isolate* isolate,
   size_t data_size = 0;
   bool is_buffer = Buffer::HasInstance(val);
 
-  if (is_buffer && (encoding == BUFFER || encoding == BINARY)) {
+  if (is_buffer &&
+      (encoding == BUFFER || encoding == BINARY || encoding == LATIN1)) {
     return Buffer::Length(val);
   }
 
   Local<String> str = val->ToString(isolate);
 
   switch (encoding) {
-    case BINARY:
     case ASCII:
+    case LATIN1:
+    case BINARY:
       data_size = str->Length();
       break;
 
@@ -436,7 +439,8 @@ size_t StringBytes::Size(Isolate* isolate,
   size_t data_size = 0;
   bool is_buffer = Buffer::HasInstance(val);
 
-  if (is_buffer && (encoding == BUFFER || encoding == BINARY))
+  if (is_buffer &&
+      (encoding == BUFFER || encoding == BINARY || encoding == LATIN1))
     return Buffer::Length(val);
 
   const char* data;
@@ -446,8 +450,9 @@ size_t StringBytes::Size(Isolate* isolate,
   Local<String> str = val->ToString(isolate);
 
   switch (encoding) {
-    case BINARY:
     case ASCII:
+    case LATIN1:
+    case BINARY:
       data_size = str->Length();
       break;
 
@@ -650,6 +655,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
                                 buflen);
       break;
 
+    case LATIN1:
     case BINARY:
       if (buflen < EXTERN_APEX)
         val = OneByteString(isolate, buf, buflen);

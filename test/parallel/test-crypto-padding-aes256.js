@@ -18,13 +18,13 @@ function aes256(decipherFinal) {
   function encrypt(val, pad) {
     var c = crypto.createCipheriv('aes256', key, iv);
     c.setAutoPadding(pad);
-    return c.update(val, 'utf8', 'binary') + c.final('binary');
+    return c.update(val, 'utf8', 'latin1') + c.final('latin1');
   }
 
   function decrypt(val, pad) {
     var c = crypto.createDecipheriv('aes256', key, iv);
     c.setAutoPadding(pad);
-    return c.update(val, 'binary', 'utf8') + c[decipherFinal]('utf8');
+    return c.update(val, 'latin1', 'utf8') + c[decipherFinal]('utf8');
   }
 
   // echo 0123456789abcdef0123456789abcdef \

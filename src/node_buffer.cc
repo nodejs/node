@@ -517,8 +517,8 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void BinarySlice(const FunctionCallbackInfo<Value>& args) {
-  StringSlice<BINARY>(args);
+void Latin1Slice(const FunctionCallbackInfo<Value>& args) {
+  StringSlice<LATIN1>(args);
 }
 
 
@@ -718,8 +718,8 @@ void Base64Write(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void BinaryWrite(const FunctionCallbackInfo<Value>& args) {
-  StringWrite<BINARY>(args);
+void Latin1Write(const FunctionCallbackInfo<Value>& args) {
+  StringWrite<LATIN1>(args);
 }
 
 
@@ -1061,7 +1061,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                           needle_length,
                           offset,
                           is_forward);
-  } else if (enc == BINARY) {
+  } else if (enc == LATIN1) {
     uint8_t* needle_data = static_cast<uint8_t*>(malloc(needle_length));
     if (needle_data == nullptr) {
       return args.GetReturnValue().Set(-1);
@@ -1266,14 +1266,14 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
 
   env->SetMethod(proto, "asciiSlice", AsciiSlice);
   env->SetMethod(proto, "base64Slice", Base64Slice);
-  env->SetMethod(proto, "binarySlice", BinarySlice);
+  env->SetMethod(proto, "latin1Slice", Latin1Slice);
   env->SetMethod(proto, "hexSlice", HexSlice);
   env->SetMethod(proto, "ucs2Slice", Ucs2Slice);
   env->SetMethod(proto, "utf8Slice", Utf8Slice);
 
   env->SetMethod(proto, "asciiWrite", AsciiWrite);
   env->SetMethod(proto, "base64Write", Base64Write);
-  env->SetMethod(proto, "binaryWrite", BinaryWrite);
+  env->SetMethod(proto, "latin1Write", Latin1Write);
   env->SetMethod(proto, "hexWrite", HexWrite);
   env->SetMethod(proto, "ucs2Write", Ucs2Write);
   env->SetMethod(proto, "utf8Write", Utf8Write);

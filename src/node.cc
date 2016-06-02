@@ -1410,11 +1410,17 @@ enum encoding ParseEncoding(const char* encoding,
           return UCS2;
       }
       break;
+    case 'l':
+      // latin1
+      if (encoding[1] == 'a') {
+        if (strncmp(encoding + 2, "tin1", 4) == 0)
+          return LATIN1;
+      }
     case 'b':
       // binary
       if (encoding[1] == 'i') {
         if (strncmp(encoding + 2, "nary", 4) == 0)
-          return BINARY;
+          return LATIN1;
 
       // buffer
       } else if (encoding[1] == 'u') {
@@ -1444,6 +1450,8 @@ enum encoding ParseEncoding(const char* encoding,
     return UCS2;
   } else if (StringEqualNoCase(encoding, "utf-16le")) {
     return UCS2;
+  } else if (StringEqualNoCase(encoding, "latin1")) {
+    return LATIN1;
   } else if (StringEqualNoCase(encoding, "binary")) {
     return BINARY;
   } else if (StringEqualNoCase(encoding, "buffer")) {
@@ -1487,7 +1495,7 @@ ssize_t DecodeBytes(Isolate* isolate,
 
   if (val->IsArray()) {
     fprintf(stderr, "'raw' encoding (array of integers) has been removed. "
-                    "Use 'binary'.\n");
+                    "Use 'latin1'.\n");
     UNREACHABLE();
     return -1;
   }

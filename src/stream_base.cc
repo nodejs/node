@@ -33,7 +33,7 @@ template int StreamBase::WriteString<UTF8>(
     const FunctionCallbackInfo<Value>& args);
 template int StreamBase::WriteString<UCS2>(
     const FunctionCallbackInfo<Value>& args);
-template int StreamBase::WriteString<BINARY>(
+template int StreamBase::WriteString<LATIN1>(
     const FunctionCallbackInfo<Value>& args);
 
 

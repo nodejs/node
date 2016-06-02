@@ -284,15 +284,15 @@ inline void NODE_SET_PROTOTYPE_METHOD(v8::Local<v8::FunctionTemplate> recv,
 }
 #define NODE_SET_PROTOTYPE_METHOD node::NODE_SET_PROTOTYPE_METHOD
 
-enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX, BUFFER};
+enum encoding {ASCII, UTF8, BASE64, UCS2, LATIN1, BINARY, HEX, BUFFER};
 NODE_EXTERN enum encoding ParseEncoding(
     v8::Isolate* isolate,
     v8::Local<v8::Value> encoding_v,
-    enum encoding default_encoding = BINARY);
+    enum encoding default_encoding = LATIN1);
 NODE_DEPRECATED("Use ParseEncoding(isolate, ...)",
                 inline enum encoding ParseEncoding(
       v8::Local<v8::Value> encoding_v,
-      enum encoding default_encoding = BINARY) {
+      enum encoding default_encoding = LATIN1) {
   return ParseEncoding(v8::Isolate::GetCurrent(), encoding_v, default_encoding);
 })
 
@@ -308,7 +308,7 @@ NODE_DEPRECATED("Use FatalException(isolate, ...)",
 NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
                                         const char* buf,
                                         size_t len,
-                                        enum encoding encoding = BINARY);
+                                        enum encoding encoding = LATIN1);
 
 // The input buffer should be in host endianness.
 NODE_EXTERN v8::Local<v8::Value> Encode(v8::Isolate* isolate,
@@ -319,7 +319,7 @@ NODE_DEPRECATED("Use Encode(isolate, ...)",
                 inline v8::Local<v8::Value> Encode(
     const void* buf,
     size_t len,
-    enum encoding encoding = BINARY) {
+    enum encoding encoding = LATIN1) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   if (encoding == UCS2) {
     assert(reinterpret_cast<uintptr_t>(buf) % sizeof(uint16_t) == 0 &&
@@ -333,11 +333,11 @@ NODE_DEPRECATED("Use Encode(isolate, ...)",
 // Returns -1 if the handle was not valid for decoding
 NODE_EXTERN ssize_t DecodeBytes(v8::Isolate* isolate,
                                 v8::Local<v8::Value>,
-                                enum encoding encoding = BINARY);
+                                enum encoding encoding = LATIN1);
 NODE_DEPRECATED("Use DecodeBytes(isolate, ...)",
                 inline ssize_t DecodeBytes(
     v8::Local<v8::Value> val,
-    enum encoding encoding = BINARY) {
+    enum encoding encoding = LATIN1) {
   return DecodeBytes(v8::Isolate::GetCurrent(), val, encoding);
 })
 
@@ -346,12 +346,12 @@ NODE_EXTERN ssize_t DecodeWrite(v8::Isolate* isolate,
                                 char* buf,
                                 size_t buflen,
                                 v8::Local<v8::Value>,
-                                enum encoding encoding = BINARY);
+                                enum encoding encoding = LATIN1);
 NODE_DEPRECATED("Use DecodeWrite(isolate, ...)",
                 inline ssize_t DecodeWrite(char* buf,
                                            size_t buflen,
                                            v8::Local<v8::Value> val,
-                                           enum encoding encoding = BINARY) {
+                                           enum encoding encoding = LATIN1) {
   return DecodeWrite(v8::Isolate::GetCurrent(), buf, buflen, val, encoding);
 })
 

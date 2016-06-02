@@ -30,13 +30,13 @@ if (!binding.ensureAllocation(2 * kStringMaxLength)) {
 }
 
 assert.throws(function() {
-  buf.toString('binary');
+  buf.toString('latin1');
 }, /"toString\(\)" failed/);
 
-var maxString = buf.toString('binary', 1);
+var maxString = buf.toString('latin1', 1);
 assert.equal(maxString.length, kStringMaxLength);
 // Free the memory early instead of at the end of the next assignment
 maxString = undefined;
 
-maxString = buf.toString('binary', 0, kStringMaxLength);
+maxString = buf.toString('latin1', 0, kStringMaxLength);
 assert.equal(maxString.length, kStringMaxLength);

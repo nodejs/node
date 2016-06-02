@@ -6,6 +6,6 @@ var fs = require('fs');
 
 var filename = path.join(common.fixturesDir, 'does_not_exist.txt');
 
-fs.readFile(filename, 'binary', common.mustCall(function(err, content) {
+fs.readFile(filename, 'latin1', common.mustCall(function(err, content) {
   assert.ok(err);
 }));

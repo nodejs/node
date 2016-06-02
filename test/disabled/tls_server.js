@@ -19,7 +19,7 @@ try {
 var i = 0;
 var server = net.createServer(function(connection) {
   connection.setSecure(credentials);
-  connection.setEncoding('binary');
+  connection.setEncoding('latin1');
 
   connection.on('secure', function() {
     //console.log('Secure');

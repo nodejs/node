@@ -33,23 +33,23 @@ var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
 {
   const s2 = crypto.createSign('RSA-SHA256')
                    .update('Test123')
-                   .sign(keyPem, 'binary');
+                   .sign(keyPem, 'latin1');
   let s2stream = crypto.createSign('RSA-SHA256');
   s2stream.end('Test123');
-  s2stream = s2stream.sign(keyPem, 'binary');
+  s2stream = s2stream.sign(keyPem, 'latin1');
   assert.equal(s2, s2stream, 'Stream produces same output');
 
   let verified = crypto.createVerify('RSA-SHA256')
                        .update('Test')
                        .update('123')
-                       .verify(certPem, s2, 'binary');
-  assert.strictEqual(verified, true, 'sign and verify (binary)');
+                       .verify(certPem, s2, 'latin1');
+  assert.strictEqual(verified, true, 'sign and verify (latin1)');
 
   const verStream = crypto.createVerify('RSA-SHA256');
   verStream.write('Tes');
   verStream.write('t12');
   verStream.end('3');
-  verified = verStream.verify(certPem, s2, 'binary');
+  verified = verStream.verify(certPem, s2, 'latin1');
   assert.strictEqual(verified, true, 'sign and verify (stream)');
 }
 
