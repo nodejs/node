@@ -5,6 +5,10 @@ namespace node {
 
 Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value)
     : length_(0), str_(str_st_) {
+  // Make sure result is always zero-terminated, even if conversion to string
+  // fails.
+  str_st_[0] = '\0';
+
   if (value.IsEmpty())
     return;
 
