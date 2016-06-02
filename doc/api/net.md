@@ -118,7 +118,7 @@ Callback should take two arguments `err` and `count`.
 
 ### server.listen(handle[, backlog][, callback])
 <!-- YAML
-added: v0.3.2
+added: v0.5.10
 -->
 
 * `handle` {Object}
