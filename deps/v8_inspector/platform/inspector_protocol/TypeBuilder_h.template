@@ -187,7 +187,14 @@ public:
     }
 
 private:
-    {{type.id}}() { }
+    {{type.id}}()
+    {
+    {% for property in type.properties %}
+      {% if not(property.optional) and "default_value" in resolve_type(property) %}
+          m_{{property.name}} = {{resolve_type(property).default_value}};
+      {%endif %}
+    {% endfor %}
+    }
 
     {% for property in type.properties %}
       {% if property.optional %}
