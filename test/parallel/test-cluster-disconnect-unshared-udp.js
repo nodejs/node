@@ -3,7 +3,7 @@
 const common = require('../common');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: on windows, because clustered dgram is ENOTSUP');
+  common.skip('on windows, because clustered dgram is ENOTSUP');
   return;
 }
 

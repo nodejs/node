@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 if (!common.isWindows) {
-  console.log('1..0 # Skipped: this test is Windows-specific.');
+  common.skip('this test is Windows-specific.');
   return;
 }
 

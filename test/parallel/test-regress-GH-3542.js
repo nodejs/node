@@ -7,7 +7,7 @@ let succeeded = 0;
 
 // This test is only relevant on Windows.
 if (!common.isWindows) {
-  console.log('1..0 # Skipped: Windows specific test.');
+  common.skip('Windows specific test.');
   return;
 }
 

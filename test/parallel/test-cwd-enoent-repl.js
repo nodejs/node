@@ -6,7 +6,7 @@ var spawn = require('child_process').spawn;
 
 // Fails with EINVAL on SmartOS, EBUSY on Windows, EBUSY on AIX.
 if (process.platform === 'sunos' || common.isWindows || common.isAix) {
-  console.log('1..0 # Skipped: cannot rmdir current working directory');
+  common.skip('cannot rmdir current working directory');
   return;
 }
 

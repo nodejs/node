@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 // does node think that i18n was enabled?
@@ -24,7 +24,7 @@ if (!haveIntl) {
       '"Intl" object is NOT present but v8_enable_i18n_support is ' +
       enablei18n;
   assert.equal(enablei18n, false, erMsg);
-  console.log('1..0 # Skipped: Intl tests because Intl object not present.');
+  common.skip('Intl tests because Intl object not present.');
 
 } else {
   const erMsg =
@@ -46,7 +46,7 @@ if (!haveIntl) {
 
   // If list is specified and doesn't contain 'en' then return.
   if (process.config.variables.icu_locales && !haveLocale('en')) {
-    console.log('1..0 # Skipped: detailed Intl tests because English is not ' +
+    common.skip('detailed Intl tests because English is not ' +
                 'listed as supported.');
     // Smoke test. Does it format anything, or fail?
     console.log('Date(0) formatted to: ' + dtf.format(date0));

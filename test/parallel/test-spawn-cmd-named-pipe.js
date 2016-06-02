@@ -4,7 +4,7 @@ const assert = require('assert');
 
 // This test is intended for Windows only
 if (!common.isWindows) {
-  console.log('1..0 # Skipped: this test is Windows-specific.');
+  common.skip('this test is Windows-specific.');
   return;
 }
 

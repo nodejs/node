@@ -7,7 +7,7 @@ var expect = ['pbkdf2', 'randomBytes', 'pseudoRandomBytes'];
 var errors = 0;
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 var crypto = require('crypto');

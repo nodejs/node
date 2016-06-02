@@ -3,7 +3,7 @@ var assert = require('assert');
 var common = require('../common');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: no RLIMIT_NOFILE on Windows');
+  common.skip('no RLIMIT_NOFILE on Windows');
   return;
 }
 
