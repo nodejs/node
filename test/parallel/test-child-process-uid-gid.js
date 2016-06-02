@@ -1,12 +1,14 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
+const expectedError = common.isWindows ? /\bENOTSUP\b/ : /\bEPERM\b/;
+
 assert.throws(() => {
   spawn('echo', ['fhqwhgads'], {uid: 0});
-}, /EPERM/, 'Setting UID should throw EPERM for unprivileged users.');
+}, expectedError, 'Setting UID should throw EPERM for unprivileged users.');
 
 assert.throws(() => {
   spawn('echo', ['fhqwhgads'], {gid: 0});
-}, /EPERM/, 'Setting GID should throw EPERM for unprivileged users.');
+}, expectedError, 'Setting GID should throw EPERM for unprivileged users.');
