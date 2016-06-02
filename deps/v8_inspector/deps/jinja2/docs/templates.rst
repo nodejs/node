@@ -197,14 +197,14 @@ without the `trim_blocks` and `lstrip_blocks` options, this template::
 gets rendered with blank lines inside the div::
 
     <div>
-
+    
             yay
-
+    
     </div>
 
 But with both `trim_blocks` and `lstrip_blocks` enabled, the template block
 lines are removed and other whitespace is preserved::
-
+    
     <div>
             yay
     </div>
@@ -522,12 +522,12 @@ Working with Automatic Escaping
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When automatic escaping is enabled, everything is escaped by default except
-for values explicitly marked as safe.  Variables and expressions
+for values explicitly marked as safe.  Variables and expressions 
 can be marked as safe either in:
 
 a. the context dictionary by the application with `MarkupSafe.Markup`, or
 b. the template, with the `|safe` filter
-
+   
 The main problem with this approach is that Python itself doesn't have the
 concept of tainted values; so whether a value is safe or unsafe can get lost.
 

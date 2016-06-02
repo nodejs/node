@@ -33,13 +33,13 @@
         writer = Writer()
         writer.node_handlers[MyNode] = write_my_node
         convert_templates('/path/to/output/folder', writer=writer)
-
+    
     Here is an example hos to automatically translate your django
     variables to jinja2::
-
+        
         import re
         # List of tuple (Match pattern, Replace pattern, Exclusion pattern)
-
+        
         var_re  = ((re.compile(r"(u|user)\.is_authenticated"), r"\1.is_authenticated()", None),
                   (re.compile(r"\.non_field_errors"), r".non_field_errors()", None),
                   (re.compile(r"\.label_tag"), r".label_tag()", None),
@@ -47,7 +47,7 @@
                   (re.compile(r"\.as_table"), r".as_table()", None),
                   (re.compile(r"\.as_widget"), r".as_widget()", None),
                   (re.compile(r"\.as_hidden"), r".as_hidden()", None),
-
+                  
                   (re.compile(r"\.get_([0-9_\w]+)_url"), r".get_\1_url()", None),
                   (re.compile(r"\.url"), r".url()", re.compile(r"(form|calendar).url")),
                   (re.compile(r"\.get_([0-9_\w]+)_display"), r".get_\1_display()", None),
@@ -55,14 +55,14 @@
                   (re.compile(r"loop\.revcounter"), r"loop.revindex", None),
                   (re.compile(r"request\.GET\.([0-9_\w]+)"), r"request.GET.get('\1', '')", None),
                   (re.compile(r"request\.get_host"), r"request.get_host()", None),
-
+                  
                   (re.compile(r"\.all(?!_)"), r".all()", None),
                   (re.compile(r"\.all\.0"), r".all()[0]", None),
                   (re.compile(r"\.([0-9])($|\s+)"), r"[\1]\2", None),
                   (re.compile(r"\.items"), r".items()", None),
         )
         writer = Writer(var_re=var_re)
-
+        
     For details about the writing process have a look at the module code.
 
     :copyright: (c) 2009 by the Jinja Team.
@@ -314,7 +314,7 @@ class Writer(object):
         """Performs variable name translation."""
         if self.in_loop and var == 'forloop' or var.startswith('forloop.'):
             var = var[3:]
-
+        
         for reg, rep, unless in self.var_re:
             no_unless = unless and unless.search(var) or True
             if reg.search(var) and no_unless:
@@ -425,7 +425,7 @@ def if_condition(writer, node):
     join_with = 'and'
     if node.link_type == core_tags.IfNode.LinkTypes.or_:
         join_with = 'or'
-
+    
     for idx, (ifnot, expr) in enumerate(node.bool_exprs):
         if idx:
             writer.write(' %s ' % join_with)
@@ -734,22 +734,22 @@ def simple_tag(writer, node):
         writer._filters_warned.add(name)
         writer.warn('Filter %s probably doesn\'t exist in Jinja' %
                     name)
-
+        
     if not node.vars_to_resolve:
         # No argument, pass the request
         writer.start_variable()
         writer.write('request|')
         writer.write(name)
         writer.end_variable()
-        return
-
+        return 
+    
     first_var =  node.vars_to_resolve[0]
     args = node.vars_to_resolve[1:]
     writer.start_variable()
-
+    
     # Copied from Writer.filters()
     writer.node(first_var)
-
+    
     writer.write('|')
     writer.write(name)
     if args:
@@ -762,7 +762,7 @@ def simple_tag(writer, node):
             else:
                 writer.literal(var.literal)
         writer.write(')')
-    writer.end_variable()
+    writer.end_variable()   
 
 # get rid of node now, it shouldn't be used normally
 del node

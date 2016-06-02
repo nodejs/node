@@ -27,8 +27,8 @@ i18n Extension
 
 **Import name:** `jinja2.ext.i18n`
 
-The i18n extension can be used in combination with `gettext`_ or `babel`_.  If
-the i18n extension is enabled Jinja2 provides a `trans` statement that marks
+The i18n extension can be used in combination with `gettext`_ or `babel`_.  If 
+the i18n extension is enabled Jinja2 provides a `trans` statement that marks 
 the wrapped string as translatable and calls `gettext`.
 
 After enabling, dummy `_` function that forwards calls to `gettext` is added

@@ -1,11 +1,11 @@
 # lint Python modules using external checkers.
-#
+# 
 # This is the main checker controling the other ones and the reports
 # generation. It is itself both a raw checker and an astng checker in order
 # to:
 # * handle message activation / deactivation at the module level
 # * handle some basic but necessary stats'data (number of classes, methods...)
-#
+# 
 [MASTER]
 
 # Specify a configuration file.
@@ -92,7 +92,7 @@ comment=no
 # * undefined variables
 # * redefinition of variable from builtins or from an outer scope
 # * use of variable before assigment
-#
+# 
 [VARIABLES]
 
 # Tells wether we should check for unused import in __init__ files.
@@ -107,7 +107,7 @@ additional-builtins=
 
 
 # try to find bugs in the code using type inference
-#
+# 
 [TYPECHECK]
 
 # Tells wether missing members accessed in mixin class should be ignored. A
@@ -132,7 +132,7 @@ acquired-members=REQUEST,acl_users,aq_parent
 # * dangerous default values as arguments
 # * redefinition of function / method / class
 # * uses of the global statement
-#
+# 
 [BASIC]
 
 # Required attributes for module, separated by a comma
@@ -183,7 +183,7 @@ bad-functions=apply,input
 # checks for sign of poor/misdesign:
 # * number of methods, attributes, local variables...
 # * size, complexity of functions, methods
-#
+# 
 [DESIGN]
 
 # Maximum number of arguments for function / method
@@ -219,7 +219,7 @@ max-public-methods=20
 # * relative / wildcard imports
 # * cyclic imports
 # * uses of deprecated modules
-#
+# 
 [IMPORTS]
 
 # Deprecated modules which should not be used, separated by a comma
@@ -245,7 +245,7 @@ int-import-graph=
 # * attributes not defined in the __init__ method
 # * supported interfaces implementation
 # * unreachable code
-#
+# 
 [CLASSES]
 
 # List of interface methods to ignore, separated by a comma. This is used for
@@ -259,7 +259,7 @@ defining-attr-methods=__init__,__new__,setUp
 # checks for similarities and duplicated code. This computation may be
 # memory / CPU intensive, so you should disable it if you experiments some
 # problems.
-#
+# 
 [SIMILARITIES]
 
 # Minimum lines number of a similarity.
@@ -275,7 +275,7 @@ ignore-docstrings=yes
 # checks for:
 # * warning notes in the code like FIXME, XXX
 # * PEP 263: source code with non ascii character but no encoding declaration
-#
+# 
 [MISCELLANEOUS]
 
 # List of note tags to take in consideration, separated by a comma.
@@ -287,7 +287,7 @@ notes=FIXME,XXX,TODO
 # * strict indentation
 # * line length
 # * use of <> instead of !=
-#
+# 
 [FORMAT]
 
 # Maximum number of characters on a single line.
