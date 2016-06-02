@@ -22,7 +22,7 @@ function test() {
     bufs.push(chunk);
   });
   client.on('end', function() {
-    var head = Buffer.concat(bufs).toString('binary').split('\r\n')[0];
+    var head = Buffer.concat(bufs).toString('latin1').split('\r\n')[0];
     assert.equal('HTTP/1.1 200 Custom Message', head);
     console.log('ok');
     s.close();

@@ -165,11 +165,21 @@ The character encodings currently supported by Node.js include:
   this encoding will also correctly accept "URL and Filename Safe Alphabet" as
   specified in [RFC 4648, Section 5].
 
-* `'binary'` - A way of encoding the buffer into a one-byte (`latin-1`)
-  encoded string. The string `'latin-1'` is not supported. Instead, pass
-  `'binary'` to use `'latin-1'` encoding.
+* `'latin1'` - A way of encoding the buffer into a one-byte encoded string
+  (as defined by the IANA in [RFC1345](https://tools.ietf.org/html/rfc1345),
+  page 63, to be the Latin-1 supplement block and C0/C1 control codes).
+
+* `'binary'` - (deprecated) A way of encoding the buffer into a one-byte
+  (`latin1`) encoded string.
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
+
+_Note_: Today's browsers follow the [WHATWG
+spec](https://encoding.spec.whatwg.org/) that aliases both `latin1` and
+`iso-8859-1` to `win-1252`. Meaning, while doing something like `http.get()`,
+if the returned charset is one of those listed in the WHATWG spec it's possible
+that the server actually returned `win-1252` encoded data, and using `latin1`
+encoding may incorrectly decode the graphical characters.
 
 ## Buffers and TypedArray
 
