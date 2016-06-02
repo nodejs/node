@@ -310,9 +310,10 @@ added: v1.0.0
 * `callback` {Function}
 
 Tests a user's permissions for the file or directory specified by `path`.
-`mode` is an optional integer that specifies the accessibility checks to be
-performed. The following constants define the possible values of `mode`. It is
-possible to create a mask consisting of the bitwise OR of two or more values.
+The `mode` argument is an optional integer that specifies the accessibility
+checks to be performed. The following constants define the possible values of
+`mode`. It is possible to create a mask consisting of the bitwise OR of two or
+more values.
 
 - `fs.constants.F_OK` - `path` is visible to the calling process. This is useful
 for determining if a file exists, but says nothing about `rwx` permissions.
