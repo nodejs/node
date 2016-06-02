@@ -324,6 +324,10 @@ function error_test() {
             'undefined\n' + prompt_unix },
     { client: client_unix, send: '{ var x = 4; }',
       expect: 'undefined\n' + prompt_unix },
+    // Illegal token is not recoverable outside string literal, RegExp literal,
+    // or block comment. https://github.com/nodejs/node/issues/3611
+    { client: client_unix, send: 'a = 3.5e',
+      expect: /^SyntaxError: Unexpected token ILLEGAL/ },
   ]);
 }
 
