@@ -83,9 +83,11 @@ void* Zone::New(int size) {
 #else
       size;
 #endif
-
-  if (size_with_redzone > limit_ - position_) {
-     result = NewExpand(size_with_redzone);
+  const uintptr_t limit = reinterpret_cast<uintptr_t>(limit_);
+  const uintptr_t position = reinterpret_cast<uintptr_t>(position_);
+  // position_ > limit_ can be true after the alignment correction above.
+  if (limit < position || size_with_redzone > limit - position) {
+    result = NewExpand(size_with_redzone);
   } else {
      position_ += size_with_redzone;
   }
@@ -202,7 +204,10 @@ Address Zone::NewExpand(int size) {
   // Make sure the requested size is already properly aligned and that
   // there isn't enough room in the Zone to satisfy the request.
   DCHECK(size == RoundDown(size, kAlignment));
-  DCHECK(size > limit_ - position_);
+  DCHECK(limit_ < position_ ||
+         reinterpret_cast<uintptr_t>(limit_) -
+                 reinterpret_cast<uintptr_t>(position_) <
+             size);
 
   // Compute the new segment size. We use a 'high water mark'
   // strategy, where we increase the segment size every time we expand
