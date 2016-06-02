@@ -309,18 +309,19 @@ added: v1.0.0
 * `mode` {Integer}
 * `callback` {Function}
 
-Tests a user's permissions for the file specified by `path`. `mode` is an
-optional integer that specifies the accessibility checks to be performed. The
-following constants define the possible values of `mode`. It is possible to
-create a mask consisting of the bitwise OR of two or more values.
+Tests a user's permissions for the file or directory specified by `path`.
+The `mode` argument is an optional integer that specifies the accessibility
+checks to be performed. The following constants define the possible values of
+`mode`. It is possible to create a mask consisting of the bitwise OR of two or
+more values.
 
-- `fs.F_OK` - File is visible to the calling process. This is useful for
-determining if a file exists, but says nothing about `rwx` permissions.
+- `fs.F_OK` - `path` is visible to the calling process. This is useful
+for determining if a file exists, but says nothing about `rwx` permissions.
 Default if no `mode` is specified.
-- `fs.R_OK` - File can be read by the calling process.
-- `fs.W_OK` - File can be written by the calling process.
-- `fs.X_OK` - File can be executed by the calling process. This has no effect
-on Windows (will behave like `fs.F_OK`).
+- `fs.R_OK` - `path` can be read by the calling process.
+- `fs.W_OK` - `path` can be written by the calling process.
+- `fs.X_OK` - `path` can be executed by the calling process. This has
+no effect on Windows (will behave like `fs.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
