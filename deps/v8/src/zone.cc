@@ -168,7 +168,10 @@ Address Zone::NewExpand(int size) {
   // Make sure the requested size is already properly aligned and that
   // there isn't enough room in the Zone to satisfy the request.
   ASSERT(size == RoundDown(size, kAlignment));
-  ASSERT(size > limit_ - position_);
+  ASSERT(limit_ < position_ ||
+         reinterpret_cast<uintptr_t>(limit_) -
+                 reinterpret_cast<uintptr_t>(position_) <
+             size);
 
   // Compute the new segment size. We use a 'high water mark'
   // strategy, where we increase the segment size every time we expand

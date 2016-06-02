@@ -55,7 +55,10 @@ inline void* Zone::New(int size) {
   // Check if the requested size is available without expanding.
   Address result = position_;
 
-  if (size > limit_ - position_) {
+  const uintptr_t limit = reinterpret_cast<uintptr_t>(limit_);
+  const uintptr_t position = reinterpret_cast<uintptr_t>(position_);
+  // position_ > limit_ can be true after the alignment correction above.
+  if (limit < position || size > limit - position) {
      result = NewExpand(size);
   } else {
      position_ += size;
