@@ -1273,7 +1273,7 @@ if (common.hasCrypto) {
     crypto.createHash('sha1').update(b2).digest('hex')
   );
 } else {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
 }
 
 // Test Compare

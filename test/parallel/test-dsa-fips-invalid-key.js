@@ -3,7 +3,7 @@ var common = require('../common');
 var assert = require('assert');
 
 if (!common.hasFipsCrypto) {
-  console.log('1..0 # Skipped: node compiled without FIPS OpenSSL.');
+  common.skip('node compiled without FIPS OpenSSL.');
   return;
 }
 

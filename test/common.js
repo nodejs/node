@@ -459,6 +459,10 @@ exports.fail = function(msg) {
   assert.fail(null, null, msg);
 };
 
+exports.skip = function(msg) {
+  console.log(`1..0 # Skipped: ${msg}`);
+};
+
 // Returns true if the exit code "exitCode" and/or signal name "signal"
 // represent the exit code and/or signal name of a node process that aborted,
 // false otherwise.
