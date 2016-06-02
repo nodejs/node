@@ -180,6 +180,11 @@ def create_primitive_type_definition(type):
         "integer": "int",
         "boolean": "bool"
     }
+    defaults = {
+        "number": "0",
+        "integer": "0",
+        "boolean": "false"
+    }
     jsontypes = {
         "number": "TypeNumber",
         "integer": "TypeNumber",
@@ -195,6 +200,7 @@ def create_primitive_type_definition(type):
         "raw_type": typedefs[type],
         "raw_pass_type": typedefs[type],
         "raw_return_type": typedefs[type],
+        "default_value": defaults[type]
     }
 
 type_definitions = {}
