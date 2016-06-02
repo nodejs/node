@@ -169,8 +169,7 @@ The character encodings currently supported by Node.js include:
   (as defined by the IANA in [RFC1345](https://tools.ietf.org/html/rfc1345),
   page 63, to be the Latin-1 supplement block and C0/C1 control codes).
 
-* `'binary'` - (deprecated) A way of encoding the buffer into a one-byte
-  (`latin1`) encoded string.
+* `'binary'` - Alias for `latin1`.
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 

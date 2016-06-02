@@ -1493,13 +1493,6 @@ ssize_t DecodeBytes(Isolate* isolate,
                     enum encoding encoding) {
   HandleScope scope(isolate);
 
-  if (val->IsArray()) {
-    fprintf(stderr, "'raw' encoding (array of integers) has been removed. "
-                    "Use 'latin1'.\n");
-    UNREACHABLE();
-    return -1;
-  }
-
   return StringBytes::Size(isolate, val, encoding);
 }
 
