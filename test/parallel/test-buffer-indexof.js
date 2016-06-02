@@ -102,6 +102,23 @@ assert.equal(
     Buffer.from(b.toString('ascii'), 'ascii')
     .indexOf(Buffer.from('d', 'ascii'), 0, 'ascii'), 3);
 
+// test latin1 encoding
+assert.equal(
+    Buffer.from(b.toString('latin1'), 'latin1')
+    .indexOf('d', 0, 'latin1'), 3);
+assert.equal(
+    Buffer.from(b.toString('latin1'), 'latin1')
+    .indexOf(Buffer.from('d', 'latin1'), 0, 'latin1'), 3);
+assert.equal(
+    Buffer.from('aa\u00e8aa', 'latin1')
+    .indexOf('\u00e8', 'latin1'), 2);
+assert.equal(
+    Buffer.from('\u00e8', 'latin1')
+    .indexOf('\u00e8', 'latin1'), 0);
+assert.equal(
+    Buffer.from('\u00e8', 'latin1')
+    .indexOf(Buffer.from('\u00e8', 'latin1'), 'latin1'), 0);
+
 // test binary encoding
 assert.equal(
     Buffer.from(b.toString('binary'), 'binary')
@@ -357,20 +374,24 @@ assert.equal(b.lastIndexOf('b', [2]), 1);
 // Test needles longer than the haystack.
 assert.strictEqual(b.lastIndexOf('aaaaaaaaaaaaaaa', 'ucs2'), -1);
 assert.strictEqual(b.lastIndexOf('aaaaaaaaaaaaaaa', 'utf8'), -1);
+assert.strictEqual(b.lastIndexOf('aaaaaaaaaaaaaaa', 'latin1'), -1);
 assert.strictEqual(b.lastIndexOf('aaaaaaaaaaaaaaa', 'binary'), -1);
 assert.strictEqual(b.lastIndexOf(Buffer.from('aaaaaaaaaaaaaaa')), -1);
 assert.strictEqual(b.lastIndexOf('aaaaaaaaaaaaaaa', 2, 'ucs2'), -1);
 assert.strictEqual(b.lastIndexOf('aaaaaaaaaaaaaaa', 3, 'utf8'), -1);
+assert.strictEqual(b.lastIndexOf('aaaaaaaaaaaaaaa', 5, 'latin1'), -1);
 assert.strictEqual(b.lastIndexOf('aaaaaaaaaaaaaaa', 5, 'binary'), -1);
 assert.strictEqual(b.lastIndexOf(Buffer.from('aaaaaaaaaaaaaaa'), 7), -1);
 
 // 你好 expands to a total of 6 bytes using UTF-8 and 4 bytes using UTF-16
 assert.strictEqual(buf_bc.lastIndexOf('你好', 'ucs2'), -1);
 assert.strictEqual(buf_bc.lastIndexOf('你好', 'utf8'), -1);
+assert.strictEqual(buf_bc.lastIndexOf('你好', 'latin1'), -1);
 assert.strictEqual(buf_bc.lastIndexOf('你好', 'binary'), -1);
 assert.strictEqual(buf_bc.lastIndexOf(Buffer.from('你好')), -1);
 assert.strictEqual(buf_bc.lastIndexOf('你好', 2, 'ucs2'), -1);
 assert.strictEqual(buf_bc.lastIndexOf('你好', 3, 'utf8'), -1);
+assert.strictEqual(buf_bc.lastIndexOf('你好', 5, 'latin1'), -1);
 assert.strictEqual(buf_bc.lastIndexOf('你好', 5, 'binary'), -1);
 assert.strictEqual(buf_bc.lastIndexOf(Buffer.from('你好'), 7), -1);
 
@@ -395,6 +416,7 @@ assert.equal(-1, bufferString.lastIndexOf('a ', -28));
 // but in a part of the buffer that does not make search to search
 // due do length constraints.
 const abInUCS2 = Buffer.from('ab', 'ucs2');
+assert.strictEqual(-1, Buffer.from('µaaaa¶bbbb', 'latin1').lastIndexOf('µ'));
 assert.strictEqual(-1, Buffer.from('µaaaa¶bbbb', 'binary').lastIndexOf('µ'));
 assert.strictEqual(-1, Buffer.from('bc').lastIndexOf('ab'));
 assert.strictEqual(-1, Buffer.from('abc').lastIndexOf('qa'));

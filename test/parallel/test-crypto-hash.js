@@ -38,11 +38,11 @@ a8.end();
 a8 = a8.read();
 
 if (!common.hasFipsCrypto) {
-  var a0 = crypto.createHash('md5').update('Test123').digest('binary');
+  var a0 = crypto.createHash('md5').update('Test123').digest('latin1');
   assert.equal(
     a0,
     'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca\u00bd\u008c',
-    'Test MD5 as binary'
+    'Test MD5 as latin1'
   );
 }
 assert.equal(a1, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
@@ -56,7 +56,7 @@ assert.deepStrictEqual(
     '\u00d6\u0092\u00a3\u00df\u00a2i\u00a1\u009b\n\n*\u000f' +
     '\u00d7\u00d6\u00a2\u00a8\u0085\u00e3<\u0083\u009c\u0093' +
     '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
-    'binary'),
+    'latin1'),
   'Test SHA512 as assumed buffer');
 assert.deepStrictEqual(
   a4,
@@ -102,7 +102,7 @@ assert.equal(
 
 assert.notEqual(
     hutf8,
-    crypto.createHash('sha512').update('УТФ-8 text', 'binary').digest('hex'));
+    crypto.createHash('sha512').update('УТФ-8 text', 'latin1').digest('hex'));
 
 var h3 = crypto.createHash('sha256');
 h3.digest();

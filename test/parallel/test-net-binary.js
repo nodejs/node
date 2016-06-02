@@ -14,9 +14,9 @@ for (var i = 255; i >= 0; i--) {
 
 // safe constructor
 var echoServer = net.Server(function(connection) {
-  connection.setEncoding('binary');
+  connection.setEncoding('latin1');
   connection.on('data', function(chunk) {
-    connection.write(chunk, 'binary');
+    connection.write(chunk, 'latin1');
   });
   connection.on('end', function() {
     connection.end();
@@ -32,11 +32,11 @@ echoServer.on('listening', function() {
     port: common.PORT
   });
 
-  c.setEncoding('binary');
+  c.setEncoding('latin1');
   c.on('data', function(chunk) {
     var n = j + chunk.length;
     while (j < n && j < 256) {
-      c.write(String.fromCharCode(j), 'binary');
+      c.write(String.fromCharCode(j), 'latin1');
       j++;
     }
     if (j === 256) {
