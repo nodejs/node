@@ -11,7 +11,13 @@ var write_str = 'a';
 
 // first do basic checks
 var b = Buffer.from(write_str, 'ucs2');
-var c = b.toString('binary');
+// first check latin1
+var c = b.toString('latin1');
+assert.equal(b[0], 0x61);
+assert.equal(b[1], 0);
+assert.equal(ucs2_control, c);
+// now check binary
+c = b.toString('binary');
 assert.equal(b[0], 0x61);
 assert.equal(b[1], 0);
 assert.equal(ucs2_control, c);
@@ -28,13 +34,20 @@ for (let i = 0; i < b.length; i += 2) {
   assert.equal(b[i], 0x61);
   assert.equal(b[i + 1], 0);
 }
+
 // create another string to create an external string
-var b_bin = b.toString('binary');
 var b_ucs = b.toString('ucs2');
+
 // check control against external binary string
+var l_bin = b.toString('latin1');
+assert.equal(ucs2_control, l_bin);
+
+// check control against external binary string
+var b_bin = b.toString('binary');
 assert.equal(ucs2_control, b_bin);
+
 // create buffer copy from external
-var c_bin = Buffer.from(b_bin, 'binary');
+var c_bin = Buffer.from(l_bin, 'latin1');
 var c_ucs = Buffer.from(b_ucs, 'ucs2');
 // make sure they're the same length
 assert.equal(c_bin.length, c_ucs.length);
@@ -44,8 +57,8 @@ for (let i = 0; i < c_bin.length; i++) {
 }
 // check resultant strings
 assert.equal(c_bin.toString('ucs2'), c_ucs.toString('ucs2'));
-assert.equal(c_bin.toString('binary'), ucs2_control);
-assert.equal(c_ucs.toString('binary'), ucs2_control);
+assert.equal(c_bin.toString('latin1'), ucs2_control);
+assert.equal(c_ucs.toString('latin1'), ucs2_control);
 
 
 // now let's test BASE64 and HEX ecoding/decoding

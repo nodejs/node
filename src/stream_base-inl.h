@@ -71,8 +71,8 @@ void StreamBase::AddMethods(Environment* env,
                       "writeUcs2String",
                       JSMethod<Base, &StreamBase::WriteString<UCS2> >);
   env->SetProtoMethod(t,
-                      "writeBinaryString",
-                      JSMethod<Base, &StreamBase::WriteString<BINARY> >);
+                      "writeLatin1String",
+                      JSMethod<Base, &StreamBase::WriteString<LATIN1> >);
 }
 
 

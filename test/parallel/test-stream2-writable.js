@@ -140,6 +140,7 @@ test('write bufferize', function(t) {
         'utf8',
         'utf-8',
         'ascii',
+        'latin1',
         'binary',
         'base64',
         'ucs2',
@@ -177,6 +178,7 @@ test('write no bufferize', function(t) {
         'utf8',
         'utf-8',
         'ascii',
+        'latin1',
         'binary',
         'base64',
         'ucs2',
@@ -275,7 +277,7 @@ test('encoding should be ignored for buffers', function(t) {
     t.end();
   };
   var buf = Buffer.from(hex, 'hex');
-  tw.write(buf, 'binary');
+  tw.write(buf, 'latin1');
 });
 
 test('writables are not pipable', function(t) {
