@@ -2,7 +2,7 @@ import os,re
 
 def get_version():
   node_version_h = os.path.join(os.path.dirname(__file__), '..', 'src',
-      'node_version.h')
+    'node_version.h')
 
   f = open(node_version_h)
 

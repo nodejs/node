@@ -782,11 +782,6 @@
             'test/cctest/test_inspector_socket.cc'
           ]
         }],
-        [ 'node_shared=="false"', {
-          'dependencies': [
-            'deps/v8/tools/gyp/v8.gyp:v8',
-          ],
-        }],
         [ 'node_no_v8_platform=="false"', {
           'dependencies': [
             'deps/v8/tools/gyp/v8.gyp:v8_libplatform',
