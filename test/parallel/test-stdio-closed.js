@@ -4,7 +4,7 @@ var assert = require('assert');
 var spawn = require('child_process').spawn;
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: platform not supported.');
+  common.skip('platform not supported.');
   return;
 }
 

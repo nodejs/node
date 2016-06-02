@@ -5,7 +5,7 @@ const assert = require('assert');
 try {
   var crypto = require('crypto');
 } catch (e) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL.');
+  common.skip('node compiled without OpenSSL.');
   return;
 }
 

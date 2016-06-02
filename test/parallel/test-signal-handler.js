@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: SIGUSR1 and SIGHUP signals are not supported');
+  common.skip('SIGUSR1 and SIGHUP signals are not supported');
   return;
 }
 

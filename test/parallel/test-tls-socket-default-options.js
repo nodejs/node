@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 const tls = require('tls');

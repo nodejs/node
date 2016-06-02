@@ -11,7 +11,7 @@ let running = false;
 const queue = [];
 
 if (!common.hasIPv6) {
-  console.log('1..0 # Skipped: this test, no IPv6 support');
+  common.skip('this test, no IPv6 support');
   return;
 }
 

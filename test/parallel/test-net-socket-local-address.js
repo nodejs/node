@@ -5,7 +5,7 @@ const net = require('net');
 
 // skip test in FreeBSD jails
 if (common.inFreeBSDJail) {
-  console.log('1..0 # Skipped: In a FreeBSD jail');
+  common.skip('In a FreeBSD jail');
   return;
 }
 

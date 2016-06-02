@@ -3,7 +3,7 @@ const common = require('../common');
 const dgram = require('dgram');
 
 if (process.platform === 'darwin') {
-  console.log('1..0 # Skipped: because of 17894467 Apple bug');
+  common.skip('because of 17894467 Apple bug');
   return;
 }
 

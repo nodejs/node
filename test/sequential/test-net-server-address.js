@@ -20,7 +20,7 @@ server_ipv4.listen(common.PORT, common.localhostIPv4, function() {
 });
 
 if (!common.hasIPv6) {
-  console.log('1..0 # Skipped: ipv6 part of test, no IPv6 support');
+  common.skip('ipv6 part of test, no IPv6 support');
   return;
 }
 

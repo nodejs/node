@@ -10,7 +10,7 @@ var common = require('../common');
 // addresses correctly and runs out of memory
 // Disabling until we get a fix upstreamed into V8
 if (common.isAix) {
-  console.log('1..0 # Skipped: Aix address range too big for scripts.');
+  common.skip('Aix address range too big for scripts.');
   return;
 }
 
@@ -32,7 +32,7 @@ if (common.isWindows ||
     common.isAix ||
     common.isLinuxPPCBE ||
     common.isFreeBSD) {
-  console.log('1..0 # Skipped: C++ symbols are not mapped for this os.');
+  common.skip('C++ symbols are not mapped for this os.');
   return;
 }
 runTest(/RunInDebugContext/,

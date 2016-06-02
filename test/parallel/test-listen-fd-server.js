@@ -6,7 +6,7 @@ var net = require('net');
 var PORT = common.PORT;
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: This test is disabled on windows.');
+  common.skip('This test is disabled on windows.');
   return;
 }
 

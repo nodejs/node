@@ -5,7 +5,7 @@ var path = require('path');
 var assert = require('assert');
 
 if (!common.isWindows) {
-  console.log('1..0 # Skipped: this test is Windows-specific.');
+  common.skip('this test is Windows-specific.');
   return;
 }
 
