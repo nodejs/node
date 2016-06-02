@@ -722,47 +722,6 @@ const char *signo_string(int signo) {
 }
 
 
-// Convenience methods
-
-
-void ThrowError(v8::Isolate* isolate, const char* errmsg) {
-  Environment::GetCurrent(isolate)->ThrowError(errmsg);
-}
-
-
-void ThrowTypeError(v8::Isolate* isolate, const char* errmsg) {
-  Environment::GetCurrent(isolate)->ThrowTypeError(errmsg);
-}
-
-
-void ThrowRangeError(v8::Isolate* isolate, const char* errmsg) {
-  Environment::GetCurrent(isolate)->ThrowRangeError(errmsg);
-}
-
-
-void ThrowErrnoException(v8::Isolate* isolate,
-                         int errorno,
-                         const char* syscall,
-                         const char* message,
-                         const char* path) {
-  Environment::GetCurrent(isolate)->ThrowErrnoException(errorno,
-                                                        syscall,
-                                                        message,
-                                                        path);
-}
-
-
-void ThrowUVException(v8::Isolate* isolate,
-                      int errorno,
-                      const char* syscall,
-                      const char* message,
-                      const char* path,
-                      const char* dest) {
-  Environment::GetCurrent(isolate)
-      ->ThrowUVException(errorno, syscall, message, path, dest);
-}
-
-
 Local<Value> ErrnoException(Isolate* isolate,
                             int errorno,
                             const char *syscall,
@@ -1266,18 +1225,6 @@ Local<Value> MakeCallback(Environment* env,
   }
 
   return ret;
-}
-
-
-// Internal only.
-Local<Value> MakeCallback(Environment* env,
-                           Local<Object> recv,
-                           uint32_t index,
-                           int argc,
-                           Local<Value> argv[]) {
-  Local<Value> cb_v = recv->Get(index);
-  CHECK(cb_v->IsFunction());
-  return MakeCallback(env, recv.As<Value>(), cb_v.As<Function>(), argc, argv);
 }
 
 
