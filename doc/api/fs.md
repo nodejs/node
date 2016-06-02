@@ -314,14 +314,13 @@ Tests a user's permissions for the file or directory specified by `path`.
 performed. The following constants define the possible values of `mode`. It is
 possible to create a mask consisting of the bitwise OR of two or more values.
 
-- `fs.constants.F_OK` - File or directory is visible to the calling process.
-This is useful for determining if a file exists, but says nothing about `rwx`
-permissions. Default if no `mode` is specified.
-- `fs.constants.R_OK` - File or directory can be read by the calling process.
-- `fs.constants.W_OK` - File or directory can be written by the calling
-process.
-- `fs.constants.X_OK` - File or directory can be executed by the calling
-process. This has no effect on Windows (will behave like `fs.constants.F_OK`).
+- `fs.constants.F_OK` - Path is visible to the calling process. This is useful
+for determining if a file exists, but says nothing about `rwx` permissions.
+Default if no `mode` is specified.
+- `fs.constants.R_OK` - Path can be read by the calling process.
+- `fs.constants.W_OK` - Path can be written by the calling process.
+- `fs.constants.X_OK` - Path can be executed by the calling process. This has
+no effect on Windows (will behave like `fs.constants.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
