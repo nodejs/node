@@ -176,7 +176,7 @@ server.listen({
 
 ### server.listen(path[, backlog][, callback])
 <!-- YAML
-added: v0.3.2
+added: v0.1.90
 -->
 
 * `path` {String}
@@ -213,7 +213,7 @@ The parameter `backlog` behaves the same as in
 
 ### server.listen(port[, hostname][, backlog][, callback])
 <!-- YAML
-added: v0.3.2
+added: v0.1.90
 -->
 
 Begin accepting connections on the specified `port` and `hostname`. If the
