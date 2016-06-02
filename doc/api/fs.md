@@ -309,18 +309,19 @@ added: v1.0.0
 * `mode` {Integer}
 * `callback` {Function}
 
-Tests a user's permissions for the file specified by `path`. `mode` is an
-optional integer that specifies the accessibility checks to be performed. The
-following constants define the possible values of `mode`. It is possible to
-create a mask consisting of the bitwise OR of two or more values.
+Tests a user's permissions for the file or directory specified by `path`.
+`mode` is an optional integer that specifies the accessibility checks to be
+performed. The following constants define the possible values of `mode`. It is
+possible to create a mask consisting of the bitwise OR of two or more values.
 
-- `fs.constants.F_OK` - File is visible to the calling process. This is useful 
-for determining if a file exists, but says nothing about `rwx` permissions.
-Default if no `mode` is specified.
-- `fs.constants.R_OK` - File can be read by the calling process.
-- `fs.constants.W_OK` - File can be written by the calling process.
-- `fs.constants.X_OK` - File can be executed by the calling process. This has no
-effect on Windows (will behave like `fs.constants.F_OK`).
+- `fs.constants.F_OK` - File or directory is visible to the calling process.
+This is useful for determining if a file exists, but says nothing about `rwx`
+permissions. Default if no `mode` is specified.
+- `fs.constants.R_OK` - File or directory can be read by the calling process.
+- `fs.constants.W_OK` - File or directory can be written by the calling
+process.
+- `fs.constants.X_OK` - File or directory can be executed by the calling
+process. This has no effect on Windows (will behave like `fs.constants.F_OK`).
 
 The final argument, `callback`, is a callback function that is invoked with
 a possible error argument. If any of the accessibility checks fail, the error
@@ -341,7 +342,7 @@ added: v0.1.93
 * `path` {String | Buffer}
 * `mode` {Integer}
 
-Synchronous version of [`fs.access()`][]. This throws if any accessibility 
+Synchronous version of [`fs.access()`][]. This throws if any accessibility
 checks fail, and does nothing otherwise.
 
 ## fs.appendFile(file, data[, options], callback)
@@ -503,8 +504,8 @@ the file instead of the entire file.  Both `start` and `end` are inclusive and
 start at 0. The `encoding` can be any one of those accepted by [`Buffer`][].
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
-the specified file descriptor. This means that no `'open'` event will be 
-emitted. Note that `fd` should be blocking; non-blocking `fd`s should be passed 
+the specified file descriptor. This means that no `'open'` event will be
+emitted. Note that `fd` should be blocking; non-blocking `fd`s should be passed
 to [`net.Socket`][].
 
 If `autoClose` is false, then the file descriptor won't be closed, even if
@@ -1802,7 +1803,7 @@ The following constants are meant for use with `fs.open()`.
   </tr>
   <tr>
     <td><code>O_SYMLINK</code></td>
-    <td>Flag indicating to open the symbolic link itself rather than the 
+    <td>Flag indicating to open the symbolic link itself rather than the
     resource it is pointing to.</td>
   </tr>
   <tr>
