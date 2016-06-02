@@ -58,13 +58,6 @@ v8::Local<v8::Value> MakeCallback(Environment* env,
 // Call with valid HandleScope and while inside Context scope.
 v8::Local<v8::Value> MakeCallback(Environment* env,
                                    v8::Local<v8::Object> recv,
-                                   uint32_t index,
-                                   int argc = 0,
-                                   v8::Local<v8::Value>* argv = nullptr);
-
-// Call with valid HandleScope and while inside Context scope.
-v8::Local<v8::Value> MakeCallback(Environment* env,
-                                   v8::Local<v8::Object> recv,
                                    v8::Local<v8::String> symbol,
                                    int argc = 0,
                                    v8::Local<v8::Value>* argv = nullptr);
@@ -192,21 +185,6 @@ inline MUST_USE_RESULT bool ParseArrayIndex(v8::Local<v8::Value> arg,
   *ret = static_cast<size_t>(tmp_i);
   return true;
 }
-
-void ThrowError(v8::Isolate* isolate, const char* errmsg);
-void ThrowTypeError(v8::Isolate* isolate, const char* errmsg);
-void ThrowRangeError(v8::Isolate* isolate, const char* errmsg);
-void ThrowErrnoException(v8::Isolate* isolate,
-                         int errorno,
-                         const char* syscall = nullptr,
-                         const char* message = nullptr,
-                         const char* path = nullptr);
-void ThrowUVException(v8::Isolate* isolate,
-                      int errorno,
-                      const char* syscall = nullptr,
-                      const char* message = nullptr,
-                      const char* path = nullptr,
-                      const char* dest = nullptr);
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
