@@ -23,7 +23,7 @@ Valid types are:
 type | description
 ---- | -----------
 *    | matches any type
-A    | instanceof Array OR an arguments object
+A    | Array.isArray OR an arguments object
 S    | typeof == string
 N    | typeof == number
 F    | typeof == function

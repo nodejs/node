@@ -1,3 +1,94 @@
+### v3.9.5 (2016-05-27):
+
+Just a quick point release. We had an issue where I (Kat) included the
+`.nyc_output/` directory in `npm@3.9.3` and `npm@3.9.4`. The issue got reported
+right after that second release
+([`#12873`](https://github.com/npm/npm/issues/12873)), and now there's this
+small point release that's there to fix the issue sooner.
+
+* [`f96aea0`](https://github.com/npm/npm/commit/f96aea085be981cdb59bd09f16da40717426f981)
+  [#12878](https://github.com/npm/npm/pull/12878)
+  Ignore `.nyc_output` to avoid an accidental publish or commit filled with
+  code coverage data.
+  ([@TheAlphaNerd](https://github.com/TheAlphaNerd))
+
+### v3.9.4 (2016-05-26):
+
+Hey all! It's that time again!
+
+This week continues our current `big-bug` squashing push, although there's none
+that are ready to release quite yet -- we're working on it!
+
+It's also worth noting that we're entering the main part of conference season,
+so you can probably expect a bit of a dev slowdown as a lot of us wombats attend
+or speak at the various conferences. Remember [npm.camp](npm.camp) is happening
+in 2 months and the lineup is looking pretty great! Tickets are still on sale.
+Come hang out with us! WOO FUN! 🎉😸
+
+#### BUGFIX
+
+* [`cac0038`](https://github.com/npm/npm/commit/cac0038868b18295f9f299e762e20034f32a3e11)
+  [#12845](https://github.com/npm/npm/pull/12845)
+  Progress bar during tarball packing now prints `pack:packagename` instead of
+  `pack:[object Object]`.
+  ([@iarna](https://github.com/iarna))
+
+#### DOC UPDATES
+
+* [`0b81622`](https://github.com/npm/npm/commit/0b816225c743c9203db5d92fb4dd3a9293833298)
+  [#12840](https://github.com/npm/npm/pull/12840)
+  Remove sexualized language from comment in code.
+  ([@geek](https://github.com/geek))
+* [`d6dff24`](https://github.com/npm/npm/commit/d6dff2481cb587c392f22afb893ac3136371a64c)
+  [#12802](https://github.com/npm/npm/pull/12802)
+  Small grammar fix in `cli/npm.md`.
+  ([@andresilveira](https://github.com/andresilveira))
+* [`cb38e0f`](https://github.com/npm/npm/commit/cb38e0fff82a6c1c110026b95b07a8c32e27ec01)
+  [#12782](https://github.com/npm/npm/pull/12782)
+  Documents that `NOTICE` files started getting included after
+  [npm/fstream-npm#17](https://github.com/npm/fstream-npm/pull/17).
+  ([@SimenB](https://github.com/SimenB))
+* [`70a3ae4`](https://github.com/npm/npm/commit/70a3ae4d4ec76b3ec51f00bf5261f1147829f9fe)
+  [#12776](https://github.com/npm/npm/pull/12776)
+  `npm run-script` used to have a `<pkg>` argument that allowed you to target
+  specific packages' scripts. This was removed as one of the breaking changes
+  for `npm@2`.
+  This patch removes a mention of that argument, which really doesn't exist
+  anymore.
+  ([@fibo](https://github.com/fibo))
+
+#### DEP UPDATES
+
+* [`4a4470d`](https://github.com/npm/npm/commit/4a4470ddd1d9b0b62cb94f3bff5ab6b8e6db527a)
+  `aproba@1.0.3`
+  ([@iarna](https://github.com/iarna))
+
+#### TEST IMPROVEMENTS
+
+So it turns out, `t.comment` in `tap` is actually pretty nice!
+There's also a couple other test improvements by Rebecca landing here.
+
+* [`9fd04dd`](https://github.com/npm/npm/commit/9fd04dd6be493465d7ac5f14dd9328e66069c1bf)
+  [#12851](https://github.com/npm/npm/pull/12851)
+  Rewrite `shrinkwrap-prod-dependency-also` test to use `common.npm`
+  ([@iarna](https://github.com/iarna))
+* [`3bc4a8e`](https://github.com/npm/npm/commit/3bc4a8ee58cb0e0adc84b4f135330f2b1e20d992)
+  [#12851](https://github.com/npm/npm/pull/12851)
+  Clean up `rm-linked` test.
+  ([@iarna](https://github.com/iarna))
+* [`bf7f7f2`](https://github.com/npm/npm/commit/bf7f7f273a794f7573bbbc84b1c216fdcd9e0ef9)
+  [#12851](https://github.com/npm/npm/pull/12851)
+  Clean up `outdated-symlink` test.
+  ([@iarna](https://github.com/iarna))
+* [`ca0baa4`](https://github.com/npm/npm/commit/ca0baa4dac85b1df4e26ef0c73d39314ca6858ca)
+  [#12851](https://github.com/npm/npm/pull/12851)
+  Improve diagnostics for `shrinkwrap-scoped-auth` test.
+  ([@iarna](https://github.com/iarna))
+* [`fbec9fd`](https://github.com/npm/npm/commit/fbec9fd5bb0abce589120d14c1f2b03b58cecce1)
+  [#12851](https://github.com/npm/npm/pull/12851)
+  Rewrite `shrinkwrap-dev-dependency` test to use `common.npm`.
+  ([@iarna](https://github.com/iarna))
+
 ### v3.9.3 (2016-05-19):
 
 This week continues our `big-bug` squashing adventure! Things are churning along
