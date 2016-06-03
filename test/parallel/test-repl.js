@@ -324,6 +324,19 @@ function error_test() {
             'undefined\n' + prompt_unix },
     { client: client_unix, send: '{ var x = 4; }',
       expect: 'undefined\n' + prompt_unix },
+    // REPL should handle invalid escape sequences
+    { client: client_unix, send: "'unicode point \\u{0000000041}'",
+      expect: "'unicode point A'\n" + prompt_unix },
+    { client: client_unix, send: "'unicode \u0041'",
+      expect: "'unicode A'\n" + prompt_unix },
+    { client: client_unix, send: "'hexadecimal \x41'",
+      expect: "'hexadecimal A'\n" + prompt_unix },
+    { client: client_unix, send: "'\\u{10000000041} failure case'",
+      expect: /^SyntaxError: Unexpected token ILLEGAL/ },
+    { client: client_unix, send: "'\\uea failure case'",
+      expect: /^SyntaxError: Unexpected token ILLEGAL/ },
+    { client: client_unix, send: "'\\x1 edge case'",
+      expect: /^SyntaxError: Unexpected token ILLEGAL/ },
   ]);
 }
 
