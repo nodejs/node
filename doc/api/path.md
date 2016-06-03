@@ -38,15 +38,17 @@ To achieve consistent results when working with Windows file paths on any
 operating system, use [`path.win32`][]:
 
 On POSIX and Windows:
+
 ```js
 path.win32.basename('C:\\temp\\myfile.html');
   // returns 'myfile.html'
 ```
 
 To achieve consistent results when working with POSIX file paths on any
-operating system, use [`path.posix`]:
+operating system, use [`path.posix`][]:
 
 On POSIX and Windows:
+
 ```js
 path.posix.basename('/tmp/myfile.html');
   // returns 'myfile.html'
@@ -81,7 +83,7 @@ and is not a string.
 added: v0.9.3
 -->
 
-Returns the platform-specific path delimiter:
+Provides the platform-specific path delimiter:
 
 * `;` for Windows
 * `:` for POSIX
@@ -105,6 +107,8 @@ console.log(process.env.PATH)
 process.env.PATH.split(path.delimiter)
 // returns ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
 ```
+
+*Note*: This property is *not* read-only and may be modified.
 
 ## path.dirname(path)
 <!-- YAML
@@ -172,7 +176,7 @@ added: v0.11.15
   * `ext` {String}
 
 The `path.format()` method returns a path string from an object. This is the
-opposite of [`path.parse`][].
+opposite of [`path.parse()`][].
 
 The following process is used when constructing the path string:
 
@@ -267,16 +271,14 @@ path.isAbsolute('.')         // false
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
-## path.join([path1][, path2][, ...])
+## path.join([path[, ...]])
 <!-- YAML
 added: v0.1.16
 -->
 
-* `path1` {String} A path segment
-* `path2` {String} A path segment
-* `[, ...]` {String} Additional path segments
+* `[path[, ...]]` {String} A sequence of path segments
 
-The `path.join()` method join all given path segments together using the
+The `path.join()` method join all given `path` segments together using the
 platform specific separator as a delimiter, then normalizes the resulting path.
 
 Zero-length strings passed as segments are ignored. If the joined path string is
@@ -293,7 +295,7 @@ path.join('foo', {}, 'bar')
 // throws TypeError: Arguments to path.join must be strings
 ```
 
-A [`TypeError`] is thrown if any of the path segments is not a string.
+A [`TypeError`][] is thrown if any of the path segments is not a string.
 
 ## path.normalize(path)
 <!-- YAML
@@ -401,7 +403,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 added: v0.11.15
 -->
 
-The `path.posix' property provides access to POSIX specific implementations
+The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
 
 ## path.relative(from, to)
@@ -409,11 +411,12 @@ of the `path` methods.
 added: v0.5.0
 -->
 
-* `from` {String} A file path
-* `to` {String} A file path
+* `from` {String}
+* `to` {String}
 
 The `path.relative()` method returns the relative path from `from` to `to`.
-If `from` and `to` are equal, a zero-length string is returned.
+If `from` and `to` each resolve to the same path (after calling `path.resolve()`
+on each), a zero-length string is returned.
 
 If a zero-length string is passed as `from` or `to`, the current working
 directory will be used instead of the zero-length strings.
@@ -432,24 +435,33 @@ path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb')
 // returns '..\\..\\impl\\bbb'
 ```
 
-A [`TypeError`][] is thrown if neither `from` or `to` is a string.
+A [`TypeError`][] is thrown if neither `from` nor `to` is a string.
 
-## path.resolve([from ...], to)
+## path.resolve([path[, ...]])
 <!-- YAML
 added: v0.3.4
 -->
 
-* `[from ...]` {String} One or more file paths
-* `to` {String} A file path
+* `[path[, ...]]` {String} A sequence of paths or path segments
 
-The `path.resolve()` method resolves `to` to an absolute path.
+The `path.resolve()` method resolves a sequence of paths or path segments into
+an absolute path.
 
-If `to` is not already an absolute path, each `from` argument is prepended in
-right to left order, until an absolute path is constructed. If after using all
-`from` paths still no absolute path is found, the current working directory is
-used as well. The resulting path is normalized, and trailing slashes are removed
-unless the path is resolved to the root directory. Empty string `from` arguments
-are ignored.
+The given sequence of paths is processed from right to left, with each
+subsequent `path` prepended until an absolute path is constructed.
+For instance, given the sequence of path segments: `/foo`, `/bar`, `baz`,
+calling `path.resolve('/foo', '/bar', 'baz')` would return `/bar/baz`.
+
+If after processing all given `path` segments an absolute path has not yet
+been generated, the current working directory is used.
+
+The resulting path is normalized and trailing slashes are removed unless the
+path is resolved to the root directory.
+
+Any `path` segments passed as empty strings are ignored.
+
+If no `path` segments are passed, `path.resolve()` will return the absolute path
+of the current working directory.
 
 For example:
 
@@ -461,8 +473,8 @@ path.resolve('/foo/bar', '/tmp/file/')
 // returns '/tmp/file'
 
 path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
-// if currently in /home/myself/node, it returns
-// '/home/myself/node/wwwroot/static_files/gif/image.gif'
+// if the current working directory is /home/myself/node,
+// this returns '/home/myself/node/wwwroot/static_files/gif/image.gif'
 ```
 
 A [`TypeError`][] is thrown if any of the arguments is not a string.
@@ -472,7 +484,7 @@ A [`TypeError`][] is thrown if any of the arguments is not a string.
 added: v0.7.9
 -->
 
-Returns the platform-specific path segment separator:
+Provides the platform-specific path segment separator:
 
 * `\` on Windows
 * `/` on POSIX
@@ -491,6 +503,8 @@ On Windows:
 // returns ['foo', 'bar', 'baz']
 ```
 
+*Note*: This property is *not* read-only and may be modified.
+
 ## path.win32
 <!-- YAML
 added: v0.11.15
@@ -499,5 +513,7 @@ added: v0.11.15
 The `path.win32` property provides access to Windows-specific implementations
 of the `path` methods.
 
-[`path.parse`]: #path_path_parse_path
+[`path.posix`]: #path_path_posix
+[`path.win32`]: #path_path_win32
+[`path.parse()`]: #path_path_parse_path
 [`TypeError`]: errors.html#errors_class_typeerror
