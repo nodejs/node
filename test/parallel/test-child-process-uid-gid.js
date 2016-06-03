@@ -7,8 +7,8 @@ const expectedError = common.isWindows ? /\bENOTSUP\b/ : /\bEPERM\b/;
 
 assert.throws(() => {
   spawn('echo', ['fhqwhgads'], {uid: 0});
-}, expectedError, 'Setting UID should throw EPERM for unprivileged users.');
+}, expectedError);
 
 assert.throws(() => {
   spawn('echo', ['fhqwhgads'], {gid: 0});
-}, expectedError, 'Setting GID should throw EPERM for unprivileged users.');
+}, expectedError);
