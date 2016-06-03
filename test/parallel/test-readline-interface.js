@@ -1,9 +1,11 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var readline = require('readline');
-var EventEmitter = require('events').EventEmitter;
-var inherits = require('util').inherits;
+const common = require('../common');
+const assert = require('assert');
+const readline = require('readline');
+const EventEmitter = require('events').EventEmitter;
+const inherits = require('util').inherits;
+const Writable = require('stream').Writable;
+const Readable = require('stream').Readable;
 
 function FakeInput() {
   EventEmitter.call(this);
@@ -400,4 +402,29 @@ function isWarned(emitter) {
     });
   });
 
+  {
+    const expected = terminal
+      ? ['\u001b[1G', '\u001b[0J', '$ ', '\u001b[3G']
+      : ['$ '];
+
+    let counter = 0;
+    const output = new Writable({
+      write: common.mustCall((chunk, enc, cb) => {
+        assert.strictEqual(chunk.toString(), expected[counter++]);
+        cb();
+        rl.close();
+      }, expected.length)
+    });
+
+    const rl = readline.createInterface({
+      input: new Readable({ read: () => {} }),
+      output: output,
+      prompt: '$ ',
+      terminal: terminal
+    });
+
+    rl.prompt();
+
+    assert.strictEqual(rl._prompt, '$ ');
+  }
 });

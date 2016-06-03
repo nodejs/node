@@ -357,6 +357,7 @@ added: v0.1.98
     the history set this value to `0`. Defaults to `30`. This option makes sense
     only if `terminal` is set to `true` by the user or by an internal `output`
     check, otherwise the history caching mechanism is not initialized at all.
+  * `prompt` - the prompt string to use. Default: `'> '`
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
@@ -467,9 +468,12 @@ implement a small command-line interface:
 
 ```js
 const readline = require('readline');
-const rl = readline.createInterface(process.stdin, process.stdout);
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: 'OHAI> '
+});
 
-rl.setPrompt('OHAI> ');
 rl.prompt();
 
 rl.on('line', (line) => {
