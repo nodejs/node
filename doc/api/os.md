@@ -2,25 +2,36 @@
 
     Stability: 2 - Stable
 
-Provides a few basic operating-system related utility functions.
+The `os` module provides a number of operating system-related utility methods.
+It can be accessed using:
 
-Use `require('os')` to access this module.
+```js
+const os = require('os');
+```
 
 ## os.EOL
 <!-- YAML
 added: v0.7.8
 -->
 
-A constant defining the appropriate End-of-line marker for the operating
-system.
+A string constant defining the operating system-specific end-of-line marker:
+
+* `\n` on POSIX
+* `\r\n` on Windows
 
 ## os.arch()
 <!-- YAML
 added: v0.5.0
 -->
 
-Returns the operating system CPU architecture. Possible values are `'x64'`,
-`'arm'` and `'ia32'`. Returns the value of [`process.arch`][].
+The `os.arch()` method returns a string identifying the operating system CPU
+architecture *for which the Node.js binary was compiled*.
+
+The current possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
+`'mipsel'`, `'ppc'`, `'ppc64'`, `'s390'`, `'s390x'`, `'x32'`, `'x64'`,  and
+`'x86'`.
+
+Equivalent to [`process.arch`][].
 
 ## os.constants
 
@@ -33,80 +44,116 @@ defined are described in [OS Constants][].
 added: v0.3.3
 -->
 
-Returns an array of objects containing information about each CPU/core
-installed: model, speed (in MHz), and times (an object containing the number of
-milliseconds the CPU/core spent in: user, nice, sys, idle, and irq).
+The `os.cpus()` method returns an array of objects containing information about
+each CPU/core installed.
 
-Example inspection of os.cpus:
+The properties included on each object include:
+
+* `model` {String}
+* `speed` {number} (in MHz)
+* `times` {Object}
+  * `user` {number} The number of milliseconds the CPU has spent in user mode.
+  * `nice` {number} The number of milliseconds the CPU has spent in nice mode.
+  * `sys` {number} The number of milliseconds the CPU has spent in sys mode.
+  * `idle` {number} The number of milliseconds the CPU has spent in idle mode.
+  * `irq` {number} The number of milliseconds the CPU has spent in irq mode.
+
+For example:
 
 ```js
-[ { model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
+[
+  {
+    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
     speed: 2926,
-    times:
-     { user: 252020,
-       nice: 0,
-       sys: 30340,
-       idle: 1070356870,
-       irq: 0 } },
-  { model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
+    times: {
+      user: 252020,
+      nice: 0,
+      sys: 30340,
+      idle: 1070356870,
+      irq: 0
+    }
+  },
+  {
+    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
     speed: 2926,
-    times:
-     { user: 306960,
-       nice: 0,
-       sys: 26980,
-       idle: 1071569080,
-       irq: 0 } },
-  { model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
+    times: {
+      user: 306960,
+      nice: 0,
+      sys: 26980,
+      idle: 1071569080,
+      irq: 0
+    }
+  },
+  {
+    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
     speed: 2926,
-    times:
-     { user: 248450,
-       nice: 0,
-       sys: 21750,
-       idle: 1070919370,
-       irq: 0 } },
-  { model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
+    times: {
+      user: 248450,
+      nice: 0,
+      sys: 21750,
+      idle: 1070919370,
+      irq: 0
+    }
+  },
+  {
+    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
     speed: 2926,
-    times:
-     { user: 256880,
-       nice: 0,
-       sys: 19430,
-       idle: 1070905480,
-       irq: 20 } },
-  { model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
+    times: {
+      user: 256880,
+      nice: 0,
+      sys: 19430,
+      idle: 1070905480,
+      irq: 20
+    }
+  },
+  {
+    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
     speed: 2926,
-    times:
-     { user: 511580,
-       nice: 20,
-       sys: 40900,
-       idle: 1070842510,
-       irq: 0 } },
-  { model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
+    times: {
+      user: 511580,
+      nice: 20,
+      sys: 40900,
+      idle: 1070842510,
+      irq: 0
+    }
+  },
+  {
+    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
     speed: 2926,
-    times:
-     { user: 291660,
-       nice: 0,
-       sys: 34360,
-       idle: 1070888000,
-       irq: 10 } },
-  { model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
+    times: {
+      user: 291660,
+      nice: 0,
+      sys: 34360,
+      idle: 1070888000,
+      irq: 10
+    }
+  },
+  {
+    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
     speed: 2926,
-    times:
-     { user: 308260,
-       nice: 0,
-       sys: 55410,
-       idle: 1071129970,
-       irq: 880 } },
-  { model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
+    times: {
+      user: 308260,
+      nice: 0,
+      sys: 55410,
+      idle: 1071129970,
+      irq: 880
+    }
+  },
+  {
+    model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
     speed: 2926,
-    times:
-     { user: 266450,
-       nice: 1480,
-       sys: 34920,
-       idle: 1072572010,
-       irq: 30 } } ]
+    times: {
+      user: 266450,
+      nice: 1480,
+      sys: 34920,
+      idle: 1072572010,
+      irq: 30
+    }
+  }
+]
 ```
 
-Note that since `nice` values are UNIX centric in Windows the `nice` values of
+*Note*: Because `nice` values are UNIX-specific, on Windows the `nice` values of
 all processors are always 0.
 
 ## os.endianness()
@@ -114,124 +161,186 @@ all processors are always 0.
 added: v0.9.4
 -->
 
-Returns the endianness of the CPU. Possible values are `'BE'` for big endian
-or `'LE'` for little endian.
+The `os.endianness()` method returns a string identifying the endianness of the
+CPU *for which the Node.js binary was compiled*.
+
+Possible values are:
+
+* `'BE'` for big endian
+* `'LE'` for little endian.
 
 ## os.freemem()
 <!-- YAML
 added: v0.3.3
 -->
 
-Returns the amount of free system memory in bytes.
+The `os.freemem()` method returns the amount of free system memory in bytes as
+an integer.
 
 ## os.homedir()
 <!-- YAML
 added: v2.3.0
 -->
 
-Returns the home directory of the current user.
+The `os.homedir()` method returns the home directory of the current user as a
+string.
 
 ## os.hostname()
 <!-- YAML
 added: v0.3.3
 -->
 
-Returns the hostname of the operating system.
+The `os.hostname()` method returns the hostname of the operating system as a
+string.
 
 ## os.loadavg()
 <!-- YAML
 added: v0.3.3
 -->
 
-Returns an array containing the 1, 5, and 15 minute load averages.
+The `os.loadavg()` method returns an array containing the 1, 5, and 15 minute
+load averages.
 
 The load average is a measure of system activity, calculated by the operating
 system and expressed as a fractional number.  As a rule of thumb, the load
 average should ideally be less than the number of logical CPUs in the system.
 
-The load average is a very UNIX-y concept; there is no real equivalent on
-Windows platforms.  That is why this function always returns `[0, 0, 0]` on
-Windows.
+The load average is a UNIX-specific concept with no real equivalent on
+Windows platforms. On Windows, the return value is always `[0, 0, 0]`.
 
 ## os.networkInterfaces()
 <!-- YAML
 added: v0.6.0
 -->
 
-Get a list of network interfaces:
+The `os.networkInterfaces()` method returns an object containing only network
+interfaces that have been assigned a network address.
+
+Each key on the returned object identifies a network interface. The associated
+value is an array of objects that each describe an assigned network address.
+
+The properties available on the assigned network address object include:
+
+* `address` {String} The assigned IPv4 or IPv6 address
+* `netmask` {String} The IPv4 or IPv6 network mask
+* `family` {String} Either `IPv4` or `IPv6`
+* `mac` {String} The MAC address of the network interface
+* `internal` {boolean} `true` if the network interface is a loopback or
+  similar interface that is not remotely accessible; otherwise `false`
+* `scopeid` {number} The numeric IPv6 scope ID (only specified when `family`
+  is `IPv6`)
 
 ```js
-{ lo:
-   [ { address: '127.0.0.1',
-       netmask: '255.0.0.0',
-       family: 'IPv4',
-       mac: '00:00:00:00:00:00',
-       internal: true },
-     { address: '::1',
-       netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
-       family: 'IPv6',
-       mac: '00:00:00:00:00:00',
-       internal: true } ],
-  eth0:
-   [ { address: '192.168.1.108',
-       netmask: '255.255.255.0',
-       family: 'IPv4',
-       mac: '01:02:03:0a:0b:0c',
-       internal: false },
-     { address: 'fe80::a00:27ff:fe4e:66a1',
-       netmask: 'ffff:ffff:ffff:ffff::',
-       family: 'IPv6',
-       mac: '01:02:03:0a:0b:0c',
-       internal: false } ] }
+{
+  lo: [
+    {
+      address: '127.0.0.1',
+      netmask: '255.0.0.0',
+      family: 'IPv4',
+      mac: '00:00:00:00:00:00',
+      internal: true
+    },
+    {
+      address: '::1',
+      netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+      family: 'IPv6',
+      mac: '00:00:00:00:00:00',
+      internal: true
+    }
+  ],
+  eth0: [
+    {
+      address: '192.168.1.108',
+      netmask: '255.255.255.0',
+      family: 'IPv4',
+      mac: '01:02:03:0a:0b:0c',
+      internal: false
+    },
+    {
+      address: 'fe80::a00:27ff:fe4e:66a1',
+      netmask: 'ffff:ffff:ffff:ffff::',
+      family: 'IPv6',
+      mac: '01:02:03:0a:0b:0c',
+      internal: false
+    }
+  ]
+}
 ```
-
-Note that due to the underlying implementation this will only return network
-interfaces that have been assigned an address.
 
 ## os.platform()
 <!-- YAML
 added: v0.5.0
 -->
 
-Returns the operating system platform. Possible values are `'darwin'`,
-`'freebsd'`, `'linux'`, `'sunos'` or `'win32'`. Returns the value of
-[`process.platform`][].
+The `os.platform()` method returns a string identifying the operating system
+platform as set during compile time of Node.js.
+
+Currently possible values are:
+
+* `'aix'`
+* `'darwin'`
+* `'freebsd'`
+* `'linux'`
+* `'openbsd'`
+* `'sunos'`
+* `'win32'`
+
+Equivalent to [`process.platform`][].
+
+*Note*: The value `'android'` may also be returned if the Node.js is built on
+the Android operating system. However, Android support in Node.js is considered
+to be experimental at this time.
 
 ## os.release()
 <!-- YAML
 added: v0.3.3
 -->
 
-Returns the operating system release.
+The `os.release()` method returns a string identifying the operating system
+release.
+
+*Note*: On POSIX systems, the operating system release is determined by calling
+uname(3). On Windows, `GetVersionExW()` is used. Please see
+https://en.wikipedia.org/wiki/Uname#Examples for more information.
 
 ## os.tmpdir()
 <!-- YAML
 added: v0.9.9
 -->
 
-Returns the operating system's default directory for temporary files.
+The `os.tmpdir()` method returns a string specifying the operating system's
+default directory for temporary files.
 
 ## os.totalmem()
 <!-- YAML
 added: v0.3.3
 -->
 
-Returns the total amount of system memory in bytes.
+The `os.totalmem()` method returns the total amount of system memory in bytes
+as an integer.
 
 ## os.type()
 <!-- YAML
 added: v0.3.3
 -->
 
-Returns the operating system name. For example `'Linux'` on Linux, `'Darwin'`
-on OS X and `'Windows_NT'` on Windows.
+The `os.type()` method returns a string identifying the operating system name
+as returned by uname(3). For example `'Linux'` on Linux, `'Darwin'` on OS X and
+`'Windows_NT'` on Windows.
+
+Please see https://en.wikipedia.org/wiki/Uname#Examples for additional
+information about the output of running uname(3) on various operating systems.
 
 ## os.uptime()
 <!-- YAML
 added: v0.3.3
 -->
 
-Returns the system uptime in seconds.
+The `os.uptime()` method returns the system uptime in number of seconds.
+
+*Note*: Within Node.js' internals, this number is represented as a `double`.
+However, fractional seconds are not returned and the value can typically be
+treated as an integer.
 
 ## os.userInfo([options])
 <!-- YAML
@@ -243,13 +352,14 @@ added: v6.0.0
     If `encoding` is set to `'buffer'`, the `username`, `shell`, and `homedir`
     values will be `Buffer` instances. (Default: 'utf8')
 
-Returns a subset of the password file entry for the current effective user. The
+The `os.userInfo()` method returns information about the currently effective
+user -- on POSIX platforms, this is typically a subset of the password file. The
 returned object includes the `username`, `uid`, `gid`, `shell`, and `homedir`.
 On Windows, the `uid` and `gid` fields are `-1`, and `shell` is `null`.
 
-The value of `homedir` returned by `userInfo()` comes directly from the
-operating system. This differs from the result of `os.homedir()`, which queries
-several environment variables for the home directory before falling back to the
+The value of `homedir` returned by `os.userInfo()` is provided by the operating
+system. This differs from the result of `os.homedir()`, which queries several
+environment variables for the home directory before falling back to the
 operating system response.
 
 ## OS Constants
@@ -273,7 +383,7 @@ The following signal constants are exported by `os.constants.signals`:
   </tr>
   <tr>
     <td><code>SIGINT</code></td>
-    <td>Sent to indicate when a user wishes to interrupt a process 
+    <td>Sent to indicate when a user wishes to interrupt a process
     (`(Ctrl+C)`).</td>
   </tr>
   <tr>
@@ -304,7 +414,7 @@ The following signal constants are exported by `os.constants.signals`:
   </tr>
   <tr>
     <td><code>SIGFPE</code></td>
-    <td>Sent to a process to notify that it has performed an illegal arithmetic 
+    <td>Sent to a process to notify that it has performed an illegal arithmetic
     operation.</td>
   </tr>
   <tr>
