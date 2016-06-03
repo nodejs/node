@@ -970,7 +970,7 @@ The externally maintained libraries used by Node.js are:
 
 - marked, located at tools/doc/node_modules/marked, is licensed as follows:
   """
-    Copyright (c) 2011-2012, Christopher Jeffrey (https://github.com/chjj/)
+    Copyright (c) 2011-2014, Christopher Jeffrey (https://github.com/chjj/)
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -1025,7 +1025,7 @@ The externally maintained libraries used by Node.js are:
 - ESLint, located at tools/eslint, is licensed as follows:
   """
     ESLint
-    Copyright (c) 2013 Nicholas C. Zakas. All rights reserved.
+    Copyright jQuery Foundation and other contributors, https://jquery.org/
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
