@@ -41,7 +41,7 @@ requires compiling of C++ Code, npm will use
 [node-gyp](https://github.com/TooTallNate/node-gyp) for that task.
 For a Unix system, [node-gyp](https://github.com/TooTallNate/node-gyp)
 needs Python, make and a buildchain like GCC. On Windows,
-Python and Microsoft Visual Studio C++ is needed. Python 3 is
+Python and Microsoft Visual Studio C++ are needed. Python 3 is
 not supported by [node-gyp](https://github.com/TooTallNate/node-gyp).
 For more information visit
 [the node-gyp repository](https://github.com/TooTallNate/node-gyp) and
