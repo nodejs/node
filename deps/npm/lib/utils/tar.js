@@ -48,7 +48,7 @@ function pack (tarball, folder, pkg, cb) {
       var recalculateMetadata = require('../install/deps.js').recalculateMetadata
 
       readPackageTree(folder, iferr(cb, function (tree) {
-        recalculateMetadata(tree, log.newGroup('pack:' + pkg), iferr(cb, function () {
+        recalculateMetadata(tree, log.newGroup('pack:' + packageId(pkg)), iferr(cb, function () {
           pack_(tarball, folder, tree, flattenTree(tree), pkg, cb)
         }))
       }))

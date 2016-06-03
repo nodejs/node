@@ -10,13 +10,13 @@ var common = require('../common-tap.js')
 
 var pkg = path.resolve(__dirname, 'outdated-symlink')
 var cache = path.resolve(pkg, 'cache')
-var originalLog
+var extend = Object.assign || require('util')._extend
 
-var fakeRoot = path.join(__dirname, 'fakeRoot')
+var fakeRoot = path.join(pkg, 'fakeRoot')
 var OPTS = {
-  env: {
+  env: extend(extend({}, process.env), {
     'npm_config_prefix': fakeRoot
-  }
+  })
 }
 
 var json = {
@@ -27,22 +27,26 @@ var json = {
 
 test('setup', function (t) {
   cleanup()
-  originalLog = console.log
   mkdirp.sync(cache)
   fs.writeFileSync(
     path.join(pkg, 'package.json'),
     JSON.stringify(json, null, 2)
   )
   process.chdir(pkg)
-  common.npm(['install', '-g', 'async@0.2.9', 'underscore@1.3.1'], OPTS, function (err, c, out) {
-    t.ifError(err, 'global install did not error')
-    common.npm(['link'], OPTS, function (err, c, out) {
-      t.ifError(err, 'link did not error')
-      common.npm(['ls', '-g'], OPTS, function (err, c, out, stderr) {
-        t.ifError(err)
-        t.equal(c, 0)
-        t.equal(stderr, '', 'got expected stderr')
-        t.has(out, /my-local-package@1.0.0/, 'creates global link ok')
+  common.npm(['install', '-g', 'async@0.2.9', 'underscore@1.3.1'], OPTS, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.comment(stdout)
+    t.comment(stderr)
+    common.npm(['link'], OPTS, function (err, code, stdout, stderr) {
+      if (err) throw err
+      t.comment(stdout)
+      t.comment(stderr)
+      t.is(code, 0)
+      common.npm(['ls', '-g'], OPTS, function (err, code, stdout, stderr) {
+        if (err) throw err
+        t.is(code, 0)
+        t.is(stderr, '', 'got expected stderr')
+        t.match(stdout, /my-local-package@1.0.0/, 'creates global link ok')
         t.end()
       })
     })
@@ -54,7 +58,6 @@ test('when outdated is called linked packages should be displayed as such', func
   var regOutInstallOne = /async\s*0.2.9\s*0.2.9\s*0.2.10\n/
   var regOutInstallTwo = /underscore\s*1.3.1\s*1.3.1\s*1.5.1\n/
 
-  console.log = function () {}
   mr({ port: common.port }, function (er, s) {
     common.npm(
       [
@@ -63,10 +66,11 @@ test('when outdated is called linked packages should be displayed as such', func
       ],
       OPTS,
       function (err, c, out, stderr) {
-        t.ifError(err)
-        t.ok(out.match(regOutLinked), 'Global Link format as expected')
-        t.ok(out.match(regOutInstallOne), 'Global Install format as expected')
-        t.ok(out.match(regOutInstallTwo), 'Global Install format as expected')
+        if (err) throw err
+        t.is(stderr, '')
+        t.match(out, regOutLinked, 'Global Link format as expected')
+        t.match(out, regOutInstallOne, 'Global Install format as expected')
+        t.match(out, regOutInstallTwo, 'Global Install format as expected')
         s.close()
         t.end()
       }
@@ -76,14 +80,17 @@ test('when outdated is called linked packages should be displayed as such', func
 
 test('cleanup', function (t) {
   process.chdir(osenv.tmpdir())
-  common.npm(['rm', 'outdated'], OPTS, function (err, code) {
-    t.ifError(err, 'npm removed the linked package without error')
-    t.equal(code, 0, 'cleanup outdated in local ok')
+  common.npm(['rm', 'outdated'], OPTS, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.comment(stdout)
+    t.comment(stderr)
+    t.is(code, 0, 'cleanup outdated in local ok')
     common.npm(['rm', '-g', 'outdated', 'async', 'underscore'], OPTS, function (err, code) {
-      t.ifError(err, 'npm removed the global package without error')
-      t.equal(code, 0, 'cleanup outdated in global ok')
+      if (err) throw err
+      t.comment(stdout)
+      t.comment(stderr)
+      t.is(code, 0, 'cleanup outdated in global ok')
 
-      console.log = originalLog
       cleanup()
       t.end()
     })
