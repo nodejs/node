@@ -580,7 +580,7 @@ util.isString(5);
   // false
 ```
 
-## util.isSymbol(object)
+### util.isSymbol(object)
 
     Stability: 0 - Deprecated
 
