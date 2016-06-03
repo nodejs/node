@@ -1227,7 +1227,9 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   if (auto zero_fill_field = env->isolate_data()->zero_fill_field()) {
     CHECK(args[1]->IsObject());
     auto binding_object = args[1].As<Object>();
-    auto array_buffer = ArrayBuffer::New(env->isolate(), zero_fill_field, 1);
+    auto array_buffer = ArrayBuffer::New(env->isolate(),
+                                         zero_fill_field,
+                                         sizeof(*zero_fill_field));
     auto name = FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill");
     auto value = Uint32Array::New(array_buffer, 0, 1);
     CHECK(binding_object->Set(env->context(), name, value).FromJust());
