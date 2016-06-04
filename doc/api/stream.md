@@ -293,6 +293,9 @@ readable.on('data', (chunk) => {
 ```
 
 #### readable.pipe(destination[, options])
+<!-- YAML
+added: v0.3.0
+-->
 
 * `destination` {stream.Writable} The destination for writing data
 * `options` {Object} Pipe options
