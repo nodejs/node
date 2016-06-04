@@ -26,11 +26,9 @@ proc.stderr.on('data', (chunk) => {
 
     agent.stdout.on('data', (chunk) => {
       agentStdout += chunk;
-      if (/connecting to .+ ok/.test(agentStdout)) {
-        if (needToExit) {
-          needToExit = false;
-          exitAll([proc, agent]);
-        }
+      if (/connecting to .+ ok/.test(agentStdout) && needToExit) {
+        needToExit = false;
+        exitAll([proc, agent]);
       }
     });
   }
