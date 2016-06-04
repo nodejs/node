@@ -1,8 +1,6 @@
 <!--
 Thank you for your pull request. Please review below requirements.
 
-Run tests with `make -j4 test` on UNIX or `vcbuild test nosign` on Windows.
-
 If this aims to fix a regression or you’re adding a feature, make sure you also
 write a test. If possible, include a benchmark that quantifies your changes.
 
@@ -13,7 +11,7 @@ https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 ##### Checklist
 <!-- Remove items that do not apply. For completed items, change [ ] to [x]. -->
 
-- [ ] tests and code linting passes
+- [ ] `make -j4 test` (UNIX) or `vcbuild test nosign` (Windows) passes
 - [ ] a test and/or benchmark is included
 - [ ] documentation is changed or added
 - [ ] the commit message follows commit guidelines
