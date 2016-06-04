@@ -12,6 +12,7 @@
 
 #include <string.h>
 #include <limits.h>
+#include <utility>
 
 #define BUFFER_ID 0xB0E4
 
@@ -51,12 +52,37 @@
 #define BUFFER_MALLOC(length)                                               \
   zero_fill_all_buffers ? calloc(length, 1) : malloc(length)
 
-#define SWAP_BYTES(arr, a, b)                                               \
-  do {                                                                      \
-    const uint8_t lo = arr[a];                                              \
-    arr[a] = arr[b];                                                        \
-    arr[b] = lo;                                                            \
-  } while (0)
+#if defined(__GNUC__) || defined(__clang__)
+#define BSWAP_INTRINSIC_2(x) __builtin_bswap16(x)
+#define BSWAP_INTRINSIC_4(x) __builtin_bswap32(x)
+#define BSWAP_INTRINSIC_8(x) __builtin_bswap64(x)
+#elif defined(__linux__)
+#include <byteswap.h>
+#define BSWAP_INTRINSIC_2(x) bswap_16(x)
+#define BSWAP_INTRINSIC_4(x) bswap_32(x)
+#define BSWAP_INTRINSIC_8(x) bswap_64(x)
+#elif defined(_MSC_VER)
+#include <intrin.h>
+#define BSWAP_INTRINSIC_2(x) _byteswap_ushort(x);
+#define BSWAP_INTRINSIC_4(x) _byteswap_ulong(x);
+#define BSWAP_INTRINSIC_8(x) _byteswap_uint64(x);
+#else
+#define BSWAP_INTRINSIC_2(x) ((x) << 8) | ((x) >> 8)
+#define BSWAP_INTRINSIC_4(x)                                                  \
+  (((x) & 0xFF) << 24) |                                                      \
+  (((x) & 0xFF00) << 8) |                                                     \
+  (((x) >> 8) & 0xFF00) |                                                     \
+  (((x) >> 24) & 0xFF)
+#define BSWAP_INTRINSIC_8(x)                                                  \
+  (((x) & 0xFF00000000000000ull) >> 56) |                                     \
+  (((x) & 0x00FF000000000000ull) >> 40) |                                     \
+  (((x) & 0x0000FF0000000000ull) >> 24) |                                     \
+  (((x) & 0x000000FF00000000ull) >> 8) |                                      \
+  (((x) & 0x00000000FF000000ull) << 8) |                                      \
+  (((x) & 0x0000000000FF0000ull) << 24) |                                     \
+  (((x) & 0x000000000000FF00ull) << 40) |                                     \
+  (((x) & 0x00000000000000FFull) << 56)
+#endif
 
 namespace node {
 
@@ -1150,28 +1176,87 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
                                 : -1);
 }
 
+
 void Swap16(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  SPREAD_ARG(args.This(), ts_obj);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_ARG(args[0], ts_obj);
 
-  for (size_t i = 0; i < ts_obj_length; i += 2) {
-    SWAP_BYTES(ts_obj_data, i, i + 1);
+  CHECK_EQ(ts_obj_length % 2, 0);
+
+  int align = reinterpret_cast<uintptr_t>(ts_obj_data) % sizeof(uint16_t);
+
+  if (align == 0) {
+    uint16_t* data16 = reinterpret_cast<uint16_t*>(ts_obj_data);
+    size_t len16 = ts_obj_length / 2;
+    for (size_t i = 0; i < len16; i++) {
+      data16[i] = BSWAP_INTRINSIC_2(data16[i]);
+    }
+  } else {
+    for (size_t i = 0; i < ts_obj_length; i += 2) {
+      std::swap(ts_obj_data[i], ts_obj_data[i + 1]);
+    }
   }
-  args.GetReturnValue().Set(args.This());
+
+  args.GetReturnValue().Set(args[0]);
 }
+
 
 void Swap32(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  SPREAD_ARG(args.This(), ts_obj);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_ARG(args[0], ts_obj);
 
-  for (size_t i = 0; i < ts_obj_length; i += 4) {
-    SWAP_BYTES(ts_obj_data, i, i + 3);
-    SWAP_BYTES(ts_obj_data, i + 1, i + 2);
+  CHECK_EQ(ts_obj_length % 4, 0);
+
+  int align = reinterpret_cast<uintptr_t>(ts_obj_data) % sizeof(uint32_t);
+
+  if (align == 0) {
+    uint32_t* data32 = reinterpret_cast<uint32_t*>(ts_obj_data);
+    size_t len32 = ts_obj_length / 4;
+    for (size_t i = 0; i < len32; i++) {
+      data32[i] = BSWAP_INTRINSIC_4(data32[i]);
+    }
+  } else {
+    for (size_t i = 0; i < ts_obj_length; i += 4) {
+      std::swap(ts_obj_data[i], ts_obj_data[i + 3]);
+      std::swap(ts_obj_data[i + 1], ts_obj_data[i + 2]);
+    }
   }
-  args.GetReturnValue().Set(args.This());
+
+  args.GetReturnValue().Set(args[0]);
 }
+
+
+void Swap64(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  SPREAD_ARG(args[0], ts_obj);
+
+  CHECK_EQ(ts_obj_length % 8, 0);
+
+  int align = reinterpret_cast<uintptr_t>(ts_obj_data) % sizeof(uint64_t);
+
+  if (align == 0) {
+    uint64_t* data64 = reinterpret_cast<uint64_t*>(ts_obj_data);
+    size_t len32 = ts_obj_length / 8;
+    for (size_t i = 0; i < len32; i++) {
+      data64[i] = BSWAP_INTRINSIC_8(data64[i]);
+    }
+  } else {
+    for (size_t i = 0; i < ts_obj_length; i += 8) {
+      std::swap(ts_obj_data[i], ts_obj_data[i + 7]);
+      std::swap(ts_obj_data[i + 1], ts_obj_data[i + 6]);
+      std::swap(ts_obj_data[i + 2], ts_obj_data[i + 5]);
+      // NOLINT added because current cpplint.py is old and doesn't know that
+      // std::swap() now lives in <utility> instead of <algorithm>.
+      std::swap(ts_obj_data[i + 3], ts_obj_data[i + 4]);  // NOLINT
+    }
+  }
+
+  args.GetReturnValue().Set(args[0]);
+}
+
 
 // pass Buffer object to load prototype methods
 void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
@@ -1238,6 +1323,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "swap16", Swap16);
   env->SetMethod(target, "swap32", Swap32);
+  env->SetMethod(target, "swap64", Swap64);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
