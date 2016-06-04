@@ -1229,7 +1229,7 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
     auto binding_object = args[1].As<Object>();
     auto array_buffer = ArrayBuffer::New(env->isolate(), zero_fill_field, 1);
     auto name = FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill");
-    auto value = Uint32Array::New(array_buffer, 0, 1);
+    auto value = Uint8Array::New(array_buffer, 0, 1);
     CHECK(binding_object->Set(env->context(), name, value).FromJust());
   }
 }
