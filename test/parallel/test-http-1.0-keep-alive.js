@@ -121,8 +121,8 @@ function check(tests) {
         console.error(' > CLIENT ONDATA %j %j', s.length, s.toString());
         current++;
         if (ctx.expectClose) return;
-        conn.removeListener('close', onclose);
         conn.removeListener('data', ondata);
+        conn.removeListener('close', onclose);
         connected();
       }
       conn.on('data', ondata);

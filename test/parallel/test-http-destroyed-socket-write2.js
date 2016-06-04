@@ -47,8 +47,7 @@ server.listen(common.PORT, function() {
         break;
     }
 
-    assert.equal(req.output.length, 0);
-    assert.equal(req.outputEncodings.length, 0);
+    assert.equal(req._writableState.length, 0);
     server.close();
   }));
 

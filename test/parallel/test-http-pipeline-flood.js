@@ -47,6 +47,9 @@ function parent() {
       }
       backloggedReqs++;
     }
+
+    // Ignore write errors, they happen when we kill child
+    res.on('error', () => {});
     res.end();
   });
 

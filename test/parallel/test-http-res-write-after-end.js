@@ -14,7 +14,7 @@ var server = http.Server(function(req, res) {
   res.end();
 
   var r = res.write('This should raise an error.');
-  assert.equal(r, true, 'write after end should return true');
+  assert.equal(r, false, 'write after end should return false');
 });
 
 server.listen(common.PORT, function() {
