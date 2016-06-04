@@ -1470,10 +1470,10 @@ calls can be chained.
 ```js
 const buf = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
 console.log(buf);
-  // Prints Buffer(0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8)
+  // Prints <Buffer 01 02 03 04 05 06 07 08>
 buf.swap16();
 console.log(buf);
-  // Prints Buffer(0x2, 0x1, 0x4, 0x3, 0x6, 0x5, 0x8, 0x7)
+  // Prints <Buffer 02 01 04 03 06 05 08 07>
 ```
 
 ### buf.swap32()
@@ -1491,11 +1491,35 @@ calls can be chained.
 ```js
 const buf = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
 console.log(buf);
-  // Prints Buffer(0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8)
+  // Prints <Buffer 01 02 03 04 05 06 07 08>
 buf.swap32();
 console.log(buf);
-  // Prints Buffer(0x4, 0x3, 0x2, 0x1, 0x8, 0x7, 0x6, 0x5)
+  // Prints <Buffer 04 03 02 01 08 07 06 05>
 ```
+
+### buf.swap64()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Return: {Buffer}
+
+Interprets the `Buffer` as an array of 64-bit numbers and swaps
+the byte-order *in-place*. Throws a `RangeError` if the `Buffer` length is
+not a multiple of 64 bits. The method returns a reference to the Buffer, so
+calls can be chained.
+
+```js
+const buf = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8]);
+console.log(buf);
+  // Prints <Buffer 01 02 03 04 05 06 07 08>
+buf.swap64();
+console.log(buf);
+  // Prints <Buffer 08 07 06 05 04 03 02 01>
+```
+
+Note that JavaScript cannot encode 64-bit integers. This method is intended
+for working with 64-bit floats.
 
 ### buf.toString([encoding[, start[, end]]])
 
