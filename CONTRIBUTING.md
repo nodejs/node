@@ -120,6 +120,12 @@ run `git shortlog` or `git log --oneline`.
 Check the output of `git log --oneline files_that_you_changed` to find out
 what subsystem (or subsystems) your changes touch.
 
+If your patch fixes an open issue, you can add a reference to it at the end
+of the log. Use the `Fixes:` prefix and the full issue URL. For example:
+
+```
+Fixes: https://github.com/nodejs/node/issues/1337
+```
 
 ### Step 4: Rebase
 
