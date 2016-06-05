@@ -1435,3 +1435,9 @@ assert.equal(SlowBuffer.prototype.offset, undefined);
 assert.throws(function() {
   Buffer.from(new ArrayBuffer(0), -1 >>> 0);
 }, /RangeError: 'offset' is out of bounds/);
+
+// Unpooled buffer (replaces SlowBuffer)
+const ubuf = Buffer.allocUnsafeSlow(10);
+assert(ubuf);
+assert(ubuf.buffer);
+assert.equal(ubuf.buffer.byteLength, 10);
