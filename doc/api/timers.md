@@ -5,6 +5,40 @@
 All of the timer functions are globals.  You do not need to `require()`
 this module in order to use them.
 
+Timers set by [`setTimeout`][] and [`setInterval`][] are scheduled to run during
+a specific phase of the Node.js event loop. [`setImmediate`][] runs in a
+separate phase after I/O events and before timers.
+
+The execution of timers and callbacks created by [`setImmediate`][] set during
+execution of the input script ("script startup" in diagram below) will fire in
+a non-deterministic order.
+
+Overview of the Node.js event loop:
+```
+           +
+  +--------v--------+
+  | script startup  |
+  +--------+--------+
+           |
+  +--------v--------+
++->pending callbacks|
+| +--------+--------+
+|          |
+| +--------v--------+ +--------------------------------+
+| |      poll       <-+incoming connections, data, etc.|
+| +--------+--------+ +--------------------------------+
+|          |
+| +--------v--------+
+| |  setImmediate   |
+| +--------+--------+
+|          |
+| +--------v--------+
++-+     timers      |
+  +-----------------+
+
+```
+_note: [`process.nextTick`][] callbacks run at the end of every phase_
+
 ## clearImmediate(immediateObject)
 
 Stops an `immediateObject`, as created by [`setImmediate`][], from triggering.
@@ -86,6 +120,7 @@ Returns the timer.
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediateobject
 [`clearInterval`]: timers.html#timers_clearinterval_intervalobject
 [`clearTimeout`]: timers.html#timers_cleartimeout_timeoutobject
+[`process.nextTick`]: process.html#process_process_nexttick_callback_arg
 [`setImmediate`]: timers.html#timers_setimmediate_callback_arg
 [`setInterval`]: timers.html#timers_setinterval_callback_delay_arg
 [`setTimeout`]: timers.html#timers_settimeout_callback_delay_arg
