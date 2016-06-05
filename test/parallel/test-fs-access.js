@@ -94,14 +94,6 @@ assert.throws(function() {
   fs.access(100, fs.F_OK, function(err) {});
 }, /path must be a string or Buffer/);
 
-assert.throws(function() {
-  fs.access(__filename, fs.F_OK);
-}, /"callback" argument must be a function/);
-
-assert.throws(function() {
-  fs.access(__filename, fs.F_OK, {});
-}, /"callback" argument must be a function/);
-
 assert.doesNotThrow(function() {
   fs.accessSync(__filename);
 });
