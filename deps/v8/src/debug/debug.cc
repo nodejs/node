@@ -1708,6 +1708,13 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
 }
 
 
+MaybeHandle<Object> Debug::MakePromiseEvent(Handle<JSObject> event_data) {
+  // Create the promise event object.
+  Handle<Object> argv[] = { event_data };
+  return CallFunction("MakePromiseEvent", arraysize(argv), argv);
+}
+
+
 MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
   // Create the async task event object.
   Handle<Object> argv[] = { task_event };
@@ -1835,6 +1842,25 @@ void Debug::OnBeforeCompile(Handle<Script> script) {
 // Handle debugger actions when a new script is compiled.
 void Debug::OnAfterCompile(Handle<Script> script) {
   ProcessCompileEvent(v8::AfterCompile, script);
+}
+
+
+void Debug::OnPromiseEvent(Handle<JSObject> data) {
+  if (in_debug_scope() || ignore_events()) return;
+
+  HandleScope scope(isolate_);
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
+
+  // Create the script collected state object.
+  Handle<Object> event_data;
+  // Bail out and don't call debugger if exception.
+  if (!MakePromiseEvent(data).ToHandle(&event_data)) return;
+
+  // Process debug event.
+  ProcessDebugEvent(v8::PromiseEvent,
+                    Handle<JSObject>::cast(event_data),
+                    true);
 }
 
 
@@ -1987,6 +2013,7 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
     case v8::NewFunction:
     case v8::BeforeCompile:
     case v8::CompileError:
+    case v8::PromiseEvent:
     case v8::AsyncTaskEvent:
       break;
     case v8::Exception:
