@@ -202,7 +202,7 @@ following example, for instance, simply converts any input text to upper case:
 ```js
 const repl = require('repl');
 
-var r = repl.start({prompt: '>', eval: myEval, writer: myWriter});
+const r = repl.start({prompt: '>', eval: myEval, writer: myWriter});
 
 function myEval(cmd, context, filename, callback) {
   callback(null,cmd);
@@ -330,7 +330,7 @@ and resuming the `input` to accept new input.
 When multi-line input is being entered, an ellipsis is printed rather than the
 'prompt'.
 
-When `preserveCusor` is `true`, the cursor placement will not be reset to `0`.
+When `preserveCursor` is `true`, the cursor placement will not be reset to `0`.
 
 The `replServer.displayPrompt` method is primarily intended to be called from
 within the action function for commands registered using the
