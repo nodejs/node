@@ -305,9 +305,15 @@ set by [`emitter.setMaxListeners(n)`][] or defaults to
 
 Returns the number of listeners listening to the event named `eventName`.
 
-### emitter.listeners(eventName)
+### emitter.listeners(eventName[, unwrapOnceListeners])
+
+* `eventName` {string|Symbol} The name of the event.
+* `unwrapOnceListeners` {Boolean} Flag indicating whether to unwrap listeners
+  attached via `.once()`.
 
 Returns a copy of the array of listeners for the event named `eventName`.
+If `unwrapOnceListeners` is set to `true`, listeners that were attached
+using `.once()` are returned as they were originally passed to `.once()`.
 
 ```js
 server.on('connection', (stream) => {
