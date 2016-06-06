@@ -2,7 +2,7 @@
 if (process.argv[2] === 'child')
 {
   const len = +process.argv[3];
-  const msg = '"' + Array(len).join('.') + '"';
+  const msg = `"${'.'.repeat(len)}"`;
   while (true) {
     process.send(msg);
   }
