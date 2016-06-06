@@ -53,7 +53,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V5.md#5.0.0">5.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V4.md#4.4.5">4.4.5</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V4.md#4.4.6">4.4.6</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.5">4.4.5</a></b>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.4">4.4.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.3">4.4.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.2">4.4.2</a><br/>
@@ -155,6 +156,10 @@ release.
 
 ----
 ----
+
+## 2016-06-23, Version 4.4.6 'Argon' (LTS), @thealphanerd
+
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.6">Moved to doc/changelogs/CHANGELOG_V4.md#4.4.6</a>.
 
 ## 2016-05-06, Version 0.12.14 (Maintenance), @rvagg
 

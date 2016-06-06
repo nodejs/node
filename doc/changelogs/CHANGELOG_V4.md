@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#4.4.6">4.4.6</a><br/>
 <a href="#4.4.5">4.4.5</a><br/>
 <a href="#4.4.4">4.4.4</a><br/>
 <a href="#4.4.3">4.4.3</a><br/>
@@ -45,6 +46,18 @@
 **Note:** Node.js v4 is covered by the 
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
+
+<a id="4.4.6"></a>
+
+## 2016-06-23, Version 4.4.6 'Argon' (LTS), @thealphanerd
+
+This is an important security release. All Node.js users should consult the security release summary at nodejs.org for details on patched vulnerabilities.
+
+This release is specifically related to a Buffer overflow vulnerability discovered in v8, more details can be found [in the CVE](https://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-1669)
+
+### Commits
+
+* [[`134c3b3977`](https://github.com/nodejs/node/commit/134c3b3977)] - **deps**: backport 3a9bfec from v8 upstream (Ben Noordhuis) [nodejs/node-private#38](https://github.com/nodejs/node-private/pull/38)
 
 <a id="4.4.5"></a>
 ## 2016-05-24, Version 4.4.5 'Argon' (LTS), @thealphanerd
