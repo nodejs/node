@@ -108,8 +108,6 @@ process.env.PATH.split(path.delimiter)
 // returns ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
 ```
 
-*Note*: This property is *not* read-only and may be modified.
-
 ## path.dirname(path)
 <!-- YAML
 added: v0.1.16
@@ -281,8 +279,8 @@ added: v0.1.16
 The `path.join()` method join all given `path` segments together using the
 platform specific separator as a delimiter, then normalizes the resulting path.
 
-Zero-length strings passed as segments are ignored. If the joined path string is
-a zero-length string then `'.'` will be returned, representing the current
+Zero-length `path` segments are ignored. If the joined path string is a
+zero-length string then `'.'` will be returned, representing the current
 working directory.
 
 For example:
@@ -458,7 +456,7 @@ been generated, the current working directory is used.
 The resulting path is normalized and trailing slashes are removed unless the
 path is resolved to the root directory.
 
-Any `path` segments passed as empty strings are ignored.
+Zero-length `path` segments are ignored.
 
 If no `path` segments are passed, `path.resolve()` will return the absolute path
 of the current working directory.
@@ -502,8 +500,6 @@ On Windows:
 'foo\\bar\\baz'.split(path.sep)
 // returns ['foo', 'bar', 'baz']
 ```
-
-*Note*: This property is *not* read-only and may be modified.
 
 ## path.win32
 <!-- YAML
