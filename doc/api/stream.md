@@ -1856,7 +1856,7 @@ pre-v0.10 style streams can be wrapped in a Readable class using the
 There are some cases where it is necessary to trigger a refresh of the
 underlying readable stream mechanisms, without actually consuming any
 data. In such cases, it is possible to call `readable.read(0)`, which will
-always return null.
+always return `null`.
 
 If the internal read buffer is below the `highWaterMark`, and the
 stream is not currently reading, then calling `stream.read(0)` will trigger
