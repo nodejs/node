@@ -19,6 +19,8 @@ system.
 added: v0.5.0
 -->
 
+    Stability: 0 - Deprecated: Use [`process.arch`][] instead.
+
 Returns the operating system CPU architecture. Possible values are `'x64'`,
 `'arm'` and `'ia32'`. Returns the value of [`process.arch`][].
 
@@ -203,6 +205,7 @@ interfaces that have been assigned an address.
 <!-- YAML
 added: v0.5.0
 -->
+    Stability: 0 - Deprecated: Use [`process.platform`][] instead.
 
 Returns the operating system platform. Possible values are `'darwin'`,
 `'freebsd'`, `'linux'`, `'sunos'` or `'win32'`. Returns the value of
