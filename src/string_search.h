@@ -44,7 +44,7 @@ class Vector {
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
-    ASSERT(0 <= index && index < length_);
+    ASSERT(index < length_);
     return start_[is_forward_ ? index : (length_ - index - 1)];
   }
 
@@ -139,12 +139,6 @@ class StringSearch : private StringSearchBase {
       Vector<const Char>,
       size_t);
 
-  static size_t FailSearch(StringSearch<Char>*,
-                           Vector<const Char> subject,
-                           size_t) {
-    return subject.length();
-  }
-
   static size_t SingleCharSearch(StringSearch<Char>* search,
                                  Vector<const Char> subject,
                                  size_t start_index);
@@ -169,12 +163,6 @@ class StringSearch : private StringSearchBase {
   void PopulateBoyerMooreHorspoolTable();
 
   void PopulateBoyerMooreTable();
-
-  static inline bool exceedsOneByte(uint8_t c) { return false; }
-
-  static inline bool exceedsOneByte(uint16_t c) {
-    return c > kMaxOneByteCharCodeU;
-  }
 
   static inline int CharOccurrence(int* bad_char_occurrence,
                                    Char char_code) {
@@ -401,7 +389,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(
         return subject.length();
       }
     }
-    while (j >= 0 && pattern[j] == (c = subject[index + j])) {
+    while (pattern[j] == (c = subject[index + j])) {
       if (j == 0) {
         return index;
       }
@@ -529,7 +517,7 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
       }
     }
     j--;
-    while (j >= 0 && pattern[j] == (subject[index + j])) {
+    while (pattern[j] == (subject[index + j])) {
       if (j == 0) {
         return index;
       }
