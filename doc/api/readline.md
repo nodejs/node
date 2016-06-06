@@ -262,6 +262,10 @@ rl.question('What is your favorite food?', (answer) => {
 });
 ```
 
+*Note*: The `callback` function passed to `rl.question()` does not follow the
+typical pattern of accepting an `Error` object or `null` as the first argument.
+The `callback` is called with the provided answer as the only argument.git 
+
 ### rl.resume()
 <!-- YAML
 added: v0.3.4
