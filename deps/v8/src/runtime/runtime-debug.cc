@@ -1635,6 +1635,15 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_DebugPromiseEvent) {
+  DCHECK(args.length() == 1);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, data, 0);
+  isolate->debug()->OnPromiseEvent(data);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);

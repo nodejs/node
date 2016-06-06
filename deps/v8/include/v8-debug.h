@@ -18,10 +18,12 @@ enum DebugEvent {
   Exception = 2,
   NewFunction = 3,
   BeforeCompile = 4,
-  AfterCompile = 5,
+  AfterCompile  = 5,
   CompileError = 6,
-  AsyncTaskEvent = 7,
+  PromiseEvent = 7,
+  AsyncTaskEvent = 8,
 };
+
 
 class V8_EXPORT Debug {
  public:
