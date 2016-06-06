@@ -891,7 +891,7 @@ initialized.
 
 * `size` {Number} Number of bytes to read asynchronously
 
-Note: **Implement this method, but do NOT call it directly.**
+**Note:** Implement this method, but do _not_ call it directly.
 
 This method is prefixed with an underscore because it is internal to the
 class that defines it and should only be called by the internal Readable
@@ -906,7 +906,7 @@ should stop reading from the resource. Only when `_read()` is called again after
 it has stopped should it start reading more data from the resource and pushing
 that data onto the queue.
 
-Note: once the `_read()` method is called, it will not be called again until
+**Note:** Once the `_read()` method is called, it will not be called again until
 the [`stream.push()`][stream-push] method is called.
 
 The `size` argument is advisory. Implementations where a "read" is a
@@ -924,8 +924,8 @@ becomes available. There is no need, for example to "wait" until
   Buffer encoding, such as `'utf8'` or `'ascii'`
 * return {Boolean} Whether or not more pushes should be performed
 
-Note: **This method should be called by Readable implementors, NOT
-by consumers of Readable streams.**
+**Note:** This method should be called by `Readable` implementors, _not_
+by consumers of `Readable` streams.
 
 If a value other than null is passed, The `push()` method adds a chunk of data
 into the queue for subsequent stream processors to consume. If `null` is
@@ -1156,8 +1156,8 @@ has been called.
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done flushing any remaining data.
 
-Note: **This function MUST NOT be called directly.**  It MAY be implemented
-by child classes, and if so, will be called by the internal Transform
+**Note:** This function _must not_ be called directly. It _may_ be implemented
+by child classes, and if so, will be called by the internal `Transform`
 class methods only.
 
 In some cases, your transform operation may need to emit a bit more
@@ -1188,8 +1188,8 @@ your own extension classes.
 * `callback` {Function} Call this function (optionally with an error
   argument and data) when you are done processing the supplied chunk.
 
-Note: **This function MUST NOT be called directly.**  It should be
-implemented by child classes, and called by the internal Transform
+**Note:** This function _must not_ be called directly.  It should be
+implemented by child classes, and called by the internal `Transform`
 class methods only.
 
 All Transform stream implementations must provide a `_transform()`
@@ -1350,8 +1350,8 @@ All Writable stream implementations must provide a
 [`stream._write()`][stream-_write] method to send data to the underlying
 resource.
 
-Note: **This function MUST NOT be called directly.**  It should be
-implemented by child classes, and called by the internal Writable
+**Note:** This function _must not_ be called directly. It should be
+implemented by child classes, and called by the internal `Writable`
 class methods only.
 
 Call the callback using the standard `callback(error)` pattern to
@@ -1377,8 +1377,8 @@ your own extension classes.
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done processing the supplied chunks.
 
-Note: **This function MUST NOT be called directly.**  It may be
-implemented by child classes, and called by the internal Writable
+**Note:** This function _must not_ be called directly. It may be
+implemented by child classes, and called by the internal `Writable`
 class methods only.
 
 This function is completely optional to implement. In most cases it is
