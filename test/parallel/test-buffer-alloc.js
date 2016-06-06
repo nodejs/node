@@ -1459,3 +1459,8 @@ const ubuf = Buffer.allocUnsafeSlow(10);
 assert(ubuf);
 assert(ubuf.buffer);
 assert.equal(ubuf.buffer.byteLength, 10);
+
+// Regression test
+assert.doesNotThrow(() => {
+  Buffer.from(new ArrayBuffer());
+});
