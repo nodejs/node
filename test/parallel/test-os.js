@@ -39,7 +39,7 @@ if (common.isWindows) {
   assert.equal(os.tmpdir(), '/');
 }
 
-var endianness = os.BYTEORDER;
+var endianness = os.byteOrder;
 console.log('endianness = %s', endianness);
 assert.ok(/[BL]E/.test(endianness));
 

@@ -24,7 +24,7 @@ added: v0.5.0
 Returns the operating system CPU architecture. Possible values are `'x64'`,
 `'arm'` and `'ia32'`. Returns the value of [`process.arch`][].
 
-## os.BYTEORDER
+## os.byteOrder
 <!-- YAML
 added: 
 -->
@@ -125,7 +125,7 @@ added: v0.9.4
 deprecated: 
 -->
 
-    Stability: 0 - Deprecated: Use `os.BYTEORDER` instead.
+    Stability: 0 - Deprecated: Use `os.byteOrder` instead.
 
 Returns the endianness of the CPU. Possible values are `'BE'` for big endian
 or `'LE'` for little endian.
