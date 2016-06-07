@@ -49,7 +49,7 @@
   size_t length = end - start;
 
 #define BUFFER_MALLOC(length)                                               \
-  zero_fill_all_buffers ? calloc(length, 1) : malloc(length)
+  zero_fill_all_buffers ? NODE_CALLOC(length, 1) : NODE_MALLOC(length)
 
 #define SWAP_BYTES(arr, a, b)                                               \
   do {                                                                      \
@@ -235,7 +235,7 @@ MaybeLocal<Object> New(Isolate* isolate,
       free(data);
       data = nullptr;
     } else if (actual < length) {
-      data = static_cast<char*>(realloc(data, actual));
+      data = static_cast<char*>(NODE_REALLOC(data, actual));
       CHECK_NE(data, nullptr);
     }
   }
@@ -314,7 +314,7 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
   void* new_data;
   if (length > 0) {
     CHECK_NE(data, nullptr);
-    new_data = malloc(length);
+    new_data = NODE_MALLOC(length);
     if (new_data == nullptr)
       return Local<Object>();
     memcpy(new_data, data, length);
@@ -1036,7 +1036,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                           offset,
                           is_forward);
   } else if (enc == LATIN1) {
-    uint8_t* needle_data = static_cast<uint8_t*>(malloc(needle_length));
+    uint8_t* needle_data = static_cast<uint8_t*>(NODE_MALLOC(needle_length));
     if (needle_data == nullptr) {
       return args.GetReturnValue().Set(-1);
     }
