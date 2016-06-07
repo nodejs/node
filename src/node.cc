@@ -4467,7 +4467,7 @@ static void StartNodeInstance(void* arg) {
     RunAtExit(env);
 
 #if HAVE_INSPECTOR
-    if (env->inspector_agent()->connected()) {
+    if (env->inspector_agent()->IsConnected()) {
       // Restore signal dispositions, the app is done and is no longer
       // capable of handling signals.
 #ifdef __POSIX__
