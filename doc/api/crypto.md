@@ -277,7 +277,7 @@ console.log(decrypted);
 ### decipher.final([output_encoding])
 
 Returns any remaining deciphered contents. If `output_encoding`
-parameter is one of `'binary'`, `'base64'` or `'hex'`, a string is returned.
+parameter is one of `'binary'`, `'ascii'` or `'utf8'`, a string is returned.
 If an `output_encoding` is not provided, a [`Buffer`][] is returned.
 
 Once the `decipher.final()` method has been called, the `Decipher` object can
