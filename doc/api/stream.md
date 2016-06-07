@@ -1697,7 +1697,7 @@ after all data has been output, which occurs after the callback in
 #### transform.\_flush(callback)
 
 * `callback` {Function} A callback function (optionally with an error
-  argument) to be called when remaining data has been flushed.
+  argument and data) to be called when remaining data has been flushed.
 
 *Note*: **This function MUST NOT be called by application code directly.** It
 should be implemented by child classes, and called only by the internal Readable
