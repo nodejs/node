@@ -248,10 +248,6 @@ class PerfBasicLogger : public CodeEventLogger {
   static const char kFilenameFormatString[];
   static const int kFilenameBufferPadding;
 
-  // File buffer size of the low-level log. We don't use the default to
-  // minimize the associated overhead.
-  static const int kLogBufferSize = 2 * MB;
-
   FILE* perf_output_handle_;
 };
 
@@ -272,7 +268,7 @@ PerfBasicLogger::PerfBasicLogger()
   perf_output_handle_ =
       base::OS::FOpen(perf_dump_name.start(), base::OS::LogFileOpenMode);
   CHECK_NOT_NULL(perf_output_handle_);
-  setvbuf(perf_output_handle_, NULL, _IOFBF, kLogBufferSize);
+  setvbuf(perf_output_handle_, NULL, _IOLBF, 0);
 }
 
 
@@ -359,10 +355,6 @@ class LowLevelLogger : public CodeEventLogger {
   // Extension added to V8 log file name to get the low-level log name.
   static const char kLogExt[];
 
-  // File buffer size of the low-level log. We don't use the default to
-  // minimize the associated overhead.
-  static const int kLogBufferSize = 2 * MB;
-
   void LogCodeInfo();
   void LogWriteBytes(const char* bytes, int size);
 
@@ -387,7 +379,7 @@ LowLevelLogger::LowLevelLogger(const char* name)
   MemCopy(ll_name.start() + len, kLogExt, sizeof(kLogExt));
   ll_output_handle_ =
       base::OS::FOpen(ll_name.start(), base::OS::LogFileOpenMode);
-  setvbuf(ll_output_handle_, NULL, _IOFBF, kLogBufferSize);
+  setvbuf(ll_output_handle_, NULL, _IOLBF, 0);
 
   LogCodeInfo();
 }
