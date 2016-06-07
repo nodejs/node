@@ -86,7 +86,7 @@ class MockPlatform : public v8::Platform {
   }
 
   uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
-                         const char* name, const char* scope, uint64_t id,
+                         const char* name, uint64_t id,
                          uint64_t bind_id, int numArgs, const char** argNames,
                          const uint8_t* argTypes, const uint64_t* argValues,
                          unsigned int flags) override {

@@ -478,7 +478,7 @@ static V8_INLINE uint64_t AddTraceEvent(char phase,
                                         uint64_t id, uint64_t bind_id,
                                         unsigned int flags) {
   return TRACE_EVENT_API_ADD_TRACE_EVENT(phase, category_group_enabled, name,
-                                         scope, id, bind_id, kZeroNumArgs, NULL,
+                                         id, bind_id, kZeroNumArgs, NULL,
                                          NULL, NULL, flags);
 }
 
@@ -492,7 +492,7 @@ static V8_INLINE uint64_t AddTraceEvent(
   uint64_t arg_values[1];
   SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
   return TRACE_EVENT_API_ADD_TRACE_EVENT(
-      phase, category_group_enabled, name, scope, id, bind_id, num_args,
+      phase, category_group_enabled, name, id, bind_id, num_args,
       &arg1_name, arg_types, arg_values, flags);
 }
 
@@ -509,7 +509,7 @@ static V8_INLINE uint64_t AddTraceEvent(
   SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
   SetTraceValue(arg2_val, &arg_types[1], &arg_values[1]);
   return TRACE_EVENT_API_ADD_TRACE_EVENT(
-      phase, category_group_enabled, name, scope, id, bind_id, num_args,
+      phase, category_group_enabled, name, id, bind_id, num_args,
       arg_names, arg_types, arg_values, flags);
 }
 

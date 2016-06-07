@@ -223,7 +223,8 @@ inline bool PrototypeHasNoElements(Isolate* isolate, JSObject* object) {
   HeapObject* empty = isolate->heap()->empty_fixed_array();
   while (prototype != null) {
     Map* map = prototype->map();
-    if (map->instance_type() <= LAST_CUSTOM_ELEMENTS_RECEIVER) return false;
+    if (map->instance_type() <= LAST_CUSTOM_ELEMENTS_RECEIVER ||
+        map->instance_type() == JS_GLOBAL_PROXY_TYPE) return false;
     if (JSObject::cast(prototype)->elements() != empty) return false;
     prototype = HeapObject::cast(map->prototype());
   }
@@ -237,6 +238,7 @@ inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
 
 inline bool HasSimpleElements(JSObject* current) {
   return current->map()->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+         current->map()->instance_type() != JS_GLOBAL_PROXY_TYPE &&
          !current->GetElementsAccessor()->HasAccessors(current);
 }
 
@@ -421,9 +423,13 @@ void Builtins::Generate_ObjectHasOwnProperty(
 
   {
     Label if_objectissimple(assembler);
-    assembler->Branch(assembler->Int32LessThanOrEqual(
-                          instance_type,
-                          assembler->Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
+    assembler->Branch(assembler->Word32Or(
+                          assembler->Int32LessThanOrEqual(
+                              instance_type, assembler->Int32Constant(
+                                             LAST_SPECIAL_RECEIVER_TYPE)),
+                          assembler->Word32Equal(
+                              instance_type, assembler->Int32Constant(
+                                             JS_GLOBAL_PROXY_TYPE))),
                       &call_runtime, &if_objectissimple);
     assembler->Bind(&if_objectissimple);
   }
@@ -481,9 +487,13 @@ void Builtins::Generate_ObjectHasOwnProperty(
   assembler->Bind(&keyisindex);
   {
     Label if_objectissimple(assembler);
-    assembler->Branch(assembler->Int32LessThanOrEqual(
-                          instance_type, assembler->Int32Constant(
+    assembler->Branch(assembler->Word32Or(
+                          assembler->Int32LessThanOrEqual(
+                              instance_type, assembler->Int32Constant(
                                              LAST_CUSTOM_ELEMENTS_RECEIVER)),
+                          assembler->Word32Equal(
+                              instance_type, assembler->Int32Constant(
+                                             JS_GLOBAL_PROXY_TYPE))),
                       &call_runtime, &if_objectissimple);
     assembler->Bind(&if_objectissimple);
   }

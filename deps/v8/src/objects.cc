@@ -8411,7 +8411,8 @@ bool Map::OnlyHasSimpleProperties() {
   // Wrapped string elements aren't explicitly stored in the elements backing
   // store, but are loaded indirectly from the underlying string.
   return !IsStringWrapperElementsKind(elements_kind()) &&
-         instance_type() > LAST_SPECIAL_RECEIVER_TYPE &&
+         (instance_type() > LAST_SPECIAL_RECEIVER_TYPE &&
+         instance_type() != JS_GLOBAL_PROXY_TYPE) &&
          !has_hidden_prototype() && !is_dictionary_map();
 }
 
