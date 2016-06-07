@@ -33,14 +33,14 @@ using v8::MemoryPressureLevel;
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   /* Cluster the most popular ones in a few cache lines here at the top.    */ \
+  V(Oddball, uninitialized_value, UninitializedValue)                          \
   V(Oddball, undefined_value, UndefinedValue)                                  \
-  V(Oddball, the_hole_value, TheHoleValue)                                     \
+  V(Map, cell_map, CellMap)                                                    \
   V(Oddball, null_value, NullValue)                                            \
   V(Oddball, true_value, TrueValue)                                            \
   V(Oddball, false_value, FalseValue)                                          \
   V(String, empty_string, empty_string)                                        \
-  V(Oddball, uninitialized_value, UninitializedValue)                          \
-  V(Map, cell_map, CellMap)                                                    \
+  V(Oddball, the_hole_value, TheHoleValue)                                     \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, meta_map, MetaMap)                                                    \
