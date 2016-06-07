@@ -3,6 +3,7 @@
 #include "env-inl.h"
 
 #include "uv.h"
+#include "zlib.h"
 
 #include <errno.h>
 #if !defined(_MSC_VER)
@@ -12,6 +13,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <limits>
 
 #if HAVE_OPENSSL
 # include <openssl/ec.h>
@@ -1142,12 +1144,92 @@ void DefineCryptoConstants(Local<Object> target) {
 #endif
 }
 
+void DefineZlibConstants(Local<Object> target) {
+  NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_PARTIAL_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_SYNC_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_FULL_FLUSH);
+  NODE_DEFINE_CONSTANT(target, Z_FINISH);
+  NODE_DEFINE_CONSTANT(target, Z_BLOCK);
+
+  // return/error codes
+  NODE_DEFINE_CONSTANT(target, Z_OK);
+  NODE_DEFINE_CONSTANT(target, Z_STREAM_END);
+  NODE_DEFINE_CONSTANT(target, Z_NEED_DICT);
+  NODE_DEFINE_CONSTANT(target, Z_ERRNO);
+  NODE_DEFINE_CONSTANT(target, Z_STREAM_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_DATA_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_MEM_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_BUF_ERROR);
+  NODE_DEFINE_CONSTANT(target, Z_VERSION_ERROR);
+
+  NODE_DEFINE_CONSTANT(target, Z_NO_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_BEST_SPEED);
+  NODE_DEFINE_CONSTANT(target, Z_BEST_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_COMPRESSION);
+  NODE_DEFINE_CONSTANT(target, Z_FILTERED);
+  NODE_DEFINE_CONSTANT(target, Z_HUFFMAN_ONLY);
+  NODE_DEFINE_CONSTANT(target, Z_RLE);
+  NODE_DEFINE_CONSTANT(target, Z_FIXED);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_STRATEGY);
+  NODE_DEFINE_CONSTANT(target, ZLIB_VERNUM);
+
+  enum node_zlib_mode {
+    NONE,
+    DEFLATE,
+    INFLATE,
+    GZIP,
+    GUNZIP,
+    DEFLATERAW,
+    INFLATERAW,
+    UNZIP
+  };
+
+  NODE_DEFINE_CONSTANT(target, DEFLATE);
+  NODE_DEFINE_CONSTANT(target, INFLATE);
+  NODE_DEFINE_CONSTANT(target, GZIP);
+  NODE_DEFINE_CONSTANT(target, GUNZIP);
+  NODE_DEFINE_CONSTANT(target, DEFLATERAW);
+  NODE_DEFINE_CONSTANT(target, INFLATERAW);
+  NODE_DEFINE_CONSTANT(target, UNZIP);
+
+#define Z_MIN_WINDOWBITS 8
+#define Z_MAX_WINDOWBITS 15
+#define Z_DEFAULT_WINDOWBITS 15
+// Fewer than 64 bytes per chunk is not recommended.
+// Technically it could work with as few as 8, but even 64 bytes
+// is low.  Usually a MB or more is best.
+#define Z_MIN_CHUNK 64
+#define Z_MAX_CHUNK std::numeric_limits<double>::infinity()
+#define Z_DEFAULT_CHUNK (16 * 1024)
+#define Z_MIN_MEMLEVEL 1
+#define Z_MAX_MEMLEVEL 9
+#define Z_DEFAULT_MEMLEVEL 8
+#define Z_MIN_LEVEL -1
+#define Z_MAX_LEVEL 9
+#define Z_DEFAULT_LEVEL Z_DEFAULT_COMPRESSION
+
+  NODE_DEFINE_CONSTANT(target, Z_MIN_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_WINDOWBITS);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_CHUNK);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_MEMLEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MIN_LEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_MAX_LEVEL);
+  NODE_DEFINE_CONSTANT(target, Z_DEFAULT_LEVEL);
+}
+
 void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   Local<Object> os_constants = Object::New(isolate);
   Local<Object> err_constants = Object::New(isolate);
   Local<Object> sig_constants = Object::New(isolate);
   Local<Object> fs_constants = Object::New(isolate);
   Local<Object> crypto_constants = Object::New(isolate);
+  Local<Object> zlib_constants = Object::New(isolate);
 
   DefineErrnoConstants(err_constants);
   DefineWindowsErrorConstants(err_constants);
@@ -1156,12 +1238,14 @@ void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   DefineSystemConstants(fs_constants);
   DefineOpenSSLConstants(crypto_constants);
   DefineCryptoConstants(crypto_constants);
+  DefineZlibConstants(zlib_constants);
 
   os_constants->Set(OneByteString(isolate, "errno"), err_constants);
   os_constants->Set(OneByteString(isolate, "signals"), sig_constants);
   target->Set(OneByteString(isolate, "os"), os_constants);
   target->Set(OneByteString(isolate, "fs"), fs_constants);
   target->Set(OneByteString(isolate, "crypto"), crypto_constants);
+  target->Set(OneByteString(isolate, "zlib"), zlib_constants);
 }
 
 }  // namespace node

@@ -7,7 +7,7 @@ var fs = require('fs');
 
 const file = fs.readFileSync(path.resolve(common.fixturesDir, 'person.jpg'));
 const chunkSize = 12 * 1024;
-const opts = { level: 9, strategy: zlib.Z_DEFAULT_STRATEGY };
+const opts = { level: 9, strategy: zlib.constants.Z_DEFAULT_STRATEGY };
 const deflater = zlib.createDeflate(opts);
 
 const chunk1 = file.slice(0, chunkSize);
@@ -17,7 +17,7 @@ const expected = Buffer.concat([blkhdr, chunk2]);
 let actual;
 
 deflater.write(chunk1, function() {
-  deflater.params(0, zlib.Z_DEFAULT_STRATEGY, function() {
+  deflater.params(0, zlib.constants.Z_DEFAULT_STRATEGY, function() {
     while (deflater.read());
     deflater.end(chunk2, function() {
       var bufs = [], buf;

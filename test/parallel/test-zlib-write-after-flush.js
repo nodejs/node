@@ -19,7 +19,7 @@ process.on('exit', function() {
   assert.equal(output, input);
 
   // Make sure that the flush flag was set back to normal
-  assert.equal(gzip._flushFlag, zlib.Z_NO_FLUSH);
+  assert.equal(gzip._flushFlag, zlib.constants.Z_NO_FLUSH);
 
   console.log('ok');
 });
