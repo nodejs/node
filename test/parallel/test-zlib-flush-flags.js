@@ -4,7 +4,7 @@ const assert = require('assert');
 const zlib = require('zlib');
 
 assert.doesNotThrow(() => {
-  zlib.createGzip({ flush: zlib.Z_SYNC_FLUSH });
+  zlib.createGzip({ flush: zlib.constants.Z_SYNC_FLUSH });
 });
 
 assert.throws(() => {
@@ -16,7 +16,7 @@ assert.throws(() => {
 }, /Invalid flush flag: 10000/);
 
 assert.doesNotThrow(() => {
-  zlib.createGzip({ finishFlush: zlib.Z_SYNC_FLUSH });
+  zlib.createGzip({ finishFlush: zlib.constants.Z_SYNC_FLUSH });
 });
 
 assert.throws(() => {
