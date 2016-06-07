@@ -1,10 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
-var testURL = url.parse('http://localhost:' + common.PORT);
+const testUrl = `http://localhost:${common.PORT}`;
+const testUrlObject = url.parse(testUrl);
 
 // make sure the basics work
 function check(request) {
@@ -14,10 +15,10 @@ function check(request) {
   assert.strictEqual(request.url, '/');
   // the host header should use the url.parse.hostname
   assert.strictEqual(request.headers.host,
-                     testURL.hostname + ':' + testURL.port);
+                     testUrlObject.hostname + ':' + testUrlObject.port);
 }
 
-var server = http.createServer(function(request, response) {
+const server = http.createServer(function(request, response) {
   // run the check function
   check.call(this, request, response);
   response.writeHead(200, {});
@@ -27,7 +28,7 @@ var server = http.createServer(function(request, response) {
 
 server.listen(common.PORT, function() {
   // make the request
-  var clientRequest = http.request(testURL);
+  const clientRequest = http.request(testUrl);
   // since there is a little magic with the agent
   // make sure that an http request uses the http.Agent
   assert.ok(clientRequest.agent instanceof http.Agent);

@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
 
 assert.throws(function() {
@@ -16,7 +16,7 @@ assert.throws(function() {
 });
 
 assert.throws(function() {
-  http.request(url.parse('mailto:asdf@asdf.com'));
+  http.request('mailto:asdf@asdf.com');
 }, function(err) {
   if (err instanceof Error) {
     assert.strictEqual(err.message, 'Protocol "mailto:" not supported.' +
@@ -26,7 +26,7 @@ assert.throws(function() {
 });
 
 assert.throws(function() {
-  http.request(url.parse('ftp://www.example.com'));
+  http.request('ftp://www.example.com');
 }, function(err) {
   if (err instanceof Error) {
     assert.strictEqual(err.message, 'Protocol "ftp:" not supported.' +
@@ -46,7 +46,7 @@ assert.throws(function() {
 });
 
 assert.throws(function() {
-  http.request(url.parse('xmpp:isaacschlueter@jabber.org'));
+  http.request('xmpp:isaacschlueter@jabber.org');
 }, function(err) {
   if (err instanceof Error) {
     assert.strictEqual(err.message, 'Protocol "xmpp:" not supported.' +
@@ -56,7 +56,7 @@ assert.throws(function() {
 });
 
 assert.throws(function() {
-  http.request(url.parse('f://some.host/path'));
+  http.request('f://some.host/path');
 }, function(err) {
   if (err instanceof Error) {
     assert.strictEqual(err.message, 'Protocol "f:" not supported.' +
