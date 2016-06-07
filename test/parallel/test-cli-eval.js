@@ -40,11 +40,11 @@ child.exec(nodejs + ' --eval "console.error(42)"',
         assert.equal(stderr, '');
       });
 
-  child.exec(cmd + "'[]'",
+  child.exec(cmd + "'[]'", common.mustCall(
       function(err, stdout, stderr) {
         assert.equal(stdout, '[]\n');
         assert.equal(stderr, '');
-      });
+      }));
 });
 
 // assert that module loading works
