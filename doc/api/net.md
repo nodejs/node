@@ -218,8 +218,8 @@ added: v0.1.90
 
 Begin accepting connections on the specified `port` and `hostname`. If the
 `hostname` is omitted, the server will accept connections on any IPv6 address
-(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise. A
-port value of zero will assign a random port.
+(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise. Use a
+port value of `0` to have the operating system assign an available port.
 
 Backlog is the maximum length of the queue of pending connections.
 The actual length will be determined by the OS through sysctl settings such as
