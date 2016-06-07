@@ -406,7 +406,8 @@ MaybeHandle<FixedArray> GetOwnKeysWithUninitializedEnumCache(
 }
 
 bool OnlyHasSimpleProperties(Map* map) {
-  return map->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER;
+  return map->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER &&
+    map->instance_type() != JS_GLOBAL_PROXY_TYPE;
 }
 
 }  // namespace

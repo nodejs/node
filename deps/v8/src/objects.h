@@ -707,13 +707,13 @@ enum InstanceType {
   // compares for checking the JS_RECEIVER and the NONCALLABLE_JS_OBJECT range.
   JS_PROXY_TYPE,          // FIRST_JS_RECEIVER_TYPE
   JS_GLOBAL_OBJECT_TYPE,  // FIRST_JS_OBJECT_TYPE
-  JS_GLOBAL_PROXY_TYPE,
   // Like JS_OBJECT_TYPE, but requires access checks and/or has interceptors.
   JS_SPECIAL_API_OBJECT_TYPE,  // LAST_SPECIAL_RECEIVER_TYPE
   JS_VALUE_TYPE,               // LAST_CUSTOM_ELEMENTS_RECEIVER
+  JS_OBJECT_TYPE,
+  JS_GLOBAL_PROXY_TYPE,
   JS_MESSAGE_OBJECT_TYPE,
   JS_DATE_TYPE,
-  JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GENERATOR_OBJECT_TYPE,
   JS_MODULE_TYPE,
@@ -9638,9 +9638,9 @@ class Oddball: public HeapObject {
   static const int kToStringOffset = HeapObject::kHeaderSize;
   static const int kToNumberOffset = kToStringOffset + kPointerSize;
   static const int kToBooleanOffset = kToNumberOffset + kPointerSize;
-  static const int kTypeOfOffset = kToBooleanOffset + kPointerSize;
-  static const int kKindOffset = kTypeOfOffset + kPointerSize;
-  static const int kSize = kKindOffset + kPointerSize;
+  static const int kKindOffset = kToBooleanOffset + kPointerSize;
+  static const int kTypeOfOffset = kKindOffset + kPointerSize;
+  static const int kSize = kTypeOfOffset + kPointerSize;
 
   static const byte kFalse = 0;
   static const byte kTrue = 1;
