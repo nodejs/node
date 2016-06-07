@@ -28,9 +28,11 @@ function spawnWithReadable() {
     spawnWithPipe();
   }));
   p.stdout.on('readable', function() {
-    let buf;
-    while (buf = this.read())
-      buffer.push(buf);
+    setImmediate(() => {
+      let buf;
+      while (buf = this.read())
+        buffer.push(buf);
+    });
   });
 }
 
