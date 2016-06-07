@@ -19,7 +19,7 @@ let actualNone;
 let actualFull;
 
 deflater.write(chunk, function() {
-  deflater.flush(zlib.Z_NO_FLUSH, function() {
+  deflater.flush(zlib.constants.Z_NO_FLUSH, function() {
     actualNone = deflater.read();
     deflater.flush(function() {
       var bufs = [], buf;
