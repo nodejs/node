@@ -8,7 +8,7 @@ database = ca2-database.txt
 name_opt = CA_default
 cert_opt = CA_default
 default_crl_days = 999
-default_md = md5
+default_md = sha512
 
 
 [ req ]
