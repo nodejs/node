@@ -74,7 +74,8 @@ void LookupIterator::Next() {
   JSReceiver* holder = *holder_;
   Map* map = holder->map();
 
-  if (map->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
+  if (map->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE ||
+      map->instance_type() == JS_GLOBAL_PROXY_TYPE) {
     state_ = IsElement() ? LookupInSpecialHolder<true>(map, holder)
                          : LookupInSpecialHolder<false>(map, holder);
     if (IsFound()) return;

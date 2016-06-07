@@ -923,6 +923,9 @@ HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
     check_instance_type.If<HCompareNumericAndBranch>(
         instance_type, Add<HConstant>(LAST_CUSTOM_ELEMENTS_RECEIVER),
         Token::LTE);
+    check_instance_type.Or();
+    check_instance_type.If<HCompareNumericAndBranch>(
+        instance_type, Add<HConstant>(JS_GLOBAL_PROXY_TYPE), Token::EQ);
     check_instance_type.ThenDeopt(Deoptimizer::kFastArrayPushFailed);
     check_instance_type.End();
 
