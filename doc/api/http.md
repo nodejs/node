@@ -874,6 +874,14 @@ socket has closed.
 Indicates that the underlying connection was closed.
 Just like `'end'`, this event occurs only once per response.
 
+### message.destroy([error])
+
+* `error` {Error}
+
+Calls `destroy()` on the socket that received the `IncomingMessage`. If `error`
+is provided, an `'error'` event is emitted and `error` is passed as an argument
+to any listeners on the event.
+
 ### message.headers
 
 The request/response headers object.
