@@ -5,6 +5,13 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+// The doctool currently uses js-yaml from the tool/eslint/ tree.
+try {
+  require('../../tools/eslint/node_modules/js-yaml');
+} catch (e) {
+  return common.skip('missing js-yaml (eslint not present)');
+}
+
 const json = require('../../tools/doc/json.js');
 
 // Outputs valid json with the expected fields when given simple markdown
