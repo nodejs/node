@@ -1,11 +1,9 @@
 <!--
 Thank you for your pull request. Please review below requirements.
 
-If this aims to fix a regression or you’re adding a feature, make sure you also
-write a test. If possible, include a benchmark that quantifies your changes.
+Bug fixes and new features should include tests and possibly a benchmark.
 
-Finally, read through our contributors guide and make adjustments as necessary:
-https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
+Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 -->
 
 ##### Checklist
