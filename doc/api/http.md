@@ -910,7 +910,7 @@ following additional events, methods, and properties.
 Indicates that the underlying connection was closed.
 Just like `'end'`, this event occurs only once per response.
 
-### message.destroy(error)
+### message.destroy([error])
 
 * `error` {Error}
 
