@@ -1101,6 +1101,58 @@ const struct message requests[] =
   ,.body= ""
   }
 
+/* Examples from the Internet draft for LINK/UNLINK methods:
+ * https://tools.ietf.org/id/draft-snell-link-method-01.html#rfc.section.5
+ */
+
+#define LINK_REQUEST 40
+, {.name = "link request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "LINK /images/my_dog.jpg HTTP/1.1\r\n"
+         "Host: example.com\r\n"
+         "Link: <http://example.com/profiles/joe>; rel=\"tag\"\r\n"
+         "Link: <http://example.com/profiles/sally>; rel=\"tag\"\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_LINK
+  ,.request_path= "/images/my_dog.jpg"
+  ,.request_url= "/images/my_dog.jpg"
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.num_headers= 3
+  ,.headers= { { "Host", "example.com" }
+             , { "Link", "<http://example.com/profiles/joe>; rel=\"tag\"" }
+	     , { "Link", "<http://example.com/profiles/sally>; rel=\"tag\"" }
+             }
+  ,.body= ""
+  }
+
+#define UNLINK_REQUEST 41
+, {.name = "link request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "UNLINK /images/my_dog.jpg HTTP/1.1\r\n"
+         "Host: example.com\r\n"
+         "Link: <http://example.com/profiles/sally>; rel=\"tag\"\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_UNLINK
+  ,.request_path= "/images/my_dog.jpg"
+  ,.request_url= "/images/my_dog.jpg"
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.num_headers= 2
+  ,.headers= { { "Host", "example.com" }
+	     , { "Link", "<http://example.com/profiles/sally>; rel=\"tag\"" }
+             }
+  ,.body= ""
+  }
+
 , {.name= NULL } /* sentinel */
 };
 
@@ -2121,6 +2173,20 @@ pause_chunk_complete_cb (http_parser *p)
   return chunk_complete_cb(p);
 }
 
+int
+connect_headers_complete_cb (http_parser *p)
+{
+  headers_complete_cb(p);
+  return 1;
+}
+
+int
+connect_message_complete_cb (http_parser *p)
+{
+  messages[num_messages].should_keep_alive = http_should_keep_alive(parser);
+  return message_complete_cb(p);
+}
+
 static http_parser_settings settings_pause =
   {.on_message_begin = pause_message_begin_cb
   ,.on_header_field = pause_header_field_cb
@@ -2156,6 +2222,19 @@ static http_parser_settings settings_count_body =
   ,.on_body = count_body_cb
   ,.on_headers_complete = headers_complete_cb
   ,.on_message_complete = message_complete_cb
+  ,.on_chunk_header = chunk_header_cb
+  ,.on_chunk_complete = chunk_complete_cb
+  };
+
+static http_parser_settings settings_connect =
+  {.on_message_begin = message_begin_cb
+  ,.on_header_field = header_field_cb
+  ,.on_header_value = header_value_cb
+  ,.on_url = request_url_cb
+  ,.on_status = response_status_cb
+  ,.on_body = dontcall_body_cb
+  ,.on_headers_complete = connect_headers_complete_cb
+  ,.on_message_complete = connect_message_complete_cb
   ,.on_chunk_header = chunk_header_cb
   ,.on_chunk_complete = chunk_complete_cb
   };
@@ -2223,6 +2302,14 @@ size_t parse_pause (const char *buf, size_t len)
   return nparsed;
 }
 
+size_t parse_connect (const char *buf, size_t len)
+{
+  size_t nparsed;
+  currently_parsing_eof = (len == 0);
+  nparsed = http_parser_execute(parser, &settings_connect, buf, len);
+  return nparsed;
+}
+
 static inline int
 check_str_eq (const struct message *m,
               const char *prop,
@@ -2279,7 +2366,7 @@ do {                                                                 \
 } while(0)
 
 int
-message_eq (int index, const struct message *expected)
+message_eq (int index, int connect, const struct message *expected)
 {
   int i;
   struct message *m = &messages[index];
@@ -2294,8 +2381,10 @@ message_eq (int index, const struct message *expected)
     MESSAGE_CHECK_STR_EQ(expected, m, response_status);
   }
 
-  MESSAGE_CHECK_NUM_EQ(expected, m, should_keep_alive);
-  MESSAGE_CHECK_NUM_EQ(expected, m, message_complete_on_eof);
+  if (!connect) {
+    MESSAGE_CHECK_NUM_EQ(expected, m, should_keep_alive);
+    MESSAGE_CHECK_NUM_EQ(expected, m, message_complete_on_eof);
+  }
 
   assert(m->message_begin_cb_called);
   assert(m->headers_complete_cb_called);
@@ -2333,16 +2422,22 @@ message_eq (int index, const struct message *expected)
     MESSAGE_CHECK_NUM_EQ(expected, m, port);
   }
 
-  if (expected->body_size) {
+  if (connect) {
+    check_num_eq(m, "body_size", 0, m->body_size);
+  } else if (expected->body_size) {
     MESSAGE_CHECK_NUM_EQ(expected, m, body_size);
   } else {
     MESSAGE_CHECK_STR_EQ(expected, m, body);
   }
 
-  assert(m->num_chunks == m->num_chunks_complete);
-  MESSAGE_CHECK_NUM_EQ(expected, m, num_chunks_complete);
-  for (i = 0; i < m->num_chunks && i < MAX_CHUNKS; i++) {
-    MESSAGE_CHECK_NUM_EQ(expected, m, chunk_lengths[i]);
+  if (connect) {
+    check_num_eq(m, "num_chunks_complete", 0, m->num_chunks_complete);
+  } else {
+    assert(m->num_chunks == m->num_chunks_complete);
+    MESSAGE_CHECK_NUM_EQ(expected, m, num_chunks_complete);
+    for (i = 0; i < m->num_chunks && i < MAX_CHUNKS; i++) {
+      MESSAGE_CHECK_NUM_EQ(expected, m, chunk_lengths[i]);
+    }
   }
 
   MESSAGE_CHECK_NUM_EQ(expected, m, num_headers);
@@ -2392,7 +2487,7 @@ upgrade_message_fix(char *body, const size_t nread, const size_t nmsgs, ...) {
   va_list ap;
   size_t i;
   size_t off = 0;
- 
+
   va_start(ap, nmsgs);
 
   for (i = 0; i < nmsgs; i++) {
@@ -2918,6 +3013,59 @@ const struct url_test url_tests[] =
   ,.rv=1 /* s_dead */
   }
 
+, {.name="ipv6 address with Zone ID"
+  ,.url="http://[fe80::a%25eth0]/"
+  ,.is_connect=0
+  ,.u=
+    {.field_set= (1<<UF_SCHEMA) | (1<<UF_HOST) | (1<<UF_PATH)
+    ,.port=0
+    ,.field_data=
+      {{  0,  4 } /* UF_SCHEMA */
+      ,{  8, 14 } /* UF_HOST */
+      ,{  0,  0 } /* UF_PORT */
+      ,{ 23,  1 } /* UF_PATH */
+      ,{  0,  0 } /* UF_QUERY */
+      ,{  0,  0 } /* UF_FRAGMENT */
+      ,{  0,  0 } /* UF_USERINFO */
+      }
+    }
+  ,.rv=0
+  }
+
+, {.name="ipv6 address with Zone ID, but '%' is not percent-encoded"
+  ,.url="http://[fe80::a%eth0]/"
+  ,.is_connect=0
+  ,.u=
+    {.field_set= (1<<UF_SCHEMA) | (1<<UF_HOST) | (1<<UF_PATH)
+    ,.port=0
+    ,.field_data=
+      {{  0,  4 } /* UF_SCHEMA */
+      ,{  8, 12 } /* UF_HOST */
+      ,{  0,  0 } /* UF_PORT */
+      ,{ 21,  1 } /* UF_PATH */
+      ,{  0,  0 } /* UF_QUERY */
+      ,{  0,  0 } /* UF_FRAGMENT */
+      ,{  0,  0 } /* UF_USERINFO */
+      }
+    }
+  ,.rv=0
+  }
+
+, {.name="ipv6 address ending with '%'"
+  ,.url="http://[fe80::a%]/"
+  ,.rv=1 /* s_dead */
+  }
+
+, {.name="ipv6 address with Zone ID including bad character"
+  ,.url="http://[fe80::a%$HOME]/"
+  ,.rv=1 /* s_dead */
+  }
+
+, {.name="just ipv6 Zone ID"
+  ,.url="http://[%eth0]/"
+  ,.rv=1 /* s_dead */
+  }
+
 #if HTTP_PARSER_STRICT
 
 , {.name="tab in URL"
@@ -3096,7 +3244,7 @@ test_message (const struct message *message)
       abort();
     }
 
-    if(!message_eq(0, message)) abort();
+    if(!message_eq(0, 0, message)) abort();
 
     parser_free();
   }
@@ -3133,7 +3281,7 @@ test_message_count_body (const struct message *message)
     abort();
   }
 
-  if(!message_eq(0, message)) abort();
+  if(!message_eq(0, 0, message)) abort();
 
   parser_free();
 }
@@ -3278,7 +3426,7 @@ test_chunked_content_length_error (int req)
 
   parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
   if (parsed != buflen) {
-    assert(HTTP_PARSER_ERRNO(&parser) == HPE_CHUNKED_WITH_CONTENT_LENGTH);
+    assert(HTTP_PARSER_ERRNO(&parser) == HPE_UNEXPECTED_CONTENT_LENGTH);
     return;
   }
 
@@ -3484,9 +3632,9 @@ test:
     abort();
   }
 
-  if (!message_eq(0, r1)) abort();
-  if (message_count > 1 && !message_eq(1, r2)) abort();
-  if (message_count > 2 && !message_eq(2, r3)) abort();
+  if (!message_eq(0, 0, r1)) abort();
+  if (message_count > 1 && !message_eq(1, 0, r2)) abort();
+  if (message_count > 2 && !message_eq(2, 0, r3)) abort();
 
   parser_free();
 }
@@ -3582,17 +3730,17 @@ test:
           goto error;
         }
 
-        if (!message_eq(0, r1)) {
+        if (!message_eq(0, 0, r1)) {
           fprintf(stderr, "\n\nError matching messages[0] in test_scan.\n");
           goto error;
         }
 
-        if (message_count > 1 && !message_eq(1, r2)) {
+        if (message_count > 1 && !message_eq(1, 0, r2)) {
           fprintf(stderr, "\n\nError matching messages[1] in test_scan.\n");
           goto error;
         }
 
-        if (message_count > 2 && !message_eq(2, r3)) {
+        if (message_count > 2 && !message_eq(2, 0, r3)) {
           fprintf(stderr, "\n\nError matching messages[2] in test_scan.\n");
           goto error;
         }
@@ -3691,7 +3839,29 @@ test:
     abort();
   }
 
-  if(!message_eq(0, msg)) abort();
+  if(!message_eq(0, 0, msg)) abort();
+
+  parser_free();
+}
+
+/* Verify that body and next message won't be parsed in responses to CONNECT */
+void
+test_message_connect (const struct message *msg)
+{
+  char *buf = (char*) msg->raw;
+  size_t buflen = strlen(msg->raw);
+  size_t nread;
+
+  parser_init(msg->type);
+
+  nread = parse_connect(buf, buflen);
+
+  if (num_messages != 1) {
+    printf("\n*** num_messages != 1 after testing '%s' ***\n\n", msg->name);
+    abort();
+  }
+
+  if(!message_eq(0, 1, msg)) abort();
 
   parser_free();
 }
@@ -3763,6 +3933,10 @@ main (void)
   }
 
   for (i = 0; i < response_count; i++) {
+    test_message_connect(&responses[i]);
+  }
+
+  for (i = 0; i < response_count; i++) {
     if (!responses[i].should_keep_alive) continue;
     for (j = 0; j < response_count; j++) {
       if (!responses[j].should_keep_alive) continue;
@@ -3828,6 +4002,11 @@ main (void)
 
   test_simple("GET / HTP/1.1\r\n\r\n", HPE_INVALID_VERSION);
 
+  // Extended characters - see nodejs/test/parallel/test-http-headers-obstext.js
+  test_simple("GET / HTTP/1.1\r\n"
+              "Test: Düsseldorf\r\n",
+              HPE_OK);
+
   // Well-formed but incomplete
   test_simple("GET / HTTP/1.1\r\n"
               "Content-Type: text/plain\r\n"
@@ -3851,7 +4030,12 @@ main (void)
     "MOVE",
     "PROPFIND",
     "PROPPATCH",
+    "SEARCH",
     "UNLOCK",
+    "BIND",
+    "REBIND",
+    "UNBIND",
+    "ACL",
     "REPORT",
     "MKACTIVITY",
     "CHECKOUT",
@@ -3861,6 +4045,10 @@ main (void)
     "SUBSCRIBE",
     "UNSUBSCRIBE",
     "PATCH",
+    "PURGE",
+    "MKCALENDAR",
+    "LINK",
+    "UNLINK",
     0 };
   const char **this_method;
   for (this_method = all_methods; *this_method; this_method++) {
