@@ -244,7 +244,7 @@ class V8NodeInspector : public blink::V8Inspector {
   bool running_nested_loop_;
 };
 
-Agent::Agent(Environment* env) : port_(9229),
+Agent::Agent(Environment* env) : port_(0),
                                  wait_(false),
                                  connected_(false),
                                  shutting_down_(false),
