@@ -310,7 +310,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
       (duration.seconds + duration.days * 24 * 3600) * 10**6) / 10**6
 
     logger.info('  ---')
-    logger.info('  duration: %d.%ds' % (total_seconds, duration.microseconds / 1000))
+    logger.info('  duration_ms: %d.%d' % (total_seconds, duration.microseconds / 1000))
     logger.info('  ...')
 
   def Done(self):
