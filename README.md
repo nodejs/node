@@ -22,7 +22,7 @@ If you need help using or installing Node.js, please use the
 * [Website](https://nodejs.org/en/)
 * [Contributing to the project](./CONTRIBUTING.md)
 * IRC (general questions): [#node.js on chat.freenode.net](https://webchat.freenode.net?channels=node.js&uio=d4)
-* IRC (node core development): [#node-dev on chat.reenode.net](https://webchat.freenode.net?channels=node-dev&uio=d4)
+* IRC (node core development): [#node-dev on chat.freenode.net](https://webchat.freenode.net?channels=node-dev&uio=d4)
 
 ## Release Types
 
