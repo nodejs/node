@@ -135,13 +135,17 @@ For example: `'#hash'`
 added: v0.1.25
 -->
 
-* `urlObject` {Object} A URL object (either as returned by `url.parse()` or
-  constructed otherwise).
+* `urlObject` {Object | String} A URL object (as returned by `url.parse()` or
+  constructed otherwise). If a string, it is converted to an object by passing
+  it to `url.parse()`.
 
-The `url.format()` method processes the given URL object and returns a formatted
-URL string.
+The `url.format()` method returns a formatted URL string derived from
+`urlObject`.
 
-The formatting process essentially operates as follows:
+If `urlObject` is not an object or a string, `url.parse()` will throw a
+[`TypeError`][].
+
+The formatting process operates as follows:
 
 * A new empty string `result` is created.
 * If `urlObject.protocol` is a string, it is appended as-is to `result`.
@@ -247,3 +251,4 @@ forward slash (`/`) character is encoded as `%3C`.
 
 [`Error`]: errors.html#errors_class_error
 [`querystring`]: querystring.html
+[`TypeError`]: errors.html#errors_class_typeerror
