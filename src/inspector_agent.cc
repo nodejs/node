@@ -29,13 +29,15 @@ namespace node {
 namespace {
 
 const char DEVTOOLS_PATH[] = "/node";
+const char DEVTOOLS_HASH[] = "521e5b7e2b7cc66b4006a8a54cb9c4e57494a5ef";
 
 void PrintDebuggerReadyMessage(int port) {
   fprintf(stderr, "Debugger listening on port %d.\n"
     "To start debugging, open the following URL in Chrome:\n"
     "    chrome-devtools://devtools/remote/serve_file/"
-    "@521e5b7e2b7cc66b4006a8a54cb9c4e57494a5ef/inspector.html?"
-    "experiments=true&v8only=true&ws=localhost:%d/node\n", port, port);
+    "@%s/inspector.html?"
+    "experiments=true&v8only=true&ws=localhost:%d/node\n",
+      port, DEVTOOLS_HASH, port);
 }
 
 bool AcceptsConnection(inspector_socket_t* socket, const char* path) {
@@ -89,18 +91,19 @@ void SendVersionResponse(inspector_socket_t* socket) {
   SendHttpResponse(socket, buffer, len);
 }
 
-void SendTargentsListResponse(inspector_socket_t* socket) {
+void SendTargentsListResponse(inspector_socket_t* socket, int port) {
   const char LIST_RESPONSE_TEMPLATE[] =
       "[ {"
       "  \"description\": \"node.js instance\","
       "  \"devtoolsFrontendUrl\": "
             "\"https://chrome-devtools-frontend.appspot.com/serve_file/"
-            "@4604d24a75168768584760ba56d175507941852f/inspector.html\","
+            "@%s/inspector.html?experiments=true&v8only=true"
+            "&ws=localhost:%d%s\","
       "  \"faviconUrl\": \"https://nodejs.org/static/favicon.ico\","
       "  \"id\": \"%d\","
       "  \"title\": \"%s\","
       "  \"type\": \"node\","
-      "  \"webSocketDebuggerUrl\": \"ws://%s\""
+      "  \"webSocketDebuggerUrl\": \"ws://localhost:%d%s\""
       "} ]";
   char buffer[sizeof(LIST_RESPONSE_TEMPLATE) + 4096];
   char title[2048];  // uv_get_process_title trims the title if too long
@@ -114,12 +117,13 @@ void SendTargentsListResponse(inspector_socket_t* socket) {
     c++;
   }
   size_t len = snprintf(buffer, sizeof(buffer), LIST_RESPONSE_TEMPLATE,
-                        getpid(), title, DEVTOOLS_PATH);
+                        DEVTOOLS_HASH, port, DEVTOOLS_PATH, getpid(),
+                        title, port, DEVTOOLS_PATH);
   ASSERT_LT(len, sizeof(buffer));
   SendHttpResponse(socket, buffer, len);
 }
 
-bool RespondToGet(inspector_socket_t* socket, const char* path) {
+bool RespondToGet(inspector_socket_t* socket, const char* path, int port) {
   const char PATH[] = "/json";
   const char PATH_LIST[] = "/json/list";
   const char PATH_VERSION[] = "/json/version";
@@ -128,7 +132,7 @@ bool RespondToGet(inspector_socket_t* socket, const char* path) {
     SendVersionResponse(socket);
   } else if (!strncmp(PATH_LIST, path, sizeof(PATH_LIST)) ||
              !strncmp(PATH, path, sizeof(PATH)))  {
-    SendTargentsListResponse(socket);
+    SendTargentsListResponse(socket, port);
   } else if (!strncmp(path, PATH_ACTIVATE, sizeof(PATH_ACTIVATE) - 1) &&
              atoi(path + (sizeof(PATH_ACTIVATE) - 1)) == getpid()) {
     const char TARGET_ACTIVATED[] = "Target activated";
@@ -348,7 +352,7 @@ bool Agent::OnInspectorHandshakeIO(inspector_socket_t* socket,
   Agent* agent = static_cast<Agent*>(socket->data);
   switch (state) {
   case kInspectorHandshakeHttpGet:
-    return RespondToGet(socket, path);
+    return RespondToGet(socket, path, agent->port_);
   case kInspectorHandshakeUpgrading:
     return AcceptsConnection(socket, path);
   case kInspectorHandshakeUpgraded:
