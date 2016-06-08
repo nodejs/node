@@ -1,4 +1,5 @@
 * text=auto
+deps/v8/test/mjsunit/regress/regress-2825.js -text
 
 test/fixtures/* -text
 
