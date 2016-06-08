@@ -142,6 +142,7 @@ static bool use_inspector = false;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port = 5858;
+static int inspector_port = 9229;
 static const int v8_default_thread_pool_size = 4;
 static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
@@ -3351,11 +3352,16 @@ static bool ParseDebugOpt(const char* arg) {
   }
 
   if (port != nullptr) {
-    debug_port = atoi(port);
-    if (debug_port < 1024 || debug_port > 65535) {
+    int port_int = atoi(port);
+    if (port_int < 1024 || port_int > 65535) {
       fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
       PrintHelp();
       exit(12);
+    }
+    if (use_inspector) {
+      inspector_port = port_int;
+    } else {
+      debug_port = port_int;
     }
   }
 
@@ -3618,22 +3624,21 @@ static void StartDebug(Environment* env, bool wait) {
   CHECK(!debugger_running);
 #if HAVE_INSPECTOR
   if (use_inspector) {
-    env->inspector_agent()->Start(default_platform, debug_port, wait);
+    env->inspector_agent()->Start(default_platform, inspector_port, wait);
     debugger_running = true;
   } else {
 #endif
     env->debugger_agent()->set_dispatch_handler(
           DispatchMessagesDebugAgentCallback);
     debugger_running = env->debugger_agent()->Start(debug_port, wait);
+    if (debugger_running == false) {
+      fprintf(stderr, "Starting debugger on port %d failed\n", debug_port);
+      fflush(stderr);
+      return;
+    }
 #if HAVE_INSPECTOR
   }
 #endif
-
-  if (debugger_running == false) {
-    fprintf(stderr, "Starting debugger on port %d failed\n", debug_port);
-    fflush(stderr);
-    return;
-  }
 }
 
 
