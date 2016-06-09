@@ -201,8 +201,7 @@ added: v0.3.1
 
 * `sandbox` {Object}
 
-If given a `sandbox` object, the `vm.createContext()` method will [prepare
-that sandbox][#vm_what_does_it_mean_to_contextify_an_object] so that it can be
+If given a `sandbox` object, the `vm.createContext()` method will [prepare that sandbox][] so that it can be
 used in calls to [`vm.runInContext()`][] or [`script.runInContext()`][]. Inside
 such scripts, the `sandbox` object will be the global object, retaining all of
 its existing properties but also having the built-in objects and functions any
@@ -447,6 +446,7 @@ associating it with the `sandbox` object is what this document refers to as
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInNewContext()`]: #vm_vm_runinnewcontext_code_sandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
+[prepare that sandbox]: #what-does-it-mean-to-contextify-an-object
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [V8 Embedder's Guide]: https://developers.google.com/v8/embed#contexts
-[contextified]: #vm_what_does_it_mean_to_contextify_an_object
+[contextified]: #what-does-it-mean-to-contextify-an-object
