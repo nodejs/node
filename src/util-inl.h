@@ -219,6 +219,16 @@ bool StringEqualNoCase(const char* a, const char* b) {
   return false;
 }
 
+bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
+  for (size_t i = 0; i < length; i++) {
+    if (ToLower(a[i]) != ToLower(b[i]))
+      return false;
+    if (a[i] == '\0')
+      return true;
+  }
+  return true;
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

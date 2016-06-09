@@ -1,4 +1,6 @@
 #include "inspector_socket.h"
+#include "util.h"
+#include "util-inl.h"
 
 #define NODE_WANT_INTERNALS 1
 #include "base64.h"
@@ -445,9 +447,10 @@ static int header_value_cb(http_parser* parser, const char* at, size_t length) {
   struct http_parsing_state_s* state = (struct http_parsing_state_s*)
       (reinterpret_cast<inspector_socket_t*>(parser->data))->http_parsing_state;
   state->parsing_value = true;
-  if (state->current_header && strncmp(state->current_header,
-                                       SEC_WEBSOCKET_KEY_HEADER,
-                                       sizeof(SEC_WEBSOCKET_KEY_HEADER)) == 0) {
+  if (state->current_header &&
+      node::StringEqualNoCaseN(state->current_header,
+                               SEC_WEBSOCKET_KEY_HEADER,
+                               sizeof(SEC_WEBSOCKET_KEY_HEADER))) {
     append(&state->ws_key, at, length);
   }
   return 0;
