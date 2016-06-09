@@ -206,6 +206,9 @@ inline char ToLower(char c);
 // strcasecmp() is locale-sensitive.  Use StringEqualNoCase() instead.
 inline bool StringEqualNoCase(const char* a, const char* b);
 
+// strncasecmp() is locale-sensitive.  Use StringEqualNoCaseN() instead.
+inline bool StringEqualNoCaseN(const char* a, const char* b, size_t length);
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>
