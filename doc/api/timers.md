@@ -5,31 +5,56 @@
 All of the timer functions are globals.  You do not need to `require()`
 this module in order to use them.
 
-## clearImmediate(immediateObject)
+## Class: Immediate
 
-Stops an `immediateObject`, as created by [`setImmediate`][], from triggering.
+This object is created internally and is returned from [`setImmediate`][]. It
+can be passed to [`clearImmediate`] in order to cancel the scheduled actions.
 
-## clearInterval(intervalObject)
+## Class: Timeout
 
-Stops an `intervalObject`, as created by [`setInterval`][], from triggering.
+This object is created internally and is returned from [`setTimeout`][] and
+[`setInterval`][]. It can be passed to [`clearTimeout`][] or [`clearInterval`][]
+respectively in order to cancel the scheduled actions.
 
-## clearTimeout(timeoutObject)
+### ref()
 
-Prevents a `timeoutObject`, as created by [`setTimeout`][], from triggering.
+If a `Timeout` was previously `unref()`d, then `ref()` can be called to
+explicitly request the `Timeout` hold the program open. If the `Timeout` is
+already `ref`d calling `ref` again will have no effect.
 
-## ref()
+Returns the `Timeout`.
 
-If a timer was previously `unref()`d, then `ref()` can be called to explicitly
-request the timer hold the program open. If the timer is already `ref`d calling
-`ref` again will have no effect.
+### unref()
 
-Returns the timer.
+The `Timeout` returned by [`setTimeout`][] and [`setInterval`][] also has the
+method `timeout.unref()` which allows the creation of a `Timeout` that is active
+but if it is the only item left in the event loop, it won't keep the program
+running. If the `Timeout` is already `unref`d calling `unref` again will have no
+effect.
+
+In the case of [`setTimeout`][], `unref` creates a separate underlying timer
+handle that will wakeup the event loop, creating too many of these may adversely
+effect event loop performance -- use wisely.
+
+Returns the `Timeout`.
+
+## clearImmediate(immediate)
+
+Stops an `Immediate`, as created by [`setImmediate`][], from triggering.
+
+## clearInterval(timeout)
+
+Stops a `Timeout`, as created by [`setInterval`][], from triggering.
+
+## clearTimeout(timeout)
+
+Stops a `Timeout`, as created by [`setTimeout`][], from triggering.
 
 ## setImmediate(callback[, arg][, ...])
 
 Schedules "immediate" execution of `callback` after I/O events'
-callbacks and before timers set by [`setTimeout`][] and [`setInterval`][] are
-triggered. Returns an `immediateObject` for possible use with
+callbacks and before timers (`Timeout`s) set by [`setTimeout`][] and
+[`setInterval`][] are triggered. Returns an `Immediate` for possible use with
 [`clearImmediate`][]. Additional optional arguments may be passed to the
 callback.
 
@@ -43,7 +68,7 @@ If `callback` is not a function `setImmediate()` will throw immediately.
 ## setInterval(callback, delay[, arg][, ...])
 
 Schedules repeated execution of `callback` every `delay` milliseconds.
-Returns a `intervalObject` for possible use with [`clearInterval`][]. Additional
+Returns a `Timeout` for possible use with [`clearInterval`][]. Additional
 optional arguments may be passed to the callback.
 
 To follow browser behavior, when using delays larger than 2147483647
@@ -55,7 +80,7 @@ If `callback` is not a function `setInterval()` will throw immediately.
 ## setTimeout(callback, delay[, arg][, ...])
 
 Schedules execution of a one-time `callback` after `delay` milliseconds.
-Returns a `timeoutObject` for possible use with [`clearTimeout`][]. Additional
+Returns a `Timeout` for possible use with [`clearTimeout`][]. Additional
 optional arguments may be passed to the callback.
 
 The callback will likely not be invoked in precisely `delay` milliseconds.
@@ -68,20 +93,6 @@ milliseconds (approximately 25 days) or less than 1, the timeout is executed
 immediately, as if the `delay` was set to 1.
 
 If `callback` is not a function `setTimeout()` will throw immediately.
-
-## unref()
-
-The opaque value returned by [`setTimeout`][] and [`setInterval`][] also has the
-method `timer.unref()` which allows the creation of a timer that is active but
-if it is the only item left in the event loop, it won't keep the program
-running. If the timer is already `unref`d calling `unref` again will have no
-effect.
-
-In the case of [`setTimeout`][], `unref` creates a separate timer that will
-wakeup the event loop, creating too many of these may adversely effect event
-loop performance -- use wisely.
-
-Returns the timer.
 
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediateobject
 [`clearInterval`]: timers.html#timers_clearinterval_intervalobject
