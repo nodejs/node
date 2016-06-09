@@ -1193,44 +1193,33 @@ void DefineZlibConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, INFLATERAW);
   NODE_DEFINE_CONSTANT(target, UNZIP);
 
-  #define Z_MIN_WINDOWBITS 8
+#define Z_MIN_WINDOWBITS 8
+#define Z_MAX_WINDOWBITS 15
+#define Z_DEFAULT_WINDOWBITS 15
+// Fewer than 64 bytes per chunk is not recommended.
+// Technically it could work with as few as 8, but even 64 bytes
+// is low.  Usually a MB or more is best.
+#define Z_MIN_CHUNK 64
+#define Z_MAX_CHUNK std::numeric_limits<double>::infinity()
+#define Z_DEFAULT_CHUNK (16 * 1024)
+#define Z_MIN_MEMLEVEL 1
+#define Z_MAX_MEMLEVEL 9
+#define Z_DEFAULT_MEMLEVEL 8
+#define Z_MIN_LEVEL -1
+#define Z_MAX_LEVEL 9
+#define Z_DEFAULT_LEVEL Z_DEFAULT_COMPRESSION
+
   NODE_DEFINE_CONSTANT(target, Z_MIN_WINDOWBITS);
-
-  #define Z_MAX_WINDOWBITS 15
   NODE_DEFINE_CONSTANT(target, Z_MAX_WINDOWBITS);
-
-  #define Z_DEFAULT_WINDOWBITS 15
   NODE_DEFINE_CONSTANT(target, Z_DEFAULT_WINDOWBITS);
-
-  // Fewer than 64 bytes per chunk is not recommended.
-  // Technically it could work with as few as 8, but even 64 bytes
-  // is low.  Usually a MB or more is best.
-  #define Z_MIN_CHUNK 64
   NODE_DEFINE_CONSTANT(target, Z_MIN_CHUNK);
-
-  #define Infinity std::numeric_limits<double>::infinity()
-  #define Z_MAX_CHUNK Infinity
   NODE_DEFINE_CONSTANT(target, Z_MAX_CHUNK);
-
-  #define Z_DEFAULT_CHUNK (16 * 1024)
   NODE_DEFINE_CONSTANT(target, Z_DEFAULT_CHUNK);
-
-  #define Z_MIN_MEMLEVEL 1
   NODE_DEFINE_CONSTANT(target, Z_MIN_MEMLEVEL);
-
-  #define Z_MAX_MEMLEVEL 9
   NODE_DEFINE_CONSTANT(target, Z_MAX_MEMLEVEL);
-
-  #define Z_DEFAULT_MEMLEVEL 8
   NODE_DEFINE_CONSTANT(target, Z_DEFAULT_MEMLEVEL);
-
-  #define Z_MIN_LEVEL -1
   NODE_DEFINE_CONSTANT(target, Z_MIN_LEVEL);
-
-  #define Z_MAX_LEVEL 9
   NODE_DEFINE_CONSTANT(target, Z_MAX_LEVEL);
-
-  #define Z_DEFAULT_LEVEL Z_DEFAULT_COMPRESSION
   NODE_DEFINE_CONSTANT(target, Z_DEFAULT_LEVEL);
 }
 
