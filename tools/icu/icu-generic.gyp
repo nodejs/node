@@ -261,7 +261,8 @@
                               '-F', 'icu_small.json',
                               '-O', 'icudt<(icu_ver_major)<(icu_endianness).dat',
                               '-v',
-                              '-L', '<(icu_locales)'],
+                              '-L', '<(icu_locales)',
+                              '-K', '<(icu_small_canned)'],
                 },
                 {
                   # build final .dat -> .obj
@@ -325,7 +326,17 @@
               # link against stub data (as primary data)
               # then, use icupkg and genccode to rebuild small data
               'dependencies': [ 'icustubdata', 'genccode#host', 'icupkg#host', 'genrb#host', 'iculslocs#host',
-                               'icu_implementation', 'icu_uconfig' ],
+                                'icu_implementation', 'icu_uconfig' ],
+              'conditions': [
+                ['icu_small_canned == "true"', {
+                  # with canned data, don’t need genrb or iculslocs
+                  'dependencies!': [ 'genrb#host', 'iculslocs#host' ],
+                }],
+                ['icu_need_swap == "false" and icu_small_canned == "true"', {
+                  # canned data, so don’t need to swap
+                  'dependencies!': [ 'icupkg#host' ],
+                }],
+              ],
               'export_dependent_settings': [ 'icustubdata' ],
               'actions': [
                 {
@@ -342,7 +353,8 @@
                               '-F', 'icu_small.json',
                               '-O', 'icudt<(icu_ver_major)<(icu_endianness).dat',
                               '-v',
-                              '-L', '<(icu_locales)'],
+                              '-L', '<(icu_locales)',
+                              '-K', '<(icu_small_canned)'],
                 }, {
                   # rename to get the final entrypoint name right
                    'action_name': 'rename',
@@ -512,7 +524,25 @@
       'conditions': [
         ['OS == "solaris"', {
           'defines': [ '_XOPEN_SOURCE_EXTENDED=0' ]
-        }]
+        }],
+        ['OS != "win" and icu_need_swap == "false" and icu_small_canned == "true"', {
+          # we are ONLY building genccode.
+          # pare down the dependencies dramatically.
+          'sources!': [ '<@(icu_src_i18n)',
+                        '<@(icu_src_io)', ],
+          'defines!': [ 'UCONFIG_NO_BREAK_ITERATION=0' ],
+          'defines': [
+            #disables the 'year' stuff
+            'UCONFIG_NO_FORMATTING=1',
+            'UCONFIG_NO_REGULAR_EXPRESSIONS=1',
+            'UCONFIG_NO_NORMALIZATION=1',
+            'UCONFIG_NO_SERVICE=1',
+            'UCONFIG_NO_IDNA=1',
+            # should be ok to disable conversion in this case
+            # .. but http://bugs.icu-project.org/trac/ticket/11046
+            #'UCONFIG_NO_CONVERSION=1',
+        ]
+        }],
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -581,6 +611,10 @@
         '<@(icu_src_genccode)',
         'no-op.cc',
       ],
+      'defines': [
+        #disables the 'current year' stuff
+        'UCONFIG_NO_FORMATTING=1',
+      ]
     },
   ],
 }

@@ -952,7 +952,10 @@ def configure_intl(o):
           print '\n ** Corrupted ZIP? Delete %s to retry download.\n' % targetfile
     return None
   icu_config = {
-    'variables': {}
+    'variables': {
+      'icu_small_canned': b(False),
+      'icu_need_swap': b(True),
+    }
   }
   icu_config_name = 'icu_config.gypi'
   def write_config(data, name):
@@ -1046,7 +1049,7 @@ def configure_intl(o):
 
   if (o['variables']['icu_small'] == b(True)) and using_default_locales and (not with_icu_source) and canned_icu_available:
     # OK- we can use the canned ICU.
-    icu_config['variables']['icu_small_canned'] = 1
+    icu_config['variables']['icu_small_canned'] = b(True)
     icu_full_path = canned_icu_dir
 
   # --with-icu-source processing
@@ -1144,6 +1147,9 @@ def configure_intl(o):
   # this is the input '.dat' file to use .. icudt*.dat
   # may be little-endian if from a icu-project.org tarball
   o['variables']['icu_data_in'] = icu_data_in
+  if icu_data_in.endswith('%s.dat' % icu_endianness):
+    # we may still swap, but mark that we can skip it if need be
+    icu_config['variables']['icu_need_swap'] = b(False)
   # this is the icudt*.dat file which node will be using (platform endianness)
   o['variables']['icu_data_file'] = icu_data_file
   if not os.path.isfile(icu_data_path):

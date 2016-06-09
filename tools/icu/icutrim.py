@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (C) 2014 IBM Corporation and Others. All Rights Reserved.
+# Copyright (C) 2014,2016 IBM Corporation and Others. All Rights Reserved.
 #
 # @author Steven R. Loomis <srl@icu-project.org>
 #
@@ -62,6 +62,10 @@ parser.add_option("-O","--outfile",
                     )  # required
 
 parser.add_option("-v","--verbose",
+                    action="count",
+                    default=0)
+
+parser.add_option("-K","--canned",
                     action="count",
                     default=0)
 
@@ -170,7 +174,14 @@ if(config.has_key("comment")):
 ## The first letter of endian_letter will be 'b' or 'l' for big or little
 endian_letter = options.endian[0]
 
-runcmd("icupkg", "-t%s %s %s""" % (endian_letter, options.datfile, outfile))
+if ( options.datfile.endswith("%s.dat" % endian_letter) ):
+    shutil.copyfile(options.datfile, outfile)
+else:
+    runcmd("icupkg", "-t%s %s %s""" % (endian_letter, options.datfile, outfile))
+
+if ( options.canned >  0 ):
+    print "Canned small ICU - no need to actually trim."
+    sys.exit(0)
 
 ## STEP 2 - get listing
 listfile = os.path.join(options.tmpdir,"icudata.lst")
