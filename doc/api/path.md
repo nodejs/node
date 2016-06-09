@@ -2,8 +2,8 @@
 
     Stability: 2 - Stable
 
-The `path` module provides utilities for working with file paths. It can be
-accessed using:
+The `path` module provides utilities for working with file and directory paths.
+It can be accessed using:
 
 ```js
 const path = require('path');
@@ -13,7 +13,7 @@ const path = require('path');
 
 The default operation of the `path` module varies based on the operating system
 on which a Node.js application is running. Specifically, when running on a
-Windows operating system, the `path` module will assume that Window-style
+Windows operating system, the `path` module will assume that Windows-style
 paths are being used.
 
 For example, using the `path.basename()` function with the Windows file path
