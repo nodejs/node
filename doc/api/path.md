@@ -59,7 +59,7 @@ path.posix.basename('/tmp/myfile.html');
 added: v0.1.25
 -->
 
-* `path` {String} A file path
+* `path` {String}
 * `ext` {String} An optional file extension
 
 The `path.basename()` methods returns the last portion of a `path`, similar to
@@ -113,7 +113,7 @@ process.env.PATH.split(path.delimiter)
 added: v0.1.16
 -->
 
-* `path` {String} A file path
+* `path` {String}
 
 The `path.dirname()` method returns the directory name of a `path`, similar to
 the Unix `dirname` command.
@@ -132,7 +132,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 added: v0.1.25
 -->
 
-* `path` {String} A file path
+* `path` {String}
 
 The `path.extname()` method returns the extension of the `path`, from the last
 occurance of the `.` (period) character to end of string in the last portion of
@@ -333,7 +333,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 added: v0.11.15
 -->
 
-* `path` {String} A file path
+* `path` {String}
 
 The `path.parse()` method returns an object whose properties represent
 significant elements of the `path`.
