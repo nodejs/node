@@ -219,6 +219,13 @@ The request implements the [Writable Stream][] interface. This is an
 Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
 
+### Event: 'aborted'
+
+`function () { }`
+
+Emitted when the request has been aborted by the server and the network
+socket has closed.
+
 ### Event: 'checkExpectation'
 
 `function (request, response) { }`
@@ -902,6 +909,13 @@ headers and data.
 
 It implements the [Readable Stream][] interface, as well as the
 following additional events, methods, and properties.
+
+### Event: 'aborted'
+
+`function () { }`
+
+Emitted when the request has been aborted by the client and the network
+socket has closed.
 
 ### Event: 'close'
 
