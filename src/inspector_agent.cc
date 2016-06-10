@@ -51,7 +51,14 @@ void PrintDebuggerReadyMessage(int port) {
 }
 
 bool AcceptsConnection(inspector_socket_t* socket, const std::string& path) {
-  return 0 == path.compare(0, sizeof(DEVTOOLS_PATH) - 1, DEVTOOLS_PATH);
+  return StringEqualNoCaseN(path.c_str(), DEVTOOLS_PATH,
+                            sizeof(DEVTOOLS_PATH) - 1);
+}
+
+void Escape(std::string* string) {
+  for (char& c : *string) {
+    c = (c == '\"' || c == '\\') ? '_' : c;
+  }
 }
 
 void DisposeInspector(inspector_socket_t* socket, int status) {
@@ -98,7 +105,21 @@ void SendVersionResponse(inspector_socket_t* socket) {
   SendHttpResponse(socket, buffer, len);
 }
 
-void SendTargentsListResponse(inspector_socket_t* socket, int port) {
+std::string GetProcessTitle() {
+  // uv_get_process_title will trim the title if it is too long.
+  char title[2048];
+  int err = uv_get_process_title(title, sizeof(title));
+  if (err == 0) {
+    return title;
+  } else {
+    return "Node.js";
+  }
+}
+
+void SendTargentsListResponse(inspector_socket_t* socket,
+                              const std::string& script_name_,
+                              const std::string& script_path_,
+                              int port) {
   const char LIST_RESPONSE_TEMPLATE[] =
       "[ {"
       "  \"description\": \"node.js instance\","
@@ -110,45 +131,60 @@ void SendTargentsListResponse(inspector_socket_t* socket, int port) {
       "  \"id\": \"%d\","
       "  \"title\": \"%s\","
       "  \"type\": \"node\","
+      "  \"url\": \"%s\","
       "  \"webSocketDebuggerUrl\": \"ws://localhost:%d%s\""
       "} ]";
-  char buffer[sizeof(LIST_RESPONSE_TEMPLATE) + 4096];
-  char title[2048];  // uv_get_process_title trims the title if too long
-  int err = uv_get_process_title(title, sizeof(title));
-  if (err != 0) {
-    snprintf(title, sizeof(title), "Node.js");
-  }
-  char* c = title;
-  while (*c != '\0') {
-    if (*c < ' ' || *c == '\"') {
-      *c = '_';
-    }
-    c++;
-  }
-  size_t len = snprintf(buffer, sizeof(buffer), LIST_RESPONSE_TEMPLATE,
-                        DEVTOOLS_HASH, port, DEVTOOLS_PATH, getpid(),
-                        title, port, DEVTOOLS_PATH);
-  ASSERT_LT(len, sizeof(buffer));
-  SendHttpResponse(socket, buffer, len);
+  std::string title = script_name_.empty() ? GetProcessTitle() : script_name_;
+
+  // This attribute value is a "best effort" URL that is passed as a JSON
+  // string. It is not guaranteed to resolve to a valid resource.
+  std::string url = "file://" + script_path_;
+
+  Escape(&title);
+  Escape(&url);
+
+  const int NUMERIC_FIELDS_LENGTH = 5 * 2 + 20;  // 2 x port + 1 x pid (64 bit)
+
+  int buf_len = sizeof(LIST_RESPONSE_TEMPLATE) + sizeof(DEVTOOLS_HASH) +
+                sizeof(DEVTOOLS_PATH) * 2 + title.length() +
+                url.length() + NUMERIC_FIELDS_LENGTH;
+  std::string buffer(buf_len, '\0');
+
+  int len = snprintf(&buffer[0], buf_len, LIST_RESPONSE_TEMPLATE,
+                     DEVTOOLS_HASH, port, DEVTOOLS_PATH, getpid(),
+                     title.c_str(), url.c_str(),
+                     port, DEVTOOLS_PATH);
+  buffer.resize(len);
+  ASSERT_LT(len, buf_len);  // Buffer should be big enough!
+  SendHttpResponse(socket, buffer.data(), len);
 }
 
-bool RespondToGet(inspector_socket_t* socket, const std::string& path,
+const char* match_path_segment(const char* path, const char* expected) {
+  size_t len = strlen(expected);
+  if (StringEqualNoCaseN(path, expected, len)) {
+    if (path[len] == '/') return path + len + 1;
+    if (path[len] == '\0') return path + len;
+  }
+  return nullptr;
+}
+
+bool RespondToGet(inspector_socket_t* socket, const std::string& script_name_,
+                  const std::string& script_path_, const std::string& path,
                   int port) {
-  const char PATH[] = "/json";
-  const char PATH_LIST[] = "/json/list";
-  const char PATH_VERSION[] = "/json/version";
-  const char PATH_ACTIVATE[] = "/json/activate/";
-  if (0 == path.compare(0, sizeof(PATH_VERSION) - 1, PATH_VERSION)) {
+  const char* command = match_path_segment(path.c_str(), "/json");
+  if (command == nullptr)
+    return false;
+
+  if (match_path_segment(command, "list") || command[0] == '\0') {
+    SendTargentsListResponse(socket, script_name_, script_path_, port);
+  } else if (match_path_segment(command, "version")) {
     SendVersionResponse(socket);
-  } else if (0 == path.compare(0, sizeof(PATH_LIST) - 1, PATH_LIST) ||
-             0 == path.compare(0, sizeof(PATH) - 1, PATH)) {
-    SendTargentsListResponse(socket, port);
-  } else if (0 == path.compare(0, sizeof(PATH_ACTIVATE) - 1, PATH_ACTIVATE) &&
-             atoi(path.substr(sizeof(PATH_ACTIVATE) - 1).c_str()) == getpid()) {
+  } else {
+    const char* pid = match_path_segment(command, "activate");
+    if (pid == nullptr || atoi(pid) != getpid())
+      return false;
     const char TARGET_ACTIVATED[] = "Target activated";
     SendHttpResponse(socket, TARGET_ACTIVATED, sizeof(TARGET_ACTIVATED) - 1);
-  } else {
-    return false;
   }
   return true;
 }
@@ -166,7 +202,7 @@ class AgentImpl {
   ~AgentImpl();
 
   // Start the inspector agent thread
-  bool Start(v8::Platform* platform, int port, bool wait);
+  bool Start(v8::Platform* platform, const char* path, int port, bool wait);
   // Stop the inspector agent
   void Stop();
 
@@ -226,6 +262,9 @@ class AgentImpl {
   bool dispatching_messages_;
   int frontend_session_id_;
   int backend_session_id_;
+
+  std::string script_name_;
+  std::string script_path_;
 
   friend class ChannelImpl;
   friend class DispatchOnInspectorBackendTask;
@@ -442,10 +481,13 @@ void InspectorWrapConsoleCall(const v8::FunctionCallbackInfo<v8::Value>& args) {
                                               array).ToLocalChecked());
 }
 
-bool AgentImpl::Start(v8::Platform* platform, int port, bool wait) {
+bool AgentImpl::Start(v8::Platform* platform, const char* path,
+                      int port, bool wait) {
   auto env = parent_env_;
   inspector_ = new V8NodeInspector(this, env, platform);
   platform_ = platform;
+  if (path != nullptr)
+    script_name_ = path;
 
   InstallInspectorOnProcess();
 
@@ -566,7 +608,8 @@ bool AgentImpl::OnInspectorHandshakeIO(inspector_socket_t* socket,
   AgentImpl* agent = static_cast<AgentImpl*>(socket->data);
   switch (state) {
   case kInspectorHandshakeHttpGet:
-    return RespondToGet(socket, path, agent->port_);
+    return RespondToGet(socket, agent->script_name_, agent->script_path_, path,
+                        agent->port_);
   case kInspectorHandshakeUpgrading:
     return AcceptsConnection(socket, path);
   case kInspectorHandshakeUpgraded:
@@ -635,6 +678,12 @@ void AgentImpl::WorkerRunIO() {
   err = uv_async_init(&child_loop_, &io_thread_req_, AgentImpl::WriteCbIO);
   CHECK_EQ(err, 0);
   io_thread_req_.data = this;
+  if (!script_name_.empty()) {
+    uv_fs_t req;
+    if (0 == uv_fs_realpath(&child_loop_, &req, script_name_.c_str(), nullptr))
+      script_path_ = std::string(reinterpret_cast<char*>(req.ptr));
+    uv_fs_req_cleanup(&req);
+  }
   uv_tcp_init(&child_loop_, &server);
   uv_ip4_addr("0.0.0.0", port_, &addr);
   server.data = this;
@@ -752,8 +801,9 @@ Agent::~Agent() {
   delete impl;
 }
 
-bool Agent::Start(v8::Platform* platform, int port, bool wait) {
-  return impl->Start(platform, port, wait);
+bool Agent::Start(v8::Platform* platform, const char* path,
+                  int port, bool wait) {
+  return impl->Start(platform, path, port, wait);
 }
 
 void Agent::Stop() {
