@@ -214,12 +214,18 @@ function myWriter(output) {
 ```
 
 ## Class: REPLServer
+<!-- YAML
+added: v0.1.91
+-->
 
 The `repl.REPLServer` class inherits from the [`readline.Interface`][] class.
 Instances of `repl.REPLServer` are created using the `repl.start()` method and
 *should not* be created directly using the JavaScript `new` keyword.
 
 ### Event: 'exit'
+<!-- YAML
+added: v0.7.7
+-->
 
 The `'exit'` event is emitted when the REPL is exited either by receiving the
 `.exit` command as input, the user pressing `<ctrl>-C` twice to signal `SIGINT`,
@@ -234,6 +240,9 @@ replServer.on('exit', () => {
 ```
 
 ### Event: 'reset'
+<!-- YAML
+added: v0.11.0
+-->
 
 The `'reset'` event is emitted when the REPL's context is reset. This occurs
 whenever the `.clear` command is received as input *unless* the REPL is using
@@ -276,6 +285,9 @@ Clearing context...
 ```
 
 ### replServer.defineCommand(keyword, cmd)
+<!-- YAML
+added: v0.3.0
+-->
 
 * `keyword` {String} The command keyword (*without* a leading `.` character).
 * `cmd` {Object|Function} The function to invoke when the command is processed.
@@ -320,6 +332,9 @@ Goodbye!
 ```
 
 ### replServer.displayPrompt([preserveCursor])
+<!-- YAML
+added: v0.1.91
+-->
 
 * `preserveCursor` {Boolean}
 
@@ -337,6 +352,9 @@ within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
 ## repl.start([options])
+<!-- YAML
+added: v0.1.91
+-->
 
 * `options` {Object}
   * `prompt` {String} The input prompt to display. Defaults to `> `.
@@ -416,6 +434,10 @@ directory. This can be disabled by setting the environment variable
 `NODE_REPL_HISTORY=""`.
 
 #### NODE_REPL_HISTORY_FILE
+<!-- YAML
+added: v2.0.0
+deprecated: v3.0.0
+-->
 
    Stability: 0 - Deprecated: Use `NODE_REPL_HISTORY` instead.
 
