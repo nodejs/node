@@ -1416,6 +1416,7 @@ enum encoding ParseEncoding(const char* encoding,
         if (strncmp(encoding + 2, "tin1", 4) == 0)
           return LATIN1;
       }
+      break;
     case 'b':
       // binary
       if (encoding[1] == 'i') {
