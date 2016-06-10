@@ -145,7 +145,7 @@ ADDONS_BINDING_GYPS := \
 
 ADDONS_BINDING_SOURCES := \
 	$(filter-out test/addons/??_*/*.cc, $(wildcard test/addons/*/*.cc)) \
-	$(filter-out test/addons/??_*/*.h, $(wildcard test/addons/*/*.h)) \
+	$(filter-out test/addons/??_*/*.h, $(wildcard test/addons/*/*.h))
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
 # Depends on node-gyp package.json so that build-addons is (re)executed when
