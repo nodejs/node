@@ -153,10 +153,16 @@ and try to print `obj` in REPL, it will invoke the custom `inspect()` function:
 ```
 
 ## Class: REPLServer
+<!-- YAML
+added: v0.1.91
+-->
 
 This inherits from [Readline Interface][] with the following events:
 
 ### Event: 'exit'
+<!-- YAML
+added: v0.7.7
+-->
 
 `function () {}`
 
@@ -175,6 +181,9 @@ replServer.on('exit', () => {
 
 
 ### Event: 'reset'
+<!-- YAML
+added: v0.11.0
+-->
 
 `function (context) {}`
 
@@ -197,6 +206,9 @@ replServer.on('reset', (context) => {
 ```
 
 ### replServer.defineCommand(keyword, cmd)
+<!-- YAML
+added: v0.3.0
+-->
 
 * `keyword` {String}
 * `cmd` {Object|Function}
@@ -235,6 +247,9 @@ Hello, Node.js User!
 ```
 
 ### replServer.displayPrompt([preserveCursor])
+<!-- YAML
+added: v0.1.91
+-->
 
 * `preserveCursor` {Boolean}
 
