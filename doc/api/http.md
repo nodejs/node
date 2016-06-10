@@ -910,6 +910,13 @@ headers and data.
 It implements the [Readable Stream][] interface, as well as the
 following additional events, methods, and properties.
 
+### Event: 'aborted'
+
+`function () { }`
+
+Emitted when the request has been aborted by the client and the network
+socket has closed.
+
 ### Event: 'close'
 
 `function () { }`
