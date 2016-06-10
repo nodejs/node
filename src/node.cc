@@ -207,9 +207,10 @@ static struct {
     platform_ = nullptr;
   }
 
-  bool StartInspector(Environment *env, int port, bool wait) {
+  bool StartInspector(Environment *env, const char* script_path,
+                      int port, bool wait) {
 #if HAVE_INSPECTOR
-    return env->inspector_agent()->Start(platform_, port, wait);
+    return env->inspector_agent()->Start(platform_, script_path, port, wait);
 #else
     return true;
 #endif  // HAVE_INSPECTOR
@@ -220,7 +221,8 @@ static struct {
   void Initialize(int thread_pool_size) {}
   void PumpMessageLoop(Isolate* isolate) {}
   void Dispose() {}
-  bool StartInspector(Environment *env, int port, bool wait) {
+  bool StartInspector(Environment *env, const char* script_path,
+                      int port, bool wait) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
     return false;  // make compiler happy
   }
@@ -3766,10 +3768,11 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 }
 
 
-static void StartDebug(Environment* env, bool wait) {
+static void StartDebug(Environment* env, const char* path, bool wait) {
   CHECK(!debugger_running);
   if (use_inspector) {
-    debugger_running = v8_platform.StartInspector(env, inspector_port, wait);
+    debugger_running = v8_platform.StartInspector(env, path, inspector_port,
+                                                  wait);
   } else {
     env->debugger_agent()->set_dispatch_handler(
           DispatchMessagesDebugAgentCallback);
@@ -3831,7 +3834,7 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
       Environment* env = Environment::GetCurrent(isolate);
       Context::Scope context_scope(env->context());
 
-      StartDebug(env, false);
+      StartDebug(env, nullptr, false);
       EnableDebug(env);
     }
 
@@ -4396,7 +4399,10 @@ static void StartNodeInstance(void* arg) {
 
     // Start debug agent when argv has --debug
     if (instance_data->use_debug_agent()) {
-      StartDebug(&env, debug_wait_connect);
+      const char* path = instance_data->argc() > 1
+                         ? instance_data->argv()[1]
+                         : nullptr;
+      StartDebug(&env, path, debug_wait_connect);
       if (use_inspector && !debugger_running) {
         exit(12);
       }
