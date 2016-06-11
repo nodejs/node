@@ -31,7 +31,7 @@ function main(conf) {
   v8.setFlagsFromString('--allow_natives_syntax');
   eval(v8command);
 
-  var obj = {};
+  var obj = new Proxy({}, { set: function(a, b, c) { return true; } });
 
   bench.start();
   for (var j = 0; j < n; j += 1)
