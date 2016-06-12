@@ -13,4 +13,4 @@ Error: boo!
     at tryModuleLoad (module.js:*:*)
     at Function.Module._load (module.js:*)
     at Module.runMain (module.js:*)
-    at run (node.js:*)
+    at run (bootstrap_node.js:*)
