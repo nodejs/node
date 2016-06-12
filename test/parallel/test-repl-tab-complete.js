@@ -348,3 +348,25 @@ testCustomCompleterAsyncMode.complete('a', common.mustCall((error, data) => {
     'a'
   ]);
 }));
+
+// tab completion in editor mode
+const editorStream = new common.ArrayStream();
+const editor = repl.start({
+  stream: editorStream,
+  terminal: true,
+  useColors: false
+});
+
+editorStream.run(['.clear']);
+editorStream.run(['.editor']);
+
+editor.completer('co', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['con'], 'co']);
+}));
+
+editorStream.run(['.clear']);
+editorStream.run(['.editor']);
+
+editor.completer('var log = console.l', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['console.log'], 'console.l']);
+}));
