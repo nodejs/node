@@ -46,7 +46,7 @@ responsibility for the change. In the case of pull requests proposed
 by an existing Collaborator, an additional Collaborator is required
 for sign-off. Consensus should be sought if additional Collaborators
 participate and there is disagreement around a particular
-modification. See _Consensus Seeking Process_ below for further detail
+modification. See [Consensus Seeking Process](#consensus-seeking-process) below for further detail
 on the consensus model used for governance.
 
 Collaborators may opt to elevate significant or controversial
