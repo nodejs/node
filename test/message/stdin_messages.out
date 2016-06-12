@@ -7,7 +7,7 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
+    at bootstrap_node.js:*:*
     at _combinedTickCallback (internal/process/next_tick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
 42
@@ -21,7 +21,7 @@ Error: hello
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
+    at bootstrap_node.js:*:*
     at _combinedTickCallback (internal/process/next_tick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
 
@@ -33,7 +33,7 @@ Error: hello
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
+    at bootstrap_node.js:*:*
     at _combinedTickCallback (internal/process/next_tick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
 100
@@ -46,7 +46,7 @@ ReferenceError: y is not defined
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
+    at bootstrap_node.js:*:*
     at _combinedTickCallback (internal/process/next_tick.js:*:*)
     at process._tickCallback (internal/process/next_tick.js:*:*)
 
