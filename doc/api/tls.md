@@ -134,6 +134,7 @@ threshold is exceeded. The limits are configurable:
   requests. Defaults to `3`.
 * `tls.CLIENT_RENEG_WINDOW` {number} Specifies the time renegotiation window
   in seconds. Defaults to `600` (10 minutes).
+  
 *Note*: The default renegotiation limits should not be modified without a full
 understanding of the implications and risks.
 
