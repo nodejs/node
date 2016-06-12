@@ -38,6 +38,21 @@ The following special commands are supported by all REPL instances:
   `> .save ./file/to/save.js`
 * `.load` - Load a file into the current REPL session.
   `> .load ./file/to/load.js`
+* `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel)
+
+```js
+> .editor
+// Entering editor mode (^D to finish, ^C to cancel)
+function welcome(name) {
+  return `Hello ${name}!`;
+}
+
+welcome('Node.js User');
+
+// ^D
+'Hello Node.js User!'
+>
+```
 
 The following key combinations in the REPL have these special effects:
 
