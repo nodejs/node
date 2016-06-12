@@ -914,9 +914,9 @@ Just like `'end'`, this event occurs only once per response.
 
 * `error` {Error}
 
-Calls `.destroy()` on the socket that received the `IncomingMessage`. If `error`
-is provided, an `'error'` event is fired and `error` is passed as an argument to
-any listeners on the event.
+Calls `destroy()` on the socket that received the `IncomingMessage`. If `error`
+is provided, an `'error'` event is emitted and `error` is passed as an argument
+to any listeners on the event.
 
 ### message.headers
 
