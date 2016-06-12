@@ -859,7 +859,7 @@ Example:
 ```js
 var body = 'hello world';
 response.writeHead(200, {
-  'Content-Length': body.length,
+  'Content-Length': Buffer.byteLength(body),
   'Content-Type': 'text/plain' });
 ```
 
@@ -1181,7 +1181,7 @@ var options = {
   method: 'POST',
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
-    'Content-Length': postData.length
+    'Content-Length': Buffer.byteLength(postData)
   }
 };
 
