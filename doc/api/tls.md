@@ -207,7 +207,7 @@ called:
 
 ### Event: 'newSession'
 <!-- YAML
-added: v0.11.12
+added: v0.9.2
 -->
 
 The `'newSession'` event is emitted upon creation of a new TLS session. This may
@@ -271,7 +271,7 @@ established after the addition of the event listener.
 
 ### Event: 'resumeSession'
 <!-- YAML
-added: v0.11.13
+added: v0.9.2
 -->
 
 The `'resumeSession'` event is emitted when the client requests to resume a
@@ -306,7 +306,7 @@ server.on('resumeSession', (id, cb) => {
 
 ### Event: 'secureConnection'
 <!-- YAML
-added: v0.11.13
+added: v0.3.2
 -->
 
 The `'secureConnection'` event is emitted after the handshaking process for a
@@ -333,7 +333,7 @@ requested via SNI.
 
 ### server.addContext(hostname, context)
 <!-- YAML
-added: v0.11.13
+added: v0.5.3
 -->
 
 * `hostname` {string} A SNI hostname or wildcard (e.g. `'*'`)
@@ -346,7 +346,7 @@ the client request's SNS hostname matches the supplied `hostname` (or wildcard).
 
 ### server.address()
 <!-- YAML
-added: v0.11.3
+added: v0.6.0
 -->
 
 Returns the bound address, the address family name, and port of the
@@ -355,7 +355,7 @@ more information.
 
 ### server.close([callback])
 <!-- YAML
-added: v2.3.2
+added: v0.3.2
 -->
 
 * `callback` {Function} An optional listener callback that will be registered to
@@ -368,14 +368,14 @@ when the the server is finally closed.
 
 ### server.connections
 <!-- YAML
-added: v0.11.3
+added: v0.3.2
 -->
 
 Returns the current number of concurrent connections on the server.
 
 ### server.getTicketKeys()
 <!-- YAML
-added: v2.5.0
+added: v3.0.0
 -->
 
 Returns a `Buffer` instance holding the keys currently used for
@@ -383,7 +383,7 @@ encryption/decryption of the [TLS Session Tickets][]
 
 ### server.listen(port[, hostname][, callback])
 <!-- YAML
-added: v0.11.3
+added: v0.3.2
 -->
 
 * `port` {number} The TCP/IP port on which to begin listening for connections.
@@ -405,7 +405,7 @@ See `net.Server` for more information.
 
 ### server.setTicketKeys(keys)
 <!-- YAML
-added: v2.5.0
+added: v3.0.0
 -->
 
 * `keys` {Buffer} The keys used for encryption/decryption of the
@@ -476,7 +476,7 @@ contains information about server's certificate revocation status.
 
 ### Event: 'secureConnect'
 <!-- YAML
-added: v0.11.13
+added: v0.11.4
 -->
 
 The `'secureConnect'` event is emitted after the handshaking process for a new
@@ -594,7 +594,7 @@ returned.
 
 ### tlsSocket.getProtocol()
 <!-- YAML
-added: v6.0.0
+added: v5.7.0
 -->
 
 Returns a string containing the negotiated SSL/TLS protocol version of the
@@ -650,6 +650,7 @@ Returns the numeric representation of the local port.
 <!-- YAML
 added: v0.11.4
 -->
+
 Returns the string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
 
@@ -948,7 +949,7 @@ publicly trusted list of CAs as given in
 
 ## tls.createServer(options[, secureConnectionListener])
 <!-- YAML
-added: v0.11.3
+added: v0.3.2
 -->
 
 * `options` {Object}
