@@ -231,6 +231,8 @@ void uv__signal_loop_cleanup(uv_loop_t* loop) {
   /* Stop all the signal watchers that are still attached to this loop. This
    * ensures that the (shared) signal tree doesn't contain any invalid entries
    * entries, and that signal handlers are removed when appropriate.
+   * It's safe to use QUEUE_FOREACH here because the handles and the handle
+   * queue are not modified by uv__signal_stop().
    */
   ngx_queue_foreach(q, &loop->handle_queue) {
     uv_handle_t* handle = ngx_queue_data(q, uv_handle_t, handle_queue);

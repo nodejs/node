@@ -76,6 +76,8 @@ TEST_IMPL(tcp_connect_timeout) {
   ASSERT(r == 0);
 
   r = uv_tcp_connect(&connect_req, &conn, addr, connect_cb);
+  if (r == -1 && uv_last_error(uv_default_loop()).code == UV_ENETUNREACH)
+    RETURN_SKIP("Network unreachable.");
   ASSERT(r == 0);
 
   r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);

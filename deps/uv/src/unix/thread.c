@@ -84,13 +84,12 @@ int uv_mutex_trylock(uv_mutex_t* mutex) {
 
   r = pthread_mutex_trylock(mutex);
 
-  if (r && r != EBUSY && r != EAGAIN)
-    abort();
-
-  if (r)
+  if (r) {
+    if (r != EBUSY && r != EAGAIN)
+      abort();
     return -1;
-  else
-    return 0;
+  }
+  return 0;
 }
 
 
@@ -125,13 +124,12 @@ int uv_rwlock_tryrdlock(uv_rwlock_t* rwlock) {
 
   r = pthread_rwlock_tryrdlock(rwlock);
 
-  if (r && r != EBUSY && r != EAGAIN)
-    abort();
-
-  if (r)
+  if (r) {
+    if (r != EBUSY && r != EAGAIN)
+      abort();
     return -1;
-  else
-    return 0;
+  }
+  return 0;
 }
 
 
@@ -152,13 +150,12 @@ int uv_rwlock_trywrlock(uv_rwlock_t* rwlock) {
 
   r = pthread_rwlock_trywrlock(rwlock);
 
-  if (r && r != EBUSY && r != EAGAIN)
-    abort();
-
-  if (r)
+  if (r) {
+    if (r != EBUSY && r != EAGAIN)
+      abort();
     return -1;
-  else
-    return 0;
+  }
+  return 0;
 }
 
 

@@ -202,13 +202,8 @@ void uv__work_done(uv_async_t* handle, int status) {
   int err;
 
   loop = container_of(handle, uv_loop_t, wq_async);
-  ngx_queue_init(&wq);
-
   uv_mutex_lock(&loop->wq_mutex);
-  if (!ngx_queue_empty(&loop->wq)) {
-    q = ngx_queue_head(&loop->wq);
-    ngx_queue_split(&loop->wq, q, &wq);
-  }
+  ngx_queue_move(&loop->wq, &wq);
   uv_mutex_unlock(&loop->wq_mutex);
 
   while (!ngx_queue_empty(&wq)) {

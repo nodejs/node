@@ -55,11 +55,7 @@ struct uv__fsevents_event_s {
       ngx_queue_t split_head;                                                 \
       uv__fsevents_event_t* event;                                            \
       uv_mutex_lock(&(handle)->cf_mutex);                                     \
-      ngx_queue_init(&split_head);                                            \
-      if (!ngx_queue_empty(&(handle)->cf_events)) {                           \
-        ngx_queue_t* split_pos = ngx_queue_next(&(handle)->cf_events);        \
-        ngx_queue_split(&(handle)->cf_events, split_pos, &split_head);        \
-      }                                                                       \
+      ngx_queue_move(&(handle)->cf_events, &split_head);                      \
       uv_mutex_unlock(&(handle)->cf_mutex);                                   \
       while (!ngx_queue_empty(&split_head)) {                                 \
         curr = ngx_queue_head(&split_head);                                   \

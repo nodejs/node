@@ -48,9 +48,14 @@
                                                                               \
   void uv__run_##name(uv_loop_t* loop) {                                      \
     uv_##name##_t* h;                                                         \
+    ngx_queue_t queue;                                                        \
     ngx_queue_t* q;                                                           \
-    ngx_queue_foreach(q, &loop->name##_handles) {                             \
+    ngx_queue_move(&loop->name##_handles, &queue);                            \
+    while (!ngx_queue_empty(&queue)) {                                        \
+      q = ngx_queue_head(&queue);                                             \
       h = ngx_queue_data(q, uv_##name##_t, queue);                            \
+      ngx_queue_remove(q);                                                    \
+      ngx_queue_insert_tail(&loop->name##_handles, q);                        \
       h->name##_cb(h, 0);                                                     \
     }                                                                         \
   }                                                                           \

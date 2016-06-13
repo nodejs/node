@@ -1,4 +1,29 @@
-2015.02.27, Version 0.10.36 (Stable)
+2016.06.14, Version 0.10.37 (Stable)
+
+Changes since version 0.10.36:
+
+* build: update the location of gyp (Stephen von Takach)
+
+* linux: fix epoll_pwait() fallback on arm64 (Ben Noordhuis)
+
+* test: fix fs_chown when running as root (Ben Noordhuis)
+
+* tests: skip some tests when network is unreachable (Luca Bruno)
+
+* unix: do not discard environmental LDFLAGS (Luca Bruno)
+
+* src: replace ngx_queue_split with ngx_queue_move (Ben Noordhuis)
+
+* unix: use ngx_queue_move when iterating over lists (Ben Noordhuis)
+
+* win: fix unsavory rwlock fallback implementation (Bert Belder)
+
+* unix: map ENFILE errno (Saúl Ibarra Corretgé)
+
+* doc: add note indicating branch status (Saúl Ibarra Corretgé)
+
+
+2015.02.27, Version 0.10.36 (Stable), cc4d42a89a2a0ae0ff8e14321de086eba3c3b4ca
 
 Changes since version 0.10.35:
 
