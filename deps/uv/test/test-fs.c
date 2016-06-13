@@ -196,9 +196,16 @@ static void chown_root_cb(uv_fs_t* req) {
   /* On windows, chown is a no-op and always succeeds. */
   ASSERT(req->result == 0);
 #else
-  /* On unix, chown'ing the root directory is not allowed. */
-  ASSERT(req->result == -1);
-  ASSERT(req->errorno == UV_EPERM);
+  /* On unix, chown'ing the root directory is not allowed -
+   * unless you're root, of course.
+   */
+  if (geteuid() == 0) {
+    ASSERT(req->result == 0);
+  }
+  else {
+    ASSERT(req->result == -1);
+    ASSERT(req->errorno == UV_EPERM);
+  }
 #endif
   chown_cb_count++;
   uv_fs_req_cleanup(req);

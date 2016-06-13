@@ -133,15 +133,12 @@ static void uv__cf_loop_cb(void* arg) {
   loop = arg;
 
   uv_mutex_lock(&loop->cf_mutex);
-  ngx_queue_init(&split_head);
-  if (!ngx_queue_empty(&loop->cf_signals)) {
-    ngx_queue_t* split_pos = ngx_queue_next(&loop->cf_signals);
-    ngx_queue_split(&loop->cf_signals, split_pos, &split_head);
-  }
+  ngx_queue_move(&loop->cf_signals, &split_head);
   uv_mutex_unlock(&loop->cf_mutex);
 
   while (!ngx_queue_empty(&split_head)) {
     item = ngx_queue_head(&split_head);
+    ngx_queue_remove(item);
 
     s = ngx_queue_data(item, uv__cf_loop_signal_t, member);
 
@@ -151,7 +148,6 @@ static void uv__cf_loop_cb(void* arg) {
     else
       s->cb(s->arg);
 
-    ngx_queue_remove(item);
     free(s);
   }
 }

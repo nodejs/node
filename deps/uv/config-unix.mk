@@ -22,7 +22,7 @@ E=
 CSTDFLAG=--std=c89 -pedantic -Wall -Wextra -Wno-unused-parameter
 CFLAGS += -g
 CPPFLAGS += -I$(SRCDIR)/src
-LDFLAGS=-lm -pthread
+LDFLAGS += -lm -pthread
 
 CPPFLAGS += -D_LARGEFILE_SOURCE
 CPPFLAGS += -D_FILE_OFFSET_BITS=64

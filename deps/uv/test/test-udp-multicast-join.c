@@ -113,6 +113,8 @@ TEST_IMPL(udp_multicast_join) {
 
   /* join the multicast channel */
   r = uv_udp_set_membership(&client, "239.255.0.1", NULL, UV_JOIN_GROUP);
+  if (r == -1 && uv_last_error(uv_default_loop()).code == UV_ENODEV)
+    RETURN_SKIP("No multicast support.");
   ASSERT(r == 0);
 
   r = uv_udp_recv_start(&client, alloc_cb, cl_recv_cb);

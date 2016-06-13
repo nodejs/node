@@ -119,6 +119,7 @@ static void uv__inotify_read(uv_loop_t* loop,
   const struct uv__inotify_event* e;
   struct watcher_list* w;
   uv_fs_event_t* h;
+  ngx_queue_t queue;
   ngx_queue_t* q;
   const char* path;
   ssize_t size;
@@ -158,8 +159,14 @@ static void uv__inotify_read(uv_loop_t* loop,
        */
       path = e->len ? (const char*) (e + 1) : basename_r(w->path);
 
-      ngx_queue_foreach(q, &w->watchers) {
+      ngx_queue_move(&w->watchers, &queue);
+      while (!ngx_queue_empty(&queue)) {
+        q = ngx_queue_head(&queue);
         h = ngx_queue_data(q, uv_fs_event_t, watchers);
+
+        ngx_queue_remove(q);
+        ngx_queue_insert_tail(&w->watchers, q);
+
         h->cb(h, path, events, 0);
       }
     }

@@ -362,11 +362,18 @@ unsigned long uv_thread_self(void) {
 
 
 void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
+  ngx_queue_t queue;
   ngx_queue_t* q;
   uv_handle_t* h;
 
-  ngx_queue_foreach(q, &loop->handle_queue) {
+  ngx_queue_move(&loop->handle_queue, &queue);
+  while (!ngx_queue_empty(&queue)) {
+    q = ngx_queue_head(&queue);
     h = ngx_queue_data(q, uv_handle_t, handle_queue);
+
+    ngx_queue_remove(q);
+    ngx_queue_insert_tail(&loop->handle_queue, q);
+
     if (h->flags & UV__HANDLE_INTERNAL) continue;
     walk_cb(h, arg);
   }

@@ -74,11 +74,17 @@ void uv__async_close(uv_async_t* handle) {
 static void uv__async_event(uv_loop_t* loop,
                             struct uv__async* w,
                             unsigned int nevents) {
+  ngx_queue_t queue;
   ngx_queue_t* q;
   uv_async_t* h;
 
-  ngx_queue_foreach(q, &loop->async_handles) {
+  ngx_queue_move(&loop->async_handles, &queue);
+  while (!ngx_queue_empty(&queue)) {
+    q = ngx_queue_head(&queue);
     h = ngx_queue_data(q, uv_async_t, queue);
+
+    ngx_queue_remove(q);
+    ngx_queue_insert_tail(&loop->async_handles, q);
 
     if (cmpxchgi(&h->pending, 1, 0) == 0)
       continue;
