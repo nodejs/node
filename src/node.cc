@@ -1454,7 +1454,7 @@ enum encoding ParseEncoding(const char* encoding,
   } else if (StringEqualNoCase(encoding, "latin1")) {
     return LATIN1;
   } else if (StringEqualNoCase(encoding, "binary")) {
-    return BINARY;
+    return LATIN1;  // BINARY is a deprecated alias of LATIN1.
   } else if (StringEqualNoCase(encoding, "buffer")) {
     return BUFFER;
   } else if (StringEqualNoCase(encoding, "hex")) {
