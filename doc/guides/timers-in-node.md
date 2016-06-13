@@ -5,61 +5,71 @@ layout: docs.hbs
 
 # Timers in Node.js and beyond
 
-Timers are a collection of global functions in Node.js that allow you to
-execute code after a set period of time. To fully understand when timer
-functions will be executed, it's a good idea to read up on the the Node.js
+The Timers module in Node.js contains functions that execute code after a set
+period of time. You do not need to import the Timers module via `require()` as
+all the methods are available globally to emulate the browser JavaScript API.
+To fully understand when timer functions will be executed, it's a good idea to
+read up on the the Node.js
 [Event Loop](https://nodesource.com/blog/understanding-the-nodejs-event-loop/).
 
-## Code Time Machine with
+## Controlling the Continuum with Node.js
 
-The Node.js API provides several ways to schedule your code to execute at 
-some point after the present moment.
+The Node.js API provides several ways to schedule your code to execute at
+some point after the present moment. You may already be familiar with many of
+the functions below, since they are available in most browsers, but Node.js
+actually provides it's own implementation of these methods. Timers integrate
+very closely with the system, and despite the fact that the API mirrors the
+browser API, there are some differences in implementation.
 
-### "When I say so" Execution ~ *setTimeout()*
+### "When I say so" Execution ~ *`setTimeout()`*
 
 Using `setTimeout()`, you can schedule code to execute after a designated
 amount of milliseconds. You may already be familiar with this function, as
-it is a part of V8 and thus part of the browser JavaScript API.
+it is a part of the browser JavaScript API.
 
 `setTimeout()` accepts the code to execute as its first argument and the
-millisecond delay defined as a number literal as the second argument. Here
+millisecond delay defined as a number literal as the second argument. Additional
+arguments may also be included and these will be passed on to the function. Here
 is an example of that:
 
 ```js
-function myFunc () {
-  console.log('funky');
+function myFunc (arg) {
+  console.log('arg was => ' + arg);
 }
 
-setTimeout(myFunc, 1500);
+setTimeout(myFunc, 1500, 'funky');
 ```
 
-The above function `myFunc()` will execute after approximately 1500
-milliseconds (or 1.5 seconds) due to the call of `setTimeout()`.
+The above function `myFunc()` will execute as close to 1500
+milliseconds (or 1.5 seconds) as possible due to the call of `setTimeout()`.
 
 The timeout interval that is set cannot be relied upon to execute after
 that *exact* number of milliseconds. This is because executing code that
 blocks or holds onto the event loop will push the execution of your timeout
 back. You *can* guarantee that your timeout will not execute *sooner* than
-the declared timeout.
+the declared timeout interval.
 
-### "Right after this" Execution ~ *setImmediate()*
+`setTimeout()` returns a `Timeout` object that can be used to reference the
+timeout that was set. You can use this returned object to cancel the timeout (
+see `clearTimeout()` below) as well as change the execution behavior (see
+`unref()` below).
 
-`setImmediate()` allows you to execute code at the beginning of the next
+### "Right after this" Execution ~ *`setImmediate()`*
+
+`setImmediate()` will execute code at the beginning of the next
 event loop cycle. This code will execute *before* any timers or IO operations.
-I like to think of this code execution as happening "right after this", meaning
+You can think of this code execution as happening "right after this", meaning
 any code following the `setImmediate()` function call will execute before the
 `setImmediate()` function argument. Here's an example:
 
 ```js
-let order = 'before immediate\n';
+console.log('before immediate');
 
 setImmediate(() => {
-  order += 'executing immediate\n';
+  console.log('executing immediate');
 });
 
-order += 'after immediate\n';
-
-console.log(order);
+console.log('after immediate');
 ```
 
 The above function passed to `setImmediate()` will execute after all runnable
@@ -71,17 +81,23 @@ after immediate
 executing immediate
 ```
 
-Note: `process.nextTick()` is very similar to `setImmediate()`. The two major
-differences are that `process.nextTick()` will run *before* any immediates that
-are set. The second is that `process.nextTick()` is non-clearable, meaning once
-you've scheduled code to execute with `process.nextTick()` you cannot stop that
-code, unlike with `setImmediate()`.
+`setImmediate()` returns and `Immediate` object, which can be used to cancel
+the scheduled immediate (see `clearImmediate()` below).
 
-### "Deja vu" Execution ~ *setInterval()*
+Note: Don't get `setImmediate()` confused with `process.nextTick()`. There are
+some major ways they differ. The first is that `process.nextTick()` will run
+*before* any `Immediate`s that are set as well as before any scheduled IO.
+The second is that `process.nextTick()` is non-clearable, meaning once
+you've scheduled code to execute with `process.nextTick()` you cannot stop the
+execution, just like with a normal function. In fact the code passed to
+`process.nextTick()` will be run asynchronously, and thus outside the current
+call stack.
+
+### "Déjà vu" Execution ~ *`setInterval()`*
 
 If there is a block of code that you want to execute multiple times, you can
 use `setInterval()` to execute that code. `setInterval()` takes a function
-argument that will run and infinite number of times with a given millisecond
+argument that will run an infinite number of times with a given millisecond
 delay. Just like `setTimeout()`, the delay cannot be guaranteed because of
 operations that may hold on to the event loop, and therefore should be treated
 as an approximate delay. See the below example:
@@ -93,15 +109,18 @@ function intervalFunc () {
 
 setInterval(intervalFunc, 1500);
 ```
-In the above example, `intervalFunc()` will execute every 1500 milliseconds, or
-1.5 seconds, until it is stopped (see below).
+In the above example, `intervalFunc()` will execute about every 1500
+milliseconds, or 1.5 seconds, until it is stopped (see below).
 
-## Master of the Timerverse
+Just like `setTimeout()`, `setInterval()` also returns a `Timeout` object which
+can be used to reference and modify the interval that was set.
 
-What would a Code Time Machine be without the ability to turn it off?
+## Clearing the Future
+
+What can you do if you need to cancel a `Timeout` or `Immediate` object?
 `setTimeout()`, `setImmediate()`, and `setInterval()` return a timer object
 that can be used to reference the set timeout, immediate, or interval object.
-By passing said objective into the respective `clear` function, execution of
+By passing said object into the respective `clear` function, execution of
 that object will be halted completely. The respective functions are
 `clearTimeout()`, `clearImmediate()`, and `clearInterval()`. See the example
 below for an example of each:
@@ -124,16 +143,18 @@ clearImmediate(immediateObj);
 clearInterval(intervalObj);
 ```
 
-## Last Train to Nowhere
+## Leaving Timeouts Behind
 
-The Node.js Timer API provides two functions intended to augment timer behavior
-with `unref()` and `ref()`. If you have a timer object scheduled using a
-`set` function, you can call `unref()` on that object. This will change
-the behavior slightly, and not call the timer object *if it is the last
-code to execute*. Instead, it will let the program exit cleanly.
+Remember that `Timeout` objects are returned by `setTimeout` and `setInterval`.
+The `Timeout` object provides two functions intended to augment `Timeout`
+behavior with `unref()` and `ref()`. If you have a `Timeout` object scheduled
+using a `set` function, you can call `unref()` on that object. This will change
+the behavior slightly, and not call the `Timeout` object *if it is the last
+code to execute*. The `Timeout` object will not keep the process alive, waiting
+to execute.
 
-In similar fashion, a timer object that has had `unref()` called on it
-can remove that behavior by calling `ref()` on that same timer object,
+In similar fashion, a `Timeout` object that has had `unref()` called on it
+can remove that behavior by calling `ref()` on that same `Timeout` object,
 which will then ensure its execution. See below for examples of both:
 
 ```js
