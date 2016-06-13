@@ -99,7 +99,7 @@ $ node -e "console.log('Hello from Node.js ' + process.version)"
 Prerequisites:
 
 * [Python 2.6 or 2.7](https://www.python.org/downloads/)
-* Either one of:
+* One of:
   * [Visual C++ Build Tools](http://landinghub.visualstudio.com/visual-cpp-build-tools)
   * [Visual Studio](https://www.visualstudio.com/) 2013 / 2015, all editions including the Community edition
   * [Visual Studio](https://www.visualstudio.com/) Express 2013 / 2015 for Desktop
@@ -120,7 +120,7 @@ To run the tests:
 To test if Node.js was built correctly:
 
 ```text
-> Release\node -e "console.log('Hello from Node.js ' + process.version)"
+> Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
 
 ### Android / Android-based devices (e.g., Firefox OS)
