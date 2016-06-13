@@ -139,6 +139,7 @@
         'src/node_main.cc',
         'src/node_os.cc',
         'src/node_revert.cc',
+        'src/node_report.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
         'src/node_stat_watcher.cc',

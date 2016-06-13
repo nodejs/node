@@ -7,6 +7,7 @@
 #include "node_version.h"
 #include "node_internals.h"
 #include "node_revert.h"
+#include "node_report.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -152,6 +153,8 @@ static node_module* modpending;
 static node_module* modlist_builtin;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
+static const char* nodereport_events = "";
+static int nodereport_signal = 0;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
@@ -187,6 +190,7 @@ static v8::Platform* default_platform;
 
 #ifdef __POSIX__
 static uv_sem_t debug_semaphore;
+static uv_async_t nodereport_trigger_async;
 #endif
 
 static void PrintErrorString(const char* format, ...) {
@@ -1598,6 +1602,11 @@ static void ReportException(Environment* env,
   }
 
   fflush(stderr);
+
+  // Trigger NodeReport if required
+  if (strstr(nodereport_events,"exception")) {
+    TriggerNodeReport(env->isolate(), kException, "Uncaught exception", "node::ReportException", message);
+  }
 }
 
 
@@ -2337,6 +2346,10 @@ static void OnFatalError(const char* location, const char* message) {
     PrintErrorString("FATAL ERROR: %s %s\n", location, message);
   } else {
     PrintErrorString("FATAL ERROR: %s\n", message);
+  }
+  // Trigger NodeReport if required
+  if (strstr(nodereport_events,"fatalerror")) {
+    TriggerNodeReport(Isolate::GetCurrent(), kFatalError, message, location);
   }
   fflush(stderr);
   ABORT();
@@ -3228,6 +3241,35 @@ static void SignalExit(int signo) {
   raise(signo);
 }
 
+#ifdef __POSIX__
+// Callbacks for triggering NodeReport on external signal - these run on the main event loop thread
+static void SignalDumpInterruptCallback(Isolate *isolate, void *data) {
+  if (nodereport_signal != 0) {
+    TriggerNodeReport(Isolate::GetCurrent(), kSignal_JS, signo_string(*((int *)data)), "node::SignalDumpInterruptCallback()");
+    nodereport_signal = 0;
+  }
+}
+static void SignalDumpAsyncCallback(uv_async_t* handle) {
+  if (nodereport_signal != 0) {
+    TriggerNodeReport(Isolate::GetCurrent(), kSignal_UV, signo_string((int)(size_t)handle->data), "node::SignalDumpAsyncCallback()");
+    nodereport_signal = 0;
+  }
+}
+
+// Raw signal handler for triggering a NodeReport - runs on an arbitrary thread
+static void SignalDump(int signo) {
+  // Check atomic for NodeReport already pending
+  if (__sync_val_compare_and_swap(&nodereport_signal, 0, signo) == 0) {
+    fprintf(stderr,"Signal %s received, triggering NodeReport\n", signo_string(signo));
+    Isolate::GetCurrent()->RequestInterrupt(SignalDumpInterruptCallback, &nodereport_signal);
+    // Event loop may be idle, so also request an async callback
+    nodereport_trigger_async.data = (void *)(size_t)signo;
+    uv_async_send(&nodereport_trigger_async);
+  } else {
+    fprintf(stderr,"Signal %s received, NodeReport pending\n", signo_string(signo));
+  }
+}
+#endif
 
 // Most of the time, it's best to use `console.error` to write
 // to the process.stderr stream.  However, in some cases, such as
@@ -3247,6 +3289,11 @@ void LoadEnvironment(Environment* env) {
 
   env->isolate()->SetFatalErrorHandler(node::OnFatalError);
   env->isolate()->AddMessageListener(OnMessage);
+
+  // If NodeReport requested for exception events, tell V8 to capture stack traces
+  if (strstr(nodereport_events,"exception")) {
+    env->isolate()->SetCaptureStackTraceForUncaughtExceptions(true, 32, v8::StackTrace::kDetailed);
+  }
 
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'native_node' is the string containing that
@@ -3420,6 +3467,12 @@ static void PrintHelp() {
          "  --preserve-symlinks   preserve symbolic links when resolving\n"
          "                        and caching modules.\n"
 #endif
+         "  --nodereport-events=  trigger NodeReport on specified events:\n"
+#ifdef _WIN32
+         "                        exception+fatalerror\n"
+#else
+         "                        exception+fatalerror+sigusr2+sigquit\n"
+#endif
          "\n"
          "Environment variables:\n"
 #ifdef _WIN32
@@ -3577,6 +3630,8 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       // consumed in js
+    } else if (strncmp(arg, "--nodereport-events=", 20) == 0) {
+      nodereport_events = arg + 20;
     } else {
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
@@ -4074,6 +4129,19 @@ void Init(int* argc,
   // Only do this for v8.log profiling, as it breaks v8::CpuProfiler users.
   if (v8_is_profiling) {
     uv_loop_configure(uv_default_loop(), UV_LOOP_BLOCK_SIGNAL, SIGPROF);
+  }
+
+  // If NodeReport requested on user signal, initialise async handler
+  if (strstr(nodereport_events,"sig")) {
+    uv_async_init(uv_default_loop(), &nodereport_trigger_async, SignalDumpAsyncCallback);
+    uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
+    // Now register the external signal handlers, as requested
+    if (strstr(nodereport_events,"sigquit")) {
+      RegisterSignalHandler(SIGQUIT, SignalDump, false);
+    }
+    if (strstr(nodereport_events,"sigusr2")) {
+      RegisterSignalHandler(SIGUSR2, SignalDump, false);
+    }
   }
 #endif
 
