@@ -12,6 +12,8 @@ namespace {
   V(UCS2)               \
   V(UTF8)               \
 
+static_assert(node::BINARY == node::LATIN1, "BINARY == LATIN1");
+
 void ParseEncoding(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const node::encoding encoding =
       node::ParseEncoding(args.GetIsolate(), args[0],
