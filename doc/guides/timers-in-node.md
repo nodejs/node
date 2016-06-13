@@ -12,7 +12,7 @@ To fully understand when timer functions will be executed, it's a good idea to
 read up on the the Node.js
 [Event Loop](https://nodesource.com/blog/understanding-the-nodejs-event-loop/).
 
-## Controlling the Continuum with Node.js
+## Controlling the Time Continuum with Node.js
 
 The Node.js API provides several ways to schedule your code to execute at
 some point after the present moment. You may already be familiar with many of
