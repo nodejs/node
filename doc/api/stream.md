@@ -223,6 +223,9 @@ that no more events will be emitted, and no further computation will occur.
 Not all Writable streams will emit the `'close'` event.
 
 ##### Event: 'drain'
+<!-- YAML
+added: v0.9.4
+-->
 
 If a call to [`stream.write(chunk)`][stream-write] returns `false`, the
 `'drain'` event will be emitted when it is appropriate to resume writing data
