@@ -206,7 +206,7 @@ myStream.end('done writing data');
 
 #### Class: stream.Writable
 <!-- YAML
-added: v0.3.2
+added: v0.9.4
 -->
 
 <!--type=class-->
