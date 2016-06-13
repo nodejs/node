@@ -235,7 +235,7 @@ to the stream.
 // Write the data to the supplied writable stream one million times.
 // Be attentive to back-pressure.
 function writeOneMillionTimes(writer, data, encoding, callback) {
-  var i = 1000000;
+  let i = 1000000;
   write();
   function write() {
     var ok = true;
@@ -260,6 +260,9 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
 ```
 
 ##### Event: 'error'
+<!-- YAML
+added: v
+-->
 
 * {Error}
 
@@ -285,6 +288,9 @@ writer.on('finish', () => {
 ```
 
 ##### Event: 'pipe'
+<!-- YAML
+added: v0.9.4
+-->
 
 * `src` {stream.Readable} source stream that is piping to this writable
 
@@ -302,6 +308,9 @@ reader.pipe(writer);
 ```
 
 ##### Event: 'unpipe'
+<!-- YAML
+added: v0.9.4
+-->
 
 * `src` {[Readable][] Stream} The source stream that
   [unpiped][`stream.unpipe()`] this writable
@@ -400,6 +409,9 @@ process.nextTick(() => {
 ```
 
 ##### writable.write(chunk[, encoding][, callback])
+<!-- YAML
+added: v0.9.4
+-->
 
 * `chunk` {String|Buffer} The data to write
 * `encoding` {String} The encoding, if `chunk` is a String
@@ -1588,7 +1600,7 @@ For Duplex streams, `objectMode` can be set exclusively for either the Readable
 or Writable side using the `readableObjectMode` and `writableObjectMode` options
 respectively.
 
-In the following example, for instance, a new Transform stream (which is a 
+In the following example, for instance, a new Transform stream (which is a
 type of [Duplex][] stream) is created that has an object mode Writable side
 that accepts JavaScript numbers that are converted to hexidecimal strings on
 the Readable side.
