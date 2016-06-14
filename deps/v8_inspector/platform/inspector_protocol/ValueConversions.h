@@ -5,8 +5,8 @@
 #ifndef ValueConversions_h
 #define ValueConversions_h
 
-#include "platform/PlatformExport.h"
 #include "platform/inspector_protocol/ErrorSupport.h"
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/inspector_protocol/String16.h"
 #include "platform/inspector_protocol/Values.h"
 
@@ -36,14 +36,7 @@ template<typename T> std::unique_ptr<protocol::Value> toValue(T* param)
 
 template<typename T> std::unique_ptr<protocol::Value> toValue(const std::unique_ptr<T>& param)
 {
-    static_assert(sizeof(T) == 0, "use raw pointer version.");
-    return nullptr;
-}
-
-template<typename T> std::unique_ptr<protocol::Value> toValue(std::unique_ptr<T> param)
-{
-    static_assert(sizeof(T) == 0, "use raw pointer version.");
-    return nullptr;
+    return toValue(param.get());
 }
 
 template<typename T>

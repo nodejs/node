@@ -54,20 +54,6 @@ function push(array, var_args)
 }
 
 /**
- * @param {(!Arguments.<T>|!NodeList)} array
- * @param {number=} index
- * @return {!Array.<T>}
- * @template T
- */
-function slice(array, index)
-{
-    var result = [];
-    for (var i = index || 0, j = 0; i < array.length; ++i, ++j)
-        result[j] = array[i];
-    return result;
-}
-
-/**
  * @param {*} obj
  * @return {string}
  * @suppress {uselessCode}
@@ -405,7 +391,7 @@ InjectedScript.prototype = {
                     if (descriptor) {
                         if (accessorPropertiesOnly && !("get" in descriptor || "set" in descriptor))
                             continue;
-                        if ("get" in descriptor && "set" in descriptor && name != "__proto__" && InjectedScriptHost.formatAccessorsAsProperties(object) && !doesAttributeHaveObservableSideEffectOnGet(object, name)) {
+                        if ("get" in descriptor && "set" in descriptor && name != "__proto__" && InjectedScriptHost.formatAccessorsAsProperties(object, descriptor.get) && !doesAttributeHaveObservableSideEffectOnGet(object, name)) {
                             descriptor.value = InjectedScriptHost.suppressWarningsAndCallFunction(function(attribute) { return this[attribute]; }, object, [property]);
                             descriptor.isOwn = true;
                             delete descriptor.get;
@@ -535,30 +521,6 @@ InjectedScript.prototype = {
     },
 
     /**
-     * @param {!Object} nativeCommandLineAPI
-     * @return {!Object}
-     */
-    installCommandLineAPI: function(nativeCommandLineAPI)
-    {
-        // NOTE: This list contains only not native Command Line API methods. For full list: V8Console.
-        // NOTE: Argument names of these methods will be printed in the console, so use pretty names!
-        var members = [ "$", "$$", "$x", "monitorEvents", "unmonitorEvents", "getEventListeners" ];
-        for (var member of members)
-            nativeCommandLineAPI[member] = CommandLineAPIImpl[member];
-        var functionToStringMap = new Map([
-            ["$",          "function $(selector, [startNode]) { [Command Line API] }"],
-            ["$$",         "function $$(selector, [startNode]) { [Command Line API] }"],
-            ["$x",         "function $x(xpath, [startNode]) { [Command Line API] }"],
-            ["monitorEvents",   "function monitorEvents(object, [types]) { [Command Line API] }"],
-            ["unmonitorEvents", "function unmonitorEvents(object, [types]) { [Command Line API] }"],
-            ["getEventListeners", "function getEventListeners(node) { [Command Line API] }"]
-        ]);
-        for (let entry of functionToStringMap)
-            nativeCommandLineAPI[entry[0]].toString = (() => entry[1]);
-        return nativeCommandLineAPI;
-    },
-
-    /**
      * @param {*} object
      * @return {boolean}
      */
@@ -618,7 +580,12 @@ InjectedScript.prototype = {
             return toString(obj);
 
         if (subtype === "node") {
-            var description = obj.nodeName.toLowerCase();
+            var description = "";
+            if (obj.nodeName)
+                description = obj.nodeName.toLowerCase();
+            else if (obj.constructor)
+                description = obj.constructor.name.toLowerCase();
+
             switch (obj.nodeType) {
             case 1 /* Node.ELEMENT_NODE */:
                 description += obj.id ? "#" + obj.id : "";
@@ -1042,180 +1009,6 @@ InjectedScript.RemoteObject.prototype = {
     },
 
     __proto__: null
-}
-
-var CommandLineAPIImpl = { __proto__: null }
-
-/**
- * @param {string} selector
- * @param {!Node=} opt_startNode
- * @return {*}
- */
-CommandLineAPIImpl.$ = function (selector, opt_startNode)
-{
-    if (CommandLineAPIImpl._canQuerySelectorOnNode(opt_startNode))
-        return opt_startNode.querySelector(selector);
-
-    return inspectedGlobalObject.document.querySelector(selector);
-}
-
-/**
- * @param {string} selector
- * @param {!Node=} opt_startNode
- * @return {*}
- */
-CommandLineAPIImpl.$$ = function (selector, opt_startNode)
-{
-    if (CommandLineAPIImpl._canQuerySelectorOnNode(opt_startNode))
-        return slice(opt_startNode.querySelectorAll(selector));
-    return slice(inspectedGlobalObject.document.querySelectorAll(selector));
-}
-
-/**
- * @param {!Node=} node
- * @return {boolean}
- */
-CommandLineAPIImpl._canQuerySelectorOnNode = function(node)
-{
-    return !!node && InjectedScriptHost.subtype(node) === "node" && (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.DOCUMENT_NODE || node.nodeType === Node.DOCUMENT_FRAGMENT_NODE);
-}
-
-/**
- * @param {string} xpath
- * @param {!Node=} opt_startNode
- * @return {*}
- */
-CommandLineAPIImpl.$x = function(xpath, opt_startNode)
-{
-    var doc = (opt_startNode && opt_startNode.ownerDocument) || inspectedGlobalObject.document;
-    var result = doc.evaluate(xpath, opt_startNode || doc, null, XPathResult.ANY_TYPE, null);
-    switch (result.resultType) {
-    case XPathResult.NUMBER_TYPE:
-        return result.numberValue;
-    case XPathResult.STRING_TYPE:
-        return result.stringValue;
-    case XPathResult.BOOLEAN_TYPE:
-        return result.booleanValue;
-    default:
-        var nodes = [];
-        var node;
-        while (node = result.iterateNext())
-            push(nodes, node);
-        return nodes;
-    }
-}
-
-/**
- * @param {!Object} object
- * @param {!Array.<string>|string=} opt_types
- */
-CommandLineAPIImpl.monitorEvents = function(object, opt_types)
-{
-    if (!object || !object.addEventListener || !object.removeEventListener)
-        return;
-    var types = CommandLineAPIImpl._normalizeEventTypes(opt_types);
-    for (var i = 0; i < types.length; ++i) {
-        object.removeEventListener(types[i], CommandLineAPIImpl._logEvent, false);
-        object.addEventListener(types[i], CommandLineAPIImpl._logEvent, false);
-    }
-}
-
-/**
- * @param {!Object} object
- * @param {!Array.<string>|string=} opt_types
- */
-CommandLineAPIImpl.unmonitorEvents = function(object, opt_types)
-{
-    if (!object || !object.addEventListener || !object.removeEventListener)
-        return;
-    var types = CommandLineAPIImpl._normalizeEventTypes(opt_types);
-    for (var i = 0; i < types.length; ++i)
-        object.removeEventListener(types[i], CommandLineAPIImpl._logEvent, false);
-}
-
-/**
- * @param {!Node} node
- * @return {!Object|undefined}
- */
-CommandLineAPIImpl.getEventListeners = function(node)
-{
-    var result = nullifyObjectProto(InjectedScriptHost.getEventListeners(node));
-    if (!result)
-        return;
-
-    // TODO(dtapuska): Remove this one closure compiler is updated
-    // to handle EventListenerOptions and passive event listeners
-    // has shipped. Don't JSDoc these otherwise it will fail.
-    // @param {boolean} capture
-    // @param {boolean} passive
-    // @return {boolean|undefined|{capture: (boolean|undefined), passive: boolean}}
-    function eventListenerOptions(capture, passive)
-    {
-        return {"capture": capture, "passive": passive};
-    }
-
-    /**
-     * @param {!Node} node
-     * @param {string} type
-     * @param {function()} listener
-     * @param {boolean} capture
-     * @param {boolean} passive
-     */
-    function removeEventListenerWrapper(node, type, listener, capture, passive)
-    {
-        node.removeEventListener(type, listener, eventListenerOptions(capture, passive));
-    }
-
-    /** @this {{type: string, listener: function(), useCapture: boolean, passive: boolean}} */
-    var removeFunc = function()
-    {
-        removeEventListenerWrapper(node, this.type, this.listener, this.useCapture, this.passive);
-    }
-    for (var type in result) {
-        var listeners = result[type];
-        for (var i = 0, listener; listener = listeners[i]; ++i) {
-            listener["type"] = type;
-            listener["remove"] = removeFunc;
-        }
-    }
-    return result;
-}
-
-/**
- * @param {!Array.<string>|string=} types
- * @return {!Array.<string>}
- */
-CommandLineAPIImpl._normalizeEventTypes = function(types)
-{
-    if (typeof types === "undefined")
-        types = ["mouse", "key", "touch", "pointer", "control", "load", "unload", "abort", "error", "select", "input", "change", "submit", "reset", "focus", "blur", "resize", "scroll", "search", "devicemotion", "deviceorientation"];
-    else if (typeof types === "string")
-        types = [types];
-
-    var result = [];
-    for (var i = 0; i < types.length; ++i) {
-        if (types[i] === "mouse")
-            push(result, "click", "dblclick", "mousedown", "mouseeenter", "mouseleave", "mousemove", "mouseout", "mouseover", "mouseup", "mouseleave", "mousewheel");
-        else if (types[i] === "key")
-            push(result, "keydown", "keyup", "keypress", "textInput");
-        else if (types[i] === "touch")
-            push(result, "touchstart", "touchmove", "touchend", "touchcancel");
-        else if (types[i] === "pointer")
-            push(result, "pointerover", "pointerout", "pointerenter", "pointerleave", "pointerdown", "pointerup", "pointermove", "pointercancel", "gotpointercapture", "lostpointercapture");
-        else if (types[i] === "control")
-            push(result, "resize", "scroll", "zoom", "focus", "blur", "select", "input", "change", "submit", "reset");
-        else
-            push(result, types[i]);
-    }
-    return result;
-}
-
-/**
- * @param {!Event} event
- */
-CommandLineAPIImpl._logEvent = function(event)
-{
-    inspectedGlobalObject.console.log(event.type, event);
 }
 
 return injectedScript;

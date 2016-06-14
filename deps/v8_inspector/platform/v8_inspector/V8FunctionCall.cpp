@@ -30,11 +30,11 @@
 
 #include "platform/v8_inspector/V8FunctionCall.h"
 
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/v8_inspector/V8Compat.h"
 #include "platform/v8_inspector/V8DebuggerImpl.h"
 #include "platform/v8_inspector/V8StringUtil.h"
 #include "platform/v8_inspector/public/V8DebuggerClient.h"
-#include "wtf/PtrUtil.h"
 
 #include <v8.h>
 

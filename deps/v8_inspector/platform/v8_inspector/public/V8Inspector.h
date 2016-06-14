@@ -5,11 +5,11 @@
 #ifndef V8Inspector_h
 #define V8Inspector_h
 
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/v8_inspector/public/V8DebuggerClient.h"
-#include "platform/v8_inspector/public/V8InspectorSessionClient.h"
 #include "platform/v8_inspector/public/V8InspectorSession.h"
+#include "platform/v8_inspector/public/V8InspectorSessionClient.h"
 
-#include "wtf/PtrUtil.h"
 #include <v8.h>
 
 namespace blink {
@@ -35,7 +35,6 @@ public:
     void dispatchMessageFromFrontend(const String16& message);
 
 private:
-    void eventListeners(v8::Local<v8::Value>, V8EventListenerInfoList&) override;
     bool callingContextCanAccessContext(v8::Local<v8::Context> calling, v8::Local<v8::Context> target) override;
     String16 valueSubtype(v8::Local<v8::Value>) override;
     bool formatAccessorsAsProperties(v8::Local<v8::Value>) override;
@@ -53,11 +52,12 @@ private:
     void consoleTime(const String16& title) override { }
     void consoleTimeEnd(const String16& title) override { }
     void consoleTimeStamp(const String16& title) override { }
-    v8::MaybeLocal<v8::Value> memoryInfo(v8::Isolate*, v8::Local<v8::Context>, v8::Local<v8::Object> creationContext) override
+    v8::MaybeLocal<v8::Value> memoryInfo(v8::Isolate*, v8::Local<v8::Context>) override
     {
         return v8::MaybeLocal<v8::Value>();
     }
-    void reportMessageToConsole(v8::Local<v8::Context>, MessageType, MessageLevel, const String16& message, const v8::FunctionCallbackInfo<v8::Value>* arguments, unsigned skipArgumentCount, int maxStackSize) override { }
+    void reportMessageToConsole(v8::Local<v8::Context>, MessageType, MessageLevel, const String16& message, const v8::FunctionCallbackInfo<v8::Value>* arguments, unsigned skipArgumentCount) override { }
+    void installAdditionalCommandLineAPI(v8::Local<v8::Context>, v8::Local<v8::Object>) override { }
 
     // V8InspectorSessionClient
     void startInstrumenting() override { }
@@ -71,9 +71,7 @@ private:
 
     std::unique_ptr<V8Debugger> m_debugger;
     std::unique_ptr<V8InspectorSession> m_session;
-    std::unique_ptr<protocol::Dispatcher> m_dispatcher;
-    std::unique_ptr<protocol::Frontend> m_frontend;
-    std::unique_ptr<protocol::DictionaryValue> m_state;
+    String16 m_state;
 };
 
 }

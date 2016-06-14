@@ -4,13 +4,13 @@
 
 #include "platform/inspector_protocol/String16STL.h"
 
+#include "platform/inspector_protocol/Platform.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <functional>
 #include <locale>
-
-#define DCHECK(k)
 
 namespace blink {
 namespace protocol {
@@ -283,7 +283,7 @@ ConversionResult convertUTF16ToUTF8(
  * @return TRUE or FALSE
  * @stable ICU 2.8
  */
-#define U_IS_BMP(c) ((uint32_t)(c)<=0xffff)
+#define U_IS_BMP(c) ((uint32_t)(c) <= 0xffff)
 
 /**
  * Is this code point a supplementary code point (U+10000..U+10ffff)?
@@ -291,7 +291,7 @@ ConversionResult convertUTF16ToUTF8(
  * @return TRUE or FALSE
  * @stable ICU 2.8
  */
-#define U_IS_SUPPLEMENTARY(c) ((uint32_t)((c)-0x10000)<=0xfffff)
+#define U_IS_SUPPLEMENTARY(c) ((uint32_t)((c) - 0x10000) <= 0xfffff)
 
 /**
  * Is this code point a surrogate (U+d800..U+dfff)?
@@ -299,7 +299,7 @@ ConversionResult convertUTF16ToUTF8(
  * @return TRUE or FALSE
  * @stable ICU 2.4
  */
-#define U_IS_SURROGATE(c) (((c)&0xfffff800)==0xd800)
+#define U_IS_SURROGATE(c) (((c) & 0xfffff800) == 0xd800)
 
 /**
  * Get the lead surrogate (0xd800..0xdbff) for a
@@ -308,7 +308,7 @@ ConversionResult convertUTF16ToUTF8(
  * @return lead surrogate (U+d800..U+dbff) for supplementary
  * @stable ICU 2.4
  */
-#define U16_LEAD(supplementary) (UChar)(((supplementary)>>10)+0xd7c0)
+#define U16_LEAD(supplementary) (UChar)(((supplementary) >> 10) + 0xd7c0)
 
 /**
  * Get the trail surrogate (0xdc00..0xdfff) for a
@@ -317,7 +317,7 @@ ConversionResult convertUTF16ToUTF8(
  * @return trail surrogate (U+dc00..U+dfff) for supplementary
  * @stable ICU 2.4
  */
-#define U16_TRAIL(supplementary) (UChar)(((supplementary)&0x3ff)|0xdc00)
+#define U16_TRAIL(supplementary) (UChar)(((supplementary) & 0x3ff) | 0xdc00)
 
 // This must be called with the length pre-determined by the first byte.
 // If presented with a length > 4, this returns false.  The Unicode
@@ -480,7 +480,7 @@ ConversionResult convertUTF8ToUTF16(
 // Helper to write a three-byte UTF-8 code point to the buffer, caller must check room is available.
 static inline void putUTF8Triple(char*& buffer, UChar ch)
 {
-    DCHECK(ch >= 0x0800);
+    DCHECK_GE(ch, 0x0800);
     *buffer++ = static_cast<char>(((ch >> 12) & 0x0F) | 0xE0);
     *buffer++ = static_cast<char>(((ch >> 6) & 0x3F) | 0x80);
     *buffer++ = static_cast<char>((ch & 0x3F) | 0x80);

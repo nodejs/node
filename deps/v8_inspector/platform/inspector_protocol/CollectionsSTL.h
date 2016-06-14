@@ -5,9 +5,8 @@
 #ifndef CollectionsSTL_h
 #define CollectionsSTL_h
 
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/inspector_protocol/String16.h"
-#include "wtf/Compiler.h"
-#include "wtf/PtrUtil.h"
 
 #include <algorithm>
 #include <map>
@@ -241,13 +240,5 @@ public:
 
 } // namespace platform
 } // namespace blink
-
-// Macro that returns a compile time constant with the length of an array, but gives an error if passed a non-array.
-template<typename T, size_t Size> char (&ArrayLengthHelperFunction(T (&)[Size]))[Size];
-// GCC needs some help to deduce a 0 length array.
-#if COMPILER(GCC)
-template<typename T> char (&ArrayLengthHelperFunction(T (&)[0]))[0];
-#endif
-#define PROTOCOL_ARRAY_LENGTH(array) sizeof(::ArrayLengthHelperFunction(array))
 
 #endif // !defined(CollectionsSTL_h)

@@ -31,11 +31,12 @@
 #ifndef V8DebuggerImpl_h
 #define V8DebuggerImpl_h
 
-#include "platform/inspector_protocol/TypeBuilder.h"
+#include "platform/inspector_protocol/Maybe.h"
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/v8_inspector/JavaScriptCallFrame.h"
 #include "platform/v8_inspector/V8DebuggerScript.h"
+#include "platform/v8_inspector/protocol/Debugger.h"
 #include "platform/v8_inspector/public/V8Debugger.h"
-#include "wtf/PtrUtil.h"
 
 #include <v8-debug.h>
 #include <v8.h>
@@ -106,7 +107,7 @@ public:
     v8::Local<v8::Context> regexContext();
 
     // V8Debugger implementation
-    std::unique_ptr<V8InspectorSession> connect(int contextGroupId) override;
+    std::unique_ptr<V8InspectorSession> connect(int contextGroupId, protocol::FrontendChannel*, V8InspectorSessionClient*, const String16* state) override;
     void contextCreated(const V8ContextInfo&) override;
     void contextDestroyed(v8::Local<v8::Context>) override;
     void resetContextGroup(int contextGroupId) override;
@@ -114,7 +115,7 @@ public:
     void didExecuteScript(v8::Local<v8::Context>) override;
     void idleStarted() override;
     void idleFinished() override;
-    std::unique_ptr<V8StackTrace> createStackTrace(v8::Local<v8::StackTrace>, size_t maxStackSize) override;
+    std::unique_ptr<V8StackTrace> createStackTrace(v8::Local<v8::StackTrace>) override;
     std::unique_ptr<V8StackTrace> captureStackTrace(size_t maxStackSize) override;
 
     using ContextByIdMap = protocol::HashMap<int, std::unique_ptr<InspectedContext>>;

@@ -32,11 +32,12 @@
 #define InjectedScript_h
 
 #include "platform/inspector_protocol/Allocator.h"
-#include "platform/inspector_protocol/TypeBuilder.h"
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/v8_inspector/InjectedScriptNative.h"
 #include "platform/v8_inspector/InspectedContext.h"
+#include "platform/v8_inspector/V8Console.h"
 #include "platform/v8_inspector/V8DebuggerImpl.h"
-#include "wtf/PtrUtil.h"
+#include "platform/v8_inspector/protocol/Runtime.h"
 
 #include <v8.h>
 
@@ -114,8 +115,7 @@ public:
         v8::HandleScope m_handleScope;
         v8::TryCatch m_tryCatch;
         v8::Local<v8::Context> m_context;
-        v8::Local<v8::Private> m_extensionPrivate;
-        v8::MaybeLocal<v8::Object> m_global;
+        std::unique_ptr<V8Console::CommandLineAPIScope> m_commandLineAPIScope;
         bool m_ignoreExceptionsAndMuteConsole;
         V8DebuggerImpl::PauseOnExceptionsState m_previousPauseOnExceptionsState;
         bool m_userGesture;
@@ -162,7 +162,7 @@ private:
     bool canAccessInspectedWindow() const;
     v8::Local<v8::Value> v8Value() const;
     v8::MaybeLocal<v8::Value> wrapValue(ErrorString*, v8::Local<v8::Value>, const String16& groupName, bool forceValueType, bool generatePreview) const;
-    v8::MaybeLocal<v8::Object> commandLineAPI(ErrorString*);
+    v8::Local<v8::Object> commandLineAPI();
 
     InspectedContext* m_context;
     v8::Global<v8::Value> m_value;

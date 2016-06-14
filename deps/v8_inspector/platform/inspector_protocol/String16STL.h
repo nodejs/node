@@ -5,10 +5,9 @@
 #ifndef String16STL_h
 #define String16STL_h
 
-#include <stdint.h>
-
 #include <cstdlib>
 #include <cstring>
+#include <stdint.h>
 #include <string>
 #include <vector>
 
@@ -37,6 +36,7 @@ public:
             m_impl[i] = characters[i];
     }
     String16(const UChar* characters, size_t size) : m_impl(characters, size) { }
+    String16 isolatedCopy() const { return String16(m_impl); }
 
     unsigned sizeInBytes() const { return m_impl.size() * sizeof(UChar); }
     const UChar* characters16() const { return m_impl.c_str(); }
@@ -103,6 +103,13 @@ public:
         return m_impl.rfind(str.m_impl, start);
     }
 
+    bool startWith(const String16& s) const
+    {
+        if (m_impl.length() < s.m_impl.length())
+            return false;
+        return m_impl.substr(0, s.m_impl.length()) == s.m_impl;
+    }
+
     bool endsWith(UChar character) const
     {
         return m_impl.length() && m_impl[m_impl.length() - 1] == character;
@@ -124,8 +131,8 @@ public:
     }
 
 private:
-    static std::string intToString(int i);
-    static std::string doubleToString(double d);
+    static std::string intToString(int);
+    static std::string doubleToString(double);
     // presubmit: allow wstring
     wstring m_impl;
     mutable bool has_hash = false;

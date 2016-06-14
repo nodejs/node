@@ -5,7 +5,7 @@
 #ifndef CollectionsWTF_h
 #define CollectionsWTF_h
 
-#include "wtf/Assertions.h"
+#include "wtf/Allocator.h"
 #include "wtf/HashMap.h"
 #include "wtf/PtrUtil.h"
 #include "wtf/Vector.h"
@@ -67,12 +67,12 @@ public:
     void resize(size_t s) { m_impl.resize(s); }
     size_t size() const { return m_impl.size(); }
     bool isEmpty() const { return m_impl.isEmpty(); }
-    std::unique_ptr<T>& operator[](size_t i) { return m_impl.at(i); }
-    const std::unique_ptr<T>& operator[](size_t i) const { return m_impl.at(i); }
-    std::unique_ptr<T>& at(size_t i) { return m_impl.at(i); }
-    const std::unique_ptr<T>& at(size_t i) const { return m_impl.at(i); }
-    std::unique_ptr<T>& last() { return m_impl.last(); }
-    const std::unique_ptr<T>& last() const { return m_impl.last(); }
+    T* operator[](size_t i) { return m_impl.at(i).get(); }
+    const T* operator[](size_t i) const { return m_impl.at(i).get(); }
+    T* at(size_t i) { return m_impl.at(i).get(); }
+    const T* at(size_t i) const { return m_impl.at(i).get(); }
+    T* last() { return m_impl.last().get(); }
+    const T* last() const { return m_impl.last(); }
     void append(std::unique_ptr<T> t) { m_impl.append(std::move(t)); }
     void prepend(std::unique_ptr<T> t) { m_impl.prepend(std::move(t)); }
     void remove(size_t i) { m_impl.remove(i); }

@@ -816,6 +816,7 @@ def configure_node(o):
 
   o['variables']['asan'] = int(options.enable_asan or 0)
   o['variables']['v8_inspector'] = b(not options.without_inspector)
+  o['variables']['debug_devtools'] = 'node'
 
   if options.use_xcode and options.use_ninja:
     raise Exception('--xcode and --ninja cannot be used together.')

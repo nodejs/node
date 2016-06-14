@@ -5,8 +5,10 @@
 #ifndef Maybe_h
 #define Maybe_h
 
-#include "platform/PlatformExport.h"
-#include "wtf/Assertions.h"
+#include "platform/inspector_protocol/Platform.h"
+#include "platform/inspector_protocol/String16.h"
+
+#include <memory>
 
 namespace blink {
 namespace protocol {

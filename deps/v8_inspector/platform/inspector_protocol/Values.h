@@ -5,11 +5,10 @@
 #ifndef Values_h
 #define Values_h
 
-#include "platform/PlatformExport.h"
 #include "platform/inspector_protocol/Allocator.h"
 #include "platform/inspector_protocol/Collections.h"
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/inspector_protocol/String16.h"
-#include "wtf/PtrUtil.h"
 
 namespace blink {
 namespace protocol {
@@ -27,7 +26,7 @@ public:
 
     static std::unique_ptr<Value> null()
     {
-        return std::unique_ptr<Value>(new Value());
+        return wrapUnique(new Value());
     }
 
     enum ValueType {

@@ -4,6 +4,7 @@
 
 #include "platform/v8_inspector/V8InspectorSessionImpl.h"
 
+#include "platform/inspector_protocol/Parser.h"
 #include "platform/v8_inspector/InjectedScript.h"
 #include "platform/v8_inspector/InspectedContext.h"
 #include "platform/v8_inspector/RemoteObjectId.h"
@@ -19,53 +20,81 @@ namespace blink {
 
 const char V8InspectorSession::backtraceObjectGroup[] = "backtrace";
 
-std::unique_ptr<V8InspectorSessionImpl> V8InspectorSessionImpl::create(V8DebuggerImpl* debugger, int contextGroupId)
+// static
+bool V8InspectorSession::isV8ProtocolMethod(const String16& method)
 {
-    return wrapUnique(new V8InspectorSessionImpl(debugger, contextGroupId));
+    return method.startWith("Debugger.") || method.startWith("HeapProfiler.") || method.startWith("Profiler.") || method.startWith("Runtime.");
 }
 
-V8InspectorSessionImpl::V8InspectorSessionImpl(V8DebuggerImpl* debugger, int contextGroupId)
+std::unique_ptr<V8InspectorSessionImpl> V8InspectorSessionImpl::create(V8DebuggerImpl* debugger, int contextGroupId, protocol::FrontendChannel* channel, V8InspectorSessionClient* client, const String16* state)
+{
+    return wrapUnique(new V8InspectorSessionImpl(debugger, contextGroupId, channel, client, state));
+}
+
+V8InspectorSessionImpl::V8InspectorSessionImpl(V8DebuggerImpl* debugger, int contextGroupId, protocol::FrontendChannel* channel, V8InspectorSessionClient* client, const String16* savedState)
     : m_contextGroupId(contextGroupId)
     , m_debugger(debugger)
-    , m_client(nullptr)
+    , m_client(client)
     , m_customObjectFormatterEnabled(false)
     , m_instrumentationCounter(0)
-    , m_runtimeAgent(wrapUnique(new V8RuntimeAgentImpl(this)))
-    , m_debuggerAgent(wrapUnique(new V8DebuggerAgentImpl(this)))
-    , m_heapProfilerAgent(wrapUnique(new V8HeapProfilerAgentImpl(this)))
-    , m_profilerAgent(wrapUnique(new V8ProfilerAgentImpl(this)))
+    , m_dispatcher(channel)
+    , m_state(nullptr)
+    , m_runtimeAgent(nullptr)
+    , m_debuggerAgent(nullptr)
+    , m_heapProfilerAgent(nullptr)
+    , m_profilerAgent(nullptr)
 {
+    if (savedState) {
+        std::unique_ptr<protocol::Value> state = protocol::parseJSON(*savedState);
+        if (state)
+            m_state = protocol::DictionaryValue::cast(std::move(state));
+        if (!m_state)
+            m_state = protocol::DictionaryValue::create();
+    } else {
+        m_state = protocol::DictionaryValue::create();
+    }
+
+    m_runtimeAgent = wrapUnique(new V8RuntimeAgentImpl(this, channel, agentState(protocol::Runtime::Metainfo::domainName)));
+    protocol::Runtime::Dispatcher::wire(&m_dispatcher, m_runtimeAgent.get());
+
+    m_debuggerAgent = wrapUnique(new V8DebuggerAgentImpl(this, channel, agentState(protocol::Debugger::Metainfo::domainName)));
+    protocol::Debugger::Dispatcher::wire(&m_dispatcher, m_debuggerAgent.get());
+
+    m_profilerAgent = wrapUnique(new V8ProfilerAgentImpl(this, channel, agentState(protocol::Profiler::Metainfo::domainName)));
+    protocol::Profiler::Dispatcher::wire(&m_dispatcher, m_profilerAgent.get());
+
+    m_heapProfilerAgent = wrapUnique(new V8HeapProfilerAgentImpl(this, channel, agentState(protocol::HeapProfiler::Metainfo::domainName)));
+    protocol::HeapProfiler::Dispatcher::wire(&m_dispatcher, m_heapProfilerAgent.get());
+
+    if (savedState) {
+        m_runtimeAgent->restore();
+        m_debuggerAgent->restore();
+        m_heapProfilerAgent->restore();
+        m_profilerAgent->restore();
+    }
 }
 
 V8InspectorSessionImpl::~V8InspectorSessionImpl()
 {
+    ErrorString errorString;
+    m_profilerAgent->disable(&errorString);
+    m_heapProfilerAgent->disable(&errorString);
+    m_debuggerAgent->disable(&errorString);
+    m_runtimeAgent->disable(&errorString);
+
     discardInjectedScripts();
     m_debugger->disconnect(this);
 }
 
-V8DebuggerAgent* V8InspectorSessionImpl::debuggerAgent()
+protocol::DictionaryValue* V8InspectorSessionImpl::agentState(const String16& name)
 {
-    return m_debuggerAgent.get();
-}
-
-V8HeapProfilerAgent* V8InspectorSessionImpl::heapProfilerAgent()
-{
-    return m_heapProfilerAgent.get();
-}
-
-V8ProfilerAgent* V8InspectorSessionImpl::profilerAgent()
-{
-    return m_profilerAgent.get();
-}
-
-V8RuntimeAgent* V8InspectorSessionImpl::runtimeAgent()
-{
-    return m_runtimeAgent.get();
-}
-
-void V8InspectorSessionImpl::setClient(V8InspectorSessionClient* client)
-{
-    m_client = client;
+    protocol::DictionaryValue* state = m_state->getObject(name);
+    if (!state) {
+        std::unique_ptr<protocol::DictionaryValue> newState = protocol::DictionaryValue::create();
+        state = newState.get();
+        m_state->setObject(name, std::move(newState));
+    }
+    return state;
 }
 
 void V8InspectorSessionImpl::reset()
@@ -203,12 +232,22 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent)
 
 void V8InspectorSessionImpl::changeInstrumentationCounter(int delta)
 {
-    DCHECK(m_instrumentationCounter + delta >= 0);
-    if (!m_instrumentationCounter && m_client)
+    DCHECK_GE(m_instrumentationCounter + delta, 0);
+    if (!m_instrumentationCounter)
         m_client->startInstrumenting();
     m_instrumentationCounter += delta;
-    if (!m_instrumentationCounter && m_client)
+    if (!m_instrumentationCounter)
         m_client->stopInstrumenting();
+}
+
+void V8InspectorSessionImpl::dispatchProtocolMessage(const String16& message)
+{
+    m_dispatcher.dispatch(message);
+}
+
+String16 V8InspectorSessionImpl::stateJSON()
+{
+    return m_state->toJSONString();
 }
 
 void V8InspectorSessionImpl::addInspectedObject(std::unique_ptr<V8InspectorSession::Inspectable> inspectable)
@@ -249,6 +288,18 @@ void V8InspectorSessionImpl::setSkipAllPauses(bool skip)
 {
     ErrorString errorString;
     m_debuggerAgent->setSkipAllPauses(&errorString, skip);
+}
+
+void V8InspectorSessionImpl::resume()
+{
+    ErrorString errorString;
+    m_debuggerAgent->resume(&errorString);
+}
+
+void V8InspectorSessionImpl::stepOver()
+{
+    ErrorString errorString;
+    m_debuggerAgent->stepOver(&errorString);
 }
 
 void V8InspectorSessionImpl::asyncTaskScheduled(const String16& taskName, void* task, bool recurring)
