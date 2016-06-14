@@ -335,7 +335,7 @@ std::unique_ptr<protocol::Runtime::ExceptionDetails> InjectedScript::createExcep
 
     v8::Local<v8::StackTrace> stackTrace = message->GetStackTrace();
     if (!stackTrace.IsEmpty() && stackTrace->GetFrameCount() > 0)
-        exceptionDetailsObject->setStack(m_context->debugger()->createStackTrace(stackTrace, stackTrace->GetFrameCount())->buildInspectorObject());
+        exceptionDetailsObject->setStack(m_context->debugger()->createStackTrace(stackTrace)->buildInspectorObject());
     return exceptionDetailsObject;
 }
 
@@ -366,18 +366,10 @@ void InjectedScript::wrapEvaluateResult(ErrorString* errorString, v8::MaybeLocal
     }
 }
 
-v8::MaybeLocal<v8::Object> InjectedScript::commandLineAPI(ErrorString* errorString)
+v8::Local<v8::Object> InjectedScript::commandLineAPI()
 {
-    v8::Isolate* isolate = m_context->isolate();
-    if (m_commandLineAPI.IsEmpty()) {
-        V8FunctionCall function(m_context->debugger(), m_context->context(), v8Value(), "installCommandLineAPI");
-        function.appendArgument(V8Console::createCommandLineAPI(m_context));
-        bool hadException = false;
-        v8::Local<v8::Value> extension = function.call(hadException, false);
-        if (hasInternalError(errorString, hadException || extension.IsEmpty() || !extension->IsObject()))
-            return v8::MaybeLocal<v8::Object>();
-        m_commandLineAPI.Reset(isolate, extension.As<v8::Object>());
-    }
+    if (m_commandLineAPI.IsEmpty())
+        m_commandLineAPI.Reset(m_context->isolate(), V8Console::createCommandLineAPI(m_context));
     return m_commandLineAPI.Get(m_context->isolate());
 }
 
@@ -413,17 +405,8 @@ bool InjectedScript::Scope::initialize()
 
 bool InjectedScript::Scope::installCommandLineAPI()
 {
-    DCHECK(m_injectedScript && !m_context.IsEmpty() && m_global.IsEmpty());
-    v8::Local<v8::Object> extensionObject;
-    if (!m_injectedScript->commandLineAPI(m_errorString).ToLocal(&extensionObject))
-        return false;
-    m_extensionPrivate = V8Debugger::scopeExtensionPrivate(m_debugger->isolate());
-    v8::Local<v8::Object> global = m_context->Global();
-    if (!global->SetPrivate(m_context, m_extensionPrivate, extensionObject).FromMaybe(false)) {
-        *m_errorString = "Internal error";
-        return false;
-    }
-    m_global = global;
+    DCHECK(m_injectedScript && !m_context.IsEmpty() && !m_commandLineAPIScope.get());
+    m_commandLineAPIScope.reset(new V8Console::CommandLineAPIScope(m_context, m_injectedScript->commandLineAPI(), m_context->Global()));
     return true;
 }
 
@@ -454,12 +437,7 @@ void InjectedScript::Scope::pretendUserGesture()
 
 void InjectedScript::Scope::cleanup()
 {
-    v8::Local<v8::Object> global;
-    if (m_global.ToLocal(&global)) {
-        DCHECK(!m_context.IsEmpty());
-        global->DeletePrivate(m_context, m_extensionPrivate);
-        m_global = v8::MaybeLocal<v8::Object>();
-    }
+    m_commandLineAPIScope.reset();
     if (!m_context.IsEmpty()) {
         m_context->Exit();
         m_context.Clear();

@@ -6,11 +6,9 @@
 #define V8DebuggerAgentImpl_h
 
 #include "platform/inspector_protocol/Collections.h"
-#include "platform/inspector_protocol/Dispatcher.h"
-#include "platform/inspector_protocol/Frontend.h"
 #include "platform/inspector_protocol/String16.h"
 #include "platform/v8_inspector/V8DebuggerImpl.h"
-#include "platform/v8_inspector/public/V8DebuggerAgent.h"
+#include "platform/v8_inspector/protocol/Debugger.h"
 
 namespace blink {
 
@@ -26,7 +24,7 @@ class DictionaryValue;
 
 using protocol::Maybe;
 
-class V8DebuggerAgentImpl : public V8DebuggerAgent {
+class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
     PROTOCOL_DISALLOW_COPY(V8DebuggerAgentImpl);
 public:
     enum SkipPauseRequest {
@@ -43,17 +41,13 @@ public:
         MonitorCommandBreakpointSource
     };
 
-    explicit V8DebuggerAgentImpl(V8InspectorSessionImpl*);
+    V8DebuggerAgentImpl(V8InspectorSessionImpl*, protocol::FrontendChannel*, protocol::DictionaryValue* state);
     ~V8DebuggerAgentImpl() override;
-
-    void setInspectorState(protocol::DictionaryValue*) override;
-    void setFrontend(protocol::Frontend::Debugger* frontend) override { m_frontend = frontend; }
-    void clearFrontend() override;
-    void restore() override;
-    void disable(ErrorString*) override;
+    void restore();
 
     // Part of the protocol.
     void enable(ErrorString*) override;
+    void disable(ErrorString*) override;
     void setBreakpointsActive(ErrorString*, bool active) override;
     void setSkipAllPauses(ErrorString*, bool skipped) override;
     void setBreakpointByUrl(ErrorString*,
@@ -212,7 +206,7 @@ private:
     V8InspectorSessionImpl* m_session;
     bool m_enabled;
     protocol::DictionaryValue* m_state;
-    protocol::Frontend::Debugger* m_frontend;
+    protocol::Debugger::Frontend m_frontend;
     v8::Isolate* m_isolate;
     v8::Global<v8::Context> m_pausedContext;
     JavaScriptCallFrames m_pausedCallFrames;
@@ -237,6 +231,7 @@ private:
     AsyncTaskToStackTrace m_asyncTaskStacks;
     protocol::HashSet<void*> m_recurringTasks;
     int m_maxAsyncCallStackDepth;
+    protocol::Vector<void*> m_currentTasks;
     protocol::Vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
     std::unique_ptr<V8Regex> m_blackboxPattern;
     protocol::HashMap<String16, protocol::Vector<std::pair<int, int>>> m_blackboxedPositions;

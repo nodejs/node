@@ -5,9 +5,8 @@
 #ifndef V8Debugger_h
 #define V8Debugger_h
 
-#include "platform/PlatformExport.h"
-#include "platform/inspector_protocol/Frontend.h"
-#include "wtf/PtrUtil.h"
+#include "platform/inspector_protocol/Platform.h"
+#include "platform/inspector_protocol/String16.h"
 
 #include <v8.h>
 
@@ -16,23 +15,16 @@ namespace blink {
 class V8ContextInfo;
 class V8DebuggerClient;
 class V8InspectorSession;
+class V8InspectorSessionClient;
 class V8StackTrace;
 
 namespace protocol {
 class DictionaryValue;
+class FrontendChannel;
 }
 
 class PLATFORM_EXPORT V8Debugger {
 public:
-    template <typename T>
-    class Agent {
-    public:
-        virtual void setInspectorState(protocol::DictionaryValue*) = 0;
-        virtual void setFrontend(T*) = 0;
-        virtual void clearFrontend() = 0;
-        virtual void restore() = 0;
-    };
-
     static std::unique_ptr<V8Debugger> create(v8::Isolate*, V8DebuggerClient*);
     virtual ~V8Debugger() { }
 
@@ -48,14 +40,10 @@ public:
     virtual void idleStarted() = 0;
     virtual void idleFinished() = 0;
 
-    virtual std::unique_ptr<V8InspectorSession> connect(int contextGroupId) = 0;
+    virtual std::unique_ptr<V8InspectorSession> connect(int contextGroupId, protocol::FrontendChannel*, V8InspectorSessionClient*, const String16* state) = 0;
     virtual bool isPaused() = 0;
 
-    static v8::Local<v8::Private> scopeExtensionPrivate(v8::Isolate*);
-    static bool isCommandLineAPIMethod(const String16& name);
-    static bool isCommandLineAPIGetter(const String16& name);
-
-    virtual std::unique_ptr<V8StackTrace> createStackTrace(v8::Local<v8::StackTrace>, size_t maxStackSize) = 0;
+    virtual std::unique_ptr<V8StackTrace> createStackTrace(v8::Local<v8::StackTrace>) = 0;
     virtual std::unique_ptr<V8StackTrace> captureStackTrace(size_t maxStackSize) = 0;
 };
 

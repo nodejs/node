@@ -32,9 +32,8 @@
 #define JavaScriptCallFrame_h
 
 #include "platform/inspector_protocol/Collections.h"
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/inspector_protocol/String16.h"
-#include "wtf/PtrUtil.h"
-#include "wtf/PtrUtil.h"
 #include <v8.h>
 
 namespace blink {

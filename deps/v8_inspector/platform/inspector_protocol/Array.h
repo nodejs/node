@@ -5,9 +5,9 @@
 #ifndef Array_h
 #define Array_h
 
-#include "platform/PlatformExport.h"
 #include "platform/inspector_protocol/Collections.h"
 #include "platform/inspector_protocol/ErrorSupport.h"
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/inspector_protocol/String16.h"
 #include "platform/inspector_protocol/ValueConversions.h"
 #include "platform/inspector_protocol/Values.h"
@@ -91,7 +91,7 @@ public:
             errors->addError("array expected");
             return nullptr;
         }
-        std::unique_ptr<Array<T>> result = wrapUnique(new Array<T>());
+        std::unique_ptr<Array<T>> result(new Array<T>());
         errors->push();
         for (size_t i = 0; i < array->size(); ++i) {
             errors->setName(String16::number(i));

@@ -5,6 +5,7 @@
 #ifndef V8Console_h
 #define V8Console_h
 
+#include "platform/inspector_protocol/Allocator.h"
 #include <v8.h>
 
 namespace blink {
@@ -16,8 +17,25 @@ class InspectedContext;
 class V8Console {
 public:
     static v8::Local<v8::Object> createConsole(InspectedContext*, bool hasMemoryAttribute);
-    static v8::Local<v8::Object> createCommandLineAPI(InspectedContext*);
     static void clearInspectedContextIfNeeded(v8::Local<v8::Context>, v8::Local<v8::Object> console);
+    static v8::Local<v8::Object> createCommandLineAPI(InspectedContext*);
+
+    class CommandLineAPIScope {
+        PROTOCOL_DISALLOW_COPY(CommandLineAPIScope);
+    public:
+        CommandLineAPIScope(v8::Local<v8::Context>, v8::Local<v8::Object> commandLineAPI, v8::Local<v8::Object> global);
+        ~CommandLineAPIScope();
+
+    private:
+        static void accessorGetterCallback(v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>&);
+        static void accessorSetterCallback(v8::Local<v8::Name>, v8::Local<v8::Value>, const v8::PropertyCallbackInfo<void>&);
+
+        v8::Local<v8::Context> m_context;
+        v8::Local<v8::Object> m_commandLineAPI;
+        v8::Local<v8::Object> m_global;
+        v8::Local<v8::Set> m_installedMethods;
+        bool m_cleanup;
+    };
 
 private:
     static void debugCallback(const v8::FunctionCallbackInfo<v8::Value>&);
@@ -43,7 +61,7 @@ private:
     static void timeCallback(const v8::FunctionCallbackInfo<v8::Value>&);
     static void timeEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
     static void timeStampCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-    // TODO(philipj): There is no spec for the Memory Info API, see blink-dev:
+    // TODO(foolip): There is no spec for the Memory Info API, see blink-dev:
     // https://groups.google.com/a/chromium.org/d/msg/blink-dev/g5YRCGpC9vs/b4OJz71NmPwJ
     static void memoryGetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
     static void memorySetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);

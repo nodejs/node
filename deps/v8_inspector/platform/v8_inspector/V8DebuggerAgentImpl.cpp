@@ -155,12 +155,12 @@ static std::unique_ptr<protocol::Debugger::Location> buildProtocolLocation(const
         .setColumnNumber(columnNumber).build();
 }
 
-V8DebuggerAgentImpl::V8DebuggerAgentImpl(V8InspectorSessionImpl* session)
+V8DebuggerAgentImpl::V8DebuggerAgentImpl(V8InspectorSessionImpl* session, protocol::FrontendChannel* frontendChannel, protocol::DictionaryValue* state)
     : m_debugger(session->debugger())
     , m_session(session)
     , m_enabled(false)
-    , m_state(nullptr)
-    , m_frontend(nullptr)
+    , m_state(state)
+    , m_frontend(frontendChannel)
     , m_isolate(m_debugger->isolate())
     , m_breakReason(protocol::Debugger::Paused::ReasonEnum::Other)
     , m_scheduledDebuggerStep(NoStep)
@@ -223,7 +223,6 @@ void V8DebuggerAgentImpl::enable(ErrorString* errorString)
     }
 
     enable();
-    DCHECK(m_frontend);
 }
 
 void V8DebuggerAgentImpl::disable(ErrorString*)
@@ -270,19 +269,6 @@ void V8DebuggerAgentImpl::internalSetAsyncCallStackDepth(int depth)
     } else {
         m_maxAsyncCallStackDepth = depth;
     }
-}
-
-void V8DebuggerAgentImpl::setInspectorState(protocol::DictionaryValue* state)
-{
-    m_state = state;
-}
-
-void V8DebuggerAgentImpl::clearFrontend()
-{
-    ErrorString error;
-    disable(&error);
-    DCHECK(m_frontend);
-    m_frontend = nullptr;
 }
 
 void V8DebuggerAgentImpl::restore()
@@ -1027,6 +1013,7 @@ void V8DebuggerAgentImpl::asyncTaskStarted(void* task)
     if (!m_maxAsyncCallStackDepth)
         return;
 
+    m_currentTasks.append(task);
     V8StackTraceImpl* stack = m_asyncTaskStacks.get(task);
     // Needs to support following order of events:
     // - asyncTaskScheduled
@@ -1035,7 +1022,7 @@ void V8DebuggerAgentImpl::asyncTaskStarted(void* task)
     // - asyncTaskCanceled <-- canceled before finished
     //   <-- async stack requested here -->
     // - asyncTaskFinished
-    m_currentStacks.append(stack ? stack->clone() : nullptr);
+    m_currentStacks.append(stack ? stack->cloneImpl() : nullptr);
 }
 
 void V8DebuggerAgentImpl::asyncTaskFinished(void* task)
@@ -1045,6 +1032,9 @@ void V8DebuggerAgentImpl::asyncTaskFinished(void* task)
     // We could start instrumenting half way and the stack is empty.
     if (!m_currentStacks.size())
         return;
+
+    DCHECK(m_currentTasks.last() == task);
+    m_currentTasks.removeLast();
 
     m_currentStacks.removeLast();
     if (!m_recurringTasks.contains(task))
@@ -1056,6 +1046,7 @@ void V8DebuggerAgentImpl::allAsyncTasksCanceled()
     m_asyncTaskStacks.clear();
     m_recurringTasks.clear();
     m_currentStacks.clear();
+    m_currentTasks.clear();
 }
 
 void V8DebuggerAgentImpl::setBlackboxPatterns(ErrorString* errorString, std::unique_ptr<protocol::Array<String16>> patterns)
@@ -1079,7 +1070,7 @@ void V8DebuggerAgentImpl::setBlackboxPatterns(ErrorString* errorString, std::uni
 
 bool V8DebuggerAgentImpl::setBlackboxPattern(ErrorString* errorString, const String16& pattern)
 {
-    std::unique_ptr<V8Regex> regex = wrapUnique(new V8Regex(m_debugger, pattern, true /** caseSensitive */, false /** multiline */));
+    std::unique_ptr<V8Regex> regex(new V8Regex(m_debugger, pattern, true /** caseSensitive */, false /** multiline */));
     if (!regex->isValid()) {
         *errorString = "Pattern parser error: " + regex->errorMessage();
         return false;
@@ -1283,9 +1274,9 @@ void V8DebuggerAgentImpl::didParseSource(const V8DebuggerParsedScript& parsedScr
     const bool* hasSourceURLParam = hasSourceURL ? &hasSourceURL : nullptr;
     const bool* deprecatedCommentWasUsedParam = deprecatedCommentWasUsed ? &deprecatedCommentWasUsed : nullptr;
     if (parsedScript.success)
-        m_frontend->scriptParsed(parsedScript.scriptId, scriptURL, script.startLine(), script.startColumn(), script.endLine(), script.endColumn(), executionContextId, script.hash(), isContentScriptParam, isInternalScriptParam, isLiveEditParam, sourceMapURLParam, hasSourceURLParam, deprecatedCommentWasUsedParam);
+        m_frontend.scriptParsed(parsedScript.scriptId, scriptURL, script.startLine(), script.startColumn(), script.endLine(), script.endColumn(), executionContextId, script.hash(), isContentScriptParam, isInternalScriptParam, isLiveEditParam, sourceMapURLParam, hasSourceURLParam, deprecatedCommentWasUsedParam);
     else
-        m_frontend->scriptFailedToParse(parsedScript.scriptId, scriptURL, script.startLine(), script.startColumn(), script.endLine(), script.endColumn(), executionContextId, script.hash(), isContentScriptParam, isInternalScriptParam, sourceMapURLParam, hasSourceURLParam, deprecatedCommentWasUsedParam);
+        m_frontend.scriptFailedToParse(parsedScript.scriptId, scriptURL, script.startLine(), script.startColumn(), script.endLine(), script.endColumn(), executionContextId, script.hash(), isContentScriptParam, isInternalScriptParam, sourceMapURLParam, hasSourceURLParam, deprecatedCommentWasUsedParam);
 
     m_scripts.set(parsedScript.scriptId, script);
 
@@ -1311,7 +1302,7 @@ void V8DebuggerAgentImpl::didParseSource(const V8DebuggerParsedScript& parsedScr
         breakpointObject->getString(DebuggerAgentState::condition, &breakpoint.condition);
         std::unique_ptr<protocol::Debugger::Location> location = resolveBreakpoint(cookie.first, parsedScript.scriptId, breakpoint, UserBreakpointSource);
         if (location)
-            m_frontend->breakpointResolved(cookie.first, std::move(location));
+            m_frontend.breakpointResolved(cookie.first, std::move(location));
     }
 }
 
@@ -1371,7 +1362,7 @@ V8DebuggerAgentImpl::SkipPauseRequest V8DebuggerAgentImpl::didPause(v8::Local<v8
     }
 
     ErrorString errorString;
-    m_frontend->paused(currentCallFrames(&errorString), m_breakReason, std::move(m_breakAuxData), std::move(hitBreakpointIds), currentAsyncStackTrace());
+    m_frontend.paused(currentCallFrames(&errorString), m_breakReason, std::move(m_breakAuxData), std::move(hitBreakpointIds), currentAsyncStackTrace());
     m_scheduledDebuggerStep = NoStep;
     m_javaScriptPauseScheduled = false;
     m_steppingFromFramework = false;
@@ -1392,7 +1383,7 @@ void V8DebuggerAgentImpl::didContinue()
     JavaScriptCallFrames emptyCallFrames;
     m_pausedCallFrames.swap(emptyCallFrames);
     clearBreakDetails();
-    m_frontend->resumed();
+    m_frontend.resumed();
 }
 
 void V8DebuggerAgentImpl::breakProgram(const String16& breakReason, std::unique_ptr<protocol::DictionaryValue> data)

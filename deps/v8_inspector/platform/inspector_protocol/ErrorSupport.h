@@ -5,12 +5,14 @@
 #ifndef ErrorSupport_h
 #define ErrorSupport_h
 
-#include "platform/PlatformExport.h"
 #include "platform/inspector_protocol/Collections.h"
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/inspector_protocol/String16.h"
 
 namespace blink {
 namespace protocol {
+
+using ErrorString = String16;
 
 class PLATFORM_EXPORT ErrorSupport {
 public:
@@ -33,5 +35,7 @@ private:
 
 } // namespace platform
 } // namespace blink
+
+using blink::protocol::ErrorString;
 
 #endif // !defined(ErrorSupport_h)
