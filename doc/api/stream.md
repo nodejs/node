@@ -206,14 +206,14 @@ myStream.end('done writing data');
 
 #### Class: stream.Writable
 <!-- YAML
-added: v0.9.4
+added: v0.3.0
 -->
 
 <!--type=class-->
 
 ##### Event: 'close'
 <!-- YAML
-added: v0.9.4
+added: v0.3.1
 -->
 
 The `'close'` event is emitted when the stream and any of its underlying
@@ -224,7 +224,7 @@ Not all Writable streams will emit the `'close'` event.
 
 ##### Event: 'drain'
 <!-- YAML
-added: v0.9.4
+added: v0.3.0
 -->
 
 If a call to [`stream.write(chunk)`][stream-write] returns `false`, the
@@ -261,7 +261,7 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
 
 ##### Event: 'error'
 <!-- YAML
-added: v
+added: v0.3.1
 -->
 
 * {Error}
@@ -289,7 +289,7 @@ writer.on('finish', () => {
 
 ##### Event: 'pipe'
 <!-- YAML
-added: v0.9.4
+added: v0.3.0
 -->
 
 * `src` {stream.Readable} source stream that is piping to this writable
@@ -434,6 +434,9 @@ should be paused until the `'drain'` event is emitted.
 A Writable stream in object mode will always ignore the `encoding` argument.
 
 ### Readable Streams
+<!-- YAML
+added: v0.3.0
+-->
 
 Readable streams are an abstraction for a *source* from which data is
 consumed.
@@ -541,6 +544,9 @@ use the [`EventEmitter`][] and `readable.pause()`/`readable.resume()` APIs.
 <!--type=class-->
 
 ##### Event: 'close'
+<!-- YAML
+added: v0.3.1
+-->
 
 The `'close'` event is emitted when the stream and any of its underlying
 resources (a file descriptor, for example) have been closed. The event indicates
@@ -549,6 +555,9 @@ that no more events will be emitted, and no further computation will occur.
 Not all [Readable][] streams will emit the `'close'` event.
 
 ##### Event: 'data'
+<!-- YAML
+added: v0.3.1
+-->
 
 * `chunk` {Buffer|String|any} The chunk of data. For streams that are not
   operating in object mode, the chunk will be either a string or `Buffer`.
@@ -579,6 +588,9 @@ readable.on('data', (chunk) => {
 ```
 
 ##### Event: 'end'
+<!-- YAML
+added: v0.3.1
+-->
 
 The `'end'` event is emitted when there is no more data to be consumed from
 the stream.
@@ -599,6 +611,9 @@ readable.on('end', () => {
 ```
 
 ##### Event: 'error'
+<!-- YAML
+added: v0.3.1
+-->
 
 * {Error}
 
@@ -672,6 +687,9 @@ readable.isPaused() // === false
 ```
 
 ##### readable.pause()
+<!-- YAML
+added: v0.3.1
+-->
 
 * Return: `this`
 
@@ -795,6 +813,9 @@ event will also be emitted.
 event has been emitted will return `null`. No runtime error will be raised.
 
 ##### readable.resume()
+<!-- YAML
+added: v0.3.1
+-->
 
 * Return: `this`
 
@@ -814,6 +835,9 @@ getReadableStreamSomehow()
 ```
 
 ##### readable.setEncoding(encoding)
+<!-- YAML
+added: v0.3.1
+-->
 
 * `encoding` {String} The encoding to use.
 * Return: `this`
