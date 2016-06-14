@@ -6,7 +6,6 @@
 
 #include "platform/inspector_protocol/String16.h"
 #include "platform/inspector_protocol/Values.h"
-#include "wtf/Assertions.h"
 
 namespace blink {
 namespace protocol {

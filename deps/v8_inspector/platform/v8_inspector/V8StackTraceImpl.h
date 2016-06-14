@@ -6,8 +6,8 @@
 #define V8StackTraceImpl_h
 
 #include "platform/inspector_protocol/Collections.h"
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/v8_inspector/public/V8StackTrace.h"
-#include "wtf/PtrUtil.h"
 
 namespace blink {
 
@@ -31,6 +31,7 @@ public:
         const String16& sourceURL() const { return m_scriptName; }
         int lineNumber() const { return m_lineNumber; }
         int columnNumber() const { return m_columnNumber; }
+        Frame isolatedCopy() const;
 
     private:
         friend class V8StackTraceImpl;
@@ -47,7 +48,10 @@ public:
     static std::unique_ptr<V8StackTraceImpl> create(V8DebuggerAgentImpl*, v8::Local<v8::StackTrace>, size_t maxStackSize, const String16& description = String16());
     static std::unique_ptr<V8StackTraceImpl> capture(V8DebuggerAgentImpl*, size_t maxStackSize, const String16& description = String16());
 
-    std::unique_ptr<V8StackTraceImpl> clone();
+    std::unique_ptr<V8StackTrace> clone() override;
+    std::unique_ptr<V8StackTraceImpl> cloneImpl();
+    std::unique_ptr<V8StackTrace> isolatedCopy() override;
+    std::unique_ptr<V8StackTraceImpl> isolatedCopyImpl();
     std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectForTail(V8DebuggerAgentImpl*) const;
     ~V8StackTraceImpl() override;
 

@@ -192,7 +192,6 @@ class AgentImpl {
   uv_mutex_t pause_lock_;
   uv_thread_t thread_;
   uv_loop_t child_loop_;
-  uv_tcp_t server_;
 
   int port_;
   bool wait_;
@@ -237,21 +236,21 @@ class ChannelImpl final : public blink::protocol::FrontendChannel {
   explicit ChannelImpl(AgentImpl* agent): agent_(agent) {}
   virtual ~ChannelImpl() {}
  private:
-  virtual void sendProtocolResponse(int sessionId, int callId,
-                                    std::unique_ptr<DictionaryValue> message)
+  virtual void sendProtocolResponse(int callId,
+                                    const String16& message)
                                     override {
-    sendMessageToFrontend(std::move(message));
+    sendMessageToFrontend(message);
   }
 
   virtual void sendProtocolNotification(
-      std::unique_ptr<DictionaryValue> message) override {
-    sendMessageToFrontend(std::move(message));
+      const String16& message) override {
+    sendMessageToFrontend(message);
   }
 
-  virtual void flush() override { }
+  virtual void flushProtocolNotifications() override { }
 
-  void sendMessageToFrontend(std::unique_ptr<DictionaryValue> message) {
-    agent_->Write(message->toJSONString().utf8());
+  void sendMessageToFrontend(const String16& message) {
+    agent_->Write(message.utf8());
   }
 
   AgentImpl* const agent_;

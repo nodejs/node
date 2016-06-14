@@ -4,11 +4,11 @@
 
 #include "platform/v8_inspector/V8StackTraceImpl.h"
 
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/inspector_protocol/String16.h"
 #include "platform/v8_inspector/V8DebuggerAgentImpl.h"
 #include "platform/v8_inspector/V8DebuggerImpl.h"
 #include "platform/v8_inspector/V8StringUtil.h"
-#include "wtf/PtrUtil.h"
 
 #include <v8-debug.h>
 #include <v8-profiler.h>
@@ -72,7 +72,7 @@ V8StackTraceImpl::Frame::~Frame()
 {
 }
 
-// buildInspectorObject() and ScriptCallStack's toTracedValue() should set the same fields.
+// buildInspectorObject() and SourceLocation's toTracedValue() should set the same fields.
 // If either of them is modified, the other should be also modified.
 std::unique_ptr<protocol::Runtime::CallFrame> V8StackTraceImpl::Frame::buildInspectorObject() const
 {
@@ -83,6 +83,11 @@ std::unique_ptr<protocol::Runtime::CallFrame> V8StackTraceImpl::Frame::buildInsp
         .setLineNumber(m_lineNumber)
         .setColumnNumber(m_columnNumber)
         .build();
+}
+
+V8StackTraceImpl::Frame V8StackTraceImpl::Frame::isolatedCopy() const
+{
+    return Frame(m_functionName.isolatedCopy(), m_scriptId.isolatedCopy(), m_scriptName.isolatedCopy(), m_lineNumber, m_columnNumber);
 }
 
 std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::create(V8DebuggerAgentImpl* agent, v8::Local<v8::StackTrace> stackTrace, size_t maxStackSize, const String16& description)
@@ -107,7 +112,7 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::create(V8DebuggerAgentImpl* 
     if (stackTrace.IsEmpty() && !asyncCallChain)
         return nullptr;
 
-    std::unique_ptr<V8StackTraceImpl> result(new V8StackTraceImpl(description, frames, asyncCallChain ? asyncCallChain->clone() : nullptr));
+    std::unique_ptr<V8StackTraceImpl> result(new V8StackTraceImpl(description, frames, asyncCallChain ? asyncCallChain->cloneImpl() : nullptr));
 
     // Crop to not exceed maxAsyncCallChainDepth.
     V8StackTraceImpl* deepest = result.get();
@@ -135,10 +140,28 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(V8DebuggerAgentImpl*
     return V8StackTraceImpl::create(agent, stackTrace, maxStackSize, description);
 }
 
-std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::clone()
+std::unique_ptr<V8StackTrace> V8StackTraceImpl::clone()
+{
+    return cloneImpl();
+}
+
+std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::cloneImpl()
 {
     protocol::Vector<Frame> framesCopy(m_frames);
-    return wrapUnique(new V8StackTraceImpl(m_description, framesCopy, m_parent ? m_parent->clone() : nullptr));
+    return wrapUnique(new V8StackTraceImpl(m_description, framesCopy, m_parent ? m_parent->cloneImpl() : nullptr));
+}
+
+std::unique_ptr<V8StackTrace> V8StackTraceImpl::isolatedCopy()
+{
+    return isolatedCopyImpl();
+}
+
+std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::isolatedCopyImpl()
+{
+    protocol::Vector<Frame> frames;
+    for (size_t i = 0; i < m_frames.size(); i++)
+        frames.append(m_frames.at(i).isolatedCopy());
+    return wrapUnique(new V8StackTraceImpl(m_description.isolatedCopy(), frames, m_parent ? m_parent->isolatedCopyImpl() : nullptr));
 }
 
 V8StackTraceImpl::V8StackTraceImpl(const String16& description, protocol::Vector<Frame>& frames, std::unique_ptr<V8StackTraceImpl> parent)

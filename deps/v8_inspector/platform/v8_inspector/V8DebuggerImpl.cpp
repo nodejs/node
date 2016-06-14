@@ -158,8 +158,8 @@ V8DebuggerAgentImpl* V8DebuggerImpl::findEnabledDebuggerAgent(int contextGroupId
     if (!contextGroupId)
         return nullptr;
     V8InspectorSessionImpl* session = m_sessions.get(contextGroupId);
-    if (session && session->debuggerAgentImpl()->enabled())
-        return session->debuggerAgentImpl();
+    if (session && session->debuggerAgent()->enabled())
+        return session->debuggerAgent();
     return nullptr;
 }
 
@@ -457,7 +457,7 @@ static V8DebuggerImpl* toV8DebuggerImpl(v8::Local<v8::Value> data)
 
 void V8DebuggerImpl::breakProgramCallback(const v8::FunctionCallbackInfo<v8::Value>& info)
 {
-    DCHECK(2 == info.Length());
+    DCHECK_EQ(info.Length(), 2);
     V8DebuggerImpl* thisPtr = toV8DebuggerImpl(info.Data());
     v8::Local<v8::Context> pausedContext = thisPtr->m_isolate->GetCurrentContext();
     v8::Local<v8::Value> exception;
@@ -572,12 +572,7 @@ void V8DebuggerImpl::handleV8AsyncTaskEvent(V8DebuggerAgentImpl* agent, v8::Loca
     String16 type = toProtocolStringWithTypeCheck(callInternalGetterFunction(eventData, "type"));
     String16 name = toProtocolStringWithTypeCheck(callInternalGetterFunction(eventData, "name"));
     int id = callInternalGetterFunction(eventData, "id")->ToInteger(m_isolate)->Value();
-
-    m_pausedContext = context;
-    m_executionState = executionState;
     agent->didReceiveV8AsyncTaskEvent(context, type, name, id);
-    m_pausedContext.Clear();
-    m_executionState.Clear();
 }
 
 V8DebuggerParsedScript V8DebuggerImpl::createParsedScript(v8::Local<v8::Object> object, bool success)
@@ -730,16 +725,16 @@ v8::Local<v8::Script> V8DebuggerImpl::compileInternalScript(v8::Local<v8::Contex
     return script;
 }
 
-std::unique_ptr<V8StackTrace> V8DebuggerImpl::createStackTrace(v8::Local<v8::StackTrace> stackTrace, size_t maxStackSize)
+std::unique_ptr<V8StackTrace> V8DebuggerImpl::createStackTrace(v8::Local<v8::StackTrace> stackTrace)
 {
     V8DebuggerAgentImpl* agent = findEnabledDebuggerAgent(m_isolate->GetCurrentContext());
-    return V8StackTraceImpl::create(agent, stackTrace, maxStackSize);
+    return V8StackTraceImpl::create(agent, stackTrace, V8StackTrace::maxCallStackSizeToCapture);
 }
 
-std::unique_ptr<V8InspectorSession> V8DebuggerImpl::connect(int contextGroupId)
+std::unique_ptr<V8InspectorSession> V8DebuggerImpl::connect(int contextGroupId, protocol::FrontendChannel* channel, V8InspectorSessionClient* client, const String16* state)
 {
     DCHECK(!m_sessions.contains(contextGroupId));
-    std::unique_ptr<V8InspectorSessionImpl> session = V8InspectorSessionImpl::create(this, contextGroupId);
+    std::unique_ptr<V8InspectorSessionImpl> session = V8InspectorSessionImpl::create(this, contextGroupId, channel, client, state);
     m_sessions.set(contextGroupId, session.get());
     return std::move(session);
 }
@@ -769,7 +764,7 @@ void V8DebuggerImpl::contextCreated(const V8ContextInfo& info)
     m_contexts.get(info.contextGroupId)->set(contextId, std::move(contextOwner));
 
     if (V8InspectorSessionImpl* session = m_sessions.get(info.contextGroupId))
-        session->runtimeAgentImpl()->reportExecutionContextCreated(inspectedContext);
+        session->runtimeAgent()->reportExecutionContextCreated(inspectedContext);
 }
 
 void V8DebuggerImpl::contextDestroyed(v8::Local<v8::Context> context)
@@ -781,7 +776,7 @@ void V8DebuggerImpl::contextDestroyed(v8::Local<v8::Context> context)
 
     InspectedContext* inspectedContext = m_contexts.get(contextGroupId)->get(contextId);
     if (V8InspectorSessionImpl* session = m_sessions.get(contextGroupId))
-        session->runtimeAgentImpl()->reportExecutionContextDestroyed(inspectedContext);
+        session->runtimeAgent()->reportExecutionContextDestroyed(inspectedContext);
 
     m_contexts.get(contextGroupId)->remove(contextId);
     if (m_contexts.get(contextGroupId)->isEmpty())

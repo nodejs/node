@@ -45,9 +45,17 @@
 #
 # Adding --show_changes to the command line prints out a list of valid public API changes.
 
+import collections
+import copy
 import os.path
+import optparse
 import re
 import sys
+
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 def list_to_map(items, key):
     result = {}
@@ -56,28 +64,34 @@ def list_to_map(items, key):
             result[item[key]] = item
     return result
 
+
 def named_list_to_map(container, name, key):
     if name in container:
         return list_to_map(container[name], key)
     return {}
+
 
 def removed(reverse):
     if reverse:
         return "added"
     return "removed"
 
+
 def required(reverse):
     if reverse:
         return "optional"
     return "required"
 
-def compare_schemas(schema_1, schema_2, reverse):
-    errors = []
-    types_1 = normalize_types_in_schema(schema_1)
-    types_2 = normalize_types_in_schema(schema_2)
 
-    domains_by_name_1 = list_to_map(schema_1, "domain")
-    domains_by_name_2 = list_to_map(schema_2, "domain")
+def compare_schemas(d_1, d_2, reverse):
+    errors = []
+    domains_1 = copy.deepcopy(d_1)
+    domains_2 = copy.deepcopy(d_2)
+    types_1 = normalize_types_in_schema(domains_1)
+    types_2 = normalize_types_in_schema(domains_2)
+
+    domains_by_name_1 = list_to_map(domains_1, "domain")
+    domains_by_name_2 = list_to_map(domains_2, "domain")
 
     for name in domains_by_name_1:
         domain_1 = domains_by_name_1[name]
@@ -86,6 +100,7 @@ def compare_schemas(schema_1, schema_2, reverse):
             continue
         compare_domains(domain_1, domains_by_name_2[name], types_1, types_2, errors, reverse)
     return errors
+
 
 def compare_domains(domain_1, domain_2, types_map_1, types_map_2, errors, reverse):
     domain_name = domain_1["domain"]
@@ -107,6 +122,7 @@ def compare_domains(domain_1, domain_2, types_map_1, types_map_2, errors, revers
             continue
         compare_events(domain_name, event_1, events_2[name], types_map_1, types_map_2, errors, reverse)
 
+
 def compare_commands(domain_name, command_1, command_2, types_map_1, types_map_2, errors, reverse):
     context = domain_name + "." + command_1["name"]
 
@@ -119,11 +135,13 @@ def compare_commands(domain_name, command_1, command_2, types_map_1, types_map_2
     returns_2 = named_list_to_map(command_2, "returns", "name")
     compare_params_list(context, "response parameter", returns_1, returns_2, types_map_1, types_map_2, 0, errors, reverse)
 
+
 def compare_events(domain_name, event_1, event_2, types_map_1, types_map_2, errors, reverse):
     context = domain_name + "." + event_1["name"]
     params_1 = named_list_to_map(event_1, "parameters", "name")
     params_2 = named_list_to_map(event_2, "parameters", "name")
     compare_params_list(context, "parameter", params_1, params_2, types_map_1, types_map_2, 0, errors, reverse)
+
 
 def compare_params_list(context, kind, params_1, params_2, types_map_1, types_map_2, depth, errors, reverse):
     for name in params_1:
@@ -140,6 +158,7 @@ def compare_params_list(context, kind, params_1, params_2, types_map_1, types_ma
         type_1 = extract_type(param_1, types_map_1, errors)
         type_2 = extract_type(param_2, types_map_2, errors)
         compare_types(context + "." + name, kind, type_1, type_2, types_map_1, types_map_2, depth, errors, reverse)
+
 
 def compare_types(context, kind, type_1, type_2, types_map_1, types_map_2, depth, errors, reverse):
     if depth > 10:
@@ -165,6 +184,7 @@ def compare_types(context, kind, type_1, type_2, types_map_1, types_map_2, depth
         item_type_2 = extract_type(type_2["items"], types_map_2, errors)
         compare_types(context, kind, item_type_1, item_type_2, types_map_1, types_map_2, depth + 1, errors, reverse)
 
+
 def extract_type(typed_object, types_map, errors):
     if "type" in typed_object:
         result = { "id": "<transient>", "type": typed_object["type"] }
@@ -180,12 +200,14 @@ def extract_type(typed_object, types_map, errors):
             types_map[ref] = { "id": "<transient>", "type": "object" }
         return types_map[ref]
 
-def normalize_types_in_schema(schema):
+
+def normalize_types_in_schema(domains):
     types = {}
-    for domain in schema:
+    for domain in domains:
         domain_name = domain["domain"]
         normalize_types(domain, domain_name, types)
     return types
+
 
 def normalize_types(obj, domain_name, types):
     if isinstance(obj, list):
@@ -201,12 +223,16 @@ def normalize_types(obj, domain_name, types):
             else:
                 normalize_types(value, domain_name, types)
 
-def load_json(filename):
-    input_file = open(filename, "r")
+
+def load_schema(file, domains):
+    if not os.path.isfile(file):
+        return
+    input_file = open(file, "r")
     json_string = input_file.read()
-    json_string = re.sub(":\s*true", ": True", json_string)
-    json_string = re.sub(":\s*false", ": False", json_string)
-    return eval(json_string)
+    parsed_json = json.loads(json_string)
+    domains += parsed_json["domains"]
+    return parsed_json["version"]
+
 
 def self_test():
     def create_test_schema_1():
@@ -392,72 +418,61 @@ def self_test():
                          compare_schemas(create_test_schema_2(), create_test_schema_1(), True)))
 
 
+
+def load_domains_and_baselines(file, domains, baseline_domains):
+    version = load_schema(os.path.normpath(file), domains)
+    suffix = "-%s.%s.json" % (version["major"], version["minor"])
+    baseline_file = file.replace(".json", suffix)
+    load_schema(os.path.normpath(baseline_file), baseline_domains)
+    return version
+
+
 def main():
     if not self_test():
         sys.stderr.write("Self-test failed")
         return 1
 
-    if len(sys.argv) < 4 or sys.argv[1] != "-o":
-        sys.stderr.write("Usage: %s -o OUTPUT_FILE INPUT_FILE [--show-changes]\n" % sys.argv[0])
+    cmdline_parser = optparse.OptionParser()
+    cmdline_parser.add_option("--show_changes")
+    cmdline_parser.add_option("--o")
+    arg_options, arg_values = cmdline_parser.parse_args()
+
+    if len(arg_values) < 1 or not arg_options.o:
+        sys.stderr.write("Usage: %s --o OUTPUT_FILE [--show_changes] PROTOCOL_FOLDER1 ?PROTOCOL_FOLDER2 \n" % sys.argv[0])
         return 1
 
-    output_path = sys.argv[2]
+    output_path = arg_options.o
     output_file = open(output_path, "w")
 
-    input_path = sys.argv[3]
-    dir_name = os.path.dirname(input_path)
-    schema = load_json(input_path)
-
-    major = schema["version"]["major"]
-    minor = schema["version"]["minor"]
-    version = "%s.%s" % (major, minor)
-    if len(dir_name) == 0:
-        dir_name = "."
-    baseline_path = os.path.normpath(dir_name + "/Inspector-" + version + ".json")
-    baseline_schema = load_json(baseline_path)
+    domains = []
+    baseline_domains = []
+    version = load_domains_and_baselines(arg_values[0], domains, baseline_domains)
+    if len(arg_values) > 1:
+        load_domains_and_baselines(arg_values[1], domains, baseline_domains)
 
     expected_errors = [
         "Debugger.globalObjectCleared: event has been removed"
     ]
 
-    errors = compare_schemas(baseline_schema["domains"], schema["domains"], False)
+    errors = compare_schemas(baseline_domains, domains, False)
     unexpected_errors = []
     for i in range(len(errors)):
         if errors[i] not in expected_errors:
             unexpected_errors.append(errors[i])
     if len(unexpected_errors) > 0:
-        sys.stderr.write("  Compatibility with %s: FAILED\n" % version)
+        sys.stderr.write("  Compatibility checks FAILED\n")
         for error in unexpected_errors:
             sys.stderr.write( "    %s\n" % error)
         return 1
 
-    if len(sys.argv) > 4 and sys.argv[4] == "--show-changes":
-        changes = compare_schemas(
-            load_json(input_path)["domains"], load_json(baseline_path)["domains"], True)
+    if arg_options.show_changes:
+        changes = compare_schemas(domains, baseline_domains, True)
         if len(changes) > 0:
             print "  Public changes since %s:" % version
             for change in changes:
                 print "    %s" % change
 
-    output_file.write("""
-#ifndef InspectorProtocolVersion_h
-#define InspectorProtocolVersion_h
-
-#include "platform/inspector_protocol/String16.h"
-
-namespace blink {
-
-String inspectorProtocolVersion() { return "%s"; }
-
-int inspectorProtocolVersionMajor() { return %s; }
-
-int inspectorProtocolVersionMinor() { return %s; }
-
-}
-
-#endif // !defined(InspectorProtocolVersion_h)
-""" % (version, major, minor))
-
+    json.dump({"version": version, "domains": domains}, output_file, indent=4, sort_keys=False, separators=(',', ': '))
     output_file.close()
 
 if __name__ == '__main__':

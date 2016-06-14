@@ -5,9 +5,8 @@
 #ifndef V8InspectorSession_h
 #define V8InspectorSession_h
 
-#include "platform/PlatformExport.h"
-#include "platform/inspector_protocol/TypeBuilder.h"
-#include "wtf/PtrUtil.h"
+#include "platform/inspector_protocol/Platform.h"
+#include "platform/v8_inspector/protocol/Runtime.h"
 
 #include <v8.h>
 
@@ -32,7 +31,9 @@ public:
 
     virtual ~V8InspectorSession() { }
 
-    virtual void setClient(V8InspectorSessionClient*) = 0;
+    static bool isV8ProtocolMethod(const String16& method);
+    virtual void dispatchProtocolMessage(const String16& message) = 0;
+    virtual String16 stateJSON() = 0;
     virtual void addInspectedObject(std::unique_ptr<Inspectable>) = 0;
 
     // API for the embedder to report native activities.
@@ -41,6 +42,8 @@ public:
     virtual void breakProgram(const String16& breakReason, std::unique_ptr<protocol::DictionaryValue> data) = 0;
     virtual void breakProgramOnException(const String16& breakReason, std::unique_ptr<protocol::DictionaryValue> data) = 0;
     virtual void setSkipAllPauses(bool) = 0;
+    virtual void resume() = 0;
+    virtual void stepOver() = 0;
 
     // API to report async call stacks.
     virtual void asyncTaskScheduled(const String16& taskName, void* task, bool recurring) = 0;
@@ -55,11 +58,6 @@ public:
     virtual std::unique_ptr<protocol::Runtime::RemoteObject> wrapTable(v8::Local<v8::Context>, v8::Local<v8::Value> table, v8::Local<v8::Value> columns) = 0;
     virtual v8::Local<v8::Value> findObject(ErrorString*, const String16& objectId, v8::Local<v8::Context>* = nullptr, String16* objectGroup = nullptr) = 0;
     virtual void releaseObjectGroup(const String16&) = 0;
-
-    virtual V8DebuggerAgent* debuggerAgent() = 0;
-    virtual V8HeapProfilerAgent* heapProfilerAgent() = 0;
-    virtual V8ProfilerAgent* profilerAgent() = 0;
-    virtual V8RuntimeAgent* runtimeAgent() = 0;
 };
 
 } // namespace blink

@@ -56,10 +56,10 @@ static bool hasInternalError(ErrorString* errorString, bool hasError)
     return hasError;
 }
 
-V8RuntimeAgentImpl::V8RuntimeAgentImpl(V8InspectorSessionImpl* session)
+V8RuntimeAgentImpl::V8RuntimeAgentImpl(V8InspectorSessionImpl* session, protocol::FrontendChannel* FrontendChannel, protocol::DictionaryValue* state)
     : m_session(session)
-    , m_state(nullptr)
-    , m_frontend(nullptr)
+    , m_state(state)
+    , m_frontend(FrontendChannel)
     , m_debugger(session->debugger())
     , m_enabled(false)
 {
@@ -343,29 +343,11 @@ void V8RuntimeAgentImpl::runScript(ErrorString* errorString,
     scope.injectedScript()->wrapEvaluateResult(errorString, maybeResultValue, scope.tryCatch(), objectGroup.fromMaybe(""), false, false, result, nullptr, exceptionDetails);
 }
 
-void V8RuntimeAgentImpl::setInspectorState(protocol::DictionaryValue* state)
-{
-    m_state = state;
-}
-
-void V8RuntimeAgentImpl::setFrontend(protocol::Frontend::Runtime* frontend)
-{
-    m_frontend = frontend;
-}
-
-void V8RuntimeAgentImpl::clearFrontend()
-{
-    ErrorString error;
-    disable(&error);
-    DCHECK(m_frontend);
-    m_frontend = nullptr;
-}
-
 void V8RuntimeAgentImpl::restore()
 {
     if (!m_state->booleanProperty(V8RuntimeAgentImplState::runtimeEnabled, false))
         return;
-    m_frontend->executionContextsCleared();
+    m_frontend.executionContextsCleared();
     ErrorString error;
     enable(&error);
     if (m_state->booleanProperty(V8RuntimeAgentImplState::customObjectFormatterEnabled, false))
@@ -402,7 +384,7 @@ void V8RuntimeAgentImpl::reset()
             for (auto& idContext : *contexts)
                 idContext.second->setReported(false);
         }
-        m_frontend->executionContextsCleared();
+        m_frontend.executionContextsCleared();
     }
 }
 
@@ -417,21 +399,21 @@ void V8RuntimeAgentImpl::reportExecutionContextCreated(InspectedContext* context
         .setName(context->humanReadableName())
         .setOrigin(context->origin())
         .setFrameId(context->frameId()).build();
-    m_frontend->executionContextCreated(std::move(description));
+    m_frontend.executionContextCreated(std::move(description));
 }
 
 void V8RuntimeAgentImpl::reportExecutionContextDestroyed(InspectedContext* context)
 {
     if (m_enabled && context->isReported()) {
         context->setReported(false);
-        m_frontend->executionContextDestroyed(context->contextId());
+        m_frontend.executionContextDestroyed(context->contextId());
     }
 }
 
 void V8RuntimeAgentImpl::inspect(std::unique_ptr<protocol::Runtime::RemoteObject> objectToInspect, std::unique_ptr<protocol::DictionaryValue> hints)
 {
     if (m_enabled)
-        m_frontend->inspectRequested(std::move(objectToInspect), std::move(hints));
+        m_frontend.inspectRequested(std::move(objectToInspect), std::move(hints));
 }
 
 } // namespace blink

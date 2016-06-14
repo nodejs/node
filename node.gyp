@@ -263,7 +263,7 @@
             'src/inspector-agent.h',
           ],
           'dependencies': [
-            'deps/v8_inspector/v8_inspector.gyp:v8_inspector',
+            'deps/v8_inspector/platform/v8_inspector/v8_inspector.gyp:v8_inspector_stl',
           ],
           'include_dirs': [
             'deps/v8_inspector',

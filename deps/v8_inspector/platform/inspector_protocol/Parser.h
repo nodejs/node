@@ -5,9 +5,8 @@
 #ifndef Parser_h
 #define Parser_h
 
-#include "platform/PlatformExport.h"
+#include "platform/inspector_protocol/Platform.h"
 #include "platform/inspector_protocol/String16.h"
-#include "wtf/PtrUtil.h"
 
 namespace blink {
 namespace protocol {
