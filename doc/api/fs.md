@@ -273,7 +273,7 @@ The path to the file the stream is writing to.
 
 ## fs.access(path[, mode], callback)
 <!-- YAML
-added: v1.0.0
+added: v0.11.15
 -->
 
 Tests a user's permissions for the file specified by `path`. `mode` is an
@@ -302,7 +302,7 @@ fs.access('/etc/passwd', fs.R_OK | fs.W_OK, (err) => {
 
 ## fs.accessSync(path[, mode])
 <!-- YAML
-added: v0.1.93
+added: v0.11.15
 -->
 
 Synchronous version of [`fs.access()`][]. This throws if any accessibility checks
