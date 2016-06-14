@@ -3261,7 +3261,8 @@ void LoadEnvironment(Environment* env) {
   // Execute the lib/internal/bootstrap_node.js file which was included as a
   // static in node_natives.h by node_js2c. 'internal_bootstrap_node_native'
   // is the string containing that source code.
-  Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(), "node.js");
+  Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(),
+          "bootstrap_node.js");
   Local<Value> f_value = ExecuteString(env, MainSource(env), script_name);
   if (try_catch.HasCaught())  {
     ReportException(env, try_catch);
