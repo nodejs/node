@@ -302,7 +302,7 @@ argument to `fs.createWriteStream()`. If `path` is passed as a string, then
 
 ## fs.access(path[, mode], callback)
 <!-- YAML
-added: v1.0.0
+added: v0.11.15
 -->
 
 * `path` {String | Buffer}
@@ -336,7 +336,7 @@ fs.access('/etc/passwd', fs.R_OK | fs.W_OK, (err) => {
 
 ## fs.accessSync(path[, mode])
 <!-- YAML
-added: v0.1.93
+added: v0.11.15
 -->
 
 * `path` {String | Buffer}
