@@ -184,11 +184,23 @@ test-all: test-build test/gc/node_modules/weak/build/Release/weakref.node
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
+CI_NATIVE_SUITES := addons
+CI_JS_SUITES := doctool known_issues message parallel pseudo-tty sequential
+
+test-ci-native: | test/addons/.buildstamp
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
+		--mode=release --flaky-tests=$(FLAKY_TESTS) \
+		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
+
+test-ci-js:
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
+		--mode=release --flaky-tests=$(FLAKY_TESTS) \
+		$(TEST_CI_ARGS) $(CI_JS_SUITES)
+
 test-ci: | build-addons
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) addons doctool known_issues message pseudo-tty parallel \
-		sequential
+		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES) $(CI_JS_SUITES)
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
@@ -299,9 +311,12 @@ docopen: out/doc/api/all.html
 docclean:
 	-rm -rf out/doc
 
-run-ci:
+build-ci:
 	$(PYTHON) ./configure $(CONFIG_FLAGS)
 	$(MAKE)
+
+run-ci:
+	$(MAKE) build-ci
 	$(MAKE) test-ci
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
@@ -715,4 +730,4 @@ endif
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
 	bench-http bench-fs bench-tls cctest run-ci test-v8 test-v8-intl \
 	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci doc-only \
-	$(TARBALL)-headers
+	$(TARBALL)-headers test-ci test-ci-native test-ci-js build-ci
