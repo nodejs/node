@@ -485,8 +485,8 @@ The `addressType` is one of:
 
 ## Event: 'message'
 
-* `worker` {cluster.Worker}
 * `message` {Object}
+* `handle` {undefined|Object}
 
 Emitted when any worker receives a message.
 
