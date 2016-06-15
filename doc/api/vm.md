@@ -202,12 +202,12 @@ added: v0.3.1
 * `sandbox` {Object}
 
 If given a `sandbox` object, the `vm.createContext()` method will [prepare
-that sandbox][#vm_what_does_it_mean_to_contextify_an_object] so that it can be
-used in calls to [`vm.runInContext()`][] or [`script.runInContext()`][]. Inside
-such scripts, the `sandbox` object will be the global object, retaining all of
-its existing properties but also having the built-in objects and functions any
-standard [global object][] has. Outside of scripts run by the vm module,
-`sandbox` will remain unchanged.
+that sandbox][contextified] so that it can be used in calls to
+[`vm.runInContext()`][] or [`script.runInContext()`][]. Inside such scripts,
+the `sandbox` object will be the global object, retaining all of its existing
+properties but also having the built-in objects and functions any standard
+[global object][] has. Outside of scripts run by the vm module, `sandbox` will
+remain unchanged.
 
 If `sandbox` is omitted (or passed explicitly as `undefined`), a new, empty
 [contextified][] sandbox object will be returned.
@@ -384,7 +384,7 @@ console.log('localVar: ', localVar);
 Because `vm.runInThisContext()` does not have access to the local scope,
 `localVar` is unchanged. In contrast, [`eval()`][] *does* have access to the
 local scope, so the value `localVar` is changed. In this way
-`vm.runInThisContext()` is much like an [indirect `eval()` call][], e.g. 
+`vm.runInThisContext()` is much like an [indirect `eval()` call][], e.g.
 `(0,eval)('code')`.
 
 ## Example: Running an HTTP Server within a VM
@@ -415,7 +415,7 @@ let code =
  })`;
 
  vm.runInThisContext(code)(require);
- ```   
+ ```
 
 *Note*: The `require()` in the above case shares the state with context it is
 passed from. This may introduce risks when untrusted code is executed, e.g.
