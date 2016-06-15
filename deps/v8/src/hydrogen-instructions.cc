@@ -3693,6 +3693,11 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 
 bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
+  if (IsOldSpaceAllocation()) {
+    // Do not fold old space allocations because the store buffer might need
+    // to iterate old space pages during scavenges on overflow.
+    return false;
+  }
   DCHECK(side_effect == kNewSpacePromotion);
   Zone* zone = block()->zone();
   Isolate* isolate = block()->isolate();
