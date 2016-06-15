@@ -12,6 +12,10 @@ being installed. You can do this by running:
 
 [autocannon]: https://github.com/mcollina/autocannon
 
+Autocannon is a Node script and will use Node executable that is in the path.
+If you want to compare two HTTP benchmark runs make sure that the Node version
+in the path is not altered.
+
 ## How to run tests
 
 There are three ways to run benchmark tests:
