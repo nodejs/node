@@ -20,7 +20,7 @@ var bench = common.createBenchmark(main, {
 function main(conf) {
   const http = require('http');
   var chunk;
-  var len = conf.kb * 1024;
+  var len = +conf.kb * 1024;
   switch (conf.type) {
     case 'buf':
       chunk = Buffer.alloc(len, 'x');

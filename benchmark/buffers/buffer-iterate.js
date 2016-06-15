@@ -22,7 +22,7 @@ function main(conf) {
   var buffer = new clazz(len);
   buffer.fill(0);
 
-  methods[conf.method](buffer, conf.n);
+  methods[conf.method](buffer, +conf.n);
 }
 
 

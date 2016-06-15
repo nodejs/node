@@ -24,9 +24,9 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var message = Buffer.alloc(conf.len, 'b');
+  var message = Buffer.alloc(+conf.len, 'b');
   bench.start();
-  StreamWrite(conf.algo, conf.keylen, message, conf.writes, conf.len);
+  StreamWrite(conf.algo, conf.keylen, message, +conf.writes, +conf.len);
 }
 
 function StreamWrite(algo, keylen, message, writes, len) {

@@ -40,15 +40,15 @@ function main(conf) {
   var encoding;
   switch (conf.type) {
     case 'asc':
-      message = new Array(conf.len + 1).join('a');
+      message = new Array(+conf.len + 1).join('a');
       encoding = 'ascii';
       break;
     case 'utf':
-      message = new Array(conf.len / 2 + 1).join('ü');
+      message = new Array(+conf.len / 2 + 1).join('ü');
       encoding = 'utf8';
       break;
     case 'buf':
-      message = Buffer.alloc(conf.len, 'b');
+      message = Buffer.alloc(+conf.len, 'b');
       break;
     default:
       throw new Error('unknown message type: ' + conf.type);
@@ -59,7 +59,7 @@ function main(conf) {
   // write data as fast as possible to alice, and have bob decrypt.
   // use old API for comparison to v0.8
   bench.start();
-  fn(alice_cipher, bob_cipher, message, encoding, conf.writes);
+  fn(alice_cipher, bob_cipher, message, encoding, +conf.writes);
 }
 
 function streamWrite(alice, bob, message, encoding, writes) {

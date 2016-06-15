@@ -24,15 +24,15 @@ function main(conf) {
   var encoding;
   switch (conf.type) {
     case 'asc':
-      message = new Array(conf.len + 1).join('a');
+      message = new Array(+conf.len + 1).join('a');
       encoding = 'ascii';
       break;
     case 'utf':
-      message = new Array(conf.len / 2 + 1).join('ü');
+      message = new Array(+conf.len / 2 + 1).join('ü');
       encoding = 'utf8';
       break;
     case 'buf':
-      message = Buffer.alloc(conf.len, 'b');
+      message = Buffer.alloc(+conf.len, 'b');
       break;
     default:
       throw new Error('unknown message type: ' + conf.type);
@@ -41,7 +41,7 @@ function main(conf) {
   var fn = api === 'stream' ? streamWrite : legacyWrite;
 
   bench.start();
-  fn(conf.algo, message, encoding, conf.writes, conf.len);
+  fn(conf.algo, message, encoding, +conf.writes, +conf.len);
 }
 
 function legacyWrite(algo, message, encoding, writes, len) {
