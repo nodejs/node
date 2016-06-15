@@ -55,7 +55,7 @@ assert.strictEqual(decoder.write(Buffer.from('\ufffd\ufffd\ufffd')),
 assert.strictEqual(decoder.end(), '');
 
 decoder = new StringDecoder('utf8');
-assert.strictEqual(decoder.write(Buffer.from('efbfbde2', 'hex')), '\ufffd');
+assert.strictEqual(decoder.write(Buffer.from('EFBFBDE2', 'hex')), '\ufffd');
 assert.strictEqual(decoder.end(), '\ufffd');
 
 
