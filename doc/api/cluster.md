@@ -167,12 +167,12 @@ It is not emitted in the worker.
 ### Event: 'message'
 
 * `message` {Object}
+* `handle` {undefined|Object}
 
-Similar to the `cluster.on('message')` event, but specific to this worker.
+Similar to the `cluster.on('message')` event, but specific to this worker. In a
+worker you can also use `process.on('message')`.
 
-This event is the same as the one provided by [`child_process.fork()`][].
-
-In a worker you can also use `process.on('message')`.
+See [`process` event: `'message'`][].
 
 As an example, here is a cluster that keeps count of the number of requests
 in the master process using the message system:
@@ -689,3 +689,4 @@ socket.on('data', (id) => {
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [child_process event: 'exit']: child_process.html#child_process_event_exit
 [child_process event: 'message']: child_process.html#child_process_event_message
+[`process` event: `'message'`]: process.html#process_event_message
