@@ -110,9 +110,11 @@ void SendTargentsListResponse(inspector_socket_t* socket, int port) {
   char buffer[sizeof(LIST_RESPONSE_TEMPLATE) + 4096];
   char title[2048];  // uv_get_process_title trims the title if too long
   int err = uv_get_process_title(title, sizeof(title));
-  ASSERT_EQ(0, err);
+  if (err != 0) {
+    snprintf(title, sizeof(title), "Node.js");
+  }
   char* c = title;
-  while (!c) {
+  while (*c != '\0') {
     if (*c < ' ' || *c == '\"') {
       *c = '_';
     }
@@ -322,6 +324,8 @@ AgentImpl::AgentImpl(Environment* env) : port_(0),
   int err;
   err = uv_sem_init(&start_sem_, 0);
   CHECK_EQ(err, 0);
+  memset(&data_written_, 0, sizeof(data_written_));
+  memset(&io_thread_req_, 0, sizeof(io_thread_req_));
 }
 
 AgentImpl::~AgentImpl() {
