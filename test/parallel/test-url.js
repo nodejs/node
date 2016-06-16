@@ -1623,3 +1623,6 @@ for (let i = 0; i < throws.length; i++) {
 }
 assert(url.format('') === '');
 assert(url.format({}) === '');
+
+// https://github.com/nodejs/node/issues/6004
+assert.equal(url.format({pathname:'/foo', query: 'bar=baz'}), '/foo?bar=baz');
