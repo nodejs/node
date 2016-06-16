@@ -10,6 +10,8 @@ if (common.isFreeBSD) {
   return;
 }
 
+common.refreshTmpDir();
+
 const fn = '新建文夹件.txt';
 const a = path.join(common.tmpDir, fn);
 
