@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#6.2.2">6.2.2</a><br/>
 <a href="#6.2.1">6.2.1</a><br/>
 <a href="#6.2.0">6.2.0</a><br/>
 <a href="#6.1.0">6.1.0</a><br/>
@@ -25,6 +26,82 @@
 **Note:** The v6 release line will be covered by the
 [Node.js Long Term Support plan](https://github.com/nodejs/LTS) starting in
 October 2016.
+
+<a id="6.2.2"></a>
+## 2016-06-17, Version 6.2.2 (Current), @evanlucas
+
+### Notable changes
+
+* **http**:
+  - `req.read(0)` could cause incoming connections to stall and time out under certain conditions. (Fedor Indutny) [#7211](https://github.com/nodejs/node/pull/7211)
+  - When freeing the socket to be reused in keep-alive Agent wait for both prefinish and end events. Otherwise the next request may be written before the previous one has finished sending the body, leading to a parser errors. (Fedor Indutny) [#7149](https://github.com/nodejs/node/pull/7149)
+* **npm**: upgrade npm to 3.9.5 (Kat Marchán) [#7139](https://github.com/nodejs/node/pull/7139)
+
+### Commits
+
+* [[`d71ede8113`](https://github.com/nodejs/node/commit/d71ede8113)] - **benchmark**: don't convert arguments to numbers (Brian White) [#6570](https://github.com/nodejs/node/pull/6570)
+* [[`32f76983e2`](https://github.com/nodejs/node/commit/32f76983e2)] - **benchmark**: increase http token check iterations (Brian White) [#6570](https://github.com/nodejs/node/pull/6570)
+* [[`23a495a9a9`](https://github.com/nodejs/node/commit/23a495a9a9)] - **benchmark**: add benchmark for url.format() (Rich Trott) [#7250](https://github.com/nodejs/node/pull/7250)
+* [[`27ed7fc56c`](https://github.com/nodejs/node/commit/27ed7fc56c)] - **benchmark**: fix child-process-exec-stdout on win (Bartosz Sosnowski) [#7178](https://github.com/nodejs/node/pull/7178)
+* [[`5e5af8b4bb`](https://github.com/nodejs/node/commit/5e5af8b4bb)] - **benchmark**: fix child-process-read on Windows (Bartosz Sosnowski) [#6971](https://github.com/nodejs/node/pull/6971)
+* [[`d24e4095bf`](https://github.com/nodejs/node/commit/d24e4095bf)] - **benchmark**: add benchmark for Buffer.concat (Anna Henningsen) [#7054](https://github.com/nodejs/node/pull/7054)
+* [[`666b6f9302`](https://github.com/nodejs/node/commit/666b6f9302)] - **build**: add REPLACEME tag for version info in docs (Ben Noordhuis) [#6864](https://github.com/nodejs/node/pull/6864)
+* [[`6d3d2d1ae4`](https://github.com/nodejs/node/commit/6d3d2d1ae4)] - **cluster**: don't send messages if no IPC channel (Santiago Gimeno) [#7132](https://github.com/nodejs/node/pull/7132)
+* [[`068718c91c`](https://github.com/nodejs/node/commit/068718c91c)] - **debugger**: remove obsolete setTimeout (Rich Trott) [#7154](https://github.com/nodejs/node/pull/7154)
+* [[`2961f06f6f`](https://github.com/nodejs/node/commit/2961f06f6f)] - **debugger**: fix --debug-brk interaction with -e (Rich Trott) [#7089](https://github.com/nodejs/node/pull/7089)
+* [[`701e699d4f`](https://github.com/nodejs/node/commit/701e699d4f)] - **deps**: upgrade npm to 3.9.5 (Kat Marchán) [#7139](https://github.com/nodejs/node/pull/7139)
+* [[`1095ae1ac5`](https://github.com/nodejs/node/commit/1095ae1ac5)] - **doc**: Add CII Best Practices badge to README.md (David A. Wheeler) [#6819](https://github.com/nodejs/node/pull/6819)
+* [[`0198987b0d`](https://github.com/nodejs/node/commit/0198987b0d)] - **doc**: add internal link in GOVERNANCE.md (Rich Trott) [#7279](https://github.com/nodejs/node/pull/7279)
+* [[`8e14f761bb`](https://github.com/nodejs/node/commit/8e14f761bb)] - **doc**: use `Buffer.byteLength` for Content-Length (kimown) [#7274](https://github.com/nodejs/node/pull/7274)
+* [[`5d03bdd94f`](https://github.com/nodejs/node/commit/5d03bdd94f)] - **doc**: add information for IncomingMessage.destroy() (Rich Trott) [#7237](https://github.com/nodejs/node/pull/7237)
+* [[`a113734099`](https://github.com/nodejs/node/commit/a113734099)] - **doc**: general improvements to path.md copy (James M Snell) [#7122](https://github.com/nodejs/node/pull/7122)
+* [[`b5e44df9a3`](https://github.com/nodejs/node/commit/b5e44df9a3)] - **doc**: make pull request template more concise (Rich Trott) [#7239](https://github.com/nodejs/node/pull/7239)
+* [[`40a5974a0e`](https://github.com/nodejs/node/commit/40a5974a0e)] - **doc**: `url.format()` parameter may be a string (Rich Trott) [#7235](https://github.com/nodejs/node/pull/7235)
+* [[`a7d813915e`](https://github.com/nodejs/node/commit/a7d813915e)] - **doc**: clarify use of `0` port value (Rich Trott) [#7206](https://github.com/nodejs/node/pull/7206)
+* [[`0fc8012b65`](https://github.com/nodejs/node/commit/0fc8012b65)] - **doc**: remove cluster.setupMaster() myth (cjihrig) [#7179](https://github.com/nodejs/node/pull/7179)
+* [[`70167fd1d4`](https://github.com/nodejs/node/commit/70167fd1d4)] - **doc**: fix IRC link (Ilkka Myller) [#7210](https://github.com/nodejs/node/pull/7210)
+* [[`4f2215fd98`](https://github.com/nodejs/node/commit/4f2215fd98)] - **doc**: fix minor nit introduced in readline.md (James M Snell) [#7198](https://github.com/nodejs/node/pull/7198)
+* [[`d31f728e09`](https://github.com/nodejs/node/commit/d31f728e09)] - **doc**: clarify rl.question callback args (James M Snell) [#7022](https://github.com/nodejs/node/pull/7022)
+* [[`70f2f357be`](https://github.com/nodejs/node/commit/70f2f357be)] - **doc**: general improvements to readline.md copy (James M Snell) [#7022](https://github.com/nodejs/node/pull/7022)
+* [[`c2aba5ba27`](https://github.com/nodejs/node/commit/c2aba5ba27)] - **doc**: consolidate test/lint text in GH PR template (Rich Trott) [#7155](https://github.com/nodejs/node/pull/7155)
+* [[`712120112f`](https://github.com/nodejs/node/commit/712120112f)] - **doc**: use consistent typography in streams.md (Rich Trott) [#6986](https://github.com/nodejs/node/pull/6986)
+* [[`e2f6f8061b`](https://github.com/nodejs/node/commit/e2f6f8061b)] - **doc**: general improvements to process.md copy (James M Snell) [#7029](https://github.com/nodejs/node/pull/7029)
+* [[`84ea6fc57c`](https://github.com/nodejs/node/commit/84ea6fc57c)] - **doc**: general improvements to repl.md copy (James M Snell) [#7002](https://github.com/nodejs/node/pull/7002)
+* [[`bfb7e3cc6e`](https://github.com/nodejs/node/commit/bfb7e3cc6e)] - **doc**: add `added:` information for readline (Julian Duque) [#6996](https://github.com/nodejs/node/pull/6996)
+* [[`632b411cd0`](https://github.com/nodejs/node/commit/632b411cd0)] - **doc**: improved syntax consistency in console.md (Jonathan Montane) [#7062](https://github.com/nodejs/node/pull/7062)
+* [[`826bd99486`](https://github.com/nodejs/node/commit/826bd99486)] - **doc**: specify how to link issues in commit log (Luigi Pinca) [#7161](https://github.com/nodejs/node/pull/7161)
+* [[`865644a604`](https://github.com/nodejs/node/commit/865644a604)] - **doc**: general improvements to querystring.md copy (James M Snell) [#7023](https://github.com/nodejs/node/pull/7023)
+* [[`dd4c607267`](https://github.com/nodejs/node/commit/dd4c607267)] - **doc**: fix header depth of util.isSymbol (James M Snell) [#7138](https://github.com/nodejs/node/pull/7138)
+* [[`5086e5f3ee`](https://github.com/nodejs/node/commit/5086e5f3ee)] - **doc**: general improvements to stream.md copy (James M Snell) [#6947](https://github.com/nodejs/node/pull/6947)
+* [[`75d6875034`](https://github.com/nodejs/node/commit/75d6875034)] - **doc**: update licenses (Myles Borins) [#7121](https://github.com/nodejs/node/pull/7121)
+* [[`dc8cb93c4f`](https://github.com/nodejs/node/commit/dc8cb93c4f)] - **doc**: add `added:` information for dns (Julian Duque) [#7021](https://github.com/nodejs/node/pull/7021)
+* [[`a7c85e6fd5`](https://github.com/nodejs/node/commit/a7c85e6fd5)] - **doc**: add `added:` information for path (Julian Duque) [#6985](https://github.com/nodejs/node/pull/6985)
+* [[`026bf17378`](https://github.com/nodejs/node/commit/026bf17378)] - **doc**: add `added` information for net (Italo A. Casas) [#7038](https://github.com/nodejs/node/pull/7038)
+* [[`d4a2c82f5f`](https://github.com/nodejs/node/commit/d4a2c82f5f)] - **doc**: general improvements to punycode.md copy (James M Snell) [#7025](https://github.com/nodejs/node/pull/7025)
+* [[`51d295efe6`](https://github.com/nodejs/node/commit/51d295efe6)] - **doc**: add links to platform specific mechanisms (Michael Dawson) [#7071](https://github.com/nodejs/node/pull/7071)
+* [[`1600966f59`](https://github.com/nodejs/node/commit/1600966f59)] - **fs**: execute mkdtemp's callback with no context (Sakthipriyan Vairamani) [#7068](https://github.com/nodejs/node/pull/7068)
+* [[`ad1045c829`](https://github.com/nodejs/node/commit/ad1045c829)] - **http**: fix no dumping after `maybeReadMore` (Fedor Indutny) [#7211](https://github.com/nodejs/node/pull/7211)
+* [[`2a462ba1e2`](https://github.com/nodejs/node/commit/2a462ba1e2)] - **http**: optimize checkInvalidHeaderChar() (Brian White) [#6570](https://github.com/nodejs/node/pull/6570)
+* [[`4a63be031f`](https://github.com/nodejs/node/commit/4a63be031f)] - **http**: optimize checkIsHttpToken() (Brian White) [#6570](https://github.com/nodejs/node/pull/6570)
+* [[`40e49dee82`](https://github.com/nodejs/node/commit/40e49dee82)] - **http**: wait for both prefinish/end to keepalive (Fedor Indutny) [#7149](https://github.com/nodejs/node/pull/7149)
+* [[`e8c91e7557`](https://github.com/nodejs/node/commit/e8c91e7557)] - **repl**: refine handling of illegal tokens (Rich Trott) [#7104](https://github.com/nodejs/node/pull/7104)
+* [[`cf0928ccb7`](https://github.com/nodejs/node/commit/cf0928ccb7)] - **src**: clean up string_search (Brian White) [#7174](https://github.com/nodejs/node/pull/7174)
+* [[`b0225e5926`](https://github.com/nodejs/node/commit/b0225e5926)] - **stream**: ensure awaitDrain is increased once (David Halls) [#7292](https://github.com/nodejs/node/pull/7292)
+* [[`9c6b69ec1b`](https://github.com/nodejs/node/commit/9c6b69ec1b)] - **stream**: reset awaitDrain after manual .resume() (Anna Henningsen) [#7160](https://github.com/nodejs/node/pull/7160)
+* [[`caa6718a01`](https://github.com/nodejs/node/commit/caa6718a01)] - **test**: fix test-net-* error code check for getaddrinfo(3) (Natanael Copa) [#5099](https://github.com/nodejs/node/pull/5099)
+* [[`535c8dd554`](https://github.com/nodejs/node/commit/535c8dd554)] - **test**: add more http token/value checking tests (Brian White) [#6570](https://github.com/nodejs/node/pull/6570)
+* [[`257f4e6202`](https://github.com/nodejs/node/commit/257f4e6202)] - **test**: add note about duration_ms in TAP reporter (Rod Vagg) [#7216](https://github.com/nodejs/node/pull/7216)
+* [[`798a737f45`](https://github.com/nodejs/node/commit/798a737f45)] - ***Revert*** "**test**: change duration_ms to duration" (Rod Vagg) [#7216](https://github.com/nodejs/node/pull/7216)
+* [[`72e4e43b91`](https://github.com/nodejs/node/commit/72e4e43b91)] - **test**: rebuild add-ons when their sources change (Ben Noordhuis) [#7262](https://github.com/nodejs/node/pull/7262)
+* [[`eded11705b`](https://github.com/nodejs/node/commit/eded11705b)] - **test**: use random ports where possible (Brian White) [#7045](https://github.com/nodejs/node/pull/7045)
+* [[`d54c7c19a6`](https://github.com/nodejs/node/commit/d54c7c19a6)] - **test**: fix spawn on windows (Brian White) [#7049](https://github.com/nodejs/node/pull/7049)
+* [[`e873063a3c`](https://github.com/nodejs/node/commit/e873063a3c)] - **test**: enable test-debug-brk-no-arg (Rich Trott) [#7143](https://github.com/nodejs/node/pull/7143)
+* [[`d6091c8194`](https://github.com/nodejs/node/commit/d6091c8194)] - **test**: use common.fixturesDir almost everywhere (Bryan English) [#6997](https://github.com/nodejs/node/pull/6997)
+* [[`e8b1456d8b`](https://github.com/nodejs/node/commit/e8b1456d8b)] - **test**: change duration_ms to duration (Gibson Fahnestock) [#7133](https://github.com/nodejs/node/pull/7133)
+* [[`6ce26c8c8b`](https://github.com/nodejs/node/commit/6ce26c8c8b)] - **test**: add test for uid/gid setting in spawn (Rich Trott) [#7084](https://github.com/nodejs/node/pull/7084)
+* [[`40604b54d4`](https://github.com/nodejs/node/commit/40604b54d4)] - **test**: remove disabled eio race test (Rich Trott) [#7083](https://github.com/nodejs/node/pull/7083)
+* [[`9545c41cba`](https://github.com/nodejs/node/commit/9545c41cba)] - **tools**: fix license builder to work with icu-small (Myles Borins) [#7119](https://github.com/nodejs/node/pull/7119)
+* [[`6562c9fc75`](https://github.com/nodejs/node/commit/6562c9fc75)] - **tools,doc**: add example usage for REPLACEME tag (Anna Henningsen) [#6864](https://github.com/nodejs/node/pull/6864)
 
 <a id="6.2.1"></a>
 ## 2016-06-02, Version 6.2.1 (Current), @rvagg
@@ -196,7 +273,7 @@ October 2016.
 - **src,module**: add --preserve-symlinks command line flag (James M Snell) [#6537](https://github.com/nodejs/node/pull/6537)
 - **util**: adhere to `noDeprecation` set at runtime (Anna Henningsen) [#6683](https://github.com/nodejs/node/pull/6683)
 
-As of this release the 6.X line now includes 64-bit binaries for Linux on Power Systems 
+As of this release the 6.X line now includes 64-bit binaries for Linux on Power Systems
 running in big endian mode in addition to the existing 64-bit binaries for running in little endian mode.
 
 ### Commits
