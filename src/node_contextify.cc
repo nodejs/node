@@ -205,7 +205,11 @@ class ContextifyContext {
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
 
-    CHECK(!ctx.IsEmpty());
+    if (ctx.IsEmpty()) {
+      env->ThrowError("Could not instantiate context");
+      return Local<Context>();
+    }
+
     ctx->SetSecurityToken(env->context()->GetSecurityToken());
 
     // We need to tie the lifetime of the sandbox object with the lifetime of
