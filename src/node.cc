@@ -152,7 +152,7 @@ static node_module* modpending;
 static node_module* modlist_builtin;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
-static const char* nodereport_events = "";
+static unsigned int nodereport_events = 0;
 static int nodereport_signal = 0;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -189,6 +189,7 @@ static v8::Platform* default_platform;
 
 #ifdef __POSIX__
 static uv_sem_t debug_semaphore;
+static uv_sem_t report_semaphore;
 static uv_async_t nodereport_trigger_async;
 #endif
 
@@ -1602,8 +1603,9 @@ static void ReportException(Environment* env,
   fflush(stderr);
 
   // Trigger NodeReport if required
-  if (strstr(nodereport_events,"exception")) {
-    TriggerNodeReport(env->isolate(), kException, "Uncaught exception", "node::ReportException", message);
+  if (nodereport_events & NR_EXCEPTION) {
+    TriggerNodeReport(env->isolate(), kException,
+                      "Uncaught exception", "node::ReportException", message);
   }
 }
 
@@ -2346,7 +2348,7 @@ static void OnFatalError(const char* location, const char* message) {
     PrintErrorString("FATAL ERROR: %s\n", message);
   }
   // Trigger NodeReport if required
-  if (strstr(nodereport_events,"fatalerror")) {
+  if (nodereport_events & NR_FATALERROR) {
     TriggerNodeReport(Isolate::GetCurrent(), kFatalError, message, location);
   }
   fflush(stderr);
@@ -3240,32 +3242,52 @@ static void SignalExit(int signo) {
 }
 
 #ifdef __POSIX__
-// Callbacks for triggering NodeReport on external signal - these run on the main event loop thread
+// Callbacks for triggering NodeReport on external signal, run on event loop
 static void SignalDumpInterruptCallback(Isolate *isolate, void *data) {
   if (nodereport_signal != 0) {
-    TriggerNodeReport(Isolate::GetCurrent(), kSignal_JS, signo_string(*((int *)data)), "node::SignalDumpInterruptCallback()");
+    TriggerNodeReport(Isolate::GetCurrent(), kSignal_JS,
+                      signo_string(*(static_cast<int *>(data))),
+                      "node::SignalDumpInterruptCallback()");
     nodereport_signal = 0;
   }
 }
 static void SignalDumpAsyncCallback(uv_async_t* handle) {
   if (nodereport_signal != 0) {
-    TriggerNodeReport(Isolate::GetCurrent(), kSignal_UV, signo_string((int)(size_t)handle->data), "node::SignalDumpAsyncCallback()");
+    size_t signo_data = reinterpret_cast<size_t>(handle->data);
+    TriggerNodeReport(Isolate::GetCurrent(), kSignal_UV,
+                      signo_string(static_cast<int>(signo_data)),
+                      "node::SignalDumpAsyncCallback()");
     nodereport_signal = 0;
   }
 }
 
 // Raw signal handler for triggering a NodeReport - runs on an arbitrary thread
 static void SignalDump(int signo) {
-  // Check atomic for NodeReport already pending
+  // Check atomic for NodeReport already pending, storing the signal number
   if (__sync_val_compare_and_swap(&nodereport_signal, 0, signo) == 0) {
-    fprintf(stderr,"Signal %s received, triggering NodeReport\n", signo_string(signo));
-    Isolate::GetCurrent()->RequestInterrupt(SignalDumpInterruptCallback, &nodereport_signal);
-    // Event loop may be idle, so also request an async callback
-    nodereport_trigger_async.data = (void *)(size_t)signo;
-    uv_async_send(&nodereport_trigger_async);
-  } else {
-    fprintf(stderr,"Signal %s received, NodeReport pending\n", signo_string(signo));
+    uv_sem_post(&report_semaphore);  // Hand-off to watchdog thread
   }
+}
+
+// Watchdog thread implementation for signal-triggered NodeReport
+inline void* ReportSignalThreadMain(void* unused) {
+  for (;;) {
+    uv_sem_wait(&report_semaphore);
+    fprintf(stderr, "Signal %s received, triggering NodeReport\n",
+            signo_string(nodereport_signal));
+    uv_mutex_lock(&node_isolate_mutex);
+    if (auto isolate = node_isolate) {
+      // Request interrupt callback for running Javascript code
+      isolate->RequestInterrupt(SignalDumpInterruptCallback,
+                                &nodereport_signal);
+      // Event loop may be idle, so also request an async callback
+      size_t signo_data = static_cast<size_t>(nodereport_signal);
+      nodereport_trigger_async.data = reinterpret_cast<void *>(signo_data);
+      uv_async_send(&nodereport_trigger_async);
+    }
+    uv_mutex_unlock(&node_isolate_mutex);
+  }
+  return nullptr;
 }
 #endif
 
@@ -3288,9 +3310,10 @@ void LoadEnvironment(Environment* env) {
   env->isolate()->SetFatalErrorHandler(node::OnFatalError);
   env->isolate()->AddMessageListener(OnMessage);
 
-  // If NodeReport requested for exception events, tell V8 to capture stack traces
-  if (strstr(nodereport_events,"exception")) {
-    env->isolate()->SetCaptureStackTraceForUncaughtExceptions(true, 32, v8::StackTrace::kDetailed);
+  // If NodeReport requested for exceptions, tell V8 to capture stack trace
+  if (nodereport_events & NR_EXCEPTION) {
+    env->isolate()->SetCaptureStackTraceForUncaughtExceptions(true, 32,
+                                                    v8::StackTrace::kDetailed);
   }
 
   // Compile, execute the src/node.js file. (Which was included as static C
@@ -3620,7 +3643,8 @@ static void ParseArgs(int* argc,
                strcmp(arg, "--expose_internals") == 0) {
       // consumed in js
     } else if (strncmp(arg, "--nodereport-events=", 20) == 0) {
-      nodereport_events = arg + 20;
+      const char* events = arg + 20;
+      nodereport_events = ProcessNodeReportArgs(events);
     } else {
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
@@ -3800,12 +3824,7 @@ inline void* DebugSignalThreadMain(void* unused) {
   return nullptr;
 }
 
-
-static int RegisterDebugSignalHandler() {
-  // Start a watchdog thread for calling v8::Debug::DebugBreak() because
-  // it's not safe to call directly from the signal handler, it can
-  // deadlock with the thread it interrupts.
-  CHECK_EQ(0, uv_sem_init(&debug_semaphore, 0));
+static int StartWatchdogThread(void *(*thread_main) (void* unused)) {
   pthread_attr_t attr;
   CHECK_EQ(0, pthread_attr_init(&attr));
   // Don't shrink the thread's stack on FreeBSD.  Said platform decided to
@@ -3820,22 +3839,32 @@ static int RegisterDebugSignalHandler() {
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, &sigmask));
   pthread_t thread;
   const int err =
-      pthread_create(&thread, &attr, DebugSignalThreadMain, nullptr);
+      pthread_create(&thread, &attr, thread_main, nullptr);
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
   CHECK_EQ(0, pthread_attr_destroy(&attr));
   if (err != 0) {
     fprintf(stderr, "node[%d]: pthread_create: %s\n", getpid(), strerror(err));
     fflush(stderr);
-    // Leave SIGUSR1 blocked.  We don't install a signal handler,
-    // receiving the signal would terminate the process.
     return -err;
   }
-  RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
-  // Unblock SIGUSR1.  A pending SIGUSR1 signal will now be delivered.
-  sigemptyset(&sigmask);
-  sigaddset(&sigmask, SIGUSR1);
-  CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sigmask, nullptr));
   return 0;
+}
+
+static int RegisterDebugSignalHandler() {
+  // Start a watchdog thread for calling v8::Debug::DebugBreak() because
+  // it's not safe to call directly from the signal handler, it can
+  // deadlock with the thread it interrupts.
+  CHECK_EQ(0, uv_sem_init(&debug_semaphore, 0));
+  const int err = StartWatchdogThread(DebugSignalThreadMain);
+  if (err == 0) {
+    RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
+    // Unblock SIGUSR1.  A pending SIGUSR1 signal will now be delivered.
+    sigset_t sigmask;
+    sigemptyset(&sigmask);
+    sigaddset(&sigmask, SIGUSR1);
+    CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sigmask, nullptr));
+  }
+  return err;
 }
 #endif  // __POSIX__
 
@@ -4121,16 +4150,20 @@ void Init(int* argc,
     uv_loop_configure(uv_default_loop(), UV_LOOP_BLOCK_SIGNAL, SIGPROF);
   }
 
-  // If NodeReport requested on user signal, initialise async handler
-  if (strstr(nodereport_events,"sig")) {
-    uv_async_init(uv_default_loop(), &nodereport_trigger_async, SignalDumpAsyncCallback);
-    uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
-    // Now register the external signal handlers, as requested
-    if (strstr(nodereport_events,"sigquit")) {
-      RegisterSignalHandler(SIGQUIT, SignalDump, false);
-    }
-    if (strstr(nodereport_events,"sigusr2")) {
-      RegisterSignalHandler(SIGUSR2, SignalDump, false);
+  // Setup for NodeReport requested on external user signal
+  if (nodereport_events & NR_SIGQUIT || nodereport_events & NR_SIGUSR2) {
+    CHECK_EQ(0, uv_sem_init(&report_semaphore, 0));
+    if (StartWatchdogThread(ReportSignalThreadMain) == 0) {
+      uv_async_init(uv_default_loop(), &nodereport_trigger_async,
+                    SignalDumpAsyncCallback);
+      uv_unref(reinterpret_cast<uv_handle_t*>(&nodereport_trigger_async));
+      // Now register the external signal handlers, as requested
+      if (nodereport_events & NR_SIGQUIT) {
+        RegisterSignalHandler(SIGQUIT, SignalDump, false);
+      }
+      if (nodereport_events & NR_SIGUSR2) {
+        RegisterSignalHandler(SIGUSR2, SignalDump, false);
+      }
     }
   }
 #endif

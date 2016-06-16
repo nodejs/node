@@ -180,6 +180,7 @@
         'src/node_watchdog.h',
         'src/node_wrap.h',
         'src/node_revert.h',
+        'src/node_report.h',
         'src/node_i18n.h',
         'src/pipe_wrap.h',
         'src/tty_wrap.h',

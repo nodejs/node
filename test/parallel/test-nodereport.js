@@ -24,8 +24,7 @@ child.on('exit', function(code, signal) {
   fs.readdir(common.tmpDir, function(err, files) {
     for (var i = 0; i < files.length; i++) {
       if (files[i].substring(0, 10) == 'NodeReport' &&
-          files[i].substring(27, 31) == child.pid) {
-
+          files[i].indexOf(child.pid) != -1) {
         // Located NodeReport with expected PID
         console.log('test-nodereport.js: located NodeReport: ',
                     path.join(common.tmpDir, files[i]));
