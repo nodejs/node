@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_mutex.h"
 #include "util.h"
 #include "util-inl.h"
 #include "uv.h"
@@ -117,7 +118,7 @@ class Agent {
   bool wait_;
 
   uv_sem_t start_sem_;
-  uv_mutex_t message_mutex_;
+  node::Mutex message_mutex_;
   uv_async_t child_signal_;
 
   uv_thread_t thread_;

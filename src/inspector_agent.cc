@@ -4,6 +4,7 @@
 #include "env.h"
 #include "env-inl.h"
 #include "node.h"
+#include "node_mutex.h"
 #include "node_version.h"
 #include "v8-platform.h"
 #include "util.h"
@@ -189,9 +190,9 @@ class AgentImpl {
   void Write(const std::string& message);
 
   uv_sem_t start_sem_;
-  uv_cond_t pause_cond_;
-  uv_mutex_t queue_lock_;
-  uv_mutex_t pause_lock_;
+  ConditionVariable pause_cond_;
+  Mutex pause_lock_;
+  Mutex queue_lock_;
   uv_thread_t thread_;
   uv_loop_t child_loop_;
 
@@ -290,9 +291,10 @@ class V8NodeInspector : public blink::V8Inspector {
     terminated_ = false;
     running_nested_loop_ = true;
     do {
-      uv_mutex_lock(&agent_->pause_lock_);
-      uv_cond_wait(&agent_->pause_cond_, &agent_->pause_lock_);
-      uv_mutex_unlock(&agent_->pause_lock_);
+      {
+        Mutex::ScopedLock scoped_lock(agent_->pause_lock_);
+        agent_->pause_cond_.Wait(scoped_lock);
+      }
       while (v8::platform::PumpMessageLoop(platform_, isolate_))
         {}
     } while (!terminated_);
@@ -321,9 +323,7 @@ AgentImpl::AgentImpl(Environment* env) : port_(0),
                                          inspector_(nullptr),
                                          platform_(nullptr),
                                          dispatching_messages_(false) {
-  int err;
-  err = uv_sem_init(&start_sem_, 0);
-  CHECK_EQ(err, 0);
+  CHECK_EQ(0, uv_sem_init(&start_sem_, 0));
   memset(&data_written_, 0, sizeof(data_written_));
   memset(&io_thread_req_, 0, sizeof(io_thread_req_));
 }
@@ -331,9 +331,6 @@ AgentImpl::AgentImpl(Environment* env) : port_(0),
 AgentImpl::~AgentImpl() {
   if (!inspector_)
     return;
-  uv_mutex_destroy(&queue_lock_);
-  uv_mutex_destroy(&pause_lock_);
-  uv_cond_destroy(&pause_cond_);
   uv_close(reinterpret_cast<uv_handle_t*>(&data_written_), nullptr);
 }
 
@@ -348,12 +345,6 @@ void AgentImpl::Start(v8::Platform* platform, int port, bool wait) {
   err = uv_loop_init(&child_loop_);
   CHECK_EQ(err, 0);
   err = uv_async_init(env->event_loop(), &data_written_, nullptr);
-  CHECK_EQ(err, 0);
-  err = uv_mutex_init(&queue_lock_);
-  CHECK_EQ(err, 0);
-  err = uv_mutex_init(&pause_lock_);
-  CHECK_EQ(err, 0);
-  err = uv_cond_init(&pause_cond_);
   CHECK_EQ(err, 0);
 
   uv_unref(reinterpret_cast<uv_handle_t*>(&data_written_));
@@ -441,6 +432,7 @@ void AgentImpl::OnRemoteDataIO(uv_stream_t* stream,
                            const uv_buf_t* b) {
   inspector_socket_t* socket = static_cast<inspector_socket_t*>(stream->data);
   AgentImpl* agent = static_cast<AgentImpl*>(socket->data);
+  Mutex::ScopedLock scoped_lock(agent->pause_lock_);
   if (read > 0) {
     std::string str(b->base, read);
     agent->PushPendingMessage(&agent->message_queue_, str);
@@ -470,21 +462,19 @@ void AgentImpl::OnRemoteDataIO(uv_stream_t* stream,
     }
     DisconnectAndDisposeIO(socket);
   }
-  uv_cond_broadcast(&agent->pause_cond_);
+  agent->pause_cond_.Broadcast(scoped_lock);
 }
 
 void AgentImpl::PushPendingMessage(std::vector<std::string>* queue,
-                               const std::string& message) {
-  uv_mutex_lock(&queue_lock_);
+                                   const std::string& message) {
+  Mutex::ScopedLock scoped_lock(queue_lock_);
   queue->push_back(message);
-  uv_mutex_unlock(&queue_lock_);
 }
 
 void AgentImpl::SwapBehindLock(std::vector<std::string> AgentImpl::*queue,
-                           std::vector<std::string>* output) {
-  uv_mutex_lock(&queue_lock_);
+                               std::vector<std::string>* output) {
+  Mutex::ScopedLock scoped_lock(queue_lock_);
   (this->*queue).swap(*output);
-  uv_mutex_unlock(&queue_lock_);
 }
 
 // static
