@@ -215,7 +215,11 @@ _ERROR_CATEGORIES = [
 # flag. By default all errors are on, so only add here categories that should be
 # off by default (i.e., categories that must be enabled by the --filter= flags).
 # All entries here should start with a '-' or '+', as in the --filter= flag.
-_DEFAULT_FILTERS = [ '-build/include_alpha', '-legal/copyright' ]
+_DEFAULT_FILTERS = [
+  '-build/include_alpha',
+  '-legal/copyright',
+  '-readability/function',
+  ]
 
 # We used to check for high-bit characters, but after much discussion we
 # decided those were OK, as long as they were in UTF-8 and didn't represent
