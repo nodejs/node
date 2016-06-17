@@ -115,7 +115,7 @@ static X509_NAME *cnnic_ev_name =
     d2i_X509_NAME(nullptr, &cnnic_ev_p,
                   sizeof(CNNIC_EV_ROOT_CA_SUBJECT_DATA)-1);
 
-static uv_mutex_t* locks;
+static Mutex* mutexes;
 
 const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
@@ -182,14 +182,7 @@ static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
 
 
 static void crypto_lock_init(void) {
-  int i, n;
-
-  n = CRYPTO_num_locks();
-  locks = new uv_mutex_t[n];
-
-  for (i = 0; i < n; i++)
-    if (uv_mutex_init(locks + i))
-      ABORT();
+  mutexes = new Mutex[CRYPTO_num_locks()];
 }
 
 
@@ -197,10 +190,11 @@ static void crypto_lock_cb(int mode, int n, const char* file, int line) {
   CHECK(!(mode & CRYPTO_LOCK) ^ !(mode & CRYPTO_UNLOCK));
   CHECK(!(mode & CRYPTO_READ) ^ !(mode & CRYPTO_WRITE));
 
+  auto mutex = &mutexes[n];
   if (mode & CRYPTO_LOCK)
-    uv_mutex_lock(locks + n);
+    mutex->Lock();
   else
-    uv_mutex_unlock(locks + n);
+    mutex->Unlock();
 }
 
 

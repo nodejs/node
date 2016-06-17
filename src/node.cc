@@ -182,7 +182,7 @@ static double prog_start_time;
 static bool debugger_running;
 static uv_async_t dispatch_debug_messages_async;
 
-static uv_mutex_t node_isolate_mutex;
+static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
 static v8::Platform* default_platform;
 
@@ -3782,18 +3782,17 @@ static void EnableDebug(Environment* env) {
 
 // Called from an arbitrary thread.
 static void TryStartDebugger() {
-  uv_mutex_lock(&node_isolate_mutex);
+  Mutex::ScopedLock scoped_lock(node_isolate_mutex);
   if (auto isolate = node_isolate) {
     v8::Debug::DebugBreak(isolate);
     uv_async_send(&dispatch_debug_messages_async);
   }
-  uv_mutex_unlock(&node_isolate_mutex);
 }
 
 
 // Called from the main thread.
 static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
-  uv_mutex_lock(&node_isolate_mutex);
+  Mutex::ScopedLock scoped_lock(node_isolate_mutex);
   if (auto isolate = node_isolate) {
     if (debugger_running == false) {
       fprintf(stderr, "Starting debugger agent.\n");
@@ -3809,7 +3808,6 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
     Isolate::Scope isolate_scope(isolate);
     v8::Debug::ProcessDebugMessages(isolate);
   }
-  uv_mutex_unlock(&node_isolate_mutex);
 }
 
 
@@ -4143,8 +4141,6 @@ void Init(int* argc,
   // Make inherited handles noninheritable.
   uv_disable_stdio_inheritance();
 
-  CHECK_EQ(0, uv_mutex_init(&node_isolate_mutex));
-
   // init async debug messages dispatching
   // Main thread uses uv_default_loop
   uv_async_init(uv_default_loop(),
@@ -4428,12 +4424,13 @@ static void StartNodeInstance(void* arg) {
 #endif
   Isolate* isolate = Isolate::New(params);
 
-  uv_mutex_lock(&node_isolate_mutex);
-  if (instance_data->is_main()) {
-    CHECK_EQ(node_isolate, nullptr);
-    node_isolate = isolate;
+  {
+    Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+    if (instance_data->is_main()) {
+      CHECK_EQ(node_isolate, nullptr);
+      node_isolate = isolate;
+    }
   }
-  uv_mutex_unlock(&node_isolate_mutex);
 
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
@@ -4503,10 +4500,11 @@ static void StartNodeInstance(void* arg) {
     env = nullptr;
   }
 
-  uv_mutex_lock(&node_isolate_mutex);
-  if (node_isolate == isolate)
-    node_isolate = nullptr;
-  uv_mutex_unlock(&node_isolate_mutex);
+  {
+    Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+    if (node_isolate == isolate)
+      node_isolate = nullptr;
+  }
 
   CHECK_NE(isolate, nullptr);
   isolate->Dispose();
