@@ -55,13 +55,7 @@ Agent::Agent(Environment* env) : state_(kNone),
                                  parent_env_(env),
                                  child_env_(nullptr),
                                  dispatch_handler_(nullptr) {
-  int err;
-
-  err = uv_sem_init(&start_sem_, 0);
-  CHECK_EQ(err, 0);
-
-  err = uv_mutex_init(&message_mutex_);
-  CHECK_EQ(err, 0);
+  CHECK_EQ(0, uv_sem_init(&start_sem_, 0));
 }
 
 
@@ -69,7 +63,6 @@ Agent::~Agent() {
   Stop();
 
   uv_sem_destroy(&start_sem_);
-  uv_mutex_destroy(&message_mutex_);
 
   while (AgentMessage* msg = messages_.PopFront())
     delete msg;
@@ -274,7 +267,7 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
   HandleScope scope(isolate);
   Local<Object> api = PersistentToLocal(isolate, a->api_);
 
-  uv_mutex_lock(&a->message_mutex_);
+  Mutex::ScopedLock scoped_lock(a->message_mutex_);
   while (AgentMessage* msg = a->messages_.PopFront()) {
     // Time to close everything
     if (msg->data() == nullptr) {
@@ -305,14 +298,12 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
                  argv);
     delete msg;
   }
-  uv_mutex_unlock(&a->message_mutex_);
 }
 
 
 void Agent::EnqueueMessage(AgentMessage* message) {
-  uv_mutex_lock(&message_mutex_);
+  Mutex::ScopedLock scoped_lock(message_mutex_);
   messages_.PushBack(message);
-  uv_mutex_unlock(&message_mutex_);
   uv_async_send(&child_signal_);
 }
 
