@@ -330,7 +330,6 @@ class IsolateData {
 #undef VS
 #undef VP
 
-  v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
   uint32_t* const zero_fill_field_;
 
