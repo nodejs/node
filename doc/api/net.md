@@ -362,7 +362,7 @@ The amount of bytes sent.
 ### socket.destroyed
 
 A boolean value that indicates if the connection is destroyed or not.
-Once a connection is destroyed no data can further be transferred using it.
+Once a connection is destroyed no further data can be transferred using it.
 
 ### socket.connect(options[, connectListener])
 
