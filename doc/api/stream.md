@@ -786,7 +786,7 @@ following example:
 
 ```js
 getReadableStreamSomehow()
-  .resume();
+  .resume()
   .on('end', () => {
     console.log('Reached the end, but did not read anything.');
   });
