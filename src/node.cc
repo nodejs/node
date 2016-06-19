@@ -1788,8 +1788,15 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+NO_RETURN void Abort() {
+  DumpBacktrace(stderr);
+  fflush(stderr);
+  ABORT_NO_BACKTRACE();
+}
+
+
 static void Abort(const FunctionCallbackInfo<Value>& args) {
-  ABORT();
+  Abort();
 }
 
 

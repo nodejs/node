@@ -19,6 +19,13 @@
 
 namespace node {
 
+#ifdef __GNUC__
+#define NO_RETURN __attribute__((noreturn))
+#else
+#define NO_RETURN
+#endif
+
+NO_RETURN void Abort();
 void DumpBacktrace(FILE* fp);
 
 #ifdef __APPLE__
@@ -43,12 +50,7 @@ template <typename T> using remove_reference = std::remove_reference<T>;
 #define ABORT_NO_BACKTRACE() abort()
 #endif
 
-#define ABORT()                                                               \
-  do {                                                                        \
-    node::DumpBacktrace(stderr);                                              \
-    fflush(stderr);                                                           \
-    ABORT_NO_BACKTRACE();                                                     \
-  } while (0)
+#define ABORT() node::Abort()
 
 #if defined(NDEBUG)
 # define ASSERT(expression)
