@@ -77,7 +77,7 @@ queue until it is consumed.
 Once the total size of the internal read buffer reaches the threshold specified
 by `highWaterMark`, the stream will temporarily stop reading data from the
 underlying resource until the data currently buffered can be consumed (that is,
-the stream will stop calling the internal `readable.\_read()` method that is
+the stream will stop calling the internal `readable._read()` method that is
 used to fill the read buffer).
 
 Data is buffered in Writable streams when the
@@ -321,7 +321,7 @@ The buffered data will be flushed when either the [`stream.uncork()`][] or
 The primary intent of `writable.cork()` is to avoid a situation where writing
 many small chunks of data to a stream do not cause an backup in the internal
 buffer that would have an adverse impact on performance. In such situations,
-implementations that implement the `writable.\_writev()` method can perform
+implementations that implement the `writable._writev()` method can perform
 buffered writes in a more optimized manner.
 
 ##### writable.end([chunk][, encoding][, callback])
@@ -1083,8 +1083,8 @@ const myWritable = new Writable({
 The `stream.Writable` class is extended to implement a [Writable][] stream.
 
 Custom Writable streams *must* call the `new stream.Writable([options])`
-constructor and implement the `writable.\_write()` method. The
-`writable.\_writev()` method *may* also be implemented.
+constructor and implement the `writable._write()` method. The
+`writable._writev()` method *may* also be implemented.
 
 #### Constructor: new stream.Writable([options])
 
@@ -1146,7 +1146,7 @@ const myWritable = new Writable({
 });
 ```
 
-#### writable.\_write(chunk, encoding, callback)
+#### writable._write(chunk, encoding, callback)
 
 * `chunk` {Buffer|String} The chunk to be written. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
@@ -1173,10 +1173,10 @@ successfully or failed with an error. The first argument passed to the
 write succeeded.
 
 It is important to note that all calls to `writable.write()` that occur between
-the time `writable.\_write()` is called and the `callback` is called will cause
+the time `writable._write()` is called and the `callback` is called will cause
 the written data to be buffered. Once the `callback` is invoked, the stream will
 emit a `'drain'` event. If a stream implementation is capable of processing
-multiple chunks of data at once, the `writable.\_writev()` method should be
+multiple chunks of data at once, the `writable._writev()` method should be
 implemented.
 
 If the `decodeStrings` property is set in the constructor options, then
@@ -1187,11 +1187,11 @@ data encodings. If the `decodeStrings` property is explicitly set to `false`,
 the `encoding` argument can be safely ignored, and `chunk` will always be a
 `Buffer`.
 
-The `writable.\_write()` method is prefixed with an underscore because it is
+The `writable._write()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
-#### writable.\_writev(chunks, callback)
+#### writable._writev(chunks, callback)
 
 * `chunks` {Array} The chunks to be written. Each chunk has following
   format: `{ chunk: ..., encoding: ... }`.
@@ -1202,22 +1202,22 @@ user programs.
 should be implemented by child classes, and called only by the internal Writable
 class methods only.
 
-The `writable.\_writev()` method may be implemented in addition to
-`writable.\_write()` in stream implementations that are capable of processing
+The `writable._writev()` method may be implemented in addition to
+`writable._write()` in stream implementations that are capable of processing
 multiple chunks of data at once. If implemented, the method will be called with
 all chunks of data currently buffered in the write queue.
 
-The `writable.\_writev()` method is prefixed with an underscore because it is
+The `writable._writev()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
 #### Errors While Writing
 
 It is recommended that errors occurring during the processing of the
-`writable.\_write()` and `writable.\_writev()` methods are reported by invoking
+`writable._write()` and `writable._writev()` methods are reported by invoking
 the callback and passing the error as the first argument. This will cause an
 `'error'` event to be emitted by the Writable. Throwing an Error from within
-`writable.\_write()` can result in expected and inconsistent behavior depending
+`writable._write()` can result in expected and inconsistent behavior depending
 on how the stream is being used.  Using the callback ensures consistent and
 predictable handling of errors.
 
@@ -1265,7 +1265,7 @@ class MyWritable extends Writable {
 The `stream.Readable` class is extended to implement a [Readable][] stream.
 
 Custom Readable streams *must* call the `new stream.Readable([options])`
-constructor and implement the `readable.\_read()` method.
+constructor and implement the `readable._read()` method.
 
 #### new stream.Readable([options])
 
@@ -1320,7 +1320,7 @@ const myReadable = new Readable({
 });
 ```
 
-#### readable.\_read(size)
+#### readable._read(size)
 
 * `size` {Number} Number of bytes to read asynchronously
 
@@ -1329,7 +1329,7 @@ should be implemented by child classes, and called only by the internal Readable
 class methods only.
 
 All Readable stream implementations must provide an implementation of the
-`readable.\_read()` method to fetch data from the underlying resource.
+`readable._read()` method to fetch data from the underlying resource.
 
 When `readable._read()` is called, if data is available from the resource, the
 implementation should begin pushing that data into the read queue using the
@@ -1347,7 +1347,7 @@ much data to fetch. Other implementations may ignore this argument and simply
 provide data whenever it becomes available. There is no need to "wait" until
 `size` bytes are available before calling [`stream.push(chunk)`][stream-push].
 
-The `readable.\_read()` method is prefixed with an underscore because it is
+The `readable._read()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
@@ -1407,13 +1407,13 @@ class SourceWrapper extends Readable {
 }
 ```
 *Note*: The `readable.push()` method is intended be called only by Readable
-Implemeters, and only from within the `readable.\_read()` method.
+Implemeters, and only from within the `readable._read()` method.
 
 #### Errors While Reading
 
 It is recommended that errors occurring during the processing of the
-`readable.\_read()` method are emitted using the `'error'` event rather than
-being thrown. Throwing an Error from within `readable.\_read()` can result in
+`readable._read()` method are emitted using the `'error'` event rather than
+being thrown. Throwing an Error from within `readable._read()` can result in
 expected and inconsistent behavior depending on whether the stream is operating
 in flowing or paused mode. Using the `'error'` event ensures consistent and
 predictable handling of errors.
@@ -1475,8 +1475,8 @@ to extending the `stream.Readable` *and* `stream.Writable` classes).
 and parasitically from `stream.Writable`.
 
 Custom Duplex streams *must* call the `new stream.Duplex([options])`
-constructor and implement *both* the `readable.\_read()` and
-`writable.\_write()` methods.
+constructor and implement *both* the `readable._read()` and
+`writable._write()` methods.
 
 #### new stream.Duplex(options)
 
@@ -1629,10 +1629,10 @@ that is either much smaller or much larger than its input.
 The `stream.Transform` class is extended to implement a [Transform][] stream.
 
 The `stream.Transform` class prototypically inherits from `stream.Duplex` and
-implements its own versions of the `writable.\_write()` and `readable.\_read()`
+implements its own versions of the `writable._write()` and `readable._read()`
 methods. Custom Transform implementations *must* implement the
-[`transform.\_transform()`][stream-_transform] method and *may* also implement
-the [`transform.\_flush()`][stream-_flush] method.
+[`transform._transform()`][stream-_transform] method and *may* also implement
+the [`transform._flush()`][stream-_flush] method.
 
 *Note*: Care must be taken when using Transform streams in that data written
 to the stream can cause the Writable side of the stream to become paused if
@@ -1694,7 +1694,7 @@ by [`stream._transform()`][stream-_transform]. The `'end'` event is emitted
 after all data has been output, which occurs after the callback in
 [`transform._flush()`][stream-_flush] has been called.
 
-#### transform.\_flush(callback)
+#### transform._flush(callback)
 
 * `callback` {Function} A callback function (optionally with an error
   argument and data) to be called when remaining data has been flushed.
@@ -1709,20 +1709,20 @@ store an amount of internal state used to optimally compress the output. When
 the stream ends, however, that additional data needs to be flushed so that the
 compressed data will be complete.
 
-Custom [Transform][] implementations *may* implement the `transform.\_flush()`
+Custom [Transform][] implementations *may* implement the `transform._flush()`
 method. This will be called when there is no more written data to be consumed,
 but before the [`'end'`][] event is emitted signaling the end of the
 [Readable][] stream.
 
-Within the `transform.\_flush()` implementation, the `readable.push()` method
+Within the `transform._flush()` implementation, the `readable.push()` method
 may be called zero or more times, as appropriate. The `callback` function must
 be called when the flush operation is complete.
 
-The `transform.\_flush()` method is prefixed with an underscore because it is
+The `transform._flush()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
-#### transform.\_transform(chunk, encoding, callback)
+#### transform._transform(chunk, encoding, callback)
 
 * `chunk` {Buffer|String} The chunk to be transformed. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
@@ -1738,7 +1738,7 @@ should be implemented by child classes, and called only by the internal Readable
 class methods only.
 
 All Transform stream implementations must provide a `_transform()`
-method to accept input and produce output. The `transform.\_transform()`
+method to accept input and produce output. The `transform._transform()`
 implementation handles the bytes being written, computes an output, then passes
 that output off to the readable portion using the `readable.push()` method.
 
@@ -1765,7 +1765,7 @@ transform.prototype._transform = function (data, encoding, callback) {
 };
 ```
 
-The `transform.\_transform()` method is prefixed with an underscore because it
+The `transform._transform()` method is prefixed with an underscore because it
 is internal to the class that defines it, and should never be called directly by
 user programs.
 
