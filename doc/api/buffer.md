@@ -23,16 +23,111 @@ would need to ever use `require('buffer').Buffer`.
 ```js
 const buf1 = new Buffer(10);
   // creates a buffer of length 10
+  // This is the same as Buffer.allocUnsafe(10), and the returned
+  // Buffer instance might contain old data that needs to be
+  // overwritten using either fill() or write().
 
 const buf2 = new Buffer([1,2,3]);
   // creates a buffer containing [01, 02, 03]
+  // This is the same as Buffer.from([1,2,3]).
 
 const buf3 = new Buffer('test');
   // creates a buffer containing ASCII bytes [74, 65, 73, 74]
+  // This is the same as Buffer.from('test').
 
 const buf4 = new Buffer('tést', 'utf8');
   // creates a buffer containing UTF8 bytes [74, c3, a9, 73, 74]
+  // This is the same as Buffer.from('tést', 'utf8').
+
+const buf5 = Buffer.alloc(10);
+  // Creates a zero-filled Buffer of length 10.
+
+const buf6 = Buffer.alloc(10, 1);
+  // Creates a Buffer of length 10, filled with 0x01.
+
+const buf7 = Buffer.allocUnsafe(10);
+  // Creates an uninitialized buffer of length 10.
+  // This is faster than calling Buffer.alloc() but the returned
+  // Buffer instance might contain old data that needs to be
+  // overwritten using either fill() or write().
+
+const buf8 = Buffer.from([1,2,3]);
+  // Creates a Buffer containing [01, 02, 03].
+
+const buf9 = Buffer.from('test');
+  // Creates a Buffer containing ASCII bytes [74, 65, 73, 74].
+
+const buf8 = Buffer.from('tést', 'utf8');
+  // Creates a Buffer containing UTF8 bytes [74, c3, a9, 73, 74].
 ```
+
+## `Buffer.from()`, `Buffer.alloc()`, and `Buffer.allocUnsafe()`
+
+Historically, `Buffer` instances have been created using the `Buffer`
+constructor function, which allocates the returned `Buffer`
+differently based on what arguments are provided:
+
+* Passing a number as the first argument to `Buffer()` (e.g. `new Buffer(10)`),
+  allocates a new `Buffer` object of the specified size. The memory allocated
+  for such `Buffer` instances is *not* initialized and *can contain sensitive
+  data*. Such `Buffer` objects *must* be initialized *manually* by using either
+  [`buf.fill(0)`][] or by writing to the `Buffer` completely. While this
+  behavior is *intentional* to improve performance, development experience has
+  demonstrated that a more explicit distinction is required between creating a
+  fast-but-uninitialized `Buffer` versus creating a slower-but-safer `Buffer`.
+* Passing a string, array, or `Buffer` as the first argument copies the
+  passed object's data into the `Buffer`.
+* Passing an `ArrayBuffer` returns a `Buffer` that shares allocated memory with
+  the given `ArrayBuffer`.
+
+Because the behavior of `new Buffer()` changes significantly based on the type
+of value passed as the first argument, applications that do not properly
+validate the input arguments passed to `new Buffer()`, or that fail to
+appropriately initialize newly allocated `Buffer` content, can inadvertently
+introduce security and reliability issues into their code.
+
+To make the creation of `Buffer` objects more reliable and less error prone,
+new `Buffer.from()`, `Buffer.alloc()`, and `Buffer.allocUnsafe()` methods have
+been introduced as an alternative means of creating `Buffer` instances.
+
+*Developers should migrate all existing uses of the `new Buffer()` constructors
+to one of these new APIs.*
+
+* [`Buffer.from(array)`][buffer_from_array] returns a new `Buffer` containing
+  a *copy* of the provided octets.
+* [`Buffer.from(arrayBuffer)`][buffer_from_arraybuf] returns a new `Buffer`
+  that *shares* the same allocated memory as the given `ArrayBuffer`.
+* [`Buffer.from(buffer)`][buffer_from_buffer] returns a new `Buffer`
+  containing a *copy* of the contents of the given `Buffer`.
+* [`Buffer.from(str[, encoding])`][buffer_from_string] returns a new `Buffer`
+  containing a *copy* of the provided string.
+* [`Buffer.alloc(size[, fill[, encoding]])`][buffer_alloc] returns a "filled"
+  `Buffer` instance of the specified size. This method can be significantly
+  slower than [`Buffer.allocUnsafe(size)`][buffer_allocunsafe] but ensures
+  that newly created `Buffer` instances never contain old and potentially
+  sensitive data.
+* [`Buffer.allocUnsafe(size)`][buffer_allocunsafe] and
+  [`Buffer.allocUnsafeSlow(size)`][buffer_allocunsafeslow] each return a
+  new `Buffer` of the specified `size` whose content *must* be initialized
+  using either [`buf.fill(0)`][] or written to completely.
+
+`Buffer` instances returned by `Buffer.allocUnsafe(size)` *may* be allocated
+off a shared internal memory pool if `size` is less than or equal to half
+`Buffer.poolSize`. Instances returned by `Buffer.allocUnsafeSlow(size)` *never*
+use the shared internal memory pool.
+
+### What makes `Buffer.allocUnsafe(size)` and `Buffer.allocUnsafeSlow(size)` "unsafe"?
+
+When calling `Buffer.allocUnsafe()` (and `Buffer.allocUnsafeSlow()`), the
+segment of allocated memory is *uninitialized* (it is not zeroed-out). While
+this design makes the allocation of memory quite fast, the allocated segment of
+memory might contain old data that is potentially sensitive. Using a `Buffer`
+created by `Buffer.allocUnsafe()` without *completely* overwriting the memory
+can allow this old data to be leaked when the `Buffer` memory is read.
+
+While there are clear performance advantages to using `Buffer.allocUnsafe()`,
+extra care *must* be taken in order to avoid introducing security
+vulnerabilities into an application.
 
 ## Buffers and Character Encodings
 
@@ -125,6 +220,21 @@ const buf = new Buffer(arr.buffer).slice(0, 16);
 console.log(buf.length);
   // Prints: 16
 ```
+
+The `Buffer.from()` and [`TypedArray.from()`][] (e.g.`Uint8Array.from()`) have
+different signatures and implementations. Specifically, the TypedArray variants
+accept a second argument that is a mapping function that is invoked on every
+element of the typed array:
+
+* `TypedArray.from(source[, mapFn[, thisArg]])`
+
+The `Buffer.from()` method, however, does not support the use of a mapping
+function:
+
+* [`Buffer.from(array)`][buffer_from_array]
+* [`Buffer.from(buffer)`][buffer_from_buffer]
+* [`Buffer.from(arrayBuffer)`][buffer_from_arraybuf]
+* [`Buffer.from(str[, encoding])`][buffer_from_string]
 
 ## Buffers and ES6 iteration
 
@@ -267,6 +377,138 @@ console.log(buf2.toString());
   // prints: this is a tést
 ```
 
+### Class Method: Buffer.alloc(size[, fill[, encoding]])
+
+* `size` {Number}
+* `fill` {Value} Default: `undefined`
+* `encoding` {String} Default: `utf8`
+
+Allocates a new `Buffer` of `size` bytes. If `fill` is `undefined`, the
+`Buffer` will be *zero-filled*.
+
+```js
+const buf = Buffer.alloc(5);
+console.log(buf);
+  // <Buffer 00 00 00 00 00>
+```
+
+The `size` must be less than or equal to the value of
+`require('buffer').kMaxLength` (on 64-bit architectures, `kMaxLength` is
+`(2^31)-1`). Otherwise, a [`RangeError`][] is thrown. If a `size` less than 0
+is specified, a zero-length `Buffer` will be created.
+
+If `fill` is specified, the allocated `Buffer` will be initialized by calling
+`buf.fill(fill)`. See [`buf.fill()`][] for more information.
+
+```js
+const buf = Buffer.alloc(5, 'a');
+console.log(buf);
+  // <Buffer 61 61 61 61 61>
+```
+
+If both `fill` and `encoding` are specified, the allocated `Buffer` will be
+initialized by calling `buf.fill(fill, encoding)`. For example:
+
+```js
+const buf = Buffer.alloc(11, 'aGVsbG8gd29ybGQ=', 'base64');
+console.log(buf);
+  // <Buffer 68 65 6c 6c 6f 20 77 6f 72 6c 64>
+```
+
+Calling `Buffer.alloc(size)` can be significantly slower than the alternative
+`Buffer.allocUnsafe(size)` but ensures that the newly created `Buffer` instance
+contents will *never contain sensitive data*.
+
+A `TypeError` will be thrown if `size` is not a number.
+
+### Class Method: Buffer.allocUnsafe(size)
+
+* `size` {Number}
+
+Allocates a new *non-zero-filled* `Buffer` of `size` bytes.  The `size` must
+be less than or equal to the value of `require('buffer').kMaxLength` (on 64-bit
+architectures, `kMaxLength` is `(2^31)-1`). Otherwise, a [`RangeError`][] is
+thrown. If a `size` less than 0 is specified, a zero-length `Buffer` will be
+created.
+
+The underlying memory for `Buffer` instances created in this way is *not
+initialized*. The contents of the newly created `Buffer` are unknown and
+*may contain sensitive data*. Use [`buf.fill(0)`][] to initialize such
+`Buffer` instances to zeroes.
+
+```js
+const buf = Buffer.allocUnsafe(5);
+console.log(buf);
+  // <Buffer 78 e0 82 02 01>
+  // (octets will be different, every time)
+buf.fill(0);
+console.log(buf);
+  // <Buffer 00 00 00 00 00>
+```
+
+A `TypeError` will be thrown if `size` is not a number.
+
+Note that the `Buffer` module pre-allocates an internal `Buffer` instance of
+size `Buffer.poolSize` that is used as a pool for the fast allocation of new
+`Buffer` instances created using `Buffer.allocUnsafe(size)` (and the
+`new Buffer(size)` constructor) only when `size` is less than or equal to
+`Buffer.poolSize >> 1` (floor of `Buffer.poolSize` divided by two). The default
+value of `Buffer.poolSize` is `8192` but can be modified.
+
+Use of this pre-allocated internal memory pool is a key difference between
+calling `Buffer.alloc(size, fill)` vs. `Buffer.allocUnsafe(size).fill(fill)`.
+Specifically, `Buffer.alloc(size, fill)` will *never* use the internal Buffer
+pool, while `Buffer.allocUnsafe(size).fill(fill)` *will* use the internal
+Buffer pool if `size` is less than or equal to half `Buffer.poolSize`. The
+difference is subtle but can be important when an application requires the
+additional performance that `Buffer.allocUnsafe(size)` provides.
+
+### Class Method: Buffer.allocUnsafeSlow(size)
+
+* `size` {Number}
+
+Allocates a new *non-zero-filled* and non-pooled `Buffer` of `size` bytes.  The
+`size` must be less than or equal to the value of
+`require('buffer').kMaxLength` (on 64-bit architectures, `kMaxLength` is
+`(2^31)-1`). Otherwise, a [`RangeError`][] is thrown. If a `size` less than 0
+is specified, a zero-length `Buffer` will be created.
+
+The underlying memory for `Buffer` instances created in this way is *not
+initialized*. The contents of the newly created `Buffer` are unknown and
+*may contain sensitive data*. Use [`buf.fill(0)`][] to initialize such
+`Buffer` instances to zeroes.
+
+When using `Buffer.allocUnsafe()` to allocate new `Buffer` instances,
+allocations under 4KB are, by default, sliced from a single pre-allocated
+`Buffer`. This allows applications to avoid the garbage collection overhead of
+creating many individually allocated Buffers. This approach improves both
+performance and memory usage by eliminating the need to track and cleanup as
+many `Persistent` objects.
+
+However, in the case where a developer may need to retain a small chunk of
+memory from a pool for an indeterminate amount of time, it may be appropriate
+to create an un-pooled Buffer instance using `Buffer.allocUnsafeSlow()` then
+copy out the relevant bits.
+
+```js
+// need to keep around a few small chunks of memory
+const store = [];
+
+socket.on('readable', () => {
+  const data = socket.read();
+  // allocate for retained data
+  const sb = Buffer.allocUnsafeSlow(10);
+  // copy the data into the new allocation
+  data.copy(sb, 0, 0, 10);
+  store.push(sb);
+});
+```
+
+Use of `Buffer.allocUnsafeSlow()` should be used only as a last resort *after*
+a developer has observed undue memory retention in their applications.
+
+A `TypeError` will be thrown if `size` is not a number.
+
 ### Class Method: Buffer.byteLength(string[, encoding])
 
 * `string` {String}
@@ -335,6 +577,90 @@ console.log(bufA.length);
 // <Buffer 00 00 00 00 ...>
 // 42
 ```
+
+### Class Method: Buffer.from(array)
+
+* `array` {Array}
+
+Allocates a new `Buffer` using an `array` of octets.
+
+```js
+const buf = Buffer.from([0x62,0x75,0x66,0x66,0x65,0x72]);
+  // creates a new Buffer containing ASCII bytes
+  // ['b','u','f','f','e','r']
+```
+
+A `TypeError` will be thrown if `array` is not an `Array`.
+
+### Class Method: Buffer.from(arrayBuffer)
+
+* `arrayBuffer` {ArrayBuffer} The `.buffer` property of a `TypedArray` or
+  a `new ArrayBuffer()`
+
+When passed a reference to the `.buffer` property of a `TypedArray` instance,
+the newly created `Buffer` will share the same allocated memory as the
+TypedArray.
+
+```js
+const arr = new Uint16Array(2);
+arr[0] = 5000;
+arr[1] = 4000;
+
+const buf = Buffer.from(arr.buffer); // shares the memory with arr;
+
+console.log(buf);
+  // Prints: <Buffer 88 13 a0 0f>
+
+// changing the TypedArray changes the Buffer also
+arr[1] = 6000;
+
+console.log(buf);
+  // Prints: <Buffer 88 13 70 17>
+```
+
+A `TypeError` will be thrown if `arrayBuffer` is not an `ArrayBuffer`.
+
+### Class Method: Buffer.from(buffer)
+
+* `buffer` {Buffer}
+
+Copies the passed `buffer` data onto a new `Buffer` instance.
+
+```js
+const buf1 = Buffer.from('buffer');
+const buf2 = Buffer.from(buf1);
+
+buf1[0] = 0x61;
+console.log(buf1.toString());
+  // 'auffer'
+console.log(buf2.toString());
+  // 'buffer' (copy is not changed)
+```
+
+A `TypeError` will be thrown if `buffer` is not a `Buffer`.
+
+### Class Method: Buffer.from(str[, encoding])
+
+* `str` {String} String to encode.
+* `encoding` {String} Encoding to use, Default: `'utf8'`
+
+Creates a new `Buffer` containing the given JavaScript string `str`. If
+provided, the `encoding` parameter identifies the character encoding.
+If not provided, `encoding` defaults to `'utf8'`.
+
+```js
+const buf1 = Buffer.from('this is a tést');
+console.log(buf1.toString());
+  // prints: this is a tést
+console.log(buf1.toString('ascii'));
+  // prints: this is a tC)st
+
+const buf2 = Buffer.from('7468697320697320612074c3a97374', 'hex');
+console.log(buf2.toString());
+  // prints: this is a tést
+```
+
+A `TypeError` will be thrown if `str` is not a string.
 
 ### Class Method: Buffer.isBuffer(obj)
 
@@ -1383,6 +1709,31 @@ socket.on('readable', () => {
 Use of `SlowBuffer` should be used only as a last resort *after* a developer
 has observed undue memory retention in their applications.
 
+### new SlowBuffer(size)
+
+* `size` Number
+
+Allocates a new `SlowBuffer` of `size` bytes.  The `size` must be less than
+or equal to the value of `require('buffer').kMaxLength` (on 64-bit
+architectures, `kMaxLength` is `(2^31)-1`). Otherwise, a [`RangeError`][] is
+thrown. If a `size` less than 0 is specified, a zero-length `SlowBuffer` will be
+created.
+
+The underlying memory for `SlowBuffer` instances is *not initialized*. The
+contents of a newly created `SlowBuffer` are unknown and could contain
+sensitive data. Use [`buf.fill(0)`][] to initialize a `SlowBuffer` to zeroes.
+
+```js
+const SlowBuffer = require('buffer').SlowBuffer;
+const buf = new SlowBuffer(5);
+console.log(buf);
+  // <Buffer 78 e0 82 02 01>
+  // (octets will be different, every time)
+buf.fill(0);
+console.log(buf);
+  // <Buffer 00 00 00 00 00>
+```
+
 [`Array#includes()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes
 [`Array#indexOf()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf
 [`buf.entries()`]: #buffer_buf_entries
@@ -1397,3 +1748,11 @@ has observed undue memory retention in their applications.
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
 [RFC 4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
+[buffer_from_array]: #buffer_class_method_buffer_from_array
+[buffer_from_buffer]: #buffer_class_method_buffer_from_buffer
+[buffer_from_arraybuf]: #buffer_class_method_buffer_from_arraybuffer
+[buffer_from_string]: #buffer_class_method_buffer_from_str_encoding
+[buffer_allocunsafe]: #buffer_class_method_buffer_allocunsafe_size
+[buffer_allocunsafeslow]: #buffer_class_method_buffer_allocunsafeslow_size
+[buffer_alloc]: #buffer_class_method_buffer_alloc_size_fill_encoding
+[`TypedArray.from()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray/from
