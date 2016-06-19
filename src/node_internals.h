@@ -127,12 +127,10 @@ constexpr size_t arraysize(const T(&)[N]) { return N; }
 # define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
 #endif
 
-#if defined(__GNUC__) && __GNUC__ >= 4
+#ifdef __GNUC__
 # define MUST_USE_RESULT __attribute__((warn_unused_result))
-# define NO_RETURN __attribute__((noreturn))
 #else
 # define MUST_USE_RESULT
-# define NO_RETURN
 #endif
 
 bool IsExceptionDecorated(Environment* env, v8::Local<v8::Value> er);
