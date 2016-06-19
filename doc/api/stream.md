@@ -1161,7 +1161,7 @@ All Writable stream implementations must provide a
 resource.
 
 *Note*: [Transform][] streams provide their own implementation of the
-[`writable._write()`].
+[`writable._write()`][stream-_write].
 
 *Note*: **This function MUST NOT be called by application code directly.** It
 should be implemented by child classes, and called only by the internal Writable
@@ -1632,7 +1632,7 @@ The `stream.Transform` class prototypically inherits from `stream.Duplex` and
 implements its own versions of the `writable.\_write()` and `readable.\_read()`
 methods. Custom Transform implementations *must* implement the
 [`transform.\_transform()`][stream-_transform] method and *may* also implement
-the [`transform.\_flush()`][stream-._flush] method.
+the [`transform.\_flush()`][stream-_flush] method.
 
 *Note*: Care must be taken when using Transform streams in that data written
 to the stream can cause the Writable side of the stream to become paused if
@@ -1848,7 +1848,7 @@ net.createServer((socket) => {
 
 In addition to new Readable streams switching into flowing mode,
 pre-v0.10 style streams can be wrapped in a Readable class using the
-[`readable.wrap()`][] method.
+[`readable.wrap()`][stream-wrap] method.
 
 
 ### `readable.read(0)`
