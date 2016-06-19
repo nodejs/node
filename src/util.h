@@ -25,7 +25,10 @@ namespace node {
 #define NO_RETURN
 #endif
 
+// The slightly odd function signature for Assert() is to ease
+// instruction cache pressure in calls from ASSERT and CHECK.
 NO_RETURN void Abort();
+NO_RETURN void Assert(const char* const (*args)[4]);
 void DumpBacktrace(FILE* fp);
 
 #ifdef __APPLE__
@@ -52,15 +55,40 @@ template <typename T> using remove_reference = std::remove_reference<T>;
 
 #define ABORT() node::Abort()
 
-#if defined(NDEBUG)
-# define ASSERT(expression)
-# define CHECK(expression)                                                    \
-  do {                                                                        \
-    if (!(expression)) ABORT();                                               \
-  } while (0)
+#ifdef __GNUC__
+#define LIKELY(expr) __builtin_expect(!!(expr), 1)
+#define UNLIKELY(expr) __builtin_expect(!!(expr), 0)
+#define PRETTY_FUNCTION_NAME __PRETTY_FUNCTION__
 #else
-# define ASSERT(expression)  assert(expression)
-# define CHECK(expression)   assert(expression)
+#define LIKELY(expr) expr
+#define UNLIKELY(expr) expr
+#define PRETTY_FUNCTION_NAME ""
+#endif
+
+#define STRINGIFY_(x) #x
+#define STRINGIFY(x) STRINGIFY_(x)
+
+#define CHECK(expr)                                                           \
+  do {                                                                        \
+    if (UNLIKELY(!(expr))) {                                                  \
+      static const char* const args[] = { __FILE__, STRINGIFY(__LINE__),      \
+                                          #expr, PRETTY_FUNCTION_NAME };      \
+      node::Assert(&args);                                                    \
+    }                                                                         \
+  } while (0)
+
+// FIXME(bnoordhuis) cctests don't link in node::Abort() and node::Assert().
+#ifdef GTEST_DONT_DEFINE_ASSERT_EQ
+#undef ABORT
+#undef CHECK
+#define ABORT ABORT_NO_BACKTRACE
+#define CHECK assert
+#endif
+
+#ifdef NDEBUG
+#define ASSERT(expr)
+#else
+#define ASSERT(expr) CHECK(expr)
 #endif
 
 #define ASSERT_EQ(a, b) ASSERT((a) == (b))
