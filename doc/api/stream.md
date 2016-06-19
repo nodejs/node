@@ -1146,7 +1146,7 @@ const myWritable = new Writable({
 });
 ```
 
-#### writable._write(chunk, encoding, callback)
+#### writable.\_write(chunk, encoding, callback)
 
 * `chunk` {Buffer|String} The chunk to be written. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
@@ -1191,7 +1191,7 @@ The `writable._write()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
-#### writable._writev(chunks, callback)
+#### writable.\_writev(chunks, callback)
 
 * `chunks` {Array} The chunks to be written. Each chunk has following
   format: `{ chunk: ..., encoding: ... }`.
@@ -1320,7 +1320,7 @@ const myReadable = new Readable({
 });
 ```
 
-#### readable._read(size)
+#### readable.\_read(size)
 
 * `size` {Number} Number of bytes to read asynchronously
 
@@ -1694,7 +1694,7 @@ by [`stream._transform()`][stream-_transform]. The `'end'` event is emitted
 after all data has been output, which occurs after the callback in
 [`transform._flush()`][stream-_flush] has been called.
 
-#### transform._flush(callback)
+#### transform.\_flush(callback)
 
 * `callback` {Function} A callback function (optionally with an error
   argument and data) to be called when remaining data has been flushed.
@@ -1722,7 +1722,7 @@ The `transform._flush()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
-#### transform._transform(chunk, encoding, callback)
+#### transform.\_transform(chunk, encoding, callback)
 
 * `chunk` {Buffer|String} The chunk to be transformed. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
