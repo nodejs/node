@@ -206,14 +206,14 @@ myStream.end('done writing data');
 
 #### Class: stream.Writable
 <!-- YAML
-added: v0.3.0
+added: v0.9.4
 -->
 
 <!--type=class-->
 
 ##### Event: 'close'
 <!-- YAML
-added: v0.3.1
+added: v0.9.4
 -->
 
 The `'close'` event is emitted when the stream and any of its underlying
@@ -224,7 +224,7 @@ Not all Writable streams will emit the `'close'` event.
 
 ##### Event: 'drain'
 <!-- YAML
-added: v0.3.0
+added: v0.9.4
 -->
 
 If a call to [`stream.write(chunk)`][stream-write] returns `false`, the
@@ -261,7 +261,7 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
 
 ##### Event: 'error'
 <!-- YAML
-added: v0.3.1
+added: v0.9.4
 -->
 
 * {Error}
@@ -272,6 +272,9 @@ data. The listener callback is passed a single `Error` argument when called.
 *Note*: The stream is not closed when the `'error'` event is emitted.
 
 ##### Event: 'finish'
+<!-- YAML
+added: v0.9.4
+-->
 
 The `'finish'` event is emitted after the [`stream.end()`][stream-end] method
 has been called, and all data has been flushed to the underlying system.
@@ -289,7 +292,7 @@ writer.on('finish', () => {
 
 ##### Event: 'pipe'
 <!-- YAML
-added: v0.3.0
+added: v0.9.4
 -->
 
 * `src` {stream.Readable} source stream that is piping to this writable
@@ -331,6 +334,9 @@ reader.unpipe(writer);
 ```
 
 ##### writable.cork()
+<!-- YAML
+added: v0.11.2
+-->
 
 The `writable.cork()` method forces all written data to be buffered in memory.
 The buffered data will be flushed when either the [`stream.uncork()`][] or
@@ -343,6 +349,9 @@ implementations that implement the `writable.\_writev()` method can perform
 buffered writes in a more optimized manner.
 
 ##### writable.end([chunk][, encoding][, callback])
+<!-- YAML
+added: v0.9.9
+-->
 
 * `chunk` {String|Buffer|any} Optional data to write. For streams not operating
   in object mode, `chunk` must be a string or a `Buffer`. For object mode
@@ -368,6 +377,9 @@ file.end('world!');
 ```
 
 ##### writable.setDefaultEncoding(encoding)
+<!-- YAML
+added: v0.11.15
+-->
 
 * `encoding` {String} The new default encoding
 * Return: `this`
@@ -376,6 +388,9 @@ The `writable.setDefaultEncoding()` method sets the default `encoding` for a
 [Writable][] stream.
 
 ##### writable.uncork()
+<!-- YAML
+added: v0.11.2
+-->
 
 The `writable.uncork()` method flushes all data buffered since
 [`stream.cork()`][] was called.
