@@ -1848,7 +1848,7 @@ net.createServer((socket) => {
 
 In addition to new Readable streams switching into flowing mode,
 pre-v0.10 style streams can be wrapped in a Readable class using the
-[`readable.wrap()`][stream-_wrap] method.
+[`readable.wrap()`][`stream.wrap()`] method.
 
 
 ### `readable.read(0)`
