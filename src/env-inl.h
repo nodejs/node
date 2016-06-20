@@ -398,7 +398,7 @@ inline ares_channel* Environment::cares_channel_ptr() {
   return &cares_channel_;
 }
 
-inline ares_task_list* Environment::cares_task_list() {
+inline node_ares_task_list* Environment::cares_task_list() {
   return &cares_task_list_;
 }
 
