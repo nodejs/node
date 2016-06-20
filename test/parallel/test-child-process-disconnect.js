@@ -77,7 +77,13 @@ if (process.argv[2] === 'child') {
         // ready to be disconnected
         if (data === 'ready') {
           child.disconnect();
-          assert.throws(child.disconnect.bind(child), Error);
+
+          // following call will throw an error, as it is already disconnected
+          // and that will be caught in the error event handler, in the nextTick
+          child.disconnect();
+          child.once('error', common.mustCall((e) =>
+            assert(/IPC channel is already disconnected/.test(e))));
+
           return;
         }
 

@@ -4,23 +4,19 @@ var assert = require('assert');
 var child_process = require('child_process');
 
 function test(fun, code) {
-  var errors = 0;
-
-  fun('does-not-exist', function(err) {
-    assert.equal(err.code, code);
-    assert(/does\-not\-exist/.test(err.cmd));
-    errors++;
-  });
-
-  process.on('exit', function() {
-    assert.equal(errors, 1);
-  });
+  child_process[fun]('does-not-exist', common.mustCall(function(er, _, stderr) {
+    assert.equal(er.code, code);
+    assert(/does\-not\-exist/.test(er.cmd));
+    if (fun === 'exec') {
+      assert(/does-not-exist: not found/.test(stderr));
+    }
+  }));
 }
 
 if (common.isWindows) {
-  test(child_process.exec, 1); // exit code of cmd.exe
+  test('exec', 1); // exit code of cmd.exe
 } else {
-  test(child_process.exec, 127); // exit code of /bin/sh
+  test('exec', 127); // exit code of /bin/sh
 }
 
-test(child_process.execFile, 'ENOENT');
+test('execFile', 'ENOENT');

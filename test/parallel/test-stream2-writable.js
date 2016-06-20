@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var W = require('_stream_writable');
 var D = require('_stream_duplex');
 var assert = require('assert');
@@ -283,13 +283,11 @@ test('encoding should be ignored for buffers', function(t) {
 test('writables are not pipable', function(t) {
   var w = new W();
   w._write = function() {};
-  var gotError = false;
-  w.on('error', function(er) {
-    gotError = true;
-  });
+  w.on('error', common.mustCall((e) => {
+    assert(/Cannot pipe, not readable/.test(e));
+    t.end();
+  }));
   w.pipe(process.stdout);
-  assert(gotError);
-  t.end();
 });
 
 test('duplexes are pipable', function(t) {

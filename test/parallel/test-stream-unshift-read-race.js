@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 // This test verifies that:
@@ -47,9 +47,7 @@ r._read = function(n) {
 };
 
 function pushError() {
-  assert.throws(function() {
-    r.push(Buffer.allocUnsafe(1));
-  });
+  r.push(Buffer.allocUnsafe(1));
 }
 
 
@@ -60,15 +58,10 @@ w._write = function(chunk, encoding, cb) {
   cb();
 };
 
-var ended = false;
-r.on('end', function() {
-  assert(!ended, 'end emitted more than once');
-  assert.throws(function() {
-    r.unshift(Buffer.allocUnsafe(1));
-  });
-  ended = true;
+r.on('end', common.mustCall(function() {
+  r.unshift(Buffer.allocUnsafe(1));
   w.end();
-});
+}));
 
 r.on('readable', function() {
   var chunk;
@@ -79,12 +72,11 @@ r.on('readable', function() {
   }
 });
 
-var finished = false;
-w.on('finish', function() {
-  finished = true;
+w.on('finish', common.mustCall(function() {
   // each chunk should start with 1234, and then be asfdasdfasdf...
   // The first got pulled out before the first unshift('1234'), so it's
   // lacking that piece.
+  assert.equal(written.length, 18);
   assert.equal(written[0], 'asdfasdfas');
   var asdf = 'd';
   console.error('0: %s', written[0]);
@@ -102,11 +94,13 @@ w.on('finish', function() {
       }
     }
   }
-});
+}));
 
-process.on('exit', function() {
-  assert.equal(written.length, 18);
-  assert(ended, 'stream ended');
-  assert(finished, 'stream finished');
-  console.log('ok');
-});
+var errorCount = 0;
+r.on('error', common.mustCall((e) => {
+  if (errorCount++ === 0) {
+    assert(/stream\.push\(\) after EOF/.test(e));
+  } else {
+    assert(/stream\.unshift\(\) after end event/.test(e));
+  }
+}, 2));
