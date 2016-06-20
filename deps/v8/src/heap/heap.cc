@@ -3166,10 +3166,6 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   DCHECK(!lo_space()->Contains(object));
   DCHECK(object->map() != fixed_cow_array_map());
 
-  // Ensure that the no handle-scope has more than one pointer to the same
-  // backing-store.
-  SLOW_DCHECK(CountHandlesForObject(object) <= 1);
-
   STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
   STATIC_ASSERT(FixedArrayBase::kLengthOffset == kPointerSize);
   STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
@@ -5669,32 +5665,6 @@ void Heap::PrintHandles() {
   isolate_->handle_scope_implementer()->Iterate(&v);
 }
 
-#endif
-
-#ifdef ENABLE_SLOW_DCHECKS
-
-class CountHandleVisitor : public ObjectVisitor {
- public:
-  explicit CountHandleVisitor(Object* object) : object_(object) {}
-
-  void VisitPointers(Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) {
-      if (object_ == reinterpret_cast<Object*>(*p)) count_++;
-    }
-  }
-
-  int count() { return count_; }
-
- private:
-  Object* object_;
-  int count_ = 0;
-};
-
-int Heap::CountHandlesForObject(Object* object) {
-  CountHandleVisitor v(object);
-  isolate_->handle_scope_implementer()->Iterate(&v);
-  return v.count();
-}
 #endif
 
 class CheckHandleCountVisitor : public ObjectVisitor {

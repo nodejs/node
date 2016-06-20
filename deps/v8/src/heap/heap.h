@@ -1394,9 +1394,6 @@ class Heap {
   void ReportHeapStatistics(const char* title);
   void ReportCodeStatistics(const char* title);
 #endif
-#ifdef ENABLE_SLOW_DCHECKS
-  int CountHandlesForObject(Object* object);
-#endif
 
  private:
   class PretenuringScope;
