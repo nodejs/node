@@ -195,16 +195,16 @@ HTTP implementation in Node. Its responsibilities are:
 The roadmap working group is responsible for user community outreach
 and the translation of their concerns into a plan of action for Node.js.
 
-The final [ROADMAP](./ROADMAP.md) document is still owned by the TC and requires
+The final [ROADMAP](https://github.com/nodejs/node/blob/master/ROADMAP.md) document is still owned by the TC and requires
 the same approval for changes as any other project asset.
 
 Their responsibilities are:
 * Attract and summarize user community needs and feedback.
 * Find or potentially create tools that allow for broader participation.
-* Create Pull Requests for relevant changes to [Roadmap.md](./ROADMAP.md)
+* Create Pull Requests for relevant changes to [ROADMAP.md](https://github.com/nodejs/node/blob/master/ROADMAP.md)
 
 
-### [Docker](https://github.com/nodejs/docker-iojs)
+### [Docker](https://github.com/nodejs/docker-node)
 
 The Docker working group's purpose is to build, maintain, and improve official
 Docker images for the `Node.js` project.
