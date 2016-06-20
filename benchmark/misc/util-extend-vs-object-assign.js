@@ -19,7 +19,7 @@ function main(conf) {
     v8command = '%OptimizeFunctionOnNextCall(util._extend)';
   } else if (conf.type === 'assign') {
     fn = Object.assign;
-    //Object.assign is built-in, cannot be optimized
+    // Object.assign is built-in, cannot be optimized
     v8command = '';
   }
 
