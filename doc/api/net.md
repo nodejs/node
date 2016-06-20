@@ -359,11 +359,6 @@ The amount of received bytes.
 
 The amount of bytes sent.
 
-### socket.destroyed
-
-A boolean value that indicates if the connection is destroyed or not.
-Once a connection is destroyed no further data can be transferred using it.
-
 ### socket.connect(options[, connectListener])
 
 Opens the connection for a given socket.
@@ -409,6 +404,11 @@ with options either as either `{port: port, host: host}` or `{path: path}`.
 
 Ensures that no more I/O activity happens on this socket. Only necessary in
 case of errors (parse error or so).
+
+### socket.destroyed
+
+A boolean value that indicates if the connection is destroyed or not.
+Once a connection is destroyed no further data can be transferred using it.
 
 ### socket.end([data][, encoding])
 
