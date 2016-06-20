@@ -1,7 +1,8 @@
 #include <node.h>
 #include <node_buffer.h>
-#include <util.h>
 #include <v8.h>
+
+#include <assert.h>
 
 static int alive;
 static char buf[1024];
@@ -32,7 +33,7 @@ void Check(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   isolate->RequestGarbageCollectionForTesting(
       v8::Isolate::kFullGarbageCollection);
-  CHECK_GT(alive, 0);
+  assert(alive > 0);
 }
 
 void init(v8::Local<v8::Object> target) {
