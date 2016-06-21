@@ -260,3 +260,14 @@ putIn.run(['.clear']);
 testMe.complete('var log = console.lo', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
+
+var testNonGlobal = repl.start({
+  input: putIn,
+  output: putIn,
+  useGlobal: false
+});
+
+testNonGlobal.complete('I', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['Infinity', '', 'Int16Array', 'Int32Array',
+                                 'Int8Array', 'Intl'], 'I']);
+}));
