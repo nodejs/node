@@ -449,9 +449,6 @@ should be paused until the `'drain'` event is emitted.
 A Writable stream in object mode will always ignore the `encoding` argument.
 
 ### Readable Streams
-<!-- YAML
-added: v0.3.0
--->
 
 Readable streams are an abstraction for a *source* from which data is
 consumed.
@@ -555,12 +552,15 @@ require more fine-grained control over the transfer and generation of data can
 use the [`EventEmitter`][] and `readable.pause()`/`readable.resume()` APIs.
 
 #### Class: stream.Readable
+<!-- YAML
+added: v0.9.4
+-->
 
 <!--type=class-->
 
 ##### Event: 'close'
 <!-- YAML
-added: v0.3.1
+added: v0.9.4
 -->
 
 The `'close'` event is emitted when the stream and any of its underlying
@@ -571,7 +571,7 @@ Not all [Readable][] streams will emit the `'close'` event.
 
 ##### Event: 'data'
 <!-- YAML
-added: v0.3.1
+added: v0.9.4
 -->
 
 * `chunk` {Buffer|String|any} The chunk of data. For streams that are not
@@ -604,7 +604,7 @@ readable.on('data', (chunk) => {
 
 ##### Event: 'end'
 <!-- YAML
-added: v0.3.1
+added: v0.9.4
 -->
 
 The `'end'` event is emitted when there is no more data to be consumed from
@@ -627,7 +627,7 @@ readable.on('end', () => {
 
 ##### Event: 'error'
 <!-- YAML
-added: v0.3.1
+added: v0.9.4
 -->
 
 * {Error}
@@ -640,6 +640,9 @@ to push an invalid chunk of data.
 The listener callback will be passed a single `Error` object.
 
 ##### Event: 'readable'
+<!-- YAML
+added: v0.9.4
+-->
 
 The `'readable'` event is emitted when there is data available to be read from
 the stream. In some cases, attaching a listener for the `'readable'` event will
@@ -683,6 +686,9 @@ end
 preferred over the use of the `'readable'` event.
 
 ##### readable.isPaused()
+<!--
+added: v0.11.14
+-->
 
 * Return: {Boolean}
 
@@ -703,7 +709,7 @@ readable.isPaused() // === false
 
 ##### readable.pause()
 <!-- YAML
-added: v0.3.1
+added: v0.9.4
 -->
 
 * Return: `this`
@@ -726,6 +732,9 @@ readable.on('data', (chunk) => {
 ```
 
 ##### readable.pipe(destination[, options])
+<!-- YAML
+added: v0.9.4
+-->
 
 * `destination` {stream.Writable} The destination for writing data
 * `options` {Object} Pipe options
@@ -781,6 +790,9 @@ never closed until the Node.js process exits, regardless of the specified
 options.
 
 ##### readable.read([size])
+<!-- YAML
+added: v0.9.4
+-->
 
 * `size` {Number} Optional argument to specify how much data to read.
 * Return {String|Buffer|Null}
@@ -829,7 +841,7 @@ event has been emitted will return `null`. No runtime error will be raised.
 
 ##### readable.resume()
 <!-- YAML
-added: v0.3.1
+added: v0.9.4
 -->
 
 * Return: `this`
@@ -851,7 +863,7 @@ getReadableStreamSomehow()
 
 ##### readable.setEncoding(encoding)
 <!-- YAML
-added: v0.3.1
+added: v0.9.4
 -->
 
 * `encoding` {String} The encoding to use.
@@ -885,6 +897,9 @@ readable.on('data', (chunk) => {
 ```
 
 ##### readable.unpipe([destination])
+<!-- YAML
+added: v0.9.4
+-->
 
 * `destination` {stream.Writable} Optional specific stream to unpipe
 
@@ -911,6 +926,9 @@ setTimeout(() => {
 ```
 
 ##### readable.unshift(chunk)
+<!-- YAML
+added: v0.9.11
+-->
 
 * `chunk` {Buffer|String} Chunk of data to unshift onto the read queue
 
@@ -971,6 +989,9 @@ appropriately, however it is best to simply avoid calling `readable.unshift()`
 while in the process of performing a read.
 
 ##### readable.wrap(stream)
+<!-- YAML
+added: v0.9.4
+-->
 
 * `stream` {Stream} An "old style" readable stream
 
