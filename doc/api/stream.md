@@ -1893,7 +1893,7 @@ readable buffer so there is nothing for a user to consume.
 [`stream.wrap()`]: #stream_readable_wrap_stream
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream
 [API for Stream Consumers]: #stream_api_for_stream_consumers
-[API for Stream Implemeters]: #stream_api_for_stream_Implemeters
+[API for Stream Implemeters]: #stream_api_for_stream_implemeters
 [child process stdin]: child_process.html#child_process_child_stdin
 [child process stdout and stderr]: child_process.html#child_process_child_stdout
 [Compatibility]: #stream_compatibility_with_older_node_js_versions
