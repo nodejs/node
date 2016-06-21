@@ -1283,7 +1283,6 @@ namespace {
 String* TypeOfString(HConstant* constant, Isolate* isolate) {
   Heap* heap = isolate->heap();
   if (constant->HasNumberValue()) return heap->number_string();
-  if (constant->IsUndetectable()) return heap->undefined_string();
   if (constant->HasStringValue()) return heap->string_string();
   switch (constant->GetInstanceType()) {
     case ODDBALL_TYPE: {
@@ -1312,6 +1311,7 @@ String* TypeOfString(HConstant* constant, Isolate* isolate) {
       return nullptr;
     }
     default:
+      if (constant->IsUndetectable()) return heap->undefined_string();
       if (constant->IsCallable()) return heap->function_string();
       return heap->object_string();
   }
