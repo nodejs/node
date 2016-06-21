@@ -19,8 +19,18 @@ system.
 added: v0.5.0
 -->
 
+    Stability: 0 - Deprecated: Use [`process.arch`][] instead.
+
 Returns the operating system CPU architecture. Possible values are `'x64'`,
 `'arm'` and `'ia32'`. Returns the value of [`process.arch`][].
+
+## os.byteOrder
+<!-- YAML
+added: 
+-->
+
+Specifies the endianness of the CPU. Possible values are `'BE'` for big endian
+or `'LE'` for little endian.
 
 ## os.constants
 
@@ -112,7 +122,10 @@ all processors are always 0.
 ## os.endianness()
 <!-- YAML
 added: v0.9.4
+deprecated: 
 -->
+
+    Stability: 0 - Deprecated: Use `os.byteOrder` instead.
 
 Returns the endianness of the CPU. Possible values are `'BE'` for big endian
 or `'LE'` for little endian.
@@ -192,6 +205,7 @@ interfaces that have been assigned an address.
 <!-- YAML
 added: v0.5.0
 -->
+    Stability: 0 - Deprecated: Use [`process.platform`][] instead.
 
 Returns the operating system platform. Possible values are `'darwin'`,
 `'freebsd'`, `'linux'`, `'sunos'` or `'win32'`. Returns the value of

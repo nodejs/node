@@ -22,7 +22,7 @@ exports.isWOW64 = exports.isWindows &&
 exports.isAix = process.platform === 'aix';
 exports.isLinuxPPCBE = (process.platform === 'linux') &&
                        (process.arch === 'ppc64') &&
-                       (os.endianness() === 'BE');
+                       (os.byteOrder === 'BE');
 exports.isSunOS = process.platform === 'sunos';
 exports.isFreeBSD = process.platform === 'freebsd';
 

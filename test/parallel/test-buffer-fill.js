@@ -113,7 +113,7 @@ testBufs('a\u0234b\u0235c\u0236', 4, -1, 'ucs2');
 testBufs('a\u0234b\u0235c\u0236', 4, 1, 'ucs2');
 testBufs('a\u0234b\u0235c\u0236', 12, 1, 'ucs2');
 assert.equal(Buffer.allocUnsafe(1).fill('\u0222', 'ucs2')[0],
-             os.endianness() === 'LE' ? 0x22 : 0x02);
+             os.byteOrder === 'LE' ? 0x22 : 0x02);
 
 
 // HEX
@@ -248,7 +248,7 @@ function writeToFill(string, offset, end, encoding) {
   } while (offset < buf2.length);
 
   // Correction for UCS2 operations.
-  if (os.endianness() === 'BE' && encoding === 'ucs2') {
+  if (os.byteOrder === 'BE' && encoding === 'ucs2') {
     for (var i = 0; i < buf2.length; i += 2) {
       var tmp = buf2[i];
       buf2[i] = buf2[i + 1];
