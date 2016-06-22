@@ -267,3 +267,14 @@ putIn.run(['.clear']);
 testMe.complete('.b', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['break'], 'b']);
 }));
+
+var testNonGlobal = repl.start({
+  input: putIn,
+  output: putIn,
+  useGlobal: false
+});
+
+testNonGlobal.complete('I', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['Infinity', '', 'Int16Array', 'Int32Array',
+                                 'Int8Array', 'Intl'], 'I']);
+}));
