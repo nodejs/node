@@ -14,3 +14,4 @@ const command = common.isWindows ? 'dir' : 'ls';
 exec(command).stdout.on('data', cb);
 
 exec('fhqwhgads').stderr.on('data', cb);
+
