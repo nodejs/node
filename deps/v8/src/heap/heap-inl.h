@@ -393,12 +393,35 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   return false;
 }
 
-
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   CopyWords(reinterpret_cast<Object**>(dst), reinterpret_cast<Object**>(src),
             static_cast<size_t>(byte_size / kPointerSize));
 }
 
+bool Heap::PurgeLeftTrimmedObject(Object** object) {
+  HeapObject* current = reinterpret_cast<HeapObject*>(*object);
+  const MapWord map_word = current->map_word();
+  if (current->IsFiller() && !map_word.IsForwardingAddress()) {
+#ifdef DEBUG
+    // We need to find a FixedArrayBase map after walking the fillers.
+    while (current->IsFiller()) {
+      Address next = reinterpret_cast<Address>(current);
+      if (current->map() == one_pointer_filler_map()) {
+        next += kPointerSize;
+      } else if (current->map() == two_pointer_filler_map()) {
+        next += 2 * kPointerSize;
+      } else {
+        next += current->Size();
+      }
+      current = reinterpret_cast<HeapObject*>(next);
+    }
+    DCHECK(current->IsFixedArrayBase());
+#endif  // DEBUG
+    *object = nullptr;
+    return true;
+  }
+  return false;
+}
 
 void Heap::MoveBlock(Address dst, Address src, int byte_size) {
   DCHECK(IsAligned(byte_size, kPointerSize));
