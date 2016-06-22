@@ -312,12 +312,12 @@ replServer.defineCommand('sayhello', {
   action: function(name) {
     this.lineParser.reset();
     this.bufferedCommand = '';
-    this.write(`Hello, ${name}!\n`);
+    console.log(`Hello, ${name}!`);
     this.displayPrompt();
   }
 });
 replServer.defineCommand('saybye', function() {
-  this.write('Goodbye!\n');
+  console.log('Goodbye!');
   this.close();
 });
 ```
