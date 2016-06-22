@@ -729,17 +729,19 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   }
   Local<Value> js_uid = js_options->Get(env()->uid_string());
   if (IsSet(js_uid)) {
-    if (!CheckRange<uv_uid_t>(js_uid))
+    if (!js_uid->IsInt32())
       return UV_EINVAL;
-    uv_process_options_.uid = static_cast<uv_gid_t>(js_uid->Int32Value());
+    const int32_t uid = js_uid->Int32Value(env()->context()).FromJust();
+    uv_process_options_.uid = static_cast<uv_uid_t>(uid);
     uv_process_options_.flags |= UV_PROCESS_SETUID;
   }
 
   Local<Value> js_gid = js_options->Get(env()->gid_string());
   if (IsSet(js_gid)) {
-    if (!CheckRange<uv_gid_t>(js_gid))
+    if (!js_gid->IsInt32())
       return UV_EINVAL;
-    uv_process_options_.gid = static_cast<uv_gid_t>(js_gid->Int32Value());
+    const int32_t gid = js_gid->Int32Value(env()->context()).FromJust();
+    uv_process_options_.gid = static_cast<uv_gid_t>(gid);
     uv_process_options_.flags |= UV_PROCESS_SETGID;
   }
 
@@ -763,7 +765,7 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 
   Local<Value> js_max_buffer = js_options->Get(env()->max_buffer_string());
   if (IsSet(js_max_buffer)) {
-    if (!CheckRange<uint32_t>(js_max_buffer))
+    if (!js_max_buffer->IsUint32())
       return UV_EINVAL;
     max_buffer_ = js_max_buffer->Uint32Value();
   }
@@ -912,27 +914,6 @@ int SyncProcessRunner::AddStdioInheritFD(uint32_t child_fd, int inherit_fd) {
 
 bool SyncProcessRunner::IsSet(Local<Value> value) {
   return !value->IsUndefined() && !value->IsNull();
-}
-
-
-template <typename t>
-bool SyncProcessRunner::CheckRange(Local<Value> js_value) {
-  if ((t) -1 > 0) {
-    // Unsigned range check.
-    if (!js_value->IsUint32())
-      return false;
-    if (js_value->Uint32Value() & ~((t) ~0))
-      return false;
-
-  } else {
-    // Signed range check.
-    if (!js_value->IsInt32())
-      return false;
-    if (js_value->Int32Value() & ~((t) ~0))
-      return false;
-  }
-
-  return true;
 }
 
 
