@@ -260,3 +260,10 @@ putIn.run(['.clear']);
 testMe.complete('var log = console.lo', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
+
+// tab completion for defined commands
+putIn.run(['.clear']);
+
+testMe.complete('.b', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['break'], 'b']);
+}));
