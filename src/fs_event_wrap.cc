@@ -85,6 +85,7 @@ void FSEventWrap::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   FSEventWrap* wrap = Unwrap<FSEventWrap>(args.Holder());
+  CHECK_EQ(wrap->initialized_, false);
 
   if (args.Length() < 1 || !args[0]->IsString()) {
     return env->ThrowTypeError("filename must be a valid string");
