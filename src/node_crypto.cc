@@ -3324,17 +3324,17 @@ void Hmac::New(const FunctionCallbackInfo<Value>& args) {
 void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   HandleScope scope(env()->isolate());
 
-  CHECK_EQ(md_, nullptr);
-  md_ = EVP_get_digestbyname(hash_type);
-  if (md_ == nullptr) {
+  CHECK_EQ(initialised_, false);
+  const EVP_MD* md = EVP_get_digestbyname(hash_type);
+  if (md == nullptr) {
     return env()->ThrowError("Unknown message digest");
   }
   HMAC_CTX_init(&ctx_);
   int result = 0;
   if (key_len == 0) {
-    result = HMAC_Init(&ctx_, "", 0, md_);
+    result = HMAC_Init(&ctx_, "", 0, md);
   } else {
-    result = HMAC_Init(&ctx_, key, key_len, md_);
+    result = HMAC_Init(&ctx_, key, key_len, md);
   }
   if (!result) {
     return ThrowCryptoError(env(), ERR_get_error());
@@ -3465,12 +3465,12 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
 
 
 bool Hash::HashInit(const char* hash_type) {
-  CHECK_EQ(md_, nullptr);
-  md_ = EVP_get_digestbyname(hash_type);
-  if (md_ == nullptr)
+  CHECK_EQ(initialised_, false);
+  const EVP_MD* md = EVP_get_digestbyname(hash_type);
+  if (md == nullptr)
     return false;
   EVP_MD_CTX_init(&mdctx_);
-  if (EVP_DigestInit_ex(&mdctx_, md_, nullptr) <= 0) {
+  if (EVP_DigestInit_ex(&mdctx_, md, nullptr) <= 0) {
     return false;
   }
   initialised_ = true;
@@ -3603,13 +3603,13 @@ void Sign::New(const FunctionCallbackInfo<Value>& args) {
 
 
 SignBase::Error Sign::SignInit(const char* sign_type) {
-  CHECK_EQ(md_, nullptr);
-  md_ = EVP_get_digestbyname(sign_type);
-  if (!md_)
+  CHECK_EQ(initialised_, false);
+  const EVP_MD* md = EVP_get_digestbyname(sign_type);
+  if (md == nullptr)
     return kSignUnknownDigest;
 
   EVP_MD_CTX_init(&mdctx_);
-  if (!EVP_SignInit_ex(&mdctx_, md_, nullptr))
+  if (!EVP_SignInit_ex(&mdctx_, md, nullptr))
     return kSignInit;
   initialised_ = true;
 
@@ -3803,13 +3803,13 @@ void Verify::New(const FunctionCallbackInfo<Value>& args) {
 
 
 SignBase::Error Verify::VerifyInit(const char* verify_type) {
-  CHECK_EQ(md_, nullptr);
-  md_ = EVP_get_digestbyname(verify_type);
-  if (md_ == nullptr)
+  CHECK_EQ(initialised_, false);
+  const EVP_MD* md = EVP_get_digestbyname(verify_type);
+  if (md == nullptr)
     return kSignUnknownDigest;
 
   EVP_MD_CTX_init(&mdctx_);
-  if (!EVP_VerifyInit_ex(&mdctx_, md_, nullptr))
+  if (!EVP_VerifyInit_ex(&mdctx_, md, nullptr))
     return kSignInit;
   initialised_ = true;
 
