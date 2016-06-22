@@ -306,3 +306,10 @@ putIn.run(['var obj = {1:"a","1a":"b",a:"b"};']);
 testMe.complete('obj.', common.mustCall(function(error, data) {
   assert.deepEqual(data, obj_elements);
 }));
+
+// tab completion for defined commands
+putIn.run(['.clear']);
+
+testMe.complete('.b', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['break'], 'b']);
+}));
