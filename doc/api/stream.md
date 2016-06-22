@@ -169,7 +169,7 @@ are not required to implement the stream interfaces directly and will generally
 have no reason to call `require('stream')`.
 
 Developers wishing to implement new types of streams should refer to the
-section [API for Stream Implemeters][].
+section [API for Stream Implementers][].
 
 ### Writable Streams
 
@@ -863,7 +863,7 @@ pulled out of the source, so that the data can be passed on to some other party.
 [`'end'`][] event has been emitted or a runtime error will be thrown.
 
 Developers using `stream.unshift()` often should consider switching to
-use of a [Transform][] stream instead. See the [API for Stream Implemeters][]
+use of a [Transform][] stream instead. See the [API for Stream Implementers][]
 section for more information.
 
 ```js
@@ -969,7 +969,7 @@ Examples of Transform streams include:
 * [crypto streams][crypto]
 
 
-## API for Stream Implemeters
+## API for Stream Implementers
 
 <!--type=misc-->
 
@@ -1407,7 +1407,7 @@ class SourceWrapper extends Readable {
 }
 ```
 *Note*: The `readable.push()` method is intended be called only by Readable
-Implemeters, and only from within the `readable._read()` method.
+Implementers, and only from within the `readable._read()` method.
 
 #### Errors While Reading
 
@@ -1893,7 +1893,7 @@ readable buffer so there is nothing for a user to consume.
 [`stream.wrap()`]: #stream_readable_wrap_stream
 [`tls.CryptoStream`]: tls.html#tls_class_cryptostream
 [API for Stream Consumers]: #stream_api_for_stream_consumers
-[API for Stream Implemeters]: #stream_api_for_stream_implemeters
+[API for Stream Implementers]: #stream_api_for_stream_implementers
 [child process stdin]: child_process.html#child_process_child_stdin
 [child process stdout and stderr]: child_process.html#child_process_child_stdout
 [Compatibility]: #stream_compatibility_with_older_node_js_versions
