@@ -1,9 +1,18 @@
 'use strict';
 
+// This test is a bit more complicated than it ideally needs to be to work
+// around issues on OS X and SmartOS.
+//
+// On OS X, watch events are subject to peculiar timing oddities such that an
+// event might fire our of order. The synchronous refreshing of the tmp
+// directory might trigger an event on the watchers that are instantiated after
+// it!
+//
+// On SmartOS, the watch events fire but the filename is null.
+
 const common = require('../common');
 const fs = require('fs');
 const path = require('path');
-const assert = require('assert');
 
 if (common.isFreeBSD) {
   common.skip('Test currently not working on FreeBSD');
@@ -33,9 +42,8 @@ const watcher1 = fs.watch(
   common.tmpDir,
   {encoding: 'hex'},
   (event, filename) => {
-    console.log(event);
-    assert.equal(filename, 'e696b0e5bbbae69687e5a4b9e4bbb62e747874');
-    unregisterWatcher(watcher1);
+    if (['e696b0e5bbbae69687e5a4b9e4bbb62e747874', null].includes(filename))
+      done(watcher1);
   }
 );
 registerWatcher(watcher1);
@@ -43,8 +51,8 @@ registerWatcher(watcher1);
 const watcher2 = fs.watch(
   common.tmpDir,
   (event, filename) => {
-    assert.equal(filename, fn);
-    unregisterWatcher(watcher2);
+    if ([fn, null].includes(filename))
+      done(watcher2);
   }
 );
 registerWatcher(watcher2);
@@ -53,12 +61,15 @@ const watcher3 = fs.watch(
   common.tmpDir,
   {encoding: 'buffer'},
   (event, filename) => {
-    assert(filename instanceof Buffer);
-    assert.equal(filename.toString('utf8'), fn);
-    unregisterWatcher(watcher3);
+    if (filename instanceof Buffer && filename.toString('utf8') === fn)
+      done(watcher3);
+    else if (filename === null)
+      done(watcher3);
   }
 );
 registerWatcher(watcher3);
+
+const done = common.mustCall(unregisterWatcher, watchers.size);
 
 // OS X and perhaps other systems can have surprising race conditions with
 // file events. So repeat the operation in case it is missed the first time.
