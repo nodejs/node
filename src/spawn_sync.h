@@ -173,7 +173,6 @@ class SyncProcessRunner {
   inline int AddStdioInheritFD(uint32_t child_fd, int inherit_fd);
 
   static bool IsSet(Local<Value> value);
-  template <typename t> static bool CheckRange(Local<Value> js_value);
   int CopyJsString(Local<Value> js_value, const char** target);
   int CopyJsStringArray(Local<Value> js_value, char** target);
 
