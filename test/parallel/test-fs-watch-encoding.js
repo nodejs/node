@@ -4,7 +4,7 @@
 // around issues on OS X and SmartOS.
 //
 // On OS X, watch events are subject to peculiar timing oddities such that an
-// event might fire our of order. The synchronous refreshing of the tmp
+// event might fire out of order. The synchronous refreshing of the tmp
 // directory might trigger an event on the watchers that are instantiated after
 // it!
 //
