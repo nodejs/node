@@ -1351,7 +1351,7 @@ Map* MapWord::ToMap() {
 }
 
 
-bool MapWord::IsForwardingAddress() {
+bool MapWord::IsForwardingAddress() const {
   return HAS_SMI_TAG(reinterpret_cast<Object*>(value_));
 }
 

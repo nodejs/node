@@ -1650,31 +1650,7 @@ class RootMarkingVisitor : public ObjectVisitor {
 
     HeapObject* object = ShortCircuitConsString(p);
 
-    // We cannot avoid stale handles to left-trimmed objects, but can only make
-    // sure all handles still needed are updated. Filter out any stale pointers
-    // and clear the slot to allow post processing of handles (needed because
-    // the sweeper might actually free the underlying page).
-    if (object->IsFiller()) {
-#ifdef DEBUG
-      // We need to find a FixedArrayBase map after walking the fillers.
-      Heap* heap = collector_->heap();
-      HeapObject* current = object;
-      while (current->IsFiller()) {
-        Address next = reinterpret_cast<Address>(current);
-        if (current->map() == heap->one_pointer_filler_map()) {
-          next += kPointerSize;
-        } else if (current->map() == heap->two_pointer_filler_map()) {
-          next += 2 * kPointerSize;
-        } else {
-          next += current->Size();
-        }
-        current = reinterpret_cast<HeapObject*>(next);
-      }
-      DCHECK(current->IsFixedArrayBase());
-#endif  // DEBUG
-      *p = nullptr;
-      return;
-    }
+    if (collector_->heap()->PurgeLeftTrimmedObject(p)) return;
 
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (Marking::IsBlackOrGrey(mark_bit)) return;
