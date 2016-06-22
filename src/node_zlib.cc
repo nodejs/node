@@ -145,8 +145,7 @@ class ZCtx : public AsyncWrap {
 
     if (args[1]->IsNull()) {
       // just a flush
-      Bytef nada[1] = { 0 };
-      in = nada;
+      in = nullptr;
       in_len = 0;
       in_off = 0;
     } else {
