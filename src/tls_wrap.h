@@ -148,7 +148,6 @@ class TLSWrap : public AsyncWrap,
   BIO* enc_out_;
   NodeBIO* clear_in_;
   size_t write_size_;
-  size_t write_queue_size_;
   typedef ListHead<WriteItem, &WriteItem::member_> WriteItemList;
   WriteItemList write_item_queue_;
   WriteItemList pending_write_items_;
