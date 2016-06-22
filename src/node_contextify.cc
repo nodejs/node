@@ -836,14 +836,17 @@ class ContextifyScript : public BaseObject {
 
     Local<Value> result;
     bool timed_out = false;
+    bool received_signal = false;
     if (break_on_sigint && timeout != -1) {
       Watchdog wd(env->isolate(), timeout);
       SigintWatchdog swd(env->isolate());
       result = script->Run();
       timed_out = wd.HasTimedOut();
+      received_signal = swd.HasReceivedSignal();
     } else if (break_on_sigint) {
       SigintWatchdog swd(env->isolate());
       result = script->Run();
+      received_signal = swd.HasReceivedSignal();
     } else if (timeout != -1) {
       Watchdog wd(env->isolate(), timeout);
       result = script->Run();
@@ -852,14 +855,26 @@ class ContextifyScript : public BaseObject {
       result = script->Run();
     }
 
-    if (try_catch.HasCaught() && try_catch.HasTerminated()) {
-      env->isolate()->CancelTerminateExecution();
+    if (try_catch.HasCaught()) {
+      if (try_catch.HasTerminated())
+        env->isolate()->CancelTerminateExecution();
+
+      // It is possible that execution was terminated by another timeout in
+      // which this timeout is nested, so check whether one of the watchdogs
+      // from this invocation is responsible for termination.
       if (timed_out) {
         env->ThrowError("Script execution timed out.");
-      } else {
+      } else if (received_signal) {
         env->ThrowError("Script execution interrupted.");
       }
+
+      // If there was an exception thrown during script execution, re-throw it.
+      // If one of the above checks threw, re-throw the exception instead of
+      // letting try_catch catch it.
+      // If execution has been terminated, but not by one of the watchdogs from
+      // this invocation, this will re-throw a `null` value.
       try_catch.ReThrow();
+
       return false;
     }
 
