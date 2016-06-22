@@ -123,12 +123,9 @@ class ProcessWrap : public HandleWrap {
     // options.uid
     Local<Value> uid_v = js_options->Get(env->uid_string());
     if (uid_v->IsInt32()) {
-      int32_t uid = uid_v->Int32Value();
-      if (uid & ~((uv_uid_t) ~0)) {
-        return env->ThrowRangeError("options.uid is out of range");
-      }
+      const int32_t uid = uid_v->Int32Value(env->context()).FromJust();
       options.flags |= UV_PROCESS_SETUID;
-      options.uid = (uv_uid_t) uid;
+      options.uid = static_cast<uv_uid_t>(uid);
     } else if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
       return env->ThrowTypeError("options.uid should be a number");
     }
@@ -136,12 +133,9 @@ class ProcessWrap : public HandleWrap {
     // options.gid
     Local<Value> gid_v = js_options->Get(env->gid_string());
     if (gid_v->IsInt32()) {
-      int32_t gid = gid_v->Int32Value();
-      if (gid & ~((uv_gid_t) ~0)) {
-        return env->ThrowRangeError("options.gid is out of range");
-      }
+      const int32_t gid = gid_v->Int32Value(env->context()).FromJust();
       options.flags |= UV_PROCESS_SETGID;
-      options.gid = (uv_gid_t) gid;
+      options.gid = static_cast<uv_gid_t>(gid);
     } else if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
       return env->ThrowTypeError("options.gid should be a number");
     }
