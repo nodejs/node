@@ -6,7 +6,7 @@ layout: docs.hbs
 # Timers in Node.js and beyond
 
 The Timers module in Node.js contains functions that execute code after a set
-period of time. You do not need to import the Timers module via `require()` as
+period of time. Timers do not need to be imported via `require()`, since
 all the methods are available globally to emulate the browser JavaScript API.
 To fully understand when timer functions will be executed, it's a good idea to
 read up on the the Node.js
@@ -14,18 +14,18 @@ read up on the the Node.js
 
 ## Controlling the Time Continuum with Node.js
 
-The Node.js API provides several ways to schedule your code to execute at
-some point after the present moment. You may already be familiar with many of
-the functions below, since they are available in most browsers, but Node.js
-actually provides it's own implementation of these methods. Timers integrate
-very closely with the system, and despite the fact that the API mirrors the
-browser API, there are some differences in implementation.
+The Node.js API provides several ways to of scheduling code to execute at
+some point after the present moment. The functions below may seem familiar,
+since they are available in most browsers, but Node.js actually provides 
+it's own implementation of these methods. Timers integrate very closely 
+with the system, and despite the fact that the API mirrors the browser 
+API, there are some differences in implementation.
 
 ### "When I say so" Execution ~ *`setTimeout()`*
 
-Using `setTimeout()`, you can schedule code to execute after a designated
-amount of milliseconds. You may already be familiar with this function, as
-it is a part of the browser JavaScript API.
+`setTimeout()` can be used to schedule code execution after a designated
+amount of milliseconds. This function is also a part of the browser 
+JavaScript API and can be used in the exact same manner.
 
 `setTimeout()` accepts the code to execute as its first argument and the
 millisecond delay defined as a number literal as the second argument. Additional
@@ -44,13 +44,13 @@ The above function `myFunc()` will execute as close to 1500
 milliseconds (or 1.5 seconds) as possible due to the call of `setTimeout()`.
 
 The timeout interval that is set cannot be relied upon to execute after
-that *exact* number of milliseconds. This is because executing code that
-blocks or holds onto the event loop will push the execution of your timeout
-back. You *can* guarantee that your timeout will not execute *sooner* than
+that *exact* number of milliseconds. This is because other executing code that
+blocks or holds onto the event loop will push the execution of the timeout
+back. The *only* guarantee is that the timeout will not execute *sooner* than
 the declared timeout interval.
 
 `setTimeout()` returns a `Timeout` object that can be used to reference the
-timeout that was set. You can use this returned object to cancel the timeout (
+timeout that was set. This returned object can be used to cancel the timeout (
 see `clearTimeout()` below) as well as change the execution behavior (see
 `unref()` below).
 
@@ -58,7 +58,7 @@ see `clearTimeout()` below) as well as change the execution behavior (see
 
 `setImmediate()` will execute code at the beginning of the next
 event loop cycle. This code will execute *before* any timers or IO operations.
-You can think of this code execution as happening "right after this", meaning
+This code execution could be thought of as happening "right after this", meaning
 any code following the `setImmediate()` function call will execute before the
 `setImmediate()` function argument. Here's an example:
 
@@ -88,15 +88,15 @@ Note: Don't get `setImmediate()` confused with `process.nextTick()`. There are
 some major ways they differ. The first is that `process.nextTick()` will run
 *before* any `Immediate`s that are set as well as before any scheduled IO.
 The second is that `process.nextTick()` is non-clearable, meaning once
-you've scheduled code to execute with `process.nextTick()` you cannot stop the
-execution, just like with a normal function. In fact the code passed to
+code has been scheduled to execute with `process.nextTick()`, the execution
+cannot be stopped, just like with a normal function. In fact the code passed to
 `process.nextTick()` will be run asynchronously, and thus outside the current
 call stack.
 
 ### "Déjà vu" Execution ~ *`setInterval()`*
 
-If there is a block of code that you want to execute multiple times, you can
-use `setInterval()` to execute that code. `setInterval()` takes a function
+If there is a block of code that should execute multiple times, `setInterval()` 
+can be used to execute that code. `setInterval()` takes a function
 argument that will run an infinite number of times with a given millisecond
 delay. Just like `setTimeout()`, the delay cannot be guaranteed because of
 operations that may hold on to the event loop, and therefore should be treated
@@ -117,7 +117,7 @@ can be used to reference and modify the interval that was set.
 
 ## Clearing the Future
 
-What can you do if you need to cancel a `Timeout` or `Immediate` object?
+What can be done if a `Timeout` or `Immediate` object needs to be cancelled?
 `setTimeout()`, `setImmediate()`, and `setInterval()` return a timer object
 that can be used to reference the set timeout, immediate, or interval object.
 By passing said object into the respective `clear` function, execution of
@@ -147,8 +147,8 @@ clearInterval(intervalObj);
 
 Remember that `Timeout` objects are returned by `setTimeout` and `setInterval`.
 The `Timeout` object provides two functions intended to augment `Timeout`
-behavior with `unref()` and `ref()`. If you have a `Timeout` object scheduled
-using a `set` function, you can call `unref()` on that object. This will change
+behavior with `unref()` and `ref()`. If there is a `Timeout` object scheduled
+using a `set` function, `unref()` can be called on that object. This will change
 the behavior slightly, and not call the `Timeout` object *if it is the last
 code to execute*. The `Timeout` object will not keep the process alive, waiting
 to execute.
