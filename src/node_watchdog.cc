@@ -99,7 +99,7 @@ void SigintWatchdog::Dispose() {
 
 
 SigintWatchdog::SigintWatchdog(v8::Isolate* isolate)
-    : isolate_(isolate), destroyed_(false) {
+    : isolate_(isolate), received_signal_(false), destroyed_(false) {
   // Register this watchdog with the global SIGINT/Ctrl+C listener.
   SigintWatchdogHelper::GetInstance()->Register(this);
   // Start the helper thread, if that has not already happened.
@@ -120,6 +120,7 @@ void SigintWatchdog::Destroy() {
 
 
 void SigintWatchdog::HandleSigint() {
+  received_signal_ = true;
   isolate_->TerminateExecution();
 }
 
