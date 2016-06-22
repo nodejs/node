@@ -29,6 +29,6 @@ assert.throws(function() {
       vm.runInNewContext('while(true) {}', context, { timeout: timeout });
     }
   };
-  vm.runInNewContext('runInVM(10)', context, { timeout: 100 });
+  vm.runInNewContext('runInVM(10)', context, { timeout: 10000 });
   throw new Error('Test 5 failed');
 }, /Script execution timed out./);
