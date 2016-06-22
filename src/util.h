@@ -212,6 +212,16 @@ class MaybeStackBuffer {
     return buf_;
   }
 
+  T& operator[](size_t index) {
+    CHECK_LT(index, length());
+    return buf_[index];
+  }
+
+  const T& operator[](size_t index) const {
+    CHECK_LT(index, length());
+    return buf_[index];
+  }
+
   size_t length() const {
     return length_;
   }
@@ -261,6 +271,10 @@ class MaybeStackBuffer {
   MaybeStackBuffer() : length_(0), buf_(buf_st_) {
     // Default to a zero-length, null-terminated buffer.
     buf_[0] = T();
+  }
+
+  explicit MaybeStackBuffer(size_t storage) : MaybeStackBuffer() {
+    AllocateSufficientStorage(storage);
   }
 
   ~MaybeStackBuffer() {

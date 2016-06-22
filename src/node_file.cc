@@ -930,38 +930,23 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   int64_t pos = GET_OFFSET(args[2]);
   Local<Value> req = args[3];
 
-  uint32_t chunkCount = chunks->Length();
+  MaybeStackBuffer<uv_buf_t> iovs(chunks->Length());
 
-  uv_buf_t s_iovs[1024];  // use stack allocation when possible
-  uv_buf_t* iovs;
-
-  if (chunkCount > arraysize(s_iovs))
-    iovs = new uv_buf_t[chunkCount];
-  else
-    iovs = s_iovs;
-
-  for (uint32_t i = 0; i < chunkCount; i++) {
+  for (uint32_t i = 0; i < iovs.length(); i++) {
     Local<Value> chunk = chunks->Get(i);
 
-    if (!Buffer::HasInstance(chunk)) {
-      if (iovs != s_iovs)
-        delete[] iovs;
+    if (!Buffer::HasInstance(chunk))
       return env->ThrowTypeError("Array elements all need to be buffers");
-    }
 
     iovs[i] = uv_buf_init(Buffer::Data(chunk), Buffer::Length(chunk));
   }
 
   if (req->IsObject()) {
-    ASYNC_CALL(write, req, fd, iovs, chunkCount, pos)
-    if (iovs != s_iovs)
-      delete[] iovs;
+    ASYNC_CALL(write, req, fd, *iovs, iovs.length(), pos)
     return;
   }
 
-  SYNC_CALL(write, nullptr, fd, iovs, chunkCount, pos)
-  if (iovs != s_iovs)
-    delete[] iovs;
+  SYNC_CALL(write, nullptr, fd, *iovs, iovs.length(), pos)
   args.GetReturnValue().Set(SYNC_RESULT);
 }
 
