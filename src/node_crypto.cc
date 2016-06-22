@@ -3326,13 +3326,10 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
     return env()->ThrowError("Unknown message digest");
   }
   HMAC_CTX_init(&ctx_);
-  int result = 0;
   if (key_len == 0) {
-    result = HMAC_Init(&ctx_, "", 0, md);
-  } else {
-    result = HMAC_Init(&ctx_, key, key_len, md);
+    key = "";
   }
-  if (!result) {
+  if (!HMAC_Init(&ctx_, key, key_len, md)) {
     return ThrowCryptoError(env(), ERR_get_error());
   }
   initialised_ = true;
