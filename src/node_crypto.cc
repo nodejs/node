@@ -3594,7 +3594,7 @@ void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   if (key_len == 0) {
     key = "";
   }
-  if (!HMAC_Init(&ctx_, key, key_len, md)) {
+  if (!HMAC_Init_ex(&ctx_, key, key_len, md, nullptr)) {
     return ThrowCryptoError(env(), ERR_get_error());
   }
   initialised_ = true;
