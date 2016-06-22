@@ -46,11 +46,13 @@ class SigintWatchdog {
     void Dispose();
 
     v8::Isolate* isolate() { return isolate_; }
+    bool HasReceivedSignal() { return received_signal_; }
     void HandleSigint();
   private:
     void Destroy();
 
     v8::Isolate* isolate_;
+    bool received_signal_;
     bool destroyed_;
 };
 
