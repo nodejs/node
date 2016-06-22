@@ -1013,7 +1013,7 @@ on the type of stream being created, as detailed in the chart below:
       <p>Reading only</p>
     </td>
     <td>
-      <p>[Readable](#stream_class_stream_readable_1)</p>
+      <p>[Readable](#stream_class_stream_readable)</p>
     </td>
     <td>
       <p><code>[_read][stream-_read]</code></p>
@@ -1024,7 +1024,7 @@ on the type of stream being created, as detailed in the chart below:
       <p>Writing only</p>
     </td>
     <td>
-      <p>[Writable](#stream_class_stream_writable_1)</p>
+      <p>[Writable](#stream_class_stream_writable)</p>
     </td>
     <td>
       <p><code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code></p>
@@ -1035,7 +1035,7 @@ on the type of stream being created, as detailed in the chart below:
       <p>Reading and writing</p>
     </td>
     <td>
-      <p>[Duplex](#stream_class_stream_duplex_1)</p>
+      <p>[Duplex](#stream_class_stream_duplex)</p>
     </td>
     <td>
       <p><code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code></p>
@@ -1046,7 +1046,7 @@ on the type of stream being created, as detailed in the chart below:
       <p>Operate on written data, then read the result</p>
     </td>
     <td>
-      <p>[Transform](#stream_class_stream_transform_1)</p>
+      <p>[Transform](#stream_class_stream_transform)</p>
     </td>
     <td>
       <p><code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code></p>
