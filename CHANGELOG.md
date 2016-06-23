@@ -1,5 +1,25 @@
 # Node.js ChangeLog
 
+## 2016-06-23, Version 5.12.0 (Stable), @evanlucas
+
+### Notable changes
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/june-2016-security-releases for details on patched vulnerabilities.
+
+* **buffer**
+  * backport allocUnsafeSlow (Сковорода Никита Андреевич) [#7169](https://github.com/nodejs/node/pull/7169)
+  * ignore negative allocation lengths (Anna Henningsen) [#7221](https://github.com/nodejs/node/pull/7221)
+* **deps**: backport 3a9bfec from v8 upstream (Ben Noordhuis) [nodejs/node-private#40](https://github.com/nodejs/node-private/pull/40)
+  * Fixes a Buffer overflow vulnerability discovered in v8. More details can be found in the CVE (CVE-2016-1699).
+
+### Commits
+
+* [[`0ca0827b71`](https://github.com/nodejs/node/commit/0ca0827b71)] - **(SEMVER-MINOR)** **buffer**: backport allocUnsafeSlow (Сковорода Никита Андреевич) [#7169](https://github.com/nodejs/node/pull/7169)
+* [[`27785aeb37`](https://github.com/nodejs/node/commit/27785aeb37)] - **buffer**: ignore negative allocation lengths (Anna Henningsen) [#7221](https://github.com/nodejs/node/pull/7221)
+* [[`34b96c1322`](https://github.com/nodejs/node/commit/34b96c1322)] - **deps**: backport 3a9bfec from v8 upstream (Ben Noordhuis) [nodejs/node-private#40](https://github.com/nodejs/node-private/pull/40)
+* [[`2ebeb82852`](https://github.com/nodejs/node/commit/2ebeb82852)] - **test**: fix test-net-* error code check for getaddrinfo(3) (Natanael Copa) [#5099](https://github.com/nodejs/node/pull/5099)
+* [[`03d36aea4f`](https://github.com/nodejs/node/commit/03d36aea4f)] - **(SEMVER-MINOR)** **test**: add buffer testcase for resetting kZeroFill (Сковорода Никита Андреевич) [#7169](https://github.com/nodejs/node/pull/7169)
+
 ## 2016-05-05, Version 5.11.1 (Stable), @evanlucas
 
 ### Notable changes
@@ -30,7 +50,7 @@
   * update to http-parser 2.7.0 (Fedor Indutny) [#6279](https://github.com/nodejs/node/pull/6279)
   * update ESLint to 2.7.0 (silverwind) [#6132](https://github.com/nodejs/node/pull/6132)
 * **net**:
-  * adds support for passing DNS lookup hints to `createConnection()` (Colin Ihrig) [#6000](https://github.com/nodejs/node/pull/6000) 
+  * adds support for passing DNS lookup hints to `createConnection()` (Colin Ihrig) [#6000](https://github.com/nodejs/node/pull/6000)
 * **node**:
   * Make the builtin libraries available for the `--eval` and `--print` CLI options (Anna Henningsen) [#6207](https://github.com/nodejs/node/pull/6207)
 * **npm**:
@@ -199,10 +219,10 @@
 * **fs**: add the fs.mkdtemp() function. (Florian MARGAINE) [#5333](https://github.com/nodejs/node/pull/5333)
 * **net**: emit host in lookup event (HUANG Wei) [#5598](https://github.com/nodejs/node/pull/5598)
 * **node**: --no-browser-globals configure flag (Fedor Indutny) [#5853](https://github.com/nodejs/node/pull/5853)
-* **npm**: Upgrade to v3.8.3. Fixes a security flaw in the use of authentication tokens in HTTP requests that 
-  would allow an attacker to set up a server that could collect tokens from users of the command-line interface. 
-  Authentication tokens have previously been sent with every request made by the CLI for logged-in users, 
-  regardless of the destination of the request. This update fixes this by only including those tokens for requests 
+* **npm**: Upgrade to v3.8.3. Fixes a security flaw in the use of authentication tokens in HTTP requests that
+  would allow an attacker to set up a server that could collect tokens from users of the command-line interface.
+  Authentication tokens have previously been sent with every request made by the CLI for logged-in users,
+  regardless of the destination of the request. This update fixes this by only including those tokens for requests
   made against the registry or registries used for the current install. (Forrest L Norvell) [npm/node#6](https://github.com/npm/node/pull/6)
 * **repl**: support standalone blocks (Prince J Wesley) [#5581](https://github.com/nodejs/node/pull/5581)
 * **src**: override v8 thread defaults using cli options (Tom Gallacher) [#4344](https://github.com/nodejs/node/pull/4344)
@@ -222,7 +242,7 @@
 * [[`5ee5fa292f`](https://github.com/nodejs/node/commit/5ee5fa292f)] - **build**: add missing `openssl_fips%` to common.gypi (Fedor Indutny) [#5919](https://github.com/nodejs/node/pull/5919)
 * [[`5681ffecf7`](https://github.com/nodejs/node/commit/5681ffecf7)] - **build**: enable compilation for linuxOne (Michael Dawson) [#5941](https://github.com/nodejs/node/pull/5941)
 * [[`660ec9f889`](https://github.com/nodejs/node/commit/660ec9f889)] - **child_process**: refactor self=this in socket_list (Benjamin Gruenbaum) [#5860](https://github.com/nodejs/node/pull/5860)
-* [[`e1a012f277`](https://github.com/nodejs/node/commit/e1a012f277)] - **deps**: upgrade npm to 3.8.3 (Forrest L Norvell) 
+* [[`e1a012f277`](https://github.com/nodejs/node/commit/e1a012f277)] - **deps**: upgrade npm to 3.8.3 (Forrest L Norvell)
 * [[`ec1813199d`](https://github.com/nodejs/node/commit/ec1813199d)] - **deps**: backport 8d00c2c from v8 upstream (Ben Noordhuis) [#5577](https://github.com/nodejs/node/pull/5577)
 * [[`2a5c6d7006`](https://github.com/nodejs/node/commit/2a5c6d7006)] - **dns**: Refactor forEach to map (Benjamin Gruenbaum) [#5803](https://github.com/nodejs/node/pull/5803)
 * [[`6a6112a2f3`](https://github.com/nodejs/node/commit/6a6112a2f3)] - **dns**: Use object without protoype for map (Benjamin Gruenbaum) [#5843](https://github.com/nodejs/node/pull/5843)
