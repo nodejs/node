@@ -44,6 +44,49 @@ function addTest(sequences, expectedKeys) {
   assert.deepStrictEqual(keys, expectedKeys);
 }
 
+// Simulate key interval test cases
+// Returns a function that takes `next` test case and returns a thunk
+// that can be called to run tests in sequence
+// e.g.
+// addKeyIntervalTest(..)
+//   (addKeyIntervalTest(..)
+//      (addKeyIntervalTest(..)(noop)))()
+// where noop is a terminal function(() => {}).
+
+const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
+                            assertDelay = 550) => {
+  return (next) => () => {
+
+    if (!Array.isArray(sequences)) {
+      sequences = [ sequences ];
+    }
+
+    if (!Array.isArray(expectedKeys)) {
+      expectedKeys = [ expectedKeys ];
+    }
+
+    expectedKeys = expectedKeys.map(function(k) {
+      return k ? extend({ ctrl: false, meta: false, shift: false }, k) : k;
+    });
+
+    const keys = [];
+    fi.on('keypress', (s, k) => keys.push(k));
+
+    const emitKeys = ([head, ...tail]) => {
+      if (head) {
+        fi.write(head);
+        setTimeout(() => emitKeys(tail), interval);
+      } else {
+        setTimeout(() => {
+          next();
+          assert.deepStrictEqual(keys, expectedKeys);
+        }, assertDelay);
+      }
+    };
+    emitKeys(sequences);
+  };
+};
+
 // regular alphanumerics
 addTest('io.JS', [
   { name: 'i', sequence: 'i' },
@@ -149,3 +192,22 @@ addTest('\x1b[31ma\x1b[39ma', [
   { name: 'undefined', sequence: '\x1b[39m', code: '[39m' },
   { name: 'a', sequence: 'a' },
 ]);
+
+// Reduce array of addKeyIntervalTest(..) right to left
+// with () => {} as initial function
+const runKeyIntervalTests = [
+  // escape character
+  addKeyIntervalTest('\x1b', [
+    { name: 'escape', sequence: '\x1b', meta: true }
+  ]),
+  // chain of escape characters
+  addKeyIntervalTest('\x1b\x1b\x1b\x1b'.split(''), [
+    { name: 'escape', sequence: '\x1b', meta: true },
+    { name: 'escape', sequence: '\x1b', meta: true },
+    { name: 'escape', sequence: '\x1b', meta: true },
+    { name: 'escape', sequence: '\x1b', meta: true }
+  ])
+].reverse().reduce((acc, fn) => fn(acc), () => {});
+
+// run key interval tests one after another
+runKeyIntervalTests();
