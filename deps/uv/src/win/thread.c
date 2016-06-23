@@ -211,7 +211,7 @@ int uv_mutex_trylock(uv_mutex_t* mutex) {
   if (TryEnterCriticalSection(mutex))
     return 0;
   else
-    return UV_EAGAIN;
+    return UV_EBUSY;
 }
 
 
