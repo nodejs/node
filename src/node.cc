@@ -3768,7 +3768,7 @@ void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 
 inline void* DebugSignalThreadMain(void* async_handler) {
   uv_async_t* dispatch_debug_messages_async =
-      reinterpret_cast<uv_async_t*>(async_handler);
+      static_cast<uv_async_t*>(async_handler);
   CHECK_NE(dispatch_debug_messages_async, nullptr);
   for (;;) {
     uv_sem_wait(&debug_semaphore);
