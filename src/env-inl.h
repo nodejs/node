@@ -247,6 +247,10 @@ inline uv_idle_t* Environment::immediate_idle_handle() {
   return &immediate_idle_handle_;
 }
 
+inline uv_async_t* Environment::dispatch_debug_messages_async() {
+  return &dispatch_debug_messages_async_;
+}
+
 inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
                                                HandleCleanupCb cb,
                                                void *arg) {
