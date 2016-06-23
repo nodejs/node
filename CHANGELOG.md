@@ -2,6 +2,8 @@
 
 ## 2016-06-22, Version 4.4.6 'Argon' (LTS), @thealphanerd
 
+### Notable Changes
+
 This is an important security release. All Node.js users should consult the security release summary at nodejs.org for details on patched vulnerabilities.
 
 This release is specifically related to a Buffer overflow vulnerability discovered in v8, more details can be found [in the CVE](https://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-1669)
