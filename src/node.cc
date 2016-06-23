@@ -4266,7 +4266,7 @@ static void StartNodeInstance(void* arg) {
 
     Environment env(&isolate_data, context);
 
-    uv_async_init(uv_default_loop(),
+    uv_async_init(env.event_loop(),
                   env.dispatch_debug_messages_async(),
                   DispatchDebugMessagesAsyncCallback);
     uv_unref(reinterpret_cast<uv_handle_t*>(
