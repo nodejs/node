@@ -270,4 +270,4 @@ var req = https.request(options, (res) => {
 [`SSL_METHODS`]: https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
-[`url.parse()`]: url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost
+[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
