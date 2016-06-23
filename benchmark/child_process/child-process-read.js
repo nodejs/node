@@ -20,7 +20,7 @@ function main(conf) {
   const len = +conf.len;
 
   const msg = '"' + Array(len).join('.') + '"';
-  const options = {'stdio': ['ignore', 'ipc', 'ignore']};
+  const options = { 'stdio': ['ignore', 'pipe', 'ignore'] };
   const child = spawn('yes', [msg], options);
 
   var bytes = 0;
