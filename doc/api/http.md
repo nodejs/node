@@ -1523,7 +1523,7 @@ There are a few special headers that should be noted.
 [`socket.setTimeout()`]: net.html#net_socket_settimeout_timeout_callback
 [`stream.setEncoding()`]: stream.html#stream_stream_setencoding_encoding
 [`TypeError`]: errors.html#errors_class_typeerror
-[`url.parse()`]: url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost
+[`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [constructor options]: #http_new_agent_options
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
