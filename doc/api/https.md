@@ -6,24 +6,39 @@ HTTPS is the HTTP protocol over TLS/SSL. In Node.js this is implemented as a
 separate module.
 
 ## Class: https.Agent
+<!-- YAML
+added: v0.4.5
+-->
 
 An Agent object for HTTPS similar to [`http.Agent`][].  See [`https.request()`][]
 for more information.
 
 ## Class: https.Server
+<!-- YAML
+added: v0.3.4
+-->
 
 This class is a subclass of `tls.Server` and emits events same as
 [`http.Server`][]. See [`http.Server`][] for more information.
 
 ### server.setTimeout(msecs, callback)
+<!-- YAML
+added: v0.11.2
+-->
 
 See [`http.Server#setTimeout()`][].
 
 ### server.timeout
+<!-- YAML
+added: v0.11.2
+-->
 
 See [`http.Server#timeout`][].
 
 ## https.createServer(options[, requestListener])
+<!-- YAML
+added: v0.3.4
+-->
 
 Returns a new HTTPS web server object. The `options` is similar to
 [`tls.createServer()`][].  The `requestListener` is a function which is
@@ -64,6 +79,9 @@ https.createServer(options, (req, res) => {
 ```
 
 ### server.close([callback])
+<!-- YAML
+added: v0.1.90
+-->
 
 See [`http.close()`][] for details.
 
@@ -74,6 +92,9 @@ See [`http.close()`][] for details.
 See [`http.listen()`][] for details.
 
 ## https.get(options, callback)
+<!-- YAML
+added: v0.3.6
+-->
 
 Like [`http.get()`][] but for HTTPS.
 
@@ -99,10 +120,16 @@ https.get('https://encrypted.google.com/', (res) => {
 ```
 
 ## https.globalAgent
+<!-- YAML
+added: v0.5.9
+-->
 
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
 ## https.request(options, callback)
+<!-- YAML
+added: v0.3.6
+-->
 
 Makes a request to a secure web server.
 
