@@ -7,7 +7,7 @@
 
 #include <v8.h>
 
-#if V8_MAJOR_VERSION < 5 || (V8_MAJOR_VERSION == 5 && V8_MINOR_VERSION < 2)
+#if V8_MAJOR_VERSION < 5 || (V8_MAJOR_VERSION == 5 && V8_MINOR_VERSION < 1)
 namespace v8 {
 
 // In standalone V8 inspector this is expected to be noop anyways...
