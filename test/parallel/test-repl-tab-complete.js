@@ -268,7 +268,7 @@ testMe.complete('.b', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['break'], 'b']);
 }));
 
-var testNonGlobal = repl.start({
+const testNonGlobal = repl.start({
   input: putIn,
   output: putIn,
   useGlobal: false
