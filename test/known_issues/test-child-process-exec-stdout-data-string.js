@@ -4,7 +4,6 @@ const common = require('../common');
 const assert = require('assert');
 const exec = require('child_process').exec;
 
-var cbCalls = 0;
 const expectedCalls = 2;
 
 const cb = common.mustCall((data) => {
