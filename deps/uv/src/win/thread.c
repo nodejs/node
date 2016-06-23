@@ -27,27 +27,7 @@
 #include "internal.h"
 
 
-#define HAVE_SRWLOCK_API() (pTryAcquireSRWLockShared != NULL)
 #define HAVE_CONDVAR_API() (pInitializeConditionVariable != NULL)
-
-static int uv__rwlock_srwlock_init(uv_rwlock_t* rwlock);
-static void uv__rwlock_srwlock_destroy(uv_rwlock_t* rwlock);
-static void uv__rwlock_srwlock_rdlock(uv_rwlock_t* rwlock);
-static int uv__rwlock_srwlock_tryrdlock(uv_rwlock_t* rwlock);
-static void uv__rwlock_srwlock_rdunlock(uv_rwlock_t* rwlock);
-static void uv__rwlock_srwlock_wrlock(uv_rwlock_t* rwlock);
-static int uv__rwlock_srwlock_trywrlock(uv_rwlock_t* rwlock);
-static void uv__rwlock_srwlock_wrunlock(uv_rwlock_t* rwlock);
-
-static int uv__rwlock_fallback_init(uv_rwlock_t* rwlock);
-static void uv__rwlock_fallback_destroy(uv_rwlock_t* rwlock);
-static void uv__rwlock_fallback_rdlock(uv_rwlock_t* rwlock);
-static int uv__rwlock_fallback_tryrdlock(uv_rwlock_t* rwlock);
-static void uv__rwlock_fallback_rdunlock(uv_rwlock_t* rwlock);
-static void uv__rwlock_fallback_wrlock(uv_rwlock_t* rwlock);
-static int uv__rwlock_fallback_trywrlock(uv_rwlock_t* rwlock);
-static void uv__rwlock_fallback_wrunlock(uv_rwlock_t* rwlock);
-
 
 static int uv_cond_fallback_init(uv_cond_t* cond);
 static void uv_cond_fallback_destroy(uv_cond_t* cond);
