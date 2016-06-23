@@ -13,12 +13,6 @@ testContext(repl.start({
   useGlobal: false
 }));
 
-// Test when useGlobal is true
-repl.start({
-  input: stream,
-  output: stream
-});
-
 function testContext(repl) {
   const context = repl.createContext();
   // ensure that the repl context gets its own "console" instance
