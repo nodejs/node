@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#0.12.14">0.12.15</a><br/>
 <a href="#0.12.14">0.12.14</a><br/>
 <a href="#0.12.13">0.12.13</a><br/>
 <a href="#0.12.12">0.12.12</a><br/>
@@ -36,6 +37,27 @@
 **Note:** Node.js v0.12 is covered by the 
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be maintained until December 31st, 2016.
+
+<a id="0.12.15"></a>
+## 2016-06-23, Version 0.12.15 (Maintenance), @rvagg
+
+### Notable changes:
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/june-2016-security-releases/ for details on patched vulnerabilities.
+
+* libuv: (CVE-2014-9748) Fixes a bug in the read/write locks implementation for Windows XP and Windows 2003 that can lead to undefined and potentially unsafe behaviour. More information can be found at https://github.com/libuv/libuv/issues/515 or at https://nodejs.org/en/blog/vulnerability/june-2016-security-releases/.
+* V8: (CVE-2016-1669) Fixes a potential Buffer overflow vulnerability discovered in V8, more details can be found in the CVE at https://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-1669 or at https://nodejs.org/en/blog/vulnerability/june-2016-security-releases/.
+
+### Commits:
+
+* [da8501edf6] - deps: backport bd1777fd from libuv upstream (Rod Vagg)
+* [9207a00f8e] - deps: backport 85adf43e from libuv upstream (Rod Vagg)
+* [9627f34230] - deps: backport 98239224 from libuv upstream (Rod Vagg)
+* [5df21b2e36] - deps: backport 9a4fd268 from libuv upstream (Rod Vagg)
+* [e75de35057] - deps: backport 3eb6764a from libuv upstream (Rod Vagg)
+* [a113e02f16] - deps: backport 3a9bfec from v8 upstream (Ben Noordhuis)
+* [8138055c88] - test: fix test failure due to expired certificates (Ben Noordhuis) https://github.com/nodejs/node/pull/7195
+
 
 <a id="0.12.14"></a>
 ## 2016-05-06, Version 0.12.14 (Maintenance), @rvagg
