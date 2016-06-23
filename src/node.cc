@@ -3779,7 +3779,7 @@ inline void* DebugSignalThreadMain(void* async_handler) {
 
 
 static int RegisterDebugSignalHandler(
-        uv_async_t* dispatch_debug_messages_async) {
+    uv_async_t* dispatch_debug_messages_async) {
   // Start a watchdog thread for calling v8::Debug::DebugBreak() because
   // it's not safe to call directly from the signal handler, it can
   // deadlock with the thread it interrupts.
