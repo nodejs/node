@@ -250,8 +250,16 @@ typedef union {
   /* windows.h. */
   SRWLOCK srwlock_;
   struct {
-    uv_mutex_t read_mutex_;
-    uv_mutex_t write_mutex_;
+    union {
+      CRITICAL_SECTION cs;
+      /* TODO: remove me in v2.x. */
+      uv_mutex_t unused;
+    } read_lock_;
+    union {
+      HANDLE sem;
+      /* TODO: remove me in v2.x. */
+      uv_mutex_t unused;
+    } write_lock_;
     unsigned int num_readers_;
   } fallback_;
 } uv_rwlock_t;
