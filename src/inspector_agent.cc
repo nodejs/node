@@ -36,6 +36,7 @@ const char DEVTOOLS_HASH[] = "521e5b7e2b7cc66b4006a8a54cb9c4e57494a5ef";
 
 void PrintDebuggerReadyMessage(int port) {
   fprintf(stderr, "Debugger listening on port %d.\n"
+    "Warning: This is an experimental feature and could change at any time.\n"
     "To start debugging, open the following URL in Chrome:\n"
     "    chrome-devtools://devtools/remote/serve_file/"
     "@%s/inspector.html?"
