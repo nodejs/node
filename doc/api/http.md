@@ -44,6 +44,9 @@ list like the following:
 ```
 
 ## Class: http.Agent
+<!-- YAML
+added: v0.3.4
+-->
 
 The HTTP Agent is used for pooling sockets used in HTTP client
 requests.
@@ -91,6 +94,9 @@ http.get({
 ```
 
 ### new Agent([options])
+<!-- YAML
+added: v0.3.4
+-->
 
 * `options` {Object} Set of configurable options to set on the agent.
   Can have the following fields:
@@ -118,6 +124,9 @@ http.request(options, onResponseCallback);
 ```
 
 ### agent.destroy()
+<!-- YAML
+added: v0.11.4
+-->
 
 Destroy any sockets that are currently in use by the agent.
 
@@ -128,11 +137,17 @@ sockets may hang open for quite a long time before the server
 terminates them.
 
 ### agent.freeSockets
+<!-- YAML
+added: v0.11.4
+-->
 
 An object which contains arrays of sockets currently awaiting use by
 the Agent when HTTP KeepAlive is used.  Do not modify.
 
 ### agent.getName(options)
+<!-- YAML
+added: v0.11.4
+-->
 
 Get a unique name for a set of request options, to determine whether a
 connection can be reused.  In the http agent, this returns
@@ -148,28 +163,43 @@ Options:
   the request.
 
 ### agent.maxFreeSockets
+<!-- YAML
+added: v0.11.7
+-->
 
 By default set to 256.  For Agents supporting HTTP KeepAlive, this
 sets the maximum number of sockets that will be left open in the free
 state.
 
 ### agent.maxSockets
+<!-- YAML
+added: v0.3.6
+-->
 
 By default set to Infinity. Determines how many concurrent sockets the agent
 can have open per origin. Origin is either a 'host:port' or
 'host:port:localAddress' combination.
 
 ### agent.requests
+<!-- YAML
+added: v0.5.9
+-->
 
 An object which contains queues of requests that have not yet been assigned to
 sockets. Do not modify.
 
 ### agent.sockets
+<!-- YAML
+added: v0.3.6
+-->
 
 An object which contains arrays of sockets currently in use by the
 Agent.  Do not modify.
 
 ## Class: http.ClientRequest
+<!-- YAML
+added: v0.1.17
+-->
 
 This object is created internally and returned from [`http.request()`][].  It
 represents an _in-progress_ request whose header has already been queued.  The
@@ -201,6 +231,9 @@ The request implements the [Writable Stream][] interface. This is an
 [`EventEmitter`][] with the following events:
 
 ### Event: 'abort'
+<!-- YAML
+added: v1.4.1
+-->
 
 `function () { }`
 
@@ -208,6 +241,9 @@ Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
 
 ### Event: 'aborted'
+<!-- YAML
+added: v0.3.8
+-->
 
 `function () { }`
 
@@ -215,6 +251,9 @@ Emitted when the request has been aborted by the server and the network
 socket has closed.
 
 ### Event: 'connect'
+<!-- YAML
+added: v0.7.0
+-->
 
 `function (response, socket, head) { }`
 
@@ -280,6 +319,9 @@ proxy.listen(1337, '127.0.0.1', () => {
 ```
 
 ### Event: 'continue'
+<!-- YAML
+added: v0.3.2
+-->
 
 `function () { }`
 
@@ -288,6 +330,9 @@ the request contained 'Expect: 100-continue'. This is an instruction that
 the client should send the request body.
 
 ### Event: 'response'
+<!-- YAML
+added: v0.1.0
+-->
 
 `function (response) { }`
 
@@ -295,12 +340,18 @@ Emitted when a response is received to this request. This event is emitted only
 once. The `response` argument will be an instance of [`http.IncomingMessage`][].
 
 ### Event: 'socket'
+<!-- YAML
+added: v0.5.3
+-->
 
 `function (socket) { }`
 
 Emitted after a socket is assigned to this request.
 
 ### Event: 'upgrade'
+<!-- YAML
+added: v0.1.94
+-->
 
 `function (response, socket, head) { }`
 
@@ -352,11 +403,17 @@ srv.listen(1337, '127.0.0.1', () => {
 ```
 
 ### request.abort()
+<!-- YAML
+added: v0.3.8
+-->
 
 Marks the request as aborting. Calling this will cause remaining data
 in the response to be dropped and the socket to be destroyed.
 
 ### request.end([data][, encoding][, callback])
+<!-- YAML
+added: v0.1.90
+-->
 
 Finishes sending the request. If any parts of the body are
 unsent, it will flush them to the stream. If the request is
@@ -369,6 +426,9 @@ If `callback` is specified, it will be called when the request stream
 is finished.
 
 ### request.flushHeaders()
+<!-- YAML
+added: v1.6.0
+-->
 
 Flush the request headers.
 
@@ -381,16 +441,25 @@ data isn't sent until possibly much later.  `request.flushHeaders()` lets you by
 the optimization and kickstart the request.
 
 ### request.setNoDelay([noDelay])
+<!-- YAML
+added: v0.5.9
+-->
 
 Once a socket is assigned to this request and is connected
 [`socket.setNoDelay()`][] will be called.
 
 ### request.setSocketKeepAlive([enable][, initialDelay])
+<!-- YAML
+added: v0.5.9
+-->
 
 Once a socket is assigned to this request and is connected
 [`socket.setKeepAlive()`][] will be called.
 
 ### request.setTimeout(timeout[, callback])
+<!-- YAML
+added: v0.5.9
+-->
 
 Once a socket is assigned to this request and is connected
 [`socket.setTimeout()`][] will be called.
@@ -399,6 +468,9 @@ Once a socket is assigned to this request and is connected
 * `callback` {Function} Optional function to be called when a timeout occurs. Same as binding to the `timeout` event.
 
 ### request.write(chunk[, encoding][, callback])
+<!-- YAML
+added: v0.1.29
+-->
 
 Sends a chunk of the body.  By calling this method
 many times, the user can stream a request body to a
@@ -417,10 +489,16 @@ is flushed.
 Returns `request`.
 
 ## Class: http.Server
+<!-- YAML
+added: v0.1.17
+-->
 
 This class inherits from [`net.Server`][] and has the following additional events:
 
 ### Event: 'checkContinue'
+<!-- YAML
+added: v0.3.0
+-->
 
 `function (request, response) { }`
 
@@ -437,6 +515,9 @@ Note that when this event is emitted and handled, the `'request'` event will
 not be emitted.
 
 ### Event: 'clientError'
+<!-- YAML
+added: v0.1.94
+-->
 
 `function (exception, socket) { }`
 
@@ -445,12 +526,18 @@ If a client connection emits an `'error'` event, it will be forwarded here.
 `socket` is the [`net.Socket`][] object that the error originated from.
 
 ### Event: 'close'
+<!-- YAML
+added: v0.1.4
+-->
 
 `function () { }`
 
 Emitted when the server closes.
 
 ### Event: 'connect'
+<!-- YAML
+added: v0.7.0
+-->
 
 `function (request, socket, head) { }`
 
@@ -469,6 +556,9 @@ event listener, meaning you will need to bind to it in order to handle data
 sent to the server on that socket.
 
 ### Event: 'connection'
+<!-- YAML
+added: v0.1.0
+-->
 
 `function (socket) { }`
 
@@ -479,6 +569,9 @@ the protocol parser attaches to the socket. The `socket` can also be
 accessed at `request.connection`.
 
 ### Event: 'request'
+<!-- YAML
+added: v0.1.0
+-->
 
 `function (request, response) { }`
 
@@ -488,6 +581,9 @@ per connection (in the case of keep-alive connections).
 an instance of [`http.ServerResponse`][].
 
 ### Event: 'upgrade'
+<!-- YAML
+added: v0.1.94
+-->
 
 `function (request, socket, head) { }`
 
@@ -506,10 +602,16 @@ event listener, meaning you will need to bind to it in order to handle data
 sent to the server on that socket.
 
 ### server.close([callback])
+<!-- YAML
+added: v0.1.90
+-->
 
 Stops the server from accepting new connections.  See [`net.Server.close()`][].
 
 ### server.listen(handle[, callback])
+<!-- YAML
+added: v0.5.10
+-->
 
 * `handle` {Object}
 * `callback` {Function}
@@ -529,6 +631,9 @@ This function is asynchronous. `callback` will be added as a listener for the
 Returns `server`.
 
 ### server.listen(path[, callback])
+<!-- YAML
+added: v0.1.90
+-->
 
 Start a UNIX socket server listening for connections on the given `path`.
 
@@ -536,6 +641,9 @@ This function is asynchronous. `callback` will be added as a listener for the
 `'listening'` event.  See also [`net.Server.listen(path)`][].
 
 ### server.listen(port[, hostname][, backlog][, callback])
+<!-- YAML
+added: v0.1.90
+-->
 
 Begin accepting connections on the specified `port` and `hostname`. If the
 `hostname` is omitted, the server will accept connections on any IPv6 address
@@ -553,11 +661,17 @@ This function is asynchronous. `callback` will be added as a listener for the
 `'listening'` event.  See also [`net.Server.listen(port)`][].
 
 ### server.maxHeadersCount
+<!-- YAML
+added: v0.7.0
+-->
 
 Limits maximum incoming headers count, equal to 1000 by default. If set to 0 -
 no limit will be applied.
 
 ### server.setTimeout(msecs, callback)
+<!-- YAML
+added: v0.9.12
+-->
 
 * `msecs` {Number}
 * `callback` {Function}
@@ -577,6 +691,9 @@ for handling socket timeouts.
 Returns `server`.
 
 ### server.timeout
+<!-- YAML
+added: v0.9.12
+-->
 
 * {Number} Default = 120000 (2 minutes)
 
@@ -591,6 +708,9 @@ Set to 0 to disable any kind of automatic timeout behavior on incoming
 connections.
 
 ## Class: http.ServerResponse
+<!-- YAML
+added: v0.1.17
+-->
 
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the `'request'` event.
@@ -599,6 +719,9 @@ The response implements, but does not inherit from, the [Writable Stream][]
 interface. This is an [`EventEmitter`][] with the following events:
 
 ### Event: 'close'
+<!-- YAML
+added: v0.6.7
+-->
 
 `function () { }`
 
@@ -606,6 +729,9 @@ Indicates that the underlying connection was terminated before
 [`response.end()`][] was called or able to flush.
 
 ### Event: 'finish'
+<!-- YAML
+added: v0.3.6
+-->
 
 `function () { }`
 
@@ -617,6 +743,9 @@ does not imply that the client has received anything yet.
 After this event, no more events will be emitted on the response object.
 
 ### response.addTrailers(headers)
+<!-- YAML
+added: v0.3.0
+-->
 
 This method adds HTTP trailing headers (a header but at the end of the
 message) to the response.
@@ -640,6 +769,9 @@ Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
 ### response.end([data][, encoding][, callback])
+<!-- YAML
+added: v0.1.90
+-->
 
 This method signals to the server that all of the response headers and body
 have been sent; that server should consider this message complete.
@@ -652,11 +784,17 @@ If `callback` is specified, it will be called when the response stream
 is finished.
 
 ### response.finished
+<!-- YAML
+added: v0.0.2
+-->
 
 Boolean value that indicates whether the response has completed. Starts
 as `false`. After [`response.end()`][] executes, the value will be `true`.
 
 ### response.getHeader(name)
+<!-- YAML
+added: v0.4.0
+-->
 
 Reads out a header that's already been queued but not sent to the client.  Note
 that the name is case insensitive.  This can only be called before headers get
@@ -669,10 +807,16 @@ var contentType = response.getHeader('content-type');
 ```
 
 ### response.headersSent
+<!-- YAML
+added: v0.9.3
+-->
 
 Boolean (read-only). True if headers were sent, false otherwise.
 
 ### response.removeHeader(name)
+<!-- YAML
+added: v0.4.0
+-->
 
 Removes a header that's queued for implicit sending.
 
@@ -683,6 +827,9 @@ response.removeHeader('Content-Encoding');
 ```
 
 ### response.sendDate
+<!-- YAML
+added: v0.7.5
+-->
 
 When true, the Date header will be automatically generated and sent in
 the response if it is not already present in the headers. Defaults to true.
@@ -691,6 +838,9 @@ This should only be disabled for testing; HTTP requires the Date header
 in responses.
 
 ### response.setHeader(name, value)
+<!-- YAML
+added: v0.4.0
+-->
 
 Sets a single header value for implicit headers.  If this header already exists
 in the to-be-sent headers, its value will be replaced.  Use an array of strings
@@ -726,6 +876,9 @@ const server = http.createServer((req,res) => {
 ```
 
 ### response.setTimeout(msecs, callback)
+<!-- YAML
+added: v0.9.12
+-->
 
 * `msecs` {Number}
 * `callback` {Function}
@@ -743,6 +896,9 @@ sockets.
 Returns `response`.
 
 ### response.statusCode
+<!-- YAML
+added: v0.4.0
+-->
 
 When using implicit headers (not calling [`response.writeHead()`][] explicitly),
 this property controls the status code that will be sent to the client when
@@ -758,6 +914,9 @@ After response header was sent to the client, this property indicates the
 status code which was sent out.
 
 ### response.statusMessage
+<!-- YAML
+added: v0.11.8
+-->
 
 When using implicit headers (not calling [`response.writeHead()`][] explicitly), this property
 controls the status message that will be sent to the client when the headers get
@@ -774,6 +933,9 @@ After response header was sent to the client, this property indicates the
 status message which was sent out.
 
 ### response.write(chunk[, encoding][, callback])
+<!-- YAML
+added: v0.1.29
+-->
 
 If this method is called and [`response.writeHead()`][] has not been called,
 it will switch to implicit header mode and flush the implicit headers.
@@ -800,11 +962,17 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 `'drain'` will be emitted when the buffer is free again.
 
 ### response.writeContinue()
+<!-- YAML
+added: v0.3.0
+-->
 
 Sends a HTTP/1.1 100 Continue message to the client, indicating that
 the request body should be sent. See the [`'checkContinue'`][] event on `Server`.
 
 ### response.writeHead(statusCode[, statusMessage][, headers])
+<!-- YAML
+added: v0.1.30
+-->
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
@@ -851,6 +1019,9 @@ Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
 ## Class: http.IncomingMessage
+<!-- YAML
+added: v0.1.17
+-->
 
 An `IncomingMessage` object is created by [`http.Server`][] or
 [`http.ClientRequest`][] and passed as the first argument to the `'request'`
@@ -861,6 +1032,9 @@ It implements the [Readable Stream][] interface, as well as the
 following additional events, methods, and properties.
 
 ### Event: 'aborted'
+<!-- YAML
+added: v0.3.8
+-->
 
 `function () { }`
 
@@ -868,6 +1042,9 @@ Emitted when the request has been aborted by the client and the network
 socket has closed.
 
 ### Event: 'close'
+<!-- YAML
+added: v0.4.2
+-->
 
 `function () { }`
 
@@ -875,6 +1052,9 @@ Indicates that the underlying connection was closed.
 Just like `'end'`, this event occurs only once per response.
 
 ### message.destroy([error])
+<!-- YAML
+added: v0.3.0
+-->
 
 * `error` {Error}
 
@@ -883,6 +1063,9 @@ is provided, an `'error'` event is emitted and `error` is passed as an argument
 to any listeners on the event.
 
 ### message.headers
+<!-- YAML
+added: v0.1.5
+-->
 
 The request/response headers object.
 
@@ -909,6 +1092,9 @@ header name:
 * For all other headers, the values are joined together with ', '.
 
 ### message.httpVersion
+<!-- YAML
+added: v0.1.1
+-->
 
 In case of server request, the HTTP version sent by the client. In the case of
 client response, the HTTP version of the connected-to server.
@@ -918,6 +1104,9 @@ Also `message.httpVersionMajor` is the first integer and
 `message.httpVersionMinor` is the second.
 
 ### message.method
+<!-- YAML
+added: v0.1.1
+-->
 
 **Only valid for request obtained from [`http.Server`][].**
 
@@ -925,6 +1114,9 @@ The request method as a string. Read only. Example:
 `'GET'`, `'DELETE'`.
 
 ### message.rawHeaders
+<!-- YAML
+added: v0.11.6
+-->
 
 The raw request/response headers list exactly as they were received.
 
@@ -949,11 +1141,17 @@ console.log(request.rawHeaders);
 ```
 
 ### message.rawTrailers
+<!-- YAML
+added: v0.11.6
+-->
 
 The raw request/response trailer keys and values exactly as they were
 received.  Only populated at the `'end'` event.
 
 ### message.setTimeout(msecs, callback)
+<!-- YAML
+added: v0.5.9
+-->
 
 * `msecs` {Number}
 * `callback` {Function}
@@ -963,18 +1161,27 @@ Calls `message.connection.setTimeout(msecs, callback)`.
 Returns `message`.
 
 ### message.statusCode
+<!-- YAML
+added: v0.1.1
+-->
 
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
 The 3-digit HTTP response status code. E.G. `404`.
 
 ### message.statusMessage
+<!-- YAML
+added: v0.11.10
+-->
 
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
 The HTTP response status message (reason phrase). E.G. `OK` or `Internal Server Error`.
 
 ### message.socket
+<!-- YAML
+added: v0.3.0
+-->
 
 The [`net.Socket`][] object associated with the connection.
 
@@ -982,10 +1189,16 @@ With HTTPS support, use [`request.socket.getPeerCertificate()`][] to obtain the
 client's authentication details.
 
 ### message.trailers
+<!-- YAML
+added: v0.3.0
+-->
 
 The request/response trailers object. Only populated at the `'end'` event.
 
 ### message.url
+<!-- YAML
+added: v0.1.90
+-->
 
 **Only valid for request obtained from [`http.Server`][].**
 
@@ -1034,12 +1247,18 @@ $ node
 ```
 
 ## http.METHODS
+<!-- YAML
+added: v0.11.8
+-->
 
 * {Array}
 
 A list of the HTTP methods that are supported by the parser.
 
 ## http.STATUS_CODES
+<!-- YAML
+added: v0.1.22
+-->
 
 * {Object}
 
@@ -1048,6 +1267,10 @@ short description of each.  For example, `http.STATUS_CODES[404] === 'Not
 Found'`.
 
 ## http.createClient([port][, host])
+<!-- YAML
+added: v0.1.13
+deprecated: v0.3.6
+-->
 
     Stability: 0 - Deprecated: Use [`http.request()`][] instead.
 
@@ -1055,6 +1278,9 @@ Constructs a new HTTP client. `port` and `host` refer to the server to be
 connected to.
 
 ## http.createServer([requestListener])
+<!-- YAML
+added: v0.1.13
+-->
 
 Returns a new instance of [`http.Server`][].
 
@@ -1062,6 +1288,9 @@ The `requestListener` is a function which is automatically
 added to the `'request'` event.
 
 ## http.get(options[, callback])
+<!-- YAML
+added: v0.3.6
+-->
 
 Since most requests are GET requests without bodies, Node.js provides this
 convenience method. The only difference between this method and [`http.request()`][]
@@ -1080,11 +1309,17 @@ http.get('http://www.google.com/index.html', (res) => {
 ```
 
 ## http.globalAgent
+<!-- YAML
+added: v0.5.9
+-->
 
 Global instance of Agent which is used as the default for all http client
 requests.
 
 ## http.request(options[, callback])
+<!-- YAML
+added: v0.3.6
+-->
 
 Node.js maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.
