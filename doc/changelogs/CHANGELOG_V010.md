@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#0.10.45">0.10.46</a><br/>
 <a href="#0.10.45">0.10.45</a><br/>
 <a href="#0.10.44">0.10.44</a><br/>
 <a href="#0.10.43">0.10.43</a><br/>
@@ -69,6 +70,21 @@
 **Note:** Node.js v0.10 is covered by the 
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be maintained until October 2016.
+
+<a id="0.10.46"></a>
+## 2016-06-23, Version 0.10.46 (Maintenance), @rvagg
+
+### Notable changes:
+
+This is a security release. All Node.js users should consult the security release summary at https://nodejs.org/en/blog/vulnerability/june-2016-security-releases/ for details on patched vulnerabilities.
+
+* libuv: (CVE-2014-9748) Fixes a bug in the read/write locks implementation for Windows XP and Windows 2003 that can lead to undefined and potentially unsafe behaviour. More information can be found at https://github.com/libuv/libuv/issues/515 or at https://nodejs.org/en/blog/vulnerability/june-2016-security-releases/.
+* V8: (CVE-2016-1669) Fixes a potential Buffer overflow vulnerability discovered in V8, more details can be found in the CVE at https://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-1669 or at https://nodejs.org/en/blog/vulnerability/june-2016-security-releases/.
+
+### Commits:
+
+* [3374f57973] - deps: update libuv to 0.10.37 (Saúl Ibarra Corretgé) https://github.com/nodejs/node/pull/7293
+* [fcb9145e29] - deps: backport 3a9bfec from v8 upstream (Myles Borins) https://github.com/nodejs/node-private/pull/43
 
 <a id="0.10.45"></a>
 ## 2016-05-06, Version 0.10.45 (Maintenance), @rvagg
