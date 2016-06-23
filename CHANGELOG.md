@@ -159,14 +159,6 @@ release.
 ----
 ----
 
-## 2016-06-23, Version 5.12.0 (Stable), @evanlucas
-
-<a href="doc/changelogs/CHANGELOG_V5.md#5.12.0">Moved to doc/changelogs/CHANGELOG_V5.md#5.12.0</a>.
-
-## 2016-06-23, Version 4.4.6 'Argon' (LTS), @thealphanerd
-
-<a href="doc/changelogs/CHANGELOG_V4.md#4.4.6">Moved to doc/changelogs/CHANGELOG_V4.md#4.4.6</a>.
-
 ## 2016-05-06, Version 0.12.14 (Maintenance), @rvagg
 
 <a href="doc/changelogs/CHANGELOG_V012.md#0.12.14">Moved to doc/changelogs/CHANGELOG_V012.md#0.12.14</a>.

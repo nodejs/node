@@ -48,8 +48,9 @@
 will be supported actively until April 2017 and maintained until April 2018.
 
 <a id="4.4.6"></a>
-
 ## 2016-06-23, Version 4.4.6 'Argon' (LTS), @thealphanerd
+
+### Notable Changes
 
 This is an important security release. All Node.js users should consult the security release summary at nodejs.org for details on patched vulnerabilities.
 
