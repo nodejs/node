@@ -12,6 +12,7 @@ var fs = require('graceful-fs')
 var isWindowsShell = require('./utils/is-windows-shell.js')
 var escapeExecPath = require('./utils/escape-exec-path.js')
 var escapeArg = require('./utils/escape-arg.js')
+var output = require('./utils/output.js')
 
 function explore (args, cb) {
   if (args.length < 1 || !args[0]) return cb(explore.usage)
@@ -42,7 +43,7 @@ function explore (args, cb) {
     }
 
     if (!shellArgs.length) {
-      console.log(
+      output(
         '\nExploring ' + cwd + '\n' +
           "Type 'exit' or ^D when finished\n"
       )

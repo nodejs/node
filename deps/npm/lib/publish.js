@@ -13,6 +13,7 @@ var createReadStream = require('graceful-fs').createReadStream
 var npa = require('npm-package-arg')
 var semver = require('semver')
 var getPublishConfig = require('./utils/get-publish-config.js')
+var output = require('./utils/output.js')
 
 publish.usage = 'npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>]' +
                 "\n\nPublishes '.' if no argument supplied" +
@@ -147,8 +148,7 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
       // report the unpublish error if this was a retry and unpublish failed
       if (er && isRetry && isRetry !== true) return cb(isRetry)
       if (er) return cb(er)
-      log.clearProgress()
-      console.log('+ ' + data._id)
+      output('+ ' + data._id)
       cb()
     })
   })
