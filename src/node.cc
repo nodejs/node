@@ -4263,7 +4263,6 @@ static void StartNodeInstance(void* arg) {
                              array_buffer_allocator.zero_fill_field());
     Local<Context> context = Context::New(isolate);
     Context::Scope context_scope(context);
-
     Environment env(&isolate_data, context);
 
     uv_async_init(env.event_loop(),
