@@ -20,7 +20,6 @@ function testContext(repl) {
 
   // ensure that the repl's global property is the context
   assert(context.global === context);
-  assert(context.global.global === context);
 
   // ensure that the repl console instance does not have a setter
   assert.throws(() => context.console = 'foo');
