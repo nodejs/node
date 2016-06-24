@@ -1,9 +1,9 @@
 <!--
-Thank you for reporting an issue. Please fill in the template below. If unsure
-about something, just do as best as you're able.
+Thank you for reporting an issue.
+Please fill in as much of the template below as you're able.
 
-Version: usually output of `node -v`
-Platform: either `uname -a` output, or if Windows, version and 32 or 64-bit
+Version: output of `node -v`
+Platform: output of `uname -a` (UNIX), or version and 32 or 64-bit (Windows)
 Subsystem: if known, please specify affected core module name
 
 If possible, please provide code that demonstrates the problem, keeping it as
