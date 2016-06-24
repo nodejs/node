@@ -186,6 +186,7 @@ information about the governance of the Node.js project, see
 * [joaocgreis](https://github.com/joaocgreis) - **João Reis** &lt;reis@janeasystems.com&gt;
 * [julianduque](https://github.com/julianduque) - **Julian Duque** &lt;julianduquej@gmail.com&gt;
 * [JungMinu](https://github.com/JungMinu) - **Minwoo Jung** &lt;jmwsoft@gmail.com&gt;
+* [lance](https://github.com/lance) - **Lance Ball** &lt;lball@redhat.com&gt;
 * [lxe](https://github.com/lxe) - **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [matthewloring](https://github.com/matthewloring) - **Matthew Loring** &lt;mattloring@google.com&gt;
 * [mcollina](https://github.com/mcollina) - **Matteo Collina** &lt;matteo.collina@gmail.com&gt;
