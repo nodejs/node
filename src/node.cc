@@ -1512,20 +1512,25 @@ void AppendExceptionLine(Environment* env,
   Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow);
 
   const bool can_set_arrow = !arrow_str.IsEmpty() && !err_obj.IsEmpty();
-  if (can_set_arrow && (mode != FATAL_ERROR || err_obj->IsNativeError())) {
-    err_obj->SetPrivate(
-        env->context(),
-        env->arrow_message_private_symbol(),
-        arrow_str);
+  // If allocating arrow_str failed, print it out. There's not much else to do.
+  // If it's not an error, but something needs to be printed out because
+  // it's a fatal exception, also print it out from here.
+  // Otherwise, the arrow property will be attached to the object and handled
+  // by the caller.
+  if (!can_set_arrow || (mode == FATAL_ERROR && !err_obj->IsNativeError())) {
+    if (env->printed_error())
+      return;
+    env->set_printed_error(true);
+
+    uv_tty_reset_mode();
+    PrintErrorString("\n%s", arrow);
     return;
   }
 
-  // Allocation failed when called from ReportException(), just print it out.
-  if (env->printed_error())
-    return;
-  env->set_printed_error(true);
-  uv_tty_reset_mode();
-  PrintErrorString("\n%s", arrow);
+  err_obj->SetPrivate(
+      env->context(),
+      env->arrow_message_private_symbol(),
+      arrow_str);
 }
 
 
