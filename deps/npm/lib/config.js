@@ -11,6 +11,7 @@ var editor = require('editor')
 var os = require('os')
 var umask = require('./utils/umask')
 var usage = require('./utils/usage')
+var output = require('./utils/output')
 
 config.usage = usage(
   'config',
@@ -148,7 +149,7 @@ function get (key, cb) {
   }
   var val = npm.config.get(key)
   if (key.match(/umask/)) val = umask.toString(val)
-  console.log(val)
+  output(val)
   cb()
 }
 
@@ -278,7 +279,7 @@ function list (cb) {
            '; HOME = ' + process.env.HOME + '\n' +
            '; "npm config ls -l" to show all defaults.\n'
 
-    console.log(msg)
+    output(msg)
     return cb()
   }
 
@@ -294,7 +295,7 @@ function list (cb) {
   })
   msg += '\n'
 
-  console.log(msg)
+  output(msg)
   return cb()
 }
 

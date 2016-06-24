@@ -12,6 +12,7 @@ var npm = require('../npm.js')
 var deepSortObject = require('../utils/deep-sort-object.js')
 var parseJSON = require('../utils/parse-json.js')
 var moduleName = require('../utils/module-name.js')
+var isOnlyDev = require('./is-dev.js').isOnlyDev
 
 // if the -S|--save option is specified, then write installed packages
 // as dependencies to a package.json file.
@@ -49,8 +50,7 @@ function saveShrinkwrap (tree, next) {
 
     var shrinkwrap = tree.package._shrinkwrap || {dependencies: {}}
     var hasDevOnlyDeps = tree.requires.filter(function (dep) {
-      var devReqs = dep.package._requiredBy.filter(function (name) { return name.substr(0, 4) === '#DEV' })
-      return devReqs.length === dep.package._requiredBy.length
+      return isOnlyDev(dep)
     }).some(function (dep) {
       return shrinkwrap.dependencies[dep.package.name] != null
     })

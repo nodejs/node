@@ -1,7 +1,26 @@
 'use strict'
-var isDev = exports.isDev = function (node) {
-  return node.package._requiredBy.some(function (req) { return req === '#DEV:/' })
+var moduleName = require('../utils/module-name.js')
+
+function andIsDev (name) {
+  return function (req) {
+    return req.package &&
+      req.package.devDependencies &&
+      req.package.devDependencies[name]
+  }
 }
+
+exports.isDev = function (node) {
+  return node.requiredBy.some(andIsDev(moduleName(node)))
+}
+
+function andIsOnlyDev (name) {
+  var isThisDev = andIsDev(name)
+  return function (req) {
+    return isThisDev(req) &&
+      (!req.package.dependencies || !req.package.dependencies[name])
+  }
+}
+
 exports.isOnlyDev = function (node) {
-  return node.package._requiredBy.length === 1 && isDev(node)
+  return node.requiredBy.every(andIsOnlyDev(moduleName(node)))
 }

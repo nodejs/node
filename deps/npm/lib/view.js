@@ -288,6 +288,10 @@ function printData (data, name, cb) {
   // there's one at the beginning
   if (/^\s*\n/.test(msg)) msg += '\n'
 
+  // disable the progress bar entirely, as we can't meaningfully update it if
+  // we may have partial lines printed.
+  log.disableProgress()
+
   // print directly to stdout to not unnecessarily add blank lines
   process.stdout.write(msg)
 
