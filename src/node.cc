@@ -1424,7 +1424,7 @@ bool IsExceptionDecorated(Environment* env, Local<Value> er) {
 void AppendExceptionLine(Environment* env,
                          Local<Value> er,
                          Local<Message> message,
-                         bool handlingFatalError) {
+                         enum ErrorHandlingMode mode) {
   if (message.IsEmpty())
     return;
 
@@ -1511,8 +1511,8 @@ void AppendExceptionLine(Environment* env,
 
   Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow);
 
-  if (!arrow_str.IsEmpty() && !err_obj.IsEmpty() &&
-      (!handlingFatalError || err_obj->IsNativeError())) {
+  const bool can_set_arrow = !arrow_str.IsEmpty() && !err_obj.IsEmpty();
+  if (can_set_arrow && (mode != FATAL_ERROR || err_obj->IsNativeError())) {
     err_obj->SetPrivate(
         env->context(),
         env->arrow_message_private_symbol(),
@@ -1534,7 +1534,7 @@ static void ReportException(Environment* env,
                             Local<Message> message) {
   HandleScope scope(env->isolate());
 
-  AppendExceptionLine(env, er, message, true);
+  AppendExceptionLine(env, er, message, FATAL_ERROR);
 
   Local<Value> trace_value;
   Local<Value> arrow;
