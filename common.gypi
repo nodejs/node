@@ -12,8 +12,8 @@
     'python%': 'python',
 
     'node_shared%': 'false',
-    'node_no_v8_platform%': 'false',
-    'node_no_bundled_v8%': 'false',
+    'node_use_v8_platform%': 'true',
+    'node_use_bundled_v8%': 'true',
     'node_module_ver%': '',
 
     'node_tag%': '',

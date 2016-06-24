@@ -433,12 +433,14 @@ parser.add_option('--shared',
 parser.add_option('--no-v8-platform',
     action='store_true',
     dest='no_v8_platform',
+    default=False,
     help='do not initialize v8 platform during node.js startup. ' +
          '(This mode is not officially supported for regular applications)')
 
 parser.add_option('--no-bundled-v8',
     action='store_true',
     dest='no_bundled_v8',
+    default=False,
     help='do not use V8 includes from the bundled deps folder. ' +
          '(This mode is not officially supported for regular applications)')
 
@@ -833,8 +835,8 @@ def configure_node(o):
 
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
   o['variables']['node_shared'] = b(options.shared)
-  o['variables']['node_no_v8_platform'] = b(options.no_v8_platform)
-  o['variables']['node_no_bundled_v8'] = b(options.no_bundled_v8)
+  o['variables']['node_use_v8_platform'] = b(not options.no_v8_platform)
+  o['variables']['node_use_bundled_v8'] = b(not options.no_bundled_v8)
   
   if flavor == 'linux' and options.shared:
     o['variables']['node_module_ver'] = getmoduleversion.get_version()

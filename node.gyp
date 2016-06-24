@@ -6,8 +6,8 @@
     'node_use_etw%': 'false',
     'node_use_perfctr%': 'false',
     'node_no_browser_globals%': 'false',
-    'node_no_v8_platform%': 'false',
-    'node_no_bundled_v8%': 'false',
+    'node_use_v8_platform%': 'true',
+    'node_use_bundled_v8%': 'true',
     'node_shared%': 'false',
     'node_module_ver%': '',
     'node_shared_zlib%': 'false',
@@ -241,7 +241,7 @@
             }]
           ],
         }],
-        [ 'node_no_bundled_v8=="false"', {
+        [ 'node_use_bundled_v8=="true"', {
           'include_dirs': [
             'deps/v8', # include/v8_platform.h
           ],
@@ -283,7 +283,7 @@
               'defines': [ 'NODE_HAVE_SMALL_ICU=1' ],
           }]],
         }],
-        [ 'node_no_bundled_v8=="false" and \
+        [ 'node_use_bundled_v8=="true" and \
            node_enable_v8_vtunejit=="true" and (target_arch=="x64" or \
            target_arch=="ia32" or target_arch=="x32")', {
           'defines': [ 'NODE_ENABLE_VTUNE_PROFILING' ],
@@ -347,7 +347,7 @@
                     ],
                   },
                   'conditions': [
-                    ['OS in "linux freebsd"', {
+                    ['OS in "linux freebsd"' and 'node_shared=="false"', {
                       'ldflags': [
                         '-Wl,--whole-archive <(PRODUCT_DIR)/<(OPENSSL_PRODUCT)',
                         '-Wl,--no-whole-archive',
@@ -434,7 +434,7 @@
         [ 'node_no_browser_globals=="true"', {
           'defines': [ 'NODE_NO_BROWSER_GLOBALS' ],
         } ],
-        [ 'node_no_bundled_v8=="false" and v8_postmortem_support=="true"', {
+        [ 'node_use_bundled_v8=="true" and v8_postmortem_support=="true"', {
           'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:postmortem-metadata' ],
           'conditions': [
             # -force_load is not applicable for the static library
@@ -517,8 +517,8 @@
             'NODE_PLATFORM="sunos"',
           ],
         }],
-        [ 'OS=="freebsd" or OS=="linux"', {
-          'ldflags': [ '-Wl,-z,noexecstack,--allow-multiple-definition',
+        [ '(OS=="freebsd" or OS=="linux") and node_shared=="false"', {
+          'ldflags': [ '-Wl,-z,noexecstack',
                        '-Wl,--whole-archive <(V8_BASE)',
                        '-Wl,--no-whole-archive' ]
         }],
@@ -782,12 +782,12 @@
             'test/cctest/test_inspector_socket.cc'
           ]
         }],
-        [ 'node_no_v8_platform=="false"', {
+        [ 'node_use_v8_platform=="true"', {
           'dependencies': [
             'deps/v8/tools/gyp/v8.gyp:v8_libplatform',
           ],
         }],
-        [ 'node_no_bundled_v8=="false"', {
+        [ 'node_use_bundled_v8=="true"', {
           'dependencies': [
             'deps/v8/tools/gyp/v8.gyp:v8',
             'deps/v8/tools/gyp/v8.gyp:v8_libplatform'

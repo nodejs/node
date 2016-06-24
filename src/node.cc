@@ -186,7 +186,7 @@ static uv_async_t dispatch_debug_messages_async;
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
 
-static struct v8_plat {
+static struct {
 #ifdef NODE_NO_V8_PLATFORM
   void Initialize(int thread_pool_size) {}
   void PumpMessageLoop(Isolate* isolate) {}
@@ -198,26 +198,26 @@ static struct v8_plat {
 #endif  // HAVE_INSPECTOR
 #else  // !NODE_NO_V8_PLATFORM
   void Initialize(int thread_pool_size) {
-    platform = v8::platform::CreateDefaultPlatform(thread_pool_size);
-    V8::InitializePlatform(platform);
+    platform_ = v8::platform::CreateDefaultPlatform(thread_pool_size);
+    V8::InitializePlatform(platform_);
   }
 
   void PumpMessageLoop(Isolate* isolate) {
-    v8::platform::PumpMessageLoop(platform, isolate);
+    v8::platform::PumpMessageLoop(platform_, isolate);
   }
 
   void Dispose() {
-    delete platform;
-    platform = nullptr;
+    delete platform_;
+    platform_ = nullptr;
   }
 
 #if HAVE_INSPECTOR
   void StartInspector(Environment *env, int port, bool wait) {
-    env->inspector_agent()->Start(platform, port, wait);
+    env->inspector_agent()->Start(platform_, port, wait);
   }
 #endif  // HAVE_INSPECTOR
 
-  v8::Platform* platform;
+  v8::Platform* platform_;
 #endif  // !NODE_NO_V8_PLATFORM
 } v8_platform;
 
