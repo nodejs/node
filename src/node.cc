@@ -1423,7 +1423,8 @@ bool IsExceptionDecorated(Environment* env, Local<Value> er) {
 
 void AppendExceptionLine(Environment* env,
                          Local<Value> er,
-                         Local<Message> message) {
+                         Local<Message> message,
+                         bool handlingFatalError) {
   if (message.IsEmpty())
     return;
 
@@ -1510,7 +1511,8 @@ void AppendExceptionLine(Environment* env,
 
   Local<String> arrow_str = String::NewFromUtf8(env->isolate(), arrow);
 
-  if (!arrow_str.IsEmpty() && !err_obj.IsEmpty() && err_obj->IsNativeError()) {
+  if (!arrow_str.IsEmpty() && !err_obj.IsEmpty() &&
+      (!handlingFatalError || err_obj->IsNativeError())) {
     err_obj->SetPrivate(
         env->context(),
         env->arrow_message_private_symbol(),
@@ -1518,7 +1520,7 @@ void AppendExceptionLine(Environment* env,
     return;
   }
 
-  // Allocation failed, just print it out.
+  // Allocation failed when called from ReportException(), just print it out.
   if (env->printed_error())
     return;
   env->set_printed_error(true);
@@ -1532,7 +1534,7 @@ static void ReportException(Environment* env,
                             Local<Message> message) {
   HandleScope scope(env->isolate());
 
-  AppendExceptionLine(env, er, message);
+  AppendExceptionLine(env, er, message, true);
 
   Local<Value> trace_value;
   Local<Value> arrow;

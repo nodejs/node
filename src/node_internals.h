@@ -139,7 +139,8 @@ bool IsExceptionDecorated(Environment* env, v8::Local<v8::Value> er);
 
 void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Value> er,
-                         v8::Local<v8::Message> message);
+                         v8::Local<v8::Message> message,
+                         bool handlingFatalError = false);
 
 NO_RETURN void FatalError(const char* location, const char* message);
 
