@@ -126,9 +126,11 @@ constexpr size_t arraysize(const T(&)[N]) { return N; }
 # define NO_RETURN
 #endif
 
+enum ErrorHandlingMode { FATAL_ERROR, CONTEXTIFY_ERROR };
 void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Value> er,
-                         v8::Local<v8::Message> message);
+                         v8::Local<v8::Message> message,
+                         enum ErrorHandlingMode mode = CONTEXTIFY_ERROR);
 
 NO_RETURN void FatalError(const char* location, const char* message);
 
