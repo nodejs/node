@@ -3,6 +3,8 @@ module.exports = collect
 function collect (stream) {
   if (stream._collected) return
 
+  if (stream._paused) return stream.on('resume', collect.bind(null, stream))
+
   stream._collected = true
   stream.pause()
 

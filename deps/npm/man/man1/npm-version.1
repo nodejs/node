@@ -1,4 +1,4 @@
-.TH "NPM\-VERSION" "1" "May 2016" "" ""
+.TH "NPM\-VERSION" "1" "June 2016" "" ""
 .SH "NAME"
 \fBnpm-version\fR \- Bump a package version
 .SH SYNOPSIS
@@ -19,7 +19,7 @@ valid second argument to semver\.inc (one of \fBpatch\fP, \fBminor\fP, \fBmajor\
 the existing version will be incremented by 1 in the specified field\.
 .P
 If run in a git repo, it will also create a version commit and tag\.
-This behavior is controlled by \fBgit\-tag\-version\fP (see below), and can
+This behavior is controlled by \fBgit\-tag\-version\fP (see below), and can 
 be disabled on the command line by running \fBnpm \-\-no\-git\-tag\-version version\fP\|\.
 It will fail if the working directory is not clean, unless the \fB\-\-force\fP
 flag is set\.
@@ -66,15 +66,15 @@ Run the \fBpreversion\fP script\. These scripts have access to the old \fBversio
 A typical use would be running your full test suite before deploying\.
 Any files you want added to the commit should be explicitly added using \fBgit add\fP\|\.
 .IP 3. 3
-Bump \fBversion\fP in \fBpackage\.json\fP as requested (\fBpatch\fP, \fBminor\fP, \fBmajor\fP, etc)\.
+Bump \fBversion\fP in \fBpackage\.json\fP as requested (\fBpatch\fP, \fBminor\fP, \fBmajor\fP, etc)\. 
 .IP 4. 3
 Run the \fBversion\fP script\. These scripts have access to the new \fBversion\fP in package\.json
-(so they can incorporate it into file headers in generated files for example)\.
+(so they can incorporate it into file headers in generated files for example)\. 
 Again, scripts should explicitly add generated files to the commit using \fBgit add\fP\|\.
 .IP 5. 3
 Commit and tag\.
 .IP 6. 3
-Run the \fBpostversion\fP script\. Use it to clean up the file system or automatically push
+Run the \fBpostversion\fP script\. Use it to clean up the file system or automatically push 
 the commit and/or tag\.
 
 .RE

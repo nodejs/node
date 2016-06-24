@@ -734,10 +734,10 @@ npm will default some values based on package contents.
   If there is a `server.js` file in the root of your package, then npm
   will default the `start` command to `node server.js`.
 
-* `"scripts":{"preinstall": "node-gyp rebuild"}`
+* `"scripts":{"install": "node-gyp rebuild"}`
 
-  If there is a `binding.gyp` file in the root of your package, npm will
-  default the `preinstall` command to compile using node-gyp.
+  If there is a `binding.gyp` file in the root of your package and you have not defined an `install` or `preinstall` script, npm will
+  default the `install` command to compile using node-gyp.
 
 * `"contributors": [...]`
 
