@@ -28,3 +28,5 @@ html/*.png
 *.pyc
 
 /test/tap/builtin-config
+
+.nyc_output

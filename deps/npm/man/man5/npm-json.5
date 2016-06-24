@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "May 2016" "" ""
+.TH "PACKAGE\.JSON" "5" "June 2016" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -881,9 +881,9 @@ npm will default some values based on package contents\.
 If there is a \fBserver\.js\fP file in the root of your package, then npm
 will default the \fBstart\fP command to \fBnode server\.js\fP\|\.
 .IP \(bu 2
-\fB"scripts":{"preinstall": "node\-gyp rebuild"}\fP
-If there is a \fBbinding\.gyp\fP file in the root of your package, npm will
-default the \fBpreinstall\fP command to compile using node\-gyp\.
+\fB"scripts":{"install": "node\-gyp rebuild"}\fP
+If there is a \fBbinding\.gyp\fP file in the root of your package and you have not defined an \fBinstall\fP or \fBpreinstall\fP script, npm will
+default the \fBinstall\fP command to compile using node\-gyp\.
 .IP \(bu 2
 \fB"contributors": [\.\.\.]\fP
 If there is an \fBAUTHORS\fP file in the root of your package, npm will

@@ -1,0 +1,51 @@
+{
+  "name": "buffer-shims",
+  "version": "1.0.0",
+  "description": "some shims for node buffers",
+  "main": "index.js",
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "tape": "^4.5.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/calvinmetcalf/buffer-shims.git"
+  },
+  "gitHead": "ea89b3857ab5b8203957922a84e9a48cf4c47e0a",
+  "bugs": {
+    "url": "https://github.com/calvinmetcalf/buffer-shims/issues"
+  },
+  "_id": "buffer-shims@1.0.0",
+  "_shasum": "9978ce317388c649ad8793028c3477ef044a8b51",
+  "_from": "buffer-shims@>=1.0.0 <2.0.0",
+  "_npmVersion": "3.8.6",
+  "_nodeVersion": "5.11.0",
+  "_npmUser": {
+    "name": "cwmma",
+    "email": "calvin.metcalf@gmail.com"
+  },
+  "dist": {
+    "shasum": "9978ce317388c649ad8793028c3477ef044a8b51",
+    "tarball": "https://registry.npmjs.org/buffer-shims/-/buffer-shims-1.0.0.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "cwmma",
+      "email": "calvin.metcalf@gmail.com"
+    }
+  ],
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/buffer-shims-1.0.0.tgz_1462560889323_0.8640750856138766"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/buffer-shims/-/buffer-shims-1.0.0.tgz",
+  "readme": "ERROR: No README data found!",
+  "homepage": "https://github.com/calvinmetcalf/buffer-shims#readme"
+}
