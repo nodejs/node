@@ -633,7 +633,7 @@ class ContextifyScript : public BaseObject {
     if (IsExceptionDecorated(env, err_obj))
       return;
 
-    AppendExceptionLine(env, exception, try_catch.Message());
+    AppendExceptionLine(env, exception, try_catch.Message(), CONTEXTIFY_ERROR);
     Local<Value> stack = err_obj->Get(env->stack_string());
     auto maybe_value =
         err_obj->GetPrivate(
