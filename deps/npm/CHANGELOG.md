@@ -1,3 +1,253 @@
+### v2.15.8 (2016-06-17):
+
+There's a very important bug fix and a long-awaited (and signifcant!)
+deprecation in this hotfix release. [Hold on.](http://butt.holdings/)
+
+#### *WHOA*
+
+When Node.js 6.0.0 was released, the CLI team noticed an alarming upsurge in
+bugs related to important files (like `README.md`) not being included in
+published packages. The new bugs looked much like
+[#5082](https://github.com/npm/npm/issues/5082), which had been around in one
+form or another since April, 2014. #5082 used to be a very rare (and obnoxious)
+bug that the CLI team hadn't had much luck reproducing, and we'd basically
+marked it down as a race condition that arose on machines using slow and / or
+rotating-media-based hard drives.
+
+Under 6.0.0, the behavior was reliable enough to be nearly deterministic, and
+made it very difficult for publishers using `.npmignore` files in combination
+with `"files"` stanzas in `package.json` to get their packages onto the
+registry without one or more files missing from the packed tarball. The entire
+saga is contained within [the issue](https://github.com/npm/npm/issues/5082),
+but the summary is that an improvement to the performance of
+[`fs.realpath()`](https://nodejs.org/api/fs.html#fs_fs_realpath_path_options_callback)
+made it much more likely that the packing code would lose the race.
+
+Fixing this has proven to be very difficult, in part because the code used by
+npm to produce package tarballs is more complicated than, strictly speaking, it
+needs to be. [**@evanlucas**](https://github.com/evanlucas) contributed [a
+patch](https://github.com/npm/fstream/pull/50) that passed the tests in a
+[special test suite](https://github.com/othiym23/eliminate-5082) that I
+([**@othiym23**](https://github.com/othiym23)) created (with help from
+[**@addaleax**](https://github.com/addaleax)), but only _after_ we'd released
+the fixed version of that package did we learn that it actually made the
+problem _worse_ in other situations in npm proper. Eventually,
+[**@rvagg**](https://github.com/rvagg) put together a more durable fix that
+appears to completely address the errant behavior under Node.js 6.0.0. That's
+the patch included in this release. Everybody should chip in for redback
+insurance for Rod and his family; he's done the community a huge favor.
+
+Does this mean the long (2+ year) saga of #5082 is now over? At this point, I'm
+going to quote from my latest summary on the issue:
+
+> The CLI team (mostly me, with input from the rest of the team) has decided that
+> the overall complexity of the interaction between `fstream`, `fstream-ignore`,
+> `fstream-npm`, and `node-tar` has grown more convoluted than the team is
+> comfortable (maybe even capable of) supporting.
+>
+> - While I believe that @rvagg's (very targeted) fix addresses _this_ issue, I
+>   would be shocked if there aren't other race conditions in npm's packing
+>   logic. I've already identified a couple other places in the code that are
+>   most likely race conditions, even if they're harder to trigger than the
+>   current one.
+> - The way that dependency bundling is integrated leads to a situation in
+>   which a bunch of logic is duplicated between `fstream-npm` and
+>   `lib/utils/tar.js` in npm itself, and the way `fstream`'s extension
+>   mechanism works makes this difficult to clean up. This caused a nasty
+>   regression ([#13088](https://github.com/npm/fstream/pull/50), see below) as
+>   of ~`npm@3.8.7` where the dependencies of `bundledDependencies` were no
+>   longer being included in the built package tarballs.
+> - The interaction between `.npmignore`, `.gitignore`, and `files` is hopelessly
+>   complicated, scattered in many places throughout the code. We've been
+>   discussing [making the ignores and includes logic clearer and more
+>   predictable](https://github.com/npm/npm/wiki/Files-and-Ignores), and the
+>   current code fights our efforts to clean that up.
+>
+> So, our intention is still to replace `fstream`, `fstream-ignore`, and
+> `fstream-npm` with something much simpler and purpose-built. There's no real
+> reason to have a stream abstraction here when a simple recursive-descent
+> filesystem visitor and a synchronous function that can answer whether a given
+> path should be included in the packed tarball would do the job adequately.
+>
+> What's not yet clear is whether we'll need to replace `node-tar` in the
+> process. `node-tar` is a very robust implementation of tar (it handles, like,
+> everything), and it also includes some very important tweaks to prevent several
+> classes of security exploits involving maliciously crafted packages. However,
+> its packing API involves passing in an `fstream` instance, so we'd either need
+> to produce something that follows enough of `fstream`'s contract for `node-tar`
+> to keep working, or swap `node-tar` out for something like `tar-stream` (and
+> then ensuring that our use of `tar-stream` is secure, which could involve
+> security patches for either npm or `tar-stream`).
+
+The testing and review of `fstream@1.0.10` that the team has done leads us to
+believe that this bug is fixed, but I'm feeling more than a little paranoid
+about fstream now, so it's important that people keep a close eye on their
+publishes for a while and let us know immediately if they notice any
+irregularities.
+
+* [`2c49265`](https://github.com/npm/npm/commit/2c49265c6746d29ae0cd5f3532d28c5950f9847e)
+  [#5082](https://github.com/npm/npm/issues/5082) `fstream@1.0.10`: Ensure that
+  entries are collected after a paused stream resumes.
+  ([@rvagg](https://github.com/rvagg))
+* [`92e4344`](https://github.com/npm/npm/commit/92e43444d9204f749f83512aeab5d5e0a2d085a7)
+  [#5082](https://github.com/npm/npm/issues/5082) Remove the warning introduced
+  in `npm@3.10.0`, because it should no longer be necessary.
+  ([@othiym23](https://github.com/othiym23))
+
+#### GOODBYE, FAITHFUL FRIEND
+
+At NodeConf Adventure 2016 (RIP in peace, Mikeal Rogers's NodeConf!), the CLI
+team had an opportunity to talk to representatives from some of the larger
+companies that we knew were still using Node.js 0.8 in production. After asking
+them whether they were still using 0.8, we got back blank stares and questions
+like, "0.8? You mean, from four years ago?" After establishing that being able
+to run npm in their legacy environments was no longer necessary, the CLI team
+made the decision to drop support for 0.8. (Faithful observers of our [team
+meetings](https://github.com/npm/npm/issues?utf8=%E2%9C%93&q=is%3Aissue+npm+cli+team+meeting+)
+will have known this was the plan for NodeConf since the beginning of 2016.)
+
+In practice, this means only what's in the commit below: we've removed 0.8 from
+our continuous integration test matrix below, and will no longer be habitually
+testing changes under Node 0.8.  We may also give ourselves permission to use
+`setImmediate()` in test code. However, since the project still supports
+Node.js 0.10 and 0.12, it's unlikely that patches that rely on ES 2015
+functionality will land anytime soon.
+
+Looking forward, the team's current plan is to drop support for Node.js 0.10
+when its LTS maintenace window expires in October, 2016, and 0.12 when its
+maintenance / LTS window ends at the end of 2016. We will also drop support for
+Node.js 5.x when Node.js 6 becomes LTS and Node.js 7 is released, also in the
+October-December 2016 timeframe.
+
+(Confused about Node.js's LTS policy? [Don't
+be!](https://github.com/nodejs/LTS) If you look at [this
+diagram](https://github.com/nodejs/LTS/blob/ce364a94b0e0619eba570cd57be396573e1ef889/schedule.png),
+it should make all of the preceding clear.)
+
+If, in practice, this doesn't work with distribution packagers or other
+community stakeholders responsible for packaging and distributing Node.js and
+npm, please reach out to us. Aligning the npm CLI's LTS policy with Node's
+helps everybody minimize the amount of work they need to do, and since all of
+our teams are small and very busy, this is somewhere between a necessity and
+non-negotiable.
+
+* [`4a1ecc0`](https://github.com/npm/npm/commit/4a1ecc068fb2660bd9bc3e2e2372aa0176d2193b)
+  Remove 0.8 from the Node.js testing matrix, and reorder to match real-world
+  priority, with comments. ([@othiym23](https://github.com/othiym23))
+
+### v2.15.7 (2016-06-16):
+
+It pains me greatly that we haven't been able to fix
+[#5082](https://github.com/npm/npm/issues/5082) yet, but warning you away from
+potentially publishing incomplete packages takes priority over feeling cheesy
+about landing a warning to help keep y'all out of trouble, so here you go
+(_please read this next bit_ (_please clap_)):
+
+#### DANGER: PUBLISHING ON NODE 6.0.0
+
+Publishing and packing are buggy under Node versions greater than 6.0.0.
+Please use Node.js LTS (4.4.x) to publish packages.  See
+[#5082](https://github.com/npm/npm/issues/5082) for details and current
+status.
+
+* [`dff00ce`](https://github.com/npm/npm/commit/dff00cedd56b9c04370f840299a7e657a7a835c6)
+  [#13077](https://github.com/npm/npm/pull/13077)
+  Warn when using Node 6+.
+  ([@othiym23](https://github.com/othiym23))
+
+#### PACKAGING CHANGES
+
+* [`1877171`](https://github.com/npm/npm/commit/1877171648e20595a82de34073b643f7e01a339f)
+  [#12873](https://github.com/npm/npm/issues/12873)
+  Ignore `.nyc_output`. This will help avoid an accidental publish or commit filled with
+  code coverage data.
+  ([@TheAlphaNerd](https://github.com/TheAlphaNerd))
+
+#### DOCUMENTATION CHANGES
+
+* [`470ae86`](https://github.com/npm/npm/commit/470ae86e052ae2f29ebec15b7547230b6240042e)
+  [#12983](https://github.com/npm/npm/pull/12983)
+  Describe how to run the lifecycle scripts of dependencies. How you do
+  this changed with `npm` v2.
+  ([@Tapppi](https://github.com/Tapppi))
+* [`9cedf37`](https://github.com/npm/npm/commit/9cedf37e5a3e26d0ffd6351af8cac974e3e011c2)
+  [#12776](https://github.com/npm/npm/pull/12776)
+  Remove mention of `<pkg>` arg for `run-script`.
+  ([@fibo](https://github.com/fibo))
+* [`55b8424`](https://github.com/npm/npm/commit/55b8424d7229f2021cac55f0b03de72403e7c0ff)
+  [#12840](https://github.com/npm/npm/pull/12840)
+  Remove sexualized language from comment.
+  ([@geek](https://github.com/geek))
+* [`d6bf0c3`](https://github.com/npm/npm/commit/d6bf0c393788a6398bf80b41c57956f2dbcf3b39)
+  [#12802](https://github.com/npm/npm/pull/12802)
+  Small grammar fix in `doc/cli/npm.md`.
+  ([@andresilveira](https://github.com/andresilveira))
+
+#### DEPENDENCY UPDATES
+
+* [`2c2c568`](https://github.com/npm/npm/commit/2c2c56857ff801d5fe1b6d3157870cd16e65891b)
+  `readable-stream@2.1.4`: Brought up to date with Node 6.1.0's streams implementation.
+  ([@calvinmetcalf](https://github.com/calvinmetcalf))
+* [`d682e64`](https://github.com/npm/npm/commit/d682e6445845b0a2584935d5e2942409c43f6916)
+  [npm/npm-user-validate#8](https://github.com/npm/npm-user-validate/pull/8)
+  `npm-user-validate@0.1.4`: Add a maximum length limit for usernames based on
+  the (arbitrary) limit imposed by the primary npm registry.
+  ([@aredridel](https://github.com/aredridel))
+* [`448b65b`](https://github.com/npm/npm/commit/448b65b48cda3b782b714057fb4b8311cc1fa36a)
+  `which@1.2.10`: Remove unused dependency `is-absolute`, bug fixes.
+  ([@isaacs](https://github.com/isaacs))
+* [`7d15434`](https://github.com/npm/npm/commit/7d15434f0b0af8e70b119835b21968217224664f)
+  `require-inject@1.4.0`: Add `requireInject.withEmptyCache` and
+  `requireInject.installGlobally.andClearCache` to support loading modules to be
+  injected with an empty cache.
+  ([@iarna](https://github.com/iarna))
+* [`31845c0`](https://github.com/npm/npm/commit/31845c081bc6f3f8a2f3d83a3c792dccffbaa2a8)
+  `init-package-json@1.9.4`:
+  Replace use of reserved identifier `package` in, uh, the package.
+  ([@adius](https://github.com/adius))
+* [`d73ef3e`](https://github.com/npm/npm/commit/d73ef3e6b18d4905de668c5115bc6042905a02d9)
+  `glob@7.0.4`: Use userland `fs.realpath` implementation to get glob working under Node 6.
+  ([@isaacs](https://github.com/isaacs))
+* [`b47da85`](https://github.com/npm/npm/commit/b47da85cf83b946f2c8d29ab612c92028f31f6b0)
+  `inflight@1.0.5`: Correct link to package repository, add `"files"` stanza.
+  ([@iarna](https://github.com/iarna), [@jamestalmage](https://github.com/jamestalmage))
+* [`04815e4`](https://github.com/npm/npm/commit/04815e436035de785279fd000cdbc821cc1f3447)
+  [npm/npmlog#32](https://github.com/npm/npmlog/pull/32)
+  `npmlog@2.0.4`: Add `"files"` stanza to `package.json`.
+  ([@jamestalmage](https://github.com/jamestalmage))
+* [`9e29ad2`](https://github.com/npm/npm/commit/9e29ad227300bb970e7bcd21029944d4733e40db)
+  `wrappy@1.0.2`: Add `"files"` stanza to `package.json`.
+  ([@jamestalmage](https://github.com/jamestalmage))
+* [`44af4d4`](https://github.com/npm/npm/commit/44af4d475ac65bdce6d088173273ce4a4f74a49e)
+  `abbrev@1.0.9` ([@jorrit](https://github.com/jorrit))
+* [`6c977c0`](https://github.com/npm/npm/commit/6c977c0031d074479a26c7bec6ec83fd6c6526b2)
+  `npm-registry-client@7.1.2`: Add support for newer versions of `npmlog`.
+  ([@iarna](https://github.com/iarna))
+
+### v2.15.6 (2016-05-12):
+
+I have a couple of doc fixes and a shrinkwrap fix for you all this week.
+
+#### PEER DEPENDENCIES AND SHRINKWRAPS
+
+* [`55c998a`](https://github.com/npm/npm/commit/55c998a098a306b90a84beef163a8890f9a616b1)
+  [#5135](https://github.com/npm/npm/issues/5135)
+  Fix a bug where peerDependencies & shrinkwraps didn't play nice together. (Where
+  the peerDependency resolver would end up installing its dep when it wasn't needed.)
+  ([@majgis](https://github.com/majgis))
+
+#### NPM AND `node-gyp` DOCS IMPROVEMENTS
+
+* [`1826908`](https://github.com/npm/npm/commit/1826908b991510d8fbc71a0d0f2c01ff24fd83c2)
+  [#12636](https://github.com/npm/npm/pull/12636)
+  Improve `npm-scripts` documentation regarding when `node-gyp` is used.
+  ([@reconbot](https://github.com/reconbot))
+* [`f9ff7f3`](https://github.com/npm/npm/commit/f9ff7f36cc2c2c3fbb4f6eef91491b589d049d5f)
+  [#12586](https://github.com/npm/npm/pull/12586)
+  Correct `package.json` documentation as to when `node-gyp rebuild` called.
+  This now matches https://docs.npmjs.com/misc/scripts#default-values
+  ([@reconbot](https://github.com/reconbot))
+
 ### v2.15.5 (2016-05-05):
 
 This is a minor LTS release, bringing dependencies up to date and updating
