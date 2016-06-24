@@ -794,7 +794,7 @@ verify.end();
 
 const public_key = getPublicKeySomehow();
 const signature = getSignatureToVerify();
-console.log(sign.verify(public_key, signature));
+console.log(verify.verify(public_key, signature));
   // Prints true or false
 ```
 
