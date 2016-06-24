@@ -1,7 +1,7 @@
 <!--
 Thank you for your pull request. Please review below requirements.
 
-Bug fixes and new features should include tests and possibly a benchmark.
+Bug fixes and new features should include tests and possibly benchmarks.
 
 Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 -->
@@ -9,15 +9,14 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 ##### Checklist
 <!-- Remove items that do not apply. For completed items, change [ ] to [x]. -->
 
-- [ ] `make -j4 test` (UNIX) or `vcbuild test nosign` (Windows) passes
-- [ ] a test and/or benchmark is included
+- [ ] `make -j4 test` (UNIX), or `vcbuild test nosign` (Windows) passes
+- [ ] tests and/or benchmarks are included
 - [ ] documentation is changed or added
-- [ ] the commit message follows commit guidelines
-
+- [ ] commit message follows commit guidelines
 
 ##### Affected core subsystem(s)
-<!-- provide affected core subsystem(s) (like doc, cluster, crypto, etc) -->
+<!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->
 
 
 ##### Description of change
-<!-- provide a description of the change below this comment -->
+<!-- Provide a description of the change below this comment. -->
