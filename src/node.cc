@@ -4271,7 +4271,7 @@ static void StartNodeInstance(void* arg) {
     uv_unref(reinterpret_cast<uv_handle_t*>(
              env.dispatch_debug_messages_async()));
 
-    if (!use_debug_agent) {
+    if (!instance_data->use_debug_agent()) {
       RegisterDebugSignalHandler(env.dispatch_debug_messages_async());
     }
 
