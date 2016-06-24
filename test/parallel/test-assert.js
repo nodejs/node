@@ -58,7 +58,7 @@ assert.throws(makeBlock(a.strictEqual, null, undefined),
 assert.doesNotThrow(makeBlock(a.notStrictEqual, 2, '2'),
                     'notStrictEqual(2, \'2\')');
 
-// deepEquals joy!
+// deepEqual joy!
 // 7.2
 assert.doesNotThrow(makeBlock(a.deepEqual, new Date(2000, 3, 14),
                     new Date(2000, 3, 14)),
@@ -408,6 +408,20 @@ var args = (function() { return arguments; })();
 a.throws(makeBlock(a.deepEqual, [], args));
 a.throws(makeBlock(a.deepEqual, args, []));
 
+// more checking that arguments objects are handled correctly
+{
+  const returnArguments = function() { return arguments; };
+
+  const someArgs = returnArguments('a');
+  const sameArgs = returnArguments('a');
+  const diffArgs = returnArguments('b');
+
+  a.throws(makeBlock(a.deepEqual, someArgs, ['a']));
+  a.throws(makeBlock(a.deepEqual, ['a'], someArgs));
+  a.throws(makeBlock(a.deepEqual, someArgs, {'0': 'a'}));
+  a.throws(makeBlock(a.deepEqual, someArgs, diffArgs));
+  a.doesNotThrow(makeBlock(a.deepEqual, someArgs, sameArgs));
+}
 
 var circular = {y: 1};
 circular.x = circular;
