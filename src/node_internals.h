@@ -142,9 +142,11 @@ constexpr size_t arraysize(const T(&)[N]) { return N; }
 
 bool IsExceptionDecorated(Environment* env, v8::Local<v8::Value> er);
 
+enum ErrorHandlingMode { FATAL_ERROR, CONTEXTIFY_ERROR };
 void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Value> er,
-                         v8::Local<v8::Message> message);
+                         v8::Local<v8::Message> message,
+                         enum ErrorHandlingMode mode);
 
 NO_RETURN void FatalError(const char* location, const char* message);
 
