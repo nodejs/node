@@ -12,6 +12,7 @@ try {
     message: 'This is a custom message'
   })`, { filename: 'test.vm' });
 } catch (e) {
+  console.error('received error', e.name);
 }
 
 console.error('end');
