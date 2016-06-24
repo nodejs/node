@@ -55,6 +55,7 @@ var inflateShrinkwrap = module.exports = function (tree, swdeps, finishInflating
           })
           tree.children.push(child)
           if (pkg._bundled) {
+            delete pkg._bundled
             inflateBundled(child, child.children)
           }
           inflateShrinkwrap(child, sw.dependencies || {}, next)

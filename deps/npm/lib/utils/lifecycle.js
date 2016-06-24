@@ -14,6 +14,7 @@ var PATH = 'PATH'
 var uidNumber = require('uid-number')
 var umask = require('./umask')
 var usage = require('./usage')
+var output = require('./output.js')
 
 // windows calls it's path 'Path' usually, but this is not guaranteed.
 if (process.platform === 'win32') {
@@ -182,9 +183,7 @@ function runCmd (note, cmd, pkg, env, stage, wd, unsafe, cb) {
   var group = unsafe ? null : npm.config.get('group')
 
   if (log.level !== 'silent') {
-    log.clearProgress()
-    console.log(note)
-    log.showProgress()
+    output(note)
   }
   log.verbose('lifecycle', logid(pkg, stage), 'unsafe-perm in lifecycle', unsafe)
 
@@ -232,8 +231,6 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
   log.verbose('lifecycle', logid(pkg, stage), 'CWD:', wd)
   log.silly('lifecycle', logid(pkg, stage), 'Args:', [shFlag, cmd])
 
-  var progressEnabled = log.progressEnabled
-  if (progressEnabled) log.disableProgress()
   var proc = spawn(sh, [shFlag, cmd], conf)
 
   proc.on('error', procError)
@@ -249,7 +246,6 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
   process.once('SIGTERM', procKill)
 
   function procError (er) {
-    if (progressEnabled) log.enableProgress()
     if (er) {
       log.info('lifecycle', logid(pkg, stage), 'Failed to exec ' + stage + ' script')
       er.message = pkg._id + ' ' + stage + ': `' + cmd + '`\n' +

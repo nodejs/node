@@ -1,6 +1,10 @@
 # Changes
 
 
+## v1.2.10
+
+* Use env.PATH only, not env.Path
+
 ## v1.2.9
 
 * fix for paths starting with ../
