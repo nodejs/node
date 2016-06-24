@@ -47,6 +47,12 @@ function addTest(sequences, expectedKeys) {
 // Simulate key interval test cases
 // Returns a function that takes `next` test case and returns a thunk
 // that can be called to run tests in sequence
+// e.g.
+// addKeyIntervalTest(..)
+//   (addKeyIntervalTest(..)
+//      (addKeyIntervalTest(..)(noop)))()
+// where noop is a terminal function(() => {}).
+
 const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
                             assertDelay = 550) => {
   return (next) => () => {
@@ -187,6 +193,8 @@ addTest('\x1b[31ma\x1b[39ma', [
   { name: 'a', sequence: 'a' },
 ]);
 
+// Reduce array of addKeyIntervalTest(..) right to left
+// with () => {} as initial function
 const runKeyIntervalTests = [
   // escape character
   addKeyIntervalTest('\x1b', [
@@ -201,4 +209,5 @@ const runKeyIntervalTests = [
   ])
 ].reverse().reduce((acc, fn) => fn(acc), () => {});
 
+// run key interval tests one after another
 runKeyIntervalTests();
