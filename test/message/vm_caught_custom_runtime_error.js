@@ -5,7 +5,7 @@ const vm = require('vm');
 console.error('beginning');
 
 // Regression test for https://github.com/nodejs/node/issues/7397:
-// This should not print out anything to stderr due to the error being caught.
+// vm.runInThisContext() should not print out anything to stderr by itself.
 try {
   vm.runInThisContext(`throw ({
     name: 'MyCustomError',

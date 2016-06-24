@@ -1527,10 +1527,10 @@ void AppendExceptionLine(Environment* env,
     return;
   }
 
-  err_obj->SetPrivate(
-      env->context(),
-      env->arrow_message_private_symbol(),
-      arrow_str);
+  CHECK(err_obj->SetPrivate(
+            env->context(),
+            env->arrow_message_private_symbol(),
+            arrow_str).FromMaybe(false));
 }
 
 
