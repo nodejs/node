@@ -187,11 +187,13 @@ test-all-valgrind: test-build
 CI_NATIVE_SUITES := addons
 CI_JS_SUITES := doctool known_issues message parallel pseudo-tty sequential
 
+# Build and test addons without building anything else
 test-ci-native: | test/addons/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
 
+# This target should not use a native compiler at all
 test-ci-js:
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
