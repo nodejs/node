@@ -10,7 +10,7 @@ period of time. Timers do not need to be imported via `require()`, since
 all the methods are available globally to emulate the browser JavaScript API.
 To fully understand when timer functions will be executed, it's a good idea to
 read up on the the Node.js
-[Event Loop](https://nodesource.com/blog/understanding-the-nodejs-event-loop/).
+[Event Loop](../topics/the-event-loop-timers-and-nexttick).
 
 ## Controlling the Time Continuum with Node.js
 
@@ -27,8 +27,8 @@ API, there are some differences in implementation.
 amount of milliseconds. This function is also a part of the browser 
 JavaScript API and can be used in the exact same manner.
 
-`setTimeout()` accepts the code to execute as its first argument and the
-millisecond delay defined as a number literal as the second argument. Additional
+`setTimeout()` accepts a function to execute as its first argument and the
+millisecond delay defined as a number as the second argument. Additional
 arguments may also be included and these will be passed on to the function. Here
 is an example of that:
 
@@ -56,18 +56,23 @@ see `clearTimeout()` below) as well as change the execution behavior (see
 
 ### "Right after this" Execution ~ *`setImmediate()`*
 
-`setImmediate()` will execute code at the beginning of the next
-event loop cycle. This code will execute *before* any timers or IO operations.
-This code execution could be thought of as happening "right after this", meaning
-any code following the `setImmediate()` function call will execute before the
-`setImmediate()` function argument. Here's an example:
+`setImmediate()` will execute code at the end of the current event loop cycle. 
+This code will execute *after* any I/O operations in the current event loop and
+*before* any timers scheduled for the next event loop. This code execution 
+could be thought of as happening "right after this", meaning any code following 
+the `setImmediate()` function call will execute before the `setImmediate()` 
+function argument. 
+
+The first argument to `setImmediate()` will be the function to execute. Any
+subsequent arguments will be passed to the function when it is executed.
+Here's an example:
 
 ```js
 console.log('before immediate');
 
-setImmediate(() => {
-  console.log('executing immediate');
-});
+setImmediate((arg) => {
+  console.log(`executing immediate: ${arg}`);
+}, 'so immediate');
 
 console.log('after immediate');
 ```
@@ -78,7 +83,7 @@ code has executed, and the console output will be:
 ```shell
 before immediate
 after immediate
-executing immediate
+executing immediate: so immediate
 ```
 
 `setImmediate()` returns and `Immediate` object, which can be used to cancel
@@ -86,21 +91,23 @@ the scheduled immediate (see `clearImmediate()` below).
 
 Note: Don't get `setImmediate()` confused with `process.nextTick()`. There are
 some major ways they differ. The first is that `process.nextTick()` will run
-*before* any `Immediate`s that are set as well as before any scheduled IO.
+*before* any `Immediate`s that are set as well as before any scheduled I/O.
 The second is that `process.nextTick()` is non-clearable, meaning once
 code has been scheduled to execute with `process.nextTick()`, the execution
-cannot be stopped, just like with a normal function. In fact the code passed to
-`process.nextTick()` will be run asynchronously, and thus outside the current
-call stack.
+cannot be stopped, just like with a normal function. Although the function
+passed to `process.nextTick()` will be run synchronously, it will execute
+outside the current call stack.
 
 ### "Déjà vu" Execution ~ *`setInterval()`*
 
 If there is a block of code that should execute multiple times, `setInterval()` 
 can be used to execute that code. `setInterval()` takes a function
 argument that will run an infinite number of times with a given millisecond
-delay. Just like `setTimeout()`, the delay cannot be guaranteed because of
-operations that may hold on to the event loop, and therefore should be treated
-as an approximate delay. See the below example:
+delay as the second argument. Just like `setTimeout()`, additional arguments 
+can be added beyond the delay, and these will be passed on to the function call. 
+Also like `setTimeout()`, the delay cannot be guaranteed because of operations 
+that may hold on to the event loop, and therefore should be treated as an 
+approximate delay. See the below example:
 
 ```js
 function intervalFunc () {
@@ -119,7 +126,7 @@ can be used to reference and modify the interval that was set.
 
 What can be done if a `Timeout` or `Immediate` object needs to be cancelled?
 `setTimeout()`, `setImmediate()`, and `setInterval()` return a timer object
-that can be used to reference the set timeout, immediate, or interval object.
+that can be used to reference the set `Timeout` or `Immediate` object.
 By passing said object into the respective `clear` function, execution of
 that object will be halted completely. The respective functions are
 `clearTimeout()`, `clearImmediate()`, and `clearInterval()`. See the example
@@ -155,7 +162,9 @@ to execute.
 
 In similar fashion, a `Timeout` object that has had `unref()` called on it
 can remove that behavior by calling `ref()` on that same `Timeout` object,
-which will then ensure its execution. See below for examples of both:
+which will then ensure its execution. Be aware, however, that this does 
+not *exactly* restore the initial behavior for performance reasons. See 
+below for examples of both:
 
 ```js
 let timerObj = setTimeout(() => {
@@ -173,3 +182,10 @@ setImmediate(() => {
   timerObj.ref();
 });
 ```
+## Further Down the Event Loop
+
+There's much more to the Event Loop and Timers than this guide
+has covered. To learn more about the internals of the Node.js 
+Event Loop and how Timers operate during execution, check out 
+this Node.js guide: [The Node.js Event Loop, Timers, and 
+process.nextTick().](../topics/the-event-loop-timers-and-nexttick)
