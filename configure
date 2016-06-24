@@ -297,6 +297,11 @@ parser.add_option('--with-lttng',
     dest='with_lttng',
     help='build with Lttng (Only available to Linux)')
 
+parser.add_option('--with-lto',
+    action='store_true',
+    dest='use_lto',
+    help='build with -flto flag (Link Time Optimization)')
+
 parser.add_option('--with-etw',
     action='store_true',
     dest='with_etw',
@@ -776,6 +781,8 @@ def configure_node(o):
     raise Exception('lttng is only supported on Linux.')
   else:
     o['variables']['node_use_lttng'] = 'false'
+
+  o['variables']['node_use_lto'] = b(options.use_lto)
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']

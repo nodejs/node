@@ -12,6 +12,7 @@
     'python%': 'python',
 
     'node_tag%': '',
+    'node_use_lto%': '',
     'uv_library%': 'static_library',
 
     'openssl_fips%': '',
@@ -290,6 +291,13 @@
             ],
             'ldflags!': [ '-rdynamic' ],
           }],
+          ['node_use_lto=="true"', {
+            'conditions': [ [ 'clang==1', {
+              'cflags': [ '-flto' ],
+            }, {
+              'cflags': [ '-flto=16' ],
+            } ] ],
+          }],
         ],
       }],
       [ 'OS=="android"', {
@@ -341,6 +349,13 @@
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
+            },
+          }],
+          ['node_use_lto=="true"', {
+            'xcode_settings': {
+              'OTHER_CFLAGS': [
+                '-flto',
+              ],
             },
           }],
         ],
