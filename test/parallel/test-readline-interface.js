@@ -304,6 +304,11 @@ function isWarned(emitter) {
     rli.close();
   }
 
+  // isFullWidthCodePoint() should return false for non-numeric values
+  [true, false, null, undefined, {}, [], 'あ'].forEach((v) => {
+    assert.strictEqual(readline.isFullWidthCodePoint('あ'), false);
+  });
+
   // wide characters should be treated as two columns.
   assert.equal(readline.isFullWidthCodePoint('a'.charCodeAt(0)), false);
   assert.equal(readline.isFullWidthCodePoint('あ'.charCodeAt(0)), true);
