@@ -123,7 +123,7 @@
           'defines' : ['<@(openssl_defines_all_win)'],
           'msvs_settings': {
             'MASM': {
-              # Use /safeseh, see: 01fa5ee
+              # Use /safeseh, see commit: 01fa5ee
               'UseSafeExceptionHandlers': 'true',
             },
           },
