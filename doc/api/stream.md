@@ -1184,6 +1184,9 @@ constructor and implement the `writable._write()` method. The
   * `decodeStrings` {Boolean} Whether or not to decode strings into
     Buffers before passing them to [`stream._write()`][stream-_write].
     Defaults to `true`
+  * `decodeBuffers` {Boolean} Whether or not to decode Buffers into strings
+    using the default encoding before passing them to
+    [`stream._write()`][stream-_write].
   * `objectMode` {Boolean} Whether or not the
     [`stream.write(anyObj)`][stream-write] is a valid operation. When set,
     it becomes possible to write JavaScript values other than string or
