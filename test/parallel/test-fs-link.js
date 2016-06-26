@@ -23,14 +23,14 @@ fs.link(srcPath, dstPath, common.mustCall(callback));
 
 assert.throws(
   function() {
-    fs.link();
+    fs.link(undefined, undefined, () => {});
   },
   /src must be a string or Buffer/
 );
 
 assert.throws(
   function() {
-    fs.link('abc');
+    fs.link('abc', undefined, () => {});
   },
   /dest must be a string or Buffer/
 );

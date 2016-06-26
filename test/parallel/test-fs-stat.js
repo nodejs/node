@@ -28,7 +28,7 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   fs.fstat(fd, common.mustCall(function(err, stats) {
     assert.ifError(err);
     assert.ok(stats.mtime instanceof Date);
-    fs.close(fd);
+    fs.closeSync(fd);
     assert(this === global);
   }));
 
@@ -47,7 +47,7 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
     console.dir(stats);
     assert.ok(stats.mtime instanceof Date);
   }
-  fs.close(fd);
+  fs.closeSync(fd);
 }));
 
 console.log(`stating:  ${__filename}`);
