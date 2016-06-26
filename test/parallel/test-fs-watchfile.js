@@ -8,11 +8,11 @@ const assert = require('assert');
 // Basic usage tests.
 assert.throws(function() {
   fs.watchFile('./some-file');
-}, /"watchFile\(\)" requires a listener function/);
+}, /"callback" argument must be a function/);
 
 assert.throws(function() {
   fs.watchFile('./another-file', {}, 'bad listener');
-}, /"watchFile\(\)" requires a listener function/);
+}, /"callback" argument must be a function/);
 
 assert.throws(function() {
   fs.watchFile(new Object(), function() {});
