@@ -774,7 +774,7 @@ emitMyWarning();
 added: v0.7.7
 -->
 
-The `process.execArgv' property returns the set of Node.js-specific command-line
+The `process.execArgv` property returns the set of Node.js-specific command-line
 options passed when the Node.js process was launched. These options do not
 appear in the array returned by the [`process.argv`][] property, and do not
 include the Node.js executable, the name of the script, or any options following
