@@ -121,7 +121,12 @@
         }], # end of conditions of openssl_no_asm
         ['OS=="win"', {
           'defines' : ['<@(openssl_defines_all_win)'],
-          'includes': ['masm_compile.gypi',],
+          'msvs_settings': {
+            'MASM': {
+              # Use /safeseh, see commit: 01fa5ee
+              'UseSafeExceptionHandlers': 'true',
+            },
+          },
         }, {
           'defines' : ['<@(openssl_defines_all_non_win)']
         }]
