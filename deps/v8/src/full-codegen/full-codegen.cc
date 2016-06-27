@@ -1586,6 +1586,65 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::~EnterBlockScopeIfNeeded() {
 }
 
 
+bool FullCodeGenerator::NeedsHoleCheckForLoad(VariableProxy* proxy) {
+  Variable* var = proxy->var();
+
+  if (!var->binding_needs_init()) {
+    return false;
+  }
+
+  // var->scope() may be NULL when the proxy is located in eval code and
+  // refers to a potential outside binding. Currently those bindings are
+  // always looked up dynamically, i.e. in that case
+  //     var->location() == LOOKUP.
+  // always holds.
+  DCHECK(var->scope() != NULL);
+  DCHECK(var->location() == VariableLocation::PARAMETER ||
+         var->location() == VariableLocation::LOCAL ||
+         var->location() == VariableLocation::CONTEXT);
+
+  // Check if the binding really needs an initialization check. The check
+  // can be skipped in the following situation: we have a LET or CONST
+  // binding in harmony mode, both the Variable and the VariableProxy have
+  // the same declaration scope (i.e. they are both in global code, in the
+  // same function or in the same eval code), the VariableProxy is in
+  // the source physically located after the initializer of the variable,
+  // and that the initializer cannot be skipped due to a nonlinear scope.
+  //
+  // We cannot skip any initialization checks for CONST in non-harmony
+  // mode because const variables may be declared but never initialized:
+  //   if (false) { const x; }; var y = x;
+  //
+  // The condition on the declaration scopes is a conservative check for
+  // nested functions that access a binding and are called before the
+  // binding is initialized:
+  //   function() { f(); let x = 1; function f() { x = 2; } }
+  //
+  // The check cannot be skipped on non-linear scopes, namely switch
+  // scopes, to ensure tests are done in cases like the following:
+  //   switch (1) { case 0: let x = 2; case 1: f(x); }
+  // The scope of the variable needs to be checked, in case the use is
+  // in a sub-block which may be linear.
+  if (var->scope()->DeclarationScope() != scope()->DeclarationScope()) {
+    return true;
+  }
+
+  if (var->is_this()) {
+    DCHECK(literal() != nullptr &&
+           (literal()->kind() & kSubclassConstructor) != 0);
+    // TODO(littledan): implement 'this' hole check elimination.
+    return true;
+  }
+
+  // Check that we always have valid source position.
+  DCHECK(var->initializer_position() != RelocInfo::kNoPosition);
+  DCHECK(proxy->position() != RelocInfo::kNoPosition);
+
+  return var->mode() == CONST_LEGACY || var->scope()->is_nonlinear() ||
+         var->initializer_position() >= proxy->position();
+}
+
+
 #undef __
 
 

@@ -224,6 +224,17 @@ class Scope: public ZoneObject {
   // Set the ASM module flag.
   void SetAsmModule() { asm_module_ = true; }
 
+  // Inform the scope that the scope may execute declarations nonlinearly.
+  // Currently, the only nonlinear scope is a switch statement. The name is
+  // more general in case something else comes up with similar control flow,
+  // for example the ability to break out of something which does not have
+  // its own lexical scope.
+  // The bit does not need to be stored on the ScopeInfo because none of
+  // the three compilers will perform hole check elimination on a variable
+  // located in VariableLocation::CONTEXT. So, direct eval and closures
+  // will not expose holes.
+  void SetNonlinear() { scope_nonlinear_ = true; }
+
   // Position in the source where this scope begins and ends.
   //
   // * For the scope of a with statement
@@ -246,6 +257,10 @@ class Scope: public ZoneObject {
   //     for (let x ...) stmt
   //   start position: start position of '('
   //   end position: end position of last token of 'stmt'
+  // * For the scope of a switch statement
+  //     switch (tag) { cases }
+  //   start position: start position of '{'
+  //   end position: end position of '}'
   int start_position() const { return start_position_; }
   void set_start_position(int statement_pos) {
     start_position_ = statement_pos;
@@ -304,6 +319,8 @@ class Scope: public ZoneObject {
   bool inner_uses_arguments() const { return inner_scope_uses_arguments_; }
   // Does this scope access "super" property (super.foo).
   bool uses_super_property() const { return scope_uses_super_property_; }
+  // Does this scope have the potential to execute declarations non-linearly?
+  bool is_nonlinear() const { return scope_nonlinear_; }
 
   bool NeedsHomeObject() const {
     return scope_uses_super_property_ ||
@@ -594,6 +611,8 @@ class Scope: public ZoneObject {
   bool asm_module_;
   // This scope's outer context is an asm module.
   bool asm_function_;
+  // This scope's declarations might not be executed in order (e.g., switch).
+  bool scope_nonlinear_;
   // The language mode of this scope.
   LanguageMode language_mode_;
   // Source positions.
