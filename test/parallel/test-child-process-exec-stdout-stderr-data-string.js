@@ -4,19 +4,20 @@ const common = require('../common');
 const assert = require('assert');
 const exec = require('child_process').exec;
 
-var stdoutIsString = false;
-var stderrIsString = false;
+var stdoutCalls = 0;
+var stderrCalls = 0;
 
 const command = common.isWindows ? 'dir' : 'ls';
 exec(command).stdout.on('data', (data) => {
-  stdoutIsString = (typeof data === 'string');
+  stdoutCalls += 1;
 });
 
 exec('fhqwhgads').stderr.on('data', (data) => {
-  stderrIsString = (typeof data === 'string');
+  assert.strictEqual(typeof data, 'string');
+  stderrCalls += 1;
 });
 
 process.on('exit', () => {
-  assert(stdoutIsString);
-  assert(stderrIsString);
+  assert(stdoutCalls > 0);
+  assert(stderrCalls > 0);
 });
