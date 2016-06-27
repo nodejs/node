@@ -1,5 +1,4 @@
 'use strict';
-// Refs: https://github.com/nodejs/node/issues/1901
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
@@ -17,16 +16,16 @@ function checkFactory(streamName) {
   cp.exec(cmd, { maxBuffer: 5 }, checkFactory('stdout'));
 }
 
+const unicode = '中文测试'; // length = 4, byte length = 12
+
 {
-  const unicode = '中文测试'; // Length = 4, Byte length = 12
-  const cmd = `echo ${unicode}`;
+  const cmd = `"${process.execPath}" -e "console.log('${unicode}');"`;
 
   cp.exec(cmd, {maxBuffer: 10}, checkFactory('stdout'));
 }
 
 {
-  const unicode = '中文测试'; // Length = 4, Byte length = 12
-  const cmd = `echo ${unicode} 1>&2`;
+  const cmd = `"${process.execPath}" -e "console.('${unicode}');"`;
 
   cp.exec(cmd, {maxBuffer: 10}, checkFactory('stderr'));
 }
