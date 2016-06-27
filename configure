@@ -409,6 +409,11 @@ parser.add_option('--enable-static',
     dest='enable_static',
     help='build as static library')
 
+parser.add_option('--no-target-type',
+     action='store_true',
+     dest='no_target_type',
+     help='do not compile and link node core')
+
 parser.add_option('--no-browser-globals',
     action='store_true',
     dest='no_browser_globals',
@@ -740,6 +745,9 @@ def configure_node(o):
   if flavor == 'aix':
     o['variables']['node_core_target_name'] = 'node_base'
     o['variables']['node_target_type'] = 'static_library'
+
+  if options.no_target_type:
+    o['variables']['node_target_type'] = 'none'
 
   if target_arch in ('x86', 'x64', 'ia32', 'x32'):
     o['variables']['node_enable_v8_vtunejit'] = b(options.enable_vtune_profiling)
