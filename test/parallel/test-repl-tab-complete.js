@@ -274,7 +274,12 @@ const testNonGlobal = repl.start({
   useGlobal: false
 });
 
+const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
+                                 'Int8Array'], 'I'];
+
+if (typeof Intl === 'object') {
+  builtins[0].push('Intl');
+}
 testNonGlobal.complete('I', common.mustCall((error, data) => {
-  assert.deepStrictEqual(data, [['Infinity', '', 'Int16Array', 'Int32Array',
-                                 'Int8Array', 'Intl'], 'I']);
+  assert.deepStrictEqual(data, builtins);
 }));
