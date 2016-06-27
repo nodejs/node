@@ -1,11 +1,16 @@
 language: node_js
 node_js:
-  - "6"
+  # LTS is our most important target
   - "4"
-  - "5"
-  - "0.12"
+  # next LTS and master is next most important
+  - "6"
+  # still in LTS maintenance until fall 2016
+  # (also still in wide use)
   - "0.10"
-  - "0.8"
+  # will be unsupported as soon as 6 becomes LTS and 7 released
+  - "5"
+  # technically in LTS / distros, unbeloved
+  - "0.12"
 env:
   - DEPLOY_VERSION=testing
 before_install:

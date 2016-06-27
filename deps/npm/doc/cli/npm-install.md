@@ -271,7 +271,7 @@ global `node_modules` folder. Only your direct dependencies will show in
 `node_modules` and everything they depend on will be flattened in their
 `node_modules` folders. This obviously will eliminate some deduping.
 
-The `--ignore-scripts` argument will cause npm to not execute any
+The `--ignore-scripts` argument will cause npm to not execute any 
 scripts defined in the package.json. See `npm-scripts(7)`.
 
 The `--legacy-bundling` argument will cause npm to install the package such

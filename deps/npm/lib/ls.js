@@ -20,6 +20,7 @@ var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
 var packageId = require('./utils/package-id.js')
 var usage = require('./utils/usage')
+var output = require('./utils/output.js')
 
 ls.usage = usage(
   'ls',
@@ -99,7 +100,7 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
   } else if (data) {
     out = makeArchy(bfs, long, dir)
   }
-  console.log(out)
+  output(out)
 
   if (args.length && !data._found) process.exitCode = 1
 

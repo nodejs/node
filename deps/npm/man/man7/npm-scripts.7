@@ -44,13 +44,18 @@ Run by the \fBnpm start\fP command\.
 prerestart, restart, postrestart:
 Run by the \fBnpm restart\fP command\. Note: \fBnpm restart\fP will run the
 stop and start scripts if no \fBrestart\fP script is provided\.
+.IP \(bu 2
+preshrinkwrap, shrinkwrap, postshrinkwrap:
+Run by the \fBnpm shrinkwrap\fP command\.
 
 .RE
 .P
 Additionally, arbitrary scripts can be executed by running \fBnpm
 run\-script <stage>\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
 names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP,
-\fBpostmyscript\fP)\.
+\fBpostmyscript\fP)\. Scripts from dependencies can be run with `npm explore
+.P
+<pkg> \-\- npm run <stage>`\.
 .SH COMMON USES
 .P
 If you need to perform operations on your package before it is used, in a way

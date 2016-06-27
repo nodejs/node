@@ -14,6 +14,7 @@ var shorthandNames = Object.keys(shorthands)
 var allConfs = configNames.concat(shorthandNames)
 var once = require('once')
 var isWindowsShell = require('./utils/is-windows-shell.js')
+var output = require('./utils/output.js')
 
 completion.completion = function (opts, cb) {
   if (opts.w > 3) return cb()
@@ -203,7 +204,7 @@ function wrapCb (cb, opts) {
     console.error([er && er.stack, compls, opts.partialWord])
     if (er || compls.length === 0) return cb(er)
 
-    console.log(compls.join('\n'))
+    output(compls.join('\n'))
     cb()
   }
 }
