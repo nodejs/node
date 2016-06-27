@@ -9,7 +9,7 @@
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
     'node_shared%': 'false',
-    'node_module_ver%': '',
+    'node_module_version%': '',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_cares%': 'false',
@@ -236,8 +236,8 @@
             'NODE_SHARED_MODE',
           ],
           'conditions': [
-            [ 'node_module_ver!=""', {
-              'product_extension': 'so.<(node_module_ver)',
+            [ 'node_module_version!=""', {
+              'product_extension': 'so.<(node_module_version)',
             }]
           ],
         }],
@@ -250,9 +250,14 @@
             'deps/v8/tools/gyp/v8.gyp:v8',
             'deps/v8/tools/gyp/v8.gyp:v8_libplatform'
           ],
+        }],
+        [ 'node_use_v8_platform=="true"', {
+          'defines': [
+            'NODE_NO_V8_PLATFORM=0',
+          ],
         }, {
           'defines': [
-            'NODE_NO_V8_PLATFORM',
+            'NODE_NO_V8_PLATFORM=1',
           ],
         }],
         [ 'node_tag!=""', {
@@ -347,7 +352,7 @@
                     ],
                   },
                   'conditions': [
-                    ['OS in "linux freebsd"' and 'node_shared=="false"', {
+                    ['OS in "linux freebsd" and node_shared=="false"', {
                       'ldflags': [
                         '-Wl,--whole-archive <(PRODUCT_DIR)/<(OPENSSL_PRODUCT)',
                         '-Wl,--no-whole-archive',

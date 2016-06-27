@@ -1,4 +1,5 @@
-import os,re
+import os
+import re
 
 node_version_h = os.path.join(
     os.path.dirname(__file__),

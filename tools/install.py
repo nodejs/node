@@ -111,8 +111,9 @@ def files(action):
   output_file = 'node'
   output_prefix = 'out/Release/'
 
-  if 'false' == variables.get('node_shared') and is_windows:
-    output_file += '.exe'
+  if 'false' == variables.get('node_shared'):
+    if is_windows:
+      output_file += '.exe'
   else:
     if is_windows:
       output_file += '.dll'

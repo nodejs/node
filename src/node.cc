@@ -39,9 +39,9 @@
 #include "string_bytes.h"
 #include "util.h"
 #include "uv.h"
-#ifndef NODE_NO_V8_PLATFORM
+#if !NODE_NO_V8_PLATFORM
 #include "libplatform/libplatform.h"
-#endif  // NODE_NO_V8_PLATFORM
+#endif  // !NODE_NO_V8_PLATFORM
 #include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
@@ -187,7 +187,7 @@ static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
 
 static struct {
-#ifdef NODE_NO_V8_PLATFORM
+#if NODE_NO_V8_PLATFORM
   void Initialize(int thread_pool_size) {}
   void PumpMessageLoop(Isolate* isolate) {}
   void Dispose() {}
