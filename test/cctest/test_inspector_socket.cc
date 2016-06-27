@@ -628,6 +628,8 @@ static void ReportsHttpGet_handshake(enum inspector_handshake_event state,
     break;
   case 5:
     expected_state = kInspectorHandshakeFailed;
+    expected_path = nullptr;
+    break;
   case 4:
     expected_path = "/close";
     *cont = false;
@@ -677,15 +679,16 @@ HandshakeCanBeCanceled_handshake(enum inspector_handshake_event state,
   switch (handshake_events - 1) {
   case 0:
     EXPECT_EQ(kInspectorHandshakeUpgrading, state);
+    EXPECT_STREQ("/ws/path", path);
     break;
   case 1:
     EXPECT_EQ(kInspectorHandshakeFailed, state);
+    EXPECT_STREQ(nullptr, path);
     break;
   default:
     EXPECT_TRUE(false);
     break;
   }
-  EXPECT_STREQ("/ws/path", path);
   *cont = false;
 }
 
