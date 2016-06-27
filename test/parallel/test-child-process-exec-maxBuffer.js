@@ -3,25 +3,30 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
-const unicode = '中文测试'; // Length = 4, Byte length = 13
 
-if (process.argv[2] === 'stdout') {
-  console.log(unicode);
-  return;
-}
-
-if (process.argv[2] === 'stderr') {
-  console.error(unicode);
-  return;
-}
-
-const cmd = `${process.execPath} ${__filename}`;
-const outputs = ['stdout', 'stderr'];
-
-outputs.forEach((stream) => {
-  const cb = common.mustCall((err, stdout, stderr) => {
-    assert.strictEqual(err.message, `${stream} maxBuffer exceeded`);
+function checkFactory(streamName) {
+  return common.mustCall((err) => {
+    const message = `${streamName} maxBuffer exceeded`;
+    assert.strictEqual(err.message, message);
   });
+}
 
-  cp.exec(`${cmd} ${stream}`, {maxBuffer: 10}, cb);
-});
+{
+  const cmd = 'echo "hello world"';
+
+  cp.exec(cmd, { maxBuffer: 5 }, checkFactory('stdout'));
+}
+
+{
+  const unicode = '中文测试'; // Length = 4, Byte length = 12
+  const cmd = `echo ${unicode}`;
+
+  cp.exec(cmd, {maxBuffer: 10}, checkFactory('stdout'));
+}
+
+{
+  const unicode = '中文测试'; // Length = 4, Byte length = 12
+  const cmd = `echo ${unicode} 1>&2`;
+
+  cp.exec(cmd, {maxBuffer: 10}, checkFactory('stderr'));
+}
