@@ -108,12 +108,13 @@ static int write_to_client(inspector_socket_t* inspector,
 #endif
 
   // Freed in write_request_cleanup
-  uv_buf_t* buf = reinterpret_cast<uv_buf_t*>(malloc(sizeof(uv_buf_t)));
-  uv_write_t* req = reinterpret_cast<uv_write_t*>(malloc(sizeof(uv_write_t)));
+  uv_buf_t* buf = reinterpret_cast<uv_buf_t*>(NODE_MALLOC(sizeof(uv_buf_t)));
+  uv_write_t* req =
+      reinterpret_cast<uv_write_t*>(NODE_MALLOC(sizeof(uv_write_t)));
   CHECK_NE(buf, nullptr);
   CHECK_NE(req, nullptr);
   memset(req, 0, sizeof(*req));
-  buf->base = reinterpret_cast<char*>(malloc(len));
+  buf->base = reinterpret_cast<char*>(NODE_MALLOC(len));
 
   CHECK_NE(buf->base, nullptr);
 
@@ -338,7 +339,7 @@ static void prepare_buffer(uv_handle_t* stream, size_t len, uv_buf_t* buf) {
                    BUFFER_GROWTH_CHUNK_SIZE *
                    BUFFER_GROWTH_CHUNK_SIZE;
     inspector->buffer_size = new_size;
-    inspector->buffer = reinterpret_cast<char*>(realloc(inspector->buffer,
+    inspector->buffer = reinterpret_cast<char*>(NODE_REALLOC(inspector->buffer,
                                         inspector->buffer_size));
     ASSERT_NE(inspector->buffer, nullptr);
   }
@@ -415,7 +416,7 @@ static void generate_accept_string(const char* client_key, char* buffer) {
   size_t key_len = strlen(client_key);
   size_t magic_len = sizeof(ws_magic) - 1;
 
-  char* buf = reinterpret_cast<char*>(malloc(key_len + magic_len));
+  char* buf = reinterpret_cast<char*>(NODE_MALLOC(key_len + magic_len));
   CHECK_NE(buf, nullptr);
   memcpy(buf, client_key, key_len);
   memcpy(buf + key_len, ws_magic, magic_len);
@@ -432,7 +433,7 @@ static void append(char** value, const char* string, size_t length) {
   int current_len = *value ? strlen(*value) : 0;
   int new_len = current_len + length;
   int adjusted = (new_len / INCREMENT + 1) * INCREMENT;
-  *value = reinterpret_cast<char*>(realloc(*value, adjusted));
+  *value = reinterpret_cast<char*>(NODE_REALLOC(*value, adjusted));
   memcpy(*value + current_len, string, length);
   (*value)[new_len] = '\0';
 }
@@ -473,7 +474,8 @@ static int path_cb(http_parser* parser, const char* at, size_t length) {
 static void handshake_complete(inspector_socket_t* inspector) {
   uv_read_stop(reinterpret_cast<uv_stream_t*>(&inspector->client));
   handshake_cb callback = inspector->http_parsing_state->callback;
-  inspector->ws_state = (struct ws_state_s*) malloc(sizeof(struct ws_state_s));
+  inspector->ws_state =
+      (struct ws_state_s*) NODE_MALLOC(sizeof(struct ws_state_s));
   ASSERT_NE(nullptr, inspector->ws_state);
   memset(inspector->ws_state, 0, sizeof(struct ws_state_s));
   inspector->last_read_end = 0;

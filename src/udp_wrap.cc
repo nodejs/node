@@ -386,7 +386,7 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
 void UDPWrap::OnAlloc(uv_handle_t* handle,
                       size_t suggested_size,
                       uv_buf_t* buf) {
-  buf->base = static_cast<char*>(malloc(suggested_size));
+  buf->base = static_cast<char*>(NODE_MALLOC(suggested_size));
   buf->len = suggested_size;
 
   if (buf->base == nullptr && suggested_size > 0) {
@@ -428,7 +428,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
     return;
   }
 
-  char* base = static_cast<char*>(realloc(buf->base, nread));
+  char* base = static_cast<char*>(NODE_REALLOC(buf->base, nread));
   argv[2] = Buffer::New(env, base, nread).ToLocalChecked();
   argv[3] = AddressToJS(env, addr);
   wrap->MakeCallback(env->onmessage_string(), arraysize(argv), argv);

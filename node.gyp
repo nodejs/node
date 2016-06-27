@@ -462,6 +462,7 @@
         [ 'OS=="aix"', {
           'defines': [
             '_LINUX_SOURCE_COMPAT',
+            '_ALL_SOURCE',
           ],
         }],
         [ 'OS=="solaris"', {

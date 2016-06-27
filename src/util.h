@@ -16,6 +16,28 @@
 #include <type_traits>  // std::remove_reference
 #endif
 
+#ifdef _AIX
+#ifdef _cplusplus
+extern "C" {
+#endif
+extern void *aix_malloc(size_t) __asm__("__linux_malloc");
+extern void *aix_calloc(size_t, size_t) __asm__("__linux_calloc");
+extern void *aix_realloc(void *, size_t) __asm__("__linux_realloc");
+extern void *aix_valloc(size_t) __asm__("__linux_valloc");
+#ifdef _cplusplus
+}
+#endif
+#define NODE_MALLOC(x) aix_malloc(x)
+#define NODE_CALLOC(x, y) aix_calloc(x, y)
+#define NODE_REALLOC(x, y) aix_realloc(x, y)
+#define NODE_VALLOC(x) aix_valloc(x)
+#else
+#define NODE_MALLOC(x) malloc(x)
+#define NODE_CALLOC(x, y) calloc(x, y)
+#define NODE_REALLOC(x, y) realloc(x, y)
+#define NODE_VALLOC(x) valloc(x)
+#endif
+
 namespace node {
 
 #ifdef __APPLE__
@@ -245,7 +267,7 @@ class MaybeStackBuffer {
         // Guard against overflow.
         CHECK_LE(storage, sizeof(T) * storage);
 
-        buf_ = static_cast<T*>(malloc(sizeof(T) * storage));
+        buf_ = static_cast<T*>(NODE_MALLOC(sizeof(T) * storage));
         CHECK_NE(buf_, nullptr);
       }
 

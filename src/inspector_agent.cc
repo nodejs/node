@@ -59,7 +59,7 @@ void DisconnectAndDisposeIO(inspector_socket_t* socket) {
 
 void OnBufferAlloc(uv_handle_t* handle, size_t len, uv_buf_t* buf) {
   if (len > 0) {
-    buf->base = static_cast<char*>(malloc(len));
+    buf->base = static_cast<char*>(NODE_MALLOC(len));
     CHECK_NE(buf->base, nullptr);
   }
   buf->len = len;
