@@ -473,7 +473,7 @@ $ node process-2.js one two=three four
 Would generate the output:
 
 ```text
-0: node
+0: /usr/local/bin/node
 1: /Users/mjr/work/node/process-2.js
 2: one
 3: two=three
