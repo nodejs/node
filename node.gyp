@@ -47,6 +47,7 @@
       'lib/path.js',
       'lib/process.js',
       'lib/punycode.js',
+      'lib/platform_tools.js',
       'lib/querystring.js',
       'lib/readline.js',
       'lib/repl.js',
