@@ -565,7 +565,6 @@ class SignBase : public BaseObject {
 
 class Sign : public SignBase {
  public:
-
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   Error SignInit(const char* sign_type);
