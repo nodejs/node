@@ -16,9 +16,9 @@ ifdef QUICKCHECK
 endif
 
 ifdef ENABLE_V8_TAP
-  TAP_V8 := --junitout v8-tap.xml
-  TAP_V8_INTL := --junitout v8-intl-tap.xml
-  TAP_V8_BENCHMARKS := --junitout v8-benchmarks-tap.xml
+  TAP_V8 := --junitout $(PWD)/v8-tap.xml
+  TAP_V8_INTL := --junitout $(PWD)/v8-intl-tap.xml
+  TAP_V8_BENCHMARKS := --junitout $(PWD)/v8-benchmarks-tap.xml
 endif
 
 ifdef DISABLE_V8_I18N
