@@ -18,7 +18,7 @@ namespace node {
 class NodeBIO;
 class WriteWrap;
 namespace crypto {
-  class SecureContext;
+class SecureContext;
 }
 
 class TLSWrap : public AsyncWrap,
