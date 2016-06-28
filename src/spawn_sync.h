@@ -222,7 +222,8 @@ class SyncProcessRunner {
 
   Environment* env_;
 };
-}
+
+}  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
