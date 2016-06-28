@@ -11,7 +11,7 @@ namespace node {
 
 class StatWatcher : public AsyncWrap {
  public:
-  virtual ~StatWatcher() override;
+  ~StatWatcher() override;
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
