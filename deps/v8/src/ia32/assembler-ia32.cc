@@ -787,14 +787,14 @@ void Assembler::cmpw(const Operand& op, Immediate imm16) {
 void Assembler::cmpw(Register reg, const Operand& op) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
-  EMIT(0x39);
+  EMIT(0x3B);
   emit_operand(reg, op);
 }
 
 void Assembler::cmpw(const Operand& op, Register reg) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
-  EMIT(0x3B);
+  EMIT(0x39);
   emit_operand(reg, op);
 }
 
