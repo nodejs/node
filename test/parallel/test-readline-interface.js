@@ -328,7 +328,9 @@ function isWarned(emitter) {
   }
 
   // isFullWidthCodePoint() should return false for non-numeric values
-  assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'), false);
+  [true, false, null, undefined, {}, [], 'あ'].forEach((v) => {
+    assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'), false);
+  });
 
   // wide characters should be treated as two columns.
   assert.equal(internalReadline.isFullWidthCodePoint('a'.charCodeAt(0)), false);
