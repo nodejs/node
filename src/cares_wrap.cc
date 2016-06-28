@@ -371,11 +371,11 @@ class QueryWrap : public AsyncWrap {
   // Subclasses should implement the appropriate Parse method.
   virtual void Parse(unsigned char* buf, int len) {
     UNREACHABLE();
-  };
+  }
 
   virtual void Parse(struct hostent* host) {
     UNREACHABLE();
-  };
+  }
 };
 
 
