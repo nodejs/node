@@ -64,6 +64,7 @@ class SigintWatchdogHelper {
 
     int Start();
     bool Stop();
+
   private:
     SigintWatchdogHelper();
     ~SigintWatchdogHelper();
