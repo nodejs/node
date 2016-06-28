@@ -292,7 +292,7 @@ SigintWatchdogHelper::SigintWatchdogHelper()
 
   CHECK_EQ(0, uv_mutex_init(&mutex_));
   CHECK_EQ(0, uv_mutex_init(&list_mutex_));
-};
+}
 
 
 SigintWatchdogHelper::~SigintWatchdogHelper() {
