@@ -208,7 +208,7 @@ static int CryptoPemCallback(char *buf, int size, int rwflag, void *u) {
 
 
 void ThrowCryptoError(Environment* env,
-                      unsigned long err,
+                      unsigned long err,  // NOLINT(runtime/int)
                       const char* default_message = nullptr) {
   HandleScope scope(env->isolate());
   if (err != 0 || default_message == nullptr) {
@@ -467,7 +467,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
   if (!key) {
     BIO_free_all(bio);
-    unsigned long err = ERR_get_error();
+    unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     if (!err) {
       return env->ThrowError("PEM_read_bio_PrivateKey");
     }
@@ -479,7 +479,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   BIO_free_all(bio);
 
   if (!rv) {
-    unsigned long err = ERR_get_error();
+    unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     if (!err)
       return env->ThrowError("SSL_CTX_use_PrivateKey");
     return ThrowCryptoError(env, err);
@@ -597,7 +597,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
 
   X509* extra = nullptr;
   int ret = 0;
-  unsigned long err = 0;
+  unsigned long err = 0;  // NOLINT(runtime/int)
 
   // Read extra certs
   STACK_OF(X509)* extra_certs = sk_X509_new_null();
@@ -672,7 +672,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
   BIO_free_all(bio);
 
   if (!rv) {
-    unsigned long err = ERR_get_error();
+    unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     if (!err) {
       return env->ThrowError("SSL_CTX_use_certificate_chain");
     }
@@ -866,7 +866,9 @@ void SecureContext::SetOptions(const FunctionCallbackInfo<Value>& args) {
     return sc->env()->ThrowTypeError("Bad parameter");
   }
 
-  SSL_CTX_set_options(sc->ctx_, static_cast<long>(args[0]->IntegerValue()));
+  SSL_CTX_set_options(
+      sc->ctx_,
+      static_cast<long>(args[0]->IntegerValue()));  // NOLINT(runtime/int)
 }
 
 
@@ -1001,7 +1003,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
   delete[] pass;
 
   if (!ret) {
-    unsigned long err = ERR_get_error();
+    unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     const char* str = ERR_reason_error_string(err);
     return env->ThrowError(str);
   }
@@ -1427,7 +1429,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                     String::kNormalString, mem->length));
       (void) BIO_reset(bio);
 
-      unsigned long exponent_word = BN_get_word(rsa->e);
+      BN_ULONG exponent_word = BN_get_word(rsa->e);
       BIO_printf(bio, "0x%lx", exponent_word);
 
       BIO_get_mem_ptr(bio, &mem);
@@ -1834,7 +1836,8 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   // XXX(bnoordhuis) The UNABLE_TO_GET_ISSUER_CERT error when there is no
   // peer certificate is questionable but it's compatible with what was
   // here before.
-  long x509_verify_error = X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT;
+  long x509_verify_error =  // NOLINT(runtime/int)
+      X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT;
   if (X509* peer_cert = SSL_get_peer_certificate(w->ssl_)) {
     X509_free(peer_cert);
     x509_verify_error = SSL_get_verify_result(w->ssl_);
@@ -2171,7 +2174,7 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
     if (rv)
       rv = w->SetCACerts(sc);
     if (!rv) {
-      unsigned long err = ERR_get_error();
+      unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
       if (!err)
         return env->ThrowError("CertCbDone");
       return ThrowCryptoError(env, err);
@@ -2605,7 +2608,7 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
   SSL_set_bio(conn->ssl_, conn->bio_read_, conn->bio_write_);
 
 #ifdef SSL_MODE_RELEASE_BUFFERS
-  long mode = SSL_get_mode(conn->ssl_);
+  long mode = SSL_get_mode(conn->ssl_);  // NOLINT(runtime/int)
   SSL_set_mode(conn->ssl_, mode | SSL_MODE_RELEASE_BUFFERS);
 #endif
 
@@ -3551,7 +3554,7 @@ void SignBase::CheckThrow(SignBase::Error error) {
     case kSignPrivateKey:
     case kSignPublicKey:
       {
-        unsigned long err = ERR_get_error();
+        unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
         if (err)
           return ThrowCryptoError(env(), err);
         switch (error) {
@@ -5049,11 +5052,11 @@ class RandomBytesRequest : public AsyncWrap {
     size_ = 0;
   }
 
-  inline unsigned long error() const {
+  inline unsigned long error() const {  // NOLINT(runtime/int)
     return error_;
   }
 
-  inline void set_error(unsigned long err) {
+  inline void set_error(unsigned long err) {  // NOLINT(runtime/int)
     error_ = err;
   }
 
@@ -5062,7 +5065,7 @@ class RandomBytesRequest : public AsyncWrap {
   uv_work_t work_req_;
 
  private:
-  unsigned long error_;
+  unsigned long error_;  // NOLINT(runtime/int)
   size_t size_;
   char* data_;
 };
@@ -5080,9 +5083,9 @@ void RandomBytesWork(uv_work_t* work_req) {
 
   // RAND_bytes() returns 0 on error.
   if (r == 0) {
-    req->set_error(ERR_get_error());
+    req->set_error(ERR_get_error());  // NOLINT(runtime/int)
   } else if (r == -1) {
-    req->set_error(static_cast<unsigned long>(-1));
+    req->set_error(static_cast<unsigned long>(-1));  // NOLINT(runtime/int)
   }
 }
 
@@ -5092,7 +5095,7 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
   if (req->error()) {
     char errmsg[256] = "Operation not supported";
 
-    if (req->error() != static_cast<unsigned long>(-1))
+    if (req->error() != static_cast<unsigned long>(-1))  // NOLINT(runtime/int)
       ERR_error_string_n(req->error(), errmsg, sizeof errmsg);
 
     argv[0] = Exception::Error(OneByteString(req->env()->isolate(), errmsg));
