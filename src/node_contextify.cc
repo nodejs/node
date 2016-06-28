@@ -516,7 +516,7 @@ class ContextifyScript : public BaseObject {
 
     // Do the eval within this context
     Environment* env = Environment::GetCurrent(args);
-    EvalMachine(env, timeout, display_errors, args, try_catch);
+    EvalMachine(env, timeout, display_errors, args, &try_catch);
   }
 
   // args: sandbox, [options]
@@ -563,7 +563,7 @@ class ContextifyScript : public BaseObject {
                       timeout,
                       display_errors,
                       args,
-                      try_catch)) {
+                      &try_catch)) {
         contextify_context->CopyProperties();
       }
 
@@ -683,7 +683,7 @@ class ContextifyScript : public BaseObject {
                           const int64_t timeout,
                           const bool display_errors,
                           const FunctionCallbackInfo<Value>& args,
-                          TryCatch& try_catch) {
+                          TryCatch* try_catch) {
     if (!ContextifyScript::InstanceOf(env, args.Holder())) {
       env->ThrowTypeError(
           "Script methods can only be called on script instances.");
@@ -703,19 +703,19 @@ class ContextifyScript : public BaseObject {
       result = script->Run();
     }
 
-    if (try_catch.HasCaught() && try_catch.HasTerminated()) {
+    if (try_catch->HasCaught() && try_catch->HasTerminated()) {
       V8::CancelTerminateExecution(env->isolate());
       env->ThrowError("Script execution timed out.");
-      try_catch.ReThrow();
+      try_catch->ReThrow();
       return false;
     }
 
     if (result.IsEmpty()) {
       // Error occurred during execution of the script.
       if (display_errors) {
-        AppendExceptionLine(env, try_catch.Exception(), try_catch.Message());
+        AppendExceptionLine(env, try_catch->Exception(), try_catch->Message());
       }
-      try_catch.ReThrow();
+      try_catch->ReThrow();
       return false;
     }
 

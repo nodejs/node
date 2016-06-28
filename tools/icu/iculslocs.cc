@@ -105,13 +105,13 @@ void usage() {
       PROG);
 }
 
-#define ASSERT_SUCCESS(what)              \
-  if (U_FAILURE(status)) {                \
+#define ASSERT_SUCCESS(status, what)      \
+  if (U_FAILURE(*status)) {               \
     u_printf("%s:%d: %s: ERROR: %s %s\n", \
              __FILE__,                    \
              __LINE__,                    \
              PROG,                        \
-             u_errorName(status),         \
+             u_errorName(*status),        \
              what);                       \
     return 1;                             \
   }
@@ -177,9 +177,9 @@ int localeExists(const char* loc, UBool* exists) {
   }
 }
 
-void printIndent(const LocalUFILEPointer& bf, int indent) {
+void printIndent(const LocalUFILEPointer* bf, int indent) {
   for (int i = 0; i < indent + 1; i++) {
-    u_fprintf(bf.getAlias(), "    ");
+    u_fprintf(bf->getAlias(), "    ");
   }
 }
 
@@ -189,15 +189,15 @@ void printIndent(const LocalUFILEPointer& bf, int indent) {
  * @return 0 for OK, 1 for err
  */
 int dumpAllButInstalledLocales(int lev,
-                               LocalUResourceBundlePointer& bund,
-                               LocalUFILEPointer& bf,
-                               UErrorCode& status) {
-  ures_resetIterator(bund.getAlias());
-  const UBool isTable = (UBool)(ures_getType(bund.getAlias()) == URES_TABLE);
+                               LocalUResourceBundlePointer* bund,
+                               LocalUFILEPointer* bf,
+                               UErrorCode* status) {
+  ures_resetIterator(bund->getAlias());
+  const UBool isTable = (UBool)(ures_getType(bund->getAlias()) == URES_TABLE);
   LocalUResourceBundlePointer t;
-  while (U_SUCCESS(status) && ures_hasNext(bund.getAlias())) {
-    t.adoptInstead(ures_getNextResource(bund.getAlias(), t.orphan(), &status));
-    ASSERT_SUCCESS("while processing table");
+  while (U_SUCCESS(*status) && ures_hasNext(bund->getAlias())) {
+    t.adoptInstead(ures_getNextResource(bund->getAlias(), t.orphan(), status));
+    ASSERT_SUCCESS(status, "while processing table");
     const char* key = ures_getKey(t.getAlias());
     if (VERBOSE > 1) {
       u_printf("dump@%d: got key %s\n", lev, key);
@@ -208,22 +208,22 @@ int dumpAllButInstalledLocales(int lev,
       }
     } else {
       printIndent(bf, lev);
-      u_fprintf(bf.getAlias(), "%s", key);
+      u_fprintf(bf->getAlias(), "%s", key);
       switch (ures_getType(t.getAlias())) {
         case URES_STRING: {
           int32_t len = 0;
-          const UChar* s = ures_getString(t.getAlias(), &len, &status);
-          ASSERT_SUCCESS("getting string");
-          u_fprintf(bf.getAlias(), ":string {\"");
-          u_file_write(s, len, bf.getAlias());
-          u_fprintf(bf.getAlias(), "\"}");
+          const UChar* s = ures_getString(t.getAlias(), &len, status);
+          ASSERT_SUCCESS(status, "getting string");
+          u_fprintf(bf->getAlias(), ":string {\"");
+          u_file_write(s, len, bf->getAlias());
+          u_fprintf(bf->getAlias(), "\"}");
         } break;
         default: {
           u_printf("ERROR: unhandled type in dumpAllButInstalledLocales().\n");
           return 1;
         } break;
       }
-      u_fprintf(bf.getAlias(), "\n");
+      u_fprintf(bf->getAlias(), "\n");
     }
   }
   return 0;
@@ -250,7 +250,7 @@ int list(const char* toBundle) {
 
   // first, calculate the bundle name.
   calculatePackageName(&status);
-  ASSERT_SUCCESS("calculating package name");
+  ASSERT_SUCCESS(&status, "calculating package name");
 
   if (VERBOSE) {
     u_printf("\"locale\": %s\n", locale);
@@ -258,10 +258,10 @@ int list(const char* toBundle) {
 
   LocalUResourceBundlePointer bund(
       ures_openDirect(packageName.data(), locale, &status));
-  ASSERT_SUCCESS("while opening the bundle");
+  ASSERT_SUCCESS(&status, "while opening the bundle");
   LocalUResourceBundlePointer installedLocales(
       ures_getByKey(bund.getAlias(), INSTALLEDLOCALES, NULL, &status));
-  ASSERT_SUCCESS("while fetching installed locales");
+  ASSERT_SUCCESS(&status, "while fetching installed locales");
 
   int32_t count = ures_getSize(installedLocales.getAlias());
   if (VERBOSE) {
@@ -280,11 +280,12 @@ int list(const char* toBundle) {
               "%s:table(nofallback) {\n"
               "    // First, everything besides InstalledLocales:\n",
               locale);
-    if (dumpAllButInstalledLocales(0, bund, bf, status)) {
+    if (dumpAllButInstalledLocales(0, &bund, &bf, &status)) {
       u_printf("Error dumping prolog for %s\n", toBundle);
       return 1;
     }
-    ASSERT_SUCCESS("while writing prolog");  // in case an error was missed
+    // in case an error was missed
+    ASSERT_SUCCESS(&status, "while writing prolog");
 
     u_fprintf(bf.getAlias(),
               "    %s:table { // %d locales in input %s.res\n",
@@ -300,7 +301,7 @@ int list(const char* toBundle) {
   for (int32_t i = 0; i < count; i++) {
     subkey.adoptInstead(ures_getByIndex(
         installedLocales.getAlias(), i, subkey.orphan(), &status));
-    ASSERT_SUCCESS("while fetching an installed locale's name");
+    ASSERT_SUCCESS(&status, "while fetching an installed locale's name");
 
     const char* key = ures_getKey(subkey.getAlias());
     if (VERBOSE > 1) {
