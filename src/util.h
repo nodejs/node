@@ -267,6 +267,7 @@ class MaybeStackBuffer {
       if (buf_ != buf_st_)
         free(buf_);
     }
+
   private:
     size_t length_;
     T* buf_;
