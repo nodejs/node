@@ -193,7 +193,6 @@ int dumpAllButInstalledLocales(int lev,
                                LocalUFILEPointer* bf,
                                UErrorCode* status) {
   ures_resetIterator(bund->getAlias());
-  const UBool isTable = (UBool)(ures_getType(bund->getAlias()) == URES_TABLE);
   LocalUResourceBundlePointer t;
   while (U_SUCCESS(*status) && ures_hasNext(bund->getAlias())) {
     t.adoptInstead(ures_getNextResource(bund->getAlias(), t.orphan(), status));
