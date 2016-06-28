@@ -39,9 +39,9 @@
 #include "string_bytes.h"
 #include "util.h"
 #include "uv.h"
-#if !NODE_NO_V8_PLATFORM
+#if NODE_USE_V8_PLATFORM
 #include "libplatform/libplatform.h"
-#endif  // !NODE_NO_V8_PLATFORM
+#endif  // NODE_USE_V8_PLATFORM
 #include "v8-debug.h"
 #include "v8-profiler.h"
 #include "zlib.h"
@@ -187,16 +187,7 @@ static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
 
 static struct {
-#if NODE_NO_V8_PLATFORM
-  void Initialize(int thread_pool_size) {}
-  void PumpMessageLoop(Isolate* isolate) {}
-  void Dispose() {}
-#if HAVE_INSPECTOR
-  void StartInspector(Environment *env, int port, bool wait) {
-    env->ThrowError("Node compiled with NODE_NO_V8_PLATFORM");
-  }
-#endif  // HAVE_INSPECTOR
-#else  // !NODE_NO_V8_PLATFORM
+#if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
     platform_ = v8::platform::CreateDefaultPlatform(thread_pool_size);
     V8::InitializePlatform(platform_);
@@ -218,7 +209,17 @@ static struct {
 #endif  // HAVE_INSPECTOR
 
   v8::Platform* platform_;
-#endif  // !NODE_NO_V8_PLATFORM
+#else  // !NODE_USE_V8_PLATFORM
+  void Initialize(int thread_pool_size) {}
+  void PumpMessageLoop(Isolate* isolate) {}
+  void Dispose() {}
+#if HAVE_INSPECTOR
+  void StartInspector(Environment *env, int port, bool wait) {
+    env->ThrowError("Node compiled with NODE_NO_V8_PLATFORM");
+  }
+#endif  // HAVE_INSPECTOR
+
+#endif  // !NODE_USE_V8_PLATFORM
 } v8_platform;
 
 #ifdef __POSIX__

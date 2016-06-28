@@ -837,7 +837,7 @@ def configure_node(o):
   o['variables']['node_shared'] = b(options.shared)
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
-  o['variables']['node_module_version'] = getmoduleversion.get_version()
+  o['variables']['node_module_version'] = int(getmoduleversion.get_version())
 
   if options.linked_module:
     o['variables']['library_files'] = options.linked_module

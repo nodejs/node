@@ -253,11 +253,11 @@
         }],
         [ 'node_use_v8_platform=="true"', {
           'defines': [
-            'NODE_NO_V8_PLATFORM=0',
+            'NODE_USE_V8_PLATFORM=1',
           ],
         }, {
           'defines': [
-            'NODE_NO_V8_PLATFORM=1',
+            'NODE_USE_V8_PLATFORM=0',
           ],
         }],
         [ 'node_tag!=""', {
