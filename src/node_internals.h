@@ -247,78 +247,78 @@ void ClearFatalExceptionHandlers(Environment* env);
 enum NodeInstanceType { MAIN, WORKER };
 
 class NodeInstanceData {
-  public:
-    NodeInstanceData(NodeInstanceType node_instance_type,
-                     uv_loop_t* event_loop,
-                     int argc,
-                     const char** argv,
-                     int exec_argc,
-                     const char** exec_argv,
-                     bool use_debug_agent_flag)
-        : node_instance_type_(node_instance_type),
-          exit_code_(1),
-          event_loop_(event_loop),
-          argc_(argc),
-          argv_(argv),
-          exec_argc_(exec_argc),
-          exec_argv_(exec_argv),
-          use_debug_agent_flag_(use_debug_agent_flag) {
-      CHECK_NE(event_loop_, nullptr);
-    }
+ public:
+  NodeInstanceData(NodeInstanceType node_instance_type,
+                   uv_loop_t* event_loop,
+                   int argc,
+                   const char** argv,
+                   int exec_argc,
+                   const char** exec_argv,
+                   bool use_debug_agent_flag)
+      : node_instance_type_(node_instance_type),
+        exit_code_(1),
+        event_loop_(event_loop),
+        argc_(argc),
+        argv_(argv),
+        exec_argc_(exec_argc),
+        exec_argv_(exec_argv),
+        use_debug_agent_flag_(use_debug_agent_flag) {
+    CHECK_NE(event_loop_, nullptr);
+  }
 
-    uv_loop_t* event_loop() const {
-      return event_loop_;
-    }
+  uv_loop_t* event_loop() const {
+    return event_loop_;
+  }
 
-    int exit_code() {
-      CHECK(is_main());
-      return exit_code_;
-    }
+  int exit_code() {
+    CHECK(is_main());
+    return exit_code_;
+  }
 
-    void set_exit_code(int exit_code) {
-      CHECK(is_main());
-      exit_code_ = exit_code;
-    }
+  void set_exit_code(int exit_code) {
+    CHECK(is_main());
+    exit_code_ = exit_code;
+  }
 
-    bool is_main() {
-      return node_instance_type_ == MAIN;
-    }
+  bool is_main() {
+    return node_instance_type_ == MAIN;
+  }
 
-    bool is_worker() {
-      return node_instance_type_ == WORKER;
-    }
+  bool is_worker() {
+    return node_instance_type_ == WORKER;
+  }
 
-    int argc() {
-      return argc_;
-    }
+  int argc() {
+    return argc_;
+  }
 
-    const char** argv() {
-      return argv_;
-    }
+  const char** argv() {
+    return argv_;
+  }
 
-    int exec_argc() {
-      return exec_argc_;
-    }
+  int exec_argc() {
+    return exec_argc_;
+  }
 
-    const char** exec_argv() {
-      return exec_argv_;
-    }
+  const char** exec_argv() {
+    return exec_argv_;
+  }
 
-    bool use_debug_agent() {
-      return is_main() && use_debug_agent_flag_;
-    }
+  bool use_debug_agent() {
+    return is_main() && use_debug_agent_flag_;
+  }
 
-  private:
-    const NodeInstanceType node_instance_type_;
-    int exit_code_;
-    uv_loop_t* const event_loop_;
-    const int argc_;
-    const char** argv_;
-    const int exec_argc_;
-    const char** exec_argv_;
-    const bool use_debug_agent_flag_;
+ private:
+  const NodeInstanceType node_instance_type_;
+  int exit_code_;
+  uv_loop_t* const event_loop_;
+  const int argc_;
+  const char** argv_;
+  const int exec_argc_;
+  const char** exec_argv_;
+  const bool use_debug_agent_flag_;
 
-    DISALLOW_COPY_AND_ASSIGN(NodeInstanceData);
+  DISALLOW_COPY_AND_ASSIGN(NodeInstanceData);
 };
 
 namespace Buffer {
