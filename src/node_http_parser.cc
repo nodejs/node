@@ -108,9 +108,9 @@ struct StringPtr {
 
 
   void Update(const char* str, size_t size) {
-    if (str_ == nullptr)
+    if (str_ == nullptr) {
       str_ = str;
-    else if (on_heap_ || str_ + size_ != str) {
+    } else if (on_heap_ || str_ + size_ != str) {
       // Non-consecutive input, make a copy on the heap.
       // TODO(bnoordhuis) Use slab allocation, O(n) allocs is bad.
       char* s = new char[size_ + size];
