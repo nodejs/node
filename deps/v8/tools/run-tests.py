@@ -326,6 +326,9 @@ def ProcessOptions(options):
   global VARIANT_FLAGS
   global VARIANTS
 
+  # Many tests assume an English interface.
+  os.environ['LANG'] = 'en_US.UTF-8'
+
   # Architecture and mode related stuff.
   if options.arch_and_mode:
     options.arch_and_mode = [arch_and_mode.split(".")
