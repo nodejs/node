@@ -561,7 +561,8 @@ class ContextifyScript : public BaseObject {
 
     // Do the eval within this context
     Environment* env = Environment::GetCurrent(args);
-    EvalMachine(env, timeout, display_errors, break_on_sigint, args, try_catch);
+    EvalMachine(env, timeout, display_errors, break_on_sigint, args,
+                &try_catch);
   }
 
   // args: sandbox, [options]
@@ -610,7 +611,7 @@ class ContextifyScript : public BaseObject {
                       display_errors,
                       break_on_sigint,
                       args,
-                      try_catch)) {
+                      &try_catch)) {
         contextify_context->CopyProperties();
       }
 
@@ -821,7 +822,7 @@ class ContextifyScript : public BaseObject {
                           const bool display_errors,
                           const bool break_on_sigint,
                           const FunctionCallbackInfo<Value>& args,
-                          TryCatch& try_catch) {
+                          TryCatch* try_catch) {
     if (!ContextifyScript::InstanceOf(env, args.Holder())) {
       env->ThrowTypeError(
           "Script methods can only be called on script instances.");
@@ -855,8 +856,8 @@ class ContextifyScript : public BaseObject {
       result = script->Run();
     }
 
-    if (try_catch.HasCaught()) {
-      if (try_catch.HasTerminated())
+    if (try_catch->HasCaught()) {
+      if (try_catch->HasTerminated())
         env->isolate()->CancelTerminateExecution();
 
       // It is possible that execution was terminated by another timeout in
@@ -873,7 +874,7 @@ class ContextifyScript : public BaseObject {
       // letting try_catch catch it.
       // If execution has been terminated, but not by one of the watchdogs from
       // this invocation, this will re-throw a `null` value.
-      try_catch.ReThrow();
+      try_catch->ReThrow();
 
       return false;
     }
@@ -881,9 +882,9 @@ class ContextifyScript : public BaseObject {
     if (result.IsEmpty()) {
       // Error occurred during execution of the script.
       if (display_errors) {
-        DecorateErrorStack(env, try_catch);
+        DecorateErrorStack(env, *try_catch);
       }
-      try_catch.ReThrow();
+      try_catch->ReThrow();
       return false;
     }
 
