@@ -1073,40 +1073,10 @@ class FileInfo(object):
     locations won't see bogus errors.
     """
     fullname = self.FullName()
-
-    if os.path.exists(fullname):
-      project_dir = os.path.dirname(fullname)
-
-      if os.path.exists(os.path.join(project_dir, ".svn")):
-        # If there's a .svn file in the current directory, we recursively look
-        # up the directory tree for the top of the SVN checkout
-        root_dir = project_dir
-        one_up_dir = os.path.dirname(root_dir)
-        while os.path.exists(os.path.join(one_up_dir, ".svn")):
-          root_dir = os.path.dirname(root_dir)
-          one_up_dir = os.path.dirname(one_up_dir)
-
-        prefix = os.path.commonprefix([root_dir, project_dir])
-        return fullname[len(prefix) + 1:]
-
-      # Not SVN <= 1.6? Try to find a git, hg, or svn top level directory by
-      # searching up from the current path.
-      root_dir = current_dir = os.path.dirname(fullname)
-      while current_dir != os.path.dirname(current_dir):
-        if (os.path.exists(os.path.join(current_dir, ".git")) or
-            os.path.exists(os.path.join(current_dir, ".hg")) or
-            os.path.exists(os.path.join(current_dir, ".svn"))):
-          root_dir = current_dir
-        current_dir = os.path.dirname(current_dir)
-
-      if (os.path.exists(os.path.join(root_dir, ".git")) or
-          os.path.exists(os.path.join(root_dir, ".hg")) or
-          os.path.exists(os.path.join(root_dir, ".svn"))):
-        prefix = os.path.commonprefix([root_dir, project_dir])
-        return fullname[len(prefix) + 1:]
-
-    # Don't know what to do; header guard warnings may be wrong...
-    return fullname
+    # XXX(bnoordhuis) Expects that cpplint.py lives in the tools/ directory.
+    toplevel = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    prefix = os.path.commonprefix([fullname, toplevel])
+    return fullname[len(prefix) + 1:]
 
   def Split(self):
     """Splits the file into the directory, basename, and extension.
