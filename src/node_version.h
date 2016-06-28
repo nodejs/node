@@ -54,4 +54,4 @@
  */
 #define NODE_MODULE_VERSION 46 /* Node.js v4.0.0 */
 
-#endif  /* SRC_NODE_VERSION_H_ */
+#endif  // SRC_NODE_VERSION_H_
