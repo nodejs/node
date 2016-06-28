@@ -251,10 +251,13 @@ static void After(uv_fs_t *req) {
 
 // This struct is only used on sync fs calls.
 // For async calls FSReqWrap is used.
-struct fs_req_wrap {
+class fs_req_wrap {
+ public:
   fs_req_wrap() {}
   ~fs_req_wrap() { uv_fs_req_cleanup(&req); }
   uv_fs_t req;
+
+ private:
   DISALLOW_COPY_AND_ASSIGN(fs_req_wrap);
 };
 
