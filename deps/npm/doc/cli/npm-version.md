@@ -16,7 +16,7 @@ valid second argument to semver.inc (one of `patch`, `minor`, `major`,
 the existing version will be incremented by 1 in the specified field.
 
 If run in a git repo, it will also create a version commit and tag.
-This behavior is controlled by `git-tag-version` (see below), and can
+This behavior is controlled by `git-tag-version` (see below), and can 
 be disabled on the command line by running `npm --no-git-tag-version version`.
 It will fail if the working directory is not clean, unless the `--force`
 flag is set.
@@ -51,12 +51,12 @@ The exact order of execution is as follows:
   2. Run the `preversion` script. These scripts have access to the old `version` in package.json.
      A typical use would be running your full test suite before deploying.
      Any files you want added to the commit should be explicitly added using `git add`.
-  3. Bump `version` in `package.json` as requested (`patch`, `minor`, `major`, etc).
+  3. Bump `version` in `package.json` as requested (`patch`, `minor`, `major`, etc). 
   4. Run the `version` script. These scripts have access to the new `version` in package.json
-     (so they can incorporate it into file headers in generated files for example).
+     (so they can incorporate it into file headers in generated files for example). 
      Again, scripts should explicitly add generated files to the commit using `git add`.
   5. Commit and tag.
-  6. Run the `postversion` script. Use it to clean up the file system or automatically push
+  6. Run the `postversion` script. Use it to clean up the file system or automatically push 
      the commit and/or tag.
 
 Take the following example:

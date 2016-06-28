@@ -1182,7 +1182,7 @@ function prepareForInstallMany (packageData, depsKey, bundled, wrap, family) {
     // prefer to not install things that are satisfied by
     // something in the "family" list, unless we're installing
     // from a shrinkwrap.
-    if (wrap) return wrap
+    if (depsKey !== "peerDependencies" && wrap) return true
     if (semver.validRange(family[d], true)) {
       return !semver.satisfies(family[d], packageData[depsKey][d], true)
     }
