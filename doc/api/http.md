@@ -585,7 +585,7 @@ a listener for the `'listening'` event.  See also [`net.Server.listen(path)`][].
 Begin accepting connections on the specified `port` and `hostname`. If the
 `hostname` is omitted, the server will accept connections on any IPv6 address
 (`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise. Use a
-port value of zero to have the operating system assign an available port.
+port value of `0` to have the operating system assign an available port.
 
 To listen to a unix socket, supply a filename instead of port and hostname.
 
