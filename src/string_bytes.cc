@@ -27,75 +27,75 @@ using v8::MaybeLocal;
 
 template <typename ResourceType, typename TypeName>
 class ExternString: public ResourceType {
-  public:
-    ~ExternString() override {
-      free(const_cast<TypeName*>(data_));
-      isolate()->AdjustAmountOfExternalAllocatedMemory(-byte_length());
+ public:
+  ~ExternString() override {
+    free(const_cast<TypeName*>(data_));
+    isolate()->AdjustAmountOfExternalAllocatedMemory(-byte_length());
+  }
+
+  const TypeName* data() const override {
+    return data_;
+  }
+
+  size_t length() const override {
+    return length_;
+  }
+
+  int64_t byte_length() const {
+    return length() * sizeof(*data());
+  }
+
+  static Local<String> NewFromCopy(Isolate* isolate,
+                                   const TypeName* data,
+                                   size_t length) {
+    EscapableHandleScope scope(isolate);
+
+    if (length == 0)
+      return scope.Escape(String::Empty(isolate));
+
+    TypeName* new_data =
+        static_cast<TypeName*>(malloc(length * sizeof(*new_data)));
+    if (new_data == nullptr) {
+      return Local<String>();
+    }
+    memcpy(new_data, data, length * sizeof(*new_data));
+
+    return scope.Escape(ExternString<ResourceType, TypeName>::New(isolate,
+                                                                  new_data,
+                                                                  length));
+  }
+
+  // uses "data" for external resource, and will be free'd on gc
+  static Local<String> New(Isolate* isolate,
+                           const TypeName* data,
+                           size_t length) {
+    EscapableHandleScope scope(isolate);
+    if (length == 0)
+      return scope.Escape(String::Empty(isolate));
+
+    ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
+                                                                   data,
+                                                                   length);
+    MaybeLocal<String> str = String::NewExternal(isolate, h_str);
+    isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
+
+
+    if (str.IsEmpty()) {
+      delete h_str;
+      return Local<String>();
     }
 
-    const TypeName* data() const override {
-      return data_;
-    }
+    return scope.Escape(str.ToLocalChecked());
+  }
 
-    size_t length() const override {
-      return length_;
-    }
+  inline Isolate* isolate() const { return isolate_; }
 
-    int64_t byte_length() const {
-      return length() * sizeof(*data());
-    }
-
-    static Local<String> NewFromCopy(Isolate* isolate,
-                                     const TypeName* data,
-                                     size_t length) {
-      EscapableHandleScope scope(isolate);
-
-      if (length == 0)
-        return scope.Escape(String::Empty(isolate));
-
-      TypeName* new_data =
-          static_cast<TypeName*>(malloc(length * sizeof(*new_data)));
-      if (new_data == nullptr) {
-        return Local<String>();
-      }
-      memcpy(new_data, data, length * sizeof(*new_data));
-
-      return scope.Escape(ExternString<ResourceType, TypeName>::New(isolate,
-                                                                    new_data,
-                                                                    length));
-    }
-
-    // uses "data" for external resource, and will be free'd on gc
-    static Local<String> New(Isolate* isolate,
-                             const TypeName* data,
-                             size_t length) {
-      EscapableHandleScope scope(isolate);
-
-      if (length == 0)
-        return scope.Escape(String::Empty(isolate));
-
-      ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
-                                                                     data,
-                                                                     length);
-      MaybeLocal<String> str = String::NewExternal(isolate, h_str);
-      isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
-
-      if (str.IsEmpty()) {
-        delete h_str;
-        return Local<String>();
-      }
-
-      return scope.Escape(str.ToLocalChecked());
-    }
-
-    inline Isolate* isolate() const { return isolate_; }
-
-  private:
-    ExternString(Isolate* isolate, const TypeName* data, size_t length)
-      : isolate_(isolate), data_(data), length_(length) { }
-    Isolate* isolate_;
-    const TypeName* data_;
-    size_t length_;
+ private:
+  ExternString(Isolate* isolate, const TypeName* data, size_t length)
+    : isolate_(isolate), data_(data), length_(length) { }
+  Isolate* isolate_;
+  const TypeName* data_;
+  size_t length_;
 };
 
 
