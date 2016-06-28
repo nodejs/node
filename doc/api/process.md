@@ -123,7 +123,7 @@ code without properly recovering from the exception can cause additional
 unforeseen and unpredictable issues.
 
 Exceptions thrown from within the event handler will not be caught. Instead the
-process will exit with a non zero exit code and the stack trace will be printed.
+process will exit with a non-zero exit code and the stack trace will be printed.
 This is to avoid infinite recursion.
 
 Attempting to resume normally after an uncaught exception can be similar to
