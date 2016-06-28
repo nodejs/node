@@ -650,8 +650,8 @@ size_t SearchString(Vector<const SubjectChar> subject,
   StringSearch<PatternChar, SubjectChar> search(pattern);
   return search.Search(subject, start_index);
 }
-}
-}  // namespace node::stringsearch
+}  // namespace stringsearch
+}  // namespace node
 
 namespace node {
 using node::stringsearch::Vector;

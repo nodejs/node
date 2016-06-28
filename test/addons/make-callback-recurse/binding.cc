@@ -26,6 +26,6 @@ void Initialize(Local<Object> target) {
   NODE_SET_METHOD(target, "makeCallback", MakeCallback);
 }
 
-}  // namespace anonymous
+}  // namespace
 
 NODE_MODULE(binding, Initialize)
