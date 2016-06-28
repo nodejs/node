@@ -39,11 +39,11 @@ class RetainedAsyncInfo: public RetainedObjectInfo {
  public:
   explicit RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap);
 
-  virtual void Dispose() override;
-  virtual bool IsEquivalent(RetainedObjectInfo* other) override;
-  virtual intptr_t GetHash() override;
-  virtual const char* GetLabel() override;
-  virtual intptr_t GetSizeInBytes() override;
+  void Dispose() override;
+  bool IsEquivalent(RetainedObjectInfo* other) override;
+  intptr_t GetHash() override;
+  const char* GetLabel() override;
+  intptr_t GetSizeInBytes() override;
 
  private:
   const char* label_;
