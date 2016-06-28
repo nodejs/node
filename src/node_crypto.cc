@@ -175,7 +175,7 @@ template int SSLWrap<TLSWrap>::SelectALPNCallback(
 #endif  // TLSEXT_TYPE_application_layer_protocol_negotiation
 
 static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
-  static_assert(sizeof(uv_thread_t) <= sizeof(void*),  // NOLINT(runtime/sizeof)
+  static_assert(sizeof(uv_thread_t) <= sizeof(void*),
                 "uv_thread_t does not fit in a pointer");
   CRYPTO_THREADID_set_pointer(tid, reinterpret_cast<void*>(uv_thread_self()));
 }
@@ -693,7 +693,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
 
   unsigned cert_count = 0;
   if (BIO* bio = LoadBIO(env, args[0])) {
-    while (X509* x509 =  // NOLINT(whitespace/if-one-line)
+    while (X509* x509 =
         PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr)) {
       X509_STORE_add_cert(sc->ca_store_, x509);
       SSL_CTX_add_client_CA(sc->ctx_, x509);
