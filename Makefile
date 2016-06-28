@@ -638,7 +638,6 @@ CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_root_certs.h
 CPPLINT_EXCLUDE += src/queue.h
 CPPLINT_EXCLUDE += src/tree.h
-CPPLINT_EXCLUDE += src/v8abbr.h
 CPPLINT_EXCLUDE += $(wildcard test/addons/??_*/*.cc test/addons/??_*/*.h)
 
 CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
