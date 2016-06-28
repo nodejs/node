@@ -76,7 +76,8 @@
  * SeqTwoByteString class, but it's the same as the one for SeqOneByteString.
  */
 #ifndef V8DBG_CLASS_SEQTWOBYTESTRING__CHARS__CHAR
-#define V8DBG_CLASS_SEQTWOBYTESTRING__CHARS__CHAR V8DBG_CLASS_SEQONEBYTESTRING__CHARS__CHAR
+#define V8DBG_CLASS_SEQTWOBYTESTRING__CHARS__CHAR \
+  V8DBG_CLASS_SEQONEBYTESTRING__CHARS__CHAR
 #endif
 
 /* Heap class->field offsets */
