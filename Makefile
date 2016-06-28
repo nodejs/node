@@ -635,9 +635,7 @@ jslint:
 	  tools/eslint-rules --rulesdir tools/eslint-rules
 
 CPPLINT_EXCLUDE ?=
-CPPLINT_EXCLUDE += src/node_lttng.cc
 CPPLINT_EXCLUDE += src/node_root_certs.h
-CPPLINT_EXCLUDE += src/node_lttng_tp.h
 CPPLINT_EXCLUDE += src/queue.h
 CPPLINT_EXCLUDE += src/tree.h
 CPPLINT_EXCLUDE += src/v8abbr.h
