@@ -35,6 +35,6 @@ void Initialize(v8::Local<v8::Object> target) {
   NODE_SET_METHOD(target, "makeCallback", MakeCallback);
 }
 
-}  // namespace anonymous
+}  // namespace
 
 NODE_MODULE(binding, Initialize)
