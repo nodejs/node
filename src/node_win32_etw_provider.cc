@@ -187,4 +187,5 @@ void shutdown_etw() {
     advapi = nullptr;
   }
 }
-}
+
+}  // namespace node

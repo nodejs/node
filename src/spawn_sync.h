@@ -219,6 +219,7 @@ class SyncProcessRunner {
 
   Environment* env_;
 };
-}
+
+}  // namespace node
 
 #endif  // SRC_SPAWN_SYNC_H_
