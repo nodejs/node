@@ -126,7 +126,7 @@ void TLSWrap::InitSSL() {
   SSL_set_verify(ssl_, SSL_VERIFY_NONE, crypto::VerifyCallback);
 
 #ifdef SSL_MODE_RELEASE_BUFFERS
-  long mode = SSL_get_mode(ssl_);
+  long mode = SSL_get_mode(ssl_);  // NOLINT(runtime/int)
   SSL_set_mode(ssl_, mode | SSL_MODE_RELEASE_BUFFERS);
 #endif  // SSL_MODE_RELEASE_BUFFERS
 
