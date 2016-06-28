@@ -44,6 +44,7 @@ same line, but it is far from perfect (in either direction).
 import codecs
 import copy
 import getopt
+import logging
 import math  # for log
 import os
 import re
@@ -53,10 +54,13 @@ import sys
 import unicodedata
 
 
+logger = logging.getLogger('testrunner')
+
+
 _USAGE = """
 Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
                    [--counting=total|toplevel|detailed] [--root=subdir]
-                   [--linelength=digits]
+                   [--linelength=digits] [--logfile=filename]
         <file> [file] ...
 
   The style guidelines this tries to follow are those in
@@ -133,6 +137,9 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
 
       Examples:
         --extensions=hpp,cpp
+
+    logfile=filename
+      Write TAP output to a logfile.
 
     cpplint.py supports per-directory configurations specified in CPPLINT.cfg
     files. CPPLINT.cfg file can contain a number of key=value pairs.
@@ -1190,6 +1197,15 @@ def Error(filename, linenum, category, confidence, message):
     elif _cpplint_state.output_format == 'eclipse':
       sys.stderr.write('%s:%s: warning: %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
+    elif _cpplint_state.output_format == 'tap':
+      template = ('not ok %(filename)s\n'
+          '  ---\n'
+          '  message: %(message)s\n'
+          '  data:\n'
+          '    line: %(linenum)d\n'
+          '    ruleId: %(category)s\n'
+          '  ...')
+      logger.info(template % locals())
     else:
       sys.stderr.write('%s:%s:  %s  [%s] [%d]\n' % (
           filename, linenum, message, category, confidence))
@@ -5980,7 +5996,6 @@ def ProcessFile(filename, vlevel, extra_check_functions=[]):
         Error(filename, linenum, 'whitespace/newline', 1,
               'Unexpected \\r (^M) found; better to use only \\n')
 
-  sys.stderr.write('Done processing %s\n' % filename)
   _RestoreFilters()
 
 
@@ -6021,6 +6036,7 @@ def ParseArguments(args):
     (opts, filenames) = getopt.getopt(args, '', ['help', 'output=', 'verbose=',
                                                  'counting=',
                                                  'filter=',
+                                                 'logfile=',
                                                  'root=',
                                                  'linelength=',
                                                  'extensions='])
@@ -6036,8 +6052,9 @@ def ParseArguments(args):
     if opt == '--help':
       PrintUsage(None)
     elif opt == '--output':
-      if val not in ('emacs', 'vs7', 'eclipse'):
-        PrintUsage('The only allowed output formats are emacs, vs7 and eclipse.')
+      if val not in ('emacs', 'vs7', 'eclipse', 'tap'):
+        PrintUsage(
+            'The only allowed output formats are emacs, vs7, eclipse and tap.')
       output_format = val
     elif opt == '--verbose':
       verbosity = int(val)
@@ -6064,6 +6081,8 @@ def ParseArguments(args):
           _valid_extensions = set(val.split(','))
       except ValueError:
           PrintUsage('Extensions must be comma seperated list.')
+    elif opt == '--logfile':
+      logger.addHandler(logging.FileHandler(val, mode='wb'))
 
   if not filenames:
     PrintUsage('No files were specified.')
@@ -6085,6 +6104,12 @@ def main():
                                          codecs.getreader('utf8'),
                                          codecs.getwriter('utf8'),
                                          'replace')
+
+  logger.addHandler(logging.StreamHandler(sys.stdout))
+  logger.setLevel(logging.INFO)
+
+  if _cpplint_state.output_format == 'tap':
+    logger.info('TAP version 13')
 
   _cpplint_state.ResetErrorCounts()
   for filename in filenames:
