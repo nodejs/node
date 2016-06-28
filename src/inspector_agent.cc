@@ -575,23 +575,23 @@ Agent::~Agent() {
 
 void Agent::Start(v8::Platform* platform, int port, bool wait) {
   impl->Start(platform, port, wait);
-};
+}
 
 void Agent::Stop() {
   impl->Stop();
-};
+}
 
 bool Agent::IsStarted() {
   return impl->IsStarted();
-};
+}
 
 bool Agent::IsConnected() {
   return impl->IsConnected();
-};
+}
 
 void Agent::WaitForDisconnect() {
   impl->WaitForDisconnect();
-};
+}
 
 }  // namespace inspector
 }  // namespace node
