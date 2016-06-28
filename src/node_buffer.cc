@@ -1248,9 +1248,7 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
       std::swap(ts_obj_data[i], ts_obj_data[i + 7]);
       std::swap(ts_obj_data[i + 1], ts_obj_data[i + 6]);
       std::swap(ts_obj_data[i + 2], ts_obj_data[i + 5]);
-      // NOLINT added because current cpplint.py is old and doesn't know that
-      // std::swap() now lives in <utility> instead of <algorithm>.
-      std::swap(ts_obj_data[i + 3], ts_obj_data[i + 4]);  // NOLINT
+      std::swap(ts_obj_data[i + 3], ts_obj_data[i + 4]);
     }
   }
 
