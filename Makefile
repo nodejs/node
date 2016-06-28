@@ -645,8 +645,6 @@ CPPLINT_EXCLUDE += src/v8abbr.h
 CPPLINT_EXCLUDE += $(wildcard test/addons/??_*/*.cc test/addons/??_*/*.h)
 
 CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
-	deps/debugger-agent/include/* \
-	deps/debugger-agent/src/* \
 	src/*.c \
 	src/*.cc \
 	src/*.h \
