@@ -257,7 +257,7 @@ class QueryWrap : public AsyncWrap {
       req_wrap_obj->Set(env->domain_string(), env->domain_array()->Get(0));
   }
 
-  virtual ~QueryWrap() override {
+  ~QueryWrap() override {
     CHECK_EQ(false, persistent().IsEmpty());
     ClearWrap(object());
     persistent().Reset();
