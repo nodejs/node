@@ -171,7 +171,7 @@ class StringSearch : private StringSearchBase {
   }
 
  private:
-  typedef size_t (*SearchFunction)(  // NOLINT - it's not a cast!
+  typedef size_t (*SearchFunction)(
       StringSearch<PatternChar, SubjectChar>*,
       Vector<const SubjectChar>,
       size_t);
