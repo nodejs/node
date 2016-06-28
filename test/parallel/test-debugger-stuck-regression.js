@@ -16,7 +16,7 @@ const args = [
   fixture
 ];
 
-const TEST_TIMEOUT_MS = 4000;
+const TEST_TIMEOUT_MS = common.platformTimeout(4000);
 
 function onTestTimeout() {
   common.fail('The debuggee did not terminate.');
