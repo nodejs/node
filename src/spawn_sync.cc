@@ -973,7 +973,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   data_size = 0;
   for (uint32_t i = 0; i < length; i++) {
     data_size += StringBytes::StorageSize(isolate, js_array->Get(i), UTF8) + 1;
-    data_size = ROUND_UP(data_size, sizeof(void*));  // NOLINT(runtime/sizeof)
+    data_size = ROUND_UP(data_size, sizeof(void*));
   }
 
   buffer = new char[list_size + data_size];
@@ -989,8 +989,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
                                       js_array->Get(i),
                                       UTF8);
     buffer[data_offset++] = '\0';
-    data_offset = ROUND_UP(data_offset,
-                           sizeof(void*));  // NOLINT(runtime/sizeof)
+    data_offset = ROUND_UP(data_offset, sizeof(void*));
   }
 
   list[length] = nullptr;
