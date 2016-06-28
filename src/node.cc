@@ -215,7 +215,7 @@ static struct {
   void Dispose() {}
 #if HAVE_INSPECTOR
   void StartInspector(Environment *env, int port, bool wait) {
-    env->ThrowError("Node compiled with NODE_NO_V8_PLATFORM");
+    env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
   }
 #endif  // HAVE_INSPECTOR
 
