@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 #ifdef __APPLE__
-#include <tr1/type_traits>
+#include <tr1/type_traits>  // NOLINT(build/c++tr1)
 #else
 #include <type_traits>  // std::remove_reference
 #endif
