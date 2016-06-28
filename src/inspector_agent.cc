@@ -240,18 +240,15 @@ class ChannelImpl final : public blink::protocol::FrontendChannel {
   explicit ChannelImpl(AgentImpl* agent): agent_(agent) {}
   virtual ~ChannelImpl() {}
  private:
-  virtual void sendProtocolResponse(int callId,
-                                    const String16& message)
-                                    override {
+  void sendProtocolResponse(int callId, const String16& message) override {
     sendMessageToFrontend(message);
   }
 
-  virtual void sendProtocolNotification(
-      const String16& message) override {
+  void sendProtocolNotification(const String16& message) override {
     sendMessageToFrontend(message);
   }
 
-  virtual void flushProtocolNotifications() override { }
+  void flushProtocolNotifications() override { }
 
   void sendMessageToFrontend(const String16& message) {
     agent_->Write(message.utf8());
