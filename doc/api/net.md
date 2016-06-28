@@ -190,7 +190,7 @@ The `callback` function is invoked with two arguments:
 
 * `err` {Error} `null` if the operation was successful or `Error` if an
   error occurred.
-* `count` {number} The number of connections
+* `count` {number} The number of connections.
 
 ```js
 server.getConnections((err, count) => {
