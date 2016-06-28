@@ -597,8 +597,9 @@ deprecated: v1.0.0
 * `path` {String | Buffer}
 * `callback` {Function}
 
-Test whether or not the given path exists by checking with the file system.
-Then call the `callback` argument with either true or false.  Example:
+Test whether or not the given path exists and is accessible by checking
+with the file system. Then call the `callback` argument with either
+true or false.  Example:
 
 ```js
 fs.exists('/etc/passwd', (exists) => {
@@ -615,16 +616,12 @@ non-existent.
 ## fs.existsSync(path)
 <!-- YAML
 added: v0.1.21
-deprecated: v1.0.0
 -->
-
-> Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][]
-> instead.
 
 * `path` {String | Buffer}
 
 Synchronous version of [`fs.exists()`][].
-Returns `true` if the file exists, `false` otherwise.
+Returns `true` if the file exists and is accessible, `false` otherwise.
 
 ## fs.fchmod(fd, mode, callback)
 <!-- YAML
