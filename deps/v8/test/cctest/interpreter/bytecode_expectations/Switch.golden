@@ -472,7 +472,7 @@ handlers: [
 snippet: "
   var a = 1;
   switch(a) {
-   case 1:
+   case 1: 
      switch(a + 1) {
         case 2 : a = 1; break;
         default : a = 2; break;
@@ -521,3 +521,4 @@ constant pool: [
 ]
 handlers: [
 ]
+
