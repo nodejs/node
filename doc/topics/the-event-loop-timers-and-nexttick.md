@@ -192,7 +192,7 @@ scripts have been queued with `setImmediate()`, the event loop may
 continue to the `check` phase rather than waiting.
 
 `setImmediate()` is actually a special timer that runs in a separate
-phase of the event eoop. It uses a libuv API that schedules callbacks to
+phase of the event loop. It uses a libuv API that schedules callbacks to
 execute after the `poll` phase has completed.
 
 Generally, as the code is executed, the event loop will eventually hit
