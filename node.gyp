@@ -9,6 +9,7 @@
     'node_use_v8_platform%': 'true',
     'node_use_bundled_v8%': 'true',
     'node_shared%': 'false',
+    'force_dynamic_crt%': 0,
     'node_module_version%': '',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
@@ -247,7 +248,7 @@
             'NODE_SHARED_MODE',
           ],
           'conditions': [
-            [ 'node_module_version!=""', {
+            [ 'node_module_version!="" and OS!="win"', {
               'product_extension': '<(shlib_suffix)',
             }]
           ],
