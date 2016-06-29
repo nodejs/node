@@ -8,6 +8,7 @@
 #include "node_version.h"
 #include "v8-platform.h"
 #include "util.h"
+#include "zlib.h"
 
 #include "platform/v8_inspector/public/InspectorVersion.h"
 #include "platform/v8_inspector/public/V8Inspector.h"
@@ -40,6 +41,10 @@ const char TAG_DISCONNECT[] = "#disconnect";
 
 const char DEVTOOLS_PATH[] = "/node";
 const char DEVTOOLS_HASH[] = V8_INSPECTOR_REVISION;
+
+static const uint8_t PROTOCOL_JSON[] = {
+#include "v8_inspector_protocol_json.h"  // NOLINT(build/include_order)
+};
 
 void PrintDebuggerReadyMessage(int port) {
   fprintf(stderr, "Debugger listening on port %d.\n"
@@ -161,6 +166,27 @@ void SendTargentsListResponse(InspectorSocket* socket,
   SendHttpResponse(socket, buffer.data(), len);
 }
 
+void SendProtocolJson(InspectorSocket* socket) {
+  z_stream strm;
+  strm.zalloc = Z_NULL;
+  strm.zfree = Z_NULL;
+  strm.opaque = Z_NULL;
+  CHECK_EQ(Z_OK, inflateInit(&strm));
+  static const size_t kDecompressedSize =
+      PROTOCOL_JSON[0] * 0x10000u +
+      PROTOCOL_JSON[1] * 0x100u +
+      PROTOCOL_JSON[2];
+  strm.next_in = PROTOCOL_JSON + 3;
+  strm.avail_in = sizeof(PROTOCOL_JSON) - 3;
+  std::vector<char> data(kDecompressedSize);
+  strm.next_out = reinterpret_cast<Byte*>(&data[0]);
+  strm.avail_out = data.size();
+  CHECK_EQ(Z_STREAM_END, inflate(&strm, Z_FINISH));
+  CHECK_EQ(0, strm.avail_out);
+  CHECK_EQ(Z_OK, inflateEnd(&strm));
+  SendHttpResponse(socket, &data[0], data.size());
+}
+
 const char* match_path_segment(const char* path, const char* expected) {
   size_t len = strlen(expected);
   if (StringEqualNoCaseN(path, expected, len)) {
@@ -179,6 +205,8 @@ bool RespondToGet(InspectorSocket* socket, const std::string& script_name_,
 
   if (match_path_segment(command, "list") || command[0] == '\0') {
     SendTargentsListResponse(socket, script_name_, script_path_, port);
+  } else if (match_path_segment(command, "protocol")) {
+    SendProtocolJson(socket);
   } else if (match_path_segment(command, "version")) {
     SendVersionResponse(socket);
   } else {

@@ -323,6 +323,7 @@
           'dependencies': [
             'deps/v8_inspector/third_party/v8_inspector/platform/'
                 'v8_inspector/v8_inspector.gyp:v8_inspector_stl',
+            'v8_inspector_compress_protocol_json#host',
           ],
           'include_dirs': [
             'deps/v8_inspector/third_party/v8_inspector',
@@ -650,6 +651,34 @@
           ],
         } ]
       ]
+    },
+    {
+      'target_name': 'v8_inspector_compress_protocol_json',
+      'type': 'none',
+      'toolsets': ['host'],
+      'conditions': [
+        [ 'v8_inspector=="true"', {
+          'actions': [
+            {
+              'action_name': 'v8_inspector_compress_protocol_json',
+              'process_outputs_as_sources': 1,
+              'inputs': [
+                'deps/v8_inspector/third_party/'
+                    'v8_inspector/platform/v8_inspector/js_protocol.json',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/v8_inspector_protocol_json.h',
+              ],
+              'action': [
+                'python',
+                'tools/compress_json.py',
+                '<@(_inputs)',
+                '<@(_outputs)',
+              ],
+            },
+          ],
+        }],
+      ],
     },
     {
       'target_name': 'node_js2c',

@@ -16,6 +16,7 @@ exports.testDir = __dirname;
 exports.fixturesDir = path.join(exports.testDir, 'fixtures');
 exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDirName = 'tmp';
+// PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
 exports.isWindows = process.platform === 'win32';
 exports.isWOW64 = exports.isWindows &&
