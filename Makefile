@@ -227,7 +227,7 @@ test-timers:
 test-timers-clean:
 	$(MAKE) --directory=tools clean
 
-test-v8:
+test-v8: v8
 	# note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) $(V8_TEST_NO_I18N) $(QUICKCHECK_ARG) \
@@ -235,14 +235,14 @@ test-v8:
         --shell-dir=$(PWD)/deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) \
 	 $(TAP_V8)
 
-test-v8-intl:
+test-v8-intl: v8
 	# note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) --no-presubmit $(QUICKCHECK_ARG) \
         --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) intl \
         $(TAP_V8_INTL)
 
-test-v8-benchmarks:
+test-v8-benchmarks: v8
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) --mode=$(BUILDTYPE_LOWER) \
         --download-data $(QUICKCHECK_ARG) --no-presubmit \
         --shell-dir=deps/v8/out/$(V8_ARCH).$(BUILDTYPE_LOWER) benchmarks \
