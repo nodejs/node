@@ -78,11 +78,24 @@
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
+          }],
+          ['node_shared=="true"', {
+            'msvs_settings': {
+             'VCCLCompilerTool': {
+               'RuntimeLibrary': 3, # MultiThreadedDebugDLL (/MDd)
+             }
+            }
+          }],
+          ['node_shared=="false"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'RuntimeLibrary': 1 # MultiThreadedDebug (/MTd)
+              }
+            }
           }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'RuntimeLibrary': 1, # static debug
             'Optimization': 0, # /Od, no optimization
             'MinimalRebuild': 'false',
             'OmitFramePointers': 'false',
@@ -115,11 +128,24 @@
           ['OS == "android"', {
             'cflags': [ '-fPIE' ],
             'ldflags': [ '-fPIE', '-pie' ]
+          }],
+          ['node_shared=="true"', {
+            'msvs_settings': {
+             'VCCLCompilerTool': {
+               'RuntimeLibrary': 2 # MultiThreadedDLL (/MD)
+             }
+            }
+          }],
+          ['node_shared=="false"', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'RuntimeLibrary': 0 # MultiThreaded (/MT)
+              }
+            }
           }]
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'RuntimeLibrary': 0, # static release
             'Optimization': 3, # /Ox, full optimization
             'FavorSizeOrSpeed': 1, # /Ot, favour speed over size
             'InlineFunctionExpansion': 2, # /Ob2, inline anything eligible
